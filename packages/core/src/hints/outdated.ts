@@ -18,9 +18,10 @@
 //   Relations stored in a repository that is not on this machine cannot be read (spec question
 //   #262, option 1); the check reports that repository as missing (SR-006).
 // - Each finding (`OutdatedFinding`) keeps its source, target, both versions and a problem: code
-//   `relation.outdated`, severity `warning` (a "Hinweis", D-042; SR-019 AK2 ends the check with exit
-//   code 1 for it, ADR-0009), the source's repository and file, the line of the item or link,
-//   `elementId` (the source), `targetId`, `storedVersion`, `currentVersion` and `hintId`
+//   `relation.outdated` (`variant.core-changed` for a replacement in a variant onto a core
+//   requirement, `core-changed.ts`, SR-045), severity `warning` (a "Hinweis", D-042; SR-019 AK2 ends
+//   the check with exit code 1 for it, ADR-0009), the source's repository and file, the line of the
+//   item or link, `elementId` (the source), `targetId`, `storedVersion`, `currentVersion` and `hintId`
 //   (`hint-id.ts`, which `hint.confirm` resolves). `datedProblems` adds the dates of both versions
 //   (`storedDate`, `currentDate`, D-013) per call; they are not kept in the state, since a new commit
 //   moves no file and a kept state would show old dates.
@@ -80,7 +81,9 @@ import type { Workspace } from "../runtime/workspace.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import { availableRepositories, workspaceLayoutState } from "../workspace/index.js";
-import { OUTDATED_CODE, hintIdOf } from "./hint-id.js";
+import { isCoreChange } from "./core-changed.js";
+import type { ConfirmableCode } from "./hint-id.js";
+import { CORE_CHANGED_CODE, OUTDATED_CODE, hintIdOf } from "./hint-id.js";
 import { forEachSliced } from "./slices.js";
 
 /** What the check needs: where targets are, their current versions, and short IDs for messages (SR-084). */
@@ -129,8 +132,9 @@ const problemOf = (
   message: string,
   versions: { readonly stored: string; readonly current: string },
   hintId: string,
+  code: ConfirmableCode = OUTDATED_CODE,
 ): Problem => ({
-  code: OUTDATED_CODE,
+  code,
   severity: "warning",
   message,
   repository: element.repository,
@@ -260,21 +264,28 @@ const candidateOf = (
   const versions = { stored, current };
   if (link.kind === "relation") {
     const { key, named } = link;
+    // A replacement in a variant onto a changed core requirement is one hint of its own (SR-045 AK1).
+    const code = isCoreChange(context.metamodel, element, key, target) ? CORE_CHANGED_CODE : OUTDATED_CODE;
     const hintId = hintIdOf({
       kind: "relation",
+      code,
       ...place,
       key,
       target: target.id,
       ...(typeof named === "string" ? { repository: named } : {}),
       version: stored,
     });
-    const message = `${link.label} of ${elementLabel(context, element)} points to an older version of ${elementLabel(context, target)}`;
-    const problem = problemOf(element, target, message, versions, hintId);
+    const message =
+      code === CORE_CHANGED_CODE
+        ? `Core requirement ${elementLabel(context, target)}, which ${elementLabel(context, element)} replaces, has changed since the replacement stored its version`
+        : `${link.label} of ${elementLabel(context, element)} points to an older version of ${elementLabel(context, target)}`;
+    const problem = problemOf(element, target, message, versions, hintId, code);
     return { path: link.path, finding: { element, target, stored, current, hintId, problem } };
   }
   const { repository, occurrence, key } = link;
   const hintId = hintIdOf({
     kind: "reference",
+    code: OUTDATED_CODE,
     ...place,
     target: target.id,
     ...(repository === undefined ? {} : { repository }),
@@ -403,8 +414,8 @@ export const outdatedOfShown = async (
 
 /**
  * The elements of `elements` that store at least one outdated relation, relation property or inline
- * reference, by the rule of `outdatedOfShown` (the `relation.outdated` hints of element.get, which
- * the modeline counts): for the marks of trace.graph (SR-111 AK4). One `currentVersionsOf` for the
+ * reference, by the rule of `outdatedOfShown` (the `relation.outdated` and `variant.core-changed`
+ * hints of element.get, which the modeline counts): for the marks of trace.graph (SR-111 AK4). One `currentVersionsOf` for the
  * targets of all of them; no finding, message or hint ID is built.
  */
 export const outdatedAmong = async (

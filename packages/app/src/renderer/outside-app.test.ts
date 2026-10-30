@@ -16,6 +16,7 @@ import { App } from "./App.js";
 import { GONE_CONFIRM_MS } from "./outside-change.js";
 import { FRESH_MS } from "./outside-marks.js";
 import { OUTSIDE_CHANGE } from "./use-outside-marks.js";
+import { NO_SUMMARY } from "./package-summary-test-data.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -167,7 +168,7 @@ const fake = () => {
               message: `${String(input["ref"])} is not an element of the workspace`,
             },
           }
-        : { ok: true, output: handlers[name]?.(input) },
+        : { ok: true, output: (handlers[name] ?? NO_SUMMARY[name])?.(input) },
     ),
   );
   const bridge: ReqSeqBridge = {

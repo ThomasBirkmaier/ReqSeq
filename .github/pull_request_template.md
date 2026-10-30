@@ -6,7 +6,7 @@ Closes #
 
 ## System requirements
 
-<!-- One line per SR: SR-xxx and which acceptance criteria this PR covers. Enabler PRs: write "enabler" and the issue. -->
+<!-- One line per SR: SR-xxx and which acceptance criteria this PR covers. Enabler PRs: write "enabler" and the issue, and set the label `enabler` when opening the PR (trace-check reads it). -->
 
 ## Verification
 

@@ -1,0 +1,11 @@
+reqseq-baseline: 1
+name: Release 1
+date: 2026-11-02T13:00:00Z
+selection:
+  view: { id: ca0dd4a9-6f1e-4c3a-9d55-2b7c1e8f0a11, title: Pro }
+repositories:
+  - { name: system, commit: 3b18e512dba79e4c8300dd08aeb37f8e728b8dad }
+  - { name: sensor, commit: 1f2a6c3b9e8d7f6a5b4c3d2e1f0a9b8c7d6e5f4a }
+elements:
+  - { id: 102ee39b-773f-4cd0-b414-825b7146fb54, version: n1:fcde2b2edba56bf4 }
+  - { id: fe5fce30-087e-4bbd-82e4-0f03900e5af3, version: n1:e3b0c44298fc1c14, repository: sensor }

@@ -305,6 +305,16 @@ describe("invoke (product runtime)", () => {
     }
   });
 
+  it("runs a write-files command as a write of the workspace, which the watcher waits for (#432)", async () => {
+    const ws = new Workspace("/nowhere");
+    const run = vi.spyOn(ws, "runCommand");
+    const rt = createCommandRuntime();
+    // Both fail inside the command (no workspace there); what counts is how they ran.
+    await rejection(rt.invoke("element.create", { type: "need", title: "T" }, { workspace: ws }));
+    await rejection(rt.invoke("element.list", {}, { workspace: ws }));
+    expect(run.mock.calls.map(([, options]) => options)).toEqual([{ writes: true }, { writes: false }]);
+  });
+
   it("runs on a fixture workspace and reports catalog commands without implementation", async () => {
     const fixture = await createFixtureWorkspace({
       files: { "reqseq-workspace.yaml": "reqseq-workspace: 1\n" },
@@ -313,15 +323,15 @@ describe("invoke (product runtime)", () => {
     onTestFinished(() => fixture.cleanup());
     const ws = new Workspace(fixture.root);
     expect(fs.existsSync(fixture.path("reqseq-workspace.yaml"))).toBe(true);
-    // baseline.list is a stage 5 command: in the catalog, not implemented yet.
-    const err = await rejection(invoke("baseline.list", {}, { workspace: ws }));
+    // reqif.analyze is a stage 6 command: in the catalog, not implemented yet.
+    const err = await rejection(invoke("reqif.analyze", {}, { workspace: ws }));
     expect(err.toJSON()).toEqual({
       code: "command.not-implemented",
-      message: "Command baseline.list is not implemented yet",
-      details: { command: "baseline.list" },
+      message: "Command reqif.analyze is not implemented yet",
+      details: { command: "reqif.analyze" },
     });
     // The default runtime is created once and reused.
-    expect((await rejection(invoke("baseline.list", {}, { workspace: ws }))).code).toBe(
+    expect((await rejection(invoke("reqif.analyze", {}, { workspace: ws }))).code).toBe(
       "command.not-implemented",
     );
   });

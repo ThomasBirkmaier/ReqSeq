@@ -5,6 +5,7 @@
 // renderer takes (ADR-0010); the Electron tests (packages/app/test) run it in the app itself. New catalog
 // commands join automatically with a default scenario (input `{}`); add explicit scenarios below when a
 // command is implemented.
+import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
@@ -13,11 +14,17 @@ import os from "node:os";
 import path from "node:path";
 import { PassThrough, Readable } from "node:stream";
 import type { MessagePort } from "node:worker_threads";
+import { promisify } from "node:util";
 import { MessageChannel } from "node:worker_threads";
 import { startApiServer } from "@reqseq/api";
 import type { Channel, IpcRendererLike } from "@reqseq/app";
 import { SAVE_CHANNEL, WORKSPACE_CHANNEL, createBridge, createCoreHost } from "@reqseq/app";
-import type { CatalogEntry, CommandName, MetamodelGetOutput as MetamodelOutput } from "@reqseq/core";
+import type {
+  CatalogEntry,
+  CommandName,
+  MetamodelGetOutput as MetamodelOutput,
+  VariantDiffOutput,
+} from "@reqseq/core";
 import {
   CommandError,
   Workspace,
@@ -64,8 +71,9 @@ interface Scenario {
    */
   readonly newElement?: boolean;
   /**
-   * Prepares state outside the copy before each access, with the same result every time (the list of
-   * recent workspaces in the OS cache folder, SR-131).
+   * Prepares state before each access, with the same result every time (the list of recent
+   * workspaces in the OS cache folder, SR-131; a commit after a baseline, SR-051). A read command's
+   * shared copy is prepared once more before its files are taken, so the preparation must be idempotent.
    */
   readonly prepare?: (copy: Copy) => Promise<void>;
   /** More checks on the results of all accesses, after they compared equal. */
@@ -81,6 +89,12 @@ interface Written {
     readonly severity: string;
     readonly message: string;
   }[];
+}
+/** A level of evidence.coverage, as far as the SR-112 scenario reads it. */
+interface CoverageLevel {
+  readonly type: string;
+  readonly total: number;
+  readonly withEvidence?: number;
 }
 /** The key a message of element.missing-required names: "Required property Title (title) of type …". */
 const requiredKey = (message: string): string | undefined =>
@@ -127,6 +141,11 @@ const TYPE_AND_ID = [
 ];
 /** Derivations with a diamond, choices, numbers and titles to sort by (SR-075). */
 const SORT: FixtureOptions = { fixture: "SR-075/sort", git: true };
+/** A metamodel in which the type Variant has a validity; B's validity names A by hand, C relates to A (SR-039). */
+const NESTED: FixtureOptions = { fixture: "SR-039/nested", git: true };
+const NESTED_A = "39039039-0000-4000-8000-0000000000a1";
+/** Packages P1 and P2; R1 in both, R2 in P1, R3 in none (SR-048, SR-049). */
+const PACKAGES: FixtureOptions = { fixture: "SR-048/packages", git: true };
 /** Identifiers in natural order, a lower-case one and elements without one (#418). */
 const NATURAL: FixtureOptions = { fixture: "enabler-418/natural", git: true };
 /** Needs, requirements and their derivations (SR-023), shared so the fixture is built once. */
@@ -234,6 +253,37 @@ const VALIDATION: FixtureOptions = { fixture: "SR-038/validation", git: true };
 
 /** Requirements marked emergent, with and without own records, and their children (SR-035). */
 const EMERGENT: FixtureOptions = { fixture: "SR-035/emergent", git: true };
+/** The example of SR-043: variant A (VAR-0000c1) replaces K1 by A1, excludes K2 and adds A2. */
+const VARIANT_VIEWS: FixtureOptions = { fixture: "SR-043/example", git: true };
+/** SR-A (SR-0000b1, validity [VAR-0000c1]) replaces the core requirement SR-K (SR-0000a1), whose content changed (SR-045). */
+const CORE_CHANGED: FixtureOptions = {
+  fixture: "SR-045/core-changed",
+  git: true,
+  files: {
+    "requirements/SR-0000000000a1.md": `---\nid: 45045045-0000-4000-8000-0000000000a1\ntype: system-requirement\nstatus: draft\ntitle: Response time at most 10 ms\nrequirement-type: functional\nacceptance-criteria:\n  - Given a request, when it is sent, then the answer comes within 12 ms.\n---\n\nThe station answers within 12 ms.\n`,
+  },
+};
+
+/** A verification record of the example's `tail` with `result`, for `variant` when given (SR-047). */
+const exampleRecord = (tail: string, result: string, variant?: string): string =>
+  `---\nreqseq-record: 1\nkind: verification\nelement: 43043043-0000-4000-8000-0000000000${tail}\n` +
+  `version: n1:67ebd0624004c969\nmethod: test\n${variant === undefined ? "" : `variant: 43043043-0000-4000-8000-0000000000${variant}\n`}` +
+  `item: build-47\nresult: ${result}\ndate: 2026-11-01T10:00:00Z\n---\n`;
+
+/** The example of SR-043 with an evidence location: K2, excluded in A, passed in the core and failed in B; K1 with a record for A, which replaces it (SR-047). */
+const VARIANT_EVIDENCE: FixtureOptions = {
+  fixture: "SR-043/example",
+  files: {
+    "reqseq-workspace.yaml":
+      "reqseq-workspace: 1\nname: Weather station\nrepositories:\n" +
+      '  - { name: system, url: "git@git.example.com:ws/system.git", main: true }\n' +
+      "metamodel: { repository: system, path: metamodel }\nevidence:\n  - { repository: system, path: evidence }\n",
+    "evidence/k2-core.md": exampleRecord("a2", "passed"),
+    "evidence/k2-b.md": exampleRecord("a2", "failed", "c2"),
+    "evidence/k1-a.md": exampleRecord("a1", "passed", "c1"),
+  },
+  git: true,
+};
 
 /** SR-004/one-repository with an image to attach, whose name ReqSeq makes portable (SR-097). */
 const WITH_IMAGE: FixtureOptions = {
@@ -254,8 +304,114 @@ const MATRIX_EVIDENCE: FixtureOptions = { fixture: "SR-126/matrix", git: true };
 /** Two repositories with Markdown and JUnit records, variants, a package, a saved filter and baselines (SR-061). */
 const EXPORT: FixtureOptions = { fixture: "SR-061/export", git: ["system", "sensor"] };
 
+const execFileAsync = promisify(execFile);
+
+/**
+ * In `system` of an EXPORT copy: the baseline „Release 2“ of SR-0000b1 at HEAD, then a commit that
+ * changes SR-0000b1, with fixed author and dates, so every copy gets the same commits; once (SR-051 AK4).
+ */
+const changedSinceBaseline = async ({ root }: Copy): Promise<void> => {
+  const date = "2026-11-03T10:00:00Z";
+  const env = {
+    ...process.env,
+    GIT_AUTHOR_NAME: "t",
+    GIT_AUTHOR_EMAIL: "t@example.com",
+    GIT_COMMITTER_NAME: "t",
+  };
+  const git = (args: readonly string[]): Promise<{ stdout: string }> =>
+    execFileAsync("git", args, {
+      cwd: root,
+      env: { ...env, GIT_COMMITTER_EMAIL: "t@example.com", GIT_AUTHOR_DATE: date, GIT_COMMITTER_DATE: date },
+    });
+  const file = path.join(root, "baselines", "Release-2.yaml");
+  if (
+    await fs.stat(file).then(
+      () => true,
+      () => false,
+    )
+  ) {
+    return;
+  }
+  const head = (await git(["rev-parse", "HEAD"])).stdout.trim();
+  await fs.writeFile(
+    file,
+    "reqseq-baseline: 1\nname: Release 2\ndate: 2026-11-02T13:00:00Z\nrepositories:\n" +
+      `  - { name: system, commit: ${head} }\nelements:\n` +
+      "  - { id: 61061061-0000-4000-8000-0000000000b1, version: n1:697a2ad17ed49170 }\n",
+  );
+  const b1 = path.join(root, "requirements", "SR-0000000000b1.md");
+  await fs.writeFile(
+    b1,
+    (await fs.readFile(b1, "utf8")).replace("shows the speed.", "shows the speed in knots."),
+  );
+  await git(["commit", "-qam", "change"]);
+};
+
 /** Explicit scenarios per command, in addition to the default one with input `{}`. */
 const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
+  // The date of the baseline is checked to lie within each call and then masked (`withoutDate`).
+  "baseline.compare": [
+    {
+      name: "the two commits and the Git command for a changed element (SR-051 AK4)",
+      fixture: EXPORT,
+      root: "system",
+      input: { baseline: "Release 2", ref: "SR-0000b1" },
+      tag: "[SR-051/AK4]",
+      expect: "output",
+      prepare: changedSinceBaseline,
+    },
+    {
+      name: "a baseline whose commit is not here",
+      fixture: EXPORT,
+      root: "system",
+      input: { baseline: "release-1", ref: "SR-0000b1" },
+      expect: "error",
+    },
+  ],
+  "baseline.get": [
+    {
+      name: "a baseline with the version and its date of each element (SR-051 AK1)",
+      fixture: EXPORT,
+      root: "system",
+      input: { baseline: "release-1" },
+      tag: "[SR-051/AK1]",
+      expect: "output",
+    },
+    {
+      name: "the evidence status of each requirement at its baseline version (SR-094 AK1)",
+      fixture: { fixture: "SR-094/baseline", git: true },
+      input: { baseline: "Release 1", withEvidence: true },
+      tag: "[SR-094/AK1]",
+      expect: "output",
+    },
+  ],
+  "baseline.list": [
+    {
+      name: "the valid baselines and the problems of a faulty file",
+      fixture: EXPORT,
+      root: "system",
+      input: {},
+      expect: "output",
+    },
+  ],
+  "baseline.create": [
+    {
+      name: "a baseline file of a package with the commit and the elements (SR-050 AK1)",
+      fixture: EXPORT,
+      root: "system",
+      input: { name: "Release 2", selection: { package: "PKG-0000d1" } },
+      tag: "[SR-050/AK1]",
+      expect: "output",
+    },
+    {
+      name: "a name a baseline has, nothing written (SR-050 AK6)",
+      fixture: EXPORT,
+      root: "system",
+      input: { name: "release 1", selection: { package: "PKG-0000d1" } },
+      tag: "[SR-050/AK6]",
+      expect: "error",
+    },
+  ],
   "data.export": [
     {
       name: "the whole workspace with record files",
@@ -320,6 +476,31 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
   ],
   "element.bulkUpdate": [
     {
+      name: "a variant is not given validity entries: the preview names it, the confirmation is refused",
+      fixture: NESTED,
+      input: {
+        selection: { ids: ["VAR-0000c3"] },
+        property: "validity",
+        operation: "add",
+        value: { id: NESTED_A },
+      },
+      tag: "[SR-039/AK2]",
+      expect: "output",
+    },
+    {
+      name: "a confirmation that would give a variant validity entries is refused (variant.nested)",
+      fixture: NESTED,
+      input: {
+        selection: { ids: ["VAR-0000c3"] },
+        property: "validity",
+        operation: "add",
+        value: { id: NESTED_A },
+        confirm: true,
+      },
+      tag: "[SR-039/AK2]",
+      expect: "error",
+    },
+    {
       name: "a preview: the number of affected elements and the skipped ones, nothing written (SR-071 AK2, AK3)",
       fixture: FILTER,
       input: { selection: {}, property: "priority", operation: "set", value: 4 },
@@ -371,6 +552,21 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
   ],
   "element.create": [
     {
+      name: "a variant is an element file of type variant in the workspace of the core",
+      fixture: { fixture: "SR-040/validity", git: true },
+      input: { type: "variant", title: "Valley" },
+      tag: "[SR-039/AK1]",
+      expect: "output",
+      newElement: true,
+    },
+    {
+      name: "a variant with validity entries is refused (variant.nested)",
+      fixture: NESTED,
+      input: { type: "variant", title: "South coast", properties: { validity: [{ id: NESTED_A }] } },
+      tag: "[SR-039/AK2]",
+      expect: "error",
+    },
+    {
       name: "new element in a new folder",
       input: {
         type: "system-requirement",
@@ -407,6 +603,21 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       },
     },
     {
+      name: "a package is an element file of type package",
+      input: { type: "package", title: "Release 3" },
+      tag: "[SR-048/AK1]",
+      expect: "output",
+      newElement: true,
+      check: (results) => {
+        const output = (results["core"]?.outcome as { output: Written }).output;
+        const file = "package/PKG-<tail12>.md";
+        expect(output.files).toEqual([file]);
+        expect(results["core"]?.files[file]).toBe(
+          "---\nid: <id>\ntype: package\nstatus: draft\ntitle: Release 3\n---\n",
+        );
+      },
+    },
+    {
       name: "choice values by display name, in any case, written as keys (#309)",
       input: {
         type: "system-requirement",
@@ -432,6 +643,29 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
     },
   ],
   "element.get": [
+    {
+      tag: "[SR-046/AK3]",
+      name: "element.get names A as replacing and B as excluding variant",
+      fixture: {
+        ...VARIANT_VIEWS,
+        files: {
+          "variants/VAR-0000000000c2.md":
+            "---\nid: 43043043-0000-4000-8000-0000000000c2\ntype: variant\nstatus: draft\ntitle: Mountain\n" +
+            "excludes: [{ id: 43043043-0000-4000-8000-0000000000a1 }]\n---\n",
+        },
+      },
+      input: { ref: "SR-0000a1" },
+      expect: "output",
+      check: (results) => {
+        const { element } = (results["core"]?.outcome as { output: { element: Record<string, unknown> } })
+          .output;
+        const P = "43043043-0000-4000-8000-0000000000";
+        expect([element["replacedBy"], element["excludedBy"]]).toEqual([
+          [{ variant: `${P}c1`, replacement: `${P}b1` }],
+          [`${P}c2`],
+        ]);
+      },
+    },
     {
       name: "an element with a reference in an acceptance criterion: its outdated hint (SR-127 AK3)",
       fixture: IN_CRITERIA,
@@ -536,6 +770,34 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
   ],
   "element.list": [
     {
+      tag: "[SR-041/AK1]",
+      name: "the view of A lists A1 instead of K1",
+      fixture: VARIANT_VIEWS,
+      input: { selection: { view: "VAR-0000c1" } },
+      expect: "output",
+      check: (results) => {
+        const output = (results["core"]?.outcome as { output: { elements: { shortId: string }[] } }).output;
+        const shown = output.elements.map((e) => e.shortId);
+        expect([shown.includes("SR-0000b1"), shown.includes("SR-0000a1")]).toEqual([true, false]);
+      },
+    },
+    {
+      tag: "[SR-043/AK1]",
+      name: "the view of A holds K3, K4, A1 and A2 of the requirements",
+      fixture: VARIANT_VIEWS,
+      input: { selection: { view: "VAR-0000c1", where: { type: ["system-requirement"] } } },
+      expect: "output",
+      check: (results) => {
+        const output = (results["core"]?.outcome as { output: { elements: { shortId: string }[] } }).output;
+        expect(output.elements.map((e) => e.shortId)).toEqual([
+          "SR-0000a3",
+          "SR-0000a4",
+          "SR-0000b1",
+          "SR-0000b2",
+        ]);
+      },
+    },
+    {
       name: "requirements without child, combined, one page with text (SR-069 AK1 to AK3)",
       fixture: FILTER,
       input: {
@@ -568,6 +830,20 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       },
       expect: "output",
     },
+    ...[
+      { pkg: "PKG-0000d1", members: ["SR-0000b1", "SR-0000b2"] },
+      { pkg: "PKG-0000d2", members: ["SR-0000b1"] },
+    ].map(({ pkg, members }) => ({
+      name: `a requirement in P1 and P2 appears in both: the elements of ${pkg}`,
+      tag: "[SR-049/AK1]",
+      fixture: PACKAGES,
+      input: { selection: { package: pkg } },
+      expect: "output" as const,
+      check: (results: Readonly<Record<string, Result>>) => {
+        const output = (results["core"]?.outcome as { output: { elements: { shortId: string }[] } }).output;
+        expect(output.elements.map((e) => e.shortId)).toEqual(members);
+      },
+    })),
     {
       name: "the condition emergent (SR-035)",
       fixture: EMERGENT,
@@ -770,8 +1046,16 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       expect: "error",
     },
     {
-      name: "several replacement kinds fit (relation-ambiguous)",
-      fixture: { fixture: "SR-072/supersede", git: true },
+      name: "several succession kinds fit (relation-ambiguous)",
+      fixture: {
+        fixture: "SR-072/supersede",
+        git: true,
+        // A second kind with the meaning succession next to `supersedes`.
+        files: {
+          "metamodel/succession.yaml":
+            "reqseq-metamodel: 1\nrelations:\n  - { key: obsoletes, name: Obsoletes, meaning: succession }\n",
+        },
+      },
       input: { ref: "SR-f6a7b8", status: "obsolete", successor: "SR-a7b8c9" },
       expect: "error",
     },
@@ -831,6 +1115,20 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
     },
   ],
   "element.update": [
+    {
+      name: "a variant whose validity names a variant is refused (variant.nested)",
+      fixture: NESTED,
+      input: { ref: "VAR-0000b2", title: "North" },
+      tag: "[SR-039/AK2]",
+      expect: "error",
+    },
+    {
+      name: "a relation between variants is allowed",
+      fixture: NESTED,
+      input: { ref: "VAR-0000c3", title: "Mountains" },
+      tag: "[SR-039/AK2]",
+      expect: "output",
+    },
     {
       name: "update a superseded element with a successor: same view with the successor relation everywhere (consistency, SR-072 AK3)",
       fixture: {
@@ -918,6 +1216,21 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       expect: "output",
     },
     {
+      name: "a package page counts 8 of 10 requirements with evidence, not its need",
+      fixture: DEGREE,
+      input: { selection: { package: "PKG-00d003" } },
+      tag: "[SR-112/AK3]",
+      expect: "output",
+      check: (results) => {
+        const { levels } = (results["core"]?.outcome as { output: { levels: readonly CoverageLevel[] } })
+          .output;
+        expect(levels.map(({ type, total, withEvidence }) => [type, total, withEvidence])).toEqual([
+          ["need", 1, undefined],
+          ["system-requirement", 10, 8],
+        ]);
+      },
+    },
+    {
       name: "an unknown package gives the same error (#535 fixture)",
       fixture: EVIDENCE,
       input: { selection: { package: "PKG-ffffff" } },
@@ -948,6 +1261,20 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       fixture: DEGREE,
       input: { selection: { package: "PKG-00d002" } },
       expect: "output",
+    },
+    {
+      name: "a package page counts 6 verified, 1 failed, 1 outdated and 2 open",
+      fixture: DEGREE,
+      input: { selection: { package: "PKG-00d003" } },
+      tag: "[SR-112/AK3]",
+      expect: "output",
+      check: (results) => {
+        expect((results["core"]?.outcome as { output: { degree: unknown } }).output.degree).toEqual({
+          share: 0.6,
+          total: 10,
+          counts: { open: 2, verified: 6, indirect: 0, failed: 1, outdated: 1 },
+        });
+      },
     },
     {
       name: "a package with obsolete requirements in the core view (SR-037 AK3)",
@@ -1052,8 +1379,43 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       input: { ref: "SR-ffffff", kind: "validation", result: "passed", date: "2026-10-27T10:00:00Z" },
       expect: "error",
     },
+    {
+      name: "a record for a variant that excludes the requirement is refused (SR-047 AK4)",
+      fixture: VARIANT_EVIDENCE,
+      input: {
+        ref: "SR-0000a2",
+        kind: "verification",
+        method: "test",
+        item: "build-47",
+        result: "passed",
+        variant: "VAR-0000c1",
+      },
+      tag: "[SR-047/AK4]",
+      expect: "error",
+    },
+    {
+      name: "a record for a variant that replaces the requirement is refused (SR-047 AK4)",
+      fixture: VARIANT_EVIDENCE,
+      input: {
+        ref: "SR-0000a1",
+        kind: "verification",
+        method: "test",
+        item: "build-47",
+        result: "passed",
+        variant: "VAR-0000c1",
+      },
+      tag: "[SR-047/AK4]",
+      expect: "error",
+    },
   ],
   "evidence.status": [
+    {
+      name: "no row for a variant that excludes or replaces the requirement (SR-047 AK3)",
+      fixture: VARIANT_EVIDENCE,
+      input: { selection: { ids: ["SR-0000a1", "SR-0000a2", "SR-0000b1"] } },
+      tag: "[SR-047/AK3]",
+      expect: "output",
+    },
     {
       name: "the verification status of a workspace with an evidence location (#535, SR-031)",
       fixture: EVIDENCE,
@@ -1191,6 +1553,22 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       expect: "output",
     },
     { name: "no package", fixture: HINTS, input: { package: "VAR-0000c1" }, expect: "error" },
+    {
+      tag: "[SR-045/AK1]",
+      name: "a changed core requirement is one hint at its replacement, listed for the variant",
+      fixture: CORE_CHANGED,
+      input: { variant: "VAR-0000c1", kind: ["variant.core-changed", "relation.outdated"] },
+      expect: "output",
+      check: (results) => {
+        const output = (
+          results["core"]?.outcome as { output: { hints: { code: string; elementShortId: string }[] } }
+        ).output;
+        expect(output.hints.map((h) => [h.code, h.elementShortId])).toEqual([
+          ["variant.core-changed", "SR-0000b1"],
+          ["relation.outdated", "SR-0000b2"],
+        ]);
+      },
+    },
   ],
   "hint.confirm": [
     {
@@ -1644,6 +2022,72 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       expect: "error",
     },
   ],
+  "variant.diff": [
+    {
+      tag: "[SR-044/AK1]",
+      name: "A adds A2, replaces K1 by A1 and excludes K2",
+      fixture: VARIANT_VIEWS,
+      input: { variant: "VAR-0000c1" },
+      expect: "output",
+      check: (results) => {
+        const output = (results["core"]?.outcome as { output: VariantDiffOutput }).output;
+        const tail = (id: string): string => id.slice(-2);
+        expect([
+          output.added.map(tail),
+          output.replaced.map((row) => [tail(row.core), tail(row.replacement)]),
+          output.excluded.map(tail),
+        ]).toEqual([["b2"], [["a1", "b1"]], ["a2"]]);
+      },
+    },
+    {
+      tag: "[SR-044/AK3]",
+      name: "the replaced row names the IDs of core requirement and replacement",
+      fixture: VARIANT_VIEWS,
+      input: { variant: "VAR-0000c1" },
+      expect: "output",
+      check: (results) => {
+        const output = (results["core"]?.outcome as { output: { replaced: unknown } }).output;
+        expect(output.replaced).toEqual([
+          {
+            core: "43043043-0000-4000-8000-0000000000a1",
+            replacement: "43043043-0000-4000-8000-0000000000b1",
+          },
+        ]);
+      },
+    },
+    { name: "no variant", fixture: VARIANT_VIEWS, input: { variant: "SR-0000a1" }, expect: "error" },
+  ],
+  "variant.exclude": [
+    {
+      tag: "[SR-042/AK1]",
+      name: "variant.exclude writes the exclusion of K3 into the file of A",
+      fixture: VARIANT_VIEWS,
+      input: { variant: "VAR-0000c1", refs: ["SR-0000a3"] },
+      expect: "output",
+      check: (results) => {
+        const output = (results["core"]?.outcome as { output: { files: string[] } }).output;
+        expect(output.files).toEqual(["variants/VAR-0000000000c1.md"]);
+      },
+    },
+    {
+      tag: "[SR-042/AK6]",
+      name: "variant.exclude with undo removes the exclusion of K2 from the file of A",
+      fixture: VARIANT_VIEWS,
+      input: { variant: "VAR-0000c1", refs: ["SR-0000a2"], undo: true },
+      expect: "output",
+      check: (results) => {
+        const output = (results["core"]?.outcome as { output: { files: string[]; problems: unknown[] } })
+          .output;
+        expect([output.files, output.problems]).toEqual([["variants/VAR-0000000000c1.md"], []]);
+      },
+    },
+    {
+      name: "a requirement with validity is refused (SR-042 AK4)",
+      fixture: VARIANT_VIEWS,
+      input: { variant: "VAR-0000c1", refs: ["SR-0000b2"] },
+      expect: "error",
+    },
+  ],
   // `path` is a localPath: the CLI makes it absolute from its current folder (the root here), API and MCP
   // take it relative to the root, so all four write into the same folder of their copy.
   "workspace.init": [
@@ -2069,7 +2513,7 @@ const templates = new Map<FixtureOptions, FixtureWorkspace>();
 const copies: string[] = [];
 let cache: string;
 
-// Building the templates spawns `git` four times per repository. On Windows runners that can take seconds.
+// Building the templates spawns `git` three times per repository. On Windows runners that can take seconds.
 // The OS cache folder (the model cache of every CLI command, SR-082) lies in a temporary folder on every OS.
 let cacheHome = "";
 beforeAll(async () => {
@@ -2083,13 +2527,23 @@ afterAll(async () => {
   await fs.rm(cacheHome, { recursive: true, force: true });
 });
 
+/**
+ * Templates built at the same time. Each one waits mostly for `git` to start; one after the other, the 70 of
+ * them took over 120 s on a loaded windows-2025 runner (#423).
+ */
+const BUILD_CONCURRENCY = 8;
+
 beforeAll(async () => {
   cache = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-cross-access-"));
-  for (const options of FIXTURES) {
-    const template = await createFixtureWorkspace(options);
-    await TEMPLATE_SETUP.get(options)?.(template);
-    templates.set(options, template);
-  }
+  const queue = FIXTURES.values();
+  const worker = async (): Promise<void> => {
+    for (const options of queue) {
+      const template = await createFixtureWorkspace(options);
+      templates.set(options, template);
+      await TEMPLATE_SETUP.get(options)?.(template);
+    }
+  };
+  await Promise.all(Array.from({ length: BUILD_CONCURRENCY }, worker));
 }, 120_000);
 
 // Removes the templates and one copy per scenario (over 250 Git work trees): on Windows that takes longer
@@ -2103,10 +2557,6 @@ afterAll(async () => {
     ),
   );
 }, 120_000);
-
-/** The sample hooks of `git init`: half the files of a fixture, and no Git command of ReqSeq runs hooks. */
-const isSampleHooks = (source: string): boolean =>
-  path.basename(source) === "hooks" && path.basename(path.dirname(source)) === ".git";
 
 /** A copy of a fixture: its top folder, and the workspace root in it. */
 interface Copy {
@@ -2127,7 +2577,8 @@ const copy = async (scenario: Scenario): Promise<Copy> => {
   const base = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-cross-access-copy-")));
   copies.push(base);
   const top = path.join(base, "workspace");
-  await fs.cp(template.root, top, { recursive: true, filter: (source) => !isSampleHooks(source) });
+  // The templates have no sample hooks: the testkit runs `git init` without its template folder.
+  await fs.cp(template.root, top, { recursive: true });
   return { top, root: scenario.root === undefined ? top : path.join(top, ...scenario.root.split("/")) };
 };
 
@@ -2159,6 +2610,27 @@ const withoutGenerated = (access: string, outcome: Outcome, start: number, end: 
   return { output: { ...rest, generated: "<generated>" } };
 };
 
+/**
+ * `result` of baseline.create with the date of the baseline (output and file) replaced by `<date>`, after
+ * checking it lies between `start` and `end` (ms); an error is left as it is.
+ */
+const withoutDate = (access: string, result: Result, start: number, end: number): Result => {
+  const date = (result.outcome as { output?: { baseline?: { date?: string } } }).output?.baseline?.date;
+  if (date === undefined) {
+    return result;
+  }
+  const time = Date.parse(date);
+  expect([access, time >= Math.floor(start / 1000) * 1000 && time <= end]).toEqual([access, true]);
+  return JSON.parse(JSON.stringify(result).split(date).join("<date>")) as Result;
+};
+
+/** A fresh copy of the scenario's fixture, prepared. */
+const preparedCopy = async (scenario: Scenario): Promise<Copy> => {
+  const made = await copy(scenario);
+  await scenario.prepare?.(made);
+  return made;
+};
+
 /** The result of one access: its outcome, and the files of its copy afterwards. */
 interface Result {
   readonly outcome: Outcome;
@@ -2172,8 +2644,8 @@ interface Result {
  */
 const runAll = async (entry: CatalogEntry, scenario: Scenario): Promise<Record<string, Result>> => {
   const unchanging = entry.effect === "read" || !runtime.commands.has(entry.name);
-  const shared = unchanging ? await copy(scenario) : undefined;
-  // The files of the untouched template: a read changes none of them, not even the same way on every access.
+  const shared = unchanging ? await preparedCopy(scenario) : undefined;
+  // The files of the prepared template: a read changes none of them, not even the same way on every access.
   const untouched = shared === undefined ? undefined : normalized(await filesOf(shared.top), shared.top);
   const results: Record<string, Result> = {};
   for (const access of ACCESSES) {
@@ -2195,7 +2667,7 @@ const runAll = async (entry: CatalogEntry, scenario: Scenario): Promise<Record<s
     const outcome = GENERATED_AT_TOP.has(entry.name) ? withoutGenerated(access, called, start, end) : called;
     // A data file of data.store holds no time of the call (#319): its bytes are compared as they are.
     const files = await filesOf(top);
-    const result = normalized({ outcome, files }, top) as Result;
+    const result = withoutDate(access, normalized({ outcome, files }, top) as Result, start, end);
     if (untouched !== undefined) {
       expect([access, result.files]).toEqual([access, untouched]);
     }

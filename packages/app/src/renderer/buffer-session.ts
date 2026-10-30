@@ -13,7 +13,7 @@
 // lists its command as an implemented read command, so a restore never writes.
 import type { CommandTypes, FilterSortKeyWithDefaults, TraceGraphInput } from "@reqseq/core";
 import type { CommandListing, InvokeResult } from "../shared/protocol.js";
-import type { Buffer, Buffers, FilterStep, GraphDepth } from "./buffers.js";
+import type { Buffer, Buffers, ElementBuffer, FilterStep, GraphDepth } from "./buffers.js";
 import {
   MAX_BUFFERS,
   elementBuffer,
@@ -23,6 +23,7 @@ import {
   metamodelBuffer,
   neighbourhoodBuffer,
   overviewBuffer,
+  readOnlyBuffer,
   resultBuffer,
   searchBuffer,
 } from "./buffers.js";
@@ -48,7 +49,12 @@ export type StoredBuffer =
       readonly matrix?: true;
     }
   | { readonly kind: "search"; readonly query: string }
-  | (Named & { readonly kind: "element"; readonly memberSort?: readonly FilterSortKeyWithDefaults[] })
+  | (Named & {
+      readonly kind: "element";
+      readonly memberSort?: readonly FilterSortKeyWithDefaults[];
+      /** Shown read-only (SR-044 AK2). */
+      readonly readOnly?: true;
+    })
   | (Named & { readonly kind: "neighbourhood"; readonly open: readonly string[] })
   | (Named & {
       readonly kind: "graph";
@@ -104,6 +110,14 @@ export const sessionKey = (status: InvokeResult): string | undefined => {
 
 const ofElement = (buffer: Named): Named => ({ id: buffer.id, repository: buffer.repository });
 
+/** What is stored of an element buffer: the element, the sort of a package page's elements, read-only. */
+const storedElement = (buffer: ElementBuffer): StoredBuffer => ({
+  kind: "element",
+  ...ofElement(buffer),
+  ...(buffer.memberSort === undefined ? {} : { memberSort: buffer.memberSort }),
+  ...(buffer.readOnly === true ? { readOnly: true as const } : {}),
+});
+
 /** What is stored of `buffer`. */
 const storedOf = (buffer: Buffer): StoredBuffer => {
   switch (buffer.kind) {
@@ -119,11 +133,7 @@ const storedOf = (buffer: Buffer): StoredBuffer => {
     case "search":
       return { kind: "search", query: buffer.query };
     case "element":
-      return {
-        kind: "element",
-        ...ofElement(buffer),
-        ...(buffer.memberSort === undefined ? {} : { memberSort: buffer.memberSort }),
-      };
+      return storedElement(buffer);
     case "neighbourhood":
       return { kind: "neighbourhood", ...ofElement(buffer), open: buffer.open };
     case "graph":
@@ -228,7 +238,12 @@ const parseElement = (value: Fields): StoredBuffer | undefined => {
   const memberSort = optional("memberSort", value["memberSort"], isSort);
   return named === undefined || memberSort === undefined
     ? undefined
-    : { kind: "element", ...named, ...memberSort };
+    : {
+        kind: "element",
+        ...named,
+        ...memberSort,
+        ...(value["readOnly"] === true ? { readOnly: true as const } : {}),
+      };
 };
 
 const parseNeighbourhood = (value: Fields): StoredBuffer | undefined => {
@@ -409,7 +424,8 @@ const rebuild = (
         return undefined;
       }
       if (stored.kind === "element") {
-        const buffer = elementBuffer(stored.id, stored.repository, name);
+        const element = elementBuffer(stored.id, stored.repository, name);
+        const buffer = stored.readOnly === true ? readOnlyBuffer(element) : element;
         return stored.memberSort === undefined ? buffer : { ...buffer, memberSort: stored.memberSort };
       }
       if (stored.kind === "neighbourhood") {

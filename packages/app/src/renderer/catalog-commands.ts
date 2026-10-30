@@ -38,19 +38,21 @@
 // `value` the choices of the property, elements of its target types, else text; `relationTarget` elements
 // of the target types of the kind (`relation.options` from the source, else the metamodel); `relation` the
 // kinds of the element's outgoing relations, then the targets of that kind; `hint` the hints of the element
-// that can be confirmed (`hint.list`). `filter` and a `view` (variants, stage 5, #737) stay typed text.
+// that can be confirmed (`hint.list`); `view` the core and the variants of the workspace (`views.ts`, #285).
+// `filter` stays typed text.
 import type { CommandTypes } from "@reqseq/core";
 import type { CommandListing } from "../shared/protocol.js";
 import type { Action, ActionContext, Choice, Prompt, PromptFill } from "./actions.js";
 import { findElements } from "./actions.js";
 import { bindingLabel } from "./bindings.js";
 import { coveringAction } from "./command-entry.js";
-import type { Buffer } from "./buffers.js";
+import type { Buffer, ElementBuffer, NeighbourhoodBuffer } from "./buffers.js";
 import { bufferName, elementBufferOf, resultBuffer } from "./buffers.js";
 import type { PropertyAnswer, RequiredProperty } from "./create-element.js";
 import { CREATE_COMMAND, creatableTypes, createdEcho, propertiesInput } from "./create-element.js";
 import { choiceItems } from "./property-edit.js";
 import type { Row } from "./rows.js";
+import { selectionInView, viewName, viewsOf } from "./views.js";
 
 type Argument = CommandListing["arguments"][number];
 type Source = Argument["complete"];
@@ -211,7 +213,7 @@ const isListField = (command: CommandListing, field: string): boolean =>
   schemaOf(command, field).type === "array";
 
 /** The shown list's selection, for a `selection` argument (it is never asked). */
-const shownSelection = (context: ActionContext): unknown => {
+const shownSelection = (context: ActionContext): object | undefined => {
   const shown = context.buffers[0];
   return shown?.kind === "list" ? shown.selection : undefined;
 };
@@ -466,6 +468,15 @@ const OFFERS: Readonly<Record<Source, (asked: Asked) => Promise<Offer | Failed>>
       : await asText(),
   // No command asks a saved filter by name yet; typed text.
   filter: asText,
+  // baseline.list is not implemented yet; typed text until the app offers the baselines (stage 5).
+  baseline: asText,
+  // `core` and the variants of the workspace, as "Choose view" offers them (#285).
+  view: async ({ context }) => {
+    const views = await viewsOf(context.call);
+    return views.ok
+      ? { kind: "list", values: views.views.map((shown) => ({ value: shown.view, name: viewName(shown) })) }
+      : { kind: "failed", message: views.message };
+  },
 };
 
 /** What the argument at `at` offers, or why its values cannot be read. */
@@ -516,10 +527,16 @@ const answersOf = (entry: Entry): { readonly key: string; readonly value: Proper
       : [{ key: given.property, value: given.value as PropertyAnswer }],
   );
 
-/** The input the given values make, with the shown list's selection for a `selection` argument. */
+/**
+ * The input the given values make, with the shown list's selection for a `selection` argument, in the view
+ * the window shows (`selectionInView`): a write on the list acts on the set the list shows.
+ */
 const inputOf = (context: ActionContext, entry: Entry): Record<string, unknown> => {
   const input: Record<string, unknown> = {};
-  const selection = shownSelection(context);
+  const listed = shownSelection(context);
+  const shown = context.views?.shown;
+  const selection =
+    listed === undefined || shown === undefined ? listed : selectionInView(listed, shown.view);
   for (const arg of entry.command.arguments) {
     const values = ordered(entry.given)
       .filter((given) => given.field === arg.field && given.skipped !== true)
@@ -577,7 +594,7 @@ const execute = async (context: CatalogContext, entry: Entry): Promise<void> => 
   }
   // The revision the command reads: a change while it runs makes the result view ask again.
   const revision = context.revision();
-  const answer = await context.call(name, input);
+  const answer = await (context.shownCall ?? context.call)(name, input);
   if (answer.ok && name === CREATE_COMMAND) {
     const created = answer.output as CommandTypes[typeof CREATE_COMMAND]["output"];
     context.dispatch({ type: "open", buffer: elementBufferOf(created.element) });
@@ -704,6 +721,22 @@ const askAgain = (context: CatalogContext, answered: Entry, at: number): void =>
   // A list argument that keeps values takes more again (Enter on an empty input ends it).
   const keeps = isListField(entry.command, again.field) && given.some((value) => value.field === again.field);
   ask(context, { ...rest, given, ...(keeps ? { collecting: again.field } : {}) }, arg, index);
+};
+
+/**
+ * The element an element argument offers first: the element shown, else the selected row of the shown
+ * list. An element shown read-only (SR-044 AK2) is not offered to a write command, so that buffer stays
+ * one a write never starts from by Enter alone; the write can still name it.
+ */
+const firstOffered = (
+  context: CatalogContext,
+  entry: Entry,
+): ElementBuffer | NeighbourhoodBuffer | undefined => {
+  const shown = context.buffers[0];
+  if (shown?.kind === "element" && shown.readOnly === true && isWrite(entry.command)) {
+    return undefined;
+  }
+  return shown?.kind === "element" || shown?.kind === "neighbourhood" ? shown : context.row;
 };
 
 /** One argument back: the value given last is asked again; before the first, the command prompt. */
@@ -922,13 +955,7 @@ const ask = (context: CatalogContext, entry: Entry, arg: Argument, at: number): 
         const picked = (row: Row): unknown => (offer.target === true ? relationTargetOf(row) : row.open.id);
         // The element shown, else the selected row of the shown list, comes first, so Enter takes it; not
         // among target types, which it may not have.
-        const shown = context.buffers[0];
-        const first =
-          offer.types !== undefined
-            ? undefined
-            : shown?.kind === "element" || shown?.kind === "neighbourhood"
-              ? shown
-              : context.row;
+        const first = offer.types !== undefined ? undefined : firstOffered(context, entry);
         return {
           items:
             first === undefined

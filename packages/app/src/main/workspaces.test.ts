@@ -89,6 +89,7 @@ const setup = (
   const core = {
     running: true,
     key: "/req/station" as string | undefined,
+    listedRoot: "/req/station" as string | undefined,
     open: vi.fn<WorkspaceSwitch["open"]>(() => Promise.resolve()),
   };
   const page = { loaded: true };
@@ -130,11 +131,27 @@ const workspaceOnDisk = async (): Promise<{ readonly root: string; readonly insi
 };
 
 describe("the recent workspaces channels (SR-131)", () => {
-  it("[SR-131/AK1] the recent workspaces come from core in their order, the open one marked open", async () => {
+  it("[SR-131/AK1] the recent workspaces come from core in their order, the open one first and marked open", async () => {
     const { list, load, core } = setup();
     expect(await list()).toEqual([
-      { root: "/req/buoy", state: "found" },
       { root: "/req/station", state: "open" },
+      { root: "/req/buoy", state: "found" },
+      { root: "/req/gone", state: "missing" },
+    ]);
+    // Opened just now: the core process has not written it to the stored list yet (#423).
+    core.key = "/req/harbour";
+    core.listedRoot = "/req/Harbour";
+    expect(await list()).toEqual([
+      { root: "/req/Harbour", state: "open" },
+      { root: "/req/buoy", state: "found" },
+      { root: "/req/station", state: "found" },
+      { root: "/req/gone", state: "missing" },
+    ]);
+    // A folder without a workspace is open, which the list does not hold.
+    core.listedRoot = undefined;
+    expect(await list()).toEqual([
+      { root: "/req/buoy", state: "found" },
+      { root: "/req/station", state: "found" },
       { root: "/req/gone", state: "missing" },
     ]);
     // Without an open workspace none is open; core's module is loaded once.
@@ -428,6 +445,7 @@ describe("the recent workspaces channels (SR-131)", () => {
       const core = {
         running: false,
         key: undefined,
+        listedRoot: undefined,
         open: vi.fn<WorkspaceSwitch["open"]>(() => Promise.resolve()),
       };
       handleWorkspaces(electron as unknown as WorkspacesElectron, contents, {

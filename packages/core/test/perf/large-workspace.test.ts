@@ -172,7 +172,7 @@ describe("workspace with 50,000 elements and 200,000 relations (N-036)", () => {
     const store = await workspace.get(elementStoreState);
     const metamodel = await workspace.get(metamodelState);
     const { result: index } = await measure(
-      "succession index: every relation with the meaning replacement, by target (once per store)",
+      "succession index: every relation with the meaning succession, by target (once per store)",
       () => Promise.resolve(buildSuccessionIndex(store, metamodel)),
       { basis: "SR-072 AK3, ADR-0008 (open an element: 200 ms)", thresholdMs: 200 },
     );

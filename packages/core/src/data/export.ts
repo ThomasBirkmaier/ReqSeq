@@ -14,6 +14,9 @@
 //     for the core and all variants (SR-040 AK1, D-020); left out without such a property;
 //   - `packages`: the UUIDs of the packages its property with the meaning `packages` names, `[]` for
 //     none; left out without such a property;
+//   - `replacedBy` and `excludedBy` of a core requirement: the variants that replace it (with the
+//     replacement) or exclude it by the view rule, whatever view selected it (SR-046 AK3,
+//     `replacedExcludedOf`, as element.get gives them); left out when empty;
 //   - each relation with the current version of its other end (`currentVersion`, when it is
 //     available and has one) and `outdated` (SR-025, `isOutdatedVersion`), as trace.matrix gives
 //     them: an outgoing relation against its target, an incoming one (a successor's) against the
@@ -59,13 +62,13 @@ import type {
   CurrentVersions,
   ElementRecord,
   ElementStore,
-  NoCommitReason,
   RepositoryState,
   StateReader,
 } from "../model/index.js";
 import {
   currentVersions,
   currentVersionsOf,
+  NO_COMMIT_TEXT,
   isOutdatedVersion,
   isUuid,
   listElements,
@@ -75,8 +78,8 @@ import {
 } from "../model/index.js";
 import type { Selected } from "../query/index.js";
 import type { Workspace } from "../runtime/workspace.js";
-import type { Validity } from "../variants/index.js";
-import { validityEntries, validityOf, validityTarget } from "../variants/index.js";
+import type { ReplacedExcluded, Validity } from "../variants/index.js";
+import { replacedExcludedOf, validityEntries, validityOf, validityTarget } from "../variants/index.js";
 import type { RepositoryLocation } from "../workspace/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 
@@ -102,7 +105,7 @@ export const exportedProperties = (metamodel: Metamodel): ExportedProperties => 
 });
 
 /** The UUIDs the entries of `property` in `record` name, in their order; entries that name none are left out. */
-const targetIds = (property: Pick<Validity, "key" | "many">, record: ElementRecord): string[] =>
+export const targetIds = (property: Pick<Validity, "key" | "many">, record: ElementRecord): string[] =>
   validityEntries(property, record).flatMap((entry) => {
     const target = validityTarget(entry.value, record);
     return target !== undefined && isUuid(target.id) ? [target.id] : [];
@@ -117,6 +120,18 @@ export const exportedElement = (
   ...element,
   ...(properties.validity === undefined ? {} : { validity: targetIds(properties.validity, record) }),
   ...(properties.packages === undefined ? {} : { packages: targetIds(properties.packages, record) }),
+});
+
+/** `element` with `replacedBy` and `excludedBy` from `uses` (SR-046 AK3), each left out when empty. */
+export const withReplacedExcluded = (
+  uses: ReplacedExcluded,
+  element: DataExportElement,
+): DataExportElement => ({
+  ...element,
+  ...(uses.replacedBy.length === 0
+    ? {}
+    : { replacedBy: uses.replacedBy.map((u) => ({ variant: u.variant.id, replacement: u.replacement.id })) }),
+  ...(uses.excludedBy.length === 0 ? {} : { excludedBy: uses.excludedBy.map((v) => v.id) }),
 });
 
 /** The key of an element by repository and UUID. */
@@ -200,7 +215,7 @@ export const exportHeader = (input: {
 }): Omit<DataExportFile, "elements"> => {
   const commit = input.repositories.find((r) => r.name === input.main)?.commit;
   return {
-    "reqseq-data": 2,
+    "reqseq-data": 3,
     ...(commit === undefined ? {} : { commit }),
     dirty: !input.repositories.every((r) => !r.available || r.dirty === false),
     workspace: input.name,
@@ -225,16 +240,6 @@ export interface ExportOptions {
   /** Reads Git and the disk for `dirty`; default `DEFAULT_STATE_READER` (model/uncommitted.ts). */
   readonly state?: StateReader;
 }
-
-/** Why there is no commit, in words (`NoCommitReason`). */
-export const NO_COMMIT_TEXT: Readonly<Record<NoCommitReason, string>> = {
-  "no-git": "Git is not installed or not on PATH",
-  refused: "Git refuses to read it because another user owns it, see git config safe.directory",
-  timeout: "Git did not answer in time",
-  "not-a-repository": "it is in no Git repository",
-  "no-commit": "its Git repository has no commit yet",
-  "no-tree": "its commit holds nothing at this folder",
-};
 
 /** Why Git cannot tell `dirty`, in words (`GitUnknownReason`). */
 const DIRTY_UNKNOWN_TEXT: Readonly<Record<GitUnknownReason, string>> = {
@@ -335,9 +340,13 @@ export const exportDataWithProblems = async (
   const layout = await workspace.get(workspaceLayoutState);
   const status = await workspaceStatus(workspace, selected.elements);
   const properties = exportedProperties(selected.metamodel);
+  const rule = { workspace, store: selected.store, metamodel: selected.metamodel };
   const listed = await listElements(workspace, selected, selected.elements, {
     extend: (record, element) =>
-      exportedElement(properties, record, withEvidenceStatus(status, record, element)),
+      withReplacedExcluded(
+        replacedExcludedOf(rule, record),
+        exportedElement(properties, record, withEvidenceStatus(status, record, element)),
+      ),
   });
   const read = options.read ?? ((records) => currentVersionsOf(workspace, records));
   const [elements, stated, evidence] = await Promise.all([

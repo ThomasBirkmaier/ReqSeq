@@ -316,8 +316,9 @@ describe("element.list (SR-069)", () => {
     ).toEqual([V1, V2]);
     // Without any relation of a relation kind (validity and packages are properties).
     expect(await where(ws, { relation: {}, exists: false })).toEqual([P1, P2, B4, V1, V2]);
-    // A meaning with several kinds: replacement (supersedes, replaces); nothing replaces anything here.
+    // Nothing replaces or supersedes anything here.
     expect(await where(ws, { relation: { meaning: "replacement" }, exists: true })).toEqual([]);
+    expect(await where(ws, { relation: { meaning: "succession" }, exists: true })).toEqual([]);
     expect(
       await where(ws, {
         relation: { kind: "derives-from", meaning: "derivation", direction: "up" },
@@ -381,7 +382,7 @@ describe("element.list (SR-069)", () => {
     ]);
   });
 
-  it("selects a package as a selection: exactly its elements (SR-048 AK3)", async () => {
+  it("selects a package as a selection: exactly its elements (SR-112 AK1)", async () => {
     const ws = await open();
     expect(ids(await list(ws, { selection: { package: "PKG-0000d2" } }))).toEqual([B2, B4]);
     const notPackage = await failure(ws, { selection: { package: "VAR-0000c1" } });

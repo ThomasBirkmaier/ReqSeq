@@ -51,25 +51,69 @@ export interface ApiEndpointFile {
 }
 
 /**
- * A baseline is a YAML file with name, date, the commit of every repository involved and ID plus version of every element in the selection (D-039, SR-050). ReqSeq writes the file; a person commits it with Git (D-036, SR-050 AK4). No reason or approval field (D-006, SR-050 AK3). The metamodel of the baseline is given by the commit of the metamodel repository (D-021).
+ * A baseline is a YAML file with name, date, the stored selection, the commit of every repository involved and ID plus version of every element in the selection (D-039, SR-050, ADR-0018). ReqSeq writes the file once and never changes or replaces it; a person commits it with Git (D-036, D-045). No reason or approval field (D-006). The metamodel of the baseline is given by the commit of the metamodel repository (D-021). ReqSeq writes the keys in this order, one entry per line; a file in another layout is read too, more slowly.
  * Schema: `schemas/baseline.schema.json#`.
  */
 export interface BaselineFile {
   readonly "reqseq-baseline": 1;
-  readonly name: string;
+  readonly name: BaselineName;
+  /** When the baseline was created, in UTC without fractions. Its day is the UTC day (SR-094 AK2). */
   readonly date: IsoDateTime;
-  /** How the elements were selected, for information. The element list is authoritative. */
-  readonly selection?: ElementSelection;
+  readonly selection?: BaselineStoredSelection;
+  /** The repositories of the selected elements, the main repository and the metamodel's, each once with its HEAD commit (SR-050 AK4). */
   readonly repositories: readonly {
     readonly name: string;
     readonly commit: Commit;
   }[];
-  /** Sorted by id; one flow mapping per line. */
+  /** Sorted by id, then repository (code units; none first), each element copy once; one flow mapping per line. */
   readonly elements: readonly {
     readonly id: Uuid;
     readonly version: Version;
+    /** The repository of the copy, relative to the repository of the baseline file: given when they differ or the UUID has copies in several repositories. */
     readonly repository?: string;
   }[];
+}
+
+/**
+ * Name of a baseline (SR-050), unique in the workspace ignoring case and Unicode normal form. The file name is the name made portable, as attachment names (ADR-0004); a taken file name gets -2, -3, ….
+ * Schema: `schemas/baseline.schema.json#/$defs/name`.
+ */
+export type BaselineName = string;
+
+/**
+ * The selection the baseline was created with, which SR-051, SR-094 and SR-103 read. ReqSeq writes it canonical: `where` as filter.save writes it, a saved filter as its `where` and `view`, `package` and `view` as `{ id, title }` in the repository of the file and `{ id, repository }` elsewhere (D-058), the title at baseline time; `ids` items without title.
+ * Schema: `schemas/baseline.schema.json#/$defs/storedSelection`.
+ */
+export interface BaselineStoredSelection {
+  /** A UUID in the repository of the file, `{ id, repository }` elsewhere; one per line, read line by line like `elements` (ADR-0018). */
+  readonly ids?: readonly (ElementRef | BaselineElsewhere)[];
+  /** Name of a saved filter, as stage 4 files may hold; read with the filter as it is now. Not written. */
+  readonly filter?: string;
+  readonly where?: FilterCondition;
+  readonly package?: BaselineStoredRef;
+  /** `core` (a reference like any other, so not a separate constituent), or the variant as `{ id, title }` or a hand-written reference. */
+  readonly view?: BaselineStoredRef;
+}
+
+/**
+ * An element of the stored selection: as written, or any reference a person may write by hand.
+ * Schema: `schemas/baseline.schema.json#/$defs/storedRef`.
+ */
+export type BaselineStoredRef =
+  | ElementRef
+  | {
+    readonly id: Uuid;
+    readonly title: string;
+  }
+  | BaselineElsewhere;
+
+/**
+ * An element in another repository than the file's (D-058).
+ * Schema: `schemas/baseline.schema.json#/$defs/elsewhere`.
+ */
+export interface BaselineElsewhere {
+  readonly id: Uuid;
+  readonly repository: string;
 }
 
 /**
@@ -263,6 +307,9 @@ export type ProblemCode =
   | "variant.core-changed"
   | "variant.superseded-in-validity"
   | "variant.nested"
+  | "variant.target-not-core"
+  | "variant.core-changed-since-baseline"
+  | "variant.core-new-since-baseline"
   | "evidence.unknown-element"
   | "evidence.invalid-record"
   | "evidence.outdated"
@@ -297,6 +344,7 @@ export interface CommandErrorObject {
     | "relation.not-allowed"
     | "variant.nested"
     | "baseline.uncommitted-changes"
+    | "baseline.exists"
     | "reqif.invalid"
     | "reqif.unmapped"
     | "git.unavailable"
@@ -340,7 +388,7 @@ export interface ElementSelection {
 export type ViewId = ElementId;
 
 /**
- * `core`, a variant ID, or absent for all elements (SR-043).
+ * `core`, a variant ID, or absent for all. A variant's view: the core requirements it neither excludes nor replaces, plus those valid for it; elements without validity property are in every view (SR-043).
  * Schema: `schemas/common.schema.json#/$defs/view`.
  */
 export type View = ElementRef;
@@ -362,8 +410,8 @@ export type ValidationStatus = "open" | "validated" | "failed" | "outdated";
  * Schema: `schemas/data-export.schema.json#`.
  */
 export interface DataExportFile {
-  /** The version of this format. 2: with `commit` and `dirty` at the top level and the JSON Lines form (`$defs/line`). */
-  readonly "reqseq-data": 2;
+  /** The version of this format. 2: with `commit` and `dirty` at the top level and the JSON Lines form (`$defs/line`). 3: a successor's relation has the meaning `succession` instead of `replacement` (D-059). */
+  readonly "reqseq-data": 3;
   /** The commit of the state: HEAD of the main repository (the one with the workspace file), after which data.store names its file; left out when Git cannot tell. */
   readonly commit?: Commit;
   /** `false` only when every available repository has a known commit and is known clean (see `repositories[].dirty`), the rule by which data.store adds `-dirty` to the name of its file. */
@@ -415,13 +463,20 @@ export interface DataExportElement {
   readonly validity?: readonly Uuid[];
   /** Given by data.export: the UUIDs of the packages the property with the meaning `packages` names, in its order; `[]` when none. Left out when the metamodel has no packages property. */
   readonly packages?: readonly Uuid[];
+  /** Given only for a core requirement (SR-046 AK3): each variant that replaces it and the replacing requirement, one entry per pair; a variant that also excludes it is only in excludedBy. Left out when empty. */
+  readonly replacedBy?: readonly {
+    readonly variant: Uuid;
+    readonly replacement: Uuid;
+  }[];
+  /** The variants that exclude this core requirement (SR-042, SR-046 AK3). Left out when empty. */
+  readonly excludedBy?: readonly Uuid[];
   /** SR-035: true when the element's property with the meaning `emergent` holds the choice `yes` (assumption, spec question #591); only true is given, left out otherwise. An emergent requirement is never `indirect`: without an own verification record in a view it is `open` there. */
   readonly emergent?: boolean;
   /** All other properties by key, unknown ones included. */
   readonly properties: Readonly<Record<string, unknown>>;
-  /** The element's own relations, then the targets of its properties of kind `relation` (`property: true`), then the incoming relations (`direction: in`); in stage 1 only the relations with the meaning `replacement` from the successors of an element with a status marked invalid (SR-072 AK3). The targets of `validity` and `packages` also appear in `validity` and `packages` in data.export. `currentVersion` and `outdated` are given by data.export and trace.matrix. */
+  /** The element's own relations, then the targets of its properties of kind `relation` (`property: true`), then the incoming relations (`direction: in`); in stage 1 only the relations with the meaning `succession` from the successors of an element with a status marked invalid (SR-072 AK3). The targets of `validity` and `packages` also appear in `validity` and `packages` in data.export. `currentVersion` and `outdated` are given by data.export and trace.matrix. */
   readonly relations: readonly DataExportRelation[];
-  /** Verification status per view: core and each variant the element is valid for (SR-047 AK3). */
+  /** Verification status, one entry per view the requirement is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it (SR-047 AK3). */
   readonly verification?: readonly DataExportVerificationEntry[];
   /** SR-038: the Validierungsstatus from the validation records of the core (no `variant`) against the element's current version; the newest record of that version decides, only records of older versions give `outdated`. Given for every element whose type has the meaning `need` (`open` without record) and for every other element with a validation record; left out otherwise (assumption, spec question #534). Never inherited from children; never the element's `status` (D-030). */
   readonly validation?: ValidationStatus;
@@ -456,18 +511,25 @@ export interface DataExportLine {
   readonly validity?: readonly Uuid[];
   /** Given by data.export: the UUIDs of the packages the property with the meaning `packages` names, in its order; `[]` when none. Left out when the metamodel has no packages property. */
   readonly packages?: readonly Uuid[];
+  /** Given only for a core requirement (SR-046 AK3): each variant that replaces it and the replacing requirement, one entry per pair; a variant that also excludes it is only in excludedBy. Left out when empty. */
+  readonly replacedBy?: readonly {
+    readonly variant: Uuid;
+    readonly replacement: Uuid;
+  }[];
+  /** The variants that exclude this core requirement (SR-042, SR-046 AK3). Left out when empty. */
+  readonly excludedBy?: readonly Uuid[];
   /** SR-035: true when the element's property with the meaning `emergent` holds the choice `yes` (assumption, spec question #591); only true is given, left out otherwise. An emergent requirement is never `indirect`: without an own verification record in a view it is `open` there. */
   readonly emergent?: boolean;
   /** All other properties by key, unknown ones included. */
   readonly properties: Readonly<Record<string, unknown>>;
-  /** The element's own relations, then the targets of its properties of kind `relation` (`property: true`), then the incoming relations (`direction: in`); in stage 1 only the relations with the meaning `replacement` from the successors of an element with a status marked invalid (SR-072 AK3). The targets of `validity` and `packages` also appear in `validity` and `packages` in data.export. `currentVersion` and `outdated` are given by data.export and trace.matrix. */
+  /** The element's own relations, then the targets of its properties of kind `relation` (`property: true`), then the incoming relations (`direction: in`); in stage 1 only the relations with the meaning `succession` from the successors of an element with a status marked invalid (SR-072 AK3). The targets of `validity` and `packages` also appear in `validity` and `packages` in data.export. `currentVersion` and `outdated` are given by data.export and trace.matrix. */
   readonly relations: readonly DataExportRelation[];
-  /** Verification status per view: core and each variant the element is valid for (SR-047 AK3). */
+  /** Verification status, one entry per view the requirement is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it (SR-047 AK3). */
   readonly verification?: readonly DataExportVerificationEntry[];
   /** SR-038: the Validierungsstatus from the validation records of the core (no `variant`) against the element's current version; the newest record of that version decides, only records of older versions give `outdated`. Given for every element whose type has the meaning `need` (`open` without record) and for every other element with a validation record; left out otherwise (assumption, spec question #534). Never inherited from children; never the element's `status` (D-030). */
   readonly validation?: ValidationStatus;
   readonly problems?: readonly Problem[];
-  readonly "reqseq-data": 2;
+  readonly "reqseq-data": 3;
   /** As `commit` of the JSON form. */
   readonly commit?: Commit;
   /** As `dirty` of the JSON form. */
@@ -502,13 +564,20 @@ export interface DataExportElementFields {
   readonly validity?: readonly Uuid[];
   /** Given by data.export: the UUIDs of the packages the property with the meaning `packages` names, in its order; `[]` when none. Left out when the metamodel has no packages property. */
   readonly packages?: readonly Uuid[];
+  /** Given only for a core requirement (SR-046 AK3): each variant that replaces it and the replacing requirement, one entry per pair; a variant that also excludes it is only in excludedBy. Left out when empty. */
+  readonly replacedBy?: readonly {
+    readonly variant: Uuid;
+    readonly replacement: Uuid;
+  }[];
+  /** The variants that exclude this core requirement (SR-042, SR-046 AK3). Left out when empty. */
+  readonly excludedBy?: readonly Uuid[];
   /** SR-035: true when the element's property with the meaning `emergent` holds the choice `yes` (assumption, spec question #591); only true is given, left out otherwise. An emergent requirement is never `indirect`: without an own verification record in a view it is `open` there. */
   readonly emergent?: boolean;
   /** All other properties by key, unknown ones included. */
   readonly properties: Readonly<Record<string, unknown>>;
-  /** The element's own relations, then the targets of its properties of kind `relation` (`property: true`), then the incoming relations (`direction: in`); in stage 1 only the relations with the meaning `replacement` from the successors of an element with a status marked invalid (SR-072 AK3). The targets of `validity` and `packages` also appear in `validity` and `packages` in data.export. `currentVersion` and `outdated` are given by data.export and trace.matrix. */
+  /** The element's own relations, then the targets of its properties of kind `relation` (`property: true`), then the incoming relations (`direction: in`); in stage 1 only the relations with the meaning `succession` from the successors of an element with a status marked invalid (SR-072 AK3). The targets of `validity` and `packages` also appear in `validity` and `packages` in data.export. `currentVersion` and `outdated` are given by data.export and trace.matrix. */
   readonly relations: readonly DataExportRelation[];
-  /** Verification status per view: core and each variant the element is valid for (SR-047 AK3). */
+  /** Verification status, one entry per view the requirement is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it (SR-047 AK3). */
   readonly verification?: readonly DataExportVerificationEntry[];
   /** SR-038: the Validierungsstatus from the validation records of the core (no `variant`) against the element's current version; the newest record of that version decides, only records of older versions give `outdated`. Given for every element whose type has the meaning `need` (`open` without record) and for every other element with a validation record; left out otherwise (assumption, spec question #534). Never inherited from children; never the element's `status` (D-030). */
   readonly validation?: ValidationStatus;
@@ -523,7 +592,7 @@ export interface DataExportRelation {
   /** `kind` is the key of a property of kind `relation`, not of a relation kind (ADR-0004). Left out for relation kinds. */
   readonly property?: true;
   /** `reference` = inline link in the text (SR-066). */
-  readonly meaning?: "derivation" | "replacement" | "exclusion" | "reference" | null;
+  readonly meaning?: "derivation" | "replacement" | "succession" | "exclusion" | "reference" | null;
   readonly direction: "out" | "in";
   readonly id: Uuid;
   /** Workspace name of the repository of the other end (#416): the one the relation names, the source's own when it names none; for `direction: in` the source's (the other end: a successor, or the source of any incoming relation). Given in every `targetState`, as the name it stores for `inaccessible` and `unknown-repository`; left out only when the stored `repository` is not text. With `id` it names the target (`element.get` with `ref` and `repository`, SR-088; an `ambiguous` target also needs `file`; for `unknown-repository` the name is not a repository of the workspace). */
@@ -746,7 +815,7 @@ export type FilterCondition =
     readonly package: ElementRef;
   }
   | {
-    /** Elements that apply in this view by their validity. */
+    /** Elements that apply in this view by their validity only, not the view: replacements and exclusions do not count. */
     readonly validFor: View;
   }
   | {
@@ -806,7 +875,7 @@ export interface FilterRelationCondition {
     /** A relation kind or a property of kind relation (validity, packages); with `meaning`, the kind must have it. */
     readonly kind?: Key;
     /** Every relation kind with this meaning. Neither `kind` nor `meaning`: every relation kind. */
-    readonly meaning?: "derivation" | "replacement" | "exclusion";
+    readonly meaning?: "derivation" | "replacement" | "succession" | "exclusion";
     /** `up` = outgoing (to parents), `down` = incoming (from children), `evidence` = verification records pointing at the element in the view of the selection, else in the core (a record without variant holds for the core, one with a variant for that variant), of any version and result; validation records do not count (D-007); no `kind`, `meaning` or `to`. Absent: up or down. */
     readonly direction?: "up" | "down" | "evidence";
     /** Condition the other end must meet. */
@@ -974,10 +1043,10 @@ export interface MetamodelRelationKind {
 }
 
 /**
- * Built-in meaning (D-012, D-059). `derivation`: source is child, target is parent (chain, coverage, indirect verification). `replacement`: source replaces target, either for the variants in the source's validity (D-020) or, when the target has an invalid status, as its successor (D-045, SR-072). `exclusion`: source variant excludes target core requirement, written in the variant file (SR-042, D-059). Without meaning a relation has no traceability semantics.
+ * Built-in meaning (D-012, D-059). `derivation`: source is child, target is parent (chain, coverage, indirect verification). `replacement`: source replaces target core requirement for the variants in the source's validity (D-020). `succession`: source is the successor that supersedes target (D-045, SR-072). `exclusion`: source variant excludes target core requirement, written in the variant file (SR-042, D-059). Without meaning a relation has no traceability semantics.
  * Schema: `schemas/metamodel.schema.json#/$defs/relationMeaning`.
  */
-export type MetamodelRelationMeaning = "derivation" | "replacement" | "exclusion";
+export type MetamodelRelationMeaning = "derivation" | "replacement" | "succession" | "exclusion";
 
 /**
  * Status value (D-030).
@@ -1170,7 +1239,7 @@ export interface CommandCatalog {
     readonly arguments: readonly {
       /** A top-level property of `input`. */
       readonly field: string;
-      /** element: elements found by element.search. type: types of the metamodel. status: statuses of the type of the element in `of` (without it, every status of the metamodel). invalidStatus: of those, the ones the metamodel marks invalid. relationKind: kinds that relation.options allows from the element in `of` (without it, every relation kind of the metamodel). relationTarget: elements of the target types of the kind in `of` (element.search with selection.where.type). relation: with `of` an element field, the kinds of the existing relations of that element; with `of` a relation field (the kind asked before), the targets of the relations of that kind (relation.remove: source, kind, target). property: properties of the type of the element in `of` (every property of the metamodel without it). value: the values the metamodel fixes for the property in `of`. hint: open hints of the element in `of` (without it, every open hint). filter: saved filters. repository: repositories of the workspace. selection: the selection of the list shown. choice: the inline `enum` of the property. text, number, boolean: typed free input. json: any other object or mixed field, typed as JSON and checked by core. */
+      /** element: elements found by element.search. type: types of the metamodel. status: statuses of the type of the element in `of` (without it, every status of the metamodel). invalidStatus: of those, the ones the metamodel marks invalid. relationKind: kinds that relation.options allows from the element in `of` (without it, every relation kind of the metamodel). relationTarget: elements of the target types of the kind in `of` (element.search with selection.where.type). relation: with `of` an element field, the kinds of the existing relations of that element; with `of` a relation field (the kind asked before), the targets of the relations of that kind (relation.remove: source, kind, target). property: properties of the type of the element in `of` (every property of the metamodel without it). value: the values the metamodel fixes for the property in `of`. hint: open hints of the element in `of` (without it, every open hint). filter: saved filters. baseline: baselines (baseline.list). view: `core` and the variants of the workspace (element.list of the types with the meaning `variant`). repository: repositories of the workspace. selection: the selection of the list shown. choice: the inline `enum` of the property. text, number, boolean: typed free input. json: any other object or mixed field, typed as JSON and checked by core. */
       readonly complete:
         | "element"
         | "type"
@@ -1183,6 +1252,8 @@ export interface CommandCatalog {
         | "value"
         | "hint"
         | "filter"
+        | "baseline"
+        | "view"
         | "repository"
         | "selection"
         | "choice"
@@ -1389,7 +1460,7 @@ export interface ElementGetInput {
   readonly view?: View;
   /** Also give the date of the version (`versionDate`, D-013, ADR-0005), read from the Git history. Without it no git runs and `versionDate` is left out, so opening an element stays fast (SR-082 AK3); the app asks for the date in a second call. */
   readonly versionDate: boolean;
-  /** Date only the outdated relations and inline references among the hints (`relation.outdated`: `storedDate`, `currentDate` and both dates in the message, D-013, ADR-0005), not the version of the element itself. Git reads only the histories of their targets, and none when the element has no outdated relation; the app asks for it in a second call after the element is shown, only for an element with such hints (SR-110 AK2, SR-082 AK3). `versionDate` dates these hints too. */
+  /** Date only the outdated relations and inline references and the changed core requirements of replacements among the hints (`relation.outdated`, `variant.core-changed`: `storedDate`, `currentDate` and both dates in the message, D-013, ADR-0005), not the version of the element itself. Git reads only the histories of their targets, and none when the element has no outdated relation; the app asks for it in a second call after the element is shown, only for an element with such hints (SR-110 AK2, SR-082 AK3). `versionDate` dates these hints too. */
   readonly hintDates: boolean;
   /** Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it (for example one copy of a file whose UUID another file shares, SR-088; #255). Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates. */
   readonly repository?: string;
@@ -1402,10 +1473,14 @@ export interface ElementGetInput {
  * Schema: `schemas/commands/catalog.json element.get output`.
  */
 export interface ElementGetOutput {
-  /** Text, properties, version and, with the input `versionDate`, its date (`versionDate`, D-013, ADR-0005: the committer date in UTC of the newest commit that started this version; null for content no commit has and when Git cannot tell, including a git call that timed out; left out without the input), the own relations, the successors of a superseded element (SR-072 AK3), the hints of the element (none while the metamodel is not valid; also `variant.superseded-in-validity`, SR-040 AK3, the outdated relations and inline references of the element, `relation.outdated`, SR-026 AK3, whose messages name the dates of both versions only with the input `versionDate` or `hintDates`, and `metamodel.meaning-unassigned` when no property has the meaning title) and `readOnly`, always given (unknown type, invalid metamodel or a repository folder that cannot be written). An element with a value that counts and has no normal form (`.inf`, `.nan`, ADR-0005) comes without `version` and `versionDate`, with a `file.faulty` warning last in its hints that says why (#276). The incoming relations of every kind: `trace.neighbourhood` with `direction: down`. `verification`, for an element whose type has the meaning `requirement`: its verification status in the core and in each variant it applies in, as evidence.status gives it (SR-031), with the indirect verification and the children that are missing (SR-034). `validation`: its validation status (SR-038), for every need and for any other element with a validation record, separate from `verification`. The variants that replace or exclude the element (SR-046, stage 5) have no field in the schema yet; they come with that stage. */
+  /** Text, properties, version and, with the input `versionDate`, its date (`versionDate`, D-013, ADR-0005: the committer date in UTC of the newest commit that started this version; null for content no commit has and when Git cannot tell, including a git call that timed out; left out without the input), the own relations, the successors of a superseded element (SR-072 AK3), the hints of the element (none while the metamodel is not valid; also `variant.superseded-in-validity`, SR-040 AK3, `variant.target-not-core` for a replacement or exclusion of the element that names no core requirement, SR-041 AK8, the outdated relations and inline references of the element, `relation.outdated`, and the changed core requirements of its replacements, `variant.core-changed` (SR-045), SR-026 AK3, whose messages name the dates of both versions only with the input `versionDate` or `hintDates`, and `metamodel.meaning-unassigned` when no property has the meaning title) and `readOnly`, always given (unknown type, invalid metamodel or a repository folder that cannot be written). An element with a value that counts and has no normal form (`.inf`, `.nan`, ADR-0005) comes without `version` and `versionDate`, with a `file.faulty` warning last in its hints that says why (#276). The incoming relations of every kind: `trace.neighbourhood` with `direction: down`. `verification`, for an element whose type has the meaning `requirement`: its verification status in each view it is in by the view rule (SR-043, SR-047 AK3), as evidence.status gives it (SR-031), with the indirect verification and the children that are missing (SR-034). `validation`: its validation status (SR-038), for every need and for any other element with a validation record, separate from `verification`. `replacedBy` and `excludedBy`, for a core requirement: the variants that replace it (with the replacing requirement) and those that exclude it (SR-046 AK3). */
   readonly element: DataExportElement;
   /** Of the file this answer was read from, for expectedFileSha256 of element.update (SR-106). */
   readonly fileSha256: FileSha256;
+  /** The elements the element names by UUID only, each once in the order first named: the variants of `validity`, `replacedBy` and `excludedBy`, the replacements and the views of `verification` (SR-046 AK1/AK2, SR-047 AK3, #588). Left out when it names none. */
+  readonly names?: readonly ElementName[];
+  /** A repository of the workspace is not here (SR-006 AK2): replacements, exclusions and records stored there are missing. */
+  readonly incomplete?: Incomplete;
 }
 
 /**
@@ -1429,7 +1504,7 @@ export interface ElementResolveInput {
  * Schema: `schemas/commands/catalog.json element.resolve output`.
  */
 export interface ElementResolveOutput {
-  /** The element as element.get shows it, with title, text, status, current version (SR-060 AK1), verification status (SR-031, SR-034) and validation status (SR-038) and, with the input `versionDate`, the date of that version (as element.get gives it; left out without the input). Without a version (a value that counts has no normal form) `version` and `versionDate` are left out and the hints end with a `file.faulty` warning, as in element.get (#276). An unknown reference is the error ref.unknown, one that fits several elements ref.ambiguous with details.candidates (AK3). A short ID whose prefix fits no element stays ref.unknown, never another element; when its tail fits exactly one element of another type, details.candidates names that element and the message asks whether its short ID was meant (prefix may be outdated, #275). */
+  /** The element as element.get shows it, with title, text, status, current version (SR-060 AK1), verification status per view it is in (SR-031, SR-034, SR-047 AK3) and validation status (SR-038) and, with the input `versionDate`, the date of that version (as element.get gives it; left out without the input). Without a version (a value that counts has no normal form) `version` and `versionDate` are left out and the hints end with a `file.faulty` warning, as in element.get (#276). An unknown reference is the error ref.unknown, one that fits several elements ref.ambiguous with details.candidates (AK3). A short ID whose prefix fits no element stays ref.unknown, never another element; when its tail fits exactly one element of another type, details.candidates names that element and the message asks whether its short ID was meant (prefix may be outdated, #275). */
   readonly element: DataExportElement;
   /** Whether the given version is the element's current version, computed from its file as it is now (SR-060 AK2): "current" or "outdated"; "unknown" when the element has no version to compare with (a value that counts has no normal form, `.inf` or `.nan`, ADR-0005: `element` comes without `version` and with a `file.faulty` warning that says why, #276); null when no version was given. Strings, not booleans, so a caller that tests the field for truth never takes "unknown" for current. */
   readonly current: "current" | "outdated" | "unknown" | null;
@@ -1582,7 +1657,7 @@ export interface ElementSetStatusOutput {
 }
 
 /**
- * Input of `element.supersede` as `run` gets it: validated, properties with a `default` filled in. Supersede an element: set an invalid status of its type and optionally let a successor replace it (relation with meaning replacement, written into the successor's file). There is no delete (D-045).
+ * Input of `element.supersede` as `run` gets it: validated, properties with a `default` filled in. Supersede an element: set an invalid status of its type and optionally name a successor (relation with meaning succession, written into the successor's file). There is no delete (D-045).
  * Schema: `schemas/commands/catalog.json element.supersede input`.
  */
 export interface ElementSupersedeInput {
@@ -1590,12 +1665,12 @@ export interface ElementSupersedeInput {
   /** Key or display name of a status of the metamodel, in any case; the key is written. It must be a status of the element's type that the metamodel marks invalid (#306). */
   readonly status: KeyOrName;
   readonly successor?: ElementRef;
-  /** Relation kind with meaning replacement to write from the successor; needed only when more than one fits the types and the successor does not already have the relation under exactly one of them. */
+  /** Relation kind with meaning succession to write from the successor; needed only when more than one fits the types and the successor does not already have the relation under exactly one of them. */
   readonly relation?: Key;
 }
 
 /**
- * Output of `element.supersede`. Supersede an element: set an invalid status of its type and optionally let a successor replace it (relation with meaning replacement, written into the successor's file). There is no delete (D-045).
+ * Output of `element.supersede`. Supersede an element: set an invalid status of its type and optionally name a successor (relation with meaning succession, written into the successor's file). There is no delete (D-045).
  * Schema: `schemas/commands/catalog.json element.supersede output`.
  */
 export interface ElementSupersedeOutput {
@@ -1759,7 +1834,7 @@ export interface TraceChainInput {
  */
 export interface TraceChainOutput {
   readonly root: Uuid;
-  /** Every element of the chain once per direction, at its shortest depth (SR-022 AK1, AK2): the root first, then the parents level by level, then the children level by level. An element reached again (a diamond, a cycle) is not repeated; its edge is in `edges` (SR-022 AK4). In a view, only the elements that apply in it (SR-040); the root always. An element is named by its UUID and `repository` (D-058); two files of one repository with the same UUID (SR-088) are two nodes, told apart only by `file`, and edges and gaps name both the same way. Only the page of `limit` nodes from `offset` (in this order) is listed; `total` counts every node. A chain can be large (in a workspace of 50,000 elements and 200,000 relations up to about 42,000 nodes): a client asks for the first page and further ones as needed (SR-082 AK4, spec-frage #290), or shows it step by step with `maxDepth` 1 and asks again below an element that is not `expanded`. */
+  /** Every element of the chain once per direction, at its shortest depth (SR-022 AK1, AK2): the root first, then the parents level by level, then the children level by level. An element reached again (a diamond, a cycle) is not repeated; its edge is in `edges` (SR-022 AK4). In a view, only the elements the view holds (SR-040, SR-043: not a core requirement the variant excludes or replaces, nor what hangs only below it); the root always. An element is named by its UUID and `repository` (D-058); two files of one repository with the same UUID (SR-088) are two nodes, told apart only by `file`, and edges and gaps name both the same way. Only the page of `limit` nodes from `offset` (in this order) is listed; `total` counts every node. A chain can be large (in a workspace of 50,000 elements and 200,000 relations up to about 42,000 nodes): a client asks for the first page and further ones as needed (SR-082 AK4, spec-frage #290), or shows it step by step with `maxDepth` 1 and asks again below an element that is not `expanded`. */
   readonly nodes: readonly {
     readonly id: Uuid;
     readonly shortId: ShortId;
@@ -1831,7 +1906,7 @@ export interface TraceChainOutput {
     /** As in `data-export.schema.json#/$defs/relation`; downwards always `ambiguous` (the element the child points at). */
     readonly targetState: "inaccessible" | "missing" | "ambiguous" | "unknown-repository";
   }[];
-  /** True when a part of the chain lies in a repository that is not on this machine (SR-006 AK2), or, when the chain goes down, an evidence location does: evidence there is not seen. */
+  /** True when a part of the chain lies in a repository that is not on this machine (SR-006 AK2), in the view of a variant while a repository of the workspace is not on this machine (it may hold a replacement or an exclusion), or, when the chain goes down, an evidence location does: evidence there is not seen. */
   readonly incomplete: Incomplete;
   /** Hints: `trace.cycle` once per cycle of derivations in the chain, naming its elements (SR-022 AK4); `metamodel.meaning-unassigned` when no type has the meaning `need` or `requirement`, so those gaps cannot be found (SR-013 AK3). The hints are those of the whole chain, on every page. */
   readonly problems: readonly Problem[];
@@ -1926,7 +2001,7 @@ export interface TraceNeighbourhoodInput {
   /** Keys of relation kinds or of properties of kind `relation` (such as `packages`) to follow. An unknown key is `input.invalid`. See `meanings` for the filter rule. */
   readonly kinds?: readonly Key[];
   /** Relation kinds with these meanings are followed; `reference` stands for inline references. Without `kinds` and `meanings` every relation and reference is followed. Otherwise a link is followed when its key is in `kinds` or its meaning is in `meanings`; an empty list follows nothing. */
-  readonly meanings?: readonly ("derivation" | "replacement" | "exclusion" | "reference")[];
+  readonly meanings?: readonly ("derivation" | "replacement" | "succession" | "exclusion" | "reference")[];
   readonly view?: View;
   /** Nodes of the page; total counts all. */
   readonly limit: number;
@@ -1940,7 +2015,7 @@ export interface TraceNeighbourhoodInput {
  */
 export interface TraceNeighbourhoodOutput {
   readonly root: Uuid;
-  /** Every element reached once per walk, at its shortest depth: the root, then the up walk, then the down walk, each level by level. In a view only the elements that apply in it (SR-040); the root always. Only the page of `limit` nodes from `offset` is listed; `total` counts all. */
+  /** Every element reached once per walk, at its shortest depth: the root, then the up walk, then the down walk, each level by level. In a view only the elements the view holds (SR-040, SR-043: not a core requirement the variant excludes or replaces); the root always. Only the page of `limit` nodes from `offset` is listed; `total` counts all. */
   readonly nodes: readonly {
     readonly id: Uuid;
     readonly shortId: ShortId;
@@ -1978,7 +2053,7 @@ export interface TraceNeighbourhoodOutput {
     /** The key is a property of kind `relation` (such as `packages`), not a relation kind. */
     readonly property?: true;
     /** The meaning of the relation kind, `reference` for an inline reference; left out for a kind without a meaning and for a property. */
-    readonly meaning?: "derivation" | "replacement" | "exclusion" | "reference";
+    readonly meaning?: "derivation" | "replacement" | "succession" | "exclusion" | "reference";
     /** The walk it belongs to. */
     readonly direction: "up" | "down";
     /** Both ends lie in one cycle of the walk. */
@@ -1996,7 +2071,7 @@ export interface TraceNeighbourhoodOutput {
  * Schema: `schemas/commands/catalog.json trace.matrix input`.
  */
 export interface TraceMatrixInput {
-  /** The rows: every element the selection selects, as `element.list` selects them (every part given must hold, SR-101 AK2). In a variant view (`selection.view`, or the view of the saved filter) a link whose other end does not apply in the view is left out of the cells and the counts (SR-040), as `trace.neighbourhood` leaves it out of its walk. */
+  /** The rows: every element the selection selects, as `element.list` selects them (every part given must hold, SR-101 AK2). In a variant view (`selection.view`, or the view of the saved filter) a link whose other end the view does not hold (SR-040, SR-043: also a core requirement the variant excludes or replaces) is left out of the cells and the counts, as `trace.neighbourhood` leaves it out of its walk. */
   readonly selection?: ElementSelection;
   /** As in `element.list`: the rows are in the order `element.list` gives for the same `selection` and `sort` (SR-125 AK1). Without `sort`, the sort of the saved filter in `selection.filter`. `hierarchy` first makes the rows the derivation tree and gives each row its `depth`. */
   readonly sort?: readonly FilterSortKeyWithDefaults[];
@@ -2022,7 +2097,7 @@ export interface TraceMatrixOutput {
     /** `kind` is the key of a property of kind `relation`, not of a relation kind. */
     readonly property?: true;
     /** The meaning of the relation kind; left out for a kind without a meaning and for a property. */
-    readonly meaning?: "derivation" | "replacement" | "exclusion";
+    readonly meaning?: "derivation" | "replacement" | "succession" | "exclusion";
     /** `out`: the relations the row element's file stores. `in`: the relations of other elements that point at it. */
     readonly direction: "out" | "in";
     /** For `out`, the `name` of the kind (e.g. Derives from); for `in`, its `inverse-name` (e.g. Derived by), the `name` when it has none. A name can be the same for both directions (Distinct from): `direction` tells them apart. */
@@ -2095,7 +2170,7 @@ export interface TraceGraphInput {
   /** Keys of relation kinds or of properties of kind `relation` (such as `packages`) to follow. An unknown key is `input.invalid`. See `meanings` for the filter rule. */
   readonly kinds?: readonly Key[];
   /** Relation kinds with these meanings are followed; `reference` stands for inline references. Without `kinds` and `meanings` every relation and reference is followed. Otherwise a link is followed when its key is in `kinds` or its meaning is in `meanings`; an empty list follows nothing. */
-  readonly meanings?: readonly ("derivation" | "replacement" | "exclusion" | "reference")[];
+  readonly meanings?: readonly ("derivation" | "replacement" | "succession" | "exclusion" | "reference")[];
   readonly view?: View;
   /** The most nodes, the element included; the nearest levels first (`truncated` says when more exist). */
   readonly limit: number;
@@ -2107,7 +2182,7 @@ export interface TraceGraphInput {
  */
 export interface TraceGraphOutput {
   readonly root: Uuid;
-  /** Every element of the graph once: the element first, then level by level from the nearest (for each distance the elements above, then those below, each in the order the links were followed). An element reached both ways is one node at its smaller distance, above on a tie. In a view only the elements that apply in it (SR-040); the element always. At most `limit` nodes. */
+  /** Every element of the graph once: the element first, then level by level from the nearest (for each distance the elements above, then those below, each in the order the links were followed). An element reached both ways is one node at its smaller distance, above on a tie. In a view only the elements the view holds (SR-040, SR-043: not a core requirement the variant excludes or replaces); the element always. At most `limit` nodes. */
   readonly nodes: readonly {
     readonly id: Uuid;
     readonly shortId: ShortId;
@@ -2123,7 +2198,7 @@ export interface TraceGraphOutput {
     readonly expanded: boolean;
     /** 0 for the element; -d for an element reached d steps up along the links the files store (its parents, the targets of its other relations and relation properties, its inline references), +d for one reached d steps down along links that point at it. The source of a link is placed below its target (ADR-0004). */
     readonly level: number;
-    /** In this order, only those that hold (SR-111 AK4): `outdated`, the element stores an outdated relation, relation property or inline reference (SR-025, the `relation.outdated` hints of element.get), whatever kinds are followed; `superseded`, its status is one the metamodel marks invalid (D-044); `no-evidence`, the gap rule of trace.chain (SR-022 AK3): a requirement without a derivation child that applies in the view and without evidence, whatever depth is shown. Evidence records come in stage 4: until then every requirement without a child is `no-evidence`. Empty when none holds. */
+    /** In this order, only those that hold (SR-111 AK4): `outdated`, the element stores an outdated relation, relation property or inline reference (SR-025, the `relation.outdated` and `variant.core-changed` hints of element.get), whatever kinds are followed; `superseded`, its status is one the metamodel marks invalid (D-044); `no-evidence`, the gap rule of trace.chain (SR-022 AK3): a requirement without a derivation child that applies in the view and without evidence, whatever depth is shown. Evidence records come in stage 4: until then every requirement without a child is `no-evidence`. Empty when none holds. */
     readonly marks: readonly ("outdated" | "superseded" | "no-evidence")[];
   }[];
   /** Every followed link from one node to another, also one the walks did not take (a link between two parents, or from a child to a parent): by source in the order of `nodes`, then in the order its file stores them (relations and relation properties in frontmatter order, then inline references). A link from an element to itself is no edge. Not listed: unresolved links (`element.get` and `workspace.check` report them). */
@@ -2143,7 +2218,7 @@ export interface TraceGraphOutput {
     /** The key is a property of kind `relation` (such as `packages`), not a relation kind. */
     readonly property?: true;
     /** The meaning of the relation kind, `reference` for an inline reference; left out for a kind without a meaning and for a property. */
-    readonly meaning?: "derivation" | "replacement" | "exclusion" | "reference";
+    readonly meaning?: "derivation" | "replacement" | "succession" | "exclusion" | "reference";
     /** The link stores a version of normal form 1, its target has a current version, and the two differ (SR-025). */
     readonly outdated: boolean;
   }[];
@@ -2165,7 +2240,7 @@ export interface HintListInput {
   readonly type?: readonly Key[];
   /** Only hints about elements whose property with the meaning packages lists this package. */
   readonly package?: ElementRef;
-  /** Only hints about elements that apply in this variant by their validity: those without a validity and those whose validity lists it (SR-040). */
+  /** Only hints about elements in the view of this variant (SR-043); a hint about a variant element only for that variant. */
   readonly variant?: ElementRef;
   /** Only the hints about this element. */
   readonly ref?: ElementRef;
@@ -2183,22 +2258,22 @@ export interface HintListOutput {
 }
 
 /**
- * Input of `hint.confirm` as `run` gets it: validated, properties with a `default` filled in. Confirm hints, by ID (hintIds) or all of one element (ref, target): writes the current target version into the relation or inline reference (in the text or in a property marked `markdown`, SR-127), and nothing else but the current titles of the file's same-repository targets (D-042); an ID no open hint has gives a warning, for example one confirmed already.
+ * Input of `hint.confirm` as `run` gets it: validated, properties with a `default` filled in. Confirm hints, by ID (hintIds) or all of one element (ref, target): writes the current target version into the relation or inline reference (in the text or in a property marked `markdown`, SR-127; `relation.outdated`) or into the `replaces` item (`variant.core-changed`, SR-045), and nothing else but the current titles of the file's same-repository targets (D-042); an ID no open hint has gives a warning, for example one confirmed already.
  * Schema: `schemas/commands/catalog.json hint.confirm input`.
  */
 export interface HintConfirmInput {
   /** IDs of hints to confirm (`hintId` of hint.list). */
   readonly hintIds?: readonly string[];
-  /** Confirm the open confirmable hints about this element: the outdated relations and inline references (in the text and in properties marked `markdown`) its file stores. */
+  /** Confirm the open confirmable hints about this element: the outdated relations and inline references (in the text and in properties marked `markdown`) its file stores, and its `replaces` items onto a changed core requirement. */
   readonly ref?: ElementRef;
   /** Confirm the open confirmable hints on relations and inline references that point at this element, for example after it changed. */
   readonly target?: ElementRef;
-  /** Only selected hints with one of these codes (with `ref` or `target`). */
+  /** Only selected hints with one of these codes (with `ref` or `target`); the confirmable codes are `relation.outdated` and `variant.core-changed`. */
   readonly kind?: readonly ProblemCode[];
 }
 
 /**
- * Output of `hint.confirm`. Confirm hints, by ID (hintIds) or all of one element (ref, target): writes the current target version into the relation or inline reference (in the text or in a property marked `markdown`, SR-127), and nothing else but the current titles of the file's same-repository targets (D-042); an ID no open hint has gives a warning, for example one confirmed already.
+ * Output of `hint.confirm`. Confirm hints, by ID (hintIds) or all of one element (ref, target): writes the current target version into the relation or inline reference (in the text or in a property marked `markdown`, SR-127; `relation.outdated`) or into the `replaces` item (`variant.core-changed`, SR-045), and nothing else but the current titles of the file's same-repository targets (D-042); an ID no open hint has gives a warning, for example one confirmed already.
  * Schema: `schemas/commands/catalog.json hint.confirm output`.
  */
 export interface HintConfirmOutput {
@@ -2338,7 +2413,7 @@ export interface EvidenceRecordInput {
   readonly result: "passed" | "failed";
   /** The item under test (Prüfling), for example the build or sample. Required for verification. No white space at either end and no control characters other than tab, line feed and carriage return. */
   readonly item?: Item;
-  /** A variant the element applies in (an element whose type has the meaning variant); the record holds for it. Absent: the core. */
+  /** A variant the element applies in (an element whose type has the meaning variant); the record holds for it. Absent: the core. A variant the element is not in is `input.invalid` with `details.reason` `not-valid-in-variant`, or `excluded-in-variant` or `replaced-in-variant` when the variant excludes or replaces the requirement (SR-047 AK4). */
   readonly variant?: ElementRef;
   /** When the check was done. Default: the time of the call, UTC, whole seconds. Its first ten characters (the day in its own offset) start the file name. */
   readonly date?: IsoDateTime;
@@ -2411,7 +2486,7 @@ export interface EvidenceStatusInput {
  * Schema: `schemas/commands/catalog.json evidence.status output`.
  */
 export interface EvidenceStatusOutput {
-  /** One page of the selection in workspace order, each element as element.list gives it, with `verification` for every element whose type has the meaning `requirement`: its verification status (SR-031, ADR-0012 "Status rules") in the core and in each variant it applies in (SR-040, SR-047), and for a requirement without own verification record in a view its indirect verification from its children (`indirect`) or the children that are missing (`missingChildren`, SR-034); an element marked emergent (SR-035) is never `indirect`; and `validation`, the validation status (SR-038, `$defs/element` `validation`: every need, any other element with a validation record). Derived from the evidence records; it is not the element's `status` and never changes it (D-030). While the metamodel is not valid the records are not compared: every requirement is `open`, every need `open`, and no other element has `validation`. */
+  /** One page of the selection in workspace order, each element as element.list gives it, with `verification` for every element whose type has the meaning `requirement`: its verification status (SR-031, ADR-0012 "Status rules") in each view it is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it (SR-043, SR-047 AK3), and for a requirement without own verification record in a view its indirect verification from its children (`indirect`) or the children that are missing (`missingChildren`, SR-034); an element marked emergent (SR-035) is never `indirect`; and `validation`, the validation status (SR-038, `$defs/element` `validation`: every need, any other element with a validation record). Derived from the evidence records; it is not the element's `status` and never changes it (D-030). While the metamodel is not valid the records are not compared: every requirement is `open`, every need `open`, and no other element has `validation`. */
   readonly elements: readonly DataExportElement[];
   /** Every element of the selection, not only the page. */
   readonly total: number;
@@ -2426,7 +2501,7 @@ export interface EvidenceStatusOutput {
  * Schema: `schemas/commands/catalog.json evidence.coverage input`.
  */
 export interface EvidenceCoverageInput {
-  /** The elements to cover, as `element.list` takes them; every part given must hold (SR-101 AK2). Its view (else the view of its saved filter) narrows the children to those that apply in it, as the chain does; evidence records count for that view, else for the core, as the filter condition `verification` does. */
+  /** The elements to cover, as `element.list` takes them; every part given must hold (SR-101 AK2). Its view (else the view of its saved filter) narrows the children to those it holds (SR-043: no core requirement the variant excludes or replaces), as the chain does; evidence records count for that view, else for the core, as the filter condition `verification` does. */
   readonly selection?: ElementSelection;
 }
 
@@ -2484,7 +2559,7 @@ export interface EvidenceDegreeOutput {
  * Schema: `schemas/commands/catalog.json evidence.withoutPassedTest input`.
  */
 export interface EvidenceWithoutPassedTestInput {
-  /** Default: the core. A variant: only records for it count, and only requirements that apply in it (SR-047). */
+  /** Default: the core. A variant: only records for it count, and only requirements its view holds (SR-047, SR-043). */
   readonly view?: View;
   readonly limit: number;
   readonly offset: number;
@@ -2545,6 +2620,7 @@ export interface DataStoreOutput {
  * Schema: `schemas/commands/catalog.json variant.diff input`.
  */
 export interface VariantDiffInput {
+  /** The variant. An element whose type has no meaning `variant` is `input.invalid` with `details.reason: "not-a-variant"`; an unknown or ambiguous reference is `ref.unknown` or `ref.ambiguous`. */
   readonly variant: ElementRef;
 }
 
@@ -2553,12 +2629,21 @@ export interface VariantDiffInput {
  * Schema: `schemas/commands/catalog.json variant.diff output`.
  */
 export interface VariantDiffOutput {
+  /** Requirements whose validity names the variant and that replace no core requirement that is not excluded in it (SR-044 AK1), also the source of a replaces onto an element that is no core requirement (SR-041 AK8). Store order. */
   readonly added: readonly Uuid[];
+  /** One row per pair, in store order of the core requirement, then of the replacement: two replacements of one core requirement are two rows (SR-041 AK7). A core requirement that is also excluded is not here (SR-042 AK5). */
   readonly replaced: readonly {
     readonly core: Uuid;
     readonly replacement: Uuid;
   }[];
+  /** Core requirements the variant excludes, also when replaced too; store order. */
   readonly excluded: readonly Uuid[];
+  /** Every element the lists name, each once, in order first named (#588). Left out when it names none. */
+  readonly names?: readonly ElementName[];
+  /** The variant.target-not-core hints of the variant's own entries and of its replacements. */
+  readonly problems?: readonly Problem[];
+  /** A repository is not here: a replacement or exclusion stored there is missing (SR-006 AK2). */
+  readonly incomplete?: Incomplete;
 }
 
 /**
@@ -2566,8 +2651,11 @@ export interface VariantDiffOutput {
  * Schema: `schemas/commands/catalog.json variant.exclude input`.
  */
 export interface VariantExcludeInput {
+  /** The variant. An element whose type has no meaning `variant` is `input.invalid` with `details.reason: "not-a-variant"`; an unknown or ambiguous reference is `ref.unknown` or `ref.ambiguous`. */
   readonly variant: ElementRef;
+  /** The core requirements to exclude, or with `undo` whose exclusion to remove. Adding an exclusion of a requirement with a validity, a need or a package is refused (SR-042 AK4): `input.invalid` with `details.reason: "not-core"` and `details.refs` (the refused refs); nothing is written. With `undo` every exclusion entry that is there is removed, also one of no core requirement (SR-042 AK7). */
   readonly refs: readonly ElementRef[];
+  /** Remove the exclusions of `refs` instead. An exclusion that is not there is an `info` problem `relation.not-found` in `problems`, as relation.remove gives it; the other refs are undone. */
   readonly undo: boolean;
 }
 
@@ -2581,79 +2669,168 @@ export interface VariantExcludeOutput {
 }
 
 /**
- * Input of `baseline.create` as `run` gets it: validated, properties with a `default` filled in. Write a baseline file for a selection. Refused while selected elements have uncommitted changes. Never commits.
+ * Input of `baseline.create` as `run` gets it: validated, properties with a `default` filled in. Write a baseline file for a selection (SR-050, ADR-0018): name, date, the HEAD commit of every repository involved, ID and version of every element. Refused while files of the selection are not committed. Never commits, never replaces a baseline.
  * Schema: `schemas/commands/catalog.json baseline.create input`.
  */
 export interface BaselineCreateInput {
-  readonly name: string;
+  readonly name: BaselineName;
+  /** Stored in the file: a saved filter as its where and view, package and view with their title. Not baseline. */
   readonly selection: ElementSelection;
 }
 
 /**
- * Output of `baseline.create`. Write a baseline file for a selection. Refused while selected elements have uncommitted changes. Never commits.
+ * Output of `baseline.create`. Write a baseline file for a selection (SR-050, ADR-0018): name, date, the HEAD commit of every repository involved, ID and version of every element. Refused while files of the selection are not committed. Never commits, never replaces a baseline.
  * Schema: `schemas/commands/catalog.json baseline.create output`.
  */
 export interface BaselineCreateOutput {
   readonly files: readonly string[];
+  readonly baseline: {
+    readonly name: string;
+    /** The file, relative to the workspace root, / as separator. */
+    readonly file: string;
+    /** The repository that holds the file; `repository` in the file is relative to it. */
+    readonly repository: string;
+    readonly date: IsoDateTime;
+    /** Number of elements in the file. */
+    readonly elements: number;
+  };
   readonly problems?: readonly Problem[];
+  /** A repository is not here, so the view may miss a replacement or exclusion stored there (SR-006); the file is written all the same, with a warning. */
+  readonly incomplete?: Incomplete;
 }
 
 /**
- * Input of `baseline.list` as `run` gets it: validated, properties with a `default` filled in. Baseline files of the workspace.
+ * Input of `baseline.list` as `run` gets it: validated, properties with a `default` filled in. Baseline files of the workspace, with name, date, view and number of elements (ADR-0018).
  * Schema: `schemas/commands/catalog.json baseline.list input`.
  */
 export type BaselineListInput = Readonly<Record<string, never>>;
 
 /**
- * Output of `baseline.list`. Baseline files of the workspace.
+ * Output of `baseline.list`. Baseline files of the workspace, with name, date, view and number of elements (ADR-0018).
  * Schema: `schemas/commands/catalog.json baseline.list output`.
  */
 export interface BaselineListOutput {
+  /** The valid baselines, in file order (code units of the file name). */
   readonly baselines: readonly {
     readonly name: string;
+    /** Relative to the workspace root, / as separator. */
     readonly file: string;
+    /** The repository that holds the file. */
+    readonly repository: string;
     readonly date: IsoDateTime;
+    /** The variant whose baseline it is: its stored selection is only that view (SR-103 AK4). Left out otherwise. */
+    readonly view?: ViewId;
+    /** Number of elements in the file. */
+    readonly elements: number;
   }[];
+  /** The baselines folder: the workspace file's `baselines`, or `baselines` in the main repository. */
+  readonly location: WorkspaceLocation;
+  /** baseline.invalid of the files that are no valid baseline. */
+  readonly problems?: readonly Problem[];
+  /** The repository of the baselines folder is not here, so its baselines are not seen (SR-006 AK2). */
+  readonly incomplete?: Incomplete;
 }
 
 /**
- * Input of `baseline.get` as `run` gets it: validated, properties with a `default` filled in. Elements of a baseline with their version then, marked changed, added or superseded since; optional evidence status per version.
+ * Input of `baseline.get` as `run` gets it: validated, properties with a `default` filled in. Elements of a baseline with their version then and its date, marked changed, superseded, removed or added since (SR-051); with withEvidence the evidence status of each requirement at its version in the baseline (SR-094).
  * Schema: `schemas/commands/catalog.json baseline.get input`.
  */
 export interface BaselineGetInput {
+  /** Name of a baseline, or its file name (with or without .yaml). */
   readonly baseline: string;
-  readonly withEvidence?: boolean;
+  /** Also give the status of each requirement at its version in the baseline: records up to the baseline's date and time, own records only, in the view of its selection (SR-094). */
+  readonly withEvidence: boolean;
+  /** Elements of the page; total counts all. */
+  readonly limit: number;
+  readonly offset: number;
 }
 
 /**
- * Output of `baseline.get`. Elements of a baseline with their version then, marked changed, added or superseded since; optional evidence status per version.
+ * Output of `baseline.get`. Elements of a baseline with their version then and its date, marked changed, superseded, removed or added since (SR-051); with withEvidence the evidence status of each requirement at its version in the baseline (SR-094).
  * Schema: `schemas/commands/catalog.json baseline.get output`.
  */
 export interface BaselineGetOutput {
   readonly name: string;
-  readonly date?: IsoDateTime;
-  readonly elements: readonly Readonly<Record<string, unknown>>[];
-  readonly added?: readonly Uuid[];
+  /** Relative to the workspace root, / as separator. */
+  readonly file: string;
+  /** The repository that holds the file. */
+  readonly repository: string;
+  readonly date: IsoDateTime;
+  /** The view of the stored selection; left out for the core. */
+  readonly view?: ViewId;
+  /** The file stores a selection. Without it no element is added or removed (SR-051 AK2/AK3). */
+  readonly selectionKnown: boolean;
+  readonly repositories: readonly {
+    readonly name: string;
+    readonly commit: Commit;
+  }[];
+  /** One page: the file's entries in file order, then the added elements in store order. State precedence: missing, superseded, removed, changed, unchanged; added only for elements not in the file. */
+  readonly elements: readonly {
+    readonly id: Uuid;
+    /** The repository of the copy, whenever it is known. */
+    readonly repository?: string;
+    /** missing: not in the store, or in a repository that is not here (incomplete). removed: not superseded and no longer in the stored selection (SR-051 AK3). added: in the stored selection and not in the file. */
+    readonly state: "unchanged" | "changed" | "superseded" | "removed" | "added" | "missing";
+    /** The version in the baseline; left out for added. */
+    readonly version?: Version;
+    /** Date of that version from the Git history (ADR-0005), read for the page only; null when unknown. */
+    readonly versionDate?: string | null;
+    /** The current version when it differs, also for removed and added. */
+    readonly current?: Version;
+    /** With withEvidence, for entries of the file whose type has the meaning requirement; never indirect (SR-094 AK5). */
+    readonly verification?: {
+      readonly view: ViewId;
+      readonly status: "open" | "verified" | "failed" | "outdated";
+      /** The record that decides the status. */
+      readonly decidedBy?: {
+        readonly repository: string;
+        /** Relative to the workspace root, / as separator. */
+        readonly file: string;
+        readonly line?: number;
+      };
+    };
+  }[];
+  /** Elements per state over all pages. */
+  readonly counts: {
+    readonly unchanged: number;
+    readonly changed: number;
+    readonly superseded: number;
+    readonly removed: number;
+    readonly added: number;
+    readonly missing: number;
+  };
+  /** Entries of the file plus added elements. */
+  readonly total: number;
+  /** The elements of the page and the variant of `view`, each once in the order first named (#588). */
+  readonly names: readonly ElementName[];
+  readonly problems?: readonly Problem[];
+  readonly incomplete?: Incomplete;
 }
 
 /**
- * Input of `baseline.compare` as `run` gets it: validated, properties with a `default` filled in. The Git command and commits that show the difference of an element since a baseline (SR-051 AK3). Read only.
+ * Input of `baseline.compare` as `run` gets it: validated, properties with a `default` filled in. The two commits and the Git command that show the difference of an element since a baseline (SR-051 AK4). Runs nothing.
  * Schema: `schemas/commands/catalog.json baseline.compare input`.
  */
 export interface BaselineCompareInput {
+  /** Name of a baseline, or its file name (with or without .yaml). */
   readonly baseline: string;
   readonly ref: ElementRef;
 }
 
 /**
- * Output of `baseline.compare`. The Git command and commits that show the difference of an element since a baseline (SR-051 AK3). Read only.
+ * Output of `baseline.compare`. The two commits and the Git command that show the difference of an element since a baseline (SR-051 AK4). Runs nothing.
  * Schema: `schemas/commands/catalog.json baseline.compare output`.
  */
 export interface BaselineCompareOutput {
   readonly repository: string;
   readonly from: Commit;
+  /** The commit to compare with; null for the working copy. */
   readonly to: string | null;
+  /** The element file now, relative to its repository. */
   readonly file: string;
+  /** Its path at the baseline commit, when the file moved. */
+  readonly oldFile?: string;
+  /** git -C <repository folder> diff <from> [<to>] -- [<oldFile>] <file>, to run in the workspace root, / as separator, the same on every access. */
   readonly command: readonly string[];
 }
 

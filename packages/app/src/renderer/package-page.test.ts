@@ -1,8 +1,10 @@
 import type { MetamodelGetOutput } from "@reqseq/core";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { DEFAULT_SORT, elementBuffer } from "./buffers.js";
+import type { Call } from "./call.js";
 import type { BufferData } from "./modeline.js";
 import {
+  askPackageSummary,
   memberCount,
   memberList,
   memberSummary,
@@ -94,5 +96,55 @@ describe("package page", () => {
     expect(memberSummary({ total: 2, incomplete: true }, [{ by: "title", order: "desc" }])).toBe(
       "2 · incomplete: a repository is missing · sorted by title descending",
     );
+  });
+
+  it("[SR-112/AK3] the line under the title is core's evidence.coverage and evidence.degree with selection.package", async () => {
+    const answers: Record<string, unknown> = {
+      "evidence.coverage": {
+        levels: [
+          { type: "need", total: 1, withChildren: 0, elements: {} },
+          { type: "system-requirement", total: 10, withChildren: 0, withEvidence: 8, elements: {} },
+        ],
+      },
+      "evidence.degree": {
+        degree: {
+          share: 0.6,
+          total: 10,
+          counts: { open: 2, verified: 6, indirect: 0, failed: 1, outdated: 1 },
+        },
+        view: "core",
+        incomplete: true,
+      },
+    };
+    const call = vi.fn((name: string) => Promise.resolve({ ok: true, output: answers[name] }));
+    expect(await askPackageSummary(call as unknown as Call, "uuid-p")).toEqual({
+      ok: true,
+      line: "Coverage 8 of 10 with evidence · Degree 60 % (6 verified, 1 failed, 1 outdated, 2 open) · incomplete: a repository is missing",
+    });
+    expect(call.mock.calls).toEqual([
+      ["evidence.coverage", { selection: { package: "uuid-p" } }],
+      ["evidence.degree", { selection: { package: "uuid-p" } }],
+    ]);
+  });
+
+  it("[SR-112/AK4] a package without requirements has no line, and a failed call says why", async () => {
+    const none = {
+      "evidence.coverage": { ok: true, output: { levels: [{ type: "need", total: 1, withChildren: 0 }] } },
+      "evidence.degree": { ok: true, output: { degree: { total: 0, counts: {} }, view: "core" } },
+    };
+    const answer = (fail: string | undefined) => (name: keyof typeof none) =>
+      Promise.resolve(name === fail ? { ok: false, code: "x", message: `no ${name}` } : none[name]);
+    expect(await askPackageSummary(answer(undefined) as unknown as Call, "p")).toEqual({
+      ok: true,
+      line: undefined,
+    });
+    expect(await askPackageSummary(answer("evidence.coverage") as unknown as Call, "p")).toEqual({
+      ok: false,
+      message: "no evidence.coverage",
+    });
+    expect(await askPackageSummary(answer("evidence.degree") as unknown as Call, "p")).toEqual({
+      ok: false,
+      message: "no evidence.degree",
+    });
   });
 });

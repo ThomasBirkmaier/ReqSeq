@@ -256,6 +256,9 @@
         "variant.core-changed",
         "variant.superseded-in-validity",
         "variant.nested",
+        "variant.target-not-core",
+        "variant.core-changed-since-baseline",
+        "variant.core-new-since-baseline",
         "evidence.unknown-element",
         "evidence.invalid-record",
         "evidence.outdated",
@@ -292,6 +295,7 @@
             "relation.not-allowed",
             "variant.nested",
             "baseline.uncommitted-changes",
+            "baseline.exists",
             "reqif.invalid",
             "reqif.unmapped",
             "git.unavailable",
@@ -360,7 +364,7 @@
       ]
     },
     "view": {
-      "description": "`core`, a variant ID, or absent for all elements (SR-043).",
+      "description": "`core`, a variant ID, or absent for all. A variant's view: the core requirements it neither excludes nor replaces, plus those valid for it; elements without validity property are in every view (SR-043).",
       "anyOf": [
         {
           "const": "core"

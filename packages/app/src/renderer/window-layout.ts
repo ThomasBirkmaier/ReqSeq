@@ -14,6 +14,8 @@
 //   pushed out by `MAX_BUFFERS`), the area shows the next buffer in the order of use; with none left, the
 //   window has one area.
 // - `reset` (another workspace) leaves one area.
+// - `side-by-side` (SR-044 AK2) shows two buffers in two areas: the first on the left, active, the second
+//   on the right.
 import type { Buffer, BufferAction, Buffers } from "./buffers.js";
 import { onlyOverview, overviewBuffer, reduceBuffers } from "./buffers.js";
 
@@ -35,8 +37,12 @@ export interface WindowState {
   readonly layout: Layout;
 }
 
-/** A buffer action, or "Split window" and "Unsplit window". */
-export type WindowAction = BufferAction | { readonly type: "split" } | { readonly type: "unsplit" };
+/** A buffer action, "Split window" and "Unsplit window", or two buffers side by side. */
+export type WindowAction =
+  | BufferAction
+  | { readonly type: "split" }
+  | { readonly type: "unsplit" }
+  | { readonly type: "side-by-side"; readonly left: Buffer; readonly right: Buffer };
 
 /** One area, on the left. */
 export const ONE_AREA: Layout = { active: "left" };
@@ -100,9 +106,22 @@ const settle = (before: WindowState, action: BufferAction, buffers: Buffers): Wi
     : { buffers, layout: withOther(layout.active, nextOther(buffers)) };
 };
 
+/** `left` and `right` opened in two areas, `left` active (one buffer under both keys opens alone). */
+const sideBySide = (state: WindowState, left: Buffer, right: Buffer): WindowState => {
+  const open = { type: "open", buffer: left } as const;
+  if (left.key === right.key) {
+    return settle(state, open, reduceBuffers(state.buffers, open));
+  }
+  const opened = reduceBuffers(reduceBuffers(state.buffers, { type: "open", buffer: right }), open);
+  return { buffers: opened, layout: { active: "left", other: right.key } };
+};
+
 export const reduceWindow = (state: WindowState, action: WindowAction): WindowState => {
   if (action.type === "split") {
     return split(state);
+  }
+  if (action.type === "side-by-side") {
+    return sideBySide(state, action.left, action.right);
   }
   if (action.type === "unsplit") {
     return state.layout.other === undefined ? state : { ...state, layout: { active: state.layout.active } };

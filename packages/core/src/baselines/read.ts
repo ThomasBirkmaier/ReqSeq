@@ -7,6 +7,8 @@
 //   main repository (`settingLocation`). A baseline is a `*.yaml` file directly in that folder that
 //   matches `baseline.schema.json`, as saved filters are read (query/saved.ts); a `.yml` file is
 //   reported and not read, a folder that does not exist holds no baseline.
+// - Read (ADR-0018 "Reading"): a file in the layout ReqSeq writes by the line scanner of scan.ts,
+//   any other parsed with YAML and checked against the schema; both give the same baseline.
 // - A file that is no valid baseline is a problem (`baseline.invalid` with the line of the value, or
 //   the problem of reading the YAML) and names no baseline; at most `MAX_VIOLATIONS` violations of
 //   one file are listed, so a file that breaks one rule in each of its 50,000 entries gives a short
@@ -30,10 +32,11 @@
 import path from "node:path";
 import type { BigIntStats } from "node:fs";
 import fs from "node:fs/promises";
+import { CommandError } from "../catalog.js";
 import type { Problem, WorkspaceLocation } from "../generated/types.js";
 import type { YamlFile } from "../files/index.js";
-import { listFolderFiles, readYamlFile, yamlPointerLine } from "../files/index.js";
-import { changeStamp } from "../model/index.js";
+import { listFolderFiles, readYamlFile, readYamlFileFast, yamlPointerLine } from "../files/index.js";
+import { changeStamp, workspacePath } from "../model/index.js";
 import { contractsBundle, fileSchemaValidator } from "../runtime/contracts.js";
 import { inputViolations } from "../runtime/input-errors.js";
 import type { Workspace } from "../runtime/workspace.js";
@@ -41,6 +44,7 @@ import { defineWorkspaceState } from "../runtime/workspace.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
 import { WORKSPACE_FILE, locate, settingLocation, workspaceLayoutState } from "../workspace/index.js";
 import type { BaselineFile } from "../generated/types.js";
+import { scanBaseline } from "./scan.js";
 
 /** Baseline files end in `.yaml` (D-056). */
 export const BASELINE_FILE_EXTENSION = ".yaml";
@@ -56,10 +60,14 @@ export interface Baseline {
   readonly repository: string;
   /** The file relative to its repository, `/` as separator. */
   readonly file: string;
+  /** The file relative to the workspace root, `/` as separator, as outputs name it. */
+  readonly shown: string;
   /** Whether it lists the element `id` with `version`. */
   readonly contains: (id: string, version: string) => boolean;
   /** Whether it lists the element, in any version (see the file comment). */
   readonly selects: (element: { readonly id: string; readonly repository: string }) => boolean;
+  /** The file as read: date, stored selection, commits and entries (SR-051). */
+  readonly data: BaselineFile;
 }
 
 /** The baselines folder of a workspace and what it holds. */
@@ -104,7 +112,7 @@ const problemIn = (repository: string, file: string, message: string, line?: num
 const versionKey = (id: string, version: string): string => `${id}\n${version}`;
 
 /** A valid baseline of `data`. */
-const baselineOf = (data: BaselineFile, repository: string, file: string): Baseline => {
+const baselineOf = (data: BaselineFile, repository: string, file: string, shown: string): Baseline => {
   const versions = new Set(data.elements.map((e) => versionKey(e.id, e.version)));
   // By UUID: the repositories its entries name, or `true` when an entry names none (every copy).
   const listed = new Map<string, Set<string> | true>();
@@ -122,6 +130,8 @@ const baselineOf = (data: BaselineFile, repository: string, file: string): Basel
     name: data.name,
     repository,
     file,
+    shown,
+    data,
     contains: (id, version) => versions.has(versionKey(id, version)),
     selects: (element) => {
       const copies = listed.get(element.id);
@@ -153,19 +163,61 @@ const violationsOf = (yaml: YamlFile, repository: string, file: string): Problem
     : shown;
 };
 
-/** Reads one baseline file and checks it against `baseline.schema.json`. */
-const readBaselineFile = async (repository: RepositoryLocation, file: string): Promise<FileRead> => {
-  const read = await readYamlFile(repository.folder, file);
+/**
+ * The JSON Pointer of the first repository name or element copy that `data` lists twice, or
+ * undefined (ADR-0018): an entry without `repository` is the copy in `repository`, the file's.
+ */
+const repeatedIn = (data: BaselineFile, repository: string): string | undefined => {
+  const names = new Set<string>();
+  for (const [at, entry] of data.repositories.entries()) {
+    if (names.has(entry.name)) {
+      return `/repositories/${String(at)}`;
+    }
+    names.add(entry.name);
+  }
+  const copies = new Set<string>();
+  for (const [at, entry] of data.elements.entries()) {
+    const key = `${entry.id}\n${entry.repository ?? repository}`;
+    if (copies.has(key)) {
+      return `/elements/${String(at)}`;
+    }
+    copies.add(key);
+  }
+  return undefined;
+};
+
+/**
+ * Reads one baseline file: in the layout ReqSeq writes with the line scanner (`scanBaseline`), else
+ * parsed with YAML and checked against `baseline.schema.json` (ADR-0018 "Reading"). A file that
+ * lists a repository or an element copy twice is faulty; the scanned one is parsed again for the line.
+ */
+const readBaselineFile = async (
+  repository: RepositoryLocation,
+  file: string,
+  shown: string,
+): Promise<FileRead> => {
+  const fast = await readYamlFileFast(repository.folder, file, scanBaseline);
+  if (fast.kind === "fast" && repeatedIn(fast.value, repository.name) === undefined) {
+    return { kind: "valid", baseline: baselineOf(fast.value, repository.name, file, shown), problems: [] };
+  }
+  const read = fast.kind === "fast" ? await readYamlFile(repository.folder, file) : fast;
   if (read.kind === "problem") {
     return { kind: "faulty", problems: [{ ...read.problem, repository: repository.name }] };
   }
   const yaml = read.file;
   const warnings: Problem[] = yaml.warnings.map((w) => ({ ...w, repository: repository.name }));
   const violations = violationsOf(yaml, repository.name, file);
+  const repeated =
+    violations.length === 0 ? repeatedIn(yaml.data as BaselineFile, repository.name) : undefined;
+  if (repeated !== undefined) {
+    const what = repeated.startsWith("/elements/") ? "an element copy" : "a repository";
+    const message = `Invalid baseline ${file}: it lists ${what} twice`;
+    violations.push(problemIn(repository.name, file, message, yamlPointerLine(yaml, repeated)));
+  }
   return violations.length === 0
     ? {
         kind: "valid",
-        baseline: baselineOf(yaml.data as BaselineFile, repository.name, file),
+        baseline: baselineOf(yaml.data as BaselineFile, repository.name, file, shown),
         problems: warnings,
       }
     : { kind: "faulty", problems: [...warnings, ...violations] };
@@ -187,6 +239,7 @@ const readKeptFile = async (
   repository: RepositoryLocation,
   absolute: string,
   file: string,
+  shown: string,
   kept: BaselineFiles,
   seen: Set<string>,
 ): Promise<FileRead | undefined> => {
@@ -200,7 +253,9 @@ const readKeptFile = async (
   const stamp = stat === null ? undefined : changeStamp(stat, readAt);
   const before = kept.get(key);
   const read =
-    stamp !== undefined && before?.stamp === stamp ? before.read : await readBaselineFile(repository, file);
+    stamp !== undefined && before?.stamp === stamp
+      ? before.read
+      : await readBaselineFile(repository, file, shown);
   kept.set(key, { stamp, read });
   return read;
 };
@@ -261,7 +316,8 @@ export const readBaselines = async (
     if (!name.endsWith(BASELINE_FILE_EXTENSION)) {
       continue;
     }
-    const read = await readKeptFile(repository, path.join(absolute, name), file, kept, seen);
+    const shown = workspacePath(layout, repository, file);
+    const read = await readKeptFile(repository, path.join(absolute, name), file, shown, kept, seen);
     if (read === undefined) {
       continue;
     }
@@ -293,7 +349,7 @@ export type FoundBaseline =
   | { readonly kind: "none" };
 
 /** A name as names compare (ignoring case and Unicode normal form), as saved filters compare theirs. */
-const fold = (text: string): string => text.normalize("NFC").toLowerCase();
+export const foldName = (text: string): string => text.normalize("NFC").toLowerCase();
 
 /** Whether `text` names the file `file` in the baselines folder, with or without `.yaml`. */
 const namesFile = (file: string, text: string): boolean => {
@@ -303,8 +359,8 @@ const namesFile = (file: string, text: string): boolean => {
 
 /** The baseline `text` names in `baselines` (see the file comment). */
 export const findBaseline = (baselines: Baselines, text: string): FoundBaseline => {
-  const key = fold(text);
-  const named = baselines.baselines.filter((b) => fold(b.name) === key);
+  const key = foldName(text);
+  const named = baselines.baselines.filter((b) => foldName(b.name) === key);
   const [first, ...others] =
     named.length > 0 ? named : baselines.baselines.filter((b) => namesFile(b.file, text));
   if (first !== undefined) {
@@ -324,3 +380,39 @@ export const baselineFilesState = defineWorkspaceState("baseline-files", (): Bas
 /** The baselines of the workspace now, reading again only the files that changed. */
 export const workspaceBaselines = async (workspace: Workspace): Promise<Baselines> =>
   readBaselines(await workspace.get(workspaceLayoutState), workspace.get(baselineFilesState));
+
+/**
+ * The baseline `text` names for `command` (`baseline.get`, `baseline.compare`): `input.invalid` at
+ * `baseline` with `reason` `unknown-baseline` or `ambiguous-baseline`, `file.faulty` for a text that
+ * names only a faulty file.
+ */
+export const namedBaseline = async (
+  workspace: Workspace,
+  text: string,
+  command: "baseline.get" | "baseline.compare",
+): Promise<Baseline> => {
+  const baselines = await workspaceBaselines(workspace);
+  const found = findBaseline(baselines, text);
+  const invalid = (reason: string, message: string): CommandError =>
+    new CommandError("input.invalid", `baseline: ${message}`, { command, fields: ["baseline"], reason });
+  switch (found.kind) {
+    case "found":
+      return found.baseline;
+    case "faulty":
+      throw new CommandError(
+        "file.faulty",
+        `The baseline ${JSON.stringify(text)} is in a faulty file (${found.file}); workspace check names its problems`,
+        { files: [found.file] },
+      );
+    case "ambiguous":
+      throw invalid(
+        "ambiguous-baseline",
+        `${String(found.files.length)} baseline files are named ${JSON.stringify(text)} (${found.files.join(", ")}); give its file name`,
+      );
+    case "none":
+      throw invalid(
+        "unknown-baseline",
+        `no baseline is named ${JSON.stringify(text)} and no baseline file has that name; baseline list names them`,
+      );
+  }
+};

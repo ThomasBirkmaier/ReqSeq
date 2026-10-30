@@ -26,7 +26,7 @@ ReqSeq is an offline requirements tool (core, CLI, API, MCP server, Electron app
 
 ## Traceability (D-049, D-050)
 
-- One issue per system requirement. Work without its own SR is labelled `enabler`.
+- One issue per system requirement. Work without its own SR is labelled `enabler`, on the issue and on the PR. Label the PR right when you open it: the required check `static` reads the label when it runs, and after a later label it stays red until `trace-check (PR text)` re-runs it once the CI run has completed (`merge.md`).
 - Branch `sr-036-short-slug` or `enabler-<issue>-short-slug`. Commits follow Conventional Commits; the body ends with `Implements: SR-036` (one line per SR) and `Refs #<issue>`. The PR title starts with the SR ID, and the body has `Closes #<issue>` and a "Verification" section.
 - Each acceptance criterion with method Test has a test named `[SR-036/AK2] ...` (AK counted from 1 in the order of the spec file). Other methods get a record in `verification/SR-036.md`, which a person confirms at stage acceptance.
 - `pnpm trace-check` must pass. A PR text must not name an SR ID that is not in `spec/` yet.
@@ -38,11 +38,11 @@ Strict typecheck, lint with zero warnings, format, and unit test coverage of 100
 ## Traps
 
 - GitHub has no GraphQL from cloud sessions, so `gh issue ...` and `gh pr ...` fail with 403. Use the GitHub MCP tools or `gh api repos/ThomasBirkmaier/ReqSeq/...` (REST). Sub-issues: `POST /repos/{owner}/{repo}/issues/{n}/sub_issues`.
-- Do not read `schemas/generated/` or `packages/core/src/generated/` unless you debug the generator. Regenerate them with `pnpm contracts:generate`. Merge `main` into a branch with `pnpm merge:main`, which regenerates conflicting generated files.
+- Do not read `schemas/generated/` or `packages/core/src/generated/` unless you debug the generator. Regenerate them with `pnpm contracts:generate`. Merge `main` into a branch (only on a conflict, `merge.md`) with `pnpm merge:main`, which regenerates conflicting generated files.
 - In `packages/core` and `packages/app`, read the README and only the parts under their `docs/` you work on; ADR-0008 and ADR-0010 are split the same way under `docs/adr/0008/` and `docs/adr/0010/`.
 - Squash merges have duplicated scenario blocks in `packages/cli/test/cross-access.test.ts` (TS1117). Check it after merging `main`.
 - The GitHub project "ReqSeq" is filled from the labels by `project-sync`. Change labels, never project fields.
-- Keep code platform-neutral (paths via `node:path`, CRLF-safe), because drafts run on Linux only, macOS and Windows run when a PR is ready (and on later pushes once Ubuntu passed), and main is checked on all three at night.
+- Keep code platform-neutral (paths via `node:path`, CRLF-safe), because drafts run on Linux only, macOS and Windows run alongside Ubuntu once a PR is ready, and main is checked on all three at night.
 
 ## How we work
 
@@ -53,5 +53,5 @@ Strict typecheck, lint with zero warnings, format, and unit test coverage of 100
 - Stop and ask the product owner only when you cannot continue without them, or before anything destructive or irreversible, here or on GitHub: deleting files, issues or releases (merged PR branches excepted), force-pushing or rewriting history, or changing branch protection or access.
 - Opus at effort medium by default. Effort high only for risky plans and changes and for the periodic check against the spec.
 - Do what the issue asks. Put pre-existing problems into the collective follow-up issue of the area. If ReqSeq behaves badly while you use it, open a `dogfooding` issue.
-- Agents commit and merge on their own, also for `.claude/`, `.github/`, `schemas/`, `docs/` and this file (D-051). `main` blocks force-pushes and deletion and requires the checks `static` plus `checks` and `electron` on each of `ubuntu-24.04`, `macos-14` and `windows-2025`, so every change, a trivial one too, goes through a pull request. Merge only on green CI, after one review by a second agent whose blocking findings are fixed (`lead-run`, `merge.md`). Tell the product owner in the stage epic about PRs that change the spec, schemas, ADRs, agent rules, skills or CI, without waiting for an answer.
-- Small PRs, one SR each unless SRs are inseparable. Rule, skill and doc changes that belong to no SR or code PR are bundled into one PR per half day (product owner decision, 2026-10-28, #722); since main requires checks, a pure wording fix goes through a PR too (#340).
+- Agents commit and merge on their own, also for `.claude/`, `.github/`, `schemas/`, `docs/` and this file (D-051). `main` blocks force-pushes and deletion and requires the checks `static` plus `checks` and `electron` on each of `ubuntu-24.04`, `macos-14` and `windows-2025`, so every change, a trivial one too, goes through a pull request. Merge only on green CI, after one review by a second agent whose blocking findings are fixed (`lead-run`, `merge.md`). Tell the product owner in the stage epic about PRs that change the spec, schemas, ADRs, agent rules, skills or CI, without waiting for an answer. A CI change that aims at speed or cost names its measure and its baseline, and is measured again two days after its merge with the same method; it is reverted if it missed its target (product owner decision, 2026-10-30, #412). When a condition behind the CI strategy changes (runner cost, visibility, required checks), check the strategy again.
+- Small PRs, one SR each unless SRs are inseparable. Every PR branches from `main`, never from another PR, and merges `main` only on a conflict or a base change (#412, `merge.md`). Rule, skill and doc changes that belong to no SR or code PR are bundled into one PR per half day (product owner decision, 2026-10-28, #722); since main requires checks, a pure wording fix goes through a PR too (#340).

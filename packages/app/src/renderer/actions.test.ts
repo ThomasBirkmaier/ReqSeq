@@ -1620,3 +1620,46 @@ describe("Split window (SR-115 AK3)", () => {
     runAction(action("split-window"), setup([element]).context);
   });
 });
+
+describe("Choose view (SR-043 AK1)", () => {
+  const coast = { view: "u-coast", title: "Coast", shortId: "VAR-0000c1" };
+  const answers = {
+    "metamodel.get": { types: [{ key: "variant", meaning: "variant" }] },
+    "element.list": { elements: [{ id: "u-coast", shortId: "VAR-0000c1", title: "Coast" }] },
+  };
+
+  it("offers all elements, the core and each variant, marks the one shown, and chooses one", async () => {
+    const choose = vi.fn();
+    const { context, asked, echoed } = setup([list], answers, true, { views: { shown: coast, choose } });
+    expect(titles(context)).toContain("Choose view");
+    runAction(action("choose-view"), context);
+    expect(asked.at(-1)?.label).toBe("View");
+    const items = (await asked.at(-1)?.fill)?.items ?? [];
+    expect(items.map((item) => [item.name, item.hint])).toEqual([
+      ["All elements", undefined],
+      ["Core", undefined],
+      ["VAR-0000c1 Coast", "shown"],
+    ]);
+    items[1]?.run();
+    items[0]?.run();
+    expect(choose.mock.calls).toEqual([[{ view: "core", title: "Core" }], [undefined]]);
+    expect(echoed).toEqual(["Showing the view Core", "Showing all elements"]);
+  });
+
+  it("offers all elements alone, with the reason, when the views cannot be read", async () => {
+    const { context, asked, echoed } = setup([list], { "metamodel.get": new Error("no metamodel") }, true, {
+      views: { shown: undefined, choose: vi.fn() },
+    });
+    runAction(action("choose-view"), context);
+    const items = (await asked.at(-1)?.fill)?.items ?? [];
+    expect(items.map((item) => [item.name, item.hint])).toEqual([["All elements", "shown"]]);
+    expect(echoed).toEqual(["no metamodel"]);
+  });
+
+  it("is not offered where the window shows no view, and does nothing there", () => {
+    const { context, asked } = setup([list]);
+    expect(action("choose-view").available(context)).toBe(false);
+    action("choose-view").run(context);
+    expect(asked).toEqual([]);
+  });
+});

@@ -1,13 +1,29 @@
 // The `baselines` block (D-039, architecture README §5). Stage 4 has the read-only reader of baseline
-// files (SR-032 AK2, spec question #530); creating and comparing baselines comes with stage 5. Core
-// blocks and commands import it relatively; it never imports `commands`. Block doc: docs/baselines.md.
+// files (SR-032 AK2, spec question #530), the fast reader of the file format of ADR-0018 and the
+// writer of new baseline files (SR-050), showing and comparing a baseline (SR-051) and the records
+// that count for its evidence (SR-094). Core blocks and commands import it relatively; it never
+// imports `commands`. Block doc: docs/baselines.md.
+export { createBaseline } from "./create.js";
+export { baselineStem, baselineText } from "./text.js";
+export { elementNames, involvedCommits, refuseUncommitted } from "./state.js";
+export type { ChangedFile, Checked } from "./state.js";
+export { writeNewBaseline } from "./write.js";
+export type { BaselineRequest } from "./create.js";
 export {
   BASELINE_FILE_EXTENSION,
   MAX_VIOLATIONS,
   baselineFilesState,
   baselinesContaining,
   findBaseline,
+  foldName,
+  namedBaseline,
   readBaselines,
   workspaceBaselines,
 } from "./read.js";
 export type { Baseline, BaselineFiles, Baselines, FoundBaseline } from "./read.js";
+export { baselineHeader, scanBaseline } from "./scan.js";
+export { copyOf, showBaseline } from "./show.js";
+export type { ShowRequest } from "./show.js";
+export { compareBaseline } from "./compare.js";
+export { countsFor } from "./counting.js";
+export type { BaselineHeader } from "./scan.js";

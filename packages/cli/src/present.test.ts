@@ -476,6 +476,22 @@ describe("renderHuman: elements named by UUID only (#588)", () => {
     expect(renderHuman({ rows: [], total: 6, names })).not.toContain("Showing");
   });
 
+  it("names the UUIDs of a list one per line and of its rows (variant.diff)", () => {
+    const output = { added: [C2, UNNAMED], replaced: [{ core: C1, replacement: C2 }], excluded: [C1], names };
+    expect(renderHuman(output)).toBe(
+      lines(
+        "added:",
+        "  SR-0000b2  Measure rain",
+        `  ${UNNAMED}`,
+        "replaced:",
+        "  - core: SR-0000b1 (SR-001)  Measure wind",
+        "    replacement: SR-0000b2  Measure rain",
+        "excluded:",
+        "  SR-0000b1 (SR-001)  Measure wind",
+      ),
+    );
+  });
+
   it("prints a names value that is not a list of names as it is", () => {
     expect(renderHuman({ view: V1, names: ["x"] })).toBe(lines(`view: ${V1}`, "names:", "  x"));
   });

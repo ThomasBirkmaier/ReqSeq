@@ -544,6 +544,30 @@ describe("the watcher's rules (SR-007)", () => {
     expect(workspace.peek(elementStoreState)).toBe(store);
   });
 
+  it("looks at a batch only once no write command of this process runs (#432)", async () => {
+    const { fixture, workspace } = await opened();
+    await workspace.get(elementStoreState);
+    const { fake, watcher } = await watched(workspace);
+    const heard: WorkspaceChange[] = [];
+    watcher.onChange((change) => {
+      heard.push(change);
+    });
+    let release: () => void = () => undefined;
+    const write = workspace.runCommand(() => new Promise<void>((resolve) => (release = resolve)), {
+      writes: true,
+    });
+    await fixture.write(REQUIREMENT_FILE, requirement(REQUIREMENT, "Written while a command writes"));
+    fake.only().send(REQUIREMENT_FILE);
+    // Ten times the debounce: the batch is due, and waits.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(heard).toEqual([]);
+    release();
+    await write;
+    await watcher.settled();
+    expect(heard.map((change) => change.elements.changed)).toEqual([[REQUIREMENT]]);
+    expect(await title(workspace, REQUIREMENT)).toBe("Written while a command writes");
+  });
+
   it("does nothing while no command has read the store", async () => {
     const { workspace } = await opened();
     const { fake, watcher } = await watched(workspace);

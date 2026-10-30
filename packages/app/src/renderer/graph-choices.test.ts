@@ -24,7 +24,10 @@ const CATALOG = [
     input: {
       type: "object",
       properties: {
-        meanings: { type: "array", items: { enum: ["derivation", "replacement", "exclusion", "reference"] } },
+        meanings: {
+          type: "array",
+          items: { enum: ["derivation", "replacement", "succession", "exclusion", "reference"] },
+        },
       },
     },
   },
@@ -88,11 +91,18 @@ describe("Graph depth", () => {
 
 describe("Show only relation kind", () => {
   it("[SR-111/AK3] Show only relation kind offers everything, the meanings of trace.graph and every relation kind and relation property by its name, and replaces the filter", () => {
-    expect(graphMeanings(CATALOG)).toEqual(["derivation", "replacement", "exclusion", "reference"]);
+    expect(graphMeanings(CATALOG)).toEqual([
+      "derivation",
+      "replacement",
+      "succession",
+      "exclusion",
+      "reference",
+    ]);
     expect(CHOICES).toEqual([
       { name: "Everything", filter: {} },
       { name: "Derivations", filter: { meanings: ["derivation"] } },
       { name: "Replacements", filter: { meanings: ["replacement"] } },
+      { name: "Successions", filter: { meanings: ["succession"] } },
       { name: "Exclusions", filter: { meanings: ["exclusion"] } },
       { name: "Inline references", filter: { meanings: ["reference"] } },
       { name: "Refines", hint: "refines", filter: { kinds: ["refines"] }, meaning: "derivation" },
@@ -157,6 +167,7 @@ describe("Also show relation kind", () => {
     // The relation kinds that derive are followed already: "Refines" and "Derives from" are not offered.
     expect(entries.map((entry) => entry.name)).toEqual([
       "Replacements",
+      "Successions",
       "Exclusions",
       "Inline references",
       "Based on",
@@ -175,6 +186,7 @@ describe("Also show relation kind", () => {
     const next = alsoChoices(both, CHOICES);
     expect(next.map((entry) => entry.name)).toEqual([
       "Replacements",
+      "Successions",
       "Exclusions",
       "Inline references",
       "Package",
@@ -190,7 +202,7 @@ describe("Also show relation kind", () => {
     // Everything followed one by one: nothing is left to add.
     const all = {
       ...graph,
-      meanings: ["derivation", "replacement", "exclusion", "reference"] as const,
+      meanings: ["derivation", "replacement", "succession", "exclusion", "reference"] as const,
       kinds: ["based-on", "packages"],
     };
     expect(alsoChoices({ ...all, meanings: [...all.meanings] }, CHOICES)).toEqual([]);
@@ -207,6 +219,7 @@ describe("Also show relation kind", () => {
     expect(entries.map((entry) => entry.name)).toEqual([
       "Derivations",
       "Replacements",
+      "Successions",
       "Exclusions",
       "Inline references",
       "Refines",
@@ -218,6 +231,7 @@ describe("Also show relation kind", () => {
     expect(derivations).toEqual({ ...graph, kinds: ["derives-from"], meanings: ["derivation"] });
     expect(alsoChoices(derivations, CHOICES).map((entry) => entry.name)).toEqual([
       "Replacements",
+      "Successions",
       "Exclusions",
       "Inline references",
       "Based on",

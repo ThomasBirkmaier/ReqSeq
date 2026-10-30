@@ -139,7 +139,7 @@
     },
     "baseline": {
       "title": "Baseline file",
-      "description": "A baseline is a YAML file with name, date, the commit of every repository involved and ID plus version of every element in the selection (D-039, SR-050). ReqSeq writes the file; a person commits it with Git (D-036, SR-050 AK4). No reason or approval field (D-006, SR-050 AK3). The metamodel of the baseline is given by the commit of the metamodel repository (D-021).",
+      "description": "A baseline is a YAML file with name, date, the stored selection, the commit of every repository involved and ID plus version of every element in the selection (D-039, SR-050, ADR-0018). ReqSeq writes the file once and never changes or replaces it; a person commits it with Git (D-036, D-045). No reason or approval field (D-006). The metamodel of the baseline is given by the commit of the metamodel repository (D-021). ReqSeq writes the keys in this order, one entry per line; a file in another layout is read too, more slowly.",
       "type": "object",
       "required": [
         "reqseq-baseline",
@@ -153,17 +153,17 @@
           "const": 1
         },
         "name": {
-          "type": "string",
-          "minLength": 1
+          "$ref": "#/$defs/baseline/$defs/name"
         },
         "date": {
+          "description": "When the baseline was created, in UTC without fractions. Its day is the UTC day (SR-094 AK2).",
           "$ref": "#/$defs/common/$defs/dateTime"
         },
         "selection": {
-          "description": "How the elements were selected, for information. The element list is authoritative.",
-          "$ref": "#/$defs/common/$defs/selection"
+          "$ref": "#/$defs/baseline/$defs/storedSelection"
         },
         "repositories": {
+          "description": "The repositories of the selected elements, the main repository and the metamodel's, each once with its HEAD commit (SR-050 AK4).",
           "type": "array",
           "minItems": 1,
           "items": {
@@ -199,15 +199,103 @@
                 "$ref": "#/$defs/common/$defs/version"
               },
               "repository": {
-                "type": "string"
+                "type": "string",
+                "description": "The repository of the copy, relative to the repository of the baseline file: given when they differ or the UUID has copies in several repositories."
               }
             },
             "additionalProperties": false
           },
-          "description": "Sorted by id; one flow mapping per line."
+          "description": "Sorted by id, then repository (code units; none first), each element copy once; one flow mapping per line."
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "$defs": {
+        "name": {
+          "description": "Name of a baseline (SR-050), unique in the workspace ignoring case and Unicode normal form. The file name is the name made portable, as attachment names (ADR-0004); a taken file name gets -2, -3, ….",
+          "type": "string",
+          "maxLength": 200,
+          "pattern": "^[^\\s\\u0000-\\u001f\\u007f-\\u009f](?:[^\\u0000-\\u001f\\u007f-\\u009f]*[^\\s\\u0000-\\u001f\\u007f-\\u009f])?$"
+        },
+        "storedSelection": {
+          "description": "The selection the baseline was created with, which SR-051, SR-094 and SR-103 read. ReqSeq writes it canonical: `where` as filter.save writes it, a saved filter as its `where` and `view`, `package` and `view` as `{ id, title }` in the repository of the file and `{ id, repository }` elsewhere (D-058), the title at baseline time; `ids` items without title.",
+          "type": "object",
+          "properties": {
+            "ids": {
+              "description": "A UUID in the repository of the file, `{ id, repository }` elsewhere; one per line, read line by line like `elements` (ADR-0018).",
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/common/$defs/elementRef"
+                  },
+                  {
+                    "$ref": "#/$defs/baseline/$defs/elsewhere"
+                  }
+                ]
+              }
+            },
+            "filter": {
+              "type": "string",
+              "description": "Name of a saved filter, as stage 4 files may hold; read with the filter as it is now. Not written."
+            },
+            "where": {
+              "$ref": "#/$defs/filter/$defs/condition"
+            },
+            "package": {
+              "$ref": "#/$defs/baseline/$defs/storedRef"
+            },
+            "view": {
+              "description": "`core` (a reference like any other, so not a separate constituent), or the variant as `{ id, title }` or a hand-written reference.",
+              "$ref": "#/$defs/baseline/$defs/storedRef"
+            }
+          },
+          "additionalProperties": false
+        },
+        "storedRef": {
+          "description": "An element of the stored selection: as written, or any reference a person may write by hand.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/common/$defs/elementRef"
+            },
+            {
+              "type": "object",
+              "required": [
+                "id",
+                "title"
+              ],
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/common/$defs/uuid"
+                },
+                "title": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "$ref": "#/$defs/baseline/$defs/elsewhere"
+            }
+          ]
+        },
+        "elsewhere": {
+          "description": "An element in another repository than the file's (D-058).",
+          "type": "object",
+          "required": [
+            "id",
+            "repository"
+          ],
+          "properties": {
+            "id": {
+              "$ref": "#/$defs/common/$defs/uuid"
+            },
+            "repository": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
     },
     "common": {
       "title": "Shared definitions",
@@ -492,6 +580,9 @@
             "variant.core-changed",
             "variant.superseded-in-validity",
             "variant.nested",
+            "variant.target-not-core",
+            "variant.core-changed-since-baseline",
+            "variant.core-new-since-baseline",
             "evidence.unknown-element",
             "evidence.invalid-record",
             "evidence.outdated",
@@ -531,6 +622,7 @@
                 "relation.not-allowed",
                 "variant.nested",
                 "baseline.uncommitted-changes",
+                "baseline.exists",
                 "reqif.invalid",
                 "reqif.unmapped",
                 "git.unavailable",
@@ -599,7 +691,7 @@
           ]
         },
         "view": {
-          "description": "`core`, a variant ID, or absent for all elements (SR-043).",
+          "description": "`core`, a variant ID, or absent for all. A variant's view: the core requirements it neither excludes nor replaces, plus those valid for it; elements without validity property are in every view (SR-043).",
           "anyOf": [
             {
               "const": "core"
@@ -644,8 +736,8 @@
       ],
       "properties": {
         "reqseq-data": {
-          "const": 2,
-          "description": "The version of this format. 2: with `commit` and `dirty` at the top level and the JSON Lines form (`$defs/line`)."
+          "const": 3,
+          "description": "The version of this format. 2: with `commit` and `dirty` at the top level and the JSON Lines form (`$defs/line`). 3: a successor's relation has the meaning `succession` instead of `replacement` (D-059)."
         },
         "commit": {
           "$ref": "#/$defs/common/$defs/commit",
@@ -726,7 +818,7 @@
           ],
           "properties": {
             "reqseq-data": {
-              "const": 2
+              "const": 3
             },
             "commit": {
               "$ref": "#/$defs/common/$defs/commit",
@@ -819,6 +911,33 @@
               },
               "description": "Given by data.export: the UUIDs of the packages the property with the meaning `packages` names, in its order; `[]` when none. Left out when the metamodel has no packages property."
             },
+            "replacedBy": {
+              "type": "array",
+              "description": "Given only for a core requirement (SR-046 AK3): each variant that replaces it and the replacing requirement, one entry per pair; a variant that also excludes it is only in excludedBy. Left out when empty.",
+              "items": {
+                "type": "object",
+                "required": [
+                  "variant",
+                  "replacement"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "variant": {
+                    "$ref": "#/$defs/common/$defs/uuid"
+                  },
+                  "replacement": {
+                    "$ref": "#/$defs/common/$defs/uuid"
+                  }
+                }
+              }
+            },
+            "excludedBy": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/common/$defs/uuid"
+              },
+              "description": "The variants that exclude this core requirement (SR-042, SR-046 AK3). Left out when empty."
+            },
             "emergent": {
               "type": "boolean",
               "description": "SR-035: true when the element's property with the meaning `emergent` holds the choice `yes` (assumption, spec question #591); only true is given, left out otherwise. An emergent requirement is never `indirect`: without an own verification record in a view it is `open` there."
@@ -830,14 +949,14 @@
             },
             "relations": {
               "type": "array",
-              "description": "The element's own relations, then the targets of its properties of kind `relation` (`property: true`), then the incoming relations (`direction: in`); in stage 1 only the relations with the meaning `replacement` from the successors of an element with a status marked invalid (SR-072 AK3). The targets of `validity` and `packages` also appear in `validity` and `packages` in data.export. `currentVersion` and `outdated` are given by data.export and trace.matrix.",
+              "description": "The element's own relations, then the targets of its properties of kind `relation` (`property: true`), then the incoming relations (`direction: in`); in stage 1 only the relations with the meaning `succession` from the successors of an element with a status marked invalid (SR-072 AK3). The targets of `validity` and `packages` also appear in `validity` and `packages` in data.export. `currentVersion` and `outdated` are given by data.export and trace.matrix.",
               "items": {
                 "$ref": "#/$defs/data-export/$defs/relation"
               }
             },
             "verification": {
               "type": "array",
-              "description": "Verification status per view: core and each variant the element is valid for (SR-047 AK3).",
+              "description": "Verification status, one entry per view the requirement is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it (SR-047 AK3).",
               "items": {
                 "$ref": "#/$defs/data-export/$defs/verificationEntry"
               }
@@ -876,6 +995,7 @@
               "enum": [
                 "derivation",
                 "replacement",
+                "succession",
                 "exclusion",
                 "reference",
                 null
@@ -1523,7 +1643,7 @@
               "properties": {
                 "validFor": {
                   "$ref": "#/$defs/common/$defs/view",
-                  "description": "Elements that apply in this view by their validity."
+                  "description": "Elements that apply in this view by their validity only, not the view: replacements and exclusions do not count."
                 }
               },
               "additionalProperties": false
@@ -1666,6 +1786,7 @@
                   "enum": [
                     "derivation",
                     "replacement",
+                    "succession",
                     "exclusion"
                   ],
                   "description": "Every relation kind with this meaning. Neither `kind` nor `meaning`: every relation kind."
@@ -2035,10 +2156,11 @@
           "unevaluatedProperties": false
         },
         "relationMeaning": {
-          "description": "Built-in meaning (D-012, D-059). `derivation`: source is child, target is parent (chain, coverage, indirect verification). `replacement`: source replaces target, either for the variants in the source's validity (D-020) or, when the target has an invalid status, as its successor (D-045, SR-072). `exclusion`: source variant excludes target core requirement, written in the variant file (SR-042, D-059). Without meaning a relation has no traceability semantics.",
+          "description": "Built-in meaning (D-012, D-059). `derivation`: source is child, target is parent (chain, coverage, indirect verification). `replacement`: source replaces target core requirement for the variants in the source's validity (D-020). `succession`: source is the successor that supersedes target (D-045, SR-072). `exclusion`: source variant excludes target core requirement, written in the variant file (SR-042, D-059). Without meaning a relation has no traceability semantics.",
           "enum": [
             "derivation",
             "replacement",
+            "succession",
             "exclusion"
           ]
         },
@@ -3008,7 +3130,7 @@
           "hintDates": {
             "type": "boolean",
             "default": false,
-            "description": "Date only the outdated relations and inline references among the hints (`relation.outdated`: `storedDate`, `currentDate` and both dates in the message, D-013, ADR-0005), not the version of the element itself. Git reads only the histories of their targets, and none when the element has no outdated relation; the app asks for it in a second call after the element is shown, only for an element with such hints (SR-110 AK2, SR-082 AK3). `versionDate` dates these hints too."
+            "description": "Date only the outdated relations and inline references and the changed core requirements of replacements among the hints (`relation.outdated`, `variant.core-changed`: `storedDate`, `currentDate` and both dates in the message, D-013, ADR-0005), not the version of the element itself. Git reads only the histories of their targets, and none when the element has no outdated relation; the app asks for it in a second call after the element is shown, only for an element with such hints (SR-110 AK2, SR-082 AK3). `versionDate` dates these hints too."
           },
           "repository": {
             "type": "string",
@@ -3037,11 +3159,22 @@
         "properties": {
           "element": {
             "$ref": "#/$defs/data-export/$defs/element",
-            "description": "Text, properties, version and, with the input `versionDate`, its date (`versionDate`, D-013, ADR-0005: the committer date in UTC of the newest commit that started this version; null for content no commit has and when Git cannot tell, including a git call that timed out; left out without the input), the own relations, the successors of a superseded element (SR-072 AK3), the hints of the element (none while the metamodel is not valid; also `variant.superseded-in-validity`, SR-040 AK3, the outdated relations and inline references of the element, `relation.outdated`, SR-026 AK3, whose messages name the dates of both versions only with the input `versionDate` or `hintDates`, and `metamodel.meaning-unassigned` when no property has the meaning title) and `readOnly`, always given (unknown type, invalid metamodel or a repository folder that cannot be written). An element with a value that counts and has no normal form (`.inf`, `.nan`, ADR-0005) comes without `version` and `versionDate`, with a `file.faulty` warning last in its hints that says why (#276). The incoming relations of every kind: `trace.neighbourhood` with `direction: down`. `verification`, for an element whose type has the meaning `requirement`: its verification status in the core and in each variant it applies in, as evidence.status gives it (SR-031), with the indirect verification and the children that are missing (SR-034). `validation`: its validation status (SR-038), for every need and for any other element with a validation record, separate from `verification`. The variants that replace or exclude the element (SR-046, stage 5) have no field in the schema yet; they come with that stage."
+            "description": "Text, properties, version and, with the input `versionDate`, its date (`versionDate`, D-013, ADR-0005: the committer date in UTC of the newest commit that started this version; null for content no commit has and when Git cannot tell, including a git call that timed out; left out without the input), the own relations, the successors of a superseded element (SR-072 AK3), the hints of the element (none while the metamodel is not valid; also `variant.superseded-in-validity`, SR-040 AK3, `variant.target-not-core` for a replacement or exclusion of the element that names no core requirement, SR-041 AK8, the outdated relations and inline references of the element, `relation.outdated`, and the changed core requirements of its replacements, `variant.core-changed` (SR-045), SR-026 AK3, whose messages name the dates of both versions only with the input `versionDate` or `hintDates`, and `metamodel.meaning-unassigned` when no property has the meaning title) and `readOnly`, always given (unknown type, invalid metamodel or a repository folder that cannot be written). An element with a value that counts and has no normal form (`.inf`, `.nan`, ADR-0005) comes without `version` and `versionDate`, with a `file.faulty` warning last in its hints that says why (#276). The incoming relations of every kind: `trace.neighbourhood` with `direction: down`. `verification`, for an element whose type has the meaning `requirement`: its verification status in each view it is in by the view rule (SR-043, SR-047 AK3), as evidence.status gives it (SR-031), with the indirect verification and the children that are missing (SR-034). `validation`: its validation status (SR-038), for every need and for any other element with a validation record, separate from `verification`. `replacedBy` and `excludedBy`, for a core requirement: the variants that replace it (with the replacing requirement) and those that exclude it (SR-046 AK3)."
           },
           "fileSha256": {
             "$ref": "#/$defs/common/$defs/fileSha256",
             "description": "Of the file this answer was read from, for expectedFileSha256 of element.update (SR-106)."
+          },
+          "names": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/common/$defs/elementName"
+            },
+            "description": "The elements the element names by UUID only, each once in the order first named: the variants of `validity`, `replacedBy` and `excludedBy`, the replacements and the views of `verification` (SR-046 AK1/AK2, SR-047 AK3, #588). Left out when it names none."
+          },
+          "incomplete": {
+            "$ref": "#/$defs/common/$defs/incomplete",
+            "description": "A repository of the workspace is not here (SR-006 AK2): replacements, exclusions and records stored there are missing."
           }
         },
         "additionalProperties": false,
@@ -3102,7 +3235,7 @@
         "properties": {
           "element": {
             "$ref": "#/$defs/data-export/$defs/element",
-            "description": "The element as element.get shows it, with title, text, status, current version (SR-060 AK1), verification status (SR-031, SR-034) and validation status (SR-038) and, with the input `versionDate`, the date of that version (as element.get gives it; left out without the input). Without a version (a value that counts has no normal form) `version` and `versionDate` are left out and the hints end with a `file.faulty` warning, as in element.get (#276). An unknown reference is the error ref.unknown, one that fits several elements ref.ambiguous with details.candidates (AK3). A short ID whose prefix fits no element stays ref.unknown, never another element; when its tail fits exactly one element of another type, details.candidates names that element and the message asks whether its short ID was meant (prefix may be outdated, #275)."
+            "description": "The element as element.get shows it, with title, text, status, current version (SR-060 AK1), verification status per view it is in (SR-031, SR-034, SR-047 AK3) and validation status (SR-038) and, with the input `versionDate`, the date of that version (as element.get gives it; left out without the input). Without a version (a value that counts has no normal form) `version` and `versionDate` are left out and the hints end with a `file.faulty` warning, as in element.get (#276). An unknown reference is the error ref.unknown, one that fits several elements ref.ambiguous with details.candidates (AK3). A short ID whose prefix fits no element stays ref.unknown, never another element; when its tail fits exactly one element of another type, details.candidates names that element and the message asks whether its short ID was meant (prefix may be outdated, #275)."
           },
           "current": {
             "enum": [
@@ -3585,7 +3718,7 @@
     {
       "name": "element_supersede",
       "title": "Supersede element",
-      "description": "Supersede an element: set an invalid status of its type and optionally let a successor replace it (relation with meaning replacement, written into the successor's file). There is no delete (D-045).",
+      "description": "Supersede an element: set an invalid status of its type and optionally name a successor (relation with meaning succession, written into the successor's file). There is no delete (D-045).",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -3606,7 +3739,7 @@
           },
           "relation": {
             "$ref": "#/$defs/common/$defs/key",
-            "description": "Relation kind with meaning replacement to write from the successor; needed only when more than one fits the types and the successor does not already have the relation under exactly one of them."
+            "description": "Relation kind with meaning succession to write from the successor; needed only when more than one fits the types and the successor does not already have the relation under exactly one of them."
           }
         },
         "additionalProperties": false,
@@ -4072,7 +4205,7 @@
           },
           "nodes": {
             "type": "array",
-            "description": "Every element of the chain once per direction, at its shortest depth (SR-022 AK1, AK2): the root first, then the parents level by level, then the children level by level. An element reached again (a diamond, a cycle) is not repeated; its edge is in `edges` (SR-022 AK4). In a view, only the elements that apply in it (SR-040); the root always. An element is named by its UUID and `repository` (D-058); two files of one repository with the same UUID (SR-088) are two nodes, told apart only by `file`, and edges and gaps name both the same way. Only the page of `limit` nodes from `offset` (in this order) is listed; `total` counts every node. A chain can be large (in a workspace of 50,000 elements and 200,000 relations up to about 42,000 nodes): a client asks for the first page and further ones as needed (SR-082 AK4, spec-frage #290), or shows it step by step with `maxDepth` 1 and asks again below an element that is not `expanded`.",
+            "description": "Every element of the chain once per direction, at its shortest depth (SR-022 AK1, AK2): the root first, then the parents level by level, then the children level by level. An element reached again (a diamond, a cycle) is not repeated; its edge is in `edges` (SR-022 AK4). In a view, only the elements the view holds (SR-040, SR-043: not a core requirement the variant excludes or replaces, nor what hangs only below it); the root always. An element is named by its UUID and `repository` (D-058); two files of one repository with the same UUID (SR-088) are two nodes, told apart only by `file`, and edges and gaps name both the same way. Only the page of `limit` nodes from `offset` (in this order) is listed; `total` counts every node. A chain can be large (in a workspace of 50,000 elements and 200,000 relations up to about 42,000 nodes): a client asks for the first page and further ones as needed (SR-082 AK4, spec-frage #290), or shows it step by step with `maxDepth` 1 and asks again below an element that is not `expanded`.",
             "items": {
               "type": "object",
               "properties": {
@@ -4316,7 +4449,7 @@
           },
           "incomplete": {
             "$ref": "#/$defs/common/$defs/incomplete",
-            "description": "True when a part of the chain lies in a repository that is not on this machine (SR-006 AK2), or, when the chain goes down, an evidence location does: evidence there is not seen."
+            "description": "True when a part of the chain lies in a repository that is not on this machine (SR-006 AK2), in the view of a variant while a repository of the workspace is not on this machine (it may hold a replacement or an exclusion), or, when the chain goes down, an evidence location does: evidence there is not seen."
           },
           "problems": {
             "type": "array",
@@ -4619,6 +4752,7 @@
               "enum": [
                 "derivation",
                 "replacement",
+                "succession",
                 "exclusion",
                 "reference"
               ]
@@ -4655,7 +4789,7 @@
           },
           "nodes": {
             "type": "array",
-            "description": "Every element reached once per walk, at its shortest depth: the root, then the up walk, then the down walk, each level by level. In a view only the elements that apply in it (SR-040); the root always. Only the page of `limit` nodes from `offset` is listed; `total` counts all.",
+            "description": "Every element reached once per walk, at its shortest depth: the root, then the up walk, then the down walk, each level by level. In a view only the elements the view holds (SR-040, SR-043: not a core requirement the variant excludes or replaces); the root always. Only the page of `limit` nodes from `offset` is listed; `total` counts all.",
             "items": {
               "type": "object",
               "properties": {
@@ -4761,6 +4895,7 @@
                   "enum": [
                     "derivation",
                     "replacement",
+                    "succession",
                     "exclusion",
                     "reference"
                   ],
@@ -4828,7 +4963,7 @@
         "properties": {
           "selection": {
             "$ref": "#/$defs/common/$defs/selection",
-            "description": "The rows: every element the selection selects, as `element.list` selects them (every part given must hold, SR-101 AK2). In a variant view (`selection.view`, or the view of the saved filter) a link whose other end does not apply in the view is left out of the cells and the counts (SR-040), as `trace.neighbourhood` leaves it out of its walk."
+            "description": "The rows: every element the selection selects, as `element.list` selects them (every part given must hold, SR-101 AK2). In a variant view (`selection.view`, or the view of the saved filter) a link whose other end the view does not hold (SR-040, SR-043: also a core requirement the variant excludes or replaces) is left out of the cells and the counts, as `trace.neighbourhood` leaves it out of its walk."
           },
           "sort": {
             "type": "array",
@@ -4888,6 +5023,7 @@
                   "enum": [
                     "derivation",
                     "replacement",
+                    "succession",
                     "exclusion"
                   ],
                   "description": "The meaning of the relation kind; left out for a kind without a meaning and for a property."
@@ -5143,6 +5279,7 @@
               "enum": [
                 "derivation",
                 "replacement",
+                "succession",
                 "exclusion",
                 "reference"
               ]
@@ -5173,7 +5310,7 @@
           },
           "nodes": {
             "type": "array",
-            "description": "Every element of the graph once: the element first, then level by level from the nearest (for each distance the elements above, then those below, each in the order the links were followed). An element reached both ways is one node at its smaller distance, above on a tie. In a view only the elements that apply in it (SR-040); the element always. At most `limit` nodes.",
+            "description": "Every element of the graph once: the element first, then level by level from the nearest (for each distance the elements above, then those below, each in the order the links were followed). An element reached both ways is one node at its smaller distance, above on a tie. In a view only the elements the view holds (SR-040, SR-043: not a core requirement the variant excludes or replaces); the element always. At most `limit` nodes.",
             "items": {
               "type": "object",
               "properties": {
@@ -5221,7 +5358,7 @@
                       "no-evidence"
                     ]
                   },
-                  "description": "In this order, only those that hold (SR-111 AK4): `outdated`, the element stores an outdated relation, relation property or inline reference (SR-025, the `relation.outdated` hints of element.get), whatever kinds are followed; `superseded`, its status is one the metamodel marks invalid (D-044); `no-evidence`, the gap rule of trace.chain (SR-022 AK3): a requirement without a derivation child that applies in the view and without evidence, whatever depth is shown. Evidence records come in stage 4: until then every requirement without a child is `no-evidence`. Empty when none holds."
+                  "description": "In this order, only those that hold (SR-111 AK4): `outdated`, the element stores an outdated relation, relation property or inline reference (SR-025, the `relation.outdated` and `variant.core-changed` hints of element.get), whatever kinds are followed; `superseded`, its status is one the metamodel marks invalid (D-044); `no-evidence`, the gap rule of trace.chain (SR-022 AK3): a requirement without a derivation child that applies in the view and without evidence, whatever depth is shown. Evidence records come in stage 4: until then every requirement without a child is `no-evidence`. Empty when none holds."
                 }
               },
               "additionalProperties": false,
@@ -5279,6 +5416,7 @@
                   "enum": [
                     "derivation",
                     "replacement",
+                    "succession",
                     "exclusion",
                     "reference"
                   ],
@@ -5358,7 +5496,7 @@
           },
           "variant": {
             "$ref": "#/$defs/common/$defs/elementRef",
-            "description": "Only hints about elements that apply in this variant by their validity: those without a validity and those whose validity lists it (SR-040)."
+            "description": "Only hints about elements in the view of this variant (SR-043); a hint about a variant element only for that variant."
           },
           "ref": {
             "$ref": "#/$defs/common/$defs/elementRef",
@@ -5392,7 +5530,7 @@
     {
       "name": "hint_confirm",
       "title": "Confirm hints",
-      "description": "Confirm hints, by ID (hintIds) or all of one element (ref, target): writes the current target version into the relation or inline reference (in the text or in a property marked `markdown`, SR-127), and nothing else but the current titles of the file's same-repository targets (D-042); an ID no open hint has gives a warning, for example one confirmed already.",
+      "description": "Confirm hints, by ID (hintIds) or all of one element (ref, target): writes the current target version into the relation or inline reference (in the text or in a property marked `markdown`, SR-127; `relation.outdated`) or into the `replaces` item (`variant.core-changed`, SR-045), and nothing else but the current titles of the file's same-repository targets (D-042); an ID no open hint has gives a warning, for example one confirmed already.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -5411,7 +5549,7 @@
           },
           "ref": {
             "$ref": "#/$defs/common/$defs/elementRef",
-            "description": "Confirm the open confirmable hints about this element: the outdated relations and inline references (in the text and in properties marked `markdown`) its file stores."
+            "description": "Confirm the open confirmable hints about this element: the outdated relations and inline references (in the text and in properties marked `markdown`) its file stores, and its `replaces` items onto a changed core requirement."
           },
           "target": {
             "$ref": "#/$defs/common/$defs/elementRef",
@@ -5419,7 +5557,7 @@
           },
           "kind": {
             "type": "array",
-            "description": "Only selected hints with one of these codes (with `ref` or `target`).",
+            "description": "Only selected hints with one of these codes (with `ref` or `target`); the confirmable codes are `relation.outdated` and `variant.core-changed`.",
             "items": {
               "$ref": "#/$defs/common/$defs/problemCode"
             }
@@ -5837,7 +5975,7 @@
           },
           "variant": {
             "$ref": "#/$defs/common/$defs/elementRef",
-            "description": "A variant the element applies in (an element whose type has the meaning variant); the record holds for it. Absent: the core."
+            "description": "A variant the element applies in (an element whose type has the meaning variant); the record holds for it. Absent: the core. A variant the element is not in is `input.invalid` with `details.reason` `not-valid-in-variant`, or `excluded-in-variant` or `replaced-in-variant` when the variant excludes or replaces the requirement (SR-047 AK4)."
           },
           "date": {
             "$ref": "#/$defs/common/$defs/dateTime",
@@ -6020,7 +6158,7 @@
         "properties": {
           "elements": {
             "type": "array",
-            "description": "One page of the selection in workspace order, each element as element.list gives it, with `verification` for every element whose type has the meaning `requirement`: its verification status (SR-031, ADR-0012 \"Status rules\") in the core and in each variant it applies in (SR-040, SR-047), and for a requirement without own verification record in a view its indirect verification from its children (`indirect`) or the children that are missing (`missingChildren`, SR-034); an element marked emergent (SR-035) is never `indirect`; and `validation`, the validation status (SR-038, `$defs/element` `validation`: every need, any other element with a validation record). Derived from the evidence records; it is not the element's `status` and never changes it (D-030). While the metamodel is not valid the records are not compared: every requirement is `open`, every need `open`, and no other element has `validation`.",
+            "description": "One page of the selection in workspace order, each element as element.list gives it, with `verification` for every element whose type has the meaning `requirement`: its verification status (SR-031, ADR-0012 \"Status rules\") in each view it is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it (SR-043, SR-047 AK3), and for a requirement without own verification record in a view its indirect verification from its children (`indirect`) or the children that are missing (`missingChildren`, SR-034); an element marked emergent (SR-035) is never `indirect`; and `validation`, the validation status (SR-038, `$defs/element` `validation`: every need, any other element with a validation record). Derived from the evidence records; it is not the element's `status` and never changes it (D-030). While the metamodel is not valid the records are not compared: every requirement is `open`, every need `open`, and no other element has `validation`.",
             "items": {
               "$ref": "#/$defs/data-export/$defs/element"
             }
@@ -6063,7 +6201,7 @@
         "properties": {
           "selection": {
             "$ref": "#/$defs/common/$defs/selection",
-            "description": "The elements to cover, as `element.list` takes them; every part given must hold (SR-101 AK2). Its view (else the view of its saved filter) narrows the children to those that apply in it, as the chain does; evidence records count for that view, else for the core, as the filter condition `verification` does."
+            "description": "The elements to cover, as `element.list` takes them; every part given must hold (SR-101 AK2). Its view (else the view of its saved filter) narrows the children to those it holds (SR-043: no core requirement the variant excludes or replaces), as the chain does; evidence records count for that view, else for the core, as the filter condition `verification` does."
           }
         },
         "additionalProperties": false
@@ -6218,7 +6356,7 @@
         "properties": {
           "view": {
             "$ref": "#/$defs/common/$defs/view",
-            "description": "Default: the core. A variant: only records for it count, and only requirements that apply in it (SR-047)."
+            "description": "Default: the core. A variant: only records for it count, and only requirements its view holds (SR-047, SR-043)."
           },
           "limit": {
             "type": "integer",
@@ -6357,7 +6495,8 @@
         "type": "object",
         "properties": {
           "variant": {
-            "$ref": "#/$defs/common/$defs/elementRef"
+            "$ref": "#/$defs/common/$defs/elementRef",
+            "description": "The variant. An element whose type has no meaning `variant` is `input.invalid` with `details.reason: \"not-a-variant\"`; an unknown or ambiguous reference is `ref.unknown` or `ref.ambiguous`."
           }
         },
         "additionalProperties": false,
@@ -6372,7 +6511,8 @@
             "type": "array",
             "items": {
               "$ref": "#/$defs/common/$defs/uuid"
-            }
+            },
+            "description": "Requirements whose validity names the variant and that replace no core requirement that is not excluded in it (SR-044 AK1), also the source of a replaces onto an element that is no core requirement (SR-041 AK8). Store order."
           },
           "replaced": {
             "type": "array",
@@ -6391,13 +6531,33 @@
                 "core",
                 "replacement"
               ]
-            }
+            },
+            "description": "One row per pair, in store order of the core requirement, then of the replacement: two replacements of one core requirement are two rows (SR-041 AK7). A core requirement that is also excluded is not here (SR-042 AK5)."
           },
           "excluded": {
             "type": "array",
             "items": {
               "$ref": "#/$defs/common/$defs/uuid"
-            }
+            },
+            "description": "Core requirements the variant excludes, also when replaced too; store order."
+          },
+          "names": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/common/$defs/elementName"
+            },
+            "description": "Every element the lists name, each once, in order first named (#588). Left out when it names none."
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/common/$defs/problem"
+            },
+            "description": "The variant.target-not-core hints of the variant's own entries and of its replacements."
+          },
+          "incomplete": {
+            "$ref": "#/$defs/common/$defs/incomplete",
+            "description": "A repository is not here: a replacement or exclusion stored there is missing (SR-006 AK2)."
           }
         },
         "additionalProperties": false,
@@ -6421,17 +6581,20 @@
         "type": "object",
         "properties": {
           "variant": {
-            "$ref": "#/$defs/common/$defs/elementRef"
+            "$ref": "#/$defs/common/$defs/elementRef",
+            "description": "The variant. An element whose type has no meaning `variant` is `input.invalid` with `details.reason: \"not-a-variant\"`; an unknown or ambiguous reference is `ref.unknown` or `ref.ambiguous`."
           },
           "refs": {
             "type": "array",
+            "description": "The core requirements to exclude, or with `undo` whose exclusion to remove. Adding an exclusion of a requirement with a validity, a need or a package is refused (SR-042 AK4): `input.invalid` with `details.reason: \"not-core\"` and `details.refs` (the refused refs); nothing is written. With `undo` every exclusion entry that is there is removed, also one of no core requirement (SR-042 AK7).",
             "items": {
               "$ref": "#/$defs/common/$defs/elementRef"
             }
           },
           "undo": {
             "type": "boolean",
-            "default": false
+            "default": false,
+            "description": "Remove the exclusions of `refs` instead. An exclusion that is not there is an `info` problem `relation.not-found` in `problems`, as relation.remove gives it; the other refs are undone."
           }
         },
         "additionalProperties": false,
@@ -6466,7 +6629,7 @@
     {
       "name": "baseline_create",
       "title": "Create baseline",
-      "description": "Write a baseline file for a selection. Refused while selected elements have uncommitted changes. Never commits.",
+      "description": "Write a baseline file for a selection (SR-050, ADR-0018): name, date, the HEAD commit of every repository involved, ID and version of every element. Refused while files of the selection are not committed. Never commits, never replaces a baseline.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -6476,10 +6639,11 @@
         "type": "object",
         "properties": {
           "name": {
-            "type": "string"
+            "$ref": "#/$defs/baseline/$defs/name"
           },
           "selection": {
-            "$ref": "#/$defs/common/$defs/selection"
+            "$ref": "#/$defs/common/$defs/selection",
+            "description": "Stored in the file: a saved filter as its where and view, package and view with their title. Not baseline."
           }
         },
         "additionalProperties": false,
@@ -6490,31 +6654,69 @@
       },
       "outputSchema": {
         "type": "object",
+        "description": "Errors: baseline.exists when a baseline has the name, ignoring case and Unicode normal form (details.file, details.repository: its file; nothing written, SR-050 AK6); a taken file name gets -2, -3, …; baseline.uncommitted-changes (details.elements[] {id, repository, file}, details.files[] {repository, file}; SR-050 AK2); git.unavailable when a repository involved is not under Git or has no commit (details.repository; AK7); file.faulty when a selected element has no version (details.elements[]); input.invalid for selection.baseline, and for selection.view when it names another view than the saved filter (spec question #440); file.faulty when the baselines folder cannot be listed (details.repository, details.file). The baseline is never replaced afterwards.",
         "properties": {
           "files": {
             "type": "array",
             "items": {
               "type": "string",
-              "description": "Written file, relative to the workspace root."
+              "description": "Written file, relative to the workspace root, / as separator."
             }
+          },
+          "baseline": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "file": {
+                "type": "string",
+                "description": "The file, relative to the workspace root, / as separator."
+              },
+              "repository": {
+                "type": "string",
+                "description": "The repository that holds the file; `repository` in the file is relative to it."
+              },
+              "date": {
+                "$ref": "#/$defs/common/$defs/dateTime"
+              },
+              "elements": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Number of elements in the file."
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "file",
+              "repository",
+              "date",
+              "elements"
+            ]
           },
           "problems": {
             "type": "array",
             "items": {
               "$ref": "#/$defs/common/$defs/problem"
             }
+          },
+          "incomplete": {
+            "$ref": "#/$defs/common/$defs/incomplete",
+            "description": "A repository is not here, so the view may miss a replacement or exclusion stored there (SR-006); the file is written all the same, with a warning."
           }
         },
         "additionalProperties": false,
         "required": [
-          "files"
+          "files",
+          "baseline"
         ]
       }
     },
     {
       "name": "baseline_list",
       "title": "List baselines",
-      "description": "Baseline files of the workspace.",
+      "description": "Baseline files of the workspace, with name, date, view and number of elements (ADR-0018).",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
@@ -6530,6 +6732,7 @@
         "properties": {
           "baselines": {
             "type": "array",
+            "description": "The valid baselines, in file order (code units of the file name).",
             "items": {
               "type": "object",
               "properties": {
@@ -6537,31 +6740,63 @@
                   "type": "string"
                 },
                 "file": {
-                  "type": "string"
+                  "type": "string",
+                  "description": "Relative to the workspace root, / as separator."
+                },
+                "repository": {
+                  "type": "string",
+                  "description": "The repository that holds the file."
                 },
                 "date": {
                   "$ref": "#/$defs/common/$defs/dateTime"
+                },
+                "view": {
+                  "$ref": "#/$defs/common/$defs/viewId",
+                  "description": "The variant whose baseline it is: its stored selection is only that view (SR-103 AK4). Left out otherwise."
+                },
+                "elements": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Number of elements in the file."
                 }
               },
               "additionalProperties": false,
               "required": [
                 "name",
                 "file",
-                "date"
+                "repository",
+                "date",
+                "elements"
               ]
             }
+          },
+          "location": {
+            "$ref": "#/$defs/workspace/$defs/location",
+            "description": "The baselines folder: the workspace file's `baselines`, or `baselines` in the main repository."
+          },
+          "problems": {
+            "type": "array",
+            "description": "baseline.invalid of the files that are no valid baseline.",
+            "items": {
+              "$ref": "#/$defs/common/$defs/problem"
+            }
+          },
+          "incomplete": {
+            "$ref": "#/$defs/common/$defs/incomplete",
+            "description": "The repository of the baselines folder is not here, so its baselines are not seen (SR-006 AK2)."
           }
         },
         "additionalProperties": false,
         "required": [
-          "baselines"
+          "baselines",
+          "location"
         ]
       }
     },
     {
       "name": "baseline_get",
       "title": "Show baseline",
-      "description": "Elements of a baseline with their version then, marked changed, added or superseded since; optional evidence status per version.",
+      "description": "Elements of a baseline with their version then and its date, marked changed, superseded, removed or added since (SR-051); with withEvidence the evidence status of each requirement at its version in the baseline (SR-094).",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
@@ -6571,10 +6806,25 @@
         "type": "object",
         "properties": {
           "baseline": {
-            "type": "string"
+            "type": "string",
+            "description": "Name of a baseline, or its file name (with or without .yaml)."
           },
           "withEvidence": {
-            "type": "boolean"
+            "type": "boolean",
+            "default": false,
+            "description": "Also give the status of each requirement at its version in the baseline: records up to the baseline's date and time, own records only, in the view of its selection (SR-094)."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5000,
+            "default": 200,
+            "description": "Elements of the page; total counts all."
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0
           }
         },
         "additionalProperties": false,
@@ -6584,37 +6834,221 @@
       },
       "outputSchema": {
         "type": "object",
+        "description": "An unknown or ambiguous baseline is input.invalid with details.reason unknown-baseline or ambiguous-baseline.",
         "properties": {
           "name": {
             "type": "string"
           },
+          "file": {
+            "type": "string",
+            "description": "Relative to the workspace root, / as separator."
+          },
+          "repository": {
+            "type": "string",
+            "description": "The repository that holds the file."
+          },
           "date": {
             "$ref": "#/$defs/common/$defs/dateTime"
           },
-          "elements": {
+          "view": {
+            "$ref": "#/$defs/common/$defs/viewId",
+            "description": "The view of the stored selection; left out for the core."
+          },
+          "selectionKnown": {
+            "type": "boolean",
+            "description": "The file stores a selection. Without it no element is added or removed (SR-051 AK2/AK3)."
+          },
+          "repositories": {
             "type": "array",
             "items": {
-              "type": "object"
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "commit": {
+                  "$ref": "#/$defs/common/$defs/commit"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "name",
+                "commit"
+              ]
             }
           },
-          "added": {
+          "elements": {
+            "type": "array",
+            "description": "One page: the file's entries in file order, then the added elements in store order. State precedence: missing, superseded, removed, changed, unchanged; added only for elements not in the file.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/common/$defs/uuid"
+                },
+                "repository": {
+                  "type": "string",
+                  "description": "The repository of the copy, whenever it is known."
+                },
+                "state": {
+                  "enum": [
+                    "unchanged",
+                    "changed",
+                    "superseded",
+                    "removed",
+                    "added",
+                    "missing"
+                  ],
+                  "description": "missing: not in the store, or in a repository that is not here (incomplete). removed: not superseded and no longer in the stored selection (SR-051 AK3). added: in the stored selection and not in the file."
+                },
+                "version": {
+                  "$ref": "#/$defs/common/$defs/version",
+                  "description": "The version in the baseline; left out for added."
+                },
+                "versionDate": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date-time",
+                  "description": "Date of that version from the Git history (ADR-0005), read for the page only; null when unknown."
+                },
+                "current": {
+                  "$ref": "#/$defs/common/$defs/version",
+                  "description": "The current version when it differs, also for removed and added."
+                },
+                "verification": {
+                  "type": "object",
+                  "description": "With withEvidence, for entries of the file whose type has the meaning requirement; never indirect (SR-094 AK5).",
+                  "properties": {
+                    "view": {
+                      "$ref": "#/$defs/common/$defs/viewId"
+                    },
+                    "status": {
+                      "enum": [
+                        "open",
+                        "verified",
+                        "failed",
+                        "outdated"
+                      ]
+                    },
+                    "decidedBy": {
+                      "type": "object",
+                      "description": "The record that decides the status.",
+                      "properties": {
+                        "repository": {
+                          "type": "string"
+                        },
+                        "file": {
+                          "type": "string",
+                          "description": "Relative to the workspace root, / as separator."
+                        },
+                        "line": {
+                          "type": "integer",
+                          "minimum": 1
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": [
+                        "repository",
+                        "file"
+                      ]
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "view",
+                    "status"
+                  ]
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "state"
+              ]
+            }
+          },
+          "counts": {
+            "type": "object",
+            "description": "Elements per state over all pages.",
+            "properties": {
+              "unchanged": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "changed": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "superseded": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "removed": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "added": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "missing": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "unchanged",
+              "changed",
+              "superseded",
+              "removed",
+              "added",
+              "missing"
+            ]
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Entries of the file plus added elements."
+          },
+          "names": {
+            "type": "array",
+            "description": "The elements of the page and the variant of `view`, each once in the order first named (#588).",
+            "items": {
+              "$ref": "#/$defs/common/$defs/elementName"
+            }
+          },
+          "problems": {
             "type": "array",
             "items": {
-              "$ref": "#/$defs/common/$defs/uuid"
+              "$ref": "#/$defs/common/$defs/problem"
             }
+          },
+          "incomplete": {
+            "$ref": "#/$defs/common/$defs/incomplete"
           }
         },
         "additionalProperties": false,
         "required": [
           "name",
-          "elements"
+          "file",
+          "repository",
+          "date",
+          "selectionKnown",
+          "repositories",
+          "elements",
+          "counts",
+          "total",
+          "names"
         ]
       }
     },
     {
       "name": "baseline_compare",
       "title": "Compare baseline",
-      "description": "The Git command and commits that show the difference of an element since a baseline (SR-051 AK3). Read only.",
+      "description": "The two commits and the Git command that show the difference of an element since a baseline (SR-051 AK4). Runs nothing.",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
@@ -6624,7 +7058,8 @@
         "type": "object",
         "properties": {
           "baseline": {
-            "type": "string"
+            "type": "string",
+            "description": "Name of a baseline, or its file name (with or without .yaml)."
           },
           "ref": {
             "$ref": "#/$defs/common/$defs/elementRef"
@@ -6638,6 +7073,7 @@
       },
       "outputSchema": {
         "type": "object",
+        "description": "Errors: git.commit-not-found when the baseline names no commit of the repository or the repository does not have it, git.unavailable when Git cannot tell, ref.unknown, ref.ambiguous when the baseline lists several copies of the UUID (details.repositories), input.invalid with details.reason unknown-baseline, ambiguous-baseline or not-in-baseline. The copy the baseline lists is taken, also after its file was removed. A file moved to a path Git does not track shows only as deleted until that path is added to Git (git add -N); ReqSeq never stages.",
         "properties": {
           "repository": {
             "type": "string"
@@ -6649,13 +7085,20 @@
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "The commit to compare with; null for the working copy."
           },
           "file": {
-            "type": "string"
+            "type": "string",
+            "description": "The element file now, relative to its repository."
+          },
+          "oldFile": {
+            "type": "string",
+            "description": "Its path at the baseline commit, when the file moved."
           },
           "command": {
             "type": "array",
+            "description": "git -C <repository folder> diff <from> [<to>] -- [<oldFile>] <file>, to run in the workspace root, / as separator, the same on every access.",
             "items": {
               "type": "string"
             }

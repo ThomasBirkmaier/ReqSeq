@@ -3,14 +3,16 @@ import { act, createElement, useReducer } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Buffer, BufferAction } from "./buffers.js";
-import { bufferName, elementBuffer, reduceBuffers, resultBuffer } from "./buffers.js";
+import type { Buffer } from "./buffers.js";
+import { bufferName, elementBuffer, readOnlyBuffer, resultBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
 import { bufferView } from "./modeline.js";
 import type { BufferData } from "./modeline.js";
 import { MAX_RESULT_LINES, resultLines, resultTotal } from "./result.js";
 import { ResultView } from "./ResultView.js";
 import { LoadingView } from "./BufferArea.js";
+import type { WindowAction } from "./window-layout.js";
+import { ONE_AREA, areas, reduceWindow } from "./window-layout.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -99,6 +101,42 @@ describe("result lines", () => {
     expect(resultLines(Array.from({ length: MAX_RESULT_LINES }, (_, n) => n))).toHaveLength(MAX_RESULT_LINES);
   });
 
+  it("shows a UUID that `names` names as its element row, a record of two named UUIDs as one pair line, and not `names` itself", () => {
+    const lines = resultLines({
+      added: ["uuid-3"],
+      replaced: [{ core: "uuid-1", replacement: "uuid-2" }],
+      excluded: ["uuid-4", "uuid-9"],
+      other: { core: "uuid-1", replacement: "uuid-9" },
+      view: "uuid-4",
+      names: [element(1, { identifier: "SR-1" }), element(2), element(3), element(4), element(1), "x"],
+    });
+    expect(lines.map((line) => [line.kind, line.depth, line.label, line.text])).toEqual([
+      ["text", 0, "added", "1"],
+      ["element", 1, "SR-000003", "Title 3"],
+      ["text", 0, "replaced", "1"],
+      ["pair", 1, "SR-1", "Title 1 · replacement: SR-000002 Title 2"],
+      ["text", 0, "excluded", "2"],
+      ["element", 1, "SR-000004", "Title 4"],
+      ["text", 1, "", "uuid-9"],
+      ["text", 0, "other", ""],
+      ["element", 1, "core: SR-1", "Title 1"],
+      ["text", 1, "replacement", "uuid-9"],
+      // A named UUID under a key keeps the key; it opens like any element row.
+      ["element", 0, "view: SR-000004", "Title 4"],
+    ]);
+    expect(lines.at(-1)?.open).toEqual(elementBuffer("uuid-4", "spec", "SR-000004 Title 4"));
+    expect(lines[1]?.open).toEqual(elementBuffer("uuid-3", "spec", "SR-000003 Title 3"));
+    expect(lines[3]?.open).toEqual(readOnlyBuffer(elementBuffer("uuid-1", "spec", "SR-1 Title 1")));
+    expect(lines[3]?.beside).toEqual(readOnlyBuffer(elementBuffer("uuid-2", "spec", "SR-000002 Title 2")));
+    // Without `names`, a UUID is text and a record of two is an outline; `names` that is no list is shown.
+    expect(resultLines({ pair: { a: "uuid-1", b: "uuid-2" }, names: "x" }).map((line) => line.text)).toEqual([
+      "",
+      "uuid-1",
+      "uuid-2",
+      "x",
+    ]);
+  });
+
   it("takes the total of the whole answer for the modeline", () => {
     expect(resultTotal({ total: 7, nodes: [] })).toBe(7);
     expect(resultTotal({ nodes: [] })).toBeUndefined();
@@ -150,18 +188,22 @@ describe("result view", () => {
 
   /** Renders the view of `initial` through the reducer; returns what it dispatched, loaded and said. */
   const mount = async (call: Call, initial: Buffer, revision: number) => {
-    const actions: BufferAction[] = [];
+    const actions: WindowAction[] = [];
     const data: (BufferData | undefined)[] = [];
     const echoes: string[] = [];
+    const shown: string[][] = [];
     const Harness = ({ at }: { at: number }): React.ReactElement => {
-      const [buffers, dispatch] = useReducer(reduceBuffers, [initial]);
-      const current = buffers[0];
+      const [state, dispatch] = useReducer(reduceWindow, { buffers: [initial], layout: ONE_AREA });
+      const current = state.buffers[0];
+      shown.push(
+        areas(state).map((area) => `${area.side}${area.active ? "*" : ""} ${bufferName(area.buffer)}`),
+      );
       return current?.kind === "result"
         ? createElement(ResultView, {
             call,
             buffer: current,
             revision: at,
-            dispatch: (action: BufferAction) => {
+            dispatch: (action: WindowAction) => {
               actions.push(action);
               dispatch(action);
             },
@@ -182,7 +224,7 @@ describe("result view", () => {
       await flush();
     };
     await rerender(revision);
-    return { actions, data, echoes, rerender };
+    return { actions, data, echoes, rerender, shown };
   };
 
   const texts = (): string[] => [...container.querySelectorAll(".line")].map((line) => line.textContent);
@@ -216,6 +258,31 @@ describe("result view", () => {
       type: "open",
       buffer: elementBuffer("uuid-1", "spec", "SR-000001 Title 1"),
     });
+  });
+
+  it("[SR-044/AK2] Enter on a pair line shows both elements side by side, read-only, the first on the left and active", async () => {
+    const output = {
+      replaced: [{ core: "uuid-1", replacement: "uuid-2" }],
+      names: [element(1), element(2)],
+    };
+    const { actions, shown } = await mount(
+      vi.fn<Call>(),
+      resultBuffer("variant.diff", { variant: "uuid-5" }, "Show variant difference VAR-1", output, 0),
+      0,
+    );
+    expect(texts()).toEqual(["replaced1", "SR-000001Title 1 · replacement: SR-000002 Title 2"]);
+    await press("ArrowDown");
+    await press("ArrowDown");
+    await press("Enter");
+    expect(actions.at(-1)).toEqual({
+      type: "side-by-side",
+      left: readOnlyBuffer(elementBuffer("uuid-1", "spec", "SR-000001 Title 1")),
+      right: readOnlyBuffer(elementBuffer("uuid-2", "spec", "SR-000002 Title 2")),
+    });
+    expect(shown.at(-1)).toEqual([
+      "left* SR-000001 Title 1 · read-only",
+      "right SR-000002 Title 2 · read-only",
+    ]);
   });
 
   it("[SR-122/AK4] Ctrl+N and Ctrl+P walk the lines like Down and Up; Ctrl+N first selects the first line, and Ctrl+P is Go to until one is", async () => {

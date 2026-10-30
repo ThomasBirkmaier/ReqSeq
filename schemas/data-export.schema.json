@@ -7,8 +7,8 @@
   "required": ["reqseq-data", "dirty", "workspace", "generated", "repositories", "elements"],
   "properties": {
     "reqseq-data": {
-      "const": 2,
-      "description": "The version of this format. 2: with `commit` and `dirty` at the top level and the JSON Lines form (`$defs/line`)."
+      "const": 3,
+      "description": "The version of this format. 2: with `commit` and `dirty` at the top level and the JSON Lines form (`$defs/line`). 3: a successor's relation has the meaning `succession` instead of `replacement` (D-059)."
     },
     "commit": {
       "$ref": "common.schema.json#/$defs/commit",
@@ -78,7 +78,7 @@
       "description": "One line of the JSON Lines form of data.export (`data export --jsonl`, the API with `Accept: application/x-ndjson`) and of the file of data.store: `reqseq-data`, `commit` and `dirty` of the state first, as at the top level of the JSON form, then the fields of one element, unchanged (SR-061 AK4, SR-062 AK1).",
       "required": ["reqseq-data", "dirty"],
       "properties": {
-        "reqseq-data": { "const": 2 },
+        "reqseq-data": { "const": 3 },
         "commit": {
           "$ref": "common.schema.json#/$defs/commit",
           "description": "As `commit` of the JSON form."
@@ -151,6 +151,24 @@
           },
           "description": "Given by data.export: the UUIDs of the packages the property with the meaning `packages` names, in its order; `[]` when none. Left out when the metamodel has no packages property."
         },
+        "replacedBy": {
+          "type": "array",
+          "description": "Given only for a core requirement (SR-046 AK3): each variant that replaces it and the replacing requirement, one entry per pair; a variant that also excludes it is only in excludedBy. Left out when empty.",
+          "items": {
+            "type": "object",
+            "required": ["variant", "replacement"],
+            "additionalProperties": false,
+            "properties": {
+              "variant": { "$ref": "common.schema.json#/$defs/uuid" },
+              "replacement": { "$ref": "common.schema.json#/$defs/uuid" }
+            }
+          }
+        },
+        "excludedBy": {
+          "type": "array",
+          "items": { "$ref": "common.schema.json#/$defs/uuid" },
+          "description": "The variants that exclude this core requirement (SR-042, SR-046 AK3). Left out when empty."
+        },
         "emergent": {
           "type": "boolean",
           "description": "SR-035: true when the element's property with the meaning `emergent` holds the choice `yes` (assumption, spec question #591); only true is given, left out otherwise. An emergent requirement is never `indirect`: without an own verification record in a view it is `open` there."
@@ -162,14 +180,14 @@
         },
         "relations": {
           "type": "array",
-          "description": "The element's own relations, then the targets of its properties of kind `relation` (`property: true`), then the incoming relations (`direction: in`); in stage 1 only the relations with the meaning `replacement` from the successors of an element with a status marked invalid (SR-072 AK3). The targets of `validity` and `packages` also appear in `validity` and `packages` in data.export. `currentVersion` and `outdated` are given by data.export and trace.matrix.",
+          "description": "The element's own relations, then the targets of its properties of kind `relation` (`property: true`), then the incoming relations (`direction: in`); in stage 1 only the relations with the meaning `succession` from the successors of an element with a status marked invalid (SR-072 AK3). The targets of `validity` and `packages` also appear in `validity` and `packages` in data.export. `currentVersion` and `outdated` are given by data.export and trace.matrix.",
           "items": {
             "$ref": "#/$defs/relation"
           }
         },
         "verification": {
           "type": "array",
-          "description": "Verification status per view: core and each variant the element is valid for (SR-047 AK3).",
+          "description": "Verification status, one entry per view the requirement is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it (SR-047 AK3).",
           "items": {
             "$ref": "#/$defs/verificationEntry"
           }
@@ -199,7 +217,7 @@
           "description": "`kind` is the key of a property of kind `relation`, not of a relation kind (ADR-0004). Left out for relation kinds."
         },
         "meaning": {
-          "enum": ["derivation", "replacement", "exclusion", "reference", null],
+          "enum": ["derivation", "replacement", "succession", "exclusion", "reference", null],
           "description": "`reference` = inline link in the text (SR-066)."
         },
         "direction": {

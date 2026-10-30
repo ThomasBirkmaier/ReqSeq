@@ -5,6 +5,7 @@ import type { InvokeResult } from "../shared/protocol.js";
 import type { Buffer, ElementBuffer, GraphBuffer } from "./buffers.js";
 import { bufferName } from "./buffers.js";
 import { depthLabel, filterLabel } from "./graph.js";
+import { isOutdatedCode } from "./outdated-codes.js";
 import type { GraphFilterChoice } from "./graph-choices.js";
 
 /** The part of the `workspace.status` output the modeline shows. */
@@ -122,8 +123,8 @@ export const INCOMPLETE = "incomplete: a repository is missing";
 /**
  * The parts for an element: ID, type and status in one, on a package page the number of its elements
  * (SR-114 AK3: the type is the „Art“), then what is worth a mark. The counts of SR-114 AK2 come from the
- * hints of `element.get` (core, SR-080): "outdated" counts those with the code `relation.outdated`, the
- * outdated relations and inline references alike (`element.get` sets no `relations[].outdated`, and an
+ * hints of `element.get` (core, SR-080): "outdated" counts those with a code of `OUTDATED_CODES`, the
+ * outdated relations, inline references and changed core requirements of replacements (SR-045) alike (`element.get` sets no `relations[].outdated`, and an
  * inline reference is no relation); "hints" counts the others, so an outdated one is not counted twice.
  */
 const elementParts = (
@@ -132,7 +133,7 @@ const elementParts = (
 ): string[] => {
   const { element, members } = data;
   const problems = element.problems ?? [];
-  const outdated = problems.filter((problem) => problem.code === "relation.outdated").length;
+  const outdated = problems.filter((problem) => isOutdatedCode(problem.code)).length;
   const hints = problems.length - outdated;
   return [
     [

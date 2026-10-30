@@ -26,8 +26,8 @@
 // file in `disk-state.ts`, the input and the file's values per field in `field-state.ts`, what a save sends
 // and says in `save-flow.ts`, the keys of the fields in `element-keys.ts`. It renders the parts without state:
 // the title and the text (`ElementText.tsx`), a property box (`PropertyField.tsx`), the relation groups
-// (`RelationLink.tsx`), the elements of a package page (`PackageMembers.tsx`) and a block "On disk"
-// (`OnDisk.tsx`).
+// (`RelationLink.tsx`), the line and the elements of a package page (`PackageSummary.tsx`,
+// `PackageMembers.tsx`) and a block "On disk" (`OnDisk.tsx`).
 import { Prec } from "@codemirror/state";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Autosave } from "./autosave.js";
@@ -109,6 +109,7 @@ import { ElementText } from "./ElementText.js";
 import { fieldKey, fieldLabel, forBuffer, takesBackEdit } from "./element-keys.js";
 import { OnDisk } from "./OnDisk.js";
 import { PackageMembers } from "./PackageMembers.js";
+import { PackageSummaryLine } from "./PackageSummary.js";
 import { PropertyField } from "./PropertyField.js";
 import { RelationGroups } from "./RelationLink.js";
 import type { ConflictField, OutsideChange } from "./outside-change.js";
@@ -191,6 +192,11 @@ export interface ElementViewProps {
    * the link names (a relation has none: the output has no repository).
    */
   readonly onOpenTarget: (id: string, repository?: string) => void;
+  /**
+   * Calls core in no view, for the targets a relation box offers (SR-043 AK1: a view the window shows
+   * narrows no offer). Absent: `call`.
+   */
+  readonly searchCall?: Call;
   /** The slash menu's "Reference to element" (SR-129) or `[[` (SR-066) asks for an element: the app opens a prompt. */
   readonly onPickElement: (request: ReferenceRequest) => void;
   /** The titles of reference targets in other repositories (D-058), kept by the app for the workspace. */
@@ -293,6 +299,7 @@ const useArea = (
 
 export const ElementView = ({
   call,
+  searchCall = call,
   buffer,
   revision,
   outside = NO_CHANGES,
@@ -467,6 +474,7 @@ export const ElementView = ({
   const now = useRef({
     buffer,
     call,
+    searchCall,
     onData,
     onDraft,
     onEcho,
@@ -488,6 +496,7 @@ export const ElementView = ({
   now.current = {
     buffer,
     call,
+    searchCall,
     onData,
     onDraft,
     onEcho,
@@ -791,8 +800,10 @@ export const ElementView = ({
     onFile.current = { ...onFile.current, values: back.values };
     setValues(back.values);
   };
-  // An answer of `element.get` for the shown element.
-  const apply = (element: DataExportElement, sha: string, changedJustNow: boolean): void => {
+  // An answer of `element.get` for the shown element. A buffer shown read-only (SR-044 AK2) shows it as a
+  // read-only element: no editor takes input, and the modeline says `read-only`.
+  const apply = (answered: DataExportElement, sha: string, changedJustNow: boolean): void => {
+    const element = now.current.buffer.readOnly === true ? { ...answered, readOnly: true } : answered;
     const loaded = element.text ?? "";
     const docs = storedDocs(fieldBoxes(element, now.current.properties));
     // A save that runs sets the baseline itself with its answer.
@@ -1177,7 +1188,7 @@ export const ElementView = ({
   // taken or escaped, the focus goes back to the box, not to the element.
   const openValue = (box: EditableBox): void => {
     const { key } = box;
-    const { call: run, onEcho: echo } = now.current;
+    const { searchCall: run, onEcho: echo } = now.current;
     const note = lockedNote();
     if (note !== undefined) {
       echo(note);
@@ -1689,6 +1700,16 @@ export const ElementView = ({
                 },
               }}
               titleDisk={diskBlock(TITLE_FIELD)}
+              belowTitle={
+                packageModel === undefined ? undefined : (
+                  <PackageSummaryLine
+                    call={call}
+                    id={buffer.id}
+                    revision={revision + outside.seq}
+                    onEcho={onEcho}
+                  />
+                )
+              }
               text={{
                 text,
                 readOnly: locked,

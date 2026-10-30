@@ -3,10 +3,10 @@
 // `validity` (D-012), a relation-valued property (ADR-0004) whose entries name variants by UUID and,
 // across repositories, by the workspace name of the repository (D-058), never by a free name.
 //
-// The views of the core and of the variants come in stage 5 (#127 option 1); `appliesIn` is the part
-// of them that the validity decides. Replacement and exclusion (SR-041, SR-042) narrow a view further
-// and are not handled here. The core view shows only requirements without validity (SR-043 AK3,
-// glossary "Kern"), so a requirement with a validity is not in it.
+// `appliesIn` is the part of the views of the core and of the variants that the validity decides;
+// replacement and exclusion (SR-041, SR-042) narrow a variant's view further (view-rule.ts). The core
+// view shows only requirements without validity (SR-043 AK9, glossary "Kern"), so a requirement with
+// a validity is not in it.
 //
 // Entries are read as the missing-target check reads relation items (SR-089, model/relation-keys.ts):
 // `relationKey` and `relationItems`, so under a key with `many` only a list has entries and one value
@@ -24,6 +24,10 @@ import { hasId, relationItems, relationKey, resolveRef } from "../model/index.js
 export type View =
   | { readonly kind: "core" }
   | { readonly kind: "variant"; readonly variant: Pick<ElementRecord, "id" | "repository"> };
+
+/** A view as `resolveView` gives it: a variant's view with the variant's record. */
+export type ResolvedView =
+  { readonly kind: "core" } | { readonly kind: "variant"; readonly variant: ElementRecord };
 
 /** The validity property: its key, how messages name it and whether it holds a list (`relationKey`). */
 export type Validity = Pick<RelationKey, "label" | "many"> & { readonly key: string };
@@ -93,7 +97,7 @@ export const validityTarget = (
 /**
  * Whether `element` applies in `view` by its validity (`validityOf`): with no validity (absent,
  * `null` or an empty list) in the core and in every variant (SR-040 AK1); with any other value only
- * in the variants its entries name, not in the core (SR-040 AK2, SR-043 AK3). A value of the wrong
+ * in the variants its entries name, not in the core (SR-040 AK2, SR-043 AK9). A value of the wrong
  * shape names no variant, so it applies in no view; the value-kind check reports it (SR-085). Pure
  * and cheap: no store lookup, no schema validation.
  */
@@ -141,7 +145,7 @@ export const resolveView = (
   field = "view",
   /** Whether the field takes `core` too, as `view` does; the message says so. */
   takesCore = field === "view",
-): View => {
+): ResolvedView => {
   const { metamodel, store, shortIds } = context;
   requireMeaning(metamodel, "validity", command);
   // In any case, as element references are (#309, #305).

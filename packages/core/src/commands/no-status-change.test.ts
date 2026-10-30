@@ -32,6 +32,9 @@ const OBSOLETE = "0b7c6e1a-1111-4222-8333-444455556666";
 const APPROVED = "0b7c6e1a-1111-4222-8333-aaaaaaaaaaaa";
 const RETIRED = "0b7c6e1a-1111-4222-8333-bbbbbbbbbbbb";
 
+/** A variant, so variant.exclude writes. */
+const VARIANT = "0b7c6e1a-1111-4222-8333-cccccccccccc";
+const VARIANT_FILE = "variants/VAR-cccccccccccc.md";
 /** A relation to an outdated version of WIND, as SR-001/two-elements has one from GUSTS, so `hint.confirm` writes. */
 const OUTDATED = `derives-from:\n  - { id: ${WIND}, version: n1:0000000000000000 }\n`;
 
@@ -73,6 +76,7 @@ const FILES: Readonly<Record<string, string>> = {
   "needs/N-bbbbbbbbbbbb.md": `---\nid: ${RETIRED}\ntype: need\nstatus:   retired   # unknown to the metamodel\ntitle: Retired need\n${OUTDATED}---\n`,
   "new/.keep": "",
   "new/layout.png": "an image",
+  [VARIANT_FILE]: `---\nid: ${VARIANT}\ntype: variant\nstatus: approved\ntitle: Coast\n---\n`,
 };
 
 /** The `status` line of every element file, and null for the evidence record, by file (relative, `/`), as written on disk. */
@@ -83,12 +87,32 @@ const STATUS_LINES: Readonly<Record<string, string | null>> = {
   "requirements/SR-1d2e3f4a5b6c.md": "status: draft",
   "requirements/SR-444455556666.md": "status: obsolete",
   "requirements/SR-6328cee88fb3.md": "status: draft",
+  [VARIANT_FILE]: "status: approved",
 };
 
 type Scenario = Readonly<Record<string, unknown>>;
 
+/** Commands that write only with Git, so their fixture is a Git repository. */
+const GIT_COMMANDS: ReadonlySet<string> = new Set([
+  "baseline.compare",
+  "baseline.create",
+  "baseline.get",
+  "baseline.list",
+]);
+
 /** Every implemented command except the two status commands, with calls that succeed and calls that fail. */
 const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
+  // In a Git repository (`GIT_COMMANDS`): the second call is refused, the name exists (SR-050 AK6).
+  "baseline.compare": [
+    { baseline: "Base", ref: WIND },
+    { baseline: "nope", ref: WIND },
+  ],
+  "baseline.create": [
+    { name: "Release 1", selection: { ids: [WIND, OBSOLETE, RETIRED] } },
+    { name: "release 1", selection: {} },
+  ],
+  "baseline.get": [{ baseline: "Base" }, { baseline: "nope" }],
+  "baseline.list": [{}, { unknown: true }],
   "data.export": [
     {},
     { selection: { where: { any: [{ status: ["retired"] }, { invalid: true }] } } },
@@ -247,6 +271,7 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { source: APPROVED, kind: "refines", target: RETIRED },
     { source: "SR-ffffff", kind: "refines", target: WIND },
   ],
+  "variant.diff": [{ variant: VARIANT }, { variant: WIND }],
   "trace.affected": [{ ref: WIND }, { ref: OBSOLETE }, { ref: RETIRED }, { ref: "SR-ffffff" }],
   "trace.chain": [
     { ref: WIND },
@@ -277,6 +302,11 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { refs: ["SR-ffffff"], direction: "children" },
   ],
   "workspace.activity": [{}, { extra: true }],
+  "variant.exclude": [
+    { variant: VARIANT, refs: [WIND] },
+    { variant: VARIANT, refs: [WIND, OBSOLETE], undo: true },
+    { variant: VARIANT, refs: [APPROVED] },
+  ],
   "workspace.check": [
     {},
     { severity: "error" },
@@ -356,8 +386,12 @@ describe("no status change by itself (SR-087, D-030, ADR-0002 rule 6)", () => {
   for (const [name, scenarios] of Object.entries(SCENARIOS)) {
     const ak = AK2_COMMANDS.includes(name) ? "AK2" : "AK1";
     it(`[SR-087/${ak}] ${name} changes no status`, async () => {
-      const { fixture, workspace } = await open();
+      const { fixture, workspace } = await open(GIT_COMMANDS.has(name));
       expect(statusLines(fixture.root)).toEqual(STATUS_LINES);
+      if (name === "baseline.compare" || name === "baseline.get") {
+        // A baseline to read, made by baseline.create (its own scenario above).
+        await runtime.invoke("baseline.create", { name: "Base", selection: { ids: [WIND] } }, { workspace });
+      }
       const outcomes: string[] = [];
       for (const input of scenarios) {
         const before = statusLines(fixture.root);
@@ -500,7 +534,10 @@ describe("no status change by itself (SR-087, D-030, ADR-0002 rule 6)", () => {
     // The metamodel is saved without `approved` (SR-015); the tool picks it up (bounded loosely for slow runners).
     const model = "metamodel/standard-model.yaml";
     const text = fs.readFileSync(fixture.path(model), "utf8");
-    const changed = text.replace("  - { key: approved, name: Approved }\n", "");
+    const changed = text.replace(
+      '  - { key: approved, name: Approved, description: "Agreed and valid." }\n',
+      "",
+    );
     expect(changed).not.toBe(text);
     await fixture.write(model, changed);
     const deadline = performance.now() + 10_000;

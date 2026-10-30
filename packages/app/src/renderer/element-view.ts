@@ -8,6 +8,7 @@ import type {
 } from "@reqseq/core";
 import { outdatedKey } from "./editor/references.js";
 import type { OutdatedMark } from "./editor/references.js";
+import { isOutdatedCode } from "./outdated-codes.js";
 
 /** The lines of a property value: one per array item; an object with a `title` shows the title. */
 export const propertyLines = (value: unknown): string[] => {
@@ -124,9 +125,6 @@ export const propertyModel = (metamodel: Pick<MetamodelGetOutput, "types" | "pro
 /** A hint of an element as `element.get` gives it. */
 type Hint = NonNullable<DataExportElement["problems"]>[number];
 
-/** The code of the hints on outdated relations and inline references (SR-025). */
-const OUTDATED = "relation.outdated";
-
 /**
  * The word after an outdated reference: "outdated", and the version the reference stores, as the date of
  * that version (D-013), once the buffer has the dates of the hint (`hintDates`). "unknown date" when Git
@@ -142,7 +140,7 @@ const markOf = (hint: Hint): OutdatedMark => ({ message: hint.message, word: out
 /** What makes a dated hint stand for an undated one: the same hint ID (place and stored version) and current version. */
 const hintKey = (hint: Hint): string => `${hint.hintId ?? ""} ${hint.currentVersion ?? ""}`;
 
-const undated = (hint: Hint): boolean => hint.code === OUTDATED && hint.storedDate === undefined;
+const undated = (hint: Hint): boolean => isOutdatedCode(hint.code) && hint.storedDate === undefined;
 
 /**
  * The outdated relations and references of `element` that have no dates yet, as one string; empty when
@@ -173,8 +171,8 @@ export const withHintDates = (element: DataExportElement, dated: readonly Hint[]
 const RELATION_HINT = /\/([a-z][a-z0-9-]*)\/([^/?]+)\?version=([^&]+)(?:&repository=([^&]*))?$/;
 
 /**
- * The mark of an outgoing relation of `element` when a `relation.outdated` hint of the element names its
- * item: its key, target, stored version and repository (#665: `element.get` gives no `relations[].outdated`).
+ * The mark of an outgoing relation of `element` when a hint of `OUTDATED_CODES` of the element names its
+ * item (`variant.core-changed` for a `replaces` item, SR-045): its key, target, stored version and repository (#665: `element.get` gives no `relations[].outdated`).
  */
 export const outdatedRelation = (
   element: Pick<DataExportElement, "problems" | "repository">,
@@ -183,7 +181,7 @@ export const outdatedRelation = (
   const own = (named: string | undefined): string =>
     named === undefined ? element.repository : decodeURIComponent(named);
   const hint = (element.problems ?? []).find((candidate) => {
-    const place = candidate.code === OUTDATED ? RELATION_HINT.exec(candidate.hintId ?? "") : null;
+    const place = isOutdatedCode(candidate.code) ? RELATION_HINT.exec(candidate.hintId ?? "") : null;
     return (
       place !== null &&
       relation.direction === "out" &&

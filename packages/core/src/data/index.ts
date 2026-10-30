@@ -2,13 +2,14 @@
 // (SR-061) and as a file per state (SR-062). Core blocks and commands import it relatively; it never
 // imports `commands`. Block doc: docs/evidence-views.md "Data export and store".
 export {
-  NO_COMMIT_TEXT,
   exportData,
   exportDataWithProblems,
   exportHeader,
   exportTime,
   exportedElement,
   exportedProperties,
+  targetIds,
+  withReplacedExcluded,
   withRelationVersions,
 } from "./export.js";
 export type { ExportOptions, ExportWithProblems, ExportedProperties } from "./export.js";

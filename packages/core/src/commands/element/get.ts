@@ -9,13 +9,23 @@
 // caller never takes the whole element for the view of a variant. `versionDate` dates the version of
 // the element and its outdated relations (D-013, ADR-0005); `hintDates` only the outdated relations,
 // which the app shows at the reference (SR-110 AK2, #702): Git then reads only the histories of
-// their targets, and nothing when the element has none.
+// their targets, and nothing when the element has none. A core requirement names the variants that
+// replace it (with the replacement) and those that exclude it (`replacedBy`, `excludedBy`, SR-046
+// AK3), by the view rule over the store (`replacedExcludedOf`). `names` names the variants of its
+// validity, `replacedBy` and `excludedBy`, then the replacements, then the views and missing
+// children of `verification` (`verificationNameIds`), each once, so the app and the CLI
+// show titles (SR-046 AK1/AK2, #588). `incomplete`: a repository of the workspace is not here, so
+// replacements, exclusions and records stored there are missing (SR-006 AK2).
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
-import { withEvidenceStatus, workspaceStatus } from "../../evidence/index.js";
+import { exportedProperties, targetIds, withReplacedExcluded } from "../../data/index.js";
+import { verificationNameIds, withEvidenceStatus, workspaceStatus } from "../../evidence/index.js";
+import { metamodelState } from "../../metamodel/index.js";
 import type { ElementHints } from "../../model/index.js";
-import { getElement } from "../../model/index.js";
+import { elementStoreState, getElement, namesField, namesOf, shortIdState } from "../../model/index.js";
 import { elementHints } from "../../hints/index.js";
+import { replacedExcludedOf } from "../../variants/index.js";
+import { workspaceLayoutState } from "../../workspace/index.js";
 
 export default defineCommand({
   name: "element.get",
@@ -40,9 +50,30 @@ export default defineCommand({
         file: input.file,
       },
     );
+    const [store, metamodel, shortIds, layout] = await Promise.all([
+      ctx.workspace.get(elementStoreState),
+      ctx.workspace.get(metamodelState),
+      ctx.workspace.get(shortIdState),
+      ctx.workspace.get(workspaceLayoutState),
+    ]);
+    const uses = replacedExcludedOf({ workspace: ctx.workspace, store, metamodel }, record);
+    const shown = withReplacedExcluded(
+      uses,
+      withEvidenceStatus(await workspaceStatus(ctx.workspace, [record]), record, element),
+    );
+    const validity = exportedProperties(metamodel).validity;
+    const named = [
+      ...(validity === undefined ? [] : targetIds(validity, record)),
+      ...uses.replacedBy.map((u) => u.variant.id),
+      ...uses.excludedBy.map((v) => v.id),
+      ...uses.replacedBy.map((u) => u.replacement.id),
+      ...verificationNameIds(shown.verification ?? []),
+    ];
     return {
-      element: withEvidenceStatus(await workspaceStatus(ctx.workspace, [record]), record, element),
+      element: shown,
       fileSha256,
+      ...namesField(namesOf({ metamodel, store, shortIds }, named)),
+      ...(layout.repositories.some((r) => !r.available) ? { incomplete: true } : {}),
     };
   },
 });

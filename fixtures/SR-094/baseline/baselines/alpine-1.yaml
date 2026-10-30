@@ -1,0 +1,10 @@
+reqseq-baseline: 1
+name: Alpine 1
+date: 2026-11-02T14:00:00Z
+selection:
+  view: { id: 94094094-0000-4000-8000-0000000000c1, title: Alpine }
+repositories:
+  - { name: system, commit: 94a094a094a094a094a094a094a094a094a094a0 }
+elements:
+  - { id: 94094094-0000-4000-8000-0000000000b1, version: n1:8e4ad117d2db675a }
+  - { id: 94094094-0000-4000-8000-0000000000b4, version: n1:6d3f2411f5db9f38 }

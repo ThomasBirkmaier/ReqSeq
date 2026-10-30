@@ -93,6 +93,24 @@ const within = async (limitMs: number, condition: () => Promise<boolean>): Promi
   }
 };
 
+/**
+ * Every file below `folder`, without descending into `.git`: Git may change it meanwhile (a `gc
+ * --auto` after a commit removes folders of `.git/objects`), and a recursive `readdir` that walks
+ * into it fails with ENOENT (#434).
+ */
+const filesOutsideGit = async (folder: string): Promise<string[]> => {
+  const files: string[] = [];
+  for (const entry of await fs.readdir(folder, { withFileTypes: true })) {
+    const full = path.join(folder, entry.name);
+    if (entry.isDirectory() && entry.name !== ".git") {
+      files.push(...(await filesOutsideGit(full)));
+    } else if (entry.isFile()) {
+      files.push(full);
+    }
+  }
+  return files;
+};
+
 // 200 writes and a few Git calls: several seconds on slow CI machines (Windows).
 describe("separate copies merged with Git (SR-081)", { timeout: 60_000 }, () => {
   it("[SR-081/AK3] two copies create 100 elements each; after a Git merge the check finds no duplicate IDs", async () => {
@@ -161,10 +179,8 @@ describe("separate copies merged with Git (SR-081)", { timeout: 60_000 }, () => 
     onTestFinished(() => fs.rm(cache, { recursive: true, force: true }));
     // The files of A are older than the racy window of the cache (ADR-0008), as after a while of work.
     const when = new Date(Date.now() - 60_000);
-    for (const entry of await fs.readdir(a.root, { recursive: true, withFileTypes: true })) {
-      if (entry.isFile() && !entry.parentPath.includes(".git")) {
-        await fs.utimes(path.join(entry.parentPath, entry.name), when, when);
-      }
+    for (const file of await filesOutsideGit(a.root)) {
+      await fs.utimes(file, when, when);
     }
     // Their change times (set by utimes) must settle too before the cache takes them.
     await new Promise((resolve) => setTimeout(resolve, RACY_MS + 100));

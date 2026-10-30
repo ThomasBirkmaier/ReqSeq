@@ -1,0 +1,12 @@
+reqseq-baseline: 1
+name: Release 1
+date: 2026-11-02T14:00:00Z
+repositories:
+  - { name: system, commit: 94a094a094a094a094a094a094a094a094a094a0 }
+elements:
+  - { id: 94094094-0000-4000-8000-0000000000a1, version: n1:0f4eeb8cbba2ffee }
+  - { id: 94094094-0000-4000-8000-0000000000b1, version: n1:8e4ad117d2db675a }
+  - { id: 94094094-0000-4000-8000-0000000000b2, version: n1:d3955554817b9961 }
+  - { id: 94094094-0000-4000-8000-0000000000b3, version: n1:9ef6067b7d2e918b }
+  - { id: 94094094-0000-4000-8000-0000000000b5, version: n1:f50684ff0e7c7fe1 }
+  - { id: 94094094-0000-4000-8000-0000000000b6, version: n1:de05fe933dc1e1ae }

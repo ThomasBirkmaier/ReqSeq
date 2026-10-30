@@ -43,7 +43,7 @@ const V_VERSION = "n1:b72330c9018ce26f";
 const A_VERSION = "n1:e73a2cb229cfa29d";
 /** Where A is stored, as hint IDs name it: repository, file (percent-encoded) and UUID. */
 const AT_A = `system/${encodeURIComponent(A_FILE)}/${A}`;
-const A_PLACE = { sourceRepository: "system", file: A_FILE, source: A };
+const A_PLACE = { code: "relation.outdated", sourceRepository: "system", file: A_FILE, source: A };
 
 const FIXTURE_FOLDER = path.resolve(import.meta.dirname, "../../../../fixtures/SR-025/outdated");
 

@@ -1,7 +1,9 @@
-// The fields of a command's input or output, read from its catalog schema (SR-139 AK1). A `$ref` is shown by the
-// name of its definition, with the definition's description when the field has none of its own.
+// The fields of a command's input or output, or of a file format, read from its schema (SR-139 AK1, AK3). A `$ref`
+// is shown by the name of its definition, linked to where the reference documents it, with the definition's
+// description when the field has none of its own.
 import { SCHEMA_BASE } from "@reqseq/core";
 import type { JsonSchema } from "@reqseq/core";
+import { cell, markdownCell, table } from "./markdown.js";
 
 /** One row of the field table: the field's path (`a.b`, `a[].b`), its type as Markdown, and its text. */
 export interface FieldRow {
@@ -11,7 +13,19 @@ export interface FieldRow {
   readonly description: string;
 }
 
-type Schema = Readonly<Record<string, unknown>>;
+export type Schema = Readonly<Record<string, unknown>>;
+
+/** The base of the `$ref`s in the command catalog. */
+export const CATALOG_BASE = `${SCHEMA_BASE}commands/catalog.json`;
+
+/** What a schema is read with: all schemas (by `$id`), the URL its `$ref`s resolve against, and the links. */
+export interface SchemaContext {
+  readonly schemas: readonly JsonSchema[];
+  /** Default: the catalog (`CATALOG_BASE`). */
+  readonly base?: string;
+  /** Where the reference documents the type at `url` (a schema file, or a definition in it), if anywhere. */
+  readonly link?: (url: URL) => string | undefined;
+}
 
 /** Nested objects are listed to this depth; deeper ones are named by their type only. */
 const MAX_DEPTH = 2;
@@ -24,10 +38,10 @@ const isSchema = (value: unknown): value is Schema =>
 
 const code = (text: string): string => `\`${text}\``;
 
-/** The schema a `$ref` of the catalog points to, among `schemas` (by `$id`). */
-export function resolveRef(ref: string, schemas: readonly JsonSchema[]): Schema | undefined {
-  const url = new URL(ref, `${SCHEMA_BASE}commands/catalog.json`);
-  const file = schemas.find((schema) => schema["$id"] === `${url.origin}${url.pathname}`);
+/** The schema a `$ref` points to, among the context's schemas (by `$id`). */
+export function resolveRef(ref: string, context: SchemaContext): Schema | undefined {
+  const url = new URL(ref, context.base ?? CATALOG_BASE);
+  const file = context.schemas.find((schema) => schema["$id"] === `${url.origin}${url.pathname}`);
   const path = url.hash.replace(/^#\/?/, "");
   return (path === "" ? [] : path.split("/")).reduce<Schema | undefined>(
     (node, key) => (node === undefined || !isSchema(node[key]) ? undefined : node[key]),
@@ -42,10 +56,18 @@ export const refName = (ref: string): string => {
   return pointer === "" ? last(file).replace(/\.schema\.json$/, "") : last(pointer);
 };
 
+/** A `$ref` by its name, linked where the reference documents it. */
+const refType = (ref: string, context: SchemaContext | undefined): string => {
+  const href = context?.link?.(new URL(ref, context.base ?? CATALOG_BASE));
+  const name = code(refName(ref));
+  return href === undefined ? name : `[${name}](${href})`;
+};
+
 /** The type of a schema as Markdown: `string`, `array of uuid`, one of `"a"`, `"b"`. */
-export function typeText(schema: Schema): string {
+export function typeText(schema: Schema, context?: SchemaContext): string {
+  const inner = (part: Schema): string => typeText(part, context);
   if (typeof schema["$ref"] === "string") {
-    return code(refName(schema["$ref"]));
+    return refType(schema["$ref"], context);
   }
   if (Array.isArray(schema["enum"])) {
     return `one of ${schema["enum"].map((value) => code(JSON.stringify(value))).join(", ")}`;
@@ -55,18 +77,18 @@ export function typeText(schema: Schema): string {
   }
   const alternatives = schema["anyOf"] ?? schema["oneOf"];
   if (Array.isArray(alternatives)) {
-    return alternatives.filter(isSchema).map(typeText).join(" or ");
+    return alternatives.filter(isSchema).map(inner).join(" or ");
   }
   if (Array.isArray(schema["allOf"])) {
     // Parts that only constrain (`minLength`, `not`) name no type of their own: `relativePath`, not `relativePath and any`.
     const named = schema["allOf"]
       .filter(isSchema)
       .filter((part) => TYPE_KEYWORDS.some((keyword) => keyword in part));
-    return named.length === 0 ? code("any") : named.map(typeText).join(" and ");
+    return named.length === 0 ? code("any") : named.map(inner).join(" and ");
   }
   const type = schema["type"];
   if (type === "array") {
-    return isSchema(schema["items"]) ? `array of ${typeText(schema["items"])}` : code("array");
+    return isSchema(schema["items"]) ? `array of ${inner(schema["items"])}` : code("array");
   }
   if (Array.isArray(type)) {
     return type.map((name) => code(String(name))).join(" or ");
@@ -74,9 +96,9 @@ export function typeText(schema: Schema): string {
   return code(typeof type === "string" ? type : "any");
 }
 
-const describe = (schema: Schema, schemas: readonly JsonSchema[]): string => {
+const describe = (schema: Schema, context: SchemaContext): string => {
   const own = schema["description"];
-  const target = typeof schema["$ref"] === "string" ? resolveRef(schema["$ref"], schemas) : undefined;
+  const target = typeof schema["$ref"] === "string" ? resolveRef(schema["$ref"], context) : undefined;
   const text =
     typeof own === "string" ? own : typeof target?.["description"] === "string" ? target["description"] : "";
   return "default" in schema
@@ -84,33 +106,59 @@ const describe = (schema: Schema, schemas: readonly JsonSchema[]): string => {
     : text;
 };
 
+/** The `properties` and `required` of a schema and of the parts of its `allOf`. */
+const objectParts = (schema: Schema): { properties: Schema; required: Set<unknown> } => {
+  const parts = [schema, ...(Array.isArray(schema["allOf"]) ? schema["allOf"].filter(isSchema) : [])];
+  return {
+    properties: Object.assign(
+      {},
+      ...parts.map((part) => (isSchema(part["properties"]) ? part["properties"] : {})),
+    ) as Schema,
+    required: new Set(
+      parts.flatMap((part): unknown[] =>
+        Array.isArray(part["required"]) ? (part["required"] as unknown[]) : [],
+      ),
+    ),
+  };
+};
+
 /** The rows of every field of an object schema, nested objects and arrays of objects below their field. */
-export function fieldRows(
-  schema: Schema,
-  schemas: readonly JsonSchema[],
-  prefix = "",
-  depth = 0,
-): FieldRow[] {
-  const properties = isSchema(schema["properties"]) ? schema["properties"] : {};
-  const required = new Set(Array.isArray(schema["required"]) ? schema["required"] : []);
+export function fieldRows(schema: Schema, context: SchemaContext, prefix = "", depth = 0): FieldRow[] {
+  const { properties, required } = objectParts(schema);
   return Object.entries(properties).flatMap(([name, value]) => {
     const field = isSchema(value) ? value : {};
     const path = `${prefix}${name}`;
     const row: FieldRow = {
       field: path,
-      type: typeText(field),
+      type: typeText(field, context),
       required: required.has(name),
-      description: describe(field, schemas),
+      description: describe(field, context),
     };
     const items = isSchema(field["items"]) ? field["items"] : undefined;
     const nested =
       depth >= MAX_DEPTH
         ? []
         : isSchema(field["properties"])
-          ? fieldRows(field, schemas, `${path}.`, depth + 1)
+          ? fieldRows(field, context, `${path}.`, depth + 1)
           : items !== undefined && isSchema(items["properties"])
-            ? fieldRows(items, schemas, `${path}[].`, depth + 1)
+            ? fieldRows(items, context, `${path}[].`, depth + 1)
             : [];
     return [row, ...nested];
   });
+}
+
+/** The field table of an object schema, or `none` when it has no fields. */
+export function fieldTable(schema: Schema, context: SchemaContext, none: string): string {
+  const rows = fieldRows(schema, context);
+  return rows.length === 0
+    ? none
+    : table(
+        ["Field", "Type", "Required", "Description"],
+        rows.map((row) => [
+          `\`${row.field}\``,
+          markdownCell(row.type),
+          row.required ? "yes" : "no",
+          cell(row.description),
+        ]),
+      );
 }

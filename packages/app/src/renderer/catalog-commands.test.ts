@@ -4,7 +4,14 @@ import type { CommandListing } from "../shared/protocol.js";
 import type { ActionContext, Choice, Prompt } from "./actions.js";
 import { ACTIONS, commandPrompt } from "./actions.js";
 import type { BufferAction, Buffers } from "./buffers.js";
-import { elementBuffer, listBuffer, neighbourhoodBuffer, overviewBuffer, resultBuffer } from "./buffers.js";
+import {
+  elementBuffer,
+  listBuffer,
+  neighbourhoodBuffer,
+  overviewBuffer,
+  readOnlyBuffer,
+  resultBuffer,
+} from "./buffers.js";
 import type { Call } from "./call.js";
 import type { CatalogContext } from "./catalog-commands.js";
 import { PREFIX_BINDINGS } from "./bindings.js";
@@ -153,7 +160,7 @@ describe("catalog commands in the command prompt", () => {
     // Covered commands are not listed twice, the unimplemented ones not yet.
     expect(offered.has("Get element")).toBe(false);
     expect(offered.has("Update element")).toBe(false);
-    expect(offered.has("Show baseline")).toBe(false);
+    expect(offered.has("Analyse ReqIF file")).toBe(false);
     expect(offered.has("Show relation options")).toBe(true);
   });
 
@@ -672,18 +679,41 @@ describe("catalog commands in the command prompt", () => {
     expect(await names(asked)).toEqual(["yes", "no"]);
     await pick(asked, "yes", true);
     await pick(asked, "view");
-    await answer(asked, "brief", true);
+    // A metamodel without a variant type has the core alone (#285).
+    expect(await names(asked)).toEqual(["Core"]);
+    await pick(asked, "Core", true);
     await pick(asked, "Run");
     await flush();
     expect(call).toHaveBeenLastCalledWith("element.get", {
       ref: "uuid-1",
       repository: "spec",
       versionDate: true,
-      view: "brief",
+      view: "core",
     });
     catalogItems(context, [{ ...command("hint.list"), title: "Hints" }], [])[0]?.more?.();
     await pick(asked, "type");
     expect(await names(asked)).toEqual(["Need"]);
+  });
+
+  it("offers the core and the variants of the workspace for a view, or says why it cannot (#285)", async () => {
+    const variants = setup([shown], {
+      "metamodel.get": () => ({ types: [{ key: "variant", name: "Variant", meaning: "variant" }] }),
+      "element.list": () => ({ elements: [{ id: "u-coast", shortId: "VAR-1", title: "Coast" }] }),
+    });
+    const chain = { ...command("trace.chain"), title: "Chain" };
+    catalogItems(variants.context, [chain], [])[0]?.more?.();
+    await pick(variants.asked);
+    await pick(variants.asked, "view");
+    expect(await names(variants.asked)).toEqual(["Core", "VAR-1 Coast"]);
+    await pick(variants.asked, "VAR-1 Coast", true);
+    await pick(variants.asked, "Run");
+    await flush();
+    expect(variants.call).toHaveBeenLastCalledWith("trace.chain", { ref: "uuid-1", view: "u-coast" });
+    const broken = setup([shown], { "metamodel.get": () => new Error("No metamodel") });
+    catalogItems(broken.context, [chain], [])[0]?.more?.();
+    await pick(broken.asked);
+    await pick(broken.asked, "view");
+    expect((await last(broken.asked)).label).toBe("No metamodel · Chain SR-1 · view:");
   });
 
   const numbers = {
@@ -1452,6 +1482,16 @@ describe("the arguments a command expects, completed with the values of the meta
     expect(call).toHaveBeenLastCalledWith("element.setStatus", { refs: ["uuid-1"], status: "decided" });
   });
 
+  it("[SR-044/AK2] offers an element shown read-only first to a read command, never to a write command", async () => {
+    const readOnly = readOnlyBuffer(shown);
+    const write = setup([readOnly], { "metamodel.get": () => FIXTURE_METAMODEL });
+    start(write.context, "element.setStatus");
+    expect((await last(write.asked)).items.map((i) => i.name)).toEqual([]);
+    const read = setup([readOnly], {});
+    start(read.context, "trace.affected");
+    expect((await last(read.asked)).items.map((i) => i.name)).toEqual(["SR-1 Title 1 · read-only"]);
+  });
+
   it("offers every status of the metamodel without an element, and says why an element cannot be read", async () => {
     const statusOf = {
       ...command("element.setStatus"),
@@ -1789,5 +1829,56 @@ describe("the arguments a command expects, completed with the values of the meta
     start(gone.context, "relation.remove");
     (await last(gone.asked)).items[0]?.run();
     expect((await last(gone.asked)).label).toBe("No such element · Remove relation SR-1 · kind:");
+  });
+});
+
+describe("a view the window shows (SR-043 AK1)", () => {
+  const list = listBuffer("type: need", { where: { type: ["need"] } });
+  const coast = { view: "u-coast", title: "Coast", shortId: "VAR-1" };
+
+  /** The context of `setup` in the view of Coast: `shownCall` records apart from the call in no view. */
+  const inCoast = (buffers: Buffers, answers: Record<string, () => unknown>) => {
+    const base = setup(buffers, answers);
+    const shownCall = vi.fn((name: string, input: Record<string, unknown>) => base.call(name, input));
+    const context: CatalogContext = {
+      ...base.context,
+      shownCall: shownCall as unknown as Call,
+      views: { shown: coast, choose: () => undefined },
+    };
+    return { ...base, context, shownCall };
+  };
+
+  it("searches all elements for an element argument of a write, and runs the command in the shown call", async () => {
+    const { context, asked, shownCall } = inCoast([list], {
+      "element.search": () => ({ hits: [hit(2)], total: 1 }),
+      "variant.exclude": () => ({ file: "variants/VAR-1.md" }),
+    });
+    start(context, "variant.exclude");
+    await (await last(asked)).find?.("coast");
+    // The offer goes through the call in no view: an excluded core requirement is still found (SR-042 AK6).
+    expect(shownCall).not.toHaveBeenCalled();
+    (await (await last(asked)).find?.("coast"))?.[0]?.run();
+    (await (await last(asked)).find?.("wind"))?.[0]?.run();
+    (await last(asked)).empty?.(false);
+    await flush();
+    expect(shownCall).toHaveBeenLastCalledWith("variant.exclude", { variant: "uuid-2", refs: ["uuid-2"] });
+  });
+
+  it("gives the selection of the shown list the view, unless it names a view or ids (B2)", async () => {
+    const answers = { "element.bulkUpdate": () => ({ total: 0, changes: [] }) };
+    const bulk = {
+      ...command("element.bulkUpdate"),
+      arguments: [{ field: "selection", complete: "selection" as const }],
+    };
+    const shownList = inCoast([list], answers);
+    catalogItems(shownList.context, [bulk], [])[0]?.run();
+    await flush();
+    expect(shownList.shownCall).toHaveBeenLastCalledWith("element.bulkUpdate", {
+      selection: { where: { type: ["need"] }, view: "u-coast" },
+    });
+    const byIds = inCoast([listBuffer("ids", { ids: ["SR-1"] })], answers);
+    catalogItems(byIds.context, [bulk], [])[0]?.run();
+    await flush();
+    expect(byIds.shownCall).toHaveBeenLastCalledWith("element.bulkUpdate", { selection: { ids: ["SR-1"] } });
   });
 });
