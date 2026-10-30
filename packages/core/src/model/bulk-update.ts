@@ -51,8 +51,14 @@ import type { TargetContext } from "./targets.js";
 import { currentTarget, setMarkdownReferences, setRelationTargets } from "./targets.js";
 import { valueFindings } from "./values.js";
 import { titleKeyOf } from "./view.js";
-import type { ElementFileWrite, ReadElement } from "./write.js";
-import { readAllUnchanged, withChoiceKeys, writeElementFiles, writtenElement } from "./write.js";
+import type { ElementFileWrite, ReadElement, WriteCheck } from "./write.js";
+import {
+  checkedBefore,
+  readAllUnchanged,
+  withChoiceKeys,
+  writeElementFiles,
+  writtenElement,
+} from "./write.js";
 
 export type BulkOperation = "set" | "add" | "remove";
 
@@ -94,7 +100,10 @@ export interface BulkUpdateResult {
   readonly skipped: readonly SkippedElement[];
   /** Written files relative to the workspace root, `/` as separator; empty in a preview. */
   readonly files: readonly string[];
-  /** The value-kind (SR-085) and relation-type (SR-086) hints at the property in the affected elements after the change. */
+  /**
+   * The value-kind (SR-085) and relation-type (SR-086) hints at the property in the affected elements
+   * after the change; in a preview also the findings of the write check that a confirmation refuses.
+   */
   readonly problems: readonly Problem[];
 }
 
@@ -330,6 +339,7 @@ export const bulkUpdateElements = async (
   workspace: Workspace,
   selection: BulkSelection,
   input: BulkUpdateInput,
+  check?: WriteCheck,
 ): Promise<BulkUpdateResult> => {
   const { metamodel, store, shortIds } = selection;
   const property = propertyOf(metamodel, input.property);
@@ -380,6 +390,21 @@ export const bulkUpdateElements = async (
       { expected: input.expected, count: planned.length, reason: "count-changed" },
     );
   }
+  // The write check sees each element as it would be written: a confirmation is refused as a whole.
+  const checked = planned.flatMap((p) => {
+    const found = checkedBefore(
+      check,
+      p.repository.name,
+      p.bytes,
+      p.current.file.snapshot,
+      p.current.record.type,
+    );
+    return found === undefined ? [] : [found];
+  });
+  const refused = checked.flatMap((c) => c.findings);
+  if (input.confirm && check !== undefined && refused.length > 0) {
+    throw check.refusal(refused);
+  }
   const written = input.confirm
     ? await writeElementFiles(workspace, layout, planned, {
         concurrency: WRITE_CONCURRENCY,
@@ -396,6 +421,9 @@ export const bulkUpdateElements = async (
     unchanged,
     skipped,
     files: written.map((w) => w.file),
-    problems: hintsAt(property.key, results, selection),
+    problems: [
+      ...hintsAt(property.key, results, selection),
+      ...checked.flatMap(({ element, findings }) => locateIn(element.file, findings)),
+    ],
   };
 };

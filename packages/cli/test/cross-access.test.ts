@@ -127,6 +127,9 @@ const TYPE_AND_ID = [
 ];
 /** Derivations with a diamond, choices, numbers and titles to sort by (SR-075). */
 const SORT: FixtureOptions = { fixture: "SR-075/sort", git: true };
+/** A metamodel in which the type Variant has a validity; B's validity names A by hand, C relates to A (SR-039). */
+const NESTED: FixtureOptions = { fixture: "SR-039/nested", git: true };
+const NESTED_A = "39039039-0000-4000-8000-0000000000a1";
 /** Packages P1 and P2; R1 in both, R2 in P1, R3 in none (SR-048, SR-049). */
 const PACKAGES: FixtureOptions = { fixture: "SR-048/packages", git: true };
 /** Identifiers in natural order, a lower-case one and elements without one (#418). */
@@ -322,6 +325,31 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
   ],
   "element.bulkUpdate": [
     {
+      name: "a variant is not given validity entries: the preview names it, the confirmation is refused",
+      fixture: NESTED,
+      input: {
+        selection: { ids: ["VAR-0000c3"] },
+        property: "validity",
+        operation: "add",
+        value: { id: NESTED_A },
+      },
+      tag: "[SR-039/AK2]",
+      expect: "output",
+    },
+    {
+      name: "a confirmation that would give a variant validity entries is refused (variant.nested)",
+      fixture: NESTED,
+      input: {
+        selection: { ids: ["VAR-0000c3"] },
+        property: "validity",
+        operation: "add",
+        value: { id: NESTED_A },
+        confirm: true,
+      },
+      tag: "[SR-039/AK2]",
+      expect: "error",
+    },
+    {
       name: "a preview: the number of affected elements and the skipped ones, nothing written (SR-071 AK2, AK3)",
       fixture: FILTER,
       input: { selection: {}, property: "priority", operation: "set", value: 4 },
@@ -372,6 +400,21 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
     },
   ],
   "element.create": [
+    {
+      name: "a variant is an element file of type variant in the workspace of the core",
+      fixture: { fixture: "SR-040/validity", git: true },
+      input: { type: "variant", title: "Valley" },
+      tag: "[SR-039/AK1]",
+      expect: "output",
+      newElement: true,
+    },
+    {
+      name: "a variant with validity entries is refused (variant.nested)",
+      fixture: NESTED,
+      input: { type: "variant", title: "South coast", properties: { validity: [{ id: NESTED_A }] } },
+      tag: "[SR-039/AK2]",
+      expect: "error",
+    },
     {
       name: "new element in a new folder",
       input: {
@@ -870,6 +913,20 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
     },
   ],
   "element.update": [
+    {
+      name: "a variant whose validity names a variant is refused (variant.nested)",
+      fixture: NESTED,
+      input: { ref: "VAR-0000b2", title: "North" },
+      tag: "[SR-039/AK2]",
+      expect: "error",
+    },
+    {
+      name: "a relation between variants is allowed",
+      fixture: NESTED,
+      input: { ref: "VAR-0000c3", title: "Mountains" },
+      tag: "[SR-039/AK2]",
+      expect: "output",
+    },
     {
       name: "update a superseded element with a successor: same view with the successor relation everywhere (consistency, SR-072 AK3)",
       fixture: {

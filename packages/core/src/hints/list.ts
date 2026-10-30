@@ -55,6 +55,7 @@ import { derivationCycleProblemsState } from "../trace/index.js";
 import type { View } from "../variants/index.js";
 import {
   appliesIn,
+  nestedVariantsState,
   resolveView,
   supersededValidityProblemsState,
   validityEntries,
@@ -80,6 +81,7 @@ export const HINT_STATES = [
   statusProblemsState, // #306
   supersededTargetProblemsState, // SR-072
   supersededValidityProblemsState, // SR-040
+  nestedVariantsState, // SR-039
   valueKindProblemsState, // SR-085
   relationTypeProblemsState, // SR-086
   duplicateIdentifierProblemsState, // #305

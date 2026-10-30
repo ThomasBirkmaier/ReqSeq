@@ -1,0 +1,25 @@
+# SR-039 AK2/AK3: a metamodel in which the type Variant has a property with the meaning validity.
+reqseq-metamodel: 1
+types:
+  - {
+      key: variant,
+      name: Variant,
+      prefix: VAR,
+      meaning: variant,
+      properties: [title, validity],
+      required: [title],
+    }
+  - key: system-requirement
+    name: System Requirement
+    prefix: SR
+    meaning: requirement
+    properties: [title, validity]
+    required: [title]
+properties:
+  - { key: title, name: Title, kind: text, meaning: title }
+  - { key: validity, name: Validity, kind: relation, many: true, target-types: [variant], meaning: validity }
+relations:
+  - { key: relates-to, name: Relates to, inverse-name: Related by }
+  - { key: derives-from, name: Derives from, inverse-name: Derived by, meaning: derivation }
+statuses:
+  - { key: draft, name: Draft, initial: true }
