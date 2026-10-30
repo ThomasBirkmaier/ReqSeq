@@ -18,7 +18,7 @@ ReqSeq is a local requirements tool on plain files in Git: one Markdown file per
 
 ## 2. Constraints
 
-- TypeScript and Electron (D-004); Windows 11, macOS 14, Ubuntu 24.04 (SR-076).
+- TypeScript and Electron (D-004); Windows 11, macOS 26, Ubuntu 24.04 (SR-076).
 - Git is the storage; ReqSeq reads Git and writes only files (D-024, D-036, SR-083).
 - English UI and standard model (D-019); the spec stays German.
 - No user or rights management (D-016); no deletion of elements (D-045); status set only by people (D-030).
