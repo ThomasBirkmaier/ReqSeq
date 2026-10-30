@@ -1239,7 +1239,7 @@ export interface CommandCatalog {
     readonly arguments: readonly {
       /** A top-level property of `input`. */
       readonly field: string;
-      /** element: elements found by element.search. type: types of the metamodel. status: statuses of the type of the element in `of` (without it, every status of the metamodel). invalidStatus: of those, the ones the metamodel marks invalid. relationKind: kinds that relation.options allows from the element in `of` (without it, every relation kind of the metamodel). relationTarget: elements of the target types of the kind in `of` (element.search with selection.where.type). relation: with `of` an element field, the kinds of the existing relations of that element; with `of` a relation field (the kind asked before), the targets of the relations of that kind (relation.remove: source, kind, target). property: properties of the type of the element in `of` (every property of the metamodel without it). value: the values the metamodel fixes for the property in `of`. hint: open hints of the element in `of` (without it, every open hint). filter: saved filters. baseline: baselines (baseline.list). repository: repositories of the workspace. selection: the selection of the list shown. choice: the inline `enum` of the property. text, number, boolean: typed free input. json: any other object or mixed field, typed as JSON and checked by core. */
+      /** element: elements found by element.search. type: types of the metamodel. status: statuses of the type of the element in `of` (without it, every status of the metamodel). invalidStatus: of those, the ones the metamodel marks invalid. relationKind: kinds that relation.options allows from the element in `of` (without it, every relation kind of the metamodel). relationTarget: elements of the target types of the kind in `of` (element.search with selection.where.type). relation: with `of` an element field, the kinds of the existing relations of that element; with `of` a relation field (the kind asked before), the targets of the relations of that kind (relation.remove: source, kind, target). property: properties of the type of the element in `of` (every property of the metamodel without it). value: the values the metamodel fixes for the property in `of`. hint: open hints of the element in `of` (without it, every open hint). filter: saved filters. baseline: baselines (baseline.list). view: `core` and the variants of the workspace (element.list of the types with the meaning `variant`). repository: repositories of the workspace. selection: the selection of the list shown. choice: the inline `enum` of the property. text, number, boolean: typed free input. json: any other object or mixed field, typed as JSON and checked by core. */
       readonly complete:
         | "element"
         | "type"
@@ -1253,6 +1253,7 @@ export interface CommandCatalog {
         | "hint"
         | "filter"
         | "baseline"
+        | "view"
         | "repository"
         | "selection"
         | "choice"

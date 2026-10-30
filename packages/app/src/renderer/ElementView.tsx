@@ -192,6 +192,11 @@ export interface ElementViewProps {
    * the link names (a relation has none: the output has no repository).
    */
   readonly onOpenTarget: (id: string, repository?: string) => void;
+  /**
+   * Calls core in no view, for the targets a relation box offers (SR-043 AK1: a view the window shows
+   * narrows no offer). Absent: `call`.
+   */
+  readonly searchCall?: Call;
   /** The slash menu's "Reference to element" (SR-129) or `[[` (SR-066) asks for an element: the app opens a prompt. */
   readonly onPickElement: (request: ReferenceRequest) => void;
   /** The titles of reference targets in other repositories (D-058), kept by the app for the workspace. */
@@ -294,6 +299,7 @@ const useArea = (
 
 export const ElementView = ({
   call,
+  searchCall = call,
   buffer,
   revision,
   outside = NO_CHANGES,
@@ -468,6 +474,7 @@ export const ElementView = ({
   const now = useRef({
     buffer,
     call,
+    searchCall,
     onData,
     onDraft,
     onEcho,
@@ -489,6 +496,7 @@ export const ElementView = ({
   now.current = {
     buffer,
     call,
+    searchCall,
     onData,
     onDraft,
     onEcho,
@@ -1178,7 +1186,7 @@ export const ElementView = ({
   // taken or escaped, the focus goes back to the box, not to the element.
   const openValue = (box: EditableBox): void => {
     const { key } = box;
-    const { call: run, onEcho: echo } = now.current;
+    const { searchCall: run, onEcho: echo } = now.current;
     const note = lockedNote();
     if (note !== undefined) {
       echo(note);
