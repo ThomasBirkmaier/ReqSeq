@@ -237,7 +237,7 @@ describe("the prefix key Ctrl/Cmd+K", () => {
     ]);
   });
 
-  it("[SR-109/AK3] after Cmd+K on macOS and half a second, shows the next keys, the echo written as on macOS", async () => {
+  it("[SR-109/AK3] [SR-145/AK1] after Cmd+K on macOS and half a second, shows the next keys, the echo written as on macOS", async () => {
     vi.spyOn(navigator, "platform", "get").mockReturnValue("MacIntel");
     await onElement();
     vi.useFakeTimers();

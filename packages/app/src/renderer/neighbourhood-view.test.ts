@@ -364,7 +364,7 @@ describe("NeighbourhoodView", () => {
   });
 
   it.each(["MacIntel", "Win32", "Linux x86_64"])(
-    "[SR-122/AK5] on %s, with a row selected Ctrl+P is the neighbourhood's; with none, and Cmd+P, it is not",
+    "[SR-122/AK5] [SR-145/AK3] on %s, with a row selected Ctrl+P is the neighbourhood's; with none, and Cmd+P, it is not",
     async (platform) => {
       vi.spyOn(navigator, "platform", "get").mockReturnValue(platform);
       await mount(asCall(fakeCall()));

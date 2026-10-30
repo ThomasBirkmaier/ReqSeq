@@ -39,7 +39,7 @@ describe("keys", () => {
     expect(matches(press("p", { ctrlKey: true }), { mod: true, shift: false, key: "p" }, false)).toBe(true);
   });
 
-  it("[SR-122/AK5] under macOS the modifier is Cmd only: the physical Ctrl key with a letter is no shortcut, so Ctrl+P does not jump", () => {
+  it("[SR-145/AK1] under macOS the modifier is Cmd only: the physical Ctrl key with a letter is no shortcut, so Ctrl+P does not jump", () => {
     const goTo = { mod: true, shift: false, key: "p" };
     const next = { mod: false, shift: false, alt: true, key: "n" };
     // Cmd+P jumps, Cmd+Shift+P is the command prompt, Cmd+Option+A adds a property.
@@ -88,7 +88,7 @@ describe("keys", () => {
     ).toBe(false);
   });
 
-  it("[SR-115/AK5] Alt+N and Alt+P match by the letter on Linux and Windows, and by the physical key under macOS, where Option types a character", () => {
+  it("[SR-115/AK5] [SR-145/AK2] Alt+N and Alt+P match by the letter on Linux and Windows, and by the physical key under macOS, where Option types a character", () => {
     const next = { mod: false, shift: false, alt: true, key: "n" };
     const previous = { mod: false, shift: false, alt: true, key: "p" };
     // Linux and Windows: the letter.
@@ -124,7 +124,7 @@ describe("keys", () => {
     ).toBe(false);
   });
 
-  it("[SR-115/AK5] writes Alt+N as Linux and Windows do and as ⌥N on macOS", () => {
+  it("[SR-115/AK5] [SR-145/AK2] writes Alt+N as Linux and Windows do and as ⌥N on macOS", () => {
     expect(shortcutLabel({ mod: false, shift: false, alt: true, key: "n" }, false)).toBe("Alt+N");
     expect(shortcutLabel({ mod: false, shift: false, alt: true, key: "p" }, true)).toBe("⌥P");
   });
@@ -135,7 +135,7 @@ describe("keys", () => {
     expect(isMac("Win32")).toBe(false);
   });
 
-  it("[SR-132/AK1] knows Ctrl/Cmd+click with the main button; under macOS only Cmd", () => {
+  it("[SR-132/AK1] [SR-145/AK1] knows Ctrl/Cmd+click with the main button; under macOS only Cmd", () => {
     const click = { button: 0, ctrlKey: false, metaKey: false, altKey: false, shiftKey: false };
     expect(isModClick({ ...click, ctrlKey: true }, false)).toBe(true);
     expect(isModClick({ ...click, metaKey: true }, false)).toBe(true);
@@ -173,7 +173,7 @@ describe("keys", () => {
     expect(listStep(press("P", { ctrlKey: true }))).toBe(-1);
   });
 
-  it("[SR-122/AK2] only the physical Ctrl key counts: Cmd+N/P, Alt, Shift or no modifier give no step", () => {
+  it("[SR-122/AK2] [SR-145/AK3] only the physical Ctrl key counts: Cmd+N/P, Alt, Shift or no modifier give no step", () => {
     expect(listStep(press("n", { metaKey: true }))).toBeUndefined();
     expect(listStep(press("p", { metaKey: true }))).toBeUndefined();
     expect(listStep(press("p", { ctrlKey: true, metaKey: true }))).toBeUndefined();
@@ -190,7 +190,7 @@ describe("keys", () => {
     expect(listStep(press("Enter"))).toBeUndefined();
   });
 
-  it("[SR-122/AK5] Ctrl+N and Ctrl+P are the physical Ctrl key alone with the letter; Cmd, Shift and AltGr do not count", () => {
+  it("[SR-122/AK5] [SR-145/AK3] Ctrl+N and Ctrl+P are the physical Ctrl key alone with the letter; Cmd, Shift and AltGr do not count", () => {
     expect(ctrlStep(press("n", { ctrlKey: true }))).toBe(1);
     expect(ctrlStep(press("N", { ctrlKey: true }))).toBe(1);
     expect(ctrlStep(press("p", { ctrlKey: true }))).toBe(-1);

@@ -904,7 +904,7 @@ describe("App", () => {
   });
 
   it.each(PLATFORMS)(
-    "[SR-122/AK5] on %s, with a row selected Ctrl+P only moves the selection, also on the first row; Cmd does not move it",
+    "[SR-122/AK5] [SR-145/AK3] on %s, with a row selected Ctrl+P only moves the selection, also on the first row; Cmd does not move it",
     async (platform) => {
       vi.spyOn(navigator, "platform", "get").mockReturnValue(platform);
       const { bridge } = fakeBridge(workspace());
@@ -957,7 +957,7 @@ describe("App", () => {
     },
   );
 
-  it("[SR-122/AK5] on macOS, with no row selected the physical Ctrl+P is not Go to, Cmd+P is: on the overview after the start, and on a list without rows", async () => {
+  it("[SR-145/AK1] on macOS, with no row selected the physical Ctrl+P is not Go to, Cmd+P is: on the overview after the start, and on a list without rows", async () => {
     vi.spyOn(navigator, "platform", "get").mockReturnValue("MacIntel");
     const handlers = workspace();
     await render(fakeBridge(handlers).bridge);
@@ -2768,7 +2768,7 @@ describe("App, the package page (SR-112)", () => {
     },
   );
 
-  it("[SR-122/AK5] on macOS, the physical Ctrl+P on a package page outside its elements is not Go to; Cmd+P is", async () => {
+  it("[SR-145/AK1] on macOS, the physical Ctrl+P on a package page outside its elements is not Go to; Cmd+P is", async () => {
     vi.spyOn(navigator, "platform", "get").mockReturnValue("MacIntel");
     await openPackage();
     expect((await pressed(query("article"), "p", { ctrlKey: true })).defaultPrevented).toBe(false);

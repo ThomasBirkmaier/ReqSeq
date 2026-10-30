@@ -1492,7 +1492,7 @@ describe("Next buffer and Previous buffer (SR-115 AK5)", () => {
     expect(actionFor(none, (shortcut) => shortcut === PREVIOUS_BUFFER_SHORTCUT)).toBeUndefined();
   });
 
-  it("[SR-115/AK5] Alt+N and Alt+P find the actions, Option+N and Option+P by the physical key", () => {
+  it("[SR-115/AK5] [SR-145/AK2] Alt+N and Alt+P find the actions, Option+N and Option+P by the physical key", () => {
     const { context } = setup(used, {}, true, { opened });
     const press = (key: string, code: string) => ({
       key,
