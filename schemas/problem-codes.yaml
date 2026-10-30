@@ -180,10 +180,10 @@ errors:
     cause: The variant would get validity entries, but a variant builds only on the core (D-020, SR-039 AK2/AK3). This version does not raise it yet.
     remedy: Write the variant without validity entries; a relation between variants is allowed.
   baseline.uncommitted-changes:
-    cause: A baseline needs a committed state, but files of the selected elements, their embedded files, the metamodel or the workspace file differ from HEAD or were never committed (SR-050 AK2); evidence records do not count. This version does not raise it yet.
+    cause: A baseline needs a committed state, but files of the selected elements, their embedded files, the metamodel or the workspace file differ from HEAD or were never committed (SR-050 AK2); evidence records do not count.
     remedy: Commit those files with Git, or undo the changes, and create the baseline again.
   baseline.exists:
-    cause: A baseline with this name exists, ignoring case and Unicode normal form; the error names its file and nothing was written (SR-050 AK6). This version does not raise it yet.
+    cause: A baseline with this name exists, ignoring case and Unicode normal form; the error names its file and nothing was written (SR-050 AK6).
     remedy: Choose another name. ReqSeq never replaces a baseline.
   reqif.invalid:
     cause: The ReqIF file cannot be read or does not match the ReqIF format. This version does not raise it yet.

@@ -266,6 +266,25 @@ const EXPORT: FixtureOptions = { fixture: "SR-061/export", git: ["system", "sens
 
 /** Explicit scenarios per command, in addition to the default one with input `{}`. */
 const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
+  // The date of the baseline is checked to lie within each call and then masked (`withoutDate`).
+  "baseline.create": [
+    {
+      name: "a baseline file of a package with the commit and the elements (SR-050 AK1)",
+      fixture: EXPORT,
+      root: "system",
+      input: { name: "Release 2", selection: { package: "PKG-0000d1" } },
+      tag: "[SR-050/AK1]",
+      expect: "output",
+    },
+    {
+      name: "a name a baseline has, nothing written (SR-050 AK6)",
+      fixture: EXPORT,
+      root: "system",
+      input: { name: "release 1", selection: { package: "PKG-0000d1" } },
+      tag: "[SR-050/AK6]",
+      expect: "error",
+    },
+  ],
   "data.export": [
     {
       name: "the whole workspace with record files",
@@ -2270,6 +2289,20 @@ const withoutGenerated = (access: string, outcome: Outcome, start: number, end: 
   return { output: { ...rest, generated: "<generated>" } };
 };
 
+/**
+ * `result` of baseline.create with the date of the baseline (output and file) replaced by `<date>`, after
+ * checking it lies between `start` and `end` (ms); an error is left as it is.
+ */
+const withoutDate = (access: string, result: Result, start: number, end: number): Result => {
+  const date = (result.outcome as { output?: { baseline?: { date?: string } } }).output?.baseline?.date;
+  if (date === undefined) {
+    return result;
+  }
+  const time = Date.parse(date);
+  expect([access, time >= Math.floor(start / 1000) * 1000 && time <= end]).toEqual([access, true]);
+  return JSON.parse(JSON.stringify(result).split(date).join("<date>")) as Result;
+};
+
 /** The result of one access: its outcome, and the files of its copy afterwards. */
 interface Result {
   readonly outcome: Outcome;
@@ -2306,7 +2339,7 @@ const runAll = async (entry: CatalogEntry, scenario: Scenario): Promise<Record<s
     const outcome = GENERATED_AT_TOP.has(entry.name) ? withoutGenerated(access, called, start, end) : called;
     // A data file of data.store holds no time of the call (#319): its bytes are compared as they are.
     const files = await filesOf(top);
-    const result = normalized({ outcome, files }, top) as Result;
+    const result = withoutDate(access, normalized({ outcome, files }, top) as Result, start, end);
     if (untouched !== undefined) {
       expect([access, result.files]).toEqual([access, untouched]);
     }
