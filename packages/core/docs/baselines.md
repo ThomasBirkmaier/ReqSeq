@@ -1,6 +1,6 @@
 # Baselines block (`src/baselines/`)
 
-Part of the [`@reqseq/core` README](../README.md). Baseline files (D-039, `baseline.schema.json`): stage 4 has the read-only reader (`read.ts`) so that `evidence.list` can name the baselines that contain the version of a record (SR-032 AK2, assumption of spec question #530 Q1). `data.export` selects by baseline (SR-061 AK2, `selects` and `findBaseline` below); creating and comparing baselines, and selecting by baseline in other commands, is stage 5 (SR-050, SR-051, SR-094; the other commands refuse `selection.baseline` until then). The block never writes and never runs Git.
+Part of the [`@reqseq/core` README](../README.md). Baseline files (D-039, `baseline.schema.json`): stage 4 has the read-only reader (`read.ts`) so that `evidence.list` can name the baselines that contain the version of a record (SR-032 AK2, assumption of spec question #530 Q1). `data.export` selects by baseline (SR-061 AK2, `selects` and `findBaseline` below); `create.ts` writes new baseline files (SR-050, below); comparing baselines, and selecting by baseline in other commands, is SR-051 and SR-094 (the other commands refuse `selection.baseline` until then). The block never changes or removes a file and never writes to Git.
 
 ## Reading
 
@@ -19,3 +19,7 @@ The file format, the fast reader and the bounds are [ADR-0018](../../../docs/adr
 ## Kept between calls
 
 `baselineFilesState` (reset with the workspace layout) keeps what each file gave with its size and modification time. `workspaceBaselines(workspace)` lists the folder on every call and parses again only a file that is new or whose size or time changed, and drops files that are gone. So a baseline committed by another person counts as soon as the working copy has it, also in a running server or the app, and a baseline of 50,000 elements is parsed once (N-036).
+
+## Creating
+
+`createBaseline(workspace, request)` (`create.ts`, for `baseline.create`; the command resolves the selection and its stored form: UUIDs, `{ id, title }` of package and view, a saved filter as its `where` and `view`, ADR-0018 `selection`). In this order, nothing written on a refusal: `baseline.exists` when a valid baseline has the name (`foldName`, AK6); `file.folder-missing` when the folder's repository is not here; `file.faulty` for a selected element without version; `git.unavailable` for a repository involved (the selected elements', the main and the metamodel's, AK4) without commit (AK7) or whose changes Git cannot tell; `baseline.uncommitted-changes` (AK2) when `uncommittedFiles` (`model/uncommitted.ts`, the check of `data.export` on a given set of files) finds a change in the files of the selected elements, the files they embed, the metamodel's YAML files or the workspace file, naming the elements (also those whose embedded file changed) and the other files; evidence records do not count. `baselineText` writes the layout of ADR-0018 (`elements: []` when empty, AK5), which `scanBaseline` reads; `baselineStem` is the portable file name, and a taken one gets `-2`, `-3`, …; the file is created through the create path of `writeFileAtomic` and never replaced or committed.

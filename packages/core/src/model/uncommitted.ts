@@ -1,7 +1,7 @@
 // Uncommitted changes to the files the data of a state is made of (SR-062 K2, #531 Q2): whether the
 // working copy of a repository still holds the state of its HEAD commit. `data.export` gives it as
-// `repositories[].dirty`, `data.store` names the file `<commit>-dirty.jsonl` by it; stage 5 reuses
-// the functions for SR-050 AK2 (`baseline.uncommitted-changes`). Read only (ADR-0006, D-036).
+// `repositories[].dirty`, `data.store` names the file `<commit>-dirty.jsonl` by it; `baseline.create`
+// asks `uncommittedFiles` with the files of its selection (SR-050 AK2). Read only (ADR-0006, D-036).
 //
 // - The state files of a repository: `reqseq-workspace.yaml` of the main repository; the `*.yaml` and
 //   `*.yml` files directly in the metamodel, saved-filter and baselines folders where they lie in it;
@@ -251,6 +251,77 @@ const yamlFiles = async (rules: StateRules): Promise<string[]> =>
     )
   ).flat();
 
+/** The files of a repository that differ from a commit, or why Git cannot tell (`uncommittedFiles`). */
+export type UncommittedFiles =
+  | { readonly known: true; readonly files: readonly string[] }
+  | { readonly known: false; readonly reason: GitUnknownReason };
+
+/**
+ * The files of the repository in `folder` that differ from `commit` (steps 1 to 5 of the file
+ * comment): of `files` (relative, `/`) and of the paths `changedPaths` lists that `counts` keeps.
+ * `data.export` asks with the state files, `baseline.create` with the files of a selection (SR-050 AK2).
+ */
+export const uncommittedFiles = async (
+  folder: string,
+  commit: string,
+  files: readonly string[],
+  counts: (file: string) => boolean,
+  read: StateReader = DEFAULT_STATE_READER,
+): Promise<UncommittedFiles> => {
+  const changed = await read.changedPaths(folder, commit);
+  if (!changed.known) {
+    return { known: false, reason: changed.reason };
+  }
+  const kept = new Set(changed.paths.filter(counts));
+  const all = [...new Set([...files, ...kept])];
+  // A path git cannot take (a name with white space at an end) is dirty: more, never less.
+  const odd = all.filter((file) => !isGitPath(file));
+  const asked = all.filter((file) => isGitPath(file));
+  const spelled = asked.map(spellings);
+  const infos = await read.objects(
+    folder,
+    spelled.flat().map((file) => `${commit}:${file}`),
+  );
+  if (!infos.known) {
+    return { known: false, reason: infos.reason };
+  }
+  let at = 0;
+  const blobs = spelled.map((names) => {
+    const found = infos.objects.slice(at, at + names.length).find((info) => info?.type === "blob");
+    at += names.length;
+    return found?.id;
+  });
+  /** The absolute path of `file` in each of its spellings. */
+  const absolute = (file: string): string[] =>
+    spellings(file).map((name) => path.join(folder, ...name.split("/")));
+  const checked = asked.map((file, index) => ({ file, blob: blobs[index] }));
+  const dirty = await mapBounded(checked, async ({ file, blob }) => {
+    // A file without a blob at the commit is dirty when it is on disk (new, also one Git ignores);
+    // one that is neither in the commit nor on disk (a link to an image that exists nowhere) is no change.
+    if (blob === undefined) {
+      for (const name of absolute(file)) {
+        if (await read.exists(name)) {
+          return true;
+        }
+      }
+      return false;
+    }
+    if (!kept.has(file)) {
+      return false;
+    }
+    // The working file in the first spelling there is: on a file system that keeps the normal form
+    // (Linux), Git lists a file committed in NFD and checked out in NFC once in each form.
+    for (const name of absolute(file)) {
+      const now = await read.blobId(name, commit.length);
+      if (now !== undefined) {
+        return now !== blob;
+      }
+    }
+    return true;
+  });
+  return { known: true, files: [...odd, ...asked.filter((_, index) => dirty[index] === true)] };
+};
+
 /**
  * The commit of `repository` and whether the state files of `rules` differ from it (see the file
  * comment): `elements` are the element files of the store in the repository.
@@ -266,62 +337,13 @@ export const repositoryState = async (
     return { unknown: head.unknown };
   }
   const commit = head.commit;
-  const changed = await read.changedPaths(repository.folder, commit);
-  if (!changed.known) {
-    return { commit, dirtyUnknown: changed.reason };
-  }
-  const kept = new Set(uncommittedStateFiles(rules, changed.paths));
-  const files = [...new Set([...stateFiles(rules, elements, await yamlFiles(rules)), ...kept])];
-  // A path git cannot take (a name with white space at an end) is dirty: more, never less.
-  if (files.some((file) => !isGitPath(file))) {
-    return { commit, dirty: true };
-  }
-  const asked = files.map(spellings);
-  const infos = await read.objects(
+  const files = stateFiles(rules, elements, await yamlFiles(rules));
+  const found = await uncommittedFiles(
     repository.folder,
-    asked.flat().map((file) => `${commit}:${file}`),
+    commit,
+    files,
+    (file) => isStateFile(rules, file),
+    read,
   );
-  if (!infos.known) {
-    return { commit, dirtyUnknown: infos.reason };
-  }
-  let at = 0;
-  const blobs = asked.map((names) => {
-    const found = infos.objects.slice(at, at + names.length).find((info) => info?.type === "blob");
-    at += names.length;
-    return found?.id;
-  });
-  /** The absolute path of `file` in each of its spellings. */
-  const absolute = (file: string): string[] =>
-    spellings(file).map((spelled) => path.join(repository.folder, ...spelled.split("/")));
-  // A state file without a blob at the commit is dirty when it is on disk (new, also one Git
-  // ignores); one that is neither in the commit nor on disk (a link to an image that exists nowhere)
-  // is no change.
-  const unborn = files.filter((_, index) => blobs[index] === undefined);
-  const present = await mapBounded(unborn, async (file) => {
-    for (const spelled of absolute(file)) {
-      if (await read.exists(spelled)) {
-        return true;
-      }
-    }
-    return false;
-  });
-  if (present.some(Boolean)) {
-    return { commit, dirty: true };
-  }
-  const hashed = files.flatMap((file, index) => {
-    const blob = blobs[index];
-    return kept.has(file) && blob !== undefined ? [{ file, blob }] : [];
-  });
-  const same = await mapBounded(hashed, async ({ file, blob }) => {
-    // The working file in the first spelling there is: on a file system that keeps the normal form
-    // (Linux), Git lists a file committed in NFD and checked out in NFC once in each form.
-    for (const spelled of absolute(file)) {
-      const now = await read.blobId(spelled, commit.length);
-      if (now !== undefined) {
-        return now === blob;
-      }
-    }
-    return false;
-  });
-  return { commit, dirty: !same.every(Boolean) };
+  return found.known ? { commit, dirty: found.files.length > 0 } : { commit, dirtyUnknown: found.reason };
 };

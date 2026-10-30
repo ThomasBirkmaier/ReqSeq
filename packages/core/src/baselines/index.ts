@@ -1,13 +1,16 @@
 // The `baselines` block (D-039, architecture README §5). Stage 4 has the read-only reader of baseline
-// files (SR-032 AK2, spec question #530) and the fast reader of the file format of ADR-0018; creating
-// and comparing baselines comes with stage 5. Core blocks and commands import it relatively; it never
+// files (SR-032 AK2, spec question #530), the fast reader of the file format of ADR-0018 and the
+// writer of new baseline files (SR-050); comparing baselines comes with SR-051. Core blocks and commands import it relatively; it never
 // imports `commands`. Block doc: docs/baselines.md.
+export { baselineStem, baselineText, createBaseline } from "./create.js";
+export type { BaselineRequest } from "./create.js";
 export {
   BASELINE_FILE_EXTENSION,
   MAX_VIOLATIONS,
   baselineFilesState,
   baselinesContaining,
   findBaseline,
+  foldName,
   readBaselines,
   workspaceBaselines,
 } from "./read.js";

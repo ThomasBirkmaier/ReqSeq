@@ -7,6 +7,7 @@ export {
   listFiles,
   listMarkdownFiles,
   listsFile,
+  windowsChanges,
 } from "./discover.js";
 export { classifyFile, isUuid, keyLinesOf } from "./elements.js";
 export { FILE_NAME_DIGITS, fileNameFor } from "./file-name.js";
@@ -178,9 +179,10 @@ export {
   repositoryState,
   stateFiles,
   stateRules,
+  uncommittedFiles,
   uncommittedStateFiles,
 } from "./uncommitted.js";
-export type { RepositoryState, StateReader, StateRules } from "./uncommitted.js";
+export type { RepositoryState, StateReader, StateRules, UncommittedFiles } from "./uncommitted.js";
 export type { ChangedFiles, ChangedInput, Changes, Restriction, RestrictionContext } from "./changed.js";
 export type { IncomingIndex, IncomingLink, IncomingReference, IncomingRelation } from "./incoming.js";
 export { directLinks, directlyAffectedCount } from "./affected.js";

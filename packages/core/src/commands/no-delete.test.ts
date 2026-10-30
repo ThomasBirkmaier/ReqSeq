@@ -32,11 +32,16 @@ const GUSTS = "3f2a9c1e-5b7d-4e8a-9c0b-1d2e3f4a5b6c";
 /** Input of one call of a write command, run on SR-001/two-elements plus a `new/` folder with an image and a JUnit file. */
 type Scenario = Readonly<Record<string, unknown>>;
 
-/** Commands that write only with Git, so their fixture is a Git repository (data.store, SR-062 K3). */
-const GIT_COMMANDS: ReadonlySet<string> = new Set(["data.store"]);
+/** Commands that write only with Git, so their fixture is a Git repository (data.store, SR-062 K3; baseline.create, SR-050 AK7). */
+const GIT_COMMANDS: ReadonlySet<string> = new Set(["baseline.create", "data.store"]);
 
 /** Every implemented write command, with calls that succeed and calls that fail. */
 const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
+  "baseline.create": [
+    { name: "Release 1", selection: {} },
+    { name: "release 1", selection: { ids: [WIND] } },
+    { name: "Other", selection: { baseline: "Release 1" } },
+  ],
   "element.addAttachment": [
     { ref: WIND, sourcePath: "new/layout.png" },
     { ref: WIND, sourcePath: "new/layout.png" },

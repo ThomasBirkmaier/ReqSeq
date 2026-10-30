@@ -87,8 +87,16 @@ const STATUS_LINES: Readonly<Record<string, string | null>> = {
 
 type Scenario = Readonly<Record<string, unknown>>;
 
+/** Commands that write only with Git, so their fixture is a Git repository. */
+const GIT_COMMANDS: ReadonlySet<string> = new Set(["baseline.create"]);
+
 /** Every implemented command except the two status commands, with calls that succeed and calls that fail. */
 const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
+  // In a Git repository (`GIT_COMMANDS`): the second call is refused, the name exists (SR-050 AK6).
+  "baseline.create": [
+    { name: "Release 1", selection: { ids: [WIND, OBSOLETE, RETIRED] } },
+    { name: "release 1", selection: {} },
+  ],
   "data.export": [
     {},
     { selection: { where: { any: [{ status: ["retired"] }, { invalid: true }] } } },
@@ -356,7 +364,7 @@ describe("no status change by itself (SR-087, D-030, ADR-0002 rule 6)", () => {
   for (const [name, scenarios] of Object.entries(SCENARIOS)) {
     const ak = AK2_COMMANDS.includes(name) ? "AK2" : "AK1";
     it(`[SR-087/${ak}] ${name} changes no status`, async () => {
-      const { fixture, workspace } = await open();
+      const { fixture, workspace } = await open(GIT_COMMANDS.has(name));
       expect(statusLines(fixture.root)).toEqual(STATUS_LINES);
       const outcomes: string[] = [];
       for (const input of scenarios) {
