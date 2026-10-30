@@ -266,7 +266,7 @@ describe("baseline.get", () => {
     ]);
   });
 
-  it("refuses an unknown, ambiguous or faulty baseline and withEvidence", async () => {
+  it("refuses an unknown, ambiguous or faulty baseline", async () => {
     const { ws } = await made({
       "Copy.yaml": (first) => baselineText("Release 2", [], [`  - { name: system, commit: ${first} }`], []),
     });
@@ -277,9 +277,6 @@ describe("baseline.get", () => {
       reason: "ambiguous-baseline",
     });
     expect((await failure(ws, "baseline.get", { baseline: "broken" })).code).toBe("file.faulty");
-    expect(
-      (await failure(ws, "baseline.get", { baseline: "Copy", withEvidence: true })).details,
-    ).toMatchObject({ fields: ["withEvidence"] });
   });
 
   it("is incomplete while a repository is not here, and gives a programming error as it is", async () => {

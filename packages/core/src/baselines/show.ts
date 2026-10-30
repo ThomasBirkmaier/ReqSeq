@@ -19,6 +19,8 @@
 // - Cost (N-036): the states of all entries from one current-versions lookup and one index of the
 //   store by UUID; version dates (ADR-0005, `versionDates`) for the page only. The content of an
 //   old version is never read: Git shows it (D-033, `baseline.compare`).
+// - With `withEvidence` the command passes how to compute the verification of an entry (SR-094,
+//   `commands/baseline/get.ts`: the evidence block lies above this one); asked for the page only.
 import type { CommandOutput } from "../catalog.js";
 import type { Problem } from "../generated/types.js";
 import type { ElementRecord, ElementStore } from "../model/index.js";
@@ -47,6 +49,11 @@ export interface ShowRequest {
   readonly problems: readonly Problem[];
   readonly limit: number;
   readonly offset: number;
+  /**
+   * With `withEvidence` (SR-094): the verification of an entry of the file at its version in the
+   * baseline, undefined for one that is no requirement. Asked for the page only.
+   */
+  readonly verification?: (record: ElementRecord, version: string) => Row["verification"];
 }
 
 /**
@@ -196,12 +203,19 @@ export const showBaseline = async (workspace: Workspace, request: ShowRequest): 
   const dateOf = new Map(
     asked.map((request, index) => [`${request.id}\n${request.repository}`, dates[index]]),
   );
-  // An added element has no version in the baseline; a missing one no date.
-  const elements = page.map(({ row }) =>
-    row.version === undefined
-      ? row
-      : { ...row, versionDate: dateOf.get(`${row.id}\n${String(row.repository)}`) ?? null },
-  );
+  // An added element has no version in the baseline; a missing one no date and no verification.
+  const verificationOf = request.verification;
+  const elements = page.map(({ row, record }) => {
+    if (row.version === undefined) {
+      return row;
+    }
+    const verification = record === undefined ? undefined : verificationOf?.(record, row.version);
+    return {
+      ...row,
+      versionDate: dateOf.get(`${row.id}\n${String(row.repository)}`) ?? null,
+      ...(verification === undefined ? {} : { verification }),
+    };
+  });
   const named = page.flatMap(({ record }) => (record === undefined ? [] : [record]));
   return {
     name: baseline.name,

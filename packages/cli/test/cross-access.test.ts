@@ -377,6 +377,13 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       tag: "[SR-051/AK1]",
       expect: "output",
     },
+    {
+      name: "the evidence status of each requirement at its baseline version (SR-094 AK1)",
+      fixture: { fixture: "SR-094/baseline", git: true },
+      input: { baseline: "Release 1", withEvidence: true },
+      tag: "[SR-094/AK1]",
+      expect: "output",
+    },
   ],
   "baseline.list": [
     {

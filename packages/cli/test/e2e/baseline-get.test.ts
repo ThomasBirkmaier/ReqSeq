@@ -2,7 +2,8 @@
 // fixtures/SR-061/export (Git repositories `system` and `sensor`, cwd `system`). The baseline
 // „Release 2“ of PKG-0000d1 is written at the first commit; a second commit changes SR-0000b1,
 // supersedes SR-0000b2, adds SR-0000b3 to the package and changes N-0000a1. `release-1.yaml` stores
-// no selection. Every state and error: core commands/baseline/get.test.ts.
+// no selection. Every state and error: core commands/baseline/get.test.ts. The evidence of a baseline
+// (SR-094) on fixtures/SR-094/baseline (its README); every rule: core get-evidence.test.ts.
 // Run after `pnpm build` with `pnpm test:e2e`.
 import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
@@ -122,6 +123,31 @@ describe("reqseq baseline get", () => {
     expect(a1).toMatchObject({ state: "removed", version: "n1:9d97d0ccf9b75591" });
     expect(a1?.current).toMatch(/^n1:/);
     expect((await get(ws, "release-1")).counts["removed"]).toBe(0);
+  });
+});
+
+describe("reqseq baseline get --with-evidence", () => {
+  it("[SR-094/AK1] baseline.get withEvidence gives each requirement's status for its baseline version", async () => {
+    const ws = await createFixtureWorkspace({ fixture: "SR-094/baseline", git: true });
+    fixtures.push(ws);
+    const result = await run(["baseline", "get", "Release 1", "--with-evidence", "--json"], { cwd: ws.root });
+    expect(result.code).toBe(0);
+    const shown = JSON.parse(result.stdout) as {
+      elements: { id: string; verification?: { view: string; status: string } }[];
+    };
+    expect(shown.elements.map((e) => [e.id.slice(-2), e.verification?.status])).toEqual([
+      ["a1", undefined],
+      ["b1", "verified"],
+      ["b2", "outdated"],
+      ["b3", "open"],
+      ["b5", "open"],
+      ["b6", "verified"],
+    ]);
+    const human = await run(["baseline", "get", "Release 1", "--with-evidence"], { cwd: ws.root });
+    expect(human.stdout).toContain(
+      "- id: SR-0000b2  Show rainfall per day\n    repository: system\n    state: unchanged\n",
+    );
+    expect(human.stdout).toContain("    verification:\n      view: core\n      status: outdated\n");
   });
 });
 
