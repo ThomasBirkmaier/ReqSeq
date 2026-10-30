@@ -53,13 +53,14 @@ const around = async (
   const xs = rects.flatMap((rect) => (rect === null ? [] : [rect.x, rect.x + rect.width]));
   const ys = rects.flatMap((rect) => (rect === null ? [] : [rect.y, rect.y + rect.height]));
   const margin = 96;
+  const view = await window.evaluate(() => [globalThis.innerWidth, globalThis.innerHeight] as const);
   const x = Math.max(0, Math.min(...xs) - margin);
   const y = Math.max(0, Math.min(...ys) - margin);
   return {
     x,
     y,
-    width: Math.min(1280 - x, Math.max(...xs) + margin * 2.5 - x),
-    height: Math.min(800 - y, Math.max(...ys) + margin - y),
+    width: Math.min(view[0] - x, Math.max(...xs) + margin * 2.5 - x),
+    height: Math.min(view[1] - y, Math.max(...ys) + margin - y),
   };
 };
 
@@ -67,13 +68,20 @@ for (const scheme of ["light", "dark"] as const) {
   test(`screenshots of the metamodel graph (${scheme})`, async () => {
     test.setTimeout(120_000);
     await fs.mkdir(OUT, { recursive: true });
+    // At most the work area of the screen: macOS keeps a window inside it, and the screen of GitHub's macos-26
+    // runner is lower than 800 px (#490). The pages take their screenshots from Ubuntu, at 1280×800.
     const size = async (running: RunningApp): Promise<void> => {
-      await running.app.evaluate(({ BrowserWindow }) => {
-        BrowserWindow.getAllWindows()[0]?.setContentSize(1280, 800);
+      const fitted = await running.app.evaluate(({ BrowserWindow, screen }) => {
+        const area = screen.getPrimaryDisplay().workArea;
+        const fit = [Math.min(1280, area.width), Math.min(800, area.height)] as const;
+        const shown = BrowserWindow.getAllWindows()[0];
+        shown?.setPosition(area.x, area.y);
+        shown?.setContentSize(...fit);
+        return fit;
       });
       await expect
         .poll(() => running.window.evaluate(() => [globalThis.innerWidth, globalThis.innerHeight]))
-        .toEqual([1280, 800]);
+        .toEqual(fitted);
     };
 
     const spec = await launchApp({ folder: SPEC }, { colorScheme: scheme });
