@@ -185,6 +185,7 @@ describe("built-in meanings", () => {
       "source-identifier": [],
       "import-date": [],
       delivery: [],
+      "import-version": [],
       identifier: [],
       derivation: ["satisfies"],
       replacement: [],
@@ -209,6 +210,7 @@ describe("built-in meanings", () => {
       "source-identifier": "properties",
       "import-date": "properties",
       delivery: "properties",
+      "import-version": "properties",
       identifier: "properties",
       derivation: "relations",
       replacement: "relations",
@@ -387,6 +389,31 @@ describe("built-in meanings", () => {
         file: "model/properties.yaml",
       },
     ]);
+  });
+
+  it("#357: the meaning import-version needs kind text without many and never content, else an error on that line", () => {
+    const lines: Readonly<Record<string, number>> = { kind: 3, many: 4, content: 5 };
+    const at = (definition: MetamodelProperty): Located<MetamodelProperty> => ({
+      definition,
+      file: "model/properties.yaml",
+      lineOf: (path) => lines[String(path[0])],
+    });
+    const problem = (key: string, line: number, not: string): Problem => ({
+      code: "metamodel.invalid",
+      severity: "error",
+      message: `Property ${key} has the meaning import-version, which needs kind text without many and never counts to the version (D-059), not ${not}`,
+      file: "model/properties.yaml",
+      line,
+    });
+    expect(
+      meaningKindProblems([
+        at({ key: "a", name: "A", kind: "text", meaning: "import-version" }),
+        at({ key: "b", name: "B", kind: "text", many: false, content: false, meaning: "import-version" }),
+        at({ key: "c", name: "C", kind: "date", meaning: "import-version" }),
+        at({ key: "d", name: "D", kind: "text", many: true, meaning: "import-version" }),
+        at({ key: "e", name: "E", kind: "text", content: true, meaning: "import-version" }),
+      ]),
+    ).toEqual([problem("c", 3, "kind date"), problem("d", 4, "a list"), problem("e", 5, "content: true")]);
   });
 
   it("#591: the meaning emergent wants a single choice with the key yes, else a warning", async () => {

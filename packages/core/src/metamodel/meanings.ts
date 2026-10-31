@@ -62,6 +62,7 @@ export const MEANINGS: { readonly [M in Meaning]: MeaningList<M> } = {
   "source-identifier": "properties",
   "import-date": "properties",
   delivery: "properties",
+  "import-version": "properties",
   identifier: "properties",
   derivation: "relations",
   replacement: "relations",
@@ -177,6 +178,25 @@ const problemAt = (
 export const EMERGENT_CHOICE = "yes";
 
 /**
+ * Why a property with the meaning `import-version` (the Importfassung, D-059) is wrong, and the key
+ * whose line names it; undefined when it is right. It must be one text per element and never count
+ * to the version, else every imported element would read as locally changed (#357).
+ */
+const importVersionProblem = ({
+  kind,
+  many,
+  content,
+}: MetamodelProperty): { readonly at: string; readonly reason: string } | undefined => {
+  if (kind !== "text") {
+    return { at: "kind", reason: `kind ${kind}` };
+  }
+  if (many === true) {
+    return { at: "many", reason: "a list" };
+  }
+  return content === true ? { at: "content", reason: "content: true" } : undefined;
+};
+
+/**
  * Why a property with the meaning `emergent` cannot hold the mark, and the key whose line names it;
  * undefined when it can (#591 Q1). Without the mark no element is emergent (`model/emergent.ts`).
  */
@@ -208,6 +228,17 @@ export const emergentProblem = (
 export const meaningKindProblems = (properties: readonly Located<MetamodelProperty>[]): Problem[] =>
   properties.flatMap(({ definition, file, lineOf }): Problem[] => {
     const { key, kind, many, meaning } = definition;
+    const importVersion = meaning === "import-version" ? importVersionProblem(definition) : undefined;
+    if (importVersion !== undefined) {
+      return [
+        problemAt(
+          file,
+          lineOf([importVersion.at]),
+          `Property ${key} has the meaning import-version, which needs kind text without many and never counts to the version (D-059), not ${importVersion.reason}`,
+          "error",
+        ),
+      ];
+    }
     if (meaning === "identifier" && (kind !== "text" || many === true)) {
       return [
         problemAt(

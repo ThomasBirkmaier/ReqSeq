@@ -105,6 +105,7 @@ describe("standard model", () => {
       ["source-identifier", "Source Identifier"],
       ["import-date", "Import Date"],
       ["delivery", "Delivery"],
+      ["import-version", "Import Version"],
       ["topic", "Topic"],
     ]);
     // D-030: "Das Standardmodell bringt Draft, Approved und Obsolete mit."
@@ -190,6 +191,7 @@ describe("standard model", () => {
       "source-identifier": ["source-identifier"],
       "import-date": ["import-date"],
       delivery: ["delivery"],
+      "import-version": ["import-version"],
       // Not a meaning of D-012 (#305): the spec defines no property for IDs from other sources yet,
       // so the standard model has none; a workspace adds one with `meaning: identifier`.
       identifier: [],
