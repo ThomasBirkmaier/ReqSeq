@@ -278,11 +278,14 @@ describe("serveCoreProcess", () => {
     const agent = new Workspace(fixture.root, { cacheFolder: cacheFolder(fixture.root) });
     try {
       // The file there when the watch starts is never reported, so the agent reads until one arrives.
-      for (const end = Date.now() + 10_000; received.length === 0 && Date.now() < end;) {
+      // The watcher may also send a late workspace-changed (on macOS), so only agent-activity counts.
+      const activity = (): PortMessage[] =>
+        received.filter((message) => "event" in message && message.event === "agent-activity");
+      for (const end = Date.now() + 10_000; activity().length === 0 && Date.now() < end;) {
         await runtime.invoke("element.get", { ref: "SR-e88fb3" }, { workspace: agent, access: "mcp" });
         await new Promise((resolve) => setTimeout(resolve, 150));
       }
-      expect(received[0]).toEqual({
+      expect(activity()[0]).toEqual({
         event: "agent-activity",
         data: {
           access: "mcp",
