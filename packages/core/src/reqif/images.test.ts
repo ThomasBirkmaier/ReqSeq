@@ -52,8 +52,8 @@ describe("imageReader (SR-095 AK2)", () => {
         stem: "wind-rose",
         extension: ".png",
         size: PNG.length,
-        dev: expect.any(Number) as unknown,
-        ino: expect.any(Number) as unknown,
+        dev: expect.any(BigInt) as unknown,
+        ino: expect.any(BigInt) as unknown,
       },
     });
     // Read once per data and type.
@@ -152,7 +152,7 @@ describe("imageReader (SR-095 AK2)", () => {
     const stat = fs.stat.bind(fs);
     const spy = vi.spyOn(fs, "stat").mockImplementation(async (...args: Parameters<typeof fs.stat>) => {
       const got = await stat(...args);
-      return Object.assign(got, { ino: Number(got.ino) + 1 });
+      return Object.assign(got, { ino: typeof got.ino === "bigint" ? got.ino + 1n : got.ino + 1 });
     });
     onTestFinished(() => {
       spy.mockRestore();
@@ -214,8 +214,8 @@ describe("ImageNames", () => {
     stem,
     extension: ".png",
     size: 0,
-    dev: 0,
-    ino: 0,
+    dev: 0n,
+    ino: 0n,
   });
 
   it("gives each image a free name in the element's folder, in any case, and the same bytes one name", () => {

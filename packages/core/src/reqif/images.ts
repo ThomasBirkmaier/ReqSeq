@@ -12,7 +12,7 @@
 // - The name of the copy is `attachmentStem` with its extension in lower case (else the one of its
 //   `type`); a name an element has already gets `-2`, `-3`, ..., and the same bytes keep one copy.
 import { createHash } from "node:crypto";
-import type { Stats } from "node:fs";
+import type { BigIntStats } from "node:fs";
 import { constants, closeSync, fstatSync, openSync, readSync } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -46,8 +46,9 @@ export interface ImageFile {
   readonly extension: string;
   /** The file that was hashed, so the copy reads no other one. */
   readonly size: number;
-  readonly dev: number;
-  readonly ino: number;
+  /** As bigints: a Windows file index is above 2^53, where a number loses the difference. */
+  readonly dev: bigint;
+  readonly ino: bigint;
 }
 
 /** What an image of the file is: found, or why it is not copied (a loss). */
@@ -86,14 +87,15 @@ const relativePath = (data: string): string | undefined => {
 type Identity = Pick<ImageFile, "size" | "dev" | "ino">;
 
 /** Why the open file `stat` is not the one to read; undefined when it is (`file` for the copy). */
-const refusal = (stat: Stats, file?: Identity): string | undefined => {
+const refusal = (stat: BigIntStats, file?: Identity): string | undefined => {
   if (!stat.isFile()) {
     return "is no file";
   }
-  if (stat.size > IMAGE_LIMIT_BYTES) {
+  if (stat.size > BigInt(IMAGE_LIMIT_BYTES)) {
     return `is larger than ${String(IMAGE_LIMIT_BYTES)} bytes, the most the import copies`;
   }
-  return file === undefined || (stat.dev === file.dev && stat.ino === file.ino && stat.size === file.size)
+  return file === undefined ||
+    (stat.dev === file.dev && stat.ino === file.ino && stat.size === BigInt(file.size))
     ? undefined
     : "changed";
 };
@@ -114,25 +116,27 @@ const hashOf = async (
     return { why: `cannot be read (${String((error as NodeJS.ErrnoException).code)})` };
   }
   try {
-    const stat = await handle.stat();
+    const stat = await handle.stat({ bigint: true });
     const why = refusal(stat);
     if (why !== undefined) {
       return { why };
     }
     const again = await fs.realpath(real);
-    const now = await fs.stat(again);
+    const now = await fs.stat(again, { bigint: true });
     if (!below(realFolder, again) || now.dev !== stat.dev || now.ino !== stat.ino) {
       return { why: "changed while it was read" };
     }
     const hash = createHash("sha256");
     const chunk = Buffer.alloc(CHUNK);
+    // At most IMAGE_LIMIT_BYTES, so exact as a number.
+    const size = Number(stat.size);
     let total = 0;
     for (;;) {
-      const { bytesRead } = await handle.read(chunk, 0, Math.min(CHUNK, stat.size + 1 - total), null);
+      const { bytesRead } = await handle.read(chunk, 0, Math.min(CHUNK, size + 1 - total), null);
       total += bytesRead;
-      if (bytesRead === 0 || total > stat.size) {
-        return total === stat.size
-          ? { sha256: hash.digest("hex"), size: stat.size, dev: stat.dev, ino: stat.ino }
+      if (bytesRead === 0 || total > size) {
+        return total === size
+          ? { sha256: hash.digest("hex"), size, dev: stat.dev, ino: stat.ino }
           : { why: "changed while it was read" };
       }
       hash.update(chunk.subarray(0, bytesRead));
@@ -233,7 +237,7 @@ export const imageContent = (file: ImageFile, shown: string): (() => Iterable<Ui
       throw changed();
     }
     try {
-      if (refusal(fstatSync(fd), file) !== undefined) {
+      if (refusal(fstatSync(fd, { bigint: true }), file) !== undefined) {
         throw changed();
       }
       const hash = createHash("sha256");
