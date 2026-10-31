@@ -492,4 +492,18 @@ describe("App, Open to the right and follow (SR-150)", () => {
     await runCommand("Split window");
     expect(areas()).toEqual([`${list}*`, "SR-000001 Title 1"]);
   });
+
+  it("[SR-150/AK5] a package page that following brought in follows on: the next row replaces it", async () => {
+    await render();
+    await runCommand("List all elements");
+    const list = (areas()[0] ?? "").replace("*", "");
+    await press(query('[role="listbox"]'), { key: "ArrowDown" });
+    await runCommand("Open to the right");
+    for (let row = 0; row < 3; row += 1) {
+      await press(query('[data-area="left"] [role="listbox"]'), { key: "ArrowDown" });
+    }
+    expect(areas()).toEqual([`${list}*`, "SR-000009 Title 9"]);
+    await press(query('[data-area="left"] [role="listbox"]'), { key: "ArrowUp" });
+    expect(areas()).toEqual([`${list}*`, "SR-000003 Title 3"]);
+  });
 });

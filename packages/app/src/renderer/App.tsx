@@ -830,7 +830,11 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       return;
     }
     const otherData = loadedByKey.get(other);
-    const page = otherData?.kind === "element" && packageOf(packages, otherData.element.type) !== undefined;
+    // A package page stays, unless following brought it in: then it follows on like any element.
+    const page =
+      followed.current !== other &&
+      otherData?.kind === "element" &&
+      packageOf(packages, otherData.element.type) !== undefined;
     const replace = followed.current === other && !drafts.current.has(other);
     if (bringsNew(buffers, other, marked.key, page)) {
       followed.current = marked.key;
