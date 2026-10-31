@@ -271,6 +271,23 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { source: APPROVED, kind: "refines", target: RETIRED },
     { source: "SR-ffffff", kind: "refines", target: WIND },
   ],
+  "reqif.saveMapping": [
+    {
+      mapping: {
+        "reqseq-reqif-mapping": 1,
+        source: { name: "Kunde A" },
+        types: [{ source: "Customer Requirement", type: "system-requirement" }],
+        attributes: [{ source: "Status", property: "requirement-type", values: { Open: "functional" } }],
+      },
+    },
+    {
+      mapping: {
+        "reqseq-reqif-mapping": 1,
+        source: { name: "Kunde A" },
+        types: [{ source: "X", type: "nope" }],
+      },
+    },
+  ],
   "variant.diff": [{ variant: VARIANT }, { variant: WIND }],
   "trace.affected": [{ ref: WIND }, { ref: OBSOLETE }, { ref: RETIRED }, { ref: "SR-ffffff" }],
   "trace.chain": [

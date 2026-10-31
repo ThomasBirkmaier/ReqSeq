@@ -12,6 +12,7 @@ type Unit =
   | "runtime entry"
   | "commands"
   | "data"
+  | "reqif"
   | "query"
   | "hints"
   | "evidence"
@@ -38,7 +39,7 @@ const LAYERS: readonly (readonly Unit[])[] = [
   ["trace", "variants", "baselines"],
   ["evidence"],
   ["hints", "query"],
-  ["data"],
+  ["data", "reqif"],
   ["commands"],
   ["runtime entry"],
 ];
@@ -80,6 +81,7 @@ const TABLE: Readonly<Record<Unit | Shared, Allowed>> = {
       "metamodel",
       "model",
       "query",
+      "reqif",
       "runtime state",
       "trace",
       "variants",
@@ -91,6 +93,7 @@ const TABLE: Readonly<Record<Unit | Shared, Allowed>> = {
     values: ["evidence", "files", "metamodel", "model", "variants", "workspace"],
     types: ["git", "query", "runtime state"],
   },
+  reqif: { values: ["files", "metamodel", "model", "runtime state", "workspace"] },
   query: {
     values: [
       "baselines",
@@ -369,11 +372,11 @@ describe("core block layers (#635, docs/architecture/README.md section 5)", () =
     expect(problemsOf("files/x.ts", 'import { a } from "../commands/index.js";')).toEqual([
       'files/x.ts:1 imports "../commands/index.js": files (layer 0) -> commands (layer 8) does not point to a lower layer',
     ]);
-    expect(problemsOf("model/x.ts", 'import { a } from "../reqif/x.js";')).toEqual([
-      'model/x.ts:1 imports "../reqif/x.js": target reqif/x.js is an unknown block folder',
+    expect(problemsOf("model/x.ts", 'import { a } from "../oslc/x.js";')).toEqual([
+      'model/x.ts:1 imports "../oslc/x.js": target oslc/x.js is an unknown block folder',
     ]);
-    expect(problemsOf("reqif/x.ts", "")).toEqual([
-      "reqif/x.ts: unknown block folder; add it to docs/architecture/README.md section 5 and to this test",
+    expect(problemsOf("oslc/x.ts", "")).toEqual([
+      "oslc/x.ts: unknown block folder; add it to docs/architecture/README.md section 5 and to this test",
     ]);
     expect(problemsOf("catalog.ts", 'import { Workspace } from "./runtime/workspace.js";')).toEqual([
       'catalog.ts:1 imports "./runtime/workspace.js": catalog -> runtime state (layer 0) is not in the README block table (catalog imports values of generated)',

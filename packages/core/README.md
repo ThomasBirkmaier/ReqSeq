@@ -109,6 +109,7 @@ One file per block, so you read only the area you work on. Update the file of th
 - [Hints block (`src/hints/`)](docs/hints.md)
 - Evidence block (`src/evidence/`): [records, folders, state, index](docs/evidence-records.md), [status and degree](docs/evidence-status.md), [views and export](docs/evidence-views.md)
 - [Baselines block (`src/baselines/`): reading, creating, showing and comparing baseline files](docs/baselines.md)
+- ReqIF block (`src/reqif/`): [mapping files](docs/reqif-mapping.md)
 - [Git reader (`src/git/reader.ts`)](docs/git.md)
 - [Version date (`src/model/version-date.ts`)](docs/version-date.md)
 
