@@ -51,6 +51,8 @@ const ELEMENTS = 50_000;
 const RELATIONS = 200_000;
 /** SR-082 AK3. */
 const OPEN_MS = 200;
+/** SR-082 AK5: the first open after the start. */
+const FIRST_OPEN_MS = 1000;
 /** SR-082 AK4. */
 const RESULT_MS = 500;
 
@@ -221,7 +223,18 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     return workspace;
   };
 
-  it("[SR-082/AK3] shows an element within 200 ms of opening it", async () => {
+  it("[SR-082/AK5] [SR-082/AK3] shows the first element after the start within 1 s, and the next one within 200 ms", async () => {
+    const firstElement = tree.elements[Math.floor(ELEMENTS / 3)];
+    const { result: firstView, measurement: firstOpen } = await measure(
+      "open the first element after the start (look up, read its file, element view) with its parents line",
+      () => openWithParents(opened(), firstElement?.id ?? "", firstElement?.repository ?? ""),
+      {
+        basis: "SR-082 AK5 (the first open after the start)",
+        thresholdMs: FIRST_OPEN_MS,
+      },
+    );
+    expect(firstView.id).toBe(firstElement?.id);
+    expect(firstOpen.ms, thresholdMessage(firstOpen)).toBeLessThanOrEqual(FIRST_OPEN_MS);
     const element = tree.elements[Math.floor(ELEMENTS / 2)];
     const id = element?.id ?? "";
     const { result: view, measurement } = await measure(
