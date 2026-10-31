@@ -402,7 +402,7 @@ describe("App, Split window (SR-115 AK3)", () => {
     await press(query("input"), { key: "Enter" });
     await press(query('[role="listbox"]'), { key: "ArrowDown" });
     await runCommand("Split window");
-    expect(areas()).toEqual(["Search: wind*", "All elements"]);
+    expect(areas()).toEqual(["Search: wind*", "SR-000002 Title 2"]);
     expect(container.querySelectorAll('[role="tab"], [role="tablist"], [role="navigation"]')).toHaveLength(0);
     for (const area of container.querySelectorAll("[data-area]")) {
       expect(area.getAttribute("aria-label")).toBeNull();
@@ -483,13 +483,55 @@ describe("App, Open to the right and follow (SR-150)", () => {
     expect(areas()[1]).toMatch(/Title 2$/);
   });
 
-  it("[SR-150/AK4] a selection made before Split window moves nothing: the inactive area shows the buffer used before", async () => {
+  it("[SR-150/AK6] Split window shows the preview of the marked row at once, and it follows the next row", async () => {
     await openElement();
     await press(window, { key: "p", code: "KeyP", altKey: true });
     await press(query('[role="listbox"]'), { key: "ArrowDown" });
     await press(query('[role="listbox"]'), { key: "ArrowDown" });
     const list = (areas()[0] ?? "").replace("*", "");
     await runCommand("Split window");
+    expect(areas()).toEqual([`${list}*`, "SR-000003 Title 3"]);
+    await press(query('[data-area="left"] [role="listbox"]'), { key: "ArrowUp" });
+    expect(areas()).toEqual([`${list}*`, "SR-000002 Title 2"]);
+  });
+
+  it("[SR-150/AK4] a package page in the preview follows on: the next row replaces it", async () => {
+    await render();
+    await runCommand("List all elements");
+    const list = (areas()[0] ?? "").replace("*", "");
+    await press(query('[role="listbox"]'), { key: "ArrowDown" });
+    await runCommand("Open to the right");
+    for (let row = 0; row < 3; row += 1) {
+      await press(query('[data-area="left"] [role="listbox"]'), { key: "ArrowDown" });
+    }
+    expect(areas()).toEqual([`${list}*`, "SR-000009 Title 9"]);
+    await press(query('[data-area="left"] [role="listbox"]'), { key: "ArrowUp" });
+    expect(areas()).toEqual([`${list}*`, "SR-000003 Title 3"]);
+  });
+
+  it("[SR-150/AK7] Option+O while typing in the text editor makes the other area active and types nothing", async () => {
+    await twoElements();
+    await typeIn("left", " LEFT");
+    const content = query('[data-area="left"] .cm-content');
+    expect(content.contains(document.activeElement)).toBe(true);
+    // macOS: Option+O is "ø".
+    const pressed = await press(content, { key: "ø", code: "KeyO", altKey: true });
+    expect(pressed.defaultPrevented).toBe(true);
+    expect(areas()).toEqual(["SR-000001 Title 1", "SR-000002 Title 2*"]);
+    expect(editorIn("left").state.doc.toString()).toBe("Hello LEFT");
+  });
+
+  it("[SR-150/AK5] once entered with Alt+O, the element there stays: two elements stand side by side", async () => {
+    await render();
+    await runCommand("List all elements");
+    const list = (areas()[0] ?? "").replace("*", "");
+    await press(query('[role="listbox"]'), { key: "ArrowDown" });
+    await runCommand("Open to the right");
+    expect(areas()).toEqual([`${list}*`, "SR-000001 Title 1"]);
+    await press(window, { key: "o", code: "KeyO", altKey: true });
+    expect(areas()).toEqual([list, "SR-000001 Title 1*"]);
+    await press(window, { key: "o", code: "KeyO", altKey: true });
+    await press(query('[data-area="left"] [role="listbox"]'), { key: "ArrowDown" });
     expect(areas()).toEqual([`${list}*`, "SR-000001 Title 1"]);
   });
 });

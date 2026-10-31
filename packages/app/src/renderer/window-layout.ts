@@ -17,13 +17,16 @@
 // - `side-by-side` (SR-044 AK2) shows two buffers in two areas: the first on the left, active, the second
 //   on the right.
 // - `beside` ("Open to the right", "Open to the left", SR-150 AK1 to AK3) opens an element in the area on
-//   that side. On the inactive side, or without a split, the active area keeps its buffer and stays active;
-//   on the active side it opens as `open` does (Enter).
-// - `follow` (SR-150 AK4, AK5) shows the element marked in the active area in the inactive one. It takes the
-//   place of the element shown there when the caller says it may (`replace`: one that following or `beside`
-//   put there, without unsaved input), so marking opens no buffer per row; else that element stays open
-//   behind. An inactive area that shows no element, a package page (`page`) or a read-only element (the
-//   comparison of SR-044) stays as it is.
+//   that side. On the inactive side, or without a split, the active area keeps its buffer and stays active,
+//   and the inactive area is a preview; on the active side it opens as `open` does (Enter).
+// - `split` with the element marked in the shown buffer (`marked`) opens it beside, as `beside` to the right
+//   does, so the preview is there at once (SR-150 AK6).
+// - `follow` (SR-150 AK4, AK5) shows the element marked in the active area in a preview. It takes the place
+//   of the element the preview brought in when the caller says it may (`replace`: no unsaved input), so
+//   marking opens no buffer per row; an element the reader had open stays open behind.
+// - The inactive area is a preview (`Layout.preview`) only while it shows what `beside` or `follow` put
+//   there: any other change of its buffer, entering it (it becomes active) and unsplitting end it, and then
+//   it stays as it is (SR-150 AK5).
 import type { Buffer, BufferAction, Buffers, ElementBuffer } from "./buffers.js";
 import { onlyOverview, overviewBuffer, reduceBuffers } from "./buffers.js";
 
@@ -37,6 +40,11 @@ export type Side = "left" | "right";
 export interface Layout {
   readonly active: Side;
   readonly other?: string;
+  /**
+   * The inactive area is a preview that follows the marked element (SR-150 AK4): "brought" when its element
+   * was not open before (following may replace it), "kept" when the reader had it open.
+   */
+  readonly preview?: "brought" | "kept";
 }
 
 /** The buffers and the areas, the state of the window's reducer. */
@@ -48,16 +56,11 @@ export interface WindowState {
 /** A buffer action, "Split window" and "Unsplit window", or two buffers side by side. */
 export type WindowAction =
   | BufferAction
-  | { readonly type: "split" }
+  | { readonly type: "split"; readonly marked?: ElementBuffer | undefined }
   | { readonly type: "unsplit" }
   | { readonly type: "side-by-side"; readonly left: Buffer; readonly right: Buffer }
   | { readonly type: "beside"; readonly side: Side; readonly buffer: ElementBuffer }
-  | {
-      readonly type: "follow";
-      readonly buffer: ElementBuffer;
-      readonly replace: boolean;
-      readonly page: boolean;
-    };
+  | { readonly type: "follow"; readonly buffer: ElementBuffer; readonly replace: boolean };
 
 /** One area, on the left. */
 export const ONE_AREA: Layout = { active: "left" };
@@ -134,11 +137,16 @@ const sideBySide = (state: WindowState, left: Buffer, right: Buffer): WindowStat
   return { buffers: opened, layout: { active: "left", other: right.key } };
 };
 
-/** `buffer` opened behind the shown one, which stays first (shown in the active area). */
-const openBehind = (buffers: Buffers, buffer: Buffer): Buffers => {
-  const shown = buffers[0];
-  const opened = reduceBuffers(buffers, { type: "open", buffer });
-  return shown === undefined ? opened : reduceBuffers(opened, { type: "switch", key: shown.key });
+/**
+ * `buffer` opened behind the shown one, which stays first (shown in the active area). A buffer the reader has
+ * open stays as it is, with its name and view.
+ */
+const openBehind = (buffers: Buffers, shown: Buffer, buffer: Buffer): Buffers => {
+  const opened = reduceBuffers(
+    buffers,
+    isOpen(buffers, buffer.key) ? { type: "switch", key: buffer.key } : { type: "open", buffer },
+  );
+  return reduceBuffers(opened, { type: "switch", key: shown.key });
 };
 
 /** "Open to the right" or "Open to the left" (SR-150 AK1 to AK3). */
@@ -154,39 +162,54 @@ const beside = (state: WindowState, side: Side, buffer: ElementBuffer): WindowSt
   }
   // Without a split the active area moves to the other side, so the element stands on the one asked for.
   const active = layout.other === undefined ? opposite(side) : layout.active;
-  return { buffers: openBehind(state.buffers, buffer), layout: { active, other: buffer.key } };
+  // A preview it brought in gives way, as when following, so the commands pile up no buffers.
+  const replace = layout.preview === "brought" && !isOpen(state.buffers, buffer.key);
+  return {
+    buffers: replace
+      ? state.buffers.map((open) => (open.key === layout.other ? buffer : open))
+      : openBehind(state.buffers, shown, buffer),
+    layout: { active, other: buffer.key, preview: isOpen(state.buffers, buffer.key) ? "kept" : "brought" },
+  };
 };
 
-/** The inactive area follows the element marked in the active one (SR-150 AK4, AK5). */
-const follow = (state: WindowState, buffer: ElementBuffer, replace: boolean, page: boolean): WindowState => {
+/** The preview in the inactive area follows the element marked in the active one (SR-150 AK4, AK5). */
+const follow = (state: WindowState, buffer: ElementBuffer, replace: boolean): WindowState => {
   const { buffers, layout } = state;
-  const other = buffers.find((open) => open.key === layout.other);
+  const shown = buffers[0];
   if (
-    page ||
-    other?.kind !== "element" ||
-    other.readOnly === true ||
-    other.key === buffer.key ||
-    buffers[0]?.key === buffer.key
+    shown === undefined ||
+    layout.preview === undefined ||
+    layout.other === buffer.key ||
+    shown.key === buffer.key
   ) {
     return state;
   }
-  const already = buffers.some((open) => open.key === buffer.key);
+  const already = isOpen(buffers, buffer.key);
   const next =
-    replace && !already
-      ? buffers.map((open) => (open.key === other.key ? buffer : open))
-      : openBehind(buffers, buffer);
-  return { buffers: next, layout: { active: layout.active, other: buffer.key } };
+    replace && layout.preview === "brought" && !already
+      ? buffers.map((open) => (open.key === layout.other ? buffer : open))
+      : openBehind(buffers, shown, buffer);
+  return {
+    buffers: next,
+    layout: { active: layout.active, other: buffer.key, preview: already ? "kept" : "brought" },
+  };
 };
+
+/** "Split window", with the marked element as the preview beside the shown buffer when there is one. */
+const splitMarked = (state: WindowState, marked: ElementBuffer | undefined): WindowState =>
+  state.layout.other === undefined && marked !== undefined && state.buffers[0]?.key !== marked.key
+    ? beside(state, "right", marked)
+    : split(state);
 
 export const reduceWindow = (state: WindowState, action: WindowAction): WindowState => {
   if (action.type === "beside") {
     return beside(state, action.side, action.buffer);
   }
   if (action.type === "follow") {
-    return follow(state, action.buffer, action.replace, action.page);
+    return follow(state, action.buffer, action.replace);
   }
   if (action.type === "split") {
-    return split(state);
+    return splitMarked(state, action.marked);
   }
   if (action.type === "side-by-side") {
     return sideBySide(state, action.left, action.right);

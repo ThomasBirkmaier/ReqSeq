@@ -146,6 +146,10 @@ const everyContext = (): ActionContext[] => {
     setup([], {}, true).context,
     // Two buffers: Alt+N and Alt+P switch between them (SR-115 AK5).
     setup([element, list]).context,
+    // A split window: Alt+O to the other area (SR-150 AK7).
+    setup([element, list], {}, true, {
+      layout: { other: list.key, split: vi.fn(), unsplit: vi.fn(), beside: vi.fn() },
+    }).context,
     // Follow agent (SR-117): Ctrl/Cmd+Shift+O on and off, on every buffer.
     ...[false, true].flatMap((on) =>
       [[element], [list], [graphBuffer("uuid", "spec", "X")], [overviewBuffer()]].map(
@@ -1580,8 +1584,13 @@ describe("Split window (SR-115 AK3)", () => {
     };
   };
 
-  it("[SR-115/AK3] Split window, Other window and Unsplit window are prompt commands, available only when they apply, without a key", () => {
-    for (const id of ["split-window", "other-window", "unsplit-window"]) {
+  it("[SR-150/AK7] Other window has the key Alt+O on every platform", () => {
+    expect(action("other-window").shortcut).toEqual({ mod: false, shift: false, alt: true, key: "o" });
+    expect(shortcutLabel({ mod: false, shift: false, alt: true, key: "o" }, true)).toBe("⌥O");
+  });
+
+  it("[SR-115/AK3] Split window, Other window and Unsplit window are prompt commands, available only when they apply", () => {
+    for (const id of ["split-window", "unsplit-window"]) {
       expect(action(id).shortcut).toBeUndefined();
       expect(action(id).covers).toBeUndefined();
     }
