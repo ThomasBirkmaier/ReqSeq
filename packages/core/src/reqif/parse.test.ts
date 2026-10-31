@@ -1,10 +1,13 @@
+import fs from "node:fs";
 import { describe, expect, it } from "vitest";
-import type { ReqifFile } from "./model.js";
-import { XHTML_NAMESPACE } from "./model.js";
+import type { ReqifFile, XhtmlElement } from "./model.js";
+import { REQIF_NAMESPACE, XHTML_NAMESPACE } from "./model.js";
 import type { ReqifLimits, ReqifParseOutcome } from "./parse.js";
 import { parseReqif, REQIF_LIMITS } from "./parse.js";
 
 const utf8 = (text: string): Uint8Array => new TextEncoder().encode(text);
+const SAMPLES = new URL("../../../../toolchain/reqif/samples/", import.meta.url);
+const sample = (name: string): Uint8Array => fs.readFileSync(new URL(name, SAMPLES));
 
 const parsed = (outcome: ReqifParseOutcome): Extract<ReqifParseOutcome, { kind: "parsed" }> => {
   if (outcome.kind !== "parsed") {
@@ -149,9 +152,88 @@ describe("parseReqif", () => {
       },
     ]);
     expect(file.unread).toEqual([
-      { name: "SPEC-RELATION-GROUPS", line: 34 },
-      { name: "TOOL-EXTENSIONS", line: 35 },
+      { name: "SPEC-RELATION-GROUPS", namespace: REQIF_NAMESPACE, line: 34 },
+      { name: "TOOL-EXTENSIONS", namespace: REQIF_NAMESPACE, line: 35 },
     ]);
+  });
+
+  it("reads the hand-written samples: basic.reqif with its parts not taken over, xhtml-rich.reqif, bom-crlf.reqif", () => {
+    const { file, warnings } = parsed(parseReqif(sample("basic.reqif")));
+    expect(warnings).toEqual([]);
+    expect(file.header).toMatchObject({ identifier: "_hd-basic", title: "Customer A", version: "1.0" });
+    expect(file.datatypes.map((d) => d.kind)).toEqual([
+      "string",
+      "xhtml",
+      "integer",
+      "real",
+      "date",
+      "boolean",
+      "enumeration",
+    ]);
+    expect(file.datatypes[6]?.values.map((v) => [v.identifier, v.key, v.otherContent])).toEqual([
+      ["ev-high", "1", ""],
+      ["ev-low", "2", "lowest"],
+    ]);
+    expect(file.specTypes.map((t) => [t.identifier, t.category, t.attributes.length])).toEqual([
+      ["ot-req", "spec-object", 7],
+      ["ot-note", "spec-object", 1],
+      ["rt-refines", "spec-relation", 0],
+      ["gt-links", "relation-group", 0],
+      ["st-doc", "specification", 0],
+    ]);
+    expect(file.specObjects.map((o) => [o.identifier, o.type, o.values.length])).toEqual([
+      ["req-1", "ot-req", 7],
+      ["req-2", "ot-req", 0],
+      ["note-1", "ot-note", 1],
+    ]);
+    expect(file.specObjects[0]?.values[0]).toEqual({
+      kind: "string",
+      definition: "ad-id",
+      value: "A-1 & more",
+    });
+    expect(file.specRelations.map((r) => [r.identifier, r.source, r.target])).toEqual([
+      ["rel-1", "req-2", "req-1"],
+      ["rel-2", "note-1", "req-1"],
+    ]);
+    expect(file.specifications.map((s) => [s.identifier, s.children.length])).toEqual([
+      ["spec-a", 1],
+      ["spec-b", 0],
+    ]);
+    expect(file.specifications[0]?.children).toMatchObject([
+      {
+        identifier: "sh-1",
+        object: "req-1",
+        children: [{ identifier: "sh-2", object: "req-2", children: [] }],
+      },
+    ]);
+    const owner = { kind: "spec-object", identifier: "req-1" };
+    expect(file.unread).toEqual([
+      { name: "ALTERNATIVE-ID", namespace: REQIF_NAMESPACE, line: 74, owner },
+      { name: "THE-ORIGINAL-VALUE", namespace: REQIF_NAMESPACE, line: 82, owner },
+      { name: "SPEC-RELATION-GROUPS", namespace: REQIF_NAMESPACE, line: 145 },
+      { name: "TOOL-EXTENSIONS", namespace: REQIF_NAMESPACE, line: 155 },
+    ]);
+
+    const rich = fileOf(sample("xhtml-rich.reqif"));
+    const value = rich.specObjects[0]?.values[0];
+    const div = (value?.kind === "xhtml" ? value.value[0] : undefined) as XhtmlElement;
+    expect(div).toMatchObject({ name: "div", namespace: XHTML_NAMESPACE, attributes: [] });
+    const blocks = div.children.filter((child): child is XhtmlElement => typeof child !== "string");
+    expect(blocks.map((b) => b.name)).toEqual(["h1", "h2", "h3", "p", "ul", "table", "p"]);
+    expect(blocks[3]?.children[5]).toEqual({
+      name: "span",
+      namespace: XHTML_NAMESPACE,
+      attributes: ["style", "color:red"],
+      children: ["in red"],
+    });
+    expect((blocks[6]?.children as XhtmlElement[]).map((o) => o.attributes[1])).toEqual([
+      "images/start.png",
+      "../outside.png",
+      "/etc/hosts.png",
+    ]);
+    expect(rich.unread).toEqual([{ name: "TOOL-EXTENSIONS", namespace: REQIF_NAMESPACE, line: 46 }]);
+
+    expect(fileOf(sample("bom-crlf.reqif")).header).toEqual({ identifier: "_hd-crlf", title: "Zeile\nzwei" });
   });
 
   it("refuses doctype, an undefined entity, a foreign root, truncated, two roots, undeclared prefixes and names that are not qualified with the reason and line", () => {
@@ -174,6 +256,22 @@ describe("parseReqif", () => {
     );
     expect(refusal(`<REQ-IF ${NS}><:a/></REQ-IF>`).message).toBe(":a in <:a> is not a qualified name");
     expect(refusal(`<REQ-IF ${NS} a:b:c="1"/>`).message).toBe("a:b:c in <REQ-IF> is not a qualified name");
+    expect(refusal(withContent("<SPEC-OBJECTS/>\n<SPEC-OBJECTS/>"))).toEqual({
+      message: "<SPEC-OBJECTS> appears twice",
+      line: 2,
+    });
+    expect(
+      refusal(
+        `<REQ-IF ${NS}>${"<THE-HEADER><REQ-IF-HEADER IDENTIFIER='h'/></THE-HEADER>".repeat(2)}</REQ-IF>`,
+      ).message,
+    ).toBe("<THE-HEADER> appears twice");
+    expect(
+      refusal(
+        withContent(
+          '<SPEC-TYPES><SPEC-RELATION-TYPE IDENTIFIER="x"/><SPECIFICATION-TYPE IDENTIFIER="x"/></SPEC-TYPES>',
+        ),
+      ),
+    ).toEqual({ message: "IDENTIFIER x is used twice", line: 1 });
     expect(refusal(`<REQ-IF ${NS} xmlns:y=""/>`).message).toBe(
       "xmlns:y has an empty namespace (Namespaces in XML 1.0)",
     );
@@ -212,38 +310,55 @@ describe("parseReqif", () => {
         `<SPEC-OBJECTS><SPEC-OBJECT IDENTIFIER="o"><VALUES><ATTRIBUTE-VALUE-STRING${attributes}><DEFINITION><ATTRIBUTE-DEFINITION-STRING-REF>a</ATTRIBUTE-DEFINITION-STRING-REF></DEFINITION></ATTRIBUTE-VALUE-STRING></VALUES><TYPE><SPEC-OBJECT-TYPE-REF>t</SPEC-OBJECT-TYPE-REF></TYPE></SPEC-OBJECT></SPEC-OBJECTS>`,
       );
     expect(refusal(value("")).message).toBe("<ATTRIBUTE-VALUE-STRING> has no THE-VALUE");
+    expect(refusal(withContent("<SPEC-OBJECTS><SPEC-OBJECT/></SPEC-OBJECTS>")).message).toBe(
+      "<SPEC-OBJECT> has no IDENTIFIER",
+    );
     expect(parsed(parseReqif(utf8(value(' THE-VALUE=""')))).file.specObjects[0]?.values).toEqual([
       { kind: "string", definition: "a", value: "" },
     ]);
   });
 
-  it("keeps a reference the file does not define as written", () => {
+  it("warns about every reference the file does not define, keeps it, and gives unread parts their owner", () => {
     const text = withContent(
       [
         '<SPEC-TYPES><SPEC-OBJECT-TYPE IDENTIFIER="t"><SPEC-ATTRIBUTES><ATTRIBUTE-DEFINITION-ENUMERATION IDENTIFIER="a" MULTI-VALUED=" 1 "><TYPE><DATATYPE-DEFINITION-ENUMERATION-REF>dt</DATATYPE-DEFINITION-ENUMERATION-REF></TYPE></ATTRIBUTE-DEFINITION-ENUMERATION></SPEC-ATTRIBUTES></SPEC-OBJECT-TYPE></SPEC-TYPES>',
-        '<SPEC-OBJECTS><SPEC-OBJECT IDENTIFIER="o"><VALUES><ATTRIBUTE-VALUE-ENUMERATION><DEFINITION><ATTRIBUTE-DEFINITION-ENUMERATION-REF>a</ATTRIBUTE-DEFINITION-ENUMERATION-REF></DEFINITION><VALUES><ENUM-VALUE-REF>ev</ENUM-VALUE-REF></VALUES></ATTRIBUTE-VALUE-ENUMERATION></VALUES><TYPE><SPEC-OBJECT-TYPE-REF>t</SPEC-OBJECT-TYPE-REF></TYPE></SPEC-OBJECT></SPEC-OBJECTS>',
-        '<SPEC-RELATIONS><SPEC-RELATION IDENTIFIER="r"><VALUES><ATTRIBUTE-VALUE-INTEGER THE-VALUE="1"><DEFINITION><ATTRIBUTE-DEFINITION-INTEGER-REF>x</ATTRIBUTE-DEFINITION-INTEGER-REF></DEFINITION></ATTRIBUTE-VALUE-INTEGER></VALUES><SOURCE><SPEC-OBJECT-REF>o</SPEC-OBJECT-REF></SOURCE><TARGET><SPEC-OBJECT-REF>gone</SPEC-OBJECT-REF></TARGET><TYPE><SPEC-RELATION-TYPE-REF>rt</SPEC-RELATION-TYPE-REF></TYPE></SPEC-RELATION></SPEC-RELATIONS>',
+        '<SPEC-OBJECTS><SPEC-OBJECT IDENTIFIER="o"><VALUES><ATTRIBUTE-VALUE-ENUMERATION><DEFINITION><ATTRIBUTE-DEFINITION-ENUMERATION-REF>a</ATTRIBUTE-DEFINITION-ENUMERATION-REF></DEFINITION><VALUES><ENUM-VALUE-REF>ev</ENUM-VALUE-REF></VALUES></ATTRIBUTE-VALUE-ENUMERATION></VALUES><TYPE><SPEC-OBJECT-TYPE-REF>t</SPEC-OBJECT-TYPE-REF></TYPE><VALUES/></SPEC-OBJECT></SPEC-OBJECTS>',
+        '<SPEC-RELATIONS><SPEC-RELATION IDENTIFIER="r"><VALUES><ATTRIBUTE-VALUE-INTEGER THE-VALUE="1"><DEFINITION><ATTRIBUTE-DEFINITION-INTEGER-REF>x</ATTRIBUTE-DEFINITION-INTEGER-REF></DEFINITION></ATTRIBUTE-VALUE-INTEGER></VALUES><SOURCE><SPEC-OBJECT-REF>o</SPEC-OBJECT-REF></SOURCE><TARGET><SPEC-OBJECT-REF>gone</SPEC-OBJECT-REF></TARGET><TYPE><SPEC-RELATION-TYPE-REF>rt</SPEC-RELATION-TYPE-REF></TYPE><x:EXTRA xmlns:x="urn:x"/></SPEC-RELATION></SPEC-RELATIONS>',
         '<SPECIFICATIONS><SPECIFICATION IDENTIFIER="s"><TYPE><SPECIFICATION-TYPE-REF>st</SPECIFICATION-TYPE-REF></TYPE><CHILDREN><SPEC-HIERARCHY IDENTIFIER="h1"><OBJECT><SPEC-OBJECT-REF>lost</SPEC-OBJECT-REF></OBJECT><CHILDREN><OTHER/></CHILDREN></SPEC-HIERARCHY></CHILDREN></SPECIFICATION></SPECIFICATIONS>',
         "<SPEC-RELATION-GROUPS/><DATATYPES><DATATYPE-DEFINITION-OTHER/></DATATYPES>",
       ].join(""),
     );
-    const { file } = parsed(parseReqif(utf8(text)));
+    const { file, warnings } = parsed(parseReqif(utf8(text)));
+    expect(warnings.map((w) => [w.message, w.identifier])).toEqual([
+      ["Datatype dt of a is not in the file", "a"],
+      ["Enumeration value ev of o is not in the file", "o"],
+      ["SPEC-RELATION-TYPE rt of r is not in the file", "r"],
+      ["Target gone of r is not in the file", "r"],
+      ["Attribute definition x of r is not in the file", "r"],
+      ["SPECIFICATION-TYPE st of s is not in the file", "s"],
+      ["SPEC-OBJECT lost of h1 is not in the file", "h1"],
+    ]);
     expect(file.specTypes[0]?.attributes[0]).toMatchObject({ datatype: "dt", multiValued: true });
     expect(file.specObjects[0]?.values).toEqual([{ kind: "enumeration", definition: "a", values: ["ev"] }]);
     expect(file.specRelations[0]).toMatchObject({ type: "rt", target: "gone" });
     expect(file.specifications[0]?.children[0]?.object).toBe("lost");
-    expect(file.unread.map((u) => u.name)).toEqual([
-      "OTHER",
-      "SPEC-RELATION-GROUPS",
-      "DATATYPE-DEFINITION-OTHER",
+    expect(file.unread.map(({ name, namespace, owner }) => [name, namespace, owner])).toEqual([
+      ["VALUES", REQIF_NAMESPACE, { kind: "spec-object", identifier: "o" }],
+      ["EXTRA", "urn:x", { kind: "spec-relation", identifier: "r" }],
+      ["OTHER", REQIF_NAMESPACE, { kind: "specification", identifier: "s" }],
+      ["SPEC-RELATION-GROUPS", REQIF_NAMESPACE, undefined],
+      ["DATATYPE-DEFINITION-OTHER", REQIF_NAMESPACE, undefined],
     ]);
   });
 
   it("reads a SPEC-HIERARCHY 5,000 levels deep without recursion, keeps attribute names as written and refuses ReqIF inside XHTML", () => {
     const levels = 5_000;
-    const open =
-      '<SPEC-HIERARCHY IDENTIFIER="h"><OBJECT><SPEC-OBJECT-REF>o</SPEC-OBJECT-REF></OBJECT><CHILDREN>';
-    const deep = `<SPECIFICATIONS><SPECIFICATION IDENTIFIER="s"><TYPE><SPECIFICATION-TYPE-REF>st</SPECIFICATION-TYPE-REF></TYPE><CHILDREN>${open.repeat(levels)}${"</CHILDREN></SPEC-HIERARCHY>".repeat(levels)}</CHILDREN></SPECIFICATION></SPECIFICATIONS><y:SPEC-OBJECTS xmlns:y="urn:y"><y:SPEC-OBJECT/></y:SPEC-OBJECTS>`;
+    const open = Array.from(
+      { length: levels },
+      (_, i) =>
+        `<SPEC-HIERARCHY IDENTIFIER="h${String(i)}"><OBJECT><SPEC-OBJECT-REF>o</SPEC-OBJECT-REF></OBJECT><CHILDREN>`,
+    ).join("");
+    const deep = `<SPECIFICATIONS><SPECIFICATION IDENTIFIER="s"><TYPE><SPECIFICATION-TYPE-REF>st</SPECIFICATION-TYPE-REF></TYPE><CHILDREN>${open}${"</CHILDREN></SPEC-HIERARCHY>".repeat(levels)}</CHILDREN></SPECIFICATION></SPECIFICATIONS><y:SPEC-OBJECTS xmlns:y="urn:y"><y:SPEC-OBJECT/></y:SPEC-OBJECTS>`;
     const { file } = parsed(parseReqif(utf8(withContent(deep, "<OTHER-PART/>"))));
     let depth = 0;
     for (let level = file.specifications[0]?.children[0]; level !== undefined; level = level.children[0]) {
@@ -251,8 +366,8 @@ describe("parseReqif", () => {
     }
     expect(depth).toBe(levels);
     expect(file.unread).toEqual([
-      { name: "SPEC-OBJECTS", line: 1 },
-      { name: "OTHER-PART", line: 1 },
+      { name: "SPEC-OBJECTS", namespace: "urn:y", line: 1 },
+      { name: "OTHER-PART", namespace: REQIF_NAMESPACE, line: 1 },
     ]);
     const xhtml = (inner: string) => object(inner);
     const value = parsed(parseReqif(utf8(xhtml('<x:p x:class="c" __proto__="kept"/>')))).file.specObjects[0]
@@ -282,7 +397,9 @@ describe("parseReqif", () => {
       ),
     );
     expect(performance.now() - start).toBeLessThan(5_000);
-    expect(parsed(outcome).file.unread).toEqual([{ name: "TOOL-EXTENSIONS", line: 1 }]);
+    expect(parsed(outcome).file.unread).toEqual([
+      { name: "TOOL-EXTENSIONS", namespace: REQIF_NAMESPACE, line: 1 },
+    ]);
   });
 
   it("refuses a file whose kept memory would pass the budget: many XHTML attributes, many unread elements, text split by comments", () => {
