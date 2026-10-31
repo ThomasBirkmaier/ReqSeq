@@ -160,12 +160,21 @@ export const OverviewView = ({
   const cursor = Math.min(buffer.cursor, Math.max(0, rows.length - 1));
   const firstRecent = rows.findIndex((row) => row.kind === "recent");
 
+  const selectedRow = cursor < 0 ? undefined : rows[cursor];
+  const markedRow = selectedRow?.kind === "recent" ? selectedRow.buffer : undefined;
   useEffect(() => {
     onData(
       buffer.key,
-      data === undefined ? undefined : { kind: "overview", total: data.total, incomplete: data.incomplete },
+      data === undefined
+        ? undefined
+        : {
+            kind: "overview",
+            total: data.total,
+            incomplete: data.incomplete,
+            ...(markedRow === undefined ? {} : { marked: markedRow }),
+          },
     );
-  }, [buffer.key, data, onData]);
+  }, [buffer.key, data, onData, markedRow?.key]);
 
   const open = (at: number): void => {
     const row = rows[at];

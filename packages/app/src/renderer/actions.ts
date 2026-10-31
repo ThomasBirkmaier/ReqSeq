@@ -58,6 +58,7 @@ import { packageSelection } from "./package-page.js";
 import { searchRows } from "./rows.js";
 import type { Row } from "./rows.js";
 import type { Theme } from "./theme.js";
+import type { Side } from "./window-layout.js";
 import type { PromptUse } from "./usage.js";
 import type { ShownView } from "./views.js";
 import { viewName, viewsOf } from "./views.js";
@@ -174,6 +175,8 @@ export interface LayoutControls {
   readonly other: string | undefined;
   readonly split: () => void;
   readonly unsplit: () => void;
+  /** Opens an element in the area on this side (SR-150 AK1 to AK3, `window-layout.ts`). */
+  readonly beside: (side: Side, buffer: ElementBuffer) => void;
 }
 
 export interface ActionContext {
@@ -210,6 +213,11 @@ export interface ActionContext {
   readonly element?: ElementControls;
   /** The element of the selected row of the shown list or search, when it has loaded. */
   readonly row?: ElementBuffer;
+  /**
+   * The element marked in the shown buffer (`markedElement`, SR-150): a selected row or graph node. Absent:
+   * none is.
+   */
+  readonly marked?: ElementBuffer;
   /** The shown buffer has unsaved changes. */
   readonly modified: boolean;
   /** Whether "Close buffer" asked about the unsaved changes of the buffer with this key just now: closing again discards them. */
@@ -993,6 +1001,18 @@ export const ACTIONS: readonly Action[] = [
       }
     },
   },
+  // SR-150 AK1 to AK3: the marked element in the area on that side. Commands of the prompt only, no keys.
+  ...(["right", "left"] as const).map((side): Action => ({
+    id: `open-${side}`,
+    title: `Open to the ${side}`,
+    available: (context: ActionContext): boolean =>
+      context.workspace && context.layout !== undefined && context.marked !== undefined,
+    run: (context: ActionContext): void => {
+      if (context.marked !== undefined) {
+        context.layout?.beside(side, context.marked);
+      }
+    },
+  })),
   {
     id: "unsplit-window",
     title: "Unsplit window",

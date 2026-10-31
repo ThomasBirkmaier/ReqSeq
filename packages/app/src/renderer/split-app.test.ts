@@ -456,3 +456,17 @@ describe("App, Split window (SR-115 AK3)", () => {
     expect(query('[data-area="right"]').contains(document.activeElement)).toBe(false);
   });
 });
+
+describe("App, Open to the right and follow (SR-150)", () => {
+  it("[SR-150/AK4] in the app, Open to the right opens the marked row beside the list, the list stays active, and the element on the right follows the row marked next", async () => {
+    await render();
+    await runCommand("List all elements");
+    const list = areas()[0] ?? "";
+    await press(query('[role="listbox"]'), { key: "ArrowDown" });
+    await runCommand("Open to the right");
+    expect(areas()).toEqual([`${list.replace("*", "")}*`, "SR-000001 Title 1"]);
+    expect(query('[data-area="left"]').contains(document.activeElement)).toBe(true);
+    await press(query('[role="listbox"]'), { key: "ArrowDown" });
+    expect(areas()).toEqual([`${list.replace("*", "")}*`, "SR-000002 Title 2"]);
+  });
+});

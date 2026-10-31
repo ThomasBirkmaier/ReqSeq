@@ -16,7 +16,14 @@
 // - `reset` (another workspace) leaves one area.
 // - `side-by-side` (SR-044 AK2) shows two buffers in two areas: the first on the left, active, the second
 //   on the right.
-import type { Buffer, BufferAction, Buffers } from "./buffers.js";
+// - `beside` ("Open to the right", "Open to the left", SR-150 AK1 to AK3) opens an element in the area on
+//   that side. On the inactive side, or without a split, the active area keeps its buffer and stays active;
+//   on the active side it opens as `open` does (Enter).
+// - `follow` (SR-150 AK4, AK5) shows the element marked in the active area in the inactive one, in place of
+//   the element it showed, so marking opens no buffer per row. An inactive area that shows no element, or a
+//   read-only one (the comparison of SR-044), stays as it is; one with unsaved input (`keep`) stays open
+//   behind the new one.
+import type { Buffer, BufferAction, Buffers, ElementBuffer } from "./buffers.js";
 import { onlyOverview, overviewBuffer, reduceBuffers } from "./buffers.js";
 
 /** The side of an area: left or right. */
@@ -42,7 +49,9 @@ export type WindowAction =
   | BufferAction
   | { readonly type: "split" }
   | { readonly type: "unsplit" }
-  | { readonly type: "side-by-side"; readonly left: Buffer; readonly right: Buffer };
+  | { readonly type: "side-by-side"; readonly left: Buffer; readonly right: Buffer }
+  | { readonly type: "beside"; readonly side: Side; readonly buffer: ElementBuffer }
+  | { readonly type: "follow"; readonly buffer: ElementBuffer; readonly keep: boolean };
 
 /** One area, on the left. */
 export const ONE_AREA: Layout = { active: "left" };
@@ -116,7 +125,56 @@ const sideBySide = (state: WindowState, left: Buffer, right: Buffer): WindowStat
   return { buffers: opened, layout: { active: "left", other: right.key } };
 };
 
+/** `buffer` opened behind the shown one, which stays first (shown in the active area). */
+const openBehind = (buffers: Buffers, buffer: Buffer): Buffers => {
+  const shown = buffers[0];
+  const opened = reduceBuffers(buffers, { type: "open", buffer });
+  return shown === undefined ? opened : reduceBuffers(opened, { type: "switch", key: shown.key });
+};
+
+/** "Open to the right" or "Open to the left" (SR-150 AK1 to AK3). */
+const beside = (state: WindowState, side: Side, buffer: ElementBuffer): WindowState => {
+  const shown = state.buffers[0];
+  if (shown === undefined || shown.key === buffer.key) {
+    return state;
+  }
+  const { layout } = state;
+  if (layout.other !== undefined && side === layout.active) {
+    const open = { type: "open", buffer } as const;
+    return settle(state, open, reduceBuffers(state.buffers, open));
+  }
+  // Without a split the active area moves to the other side, so the element stands on the one asked for.
+  const active = layout.other === undefined ? opposite(side) : layout.active;
+  return { buffers: openBehind(state.buffers, buffer), layout: { active, other: buffer.key } };
+};
+
+/** The inactive area follows the element marked in the active one (SR-150 AK4, AK5). */
+const follow = (state: WindowState, buffer: ElementBuffer, keep: boolean): WindowState => {
+  const { buffers, layout } = state;
+  const other = buffers.find((open) => open.key === layout.other);
+  if (
+    other?.kind !== "element" ||
+    other.readOnly === true ||
+    other.key === buffer.key ||
+    buffers[0]?.key === buffer.key
+  ) {
+    return state;
+  }
+  const already = buffers.some((open) => open.key === buffer.key);
+  const next =
+    keep || already
+      ? openBehind(buffers, buffer)
+      : buffers.map((open) => (open.key === other.key ? buffer : open));
+  return { buffers: next, layout: { active: layout.active, other: buffer.key } };
+};
+
 export const reduceWindow = (state: WindowState, action: WindowAction): WindowState => {
+  if (action.type === "beside") {
+    return beside(state, action.side, action.buffer);
+  }
+  if (action.type === "follow") {
+    return follow(state, action.buffer, action.keep);
+  }
   if (action.type === "split") {
     return split(state);
   }

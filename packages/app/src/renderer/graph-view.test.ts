@@ -153,7 +153,17 @@ describe("GraphView", () => {
     expect(query(`[data-node="${key("O1")}"]`).getAttribute("aria-label")).toBe(
       "O1 System Requirement Title O1 superseded no evidence",
     );
-    expect(data.at(-1)).toEqual([S1.key, { kind: "graph", nodes: 10, truncated: false, incomplete: false }]);
+    // The element of the selected node, the graph's own while none is chosen, is the marked one (SR-150).
+    expect(data.at(-1)).toEqual([
+      S1.key,
+      {
+        kind: "graph",
+        nodes: 10,
+        truncated: false,
+        incomplete: false,
+        marked: expect.objectContaining({ kind: "element", id: "uuid-S1", repository: "spec" }),
+      },
+    ]);
     expect(performance.getEntriesByName(GRAPH_MARKS.layout).length).toBeGreaterThan(0);
   });
 

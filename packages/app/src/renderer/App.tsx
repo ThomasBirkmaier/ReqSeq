@@ -45,6 +45,7 @@ import type { BufferData, WorkspaceView } from "./modeline.js";
 import {
   bufferView,
   readOnlyNow,
+  markedElement,
   selectedRow,
   shownElement,
   windowTitle,
@@ -503,6 +504,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   }, [buffers, session]);
   // The default of an element argument when no element is shown (#85).
   const row = selectedRow(current, loaded);
+  const marked = markedElement(current, loaded);
   const context: ActionContext = {
     workspace: view?.name !== undefined,
     readOnly: readOnlyNow(view),
@@ -528,6 +530,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       }),
     ...(elementControls === undefined ? {} : { element: elementControls }),
     ...(row === undefined ? {} : { row }),
+    ...(marked === undefined ? {} : { marked }),
     modified: current !== undefined && drafts.current.has(current.key),
     closeArmed: (key) => armed.current === key,
     armClose: (key) => {
@@ -559,6 +562,9 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       },
       unsplit: () => {
         dispatch({ type: "unsplit" });
+      },
+      beside: (side, buffer) => {
+        dispatch({ type: "beside", side, buffer });
       },
     },
     // "Choose view" (SR-043 AK1): the shown buffers read again in the chosen view.
@@ -800,6 +806,26 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       saveRecent(appStorage, scope.current, recentRef.current);
     }
   }, [current?.key]);
+
+  // SR-150 AK4, AK5: in a split window the inactive area follows what is newly marked in the active one.
+  // Only a change of the mark in the same buffer counts, so splitting, switching areas or opening a buffer
+  // moves nothing; an inactive element with unsaved input stays open behind the one that follows.
+  const lastMark = useRef<{ readonly buffer: string | undefined; readonly marked: string | undefined }>({
+    buffer: undefined,
+    marked: undefined,
+  });
+  useEffect(() => {
+    const before = lastMark.current;
+    lastMark.current = { buffer: current?.key, marked: marked?.key };
+    if (
+      layout.other !== undefined &&
+      marked !== undefined &&
+      before.buffer === current?.key &&
+      before.marked !== marked.key
+    ) {
+      dispatch({ type: "follow", buffer: marked, keep: drafts.current.has(layout.other) });
+    }
+  }, [current?.key, marked?.key, layout.other]);
 
   const onData = useCallback((key: string, data: BufferData | undefined): void => {
     setLoaded((before) => new Map(before).set(key, data));
