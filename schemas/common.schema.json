@@ -407,7 +407,7 @@
           "enum": [
             "omitted-type",
             "omitted-attribute",
-            "unmapped-value",
+            "omitted-value",
             "hierarchy",
             "relation-end-not-imported",
             "type-without-origin",

@@ -10503,14 +10503,14 @@
                   },
                   "take": {
                     "type": "array",
-                    "description": "Conflicts for which the delivery is taken: source IDENTIFIER or element.",
+                    "description": "Conflicts for which the delivery is taken: an exact source IDENTIFIER, else an element among the conflicts.",
                     "items": {
                       "$ref": "#/components/schemas/common/$defs/elementRef"
                     }
                   },
                   "keep": {
                     "type": "array",
-                    "description": "Conflicts for which the local element is kept: source IDENTIFIER or element.",
+                    "description": "Conflicts for which the local element is kept: an exact source IDENTIFIER, else an element among the conflicts.",
                     "items": {
                       "$ref": "#/components/schemas/common/$defs/elementRef"
                     }
@@ -10536,13 +10536,13 @@
                     "created": {
                       "type": "array",
                       "items": {
-                        "$ref": "#/components/schemas/common/$defs/uuid"
+                        "$ref": "#/components/schemas/common/$defs/reqifObject"
                       }
                     },
                     "updated": {
                       "type": "array",
                       "items": {
-                        "$ref": "#/components/schemas/common/$defs/uuid"
+                        "$ref": "#/components/schemas/common/$defs/reqifObject"
                       }
                     },
                     "kept": {
@@ -10866,7 +10866,7 @@
     "/v1/commands/reqif.export": {
       "post": {
         "operationId": "reqif_export",
-        "summary": "Export a selection, or with statements the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID (the source IDENTIFIER for statements), text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.",
+        "summary": "Export a selection or a saved export profile, or with statements the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID (the source IDENTIFIER for statements), text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.",
         "tags": [
           "reqif"
         ],
@@ -10900,7 +10900,7 @@
                   },
                   "omitProperties": {
                     "type": "array",
-                    "description": "With mapping, also saved in it for later deliveries.",
+                    "description": "Added to the omitted properties of the mapping and the profile; with mapping, saved in it for later deliveries.",
                     "items": {
                       "$ref": "#/components/schemas/common/$defs/key"
                     }
@@ -10945,7 +10945,7 @@
                       "type": "array",
                       "items": {
                         "type": "string",
-                        "description": "Mapping file written, relative to the workspace root."
+                        "description": "Copied image or saved mapping file, relative to the workspace root."
                       }
                     },
                     "problems": {
@@ -11835,7 +11835,7 @@
                 "enum": [
                   "omitted-type",
                   "omitted-attribute",
-                  "unmapped-value",
+                  "omitted-value",
                   "hierarchy",
                   "relation-end-not-imported",
                   "type-without-origin",
@@ -13533,6 +13533,13 @@
                     "$ref": "#/components/schemas/common/$defs/key"
                   },
                   "description": "Enumeration value -> choice key."
+                },
+                "omit-values": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Enumeration values left out on import, each listed as a loss (SR-055 AK2)."
                 },
                 "omit": {
                   "const": true

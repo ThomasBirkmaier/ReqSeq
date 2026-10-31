@@ -4151,8 +4151,8 @@
         { "field": "delivery", "complete": "text" },
         { "field": "mapping", "complete": "text" },
         { "field": "source", "complete": "text" },
-        { "field": "take", "complete": "json" },
-        { "field": "keep", "complete": "json" }
+        { "field": "take", "complete": "element" },
+        { "field": "keep", "complete": "element" }
       ],
       "input": {
         "type": "object",
@@ -4175,14 +4175,14 @@
           },
           "take": {
             "type": "array",
-            "description": "Conflicts for which the delivery is taken: source IDENTIFIER or element.",
+            "description": "Conflicts for which the delivery is taken: an exact source IDENTIFIER, else an element among the conflicts.",
             "items": {
               "$ref": "../common.schema.json#/$defs/elementRef"
             }
           },
           "keep": {
             "type": "array",
-            "description": "Conflicts for which the local element is kept: source IDENTIFIER or element.",
+            "description": "Conflicts for which the local element is kept: an exact source IDENTIFIER, else an element among the conflicts.",
             "items": {
               "$ref": "../common.schema.json#/$defs/elementRef"
             }
@@ -4197,13 +4197,13 @@
           "created": {
             "type": "array",
             "items": {
-              "$ref": "../common.schema.json#/$defs/uuid"
+              "$ref": "../common.schema.json#/$defs/reqifObject"
             }
           },
           "updated": {
             "type": "array",
             "items": {
-              "$ref": "../common.schema.json#/$defs/uuid"
+              "$ref": "../common.schema.json#/$defs/reqifObject"
             }
           },
           "kept": {
@@ -4293,7 +4293,7 @@
     {
       "name": "reqif.export",
       "title": "Export ReqIF",
-      "summary": "Export a selection, or with statements the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID (the source IDENTIFIER for statements), text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.",
+      "summary": "Export a selection or a saved export profile, or with statements the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID (the source IDENTIFIER for statements), text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.",
       "effect": "write-files",
       "whileReadOnly": "refuse",
       "whileReadOnlyReason": "Exports the types and properties of the metamodel, which is missing or faulty.",
@@ -4324,7 +4324,7 @@
           },
           "omitProperties": {
             "type": "array",
-            "description": "With mapping, also saved in it for later deliveries.",
+            "description": "Added to the omitted properties of the mapping and the profile; with mapping, saved in it for later deliveries.",
             "items": {
               "$ref": "../common.schema.json#/$defs/key"
             }
@@ -4359,7 +4359,7 @@
             "type": "array",
             "items": {
               "type": "string",
-              "description": "Mapping file written, relative to the workspace root."
+              "description": "Copied image or saved mapping file, relative to the workspace root."
             }
           },
           "problems": {

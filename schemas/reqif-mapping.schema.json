@@ -59,6 +59,11 @@
             "additionalProperties": { "$ref": "common.schema.json#/$defs/key" },
             "description": "Enumeration value -> choice key."
           },
+          "omit-values": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Enumeration values left out on import, each listed as a loss (SR-055 AK2)."
+          },
           "omit": { "const": true }
         },
         "oneOf": [{ "required": ["property"] }, { "required": ["omit"] }],

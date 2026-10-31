@@ -427,7 +427,7 @@ export interface ReqifLoss {
   readonly code:
     | "omitted-type"
     | "omitted-attribute"
-    | "unmapped-value"
+    | "omitted-value"
     | "hierarchy"
     | "relation-end-not-imported"
     | "type-without-origin"
@@ -1167,6 +1167,8 @@ export interface ReqifMappingFile {
     readonly property?: Key;
     /** Enumeration value -> choice key. */
     readonly values?: Readonly<Record<string, Key>>;
+    /** Enumeration values left out on import, each listed as a loss (SR-055 AK2). */
+    readonly "omit-values"?: readonly string[];
     readonly omit?: true;
   } & (
     | {
@@ -1240,6 +1242,8 @@ export interface ReqifMappingFileWithDefaults {
     readonly property?: Key;
     /** Enumeration value -> choice key. */
     readonly values?: Readonly<Record<string, Key>>;
+    /** Enumeration values left out on import, each listed as a loss (SR-055 AK2). */
+    readonly "omit-values"?: readonly string[];
     readonly omit?: true;
   } & (
     | {
@@ -2995,9 +2999,9 @@ export interface ReqifImportInput {
   readonly mapping?: LocalPath;
   /** Source name for a file of ReqSeq without mapping; default the header TITLE. */
   readonly source?: string;
-  /** Conflicts for which the delivery is taken: source IDENTIFIER or element. */
+  /** Conflicts for which the delivery is taken: an exact source IDENTIFIER, else an element among the conflicts. */
   readonly take?: readonly ElementRef[];
-  /** Conflicts for which the local element is kept: source IDENTIFIER or element. */
+  /** Conflicts for which the local element is kept: an exact source IDENTIFIER, else an element among the conflicts. */
   readonly keep?: readonly ElementRef[];
 }
 
@@ -3006,8 +3010,8 @@ export interface ReqifImportInput {
  * Schema: `schemas/commands/catalog.json reqif.import output`.
  */
 export interface ReqifImportOutput {
-  readonly created: readonly Uuid[];
-  readonly updated: readonly Uuid[];
+  readonly created: readonly ReqifObject[];
+  readonly updated: readonly ReqifObject[];
   readonly kept: readonly ReqifObject[];
   readonly dropped: readonly ReqifObject[];
   readonly losses: readonly ReqifLoss[];
@@ -3035,7 +3039,7 @@ export interface ReqifSaveMappingOutput {
 }
 
 /**
- * Input of `reqif.export` as `run` gets it: validated, properties with a `default` filled in. Export a selection, or with statements the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID (the source IDENTIFIER for statements), text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.
+ * Input of `reqif.export` as `run` gets it: validated, properties with a `default` filled in. Export a selection or a saved export profile, or with statements the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID (the source IDENTIFIER for statements), text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.
  * Schema: `schemas/commands/catalog.json reqif.export input`.
  */
 export interface ReqifExportInput {
@@ -3043,13 +3047,13 @@ export interface ReqifExportInput {
   readonly selection?: ElementSelection;
   readonly profile?: string;
   readonly mapping?: LocalPath;
-  /** With mapping, also saved in it for later deliveries. */
+  /** Added to the omitted properties of the mapping and the profile; with mapping, saved in it for later deliveries. */
   readonly omitProperties?: readonly Key[];
   readonly statements?: boolean;
 }
 
 /**
- * Output of `reqif.export`. Export a selection, or with statements the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID (the source IDENTIFIER for statements), text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.
+ * Output of `reqif.export`. Export a selection or a saved export profile, or with statements the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID (the source IDENTIFIER for statements), text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.
  * Schema: `schemas/commands/catalog.json reqif.export output`.
  */
 export interface ReqifExportOutput {

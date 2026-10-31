@@ -759,7 +759,7 @@
               "enum": [
                 "omitted-type",
                 "omitted-attribute",
-                "unmapped-value",
+                "omitted-value",
                 "hierarchy",
                 "relation-end-not-imported",
                 "type-without-origin",
@@ -2457,6 +2457,13 @@
                   "$ref": "#/$defs/common/$defs/key"
                 },
                 "description": "Enumeration value -> choice key."
+              },
+              "omit-values": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Enumeration values left out on import, each listed as a loss (SR-055 AK2)."
               },
               "omit": {
                 "const": true
@@ -7358,14 +7365,14 @@
           },
           "take": {
             "type": "array",
-            "description": "Conflicts for which the delivery is taken: source IDENTIFIER or element.",
+            "description": "Conflicts for which the delivery is taken: an exact source IDENTIFIER, else an element among the conflicts.",
             "items": {
               "$ref": "#/$defs/common/$defs/elementRef"
             }
           },
           "keep": {
             "type": "array",
-            "description": "Conflicts for which the local element is kept: source IDENTIFIER or element.",
+            "description": "Conflicts for which the local element is kept: an exact source IDENTIFIER, else an element among the conflicts.",
             "items": {
               "$ref": "#/$defs/common/$defs/elementRef"
             }
@@ -7383,13 +7390,13 @@
           "created": {
             "type": "array",
             "items": {
-              "$ref": "#/$defs/common/$defs/uuid"
+              "$ref": "#/$defs/common/$defs/reqifObject"
             }
           },
           "updated": {
             "type": "array",
             "items": {
-              "$ref": "#/$defs/common/$defs/uuid"
+              "$ref": "#/$defs/common/$defs/reqifObject"
             }
           },
           "kept": {
@@ -7486,7 +7493,7 @@
     {
       "name": "reqif_export",
       "title": "Export ReqIF",
-      "description": "Export a selection, or with statements the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID (the source IDENTIFIER for statements), text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.",
+      "description": "Export a selection or a saved export profile, or with statements the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID (the source IDENTIFIER for statements), text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -7509,7 +7516,7 @@
           },
           "omitProperties": {
             "type": "array",
-            "description": "With mapping, also saved in it for later deliveries.",
+            "description": "Added to the omitted properties of the mapping and the profile; with mapping, saved in it for later deliveries.",
             "items": {
               "$ref": "#/$defs/common/$defs/key"
             }
@@ -7546,7 +7553,7 @@
             "type": "array",
             "items": {
               "type": "string",
-              "description": "Mapping file written, relative to the workspace root."
+              "description": "Copied image or saved mapping file, relative to the workspace root."
             }
           },
           "problems": {
