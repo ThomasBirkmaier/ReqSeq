@@ -29,7 +29,7 @@ const xmlOf = (outcome: ReqifWriteOutcome): string => {
   if (outcome.kind !== "written") {
     throw new Error(JSON.stringify(outcome.problems));
   }
-  return outcome.xml;
+  return outcome.chunks.join("");
 };
 const problemsOf = (outcome: ReqifWriteOutcome): readonly ReqifWriteProblem[] =>
   outcome.kind === "refused" ? outcome.problems : [];
@@ -99,6 +99,7 @@ const exportShaped = (): ReqifWritable => {
           {
             identifier: "_ad-requirement.title",
             lastChange: T,
+            longName: "title",
             kind: "string",
             datatype: "_dt-string",
             multiValued: false,
@@ -106,6 +107,7 @@ const exportShaped = (): ReqifWritable => {
           {
             identifier: "_ad-requirement.text",
             lastChange: T,
+            longName: "text",
             kind: "xhtml",
             datatype: "_dt-xhtml",
             multiValued: false,
@@ -113,6 +115,7 @@ const exportShaped = (): ReqifWritable => {
           {
             identifier: "_ad-requirement.weight",
             lastChange: T,
+            longName: "weight",
             kind: "real",
             datatype: "_dt-real",
             multiValued: false,
@@ -120,6 +123,7 @@ const exportShaped = (): ReqifWritable => {
           {
             identifier: "_ad-requirement.due",
             lastChange: T,
+            longName: "due",
             kind: "date",
             datatype: "_dt-date",
             multiValued: false,
@@ -127,6 +131,7 @@ const exportShaped = (): ReqifWritable => {
           {
             identifier: "_ad-requirement.priority",
             lastChange: T,
+            longName: "priority",
             kind: "enumeration",
             datatype: "_dt-enum.priority",
             multiValued: true,
@@ -139,6 +144,7 @@ const exportShaped = (): ReqifWritable => {
           {
             identifier: "_rq-requirement.markdown",
             lastChange: T,
+            longName: "reqseq markdown",
             kind: "string",
             datatype: "_dt-string",
             multiValued: false,
@@ -146,6 +152,7 @@ const exportShaped = (): ReqifWritable => {
           {
             identifier: "_rq-requirement.values",
             lastChange: T,
+            longName: "reqseq values",
             kind: "string",
             datatype: "_dt-string",
             multiValued: false,
@@ -217,7 +224,9 @@ describe("writeReqif", () => {
     expect(written.startsWith('<?xml version="1.0" encoding="UTF-8"?>\n<REQ-IF xmlns=')).toBe(true);
     expect(written).not.toContain("\r");
     expect(written).toContain("<REQ-IF-VERSION>1.0</REQ-IF-VERSION>");
-    expect(written).toContain("<SPEC-RELATIONS>\n      </SPEC-RELATIONS>");
+    expect(written).toContain("<SPEC-RELATIONS></SPEC-RELATIONS>");
+    // No indentation: a line break only after the declaration, in the one text with a line break, and at the end.
+    expect(written.split("\n")).toHaveLength(4);
     expect(written).toContain('MULTI-VALUED="true"');
     expect(unlined(roundTrip(file))).toEqual(unlined(file));
   });
@@ -266,6 +275,16 @@ describe("writeReqif", () => {
         },
         { identifier: "_dt-integer", lastChange: T, kind: "integer", values: [] },
       ],
+      specTypes: [
+        {
+          identifier: "_ot-x",
+          lastChange: T,
+          category: "spec-object",
+          attributes: [
+            { identifier: "_ad-x", lastChange: T, kind: "date", datatype: "_dt-date", multiValued: false },
+          ],
+        },
+      ],
     });
     expect(problemsOf(outcome)).toEqual(
       [
@@ -278,10 +297,12 @@ describe("writeReqif", () => {
         ["_dt-real", "MIN"],
         ["_dt-real", "MAX"],
         ["_dt-real", "ACCURACY"],
+        ["_ev-x", "LONG-NAME"],
         ["_ev-x", "KEY"],
         ["_ev-x", "OTHER-CONTENT"],
         ["_dt-integer", "MIN"],
         ["_dt-integer", "MAX"],
+        ["_ad-x", "LONG-NAME"],
       ].map(([identifier, field]) => ({ kind: "missing-field", identifier, field })),
     );
   });
@@ -306,40 +327,24 @@ describe("writeReqif", () => {
         },
       ],
     });
+    const problem = (field: string, at: string, codePoint: number, offset: number): ReqifWriteProblem => ({
+      kind: "invalid-character",
+      identifier: object.identifier,
+      field,
+      at,
+      codePoint,
+      offset,
+    });
     expect(problemsOf(outcome)).toEqual([
-      {
-        kind: "invalid-character",
-        identifier: object.identifier,
-        field: "LONG-NAME",
-        codePoint: 0x0c,
-        offset: 4,
-      },
-      {
-        kind: "invalid-character",
-        identifier: object.identifier,
-        field: "THE-VALUE",
-        codePoint: 0xffff,
-        offset: 6,
-      },
-      {
-        kind: "invalid-character",
-        identifier: object.identifier,
-        field: "THE-VALUE",
-        codePoint: 0xd800,
-        offset: 8,
-      },
-      { kind: "invalid-character", identifier: object.identifier, field: "title", codePoint: 0, offset: 0 },
-      {
-        kind: "invalid-character",
-        identifier: object.identifier,
-        field: "_ad-requirement.text",
-        codePoint: 0x0b,
-        offset: 1,
-      },
+      problem("LONG-NAME", "LONG-NAME", 0x0c, 4),
+      problem("_rq-requirement.markdown", "THE-VALUE", 0xffff, 6),
+      problem("_rq-requirement.markdown", "THE-VALUE", 0xd800, 8),
+      problem("_ad-requirement.text", "title of <xhtml:p>", 0, 0),
+      problem("_ad-requirement.text", "text in <xhtml:p>", 0x0b, 1),
     ]);
   });
 
-  it("refuses an element outside XHTML and a prefixed attribute in a value, and drops namespace declarations", () => {
+  it("refuses content outside XHTML, a prefixed or malformed name, and still names what lies inside", () => {
     const file = exportShaped();
     const object = at(file.specObjects, 0);
     const value = (nodes: readonly XhtmlNode[]): ReqifWritable => ({
@@ -351,32 +356,41 @@ describe("writeReqif", () => {
     const outcome = writeReqif(
       value([
         xhtml("div", [
-          { name: "q", namespace: "urn:other", attributes: [], children: ["x"] },
+          { name: "q", namespace: "urn:other", attributes: [], children: ["x\u0000"] },
           { name: "q", namespace: "", attributes: [], children: [] },
-          xhtml("p", [], ["x:a", "1", "xml:lang", "de"]),
+          xhtml("p", [], ["x:a", "1", "xml:lang", "de", "a b", "2"]),
+          xhtml("1p", []),
+          xhtml("img", [], ["src", "x.png"]),
         ]),
       ]),
     );
+    const unsupported = (name: string): ReqifWriteProblem => ({
+      kind: "unsupported-content",
+      identifier: object.identifier,
+      field: "_ad-requirement.text",
+      name,
+    });
     expect(problemsOf(outcome)).toEqual([
+      unsupported("<q> in urn:other"),
       {
-        kind: "unsupported-content",
+        kind: "invalid-character",
         identifier: object.identifier,
         field: "_ad-requirement.text",
-        name: "<q> in urn:other",
+        at: "text in <xhtml:div>",
+        codePoint: 0,
+        offset: 1,
       },
-      {
-        kind: "unsupported-content",
-        identifier: object.identifier,
-        field: "_ad-requirement.text",
-        name: "<q> in no namespace",
-      },
-      {
-        kind: "unsupported-content",
-        identifier: object.identifier,
-        field: "_ad-requirement.text",
-        name: "x:a",
-      },
+      unsupported("<q> in no namespace"),
+      unsupported("x:a"),
+      unsupported("a b"),
+      unsupported(`<1p> in ${XHTML_NAMESPACE}`),
+      unsupported("<img>, written as <object>"),
     ]);
+    for (const nodes of [[], ["text"], [xhtml("h1", ["a"])], [xhtml("p", ["a"]), xhtml("p", ["b"])]]) {
+      expect(problemsOf(writeReqif(value(nodes))), JSON.stringify(nodes)).toEqual([
+        unsupported("THE-VALUE without exactly one <div> or <p>"),
+      ]);
+    }
     const declared = xmlOf(
       writeReqif(
         value([xhtml("p", ["y"], ["xmlns", XHTML_NAMESPACE, "xmlns:x", "urn:x", "xml:lang", "de"])]),
@@ -385,7 +399,45 @@ describe("writeReqif", () => {
     expect(declared).toContain('<THE-VALUE><xhtml:p xml:lang="de">y</xhtml:p></THE-VALUE>');
   });
 
-  it("writes 20,000 levels of XHTML and of SPEC-HIERARCHY without recursion", () => {
+  it("refuses an IDENTIFIER that is no NCName and a STRING longer than its MAX-LENGTH", () => {
+    const file = exportShaped();
+    const object = at(file.specObjects, 0);
+    const outcome = writeReqif({
+      ...file,
+      header: { ...file.header, identifier: "1-header" },
+      datatypes: [
+        ...file.datatypes,
+        { identifier: "_dt-free", lastChange: T, kind: "string", maxLength: "many", values: [] },
+      ],
+      specObjects: [
+        {
+          ...object,
+          identifier: "_a b",
+          values: [
+            { kind: "string", definition: "_ad-requirement.title", value: "x".repeat(28) },
+            { kind: "string", definition: "_rq-requirement.markdown", value: "\u{1F600}".repeat(27) },
+          ],
+        },
+      ],
+    });
+    expect(problemsOf(outcome)).toEqual([
+      {
+        kind: "invalid-value",
+        identifier: "1-header",
+        field: "IDENTIFIER",
+        reason: "not an NCName (xsd:ID)",
+      },
+      { kind: "invalid-value", identifier: "_a b", field: "IDENTIFIER", reason: "not an NCName (xsd:ID)" },
+      {
+        kind: "invalid-value",
+        identifier: "_a b",
+        field: "_ad-requirement.title",
+        reason: "28 characters, more than MAX-LENGTH 27",
+      },
+    ]);
+  });
+
+  it("writes 20,000 levels of XHTML and of SPEC-HIERARCHY without recursion, in chunks", () => {
     const depth = 20_000;
     let nested: XhtmlElement = xhtml("div", ["deep"]);
     for (let i = 0; i < depth; i++) {
@@ -404,19 +456,20 @@ describe("writeReqif", () => {
         children: [level],
       };
     }
-    const written = xmlOf(
-      writeReqif({
-        ...file,
-        specObjects: [
-          { ...object, values: [{ kind: "xhtml", definition: "_ad-requirement.text", value: [nested] }] },
-        ],
-        specifications: [{ ...specification, children: [level] }],
-      }),
-    );
+    const outcome = writeReqif({
+      ...file,
+      specObjects: [
+        { ...object, values: [{ kind: "xhtml", definition: "_ad-requirement.text", value: [nested] }] },
+      ],
+      specifications: [{ ...specification, children: [level] }],
+    });
+    // Many chunks of bounded size, never one string of the whole file.
+    const chunks = outcome.kind === "written" ? outcome.chunks : [];
+    expect(chunks.length).toBeGreaterThan(10);
+    expect(Math.max(...chunks.map((chunk) => chunk.length))).toBeLessThan(1_000_000);
+    const written = xmlOf(outcome);
     expect(written.split("<xhtml:div>")).toHaveLength(depth + 2);
     expect(written.split("<SPEC-HIERARCHY ")).toHaveLength(depth + 1);
-    // Indentation stops at 16 levels.
-    expect(written).not.toContain(" ".repeat(34) + "<");
     const back = parsedFile(new TextEncoder().encode(written));
     let read = back.specifications[0]?.children[0];
     let count = 0;
