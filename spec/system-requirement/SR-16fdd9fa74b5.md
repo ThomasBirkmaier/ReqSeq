@@ -13,7 +13,7 @@ acceptance-criteria:
   - Gegeben ein geteiltes Fenster, dessen inaktiver Bereich ein Element zeigt, wenn im aktiven Bereich ein Element markiert wird, dann zeigt der inaktive Bereich dieses Element an Stelle des bisherigen, ohne dass der aktive Bereich wechselt; ausgenommen ist der Vergleich von Kern-Requirement und Ersatz (SR-044).
   - Gegeben ein geteiltes Fenster, dessen inaktiver Bereich eine Liste, die Übersicht, einen Graph oder eine Paketseite zeigt, wenn im aktiven Bereich ein Element markiert wird, dann bleibt der inaktive Bereich unverändert.
 packages:
-  - { id: c64ee86d-761a-4180-bfb1-cde819bfc27c, version: n1:fd3ed3f03b3d762f, title: Später }
+  - { id: 7755a224-01c9-4710-869a-7b1477fbd624, version: n1:cd51c9fc3d83c915, title: "Stufe 6: Austausch per ReqIF und Schutz" }
 verification-method: test
 topic: Bearbeiten und Finden
 derives-from:
