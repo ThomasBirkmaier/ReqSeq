@@ -16,9 +16,9 @@ import { isDeepStrictEqual } from "node:util";
 import { CommandError } from "../catalog.js";
 import type { FrontmatterEdit, ItemValue } from "../files/index.js";
 import { sha256, zip } from "../files/index.js";
-import type { ReqifObject } from "../generated/types.js";
+import type { Problem, ReqifObject } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
-import type { ElementRecord } from "../model/index.js";
+import type { ElementRecord, ElementStore } from "../model/index.js";
 import { assertElementWritable, currentVersionsOf, elementStoreState, hasId } from "../model/index.js";
 import type { UnchangedElement } from "../model/write.js";
 import { readAllUnchanged } from "../model/write.js";
@@ -135,8 +135,36 @@ export const existingElements = async (
   return { matched, dropped, ids };
 };
 
+/**
+ * The element files the store cannot read (an error at a file: faulty YAML, conflict markers, an
+ * invalid `id` or `type`, SR-008). One of them may be an element of the source, which the import
+ * then could not match and would create again (#575/8).
+ */
+export const unreadableFiles = (store: ElementStore): Problem[] =>
+  store.problems.filter((p) => p.severity === "error" && p.file !== undefined);
+
 /** A relation item as the import writes it. */
 export type RelationItem = Readonly<{ id: string; version: string; repository?: string }>;
+
+/**
+ * Whether the targets (UUID and repository, not the version) of the items of `kind` that point to
+ * elements of the source differ from the delivery's `items`: a local relation edit the delivery
+ * replaces (#575/4).
+ */
+export const targetsDiffer = (
+  data: Readonly<Record<string, unknown>>,
+  kind: string,
+  items: readonly RelationItem[],
+  ids: ReadonlySet<string>,
+): boolean => {
+  const value = data[kind];
+  const stored: readonly unknown[] = Array.isArray(value) ? value : [value];
+  const key = (item: Readonly<Record<string, unknown>>): string =>
+    JSON.stringify([item["id"], item["repository"] ?? null]);
+  const own = new Set(stored.flatMap((item) => (hasId(item) && ids.has(item.id) ? [key(item)] : [])));
+  const delivered = new Set(items.map(key));
+  return own.size !== delivered.size || [...own].some((k) => !delivered.has(k));
+};
 
 /** The parts of a stored item the import compares: target, version and repository. */
 const comparable = (item: Readonly<Record<string, unknown>>): Record<string, unknown> => ({

@@ -85,13 +85,14 @@ const get = (workspace: Workspace, ref: string): Promise<Got> => run(workspace, 
 const idsOf = (imported: Imported): Record<string, string> =>
   Object.fromEntries(imported.created.map(({ identifier, id }) => [identifier, String(id)]));
 
-/** Every file below `root` with its bytes, sorted. */
+/** Every file below `root` with its bytes, and every folder (`name/`), sorted. */
 const tree = async (root: string): Promise<[string, string][]> => {
   const entries = await fs.readdir(root, { recursive: true, withFileTypes: true });
   const out: [string, string][] = [];
-  for (const entry of entries.filter((e) => e.isFile())) {
+  for (const entry of entries) {
     const file = path.join(entry.parentPath, entry.name);
-    out.push([path.relative(root, file).replaceAll("\\", "/"), await fs.readFile(file, "base64")]);
+    const name = path.relative(root, file).replaceAll("\\", "/");
+    out.push(entry.isDirectory() ? [`${name}/`, ""] : [name, await fs.readFile(file, "base64")]);
   }
   return out.sort(([a], [b]) => (a < b ? -1 : 1));
 };
@@ -307,6 +308,98 @@ describe("repeated ReqIF import (SR-056)", () => {
     const again = await importOf(workspace, 1);
     expect(pick(again.updated)).toEqual(["REQ-2"]);
     expect((await get(workspace, two)).element.title).toBe("Show the wind");
+  });
+
+  it("warns before it writes the delivery's relations over a local relation edit (#575/4a)", async () => {
+    const { workspace, ids } = await delivered();
+    const three = String(ids["REQ-3"]);
+    await run(workspace, "relation.add", {
+      source: three,
+      kind: "derives-from",
+      target: String(ids["REQ-4"]),
+    });
+    const analysis = await analyzeOf(workspace, 1);
+    expect([analysis.changed, analysis.problems?.map((p) => [p.code, p.elementId, p.message])]).toEqual([
+      [],
+      [
+        [
+          "reqif.replaces-local",
+          three,
+          expect.stringContaining("REQ-3: the delivery writes derives-from into") as unknown,
+        ],
+      ],
+    ]);
+    const again = await importOf(workspace, 1);
+    expect([pick(again.updated), again.problems?.map((p) => p.code)]).toEqual([
+      ["REQ-3"],
+      ["reqif.replaces-local"],
+    ]);
+    expect((await get(workspace, three)).element.relations).toEqual([]);
+  });
+
+  it("warns of a local value of a mapped property that does not count (#575/4a)", async () => {
+    const comment =
+      '<ATTRIBUTE-VALUE-STRING THE-VALUE="from the source"><DEFINITION><ATTRIBUTE-DEFINITION-STRING-REF>ad-comment</ATTRIBUTE-DEFINITION-STRING-REF></DEFINITION></ATTRIBUTE-VALUE-STRING>';
+    const { workspace } = await open({
+      "in/1.reqif": DELIVERY_1.replaceAll(
+        "</ATTRIBUTE-VALUE-ENUMERATION>",
+        `</ATTRIBUTE-VALUE-ENUMERATION>${comment}`,
+      ),
+      "reqif/kunde-a.yaml": MAPPING.replace(
+        "{ source: Internal Comment, omit: true }",
+        "{ source: Internal Comment, property: rationale }",
+      ),
+    });
+    const ids = idsOf(await importOf(workspace, 1));
+    const two = String(ids["REQ-2"]);
+    expect((await get(workspace, two)).element.properties["rationale"]).toBe("from the source");
+    await run(workspace, "element.update", { ref: two, set: { rationale: "local" } });
+    const analysis = await analyzeOf(workspace, 1);
+    expect(analysis.problems?.map((p) => p.message)).toEqual([
+      expect.stringContaining("REQ-2: the delivery writes rationale into") as unknown,
+    ]);
+  });
+
+  it("warns of a local title an update with a changed delivery writes over (#575/4a)", async () => {
+    const { workspace, ids } = await delivered();
+    const one = String(ids["REQ-1"]);
+    await run(workspace, "element.update", { ref: one, title: "Local title" });
+    const analysis = await analyzeOf(workspace, 2);
+    expect(pick(analysis.changed)).toEqual(["REQ-1", "REQ-3"]);
+    expect(analysis.problems?.map((p) => [p.code, p.elementId, p.message])).toEqual([
+      [
+        "reqif.replaces-local",
+        one,
+        expect.stringContaining("REQ-1: the delivery writes title into") as unknown,
+      ],
+    ]);
+  });
+
+  it("refuses the import while an element file cannot be read, and warns in reqif.analyze (#575/8)", async () => {
+    const { workspace, ids, root } = await delivered();
+    const one = await get(workspace, String(ids["REQ-1"]));
+    const file = path.join(root, "Kunde-A", path.basename(one.element.file));
+    await fs.writeFile(file, (await fs.readFile(file, "utf8")).replace(/^title: .*$/m, "title: [unclosed"));
+    const fresh = new Workspace(root);
+    onTestFinished(() => fresh.close());
+    const analysis = await analyzeOf(fresh, 2);
+    // REQ-1 is not matched, so the analysis takes it as new.
+    expect(analysis.problems?.map((p) => [p.code, p.severity, p.file])).toContainEqual([
+      "file.invalid-yaml",
+      "warning",
+      `Kunde-A/${path.basename(one.element.file)}`,
+    ]);
+    const before = await tree(root);
+    const refused = await failure(fresh, "reqif.import", {
+      file: "in/2.reqif",
+      mapping: "reqif/kunde-a.yaml",
+      delivery: "D2",
+    });
+    expect([refused.code, refused.details?.["files"]]).toEqual([
+      "file.faulty",
+      [{ repository: "system", file: `Kunde-A/${path.basename(one.element.file)}` }],
+    ]);
+    expect(await tree(root)).toEqual(before);
   });
 
   it("leaves an element changed only locally as it is (#575/1)", async () => {

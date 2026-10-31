@@ -148,7 +148,7 @@ problems:
     cause: The commit to compare with is not in a repository, so its changes were not looked at.
     remedy: Fetch the commit, or deepen a shallow clone.
   reqif.replaces-local:
-    cause: A repeated ReqIF import writes the delivery's title, a property that does not count to the version, or a relation of a mapped kind into an element whose file differs there, although neither the delivery nor the element changed its version (SR-056; the import version cannot show such a local edit, D-057). The message names the keys.
+    cause: A repeated ReqIF import writes the delivery's title, a property that does not count to the version, or the targets of a relation of a mapped kind into an element whose file holds other values there (SR-056); the import version cannot show a local edit of them (D-057). The message names the keys.
     remedy: If the local value should stay, change it in the source as well, or edit the element again after the import; Git shows the earlier value.
   reqif.choice-unused:
     cause: An entry of `take` or `keep` of `reqif.import` names no conflict of this delivery (SR-056 AK4), so it changes nothing.

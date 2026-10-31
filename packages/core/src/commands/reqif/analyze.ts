@@ -9,13 +9,15 @@
 // changes, `conflicts` those of them also changed locally, `dropped` the elements whose object the
 // file no longer has, each with its UUID; `problems` warns of a title or property the import would
 // write back (`reqif.replaces-local`) and of a repository not on this machine, which `reqif.import`
-// refuses (`workspace.repository-missing`).
+// refuses (`workspace.repository-missing`), and of an element file the store cannot read, which
+// it refuses too (the store's problem as a warning, #575/8).
 //
 // Not yet: the one-to-one mapping of a ReqSeq file and `source` (SR-052).
 import path from "node:path";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
 import { metamodelState } from "../../metamodel/index.js";
+import { elementStoreState } from "../../model/index.js";
 import type { AnyMapping } from "../../reqif/index.js";
 import {
   existingElements,
@@ -25,6 +27,7 @@ import {
   planImport,
   readDelivery,
   readMappingFile,
+  unreadableFiles,
 } from "../../reqif/index.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
 
@@ -47,12 +50,19 @@ export default defineCommand({
           }
         : (await readMappingFile(layout, metamodel, workspace.root, input.mapping, command)).mapping;
     const missing = layout.repositories.filter((r) => !r.available).map((r) => r.name);
-    const problems: Analysis["problems"] = missing.map((name) => ({
-      code: "workspace.repository-missing",
-      severity: "warning",
-      message: `Repository ${name} is not on this machine: elements of an earlier delivery there are not matched, and reqif.import refuses until it is there`,
-      repository: name,
-    }));
+    const problems: Analysis["problems"] = [
+      ...missing.map((name) => ({
+        code: "workspace.repository-missing" as const,
+        severity: "warning" as const,
+        message: `Repository ${name} is not on this machine: elements of an earlier delivery there are not matched, and reqif.import refuses until it is there`,
+        repository: name,
+      })),
+      ...unreadableFiles(await workspace.get(elementStoreState)).map((p) => ({
+        ...p,
+        severity: "warning" as const,
+        message: `${String(p.file)} is not matched, as it cannot be read as an element (${p.message}); reqif.import refuses until it is fixed`,
+      })),
+    ];
     const empty: Analysis = {
       unmapped: [],
       new: [],

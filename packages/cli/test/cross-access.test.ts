@@ -147,7 +147,6 @@ const PARTIAL_DELIVERY: FixtureOptions = {
   ...DELIVERY,
   files: { ...DELIVERY.files, "reqif/kunde-a.yaml": PARTIAL_MAPPING },
 };
-/** A refused import leaves every file as it was and writes no element file (SR-055 AK3). */
 /** The fixture files of fixtures/SR-056 under `name`. */
 const sr056 = (name: string): string =>
   readFileSync(new URL(`../../../fixtures/SR-056/${name}`, import.meta.url), "utf8");
@@ -186,6 +185,7 @@ const unchangedRepeat = (results: Readonly<Record<string, Result>>): void => {
 const coreOutput = (results: Readonly<Record<string, Result>>): unknown =>
   (results["core"]?.outcome as { output: unknown }).output;
 
+/** A refused import leaves every file as it was and writes no element file (SR-055 AK3). */
 const unchangedDelivery =
   (mapping: string) =>
   (results: Readonly<Record<string, Result>>): void => {

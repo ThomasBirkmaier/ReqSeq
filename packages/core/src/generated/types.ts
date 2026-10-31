@@ -2994,7 +2994,7 @@ export interface ReqifAnalyzeOutput {
   /** Changed elements that were also changed locally since their import; reqif.import needs take or keep for each (SR-056 AK4). */
   readonly conflicts: readonly ReqifObject[];
   readonly losses: readonly ReqifLoss[];
-  /** Warnings: a title or property the import writes back over another value (reqif.replaces-local), a repository not on this machine. */
+  /** Warnings: a title, property or relation the import writes over another value (reqif.replaces-local), a repository not on this machine, an element file that cannot be read. */
   readonly problems?: readonly Problem[];
 }
 
@@ -3009,9 +3009,9 @@ export interface ReqifImportInput {
   readonly mapping?: LocalPath;
   /** Source name for a file of ReqSeq without mapping; default the header TITLE. */
   readonly source?: string;
-  /** Conflicts for which the delivery is taken: an exact source IDENTIFIER, else an element among the conflicts */
+  /** Conflicts for which the delivery is taken: an exact source IDENTIFIER, else an element among the conflicts. */
   readonly take?: readonly ElementRef[];
-  /** Conflicts for which the local element is kept: an exact source IDENTIFIER, else an element among the conflicts */
+  /** Conflicts for which the local element is kept: an exact source IDENTIFIER, else an element among the conflicts. */
   readonly keep?: readonly ElementRef[];
 }
 

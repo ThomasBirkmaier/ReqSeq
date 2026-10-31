@@ -10,7 +10,8 @@
 // A repeated delivery (SR-056, reqif/repeat.ts) updates the elements of the source in place; a
 // conflict needs `take` or `keep` (`reqif.conflict` names those without, before any write). While a
 // repository of the workspace is not on this machine, its elements of the source cannot be
-// matched, so the import is refused (`file.folder-missing`, #575/7). The writes, each undone when a
+// matched, so the import is refused (`file.folder-missing`, #575/7); so is it while the store cannot
+// read an element file (`file.faulty`, #575/8). The writes, each undone when a
 // later one fails: the image copies of updated elements, the updated files (`writeElementFiles`),
 // then the new files (`createElementFiles`); nothing is deleted that the call did not create.
 //
@@ -41,6 +42,7 @@ import {
   planImport,
   readDelivery,
   readMappingFile,
+  unreadableFiles,
 } from "../../reqif/index.js";
 import type { ConflictChoices, PlannedImage, PlannedUpdateImage } from "../../reqif/index.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../../workspace/index.js";
@@ -235,6 +237,14 @@ export default defineCommand({
       );
     }
     const store = await workspace.get(elementStoreState);
+    const unreadable = unreadableFiles(store);
+    if (unreadable.length > 0) {
+      throw new CommandError(
+        "file.faulty",
+        `Not imported: ${unreadable.map((p) => String(p.file)).join(", ")} cannot be read as elements, so an element of an earlier delivery there would be created again; fix them first`,
+        { files: unreadable.map(({ repository, file }) => ({ repository, file })) },
+      );
+    }
     const shortIds = await workspace.get(shortIdState);
     const existing = await existingElements(
       workspace,
@@ -253,7 +263,11 @@ export default defineCommand({
       imageReader(path.resolve(workspace.root, input.file), ctx.localPaths),
       { existing, choose: chooser(store, shortIds, input.take ?? [], input.keep ?? []) },
     );
-    // Every refusal came with the plan; from here on only a failing write stops the call.
+    // Every refusal came with the plan; the walk checks of the update copies come before any
+    // folder is created, as those of the new files do in spelledFiles.
+    for (const { repository, file } of plan.updateImages) {
+      await refuseUnlisted(layout, repository, file);
+    }
     const [first] = plan.files;
     const prepared =
       first === undefined

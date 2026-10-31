@@ -4134,7 +4134,7 @@
           },
           "problems": {
             "type": "array",
-            "description": "Warnings: a title or property the import writes back over another value (reqif.replaces-local), a repository not on this machine.",
+            "description": "Warnings: a title, property or relation the import writes over another value (reqif.replaces-local), a repository not on this machine, an element file that cannot be read.",
             "items": {
               "$ref": "../common.schema.json#/$defs/problem"
             }
@@ -4182,14 +4182,14 @@
           },
           "take": {
             "type": "array",
-            "description": "Conflicts for which the delivery is taken: an exact source IDENTIFIER, else an element among the conflicts",
+            "description": "Conflicts for which the delivery is taken: an exact source IDENTIFIER, else an element among the conflicts.",
             "items": {
               "$ref": "../common.schema.json#/$defs/elementRef"
             }
           },
           "keep": {
             "type": "array",
-            "description": "Conflicts for which the local element is kept: an exact source IDENTIFIER, else an element among the conflicts",
+            "description": "Conflicts for which the local element is kept: an exact source IDENTIFIER, else an element among the conflicts.",
             "items": {
               "$ref": "../common.schema.json#/$defs/elementRef"
             }

@@ -69,7 +69,7 @@ import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js"
 import { locate } from "../workspace/index.js";
 import type { AnyMapping } from "./mapping.js";
 import type { ExistingElement, ExistingElements, RelationItem } from "./repeat.js";
-import { NO_EXISTING, relationEdits } from "./repeat.js";
+import { NO_EXISTING, relationEdits, targetsDiffer } from "./repeat.js";
 import type {
   ReqifAttributeDefinition,
   ReqifDatatype,
@@ -433,6 +433,8 @@ interface Draft {
   readonly current: string;
   /** The property keys the mapping maps for its type (removed when the delivery has no value). */
   readonly mapped: readonly string[];
+  /** Those of them that do not count to the version (D-057). */
+  readonly uncounted: readonly string[];
   /** What the repeated delivery does with an existing element; `new` for a new one. */
   case: "new" | "update" | "conflict" | "local" | "same";
   /** Whether the delivery's content is written (new, update, take, same); else relations get its current version. */
@@ -813,6 +815,11 @@ const draftOf = (
   for (const { name, sha256 } of existing?.images ?? []) {
     images.reserve(name, sha256);
   }
+  // The property each attribute of the type is mapped to, when it is one (not title, text or omitted).
+  const mapped = t.attributes.flatMap((a) => {
+    const definition = context.coverage.attributes.get(a.identifier)?.definition;
+    return definition === undefined ? [] : [definition];
+  });
   const file =
     existing === undefined
       ? fileNameFor({ prefix: base.type.prefix, id })
@@ -832,12 +839,8 @@ const draftOf = (
     repository: existing?.record.repository ?? repository.name,
     ...(existing === undefined ? {} : { existing }),
     current: existing === undefined ? "" : String(existing.version),
-    mapped: t.attributes.flatMap((a) => {
-      const checked = context.coverage.attributes.get(a.identifier);
-      return checked?.definition === undefined || checked.entry.property === undefined
-        ? []
-        : [checked.entry.property];
-    }),
+    mapped: mapped.map((d) => d.key),
+    uncounted: mapped.filter((d) => d.content !== true).map((d) => d.key),
     case: "new",
     deliveryWins: true,
   };
@@ -1206,30 +1209,37 @@ const planUpdates = (
       continue;
     }
     const { data } = existing.record;
-    const relations = kinds.map((kind) => ({
-      kind,
-      edits: relationEdits(data, kind, draft.relations.get(kind) ?? [], context.existing.ids),
-    }));
+    const relations = kinds.map((kind) => {
+      const items = draft.relations.get(kind) ?? [];
+      return {
+        kind,
+        edits: relationEdits(data, kind, items, context.existing.ids),
+        targets: targetsDiffer(data, kind, items, context.existing.ids),
+      };
+    });
     const extra = relations.flatMap((r) => r.edits);
-    if (draft.case === "same") {
-      if (!updatedFile(draft, existing, extra, [keys.delivery, keys["import-date"]]).changed) {
-        continue;
-      }
-      // Relations follow the delivery without a warning: their versions follow written targets.
-      const replaced = [
-        ...(data[draft.base.titleKey] === draft.title ? [] : [draft.base.titleKey]),
-        ...draft.mapped.filter((key) => !isDeepStrictEqual(data[key], draft.properties.get(key))),
-      ];
-      if (replaced.length > 0) {
-        problems.push({
-          code: "reqif.replaces-local",
-          severity: "warning",
-          message: `${identifier}: the delivery writes ${replaced.join(", ")} into ${existing.record.file}, which holds other values there, although neither side changed its version`,
-          repository: existing.record.repository,
-          file: existing.record.file,
-          elementId: id,
-        });
-      }
+    if (
+      draft.case === "same" &&
+      !updatedFile(draft, existing, extra, [keys.delivery, keys["import-date"]]).changed
+    ) {
+      continue;
+    }
+    // What the file holds otherwise and the version cannot show (#575/4): the title, mapped
+    // properties that do not count, and relation targets; a new version of a target alone is silent.
+    const replaced = [
+      ...(data[draft.base.titleKey] === draft.title ? [] : [draft.base.titleKey]),
+      ...draft.uncounted.filter((key) => !isDeepStrictEqual(data[key], draft.properties.get(key))),
+      ...relations.filter((r) => r.targets).map((r) => r.kind),
+    ];
+    if (replaced.length > 0) {
+      problems.push({
+        code: "reqif.replaces-local",
+        severity: "warning",
+        message: `${identifier}: the delivery writes ${replaced.join(", ")} into ${existing.record.file}, which holds other values there`,
+        repository: existing.record.repository,
+        file: existing.record.file,
+        elementId: id,
+      });
     }
     write("updated", updatedFile(draft, existing, extra).bytes);
     const folder = path.posix.dirname(existing.record.file);

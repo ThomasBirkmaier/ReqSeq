@@ -22,7 +22,7 @@ export type {
   PlannedUpdateImage,
   RepeatOptions,
 } from "./import.js";
-export { NO_EXISTING, existingElements } from "./repeat.js";
+export { NO_EXISTING, existingElements, unreadableFiles } from "./repeat.js";
 export type { ExistingElement, ExistingElements } from "./repeat.js";
 export { importDate, originKeys } from "./origin.js";
 export type { OriginKeys } from "./origin.js";
