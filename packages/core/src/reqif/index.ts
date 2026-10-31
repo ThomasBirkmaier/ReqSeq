@@ -26,3 +26,5 @@ export type {
 } from "./xhtml-markdown.js";
 export { IMAGE_LIMIT_BYTES, ImageNames, imageContent, imageReader } from "./images.js";
 export type { ImageFile, ImageRead, ImageReader } from "./images.js";
+export { writeReqif } from "./write.js";
+export type { ReqifWritable, ReqifWriteOutcome, ReqifWriteProblem } from "./write.js";
