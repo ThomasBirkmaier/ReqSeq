@@ -4060,13 +4060,14 @@
     {
       "name": "reqif.analyze",
       "title": "Analyse ReqIF file",
-      "summary": "Read a ReqIF file: types and attributes without mapping, and for a repeated delivery the new, changed and dropped requirements. Writes nothing.",
+      "summary": "Preview the import of a ReqIF file: types, attributes and values without mapping; for a repeated delivery the new, changed and dropped requirements and the conflicts with local changes; the losses. Writes nothing.",
       "effect": "read",
       "stage": 6,
-      "implements": ["SR-055", "SR-056"],
+      "implements": ["SR-053", "SR-055", "SR-056"],
       "arguments": [
         { "field": "file", "complete": "text" },
-        { "field": "mapping", "complete": "text" }
+        { "field": "mapping", "complete": "text" },
+        { "field": "source", "complete": "text" }
       ],
       "input": {
         "type": "object",
@@ -4076,6 +4077,11 @@
           },
           "mapping": {
             "$ref": "../common.schema.json#/$defs/localPath"
+          },
+          "source": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Source name for a file of ReqSeq without mapping; default the header TITLE."
           }
         },
         "additionalProperties": false,
@@ -4087,35 +4093,37 @@
           "unmapped": {
             "type": "array",
             "items": {
-              "type": "object",
-              "properties": {
-                "kind": {
-                  "enum": ["type", "attribute", "relation"]
-                },
-                "source": {
-                  "type": "string"
-                }
-              },
-              "additionalProperties": false,
-              "required": ["kind", "source"]
+              "$ref": "../common.schema.json#/$defs/reqifUnmapped"
             }
           },
           "new": {
             "type": "array",
             "items": {
-              "type": "string"
+              "$ref": "../common.schema.json#/$defs/reqifObject"
             }
           },
           "changed": {
             "type": "array",
             "items": {
-              "type": "string"
+              "$ref": "../common.schema.json#/$defs/reqifObject"
             }
           },
           "dropped": {
             "type": "array",
             "items": {
-              "type": "string"
+              "$ref": "../common.schema.json#/$defs/reqifObject"
+            }
+          },
+          "conflicts": {
+            "type": "array",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/reqifObject"
+            }
+          },
+          "losses": {
+            "type": "array",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/reqifLoss"
             }
           },
           "problems": {
@@ -4126,22 +4134,25 @@
           }
         },
         "additionalProperties": false,
-        "required": ["unmapped", "new", "changed", "dropped"]
+        "required": ["unmapped", "new", "changed", "dropped", "conflicts", "losses"]
       }
     },
     {
       "name": "reqif.import",
       "title": "Import ReqIF file",
-      "summary": "Import a ReqIF 1.2 file with a mapping; updates existing elements by IDENTIFIER, records origin, reports losses.",
+      "summary": "Import a ReqIF 1.2 file, all or nothing: creates elements, updates those of an earlier delivery of the source by IDENTIFIER, records origin and import version, reports losses. A conflict with a local change needs take or keep, else the whole import is refused.",
       "effect": "write-files",
       "whileReadOnly": "refuse",
       "whileReadOnlyReason": "Creates and changes elements, and no change can be checked against a missing or faulty metamodel.",
       "stage": 6,
-      "implements": ["SR-053", "SR-056", "SR-057", "SR-087", "SR-095"],
+      "implements": ["SR-052", "SR-053", "SR-054", "SR-055", "SR-056", "SR-057", "SR-087", "SR-095"],
       "arguments": [
         { "field": "file", "complete": "text" },
+        { "field": "delivery", "complete": "text" },
         { "field": "mapping", "complete": "text" },
-        { "field": "delivery", "complete": "text" }
+        { "field": "source", "complete": "text" },
+        { "field": "take", "complete": "element" },
+        { "field": "keep", "complete": "element" }
       ],
       "input": {
         "type": "object",
@@ -4149,15 +4160,36 @@
           "file": {
             "$ref": "../common.schema.json#/$defs/localPath"
           },
-          "mapping": {
-            "$ref": "../common.schema.json#/$defs/localPath"
-          },
           "delivery": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1
+          },
+          "mapping": {
+            "$ref": "../common.schema.json#/$defs/localPath",
+            "description": "Needed unless the file comes from ReqSeq (REQ-IF-TOOL-ID reqseq), which is mapped one to one."
+          },
+          "source": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Source name for a file of ReqSeq without mapping; default the header TITLE."
+          },
+          "take": {
+            "type": "array",
+            "description": "Conflicts for which the delivery is taken: an exact source IDENTIFIER, else an element among the conflicts.",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/elementRef"
+            }
+          },
+          "keep": {
+            "type": "array",
+            "description": "Conflicts for which the local element is kept: an exact source IDENTIFIER, else an element among the conflicts.",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/elementRef"
+            }
           }
         },
         "additionalProperties": false,
-        "required": ["file", "mapping", "delivery"]
+        "required": ["file", "delivery"]
       },
       "output": {
         "type": "object",
@@ -4165,57 +4197,60 @@
           "created": {
             "type": "array",
             "items": {
-              "$ref": "../common.schema.json#/$defs/uuid"
+              "$ref": "../common.schema.json#/$defs/reqifObject"
             }
           },
           "updated": {
             "type": "array",
             "items": {
-              "$ref": "../common.schema.json#/$defs/uuid"
+              "$ref": "../common.schema.json#/$defs/reqifObject"
+            }
+          },
+          "kept": {
+            "type": "array",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/reqifObject"
             }
           },
           "dropped": {
             "type": "array",
             "items": {
-              "type": "string"
+              "$ref": "../common.schema.json#/$defs/reqifObject"
             }
           },
           "losses": {
             "type": "array",
             "items": {
-              "type": "object",
-              "properties": {
-                "id": {
-                  "$ref": "../common.schema.json#/$defs/uuid"
-                },
-                "reason": {
-                  "type": "string"
-                }
-              },
-              "additionalProperties": false,
-              "required": ["id", "reason"]
+              "$ref": "../common.schema.json#/$defs/reqifLoss"
             }
           },
           "files": {
             "type": "array",
             "items": {
-              "type": "string"
+              "type": "string",
+              "description": "Written file, relative to the workspace root."
+            }
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/problem"
             }
           }
         },
         "additionalProperties": false,
-        "required": ["created", "updated", "dropped", "losses", "files"]
+        "required": ["created", "updated", "kept", "dropped", "losses", "files"]
       }
     },
     {
       "name": "reqif.saveMapping",
       "title": "Save ReqIF mapping",
-      "summary": "Save or change the mapping of a source to the own metamodel.",
+      "summary": "Save or change the mapping of a source to the own metamodel, in the mapping folder (default `reqif`).",
       "effect": "write-files",
       "whileReadOnly": "refuse",
       "whileReadOnlyReason": "Maps a source to the own metamodel, which is missing or faulty.",
       "stage": 6,
-      "implements": ["SR-054", "SR-059"],
+      "implements": ["SR-054", "SR-055", "SR-059"],
       "arguments": [
         { "field": "mapping", "complete": "json" },
         { "field": "file", "complete": "text" }
@@ -4227,7 +4262,8 @@
             "$ref": "../reqif-mapping.schema.json"
           },
           "file": {
-            "$ref": "../common.schema.json#/$defs/localPath"
+            "$ref": "../common.schema.json#/$defs/localPath",
+            "description": "Inside the mapping folder of the workspace, for every access; default the portable source name."
           }
         },
         "additionalProperties": false,
@@ -4257,12 +4293,12 @@
     {
       "name": "reqif.export",
       "title": "Export ReqIF",
-      "summary": "Export a selection or a saved export profile as ReqIF 1.2; IDENTIFIER is the UUID, or the source IDENTIFIER for statements.",
+      "summary": "Export a selection or a saved export profile, or with statements the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID (the source IDENTIFIER for statements), text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.",
       "effect": "write-files",
       "whileReadOnly": "refuse",
       "whileReadOnlyReason": "Exports the types and properties of the metamodel, which is missing or faulty.",
       "stage": 6,
-      "implements": ["SR-052", "SR-058", "SR-059", "SR-101"],
+      "implements": ["SR-052", "SR-054", "SR-058", "SR-059", "SR-101"],
       "arguments": [
         { "field": "output", "complete": "text" },
         { "field": "selection", "complete": "selection" },
@@ -4288,6 +4324,7 @@
           },
           "omitProperties": {
             "type": "array",
+            "description": "Added to the omitted properties of the mapping and the profile; with mapping, saved in it for later deliveries.",
             "items": {
               "$ref": "../common.schema.json#/$defs/key"
             }
@@ -4312,6 +4349,18 @@
           "relations": {
             "type": "integer",
             "minimum": 0
+          },
+          "withoutStatement": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "With statements: exported elements without a statement."
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "Copied image or saved mapping file, relative to the workspace root."
+            }
           },
           "problems": {
             "type": "array",

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://reqseq.dev/schemas/reqif-mapping.schema.json",
   "title": "ReqIF mapping file",
-  "description": "Mapping of the types and attributes of one ReqIF source to the own metamodel, saved as YAML in the repository and reused for every later import from and export to that source (N-045, D-022, SR-054). The own metamodel is never changed by it (SR-054 AK3). Also holds saved export profiles (SR-059 AK3).",
+  "description": "Mapping of the types and attributes of one ReqIF source to the own metamodel, saved as YAML in the mapping folder of the workspace (`mappings`, default `reqif` in the main repository) and reused for every later import from and export to that source (N-045, D-022, SR-054). The own metamodel is never changed by it (SR-054 AK3). Also holds saved export profiles (SR-059 AK3).",
   "type": "object",
   "required": ["reqseq-reqif-mapping", "source"],
   "properties": {
@@ -59,6 +59,11 @@
             "additionalProperties": { "$ref": "common.schema.json#/$defs/key" },
             "description": "Enumeration value -> choice key."
           },
+          "omit-values": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Enumeration values left out on import, each listed as a loss (SR-055 AK2)."
+          },
           "omit": { "const": true }
         },
         "oneOf": [{ "required": ["property"] }, { "required": ["omit"] }],
@@ -88,9 +93,19 @@
           "$ref": "common.schema.json#/$defs/key",
           "description": "Own property that holds the statement."
         },
-        "attribute": { "type": "string", "description": "ATTRIBUTE-DEFINITION in the source's model." }
+        "attribute": { "type": "string", "description": "ATTRIBUTE-DEFINITION in the source's model." },
+        "datatype": {
+          "enum": ["string", "xhtml"],
+          "default": "string",
+          "description": "How the statement is written: as STRING, or as XHTML converted from its Markdown (SR-058 AK1)."
+        }
       },
       "additionalProperties": false
+    },
+    "omit-properties": {
+      "type": "array",
+      "items": { "$ref": "common.schema.json#/$defs/key" },
+      "description": "Properties left out of every export to this source; written by `reqif.export` with `mapping` and `omitProperties` (SR-059 AK1, AK3)."
     },
     "export-profiles": {
       "type": "array",

@@ -90,6 +90,7 @@ export const COMMAND_ERROR_CLASSES: Readonly<Record<CommandErrorCode, CommandErr
   "baseline.exists": "conflict",
   "reqif.invalid": "input",
   "reqif.unmapped": "input",
+  "reqif.conflict": "conflict",
   "git.unavailable": "unavailable",
   "git.commit-not-found": "not-found",
   "file.changed-on-disk": "conflict",
