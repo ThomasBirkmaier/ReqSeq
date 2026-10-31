@@ -58,6 +58,7 @@ describe("scanXml", () => {
 
   it("streams start tags, text runs and ends in document order without a tree, and passes errors of the receiver through", () => {
     const seen: string[] = [];
+    let next = 0;
     const events = {
       open: (
         name: string,
@@ -66,16 +67,31 @@ describe("scanXml", () => {
         start: number,
         contentStart: number,
         selfClosing: boolean,
-      ) =>
+        parent: number | undefined,
+      ) => {
         seen.push(
-          `<${name} ${String(line)} ${String(start)}-${String(contentStart)}${selfClosing ? "/" : ""}`,
-        ),
-      text: (text: string) => seen.push(text),
-      close: (contentEnd: number, end: number) => seen.push(`> ${String(contentEnd)}-${String(end)}`),
+          `<${name}#${String(next)} in ${String(parent)} ${String(line)} ${String(start)}-${String(contentStart)}${selfClosing ? "/" : ""}`,
+        );
+        return next++;
+      },
+      text: (element: number, text: string) => seen.push(`${String(element)}:${text}`),
+      close: (element: number, parent: number | undefined, contentEnd: number, end: number) =>
+        seen.push(`>#${String(element)} in ${String(parent)} ${String(contentEnd)}-${String(end)}`),
     };
-    expect(streamXml(utf8("<a>x<![CDATA[]]><b/>\ny</a>"), events)).toEqual({ kind: "streamed", bom: false });
-    expect(seen).toEqual(["<a 1 0-3", "x", "<b 1 16-18/", "> 18-20", "\ny", "> 22-26"]);
-    expect(streamXml(withBom("<a/>"), events)).toEqual({ kind: "streamed", bom: true });
+    expect(streamXml(utf8("<a>x<![CDATA[]]><b/>\ny</a>"), events)).toEqual({
+      kind: "streamed",
+      bom: false,
+      root: 0,
+    });
+    expect(seen).toEqual([
+      "<a#0 in undefined 1 0-3",
+      "0:x",
+      "<b#1 in 0 1 16-18/",
+      ">#1 in 0 18-20",
+      "0:\ny",
+      ">#0 in undefined 22-26",
+    ]);
+    expect(streamXml(withBom("<a/>"), events)).toMatchObject({ kind: "streamed", bom: true });
     const thrown = new Error("receiver");
     expect(() =>
       streamXml(utf8("<a/>"), {

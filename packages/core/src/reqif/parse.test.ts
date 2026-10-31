@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { ReqifFile } from "./model.js";
 import { XHTML_NAMESPACE } from "./model.js";
-import type { ReqifParseOutcome } from "./parse.js";
-import { MAX_REQIF_BYTES, parseReqif } from "./parse.js";
+import type { ReqifLimits, ReqifParseOutcome } from "./parse.js";
+import { parseReqif, REQIF_LIMITS } from "./parse.js";
 
 const utf8 = (text: string): Uint8Array => new TextEncoder().encode(text);
 
@@ -13,8 +13,8 @@ const parsed = (outcome: ReqifParseOutcome): Extract<ReqifParseOutcome, { kind: 
   return outcome;
 };
 const fileOf = (bytes: Uint8Array): ReqifFile => parsed(parseReqif(bytes)).file;
-const refusal = (text: string, maxElements?: number): { message: string; line: number } => {
-  const outcome = parseReqif(utf8(text), maxElements);
+const refusal = (text: string, limits?: ReqifLimits): { message: string; line: number } => {
+  const outcome = parseReqif(utf8(text), limits);
   if (outcome.kind !== "refused") {
     throw new Error("parsed");
   }
@@ -25,6 +25,13 @@ const NS = 'xmlns="http://www.omg.org/spec/ReqIF/20110401/reqif.xsd"';
 /** A minimal file with `content` inside REQ-IF-CONTENT. */
 const withContent = (content: string, after = ""): string =>
   `<REQ-IF ${NS}><THE-HEADER><REQ-IF-HEADER IDENTIFIER="h"/></THE-HEADER><CORE-CONTENT><REQ-IF-CONTENT>${content}</REQ-IF-CONTENT></CORE-CONTENT>${after}</REQ-IF>`;
+
+/** A file with one SPEC-OBJECT whose XHTML value (prefix `x`) is `xhtml`. */
+const object = (xhtml: string, after = ""): string =>
+  withContent(
+    `<SPEC-OBJECTS xmlns:x="http://www.w3.org/1999/xhtml"><SPEC-OBJECT IDENTIFIER="o"><VALUES><ATTRIBUTE-VALUE-XHTML><DEFINITION><ATTRIBUTE-DEFINITION-XHTML-REF>a</ATTRIBUTE-DEFINITION-XHTML-REF></DEFINITION><THE-VALUE>${xhtml}</THE-VALUE></ATTRIBUTE-VALUE-XHTML></VALUES><TYPE><SPEC-OBJECT-TYPE-REF>t</SPEC-OBJECT-TYPE-REF></TYPE></SPEC-OBJECT></SPEC-OBJECTS>`,
+    after,
+  );
 
 describe("parseReqif", () => {
   it("reads header, datatypes, spec types, objects, relations and nested hierarchies, by namespace, not by prefix", () => {
@@ -43,7 +50,7 @@ describe("parseReqif", () => {
       '<r:ENUM-VALUE IDENTIFIER="ev-high" LONG-NAME="High"><r:PROPERTIES><r:EMBEDDED-VALUE KEY="1" OTHER-CONTENT="top"/></r:PROPERTIES></r:ENUM-VALUE>',
       "</r:SPECIFIED-VALUES></r:DATATYPE-DEFINITION-ENUMERATION></r:DATATYPES><r:SPEC-TYPES>",
       `<r:SPEC-OBJECT-TYPE IDENTIFIER="ot"><r:SPEC-ATTRIBUTES>${kinds.map((k) => def(k, k.toLowerCase())).join("")}</r:SPEC-ATTRIBUTES></r:SPEC-OBJECT-TYPE>`,
-      '<r:SPEC-RELATION-TYPE IDENTIFIER="rt"/><r:SPECIFICATION-TYPE IDENTIFIER="st"/></r:SPEC-TYPES><r:SPEC-OBJECTS>',
+      '<r:SPEC-RELATION-TYPE IDENTIFIER="rt"/><r:SPECIFICATION-TYPE IDENTIFIER="st"/><r:RELATION-GROUP-TYPE IDENTIFIER="gt"/></r:SPEC-TYPES><r:SPEC-OBJECTS>',
       '<r:SPEC-OBJECT IDENTIFIER="o1" LONG-NAME="Start" LAST-CHANGE="2026-10-31T00:00:00Z"><r:VALUES>',
       val("STRING", "string", "A-1 &amp; more"),
       "<r:ATTRIBUTE-VALUE-XHTML><r:DEFINITION><r:ATTRIBUTE-DEFINITION-XHTML-REF>ad-xhtml</r:ATTRIBUTE-DEFINITION-XHTML-REF></r:DEFINITION>",
@@ -86,8 +93,9 @@ describe("parseReqif", () => {
       ["ot", "spec-object", kinds.map((k) => `dt-${k.toLowerCase()}`)],
       ["rt", "spec-relation", []],
       ["st", "specification", []],
+      ["gt", "relation-group", []],
     ]);
-    const ns = { namespace: XHTML_NAMESPACE, attributes: {} };
+    const ns = { namespace: XHTML_NAMESPACE, attributes: [] };
     expect(file.specObjects[0]).toEqual({
       identifier: "o1",
       longName: "Start",
@@ -110,7 +118,7 @@ describe("parseReqif", () => {
                 {
                   name: "span",
                   namespace: XHTML_NAMESPACE,
-                  attributes: { style: "color:red" },
+                  attributes: ["style", "color:red"],
                   children: ["start"],
                 },
                 ".",
@@ -141,12 +149,12 @@ describe("parseReqif", () => {
       },
     ]);
     expect(file.unread).toEqual([
-      { name: "RELATION-GROUP", line: 34 },
-      { name: "REQ-IF-TOOL-EXTENSION", line: 35 },
+      { name: "SPEC-RELATION-GROUPS", line: 34 },
+      { name: "TOOL-EXTENSIONS", line: 35 },
     ]);
   });
 
-  it("refuses doctype, an undefined entity, a foreign root, truncated, two roots, an undeclared prefix and too many elements with the reason and line", () => {
+  it("refuses doctype, an undefined entity, a foreign root, truncated, two roots, undeclared prefixes and names that are not qualified with the reason and line", () => {
     expect(refusal('<!DOCTYPE x [<!ENTITY e SYSTEM "file:///etc/passwd">]><REQ-IF/>').message).toBe(
       "A document type declaration (<!DOCTYPE) is not read",
     );
@@ -164,23 +172,33 @@ describe("parseReqif", () => {
     expect(refusal(`<REQ-IF ${NS} foo:bar="1"/>`).message).toBe(
       "foo:bar in <REQ-IF> has an undeclared prefix",
     );
-    expect(refusal(withContent(""), 3)).toEqual({
-      message: "The file has more than 3 elements",
-      line: 1,
-    });
+    expect(refusal(`<REQ-IF ${NS}><:a/></REQ-IF>`).message).toBe(":a in <:a> is not a qualified name");
+    expect(refusal(`<REQ-IF ${NS} a:b:c="1"/>`).message).toBe("a:b:c in <REQ-IF> is not a qualified name");
+    expect(refusal(`<REQ-IF ${NS} xmlns:y=""/>`).message).toBe(
+      "xmlns:y has an empty namespace (Namespaces in XML 1.0)",
+    );
   });
 
   it("refuses a file over the size guard before reading it", () => {
-    const bytes = new Uint8Array(MAX_REQIF_BYTES + 1);
+    const bytes = new Uint8Array(REQIF_LIMITS.bytes + 1);
     expect(parseReqif(bytes)).toEqual({
       kind: "refused",
-      message: `The file has ${String(MAX_REQIF_BYTES + 1)} bytes; ReqSeq reads ReqIF files up to ${String(MAX_REQIF_BYTES)} bytes`,
+      message: `The file has ${String(REQIF_LIMITS.bytes + 1)} bytes; ReqSeq reads ReqIF files up to ${String(REQIF_LIMITS.bytes)} bytes`,
       line: 1,
     });
   });
 
   it("refuses missing parts, a missing IDENTIFIER and a missing THE-VALUE", () => {
-    expect(refusal(`<REQ-IF ${NS}><THE-HEADER/></REQ-IF>`).message).toBe("<REQ-IF> has no <CORE-CONTENT>");
+    expect(refusal(`<REQ-IF ${NS}><THE-HEADER/></REQ-IF>`).message).toBe(
+      "<THE-HEADER> has no <REQ-IF-HEADER>",
+    );
+    expect(refusal(`<REQ-IF ${NS}/>`).message).toBe("<REQ-IF> has no <CORE-CONTENT>");
+    expect(refusal(`<REQ-IF ${NS}><CORE-CONTENT/></REQ-IF>`).message).toBe(
+      "<CORE-CONTENT> has no <REQ-IF-CONTENT>",
+    );
+    expect(refusal(`<REQ-IF ${NS}><CORE-CONTENT><REQ-IF-CONTENT/></CORE-CONTENT></REQ-IF>`).message).toBe(
+      "<REQ-IF> has no <THE-HEADER>",
+    );
     expect(
       refusal(
         `<REQ-IF ${NS}><THE-HEADER><REQ-IF-HEADER/></THE-HEADER><CORE-CONTENT><REQ-IF-CONTENT/></CORE-CONTENT></REQ-IF>`,
@@ -214,7 +232,11 @@ describe("parseReqif", () => {
     expect(file.specObjects[0]?.values).toEqual([{ kind: "enumeration", definition: "a", values: ["ev"] }]);
     expect(file.specRelations[0]).toMatchObject({ type: "rt", target: "gone" });
     expect(file.specifications[0]?.children[0]?.object).toBe("lost");
-    expect(file.unread.map((u) => u.name)).toEqual(["OTHER", "DATATYPE-DEFINITION-OTHER"]);
+    expect(file.unread.map((u) => u.name)).toEqual([
+      "OTHER",
+      "SPEC-RELATION-GROUPS",
+      "DATATYPE-DEFINITION-OTHER",
+    ]);
   });
 
   it("reads a SPEC-HIERARCHY 5,000 levels deep without recursion, keeps attribute names as written and refuses ReqIF inside XHTML", () => {
@@ -229,22 +251,50 @@ describe("parseReqif", () => {
     }
     expect(depth).toBe(levels);
     expect(file.unread).toEqual([
-      { name: "SPEC-OBJECT", line: 1 },
+      { name: "SPEC-OBJECTS", line: 1 },
       { name: "OTHER-PART", line: 1 },
     ]);
-    const xhtml = (inner: string) =>
-      withContent(
-        `<SPEC-OBJECTS xmlns:x="http://www.w3.org/1999/xhtml"><SPEC-OBJECT IDENTIFIER="o"><VALUES><ATTRIBUTE-VALUE-XHTML><DEFINITION><ATTRIBUTE-DEFINITION-XHTML-REF>a</ATTRIBUTE-DEFINITION-XHTML-REF></DEFINITION><THE-VALUE>${inner}</THE-VALUE></ATTRIBUTE-VALUE-XHTML></VALUES><TYPE><SPEC-OBJECT-TYPE-REF>t</SPEC-OBJECT-TYPE-REF></TYPE></SPEC-OBJECT></SPEC-OBJECTS>`,
-      );
+    const xhtml = (inner: string) => object(inner);
     const value = parsed(parseReqif(utf8(xhtml('<x:p x:class="c" __proto__="kept"/>')))).file.specObjects[0]
       ?.values[0];
     expect(value?.kind === "xhtml" && value.value[0]).toMatchObject({
       name: "p",
-      attributes: { "x:class": "c", __proto__: "kept" },
+      attributes: ["x:class", "c", "__proto__", "kept"],
     });
     expect(refusal(xhtml("<x:p><SPEC-OBJECT/></x:p>")).message).toBe(
       "ReqIF element <SPEC-OBJECT> inside XHTML",
     );
+  });
+
+  it("reads 20,000 nested namespace declarations in linear time and skips tool extensions without reading them", () => {
+    const levels = 20_000;
+    const nested = Array.from(
+      { length: levels },
+      (_, i) => `<x:b xmlns:p${String(i)}="urn:${String(i)}">`,
+    ).join("");
+    const start = performance.now();
+    const outcome = parseReqif(
+      utf8(
+        object(
+          `${nested}${"</x:b>".repeat(levels)}`,
+          "<TOOL-EXTENSIONS><REQ-IF-TOOL-EXTENSION><SPEC-HIERARCHY/><THE-VALUE><SPEC-OBJECT/></THE-VALUE></REQ-IF-TOOL-EXTENSION></TOOL-EXTENSIONS>",
+        ),
+      ),
+    );
+    expect(performance.now() - start).toBeLessThan(5_000);
+    expect(parsed(outcome).file.unread).toEqual([{ name: "TOOL-EXTENSIONS", line: 1 }]);
+  });
+
+  it("refuses a file whose kept memory would pass the budget: many XHTML attributes, many unread elements, text split by comments", () => {
+    const limits = { bytes: REQIF_LIMITS.bytes, retained: 200_000 };
+    const message = "Reading the file would keep more than 200000 bytes in memory";
+    expect(refusal(object('<x:b c="1" d="2" e="3" f="4"/>'.repeat(2_000)), limits).message).toBe(message);
+    expect(
+      refusal(`<REQ-IF ${NS}><CORE-CONTENT>${'<a b=""/>'.repeat(4_000)}</CORE-CONTENT></REQ-IF>`, limits)
+        .message,
+    ).toBe(message);
+    expect(refusal(object(`<x:p>${"a<!---->".repeat(4_000)}</x:p>`), limits).message).toBe(message);
+    expect(parsed(parseReqif(utf8(object("<x:p/>")), limits)).file.specObjects).toHaveLength(1);
   });
 
   it("leaves out what it does not read, reads optional parts when present and rethrows a programming error", () => {
@@ -266,7 +316,7 @@ describe("parseReqif", () => {
       {
         kind: "xhtml",
         definition: "a",
-        value: [" ", { name: "p", namespace: XHTML_NAMESPACE, attributes: {}, children: [] }],
+        value: [" ", { name: "p", namespace: XHTML_NAMESPACE, attributes: [], children: [] }],
       },
       { kind: "enumeration", definition: "a", values: [] },
     ]);

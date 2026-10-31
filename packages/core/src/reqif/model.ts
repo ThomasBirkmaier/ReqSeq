@@ -45,11 +45,12 @@ export interface ReqifSpecType extends ReqifIdentifiable {
   readonly attributes: readonly ReqifAttributeDefinition[];
 }
 
-/** An XHTML element: its local name, `namespace` as declared in scope, attributes by name as written. */
+/** An XHTML element: its local name and `namespace` as declared in scope. */
 export interface XhtmlElement {
   readonly name: string;
   readonly namespace: string;
-  readonly attributes: Readonly<Record<string, string>>;
+  /** Names (as written) and values in turn, in document order: `[name, value, name, value, …]`. */
+  readonly attributes: readonly string[];
   readonly children: readonly XhtmlNode[];
 }
 

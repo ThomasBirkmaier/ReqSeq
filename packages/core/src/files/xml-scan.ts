@@ -94,9 +94,11 @@ export type XmlScanOutcome =
 
 /**
  * What `streamXml` reports, in document order, without building a tree (ReqIF, ADR-0013): a large
- * file costs only what the receiver keeps. Offsets are as in `XmlElement`.
+ * file costs only what the receiver keeps. `open` gives the receiver's value for the element (`T`),
+ * which the scanner hands back with its text runs and its end, and to its children as `parent`.
+ * Offsets are as in `XmlElement`.
  */
-export interface XmlEvents {
+export interface XmlEvents<T> {
   open(
     name: string,
     attributes: readonly XmlAttribute[],
@@ -104,11 +106,12 @@ export interface XmlEvents {
     start: number,
     contentStart: number,
     selfClosing: boolean,
-  ): void;
-  /** A text run of the element opened last (CDATA included, entities resolved, line breaks as LF), never empty. */
-  text(text: string): void;
-  /** The end of the element opened last; right after `open` for a self-closing one. */
-  close(contentEnd: number, end: number): void;
+    parent: T | undefined,
+  ): T;
+  /** A text run of `element` (CDATA included, entities resolved, line breaks as LF), never empty. */
+  text(element: T, text: string): void;
+  /** The end of `element`; right after `open` for a self-closing one. */
+  close(element: T, parent: T | undefined, contentEnd: number, end: number): void;
 }
 
 /** The value of the attribute `name` of `element`, or undefined. */
@@ -273,54 +276,39 @@ interface Building extends XmlElement {
   text: string;
 }
 
-const building = (
-  name: string,
-  attributes: readonly XmlAttribute[],
-  line: number,
-  start: number,
-  contentStart: number,
-  selfClosing: boolean,
-): Building => ({
-  name,
-  line,
-  start,
-  contentStart,
-  // Set by `close`.
-  contentEnd: contentStart,
-  end: contentStart,
-  selfClosing,
-  attributes,
-  children: [],
-  text: "",
-});
-
 /** The events that build the element tree of `scanXml`. */
-class Tree implements XmlEvents {
-  /** The open elements around `top`; at first only a holder for the root. */
-  private readonly stack: Building[] = [];
-  private top = building("", [], 0, 0, 0, false);
-  /** The element closed last: the root, once the scan is through. */
-  root: XmlElement = this.top;
-
-  open(...start: Parameters<XmlEvents["open"]>): void {
-    this.stack.push(this.top);
-    this.top = building(...start);
+class Tree implements XmlEvents<Building> {
+  open(
+    name: string,
+    attributes: readonly XmlAttribute[],
+    line: number,
+    start: number,
+    contentStart: number,
+    selfClosing: boolean,
+  ): Building {
+    // `contentEnd` and `end` are set by `close`.
+    return {
+      name,
+      line,
+      start,
+      contentStart,
+      contentEnd: contentStart,
+      end: contentStart,
+      selfClosing,
+      attributes,
+      children: [],
+      text: "",
+    };
   }
 
-  text(text: string): void {
-    this.top.text += text;
+  text(element: Building, text: string): void {
+    element.text += text;
   }
 
-  close(contentEnd: number, end: number): void {
-    const element = this.top;
+  close(element: Building, parent: Building | undefined, contentEnd: number, end: number): void {
     element.contentEnd = contentEnd;
     element.end = end;
-    // One parent: the holder at least, as every close follows its open.
-    for (const parent of this.stack.splice(-1)) {
-      parent.children.push(element);
-      this.top = parent;
-    }
-    this.root = element;
+    parent?.children.push(element);
   }
 }
 
@@ -339,19 +327,20 @@ const firstNonUtf8 = (bytes: Uint8Array): number => {
 };
 
 /** One pass over the bytes. Each method reads one construct and returns the offset after it. */
-class Scanner {
+class Scanner<T> {
   private readonly bytes: Uint8Array;
   private readonly lines: Lines;
   /** The same bytes as a Buffer, for its fast search of byte sequences. */
   private readonly buffer: Buffer;
-  private readonly events: XmlEvents;
-  /** The open elements, by name and start offset. */
-  private readonly stack: { readonly name: string; readonly start: number }[] = [];
+  private readonly events: XmlEvents<T>;
+  /** The open elements, by name and start offset, with the receiver's value. */
+  private readonly stack: { readonly name: string; readonly start: number; readonly value: T }[] = [];
   /** Names already checked against `NAME`; a file repeats a few names many times. */
   private readonly names = new Set<string>();
-  private rooted = false;
+  /** The receiver's value of the root element, once it is open. */
+  private root: { readonly value: T } | undefined;
 
-  constructor(bytes: Uint8Array, events: XmlEvents) {
+  constructor(bytes: Uint8Array, events: XmlEvents<T>) {
     this.events = events;
     this.bytes = bytes;
     this.lines = new Lines(bytes);
@@ -359,7 +348,7 @@ class Scanner {
   }
 
   /** Reads the whole file and tells whether it starts with a byte order mark. */
-  scan(): boolean {
+  scan(): { readonly bom: boolean; readonly root: T } {
     const bom = BOM.every((byte, i) => this.bytes[i] === byte);
     let at = bom ? BOM.length : 0;
     if (startsWith(this.bytes, at, DECLARATION_OPEN) && isSpace(this.bytes[at + DECLARATION_OPEN.length])) {
@@ -375,10 +364,10 @@ class Scanner {
     if (open !== undefined) {
       throw new Refusal("malformed", `Element <${shown(open.name)}> is not closed`, open.start);
     }
-    if (!this.rooted) {
+    if (this.root === undefined) {
       throw new Refusal("malformed", "No root element", at);
     }
-    return bom;
+    return { bom, root: this.root.value };
   }
 
   /** The bytes from `start` to `end` as text; the whole file is UTF-8 (checked first). */
@@ -408,7 +397,8 @@ class Scanner {
     const lt = this.bytes.indexOf(LT, start);
     const end = lt === -1 ? this.bytes.length : lt;
     const raw = this.decode(start, end);
-    if (this.stack.length === 0) {
+    const open = this.stack.at(-1);
+    if (open === undefined) {
       const other = raw.search(/[^ \t\r\n]/);
       if (other !== -1) {
         throw new Refusal(
@@ -419,7 +409,7 @@ class Scanner {
       }
       return end;
     }
-    this.events.text(resolveReferences(raw, start, textLiteral));
+    this.events.text(open.value, resolveReferences(raw, start, textLiteral));
     return end;
   }
 
@@ -461,13 +451,14 @@ class Scanner {
   }
 
   private cdata(start: number): number {
-    if (this.stack.length === 0) {
+    const open = this.stack.at(-1);
+    if (open === undefined) {
       throw new Refusal("malformed", "CDATA outside the root element", start);
     }
     const from = start + CDATA_OPEN.length;
     const end = this.closingAt(CDATA_CLOSE, from, "A CDATA section", start);
     if (end > from) {
-      this.events.text(textLiteral(this.decode(from, end)));
+      this.events.text(open.value, textLiteral(this.decode(from, end)));
     }
     return end + CDATA_CLOSE.length;
   }
@@ -518,12 +509,12 @@ class Scanner {
         start,
       );
     }
-    this.events.close(start, gt + 1);
+    this.events.close(open.value, this.stack.at(-1)?.value, start, gt + 1);
     return gt + 1;
   }
 
   private startTag(start: number): number {
-    if (this.rooted && this.stack.length === 0) {
+    if (this.root !== undefined && this.stack.length === 0) {
       throw new Refusal("malformed", "A second root element", start);
     }
     const { name, end: nameEnd } = this.name(start + 1);
@@ -557,14 +548,23 @@ class Scanner {
       at = attribute.end;
     }
     const selfClosing = this.bytes[at] === SLASH;
-    this.rooted = true;
     // Self-closing: the content is empty at the `/` of `/>`; otherwise it starts after `>`.
-    this.events.open(name, attributes, this.lines.at(start), start, selfClosing ? at : at + 1, selfClosing);
+    const parent = this.stack.at(-1)?.value;
+    const value = this.events.open(
+      name,
+      attributes,
+      this.lines.at(start),
+      start,
+      selfClosing ? at : at + 1,
+      selfClosing,
+      parent,
+    );
+    this.root ??= { value };
     if (selfClosing) {
-      this.events.close(at, at + 2);
+      this.events.close(value, parent, at, at + 2);
       return at + 2;
     }
-    this.stack.push({ name, start });
+    this.stack.push({ name, start, value });
     return at + 1;
   }
 
@@ -604,17 +604,17 @@ class Scanner {
   }
 }
 
-export type XmlStreamOutcome =
-  | { readonly kind: "streamed"; readonly bom: boolean }
+export type XmlStreamOutcome<T> =
+  | { readonly kind: "streamed"; readonly bom: boolean; readonly root: T }
   | Extract<XmlScanOutcome, { readonly kind: "refused" }>;
 
 /**
  * Reads `bytes` as `scanXml` does and reports each start tag, text run and end to `events` instead of
  * building a tree. An error that `events` throws is not caught.
  */
-export const streamXml = (bytes: Uint8Array, events: XmlEvents): XmlStreamOutcome => {
+export const streamXml = <T>(bytes: Uint8Array, events: XmlEvents<T>): XmlStreamOutcome<T> => {
   try {
-    return { kind: "streamed", bom: new Scanner(bytes, events).scan() };
+    return { kind: "streamed", ...new Scanner(bytes, events).scan() };
   } catch (error) {
     if (!(error instanceof Refusal)) {
       throw error;
@@ -629,9 +629,8 @@ export const streamXml = (bytes: Uint8Array, events: XmlEvents): XmlStreamOutcom
  * refused (not UTF-8, a `<!DOCTYPE`, an unknown entity, not well-formed) with its line.
  */
 export const scanXml = (bytes: Uint8Array): XmlScanOutcome => {
-  const tree = new Tree();
-  const outcome = streamXml(bytes, tree);
+  const outcome = streamXml(bytes, new Tree());
   return outcome.kind === "refused"
     ? outcome
-    : { kind: "scanned", document: { root: tree.root, bom: outcome.bom } };
+    : { kind: "scanned", document: { root: outcome.root, bom: outcome.bom } };
 };
