@@ -79,6 +79,8 @@ jobs:
         env:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         with:
+          # A single 502 of the API ended the whole wait (#480); octokit retries 5xx answers.
+          retries: 3
           script: |
             const { owner, repo } = context.repo;
             const deadline = Date.now() + 40 * 60 * 1000;
