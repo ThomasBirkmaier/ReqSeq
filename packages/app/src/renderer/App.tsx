@@ -570,7 +570,8 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
         dispatch({ type: "unsplit" });
       },
       beside: (side, buffer) => {
-        followed.current = buffer.key;
+        // Only an element not open before counts as brought in: one the reader had open is never replaced.
+        followed.current = buffers.some((open) => open.key === buffer.key) ? undefined : buffer.key;
         dispatch({ type: "beside", side, buffer });
       },
     },
