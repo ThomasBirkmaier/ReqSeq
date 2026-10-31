@@ -41,7 +41,13 @@ export type { FileSnapshot } from "./snapshot.js";
 export { LOCK_STALE_MS, lockPrivateFile, processRuns } from "./lock.js";
 export type { PrivateLock } from "./lock.js";
 export { createPrivateFolder, removePrivateFile, writePrivateFile } from "./private.js";
-export { createFilesAtomic, isTempFile, TEMP_FILE_PATTERN, writeFileAtomic } from "./write.js";
+export {
+  createFilesAtomic,
+  isTempFile,
+  removeCreatedFiles,
+  TEMP_FILE_PATTERN,
+  writeFileAtomic,
+} from "./write.js";
 export type { FileContent, FileKind, NewFile, WriteOptions } from "./write.js";
 export { JSON_CHUNK_LENGTH, jsonByteLength, jsonChunks } from "./json-text.js";
 export type { JsonChunkOptions } from "./json-text.js";

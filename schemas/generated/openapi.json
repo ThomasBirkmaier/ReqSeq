@@ -10311,24 +10311,28 @@
                     },
                     "new": {
                       "type": "array",
+                      "description": "Objects the import would create as new elements, without UUID.",
                       "items": {
                         "$ref": "#/components/schemas/common/$defs/reqifObject"
                       }
                     },
                     "changed": {
                       "type": "array",
+                      "description": "Elements of an earlier delivery of the source (same source IDENTIFIER) whose version with the delivery differs from their import version, conflicts included (SR-056 AK1).",
                       "items": {
                         "$ref": "#/components/schemas/common/$defs/reqifObject"
                       }
                     },
                     "dropped": {
                       "type": "array",
+                      "description": "Elements of the source whose object the file no longer has; the import only lists them (SR-056 AK3).",
                       "items": {
                         "$ref": "#/components/schemas/common/$defs/reqifObject"
                       }
                     },
                     "conflicts": {
                       "type": "array",
+                      "description": "Changed elements that were also changed locally since their import; reqif.import needs take or keep for each (SR-056 AK4).",
                       "items": {
                         "$ref": "#/components/schemas/common/$defs/reqifObject"
                       }
@@ -10341,6 +10345,7 @@
                     },
                     "problems": {
                       "type": "array",
+                      "description": "Warnings: a title or property the import writes back over another value (reqif.replaces-local), a repository not on this machine.",
                       "items": {
                         "$ref": "#/components/schemas/common/$defs/problem"
                       }
@@ -10465,7 +10470,7 @@
     "/v1/commands/reqif.import": {
       "post": {
         "operationId": "reqif_import",
-        "summary": "Import a ReqIF 1.2 file through a saved mapping, all or nothing: creates an element per object and reports losses. Each element keeps its origin (source, source IDENTIFIER, import date, delivery, import version), which no other command writes. This version creates new elements on every import; updating those of an earlier delivery, and take and keep come later.",
+        "summary": "Import a ReqIF 1.2 file through a saved mapping, all or nothing: creates an element per object and reports losses. Each element keeps its origin (source, source IDENTIFIER, import date, delivery, import version), which no other command writes. A repeated delivery of the same source updates the elements of the earlier one in place (matched by source and source IDENTIFIER) and only lists the dropped ones; an element changed locally and in the delivery is a conflict that needs take or keep, else the import is refused (reqif.conflict).",
         "tags": [
           "reqif"
         ],
@@ -10506,14 +10511,14 @@
                   },
                   "take": {
                     "type": "array",
-                    "description": "Conflicts for which the delivery is taken: an exact source IDENTIFIER, else an element among the conflicts.",
+                    "description": "Conflicts for which the delivery is taken: an exact source IDENTIFIER, else an element among the conflicts",
                     "items": {
                       "$ref": "#/components/schemas/common/$defs/elementRef"
                     }
                   },
                   "keep": {
                     "type": "array",
-                    "description": "Conflicts for which the local element is kept: an exact source IDENTIFIER, else an element among the conflicts.",
+                    "description": "Conflicts for which the local element is kept: an exact source IDENTIFIER, else an element among the conflicts",
                     "items": {
                       "$ref": "#/components/schemas/common/$defs/elementRef"
                     }
@@ -10538,24 +10543,28 @@
                   "properties": {
                     "created": {
                       "type": "array",
+                      "description": "New elements.",
                       "items": {
                         "$ref": "#/components/schemas/common/$defs/reqifObject"
                       }
                     },
                     "updated": {
                       "type": "array",
+                      "description": "Elements of an earlier delivery the delivery was written into (changed, taken, or a title, property or relation that differed).",
                       "items": {
                         "$ref": "#/components/schemas/common/$defs/reqifObject"
                       }
                     },
                     "kept": {
                       "type": "array",
+                      "description": "Conflicts in keep: content left, only the origin written.",
                       "items": {
                         "$ref": "#/components/schemas/common/$defs/reqifObject"
                       }
                     },
                     "dropped": {
                       "type": "array",
+                      "description": "Elements of the source whose object the file no longer has; not changed.",
                       "items": {
                         "$ref": "#/components/schemas/common/$defs/reqifObject"
                       }
@@ -11677,7 +11686,9 @@
               "workspace.invalid",
               "workspace.not-watched",
               "git.unavailable",
-              "git.revision-missing"
+              "git.revision-missing",
+              "reqif.replaces-local",
+              "reqif.choice-unused"
             ]
           },
           "error": {

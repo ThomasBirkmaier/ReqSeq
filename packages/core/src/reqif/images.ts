@@ -267,6 +267,17 @@ export class ImageNames {
   private readonly taken = new Set<string>();
   readonly files: { readonly name: string; readonly file: ImageFile }[] = [];
 
+  /**
+   * A file already in the element's image folder (a repeated import, SR-056): its name is taken,
+   * and an image with the same bytes gets that name without a new copy.
+   */
+  reserve(name: string, sha256: string): void {
+    this.taken.add(clashKey(name));
+    if (!this.bySha.has(sha256)) {
+      this.bySha.set(sha256, name);
+    }
+  }
+
   /** The name of the copy of `file` in the element's image folder. */
   nameOf(file: ImageFile): string {
     const known = this.bySha.get(file.sha256);

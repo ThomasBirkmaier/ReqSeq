@@ -5,15 +5,27 @@
 // would create and `losses` what it would lose. Without a mapping every type and relation type of
 // the file is unmapped, with the attributes of each type.
 //
-// Not yet: the one-to-one mapping of a ReqSeq file and `source` (SR-052), and `changed`, `dropped`
-// and `conflicts` of a repeated delivery (SR-056), which stay empty, as `reqif.import` creates new
-// elements on every import.
+// A repeated delivery (SR-056 AK1): `changed` lists every element of the source the delivery
+// changes, `conflicts` those of them also changed locally, `dropped` the elements whose object the
+// file no longer has, each with its UUID; `problems` warns of a title or property the import would
+// write back (`reqif.replaces-local`) and of a repository not on this machine, which `reqif.import`
+// refuses (`workspace.repository-missing`).
+//
+// Not yet: the one-to-one mapping of a ReqSeq file and `source` (SR-052).
 import path from "node:path";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
 import { metamodelState } from "../../metamodel/index.js";
 import type { AnyMapping } from "../../reqif/index.js";
-import { imageReader, importDate, planImport, readDelivery, readMappingFile } from "../../reqif/index.js";
+import {
+  existingElements,
+  imageReader,
+  importDate,
+  originKeys,
+  planImport,
+  readDelivery,
+  readMappingFile,
+} from "../../reqif/index.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
 
 type Analysis = CommandOutput<"reqif.analyze">;
@@ -34,8 +46,31 @@ export default defineCommand({
             source: { name: input.source ?? delivery.header.title ?? delivery.header.identifier },
           }
         : (await readMappingFile(layout, metamodel, workspace.root, input.mapping, command)).mapping;
-    const empty: Analysis = { unmapped: [], new: [], changed: [], dropped: [], conflicts: [], losses: [] };
+    const missing = layout.repositories.filter((r) => !r.available).map((r) => r.name);
+    const problems: Analysis["problems"] = missing.map((name) => ({
+      code: "workspace.repository-missing",
+      severity: "warning",
+      message: `Repository ${name} is not on this machine: elements of an earlier delivery there are not matched, and reqif.import refuses until it is there`,
+      repository: name,
+    }));
+    const empty: Analysis = {
+      unmapped: [],
+      new: [],
+      changed: [],
+      dropped: [],
+      conflicts: [],
+      losses: [],
+      ...(problems.length === 0 ? {} : { problems }),
+    };
     try {
+      const existing = await existingElements(
+        workspace,
+        layout,
+        metamodel,
+        delivery,
+        mapping.source.name,
+        originKeys(metamodel),
+      );
       const plan = await planImport(
         delivery,
         mapping,
@@ -44,12 +79,22 @@ export default defineCommand({
         // Never written: the analysis names no delivery.
         { delivery: "", date: importDate(new Date()) },
         imageReader(path.resolve(workspace.root, input.file), ctx.localPaths),
+        { existing },
       );
-      // The planned UUIDs name no element yet, so neither list carries them.
+      // The planned UUIDs name no element yet, so neither list carries them; existing ones do.
+      const planned = new Set(plan.created.map(({ id }) => id));
       return {
         ...empty,
         new: plan.created.map(({ identifier }) => ({ identifier })),
-        losses: plan.losses.map(({ id: _id, ...loss }) => loss),
+        changed: [...plan.changed],
+        dropped: [...plan.dropped],
+        conflicts: [...plan.conflicts],
+        losses: plan.losses.map(({ id, ...loss }) =>
+          id === undefined || planned.has(id) ? loss : { ...loss, id },
+        ),
+        ...(problems.length + plan.problems.length === 0
+          ? {}
+          : { problems: [...problems, ...plan.problems] }),
       };
     } catch (error) {
       if (error instanceof CommandError && error.code === "reqif.unmapped") {

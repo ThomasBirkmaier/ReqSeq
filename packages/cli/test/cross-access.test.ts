@@ -148,6 +148,44 @@ const PARTIAL_DELIVERY: FixtureOptions = {
   files: { ...DELIVERY.files, "reqif/kunde-a.yaml": PARTIAL_MAPPING },
 };
 /** A refused import leaves every file as it was and writes no element file (SR-055 AK3). */
+/** The fixture files of fixtures/SR-056 under `name`. */
+const sr056 = (name: string): string =>
+  readFileSync(new URL(`../../../fixtures/SR-056/${name}`, import.meta.url), "utf8");
+/** The UUID of REQ-n of delivery 1 as fixtures/SR-056/imported holds it. */
+const imported = (n: number): string => `6adc0560-0000-4000-8000-00000000000${String(n)}`;
+/**
+ * SR-004/one-repository after delivery 1 of fixtures/SR-056 was imported (fixtures/SR-056/imported,
+ * REQ-3 changed locally since), with delivery 2 and the mapping: REQ-1 changed, REQ-3 a conflict,
+ * REQ-4 dropped, REQ-5 new (SR-056).
+ */
+const REPEATED: FixtureOptions = {
+  ...ONE_REPOSITORY,
+  files: {
+    "in/2.reqif": sr056("delivery/lieferung-2.reqif"),
+    "reqif/kunde-a.yaml": sr056("delivery/kunde-a.yaml"),
+    ...Object.fromEntries(
+      [1, 2, 3, 4].map((n) => [
+        `Kunde-A/SR-00000000000${String(n)}.md`,
+        sr056(`imported/Kunde-A/SR-00000000000${String(n)}.md`),
+      ]),
+    ),
+  },
+};
+const REPEAT = { file: "in/2.reqif", mapping: "reqif/kunde-a.yaml", delivery: "Lastenheft 2026-12" };
+/** Every access left the files of delivery 1 as they were. */
+const unchangedRepeat = (results: Readonly<Record<string, Result>>): void => {
+  for (const result of Object.values(results)) {
+    for (const n of [1, 2, 3, 4]) {
+      const file = `Kunde-A/SR-00000000000${String(n)}.md`;
+      expect(result.files[file]).toBe(REPEATED.files?.[file]);
+    }
+    expect(Object.keys(result.files).filter((f) => f.startsWith("Kunde-A/"))).toHaveLength(4);
+  }
+};
+/** The output of the core access. */
+const coreOutput = (results: Readonly<Record<string, Result>>): unknown =>
+  (results["core"]?.outcome as { output: unknown }).output;
+
 const unchangedDelivery =
   (mapping: string) =>
   (results: Readonly<Record<string, Result>>): void => {
@@ -2174,6 +2212,30 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       input: { file: "reqif/kunde-a.yaml" },
       expect: "error",
     },
+    {
+      tag: "[SR-056/AK1]",
+      name: "a repeated delivery: new, changed and dropped requirements and the conflicts, separately",
+      fixture: REPEATED,
+      input: { file: REPEAT.file, mapping: REPEAT.mapping },
+      expect: "output",
+      check: (results) => {
+        const out = coreOutput(results) as {
+          new: unknown;
+          changed: unknown;
+          dropped: unknown;
+          conflicts: unknown;
+        };
+        expect([out.new, out.changed, out.dropped, out.conflicts]).toEqual([
+          [{ identifier: "REQ-5" }],
+          [
+            { identifier: "REQ-1", id: imported(1) },
+            { identifier: "REQ-3", id: imported(3) },
+          ],
+          [{ identifier: "REQ-4", id: imported(4) }],
+          [{ identifier: "REQ-3", id: imported(3) }],
+        ]);
+      },
+    },
   ],
   "reqif.import": [
     {
@@ -2183,6 +2245,78 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       input: { file: "in/lieferung.reqif", mapping: "reqif/kunde-a.yaml", delivery: "Lastenheft 2026-11" },
       expect: "output",
       newElement: true,
+    },
+    {
+      tag: "[SR-056/AK4]",
+      name: "a repeated delivery with a conflict and no choice is refused with reqif.conflict naming it",
+      fixture: REPEATED,
+      input: REPEAT,
+      expect: "error",
+      check: (results) => {
+        const { error } = results["core"]?.outcome as {
+          error: { code: string; details?: { conflicts?: unknown } };
+        };
+        expect([error.code, error.details?.conflicts]).toEqual([
+          "reqif.conflict",
+          [{ identifier: "REQ-3", id: imported(3) }],
+        ]);
+      },
+    },
+    {
+      tag: "[SR-055/AK3]",
+      name: "a repeated delivery refused for a conflict changes no file",
+      fixture: REPEATED,
+      input: REPEAT,
+      expect: "error",
+      check: unchangedRepeat,
+    },
+    {
+      tag: "[SR-056/AK2]",
+      name: "a repeated delivery with take updates the elements of the source in place and creates only the new one",
+      fixture: REPEATED,
+      input: { ...REPEAT, take: ["REQ-3"] },
+      expect: "output",
+      newElement: true,
+      check: (results) => {
+        const out = coreOutput(results) as {
+          created: { identifier: string }[];
+          updated: unknown;
+          kept: unknown;
+        };
+        expect(out.created.map((c) => c.identifier)).toEqual(["REQ-5"]);
+        expect(out.updated).toEqual(
+          [1, 2, 3].map((n) => ({ identifier: `REQ-${String(n)}`, id: imported(n) })),
+        );
+        expect(out.kept).toEqual([]);
+        for (const result of Object.values(results)) {
+          expect(Object.keys(result.files).filter((f) => f.startsWith("Kunde-A/"))).toHaveLength(5);
+          expect(result.files["Kunde-A/SR-000000000003.md"]).toContain("for 30 days.");
+        }
+      },
+    },
+    {
+      tag: "[SR-056/AK3]",
+      name: "a repeated delivery lists the dropped requirement and leaves its file as it was",
+      fixture: REPEATED,
+      input: { ...REPEAT, keep: ["REQ-3"] },
+      expect: "output",
+      newElement: true,
+      check: (results) => {
+        const out = coreOutput(results) as { dropped: unknown; kept: unknown };
+        expect([out.dropped, out.kept]).toEqual([
+          [{ identifier: "REQ-4", id: imported(4) }],
+          [{ identifier: "REQ-3", id: imported(3) }],
+        ]);
+        for (const result of Object.values(results)) {
+          // Versions are placeholders here (newElement); the rest of the file is as it was.
+          const placeholder = (text: unknown): string =>
+            String(text).replace(/n1:[0-9a-f]{16}/g, "<version>");
+          expect(result.files["Kunde-A/SR-000000000004.md"]).toBe(
+            placeholder(REPEATED.files?.["Kunde-A/SR-000000000004.md"]),
+          );
+          expect(result.files["Kunde-A/SR-000000000003.md"]).toContain("for a year.");
+        }
+      },
     },
     {
       tag: "[SR-055/AK3]",

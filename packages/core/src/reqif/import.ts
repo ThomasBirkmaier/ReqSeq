@@ -30,12 +30,24 @@
 //   properties (SR-057 AK3; `propertyKeyRefusal`).
 // - Files go into the mapping's `target`, else a folder named after the source in the main
 //   repository (SR-053 AK1). The own metamodel is only read (SR-054 AK3).
+// - A repeated delivery (SR-056, `repeat.ts`): an object whose element an earlier delivery made
+//   (same source and source IDENTIFIER) keeps that element, its UUID and its file. Its planned
+//   version P (the file with the delivery's fields, `editElementFile`) is compared with the stored
+//   import version I and the current version C: *changed* when P differs from I, a *conflict* when
+//   C differs from both; changed only locally (P = I, C differs) leaves it as it is (#575/1), and
+//   with neither changed it is written only when its mapped fields or relations differ from the
+//   file, with a `reqif.replaces-local` warning (#575/3, #575/4). A conflict needs `take` or `keep`
+//   (`reqif.conflict` otherwise); `keep` writes only the origin with P as import version (#575/6).
+//   Relations to such an element carry P when the delivery is written into it, else C.
 import { randomUUID } from "node:crypto";
 import path from "node:path";
+import { isDeepStrictEqual } from "node:util";
 import { CommandError } from "../catalog.js";
-import type { PropertyValue } from "../files/index.js";
+import type { FileEditResult, FrontmatterEdit, PropertyValue } from "../files/index.js";
+import { bodyForText, editElementFile } from "../files/index.js";
 import type {
   MetamodelProperty,
+  Problem,
   ReqifLoss,
   ReqifObject,
   ReqifUnmapped,
@@ -52,9 +64,12 @@ import {
   portableName,
   propertyKeyRefusal,
 } from "../model/index.js";
+import type { ElementFileWrite } from "../model/write.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
 import { locate } from "../workspace/index.js";
 import type { AnyMapping } from "./mapping.js";
+import type { ExistingElement, ExistingElements, RelationItem } from "./repeat.js";
+import { NO_EXISTING, relationEdits } from "./repeat.js";
 import type {
   ReqifAttributeDefinition,
   ReqifDatatype,
@@ -91,6 +106,51 @@ export interface ImportPlan {
   readonly images: readonly PlannedImage[];
   readonly created: readonly ReqifObject[];
   readonly losses: readonly ReqifLoss[];
+  /** The writes into elements of an earlier delivery (SR-056): from the delivery (update, take) or only the origin (keep). */
+  readonly updates: readonly PlannedUpdate[];
+  /** The copies of the images the texts of updated elements embed, into each one's image folder. */
+  readonly updateImages: readonly PlannedUpdateImage[];
+  /** Every element the delivery changes (SR-056 AK1), conflicts included. */
+  readonly changed: readonly ReqifObject[];
+  /** The changed elements that were also changed locally (SR-056 AK4). */
+  readonly conflicts: readonly ReqifObject[];
+  /** The elements of the source the delivery no longer has (SR-056 AK3). */
+  readonly dropped: readonly ReqifObject[];
+  /** Warnings: `reqif.replaces-local`, `reqif.choice-unused`. */
+  readonly problems: readonly Problem[];
+}
+
+/** A write into an element of an earlier delivery. */
+export interface PlannedUpdate {
+  readonly identifier: string;
+  readonly id: string;
+  readonly kind: "updated" | "kept";
+  readonly write: ElementFileWrite;
+}
+
+/** A copy of an image into the image folder of an updated element. */
+export interface PlannedUpdateImage {
+  readonly repository: RepositoryLocation;
+  /** Relative to the repository, `/` as separator. */
+  readonly file: string;
+  readonly name: string;
+  readonly image: ImageFile;
+}
+
+/** `take` or `keep` for each conflict, by source IDENTIFIER. */
+export type ConflictChoices = ReadonlyMap<string, "take" | "keep">;
+
+/** What a repeated delivery adds to the plan: the elements of the source and, for an import, the choices. */
+export interface RepeatOptions {
+  readonly existing: ExistingElements;
+  /**
+   * The choice for each conflict, with the warnings for entries that name none; undefined for a
+   * preview (`reqif.analyze`), which lists the conflicts instead of refusing.
+   */
+  readonly choose?: (conflicts: readonly ReqifObject[]) => {
+    readonly choices: ConflictChoices;
+    readonly problems: readonly Problem[];
+  };
 }
 
 /** What the import itself writes into the origin of each element besides the source and IDENTIFIER. */
@@ -200,6 +260,8 @@ interface Coverage {
   >;
   /** The own type of each SPEC-OBJECT-TYPE. */
   readonly types: Map<string, string | undefined>;
+  /** The index of the mapping entry of each mapped SPEC-OBJECT-TYPE. */
+  readonly typeEntries: Map<string, number>;
   /** The relation kind of each SPEC-RELATION-TYPE. */
   readonly relations: Map<string, string | undefined>;
   readonly unmapped: ReqifUnmapped[];
@@ -282,6 +344,7 @@ const checkObjectType = (
     return;
   }
   coverage.types.set(t.identifier, typeEntry.type);
+  coverage.typeEntries.set(t.identifier, at);
   if (typeEntry.type === undefined) {
     return;
   }
@@ -318,6 +381,7 @@ const checkCoverage = (
   const coverage: Coverage = {
     attributes: new Map(),
     types: new Map(),
+    typeEntries: new Map(),
     relations: new Map(),
     unmapped: [],
     wrong: [],
@@ -358,9 +422,21 @@ interface Draft {
   title: string;
   text: string;
   readonly properties: Map<string, PropertyValue>;
-  readonly relations: Map<string, { readonly id: string; readonly version: string }[]>;
+  readonly relations: Map<string, RelationItem[]>;
   /** The planned version (`plannedVersion`), set once the values are planned. */
   version: string;
+  /** The workspace name of its repository. */
+  readonly repository: string;
+  /** The element of an earlier delivery it updates (SR-056). */
+  readonly existing?: ExistingElement;
+  /** Its current version (C) when it is such an element, else empty. */
+  readonly current: string;
+  /** The property keys the mapping maps for its type (removed when the delivery has no value). */
+  readonly mapped: readonly string[];
+  /** What the repeated delivery does with an existing element; `new` for a new one. */
+  case: "new" | "update" | "conflict" | "local" | "same";
+  /** Whether the delivery's content is written (new, update, take, same); else relations get its current version. */
+  deliveryWins: boolean;
   /** The file name without `.md`, which is also the name of its image folder. */
   readonly stem: string;
   /** The images copied next to it. */
@@ -601,7 +677,40 @@ interface Context {
   readonly origin: ImportOrigin;
   readonly images: ImageReader;
   readonly layout: WorkspaceLayout;
+  readonly mapping: AnyMapping;
+  readonly existing: ExistingElements;
 }
+
+/** The version a relation to `draft` carries: P when the delivery is written into it, else its current one (C). */
+const targetVersion = (draft: Draft): string => (draft.deliveryWins ? draft.version : draft.current);
+
+/**
+ * The file of an existing element with the delivery's title, text, mapped properties and origin
+ * (`omit`: origin keys left as they are), plus `extra` edits; only changed keys are rewritten.
+ */
+const updatedFile = (
+  draft: Draft,
+  existing: ExistingElement,
+  extra: readonly FrontmatterEdit[],
+  omit: readonly string[] = [],
+): FileEditResult => {
+  const { file } = existing.current;
+  const removed = draft.mapped.filter((key) => !draft.properties.has(key));
+  return editElementFile(file, {
+    edits: [
+      { kind: "set", key: draft.base.titleKey, value: draft.title },
+      ...[...draft.properties]
+        .filter(([key]) => !omit.includes(key))
+        .map(([key, value]): FrontmatterEdit => ({ kind: "set", key, value })),
+      ...removed
+        .filter((key) => existing.record.data[key] !== undefined)
+        .map((key): FrontmatterEdit => ({ kind: "remove", key })),
+      ...extra,
+    ],
+    body: bodyForText(file.body, draft.text),
+    keyOrder: draft.base.type.properties,
+  });
+};
 
 /** Takes the values of `object` into `draft` (see the file comment). */
 const planValues = async (
@@ -657,6 +766,94 @@ const planValues = async (
   }
 };
 
+/**
+ * The element of an earlier delivery `object` updates (SR-056), refused when the mapping now gives
+ * it another type or it has no current version.
+ */
+const matchedElement = (
+  context: Context,
+  object: ReqifSpecObject,
+  t: ReqifSpecType,
+  ownType: string,
+): ExistingElement | undefined => {
+  const existing = context.existing.matched.get(object.identifier);
+  if (existing === undefined) {
+    return undefined;
+  }
+  const { record } = existing;
+  if (record.type !== ownType) {
+    const at = context.coverage.typeEntries.get(t.identifier);
+    throw new CommandError(
+      "input.invalid",
+      `Not imported: ${object.identifier} is ${record.file} of type ${record.type}, which an import does not change to ${ownType}`,
+      { fields: [`mapping.types[${String(at)}].type`], identifier: object.identifier, id: record.id },
+    );
+  }
+  if (existing.version === undefined) {
+    throw new CommandError(
+      "input.invalid",
+      `Not imported: ${record.file} (${object.identifier}) has no current version, so a local change cannot be told: ${String(existing.unknown)}`,
+      { id: record.id, identifier: object.identifier, file: record.file, reason: "no-version" },
+    );
+  }
+  return existing;
+};
+
+/** The empty draft of `object`: a new element, or the element of an earlier delivery with its UUID, file name and images. */
+const draftOf = (
+  context: Context,
+  object: ReqifSpecObject,
+  t: ReqifSpecType,
+  base: NewElementBase,
+  existing: ExistingElement | undefined,
+  repository: RepositoryLocation,
+): Draft => {
+  const id = existing?.record.id ?? randomUUID();
+  const images = new ImageNames();
+  for (const { name, sha256 } of existing?.images ?? []) {
+    images.reserve(name, sha256);
+  }
+  const file =
+    existing === undefined
+      ? fileNameFor({ prefix: base.type.prefix, id })
+      : path.posix.basename(existing.record.file);
+  return {
+    identifier: object.identifier,
+    id,
+    base,
+    title: nameOf(object),
+    text: "",
+    properties: new Map(),
+    relations: new Map(),
+    version: "",
+    stem: file.slice(0, -".md".length),
+    images,
+    textImages: new Map(),
+    repository: existing?.record.repository ?? repository.name,
+    ...(existing === undefined ? {} : { existing }),
+    current: existing === undefined ? "" : String(existing.version),
+    mapped: t.attributes.flatMap((a) => {
+      const checked = context.coverage.attributes.get(a.identifier);
+      return checked?.definition === undefined || checked.entry.property === undefined
+        ? []
+        : [checked.entry.property];
+    }),
+    case: "new",
+    deliveryWins: true,
+  };
+};
+
+/** What the delivery does with an existing element of planned version `planned` (P), by I and C. */
+const caseOf = (planned: string, existing: ExistingElement): Draft["case"] => {
+  // matchedElement refused an element without current version.
+  const current = existing.version;
+  if (planned === existing.imported) {
+    return current === existing.imported ? "same" : "local";
+  }
+  // The same result on both sides is no conflict (#575/2).
+  return current !== existing.imported && current !== planned ? "conflict" : "update";
+};
+
 /** The draft of `object`, or undefined when its type is omitted (a loss). */
 const planObject = async (
   context: Context,
@@ -683,20 +880,8 @@ const planObject = async (
   }
   const base = newElementBase(context.metamodel, ownType, "reqif.import");
   const { keys } = context;
-  const id = randomUUID();
-  const draft: Draft = {
-    identifier: object.identifier,
-    id,
-    base,
-    title: nameOf(object),
-    text: "",
-    properties: new Map(),
-    relations: new Map(),
-    version: "",
-    stem: fileNameFor({ prefix: base.type.prefix, id }).slice(0, -".md".length),
-    images: new ImageNames(),
-    textImages: new Map(),
-  };
+  const existing = matchedElement(context, object, t, ownType);
+  const draft = draftOf(context, object, t, base, existing, repository);
   await planValues(context, object, t, draft);
   draft.properties.set(keys.source, context.source);
   draft.properties.set(keys["source-identifier"], object.identifier);
@@ -706,8 +891,10 @@ const planObject = async (
   draft.version = await plannedVersion(
     context.metamodel,
     context.layout,
-    repository,
-    fileOf(draft, folder, false),
+    existing?.repository ?? repository,
+    existing === undefined
+      ? fileOf(draft, folder, false)
+      : { file: existing.record.file, bytes: updatedFile(draft, existing, []).bytes },
     draft.textImages,
   );
   draft.properties.set(keys["import-version"], draft.version);
@@ -779,7 +966,12 @@ const planRelation = (
     if (twice) {
       loss("relation-duplicate", `${kind} to ${relation.target} is imported once already`);
     } else {
-      items.push({ id: target.id, version: target.version });
+      // A target in another repository names it (ADR-0004, D-058).
+      items.push({
+        id: target.id,
+        version: targetVersion(target),
+        ...(target.repository === source.repository ? {} : { repository: target.repository }),
+      });
     }
     source.relations.set(kind, items);
   }
@@ -837,6 +1029,7 @@ export const planImport = async (
   metamodel: Metamodel,
   origin: ImportOrigin,
   images: ImageReader,
+  repeat: RepeatOptions = { existing: NO_EXISTING },
 ): Promise<ImportPlan> => {
   const keys = originKeys(metamodel);
   const index = indexOf(file);
@@ -864,6 +1057,8 @@ export const planImport = async (
     origin,
     images,
     layout,
+    mapping,
+    existing: repeat.existing,
   };
   const drafts = new Map<string, Draft>();
   for (const object of file.specObjects) {
@@ -872,6 +1067,7 @@ export const planImport = async (
       drafts.set(object.identifier, draft);
     }
   }
+  const { changed, conflicts, problems, choices } = classify(drafts, repeat);
   for (const relation of file.specRelations) {
     planRelation(context, drafts, relation);
   }
@@ -901,7 +1097,8 @@ export const planImport = async (
     }
   }
   unreadLosses(file, drafts, context.losses);
-  const all = [...drafts.values()];
+  const all = [...drafts.values()].filter((d) => d.existing === undefined);
+  const updates = planUpdates(context, drafts, choices, problems);
   return {
     repository,
     folder: relative,
@@ -909,5 +1106,141 @@ export const planImport = async (
     images: all.flatMap((d) => d.images.files.map(({ name, file }) => ({ stem: d.stem, name, file }))),
     created: all.map((d) => ({ identifier: d.identifier, id: d.id })),
     losses: context.losses,
+    ...updates,
+    changed,
+    conflicts,
+    dropped: repeat.existing.dropped,
+    problems,
   };
+};
+
+/**
+ * Sorts the drafts of existing elements by P, I and C (see the file comment) and, for an import,
+ * takes the choices for the conflicts: `reqif.conflict` names those without one.
+ */
+const classify = (
+  drafts: ReadonlyMap<string, Draft>,
+  repeat: RepeatOptions,
+): {
+  readonly changed: ReqifObject[];
+  readonly conflicts: ReqifObject[];
+  readonly problems: Problem[];
+  readonly choices: ConflictChoices;
+} => {
+  const changed: ReqifObject[] = [];
+  const conflicts: ReqifObject[] = [];
+  for (const draft of drafts.values()) {
+    const { existing } = draft;
+    if (existing === undefined) {
+      continue;
+    }
+    const object = { identifier: draft.identifier, id: draft.id };
+    draft.case = caseOf(draft.version, existing);
+    if (draft.case === "update" || draft.case === "conflict") {
+      changed.push(object);
+    }
+    if (draft.case === "conflict") {
+      conflicts.push(object);
+    }
+  }
+  const chosen = repeat.choose?.(conflicts) ?? { choices: new Map<string, "take" | "keep">(), problems: [] };
+  if (repeat.choose !== undefined) {
+    const missing = conflicts.filter((c) => !chosen.choices.has(c.identifier));
+    if (missing.length > 0) {
+      throw new CommandError(
+        "reqif.conflict",
+        `Not imported: ${missing.map((c) => c.identifier).join(", ")} changed locally and in the delivery; name each in take or keep`,
+        { conflicts: missing },
+      );
+    }
+  }
+  for (const draft of drafts.values()) {
+    draft.deliveryWins =
+      draft.case === "conflict" ? chosen.choices.get(draft.identifier) === "take" : draft.case !== "local";
+  }
+  return { changed, conflicts, problems: [...chosen.problems], choices: chosen.choices };
+};
+
+/**
+ * The writes into existing elements and the image copies they need: the delivery for update, take
+ * and same (only when the file would differ apart from delivery and import date, with a
+ * `reqif.replaces-local` warning naming the keys), the origin alone for keep, nothing for an
+ * element changed only locally.
+ */
+const planUpdates = (
+  context: Context,
+  drafts: ReadonlyMap<string, Draft>,
+  choices: ConflictChoices,
+  problems: Problem[],
+): Pick<ImportPlan, "updates" | "updateImages"> => {
+  const { keys } = context;
+  const kinds = [
+    ...new Set([...context.coverage.relations.values()].flatMap((k) => (k === undefined ? [] : [k]))),
+  ];
+  const updates: PlannedUpdate[] = [];
+  const updateImages: PlannedUpdateImage[] = [];
+  for (const draft of drafts.values()) {
+    const { existing } = draft;
+    if (existing === undefined) {
+      continue;
+    }
+    const { identifier, id } = draft;
+    const write = (kind: PlannedUpdate["kind"], bytes: Uint8Array): void => {
+      updates.push({ identifier, id, kind, write: { ...existing, bytes } });
+    };
+    if (draft.case === "conflict" && choices.get(identifier) === "keep") {
+      const origin = [keys["import-version"], keys.delivery, keys["import-date"]];
+      const edits = origin.map((key): FrontmatterEdit => ({
+        kind: "set",
+        key,
+        // The planner set every origin key to text.
+        value: draft.properties.get(key) as string,
+      }));
+      write(
+        "kept",
+        editElementFile(existing.current.file, { edits, keyOrder: draft.base.type.properties }).bytes,
+      );
+      continue;
+    }
+    if (!draft.deliveryWins) {
+      continue;
+    }
+    const { data } = existing.record;
+    const relations = kinds.map((kind) => ({
+      kind,
+      edits: relationEdits(data, kind, draft.relations.get(kind) ?? [], context.existing.ids),
+    }));
+    const extra = relations.flatMap((r) => r.edits);
+    if (draft.case === "same") {
+      if (!updatedFile(draft, existing, extra, [keys.delivery, keys["import-date"]]).changed) {
+        continue;
+      }
+      // Relations follow the delivery without a warning: their versions follow written targets.
+      const replaced = [
+        ...(data[draft.base.titleKey] === draft.title ? [] : [draft.base.titleKey]),
+        ...draft.mapped.filter((key) => !isDeepStrictEqual(data[key], draft.properties.get(key))),
+      ];
+      if (replaced.length > 0) {
+        problems.push({
+          code: "reqif.replaces-local",
+          severity: "warning",
+          message: `${identifier}: the delivery writes ${replaced.join(", ")} into ${existing.record.file}, which holds other values there, although neither side changed its version`,
+          repository: existing.record.repository,
+          file: existing.record.file,
+          elementId: id,
+        });
+      }
+    }
+    write("updated", updatedFile(draft, existing, extra).bytes);
+    const folder = path.posix.dirname(existing.record.file);
+    for (const { name, file } of draft.images.files) {
+      updateImages.push({
+        repository: existing.repository,
+        file: path.posix.join(folder, draft.stem, name),
+        name,
+        image: file,
+      });
+    }
+  }
+  return { updates, updateImages };
 };

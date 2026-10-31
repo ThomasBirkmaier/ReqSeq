@@ -5,7 +5,8 @@
 // files on disk, not from the element store. Loading, the watcher (SR-007) and a changed metamodel
 // (SR-015) change no status either. Confirming a hint (AK2) writes the files of approved, obsolete
 // and draft elements here; importing a delivery (AK2) creates new elements with the initial status
-// only (SR-053; updating imported elements comes with SR-056).
+// only (SR-053), and a changed delivery of the same source updates them without their status
+// (SR-056).
 import fs from "node:fs";
 import path from "node:path";
 import { createFixtureWorkspace, untilWatching } from "@reqseq/testkit";
@@ -87,6 +88,7 @@ const FILES: Readonly<Record<string, string>> = {
   "new/layout.png": "an image",
   [VARIANT_FILE]: `---\nid: ${VARIANT}\ntype: variant\nstatus: approved\ntitle: Coast\n---\n`,
   "in/lieferung.reqif": delivery("lieferung.reqif"),
+  "in/lieferung-2.reqif": delivery("lieferung.reqif").replace("Every 10 s.", "Every 5 s."),
   "reqif/import-kunde-a.yaml": delivery("kunde-a.yaml"),
   "reqif/import-status.yaml": delivery("kunde-a.yaml").replace(
     "{ source: Internal Comment, omit: true }",
@@ -294,6 +296,7 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
   // A mapping that maps an attribute to `status` is refused: the delivery never sets a status.
   "reqif.import": [
     IMPORT,
+    { ...IMPORT, file: "in/lieferung-2.reqif", delivery: "2" },
     { ...IMPORT, file: "in/missing.reqif" },
     { ...IMPORT, mapping: "reqif/import-status.yaml" },
   ],

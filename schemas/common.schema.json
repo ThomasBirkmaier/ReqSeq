@@ -274,7 +274,9 @@
         "workspace.invalid",
         "workspace.not-watched",
         "git.unavailable",
-        "git.revision-missing"
+        "git.revision-missing",
+        "reqif.replaces-local",
+        "reqif.choice-unused"
       ]
     },
     "error": {
