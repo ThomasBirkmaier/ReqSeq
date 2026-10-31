@@ -2744,17 +2744,18 @@ describe("App, the package page (SR-112)", () => {
     expect(document.activeElement).toBe(query(".members .list"));
   });
 
-  it("Ctrl+N on an element that is no package, or on a package without elements, is not taken", async () => {
+  it("[SR-155/AK2] Ctrl+N on an element that is no package, or on a package without elements, goes to its first field", async () => {
     const fake = fakeBridge(withPackage());
     await render(fake.bridge);
     await keyDown(window, "p", { ctrlKey: true });
     await type("title");
     await keyDown(query("input"), "Enter");
     expect(query("article h1").textContent).toBe("Title 2");
-    expect((await pressed(query("article"), "n", { ctrlKey: true })).defaultPrevented).toBe(false);
+    expect((await pressed(query("article"), "n", { ctrlKey: true })).defaultPrevented).toBe(true);
+    expect((document.activeElement as HTMLElement | null)?.dataset["field"]).toBe("Title");
     await openPackage(withPackage(() => ({ elements: [], total: 0 })));
-    expect((await pressed(query("article"), "n", { ctrlKey: true })).defaultPrevented).toBe(false);
-    expect(document.activeElement).toBe(query("article"));
+    expect((await pressed(query("article"), "n", { ctrlKey: true })).defaultPrevented).toBe(true);
+    expect((document.activeElement as HTMLElement | null)?.dataset["field"]).toBe("Title");
   });
 
   it.each(["Win32", "Linux x86_64"])(
