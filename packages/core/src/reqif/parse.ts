@@ -577,40 +577,60 @@ class Reader implements XmlEvents<Frame> {
       reqifChild(node, "SPEC-ATTRIBUTES"),
       (definition): ReqifAttributeDefinition | undefined => {
         const kind = kindOf(definition, "ATTRIBUTE-DEFINITION-");
-        return kind === undefined
-          ? undefined
-          : {
-              ...identifiable(definition),
-              kind,
-              datatype: refIn(definition, "TYPE", `${definition.name.replace("ATTRIBUTE", "DATATYPE")}-REF`),
-              multiValued: isTrue(attribute(definition, "MULTI-VALUED")),
-            };
+        if (kind === undefined) {
+          return undefined;
+        }
+        const own = identifiable(definition);
+        // One value; anything else inside DEFAULT-VALUE is unread.
+        let taken = 0;
+        const [defaultValue] = this.each(reqifChild(definition, "DEFAULT-VALUE"), (value) => {
+          const read = taken === 0 ? this.value(value, own.identifier) : undefined;
+          taken += read === undefined ? 0 : 1;
+          return read;
+        });
+        return {
+          ...own,
+          kind,
+          datatype: refIn(definition, "TYPE", `${definition.name.replace("ATTRIBUTE", "DATATYPE")}-REF`),
+          multiValued: isTrue(attribute(definition, "MULTI-VALUED")),
+          ...(defaultValue === undefined ? {} : { defaultValue }),
+        };
       },
     );
     return { ...identifiable(node), category, attributes };
   }
 
   private values(node: Node): ReqifValue[] {
-    return this.each(reqifChild(node, "VALUES"), (value): ReqifValue | undefined => {
-      const kind = kindOf(value, "ATTRIBUTE-VALUE-");
-      if (kind === undefined) {
-        return undefined;
-      }
-      const definition = refIn(value, "DEFINITION", `${value.name.replace("VALUE", "DEFINITION")}-REF`);
-      if (kind === "xhtml") {
-        // Only strings and XHTML elements are inside THE-VALUE (`roleOf` refuses ReqIF ones).
-        return { kind, definition, value: (required(value, "THE-VALUE").content as XhtmlNode[]).slice() };
-      }
-      if (kind === "enumeration") {
-        const refs = reqifChildren(reqifChild(value, "VALUES") ?? value, "ENUM-VALUE-REF");
-        return { kind, definition, values: refs.map((ref) => textOf(ref).trim()) };
-      }
-      const theValue = attribute(value, "THE-VALUE");
-      if (theValue === undefined) {
-        throw new Invalid(`<${value.name}> has no THE-VALUE`, value.line);
-      }
-      return { kind, definition, value: theValue };
-    });
+    return this.each(reqifChild(node, "VALUES"), (value) => this.value(value));
+  }
+
+  /**
+   * One ATTRIBUTE-VALUE-…, or undefined for another element. A default value (`own`: the IDENTIFIER
+   * of its attribute definition) belongs to that definition and may leave out its DEFINITION.
+   */
+  private value(value: Node, own?: string): ReqifValue | undefined {
+    const kind = kindOf(value, "ATTRIBUTE-VALUE-");
+    if (kind === undefined) {
+      return undefined;
+    }
+    const written =
+      own === undefined || reqifChild(value, "DEFINITION") !== undefined
+        ? refIn(value, "DEFINITION", `${value.name.replace("VALUE", "DEFINITION")}-REF`)
+        : own;
+    const definition = own ?? written;
+    if (kind === "xhtml") {
+      // Only strings and XHTML elements are inside THE-VALUE (`roleOf` refuses ReqIF ones).
+      return { kind, definition, value: (required(value, "THE-VALUE").content as XhtmlNode[]).slice() };
+    }
+    if (kind === "enumeration") {
+      const refs = reqifChildren(reqifChild(value, "VALUES") ?? value, "ENUM-VALUE-REF");
+      return { kind, definition, values: refs.map((ref) => textOf(ref).trim()) };
+    }
+    const theValue = attribute(value, "THE-VALUE");
+    if (theValue === undefined) {
+      throw new Invalid(`<${value.name}> has no THE-VALUE`, value.line);
+    }
+    return { kind, definition, value: theValue };
   }
 
   private headerOf(theHeader: Node): ReqifHeader {
@@ -676,6 +696,10 @@ const danglingReferences = (file: ReqifFile, defined: ReadonlySet<string>): Reqi
   };
   for (const definition of file.specTypes.flatMap((type) => type.attributes)) {
     check(definition, "Datatype", definition.datatype);
+    const { defaultValue } = definition;
+    for (const reference of defaultValue?.kind === "enumeration" ? defaultValue.values : []) {
+      check(definition, "Enumeration value", reference);
+    }
   }
   for (const object of file.specObjects) {
     check(object, "SPEC-OBJECT-TYPE", object.type);

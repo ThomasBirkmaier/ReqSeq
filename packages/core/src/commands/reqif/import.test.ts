@@ -269,7 +269,7 @@ describe("reqif.import (SR-053)", () => {
       ["in/relation.reqif", /SPEC-RELATION REL-2 refers to type rt-none/],
       ["in/value.reqif", /SPEC-OBJECT REQ-1 has a value of attribute ad-heading/],
       ["in/datatype.reqif", /attribute ad-text refers to datatype dt-none/],
-      ["in/twice.reqif", /^file: IDENTIFIER REQ-1 is used twice \(first on line 44\)$/],
+      ["in/twice.reqif", /^file: line 57: IDENTIFIER REQ-1 is used twice$/],
     ] as const) {
       const error = await failure(workspace, { ...INPUT, file });
       expect([error.code, error.message], file).toEqual(["reqif.invalid", expect.stringMatching(message)]);

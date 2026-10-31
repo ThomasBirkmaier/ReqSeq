@@ -18,7 +18,12 @@
 // - Losses (SR-053 AK2), with the codes of `common.schema.json#/$defs/reqifLoss`: an object of an
 //   omitted type, a value of an omitted attribute or an omitted enumeration value, a date whose time
 //   is not midnight, XHTML elements without plain form, a relation whose type is omitted or whose
-//   other end is not imported, and the SPEC-HIERARCHY, once per SPECIFICATION that has one.
+//   other end is not imported, values of relations and specifications, a duplicate relation, a
+//   relation the metamodel does not allow, the SPEC-HIERARCHY (once per SPECIFICATION that has one)
+//   and every part of an imported object the parser did not read. A DEFAULT-VALUE is the value of
+//   an object without its own (ReqIF 1.2 §10.8.3).
+// - Never from the delivery: `id`, `type`, `status`, the title key (D-030) and the origin
+//   properties (SR-057 AK3).
 // - Files go into the mapping's `target`, else a folder named after the source in the main
 //   repository (SR-053 AK1). The own metamodel is only read (SR-054 AK3).
 import { randomUUID } from "node:crypto";
@@ -128,32 +133,8 @@ interface Index {
   readonly datatypes: ReadonlyMap<string, ReqifDatatype>;
 }
 
-/** Refuses an IDENTIFIER the file uses twice (ReqIF 1.2 §10.8.32), at the line of the second use. */
-const refuseDuplicates = (file: ReqifFile): void => {
-  const seen = new Map<string, number>();
-  const identifiables: readonly (readonly ReqifIdentifiable[])[] = [
-    file.datatypes,
-    file.datatypes.flatMap((d) => d.values),
-    file.specTypes,
-    file.specTypes.flatMap((t) => t.attributes),
-    file.specObjects,
-    file.specRelations,
-    file.specifications,
-  ];
-  for (const item of identifiables.flat()) {
-    const first = seen.get(item.identifier);
-    if (first !== undefined) {
-      throw invalidFile(
-        `IDENTIFIER ${item.identifier} is used twice (first on line ${String(first)})`,
-        item.line,
-      );
-    }
-    seen.set(item.identifier, item.line);
-  }
-};
-
+/** The file's definitions; the parser refused an IDENTIFIER used twice (ReqIF 1.2 §10.8.32). */
 const indexOf = (file: ReqifFile): Index => {
-  refuseDuplicates(file);
   const attributes = new Map<
     string,
     { readonly type: ReqifSpecType; readonly a: ReqifAttributeDefinition }
@@ -198,6 +179,35 @@ interface Coverage {
   readonly wrong: { readonly field: string; readonly message: string }[];
 }
 
+/** Meanings of the origin properties (SR-057), which no mapping entry may name. */
+const ORIGIN_MEANINGS: ReadonlySet<string> = new Set([
+  "source",
+  "source-identifier",
+  "import-date",
+  "delivery",
+  "import-version",
+]);
+
+/**
+ * Why a mapping entry may not name the property `key`: the keys `element.create` refuses (`id`,
+ * `type`, `status`, D-030; the title key; a property the type does not have) and the origin
+ * properties, which only the import itself writes (SR-057 AK3).
+ */
+const keyRefusal = (
+  key: string,
+  definition: MetamodelProperty | undefined,
+  metamodel: Metamodel,
+  base: NewElementBase,
+): string | undefined => {
+  const refusal = propertyKeyRefusal(key, metamodel, base.type, base.titleKey, "property");
+  if (refusal !== undefined) {
+    return refusal.message;
+  }
+  return definition?.meaning !== undefined && ORIGIN_MEANINGS.has(definition.meaning)
+    ? `${key} holds the origin (${definition.meaning}), which only the import writes`
+    : undefined;
+};
+
 /** Checks the entry at `i` for attribute `a` of type `t`, mapped to own type `base` (see `checkCoverage`). */
 const checkAttribute = (
   coverage: Coverage,
@@ -221,12 +231,9 @@ const checkAttribute = (
   const definition = found?.kind === "property" ? found.definition : undefined;
   checked.definition = definition;
   const datatype = datatypeOf(index, a);
-  // The same keys as element.create: never `id`, `type`, `status` (D-030) or the title key.
-  const refusal = own
-    ? undefined
-    : propertyKeyRefusal(property, metamodel, base.type, base.titleKey, "property");
+  const refusal = own ? undefined : keyRefusal(property, definition, metamodel, base);
   if (refusal !== undefined) {
-    coverage.wrong.push({ field, message: refusal.message });
+    coverage.wrong.push({ field, message: refusal });
     return;
   }
   if (!holds(definition, datatype.kind)) {
@@ -485,7 +492,12 @@ interface Context {
 /** Takes the values of `object` into `draft` (see the file comment). */
 const planValues = (context: Context, object: ReqifSpecObject, t: ReqifSpecType, draft: Draft): void => {
   const { index, coverage, losses } = context;
-  for (const value of object.values) {
+  // An attribute without a value of its own has its DEFAULT-VALUE (ReqIF 1.2 §10.8.3).
+  const given = new Set(object.values.map((value) => value.definition));
+  const defaults = t.attributes.flatMap((a) =>
+    a.defaultValue === undefined || given.has(a.identifier) ? [] : [a.defaultValue],
+  );
+  for (const value of [...object.values, ...defaults]) {
     const known = index.attributes.get(value.definition);
     if (known?.type !== t) {
       throw invalidFile(
@@ -650,6 +662,32 @@ const allowed = (metamodel: Metamodel, kind: string, source: Draft, target: Draf
   );
 };
 
+/**
+ * A loss for every part of an imported object, relation or specification the parser did not read
+ * (`unread` with an owner: ALTERNATIVE-ID, THE-ORIGINAL-VALUE, unknown children, ...). Parts of an
+ * object or relation whose type the mapping omits are not listed again.
+ */
+const unreadLosses = (file: ReqifFile, drafts: ReadonlyMap<string, Draft>, losses: ReqifLoss[]): void => {
+  const omitted = new Set(
+    losses.filter((l) => l.code === "omitted-type").map((l) => `${l.kind} ${l.identifier}`),
+  );
+  const sources = new Map(file.specRelations.map((r) => [r.identifier, r.source]));
+  for (const { name, line, owner } of file.unread) {
+    if (owner === undefined || omitted.has(`${owner.kind} ${owner.identifier}`)) {
+      continue;
+    }
+    const { kind, identifier } = owner;
+    const draft = drafts.get(kind === "spec-object" ? identifier : (sources.get(identifier) ?? ""));
+    losses.push({
+      identifier,
+      kind,
+      ...(draft === undefined ? {} : { id: draft.id }),
+      code: "omitted-value",
+      reason: `<${name}> on line ${String(line)} is not read`,
+    });
+  }
+};
+
 /** The plan of importing `file` through `mapping` (see the file comment). */
 export const planImport = (
   file: ReqifFile,
@@ -708,6 +746,7 @@ export const planImport = (
       });
     }
   }
+  unreadLosses(file, drafts, context.losses);
   const all = [...drafts.values()];
   return {
     repository,

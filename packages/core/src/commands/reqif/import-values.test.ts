@@ -89,7 +89,11 @@ const DELIVERY = [
   attribute("ENUMERATION", "a-platforms", "Platforms", "dt-os"),
   attribute("ENUMERATION", "a-priority", "Priority", "dt-level"),
   attribute("ENUMERATION", "a-tags", "Tags", "dt-level"),
-  attribute("ENUMERATION", "a-note", "Note", "dt-level"),
+  // O-1 has a Note of its own, the other items get its DEFAULT-VALUE (here without DEFINITION).
+  attribute("ENUMERATION", "a-note", "Note", "dt-level").replace(
+    "</TYPE>",
+    "</TYPE><DEFAULT-VALUE><ATTRIBUTE-VALUE-ENUMERATION><VALUES><ENUM-VALUE-REF>dt-level-Low</ENUM-VALUE-REF></VALUES></ATTRIBUTE-VALUE-ENUMERATION></DEFAULT-VALUE>",
+  ),
   attribute("STRING", "a-criteria", "Criteria", "dt-string"),
   attribute("STRING", "a-body", "Body", "dt-string"),
   attribute("DATE", "a-reviews", "Reviews", "dt-date"),
@@ -124,19 +128,27 @@ const DELIVERY = [
     "a-due": "2026-11-02T00:00:00Z",
     "a-platforms": "dt-os-Mac",
   }),
-  item("O-3", { "a-name": "Three", "a-count": "7", "a-due": "2026-11-03", "a-platforms": "dt-os-None" }),
+  item("O-3", {
+    "a-name": "Three",
+    "a-count": "7",
+    "a-due": "2026-11-03",
+    "a-platforms": "dt-os-None",
+  }).replace("<VALUES>", '<ALTERNATIVE-ID><ALTERNATIVE-ID IDENTIFIER="x-3"/></ALTERNATIVE-ID><VALUES>'),
   object("S-1", "ot-skip", []),
   object("M-1", "ot-memo", [value("STRING", "a-label", "A memo")]),
   item("O-5", { "a-name": "Five", "a-weight": " ", "a-count": "0x1A" }),
   item("O-6", { "a-name": "Six", "a-count": "99999999999999999999" }),
   "</SPEC-OBJECTS><SPEC-RELATIONS>",
-  relation("R-1", "rt-trace", "O-1", "O-2", value("STRING", "ar-why", "Because")),
+  relation("R-1", "rt-trace", "O-1", "O-2", value("STRING", "ar-why", "Because")).replace(
+    "<VALUES>",
+    "<EXTRA/><VALUES>",
+  ),
   relation("R-2", "rt-trace", "O-1", "O-2"),
-  relation("R-3", "rt-trace", "S-1", "O-1"),
-  relation("R-4", "rt-skip", "O-1", "O-3"),
+  relation("R-3", "rt-trace", "S-1", "O-1").replace("<VALUES>", "<EXTRA/><VALUES>"),
+  relation("R-4", "rt-skip", "O-1", "O-3").replace("<VALUES>", "<EXTRA/><VALUES>"),
   relation("R-5", "rt-trace", "M-1", "O-1"),
   "</SPEC-RELATIONS><SPECIFICATIONS>",
-  `<SPECIFICATION IDENTIFIER="SP-1" LONG-NAME="Empty"><VALUES>${value("STRING", "as-title", "Values")}</VALUES><TYPE><SPECIFICATION-TYPE-REF>st</SPECIFICATION-TYPE-REF></TYPE></SPECIFICATION>`,
+  `<SPECIFICATION IDENTIFIER="SP-1" LONG-NAME="Empty"><EXTRA/><VALUES>${value("STRING", "as-title", "Values")}</VALUES><TYPE><SPECIFICATION-TYPE-REF>st</SPECIFICATION-TYPE-REF></TYPE></SPECIFICATION>`,
   "</SPECIFICATIONS></REQ-IF-CONTENT></CORE-CONTENT></REQ-IF>",
   "",
 ].join("\n");
@@ -215,7 +227,7 @@ describe("reqif.import of each datatype (SR-053)", () => {
       "acceptance-criteria": ["It works."],
       note: "High",
     });
-    expect(await properties(workspace, two)).toMatchObject({ due: "2026-11-02" });
+    expect(await properties(workspace, two)).toMatchObject({ due: "2026-11-02", note: "Low" });
     expect(await properties(workspace, two)).not.toHaveProperty("weight");
     expect(await properties(workspace, two)).not.toHaveProperty("platforms");
     expect(await properties(workspace, three)).toMatchObject({ weight: 7, due: "2026-11-03" });
@@ -256,6 +268,17 @@ describe("reqif.import of each datatype (SR-053)", () => {
         "the metamodel does not allow derives-from from need to system-requirement",
       ],
       ["SP-1", "omitted-attribute", "the values of a SPECIFICATION are not imported: Title"],
+      ["O-3", "omitted-value", "<ALTERNATIVE-ID> on line 38 is not read"],
+      ["R-1", "omitted-value", "<EXTRA> on line 44 is not read"],
+      ["R-3", "omitted-value", "<EXTRA> on line 46 is not read"],
+      ["SP-1", "omitted-value", "<EXTRA> on line 50 is not read"],
+    ]);
+    // A part not read is a loss of the element it belongs to, or of the source of a relation.
+    expect(out.losses.filter((l) => l.reason.endsWith("is not read")).map((l) => l.id)).toEqual([
+      three,
+      one,
+      undefined,
+      undefined,
     ]);
   });
 
@@ -300,6 +323,19 @@ describe("reqif.import of each datatype (SR-053)", () => {
     expect([error.code, error.message]).toEqual([
       "input.invalid",
       "mapping.attributes[8].property: property cannot hold status: ReqSeq sets it",
+    ]);
+  });
+
+  it("refuses a mapped origin property: only the import writes it (SR-057 AK3)", async () => {
+    const metamodel = METAMODEL.replace(
+      "  - { key: note, name: Note, kind: text }",
+      "  - { key: note, name: Note, kind: text, meaning: source }",
+    );
+    const workspace = await open(MAPPING, metamodel);
+    const error = await failure(workspace);
+    expect([error.code, error.message]).toEqual([
+      "input.invalid",
+      "mapping.attributes[7].property: note holds the origin (source), which only the import writes",
     ]);
   });
 
