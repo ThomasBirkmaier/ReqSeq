@@ -7,7 +7,7 @@ spec-id: SR-156
 rationale: "Entscheidung des Produktverantwortlichen, 2026-10-31: Per Tastatur öffnet eine Box mit festen Werten die Werteauswahl in der Befehlszeile, per Maus öffnet sich nichts. Ein Klick soll dieselbe Auswahl öffnen wie die Tastatur, kein eigenes Dropdown an der Box, weil die Befehlszeile nach D-062 die einzige Bedienstelle ist und ein Klick dort als Weg zum Anfordern vorgesehen ist. Eingetragen in Später."
 requirement-type: functional
 acceptance-criteria:
-  - Gegeben ein geöffnetes Element mit einer Property mit festen Werten im Metamodell, wenn ihre Box angeklickt wird, dann öffnet die Befehlszeile dieselbe Werteauswahl wie beim Bearbeiten dieser Box per Tastatur, mit genau den Werten aus dem Metamodell (SR-104).
+  - Gegeben ein geöffnetes Element mit einer Property mit festen Werten im Metamodell, wenn der Wert in ihrer Box angeklickt wird, nicht das Symbol zum Kopieren (SR-128), dann öffnet die Befehlszeile dieselbe Werteauswahl wie beim Bearbeiten dieser Box per Tastatur (SR-104).
   - Gegeben die per Klick geöffnete Werteauswahl, wenn ein Wert angeklickt wird, dann setzt das Tool ihn mit demselben Ergebnis wie die Auswahl dieses Werts per Tastatur.
   - Gegeben die per Klick geöffnete Werteauswahl, wenn Escape gedrückt oder außerhalb der Befehlszeile geklickt wird, dann schließt sie und der Wert der Property bleibt unverändert.
 packages:
