@@ -51,7 +51,7 @@ export const FIELD_KEYS: readonly KeyRow[] = [
 export const PACKAGE_KEYS: readonly KeyRow[] = [
   {
     keys: [{ press: press("n", true) }],
-    does: "On a package page: select its first element (the physical Ctrl key, also on macOS)",
+    does: "On a package page: select its first element; on any other element: go to its first field (the physical Ctrl key, also on macOS)",
   },
   {
     keys: [{ press: press("Escape") }, { press: press("ArrowUp") }, { press: press("p", true) }],

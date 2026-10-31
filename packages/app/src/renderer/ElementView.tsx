@@ -1430,7 +1430,7 @@ export const ElementView = ({
   };
   // Up and Down on a field move to the field before and after, and Down on the last one into the elements of
   // a package. Down on the element itself goes into the elements of a package, else to its first field, where
-  // the highlight shows (SR-155, assumption).
+  // the highlight shows (SR-155, product owner decision, 2026-10-31, #552).
   const onArrow = (down: boolean, label: string | undefined, root: HTMLElement): void => {
     const fields = [TITLE_FIELD, "Text", ...boxKeys];
     const hasMembers = (members?.total ?? 0) > 0;
@@ -1449,6 +1449,17 @@ export const ElementView = ({
       article?.focus();
     } else {
       onArrow(key === "ArrowDown", label, root);
+    }
+  };
+  // Ctrl+N on the page of a package selects its first element (SR-122 AK4); on any other element it goes to the
+  // first field, as Down does (SR-155, product owner decision, 2026-10-31, #552). Not from an editor or the list
+  // itself (they are not the buffer); Ctrl+P is not the page's: it is the window's.
+  const onCtrlN = (hasMembers: boolean, root: HTMLElement): void => {
+    if (hasMembers) {
+      dispatch({ type: "cursor", key: buffer.key, cursor: 0 });
+      intoMembers(root);
+    } else {
+      onArrow(true, undefined, root);
     }
   };
   // Undo and redo on a choice or relation box step through its value history (SR-105 AK2). True when the
@@ -1490,12 +1501,9 @@ export const ElementView = ({
     if (plain && fieldKey(key, label)) {
       event.preventDefault();
       onField(key, label, currentTarget);
-    } else if (hasMembers && !event.defaultPrevented && ctrlStep(event) === 1) {
-      // Ctrl+N on the page of a package selects its first element (SR-122 AK4). Not from an editor or the
-      // list itself (they are not the buffer); Ctrl+P is not the page's: it is the window's.
+    } else if (!event.defaultPrevented && ctrlStep(event) === 1 && (hasMembers || label === undefined)) {
       event.preventDefault();
-      dispatch({ type: "cursor", key: buffer.key, cursor: 0 });
-      intoMembers(currentTarget);
+      onCtrlN(hasMembers, currentTarget);
     }
   };
 

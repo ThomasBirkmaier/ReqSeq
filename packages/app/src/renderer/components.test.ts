@@ -5935,13 +5935,22 @@ describe("ElementView", () => {
         "element.facets",
       ]);
       expect(container.querySelector(".members")).toBeNull();
-      // Down on an element that has no elements to go into goes to its first field (SR-155, assumption).
+      // Down on an element that has no elements to go into goes to its first field (SR-155, #552).
       const down = new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true });
       await act(async () => {
         query("article").dispatchEvent(down);
         await Promise.resolve();
       });
       expect(down.defaultPrevented).toBe(true);
+      expect((document.activeElement as HTMLElement | null)?.dataset["field"]).toBe("Title");
+      // Ctrl+N on the element does the same.
+      query("article").focus();
+      const next = new KeyboardEvent("keydown", { key: "n", ctrlKey: true, bubbles: true, cancelable: true });
+      await act(async () => {
+        query("article").dispatchEvent(next);
+        await Promise.resolve();
+      });
+      expect(next.defaultPrevented).toBe(true);
       expect((document.activeElement as HTMLElement | null)?.dataset["field"]).toBe("Title");
       act(() => {
         root.unmount();
@@ -5966,7 +5975,7 @@ describe("ElementView", () => {
       expect(container.querySelector(".members h2")).toBeNull();
       expect(container.querySelector(".members .row")).toBeNull();
       expect(controls().members).toBe(true);
-      // No elements to go into: Down goes to the first field of the page (SR-155, assumption).
+      // No elements to go into: Down goes to the first field of the page (SR-155, #552).
       const down = new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true });
       await act(async () => {
         query("article").dispatchEvent(down);

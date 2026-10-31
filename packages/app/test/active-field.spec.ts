@@ -138,7 +138,7 @@ test.describe("the field the focus is in", () => {
         await expect(symbol(window, other), `${other} while ${label}`).toBeHidden();
       }
     };
-    // Down on the element itself goes to its first field (assumption, product owner to confirm).
+    // Down on the element itself goes to its first field (#552).
     await window.keyboard.press("ArrowDown");
     await expect(field(window, "Title")).toBeFocused();
     await at("Title");
@@ -154,6 +154,13 @@ test.describe("the field the focus is in", () => {
     await at(box);
     await window.keyboard.press("ArrowUp");
     await at("Text");
+    // Ctrl+N on the element itself goes to the first field as well.
+    await window.keyboard.press("Escape");
+    await window.keyboard.press("Escape");
+    await expect(window.locator("article")).toBeFocused();
+    await window.keyboard.press("Control+n");
+    await expect(field(window, "Title")).toBeFocused();
+    await at("Title");
   });
 
   test("[SR-155/AK3] no field is tinted while the focus is on the buffer or in the prompt", async () => {
