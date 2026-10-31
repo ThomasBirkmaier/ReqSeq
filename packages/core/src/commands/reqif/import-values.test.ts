@@ -306,6 +306,12 @@ describe("reqif.import of each datatype (SR-053)", () => {
       item("D-2", { "a-name": "Short", "a-due": "2021-7-1", "a-reviews": "2026-02-30T00:00:00Z" }),
       item("D-3", { "a-name": "Late", "a-due": "2026-11-02T25:00:00Z", "a-reviews": "2026-13-01" }),
       item("D-4", { "a-name": "Leap", "a-due": "2024-02-29T23:59:59.5-14:00" }),
+      item("D-5", {
+        "a-name": "Spaced",
+        "a-due": " 2026-01-01T00:00:00Z ",
+        "a-reviews": "2026-12-31T24:00:00Z",
+      }),
+      item("D-6", { "a-name": "Last", "a-due": "9999-12-31T24:00:00Z" }),
     ].join("");
     const workspace = await open(
       MAPPING,
@@ -329,6 +335,12 @@ describe("reqif.import of each datatype (SR-053)", () => {
       expect(written).not.toHaveProperty("review-dates");
     }
     expect(await properties(workspace, ids.get("D-4"))).toMatchObject({ due: "2024-02-29" });
+    // White space around the value is collapsed (xs:dateTime), and 24:00:00 is midnight of the next day.
+    expect(await properties(workspace, ids.get("D-5"))).toMatchObject({
+      due: "2026-01-01",
+      "review-dates": ["2027-01-01"],
+    });
+    expect(await properties(workspace, ids.get("D-6"))).not.toHaveProperty("due");
     expect(dateLosses(out.losses)).toEqual([
       ["D-1", "omitted-value", 'Due: "aaa" is no DATE'],
       ["D-1", "omitted-value", 'Reviews: "" is no DATE'],
@@ -337,6 +349,7 @@ describe("reqif.import of each datatype (SR-053)", () => {
       ["D-3", "omitted-value", 'Due: "2026-11-02T25:00:00Z" is no DATE'],
       ["D-3", "omitted-value", 'Reviews: "2026-13-01" is no DATE'],
       ["D-4", "date-time", "Due: the time of 2024-02-29T23:59:59.5-14:00 is left out; 2024-02-29 is kept"],
+      ["D-6", "omitted-value", 'Due: "9999-12-31T24:00:00Z" is no DATE'],
     ]);
   });
 

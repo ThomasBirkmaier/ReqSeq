@@ -17,11 +17,11 @@
 //   do not count to a version, ADR-0005).
 // - Losses (SR-053 AK2), with the codes of `common.schema.json#/$defs/reqifLoss`: an object of an
 //   omitted type, a value of an omitted attribute or an omitted enumeration value, a number or date
-//   not in its lexical form, a date whose time is not midnight, XHTML elements without plain form, a relation whose type is omitted or whose
-//   other end is not imported, values of relations and specifications, a duplicate relation, a
-//   relation the metamodel does not allow, the SPEC-HIERARCHY (once per SPECIFICATION that has one)
-//   and every part of an imported object the parser did not read. A DEFAULT-VALUE is the value of
-//   an object without its own (ReqIF 1.2 §10.8.3).
+//   not in its lexical form, a date whose time is not midnight, XHTML elements without plain form,
+//   a relation whose type is omitted or whose other end is not imported, values of relations and
+//   specifications, a duplicate relation, a relation the metamodel does not allow, the SPEC-
+//   HIERARCHY (once per SPECIFICATION that has one) and every part of an imported object the parser
+//   did not read. A DEFAULT-VALUE is the value of an object without its own (ReqIF 1.2 §10.8.3).
 // - Origin (SR-057 AK1): each element gets the source name of the mapping, the object's IDENTIFIER,
 //   the import date, the delivery and the import version: the element's planned version as written
 //   (D-059; `import-version` never counts to it). A mapping that maps a SPEC-OBJECT-TYPE to a type
@@ -486,23 +486,34 @@ const choiceValue = (
 const DATE_TIME =
   /^\d{4}-\d{2}-\d{2}(?:T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?|24:00:00(?:\.0+)?)(?:Z|[+-](?:(?:0\d|1[0-3]):[0-5]\d|14:00))?)?$/;
 
-/** Whether `date` (`YYYY-MM-DD`) is a day of the calendar. */
-const isDay = (date: string): boolean => {
+/** The time of xs:dateTime that is the first instant of the next day (XSD 1.1 Part 2 §3.3.8). */
+const END_OF_DAY = /^T24:00:00(?:\.0+)?(?:Z|[+-]\d{2}:\d{2})?$/;
+
+/** The time of `date` (`YYYY-MM-DD`) in UTC, if it is a day of the calendar. */
+const dayTime = (date: string): number | undefined => {
   const time = Date.parse(`${date}T00:00:00Z`);
-  return !Number.isNaN(time) && new Date(time).toISOString().startsWith(date);
+  return !Number.isNaN(time) && new Date(time).toISOString().startsWith(date) ? time : undefined;
 };
 
+const DAY_MS = 86_400_000;
+
 /**
- * A DATE value as a date property holds it: the day (a time other than midnight is a loss). A value
- * that is not of the lexical form of xs:dateTime (an empty value too) or names no day is a loss.
+ * A DATE value as a date property holds it: the day (a time other than midnight is a loss; 24:00:00
+ * is midnight of the next day). A value that is not of the lexical form of xs:dateTime (an empty
+ * value too; white space around it is collapsed) or names no day a date property holds is a loss.
  */
-const dateValue = (value: string, loss: Loss): string | undefined => {
-  const date = value.slice(0, 10);
-  if (!DATE_TIME.test(value) || !isDay(date)) {
-    loss("omitted-value", `"${value}" is no DATE`);
+const dateValue = (raw: string, loss: Loss): string | undefined => {
+  const value = raw.trim();
+  const written = value.slice(0, 10);
+  const time = DATE_TIME.test(value) ? dayTime(written) : undefined;
+  const endOfDay = END_OF_DAY.test(value.slice(10));
+  const date =
+    time === undefined ? undefined : endOfDay ? new Date(time + DAY_MS).toISOString().slice(0, 10) : written;
+  if (date === undefined || !/^\d{4}-/.test(date)) {
+    loss("omitted-value", `"${raw}" is no DATE`);
     return undefined;
   }
-  if (value.length > 10 && !MIDNIGHT.test(value.slice(10))) {
+  if (value.length > 10 && !endOfDay && !MIDNIGHT.test(value.slice(10))) {
     loss("date-time", `the time of ${value} is left out; ${date} is kept`);
   }
   return date;
