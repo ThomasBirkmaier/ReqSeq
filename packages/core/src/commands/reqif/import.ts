@@ -16,7 +16,7 @@
 //
 // Not yet: updating the elements of an earlier delivery and the
 // conflicts `take` and `keep` decide (SR-056; until then no import finds a conflict, so both lists
-// change nothing, and a repeated import creates new elements) and images (SR-095).
+// change nothing, and a repeated import creates new elements).
 import fs from "node:fs/promises";
 import { constants } from "node:fs";
 import path from "node:path";
@@ -26,14 +26,16 @@ import type { Problem } from "../../catalog.js";
 import { createFolder, renderYamlDocument, writeFileAtomic } from "../../files/index.js";
 import type { Metamodel } from "../../metamodel/index.js";
 import { metamodelState } from "../../metamodel/index.js";
-import type { NewElementFile } from "../../model/index.js";
+import type { NewElementFile, NewImageFile } from "../../model/index.js";
 import { createElementFiles, refuseUnlisted, titleKeyOrEmpty, workspacePath } from "../../model/index.js";
-import type { AnyMapping } from "../../reqif/index.js";
+import type { AnyMapping, PlannedImage } from "../../reqif/index.js";
 import {
   MAPPING_KEYS,
   OWN_TOOL_ID,
   REQIF_LIMITS,
   checkMapping,
+  imageContent,
+  imageReader,
   importDate,
   mappingTarget,
   originKeys,
@@ -97,6 +99,14 @@ const readDelivery = async (root: string, given: string): Promise<Uint8Array> =>
 };
 
 /** The mapping of a file of ReqSeq, and a new mapping file to save with the elements. */
+/** Creates the folder of the mapping file to save, once nothing refuses the import any more. */
+const mappingFolder = async (save: NonNullable<OwnMapping["save"]>): Promise<void> => {
+  const folder = path.posix.dirname(save.file.file);
+  if (folder !== ".") {
+    await createFolder(save.repository.folder, folder);
+  }
+};
+
 interface OwnMapping {
   readonly mapping: AnyMapping;
   readonly save?: { readonly repository: RepositoryLocation; readonly file: NewElementFile };
@@ -174,13 +184,39 @@ const spelledFiles = async (
   folder: string,
   files: readonly NewElementFile[],
   first: NewElementFile,
-): Promise<NewElementFile[]> => {
+): Promise<{ readonly spelled: string; readonly files: NewElementFile[] }> => {
   const before = await refuseUnlisted(layout, repository, first.file);
   if (folder !== "") {
     await createFolder(repository.folder, path.posix.dirname(before));
   }
   const spelled = path.posix.dirname(await refuseUnlisted(layout, repository, before));
-  return files.map((f) => ({ ...f, file: path.posix.join(spelled, path.posix.basename(f.file)) }));
+  return {
+    spelled,
+    files: files.map((f) => ({ ...f, file: path.posix.join(spelled, path.posix.basename(f.file)) })),
+  };
+};
+
+/**
+ * The image copies under the target folder as spelled (`spelled`, the folder of the element files),
+ * each in the image folder of its element (`<element stem>/<name>`), read while they are written
+ * (`imageContent`). Every copy is checked like the target before and after its folder is created
+ * (SR-095 AK2, as `element.addAttachment`), so the walk lists each one. A folder made for a call
+ * that fails later stays, empty (#530).
+ */
+const spelledImages = async (
+  layout: WorkspaceLayout,
+  repository: RepositoryLocation,
+  spelled: string,
+  images: readonly PlannedImage[],
+): Promise<NewImageFile[]> => {
+  const out: NewImageFile[] = [];
+  for (const { stem, name, file } of images) {
+    const before = await refuseUnlisted(layout, repository, path.posix.join(spelled, stem, name));
+    await createFolder(repository.folder, path.posix.dirname(before));
+    const at = await refuseUnlisted(layout, repository, before);
+    out.push({ file: at, content: imageContent(file, name) });
+  }
+  return out;
 };
 
 export default defineCommand({
@@ -213,34 +249,41 @@ export default defineCommand({
               .mapping,
             problems: [],
           };
-    const plan = planImport(
+    const plan = await planImport(
       parsed.file,
       mapped.mapping,
       layout,
       metamodel,
       { delivery: input.delivery, date: importDate(new Date()) },
+      imageReader(path.resolve(workspace.root, input.file), ctx.localPaths),
       own,
     );
     const { save } = mapped;
     const together = save?.repository.name === plan.repository.name;
-    if (save !== undefined) {
-      const folder = path.posix.dirname(save.file.file);
-      if (folder !== ".") {
-        await createFolder(save.repository.folder, folder);
-      }
-    }
     const [first] = plan.files;
-    const files =
-      first === undefined
-        ? []
-        : await createElementFiles(
-            workspace,
-            layout,
-            plan.repository,
-            await spelledFiles(layout, plan.repository, plan.folder, plan.files, first),
-            together ? [save.file] : [],
-          );
+    let files: string[] = [];
+    if (first !== undefined) {
+      const { spelled, files: elements } = await spelledFiles(
+        layout,
+        plan.repository,
+        plan.folder,
+        plan.files,
+        first,
+      );
+      const images = await spelledImages(layout, plan.repository, spelled, plan.images);
+      if (together) {
+        await mappingFolder(save);
+      }
+      files = await createElementFiles(
+        workspace,
+        layout,
+        plan.repository,
+        elements,
+        together ? [...images, { file: save.file.file, content: save.file.bytes }] : images,
+      );
+    }
     if (save !== undefined && (first === undefined || !together)) {
+      await mappingFolder(save);
       await writeFileAtomic(save.repository.folder, save.file.file, save.file.bytes, null, { kind: "yaml" });
       files.push(workspacePath(layout, save.repository, save.file.file));
     }

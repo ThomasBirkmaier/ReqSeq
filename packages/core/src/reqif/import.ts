@@ -8,7 +8,7 @@
 //   attribute whose datatype the property cannot hold is `input.invalid` at its mapping entry.
 // - Elements: one per SPEC-OBJECT whose type is mapped, with a new UUID (D-056), the initial status
 //   of its type (D-030), the title from the attribute mapped to `title` (else LONG-NAME, else
-//   IDENTIFIER), the text from the attribute mapped to `text` (`xhtmlText`, until SR-095) and the
+//   IDENTIFIER), the text from the attribute mapped to `text` (XHTML as Markdown, `xhtmlToMarkdown`, SR-095) and the
 //   mapped properties: INTEGER and REAL as number, DATE as its date, ENUMERATION as the choice keys
 //   of `values`, and every datatype as text in `title`, `text` and a text property (enumeration
 //   values by name).
@@ -78,11 +78,23 @@ import type {
   ReqifSpecRelation,
   ReqifSpecType,
   ReqifValue,
+  XhtmlNode,
 } from "./model.js";
 import type { OriginKeys } from "./origin.js";
 import { originKeys } from "./origin.js";
 import { ownAttributes, ownId, readableValues } from "./own.js";
+import type { ImageFile, ImageReader } from "./images.js";
+import { ImageNames } from "./images.js";
+import { prepareMarkdown } from "./xhtml-markdown.js";
 import { markdownText, xhtmlText } from "./xhtml-text.js";
+
+/** A copy of an image in the image folder of an element. */
+export interface PlannedImage {
+  /** The element file name without `.md`. */
+  readonly stem: string;
+  readonly name: string;
+  readonly file: ImageFile;
+}
 
 /** What `planImport` gives: the files to write and what the output lists. */
 export interface ImportPlan {
@@ -90,6 +102,8 @@ export interface ImportPlan {
   /** The target folder relative to the repository, `/` as separator. */
   readonly folder: string;
   readonly files: readonly NewElementFile[];
+  /** The copies of the images the texts embed: `name` in the image folder `stem` of an element (SR-095 AK2). */
+  readonly images: readonly PlannedImage[];
   readonly created: readonly ReqifObject[];
   readonly losses: readonly ReqifLoss[];
   /** Warnings: `reqif.edited-elsewhere` for an object of a file of ReqSeq another tool changed. */
@@ -360,6 +374,12 @@ interface Draft {
   ownRelations?: Map<string, PropertyValue>;
   /** The planned version (`plannedVersion`), set once the values are planned. */
   version: string;
+  /** The file name without `.md`, which is also the name of its image folder. */
+  readonly stem: string;
+  /** The images copied next to it. */
+  readonly images: ImageNames;
+  /** The images the text embeds, which count to the version (D-057). */
+  readonly textImages: Map<string, string>;
 }
 
 type Loss = (code: ReqifLoss["code"], reason: string) => void;
@@ -380,25 +400,70 @@ const enumValuesOf = (refs: readonly string[], datatype: ReqifDatatype, loss: Lo
   return found;
 };
 
+/** Where a text goes: the element text, a property with `markdown: true`, or a plain one. */
+type Target = "text" | "markdown" | "plain";
+
 /**
- * The texts of a value: XHTML as `xhtmlText` (its other elements a loss), enumeration values by
- * name, the others as written. For a Markdown target (`text`, a property with `markdown: true`)
- * each text is escaped (`markdownText`) so it reads back as written; elsewhere it stays plain.
+ * The Markdown of an XHTML value (`prepareMarkdown`, SR-095), converted once: its losses, and each
+ * image it embeds copied next to the element (`ImageNames`) with the link to the copy. An image that
+ * cannot be copied is a loss (`image-missing`, `image-outside`) and stays as its alt text or file
+ * name without a link, so the text never points outside the element.
  */
-const textsOf = (value: ReqifValue, datatype: ReqifDatatype, markdown: boolean, loss: Loss): string[] => {
+const markdownOf = async (
+  context: Context,
+  draft: Draft,
+  value: readonly XhtmlNode[],
+  target: Target,
+  loss: Loss,
+): Promise<string> => {
+  const prepared = prepareMarkdown(value);
+  for (const lost of prepared.losses) {
+    loss(lost.code, lost.reason);
+  }
+  const links: (string | undefined)[] = [];
+  for (const image of prepared.images) {
+    const read = await context.images(image);
+    if (read.kind === "found") {
+      const link = `${draft.stem}/${draft.images.nameOf(read.file)}`;
+      links.push(link);
+      if (target === "text") {
+        draft.textImages.set(link, read.file.sha256);
+      }
+    } else {
+      loss(read.kind, read.reason);
+      links.push(undefined);
+    }
+  }
+  return prepared.markdown((_image, at) => links[at]);
+};
+
+/**
+ * The texts of a value: XHTML as Markdown (`markdownOf`) for a Markdown target and as plain text
+ * (`xhtmlText`, its other elements a loss) for a plain one, enumeration values by name, the others
+ * as written. For a Markdown target the texts that are not XHTML are escaped (`markdownText`) so
+ * they read back as written; elsewhere they stay plain.
+ */
+const textsOf = async (
+  context: Context,
+  draft: Draft,
+  value: ReqifValue,
+  datatype: ReqifDatatype,
+  target: Target,
+  loss: Loss,
+): Promise<string[]> => {
   if (value.kind === "xhtml") {
-    const { text, unconverted } = xhtmlText(value.value, markdown);
+    if (target !== "plain") {
+      return [await markdownOf(context, draft, value.value, target, loss)];
+    }
+    const { text, unconverted } = xhtmlText(value.value);
     if (unconverted.length > 0) {
-      loss(
-        "xhtml-element",
-        `XHTML ${unconverted.join(", ")} is not converted to Markdown yet; its text is kept`,
-      );
+      loss("xhtml-element", `XHTML ${unconverted.join(", ")} has no form in a plain text; its text is kept`);
     }
     return [text];
   }
   const texts =
     value.kind === "enumeration" ? enumValuesOf(value.values, datatype, loss).map(nameOf) : [value.value];
-  return markdown ? texts.map(markdownText) : texts;
+  return target === "plain" ? texts : texts.map(markdownText);
 };
 
 /** The choice keys of enumeration values through `values` (an unmapped value is a loss). */
@@ -465,13 +530,15 @@ const numberValue = (raw: string, kind: string, loss: Loss): number | undefined 
 };
 
 /** What a value is to its property, which `checkCoverage` let hold it. */
-const propertyValue = (
+const propertyValue = async (
+  context: Context,
+  draft: Draft,
   value: ReqifValue,
   datatype: ReqifDatatype,
   entry: AttributeEntry,
   definition: MetamodelProperty,
   loss: Loss,
-): PropertyValue | undefined => {
+): Promise<PropertyValue | undefined> => {
   if (value.kind === "enumeration" && definition.kind === "choice") {
     return choiceValue(value.values, datatype, entry, definition, loss);
   }
@@ -485,7 +552,14 @@ const propertyValue = (
   if (one !== null) {
     return one === undefined || definition.many !== true ? one : [one];
   }
-  const texts = textsOf(value, datatype, definition.markdown === true, loss);
+  const texts = await textsOf(
+    context,
+    draft,
+    value,
+    datatype,
+    definition.markdown === true ? "markdown" : "plain",
+    loss,
+  );
   return definition.many === true ? texts : texts.join(", ");
 };
 
@@ -514,10 +588,17 @@ interface Context {
   readonly problems: Problem[];
   /** Relation items that name an object of this call, whose version is set once all are planned. */
   readonly pending: Map<string, Record<string, PropertyValue>[]>;
+  readonly images: ImageReader;
+  readonly layout: WorkspaceLayout;
 }
 
 /** Takes the values of `object` into `draft` (see the file comment). */
-const planValues = (context: Context, object: ReqifSpecObject, t: ReqifSpecType, draft: Draft): void => {
+const planValues = async (
+  context: Context,
+  object: ReqifSpecObject,
+  t: ReqifSpecType,
+  draft: Draft,
+): Promise<void> => {
   const { index, coverage, losses } = context;
   // An attribute without a value of its own has its DEFAULT-VALUE (ReqIF 1.2 §10.8.3).
   const given = new Set(object.values.map((value) => value.definition));
@@ -549,7 +630,8 @@ const planValues = (context: Context, object: ReqifSpecObject, t: ReqifSpecType,
       loss(code, `${nameOf(a)}: ${reason}`);
     };
     if (definition === undefined) {
-      const text = textsOf(value, datatype, property === "text", prefixed).join(", ");
+      const target = property === "text" ? "text" : "plain";
+      const text = (await textsOf(context, draft, value, datatype, target, prefixed)).join(", ");
       if (property === "title") {
         draft.title = text;
       } else {
@@ -557,7 +639,7 @@ const planValues = (context: Context, object: ReqifSpecObject, t: ReqifSpecType,
       }
       continue;
     }
-    const result = propertyValue(value, datatype, entry, definition, prefixed);
+    const result = await propertyValue(context, draft, value, datatype, entry, definition, prefixed);
     if (result !== undefined) {
       draft.properties.set(property, result);
     }
@@ -676,12 +758,12 @@ const planOwnValues = (context: Context, { data, text }: Channels, draft: Draft)
 };
 
 /** The draft of `object`, or undefined when its type is omitted (a loss). */
-const planObject = (
+const planObject = async (
   context: Context,
-  repository: string,
+  repository: RepositoryLocation,
   folder: string,
   object: ReqifSpecObject,
-): Draft | undefined => {
+): Promise<Draft | undefined> => {
   const t = context.index.types.get(object.type);
   if (t?.category !== "spec-object") {
     throw invalidFile(
@@ -716,10 +798,13 @@ const planObject = (
     properties: new Map(),
     relations: new Map(),
     version: "",
+    stem: fileNameFor({ prefix: base.type.prefix, id }).slice(0, -".md".length),
+    images: new ImageNames(),
+    textImages: new Map(),
   };
   const channels = context.own ? ownChannels(context, object, t, ownType) : undefined;
   if (channels === undefined) {
-    planValues(context, object, t, draft);
+    await planValues(context, object, t, draft);
   } else {
     planOwnValues(context, channels, draft);
   }
@@ -728,7 +813,13 @@ const planObject = (
   draft.properties.set(keys["import-date"], context.origin.date);
   draft.properties.set(keys.delivery, context.origin.delivery);
   // The import version is the version of the element as written (D-059); it never counts to it.
-  draft.version = plannedVersion(context.metamodel, repository, fileOf(draft, folder, false));
+  draft.version = await plannedVersion(
+    context.metamodel,
+    context.layout,
+    repository,
+    fileOf(draft, folder, false),
+    draft.textImages,
+  );
   draft.properties.set(keys["import-version"], draft.version);
   return draft;
 };
@@ -849,15 +940,19 @@ const unreadLosses = (file: ReqifFile, drafts: ReadonlyMap<string, Draft>, losse
   }
 };
 
-/** The plan of importing `file` through `mapping` as delivery `origin` (see the file comment). */
-export const planImport = (
+/**
+ * The plan of importing `file` through `mapping` as delivery `origin`, reading the images it embeds
+ * with `images` (see the file comment).
+ */
+export const planImport = async (
   file: ReqifFile,
   mapping: AnyMapping,
   layout: WorkspaceLayout,
   metamodel: Metamodel,
   origin: ImportOrigin,
+  images: ImageReader,
   own = false,
-): ImportPlan => {
+): Promise<ImportPlan> => {
   const keys = originKeys(metamodel);
   const index = indexOf(file);
   const coverage = checkCoverage(file, index, mapping, metamodel, keys);
@@ -892,10 +987,12 @@ export const planImport = (
     own,
     problems: [],
     pending: new Map(),
+    images,
+    layout,
   };
   const drafts = new Map<string, Draft>();
   for (const object of file.specObjects) {
-    const draft = planObject(context, repository.name, relative, object);
+    const draft = await planObject(context, repository, relative, object);
     if (draft !== undefined) {
       drafts.set(object.identifier, draft);
     }
@@ -939,6 +1036,7 @@ export const planImport = (
     repository,
     folder: relative,
     files: all.map((d) => fileOf(d, relative, true)),
+    images: all.flatMap((d) => d.images.files.map(({ name, file }) => ({ stem: d.stem, name, file }))),
     created: all.map((d) => ({ identifier: d.identifier, id: d.id })),
     losses: context.losses,
     problems: context.problems,

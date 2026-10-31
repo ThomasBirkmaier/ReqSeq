@@ -74,6 +74,8 @@ const IMAGE_EXTENSIONS: ReadonlyMap<string, string> = new Map([
   ["gif", "image/gif"],
   ["svg", "image/svg+xml"],
   ["webp", "image/webp"],
+  ["avif", "image/avif"],
+  ["bmp", "image/bmp"],
 ]);
 
 type Lost = (code: XhtmlLoss["code"], reason: string) => void;
@@ -241,6 +243,9 @@ interface Converted {
 /** Our node tree to hast, noting the losses; walked without recursion (a value may nest deeply). */
 class ToHast {
   readonly images: XhtmlImage[] = [];
+  /** Each entry of `images` with its hast `img` and alt text. */
+  readonly imageNodes: { readonly image: XhtmlImage; readonly node: HastElement; readonly alt: string }[] =
+    [];
   private readonly losses = new Map<string, XhtmlLoss>();
   private readonly lost: Lost = (code, reason) => {
     this.losses.set(`${code} ${reason}`, { code, reason });
@@ -381,8 +386,11 @@ class ToHast {
       this.lost("xhtml-element", `<object data="${data}" type="${String(type)}">`);
       return { children: node.children, before: [] };
     }
-    this.images.push({ data, ...(type === undefined ? {} : { type }) });
-    return { children: [], before: [hastElement("img", { src: data, alt }, [])] };
+    const image: XhtmlImage = { data, ...(type === undefined ? {} : { type }) };
+    this.images.push(image);
+    const imgNode = hastElement("img", { src: data, alt }, []);
+    this.imageNodes.push({ image, node: imgNode, alt });
+    return { children: [], before: [imgNode] };
   }
 }
 
@@ -428,28 +436,73 @@ const joinRuns = (children: readonly MdastNodes[]): MdastNodes[] => {
   return joined;
 };
 
-/** The Markdown of an XHTML value (`THE-VALUE` of `ATTRIBUTE-VALUE-XHTML`), with its images and losses. */
-export const xhtmlToMarkdown = (value: readonly XhtmlNode[]): MarkdownOfXhtml => {
+/** An XHTML value converted up to its links: its images and losses, and then its Markdown. */
+export interface PreparedMarkdown {
+  /** In the order of the text, as written. */
+  readonly images: readonly XhtmlImage[];
+  /** One per code and reason. */
+  readonly losses: readonly XhtmlLoss[];
+  /**
+   * The Markdown, with the link `image` gives for each entry of `images` (as written by default).
+   * Where it gives none, the image becomes its alt text, else its file name, without a link (an
+   * image the import does not copy, SR-095 AK2). Call it once.
+   */
+  readonly markdown: (image?: (image: XhtmlImage, at: number) => string | undefined) => string;
+}
+
+/**
+ * Converts an XHTML value (`THE-VALUE` of `ATTRIBUTE-VALUE-XHTML`) once: the images and losses are
+ * known before the links are chosen, so the import reads the images first (SR-095 AK2).
+ */
+export const prepareMarkdown = (value: readonly XhtmlNode[]): PreparedMarkdown => {
   const converter = new ToHast();
-  const mdast = toMdast(converter.convert(value), {
-    handlers: {
-      br: (state, node: HastElement) =>
-        node.properties["dataCell"] === undefined
-          ? defaultHandlers.br(state, node)
-          : ({ type: "html", value: "<br>" } satisfies Html),
-    },
-  });
-  joinAttention(mdast);
-  const markdown = toMarkdown(mdast, {
-    extensions: [gfmToMarkdown()],
-    bullet: "-",
-    emphasis: "*",
-    strong: "*",
-    fences: true,
-    rule: "-",
-  });
-  return { markdown: markdown.replace(/\n$/, ""), images: converter.images, losses: converter.allLosses() };
+  const hast = converter.convert(value);
+  const markdown = (image: (image: XhtmlImage, at: number) => string | undefined = (i) => i.data): string => {
+    converter.imageNodes.forEach(({ image: entry, node, alt }, at) => {
+      const link = image(entry, at);
+      if (link === undefined) {
+        node.tagName = "span";
+        node.properties = {};
+        // The file name: the part of `data` after its last `/` or `\`.
+        const name = entry.data.slice(entry.data.search(/[^/\\]*$/));
+        node.children = [{ type: "text", value: alt === "" ? name : alt }];
+      } else {
+        node.properties.src = link;
+      }
+    });
+    const mdast = toMdast(hast, {
+      handlers: {
+        br: (state, node: HastElement) =>
+          node.properties["dataCell"] === undefined
+            ? defaultHandlers.br(state, node)
+            : ({ type: "html", value: "<br>" } satisfies Html),
+      },
+    });
+    joinAttention(mdast);
+    const text = toMarkdown(mdast, {
+      extensions: [gfmToMarkdown()],
+      bullet: "-",
+      emphasis: "*",
+      strong: "*",
+      fences: true,
+      rule: "-",
+    });
+    return text.replace(/\n$/, "");
+  };
+  return { images: converter.images, losses: converter.allLosses(), markdown };
 };
+
+/** The Markdown of an XHTML value with its images (linked as written) and losses (`prepareMarkdown`). */
+export const xhtmlToMarkdown = (value: readonly XhtmlNode[]): MarkdownOfXhtml => {
+  const prepared = prepareMarkdown(value);
+  return { markdown: prepared.markdown(), images: prepared.images, losses: prepared.losses };
+};
+
+/** The image type of each extension the conversion knows, by type (the import names a copy by it). */
+export const IMAGE_TYPE_EXTENSIONS: ReadonlyMap<string, string> = new Map(
+  // Reversed, so the first extension of a type wins (`.jpg`).
+  [...IMAGE_EXTENSIONS].reverse().map(([extension, type]) => [type, `.${extension}`]),
+);
 
 /**
  * Elements the export writes, from the XHTML modules ReqIF 1.2 §10.8.20 names (Text, List,

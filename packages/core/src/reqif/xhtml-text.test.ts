@@ -1,5 +1,5 @@
-// xhtmlText and markdownText (src/reqif/xhtml-text.ts): the text of an XHTML value until SR-095
-// converts it, plain or escaped for a Markdown target.
+// xhtmlText and markdownText (src/reqif/xhtml-text.ts): the plain text of an XHTML value, and a
+// value escaped for a Markdown target.
 import { describe, expect, it } from "vitest";
 import type { XhtmlNode } from "./model.js";
 import { markdownText, xhtmlText } from "./xhtml-text.js";
@@ -13,22 +13,22 @@ const el = (name: string, ...children: XhtmlNode[]): XhtmlNode => ({
 
 describe("xhtmlText", () => {
   it("keeps paragraphs and line breaks, collapses white space and names nothing for div, p and br", () => {
-    expect(
-      xhtmlText([el("div", el("p", "One\n   two"), el("p", "Three", el("br"), "  four  "))], true),
-    ).toEqual({ text: "One two\n\nThree\nfour", unconverted: [] });
+    expect(xhtmlText([el("div", el("p", "One\n   two"), el("p", "Three", el("br"), "  four  "))])).toEqual({
+      text: "One two\n\nThree\nfour",
+      unconverted: [],
+    });
   });
 
-  it("keeps the text of other elements and names each once; plain for a plain target", () => {
+  it("keeps the text of other elements and names each once", () => {
     const nodes = [el("p", "a ", el("b", "*b*"), " ", el("b", "snake_case")), el("ul", el("li", "1. x"))];
-    expect(xhtmlText(nodes, false)).toEqual({
+    expect(xhtmlText(nodes)).toEqual({
       text: "a *b* snake_case\n\n1. x",
       unconverted: ["b", "ul", "li"],
     });
-    expect(xhtmlText(nodes, true).text).toBe("a \\*b\\* snake\\_case\n\n1\\. x");
   });
 
   it("gives an empty text for an empty value", () => {
-    expect(xhtmlText([], true)).toEqual({ text: "", unconverted: [] });
+    expect(xhtmlText([])).toEqual({ text: "", unconverted: [] });
   });
 });
 
