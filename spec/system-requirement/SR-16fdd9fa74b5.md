@@ -12,9 +12,9 @@ acceptance-criteria:
   - Gegeben ein geteiltes Fenster, wenn „Open to the right“ oder „Open to the left“ gewählt wird und der inaktive Bereich auf dieser Seite liegt, dann zeigt er das markierte Element als Vorschau, und der aktive Bereich bleibt aktiv; liegt der aktive Bereich auf dieser Seite, dann öffnet sich das markierte Element dort wie beim Öffnen mit Enter.
   - Gegeben ein geteiltes Fenster, dessen inaktiver Bereich eine Vorschau zeigt, wenn im aktiven Bereich ein Element markiert wird, dann zeigt die Vorschau dieses Element an Stelle des bisherigen, ohne dass der aktive Bereich wechselt; das gilt auch für eine Paketseite in der Vorschau.
   - Gegeben ein geteiltes Fenster, dessen inaktiver Bereich keine Vorschau zeigt, weil der Benutzer ihn betreten, dort selbst einen Buffer geöffnet oder den Vergleich von Kern-Requirement und Ersatz (SR-044) geöffnet hat, wenn im aktiven Bereich ein Element markiert wird, dann bleibt der inaktive Bereich unverändert, sodass zwei Elemente nebeneinander stehen können.
-  - Gegeben ein ungeteiltes Fenster und ein markiertes Element im angezeigten Buffer, wenn „Split window“ gewählt wird, dann bleibt der Buffer links und aktiv, und rechts erscheint sofort die Vorschau des markierten Elements.
-  - Gegeben ein geteiltes Fenster, wenn Alt+O (macOS ⌥O) gedrückt wird, dann wird der andere Bereich aktiv, wie mit dem Befehl „Other window“.
-  - Gegeben ein geteiltes Fenster, dann ist der Text des inaktiven Bereichs etwas heller als der des aktiven und erreicht im hellen wie im dunklen Modus einen Kontrast von mindestens 4,5:1 zum Hintergrund (WCAG 2.2 AA).
+  - Gegeben ein ungeteiltes Fenster und ein markiertes Element im angezeigten Buffer, wenn „Split window“ gewählt wird, dann bleibt der Buffer links und aktiv, und rechts erscheint sofort die Vorschau des markierten Elements; ohne markiertes Element teilt sich das Fenster wie in SR-115 beschrieben.
+  - Gegeben ein geteiltes Fenster, wenn Alt+O (Option+O auf macOS) gedrückt wird, auch beim Tippen im Texteditor, dann wird der andere Bereich aktiv wie mit dem Befehl „Other window“, und es wird kein Zeichen eingefügt.
+  - Gegeben ein geteiltes Fenster, dann ist der Text des inaktiven Bereichs etwas blasser, also mit etwas weniger Kontrast zum Hintergrund als der des aktiven, und erreicht im hellen wie im dunklen Modus noch einen Kontrast von mindestens 4,5:1 (WCAG 2.2 AA).
 packages:
   - { id: 7755a224-01c9-4710-869a-7b1477fbd624, version: n1:cd51c9fc3d83c915, title: "Stufe 6: Austausch per ReqIF und Schutz" }
 verification-method: test
