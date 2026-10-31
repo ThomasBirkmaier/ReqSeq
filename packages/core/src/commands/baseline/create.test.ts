@@ -147,7 +147,7 @@ describe("baseline.create", () => {
     expect((await create(ws, "Allowed", PACKAGE)).baseline.elements).toBe(2);
   });
 
-  it("refuses a view that differs from the saved filter's view and stores the same view once", async () => {
+  it("[SR-050/AK8] refuses a view that differs from the saved filter's view and stores the same view once", async () => {
     const ws = await fixture();
     await ws.write(
       "system/filters/coast.yaml",
@@ -159,7 +159,9 @@ describe("baseline.create", () => {
       { command: "baseline.create", fields: ["selection.view"] },
     ]);
     expect(error.message).toContain("CoastOnly has the view VAR-0000c1");
-    expect((await failure(ws, "Y", { filter: "CoastOnly", view: "core" })).code).toBe("input.invalid");
+    const core = await failure(ws, "Y", { filter: "CoastOnly", view: "core" });
+    expect(core.code).toBe("input.invalid");
+    expect(core.message).toContain("CoastOnly has the view VAR-0000c1");
     const same = await create(ws, "Coast again", { filter: "CoastOnly", view: `${ID}c1` });
     expect(read(ws, same.baseline.file)).toContain(
       `selection:\n  where:\n    all: []\n  view: { id: ${ID}c1, title: Coast }\nrepositories:\n`,
