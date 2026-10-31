@@ -177,6 +177,7 @@ describe("error classes", () => {
       "metamodel.meaning-unassigned",
       "baseline.uncommitted-changes",
       "baseline.exists",
+      "reqif.conflict",
       "file.changed-on-disk",
       "file.faulty",
       "file.read-only",

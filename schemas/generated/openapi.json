@@ -10254,13 +10254,14 @@
     "/v1/commands/reqif.analyze": {
       "post": {
         "operationId": "reqif_analyze",
-        "summary": "Read a ReqIF file: types and attributes without mapping, and for a repeated delivery the new, changed and dropped requirements. Writes nothing.",
+        "summary": "Preview the import of a ReqIF file: types, attributes and values without mapping; for a repeated delivery the new, changed and dropped requirements and the conflicts with local changes; the losses. Writes nothing.",
         "tags": [
           "reqif"
         ],
         "x-reqseq-effect": "read",
         "x-reqseq-stage": 6,
         "x-reqseq-implements": [
+          "SR-053",
           "SR-055",
           "SR-056"
         ],
@@ -10276,6 +10277,11 @@
                   },
                   "mapping": {
                     "$ref": "#/components/schemas/common/$defs/localPath"
+                  },
+                  "source": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Source name for a file of ReqSeq without mapping; default the header TITLE."
                   }
                 },
                 "additionalProperties": false,
@@ -10297,42 +10303,37 @@
                     "unmapped": {
                       "type": "array",
                       "items": {
-                        "type": "object",
-                        "properties": {
-                          "kind": {
-                            "enum": [
-                              "type",
-                              "attribute",
-                              "relation"
-                            ]
-                          },
-                          "source": {
-                            "type": "string"
-                          }
-                        },
-                        "additionalProperties": false,
-                        "required": [
-                          "kind",
-                          "source"
-                        ]
+                        "$ref": "#/components/schemas/common/$defs/reqifUnmapped"
                       }
                     },
                     "new": {
                       "type": "array",
                       "items": {
-                        "type": "string"
+                        "$ref": "#/components/schemas/common/$defs/reqifObject"
                       }
                     },
                     "changed": {
                       "type": "array",
                       "items": {
-                        "type": "string"
+                        "$ref": "#/components/schemas/common/$defs/reqifObject"
                       }
                     },
                     "dropped": {
                       "type": "array",
                       "items": {
-                        "type": "string"
+                        "$ref": "#/components/schemas/common/$defs/reqifObject"
+                      }
+                    },
+                    "conflicts": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/common/$defs/reqifObject"
+                      }
+                    },
+                    "losses": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/common/$defs/reqifLoss"
                       }
                     },
                     "problems": {
@@ -10347,7 +10348,9 @@
                     "unmapped",
                     "new",
                     "changed",
-                    "dropped"
+                    "dropped",
+                    "conflicts",
+                    "losses"
                   ]
                 }
               }
@@ -10459,14 +10462,17 @@
     "/v1/commands/reqif.import": {
       "post": {
         "operationId": "reqif_import",
-        "summary": "Import a ReqIF 1.2 file with a mapping; updates existing elements by IDENTIFIER, records origin, reports losses.",
+        "summary": "Import a ReqIF 1.2 file, all or nothing: creates elements, updates those of an earlier delivery of the source by IDENTIFIER, records origin and import version, reports losses. A conflict with a local change needs take or keep, else the whole import is refused.",
         "tags": [
           "reqif"
         ],
         "x-reqseq-effect": "write-files",
         "x-reqseq-stage": 6,
         "x-reqseq-implements": [
+          "SR-052",
           "SR-053",
+          "SR-054",
+          "SR-055",
           "SR-056",
           "SR-057",
           "SR-087",
@@ -10482,17 +10488,37 @@
                   "file": {
                     "$ref": "#/components/schemas/common/$defs/localPath"
                   },
-                  "mapping": {
-                    "$ref": "#/components/schemas/common/$defs/localPath"
-                  },
                   "delivery": {
-                    "type": "string"
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "mapping": {
+                    "$ref": "#/components/schemas/common/$defs/localPath",
+                    "description": "Needed unless the file comes from ReqSeq (REQ-IF-TOOL-ID reqseq), which is mapped one to one."
+                  },
+                  "source": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Source name for a file of ReqSeq without mapping; default the header TITLE."
+                  },
+                  "take": {
+                    "type": "array",
+                    "description": "Conflicts for which the delivery is taken: source IDENTIFIER or element.",
+                    "items": {
+                      "$ref": "#/components/schemas/common/$defs/elementRef"
+                    }
+                  },
+                  "keep": {
+                    "type": "array",
+                    "description": "Conflicts for which the local element is kept: source IDENTIFIER or element.",
+                    "items": {
+                      "$ref": "#/components/schemas/common/$defs/elementRef"
+                    }
                   }
                 },
                 "additionalProperties": false,
                 "required": [
                   "file",
-                  "mapping",
                   "delivery"
                 ]
               }
@@ -10519,35 +10545,35 @@
                         "$ref": "#/components/schemas/common/$defs/uuid"
                       }
                     },
+                    "kept": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/common/$defs/reqifObject"
+                      }
+                    },
                     "dropped": {
                       "type": "array",
                       "items": {
-                        "type": "string"
+                        "$ref": "#/components/schemas/common/$defs/reqifObject"
                       }
                     },
                     "losses": {
                       "type": "array",
                       "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "$ref": "#/components/schemas/common/$defs/uuid"
-                          },
-                          "reason": {
-                            "type": "string"
-                          }
-                        },
-                        "additionalProperties": false,
-                        "required": [
-                          "id",
-                          "reason"
-                        ]
+                        "$ref": "#/components/schemas/common/$defs/reqifLoss"
                       }
                     },
                     "files": {
                       "type": "array",
                       "items": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Written file, relative to the workspace root."
+                      }
+                    },
+                    "problems": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/common/$defs/problem"
                       }
                     }
                   },
@@ -10555,6 +10581,7 @@
                   "required": [
                     "created",
                     "updated",
+                    "kept",
                     "dropped",
                     "losses",
                     "files"
@@ -10669,7 +10696,7 @@
     "/v1/commands/reqif.saveMapping": {
       "post": {
         "operationId": "reqif_saveMapping",
-        "summary": "Save or change the mapping of a source to the own metamodel.",
+        "summary": "Save or change the mapping of a source to the own metamodel, in the mapping folder (default `reqif`).",
         "tags": [
           "reqif"
         ],
@@ -10677,6 +10704,7 @@
         "x-reqseq-stage": 6,
         "x-reqseq-implements": [
           "SR-054",
+          "SR-055",
           "SR-059"
         ],
         "requestBody": {
@@ -10690,7 +10718,8 @@
                     "$ref": "#/components/schemas/reqif-mapping"
                   },
                   "file": {
-                    "$ref": "#/components/schemas/common/$defs/localPath"
+                    "$ref": "#/components/schemas/common/$defs/localPath",
+                    "description": "Inside the mapping folder of the workspace, for every access; default the portable source name."
                   }
                 },
                 "additionalProperties": false,
@@ -10837,7 +10866,7 @@
     "/v1/commands/reqif.export": {
       "post": {
         "operationId": "reqif_export",
-        "summary": "Export a selection or a saved export profile as ReqIF 1.2; IDENTIFIER is the UUID, or the source IDENTIFIER for statements.",
+        "summary": "Export a selection, or with statements the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID (the source IDENTIFIER for statements), text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.",
         "tags": [
           "reqif"
         ],
@@ -10845,6 +10874,7 @@
         "x-reqseq-stage": 6,
         "x-reqseq-implements": [
           "SR-052",
+          "SR-054",
           "SR-058",
           "SR-059",
           "SR-101"
@@ -10870,6 +10900,7 @@
                   },
                   "omitProperties": {
                     "type": "array",
+                    "description": "With mapping, also saved in it for later deliveries.",
                     "items": {
                       "$ref": "#/components/schemas/common/$defs/key"
                     }
@@ -10904,6 +10935,18 @@
                     "relations": {
                       "type": "integer",
                       "minimum": 0
+                    },
+                    "withoutStatement": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "description": "With statements: exported elements without a statement."
+                    },
+                    "files": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "description": "Mapping file written, relative to the workspace root."
+                      }
                     },
                     "problems": {
                       "type": "array",
@@ -11658,6 +11701,7 @@
                   "baseline.exists",
                   "reqif.invalid",
                   "reqif.unmapped",
+                  "reqif.conflict",
                   "git.unavailable",
                   "git.commit-not-found",
                   "file.changed-on-disk",
@@ -11751,6 +11795,98 @@
               "validated",
               "failed",
               "outdated"
+            ]
+          },
+          "reqifObject": {
+            "description": "An object of a ReqIF file by its IDENTIFIER in the source, with the UUID of its element when there is one (ADR-0013).",
+            "type": "object",
+            "properties": {
+              "identifier": {
+                "type": "string"
+              },
+              "id": {
+                "$ref": "#/components/schemas/common/$defs/uuid"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "identifier"
+            ]
+          },
+          "reqifLoss": {
+            "description": "Content of a ReqIF file that is not taken over without loss (SR-053 AK2, SR-095 AK3): the object, its element when there is one, a stable code and the reason (ADR-0013).",
+            "type": "object",
+            "properties": {
+              "identifier": {
+                "type": "string",
+                "description": "IDENTIFIER of the SPEC-OBJECT, SPEC-RELATION or SPECIFICATION."
+              },
+              "kind": {
+                "enum": [
+                  "spec-object",
+                  "spec-relation",
+                  "specification"
+                ]
+              },
+              "id": {
+                "$ref": "#/components/schemas/common/$defs/uuid"
+              },
+              "code": {
+                "enum": [
+                  "omitted-type",
+                  "omitted-attribute",
+                  "unmapped-value",
+                  "hierarchy",
+                  "relation-end-not-imported",
+                  "type-without-origin",
+                  "date-time",
+                  "xhtml-style",
+                  "xhtml-rowspan",
+                  "xhtml-colspan",
+                  "xhtml-cell-block",
+                  "xhtml-element",
+                  "image-missing",
+                  "image-outside"
+                ]
+              },
+              "reason": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "identifier",
+              "kind",
+              "code",
+              "reason"
+            ]
+          },
+          "reqifUnmapped": {
+            "description": "A type, attribute, relation type or enumeration value of a ReqIF file that the mapping neither maps nor omits (SR-055 AK1). `source` is its LONG-NAME or IDENTIFIER; `sourceType` the SPEC-OBJECT-TYPE of an attribute or value, `attribute` the attribute of a value.",
+            "type": "object",
+            "properties": {
+              "kind": {
+                "enum": [
+                  "type",
+                  "attribute",
+                  "relation",
+                  "value"
+                ]
+              },
+              "source": {
+                "type": "string"
+              },
+              "sourceType": {
+                "type": "string"
+              },
+              "attribute": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "source"
             ]
           }
         }
@@ -13297,7 +13433,7 @@
       },
       "reqif-mapping": {
         "title": "ReqIF mapping file",
-        "description": "Mapping of the types and attributes of one ReqIF source to the own metamodel, saved as YAML in the repository and reused for every later import from and export to that source (N-045, D-022, SR-054). The own metamodel is never changed by it (SR-054 AK3). Also holds saved export profiles (SR-059 AK3).",
+        "description": "Mapping of the types and attributes of one ReqIF source to the own metamodel, saved as YAML in the mapping folder of the workspace (`mappings`, default `reqif` in the main repository) and reused for every later import from and export to that source (N-045, D-022, SR-054). The own metamodel is never changed by it (SR-054 AK3). Also holds saved export profiles (SR-059 AK3).",
         "type": "object",
         "required": [
           "reqseq-reqif-mapping",
@@ -13466,9 +13602,24 @@
               "attribute": {
                 "type": "string",
                 "description": "ATTRIBUTE-DEFINITION in the source's model."
+              },
+              "datatype": {
+                "enum": [
+                  "string",
+                  "xhtml"
+                ],
+                "default": "string",
+                "description": "How the statement is written: as STRING, or as XHTML converted from its Markdown (SR-058 AK1)."
               }
             },
             "additionalProperties": false
+          },
+          "omit-properties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/common/$defs/key"
+            },
+            "description": "Properties left out of every export to this source; written by `reqif.export` with `mapping` and `omitProperties` (SR-059 AK1, AK3)."
           },
           "export-profiles": {
             "type": "array",

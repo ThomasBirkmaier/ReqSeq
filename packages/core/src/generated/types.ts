@@ -347,6 +347,7 @@ export interface CommandErrorObject {
     | "baseline.exists"
     | "reqif.invalid"
     | "reqif.unmapped"
+    | "reqif.conflict"
     | "git.unavailable"
     | "git.commit-not-found"
     | "file.changed-on-disk"
@@ -404,6 +405,53 @@ export type VerificationStatus = "open" | "verified" | "indirect" | "failed" | "
  * Schema: `schemas/common.schema.json#/$defs/validationStatus`.
  */
 export type ValidationStatus = "open" | "validated" | "failed" | "outdated";
+
+/**
+ * An object of a ReqIF file by its IDENTIFIER in the source, with the UUID of its element when there is one (ADR-0013).
+ * Schema: `schemas/common.schema.json#/$defs/reqifObject`.
+ */
+export interface ReqifObject {
+  readonly identifier: string;
+  readonly id?: Uuid;
+}
+
+/**
+ * Content of a ReqIF file that is not taken over without loss (SR-053 AK2, SR-095 AK3): the object, its element when there is one, a stable code and the reason (ADR-0013).
+ * Schema: `schemas/common.schema.json#/$defs/reqifLoss`.
+ */
+export interface ReqifLoss {
+  /** IDENTIFIER of the SPEC-OBJECT, SPEC-RELATION or SPECIFICATION. */
+  readonly identifier: string;
+  readonly kind: "spec-object" | "spec-relation" | "specification";
+  readonly id?: Uuid;
+  readonly code:
+    | "omitted-type"
+    | "omitted-attribute"
+    | "unmapped-value"
+    | "hierarchy"
+    | "relation-end-not-imported"
+    | "type-without-origin"
+    | "date-time"
+    | "xhtml-style"
+    | "xhtml-rowspan"
+    | "xhtml-colspan"
+    | "xhtml-cell-block"
+    | "xhtml-element"
+    | "image-missing"
+    | "image-outside";
+  readonly reason: string;
+}
+
+/**
+ * A type, attribute, relation type or enumeration value of a ReqIF file that the mapping neither maps nor omits (SR-055 AK1). `source` is its LONG-NAME or IDENTIFIER; `sourceType` the SPEC-OBJECT-TYPE of an attribute or value, `attribute` the attribute of a value.
+ * Schema: `schemas/common.schema.json#/$defs/reqifUnmapped`.
+ */
+export interface ReqifUnmapped {
+  readonly kind: "type" | "attribute" | "relation" | "value";
+  readonly source: string;
+  readonly sourceType?: string;
+  readonly attribute?: string;
+}
 
 /**
  * Output of `data.export` (SR-061) for external evaluation tools such as Grafana or DuckDB (D-008). The JSON Lines form (`data export --jsonl`, the API with `Accept: application/x-ndjson`, and the file `<commit>.jsonl` or `<commit>-dirty.jsonl` that `data.store` writes, SR-062) has one `#/$defs/line` per element instead: the state fields `reqseq-data`, `commit` and `dirty`, then the element. Also defines the element and relation shapes all commands return.
@@ -1086,7 +1134,7 @@ export interface RecentWorkspacesWorkspace {
 }
 
 /**
- * Mapping of the types and attributes of one ReqIF source to the own metamodel, saved as YAML in the repository and reused for every later import from and export to that source (N-045, D-022, SR-054). The own metamodel is never changed by it (SR-054 AK3). Also holds saved export profiles (SR-059 AK3).
+ * Mapping of the types and attributes of one ReqIF source to the own metamodel, saved as YAML in the mapping folder of the workspace (`mappings`, default `reqif` in the main repository) and reused for every later import from and export to that source (N-045, D-022, SR-054). The own metamodel is never changed by it (SR-054 AK3). Also holds saved export profiles (SR-059 AK3).
  * Schema: `schemas/reqif-mapping.schema.json#`.
  */
 export interface ReqifMappingFile {
@@ -1145,7 +1193,84 @@ export interface ReqifMappingFile {
     readonly property: Key;
     /** ATTRIBUTE-DEFINITION in the source's model. */
     readonly attribute: string;
+    /** How the statement is written: as STRING, or as XHTML converted from its Markdown (SR-058 AK1). */
+    readonly datatype?: "string" | "xhtml";
   };
+  /** Properties left out of every export to this source; written by `reqif.export` with `mapping` and `omitProperties` (SR-059 AK1, AK3). */
+  readonly "omit-properties"?: readonly Key[];
+  readonly "export-profiles"?: readonly {
+    readonly name: string;
+    readonly selection: ElementSelection;
+    /** SR-059 AK1. */
+    readonly "omit-properties"?: readonly Key[];
+  }[];
+}
+
+/**
+ * `ReqifMappingFile` in command input: properties with a `default` filled in (Ajv useDefaults).
+ * Schema: `schemas/reqif-mapping.schema.json#`.
+ */
+export interface ReqifMappingFileWithDefaults {
+  readonly "reqseq-reqif-mapping": 1;
+  readonly source: {
+    /** Name of the source as written to the property with meaning `source` (SR-057, D-059). */
+    readonly name: string;
+    /** REQ-IF-TOOL-ID seen in deliveries, for recognising the source. */
+    readonly "tool-id"?: string;
+  };
+  /** Folder where imported elements are written. */
+  readonly target?: WorkspaceLocation;
+  readonly types?: readonly ({
+    /** LONG-NAME or IDENTIFIER of the SPEC-OBJECT-TYPE. */
+    readonly source: string;
+    readonly type?: Key;
+    readonly omit?: true;
+  } & (
+    | {
+      readonly type: unknown;
+    }
+    | {
+      readonly omit: unknown;
+    }))[];
+  readonly attributes?: readonly ({
+    /** Restricts the entry to one SPEC-OBJECT-TYPE. */
+    readonly "source-type"?: string;
+    /** LONG-NAME or IDENTIFIER of the ATTRIBUTE-DEFINITION. */
+    readonly source: string;
+    readonly property?: Key;
+    /** Enumeration value -> choice key. */
+    readonly values?: Readonly<Record<string, Key>>;
+    readonly omit?: true;
+  } & (
+    | {
+      readonly property: unknown;
+    }
+    | {
+      readonly omit: unknown;
+    }))[];
+  readonly relations?: readonly ({
+    /** LONG-NAME or IDENTIFIER of the SPEC-RELATION-TYPE. */
+    readonly source: string;
+    readonly kind?: Key;
+    readonly omit?: true;
+  } & (
+    | {
+      readonly kind: unknown;
+    }
+    | {
+      readonly omit: unknown;
+    }))[];
+  /** Where the statement (Stellungnahme) goes when exporting back to the source (SR-058). */
+  readonly statement?: {
+    /** Own property that holds the statement. */
+    readonly property: Key;
+    /** ATTRIBUTE-DEFINITION in the source's model. */
+    readonly attribute: string;
+    /** How the statement is written: as STRING, or as XHTML converted from its Markdown (SR-058 AK1). */
+    readonly datatype: "string" | "xhtml";
+  };
+  /** Properties left out of every export to this source; written by `reqif.export` with `mapping` and `omitProperties` (SR-059 AK1, AK3). */
+  readonly "omit-properties"?: readonly Key[];
   readonly "export-profiles"?: readonly {
     readonly name: string;
     readonly selection: ElementSelection;
@@ -2835,65 +2960,73 @@ export interface BaselineCompareOutput {
 }
 
 /**
- * Input of `reqif.analyze` as `run` gets it: validated, properties with a `default` filled in. Read a ReqIF file: types and attributes without mapping, and for a repeated delivery the new, changed and dropped requirements. Writes nothing.
+ * Input of `reqif.analyze` as `run` gets it: validated, properties with a `default` filled in. Preview the import of a ReqIF file: types, attributes and values without mapping; for a repeated delivery the new, changed and dropped requirements and the conflicts with local changes; the losses. Writes nothing.
  * Schema: `schemas/commands/catalog.json reqif.analyze input`.
  */
 export interface ReqifAnalyzeInput {
   readonly file: LocalPath;
   readonly mapping?: LocalPath;
+  /** Source name for a file of ReqSeq without mapping; default the header TITLE. */
+  readonly source?: string;
 }
 
 /**
- * Output of `reqif.analyze`. Read a ReqIF file: types and attributes without mapping, and for a repeated delivery the new, changed and dropped requirements. Writes nothing.
+ * Output of `reqif.analyze`. Preview the import of a ReqIF file: types, attributes and values without mapping; for a repeated delivery the new, changed and dropped requirements and the conflicts with local changes; the losses. Writes nothing.
  * Schema: `schemas/commands/catalog.json reqif.analyze output`.
  */
 export interface ReqifAnalyzeOutput {
-  readonly unmapped: readonly {
-    readonly kind: "type" | "attribute" | "relation";
-    readonly source: string;
-  }[];
-  readonly new: readonly string[];
-  readonly changed: readonly string[];
-  readonly dropped: readonly string[];
+  readonly unmapped: readonly ReqifUnmapped[];
+  readonly new: readonly ReqifObject[];
+  readonly changed: readonly ReqifObject[];
+  readonly dropped: readonly ReqifObject[];
+  readonly conflicts: readonly ReqifObject[];
+  readonly losses: readonly ReqifLoss[];
   readonly problems?: readonly Problem[];
 }
 
 /**
- * Input of `reqif.import` as `run` gets it: validated, properties with a `default` filled in. Import a ReqIF 1.2 file with a mapping; updates existing elements by IDENTIFIER, records origin, reports losses.
+ * Input of `reqif.import` as `run` gets it: validated, properties with a `default` filled in. Import a ReqIF 1.2 file, all or nothing: creates elements, updates those of an earlier delivery of the source by IDENTIFIER, records origin and import version, reports losses. A conflict with a local change needs take or keep, else the whole import is refused.
  * Schema: `schemas/commands/catalog.json reqif.import input`.
  */
 export interface ReqifImportInput {
   readonly file: LocalPath;
-  readonly mapping: LocalPath;
   readonly delivery: string;
+  /** Needed unless the file comes from ReqSeq (REQ-IF-TOOL-ID reqseq), which is mapped one to one. */
+  readonly mapping?: LocalPath;
+  /** Source name for a file of ReqSeq without mapping; default the header TITLE. */
+  readonly source?: string;
+  /** Conflicts for which the delivery is taken: source IDENTIFIER or element. */
+  readonly take?: readonly ElementRef[];
+  /** Conflicts for which the local element is kept: source IDENTIFIER or element. */
+  readonly keep?: readonly ElementRef[];
 }
 
 /**
- * Output of `reqif.import`. Import a ReqIF 1.2 file with a mapping; updates existing elements by IDENTIFIER, records origin, reports losses.
+ * Output of `reqif.import`. Import a ReqIF 1.2 file, all or nothing: creates elements, updates those of an earlier delivery of the source by IDENTIFIER, records origin and import version, reports losses. A conflict with a local change needs take or keep, else the whole import is refused.
  * Schema: `schemas/commands/catalog.json reqif.import output`.
  */
 export interface ReqifImportOutput {
   readonly created: readonly Uuid[];
   readonly updated: readonly Uuid[];
-  readonly dropped: readonly string[];
-  readonly losses: readonly {
-    readonly id: Uuid;
-    readonly reason: string;
-  }[];
+  readonly kept: readonly ReqifObject[];
+  readonly dropped: readonly ReqifObject[];
+  readonly losses: readonly ReqifLoss[];
   readonly files: readonly string[];
+  readonly problems?: readonly Problem[];
 }
 
 /**
- * Input of `reqif.saveMapping` as `run` gets it: validated, properties with a `default` filled in. Save or change the mapping of a source to the own metamodel.
+ * Input of `reqif.saveMapping` as `run` gets it: validated, properties with a `default` filled in. Save or change the mapping of a source to the own metamodel, in the mapping folder (default `reqif`).
  * Schema: `schemas/commands/catalog.json reqif.saveMapping input`.
  */
 export interface ReqifSaveMappingInput {
-  readonly mapping: ReqifMappingFile;
+  readonly mapping: ReqifMappingFileWithDefaults;
+  /** Inside the mapping folder of the workspace, for every access; default the portable source name. */
   readonly file?: LocalPath;
 }
 
 /**
- * Output of `reqif.saveMapping`. Save or change the mapping of a source to the own metamodel.
+ * Output of `reqif.saveMapping`. Save or change the mapping of a source to the own metamodel, in the mapping folder (default `reqif`).
  * Schema: `schemas/commands/catalog.json reqif.saveMapping output`.
  */
 export interface ReqifSaveMappingOutput {
@@ -2902,7 +3035,7 @@ export interface ReqifSaveMappingOutput {
 }
 
 /**
- * Input of `reqif.export` as `run` gets it: validated, properties with a `default` filled in. Export a selection or a saved export profile as ReqIF 1.2; IDENTIFIER is the UUID, or the source IDENTIFIER for statements.
+ * Input of `reqif.export` as `run` gets it: validated, properties with a `default` filled in. Export a selection, or with statements the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID (the source IDENTIFIER for statements), text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.
  * Schema: `schemas/commands/catalog.json reqif.export input`.
  */
 export interface ReqifExportInput {
@@ -2910,18 +3043,22 @@ export interface ReqifExportInput {
   readonly selection?: ElementSelection;
   readonly profile?: string;
   readonly mapping?: LocalPath;
+  /** With mapping, also saved in it for later deliveries. */
   readonly omitProperties?: readonly Key[];
   readonly statements?: boolean;
 }
 
 /**
- * Output of `reqif.export`. Export a selection or a saved export profile as ReqIF 1.2; IDENTIFIER is the UUID, or the source IDENTIFIER for statements.
+ * Output of `reqif.export`. Export a selection, or with statements the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID (the source IDENTIFIER for statements), text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.
  * Schema: `schemas/commands/catalog.json reqif.export output`.
  */
 export interface ReqifExportOutput {
   readonly file: string;
   readonly elements: number;
   readonly relations: number;
+  /** With statements: exported elements without a statement. */
+  readonly withoutStatement?: number;
+  readonly files?: readonly string[];
   readonly problems?: readonly Problem[];
 }
 
