@@ -142,6 +142,8 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { source: GUSTS, kind: "derives-from", target: WIND },
     { source: GUSTS, kind: "nope", target: WIND },
   ],
+  // An element file as output is refused (no XML), never replaced.
+  "reqif.export": [{ output: "out.reqif" }, { output: "requirements/SR-1d2e3f4a5b6c.md" }],
   "reqif.import": [
     { file: "in/lieferung.reqif", mapping: "reqif/kunde-a.yaml", delivery: "1" },
     { file: "in/missing.reqif", mapping: "reqif/kunde-a.yaml", delivery: "1" },

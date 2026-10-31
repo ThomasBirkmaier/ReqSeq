@@ -4,7 +4,7 @@ import type { ReqifFile, XhtmlElement, XhtmlNode } from "./model.js";
 import { XHTML_NAMESPACE } from "./model.js";
 import { parseReqif } from "./parse.js";
 import type { ReqifWritable, ReqifWriteOutcome, ReqifWriteProblem } from "./write.js";
-import { writeReqif } from "./write.js";
+import { problemText, writeReqif } from "./write.js";
 import { markdownToXhtml } from "./xhtml-markdown.js";
 
 const SAMPLES = new URL("../../../../toolchain/reqif/samples/", import.meta.url);
@@ -477,5 +477,33 @@ describe("writeReqif", () => {
       count += 1;
     }
     expect(count).toBe(depth);
+  });
+
+  it("says each problem in a sentence", () => {
+    expect(
+      [
+        { kind: "missing-field", identifier: "_a", field: "TITLE" },
+        {
+          kind: "invalid-character",
+          identifier: "_a",
+          field: "LONG-NAME",
+          at: "LONG-NAME",
+          codePoint: 7,
+          offset: 5,
+        },
+        { kind: "invalid-value", identifier: "_a b", field: "IDENTIFIER", reason: "not an NCName (xsd:ID)" },
+        {
+          kind: "unsupported-content",
+          identifier: "_a",
+          field: "_ad-x.text",
+          name: "<img>, written as <object>",
+        },
+      ].map((p) => problemText(p as ReqifWriteProblem)),
+    ).toEqual([
+      "_a: TITLE is missing",
+      "_a: LONG-NAME holds U+0007 at 5 (LONG-NAME), which XML 1.0 cannot carry",
+      "_a b: IDENTIFIER: not an NCName (xsd:ID)",
+      "_a: _ad-x.text: <img>, written as <object> cannot be written",
+    ]);
   });
 });

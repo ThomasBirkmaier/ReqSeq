@@ -7,20 +7,42 @@
 // Each element keeps its origin (SR-057): source, IDENTIFIER, import date (this machine's calendar),
 // delivery and import version (reqif/origin.ts).
 //
+// A file of ReqSeq (REQ-IF-TOOL-ID `reqseq`, SR-052 AK3) needs no `mapping`: the source is `source`,
+// else the header TITLE (`input.invalid` without either). Its mapping file in the mapping folder
+// (`mappingTarget`) is used when it exists, with a warning `reqif.mapping-differs` when its source
+// name or tool ID differs; else the import builds the one-to-one mapping (`ownMapping`) and saves it
+// there with the elements, in one all-or-nothing write when both lie in one repository, else right
+// after them. The round-trip attributes are read as reqif/import.ts says.
+//
 // Not yet: updating the elements of an earlier delivery and the
 // conflicts `take` and `keep` decide (SR-056; until then no import finds a conflict, so both lists
-// change nothing, and a repeated import creates new elements), the one-to-one mapping of a ReqSeq
-// file (SR-052) and images (SR-095).
+// change nothing, and a repeated import creates new elements) and images (SR-095).
 import fs from "node:fs/promises";
 import { constants } from "node:fs";
 import path from "node:path";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
-import { createFolder } from "../../files/index.js";
+import type { Problem } from "../../catalog.js";
+import { createFolder, renderYamlDocument, writeFileAtomic } from "../../files/index.js";
+import type { Metamodel } from "../../metamodel/index.js";
 import { metamodelState } from "../../metamodel/index.js";
 import type { NewElementFile } from "../../model/index.js";
-import { createElementFiles, refuseUnlisted } from "../../model/index.js";
-import { REQIF_LIMITS, importDate, parseReqif, planImport, readMappingFile } from "../../reqif/index.js";
+import { createElementFiles, refuseUnlisted, titleKeyOrEmpty, workspacePath } from "../../model/index.js";
+import type { AnyMapping } from "../../reqif/index.js";
+import {
+  MAPPING_KEYS,
+  OWN_TOOL_ID,
+  REQIF_LIMITS,
+  checkMapping,
+  importDate,
+  mappingTarget,
+  originKeys,
+  ownMapping,
+  parseReqif,
+  planImport,
+  readMappingFile,
+} from "../../reqif/index.js";
+import type { ReqifFile } from "../../reqif/model.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../../workspace/index.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
 
@@ -74,6 +96,73 @@ const readDelivery = async (root: string, given: string): Promise<Uint8Array> =>
   }
 };
 
+/** The mapping of a file of ReqSeq, and a new mapping file to save with the elements. */
+interface OwnMapping {
+  readonly mapping: AnyMapping;
+  readonly save?: { readonly repository: RepositoryLocation; readonly file: NewElementFile };
+  readonly problems: readonly Problem[];
+}
+
+/** The mapping of the file of ReqSeq `file` for `reqif.import` without `mapping` (see the file comment). */
+const ownMappingOf = async (
+  root: string,
+  layout: WorkspaceLayout,
+  metamodel: Metamodel,
+  file: ReqifFile,
+  given: string | undefined,
+): Promise<OwnMapping> => {
+  const command = "reqif.import";
+  const source = given ?? file.header.title;
+  if (source === undefined || source === "") {
+    throw new CommandError(
+      "input.invalid",
+      "source: the file of ReqSeq has no TITLE; name the source of its elements in source",
+      { command, fields: ["source"] },
+    );
+  }
+  const target = await mappingTarget(layout, root, source, undefined, command);
+  const absolute = path.join(target.repository.folder, target.file);
+  const exists = await fs.lstat(absolute).then(
+    () => true,
+    () => false,
+  );
+  if (exists) {
+    const { mapping } = await readMappingFile(layout, metamodel, root, absolute, command);
+    const differs = mapping.source.name !== source || mapping.source["tool-id"] !== OWN_TOOL_ID;
+    const shown = workspacePath(layout, target.repository, target.file);
+    return {
+      mapping,
+      problems: differs
+        ? [
+            {
+              code: "reqif.mapping-differs",
+              severity: "warning",
+              message: `${shown} maps source ${mapping.source.name}${mapping.source["tool-id"] === undefined ? "" : ` (${mapping.source["tool-id"]})`}, not ${source} (${OWN_TOOL_ID}); it is used as it is`,
+              repository: target.repository.name,
+              file: target.file,
+            },
+          ]
+        : [],
+    };
+  }
+  const keys = originKeys(metamodel);
+  const skipped = new Set([titleKeyOrEmpty(metamodel), ...Object.values(keys)]);
+  const mapping = ownMapping(file, metamodel, source, skipped);
+  checkMapping(layout, metamodel, mapping, "mapping", command);
+  const data: Readonly<Record<string, unknown>> = { ...mapping };
+  const ordered = Object.fromEntries(
+    MAPPING_KEYS.flatMap((key) => (data[key] === undefined ? [] : [[key, data[key]]])),
+  );
+  return {
+    mapping,
+    save: {
+      repository: target.repository,
+      file: { file: target.file, bytes: new TextEncoder().encode(renderYamlDocument(ordered)) },
+    },
+    problems: [],
+  };
+};
+
 /**
  * The plan's files under the folder spelled as on disk (#194): the rules of the walk are checked on
  * the target before the folder is created and again after, as `element.create` does, and the files
@@ -101,13 +190,6 @@ export default defineCommand({
     const { workspace } = ctx;
     const layout = await workspace.get(workspaceLayoutState);
     const metamodel = await workspace.get(metamodelState);
-    if (input.mapping === undefined) {
-      throw new CommandError(
-        "input.invalid",
-        "mapping: name the mapping file of the source (reqif.saveMapping); a file of ReqSeq without mapping is not read yet",
-        { command, fields: ["mapping"] },
-      );
-    }
     const parsed = parseReqif(await readDelivery(workspace.root, input.file));
     if (parsed.kind === "refused") {
       throw new CommandError("reqif.invalid", `file: line ${String(parsed.line)}: ${parsed.message}`, {
@@ -115,11 +197,38 @@ export default defineCommand({
         line: parsed.line,
       });
     }
-    const { mapping } = await readMappingFile(layout, metamodel, workspace.root, input.mapping, command);
-    const plan = planImport(parsed.file, mapping, layout, metamodel, {
-      delivery: input.delivery,
-      date: importDate(new Date()),
-    });
+    const own = parsed.file.header.toolId === OWN_TOOL_ID;
+    if (input.mapping === undefined && !own) {
+      throw new CommandError(
+        "input.invalid",
+        `mapping: name the mapping file of the source (reqif.saveMapping); only a file of ReqSeq (REQ-IF-TOOL-ID ${OWN_TOOL_ID}) is mapped one to one without it`,
+        { command, fields: ["mapping"] },
+      );
+    }
+    const mapped =
+      input.mapping === undefined
+        ? await ownMappingOf(workspace.root, layout, metamodel, parsed.file, input.source)
+        : {
+            mapping: (await readMappingFile(layout, metamodel, workspace.root, input.mapping, command))
+              .mapping,
+            problems: [],
+          };
+    const plan = planImport(
+      parsed.file,
+      mapped.mapping,
+      layout,
+      metamodel,
+      { delivery: input.delivery, date: importDate(new Date()) },
+      own,
+    );
+    const { save } = mapped;
+    const together = save?.repository.name === plan.repository.name;
+    if (save !== undefined) {
+      const folder = path.posix.dirname(save.file.file);
+      if (folder !== ".") {
+        await createFolder(save.repository.folder, folder);
+      }
+    }
     const [first] = plan.files;
     const files =
       first === undefined
@@ -129,7 +238,12 @@ export default defineCommand({
             layout,
             plan.repository,
             await spelledFiles(layout, plan.repository, plan.folder, plan.files, first),
+            together ? [save.file] : [],
           );
+    if (save !== undefined && (first === undefined || !together)) {
+      await writeFileAtomic(save.repository.folder, save.file.file, save.file.bytes, null, { kind: "yaml" });
+      files.push(workspacePath(layout, save.repository, save.file.file));
+    }
     return {
       created: [...plan.created],
       updated: [],
@@ -137,7 +251,7 @@ export default defineCommand({
       dropped: [],
       losses: [...plan.losses],
       files,
-      problems: [],
+      problems: [...mapped.problems, ...plan.problems],
     };
   },
 });

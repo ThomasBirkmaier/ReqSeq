@@ -286,6 +286,8 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { source: APPROVED, kind: "refines", target: RETIRED },
     { source: "SR-ffffff", kind: "refines", target: WIND },
   ],
+  // The status is exported for information only.
+  "reqif.export": [{ output: "out.reqif" }, { output: "out.reqif", profile: "p" }],
   // A mapping that maps an attribute to `status` is refused: the delivery never sets a status.
   "reqif.import": [
     IMPORT,

@@ -35,8 +35,9 @@ export const plannedVersion = (metamodel: Metamodel, repository: string, planned
 };
 
 /**
- * Writes the new element files `files` of `repository`, all or nothing; the folders must exist.
- * Returns the files relative to the workspace root, in the order given, and puts them into the
+ * Writes the new element files `files` of `repository`, and the new files `others` there that are no
+ * elements (a saved mapping), all or nothing; the folders must exist. Returns the files relative to
+ * the workspace root, in the order given (the elements first), and puts the elements into the
  * element store (`recordWrites`). On a failure the store is read again, and `details.written` (the
  * files the call created that changed before it could remove them) names workspace paths.
  */
@@ -45,16 +46,17 @@ export const createElementFiles = async (
   layout: WorkspaceLayout,
   repository: RepositoryLocation,
   files: readonly NewElementFile[],
+  others: readonly NewElementFile[] = [],
 ): Promise<string[]> => {
   let written: readonly {
-    readonly file: { readonly planned: NewElementFile };
+    readonly file: { readonly planned: NewElementFile; readonly element: boolean };
     readonly snapshot: FileSnapshot;
   }[];
   try {
-    written = await createFilesAtomic(
-      repository.folder,
-      files.map((planned) => ({ path: planned.file, content: planned.bytes, planned })),
-    );
+    written = await createFilesAtomic(repository.folder, [
+      ...files.map((planned) => ({ path: planned.file, content: planned.bytes, planned, element: true })),
+      ...others.map((planned) => ({ path: planned.file, content: planned.bytes, planned, element: false })),
+    ]);
   } catch (error) {
     await workspace.reset(elementStoreState);
     if (error instanceof CommandError && Array.isArray(error.details?.["written"])) {
@@ -71,11 +73,17 @@ export const createElementFiles = async (
   await recordWrites(
     workspace,
     layout,
-    written.map(({ file: { planned }, snapshot }) => ({
-      repository: repository.name,
-      file: writtenElement(repository.name, planned.bytes, snapshot).file,
-      replaced: undefined,
-    })),
+    written.flatMap(({ file: { planned, element }, snapshot }) =>
+      element
+        ? [
+            {
+              repository: repository.name,
+              file: writtenElement(repository.name, planned.bytes, snapshot).file,
+              replaced: undefined,
+            },
+          ]
+        : [],
+    ),
   );
-  return files.map((planned) => workspacePath(layout, repository, planned.file));
+  return [...files, ...others].map((planned) => workspacePath(layout, repository, planned.file));
 };

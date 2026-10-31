@@ -30,10 +30,22 @@
 //   properties (SR-057 AK3; `propertyKeyRefusal`).
 // - Files go into the mapping's `target`, else a folder named after the source in the main
 //   repository (SR-053 AK1). The own metamodel is only read (SR-054 AK3).
+// - A file of ReqSeq (`own`, SR-052 AK3; ADR-0013 "Import"): a SPEC-OBJECT without values is a stub
+//   and never an element. Of an object whose readable values `readableValues` (own.ts) writes again
+//   from `reqseq-markdown` and `reqseq-values` equal to the file's (relation-valued properties,
+//   whose short IDs depend on the workspace, aside), the element takes the title, the text byte for
+//   byte, the properties of its type and the relations from those two; the status and the origin
+//   stored there are not taken, and its SPEC-RELATIONs are not read again. Otherwise another tool
+//   changed it: the readable attributes are imported through the mapping, with a warning
+//   `reqif.edited-elsewhere`. A target of a relation or relation-valued property that is imported in
+//   this call becomes that element with its planned version; any other target stays as stored, a
+//   missing target with its stored version (N-041, D-045, D-058). Not yet: a target of an earlier
+//   delivery or of the workspace (ADR-0013 steps 2 and 3).
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { CommandError } from "../catalog.js";
-import type { PropertyValue } from "../files/index.js";
+import type { Problem } from "../catalog.js";
+import type { FlowMappingValue, PropertyValue } from "../files/index.js";
 import type {
   MetamodelProperty,
   ReqifLoss,
@@ -42,15 +54,17 @@ import type {
   WorkspaceLocation,
 } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
-import { allowsType, keyDefinition } from "../metamodel/index.js";
+import { allowsType, findType, keyDefinition } from "../metamodel/index.js";
 import type { NewElementBase, NewElementFile } from "../model/index.js";
 import {
   fileNameFor,
+  hasId,
   newElementBase,
   newElementBytes,
   plannedVersion,
   portableName,
   propertyKeyRefusal,
+  titleKeyOrEmpty,
 } from "../model/index.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
 import { locate } from "../workspace/index.js";
@@ -67,6 +81,7 @@ import type {
 } from "./model.js";
 import type { OriginKeys } from "./origin.js";
 import { originKeys } from "./origin.js";
+import { ownAttributes, ownId, readableValues } from "./own.js";
 import { markdownText, xhtmlText } from "./xhtml-text.js";
 
 /** What `planImport` gives: the files to write and what the output lists. */
@@ -77,6 +92,8 @@ export interface ImportPlan {
   readonly files: readonly NewElementFile[];
   readonly created: readonly ReqifObject[];
   readonly losses: readonly ReqifLoss[];
+  /** Warnings: `reqif.edited-elsewhere` for an object of a file of ReqSeq another tool changed. */
+  readonly problems: readonly Problem[];
 }
 
 /** What the import itself writes into the origin of each element besides the source and IDENTIFIER. */
@@ -339,6 +356,8 @@ interface Draft {
   text: string;
   readonly properties: Map<string, PropertyValue>;
   readonly relations: Map<string, { readonly id: string; readonly version: string }[]>;
+  /** Of a file of ReqSeq: the relation kinds as `reqseq-values` holds them; set: its SPEC-RELATIONs are not read. */
+  ownRelations?: Map<string, PropertyValue>;
   /** The planned version (`plannedVersion`), set once the values are planned. */
   version: string;
 }
@@ -475,7 +494,7 @@ const fileOf = (draft: Draft, folder: string, withRelations: boolean): NewElemen
   file: path.posix.join(folder, fileNameFor({ prefix: draft.base.type.prefix, id: draft.id })),
   bytes: newElementBytes(draft.base, draft.id, draft.title, draft.text, [
     ...draft.properties,
-    ...(withRelations ? [...draft.relations] : []),
+    ...(withRelations ? [...draft.relations, ...(draft.ownRelations ?? [])] : []),
   ]),
 });
 
@@ -488,6 +507,13 @@ interface Context {
   readonly keys: OriginKeys;
   readonly source: string;
   readonly origin: ImportOrigin;
+  /** The new UUID of each object that becomes an element, by IDENTIFIER. */
+  readonly ids: ReadonlyMap<string, string>;
+  /** A file of ReqSeq (see the file comment). */
+  readonly own: boolean;
+  readonly problems: Problem[];
+  /** Relation items that name an object of this call, whose version is set once all are planned. */
+  readonly pending: Map<string, Record<string, PropertyValue>[]>;
 }
 
 /** Takes the values of `object` into `draft` (see the file comment). */
@@ -538,6 +564,117 @@ const planValues = (context: Context, object: ReqifSpecObject, t: ReqifSpecType,
   }
 };
 
+/** What `reqseq-markdown` and `reqseq-values` of an object hold. */
+interface Channels {
+  readonly data: Readonly<Record<string, unknown>>;
+  readonly text: string;
+}
+
+/** The value of attribute `definition` as a STRING, if the object has one. */
+const stringValue = (object: ReqifSpecObject, definition: string): string | undefined => {
+  const value = object.values.find((v) => v.definition === definition);
+  return value?.kind === "string" ? value.value : undefined;
+};
+
+/** The JSON object of `text`, or undefined when it is none. */
+const jsonObject = (text: string): Readonly<Record<string, unknown>> | undefined => {
+  try {
+    const value: unknown = JSON.parse(text);
+    return typeof value === "object" && value !== null && !Array.isArray(value)
+      ? (value as Readonly<Record<string, unknown>>)
+      : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+/** Values in a form two sets compare by, ordered by attribute. */
+const comparable = (values: readonly ReqifValue[]): string =>
+  JSON.stringify([...values].sort((a, b) => (a.definition < b.definition ? -1 : 1)));
+
+/**
+ * The round-trip channels of `object` of a file of ReqSeq, when the readable values written again
+ * from them equal the file's (see the file comment); else undefined, with the warning.
+ */
+const ownChannels = (
+  context: Context,
+  object: ReqifSpecObject,
+  t: ReqifSpecType,
+  ownType: string,
+): Channels | undefined => {
+  const { metamodel } = context;
+  const key = t.identifier.slice("_ot-".length);
+  const markdownId = ownId.markdown(key);
+  const valuesId = ownId.values(key);
+  const text = stringValue(object, markdownId);
+  const data = jsonObject(stringValue(object, valuesId) ?? "");
+  const titleKey = titleKeyOrEmpty(metamodel);
+  const attributes = ownAttributes(metamodel, key, findType(metamodel, ownType), titleKey);
+  const relational = new Set(
+    attributes.filter((a) => a.property?.kind === "relation").map((a) => a.identifier),
+  );
+  const compared = (v: ReqifValue): boolean =>
+    v.definition !== markdownId && v.definition !== valuesId && !relational.has(v.definition);
+  const same =
+    text !== undefined &&
+    data !== undefined &&
+    comparable(
+      readableValues(metamodel, attributes, { data, text }, titleKey, { shortId: () => "" }, false).filter(
+        compared,
+      ),
+    ) === comparable(object.values.filter(compared));
+  if (same) {
+    return { data, text };
+  }
+  context.problems.push({
+    code: "reqif.edited-elsewhere",
+    severity: "warning",
+    message: `${object.identifier}: its attributes differ from reqseq-markdown and reqseq-values, so another tool changed it; its readable attributes are imported`,
+  });
+  return undefined;
+};
+
+/** `value` with each relation item that names an object of this call pointed at its element. */
+const ownTargets = (context: Context, value: unknown): PropertyValue => {
+  const mapped = (item: unknown): unknown => {
+    if (!hasId(item)) {
+      return item;
+    }
+    const id = context.ids.get(ownId.element(item.id));
+    if (id === undefined) {
+      return item;
+    }
+    // The element lies in the repository of this call, so a stored repository no longer applies.
+    const { repository: _repository, ...rest } = item;
+    const pointed: Record<string, PropertyValue> = { ...(rest as FlowMappingValue), id, version: "" };
+    context.pending.set(id, [...(context.pending.get(id) ?? []), pointed]);
+    return pointed;
+  };
+  return (Array.isArray(value) ? value.map(mapped) : mapped(value)) as PropertyValue;
+};
+
+/** Takes the title, text, properties and relations of `draft` from the channels (see the file comment). */
+const planOwnValues = (context: Context, { data, text }: Channels, draft: Draft): void => {
+  const { metamodel, keys } = context;
+  const origin = new Set<string>(Object.values(keys));
+  const title = data[draft.base.titleKey];
+  draft.title = typeof title === "string" ? title : "";
+  draft.text = text;
+  for (const key of draft.base.type.properties) {
+    const value = data[key];
+    if (key === draft.base.titleKey || origin.has(key) || value === undefined || value === null) {
+      continue;
+    }
+    const relation = metamodel.properties.find((p) => p.key === key)?.kind === "relation";
+    draft.properties.set(key, relation ? ownTargets(context, value) : (value as PropertyValue));
+  }
+  draft.ownRelations = new Map(
+    metamodel.relations.flatMap((r) =>
+      data[r.key] === undefined ? [] : [[r.key, ownTargets(context, data[r.key])] as const],
+    ),
+  );
+};
+
 /** The draft of `object`, or undefined when its type is omitted (a loss). */
 const planObject = (
   context: Context,
@@ -552,8 +689,14 @@ const planObject = (
       object.line,
     );
   }
+  if (context.own && object.values.length === 0) {
+    // A stub of a file of ReqSeq: a target outside its export, never an element.
+    return undefined;
+  }
   const ownType = context.coverage.types.get(t.identifier);
-  if (ownType === undefined) {
+  // Every object of a mapped type that is no stub has its UUID.
+  const id = context.ids.get(object.identifier);
+  if (ownType === undefined || id === undefined) {
     context.losses.push({
       identifier: object.identifier,
       kind: "spec-object",
@@ -566,7 +709,7 @@ const planObject = (
   const { keys } = context;
   const draft: Draft = {
     identifier: object.identifier,
-    id: randomUUID(),
+    id,
     base,
     title: nameOf(object),
     text: "",
@@ -574,7 +717,12 @@ const planObject = (
     relations: new Map(),
     version: "",
   };
-  planValues(context, object, t, draft);
+  const channels = context.own ? ownChannels(context, object, t, ownType) : undefined;
+  if (channels === undefined) {
+    planValues(context, object, t, draft);
+  } else {
+    planOwnValues(context, channels, draft);
+  }
   draft.properties.set(keys.source, context.source);
   draft.properties.set(keys["source-identifier"], object.identifier);
   draft.properties.set(keys["import-date"], context.origin.date);
@@ -625,6 +773,10 @@ const planRelation = (
   const kind = context.coverage.relations.get(t.identifier);
   const source = drafts.get(relation.source);
   const target = drafts.get(relation.target);
+  if (source?.ownRelations !== undefined) {
+    // Its relations come from `reqseq-values` (see the file comment).
+    return;
+  }
   const loss: Loss = (code, reason) => {
     context.losses.push({
       identifier: relation.identifier,
@@ -704,6 +856,7 @@ export const planImport = (
   layout: WorkspaceLayout,
   metamodel: Metamodel,
   origin: ImportOrigin,
+  own = false,
 ): ImportPlan => {
   const keys = originKeys(metamodel);
   const index = indexOf(file);
@@ -721,6 +874,12 @@ export const planImport = (
     );
   }
   const relative = path.relative(repository.folder, folder).split(path.sep).join("/");
+  const ids = new Map(
+    file.specObjects.flatMap((o) => {
+      const mapped = coverage.types.get(o.type) !== undefined;
+      return mapped && !(own && o.values.length === 0) ? [[o.identifier, randomUUID()] as const] : [];
+    }),
+  );
   const context: Context = {
     index,
     coverage,
@@ -729,12 +888,21 @@ export const planImport = (
     keys,
     source: mapping.source.name,
     origin,
+    ids,
+    own,
+    problems: [],
+    pending: new Map(),
   };
   const drafts = new Map<string, Draft>();
   for (const object of file.specObjects) {
     const draft = planObject(context, repository.name, relative, object);
     if (draft !== undefined) {
       drafts.set(object.identifier, draft);
+    }
+  }
+  for (const draft of drafts.values()) {
+    for (const item of context.pending.get(draft.id) ?? []) {
+      item["version"] = draft.version;
     }
   }
   for (const relation of file.specRelations) {
@@ -773,5 +941,6 @@ export const planImport = (
     files: all.map((d) => fileOf(d, relative, true)),
     created: all.map((d) => ({ identifier: d.identifier, id: d.id })),
     losses: context.losses,
+    problems: context.problems,
   };
 };
