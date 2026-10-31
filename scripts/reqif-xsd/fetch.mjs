@@ -29,12 +29,14 @@ export const annotation = (title, message) =>
 
 /**
  * The files to fetch: `manifest` is the parsed xsd.json, `pins` the text of xsd.sha256 (`<sha256>  <name>`
- * per line, as sha256sum writes it). Gives the files with their hash, or the reasons the two do not fit.
+ * per line, as sha256sum writes it; `#` starts a comment line). Gives the files with their hash, or the reasons the two do not fit.
  */
 export const plan = (manifest, pins) => {
   const problems = [];
   const hashes = new Map();
-  for (const line of pins.split(/\r?\n/).filter((text) => text.trim() !== "")) {
+  for (const line of pins
+    .split(/\r?\n/)
+    .filter((text) => text.trim() !== "" && !text.trimStart().startsWith("#"))) {
     const match = /^([0-9a-f]{64}) [ *](\S+)$/.exec(line.trim());
     if (match === null) {
       problems.push(

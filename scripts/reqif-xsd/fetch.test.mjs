@@ -15,7 +15,7 @@ const manifest = {
     { name: "b.xsd", url: "https://example.org/b.xsd" },
   ],
 };
-const pins = `${sha(A)}  a.xsd\n${sha(B)} *b.xsd\n`;
+const pins = `# confirmed\n${sha(A)}  a.xsd\n${sha(B)} *b.xsd\n`;
 
 const roots = [];
 afterEach(() => {
@@ -111,7 +111,9 @@ describe("plan", () => {
     expect(
       committed.files.every((file) => file.url.startsWith("https://") && file.url.endsWith(`/${file.name}`)),
     ).toBe(true);
-    expect(fs.existsSync(PINS)).toBe(true);
+    const pinned = plan(committed, fs.readFileSync(PINS, "utf8"));
+    expect(pinned.problems).toEqual([]);
+    expect(pinned.files.map((file) => file.name)).toEqual(committed.files.map((file) => file.name));
   });
 });
 
