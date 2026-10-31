@@ -253,3 +253,95 @@ describe("window layout (SR-115 AK3)", () => {
     expect(alone).toEqual(reduceWindow(from, { type: "open", buffer: core }));
   });
 });
+
+describe("open beside and follow (SR-150)", () => {
+  const keys = (state: WindowState): string[] => state.buffers.map((buffer) => buffer.key);
+
+  it("[SR-150/AK1] Open to the right splits the window: the shown buffer stays on the left and active, the marked element opens on the right", () => {
+    const from = opened(element(1), graph);
+    const state = reduceWindow(from, { type: "beside", side: "right", buffer: element(2) });
+    expect(shown(state)).toEqual([`${graph.key}*`, element(2).key]);
+    expect(keys(state)).toEqual([graph.key, element(2).key, element(1).key, overview.key]);
+    sound(state);
+    // The shown element itself is not opened beside itself.
+    const self = opened(element(1));
+    expect(reduceWindow(self, { type: "beside", side: "right", buffer: element(1) })).toBe(self);
+    expect(reduceWindow(EMPTY_WINDOW, { type: "beside", side: "right", buffer: element(1) })).toBe(
+      EMPTY_WINDOW,
+    );
+  });
+
+  it("[SR-150/AK2] Open to the left: the marked element opens on the left, the shown buffer stands on the right and stays active", () => {
+    const state = reduceWindow(opened(list), { type: "beside", side: "left", buffer: element(2) });
+    expect(shown(state)).toEqual([element(2).key, `${list.key}*`]);
+    expect(state.layout).toEqual({ active: "right", other: element(2).key });
+    sound(state);
+  });
+
+  it("[SR-150/AK3] in a split, the inactive side shows the marked element and the active area stays; the active side opens it as Enter does", () => {
+    const split = run(opened(element(1), graph), { type: "split" });
+    expect(split.layout.active).toBe("left");
+    const right = reduceWindow(split, { type: "beside", side: "right", buffer: element(2) });
+    expect(shown(right)).toEqual([`${graph.key}*`, element(2).key]);
+    sound(right);
+    const left = reduceWindow(split, { type: "beside", side: "left", buffer: element(2) });
+    expect(left).toEqual(reduceWindow(split, { type: "open", buffer: element(2) }));
+    expect(shown(left)).toEqual([`${element(2).key}*`, element(1).key]);
+    sound(left);
+  });
+
+  it("[SR-150/AK4] the inactive element follows the element marked in the active area: in its place when it may be replaced, else behind it", () => {
+    const from = reduceWindow(opened(list), { type: "beside", side: "right", buffer: element(1) });
+    const follow = (buffer: ElementBuffer, replace = true): WindowAction => ({
+      type: "follow",
+      buffer,
+      replace,
+      page: false,
+    });
+    const state = reduceWindow(from, follow(element(2)));
+    expect(shown(state)).toEqual([`${list.key}*`, element(2).key]);
+    expect(keys(state)).toEqual([list.key, element(2).key, overview.key]);
+    sound(state);
+    // Not to be replaced (opened by the reader, or unsaved input): it stays open behind.
+    const kept = reduceWindow(from, follow(element(2), false));
+    expect(shown(kept)).toEqual([`${list.key}*`, element(2).key]);
+    expect(keys(kept)).toEqual([list.key, element(2).key, element(1).key, overview.key]);
+    // An element already open moves into the area; the one shown before stays open.
+    const open = reduceWindow(
+      run(from, { type: "open", buffer: element(3) }, { type: "switch", key: list.key }),
+      follow(element(3)),
+    );
+    expect(shown(open)).toEqual([`${list.key}*`, element(3).key]);
+    expect(keys(open)).toContain(element(1).key);
+    sound(open);
+    // The element already shown there, or the active buffer itself: nothing changes.
+    expect(reduceWindow(from, follow(element(1)))).toBe(from);
+    const twoElements = run(opened(element(2), element(1)), { type: "split" });
+    expect(reduceWindow(twoElements, follow(element(1)))).toBe(twoElements);
+  });
+
+  it("[SR-150/AK5] an inactive list, overview, graph or package page, the comparison of SR-044 and one area do not follow", () => {
+    const follow = (page = false): WindowAction => ({
+      type: "follow",
+      buffer: element(2),
+      replace: true,
+      page,
+    });
+    const listed = run(opened(list, element(1)), { type: "split" });
+    expect(reduceWindow(listed, follow())).toBe(listed);
+    const graphed = run(opened(graph, element(1)), { type: "split" });
+    expect(reduceWindow(graphed, follow())).toBe(graphed);
+    const lone = run(opened(element(1)), { type: "split" });
+    expect(reduceWindow(lone, follow())).toBe(lone);
+    const paged = reduceWindow(opened(list), { type: "beside", side: "right", buffer: element(9) });
+    expect(reduceWindow(paged, follow(true))).toBe(paged);
+    const compared = reduceWindow(opened(list), {
+      type: "side-by-side",
+      left: readOnlyBuffer(element(1)),
+      right: readOnlyBuffer(element(3)),
+    });
+    expect(reduceWindow(compared, follow())).toBe(compared);
+    const one = opened(element(1));
+    expect(reduceWindow(one, follow())).toBe(one);
+  });
+});

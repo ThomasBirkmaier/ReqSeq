@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { TraceNeighbourhoodOutput } from "@reqseq/core";
 import { useIdScope } from "./area-scope.js";
-import type { BufferAction, NeighbourhoodBuffer } from "./buffers.js";
+import type { BufferAction, ElementBuffer, NeighbourhoodBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
 import { rowTarget } from "./keys.js";
 import type { BufferData } from "./modeline.js";
@@ -77,6 +77,15 @@ const OutdatedWord = ({ note }: { readonly note: string }): React.JSX.Element =>
     {OUTDATED_WORD}
   </span>
 );
+
+/** The element of the selected row (SR-150): none while no row is selected. */
+const markedOf = (
+  entries: readonly { readonly row: { readonly open: ElementBuffer } }[],
+  cursor: number,
+): ElementBuffer | undefined => (cursor < 0 ? undefined : entries[cursor]?.row.open);
+
+const withMarked = (marked: ElementBuffer | undefined): { readonly marked?: ElementBuffer } =>
+  marked === undefined ? {} : { marked };
 
 export const NeighbourhoodView = ({
   call,
@@ -155,15 +164,6 @@ export const NeighbourhoodView = ({
     }
   }, [wanted, fetched?.depth]);
 
-  useEffect(() => {
-    if (fetched !== undefined && incomingOutput !== undefined) {
-      onData(buffer.key, {
-        kind: "neighbourhood",
-        incomplete: fetched.output.incomplete || incomingOutput.incomplete,
-      });
-    }
-  }, [fetched, incomingOutput]);
-
   const treeLength = tree?.rows.length ?? 0;
   const groups = incoming?.groups ?? [];
   const entries: readonly (TreeRow | GroupEntry)[] = [
@@ -178,6 +178,17 @@ export const NeighbourhoodView = ({
     }
   }, [tree, incoming]);
   const cursor = Math.min(buffer.cursor, Math.max(0, entries.length - 1));
+  const markedRow = markedOf(entries, cursor);
+
+  useEffect(() => {
+    if (fetched !== undefined && incomingOutput !== undefined) {
+      onData(buffer.key, {
+        kind: "neighbourhood",
+        incomplete: fetched.output.incomplete || incomingOutput.incomplete,
+        ...withMarked(markedRow),
+      });
+    }
+  }, [fetched, incomingOutput, markedRow?.key]);
 
   useEffect(() => {
     root.current?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: "nearest" });

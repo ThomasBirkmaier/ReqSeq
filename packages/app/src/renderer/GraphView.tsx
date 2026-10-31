@@ -126,22 +126,24 @@ export const GraphView = ({
     };
   }, [call, asked, revision]);
 
-  useEffect(() => {
-    if (shown !== undefined) {
-      onData(buffer.key, {
-        kind: "graph",
-        nodes: shown.output.nodes.length,
-        truncated: shown.output.truncated,
-        incomplete: shown.output.incomplete,
-      });
-    }
-  }, [shown]);
-
   const rootKey = nodeKey(buffer.repository, buffer.id);
   const selected =
     buffer.selected !== undefined && shown?.layout.byKey.has(buffer.selected) === true
       ? buffer.selected
       : rootKey;
+
+  useEffect(() => {
+    if (shown !== undefined) {
+      const marked = shown.layout.byKey.get(selected)?.node;
+      onData(buffer.key, {
+        kind: "graph",
+        nodes: shown.output.nodes.length,
+        truncated: shown.output.truncated,
+        incomplete: shown.output.incomplete,
+        ...(marked === undefined ? {} : { marked: elementBufferOf(marked) }),
+      });
+    }
+  }, [shown, selected]);
 
   // A new layout: the view opens on the selected node (the element when the graph opens) in its middle,
   // as far as the drawing reaches (AK1, `viewStart`); a new layout of the same graph (the workspace

@@ -1,7 +1,23 @@
 import type { DataExportElement } from "@reqseq/core";
 import { describe, expect, it } from "vitest";
-import { elementBuffer, graphBuffer, listBuffer, overviewBuffer, searchBuffer } from "./buffers.js";
-import { INCOMPLETE, bufferView, readOnlyNow, selectedRow, shownElement, workspaceView } from "./modeline.js";
+import {
+  elementBuffer,
+  graphBuffer,
+  listBuffer,
+  metamodelBuffer,
+  overviewBuffer,
+  searchBuffer,
+} from "./buffers.js";
+import {
+  INCOMPLETE,
+  bufferView,
+  markToken,
+  markedElement,
+  readOnlyNow,
+  selectedRow,
+  shownElement,
+  workspaceView,
+} from "./modeline.js";
 
 describe("workspaceView", () => {
   it("shows the name, and read-only, errors and warnings only when there are any", () => {
@@ -343,5 +359,53 @@ describe("shownElement", () => {
     expect(shownElement(buffer, undefined)).toBeUndefined();
     expect(shownElement(buffer, { key: "another", data: { kind: "element", element } })).toBeUndefined();
     expect(shownElement(undefined, undefined)).toBeUndefined();
+  });
+});
+
+describe("markedElement (SR-150)", () => {
+  const marked = elementBuffer("uuid-2", "spec", "SR-2 Two");
+
+  it("is the marked element a graph, the neighbourhood or the overview gave, and the selected row of a list", () => {
+    const graph = graphBuffer("uuid-1", "spec", "SR-1 One");
+    const graphData = { kind: "graph", nodes: 2, truncated: false, incomplete: false, marked } as const;
+    expect(markedElement(graph, { key: graph.key, data: graphData })).toBe(marked);
+    const overview = overviewBuffer();
+    expect(
+      markedElement(overview, {
+        key: overview.key,
+        data: { kind: "overview", total: 1, incomplete: false, marked },
+      }),
+    ).toBe(marked);
+    expect(
+      markedElement(overview, { key: overview.key, data: { kind: "overview", total: 1, incomplete: false } }),
+    ).toBeUndefined();
+    const list = { ...listBuffer("All elements"), cursor: 0 };
+    expect(
+      markedElement(list, {
+        key: list.key,
+        data: { kind: "list", total: 1, incomplete: false, rows: [marked] },
+      }),
+    ).toBe(marked);
+  });
+
+  it("is undefined for data of another buffer, while nothing has loaded, and for an element", () => {
+    const graph = graphBuffer("uuid-1", "spec", "SR-1 One");
+    const graphData = { kind: "graph", nodes: 2, truncated: false, incomplete: false, marked } as const;
+    expect(markedElement(graph, { key: "other", data: graphData })).toBeUndefined();
+    expect(markedElement(undefined, undefined)).toBeUndefined();
+    const element = elementBuffer("uuid-1", "spec", "SR-1 One");
+    expect(markedElement(element, { key: element.key, data: undefined })).toBeUndefined();
+  });
+});
+
+describe("markToken (SR-150 AK4)", () => {
+  it("is the selected row or graph node, and nothing for an element, the metamodel or no buffer", () => {
+    expect(markToken({ ...listBuffer("All elements"), cursor: 2 })).toBe("2");
+    const graph = graphBuffer("uuid-1", "spec", "SR-1 One");
+    expect(markToken(graph)).toBe("");
+    expect(markToken({ ...graph, selected: "spec:uuid-2" })).toBe("spec:uuid-2");
+    expect(markToken(elementBuffer("uuid-1", "spec", "SR-1 One"))).toBeUndefined();
+    expect(markToken(metamodelBuffer())).toBeUndefined();
+    expect(markToken(undefined)).toBeUndefined();
   });
 });
