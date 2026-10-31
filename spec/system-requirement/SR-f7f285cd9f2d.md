@@ -4,11 +4,11 @@ type: system-requirement
 status: approved
 title: Nachweisstatus je Variante als Plaketten zeigen
 spec-id: SR-157
-rationale: "Entscheidung des Produktverantwortlichen, 2026-10-31: Der Nachweisstatus je Variante, den die Seite eines Requirements bisher als Textzeile „Verification — Linux: open“ zeigt (SR-047 AK3), soll wie die Badges in einer GitHub-README erscheinen, eher in Pillenform, zum Beispiel links die Variante und rechts der Status. Die Farben folgen D-062: Farbe nur, wo sie Bedeutung trägt. Eingetragen in Später."
+rationale: "Entscheidung des Produktverantwortlichen, 2026-10-31: Der Nachweisstatus je Variante, den die Seite eines Requirements bisher als Textzeile zeigt (SR-047 AK3), soll aussehen wie die Badges einer GitHub-README, in Pillenform, mit dem Namen der Variante auf der einen und dem Status auf der anderen Hälfte. Die Farben folgen D-062: Farbe nur, wo sie Bedeutung trägt."
 requirement-type: functional
 acceptance-criteria:
-  - Gegeben ein Requirement mit Nachweisstatus für den Kern und seine Varianten (SR-047 AK3), wenn seine Seite in der App angezeigt wird, dann steht statt der Textzeile „Verification — …“ je Kern und Variante eine Plakette in Pillenform mit abgerundeten Enden, links der Name (Kern oder Variante), rechts der Nachweisstatus (offen, nachgewiesen, nicht bestanden oder veraltet, SR-031; indirekt nachgewiesen als solcher gekennzeichnet, SR-034), in derselben Reihenfolge und mit denselben Zeilen wie bisher.
-  - Gegeben die Plaketten eines Requirements, wenn sie angezeigt werden, dann ist die linke Hälfte in Graustufen und die rechte trägt Farbe nur bei einem Status mit Bedeutung nach D-062, nicht bestanden und veraltet; offen und nachgewiesen bleiben in Graustufen und unterscheiden sich durch ihren Text. Der Text jeder Hälfte ist im hellen und im dunklen Erscheinungsbild gut lesbar.
+  - Gegeben ein Requirement mit Nachweisstatus für den Kern und seine Varianten (SR-047 AK3), wenn seine Seite in der App angezeigt wird, dann steht statt der Textzeile „Verification — …“ je Kern und Variante eine Plakette in Pillenform mit abgerundeten Enden, links der Name des Kerns oder der Variante, rechts ihr Nachweisstatus, wie ihn die Textzeile bisher zeigt, mit denselben Einträgen in derselben Reihenfolge.
+  - Gegeben die Plaketten eines Requirements, wenn sie angezeigt werden, dann ist die linke Hälfte in Graustufen und die rechte trägt Farbe nur bei den Status nicht bestanden und veraltet (D-062); offen und nachgewiesen bleiben in Graustufen und unterscheiden sich durch ihren Text. Text und Hintergrund jeder Hälfte haben im hellen und im dunklen Erscheinungsbild ein Kontrastverhältnis von mindestens 4,5:1.
   - Gegeben die Plakette einer Variante, wenn auf ihre linke Hälfte geklickt wird, dann öffnet die App die Variante, wie bisher ihr Name in der Textzeile.
 packages:
   - { id: c64ee86d-761a-4180-bfb1-cde819bfc27c, version: n1:fd3ed3f03b3d762f, title: Später }
