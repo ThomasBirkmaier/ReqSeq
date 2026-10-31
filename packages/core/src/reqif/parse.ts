@@ -16,6 +16,7 @@ import type {
   ReqifHeader,
   ReqifHierarchy,
   ReqifIdentifiable,
+  ReqifOwner,
   ReqifSpecification,
   ReqifSpecObject,
   ReqifSpecRelation,
@@ -47,8 +48,16 @@ const OBJECT = 64;
 const CHAR = 2;
 const STRING = 24;
 
+/** A reference to an IDENTIFIER the file does not define; the model keeps it as written. */
+export interface ReqifWarning {
+  readonly message: string;
+  readonly line: number;
+  /** IDENTIFIER of the element that holds the reference. */
+  readonly identifier: string;
+}
+
 export type ReqifParseOutcome =
-  | { readonly kind: "parsed"; readonly file: ReqifFile }
+  | { readonly kind: "parsed"; readonly file: ReqifFile; readonly warnings: readonly ReqifWarning[] }
   | { readonly kind: "refused"; readonly message: string; readonly line: number };
 
 class Invalid extends Error {
@@ -71,6 +80,8 @@ interface Node {
   readonly content: (Node | XhtmlElement | string)[];
   /** Set at its end for a SPEC-HIERARCHY; its content is then dropped. */
   hierarchy?: ReqifHierarchy;
+  /** Set when the reader looked at it; what it never looked at is unread. */
+  read?: boolean;
 }
 
 /**
@@ -124,9 +135,15 @@ const attribute = (node: Node, name: string): string | undefined => {
 const elements = (node: Node): Node[] =>
   node.content.filter((child): child is Node => typeof child !== "string" && "content" in child);
 const reqifChildren = (node: Node, name: string): Node[] =>
-  elements(node).filter((child) => isReqif(child, name));
-const reqifChild = (node: Node, name: string): Node | undefined =>
-  elements(node).find((child) => isReqif(child, name));
+  elements(node).filter((child) => isReqif(child, name) && (child.read = true));
+/** The first child `name`; a second one is unread. */
+const reqifChild = (node: Node, name: string): Node | undefined => {
+  const child = elements(node).find((element) => isReqif(element, name));
+  if (child !== undefined) {
+    child.read = true;
+  }
+  return child;
+};
 const required = (node: Node, name: string): Node => {
   const child = reqifChild(node, name);
   if (child === undefined) {
@@ -220,6 +237,13 @@ const isItem = (part: string, node: Node): boolean => {
   }
 };
 
+/** The objects whose unread parts are losses of an element (SR-053 AK2). */
+const OWNERS: ReadonlyMap<string, ReqifOwner["kind"]> = new Map([
+  ["SPEC-OBJECT", "spec-object"],
+  ["SPEC-RELATION", "spec-relation"],
+  ["SPECIFICATION", "specification"],
+]);
+
 /** `xsd:boolean` true: `true` or `1`, whitespace around allowed. */
 const isTrue = (value: string | undefined): boolean => ["true", "1"].includes(value?.trim() ?? "");
 
@@ -267,7 +291,10 @@ class Reader implements XmlEvents<Frame> {
   ]);
   private kept = 0;
   private readonly limit: number;
-  readonly seen = new Set<Role>();
+  /** The roles met, and the parts met by `<parent role> <name>`. */
+  readonly seen = new Set<string>();
+  /** The object being read, for its unread parts. */
+  private owner: ReqifOwner | undefined;
   header: ReqifHeader | undefined;
   readonly unread: ReqifUnread[] = [];
   readonly datatypes: ReqifDatatype[] = [];
@@ -317,7 +344,7 @@ class Reader implements XmlEvents<Frame> {
       this.charge(OBJECT, line);
       return SKIP;
     }
-    this.seen.add(role);
+    this.enter(parent.role, role, node);
     let bytes = 3 * OBJECT;
     for (const text of node.attributes) {
       bytes += STRING + CHAR * text.length;
@@ -366,14 +393,34 @@ class Reader implements XmlEvents<Frame> {
           object: refIn(node, "OBJECT", "SPEC-OBJECT-REF"),
           children: this.each(reqifChild(node, "CHILDREN"), (child) => child.hierarchy),
         };
+        this.leftovers(node);
         node.content.length = 0;
       }
       into.push(node);
     } else if (role === "item") {
       this.item(node);
+      this.leftovers(node);
+      this.owner = undefined;
     } else if (role === "header") {
       this.header = this.headerOf(node);
+      this.leftovers(node);
     }
+  }
+
+  /** Notes a kept element: refuses a part met twice, and starts the owner of an item. */
+  private enter(parent: Role, role: Role, node: Node): void {
+    const part = `${parent} ${node.name}`;
+    if ((parent === "root" || parent === "content") && node.namespace === REQIF_NAMESPACE) {
+      if (this.seen.has(part)) {
+        throw new Invalid(`<${node.name}> appears twice`, node.line);
+      }
+      this.seen.add(part);
+    }
+    if (role === "item") {
+      const kind = OWNERS.get(node.name);
+      this.owner = kind === undefined ? undefined : { kind, identifier: attribute(node, "IDENTIFIER") ?? "" };
+    }
+    this.seen.add(role);
   }
 
   private charge(bytes: number, line: number): void {
@@ -436,8 +483,23 @@ class Reader implements XmlEvents<Frame> {
   }
 
   private record(node: Node): void {
-    this.charge(OBJECT + CHAR * node.name.length, node.line);
-    this.unread.push({ name: node.name, line: node.line });
+    this.charge(2 * OBJECT + CHAR * node.name.length, node.line);
+    const { name, namespace, line } = node;
+    this.unread.push({ name, namespace, line, ...(this.owner === undefined ? {} : { owner: this.owner }) });
+  }
+
+  /** Records every element below `node` the reader did not look at (the topmost of each). */
+  private leftovers(node: Node): void {
+    const pending = [node];
+    for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
+      for (const child of elements(next)) {
+        if (child.read === true) {
+          pending.push(child);
+        } else {
+          this.record(child);
+        }
+      }
+    }
   }
 
   /** Reads an item; `isItem` chose it. */
@@ -482,6 +544,7 @@ class Reader implements XmlEvents<Frame> {
   private each<T>(node: Node | undefined, read: (child: Node) => T | undefined): T[] {
     const found: T[] = [];
     for (const child of node === undefined ? [] : elements(node)) {
+      child.read = true;
       const value = read(child);
       if (value === undefined) {
         this.record(child);
@@ -560,6 +623,80 @@ class Reader implements XmlEvents<Frame> {
   }
 }
 
+/** Every identifiable of the file, the nested SPEC-HIERARCHY included (walked without recursion). */
+const identifiables = (file: ReqifFile): ReqifIdentifiable[] => {
+  const hierarchies: ReqifIdentifiable[] = [];
+  const pending = file.specifications.flatMap((specification) => specification.children);
+  for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
+    hierarchies.push(next);
+    pending.push(...next.children);
+  }
+  return [
+    ...file.datatypes.flatMap((datatype) => [datatype, ...datatype.values]),
+    ...file.specTypes.flatMap((type) => [type, ...type.attributes]),
+    ...file.specObjects,
+    ...file.specRelations,
+    ...file.specifications,
+    ...hierarchies,
+  ];
+};
+
+/** The IDENTIFIERs of the file; one used twice makes references ambiguous and refuses the file. */
+const definedIdentifiers = (file: ReqifFile): ReadonlySet<string> => {
+  const defined = new Set<string>([file.header.identifier]);
+  for (const item of identifiables(file)) {
+    if (defined.has(item.identifier)) {
+      throw new Invalid(`IDENTIFIER ${shown(item.identifier)} is used twice`, item.line);
+    }
+    defined.add(item.identifier);
+  }
+  return defined;
+};
+
+/** A warning for every reference to an IDENTIFIER the file does not define. */
+const danglingReferences = (file: ReqifFile, defined: ReadonlySet<string>): ReqifWarning[] => {
+  const warnings: ReqifWarning[] = [];
+  const check = (owner: ReqifIdentifiable, what: string, reference: string): void => {
+    if (!defined.has(reference)) {
+      const { identifier, line } = owner;
+      warnings.push({
+        message: `${what} ${shown(reference)} of ${shown(identifier)} is not in the file`,
+        line,
+        identifier,
+      });
+    }
+  };
+  const checkValues = (owner: ReqifIdentifiable, values: readonly ReqifValue[]): void => {
+    for (const value of values) {
+      check(owner, "Attribute definition", value.definition);
+      for (const reference of value.kind === "enumeration" ? value.values : []) {
+        check(owner, "Enumeration value", reference);
+      }
+    }
+  };
+  for (const definition of file.specTypes.flatMap((type) => type.attributes)) {
+    check(definition, "Datatype", definition.datatype);
+  }
+  for (const object of file.specObjects) {
+    check(object, "SPEC-OBJECT-TYPE", object.type);
+    checkValues(object, object.values);
+  }
+  for (const relation of file.specRelations) {
+    check(relation, "SPEC-RELATION-TYPE", relation.type);
+    check(relation, "Source", relation.source);
+    check(relation, "Target", relation.target);
+    checkValues(relation, relation.values);
+  }
+  for (const specification of file.specifications) {
+    check(specification, "SPECIFICATION-TYPE", specification.type);
+    checkValues(specification, specification.values);
+  }
+  for (const hierarchy of identifiables(file).filter((item): item is ReqifHierarchy => "object" in item)) {
+    check(hierarchy, "SPEC-OBJECT", hierarchy.object);
+  }
+  return warnings;
+};
+
 /** Reads the bytes of a ReqIF 1.2 file (`.reqif`; a `.reqifz` archive is not read, SR-053). */
 export const parseReqif = (bytes: Uint8Array, limits: ReqifLimits = REQIF_LIMITS): ReqifParseOutcome => {
   if (bytes.length > limits.bytes) {
@@ -586,10 +723,8 @@ export const parseReqif = (bytes: Uint8Array, limits: ReqifLimits = REQIF_LIMITS
       throw new Invalid("<REQ-IF> has no <THE-HEADER>", line);
     }
     const { header, datatypes, specTypes, specObjects, specRelations, specifications, unread } = reader;
-    return {
-      kind: "parsed",
-      file: { header, datatypes, specTypes, specObjects, specRelations, specifications, unread },
-    };
+    const file = { header, datatypes, specTypes, specObjects, specRelations, specifications, unread };
+    return { kind: "parsed", file, warnings: danglingReferences(file, definedIdentifiers(file)) };
   } catch (error) {
     if (error instanceof Invalid) {
       return { kind: "refused", message: error.message, line: error.line };
