@@ -1,5 +1,5 @@
 // reqif.import (SR-053; ADR-0013 "Import"): imports a ReqIF 1.2 file through a saved mapping, all or
-// nothing. Parse (`reqif.invalid`), mapping (`readMappingFile`, SR-054 AK2), the plan in memory
+// nothing. Read and parse (`readDelivery`, `reqif.invalid`), mapping (`readMappingFile`, SR-054 AK2), the plan in memory
 // (reqif/import.ts: `reqif.unmapped`, losses), then every new element file at once
 // (`createElementFiles`); a refusal comes before any write. The own metamodel is only read (SR-054
 // AK3), and no status is set but the initial one (D-030).
@@ -11,8 +11,6 @@
 // conflicts `take` and `keep` decide (SR-056; until then no import finds a conflict, so both lists
 // change nothing, and a repeated import creates new elements), the one-to-one mapping of a ReqSeq
 // file (SR-052).
-import fs from "node:fs/promises";
-import { constants } from "node:fs";
 import path from "node:path";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
@@ -21,67 +19,16 @@ import { metamodelState } from "../../metamodel/index.js";
 import type { NewElementFile, NewImageFile } from "../../model/index.js";
 import { createElementFiles, refuseUnlisted } from "../../model/index.js";
 import {
-  REQIF_LIMITS,
   imageContent,
   imageReader,
   importDate,
-  parseReqif,
   planImport,
+  readDelivery,
   readMappingFile,
 } from "../../reqif/index.js";
 import type { PlannedImage } from "../../reqif/index.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../../workspace/index.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
-
-/** Opening never waits: a FIFO in place of the file opens at once and is then no file (no O_NONBLOCK on Windows). */
-const READ_NOW = constants.O_RDONLY | constants.O_NONBLOCK;
-
-/** Bytes read at a time. */
-const CHUNK = 1024 * 1024;
-
-/**
- * The bytes of the ReqIF file at the local path `given`. The limit holds for the bytes read, not for
- * a size looked at before, so a file growing meanwhile is refused too; a FIFO or device is no file.
- */
-const readDelivery = async (root: string, given: string): Promise<Uint8Array> => {
-  const absolute = path.resolve(root, given);
-  const name = path.basename(absolute);
-  let handle: fs.FileHandle;
-  try {
-    handle = await fs.open(absolute, READ_NOW);
-  } catch (error) {
-    throw new CommandError(
-      "file.faulty",
-      `file: cannot read ${name}: ${String((error as NodeJS.ErrnoException).code)}`,
-      { fields: ["file"] },
-    );
-  }
-  try {
-    if (!(await handle.stat()).isFile()) {
-      throw new CommandError("file.faulty", `file: ${name} is not a file`, { fields: ["file"] });
-    }
-    const chunks: Uint8Array[] = [];
-    let total = 0;
-    for (;;) {
-      const chunk = Buffer.alloc(CHUNK);
-      const { bytesRead } = await handle.read(chunk, 0, CHUNK, null);
-      if (bytesRead === 0) {
-        return Buffer.concat(chunks, total);
-      }
-      total += bytesRead;
-      if (total > REQIF_LIMITS.bytes) {
-        throw new CommandError(
-          "reqif.invalid",
-          `file: ${name} is larger than ${String(REQIF_LIMITS.bytes)} bytes, the most ReqSeq reads`,
-          { fields: ["file"] },
-        );
-      }
-      chunks.push(chunk.subarray(0, bytesRead));
-    }
-  } finally {
-    await handle.close();
-  }
-};
 
 /**
  * The plan's files under the folder spelled as on disk (#194): the rules of the walk are checked on
@@ -143,16 +90,10 @@ export default defineCommand({
         { command, fields: ["mapping"] },
       );
     }
-    const parsed = parseReqif(await readDelivery(workspace.root, input.file));
-    if (parsed.kind === "refused") {
-      throw new CommandError("reqif.invalid", `file: line ${String(parsed.line)}: ${parsed.message}`, {
-        fields: ["file"],
-        line: parsed.line,
-      });
-    }
+    const delivery = await readDelivery(workspace.root, input.file);
     const { mapping } = await readMappingFile(layout, metamodel, workspace.root, input.mapping, command);
     const plan = await planImport(
-      parsed.file,
+      delivery,
       mapping,
       layout,
       metamodel,

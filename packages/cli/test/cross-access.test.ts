@@ -117,6 +117,28 @@ const DELIVERY: FixtureOptions = {
     ),
   },
 };
+/** DELIVERY with a mapping of the requirements and their name only, which leaves entries unmapped (SR-055). */
+const PARTIAL_MAPPING = [
+  "reqseq-reqif-mapping: 1",
+  "source: { name: Kunde A }",
+  "types: [{ source: Customer Requirement, type: system-requirement }]",
+  "attributes: [{ source: ReqIF.Name, property: title }]",
+  "",
+].join("\n");
+const PARTIAL_DELIVERY: FixtureOptions = {
+  ...DELIVERY,
+  files: { ...DELIVERY.files, "reqif/kunde-a.yaml": PARTIAL_MAPPING },
+};
+/** A refused import leaves every file as it was and writes no element file (SR-055 AK3). */
+const unchangedDelivery =
+  (mapping: string) =>
+  (results: Readonly<Record<string, Result>>): void => {
+    for (const result of Object.values(results)) {
+      expect(Object.keys(result.files).filter((file) => file.startsWith("Kunde-A/"))).toEqual([]);
+      expect(result.files["reqif/kunde-a.yaml"]).toBe(mapping);
+      expect(result.files["in/lieferung.reqif"]).toBe(DELIVERY.files?.["in/lieferung.reqif"]);
+    }
+  };
 /** Needs, requirements, a decision and a package that point at each other (SR-024). */
 const AFFECTED: FixtureOptions = { fixture: "SR-024/affected", git: true };
 /** Needs, system and component requirements and a variant (SR-022). */
@@ -2107,6 +2129,34 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       expect: "error",
     },
   ],
+  "reqif.analyze": [
+    {
+      tag: "[SR-055/AK1]",
+      name: "a delivery without mapping: every type and relation type with its attributes is unmapped",
+      fixture: DELIVERY,
+      input: { file: "in/lieferung.reqif" },
+      expect: "output",
+    },
+    {
+      tag: "[SR-055/AK1]",
+      name: "a delivery through a mapping that leaves entries unmapped: the list before any write",
+      fixture: PARTIAL_DELIVERY,
+      input: { file: "in/lieferung.reqif", mapping: "reqif/kunde-a.yaml" },
+      expect: "output",
+    },
+    {
+      name: "a delivery through its saved mapping: the objects the import would create and its losses",
+      fixture: DELIVERY,
+      input: { file: "in/lieferung.reqif", mapping: "reqif/kunde-a.yaml" },
+      expect: "output",
+    },
+    {
+      name: "a file that is no ReqIF is refused (reqif.invalid)",
+      fixture: DELIVERY,
+      input: { file: "reqif/kunde-a.yaml" },
+      expect: "error",
+    },
+  ],
   "reqif.import": [
     {
       tag: "[SR-053/AK1]",
@@ -2117,10 +2167,49 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       newElement: true,
     },
     {
-      name: "a file that is no ReqIF is refused (reqif.invalid)",
+      tag: "[SR-055/AK3]",
+      name: "a file that is no ReqIF is refused (reqif.invalid), changing no file",
       fixture: DELIVERY,
       input: { file: "reqif/kunde-a.yaml", mapping: "reqif/kunde-a.yaml", delivery: "x" },
       expect: "error",
+      check: unchangedDelivery(String(DELIVERY.files?.["reqif/kunde-a.yaml"])),
+    },
+    {
+      tag: "[SR-055/AK1]",
+      name: "a mapping that leaves entries unmapped is refused with reqif.unmapped and the list of reqif.analyze",
+      fixture: PARTIAL_DELIVERY,
+      input: { file: "in/lieferung.reqif", mapping: "reqif/kunde-a.yaml", delivery: "1" },
+      expect: "error",
+      check: (results) => {
+        const error = (
+          results["core"]?.outcome as { error?: { code: string; details?: { unmapped?: unknown } } }
+        ).error;
+        expect(error?.code).toBe("reqif.unmapped");
+        expect(error?.details?.unmapped).toEqual([
+          { kind: "attribute", source: "ReqIF.Text", sourceType: "Customer Requirement" },
+          { kind: "attribute", source: "Priority", sourceType: "Customer Requirement" },
+          { kind: "attribute", source: "Internal Comment", sourceType: "Customer Requirement" },
+          { kind: "type", source: "Heading" },
+          { kind: "attribute", source: "Heading Text", sourceType: "Heading" },
+          { kind: "relation", source: "satisfies" },
+        ]);
+      },
+    },
+    {
+      tag: "[SR-055/AK3]",
+      name: "a refusal with reqif.unmapped changes no file",
+      fixture: PARTIAL_DELIVERY,
+      input: { file: "in/lieferung.reqif", mapping: "reqif/kunde-a.yaml", delivery: "1" },
+      expect: "error",
+      check: unchangedDelivery(PARTIAL_MAPPING),
+    },
+    {
+      tag: "[SR-055/AK2]",
+      name: "after every entry is mapped or omitted in the mapping file, the import runs",
+      fixture: DELIVERY,
+      input: { file: "in/lieferung.reqif", mapping: "reqif/kunde-a.yaml", delivery: "1" },
+      expect: "output",
+      newElement: true,
     },
   ],
   "reqif.saveMapping": [

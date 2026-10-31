@@ -214,6 +214,8 @@ describe("reqif.import (SR-053)", () => {
       { kind: "value", source: "Low", sourceType: "Customer Requirement", attribute: "Priority" },
       { kind: "attribute", source: "Internal Comment", sourceType: "Customer Requirement" },
       { kind: "type", source: "Heading" },
+      // An unmapped type names its attributes too (SR-055 AK2).
+      { kind: "attribute", source: "Heading Text", sourceType: "Heading" },
       { kind: "relation", source: "satisfies" },
     ]);
     expect(await tree(fixture)).toEqual(before);

@@ -272,7 +272,13 @@ const checkObjectType = (
   const at = (mapping.types ?? []).findIndex((e) => matches(e.source, t));
   const typeEntry = mapping.types?.[at];
   if (typeEntry === undefined) {
+    // Its attributes too, so mapping the list once covers the type (SR-055 AK2).
     coverage.unmapped.push({ kind: "type", source: nameOf(t) });
+    for (const a of t.attributes) {
+      if (attributeEntry(mapping, t, a) === undefined) {
+        coverage.unmapped.push({ kind: "attribute", source: nameOf(a), sourceType: nameOf(t) });
+      }
+    }
     return;
   }
   coverage.types.set(t.identifier, typeEntry.type);
