@@ -505,5 +505,12 @@ describe("App, Open to the right and follow (SR-150)", () => {
     expect(areas()).toEqual([`${list}*`, "SR-000009 Title 9"]);
     await press(query('[data-area="left"] [role="listbox"]'), { key: "ArrowUp" });
     expect(areas()).toEqual([`${list}*`, "SR-000003 Title 3"]);
+    // Once the reader worked in it, the element there is not replaced: the next row opens beside it.
+    await runCommand("Other window");
+    await runCommand("Other window");
+    await press(query('[data-area="left"] [role="listbox"]'), { key: "ArrowDown" });
+    expect(areas()).toEqual([`${list}*`, "SR-000009 Title 9"]);
+    // Element 3 stayed open behind: Other window, then Alt+P (previous buffer) reaches it.
+    expect(areas()).toHaveLength(2);
   });
 });

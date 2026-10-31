@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { elementBuffer, listBuffer, readOnlyBuffer } from "./buffers.js";
 import type { MarkState } from "./follow-mark.js";
-import { NO_MARK, bringsNew, markStep } from "./follow-mark.js";
+import { NO_MARK, bringsNew, markStep, stillFollowed } from "./follow-mark.js";
 
 const state = (token: string, marked: string | undefined, split = true): MarkState => ({
   buffer: "list",
@@ -52,5 +52,16 @@ describe("bringsNew (SR-150 AK4)", () => {
     expect(bringsNew([shown, list], list.key, "element:spec:u2", false)).toBe(false);
     const compared = readOnlyBuffer(shown);
     expect(bringsNew([list, compared], compared.key, "element:spec:u2", false)).toBe(false);
+  });
+});
+
+describe("stillFollowed (SR-150 AK5)", () => {
+  const brought = elementBuffer("u1", "spec", "SR-1 One");
+  const list = listBuffer("All elements");
+  it("keeps the element following brought in until the reader shows it or it is closed", () => {
+    expect(stillFollowed(brought.key, list.key, [list, brought])).toBe(brought.key);
+    expect(stillFollowed(brought.key, brought.key, [brought, list])).toBeUndefined();
+    expect(stillFollowed(brought.key, list.key, [list])).toBeUndefined();
+    expect(stillFollowed(undefined, list.key, [list])).toBeUndefined();
   });
 });

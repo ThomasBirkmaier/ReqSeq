@@ -59,3 +59,16 @@ export const bringsNew = (buffers: Buffers, other: string, marked: string, page:
     !buffers.some((open) => open.key === marked)
   );
 };
+
+/**
+ * The element that following brought in, while it keeps that standing: not once the reader shows it in the
+ * active area, and not once it is closed (SR-150 AK4, AK5).
+ */
+export const stillFollowed = (
+  followed: string | undefined,
+  shown: string | undefined,
+  buffers: Buffers,
+): string | undefined =>
+  followed === undefined || followed === shown || !buffers.some((open) => open.key === followed)
+    ? undefined
+    : followed;

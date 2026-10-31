@@ -75,7 +75,7 @@ import { usePrefix } from "./use-prefix.js";
 import { promptUse } from "./usage.js";
 import { EMPTY_WINDOW, areas, isSplit, reduceWindow } from "./window-layout.js";
 import type { MarkState, PendingMark } from "./follow-mark.js";
-import { NO_MARK, bringsNew, markStep } from "./follow-mark.js";
+import { NO_MARK, bringsNew, markStep, stillFollowed } from "./follow-mark.js";
 
 const STOPPED = "The core process keeps stopping. Open the workspace again with File > Open Workspace.";
 const MESSAGES: Readonly<Record<string, string>> = {
@@ -172,6 +172,8 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   // The element that following or "Open to the right/left" put into the inactive area (SR-150 AK4): only it
   // is replaced by the next element marked.
   const followed = useRef<string | undefined>(undefined);
+  // It loses that standing once the reader works in it (it is shown in the active area) or it is closed.
+  followed.current = stillFollowed(followed.current, current?.key, buffers);
   const { drafts, armed, onDraft, update: updateDraft, reset: resetDrafts } = useDrafts(current?.key);
   // Per element buffer while it is open (SR-105): its undo history, and its saves, in order.
   const memories = useRef(new Map<string, UndoMemory>());
