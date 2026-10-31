@@ -9,7 +9,7 @@ ReqSeq is a local, Git-based requirements tool: one Markdown file per element, t
 
 You keep your requirements as plain files in your own folders and repositories. ReqSeq reads them, checks them against a metamodel, follows their relations and shows what is covered and verified, from a desktop app, a command line, a local API and an MCP server.
 
-![The standard model in the metamodel graph of the app: its types with their properties and the relation kinds between them.](docs/guide/images/app-standard-model.png)
+![The steps of Get started in the app: initialise a workspace, create a need and a system requirement with their texts, let the requirement derive from the need, and show the graph of the need.](docs/guide/images/app-get-started.gif)
 
 ## What it does
 

@@ -33,7 +33,7 @@
     "docs:install": "pnpm install --dir packages/docs/site --ignore-workspace --frozen-lockfile --ignore-scripts",
     "docs:build": "pnpm docs:generate && pnpm docs:install && node packages/docs/site/run.mjs build",
     "docs:dev": "pnpm docs:generate && node packages/docs/site/run.mjs dev",
-    "docs:screenshots": "pnpm --filter @reqseq/app build:electron && REQSEQ_GUIDE_IMAGES=1 pnpm --filter @reqseq/app exec playwright test --config test/playwright.config.ts guide-screenshots"
+    "docs:screenshots": "pnpm --filter @reqseq/app build:electron && REQSEQ_GUIDE_IMAGES=1 pnpm --filter @reqseq/app exec playwright test --config test/playwright.config.ts guide-screenshots guide-animation"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

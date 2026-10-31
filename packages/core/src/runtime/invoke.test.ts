@@ -45,6 +45,24 @@ const testCatalog = {
       },
     },
     {
+      name: "test.paths",
+      title: "Test command",
+      summary: "Takes local paths (test only).",
+      effect: "read",
+      stage: 1,
+      implements: ["SR-142"],
+      arguments: [],
+      input: {
+        type: "object",
+        properties: {
+          file: { $ref: "../common.schema.json#/$defs/localPath" },
+          files: { type: "array", items: { $ref: "../common.schema.json#/$defs/localPath" } },
+        },
+        additionalProperties: false,
+      },
+      output: { type: "object" },
+    },
+    {
       name: "test.unimplemented",
       title: "Test command",
       summary: "Has no implementation (test only).",
@@ -94,6 +112,20 @@ const echo = defineTestCommand<EchoInput, unknown>({
         aborted: ctx.signal.aborted,
       },
     );
+  },
+});
+
+// Records each run and whether the context takes a path outside the repositories.
+const pathRuns: { open: boolean }[] = [];
+const paths = defineTestCommand<{ readonly file?: string }, unknown>({
+  name: "test.paths",
+  run: async (ctx) => {
+    const open = await ctx.localPaths.check([{ field: "derived", path: "/" }]).then(
+      () => true,
+      () => false,
+    );
+    pathRuns.push({ open });
+    return {};
   },
 });
 
@@ -334,5 +366,38 @@ describe("invoke (product runtime)", () => {
     expect((await rejection(invoke("reqif.analyze", {}, { workspace: ws }))).code).toBe(
       "command.not-implemented",
     );
+  });
+});
+
+describe("local paths by access (SR-142)", () => {
+  it("runs no command whose API or MCP input names a path outside the repositories, and confines derived paths", async () => {
+    const ws = await createFixtureWorkspace({ fixture: "SR-004/three-repositories" });
+    onTestFinished(() => ws.cleanup());
+    const root = new Workspace(ws.path("system"));
+    onTestFinished(() => root.close());
+    const rt = runtime({ commands: [paths] });
+    const outside = { file: "requirements", files: ["../product", ws.path("outside.xml")] };
+    pathRuns.length = 0;
+    for (const access of ["api", "mcp"] as const) {
+      const error = await rejection(rt.invoke("test.paths", outside, { workspace: root, access }));
+      expect([error.code, error.details?.["fields"], error.details?.["reason"]]).toEqual([
+        "input.invalid",
+        ["files[1]"],
+        "outside-repositories",
+      ]);
+      await rt.invoke(
+        "test.paths",
+        { file: "requirements", files: ["../sensor/x"] },
+        { workspace: root, access },
+      );
+    }
+    expect(pathRuns).toEqual([{ open: false }, { open: false }]);
+    for (const access of ["cli", "app", undefined] as const) {
+      await rt.invoke("test.paths", outside, {
+        workspace: root,
+        ...(access === undefined ? {} : { access }),
+      });
+    }
+    expect(pathRuns.slice(2)).toEqual([{ open: true }, { open: true }, { open: true }]);
   });
 });

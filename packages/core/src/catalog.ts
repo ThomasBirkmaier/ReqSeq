@@ -58,6 +58,29 @@ export interface CommandContext {
   readonly workspace: Workspace;
   /** Aborted when the caller goes away (closed window, cancelled request). */
   readonly signal: AbortSignal;
+  /**
+   * The local path rule of the call's access (SR-142). `invoke` checks the `localPath` fields of the
+   * input itself; a command passes every further path it takes from file content (an image a ReqIF
+   * file names, the target of a mapping) through `check` before it reads or writes there.
+   */
+  readonly localPaths: LocalPaths;
+}
+
+/** A local path and the input field (or file content) it comes from, as `LocalPaths.check` names it. */
+export interface LocalPathUse {
+  /** The input name (`file`, `changedFiles[1]`), or what a derived path comes from. */
+  readonly field: string;
+  /** Absolute, or relative to the workspace root. */
+  readonly path: string;
+}
+
+/**
+ * Through the command line and the app every local path is accepted; through any other access (API,
+ * MCP server) only one inside the repositories of the workspace (SR-142, ADR-0009). `check` rejects
+ * with `input.invalid` naming every refused path, before anything is read or written there.
+ */
+export interface LocalPaths {
+  check(uses: readonly LocalPathUse[]): Promise<void>;
 }
 
 /**
