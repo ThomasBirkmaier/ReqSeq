@@ -108,6 +108,8 @@ test.describe("the view of a variant in the app", () => {
     await window.keyboard.type("Measure the wind");
     await expect(names.first()).toHaveText("SR-0000a2 Measure the wind");
     await window.keyboard.press("Enter");
+    // Wait until the ref is taken, or Ctrl/Cmd+Enter can come before it (macOS 26, #514).
+    await expect(label).toHaveText(`${title} ${A} SR-0000a2 · refs:`);
     await window.keyboard.press("ControlOrMeta+Enter");
     await expect(names).toHaveText(["Run", "undo"]);
     await window.keyboard.press("ArrowDown");
