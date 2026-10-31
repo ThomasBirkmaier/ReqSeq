@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { XmlElement, XmlScanOutcome } from "./xml-scan.js";
-import { scanXml, xmlAttribute } from "./xml-scan.js";
+import { scanXml, streamXml, xmlAttribute } from "./xml-scan.js";
 
 const utf8 = (text: string): Uint8Array => new TextEncoder().encode(text);
 const BOM = Uint8Array.of(0xef, 0xbb, 0xbf);
@@ -54,6 +54,53 @@ describe("scanXml", () => {
 
     expect(root.children[0]).toMatchObject({ name: "case", line: 5, selfClosing: true });
     expect(root.children[1]).toMatchObject({ name: "out", line: 6, text: "x < y & z more" });
+  });
+
+  it("streams start tags, text runs and ends in document order without a tree, and passes errors of the receiver through", () => {
+    const seen: string[] = [];
+    let next = 0;
+    const events = {
+      open: (
+        name: string,
+        _attributes: unknown,
+        line: number,
+        start: number,
+        contentStart: number,
+        selfClosing: boolean,
+        parent: number | undefined,
+      ) => {
+        seen.push(
+          `<${name}#${String(next)} in ${String(parent)} ${String(line)} ${String(start)}-${String(contentStart)}${selfClosing ? "/" : ""}`,
+        );
+        return next++;
+      },
+      text: (element: number, text: string) => seen.push(`${String(element)}:${text}`),
+      close: (element: number, parent: number | undefined, contentEnd: number, end: number) =>
+        seen.push(`>#${String(element)} in ${String(parent)} ${String(contentEnd)}-${String(end)}`),
+    };
+    expect(streamXml(utf8("<a>x<![CDATA[]]><b/>\ny</a>"), events)).toEqual({
+      kind: "streamed",
+      bom: false,
+      root: 0,
+    });
+    expect(seen).toEqual([
+      "<a#0 in undefined 1 0-3",
+      "0:x",
+      "<b#1 in 0 1 16-18/",
+      ">#1 in 0 18-20",
+      "0:\ny",
+      ">#0 in undefined 22-26",
+    ]);
+    expect(streamXml(withBom("<a/>"), events)).toMatchObject({ kind: "streamed", bom: true });
+    const thrown = new Error("receiver");
+    expect(() =>
+      streamXml(utf8("<a/>"), {
+        ...events,
+        open: () => {
+          throw thrown;
+        },
+      }),
+    ).toThrow(thrown);
   });
 
   it("gives the offsets of a self-closing element and of its attributes", () => {

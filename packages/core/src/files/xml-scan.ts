@@ -1,7 +1,8 @@
 // A small XML scanner of our own (ADR-0012 "JUnit XML"): it reads the bytes of a file into a tree of
 // elements and keeps, for every element and attribute, its byte offsets into those bytes and its
 // line, so that a caller can splice new bytes in and keep every other byte as it was (the lossless
-// enrich of SR-029). It never writes.
+// enrich of SR-029). `streamXml` reports the same as events, without a tree, for large files
+// (ReqIF, ADR-0013). It never writes.
 //
 // What it reads: start, end and empty tags with attributes, text, CDATA sections, comments,
 // processing instructions, the five predefined entities and numeric character references. UTF-8
@@ -90,6 +91,28 @@ export type XmlScanOutcome =
       /** Byte offset of the place that was refused. */
       readonly offset: number;
     };
+
+/**
+ * What `streamXml` reports, in document order, without building a tree (ReqIF, ADR-0013): a large
+ * file costs only what the receiver keeps. `open` gives the receiver's value for the element (`T`),
+ * which the scanner hands back with its text runs and its end, and to its children as `parent`.
+ * Offsets are as in `XmlElement`.
+ */
+export interface XmlEvents<T> {
+  open(
+    name: string,
+    attributes: readonly XmlAttribute[],
+    line: number,
+    start: number,
+    contentStart: number,
+    selfClosing: boolean,
+    parent: T | undefined,
+  ): T;
+  /** A text run of `element` (CDATA included, entities resolved, line breaks as LF), never empty. */
+  text(element: T, text: string): void;
+  /** The end of `element`; right after `open` for a self-closing one. */
+  close(element: T, parent: T | undefined, contentEnd: number, end: number): void;
+}
 
 /** The value of the attribute `name` of `element`, or undefined. */
 export const xmlAttribute = (element: XmlElement, name: string): XmlAttribute | undefined =>
@@ -253,6 +276,42 @@ interface Building extends XmlElement {
   text: string;
 }
 
+/** The events that build the element tree of `scanXml`. */
+class Tree implements XmlEvents<Building> {
+  open(
+    name: string,
+    attributes: readonly XmlAttribute[],
+    line: number,
+    start: number,
+    contentStart: number,
+    selfClosing: boolean,
+  ): Building {
+    // `contentEnd` and `end` are set by `close`.
+    return {
+      name,
+      line,
+      start,
+      contentStart,
+      contentEnd: contentStart,
+      end: contentStart,
+      selfClosing,
+      attributes,
+      children: [],
+      text: "",
+    };
+  }
+
+  text(element: Building, text: string): void {
+    element.text += text;
+  }
+
+  close(element: Building, parent: Building | undefined, contentEnd: number, end: number): void {
+    element.contentEnd = contentEnd;
+    element.end = end;
+    parent?.children.push(element);
+  }
+}
+
 /**
  * Where the first sequence that is not UTF-8 is: the first byte where the bytes and their lossy
  * decoding, encoded again, differ (a valid prefix encodes to the same bytes). For a sequence cut
@@ -268,23 +327,28 @@ const firstNonUtf8 = (bytes: Uint8Array): number => {
 };
 
 /** One pass over the bytes. Each method reads one construct and returns the offset after it. */
-class Scanner {
+class Scanner<T> {
   private readonly bytes: Uint8Array;
   private readonly lines: Lines;
   /** The same bytes as a Buffer, for its fast search of byte sequences. */
   private readonly buffer: Buffer;
-  private readonly stack: Building[] = [];
+  private readonly events: XmlEvents<T>;
+  /** The open elements, by name and start offset, with the receiver's value. */
+  private readonly stack: { readonly name: string; readonly start: number; readonly value: T }[] = [];
   /** Names already checked against `NAME`; a file repeats a few names many times. */
   private readonly names = new Set<string>();
-  private root: XmlElement | undefined;
+  /** The receiver's value of the root element, once it is open. */
+  private root: { readonly value: T } | undefined;
 
-  constructor(bytes: Uint8Array) {
+  constructor(bytes: Uint8Array, events: XmlEvents<T>) {
+    this.events = events;
     this.bytes = bytes;
     this.lines = new Lines(bytes);
     this.buffer = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   }
 
-  scan(): XmlDocument {
+  /** Reads the whole file and tells whether it starts with a byte order mark. */
+  scan(): { readonly bom: boolean; readonly root: T } {
     const bom = BOM.every((byte, i) => this.bytes[i] === byte);
     let at = bom ? BOM.length : 0;
     if (startsWith(this.bytes, at, DECLARATION_OPEN) && isSpace(this.bytes[at + DECLARATION_OPEN.length])) {
@@ -303,7 +367,7 @@ class Scanner {
     if (this.root === undefined) {
       throw new Refusal("malformed", "No root element", at);
     }
-    return { root: this.root, bom };
+    return { bom, root: this.root.value };
   }
 
   /** The bytes from `start` to `end` as text; the whole file is UTF-8 (checked first). */
@@ -345,7 +409,7 @@ class Scanner {
       }
       return end;
     }
-    open.text += resolveReferences(raw, start, textLiteral);
+    this.events.text(open.value, resolveReferences(raw, start, textLiteral));
     return end;
   }
 
@@ -393,7 +457,9 @@ class Scanner {
     }
     const from = start + CDATA_OPEN.length;
     const end = this.closingAt(CDATA_CLOSE, from, "A CDATA section", start);
-    open.text += textLiteral(this.decode(from, end));
+    if (end > from) {
+      this.events.text(open.value, textLiteral(this.decode(from, end)));
+    }
     return end + CDATA_CLOSE.length;
   }
 
@@ -443,9 +509,7 @@ class Scanner {
         start,
       );
     }
-    open.contentEnd = start;
-    open.end = gt + 1;
-    this.add(open);
+    this.events.close(open.value, this.stack.at(-1)?.value, start, gt + 1);
     return gt + 1;
   }
 
@@ -484,25 +548,23 @@ class Scanner {
       at = attribute.end;
     }
     const selfClosing = this.bytes[at] === SLASH;
-    // Self-closing: the content is empty at the `/` of `/>`; otherwise it starts after `>`, and
-    // `contentEnd` and `end` are set by the end tag.
-    const element: Building = {
+    // Self-closing: the content is empty at the `/` of `/>`; otherwise it starts after `>`.
+    const parent = this.stack.at(-1)?.value;
+    const value = this.events.open(
       name,
-      line: this.lines.at(start),
-      start,
-      contentStart: selfClosing ? at : at + 1,
-      contentEnd: at,
-      end: at + 2,
-      selfClosing,
       attributes,
-      children: [],
-      text: "",
-    };
+      this.lines.at(start),
+      start,
+      selfClosing ? at : at + 1,
+      selfClosing,
+      parent,
+    );
+    this.root ??= { value };
     if (selfClosing) {
-      this.add(element);
+      this.events.close(value, parent, at, at + 2);
       return at + 2;
     }
-    this.stack.push(element);
+    this.stack.push({ name, start, value });
     return at + 1;
   }
 
@@ -540,24 +602,19 @@ class Scanner {
       valueEnd,
     };
   }
-
-  private add(element: XmlElement): void {
-    const parent = this.stack.at(-1);
-    if (parent === undefined) {
-      this.root = element;
-    } else {
-      parent.children.push(element);
-    }
-  }
 }
 
+export type XmlStreamOutcome<T> =
+  | { readonly kind: "streamed"; readonly bom: boolean; readonly root: T }
+  | Extract<XmlScanOutcome, { readonly kind: "refused" }>;
+
 /**
- * Scans `bytes` as XML. Gives the element tree with byte offsets and lines, or why the file was
- * refused (not UTF-8, a `<!DOCTYPE`, an unknown entity, not well-formed) with its line.
+ * Reads `bytes` as `scanXml` does and reports each start tag, text run and end to `events` instead of
+ * building a tree. An error that `events` throws is not caught.
  */
-export const scanXml = (bytes: Uint8Array): XmlScanOutcome => {
+export const streamXml = <T>(bytes: Uint8Array, events: XmlEvents<T>): XmlStreamOutcome<T> => {
   try {
-    return { kind: "scanned", document: new Scanner(bytes).scan() };
+    return { kind: "streamed", ...new Scanner(bytes, events).scan() };
   } catch (error) {
     if (!(error instanceof Refusal)) {
       throw error;
@@ -565,4 +622,15 @@ export const scanXml = (bytes: Uint8Array): XmlScanOutcome => {
     const { reason, message, offset } = error;
     return { kind: "refused", reason, message, line: new Lines(bytes).at(offset), offset };
   }
+};
+
+/**
+ * Scans `bytes` as XML. Gives the element tree with byte offsets and lines, or why the file was
+ * refused (not UTF-8, a `<!DOCTYPE`, an unknown entity, not well-formed) with its line.
+ */
+export const scanXml = (bytes: Uint8Array): XmlScanOutcome => {
+  const outcome = streamXml(bytes, new Tree());
+  return outcome.kind === "refused"
+    ? outcome
+    : { kind: "scanned", document: { root: outcome.root, bom: outcome.bom } };
 };
