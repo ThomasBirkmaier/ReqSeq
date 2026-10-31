@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
-// Alt+N and Alt+P (Option+N and Option+P on macOS) in the app (SR-115 AK5): the next and the previous
-// buffer in the order of opening, also while typing in the text editor, and not while a prompt is open.
+// Alt+N and Alt+P (Option+N and Option+P on macOS) in the app (SR-115 AK5): forward and back through the
+// buffers in the order they were shown, also while typing in the text editor, and not while a prompt is open.
 import { act, createElement } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
@@ -181,24 +181,27 @@ const editorView = (): EditorView => {
 };
 
 describe("App, Next buffer and Previous buffer (SR-115 AK5)", () => {
-  it("[SR-115/AK5] Alt+N shows the next buffer in the order of opening and wraps; Alt+P the previous", async () => {
+  it("[SR-115/AK5] Alt+P goes back through the buffers in the order they were shown, Alt+N forward again, both wrap", async () => {
     await openFour();
-    // Go to the element, the buffer used before the search: the order of use changes, not that of opening
-    // (overview, list, element, search).
+    // Go to the element, the buffer used before the search: shown last are now the element, the search,
+    // the list and the overview, though they were opened in another order.
     await press(window, { key: "p", ctrlKey: true });
     await press(query("input"), { key: "Enter" });
     expect(shown()).toBe("SR-000001 Title 1");
-    const next = await alt(window, "n");
-    expect(next.defaultPrevented).toBe(true);
+    const previous = await alt(window, "p");
+    expect(previous.defaultPrevented).toBe(true);
     expect(shown()).toBe("Search: wind");
-    await alt(window, "n");
-    expect(shown()).toBe("Overview");
-    await alt(window, "n");
+    // Switching with the keys does not change the order: Alt+P goes further back.
+    await alt(window, "p");
     expect(shown()).toBe("All elements");
-    await alt(window, "p");
+    await alt(window, "n");
+    expect(shown()).toBe("Search: wind");
+    await alt(window, "n");
+    expect(shown()).toBe("SR-000001 Title 1");
+    await alt(window, "n");
     expect(shown()).toBe("Overview");
     await alt(window, "p");
-    expect(shown()).toBe("Search: wind");
+    expect(shown()).toBe("SR-000001 Title 1");
     // The shown buffer has the focus, so its keys work.
     expect(document.activeElement).toBe(query("[data-buffer]"));
   });
@@ -222,8 +225,7 @@ describe("App, Next buffer and Previous buffer (SR-115 AK5)", () => {
     expect(container.querySelector(".cm-editor")).toBeNull();
     expect(document.activeElement?.closest(".cm-editor") ?? null).toBeNull();
     expect(document.activeElement).toBe(query("[data-buffer]"));
-    // Option+P is "π": back to the list, then once more to the element, its text as it was typed (and
-    // saved on leaving, SR-105).
+    // Option+P is "π": back to the element, its text as it was typed (and saved on leaving, SR-105).
     await press(query("[data-buffer]"), { key: "π", code: "KeyP", altKey: true });
     expect(shown()).toBe("SR-000001 Title 1");
     expect(editorView().state.doc.toString()).toBe("Hello ENDE");

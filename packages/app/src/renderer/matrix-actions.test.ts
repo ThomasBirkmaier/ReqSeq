@@ -52,7 +52,8 @@ const start = (initial: Buffers, answers: Record<string, unknown> = {}, members 
     armClose: () => undefined,
     discard: () => undefined,
     drafted: () => false,
-    opened: [],
+    cycleOrder: [],
+    cycled: () => undefined,
     leaveEditor: () => undefined,
     ...(members
       ? {

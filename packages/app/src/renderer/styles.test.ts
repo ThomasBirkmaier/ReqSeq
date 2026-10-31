@@ -315,3 +315,17 @@ describe("the block of a field whose file changed under the input (SR-106)", () 
     expect(ruleOf("mark")).toMatch(/background:\s*none;/);
   });
 });
+
+describe("the inactive area of a split window (SR-150)", () => {
+  it("[SR-150/AK8] is a shade lighter: its text takes the muted grey, which reads at 4.5:1 on the sheet and on a selection in both schemes", () => {
+    const rule = ruleOf(".area:not([data-active])");
+    expect(rule).toContain("--text: var(--muted);");
+    expect(rule).toContain("color: var(--text);");
+    // The active area keeps the text colour: no other rule of an area sets it.
+    expect(ruleOf(".area")).not.toContain("color");
+    for (const scheme of ["light", "dark"] as const) {
+      expect(ratio(values("muted")[scheme], values("sheet")[scheme])).toBeGreaterThanOrEqual(4.5);
+      expect(ratio(values("muted")[scheme], values("select")[scheme])).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+});
