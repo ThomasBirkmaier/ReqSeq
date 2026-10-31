@@ -175,7 +175,8 @@ describe("local paths of an API or MCP call (SR-142)", () => {
       expect(await reasonOf(workspace, name, win32), name).toBe("invalid-path");
     }
     expect(await reasonOf(workspace, "x/console.xml", win32)).toBeUndefined();
-    expect(await reasonOf(workspace, "x/NUL")).toBeUndefined();
+    // Elsewhere such a name is a plain file name (the platform is given, so the test holds on every OS).
+    expect(await reasonOf(workspace, "x/NUL", { platform: "linux" })).toBeUndefined();
   });
 
   it("gives path-unreadable when a folder cannot be looked at", async () => {
