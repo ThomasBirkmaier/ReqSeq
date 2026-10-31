@@ -1435,7 +1435,7 @@ export const ElementView = ({
     const fields = [TITLE_FIELD, "Text", ...boxKeys];
     const hasMembers = (members?.total ?? 0) > 0;
     if (label === undefined && !hasMembers) {
-      move(fields, "", 1, false);
+      fields.some((next) => enter(next, "start", false));
     } else if ((label === undefined || !move(fields, label, down ? 1 : -1, false)) && down && hasMembers) {
       intoMembers(root);
     }

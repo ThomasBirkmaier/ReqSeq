@@ -69,6 +69,25 @@ const tinted = async (window: Page): Promise<string[]> => {
   return shown;
 };
 
+/** How many fields of all areas are tinted now. */
+const tintedAnywhere = (window: Page): Promise<number> =>
+  window.evaluate(() => {
+    const probe = document.createElement("div");
+    document.body.append(probe);
+    const clear = getComputedStyle(probe).backgroundColor;
+    probe.remove();
+    return [...document.querySelectorAll("article .field")].filter(
+      (node) => getComputedStyle(node).backgroundColor !== clear,
+    ).length;
+  });
+
+const command = async (window: Page, title: string): Promise<void> => {
+  await window.keyboard.press("ControlOrMeta+Shift+P");
+  await window.keyboard.type(title);
+  await expect(window.locator('.candidates [role="option"] .name').first()).toHaveText(title);
+  await window.keyboard.press("Enter");
+};
+
 test.describe("the field the focus is in", () => {
   let running: RunningApp;
   test.beforeEach(async () => {
@@ -149,5 +168,15 @@ test.describe("the field the focus is in", () => {
     await window.keyboard.press("ControlOrMeta+Shift+P");
     await expect(window.locator("#prompt-input")).toBeFocused();
     await expect.poll(() => tinted(window)).toEqual([]);
+    await window.keyboard.press("Escape");
+    // The other area of a split window: no field of either area is tinted.
+    await field(window, "topic").focus();
+    await command(window, "Split window");
+    await expect(window.locator('[data-area="right"]')).toBeVisible();
+    await field(window, "topic").first().focus();
+    await expect.poll(() => tintedAnywhere(window)).toBe(1);
+    await command(window, "Other window");
+    await expect(window.locator("article [data-field]:focus-within")).toHaveCount(0);
+    await expect.poll(() => tintedAnywhere(window)).toBe(0);
   });
 });
