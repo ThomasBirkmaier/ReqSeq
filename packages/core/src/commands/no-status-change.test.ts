@@ -4,8 +4,8 @@
 // not know; afterwards every element file has the `status` line it had. The status is read from the
 // files on disk, not from the element store. Loading, the watcher (SR-007) and a changed metamodel
 // (SR-015) change no status either. Confirming a hint (AK2) writes the files of approved, obsolete
-// and draft elements here; importing a delivery (AK2) is not implemented yet, and by #127 option 1
-// the guard below adds it to the scenarios once it is.
+// and draft elements here; importing a delivery (AK2) creates new elements with the initial status
+// only (SR-053; updating imported elements comes with SR-056).
 import fs from "node:fs";
 import path from "node:path";
 import { createFixtureWorkspace, untilWatching } from "@reqseq/testkit";
@@ -62,6 +62,15 @@ const RAW_JUNIT_TEXT =
     .join("") +
   "  </testsuite>\n</testsuites>\n";
 
+/** The delivery and mapping of fixtures/SR-053/delivery, so reqif.import writes (SR-053). */
+const delivery = (file: string): string =>
+  fs.readFileSync(new URL(`../../../../fixtures/SR-053/delivery/${file}`, import.meta.url), "utf8");
+const IMPORT = {
+  file: "in/lieferung.reqif",
+  mapping: "reqif/import-kunde-a.yaml",
+  delivery: "Lastenheft 2026-11",
+};
+
 /**
  * Added to SR-001/two-elements: elements approved, obsolete, and `retired`, which the metamodel
  * does not know; an evidence location with a Markdown record and an enriched JUnit file of WIND.
@@ -77,6 +86,8 @@ const FILES: Readonly<Record<string, string>> = {
   "new/.keep": "",
   "new/layout.png": "an image",
   [VARIANT_FILE]: `---\nid: ${VARIANT}\ntype: variant\nstatus: approved\ntitle: Coast\n---\n`,
+  "in/lieferung.reqif": delivery("lieferung.reqif"),
+  "reqif/import-kunde-a.yaml": delivery("kunde-a.yaml"),
 };
 
 /** The `status` line of every element file, and null for the evidence record, by file (relative, `/`), as written on disk. */
@@ -271,6 +282,7 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { source: APPROVED, kind: "refines", target: RETIRED },
     { source: "SR-ffffff", kind: "refines", target: WIND },
   ],
+  "reqif.import": [IMPORT, { ...IMPORT, file: "in/missing.reqif" }],
   "reqif.saveMapping": [
     {
       mapping: {

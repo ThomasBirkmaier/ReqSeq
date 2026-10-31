@@ -622,6 +622,52 @@ const folderOf = (folder: string): string => {
  * default type folder) is refused when the element walk would not list it or a name is not
  * portable (`refuseUnlisted`).
  */
+/** What a new element of a type gets from the metamodel: its type, title key and initial status. */
+export interface NewElementBase {
+  readonly type: MetamodelEffectiveType;
+  readonly titleKey: string;
+  /** Undefined for a type without status (#344). */
+  readonly status: string | undefined;
+}
+
+/**
+ * The base of a new element of type `key` (`element.create`, `reqif.import`): refused like
+ * `element.create` refuses an unknown or abstract type (`typeForNewElement`), a type without the
+ * title property and a metamodel without exactly one initial status.
+ */
+export const newElementBase = (metamodel: Metamodel, key: string, command: CommandName): NewElementBase => {
+  const type = typeForNewElement(metamodel, key);
+  return { type, titleKey: titleKeyFor(metamodel, type, command), status: initialStatus(metamodel, type) };
+};
+
+/**
+ * The bytes of a new element file: `id`, type, initial status, title, `properties` (already as
+ * stored: choice keys, relation items with versions) in the type's order, then `text`. A new file
+ * has a blank line after the frontmatter, LF line endings and ends with a line break (ADR-0004
+ * "Stable writing"), as element.update writes a text (#308).
+ */
+export const newElementBytes = (
+  base: NewElementBase,
+  id: string,
+  title: string,
+  text: string,
+  properties: readonly (readonly [string, PropertyValue])[],
+): Uint8Array => {
+  const { type, titleKey, status } = base;
+  const edits: FrontmatterEdit[] = [
+    { kind: "set", key: "id", value: id },
+    { kind: "set", key: "type", value: type.key },
+    ...(status === undefined ? [] : [{ kind: "set", key: "status", value: status } as const]),
+    { kind: "set", key: titleKey, value: title },
+    ...properties.map(([key, value]): FrontmatterEdit => ({ kind: "set", key, value })),
+  ];
+  return editElementFile(EMPTY_FILE, {
+    edits,
+    body: bodyForText(EMPTY_FILE.body, text),
+    keyOrder: [...STRUCTURAL_KEYS, titleKey, ...type.properties],
+  }).bytes;
+};
+
 export const createElement = async (
   workspace: Workspace,
   input: CreateElementInput,
@@ -630,9 +676,8 @@ export const createElement = async (
 ): Promise<ElementWriteResult> => {
   const context = await contextOf(workspace);
   const { layout, metamodel, store } = context;
-  const type = typeForNewElement(metamodel, input.type);
-  const titleKey = titleKeyFor(metamodel, type, "element.create");
-  const status = initialStatus(metamodel, type);
+  const base = newElementBase(metamodel, input.type, "element.create");
+  const { type, titleKey } = base;
   // Every given key is checked, also one with an empty value (`status: null` is refused).
   checkPropertyKeys(Object.keys(input.properties ?? {}), metamodel, type, titleKey, "properties");
   const repository = targetRepository(layout, input.repository);
@@ -660,25 +705,14 @@ export const createElement = async (
   if (folder !== "") {
     resolveInRoot(repository.folder, folder);
   }
-  const edits: FrontmatterEdit[] = [
-    { kind: "set", key: "id", value: id },
-    { kind: "set", key: "type", value: type.key },
-    ...(status === undefined ? [] : [{ kind: "set", key: "status", value: status } as const]),
-    { kind: "set", key: titleKey, value: input.title },
-    ...properties.map(([key, value]): FrontmatterEdit => ({
-      kind: "set",
-      key,
-      value: toPropertyValue(value),
-    })),
-  ];
-  // A new file has a blank line after the frontmatter, LF line endings and ends with a line break
-  // (ADR-0004 "Stable writing"), as element.update writes a text (#308).
   const text = await setInlineReferences(context, input.text ?? "", "", repository.name);
-  const { bytes } = editElementFile(EMPTY_FILE, {
-    edits,
-    body: bodyForText(EMPTY_FILE.body, text),
-    keyOrder: [...STRUCTURAL_KEYS, titleKey, ...type.properties],
-  });
+  const bytes = newElementBytes(
+    base,
+    id,
+    input.title,
+    text,
+    properties.map(([key, value]) => [key, toPropertyValue(value)] as const),
+  );
   await refuseByCheck(
     check,
     repository.name,

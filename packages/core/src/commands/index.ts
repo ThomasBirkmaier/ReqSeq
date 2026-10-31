@@ -38,6 +38,7 @@ import metamodelGet from "./metamodel/get.js";
 import relationAdd from "./relation/add.js";
 import relationOptions from "./relation/options.js";
 import relationRemove from "./relation/remove.js";
+import reqifImport from "./reqif/import.js";
 import reqifSaveMapping from "./reqif/saveMapping.js";
 import traceAffected from "./trace/affected.js";
 import traceChain from "./trace/chain.js";
@@ -86,6 +87,7 @@ export const commands: readonly AnyCommand[] = [
   relationAdd,
   relationOptions,
   relationRemove,
+  reqifImport,
   reqifSaveMapping,
   traceAffected,
   traceChain,

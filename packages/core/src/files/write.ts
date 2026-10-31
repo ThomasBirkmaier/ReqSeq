@@ -248,6 +248,33 @@ const checkUnchanged = async (
   }
 };
 
+/**
+ * Gives the written temp file its name `absolute` as a hard link, which never replaces a file; where
+ * hard links are not supported, `absolute` is created exclusively and written a second time.
+ */
+const nameNew = async (
+  absolute: string,
+  file: string,
+  temp: string,
+  chunks: () => Iterable<string | Uint8Array>,
+  written: Written,
+): Promise<Written> => {
+  try {
+    await fs.link(temp, absolute);
+    return written;
+  } catch (linkError) {
+    const code = String(errorCode(linkError));
+    if (!NO_HARD_LINKS.includes(code)) {
+      throw replaceErrorCode(linkError, "EEXIST", changedOnDisk(file, "already exists"));
+    }
+  }
+  try {
+    return await writeNew(absolute, file, chunks, undefined);
+  } catch (exclusiveError) {
+    throw replaceErrorCode(exclusiveError, "EEXIST", changedOnDisk(file, "already exists"));
+  }
+};
+
 const create = async (
   absolute: string,
   file: string,
@@ -260,21 +287,7 @@ const create = async (
     if (errorCode(e) !== "ENOENT") {
       throw e;
     }
-    const written = await writeNew(temp, file, chunks, undefined);
-    try {
-      await fs.link(temp, absolute);
-      return written;
-    } catch (linkError) {
-      const code = String(errorCode(linkError));
-      if (!NO_HARD_LINKS.includes(code)) {
-        throw replaceErrorCode(linkError, "EEXIST", changedOnDisk(file, "already exists"));
-      }
-    }
-    try {
-      return await writeNew(absolute, file, chunks, undefined);
-    } catch (exclusiveError) {
-      throw replaceErrorCode(exclusiveError, "EEXIST", changedOnDisk(file, "already exists"));
-    }
+    return nameNew(absolute, file, temp, chunks, await writeNew(temp, file, chunks, undefined));
   }
   throw changedOnDisk(file, "already exists");
 };
@@ -340,4 +353,99 @@ export const writeFileAtomic = async (
   } finally {
     await removeQuietly(temp);
   }
+};
+
+/** One file `createFilesAtomic` creates: its path below the root and its bytes (a string as UTF-8). */
+export interface NewFile {
+  readonly path: string;
+  readonly content: string | Uint8Array;
+}
+
+/**
+ * Removes `absolute` while its bytes are still those of SHA-256 `expected`: true when it is gone,
+ * false when it holds something else or cannot be removed.
+ */
+const removeOwn = async (absolute: string, expected: string): Promise<boolean> => {
+  try {
+    if (sha256(await fs.readFile(absolute)) !== expected) {
+      return false;
+    }
+    await fs.rm(absolute);
+    return true;
+  } catch (e) {
+    return errorCode(e) === "ENOENT";
+  }
+};
+
+/**
+ * Creates every file of `files` below `root`, all or nothing (`reqif.import`, ADR-0013 "Import"),
+ * and returns each with its snapshot, in the order given. Each is first written and fsynced as a temp file
+ * next to its target; only when all are on disk does each get its name (`nameNew`). When one fails,
+ * the files this call named are removed again while their bytes are still the ones it wrote, every
+ * temp file is removed and the error is thrown; a named file that changed meanwhile is left and
+ * listed in `details.written`. So the call removes only files it created itself, never one that was
+ * there before (D-045). Refuses like `writeFileAtomic` with `expected` null.
+ */
+export const createFilesAtomic = async <T extends NewFile>(
+  root: string,
+  files: readonly T[],
+): Promise<{ readonly file: T; readonly snapshot: FileSnapshot }[]> => {
+  const temps: string[] = [];
+  const staged: {
+    readonly given: T;
+    readonly absolute: string;
+    readonly file: string;
+    readonly temp: string;
+    readonly chunks: () => Iterable<string | Uint8Array>;
+    readonly written: Written;
+  }[] = [];
+  const named: { readonly absolute: string; readonly file: string; readonly sha256: string }[] = [];
+  const done: { readonly file: T; readonly snapshot: FileSnapshot }[] = [];
+  let current = "";
+  try {
+    for (const given of files) {
+      const { absolute, file } = resolveInRoot(root, given.path);
+      current = file;
+      if (!(await folderInsideRoot(root, absolute))) {
+        throw new CommandError(
+          "input.invalid",
+          `Not written: the folder of ${file} is linked outside the workspace`,
+        );
+      }
+      const temp = tempPathFor(absolute);
+      const chunks = chunksOf(given.content);
+      temps.push(temp);
+      staged.push({
+        given,
+        absolute,
+        file,
+        temp,
+        chunks,
+        written: await writeNew(temp, file, chunks, undefined),
+      });
+    }
+    for (const s of staged) {
+      current = s.file;
+      const w = await nameNew(s.absolute, s.file, s.temp, s.chunks, s.written);
+      named.push({ absolute: s.absolute, file: s.file, sha256: w.sha256 });
+      done.push({ file: s.given, snapshot: makeSnapshot(s.file, w.size, w.mtimeMs, w.sha256) });
+      await syncFolder(path.dirname(s.absolute));
+    }
+  } catch (e) {
+    const kept: string[] = [];
+    for (const n of named) {
+      if (!(await removeOwn(n.absolute, n.sha256))) {
+        kept.push(n.file);
+      }
+    }
+    const error = toCommandError(e, current, false);
+    throw kept.length === 0
+      ? error
+      : new CommandError(error.code, error.message, { ...error.details, written: kept }, { cause: error });
+  } finally {
+    for (const temp of temps) {
+      await removeQuietly(temp);
+    }
+  }
+  return done;
 };

@@ -1,6 +1,6 @@
 # ReqIF block (`src/reqif/`)
 
-ReqIF 1.2 import and export (SR-052..SR-059, SR-095; ADR-0013). So far the model and the parser; the writer, the XHTML conversion and the commands follow (#265, Lanes E and I).
+ReqIF 1.2 import and export (SR-052..SR-059, SR-095; ADR-0013). So far the model, the parser, the mapping files and the import of new elements; the writer, the XHTML conversion and the other commands follow (#265, Lanes E and I).
 
 ## Model (`model.ts`)
 
@@ -18,3 +18,14 @@ ReqIF 1.2 import and export (SR-052..SR-059, SR-095; ADR-0013). So far the model
 - `.reqifz` archives are not read (SR-053).
 
 The hand-written samples and the nightly parse at N-036 follow in part 1b.
+
+## Import (`import.ts`, `xhtml-text.ts`; `commands/reqif/import.ts`)
+
+`reqif.import` (SR-053) reads the file (over `REQIF_LIMITS.bytes`, or refused by the parser: `reqif.invalid`; unreadable: `file.faulty`), the saved mapping `mapping` (`readMappingFile`, SR-054 AK2; a file without mapping, SR-052, is not read yet: `input.invalid`), plans everything in memory and only then writes. The own metamodel is only read (SR-054 AK3).
+
+- `planImport(file, mapping, layout, metamodel)` checks the mapping first: every SPEC-OBJECT-TYPE, attribute of a mapped type (an entry with `source-type` first), SPEC-RELATION-TYPE and enumeration value mapped to a choice property must be mapped or omitted, else `reqif.unmapped` with `details.unmapped` (SR-055 AK1); an attribute mapped to a property the type does not have, or that cannot hold its datatype, is `input.invalid` with `fields: ["mapping.attributes[i].property"]`. A property holds: `title`, `text` and a text property every datatype as text (enumeration values by name, joined with `, ` unless `many`; a value not defined in the file is an `omitted-value` loss); number INTEGER and REAL; date DATE (the day; a time other than midnight is a `date-time` loss); choice ENUMERATION (through `values`; `omit-values` and a second value for a single choice are `omitted-value` losses). A reference the file does not define is `reqif.invalid` with its line.
+- Each SPEC-OBJECT of a mapped type becomes a new element: a new UUID, the initial status (`newElementBase` of the model), its title from LONG-NAME unless an attribute is mapped to `title`. Each SPEC-RELATION of a mapped kind becomes a relation `{ id, version }` of the source element; the version is the target's planned one (`plannedVersion`; relations do not count to a version, ADR-0005). The target folder is the mapping's `target`, else the source name made portable in the main repository (`file.folder-missing` when its repository is not on this machine).
+- Losses (SR-053 AK2), in file order: `omitted-type` (object or relation), `omitted-attribute`, `omitted-value`, `date-time`, `xhtml-element`, `relation-end-not-imported`, and `hierarchy` for a SPECIFICATION with a SPEC-HIERARCHY (order and nesting are not imported).
+- XHTML: until the conversion of SR-095, `xhtmlText` gives the plain text (paragraphs, `br`, white space collapsed, Markdown characters escaped) and names every element other than `div`, `p` and `br` once as an `xhtml-element` loss; SR-095 replaces it behind the same call. Images (`object`) are not read yet.
+- Writing: `createElementFiles` (model, `new-files.ts`) through `createFilesAtomic` of the files block: every file as a temp file first, then each gets its name (a hard link, never replacing a file); on a failure the call removes only the files it created whose bytes are unchanged and lists the others in `details.written` (D-045).
+- Not yet: the origin properties and import version (SR-057), updating elements of an earlier delivery and `take`/`keep` (SR-056; the lists change nothing yet), the file without mapping (SR-052), and `unread` entries as losses.

@@ -35,6 +35,16 @@ type Scenario = Readonly<Record<string, unknown>>;
 /** A variant, in the fixture of variant.exclude only. */
 const VARIANT = "0b7c6e1a-1111-4222-8333-cccccccccccc";
 const EXTRA_FILES: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  "reqif.import": {
+    "in/lieferung.reqif": fs.readFileSync(
+      new URL("../../../../fixtures/SR-053/delivery/lieferung.reqif", import.meta.url),
+      "utf8",
+    ),
+    "reqif/kunde-a.yaml": fs.readFileSync(
+      new URL("../../../../fixtures/SR-053/delivery/kunde-a.yaml", import.meta.url),
+      "utf8",
+    ),
+  },
   "variant.exclude": {
     "variants/VAR-cccccccccccc.md": `---\nid: ${VARIANT}\ntype: variant\nstatus: draft\ntitle: Coast\n---\n`,
   },
@@ -131,6 +141,10 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
   "relation.remove": [
     { source: GUSTS, kind: "derives-from", target: WIND },
     { source: GUSTS, kind: "nope", target: WIND },
+  ],
+  "reqif.import": [
+    { file: "in/lieferung.reqif", mapping: "reqif/kunde-a.yaml", delivery: "1" },
+    { file: "in/missing.reqif", mapping: "reqif/kunde-a.yaml", delivery: "1" },
   ],
   "reqif.saveMapping": [
     {

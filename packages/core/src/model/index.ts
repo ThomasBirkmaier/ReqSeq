@@ -221,9 +221,14 @@ export type {
   RemoveRelationInput,
 } from "./relation-write.js";
 export { addAttachment, clashKey, IMAGE_EXTENSIONS, portableName } from "./attachment.js";
+export { createElementFiles, plannedVersion } from "./new-files.js";
+export type { NewElementFile } from "./new-files.js";
+export type { NewElementBase } from "./write.js";
 export {
   assertElementWritable,
   createElement,
+  newElementBase,
+  newElementBytes,
   refuseUnlisted,
   updateElement,
   workspacePath,
