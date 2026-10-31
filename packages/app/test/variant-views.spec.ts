@@ -73,11 +73,14 @@ test.describe("the view of a variant in the app", () => {
   test("[SR-041/AK1] the view of A lists SR-A instead of SR-K, and the view of B keeps SR-K", async () => {
     const { window } = running;
     await chooseView(window, `${A} Coast`);
-    await expect.poll(() => shownRequirements(window)).toContain("SR-0000b1");
-    await expect.poll(() => shownRequirements(window)).not.toContain("SR-0000a1");
+    // One poll over both IDs, so both hold on the same list and not on rows of the view before.
+    const shown = async (): Promise<{ a1: boolean; b1: boolean }> => {
+      const ids = await shownRequirements(window);
+      return { a1: ids.includes("SR-0000a1"), b1: ids.includes("SR-0000b1") };
+    };
+    await expect.poll(shown).toEqual({ a1: false, b1: true });
     await chooseView(window, B);
-    await expect.poll(() => shownRequirements(window)).toContain("SR-0000a1");
-    await expect.poll(() => shownRequirements(window)).not.toContain("SR-0000b1");
+    await expect.poll(shown).toEqual({ a1: true, b1: false });
   });
 
   test("[SR-042/AK6] in the view of A, variant.exclude with undo still offers the excluded K2, and K2 is back in the list", async () => {
@@ -86,7 +89,13 @@ test.describe("the view of a variant in the app", () => {
     const label = window.locator("label.prompt-label");
     const title = "Exclude requirements from variant";
     await chooseView(window, `${A} Coast`);
-    await expect.poll(() => shownRequirements(window)).not.toContain("SR-0000a2");
+    // The view of A has replaced the list: A1 is there and K2 is not.
+    await expect
+      .poll(async () => {
+        const ids = await shownRequirements(window);
+        return ids.includes("SR-0000b1") && !ids.includes("SR-0000a2");
+      })
+      .toBe(true);
     await window.keyboard.press("ControlOrMeta+Shift+P");
     await window.keyboard.type(title);
     await expect(names.first()).toHaveText(title);
@@ -99,6 +108,8 @@ test.describe("the view of a variant in the app", () => {
     await window.keyboard.type("Measure the wind");
     await expect(names.first()).toHaveText("SR-0000a2 Measure the wind");
     await window.keyboard.press("Enter");
+    // Wait until the ref is taken, or Ctrl/Cmd+Enter can come before it (macOS 26, #514).
+    await expect(label).toHaveText(`${title} ${A} SR-0000a2 · refs:`);
     await window.keyboard.press("ControlOrMeta+Enter");
     await expect(names).toHaveText(["Run", "undo"]);
     await window.keyboard.press("ArrowDown");

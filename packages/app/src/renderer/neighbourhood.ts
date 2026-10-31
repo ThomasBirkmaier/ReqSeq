@@ -58,14 +58,34 @@ const nodesByKey = (output: TraceNeighbourhoodOutput): ReadonlyMap<string, Node>
 /** The label of an element: its title, else its ID. */
 const nameOf = (node: Node): string => (node.title === "" ? (node.identifier ?? node.shortId) : node.title);
 
+/** The ID of an end of an edge, as the rows show it: its identifier, else its short ID. */
+const idOf = (nodes: ReadonlyMap<string, Node>, repository: string, id: string): string => {
+  const node = nodes.get(keyOf(repository, id));
+  return node === undefined ? id : (node.identifier ?? node.shortId);
+};
+
+/**
+ * The hover text of an outdated link, which names its direction (#513): "SR-147 points to an older version
+ * of SR-076 (refines)", with the relation's key or "inline reference"; undefined when the link is current.
+ * The word itself stands at the other end of the link in both views.
+ */
+const outdatedNote = (nodes: ReadonlyMap<string, Node>, edge: Edge): string | undefined => {
+  if (!edge.outdated) {
+    return undefined;
+  }
+  const source = idOf(nodes, edge.sourceRepository, edge.source);
+  const target = idOf(nodes, edge.targetRepository, edge.target);
+  return `${source} points to an older version of ${target} (${edge.kind ?? "inline reference"})`;
+};
+
 /** A parent in the line above the title. */
 export interface Parent {
   readonly open: ElementBuffer;
   readonly name: string;
   /** The ID, for the tooltip. */
   readonly label: string;
-  /** The element's own link to this parent is outdated (SR-025). */
-  readonly outdated: boolean;
+  /** The element's own link to this parent is outdated (SR-025): its hover text, else undefined. */
+  readonly outdated: string | undefined;
 }
 
 export interface Parents {
@@ -77,11 +97,23 @@ export interface Parents {
 
 /** The parents of `trace.neighbourhood { direction: "up", allLevels }`, the top level first (AK1). */
 export const parentLevels = (output: TraceNeighbourhoodOutput): Parents => {
-  const outdated = new Set(
-    output.edges
-      .filter((edge) => edge.direction === "up" && edge.source === output.root && edge.outdated)
-      .map((edge) => keyOf(edge.targetRepository, edge.target)),
-  );
+  const nodes = nodesByKey(output);
+  const root = output.nodes.find((node) => node.depth === 0);
+  // One note per parent; two outdated links of the element to the same parent are named both.
+  const outdated = new Map<string, string>();
+  for (const edge of output.edges) {
+    const note = outdatedNote(nodes, edge);
+    if (
+      note !== undefined &&
+      edge.direction === "up" &&
+      edge.source === output.root &&
+      edge.sourceRepository === root?.repository
+    ) {
+      const key = keyOf(edge.targetRepository, edge.target);
+      const before = outdated.get(key);
+      outdated.set(key, before === undefined ? note : `${before}; ${note}`);
+    }
+  }
   const byDepth = new Map<number, Parent[]>();
   for (const node of output.nodes.filter((candidate) => candidate.direction === "up")) {
     const level = byDepth.get(node.depth) ?? [];
@@ -89,7 +121,7 @@ export const parentLevels = (output: TraceNeighbourhoodOutput): Parents => {
       open: elementBufferOf(node),
       name: nameOf(node),
       label: node.identifier ?? node.shortId,
-      outdated: outdated.has(keyOf(node.repository, node.id)),
+      outdated: outdated.get(keyOf(node.repository, node.id)),
     });
     byDepth.set(node.depth, level);
   }
@@ -108,7 +140,8 @@ export interface TreeRow {
   readonly level: number;
   /** The child appeared under an earlier parent (AK3): it is shown, but not opened here. */
   readonly repeated: boolean;
-  readonly outdated: boolean;
+  /** Its link to its parent row is outdated: the hover text, else undefined. */
+  readonly outdated: string | undefined;
   /** Whether it has children; undefined while the answer does not reach its children yet. */
   readonly expandable: boolean | undefined;
   readonly opened: boolean;
@@ -155,7 +188,7 @@ export const treeRows = (output: TraceNeighbourhoodOutput, open: readonly string
         key,
         level,
         repeated: edge.repeated,
-        outdated: edge.outdated,
+        outdated: outdatedNote(nodes, edge),
         expandable,
         opened,
         parent,
@@ -181,7 +214,8 @@ export const fetchDepth = (rows: readonly TreeRow[]): number =>
 /** One element that points at the shown one. */
 export interface GroupEntry {
   readonly row: Row;
-  readonly outdated: boolean;
+  /** Its link to the shown element is outdated: the hover text, else undefined. */
+  readonly outdated: string | undefined;
 }
 
 export interface Group {
@@ -208,7 +242,7 @@ export const incomingGroups = (output: TraceNeighbourhoodOutput): Incoming => {
     if (node !== undefined) {
       const heading = `← ${edge.kind ?? "inline reference"}`;
       const entries = groups.get(heading) ?? [];
-      entries.push({ row: rowOf(node, 0, [], false), outdated: edge.outdated });
+      entries.push({ row: rowOf(node, 0, [], false), outdated: outdatedNote(nodes, edge) });
       groups.set(heading, entries);
     }
   }

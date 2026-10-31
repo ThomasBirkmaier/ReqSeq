@@ -8,6 +8,7 @@ import type { BufferAction, ElementBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
 import type { OutdatedMark } from "./editor/references.js";
 import { parentLevels, parentsInput } from "./neighbourhood.js";
+import { OUTDATED_WORD } from "./outdated-codes.js";
 import type { Parent, Parents } from "./neighbourhood.js";
 
 export interface ParentsLineProps {
@@ -47,12 +48,12 @@ const ParentLink = ({
     >
       {parent.name}
     </span>
-    {parent.outdated ? (
-      <span className="outdated" {...(mark === undefined ? {} : { title: mark.message })}>
+    {parent.outdated === undefined ? null : (
+      <span className="outdated" title={mark?.message ?? parent.outdated}>
         {" "}
-        {mark?.word ?? "outdated"}
+        {mark?.word ?? OUTDATED_WORD}
       </span>
-    ) : null}
+    )}
   </span>
 );
 
@@ -104,7 +105,7 @@ export const ParentsRow = ({
   /**
    * The mark of the element's own outdated derivation to a direct parent: the hint's message and the word
    * with the date of the version it stores (SR-110 AK2); undefined while the buffer has none for it. The
-   * neighbourhood buffer has no hints of the element and shows the word alone.
+   * neighbourhood buffer has no hints of the element and shows the word with the note of its edge (#513).
    */
   readonly mark?: (parent: Parent) => OutdatedMark | undefined;
 }): React.JSX.Element | null => {
@@ -122,7 +123,11 @@ export const ParentsRow = ({
           {level.map((parent, index) => (
             <span key={parent.open.key}>
               {index === 0 ? "" : <span className="sep"> · </span>}
-              <ParentLink parent={parent} open={open} mark={parent.outdated ? mark(parent) : undefined} />
+              <ParentLink
+                parent={parent}
+                open={open}
+                mark={parent.outdated === undefined ? undefined : mark(parent)}
+              />
             </span>
           ))}
         </span>

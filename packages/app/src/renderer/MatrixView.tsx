@@ -14,6 +14,7 @@ import { relationLabel } from "./element-view.js";
 import { columnCount, columnName, matrixInput, matrixRows, opening, targetsOf } from "./matrix.js";
 import type { MatrixColumn, MatrixRow } from "./matrix.js";
 import { rowTarget } from "./keys.js";
+import { OUTDATED_WORD } from "./outdated-codes.js";
 import type { BufferData } from "./modeline.js";
 import type { OutsideChanges } from "./outside-marks.js";
 import { rowClass, useOutsideMarks } from "./use-outside-marks.js";
@@ -52,7 +53,7 @@ const NEAR_END = 5;
 const nearEnd = ({ scrollHeight, scrollTop, clientHeight }: HTMLElement): boolean =>
   scrollHeight - scrollTop - clientHeight < clientHeight;
 
-/** One relation of a cell, with the marks of the element view: the state of an unavailable end, and "outdated". */
+/** One relation of a cell, with the marks of the element view: the state of an unavailable end, and "link outdated". */
 const Link = ({
   relation,
   current,
@@ -67,7 +68,7 @@ const Link = ({
       {relationLabel(relation)}
     </span>
     {relation.targetState === "available" ? null : <span className="state"> {relation.targetState}</span>}
-    {relation.outdated === true ? <span className="outdated"> outdated</span> : null}
+    {relation.outdated === true ? <span className="outdated"> {OUTDATED_WORD}</span> : null}
   </div>
 );
 

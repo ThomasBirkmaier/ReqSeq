@@ -237,7 +237,7 @@ describe("the matrix in the app", () => {
     await open();
     await runCommand("List all elements");
     await keyDown(window, "t", { ctrlKey: true });
-    expect(query("tbody tr .outdated").textContent).toBe(" outdated");
+    expect(query("tbody tr .outdated").textContent).toBe(" link outdated");
     await keyDown(query("table"), "ArrowRight");
     expect(query(".current").textContent).toBe("N-001 See the wind");
     await keyDown(query("table"), "Enter");

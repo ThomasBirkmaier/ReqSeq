@@ -189,8 +189,11 @@ errors:
     cause: The ReqIF file cannot be read or does not match the ReqIF format. This version does not raise it yet.
     remedy: Check the file, or export it again from the source tool.
   reqif.unmapped:
-    cause: The ReqIF file has types or attributes that the mapping does not map. This version does not raise it yet.
-    remedy: Complete the mapping and run the import again.
+    cause: The ReqIF file has types, attributes, relation types or enumeration values that the mapping neither maps nor omits; `details.unmapped` is the same list as `reqif.analyze` gives, and no file was written (SR-055). This version does not raise it yet.
+    remedy: Map or omit each entry with `reqif.saveMapping` or in the mapping file, and run the import again.
+  reqif.conflict:
+    cause: Elements of an earlier delivery were changed locally and the new delivery changes them too, and the import names no choice for them; `details.conflicts` lists them, and no file was written (SR-056 AK4). This version does not raise it yet.
+    remedy: Name each conflict in `take` (the delivery wins) or `keep` (the local element stays), and run the import again.
   git.unavailable:
     cause: The command needs Git, but the `git` program is not on the PATH or the folder is not a Git repository; for a baseline also when a repository involved is not under Git or has no commit (SR-050 AK7).
     remedy: Install Git and put it on the PATH, or put the repository under Git and commit, or check the folder.

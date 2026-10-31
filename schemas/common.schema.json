@@ -298,6 +298,7 @@
             "baseline.exists",
             "reqif.invalid",
             "reqif.unmapped",
+            "reqif.conflict",
             "git.unavailable",
             "git.commit-not-found",
             "file.changed-on-disk",
@@ -381,6 +382,61 @@
     "validationStatus": {
       "description": "offen, erfolgreich, nicht erfolgreich, veraltet.",
       "enum": ["open", "validated", "failed", "outdated"]
+    },
+    "reqifObject": {
+      "description": "An object of a ReqIF file by its IDENTIFIER in the source, with the UUID of its element when there is one (ADR-0013).",
+      "type": "object",
+      "properties": {
+        "identifier": { "type": "string" },
+        "id": { "$ref": "#/$defs/uuid" }
+      },
+      "additionalProperties": false,
+      "required": ["identifier"]
+    },
+    "reqifLoss": {
+      "description": "Content of a ReqIF file that is not taken over without loss (SR-053 AK2, SR-095 AK3): the object, its element when there is one, a stable code and the reason (ADR-0013).",
+      "type": "object",
+      "properties": {
+        "identifier": {
+          "type": "string",
+          "description": "IDENTIFIER of the SPEC-OBJECT, SPEC-RELATION or SPECIFICATION."
+        },
+        "kind": { "enum": ["spec-object", "spec-relation", "specification"] },
+        "id": { "$ref": "#/$defs/uuid" },
+        "code": {
+          "enum": [
+            "omitted-type",
+            "omitted-attribute",
+            "omitted-value",
+            "hierarchy",
+            "relation-end-not-imported",
+            "type-without-origin",
+            "date-time",
+            "xhtml-style",
+            "xhtml-rowspan",
+            "xhtml-colspan",
+            "xhtml-cell-block",
+            "xhtml-element",
+            "image-missing",
+            "image-outside"
+          ]
+        },
+        "reason": { "type": "string" }
+      },
+      "additionalProperties": false,
+      "required": ["identifier", "kind", "code", "reason"]
+    },
+    "reqifUnmapped": {
+      "description": "A type, attribute, relation type or enumeration value of a ReqIF file that the mapping neither maps nor omits (SR-055 AK1). `source` is its LONG-NAME or IDENTIFIER; `sourceType` the SPEC-OBJECT-TYPE of an attribute or value, `attribute` the attribute of a value.",
+      "type": "object",
+      "properties": {
+        "kind": { "enum": ["type", "attribute", "relation", "value"] },
+        "source": { "type": "string" },
+        "sourceType": { "type": "string" },
+        "attribute": { "type": "string" }
+      },
+      "additionalProperties": false,
+      "required": ["kind", "source"]
     }
   }
 }
