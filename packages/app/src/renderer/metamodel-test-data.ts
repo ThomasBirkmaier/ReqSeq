@@ -199,6 +199,7 @@ export const FIXTURE_METAMODEL: MetamodelGetOutput = {
     "source-identifier": [],
     "import-date": [],
     delivery: [],
+    "import-version": [],
     identifier: [],
     derivation: ["derives-from", "refines"],
     replacement: [],
