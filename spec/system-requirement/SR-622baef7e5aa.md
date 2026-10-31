@@ -4,12 +4,13 @@ type: system-requirement
 status: approved
 title: Einstieg und Anleitungen mit geprüften Beispielen
 spec-id: SR-140
-rationale: "Entscheidung des Produktverantwortlichen, 2026-10-29: Annahme der Doku-Strategie mit einer Dokumentation für Nutzer, die erzeugt und geprüft wird, und ihrer Aufnahme in die Spezifikation als Need mit wenigen Systemanforderungen."
+rationale: "Entscheidung des Produktverantwortlichen, 2026-10-29: Annahme der Doku-Strategie mit einer Dokumentation für Nutzer, die erzeugt und geprüft wird, und ihrer Aufnahme in die Spezifikation als Need mit wenigen Systemanforderungen. Entscheidung des Produktverantwortlichen, 2026-10-31: die README zeigt den Ablauf des Einstiegs als Animation in der App, damit Besucher sofort sehen, wie das Werkzeug arbeitet; sie endet in der Graphansicht des Need, nicht in der Prüfung des Arbeitsbereichs."
 requirement-type: functional
 acceptance-criteria:
   - Gegeben der Einstieg, wenn seine Schritte der Reihe nach ausgeführt werden, dann entstehen ein Arbeitsbereich, ein erstes Element und eine erste Kette.
   - Gegeben ein Beispiel im Einstieg oder in einer Anleitung, wenn die Dokumentation gebaut wird, dann läuft es gegen die Version, zu der die Dokumentation gehört, und ein fehlschlagendes Beispiel verhindert den Bau.
   - Gegeben eine Anleitung zu einer Aufgabe, die in App, Kommandozeile, API und MCP möglich ist, wenn sie gelesen wird, dann zeigt sie den Ablauf für jeden dieser Zugänge.
+  - "Gegeben die README des Repositorys, wenn sie angezeigt wird, dann zeigt sie die Schritte des Einstiegs als Animation in der App: einen Arbeitsbereich, einen Need und eine davon abgeleitete Systemanforderung anlegen und die Relation hinzufügen; die Animation endet in der Graphansicht des Need."
 verification-method: test
 topic: Betrieb und Leistung
 derives-from:
