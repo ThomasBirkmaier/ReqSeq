@@ -34,6 +34,7 @@ import {
 import type { Answer, Call } from "./call.js";
 import { bindingLabel } from "./bindings.js";
 import type { ReferenceRequest } from "./editor/slash-menu.js";
+import { idTitle } from "./id-title.js";
 import type { Shortcut } from "./keys.js";
 import { shortcutLabel } from "./keys.js";
 import type { GraphChoice, GraphFilterChoice } from "./graph-choices.js";
@@ -473,7 +474,7 @@ export const findElements =
     }
     return searchRows(answer.output).map((row) => ({
       id: row.open.key,
-      name: `${row.label} ${row.title}`.trim(),
+      name: idTitle(row.label, row.title),
       terms: row.markLabel ? [...row.terms, row.label.toLowerCase()] : row.terms,
       run: () => {
         run(row);

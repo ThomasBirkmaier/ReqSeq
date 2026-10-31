@@ -4,6 +4,7 @@
 import type { ElementFacetsOutput } from "@reqseq/core";
 import type { Choice, Prompt } from "./actions.js";
 import type { FilterStep } from "./buffers.js";
+import { idTitle } from "./id-title.js";
 
 export type Facet = ElementFacetsOutput["properties"][number];
 export type FacetValue = NonNullable<Facet["values"]>[number];
@@ -58,7 +59,7 @@ export const hasSavedFilter = (steps: readonly FilterStep[]): boolean =>
 /** What a value of a property is called in the prompt: a relation target by identifier or short ID and title. */
 export const valueName = (facet: Facet, value: FacetValue): string =>
   facet.kind === "relation"
-    ? `${value.identifier ?? String(value.value)} ${value.title ?? ""}`.trim()
+    ? idTitle(value.identifier ?? String(value.value), value.title)
     : String(value.value);
 
 /**
