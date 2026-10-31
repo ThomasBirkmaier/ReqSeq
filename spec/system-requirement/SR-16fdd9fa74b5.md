@@ -1,7 +1,7 @@
 ---
 id: 7c003135-cc59-44fb-bddf-16fdd9fa74b5
 type: system-requirement
-status: draft
+status: approved
 title: Element im anderen Bereich öffnen
 spec-id: SR-150
 rationale: "Entscheidung des Produktverantwortlichen, 2026-10-31: Ohne geteiltes Fenster soll sich das markierte Element mit „Open to the right“ oder „Open to the left“ auf dieser Seite öffnen lassen. Im geteilten Fenster soll der andere Bereich zeigen, was im aktiven Bereich gerade ausgewählt ist. Annahmen, vom Produktverantwortlichen zu bestätigen: Der Bereich, in dem markiert wurde, bleibt aktiv (AK1 bis AK3). Die Befehle wirken auch im geteilten Fenster (AK3). Nur ein Bereich, der ein Element zeigt, folgt der Auswahl, und er ersetzt dabei sein Element, statt je Markierung einen neuen Buffer zu öffnen; eine Liste, ein Graph oder eine Paketseite wird nicht ersetzt, damit der Ausgangspunkt der Auswahl erhalten bleibt, und der Vergleich nach SR-044 bleibt stehen (AK4, AK5)."
