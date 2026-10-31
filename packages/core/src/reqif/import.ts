@@ -16,8 +16,8 @@
 //   element of its SOURCE, with the planned version of its TARGET (`plannedVersion`; relation kinds
 //   do not count to a version, ADR-0005).
 // - Losses (SR-053 AK2), with the codes of `common.schema.json#/$defs/reqifLoss`: an object of an
-//   omitted type, a value of an omitted attribute or an omitted enumeration value, a date whose time
-//   is not midnight, XHTML elements without plain form, a relation whose type is omitted or whose
+//   omitted type, a value of an omitted attribute or an omitted enumeration value, a number or date
+//   not in its lexical form, a date whose time is not midnight, XHTML elements without plain form, a relation whose type is omitted or whose
 //   other end is not imported, values of relations and specifications, a duplicate relation, a
 //   relation the metamodel does not allow, the SPEC-HIERARCHY (once per SPECIFICATION that has one)
 //   and every part of an imported object the parser did not read. A DEFAULT-VALUE is the value of
@@ -479,9 +479,29 @@ const choiceValue = (
   return keys[0];
 };
 
-/** A DATE value as a date property holds it: the day (a time other than midnight is a loss). */
-const dateValue = (value: string, loss: Loss): string => {
+/**
+ * The lexical form of xs:dateTime (ReqIF 1.2 §10.8.7) with a four-digit year, which a date property
+ * can hold, or of its day alone.
+ */
+const DATE_TIME =
+  /^\d{4}-\d{2}-\d{2}(?:T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?|24:00:00(?:\.0+)?)(?:Z|[+-](?:(?:0\d|1[0-3]):[0-5]\d|14:00))?)?$/;
+
+/** Whether `date` (`YYYY-MM-DD`) is a day of the calendar. */
+const isDay = (date: string): boolean => {
+  const time = Date.parse(`${date}T00:00:00Z`);
+  return !Number.isNaN(time) && new Date(time).toISOString().startsWith(date);
+};
+
+/**
+ * A DATE value as a date property holds it: the day (a time other than midnight is a loss). A value
+ * that is not of the lexical form of xs:dateTime (an empty value too) or names no day is a loss.
+ */
+const dateValue = (value: string, loss: Loss): string | undefined => {
   const date = value.slice(0, 10);
+  if (!DATE_TIME.test(value) || !isDay(date)) {
+    loss("omitted-value", `"${value}" is no DATE`);
+    return undefined;
+  }
   if (value.length > 10 && !MIDNIGHT.test(value.slice(10))) {
     loss("date-time", `the time of ${value} is left out; ${date} is kept`);
   }
