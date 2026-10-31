@@ -310,6 +310,11 @@ export const COMMAND_SHORTCUT: Shortcut = { mod: true, shift: true, key: "p" };
  */
 export const NEXT_BUFFER_SHORTCUT: Shortcut = { mod: false, shift: false, alt: true, key: "n" };
 export const PREVIOUS_BUFFER_SHORTCUT: Shortcut = { mod: false, shift: false, alt: true, key: "p" };
+/**
+ * "Other window" (SR-150 AK7): Alt+O, beside Alt+N and Alt+P, because Ctrl/Cmd+O opens a workspace and the
+ * physical Ctrl key on macOS belongs to the editor (product owner decision, 2026-10-31).
+ */
+export const OTHER_WINDOW_SHORTCUT: Shortcut = { mod: false, shift: false, alt: true, key: "o" };
 
 /**
  * Ctrl/Cmd+Shift+O turns the mode „Agent folgen“ on, and off again (SR-117 AK4). Not Shift+G: that is the
@@ -995,6 +1000,7 @@ export const ACTIONS: readonly Action[] = [
   {
     id: "other-window",
     title: "Other window",
+    shortcut: OTHER_WINDOW_SHORTCUT,
     available: (context: ActionContext): boolean => context.layout?.other !== undefined,
     run: (context: ActionContext): void => {
       const other = context.layout?.other;

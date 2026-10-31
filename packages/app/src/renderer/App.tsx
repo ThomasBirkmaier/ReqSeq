@@ -41,7 +41,7 @@ import { ModelineBar } from "./ModelineBar.js";
 import type { Walk } from "./buffer-cycle.js";
 import { NO_WALK, cycleOrder } from "./buffer-cycle.js";
 import type { PackageModel } from "./package-page.js";
-import { packageModel, packageOf } from "./package-page.js";
+import { packageModel } from "./package-page.js";
 import type { BufferData, WorkspaceView } from "./modeline.js";
 import {
   bufferView,
@@ -76,7 +76,7 @@ import { usePrefix } from "./use-prefix.js";
 import { promptUse } from "./usage.js";
 import { EMPTY_WINDOW, areas, isSplit, reduceWindow } from "./window-layout.js";
 import type { MarkState, PendingMark } from "./follow-mark.js";
-import { NO_MARK, bringsNew, markStep } from "./follow-mark.js";
+import { NO_MARK, markStep } from "./follow-mark.js";
 
 const STOPPED = "The core process keeps stopping. Open the workspace again with File > Open Workspace.";
 const MESSAGES: Readonly<Record<string, string>> = {
@@ -170,9 +170,6 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   const split = isSplit(layout);
   const shownAreas = areas(windowState);
   const current = buffers[0];
-  // The element that following or "Open to the right/left" put into the inactive area (SR-150 AK4): only it
-  // is replaced by the next element marked.
-  const followed = useRef<string | undefined>(undefined);
   const { drafts, armed, onDraft, update: updateDraft, reset: resetDrafts } = useDrafts(current?.key);
   // Per element buffer while it is open (SR-105): its undo history, and its saves, in order.
   const memories = useRef(new Map<string, UndoMemory>());
@@ -566,14 +563,12 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     layout: {
       other: layout.other,
       split: () => {
-        dispatch({ type: "split" });
+        dispatch({ type: "split", marked });
       },
       unsplit: () => {
         dispatch({ type: "unsplit" });
       },
       beside: (side, buffer) => {
-        // Only an element not open before counts as brought in: one the reader had open is never replaced.
-        followed.current = buffers.some((open) => open.key === buffer.key) ? undefined : buffer.key;
         dispatch({ type: "beside", side, buffer });
       },
     },
@@ -817,8 +812,8 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     }
   }, [current?.key]);
 
-  // SR-150 AK4, AK5: in a split window the inactive area follows what the reader newly marks in the active
-  // one (`follow-mark.ts`).
+  // SR-150 AK4, AK5: in a split window a preview in the inactive area follows what the reader newly marks in
+  // the active one (`follow-mark.ts`, `window-layout.ts`).
   const token = markToken(current);
   const lastMark = useRef<MarkState>(NO_MARK);
   const pendingMark = useRef<PendingMark | undefined>(undefined);
@@ -828,17 +823,10 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     const step = markStep(lastMark.current, now, pendingMark.current);
     lastMark.current = now;
     pendingMark.current = step.pending;
-    if (!step.follow || other === undefined || marked === undefined) {
-      return;
+    if (step.follow && other !== undefined && marked !== undefined && layout.preview !== undefined) {
+      dispatch({ type: "follow", buffer: marked, replace: !drafts.current.has(other) });
     }
-    const otherData = loadedByKey.get(other);
-    const page = otherData?.kind === "element" && packageOf(packages, otherData.element.type) !== undefined;
-    const replace = followed.current === other && !drafts.current.has(other);
-    if (bringsNew(buffers, other, marked.key, page)) {
-      followed.current = marked.key;
-    }
-    dispatch({ type: "follow", buffer: marked, replace, page });
-  }, [current?.key, token, marked?.key, layout.other]);
+  }, [current?.key, token, marked?.key, layout.other, layout.preview]);
 
   const onData = useCallback((key: string, data: BufferData | undefined): void => {
     setLoaded((before) => new Map(before).set(key, data));
