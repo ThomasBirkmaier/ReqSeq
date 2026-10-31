@@ -147,13 +147,12 @@ describe("imageReader (SR-095 AK2)", () => {
 
   it("refuses a file swapped for another after it was opened, as it then reads another file", async () => {
     const root = await folder({ "a.png": PNG });
-    const file = path.join(root, "in", "a.png");
-    const open = fs.open.bind(fs);
-    const spy = vi.spyOn(fs, "open").mockImplementation(async (...args: Parameters<typeof fs.open>) => {
-      const handle = await open(...args);
-      await fs.writeFile(`${file}.new`, PNG);
-      await fs.rename(`${file}.new`, file);
-      return handle;
+    // The path names another file once the handle is open (a swap, which Windows refuses for an
+    // open file, so the check after the open is given another inode).
+    const stat = fs.stat.bind(fs);
+    const spy = vi.spyOn(fs, "stat").mockImplementation(async (...args: Parameters<typeof fs.stat>) => {
+      const got = await stat(...args);
+      return Object.assign(got, { ino: Number(got.ino) + 1 });
     });
     onTestFinished(() => {
       spy.mockRestore();
