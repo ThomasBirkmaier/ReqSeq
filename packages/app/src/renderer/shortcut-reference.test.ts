@@ -110,7 +110,7 @@ describe("the key tables follow their handlers", () => {
       ]);
     }
     for (const key of ["Enter", "ArrowDown", "ArrowUp", "Escape", "ArrowLeft", "Tab", "Home", "a"]) {
-      expect(fieldKey(key, "title", true), key).toBe(listed.some((event) => event.key === key));
+      expect(fieldKey(key, "title"), key).toBe(listed.some((event) => event.key === key));
     }
   });
 

@@ -1436,6 +1436,9 @@ export const ElementView = ({
       enterField(label);
     } else if (key === "Escape") {
       article?.focus();
+    } else if (label === undefined && down && (members?.total ?? 0) === 0) {
+      // Down on the element itself goes to its first field, where the highlight shows (SR-155, assumption).
+      move([TITLE_FIELD, "Text", ...boxKeys], "", 1, false);
     } else if (label === undefined || !move([TITLE_FIELD, "Text", ...boxKeys], label, down ? 1 : -1, false)) {
       if (down && (members?.total ?? 0) > 0) {
         intoMembers(root);
@@ -1478,7 +1481,7 @@ export const ElementView = ({
     if (valueHistoryKey(event, label)) {
       return;
     }
-    if (plain && fieldKey(key, label, hasMembers)) {
+    if (plain && fieldKey(key, label)) {
       event.preventDefault();
       onField(key, label, currentTarget);
     } else if (hasMembers && !event.defaultPrevented && ctrlStep(event) === 1) {

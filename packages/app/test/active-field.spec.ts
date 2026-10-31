@@ -119,7 +119,9 @@ test.describe("the field the focus is in", () => {
         await expect(symbol(window, other), `${other} while ${label}`).toBeHidden();
       }
     };
-    await field(window, "Title").focus();
+    // Down on the element itself goes to its first field (assumption, product owner to confirm).
+    await window.keyboard.press("ArrowDown");
+    await expect(field(window, "Title")).toBeFocused();
     await at("Title");
     await window.keyboard.press("ArrowDown");
     await at("Text");

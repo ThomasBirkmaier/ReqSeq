@@ -15,13 +15,11 @@ export const forBuffer = (target: EventTarget, buffer: EventTarget): boolean =>
   target === buffer || (target instanceof HTMLElement && target.matches(".field[tabindex]"));
 
 /**
- * A key the buffer handles: Enter, Down when there is a field or the elements of a package to go to, and
- * Escape and Up on a field (on the buffer itself they are not for it).
+ * A key the buffer handles: Enter, Down (on the element to its first field or the elements of a package, on a
+ * field to the next one), and Escape and Up on a field (on the buffer itself they are not for it).
  */
-export const fieldKey = (key: string, label: string | undefined, hasMembers: boolean): boolean =>
-  key === "Enter" ||
-  (key === "ArrowDown" && (label !== undefined || hasMembers)) ||
-  (label !== undefined && (key === "Escape" || key === "ArrowUp"));
+export const fieldKey = (key: string, label: string | undefined): boolean =>
+  key === "Enter" || key === "ArrowDown" || (label !== undefined && (key === "Escape" || key === "ArrowUp"));
 
 /** Keys that only modify another key: pressed on their own they are no key of the buffer. */
 export const MODIFIER_KEYS: ReadonlySet<string> = new Set(["Shift", "Control", "Alt", "Meta"]);
@@ -37,7 +35,7 @@ export const FIELD_KEYS: readonly KeyRow[] = [
   },
   {
     keys: [{ press: press("ArrowDown") }],
-    does: "On a field: to the next field; from the last field into the elements of a package page",
+    does: "On the element: to its first field (SR-155), on a package page into its elements; on a field: to the next field; from the last field into the elements of a package page",
   },
   { keys: [{ press: press("ArrowUp") }], does: "On a field: to the field before" },
   {
