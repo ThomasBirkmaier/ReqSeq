@@ -238,7 +238,7 @@ export type Commit = string;
 export type RelativePath = string;
 
 /**
- * A file or folder on the local machine, relative or absolute. CLI: relative to the current folder (the CLI makes it absolute before the call); API and MCP: relative to the workspace root (ADR-0009).
+ * A file or folder on the local machine, relative or absolute. CLI: relative to the current folder (the CLI makes it absolute before the call); API and MCP: relative to the workspace root, and only inside the repositories of the workspace, also after links are followed; `~` is not expanded (SR-142, ADR-0009).
  * Schema: `schemas/common.schema.json#/$defs/localPath`.
  */
 export type LocalPath = string;

@@ -71,6 +71,7 @@ export function agentInstructions(
     `- \`shortId\`: ${common("$defs", "shortId")}`,
     `- \`id\`: ${common("$defs", "uuid")}`,
     ...hints,
+    `- local paths: ${common("$defs", "localPath")}`,
     "",
     "Read-only tools carry readOnlyHint. Write tools change only ReqSeq files in the working tree, never Git; no tool deletes an element.",
     `Only ${nameOf("element.setStatus")} and ${nameOf("element.supersede")} change a status, and only on explicit request; no other tool changes one.`,

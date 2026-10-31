@@ -2,7 +2,8 @@
 // Validates the input against the catalog, runs the command and maps every failure to a
 // CommandError with a code from common.schema.json#/$defs/error (ADR-0002 rule 4). Adds the short
 // ID of the element each problem of the output names (`withElementShortIds`, #315). Records the
-// element of an API or MCP call as the last access of the copy (`recordAccess`, SR-117).
+// element of an API or MCP call as the last access of the copy (`recordAccess`, SR-117). Refuses the
+// local paths of an API or MCP call outside the repositories of the workspace (SR-142).
 import type { AnyCommand } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import { commands as productCommands } from "../commands/index.js";
@@ -14,6 +15,9 @@ import { SCHEMA_BASE, describeViolations, loadContracts, schemaViolations } from
 import type { ProblemLocator } from "./element-short-ids.js";
 import { problemLocator, withElementShortIds } from "./element-short-ids.js";
 import { describeInputViolations, inputViolations } from "./input-errors.js";
+import type { LocalPathField } from "./local-path-fields.js";
+import { localPathFields, localPathUses } from "./local-path-fields.js";
+import { OPEN_LOCAL_PATHS, confinedLocalPaths } from "../workspace/local-paths.js";
 import type { Workspace } from "./workspace.js";
 
 /** What an adapter passes per call. */
@@ -22,13 +26,20 @@ export interface InvokeContext {
   /** Abort when the caller goes away. Default: a signal that never aborts. */
   readonly signal?: AbortSignal;
   /**
-   * The access the call comes through: each adapter passes its own name (ADR-0002 rule 4). It never
-   * changes the result. Core records the element a successful call names as the last access of the
+   * The access the call comes through: each adapter passes its own name (ADR-0002 rule 4). It changes
+   * the result in one way only: outside `UNCONFINED_ACCESSES` local paths must lie inside the
+   * repositories of the workspace (SR-142, an exception to SR-080 AK2). Core records the element a successful call names as the last access of the
    * copy when the access is one of `FOLLOWED_ACCESSES` (API and MCP, SR-117) and the workspace has
-   * a cache folder; left out, nothing is recorded.
+   * a cache folder; left out, nothing is recorded and no path is confined (core tests, internal callers).
    */
   readonly access?: AccessName;
 }
+
+/**
+ * The accesses that take every local path (SR-142 AK3): the command line and the app, whose paths a
+ * person gives. Every other access, a future one too, takes only paths inside the repositories.
+ */
+export const UNCONFINED_ACCESSES: readonly AccessName[] = ["cli", "app"];
 
 export interface CommandRuntimeOptions {
   /** Implementations to register. Default: all product commands (commands/index.ts). */
@@ -89,6 +100,8 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
   const locators = new Map<string, () => ProblemLocator | undefined>();
   // Which element a call of each command names, from its catalog entry (SR-117).
   const calls = new Map<string, Omit<AccessCall, "access">>();
+  // The local path fields of each command's input (SR-142), built on its first confined call.
+  const pathFields = new Map<string, () => readonly LocalPathField[]>();
   for (const command of options.commands ?? productCommands) {
     const entry = contracts.entry(command.name);
     if (entry === undefined) {
@@ -108,6 +121,15 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
         ),
       };
       return located.locator;
+    });
+    let fields: readonly LocalPathField[] | undefined;
+    pathFields.set(command.name, () => {
+      fields ??= localPathFields(
+        entry.input,
+        `${SCHEMA_BASE}commands/${command.name}.input.json`,
+        contracts.schemas,
+      );
+      return fields;
     });
     calls.set(command.name, { command: command.name, effect: entry.effect, subject: accessSubject(entry) });
     if (entry.effect === "write-files") {
@@ -160,18 +182,27 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
       access !== undefined && FOLLOWED_ACCESSES.includes(access) && known !== undefined
         ? { ...known, access }
         : undefined;
+    const confined = access !== undefined && !UNCONFINED_ACCESSES.includes(access);
+    const localPaths = confined ? confinedLocalPaths(ctx.workspace, name) : OPEN_LOCAL_PATHS;
     let noted: Promise<NotedAccess | undefined> | undefined;
     let output: unknown;
     try {
       // Background work of the workspace (the search index) waits while the command runs.
       output = await ctx.workspace.runCommand(
         async () => {
+          if (confined) {
+            // Before anything else: a refused path is neither read nor written (SR-142 AK1).
+            await localPaths.check(localPathUses(checked, pathFields.get(name)?.()));
+          }
           if (guarded.has(name)) {
             await assertWritable(ctx.workspace, name);
           }
           // Before the command runs: a catalog the locator cannot follow fails before anything is written.
           const locator = locators.get(name)?.();
-          const result = await command.run({ workspace: ctx.workspace, signal }, checked as never);
+          const result = await command.run(
+            { workspace: ctx.workspace, signal, localPaths },
+            checked as never,
+          );
           // Every problem that names an element names its short ID too (#315).
           const shown = await withElementShortIds(ctx.workspace, locator, result);
           if (call !== undefined) {
