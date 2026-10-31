@@ -1,6 +1,7 @@
 // The main process (ADR-0010): one window, the menu, the file dialog that opens a workspace, the
 // protocols and the security settings. No program logic (ADR-0002): every command runs in the core
 // process, which the renderer reaches over a port.
+import path from "node:path";
 import type Electron from "electron";
 import { handleCopy } from "./clipboard.js";
 import { guardClose } from "./close.js";
@@ -54,6 +55,8 @@ const ready = async (electron: ShellElectron, options: ShellOptions, core: CoreP
     // The colour of the sheet in the scheme of the system, so that a dark start does not flash white (SR-113).
     backgroundColor: electron.nativeTheme.shouldUseDarkColors ? SHEET.dark : SHEET.light,
     autoHideMenuBar: true,
+    // Linux shows this icon on the window and in the task bar; macOS and Windows take it from the bundle (#410).
+    ...(options.platform === "linux" ? { icon: path.join(options.paths.renderer, "icon.png") } : {}),
     // macOS: no native title bar; the traffic lights lie on the sheet, whose top strip moves the window
     // and names it in the colours of the scheme (#490). Windows and Linux keep the native frame (ADR-0010).
     // The lights are pinned to the middle of the 38 px strip: the inset of `hiddenInset` differs between macOS versions.

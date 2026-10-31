@@ -13,10 +13,14 @@ const GUIDE_SECTIONS = [
   ["concepts", "Concepts"],
 ];
 
+// `/ReqSeq` for GitHub Pages; the offline build that ships with a delivery sets `/` (SR-141, ADR-0017).
+const base = process.env.REQSEQ_DOCS_BASE ?? "/ReqSeq";
+/** A path of public/ under the base. */
+const publicPath = (name) => `${base.replace(/\/$/, "")}/${name}`;
+
 export default defineConfig({
   site: "https://thomasbirkmaier.github.io",
-  // `/ReqSeq` for GitHub Pages; the offline build that ships with a delivery sets `/` (SR-141, ADR-0017).
-  base: process.env.REQSEQ_DOCS_BASE ?? "/ReqSeq",
+  base,
   // The screenshots of docs/guide/images/ are served as they are: Astro's default service needs Sharp, a native
   // package that the site's install (--ignore-scripts) does not build. A missing image still fails the build.
   image: { service: passthroughImageService() },
@@ -27,6 +31,12 @@ export default defineConfig({
       // A link only; the site loads nothing from it.
       social: [{ icon: "github", label: "GitHub", href: "https://github.com/ThomasBirkmaier/ReqSeq" }],
       customCss: ["./src/styles/theme.css"],
+      // The icons of the app (#410), from toolchain/packaging/icon/icon.svg (scripts/icon/generate.mjs).
+      favicon: "/favicon.svg",
+      head: [
+        { tag: "link", attrs: { rel: "icon", href: publicPath("favicon.ico"), sizes: "32x32" } },
+        { tag: "link", attrs: { rel: "apple-touch-icon", href: publicPath("apple-touch-icon.png") } },
+      ],
       sidebar: [
         { label: "Overview", slug: "index" },
         // A section without pages yet is left out rather than shown empty.
