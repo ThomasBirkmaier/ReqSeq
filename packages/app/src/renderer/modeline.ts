@@ -140,6 +140,18 @@ export const markedElement = (
   return selectedRow(current, loaded);
 };
 
+/**
+ * What the reader selected in a buffer, the selected row or graph node, as a text that changes only when
+ * the selection does (SR-150 AK4): a reload that marks the same row again, or a graph that marks its own
+ * element when it opens, does not change it.
+ */
+export const markToken = (buffer: Buffer | undefined): string | undefined => {
+  if (buffer === undefined || buffer.kind === "metamodel" || buffer.kind === "element") {
+    return undefined;
+  }
+  return buffer.kind === "graph" ? (buffer.selected ?? "") : String(buffer.cursor);
+};
+
 /** The element that the shown buffer has loaded; undefined for any other buffer, or while it loads. */
 export const shownElement = (
   current: Buffer | undefined,

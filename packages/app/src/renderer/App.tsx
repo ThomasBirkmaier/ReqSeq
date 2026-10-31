@@ -40,11 +40,12 @@ import { Minibuffer } from "./Minibuffer.js";
 import { ModelineBar } from "./ModelineBar.js";
 import { openingOrder, seedOrder } from "./opening-order.js";
 import type { PackageModel } from "./package-page.js";
-import { packageModel } from "./package-page.js";
+import { packageModel, packageOf } from "./package-page.js";
 import type { BufferData, WorkspaceView } from "./modeline.js";
 import {
   bufferView,
   readOnlyNow,
+  markToken,
   markedElement,
   selectedRow,
   shownElement,
@@ -166,6 +167,9 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   const split = isSplit(layout);
   const shownAreas = areas(windowState);
   const current = buffers[0];
+  // The element that following or "Open to the right/left" put into the inactive area (SR-150 AK4): only it
+  // is replaced by the next element marked.
+  const followed = useRef<string | undefined>(undefined);
   const { drafts, armed, onDraft, update: updateDraft, reset: resetDrafts } = useDrafts(current?.key);
   // Per element buffer while it is open (SR-105): its undo history, and its saves, in order.
   const memories = useRef(new Map<string, UndoMemory>());
@@ -564,6 +568,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
         dispatch({ type: "unsplit" });
       },
       beside: (side, buffer) => {
+        followed.current = buffer.key;
         dispatch({ type: "beside", side, buffer });
       },
     },
@@ -807,25 +812,46 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     }
   }, [current?.key]);
 
-  // SR-150 AK4, AK5: in a split window the inactive area follows what is newly marked in the active one.
-  // Only a change of the mark in the same buffer counts, so splitting, switching areas or opening a buffer
-  // moves nothing; an inactive element with unsaved input stays open behind the one that follows.
-  const lastMark = useRef<{ readonly buffer: string | undefined; readonly marked: string | undefined }>({
-    buffer: undefined,
-    marked: undefined,
-  });
+  // SR-150 AK4, AK5: in a split window the inactive area follows what the reader newly marks in the active
+  // one. Only a change of the selection in the same buffer counts (`markToken`), so splitting, switching
+  // areas, opening a buffer or reading it again moves nothing. The marked element can come a render after
+  // the selection (a graph reports it when it drew the node), so the follow waits until it differs from the
+  // one marked before the change.
+  const token = markToken(current);
+  const lastMark = useRef<{
+    readonly buffer: string | undefined;
+    readonly token: string | undefined;
+    readonly marked: string | undefined;
+  }>({ buffer: undefined, token: undefined, marked: undefined });
+  const pendingFrom = useRef<{ readonly marked: string | undefined } | undefined>(undefined);
   useEffect(() => {
     const before = lastMark.current;
-    lastMark.current = { buffer: current?.key, marked: marked?.key };
-    if (
-      layout.other !== undefined &&
-      marked !== undefined &&
-      before.buffer === current?.key &&
-      before.marked !== marked.key
-    ) {
-      dispatch({ type: "follow", buffer: marked, keep: drafts.current.has(layout.other) });
+    lastMark.current = { buffer: current?.key, token, marked: marked?.key };
+    if (before.buffer !== current?.key) {
+      pendingFrom.current = undefined;
+      return;
     }
-  }, [current?.key, marked?.key, layout.other]);
+    if (before.token !== token) {
+      pendingFrom.current = { marked: before.marked };
+    }
+    const other = layout.other;
+    if (
+      pendingFrom.current === undefined ||
+      other === undefined ||
+      marked === undefined ||
+      marked.key === pendingFrom.current.marked
+    ) {
+      return;
+    }
+    pendingFrom.current = undefined;
+    const otherData = loadedByKey.get(other);
+    const page = otherData?.kind === "element" && packageOf(packages, otherData.element.type) !== undefined;
+    const replace = followed.current === other && !drafts.current.has(other);
+    if (!page) {
+      followed.current = marked.key;
+    }
+    dispatch({ type: "follow", buffer: marked, replace, page });
+  }, [current?.key, token, marked?.key, layout.other]);
 
   const onData = useCallback((key: string, data: BufferData | undefined): void => {
     setLoaded((before) => new Map(before).set(key, data));

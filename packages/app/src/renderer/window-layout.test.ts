@@ -290,48 +290,58 @@ describe("open beside and follow (SR-150)", () => {
     sound(left);
   });
 
-  it("[SR-150/AK4] the inactive element follows the element marked in the active area in its place, without a new buffer; unsaved input keeps it open", () => {
+  it("[SR-150/AK4] the inactive element follows the element marked in the active area: in its place when it may be replaced, else behind it", () => {
     const from = reduceWindow(opened(list), { type: "beside", side: "right", buffer: element(1) });
-    const state = reduceWindow(from, { type: "follow", buffer: element(2), keep: false });
+    const follow = (buffer: ElementBuffer, replace = true): WindowAction => ({
+      type: "follow",
+      buffer,
+      replace,
+      page: false,
+    });
+    const state = reduceWindow(from, follow(element(2)));
     expect(shown(state)).toEqual([`${list.key}*`, element(2).key]);
     expect(keys(state)).toEqual([list.key, element(2).key, overview.key]);
     sound(state);
-    // With unsaved input the element followed stays open behind.
-    const kept = reduceWindow(from, { type: "follow", buffer: element(2), keep: true });
+    // Not to be replaced (opened by the reader, or unsaved input): it stays open behind.
+    const kept = reduceWindow(from, follow(element(2), false));
     expect(shown(kept)).toEqual([`${list.key}*`, element(2).key]);
     expect(keys(kept)).toEqual([list.key, element(2).key, element(1).key, overview.key]);
     // An element already open moves into the area; the one shown before stays open.
     const open = reduceWindow(
       run(from, { type: "open", buffer: element(3) }, { type: "switch", key: list.key }),
-      {
-        type: "follow",
-        buffer: element(3),
-        keep: false,
-      },
+      follow(element(3)),
     );
     expect(shown(open)).toEqual([`${list.key}*`, element(3).key]);
     expect(keys(open)).toContain(element(1).key);
     sound(open);
     // The element already shown there, or the active buffer itself: nothing changes.
-    expect(reduceWindow(from, { type: "follow", buffer: element(1), keep: false })).toBe(from);
+    expect(reduceWindow(from, follow(element(1)))).toBe(from);
     const twoElements = run(opened(element(2), element(1)), { type: "split" });
-    expect(reduceWindow(twoElements, { type: "follow", buffer: element(1), keep: false })).toBe(twoElements);
+    expect(reduceWindow(twoElements, follow(element(1)))).toBe(twoElements);
   });
 
   it("[SR-150/AK5] an inactive list, overview, graph or package page, the comparison of SR-044 and one area do not follow", () => {
+    const follow = (page = false): WindowAction => ({
+      type: "follow",
+      buffer: element(2),
+      replace: true,
+      page,
+    });
     const listed = run(opened(list, element(1)), { type: "split" });
-    expect(reduceWindow(listed, { type: "follow", buffer: element(2), keep: false })).toBe(listed);
+    expect(reduceWindow(listed, follow())).toBe(listed);
     const graphed = run(opened(graph, element(1)), { type: "split" });
-    expect(reduceWindow(graphed, { type: "follow", buffer: element(2), keep: false })).toBe(graphed);
+    expect(reduceWindow(graphed, follow())).toBe(graphed);
     const lone = run(opened(element(1)), { type: "split" });
-    expect(reduceWindow(lone, { type: "follow", buffer: element(2), keep: false })).toBe(lone);
+    expect(reduceWindow(lone, follow())).toBe(lone);
+    const paged = reduceWindow(opened(list), { type: "beside", side: "right", buffer: element(9) });
+    expect(reduceWindow(paged, follow(true))).toBe(paged);
     const compared = reduceWindow(opened(list), {
       type: "side-by-side",
       left: readOnlyBuffer(element(1)),
       right: readOnlyBuffer(element(3)),
     });
-    expect(reduceWindow(compared, { type: "follow", buffer: element(2), keep: false })).toBe(compared);
+    expect(reduceWindow(compared, follow())).toBe(compared);
     const one = opened(element(1));
-    expect(reduceWindow(one, { type: "follow", buffer: element(2), keep: false })).toBe(one);
+    expect(reduceWindow(one, follow())).toBe(one);
   });
 });

@@ -19,10 +19,11 @@
 // - `beside` ("Open to the right", "Open to the left", SR-150 AK1 to AK3) opens an element in the area on
 //   that side. On the inactive side, or without a split, the active area keeps its buffer and stays active;
 //   on the active side it opens as `open` does (Enter).
-// - `follow` (SR-150 AK4, AK5) shows the element marked in the active area in the inactive one, in place of
-//   the element it showed, so marking opens no buffer per row. An inactive area that shows no element, or a
-//   read-only one (the comparison of SR-044), stays as it is; one with unsaved input (`keep`) stays open
-//   behind the new one.
+// - `follow` (SR-150 AK4, AK5) shows the element marked in the active area in the inactive one. It takes the
+//   place of the element shown there when the caller says it may (`replace`: one that following or `beside`
+//   put there, without unsaved input), so marking opens no buffer per row; else that element stays open
+//   behind. An inactive area that shows no element, a package page (`page`) or a read-only element (the
+//   comparison of SR-044) stays as it is.
 import type { Buffer, BufferAction, Buffers, ElementBuffer } from "./buffers.js";
 import { onlyOverview, overviewBuffer, reduceBuffers } from "./buffers.js";
 
@@ -51,7 +52,12 @@ export type WindowAction =
   | { readonly type: "unsplit" }
   | { readonly type: "side-by-side"; readonly left: Buffer; readonly right: Buffer }
   | { readonly type: "beside"; readonly side: Side; readonly buffer: ElementBuffer }
-  | { readonly type: "follow"; readonly buffer: ElementBuffer; readonly keep: boolean };
+  | {
+      readonly type: "follow";
+      readonly buffer: ElementBuffer;
+      readonly replace: boolean;
+      readonly page: boolean;
+    };
 
 /** One area, on the left. */
 export const ONE_AREA: Layout = { active: "left" };
@@ -149,10 +155,11 @@ const beside = (state: WindowState, side: Side, buffer: ElementBuffer): WindowSt
 };
 
 /** The inactive area follows the element marked in the active one (SR-150 AK4, AK5). */
-const follow = (state: WindowState, buffer: ElementBuffer, keep: boolean): WindowState => {
+const follow = (state: WindowState, buffer: ElementBuffer, replace: boolean, page: boolean): WindowState => {
   const { buffers, layout } = state;
   const other = buffers.find((open) => open.key === layout.other);
   if (
+    page ||
     other?.kind !== "element" ||
     other.readOnly === true ||
     other.key === buffer.key ||
@@ -162,9 +169,9 @@ const follow = (state: WindowState, buffer: ElementBuffer, keep: boolean): Windo
   }
   const already = buffers.some((open) => open.key === buffer.key);
   const next =
-    keep || already
-      ? openBehind(buffers, buffer)
-      : buffers.map((open) => (open.key === other.key ? buffer : open));
+    replace && !already
+      ? buffers.map((open) => (open.key === other.key ? buffer : open))
+      : openBehind(buffers, buffer);
   return { buffers: next, layout: { active: layout.active, other: buffer.key } };
 };
 
@@ -173,7 +180,7 @@ export const reduceWindow = (state: WindowState, action: WindowAction): WindowSt
     return beside(state, action.side, action.buffer);
   }
   if (action.type === "follow") {
-    return follow(state, action.buffer, action.keep);
+    return follow(state, action.buffer, action.replace, action.page);
   }
   if (action.type === "split") {
     return split(state);

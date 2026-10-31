@@ -1,9 +1,17 @@
 import type { DataExportElement } from "@reqseq/core";
 import { describe, expect, it } from "vitest";
-import { elementBuffer, graphBuffer, listBuffer, overviewBuffer, searchBuffer } from "./buffers.js";
+import {
+  elementBuffer,
+  graphBuffer,
+  listBuffer,
+  metamodelBuffer,
+  overviewBuffer,
+  searchBuffer,
+} from "./buffers.js";
 import {
   INCOMPLETE,
   bufferView,
+  markToken,
   markedElement,
   readOnlyNow,
   selectedRow,
@@ -387,5 +395,17 @@ describe("markedElement (SR-150)", () => {
     expect(markedElement(undefined, undefined)).toBeUndefined();
     const element = elementBuffer("uuid-1", "spec", "SR-1 One");
     expect(markedElement(element, { key: element.key, data: undefined })).toBeUndefined();
+  });
+});
+
+describe("markToken (SR-150 AK4)", () => {
+  it("is the selected row or graph node, and nothing for an element, the metamodel or no buffer", () => {
+    expect(markToken({ ...listBuffer("All elements"), cursor: 2 })).toBe("2");
+    const graph = graphBuffer("uuid-1", "spec", "SR-1 One");
+    expect(markToken(graph)).toBe("");
+    expect(markToken({ ...graph, selected: "spec:uuid-2" })).toBe("spec:uuid-2");
+    expect(markToken(elementBuffer("uuid-1", "spec", "SR-1 One"))).toBeUndefined();
+    expect(markToken(metamodelBuffer())).toBeUndefined();
+    expect(markToken(undefined)).toBeUndefined();
   });
 });

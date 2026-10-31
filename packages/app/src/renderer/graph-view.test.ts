@@ -161,7 +161,13 @@ describe("GraphView", () => {
         nodes: 10,
         truncated: false,
         incomplete: false,
-        marked: expect.objectContaining({ kind: "element", id: "uuid-S1", repository: "spec" }),
+        marked: {
+          kind: "element",
+          key: "element:spec:uuid-S1",
+          id: "uuid-S1",
+          repository: "spec",
+          name: "S1 Title S1",
+        },
       },
     ]);
     expect(performance.getEntriesByName(GRAPH_MARKS.layout).length).toBeGreaterThan(0);
