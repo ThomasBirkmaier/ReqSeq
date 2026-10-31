@@ -369,13 +369,31 @@ describe("reqif.import of each datatype (SR-053)", () => {
       { kind: "value", source: "High", sourceType: "Item", attribute: "Priority" },
     ]);
     const bare = await open("reqseq-reqif-mapping: 1\nsource: { name: Values }\n");
-    expect((await failure(bare)).details?.["unmapped"]).toEqual([
+    // An unmapped type names its attributes too (SR-055 AK2).
+    const item = [
+      "Name",
+      "Weight",
+      "Count",
+      "Due",
+      "Platforms",
+      "Priority",
+      "Tags",
+      "Note",
+      "Criteria",
+      "Body",
+      "Reviews",
+    ];
+    const bareList = (await failure(bare)).details?.["unmapped"] as { kind: string; source: string }[];
+    expect(bareList.filter((u) => u.kind !== "attribute")).toEqual([
       { kind: "type", source: "Item" },
       { kind: "type", source: "Skip" },
       { kind: "type", source: "Memo" },
       { kind: "relation", source: "trace" },
       { kind: "relation", source: "skip" },
     ]);
+    expect(bareList.slice(1, 1 + item.length)).toEqual(
+      item.map((source) => ({ kind: "attribute", source, sourceType: "Item" })),
+    );
     const typed = await open(
       "reqseq-reqif-mapping: 1\nsource: { name: Values }\ntypes: [{ source: Item, type: need }]\n",
     );

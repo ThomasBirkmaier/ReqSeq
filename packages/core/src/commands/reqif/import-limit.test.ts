@@ -4,12 +4,12 @@ import { readFileSync } from "node:fs";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { CommandError } from "../../catalog.js";
-import type * as reqif from "../../reqif/index.js";
+import type * as parse from "../../reqif/parse.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 
-vi.mock("../../reqif/index.js", async (importOriginal) => {
-  const actual = await importOriginal<typeof reqif>();
+vi.mock("../../reqif/parse.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof parse>();
   return { ...actual, REQIF_LIMITS: { ...actual.REQIF_LIMITS, bytes: 1500 } };
 });
 

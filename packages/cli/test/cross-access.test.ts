@@ -2107,6 +2107,28 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       expect: "error",
     },
   ],
+  "reqif.analyze": [
+    {
+      tag: "[SR-055/AK1]",
+      name: "a delivery without mapping: every type and relation type with its attributes is unmapped",
+      fixture: DELIVERY,
+      input: { file: "in/lieferung.reqif" },
+      expect: "output",
+    },
+    {
+      tag: "[SR-055/AK1]",
+      name: "a delivery through its saved mapping: the objects the import would create and its losses",
+      fixture: DELIVERY,
+      input: { file: "in/lieferung.reqif", mapping: "reqif/kunde-a.yaml" },
+      expect: "output",
+    },
+    {
+      name: "a file that is no ReqIF is refused (reqif.invalid)",
+      fixture: DELIVERY,
+      input: { file: "reqif/kunde-a.yaml" },
+      expect: "error",
+    },
+  ],
   "reqif.import": [
     {
       tag: "[SR-053/AK1]",
