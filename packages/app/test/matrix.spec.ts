@@ -75,7 +75,7 @@ const expected = (matrix: Matrix): Shown => ({
     cells: row.cells.map((cell) =>
       cell.map(
         (relation) =>
-          `${labelOf(relation)}${relation.targetState === "available" ? "" : ` ${relation.targetState}`}${relation.outdated === true ? " outdated" : ""}`,
+          `${labelOf(relation)}${relation.targetState === "available" ? "" : ` ${relation.targetState}`}${relation.outdated === true ? " link outdated" : ""}`,
       ),
     ),
   })),

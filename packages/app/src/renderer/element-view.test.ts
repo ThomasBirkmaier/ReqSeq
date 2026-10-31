@@ -20,7 +20,7 @@ import {
 } from "./element-view.js";
 
 /** The mark of an outdated reference whose dates the buffer does not have yet. */
-const undatedMark = (message: string) => ({ message, word: "outdated" });
+const undatedMark = (message: string) => ({ message, word: "link outdated" });
 
 const relation = (extra: Partial<DataExportRelation>): DataExportRelation => ({
   kind: "derives-from",
@@ -348,10 +348,10 @@ describe("the version at an outdated reference (#702, #665)", () => {
 
   it("[SR-110/AK2] the word names the date of the version the reference stores once the hint has it (D-013)", () => {
     const text = hint("@text", { hintId: `${SOURCE}/@text/${TARGET}?version=n1:aa&n=1` });
-    expect(outdatedWord(text)).toBe("outdated");
-    expect(outdatedWord(dated(text))).toBe("outdated · version of 2026-03-04");
+    expect(outdatedWord(text)).toBe("link outdated");
+    expect(outdatedWord(dated(text))).toBe("link outdated · version of 2026-03-04");
     // No commit has the version, or Git cannot tell: as "Show element ID and version" says it.
-    expect(outdatedWord(dated(text, null))).toBe("outdated · version of unknown date");
+    expect(outdatedWord(dated(text, null))).toBe("link outdated · version of unknown date");
   });
 
   it("[SR-110/AK2] an inline reference in the text and in a Markdown property carries the dated hint", () => {
@@ -364,12 +364,12 @@ describe("the version at an outdated reference (#702, #665)", () => {
       new Map([
         [
           `${TARGET} n1:aa `,
-          { message: `${text.message}: ${STORED}`, word: "outdated · version of 2026-03-04" },
+          { message: `${text.message}: ${STORED}`, word: "link outdated · version of 2026-03-04" },
         ],
       ]),
     );
     expect(outdatedReferences(element, "acceptance-criteria").get(`${TARGET} n1:aa `)?.word).toBe(
-      "outdated · version of 2026-03-04",
+      "link outdated · version of 2026-03-04",
     );
   });
 
@@ -412,9 +412,9 @@ describe("the version at an outdated reference (#702, #665)", () => {
     const element = elementOf([dated(hint("derives-from"))]);
     expect(outdatedRelation(element, stored)).toEqual({
       message: `derives-from points to an older version: ${STORED}`,
-      word: "outdated · version of 2026-03-04",
+      word: "link outdated · version of 2026-03-04",
     });
-    expect(rowOfRelation(stored, element).outdated?.word).toBe("outdated · version of 2026-03-04");
+    expect(rowOfRelation(stored, element).outdated?.word).toBe("link outdated · version of 2026-03-04");
     // Without a repository on the relation it is the element's own.
     const { repository: _named, ...unnamed } = stored;
     expect(outdatedRelation(element, unnamed)).toBeDefined();
@@ -429,7 +429,7 @@ describe("the version at an outdated reference (#702, #665)", () => {
     const stored = relation({ kind: "replaces", id: TARGET, storedVersion: "n1:aa", repository: "spec" });
     expect(undatedHints(elementOf([changed]))).toBe(`${changed.hintId} n1:bb`);
     const element = withHintDates(elementOf([changed]), [dated(changed)]);
-    expect(outdatedRelation(element, stored)?.word).toBe("outdated · version of 2026-03-04");
+    expect(outdatedRelation(element, stored)?.word).toBe("link outdated · version of 2026-03-04");
   });
 
   it("marks no relation that the hint does not name: kind, target, stored version, repository, direction", () => {
@@ -440,7 +440,7 @@ describe("the version at an outdated reference (#702, #665)", () => {
       hint("derives-from", { hintId: undefined }),
       { code: "relation.missing", severity: "warning", message: "missing" },
     ]);
-    expect(outdatedRelation(element, stored)?.word).toBe("outdated");
+    expect(outdatedRelation(element, stored)?.word).toBe("link outdated");
     expect(outdatedRelation(element, { ...stored, kind: "refines" })).toBeUndefined();
     expect(outdatedRelation(element, { ...stored, id: "other" })).toBeUndefined();
     expect(outdatedRelation(element, { ...stored, storedVersion: "n1:cc" })).toBeUndefined();
@@ -453,7 +453,7 @@ describe("the version at an outdated reference (#702, #665)", () => {
         hintId: `${SOURCE}/derives-from/${TARGET}?version=n1:aa&repository=sensor%20one`,
       }),
     ]);
-    expect(outdatedRelation(across, { ...stored, repository: "sensor one" })?.word).toBe("outdated");
+    expect(outdatedRelation(across, { ...stored, repository: "sensor one" })?.word).toBe("link outdated");
     expect(outdatedRelation(across, stored)).toBeUndefined();
   });
 
@@ -468,7 +468,7 @@ describe("the version at an outdated reference (#702, #665)", () => {
       [dated(hint("derives-from"))],
       [relation({ kind: "refines", meaning: "derivation", id: TARGET, storedVersion: "n1:zz" }), derivation],
     );
-    expect(outdatedParent(element, TARGET, "spec")?.word).toBe("outdated · version of 2026-03-04");
+    expect(outdatedParent(element, TARGET, "spec")?.word).toBe("link outdated · version of 2026-03-04");
     expect(outdatedParent(element, TARGET, "sensor")).toBeUndefined();
     expect(outdatedParent(element, "other", "spec")).toBeUndefined();
     expect(

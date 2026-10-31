@@ -85,7 +85,7 @@ files:
 No problems.
 ```
 
-The relation is stored in the file of the requirement, with the version of the need it points to. When the need changes later, ReqSeq shows the relation as outdated, so you know to review the requirement.
+The relation is stored in the file of the requirement, with the version of the need it points to. When the need changes later, ReqSeq shows the relation as outdated, so you know to review the requirement. In the app, the mark "link outdated" stands at the other end of the link: on the requirement next to the need, and in the neighbourhood of the need next to the requirement. Both mark the same relation; the hover text says which element points to an older version of which.
 
 In the app: **Create relation**. Reference: [relation.add](/reference/commands/relation-add/).
 

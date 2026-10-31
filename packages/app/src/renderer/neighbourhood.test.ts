@@ -168,7 +168,11 @@ describe("parentLevels", () => {
         [edge("C1", "S1", up({ outdated: true })), edge("S1", "N1", up({ outdated: true }))],
       ),
     );
-    expect(levels.map((level) => level.map((parent) => parent.outdated))).toEqual([[false], [true]]);
+    // The hover text names the direction: the element's link points to an older version of the parent (#513).
+    expect(levels.map((level) => level.map((parent) => parent.outdated))).toEqual([
+      [undefined],
+      ["C1 derives-from an older version of S1"],
+    ]);
   });
 });
 
@@ -205,8 +209,10 @@ describe("treeRows", () => {
       [node("N1", 0), node("S1", 1, { direction: "down" })],
       [edge("S1", "N1", { outdated: true })],
     );
-    expect(treeRows(output, []).rows.map((row) => row.outdated)).toEqual([true]);
-    expect(treeRows(children(), []).rows.map((row) => row.outdated)).toEqual([false, false]);
+    expect(treeRows(output, []).rows.map((row) => row.outdated)).toEqual([
+      "S1 derives-from an older version of N1",
+    ]);
+    expect(treeRows(children(), []).rows.map((row) => row.outdated)).toEqual([undefined, undefined]);
   });
 
   it("knows a row without children as a leaf, and shows nothing for an element without children", () => {
@@ -302,7 +308,10 @@ describe("incomingGroups", () => {
       ],
     );
     const { groups } = incomingGroups(output);
-    expect(groups.map((group) => group.entries.map((entry) => entry.outdated))).toEqual([[true], [false]]);
+    expect(groups.map((group) => group.entries.map((entry) => entry.outdated))).toEqual([
+      ["E references an older version of D2 in its text"],
+      [undefined],
+    ]);
   });
 
   it("has no groups for an element nothing points at, and says when the answer is cut", () => {

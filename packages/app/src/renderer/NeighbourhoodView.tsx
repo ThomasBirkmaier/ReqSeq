@@ -20,6 +20,7 @@ import {
 } from "./neighbourhood.js";
 import type { GroupEntry, TreeRow } from "./neighbourhood.js";
 import type { OutsideChanges } from "./outside-marks.js";
+import { OUTDATED_WORD } from "./outdated-codes.js";
 import { ParentsLine } from "./ParentsLine.js";
 import type { Row } from "./rows.js";
 import { rowClass, useOutsideMarks } from "./use-outside-marks.js";
@@ -67,6 +68,14 @@ const Cells = ({
     </span>
     <span className="status">{row.status}</span>
   </>
+);
+
+/** The mark of an outdated link, with the hover text that says which end points to an older version of which (#513). */
+const OutdatedMark = ({ note }: { readonly note: string }): React.JSX.Element => (
+  <span className="outdated" title={note}>
+    {" "}
+    {OUTDATED_WORD}
+  </span>
 );
 
 export const NeighbourhoodView = ({
@@ -299,7 +308,7 @@ export const NeighbourhoodView = ({
                     after={
                       <>
                         {entry.repeated ? <span className="repeated"> repeated</span> : null}
-                        {entry.outdated ? <span className="outdated"> outdated</span> : null}
+                        {entry.outdated === undefined ? null : <OutdatedMark note={entry.outdated} />}
                       </>
                     }
                   />
@@ -330,7 +339,7 @@ export const NeighbourhoodView = ({
                   >
                     <Cells
                       row={entry.row}
-                      after={entry.outdated ? <span className="outdated"> outdated</span> : null}
+                      after={entry.outdated === undefined ? null : <OutdatedMark note={entry.outdated} />}
                     />
                   </div>
                 ))}
