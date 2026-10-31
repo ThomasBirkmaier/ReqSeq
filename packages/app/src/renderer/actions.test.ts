@@ -28,7 +28,6 @@ import {
 import { savedStep, typeStep } from "./list-filters.js";
 import { MOST_FREQUENT, PREFIX, PREFIX_BINDINGS, prefixLabel } from "./bindings.js";
 import { matches, shortcutLabel } from "./keys.js";
-import { openingOrder } from "./opening-order.js";
 import type { Call } from "./call.js";
 import { rank } from "./fuzzy.js";
 import type { Theme } from "./theme.js";
@@ -66,6 +65,7 @@ const setup = (
   const discarded: string[] = [];
   const asked: Prompt[] = [];
   const echoed: string[] = [];
+  const cycledTo: string[] = [];
   const left: boolean[] = [];
   const call = vi.fn((name: string) => {
     const output = answers[name];
@@ -89,13 +89,16 @@ const setup = (
     armClose: (value) => armed.push(value),
     discard: (key) => discarded.push(key),
     drafted: () => false,
-    opened: openingOrder([], buffers),
+    cycleOrder: buffers.map((buffer) => buffer.key),
+    cycled: (key) => {
+      cycledTo.push(key);
+    },
     leaveEditor: () => {
       left.push(true);
     },
     ...extra,
   };
-  return { context, dispatched, asked, echoed, call, armed, discarded, left };
+  return { context, dispatched, asked, echoed, call, armed, discarded, left, cycledTo };
 };
 
 const action = (id: string) => {
@@ -1445,40 +1448,45 @@ describe("light and dark", () => {
 describe("Next buffer and Previous buffer (SR-115 AK5)", () => {
   const overview = overviewBuffer();
   const search = searchBuffer("wind");
-  // Opened in this order: the overview, the list, the element, the search; the element was used last.
-  const opened = [overview.key, list.key, element.key, search.key];
+  // Shown last first: the element, the search, the list, the overview.
+  const cycleOrder = [element.key, search.key, list.key, overview.key];
   const used: Buffers = [element, search, list, overview];
 
-  it("[SR-115/AK5] Next buffer shows the buffer opened after the shown one, after the last the first; Previous buffer the one before", () => {
-    const next = setup(used, {}, true, { opened });
+  it("[SR-115/AK5] Previous buffer shows the buffer shown before the shown one, after the oldest the newest; Next buffer the one after", () => {
+    const previous = setup(used, {}, true, { cycleOrder });
+    runAction(action("previous-buffer"), previous.context);
+    expect(previous.dispatched).toEqual([{ type: "switch", key: search.key }]);
+    expect(previous.cycledTo).toEqual([search.key]);
+    // Walking back: the list is shown, the order stays.
+    const further = setup([list, element, search, overview], {}, true, { cycleOrder });
+    runAction(action("previous-buffer"), further.context);
+    expect(further.dispatched).toEqual([{ type: "switch", key: overview.key }]);
+    const oldest = setup([overview, element, search, list], {}, true, { cycleOrder });
+    runAction(action("previous-buffer"), oldest.context);
+    expect(oldest.dispatched).toEqual([{ type: "switch", key: element.key }]);
+    const next = setup([list, element, search, overview], {}, true, { cycleOrder });
     runAction(action("next-buffer"), next.context);
     expect(next.dispatched).toEqual([{ type: "switch", key: search.key }]);
-    const previous = setup(used, {}, true, { opened });
-    runAction(action("previous-buffer"), previous.context);
-    expect(previous.dispatched).toEqual([{ type: "switch", key: list.key }]);
-    const last = setup([search, element, list, overview], {}, true, { opened });
-    runAction(action("next-buffer"), last.context);
-    expect(last.dispatched).toEqual([{ type: "switch", key: overview.key }]);
-    const first = setup([overview, search, element, list], {}, true, { opened });
-    runAction(action("previous-buffer"), first.context);
-    expect(first.dispatched).toEqual([{ type: "switch", key: search.key }]);
+    const newest = setup(used, {}, true, { cycleOrder });
+    runAction(action("next-buffer"), newest.context);
+    expect(newest.dispatched).toEqual([{ type: "switch", key: overview.key }]);
   });
 
   it("[SR-115/AK5] the focus leaves a text editor before the switch, so that the editor gets nothing of the key", () => {
-    const { context, left, dispatched } = setup(used, {}, true, { opened });
+    const { context, left, dispatched } = setup(used, {}, true, { cycleOrder });
     runAction(action("next-buffer"), context);
     expect(left).toEqual([true]);
     expect(dispatched).toHaveLength(1);
   });
 
   it("[SR-115/AK5] are commands of the prompt with their keys while several buffers are open", () => {
-    const linux = commandPrompt(setup(used, {}, true, { opened }).context).items;
+    const linux = commandPrompt(setup(used, {}, true, { cycleOrder }).context).items;
     expect(linux.find((item) => item.name === "Next buffer")?.hint).toBe("Alt+N");
     expect(linux.find((item) => item.name === "Previous buffer")?.hint).toBe("Alt+P");
-    const mac = commandPrompt(setup(used, {}, true, { opened, mac: true }).context).items;
+    const mac = commandPrompt(setup(used, {}, true, { cycleOrder, mac: true }).context).items;
     expect(mac.find((item) => item.name === "Next buffer")?.hint).toBe("⌥N");
     expect(mac.find((item) => item.name === "Previous buffer")?.hint).toBe("⌥P");
-    const names = titles(setup(used, {}, true, { opened }).context);
+    const names = titles(setup(used, {}, true, { cycleOrder }).context);
     expect(names.indexOf("Next buffer")).toBe(names.indexOf("Close all buffers") + 1);
     expect(names.indexOf("Previous buffer")).toBe(names.indexOf("Next buffer") + 1);
   });
@@ -1493,7 +1501,7 @@ describe("Next buffer and Previous buffer (SR-115 AK5)", () => {
   });
 
   it("[SR-115/AK5] [SR-145/AK2] Alt+N and Alt+P find the actions, Option+N and Option+P by the physical key", () => {
-    const { context } = setup(used, {}, true, { opened });
+    const { context } = setup(used, {}, true, { cycleOrder });
     const press = (key: string, code: string) => ({
       key,
       code,
@@ -1511,10 +1519,13 @@ describe("Next buffer and Previous buffer (SR-115 AK5)", () => {
   });
 
   it("[SR-115/AK5] switches nothing when the shown buffer is not in the order, and leaves the focus where it is", () => {
-    const { context, dispatched, left } = setup(used, {}, true, { opened: [list.key, search.key] });
+    const { context, dispatched, left, cycledTo } = setup(used, {}, true, {
+      cycleOrder: [list.key, search.key],
+    });
     runAction(action("next-buffer"), context);
     runAction(action("previous-buffer"), context);
     expect(dispatched).toEqual([]);
+    expect(cycledTo).toEqual([]);
     expect(left).toEqual([]);
   });
 });

@@ -45,7 +45,7 @@ import {
   hasFilter,
   onlyChoices,
 } from "./graph-choices.js";
-import { cycleKey } from "./opening-order.js";
+import { cycleKey } from "./buffer-cycle.js";
 import {
   hasSavedFilter,
   propertyChoices,
@@ -186,8 +186,10 @@ export interface ActionContext {
   readonly readOnly?: boolean;
   /** The open buffers, the most recent first; the first one is shown. */
   readonly buffers: Buffers;
-  /** The keys of the open buffers in the order of opening (`opening-order.ts`): "Next buffer" walks it. */
-  readonly opened: readonly string[];
+  /** The keys of the open buffers, the most recently shown first (`buffer-cycle.ts`): "Next buffer" walks it. */
+  readonly cycleOrder: readonly string[];
+  /** Notes that Next or Previous buffer switches to `key`, so that the order stays while the keys walk it. */
+  readonly cycled: (key: string) => void;
   /** Takes the focus out of a text editor that has it, so that the editor gets no more of the key. */
   readonly leaveEditor: () => void;
   readonly mac: boolean;
@@ -304,8 +306,7 @@ const LIST_VALUE_SHORTCUT: Shortcut = { mod: true, shift: true, key: "enter" };
 export const COMMAND_SHORTCUT: Shortcut = { mod: true, shift: true, key: "p" };
 
 /**
- * Alt+N (Option+N on macOS) shows the next buffer in the order of opening, Alt+P the previous one (SR-115
- * AK5), also while typing in an editor. Alt alone: Ctrl/Cmd+N and Ctrl/Cmd+P are other keys (SR-122).
+ * Alt+P (Option+P on macOS) goes back to the buffer shown before, Alt+N forward again (SR-115 AK5), also while typing in an editor. Alt alone: Ctrl/Cmd+N and Ctrl/Cmd+P are other keys (SR-122).
  */
 export const NEXT_BUFFER_SHORTCUT: Shortcut = { mod: false, shift: false, alt: true, key: "n" };
 export const PREVIOUS_BUFFER_SHORTCUT: Shortcut = { mod: false, shift: false, alt: true, key: "p" };
@@ -669,8 +670,8 @@ const askCloseAll = (context: ActionContext, open: Buffers, unsaved: Buffers): v
 };
 
 /**
- * Shows the buffer after (`step` 1) or before (-1) the shown one in the order of opening, wrapping
- * (SR-115 AK5); none when the shown one is not in the order.
+ * Shows the buffer shown before (`step` 1) or after (-1) the shown one, wrapping (SR-115 AK5); none when
+ * the shown one is not in the order.
  *
  * In a text editor the key must insert no character. The window's listener prevents the key, so the
  * editor gets no keydown. On macOS, Option+N is a dead key ("~"), and Chromium hands it to the input
@@ -682,9 +683,10 @@ const askCloseAll = (context: ActionContext, open: Buffers, unsaved: Buffers): v
  * editor stays shown (a split window, SR-115 AK3).
  */
 const cycleBuffer = (context: ActionContext, step: 1 | -1): void => {
-  const key = cycleKey(context.opened, context.buffers[0]?.key, step);
+  const key = cycleKey(context.cycleOrder, context.buffers[0]?.key, step);
   if (key !== undefined) {
     context.leaveEditor();
+    context.cycled(key);
     context.dispatch({ type: "switch", key });
   }
 };
@@ -964,7 +966,7 @@ export const ACTIONS: readonly Action[] = [
     shortcut: NEXT_BUFFER_SHORTCUT,
     available: hasOthers,
     run: (context: ActionContext): void => {
-      cycleBuffer(context, 1);
+      cycleBuffer(context, -1);
     },
   },
   {
@@ -973,7 +975,7 @@ export const ACTIONS: readonly Action[] = [
     shortcut: PREVIOUS_BUFFER_SHORTCUT,
     available: hasOthers,
     run: (context: ActionContext): void => {
-      cycleBuffer(context, -1);
+      cycleBuffer(context, 1);
     },
   },
   // SR-115 AK3: two buffers side by side. Commands of the prompt only, no keys (#472).

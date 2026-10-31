@@ -38,7 +38,8 @@ import { PREFIX } from "./bindings.js";
 import { isMac, matches } from "./keys.js";
 import { Minibuffer } from "./Minibuffer.js";
 import { ModelineBar } from "./ModelineBar.js";
-import { openingOrder, seedOrder } from "./opening-order.js";
+import type { Walk } from "./buffer-cycle.js";
+import { NO_WALK, cycleOrder } from "./buffer-cycle.js";
 import type { PackageModel } from "./package-page.js";
 import { packageModel, packageOf } from "./package-page.js";
 import type { BufferData, WorkspaceView } from "./modeline.js";
@@ -216,8 +217,8 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   // Go to asks core nothing when it opens, so its search is not queued behind reads of these elements.
   const recentNames = useRef(new Map<string, ElementBuffer>());
   const scope = useRef<string | undefined>(undefined);
-  // The order in which the open buffers were opened (SR-115 AK5), kept apart from their order of use.
-  const openOrder = useRef<readonly string[]>([]);
+  // The order Next and Previous buffer walk (SR-115 AK5), and the buffer they switched to last.
+  const walk = useRef<Walk>(NO_WALK);
   // The workspace whose open buffers are stored (SR-115 AK4): set once the buffers stored for it are
   // restored, unset when another workspace opens. So the reset of a start or a switch never overwrites
   // what is still to be restored.
@@ -276,8 +277,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     // repositories can change while it is open, and the buffers follow (SR-115 AK4).
     let currentKey: string | undefined;
     // The buffers open when this workspace was last left come back behind the overview (SR-115 AK4): the
-    // overview shows at once (SR-118 AK1), the restored ones once their elements are named. Their order
-    // of opening is the stored one (SR-115 AK5), before what was opened while they were read.
+    // overview shows at once (SR-118 AK1), the restored ones once their elements are named.
     const restoreBuffers = (key: string | undefined, asked: number): void => {
       if (key === undefined) {
         return;
@@ -287,7 +287,6 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
           if (!mounted || asked !== opened) {
             return;
           }
-          openOrder.current = seedOrder(restored.opened, openOrder.current);
           // A name that could not be read (core restarting) keeps the stored
           // buffers as they are: nothing is stored for this workspace until it opens again.
           if (restored.complete) {
@@ -496,13 +495,13 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     );
   }, [buffers]);
 
-  openOrder.current = openingOrder(openOrder.current, buffers);
+  walk.current = cycleOrder(walk.current, buffers);
   // The open buffers are stored on every change, for the next start (SR-115 AK4).
   useEffect(() => {
     if (session === undefined) {
       return;
     }
-    const text = sessionText(buffers, openOrder.current);
+    const text = sessionText(buffers);
     if (sessionStored.current !== `${session}\n${text}`) {
       sessionStored.current = `${session}\n${text}`;
       saveSession(appStorage, session, text);
@@ -515,7 +514,10 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     workspace: view?.name !== undefined,
     readOnly: readOnlyNow(view),
     buffers,
-    opened: openOrder.current,
+    cycleOrder: walk.current.order,
+    cycled: (key) => {
+      walk.current = { order: walk.current.order, cycled: key };
+    },
     leaveEditor: () => {
       const focused = document.activeElement;
       if (focused instanceof HTMLElement && focused.closest(".cm-editor") !== null) {

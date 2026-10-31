@@ -4,8 +4,7 @@
 // workspace, never in the files of the workspace (as SR-118 AK5) and not through a catalog command
 // (SR-080 AK1: "außer reiner Darstellung der App", ADR-0002 rule 3).
 //
-// Stored is what rebuilds each buffer, in the order of use, and the order of opening (SR-115 AK5):
-// the kind, the UUID and repository of an element, the steps, sort and mode of a list, the text of a
+// Stored is what rebuilds each buffer, in the order of use: the kind, the UUID and repository of an element, the steps, sort and mode of a list, the text of a
 // search, the input of a graph, the mode of the metamodel, the command and input of a result. Never an
 // element's title or text, no output and no selected row. The names of the elements are read again when
 // the workspace opens, with one `element.list`; an element that is gone is left out, as the overview
@@ -71,17 +70,14 @@ export type StoredBuffer =
       readonly name: string;
     };
 
-/** The buffers of a workspace as stored: in the order of use, and the order of opening as their places. */
+/** The buffers of a workspace as stored, in the order of use. */
 export interface StoredSession {
   readonly buffers: readonly StoredBuffer[];
-  /** The places in `buffers` in the order the buffers were opened. */
-  readonly opened: readonly number[];
 }
 
-/** The buffers to show again behind the open ones, and the keys of the restored ones in the order of opening. */
+/** The buffers to show again behind the open ones. */
 export interface RestoredSession {
   readonly buffers: Buffers;
-  readonly opened: readonly string[];
   /**
    * False when the name of an element could not be read for another reason than the element being gone
    * (core restarting): the buffers shown are not all that was stored, so
@@ -91,7 +87,7 @@ export interface RestoredSession {
 }
 
 /** Nothing stored, or nothing that could be read. */
-export const NO_SESSION: StoredSession = { buffers: [], opened: [] };
+export const NO_SESSION: StoredSession = { buffers: [] };
 
 /**
  * The revision of a restored result: below every revision of the app, so the result view runs its
@@ -153,15 +149,11 @@ const storedOf = (buffer: Buffer): StoredBuffer => {
 };
 
 /**
- * The text stored for `buffers` (the order of use) and `opened` (their keys in the order of opening). The
- * same buffers give the same text, also when only a selected row changed, so the app writes only when
+ * The text stored for `buffers`, in the order of use. The same buffers give the same text, also when only a selected row changed, so the app writes only when
  * something to restore changed.
  */
-export const sessionText = (buffers: Buffers, opened: readonly string[]): string => {
-  const places = opened
-    .map((key) => buffers.findIndex((buffer) => buffer.key === key))
-    .filter((place) => place >= 0);
-  const session: StoredSession = { buffers: buffers.map(storedOf), opened: places };
+export const sessionText = (buffers: Buffers): string => {
+  const session: StoredSession = { buffers: buffers.map(storedOf) };
   return JSON.stringify(session);
 };
 
@@ -309,22 +301,7 @@ export const loadSession = (storage: () => SessionStorage, key: string): StoredS
     }
     const all: readonly unknown[] = parsed["buffers"];
     const read = all.slice(0, MAX_BUFFERS).map(parseBuffer);
-    const buffers = read.filter((buffer) => buffer !== undefined);
-    // The place of each stored buffer among those kept.
-    const places = new Map<unknown, number>();
-    for (const [place, buffer] of read.entries()) {
-      if (buffer !== undefined) {
-        places.set(place, places.size);
-      }
-    }
-    const opened: unknown = parsed["opened"];
-    const order = Array.isArray(opened)
-      ? (opened as readonly unknown[]).flatMap((place) => {
-          const kept = places.get(place);
-          return kept === undefined ? [] : [kept];
-        })
-      : [];
-    return { buffers, opened: [...new Set(order)] };
+    return { buffers: read.filter((buffer) => buffer !== undefined) };
   } catch {
     return NO_SESSION;
   }
@@ -448,7 +425,7 @@ export const restoreSession = async (
   catalog: () => Promise<readonly CommandListing[]>,
 ): Promise<RestoredSession> => {
   if (session.buffers.length === 0) {
-    return { buffers: [], opened: [], complete: true };
+    return { buffers: [], complete: true };
   }
   const hasResult = session.buffers.some((buffer) => buffer.kind === "result");
   const [{ names, complete }, runs] = await Promise.all([
@@ -464,9 +441,5 @@ export const restoreSession = async (
     seen.add(buffer.key);
     return [buffer];
   });
-  const opened = session.opened.flatMap((place) => {
-    const buffer = rebuilt[place];
-    return buffer === undefined ? [] : [buffer.key];
-  });
-  return { buffers, opened: [...new Set(opened)], complete };
+  return { buffers, complete };
 };

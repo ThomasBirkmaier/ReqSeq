@@ -1,7 +1,7 @@
 // Working in buffers on the built app (SR-115): Ctrl/Cmd+P chooses any buffer and any element with a
 // fuzzy text, the one used last first (AK1); there is no tab bar, however many buffers are open (AK2).
-// Alt+N and Alt+P (Option+N and Option+P on macOS) switch buffers (SR-115 AK5): the next
-// and the previous buffer in the order of opening, wrapping, also while typing in the text editor, and as
+// Alt+N and Alt+P (Option+N and Option+P on macOS) switch buffers (SR-115 AK5): back and forward
+// through the buffers in the order they were shown, wrapping, also while typing in the text editor, and as
 // the commands "Next buffer" and "Previous buffer". Alt is pressed by its physical key (`Alt+KeyN`); a
 // real macOS dead key cannot be typed here, so one test sends the keydown macOS sends for Option+N.
 // After the app is closed and started again, the buffers open before are back behind the overview
@@ -62,7 +62,7 @@ test.describe("Alt+N and Alt+P switch buffers", () => {
     await running.close();
   });
 
-  test("[SR-115/AK5] Alt+N shows the next buffer in the order of opening and wraps; Alt+P the previous", async () => {
+  test("[SR-115/AK5] Alt+P goes back through the buffers in the order they were shown, Alt+N forward again, both wrap", async () => {
     const { window } = running;
     // Opened in this order: the overview (at the start), the list, an element, a search.
     await listAll(window);
@@ -70,20 +70,21 @@ test.describe("Alt+N and Alt+P switch buffers", () => {
     await expect(window.locator("article h1")).toBeVisible();
     const element = await window.locator("article").getAttribute("aria-label");
     await search(window, "wind");
-    // The element is used last: the order of use changes, the order of opening does not.
+    // Back to the element: shown last are the element, the search, the list, the overview.
     await window.keyboard.press("ControlOrMeta+P");
     await window.keyboard.press("Enter");
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", element ?? "");
-    await window.keyboard.press("Alt+KeyN");
+    await window.keyboard.press("Alt+KeyP");
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", "Search: wind");
-    await window.keyboard.press("Alt+KeyN");
-    await expect(shownBuffer(window)).toHaveAttribute("aria-label", "Overview");
-    await window.keyboard.press("Alt+KeyN");
+    // Switching with the keys keeps the order: Alt+P goes further back.
+    await window.keyboard.press("Alt+KeyP");
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", "All elements");
-    await window.keyboard.press("Alt+KeyP");
-    await expect(shownBuffer(window)).toHaveAttribute("aria-label", "Overview");
-    await window.keyboard.press("Alt+KeyP");
+    await window.keyboard.press("Alt+KeyN");
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", "Search: wind");
+    await window.keyboard.press("Alt+KeyN");
+    await expect(shownBuffer(window)).toHaveAttribute("aria-label", element ?? "");
+    await window.keyboard.press("Alt+KeyN");
+    await expect(shownBuffer(window)).toHaveAttribute("aria-label", "Overview");
     // The shown buffer has the focus: its keys work at once.
     await expect(shownBuffer(window)).toBeFocused();
   });
@@ -347,14 +348,15 @@ test.describe("the open buffers after a restart", () => {
         { timeout: 15_000 },
       )
       .toEqual(["All elements", "Search: wind", `Graph: ${element}`, element]);
-    // Alt+N walks them in their order of opening.
-    for (const name of ["All elements", element, `Graph: ${element}`, "Search: wind", "Overview"]) {
-      await window.keyboard.press("Alt+KeyN");
+    // Alt+P walks them in the same order.
+    for (const name of ["All elements", "Search: wind", `Graph: ${element}`, element, "Overview"]) {
+      await window.keyboard.press("Alt+KeyP");
       await expect(shownBuffer(window)).toHaveAttribute("aria-label", name);
     }
     // Each shows its content again.
-    await window.keyboard.press("Alt+KeyN");
+    await window.keyboard.press("Alt+KeyP");
     await expect(window.locator(".row").first()).toBeVisible();
+    await window.keyboard.press("Alt+KeyN");
     await window.keyboard.press("Alt+KeyN");
     await expect(window.locator("article h1")).toBeVisible();
     // Nothing of it went into the workspace.
