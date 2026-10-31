@@ -201,7 +201,7 @@ jobs:
       # Nightly and manual runs download them fresh into another folder, past the cache, and compare the hashes, so
       # an upstream change or outage shows here first and under its own name, not as broken code.
       - name: ReqIF XSD upstream (omg.org, w3.org)
-        if: ${{ !cancelled() && runner.os == 'Linux' && github.event_name != 'pull_request' }}
+        if: ${{ !cancelled() && steps.install.outcome == 'success' && runner.os == 'Linux' && github.event_name != 'pull_request' }}
         timeout-minutes: 3
         shell: bash
         run: node scripts/reqif-xsd/fetch.mjs "$RUNNER_TEMP/reqif-xsd-upstream" --fresh
