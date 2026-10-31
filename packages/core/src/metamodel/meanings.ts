@@ -310,6 +310,24 @@ export const propertyWithMeaning = (
   meaning: PropertyMeaning,
 ): MetamodelProperty | undefined => metamodel.properties.find((p) => p.meaning === meaning);
 
+/**
+ * The meanings of the origin of an imported element (SR-057, D-059): source, source IDENTIFIER,
+ * import date, delivery and import version, in this order. Only `reqif.import` writes them.
+ */
+export const ORIGIN_MEANINGS = [
+  "source",
+  "source-identifier",
+  "import-date",
+  "delivery",
+  "import-version",
+] as const satisfies readonly PropertyMeaning[];
+
+/** The origin meaning of a definition, if it is a property of the origin (`ORIGIN_MEANINGS`). */
+export const originMeaning = (
+  definition: { readonly meaning?: string | undefined } | undefined,
+): (typeof ORIGIN_MEANINGS)[number] | undefined =>
+  ORIGIN_MEANINGS.find((meaning) => meaning === definition?.meaning);
+
 /** The relation kinds with this meaning, in metamodel order, e.g. all kinds the chain follows. */
 export const relationKindsWithMeaning = (
   metamodel: Metamodel,

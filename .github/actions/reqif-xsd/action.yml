@@ -1,0 +1,27 @@
+name: ReqIF XSDs
+description: >-
+  Brings the ReqIF 1.2 XSDs of toolchain/reqif/xsd.json into $RUNNER_TEMP/reqif-xsd, cache first, each checked
+  against its SHA-256 in toolchain/reqif/xsd.sha256, and sets REQSEQ_REQIF_XSD_DIR for the tests (product owner
+  decision, 2026-10-31: the XSDs are never in the repository). It runs before the tests, which block the network.
+runs:
+  using: composite
+  steps:
+    # The key changes with the manifest and the pins. restore-keys takes an older entry, and fetch.mjs then downloads
+    # only the files that are missing or differ. Every event saves on a miss, the nightly run included, so the entry
+    # lies in main's scope, where every pull request finds it (a pull request's own entry is seen only by itself).
+    - uses: actions/cache/restore@v4
+      id: restore
+      with:
+        path: ${{ runner.temp }}/reqif-xsd
+        key: reqif-xsd-v1-${{ runner.os }}-${{ hashFiles('toolchain/reqif/xsd.json', 'toolchain/reqif/xsd.sha256') }}
+        restore-keys: reqif-xsd-v1-${{ runner.os }}-
+    - name: Download and check the ReqIF XSDs
+      shell: bash
+      run: node scripts/reqif-xsd/fetch.mjs "$RUNNER_TEMP/reqif-xsd"
+    - if: steps.restore.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ runner.temp }}/reqif-xsd
+        key: ${{ steps.restore.outputs.cache-primary-key }}
+    - shell: bash
+      run: echo "REQSEQ_REQIF_XSD_DIR=$RUNNER_TEMP/reqif-xsd" >> "$GITHUB_ENV"

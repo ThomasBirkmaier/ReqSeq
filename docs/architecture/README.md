@@ -235,7 +235,7 @@ One portable artifact per platform (zip for Windows and macOS, tar.gz for Linux)
 - **Status is human.** Only `element.setStatus` and `element.supersede` change a status.
 - **Missing access is normal.** A missing repository or target is shown with its short ID and marks results `incomplete`; nothing blocks (SR-006).
 - **Performance budget.** Every command touching many elements has a perf test at 50,000 elements before its stage is accepted.
-- **Security.** No network; loopback-only API with token; sandboxed renderer; Git read-only allowlist.
+- **Security.** No network; loopback-only API with token; sandboxed renderer; Git read-only allowlist. CI tooling downloads test inputs before the tests (the ReqIF XSDs), never the product.
 - **Language.** All UI, CLI messages, errors and docs in English (SR-074). Content is shown unchanged (SR-074 AK2).
 - **Logging.** Local only, to the cache folder, rotated; never content of elements at info level.
 
@@ -244,6 +244,8 @@ One portable artifact per platform (zip for Windows and macOS, tar.gz for Linux)
 The workflows in `.github/workflows/`, their triggers, jobs, `needs` and runner systems, and the checks `main` requires (`.claude/skills/lead-run/merge.md`):
 
 ![CI workflows, jobs and required checks](ci.svg)
+
+The step `ReqIF XSDs` of `checks` brings the ReqIF 1.2 XSDs into the runner before the network-blocked tests: cache first, each file checked against its pinned SHA-256, a failed download and a hash mismatch as separate errors; nightly and manual runs also download them fresh in `ReqIF XSD upstream` (`toolchain/reqif/README.md`).
 
 Both pictures are generated: `pnpm docs:diagrams` writes them from the sources, and `packages/docs/src/diagrams.test.ts` fails when a committed one is stale.
 

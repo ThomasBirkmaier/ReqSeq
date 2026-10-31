@@ -4,7 +4,10 @@
 // (`createElementFiles`); a refusal comes before any write. The own metamodel is only read (SR-054
 // AK3), and no status is set but the initial one (D-030).
 //
-// Not yet: the origin properties (SR-057), updating the elements of an earlier delivery and the
+// Each element keeps its origin (SR-057): source, IDENTIFIER, import date (this machine's calendar),
+// delivery and import version (reqif/origin.ts).
+//
+// Not yet: updating the elements of an earlier delivery and the
 // conflicts `take` and `keep` decide (SR-056; until then no import finds a conflict, so both lists
 // change nothing, and a repeated import creates new elements), the one-to-one mapping of a ReqSeq
 // file (SR-052) and images (SR-095).
@@ -17,7 +20,7 @@ import { createFolder } from "../../files/index.js";
 import { metamodelState } from "../../metamodel/index.js";
 import type { NewElementFile } from "../../model/index.js";
 import { createElementFiles, refuseUnlisted } from "../../model/index.js";
-import { REQIF_LIMITS, parseReqif, planImport, readMappingFile } from "../../reqif/index.js";
+import { REQIF_LIMITS, importDate, parseReqif, planImport, readMappingFile } from "../../reqif/index.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../../workspace/index.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
 
@@ -113,7 +116,10 @@ export default defineCommand({
       });
     }
     const { mapping } = await readMappingFile(layout, metamodel, workspace.root, input.mapping, command);
-    const plan = planImport(parsed.file, mapping, layout, metamodel);
+    const plan = planImport(parsed.file, mapping, layout, metamodel, {
+      delivery: input.delivery,
+      date: importDate(new Date()),
+    });
     const [first] = plan.files;
     const files =
       first === undefined

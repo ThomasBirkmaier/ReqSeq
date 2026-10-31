@@ -403,6 +403,7 @@
         "SR-021",
         "SR-039",
         "SR-048",
+        "SR-057",
         "SR-064",
         "SR-084",
         "SR-091",
@@ -861,7 +862,7 @@
     {
       "name": "element.update",
       "title": "Update element",
-      "summary": "Change title, text or properties of one element. Unknown properties are kept; status changes only via element.setStatus.",
+      "summary": "Change title, text or properties of one element. Unknown properties are kept; status changes only via element.setStatus, and the origin of an imported element only via reqif.import (SR-057).",
       "effect": "write-files",
       "whileReadOnly": "refuse",
       "whileReadOnlyReason": "Changes an element file, and no change can be checked against a missing or faulty metamodel.",
@@ -875,6 +876,7 @@
         "SR-039",
         "SR-040",
         "SR-049",
+        "SR-057",
         "SR-064",
         "SR-065",
         "SR-087",
@@ -1090,7 +1092,7 @@
       "whileReadOnly": "refuse",
       "whileReadOnlyReason": "Changes element files, and no change can be checked against a missing or faulty metamodel.",
       "stage": 3,
-      "implements": ["SR-039", "SR-071", "SR-101"],
+      "implements": ["SR-039", "SR-057", "SR-071", "SR-101"],
       "arguments": [
         { "field": "selection", "complete": "selection" },
         { "field": "property", "complete": "property" },
@@ -4140,7 +4142,7 @@
     {
       "name": "reqif.import",
       "title": "Import ReqIF file",
-      "summary": "Import a ReqIF 1.2 file through a saved mapping, all or nothing: creates an element per object and reports losses. This version creates new elements on every import; updating those of an earlier delivery, origin and import version, and take and keep come later.",
+      "summary": "Import a ReqIF 1.2 file through a saved mapping, all or nothing: creates an element per object and reports losses. Each element keeps its origin (source, source IDENTIFIER, import date, delivery, import version), which no other command writes. This version creates new elements on every import; updating those of an earlier delivery, and take and keep come later.",
       "effect": "write-files",
       "whileReadOnly": "refuse",
       "whileReadOnlyReason": "Creates and changes elements, and no change can be checked against a missing or faulty metamodel.",

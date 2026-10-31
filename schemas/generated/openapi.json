@@ -1430,6 +1430,7 @@
           "SR-021",
           "SR-039",
           "SR-048",
+          "SR-057",
           "SR-064",
           "SR-084",
           "SR-091",
@@ -2557,7 +2558,7 @@
     "/v1/commands/element.update": {
       "post": {
         "operationId": "element_update",
-        "summary": "Change title, text or properties of one element. Unknown properties are kept; status changes only via element.setStatus.",
+        "summary": "Change title, text or properties of one element. Unknown properties are kept; status changes only via element.setStatus, and the origin of an imported element only via reqif.import (SR-057).",
         "tags": [
           "element"
         ],
@@ -2572,6 +2573,7 @@
           "SR-039",
           "SR-040",
           "SR-049",
+          "SR-057",
           "SR-064",
           "SR-065",
           "SR-087",
@@ -3163,6 +3165,7 @@
         "x-reqseq-stage": 3,
         "x-reqseq-implements": [
           "SR-039",
+          "SR-057",
           "SR-071",
           "SR-101"
         ],
@@ -10462,7 +10465,7 @@
     "/v1/commands/reqif.import": {
       "post": {
         "operationId": "reqif_import",
-        "summary": "Import a ReqIF 1.2 file through a saved mapping, all or nothing: creates an element per object and reports losses. This version creates new elements on every import; updating those of an earlier delivery, origin and import version, and take and keep come later.",
+        "summary": "Import a ReqIF 1.2 file through a saved mapping, all or nothing: creates an element per object and reports losses. Each element keeps its origin (source, source IDENTIFIER, import date, delivery, import version), which no other command writes. This version creates new elements on every import; updating those of an earlier delivery, and take and keep come later.",
         "tags": [
           "reqif"
         ],

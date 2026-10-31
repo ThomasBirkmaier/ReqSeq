@@ -13,12 +13,30 @@ import { Workspace } from "../../runtime/workspace.js";
 
 type Imported = CommandOutput<"reqif.import">;
 
+/** The origin properties (SR-057), which every type of the import needs. */
+const ORIGIN = "source, source-identifier, import-date, delivery, import-version";
+
 const METAMODEL = readFileSync(
   new URL("../../../../../fixtures/SR-085/value-kinds/system/metamodel/model.yaml", import.meta.url),
   "utf8",
 )
-  .replace("review-dates, platforms, legacy-class]", "review-dates, platforms, legacy-class, note]")
-  .replace("  - { key: legacy-class", "  - { key: note, name: Note, kind: text }\n  - { key: legacy-class");
+  .replace(
+    "review-dates, platforms, legacy-class]",
+    `review-dates, platforms, legacy-class, note, ${ORIGIN}]`,
+  )
+  .replace("properties: [title], required", `properties: [title, ${ORIGIN}], required`)
+  .replace(
+    "  - { key: legacy-class",
+    [
+      "  - { key: note, name: Note, kind: text }",
+      "  - { key: source, name: Source, kind: text, meaning: source }",
+      "  - { key: source-identifier, name: Source Identifier, kind: text, meaning: source-identifier }",
+      "  - { key: import-date, name: Import Date, kind: date, meaning: import-date }",
+      "  - { key: delivery, name: Delivery, kind: text, meaning: delivery }",
+      "  - { key: import-version, name: Import Version, kind: text, meaning: import-version }",
+      "  - { key: legacy-class",
+    ].join("\n"),
+  );
 
 const datatype = (kind: string, id: string, values: readonly string[] = []): string =>
   values.length === 0
@@ -327,15 +345,11 @@ describe("reqif.import of each datatype (SR-053)", () => {
   });
 
   it("refuses a mapped origin property: only the import writes it (SR-057 AK3)", async () => {
-    const metamodel = METAMODEL.replace(
-      "  - { key: note, name: Note, kind: text }",
-      "  - { key: note, name: Note, kind: text, meaning: source }",
-    );
-    const workspace = await open(MAPPING, metamodel);
+    const workspace = await open(MAPPING.replace("property: note }", "property: delivery }"));
     const error = await failure(workspace);
     expect([error.code, error.message]).toEqual([
       "input.invalid",
-      "mapping.attributes[7].property: note holds the origin (source), which only the import writes",
+      "mapping.attributes[7].property: property cannot hold delivery: it holds the origin (delivery), which only reqif.import writes",
     ]);
   });
 
