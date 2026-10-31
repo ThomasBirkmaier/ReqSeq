@@ -12,7 +12,7 @@ acceptance-criteria:
 verification-method: test
 topic: "Bearbeiten und Finden"
 packages:
-  - { id: 7a12a8c7-43e7-4349-9453-0ac2b6d5157d, version: n1:8c09ff1853730c25, title: Querschnitt }
+  - { id: 7a12a8c7-43e7-4349-9453-0ac2b6d5157d, version: n1:a36637ced6997ca7, title: Querschnitt }
 derives-from:
   - { id: 6ad3a133-c1a9-463e-86cd-23d0f277f785, version: n1:f863e5fdb90ec21b, title: Abdeckung einer Auswahl von Requirements }
   - { id: 6adc50a5-05d9-4e59-adfc-ae0179b6e5bf, version: n1:7b0a5a4bd2ba1739, title: Filtern }

@@ -17,7 +17,7 @@ derives-from:
 based-on:
   - { id: cb583de8-288a-4d8a-82f0-b2be57da2cce, version: n1:44f219796afc9c64, title: Nutzerdokumentation aus den Quellen des Werkzeugs }
 packages:
-  - { id: 7a12a8c7-43e7-4349-9453-0ac2b6d5157d, version: n1:8c09ff1853730c25, title: Querschnitt }
+  - { id: 7a12a8c7-43e7-4349-9453-0ac2b6d5157d, version: n1:a36637ced6997ca7, title: Querschnitt }
 ---
 
 Das Tool muss einen Einstieg und für häufige Aufgaben je eine knappe Anleitung mitliefern, deren Beispiele mit der Version laufen, zu der die Dokumentation gehört.

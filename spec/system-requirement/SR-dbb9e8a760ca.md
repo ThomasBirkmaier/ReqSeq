@@ -1,13 +1,13 @@
 ---
 id: 6adc6d20-e825-45be-8813-dbb9e8a760ca
 type: system-requirement
-status: draft
+status: approved
 title: "Zuordnung zum Metamodell als Datei speichern"
 spec-id: "SR-054"
 requirement-type: functional
 acceptance-criteria:
-  - "Gegeben ein erster Import, wenn Typen und Attribute der Quelle den Typen und Properties des Metamodells zugeordnet werden, dann speichert das Tool die Zuordnung als YAML-Datei im Repository."
-  - "Gegeben eine gespeicherte Zuordnung, wenn dieselbe Quelle erneut importiert oder dorthin exportiert wird, dann verwendet das Tool sie ohne Nachfrage."
+  - Gegeben ein erster Import, wenn Typen und Attribute der Quelle den Typen und Properties des Metamodells zugeordnet werden, dann speichert das Tool die Zuordnung als YAML-Datei im Repository, eine Datei je Quelle im Ordner `reqif` des Haupt-Repositorys (zum Beispiel `reqif/kunde-a.yaml`).
+  - Gegeben eine gespeicherte Zuordnung, wenn dieselbe Quelle erneut importiert oder dorthin exportiert wird und der Befehl die Zuordnungsdatei nennt, dann verwendet das Tool sie und fragt nichts zu Typen und Attributen.
   - "Gegeben eine Zuordnung, wenn das Metamodell der Quelle gelesen wird, dann ändert das Tool das eigene Metamodell nicht."
 verification-method: test
 topic: "Import und Export"
