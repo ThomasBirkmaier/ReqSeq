@@ -71,6 +71,11 @@ export interface XmlElement {
   readonly children: readonly XmlElement[];
   /** The text directly inside the element (CDATA included, entities resolved, line breaks as LF). */
   readonly text: string;
+  /**
+   * The children and the text runs between them in document order (ReqIF XHTML, ADR-0013): each run
+   * as in `text`, adjacent text and CDATA joined into one string, no empty string.
+   */
+  readonly content: readonly (XmlElement | string)[];
 }
 
 export interface XmlDocument {
@@ -251,7 +256,23 @@ interface Building extends XmlElement {
   end: number;
   readonly children: XmlElement[];
   text: string;
+  readonly content: (XmlElement | string)[];
 }
+
+/** Adds a text run to `open`: to `text`, and to `content`, joined with a run just before it. */
+const addText = (open: Building, text: string): void => {
+  if (text === "") {
+    return;
+  }
+  open.text += text;
+  const last = open.content.length - 1;
+  const before = open.content[last];
+  if (typeof before === "string") {
+    open.content[last] = before + text;
+  } else {
+    open.content.push(text);
+  }
+};
 
 /**
  * Where the first sequence that is not UTF-8 is: the first byte where the bytes and their lossy
@@ -345,7 +366,7 @@ class Scanner {
       }
       return end;
     }
-    open.text += resolveReferences(raw, start, textLiteral);
+    addText(open, resolveReferences(raw, start, textLiteral));
     return end;
   }
 
@@ -393,7 +414,7 @@ class Scanner {
     }
     const from = start + CDATA_OPEN.length;
     const end = this.closingAt(CDATA_CLOSE, from, "A CDATA section", start);
-    open.text += textLiteral(this.decode(from, end));
+    addText(open, textLiteral(this.decode(from, end)));
     return end + CDATA_CLOSE.length;
   }
 
@@ -497,6 +518,7 @@ class Scanner {
       attributes,
       children: [],
       text: "",
+      content: [],
     };
     if (selfClosing) {
       this.add(element);
@@ -547,6 +569,7 @@ class Scanner {
       this.root = element;
     } else {
       parent.children.push(element);
+      parent.content.push(element);
     }
   }
 }

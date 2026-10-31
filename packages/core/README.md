@@ -102,6 +102,7 @@ One file per block, so you read only the area you work on. Update the file of th
 - [Metamodel block (`src/metamodel/`)](docs/metamodel.md)
 - Model block (`src/model/`): [store, watcher, short IDs, current versions](docs/model-store.md), [value kinds, required properties, statuses, metamodel changes](docs/model-checks.md), [writing, reading, status, bulk update, supersede, relations](docs/model-write.md), [superseded targets, duplicates, relation targets and types](docs/model-findings.md)
 - [Checking the whole workspace (`workspace.check`, SR-019)](docs/workspace-check.md)
+- [ReqIF block (`src/reqif/`): model and parser](docs/reqif.md)
 - [Variants block (`src/variants/`)](docs/variants.md)
 - [Trace block (`src/trace/`)](docs/trace.md)
 - [Query block (`src/query/`)](docs/query.md)

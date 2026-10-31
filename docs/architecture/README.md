@@ -97,6 +97,7 @@ flowchart TB
     commands[commands/*<br/>one file per command, registry in index.ts]
     subgraph blocks[blocks]
       data[data<br/>JSON export and store per state]
+      reqif[reqif<br/>ReqIF model, parser]
       query[query<br/>filter engine, sort, search index, saved filters]
       hints[hints<br/>outdated relations, evidence hints, confirm]
       evidence[evidence<br/>records, JUnit, status, coverage, degree]
@@ -120,6 +121,7 @@ flowchart TB
   entry --> commands & mm & model & query
   commands -->|every block except git| blocks
   data --> evidence & files & mm & model & variants & ws
+  reqif --> files
   query --> baselines & evidence & files & mm & model & trace & variants & ws
   hints --> baselines & evidence & files & mm & model & trace & variants & ws
   evidence --> files & mm & model & trace & variants & ws
@@ -136,8 +138,9 @@ An arrow means that at least one module of the source imports a value (a functio
 | Block | Imports (values) | Imports (types only) |
 |---|---|---|
 | runtime entry (`invoke`, `warm`, `instructions`, `element-short-ids`) | commands, metamodel, model, query, runtime state | |
-| `commands` | baselines, data, evidence, files, hints, metamodel, model, query, runtime state, trace, variants, version, workspace | |
+| `commands` | baselines, data, evidence, files, hints, metamodel, model, query, reqif, runtime state, trace, variants, version, workspace | |
 | `data` | evidence, files, metamodel, model, variants, workspace | git, query, runtime state |
+| `reqif` | files, metamodel, model, runtime state, workspace | |
 | `query` | baselines, evidence, files, metamodel, model, runtime state, trace, variants, workspace | |
 | `hints` | baselines, evidence, files, metamodel, model, runtime state, trace, variants, workspace | |
 | `evidence` | files, metamodel, model, runtime state, trace, variants, workspace | |
@@ -151,7 +154,7 @@ An arrow means that at least one module of the source imports a value (a functio
 
 Every block may also import the root modules `catalog.ts` and `product.ts` and the generated types and data in `generated/`; `catalog.ts` imports only the type `Workspace` of `runtime/workspace.ts`.
 
-With `runtime` split, the imports have no cycle and form these layers, from the bottom: `files`, `version`, `git` and runtime state; `workspace`; `metamodel`; `model`; `trace`, `variants`, `baselines`; `evidence`; `hints`, `query`; `data`; `commands`; runtime entry. Every import points to a lower layer. The test `packages/core/src/block-layers.test.ts` holds these layers and the table below and fails on any relative import of the product code that goes to the same or a higher layer or that the table does not list, naming the file, the import and the rule (#635); a new block, runtime module or allowed import is added to this section and to that test.
+With `runtime` split, the imports have no cycle and form these layers, from the bottom: `files`, `version`, `git` and runtime state; `workspace`; `metamodel`; `model`; `trace`, `variants`, `baselines`; `evidence`; `hints`, `query`; `data`, `reqif`; `commands`; runtime entry. Every import points to a lower layer. The test `packages/core/src/block-layers.test.ts` holds these layers and the table below and fails on any relative import of the product code that goes to the same or a higher layer or that the table does not list, naming the file, the import and the rule (#635); a new block, runtime module or allowed import is added to this section and to that test.
 
 | Block | Responsibility | Stage |
 |---|---|---|
@@ -167,7 +170,7 @@ With `runtime` split, the imports have no cycle and form these layers, from the 
 | `query` | Filter language, sort, full-text search (SR-068..SR-070, SR-075) | 3 |
 | `evidence`, `data` | Records (`record`, `folders`, `state`, `by-element` index), readers (`markdown`, `junit`), record findings (`match`), status, coverage, degree, JSON export (SR-028..SR-038, SR-061, SR-062; ADR-0012) | 4 |
 | `variants`, `baselines` | Views, replace, exclude, diff, baselines (SR-039..SR-051); validity and its hints first (SR-040, stage 1); the read-only reader of baseline files first (SR-032 AK2, stage 4) | 1, 4, 5 |
-| `reqif` | ReqIF 1.2 import and export with mapping (SR-052..SR-059); not in the code yet, no folder | 6 |
+| `reqif` | ReqIF 1.2 import and export with mapping (SR-052..SR-059, ADR-0013): the model and the parser on the XML scanner of `files` so far ([block file](../../packages/core/docs/reqif.md)) | 6 |
 
 Rules: adapters depend only on `@reqseq/core`'s public exports (`index.ts` and the subpaths `recent-workspaces` and `verification-degree` in `package.json`; the lint rule `no-restricted-imports` in `eslint.config.js` rejects imports of core's source folders). Inside `core`, `commands` may use every block; no block imports `commands`, except `runtime/invoke.ts`, which runs them. `git` is the only module that spawns processes (the cold load of `model` uses worker threads, not processes); `files` is the only module that writes to disk.
 

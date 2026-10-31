@@ -263,4 +263,13 @@ describe("scanXml", () => {
     // Not a byte array: the Buffer view fails with a TypeError, which is a programming error, not a refusal.
     expect(() => scanXml(undefined as unknown as Uint8Array)).toThrow(TypeError);
   });
+
+  it("xml-scan keeps children and text runs in document order, for mixed content (ADR-0013)", () => {
+    const root = scan("<p>a &amp; <b>x</b><![CDATA[ <c> ]]>b<i/><e><![CDATA[]]></e></p>");
+    const [b, i, e] = root.children;
+    expect(root.content).toEqual(["a & ", b, " <c> b", i, e]);
+    expect(b?.content).toEqual(["x"]);
+    expect(e?.content).toEqual([]);
+    expect(root.text).toBe("a &  <c> b");
+  });
 });
