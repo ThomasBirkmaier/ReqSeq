@@ -1428,21 +1428,27 @@ export const ElementView = ({
       textEditor.current.focus("end");
     }
   };
-  // Enter on a box edits it (on the buffer itself, the text); Escape leaves a box for the buffer; Up and Down
-  // on a field move to the field before and after, and Down on the last one into the elements of a package.
+  // Up and Down on a field move to the field before and after, and Down on the last one into the elements of
+  // a package. Down on the element itself goes into the elements of a package, else to its first field, where
+  // the highlight shows (SR-155, assumption).
+  const onArrow = (down: boolean, label: string | undefined, root: HTMLElement): void => {
+    const fields = [TITLE_FIELD, "Text", ...boxKeys];
+    const hasMembers = (members?.total ?? 0) > 0;
+    if (label === undefined && !hasMembers) {
+      move(fields, "", 1, false);
+    } else if ((label === undefined || !move(fields, label, down ? 1 : -1, false)) && down && hasMembers) {
+      intoMembers(root);
+    }
+  };
+  // Enter on a box edits it (on the buffer itself, the text); Escape leaves a box for the buffer; the arrows
+  // move between the fields (`onArrow`).
   const onField = (key: string, label: string | undefined, root: HTMLElement): void => {
-    const down = key === "ArrowDown";
     if (key === "Enter") {
       enterField(label);
     } else if (key === "Escape") {
       article?.focus();
-    } else if (label === undefined && down && (members?.total ?? 0) === 0) {
-      // Down on the element itself goes to its first field, where the highlight shows (SR-155, assumption).
-      move([TITLE_FIELD, "Text", ...boxKeys], "", 1, false);
-    } else if (label === undefined || !move([TITLE_FIELD, "Text", ...boxKeys], label, down ? 1 : -1, false)) {
-      if (down && (members?.total ?? 0) > 0) {
-        intoMembers(root);
-      }
+    } else {
+      onArrow(key === "ArrowDown", label, root);
     }
   };
   // Undo and redo on a choice or relation box step through its value history (SR-105 AK2). True when the
