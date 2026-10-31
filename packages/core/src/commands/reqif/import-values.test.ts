@@ -300,6 +300,59 @@ describe("reqif.import of each datatype (SR-053)", () => {
     ]);
   });
 
+  it("[SR-053/AK2] leaves out a DATE value that is not an xs:dateTime and lists it in reqif.analyze and reqif.import (#571)", async () => {
+    const dates = [
+      item("D-1", { "a-name": "Text", "a-due": "aaa", "a-reviews": "" }),
+      item("D-2", { "a-name": "Short", "a-due": "2021-7-1", "a-reviews": "2026-02-30T00:00:00Z" }),
+      item("D-3", { "a-name": "Late", "a-due": "2026-11-02T25:00:00Z", "a-reviews": "2026-13-01" }),
+      item("D-4", { "a-name": "Leap", "a-due": "2024-02-29T23:59:59.5-14:00" }),
+      item("D-5", {
+        "a-name": "Spaced",
+        "a-due": " 2026-01-01T00:00:00Z ",
+        "a-reviews": "2026-12-31T24:00:00Z",
+      }),
+      item("D-6", { "a-name": "Last", "a-due": "9999-12-31T24:00:00Z" }),
+    ].join("");
+    const workspace = await open(
+      MAPPING,
+      METAMODEL,
+      DELIVERY.replace("</SPEC-OBJECTS>", `${dates}</SPEC-OBJECTS>`),
+    );
+    // reqif.analyze plans the same import, so it lists the same losses before anything is written.
+    const analysis = (await invoke(
+      "reqif.analyze",
+      { file: INPUT.file, mapping: INPUT.mapping },
+      { workspace },
+    )) as CommandOutput<"reqif.analyze">;
+    const out = (await invoke("reqif.import", INPUT, { workspace })) as Imported;
+    const dateLosses = (losses: Imported["losses"]): string[][] =>
+      losses.filter((l) => l.identifier.startsWith("D-")).map((l) => [l.identifier, l.code, l.reason]);
+    expect(dateLosses(analysis.losses)).toEqual(dateLosses(out.losses));
+    const ids = new Map(out.created.map((c) => [c.identifier, c.id]));
+    for (const identifier of ["D-1", "D-2", "D-3"]) {
+      const written = await properties(workspace, ids.get(identifier));
+      expect(written).not.toHaveProperty("due");
+      expect(written).not.toHaveProperty("review-dates");
+    }
+    expect(await properties(workspace, ids.get("D-4"))).toMatchObject({ due: "2024-02-29" });
+    // White space around the value is collapsed (xs:dateTime), and 24:00:00 is midnight of the next day.
+    expect(await properties(workspace, ids.get("D-5"))).toMatchObject({
+      due: "2026-01-01",
+      "review-dates": ["2027-01-01"],
+    });
+    expect(await properties(workspace, ids.get("D-6"))).not.toHaveProperty("due");
+    expect(dateLosses(out.losses)).toEqual([
+      ["D-1", "omitted-value", 'Due: "aaa" is no DATE'],
+      ["D-1", "omitted-value", 'Reviews: "" is no DATE'],
+      ["D-2", "omitted-value", 'Due: "2021-7-1" is no DATE'],
+      ["D-2", "omitted-value", 'Reviews: "2026-02-30T00:00:00Z" is no DATE'],
+      ["D-3", "omitted-value", 'Due: "2026-11-02T25:00:00Z" is no DATE'],
+      ["D-3", "omitted-value", 'Reviews: "2026-13-01" is no DATE'],
+      ["D-4", "date-time", "Due: the time of 2024-02-29T23:59:59.5-14:00 is left out; 2024-02-29 is kept"],
+      ["D-6", "omitted-value", 'Due: "9999-12-31T24:00:00Z" is no DATE'],
+    ]);
+  });
+
   it("refuses attributes mapped to properties that cannot hold their datatype", async () => {
     const workspace = await open(
       MAPPING.replace("{ source: Name, property: title }", "{ source: Name, property: weight }")
