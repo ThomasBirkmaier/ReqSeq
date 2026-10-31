@@ -52,6 +52,7 @@ import type { Buffer, ElementBuffer, NeighbourhoodBuffer } from "./buffers.js";
 import { bufferName, elementBufferOf, resultBuffer } from "./buffers.js";
 import type { PropertyAnswer, RequiredProperty } from "./create-element.js";
 import { CREATE_COMMAND, creatableTypes, createdEcho, propertiesInput } from "./create-element.js";
+import { idTitle } from "./id-title.js";
 import { choiceItems } from "./property-edit.js";
 import type { Row } from "./rows.js";
 import { selectionInView, viewName, viewsOf } from "./views.js";
@@ -833,7 +834,7 @@ const giveProperty = (
 
 /** The target a found element is, for a relation property. */
 const targetOf = (row: Row): { readonly value: PropertyAnswer; readonly label: string } => {
-  const label = `${row.label} ${row.title}`.trim();
+  const label = idTitle(row.label, row.title);
   return { value: { ...relationTargetOf(row), label }, label: row.label };
 };
 

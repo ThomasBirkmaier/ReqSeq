@@ -9,6 +9,7 @@
 // opens in the repository `names` gives first. Layout only: nothing here knows a command (ADR-0002).
 import { degreePercent, degreeShareOf } from "@reqseq/core/verification-degree";
 import type { ElementBuffer } from "./buffers.js";
+import { idTitle } from "./id-title.js";
 import { elementBuffer, elementBufferOf, readOnlyBuffer } from "./buffers.js";
 
 /**
@@ -143,7 +144,7 @@ const pairLine = (pair: NonNullable<ReturnType<typeof pairOf>>, depth: number): 
     kind: "pair",
     depth,
     label: first.identifier ?? first.shortId,
-    text: `${first.title} · ${key}: ${second.identifier ?? second.shortId} ${second.title}`,
+    text: `${first.title} · ${key}: ${idTitle(second.identifier ?? second.shortId, second.title)}`,
     open: readOnlyBuffer(elementBufferOf(first)),
     beside: readOnlyBuffer(elementBufferOf(second)),
   };

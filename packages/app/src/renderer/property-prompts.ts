@@ -4,6 +4,7 @@
 // builds `element.update` from it (`property-edit.ts`, ADR-0002).
 import type { Choice, Prompt } from "./actions.js";
 import { elementBuffer } from "./buffers.js";
+import { idTitle } from "./id-title.js";
 import type { PropertyInfo } from "./element-view.js";
 import type { RelationTarget } from "./property-edit.js";
 import { choiceItems, chooseKey, chooseTarget } from "./property-edit.js";
@@ -54,7 +55,7 @@ export const choicePrompt = (
 const targetOfRow = (row: Row): RelationTarget => ({
   id: row.open.id,
   repository: row.open.repository,
-  label: `${row.label} ${row.title}`.trim(),
+  label: idTitle(row.label, row.title),
 });
 
 /**
