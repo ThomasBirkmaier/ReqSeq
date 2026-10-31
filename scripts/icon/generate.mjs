@@ -61,6 +61,6 @@ for (const [size, png] of linux) {
 // The window icon on Linux (shell.ts); the renderer build copies public/ into out/renderer/.
 await fs.mkdir(appPublic, { recursive: true });
 await fs.writeFile(path.join(appPublic, "icon.png"), linux.get(512));
-await fs.writeFile(path.join(site, "favicon.svg"), `${bleed}\n`);
+await fs.writeFile(path.join(site, "favicon.svg"), `${bleed.trimEnd()}\n`);
 await fs.writeFile(path.join(site, "favicon.ico"), icoFile([favicon]));
 await fs.writeFile(path.join(site, "apple-touch-icon.png"), touch);
