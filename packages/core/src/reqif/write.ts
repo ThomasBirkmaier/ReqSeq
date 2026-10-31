@@ -545,6 +545,20 @@ class Writer {
   }
 }
 
+/** `problem` as a sentence, for a refusal. */
+export const problemText = (problem: ReqifWriteProblem): string => {
+  switch (problem.kind) {
+    case "missing-field":
+      return `${problem.identifier}: ${problem.field} is missing`;
+    case "invalid-character":
+      return `${problem.identifier}: ${problem.field} holds U+${problem.codePoint.toString(16).toUpperCase().padStart(4, "0")} at ${String(problem.offset)} (${problem.at}), which XML 1.0 cannot carry`;
+    case "invalid-value":
+      return `${problem.identifier}: ${problem.field}: ${problem.reason}`;
+    case "unsupported-content":
+      return `${problem.identifier}: ${problem.field}: ${problem.name} cannot be written`;
+  }
+};
+
 /** The ReqIF 1.2 file of `file` as chunks, or every reason it cannot be written. */
 export const writeReqif = (file: ReqifWritable): ReqifWriteOutcome => {
   const writer = new Writer();

@@ -14,7 +14,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { CommandError } from "../catalog.js";
-import type { FrontmatterEdit, ItemValue } from "../files/index.js";
+import type { FlowMappingValue, FrontmatterEdit, ItemValue } from "../files/index.js";
 import { sha256, zip } from "../files/index.js";
 import type { Problem, ReqifObject } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
@@ -144,12 +144,36 @@ export const unreadableFiles = (store: ElementStore): Problem[] =>
   store.problems.filter((p) => p.severity === "error" && p.file !== undefined);
 
 /** A relation item as the import writes it. */
-export type RelationItem = Readonly<{ id: string; version: string; repository?: string }>;
+export type RelationItem = FlowMappingValue;
+
+/** The target of a relation item: UUID and repository, not the version. */
+const targetKey = (item: Readonly<Record<string, unknown>>): string =>
+  JSON.stringify([item["id"], item["repository"] ?? null]);
+
+/** The items stored under `kind`, as a list (one value as one item). */
+const storedItems = (data: Readonly<Record<string, unknown>>, kind: string): readonly unknown[] => {
+  const value = data[kind];
+  return value === undefined ? [] : Array.isArray(value) ? value : [value];
+};
 
 /**
- * Whether the targets (UUID and repository, not the version) of the items of `kind` that point to
- * elements of the source differ from the delivery's `items`: a local relation edit the delivery
- * replaces (#575/4).
+ * The indexes of the stored items the delivery decides: those to an element of the source (`ids`)
+ * and those to a target the delivery's `items` name (such as a missing one of a file of ReqSeq).
+ */
+const decided = (
+  stored: readonly unknown[],
+  items: readonly RelationItem[],
+  ids: ReadonlySet<string>,
+): number[] => {
+  const named = new Set(items.map(targetKey));
+  return stored.flatMap((item, index) =>
+    hasId(item) && (ids.has(item.id) || named.has(targetKey(item))) ? [index] : [],
+  );
+};
+
+/**
+ * Whether the targets (UUID and repository, not the version) of the items of `kind` the delivery
+ * decides differ from its `items`: a local relation edit the delivery replaces (#575/4).
  */
 export const targetsDiffer = (
   data: Readonly<Record<string, unknown>>,
@@ -157,16 +181,15 @@ export const targetsDiffer = (
   items: readonly RelationItem[],
   ids: ReadonlySet<string>,
 ): boolean => {
-  const value = data[kind];
-  const stored: readonly unknown[] = Array.isArray(value) ? value : [value];
-  const key = (item: Readonly<Record<string, unknown>>): string =>
-    JSON.stringify([item["id"], item["repository"] ?? null]);
-  const own = new Set(stored.flatMap((item) => (hasId(item) && ids.has(item.id) ? [key(item)] : [])));
-  const delivered = new Set(items.map(key));
+  const stored = storedItems(data, kind);
+  const own = new Set(
+    decided(stored, items, ids).map((i) => targetKey(stored[i] as Readonly<Record<string, unknown>>)),
+  );
+  const delivered = new Set(items.map(targetKey));
   return own.size !== delivered.size || [...own].some((k) => !delivered.has(k));
 };
 
-/** The parts of a stored item the import compares: target, version and repository. */
+/** The parts of an item the import compares: target, version and repository. */
 const comparable = (item: Readonly<Record<string, unknown>>): Record<string, unknown> => ({
   id: item["id"],
   version: item["version"],
@@ -175,7 +198,8 @@ const comparable = (item: Readonly<Record<string, unknown>>): Record<string, unk
 
 /**
  * The edits that give relation kind `kind` of an element with frontmatter `data` the delivery's
- * `items` to elements of the source (`ids`), keeping every other item; none when they are equal.
+ * `items` in place of the items it decides (`decided`), keeping every other item; none when they
+ * are equal apart from other fields of an item (such as `title`).
  */
 export const relationEdits = (
   data: Readonly<Record<string, unknown>>,
@@ -184,10 +208,10 @@ export const relationEdits = (
   ids: ReadonlySet<string>,
 ): FrontmatterEdit[] => {
   const value = data[kind];
-  const stored: readonly unknown[] = value === undefined ? [] : Array.isArray(value) ? value : [value];
-  const own = stored.flatMap((item, index) => (hasId(item) && ids.has(item.id) ? [index] : []));
+  const stored = storedItems(data, kind);
+  const own = decided(stored, items, ids);
   const ownItems = own.map((index) => comparable(stored[index] as Readonly<Record<string, unknown>>));
-  if (isDeepStrictEqual(ownItems, items)) {
+  if (isDeepStrictEqual(ownItems, items.map(comparable))) {
     return [];
   }
   if (!Array.isArray(value)) {

@@ -7,7 +7,15 @@
 // have their own tagged tests at their access level, which assert the threshold: SR-020 AK1 spawns
 // the CLI (packages/cli/test/perf/workspace-check.test.ts), SR-082 follows with #94.
 import type { GeneratedWorkspace, LargeFixtureWorkspace, VersionFunction } from "@reqseq/testkit";
-import { generateLargeWorkspace, measure, measureMedian, writeLargeWorkspace } from "@reqseq/testkit";
+import fs from "node:fs/promises";
+import path from "node:path";
+import {
+  createFixtureWorkspace,
+  generateLargeWorkspace,
+  measure,
+  measureMedian,
+  writeLargeWorkspace,
+} from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { CommandOutput } from "../../src/catalog.js";
 import { STANDARD_MODEL_TEXT, metamodelState } from "../../src/metamodel/index.js";
@@ -17,6 +25,7 @@ import { elementStoreState } from "../../src/model/store.js";
 import { buildSuccessionIndex, successionsOf } from "../../src/model/successors.js";
 import { supersededTargetFindings } from "../../src/model/superseded.js";
 import { currentTarget } from "../../src/model/targets.js";
+import { REQIF_LIMITS } from "../../src/reqif/index.js";
 import { invoke } from "../../src/runtime/invoke.js";
 import { Workspace } from "../../src/runtime/workspace.js";
 import { standardModel, versionOf } from "./core-version.js";
@@ -255,4 +264,41 @@ describe("workspace with 50,000 elements and 200,000 relations (N-036)", () => {
     );
     expect(read.fileSha256).toBe(sha);
   }, 600_000);
+
+  it("exports every element to one ReqIF file and imports it into an empty workspace without a mapping (SR-052 AK3)", async () => {
+    const empty = await createFixtureWorkspace({
+      fixture: "SR-052/empty",
+      // The metamodel of the generated workspace, with its identifier property (#305).
+      files: {
+        "metamodel/standard-model.yaml": tree.files.get("system/metamodel/standard-model.yaml") ?? "",
+      },
+    });
+    const target = new Workspace(empty.root);
+    try {
+      const output = path.join(empty.root, "in", "large.reqif");
+      const { result: exported } = await measure(
+        "reqif.export of every element",
+        () => invoke("reqif.export", { output }, { workspace }) as Promise<CommandOutput<"reqif.export">>,
+        { basis: "SR-052 AK1, N-036" },
+      );
+      expect(exported.elements).toBe(ELEMENTS);
+      // The parser reads what the export writes at this size (ADR-0013 "Size").
+      expect((await fs.stat(output)).size).toBeLessThan(REQIF_LIMITS.bytes);
+      const { result: imported } = await measure(
+        "reqif.import of that file into an empty workspace, one to one",
+        () =>
+          invoke(
+            "reqif.import",
+            { file: "in/large.reqif", delivery: "perf" },
+            { workspace: target },
+          ) as Promise<CommandOutput<"reqif.import">>,
+        { basis: "SR-052 AK3, N-036" },
+      );
+      expect(imported.created).toHaveLength(ELEMENTS);
+      expect(imported.problems ?? []).toEqual([]);
+    } finally {
+      await target.close();
+      await empty.cleanup();
+    }
+  }, 1_200_000);
 });

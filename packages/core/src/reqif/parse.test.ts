@@ -293,10 +293,12 @@ describe("parseReqif", () => {
   });
 
   it("refuses a file over the size guard before reading it", () => {
-    const bytes = new Uint8Array(REQIF_LIMITS.bytes + 1);
-    expect(parseReqif(bytes)).toEqual({
+    // 1 GiB: an export of ReqSeq at N-036 is about 300 MB; the retained budget guards the memory.
+    expect(REQIF_LIMITS).toEqual({ bytes: 2 ** 30, retained: 2 ** 30 });
+    const limits = { ...REQIF_LIMITS, bytes: 1000 };
+    expect(parseReqif(new Uint8Array(1001), limits)).toEqual({
       kind: "refused",
-      message: `The file has ${String(REQIF_LIMITS.bytes + 1)} bytes; ReqSeq reads ReqIF files up to ${String(REQIF_LIMITS.bytes)} bytes`,
+      message: "The file has 1001 bytes; ReqSeq reads ReqIF files up to 1000 bytes",
       line: 1,
     });
   });

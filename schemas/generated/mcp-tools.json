@@ -600,7 +600,9 @@
             "git.unavailable",
             "git.revision-missing",
             "reqif.replaces-local",
-            "reqif.choice-unused"
+            "reqif.choice-unused",
+            "reqif.edited-elsewhere",
+            "reqif.mapping-differs"
           ]
         },
         "error": {

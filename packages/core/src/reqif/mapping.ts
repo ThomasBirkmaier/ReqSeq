@@ -11,8 +11,9 @@
 // - Read from any path the access allows (`readMappingFile`), for `reqif.import` and `reqif.export`
 //   with `mapping` (SR-054 AK2): the file must match the schema (`file.faulty` otherwise).
 // - Both sides check the mapping against the own metamodel (`checkMapping`), which they only read:
-//   known types, properties (of the mapped type when `source-type` names one), choice keys and
-//   relation kinds, a known target repository. Every violation is listed in one `input.invalid`.
+//   known types, properties (of the mapped type when `source-type` names one), choice keys,
+//   relation kinds or relation-valued properties as the kind of a relation type, a known target
+//   repository. Every violation is listed in one `input.invalid`.
 // - Mapping files are not elements (D-056); ReqSeq never deletes or renames one.
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -211,12 +212,12 @@ const mappingViolations = (
       attributeViolations(metamodel, mapping, entry, `${at}.attributes[${String(i)}]`),
     ),
     ...(mapping.relations ?? []).flatMap(({ kind }, i) =>
-      kind === undefined || keyDefinition(metamodel, kind)?.kind === "relation"
+      kind === undefined || relationTarget(metamodel, kind)
         ? []
         : [
             {
               field: `${at}.relations[${String(i)}].kind`,
-              message: `${kind} is no relation kind of the metamodel`,
+              message: `${kind} is no relation kind or relation-valued property of the metamodel`,
             },
           ],
     ),
@@ -228,6 +229,12 @@ const mappingViolations = (
       omitted(profile["omit-properties"], `${at}.export-profiles[${String(i)}].omit-properties`),
     ),
   ];
+};
+
+/** Whether a SPEC-RELATION-TYPE can map to `kind`: a relation kind or a relation-valued property. */
+const relationTarget = (metamodel: Metamodel, kind: string): boolean => {
+  const found = keyDefinition(metamodel, kind);
+  return found?.kind === "relation" || (found?.kind === "property" && found.definition.kind === "relation");
 };
 
 /**

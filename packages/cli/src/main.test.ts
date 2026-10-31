@@ -547,13 +547,8 @@ describe("reqseq <group> <action>", () => {
   it("uses the runtime of the process by default", async () => {
     const help = await run(["--help"], { processRuntime: true });
     expect(help.stdout).toContain("workspace <action> [options]");
-    // A stage 6 command: in the catalog, not implemented before that stage.
-    const result = await run(["reqif", "export", "out.reqif"], { processRuntime: true });
-    expect(result).toEqual({
-      code: EXIT.usage,
-      stdout: "",
-      stderr: "error command.not-implemented: Command reqif.export is not implemented yet\n",
-    });
+    // Every command of the product catalog is implemented now (reqif.export was the last, SR-052);
+    // command.not-implemented is shown with the test catalog above.
   });
 
   it("never hides the command's own error behind a failing close", async () => {

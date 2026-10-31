@@ -39,6 +39,7 @@ import relationAdd from "./relation/add.js";
 import relationOptions from "./relation/options.js";
 import relationRemove from "./relation/remove.js";
 import reqifAnalyze from "./reqif/analyze.js";
+import reqifExport from "./reqif/export.js";
 import reqifImport from "./reqif/import.js";
 import reqifSaveMapping from "./reqif/saveMapping.js";
 import traceAffected from "./trace/affected.js";
@@ -89,6 +90,7 @@ export const commands: readonly AnyCommand[] = [
   relationOptions,
   relationRemove,
   reqifAnalyze,
+  reqifExport,
   reqifImport,
   reqifSaveMapping,
   traceAffected,

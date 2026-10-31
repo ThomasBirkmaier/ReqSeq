@@ -78,6 +78,8 @@ interface Scenario {
    * shared copy is prepared once more before its files are taken, so the preparation must be idempotent.
    */
   readonly prepare?: (copy: Copy) => Promise<void>;
+  /** Parts of the outcome and the files that differ by call (an export time, a new UUID), each replaced by `<masked>`. */
+  readonly masks?: readonly RegExp[];
   /** More checks on the results of all accesses, after they compared equal. */
   readonly check?: (results: Readonly<Record<string, Result>>) => void;
 }
@@ -135,6 +137,12 @@ const DELIVERY: FixtureOptions = {
     ),
   },
 };
+/** A package with requirements, a need and a decision, relations among them and to a missing element (SR-052). */
+const REQIF_EXPORT: FixtureOptions = { fixture: "SR-052/package", git: true };
+/** A workspace with the standard model only, and an export of SR-052/package in folder in (SR-052). */
+const ROUND_TRIP: FixtureOptions = { fixture: "SR-052/empty", git: true };
+/** The export time and the header IDENTIFIER of a ReqIF file ReqSeq writes. */
+const EXPORT_MASKS: readonly RegExp[] = [/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z/g, /_hd-[0-9a-f-]{36}/g];
 /** DELIVERY with a mapping of the requirements and their name only, which leaves entries unmapped (SR-055). */
 const PARTIAL_MAPPING = [
   "reqseq-reqif-mapping: 1",
@@ -2185,6 +2193,22 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       expect: "error",
     },
   ],
+  "reqif.export": [
+    {
+      tag: "[SR-052/AK1]",
+      name: "a package as one ReqIF file, its relations as SPEC-RELATIONs and their targets outside it as stubs",
+      fixture: REQIF_EXPORT,
+      input: { output: "s6.reqif", selection: { package: "52052052-0000-4000-8000-0000000052f1" } },
+      expect: "output",
+      masks: EXPORT_MASKS,
+    },
+    {
+      name: "a profile is refused: not available yet",
+      fixture: REQIF_EXPORT,
+      input: { output: "s6.reqif", profile: "stage-6" },
+      expect: "error",
+    },
+  ],
   "reqif.analyze": [
     {
       tag: "[SR-055/AK1]",
@@ -2238,6 +2262,14 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
     },
   ],
   "reqif.import": [
+    {
+      tag: "[SR-052/AK3]",
+      name: "a file of ReqSeq without a mapping: one to one, its mapping saved",
+      fixture: ROUND_TRIP,
+      input: { file: "in/all.reqif", delivery: "round trip" },
+      expect: "output",
+      newElement: true,
+    },
     {
       tag: "[SR-053/AK1]",
       name: "a delivery through its saved mapping: new element files in a folder named after the source",
@@ -3088,10 +3120,19 @@ const runAll = async (entry: CatalogEntry, scenario: Scenario): Promise<Record<s
     if (untouched !== undefined) {
       expect([access, result.files]).toEqual([access, untouched]);
     }
-    results[access] = scenario.newElement === true ? maskNewElement(result) : result;
+    const masked = masks(result, scenario.masks ?? []);
+    results[access] = scenario.newElement === true ? maskNewElement(masked) : masked;
   }
   return results;
 };
+
+/** `result` with each match of `patterns` replaced by `<masked>` (see `Scenario.masks`). */
+const masks = (result: Result, patterns: readonly RegExp[]): Result =>
+  patterns.length === 0
+    ? result
+    : (JSON.parse(
+        patterns.reduce((text, pattern) => text.replace(pattern, "<masked>"), JSON.stringify(result)),
+      ) as Result);
 
 /** The id of the new element in `result` replaced everywhere by placeholders (see `Scenario.newElement`). */
 const maskNewElement = (result: Result): Result => {

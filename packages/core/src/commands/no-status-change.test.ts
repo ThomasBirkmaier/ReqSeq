@@ -288,6 +288,8 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { source: APPROVED, kind: "refines", target: RETIRED },
     { source: "SR-ffffff", kind: "refines", target: WIND },
   ],
+  // The status is exported for information only.
+  "reqif.export": [{ output: "out.reqif" }, { output: "out.reqif", profile: "p" }],
   "reqif.analyze": [
     { file: IMPORT.file },
     { file: IMPORT.file, mapping: IMPORT.mapping },

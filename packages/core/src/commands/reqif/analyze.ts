@@ -89,6 +89,7 @@ export default defineCommand({
         // Never written: the analysis names no delivery.
         { delivery: "", date: importDate(new Date()) },
         imageReader(path.resolve(workspace.root, input.file), ctx.localPaths),
+        false,
         { existing },
       );
       // The planned UUIDs name no element yet, so neither list carries them; existing ones do.

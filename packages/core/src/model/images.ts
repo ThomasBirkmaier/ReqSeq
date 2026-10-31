@@ -68,7 +68,7 @@ const walkSkips = (names: readonly string[], ignored: (relativePath: string) => 
  * control character, leaves the repository, names the repository folder, the element's folder or
  * the element's own file, or goes through a name the element walk skips.
  */
-const imageLink = (
+export const imageLink = (
   elementFile: string,
   destination: string,
   ignored: (relativePath: string) => boolean,

@@ -39,8 +39,12 @@ export interface ReqifLimits {
   readonly retained: number;
 }
 
-/** A delivery at N-036 (50,000 objects, 200,000 relations, 114 to 161 MB) needs about 0.4 GB. */
-export const REQIF_LIMITS: ReqifLimits = { bytes: 256 * 1024 * 1024, retained: 1024 * 1024 * 1024 };
+/**
+ * A delivery at N-036 (50,000 objects, 200,000 relations, 114 to 161 MB) needs about 0.4 GB; an export
+ * of ReqSeq at N-036 is about 300 MB (both text channels). The byte limit only stops a file far beyond
+ * that before it is read; the retained budget is the guard against a file that needs too much memory.
+ */
+export const REQIF_LIMITS: ReqifLimits = { bytes: 1024 * 1024 * 1024, retained: 1024 * 1024 * 1024 };
 
 /** The estimate per kept object (element, frame, model node, string header), from measurements. */
 const OBJECT = 64;

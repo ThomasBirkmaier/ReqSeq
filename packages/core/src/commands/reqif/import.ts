@@ -7,6 +7,13 @@
 // Each element keeps its origin (SR-057): source, IDENTIFIER, import date (this machine's calendar),
 // delivery and import version (reqif/origin.ts).
 //
+// A file of ReqSeq (REQ-IF-TOOL-ID `reqseq`, SR-052 AK3) needs no `mapping`: the source is `source`,
+// else the header TITLE (`input.invalid` without either). Its mapping file in the mapping folder
+// (`mappingTarget`) is used when it exists, with a warning `reqif.mapping-differs` when its source
+// name or tool ID differs; else the import builds the one-to-one mapping (`ownMapping`) and saves it
+// there with the elements, in one all-or-nothing write when both lie in one repository, else right
+// after them. The round-trip attributes are read as reqif/import.ts says.
+//
 // A repeated delivery (SR-056, reqif/repeat.ts) updates the elements of the source in place; a
 // conflict needs `take` or `keep` (`reqif.conflict` names those without, before any write). While a
 // repository of the workspace is not on this machine, its elements of the source cannot be
@@ -14,13 +21,22 @@
 // read an element file (`file.faulty`, #575/8). The writes, each undone when a
 // later one fails: the image copies of updated elements, the updated files (`writeElementFiles`),
 // then the new files (`createElementFiles`); nothing is deleted that the call did not create.
-//
-// Not yet: the one-to-one mapping of a ReqSeq file (SR-052).
 import path from "node:path";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
-import { createFilesAtomic, createFolder, removeCreatedFiles, zip } from "../../files/index.js";
-import type { Problem, ReqifObject } from "../../generated/types.js";
+import type { Problem } from "../../catalog.js";
+import type { FileSnapshot } from "../../files/index.js";
+import {
+  createFilesAtomic,
+  createFolder,
+  readFileSnapshot,
+  removeCreatedFiles,
+  renderYamlDocument,
+  writeFileAtomic,
+  zip,
+} from "../../files/index.js";
+import type { ReqifMappingFile, ReqifObject } from "../../generated/types.js";
+import type { Metamodel } from "../../metamodel/index.js";
 import { metamodelState } from "../../metamodel/index.js";
 import type { ElementStore, NewElementFile, NewImageFile, ShortIds } from "../../model/index.js";
 import {
@@ -29,24 +45,183 @@ import {
   refuseUnlisted,
   resolveRef,
   shortIdState,
+  titleKeyOrEmpty,
   workspacePath,
 } from "../../model/index.js";
 import type { ElementFileWrite, WrittenElementFile } from "../../model/write.js";
 import { restoreElementFiles, writeElementFiles } from "../../model/write.js";
+import type {
+  AnyMapping,
+  ConflictChoices,
+  ImportPlan,
+  OwnMappingFile,
+  PlannedImage,
+  PlannedUpdateImage,
+} from "../../reqif/index.js";
 import {
+  MAPPING_KEYS,
+  OWN_TOOL_ID,
+  checkMapping,
   existingElements,
   imageContent,
   imageReader,
   importDate,
+  mappingTarget,
   originKeys,
+  ownMapping,
   planImport,
   readDelivery,
   readMappingFile,
   unreadableFiles,
 } from "../../reqif/index.js";
-import type { ConflictChoices, PlannedImage, PlannedUpdateImage } from "../../reqif/index.js";
+import type { ReqifFile } from "../../reqif/model.js";
+import type { Workspace } from "../../runtime/workspace.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../../workspace/index.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
+
+/** Creates the folder of the mapping file to save, once nothing refuses the import any more. */
+const mappingFolder = async (save: SavedMapping): Promise<void> => {
+  const folder = path.posix.dirname(save.file.file);
+  if (folder !== ".") {
+    await createFolder(save.repository.folder, folder);
+  }
+};
+
+/** A mapping file to write: new (written with the elements) or replacing the one read (`expected`). */
+interface SavedMapping {
+  readonly repository: RepositoryLocation;
+  readonly file: NewElementFile;
+  readonly expected?: FileSnapshot;
+}
+
+/** The mapping of a file of ReqSeq, and the mapping file to save with the elements. */
+interface OwnMapping {
+  readonly mapping: AnyMapping;
+  readonly save?: SavedMapping;
+  readonly problems: readonly Problem[];
+}
+
+/** `mapping` as the YAML of a mapping file, its keys in the schema's order. */
+const mappingBytes = (mapping: ReqifMappingFile): Uint8Array => {
+  const data: Readonly<Record<string, unknown>> = { ...mapping };
+  const ordered = Object.fromEntries(
+    MAPPING_KEYS.flatMap((key) => (data[key] === undefined ? [] : [[key, data[key]]])),
+  );
+  return new TextEncoder().encode(renderYamlDocument(ordered));
+};
+
+/**
+ * `saved` with the entries of the one-to-one mapping `fresh` it lacks (SR-052 AK3: a later file of
+ * the same source needs no mapping by hand): each type, attribute and relation type by its source,
+ * and each enumeration value an attribute entry with `values` neither maps nor omits. Entries
+ * `saved` has stay as they are. Undefined when nothing is added.
+ */
+const extendedMapping = (saved: ReqifMappingFile, fresh: OwnMappingFile): ReqifMappingFile | undefined => {
+  // Set in the callbacks below, so an object: a `let` would read as never changed.
+  const found = { added: false };
+  const missing = <T extends { readonly source: string }>(
+    have: readonly T[] = [],
+    more: readonly T[],
+  ): T[] => {
+    const known = new Set(have.map((e) => e.source));
+    const rest = more.filter((e) => !known.has(e.source));
+    found.added ||= rest.length > 0;
+    return [...have, ...rest];
+  };
+  const freshValues = new Map(fresh.attributes.map((e) => [e.source, e.values ?? {}]));
+  const attributes = missing(
+    (saved.attributes ?? []).map((entry) => {
+      const omitted = new Set(entry["omit-values"] ?? []);
+      const values = Object.entries(freshValues.get(entry.source) ?? {}).filter(
+        ([value]) => entry.values !== undefined && !(value in entry.values) && !omitted.has(value),
+      );
+      found.added ||= values.length > 0;
+      // An entry with `values` maps to a property, and keeps doing so.
+      return values.length === 0
+        ? entry
+        : ({ ...entry, values: { ...entry.values, ...Object.fromEntries(values) } } as typeof entry);
+    }),
+    fresh.attributes,
+  );
+  const extended: ReqifMappingFile = {
+    ...saved,
+    types: missing(saved.types, fresh.types),
+    attributes,
+    relations: missing(saved.relations, fresh.relations),
+  };
+  return found.added ? extended : undefined;
+};
+
+/**
+ * The mapping of the file of ReqSeq `file` for `reqif.import` without `mapping` (see the file
+ * comment): the saved one of the source, extended by what this file adds, or a new one-to-one one.
+ */
+const ownMappingOf = async (
+  root: string,
+  layout: WorkspaceLayout,
+  metamodel: Metamodel,
+  file: ReqifFile,
+  given: string | undefined,
+): Promise<OwnMapping> => {
+  const command = "reqif.import";
+  const source = given ?? file.header.title;
+  if (source === undefined || source === "") {
+    throw new CommandError(
+      "input.invalid",
+      "source: the file of ReqSeq has no TITLE; name the source of its elements in source",
+      { command, fields: ["source"] },
+    );
+  }
+  const target = await mappingTarget(layout, root, source, undefined, command);
+  const keys = originKeys(metamodel);
+  const skipped = new Set([titleKeyOrEmpty(metamodel), ...Object.values(keys)]);
+  const fresh = ownMapping(file, metamodel, source, skipped);
+  const shown = workspacePath(layout, target.repository, target.file);
+  const before = await readFileSnapshot(target.repository.folder, target.file);
+  if (before.kind === "problem" && !before.missing) {
+    throw new CommandError("file.faulty", `mapping: ${shown} cannot be read: ${before.problem.message}`, {
+      command,
+      repository: target.repository.name,
+      file: target.file,
+    });
+  }
+  if (before.kind === "problem") {
+    checkMapping(layout, metamodel, fresh, "mapping", command);
+    return {
+      mapping: fresh,
+      save: { repository: target.repository, file: { file: target.file, bytes: mappingBytes(fresh) } },
+      problems: [],
+    };
+  }
+  const absolute = path.join(target.repository.folder, target.file);
+  const { mapping: saved } = await readMappingFile(layout, metamodel, root, absolute, command);
+  const differs = saved.source.name !== source || saved.source["tool-id"] !== OWN_TOOL_ID;
+  const problems: Problem[] = differs
+    ? [
+        {
+          code: "reqif.mapping-differs",
+          severity: "warning",
+          message: `${shown} maps source ${saved.source.name}${saved.source["tool-id"] === undefined ? "" : ` (${saved.source["tool-id"]})`}, not ${source} (${OWN_TOOL_ID}); it is used as it is`,
+          repository: target.repository.name,
+          file: target.file,
+        },
+      ]
+    : [];
+  const extended = extendedMapping(saved, fresh);
+  if (extended === undefined) {
+    return { mapping: saved, problems };
+  }
+  checkMapping(layout, metamodel, extended, "mapping", command);
+  return {
+    mapping: extended,
+    save: {
+      repository: target.repository,
+      file: { file: target.file, bytes: mappingBytes(extended) },
+      expected: before.snapshot,
+    },
+    problems,
+  };
+};
 
 /**
  * The plan's files under the folder spelled as on disk (#194): the rules of the walk are checked on
@@ -92,6 +267,19 @@ const spelledImages = async (
     out.push({ file: at, content: imageContent(file, name) });
   }
   return out;
+};
+
+/** The new files and their image copies as spelled on disk (`spelledFiles`, `spelledImages`); undefined without new files. */
+const spelledNew = async (
+  layout: WorkspaceLayout,
+  plan: ImportPlan,
+): Promise<{ readonly files: NewElementFile[]; readonly images: NewImageFile[] } | undefined> => {
+  const [first] = plan.files;
+  if (first === undefined) {
+    return undefined;
+  }
+  const { spelled, files } = await spelledFiles(layout, plan.repository, plan.folder, plan.files, first);
+  return { files, images: await spelledImages(layout, plan.repository, spelled, plan.images) };
 };
 
 /** Files written at the same time, as `element.bulkUpdate` writes them (N-036). */
@@ -212,86 +400,146 @@ const removeCopies = async (
   return kept;
 };
 
+/**
+ * The image copies and files of the updated elements, the copies removed again when a file fails;
+ * returns what is written, to undo it when a later step fails.
+ */
+const writeUpdates = async (
+  workspace: Workspace,
+  layout: WorkspaceLayout,
+  plan: ImportPlan,
+  titles: { readonly metamodel: Metamodel; readonly store: ElementStore },
+): Promise<{
+  readonly copies: Awaited<ReturnType<typeof copyUpdateImages>>;
+  readonly writes: ElementFileWrite[];
+  readonly written: WrittenElementFile[];
+}> => {
+  const copies = await copyUpdateImages(layout, plan.updateImages);
+  const writes: ElementFileWrite[] = plan.updates.map((u) => u.write);
+  try {
+    const written = await writeElementFiles(workspace, layout, writes, {
+      titles,
+      concurrency: WRITE_CONCURRENCY,
+    });
+    return { copies, writes, written };
+  } catch (error) {
+    throw withWritten(error, await removeCopies(layout, copies));
+  }
+};
+
+/** The mapping of the import: the file `mapping` names, else, for a file of ReqSeq, its own one. */
+const mappingOf = async (
+  root: string,
+  layout: WorkspaceLayout,
+  metamodel: Metamodel,
+  delivery: ReqifFile,
+  own: boolean,
+  input: { readonly mapping?: string; readonly source?: string },
+): Promise<OwnMapping> => {
+  const command = "reqif.import";
+  if (input.mapping === undefined && !own) {
+    throw new CommandError(
+      "input.invalid",
+      `mapping: name the mapping file of the source (reqif.saveMapping); only a file of ReqSeq (REQ-IF-TOOL-ID ${OWN_TOOL_ID}) is mapped one to one without it`,
+      { command, fields: ["mapping"] },
+    );
+  }
+  return input.mapping === undefined
+    ? await ownMappingOf(root, layout, metamodel, delivery, input.source)
+    : {
+        mapping: (await readMappingFile(layout, metamodel, root, input.mapping, command)).mapping,
+        problems: [],
+      };
+};
+
+/**
+ * Refuses the import while elements of an earlier delivery could not be matched and would be
+ * created again: a repository of the workspace is not on this machine (#575/7), or the store cannot
+ * read an element file (#575/8).
+ */
+const refuseIncomplete = (layout: WorkspaceLayout, store: ElementStore): void => {
+  const missing = layout.repositories.filter((r) => !r.available).map((r) => r.name);
+  if (missing.length > 0) {
+    throw new CommandError(
+      "file.folder-missing",
+      `Not imported: repository ${missing.join(", ")} is not on this machine, so elements of an earlier delivery there cannot be matched and would be created again`,
+      { repositories: missing },
+    );
+  }
+  const unreadable = unreadableFiles(store);
+  if (unreadable.length > 0) {
+    throw new CommandError(
+      "file.faulty",
+      `Not imported: ${unreadable.map((p) => String(p.file)).join(", ")} cannot be read as elements, so an element of an earlier delivery there would be created again; fix them first`,
+      { files: unreadable.map(({ repository, file }) => ({ repository, file })) },
+    );
+  }
+};
+
+/** Writes the mapping file `save` on its own, after the elements; returns its workspace path. */
+const saveMapping = async (layout: WorkspaceLayout, save: SavedMapping): Promise<string> => {
+  await mappingFolder(save);
+  await writeFileAtomic(save.repository.folder, save.file.file, save.file.bytes, save.expected ?? null, {
+    kind: "yaml",
+  });
+  return workspacePath(layout, save.repository, save.file.file);
+};
+
 export default defineCommand({
   name: "reqif.import",
   run: async (ctx, input): Promise<CommandOutput<"reqif.import">> => {
-    const command = "reqif.import";
     const { workspace } = ctx;
     const layout = await workspace.get(workspaceLayoutState);
     const metamodel = await workspace.get(metamodelState);
-    if (input.mapping === undefined) {
-      throw new CommandError(
-        "input.invalid",
-        "mapping: name the mapping file of the source (reqif.saveMapping); a file of ReqSeq without mapping is not read yet",
-        { command, fields: ["mapping"] },
-      );
-    }
     const delivery = await readDelivery(workspace.root, input.file);
-    const { mapping } = await readMappingFile(layout, metamodel, workspace.root, input.mapping, command);
-    const missing = layout.repositories.filter((r) => !r.available).map((r) => r.name);
-    if (missing.length > 0) {
-      throw new CommandError(
-        "file.folder-missing",
-        `Not imported: repository ${missing.join(", ")} is not on this machine, so elements of an earlier delivery there cannot be matched and would be created again`,
-        { repositories: missing },
-      );
-    }
+    const own = delivery.header.toolId === OWN_TOOL_ID;
+    const mapped = await mappingOf(workspace.root, layout, metamodel, delivery, own, input);
     const store = await workspace.get(elementStoreState);
-    const unreadable = unreadableFiles(store);
-    if (unreadable.length > 0) {
-      throw new CommandError(
-        "file.faulty",
-        `Not imported: ${unreadable.map((p) => String(p.file)).join(", ")} cannot be read as elements, so an element of an earlier delivery there would be created again; fix them first`,
-        { files: unreadable.map(({ repository, file }) => ({ repository, file })) },
-      );
-    }
+    refuseIncomplete(layout, store);
     const shortIds = await workspace.get(shortIdState);
     const existing = await existingElements(
       workspace,
       layout,
       metamodel,
       delivery,
-      mapping.source.name,
+      mapped.mapping.source.name,
       originKeys(metamodel),
     );
     const plan = await planImport(
       delivery,
-      mapping,
+      mapped.mapping,
       layout,
       metamodel,
       { delivery: input.delivery, date: importDate(new Date()) },
       imageReader(path.resolve(workspace.root, input.file), ctx.localPaths),
+      own,
       { existing, choose: chooser(store, shortIds, input.take ?? [], input.keep ?? []) },
     );
+    const { save } = mapped;
+    // A new mapping file is written with the elements when it lies in their repository.
+    const together = save?.expected === undefined && save?.repository.name === plan.repository.name;
     // Every refusal came with the plan; the walk checks of the update copies come before any
     // folder is created, as those of the new files do in spelledFiles.
     for (const { repository, file } of plan.updateImages) {
       await refuseUnlisted(layout, repository, file);
     }
-    const [first] = plan.files;
-    const prepared =
-      first === undefined
-        ? undefined
-        : await spelledFiles(layout, plan.repository, plan.folder, plan.files, first);
-    const newImages =
-      prepared === undefined
-        ? []
-        : await spelledImages(layout, plan.repository, prepared.spelled, plan.images);
-    const copies = await copyUpdateImages(layout, plan.updateImages);
-    const writes: ElementFileWrite[] = plan.updates.map((u) => u.write);
-    let written: WrittenElementFile[];
-    try {
-      written = await writeElementFiles(workspace, layout, writes, {
-        titles: { metamodel, store },
-        concurrency: WRITE_CONCURRENCY,
-      });
-    } catch (error) {
-      throw withWritten(error, await removeCopies(layout, copies));
-    }
+    const prepared = await spelledNew(layout, plan);
+    const { copies, writes, written } = await writeUpdates(workspace, layout, plan, { metamodel, store });
     let files: string[] = [];
     if (prepared !== undefined) {
       try {
-        files = await createElementFiles(workspace, layout, plan.repository, prepared.files, newImages);
+        if (together) {
+          await mappingFolder(save);
+        }
+        files = await createElementFiles(
+          workspace,
+          layout,
+          plan.repository,
+          prepared.files,
+          together
+            ? [...prepared.images, { file: save.file.file, content: save.file.bytes }]
+            : prepared.images,
+        );
       } catch (error) {
         const kept = [
           ...(await restoreElementFiles(zip(writes, written))),
@@ -300,6 +548,9 @@ export default defineCommand({
         await workspace.reset(elementStoreState);
         throw withWritten(error, kept);
       }
+    }
+    if (save !== undefined && (prepared === undefined || !together)) {
+      files.push(await saveMapping(layout, save));
     }
     const list = (kind: "updated" | "kept"): ReqifObject[] =>
       plan.updates.filter((u) => u.kind === kind).map(({ identifier, id }) => ({ identifier, id }));
@@ -314,7 +565,7 @@ export default defineCommand({
         ...copies.map((c) => workspacePath(layout, c.repository, c.path)),
         ...files,
       ],
-      problems: [...plan.problems],
+      problems: [...mapped.problems, ...plan.problems],
     };
   },
 });

@@ -81,6 +81,8 @@ const SELECTION_TOOLS: readonly string[] = [
   "baseline_create",
   // Export profiles of a mapping hold a selection (SR-059 AK3); ADR-0009 counted it in.
   "reqif_saveMapping",
+  // Listed since it is implemented (SR-052): it exports a selection (SR-101).
+  "reqif_export",
 ];
 /**
  * What each listed tool brings to the bound of the whole list (#496). The tools average 1.85 KB without their
