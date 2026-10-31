@@ -93,8 +93,10 @@ describe("origin of imported elements (SR-057)", () => {
       "import-date": "2026-11-02",
     });
 
-    // The import version covers what the import wrote, not the origin: another delivery on another
-    // day gives the same one. The origin does not count to the version either (D-057).
+    // The import version is the version of the element right after the import (D-059).
+    expect(one.element.properties["import-version"]).toBe(one.element.version);
+    // The origin does not count to the version (D-057): another delivery on another day gives the
+    // same version and import version.
     atLocal(new Date(2026, 11, 24, 0, 5));
     const again = await run(workspace, "reqif.import", {
       ...INPUT,
@@ -103,36 +105,36 @@ describe("origin of imported elements (SR-057)", () => {
     });
     const other = await got(again.created[0]?.id);
     expect(originOf(other)).toMatchObject({ source: "Kunde B", "import-date": "2026-12-24", delivery: "2" });
-    expect(other.element.properties["import-version"]).toBe(one.element.properties["import-version"]);
     expect(other.element.version).toBe(one.element.version);
-    // A delivery with another text has another import version.
-    const changed = await open({ "in/lieferung.reqif": DELIVERY.replace("Every 10 s.", "Every 5 s.") });
-    const third = await run(changed, "reqif.import", INPUT);
-    const read = await run(changed, "element.get", { ref: third.created[0]?.id ?? "" });
-    expect(read.element.properties["import-version"]).not.toBe(one.element.properties["import-version"]);
+    expect(other.element.properties["import-version"]).toBe(one.element.version);
   });
 
-  it("[SR-057/AK1] does not import an object whose type cannot hold the origin, and needs every origin meaning", async () => {
+  it("[SR-057/AK1] refuses a mapping to a type that cannot hold the origin, and an origin property of another kind", async () => {
     const without = await open({
       "metamodel/standard-model.yaml": METAMODEL.replace(
         "        import-version,\n        topic,",
         "        topic,",
       ),
     });
-    const out = await run(without, "reqif.import", INPUT);
-    expect(out.created).toEqual([]);
-    expect(out.files).toEqual([]);
-    expect(out.losses.filter((l) => l.code === "type-without-origin")).toEqual([
-      {
-        identifier: "REQ-1",
-        kind: "spec-object",
-        code: "type-without-origin",
-        reason: "type system-requirement has no import-version, so the origin cannot be kept",
-      },
-      expect.objectContaining({ identifier: "REQ-2", code: "type-without-origin" }),
+    const refused = await failure(without, "reqif.import", INPUT);
+    expect([refused.code, refused.message, refused.details?.["fields"]]).toEqual([
+      "input.invalid",
+      "mapping.types[0].type: type system-requirement has no import-version, which hold the origin of every imported element (SR-057)",
+      ["mapping.types[0].type"],
     ]);
-    // The parts of an object that is not imported are not listed again.
-    expect(out.losses.map((l) => l.code)).not.toContain("omitted-attribute");
+
+    const many = await open({
+      "metamodel/standard-model.yaml": METAMODEL.replace(
+        "      meaning: delivery,",
+        "      many: true,\n      meaning: delivery,",
+      ),
+    });
+    const kind = await failure(many, "reqif.import", INPUT);
+    expect([kind.code, kind.message, kind.details?.["reason"]]).toEqual([
+      "input.invalid",
+      "Not imported: property delivery has the meaning delivery, which needs kind text without many",
+      "origin-kind",
+    ]);
 
     const unassigned = await open({
       "metamodel/standard-model.yaml": METAMODEL.replace("      meaning: delivery,\n", ""),

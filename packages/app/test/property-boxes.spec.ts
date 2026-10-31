@@ -240,17 +240,18 @@ test.describe("property boxes of an element", () => {
     expect(offered).not.toContain("Title");
     expect(offered).not.toContain("Topic");
     expect(offered).not.toContain("Acceptance Criteria");
-    await window.keyboard.type("delivery");
-    await expect(window.locator('.candidates [role="option"]').first()).toContainText("Delivery");
+    // Rationale, not an origin property such as Delivery: only reqif.import writes those (SR-057 AK3).
+    await window.keyboard.type("rationale");
+    await expect(window.locator('.candidates [role="option"]').first()).toContainText("Rationale");
     await window.keyboard.press("Enter");
-    // An empty box, in the order of the type (before topic), with the caret in it.
-    await expect(field(window, "delivery")).toHaveCount(1);
-    await expect(field(window, "delivery").locator(".cm-content")).toBeFocused();
-    await expect(field(window, "delivery").locator(".cm-content")).toHaveText("");
+    // An empty box, in the order of the type (before requirement-type), with the caret in it.
+    await expect(field(window, "rationale")).toHaveCount(1);
+    await expect(field(window, "rationale").locator(".cm-content")).toBeFocused();
+    await expect(field(window, "rationale").locator(".cm-content")).toHaveText("");
     expect(await boxLabels(window)).toEqual([
+      "rationale",
       "requirement-type",
       "acceptance-criteria",
-      "delivery",
       "topic",
       "legacy",
       "packages",
@@ -263,9 +264,9 @@ test.describe("property boxes of an element", () => {
     expect(await readFile(running)).toBe(before);
     await window.keyboard.press("ControlOrMeta+S");
     await expect(modeline(window)).not.toContainText("modified");
-    expect((await cliGet(running)).element.properties["delivery"]).toBe("Lieferung");
-    expect(await readFile(running)).toContain("delivery: Lieferung");
-    await expect(field(window, "delivery").locator(".cm-content")).toHaveText("Lieferung");
+    expect((await cliGet(running)).element.properties["rationale"]).toBe("Lieferung");
+    expect(await readFile(running)).toContain("rationale: Lieferung");
+    await expect(field(window, "rationale").locator(".cm-content")).toHaveText("Lieferung");
   });
 
   test("[SR-104/AK2] adding a choice puts the empty box in the page and opens the prompt with the choices at once; Escape leaves the focus on the box", async () => {

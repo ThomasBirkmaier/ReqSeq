@@ -23,10 +23,9 @@
 //   and every part of an imported object the parser did not read. A DEFAULT-VALUE is the value of
 //   an object without its own (ReqIF 1.2 §10.8.3).
 // - Origin (SR-057 AK1): each element gets the source name of the mapping, the object's IDENTIFIER,
-//   the import date, the delivery and the import version (`importVersion` of the model over what
-//   the import wrote). A type without all five origin properties is not imported
-//   (`type-without-origin`, ADR-0013). The planned version is taken with the origin, which does not
-//   count to it in the standard model (D-057).
+//   the import date, the delivery and the import version: the element's planned version as written
+//   (D-059; `import-version` never counts to it). A mapping that maps a SPEC-OBJECT-TYPE to a type
+//   without all five origin properties is refused with `input.invalid` at that entry.
 // - Never from the delivery: `id`, `type`, `status`, the title key (D-030) and the origin
 //   properties (SR-057 AK3; `propertyKeyRefusal`).
 // - Files go into the mapping's `target`, else a folder named after the source in the main
@@ -47,7 +46,6 @@ import { allowsType, keyDefinition } from "../metamodel/index.js";
 import type { NewElementBase, NewElementFile } from "../model/index.js";
 import {
   fileNameFor,
-  importVersion,
   newElementBase,
   newElementBytes,
   plannedVersion,
@@ -254,9 +252,11 @@ const checkObjectType = (
   index: Index,
   mapping: AnyMapping,
   metamodel: Metamodel,
+  keys: OriginKeys,
   t: ReqifSpecType,
 ): void => {
-  const typeEntry = (mapping.types ?? []).find((e) => matches(e.source, t));
+  const at = (mapping.types ?? []).findIndex((e) => matches(e.source, t));
+  const typeEntry = mapping.types?.[at];
   if (typeEntry === undefined) {
     coverage.unmapped.push({ kind: "type", source: nameOf(t) });
     return;
@@ -266,6 +266,13 @@ const checkObjectType = (
     return;
   }
   const base = newElementBase(metamodel, typeEntry.type, "reqif.import");
+  const missing = Object.values(keys).filter((key) => !base.type.properties.includes(key));
+  if (missing.length > 0) {
+    coverage.wrong.push({
+      field: `mapping.types[${String(at)}].type`,
+      message: `type ${base.type.key} has no ${missing.join(", ")}, which hold the origin of every imported element (SR-057)`,
+    });
+  }
   for (const a of t.attributes) {
     const found = attributeEntry(mapping, t, a);
     if (found === undefined) {
@@ -279,13 +286,14 @@ const checkObjectType = (
 /**
  * Checks the mapping against the file: `reqif.unmapped` with every entry it neither maps nor omits
  * (SR-055), `input.invalid` for an attribute mapped to a property that cannot hold it or that its
- * type does not have.
+ * type does not have, and for a type mapped to one without the origin properties `keys`.
  */
 const checkCoverage = (
   file: ReqifFile,
   index: Index,
   mapping: AnyMapping,
   metamodel: Metamodel,
+  keys: OriginKeys,
 ): Coverage => {
   const coverage: Coverage = {
     attributes: new Map(),
@@ -303,7 +311,7 @@ const checkCoverage = (
         coverage.relations.set(t.identifier, relationEntry.kind);
       }
     } else if (t.category === "spec-object") {
-      checkObjectType(coverage, index, mapping, metamodel, t);
+      checkObjectType(coverage, index, mapping, metamodel, keys, t);
     }
   }
   const { unmapped, wrong } = coverage;
@@ -556,16 +564,6 @@ const planObject = (
   }
   const base = newElementBase(context.metamodel, ownType, "reqif.import");
   const { keys } = context;
-  const missing = Object.values(keys).filter((key) => !base.type.properties.includes(key));
-  if (missing.length > 0) {
-    context.losses.push({
-      identifier: object.identifier,
-      kind: "spec-object",
-      code: "type-without-origin",
-      reason: `type ${base.type.key} has no ${missing.join(", ")}, so the origin cannot be kept`,
-    });
-    return undefined;
-  }
   const draft: Draft = {
     identifier: object.identifier,
     id: randomUUID(),
@@ -577,13 +575,13 @@ const planObject = (
     version: "",
   };
   planValues(context, object, t, draft);
-  const version = importVersion(context.metamodel, base.titleKey, draft.title, draft.text, draft.properties);
   draft.properties.set(keys.source, context.source);
   draft.properties.set(keys["source-identifier"], object.identifier);
   draft.properties.set(keys["import-date"], context.origin.date);
   draft.properties.set(keys.delivery, context.origin.delivery);
-  draft.properties.set(keys["import-version"], version);
+  // The import version is the version of the element as written (D-059); it never counts to it.
   draft.version = plannedVersion(context.metamodel, repository, fileOf(draft, folder, false));
+  draft.properties.set(keys["import-version"], draft.version);
   return draft;
 };
 
@@ -680,9 +678,7 @@ const allowed = (metamodel: Metamodel, kind: string, source: Draft, target: Draf
  */
 const unreadLosses = (file: ReqifFile, drafts: ReadonlyMap<string, Draft>, losses: ReqifLoss[]): void => {
   const omitted = new Set(
-    losses
-      .filter((l) => l.code === "omitted-type" || l.code === "type-without-origin")
-      .map((l) => `${l.kind} ${l.identifier}`),
+    losses.filter((l) => l.code === "omitted-type").map((l) => `${l.kind} ${l.identifier}`),
   );
   const sources = new Map(file.specRelations.map((r) => [r.identifier, r.source]));
   for (const { name, line, owner } of file.unread) {
@@ -711,7 +707,7 @@ export const planImport = (
 ): ImportPlan => {
   const keys = originKeys(metamodel);
   const index = indexOf(file);
-  const coverage = checkCoverage(file, index, mapping, metamodel);
+  const coverage = checkCoverage(file, index, mapping, metamodel, keys);
   const location: WorkspaceLocation = mapping.target ?? {
     repository: layout.main,
     path: portableName(mapping.source.name, "source"),
