@@ -43,6 +43,7 @@ import {
   listNamed,
   markdownKeysOf,
   metamodelState,
+  originMeaning,
   requireMeaning,
   typeForNewElement,
   typeStatuses,
@@ -147,7 +148,8 @@ const titleKeyFor = (metamodel: Metamodel, type: MetamodelEffectiveType, command
 /**
  * Why `key` may not be written as a property of `type` (`element.create`, `reqif.import`), or
  * undefined: properties of the type only, never the structural keys `id`, `type`, `status`
- * (D-030: a status is set by people) or the title key (given as `title`). Relation kinds are no
+ * (D-030: a status is set by people), the title key (given as `title`) or a property of the origin
+ * (`ORIGIN_MEANINGS`), which only `reqif.import` writes (SR-057 AK3). Relation kinds are no
  * properties; relations are added with `relation.add`.
  */
 export const propertyKeyRefusal = (
@@ -170,6 +172,13 @@ export const propertyKeyRefusal = (
     return {
       message: `${key} is a relation kind, not a property; add relations with relation.add`,
       details: { key, reason: "relation" },
+    };
+  }
+  const origin = originMeaning(keyDefinition(metamodel, key)?.definition);
+  if (origin !== undefined) {
+    return {
+      message: `${field} cannot hold ${key}: it holds the origin (${origin}), which only reqif.import writes`,
+      details: { key, reason: "origin" },
     };
   }
   return type.properties.includes(key)

@@ -3689,7 +3689,7 @@
     {
       "name": "element_update",
       "title": "Update element",
-      "description": "Change title, text or properties of one element. Unknown properties are kept; status changes only via element.setStatus.",
+      "description": "Change title, text or properties of one element. Unknown properties are kept; status changes only via element.setStatus, and the origin of an imported element only via reqif.import (SR-057).",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -7341,7 +7341,7 @@
     {
       "name": "reqif_import",
       "title": "Import ReqIF file",
-      "description": "Import a ReqIF 1.2 file through a saved mapping, all or nothing: creates an element per object and reports losses. This version creates new elements on every import; updating those of an earlier delivery, origin and import version, and take and keep come later.",
+      "description": "Import a ReqIF 1.2 file through a saved mapping, all or nothing: creates an element per object and reports losses. Each element keeps its origin (source, source IDENTIFIER, import date, delivery, import version), which no other command writes. This version creates new elements on every import; updating those of an earlier delivery, and take and keep come later.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,

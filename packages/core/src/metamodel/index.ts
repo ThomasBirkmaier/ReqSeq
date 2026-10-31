@@ -26,9 +26,11 @@ export type { KeyDefinition } from "./lookup.js";
 export {
   EMERGENT_CHOICE,
   MEANINGS,
+  ORIGIN_MEANINGS,
   emergentProblem,
   meaningUnassigned,
   meaningUnassignedMessage,
+  originMeaning,
   propertyWithMeaning,
   relationKindsWithMeaning,
   requireMeaning,

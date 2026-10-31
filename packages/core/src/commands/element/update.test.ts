@@ -248,7 +248,7 @@ describe("element.update", () => {
     expect(await read(opened, WIND.file)).toContain('title: ""\n');
   });
 
-  it("[SR-064/AK3] an element created with only its title takes every other property of its type when opened again, required and optional, in type order; the hints of the filled required properties are gone", async () => {
+  it("[SR-064/AK3] an element created with only its title takes every other property of its type when opened again, required and optional (the origin aside, SR-057), in type order; the hints of the filled required properties are gone", async () => {
     const opened = await open();
     const create = async (input: Record<string, unknown>): Promise<CommandOutput<"element.create">> =>
       (await invoke("element.create", input, {
@@ -278,11 +278,8 @@ describe("element.update", () => {
         ref: created.element.id,
         // Given in reverse type order: the file gets them in the order of the type (ADR-0004).
         set: {
+          // The origin is left out: only reqif.import writes it (SR-057 AK3).
           topic: "Wind",
-          delivery: "Stage 3",
-          "import-date": "2026-10-28",
-          "source-identifier": "REQ-7",
-          source: "Customer",
           statement: "Gusts are shown.",
           "verification-method": "test",
           emergent: "no",
@@ -315,10 +312,6 @@ describe("element.update", () => {
       "emergent",
       "verification-method",
       "statement",
-      "source",
-      "source-identifier",
-      "import-date",
-      "delivery",
       "topic",
     ]);
     expect(out.element.properties).toMatchObject({
@@ -330,10 +323,6 @@ describe("element.update", () => {
       emergent: "no",
       "verification-method": "test",
       statement: "Gusts are shown.",
-      source: "Customer",
-      "source-identifier": "REQ-7",
-      "import-date": "2026-10-28",
-      delivery: "Stage 3",
       topic: "Wind",
     });
   });
