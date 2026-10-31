@@ -31,7 +31,7 @@ The user documentation lists these keys on its generated page "Keyboard shortcut
 | Ctrl/Cmd+Enter | On an element, open the element of the inline reference at the cursor, or the first reference of the Markdown property box that has the focus; in a box, the reference at the caret; on a focused target link of a relation box or group, that target (action "Follow reference") |
 | Ctrl/Cmd+Shift+Enter | On an element, the list of the elements with the value at the cursor, or the prompt "Elements with" among its values (action "List elements with this value", SR-132). On macOS only Cmd+Shift+Enter |
 | Ctrl/Cmd+click on a value | On an element, the list of the elements with the value clicked in a property box (SR-132, #235). On macOS only Cmd+click |
-| Ctrl/Cmd+Shift+C | On an element, copy the field with the cursor, else the ID, as text, one value per line (action "Copy field", SR-128). Every field also has a copy symbol at its right edge, seen on hover or focus |
+| Ctrl/Cmd+Shift+C | On an element, copy the field with the cursor, else the ID, as text, one value per line (action "Copy field", SR-128). Every field also has a copy symbol at its right edge, seen on hover or focus; the field with the focus has the grey of a selected list row, and Up and Down move it with its symbol (SR-155) |
 | Escape | In the text, back to the element; in a property box, back to the box, and from the box to the element; in the title, back to its field |
 | `/` | In the text, at the start of a line or after a space: the slash menu (SR-129) with the Markdown elements at the caret |
 | (slash menu open) Down, Up, Tab, Ctrl+N / Ctrl+P, Enter, Escape | Choose, take the entry (one undo step), close the menu and leave the `/` as typed |
