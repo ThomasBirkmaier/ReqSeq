@@ -207,6 +207,17 @@ describe("startShell", () => {
     }
   });
 
+  it("gives the window the app icon on Linux only; macOS and Windows take it from the bundle (#410)", async () => {
+    const linux = fakeElectron(false);
+    await startShell(linux.electron as unknown as ShellElectron, options());
+    expect(linux.windows[0]?.options).toMatchObject({ icon: path.join("/out/renderer", "icon.png") });
+    for (const platform of ["darwin", "win32"] as const) {
+      const other = fakeElectron(false);
+      await startShell(other.electron as unknown as ShellElectron, { ...options(), platform });
+      expect(other.windows[0]?.options).not.toHaveProperty("icon");
+    }
+  });
+
   it("opens one secured window on the bundled renderer, with the menu and the protocols", async () => {
     const { electron, windows, protocolHandlers } = await start();
     expect(windows).toHaveLength(1);
