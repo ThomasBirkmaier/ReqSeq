@@ -306,7 +306,7 @@ describe("NeighbourhoodView", () => {
     expect(texts('[role="listbox"] .outdated')).toEqual([" link outdated"]);
     // The hover text says which end points to an older version of which (#513).
     expect(query('[role="tree"] .outdated').getAttribute("title")).toBe(
-      "S1 derives-from an older version of N1",
+      "S1 points to an older version of N1 (derives-from)",
     );
   });
 
@@ -318,7 +318,7 @@ describe("NeighbourhoodView", () => {
     const line = query(".parents");
     expect(line.textContent).toBe("Title N1 › Title S1 link outdated");
     expect(line.querySelector(".outdated")?.getAttribute("title")).toBe(
-      "C1 derives-from an older version of S1",
+      "C1 points to an older version of S1 (derives-from)",
     );
     expect(line.compareDocumentPosition(query("h1")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });

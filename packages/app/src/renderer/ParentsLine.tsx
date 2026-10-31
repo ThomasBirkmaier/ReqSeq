@@ -105,7 +105,7 @@ export const ParentsRow = ({
   /**
    * The mark of the element's own outdated derivation to a direct parent: the hint's message and the word
    * with the date of the version it stores (SR-110 AK2); undefined while the buffer has none for it. The
-   * neighbourhood buffer has no hints of the element and shows the word alone.
+   * neighbourhood buffer has no hints of the element and shows the word with the note of its edge (#513).
    */
   readonly mark?: (parent: Parent) => OutdatedMark | undefined;
 }): React.JSX.Element | null => {

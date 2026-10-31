@@ -71,7 +71,7 @@ const Cells = ({
 );
 
 /** The mark of an outdated link, with the hover text that says which end points to an older version of which (#513). */
-const OutdatedMark = ({ note }: { readonly note: string }): React.JSX.Element => (
+const OutdatedWord = ({ note }: { readonly note: string }): React.JSX.Element => (
   <span className="outdated" title={note}>
     {" "}
     {OUTDATED_WORD}
@@ -308,7 +308,7 @@ export const NeighbourhoodView = ({
                     after={
                       <>
                         {entry.repeated ? <span className="repeated"> repeated</span> : null}
-                        {entry.outdated === undefined ? null : <OutdatedMark note={entry.outdated} />}
+                        {entry.outdated === undefined ? null : <OutdatedWord note={entry.outdated} />}
                       </>
                     }
                   />
@@ -339,7 +339,7 @@ export const NeighbourhoodView = ({
                   >
                     <Cells
                       row={entry.row}
-                      after={entry.outdated === undefined ? null : <OutdatedMark note={entry.outdated} />}
+                      after={entry.outdated === undefined ? null : <OutdatedWord note={entry.outdated} />}
                     />
                   </div>
                 ))}

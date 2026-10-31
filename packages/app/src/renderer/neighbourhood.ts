@@ -65,9 +65,9 @@ const idOf = (nodes: ReadonlyMap<string, Node>, repository: string, id: string):
 };
 
 /**
- * The hover text of an outdated link, which names its direction (#513): "SR-147 refines an older version
- * of SR-076", for an inline reference "E references an older version of D2 in its text"; undefined when
- * the link is current. The word itself stands at the other end of the link in both views.
+ * The hover text of an outdated link, which names its direction (#513): "SR-147 points to an older version
+ * of SR-076 (refines)", with the relation's key or "inline reference"; undefined when the link is current.
+ * The word itself stands at the other end of the link in both views.
  */
 const outdatedNote = (nodes: ReadonlyMap<string, Node>, edge: Edge): string | undefined => {
   if (!edge.outdated) {
@@ -75,9 +75,7 @@ const outdatedNote = (nodes: ReadonlyMap<string, Node>, edge: Edge): string | un
   }
   const source = idOf(nodes, edge.sourceRepository, edge.source);
   const target = idOf(nodes, edge.targetRepository, edge.target);
-  return edge.kind === undefined
-    ? `${source} references an older version of ${target} in its text`
-    : `${source} ${edge.kind} an older version of ${target}`;
+  return `${source} points to an older version of ${target} (${edge.kind ?? "inline reference"})`;
 };
 
 /** A parent in the line above the title. */
@@ -100,11 +98,22 @@ export interface Parents {
 /** The parents of `trace.neighbourhood { direction: "up", allLevels }`, the top level first (AK1). */
 export const parentLevels = (output: TraceNeighbourhoodOutput): Parents => {
   const nodes = nodesByKey(output);
-  const outdated = new Map(
-    output.edges
-      .filter((edge) => edge.direction === "up" && edge.source === output.root && edge.outdated)
-      .map((edge) => [keyOf(edge.targetRepository, edge.target), outdatedNote(nodes, edge)]),
-  );
+  const root = output.nodes.find((node) => node.depth === 0);
+  // One note per parent; two outdated links of the element to the same parent are named both.
+  const outdated = new Map<string, string>();
+  for (const edge of output.edges) {
+    const note = outdatedNote(nodes, edge);
+    if (
+      note !== undefined &&
+      edge.direction === "up" &&
+      edge.source === output.root &&
+      edge.sourceRepository === root?.repository
+    ) {
+      const key = keyOf(edge.targetRepository, edge.target);
+      const before = outdated.get(key);
+      outdated.set(key, before === undefined ? note : `${before}; ${note}`);
+    }
+  }
   const byDepth = new Map<number, Parent[]>();
   for (const node of output.nodes.filter((candidate) => candidate.direction === "up")) {
     const level = byDepth.get(node.depth) ?? [];
