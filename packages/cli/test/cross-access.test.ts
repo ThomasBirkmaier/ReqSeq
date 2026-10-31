@@ -513,6 +513,13 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
   ],
   "element.bulkUpdate": [
     {
+      name: "an origin property is refused: only reqif.import writes it",
+      fixture: FILTER,
+      input: { selection: {}, property: "delivery", operation: "set", value: "1", confirm: true },
+      tag: "[SR-057/AK3]",
+      expect: "error",
+    },
+    {
       name: "a variant is not given validity entries: the preview names it, the confirmation is refused",
       fixture: NESTED,
       input: {
@@ -1152,6 +1159,12 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
     },
   ],
   "element.update": [
+    {
+      name: "setting an origin property is refused: only reqif.import writes it",
+      input: { ref: "SR-e88fb3", set: { source: "Kunde B" } },
+      tag: "[SR-057/AK3]",
+      expect: "error",
+    },
     {
       name: "a variant whose validity names a variant is refused (variant.nested)",
       fixture: NESTED,

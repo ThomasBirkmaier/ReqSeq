@@ -75,22 +75,26 @@ describe("reqif.import (SR-053)", () => {
     expect(out.created.map((c) => c.identifier)).toEqual(["REQ-1", "REQ-2"]);
     const [one, two] = out.created.map((c) => c.id ?? "");
     expect(out.files).toEqual([`Kunde-A/SR-${tail(one ?? "")}.md`, `Kunde-A/SR-${tail(two ?? "")}.md`]);
-    expect(await fs.readFile(fixture.path(out.files[0] ?? ""), "utf8")).toBe(
-      [
-        "---",
-        `id: ${one ?? ""}`,
-        "type: system-requirement",
-        "status: draft",
-        "title: Measure the wind",
-        "requirement-type: functional",
-        "---",
-        "",
-        "The station shall measure the wind speed.",
-        "",
-        "Every 10 s.",
-        "",
-      ].join("\n"),
-    );
+    expect((await fs.readFile(fixture.path(out.files[0] ?? ""), "utf8")).split("\n")).toEqual([
+      "---",
+      `id: ${one ?? ""}`,
+      "type: system-requirement",
+      "status: draft",
+      "title: Measure the wind",
+      "requirement-type: functional",
+      // The origin (SR-057).
+      "source: Kunde A",
+      "source-identifier: REQ-1",
+      expect.stringMatching(/^import-date: "\d{4}-\d{2}-\d{2}"$/),
+      "delivery: Lastenheft 2026-11",
+      expect.stringMatching(/^import-version: n1:[0-9a-f]{16}$/),
+      "---",
+      "",
+      "The station shall measure the wind speed.",
+      "",
+      "Every 10 s.",
+      "",
+    ]);
     const got = (await invoke("element.get", { ref: two }, { workspace })) as CommandOutput<"element.get">;
     expect(got.element.status).toBe("draft");
     expect(got.element.properties["requirement-type"]).toBe("quality");

@@ -36,7 +36,7 @@ import type {
   RelationTarget,
 } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
-import { findType, keyDefinition, markdownKeysOf } from "../metamodel/index.js";
+import { findType, keyDefinition, markdownKeysOf, originMeaning } from "../metamodel/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import type { ElementRecord } from "./elements.js";
@@ -118,7 +118,8 @@ const invalid = (message: string, details: Record<string, unknown>): CommandErro
 
 /**
  * The property `key` names: a property of the metamodel, not the title key (each element has its own
- * title) and not a relation kind (relations are added one by one with `relation.add`).
+ * title), not a relation kind (relations are added one by one with `relation.add`) and not a property
+ * of the origin, which only `reqif.import` writes (SR-057 AK3).
  */
 const propertyOf = (metamodel: Metamodel, key: string): MetamodelProperty => {
   const found = keyDefinition(metamodel, key);
@@ -139,6 +140,13 @@ const propertyOf = (metamodel: Metamodel, key: string): MetamodelProperty => {
         reason: "title",
       },
     );
+  }
+  const origin = originMeaning(found.definition);
+  if (origin !== undefined) {
+    throw invalid(`property: ${key} holds the origin (${origin}), which only reqif.import writes`, {
+      key,
+      reason: "origin",
+    });
   }
   return found.definition;
 };
