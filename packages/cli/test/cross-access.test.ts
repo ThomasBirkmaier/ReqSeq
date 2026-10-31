@@ -2078,6 +2078,34 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       expect: "error",
     },
   ],
+  "reqif.saveMapping": [
+    {
+      tag: "[SR-054/AK1]",
+      name: "the mapping of a source as a YAML file in the folder reqif of the main repository",
+      input: {
+        mapping: {
+          "reqseq-reqif-mapping": 1,
+          source: { name: "Kunde A" },
+          types: [{ source: "Customer Requirement", type: "system-requirement" }],
+          attributes: [
+            { source: "ReqIF.Name", property: "title" },
+            { source: "Priority", property: "requirement-type", values: { High: "functional" } },
+          ],
+          relations: [{ source: "satisfies", kind: "derives-from" }],
+        },
+      },
+      expect: "output",
+    },
+    {
+      tag: "[SR-054/AK1]",
+      name: "a mapping file outside the folder reqif",
+      input: {
+        file: "requirements/kunde-a.yaml",
+        mapping: { "reqseq-reqif-mapping": 1, source: { name: "Kunde A" } },
+      },
+      expect: "error",
+    },
+  ],
   "variant.diff": [
     {
       tag: "[SR-044/AK1]",
