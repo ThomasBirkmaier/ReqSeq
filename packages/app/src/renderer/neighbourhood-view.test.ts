@@ -236,7 +236,7 @@ describe("NeighbourhoodView", () => {
     expect(texts("h2")).toEqual(["Children", "← excludes", "← inline reference"]);
     expect(rows()).toEqual(["S1 ▸Title S1", "S2 ▸Title S2"]);
     expect(rows('[aria-label="← excludes"] [role="option"]')).toEqual(["V1 Title V1"]);
-    expect(rows('[aria-label="← inline reference"] [role="option"]')).toEqual(["E Title E outdated"]);
+    expect(rows('[aria-label="← inline reference"] [role="option"]')).toEqual(["E Title E link outdated"]);
     expect(
       [...container.querySelectorAll('[role="treeitem"]')].map((row) => row.getAttribute("aria-expanded")),
     ).toEqual(["false", "false"]);
@@ -301,9 +301,13 @@ describe("NeighbourhoodView", () => {
       return output;
     };
     await mount(asCall(fakeCall({ tree })));
-    expect(texts('[role="tree"] .outdated')).toEqual([" outdated"]);
-    expect(rows('[role="tree"] [role="treeitem"]')[0]).toBe("S1 ▸Title S1 outdated");
-    expect(texts('[role="listbox"] .outdated')).toEqual([" outdated"]);
+    expect(texts('[role="tree"] .outdated')).toEqual([" link outdated"]);
+    expect(rows('[role="tree"] [role="treeitem"]')[0]).toBe("S1 ▸Title S1 link outdated");
+    expect(texts('[role="listbox"] .outdated')).toEqual([" link outdated"]);
+    // The hover text says which end points to an older version of which (#513).
+    expect(query('[role="tree"] .outdated').getAttribute("title")).toBe(
+      "S1 points to an older version of N1 (derives-from)",
+    );
   });
 
   it("[SR-107/AK1] shows the parents above the title of the neighbourhood", async () => {
@@ -312,7 +316,10 @@ describe("NeighbourhoodView", () => {
       neighbourhoodBuffer("uuid-C1", "spec", "C1 Title C1"),
     );
     const line = query(".parents");
-    expect(line.textContent).toBe("Title N1 › Title S1 outdated");
+    expect(line.textContent).toBe("Title N1 › Title S1 link outdated");
+    expect(line.querySelector(".outdated")?.getAttribute("title")).toBe(
+      "C1 points to an older version of S1 (derives-from)",
+    );
     expect(line.compareDocumentPosition(query("h1")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
@@ -650,7 +657,7 @@ describe("the parents line on the element page", () => {
     });
     const line = query(".parents");
     expect(line.getAttribute("aria-label")).toBe("Parents");
-    expect(line.textContent).toBe("Title N1 › Title S1 outdated");
+    expect(line.textContent).toBe("Title N1 › Title S1 link outdated");
     expect(line.compareDocumentPosition(query("h1")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(texts('.parents [role="link"]')).toEqual(["Title N1", "Title S1"]);
     expect(query('.parents [role="link"]').getAttribute("title")).toBe("N1");
@@ -684,7 +691,7 @@ describe("the parents line on the element page", () => {
     expect(query("h1").textContent).toBe("Title C1");
     const more = elementCall(() => ({ ...parentsOfC1(), total: 300 }));
     await page(more as unknown as Call);
-    expect(query(".parents").textContent).toBe("Title N1 › Title S1 outdated …");
+    expect(query(".parents").textContent).toBe("Title N1 › Title S1 link outdated …");
   });
 
   it("drops the parents of an element that is gone when they arrive", async () => {

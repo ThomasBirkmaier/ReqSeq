@@ -320,7 +320,7 @@ test.describe("the Markdown editor in the element buffer", () => {
     };
     /** The word after an outdated reference: the day of the stored version (D-013), or "unknown date". */
     const word = (hint: { storedDate?: string | null }): string =>
-      `outdated · version of ${hint.storedDate === undefined || hint.storedDate === null ? "unknown date" : hint.storedDate.slice(0, 10)}`;
+      `link outdated · version of ${hint.storedDate === undefined || hint.storedDate === null ? "unknown date" : hint.storedDate.slice(0, 10)}`;
     // An inline reference in the text.
     const [reference] = await datedHints(REFERENCE_SOURCE_ID);
     expect(reference?.message).toMatch(/: stored version from .+, current version from .+$/);
@@ -348,7 +348,7 @@ test.describe("the Markdown editor in the element buffer", () => {
     expect(await shown(window)).not.toContain("reqseq:");
     expect(await shown(window)).not.toContain("n1:");
     await expect(window.locator(".cm-lr-outdated")).toBeVisible();
-    await expect(window.locator(".cm-lr-outdated-word")).toHaveText(/^ outdated/);
+    await expect(window.locator(".cm-lr-outdated-word")).toHaveText(/^ link outdated/);
     // A click on the label opens the element it refers to.
     await window.locator(".cm-lr-ref").click();
     await expect(window.locator("article h1")).toHaveText(REFERENCE_TARGET_TITLE);

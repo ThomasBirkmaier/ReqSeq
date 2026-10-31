@@ -3648,7 +3648,7 @@ describe("ElementView", () => {
     it("shows the label only, marks an outdated reference, and opens its element on a click", async () => {
       const { opened } = await mount(asCall(withReference()));
       const content = query(".cm-content").textContent;
-      expect(content).toBe("Nach D-017 outdated gilt das.");
+      expect(content).toBe("Nach D-017 link outdated gilt das.");
       expect(content).not.toContain("](reqseq:");
       expect(content).not.toContain("n1:");
       expect(query(".cm-lr-outdated").title).toBe("points to an older version");
@@ -3840,7 +3840,7 @@ describe("ElementView", () => {
       expect(box().querySelector(".cm-lr-outdated")?.getAttribute("title")).toBe(
         "points to an older version",
       );
-      expect(box().textContent).toContain("D-017 outdated");
+      expect(box().textContent).toContain("D-017 link outdated");
       // The editor stays (focus and selection would too) while the hints are the same.
       const [before] = boxViews();
       await again(1);
@@ -5768,7 +5768,7 @@ describe("ElementView", () => {
         { ref: "uuid-1", repository: "spec" },
         { ref: "uuid-1", repository: "spec", hintDates: true },
       ]);
-      expect(texts(".outdated")).toEqual([" outdated · version of 2026-03-04"]);
+      expect(texts(".outdated")).toEqual([" link outdated · version of 2026-03-04"]);
       expect(query(".relation .outdated").title).toBe(dated.message);
     });
 
@@ -5780,7 +5780,7 @@ describe("ElementView", () => {
             : { element: read({ problems: [hint] } as unknown as Partial<DataExportElement>) },
       });
       await mount(asCall(call));
-      expect(texts(".outdated")).toEqual([" outdated"]);
+      expect(texts(".outdated")).toEqual([" link outdated"]);
       expect(query(".relation .outdated").title).toBe(hint.message);
       await fresh();
       const plain = fakeCall({ "element.get": () => ({ element: read() }) });

@@ -223,7 +223,7 @@ describe("MatrixView", () => {
     expect(texts("thead th .name")).toEqual(["Derives from", "Derived by"]);
     expect(texts("tbody tr:nth-child(1) td.cell")).toEqual(["N-1 See the wind", "SR-2 Requirement 2"]);
     expect(texts("tbody tr:nth-child(2) td.cell:nth-child(2) .relation")).toEqual([
-      "N-2 See the rain outdated",
+      "N-2 See the rain link outdated",
     ]);
   });
 
@@ -237,9 +237,9 @@ describe("MatrixView", () => {
 
   it("[SR-125/AK4] marks an outdated relation as outdated and one to a missing target as missing, in its cell", async () => {
     await mount(asCall(fakeCall()));
-    expect(texts("td.cell .outdated")).toEqual([" outdated"]);
+    expect(texts("td.cell .outdated")).toEqual([" link outdated"]);
     expect(query("tbody tr:nth-child(2) .outdated").closest("td")?.textContent).toBe(
-      "N-2 See the rain outdated",
+      "N-2 See the rain link outdated",
     );
     expect(texts("td.cell .state")).toEqual([" missing"]);
     expect(query("tbody tr:nth-child(3) .state").closest("td")?.textContent).toBe("UNKNOWN-1 missing");

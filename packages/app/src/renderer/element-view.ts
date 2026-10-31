@@ -8,7 +8,7 @@ import type {
 } from "@reqseq/core";
 import { outdatedKey } from "./editor/references.js";
 import type { OutdatedMark } from "./editor/references.js";
-import { isOutdatedCode } from "./outdated-codes.js";
+import { OUTDATED_WORD, isOutdatedCode } from "./outdated-codes.js";
 
 /** The lines of a property value: one per array item; an object with a `title` shows the title. */
 export const propertyLines = (value: unknown): string[] => {
@@ -126,14 +126,14 @@ export const propertyModel = (metamodel: Pick<MetamodelGetOutput, "types" | "pro
 type Hint = NonNullable<DataExportElement["problems"]>[number];
 
 /**
- * The word after an outdated reference: "outdated", and the version the reference stores, as the date of
+ * The word after an outdated reference: "link outdated" (`OUTDATED_WORD`), and the version the reference stores, as the date of
  * that version (D-013), once the buffer has the dates of the hint (`hintDates`). "unknown date" when Git
  * cannot tell or no commit has that version, as "Show element ID and version" says it.
  */
 export const outdatedWord = (hint: Hint): string =>
   hint.storedDate === undefined
-    ? "outdated"
-    : `outdated · version of ${hint.storedDate === null ? "unknown date" : hint.storedDate.slice(0, 10)}`;
+    ? OUTDATED_WORD
+    : `${OUTDATED_WORD} · version of ${hint.storedDate === null ? "unknown date" : hint.storedDate.slice(0, 10)}`;
 
 const markOf = (hint: Hint): OutdatedMark => ({ message: hint.message, word: outdatedWord(hint) });
 
