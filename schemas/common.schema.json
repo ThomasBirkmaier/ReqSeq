@@ -410,6 +410,8 @@
             "omitted-value",
             "hierarchy",
             "relation-end-not-imported",
+            "relation-not-allowed",
+            "relation-duplicate",
             "type-without-origin",
             "date-time",
             "xhtml-style",

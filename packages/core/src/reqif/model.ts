@@ -36,6 +36,11 @@ export interface ReqifAttributeDefinition extends ReqifIdentifiable {
   readonly datatype: string;
   /** `MULTI-VALUED` of an enumeration attribute. */
   readonly multiValued: boolean;
+  /**
+   * Its `DEFAULT-VALUE` (ReqIF 1.2 §10.8.3), the value of an object that has none of its own;
+   * `definition` is this attribute's IDENTIFIER.
+   */
+  readonly defaultValue?: ReqifValue;
 }
 
 export type ReqifSpecTypeCategory = "spec-object" | "spec-relation" | "specification" | "relation-group";

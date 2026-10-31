@@ -68,6 +68,8 @@ interface Scenario {
   /**
    * The output names a new element with a random UUID: its UUID, the 12 and 6 digit tails (file name,
    * short ID) and its version are replaced by placeholders in the outcome and the files before comparing.
+   * For the new elements of an import (`created`), each UUID and its tails get a numbered placeholder,
+   * and every version is replaced, as the planned versions hold the random UUIDs.
    */
   readonly newElement?: boolean;
   /**
@@ -101,6 +103,20 @@ const requiredKey = (message: string): string | undefined =>
   /^Required property .+? \(([a-z-]+)\) of type /.exec(message)?.[1];
 
 const ONE_REPOSITORY: FixtureOptions = { fixture: "SR-004/one-repository", git: true };
+/** SR-004/one-repository with the delivery and the saved mapping of fixtures/SR-053/delivery (SR-053). */
+const DELIVERY: FixtureOptions = {
+  ...ONE_REPOSITORY,
+  files: {
+    "in/lieferung.reqif": readFileSync(
+      new URL("../../../fixtures/SR-053/delivery/lieferung.reqif", import.meta.url),
+      "utf8",
+    ),
+    "reqif/kunde-a.yaml": readFileSync(
+      new URL("../../../fixtures/SR-053/delivery/kunde-a.yaml", import.meta.url),
+      "utf8",
+    ),
+  },
+};
 /** Needs, requirements, a decision and a package that point at each other (SR-024). */
 const AFFECTED: FixtureOptions = { fixture: "SR-024/affected", git: true };
 /** Needs, system and component requirements and a variant (SR-022). */
@@ -2078,6 +2094,22 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       expect: "error",
     },
   ],
+  "reqif.import": [
+    {
+      tag: "[SR-053/AK1]",
+      name: "a delivery through its saved mapping: new element files in a folder named after the source",
+      fixture: DELIVERY,
+      input: { file: "in/lieferung.reqif", mapping: "reqif/kunde-a.yaml", delivery: "Lastenheft 2026-11" },
+      expect: "output",
+      newElement: true,
+    },
+    {
+      name: "a file that is no ReqIF is refused (reqif.invalid)",
+      fixture: DELIVERY,
+      input: { file: "reqif/kunde-a.yaml", mapping: "reqif/kunde-a.yaml", delivery: "x" },
+      expect: "error",
+    },
+  ],
   "reqif.saveMapping": [
     {
       tag: "[SR-054/AK1]",
@@ -2762,8 +2794,26 @@ const runAll = async (entry: CatalogEntry, scenario: Scenario): Promise<Record<s
 
 /** The id of the new element in `result` replaced everywhere by placeholders (see `Scenario.newElement`). */
 const maskNewElement = (result: Result): Result => {
-  const element = (result.outcome as { output?: { element?: { id?: string; version?: string } } }).output
-    ?.element;
+  const output = (
+    result.outcome as {
+      output?: { element?: { id?: string; version?: string }; created?: readonly { id?: string }[] };
+    }
+  ).output;
+  if (output?.created !== undefined) {
+    let text = JSON.stringify(result);
+    for (const [index, { id = "" }] of output.created.entries()) {
+      const tail = id.replaceAll("-", "");
+      text = text
+        .split(id)
+        .join(`<id${String(index)}>`)
+        .split(tail.slice(-12))
+        .join(`<tail12-${String(index)}>`)
+        .split(tail.slice(-6))
+        .join(`<tail6-${String(index)}>`);
+    }
+    return JSON.parse(text.replace(/n1:[0-9a-f]{16}/g, "<version>")) as Result;
+  }
+  const element = output?.element;
   if (element?.id === undefined || element.version === undefined) {
     return result;
   }

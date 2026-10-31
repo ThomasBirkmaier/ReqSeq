@@ -10,3 +10,6 @@ export {
   samePath,
 } from "./mapping.js";
 export type { AnyMapping, MappingFile, MappingTarget } from "./mapping.js";
+export { REQIF_LIMITS, parseReqif } from "./parse.js";
+export { planImport } from "./import.js";
+export type { ImportPlan } from "./import.js";
