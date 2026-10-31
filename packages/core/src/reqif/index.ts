@@ -15,6 +15,7 @@ export { planImport } from "./import.js";
 export type { ImportOrigin, ImportPlan, PlannedImage } from "./import.js";
 export { importDate, originKeys } from "./origin.js";
 export { OWN_TOOL_ID, ownMapping } from "./own.js";
+export type { OwnMappingFile } from "./own.js";
 export type { OriginKeys } from "./origin.js";
 export { markdownToXhtml, prepareMarkdown, xhtmlToMarkdown } from "./xhtml-markdown.js";
 export type {

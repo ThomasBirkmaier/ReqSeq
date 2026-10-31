@@ -29,6 +29,7 @@ const WIND = "52052052-0000-4000-8000-0000000052a1";
 const HISTORY = "52052052-0000-4000-8000-0000000052a2";
 const TEMPERATURE = "52052052-0000-4000-8000-0000000052a3";
 const GONE = "52052052-0000-4000-8000-0000000052ff";
+const VARIANT = "52052052-0000-4000-8000-0000000052c1";
 const ORIGIN = ["source", "source-identifier", "import-date", "delivery", "import-version"];
 const GUSTS = "52052052-0000-4000-8000-0000000052b1";
 const BARE = "52052052-0000-4000-8000-0000000052b2";
@@ -157,15 +158,29 @@ describe("reqif.export (SR-052)", () => {
     const { fixture, workspace } = await open();
     const inPackage = { package: PACKAGE };
     const out = await run<Exported>(workspace, "reqif.export", { output: "s6.reqif", selection: inPackage });
-    expect(out).toEqual({ file: "s6.reqif", elements: 2, relations: 5, files: [], problems: [] });
+    // The image WIND embeds is copied next to the output and named relative to it.
+    expect(out).toEqual({
+      file: "s6.reqif",
+      elements: 2,
+      relations: 8,
+      files: ["s6-images/SR-0000000052a1/anemometer.png"],
+      problems: [],
+    });
+    expect(await fs.readFile(fixture.path("s6-images/SR-0000000052a1/anemometer.png"))).toEqual(
+      await fs.readFile(fixture.path("requirements/SR-0000000052a1/anemometer.png")),
+    );
     const listed = await run<Listed>(workspace, "element.list", { selection: inPackage });
     const file = await parsed(fixture, "s6.reqif");
+    expect(JSON.stringify(file.specObjects[0]?.values)).toContain(
+      '"attributes":["data","s6-images/SR-0000000052a1/anemometer.png","type","image/png"]',
+    );
     const [specification, ...others] = file.specifications;
     expect(others).toEqual([]);
     expect(specification?.children.map((c) => [c.object, c.children.length])).toEqual(
       listed.elements.map((e) => [`_${e.id}`, 0]),
     );
-    // Needs and decisions are exported like requirements; their order is the list's too.
+    // Needs and decisions are exported like requirements; their order is the list's too. They are in
+    // no package of the standard model, so the selection names them (assumption of #565).
     const ids = { ids: [DECISION, WIND, NEED] };
     const all = await run<Exported>(workspace, "reqif.export", { output: "mixed.reqif", selection: ids });
     expect(all.elements).toBe(3);
@@ -200,19 +215,25 @@ describe("reqif.export (SR-052)", () => {
       // Stubs: IDENTIFIER and type only, in the order first named.
       [`_${NEED}`, "_ot-need", false],
       [`_${DECISION}`, "_ot-decision", false],
+      [`_${VARIANT}`, "_ot-variant", false],
+      [`_${PACKAGE}`, "_ot-package", false],
       [`_${TEMPERATURE}`, "_ot-system-requirement", false],
       [`_${GONE}`, "_ot.missing", false],
     ]);
+    // Relation kinds, then the relation-valued properties Validity and Package (every relation).
     expect(file.specRelations.map((r) => [r.type, r.source, r.target])).toEqual([
       ["_rt-derives-from", `_${WIND}`, `_${NEED}`],
       ["_rt-based-on", `_${WIND}`, `_${DECISION}`],
+      ["_rt-validity", `_${WIND}`, `_${VARIANT}`],
+      ["_rt-packages", `_${WIND}`, `_${PACKAGE}`],
       ["_rt-refines", `_${HISTORY}`, `_${WIND}`],
       ["_rt-refines", `_${HISTORY}`, `_${TEMPERATURE}`],
       ["_rt-derives-from", `_${HISTORY}`, `_${GONE}`],
+      ["_rt-packages", `_${HISTORY}`, `_${PACKAGE}`],
     ]);
-    expect(new Set(file.specRelations.map((r) => r.identifier)).size).toBe(5);
+    expect(new Set(file.specRelations.map((r) => r.identifier)).size).toBe(8);
     expect(file.specRelations.every((r) => /^_sr-[0-9a-f]{32}$/.test(r.identifier))).toBe(true);
-    // The package a requirement is in is a readable value (short IDs), not a SPEC-RELATION.
+    // A relation-valued property is also readable, as the short IDs of its targets.
     const wind = file.specObjects[0];
     expect(wind?.values.find((v) => v.definition === "_ad-system-requirement.packages")).toEqual({
       kind: "string",
@@ -226,6 +247,7 @@ describe("reqif.export (SR-052)", () => {
     await run<Exported>(original.workspace, "reqif.export", { output: "all.reqif" });
     const all = await fs.readFile(original.fixture.path("all.reqif"), "utf8");
     const { fixture, workspace } = await open("SR-052/empty", { "in/all.reqif": all });
+    await fs.cp(original.fixture.path("all-images"), fixture.path("in/all-images"), { recursive: true });
     const imported = await run<CommandOutput<"reqif.import">>(workspace, "reqif.import", {
       file: "in/all.reqif",
       delivery: "round trip",
@@ -237,11 +259,12 @@ describe("reqif.export (SR-052)", () => {
     const newId = new Map(imported.created.map((c) => [c.identifier.slice(1), c.id ?? ""]));
     const oldId = new Map([...newId].map(([old, now]) => [now, old]));
     const back = (id: string): string => oldId.get(id) ?? id;
+    const stem = (id: string): string => `SR-${id.slice(-12)}`;
     const comparable = (element: Got["element"], ids: (id: string) => string): unknown => ({
       type: element.type,
       title: element.title,
-      text: element.text,
-      version: element.version,
+      // The image link points at the image folder of the element, named after its UUID.
+      text: (element.text ?? "").replaceAll(`${stem(element.id)}/`, `${stem(ids(element.id))}/`),
       properties: Object.fromEntries(
         Object.entries(element.properties)
           .filter(([key]) => !ORIGIN.includes(key))
@@ -250,7 +273,7 @@ describe("reqif.export (SR-052)", () => {
             Array.isArray(value)
               ? value.map((item: unknown) =>
                   typeof item === "object" && item !== null && "id" in item
-                    ? { ...item, id: ids((item as { id: string }).id) }
+                    ? { ...item, id: ids((item as { id: string }).id), version: "" }
                     : item,
                 )
               : value,
@@ -258,16 +281,27 @@ describe("reqif.export (SR-052)", () => {
       ),
       relations: element.relations
         .filter((r) => r.direction === "out")
-        .map((r) => ({ kind: r.kind, id: ids(r.id), title: r.title, storedVersion: r.storedVersion })),
+        .map((r) => ({ kind: r.kind, id: ids(r.id), title: r.title })),
     });
-    for (const id of [PACKAGE, NEED, DECISION, WIND, HISTORY, TEMPERATURE]) {
+    for (const id of [PACKAGE, NEED, DECISION, VARIANT, WIND, HISTORY, TEMPERATURE]) {
       const before = (await run<Got>(original.workspace, "element.get", { ref: id })).element;
       const after = (await run<Got>(workspace, "element.get", { ref: newId.get(id) })).element;
       expect(comparable(after, back), id).toEqual(comparable(before, (x) => x));
       expect(after.properties["source-identifier"]).toBe(`_${id}`);
+      // Versions match, but where the import rewrites a reference to a new UUID: WIND's validity
+      // and the path of its image (assumption of spec question #565).
+      expect(after.version === before.version, id).toBe(id !== WIND);
     }
+    const wind = newId.get(WIND) ?? "";
+    expect(await fs.readFile(fixture.path(`Weather-station/${stem(wind)}/anemometer.png`))).toEqual(
+      await fs.readFile(original.fixture.path("requirements/SR-0000000052a1/anemometer.png")),
+    );
+    // Every relation carries the version of its target as imported, so none is outdated.
     const check = await run<CommandOutput<"workspace.check">>(workspace, "workspace.check", {});
     expect(check.problems.filter((p) => p.code === "relation.outdated")).toEqual([]);
+    const history = (await run<Got>(workspace, "element.get", { ref: newId.get(HISTORY) })).element;
+    const windNow = (await run<Got>(workspace, "element.get", { ref: wind })).element;
+    expect(history.relations.find((r) => r.id === wind)?.storedVersion).toBe(windNow.version);
     // The saved mapping is used next time, and no other is written.
     const again = await run<CommandOutput<"reqif.import">>(workspace, "reqif.import", {
       file: "in/all.reqif",
@@ -278,6 +312,26 @@ describe("reqif.export (SR-052)", () => {
     expect(await fs.readFile(fixture.path("reqif/weather-station.yaml"), "utf8")).toContain(
       "tool-id: reqseq",
     );
+  });
+
+  it("gives the export of fixtures/SR-052/package in fixtures/SR-052/empty/in that the cross-access round trip reads", async () => {
+    const { fixture, workspace } = await open();
+    await run<Exported>(workspace, "reqif.export", { output: "all.reqif" });
+    /** The file without what changes with each export: header UUID, times and the tool version. */
+    const masked = (text: string): string =>
+      text
+        .replace(/_hd-[0-9a-f-]{36}/, "_hd-")
+        .replaceAll(/\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ/g, "T")
+        .replace(/<SOURCE-TOOL-ID>[^<]*/, "<SOURCE-TOOL-ID>");
+    const committed = (file: string): URL =>
+      new URL(`../../../../../fixtures/SR-052/empty/in/${file}`, import.meta.url);
+    // When the export changes, export a copy of fixtures/SR-052/package to all.reqif and copy all.reqif
+    // and all-images into fixtures/SR-052/empty/in.
+    expect(masked(await fs.readFile(fixture.path("all.reqif"), "utf8"))).toBe(
+      masked(await fs.readFile(committed("all.reqif"), "utf8")),
+    );
+    const image = "all-images/SR-0000000052a1/anemometer.png";
+    expect(await fs.readFile(fixture.path(image))).toEqual(await fs.readFile(committed(image)));
   });
 
   it("replaces an earlier export, never a file that is no XML, and refuses what it cannot write yet or at all", async () => {
@@ -314,13 +368,55 @@ describe("reqif.export (SR-052)", () => {
           statements: false,
         })
       ).elements,
-    ).toBe(6);
+    ).toBe(7);
     // Outside the workspace the output is named by its absolute path.
     const outside = path.join(os.tmpdir(), `reqseq-export-${randomUUID()}.reqif`);
     onTestFinished(() => fs.rm(outside, { force: true }));
     expect(
       (await run<Exported>(workspace, "reqif.export", { output: outside, selection: { ids: [WIND] } })).file,
     ).toBe(outside);
+  });
+
+  it("copies each image once per name, replaces only an earlier copy, and refuses two elements with one UUID", async () => {
+    const { fixture, workspace } = await open("SR-052/package", {
+      "requirements/SR-0000000052b6.md": [
+        "---",
+        "id: 52052052-0000-4000-8000-0000000052b6",
+        "type: system-requirement",
+        "status: draft",
+        "title: Pictures",
+        "---",
+        "",
+        "![a](SR-0000000052a1/anemometer.png) ![b](other/anemometer.png) ![m](gone.png) ![s](back%5Cslash.png) ![w](https://example.com/w.png)",
+        "",
+      ].join("\n"),
+      "requirements/other/anemometer.png": "other",
+    });
+    const input = { output: "s6.reqif", selection: { ids: ["52052052-0000-4000-8000-0000000052b6"] } };
+    const copies = ["s6-images/SR-0000000052b6/anemometer.png", "s6-images/SR-0000000052b6/anemometer-2.png"];
+    expect((await run<Exported>(workspace, "reqif.export", input)).files).toEqual(copies);
+    const objects = (await fs.readFile(fixture.path("s6.reqif"), "utf8")).match(/data="[^"]*"/g);
+    // A missing image and one outside the workspace keep their links.
+    expect(objects).toEqual([
+      `data="${copies[0] ?? ""}"`,
+      `data="${copies[1] ?? ""}"`,
+      'data="gone.png"',
+      'data="back%5Cslash.png"',
+      'data="https://example.com/w.png"',
+    ]);
+    // The same bytes are left as they are; a changed copy is replaced.
+    await fs.writeFile(fixture.path(copies[1] ?? ""), "changed");
+    expect((await run<Exported>(workspace, "reqif.export", input)).files).toEqual(copies);
+    expect(await fs.readFile(fixture.path(copies[1] ?? ""), "utf8")).toBe("other");
+    await fs.rm(fixture.path(copies[0] ?? ""));
+    await fs.mkdir(fixture.path(copies[0] ?? ""));
+    expect((await failure(workspace, input)).code).toBe("file.faulty");
+    const twice = await open("SR-052/package", {
+      "requirements/SR-0000000052b7.md": `---\nid: ${WIND}\ntype: system-requirement\nstatus: draft\ntitle: Copy\n---\n`,
+    });
+    const refused = await failure(twice.workspace, { output: "twice.reqif" });
+    expect([refused.code, refused.details?.["id"]]).toEqual(["ref.ambiguous", WIND]);
+    await expect(fs.stat(twice.fixture.path("twice.reqif"))).rejects.toThrow();
   });
 
   it("refuses a character XML 1.0 cannot carry and a file changed since it was read, and writes nothing", async () => {
@@ -354,8 +450,9 @@ describe("reqif.export (SR-052)", () => {
       output: "extra.reqif",
       selection: { ids: [GUSTS, BARE, ODD] },
     });
-    // Two items name no element (text, no UUID) and one names WIND twice: one SPEC-RELATION.
-    expect(out.relations).toBe(1);
+    // Two items name no element (text, no UUID) and one names WIND twice: one SPEC-RELATION of
+    // refines; Owner and Package give one each.
+    expect(out.relations).toBe(3);
     const file = await parsed(original.fixture, "extra.reqif");
     const values = (id: string): Record<string, unknown> =>
       Object.fromEntries(
@@ -408,7 +505,10 @@ describe("reqif.export (SR-052)", () => {
       "_ot-measure",
       "_ot-gadget",
       "_ot-system-requirement",
+      "_ot.missing",
       "_rt-refines",
+      "_rt-owner",
+      "_rt-packages",
       "_st-specification",
     ]);
     expect(file.specTypes[1]?.attributes.map((a) => a.identifier)).toEqual([
@@ -482,8 +582,9 @@ describe("reqif.export (SR-052)", () => {
       { source: "_ot-measure", type: "measure" },
       { source: "_ot-gadget", omit: true },
       { source: "_ot-system-requirement", type: "system-requirement" },
+      { source: "_ot.missing", omit: true },
     ]);
-    expect(mapping.attributes?.filter((a) => a.source.startsWith("_ad-measure."))).toEqual([
+    expect(mapping.attributes.filter((a) => a.source.startsWith("_ad-measure."))).toEqual([
       { source: "_ad-measure.title", property: "title" },
       { source: "_ad-measure.text", property: "text" },
       { source: "_ad-measure.weight", property: "weight" },
@@ -502,12 +603,15 @@ describe("reqif.export (SR-052)", () => {
       ...ORIGIN.map((key) => ({ source: `_ad-measure.${key}`, omit: true })),
       { source: "_ad-measure.status", omit: true },
     ]);
-    expect(mapping.attributes?.filter((a) => a.source.startsWith("_rq-measure."))).toEqual([
+    expect(mapping.attributes.filter((a) => a.source.startsWith("_rq-measure."))).toEqual([
       { source: "_rq-measure.markdown", omit: true },
       { source: "_rq-measure.values", omit: true },
     ]);
     expect(mapping.relations).toEqual([
       { source: "_rt-refines", kind: "refines" },
+      // A relation-valued property takes its targets from its SPEC-RELATIONs.
+      { source: "_rt-owner", kind: "owner" },
+      { source: "_rt-packages", kind: "packages" },
       { source: "_rt-blocks", omit: true },
     ]);
   });

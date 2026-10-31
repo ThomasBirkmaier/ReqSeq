@@ -116,13 +116,13 @@ describe("reqseq binary", () => {
     const unknown = await reqseq(["nope"], { cwd: ws.root });
     expect(unknown.code).toBe(2);
     expect(unknown.stderr).toContain("unknown command 'nope'");
-    const planned = await reqseq(["reqif", "export", "out.reqif", "--json"], { cwd: ws.root });
+    const planned = await reqseq(["reqif", "analyze", "in.reqif", "--json"], { cwd: ws.root });
     expect(planned.code).toBe(2);
     expect(planned.stdout).toBe("");
     expect(JSON.parse(planned.stderr)).toEqual({
       code: "command.not-implemented",
-      message: "Command reqif.export is not implemented yet",
-      details: { command: "reqif.export" },
+      message: "Command reqif.analyze is not implemented yet",
+      details: { command: "reqif.analyze" },
     });
     const usageJson = await reqseq(["workspace", "nope", "--json"], { cwd: ws.root });
     expect(usageJson.code).toBe(2);

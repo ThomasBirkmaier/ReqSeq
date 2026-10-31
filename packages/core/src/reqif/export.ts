@@ -9,13 +9,15 @@
 //   KEY the 0-based index, OTHER-CONTENT empty, LONG-NAME the key.
 // - Spec types: `_ot-<type>` for the type of each exported element with its attributes (own.ts),
 //   in metamodel order, then the types of stubs without attributes (`_ot.missing` last), then
-//   `_rt-<kind>` for each relation kind used, in metamodel order, then `_st-specification`.
+//   `_rt-<key>` for each relation kind and relation-valued property used, in metamodel order (kinds
+//   first), then `_st-specification`.
 // - SPEC-OBJECTs: each element `_<uuid>` in the order of the list (SR-052 AK1, AK2), LONG-NAME its
 //   title, with its readable values and both round-trip attributes; then a stub per relation target
 //   outside the export (IDENTIFIER and type, no values), in the order first named.
-// - SPEC-RELATIONs: each relation of a relation kind of an exported element to a UUID, in the order
-//   of the elements and of the metamodel's kinds, as `_sr-<hash of source, kind, target>`; a
-//   relation named twice is written once. Relation-valued properties are values, not SPEC-RELATIONs.
+// - SPEC-RELATIONs (SR-052 AK2): each item with a UUID of a relation kind or a relation-valued
+//   property (validity, packages; also a readable STRING of short IDs) of an exported element, in the
+//   order of the elements and of `ownRelationKeys`, as `_sr-<hash of source, key, target>`; a
+//   relation named twice is written once.
 // - One flat SPECIFICATION `_sp-<hash of the list>` with a SPEC-HIERARCHY `_sh-<uuid>` per element.
 import { createHash } from "node:crypto";
 import type { Metamodel } from "../metamodel/index.js";
@@ -34,10 +36,11 @@ import {
 } from "./own.js";
 import type { ReqifWritable } from "./write.js";
 
-/** One element to export: its record and the text of its file. */
+/** One element to export: its record, the text of its file and the `data` of each image copy by link path. */
 export interface ExportedElement {
   readonly record: ElementRecord;
   readonly text: string;
+  readonly images: ReadonlyMap<string, string>;
 }
 
 export interface ExportInput {
@@ -56,6 +59,8 @@ export interface ExportInput {
   readonly targetType: (source: ElementRecord, item: TargetItem) => string | undefined;
   /** The short ID of a target of a relation-valued property. */
   readonly shortId: (source: ElementRecord, item: TargetItem) => string;
+  /** The `data` of the `object` of an image link of the text of `element`, relative to the output. */
+  readonly image: (element: ExportedElement, url: string) => string;
 }
 
 export interface ExportPlan {
@@ -136,6 +141,13 @@ const datatypesOf = (
   ];
 };
 
+/** A key whose items are SPEC-RELATIONs (`ownRelationKeys`): a relation kind is always a list. */
+interface RelationKind {
+  readonly key: string;
+  readonly name: string;
+  readonly many: boolean;
+}
+
 /** The SPEC-RELATIONs found so far, their IDENTIFIERs and kinds, and the stubs of their targets. */
 interface Found {
   readonly relations: SpecRelation[];
@@ -149,14 +161,13 @@ interface Found {
 const addRelations = (
   input: ExportInput,
   record: ElementRecord,
-  kinds: readonly { readonly key: string }[],
+  kinds: readonly RelationKind[],
   exported: ReadonlySet<string>,
   found: Found,
 ): void => {
   const source = ownId.element(record.id);
-  for (const { key } of kinds) {
-    // A relation kind's key is never a property's (the metamodel check, ADR-0004): always a list.
-    for (const [, item] of relationItems(key, { many: true }, record.data[key])) {
+  for (const { key, many } of kinds) {
+    for (const [, item] of relationItems(key, { many }, record.data[key])) {
       // An entry without a UUID is the element check's (SR-085), not a relation.
       if (!hasId(item) || !isUuid(item.id)) {
         continue;
@@ -188,14 +199,21 @@ const addRelations = (
 export const planExport = (input: ExportInput): ExportPlan => {
   const { metamodel, time: lastChange } = input;
   const titleKey = titleKeyOrEmpty(metamodel);
-  const kinds = metamodel.relations.map((r) => ({ key: r.key, name: r.name }));
+  // A key is never both a property's and a relation kind's (the metamodel check, ADR-0004).
+  const kinds: RelationKind[] = [
+    ...metamodel.relations.map((r) => ({ key: r.key, name: r.name, many: true })),
+    ...metamodel.properties
+      .filter((p) => p.kind === "relation")
+      .map((p) => ({ key: p.key, name: p.name, many: p.many === true })),
+  ];
   const exported = new Set(input.elements.map((e) => e.record.id));
   const attributesOf = new Map<string, OwnAttribute[]>();
   const objects: SpecObject[] = [];
   const found: Found = { relations: [], identifiers: new Set(), kinds: new Set(), stubs: new Map() };
   const { relations, kinds: usedKinds, stubs } = found;
   let longest = 0;
-  for (const { record, text } of input.elements) {
+  for (const element of input.elements) {
+    const { record, text } = element;
     const type = findType(metamodel, record.type);
     let attributes = attributesOf.get(record.type);
     if (attributes === undefined) {
@@ -204,6 +222,7 @@ export const planExport = (input: ExportInput): ExportPlan => {
     }
     const values = readableValues(metamodel, attributes, { data: record.data, text }, titleKey, {
       shortId: (item) => input.shortId(record, item),
+      image: (url) => input.image(element, url),
     });
     for (const value of values) {
       if (value.kind === "string") {

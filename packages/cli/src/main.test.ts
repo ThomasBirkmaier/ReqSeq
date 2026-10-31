@@ -548,11 +548,11 @@ describe("reqseq <group> <action>", () => {
     const help = await run(["--help"], { processRuntime: true });
     expect(help.stdout).toContain("workspace <action> [options]");
     // A stage 6 command: in the catalog, not implemented before that stage.
-    const result = await run(["reqif", "export", "out.reqif"], { processRuntime: true });
+    const result = await run(["reqif", "analyze", "in.reqif"], { processRuntime: true });
     expect(result).toEqual({
       code: EXIT.usage,
       stdout: "",
-      stderr: "error command.not-implemented: Command reqif.export is not implemented yet\n",
+      stderr: "error command.not-implemented: Command reqif.analyze is not implemented yet\n",
     });
   });
 

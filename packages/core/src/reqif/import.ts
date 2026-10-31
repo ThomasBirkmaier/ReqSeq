@@ -31,21 +31,26 @@
 // - Files go into the mapping's `target`, else a folder named after the source in the main
 //   repository (SR-053 AK1). The own metamodel is only read (SR-054 AK3).
 // - A file of ReqSeq (`own`, SR-052 AK3; ADR-0013 "Import"): a SPEC-OBJECT without values is a stub
-//   and never an element. Of an object whose readable values `readableValues` (own.ts) writes again
-//   from `reqseq-markdown` and `reqseq-values` equal to the file's (relation-valued properties,
-//   whose short IDs depend on the workspace, aside), the element takes the title, the text byte for
-//   byte, the properties of its type and the relations from those two; the status and the origin
-//   stored there are not taken, and its SPEC-RELATIONs are not read again. Otherwise another tool
-//   changed it: the readable attributes are imported through the mapping, with a warning
-//   `reqif.edited-elsewhere`. A target of a relation or relation-valued property that is imported in
-//   this call becomes that element with its planned version; any other target stays as stored, a
-//   missing target with its stored version (N-041, D-045, D-058). Not yet: a target of an earlier
-//   delivery or of the workspace (ADR-0013 steps 2 and 3).
+//   and never an element. For a type whose mapping, relation types included, is the one-to-one one
+//   (`oneToOneTypes`), an object whose readable values `readableValues` (own.ts) writes again from
+//   `reqseq-markdown` and `reqseq-values` equal to the file's (relation-valued properties, whose
+//   short IDs depend on the workspace, aside), whose SPEC-RELATIONs are those of `reqseq-values`
+//   and whose text has as many images takes the title, the text byte for byte (its image links
+//   pointed at the copies), the properties of its type and the relations from those two; the status
+//   and the origin stored there are not taken, and a relation the metamodel does not allow is a
+//   loss (`checkOwnRelations`). Otherwise another tool changed it, or a mapping differs: the
+//   readable attributes and SPEC-RELATIONs are imported through the mapping, with a warning
+//   `reqif.edited-elsewhere` for a changed object. A target of a relation or relation-valued
+//   property that is imported in this call becomes that element with its planned version (so the
+//   version of a relation-valued property naming it is new, spec question #565); any other target
+//   stays as stored, a missing target with its stored version (N-041, D-045, D-058). Not yet: a
+//   target of an earlier delivery or of the workspace (ADR-0013 steps 2 and 3); the links of
+//   reference-style images.
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { CommandError } from "../catalog.js";
 import type { Problem } from "../catalog.js";
-import type { FlowMappingValue, PropertyValue } from "../files/index.js";
+import type { FlowMappingValue, ItemValue, PropertyValue, ScalarValue } from "../files/index.js";
 import type {
   MetamodelProperty,
   ReqifLoss,
@@ -59,6 +64,9 @@ import type { NewElementBase, NewElementFile } from "../model/index.js";
 import {
   fileNameFor,
   hasId,
+  imageLink,
+  isUuid,
+  markdownLinks,
   newElementBase,
   newElementBytes,
   plannedVersion,
@@ -82,9 +90,10 @@ import type {
 } from "./model.js";
 import type { OriginKeys } from "./origin.js";
 import { originKeys } from "./origin.js";
-import { ownAttributes, ownId, readableValues } from "./own.js";
+import { ownAttributes, ownId, ownMapping, ownRelationKeys, readableValues } from "./own.js";
 import type { ImageFile, ImageReader } from "./images.js";
 import { ImageNames } from "./images.js";
+import type { XhtmlImage } from "./xhtml-markdown.js";
 import { prepareMarkdown } from "./xhtml-markdown.js";
 import { markdownText, xhtmlText } from "./xhtml-text.js";
 
@@ -369,9 +378,11 @@ interface Draft {
   title: string;
   text: string;
   readonly properties: Map<string, PropertyValue>;
-  readonly relations: Map<string, { readonly id: string; readonly version: string }[]>;
+  readonly relations: Map<string, Record<string, ScalarValue>[]>;
   /** Of a file of ReqSeq: the relation kinds as `reqseq-values` holds them; set: its SPEC-RELATIONs are not read. */
   ownRelations?: Map<string, PropertyValue>;
+  /** A relation-valued property took a target from a SPEC-RELATION, so the version is planned again. */
+  relationProperties?: true;
   /** The planned version (`plannedVersion`), set once the values are planned. */
   version: string;
   /** The file name without `.md`, which is also the name of its image folder. */
@@ -441,7 +452,8 @@ const markdownOf = async (
  * The texts of a value: XHTML as Markdown (`markdownOf`) for a Markdown target and as plain text
  * (`xhtmlText`, its other elements a loss) for a plain one, enumeration values by name, the others
  * as written. For a Markdown target the texts that are not XHTML are escaped (`markdownText`) so
- * they read back as written; elsewhere they stay plain.
+ * they read back as written, but not those of a file of ReqSeq, which are Markdown already; elsewhere
+ * they stay plain.
  */
 const textsOf = async (
   context: Context,
@@ -463,7 +475,8 @@ const textsOf = async (
   }
   const texts =
     value.kind === "enumeration" ? enumValuesOf(value.values, datatype, loss).map(nameOf) : [value.value];
-  return target === "plain" ? texts : texts.map(markdownText);
+  // A file of ReqSeq writes a text property as its Markdown (own.ts), so it reads back as written.
+  return target === "plain" || context.own ? texts : texts.map(markdownText);
 };
 
 /** The choice keys of enumeration values through `values` (an unmapped value is a loss). */
@@ -587,10 +600,31 @@ interface Context {
   readonly own: boolean;
   readonly problems: Problem[];
   /** Relation items that name an object of this call, whose version is set once all are planned. */
-  readonly pending: Map<string, Record<string, PropertyValue>[]>;
+  readonly pending: Map<string, Record<string, ScalarValue>[]>;
+  /** Of a file of ReqSeq: the targets of the SPEC-RELATIONs of each object, as `<type>|<target>`. */
+  readonly ownRelationsOf: ReadonlyMap<string, ReadonlySet<string>>;
+  /** Of a file of ReqSeq: the `reqseq-values` of each object whose channels are not taken, if JSON. */
+  readonly stored: Map<string, Readonly<Record<string, unknown>>>;
+  /** Of a file of ReqSeq: the types whose mapping (with the relation types) is the one-to-one one. */
+  readonly oneToOne: ReadonlySet<string>;
   readonly images: ImageReader;
   readonly layout: WorkspaceLayout;
 }
+
+/**
+ * Whether `a` of type `t` of a file of ReqSeq holds nothing the one-to-one mapping maps: the
+ * round-trip attributes, the status (D-030) and a relation-valued property, whose targets are its
+ * SPEC-RELATIONs; its omission is no loss.
+ */
+const ownOnly = (metamodel: Metamodel, t: ReqifSpecType, a: ReqifAttributeDefinition): boolean => {
+  const key = t.identifier.slice("_ot-".length);
+  return (
+    a.identifier === ownId.markdown(key) ||
+    a.identifier === ownId.values(key) ||
+    a.identifier === ownId.attribute(key, "status") ||
+    metamodel.properties.some((p) => p.kind === "relation" && a.identifier === ownId.attribute(key, p.key))
+  );
+};
 
 /** Takes the values of `object` into `draft` (see the file comment). */
 const planValues = async (
@@ -621,7 +655,9 @@ const planValues = async (
     const checked = coverage.attributes.get(a.identifier);
     const property = checked?.entry.property;
     if (checked === undefined || property === undefined) {
-      loss("omitted-attribute", `the mapping omits its attribute ${nameOf(a)}`);
+      if (!(context.own && ownOnly(context.metamodel, t, a))) {
+        loss("omitted-attribute", `the mapping omits its attribute ${nameOf(a)}`);
+      }
       continue;
     }
     const { entry, definition } = checked;
@@ -646,10 +682,12 @@ const planValues = async (
   }
 };
 
-/** What `reqseq-markdown` and `reqseq-values` of an object hold. */
+/** What `reqseq-markdown` and `reqseq-values` of an object hold, and the images of its text. */
 interface Channels {
   readonly data: Readonly<Record<string, unknown>>;
   readonly text: string;
+  /** Each image link of the text (its URL) with the `object` the file has for it, in order. */
+  readonly images: readonly { readonly url: string; readonly image: XhtmlImage }[];
 }
 
 /** The value of attribute `definition` as a STRING, if the object has one. */
@@ -674,9 +712,25 @@ const jsonObject = (text: string): Readonly<Record<string, unknown>> | undefined
 const comparable = (values: readonly ReqifValue[]): string =>
   JSON.stringify([...values].sort((a, b) => (a.definition < b.definition ? -1 : 1)));
 
+/** The SPEC-RELATIONs `data` gives an object, as `<type>|<target>` (export.ts: items with a UUID). */
+const storedRelations = (metamodel: Metamodel, data: Readonly<Record<string, unknown>>): Set<string> =>
+  new Set(
+    ownRelationKeys(metamodel).flatMap((key) =>
+      [data[key]]
+        .flat()
+        .flatMap((item) =>
+          hasId(item) && isUuid(item.id) ? [`${ownId.relationType(key)}|${ownId.element(item.id)}`] : [],
+        ),
+    ),
+  );
+
+const sameSet = (a: ReadonlySet<string>, b: ReadonlySet<string>): boolean =>
+  a.size === b.size && [...a].every((x) => b.has(x));
+
 /**
  * The round-trip channels of `object` of a file of ReqSeq, when the readable values written again
- * from them equal the file's (see the file comment); else undefined, with the warning.
+ * from them equal the file's and its SPEC-RELATIONs those `reqseq-values` names (see the file
+ * comment); else undefined, with the warning.
  */
 const ownChannels = (
   context: Context,
@@ -692,26 +746,48 @@ const ownChannels = (
   const data = jsonObject(stringValue(object, valuesId) ?? "");
   const titleKey = titleKeyOrEmpty(metamodel);
   const attributes = ownAttributes(metamodel, key, findType(metamodel, ownType), titleKey);
-  const relational = new Set(
-    attributes.filter((a) => a.property?.kind === "relation").map((a) => a.identifier),
+  // Compared: the readable attributes this metamodel knows (one it does not know is not imported),
+  // but not those of relation-valued properties, whose SPEC-RELATIONs are compared below.
+  const compared = new Set(
+    attributes
+      .filter((a) => a.property?.kind !== "relation" && a.role !== "markdown" && a.role !== "values")
+      .map((a) => a.identifier),
   );
-  const compared = (v: ReqifValue): boolean =>
-    v.definition !== markdownId && v.definition !== valuesId && !relational.has(v.definition);
+  const known = (v: ReqifValue): boolean => compared.has(v.definition);
+  // The images of the text in the order `markdownToXhtml` writes them, paired with its links.
+  const textValue = object.values.find((v) => v.definition === ownId.attribute(key, "text"));
+  const objects = textValue?.kind === "xhtml" ? prepareMarkdown(textValue.value).images : [];
+  const images: { url: string; image: XhtmlImage }[] = [];
+  const image = (url: string): string => {
+    const found = objects[images.length];
+    images.push({ url, image: found ?? { data: url } });
+    return found?.data ?? url;
+  };
   const same =
     text !== undefined &&
     data !== undefined &&
     comparable(
-      readableValues(metamodel, attributes, { data, text }, titleKey, { shortId: () => "" }, false).filter(
-        compared,
-      ),
-    ) === comparable(object.values.filter(compared));
+      readableValues(
+        metamodel,
+        attributes,
+        { data, text },
+        titleKey,
+        { shortId: () => "", image },
+        false,
+      ).filter(known),
+    ) === comparable(object.values.filter(known)) &&
+    images.length === objects.length &&
+    sameSet(storedRelations(metamodel, data), context.ownRelationsOf.get(object.identifier) ?? new Set());
   if (same) {
-    return { data, text };
+    return { data, text, images };
+  }
+  if (data !== undefined) {
+    context.stored.set(object.identifier, data);
   }
   context.problems.push({
     code: "reqif.edited-elsewhere",
     severity: "warning",
-    message: `${object.identifier}: its attributes differ from reqseq-markdown and reqseq-values, so another tool changed it; its readable attributes are imported`,
+    message: `${object.identifier}: its attributes or relations differ from reqseq-markdown and reqseq-values, so another tool changed it; its readable attributes and SPEC-RELATIONs are imported`,
   });
   return undefined;
 };
@@ -728,20 +804,82 @@ const ownTargets = (context: Context, value: unknown): PropertyValue => {
     }
     // The element lies in the repository of this call, so a stored repository no longer applies.
     const { repository: _repository, ...rest } = item;
-    const pointed: Record<string, PropertyValue> = { ...(rest as FlowMappingValue), id, version: "" };
+    const pointed: Record<string, ScalarValue> = { ...(rest as FlowMappingValue), id, version: "" };
     context.pending.set(id, [...(context.pending.get(id) ?? []), pointed]);
     return pointed;
   };
   return (Array.isArray(value) ? value.map(mapped) : mapped(value)) as PropertyValue;
 };
 
+/** The folder `imageLink` resolves the links of a text against when only their paths are compared. */
+const ANY_ELEMENT = "a/b/c/d/e/f/g/h/element.md";
+
+/**
+ * `text` with each image link of `images` that the file has an image for pointed at its copy in the
+ * image folder of `draft` (SR-095 AK2); an image that cannot be copied is a loss and keeps its link.
+ * Reference-style images keep their links.
+ */
+const ownImages = async (
+  context: Context,
+  draft: Draft,
+  text: string,
+  images: Channels["images"],
+  loss: Loss,
+): Promise<string> => {
+  const copies = new Map<string, string>();
+  for (const { url, image } of images) {
+    const link = imageLink(ANY_ELEMENT, url, () => false);
+    if (link === undefined || copies.has(link.path)) {
+      continue;
+    }
+    const read = await context.images(image);
+    if (read.kind === "found") {
+      const copy = `${draft.stem}/${draft.images.nameOf(read.file)}`;
+      copies.set(link.path, copy);
+      draft.textImages.set(copy, read.file.sha256);
+    } else {
+      loss(read.kind, read.reason);
+    }
+  }
+  let out = text;
+  for (const { image, destination, start, end } of markdownLinks(text).reverse()) {
+    const copy = image ? copies.get(imageLink(ANY_ELEMENT, destination, () => false)?.path ?? "") : undefined;
+    if (copy !== undefined) {
+      out = `${out.slice(0, start)}${copy}${out.slice(end)}`;
+    }
+  }
+  return out;
+};
+
+/** A stored scalar as text, as the export writes the title; anything else is none. */
+const scalarTitle = (value: unknown): string =>
+  typeof value === "string" || typeof value === "number" || typeof value === "boolean" ? String(value) : "";
+
 /** Takes the title, text, properties and relations of `draft` from the channels (see the file comment). */
-const planOwnValues = (context: Context, { data, text }: Channels, draft: Draft): void => {
+const planOwnValues = async (
+  context: Context,
+  channels: Channels,
+  object: ReqifSpecObject,
+  t: ReqifSpecType,
+  draft: Draft,
+): Promise<void> => {
   const { metamodel, keys } = context;
+  const { data } = channels;
   const origin = new Set<string>(Object.values(keys));
-  const title = data[draft.base.titleKey];
-  draft.title = typeof title === "string" ? title : "";
-  draft.text = text;
+  const loss: Loss = (code, reason) => {
+    context.losses.push({ identifier: object.identifier, kind: "spec-object", id: draft.id, code, reason });
+  };
+  // A value of an attribute the mapping omits (this metamodel does not know it) is a loss, as on
+  // the readable path; `reqseq-values` holds it too, but only the type's properties are taken.
+  const given = new Set(object.values.map((v) => v.definition));
+  for (const a of t.attributes) {
+    const omitted = context.coverage.attributes.get(a.identifier)?.entry.property === undefined;
+    if (given.has(a.identifier) && omitted && !ownOnly(metamodel, t, a)) {
+      loss("omitted-attribute", `the mapping omits its attribute ${nameOf(a)}`);
+    }
+  }
+  draft.title = scalarTitle(data[draft.base.titleKey]);
+  draft.text = await ownImages(context, draft, channels.text, channels.images, loss);
   for (const key of draft.base.type.properties) {
     const value = data[key];
     if (key === draft.base.titleKey || origin.has(key) || value === undefined || value === null) {
@@ -755,6 +893,61 @@ const planOwnValues = (context: Context, { data, text }: Channels, draft: Draft)
       data[r.key] === undefined ? [] : [[r.key, ownTargets(context, data[r.key])] as const],
     ),
   );
+};
+
+/**
+ * Removes each relation item of a draft planned from its channels that names an element of this
+ * call the metamodel does not allow from its type (a loss `relation-not-allowed`), as `planRelation`
+ * does for a SPEC-RELATION.
+ */
+const checkOwnRelations = (context: Context, drafts: ReadonlyMap<string, Draft>): void => {
+  const { metamodel } = context;
+  const byId = new Map([...drafts.values()].map((d) => [d.id, d]));
+  for (const source of drafts.values()) {
+    const { ownRelations } = source;
+    if (ownRelations === undefined) {
+      continue;
+    }
+    /** Whether `item` may stay: it names no element of this call, or one `target` allows. */
+    const keep = (key: string, item: unknown, target: (to: Draft) => boolean): boolean => {
+      const to = hasId(item) ? byId.get(item.id) : undefined;
+      if (to === undefined || target(to)) {
+        return true;
+      }
+      context.losses.push({
+        identifier: source.identifier,
+        kind: "spec-object",
+        id: source.id,
+        code: "relation-not-allowed",
+        reason: `the metamodel does not allow ${key} from ${source.base.type.key} to ${to.base.type.key}`,
+      });
+      return false;
+    };
+    for (const [key, value] of ownRelations) {
+      if (Array.isArray(value)) {
+        ownRelations.set(
+          key,
+          value.filter((item) => keep(key, item, (to) => allowed(metamodel, key, source, to))),
+        );
+      }
+    }
+    for (const property of metamodel.properties.filter((p) => p.kind === "relation")) {
+      const value = source.properties.get(property.key);
+      const allows = (to: Draft): boolean =>
+        allowsType(property["target-types"], to.base.type.key, metamodel);
+      const items = itemsOf(value);
+      const rest = items.filter((item) => keep(property.key, item, allows));
+      if (rest.length < items.length) {
+        // A removed target of a relation-valued property changes what counts to the version (D-057).
+        source.relationProperties = true;
+        if (rest.length > 0) {
+          source.properties.set(property.key, rest as ItemValue[]);
+        } else {
+          source.properties.delete(property.key);
+        }
+      }
+    }
+  }
 };
 
 /** The draft of `object`, or undefined when its type is omitted (a loss). */
@@ -802,11 +995,12 @@ const planObject = async (
     images: new ImageNames(),
     textImages: new Map(),
   };
-  const channels = context.own ? ownChannels(context, object, t, ownType) : undefined;
+  const channels =
+    context.own && context.oneToOne.has(t.identifier) ? ownChannels(context, object, t, ownType) : undefined;
   if (channels === undefined) {
     await planValues(context, object, t, draft);
   } else {
-    planOwnValues(context, channels, draft);
+    await planOwnValues(context, channels, object, t, draft);
   }
   draft.properties.set(keys.source, context.source);
   draft.properties.set(keys["source-identifier"], object.identifier);
@@ -863,7 +1057,6 @@ const planRelation = (
   }
   const kind = context.coverage.relations.get(t.identifier);
   const source = drafts.get(relation.source);
-  const target = drafts.get(relation.target);
   if (source?.ownRelations !== undefined) {
     // Its relations come from `reqseq-values` (see the file comment).
     return;
@@ -879,29 +1072,102 @@ const planRelation = (
   };
   if (kind === undefined) {
     loss("omitted-type", `the mapping omits its type ${nameOf(t)}`);
-  } else if (source === undefined || target === undefined) {
-    const end = source === undefined ? `source ${relation.source}` : `target ${relation.target}`;
-    loss("relation-end-not-imported", `its ${end} is not imported`);
-  } else if (!allowed(context.metamodel, kind, source, target)) {
-    loss(
-      "relation-not-allowed",
-      `the metamodel does not allow ${kind} from ${source.base.type.key} to ${target.base.type.key}`,
-    );
   } else {
-    const items = source.relations.get(kind) ?? [];
-    const twice = items.some((item) => item.id === target.id);
-    if (twice) {
-      loss("relation-duplicate", `${kind} to ${relation.target} is imported once already`);
+    const target = drafts.get(relation.target) ?? ownMissingTarget(context, relation, kind);
+    if (source === undefined || target === undefined) {
+      const end = source === undefined ? `source ${relation.source}` : `target ${relation.target}`;
+      loss("relation-end-not-imported", `its ${end} is not imported`);
     } else {
-      items.push({ id: target.id, version: target.version });
+      addRelation(context, source, kind, target, relation, loss);
     }
-    source.relations.set(kind, items);
   }
   if (relation.values.length > 0) {
     loss(
       "omitted-attribute",
       `the values of a SPEC-RELATION are not imported: ${valueNames(context.index, relation, "SPEC-RELATION", t, relation.values)}`,
     );
+  }
+};
+
+/** A target of a relation: an element of this call, or a missing one kept as stored (`ownMissingTarget`). */
+type RelationEnd = Draft | { readonly id: string; readonly version: string };
+
+/**
+ * The target of a SPEC-RELATION of a file of ReqSeq that is not imported (a stub): kept to its UUID
+ * with the version `reqseq-values` of the source stores for it (ADR-0013 step 4, N-041, D-058);
+ * undefined in a file of another tool or without a stored version.
+ */
+const ownMissingTarget = (
+  context: Context,
+  relation: ReqifSpecRelation,
+  kind: string,
+): RelationEnd | undefined => {
+  const stored = context.stored.get(relation.source)?.[kind];
+  const item = [stored].flat().find((i) => hasId(i) && ownId.element(i.id) === relation.target);
+  const version = hasId(item) ? item["version"] : undefined;
+  return context.own && hasId(item) && typeof version === "string" ? { id: item.id, version } : undefined;
+};
+
+/** A value as its items: a list as it is, one value as one item, none as none. */
+const itemsOf = (value: unknown): readonly unknown[] =>
+  Array.isArray(value) ? value : value === undefined ? [] : [value];
+
+/**
+ * Why the relation or relation-valued property `kind` (`property`) must not lead from `source` to
+ * `target`: undefined when it may, else the target's type (null for a target outside the file).
+ */
+const relationRefusal = (
+  metamodel: Metamodel,
+  source: Draft,
+  kind: string,
+  property: MetamodelProperty | undefined,
+  target: RelationEnd,
+): string | null | undefined => {
+  const to = "base" in target ? target.base.type.key : null;
+  const fits =
+    to === null ||
+    (property === undefined
+      ? allowed(metamodel, kind, source, target as Draft)
+      : allowsType(property["target-types"], to, metamodel));
+  return fits && (property === undefined || source.base.type.properties.includes(kind)) ? undefined : to;
+};
+
+/** Adds the relation `kind` from `source` to `target` (see `planRelation`). */
+const addRelation = (
+  context: Context,
+  source: Draft,
+  kind: string,
+  target: RelationEnd,
+  relation: ReqifSpecRelation,
+  loss: Loss,
+): void => {
+  const property = context.metamodel.properties.find((p) => p.key === kind);
+  const refusal = relationRefusal(context.metamodel, source, kind, property, target);
+  if (refusal !== undefined) {
+    loss(
+      "relation-not-allowed",
+      `the metamodel does not allow ${kind} from ${source.base.type.key} to ${refusal ?? relation.target}`,
+    );
+    return;
+  }
+  const item: Record<string, ScalarValue> = {
+    id: target.id,
+    version: "base" in target ? "" : target.version,
+  };
+  if ("base" in target) {
+    context.pending.set(target.id, [...(context.pending.get(target.id) ?? []), item]);
+  }
+  const items = itemsOf(property === undefined ? source.relations.get(kind) : source.properties.get(kind));
+  if (items.some((i) => hasId(i) && i.id === target.id)) {
+    loss("relation-duplicate", `${kind} to ${relation.target} is imported once already`);
+  } else if (property === undefined) {
+    source.relations.set(kind, [...(items as Record<string, ScalarValue>[]), item]);
+  } else if (property.many !== true && items.length > 0) {
+    loss("relation-duplicate", `${kind} holds one target, so ${relation.target} is not imported`);
+  } else {
+    // A relation-valued property can count to the version (validity, D-057).
+    source.relationProperties = true;
+    source.properties.set(kind, property.many === true ? [...(items as ItemValue[]), item] : item);
   }
 };
 
@@ -937,6 +1203,119 @@ const unreadLosses = (file: ReqifFile, drafts: ReadonlyMap<string, Draft>, losse
       code: "omitted-value",
       reason: `<${name}> on line ${String(line)} is not read`,
     });
+  }
+};
+
+/** The SPEC-RELATIONs of `file` by source, as `<type>|<target>`. */
+const relationsBySource = (file: ReqifFile): Map<string, Set<string>> => {
+  const out = new Map<string, Set<string>>();
+  for (const r of file.specRelations) {
+    out.set(r.source, new Set([...(out.get(r.source) ?? []), `${r.type}|${r.target}`]));
+  }
+  return out;
+};
+
+/** An attribute or relation entry in a form two entries compare by. */
+const entryForm = (entry: AttributeEntry | undefined): string =>
+  JSON.stringify([
+    entry?.omit === true || entry === undefined ? null : entry.property,
+    Object.entries(entry?.values ?? {}).sort(),
+    [...(entry?.["omit-values"] ?? [])].sort(),
+  ]);
+
+/**
+ * The object types of a file of ReqSeq that `coverage` maps as `ownMapping` does, attribute for
+ * attribute, while it also maps every relation type so: only their objects take the round-trip
+ * channels, so a mapping that omits or maps otherwise is never bypassed (see the file comment).
+ */
+const oneToOneTypes = (
+  file: ReqifFile,
+  coverage: Coverage,
+  metamodel: Metamodel,
+  name: string,
+  keys: OriginKeys,
+): Set<string> => {
+  const one = ownMapping(
+    file,
+    metamodel,
+    name,
+    new Set([titleKeyOrEmpty(metamodel), ...Object.values(keys)]),
+  );
+  const relationsAgree = one.relations.every((e) => coverage.relations.get(e.source) === e.kind);
+  const attributes = new Map(one.attributes.map((e) => [e.source, e]));
+  return new Set(
+    file.specTypes
+      .filter(
+        (t) =>
+          relationsAgree &&
+          t.category === "spec-object" &&
+          coverage.types.get(t.identifier) === one.types.find((e) => e.source === t.identifier)?.type &&
+          t.attributes.every(
+            (a) =>
+              entryForm(coverage.attributes.get(a.identifier)?.entry) ===
+              entryForm(attributes.get(a.identifier)),
+          ),
+      )
+      .map((t) => t.identifier),
+  );
+};
+
+/**
+ * The versions once every relation is planned: again for a draft whose relation-valued properties
+ * changed, then in every relation item that names a draft of this call (`pending`).
+ */
+const settleVersions = async (
+  context: Context,
+  drafts: ReadonlyMap<string, Draft>,
+  repository: RepositoryLocation,
+  relative: string,
+): Promise<void> => {
+  for (const draft of drafts.values()) {
+    if (draft.relationProperties === true) {
+      draft.version = await plannedVersion(
+        context.metamodel,
+        context.layout,
+        repository,
+        fileOf(draft, relative, false),
+        draft.textImages,
+      );
+      draft.properties.set(context.keys["import-version"], draft.version);
+    }
+  }
+  for (const draft of drafts.values()) {
+    for (const item of context.pending.get(draft.id) ?? []) {
+      item["version"] = draft.version;
+    }
+  }
+};
+
+/** The losses of each SPECIFICATION: its values and its hierarchy are not imported. */
+const specificationLosses = (context: Context, file: ReqifFile): void => {
+  const { index } = context;
+  for (const specification of file.specifications) {
+    if (specification.values.length > 0) {
+      const names = valueNames(
+        index,
+        specification,
+        "SPECIFICATION",
+        index.types.get(specification.type),
+        specification.values,
+      );
+      context.losses.push({
+        identifier: specification.identifier,
+        kind: "specification",
+        code: "omitted-attribute",
+        reason: `the values of a SPECIFICATION are not imported: ${names}`,
+      });
+    }
+    if (specification.children.length > 0) {
+      context.losses.push({
+        identifier: specification.identifier,
+        kind: "specification",
+        code: "hierarchy",
+        reason: `the SPEC-HIERARCHY of ${nameOf(specification)} (order and nesting) is not imported`,
+      });
+    }
   }
 };
 
@@ -987,6 +1366,9 @@ export const planImport = async (
     own,
     problems: [],
     pending: new Map(),
+    ownRelationsOf: own ? relationsBySource(file) : new Map(),
+    stored: new Map(),
+    oneToOne: own ? oneToOneTypes(file, coverage, metamodel, mapping.source.name, keys) : new Set(),
     images,
     layout,
   };
@@ -997,39 +1379,12 @@ export const planImport = async (
       drafts.set(object.identifier, draft);
     }
   }
-  for (const draft of drafts.values()) {
-    for (const item of context.pending.get(draft.id) ?? []) {
-      item["version"] = draft.version;
-    }
-  }
+  checkOwnRelations(context, drafts);
   for (const relation of file.specRelations) {
     planRelation(context, drafts, relation);
   }
-  for (const specification of file.specifications) {
-    if (specification.values.length > 0) {
-      const names = valueNames(
-        index,
-        specification,
-        "SPECIFICATION",
-        index.types.get(specification.type),
-        specification.values,
-      );
-      context.losses.push({
-        identifier: specification.identifier,
-        kind: "specification",
-        code: "omitted-attribute",
-        reason: `the values of a SPECIFICATION are not imported: ${names}`,
-      });
-    }
-    if (specification.children.length > 0) {
-      context.losses.push({
-        identifier: specification.identifier,
-        kind: "specification",
-        code: "hierarchy",
-        reason: `the SPEC-HIERARCHY of ${nameOf(specification)} (order and nesting) is not imported`,
-      });
-    }
-  }
+  await settleVersions(context, drafts, repository, relative);
+  specificationLosses(context, file);
   unreadLosses(file, drafts, context.losses);
   const all = [...drafts.values()];
   return {

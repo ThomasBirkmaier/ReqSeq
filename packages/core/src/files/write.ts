@@ -35,10 +35,12 @@ export const isTempFile = (fileName: string): boolean => TEMP_FILE_PATTERN.test(
 /**
  * Which "still parses" check guards a replace: `element` (default) for Markdown element files,
  * `yaml` for whole-file YAML documents (metamodel, workspace, baseline, filter, mapping), `xml` for
- * XML files the own scanner reads (a JUnit file `evidence.enrichJunit` rewrites, SR-029) and `jsonl`
- * for ReqSeq data files (`data.store`, SR-062, #319; `jsonl-data.ts`), which are read in pieces.
+ * XML files the own scanner reads (a JUnit file `evidence.enrichJunit` rewrites, SR-029), `jsonl`
+ * for ReqSeq data files (`data.store`, SR-062, #319; `jsonl-data.ts`), which are read in pieces, and
+ * `copy` for a file ReqSeq copied there before, such as an image `reqif.export` copies (SR-052),
+ * which only has to be unchanged.
  */
-export type FileKind = "element" | "yaml" | "xml" | "jsonl";
+export type FileKind = "element" | "yaml" | "xml" | "jsonl" | "copy";
 
 export interface WriteOptions {
   readonly kind?: FileKind;
@@ -96,6 +98,7 @@ const REFUSAL: Readonly<
       ? `is no readable XML (line ${String(current.line)}); fix it by hand`
       : undefined;
   },
+  copy: () => undefined,
 };
 
 /** Passes CommandErrors on and maps raw Node errors to codes of `common.schema.json#/$defs/error`. */

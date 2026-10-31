@@ -9,7 +9,8 @@
 //   in the type's order, `status` (ENUMERATION, for information), `reqseq-markdown` and
 //   `reqseq-values` (STRING). A text property is STRING, with `many` an XHTML list of its items as
 //   written; a number REAL; a date DATE at `T00:00:00Z`; a choice ENUMERATION (`MULTI-VALUED` with
-//   `many`); a relation-valued property (validity, packages) STRING of the short IDs of its targets.
+//   `many`); a relation-valued property (validity, packages) STRING of the short IDs of its targets,
+//   for reading (its targets are SPEC-RELATIONs `_rt-<property>`, `ownRelationKeys`).
 // - Readable values: one per attribute that has a value. A value the attribute cannot carry (a
 //   number that is not finite, a date that is no `YYYY-MM-DD`, a choice or status the metamodel does
 //   not define) has no readable value; `reqseq-values` still holds it as stored.
@@ -17,10 +18,10 @@
 // - The one-to-one mapping of a file of ReqSeq (`ownMapping`, SR-052 AK3, SR-054): by IDENTIFIER,
 //   each `_ot-<type>` to that type when the metamodel has it and it is not abstract, each
 //   `_ad-<type>.<key>` to that property of the type (`title`, `text`; a choice with its values
-//   `_ev-<key>.<choice>`), each `_rt-<kind>` to that kind; omitted: the status (D-030), the origin
-//   properties (only the import writes them, SR-057 AK3), relation-valued properties (their STRING
-//   of short IDs is for reading; `reqseq-values` carries them), both round-trip attributes, and
-//   whatever the metamodel does not know.
+//   `_ev-<key>.<choice>`), each `_rt-<key>` to that relation kind or relation-valued property;
+//   omitted: the status (D-030), the origin properties (only the import writes them, SR-057 AK3),
+//   the STRING attribute of a relation-valued property (for reading; its SPEC-RELATIONs carry it),
+//   both round-trip attributes, and whatever the metamodel does not know.
 import type { MetamodelProperty, ReqifMappingFile } from "../generated/types.js";
 import type { EffectiveType, Metamodel } from "../metamodel/index.js";
 import { findType } from "../metamodel/index.js";
@@ -55,6 +56,15 @@ export const ownId = {
   enumValue: (property: string, choice: string): string => `_ev-${property}.${choice}`,
   relationType: (kind: string): string => `_rt-${kind}`,
 } as const;
+
+/**
+ * The keys whose items are SPEC-RELATIONs (SR-052 AK2): the relation kinds, then the relation-valued
+ * properties (validity, packages), each in metamodel order.
+ */
+export const ownRelationKeys = (metamodel: Metamodel): string[] => [
+  ...metamodel.relations.map((r) => r.key),
+  ...metamodel.properties.filter((p) => p.kind === "relation").map((p) => p.key),
+];
 
 /** The datatype IDENTIFIER of each kind but enumeration. */
 export const OWN_DATATYPES = {
@@ -153,6 +163,8 @@ export const ownDefinitions = (
 export interface ReadableOptions {
   /** The short ID of a relation target, for a relation-valued property. */
   readonly shortId: (item: TargetItem) => string;
+  /** The `data` of the `object` of an image link of the text (`markdownToXhtml`), by its URL. */
+  readonly image: (url: string) => string;
 }
 
 /** A text as it is stored: a scalar as its text; anything else has none. */
@@ -281,8 +293,7 @@ export const readableValues = (
               {
                 kind: "xhtml",
                 definition,
-                // Image links as the text has them: the export copies no images yet.
-                value: [markdownToXhtml(element.text).value],
+                value: [markdownToXhtml(element.text, { image: options.image }).value],
               },
             ];
       case "status": {
@@ -350,6 +361,13 @@ const ownAttributeEntry = (
   };
 };
 
+/** A one-to-one mapping (`ownMapping`): every list is there. */
+export type OwnMappingFile = ReqifMappingFile & {
+  readonly types: TypeEntry[];
+  readonly attributes: AttributeEntry[];
+  readonly relations: RelationEntry[];
+};
+
 /**
  * The one-to-one mapping of the file of ReqSeq `file` for source `name` (see the file comment);
  * `skipped` are the property keys never mapped (the title key and the origin properties).
@@ -359,7 +377,7 @@ export const ownMapping = (
   metamodel: Metamodel,
   name: string,
   skipped: ReadonlySet<string>,
-): ReqifMappingFile => {
+): OwnMappingFile => {
   const datatypes = new Map(file.datatypes.map((d) => [d.identifier, d]));
   const types: TypeEntry[] = [];
   const attributes: AttributeEntry[] = [];
@@ -368,7 +386,7 @@ export const ownMapping = (
     if (t.category === "spec-relation") {
       const kind = after(t.identifier, "_rt-");
       relations.push(
-        kind !== undefined && metamodel.relations.some((r) => r.key === kind)
+        kind !== undefined && ownRelationKeys(metamodel).includes(kind)
           ? { source: t.identifier, kind }
           : { source: t.identifier, omit: true },
       );
