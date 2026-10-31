@@ -54,14 +54,14 @@ types:
     description: "A variant of the product. Its requirements replace requirements of the core only through Replaces; Excludes names the core requirements that do not apply in it."
     prefix: VAR
     meaning: variant
-    properties: [title]
+    properties: [title, source, source-identifier, import-date, delivery, import-version]
     required: [title]
   - key: package
     name: Package
     description: "A group of elements. System requirements name it in their property Package."
     prefix: PKG
     meaning: package
-    properties: [title]
+    properties: [title, source, source-identifier, import-date, delivery, import-version]
     required: [title]
 
 properties:
@@ -164,8 +164,8 @@ properties:
       description: "The name of the delivery the element was imported from.",
     }
   # D-059: Import Version has the meaning import-version (Importfassung), written only by the
-  # import and never counted to the version. Need, Use Case and Decision carry the origin as
-  # System Requirement does, so that a ReqIF export of them can be imported again (assumption, #511).
+  # import and never counted to the version. Every type carries the origin, so that a ReqIF
+  # export of any selection can be imported again (assumption, #511).
   - {
       key: import-version,
       name: Import Version,
