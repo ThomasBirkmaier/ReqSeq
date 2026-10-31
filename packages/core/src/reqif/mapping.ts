@@ -4,9 +4,10 @@
 // - Where: written only directly in the mapping folder, the `mappings` location of the workspace
 //   file, by default the folder `reqif` in the main repository (SR-054 AK1), for every access
 //   (`mappingTarget`). The default file is `<portable source name, lower case>.yaml`. A path that
-//   lies elsewhere, also through a link, is `input.invalid` (`reason: "outside-mapping-folder"`); a
-//   mapping folder in the metamodel folder is refused too, so a mapping never becomes a metamodel
-//   file (SR-054 AK3).
+//   lies elsewhere, also through a link, is `input.invalid` (`reason: "outside-mapping-folder"`).
+//   ReqSeq follows no link to its files: a mapping folder that is or lies below a link is refused
+//   (`reason: "link"`), and so is one in the metamodel folder, so a mapping never becomes a
+//   metamodel file (SR-054 AK3).
 // - Read from any path the access allows (`readMappingFile`), for `reqif.import` and `reqif.export`
 //   with `mapping` (SR-054 AK2): the file must match the schema (`file.faulty` otherwise).
 // - Both sides check the mapping against the own metamodel (`checkMapping`), which they only read:
@@ -66,6 +67,13 @@ const realOf = async (absolute: string): Promise<string> =>
     .realpath(absolute)
     .catch(async () => path.join(await realOf(path.dirname(absolute)), path.basename(absolute)));
 
+/**
+ * Whether `a` and `b` name the same path by the rules of `platform` (default this machine's):
+ * on Windows the case of the drive letter and of the names does not count.
+ */
+export const samePath = (a: string, b: string, platform: NodeJS.Platform = process.platform): boolean =>
+  (platform === "win32" ? path.win32 : path.posix).relative(a, b) === "";
+
 const inside = (parent: string, child: string): boolean => {
   const rel = path.relative(parent, child);
   return rel === "" || (!path.isAbsolute(rel) && rel.split(path.sep)[0] !== "..");
@@ -94,26 +102,32 @@ export const mappingTarget = async (
       { command, repository: location.repository },
     );
   }
-  const realFolder = await realOf(folder);
+  // The repository folder is a real path, so a link in the folder's own path shows as a difference.
+  if (!samePath(await realOf(folder), folder)) {
+    throw invalid(
+      `Not written: the mapping folder ${location.path} of repository ${repository.name} is or lies below a link, which ReqSeq does not follow`,
+      { command, reason: "link", repository: repository.name },
+    );
+  }
   const metamodel = layout.metamodel.folder;
-  if (metamodel !== undefined && inside(await realOf(metamodel), realFolder)) {
+  if (metamodel !== undefined && inside(await realOf(metamodel), folder)) {
     throw invalid(
       `Not written: the mapping folder ${location.path} lies in the metamodel folder; set mappings in the workspace file to another folder`,
-      { command, fields: ["file"], reason: "metamodel-folder", repository: repository.name },
+      { command, reason: "metamodel-folder", repository: repository.name },
     );
   }
   let name = mappingFileName(source);
   if (given !== undefined) {
     const absolute = path.resolve(root, given);
     name = path.basename(absolute);
-    if ((await realOf(path.dirname(absolute))) !== realFolder || !name.endsWith(MAPPING_FILE_EXTENSION)) {
+    if (!samePath(await realOf(path.dirname(absolute)), folder) || !name.endsWith(MAPPING_FILE_EXTENSION)) {
       throw invalid(
         `file: a mapping file is written only as a ${MAPPING_FILE_EXTENSION} file directly in the mapping folder ${location.path} of repository ${repository.name}`,
         { command, fields: ["file"], reason: "outside-mapping-folder", repository: repository.name },
       );
     }
   }
-  const relative = path.relative(repository.folder, realFolder).split(path.sep).join("/");
+  const relative = path.relative(repository.folder, folder).split(path.sep).join("/");
   const file = relative === "" ? name : `${relative}/${name}`;
   return { repository, file: await refuseUnlisted(layout, repository, file, { ignored: false }) };
 };

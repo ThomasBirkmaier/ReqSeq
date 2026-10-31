@@ -162,7 +162,7 @@ describe("reqif.saveMapping (SR-054)", () => {
     }
     // Also through a link in the mapping folder to another folder.
     await fs.mkdir(fixture.path("reqif"));
-    await fs.symlink(fixture.path("metamodel"), fixture.path("reqif/meta"), "dir");
+    await fs.symlink(fixture.path("metamodel"), fixture.path("reqif/meta"), "junction");
     const linked = await failure(workspace, { file: fixture.path("reqif/meta/x.yaml"), mapping: MAPPING });
     expect(linked.details).toMatchObject({ reason: "outside-mapping-folder" });
     await expect(fs.readdir(fixture.path("metamodel"))).resolves.toEqual(["standard-model.yaml"]);
@@ -207,6 +207,64 @@ describe("reqif.saveMapping (SR-054)", () => {
     const error = await failure(workspace, { mapping: MAPPING });
     expect(error.code).toBe("file.folder-missing");
     expect(error.details).toMatchObject({ repository: "exchange" });
+  });
+
+  it("follows no link in the mapping folder's path, inside or outside the repository", async () => {
+    const { fixture, workspace } = await open(
+      withSetting("mappings: { repository: system, path: exchange/reqif }"),
+    );
+    // A linked intermediate folder that leads to the element folder.
+    await fs.symlink(fixture.path("requirements"), fixture.path("exchange"), "junction");
+    for (const input of [{ mapping: MAPPING }, { file: "exchange/reqif/z2.yaml", mapping: MAPPING }]) {
+      const error = await failure(workspace, input);
+      expect(error.code).toBe("input.invalid");
+      expect(error.details).toMatchObject({ reason: "link", repository: "system" });
+      expect(error.message).toBe(
+        "Not written: the mapping folder exchange/reqif of repository system is or lies below a link, which ReqSeq does not follow",
+      );
+    }
+    // The path the link leads to is not the mapping folder either.
+    const behind = await failure(workspace, { file: "requirements/reqif/z2.yaml", mapping: MAPPING });
+    expect(behind.details).toMatchObject({ reason: "link" });
+    await expect(fs.readdir(fixture.path("requirements"))).resolves.toEqual(["SR-6328cee88fb3.md"]);
+  });
+
+  it("follows no link that is the mapping folder and leads out of the repository", async () => {
+    const outside = await createFixtureWorkspace({ files: { "keep.txt": "x" } });
+    onTestFinished(() => outside.cleanup());
+    const { fixture, workspace } = await open();
+    await fs.symlink(outside.root, fixture.path("reqif"), "junction");
+    const error = await failure(workspace, { mapping: MAPPING });
+    expect([error.code, error.details?.["reason"]]).toEqual(["input.invalid", "link"]);
+    await expect(fs.readdir(outside.root)).resolves.toEqual(["keep.txt"]);
+  });
+
+  it("refuses to replace the mapping of another source that shares the default file, unless file names it", async () => {
+    const other = "reqseq-reqif-mapping: 1\nsource: { name: KUNDE A }\n";
+    const { fixture, workspace } = await open({ "reqif/kunde-a.yaml": other });
+    const error = await failure(workspace, { mapping: MAPPING });
+    expect(error.code).toBe("input.invalid");
+    expect(error.details).toMatchObject({
+      fields: ["mapping.source.name"],
+      reason: "other-source",
+      file: "reqif/kunde-a.yaml",
+      source: "KUNDE A",
+    });
+    await expect(read(fixture, "reqif/kunde-a.yaml")).resolves.toBe(other);
+    const out = await save(workspace, { file: "reqif/kunde-a.yaml", mapping: MAPPING });
+    expect(out.files).toEqual(["reqif/kunde-a.yaml"]);
+    await expect(read(fixture, "reqif/kunde-a.yaml")).resolves.toContain("name: Kunde A");
+  });
+
+  it("removes keys the schema does not know from an existing file, so it stays a mapping file", async () => {
+    const { fixture, workspace } = await open({
+      "reqif/kunde-a.yaml": "other-tool: { x: 1 }\nsource: Kunde A\n",
+    });
+    const mapping = { "reqseq-reqif-mapping": 1, source: { name: "Kunde A" } };
+    expect((await save(workspace, { mapping })).files).toEqual(["reqif/kunde-a.yaml"]);
+    const data: unknown = parse(await read(fixture, "reqif/kunde-a.yaml"));
+    expect(data).toEqual(mapping);
+    expect(fileSchemaValidator("reqif-mapping.schema.json")(data)).toBe(true);
   });
 
   it("changes an existing file key by key, keeps its comments, removes a key left out and writes nothing when equal", async () => {

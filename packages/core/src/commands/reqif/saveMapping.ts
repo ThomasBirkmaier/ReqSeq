@@ -8,8 +8,12 @@
 // - A new file is written in the schema's key order (`renderYamlDocument`); the folder is created
 //   when missing. The input is the whole mapping: an existing file is changed key by key, so only the
 //   top-level keys whose value changed are rewritten and every other byte stays (ADR-0007); a key the
-//   input leaves out is removed. The file must be unchanged since it was read
-//   (`file.changed-on-disk`). Nothing changed: nothing is written and `files` is empty.
+//   input leaves out, and a key the schema does not know, is removed. The file must be unchanged
+//   since it was read (`file.changed-on-disk`). Nothing changed: nothing is written and `files` is
+//   empty. Defaults of the schema come with the input (`statement.datatype`) and are written too.
+// - Names that are equal once portable share the default file: when it holds the mapping of another
+//   `source.name`, it is replaced only when `file` names it (`input.invalid`, `reason:
+//   "other-source"`).
 // - Nothing is ever deleted or renamed, and no status is touched.
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -28,6 +32,16 @@ import { metamodelState } from "../../metamodel/index.js";
 import { workspacePath } from "../../model/index.js";
 import { MAPPING_KEYS, checkMapping, mappingTarget } from "../../reqif/index.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
+
+const KNOWN_KEYS: ReadonlySet<string> = new Set(MAPPING_KEYS);
+
+/** `source.name` of a file's data, if it has one. */
+const sourceNameOf = (data: Readonly<Record<string, unknown>>): unknown => {
+  const source = data["source"];
+  return typeof source === "object" && source !== null
+    ? (source as { readonly name?: unknown }).name
+    : undefined;
+};
 
 /** Whether `absolute` exists, also as a link or folder, which the read then refuses. */
 const exists = async (absolute: string): Promise<boolean> =>
@@ -72,12 +86,26 @@ export default defineCommand({
       );
     }
     const current = (read.file.data ?? {}) as Readonly<Record<string, unknown>>;
-    const edits = MAPPING_KEYS.flatMap((key): YamlKeyEdit[] => {
-      if (isDeepStrictEqual(current[key], data[key])) {
-        return [];
-      }
-      return data[key] === undefined ? [{ key }] : [{ key, value: data[key] }];
-    });
+    const held = sourceNameOf(current);
+    if (input.file === undefined && typeof held === "string" && held !== mapping.source.name) {
+      throw new CommandError(
+        "input.invalid",
+        `Not written: ${shown} holds the mapping of source ${held}; name another file in file to keep both, or this file to replace it`,
+        { command, fields: ["mapping.source.name"], reason: "other-source", file: shown, source: held },
+      );
+    }
+    const edits = [
+      ...MAPPING_KEYS.flatMap((key): YamlKeyEdit[] => {
+        if (isDeepStrictEqual(current[key], data[key])) {
+          return [];
+        }
+        return data[key] === undefined ? [{ key }] : [{ key, value: data[key] }];
+      }),
+      // A key the schema does not know is removed, so the file stays a mapping file.
+      ...Object.keys(current)
+        .filter((key) => !KNOWN_KEYS.has(key))
+        .map((key): YamlKeyEdit => ({ key })),
+    ];
     if (edits.length === 0) {
       return { files: [], problems: [] };
     }

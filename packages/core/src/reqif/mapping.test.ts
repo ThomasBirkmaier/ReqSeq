@@ -7,7 +7,7 @@ import { CommandError } from "../catalog.js";
 import { metamodelState } from "../metamodel/index.js";
 import { Workspace } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "../workspace/index.js";
-import { mappingFileName, mappingTarget, readMappingFile } from "./mapping.js";
+import { mappingFileName, mappingTarget, readMappingFile, samePath } from "./mapping.js";
 
 const open = async (
   files: Readonly<Record<string, string>> = {},
@@ -77,6 +77,14 @@ describe("mapping files (SR-054)", () => {
     expect(wrong.message).toMatch(/^mapping: wrong\.yaml is no mapping file: /);
     const unknown = await failure(() => readFrom(workspace, "reqif/unknown.yaml"));
     expect([unknown.code, unknown.details?.["fields"]]).toEqual(["input.invalid", ["mapping.types[0].type"]]);
+  });
+
+  it("compares paths by the rules of the platform: on Windows the case of the drive letter does not count", () => {
+    expect(samePath("C:\\ws\\reqif", "c:\\ws\\reqif", "win32")).toBe(true);
+    expect(samePath("C:\\ws\\reqif", "C:\\ws\\other", "win32")).toBe(false);
+    expect(samePath("/ws/reqif", "/ws/Reqif", "linux")).toBe(false);
+    expect(samePath("/ws/reqif", "/ws/reqif/", "darwin")).toBe(true);
+    expect(samePath("/ws/reqif", "/ws/reqif")).toBe(true);
   });
 
   it("refuses values for a choice property that has no choices", async () => {

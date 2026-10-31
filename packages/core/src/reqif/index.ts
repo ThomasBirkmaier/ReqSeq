@@ -7,5 +7,6 @@ export {
   mappingFileName,
   mappingTarget,
   readMappingFile,
+  samePath,
 } from "./mapping.js";
 export type { AnyMapping, MappingFile, MappingTarget } from "./mapping.js";
