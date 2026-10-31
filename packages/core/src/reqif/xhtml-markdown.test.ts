@@ -90,10 +90,10 @@ describe("xhtmlToMarkdown", () => {
       ),
     );
     expect(converted.markdown).toMatchInlineSnapshot(`
-      "|      |          |         |
-      | ---- | -------- | ------- |
-      | tall | wide     |         |
-      |      | - listed | ## head |"
+      "|      |        |      |
+      | ---- | ------ | ---- |
+      | tall | wide   |      |
+      |      | listed | head |"
     `);
     expect(converted.losses).toEqual([
       { code: "xhtml-rowspan", reason: '<td rowspan="2">' },
@@ -102,6 +102,91 @@ describe("xhtmlToMarkdown", () => {
       { code: "xhtml-cell-block", reason: "<h2> in a table cell" },
     ]);
   });
+
+  it("[SR-095/AK1] flattens a cell at every depth: breaks as <br>, nested blocks as a loss", () => {
+    const cell = (content: string): { markdown: string; losses: string[] } => {
+      const converted = xhtmlToMarkdown(
+        value(`<table><tr><th>h</th></tr><tr><td>${content}</td></tr><tr><td>after</td></tr></table>`),
+      );
+      return {
+        markdown: converted.markdown.split("\n")[2] ?? "",
+        losses: converted.losses.map(({ code, reason }) => `${code} ${reason}`),
+      };
+    };
+    expect(cell("a<br/>b")).toEqual({ markdown: "| a<br>b |", losses: [] });
+    expect(cell("<div><p>a</p><p>b</p></div>")).toEqual({ markdown: "| a<br>b |", losses: [] });
+    expect(cell("<div><ul><li>a</li><li>b</li></ul></div>")).toEqual({
+      markdown: "| a<br>b |",
+      losses: ["xhtml-cell-block <ul> in a table cell"],
+    });
+    expect(cell("<span><h2>a</h2></span> b")).toEqual({
+      markdown: "| a<br>b |",
+      losses: ["xhtml-cell-block <h2> in a table cell"],
+    });
+    expect(cell("<pre>x\n\ny</pre>")).toEqual({
+      markdown: "| x<br>y |",
+      losses: ["xhtml-cell-block <pre> in a table cell"],
+    });
+    expect(cell("<p>a</p>\n  <strong>b\n c</strong><br/><br/>")).toEqual({
+      markdown: "| a<br>**b c** |",
+      losses: [],
+    });
+    expect(cell('<p>x</p><object data="i.png"/> <em> </em>y')).toEqual({
+      markdown: "| x<br>![](i.png) y |",
+      losses: [],
+    });
+    expect(
+      xhtmlToMarkdown(value("<table><tr><td>a<br/>b</td></tr></table>")).markdown.split("\n"),
+    ).toHaveLength(3);
+  });
+
+  it("joins runs of the same emphasis and drops emphasis of white space alone", () => {
+    expect(markdown("<p><b>a</b><b>b</b> <em>c</em><i>d</i> x<em> </em>y <b><em>e</em></b></p>")).toBe(
+      "**ab** *cd* x y **_e_**",
+    );
+  });
+
+  it("writes a caption as a paragraph before its table", () => {
+    expect(markdown("<table><caption>Cap <b>bold</b></caption><tr><th>h</th></tr></table>"))
+      .toMatchInlineSnapshot(`
+      "Cap **bold**
+
+      | h |
+      | - |"
+    `);
+    expect(codes("<table><caption>c</caption><tr><th>h</th></tr></table>")).toEqual([]);
+  });
+
+  it("writes line-through as strike-through; underline and colour stay losses", () => {
+    const converted = xhtmlToMarkdown(
+      value(
+        '<p><span style="text-decoration:line-through">gone</span> <span style="text-decoration: line-through; color:red">red</span> <span style="">plain</span></p><table style="text-decoration:line-through"><tr><td>t</td></tr></table>',
+      ),
+    );
+    expect(converted.markdown).toMatchInlineSnapshot(`
+      "~~gone~~ ~~red~~ plain
+
+      |   |
+      | - |
+      | t |"
+    `);
+    expect(converted.losses).toEqual([
+      { code: "xhtml-style", reason: '<span style="text-decoration: line-through; color:red">' },
+      { code: "xhtml-style", reason: '<table style="text-decoration:line-through">' },
+    ]);
+  });
+
+  it("converts 200,000 siblings both ways without overflowing the stack", () => {
+    // 100,000 lines are 200,000 siblings: text and break.
+    const lines = 100_000;
+    const imported = xhtmlToMarkdown(value(`<p>${"x<br/>".repeat(lines)}</p>`));
+    expect(imported.markdown.split("\n")).toHaveLength(lines);
+    const cell = xhtmlToMarkdown(value(`<table><tr><td>${"<p>x</p>".repeat(lines)}</td></tr></table>`));
+    expect(cell.markdown.split("<br>")).toHaveLength(lines);
+    const exportedLines = markdownToXhtml("x  \n".repeat(lines) + "x");
+    expect(exportedLines.asWritten).toBe(false);
+    expect(exportedLines.value.children[0]).toMatchObject({ name: "p", children: { length: 3 * lines + 1 } });
+  }, 60_000);
 
   it("[SR-095/AK3] lists a style and elements without Markdown counterpart as losses and keeps their text", () => {
     const converted = xhtmlToMarkdown(
@@ -123,11 +208,11 @@ describe("xhtmlToMarkdown", () => {
   it("lists the images of the text as written and keeps a non-image object's content", () => {
     const converted = xhtmlToMarkdown(
       value(
-        '<p><object data="files/start.png" type="image/png">Start <b>now</b></object> <object data="img/plan.JPG"/> <img src="a.gif" alt="A"/> <img src="b"/> <object>none</object> <object data="doc.pdf" type="application/pdf">Doc</object> <object data="note.txt">Note</object></p>',
+        '<p><object data="files/start.png" type="image/png">Start <b>now</b></object> <object data="img/plan.JPG"/> <img src="a.gif" alt="A"/> <img src="b"/> <img alt="no source"/> <img/> <object>none</object> <object data="" type="image/png">empty</object> <object data="doc.pdf" type="application/pdf">Doc</object> <object data="note.txt">Note</object></p>',
       ),
     );
     expect(converted.markdown).toMatchInlineSnapshot(
-      `"![Start now](files/start.png) ![](img/plan.JPG) ![A](a.gif) ![](b) none Doc Note"`,
+      `"![Start now](files/start.png) ![](img/plan.JPG) ![A](a.gif) ![](b) no source none empty Doc Note"`,
     );
     expect(converted.images).toEqual([
       { data: "files/start.png", type: "image/png" },
@@ -136,7 +221,8 @@ describe("xhtmlToMarkdown", () => {
       { data: "b" },
     ]);
     expect(converted.losses).toEqual([
-      { code: "xhtml-element", reason: '<object data="" type="undefined">' },
+      { code: "xhtml-element", reason: "<img> without src" },
+      { code: "xhtml-element", reason: "<object> without data" },
       { code: "xhtml-element", reason: '<object data="doc.pdf" type="application/pdf">' },
       { code: "xhtml-element", reason: '<object data="note.txt" type="undefined">' },
     ]);
@@ -145,13 +231,13 @@ describe("xhtmlToMarkdown", () => {
   it("keeps only the text of elements nested deeper than the Markdown libraries convert", () => {
     const depth = 20_000;
     let nested: XhtmlElement = {
-      name: "span",
+      name: "div",
       namespace: XHTML_NAMESPACE,
       attributes: [],
       children: ["deep"],
     };
     for (let i = 0; i < depth; i++) {
-      nested = { name: "span", namespace: XHTML_NAMESPACE, attributes: [], children: [nested] };
+      nested = { name: "div", namespace: XHTML_NAMESPACE, attributes: [], children: [nested] };
     }
     const converted = xhtmlToMarkdown([nested]);
     expect(converted.markdown).toBe("deep");
@@ -166,7 +252,7 @@ describe("markdownToXhtml", () => {
         '# Start\n\nThe system **shall** *start*, ~~slow~~, `x` and [here](https://example.org "Ex").\n\n- one\n  - nested\n- two\n\n3. three\n\n> quoted\n\n```js\ncode\n```\n\n---\n\nline  \nbreak',
       ),
     ).toMatchInlineSnapshot(`
-      "<div><h1>Start</h1><p>The system <strong>shall</strong> <em>start</em>, <del>slow</del>, <code>x</code> and <a href="https://example.org" title="Ex">here</a>.</p><ul><li>one<ul><li>nested</li></ul></li><li>two</li></ul><ol start="3"><li>three</li></ol><blockquote><p>quoted</p></blockquote><pre><code class="language-js">code
+      "<div><h1>Start</h1><p>The system <strong>shall</strong> <em>start</em>, <del>slow</del>, <code>x</code> and <a href="https://example.org" title="Ex">here</a>.</p><ul><li>one<ul><li>nested</li></ul></li><li>two</li></ul><ol><li>three</li></ol><blockquote><p>quoted</p></blockquote><pre><code>code
       </code></pre><hr></hr><p>line<br></br>
       break</p></div>"
     `);
@@ -178,18 +264,18 @@ describe("markdownToXhtml", () => {
 
   it("writes tables with alignment and <br> in a cell as a break", () => {
     expect(exported("| Id | Text |\n| :-- | --: |\n| 1 | first<br>second |")).toMatchInlineSnapshot(`
-      "<div><table><thead><tr><th align="left">Id</th><th align="right">Text</th></tr></thead><tbody><tr><td align="left">1</td><td align="right">first<br></br>
-      second</td></tr></tbody></table></div>"
+      "<div><table><tr><th align="left">Id</th><th align="right">Text</th></tr><tr><td align="left">1</td><td align="right">first<br></br>
+      second</td></tr></table></div>"
     `);
   });
 
   it("keeps raw HTML as text, writes task boxes as text and footnotes as their content", () => {
     expect(
       exported(
-        '- [ ] open\n- [x] done\n\n<span style="x">raw</span> and <b>inline</b>\n\nNote[^1].\n\n[^1]: Footnote.',
+        '- [ ] open\n- [x] done\n\n<span style="x">raw</span> and <b>inline</b>\n\nNote[^1] and[^Two][^3].\n\n[^1]: Footnote.\n\n[^Two]: > quoted\n\n[^3]:',
       ),
     ).toMatchInlineSnapshot(
-      `"<div><ul class="contains-task-list"><li class="task-list-item">[ ] open</li><li class="task-list-item">[x] done</li></ul><p><span style="x">raw</span> and <b>inline</b></p><p>Note<sup><a href="#user-content-fn-1" id="user-content-fnref-1">1</a></sup>.</p><h2 class="sr-only" id="footnote-label">Footnotes</h2><ol><li id="user-content-fn-1"><p>Footnote. <a href="#user-content-fnref-1" class="data-footnote-backref">↩</a></p></li></ol></div>"`,
+      `"<div><ul><li>[ ] open</li><li>[x] done</li></ul><p><span style="x">raw</span> and <b>inline</b></p><p>Note[^1] and[^Two][^3].</p><p>[^1]: Footnote.</p><p>[^Two]: </p><blockquote><p>quoted</p></blockquote><p>[^3]: </p></div>"`,
     );
   });
 
@@ -217,5 +303,19 @@ describe("markdownToXhtml", () => {
     const { value: div, asWritten } = markdownToXhtml(text);
     expect(asWritten).toBe(true);
     expect(markup(div)).toBe(`<div><pre>${text}</pre></div>`);
+  });
+
+  it("writes no attribute outside the driver modules: no start, class or id", () => {
+    expect(exported("3. a\n4. b\n\n```js\nx\n```")).toMatchInlineSnapshot(`
+      "<div><ol><li>a</li><li>b</li></ol><pre><code>x
+      </code></pre></div>"
+    `);
+  });
+
+  it("passes errors other than a stack overflow on", () => {
+    const failing = (): string => {
+      throw new Error("image copy failed");
+    };
+    expect(() => markdownToXhtml("![a](b.png)", { image: failing })).toThrow("image copy failed");
   });
 });

@@ -50,12 +50,21 @@ const LOSSLESS: ReadonlySet<string> = new Set(
     " ",
   ),
 );
-/** Blocks a table cell may hold: joined with `<br>`, nothing is lost. */
-const CELL_LINES: ReadonlySet<string> = new Set(["p", "div"]);
+/** Blocks that end a line in a table cell; their content goes on as lines joined with `<br>`. */
+const CELL_LINE_ENDS: ReadonlySet<string> = new Set(
+  "address blockquote caption dd div dl dt h1 h2 h3 h4 h5 h6 hr li ol p pre table tbody td tfoot th thead tr ul".split(
+    " ",
+  ),
+);
+const LINE_BREAKS: ReadonlySet<string> = new Set(["br"]);
 /** Blocks a table cell cannot hold: their text stays, the structure is a loss. */
 const CELL_BLOCKS: ReadonlySet<string> = new Set(
-  "ul ol table pre blockquote hr h1 h2 h3 h4 h5 h6".split(" "),
+  "ul ol dl table pre blockquote hr h1 h2 h3 h4 h5 h6".split(" "),
 );
+/** Elements whose children are rows or items, so a `del` cannot wrap them. */
+const STRUCTURE: ReadonlySet<string> = new Set("table thead tbody tfoot tr ul ol dl".split(" "));
+/** The one `style` declaration Markdown holds (ReqIF 1.2 §10.8.20 names it): `~~`. */
+const LINE_THROUGH = /^text-decoration\s*:\s*line-through$/i;
 /** The nesting the Markdown libraries convert; a few hundred is far beyond any real text. */
 const MAX_DEPTH = 256;
 const IMAGE_EXTENSIONS: ReadonlyMap<string, string> = new Map([
@@ -67,6 +76,14 @@ const IMAGE_EXTENSIONS: ReadonlyMap<string, string> = new Map([
   ["webp", "image/webp"],
 ]);
 
+type Lost = (code: XhtmlLoss["code"], reason: string) => void;
+
+/** Pushes `items` in reverse onto a stack, one by one (a spread would overflow on wide values). */
+const pushReversed = <T, U>(stack: U[], items: readonly T[], map: (item: T) => U): void => {
+  for (const item of [...items].reverse()) {
+    stack.push(map(item));
+  }
+};
 const attributeOf = (element: XhtmlElement, name: string): string | undefined => {
   const { attributes } = element;
   for (let i = 0; i < attributes.length; i += 2) {
@@ -78,12 +95,13 @@ const attributeOf = (element: XhtmlElement, name: string): string | undefined =>
 };
 const textOf = (nodes: readonly XhtmlNode[]): string => {
   let text = "";
-  const pending = [...nodes].reverse();
+  const pending: XhtmlNode[] = [];
+  pushReversed(pending, nodes, (node) => node);
   for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
     if (typeof next === "string") {
       text += next;
     } else {
-      pending.push(...[...next.children].reverse());
+      pushReversed(pending, next.children, (node) => node);
     }
   }
   return text;
@@ -96,15 +114,137 @@ const hastElement = (tagName: string, properties: Properties, children: ElementC
   properties,
   children,
 });
+const xhtml = (name: string, children: readonly XhtmlNode[]): XhtmlElement => ({
+  name,
+  namespace: XHTML_NAMESPACE,
+  attributes: [],
+  children,
+});
+const isXhtml = (node: XhtmlElement, names: ReadonlySet<string>): boolean =>
+  node.namespace === XHTML_NAMESPACE && names.has(node.name);
+
+/** A line break inside a table cell, written as `<br>` (GFM has no other). */
+const CELL_BREAK: XhtmlElement = xhtml("br", []);
+
+interface CellFrame {
+  readonly children: readonly XhtmlNode[];
+  index: number;
+  readonly into: XhtmlNode[];
+  readonly pre: boolean;
+  readonly block: boolean;
+}
+
+/**
+ * The content of a table cell as one line of inline content, at every depth: blocks and `br` end a
+ * line (`<br>`), text runs collapse their white space (a `pre` keeps its lines), and blocks a cell
+ * cannot hold are a loss. Walked without recursion.
+ */
+class CellFlattener {
+  private readonly out: XhtmlNode[] = [];
+  /** Content since the last break. */
+  private open = false;
+  /** A break due before the next content. */
+  private pending = false;
+  private readonly frames: CellFrame[];
+  private readonly lost: Lost;
+
+  constructor(cell: readonly XhtmlNode[], lost: Lost) {
+    this.lost = lost;
+    this.frames = [{ children: cell, index: 0, into: this.out, pre: false, block: false }];
+  }
+
+  run(): XhtmlNode[] {
+    for (let frame = this.frames.at(-1); frame !== undefined; frame = this.frames.at(-1)) {
+      const child = frame.children[frame.index];
+      frame.index += 1;
+      if (child === undefined) {
+        this.frames.pop();
+        if (frame.block) {
+          this.lineEnd();
+        }
+      } else if (typeof child === "string") {
+        this.text(frame, child);
+      } else {
+        this.element(frame, child);
+      }
+    }
+    return this.out;
+  }
+
+  private lineEnd(): void {
+    this.pending ||= this.open;
+  }
+
+  private place(into: XhtmlNode[], node: XhtmlNode): void {
+    if (this.pending) {
+      into.push(CELL_BREAK);
+      this.pending = false;
+      this.open = false;
+    }
+    into.push(node);
+  }
+
+  private text(frame: CellFrame, text: string): void {
+    const lines = frame.pre ? text.split(/\r?\n/) : [text.replace(/[ \t\r\n]+/g, " ")];
+    for (const [i, line] of lines.entries()) {
+      if (i > 0) {
+        this.lineEnd();
+      }
+      // White space alone is layout at the start of a line.
+      if (line.trim() !== "" || (this.open && !this.pending && !frame.pre)) {
+        this.place(frame.into, line);
+        this.open = true;
+      }
+    }
+  }
+
+  private element(frame: CellFrame, child: XhtmlElement): void {
+    if (isXhtml(child, LINE_BREAKS)) {
+      this.lineEnd();
+    } else if (isXhtml(child, CELL_LINE_ENDS)) {
+      if (CELL_BLOCKS.has(child.name)) {
+        this.lost("xhtml-cell-block", `<${child.name}> in a table cell`);
+      }
+      this.lineEnd();
+      const pre = frame.pre || child.name === "pre";
+      this.frames.push({ children: child.children, index: 0, into: frame.into, pre, block: true });
+    } else {
+      // Inline: kept with its own content flattened; an image is content of its own.
+      const children: XhtmlNode[] = [];
+      this.place(frame.into, { ...child, children });
+      this.open ||= child.name === "object" || child.name === "img";
+      this.frames.push({ children: child.children, index: 0, into: children, pre: frame.pre, block: false });
+    }
+  }
+}
+
+/** GFM has no caption: a table's captions go before it as paragraphs; undefined without one. */
+const withoutCaption = (table: XhtmlElement, children: readonly XhtmlNode[]): XhtmlNode[] | undefined => {
+  const paragraphs: XhtmlNode[] = [];
+  const rows: XhtmlNode[] = [];
+  for (const child of children) {
+    if (typeof child !== "string" && child.name === "caption") {
+      paragraphs.push(xhtml("p", child.children));
+    } else {
+      rows.push(child);
+    }
+  }
+  return paragraphs.length === 0 ? undefined : [...paragraphs, { ...table, attributes: [], children: rows }];
+};
+
+interface Converted {
+  readonly element?: HastElement;
+  readonly children: readonly XhtmlNode[];
+  readonly before: ElementContent[];
+}
 
 /** Our node tree to hast, noting the losses; walked without recursion (a value may nest deeply). */
 class ToHast {
   readonly images: XhtmlImage[] = [];
   private readonly losses = new Map<string, XhtmlLoss>();
-
-  lost(code: XhtmlLoss["code"], reason: string): void {
+  private readonly lost: Lost = (code, reason) => {
     this.losses.set(`${code} ${reason}`, { code, reason });
-  }
+  };
 
   allLosses(): XhtmlLoss[] {
     return [...this.losses.values()];
@@ -122,12 +262,16 @@ class ToHast {
       into: (RootContent | ElementContent)[],
       depth: number,
     ): void => {
-      pending.push(...[...children].reverse().map((node) => ({ node, into, depth })));
+      pushReversed(pending, children, (node) => ({ node, into, depth }));
     };
     push(nodes, root.children, 0);
     for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
       const { node, into, depth } = next;
-      if (typeof node === "string") {
+      const last = into.at(-1);
+      if (typeof node === "string" && last?.type === "text") {
+        // One text node per run: hast-util-to-mdast joins adjacent ones in quadratic time.
+        last.value += node;
+      } else if (typeof node === "string") {
         into.push({ type: "text", value: node });
       } else if (depth === MAX_DEPTH) {
         // hast-util-to-mdast and mdast-util-to-markdown recurse: deeper elements keep only their text.
@@ -148,26 +292,38 @@ class ToHast {
   }
 
   /** One element: its hast element (none to keep only its content) and the children to convert into it. */
-  private element(node: XhtmlElement): {
-    readonly element?: HastElement;
-    readonly children: readonly XhtmlNode[];
-    readonly before: ElementContent[];
-  } {
+  private element(node: XhtmlElement): Converted {
     const { name } = node;
     if (node === CELL_BREAK) {
       return { element: hastElement("br", { dataCell: true }, []), children: [], before: [] };
     }
-    const style = attributeOf(node, "style");
-    if (style !== undefined) {
-      this.lost("xhtml-style", `<${name} style="${style}">`);
-    }
+    const children = this.styled(node);
     if (node.namespace !== XHTML_NAMESPACE || !LOSSLESS.has(name)) {
       this.lost("xhtml-element", `<${name}> in ${node.namespace || "no namespace"}`);
-      return { children: node.children, before: [] };
+      return { children, before: [] };
     }
     if (name === "object" || name === "img") {
       return this.image(node);
     }
+    if (name === "span") {
+      // A container only; unwrapped here so its text joins the run around it.
+      return { children, before: [] };
+    }
+    const captioned = name === "table" ? withoutCaption(node, children) : undefined;
+    if (captioned !== undefined) {
+      return { children: captioned, before: [] };
+    }
+    const properties = this.properties(node);
+    return {
+      element: hastElement(name, properties, []),
+      children: name === "td" || name === "th" ? new CellFlattener(children, this.lost).run() : children,
+      before: [],
+    };
+  }
+
+  /** The hast properties hast-util-to-mdast reads; spanned cells are a loss. */
+  private properties(node: XhtmlElement): Properties {
+    const { name } = node;
     const properties: Properties = {};
     for (const [attribute, key] of [
       ["href", "href"],
@@ -189,65 +345,88 @@ class ToHast {
         this.lost(code, `<${name} ${attribute}="${String(attributeOf(node, attribute))}">`);
       }
     }
-    return {
-      element: hastElement(name, properties, []),
-      children: name === "td" || name === "th" ? this.cell(node) : node.children,
-      before: [],
-    };
+    return properties;
+  }
+
+  /** The children of an element under its `style`: line-through becomes `del`, the rest is a loss. */
+  private styled(node: XhtmlElement): readonly XhtmlNode[] {
+    const style = attributeOf(node, "style");
+    if (style === undefined) {
+      return node.children;
+    }
+    const declarations = style
+      .split(";")
+      .map((declaration) => declaration.trim())
+      .filter((declaration) => declaration !== "");
+    const struck =
+      !STRUCTURE.has(node.name) && declarations.some((declaration) => LINE_THROUGH.test(declaration));
+    if (declarations.length > (struck ? 1 : 0)) {
+      this.lost("xhtml-style", `<${node.name} style="${style}">`);
+    }
+    return struck ? [xhtml("del", node.children)] : node.children;
   }
 
   /** An image (`object` of an image type, or `img`) as hast `img`; another object keeps its content. */
-  private image(node: XhtmlElement): {
-    readonly element?: HastElement;
-    readonly children: readonly XhtmlNode[];
-    readonly before: ElementContent[];
-  } {
-    const data = attributeOf(node, node.name === "img" ? "src" : "data") ?? "";
+  private image(node: XhtmlElement): Converted {
+    const img = node.name === "img";
+    const attribute = img ? "src" : "data";
+    const data = attributeOf(node, attribute) ?? "";
     const type = attributeOf(node, "type") ?? typeOf(data);
-    if (node.name === "object" && !(type?.startsWith("image/") ?? false)) {
+    const alt = img ? (attributeOf(node, "alt") ?? "") : textOf(node.children).trim();
+    if (data === "") {
+      this.lost("xhtml-element", `<${node.name}> without ${attribute}`);
+      return { children: img ? [alt] : node.children, before: [] };
+    }
+    if (!img && !(type?.startsWith("image/") ?? false)) {
       this.lost("xhtml-element", `<object data="${data}" type="${String(type)}">`);
       return { children: node.children, before: [] };
     }
     this.images.push({ data, ...(type === undefined ? {} : { type }) });
-    const alt = node.name === "img" ? (attributeOf(node, "alt") ?? "") : textOf(node.children).trim();
     return { children: [], before: [hastElement("img", { src: data, alt }, [])] };
-  }
-
-  /** The content of a table cell: its blocks as lines joined with `<br>`; other blocks are a loss. */
-  private cell(node: XhtmlElement): readonly XhtmlNode[] {
-    const lines = node.children.filter((child) => typeof child !== "string" && CELL_LINES.has(child.name));
-    for (const child of node.children) {
-      if (typeof child !== "string" && CELL_BLOCKS.has(child.name)) {
-        this.lost("xhtml-cell-block", `<${child.name}> in a table cell`);
-      }
-    }
-    if (lines.length === 0) {
-      return node.children;
-    }
-    const joined: XhtmlNode[] = [];
-    let afterLine = true;
-    for (const child of node.children) {
-      if (typeof child !== "string" && CELL_LINES.has(child.name)) {
-        if (joined.length > 0) {
-          joined.push(CELL_BREAK);
-        }
-        joined.push(...child.children);
-        afterLine = true;
-      } else if (!(afterLine && typeof child === "string" && child.trim() === "")) {
-        // Inline content after a line starts a new line; the space between lines is layout.
-        if (afterLine && joined.length > 0) {
-          joined.push(CELL_BREAK);
-        }
-        joined.push(child);
-        afterLine = false;
-      }
-    }
-    return joined;
   }
 }
 
-/** A line break inside a table cell, written as `<br>` (GFM has no other). */
-const CELL_BREAK: XhtmlElement = { name: "br", namespace: XHTML_NAMESPACE, attributes: [], children: [] };
+/** Emphasis, strong and strike-through that Markdown joins when written next to each other. */
+const ATTENTION: ReadonlySet<string> = new Set(["emphasis", "strong", "delete"]);
+
+/**
+ * Joins runs of the same emphasis (`<b>a</b><b>b</b>` is `**ab**`): mdast-util-to-markdown pairs
+ * adjacent attention markers in more than quadratic time (4,000 adjacent `b` take a minute).
+ */
+const joinAttention = (tree: MdastNodes): void => {
+  const pending: MdastNodes[] = [tree];
+  for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
+    if ("children" in next) {
+      const parent: MdastParent = next;
+      parent.children = joinRuns(parent.children) as typeof parent.children;
+      pushReversed(pending, parent.children, (child) => child);
+    }
+  }
+};
+type Attention = Extract<MdastNodes, { type: "emphasis" | "strong" | "delete" }>;
+const isAttention = (node: MdastNodes): node is Attention => ATTENTION.has(node.type);
+/** Emphasis of white space alone: Markdown has no form for it (`* *` is no emphasis). */
+const isBlank = (node: Attention): boolean =>
+  node.children.every((child) => child.type === "text" && child.value.trim() === "");
+const joinRuns = (children: readonly MdastNodes[]): MdastNodes[] => {
+  const joined: MdastNodes[] = [];
+  for (const child of children) {
+    const last = joined.at(-1);
+    if (isAttention(child) && isBlank(child)) {
+      for (const inner of child.children) {
+        joined.push(inner);
+      }
+    } else if (isAttention(child) && last !== undefined && isAttention(last) && last.type === child.type) {
+      const into = last.children as MdastNodes[];
+      for (const inner of child.children) {
+        into.push(inner);
+      }
+    } else {
+      joined.push(child);
+    }
+  }
+  return joined;
+};
 
 /** The Markdown of an XHTML value (`THE-VALUE` of `ATTRIBUTE-VALUE-XHTML`), with its images and losses. */
 export const xhtmlToMarkdown = (value: readonly XhtmlNode[]): MarkdownOfXhtml => {
@@ -260,6 +439,7 @@ export const xhtmlToMarkdown = (value: readonly XhtmlNode[]): MarkdownOfXhtml =>
           : ({ type: "html", value: "<br>" } satisfies Html),
     },
   });
+  joinAttention(mdast);
   const markdown = toMarkdown(mdast, {
     extensions: [gfmToMarkdown()],
     bullet: "-",
@@ -271,48 +451,61 @@ export const xhtmlToMarkdown = (value: readonly XhtmlNode[]): MarkdownOfXhtml =>
   return { markdown: markdown.replace(/\n$/, ""), images: converter.images, losses: converter.allLosses() };
 };
 
-/** Elements of the XHTML modules of the ReqIF driver schema the export writes. */
+/**
+ * Elements the export writes, from the XHTML modules ReqIF 1.2 §10.8.20 names (Text, List,
+ * Hypertext, Edit, Presentation, Basic Tables, Object); others keep only their content (`thead` and
+ * `tbody` are not in Basic Tables).
+ */
 const DRIVER: ReadonlySet<string> = new Set(
-  "div p span br hr h1 h2 h3 h4 h5 h6 strong em code pre blockquote ul ol li table thead tbody tr th td a del sup".split(
-    " ",
-  ),
+  "div p span br hr h1 h2 h3 h4 h5 h6 strong em code pre blockquote ul ol li table tr th td a del".split(" "),
 );
-/** Attributes the export keeps, by hast property; the others are dropped. */
+/**
+ * Attributes the export keeps, by hast property. `class` must not be used (§10.8.20), `start` is not
+ * in the List module (the numbers of an ordered list start at 1), and `id` would repeat in a file.
+ */
 const ATTRIBUTES: ReadonlyMap<string, string> = new Map([
   ["href", "href"],
   ["title", "title"],
-  ["start", "start"],
   ["align", "align"],
-  ["className", "class"],
-  ["id", "id"],
 ]);
 /** Parents whose newline text between children is layout only. */
-const BLOCKS: ReadonlySet<string> = new Set(
-  "root div ul ol li table thead tbody tr blockquote section".split(" "),
-);
+const BLOCKS: ReadonlySet<string> = new Set("root div ul ol li table thead tbody tr blockquote".split(" "));
 
 export interface XhtmlOptions {
   /** The `data` of an image link, for example its path as copied next to the export; as written by default. */
   readonly image?: (url: string) => string;
 }
 
+/** One node of the Markdown tree as the export writes it (see `asText`). */
+const plain = (node: MdastNodes): MdastNodes[] => {
+  if (node.type === "html") {
+    return [/^<br\s*\/?>$/i.test(node.value) ? { type: "break" } : { type: "text", value: node.value }];
+  }
+  if (node.type === "footnoteReference") {
+    return [{ type: "text", value: `[^${String(node.label)}]` }];
+  }
+  if (node.type === "footnoteDefinition") {
+    const marker: MdastNodes = { type: "text", value: `[^${String(node.label)}]: ` };
+    const [first, ...rest] = node.children;
+    return first?.type === "paragraph"
+      ? [{ ...first, children: [marker, ...first.children] }, ...rest]
+      : [{ type: "paragraph", children: [marker] }, ...node.children];
+  }
+  return [node];
+};
+
 /**
  * Raw HTML in the text is text for ReqSeq (the editor interprets none): it stays as written, only
- * `<br>` (a line break in a table cell) is a break.
+ * `<br>` (a line break in a table cell) is a break. Footnotes stay as written (`[^1]`, `[^1]: …`),
+ * so the export adds no heading, back link or `id` of its own.
  */
-const literalHtml = (tree: MdastRoot): void => {
+const asText = (tree: MdastRoot): void => {
   const pending: MdastNodes[] = [tree];
   for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
     if ("children" in next) {
       const parent: MdastParent = next;
-      parent.children = parent.children.map((child) =>
-        child.type === "html"
-          ? /^<br\s*\/?>$/i.test(child.value)
-            ? { type: "break" }
-            : { type: "text", value: child.value }
-          : child,
-      );
-      pending.push(...parent.children);
+      parent.children = parent.children.flatMap(plain) as typeof parent.children;
+      pushReversed(pending, parent.children, (child) => child);
     }
   }
 };
@@ -334,8 +527,11 @@ export interface XhtmlOfMarkdown {
 export const markdownToXhtml = (markdown: string, options: XhtmlOptions = {}): XhtmlOfMarkdown => {
   try {
     return { value: converted(markdown, options), asWritten: false };
-  } catch {
-    // Only a stack overflow of the libraries is expected here; any failure keeps the text as written.
+  } catch (error) {
+    if (!(error instanceof RangeError)) {
+      throw error;
+    }
+    // The Markdown libraries recurse; a text nested too deeply for the stack is kept as written.
     const pre: XhtmlElement = {
       name: "pre",
       namespace: XHTML_NAMESPACE,
@@ -351,7 +547,7 @@ export const markdownToXhtml = (markdown: string, options: XhtmlOptions = {}): X
 
 const converted = (markdown: string, options: XhtmlOptions): XhtmlElement => {
   const mdast = fromMarkdown(markdown, { extensions: [gfm()], mdastExtensions: [gfmFromMarkdown()] });
-  literalHtml(mdast);
+  asText(mdast);
   // A root gives a root (mdast-util-to-hast).
   const hast = toHast(mdast) as HastRoot;
   const div: XhtmlElement = { name: "div", namespace: XHTML_NAMESPACE, attributes: [], children: [] };
@@ -361,12 +557,7 @@ const converted = (markdown: string, options: XhtmlOptions): XhtmlElement => {
     into: XhtmlNode[],
     parent: string,
   ): void => {
-    pending.push(
-      ...children
-        .filter(isExported)
-        .reverse()
-        .map((node) => ({ node, into, parent })),
-    );
+    pushReversed(pending, children.filter(isExported), (node) => ({ node, into, parent }));
   };
   push(hast.children, div.children as XhtmlNode[], "root");
   for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
@@ -411,14 +602,14 @@ const exported = (
     return [[], into, tagName];
   }
   if (!DRIVER.has(tagName)) {
-    // `section` of footnotes: only its content.
+    // `thead`, `tbody`: only their content.
     return [node.children, into, tagName];
   }
   const attributes: string[] = [];
   for (const [key, value] of Object.entries(properties)) {
     const name = ATTRIBUTES.get(key);
     if (name !== undefined && value !== undefined && value !== null && value !== false) {
-      attributes.push(name, Array.isArray(value) ? value.join(" ") : String(value));
+      attributes.push(name, String(value));
     }
   }
   const element: XhtmlElement = { name: tagName, namespace: XHTML_NAMESPACE, attributes, children: [] };
