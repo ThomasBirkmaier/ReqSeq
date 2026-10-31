@@ -90,7 +90,7 @@ describe("reqif.import (SR-053)", () => {
       expect.stringMatching(/^import-version: n1:[0-9a-f]{16}$/),
       "---",
       "",
-      "The station shall measure the wind speed.",
+      "The station **shall** measure the wind speed.",
       "",
       "Every 10 s.",
       "",
@@ -120,13 +120,6 @@ describe("reqif.import (SR-053)", () => {
     const out = await run(workspace);
     const [one] = out.created.map((c) => c.id);
     expect(out.losses).toEqual([
-      {
-        identifier: "REQ-1",
-        kind: "spec-object",
-        id: one,
-        code: "xhtml-element",
-        reason: "ReqIF.Text: XHTML b is not converted to Markdown yet; its text is kept",
-      },
       {
         identifier: "REQ-1",
         kind: "spec-object",

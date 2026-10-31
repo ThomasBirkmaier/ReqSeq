@@ -241,6 +241,10 @@ interface Converted {
 /** Our node tree to hast, noting the losses; walked without recursion (a value may nest deeply). */
 class ToHast {
   readonly images: XhtmlImage[] = [];
+  private readonly link: (data: string) => string;
+  constructor(link: (data: string) => string) {
+    this.link = link;
+  }
   private readonly losses = new Map<string, XhtmlLoss>();
   private readonly lost: Lost = (code, reason) => {
     this.losses.set(`${code} ${reason}`, { code, reason });
@@ -382,7 +386,7 @@ class ToHast {
       return { children: node.children, before: [] };
     }
     this.images.push({ data, ...(type === undefined ? {} : { type }) });
-    return { children: [], before: [hastElement("img", { src: data, alt }, [])] };
+    return { children: [], before: [hastElement("img", { src: this.link(data), alt }, [])] };
   }
 }
 
@@ -428,9 +432,16 @@ const joinRuns = (children: readonly MdastNodes[]): MdastNodes[] => {
   return joined;
 };
 
-/** The Markdown of an XHTML value (`THE-VALUE` of `ATTRIBUTE-VALUE-XHTML`), with its images and losses. */
-export const xhtmlToMarkdown = (value: readonly XhtmlNode[]): MarkdownOfXhtml => {
-  const converter = new ToHast();
+/**
+ * The Markdown of an XHTML value (`THE-VALUE` of `ATTRIBUTE-VALUE-XHTML`), with its images and
+ * losses. `image` gives the link of each image, for example its copy next to the element (SR-095
+ * AK2); as written by default. `images` lists them as written.
+ */
+export const xhtmlToMarkdown = (
+  value: readonly XhtmlNode[],
+  image: (data: string) => string = (data) => data,
+): MarkdownOfXhtml => {
+  const converter = new ToHast(image);
   const mdast = toMdast(converter.convert(value), {
     handlers: {
       br: (state, node: HastElement) =>

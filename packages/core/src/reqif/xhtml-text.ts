@@ -1,5 +1,5 @@
-// The text of an XHTML value for the import (SR-053), until the conversion to Markdown of SR-095
-// takes its place behind the same function (ADR-0013 "Block, parser, conversion"): the text runs in
+// The plain text of an XHTML value for the import (SR-053) into a plain target (the title, a property
+// without `markdown`); a Markdown target takes `xhtmlToMarkdown` (SR-095). The text runs in
 // document order, a paragraph break around each block element, a line break for `br`, white space
 // collapsed. Every element other than `div`, `p` and `br` is named once in `unconverted`, so the
 // import lists it as a loss (`xhtml-element`); its text is kept. For a Markdown target (the text, a

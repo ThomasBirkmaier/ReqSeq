@@ -12,7 +12,7 @@ export {
 export type { AnyMapping, MappingFile, MappingTarget } from "./mapping.js";
 export { REQIF_LIMITS, parseReqif } from "./parse.js";
 export { planImport } from "./import.js";
-export type { ImportOrigin, ImportPlan } from "./import.js";
+export type { ImportOrigin, ImportPlan, PlannedImage } from "./import.js";
 export { importDate, originKeys } from "./origin.js";
 export type { OriginKeys } from "./origin.js";
 export { markdownToXhtml, xhtmlToMarkdown } from "./xhtml-markdown.js";
@@ -23,3 +23,5 @@ export type {
   XhtmlOfMarkdown,
   XhtmlOptions,
 } from "./xhtml-markdown.js";
+export { ImageNames, imageReader } from "./images.js";
+export type { ImageFile, ImageRead, ImageReader } from "./images.js";
