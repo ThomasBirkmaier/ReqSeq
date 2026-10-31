@@ -68,11 +68,16 @@ export const localSchemas = (files: readonly XsdFile[]): XsdFile[] => {
   }));
 };
 
+/** xmllint's exit code for a schema that does not compile (XMLLINT_ERR_SCHEMACOMP). */
+const SCHEMA_COMPILE_ERROR = 5;
+
 /** The IDENTIFIERs of the file and every `*-REF` text that names none of them. */
 const danglingReferences = (xml: string): string[] => {
-  const defined = new Set(Array.from(xml.matchAll(/\sIDENTIFIER\s*=\s*"([^"]*)"/g), (match) => match[1]));
+  const defined = new Set(
+    Array.from(xml.matchAll(/\sIDENTIFIER\s*=\s*(?:"([^"]*)"|'([^']*)')/g), (match) => match[1] ?? match[2]),
+  );
   const dangling: string[] = [];
-  for (const match of xml.matchAll(/<((?:[\w.-]+:)?[A-Z][A-Z-]*-REF)>\s*([^<]*?)\s*<\//g)) {
+  for (const match of xml.matchAll(/<((?:[\w.-]+:)?[A-Z][A-Z-]*-REF)\s*>\s*([^<]*?)\s*<\//g)) {
     const [, element, identifier] = match;
     if (!defined.has(identifier)) {
       dangling.push(`<${String(element)}> ${String(identifier)} names no IDENTIFIER of the file`);
@@ -106,12 +111,16 @@ export const validateXml = async (
         .map(({ name, contents }) => ({ fileName: name, contents })),
       modifyArguments: (args) => ["--nonet", ...args],
     });
-    found = [
-      ...result.errors.map((error) => error.rawMessage),
-      ...result.rawOutput.split("\n").filter((line) => /\bwarning\b/i.test(line)),
-    ];
+    // An invalid file's errors hold every message, warnings included; a valid one may still have warned.
+    found = result.valid
+      ? result.rawOutput.split("\n").filter((line) => /\bwarning\b/i.test(line))
+      : result.errors.map((error) => error.rawMessage);
   } catch (error) {
-    // A schema that does not compile: libxml2 ends with its messages.
+    // Only a schema that does not compile (xmllint's exit code 5) is an answer; any other failure of
+    // the tool is rethrown, so a broken tool never looks like an invalid file.
+    if ((error as { code?: unknown }).code !== SCHEMA_COMPILE_ERROR) {
+      throw error;
+    }
     found = String(error)
       .split("\n")
       .filter((line) => line.trim() !== "");
@@ -165,7 +174,7 @@ export const reqifXsdDir = (
   if (dir !== undefined && dir !== "" && fs.existsSync(dir)) {
     return dir;
   }
-  if (env["CI"] !== undefined && env["CI"] !== "") {
+  if (env["CI"] !== undefined && env["CI"] !== "" && env["CI"] !== "false") {
     throw new Error(
       `The ReqIF XSDs are missing in CI (REQSEQ_REQIF_XSD_DIR="${String(dir)}"): run the step ReqIF XSDs first`,
     );

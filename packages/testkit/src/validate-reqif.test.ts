@@ -2,7 +2,9 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import type * as xmllint from "xmllint-wasm";
+import { validateXML } from "xmllint-wasm";
 import {
   REQIF_XSD_PINS,
   REQIF_XSD_SKIP_REASON,
@@ -13,6 +15,11 @@ import {
   validateReqif,
   validateXml,
 } from "./validate-reqif.js";
+
+vi.mock("xmllint-wasm", async (original) => {
+  const actual = await original<typeof xmllint>();
+  return { ...actual, validateXML: vi.fn(actual.validateXML) };
+});
 
 // A tiny schema pair of our own: the root imports the part by an absolute http location, as the ReqIF
 // XSDs do, which the validator must point to the loaded file.
@@ -126,6 +133,42 @@ describe("validateXml", () => {
   });
 });
 
+describe("validateXml, beyond libxml2", () => {
+  it("accepts single-quoted IDENTIFIERs and a *-REF tag with white space", async () => {
+    expect(
+      await validateXml(file("<p:ITEM IDENTIFIER='a'/>", "<ITEM-REF >a</ITEM-REF>"), schemas(), "root.xsd"),
+    ).toEqual({ valid: true, errors: [] });
+  });
+
+  it("rethrows a failure of the tool itself instead of calling the file invalid", async () => {
+    vi.mocked(validateXML).mockRejectedValueOnce(Object.assign(new Error("worker crashed"), { code: 1 }));
+    await expect(validateXml(file('<p:ITEM IDENTIFIER="a"/>'), schemas(), "root.xsd")).rejects.toThrow(
+      "worker crashed",
+    );
+  });
+
+  it("counts a warning of a valid file once, and the errors of an invalid one without repeating them", async () => {
+    vi.mocked(validateXML).mockResolvedValueOnce({
+      valid: true,
+      errors: [],
+      rawOutput: "root.xsd:2: Schemas parser warning : skipped\nfile.reqif validates\n",
+      normalized: "",
+    });
+    expect((await validateXml(file('<p:ITEM IDENTIFIER="a"/>'), schemas(), "root.xsd")).errors).toEqual([
+      "root.xsd:2: Schemas parser warning : skipped",
+    ]);
+    vi.mocked(validateXML).mockResolvedValueOnce({
+      valid: false,
+      errors: [{ rawMessage: "a warning and an error", message: "", loc: null }],
+      rawOutput: "a warning and an error\n",
+      normalized: "",
+    });
+    expect((await validateXml(file('<p:ITEM IDENTIFIER="a"/>'), schemas(), "root.xsd")).errors).toEqual([
+      "a warning and an error",
+    ]);
+  });
+});
+
 describe("loadXsdDir and readPins", () => {
   it("loads the pinned files once, and refuses a missing file, another hash and a bad pin line", () => {
     const dir = tempDir();
@@ -168,6 +211,7 @@ describe("reqifXsdDir", () => {
     expect(() => reqifXsdDir(skipping, { CI: "", REQSEQ_REQIF_XSD_DIR: "" })).toThrow(
       `skip: ${REQIF_XSD_SKIP_REASON}`,
     );
+    expect(() => reqifXsdDir(skipping, { CI: "false" })).toThrow(`skip: ${REQIF_XSD_SKIP_REASON}`);
     expect(() => reqifXsdDir(skipping, {})).toThrow("skip: the ReqIF XSDs are not in the repository");
     expect(REQIF_XSD_PINS.endsWith(path.join("toolchain", "reqif", "xsd.sha256"))).toBe(true);
   });
