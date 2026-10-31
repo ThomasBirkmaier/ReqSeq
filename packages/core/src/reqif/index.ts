@@ -23,3 +23,5 @@ export type {
   XhtmlOfMarkdown,
   XhtmlOptions,
 } from "./xhtml-markdown.js";
+export { writeReqif } from "./write.js";
+export type { ReqifWritable, ReqifWriteOutcome, ReqifWriteProblem } from "./write.js";

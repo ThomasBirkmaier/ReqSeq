@@ -1,6 +1,6 @@
 # ReqIF block (`src/reqif/`)
 
-ReqIF 1.2 import and export (SR-052..SR-059, SR-095; ADR-0013). So far the model, the parser, the XHTML conversion, the mapping files and the import of new elements with their origin; the writer and the other commands follow (#265, Lanes E and I).
+ReqIF 1.2 import and export (SR-052..SR-059, SR-095; ADR-0013). So far the model, the parser, the writer, the XHTML conversion, the mapping files and the import of new elements with their origin; the export and the other commands follow (#265, Lanes E and I).
 
 ## Model (`model.ts`)
 
@@ -17,10 +17,20 @@ ReqIF 1.2 import and export (SR-052..SR-059, SR-095; ADR-0013). So far the model
 - Element names are resolved by their namespace declarations, never by the prefix: `reqif:SPEC-OBJECT` and an unprefixed one in the default namespace are the same, and XHTML may sit in a default namespace on its `div`. Attributes keep their name as written, as name and value pairs in a flat array. `MULTI-VALUED` is an `xsd:boolean` (`true` or `1`). Text runs that are only whitespace are dropped outside XHTML.
 - `warnings`: one per reference to an IDENTIFIER the file does not define (datatype, spec type, attribute definition, enumeration value, relation end, hierarchy object), with the IDENTIFIER and line of the element that holds it; the model keeps the reference as written.
 - `unread`: each element the reader did not look at, the topmost of each subtree, by local name, namespace and line: skipped parts (TOOL-EXTENSIONS, SPEC-RELATION-GROUPS, unknown or foreign parts), and inside the items read everything it does not use (ALTERNATIVE-ID, THE-ORIGINAL-VALUE, EDITABLE-ATTS, more than one value in DEFAULT-VALUE, a second VALUES, unknown or foreign children). An entry inside a SPEC-OBJECT, SPEC-RELATION or SPECIFICATION (its hierarchy included) has that `owner` (`kind`, `identifier`): it is a loss of that element and goes into the import's loss list as a `reqifLoss` with the same `kind` and `identifier` (SR-053 AK2; the import picks the code, `omitted-value` for a part of a value). An entry without owner belongs to no element (a type, a datatype, a part of the file); SR-053 AK2 asks for affected elements only.
-- Attributes the model does not read are left out on purpose and not listed: datatype facets (`MAX-LENGTH`, `ACCURACY`, `MIN`, `MAX`), `IS-EDITABLE`, `IS-SIMPLIFIED`, `IS-TABLE-INTERNAL`, `xml:lang`.
+- Datatype facets are kept as written (`maxLength`, `min`, `max`, `accuracy`), since the writer needs them (ReqIF 1.2 §10.8.25, §10.8.26, §10.8.28). Attributes the model does not read are left out on purpose and not listed: `IS-EDITABLE`, `IS-SIMPLIFIED`, `IS-TABLE-INTERNAL`, `xml:lang`.
 - `.reqifz` archives are not read (SR-053).
 
 The hand-written samples are in `toolchain/reqif/samples/` (its README). The nightly performance suite parses a generated delivery of 50,000 SPEC-OBJECTs and 200,000 SPEC-RELATIONs (118 MB; `test/perf/reqif-parse.test.ts`, N-036): 5.7 s and +193 MB of heap on the development container, recorded against 10 s.
+
+## Writer (`write.ts`)
+
+`writeReqif(file)` writes the model as ReqIF 1.2 and gives `{ kind: "written", chunks }` (the file as strings to write in order, never one string of the whole file) or `{ kind: "refused", problems }` (ADR-0013). It takes `ReqifWritable`, the model without line numbers and `unread`, so a parsed file and one the export builds are both accepted.
+
+- XML declaration, UTF-8 without BOM, LF after the declaration and at the end, no indentation. Header fields in the schema's sequence (REQ-IF-VERSION always `1.0`, §9.2.3), then DATATYPES, SPEC-TYPES, SPEC-OBJECTS, SPEC-RELATIONS and SPECIFICATIONS, each written even when empty, items in model order. The same model gives the same bytes.
+- Text escapes `& < >` and CR (`&#13;`), attribute values `& < "`, TAB, LF and CR, so `parse(write(m))` gives `m` back.
+- The root declares the ReqIF namespace and `xmlns:xhtml`; XHTML is written with the prefix `xhtml:` and no whitespace of its own inside THE-VALUE. `xmlns` attributes of a value are dropped (the writer declares what it uses); `xml:` attributes are kept.
+- Refused, with every problem named by the IDENTIFIER it belongs to: `missing-field` for a field the schema makes mandatory (header CREATION-TIME, REQ-IF-TOOL-ID, SOURCE-TOOL-ID, TITLE; LAST-CHANGE of every identifiable; MAX-LENGTH of STRING, MIN and MAX of INTEGER and REAL, ACCURACY of REAL; KEY and OTHER-CONTENT of an enumeration value; LONG-NAME of an attribute definition, §10.8.3, and of an enumeration value, §10.8.31), `invalid-character` for a character XML 1.0 cannot carry (C0 controls but TAB, LF and CR, U+FFFE, U+FFFF, lone surrogates) with its `field` (the IDENTIFIER of the attribute definition for a value, else the ReqIF name), `at` (`THE-VALUE`, `text in <xhtml:p>`, `title of <xhtml:p>`), code point and offset, `invalid-value` for an IDENTIFIER that is no NCName (`xsd:ID`) and a STRING value longer than its MAX-LENGTH in characters (code points), and `unsupported-content` for THE-VALUE that is not exactly one `div` or `p` (§10.8.45), `img` (images are written as `object`), an element outside the XHTML namespace, an attribute with another prefix or a malformed element or attribute name in a value. The content of a refused element is still checked, so every problem is named. Nothing is replaced or dropped silently.
+- XHTML and SPEC-HIERARCHY nesting are walked without recursion, and the output is joined in chunks of 4,096 pieces. The nightly perf suite writes a model in the export's shape at N-036 (50,000 objects with title, about 1 KB of XHTML, `reqseq-markdown` and `reqseq-values`; 200,000 relations), checks it stays below `REQIF_LIMITS.bytes` and parses it back: 238 MiB of 256 MiB, written in about 4 s with about +400 MB of heap on the development container. The export at N-036 is thus close to the parser's limit (#530).
 
 ## XHTML and Markdown (`xhtml-markdown.ts`)
 

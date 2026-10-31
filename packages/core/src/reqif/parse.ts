@@ -261,6 +261,9 @@ const HEADER_FIELDS = {
   version: "REQ-IF-VERSION",
 } as const;
 
+/** The facets of a datatype, by model field. */
+const FACETS = { maxLength: "MAX-LENGTH", min: "MIN", max: "MAX", accuracy: "ACCURACY" } as const;
+
 /** The role of `node`, a child of an element in `parent`; `skip` for what the model does not read. */
 const roleOf = (parent: Role, node: Node): Role => {
   if (parent === "root") {
@@ -569,7 +572,11 @@ class Reader implements XmlEvents<Frame> {
         ...(otherContent === undefined ? {} : { otherContent }),
       };
     });
-    return { ...identifiable(node), kind, values };
+    const facets = Object.entries(FACETS).flatMap(([field, name]): [string, string][] => {
+      const value = attribute(node, name);
+      return value === undefined ? [] : [[field, value]];
+    });
+    return { ...identifiable(node), kind, ...Object.fromEntries(facets), values };
   }
 
   private specType(node: Node, category: ReqifSpecTypeCategory): ReqifSpecType {
