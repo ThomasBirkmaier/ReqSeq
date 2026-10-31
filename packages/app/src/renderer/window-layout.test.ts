@@ -277,7 +277,7 @@ describe("open beside and follow (SR-150)", () => {
   it("[SR-150/AK2] Open to the left: the marked element opens on the left, the shown buffer stands on the right and stays active", () => {
     const state = reduceWindow(opened(list), { type: "beside", side: "left", buffer: element(2) });
     expect(shown(state)).toEqual([element(2).key, `${list.key}*`]);
-    expect(state.layout).toEqual({ active: "right", other: element(2).key });
+    expect(state.layout).toEqual({ active: "right", other: element(2).key, preview: "brought" });
     sound(state);
   });
 
@@ -287,19 +287,23 @@ describe("open beside and follow (SR-150)", () => {
     const right = reduceWindow(split, { type: "beside", side: "right", buffer: element(2) });
     expect(shown(right)).toEqual([`${graph.key}*`, element(2).key]);
     sound(right);
+    // The preview it brought in gives way to the next element, opening no buffer more.
+    const again = reduceWindow(right, { type: "beside", side: "right", buffer: element(3) });
+    expect(shown(again)).toEqual([`${graph.key}*`, element(3).key]);
+    expect(again.buffers).toHaveLength(right.buffers.length);
+    sound(again);
     const left = reduceWindow(split, { type: "beside", side: "left", buffer: element(2) });
     expect(left).toEqual(reduceWindow(split, { type: "open", buffer: element(2) }));
     expect(shown(left)).toEqual([`${element(2).key}*`, element(1).key]);
     sound(left);
   });
 
-  it("[SR-150/AK4] the inactive element follows the element marked in the active area: in its place when it may be replaced, else behind it", () => {
+  it("[SR-150/AK4] the preview follows the element marked in the active area: in its place when it may be replaced, else behind it", () => {
     const from = reduceWindow(opened(list), { type: "beside", side: "right", buffer: element(1) });
     const follow = (buffer: ElementBuffer, replace = true): WindowAction => ({
       type: "follow",
       buffer,
       replace,
-      page: false,
     });
     const state = reduceWindow(from, follow(element(2)));
     expect(shown(state)).toEqual([`${list.key}*`, element(2).key]);
@@ -316,28 +320,36 @@ describe("open beside and follow (SR-150)", () => {
     );
     expect(shown(open)).toEqual([`${list.key}*`, element(3).key]);
     expect(keys(open)).toContain(element(1).key);
+    expect(open.layout.preview).toBe("kept");
     sound(open);
+    // A kept element is never replaced: the next one opens behind it, and is brought in again.
+    const next = reduceWindow(open, follow(element(4)));
+    expect(keys(next)).toContain(element(3).key);
+    expect(next.layout.preview).toBe("brought");
     // The element already shown there, or the active buffer itself: nothing changes.
     expect(reduceWindow(from, follow(element(1)))).toBe(from);
     const twoElements = run(opened(element(2), element(1)), { type: "split" });
     expect(reduceWindow(twoElements, follow(element(1)))).toBe(twoElements);
   });
 
-  it("[SR-150/AK5] an inactive list, overview, graph or package page, the comparison of SR-044 and one area do not follow", () => {
-    const follow = (page = false): WindowAction => ({
-      type: "follow",
-      buffer: element(2),
-      replace: true,
-      page,
-    });
+  it("[SR-150/AK5] an inactive area that is no preview stays: entered, opened there by the reader, the comparison of SR-044, one area", () => {
+    const follow = (): WindowAction => ({ type: "follow", buffer: element(2), replace: true });
     const listed = run(opened(list, element(1)), { type: "split" });
     expect(reduceWindow(listed, follow())).toBe(listed);
     const graphed = run(opened(graph, element(1)), { type: "split" });
     expect(reduceWindow(graphed, follow())).toBe(graphed);
-    const lone = run(opened(element(1)), { type: "split" });
-    expect(reduceWindow(lone, follow())).toBe(lone);
-    const paged = reduceWindow(opened(list), { type: "beside", side: "right", buffer: element(9) });
-    expect(reduceWindow(paged, follow(true))).toBe(paged);
+    const preview = reduceWindow(opened(list), { type: "beside", side: "right", buffer: element(9) });
+    // Entered and left again: the element stays beside the list, so two elements can stand side by side.
+    const entered = run(preview, { type: "switch", key: element(9).key }, { type: "switch", key: list.key });
+    expect(entered.layout).toEqual({ active: "left", other: element(9).key });
+    expect(reduceWindow(entered, follow())).toBe(entered);
+    // Its element closed, or unsplit and split again: no preview.
+    const replaced = run(preview, { type: "close", key: element(9).key });
+    expect(replaced.layout.preview).toBeUndefined();
+    const resplit = run(preview, { type: "unsplit" }, { type: "split" });
+    expect(resplit.layout.preview).toBeUndefined();
+    // Working in the active area keeps the preview.
+    expect(run(preview, { type: "open", buffer: graph }).layout.preview).toBe("brought");
     const compared = reduceWindow(opened(list), {
       type: "side-by-side",
       left: readOnlyBuffer(element(1)),
@@ -346,5 +358,24 @@ describe("open beside and follow (SR-150)", () => {
     expect(reduceWindow(compared, follow())).toBe(compared);
     const one = opened(element(1));
     expect(reduceWindow(one, follow())).toBe(one);
+    expect(reduceWindow(EMPTY_WINDOW, follow())).toBe(EMPTY_WINDOW);
+  });
+
+  it("[SR-150/AK6] Split window with a marked element: the shown buffer stays on the left and active, the preview of the element is on the right at once", () => {
+    const state = reduceWindow(opened(element(1), list), { type: "split", marked: element(2) });
+    expect(state).toEqual(
+      reduceWindow(opened(element(1), list), { type: "beside", side: "right", buffer: element(2) }),
+    );
+    expect(shown(state)).toEqual([`${list.key}*`, element(2).key]);
+    expect(state.layout.preview).toBe("brought");
+    sound(state);
+    // Nothing marked, or the marked element is the shown buffer: the buffer used before stands beside it.
+    const plain = reduceWindow(opened(element(1), list), { type: "split", marked: undefined });
+    expect(plain).toEqual(reduceWindow(opened(element(1), list), { type: "split" }));
+    expect(
+      reduceWindow(opened(element(1)), { type: "split", marked: element(1) }).layout.preview,
+    ).toBeUndefined();
+    // Already split: nothing changes.
+    expect(reduceWindow(state, { type: "split", marked: element(3) })).toBe(state);
   });
 });

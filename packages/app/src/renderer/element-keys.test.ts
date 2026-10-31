@@ -35,15 +35,15 @@ describe("the keys of the element buffer", () => {
   });
 
   it("handles Enter, Down to a field or to the elements of a package, and Escape and Up on a field", () => {
-    expect(fieldKey("Enter", undefined, false)).toBe(true);
-    expect(fieldKey("ArrowDown", undefined, false)).toBe(false);
-    expect(fieldKey("ArrowDown", undefined, true)).toBe(true);
-    expect(fieldKey("ArrowDown", "Text", false)).toBe(true);
-    expect(fieldKey("Escape", undefined, true)).toBe(false);
-    expect(fieldKey("Escape", "Text", false)).toBe(true);
-    expect(fieldKey("ArrowUp", undefined, true)).toBe(false);
-    expect(fieldKey("ArrowUp", "Title", false)).toBe(true);
-    expect(fieldKey("a", "Title", true)).toBe(false);
+    expect(fieldKey("Enter", undefined)).toBe(true);
+    // Down on the element goes to its first field (SR-155) or into the elements of a package.
+    expect(fieldKey("ArrowDown", undefined)).toBe(true);
+    expect(fieldKey("ArrowDown", "Text")).toBe(true);
+    expect(fieldKey("Escape", undefined)).toBe(false);
+    expect(fieldKey("Escape", "Text")).toBe(true);
+    expect(fieldKey("ArrowUp", undefined)).toBe(false);
+    expect(fieldKey("ArrowUp", "Title")).toBe(true);
+    expect(fieldKey("a", "Title")).toBe(false);
   });
 
   it("takes back an Edit text still waiting with any key but Enter and the modifiers alone", () => {

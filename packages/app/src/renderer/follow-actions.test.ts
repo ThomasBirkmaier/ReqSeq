@@ -26,7 +26,8 @@ const context = (
   armClose: vi.fn(),
   discard: vi.fn(),
   drafted: () => false,
-  opened: [],
+  cycleOrder: [],
+  cycled: () => undefined,
   leaveEditor: vi.fn(),
   ...(follow === undefined ? {} : { follow }),
 });

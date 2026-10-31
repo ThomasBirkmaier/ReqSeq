@@ -3,8 +3,6 @@
 // reading it again moves nothing. The marked element can come a render after the selection (a graph
 // reports it when it drew the node), so a follow waits until the element differs from the one marked
 // before the change. Pure, no React; `App.tsx` keeps the state between renders.
-import type { Buffers } from "./buffers.js";
-
 /** What one render showed: the shown buffer, its selection, its marked element and the inactive buffer. */
 export interface MarkState {
   readonly buffer: string | undefined;
@@ -44,18 +42,4 @@ export const markStep = (
     return { pending: waiting, follow: false };
   }
   return { pending: undefined, follow: true };
-};
-
-/**
- * Whether following brings `marked` into the inactive area as a new buffer: only such an element is
- * replaced by the next one marked; one the reader had open is not (SR-150 AK4).
- */
-export const bringsNew = (buffers: Buffers, other: string, marked: string, page: boolean): boolean => {
-  const shown = buffers.find((open) => open.key === other);
-  return (
-    !page &&
-    shown?.kind === "element" &&
-    shown.readOnly !== true &&
-    !buffers.some((open) => open.key === marked)
-  );
 };

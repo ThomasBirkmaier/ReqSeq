@@ -1,8 +1,7 @@
 // When the inactive area follows the marked element (SR-150 AK4): only a new selection in the same buffer.
 import { describe, expect, it } from "vitest";
-import { elementBuffer, listBuffer, readOnlyBuffer } from "./buffers.js";
 import type { MarkState } from "./follow-mark.js";
-import { NO_MARK, bringsNew, markStep } from "./follow-mark.js";
+import { NO_MARK, markStep } from "./follow-mark.js";
 
 const state = (token: string, marked: string | undefined, split = true): MarkState => ({
   buffer: "list",
@@ -39,18 +38,5 @@ describe("markStep (SR-150 AK4)", () => {
       pending: undefined,
       follow: false,
     });
-  });
-});
-
-describe("bringsNew (SR-150 AK4)", () => {
-  const shown = elementBuffer("u1", "spec", "SR-1 One");
-  const list = listBuffer("All elements");
-  it("is true only when an editable element in the area gives way to an element not open yet", () => {
-    expect(bringsNew([list, shown], shown.key, "element:spec:u2", false)).toBe(true);
-    expect(bringsNew([list, shown], shown.key, "element:spec:u2", true)).toBe(false);
-    expect(bringsNew([list, shown], shown.key, list.key, false)).toBe(false);
-    expect(bringsNew([shown, list], list.key, "element:spec:u2", false)).toBe(false);
-    const compared = readOnlyBuffer(shown);
-    expect(bringsNew([list, compared], compared.key, "element:spec:u2", false)).toBe(false);
   });
 });

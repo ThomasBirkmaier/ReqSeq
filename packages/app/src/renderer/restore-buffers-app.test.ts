@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 // The open buffers come back when the app opens again (SR-115 AK4): behind the overview, which shows
-// first (SR-118 AK1), in their order of use (Ctrl/Cmd+P) and of opening (Alt+N, SR-115 AK5), per
+// first (SR-118 AK1), in their order of use (Ctrl/Cmd+P), which Alt+P walks too (SR-115 AK5), per
 // workspace, in the app's storage and never through a write command.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -206,21 +206,21 @@ const openFour = async (): Promise<void> => {
   expect(shown()).toBe("Search: wind");
 };
 
-/** The names of the buffers that Alt+N shows in turn, starting from the shown one. */
+/** The names of the buffers that Alt+P shows in turn, starting from the shown one. */
 const walk = async (count: number): Promise<(string | null)[]> => {
   const seen = [shown()];
   for (let step = 1; step < count; step += 1) {
-    await press(window, { key: "n", code: "KeyN", altKey: true });
+    await press(window, { key: "p", code: "KeyP", altKey: true });
     seen.push(shown());
   }
   return seen;
 };
 
 describe("App, the open buffers after the app opens again (SR-115 AK4)", () => {
-  it("[SR-115/AK4] after the app is opened again the buffers are back behind the overview: Ctrl+P lists them in order of use, Alt+N walks them in order of opening", async () => {
+  it("[SR-115/AK4] after the app is opened again the buffers are back behind the overview: Ctrl+P lists them in order of use, and Alt+P walks them in that order", async () => {
     await render();
     await openFour();
-    // The element is used last: the order of use changes, that of opening does not.
+    // The element is used last.
     await press(window, { key: "p", ctrlKey: true });
     await press(query("input"), { key: "Enter" });
     expect(shown()).toBe("SR-000001 Title 1");
@@ -231,7 +231,7 @@ describe("App, the open buffers after the app opens again (SR-115 AK4)", () => {
     await press(window, { key: "p", ctrlKey: true });
     expect(candidates()).toEqual(["SR-000001 Title 1", "Search: wind", "All elements"]);
     await press(query("input"), { key: "Escape" });
-    expect(await walk(4)).toEqual(["Overview", "All elements", "SR-000001 Title 1", "Search: wind"]);
+    expect(await walk(4)).toEqual(["Overview", "SR-000001 Title 1", "Search: wind", "All elements"]);
     // The element was named by one read of the elements, and nothing was written.
     expect(invoke).toHaveBeenCalledWith("element.list", { selection: { ids: ["uuid-1"] } });
     const catalog = JSON.parse(
@@ -255,7 +255,7 @@ describe("App, the open buffers after the app opens again (SR-115 AK4)", () => {
     expect(shown()).toBe("All elements");
     await openWorkspace("Weather station");
     expect(shown()).toBe("Overview");
-    expect(await walk(4)).toEqual(["Overview", "All elements", "SR-000001 Title 1", "Search: wind"]);
+    expect(await walk(4)).toEqual(["Overview", "Search: wind", "SR-000001 Title 1", "All elements"]);
     // And after a restart the same.
     await restart();
     expect(await walk(4)).toEqual(["Overview", "All elements", "SR-000001 Title 1", "Search: wind"]);
@@ -277,7 +277,7 @@ describe("App, the open buffers after the app opens again (SR-115 AK4)", () => {
     await flush();
     await restart();
     expect(shown()).toBe("Overview");
-    expect(await walk(4)).toEqual(["Overview", "All elements", "SR-000001 Title 1", "Search: wind"]);
+    expect(await walk(4)).toEqual(["Overview", "Search: wind", "SR-000001 Title 1", "All elements"]);
   });
 
   it("[SR-115/AK4] a name that cannot be read at the start keeps the stored buffers for the next start", async () => {
@@ -292,13 +292,13 @@ describe("App, the open buffers after the app opens again (SR-115 AK4)", () => {
       ),
     );
     await restart();
-    expect(await walk(3)).toEqual(["Overview", "All elements", "Search: wind"]);
+    expect(await walk(3)).toEqual(["Overview", "Search: wind", "All elements"]);
     // Core answers again: the element buffer is back at the start after.
     invoke.mockImplementation((name, input = {}) =>
       Promise.resolve({ ok: true, output: HANDLERS[name]?.(input) }),
     );
     await restart();
-    expect(await walk(4)).toEqual(["Overview", "All elements", "SR-000001 Title 1", "Search: wind"]);
+    expect(await walk(4)).toEqual(["Overview", "Search: wind", "SR-000001 Title 1", "All elements"]);
   });
 
   it("[SR-115/AK4] after Close all buffers only the overview comes back", async () => {

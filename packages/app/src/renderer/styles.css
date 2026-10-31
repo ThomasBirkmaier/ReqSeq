@@ -62,8 +62,9 @@ body,
   grid-auto-columns: minmax(0, 1fr);
 }
 
-/* An area holds one buffer. Two areas are parted by a quiet rule; nothing marks the active one, the
-   modeline names its buffer (D-062). */
+/* An area holds one buffer. Two areas are parted by a quiet rule. The inactive one is a shade lighter
+   (SR-150 AK8): its text takes the muted grey, which still reads at a contrast of at least 4.5:1 (WCAG AA)
+   in both themes, so reading stays the main thing (product owner decision, 2026-10-31). */
 .area {
   min-width: 0;
   min-height: 0;
@@ -73,6 +74,11 @@ body,
 
 .area + .area {
   border-left: 1px solid var(--rule);
+}
+
+.area:not([data-active]) {
+  --text: var(--muted);
+  color: var(--text);
 }
 
 .buffer {
@@ -412,6 +418,15 @@ mark {
 .field:hover > .copy,
 .field:focus-within > .copy {
   visibility: visible;
+}
+
+/* The field the focus is in (SR-155): the background of the selected row of a list (AK1), only while the
+   focus is in it, so it moves with the focus and is gone when the focus is on the buffer, in the prompt or
+   in the other area (AK2, AK3). Grey only (D-062). A selection and code inside the field take the sheet
+   colour (`--in-field`, read by the editor theme), so they stay visible on the tint. */
+.element .field:focus-within {
+  --in-field: var(--sheet);
+  background: var(--select);
 }
 
 /* The symbol of the ID takes no room while it is hidden: it lies over the separator after the ID. */

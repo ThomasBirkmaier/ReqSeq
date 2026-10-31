@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- XHTML with a default namespace on the div, headings, nested lists, a table with rowspan, a style colour and images (SR-095). -->
+<reqif:REQ-IF xmlns:reqif="http://www.omg.org/spec/ReqIF/20110401/reqif.xsd">
+  <reqif:THE-HEADER>
+    <reqif:REQ-IF-HEADER IDENTIFIER="_hd-xhtml">
+      <reqif:CREATION-TIME>2026-10-31T00:00:00Z</reqif:CREATION-TIME>
+      <reqif:REQ-IF-TOOL-ID>sample-tool</reqif:REQ-IF-TOOL-ID>
+      <reqif:REQ-IF-VERSION>1.0</reqif:REQ-IF-VERSION>
+      <reqif:SOURCE-TOOL-ID>sample-tool 1</reqif:SOURCE-TOOL-ID>
+      <reqif:TITLE>Customer A</reqif:TITLE>
+    </reqif:REQ-IF-HEADER>
+  </reqif:THE-HEADER>
+  <reqif:CORE-CONTENT>
+    <reqif:REQ-IF-CONTENT>
+      <reqif:DATATYPES>
+        <reqif:DATATYPE-DEFINITION-XHTML IDENTIFIER="dt-xhtml" LAST-CHANGE="2026-10-31T00:00:00Z"/>
+      </reqif:DATATYPES>
+      <reqif:SPEC-TYPES>
+        <reqif:SPEC-OBJECT-TYPE IDENTIFIER="ot-req" LAST-CHANGE="2026-10-31T00:00:00Z">
+          <reqif:SPEC-ATTRIBUTES>
+            <reqif:ATTRIBUTE-DEFINITION-XHTML IDENTIFIER="ad-text" LAST-CHANGE="2026-10-31T00:00:00Z">
+              <reqif:TYPE><reqif:DATATYPE-DEFINITION-XHTML-REF>dt-xhtml</reqif:DATATYPE-DEFINITION-XHTML-REF></reqif:TYPE>
+            </reqif:ATTRIBUTE-DEFINITION-XHTML>
+          </reqif:SPEC-ATTRIBUTES>
+        </reqif:SPEC-OBJECT-TYPE>
+      </reqif:SPEC-TYPES>
+      <reqif:SPEC-OBJECTS>
+        <reqif:SPEC-OBJECT IDENTIFIER="req-rich" LAST-CHANGE="2026-10-31T00:00:00Z">
+          <reqif:VALUES>
+            <reqif:ATTRIBUTE-VALUE-XHTML>
+              <reqif:DEFINITION><reqif:ATTRIBUTE-DEFINITION-XHTML-REF>ad-text</reqif:ATTRIBUTE-DEFINITION-XHTML-REF></reqif:DEFINITION>
+              <reqif:THE-VALUE><div xmlns="http://www.w3.org/1999/xhtml">
+<h1>Start</h1><h2>Power</h2><h3>Voltage</h3>
+<p>The system <strong>shall</strong> start <em>quickly</em>, <span style="color:red">in red</span>.</p>
+<ul><li>one<ol><li>one a</li><li>one b</li></ol></li><li>two</li></ul>
+<table><tr><th>Mode</th><th>Time</th></tr><tr><td rowspan="2">cold</td><td>5 s</td></tr><tr><td>7 s</td></tr></table>
+<p><object data="images/start.png" type="image/png">Start screen</object><object data="../outside.png" type="image/png">outside</object><object data="/etc/hosts.png" type="image/png">absolute</object></p>
+</div></reqif:THE-VALUE>
+            </reqif:ATTRIBUTE-VALUE-XHTML>
+          </reqif:VALUES>
+          <reqif:TYPE><reqif:SPEC-OBJECT-TYPE-REF>ot-req</reqif:SPEC-OBJECT-TYPE-REF></reqif:TYPE>
+        </reqif:SPEC-OBJECT>
+      </reqif:SPEC-OBJECTS>
+    </reqif:REQ-IF-CONTENT>
+  </reqif:CORE-CONTENT>
+  <reqif:TOOL-EXTENSIONS>
+    <reqif:REQ-IF-TOOL-EXTENSION/>
+  </reqif:TOOL-EXTENSIONS>
+</reqif:REQ-IF>
