@@ -9,8 +9,7 @@ import { bufferName, listSort } from "./buffers.js";
 import type { Call } from "./call.js";
 import { highlightTerms } from "./highlight.js";
 import type { Part } from "./highlight.js";
-import { rowStep, rowTarget } from "./keys.js";
-import type { KeyPress } from "./keys.js";
+import { leavesPart, rowTarget } from "./keys.js";
 import type { BufferData } from "./modeline.js";
 import type { OutsideChanges } from "./outside-marks.js";
 import { rowClass, useOutsideMarks } from "./use-outside-marks.js";
@@ -115,10 +114,6 @@ const takesFocus = (list: HTMLElement | null, rows: number): boolean => {
   const active = document.activeElement;
   return rows > 0 && (active === null || active === document.body || active === list?.closest(".buffer"));
 };
-
-/** A part is left with Escape, or with Up or Ctrl+P on its first row. */
-const leaves = (event: KeyPress, cursor: number): boolean =>
-  event.key === "Escape" || (rowStep(event) === -1 && cursor === 0);
 
 /** The scroll position is within a screen of the end: the next page is due. */
 const nearEnd = ({ scrollHeight, scrollTop, clientHeight }: HTMLElement): boolean =>
@@ -289,7 +284,7 @@ export const ListView = ({
   };
 
   const keyDown = (event: React.KeyboardEvent): void => {
-    if (part && leaves(event, cursor)) {
+    if (part && leavesPart(event, cursor)) {
       event.preventDefault();
       onLeave?.();
       return;

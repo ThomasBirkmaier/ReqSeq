@@ -117,7 +117,7 @@ describe("the key after the prefix", () => {
       kind: "unbound",
       label: "Ctrl+K 5",
     });
-    expect(prefixStep(press("ArrowDown"), false)).toEqual({ kind: "unbound", label: "Ctrl+K ArrowDown" });
+    expect(prefixStep(press("ArrowDown"), false)).toEqual({ kind: "unbound", label: "Ctrl+K Down" });
     expect(prefixStep(press("Enter"), false)).toEqual({ kind: "unbound", label: "Ctrl+K Enter" });
     expect(prefixStep(press(" ", { code: "Space" }), false)).toEqual({
       kind: "unbound",

@@ -3,6 +3,7 @@
 // the keys belong to the minibuffer and the buffers that come (D-061..D-063), so the menu binds only
 // Ctrl/Cmd+O, quitting (closing on macOS) and the text editing keys of the Edit menu.
 import type { MenuItemConstructorOptions } from "electron";
+import { FILE_END_ROLE, OPEN_WORKSPACE } from "../shared/menu-keys.js";
 
 export interface MenuActions {
   readonly openWorkspace: () => void;
@@ -21,9 +22,9 @@ export const menuTemplate = (options: MenuOptions, actions: MenuActions): MenuIt
     {
       label: "File",
       submenu: [
-        { label: "Open Workspace…", accelerator: "CmdOrCtrl+O", click: actions.openWorkspace },
+        { ...OPEN_WORKSPACE, click: actions.openWorkspace },
         { type: "separator" },
-        mac ? { role: "close" } : { role: "quit" },
+        { role: mac ? FILE_END_ROLE.mac : FILE_END_ROLE.other },
       ],
     },
     { role: "editMenu" },

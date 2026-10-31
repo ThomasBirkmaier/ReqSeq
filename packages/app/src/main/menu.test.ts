@@ -1,5 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
+import { MENU_KEYS, acceleratorShortcut } from "../shared/menu-keys.js";
+import { keySpecLabel } from "../renderer/keys.js";
 import { menuTemplate } from "./menu.js";
+
+interface Item {
+  readonly accelerator?: string;
+  readonly role?: string;
+  readonly submenu?: Item[];
+}
 
 describe("menuTemplate", () => {
   it("has File > Open Workspace with Ctrl/Cmd+O, quits from File on Windows and Linux, and nothing more", () => {
@@ -34,5 +42,38 @@ describe("menuTemplate", () => {
         { role: "toggleDevTools", accelerator: "F12" },
       ],
     });
+  });
+
+  it("gives the keyboard reference every key the menu binds, read from the menu's own definition", () => {
+    const items = (list: readonly Item[]): Item[] =>
+      list.flatMap((item) => [item, ...items(item.submenu ?? [])]);
+    for (const [platform, mac] of [
+      ["linux", false],
+      ["darwin", true],
+    ] as const) {
+      const template = items(
+        menuTemplate({ platform, developer: false }, { openWorkspace: vi.fn() }) as Item[],
+      );
+      const listed = MENU_KEYS.flatMap((row) => row.keys.map((spec) => keySpecLabel(spec, mac)));
+      for (const item of template.filter((candidate) => candidate.accelerator !== undefined)) {
+        expect(listed).toContain(
+          keySpecLabel({ shortcut: acceleratorShortcut(item.accelerator ?? "") }, mac),
+        );
+      }
+      // The role that ends File has Electron's own key: Ctrl+Q to quit, Cmd+W to close.
+      const role = template.find((item) => item.role === "quit" || item.role === "close")?.role;
+      expect(listed).toContain(role === "quit" ? "Ctrl+Q" : "⌘W");
+      // The app menu of macOS brings Electron's Quit, Hide and Hide Others.
+      if (template.some((item) => item.role === "appMenu")) {
+        expect(listed).toEqual(expect.arrayContaining(["⌘Q", "⌘H", "⌥⌘H"]));
+      }
+    }
+    expect(acceleratorShortcut("CmdOrCtrl+Shift+Alt+X")).toEqual({
+      mod: true,
+      shift: true,
+      alt: true,
+      key: "x",
+    });
+    expect(acceleratorShortcut("F5")).toEqual({ mod: false, shift: false, key: "f5" });
   });
 });

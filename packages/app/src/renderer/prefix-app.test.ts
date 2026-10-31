@@ -306,7 +306,7 @@ describe("the prefix key Ctrl/Cmd+K", () => {
     expect(echo()).toBe("Ctrl+K X is not bound");
     await ctrlK();
     await press(window, { key: "ArrowDown" });
-    expect(echo()).toBe("Ctrl+K ArrowDown is not bound");
+    expect(echo()).toBe("Ctrl+K Down is not bound");
 
     // A bound letter whose command does not apply here says so.
     await ctrlK();

@@ -5,6 +5,7 @@
 import type { PropertyInfo } from "./element-view.js";
 import type { ConflictField } from "./outside-change.js";
 import { onDisk } from "./outside-change.js";
+import { onDiskKey } from "./element-keys.js";
 
 export interface OnDiskProps {
   readonly field: ConflictField;
@@ -24,10 +25,10 @@ export const OnDisk = ({ field, info, onResolve, onLeave }: OnDiskProps): React.
       data-on-disk={field.label}
       tabIndex={0}
       onKeyDown={(event) => {
-        const plain = !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey;
-        if (plain && (event.key === "Enter" || event.key === "Escape")) {
+        const step = onDiskKey(event);
+        if (step !== undefined) {
           event.preventDefault();
-          if (event.key === "Enter") {
+          if (step === "resolve") {
             onResolve();
           } else {
             onLeave();

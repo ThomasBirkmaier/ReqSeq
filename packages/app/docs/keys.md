@@ -2,6 +2,8 @@
 
 Part of the [`@reqseq/app` README](../README.md).
 
+The user documentation lists these keys on its generated page "Keyboard shortcuts" (SR-139 AK5), from `shortcutReference` (`shortcut-reference.ts`): the actions' shortcuts (`actions.ts`), the letters after the prefix (`bindings.ts`), and the tables next to the handlers that have no action, `PROMPT_KEYS` (`prompt-keys.ts`), `LIST_KEYS` and `HISTORY_KEYS` (`keys.ts`), `GRAPH_KEYS` (`graph-nav.ts`), `FIELD_KEYS`, `PACKAGE_KEYS` (with `leavesPart` of `keys.ts`), `LEAVE_KEYS` and `ELEMENT_MORE_KEYS` (`element-keys.ts`; the block "On disk" through `onDiskKey`), `BOX_KEYS`, `EDITOR_KEYS` and `MARKDOWN_KEYS` (`editor/editor-keys.ts`; the slash menu and `boxNavigation` build their keymaps from `SLASH_NEXT`, `SLASH_PREVIOUS`, `BOX_NEXT` and `BOX_PREVIOUS`), `GRAPH_MORE_KEYS` (`graph-nav.ts`, the depth keys `DEPTH_MORE` and `DEPTH_LESS`), `MENU_KEYS` (`shared/menu-keys.ts`, whose Open Workspace item and File role the menu reads) and `PREFIX_KEYS` (`bindings.ts`). CodeMirror's own text editing keys are not listed one by one. A new key of a handler goes into its table, whose test ties it to the handler.
+
 | Keys (Ctrl, or Cmd on macOS; on macOS the physical Ctrl key with a letter is never one of these shortcuts: it stays the editor's and the lists' key, so Ctrl+P there moves the caret or the selection and never jumps) | |
 | --- | --- |
 | Ctrl/Cmd+Shift+P | Command prompt: the app's actions that apply to the shown buffer (filter, sort, close, ...); without a workspace only "Open workspace" |

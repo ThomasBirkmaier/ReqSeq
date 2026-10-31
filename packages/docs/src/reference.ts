@@ -1,6 +1,7 @@
 // The generated reference (SR-139): the pages written next to the hand-written ones in the content folder.
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { shortcutReference } from "@reqseq/app";
 import type { CommandRuntime, JsonSchema } from "@reqseq/core";
 import type { GeneratedContracts } from "./access.js";
 import { commandAccess } from "./access.js";
@@ -10,6 +11,7 @@ import { COMMANDS_FOLDER, commandIndex, commandPage, commandSlug } from "./comma
 import type { Example } from "./formats.js";
 import type { StandardModel } from "./standard-model.js";
 import { STANDARD_MODEL_PAGE, standardModelPage } from "./standard-model.js";
+import { SHORTCUTS_PAGE, shortcutsPage } from "./shortcuts.js";
 import {
   COMMON_TYPES_PAGE,
   FORMATS,
@@ -82,7 +84,10 @@ function formatPages(
   ];
 }
 
-/** The command index and pages (catalog order), the codes page, the format pages and the standard model page. */
+/**
+ * The command index and pages (catalog order), the codes page, the format pages, the standard model page and the
+ * page of the app's keyboard shortcuts.
+ */
 export async function referencePages(
   { runtime, generated, codes, schemas, examples, standardModel }: ReferenceSources,
   base: string,
@@ -94,6 +99,7 @@ export async function referencePages(
     { path: CODES_PAGE, text: codesPage(codes) },
     ...formatPages(schemas, examples, base),
     { path: STANDARD_MODEL_PAGE, text: standardModelPage(standardModel) },
+    { path: SHORTCUTS_PAGE, text: shortcutsPage(shortcutReference(entries)) },
   ];
   for (const [index, entry] of entries.entries()) {
     const access = await commandAccess(entry, runtime, generated);

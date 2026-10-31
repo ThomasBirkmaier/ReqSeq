@@ -2,6 +2,7 @@ import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
 import { markdownKeymap } from "@codemirror/lang-markdown";
+import { MARKDOWN_KEYS } from "./editor-keys.js";
 import { markdownSupport } from "./markdown.js";
 
 const names = (extensions: ReturnType<typeof markdownSupport>[], doc: string): string[] => {
@@ -32,5 +33,9 @@ describe("markdownSupport", () => {
   it("binds the keys of lang-markdown's own keymap, which it replaces (#542)", () => {
     // A key that a new version of @codemirror/lang-markdown adds must be added to `markdownKeys` too.
     expect(markdownKeymap.map((binding) => binding.key)).toEqual(["Enter", "Backspace"]);
+    // ... and to the keyboard reference (SR-139 AK5).
+    expect(
+      MARKDOWN_KEYS.flatMap((row) => row.keys.map((spec) => ("press" in spec ? spec.press.key : ""))),
+    ).toEqual(markdownKeymap.map((binding) => binding.key));
   });
 });

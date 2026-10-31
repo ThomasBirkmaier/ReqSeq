@@ -2,6 +2,8 @@
 // the drawn links. Pure; the view dispatches the result. Every node can be reached: Left and Right go
 // through a layer, Page Up and Page Down from layer to layer. The metamodel graph (SR-130 AK4) moves the
 // same way: both layouts are a `NavLayout`.
+import type { KeyRow } from "./keys.js";
+import { press } from "./keys.js";
 
 /** A placed node as the keys see it: its key, the x of its left edge and its layer from the top. */
 export interface NavNode {
@@ -17,8 +19,36 @@ export interface NavLayout {
   readonly paths: readonly { readonly source: string; readonly target: string }[];
 }
 
+/** The keys that move the selection, by what they do. */
+const MOVES: readonly { readonly keys: readonly string[]; readonly does: string }[] = [
+  { keys: ["ArrowUp", "ArrowDown"], does: "Follow a link up or down" },
+  { keys: ["ArrowLeft", "ArrowRight"], does: "Go through a layer" },
+  { keys: ["PageUp", "PageDown"], does: "Go from layer to layer" },
+  { keys: ["Home"], does: "Back to the element, or the first type of the metamodel" },
+];
+
+/** The keys that move the selection, for the keyboard reference (SR-139 AK5). */
+export const GRAPH_KEYS: readonly KeyRow[] = MOVES.map((move) => ({
+  keys: move.keys.map((key) => ({ press: press(key) })),
+  does: move.does,
+}));
+
+/** The keys of the depth of the graph of an element (`GraphView`): one level more, one level less. */
+export const DEPTH_MORE = "+";
+export const DEPTH_LESS = "-";
+
+/** Enter and the depth keys in the graph of an element (`GraphView`). */
+export const GRAPH_MORE_KEYS: readonly KeyRow[] = [
+  { keys: [{ press: press("Enter") }], does: "Open the selected box as the current element" },
+  {
+    keys: [{ press: press(DEPTH_MORE) }],
+    does: "In the graph of an element: one level more (“Graph depth”)",
+  },
+  { keys: [{ press: press(DEPTH_LESS) }], does: "In the graph of an element: one level less" },
+];
+
 /** The keys that move the selection. */
-export const GRAPH_MOVES = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "PageUp", "PageDown", "Home"];
+export const GRAPH_MOVES: readonly string[] = MOVES.flatMap((move) => move.keys);
 
 /** The candidate nearest in x to `from`; on a tie the nearer layer, then the one listed first. */
 const nearest = (from: NavNode, candidates: readonly NavNode[]): NavNode | undefined =>

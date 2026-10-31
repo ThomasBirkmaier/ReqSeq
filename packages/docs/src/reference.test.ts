@@ -43,7 +43,7 @@ describe("reference", () => {
   it("[SR-139/AK1] gives every command a page with title, summary, input, output and its call in app, CLI, API and MCP", async () => {
     const runtime = getCommandRuntime();
     const pages = await referencePages(await sources(runtime), "/ReqSeq");
-    expect(pages).toHaveLength(runtime.contracts.commands.length + 2 + FORMATS.length + 3);
+    expect(pages).toHaveLength(runtime.contracts.commands.length + 2 + FORMATS.length + 4);
     expect(runtime.contracts.commands.length).toBeGreaterThanOrEqual(49);
     for (const entry of runtime.contracts.commands) {
       const page = pageOf(pages, entry.name);
