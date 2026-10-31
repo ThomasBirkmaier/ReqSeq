@@ -1,17 +1,17 @@
 ---
 id: 7c003135-cc59-44fb-bddf-16fdd9fa74b5
 type: system-requirement
-status: approved
+status: draft
 title: Element im anderen Bereich öffnen
-spec-id: SR-151
-rationale: "Entscheidung des Produktverantwortlichen, 2026-10-31: Ohne geteiltes Fenster soll sich das markierte Element mit „Open to the right“ oder „Open to the left“ auf dieser Seite öffnen lassen, auch aus Graph und Listen. Im geteilten Fenster soll der andere Bereich zeigen, was im aktiven Bereich gerade ausgewählt ist. Annahme zu AK4 und AK5: Nur ein Bereich, der ein Element zeigt, folgt der Auswahl; eine Liste, ein Graph oder eine Paketseite wird nicht ersetzt, damit der Ausgangspunkt der Auswahl erhalten bleibt."
+spec-id: SR-150
+rationale: "Entscheidung des Produktverantwortlichen, 2026-10-31: Ohne geteiltes Fenster soll sich das markierte Element mit „Open to the right“ oder „Open to the left“ auf dieser Seite öffnen lassen. Im geteilten Fenster soll der andere Bereich zeigen, was im aktiven Bereich gerade ausgewählt ist. Annahmen, vom Produktverantwortlichen zu bestätigen: Der Bereich, in dem markiert wurde, bleibt aktiv (AK1 bis AK3). Die Befehle wirken auch im geteilten Fenster (AK3). Nur ein Bereich, der ein Element zeigt, folgt der Auswahl, und er ersetzt dabei sein Element, statt je Markierung einen neuen Buffer zu öffnen; eine Liste, ein Graph oder eine Paketseite wird nicht ersetzt, damit der Ausgangspunkt der Auswahl erhalten bleibt, und der Vergleich nach SR-044 bleibt stehen (AK4, AK5)."
 requirement-type: functional
 acceptance-criteria:
   - Gegeben ein ungeteiltes Fenster und ein markiertes Element in einem Buffer, etwa ein Knoten im Graph, eine Zeile einer Liste oder eine Relation am Element, wenn der Befehl „Open to the right“ gewählt wird, dann teilt sich das Fenster, der bisherige Buffer bleibt links und aktiv, und das markierte Element öffnet sich rechts als Buffer.
   - Gegeben dasselbe, wenn der Befehl „Open to the left“ gewählt wird, dann öffnet sich das markierte Element links, und der bisherige Buffer steht rechts und bleibt aktiv.
-  - Gegeben ein geteiltes Fenster, wenn „Open to the right“ oder „Open to the left“ gewählt wird, dann öffnet sich das markierte Element im Bereich auf dieser Seite, und der Bereich mit dem markierten Element bleibt aktiv.
-  - Gegeben ein geteiltes Fenster, dessen anderer Bereich ein Element zeigt, wenn im aktiven Bereich ein anderes Element markiert wird, dann zeigt der andere Bereich dieses Element, ohne dass der aktive Bereich wechselt.
-  - Gegeben ein geteiltes Fenster, dessen anderer Bereich eine Liste, einen Graph oder eine Paketseite zeigt, wenn im aktiven Bereich ein Element markiert wird, dann bleibt der andere Bereich unverändert.
+  - Gegeben ein geteiltes Fenster, wenn „Open to the right“ oder „Open to the left“ gewählt wird und der inaktive Bereich auf dieser Seite liegt, dann zeigt er das markierte Element, und der aktive Bereich bleibt aktiv; liegt der aktive Bereich auf dieser Seite, dann öffnet sich das markierte Element dort wie beim Öffnen mit Enter.
+  - Gegeben ein geteiltes Fenster, dessen inaktiver Bereich ein Element zeigt, wenn im aktiven Bereich ein Element markiert wird, dann zeigt der inaktive Bereich dieses Element an Stelle des bisherigen, ohne dass der aktive Bereich wechselt; ausgenommen ist der Vergleich von Kern-Requirement und Ersatz (SR-044).
+  - Gegeben ein geteiltes Fenster, dessen inaktiver Bereich eine Liste, die Übersicht, einen Graph oder eine Paketseite zeigt, wenn im aktiven Bereich ein Element markiert wird, dann bleibt der inaktive Bereich unverändert.
 packages:
   - { id: c64ee86d-761a-4180-bfb1-cde819bfc27c, version: n1:fd3ed3f03b3d762f, title: Später }
 verification-method: test
