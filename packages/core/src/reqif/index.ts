@@ -15,3 +15,11 @@ export { planImport } from "./import.js";
 export type { ImportOrigin, ImportPlan } from "./import.js";
 export { importDate, originKeys } from "./origin.js";
 export type { OriginKeys } from "./origin.js";
+export { markdownToXhtml, xhtmlToMarkdown } from "./xhtml-markdown.js";
+export type {
+  MarkdownOfXhtml,
+  XhtmlImage,
+  XhtmlLoss,
+  XhtmlOfMarkdown,
+  XhtmlOptions,
+} from "./xhtml-markdown.js";

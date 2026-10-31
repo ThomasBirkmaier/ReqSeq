@@ -1,6 +1,6 @@
 # ReqIF block (`src/reqif/`)
 
-ReqIF 1.2 import and export (SR-052..SR-059, SR-095; ADR-0013). So far the model, the parser, the mapping files and the import of new elements with their origin; the writer, the XHTML conversion and the other commands follow (#265, Lanes E and I).
+ReqIF 1.2 import and export (SR-052..SR-059, SR-095; ADR-0013). So far the model, the parser, the XHTML conversion, the mapping files and the import of new elements with their origin; the writer and the other commands follow (#265, Lanes E and I).
 
 ## Model (`model.ts`)
 
@@ -21,6 +21,14 @@ ReqIF 1.2 import and export (SR-052..SR-059, SR-095; ADR-0013). So far the model
 - `.reqifz` archives are not read (SR-053).
 
 The hand-written samples are in `toolchain/reqif/samples/` (its README). The nightly performance suite parses a generated delivery of 50,000 SPEC-OBJECTs and 200,000 SPEC-RELATIONs (118 MB; `test/perf/reqif-parse.test.ts`, N-036): 5.7 s and +193 MB of heap on the development container, recorded against 10 s.
+
+## XHTML and Markdown (`xhtml-markdown.ts`)
+
+The conversion of an `ATTRIBUTE-VALUE-XHTML` and the text of an element (SR-095, ADR-0013); both directions walk without recursion of their own.
+
+- `xhtmlToMarkdown(value)` gives `{ markdown, images, losses }`. Our node tree becomes hast, then `hast-util-to-mdast` and `mdast-util-to-markdown` with GFM write it in the editor's style: ATX headings, `-` bullets, `1.` lists, `*em*`, `**strong**`, `~~del~~`, fenced code, `---`, GFM tables (AK1). Only XHTML elements with a Markdown form are converted; `b`, `i` and `s` are read as `strong`, `em` and `del`, `span` and `div` as containers. A loss carries its `reqifLoss` code and a reason, once per code and reason, and keeps the text (AK3): `xhtml-style` for each `style`, `xhtml-element` for an element without Markdown form or outside the XHTML namespace and for a non-image `object`, `xhtml-rowspan` and `xhtml-colspan` for spans above 1 (the cells become simple cells), and `xhtml-cell-block` for a list, table, code block, quote, rule or heading in a cell. A cell is flattened at every depth into one line: `br`, paragraphs and `div`s end a line, written `<br>` without loss, and the blocks above keep their text as lines. `style="text-decoration:line-through"` (ReqIF 1.2 §10.8.20) becomes `~~`; every other declaration is `xhtml-style`. A `caption` becomes a paragraph before its table. An `img` without `src` or an `object` without `data` is `xhtml-element`, and emphasis of white space alone is dropped. Elements nested deeper than 256 keep only their text (`xhtml-element`), since the Markdown libraries recurse; wide values are walked without recursion or argument spreads.
+- Images: an `object` with an image type (its `type`, else the extension of `data`) and an `img` become `![alt](data)`, the fallback text of the `object` as alt, and are listed in `images` as written. Copying them, `image-missing` and `image-outside` are the import's (AK2, Lane I).
+- `markdownToXhtml(markdown, { image? })` gives `{ value, asWritten }`: `value` is one `div` with only the elements of the driver's XHTML modules and the attributes `href`, `title` and `align`: no `class` (§10.8.20), no `start` (not in the List module, so an ordered list counts from 1), no `id` (it would repeat across the values of one file). Images become `<object data type>`, `data` through `image` (the export's link rewrite). HTML in the text stays text, since the editor interprets none; only `<br>` is a line break, as in a table cell. `thead` and `tbody` are dropped (not in Basic Tables), keeping their rows. Task boxes are written as `[ ]` and `[x]`, footnotes as written (`[^1]` and a paragraph `[^1]: …`), with no heading, back link or `id`. A text nested too deeply for the libraries (about 3,000 `>`) is written as one `pre` with the text as typed and `asWritten: true`, so the export can name it.
 
 ## Import (`import.ts`, `xhtml-text.ts`; `commands/reqif/import.ts`)
 
