@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ReqifFile } from "./model.js";
 import { XHTML_NAMESPACE } from "./model.js";
 import type { ReqifParseOutcome } from "./parse.js";
-import { MAX_REQIF_BYTES, MAX_REQIF_DEPTH, parseReqif } from "./parse.js";
+import { MAX_REQIF_BYTES, parseReqif } from "./parse.js";
 
 const utf8 = (text: string): Uint8Array => new TextEncoder().encode(text);
 
@@ -13,8 +13,8 @@ const parsed = (outcome: ReqifParseOutcome): Extract<ReqifParseOutcome, { kind: 
   return outcome;
 };
 const fileOf = (bytes: Uint8Array): ReqifFile => parsed(parseReqif(bytes)).file;
-const refusal = (text: string): { message: string; line: number } => {
-  const outcome = parseReqif(utf8(text));
+const refusal = (text: string, maxElements?: number): { message: string; line: number } => {
+  const outcome = parseReqif(utf8(text), maxElements);
   if (outcome.kind !== "refused") {
     throw new Error("parsed");
   }
@@ -146,7 +146,7 @@ describe("parseReqif", () => {
     ]);
   });
 
-  it("refuses doctype, an undefined entity, a foreign root, truncated, two roots and too deep input with the reason and line", () => {
+  it("refuses doctype, an undefined entity, a foreign root, truncated, two roots, an undeclared prefix and too many elements with the reason and line", () => {
     expect(refusal('<!DOCTYPE x [<!ENTITY e SYSTEM "file:///etc/passwd">]><REQ-IF/>').message).toBe(
       "A document type declaration (<!DOCTYPE) is not read",
     );
@@ -160,11 +160,14 @@ describe("parseReqif", () => {
     );
     expect(refusal(`<REQ-IF ${NS}>\n<THE-HEADER>`)).toMatchObject({ line: 2 });
     expect(refusal(`<REQ-IF ${NS}/><REQ-IF ${NS}/>`).message).toBe("A second root element");
-    expect(refusal("<x:REQ-IF/>").message).toBe("Element <x:REQ-IF> has an undeclared prefix");
-    const deep = `${"<a>".repeat(MAX_REQIF_DEPTH)}${"</a>".repeat(MAX_REQIF_DEPTH)}`;
-    expect(refusal(withContent(deep)).message).toBe(
-      `The file nests elements deeper than ${String(MAX_REQIF_DEPTH)} levels`,
+    expect(refusal("<x:REQ-IF/>").message).toBe("x:REQ-IF in <x:REQ-IF> has an undeclared prefix");
+    expect(refusal(`<REQ-IF ${NS} foo:bar="1"/>`).message).toBe(
+      "foo:bar in <REQ-IF> has an undeclared prefix",
     );
+    expect(refusal(withContent(""), 3)).toEqual({
+      message: "The file has more than 3 elements",
+      line: 1,
+    });
   });
 
   it("refuses a file over the size guard before reading it", () => {
@@ -199,7 +202,7 @@ describe("parseReqif", () => {
   it("keeps a reference the file does not define as written", () => {
     const text = withContent(
       [
-        '<SPEC-TYPES><SPEC-OBJECT-TYPE IDENTIFIER="t"><SPEC-ATTRIBUTES><ATTRIBUTE-DEFINITION-ENUMERATION IDENTIFIER="a" MULTI-VALUED="true"><TYPE><DATATYPE-DEFINITION-ENUMERATION-REF>dt</DATATYPE-DEFINITION-ENUMERATION-REF></TYPE></ATTRIBUTE-DEFINITION-ENUMERATION></SPEC-ATTRIBUTES></SPEC-OBJECT-TYPE></SPEC-TYPES>',
+        '<SPEC-TYPES><SPEC-OBJECT-TYPE IDENTIFIER="t"><SPEC-ATTRIBUTES><ATTRIBUTE-DEFINITION-ENUMERATION IDENTIFIER="a" MULTI-VALUED=" 1 "><TYPE><DATATYPE-DEFINITION-ENUMERATION-REF>dt</DATATYPE-DEFINITION-ENUMERATION-REF></TYPE></ATTRIBUTE-DEFINITION-ENUMERATION></SPEC-ATTRIBUTES></SPEC-OBJECT-TYPE></SPEC-TYPES>',
         '<SPEC-OBJECTS><SPEC-OBJECT IDENTIFIER="o"><VALUES><ATTRIBUTE-VALUE-ENUMERATION><DEFINITION><ATTRIBUTE-DEFINITION-ENUMERATION-REF>a</ATTRIBUTE-DEFINITION-ENUMERATION-REF></DEFINITION><VALUES><ENUM-VALUE-REF>ev</ENUM-VALUE-REF></VALUES></ATTRIBUTE-VALUE-ENUMERATION></VALUES><TYPE><SPEC-OBJECT-TYPE-REF>t</SPEC-OBJECT-TYPE-REF></TYPE></SPEC-OBJECT></SPEC-OBJECTS>',
         '<SPEC-RELATIONS><SPEC-RELATION IDENTIFIER="r"><VALUES><ATTRIBUTE-VALUE-INTEGER THE-VALUE="1"><DEFINITION><ATTRIBUTE-DEFINITION-INTEGER-REF>x</ATTRIBUTE-DEFINITION-INTEGER-REF></DEFINITION></ATTRIBUTE-VALUE-INTEGER></VALUES><SOURCE><SPEC-OBJECT-REF>o</SPEC-OBJECT-REF></SOURCE><TARGET><SPEC-OBJECT-REF>gone</SPEC-OBJECT-REF></TARGET><TYPE><SPEC-RELATION-TYPE-REF>rt</SPEC-RELATION-TYPE-REF></TYPE></SPEC-RELATION></SPEC-RELATIONS>',
         '<SPECIFICATIONS><SPECIFICATION IDENTIFIER="s"><TYPE><SPECIFICATION-TYPE-REF>st</SPECIFICATION-TYPE-REF></TYPE><CHILDREN><SPEC-HIERARCHY IDENTIFIER="h1"><OBJECT><SPEC-OBJECT-REF>lost</SPEC-OBJECT-REF></OBJECT><CHILDREN><OTHER/></CHILDREN></SPEC-HIERARCHY></CHILDREN></SPECIFICATION></SPECIFICATIONS>',
@@ -211,7 +214,37 @@ describe("parseReqif", () => {
     expect(file.specObjects[0]?.values).toEqual([{ kind: "enumeration", definition: "a", values: ["ev"] }]);
     expect(file.specRelations[0]).toMatchObject({ type: "rt", target: "gone" });
     expect(file.specifications[0]?.children[0]?.object).toBe("lost");
-    expect(file.unread.map((u) => u.name)).toEqual(["DATATYPE-DEFINITION-OTHER", "OTHER"]);
+    expect(file.unread.map((u) => u.name)).toEqual(["OTHER", "DATATYPE-DEFINITION-OTHER"]);
+  });
+
+  it("reads a SPEC-HIERARCHY 5,000 levels deep without recursion, keeps attribute names as written and refuses ReqIF inside XHTML", () => {
+    const levels = 5_000;
+    const open =
+      '<SPEC-HIERARCHY IDENTIFIER="h"><OBJECT><SPEC-OBJECT-REF>o</SPEC-OBJECT-REF></OBJECT><CHILDREN>';
+    const deep = `<SPECIFICATIONS><SPECIFICATION IDENTIFIER="s"><TYPE><SPECIFICATION-TYPE-REF>st</SPECIFICATION-TYPE-REF></TYPE><CHILDREN>${open.repeat(levels)}${"</CHILDREN></SPEC-HIERARCHY>".repeat(levels)}</CHILDREN></SPECIFICATION></SPECIFICATIONS><y:SPEC-OBJECTS xmlns:y="urn:y"><y:SPEC-OBJECT/></y:SPEC-OBJECTS>`;
+    const { file } = parsed(parseReqif(utf8(withContent(deep, "<OTHER-PART/>"))));
+    let depth = 0;
+    for (let level = file.specifications[0]?.children[0]; level !== undefined; level = level.children[0]) {
+      depth++;
+    }
+    expect(depth).toBe(levels);
+    expect(file.unread).toEqual([
+      { name: "SPEC-OBJECT", line: 1 },
+      { name: "OTHER-PART", line: 1 },
+    ]);
+    const xhtml = (inner: string) =>
+      withContent(
+        `<SPEC-OBJECTS xmlns:x="http://www.w3.org/1999/xhtml"><SPEC-OBJECT IDENTIFIER="o"><VALUES><ATTRIBUTE-VALUE-XHTML><DEFINITION><ATTRIBUTE-DEFINITION-XHTML-REF>a</ATTRIBUTE-DEFINITION-XHTML-REF></DEFINITION><THE-VALUE>${inner}</THE-VALUE></ATTRIBUTE-VALUE-XHTML></VALUES><TYPE><SPEC-OBJECT-TYPE-REF>t</SPEC-OBJECT-TYPE-REF></TYPE></SPEC-OBJECT></SPEC-OBJECTS>`,
+      );
+    const value = parsed(parseReqif(utf8(xhtml('<x:p x:class="c" __proto__="kept"/>')))).file.specObjects[0]
+      ?.values[0];
+    expect(value?.kind === "xhtml" && value.value[0]).toMatchObject({
+      name: "p",
+      attributes: { "x:class": "c", __proto__: "kept" },
+    });
+    expect(refusal(xhtml("<x:p><SPEC-OBJECT/></x:p>")).message).toBe(
+      "ReqIF element <SPEC-OBJECT> inside XHTML",
+    );
   });
 
   it("leaves out what it does not read, reads optional parts when present and rethrows a programming error", () => {

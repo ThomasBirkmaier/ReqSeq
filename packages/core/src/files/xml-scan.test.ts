@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { XmlElement, XmlScanOutcome } from "./xml-scan.js";
-import { scanXml, xmlAttribute } from "./xml-scan.js";
+import { scanXml, streamXml, xmlAttribute } from "./xml-scan.js";
 
 const utf8 = (text: string): Uint8Array => new TextEncoder().encode(text);
 const BOM = Uint8Array.of(0xef, 0xbb, 0xbf);
@@ -54,6 +54,37 @@ describe("scanXml", () => {
 
     expect(root.children[0]).toMatchObject({ name: "case", line: 5, selfClosing: true });
     expect(root.children[1]).toMatchObject({ name: "out", line: 6, text: "x < y & z more" });
+  });
+
+  it("streams start tags, text runs and ends in document order without a tree, and passes errors of the receiver through", () => {
+    const seen: string[] = [];
+    const events = {
+      open: (
+        name: string,
+        _attributes: unknown,
+        line: number,
+        start: number,
+        contentStart: number,
+        selfClosing: boolean,
+      ) =>
+        seen.push(
+          `<${name} ${String(line)} ${String(start)}-${String(contentStart)}${selfClosing ? "/" : ""}`,
+        ),
+      text: (text: string) => seen.push(text),
+      close: (contentEnd: number, end: number) => seen.push(`> ${String(contentEnd)}-${String(end)}`),
+    };
+    expect(streamXml(utf8("<a>x<![CDATA[]]><b/>\ny</a>"), events)).toEqual({ kind: "streamed", bom: false });
+    expect(seen).toEqual(["<a 1 0-3", "x", "<b 1 16-18/", "> 18-20", "\ny", "> 22-26"]);
+    expect(streamXml(withBom("<a/>"), events)).toEqual({ kind: "streamed", bom: true });
+    const thrown = new Error("receiver");
+    expect(() =>
+      streamXml(utf8("<a/>"), {
+        ...events,
+        open: () => {
+          throw thrown;
+        },
+      }),
+    ).toThrow(thrown);
   });
 
   it("gives the offsets of a self-closing element and of its attributes", () => {
@@ -262,14 +293,5 @@ describe("scanXml", () => {
   it("does not catch errors that are not refusals", () => {
     // Not a byte array: the Buffer view fails with a TypeError, which is a programming error, not a refusal.
     expect(() => scanXml(undefined as unknown as Uint8Array)).toThrow(TypeError);
-  });
-
-  it("xml-scan keeps children and text runs in document order, for mixed content (ADR-0013)", () => {
-    const root = scan("<p>a &amp; <b>x</b><![CDATA[ <c> ]]>b<i/><e><![CDATA[]]></e></p>");
-    const [b, i, e] = root.children;
-    expect(root.content).toEqual(["a & ", b, " <c> b", i, e]);
-    expect(b?.content).toEqual(["x"]);
-    expect(e?.content).toEqual([]);
-    expect(root.text).toBe("a &  <c> b");
   });
 });
