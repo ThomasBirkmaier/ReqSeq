@@ -1,9 +1,10 @@
 // The text of an XHTML value for the import (SR-053), until the conversion to Markdown of SR-095
 // takes its place behind the same function (ADR-0013 "Block, parser, conversion"): the text runs in
 // document order, a paragraph break around each block element, a line break for `br`, white space
-// collapsed, and the Markdown characters that would change the text escaped. Every element other
-// than `div`, `p` and `br` is named once in `unconverted`, so the import lists it as a loss
-// (`xhtml-element`); its text is kept.
+// collapsed. Every element other than `div`, `p` and `br` is named once in `unconverted`, so the
+// import lists it as a loss (`xhtml-element`); its text is kept. For a Markdown target (the text, a
+// property with `markdown: true`) the text is escaped by `markdownText`, so it reads back as written;
+// for a plain one (the title, other properties) it stays as it is.
 import type { XhtmlNode } from "./model.js";
 
 /** What `xhtmlText` gives. */
@@ -36,17 +37,36 @@ const BLOCKS: ReadonlySet<string> = new Set([
   "object",
 ]);
 
-/** Characters that would make Markdown of a plain text (emphasis, links, HTML, code). */
-const MARKDOWN = /[\\`*_[\]<>]/g;
+/** Characters that make Markdown anywhere in a line (emphasis, code, links, HTML, entities, tables). */
+const INLINE = /[\\`*_[\]<>&|~]/g;
 
-/** The text of `nodes` (see the file comment). */
-export const xhtmlText = (nodes: readonly XhtmlNode[]): XhtmlText => {
+/** A line start that makes Markdown: a heading, list item, setext underline or ordered list item. */
+const LINE_START = /^(?:([#+=-])|(\d+)([.)]))/;
+
+/**
+ * `text` escaped for a Markdown body or value: every character of `INLINE` and the line starts of
+ * `LINE_START` get a backslash (CommonMark escapes), so the text renders as written.
+ */
+export const markdownText = (text: string): string =>
+  text
+    .split("\n")
+    .map((line) =>
+      line
+        .replace(INLINE, "\\$&")
+        .replace(LINE_START, (_all, mark: string | undefined, digits: string, dot: string) =>
+          mark === undefined ? `${digits}\\${dot}` : `\\${mark}`,
+        ),
+    )
+    .join("\n");
+
+/** The text of `nodes` (see the file comment), escaped for Markdown when `markdown`. */
+export const xhtmlText = (nodes: readonly XhtmlNode[], markdown: boolean): XhtmlText => {
   const unconverted = new Set<string>();
   let out = "";
   const walk = (node: XhtmlNode): void => {
     if (typeof node === "string") {
       // A line break in the source is white space like any other (XHTML).
-      out += node.replace(/\s+/g, " ").replace(MARKDOWN, "\\$&");
+      out += node.replace(/\s+/g, " ");
       return;
     }
     if (!PLAIN.has(node.name)) {
@@ -68,5 +88,5 @@ export const xhtmlText = (nodes: readonly XhtmlNode[]): XhtmlText => {
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
-  return { text, unconverted: [...unconverted] };
+  return { text: markdown ? markdownText(text) : text, unconverted: [...unconverted] };
 };

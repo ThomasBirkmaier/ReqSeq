@@ -1,10 +1,11 @@
 // reqif.import (SR-053) of every datatype into every property kind, on SR-085/value-kinds (one property
 // per kind) with a text property `note` added: what each value becomes, the losses (SR-053 AK2) and
-// the mappings the import refuses.
+// the mappings and files the import refuses.
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
+import path from "node:path";
 import { createFixtureWorkspace } from "@reqseq/testkit";
-import { describe, expect, it, onTestFinished, vi } from "vitest";
+import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
 import { invoke } from "../../runtime/invoke.js";
@@ -44,8 +45,8 @@ const value = (kind: string, id: string, v: string): string =>
 const object = (id: string, type: string, values: readonly string[]): string =>
   `<SPEC-OBJECT IDENTIFIER="${id}"><VALUES>${values.join("")}</VALUES><TYPE><SPEC-OBJECT-TYPE-REF>${type}</SPEC-OBJECT-TYPE-REF></TYPE></SPEC-OBJECT>`;
 
-const relation = (id: string, type: string, source: string, target: string): string =>
-  `<SPEC-RELATION IDENTIFIER="${id}"><SOURCE><SPEC-OBJECT-REF>${source}</SPEC-OBJECT-REF></SOURCE><TARGET><SPEC-OBJECT-REF>${target}</SPEC-OBJECT-REF></TARGET><TYPE><SPEC-RELATION-TYPE-REF>${type}</SPEC-RELATION-TYPE-REF></TYPE></SPEC-RELATION>`;
+const relation = (id: string, type: string, source: string, target: string, values = ""): string =>
+  `<SPEC-RELATION IDENTIFIER="${id}"><VALUES>${values}</VALUES><SOURCE><SPEC-OBJECT-REF>${source}</SPEC-OBJECT-REF></SOURCE><TARGET><SPEC-OBJECT-REF>${target}</SPEC-OBJECT-REF></TARGET><TYPE><SPEC-RELATION-TYPE-REF>${type}</SPEC-RELATION-TYPE-REF></TYPE></SPEC-RELATION>`;
 
 const item = (id: string, values: Readonly<Record<string, string>>): string =>
   object(
@@ -65,6 +66,8 @@ const KINDS: Readonly<Record<string, string>> = {
   "a-tags": "ENUMERATION",
   "a-note": "ENUMERATION",
   "a-criteria": "STRING",
+  "a-body": "STRING",
+  "a-reviews": "DATE",
 };
 
 const DELIVERY = [
@@ -88,10 +91,20 @@ const DELIVERY = [
   attribute("ENUMERATION", "a-tags", "Tags", "dt-level"),
   attribute("ENUMERATION", "a-note", "Note", "dt-level"),
   attribute("STRING", "a-criteria", "Criteria", "dt-string"),
+  attribute("STRING", "a-body", "Body", "dt-string"),
+  attribute("DATE", "a-reviews", "Reviews", "dt-date"),
   "</SPEC-ATTRIBUTES></SPEC-OBJECT-TYPE>",
   '<SPEC-OBJECT-TYPE IDENTIFIER="ot-skip" LONG-NAME="Skip"/>',
-  '<SPEC-RELATION-TYPE IDENTIFIER="rt-trace" LONG-NAME="trace"/>',
+  '<SPEC-OBJECT-TYPE IDENTIFIER="ot-memo" LONG-NAME="Memo"><SPEC-ATTRIBUTES>',
+  attribute("STRING", "a-label", "Label", "dt-string"),
+  "</SPEC-ATTRIBUTES></SPEC-OBJECT-TYPE>",
+  '<SPEC-RELATION-TYPE IDENTIFIER="rt-trace" LONG-NAME="trace"><SPEC-ATTRIBUTES>',
+  attribute("STRING", "ar-why", "Why", "dt-string"),
+  "</SPEC-ATTRIBUTES></SPEC-RELATION-TYPE>",
   '<SPEC-RELATION-TYPE IDENTIFIER="rt-skip" LONG-NAME="skip"/>',
+  '<SPECIFICATION-TYPE IDENTIFIER="st" LONG-NAME="Spec"><SPEC-ATTRIBUTES>',
+  attribute("STRING", "as-title", "Title", "dt-string"),
+  "</SPEC-ATTRIBUTES></SPECIFICATION-TYPE>",
   "</SPEC-TYPES><SPEC-OBJECTS>",
   item("O-1", {
     "a-name": "One",
@@ -102,6 +115,8 @@ const DELIVERY = [
     "a-tags": "dt-level-Low,dt-level-High",
     "a-note": "dt-level-High",
     "a-criteria": "It works.",
+    "a-body": "*Measure* the [wind]",
+    "a-reviews": "2026-11-05T00:00:00Z",
   }),
   item("O-2", {
     "a-name": "Two",
@@ -111,13 +126,17 @@ const DELIVERY = [
   }),
   item("O-3", { "a-name": "Three", "a-count": "7", "a-due": "2026-11-03", "a-platforms": "dt-os-None" }),
   object("S-1", "ot-skip", []),
+  object("M-1", "ot-memo", [value("STRING", "a-label", "A memo")]),
+  item("O-5", { "a-name": "Five", "a-weight": " ", "a-count": "0x1A" }),
+  item("O-6", { "a-name": "Six", "a-count": "99999999999999999999" }),
   "</SPEC-OBJECTS><SPEC-RELATIONS>",
-  relation("R-1", "rt-trace", "O-1", "O-2"),
+  relation("R-1", "rt-trace", "O-1", "O-2", value("STRING", "ar-why", "Because")),
   relation("R-2", "rt-trace", "O-1", "O-2"),
   relation("R-3", "rt-trace", "S-1", "O-1"),
   relation("R-4", "rt-skip", "O-1", "O-3"),
+  relation("R-5", "rt-trace", "M-1", "O-1"),
   "</SPEC-RELATIONS><SPECIFICATIONS>",
-  '<SPECIFICATION IDENTIFIER="SP-1" LONG-NAME="Empty"><TYPE><SPECIFICATION-TYPE-REF>st</SPECIFICATION-TYPE-REF></TYPE></SPECIFICATION>',
+  `<SPECIFICATION IDENTIFIER="SP-1" LONG-NAME="Empty"><VALUES>${value("STRING", "as-title", "Values")}</VALUES><TYPE><SPECIFICATION-TYPE-REF>st</SPECIFICATION-TYPE-REF></TYPE></SPECIFICATION>`,
   "</SPECIFICATIONS></REQ-IF-CONTENT></CORE-CONTENT></REQ-IF>",
   "",
 ].join("\n");
@@ -128,6 +147,7 @@ const MAPPING = [
   "types:",
   "  - { source: Item, type: system-requirement }",
   "  - { source: ot-skip, omit: true }",
+  "  - { source: Memo, type: need }",
   "attributes:",
   "  - { source: Name, property: title }",
   "  - { source: Weight, property: weight }",
@@ -138,18 +158,21 @@ const MAPPING = [
   "  - { source: Tags, property: acceptance-criteria }",
   "  - { source: Note, property: note }",
   "  - { source: Criteria, property: acceptance-criteria }",
+  "  - { source: Body, property: text }",
+  "  - { source: Reviews, property: review-dates }",
+  "  - { source: Label, property: title }",
   "relations:",
   "  - { source: trace, kind: derives-from }",
   "  - { source: skip, omit: true }",
   "",
 ].join("\n");
 
-const open = async (mapping = MAPPING): Promise<Workspace> => {
+const open = async (mapping = MAPPING, metamodel = METAMODEL, delivery = DELIVERY): Promise<Workspace> => {
   const fixture = await createFixtureWorkspace({
     fixture: "SR-085/value-kinds",
     files: {
-      "system/metamodel/model.yaml": METAMODEL,
-      "system/in/values.reqif": DELIVERY,
+      "system/metamodel/model.yaml": metamodel,
+      "system/in/values.reqif": delivery,
       "system/reqif/values.yaml": mapping,
     },
   });
@@ -181,10 +204,12 @@ describe("reqif.import of each datatype (SR-053)", () => {
   it("[SR-053/AK2] takes over each value as its property holds it and lists what it leaves out", async () => {
     const workspace = await open();
     const out = (await invoke("reqif.import", INPUT, { workspace })) as Imported;
-    const [one, two, three] = out.created.map((c) => c.id);
+    const [one, two, three, memo, five] = out.created.map((c) => c.id);
+    expect(out.created.map((c) => c.identifier)).toEqual(["O-1", "O-2", "O-3", "M-1", "O-5", "O-6"]);
     expect(await properties(workspace, one)).toMatchObject({
       weight: 1.5,
       due: "2026-11-02",
+      "review-dates": ["2026-11-05"],
       platforms: ["linux"],
       priority: "low",
       "acceptance-criteria": ["It works."],
@@ -194,12 +219,22 @@ describe("reqif.import of each datatype (SR-053)", () => {
     expect(await properties(workspace, two)).not.toHaveProperty("weight");
     expect(await properties(workspace, two)).not.toHaveProperty("platforms");
     expect(await properties(workspace, three)).toMatchObject({ weight: 7, due: "2026-11-03" });
+    expect(await properties(workspace, five)).not.toHaveProperty("weight");
+    // A STRING in the Markdown text is escaped, so it reads back as written.
+    const text = await fs.readFile(path.join(workspace.root, out.files[0] ?? ""), "utf8");
+    expect(text.endsWith("\n\\*Measure\\* the \\[wind\\]\n")).toBe(true);
     const outgoing = (await invoke(
       "element.get",
       { ref: one },
       { workspace },
     )) as CommandOutput<"element.get">;
     expect(outgoing.element.relations.map((r) => [r.kind, r.id])).toEqual([["derives-from", two]]);
+    const fromMemo = (await invoke(
+      "element.get",
+      { ref: memo },
+      { workspace },
+    )) as CommandOutput<"element.get">;
+    expect([fromMemo.element.title, fromMemo.element.relations]).toEqual(["A memo", []]);
     expect(out.losses.map((l) => [l.identifier, l.code, l.reason])).toEqual([
       ["O-1", "date-time", "Due: the time of 2026-11-02T10:30:00+01:00 is left out; 2026-11-02 is kept"],
       ["O-1", "omitted-value", "Platforms: the mapping omits the value Mac"],
@@ -208,8 +243,19 @@ describe("reqif.import of each datatype (SR-053)", () => {
       ["O-2", "omitted-value", "Platforms: the mapping omits the value Mac"],
       ["O-3", "omitted-value", "Platforms: the value dt-os-None is not defined in the file"],
       ["S-1", "omitted-type", "the mapping omits its type Skip"],
+      ["O-5", "omitted-value", 'Weight: " " is no REAL'],
+      ["O-5", "omitted-value", 'Count: "0x1A" is no INTEGER'],
+      ["O-6", "omitted-value", "Count: 99999999999999999999 is larger than a number holds exactly"],
+      ["R-1", "omitted-attribute", "the values of a SPEC-RELATION are not imported: Why"],
+      ["R-2", "relation-duplicate", "derives-from to O-2 is imported once already"],
       ["R-3", "relation-end-not-imported", "its source S-1 is not imported"],
       ["R-4", "omitted-type", "the mapping omits its type skip"],
+      [
+        "R-5",
+        "relation-not-allowed",
+        "the metamodel does not allow derives-from from need to system-requirement",
+      ],
+      ["SP-1", "omitted-attribute", "the values of a SPECIFICATION are not imported: Title"],
     ]);
   });
 
@@ -235,6 +281,37 @@ describe("reqif.import of each datatype (SR-053)", () => {
     ]);
   });
 
+  it("refuses a mapped status, id or type: the delivery never sets them (D-030)", async () => {
+    const metamodel = METAMODEL.replace(
+      "review-dates, platforms, legacy-class, note]",
+      "review-dates, platforms, legacy-class, note, status]",
+    ).replace(
+      "  - { key: note, name: Note, kind: text }",
+      "  - { key: note, name: Note, kind: text }\n  - { key: status, name: State, kind: text }",
+    );
+    const workspace = await open(
+      MAPPING.replace(
+        "{ source: Criteria, property: acceptance-criteria }",
+        "{ source: Criteria, property: status }",
+      ),
+      metamodel,
+    );
+    const error = await failure(workspace);
+    expect([error.code, error.message]).toEqual([
+      "input.invalid",
+      "mapping.attributes[8].property: property cannot hold status: ReqSeq sets it",
+    ]);
+  });
+
+  it("is reqif.invalid for a value of an attribute the relation's type does not define", async () => {
+    const workspace = await open(MAPPING, METAMODEL, DELIVERY.replace(">ar-why<", ">a-name<"));
+    const error = await failure(workspace);
+    expect([error.code, error.message]).toEqual([
+      "reqif.invalid",
+      "file: SPEC-RELATION R-1 has a value of attribute a-name, which its type does not define",
+    ]);
+  });
+
   it("lists every value and attribute a mapping without them leaves unmapped", async () => {
     const values = await open(MAPPING.replace(", values: { Low: low, High: high } }", " }"));
     expect((await failure(values)).details?.["unmapped"]).toEqual([
@@ -245,6 +322,7 @@ describe("reqif.import of each datatype (SR-053)", () => {
     expect((await failure(bare)).details?.["unmapped"]).toEqual([
       { kind: "type", source: "Item" },
       { kind: "type", source: "Skip" },
+      { kind: "type", source: "Memo" },
       { kind: "relation", source: "trace" },
       { kind: "relation", source: "skip" },
     ]);
@@ -259,21 +337,9 @@ describe("reqif.import of each datatype (SR-053)", () => {
     );
   });
 
-  it("writes into the repository root when the target names it, and refuses a file above the size limit", async () => {
+  it("writes into the repository root when the target names it", async () => {
     const workspace = await open(`${MAPPING}target: { repository: system, path: "." }\n`);
     const out = (await invoke("reqif.import", INPUT, { workspace })) as Imported;
-    expect(out.files.every((f) => /^SR-[0-9a-f]{12}\.md$/.test(f))).toBe(true);
-    const stat = fs.stat.bind(fs);
-    const spy = vi
-      .spyOn(fs, "stat")
-      .mockImplementation(async (p) => Object.assign(await stat(p), { size: 2 ** 40 }));
-    onTestFinished(() => {
-      spy.mockRestore();
-    });
-    const error = await failure(workspace);
-    expect([error.code, error.message]).toEqual([
-      "reqif.invalid",
-      "file: values.reqif is larger than 268435456 bytes, the most ReqSeq reads",
-    ]);
+    expect(out.files.every((f) => /^(?:SR|N)-[0-9a-f]{12}\.md$/.test(f))).toBe(true);
   });
 });

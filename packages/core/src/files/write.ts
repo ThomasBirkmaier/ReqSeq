@@ -385,6 +385,10 @@ const removeOwn = async (absolute: string, expected: string): Promise<boolean> =
  * temp file is removed and the error is thrown; a named file that changed meanwhile is left and
  * listed in `details.written`. So the call removes only files it created itself, never one that was
  * there before (D-045). Refuses like `writeFileAtomic` with `expected` null.
+ *
+ * All or nothing holds for errors, not for a crash: a crash between two names leaves the files
+ * named so far and the temp files (second links to the same bytes, which the element walk and the
+ * watchers ignore), and the fallback without hard links writes the target in place (#530).
  */
 export const createFilesAtomic = async <T extends NewFile>(
   root: string,
@@ -429,7 +433,10 @@ export const createFilesAtomic = async <T extends NewFile>(
       const w = await nameNew(s.absolute, s.file, s.temp, s.chunks, s.written);
       named.push({ absolute: s.absolute, file: s.file, sha256: w.sha256 });
       done.push({ file: s.given, snapshot: makeSnapshot(s.file, w.size, w.mtimeMs, w.sha256) });
-      await syncFolder(path.dirname(s.absolute));
+    }
+    // Once per folder, not per file (N-036: an import of 50,000 elements into one folder).
+    for (const folder of new Set(staged.map((s) => path.dirname(s.absolute)))) {
+      await syncFolder(folder);
     }
   } catch (e) {
     const kept: string[] = [];

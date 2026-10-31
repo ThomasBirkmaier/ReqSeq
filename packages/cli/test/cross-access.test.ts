@@ -2104,7 +2104,6 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       newElement: true,
     },
     {
-      tag: "[SR-053/AK1]",
       name: "a file that is no ReqIF is refused (reqif.invalid)",
       fixture: DELIVERY,
       input: { file: "reqif/kunde-a.yaml", mapping: "reqif/kunde-a.yaml", delivery: "x" },

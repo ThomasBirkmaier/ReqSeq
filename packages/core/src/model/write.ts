@@ -145,10 +145,42 @@ const titleKeyFor = (metamodel: Metamodel, type: MetamodelEffectiveType, command
 };
 
 /**
- * Checks that `keys` may be written for `type`: properties of the type only, never the structural
- * keys or the title key (given as `title`). Relation kinds are no properties; relations are added
- * with `relation.add`.
+ * Why `key` may not be written as a property of `type` (`element.create`, `reqif.import`), or
+ * undefined: properties of the type only, never the structural keys `id`, `type`, `status`
+ * (D-030: a status is set by people) or the title key (given as `title`). Relation kinds are no
+ * properties; relations are added with `relation.add`.
  */
+export const propertyKeyRefusal = (
+  key: string,
+  metamodel: Metamodel,
+  type: MetamodelEffectiveType,
+  titleKey: string,
+  field: string,
+): { readonly message: string; readonly details: Readonly<Record<string, string>> } | undefined => {
+  if (STRUCTURAL_KEYS.includes(key)) {
+    return { message: `${field} cannot hold ${key}: ReqSeq sets it`, details: { key, reason: "structural" } };
+  }
+  if (key === titleKey) {
+    return {
+      message: `${field} cannot hold the title key ${key}; give the title as title`,
+      details: { key, reason: "title" },
+    };
+  }
+  if (metamodel.relations.some((r) => r.key === key)) {
+    return {
+      message: `${key} is a relation kind, not a property; add relations with relation.add`,
+      details: { key, reason: "relation" },
+    };
+  }
+  return type.properties.includes(key)
+    ? undefined
+    : {
+        message: `Type ${type.key} has no property ${key}`,
+        details: { key, type: type.key, reason: "not-a-property" },
+      };
+};
+
+/** Refuses the first of `keys` that `propertyKeyRefusal` refuses, with `input.invalid`. */
 const checkPropertyKeys = (
   keys: readonly string[],
   metamodel: Metamodel,
@@ -157,27 +189,9 @@ const checkPropertyKeys = (
   field: string,
 ): void => {
   for (const key of keys) {
-    if (STRUCTURAL_KEYS.includes(key)) {
-      throw invalid(`${field} cannot hold ${key}: ReqSeq sets it`, { key, reason: "structural" });
-    }
-    if (key === titleKey) {
-      throw invalid(`${field} cannot hold the title key ${key}; give the title as title`, {
-        key,
-        reason: "title",
-      });
-    }
-    if (metamodel.relations.some((r) => r.key === key)) {
-      throw invalid(`${key} is a relation kind, not a property; add relations with relation.add`, {
-        key,
-        reason: "relation",
-      });
-    }
-    if (!type.properties.includes(key)) {
-      throw invalid(`Type ${type.key} has no property ${key}`, {
-        key,
-        type: type.key,
-        reason: "not-a-property",
-      });
+    const refusal = propertyKeyRefusal(key, metamodel, type, titleKey, field);
+    if (refusal !== undefined) {
+      throw invalid(refusal.message, refusal.details);
     }
   }
 };
@@ -614,14 +628,6 @@ const folderOf = (folder: string): string => {
   return normalized === "." || normalized === "./" ? "" : normalized.replace(/\/$/, "");
 };
 
-/**
- * `element.create` (SR-001, SR-002): a new element of `input.type` with a new random UUID (v4,
- * D-017) and the initial status of the metamodel, in one new file `<prefix>-<12 hex>.md` in
- * `input.folder` (default: the type key, created when missing) of `input.repository` (default: the
- * main repository). Never replaces a file. Before anything is written, the target (also the
- * default type folder) is refused when the element walk would not list it or a name is not
- * portable (`refuseUnlisted`).
- */
 /** What a new element of a type gets from the metamodel: its type, title key and initial status. */
 export interface NewElementBase {
   readonly type: MetamodelEffectiveType;
@@ -668,6 +674,14 @@ export const newElementBytes = (
   }).bytes;
 };
 
+/**
+ * `element.create` (SR-001, SR-002): a new element of `input.type` with a new random UUID (v4,
+ * D-017) and the initial status of the metamodel, in one new file `<prefix>-<12 hex>.md` in
+ * `input.folder` (default: the type key, created when missing) of `input.repository` (default: the
+ * main repository). Never replaces a file. Before anything is written, the target (also the
+ * default type folder) is refused when the element walk would not list it or a name is not
+ * portable (`refuseUnlisted`).
+ */
 export const createElement = async (
   workspace: Workspace,
   input: CreateElementInput,

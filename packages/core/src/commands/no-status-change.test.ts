@@ -88,6 +88,10 @@ const FILES: Readonly<Record<string, string>> = {
   [VARIANT_FILE]: `---\nid: ${VARIANT}\ntype: variant\nstatus: approved\ntitle: Coast\n---\n`,
   "in/lieferung.reqif": delivery("lieferung.reqif"),
   "reqif/import-kunde-a.yaml": delivery("kunde-a.yaml"),
+  "reqif/import-status.yaml": delivery("kunde-a.yaml").replace(
+    "{ source: Internal Comment, omit: true }",
+    "{ source: Internal Comment, property: status }",
+  ),
 };
 
 /** The `status` line of every element file, and null for the evidence record, by file (relative, `/`), as written on disk. */
@@ -282,7 +286,12 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { source: APPROVED, kind: "refines", target: RETIRED },
     { source: "SR-ffffff", kind: "refines", target: WIND },
   ],
-  "reqif.import": [IMPORT, { ...IMPORT, file: "in/missing.reqif" }],
+  // A mapping that maps an attribute to `status` is refused: the delivery never sets a status.
+  "reqif.import": [
+    IMPORT,
+    { ...IMPORT, file: "in/missing.reqif" },
+    { ...IMPORT, mapping: "reqif/import-status.yaml" },
+  ],
   "reqif.saveMapping": [
     {
       mapping: {

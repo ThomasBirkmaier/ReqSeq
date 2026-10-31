@@ -6,43 +6,89 @@
 //
 // Not yet: the origin properties (SR-057), updating the elements of an earlier delivery and the
 // conflicts `take` and `keep` decide (SR-056; until then no import finds a conflict, so both lists
-// change nothing), the one-to-one mapping of a ReqSeq file (SR-052) and images (SR-095).
+// change nothing, and a repeated import creates new elements), the one-to-one mapping of a ReqSeq
+// file (SR-052) and images (SR-095).
 import fs from "node:fs/promises";
+import { constants } from "node:fs";
 import path from "node:path";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
 import { createFolder } from "../../files/index.js";
 import { metamodelState } from "../../metamodel/index.js";
+import type { NewElementFile } from "../../model/index.js";
 import { createElementFiles, refuseUnlisted } from "../../model/index.js";
 import { REQIF_LIMITS, parseReqif, planImport, readMappingFile } from "../../reqif/index.js";
+import type { RepositoryLocation, WorkspaceLayout } from "../../workspace/index.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
 
-/** The bytes of the ReqIF file at the local path `given`, within the size limit. */
+/** Opening never waits: a FIFO in place of the file opens at once and is then no file (no O_NONBLOCK on Windows). */
+const READ_NOW = constants.O_RDONLY | constants.O_NONBLOCK;
+
+/** Bytes read at a time. */
+const CHUNK = 1024 * 1024;
+
+/**
+ * The bytes of the ReqIF file at the local path `given`. The limit holds for the bytes read, not for
+ * a size looked at before, so a file growing meanwhile is refused too; a FIFO or device is no file.
+ */
 const readDelivery = async (root: string, given: string): Promise<Uint8Array> => {
   const absolute = path.resolve(root, given);
   const name = path.basename(absolute);
+  let handle: fs.FileHandle;
   try {
-    const stat = await fs.stat(absolute);
-    if (stat.size > REQIF_LIMITS.bytes) {
-      throw new CommandError(
-        "reqif.invalid",
-        `file: ${name} is larger than ${String(REQIF_LIMITS.bytes)} bytes, the most ReqSeq reads`,
-        { fields: ["file"] },
-      );
-    }
-    return await fs.readFile(absolute);
+    handle = await fs.open(absolute, READ_NOW);
   } catch (error) {
-    if (error instanceof CommandError) {
-      throw error;
-    }
     throw new CommandError(
       "file.faulty",
       `file: cannot read ${name}: ${String((error as NodeJS.ErrnoException).code)}`,
-      {
-        fields: ["file"],
-      },
+      { fields: ["file"] },
     );
   }
+  try {
+    if (!(await handle.stat()).isFile()) {
+      throw new CommandError("file.faulty", `file: ${name} is not a file`, { fields: ["file"] });
+    }
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+    for (;;) {
+      const chunk = Buffer.alloc(CHUNK);
+      const { bytesRead } = await handle.read(chunk, 0, CHUNK, null);
+      if (bytesRead === 0) {
+        return Buffer.concat(chunks, total);
+      }
+      total += bytesRead;
+      if (total > REQIF_LIMITS.bytes) {
+        throw new CommandError(
+          "reqif.invalid",
+          `file: ${name} is larger than ${String(REQIF_LIMITS.bytes)} bytes, the most ReqSeq reads`,
+          { fields: ["file"] },
+        );
+      }
+      chunks.push(chunk.subarray(0, bytesRead));
+    }
+  } finally {
+    await handle.close();
+  }
+};
+
+/**
+ * The plan's files under the folder spelled as on disk (#194): the rules of the walk are checked on
+ * the target before the folder is created and again after, as `element.create` does, and the files
+ * go under the spelling the second check finds. Every file of the plan lies in the one target folder.
+ */
+const spelledFiles = async (
+  layout: WorkspaceLayout,
+  repository: RepositoryLocation,
+  folder: string,
+  files: readonly NewElementFile[],
+  first: NewElementFile,
+): Promise<NewElementFile[]> => {
+  const before = await refuseUnlisted(layout, repository, first.file);
+  if (folder !== "") {
+    await createFolder(repository.folder, path.posix.dirname(before));
+  }
+  const spelled = path.posix.dirname(await refuseUnlisted(layout, repository, before));
+  return files.map((f) => ({ ...f, file: path.posix.join(spelled, path.posix.basename(f.file)) }));
 };
 
 export default defineCommand({
@@ -69,15 +115,15 @@ export default defineCommand({
     const { mapping } = await readMappingFile(layout, metamodel, workspace.root, input.mapping, command);
     const plan = planImport(parsed.file, mapping, layout, metamodel);
     const [first] = plan.files;
-    let files: string[] = [];
-    if (first !== undefined) {
-      // Every file of the plan lies in the one target folder: the rules of the walk are checked once.
-      await refuseUnlisted(layout, plan.repository, first.file);
-      if (plan.folder !== "") {
-        await createFolder(plan.repository.folder, plan.folder);
-      }
-      files = await createElementFiles(workspace, layout, plan.repository, plan.files);
-    }
+    const files =
+      first === undefined
+        ? []
+        : await createElementFiles(
+            workspace,
+            layout,
+            plan.repository,
+            await spelledFiles(layout, plan.repository, plan.folder, plan.files, first),
+          );
     return {
       created: [...plan.created],
       updated: [],

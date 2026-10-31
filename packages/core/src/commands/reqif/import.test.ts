@@ -256,6 +256,7 @@ describe("reqif.import (SR-053)", () => {
         "<ATTRIBUTE-DEFINITION-STRING-REF>ad-comment<",
         "<ATTRIBUTE-DEFINITION-STRING-REF>ad-heading<",
       ),
+      "in/twice.reqif": DELIVERY.replace('IDENTIFIER="REQ-2"', 'IDENTIFIER="REQ-1"'),
       "in/datatype.reqif": DELIVERY.replace(
         "<DATATYPE-DEFINITION-XHTML-REF>dt-xhtml<",
         "<DATATYPE-DEFINITION-XHTML-REF>dt-none<",
@@ -268,10 +269,13 @@ describe("reqif.import (SR-053)", () => {
       ["in/relation.reqif", /SPEC-RELATION REL-2 refers to type rt-none/],
       ["in/value.reqif", /SPEC-OBJECT REQ-1 has a value of attribute ad-heading/],
       ["in/datatype.reqif", /attribute ad-text refers to datatype dt-none/],
+      ["in/twice.reqif", /^file: IDENTIFIER REQ-1 is used twice \(first on line 44\)$/],
     ] as const) {
       const error = await failure(workspace, { ...INPUT, file });
       expect([error.code, error.message], file).toEqual(["reqif.invalid", expect.stringMatching(message)]);
     }
+    // A folder is no file (on Windows it cannot even be opened).
+    expect((await failure(workspace, { ...INPUT, file: "in" })).code).toBe("file.faulty");
     const missing = await failure(workspace, { ...INPUT, file: "in/missing.reqif" });
     expect([missing.code, missing.message]).toEqual([
       "file.faulty",
@@ -279,6 +283,39 @@ describe("reqif.import (SR-053)", () => {
     ]);
     const unnamed = await failure(workspace, { file: "in/lieferung.reqif", delivery: "x" });
     expect([unnamed.code, unnamed.details?.["fields"]]).toEqual(["input.invalid", ["mapping"]]);
+    expect(await tree(fixture)).toEqual(before);
+  });
+
+  it("[SR-053/AK1] writes under the spelling of the target folder that the element walk lists (#194)", async () => {
+    // On a file system that ignores the normal form (macOS) the NFC target is the NFD folder, and
+    // the files go there under its spelling; elsewhere the two are different folders.
+    const { fixture, workspace } = await open({
+      ["Kunde-A\u0308/notes.txt"]: "",
+      "reqif/kunde-a.yaml": `${MAPPING}target: { repository: system, path: "Kunde-\u00c4" }\n`,
+    });
+    const out = await run(workspace);
+    for (const file of out.files) {
+      await expect(fs.stat(fixture.path(file))).resolves.toBeDefined();
+    }
+    const listed = (await invoke("element.list", {}, { workspace })) as { elements: { file: string }[] };
+    expect(out.files.every((f) => listed.elements.some((e) => e.file === f))).toBe(true);
+  });
+
+  it("[SR-053/AK2] writes nothing when the mapping omits every type, and lists each object as a loss", async () => {
+    const { fixture, workspace } = await open({
+      "reqif/kunde-a.yaml": MAPPING.replace(
+        "{ source: Customer Requirement, type: system-requirement }",
+        "{ source: Customer Requirement, omit: true }",
+      ),
+    });
+    const before = await tree(fixture);
+    const out = await run(workspace);
+    expect([out.created, out.files]).toEqual([[], []]);
+    expect(out.losses.filter((l) => l.code === "omitted-type").map((l) => l.identifier)).toEqual([
+      "REQ-1",
+      "REQ-2",
+      "HEAD-1",
+    ]);
     expect(await tree(fixture)).toEqual(before);
   });
 

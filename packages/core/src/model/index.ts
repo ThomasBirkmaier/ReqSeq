@@ -228,6 +228,7 @@ export {
   assertElementWritable,
   createElement,
   newElementBase,
+  propertyKeyRefusal,
   newElementBytes,
   refuseUnlisted,
   updateElement,

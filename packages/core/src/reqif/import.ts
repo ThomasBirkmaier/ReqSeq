@@ -33,7 +33,7 @@ import type {
   WorkspaceLocation,
 } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
-import { keyDefinition } from "../metamodel/index.js";
+import { allowsType, keyDefinition } from "../metamodel/index.js";
 import type { NewElementBase, NewElementFile } from "../model/index.js";
 import {
   fileNameFor,
@@ -41,6 +41,7 @@ import {
   newElementBytes,
   plannedVersion,
   portableName,
+  propertyKeyRefusal,
 } from "../model/index.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
 import { locate } from "../workspace/index.js";
@@ -55,7 +56,7 @@ import type {
   ReqifSpecType,
   ReqifValue,
 } from "./model.js";
-import { xhtmlText } from "./xhtml-text.js";
+import { markdownText, xhtmlText } from "./xhtml-text.js";
 
 /** What `planImport` gives: the files to write and what the output lists. */
 export interface ImportPlan {
@@ -127,7 +128,32 @@ interface Index {
   readonly datatypes: ReadonlyMap<string, ReqifDatatype>;
 }
 
+/** Refuses an IDENTIFIER the file uses twice (ReqIF 1.2 §10.8.32), at the line of the second use. */
+const refuseDuplicates = (file: ReqifFile): void => {
+  const seen = new Map<string, number>();
+  const identifiables: readonly (readonly ReqifIdentifiable[])[] = [
+    file.datatypes,
+    file.datatypes.flatMap((d) => d.values),
+    file.specTypes,
+    file.specTypes.flatMap((t) => t.attributes),
+    file.specObjects,
+    file.specRelations,
+    file.specifications,
+  ];
+  for (const item of identifiables.flat()) {
+    const first = seen.get(item.identifier);
+    if (first !== undefined) {
+      throw invalidFile(
+        `IDENTIFIER ${item.identifier} is used twice (first on line ${String(first)})`,
+        item.line,
+      );
+    }
+    seen.set(item.identifier, item.line);
+  }
+};
+
 const indexOf = (file: ReqifFile): Index => {
+  refuseDuplicates(file);
   const attributes = new Map<
     string,
     { readonly type: ReqifSpecType; readonly a: ReqifAttributeDefinition }
@@ -195,8 +221,12 @@ const checkAttribute = (
   const definition = found?.kind === "property" ? found.definition : undefined;
   checked.definition = definition;
   const datatype = datatypeOf(index, a);
-  if (definition !== undefined && !base.type.properties.includes(property)) {
-    coverage.wrong.push({ field, message: `${property} is no property of type ${base.type.key}` });
+  // The same keys as element.create: never `id`, `type`, `status` (D-030) or the title key.
+  const refusal = own
+    ? undefined
+    : propertyKeyRefusal(property, metamodel, base.type, base.titleKey, "property");
+  if (refusal !== undefined) {
+    coverage.wrong.push({ field, message: refusal.message });
     return;
   }
   if (!holds(definition, datatype.kind)) {
@@ -326,10 +356,14 @@ const enumValuesOf = (refs: readonly string[], datatype: ReqifDatatype, loss: Lo
   return found;
 };
 
-/** The texts of a value: XHTML as `xhtmlText` (its other elements a loss), enumeration values by name. */
-const textsOf = (value: ReqifValue, datatype: ReqifDatatype, loss: Loss): string[] => {
+/**
+ * The texts of a value: XHTML as `xhtmlText` (its other elements a loss), enumeration values by
+ * name, the others as written. For a Markdown target (`text`, a property with `markdown: true`)
+ * each text is escaped (`markdownText`) so it reads back as written; elsewhere it stays plain.
+ */
+const textsOf = (value: ReqifValue, datatype: ReqifDatatype, markdown: boolean, loss: Loss): string[] => {
   if (value.kind === "xhtml") {
-    const { text, unconverted } = xhtmlText(value.value);
+    const { text, unconverted } = xhtmlText(value.value, markdown);
     if (unconverted.length > 0) {
       loss(
         "xhtml-element",
@@ -338,10 +372,9 @@ const textsOf = (value: ReqifValue, datatype: ReqifDatatype, loss: Loss): string
     }
     return [text];
   }
-  if (value.kind === "enumeration") {
-    return enumValuesOf(value.values, datatype, loss).map(nameOf);
-  }
-  return [value.value];
+  const texts =
+    value.kind === "enumeration" ? enumValuesOf(value.values, datatype, loss).map(nameOf) : [value.value];
+  return markdown ? texts.map(markdownText) : texts;
 };
 
 /** The choice keys of enumeration values through `values` (an unmapped value is a loss). */
@@ -379,11 +412,29 @@ const dateValue = (value: string, loss: Loss): string => {
   return date;
 };
 
-/** An INTEGER or REAL value as a number (one that is not finite is a loss). */
-const numberValue = (value: string, loss: Loss): number | undefined => {
-  const number = Number(value);
+/** Lexical forms of xs:integer and xs:double (ReqIF 1.2 §10.8.20, §10.8.22). */
+const LEXICAL: Readonly<Record<string, RegExp>> = {
+  integer: /^[+-]?\d+$/,
+  real: /^(?:[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?|[+-]?INF|NaN)$/,
+};
+
+/**
+ * An INTEGER or REAL value as a number; a loss for one that is not of the lexical form of its
+ * datatype (an empty value too), not finite, or an integer a number cannot hold exactly.
+ */
+const numberValue = (raw: string, kind: string, loss: Loss): number | undefined => {
+  const value = raw.trim();
+  if (LEXICAL[kind]?.test(value) !== true) {
+    loss("omitted-value", `"${raw}" is no ${kind.toUpperCase()}`);
+    return undefined;
+  }
+  const number = Number(value.replace(/INF$/, "Infinity"));
   if (!Number.isFinite(number)) {
     loss("omitted-value", `${value} is no finite number`);
+    return undefined;
+  }
+  if (kind === "integer" && !Number.isSafeInteger(number)) {
+    loss("omitted-value", `${value} is larger than a number holds exactly`);
     return undefined;
   }
   return number;
@@ -401,13 +452,16 @@ const propertyValue = (
     return choiceValue(value.values, datatype, entry, definition, loss);
   }
   const scalar = value.kind === "enumeration" || value.kind === "xhtml" ? undefined : value.value;
-  if (scalar !== undefined && definition.kind === "date") {
-    return dateValue(scalar, loss);
+  const one =
+    scalar !== undefined && definition.kind === "date"
+      ? dateValue(scalar, loss)
+      : scalar !== undefined && definition.kind === "number"
+        ? numberValue(scalar, datatype.kind, loss)
+        : null;
+  if (one !== null) {
+    return one === undefined || definition.many !== true ? one : [one];
   }
-  if (scalar !== undefined && definition.kind === "number") {
-    return numberValue(scalar, loss);
-  }
-  const texts = textsOf(value, datatype, loss);
+  const texts = textsOf(value, datatype, definition.markdown === true, loss);
   return definition.many === true ? texts : texts.join(", ");
 };
 
@@ -456,7 +510,7 @@ const planValues = (context: Context, object: ReqifSpecObject, t: ReqifSpecType,
       loss(code, `${nameOf(a)}: ${reason}`);
     };
     if (definition === undefined) {
-      const text = textsOf(value, datatype, prefixed).join(", ");
+      const text = textsOf(value, datatype, property === "text", prefixed).join(", ");
       if (property === "title") {
         draft.title = text;
       } else {
@@ -510,6 +564,30 @@ const planObject = (
   return draft;
 };
 
+/**
+ * The names of the attributes of `values`, which the type `t` of their owner must define (else
+ * `reqif.invalid`); the import takes no value of a relation or specification over (a loss).
+ */
+const valueNames = (
+  index: Index,
+  owner: ReqifIdentifiable,
+  what: string,
+  t: ReqifSpecType | undefined,
+  values: readonly ReqifValue[],
+): string => {
+  const names = values.map((value) => {
+    const known = index.attributes.get(value.definition);
+    if (known === undefined || known.type !== t) {
+      throw invalidFile(
+        `${what} ${owner.identifier} has a value of attribute ${value.definition}, which its type does not define`,
+        owner.line,
+      );
+    }
+    return nameOf(known.a);
+  });
+  return names.join(", ");
+};
+
 /** Adds `relation` to the draft of its source, or lists it as a loss. */
 const planRelation = (
   context: Context,
@@ -540,13 +618,36 @@ const planRelation = (
   } else if (source === undefined || target === undefined) {
     const end = source === undefined ? `source ${relation.source}` : `target ${relation.target}`;
     loss("relation-end-not-imported", `its ${end} is not imported`);
+  } else if (!allowed(context.metamodel, kind, source, target)) {
+    loss(
+      "relation-not-allowed",
+      `the metamodel does not allow ${kind} from ${source.base.type.key} to ${target.base.type.key}`,
+    );
   } else {
     const items = source.relations.get(kind) ?? [];
-    if (!items.some((item) => item.id === target.id)) {
+    const twice = items.some((item) => item.id === target.id);
+    if (twice) {
+      loss("relation-duplicate", `${kind} to ${relation.target} is imported once already`);
+    } else {
       items.push({ id: target.id, version: target.version });
     }
     source.relations.set(kind, items);
   }
+  if (relation.values.length > 0) {
+    loss(
+      "omitted-attribute",
+      `the values of a SPEC-RELATION are not imported: ${valueNames(context.index, relation, "SPEC-RELATION", t, relation.values)}`,
+    );
+  }
+};
+
+/** Whether the relation kind `kind` may lead from the type of `source` to that of `target`. */
+const allowed = (metamodel: Metamodel, kind: string, source: Draft, target: Draft): boolean => {
+  const rule = metamodel.relations.find((r) => r.key === kind);
+  return (
+    allowsType(rule?.["source-types"], source.base.type.key, metamodel) &&
+    allowsType(rule?.["target-types"], target.base.type.key, metamodel)
+  );
 };
 
 /** The plan of importing `file` through `mapping` (see the file comment). */
@@ -583,6 +684,21 @@ export const planImport = (
     planRelation(context, drafts, relation);
   }
   for (const specification of file.specifications) {
+    if (specification.values.length > 0) {
+      const names = valueNames(
+        index,
+        specification,
+        "SPECIFICATION",
+        index.types.get(specification.type),
+        specification.values,
+      );
+      context.losses.push({
+        identifier: specification.identifier,
+        kind: "specification",
+        code: "omitted-attribute",
+        reason: `the values of a SPECIFICATION are not imported: ${names}`,
+      });
+    }
     if (specification.children.length > 0) {
       context.losses.push({
         identifier: specification.identifier,
