@@ -1,0 +1,12 @@
+reqseq-reqif-mapping: 1
+source: { name: Kunde A, tool-id: DOORS Next }
+types:
+  - { source: Customer Requirement, type: system-requirement }
+  - { source: Heading, omit: true }
+attributes:
+  - { source: ReqIF.Name, property: title }
+  - { source: ReqIF.Text, property: text }
+  - { source: Priority, property: requirement-type, values: { High: functional, Low: quality } }
+  - { source: Internal Comment, omit: true }
+relations:
+  - { source: satisfies, kind: derives-from }

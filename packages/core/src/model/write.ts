@@ -145,10 +145,42 @@ const titleKeyFor = (metamodel: Metamodel, type: MetamodelEffectiveType, command
 };
 
 /**
- * Checks that `keys` may be written for `type`: properties of the type only, never the structural
- * keys or the title key (given as `title`). Relation kinds are no properties; relations are added
- * with `relation.add`.
+ * Why `key` may not be written as a property of `type` (`element.create`, `reqif.import`), or
+ * undefined: properties of the type only, never the structural keys `id`, `type`, `status`
+ * (D-030: a status is set by people) or the title key (given as `title`). Relation kinds are no
+ * properties; relations are added with `relation.add`.
  */
+export const propertyKeyRefusal = (
+  key: string,
+  metamodel: Metamodel,
+  type: MetamodelEffectiveType,
+  titleKey: string,
+  field: string,
+): { readonly message: string; readonly details: Readonly<Record<string, string>> } | undefined => {
+  if (STRUCTURAL_KEYS.includes(key)) {
+    return { message: `${field} cannot hold ${key}: ReqSeq sets it`, details: { key, reason: "structural" } };
+  }
+  if (key === titleKey) {
+    return {
+      message: `${field} cannot hold the title key ${key}; give the title as title`,
+      details: { key, reason: "title" },
+    };
+  }
+  if (metamodel.relations.some((r) => r.key === key)) {
+    return {
+      message: `${key} is a relation kind, not a property; add relations with relation.add`,
+      details: { key, reason: "relation" },
+    };
+  }
+  return type.properties.includes(key)
+    ? undefined
+    : {
+        message: `Type ${type.key} has no property ${key}`,
+        details: { key, type: type.key, reason: "not-a-property" },
+      };
+};
+
+/** Refuses the first of `keys` that `propertyKeyRefusal` refuses, with `input.invalid`. */
 const checkPropertyKeys = (
   keys: readonly string[],
   metamodel: Metamodel,
@@ -157,27 +189,9 @@ const checkPropertyKeys = (
   field: string,
 ): void => {
   for (const key of keys) {
-    if (STRUCTURAL_KEYS.includes(key)) {
-      throw invalid(`${field} cannot hold ${key}: ReqSeq sets it`, { key, reason: "structural" });
-    }
-    if (key === titleKey) {
-      throw invalid(`${field} cannot hold the title key ${key}; give the title as title`, {
-        key,
-        reason: "title",
-      });
-    }
-    if (metamodel.relations.some((r) => r.key === key)) {
-      throw invalid(`${key} is a relation kind, not a property; add relations with relation.add`, {
-        key,
-        reason: "relation",
-      });
-    }
-    if (!type.properties.includes(key)) {
-      throw invalid(`Type ${type.key} has no property ${key}`, {
-        key,
-        type: type.key,
-        reason: "not-a-property",
-      });
+    const refusal = propertyKeyRefusal(key, metamodel, type, titleKey, field);
+    if (refusal !== undefined) {
+      throw invalid(refusal.message, refusal.details);
     }
   }
 };
@@ -614,6 +628,52 @@ const folderOf = (folder: string): string => {
   return normalized === "." || normalized === "./" ? "" : normalized.replace(/\/$/, "");
 };
 
+/** What a new element of a type gets from the metamodel: its type, title key and initial status. */
+export interface NewElementBase {
+  readonly type: MetamodelEffectiveType;
+  readonly titleKey: string;
+  /** Undefined for a type without status (#344). */
+  readonly status: string | undefined;
+}
+
+/**
+ * The base of a new element of type `key` (`element.create`, `reqif.import`): refused like
+ * `element.create` refuses an unknown or abstract type (`typeForNewElement`), a type without the
+ * title property and a metamodel without exactly one initial status.
+ */
+export const newElementBase = (metamodel: Metamodel, key: string, command: CommandName): NewElementBase => {
+  const type = typeForNewElement(metamodel, key);
+  return { type, titleKey: titleKeyFor(metamodel, type, command), status: initialStatus(metamodel, type) };
+};
+
+/**
+ * The bytes of a new element file: `id`, type, initial status, title, `properties` (already as
+ * stored: choice keys, relation items with versions) in the type's order, then `text`. A new file
+ * has a blank line after the frontmatter, LF line endings and ends with a line break (ADR-0004
+ * "Stable writing"), as element.update writes a text (#308).
+ */
+export const newElementBytes = (
+  base: NewElementBase,
+  id: string,
+  title: string,
+  text: string,
+  properties: readonly (readonly [string, PropertyValue])[],
+): Uint8Array => {
+  const { type, titleKey, status } = base;
+  const edits: FrontmatterEdit[] = [
+    { kind: "set", key: "id", value: id },
+    { kind: "set", key: "type", value: type.key },
+    ...(status === undefined ? [] : [{ kind: "set", key: "status", value: status } as const]),
+    { kind: "set", key: titleKey, value: title },
+    ...properties.map(([key, value]): FrontmatterEdit => ({ kind: "set", key, value })),
+  ];
+  return editElementFile(EMPTY_FILE, {
+    edits,
+    body: bodyForText(EMPTY_FILE.body, text),
+    keyOrder: [...STRUCTURAL_KEYS, titleKey, ...type.properties],
+  }).bytes;
+};
+
 /**
  * `element.create` (SR-001, SR-002): a new element of `input.type` with a new random UUID (v4,
  * D-017) and the initial status of the metamodel, in one new file `<prefix>-<12 hex>.md` in
@@ -630,9 +690,8 @@ export const createElement = async (
 ): Promise<ElementWriteResult> => {
   const context = await contextOf(workspace);
   const { layout, metamodel, store } = context;
-  const type = typeForNewElement(metamodel, input.type);
-  const titleKey = titleKeyFor(metamodel, type, "element.create");
-  const status = initialStatus(metamodel, type);
+  const base = newElementBase(metamodel, input.type, "element.create");
+  const { type, titleKey } = base;
   // Every given key is checked, also one with an empty value (`status: null` is refused).
   checkPropertyKeys(Object.keys(input.properties ?? {}), metamodel, type, titleKey, "properties");
   const repository = targetRepository(layout, input.repository);
@@ -660,25 +719,14 @@ export const createElement = async (
   if (folder !== "") {
     resolveInRoot(repository.folder, folder);
   }
-  const edits: FrontmatterEdit[] = [
-    { kind: "set", key: "id", value: id },
-    { kind: "set", key: "type", value: type.key },
-    ...(status === undefined ? [] : [{ kind: "set", key: "status", value: status } as const]),
-    { kind: "set", key: titleKey, value: input.title },
-    ...properties.map(([key, value]): FrontmatterEdit => ({
-      kind: "set",
-      key,
-      value: toPropertyValue(value),
-    })),
-  ];
-  // A new file has a blank line after the frontmatter, LF line endings and ends with a line break
-  // (ADR-0004 "Stable writing"), as element.update writes a text (#308).
   const text = await setInlineReferences(context, input.text ?? "", "", repository.name);
-  const { bytes } = editElementFile(EMPTY_FILE, {
-    edits,
-    body: bodyForText(EMPTY_FILE.body, text),
-    keyOrder: [...STRUCTURAL_KEYS, titleKey, ...type.properties],
-  });
+  const bytes = newElementBytes(
+    base,
+    id,
+    input.title,
+    text,
+    properties.map(([key, value]) => [key, toPropertyValue(value)] as const),
+  );
   await refuseByCheck(
     check,
     repository.name,

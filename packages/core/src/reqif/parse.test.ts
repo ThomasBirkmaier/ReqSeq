@@ -351,6 +351,35 @@ describe("parseReqif", () => {
     ]);
   });
 
+  it("reads the DEFAULT-VALUE of an attribute definition as a value of that definition, one per definition", () => {
+    const definition = (kind: string, id: string, inner: string): string =>
+      `<ATTRIBUTE-DEFINITION-${kind} IDENTIFIER="${id}"><TYPE><DATATYPE-DEFINITION-${kind}-REF>dt</DATATYPE-DEFINITION-${kind}-REF></TYPE><DEFAULT-VALUE>${inner}</DEFAULT-VALUE></ATTRIBUTE-DEFINITION-${kind}>`;
+    const text = withContent(
+      [
+        '<DATATYPES><DATATYPE-DEFINITION-STRING IDENTIFIER="dt"/></DATATYPES><SPEC-TYPES><SPEC-OBJECT-TYPE IDENTIFIER="t"><SPEC-ATTRIBUTES>',
+        // DEFINITION as written names another attribute: the default still belongs to its own.
+        definition(
+          "STRING",
+          "a",
+          '<ATTRIBUTE-VALUE-STRING THE-VALUE="first"><DEFINITION><ATTRIBUTE-DEFINITION-STRING-REF>b</ATTRIBUTE-DEFINITION-STRING-REF></DEFINITION></ATTRIBUTE-VALUE-STRING><ATTRIBUTE-VALUE-STRING THE-VALUE="second"/>',
+        ),
+        definition(
+          "ENUMERATION",
+          "b",
+          "<NOTE/><ATTRIBUTE-VALUE-ENUMERATION><VALUES><ENUM-VALUE-REF>ev</ENUM-VALUE-REF></VALUES></ATTRIBUTE-VALUE-ENUMERATION>",
+        ),
+        "</SPEC-ATTRIBUTES></SPEC-OBJECT-TYPE></SPEC-TYPES>",
+      ].join(""),
+    );
+    const { file, warnings } = parsed(parseReqif(utf8(text)));
+    expect(file.specTypes[0]?.attributes.map((a) => a.defaultValue)).toEqual([
+      { kind: "string", definition: "a", value: "first" },
+      { kind: "enumeration", definition: "b", values: ["ev"] },
+    ]);
+    expect(file.unread.map((u) => u.name)).toEqual(["ATTRIBUTE-VALUE-STRING", "NOTE"]);
+    expect(warnings.map((w) => w.message)).toEqual(["Enumeration value ev of b is not in the file"]);
+  });
+
   it("reads a SPEC-HIERARCHY 5,000 levels deep without recursion, keeps attribute names as written and refuses ReqIF inside XHTML", () => {
     const levels = 5_000;
     const open = Array.from(

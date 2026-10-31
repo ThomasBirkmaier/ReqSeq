@@ -430,6 +430,8 @@ export interface ReqifLoss {
     | "omitted-value"
     | "hierarchy"
     | "relation-end-not-imported"
+    | "relation-not-allowed"
+    | "relation-duplicate"
     | "type-without-origin"
     | "date-time"
     | "xhtml-style"
@@ -2990,7 +2992,7 @@ export interface ReqifAnalyzeOutput {
 }
 
 /**
- * Input of `reqif.import` as `run` gets it: validated, properties with a `default` filled in. Import a ReqIF 1.2 file, all or nothing: creates elements, updates those of an earlier delivery of the source by IDENTIFIER, records origin and import version, reports losses. A conflict with a local change needs take or keep, else the whole import is refused.
+ * Input of `reqif.import` as `run` gets it: validated, properties with a `default` filled in. Import a ReqIF 1.2 file through a saved mapping, all or nothing: creates an element per object and reports losses. This version creates new elements on every import; updating those of an earlier delivery, origin and import version, and take and keep come later.
  * Schema: `schemas/commands/catalog.json reqif.import input`.
  */
 export interface ReqifImportInput {
@@ -3007,7 +3009,7 @@ export interface ReqifImportInput {
 }
 
 /**
- * Output of `reqif.import`. Import a ReqIF 1.2 file, all or nothing: creates elements, updates those of an earlier delivery of the source by IDENTIFIER, records origin and import version, reports losses. A conflict with a local change needs take or keep, else the whole import is refused.
+ * Output of `reqif.import`. Import a ReqIF 1.2 file through a saved mapping, all or nothing: creates an element per object and reports losses. This version creates new elements on every import; updating those of an earlier delivery, origin and import version, and take and keep come later.
  * Schema: `schemas/commands/catalog.json reqif.import output`.
  */
 export interface ReqifImportOutput {
