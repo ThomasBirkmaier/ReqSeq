@@ -12,4 +12,6 @@ export {
 export type { AnyMapping, MappingFile, MappingTarget } from "./mapping.js";
 export { REQIF_LIMITS, parseReqif } from "./parse.js";
 export { planImport } from "./import.js";
-export type { ImportPlan } from "./import.js";
+export type { ImportOrigin, ImportPlan } from "./import.js";
+export { importDate, originKeys } from "./origin.js";
+export type { OriginKeys } from "./origin.js";

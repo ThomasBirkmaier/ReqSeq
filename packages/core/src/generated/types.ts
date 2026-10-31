@@ -1739,7 +1739,7 @@ export interface ElementFacetsOutput {
 }
 
 /**
- * Input of `element.update` as `run` gets it: validated, properties with a `default` filled in. Change title, text or properties of one element. Unknown properties are kept; status changes only via element.setStatus.
+ * Input of `element.update` as `run` gets it: validated, properties with a `default` filled in. Change title, text or properties of one element. Unknown properties are kept; status changes only via element.setStatus, and the origin of an imported element only via reqif.import (SR-057).
  * Schema: `schemas/commands/catalog.json element.update input`.
  */
 export interface ElementUpdateInput {
@@ -1756,7 +1756,7 @@ export interface ElementUpdateInput {
 }
 
 /**
- * Output of `element.update`. Change title, text or properties of one element. Unknown properties are kept; status changes only via element.setStatus.
+ * Output of `element.update`. Change title, text or properties of one element. Unknown properties are kept; status changes only via element.setStatus, and the origin of an imported element only via reqif.import (SR-057).
  * Schema: `schemas/commands/catalog.json element.update output`.
  */
 export interface ElementUpdateOutput {
@@ -2992,7 +2992,7 @@ export interface ReqifAnalyzeOutput {
 }
 
 /**
- * Input of `reqif.import` as `run` gets it: validated, properties with a `default` filled in. Import a ReqIF 1.2 file through a saved mapping, all or nothing: creates an element per object and reports losses. This version creates new elements on every import; updating those of an earlier delivery, origin and import version, and take and keep come later.
+ * Input of `reqif.import` as `run` gets it: validated, properties with a `default` filled in. Import a ReqIF 1.2 file through a saved mapping, all or nothing: creates an element per object and reports losses. Each element keeps its origin (source, source IDENTIFIER, import date, delivery, import version), which no other command writes. This version creates new elements on every import; updating those of an earlier delivery, and take and keep come later.
  * Schema: `schemas/commands/catalog.json reqif.import input`.
  */
 export interface ReqifImportInput {
@@ -3009,7 +3009,7 @@ export interface ReqifImportInput {
 }
 
 /**
- * Output of `reqif.import`. Import a ReqIF 1.2 file through a saved mapping, all or nothing: creates an element per object and reports losses. This version creates new elements on every import; updating those of an earlier delivery, origin and import version, and take and keep come later.
+ * Output of `reqif.import`. Import a ReqIF 1.2 file through a saved mapping, all or nothing: creates an element per object and reports losses. Each element keeps its origin (source, source IDENTIFIER, import date, delivery, import version), which no other command writes. This version creates new elements on every import; updating those of an earlier delivery, and take and keep come later.
  * Schema: `schemas/commands/catalog.json reqif.import output`.
  */
 export interface ReqifImportOutput {

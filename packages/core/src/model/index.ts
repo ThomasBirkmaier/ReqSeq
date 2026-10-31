@@ -236,6 +236,7 @@ export {
   writtenElement,
 } from "./write.js";
 export { bulkUpdateElements } from "./bulk-update.js";
+export { importVersion } from "./import-version.js";
 export type {
   BulkOperation,
   BulkSelection,

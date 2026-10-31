@@ -22,8 +22,13 @@
 //   relation the metamodel does not allow, the SPEC-HIERARCHY (once per SPECIFICATION that has one)
 //   and every part of an imported object the parser did not read. A DEFAULT-VALUE is the value of
 //   an object without its own (ReqIF 1.2 §10.8.3).
+// - Origin (SR-057 AK1): each element gets the source name of the mapping, the object's IDENTIFIER,
+//   the import date, the delivery and the import version (`importVersion` of the model over what
+//   the import wrote). A type without all five origin properties is not imported
+//   (`type-without-origin`, ADR-0013). The planned version is taken with the origin, which does not
+//   count to it in the standard model (D-057).
 // - Never from the delivery: `id`, `type`, `status`, the title key (D-030) and the origin
-//   properties (SR-057 AK3).
+//   properties (SR-057 AK3; `propertyKeyRefusal`).
 // - Files go into the mapping's `target`, else a folder named after the source in the main
 //   repository (SR-053 AK1). The own metamodel is only read (SR-054 AK3).
 import { randomUUID } from "node:crypto";
@@ -42,6 +47,7 @@ import { allowsType, keyDefinition } from "../metamodel/index.js";
 import type { NewElementBase, NewElementFile } from "../model/index.js";
 import {
   fileNameFor,
+  importVersion,
   newElementBase,
   newElementBytes,
   plannedVersion,
@@ -61,6 +67,8 @@ import type {
   ReqifSpecType,
   ReqifValue,
 } from "./model.js";
+import type { OriginKeys } from "./origin.js";
+import { originKeys } from "./origin.js";
 import { markdownText, xhtmlText } from "./xhtml-text.js";
 
 /** What `planImport` gives: the files to write and what the output lists. */
@@ -71,6 +79,14 @@ export interface ImportPlan {
   readonly files: readonly NewElementFile[];
   readonly created: readonly ReqifObject[];
   readonly losses: readonly ReqifLoss[];
+}
+
+/** What the import itself writes into the origin of each element besides the source and IDENTIFIER. */
+export interface ImportOrigin {
+  /** The name of the delivery (input `delivery`). */
+  readonly delivery: string;
+  /** The import date, `YYYY-MM-DD` (`importDate`). */
+  readonly date: string;
 }
 
 type AttributeEntry = NonNullable<AnyMapping["attributes"]>[number];
@@ -179,35 +195,6 @@ interface Coverage {
   readonly wrong: { readonly field: string; readonly message: string }[];
 }
 
-/** Meanings of the origin properties (SR-057), which no mapping entry may name. */
-const ORIGIN_MEANINGS: ReadonlySet<string> = new Set([
-  "source",
-  "source-identifier",
-  "import-date",
-  "delivery",
-  "import-version",
-]);
-
-/**
- * Why a mapping entry may not name the property `key`: the keys `element.create` refuses (`id`,
- * `type`, `status`, D-030; the title key; a property the type does not have) and the origin
- * properties, which only the import itself writes (SR-057 AK3).
- */
-const keyRefusal = (
-  key: string,
-  definition: MetamodelProperty | undefined,
-  metamodel: Metamodel,
-  base: NewElementBase,
-): string | undefined => {
-  const refusal = propertyKeyRefusal(key, metamodel, base.type, base.titleKey, "property");
-  if (refusal !== undefined) {
-    return refusal.message;
-  }
-  return definition?.meaning !== undefined && ORIGIN_MEANINGS.has(definition.meaning)
-    ? `${key} holds the origin (${definition.meaning}), which only the import writes`
-    : undefined;
-};
-
 /** Checks the entry at `i` for attribute `a` of type `t`, mapped to own type `base` (see `checkCoverage`). */
 const checkAttribute = (
   coverage: Coverage,
@@ -231,7 +218,10 @@ const checkAttribute = (
   const definition = found?.kind === "property" ? found.definition : undefined;
   checked.definition = definition;
   const datatype = datatypeOf(index, a);
-  const refusal = own ? undefined : keyRefusal(property, definition, metamodel, base);
+  // The keys `element.create` refuses, the origin among them (SR-057 AK3).
+  const refusal = own
+    ? undefined
+    : propertyKeyRefusal(property, metamodel, base.type, base.titleKey, "property")?.message;
   if (refusal !== undefined) {
     coverage.wrong.push({ field, message: refusal });
     return;
@@ -487,6 +477,9 @@ interface Context {
   readonly coverage: Coverage;
   readonly metamodel: Metamodel;
   readonly losses: ReqifLoss[];
+  readonly keys: OriginKeys;
+  readonly source: string;
+  readonly origin: ImportOrigin;
 }
 
 /** Takes the values of `object` into `draft` (see the file comment). */
@@ -561,10 +554,22 @@ const planObject = (
     });
     return undefined;
   }
+  const base = newElementBase(context.metamodel, ownType, "reqif.import");
+  const { keys } = context;
+  const missing = Object.values(keys).filter((key) => !base.type.properties.includes(key));
+  if (missing.length > 0) {
+    context.losses.push({
+      identifier: object.identifier,
+      kind: "spec-object",
+      code: "type-without-origin",
+      reason: `type ${base.type.key} has no ${missing.join(", ")}, so the origin cannot be kept`,
+    });
+    return undefined;
+  }
   const draft: Draft = {
     identifier: object.identifier,
     id: randomUUID(),
-    base: newElementBase(context.metamodel, ownType, "reqif.import"),
+    base,
     title: nameOf(object),
     text: "",
     properties: new Map(),
@@ -572,6 +577,12 @@ const planObject = (
     version: "",
   };
   planValues(context, object, t, draft);
+  const version = importVersion(context.metamodel, base.titleKey, draft.title, draft.text, draft.properties);
+  draft.properties.set(keys.source, context.source);
+  draft.properties.set(keys["source-identifier"], object.identifier);
+  draft.properties.set(keys["import-date"], context.origin.date);
+  draft.properties.set(keys.delivery, context.origin.delivery);
+  draft.properties.set(keys["import-version"], version);
   draft.version = plannedVersion(context.metamodel, repository, fileOf(draft, folder, false));
   return draft;
 };
@@ -669,7 +680,9 @@ const allowed = (metamodel: Metamodel, kind: string, source: Draft, target: Draf
  */
 const unreadLosses = (file: ReqifFile, drafts: ReadonlyMap<string, Draft>, losses: ReqifLoss[]): void => {
   const omitted = new Set(
-    losses.filter((l) => l.code === "omitted-type").map((l) => `${l.kind} ${l.identifier}`),
+    losses
+      .filter((l) => l.code === "omitted-type" || l.code === "type-without-origin")
+      .map((l) => `${l.kind} ${l.identifier}`),
   );
   const sources = new Map(file.specRelations.map((r) => [r.identifier, r.source]));
   for (const { name, line, owner } of file.unread) {
@@ -688,13 +701,15 @@ const unreadLosses = (file: ReqifFile, drafts: ReadonlyMap<string, Draft>, losse
   }
 };
 
-/** The plan of importing `file` through `mapping` (see the file comment). */
+/** The plan of importing `file` through `mapping` as delivery `origin` (see the file comment). */
 export const planImport = (
   file: ReqifFile,
   mapping: AnyMapping,
   layout: WorkspaceLayout,
   metamodel: Metamodel,
+  origin: ImportOrigin,
 ): ImportPlan => {
+  const keys = originKeys(metamodel);
   const index = indexOf(file);
   const coverage = checkCoverage(file, index, mapping, metamodel);
   const location: WorkspaceLocation = mapping.target ?? {
@@ -710,7 +725,15 @@ export const planImport = (
     );
   }
   const relative = path.relative(repository.folder, folder).split(path.sep).join("/");
-  const context: Context = { index, coverage, metamodel, losses: [] };
+  const context: Context = {
+    index,
+    coverage,
+    metamodel,
+    losses: [],
+    keys,
+    source: mapping.source.name,
+    origin,
+  };
   const drafts = new Map<string, Draft>();
   for (const object of file.specObjects) {
     const draft = planObject(context, repository.name, relative, object);
