@@ -77,7 +77,7 @@ const refusal = async (
 const snapshot = async (fixture: FixtureWorkspace): Promise<Record<string, string>> => {
   const entries = await fs.readdir(fixture.root, { recursive: true, withFileTypes: true });
   const files: Record<string, string> = {};
-  for (const entry of entries.filter((e) => e.isFile() && !e.parentPath.includes(".git"))) {
+  for (const entry of entries.filter((e) => e.isFile() && !e.parentPath.split(/[\\/]/).includes(".git"))) {
     const file = `${entry.parentPath}/${entry.name}`;
     files[file.slice(fixture.root.length + 1).replaceAll("\\", "/")] = createHash("sha256")
       .update(await fs.readFile(file))
@@ -108,8 +108,7 @@ describe("unknown types before a ReqIF import (SR-055)", () => {
     expect((await analyze(workspace, { file: IMPORT.file })).unmapped).toEqual([
       { kind: "type", source: "Customer Requirement" },
       { kind: "attribute", source: "ReqIF.Name", sourceType: "Customer Requirement" },
-      ...UNMAPPED.slice(0, 3),
-      ...UNMAPPED.slice(3),
+      ...UNMAPPED,
     ]);
     expect(await snapshot(fixture)).toEqual(before);
   });
