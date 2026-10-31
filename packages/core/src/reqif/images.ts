@@ -12,7 +12,8 @@
 // - The name of the copy is `attachmentStem` with its extension in lower case (else the one of its
 //   `type`); a name an element has already gets `-2`, `-3`, ..., and the same bytes keep one copy.
 import { createHash } from "node:crypto";
-import { constants, closeSync, openSync, readSync } from "node:fs";
+import type { Stats } from "node:fs";
+import { constants, closeSync, fstatSync, openSync, readSync } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { LocalPaths } from "../catalog.js";
@@ -27,8 +28,12 @@ export const IMAGE_LIMIT_BYTES = 64 * 1024 * 1024;
 /** Bytes read at a time. */
 const CHUNK = 1024 * 1024;
 
-/** Opening never waits: a FIFO opens at once and is then no file (no O_NONBLOCK on Windows). */
-const READ_NOW = constants.O_RDONLY | constants.O_NONBLOCK;
+/**
+ * Opening never waits (a FIFO opens at once and is then no file) and never follows a symbolic link
+ * as the last name; Windows has neither flag, and its links need rights to create.
+ */
+// A flag Windows lacks is undefined, which `|` takes as 0.
+const READ_NOW = constants.O_RDONLY | constants.O_NONBLOCK | constants.O_NOFOLLOW;
 
 /** An image found for the import: its real path and hash, not its bytes. */
 export interface ImageFile {
@@ -39,6 +44,10 @@ export interface ImageFile {
   readonly stem: string;
   /** In lower case, with the dot. */
   readonly extension: string;
+  /** The file that was hashed, so the copy reads no other one. */
+  readonly size: number;
+  readonly dev: number;
+  readonly ino: number;
 }
 
 /** What an image of the file is: found, or why it is not copied (a loss). */
@@ -73,8 +82,31 @@ const relativePath = (data: string): string | undefined => {
   return SCHEME.test(data) || /^[/\\]/.test(decoded) || path.isAbsolute(decoded) ? undefined : decoded;
 };
 
-/** The SHA-256 of the regular file at `real`, read in chunks; why not when it is no file or too large. */
-const hashOf = async (real: string): Promise<{ readonly sha256: string } | { readonly why: string }> => {
+/** What the hashed file is: its identity and size. */
+type Identity = Pick<ImageFile, "size" | "dev" | "ino">;
+
+/** Why the open file `stat` is not the one to read; undefined when it is (`file` for the copy). */
+const refusal = (stat: Stats, file?: Identity): string | undefined => {
+  if (!stat.isFile()) {
+    return "is no file";
+  }
+  if (stat.size > IMAGE_LIMIT_BYTES) {
+    return `is larger than ${String(IMAGE_LIMIT_BYTES)} bytes, the most the import copies`;
+  }
+  return file === undefined || (stat.dev === file.dev && stat.ino === file.ino && stat.size === file.size)
+    ? undefined
+    : "changed";
+};
+
+/**
+ * Hashes the file at `real` (checked to lie below `realFolder`) through one handle: a regular file
+ * of at most `IMAGE_LIMIT_BYTES`, which is still the one at `real` after it was opened (no link or
+ * folder swapped in meanwhile), read up to its size; why not otherwise.
+ */
+const hashOf = async (
+  real: string,
+  realFolder: string,
+): Promise<({ readonly sha256: string } & Identity) | { readonly why: string }> => {
   let handle: fs.FileHandle;
   try {
     handle = await fs.open(real, READ_NOW);
@@ -83,20 +115,25 @@ const hashOf = async (real: string): Promise<{ readonly sha256: string } | { rea
   }
   try {
     const stat = await handle.stat();
-    if (!stat.isFile()) {
-      return { why: "is no file" };
+    const why = refusal(stat);
+    if (why !== undefined) {
+      return { why };
+    }
+    const again = await fs.realpath(real);
+    const now = await fs.stat(again);
+    if (!below(realFolder, again) || now.dev !== stat.dev || now.ino !== stat.ino) {
+      return { why: "changed while it was read" };
     }
     const hash = createHash("sha256");
     const chunk = Buffer.alloc(CHUNK);
     let total = 0;
     for (;;) {
-      const { bytesRead } = await handle.read(chunk, 0, CHUNK, null);
-      if (bytesRead === 0) {
-        return { sha256: hash.digest("hex") };
-      }
+      const { bytesRead } = await handle.read(chunk, 0, Math.min(CHUNK, stat.size + 1 - total), null);
       total += bytesRead;
-      if (total > IMAGE_LIMIT_BYTES) {
-        return { why: `is larger than ${String(IMAGE_LIMIT_BYTES)} bytes, the most the import copies` };
+      if (bytesRead === 0 || total > stat.size) {
+        return total === stat.size
+          ? { sha256: hash.digest("hex"), size: stat.size, dev: stat.dev, ino: stat.ino }
+          : { why: "changed while it was read" };
       }
       hash.update(chunk.subarray(0, bytesRead));
     }
@@ -152,7 +189,7 @@ export const imageReader = (reqifFile: string, localPaths: LocalPaths): ImageRea
     if (extension === undefined) {
       return missing(data, "is no image ReqSeq embeds");
     }
-    const hashed = await hashOf(real);
+    const hashed = await hashOf(real, await realFolder);
     if ("why" in hashed) {
       return missing(data, hashed.why);
     }
@@ -160,7 +197,7 @@ export const imageReader = (reqifFile: string, localPaths: LocalPaths): ImageRea
       kind: "found",
       file: {
         path: real,
-        sha256: hashed.sha256,
+        ...hashed,
         stem: attachmentStem(path.basename(real), extension),
         extension,
       },
@@ -178,33 +215,47 @@ export const imageReader = (reqifFile: string, localPaths: LocalPaths): ImageRea
 };
 
 /**
- * The bytes of `file` for the copy, read in chunks while it is written (`createFilesAtomic`); throws
- * `file.changed-on-disk` when they are no longer the ones hashed, so nothing of the call is kept.
+ * The bytes of `file` for the copy, read in chunks while it is written (`createFilesAtomic`) through
+ * one handle, never past the hashed size; throws `file.changed-on-disk` when the file or its bytes
+ * are no longer the ones hashed, so nothing of the call is kept.
  */
-export const imageContent = (file: ImageFile, shown: string): (() => Iterable<Uint8Array>) =>
-  function* () {
-    const fd = openSync(file.path, READ_NOW);
+export const imageContent = (file: ImageFile, shown: string): (() => Iterable<Uint8Array>) => {
+  const changed = (): CommandError =>
+    new CommandError(
+      "file.changed-on-disk",
+      `Not imported: the image ${shown} changed while it was copied. Import again.`,
+    );
+  return function* () {
+    let fd: number;
     try {
+      fd = openSync(file.path, READ_NOW);
+    } catch {
+      throw changed();
+    }
+    try {
+      if (refusal(fstatSync(fd), file) !== undefined) {
+        throw changed();
+      }
       const hash = createHash("sha256");
+      let total = 0;
       for (;;) {
         const chunk = Buffer.alloc(CHUNK);
-        const bytesRead = readSync(fd, chunk, 0, CHUNK, null);
-        if (bytesRead === 0) {
+        const bytesRead = readSync(fd, chunk, 0, Math.min(CHUNK, file.size + 1 - total), null);
+        total += bytesRead;
+        if (bytesRead === 0 || total > file.size) {
           break;
         }
         hash.update(chunk.subarray(0, bytesRead));
         yield chunk.subarray(0, bytesRead);
       }
-      if (hash.digest("hex") !== file.sha256) {
-        throw new CommandError(
-          "file.changed-on-disk",
-          `Not imported: the image ${shown} changed while it was copied. Import again.`,
-        );
+      if (total !== file.size || hash.digest("hex") !== file.sha256) {
+        throw changed();
       }
     } finally {
       closeSync(fd);
     }
   };
+};
 
 /** The copies of one element's images: a free name per image, the same bytes once. */
 export class ImageNames {

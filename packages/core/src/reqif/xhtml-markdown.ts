@@ -74,6 +74,8 @@ const IMAGE_EXTENSIONS: ReadonlyMap<string, string> = new Map([
   ["gif", "image/gif"],
   ["svg", "image/svg+xml"],
   ["webp", "image/webp"],
+  ["avif", "image/avif"],
+  ["bmp", "image/bmp"],
 ]);
 
 type Lost = (code: XhtmlLoss["code"], reason: string) => void;

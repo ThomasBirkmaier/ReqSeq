@@ -5,7 +5,7 @@ import fs from "node:fs/promises";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, it, onTestFinished } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { LocalPaths } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import type { ImageFile, ImageRead } from "./images.js";
@@ -51,6 +51,9 @@ describe("imageReader (SR-095 AK2)", () => {
         sha256: expect.stringMatching(/^[0-9a-f]{64}$/) as unknown,
         stem: "wind-rose",
         extension: ".png",
+        size: PNG.length,
+        dev: expect.any(Number) as unknown,
+        ino: expect.any(Number) as unknown,
       },
     });
     // Read once per data and type.
@@ -61,6 +64,8 @@ describe("imageReader (SR-095 AK2)", () => {
     expect(kindOf(await read({ data: "nul" }))).toBe("image-missing");
     expect(kindOf(await read({ data: "nul", type: "image/png" }))).toBe("nul-image.png");
     expect(kindOf(await read({ data: "x/../nul", type: "image/jpeg" }))).toBe("nul-image.jpg");
+    expect(kindOf(await read({ data: "nul", type: "image/avif" }))).toBe("nul-image.avif");
+    expect(kindOf(await read({ data: "nul", type: "image/bmp" }))).toBe("nul-image.bmp");
     expect(await read({ data: "pic.tiff", type: "image/tiff" })).toEqual({
       kind: "image-missing",
       reason: "the image pic.tiff is no image ReqSeq embeds",
@@ -117,7 +122,8 @@ describe("imageReader (SR-095 AK2)", () => {
     });
     expect(await read({ data: "socket.png" })).toEqual({
       kind: "image-missing",
-      reason: "the image socket.png cannot be read (ENXIO)",
+      // ENXIO on Linux, EOPNOTSUPP on macOS.
+      reason: expect.stringMatching(/^the image socket\.png cannot be read \(.+\)$/) as unknown,
     });
     expect(await read({ data: "big.png" })).toEqual({
       kind: "image-missing",
@@ -138,6 +144,42 @@ describe("imageReader (SR-095 AK2)", () => {
     const broken = imageReader(file, { check: () => Promise.reject(new CommandError("internal", "boom")) });
     await expect(broken({ data: "a.png" })).rejects.toThrow("boom");
   });
+
+  it("refuses a file swapped for another after it was opened, as it then reads another file", async () => {
+    const root = await folder({ "a.png": PNG });
+    const file = path.join(root, "in", "a.png");
+    const open = fs.open.bind(fs);
+    const spy = vi.spyOn(fs, "open").mockImplementation(async (...args: Parameters<typeof fs.open>) => {
+      const handle = await open(...args);
+      await fs.writeFile(`${file}.new`, PNG);
+      await fs.rename(`${file}.new`, file);
+      return handle;
+    });
+    onTestFinished(() => {
+      spy.mockRestore();
+    });
+    expect(await imageReader(path.join(root, "in", "delivery.reqif"), OPEN)({ data: "a.png" })).toEqual({
+      kind: "image-missing",
+      reason: "the image a.png changed while it was read",
+    });
+  });
+
+  it("refuses a file whose size changes while it is hashed", async () => {
+    const root = await folder({ "a.png": PNG });
+    const file = path.join(root, "in", "a.png");
+    const stat = fs.stat.bind(fs);
+    const spy = vi.spyOn(fs, "stat").mockImplementation(async (...args: Parameters<typeof fs.stat>) => {
+      await fs.truncate(file, 2);
+      return stat(...args);
+    });
+    onTestFinished(() => {
+      spy.mockRestore();
+    });
+    expect(await imageReader(path.join(root, "in", "delivery.reqif"), OPEN)({ data: "a.png" })).toEqual({
+      kind: "image-missing",
+      reason: "the image a.png changed while it was read",
+    });
+  });
 });
 
 describe("imageContent", () => {
@@ -148,15 +190,34 @@ describe("imageContent", () => {
       throw new Error("not found");
     }
     expect(bytesOf(read.file)).toEqual(PNG);
-    await fs.writeFile(read.file.path, "changed");
-    expect(() => bytesOf(read.file)).toThrow(
-      "Not imported: the image x.png changed while it was copied. Import again.",
-    );
+    const refused = "Not imported: the image x.png changed while it was copied. Import again.";
+    // The same size and file, other bytes.
+    await fs.writeFile(read.file.path, Buffer.from([0, 0, 0, 0, 0]));
+    expect(() => bytesOf(read.file)).toThrow(refused);
+    // Another file of the same bytes.
+    await fs.writeFile(`${read.file.path}.new`, PNG);
+    await fs.rename(`${read.file.path}.new`, read.file.path);
+    expect(() => bytesOf(read.file)).toThrow(refused);
+    // A link to a file outside, swapped in for it (not followed), or no file at all.
+    await fs.rm(read.file.path);
+    expect(() => bytesOf(read.file)).toThrow(refused);
+    if (!WINDOWS) {
+      await fs.symlink(path.join(root, "outside.png"), read.file.path);
+      expect(() => bytesOf(read.file)).toThrow(refused);
+    }
   });
 });
 
 describe("ImageNames", () => {
-  const image = (stem: string, sha256: string): ImageFile => ({ path: "", sha256, stem, extension: ".png" });
+  const image = (stem: string, sha256: string): ImageFile => ({
+    path: "",
+    sha256,
+    stem,
+    extension: ".png",
+    size: 0,
+    dev: 0,
+    ino: 0,
+  });
 
   it("gives each image a free name in the element's folder, in any case, and the same bytes one name", () => {
     const names = new ImageNames();
