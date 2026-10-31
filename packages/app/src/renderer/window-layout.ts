@@ -162,8 +162,12 @@ const beside = (state: WindowState, side: Side, buffer: ElementBuffer): WindowSt
   }
   // Without a split the active area moves to the other side, so the element stands on the one asked for.
   const active = layout.other === undefined ? opposite(side) : layout.active;
+  // A preview it brought in gives way, as when following, so the commands pile up no buffers.
+  const replace = layout.preview === "brought" && !isOpen(state.buffers, buffer.key);
   return {
-    buffers: openBehind(state.buffers, shown, buffer),
+    buffers: replace
+      ? state.buffers.map((open) => (open.key === layout.other ? buffer : open))
+      : openBehind(state.buffers, shown, buffer),
     layout: { active, other: buffer.key, preview: isOpen(state.buffers, buffer.key) ? "kept" : "brought" },
   };
 };

@@ -287,6 +287,11 @@ describe("open beside and follow (SR-150)", () => {
     const right = reduceWindow(split, { type: "beside", side: "right", buffer: element(2) });
     expect(shown(right)).toEqual([`${graph.key}*`, element(2).key]);
     sound(right);
+    // The preview it brought in gives way to the next element, opening no buffer more.
+    const again = reduceWindow(right, { type: "beside", side: "right", buffer: element(3) });
+    expect(shown(again)).toEqual([`${graph.key}*`, element(3).key]);
+    expect(again.buffers).toHaveLength(right.buffers.length);
+    sound(again);
     const left = reduceWindow(split, { type: "beside", side: "left", buffer: element(2) });
     expect(left).toEqual(reduceWindow(split, { type: "open", buffer: element(2) }));
     expect(shown(left)).toEqual([`${element(2).key}*`, element(1).key]);
@@ -338,7 +343,7 @@ describe("open beside and follow (SR-150)", () => {
     const entered = run(preview, { type: "switch", key: element(9).key }, { type: "switch", key: list.key });
     expect(entered.layout).toEqual({ active: "left", other: element(9).key });
     expect(reduceWindow(entered, follow())).toBe(entered);
-    // The reader opens something else there; unsplit and split again.
+    // Its element closed, or unsplit and split again: no preview.
     const replaced = run(preview, { type: "close", key: element(9).key });
     expect(replaced.layout.preview).toBeUndefined();
     const resplit = run(preview, { type: "unsplit" }, { type: "split" });
