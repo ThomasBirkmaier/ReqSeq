@@ -355,10 +355,11 @@ export const writeFileAtomic = async (
   }
 };
 
-/** One file `createFilesAtomic` creates: its path below the root and its bytes (a string as UTF-8). */
+/** One file `createFilesAtomic` creates: its path below the root and its content (a string as UTF-8). */
 export interface NewFile {
   readonly path: string;
-  readonly content: string | Uint8Array;
+  /** Chunks are read while the temp file is written, and again where hard links are missing. */
+  readonly content: FileContent;
 }
 
 /**

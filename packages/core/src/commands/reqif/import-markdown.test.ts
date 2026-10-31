@@ -149,7 +149,7 @@ describe("reqif.import of XHTML as Markdown (SR-095)", () => {
     ]);
   });
 
-  it("[SR-095/AK2] copies each embedded image next to the element like a pasted image and links the text to it; a missing image is a loss", async () => {
+  it("[SR-095/AK2] copies each embedded image next to the element like a pasted image and links the text to it; an image not copied is a loss and keeps only its alt text", async () => {
     const { fixture, workspace } = await open(
       delivery([
         {
@@ -188,7 +188,7 @@ describe("reqif.import of XHTML as Markdown (SR-095)", () => {
       [
         "Rose:",
         "",
-        `![Wind rose](${folder}/wind-rose.png)![Again](${folder}/wind-rose.png)![Gusts](${folder}/wind-rose-2.png)![None](img/none.png)`,
+        `![Wind rose](${folder}/wind-rose.png)![Again](${folder}/wind-rose.png)![Gusts](${folder}/wind-rose-2.png)None`,
         "",
       ].join("\n"),
     );
@@ -213,7 +213,30 @@ describe("reqif.import of XHTML as Markdown (SR-095)", () => {
           "Text: the image ../outside.png is not below the folder of the ReqIF file, so it is not copied",
       },
     ]);
+    expect(await textOf(fixture, out.files[1] ?? "")).toBe("Elsewhere\n\nOut\n");
     await expect(fs.stat(fixture.path(`Kunde-A/${stem(out.files[1] ?? "")}`))).rejects.toThrow();
+  });
+
+  it("[SR-095/AK2] keeps no link for an image outside the folder of the ReqIF file, even when the link would reach a file of the repository, so the import version is the element's version", async () => {
+    const { fixture, workspace } = await open(
+      delivery([
+        {
+          text:
+            '<xhtml:object data="../shared/logo.png" type="image/png">Logo</xhtml:object>' +
+            '<xhtml:object data="../shared/logo.png" type="image/jpeg"></xhtml:object>',
+        },
+      ]),
+      { "shared/logo.png": "logo" },
+    );
+    const out = await run(workspace);
+    expect(await textOf(fixture, out.files[0] ?? "")).toBe("Logologo.png\n");
+    expect(out.losses.map((l) => l.code)).toEqual(["image-outside", "image-outside"]);
+    const got = (await invoke(
+      "element.get",
+      { ref: out.created[0]?.id ?? "" },
+      { workspace },
+    )) as CommandOutput<"element.get">;
+    expect(got.element.properties["import-version"]).toBe(got.element.version);
   });
 
   it("[SR-095/AK3] lists an XHTML element without Markdown form, such as a colour in style, as a loss and keeps its text", async () => {

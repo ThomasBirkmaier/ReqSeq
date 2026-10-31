@@ -68,9 +68,9 @@ import type {
 } from "./model.js";
 import type { OriginKeys } from "./origin.js";
 import { originKeys } from "./origin.js";
-import type { ImageReader } from "./images.js";
+import type { ImageFile, ImageReader } from "./images.js";
 import { ImageNames } from "./images.js";
-import { xhtmlToMarkdown } from "./xhtml-markdown.js";
+import { prepareMarkdown } from "./xhtml-markdown.js";
 import { markdownText, xhtmlText } from "./xhtml-text.js";
 
 /** A copy of an image in the image folder of an element. */
@@ -78,7 +78,7 @@ export interface PlannedImage {
   /** The element file name without `.md`. */
   readonly stem: string;
   readonly name: string;
-  readonly bytes: Uint8Array;
+  readonly file: ImageFile;
 }
 
 /** What `planImport` gives: the files to write and what the output lists. */
@@ -385,9 +385,10 @@ const enumValuesOf = (refs: readonly string[], datatype: ReqifDatatype, loss: Lo
 type Target = "text" | "markdown" | "plain";
 
 /**
- * The Markdown of an XHTML value (`xhtmlToMarkdown`, SR-095): its losses, and each image it embeds
- * copied next to the element (`ImageNames`) with the link to the copy, or a loss when it cannot be
- * copied (`image-missing`, `image-outside`; the link stays as written).
+ * The Markdown of an XHTML value (`prepareMarkdown`, SR-095), converted once: its losses, and each
+ * image it embeds copied next to the element (`ImageNames`) with the link to the copy. An image that
+ * cannot be copied is a loss (`image-missing`, `image-outside`) and stays as its alt text or file
+ * name without a link, so the text never points outside the element.
  */
 const markdownOf = async (
   context: Context,
@@ -396,27 +397,25 @@ const markdownOf = async (
   target: Target,
   loss: Loss,
 ): Promise<string> => {
-  const first = xhtmlToMarkdown(value);
-  for (const lost of first.losses) {
+  const prepared = prepareMarkdown(value);
+  for (const lost of prepared.losses) {
     loss(lost.code, lost.reason);
   }
-  if (first.images.length === 0) {
-    return first.markdown;
-  }
-  const links = new Map<string, string>();
-  for (const image of first.images) {
+  const links: (string | undefined)[] = [];
+  for (const image of prepared.images) {
     const read = await context.images(image);
-    if (read.kind !== "found") {
+    if (read.kind === "found") {
+      const link = `${draft.stem}/${draft.images.nameOf(read.file)}`;
+      links.push(link);
+      if (target === "text") {
+        draft.textImages.set(link, read.file.sha256);
+      }
+    } else {
       loss(read.kind, read.reason);
-      continue;
-    }
-    const link = `${draft.stem}/${draft.images.nameOf(read.file)}`;
-    links.set(image.data, link);
-    if (target === "text") {
-      draft.textImages.set(link, read.file.sha256);
+      links.push(undefined);
     }
   }
-  return xhtmlToMarkdown(value, (data) => links.get(data) ?? data).markdown;
+  return prepared.markdown((_image, at) => links[at]);
 };
 
 /**
@@ -437,7 +436,7 @@ const textsOf = async (
     if (target !== "plain") {
       return [await markdownOf(context, draft, value.value, target, loss)];
     }
-    const { text, unconverted } = xhtmlText(value.value, false);
+    const { text, unconverted } = xhtmlText(value.value);
     if (unconverted.length > 0) {
       loss("xhtml-element", `XHTML ${unconverted.join(", ")} has no form in a plain text; its text is kept`);
     }
@@ -564,6 +563,7 @@ interface Context {
   readonly source: string;
   readonly origin: ImportOrigin;
   readonly images: ImageReader;
+  readonly layout: WorkspaceLayout;
 }
 
 /** Takes the values of `object` into `draft` (see the file comment). */
@@ -623,7 +623,7 @@ const planValues = async (
 /** The draft of `object`, or undefined when its type is omitted (a loss). */
 const planObject = async (
   context: Context,
-  repository: string,
+  repository: RepositoryLocation,
   folder: string,
   object: ReqifSpecObject,
 ): Promise<Draft | undefined> => {
@@ -666,8 +666,9 @@ const planObject = async (
   draft.properties.set(keys["import-date"], context.origin.date);
   draft.properties.set(keys.delivery, context.origin.delivery);
   // The import version is the version of the element as written (D-059); it never counts to it.
-  draft.version = plannedVersion(
+  draft.version = await plannedVersion(
     context.metamodel,
+    context.layout,
     repository,
     fileOf(draft, folder, false),
     draft.textImages,
@@ -825,10 +826,11 @@ export const planImport = async (
     source: mapping.source.name,
     origin,
     images,
+    layout,
   };
   const drafts = new Map<string, Draft>();
   for (const object of file.specObjects) {
-    const draft = await planObject(context, repository.name, relative, object);
+    const draft = await planObject(context, repository, relative, object);
     if (draft !== undefined) {
       drafts.set(object.identifier, draft);
     }
@@ -867,9 +869,7 @@ export const planImport = async (
     repository,
     folder: relative,
     files: all.map((d) => fileOf(d, relative, true)),
-    images: all.flatMap((d) =>
-      d.images.files.map(({ name, file }) => ({ stem: d.stem, name, bytes: file.bytes })),
-    ),
+    images: all.flatMap((d) => d.images.files.map(({ name, file }) => ({ stem: d.stem, name, file }))),
     created: all.map((d) => ({ identifier: d.identifier, id: d.id })),
     losses: context.losses,
   };

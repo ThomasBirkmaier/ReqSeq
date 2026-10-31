@@ -220,9 +220,9 @@ export type {
   RemovedRelation,
   RemoveRelationInput,
 } from "./relation-write.js";
-export { addAttachment, clashKey, IMAGE_EXTENSIONS, portableName } from "./attachment.js";
+export { addAttachment, attachmentStem, clashKey, IMAGE_EXTENSIONS, portableName } from "./attachment.js";
 export { createElementFiles, plannedVersion } from "./new-files.js";
-export type { NewElementFile } from "./new-files.js";
+export type { NewElementFile, NewImageFile } from "./new-files.js";
 export type { NewElementBase } from "./write.js";
 export {
   assertElementWritable,

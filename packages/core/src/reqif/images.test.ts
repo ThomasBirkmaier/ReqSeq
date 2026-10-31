@@ -1,16 +1,19 @@
-// The images a ReqIF file embeds (SR-095 AK2): which `data` is read, which is a loss, and the names
-// of the copies.
+// The images a ReqIF file embeds (SR-095 AK2): which `data` is read, which is a loss, how a copy is
+// read, and the names of the copies.
+import { execFileSync } from "node:child_process";
 import fs from "node:fs/promises";
+import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { LocalPaths } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import type { ImageFile, ImageRead } from "./images.js";
-import { ImageNames, imageReader } from "./images.js";
+import { IMAGE_LIMIT_BYTES, ImageNames, imageContent, imageReader } from "./images.js";
 
 const OPEN: LocalPaths = { check: () => Promise.resolve() };
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 1]);
+const WINDOWS = process.platform === "win32";
 
 /** A folder with `in/delivery.reqif`, `in/<files>` and `outside.png` next to `in`. */
 const folder = async (files: Readonly<Record<string, Uint8Array>>): Promise<string> => {
@@ -28,24 +31,36 @@ const folder = async (files: Readonly<Record<string, Uint8Array>>): Promise<stri
 const kindOf = (read: ImageRead): string =>
   read.kind === "found" ? read.file.stem + read.file.extension : read.kind;
 
+const bytesOf = (file: ImageFile): Buffer => Buffer.concat([...imageContent(file, "x.png")()]);
+
 describe("imageReader (SR-095 AK2)", () => {
   it("reads a relative path below the folder of the ReqIF file, percent-decoded, without query or fragment", async () => {
-    const root = await folder({ "wind rose.PNG": PNG, nul: PNG, "pic.tiff": PNG, "doc.txt": PNG });
+    const root = await folder({
+      "wind rose.PNG": PNG,
+      nul: PNG,
+      "pic.tiff": PNG,
+      "doc.txt": PNG,
+      "..logo.png": PNG,
+    });
     const read = imageReader(path.join(root, "in", "delivery.reqif"), OPEN);
     const found = await read({ data: "wind%20rose.PNG?x=1#y" });
     expect(found).toEqual({
       kind: "found",
       file: {
-        bytes: PNG,
+        path: await fs.realpath(path.join(root, "in", "wind rose.PNG")),
         sha256: expect.stringMatching(/^[0-9a-f]{64}$/) as unknown,
         stem: "wind-rose",
         extension: ".png",
       },
     });
-    // Read once per data.
+    // Read once per data and type.
     expect(await read({ data: "wind%20rose.PNG?x=1#y" })).toBe(found);
+    // A name that starts with two dots is no `..` segment.
+    expect(kindOf(await read({ data: "..logo.png" }))).toBe("logo.png");
     // The extension of the type for a name without one; a Windows device name gets `-image`.
+    expect(kindOf(await read({ data: "nul" }))).toBe("image-missing");
     expect(kindOf(await read({ data: "nul", type: "image/png" }))).toBe("nul-image.png");
+    expect(kindOf(await read({ data: "x/../nul", type: "image/jpeg" }))).toBe("nul-image.jpg");
     expect(await read({ data: "pic.tiff", type: "image/tiff" })).toEqual({
       kind: "image-missing",
       reason: "the image pic.tiff is no image ReqSeq embeds",
@@ -57,31 +72,57 @@ describe("imageReader (SR-095 AK2)", () => {
     const root = await folder({});
     await fs.symlink(path.join(root, "outside.png"), path.join(root, "in", "link.png"));
     const read = imageReader(path.join(root, "in", "delivery.reqif"), OPEN);
-    const results = await Promise.all(
-      [
-        "http://example.org/a.png",
-        "/etc/a.png",
-        "\\a.png",
-        "%E0%A4%A",
-        "../outside.png",
-        "../gone.png",
-        "link.png",
-      ].map(async (data) => kindOf(await read({ data }))),
-    );
-    expect(results).toEqual([
-      "image-outside",
-      "image-outside",
-      "image-outside",
-      "image-outside",
-      "image-outside",
-      "image-outside",
-      "image-outside",
-    ]);
+    const data = [
+      "http://example.org/a.png",
+      "/etc/a.png",
+      "\\a.png",
+      "%E0%A4%A",
+      "../outside.png",
+      "../gone.png",
+      "link.png",
+      ".",
+    ];
+    const results = await Promise.all(data.map(async (d) => kindOf(await read({ data: d }))));
+    expect(results).toEqual(data.map(() => "image-outside"));
     expect(await read({ data: "gone.png" })).toEqual({
       kind: "image-missing",
       reason: "the image gone.png is not next to the ReqIF file",
     });
-    expect(kindOf(await read({ data: "sub" }))).toBe("image-missing");
+    expect(await read({ data: "sub", type: "image/png" })).toEqual({
+      kind: "image-missing",
+      reason: "the image sub is no file",
+    });
+  });
+
+  it.skipIf(WINDOWS)("never waits for a FIFO or a socket, and refuses an image above the limit", async () => {
+    const root = await folder({});
+    execFileSync("mkfifo", [path.join(root, "in", "fifo.png")]);
+    const server = net.createServer();
+    await new Promise<void>((resolve) => server.listen(path.join(root, "in", "socket.png"), resolve));
+    onTestFinished(
+      () =>
+        new Promise<void>((resolve) =>
+          server.close(() => {
+            resolve();
+          }),
+        ),
+    );
+    const big = await fs.open(path.join(root, "in", "big.png"), "w");
+    await big.truncate(IMAGE_LIMIT_BYTES + 1);
+    await big.close();
+    const read = imageReader(path.join(root, "in", "delivery.reqif"), OPEN);
+    expect(await read({ data: "fifo.png" })).toEqual({
+      kind: "image-missing",
+      reason: "the image fifo.png is no file",
+    });
+    expect(await read({ data: "socket.png" })).toEqual({
+      kind: "image-missing",
+      reason: "the image socket.png cannot be read (ENXIO)",
+    });
+    expect(await read({ data: "big.png" })).toEqual({
+      kind: "image-missing",
+      reason: `the image big.png is larger than ${String(IMAGE_LIMIT_BYTES)} bytes, the most the import copies`,
+    });
   });
 
   it("is image-outside for a path the access refuses (SR-142), and passes other errors on", async () => {
@@ -99,13 +140,23 @@ describe("imageReader (SR-095 AK2)", () => {
   });
 });
 
-describe("ImageNames", () => {
-  const image = (stem: string, sha256: string): ImageFile => ({
-    bytes: PNG,
-    sha256,
-    stem,
-    extension: ".png",
+describe("imageContent", () => {
+  it("reads the image while it is copied, and refuses bytes that changed since they were hashed", async () => {
+    const root = await folder({ "a.png": PNG });
+    const read = await imageReader(path.join(root, "in", "delivery.reqif"), OPEN)({ data: "a.png" });
+    if (read.kind !== "found") {
+      throw new Error("not found");
+    }
+    expect(bytesOf(read.file)).toEqual(PNG);
+    await fs.writeFile(read.file.path, "changed");
+    expect(() => bytesOf(read.file)).toThrow(
+      "Not imported: the image x.png changed while it was copied. Import again.",
+    );
   });
+});
+
+describe("ImageNames", () => {
+  const image = (stem: string, sha256: string): ImageFile => ({ path: "", sha256, stem, extension: ".png" });
 
   it("gives each image a free name in the element's folder, in any case, and the same bytes one name", () => {
     const names = new ImageNames();

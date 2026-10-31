@@ -18,10 +18,11 @@ import type { CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
 import { createFolder } from "../../files/index.js";
 import { metamodelState } from "../../metamodel/index.js";
-import type { NewElementFile } from "../../model/index.js";
+import type { NewElementFile, NewImageFile } from "../../model/index.js";
 import { createElementFiles, refuseUnlisted } from "../../model/index.js";
 import {
   REQIF_LIMITS,
+  imageContent,
   imageReader,
   importDate,
   parseReqif,
@@ -107,26 +108,23 @@ const spelledFiles = async (
 
 /**
  * The image copies under the target folder as spelled (`spelled`, the folder of the element files),
- * each in the image folder of its element (`<element stem>/<name>`), which is checked like the target
- * before and after it is created (SR-095 AK2, as `element.addAttachment`).
+ * each in the image folder of its element (`<element stem>/<name>`), read while they are written
+ * (`imageContent`). Every copy is checked like the target before and after its folder is created
+ * (SR-095 AK2, as `element.addAttachment`), so the walk lists each one. A folder made for a call
+ * that fails later stays, empty (#530).
  */
 const spelledImages = async (
   layout: WorkspaceLayout,
   repository: RepositoryLocation,
   spelled: string,
   images: readonly PlannedImage[],
-): Promise<NewElementFile[]> => {
-  const out: NewElementFile[] = [];
-  const folders = new Map<string, string>();
-  for (const { stem, name, bytes } of images) {
-    let folder = folders.get(stem);
-    if (folder === undefined) {
-      const before = await refuseUnlisted(layout, repository, path.posix.join(spelled, stem, name));
-      await createFolder(repository.folder, path.posix.dirname(before));
-      folder = path.posix.dirname(await refuseUnlisted(layout, repository, before));
-      folders.set(stem, folder);
-    }
-    out.push({ file: path.posix.join(folder, name), bytes });
+): Promise<NewImageFile[]> => {
+  const out: NewImageFile[] = [];
+  for (const { stem, name, file } of images) {
+    const before = await refuseUnlisted(layout, repository, path.posix.join(spelled, stem, name));
+    await createFolder(repository.folder, path.posix.dirname(before));
+    const at = await refuseUnlisted(layout, repository, before);
+    out.push({ file: at, content: imageContent(file, name) });
   }
   return out;
 };
