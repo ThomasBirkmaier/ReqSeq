@@ -16,6 +16,8 @@ const staged = (name) => {
 };
 
 const launchers = staged("REQSEQ_STAGED_LAUNCHERS");
+// The app icon (#410), generated from icon/icon.svg by scripts/icon/generate.mjs.
+const icon = (name) => join(import.meta.dirname, "icon", name);
 
 export default {
   appId: names.appId,
@@ -62,18 +64,22 @@ export default {
     identity: "-",
     hardenedRuntime: false,
     category: "public.app-category.developer-tools",
+    icon: icon("icon.icns"),
     extraResources: [{ from: `${launchers}/${names.launcher}`, to: `bin/${names.launcher}` }],
   },
   linux: {
     target: [{ target: "tar.gz", arch: ["x64"] }],
     artifactName: names.artifact.replace("${os}", "linux"),
     executableName: names.productName,
+    icon: icon("icons"),
     extraFiles: [{ from: `${launchers}/${names.launcher}`, to: `bin/${names.launcher}` }],
   },
   win: {
     target: [{ target: "zip", arch: ["x64"] }],
     artifactName: names.artifact.replace("${os}", "win"),
-    signAndEditExecutable: false,
+    icon: icon("icon.ico"),
+    // Writes the icon and version into the exe with rcedit; nothing is signed without a certificate (ADR-0014).
+    signAndEditExecutable: true,
     extraFiles: [{ from: `${launchers}/${names.launcher}.cmd`, to: `bin/${names.launcher}.cmd` }],
   },
 };

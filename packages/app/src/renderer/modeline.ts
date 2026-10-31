@@ -64,8 +64,19 @@ export type BufferData =
       /** The elements of the loaded rows, in their order (the selected one is the default of an element argument, #85). */
       readonly rows?: readonly ElementBuffer[];
     }
-  | { readonly kind: "overview"; readonly total: number; readonly incomplete: boolean }
-  | { readonly kind: "neighbourhood"; readonly incomplete: boolean }
+  | {
+      readonly kind: "overview";
+      readonly total: number;
+      readonly incomplete: boolean;
+      /** The element of the selected row, when it is one of the elements opened last (SR-150). */
+      readonly marked?: ElementBuffer;
+    }
+  | {
+      readonly kind: "neighbourhood";
+      readonly incomplete: boolean;
+      /** The element of the selected row (SR-150). */
+      readonly marked?: ElementBuffer;
+    }
   | { readonly kind: "result"; readonly total: number | undefined }
   /** The metamodel (SR-130): how many types it defines. */
   | { readonly kind: "metamodel"; readonly types: number }
@@ -74,6 +85,8 @@ export type BufferData =
       readonly nodes: number;
       readonly truncated: boolean;
       readonly incomplete: boolean;
+      /** The element of the selected node (SR-150). */
+      readonly marked?: ElementBuffer;
     }
   | {
       readonly kind: "element";
@@ -108,6 +121,35 @@ export const selectedRow = (
   }
   const rows = data.rows ?? [];
   return rows[Math.min(current.cursor, rows.length - 1)];
+};
+
+/**
+ * The element marked in the shown buffer, which "Open to the right" and "Open to the left" open and the
+ * inactive area follows (SR-150): the selected row of a list, a search, the neighbourhood or the elements
+ * opened last on the overview, or the selected node of a graph; undefined for any other buffer, while it
+ * loads, or while nothing is selected.
+ */
+export const markedElement = (
+  current: Buffer | undefined,
+  loaded: { readonly key: string; readonly data: BufferData | undefined } | undefined,
+): ElementBuffer | undefined => {
+  const data = loaded?.key === current?.key ? loaded?.data : undefined;
+  if (data?.kind === "graph" || data?.kind === "neighbourhood" || data?.kind === "overview") {
+    return data.marked;
+  }
+  return selectedRow(current, loaded);
+};
+
+/**
+ * What the reader selected in a buffer, the selected row or graph node, as a text that changes only when
+ * the selection does (SR-150 AK4): a reload that marks the same row again, or a graph that marks its own
+ * element when it opens, does not change it.
+ */
+export const markToken = (buffer: Buffer | undefined): string | undefined => {
+  if (buffer === undefined || buffer.kind === "metamodel" || buffer.kind === "element") {
+    return undefined;
+  }
+  return buffer.kind === "graph" ? (buffer.selected ?? "") : String(buffer.cursor);
 };
 
 /** The element that the shown buffer has loaded; undefined for any other buffer, or while it loads. */

@@ -456,3 +456,40 @@ describe("App, Split window (SR-115 AK3)", () => {
     expect(query('[data-area="right"]').contains(document.activeElement)).toBe(false);
   });
 });
+
+describe("App, Open to the right and follow (SR-150)", () => {
+  it("[SR-150/AK4] in the app, Open to the right opens the marked row beside the list, the list stays active, and the element on the right follows the row marked next", async () => {
+    await render();
+    await runCommand("List all elements");
+    const list = areas()[0] ?? "";
+    await press(query('[role="listbox"]'), { key: "ArrowDown" });
+    await runCommand("Open to the right");
+    expect(areas()).toEqual([`${list.replace("*", "")}*`, "SR-000001 Title 1"]);
+    expect(query('[data-area="left"]').contains(document.activeElement)).toBe(true);
+    await press(query('[role="listbox"]'), { key: "ArrowDown" });
+    expect(areas()).toEqual([`${list.replace("*", "")}*`, "SR-000002 Title 2"]);
+  });
+
+  it("[SR-150/AK1] Open to the right from a graph opens its selected node's element beside it; the element follows a node selected next, and a graph opened in the active area moves nothing", async () => {
+    await twoElements();
+    await press(window, { key: "G", ctrlKey: true, shiftKey: true });
+    // The graph marks its own element when it opens: the element on the right stays.
+    expect(areas()).toEqual(["Graph: SR-000001 Title 1*", "SR-000002 Title 2"]);
+    await runCommand("Unsplit window");
+    await runCommand("Open to the right");
+    expect(areas()[1]).toMatch(/Title 1$/);
+    await press(document.activeElement ?? window, { key: "ArrowDown" });
+    expect(areas()[0]).toBe("Graph: SR-000001 Title 1*");
+    expect(areas()[1]).toMatch(/Title 2$/);
+  });
+
+  it("[SR-150/AK4] a selection made before Split window moves nothing: the inactive area shows the buffer used before", async () => {
+    await openElement();
+    await press(window, { key: "p", code: "KeyP", altKey: true });
+    await press(query('[role="listbox"]'), { key: "ArrowDown" });
+    await press(query('[role="listbox"]'), { key: "ArrowDown" });
+    const list = (areas()[0] ?? "").replace("*", "");
+    await runCommand("Split window");
+    expect(areas()).toEqual([`${list}*`, "SR-000001 Title 1"]);
+  });
+});

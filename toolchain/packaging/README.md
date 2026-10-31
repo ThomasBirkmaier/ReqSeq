@@ -8,6 +8,7 @@ Builds the portable delivery of ADR-0014 with electron-builder. Only the workflo
 | `names.json` | Every product, artifact and launcher name: product name, app id, launcher, package scope, CLI tarball and artifact name pattern. A rename changes this file only. |
 | `package.json`, `pnpm-lock.yaml` | electron-builder (MIT), pinned, with a lockfile of its own outside the workspace (exception to ADR-0001, so that PR CI does not install it). |
 | `electron-builder.config.mjs` | The targets (macOS zip arm64, Linux tar.gz x64, Windows zip x64), the fuses, the extra resources. Reads the staged folders from the environment that `scripts/package/stage.mjs` prints. |
+| `icon/` | The app icon (#410): the master `icon.svg` and what `scripts/icon/generate.mjs` renders from it (`icon.icns`, `icon.ico`, `icons/<size>x<size>.png`; also the window icon of the app and the docs favicons). After changing the master, run `node scripts/icon/generate.mjs` and commit its output. |
 | `launchers/` | Templates of the command line launcher `bin/<launcher>` (POSIX shell and Windows `.cmd`); `stage.mjs` renders them from `names.json`. |
 
 ## Build a delivery by hand

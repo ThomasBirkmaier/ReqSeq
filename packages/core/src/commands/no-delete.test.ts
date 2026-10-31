@@ -132,6 +132,16 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { source: GUSTS, kind: "derives-from", target: WIND },
     { source: GUSTS, kind: "nope", target: WIND },
   ],
+  "reqif.saveMapping": [
+    {
+      mapping: {
+        "reqseq-reqif-mapping": 1,
+        source: { name: "Kunde A" },
+        types: [{ source: "Customer Requirement", type: "system-requirement" }],
+      },
+    },
+    { mapping: { "reqseq-reqif-mapping": 1, source: { name: "Kunde A" }, omit: true } },
+  ],
   "variant.exclude": [
     { variant: VARIANT, refs: [WIND] },
     { variant: VARIANT, refs: [WIND], undo: true },

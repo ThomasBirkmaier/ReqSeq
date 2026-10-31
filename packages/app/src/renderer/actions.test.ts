@@ -1574,6 +1574,8 @@ describe("Split window (SR-115 AK3)", () => {
         other,
         split: () => calls.push("split"),
         unsplit: () => calls.push("unsplit"),
+        beside: (side: "left" | "right", buffer: { readonly key: string }) =>
+          calls.push(`${side} ${buffer.key}`),
       },
     };
   };
@@ -1618,6 +1620,28 @@ describe("Split window (SR-115 AK3)", () => {
     expect(stale.dispatched).toEqual([]);
     runAction(action("unsplit-window"), setup([element]).context);
     runAction(action("split-window"), setup([element]).context);
+  });
+
+  it("[SR-150/AK1] Open to the right and Open to the left open the marked element beside, prompt commands without a key", () => {
+    const marked = elementBuffer("u2", "spec", "SR-037 Other");
+    const one = layoutOf(undefined);
+    const shown = setup([overview], {}, true, { layout: one.layout, marked });
+    expect(titles(shown.context)).toEqual(expect.arrayContaining(["Open to the right", "Open to the left"]));
+    expect(action("open-right").shortcut).toBeUndefined();
+    runAction(action("open-right"), shown.context);
+    runAction(action("open-left"), shown.context);
+    expect(one.calls).toEqual([`right ${marked.key}`, `left ${marked.key}`]);
+    // Nothing marked, no workspace or no areas: not offered.
+    expect(titles(setup([overview], {}, true, { layout: one.layout }).context)).not.toContain(
+      "Open to the right",
+    );
+    expect(
+      action("open-left").available(setup([overview], {}, false, { layout: one.layout, marked }).context),
+    ).toBe(false);
+    expect(action("open-left").available(setup([overview], {}, true, { marked }).context)).toBe(false);
+    // Run from a stale prompt with nothing marked, it does nothing.
+    runAction(action("open-left"), setup([overview], {}, true, { layout: one.layout }).context);
+    expect(one.calls).toHaveLength(2);
   });
 });
 
