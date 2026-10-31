@@ -71,6 +71,17 @@ export const portableName = (text: string, fallback = "image"): string => {
   return name === "" ? fallback : name;
 };
 
+/**
+ * The stem of the copy of an image named `name` with `extension` (lower case, with the dot): the
+ * name before its extension made portable (`portableName`), with `-image` after a Windows device
+ * name such as `CON` or `nul`, which Windows refuses with any extension. Shared with the ReqIF
+ * import, which copies an image like this command (SR-095 AK2).
+ */
+export const attachmentStem = (name: string, extension: string): string => {
+  const stem = portableName(name.slice(0, name.length - path.extname(name).length));
+  return windowsChanges(`${stem}${extension}`) ? `${stem}-image` : stem;
+};
+
 /** A source image as read. */
 interface Source {
   readonly bytes: Uint8Array;
@@ -109,12 +120,10 @@ const readSource = async (root: string, sourcePath: string): Promise<Source> => 
   } catch (error) {
     throw error instanceof CommandError ? error : unreadable(name, error);
   }
-  const stem = portableName(name.slice(0, -extension.length));
   return {
     bytes,
     sha256: createHash("sha256").update(bytes).digest("hex"),
-    // A device name such as `CON` or `nul` is refused by Windows with any extension.
-    stem: windowsChanges(`${stem}${extension}`) ? `${stem}-image` : stem,
+    stem: attachmentStem(name, extension),
     extension,
   };
 };

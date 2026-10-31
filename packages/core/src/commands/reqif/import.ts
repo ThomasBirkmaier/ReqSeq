@@ -10,7 +10,7 @@
 // Not yet: updating the elements of an earlier delivery and the
 // conflicts `take` and `keep` decide (SR-056; until then no import finds a conflict, so both lists
 // change nothing, and a repeated import creates new elements), the one-to-one mapping of a ReqSeq
-// file (SR-052) and images (SR-095).
+// file (SR-052).
 import fs from "node:fs/promises";
 import { constants } from "node:fs";
 import path from "node:path";
@@ -18,9 +18,18 @@ import type { CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
 import { createFolder } from "../../files/index.js";
 import { metamodelState } from "../../metamodel/index.js";
-import type { NewElementFile } from "../../model/index.js";
+import type { NewElementFile, NewImageFile } from "../../model/index.js";
 import { createElementFiles, refuseUnlisted } from "../../model/index.js";
-import { REQIF_LIMITS, importDate, parseReqif, planImport, readMappingFile } from "../../reqif/index.js";
+import {
+  REQIF_LIMITS,
+  imageContent,
+  imageReader,
+  importDate,
+  parseReqif,
+  planImport,
+  readMappingFile,
+} from "../../reqif/index.js";
+import type { PlannedImage } from "../../reqif/index.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../../workspace/index.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
 
@@ -85,13 +94,39 @@ const spelledFiles = async (
   folder: string,
   files: readonly NewElementFile[],
   first: NewElementFile,
-): Promise<NewElementFile[]> => {
+): Promise<{ readonly spelled: string; readonly files: NewElementFile[] }> => {
   const before = await refuseUnlisted(layout, repository, first.file);
   if (folder !== "") {
     await createFolder(repository.folder, path.posix.dirname(before));
   }
   const spelled = path.posix.dirname(await refuseUnlisted(layout, repository, before));
-  return files.map((f) => ({ ...f, file: path.posix.join(spelled, path.posix.basename(f.file)) }));
+  return {
+    spelled,
+    files: files.map((f) => ({ ...f, file: path.posix.join(spelled, path.posix.basename(f.file)) })),
+  };
+};
+
+/**
+ * The image copies under the target folder as spelled (`spelled`, the folder of the element files),
+ * each in the image folder of its element (`<element stem>/<name>`), read while they are written
+ * (`imageContent`). Every copy is checked like the target before and after its folder is created
+ * (SR-095 AK2, as `element.addAttachment`), so the walk lists each one. A folder made for a call
+ * that fails later stays, empty (#530).
+ */
+const spelledImages = async (
+  layout: WorkspaceLayout,
+  repository: RepositoryLocation,
+  spelled: string,
+  images: readonly PlannedImage[],
+): Promise<NewImageFile[]> => {
+  const out: NewImageFile[] = [];
+  for (const { stem, name, file } of images) {
+    const before = await refuseUnlisted(layout, repository, path.posix.join(spelled, stem, name));
+    await createFolder(repository.folder, path.posix.dirname(before));
+    const at = await refuseUnlisted(layout, repository, before);
+    out.push({ file: at, content: imageContent(file, name) });
+  }
+  return out;
 };
 
 export default defineCommand({
@@ -116,20 +151,27 @@ export default defineCommand({
       });
     }
     const { mapping } = await readMappingFile(layout, metamodel, workspace.root, input.mapping, command);
-    const plan = planImport(parsed.file, mapping, layout, metamodel, {
-      delivery: input.delivery,
-      date: importDate(new Date()),
-    });
+    const plan = await planImport(
+      parsed.file,
+      mapping,
+      layout,
+      metamodel,
+      { delivery: input.delivery, date: importDate(new Date()) },
+      imageReader(path.resolve(workspace.root, input.file), ctx.localPaths),
+    );
     const [first] = plan.files;
-    const files =
-      first === undefined
-        ? []
-        : await createElementFiles(
-            workspace,
-            layout,
-            plan.repository,
-            await spelledFiles(layout, plan.repository, plan.folder, plan.files, first),
-          );
+    let files: string[] = [];
+    if (first !== undefined) {
+      const { spelled, files: elements } = await spelledFiles(
+        layout,
+        plan.repository,
+        plan.folder,
+        plan.files,
+        first,
+      );
+      const images = await spelledImages(layout, plan.repository, spelled, plan.images);
+      files = await createElementFiles(workspace, layout, plan.repository, elements, images);
+    }
     return {
       created: [...plan.created],
       updated: [],

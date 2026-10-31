@@ -1,6 +1,7 @@
 // createElementFiles (src/model/new-files.ts): all or nothing, with failures the file system cannot be
 // made to produce on demand (a name taken while the call runs, a file changed before the rollback, no
 // hard links). `fs.link` is wrapped so a test can make chosen calls do something else.
+import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -75,7 +76,48 @@ describe("createElementFiles", () => {
       element: { version: string };
     };
     expect(got.element.version).toBe(
-      plannedVersion(metamodel, repository.name, files[0] ?? { file: "", bytes: new Uint8Array() }),
+      await plannedVersion(
+        metamodel,
+        await workspace.get(workspaceLayoutState),
+        repository,
+        files[0] ?? { file: "", bytes: new Uint8Array() },
+      ),
+    );
+  });
+
+  it("plans the version of a text with images as the store computes it: a copy by its hash, any other link from disk", async () => {
+    const { workspace, root, repository } = await setup();
+    const metamodel = await workspace.get(metamodelState);
+    const layout = await workspace.get(workspaceLayoutState);
+    await fs.writeFile(path.join(root, "logo.png"), "logo");
+    await fs.mkdir(path.join(root, "N-0"));
+    const base = newElementBase(metamodel, "need", "reqif.import");
+    const planned = {
+      file: "N-0.md",
+      bytes: newElementBytes(base, ID_A, "Need", "![a](N-0/a.png)![b](logo.png)", []),
+    };
+    const version = await plannedVersion(
+      metamodel,
+      layout,
+      repository,
+      planned,
+      new Map([["N-0/a.png", "c".repeat(64)]]),
+    );
+    await createElementFiles(
+      workspace,
+      layout,
+      repository,
+      [planned],
+      [{ file: "N-0/a.png", content: "copy" }],
+    );
+    const got = (await invoke("element.get", { ref: ID_A }, { workspace })) as {
+      element: { version: string };
+    };
+    // The planned hash stands for the copy; with the copy's own hash both versions are the same.
+    expect(version).not.toBe(got.element.version);
+    const copy = createHash("sha256").update("copy").digest("hex");
+    expect(await plannedVersion(metamodel, layout, repository, planned, new Map([["N-0/a.png", copy]]))).toBe(
+      got.element.version,
     );
   });
 
