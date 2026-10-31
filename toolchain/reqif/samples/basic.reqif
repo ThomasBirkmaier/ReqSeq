@@ -79,7 +79,7 @@
             <ATTRIBUTE-VALUE-XHTML IS-SIMPLIFIED="true">
               <DEFINITION><ATTRIBUTE-DEFINITION-XHTML-REF>ad-text</ATTRIBUTE-DEFINITION-XHTML-REF></DEFINITION>
               <THE-VALUE><xhtml:div>The system <xhtml:b>shall</xhtml:b> start.</xhtml:div></THE-VALUE>
-              <THE-ORIGINAL-VALUE><xhtml:div>The system <xhtml:b>shall</xhtml:b> start, <xhtml:u>underlined</xhtml:u>.</xhtml:div></THE-ORIGINAL-VALUE>
+              <THE-ORIGINAL-VALUE><xhtml:div>The system <xhtml:b>shall</xhtml:b> start, <xhtml:span style="text-decoration:underline">underlined</xhtml:span>.</xhtml:div></THE-ORIGINAL-VALUE>
             </ATTRIBUTE-VALUE-XHTML>
             <ATTRIBUTE-VALUE-INTEGER THE-VALUE="5">
               <DEFINITION><ATTRIBUTE-DEFINITION-INTEGER-REF>ad-effort</ATTRIBUTE-DEFINITION-INTEGER-REF></DEFINITION>
@@ -144,7 +144,7 @@
       </SPECIFICATIONS>
       <SPEC-RELATION-GROUPS>
         <RELATION-GROUP IDENTIFIER="rg-1" LAST-CHANGE="2026-10-31T00:00:00Z">
-          <RELATIONS><SPEC-RELATION-REF>rel-1</SPEC-RELATION-REF></RELATIONS>
+          <SPEC-RELATIONS><SPEC-RELATION-REF>rel-1</SPEC-RELATION-REF></SPEC-RELATIONS>
           <SOURCE-SPECIFICATION><SPECIFICATION-REF>spec-a</SPECIFICATION-REF></SOURCE-SPECIFICATION>
           <TARGET-SPECIFICATION><SPECIFICATION-REF>spec-b</SPECIFICATION-REF></TARGET-SPECIFICATION>
           <TYPE><RELATION-GROUP-TYPE-REF>gt-links</RELATION-GROUP-TYPE-REF></TYPE>

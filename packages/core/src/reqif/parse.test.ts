@@ -233,7 +233,14 @@ describe("parseReqif", () => {
     ]);
     expect(rich.unread).toEqual([{ name: "TOOL-EXTENSIONS", namespace: REQIF_NAMESPACE, line: 46 }]);
 
-    expect(fileOf(sample("bom-crlf.reqif")).header).toEqual({ identifier: "_hd-crlf", title: "Zeile\nzwei" });
+    expect(fileOf(sample("bom-crlf.reqif")).header).toEqual({
+      identifier: "_hd-crlf",
+      creationTime: "2026-10-31T00:00:00Z",
+      toolId: "sample-tool",
+      version: "1.0",
+      sourceToolId: "sample-tool 1",
+      title: "Zeile\nzwei",
+    });
   });
 
   it("refuses doctype, an undefined entity, a foreign root, truncated, two roots, undeclared prefixes and names that are not qualified with the reason and line", () => {

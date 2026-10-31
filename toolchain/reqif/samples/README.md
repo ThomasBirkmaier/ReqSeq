@@ -9,4 +9,4 @@ Hand-written ReqIF 1.2 files for the tests of the ReqIF block (ADR-0013, D-054).
 | `images/start.png` | The image `xhtml-rich.reqif` embeds (the PNG signature only) |
 | `bom-crlf.reqif` | A byte order mark and CRLF line ends (kept byte for byte, see `.gitattributes`) |
 
-The XSD check of every sample comes with the writer (#265, part 2). `packages/core/src/reqif/parse.test.ts` shows what the parser reads from each.
+Every sample is valid against the ReqIF 1.2 XSDs (`packages/testkit/src/validate-reqif.xsd.test.ts`, in CI; the XSDs are downloaded there, `toolchain/reqif/README.md`). `basic.reqif` therefore writes underline as a `span` with a `style`, not as `xhtml:u`, which the driver's modules do not have. `packages/core/src/reqif/parse.test.ts` shows what the parser reads from each.
