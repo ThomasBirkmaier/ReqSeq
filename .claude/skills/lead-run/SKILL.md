@@ -23,11 +23,11 @@ Before agents take the first issues of a stage, one agent at effort high checks 
 
 ## Agents
 
-Run at most three agents at once, reviewers included (budget rule, product owner decision, 2026-10-28). Each takes one unblocked issue without `agent:working` to a PR. Review and merge follow `merge.md` in this folder. All agents are Opus at effort medium. Keep two agents off the same package when their changes overlap. Keep working while agents run, and keep their reports short (PR, state, findings, follow-ups). For an AK with visible behaviour, the PR shows the evidence: the CLI output, or a light-theme screenshot from an existing Electron test (`verify`). A PR writes no demo file. When a lane (a group of SRs worked in sequence, named in the epic's order table) is merged, show the product owner its visible behaviour in one short demo from that evidence. Side questions that do not belong to the stage go to the coordinator, and agents that stopped with `blocked` or `needs-human` are listed for the product owner. There is no fixed CI round. Look at CI only when a PR waits unusually long for it (about 30 minutes) or turns red again and again, and then report the cause to the coordinator with a fix (product owner decision, 2026-10-28).
+Run at most three agents at once, reviewers included (budget rule, product owner decision, 2026-10-28). Each takes one unblocked issue without `agent:working` to a PR. Review and merge follow `merge.md` in this folder. All agents are Opus at effort medium. Keep two agents off the same package when their changes overlap. Keep working while agents run, and keep their reports short (PR, state, findings, follow-ups). For an AK with visible behaviour, the PR shows the evidence: the CLI output, or a light-theme screenshot from the PR's Electron test. A PR writes no demo file. When a lane (a group of SRs worked in sequence, named in the epic's order table) is merged, show the product owner its visible behaviour in one short demo from that evidence. Side questions that do not belong to the stage go to the coordinator, and agents that stopped with `blocked` or `needs-human` are listed for the product owner. There is no fixed CI round. Look at CI only when a PR waits unusually long for it (about 30 minutes) or turns red again and again, and then report the cause to the coordinator with a fix (product owner decision, 2026-10-28).
 
 ## Checks against the spec
 
-Collect the open `spec-frage` issues into one message for the product owner at most once a day, and enter the answers with `spec-change`.
+After each merged lane and once before the acceptance, a fresh agent compares the closed SR issues of the stage with their AKs and the spec text, and runs `pnpm trace-check --stage <n>`. Gaps become issues. The report marks what the agent could not confirm and says where it looked. Collect the open `spec-frage` issues into one message for the product owner at most once a day, and enter the answers with `spec-change`.
 
 ## Handover
 
@@ -35,7 +35,7 @@ Hand over to a fresh lead thread at natural breaks (the end of a stage, after a 
 
 ## Stage done
 
-A stage is done when all its SR issues are closed and `pnpm trace-check --stage <n> --report trace-stage-<n>.md` passes; post the report in the stage epic. Once before the acceptance, a fresh agent checks the closed SR issues against their AKs and the spec; gaps become issues. Then:
+A stage is done when all its SR issues are closed and `pnpm trace-check --stage <n> --report trace-stage-<n>.md` passes; post the report in the stage epic. Then:
 
 1. A PR adds `<n>` to `COMPLETED_STAGES` in `packages/core/src/commands/registry.test.ts`.
 2. Prepare the acceptance: what to try in the app or CLI, the `verification/` records with method Inspektion or Demonstration, and the known limitations.
