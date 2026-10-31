@@ -82,7 +82,10 @@ const withOther = (active: Side, other: string | undefined): Layout =>
 /** The next buffer in the order of use that is not shown in the active area. */
 const nextOther = (buffers: Buffers): string | undefined => buffers[1]?.key;
 
-/** "Split window": the shown buffer keeps its area, the one used before stands beside it (A1 of #411). */
+/**
+ * "Split window": the shown buffer stands on the left and stays active, the one used before beside it (A1
+ * of #411). The left, whatever side was active before the last unsplit, so the shown buffer never jumps.
+ */
 const split = (state: WindowState): WindowState => {
   const shown = state.buffers[0];
   if (state.layout.other !== undefined || shown === undefined || onlyOverview(state.buffers)) {
@@ -90,7 +93,7 @@ const split = (state: WindowState): WindowState => {
   }
   // A single buffer: the overview comes beside it, so there are two buffers to show.
   const buffers = state.buffers.length > 1 ? state.buffers : [shown, overviewBuffer()];
-  return { buffers, layout: withOther(state.layout.active, nextOther(buffers)) };
+  return { buffers, layout: withOther("left", nextOther(buffers)) };
 };
 
 /** The layout after a buffer action changed `before.buffers` into `buffers` (the rules above). */

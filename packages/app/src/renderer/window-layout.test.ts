@@ -142,6 +142,9 @@ describe("window layout (SR-115 AK3)", () => {
     expect(shown(unsplit)).toEqual([`${element(1).key}*`]);
     expect(areas(unsplit)[0]?.side).toBe("right");
     expect(reduceWindow(unsplit, { type: "unsplit" })).toBe(unsplit);
+    // Split again, after the active area was on the right: the shown buffer stands on the left.
+    const again = run(unsplit, { type: "open", buffer: list }, { type: "split" });
+    expect(shown(again)).toEqual([`${list.key}*`, element(1).key]);
     // Close buffer on the active area: the other area is left, active, with its buffer; all stay open but the closed one.
     const closed = reduceWindow(split, { type: "close", key: element(1).key });
     expect(shown(closed)).toEqual([`${element(2).key}*`]);
