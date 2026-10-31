@@ -7,11 +7,12 @@ import type { PrefixBinding } from "./bindings.js";
 import { PREFIX, PREFIX_BINDINGS, PREFIX_KEYS, prefixLabel } from "./bindings.js";
 import type { NamedCommand } from "./command-entry.js";
 import { coveringAction } from "./command-entry.js";
-import { ELEMENT_KEYS, ELEMENT_MORE_KEYS } from "./element-keys.js";
-import { EDITOR_KEYS, MARKDOWN_KEYS } from "./editor/editor-keys.js";
-import { GRAPH_KEYS, GRAPH_OPEN } from "./graph-nav.js";
+import { ELEMENT_MORE_KEYS, FIELD_KEYS, LEAVE_KEYS, PACKAGE_KEYS } from "./element-keys.js";
+import { BOX_KEYS, EDITOR_KEYS, MARKDOWN_KEYS } from "./editor/editor-keys.js";
+import { MENU_KEYS } from "../shared/menu-keys.js";
+import { GRAPH_KEYS, GRAPH_MORE_KEYS } from "./graph-nav.js";
 import type { KeyRow } from "./keys.js";
-import { HISTORY_KEYS, LIST_KEYS, keySpecLabel } from "./keys.js";
+import { HISTORY_KEYS, LIST_KEYS, keySpecLabel, shortcutLabel } from "./keys.js";
 import { PROMPT_KEYS } from "./prompt-keys.js";
 
 /**
@@ -53,14 +54,15 @@ export const SHORTCUT_TABLES: ShortcutTables = {
       does: "Open the command prompt: the actions and commands that apply to the shown buffer",
     },
     { keys: [{ shortcut: PREFIX }], does: "The prefix key: then one letter (below)" },
+    ...MENU_KEYS,
   ],
   actions: ACTIONS,
   prefix: PREFIX_KEYS,
   bindings: PREFIX_BINDINGS,
   prompt: PROMPT_KEYS,
   list: LIST_KEYS,
-  graph: [...GRAPH_KEYS, GRAPH_OPEN],
-  element: [...ELEMENT_KEYS, ...ELEMENT_MORE_KEYS],
+  graph: [...GRAPH_KEYS, ...GRAPH_MORE_KEYS],
+  element: [...FIELD_KEYS, ...PACKAGE_KEYS, ...BOX_KEYS, ...LEAVE_KEYS, ...ELEMENT_MORE_KEYS],
   history: HISTORY_KEYS,
   editor: [...EDITOR_KEYS, ...MARKDOWN_KEYS],
 };
@@ -73,21 +75,20 @@ const rows = (table: readonly KeyRow[]): ShortcutRow[] =>
   table.map((row) => ({ keys: labels(row, false), mac: labels(row, true), does: row.does }));
 
 /**
- * One row per key of an action, in the order of the actions; actions that share a key (in different buffers) share
- * the row. A key that works only in the buffer (`hint`, "Enter") is written as the action gives it.
+ * One row per shortcut of an action, in the order of the actions; actions that share a shortcut (in different
+ * buffers) share the row. A key that works only in a buffer (`hint`, such as Enter for "Edit text") is in the table
+ * of that buffer's keys.
  */
 const actionRows = (actions: readonly Action[]): ShortcutRow[] => {
   const byKey = new Map<string, { keys: string; mac: string; titles: string[] }>();
   for (const action of actions) {
-    const keys =
-      action.shortcut === undefined ? undefined : keySpecLabel({ shortcut: action.shortcut }, false);
-    const mac = action.shortcut === undefined ? undefined : keySpecLabel({ shortcut: action.shortcut }, true);
-    const plain = keys ?? action.hint;
-    if (plain === undefined) {
+    if (action.shortcut === undefined) {
       continue;
     }
-    const row = byKey.get(plain) ?? { keys: plain, mac: mac ?? plain, titles: [] };
-    byKey.set(plain, row);
+    const keys = shortcutLabel(action.shortcut, false);
+    const mac = shortcutLabel(action.shortcut, true);
+    const row = byKey.get(`${keys} ${mac}`) ?? { keys, mac, titles: [] };
+    byKey.set(`${keys} ${mac}`, row);
     if (!row.titles.includes(action.title)) {
       row.titles.push(action.title);
     }

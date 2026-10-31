@@ -8,6 +8,7 @@ import { Prec } from "@codemirror/state";
 import type { Extension } from "@codemirror/state";
 import { keymap } from "@codemirror/view";
 import type { EditorView, KeyBinding } from "@codemirror/view";
+import { BOX_NEXT, BOX_PREVIOUS } from "./editor-keys.js";
 
 export interface BoxNavigation {
   /** Down at the last line: goes to the next editor; false when there is none. */
@@ -50,8 +51,8 @@ export const boxNavigation = (
   const { down, up } = navigation;
   return strength(
     keymap.of([
-      ...(down === undefined ? [] : bindings({ arrow: "ArrowDown", emacs: "Ctrl-n" }, true, down)),
-      ...(up === undefined ? [] : bindings({ arrow: "ArrowUp", emacs: "Ctrl-p" }, false, up)),
+      ...(down === undefined ? [] : bindings(BOX_NEXT, true, down)),
+      ...(up === undefined ? [] : bindings(BOX_PREVIOUS, false, up)),
     ]),
   );
 };

@@ -24,7 +24,7 @@ import {
 } from "./graph.js";
 import type { GraphLayout } from "./graph-layout.js";
 import { NODE_HEIGHT, NODE_WIDTH, RANK_SEP, layoutGraph, viewStart } from "./graph-layout.js";
-import { GRAPH_MOVES, graphStep } from "./graph-nav.js";
+import { DEPTH_LESS, DEPTH_MORE, GRAPH_MOVES, graphStep } from "./graph-nav.js";
 import type { BufferData } from "./modeline.js";
 
 export interface GraphViewProps {
@@ -215,9 +215,9 @@ export const GraphView = ({
     } else if (event.key === "Enter") {
       event.preventDefault();
       open(selected);
-    } else if (event.key === "+" || event.key === "-") {
+    } else if (event.key === DEPTH_MORE || event.key === DEPTH_LESS) {
       event.preventDefault();
-      const depth = event.key === "+" ? deeper(buffer.depth) : shallower(buffer.depth);
+      const depth = event.key === DEPTH_MORE ? deeper(buffer.depth) : shallower(buffer.depth);
       dispatch({ type: "open", buffer: { ...buffer, depth } });
     }
   };

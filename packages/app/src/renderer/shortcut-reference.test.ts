@@ -1,16 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { ACTIONS } from "./actions.js";
 import { PREFIX_BINDINGS, PREFIX_KEYS, prefixStep } from "./bindings.js";
-import { ELEMENT_KEYS, ELEMENT_MORE_KEYS, fieldKey, onDiskKey } from "./element-keys.js";
-import { EDITOR_KEYS, codeMirrorPress } from "./editor/editor-keys.js";
-import { GRAPH_KEYS, GRAPH_MOVES } from "./graph-nav.js";
+import { ELEMENT_MORE_KEYS, FIELD_KEYS, PACKAGE_KEYS, fieldKey, onDiskKey } from "./element-keys.js";
+import { BOX_KEYS, EDITOR_KEYS, codeMirrorPress } from "./editor/editor-keys.js";
+import { DEPTH_LESS, DEPTH_MORE, GRAPH_KEYS, GRAPH_MORE_KEYS, GRAPH_MOVES } from "./graph-nav.js";
 import type { KeyPress, KeyRow, KeySpec } from "./keys.js";
 import {
   HISTORY_KEYS,
   LIST_MOVES,
   PROMPT_MOVES,
   MOD_CLICK,
+  ctrlStep,
   historyStep,
+  leavesPart,
   isModClick,
   keySpecLabel,
   listStep,
@@ -52,7 +54,8 @@ describe("key labels", () => {
     expect(pressLabel({ ...press("x"), altKey: true, shiftKey: true }, false)).toBe("Alt+Shift+X");
     expect(pressLabel(press("PageDown"), true)).toBe("Page Down");
     expect(pressLabel(press(" "), false)).toBe("Space");
-    expect(pressLabel(press("Enter"), true)).toBe("Enter");
+    expect(pressLabel(press("Enter"), true)).toBe("↩");
+    expect(pressLabel(press("Enter"), false)).toBe("Enter");
   });
 
   it("leaves out a key of the other system", () => {
@@ -93,13 +96,53 @@ describe("the key tables follow their handlers", () => {
     }
   });
 
-  it("lists the keys the element buffer takes on a field (fieldKey)", () => {
-    for (const spec of ELEMENT_KEYS.flatMap((row) => row.keys)) {
-      if (!("press" in spec) || spec.press.ctrlKey) {
-        continue;
-      }
-      expect(fieldKey(spec.press.key, "title", true), spec.press.key).toBe(true);
+  it("lists exactly the keys the element buffer takes on a field (fieldKey), all without a modifier", () => {
+    const listed = pressesOf(FIELD_KEYS, false);
+    for (const mac of [false, true]) {
+      expect(pressesOf(FIELD_KEYS, mac)).toEqual(listed);
     }
+    for (const event of listed) {
+      expect([event.ctrlKey, event.metaKey, event.altKey, event.shiftKey], event.key).toEqual([
+        false,
+        false,
+        false,
+        false,
+      ]);
+    }
+    for (const key of ["Enter", "ArrowDown", "ArrowUp", "Escape", "ArrowLeft", "Tab", "Home", "a"]) {
+      expect(fieldKey(key, "title", true), key).toBe(listed.some((event) => event.key === key));
+    }
+  });
+
+  it("lists the keys into and out of the elements of a package page (ctrlStep, leavesPart)", () => {
+    const [into, out] = PACKAGE_KEYS;
+    for (const mac of [false, true]) {
+      expect(pressesOf(into === undefined ? [] : [into], mac).map(ctrlStep)).toEqual([1]);
+      for (const event of pressesOf(out === undefined ? [] : [out], mac)) {
+        expect(leavesPart(event, 0), event.key).toBe(true);
+      }
+    }
+    expect(leavesPart(press("ArrowUp"), 1)).toBe(false);
+    expect(leavesPart(press("ArrowDown"), 0)).toBe(false);
+  });
+
+  it("lists the keys between the editors, the Emacs keys on macOS only (boxNavigation)", () => {
+    expect(BOX_KEYS.map((row) => row.keys.map((spec) => keySpecLabel(spec, false)))).toEqual([
+      ["Down", undefined],
+      ["Up", undefined],
+    ]);
+    expect(BOX_KEYS.map((row) => row.keys.map((spec) => keySpecLabel(spec, true)))).toEqual([
+      ["Down", "⌃N"],
+      ["Up", "⌃P"],
+    ]);
+  });
+
+  it("lists the depth keys of the graph", () => {
+    expect(pressesOf(GRAPH_MORE_KEYS, false).map((event) => event.key)).toEqual([
+      "Enter",
+      DEPTH_MORE,
+      DEPTH_LESS,
+    ]);
   });
 
   it("lists Enter and Escape of the block On disk (onDiskKey) and the click on a value (isModClick)", () => {
@@ -176,14 +219,14 @@ describe("shortcutReference", () => {
     });
   });
 
-  it("gives actions that share a key one row, and a key that works only in the buffer as the action writes it", () => {
+  it("gives actions that share a key one row, and leaves the keys of a buffer (hints) to its section", () => {
     const actions = shortcutReference(COMMANDS)[1]?.rows ?? [];
     expect(actions).toContainEqual({
       keys: ["Ctrl+J"],
       mac: ["⌘J"],
       does: "Show neighbourhood / Show element",
     });
-    expect(actions).toContainEqual({ keys: ["Enter"], mac: ["Enter"], does: "Edit text" });
+    expect(actions.some((row) => row.does === "Edit text" || row.does === "Graph depth")).toBe(false);
     expect(actions.some((row) => row.does === "Close all buffers")).toBe(false);
   });
 

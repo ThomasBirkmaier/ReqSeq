@@ -3,7 +3,7 @@
 // question #472, kept in this one table; the window wires them up in `use-prefix.ts`.
 import type { Choice } from "./actions.js";
 import type { KeyPress, KeyRow, Shortcut } from "./keys.js";
-import { matches, press, shortcutLabel } from "./keys.js";
+import { matches, press, pressLabel, shortcutLabel } from "./keys.js";
 
 /** The prefix key: Ctrl+K, or Cmd+K on macOS (#472; not Ctrl+X or Ctrl+C, the cut and copy of every field). */
 export const PREFIX: Shortcut = { mod: true, shift: false, key: "k" };
@@ -115,23 +115,12 @@ const letterOf = (event: PrefixPress): string | undefined => {
   return LETTER_CODE.test(place) ? place.slice(3).toLowerCase() : undefined;
 };
 
-/** How a key is written after the prefix: its letter in upper case, else its name ("ArrowDown", "Space"). */
-const keyName = (event: PrefixPress): string =>
-  letterOf(event)?.toUpperCase() ?? (event.key === " " ? "Space" : event.key);
-
-/** The key with the modifiers held, as `shortcutLabel` writes a shortcut: "Alt+N", or "⌥N" on macOS. */
-const pressLabel = (event: PrefixPress, mac: boolean): string => {
-  const key = keyName(event);
-  if (mac) {
-    return `${event.ctrlKey ? "⌃" : ""}${event.altKey ? "⌥" : ""}${event.metaKey ? "⌘" : ""}${event.shiftKey ? "⇧" : ""}${key}`;
-  }
-  return [
-    ...(event.ctrlKey || event.metaKey ? ["Ctrl"] : []),
-    ...(event.altKey ? ["Alt"] : []),
-    ...(event.shiftKey ? ["Shift"] : []),
-    key,
-  ].join("+");
-};
+/**
+ * The key with the modifiers held, as `pressLabel` writes it ("Alt+N", or "⌥N" on macOS), its letter read as
+ * `letterOf` reads it.
+ */
+const pressedLabel = (event: PrefixPress, mac: boolean): string =>
+  pressLabel({ ...event, key: letterOf(event) ?? event.key }, mac);
 
 /**
  * Whether the modifiers of `event` allow a letter after the prefix: none, or the prefix modifier held
@@ -152,7 +141,7 @@ export const prefixStep = (event: PrefixPress, mac: boolean): PrefixStep => {
   if (event.key === "Escape") {
     return { kind: "cancel" };
   }
-  const label = `${shortcutLabel(PREFIX, mac)} ${pressLabel(event, mac)}`;
+  const label = `${shortcutLabel(PREFIX, mac)} ${pressedLabel(event, mac)}`;
   const letter = letterOf(event);
   return letter !== undefined && plainOrPrefixed(event, mac)
     ? { kind: "letter", letter, label: prefixLabel(letter, mac) }

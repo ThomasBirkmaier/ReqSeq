@@ -29,26 +29,46 @@ export const MODIFIER_KEYS: ReadonlySet<string> = new Set(["Shift", "Control", "
 /** A key on the buffer after Enter that takes back an "Edit text" still waiting for the editor. */
 export const takesBackEdit = (key: string): boolean => key !== "Enter" && !MODIFIER_KEYS.has(key);
 
-/**
- * The keys of the element buffer for the keyboard reference (SR-139 AK5): those `fieldKey` takes, and the keys of
- * `boxNavigation` (`editor/box-navigation.ts`), which on macOS also moves with the physical Ctrl+N and Ctrl+P.
- */
-export const ELEMENT_KEYS: readonly KeyRow[] = [
+/** The keys `fieldKey` takes on a field of the element buffer, all without a modifier (SR-139 AK5). */
+export const FIELD_KEYS: readonly KeyRow[] = [
   {
     keys: [{ press: press("Enter") }],
-    does: "Put the cursor into the text, or into the property box that has the focus; on a choice or relation box, open the prompt for its value",
+    does: "On the element: put the cursor into the text (“Edit text”); on the title: into the title (“Edit title”); on a box: into the box, or on a choice or relation box the prompt for its value",
   },
   {
-    keys: [{ press: press("ArrowDown") }, { press: press("n", true), only: "mac" }],
-    does: "To the next field; in the text or a box, from its last line to the next box",
+    keys: [{ press: press("ArrowDown") }],
+    does: "On a field: to the next field; from the last field into the elements of a package page",
   },
-  {
-    keys: [{ press: press("ArrowUp") }, { press: press("p", true), only: "mac" }],
-    does: "To the field before; in the text or a box, from its first line to the box before",
-  },
+  { keys: [{ press: press("ArrowUp") }], does: "On a field: to the field before" },
   {
     keys: [{ press: press("Escape") }],
-    does: "From the text or a box back to its field, and from a field back to the element",
+    does: "In the text or a box: back to its field; on a field: back to the element",
+  },
+];
+
+/**
+ * The keys of a package page's elements (SR-122 AK4): `ctrlStep` on the page (`ElementView`) and `leavesPart` in
+ * its list (`ListView`).
+ */
+export const PACKAGE_KEYS: readonly KeyRow[] = [
+  {
+    keys: [{ press: press("n", true) }],
+    does: "On a package page: select its first element (the physical Ctrl key, also on macOS)",
+  },
+  {
+    keys: [{ press: press("Escape") }, { press: press("ArrowUp") }, { press: press("p", true) }],
+    does: "In the elements of a package page: back to the page (Up and Ctrl+P on the first row)",
+  },
+];
+
+/**
+ * Enter in the title and in a box with one value (`TitleBox`, `TextBox`): it leaves for the field, before the
+ * Markdown keymap; in a box with several values it adds a line.
+ */
+export const LEAVE_KEYS: readonly KeyRow[] = [
+  {
+    keys: [{ press: press("Enter") }, { press: { ...press("Enter"), shiftKey: true } }],
+    does: "In the title or a box with one value: back to its field; in a box with several values, Enter starts the next value",
   },
 ];
 
@@ -65,8 +85,8 @@ export const onDiskKey = (event: KeyPress): "resolve" | "leave" | undefined => {
 };
 
 /**
- * The keys of the block "On disk" (`onDiskKey`), of the links to parents and variants (`ParentsLine`,
- * `VariantLines`), and the click on a value (`isModClick`, in `ElementView`).
+ * The keys of the block "On disk" (`onDiskKey`), of the links to parents, variants and relation targets
+ * (`ParentsLine`, `VariantLines`, `RelationLink`), and the click on a value (`isModClick`, in `ElementView`).
  */
 export const ELEMENT_MORE_KEYS: readonly KeyRow[] = [
   {
@@ -76,7 +96,7 @@ export const ELEMENT_MORE_KEYS: readonly KeyRow[] = [
   { keys: [{ press: press("Escape") }], does: "On the block “On disk”: back to the buffer" },
   {
     keys: [{ press: press("Enter") }],
-    does: "On a link to a parent or a variant: open that element",
+    does: "On a link to a parent, a variant or the target in a relation box: open that element",
   },
   {
     keys: [{ shortcut: MOD_CLICK }],

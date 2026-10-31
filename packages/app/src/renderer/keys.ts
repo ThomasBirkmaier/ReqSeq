@@ -114,6 +114,10 @@ export const ctrlStep = (event: KeyPress): 1 | -1 | undefined => {
 export const rowStep = (event: KeyPress): 1 | -1 | undefined =>
   event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : ctrlStep(event);
 
+/** A part of a buffer (the elements of a package page) is left with Escape, or with Up or Ctrl+P on its first row. */
+export const leavesPart = (event: KeyPress, cursor: number): boolean =>
+  event.key === "Escape" || (rowStep(event) === -1 && cursor === 0);
+
 /**
  * The row a key moves the selection of a list in the main window to (SR-122 AK4/AK5), before the list
  * clamps it to its rows; undefined when the key is not the list's. The list takes (prevents) every key
@@ -230,11 +234,12 @@ const PRESS_NAMES: Readonly<Record<string, string>> = {
 };
 
 /**
- * "Ctrl+N" and "Down", or "⌃N" and "Down" on macOS, as `shortcutLabel` writes a shortcut. A key without a modifier
- * keeps its name on macOS too ("Enter"), as the hints of the command prompt write it.
+ * "Ctrl+N" and "Down", or "⌃N" and "Down" on macOS, as `shortcutLabel` writes a shortcut (Enter "↩" there).
  */
 export const pressLabel = (event: KeyPress, mac: boolean): string => {
-  const key = PRESS_NAMES[event.key] ?? (event.key.length === 1 ? event.key.toUpperCase() : event.key);
+  const named = KEY_NAMES[event.key.toLowerCase()];
+  const plain = PRESS_NAMES[event.key] ?? (event.key.length === 1 ? event.key.toUpperCase() : event.key);
+  const key = named === undefined ? plain : mac ? named.mac : named.plain;
   if (mac) {
     return `${event.ctrlKey ? "⌃" : ""}${event.altKey ? "⌥" : ""}${event.metaKey ? "⌘" : ""}${event.shiftKey ? "⇧" : ""}${key}`;
   }

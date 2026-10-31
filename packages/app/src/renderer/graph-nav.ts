@@ -33,11 +33,19 @@ export const GRAPH_KEYS: readonly KeyRow[] = MOVES.map((move) => ({
   does: move.does,
 }));
 
-/** Enter in the graph of an element (`GraphView`): the selected box becomes the current element. */
-export const GRAPH_OPEN: KeyRow = {
-  keys: [{ press: press("Enter") }],
-  does: "Open the selected box as the current element",
-};
+/** The keys of the depth of the graph of an element (`GraphView`): one level more, one level less. */
+export const DEPTH_MORE = "+";
+export const DEPTH_LESS = "-";
+
+/** Enter and the depth keys in the graph of an element (`GraphView`). */
+export const GRAPH_MORE_KEYS: readonly KeyRow[] = [
+  { keys: [{ press: press("Enter") }], does: "Open the selected box as the current element" },
+  {
+    keys: [{ press: press(DEPTH_MORE) }],
+    does: "In the graph of an element: one level more (“Graph depth”)",
+  },
+  { keys: [{ press: press(DEPTH_LESS) }], does: "In the graph of an element: one level less" },
+];
 
 /** The keys that move the selection. */
 export const GRAPH_MOVES: readonly string[] = MOVES.flatMap((move) => move.keys);
