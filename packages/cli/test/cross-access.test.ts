@@ -105,6 +105,24 @@ const requiredKey = (message: string): string | undefined =>
   /^Required property .+? \(([a-z-]+)\) of type /.exec(message)?.[1];
 
 const ONE_REPOSITORY: FixtureOptions = { fixture: "SR-004/one-repository", git: true };
+/** The metamodel of SR-004/one-repository as the fixture holds it (SR-054 AK3). */
+const STANDARD_MODEL = readFileSync(
+  new URL("../../../fixtures/SR-004/one-repository/metamodel/standard-model.yaml", import.meta.url),
+  "utf8",
+);
+/** The saved mapping of DELIVERY without its entry for the source type Heading (SR-054 AK3). */
+const WITHOUT_HEADING = [
+  "reqseq-reqif-mapping: 1",
+  "source: { name: Kunde A }",
+  "types: [{ source: Customer Requirement, type: system-requirement }]",
+  "attributes:",
+  "  - { source: ReqIF.Name, property: title }",
+  "  - { source: ReqIF.Text, property: text }",
+  "  - { source: Priority, property: requirement-type, values: { High: functional, Low: quality } }",
+  "  - { source: Internal Comment, omit: true }",
+  "relations: [{ source: satisfies, kind: derives-from }]",
+  "",
+].join("\n");
 /** SR-004/one-repository with the delivery and the saved mapping of fixtures/SR-053/delivery (SR-053). */
 const DELIVERY: FixtureOptions = {
   ...ONE_REPOSITORY,
@@ -125,6 +143,28 @@ const REQIF_EXPORT: FixtureOptions = { fixture: "SR-052/package", git: true };
 const ROUND_TRIP: FixtureOptions = { fixture: "SR-052/empty", git: true };
 /** The export time and the header IDENTIFIER of a ReqIF file ReqSeq writes. */
 const EXPORT_MASKS: readonly RegExp[] = [/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z/g, /_hd-[0-9a-f-]{36}/g];
+/** DELIVERY with a mapping of the requirements and their name only, which leaves entries unmapped (SR-055). */
+const PARTIAL_MAPPING = [
+  "reqseq-reqif-mapping: 1",
+  "source: { name: Kunde A }",
+  "types: [{ source: Customer Requirement, type: system-requirement }]",
+  "attributes: [{ source: ReqIF.Name, property: title }]",
+  "",
+].join("\n");
+const PARTIAL_DELIVERY: FixtureOptions = {
+  ...DELIVERY,
+  files: { ...DELIVERY.files, "reqif/kunde-a.yaml": PARTIAL_MAPPING },
+};
+/** A refused import leaves every file as it was and writes no element file (SR-055 AK3). */
+const unchangedDelivery =
+  (mapping: string) =>
+  (results: Readonly<Record<string, Result>>): void => {
+    for (const result of Object.values(results)) {
+      expect(Object.keys(result.files).filter((file) => file.startsWith("Kunde-A/"))).toEqual([]);
+      expect(result.files["reqif/kunde-a.yaml"]).toBe(mapping);
+      expect(result.files["in/lieferung.reqif"]).toBe(DELIVERY.files?.["in/lieferung.reqif"]);
+    }
+  };
 /** Needs, requirements, a decision and a package that point at each other (SR-024). */
 const AFFECTED: FixtureOptions = { fixture: "SR-024/affected", git: true };
 /** Needs, system and component requirements and a variant (SR-022). */
@@ -2131,6 +2171,34 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       expect: "error",
     },
   ],
+  "reqif.analyze": [
+    {
+      tag: "[SR-055/AK1]",
+      name: "a delivery without mapping: every type and relation type with its attributes is unmapped",
+      fixture: DELIVERY,
+      input: { file: "in/lieferung.reqif" },
+      expect: "output",
+    },
+    {
+      tag: "[SR-055/AK1]",
+      name: "a delivery through a mapping that leaves entries unmapped: the list before any write",
+      fixture: PARTIAL_DELIVERY,
+      input: { file: "in/lieferung.reqif", mapping: "reqif/kunde-a.yaml" },
+      expect: "output",
+    },
+    {
+      name: "a delivery through its saved mapping: the objects the import would create and its losses",
+      fixture: DELIVERY,
+      input: { file: "in/lieferung.reqif", mapping: "reqif/kunde-a.yaml" },
+      expect: "output",
+    },
+    {
+      name: "a file that is no ReqIF is refused (reqif.invalid)",
+      fixture: DELIVERY,
+      input: { file: "reqif/kunde-a.yaml" },
+      expect: "error",
+    },
+  ],
   "reqif.import": [
     {
       tag: "[SR-052/AK3]",
@@ -2149,10 +2217,96 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       newElement: true,
     },
     {
-      name: "a file that is no ReqIF is refused (reqif.invalid)",
+      tag: "[SR-055/AK3]",
+      name: "a file that is no ReqIF is refused (reqif.invalid), changing no file",
       fixture: DELIVERY,
       input: { file: "reqif/kunde-a.yaml", mapping: "reqif/kunde-a.yaml", delivery: "x" },
       expect: "error",
+      check: unchangedDelivery(String(DELIVERY.files?.["reqif/kunde-a.yaml"])),
+    },
+    {
+      tag: "[SR-055/AK1]",
+      name: "a mapping that leaves entries unmapped is refused with reqif.unmapped and the list of reqif.analyze",
+      fixture: PARTIAL_DELIVERY,
+      input: { file: "in/lieferung.reqif", mapping: "reqif/kunde-a.yaml", delivery: "1" },
+      expect: "error",
+      check: (results) => {
+        const error = (
+          results["core"]?.outcome as { error?: { code: string; details?: { unmapped?: unknown } } }
+        ).error;
+        expect(error?.code).toBe("reqif.unmapped");
+        expect(error?.details?.unmapped).toEqual([
+          { kind: "attribute", source: "ReqIF.Text", sourceType: "Customer Requirement" },
+          { kind: "attribute", source: "Priority", sourceType: "Customer Requirement" },
+          { kind: "attribute", source: "Internal Comment", sourceType: "Customer Requirement" },
+          { kind: "type", source: "Heading" },
+          { kind: "attribute", source: "Heading Text", sourceType: "Heading" },
+          { kind: "relation", source: "satisfies" },
+        ]);
+      },
+    },
+    {
+      tag: "[SR-055/AK3]",
+      name: "a refusal with reqif.unmapped changes no file",
+      fixture: PARTIAL_DELIVERY,
+      input: { file: "in/lieferung.reqif", mapping: "reqif/kunde-a.yaml", delivery: "1" },
+      expect: "error",
+      check: unchangedDelivery(PARTIAL_MAPPING),
+    },
+    {
+      tag: "[SR-055/AK2]",
+      name: "after every entry is mapped or omitted in the mapping file, the import runs",
+      fixture: DELIVERY,
+      input: { file: "in/lieferung.reqif", mapping: "reqif/kunde-a.yaml", delivery: "1" },
+      expect: "output",
+      newElement: true,
+    },
+    {
+      tag: "[SR-054/AK2]",
+      name: "the same source again through the saved mapping the command names, without a question on types and attributes",
+      fixture: DELIVERY,
+      input: { file: "in/lieferung.reqif", mapping: "reqif/kunde-a.yaml", delivery: "Lastenheft 2026-12" },
+      expect: "output",
+      newElement: true,
+      check: (results) => {
+        const files = results["core"]?.files ?? {};
+        const output = (
+          results["core"]?.outcome as { output: { created: readonly { identifier: string }[] } }
+        ).output;
+        expect(output.created.map((c) => c.identifier)).toEqual(["REQ-1", "REQ-2"]);
+        // The types and attributes come from the file; the mapping is used as saved, not rewritten.
+        expect(files["reqif/kunde-a.yaml"]).toBe(DELIVERY.files?.["reqif/kunde-a.yaml"]);
+        expect(files["Kunde-A/SR-<tail12-0>.md"]).toContain("type: system-requirement");
+      },
+    },
+    {
+      tag: "[SR-054/AK3]",
+      name: "reading the types and attributes of the source leaves the own metamodel as it was",
+      fixture: DELIVERY,
+      input: { file: "in/lieferung.reqif", mapping: "reqif/kunde-a.yaml", delivery: "Lastenheft 2026-11" },
+      expect: "output",
+      newElement: true,
+      check: (results) => {
+        for (const { files } of Object.values(results)) {
+          expect(Object.keys(files).filter((f) => f.startsWith("metamodel/"))).toEqual([
+            "metamodel/standard-model.yaml",
+          ]);
+          expect(files["metamodel/standard-model.yaml"]).toBe(STANDARD_MODEL);
+        }
+      },
+    },
+    {
+      tag: "[SR-054/AK3]",
+      name: "a source type the mapping does not name is refused (reqif.unmapped), the own metamodel unchanged",
+      fixture: { ...DELIVERY, files: { ...DELIVERY.files, "reqif/kunde-a.yaml": WITHOUT_HEADING } },
+      input: { file: "in/lieferung.reqif", mapping: "reqif/kunde-a.yaml", delivery: "Lastenheft 2026-11" },
+      expect: "error",
+      check: (results) => {
+        for (const { outcome, files } of Object.values(results)) {
+          expect(JSON.stringify(outcome)).toContain("reqif.unmapped");
+          expect(files["metamodel/standard-model.yaml"]).toBe(STANDARD_MODEL);
+        }
+      },
     },
   ],
   "reqif.saveMapping": [

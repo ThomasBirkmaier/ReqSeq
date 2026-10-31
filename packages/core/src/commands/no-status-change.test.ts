@@ -288,6 +288,11 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
   ],
   // The status is exported for information only.
   "reqif.export": [{ output: "out.reqif" }, { output: "out.reqif", profile: "p" }],
+  "reqif.analyze": [
+    { file: IMPORT.file },
+    { file: IMPORT.file, mapping: IMPORT.mapping },
+    { file: "in/missing.reqif" },
+  ],
   // A mapping that maps an attribute to `status` is refused: the delivery never sets a status.
   "reqif.import": [
     IMPORT,

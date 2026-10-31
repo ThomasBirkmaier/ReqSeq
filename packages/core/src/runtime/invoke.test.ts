@@ -347,7 +347,7 @@ describe("invoke (product runtime)", () => {
     expect(run.mock.calls.map(([, options]) => options)).toEqual([{ writes: true }, { writes: false }]);
   });
 
-  it("runs on a fixture workspace and reports catalog commands without implementation", async () => {
+  it("runs on a fixture workspace through the product runtime, created once", async () => {
     const fixture = await createFixtureWorkspace({
       files: { "reqseq-workspace.yaml": "reqseq-workspace: 1\n" },
       git: true,
@@ -355,17 +355,12 @@ describe("invoke (product runtime)", () => {
     onTestFinished(() => fixture.cleanup());
     const ws = new Workspace(fixture.root);
     expect(fs.existsSync(fixture.path("reqseq-workspace.yaml"))).toBe(true);
-    // reqif.analyze is a stage 6 command: in the catalog, not implemented yet.
-    const err = await rejection(invoke("reqif.analyze", {}, { workspace: ws }));
-    expect(err.toJSON()).toEqual({
-      code: "command.not-implemented",
-      message: "Command reqif.analyze is not implemented yet",
-      details: { command: "reqif.analyze" },
-    });
+    // Every command of the product catalog is implemented (reqif.export was the last, SR-052), so
+    // the product runtime is shown by its input check; command.not-implemented by the test catalog.
+    const err = await rejection(invoke("reqif.export", {}, { workspace: ws }));
+    expect(err.code).toBe("input.invalid");
     // The default runtime is created once and reused.
-    expect((await rejection(invoke("reqif.analyze", {}, { workspace: ws }))).code).toBe(
-      "command.not-implemented",
-    );
+    expect((await rejection(invoke("reqif.export", {}, { workspace: ws }))).code).toBe("input.invalid");
   });
 });
 

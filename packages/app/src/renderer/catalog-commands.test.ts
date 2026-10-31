@@ -158,10 +158,11 @@ describe("catalog commands in the command prompt", () => {
     const reads = CATALOG.filter((entry) => entry.implemented && entry.effect === "read");
     expect(reads.length).toBeGreaterThan(10);
     expect(reads.filter((entry) => !reachable(entry)).map((entry) => entry.name)).toEqual([]);
-    // Covered commands are not listed twice, the unimplemented ones not yet.
+    // Covered commands are not listed twice; the implemented ones are, reqif.export too.
     expect(offered.has("Get element")).toBe(false);
     expect(offered.has("Update element")).toBe(false);
-    expect(offered.has("Analyse ReqIF file")).toBe(false);
+    expect(offered.has("Export ReqIF")).toBe(true);
+    expect(offered.has("Analyse ReqIF file")).toBe(true);
     expect(offered.has("Show relation options")).toBe(true);
   });
 
