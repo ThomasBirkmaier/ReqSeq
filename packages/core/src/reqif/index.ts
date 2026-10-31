@@ -13,3 +13,11 @@ export type { AnyMapping, MappingFile, MappingTarget } from "./mapping.js";
 export { REQIF_LIMITS, parseReqif } from "./parse.js";
 export { planImport } from "./import.js";
 export type { ImportPlan } from "./import.js";
+export { markdownToXhtml, xhtmlToMarkdown } from "./xhtml-markdown.js";
+export type {
+  MarkdownOfXhtml,
+  XhtmlImage,
+  XhtmlLoss,
+  XhtmlOfMarkdown,
+  XhtmlOptions,
+} from "./xhtml-markdown.js";
