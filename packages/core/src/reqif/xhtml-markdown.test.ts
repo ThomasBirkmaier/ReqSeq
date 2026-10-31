@@ -185,7 +185,7 @@ describe("xhtmlToMarkdown", () => {
     expect(cell.markdown.split("<br>")).toHaveLength(lines);
     const exportedLines = markdownToXhtml("x  \n".repeat(lines) + "x");
     expect(exportedLines.asWritten).toBe(false);
-    expect(exportedLines.value.children[0]).toMatchObject({ name: "p", children: { length: 3 * lines + 1 } });
+    expect(exportedLines.value.children[0]).toMatchObject({ name: "p", children: { length: 2 * lines + 1 } });
   }, 60_000);
 
   it("[SR-095/AK3] lists a style and elements without Markdown counterpart as losses and keeps their text", () => {
@@ -203,6 +203,27 @@ describe("xhtmlToMarkdown", () => {
       { code: "xhtml-element", reason: "<q> in no namespace" },
     ]);
     expect(codes('<p style="margin:0">x</p>')).toEqual(["xhtml-style"]);
+  });
+
+  it("[SR-095/AK3] flattens blocks inside inline content to lines, keeps their text and lists them as losses (#580)", () => {
+    const converted = xhtmlToMarkdown(
+      value(
+        "<p>a<ins>b<h1>H</h1>c<pre>P\nQ</pre>d<ul><li>L</li></ul>e<hr/>f<table><tr><td>T</td></tr></table>g<p>p</p></ins>z</p><div><strong>s<h2>S</h2></strong> <em>e<b>i<pre>E</pre></b></em></div>",
+      ),
+    );
+    expect(converted.markdown).toBe(
+      "ab\\\nH\\\nc\\\nP\\\nQ\\\nd\\\nL\\\ne\\\nf\\\nT\\\ng\\\np\\\nz\n\n**s\\\nS** *e**i\\\nE***",
+    );
+    expect(converted.losses).toEqual([
+      { code: "xhtml-element", reason: "<h1> inside <p>" },
+      { code: "xhtml-element", reason: "<pre> inside <p>" },
+      { code: "xhtml-element", reason: "<ul> inside <p>" },
+      { code: "xhtml-element", reason: "<hr> inside <p>" },
+      { code: "xhtml-element", reason: "<table> inside <p>" },
+      { code: "xhtml-element", reason: `<ins> in ${XHTML_NAMESPACE}` },
+      { code: "xhtml-element", reason: "<h2> inside <strong>" },
+      { code: "xhtml-element", reason: "<pre> inside <em>" },
+    ]);
   });
 
   it("lists the images of the text as written and keeps a non-image object's content", () => {
@@ -279,14 +300,22 @@ describe("markdownToXhtml", () => {
     );
   });
 
-  it("keeps inline raw HTML as text nodes", () => {
+  it("keeps inline raw HTML as text, in one run with the text around it", () => {
     const [paragraph] = markdownToXhtml("a <b>x</b>").value.children;
     expect(paragraph).toEqual({
       name: "p",
       namespace: XHTML_NAMESPACE,
       attributes: [],
-      children: ["a ", "<b>", "x", "</b>"],
+      children: ["a <b>x</b>"],
     });
+  });
+
+  it("writes each run of text as one text node and no empty one, as a parser reads the file back (#579)", () => {
+    const [paragraph, code] = markdownToXhtml("before\\\nafter  \nend\n\n```\n```").value.children;
+    expect(paragraph).toMatchObject({
+      children: ["before", { name: "br" }, "\nafter", { name: "br" }, "\nend"],
+    });
+    expect(code).toMatchObject({ name: "pre", children: [{ name: "code", children: [] }] });
   });
 
   it("writes images as object with data and type, through the image option", () => {
