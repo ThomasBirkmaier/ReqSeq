@@ -1008,7 +1008,7 @@ export interface MetamodelProperty {
 }
 
 /**
- * Built-in meaning (D-012, D-059): `title`; `validity` (list of variants, D-020); `packages` (D-040); `emergent` (emergent behaviour, N-010; a choice without `many` whose key `yes` is the mark, SR-035; otherwise a warning and nothing is marked); `verification-method`; `statement` (Stellungnahme for ReqIF, SR-058); `source`, `source-identifier`, `import-date`, `delivery` (origin of imported elements, written only by ReqIF import, SR-057); `identifier` (an ID from another source, such as the spec ID SR-036 or a customer ID, D-017; unique per type; element references accept it besides the UUID and short ID, and outputs show it next to the short ID, #305). A property with the meaning `identifier` is of kind `text` without `many`.
+ * Built-in meaning (D-012, D-059): `title`; `validity` (list of variants, D-020); `packages` (D-040); `emergent` (emergent behaviour, N-010; a choice without `many` whose key `yes` is the mark, SR-035; otherwise a warning and nothing is marked); `verification-method`; `statement` (Stellungnahme for ReqIF, SR-058); `source`, `source-identifier`, `import-date`, `delivery`, `import-version` (origin of imported elements, written only by ReqIF import, SR-057; `import-version` is the Importfassung, D-059: the version of what the import wrote, right after the last import, kind `text` without `many` and never `content`); `identifier` (an ID from another source, such as the spec ID SR-036 or a customer ID, D-017; unique per type; element references accept it besides the UUID and short ID, and outputs show it next to the short ID, #305). A property with the meaning `identifier` is of kind `text` without `many`.
  * Schema: `schemas/metamodel.schema.json#/$defs/propertyMeaning`.
  */
 export type MetamodelPropertyMeaning =
@@ -1022,6 +1022,7 @@ export type MetamodelPropertyMeaning =
   | "source-identifier"
   | "import-date"
   | "delivery"
+  | "import-version"
   | "identifier";
 
 /**

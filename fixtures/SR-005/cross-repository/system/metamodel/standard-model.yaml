@@ -11,13 +11,13 @@ types:
     description: "What a stakeholder needs, in their own words. System requirements derive from needs."
     prefix: N
     meaning: need
-    properties: [title, rationale, topic]
+    properties: [title, rationale, topic, source, source-identifier, import-date, delivery, import-version]
     required: [title]
   - key: use-case
     name: Use Case
     description: "A goal a user reaches with the system, step by step. Requirements can refine it."
     prefix: UC
-    properties: [title, rationale]
+    properties: [title, rationale, source, source-identifier, import-date, delivery, import-version]
     required: [title]
   - key: system-requirement
     name: System Requirement
@@ -39,6 +39,7 @@ types:
         source-identifier,
         import-date,
         delivery,
+        import-version,
         topic,
       ]
     required: [title, requirement-type, acceptance-criteria]
@@ -46,7 +47,7 @@ types:
     name: Decision
     description: "A decision with its rationale; requirements are based on it."
     prefix: D
-    properties: [title, rationale]
+    properties: [title, rationale, source, source-identifier, import-date, delivery, import-version]
     required: [title]
   - key: variant
     name: Variant
@@ -161,6 +162,16 @@ properties:
       kind: text,
       meaning: delivery,
       description: "The name of the delivery the element was imported from.",
+    }
+  # D-059: Import Version has the meaning import-version (Importfassung), written only by the
+  # import and never counted to the version. Need, Use Case and Decision carry the origin as
+  # System Requirement does, so that a ReqIF export of them can be imported again (assumption, #511).
+  - {
+      key: import-version,
+      name: Import Version,
+      kind: text,
+      meaning: import-version,
+      description: "The import version: the version of what the import wrote, right after the last import.",
     }
   # D-060 names only the property. Marked "assumption": kind text (the topics belong to the
   # project, D-019), on need and system-requirement as this spec uses "thema", not content
