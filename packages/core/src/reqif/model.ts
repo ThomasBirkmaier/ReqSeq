@@ -26,6 +26,11 @@ export interface ReqifEnumValue extends ReqifIdentifiable {
 
 export interface ReqifDatatype extends ReqifIdentifiable {
   readonly kind: ReqifDatatypeKind;
+  /** The facets as written: `MAX-LENGTH` of a STRING, `MIN` and `MAX` of an INTEGER or REAL, `ACCURACY` of a REAL. */
+  readonly maxLength?: string;
+  readonly min?: string;
+  readonly max?: string;
+  readonly accuracy?: string;
   /** `SPECIFIED-VALUES` of an enumeration; empty for the other kinds. */
   readonly values: readonly ReqifEnumValue[];
 }

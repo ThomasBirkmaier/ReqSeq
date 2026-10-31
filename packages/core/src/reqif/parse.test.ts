@@ -170,6 +170,14 @@ describe("parseReqif", () => {
       "boolean",
       "enumeration",
     ]);
+    expect(
+      file.datatypes.slice(0, 4).map(({ maxLength, min, max, accuracy }) => [maxLength, min, max, accuracy]),
+    ).toEqual([
+      ["10000", undefined, undefined, undefined],
+      [undefined, undefined, undefined, undefined],
+      [undefined, "0", "1000", undefined],
+      [undefined, "0", "100", "2"],
+    ]);
     expect(file.datatypes[6]?.values.map((v) => [v.identifier, v.key, v.otherContent])).toEqual([
       ["ev-high", "1", ""],
       ["ev-low", "2", "lowest"],
