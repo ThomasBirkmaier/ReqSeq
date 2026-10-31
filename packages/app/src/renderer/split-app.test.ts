@@ -277,11 +277,13 @@ const openElement = async (): Promise<void> => {
 /** Element 1 on the left (active) and element 2 on the right, after Split window. */
 const twoElements = async (): Promise<void> => {
   await openElement();
-  // Back to the list (Alt+P), its second row, then Alt+P again to element 1: element 2 was used before it.
+  // Back to the list (Alt+P), its second row, then Ctrl+P to element 1: element 2 was used before it.
   await press(window, { key: "p", code: "KeyP", altKey: true });
   await press(query('[role="listbox"]'), { key: "ArrowDown" });
   await press(query('[role="listbox"]'), { key: "Enter" });
-  await press(window, { key: "p", code: "KeyP", altKey: true });
+  await press(window, { key: "p", ctrlKey: true });
+  await press(query("input"), { key: "ArrowDown" });
+  await press(query("input"), { key: "Enter" });
   await runCommand("Split window");
   expect(areas()).toEqual(["SR-000001 Title 1*", "SR-000002 Title 2"]);
 };
@@ -435,10 +437,14 @@ describe("App, Split window (SR-115 AK3)", () => {
     }
     await press(list(), { key: "Enter" });
     expect(areas()).toEqual(["SR-000001 Title 1*"]);
-    // Back to the package page and to element 1 again, so the page is the buffer used before.
-    await press(window, { key: "p", code: "KeyP", altKey: true });
+    // Back to the package page and to element 1 again (Ctrl+P), so the page is the buffer used before.
+    await press(window, { key: "p", ctrlKey: true });
+    await press(query("input"), { key: "ArrowDown" });
+    await press(query("input"), { key: "Enter" });
     expect(areas()).toEqual(["SR-000009 Title 9*"]);
-    await press(window, { key: "n", code: "KeyN", altKey: true });
+    await press(window, { key: "p", ctrlKey: true });
+    await press(query("input"), { key: "Enter" });
+    expect(areas()).toEqual(["SR-000001 Title 1*"]);
     // The page's elements answer while nothing has the focus (the reader clicked beside the window).
     let answer: () => void = () => undefined;
     members = new Promise((resolve) => {
