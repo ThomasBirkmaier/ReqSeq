@@ -38,9 +38,10 @@ import { PREFIX } from "./bindings.js";
 import { isMac, matches } from "./keys.js";
 import { Minibuffer } from "./Minibuffer.js";
 import { ModelineBar } from "./ModelineBar.js";
-import { openingOrder, seedOrder } from "./opening-order.js";
+import type { Walk } from "./buffer-cycle.js";
+import { NO_WALK, cycleOrder } from "./buffer-cycle.js";
 import type { PackageModel } from "./package-page.js";
-import { packageModel, packageOf } from "./package-page.js";
+import { packageModel } from "./package-page.js";
 import type { BufferData, WorkspaceView } from "./modeline.js";
 import {
   bufferView,
@@ -75,7 +76,7 @@ import { usePrefix } from "./use-prefix.js";
 import { promptUse } from "./usage.js";
 import { EMPTY_WINDOW, areas, isSplit, reduceWindow } from "./window-layout.js";
 import type { MarkState, PendingMark } from "./follow-mark.js";
-import { NO_MARK, bringsNew, markStep } from "./follow-mark.js";
+import { NO_MARK, markStep } from "./follow-mark.js";
 
 const STOPPED = "The core process keeps stopping. Open the workspace again with File > Open Workspace.";
 const MESSAGES: Readonly<Record<string, string>> = {
@@ -169,9 +170,6 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   const split = isSplit(layout);
   const shownAreas = areas(windowState);
   const current = buffers[0];
-  // The element that following or "Open to the right/left" put into the inactive area (SR-150 AK4): only it
-  // is replaced by the next element marked.
-  const followed = useRef<string | undefined>(undefined);
   const { drafts, armed, onDraft, update: updateDraft, reset: resetDrafts } = useDrafts(current?.key);
   // Per element buffer while it is open (SR-105): its undo history, and its saves, in order.
   const memories = useRef(new Map<string, UndoMemory>());
@@ -216,8 +214,8 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   // Go to asks core nothing when it opens, so its search is not queued behind reads of these elements.
   const recentNames = useRef(new Map<string, ElementBuffer>());
   const scope = useRef<string | undefined>(undefined);
-  // The order in which the open buffers were opened (SR-115 AK5), kept apart from their order of use.
-  const openOrder = useRef<readonly string[]>([]);
+  // The order Next and Previous buffer walk (SR-115 AK5), and the buffer they switched to last.
+  const walk = useRef<Walk>(NO_WALK);
   // The workspace whose open buffers are stored (SR-115 AK4): set once the buffers stored for it are
   // restored, unset when another workspace opens. So the reset of a start or a switch never overwrites
   // what is still to be restored.
@@ -276,8 +274,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     // repositories can change while it is open, and the buffers follow (SR-115 AK4).
     let currentKey: string | undefined;
     // The buffers open when this workspace was last left come back behind the overview (SR-115 AK4): the
-    // overview shows at once (SR-118 AK1), the restored ones once their elements are named. Their order
-    // of opening is the stored one (SR-115 AK5), before what was opened while they were read.
+    // overview shows at once (SR-118 AK1), the restored ones once their elements are named.
     const restoreBuffers = (key: string | undefined, asked: number): void => {
       if (key === undefined) {
         return;
@@ -287,7 +284,6 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
           if (!mounted || asked !== opened) {
             return;
           }
-          openOrder.current = seedOrder(restored.opened, openOrder.current);
           // A name that could not be read (core restarting) keeps the stored
           // buffers as they are: nothing is stored for this workspace until it opens again.
           if (restored.complete) {
@@ -496,13 +492,13 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     );
   }, [buffers]);
 
-  openOrder.current = openingOrder(openOrder.current, buffers);
+  walk.current = cycleOrder(walk.current, buffers);
   // The open buffers are stored on every change, for the next start (SR-115 AK4).
   useEffect(() => {
     if (session === undefined) {
       return;
     }
-    const text = sessionText(buffers, openOrder.current);
+    const text = sessionText(buffers);
     if (sessionStored.current !== `${session}\n${text}`) {
       sessionStored.current = `${session}\n${text}`;
       saveSession(appStorage, session, text);
@@ -515,7 +511,10 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     workspace: view?.name !== undefined,
     readOnly: readOnlyNow(view),
     buffers,
-    opened: openOrder.current,
+    cycleOrder: walk.current.order,
+    cycled: (key) => {
+      walk.current = { order: walk.current.order, cycled: key };
+    },
     leaveEditor: () => {
       const focused = document.activeElement;
       if (focused instanceof HTMLElement && focused.closest(".cm-editor") !== null) {
@@ -564,14 +563,12 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     layout: {
       other: layout.other,
       split: () => {
-        dispatch({ type: "split" });
+        dispatch({ type: "split", marked });
       },
       unsplit: () => {
         dispatch({ type: "unsplit" });
       },
       beside: (side, buffer) => {
-        // Only an element not open before counts as brought in: one the reader had open is never replaced.
-        followed.current = buffers.some((open) => open.key === buffer.key) ? undefined : buffer.key;
         dispatch({ type: "beside", side, buffer });
       },
     },
@@ -815,8 +812,8 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     }
   }, [current?.key]);
 
-  // SR-150 AK4, AK5: in a split window the inactive area follows what the reader newly marks in the active
-  // one (`follow-mark.ts`).
+  // SR-150 AK4, AK5: in a split window a preview in the inactive area follows what the reader newly marks in
+  // the active one (`follow-mark.ts`, `window-layout.ts`).
   const token = markToken(current);
   const lastMark = useRef<MarkState>(NO_MARK);
   const pendingMark = useRef<PendingMark | undefined>(undefined);
@@ -826,17 +823,10 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     const step = markStep(lastMark.current, now, pendingMark.current);
     lastMark.current = now;
     pendingMark.current = step.pending;
-    if (!step.follow || other === undefined || marked === undefined) {
-      return;
+    if (step.follow && other !== undefined && marked !== undefined && layout.preview !== undefined) {
+      dispatch({ type: "follow", buffer: marked, replace: !drafts.current.has(other) });
     }
-    const otherData = loadedByKey.get(other);
-    const page = otherData?.kind === "element" && packageOf(packages, otherData.element.type) !== undefined;
-    const replace = followed.current === other && !drafts.current.has(other);
-    if (bringsNew(buffers, other, marked.key, page)) {
-      followed.current = marked.key;
-    }
-    dispatch({ type: "follow", buffer: marked, replace, page });
-  }, [current?.key, token, marked?.key, layout.other]);
+  }, [current?.key, token, marked?.key, layout.other, layout.preview]);
 
   const onData = useCallback((key: string, data: BufferData | undefined): void => {
     setLoaded((before) => new Map(before).set(key, data));

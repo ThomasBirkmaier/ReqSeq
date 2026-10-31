@@ -8,6 +8,7 @@ import type {
   FilterSortKeyWithDefaults,
   TraceGraphInput,
 } from "@reqseq/core";
+import { idTitle } from "./id-title.js";
 import { hasSavedFilter } from "./list-filters.js";
 
 /** One step of a list filter: the text the label shows and what it adds to the selection (a condition or a saved filter). */
@@ -386,7 +387,7 @@ export const elementBufferOf = (element: {
   elementBuffer(
     element.id,
     element.repository,
-    `${element.identifier ?? element.shortId} ${element.title}`.trim(),
+    idTitle(element.identifier ?? element.shortId, element.title),
   );
 
 /**
@@ -402,7 +403,7 @@ export const relationBuffer = (
     : elementBuffer(
         relation.id,
         relation.repository,
-        `${relation.identifier ?? relation.shortId ?? relation.id} ${relation.title ?? ""}`.trim(),
+        idTitle(relation.identifier ?? relation.shortId ?? relation.id, relation.title),
       );
 
 /**

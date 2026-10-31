@@ -2,7 +2,7 @@
 // (a prompt) it is an input with the candidates rising above the modeline, not a dialog, only while asked.
 import { useEffect, useRef, useState } from "react";
 import type { Choice, Prompt, PromptFill } from "./actions.js";
-import { NEXT_BUFFER_SHORTCUT, PREVIOUS_BUFFER_SHORTCUT } from "./actions.js";
+import { NEXT_BUFFER_SHORTCUT, OTHER_WINDOW_SHORTCUT, PREVIOUS_BUFFER_SHORTCUT } from "./actions.js";
 import { highlightRanges, highlightTerms } from "./highlight.js";
 import type { Part } from "./highlight.js";
 import type { Ranked } from "./fuzzy.js";
@@ -276,9 +276,13 @@ const PromptLine = ({
       setSelected(Math.max(0, Math.min(rows.length - 1, selected + step)));
       return;
     }
-    // Alt+N and Alt+P (Option on macOS) switch no buffer while a prompt is open: they type what the
-    // layout gives (Option+N "~" on a German Mac), and go no further.
-    if (matches(event, NEXT_BUFFER_SHORTCUT, mac) || matches(event, PREVIOUS_BUFFER_SHORTCUT, mac)) {
+    // Alt+N, Alt+P and Alt+O (Option on macOS) switch no buffer or area while a prompt is open: they type
+    // what the layout gives (Option+N "~" on a German Mac), and go no further.
+    if (
+      [NEXT_BUFFER_SHORTCUT, PREVIOUS_BUFFER_SHORTCUT, OTHER_WINDOW_SHORTCUT].some((key) =>
+        matches(event, key, mac),
+      )
+    ) {
       event.stopPropagation();
       return;
     }

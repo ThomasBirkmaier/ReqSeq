@@ -113,14 +113,10 @@ const everyKind = (): Buffer[] => [
 const names = fakeCall({ "element.list": listing(row(1), row(2), row(3, "other")) });
 
 describe("buffer session (SR-115 AK4)", () => {
-  it("[SR-115/AK4] stores and restores every kind of buffer with its order of use and of opening", async () => {
+  it("[SR-115/AK4] stores and restores every kind of buffer with its order of use", async () => {
     const buffers = everyKind();
-    // Opened in another order than used: the overview first.
-    const opened = ["overview", "list", "element:spec:uuid-1", "search:wind"].concat(
-      buffers.slice(4).map((buffer) => buffer.key),
-    );
     const storage = memory();
-    saveSession(() => storage, "key", sessionText(buffers, opened));
+    saveSession(() => storage, "key", sessionText(buffers));
 
     const restored = await restoreSession(
       loadSession(() => storage, "key"),
@@ -129,7 +125,6 @@ describe("buffer session (SR-115 AK4)", () => {
     );
 
     expect(restored.buffers.map((buffer) => buffer.key)).toEqual(buffers.map((buffer) => buffer.key));
-    expect(restored.opened).toEqual(opened);
     // What rebuilds a buffer comes back; the selected rows and the output do not (a list starts with no row
     // selected, a result runs again when it is shown).
     const [search, element, overview, list, neighbourhood, graph, metamodel, result] = restored.buffers;
@@ -169,13 +164,13 @@ describe("buffer session (SR-115 AK4)", () => {
       readOnlyBuffer(elementBuffer("uuid-1", "spec", "SR-1 Secret title 1")),
       graphBuffer("uuid-3", "other", "SR-3 Secret title 3"),
     ];
-    saveSession(() => storage, "plain", sessionText(plain, []));
+    saveSession(() => storage, "plain", sessionText(plain));
     const again = await restoreSession(
       loadSession(() => storage, "plain"),
       names.call,
       CATALOG,
     );
-    expect(again).toEqual({ buffers: plain, opened: [], complete: true });
+    expect(again).toEqual({ buffers: plain, complete: true });
     // The names come from one read of the elements by their UUIDs; nothing is written.
     expect(names.calls).toEqual([
       { name: "element.list", input: { selection: { ids: ["uuid-1", "uuid-2", "uuid-3"] } } },
@@ -185,10 +180,7 @@ describe("buffer session (SR-115 AK4)", () => {
 
   it("[SR-115/AK4] keeps nothing of a storage that throws or holds something else, and stores no title or text", () => {
     const buffers = everyKind();
-    const text = sessionText(
-      buffers,
-      buffers.map((buffer) => buffer.key),
-    );
+    const text = sessionText(buffers);
     // Neither an element's title nor the output of a result is stored, and no selected row.
     expect(text).not.toContain("Secret title");
     expect(text).not.toContain("secret");
@@ -214,7 +206,7 @@ describe("buffer session (SR-115 AK4)", () => {
       const storage = memory(content === undefined ? {} : { key: content });
       expect(loadSession(() => storage, "key")).toEqual(NO_SESSION);
     }
-    // An entry that is no buffer of this app is left out, the others stay with their order of opening.
+    // An entry that is no buffer of this app is left out, the others stay in their order.
     const foreign = memory({
       key: JSON.stringify({
         buffers: [
@@ -245,7 +237,6 @@ describe("buffer session (SR-115 AK4)", () => {
             matrix: "yes",
           },
         ],
-        opened: [21, "0", 1, 0, 0, 20, -1, 99],
       }),
     });
     expect(loadSession(() => foreign, "key")).toEqual({
@@ -257,16 +248,11 @@ describe("buffer session (SR-115 AK4)", () => {
           steps: [{ label: "status: draft", selection: { where: { status: "draft" }, filter: "mine" } }],
         },
       ],
-      opened: [2, 0, 1],
     });
-    // Without an order of opening the buffers still come back.
-    const unordered = memory({ key: JSON.stringify({ buffers: [{ kind: "overview" }], opened: "all" }) });
-    expect(loadSession(() => unordered, "key")).toEqual({ buffers: [{ kind: "overview" }], opened: [] });
     // At most the buffers the app keeps.
     const many = memory({
       key: JSON.stringify({
         buffers: Array.from({ length: MAX_BUFFERS + 5 }, (_, n) => ({ kind: "search", query: String(n) })),
-        opened: [],
       }),
     });
     expect(loadSession(() => many, "key").buffers).toHaveLength(MAX_BUFFERS);
@@ -300,7 +286,6 @@ describe("buffer session (SR-115 AK4)", () => {
         { kind: "search", query: "wind" },
         { kind: "search", query: "wind" },
       ],
-      opened: [7, 1, 6, 0, 2],
     };
     // The read of all names fails when one element is gone: each is read by itself.
     const { call, calls } = fakeCall({
@@ -319,7 +304,6 @@ describe("buffer session (SR-115 AK4)", () => {
       "result:evidence.list:{}",
       "search:wind",
     ]);
-    expect(restored.opened).toEqual(["search:wind", "element:spec:uuid-1", "graph:spec:uuid-1"]);
     expect(calls.map((made) => made.name)).toEqual(["element.list", "element.get", "element.get"]);
     // An element that is gone leaves the restore complete: the stored session may be overwritten.
     expect(restored.complete).toBe(true);
@@ -329,15 +313,13 @@ describe("buffer session (SR-115 AK4)", () => {
     const quiet = vi.fn<() => Promise<readonly CommandListing[]>>();
     expect(await restoreSession(NO_SESSION, call, quiet)).toEqual({
       buffers: [],
-      opened: [],
       complete: true,
     });
     expect(quiet).not.toHaveBeenCalled();
     // Buffers that name no element read no names and no catalog.
     const before = calls.length;
-    expect(await restoreSession({ buffers: [{ kind: "overview" }], opened: [0] }, call, quiet)).toEqual({
+    expect(await restoreSession({ buffers: [{ kind: "overview" }] }, call, quiet)).toEqual({
       buffers: [overviewBuffer()],
-      opened: ["overview"],
       complete: true,
     });
     expect(calls).toHaveLength(before);
@@ -351,7 +333,6 @@ describe("buffer session (SR-115 AK4)", () => {
         { kind: "element", id: "uuid-2", repository: "spec" },
         { kind: "search", query: "wind" },
       ],
-      opened: [0, 1, 2],
     };
     // Core restarting: every read answers `internal`.
     const failing = fakeCall({

@@ -101,10 +101,22 @@ export interface ReqifHeader {
   readonly version?: string;
 }
 
-/** A part of the file the model does not read, by element name, for the loss list (SR-053 AK2). */
+/** The SPEC-OBJECT, SPEC-RELATION or SPECIFICATION an unread part belongs to. */
+export interface ReqifOwner {
+  readonly kind: "spec-object" | "spec-relation" | "specification";
+  readonly identifier: string;
+}
+
+/**
+ * An element of the file the model does not read, with what is inside it, by its local name and
+ * namespace. With an `owner` it is a loss of that object for the import's loss list (`reqifLoss`,
+ * SR-053 AK2); without, it belongs to no object (a type, a datatype, a part of the file).
+ */
 export interface ReqifUnread {
   readonly name: string;
+  readonly namespace: string;
   readonly line: number;
+  readonly owner?: ReqifOwner;
 }
 
 export interface ReqifFile {

@@ -10,3 +10,4 @@ schemas/examples/version/** -text -whitespace
 fixtures/SR-029/enrich/results/** -text -whitespace
 # The JUnit file of the pytest example (SR-063) is a recording of the real pytest, kept byte for byte.
 toolchain/junit/pytest/results.xml -text -whitespace
+toolchain/reqif/samples/bom-crlf.reqif -text -whitespace

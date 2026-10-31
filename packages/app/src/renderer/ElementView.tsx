@@ -1428,18 +1428,38 @@ export const ElementView = ({
       textEditor.current.focus("end");
     }
   };
-  // Enter on a box edits it (on the buffer itself, the text); Escape leaves a box for the buffer; Up and Down
-  // on a field move to the field before and after, and Down on the last one into the elements of a package.
+  // Up and Down on a field move to the field before and after, and Down on the last one into the elements of
+  // a package. Down on the element itself goes into the elements of a package, else to its first field, where
+  // the highlight shows (SR-155, product owner decision, 2026-10-31, #552).
+  const onArrow = (down: boolean, label: string | undefined, root: HTMLElement): void => {
+    const fields = [TITLE_FIELD, "Text", ...boxKeys];
+    const hasMembers = (members?.total ?? 0) > 0;
+    if (label === undefined && !hasMembers) {
+      fields.some((next) => enter(next, "start", false));
+    } else if ((label === undefined || !move(fields, label, down ? 1 : -1, false)) && down && hasMembers) {
+      intoMembers(root);
+    }
+  };
+  // Enter on a box edits it (on the buffer itself, the text); Escape leaves a box for the buffer; the arrows
+  // move between the fields (`onArrow`).
   const onField = (key: string, label: string | undefined, root: HTMLElement): void => {
-    const down = key === "ArrowDown";
     if (key === "Enter") {
       enterField(label);
     } else if (key === "Escape") {
       article?.focus();
-    } else if (label === undefined || !move([TITLE_FIELD, "Text", ...boxKeys], label, down ? 1 : -1, false)) {
-      if (down && (members?.total ?? 0) > 0) {
-        intoMembers(root);
-      }
+    } else {
+      onArrow(key === "ArrowDown", label, root);
+    }
+  };
+  // Ctrl+N on the page of a package selects its first element (SR-122 AK4); on any other element it goes to the
+  // first field, as Down does (SR-155, product owner decision, 2026-10-31, #552). Not from an editor or the list
+  // itself (they are not the buffer); Ctrl+P is not the page's: it is the window's.
+  const onCtrlN = (hasMembers: boolean, root: HTMLElement): void => {
+    if (hasMembers) {
+      dispatch({ type: "cursor", key: buffer.key, cursor: 0 });
+      intoMembers(root);
+    } else {
+      onArrow(true, undefined, root);
     }
   };
   // Undo and redo on a choice or relation box step through its value history (SR-105 AK2). True when the
@@ -1478,15 +1498,12 @@ export const ElementView = ({
     if (valueHistoryKey(event, label)) {
       return;
     }
-    if (plain && fieldKey(key, label, hasMembers)) {
+    if (plain && fieldKey(key, label)) {
       event.preventDefault();
       onField(key, label, currentTarget);
-    } else if (hasMembers && !event.defaultPrevented && ctrlStep(event) === 1) {
-      // Ctrl+N on the page of a package selects its first element (SR-122 AK4). Not from an editor or the
-      // list itself (they are not the buffer); Ctrl+P is not the page's: it is the window's.
+    } else if (!event.defaultPrevented && ctrlStep(event) === 1 && (hasMembers || label === undefined)) {
       event.preventDefault();
-      dispatch({ type: "cursor", key: buffer.key, cursor: 0 });
-      intoMembers(currentTarget);
+      onCtrlN(hasMembers, currentTarget);
     }
   };
 

@@ -192,6 +192,21 @@ describe("the copy symbol of a field (SR-128)", () => {
   });
 });
 
+describe("the field the focus is in (SR-155)", () => {
+  it("[SR-155/AK1] has the background of the selected row of a list", () => {
+    expect(ruleOf(".element .field:focus-within")).toMatch(/background:\s*var\(--select\);/);
+    expect(ruleOf('.row[aria-selected="true"]')).toMatch(/background:\s*var\(--select\);/);
+    // A selection and code in the field take the sheet colour, so they stay visible on the tint.
+    expect(ruleOf(".element .field:focus-within")).toMatch(/--in-field:\s*var\(--sheet\);/);
+    expect(EDITOR.match(/backgroundColor: "var\(--in-field, var\(--select\)\)"/g)).toHaveLength(3);
+  });
+
+  it("[SR-155/AK3] is tinted only while the focus is in it: no other rule gives a field a background", () => {
+    const tinted = CSS.split("\n}\n").filter((rule) => /\.field\b[^{]*\{[^}]*background:/.test(rule));
+    expect(tinted.map((rule) => rule.trim().split(" {")[0])).toEqual([".element .field:focus-within"]);
+  });
+});
+
 describe("the shortcut next to a hit of the command line (SR-109)", () => {
   it("[SR-109/AK1] writes the shortcut quietly at the right of the hit: muted, smaller than the name", () => {
     // The name on the left, the shortcut pushed to the right edge of the row.
@@ -298,5 +313,19 @@ describe("the block of a field whose file changed under the input (SR-106)", () 
     expect(rule).not.toMatch(/var\(--accent\)/);
     expect(ruleOf("mark")).toMatch(/font-weight:\s*700;/);
     expect(ruleOf("mark")).toMatch(/background:\s*none;/);
+  });
+});
+
+describe("the inactive area of a split window (SR-150)", () => {
+  it("[SR-150/AK8] is a shade lighter: its text takes the muted grey, which reads at 4.5:1 on the sheet and on a selection in both schemes", () => {
+    const rule = ruleOf(".area:not([data-active])");
+    expect(rule).toContain("--text: var(--muted);");
+    expect(rule).toContain("color: var(--text);");
+    // The active area keeps the text colour: no other rule of an area sets it.
+    expect(ruleOf(".area")).not.toContain("color");
+    for (const scheme of ["light", "dark"] as const) {
+      expect(ratio(values("muted")[scheme], values("sheet")[scheme])).toBeGreaterThanOrEqual(4.5);
+      expect(ratio(values("muted")[scheme], values("select")[scheme])).toBeGreaterThanOrEqual(4.5);
+    }
   });
 });

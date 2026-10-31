@@ -128,7 +128,7 @@ const theme = EditorView.theme({
   ".cm-content": { padding: "0", caretColor: "var(--text)" },
   ".cm-line": { padding: "0" },
   "&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground": {
-    backgroundColor: "var(--select)",
+    backgroundColor: "var(--in-field, var(--select))",
   },
   ".cm-cursor": { borderLeftColor: "var(--text)" },
   ".cm-lr-h1": { fontSize: "1.5rem", fontWeight: "700", lineHeight: "1.3", paddingTop: "0.5rem" },
@@ -141,7 +141,7 @@ const theme = EditorView.theme({
   ".cm-lr-code": {
     fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
     fontSize: "0.92em",
-    backgroundColor: "var(--select)",
+    backgroundColor: "var(--in-field, var(--select))",
   },
   ".cm-lr-link": { textDecoration: "underline", textDecorationColor: "var(--muted)" },
   ".cm-lr-ref": { cursor: "pointer" },
@@ -154,7 +154,7 @@ const theme = EditorView.theme({
   ".cm-lr-codeblock": {
     fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
     fontSize: "0.92em",
-    backgroundColor: "var(--select)",
+    backgroundColor: "var(--in-field, var(--select))",
     padding: "0 0.5rem",
   },
   ".cm-lr-fence-hidden": { fontSize: "0.4em", lineHeight: "1", minHeight: "0.4em" },
