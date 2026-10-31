@@ -141,6 +141,8 @@ const DELIVERY: FixtureOptions = {
 const REQIF_EXPORT: FixtureOptions = { fixture: "SR-052/package", git: true };
 /** A workspace with the standard model only, and an export of SR-052/package in folder in (SR-052). */
 const ROUND_TRIP: FixtureOptions = { fixture: "SR-052/empty", git: true };
+/** Elements imported from Kunde A with and without a statement, and its mappings (SR-058). */
+const STATEMENTS: FixtureOptions = { fixture: "SR-058/statements", git: true };
 /** The export time and the header IDENTIFIER of a ReqIF file ReqSeq writes. */
 const EXPORT_MASKS: readonly RegExp[] = [/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z/g, /_hd-[0-9a-f-]{36}/g];
 /** DELIVERY with a mapping of the requirements and their name only, which leaves entries unmapped (SR-055). */
@@ -2161,6 +2163,14 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       name: "a package as one ReqIF file, its relations as SPEC-RELATIONs and their targets outside it as stubs",
       fixture: REQIF_EXPORT,
       input: { output: "s6.reqif", selection: { package: "52052052-0000-4000-8000-0000000052f1" } },
+      expect: "output",
+      masks: EXPORT_MASKS,
+    },
+    {
+      tag: "[SR-058/AK1]",
+      name: "the statements of the mapping's source by their source IDENTIFIERs, one without counted",
+      fixture: STATEMENTS,
+      input: { output: "back.reqif", mapping: "reqif/kunde-a.yaml", statements: true },
       expect: "output",
       masks: EXPORT_MASKS,
     },

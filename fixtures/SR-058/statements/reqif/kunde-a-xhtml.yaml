@@ -1,0 +1,8 @@
+reqseq-reqif-mapping: 1
+source: { name: Kunde A, tool-id: DOORS Next }
+types:
+  - { source: Customer Requirement, type: system-requirement }
+attributes:
+  - { source: ReqIF.Name, property: title }
+  - { source: ReqIF.Text, property: text }
+statement: { property: statement, attribute: supplier-statement, datatype: xhtml }

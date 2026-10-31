@@ -351,12 +351,20 @@ describe("reqif.export (SR-052)", () => {
       profile: "p",
       mapping: "reqif/m.yaml",
       omitProperties: ["topic"],
-      statements: true,
     });
     expect([later.code, later.details?.["fields"]]).toEqual([
       "input.invalid",
-      ["profile", "mapping", "omitProperties", "statements"],
+      ["profile", "mapping", "omitProperties"],
     ]);
+    // With statements, a mapping is taken (SR-058); profile and omitProperties are not yet.
+    const statements = await failure(workspace, {
+      output: "x.reqif",
+      profile: "p",
+      mapping: "reqif/m.yaml",
+      omitProperties: ["topic"],
+      statements: true,
+    });
+    expect(statements.details?.["fields"]).toEqual(["profile", "omitProperties"]);
     expect((await failure(workspace, { output: "x.reqif", profile: "p" })).message).toBe(
       "profile: not available yet in this version; export a selection without it",
     );
