@@ -182,8 +182,17 @@ export const readElementTextSync = (
   root: string,
   relativePath: string,
   snapshot: Pick<FileSnapshot, "sha256">,
-): string | undefined => {
-  const raw = readBytesSync(root, relativePath);
+): string | undefined => textOf(readBytesSync(root, relativePath), snapshot);
+
+/** `readElementTextSync` without blocking calls, for a command that reads many texts (`reqif.export`). */
+export const readElementText = async (
+  root: string,
+  relativePath: string,
+  snapshot: Pick<FileSnapshot, "sha256">,
+): Promise<string | undefined> => textOf(await readBytes(root, relativePath), snapshot);
+
+/** The text of the element file `raw` when its bytes have the SHA-256 of `snapshot`. */
+const textOf = (raw: RawFile, snapshot: Pick<FileSnapshot, "sha256">): string | undefined => {
   const body =
     raw.kind === "bytes" && sha256(raw.bytes) === snapshot.sha256
       ? elementBody(raw.file, raw.bytes)

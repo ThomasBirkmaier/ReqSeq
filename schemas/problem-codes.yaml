@@ -147,6 +147,12 @@ problems:
   git.revision-missing:
     cause: The commit to compare with is not in a repository, so its changes were not looked at.
     remedy: Fetch the commit, or deepen a shallow clone.
+  reqif.edited-elsewhere:
+    cause: An object of a ReqIF file of ReqSeq has attribute values that differ from what its `reqseq-markdown` and `reqseq-values` give, so another tool changed it after the export (SR-052). `reqif.import` takes its readable attributes instead, through the mapping.
+    remedy: Check the imported element; nothing else is needed. Edit elements in ReqSeq to keep the full round trip.
+  reqif.mapping-differs:
+    cause: A file of ReqSeq is imported without a mapping, and the saved mapping for its source names another source or tool (SR-052, SR-054). `reqif.import` uses that mapping as it is.
+    remedy: If the mapping belongs to another source, rename or move it, or give the source in `source`.
 
 errors:
   input.invalid:

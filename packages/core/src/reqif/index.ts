@@ -15,6 +15,8 @@ export { readDelivery } from "./delivery.js";
 export { planImport } from "./import.js";
 export type { ImportOrigin, ImportPlan, PlannedImage } from "./import.js";
 export { importDate, originKeys } from "./origin.js";
+export { OWN_TOOL_ID, ownMapping } from "./own.js";
+export type { OwnMappingFile } from "./own.js";
 export type { OriginKeys } from "./origin.js";
 export { markdownToXhtml, prepareMarkdown, xhtmlToMarkdown } from "./xhtml-markdown.js";
 export type {
@@ -27,5 +29,5 @@ export type {
 } from "./xhtml-markdown.js";
 export { IMAGE_LIMIT_BYTES, ImageNames, imageContent, imageReader } from "./images.js";
 export type { ImageFile, ImageRead, ImageReader } from "./images.js";
-export { writeReqif } from "./write.js";
+export { problemText, writeReqif } from "./write.js";
 export type { ReqifWritable, ReqifWriteOutcome, ReqifWriteProblem } from "./write.js";

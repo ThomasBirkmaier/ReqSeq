@@ -325,7 +325,9 @@ export type ProblemCode =
   | "workspace.invalid"
   | "workspace.not-watched"
   | "git.unavailable"
-  | "git.revision-missing";
+  | "git.revision-missing"
+  | "reqif.edited-elsewhere"
+  | "reqif.mapping-differs";
 
 /**
  * Error of a command call. Same codes over CLI (stderr, exit code), API (HTTP body) and MCP (tool error). `command.not-implemented`: the command is in the catalog, but this version does not implement it yet (a later stage).

@@ -55,7 +55,7 @@ export const plannedVersion = async (
   return elementVersion(record, file.body, metamodel, [...copies, ...onDisk.images]);
 };
 
-/** A file the same call writes besides the element files, such as the copy of an image. */
+/** A file the same call writes besides the element files, such as the copy of an image or a saved mapping. */
 export interface NewImageFile {
   /** Relative to its repository, `/` as separator. */
   readonly file: string;
@@ -63,8 +63,8 @@ export interface NewImageFile {
 }
 
 /**
- * Writes the new element files `files` of `repository` and the images they embed (`images`, not
- * elements), all or nothing; the folders must exist. Returns the files relative to the workspace
+ * Writes the new element files `files` of `repository` and the other files of the call (`images`:
+ * the images they embed, a saved mapping), all or nothing; the folders must exist. Returns the files relative to the workspace
  * root, the elements first, in the order given, and puts the elements into the
  * element store (`recordWrites`). On a failure the store is read again, and `details.written` (the
  * files the call created that changed before it could remove them) names workspace paths.

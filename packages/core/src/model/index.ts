@@ -82,7 +82,7 @@ export {
   targetState,
 } from "./relations.js";
 export type { FollowedTargets, TargetState } from "./relations.js";
-export { embeddedImages, imageLinks, imageMemo } from "./images.js";
+export { embeddedImages, imageLink, imageLinks, imageMemo } from "./images.js";
 export type { EmbeddedImage, ImageLink, ImageMemo, ImageSource } from "./images.js";
 export {
   buildCurrentVersions,
