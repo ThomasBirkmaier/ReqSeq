@@ -63,6 +63,10 @@ describe("menuTemplate", () => {
       // The role that ends File has Electron's own key: Ctrl+Q to quit, Cmd+W to close.
       const role = template.find((item) => item.role === "quit" || item.role === "close")?.role;
       expect(listed).toContain(role === "quit" ? "Ctrl+Q" : "⌘W");
+      // The app menu of macOS brings Electron's Quit, Hide and Hide Others.
+      if (template.some((item) => item.role === "appMenu")) {
+        expect(listed).toEqual(expect.arrayContaining(["⌘Q", "⌘H", "⌥⌘H"]));
+      }
     }
     expect(acceleratorShortcut("CmdOrCtrl+Shift+Alt+X")).toEqual({
       mod: true,

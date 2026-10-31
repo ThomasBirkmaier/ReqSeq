@@ -16,6 +16,10 @@ export const FILE_END_ROLE = { mac: "close", other: "quit" } as const;
 const CLOSE: Shortcut = { mod: true, shift: false, key: "w" };
 const QUIT: Shortcut = { mod: true, shift: false, key: "q" };
 
+/** Electron's keys of the macOS app menu (role `appMenu`): Hide, Hide Others and Quit. */
+const HIDE: Shortcut = { mod: true, shift: false, key: "h" };
+const HIDE_OTHERS: Shortcut = { mod: true, shift: false, alt: true, key: "h" };
+
 /** An accelerator of the menu ("CmdOrCtrl+Shift+O") as a shortcut. */
 export const acceleratorShortcut = (accelerator: string): Shortcut => {
   const parts = accelerator.split("+");
@@ -38,5 +42,8 @@ export const MENU_KEYS: readonly KeyRow[] = [
     does: "Quit the app (menu File); on Linux only, on Windows Alt+F4 closes the window",
   },
   { keys: [{ shortcut: CLOSE, only: "mac" }], does: "Close the window (menu File)" },
+  { keys: [{ shortcut: QUIT, only: "mac" }], does: "Quit the app (app menu)" },
+  { keys: [{ shortcut: HIDE, only: "mac" }], does: "Hide the app (app menu)" },
+  { keys: [{ shortcut: HIDE_OTHERS, only: "mac" }], does: "Hide the other apps (app menu)" },
   { keys: [{ press: press("Alt"), only: "other" }], does: "Show the hidden menu bar" },
 ];
