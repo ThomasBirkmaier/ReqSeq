@@ -509,6 +509,18 @@ describe("App, Open to the right and follow (SR-150)", () => {
     expect(areas()).toEqual([`${list}*`, "SR-000003 Title 3"]);
   });
 
+  it("[SR-150/AK7] Option+O while typing in the text editor makes the other area active and types nothing", async () => {
+    await twoElements();
+    await typeIn("left", " LEFT");
+    const content = query('[data-area="left"] .cm-content');
+    expect(content.contains(document.activeElement)).toBe(true);
+    // macOS: Option+O is "ø".
+    const pressed = await press(content, { key: "ø", code: "KeyO", altKey: true });
+    expect(pressed.defaultPrevented).toBe(true);
+    expect(areas()).toEqual(["SR-000001 Title 1", "SR-000002 Title 2*"]);
+    expect(editorIn("left").state.doc.toString()).toBe("Hello LEFT");
+  });
+
   it("[SR-150/AK5] once entered with Alt+O, the element there stays: two elements stand side by side", async () => {
     await render();
     await runCommand("List all elements");
