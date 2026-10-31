@@ -1,8 +1,8 @@
 // Which key presses on the element buffer are its own (SR-104, SR-122, SR-128), as small functions over the
 // event target: the field a key is for, whether the buffer takes it, the keys it handles on a field, and the
 // keys that take back an "Edit text" still waiting for its editor. `ElementView` routes the keys with them.
-import type { KeyRow } from "./keys.js";
-import { press } from "./keys.js";
+import type { KeyPress, KeyRow } from "./keys.js";
+import { MOD_CLICK, press } from "./keys.js";
 
 /** The field a key press is for: none on the buffer itself. */
 export const fieldLabel = (target: EventTarget, buffer: EventTarget): string | undefined =>
@@ -49,5 +49,37 @@ export const ELEMENT_KEYS: readonly KeyRow[] = [
   {
     keys: [{ press: press("Escape") }],
     does: "From the text or a box back to its field, and from a field back to the element",
+  },
+];
+
+/** What a key does on the block "On disk" (SR-106, `OnDisk.tsx`): Enter resolves, Escape leaves; only without modifiers. */
+export const onDiskKey = (event: KeyPress): "resolve" | "leave" | undefined => {
+  const plain = !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey;
+  return !plain
+    ? undefined
+    : event.key === "Enter"
+      ? "resolve"
+      : event.key === "Escape"
+        ? "leave"
+        : undefined;
+};
+
+/**
+ * The keys of the block "On disk" (`onDiskKey`), of the links to parents and variants (`ParentsLine`,
+ * `VariantLines`), and the click on a value (`isModClick`, in `ElementView`).
+ */
+export const ELEMENT_MORE_KEYS: readonly KeyRow[] = [
+  {
+    keys: [{ press: press("Enter") }],
+    does: "On the block “On disk” of a field changed on disk: ask which version holds, as “Resolve change on disk” does",
+  },
+  { keys: [{ press: press("Escape") }], does: "On the block “On disk”: back to the buffer" },
+  {
+    keys: [{ press: press("Enter") }],
+    does: "On a link to a parent or a variant: open that element",
+  },
+  {
+    keys: [{ shortcut: MOD_CLICK }],
+    does: "Click on a value in a property box: list the elements with that value",
   },
 ];

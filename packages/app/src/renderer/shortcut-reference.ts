@@ -7,7 +7,8 @@ import type { PrefixBinding } from "./bindings.js";
 import { PREFIX, PREFIX_BINDINGS, PREFIX_KEYS, prefixLabel } from "./bindings.js";
 import type { NamedCommand } from "./command-entry.js";
 import { coveringAction } from "./command-entry.js";
-import { ELEMENT_KEYS } from "./element-keys.js";
+import { ELEMENT_KEYS, ELEMENT_MORE_KEYS } from "./element-keys.js";
+import { EDITOR_KEYS, MARKDOWN_KEYS } from "./editor/editor-keys.js";
 import { GRAPH_KEYS, GRAPH_OPEN } from "./graph-nav.js";
 import type { KeyRow } from "./keys.js";
 import { HISTORY_KEYS, LIST_KEYS, keySpecLabel } from "./keys.js";
@@ -41,6 +42,7 @@ export interface ShortcutTables {
   readonly graph: readonly KeyRow[];
   readonly element: readonly KeyRow[];
   readonly history: readonly KeyRow[];
+  readonly editor: readonly KeyRow[];
 }
 
 /** The app's tables. */
@@ -58,8 +60,9 @@ export const SHORTCUT_TABLES: ShortcutTables = {
   prompt: PROMPT_KEYS,
   list: LIST_KEYS,
   graph: [...GRAPH_KEYS, GRAPH_OPEN],
-  element: ELEMENT_KEYS,
+  element: [...ELEMENT_KEYS, ...ELEMENT_MORE_KEYS],
   history: HISTORY_KEYS,
+  editor: [...EDITOR_KEYS, ...MARKDOWN_KEYS],
 };
 
 /** The labels of the keys of `row` on one system. */
@@ -162,5 +165,11 @@ export const shortcutReference = (
     title: "On an element",
     about: "On the element buffer, in its text, its title and its property boxes.",
     rows: [...rows(tables.element), ...rows(tables.history)],
+  },
+  {
+    title: "In the text editor",
+    about:
+      "In the text of an element and its Markdown property boxes. These fields also take the usual text editing keys of the system (moving the caret, selecting, cutting, copying and pasting), which are not listed here.",
+    rows: rows(tables.editor),
   },
 ];

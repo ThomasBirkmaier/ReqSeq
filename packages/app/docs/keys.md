@@ -2,7 +2,7 @@
 
 Part of the [`@reqseq/app` README](../README.md).
 
-The user documentation lists these keys on its generated page "Keyboard shortcuts" (SR-139 AK5), from `shortcutReference` (`shortcut-reference.ts`): the actions' shortcuts (`actions.ts`), the letters after the prefix (`bindings.ts`), and the tables next to the handlers that have no action, `PROMPT_KEYS` (`prompt-keys.ts`), `LIST_KEYS` and `HISTORY_KEYS` (`keys.ts`), `GRAPH_KEYS` (`graph-nav.ts`), `ELEMENT_KEYS` (`element-keys.ts`) and `PREFIX_KEYS` (`bindings.ts`). A new key of a handler goes into its table, whose test ties it to the handler.
+The user documentation lists these keys on its generated page "Keyboard shortcuts" (SR-139 AK5), from `shortcutReference` (`shortcut-reference.ts`): the actions' shortcuts (`actions.ts`), the letters after the prefix (`bindings.ts`), and the tables next to the handlers that have no action, `PROMPT_KEYS` (`prompt-keys.ts`), `LIST_KEYS` and `HISTORY_KEYS` (`keys.ts`), `GRAPH_KEYS` (`graph-nav.ts`), `ELEMENT_KEYS` and `ELEMENT_MORE_KEYS` (`element-keys.ts`; the block "On disk" through `onDiskKey`), `EDITOR_KEYS` and `MARKDOWN_KEYS` (`editor/editor-keys.ts`; the slash menu builds its keymap from `SLASH_NEXT` and `SLASH_PREVIOUS`) and `PREFIX_KEYS` (`bindings.ts`). CodeMirror's own text editing keys are not listed one by one. A new key of a handler goes into its table, whose test ties it to the handler.
 
 | Keys (Ctrl, or Cmd on macOS; on macOS the physical Ctrl key with a letter is never one of these shortcuts: it stays the editor's and the lists' key, so Ctrl+P there moves the caret or the selection and never jumps) | |
 | --- | --- |

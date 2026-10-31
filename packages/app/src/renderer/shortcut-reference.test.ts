@@ -1,14 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { ACTIONS } from "./actions.js";
 import { PREFIX_BINDINGS, PREFIX_KEYS, prefixStep } from "./bindings.js";
-import { ELEMENT_KEYS, fieldKey } from "./element-keys.js";
+import { ELEMENT_KEYS, ELEMENT_MORE_KEYS, fieldKey, onDiskKey } from "./element-keys.js";
+import { EDITOR_KEYS, codeMirrorPress } from "./editor/editor-keys.js";
 import { GRAPH_KEYS, GRAPH_MOVES } from "./graph-nav.js";
 import type { KeyPress, KeyRow, KeySpec } from "./keys.js";
 import {
   HISTORY_KEYS,
   LIST_MOVES,
   PROMPT_MOVES,
+  MOD_CLICK,
   historyStep,
+  isModClick,
   keySpecLabel,
   listStep,
   matches,
@@ -99,6 +102,25 @@ describe("the key tables follow their handlers", () => {
     }
   });
 
+  it("lists Enter and Escape of the block On disk (onDiskKey) and the click on a value (isModClick)", () => {
+    const [resolve, leave] = ELEMENT_MORE_KEYS;
+    expect(pressesOf(resolve === undefined ? [] : [resolve], false).map(onDiskKey)).toEqual(["resolve"]);
+    expect(pressesOf(leave === undefined ? [] : [leave], false).map(onDiskKey)).toEqual(["leave"]);
+    expect(onDiskKey({ ...press("Enter"), shiftKey: true })).toBeUndefined();
+    expect(onDiskKey(press("a"))).toBeUndefined();
+    for (const mac of [false, true]) {
+      expect(isModClick({ ...eventOf({ shortcut: MOD_CLICK }, mac), button: 0 }, mac)).toBe(true);
+    }
+    expect(keySpecLabel({ shortcut: MOD_CLICK }, false)).toBe("Ctrl+Click");
+    expect(keySpecLabel({ shortcut: MOD_CLICK }, true)).toBe("⌘Click");
+  });
+
+  it("writes the slash menu's keys as CodeMirror names them", () => {
+    expect(codeMirrorPress("Ctrl-n")).toEqual(press("n", true));
+    expect(codeMirrorPress("Tab")).toEqual(press("Tab"));
+    expect(EDITOR_KEYS[2]?.keys.map((spec) => keySpecLabel(spec, true))).toEqual(["Down", "Tab", "⌃N"]);
+  });
+
   it("moves the graph with the keys of its table", () => {
     expect(GRAPH_MOVES).toEqual(pressesOf(GRAPH_KEYS, false).map((event) => event.key));
   });
@@ -132,6 +154,7 @@ describe("shortcutReference", () => {
       "In a list",
       "In a graph",
       "On an element",
+      "In the text editor",
     ]);
     const prefix = sections[2]?.rows ?? [];
     expect(prefix.slice(0, PREFIX_BINDINGS.length).map((row) => row.does)).toEqual([

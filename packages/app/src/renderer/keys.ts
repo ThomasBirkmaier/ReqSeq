@@ -80,6 +80,9 @@ export const isModClick = (
   !event.shiftKey &&
   (mac ? event.metaKey && !event.ctrlKey : event.ctrlKey || event.metaKey);
 
+/** Ctrl/Cmd+click, as the keyboard reference writes it (`isModClick`; "click" is no key). */
+export const MOD_CLICK: Shortcut = { mod: true, shift: false, key: "click" };
+
 /** Whether `platform` (`navigator.platform`) is Windows. */
 export const isWindows = (platform: string): boolean => platform.startsWith("Win");
 
@@ -155,6 +158,7 @@ export const rowTarget = (
 /** How a key is written: letters in upper case, the others by a name. */
 const KEY_NAMES: Readonly<Record<string, { readonly plain: string; readonly mac: string }>> = {
   enter: { plain: "Enter", mac: "↩" },
+  click: { plain: "Click", mac: "Click" },
 };
 
 /** "Ctrl+Shift+P", or "⌘⇧P" on macOS; "Ctrl+Alt+A", or "⌥⌘A". */

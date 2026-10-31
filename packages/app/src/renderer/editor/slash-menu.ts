@@ -19,6 +19,7 @@ import { keymap } from "@codemirror/view";
 import type { EditorView } from "@codemirror/view";
 import { rank } from "../fuzzy.js";
 import { nth } from "../lists.js";
+import { SLASH_NEXT, SLASH_PREVIOUS } from "./editor-keys.js";
 import type { EditorPlugins } from "./plugins.js";
 import { askImage, askReference, pendingField, setPending } from "./reference-pick.js";
 import type { ImageRequest, PickOptions } from "./reference-pick.js";
@@ -190,11 +191,8 @@ export const slashMenu = (options: SlashMenuOptions): EditorPlugins => {
   };
 
   const keys = keymap.of([
-    { key: "ArrowDown", run: moveCompletionSelection(true) },
-    { key: "Tab", run: moveCompletionSelection(true) },
-    { key: "Ctrl-n", run: moveCompletionSelection(true) },
-    { key: "ArrowUp", run: moveCompletionSelection(false) },
-    { key: "Ctrl-p", run: moveCompletionSelection(false) },
+    ...SLASH_NEXT.map((key) => ({ key, run: moveCompletionSelection(true) })),
+    ...SLASH_PREVIOUS.map((key) => ({ key, run: moveCompletionSelection(false) })),
     { key: "Enter", run: enter },
     {
       // Closes the menu only: the `/` and the query stay, and the editor keeps the focus (AK3). Only the
