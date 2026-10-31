@@ -69,7 +69,7 @@ const TABLE: Readonly<Record<Unit | Shared, Allowed>> = {
       "version",
     ],
   },
-  "runtime entry": { values: ["commands", "metamodel", "model", "query", "runtime state"] },
+  "runtime entry": { values: ["commands", "metamodel", "model", "query", "runtime state", "workspace"] },
   commands: {
     values: [
       "baselines",
@@ -134,7 +134,7 @@ const TABLE: Readonly<Record<Unit | Shared, Allowed>> = {
 };
 
 const EVERY_BLOCK_MAY_IMPORT: ReadonlySet<Unit | Shared> = new Set(["catalog", "product", "generated"]);
-const RUNTIME_ENTRY = new Set(["invoke", "warm", "instructions", "element-short-ids"]);
+const RUNTIME_ENTRY = new Set(["invoke", "warm", "instructions", "element-short-ids", "local-path-fields"]);
 const RUNTIME_STATE = new Set(["workspace", "settled", "contracts", "input-errors"]);
 const BLOCK_FOLDERS: ReadonlySet<string> = new Set(
   LAYERS.flat().filter((unit) => unit !== "runtime entry" && unit !== "runtime state"),
