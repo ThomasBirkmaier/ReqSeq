@@ -1,14 +1,14 @@
 ---
 id: 6adc6d21-3789-4788-8156-65ca85dfc8d4
 type: system-requirement
-status: draft
+status: approved
 title: "Unbekannte Typen vor dem Import zeigen"
 spec-id: "SR-055"
 requirement-type: functional
 acceptance-criteria:
-  - "Gegeben eine ReqIF-Datei mit Typen oder Attributen ohne Zuordnung, wenn der Import gestartet wird, dann listet das Tool sie vor dem Schreiben jeder Datei auf."
-  - "Gegeben diese Liste, wenn für jeden Eintrag eine Zuordnung gewählt oder Weglassen gewählt wird, dann setzt das Tool den Import fort."
-  - "Gegeben der Import wird abgebrochen, wenn die Dateien geprüft werden, dann ist keine Datei geändert."
+  - Gegeben eine ReqIF-Datei mit Typen oder Attributen ohne Zuordnung, wenn sie mit `reqseq reqif analyze` gelesen oder der Import gestartet wird, dann listet das Tool sie vor dem Schreiben jeder Datei auf; der Import lehnt dann mit `reqif.unmapped` und derselben Liste ab.
+  - "Gegeben diese Liste, wenn für jeden Eintrag in der Zuordnung ein Typ oder eine Property gewählt oder Weglassen (`omit: true`) eingetragen wird, über `reqseq reqif save-mapping` oder in der YAML-Datei, dann läuft der erneut gestartete Import durch."
+  - Gegeben der Import lehnt ab (fehlende Zuordnung, ungültige Datei oder Konflikt ohne Wahl nach SR-056), wenn die Dateien geprüft werden, dann ist keine Datei geändert.
 verification-method: test
 topic: "Import und Export"
 packages:

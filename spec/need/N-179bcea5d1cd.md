@@ -1,7 +1,7 @@
 ---
 id: 6adc503f-c806-42c1-9750-179bcea5d1cd
 type: need
-status: draft
+status: approved
 title: "Austausch per ReqIF"
 spec-id: "N-042"
 topic: "Import und Export"
