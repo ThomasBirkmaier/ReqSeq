@@ -92,8 +92,8 @@ test("screenshots of the app for the user guide", async () => {
     await expect(window.locator('[role="tree"] [role="treeitem"]')).toHaveCount(2);
     await shot("neighbourhood");
 
-    // The standard model (the fixture's metamodel is the one `workspace.init` writes), on its own page and in the
-    // README: the graph of its six types and "Any type", cut to the boxes and the names of their relations.
+    // The standard model (the fixture's metamodel is the one `workspace.init` writes), on its own page: the
+    // graph of its six types and "Any type", cut to the boxes and the names of their relations.
     await resize(running, 1600, 1000);
     await window.keyboard.press("ControlOrMeta+Shift+P");
     await window.keyboard.type("Show metamodel");
