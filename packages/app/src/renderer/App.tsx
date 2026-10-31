@@ -74,6 +74,8 @@ import { useFollow } from "./use-follow.js";
 import { usePrefix } from "./use-prefix.js";
 import { promptUse } from "./usage.js";
 import { EMPTY_WINDOW, areas, isSplit, reduceWindow } from "./window-layout.js";
+import type { MarkState, PendingMark } from "./follow-mark.js";
+import { NO_MARK, bringsNew, markStep } from "./follow-mark.js";
 
 const STOPPED = "The core process keeps stopping. Open the workspace again with File > Open Workspace.";
 const MESSAGES: Readonly<Record<string, string>> = {
@@ -813,41 +815,23 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   }, [current?.key]);
 
   // SR-150 AK4, AK5: in a split window the inactive area follows what the reader newly marks in the active
-  // one. Only a change of the selection in the same buffer counts (`markToken`), so splitting, switching
-  // areas, opening a buffer or reading it again moves nothing. The marked element can come a render after
-  // the selection (a graph reports it when it drew the node), so the follow waits until it differs from the
-  // one marked before the change.
+  // one (`follow-mark.ts`).
   const token = markToken(current);
-  const lastMark = useRef<{
-    readonly buffer: string | undefined;
-    readonly token: string | undefined;
-    readonly marked: string | undefined;
-  }>({ buffer: undefined, token: undefined, marked: undefined });
-  const pendingFrom = useRef<{ readonly marked: string | undefined } | undefined>(undefined);
+  const lastMark = useRef<MarkState>(NO_MARK);
+  const pendingMark = useRef<PendingMark | undefined>(undefined);
   useEffect(() => {
-    const before = lastMark.current;
-    lastMark.current = { buffer: current?.key, token, marked: marked?.key };
-    if (before.buffer !== current?.key) {
-      pendingFrom.current = undefined;
-      return;
-    }
-    if (before.token !== token) {
-      pendingFrom.current = { marked: before.marked };
-    }
     const other = layout.other;
-    if (
-      pendingFrom.current === undefined ||
-      other === undefined ||
-      marked === undefined ||
-      marked.key === pendingFrom.current.marked
-    ) {
+    const now: MarkState = { buffer: current?.key, token, marked: marked?.key, other };
+    const step = markStep(lastMark.current, now, pendingMark.current);
+    lastMark.current = now;
+    pendingMark.current = step.pending;
+    if (!step.follow || other === undefined || marked === undefined) {
       return;
     }
-    pendingFrom.current = undefined;
     const otherData = loadedByKey.get(other);
     const page = otherData?.kind === "element" && packageOf(packages, otherData.element.type) !== undefined;
     const replace = followed.current === other && !drafts.current.has(other);
-    if (!page) {
+    if (bringsNew(buffers, other, marked.key, page)) {
       followed.current = marked.key;
     }
     dispatch({ type: "follow", buffer: marked, replace, page });

@@ -482,4 +482,14 @@ describe("App, Open to the right and follow (SR-150)", () => {
     expect(areas()[0]).toBe("Graph: SR-000001 Title 1*");
     expect(areas()[1]).toMatch(/Title 2$/);
   });
+
+  it("[SR-150/AK4] a selection made before Split window moves nothing: the inactive area shows the buffer used before", async () => {
+    await openElement();
+    await press(window, { key: "p", code: "KeyP", altKey: true });
+    await press(query('[role="listbox"]'), { key: "ArrowDown" });
+    await press(query('[role="listbox"]'), { key: "ArrowDown" });
+    const list = (areas()[0] ?? "").replace("*", "");
+    await runCommand("Split window");
+    expect(areas()).toEqual([`${list}*`, "SR-000001 Title 1"]);
+  });
 });
