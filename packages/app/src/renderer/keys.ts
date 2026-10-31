@@ -187,3 +187,112 @@ export const historyStep = (event: KeyPress, mac: boolean): "undo" | "redo" | un
   }
   return matches(event, REDO, mac) || (!mac && matches(event, REDO_Y, mac)) ? "redo" : undefined;
 };
+
+/** The systems a key of the reference is for, when it is not for all of them. */
+export type KeyPlatform = "mac" | "other";
+
+/**
+ * A key of the keyboard reference (SR-139 AK5): a shortcut, whose modifier is Ctrl or Cmd on macOS, or a key
+ * press as it is, such as Down or the physical Ctrl key with N, also on macOS. `only` names the one system.
+ */
+export type KeySpec =
+  | { readonly shortcut: Shortcut; readonly only?: KeyPlatform }
+  | { readonly press: KeyPress; readonly only?: KeyPlatform };
+
+/** A row of the keyboard reference: its keys, each of which does the same, and what they do. */
+export interface KeyRow {
+  readonly keys: readonly KeySpec[];
+  readonly does: string;
+}
+
+/** A key pressed alone, or with the physical Ctrl key (`ctrl`). */
+export const press = (key: string, ctrl = false): KeyPress => ({
+  ctrlKey: ctrl,
+  metaKey: false,
+  shiftKey: false,
+  altKey: false,
+  key,
+});
+
+/** How a key of a press is written: Down, Page Up, Space; a letter in upper case. */
+const PRESS_NAMES: Readonly<Record<string, string>> = {
+  ArrowDown: "Down",
+  ArrowUp: "Up",
+  ArrowLeft: "Left",
+  ArrowRight: "Right",
+  PageDown: "Page Down",
+  PageUp: "Page Up",
+  " ": "Space",
+};
+
+/**
+ * "Ctrl+N" and "Down", or "⌃N" and "Down" on macOS, as `shortcutLabel` writes a shortcut. A key without a modifier
+ * keeps its name on macOS too ("Enter"), as the hints of the command prompt write it.
+ */
+export const pressLabel = (event: KeyPress, mac: boolean): string => {
+  const key = PRESS_NAMES[event.key] ?? (event.key.length === 1 ? event.key.toUpperCase() : event.key);
+  if (mac) {
+    return `${event.ctrlKey ? "⌃" : ""}${event.altKey ? "⌥" : ""}${event.metaKey ? "⌘" : ""}${event.shiftKey ? "⇧" : ""}${key}`;
+  }
+  return [
+    ...(event.ctrlKey || event.metaKey ? ["Ctrl"] : []),
+    ...(event.altKey ? ["Alt"] : []),
+    ...(event.shiftKey ? ["Shift"] : []),
+    key,
+  ].join("+");
+};
+
+/** How `spec` is written on macOS (`mac`) or on the other systems; undefined when it is not a key there. */
+export const keySpecLabel = (spec: KeySpec, mac: boolean): string | undefined => {
+  if (spec.only !== undefined && spec.only !== (mac ? "mac" : "other")) {
+    return undefined;
+  }
+  return "shortcut" in spec ? shortcutLabel(spec.shortcut, mac) : pressLabel(spec.press, mac);
+};
+
+/** The keys of a list in the main window that `rowTarget` takes. */
+export const LIST_MOVES: readonly KeyRow[] = [
+  {
+    keys: [{ press: press("ArrowDown") }, { press: press("n", true) }],
+    does: "Next row; with no row selected, the first",
+  },
+  {
+    keys: [{ press: press("ArrowUp") }, { press: press("p", true) }],
+    does: "Previous row; with no row selected, Up selects the first row and Ctrl+P stays “Go to” on Windows and Linux",
+  },
+  { keys: [{ press: press("PageDown") }], does: "One screen of rows down" },
+  { keys: [{ press: press("PageUp") }], does: "One screen of rows up" },
+  { keys: [{ press: press("Home") }], does: "First row" },
+  { keys: [{ press: press("End") }], does: "Last row" },
+];
+
+/**
+ * The keys of a list in the main window: `LIST_MOVES`, and the keys each list view handles on its selected row
+ * (`ListView`, `OverviewView`, `ResultView`, `NeighbourhoodView`, `MatrixView`).
+ */
+export const LIST_KEYS: readonly KeyRow[] = [
+  ...LIST_MOVES,
+  { keys: [{ press: press("Enter") }], does: "Open the selected row; with no row selected, the first" },
+  {
+    keys: [{ press: press("ArrowRight") }, { press: press("ArrowLeft") }],
+    does: "In the neighbourhood: open or close the tree row, or go to its parent; in the matrix: step through the relations of the row",
+  },
+];
+
+/** The keys of a hit list in a prompt that `listStep` takes: the next candidate, then the previous one. */
+export const PROMPT_MOVES: readonly KeyRow[] = [
+  {
+    keys: [{ press: press("ArrowDown") }, { press: press("Tab") }, { press: press("n", true) }],
+    does: "Next candidate",
+  },
+  { keys: [{ press: press("ArrowUp") }, { press: press("p", true) }], does: "Previous candidate" },
+];
+
+/** The keys of `historyStep`: undo, then redo. */
+export const HISTORY_KEYS: readonly KeyRow[] = [
+  { keys: [{ shortcut: UNDO }], does: "Undo, in the text, the title and every property box" },
+  {
+    keys: [{ shortcut: REDO }, { shortcut: REDO_Y, only: "other" }],
+    does: "Redo, in the text, the title and every property box",
+  },
+];

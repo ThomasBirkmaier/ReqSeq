@@ -11,3 +11,6 @@ export type * from "./shared/protocol.js";
 // How the app offers each catalog command, for the documentation generator (ADR-0017).
 export { appCommandEntry, commandPromptKey } from "./renderer/command-entry.js";
 export type { AppCommandEntry, NamedCommand } from "./renderer/command-entry.js";
+// Every key of the app with what it does, for the keyboard reference (SR-139 AK5).
+export { SHORTCUT_TABLES, shortcutReference } from "./renderer/shortcut-reference.js";
+export type { ShortcutRow, ShortcutSection, ShortcutTables } from "./renderer/shortcut-reference.js";

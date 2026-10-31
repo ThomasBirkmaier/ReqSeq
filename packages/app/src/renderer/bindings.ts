@@ -2,8 +2,8 @@
 // Cmd+K on macOS, then one letter. The set, the letters and the prefix are the assumption of the open spec
 // question #472, kept in this one table; the window wires them up in `use-prefix.ts`.
 import type { Choice } from "./actions.js";
-import type { KeyPress, Shortcut } from "./keys.js";
-import { matches, shortcutLabel } from "./keys.js";
+import type { KeyPress, KeyRow, Shortcut } from "./keys.js";
+import { matches, press, shortcutLabel } from "./keys.js";
 
 /** The prefix key: Ctrl+K, or Cmd+K on macOS (#472; not Ctrl+X or Ctrl+C, the cut and copy of every field). */
 export const PREFIX: Shortcut = { mod: true, shift: false, key: "k" };
@@ -33,6 +33,12 @@ export const PREFIX_BINDINGS: readonly PrefixBinding[] = [
   { key: "f", id: "filter-type" },
   { key: "s", id: "sort" },
   { key: "b", id: "close" },
+];
+
+/** The keys while the prefix waits, besides the letters (`prefixStep`), for the keyboard reference (SR-139 AK5). */
+export const PREFIX_KEYS: readonly KeyRow[] = [
+  { keys: [{ shortcut: PREFIX }], does: "Pressed again: show the possible next keys at once" },
+  { keys: [{ press: press("Escape") }], does: "End the prefix" },
 ];
 
 /** The actions of #472 that keep a single shortcut of their own (`actions.ts`). */

@@ -7,6 +7,7 @@ import { highlightRanges, highlightTerms } from "./highlight.js";
 import type { Part } from "./highlight.js";
 import type { Ranked } from "./fuzzy.js";
 import { isMac, listStep, matches } from "./keys.js";
+import { MORE_SHORTCUT } from "./prompt-keys.js";
 import { rankByUse } from "./usage.js";
 
 export interface MinibufferProps {
@@ -247,7 +248,7 @@ const PromptLine = ({
   // Ctrl/Cmd+Enter (`more`) and Backspace in an empty input (one argument back, catalog commands); never
   // "Follow reference". Whether the key was taken.
   const argumentKey = (event: React.KeyboardEvent): boolean => {
-    if (matches(event, { mod: true, shift: false, key: "enter" }, mac)) {
+    if (matches(event, MORE_SHORTCUT, mac)) {
       event.preventDefault();
       event.stopPropagation();
       more();

@@ -39,6 +39,7 @@ export default defineConfig({
         { label: "File formats", items: [{ autogenerate: { directory: "reference/formats" } }] },
         { label: "Common types", slug: "reference/common-types" },
         { label: "Standard model", slug: "reference/standard-model" },
+        { label: "Keyboard shortcuts", slug: "reference/keyboard-shortcuts" },
       ],
       // A dead internal link fails the build.
       plugins: [starlightLinksValidator()],
