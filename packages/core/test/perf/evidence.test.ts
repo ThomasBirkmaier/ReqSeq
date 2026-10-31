@@ -50,6 +50,8 @@ const ELEMENTS = 50_000;
 const RELATIONS = 200_000;
 /** SR-082 AK3. */
 const OPEN_MS = 200;
+/** SR-082 AK5: the first open after the start. */
+const FIRST_OPEN_MS = 1000;
 /** SR-082 AK4. */
 const RESULT_MS = 500;
 /** SR-020 AK1, for `workspace.check` in process (recorded, untagged). */
@@ -307,7 +309,7 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 #5
     return answer.element;
   };
 
-  it("[SR-082/AK3] opens the top requirement of the tree within 200 ms: first open, again, right after one changed file (SR-034)", async () => {
+  it("[SR-082/AK5] [SR-082/AK3] opens the top requirement of the tree within 1 s on the first open after the start, and within 200 ms again and right after one changed file (SR-034)", async () => {
     await reopen();
     await readEvidence(ws());
     const top = evidence.parents[0] ?? "";
@@ -315,8 +317,8 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 #5
       "element.get of the top system requirement with its parents line: first after the start (walk below it, one version batch)",
       () => open(top),
       {
-        basis: "SR-082 AK3, SR-034 plan review B1.4 (the first open after the start; #698)",
-        thresholdMs: OPEN_MS,
+        basis: "SR-082 AK5, SR-034 plan review B1.4 (the first open after the start; #698)",
+        thresholdMs: FIRST_OPEN_MS,
       },
     );
     const batches = (await ws().get(verificationState)).versionBatches();
@@ -443,7 +445,7 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 #5
       { basis: "SR-082 AK3, review S8 of the #698 plan (status state carried; recorded, compare 200 ms)" },
     );
     expect(afterDeep.id).toBe(top);
-    expect(first.ms, thresholdMessage(first)).toBeLessThanOrEqual(OPEN_MS);
+    expect(first.ms, thresholdMessage(first)).toBeLessThanOrEqual(FIRST_OPEN_MS);
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(OPEN_MS);
     expect(afterChange.ms, thresholdMessage(afterChange)).toBeLessThanOrEqual(OPEN_MS);
   });
