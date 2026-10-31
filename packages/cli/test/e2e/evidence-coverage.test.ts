@@ -1,7 +1,8 @@
 // `reqseq evidence coverage` end to end (SR-036, ADR-0009): the built binary on fixtures/SR-036/levels
 // (see packages/core/src/commands/evidence/coverage.test.ts for its elements), as JSON and as readable
-// output. The selection is complex input, so it comes with `--input`. Evidence records are read from
-// files once the readers are in (SR-028, SR-093); their end-to-end tests add the counts with records.
+// output; without a view only the core counts (AK5). The selection is complex input, so it comes with
+// `--input`. Evidence records are read from files once the readers are in (SR-028, SR-093); their
+// end-to-end tests add the counts with records.
 // Run after `pnpm build` with `pnpm test:e2e`.
 import type { FixtureWorkspace } from "@reqseq/testkit";
 import { createFixtureWorkspace } from "@reqseq/testkit";
@@ -45,7 +46,7 @@ describe("reqseq evidence coverage (SR-036)", () => {
     const out = JSON.parse(result.stdout) as Output;
     expect(out.incomplete).toBe(false);
     expect(out.levels.map((l) => [l.type, l.total, l.withChildren, l.withEvidence])).toEqual([
-      ["system-requirement", 3, 3, 0],
+      ["system-requirement", 2, 1, 0],
     ]);
   });
 

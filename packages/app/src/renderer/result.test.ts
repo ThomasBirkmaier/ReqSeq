@@ -137,6 +137,40 @@ describe("result lines", () => {
     ]);
   });
 
+  it("shows an item whose id `names` names as its element row with its other fields under it, in its own repository", () => {
+    const lines = resultLines({
+      elements: [
+        { id: "uuid-1", repository: "sensor", state: "removed", verification: { status: "open" } },
+        { id: "uuid-2", state: "added" },
+        { id: "uuid-9", state: "missing" },
+      ],
+      entry: { id: "uuid-2", state: "changed" },
+      names: [element(1), element(2)],
+    });
+    expect(lines.map((line) => [line.kind, line.depth, line.label, line.text])).toEqual([
+      ["text", 0, "elements", "3"],
+      ["element", 1, "SR-000001", "Title 1"],
+      ["text", 2, "repository", "sensor"],
+      ["text", 2, "state", "removed"],
+      ["text", 2, "verification", ""],
+      ["text", 3, "status", "open"],
+      ["element", 1, "SR-000002", "Title 2"],
+      ["text", 2, "state", "added"],
+      // An id `names` does not name, and a record under a key, stay an outline.
+      ["text", 1, "id", "uuid-9"],
+      ["text", 1, "state", "missing"],
+      ["text", 0, "entry", ""],
+      ["element", 1, "id: SR-000002", "Title 2"],
+      ["text", 1, "state", "changed"],
+    ]);
+    expect(lines[1]?.open).toEqual(elementBuffer("uuid-1", "sensor", "SR-000001 Title 1"));
+    expect(lines[6]?.open).toEqual(elementBuffer("uuid-2", "spec", "SR-000002 Title 2"));
+    // A top-level output with an `id` is no list item: an outline.
+    expect(
+      resultLines({ id: "uuid-1", state: "changed", names: [element(1)] }).map((line) => line.label),
+    ).toEqual(["id: SR-000001", "state"]);
+  });
+
   it("takes the total of the whole answer for the modeline", () => {
     expect(resultTotal({ total: 7, nodes: [] })).toBe(7);
     expect(resultTotal({ nodes: [] })).toBeUndefined();

@@ -64,6 +64,8 @@ export interface Baseline {
   readonly shown: string;
   /** Whether it lists the element `id` with `version`. */
   readonly contains: (id: string, version: string) => boolean;
+  /** `contains` by the key `versionKey(id, version)`: one key string serves many baselines (SR-103, N-036). */
+  readonly containsKey: (key: string) => boolean;
   /** Whether it lists the element, in any version (see the file comment). */
   readonly selects: (element: { readonly id: string; readonly repository: string }) => boolean;
   /** The file as read: date, stored selection, commits and entries (SR-051). */
@@ -108,8 +110,8 @@ const problemIn = (repository: string, file: string, message: string, line?: num
   ...(line === undefined ? {} : { line }),
 });
 
-/** The key of an element version in `Baseline.contains`. */
-const versionKey = (id: string, version: string): string => `${id}\n${version}`;
+/** The key of an element version in `Baseline.contains` and `containsKey`. */
+export const versionKey = (id: string, version: string): string => `${id}\n${version}`;
 
 /** A valid baseline of `data`. */
 const baselineOf = (data: BaselineFile, repository: string, file: string, shown: string): Baseline => {
@@ -133,6 +135,7 @@ const baselineOf = (data: BaselineFile, repository: string, file: string, shown:
     shown,
     data,
     contains: (id, version) => versions.has(versionKey(id, version)),
+    containsKey: (key) => versions.has(key),
     selects: (element) => {
       const copies = listed.get(element.id);
       return copies === true || (copies?.has(element.repository) ?? false);
@@ -230,12 +233,12 @@ const stampStat = async (absolute: string): Promise<BigIntStats | null | undefin
     .catch((error: unknown) => ((error as NodeJS.ErrnoException).code === "ENOENT" ? undefined : null));
 
 /**
- * What the baseline file `file` (at `absolute`) gives now: as kept when its `changeStamp` (size,
- * modification time, inode, change time) is that of the last read and was not racy then, else read
- * again; undefined when it is gone since the folder was listed. A file that cannot be looked at is
- * read, so its problem is reported, and not kept. Its key goes into `seen`.
+ * What the baseline file `file` (at `absolute`) gives now (also for `newest.ts`): as kept when its
+ * `changeStamp` (size, modification time, inode, change time) is that of the last read and was not
+ * racy then, else read again; undefined when it is gone since the folder was listed. A file that
+ * cannot be looked at is read, so its problem is reported, and not kept. Its key goes into `seen`.
  */
-const readKeptFile = async (
+export const readKeptFile = async (
   repository: RepositoryLocation,
   absolute: string,
   file: string,

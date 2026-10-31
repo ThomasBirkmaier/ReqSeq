@@ -120,7 +120,7 @@ test.describe("Alt+N and Alt+P switch buffers", () => {
     expect((await savedText(running)).trimEnd()).toBe(`${LINE}\n ENDE`);
   });
 
-  test("[SR-115/AK5] Option+N as macOS sends it (a dead key, the physical key N) is taken in the editor and leaves it", async () => {
+  test("[SR-145/AK2] Option+N as macOS sends it (a dead key, the physical key N) is taken in the editor and leaves it", async () => {
     const { window } = running;
     await listAll(window);
     await goTo(window, ELEMENT);

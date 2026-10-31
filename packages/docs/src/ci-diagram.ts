@@ -25,7 +25,7 @@ import {
  */
 export const REQUIRED_CHECKS: readonly string[] = [
   "static",
-  ...["ubuntu-24.04", "macos-14", "windows-2025"].flatMap((os) => [`checks (${os})`, `electron (${os})`]),
+  ...["ubuntu-24.04", "macos-26", "windows-2025"].flatMap((os) => [`checks (${os})`, `electron (${os})`]),
 ];
 
 type Combination = Readonly<Record<string, unknown>>;

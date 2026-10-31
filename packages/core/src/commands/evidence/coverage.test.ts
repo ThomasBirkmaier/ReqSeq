@@ -6,6 +6,7 @@
 //   only; S3 obsolete; S4 (V2) with the child SWR F3 in the repository `sensor`;
 // - SWR F1, F2 (package P2, no parent), F3 (sensor); decision D1, packages P1, P2, variants V1, V2;
 // - the saved filter "Requirements": the system requirements.
+// Without a selected view the coverage counts the core (AK5): S4 and its record of V2 count only in V2.
 // The evidence records are given through `evidenceRecordsState` (#127 option 1): the readers come
 // with SR-028 and SR-093, whose end-to-end tests read record files. The same output on every access:
 // cross-access.test.ts.
@@ -116,7 +117,7 @@ describe("evidence.coverage (SR-036)", () => {
     expect(out.incomplete).toBe(false);
     expect(out.levels.map((l) => [l.type, l.total, l.withChildren, l.withEvidence])).toEqual([
       ["need", 2, 1, undefined],
-      ["system-requirement", 3, 3, 1],
+      ["system-requirement", 2, 1, 1],
       ["software-requirement", 3, 0, 1],
     ]);
   });
@@ -126,14 +127,14 @@ describe("evidence.coverage (SR-036)", () => {
     expect(await levels(workspace, { selection: { filter: "Requirements" } })).toEqual([
       {
         type: "system-requirement",
-        total: 3,
-        withChildren: 3,
+        total: 2,
+        withChildren: 1,
         withEvidence: 1,
         elements: {
-          withChildren: ["S1", "S2", "S4"],
-          withoutChildren: [],
+          withChildren: ["S1"],
+          withoutChildren: ["S2"],
           withEvidence: ["S1"],
-          withoutEvidence: ["S2", "S4"],
+          withoutEvidence: ["S2"],
         },
       },
     ]);
@@ -146,11 +147,11 @@ describe("evidence.coverage (SR-036)", () => {
       {
         type: "system-requirement",
         total: 2,
-        withChildren: 2,
+        withChildren: 1,
         withEvidence: 1,
         elements: {
-          withChildren: ["S1", "S2"],
-          withoutChildren: [],
+          withChildren: ["S1"],
+          withoutChildren: ["S2"],
           withEvidence: ["S1"],
           withoutEvidence: ["S2"],
         },
@@ -164,14 +165,14 @@ describe("evidence.coverage (SR-036)", () => {
       NEEDS,
       {
         type: "system-requirement",
-        total: 3,
-        withChildren: 3,
+        total: 2,
+        withChildren: 1,
         withEvidence: 1,
         elements: {
-          withChildren: ["S1", "S2", "S4"],
-          withoutChildren: [],
+          withChildren: ["S1"],
+          withoutChildren: ["S2"],
           withEvidence: ["S1"],
-          withoutEvidence: ["S2", "S4"],
+          withoutEvidence: ["S2"],
         },
       },
       {
@@ -220,12 +221,12 @@ describe("evidence.coverage (SR-036)", () => {
       ["N2", "system", "N-0000a2", "Warn of storms"],
       ["S1", "system", "SR-0000b1", "Measure wind speed"],
       ["S2", "system", "SR-0000b2", "Measure every second"],
-      ["S4", "system", "SR-0000b4", "Survive snow"],
       ["F1", "system", "SWR-0000f1", "Filter the sensor signal"],
       ["F2", "system", "SWR-0000f2", "Log the raw values"],
       ["F3", "sensor", "SWR-0000f3", "Heat the sensor"],
     ]);
-    // Each counted element once, in selection order; those not counted (N3, S3 obsolete) are not named.
+    // Each counted element once, in selection order; those not counted (N3, S3 obsolete, S4 of V2 only)
+    // are not named.
     const listed = out.levels.flatMap((l) => [...l.elements.withChildren, ...l.elements.withoutChildren]);
     expect(new Set(out.names?.map((n) => n.id))).toEqual(new Set(listed));
   });
@@ -239,7 +240,7 @@ describe("evidence.coverage (SR-036)", () => {
       { selection: { ids } },
       { workspace },
     )) as CommandOutput<"element.list">;
-    expect(list.elements.map((e) => e.shortId)).toEqual(["SR-0000b2", "SR-0000b4"]);
+    expect(list.elements.map((e) => e.shortId)).toEqual(["SR-0000b2"]);
   });
 
   it("[SR-036/AK3] marks the coverage incomplete when a repository of the workspace is not available", async () => {
@@ -249,7 +250,7 @@ describe("evidence.coverage (SR-036)", () => {
     // What is on this machine is still counted.
     expect(out.levels.map((l) => [l.type, l.total])).toEqual([
       ["need", 2],
-      ["system-requirement", 3],
+      ["system-requirement", 2],
       ["software-requirement", 3],
     ]);
   });
@@ -259,7 +260,7 @@ describe("evidence.coverage (SR-036)", () => {
     const ws = await fixture();
     await rm(ws.path("sensor"), { recursive: true });
     const workspace = await open(ws);
-    const out = await coverage(workspace, { selection: { ids: ["SR-0000b4"] } });
+    const out = await coverage(workspace, { selection: { ids: ["SR-0000b4"], view: "VAR-0000c2" } });
     expect(out.incomplete).toBe(true);
     expect(out.levels.map(named)).toEqual([
       {
@@ -330,6 +331,29 @@ describe("evidence.coverage (SR-036)", () => {
     });
   });
 
+  it("[SR-036/AK5] without a selected variant counts only the requirements, children and evidence of the core", async () => {
+    const workspace = await open(await fixture());
+    const none = await levels(workspace, { selection: { filter: "Requirements" } });
+    // S4 (V2 only) is neither counted nor S2's child, and S2's record of V2 is no evidence.
+    expect(none).toEqual([
+      {
+        type: "system-requirement",
+        total: 2,
+        withChildren: 1,
+        withEvidence: 1,
+        elements: {
+          withChildren: ["S1"],
+          withoutChildren: ["S2"],
+          withEvidence: ["S1"],
+          withoutEvidence: ["S2"],
+        },
+      },
+    ]);
+    // Named by ID, S4 is still not counted; the core view gives the same coverage.
+    expect(await levels(workspace, { selection: { ids: ["SR-0000b4"] } })).toEqual([]);
+    expect(await levels(workspace, { selection: { view: "core", filter: "Requirements" } })).toEqual(none);
+  });
+
   it("a view narrows the children to those that apply in it and takes the records of the view", async () => {
     const workspace = await open(await fixture());
     // The core: S4 (V2 only) is not selected and is no child of S2; the core record of S1 counts.
@@ -375,7 +399,7 @@ describe("evidence.coverage (SR-036)", () => {
 
   it("a child in another repository counts", async () => {
     const workspace = await open(await fixture());
-    const out = await coverage(workspace, { selection: { ids: ["SR-0000b4"] } });
+    const out = await coverage(workspace, { selection: { ids: ["SR-0000b4"], view: "VAR-0000c2" } });
     expect(out.levels.map(named)).toEqual([
       {
         type: "system-requirement",

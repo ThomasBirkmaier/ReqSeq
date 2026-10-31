@@ -322,7 +322,7 @@ const isElement = (context: ActionContext): boolean => context.buffers[0]?.kind 
 const isNeighbourhood = (context: ActionContext): boolean => context.buffers[0]?.kind === "neighbourhood";
 const isGraph = (context: ActionContext): boolean => context.buffers[0]?.kind === "graph";
 /** The shown element buffer when it is a package page (SR-112); its elements are a list that sorts like any list. */
-const packagePage = (context: ActionContext): ElementBuffer | undefined => {
+export const packagePage = (context: ActionContext): ElementBuffer | undefined => {
   const shown = context.buffers[0];
   return shown?.kind === "element" && context.element?.members === true ? shown : undefined;
 };

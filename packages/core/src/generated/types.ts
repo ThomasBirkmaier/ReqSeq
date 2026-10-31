@@ -749,7 +749,7 @@ export interface EvidenceRecordFile {
   readonly version: Version;
   /** Required for verification (D-026). */
   readonly method?: "test" | "analysis" | "inspection" | "demonstration";
-  /** Variant the record holds for. Absent: the core (D-026, SR-047 AK2). */
+  /** Variant the record holds for. Absent: the core (D-026, SR-047 AK2). Verification only: a validation record with a variant is refused and counts for no status (D-007, SR-038 AK4). */
   readonly variant?: Uuid;
   /** Prüfling: the concrete build or sample that was checked. Required for verification, optional for validation (D-007). */
   readonly item?: string;
@@ -1473,7 +1473,7 @@ export interface ElementGetInput {
  * Schema: `schemas/commands/catalog.json element.get output`.
  */
 export interface ElementGetOutput {
-  /** Text, properties, version and, with the input `versionDate`, its date (`versionDate`, D-013, ADR-0005: the committer date in UTC of the newest commit that started this version; null for content no commit has and when Git cannot tell, including a git call that timed out; left out without the input), the own relations, the successors of a superseded element (SR-072 AK3), the hints of the element (none while the metamodel is not valid; also `variant.superseded-in-validity`, SR-040 AK3, `variant.target-not-core` for a replacement or exclusion of the element that names no core requirement, SR-041 AK8, the outdated relations and inline references of the element, `relation.outdated`, and the changed core requirements of its replacements, `variant.core-changed` (SR-045), SR-026 AK3, whose messages name the dates of both versions only with the input `versionDate` or `hintDates`, and `metamodel.meaning-unassigned` when no property has the meaning title) and `readOnly`, always given (unknown type, invalid metamodel or a repository folder that cannot be written). An element with a value that counts and has no normal form (`.inf`, `.nan`, ADR-0005) comes without `version` and `versionDate`, with a `file.faulty` warning last in its hints that says why (#276). The incoming relations of every kind: `trace.neighbourhood` with `direction: down`. `verification`, for an element whose type has the meaning `requirement`: its verification status in each view it is in by the view rule (SR-043, SR-047 AK3), as evidence.status gives it (SR-031), with the indirect verification and the children that are missing (SR-034). `validation`: its validation status (SR-038), for every need and for any other element with a validation record, separate from `verification`. `replacedBy` and `excludedBy`, for a core requirement: the variants that replace it (with the replacing requirement) and those that exclude it (SR-046 AK3). */
+  /** Text, properties, version and, with the input `versionDate`, its date (`versionDate`, D-013, ADR-0005: the committer date in UTC of the newest commit that started this version; null for content no commit has and when Git cannot tell, including a git call that timed out; left out without the input), the own relations, the successors of a superseded element (SR-072 AK3), the hints of the element (none while the metamodel is not valid; also `variant.superseded-in-validity`, SR-040 AK3, `variant.target-not-core` for a replacement or exclusion of the element that names no core requirement, SR-041 AK8, the outdated relations and inline references of the element, `relation.outdated`, and the changed core requirements of its replacements, `variant.core-changed` (SR-045), at a variant the core requirements changed or new since its newest baseline, `variant.core-changed-since-baseline` and `variant.core-new-since-baseline` (SR-103), SR-026 AK3, whose messages name the dates of both versions only with the input `versionDate` or `hintDates`, and `metamodel.meaning-unassigned` when no property has the meaning title) and `readOnly`, always given (unknown type, invalid metamodel or a repository folder that cannot be written). An element with a value that counts and has no normal form (`.inf`, `.nan`, ADR-0005) comes without `version` and `versionDate`, with a `file.faulty` warning last in its hints that says why (#276). The incoming relations of every kind: `trace.neighbourhood` with `direction: down`. `verification`, for an element whose type has the meaning `requirement`: its verification status in each view it is in by the view rule (SR-043, SR-047 AK3), as evidence.status gives it (SR-031), with the indirect verification and the children that are missing (SR-034). `validation`: its validation status (SR-038), for every need and for any other element with a validation record, separate from `verification`. `replacedBy` and `excludedBy`, for a core requirement: the variants that replace it (with the replacing requirement) and those that exclude it (SR-046 AK3). */
   readonly element: DataExportElement;
   /** Of the file this answer was read from, for expectedFileSha256 of element.update (SR-106). */
   readonly fileSha256: FileSha256;
@@ -2264,11 +2264,11 @@ export interface HintListOutput {
 export interface HintConfirmInput {
   /** IDs of hints to confirm (`hintId` of hint.list). */
   readonly hintIds?: readonly string[];
-  /** Confirm the open confirmable hints about this element: the outdated relations and inline references (in the text and in properties marked `markdown`) its file stores, and its `replaces` items onto a changed core requirement. */
+  /** Confirm the open confirmable hints about this element: the outdated relations and inline references (in the text and in properties marked `markdown`) its file stores, and its `replaces` items onto a changed core requirement. A variant with open `variant.core-changed-since-baseline` or `variant.core-new-since-baseline` hints, without `kind`, gives `hint.not-confirmable` for them, since a new baseline of the variant settles them (SR-103 AK5). */
   readonly ref?: ElementRef;
   /** Confirm the open confirmable hints on relations and inline references that point at this element, for example after it changed. */
   readonly target?: ElementRef;
-  /** Only selected hints with one of these codes (with `ref` or `target`); the confirmable codes are `relation.outdated` and `variant.core-changed`. */
+  /** Only selected hints with one of these codes (with `ref` or `target`); the confirmable codes are `relation.outdated` and `variant.core-changed`; `variant.core-changed-since-baseline` and `variant.core-new-since-baseline` give `hint.not-confirmable`, since a new baseline of the variant settles them (SR-103 AK5). */
   readonly kind?: readonly ProblemCode[];
 }
 
@@ -2413,7 +2413,7 @@ export interface EvidenceRecordInput {
   readonly result: "passed" | "failed";
   /** The item under test (Prüfling), for example the build or sample. Required for verification. No white space at either end and no control characters other than tab, line feed and carriage return. */
   readonly item?: Item;
-  /** A variant the element applies in (an element whose type has the meaning variant); the record holds for it. Absent: the core. A variant the element is not in is `input.invalid` with `details.reason` `not-valid-in-variant`, or `excluded-in-variant` or `replaced-in-variant` when the variant excludes or replaces the requirement (SR-047 AK4). */
+  /** A variant the element applies in (an element whose type has the meaning variant); the record holds for it. Absent: the core. Verification only: a variant with `kind` validation is `input.invalid` with `details.reason` `validation-with-variant` (SR-038 AK4, D-007); `core` is allowed. A variant the element is not in is `input.invalid` with `details.reason` `not-valid-in-variant`, or `excluded-in-variant` or `replaced-in-variant` when the variant excludes or replaces the requirement (SR-047 AK4). */
   readonly variant?: ElementRef;
   /** When the check was done. Default: the time of the call, UTC, whole seconds. Its first ten characters (the day in its own offset) start the file name. */
   readonly date?: IsoDateTime;
@@ -2501,7 +2501,7 @@ export interface EvidenceStatusOutput {
  * Schema: `schemas/commands/catalog.json evidence.coverage input`.
  */
 export interface EvidenceCoverageInput {
-  /** The elements to cover, as `element.list` takes them; every part given must hold (SR-101 AK2). Its view (else the view of its saved filter) narrows the children to those it holds (SR-043: no core requirement the variant excludes or replaces), as the chain does; evidence records count for that view, else for the core, as the filter condition `verification` does. */
+  /** The elements to cover, as `element.list` takes them; every part given must hold (SR-101 AK2). Its view (else the view of its saved filter, else the core, SR-036 AK5) narrows the counted elements and their children to those it holds (SR-043: no core requirement the variant excludes or replaces), and evidence records count for that view, as the filter condition `verification` does. */
   readonly selection?: ElementSelection;
 }
 

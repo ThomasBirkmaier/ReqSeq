@@ -264,6 +264,27 @@ const CORE_CHANGED: FixtureOptions = {
   },
 };
 
+/** A baseline R1 of Coast (VAR-0000c1) on fixtures/SR-103/since-baseline, then K1 (SR-0000a1) changed (SR-103). */
+const SINCE_BASELINE: FixtureOptions = {
+  fixture: "SR-103/since-baseline",
+  git: true,
+  files: {
+    "baselines/R1.yaml":
+      "reqseq-baseline: 1\nname: R1\ndate: 2026-11-02T10:00:00Z\nselection:\n" +
+      "  view: { id: 10310310-0000-4000-8000-0000000000c1, title: Coast }\nrepositories:\n" +
+      `  - { name: system, commit: ${"a".repeat(40)} }\nelements:\n` +
+      ["a1:c44c2a59a7eba159", "a2:b817003944c5d6fb", "b1:4a65c37394420816", "c1:878bca1d9503aac6"]
+        .map(
+          (e) => `  - { id: 10310310-0000-4000-8000-0000000000${e.slice(0, 2)}, version: n1${e.slice(2)} }\n`,
+        )
+        .join(""),
+    "requirements/SR-0000000000a1.md":
+      "---\nid: 10310310-0000-4000-8000-0000000000a1\ntype: system-requirement\nstatus: draft\ntitle: Wind speed every minute\n" +
+      "requirement-type: functional\nacceptance-criteria:\n  - Given the station runs, when a minute passes, then it reports the wind speed.\n" +
+      "---\n\nThe station reports the wind speed every 30 seconds.\n",
+  },
+};
+
 /** A verification record of the example's `tail` with `result`, for `variant` when given (SR-047). */
 const exampleRecord = (tail: string, result: string, variant?: string): string =>
   `---\nreqseq-record: 1\nkind: verification\nelement: 43043043-0000-4000-8000-0000000000${tail}\n` +
@@ -1407,6 +1428,19 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       tag: "[SR-047/AK4]",
       expect: "error",
     },
+    {
+      name: "a validation record with a variant is refused (SR-038 AK4)",
+      fixture: VARIANT_EVIDENCE,
+      input: {
+        ref: "SR-0000a3",
+        kind: "validation",
+        result: "passed",
+        variant: "VAR-0000c1",
+        date: "2026-10-27T10:00:00Z",
+      },
+      tag: "[SR-038/AK4]",
+      expect: "error",
+    },
   ],
   "evidence.status": [
     {
@@ -1569,6 +1603,21 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
         ]);
       },
     },
+    {
+      tag: "[SR-103/AK1]",
+      name: "a core requirement changed since the variant's newest baseline is a hint at the variant",
+      fixture: SINCE_BASELINE,
+      input: { variant: "VAR-0000c1" },
+      expect: "output",
+      check: (results) => {
+        const output = (
+          results["core"]?.outcome as { output: { hints: { code: string; elementShortId: string }[] } }
+        ).output;
+        expect(output.hints.map((h) => [h.code, h.elementShortId])).toEqual([
+          ["variant.core-changed-since-baseline", "VAR-0000c1"],
+        ]);
+      },
+    },
   ],
   "hint.confirm": [
     {
@@ -1614,6 +1663,13 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       expect: "output",
     },
     { name: "kind without ref or target (#310)", fixture: HINTS, input: { kind: ["x"] }, expect: "error" },
+    {
+      tag: "[SR-103/AK5]",
+      name: "a since-baseline hint is refused: a new baseline settles it",
+      fixture: SINCE_BASELINE,
+      input: { ref: "VAR-0000c1", kind: ["variant.core-changed-since-baseline"] },
+      expect: "output",
+    },
   ],
   "trace.affected": [
     {

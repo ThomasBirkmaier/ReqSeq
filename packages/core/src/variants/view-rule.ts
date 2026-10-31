@@ -344,17 +344,32 @@ export const viewRuleOf = (
   view: View,
 ): ViewRule => viewRuleIn(viewRuleIndexOf(context.workspace, context.store, context.metamodel), view);
 
+/** What `viewsInclude` reads the rules from. */
+interface ViewRuleContext {
+  readonly workspace: Workspace;
+  readonly store: ElementStore;
+  readonly metamodel: Metamodel;
+}
+
 /** Whether every view of `views` holds `element`; undefined for no view (every element). */
-export const viewsInclude = (
-  context: { readonly workspace: Workspace; readonly store: ElementStore; readonly metamodel: Metamodel },
+export function viewsInclude(
+  context: ViewRuleContext,
+  views: readonly [View, ...View[]],
+): (element: ElementRecord) => boolean;
+export function viewsInclude(
+  context: ViewRuleContext,
   views: readonly View[],
-): ((element: ElementRecord) => boolean) | undefined => {
+): ((element: ElementRecord) => boolean) | undefined;
+export function viewsInclude(
+  context: ViewRuleContext,
+  views: readonly View[],
+): ((element: ElementRecord) => boolean) | undefined {
   if (views.length === 0) {
     return undefined;
   }
   const rules = views.map((view) => viewRuleOf(context, view).includes);
   return (element) => rules.every((includes) => includes(element));
-};
+}
 
 /**
  * Whether a result in `view` may miss a part (SR-006 AK2): `view` is a variant and the workspace file

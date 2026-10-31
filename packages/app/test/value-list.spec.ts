@@ -1,7 +1,7 @@
 // From a value of the shown element to the list of every element with that value (SR-132, #497) on the
-// built app: the key, the command and the prompt "Elements with", each list compared with what the CLI
-// gives for the condition property equals value (SR-080). Keys use the modifier of the platform, so the
-// same tests run on Linux and macOS. The clicks come with the second PR of SR-132.
+// built app: the key, the command, Ctrl/Cmd+click on a value (#235) and the prompt "Elements with", each
+// list compared with what the CLI gives for the condition property equals value (SR-080). Keys and clicks
+// use the modifier of the platform, so the same tests run on Linux and macOS.
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -137,6 +137,33 @@ test.describe.serial("the list of the elements with a value", () => {
     });
   });
 
+  test("[SR-132/AK1] Ctrl/Cmd+click on the topic value and on a package target opens the list of the elements with that value", async () => {
+    const { window } = running;
+    await openElement(window, "Measure the rain");
+    await window
+      .locator('[data-field="topic"] .cm-line')
+      .first()
+      .click({ modifiers: [await modifier(window)] });
+    await expectList(running, "topic: Timing", TIMING);
+    await openElement(window, "Measure the rain");
+    await window
+      .locator('[data-field="packages"] [role="link"]')
+      .first()
+      .click({ modifiers: [await modifier(window)] });
+    const listed = await expectList(running, "packages: Sensors", {
+      property: "packages",
+      op: "eq",
+      value: "PKG-0000d1",
+    });
+    expect(listed.elements.map((e) => e.title)).toContain("Measure the hail");
+    await fs.mkdir(OUT, { recursive: true });
+    await window.screenshot({ path: path.join(OUT, "sr-132-click-package.png") });
+    // A plain click on the target still opens the package itself.
+    await openElement(window, "Measure the rain");
+    await window.locator('[data-field="packages"] [role="link"]').first().click();
+    await expect(window.locator("article h1")).toHaveText("Sensors");
+  });
+
   test("[SR-132/AK2] the lists of one value of a list property and of the status hold what the CLI lists for property eq value", async () => {
     const { window } = running;
     await openElement(window, "Time the samples");
@@ -194,6 +221,16 @@ test.describe.serial("the list of the elements with a value", () => {
     await expect(promptLabel(window)).toHaveText("Elements with");
     expect((await optionNames(window)).some((name) => name.startsWith("acceptance"))).toBe(false);
     await window.keyboard.press("Escape");
+    // A Ctrl/Cmd+click on them offers no list either, and no prompt among the other values.
+    for (const key of ["rationale", "acceptance-criteria"]) {
+      await window
+        .locator(`[data-field="${key}"] .cm-line`)
+        .first()
+        .click({ modifiers: [await modifier(window)] });
+      await expect(window.getByLabel("Minibuffer")).toContainText(`No value of ${key} lists elements`);
+      await expect(window.locator(".candidates")).toHaveCount(0);
+      await expect(window.locator("article h1")).toHaveText("Measure the rain");
+    }
   });
 
   test("[SR-132/AK5] a further filter narrows the list of a value as the CLI does", async () => {
@@ -234,7 +271,7 @@ test.describe("the key under macOS", () => {
     await running.close();
   });
 
-  test("[SR-132/AK1] under macOS Cmd+Shift+Enter opens the list; the physical Ctrl+Shift+Enter does not", async () => {
+  test("[SR-132/AK1] [SR-145/AK1] under macOS Cmd+Shift+Enter opens the list; the physical Ctrl+Shift+Enter does not", async () => {
     const { window } = running;
     await openElement(window, "Measure the rain");
     // Cmd+Shift+Enter on the rationale asks: the facets of the element are answered and kept from here on.

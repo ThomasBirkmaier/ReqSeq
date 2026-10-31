@@ -8,8 +8,9 @@ The ReqSeq specification, a ReqSeq workspace (D-064, enabler #326). Until stage 
 
 - `reqseq-workspace.yaml`: the workspace, one repository `spec` (this folder).
 - `metamodel/spec-model.yaml`: the standard model (D-037) with the additions of this spec (D-060): property `spec-id` (meaning `identifier`), statuses per type, the glossary term.
-- One Markdown file per element (D-015), named by D-056 (`SR-5a8b253c90b0.md`), in a folder named like its type key, which is where `element create` puts new elements: `need/`, `system-requirement/`, `decision/`, `glossary-term/`, `package/`.
+- One Markdown file per element (D-015), named by D-056 (`SR-5a8b253c90b0.md`), in a folder named like its type key, which is where `element create` puts new elements: `need/`, `system-requirement/`, `decision/`, `glossary-term/`, `package/`, `variant/`.
 - `package/`: one package per stage (D-035, D-040), identifiers `Stufe-1` to `Stufe-6` and `Querschnitt`. A system requirement names its stage in `packages`.
+- `variant/`: the variants Windows, Linux and macOS (`VAR-001` to `VAR-003`, #361); a requirement that holds only on one system names it in `validity`.
 
 The spec IDs (`SR-036`, `D-047`, `N-001`) are the identifiers: every command takes them as references.
 

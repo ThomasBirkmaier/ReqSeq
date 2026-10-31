@@ -3,7 +3,7 @@
 // the app only passes the chosen one to the reads that show or count a set of elements, and the modeline
 // says which one it is. The choices are `core` and the elements of the types with the meaning `variant`
 // (`metamodel.get`, `element.list`), the same source as a `view` argument of the command prompt (#285).
-import type { CommandTypes } from "@reqseq/core";
+import type { CommandTypes, MetamodelGetOutput } from "@reqseq/core";
 import type { Call } from "./call.js";
 
 /** A view the window can show: `core` or a variant's UUID, with the title the modeline gives it. */
@@ -92,6 +92,10 @@ export const inView = (call: Call, shown: ShownView | undefined): Call =>
     : (name, input) =>
         call(name, withView(name, input, shown.view) as Partial<CommandTypes[typeof name]["input"]>);
 
+/** The keys of the types with the meaning `variant` (`metamodel.get`). */
+export const variantTypesOf = (metamodel: Pick<MetamodelGetOutput, "types">): string[] =>
+  metamodel.types.filter((type) => type.meaning === "variant").map((type) => type.key);
+
 /** The views of the workspace: the core first, then each variant by its short ID and title; or why they could not be read. */
 export const viewsOf = async (
   call: Call,
@@ -103,7 +107,7 @@ export const viewsOf = async (
   if (!metamodel.ok) {
     return { ok: false, message: metamodel.message };
   }
-  const types = metamodel.output.types.filter((type) => type.meaning === "variant").map((type) => type.key);
+  const types = variantTypesOf(metamodel.output);
   if (types.length === 0) {
     return { ok: true, views: [CORE_VIEW] };
   }

@@ -28,6 +28,7 @@ export type { LocatableFinding, LocateOptions } from "./locate.js";
 export {
   applyStoreChange,
   carryStoreUpdate,
+  storeUpdate,
   elementStoreState,
   ignoredBy,
   loadElements,

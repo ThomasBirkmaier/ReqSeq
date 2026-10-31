@@ -1143,7 +1143,7 @@ describe("save element and edit text", () => {
     expect(controls.follow).toHaveBeenCalledTimes(1);
   });
 
-  it("[SR-132/AK1] List elements with this value runs the controls with Ctrl/Cmd+Shift+Enter, on every element with a loaded text", () => {
+  it("[SR-132/AK1] [SR-145/AK1] List elements with this value runs the controls with Ctrl/Cmd+Shift+Enter, on every element with a loaded text", () => {
     const controls = {
       save: vi.fn(),
       edit: vi.fn(),
@@ -1492,7 +1492,7 @@ describe("Next buffer and Previous buffer (SR-115 AK5)", () => {
     expect(actionFor(none, (shortcut) => shortcut === PREVIOUS_BUFFER_SHORTCUT)).toBeUndefined();
   });
 
-  it("[SR-115/AK5] Alt+N and Alt+P find the actions, Option+N and Option+P by the physical key", () => {
+  it("[SR-115/AK5] [SR-145/AK2] Alt+N and Alt+P find the actions, Option+N and Option+P by the physical key", () => {
     const { context } = setup(used, {}, true, { opened });
     const press = (key: string, code: string) => ({
       key,

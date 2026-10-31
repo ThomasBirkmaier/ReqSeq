@@ -13,6 +13,7 @@ import type { ObjectInfos, ObjectReader } from "./reader.js";
 import {
   changedPaths,
   fileHistory,
+  fileMoves,
   headCommit,
   headFiles,
   openObjectReader,
@@ -179,6 +180,7 @@ describe("git reader", () => {
     expect(Object.keys(reader).sort()).toEqual([
       "changedPaths",
       "fileHistory",
+      "fileMoves",
       "headCommit",
       "headFiles",
       "isGitPath",
@@ -576,6 +578,131 @@ describe("file history", () => {
     });
     mock.fake = { stdout: `${commit} yesterday \0\0` };
     expect(await fileHistory(ws.path("plain"), commit, ["b.md"])).toMatchObject({
+      known: false,
+      reason: "not-a-repository",
+    });
+  });
+});
+
+describe("file moves", () => {
+  it("lists the files each commit moved within the folder, relative to it, and runs one log for all", async () => {
+    const ws = await createFixtureWorkspace();
+    onTestFinished(() => ws.cleanup());
+    await ws.git(["init", "--quiet", "--initial-branch=main"]);
+    const made = await ws.commitHistory(
+      [
+        { name: "first", files: { "spec/a/x.md": "x\nline\n", "outside.md": "o\n", "spec/b.md": "b\n" } },
+        // From outside the folder is an addition; a changed file still counts when it is similar.
+        {
+          name: "moved",
+          deleted: ["spec/a/x.md", "outside.md"],
+          files: { "spec/c/x.md": "x\nline\nmore\n", "spec/o.md": "o\n" },
+        },
+        { name: "edited", files: { "spec/b.md": "b2\n" } },
+        { name: "side", parents: ["first"], files: { "spec/s.md": "s\n" } },
+        // A merge prints no moves.
+        {
+          name: "merge",
+          parents: ["edited", "side"],
+          deleted: ["spec/b.md"],
+          files: { "spec/d.md": "b2\n" },
+        },
+      ],
+      { branch: "main" },
+    );
+    await ws.git(["reset", "--hard", "--quiet"]);
+    const ids = ["first", "moved", "edited", "merge"].map((name) => String(made[name]?.id));
+    expect(await fileMoves(ws.path("spec"), ids)).toEqual({
+      known: true,
+      moves: new Map([[made["moved"]?.id, [{ from: "a/x.md", to: "c/x.md" }]]]),
+    });
+    const logs = mock.calls.filter((c) => c.args.includes("log"));
+    expect(logs.map((c) => [c.args, (c.options as ExecFileOptions).timeout])).toEqual([
+      [
+        [
+          ...FIXED,
+          "-c",
+          "log.showRoot=false",
+          "log",
+          "--no-show-signature",
+          "--no-walk",
+          "--relative",
+          "--find-renames=50%",
+          "-l1000",
+          "--diff-filter=R",
+          "--raw",
+          "--no-abbrev",
+          "-z",
+          "--format=%H",
+          "--stdin",
+        ],
+        60_000,
+      ],
+    ]);
+  });
+
+  it("finds only unchanged moves in a partial clone, or where the Git folder cannot tell, as it needs no blob there", async () => {
+    const ws = await createFixtureWorkspace();
+    onTestFinished(() => ws.cleanup());
+    await ws.git(["init", "--quiet", "--initial-branch=main"]);
+    const made = await ws.commitHistory(
+      [
+        { name: "first", files: { "a.md": "a\nline\n", "b.md": "b\n" } },
+        { name: "moved", deleted: ["a.md", "b.md"], files: { "c.md": "a\nline\nmore\n", "d.md": "b\n" } },
+      ],
+      { branch: "main" },
+    );
+    await ws.git(["reset", "--hard", "--quiet"]);
+    await ws.git(["config", "uploadpack.allowFilter", "true"]);
+    const moved = String(made["moved"]?.id);
+    const both = new Map([
+      [
+        moved,
+        [
+          { from: "a.md", to: "c.md" },
+          { from: "b.md", to: "d.md" },
+        ],
+      ],
+    ]);
+    const unchanged = new Map([[moved, [{ from: "b.md", to: "d.md" }]]]);
+    // A blobless clone: comparing `a.md` with `c.md` would need a blob it must not fetch.
+    await ws.git(["clone", "--quiet", "--filter=blob:none", pathToFileURL(ws.root).href, "partial"]);
+    expect(await fileMoves(ws.path("partial"), [moved])).toEqual({ known: true, moves: unchanged });
+    expect(mock.calls.at(-1)?.args).toContain("--find-renames=100%");
+    // Without a config file, a repository is no partial clone.
+    await fs.rm(path.join(ws.root, ".git", "config"));
+    expect(await fileMoves(ws.root, [moved])).toEqual({ known: true, moves: both });
+    // A reftable repository: only git can read its HEAD, so it counts as a partial clone.
+    await fs.mkdir(path.join(ws.root, ".git", "reftable"));
+    expect(await fileMoves(ws.root, [moved])).toEqual({ known: true, moves: unchanged });
+    // A partial clone as older git marks it.
+    await fs.rm(path.join(ws.root, ".git", "reftable"), { recursive: true });
+    await fs.writeFile(
+      path.join(ws.root, ".git", "config"),
+      "[core]\n\tbare = false\n[extensions]\n\tpartialClone = origin\n",
+    );
+    expect(await fileMoves(ws.root, [moved])).toEqual({ known: true, moves: unchanged });
+  });
+
+  it("runs no git for no commits, refuses what is no commit ID, and is unknown when git fails or prints something else", async () => {
+    const ws = await fixture();
+    expect(await fileMoves(ws.path("plain"), [])).toEqual({ known: true, moves: new Map() });
+    expect(mock.calls).toEqual([]);
+    await expect(fileMoves(ws.path("plain"), ["HEAD"])).rejects.toThrow(/commit IDs/);
+    const commit = "a".repeat(40);
+    expect(await fileMoves(ws.path("plain"), [commit])).toMatchObject({
+      known: false,
+      reason: "not-a-repository",
+    });
+    mock.fake = { stdout: "b.md\0" };
+    expect(await fileMoves(ws.path("plain"), [commit])).toEqual({
+      known: false,
+      reason: "not-a-repository",
+      detail: "unexpected output of git log: b.md",
+    });
+    // A rename entry without its two paths.
+    mock.fake = { stdout: `${commit}\0\n:100644 100644 ${commit} ${commit} R100\0x.md\0` };
+    expect(await fileMoves(ws.path("plain"), [commit])).toMatchObject({
       known: false,
       reason: "not-a-repository",
     });

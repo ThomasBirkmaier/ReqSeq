@@ -474,21 +474,29 @@ describe("evidence.record variants (SR-030, SR-040)", () => {
   const COAST = "40a0e000-0000-4000-8000-a1a1a1a1a1a1";
   const TEST = { kind: "verification", result: "passed", method: "test", item: "build-40", date: DATE };
 
-  it("writes the UUID of a variant the element applies in, also on a validation record (#534 Q2); core is the core", async () => {
+  it("writes the UUID of a variant the element applies in; core is the core", async () => {
     const { workspace } = await variants();
     expect(
       (await record(workspace, { ref: "SR-000ab2", ...TEST, variant: "VAR-a1a1a1" })).record.variant,
     ).toBe(COAST);
-    const validation = await record(workspace, {
-      ref: "SR-000ab2",
-      kind: "validation",
-      result: "passed",
-      variant: "VAR-a1a1a1",
-      date: DATE,
-    });
-    expect(validation.record).toMatchObject({ kind: "validation", variant: COAST });
     expect(
       (await record(workspace, { ref: "SR-000a11", ...TEST, variant: "core" })).record,
+    ).not.toHaveProperty("variant");
+  });
+
+  it("[SR-038/AK4] refuses a validation record with a variant, names the reason and writes nothing; core is allowed", async () => {
+    const { fixture, workspace } = await variants();
+    const VALIDATION = { ref: "SR-000ab2", kind: "validation", result: "passed", date: DATE } as const;
+    const error = await refusedLeavingNothing(fixture, () =>
+      record(workspace, { ...VALIDATION, variant: "VAR-a1a1a1" }),
+    );
+    expect([error.code, error.message, error.details]).toEqual([
+      "input.invalid",
+      "Not written: a validation record names no variant, it holds for the core (D-007, SR-038 AK4)",
+      { command: "evidence.record", fields: ["variant"], reason: "validation-with-variant", variant: COAST },
+    ]);
+    expect(
+      (await record(workspace, { ...VALIDATION, ref: "SR-000a11", variant: "core" })).record,
     ).not.toHaveProperty("variant");
   });
 

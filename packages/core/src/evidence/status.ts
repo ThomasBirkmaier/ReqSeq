@@ -97,10 +97,10 @@ const CORE: View = Object.freeze({ kind: "core" });
 
 /**
  * The validation status of an element from its records (SR-038, ADR-0012 "Status rules"): the
- * records of kind `validation` that hold in the core (no `variant`, D-026; one validation status per
- * element, #534 Q2) by the rule of `recordStatusOf`, `passed` named `validated` (AK3). Records only
- * of other versions give `outdated` (AK2, AK3), none gives `open` (AK3). Verification records never
- * count (D-007, AK1).
+ * records of kind `validation` that hold in the core (no `variant`, D-026; the reader refuses a
+ * validation record with one, SR-038 AK4, so this guards records given otherwise) by the rule of
+ * `recordStatusOf`, `passed` named `validated` (AK3). Records only of other versions give
+ * `outdated` (AK2, AK3), none gives `open` (AK3). Verification records never count (D-007, AK1).
  */
 export const validationStatusOf = (
   records: readonly EvidenceRecord[],

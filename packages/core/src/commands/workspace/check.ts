@@ -34,6 +34,8 @@
 //   versions per call (`datedProblems`), since a new commit changes them without a file change.
 //   Outdated evidence (SR-025 AK4) has its records from stage 4 on (#127 option 1); the problems of
 //   reading them and the records of unknown elements are `evidenceProblemsState` (SR-028 AK3).
+// - The core requirements changed or new since a variant's newest baseline (SR-103), after the
+//   states and before the outdated relations, are computed on every call (`sinceBaselineProblems`).
 // - Folders a running watcher cannot watch (`workspace.not-watched`) are left to `workspace.status`:
 //   they are about the running process, not about the files.
 // - `durationMs` is left out: it differs between calls, and the same call gives the same output in
@@ -52,12 +54,20 @@ import {
   relationTypeProblemsState,
   requiredProblemsState,
   restrictTo,
+  shortIdState,
   statusProblemsState,
   supersededTargetProblemsState,
   unknownProblemsState,
   valueKindProblemsState,
 } from "../../model/index.js";
-import { datedProblems, outdatedEvidenceProblemsState, outdatedRelationsState } from "../../hints/index.js";
+import {
+  datedProblems,
+  outdatedEvidenceProblemsState,
+  outdatedRelationsState,
+  sinceBaselineProblems,
+} from "../../hints/index.js";
+import type { SinceBaselineContext } from "../../hints/index.js";
+import type { Workspace } from "../../runtime/workspace.js";
 import { derivationCycleProblemsState } from "../../trace/index.js";
 import {
   nestedVariantsState,
@@ -115,6 +125,15 @@ const shownOf = (findings: readonly Problem[], severity: Severity): Pick<Output,
     : { problems, hidden: { below: severity, warning: left.warning, info: left.info } };
 };
 
+/** SR-103: computed per call (a new baseline file changes them), not a state; none against an invalid metamodel. */
+const sinceBaselineOf = async (
+  workspace: Workspace,
+  context: Omit<SinceBaselineContext, "workspace" | "shortIds">,
+): Promise<readonly Problem[]> =>
+  context.metamodel.valid
+    ? sinceBaselineProblems({ ...context, workspace, shortIds: await workspace.get(shortIdState) })
+    : [];
+
 export default defineCommand({
   name: "workspace.check",
   run: async (ctx, input): Promise<Output> => {
@@ -139,6 +158,10 @@ export default defineCommand({
           findings.push(problem);
         }
       }
+    }
+    const sinceBaseline = await sinceBaselineOf(ctx.workspace, { layout, metamodel, store });
+    for (const problem of sinceBaseline.filter(keeps)) {
+      findings.push(problem);
     }
     const lowest = RANK[input.severity];
     const outdated = (await ctx.workspace.get(outdatedRelationsState)).filter((f) => keeps(f.problem));

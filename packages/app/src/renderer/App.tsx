@@ -29,7 +29,7 @@ import { BufferArea } from "./BufferArea.js";
 import type { Call } from "./call.js";
 import { callOn } from "./call.js";
 import type { ShownView } from "./views.js";
-import { inView, viewMark } from "./views.js";
+import { inView, variantTypesOf, viewMark } from "./views.js";
 import type { PropertyModel } from "./element-view.js";
 import { propertyModel } from "./element-view.js";
 import type { GraphFilterChoice } from "./graph-choices.js";
@@ -192,6 +192,8 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   const [typeNames, setTypeNames] = useState<ReadonlyMap<string, string>>(new Map());
   // The types that are packages: their elements show the elements that name them (SR-112).
   const [packages, setPackages] = useState<PackageModel | undefined>(undefined);
+  // The types with the meaning `variant`: their pages follow every change from outside (SR-103).
+  const [variantTypes, setVariantTypes] = useState<ReadonlySet<string>>(new Set());
   // The properties of each type: which boxes are edited in place (SR-104) and which show Markdown (SR-127).
   const [properties, setProperties] = useState<PropertyModel>(new Map());
   // The relation kinds and properties of the metamodel, and the meanings `trace.graph` takes (from the
@@ -243,6 +245,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
           metamodel.ok ? new Map(metamodel.output.types.map((type) => [type.key, type.name])) : new Map(),
         );
         setPackages(metamodel.ok ? packageModel(metamodel.output) : undefined);
+        setVariantTypes(new Set(metamodel.ok ? variantTypesOf(metamodel.output) : []));
         setProperties(metamodel.ok ? propertyModel(metamodel.output) : new Map());
         setRelationModel(metamodel.ok ? metamodel.output : NO_RELATIONS);
       }
@@ -337,6 +340,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       } else if (!result.ok) {
         setTypeNames(new Map());
         setPackages(undefined);
+        setVariantTypes(new Set());
         setProperties(new Map());
         setRelationModel(NO_RELATIONS);
       }
@@ -887,6 +891,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       keep: keepOf(buffer),
       register: setElementControls,
       packages,
+      variantTypes,
       properties,
     }),
   };

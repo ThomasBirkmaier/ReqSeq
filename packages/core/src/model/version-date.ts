@@ -7,6 +7,8 @@
 // its texts embeds, and every merge (no history simplification, so the answer never depends on
 // the other files of a call); a merge is evaluated where its sides do not all lead to the same
 // evaluated commit (it may join the text of one side with an image of the other). Git is asked
+// what the commits that changed the file's paths moved, and the walk follows each old path (#460):
+// one `log` for all of them after each history read, never one `--follow` per file. Git is asked
 // for the folders of these paths, which costs far less than one pathspec per file in a deep
 // history; the paths of each walk are picked from its answer. A version is computed only where an answer
 // needs it, newest commit first, until the newest commit that started the version asked for is
@@ -24,6 +26,7 @@ import { parseFileBytes } from "../files/index.js";
 import type { GitUnknown, HeadFiles, HistoryCommit, ObjectInfo, ObjectReader } from "../git/reader.js";
 import {
   fileHistory,
+  fileMoves,
   headCommit,
   headFiles,
   isGitPath,
@@ -70,7 +73,12 @@ interface Walked {
   readonly key: string;
   readonly file: string;
   readonly id: string;
-  /** NFC of the file and of every image path its texts read so far embed, relative to the repository. */
+  /**
+   * The paths the file had, as Git stores them: `file` first, then each older path a commit moved
+   * it from, as found. At a commit, the text is the first of them that holds the element.
+   */
+  readonly names: string[];
+  /** NFC of the names and of every image path their texts read so far embed, relative to the repository. */
   readonly tracked: Set<string>;
 }
 
@@ -105,12 +113,16 @@ interface Held {
 interface Facts {
   /** Info by object name (`<commit>:<path>`); null where Git has no such object. */
   readonly infos: Map<string, ObjectInfo | null>;
-  /** The element a walked file held at a blob of its text, by `<walk key>\n<blob ID>`. */
+  /** The element a walked file held at a blob of its text, by `<walk key>\n<path>\n<blob ID>`. */
   readonly held: Map<string, Held | undefined>;
   /** SHA-256 by blob ID; null for a blob Git did not have. */
   readonly hashes: Map<string, string | null>;
   /** Versions by the element text and images they were computed from. */
   readonly versions: Map<string, string | undefined>;
+  /** The commits whose moves were looked up. */
+  readonly movesAsked: Set<string>;
+  /** The old paths of the files each of them moved, by NFC of the new path; where it moved any. */
+  readonly moves: Map<string, Map<string, string[]>>;
 }
 
 /** The walks of one repository at one HEAD, by `walkKey`. */
@@ -270,6 +282,68 @@ const evaluatedList = (
 };
 
 /**
+ * Looks up the moves of `commits` not looked up yet (one `log`). Git that times out, was stopped or
+ * is missing makes the walk unknown; any other failure (a partial clone without the blobs rename
+ * detection compares) counts as no moves, so the file is not followed (ADR-0005 "Moves").
+ */
+const lookUpMoves = async (
+  facts: Facts,
+  folder: string,
+  commits: readonly string[],
+  signal: AbortSignal,
+): Promise<void> => {
+  const unasked = [...new Set(commits)].filter((c) => !facts.movesAsked.has(c));
+  if (unasked.length === 0) {
+    return;
+  }
+  const found = await fileMoves(folder, unasked, { signal });
+  if (!found.known) {
+    const unknown = new Unknown(found);
+    if (unknown.transient) {
+      throw unknown;
+    }
+  } else {
+    for (const [commit, moves] of found.moves) {
+      const byTarget = new Map<string, string[]>();
+      for (const { from, to } of moves) {
+        pushTo(byTarget, to.normalize("NFC"), from);
+      }
+      facts.moves.set(commit, byTarget);
+    }
+  }
+  for (const commit of unasked) {
+    facts.movesAsked.add(commit);
+  }
+};
+
+/**
+ * Adds to the names of `walk` the old path of each move of `commits` to one of them (the moves are
+ * in `facts`); whether a name was added.
+ */
+const addOldNames = (walk: FileWalk, commits: readonly HistoryCommit[], facts: Facts): boolean => {
+  const { names, tracked } = walk.walked;
+  const known = new Set(names.map((n) => n.normalize("NFC")));
+  const before = names.length;
+  // Each commit's moves are found by the new path, so a commit that moved many files costs one
+  // look-up per name, not one per move (N-036).
+  for (const { commit } of commits) {
+    const byTarget = facts.moves.get(commit);
+    // A name added here may be the target of another move of the same commit.
+    for (let i = 0; byTarget !== undefined && i < names.length; i++) {
+      for (const from of byTarget.get(String(names[i]).normalize("NFC")) ?? []) {
+        // A path git cannot take on a line is not followed.
+        if (!known.has(from.normalize("NFC")) && isGitPath(from)) {
+          names.push(from);
+          known.add(from.normalize("NFC"));
+          tracked.add(from.normalize("NFC"));
+        }
+      }
+    }
+  }
+  return names.length > before;
+};
+
+/**
  * Reads the history of the files of `walks` (one `log` for all, every merge listed, so a walk gets
  * the same answer whatever other files share the call) and sets where each is evaluated: the
  * commits that changed its file or a tracked image path, and the merges whose sides do not all
@@ -277,30 +351,49 @@ const evaluatedList = (
  * literal pathspec per file costs time per commit, folder entry and path, which grows to minutes
  * in a deep history with large folders; the folders cost about one pass. The changed paths of
  * each commit are matched to the tracked paths of each walk afterwards.
+ *
+ * Then the moves of every commit that changed a name of a file are looked up (one `log` for all);
+ * a move to a name adds the old path, and the history of the walks that got one is read again,
+ * until no name is added. So the names of a walk follow from the history alone, never from the
+ * versions computed so far, and every call at the same HEAD gives the same answer (D-029).
  */
 const readHistory = async (
+  repository: RepositoryWalks,
   folder: string,
-  head: string,
   walks: readonly FileWalk[],
   signal: AbortSignal,
 ): Promise<void> => {
-  const files = walks.flatMap((w) => [...w.walked.tracked].flatMap(forms)).filter(isGitPath);
-  const history = await fileHistory(folder, head, [...new Set(files.map(pathspecOf))], { signal });
-  if (!history.known) {
-    throw new Unknown(history);
-  }
-  const commits = parentsFirst(history.commits);
-  const byPath = new Map<string, HistoryCommit[]>();
-  for (const commit of commits) {
-    for (const changed of commit.paths) {
-      pushTo(byPath, changed.normalize("NFC"), commit);
+  for (let open = walks; open.length > 0;) {
+    const files = open.flatMap((w) => [...w.walked.tracked].flatMap(forms)).filter(isGitPath);
+    const history = await fileHistory(folder, repository.head, [...new Set(files.map(pathspecOf))], {
+      signal,
+    });
+    if (!history.known) {
+      throw new Unknown(history);
     }
-  }
-  for (const walk of walks) {
-    walk.evaluated = evaluatedList(
-      commits,
-      new Set([...walk.walked.tracked].flatMap((t) => byPath.get(t) ?? [])),
+    const commits = parentsFirst(history.commits);
+    const byPath = new Map<string, HistoryCommit[]>();
+    for (const commit of commits) {
+      for (const changed of commit.paths) {
+        pushTo(byPath, changed.normalize("NFC"), commit);
+      }
+    }
+    const changing = (paths: Iterable<string>): HistoryCommit[] => [
+      ...new Set([...paths].flatMap((t) => byPath.get(t) ?? [])),
+    ];
+    const named = open.map((walk) => {
+      walk.evaluated = evaluatedList(commits, new Set(changing(walk.walked.tracked)));
+      return { walk, commits: changing(walk.walked.names.map((n) => n.normalize("NFC"))) };
+    });
+    await lookUpMoves(
+      repository.facts,
+      folder,
+      named.flatMap(({ commits: changed }) => changed.map((c) => c.commit)),
+      signal,
     );
+    open = named
+      .filter(({ walk, commits: changed }) => addOldNames(walk, changed, repository.facts))
+      .map(({ walk }) => walk);
   }
 };
 
@@ -378,11 +471,30 @@ const blobAt = (facts: Facts, spellings: readonly string[], commit: string): Obj
   return entry?.type === "blob" ? entry : undefined;
 };
 
-/** The text blob of `walk` at `commit` and the element it held there. */
-const heldAt = (facts: Facts, walk: FileWalk, commit: string): { blob?: ObjectInfo; held?: Held } => {
-  const blob = blobAt(facts, forms(walk.walked.file), commit);
-  const held = blob === undefined ? undefined : facts.held.get(`${walk.walked.key}\n${blob.id}`);
-  return { ...(blob === undefined ? {} : { blob }), ...(held === undefined ? {} : { held }) };
+/** The key of what a walked file held at `name` in the blob `blob`. */
+const heldKey = (walk: FileWalk, name: string, blob: ObjectInfo): string =>
+  `${walk.walked.key}\n${name}\n${blob.id}`;
+
+/** The text blobs of `walk` at `commit`: one for each of its names the commit has. */
+const textsAt = (facts: Facts, walk: FileWalk, commit: string): { name: string; blob: ObjectInfo }[] =>
+  walk.walked.names.flatMap((name) => {
+    const blob = blobAt(facts, forms(name), commit);
+    return blob === undefined ? [] : [{ name, blob }];
+  });
+
+/** The element `walk` held at `commit`: at the first of its names that holds it there, with that text blob. */
+const heldAt = (
+  facts: Facts,
+  walk: FileWalk,
+  commit: string,
+): { name: string; blob: ObjectInfo; held: Held } | undefined => {
+  for (const { name, blob } of textsAt(facts, walk, commit)) {
+    const held = facts.held.get(heldKey(walk, name, blob));
+    if (held !== undefined) {
+      return { name, blob, held };
+    }
+  }
+  return undefined;
 };
 
 /** Reads the objects `ids` and gives each one's bytes to its sink. */
@@ -400,46 +512,86 @@ const readAll = async (
   return read.objects;
 };
 
+/** Tracks the image paths `held` embeds in `walk`; whether one was new. */
+const trackImages = (walk: FileWalk, held: Held | undefined): boolean => {
+  const before = walk.walked.tracked.size;
+  for (const link of held?.links.filter((l) => !l.missing) ?? []) {
+    walk.walked.tracked.add(imagePath(link).normalize("NFC"));
+  }
+  return walk.walked.tracked.size > before;
+};
+
+/** One text a round reads: a name of the file at a commit. */
+interface TextAt {
+  readonly walk: FileWalk;
+  readonly commit: string;
+  /** Index into the names of the walk. */
+  readonly index: number;
+}
+
+/** The text blob of `text` and the key of what it held; undefined where the commit has none. */
+const textOf = (
+  facts: Facts,
+  { walk, commit, index }: TextAt,
+): { blob: ObjectInfo; key: string; name: string } | undefined => {
+  const name = String(walk.walked.names[index]);
+  const blob = blobAt(facts, forms(name), commit);
+  return blob === undefined ? undefined : { blob, key: heldKey(walk, name, blob), name };
+};
+
 /**
  * Reads and parses the texts of the walked files at `at` that are not parsed yet (each blob once)
- * and tracks the image paths they embed; returns the walks whose tracked paths grew.
+ * and tracks the image paths they embed; returns the walks whose tracked paths grew. The names of a
+ * file are asked in turn, each only where no name before it held the element, so a commit where
+ * the current path holds it costs one name (Git finds a path in a large folder slowly).
  */
 const readTexts = async (
   round: Round,
   at: readonly { walk: FileWalk; commit: string }[],
 ): Promise<FileWalk[]> => {
   const { facts } = round.walks;
-  await ask(
-    round,
-    at.flatMap(({ walk, commit }) => forms(walk.walked.file).map((form) => objectName(commit, form))),
-  );
-  const unread = new Map<string, Set<FileWalk>>();
-  for (const { walk, commit } of at) {
-    const { blob } = heldAt(facts, walk, commit);
-    if (blob !== undefined && !facts.held.has(`${walk.walked.key}\n${blob.id}`)) {
-      unread.set(blob.id, (unread.get(blob.id) ?? new Set()).add(walk));
-    }
-  }
-  const texts = [...unread].map(([id, walks]) => ({ id, walks, chunks: [] as Buffer[] }));
-  await readAll(
-    round,
-    texts.map((t) => t.id),
-    texts.map((t) => (chunk) => t.chunks.push(chunk)),
-  );
   const grown = new Set<FileWalk>();
-  for (const { id, walks, chunks } of texts) {
-    const bytes = Buffer.concat(chunks);
-    for (const walk of walks) {
-      const held = heldElement(walk.walked.file, walk.walked.id, bytes, round.source.ignored);
-      facts.held.set(`${walk.walked.key}\n${id}`, held);
-      for (const link of held?.links.filter((l) => !l.missing) ?? []) {
-        const tracked = imagePath(link).normalize("NFC");
-        if (!walk.walked.tracked.has(tracked)) {
-          walk.walked.tracked.add(tracked);
+  for (let open: TextAt[] = at.map((a) => ({ ...a, index: 0 })); open.length > 0;) {
+    await ask(
+      round,
+      open.flatMap((text) =>
+        forms(String(text.walk.walked.names[text.index])).map((form) => objectName(text.commit, form)),
+      ),
+    );
+    // Each blob is read once, and parsed once for each walk and name that has it.
+    const unread = new Map<string, Map<string, { walk: FileWalk; name: string }>>();
+    for (const text of open) {
+      const found = textOf(facts, text);
+      if (found !== undefined && !facts.held.has(found.key)) {
+        const holders = unread.get(found.blob.id) ?? new Map<string, { walk: FileWalk; name: string }>();
+        unread.set(found.blob.id, holders.set(found.key, { walk: text.walk, name: found.name }));
+      }
+    }
+    const texts = [...unread].map(([id, holders]) => ({ id, holders, chunks: [] as Buffer[] }));
+    await readAll(
+      round,
+      texts.map((t) => t.id),
+      texts.map((t) => (chunk) => t.chunks.push(chunk)),
+    );
+    for (const { holders, chunks } of texts) {
+      const bytes = Buffer.concat(chunks);
+      for (const [key, { walk, name }] of holders) {
+        const held = heldElement(name, walk.walked.id, bytes, round.source.ignored);
+        facts.held.set(key, held);
+        if (trackImages(walk, held)) {
           grown.add(walk);
         }
       }
     }
+    open = open
+      .filter((text) => {
+        const found = textOf(facts, text);
+        return (
+          (found === undefined || facts.held.get(found.key) === undefined) &&
+          text.index + 1 < text.walk.walked.names.length
+        );
+      })
+      .map((text) => ({ ...text, index: text.index + 1 }));
   }
   return [...grown];
 };
@@ -458,7 +610,7 @@ const readImages = async (
 ): Promise<Map<string, ImageAt>> => {
   const { facts } = round.walks;
   const wanted = at.flatMap(({ walk, commit }) =>
-    (heldAt(facts, walk, commit).held?.links ?? [])
+    (heldAt(facts, walk, commit)?.held.links ?? [])
       .filter((l) => !l.missing)
       .map((link) => ({ link, commit })),
   );
@@ -509,10 +661,11 @@ const versionAt = (
   commit: string,
 ): string | undefined => {
   const { facts } = round.walks;
-  const { blob, held } = heldAt(facts, walk, commit);
-  if (blob === undefined || held === undefined) {
+  const found = heldAt(facts, walk, commit);
+  if (found === undefined) {
     return undefined;
   }
+  const { name, blob, held } = found;
   const files: VersionFile[] = [];
   for (const link of held.links) {
     const state = link.missing ? "missing" : images.get(`${imagePath(link)}\n${commit}`);
@@ -526,7 +679,7 @@ const versionAt = (
     files.push({ path: link.path, sha256: hash ?? null });
   }
   // Commits with the same text and images have the same version.
-  const key = JSON.stringify([walk.walked.key, blob.id, files]);
+  const key = JSON.stringify([walk.walked.key, name, blob.id, files]);
   if (!facts.versions.has(key)) {
     try {
       facts.versions.set(key, elementVersion(held.record, held.body, round.context.metamodel, files));
@@ -564,7 +717,7 @@ const answer = async (round: Round, queries: readonly Query[]): Promise<void> =>
       walk.versions.set(commit, versionAt(round, images, walk, commit));
     }
     if (grown.length > 0) {
-      await readHistory(round.source.repository.folder, round.walks.head, grown, round.signal);
+      await readHistory(round.walks, round.source.repository.folder, grown, round.signal);
     }
   }
 };
@@ -612,7 +765,14 @@ const headWalks = async (
           head: head.commit,
           shallow: head.shallow,
           files: new Map(),
-          facts: { infos: new Map(), held: new Map(), hashes: new Map(), versions: new Map() },
+          facts: {
+            infos: new Map(),
+            held: new Map(),
+            hashes: new Map(),
+            versions: new Map(),
+            movesAsked: new Set(),
+            moves: new Map(),
+          },
         };
   cache.repositories.set(folder, current);
   return current;
@@ -677,7 +837,7 @@ const startWalks = (
       .filter((l) => !l.missing)
       .map((l) => imagePath(l).normalize("NFC"));
     fresh.set(key, {
-      walked: { key, file, id, tracked: new Set([file.normalize("NFC"), ...seeds]) },
+      walked: { key, file, id, names: [file], tracked: new Set([file.normalize("NFC"), ...seeds]) },
       evaluated: [],
       versions: new Map(),
       dates: new Map(),
@@ -687,7 +847,7 @@ const startWalks = (
   if (fresh.size === 0) {
     return;
   }
-  const running = readHistory(source.repository.folder, walks.head, [...fresh.values()], signal).then(
+  const running = readHistory(walks, source.repository.folder, [...fresh.values()], signal).then(
     () => true,
     (error: unknown) => {
       // What Git could not tell for a reason that may pass (a timeout, no git) is asked again next time.
@@ -764,7 +924,13 @@ const repositoryDates = async (
         for (const { walk } of queries) {
           walk.failed = true;
         }
-      } else if (!(error instanceof Unknown) && !(error instanceof CommandError)) {
+      } else if (error instanceof Unknown || error instanceof CommandError) {
+        // What may pass is asked again by the next call, from a new walk: this one may hold a
+        // tracked path whose history was not read (ADR-0005 "No date").
+        for (const { walk } of queries) {
+          walks.files.delete(walk.walked.key);
+        }
+      } else {
         throw error;
       }
     });
