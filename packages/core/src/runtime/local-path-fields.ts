@@ -2,7 +2,7 @@
 // `common.schema.json#/$defs/localPath`, found by the resolved definition, not by the text of a
 // `$ref`. The walk follows `$ref`, `properties`, `items`, `anyOf` and `oneOf`; a local path under any
 // other keyword (`additionalProperties`, `allOf`, `prefixItems`, ...) would go unchecked, so the walk
-// throws there instead (fail closed). `invoke` checks the values of these fields for API and MCP calls.
+// throws there instead (fail closed), and so does a `$ref` that does not resolve. `invoke` checks the values of these fields for API and MCP calls.
 import type { JsonSchema, LocalPathUse } from "../catalog.js";
 import { SCHEMA_BASE } from "./contracts.js";
 
@@ -72,6 +72,22 @@ export const localPathFields = (
     return Object.values(value).some((inner) => mentions(inner, from, seen));
   };
 
+  /** Throws when `node` holds a local path where the walk does not follow (see the file comment). */
+  const refuseUnfollowed = (
+    node: Readonly<Record<string, unknown>>,
+    from: string,
+    at: LocalPathField,
+  ): void => {
+    if (Array.isArray(node["items"]) && mentions(node["items"], from, new Set())) {
+      throw new Error(`a local path in the items array of ${shown(at)} would not be checked (SR-142)`);
+    }
+    for (const key of UNFOLLOWED) {
+      if (key in node && mentions(node[key], from, new Set())) {
+        throw new Error(`a local path under ${key} of ${shown(at)} would not be checked (SR-142)`);
+      }
+    }
+  };
+
   const found = new Map<string, LocalPathField>();
   // The schemas on the way to the current one, to find a schema that refers back to itself.
   const visiting = new Set<unknown>();
@@ -94,6 +110,11 @@ export const localPathFields = (
     const ref = node["$ref"];
     if (typeof ref === "string") {
       const next = resolve(ref, from);
+      if (next.node === undefined) {
+        throw new Error(
+          `the $ref ${ref} at ${shown(at)} does not resolve, so its local paths would not be checked (SR-142)`,
+        );
+      }
       walk(next.node, next.base, at);
     }
     const properties = node["properties"];
@@ -111,11 +132,7 @@ export const localPathFields = (
         }
       }
     }
-    for (const key of UNFOLLOWED) {
-      if (key in node && mentions(node[key], from, new Set())) {
-        throw new Error(`a local path under ${key} of ${shown(at)} would not be checked (SR-142)`);
-      }
-    }
+    refuseUnfollowed(node, from, at);
     visiting.delete(node);
   };
   walk(schema, base, []);

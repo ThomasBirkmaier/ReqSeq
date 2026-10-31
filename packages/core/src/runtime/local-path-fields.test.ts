@@ -65,6 +65,16 @@ describe("the local path fields of a command input (SR-142)", () => {
     expect(fieldsOf({ type: "object", allOf: [{ $ref: "../common.schema.json#/$defs/key" }] })).toEqual([]);
   });
 
+  it("throws for a $ref that does not resolve and for a local path in an items array", () => {
+    expect(() => fieldsOf({ type: "object", properties: { x: { $ref: "#/$defs/missing" } } })).toThrow(
+      "the $ref #/$defs/missing at x does not resolve",
+    );
+    expect(() =>
+      fieldsOf({ type: "object", properties: { x: { type: "array", items: [{ $ref: LOCAL_PATH }] } } }),
+    ).toThrow("a local path in the items array of x would not be checked");
+    expect(fieldsOf({ type: "array", items: [{ type: "string" }] })).toEqual([]);
+  });
+
   it("needs the localPath definition", () => {
     expect(() => localPathFields({}, SCHEMA_BASE, [])).toThrow("no $defs/localPath");
   });

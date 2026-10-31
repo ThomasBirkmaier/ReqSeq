@@ -100,8 +100,9 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
   const locators = new Map<string, () => ProblemLocator | undefined>();
   // Which element a call of each command names, from its catalog entry (SR-117).
   const calls = new Map<string, Omit<AccessCall, "access">>();
-  // The local path fields of each command's input (SR-142), built on its first confined call.
-  const pathFields = new Map<string, () => readonly LocalPathField[]>();
+  // The local path fields of each command's input (SR-142), built at once, so a catalog whose local
+  // paths cannot all be found fails here and not on the first API or MCP call.
+  const pathFields = new Map<string, readonly LocalPathField[]>();
   for (const command of options.commands ?? productCommands) {
     const entry = contracts.entry(command.name);
     if (entry === undefined) {
@@ -122,15 +123,10 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
       };
       return located.locator;
     });
-    let fields: readonly LocalPathField[] | undefined;
-    pathFields.set(command.name, () => {
-      fields ??= localPathFields(
-        entry.input,
-        `${SCHEMA_BASE}commands/${command.name}.input.json`,
-        contracts.schemas,
-      );
-      return fields;
-    });
+    pathFields.set(
+      command.name,
+      localPathFields(entry.input, `${SCHEMA_BASE}commands/${command.name}.input.json`, contracts.schemas),
+    );
     calls.set(command.name, { command: command.name, effect: entry.effect, subject: accessSubject(entry) });
     if (entry.effect === "write-files") {
       writers.add(command.name);
@@ -192,7 +188,7 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
         async () => {
           if (confined) {
             // Before anything else: a refused path is neither read nor written (SR-142 AK1).
-            await localPaths.check(localPathUses(checked, pathFields.get(name)?.()));
+            await localPaths.check(localPathUses(checked, pathFields.get(name)));
           }
           if (guarded.has(name)) {
             await assertWritable(ctx.workspace, name);

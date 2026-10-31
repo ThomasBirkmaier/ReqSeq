@@ -7,6 +7,7 @@ import type { LocalPathUse } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import { Workspace } from "../runtime/workspace.js";
 import type { LocalPathOptions } from "./local-paths.js";
+import { workspaceLayoutState } from "./layout.js";
 import { OPEN_LOCAL_PATHS, assertInsideRepositories, confinedLocalPaths } from "./local-paths.js";
 
 afterEach(() => {
@@ -75,16 +76,42 @@ describe("local paths of an API or MCP call (SR-142)", () => {
       reason: "outside-repositories",
       fields: ["p0"],
       files: ["delivery.reqif"],
+      reasons: ["outside-repositories"],
     });
     expect(missing?.details).toEqual(existing?.details);
     expect(missing?.message).toBe(existing?.message);
     expect(existing?.message).toBe(
-      "p0 (delivery.reqif): delivery.reqif does not lie inside the repositories of the workspace. Through the API and the MCP server ReqSeq accepts only local paths inside the repositories of the workspace; copy the file into a repository, or use the command line",
+      "p0 (delivery.reqif): does not lie inside the repositories of the workspace. Through the API and the MCP server ReqSeq accepts only local paths inside the repositories of the workspace; copy the file into a repository, or use the command line",
     );
     expect(existing?.message).not.toContain(ws.root);
     expect(await reasonOf(workspace, "../outside/delivery.reqif")).toBe("outside-repositories");
     expect(await reasonOf(workspace, "..")).toBe("outside-repositories");
     expect(await reasonOf(workspace, "/")).toBe("outside-repositories");
+  });
+
+  it("looks at nothing outside the roots before refusing a path that lies outside them by its text", async () => {
+    const ws = await fixture();
+    const workspace = open(ws.path("system"));
+    await workspace.get(workspaceLayoutState);
+    const looked: string[] = [];
+    for (const name of ["lstat", "stat", "realpath", "access", "readdir", "open"] as const) {
+      const real = fs[name].bind(fs) as (...args: unknown[]) => unknown;
+      vi.spyOn(fs, name).mockImplementation(((...args: unknown[]) => {
+        looked.push(String(args[0]));
+        return real(...args);
+      }) as never);
+    }
+    // `/net/<host>` is where an automounter mounts a host when it is looked at.
+    for (const outside of ["../outside/delivery.reqif", "../../../../../../net/host/x.reqif", "../x"]) {
+      expect(await reasonOf(workspace, outside), outside).toBe("outside-repositories");
+    }
+    const roots = [ws.path("system"), ws.path("sensor"), ws.path("product")];
+    expect(looked.filter((p) => !roots.some((r) => p === r || p.startsWith(r + path.sep)))).toEqual([]);
+    // An inside path is walked from its root, never from the root of the file system.
+    looked.length = 0;
+    expect(await reasonOf(workspace, "requirements/new.xml")).toBeUndefined();
+    expect(looked.length).toBeGreaterThan(0);
+    expect(looked.filter((p) => !p.startsWith(ws.path("system")))).toEqual([]);
   });
 
   it("refuses a link inside a repository that leads out, or that cannot be followed", async () => {
@@ -125,11 +152,12 @@ describe("local paths of an API or MCP call (SR-142)", () => {
       reason: "outside-repositories",
       fields: ["p1", "p2", "p3"],
       files: ["lieferung.reqif", "bad?name", "delivery.reqif"],
+      reasons: ["outside-repositories", "invalid-path", "outside-repositories"],
     });
     expect(error?.message).toContain(
       "p1 (lieferung.reqif): ~ is not expanded; give the path from the workspace root; ",
     );
-    expect(error?.message).toContain("p2 (bad?name): bad?name is not a valid local path; ");
+    expect(error?.message).toContain("p2 (bad?name): not a valid local path; ");
   });
 
   it("refuses `~` as the first name and a NUL byte", async () => {
@@ -180,8 +208,9 @@ describe("local paths of an API or MCP call (SR-142)", () => {
     const plain = open(ws.path("outside"));
     expect(await reasonOf(plain, "new/x.xml")).toBeUndefined();
     expect(await reasonOf(plain, "../system/x.xml")).toBe("outside-repositories");
+    // A workspace root that does not exist cannot be resolved: nothing is taken there.
     const missing = open(ws.path("not-there"));
-    expect(await reasonOf(missing, "x.xml")).toBeUndefined();
+    expect(await reasonOf(missing, "x.xml")).toBe("path-unreadable");
     // A root that ends with a separator: the root of the file system.
     expect(await reasonOf(open(path.parse(ws.root).root), ws.path("outside"))).toBeUndefined();
   });

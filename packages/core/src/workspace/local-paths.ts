@@ -2,14 +2,15 @@
 // (SR-142, ADR-0009 "Local paths"). `invoke` builds a `LocalPaths` per call: open for the command line
 // and the app, `confinedLocalPaths` for every other access. A path is judged as the commands resolve
 // it (`path.resolve(workspace.root, value)`, so `..` is normalised by its text, as the command will):
-// 1. an absolute value must lie by its text inside a root, as given or as real path, with case and
-//    Unicode form folded (this step only refuses, so folding makes it more lenient, never less safe).
-//    It refuses `~/Downloads/x`, `/etc/x` and UNC or device paths without touching them, so no
-//    network share is opened. A relative value resolved from a local root cannot reach a share.
-// 2. the real path of its deepest existing part, walked name by name with `lstat` (a link that cannot
-//    be followed is refused, so a dangling link cannot carry a write out), joined with the names that
-//    do not exist yet, must lie inside the real folder of a root, compared exactly: both sides are
-//    `realpath` output, the spelling on disk.
+// 1. the resolved path, relative or absolute, must lie by its text inside a root, as given or as real
+//    path, with case and Unicode form folded (this step only refuses, so folding makes it more
+//    lenient, never less safe). It refuses `~/Downloads/x`, `/etc/x`, `../../net/<host>/x` (an
+//    automounter), `Z:x` (a mapped drive) and UNC or device paths without any file system call, so
+//    no network share is opened.
+// 2. the real path of its deepest existing part, walked name by name with `lstat` from the root it
+//    lies in by its text (a link that cannot be followed is refused, so a dangling link cannot carry
+//    a write out), joined with the names that do not exist yet, must lie inside the real folder of a
+//    root, compared exactly: both sides are `realpath` output, the spelling on disk.
 // The roots are the available repositories of the workspace file and always the workspace root (the
 // main repository; before `workspace.init`, or with a faulty workspace file, it is the only root).
 // Not covered: hard links, a link swapped between the check and the command's own access, and a link
@@ -80,13 +81,19 @@ const unsafeOnWindows = (name: string): boolean => {
   return trimmed === "" || name.includes(":") || DEVICE_NAME.test(trimmed);
 };
 
-/** The real form of `absolute`: its deepest existing part resolved, the rest appended; or why not. */
+/** The names of `absolute` below its file system root. */
+const namesOf = (absolute: string): string[] =>
+  absolute.slice(path.parse(absolute).root.length).split(path.sep).filter(Boolean);
+
+/**
+ * The real form of `start` (a root, as spelled in the path) with `names` below it: its deepest
+ * existing part resolved, the rest appended; or why not. Nothing above `start` is looked at.
+ */
 const realForm = async (
-  absolute: string,
+  start: string,
+  names: readonly string[],
 ): Promise<{ readonly real: string } | { readonly reason: LocalPathReason }> => {
-  const { root } = path.parse(absolute);
-  const names = absolute.slice(root.length).split(path.sep).filter(Boolean);
-  let existing = root;
+  let existing = start;
   let found = 0;
   for (const name of names) {
     const next = path.join(existing, name);
@@ -137,13 +144,22 @@ const judge = async (
       return "invalid-path";
     }
   }
-  if (path.isAbsolute(value)) {
-    const text = fold(absolute);
-    if (!roots.some((r) => contains(fold(r.given), text) || contains(fold(r.real), text))) {
-      return "outside-repositories";
-    }
+  // Before any file system call (see the file comment): the deepest root that holds it by its text.
+  const text = fold(absolute);
+  const depth = Math.max(
+    ...roots
+      .flatMap((r) => [r.given, r.real])
+      .filter((root) => contains(fold(root), text))
+      .map((root) => namesOf(root).length),
+    -1,
+  );
+  if (depth < 0) {
+    return "outside-repositories";
   }
-  const form = await realForm(absolute);
+  // Folding keeps the number of names, so the root is the first `depth` names of the path as spelled.
+  const names = namesOf(absolute);
+  const start = path.join(path.parse(absolute).root, ...names.slice(0, depth));
+  const form = await realForm(start, names.slice(depth));
   if ("reason" in form) {
     return form.reason;
   }
@@ -158,27 +174,26 @@ const shownName = (value: string): string =>
   // eslint-disable-next-line no-control-regex -- control characters (a NUL) are not shown as they are
   (path.basename(value) || "/").replace(/[\u0000-\u001f]/gu, "?");
 
-const PART: Readonly<Record<LocalPathReason, (name: string) => string>> = {
-  "outside-repositories": (name) => `${name} does not lie inside the repositories of the workspace`,
-  "path-unreadable": (name) => `${name} or a folder above it cannot be looked at`,
-  "invalid-path": (name) => `${name} is not a valid local path`,
+const PART: Readonly<Record<LocalPathReason, string>> = {
+  "outside-repositories": "does not lie inside the repositories of the workspace",
+  "path-unreadable": "it or a folder above it cannot be looked at",
+  "invalid-path": "not a valid local path",
 };
 
 const messageOf = (refused: readonly Refused[]): string => {
   const parts = refused.map(
     (r) =>
       `${r.field} (${shownName(r.path)}): ${
-        r.tilde
-          ? "~ is not expanded; give the path from the workspace root"
-          : PART[r.reason](shownName(r.path))
+        r.tilde ? "~ is not expanded; give the path from the workspace root" : PART[r.reason]
       }`,
   );
   return `${parts.join("; ")}. Through the API and the MCP server ReqSeq accepts only local paths inside the repositories of the workspace; copy the file into a repository, or use the command line`;
 };
 
 /**
- * Rejects with `input.invalid` (`details.reason`, `fields`, `files`: the base names) when a path of
- * `uses` lies outside the repositories of `workspace`; the same whether the path exists or not.
+ * Rejects with `input.invalid` when a path of `uses` lies outside the repositories of `workspace`;
+ * the same whether the path exists or not. `details`: `fields`, `files` (the base names) and
+ * `reasons` of every refused path, and `reason`, that of the first.
  */
 export const assertInsideRepositories = async (
   workspace: Workspace,
@@ -206,6 +221,7 @@ export const assertInsideRepositories = async (
       reason: first.reason,
       fields: refused.map((r) => r.field),
       files: refused.map((r) => shownName(r.path)),
+      reasons: refused.map((r) => r.reason),
     });
   }
 };
