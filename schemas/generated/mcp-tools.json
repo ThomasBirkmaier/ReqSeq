@@ -598,7 +598,9 @@
             "workspace.invalid",
             "workspace.not-watched",
             "git.unavailable",
-            "git.revision-missing"
+            "git.revision-missing",
+            "reqif.edited-elsewhere",
+            "reqif.mapping-differs"
           ]
         },
         "error": {

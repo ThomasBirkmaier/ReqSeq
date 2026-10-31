@@ -14,6 +14,7 @@ export { REQIF_LIMITS, parseReqif } from "./parse.js";
 export { planImport } from "./import.js";
 export type { ImportOrigin, ImportPlan } from "./import.js";
 export { importDate, originKeys } from "./origin.js";
+export { OWN_TOOL_ID, ownMapping } from "./own.js";
 export type { OriginKeys } from "./origin.js";
 export { markdownToXhtml, xhtmlToMarkdown } from "./xhtml-markdown.js";
 export type {
@@ -23,5 +24,5 @@ export type {
   XhtmlOfMarkdown,
   XhtmlOptions,
 } from "./xhtml-markdown.js";
-export { writeReqif } from "./write.js";
+export { problemText, writeReqif } from "./write.js";
 export type { ReqifWritable, ReqifWriteOutcome, ReqifWriteProblem } from "./write.js";
