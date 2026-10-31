@@ -10,3 +10,11 @@ export {
   samePath,
 } from "./mapping.js";
 export type { AnyMapping, MappingFile, MappingTarget } from "./mapping.js";
+export { markdownToXhtml, xhtmlToMarkdown } from "./xhtml-markdown.js";
+export type {
+  MarkdownOfXhtml,
+  XhtmlImage,
+  XhtmlLoss,
+  XhtmlOfMarkdown,
+  XhtmlOptions,
+} from "./xhtml-markdown.js";
