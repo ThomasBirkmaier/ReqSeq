@@ -113,7 +113,7 @@ describe("unknown types before a ReqIF import (SR-055)", () => {
     expect(await snapshot(fixture)).toEqual(before);
   });
 
-  it("[SR-055/AK2] after each listed entry is mapped or omitted, through reqif.saveMapping or in the YAML file, the import runs", async () => {
+  it("[SR-055/AK2] after each listed entry is mapped or omitted (a choice property with its values, in a second round), through reqif.saveMapping or in the YAML file, the import runs", async () => {
     const { fixture, workspace } = await open();
     await invoke(
       "reqif.saveMapping",
@@ -166,6 +166,31 @@ describe("unknown types before a ReqIF import (SR-055)", () => {
     )) as Imported;
     expect(second.files.every((f) => f.startsWith("Kunde-B/"))).toBe(true);
     expect(second.created).toHaveLength(2);
+    // A choice property: its values are listed only once it is chosen, in a second round.
+    const third = (values: string): string =>
+      [
+        "reqseq-reqif-mapping: 1",
+        "source: { name: Kunde C }",
+        "types: [{ source: Customer Requirement, type: system-requirement }, { source: Heading, omit: true }]",
+        "attributes:",
+        "  - { source: ReqIF.Name, property: title }",
+        "  - { source: ReqIF.Text, omit: true }",
+        `  - { source: Priority, property: requirement-type${values} }`,
+        "  - { source: Internal Comment, omit: true }",
+        "relations: [{ source: satisfies, omit: true }]",
+        "",
+      ].join("\n");
+    const kundeC = { ...IMPORT, mapping: "reqif/kunde-c.yaml" };
+    await fs.writeFile(fixture.path("reqif/kunde-c.yaml"), third(""));
+    const round2 = await analyze(workspace, { file: IMPORT.file, mapping: kundeC.mapping });
+    expect(round2.unmapped.map((u) => u.kind)).toEqual(["value", "value"]);
+    expect(round2.unmapped.map((u) => u.source).sort()).toEqual(["High", "Low"]);
+    await fs.writeFile(
+      fixture.path("reqif/kunde-c.yaml"),
+      third(", values: { High: functional, Low: quality }"),
+    );
+    const done = (await invoke("reqif.import", kundeC, { workspace })) as Imported;
+    expect(done.created).toHaveLength(2);
   });
 
   it("[SR-055/AK3] a refused import changes no file: a missing mapping, an invalid file, a mapping the metamodel refuses", async () => {
