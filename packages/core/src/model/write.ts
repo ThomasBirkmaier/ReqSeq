@@ -938,6 +938,24 @@ const restore = async ({ write, snapshot }: DoneWrite): Promise<boolean> => {
   }
 };
 
+/**
+ * Restores files `writeElementFiles` wrote, for a command whose later step failed (`reqif.import`,
+ * ADR-0013 "Import"): each is written back with its bytes as read, only while it still holds what
+ * the call wrote, newest first. Returns the files (relative to the workspace root) it could not
+ * restore. The caller resets the element store afterwards.
+ */
+export const restoreElementFiles = async (
+  writes: readonly (readonly [ElementFileWrite, WrittenElementFile])[],
+): Promise<string[]> => {
+  const kept: string[] = [];
+  for (const [write, { written, file }] of [...writes].reverse()) {
+    if (!(await restore({ write, snapshot: written.file.snapshot, file }))) {
+      kept.unshift(file);
+    }
+  }
+  return kept;
+};
+
 export interface WriteFilesOptions {
   /**
    * The metamodel and the element store the command read and checked its writes against: the

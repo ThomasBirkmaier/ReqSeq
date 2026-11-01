@@ -225,4 +225,13 @@ describe("ImageNames", () => {
     expect(names.nameOf(image("other", "1"))).toBe("Rose.png");
     expect(names.files.map((f) => f.name)).toEqual(["Rose.png", "rose-2.png"]);
   });
+
+  it("keeps the names of the files already in the folder, the first one for the same bytes, without a copy (SR-056)", () => {
+    const names = new ImageNames();
+    names.reserve("Rose.png", "1");
+    names.reserve("Rose-copy.png", "1");
+    expect(names.nameOf(image("other", "1"))).toBe("Rose.png");
+    expect(names.nameOf(image("rose", "2"))).toBe("rose-2.png");
+    expect(names.files.map((f) => f.name)).toEqual(["rose-2.png"]);
+  });
 });

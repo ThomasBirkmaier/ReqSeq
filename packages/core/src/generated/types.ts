@@ -326,6 +326,8 @@ export type ProblemCode =
   | "workspace.not-watched"
   | "git.unavailable"
   | "git.revision-missing"
+  | "reqif.replaces-local"
+  | "reqif.choice-unused"
   | "reqif.edited-elsewhere"
   | "reqif.mapping-differs";
 
@@ -2985,16 +2987,21 @@ export interface ReqifAnalyzeInput {
  */
 export interface ReqifAnalyzeOutput {
   readonly unmapped: readonly ReqifUnmapped[];
+  /** Objects the import would create as new elements, without UUID. */
   readonly new: readonly ReqifObject[];
+  /** Elements of an earlier delivery of the source (same source IDENTIFIER) whose version with the delivery differs from their import version, conflicts included (SR-056 AK1). */
   readonly changed: readonly ReqifObject[];
+  /** Elements of the source whose object the file no longer has; the import only lists them (SR-056 AK3). */
   readonly dropped: readonly ReqifObject[];
+  /** Changed elements that were also changed locally since their import; reqif.import needs take or keep for each (SR-056 AK4). */
   readonly conflicts: readonly ReqifObject[];
   readonly losses: readonly ReqifLoss[];
+  /** Warnings: a title, property or relation the import writes over another value (reqif.replaces-local), a repository not on this machine, an element file that cannot be read. */
   readonly problems?: readonly Problem[];
 }
 
 /**
- * Input of `reqif.import` as `run` gets it: validated, properties with a `default` filled in. Import a ReqIF 1.2 file through a saved mapping, all or nothing: creates an element per object and reports losses. Each element keeps its origin (source, source IDENTIFIER, import date, delivery, import version), which no other command writes. This version creates new elements on every import; updating those of an earlier delivery, and take and keep come later.
+ * Input of `reqif.import` as `run` gets it: validated, properties with a `default` filled in. Import a ReqIF 1.2 file through a saved mapping, all or nothing: creates an element per object and reports losses. Each element keeps its origin (source, source IDENTIFIER, import date, delivery, import version), which no other command writes. A repeated delivery of the same source updates the elements of the earlier one in place (matched by source and source IDENTIFIER) and only lists the dropped ones; an element changed locally and in the delivery is a conflict that needs take or keep, else the import is refused (reqif.conflict).
  * Schema: `schemas/commands/catalog.json reqif.import input`.
  */
 export interface ReqifImportInput {
@@ -3011,13 +3018,17 @@ export interface ReqifImportInput {
 }
 
 /**
- * Output of `reqif.import`. Import a ReqIF 1.2 file through a saved mapping, all or nothing: creates an element per object and reports losses. Each element keeps its origin (source, source IDENTIFIER, import date, delivery, import version), which no other command writes. This version creates new elements on every import; updating those of an earlier delivery, and take and keep come later.
+ * Output of `reqif.import`. Import a ReqIF 1.2 file through a saved mapping, all or nothing: creates an element per object and reports losses. Each element keeps its origin (source, source IDENTIFIER, import date, delivery, import version), which no other command writes. A repeated delivery of the same source updates the elements of the earlier one in place (matched by source and source IDENTIFIER) and only lists the dropped ones; an element changed locally and in the delivery is a conflict that needs take or keep, else the import is refused (reqif.conflict).
  * Schema: `schemas/commands/catalog.json reqif.import output`.
  */
 export interface ReqifImportOutput {
+  /** New elements. */
   readonly created: readonly ReqifObject[];
+  /** Elements of an earlier delivery the delivery was written into (changed, taken, or a title, property or relation that differed). */
   readonly updated: readonly ReqifObject[];
+  /** Conflicts in keep: content left, only the origin written. */
   readonly kept: readonly ReqifObject[];
+  /** Elements of the source whose object the file no longer has; not changed. */
   readonly dropped: readonly ReqifObject[];
   readonly losses: readonly ReqifLoss[];
   readonly files: readonly string[];

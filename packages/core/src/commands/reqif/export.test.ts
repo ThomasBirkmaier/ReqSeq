@@ -309,6 +309,8 @@ describe("reqif.export (SR-052)", () => {
     });
     expect(again.files).not.toContain("reqif/weather-station.yaml");
     expect(again.problems).toEqual([]);
+    // The same delivery again matches its elements (SR-056) and changes none of them.
+    expect([again.created, again.updated, again.files]).toEqual([[], [], []]);
     expect(await fs.readFile(fixture.path("reqif/weather-station.yaml"), "utf8")).toContain(
       "tool-id: reqseq",
     );
