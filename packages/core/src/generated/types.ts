@@ -1551,18 +1551,19 @@ export interface WorkspaceRecentOutput {
 }
 
 /**
- * Input of `metamodel.get` as `run` gets it: validated, properties with a `default` filled in. The effective metamodel: types with inherited properties and statuses, properties, relation kinds, statuses, meanings.
+ * Input of `metamodel.get` as `run` gets it: validated, properties with a `default` filled in. The effective metamodel: types with inherited properties and statuses, properties with whether they count to the version, relation kinds, statuses, meanings.
  * Schema: `schemas/commands/catalog.json metamodel.get input`.
  */
 export type MetamodelGetInput = Readonly<Record<string, never>>;
 
 /**
- * Output of `metamodel.get`. The effective metamodel: types with inherited properties and statuses, properties, relation kinds, statuses, meanings.
+ * Output of `metamodel.get`. The effective metamodel: types with inherited properties and statuses, properties with whether they count to the version, relation kinds, statuses, meanings.
  * Schema: `schemas/commands/catalog.json metamodel.get output`.
  */
 export interface MetamodelGetOutput {
   /** The types with inheritance resolved (SR-012), in metamodel order; `statuses` are the statuses each type offers (#306). */
   readonly types: readonly MetamodelEffectiveType[];
+  /** The property definitions as written, except that each carries `content`, false when not written: whether a change of its value gives a new version and makes evidence and relations outdated (D-057, #624). */
   readonly properties: readonly MetamodelProperty[];
   readonly relations: readonly MetamodelRelationKind[];
   readonly statuses: readonly MetamodelStatus[];

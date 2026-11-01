@@ -311,7 +311,7 @@ const selectedRow = (): string | undefined =>
   container.querySelector<HTMLElement>('.mm-row[aria-selected="true"]')?.dataset["row"];
 
 describe("MetamodelView as text", () => {
-  it("[SR-130/AK5] shows each type with key, name, prefix, parent, properties with value kind and required, and statuses, and each relation kind with its source and target types", async () => {
+  it("[SR-130/AK5] shows each type with key, name, prefix, parent, properties with value kind, required and whether they count to the version, and statuses, and each relation kind with its source and target types", async () => {
     const { data } = await mount(asCall(fakeCall()), metamodelBuffer("text"));
     expect(container.querySelector(".mm-type")).toBeNull();
     expect(query(".metamodel-text").dataset["rows"]).toBe("13");
@@ -329,10 +329,10 @@ describe("MetamodelView as text", () => {
         line.classList.contains("inherited"),
       ]),
     ).toEqual([
-      [["Title", "title", "text", "required"], true],
-      [["Rationale", "rationale", "text", ""], true],
-      [["Package", "packages", "list of relation → Package", ""], true],
-      [["Component", "component", "list of choice", "required"], false],
+      [["Title", "title", "text", "required", ""], true],
+      [["Rationale", "rationale", "text", "", ""], true],
+      [["Package", "packages", "list of relation → Package", "", ""], true],
+      [["Component", "component", "list of choice", "required", "counts to version"], false],
     ]);
     expect(section.querySelector("[data-statuses]")?.textContent).toBe("Statuses Draft · Approved · Retired");
     expect(query('[data-row="type:item"] .mm-note').textContent).toBe("abstract");

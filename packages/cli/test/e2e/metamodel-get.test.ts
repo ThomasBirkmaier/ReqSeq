@@ -1,6 +1,6 @@
 // `reqseq metamodel get` end to end (SR-130 AK6, SR-080): the built binary gives the metamodel the app
 // draws as a graph, on fixtures/SR-130/metamodel: the types with their parents, properties (own and
-// inherited), required properties and statuses, and the relation kinds with their source and target
+// inherited, each with whether it counts to the version), required properties and statuses, and the relation kinds with their source and target
 // types, as JSON and in its readable output, which names the same values by the shape of the output
 // (ADR-0009). Run after `pnpm build` with `pnpm test:e2e`.
 import type { MetamodelGetOutput } from "@reqseq/core";
@@ -66,12 +66,12 @@ describe("reqseq metamodel get (SR-130)", () => {
       [],
       [],
     ]);
-    expect(output.properties.map((property) => [property.key, property.kind])).toEqual([
-      ["title", "text"],
-      ["rationale", "text"],
-      ["component", "choice"],
-      ["packages", "relation"],
-      ["severity", "number"],
+    expect(output.properties.map((property) => [property.key, property.kind, property.content])).toEqual([
+      ["title", "text", false],
+      ["rationale", "text", false],
+      ["component", "choice", true],
+      ["packages", "relation", false],
+      ["severity", "number", false],
     ]);
     expect(output.relations.map((kind) => [kind.key, kind["source-types"], kind["target-types"]])).toEqual([
       ["derives-from", ["software-requirement"], ["requirement", "software-requirement"]],
@@ -89,6 +89,7 @@ describe("reqseq metamodel get (SR-130)", () => {
     expect([text.code, text.stderr]).toEqual([0, ""]);
     expect(text.stdout).toContain("extends: requirement");
     expect(text.stdout).toContain("source-types: []");
+    expect(text.stdout).toContain("content: true");
     // Then the problems, here none.
     const { problems, ...rest } = output;
     expect(problems).toEqual([]);

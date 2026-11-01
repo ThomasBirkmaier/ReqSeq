@@ -1046,6 +1046,7 @@ mark {
 .mm-fact-name,
 .mm-value,
 .mm-required,
+.mm-content,
 .mm-problem {
   color: var(--muted);
 }
@@ -1072,7 +1073,7 @@ mark {
 
 .mm-text-property {
   display: grid;
-  grid-template-columns: minmax(0, 14rem) minmax(0, 12rem) minmax(0, 18rem) auto;
+  grid-template-columns: minmax(0, 14rem) minmax(0, 12rem) minmax(0, 18rem) minmax(0, 5rem) auto;
   justify-content: start;
   gap: 1rem;
   align-items: baseline;
