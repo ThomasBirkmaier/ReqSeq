@@ -284,6 +284,36 @@ describe("renderHuman: one element", () => {
     );
   });
 
+  it("numbers the items of a list of texts in the properties from 1 (#401)", () => {
+    const properties = {
+      "acceptance-criteria": ["Erstes Kriterium.", "Zweites:\nmit Zeilenumbruch."],
+      tags: [],
+      mixed: ["a", 2],
+      validity: [{ id: "u9" }],
+      "requirement-type": "functional",
+    };
+    const output = renderHuman({ element: { ...element, relations: [], problems: [], properties } });
+    expect(output).toContain(
+      lines(
+        "  properties:",
+        "    acceptance-criteria:",
+        "      1: Erstes Kriterium.",
+        "      2: |-",
+        "        Zweites:",
+        "        mit Zeilenumbruch.",
+        "    tags: []",
+        "    mixed:",
+        "      - a",
+        "      - 2",
+        "    validity:",
+        "      - id: u9",
+        "    requirement-type: functional",
+      ),
+    );
+    // Properties that are no object stay as they are.
+    expect(renderHuman({ element: { ...element, properties: "odd" } })).toContain("  properties: odd\n");
+  });
+
   it("shows a written element as its line only, with the files and its problems once", () => {
     expect(renderHuman({ element, files: ["SR-1.md"], problems: element.problems }, false)).toBe(
       lines("SR-1  draft  Show wind", "files:", "  SR-1.md", "warning  relation.outdated  SR-1.md:3  Older"),

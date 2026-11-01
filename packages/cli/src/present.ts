@@ -9,7 +9,8 @@
 //   status (`[verification: core verified]`, SR-031, D-030; the children missing for SR-034 as
 //   `core open (missing SR-0000b2)`), then its validation status (`[validation: validated]`, SR-038);
 //   a list of them one such line per element. A read command (element.get) shows the element's details
-//   below its line, a write command only the line.
+//   below its line, a write command only the line; there, a property whose value is a list of texts
+//   numbers its items from 1 (`1: ...`), as tests name acceptance criteria (#401).
 // - A chain (`nodes` with `depth`, and `edges`) is an indented tree per direction with the depth in
 //   front, its gaps, cycles and the edges to an element listed elsewhere marked. Its `evidence` is
 //   indented below the element it belongs to (`evidenceLines`).
@@ -233,6 +234,22 @@ const relationLine = (r: Rec): string => {
 };
 
 /**
+ * Properties with every list of texts as a map from its item number, counted from 1, to the item, so
+ * the YAML shows `1: ...` (#401); other values as they are.
+ */
+const numberedProperties = (properties: unknown): unknown =>
+  isRecord(properties)
+    ? Object.fromEntries(
+        Object.entries(properties).map(([key, value]) => [
+          key,
+          Array.isArray(value) && value.length > 0 && value.every((item) => typeof item === "string")
+            ? new Map(value.map((item, i) => [i + 1, item]))
+            : value,
+        ]),
+      )
+    : properties;
+
+/**
  * The details of an element below its line: what the line does not show, type and file first, the
  * relations one line each, the text last. The UUIDs of `names` in the values other than the
  * properties (shown as stored) print as the elements they name (`replacedBy`, `excludedBy`, SR-046 AK3).
@@ -261,7 +278,7 @@ const elementDetails = (element: Rec, names: Names): string[] => {
     ...Object.fromEntries(
       Object.entries(rest).map(([key, value]) => [
         key,
-        key === "properties" ? value : withNames(value, names),
+        key === "properties" ? numberedProperties(value) : withNames(value, names),
       ]),
     ),
     relations: (Array.isArray(relations) ? relations : []).filter(isRecord).map(relationLine),
