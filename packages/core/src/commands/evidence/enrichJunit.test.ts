@@ -2,7 +2,7 @@
 // with SR-46fb54, SR-0b0036, SR-0c0037 and SR-0d0038 (identifier SR-036), an empty evidence folder
 // `evidence/` and the result files in `results/` (see the fixture's README). The same output on every
 // access: packages/cli/test/cross-access.test.ts; the CLI: packages/cli/test/e2e/evidence-enrich-junit.test.ts.
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -12,10 +12,11 @@ import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
 import { evidenceReadState, evidenceRecordsState, readJunitRecords } from "../../evidence/index.js";
-import { resolverOf } from "../../evidence/enrich.js";
+import { outOfVariantOf, resolverOf, variantResolverOf } from "../../evidence/enrich.js";
 import { junitTestCases } from "../../evidence/junit-model.js";
 import type { ElementRecord } from "../../model/index.js";
-import { elementStoreState } from "../../model/index.js";
+import { metamodelState } from "../../metamodel/index.js";
+import { elementStoreState, shortIdState } from "../../model/index.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 
@@ -425,5 +426,175 @@ describe("evidence.enrichJunit (SR-029)", () => {
       throw new CommandError("internal", "broken store");
     };
     expect(() => resolverOf(failing, new Map())("SR-46fb54")).toThrow("broken store");
+  });
+});
+
+// Variants (SR-029 AK6 to AK9) on fixtures/SR-043/example: variant Coast (VAR-0000c1, here with the
+// identifier `coast`) replaces SR-0000a1 by SR-0000b1, excludes SR-0000a2 and adds SR-0000b2;
+// Mountain (VAR-0000c2) changes nothing.
+const EXAMPLE = "../../../../../fixtures/SR-043/example/";
+const exampleFile = (file: string): string => readFileSync(new URL(EXAMPLE + file, import.meta.url), "utf8");
+const uuid43 = (tail: string): string => `43043043-0000-4000-8000-0000000000${tail}`;
+const COAST = uuid43("c1");
+const MOUNTAIN = uuid43("c2");
+
+/** The example with an identifier for variants, and `results/run.xml` holding `cases`. */
+const openExample = async (cases: string): Promise<{ fixture: FixtureWorkspace; workspace: Workspace }> => {
+  const model = exampleFile("metamodel/model.yaml")
+    .replace("meaning: variant, properties: [title]", "meaning: variant, properties: [title, code]")
+    .replace(
+      "properties:\n  - { key: title,",
+      "properties:\n  - { key: code, name: Code, kind: text, meaning: identifier }\n  - { key: title,",
+    );
+  const fixture = await createFixtureWorkspace({
+    fixture: "SR-043/example",
+    files: {
+      "metamodel/model.yaml": model,
+      "variants/VAR-0000000000c1.md": exampleFile("variants/VAR-0000000000c1.md").replace(
+        "title: Coast\n",
+        "title: Coast\ncode: coast\n",
+      ),
+      "results/run.xml": `<testsuites><testsuite name="s">${cases}</testsuite></testsuites>`,
+    },
+  });
+  const workspace = new Workspace(fixture.root);
+  onTestFinished(async () => {
+    await workspace.close();
+    await fixture.cleanup();
+  });
+  return { fixture, workspace };
+};
+
+const variantProperty = (value: string): string =>
+  `<properties><property name="reqseq:variant" value="${value}"/></properties>`;
+
+/** The records of `results/run.xml` as [test case, element, variant]. */
+const variantRecords = async (
+  fixture: FixtureWorkspace,
+): Promise<[string | undefined, string, string | undefined][]> =>
+  readJunitRecords(
+    { repository: "system", file: "x.xml" },
+    await bytesOf(fixture, "results/run.xml"),
+  ).records.map((r) => [r.testCase, r.element, r.variant]);
+
+describe("evidence.enrichJunit with variants (SR-029)", () => {
+  it("[SR-029/AK6] writes the variant given by UUID, short ID or identifier into each enriched test case", async () => {
+    for (const variant of [COAST, "VAR-0000c1", "coast"]) {
+      const { fixture, workspace } = await openExample(
+        '<testcase name="[SR-0000a3] rain"/><testcase name="[SR-0000b2] storm"/><testcase name="names nothing"/>',
+      );
+      const output = await enrich(workspace, { file: "results/run.xml", variant });
+      expect(output).toEqual({ testCases: 2, unknown: [], files: ["results/run.xml"], problems: [] });
+      expect(await variantRecords(fixture)).toEqual([
+        ["[SR-0000a3] rain", uuid43("a3"), COAST],
+        ["[SR-0000b2] storm", uuid43("b2"), COAST],
+      ]);
+    }
+  });
+
+  it("[SR-029/AK7] turns a reqseq:variant given by short ID or identifier into the variant's UUID", async () => {
+    const { fixture, workspace } = await openExample(
+      `<testcase name="[SR-0000a3] rain">${variantProperty("VAR-0000c2")}</testcase>` +
+        `<testcase name="[SR-0000b2] storm">${variantProperty("coast")}</testcase>`,
+    );
+    const output = await enrich(workspace, { file: "results/run.xml" });
+    expect(output.problems).toEqual([]);
+    expect(properties(await bytesOf(fixture, "results/run.xml")).map(([, list]) => list[0])).toEqual([
+      `reqseq:variant=${MOUNTAIN}`,
+      `reqseq:variant=${COAST}`,
+    ]);
+    expect(await variantRecords(fixture)).toEqual([
+      ["[SR-0000a3] rain", uuid43("a3"), MOUNTAIN],
+      ["[SR-0000b2] storm", uuid43("b2"), COAST],
+    ]);
+  });
+
+  it("[SR-029/AK8] reports a test case that names another variant than the given one and leaves it unchanged", async () => {
+    const { fixture, workspace } = await openExample(
+      `<testcase name="[SR-0000a3] rain">${variantProperty("VAR-0000c2")}</testcase><testcase name="[SR-0000a4] temperature"/>`,
+    );
+    const output = await enrich(workspace, { file: "results/run.xml", variant: "VAR-0000c1" });
+    expect(output.problems.map((p) => [p.code, p.severity, p.file, p.line, p.message])).toEqual([
+      [
+        "evidence.invalid-record",
+        "error",
+        "results/run.xml",
+        1,
+        'Test case "[SR-0000a3] rain" (line 1) is not enriched: reqseq:variant "VAR-0000c2" names another variant than the given one, VAR-0000c1',
+      ],
+    ]);
+    expect(await variantRecords(fixture)).toEqual([["[SR-0000a4] temperature", uuid43("a4"), COAST]]);
+  });
+
+  it("[SR-029/AK9] reports a test case that names a requirement excluded, replaced or not valid in its variant, and leaves it unchanged", async () => {
+    const { fixture, workspace } = await openExample(
+      '<testcase name="[SR-0000a2] wind"/><testcase name="[SR-0000a1] response"/>' +
+        `<testcase name="[SR-0000b2] storm">${variantProperty("VAR-0000c2")}</testcase>` +
+        '<testcase name="[SR-0000b1] response"/>',
+    );
+    const before = await bytesOf(fixture, "results/run.xml");
+    const output = await enrich(workspace, { file: "results/run.xml", variant: "core" });
+    // The core given: the test case that names Mountain is another variant (AK8); nothing counts nowhere.
+    expect(output.problems.map((p) => p.message)).toEqual([
+      'Test case "[SR-0000b2] storm" (line 1) is not enriched: reqseq:variant "VAR-0000c2" names another variant than the given one, core',
+    ]);
+    await fixture.write("results/run.xml", before);
+    const coast = await enrich(workspace, { file: "results/run.xml", variant: "VAR-0000c1" });
+    expect(coast.problems.map((p) => p.message)).toEqual([
+      'Test case "[SR-0000a2] wind" (line 1) is not enriched: SR-0000a2 is excluded in VAR-0000c1, so a record for it there would count nowhere (SR-047)',
+      'Test case "[SR-0000a1] response" (line 1) is not enriched: SR-0000a1 is replaced in VAR-0000c1 by SR-0000b1, so a record for it there would count nowhere; record SR-0000b1 instead (SR-047)',
+      'Test case "[SR-0000b2] storm" (line 1) is not enriched: reqseq:variant "VAR-0000c2" names another variant than the given one, VAR-0000c1',
+    ]);
+    await fixture.write("results/run.xml", before);
+    const own = await enrich(workspace, { file: "results/run.xml" });
+    expect(own.problems.map((p) => p.message)).toEqual([
+      'Test case "[SR-0000b2] storm" (line 1) is not enriched: SR-0000b2 does not apply in VAR-0000c2, so a record for it there would count nowhere (SR-040)',
+    ]);
+    expect(await variantRecords(fixture)).toEqual([
+      ["[SR-0000a2] wind", uuid43("a2"), undefined],
+      ["[SR-0000a1] response", uuid43("a1"), undefined],
+      ["[SR-0000b1] response", uuid43("b1"), undefined],
+    ]);
+  });
+
+  it("reports a reqseq:variant that names no variant or the core, and refuses a given variant that is none", async () => {
+    const { workspace } = await openExample(
+      `<testcase name="[SR-0000a3] a">${variantProperty("VAR-ffffff")}</testcase>` +
+        `<testcase name="[SR-0000a3] b">${variantProperty("SR-0000a4")}</testcase>` +
+        `<testcase name="[SR-0000a3] c">${variantProperty("core")}</testcase>`,
+    );
+    const output = await enrich(workspace, { file: "results/run.xml" });
+    expect(output.problems.map((p) => p.message)).toEqual([
+      'Test case "[SR-0000a3] a" (line 1) is not enriched: reqseq:variant "VAR-ffffff" names no variant: No element has the short ID or identifier "VAR-ffffff"',
+      'Test case "[SR-0000a3] b" (line 1) is not enriched: reqseq:variant "SR-0000a4" names no variant: SR-0000a4 is no variant: reqseq:variant takes a variant, an element whose type has the meaning variant',
+      'Test case "[SR-0000a3] c" (line 1) is not enriched: reqseq:variant "core" names no variant: core is no variant; leave the property out for the core',
+    ]);
+    const error = await failure(workspace, { file: "results/run.xml", variant: "SR-0000a4" });
+    expect([error.code, error.message]).toEqual([
+      "input.invalid",
+      "SR-0000a4 is no variant: variant takes a variant, an element whose type has the meaning variant",
+    ]);
+  });
+
+  it("passes on an error of the variant lookup that is no CommandError, and counts an element or variant it did not find", async () => {
+    const { workspace } = await openExample("");
+    const views = {
+      workspace,
+      metamodel: await workspace.get(metamodelState),
+      store: await workspace.get(elementStoreState),
+      shortIds: await workspace.get(shortIdState),
+    };
+    const check = outOfVariantOf(views, new Map(), new Map());
+    expect(check(uuid43("a2"), COAST)).toBeUndefined();
+    const throwing = new Proxy(
+      {},
+      {
+        get: () => {
+          throw new TypeError("broken short IDs");
+        },
+      },
+    );
+    const broken = { ...views, shortIds: throwing } as typeof views;
+    expect(() => variantResolverOf(broken, new Map())("VAR-0000c1")).toThrow("broken short IDs");
   });
 });

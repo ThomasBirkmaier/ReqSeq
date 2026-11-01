@@ -51,9 +51,11 @@ import type { SchemaViolation } from "../runtime/contracts.js";
 import { fileSchemaValidator, schemaViolations } from "../runtime/contracts.js";
 import { settledValue } from "../runtime/settled.js";
 import type { Workspace } from "../runtime/workspace.js";
-import { appliesIn, resolveView, validityOf, viewRuleOf } from "../variants/index.js";
+import { resolveView } from "../variants/index.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
 import { locate, workspaceLayoutState } from "../workspace/index.js";
+import type { ViewContext } from "./in-variant.js";
+import { outOfView } from "./in-variant.js";
 import { readMarkdownRecord, RECORD_KEY, VALIDATION_VARIANT_REASON } from "./markdown.js";
 import type { EvidenceRecord } from "./record.js";
 import type { EvidenceRead } from "./state.js";
@@ -413,7 +415,7 @@ interface Prepared {
  * `details.variant`, the UUID of the variant or `core`.
  */
 const variantOf = (
-  context: Parameters<typeof resolveView>[0] & { readonly workspace: Workspace },
+  context: ViewContext,
   element: ElementRecord,
   input: EvidenceRecordInput,
 ): string | undefined => {
@@ -428,39 +430,16 @@ const variantOf = (
       variant: view.variant.id,
     });
   }
-  const { shortIds } = context;
-  const ref = shortIds.of(element);
-  const [variant, id] =
-    view.kind === "core" ? ["core", "core"] : [shortIds.of(view.variant), view.variant.id];
-  const refused = (why: string, reason: string, more: Readonly<Record<string, unknown>> = {}): CommandError =>
-    invalid(`${ref} ${why}`, { fields: ["variant"], reason, variant: id, ...more });
-  if (!appliesIn(validityOf(context.metamodel), element, view)) {
-    throw refused(
-      `does not apply in ${variant}, so a record for it there would count nowhere (SR-040)`,
-      "not-valid-in-variant",
-    );
+  const out = outOfView(context, element, view);
+  if (out === undefined) {
+    return view.kind === "core" ? undefined : view.variant.id;
   }
-  if (view.kind === "core") {
-    return undefined;
-  }
-  const rule = viewRuleOf(context, view);
-  if (rule.includes(element)) {
-    return view.variant.id;
-  }
-  // Out of the view though it applies: the variant excludes it, or a requirement replaces it there.
-  if (rule.excludes(element)) {
-    throw refused(
-      `is excluded in ${variant}, so a record for it there would count nowhere (SR-047)`,
-      "excluded-in-variant",
-    );
-  }
-  const replacements = rule.replacedBy(element);
-  const names = replacements.map((r) => shortIds.of(r)).join(", ");
-  throw refused(
-    `is replaced in ${variant} by ${names}, so a record for it there would count nowhere; record ${names} instead (SR-047)`,
-    "replaced-in-variant",
-    { replacedBy: replacements.map((r) => r.id) },
-  );
+  throw invalid(`${context.shortIds.of(element)} ${out.why}`, {
+    fields: ["variant"],
+    reason: out.reason,
+    variant: view.kind === "core" ? "core" : view.variant.id,
+    ...(out.replacedBy === undefined ? {} : { replacedBy: out.replacedBy }),
+  });
 };
 
 /** Rules 1 to 3: the element, its current version and the fields, checked against the format. */

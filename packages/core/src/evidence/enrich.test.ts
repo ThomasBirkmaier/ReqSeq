@@ -2,7 +2,14 @@
 // an injected resolver and injected current versions. The command on a workspace is tested in
 // commands/evidence/enrichJunit.test.ts, the CLI in packages/cli/test/e2e/evidence-enrich-junit.test.ts.
 import { describe, expect, it, vi } from "vitest";
-import type { EnrichOptions, EnrichResult, Intended, RefResolution, VersionLookup } from "./enrich.js";
+import type {
+  EnrichOptions,
+  EnrichResult,
+  Intended,
+  RefResolution,
+  VariantLookup,
+  VersionLookup,
+} from "./enrich.js";
 import { checkReadBack, enrichJunitBytes, escapeAttribute, escapeText, readsBackAs } from "./enrich.js";
 import { readJunitRecords } from "./junit.js";
 import { junitTestCases } from "./junit-model.js";
@@ -62,6 +69,26 @@ const versionsOf = (ids: readonly string[]): Promise<ReadonlyMap<string, Version
 
 const DATE = "2026-10-27T10:00:00Z";
 
+/** Two variants: Coast by short ID, identifier `coast` or UUID (any case), Mountain by short ID or UUID. */
+const COAST = "29000000-0000-4000-8000-0000000aaaaa";
+const MOUNTAIN = "29000000-0000-4000-8000-0000000bbbbb";
+const VARIANTS: Readonly<Record<string, string>> = {
+  "VAR-0aaaaa": COAST,
+  coast: COAST,
+  [COAST]: COAST,
+  "VAR-0bbbbb": MOUNTAIN,
+  [MOUNTAIN]: MOUNTAIN,
+};
+
+const resolveVariant = (ref: string): VariantLookup => {
+  const id = VARIANTS[ref] ?? VARIANTS[ref.toLowerCase()];
+  return id === undefined ? { kind: "invalid", reason: `no variant is "${ref}"` } : { kind: "variant", id };
+};
+
+/** Coast excludes SR-0b0036 (REPORT); everything else counts everywhere. */
+const outOfVariant = (id: string, variant: string): string | undefined =>
+  id === REPORT && variant === COAST ? "SR-0b0036 is excluded in VAR-0aaaaa" : undefined;
+
 const options = (more: Partial<EnrichOptions> = {}): EnrichOptions => ({
   resolve,
   versionsOf,
@@ -70,6 +97,8 @@ const options = (more: Partial<EnrichOptions> = {}): EnrichOptions => ({
   now: () => new Date("2026-10-27T18:00:00.000Z"),
   name: "results.xml",
   file: "results/results.xml",
+  resolveVariant,
+  outOfVariant,
   ...more,
 });
 
@@ -463,18 +492,18 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
     ]);
   });
 
-  it("reports an existing reqseq:variant that is no UUID, or two different ones, and keeps a valid one", async () => {
-    const variant = "29000000-0000-4000-8000-0000000aaaaa";
+  it("reports an existing reqseq:variant that names no variant, or two different ones, and keeps a valid one", async () => {
+    const variant = COAST;
     const xml = suite(
       `<testcase name="[SR-46fb54] a"><properties>${prop("reqseq:variant", "VAR-1")}</properties></testcase>` +
-        `<testcase name="[SR-46fb54] b"><properties>${prop("reqseq:variant", variant)}${prop("reqseq:variant", LOGIN)}</properties></testcase>` +
+        `<testcase name="[SR-46fb54] b"><properties>${prop("reqseq:variant", variant)}${prop("reqseq:variant", MOUNTAIN)}</properties></testcase>` +
         `<testcase name="[SR-46fb54] c"><properties>${prop("reqseq:variant", variant.toUpperCase())}</properties></testcase>`,
     );
     const result = await enrich(xml);
     expect(result.problems.map((p) => [p.code, p.message])).toEqual([
       [
         "evidence.invalid-record",
-        'Test case "[SR-46fb54] a" (line 1) is not enriched: reqseq:variant "VAR-1" is not a UUID',
+        'Test case "[SR-46fb54] a" (line 1) is not enriched: reqseq:variant "VAR-1" names no variant: no variant is "VAR-1"',
       ],
       [
         "evidence.invalid-record",
@@ -486,17 +515,101 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
   });
 
   it("reports a reqseq:variant that holds more than a UUID", async () => {
-    const variant = "29000000-0000-4000-8000-0000000aaaaa";
+    const variant = COAST;
     const xml = suite(
       `<testcase name="[SR-46fb54] a"><properties>${prop("reqseq:variant", `x${variant}`)}</properties></testcase>` +
         `<testcase name="[SR-46fb54] b"><properties>${prop("reqseq:variant", `${variant}x`)}</properties></testcase>`,
     );
     const result = await enrich(xml);
     expect(result.problems.map((p) => p.message)).toEqual([
-      `Test case "[SR-46fb54] a" (line 1) is not enriched: reqseq:variant "x${variant}" is not a UUID`,
-      `Test case "[SR-46fb54] b" (line 1) is not enriched: reqseq:variant "${variant}x" is not a UUID`,
+      `Test case "[SR-46fb54] a" (line 1) is not enriched: reqseq:variant "x${variant}" names no variant: no variant is "x${variant}"`,
+      `Test case "[SR-46fb54] b" (line 1) is not enriched: reqseq:variant "${variant}x" names no variant: no variant is "${variant}x"`,
     ]);
     expect(result.changed).toBe(false);
+  });
+
+  it("writes the given variant into each enriched test case, after the version, and keeps one that names it already (AK6)", async () => {
+    const xml = suite(
+      `<testcase name="[SR-46fb54] a"/>` +
+        `<testcase name="[SR-46fb54] b"><properties>${prop("reqseq:variant", COAST.toUpperCase())}</properties></testcase>` +
+        `<testcase name="names nothing"/>`,
+    );
+    const result = await enrich(xml, { variant: { id: COAST, name: "VAR-0aaaaa" } });
+    expect(result.problems).toEqual([]);
+    expect(text(result)).toBe(
+      suite(
+        `<testcase name="[SR-46fb54] a"><properties>${prop("reqseq:element", LOGIN)}${prop("reqseq:version", V[LOGIN])}${prop("reqseq:variant", COAST)}${prop("reqseq:item", "build-1")}${prop("reqseq:date", DATE)}</properties></testcase>` +
+          `<testcase name="[SR-46fb54] b"><properties>${prop("reqseq:variant", COAST.toUpperCase())}${prop("reqseq:element", LOGIN)}${prop("reqseq:version", V[LOGIN])}${prop("reqseq:item", "build-1")}${prop("reqseq:date", DATE)}</properties></testcase>` +
+          `<testcase name="names nothing"/>`,
+      ),
+    );
+    const read = readJunitRecords({ repository: "system", file: "results.xml" }, result.bytes);
+    expect(read.records.map((r) => r.variant)).toEqual([COAST, COAST]);
+  });
+
+  it("writes nothing for the given core, and leaves a test case without variant in the core", async () => {
+    const xml = suite(`<testcase name="[SR-46fb54] a"/>`);
+    const result = await enrich(xml, { variant: { id: undefined, name: "core" } });
+    expect(text(result)).toBe(
+      suite(`<testcase name="[SR-46fb54] a"><properties>${four(LOGIN, V[LOGIN])}</properties></testcase>`),
+    );
+  });
+
+  it("turns each reqseq:variant that names a variant by short ID or identifier into its UUID (AK7)", async () => {
+    const xml = suite(
+      `<testcase name="[SR-46fb54] a"><properties>${prop("reqseq:variant", "VAR-0aaaaa")}${prop("reqseq:variant", " coast ")}</properties></testcase>`,
+    );
+    const result = await enrich(xml);
+    expect(result.problems).toEqual([]);
+    expect(text(result)).toBe(
+      suite(
+        `<testcase name="[SR-46fb54] a"><properties>${prop("reqseq:variant", COAST)}${prop("reqseq:variant", COAST)}${four(LOGIN, V[LOGIN])}</properties></testcase>`,
+      ),
+    );
+  });
+
+  it("reports a test case that names another variant than the given one, the core given too, and leaves it unchanged (AK8)", async () => {
+    const xml = suite(
+      `<testcase name="[SR-46fb54] a"><properties>${prop("reqseq:variant", "VAR-0bbbbb")}</properties></testcase>`,
+    );
+    for (const [variant, name] of [
+      [COAST, "VAR-0aaaaa"],
+      [undefined, "core"],
+    ] as const) {
+      const result = await enrich(xml, { variant: { id: variant, name } });
+      expect(result.problems.map((p) => [p.code, p.severity, p.message])).toEqual([
+        [
+          "evidence.invalid-record",
+          "error",
+          `Test case "[SR-46fb54] a" (line 1) is not enriched: reqseq:variant "VAR-0bbbbb" names another variant than the given one, ${name}`,
+        ],
+      ]);
+      expect(result.changed).toBe(false);
+    }
+  });
+
+  it("reports a test case that names an element that does not count in its variant, given or its own, and leaves it unchanged (AK9)", async () => {
+    const xml = suite(
+      `<testcase name="[SR-46fb54] [SR-0b0036] a"/>` +
+        `<testcase name="[SR-0b0036] b"><properties>${prop("reqseq:variant", "coast")}</properties></testcase>` +
+        `<testcase name="[SR-0b0036] c"><properties>${prop("reqseq:variant", "VAR-0bbbbb")}</properties></testcase>`,
+    );
+    const given = await enrich(xml, { variant: { id: COAST, name: "VAR-0aaaaa" } });
+    expect(given.problems.map((p) => p.message)).toEqual([
+      'Test case "[SR-46fb54] [SR-0b0036] a" (line 1) is not enriched: SR-0b0036 is excluded in VAR-0aaaaa',
+      'Test case "[SR-0b0036] b" (line 1) is not enriched: SR-0b0036 is excluded in VAR-0aaaaa',
+      'Test case "[SR-0b0036] c" (line 1) is not enriched: reqseq:variant "VAR-0bbbbb" names another variant than the given one, VAR-0aaaaa',
+    ]);
+    const own = await enrich(xml);
+    expect(own.problems.map((p) => p.message)).toEqual([
+      'Test case "[SR-0b0036] b" (line 1) is not enriched: SR-0b0036 is excluded in VAR-0aaaaa',
+    ]);
+    const read = readJunitRecords({ repository: "system", file: "results.xml" }, own.bytes);
+    expect(read.records.map((r) => [r.testCase, r.variant])).toEqual([
+      ["[SR-46fb54] [SR-0b0036] a", undefined],
+      ["[SR-46fb54] [SR-0b0036] a", undefined],
+      ["[SR-0b0036] c", MOUNTAIN],
+    ]);
   });
 
   it("escapes & < > \" ' and line breaks so that they read back unchanged", async () => {
@@ -620,6 +733,7 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
       testCase(four(LOGIN, V[REPORT])),
       testCase(four(LOGIN, V[LOGIN]) + prop("reqseq:element", REPORT) + prop("reqseq:version", V[REPORT])),
       testCase(prop("reqseq:element", LOGIN) + prop("reqseq:item", "build-1") + prop("reqseq:date", DATE)),
+      testCase(four(LOGIN, V[LOGIN]) + prop("reqseq:variant", COAST)),
     ];
     for (const bytes of refused) {
       expect(readsBackAs(bytes, wanted)).toBe(false);
