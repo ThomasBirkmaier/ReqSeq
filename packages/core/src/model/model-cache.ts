@@ -201,8 +201,8 @@ const isSnapshotOf = (value: unknown, file: string): value is Record<string, unk
 const isOptionalText = (value: unknown): boolean => value === undefined || typeof value === "string";
 
 /**
- * Whether `value` is a list of inline references as `textReferences` makes it (one or more), or,
- * with `inProperty`, as `propertyReferences` makes it: each also with the key of its property and,
+ * Whether `value` is a list of inline references as `elementLinks` makes them (one or more), the
+ * text's, or with `inProperty` those of the properties: each also with the key of its property and,
  * for a list, its position.
  */
 const isReferences = (value: unknown, inProperty: boolean): boolean =>
@@ -224,7 +224,7 @@ const isReferences = (value: unknown, inProperty: boolean): boolean =>
         : r["key"] === undefined && r["item"] === undefined),
   );
 
-/** Whether `value` is a list of links as `storedUnresolvedLinks` makes it (one or more). */
+/** Whether `value` is a list of links as `elementLinks` makes them (one or more). */
 const isUnresolvedLinks = (value: unknown): boolean =>
   Array.isArray(value) &&
   value.length > 0 &&
@@ -236,6 +236,7 @@ const isUnresolvedLinks = (value: unknown): boolean =>
       typeof l["line"] === "number" &&
       Number.isInteger(l["line"]) &&
       l["line"] >= 1 &&
+      isOptionalText(l["repository"]) &&
       isOptionalText(l["key"]) &&
       (l["item"] === undefined ||
         (typeof l["key"] === "string" &&

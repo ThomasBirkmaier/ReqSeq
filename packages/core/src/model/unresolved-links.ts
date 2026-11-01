@@ -11,6 +11,7 @@ import type { Metamodel } from "../metamodel/index.js";
 import { findType, markdownKeysOf, metamodelState } from "../metamodel/index.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import type { ElementRecord } from "./elements.js";
+import type { StoredUnresolvedLink } from "./references.js";
 import { placeOfReference } from "./references.js";
 import { resolveRef } from "./resolve.js";
 import type { ShortIds } from "./short-id.js";
@@ -33,14 +34,34 @@ const nameOf = (element: ElementRecord, context: UnresolvedLinkContext): string 
   return identifier === undefined ? name : `${name} (${identifier})`;
 };
 
-/** What the target names now (one element, several or none) and what to do, for the message. */
-const namesOf = (target: string, context: UnresolvedLinkContext): string => {
+/**
+ * What the link names now, resolved as the writer resolves it (`resolveRef` within the repository
+ * the link names, if any), and what to do, for the message: one element (give the text or the
+ * property again), copies of one UUID in several repositories (name one with `repository=`),
+ * several elements (write the UUID) or none.
+ */
+const namesOf = (link: StoredUnresolvedLink, context: UnresolvedLinkContext): string => {
+  const { target, repository, key } = link;
   try {
-    return `it names ${nameOf(resolveRef(context.store, context.shortIds, target), context)}; give the text again with element update, which writes reqseq:<uuid>?version=…`;
+    const element = resolveRef(
+      context.store,
+      context.shortIds,
+      target,
+      repository === undefined ? {} : { repository },
+    );
+    const again = key === undefined ? "the text" : `the property ${key}`;
+    return `it names ${nameOf(element, context)}; give ${again} again with element update, which writes reqseq:<uuid>?version=…`;
   } catch (error) {
-    return commandErrorOrThrow(error).code === "ref.ambiguous"
-      ? "it names more than one element; write the UUID of the one it means"
-      : "it names no element; point it to an element by its UUID, short ID or identifier";
+    const failed = commandErrorOrThrow(error);
+    if (failed.code !== "ref.ambiguous") {
+      return `it names no element${repository === undefined ? "" : ` in repository ${repository}`}; point it to an element by its UUID, short ID or identifier`;
+    }
+    // resolveRef lists the candidates of every ref.ambiguous.
+    const { candidates } = failed.details as { candidates: readonly { id: string; repository: string }[] };
+    const repositories = [...new Set(candidates.map((c) => c.repository))];
+    return new Set(candidates.map((c) => c.id)).size === 1 && repositories.length > 1
+      ? `its UUID lies in several repositories; add repository=<name> to the link (${repositories.join(", ")})`
+      : "it names more than one element; write the UUID of the one it means";
   }
 };
 
@@ -59,7 +80,7 @@ export const unresolvedLinkProblems = (
     .map((link) => ({
       code: "relation.unresolved-link",
       severity: "warning",
-      message: `The link reqseq:${link.target} in ${placeOfReference(link)} of ${nameOf(element, context)} names no UUID, so it counts for nothing: ${namesOf(link.target, context)}`,
+      message: `The link reqseq:${link.target} in ${placeOfReference(link)} of ${nameOf(element, context)} does not name its target by a UUID in lower case, so it counts for nothing: ${namesOf(link, context)}`,
       repository: element.repository,
       file: element.file,
       line: link.line,

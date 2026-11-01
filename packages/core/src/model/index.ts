@@ -104,11 +104,10 @@ export type { TargetContext } from "./targets.js";
 export {
   inlineReferences,
   placeOfReference,
-  propertyReferences,
+  elementLinks,
   referenceTargetState,
   referencesOf,
   resolveReference,
-  textReferences,
   unavailableRepositoryHint,
 } from "./references.js";
 export type {

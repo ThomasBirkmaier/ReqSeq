@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { Problem } from "../catalog.js";
@@ -47,7 +48,7 @@ describe("reqseq: links whose target is no UUID (#176)", () => {
         code: "relation.unresolved-link",
         severity: "warning",
         message:
-          "The link reqseq:N-1f2a4c in rationale of System Requirement SR-6e1f05 names no UUID, so it counts for nothing: it names Need N-1f2a4c; give the text again with element update, which writes reqseq:<uuid>?version=…",
+          "The link reqseq:N-1f2a4c in rationale of System Requirement SR-6e1f05 does not name its target by a UUID in lower case, so it counts for nothing: it names Need N-1f2a4c; give the property rationale again with element update, which writes reqseq:<uuid>?version=…",
         line: 6,
         ...at,
       },
@@ -55,7 +56,7 @@ describe("reqseq: links whose target is no UUID (#176)", () => {
         code: "relation.unresolved-link",
         severity: "warning",
         message:
-          "The link reqseq:VAR-f4b9a3 in acceptance-criteria (item 1) of System Requirement SR-6e1f05 names no UUID, so it counts for nothing: it names more than one element; write the UUID of the one it means",
+          "The link reqseq:VAR-f4b9a3 in acceptance-criteria (item 1) of System Requirement SR-6e1f05 does not name its target by a UUID in lower case, so it counts for nothing: it names more than one element; write the UUID of the one it means",
         line: 8,
         ...at,
       },
@@ -63,10 +64,46 @@ describe("reqseq: links whose target is no UUID (#176)", () => {
         code: "relation.unresolved-link",
         severity: "warning",
         message:
-          "The link reqseq:N-000000 in the text of System Requirement SR-6e1f05 names no UUID, so it counts for nothing: it names no element; point it to an element by its UUID, short ID or identifier",
+          "The link reqseq:N-000000 in the text of System Requirement SR-6e1f05 does not name its target by a UUID in lower case, so it counts for nothing: it names no element; point it to an element by its UUID, short ID or identifier",
         line: 12,
         ...at,
       },
+    ]);
+  });
+
+  it("resolves the target within the repository the link names, as the writer does, and says when copies need repository=", async () => {
+    const need = await readFile(
+      new URL("../../../../fixtures/SR-021/targets/system/needs/N-7b3d5e1f2a4c.md", import.meta.url),
+      "utf8",
+    );
+    const messages = (problems: readonly Problem[]): string[] =>
+      problems.map((p) => p.message.slice(p.message.indexOf("counts for nothing: ") + 20));
+    expect(
+      messages(
+        await problemsOf({
+          [`system/${SOURCE}`]: source(
+            "",
+            "See [n](reqseq:N-1f2a4c?repository=sensor) and [u](reqseq:0C8A3E5F-2D1B-4F6E-8A9C-7B3D5E1F2A4C).\n",
+          ),
+        }),
+      ),
+    ).toEqual([
+      "it names no element in repository sensor; point it to an element by its UUID, short ID or identifier",
+      "it names Need N-1f2a4c; give the text again with element update, which writes reqseq:<uuid>?version=…",
+    ]);
+    expect(
+      messages(
+        await problemsOf({
+          [`system/${SOURCE}`]: source(
+            "",
+            "See [a](reqseq:N-1f2a4c) and [b](reqseq:N-1f2a4c?repository=system).\n",
+          ),
+          "sensor/needs/N-7b3d5e1f2a4c.md": need,
+        }),
+      ),
+    ).toEqual([
+      "its UUID lies in several repositories; add repository=<name> to the link (system, sensor)",
+      "it names Need N-1f2a4c; give the text again with element update, which writes reqseq:<uuid>?version=…",
     ]);
   });
 

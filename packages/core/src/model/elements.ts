@@ -6,7 +6,7 @@ import type { Problem } from "../catalog.js";
 import type { FileSnapshot, LineEnding, ParsedContent, ParsedFile } from "../files/index.js";
 import { FRONTMATTER_FIRST_LINE } from "../files/index.js";
 import type { PropertyReference, StoredUnresolvedLink, TextReference } from "./references.js";
-import { propertyReferences, storedUnresolvedLinks, textReferences } from "./references.js";
+import { elementLinks } from "./references.js";
 import { isUuid } from "./uuid.js";
 
 /**
@@ -174,10 +174,11 @@ export const classifyFile = (repository: string, file: ParsedFile): Classified =
     return invalid(repository, file, "type", "type must be a type key");
   }
   const { eol, closingEol, bom, snapshot } = file;
-  const references = textReferences(file.frontmatter, file.body);
-  const place = (key: string, item: number | undefined) => placeOf(file, key, item);
-  const inProperties = propertyReferences(file.frontmatter, data, place);
-  const unresolved = storedUnresolvedLinks(file.frontmatter, file.body, data, place);
+  const {
+    references,
+    propertyReferences: inProperties,
+    unresolvedLinks: unresolved,
+  } = elementLinks(file.frontmatter, file.body, data, (key, item) => placeOf(file, key, item));
   return {
     kind: "element",
     element: {

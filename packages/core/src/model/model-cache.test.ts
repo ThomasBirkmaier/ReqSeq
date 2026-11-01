@@ -637,6 +637,10 @@ describe("parseModelCache", () => {
     ],
     ["an unresolved link without a line", withRecord({ unresolvedLinks: [{ target: "D-1" }] })],
     [
+      "an unresolved link with a repository that is no text",
+      withRecord({ unresolvedLinks: [{ target: "D-1", line: 3, repository: 1 }] }),
+    ],
+    [
       "an unresolved link with a key that is no text",
       withRecord({ unresolvedLinks: [{ target: "D-1", line: 3, key: 1 }] }),
     ],
@@ -702,7 +706,7 @@ describe("parseModelCache", () => {
         element: {
           ...record,
           unresolvedLinks: [
-            { target: "D-031", line: 4, key: "rationale" },
+            { target: "D-031", repository: "sensor", line: 4, key: "rationale" },
             { target: "D-030", line: 5, key: "acceptance-criteria", item: 0 },
             { target: "SR-1", line: 9 },
           ],

@@ -9,7 +9,7 @@ import {
   referenceTargetState,
   referencesOf,
   resolveReference,
-  textReferences,
+  elementLinks,
   unresolvedLinks,
 } from "./references.js";
 import type { ElementStore } from "./store.js";
@@ -72,6 +72,8 @@ describe("inline references with repository (D-058, decision on #177 (c))", () =
   });
 
   it("gives the references of a text with their lines in the file, and none for a text without reqseq links", () => {
+    const textReferences = (frontmatter: string, body: string): unknown =>
+      elementLinks(frontmatter, body, {}, () => undefined).references;
     expect(
       textReferences("id: x\ntype: y\n", `\nSee [a](reqseq:${A}?version=${V}&repository=sensor).\n`),
     ).toEqual([{ id: A, version: V, repository: "sensor", line: 6 }]);
@@ -233,7 +235,7 @@ describe("references in the properties of the frontmatter (SR-127)", () => {
       "Text [a](reqseq:D-030), `[code](reqseq:D-1)`, ![img](reqseq:D-2), [empty](reqseq:?x=1).\n",
     );
     expect(record.unresolvedLinks).toEqual([
-      { target: "N-1f2a4c", line: 4, key: "title" },
+      { target: "N-1f2a4c", repository: "sensor", line: 4, key: "title" },
       { target: "D-031", line: 7, key: "items", item: 1 },
       { target: "SR-036", line: 10, key: "single" },
       { target: "D-030", line: 13 },
