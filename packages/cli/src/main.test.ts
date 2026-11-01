@@ -257,6 +257,14 @@ describe("reqseq help and version", () => {
     }
   });
 
+  it("refuses too many arguments with core's input error, naming what the command takes (#449)", async () => {
+    const result = await run(["test", "echo", ref, "n", "extra"]);
+    expect(result.code).toBe(EXIT.usage);
+    expect(result.stderr).toBe(
+      "error input.invalid: Unexpected argument extra: test echo takes <ref> <name>; see reqseq test echo --help\n",
+    );
+  });
+
   it("takes program options only before the command", async () => {
     expect((await run(["--json", "test", "root"])).code).toBe(EXIT.usage);
   });

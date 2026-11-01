@@ -3,7 +3,9 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { CommandError } from "@reqseq/core";
+import { argvFor } from "./argv.js";
 import type { InputField, ScalarKind } from "./fields.js";
+import { kebab } from "./fields.js";
 import type { Invocation } from "./program.js";
 
 /** Where `--input -` reads from. */
@@ -103,6 +105,69 @@ const resolveLocalPaths = (
   }
 };
 
+/** A shell word: as it is when it needs no quotes, else in single quotes. */
+const shellWord = (value: string): string =>
+  /^[\w@%+=:,./-]+$/u.test(value) ? value : `'${value.replaceAll("'", `'\\''`)}'`;
+
+/**
+ * The call that `values` fit when they are read in the order of the catalog's arguments (the order the
+ * command prompt asks them, the element first), over the positional fields and the element flags
+ * (`complete: element`) that no flag and no `--input` gives; `undefined` when there are more values
+ * than such fields (#449).
+ */
+const fittingCall = (
+  invocation: Invocation,
+  given: ReadonlySet<string>,
+  values: readonly string[],
+): { readonly argv: string[]; readonly order: string[] } | undefined => {
+  const { entry, fields } = invocation;
+  const elements = new Set(entry.arguments.filter((a) => a.complete === "element").map((a) => a.field));
+  const names = entry.arguments.length > 0 ? entry.arguments.map((a) => a.field) : fields.map((f) => f.name);
+  const open = names
+    .map((name) => fields.find((f) => f.name === name))
+    .filter((f): f is InputField => f?.kind === "string")
+    .filter(
+      (f) => (f.use === "positional" || (f.use === "flag" && elements.has(f.name))) && !given.has(f.name),
+    );
+  if (values.length > open.length) {
+    return undefined;
+  }
+  const fitted = open.slice(0, values.length);
+  const input = Object.fromEntries(fitted.map((f, i) => [f.name, f.array ? [values[i]] : values[i]]));
+  return {
+    argv: argvFor(entry, input).map(shellWord),
+    order: fitted.map((f) => (f.use === "positional" ? `<${f.flag}>` : `--${f.flag}`)),
+  };
+};
+
+/** `input.invalid` for an argument that no positional field takes, naming the call the values fit. */
+const unexpectedArgument = (
+  invocation: Invocation,
+  given: ReadonlySet<string>,
+  values: readonly string[],
+  value: string,
+): CommandError => {
+  const name = invocation.entry.name;
+  const command = `${name.slice(0, name.indexOf("."))} ${kebab(name.slice(name.indexOf(".") + 1))}`;
+  const taken = invocation.positionals.map((p) => p.field).filter((f) => given.has(f.name));
+  const takes = invocation.positionals.map((p) => `<${p.field.flag}>`).join(" ");
+  const reason =
+    taken.length > 0
+      ? `--input or a flag already gives ${taken.map((f) => f.name).join(", ")}`
+      : takes === ""
+        ? `${command} takes no arguments`
+        : `${command} takes ${takes}`;
+  const call = fittingCall(invocation, given, values);
+  const hint =
+    call === undefined
+      ? `; see reqseq ${command} --help`
+      : `; did you mean: reqseq ${call.argv.join(" ")} (the values in the order ${call.order.join(" ")})?`;
+  return new CommandError("input.invalid", `Unexpected argument ${value}: ${reason}${hint}`, {
+    argument: value,
+    ...(call === undefined ? {} : { suggestion: ["reqseq", ...call.argv] }),
+  });
+};
+
 /**
  * The command input: `--input` first; positional values fill the positional fields that neither
  * `--input` nor a flag gives, in order; flags override the same field from `--input`; local paths
@@ -114,22 +179,19 @@ export async function buildInput(
   stdin: InputStream,
 ): Promise<Record<string, unknown>> {
   const input = invocation.input === undefined ? {} : await readInputOption(invocation.input, cwd, stdin);
-  const values = invocation.positionals.flatMap(({ value }) => (value === undefined ? [] : [value]));
-  const flagged = new Set(invocation.flags.filter((f) => f.value !== undefined).map((f) => f.field.name));
-  const open = invocation.positionals
-    .map(({ field }) => field)
-    .filter((f) => !Object.hasOwn(input, f.name) && !flagged.has(f.name));
+  const values = [
+    ...invocation.positionals.flatMap(({ value }) => (value === undefined ? [] : [value])),
+    ...invocation.extraArguments,
+  ];
+  const given = new Set([
+    ...Object.keys(input),
+    ...invocation.flags.filter((f) => f.value !== undefined).map((f) => f.field.name),
+  ]);
+  const open = invocation.positionals.map(({ field }) => field).filter((f) => !given.has(f.name));
   values.forEach((value, i) => {
     const field = open[i];
     if (field === undefined) {
-      const given = invocation.positionals
-        .map((p) => p.field.name)
-        .filter((name) => !open.some((f) => f.name === name));
-      throw new CommandError(
-        "input.invalid",
-        `Unexpected argument ${value}: --input or a flag already gives ${given.join(", ")}`,
-        { argument: value },
-      );
+      throw unexpectedArgument(invocation, given, values, value);
     }
     input[field.name] = value;
   });

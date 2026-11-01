@@ -14,7 +14,7 @@ node packages/cli/dist/bin.js element get SR-036 --workspace spec
 
 ## Behaviour the code implements
 
-- Arguments (`src/fields.ts`, `src/input.ts`): required string fields are positional, every scalar field is also `--<field>` (`--x`/`--no-x`, repeated for arrays), objects and `null` only via `--input <json|@file|->`. Flags override `--input`. Local path fields are made absolute against the current folder. Element arguments take a UUID, short ID or identifier.
+- Arguments (`src/fields.ts`, `src/input.ts`): required string fields are positional, every scalar field is also `--<field>` (`--x`/`--no-x`, repeated for arrays), objects and `null` only via `--input <json|@file|->`. Flags override `--input`. Too many arguments are `input.invalid`, naming the call the values fit in the catalog's argument order (`did you mean: reqseq element set-status approved --refs SR-143`). Local path fields are made absolute against the current folder. Element arguments take a UUID, short ID or identifier.
 - Output (`src/render.ts`, `src/present.ts`): compact lines by default, `--json` (exactly the command output), `--yaml`, `--jsonl` where the catalog entry has `jsonLines`; written in pieces with back-pressure (#277). UTF-8 without colors; problems to stdout, errors to stderr; a closed pipe ends quietly.
 - Workspace: `--workspace`, else the nearest folder upwards with `reqseq-workspace.yaml`, else the current folder. Every command opens it with the model cache of the copy (ADR-0008, SR-082).
 - Exit codes (`EXIT` in `src/main.ts`, ADR-0009): `0` ok, `1` error finding or `ok: false`, `2` usage or input error, `3` internal, `4` commit not available locally, `130` aborted.

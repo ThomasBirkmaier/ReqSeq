@@ -1,10 +1,11 @@
 import path from "node:path";
 import { Readable } from "node:stream";
-import { CommandError } from "@reqseq/core";
+import { CommandError, getCommandRuntime } from "@reqseq/core";
 import type { FixtureWorkspace } from "@reqseq/testkit";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { InputField } from "./fields.js";
+import { inputFields } from "./fields.js";
 import { buildInput, readInputOption } from "./input.js";
 import type { Invocation } from "./program.js";
 
@@ -133,6 +134,7 @@ const invocation = (parts: Partial<Invocation>): Invocation => ({
   },
   fields: [],
   positionals: [],
+  extraArguments: [],
   flags: [],
   json: false,
   yaml: false,
@@ -208,8 +210,69 @@ describe("buildInput", () => {
     );
     expect(tooMany.toJSON()).toEqual({
       code: "input.invalid",
-      message: "Unexpected argument b: --input or a flag already gives kind, target",
+      message:
+        "Unexpected argument b: --input or a flag already gives kind, target; see reqseq test echo --help",
       details: { argument: "b" },
+    });
+  });
+
+  it("names the call that too many arguments fit, read in the order of the catalog's arguments (#449)", async () => {
+    const commandOf = (name: string): Pick<Invocation, "entry" | "fields" | "positionals"> => {
+      const entry = getCommandRuntime().contracts.entry(name);
+      if (entry === undefined) {
+        throw new Error(name);
+      }
+      const fields = inputFields(entry);
+      const positionals = fields
+        .filter((f) => f.use === "positional")
+        .map((f) => ({ field: f, value: undefined }));
+      return { entry, fields, positionals };
+    };
+    const refused = async (
+      name: string,
+      values: string[],
+      parts: Partial<Invocation> = {},
+    ): Promise<unknown> => {
+      const command = commandOf(name);
+      const count = command.positionals.length;
+      const positionals = command.positionals.map((p, i) => ({ ...p, value: values[i] }));
+      const error = await rejection(
+        buildInput(
+          invocation({ ...command, positionals, extraArguments: values.slice(count), ...parts }),
+          fixture.root,
+          noStdin,
+        ),
+      );
+      return error.toJSON();
+    };
+    expect(await refused("element.setStatus", ["SR-143", "approved"])).toEqual({
+      code: "input.invalid",
+      message:
+        "Unexpected argument approved: element set-status takes <status>; did you mean: reqseq element set-status approved --refs SR-143 (the values in the order --refs <status>)?",
+      details: {
+        argument: "approved",
+        suggestion: ["reqseq", "element", "set-status", "approved", "--refs", "SR-143"],
+      },
+    });
+    expect(await refused("element.supersede", ["SR-001", "obsolete", "Sturm und Böen"])).toMatchObject({
+      message:
+        "Unexpected argument Sturm und Böen: element supersede takes <ref> <status>; did you mean: reqseq element supersede SR-001 obsolete --successor 'Sturm und Böen' (the values in the order <ref> <status> --successor)?",
+    });
+    // A flag that gives the element leaves no field for the second value; a command without element flags gets no guess.
+    const flagged = commandOf("element.setStatus").fields.find((f) => f.name === "refs");
+    expect(
+      await refused("element.setStatus", ["approved", "x"], {
+        flags: flagged === undefined ? [] : [{ field: flagged, value: ["SR-143"] }],
+      }),
+    ).toMatchObject({
+      message:
+        "Unexpected argument x: element set-status takes <status>; see reqseq element set-status --help",
+    });
+    expect(await refused("element.get", ["SR-143", "extra"])).toMatchObject({
+      message: "Unexpected argument extra: element get takes <ref>; see reqseq element get --help",
+    });
+    expect(await refused("workspace.check", ["x"])).toMatchObject({
+      message: "Unexpected argument x: workspace check takes no arguments; see reqseq workspace check --help",
     });
   });
 
