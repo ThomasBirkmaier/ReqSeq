@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1339 1906" width="1339" height="1906" role="img" aria-label="ReqSeq CI workflows">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1339 2068" width="1339" height="2068" role="img" aria-label="ReqSeq CI workflows">
 <style>
 svg { --bg: #ffffff; --fg: #18202b; --muted: #5a6575; --line: #c6ced9; --u: #c4521b; --m: #5d6c84; --w: #1c6db0; --o: #7a4fb0; --req: #0d8257; --req-fg: #ffffff; }
 @media (prefers-color-scheme: dark) { svg { --bg: #0d1117; --fg: #e2e7ee; --muted: #98a3b3; --line: #344050; --u: #ee7c45; --m: #a7b4c8; --w: #5ea8e8; --o: #b79cf0; --req: #3cc68e; --req-fg: #0c1a14; } }
@@ -21,7 +21,7 @@ text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(
 .req { fill: var(--req); } .reqt { fill: var(--req-fg); font-size: 9.5px; font-weight: 700; }
 </style>
 <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker></defs>
-<rect class="bg" width="1339" height="1906"/>
+<rect class="bg" width="1339" height="2068"/>
 <text class="h" x="20" y="34">ReqSeq CI: workflows, triggers, jobs and required checks</text>
 <text class="s" x="20" y="52">Generated from .github/workflows/*.yml by pnpm docs:diagrams. Lanes are the runner systems.</text>
 <line class="sep" x1="20" y1="72" x2="1318.4" y2="72"/>
@@ -71,82 +71,93 @@ text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(
 <path class="arr" d="M588.8,625 L616.8,625 L616.8,569 L644.8,569" marker-end="url(#ah)"/>
 <path class="arr" d="M588.8,681 L616.8,681 L616.8,569 L644.8,569" marker-end="url(#ah)"/>
 <line class="sep" x1="20" y1="740" x2="1318.4" y2="740"/>
-<text class="h" x="20" y="762">Docs pages · docs-pages.yml</text>
-<rect class="trig" x="20" y="776" width="200" height="46" rx="5"/><text class="n" x="30" y="795">workflow_call</text><text class="s" x="30" y="811">inputs: tag</text>
+<text class="h" x="20" y="762">Default assignee · default-assignee.yml</text>
+<rect class="trig" x="20" y="776" width="200" height="46" rx="5"/><text class="n" x="30" y="795">issues</text><text class="s" x="30" y="811">opened, reopened</text>
 <path class="arr" d="M220,799 L244,799"/>
-<rect class="trig" x="20" y="832" width="200" height="46" rx="5"/><text class="n" x="30" y="851">workflow_dispatch</text><text class="s" x="30" y="867">inputs: tag</text>
+<rect class="trig" x="20" y="832" width="200" height="46" rx="5"/><text class="n" x="30" y="851">pull_request_target</text><text class="s" x="30" y="867">opened, reopened</text>
 <path class="arr" d="M220,855 L244,855"/>
 <rect class="lane u" x="274" y="776" width="1044.4" height="84" rx="8"/>
 <text class="lh u" x="286" y="793">UBUNTU-24.04</text>
-<rect class="box u" x="286" y="802" width="302.8" height="46" rx="5"/><text class="n" x="296" y="821">build docs</text><text class="s" x="296" y="837">job build</text>
+<rect class="box u" x="286" y="802" width="302.8" height="46" rx="5"/><text class="n" x="296" y="821">assign</text><text class="s" x="296" y="837">job assign</text>
 <path class="arr" d="M244,825 L286,825" marker-end="url(#ah)"/>
-<rect class="box u" x="644.8" y="802" width="302.8" height="46" rx="5"/><text class="n" x="654.8" y="821">deploy docs</text><text class="s" x="654.8" y="837">job deploy</text>
 <path class="arr" d="M244,799 L244,855"/>
-<path class="arr" d="M588.8,825 L616.8,825 L616.8,825 L644.8,825" marker-end="url(#ah)"/>
 <line class="sep" x1="20" y1="902" x2="1318.4" y2="902"/>
-<text class="h" x="20" y="924">Performance · perf.yml</text>
-<rect class="trig" x="20" y="938" width="200" height="46" rx="5"/><text class="n" x="30" y="957">schedule</text><text class="s" x="30" y="973">cron 30 2 * * * (UTC)</text>
+<text class="h" x="20" y="924">Docs pages · docs-pages.yml</text>
+<rect class="trig" x="20" y="938" width="200" height="46" rx="5"/><text class="n" x="30" y="957">workflow_call</text><text class="s" x="30" y="973">inputs: tag</text>
 <path class="arr" d="M220,961 L244,961"/>
-<rect class="trig" x="20" y="994" width="200" height="28" rx="5"/><text class="n" x="30" y="1013">workflow_dispatch</text>
-<path class="arr" d="M220,1008 L244,1008"/>
-<rect class="trig" x="20" y="1032" width="200" height="46" rx="5"/><text class="n" x="30" y="1051">pull_request</text><text class="s" x="30" y="1067">labeled, closed</text>
-<path class="arr" d="M220,1055 L244,1055"/>
+<rect class="trig" x="20" y="994" width="200" height="46" rx="5"/><text class="n" x="30" y="1013">workflow_dispatch</text><text class="s" x="30" y="1029">inputs: tag</text>
+<path class="arr" d="M220,1017 L244,1017"/>
 <rect class="lane u" x="274" y="938" width="1044.4" height="84" rx="8"/>
 <text class="lh u" x="286" y="955">UBUNTU-24.04</text>
-<rect class="box u" x="286" y="964" width="302.8" height="46" rx="5"/><text class="n" x="296" y="983">changed files</text><text class="s" x="296" y="999">job changes</text>
+<rect class="box u" x="286" y="964" width="302.8" height="46" rx="5"/><text class="n" x="296" y="983">build docs</text><text class="s" x="296" y="999">job build</text>
 <path class="arr" d="M244,987 L286,987" marker-end="url(#ah)"/>
-<rect class="box u" x="644.8" y="964" width="302.8" height="46" rx="5"/><text class="n" x="654.8" y="983">perf (ubuntu-24.04)</text><text class="s" x="654.8" y="999">job perf</text>
-<rect class="box u" x="1003.6" y="964" width="302.8" height="46" rx="5"/><text class="n" x="1013.6" y="983">record and report</text><text class="s" x="1013.6" y="999">job record</text>
-<path class="arr" d="M244,961 L244,1055"/>
+<rect class="box u" x="644.8" y="964" width="302.8" height="46" rx="5"/><text class="n" x="654.8" y="983">deploy docs</text><text class="s" x="654.8" y="999">job deploy</text>
+<path class="arr" d="M244,961 L244,1017"/>
 <path class="arr" d="M588.8,987 L616.8,987 L616.8,987 L644.8,987" marker-end="url(#ah)"/>
-<path class="arr" d="M947.6,987 L975.6,987 L975.6,987 L1003.6,987" marker-end="url(#ah)"/>
-<line class="sep" x1="20" y1="1102" x2="1318.4" y2="1102"/>
-<text class="h" x="20" y="1124">PR text · pr-text.yml</text>
-<rect class="trig" x="20" y="1138" width="200" height="46" rx="5"/><text class="n" x="30" y="1157">pull_request</text><text class="s" x="30" y="1173">edited, labeled, unlabeled</text>
-<path class="arr" d="M220,1161 L244,1161"/>
-<rect class="lane u" x="274" y="1138" width="1044.4" height="84" rx="8"/>
-<text class="lh u" x="286" y="1155">UBUNTU-24.04</text>
-<rect class="box u" x="286" y="1164" width="302.8" height="46" rx="5"/><text class="n" x="296" y="1183">trace-check (PR text)</text><text class="s" x="296" y="1199">job pr-text</text>
-<path class="arr" d="M244,1187 L286,1187" marker-end="url(#ah)"/>
-<path class="arr" d="M244,1161 L244,1187"/>
-<line class="sep" x1="20" y1="1246" x2="1318.4" y2="1246"/>
-<text class="h" x="20" y="1268">Project sync · project-sync.yml</text>
-<rect class="trig" x="20" y="1282" width="200" height="60" rx="5"/><text class="n" x="30" y="1301">issues</text><text class="s" x="30" y="1317">opened, edited, labeled,</text><text class="s" x="30" y="1331">unlabeled, closed, reopened</text>
-<path class="arr" d="M220,1312 L244,1312"/>
-<rect class="trig" x="20" y="1352" width="200" height="46" rx="5"/><text class="n" x="30" y="1371">schedule</text><text class="s" x="30" y="1387">cron 17 3 * * * (UTC)</text>
-<path class="arr" d="M220,1375 L244,1375"/>
-<rect class="trig" x="20" y="1408" width="200" height="28" rx="5"/><text class="n" x="30" y="1427">workflow_dispatch</text>
-<path class="arr" d="M220,1422 L244,1422"/>
-<rect class="lane u" x="274" y="1282" width="1044.4" height="84" rx="8"/>
-<text class="lh u" x="286" y="1299">UBUNTU-24.04</text>
-<rect class="box u" x="286" y="1308" width="302.8" height="46" rx="5"/><text class="n" x="296" y="1327">sync</text><text class="s" x="296" y="1343">job sync</text>
-<path class="arr" d="M244,1331 L286,1331" marker-end="url(#ah)"/>
-<path class="arr" d="M244,1312 L244,1422"/>
-<line class="sep" x1="20" y1="1460" x2="1318.4" y2="1460"/>
-<text class="h" x="20" y="1482">Release · release.yml</text>
-<rect class="trig" x="20" y="1496" width="200" height="46" rx="5"/><text class="n" x="30" y="1515">push</text><text class="s" x="30" y="1531">tags: v*</text>
-<path class="arr" d="M220,1519 L244,1519"/>
-<rect class="trig" x="20" y="1552" width="200" height="28" rx="5"/><text class="n" x="30" y="1571">workflow_dispatch</text>
-<path class="arr" d="M220,1566 L244,1566"/>
-<rect class="lane u" x="274" y="1496" width="1044.4" height="84" rx="8"/>
-<text class="lh u" x="286" y="1513">UBUNTU-24.04</text>
-<rect class="box u" x="286" y="1522" width="302.8" height="46" rx="5"/><text class="n" x="296" y="1541">build (ubuntu-24.04)</text><text class="s" x="296" y="1557">job build</text>
-<path class="arr" d="M244,1545 L286,1545" marker-end="url(#ah)"/>
-<rect class="box u" x="644.8" y="1522" width="302.8" height="46" rx="5"/><text class="n" x="654.8" y="1541">release</text><text class="s" x="654.8" y="1557">job release</text>
-<rect class="lane m" x="274" y="1590" width="1044.4" height="84" rx="8"/>
-<text class="lh m" x="286" y="1607">MACOS-26</text>
-<rect class="box m" x="286" y="1616" width="302.8" height="46" rx="5"/><text class="n" x="296" y="1635">build (macos-26)</text><text class="s" x="296" y="1651">job build</text>
-<path class="arr" d="M244,1639 L286,1639" marker-end="url(#ah)"/>
-<rect class="lane w" x="274" y="1684" width="1044.4" height="84" rx="8"/>
-<text class="lh w" x="286" y="1701">WINDOWS-2025</text>
-<rect class="box w" x="286" y="1710" width="302.8" height="46" rx="5"/><text class="n" x="296" y="1729">build (windows-2025)</text><text class="s" x="296" y="1745">job build</text>
-<path class="arr" d="M244,1733 L286,1733" marker-end="url(#ah)"/>
-<rect class="lane o" x="274" y="1778" width="1044.4" height="84" rx="8"/>
-<text class="lh o" x="286" y="1795">REUSABLE WORKFLOW</text>
-<rect class="box o" x="1003.6" y="1804" width="302.8" height="46" rx="5"/><text class="n" x="1013.6" y="1823">docs</text><text class="s" x="1013.6" y="1839">calls ./.github/workflows/docs-pages.yml</text>
-<path class="arr" d="M244,1519 L244,1733"/>
-<path class="arr" d="M588.8,1545 L616.8,1545 L616.8,1545 L644.8,1545" marker-end="url(#ah)"/>
-<path class="arr" d="M588.8,1639 L616.8,1639 L616.8,1545 L644.8,1545" marker-end="url(#ah)"/>
-<path class="arr" d="M588.8,1733 L616.8,1733 L616.8,1545 L644.8,1545" marker-end="url(#ah)"/>
-<path class="arr" d="M947.6,1545 L975.6,1545 L975.6,1827 L1003.6,1827" marker-end="url(#ah)"/>
+<line class="sep" x1="20" y1="1064" x2="1318.4" y2="1064"/>
+<text class="h" x="20" y="1086">Performance · perf.yml</text>
+<rect class="trig" x="20" y="1100" width="200" height="46" rx="5"/><text class="n" x="30" y="1119">schedule</text><text class="s" x="30" y="1135">cron 30 2 * * * (UTC)</text>
+<path class="arr" d="M220,1123 L244,1123"/>
+<rect class="trig" x="20" y="1156" width="200" height="28" rx="5"/><text class="n" x="30" y="1175">workflow_dispatch</text>
+<path class="arr" d="M220,1170 L244,1170"/>
+<rect class="trig" x="20" y="1194" width="200" height="46" rx="5"/><text class="n" x="30" y="1213">pull_request</text><text class="s" x="30" y="1229">labeled, closed</text>
+<path class="arr" d="M220,1217 L244,1217"/>
+<rect class="lane u" x="274" y="1100" width="1044.4" height="84" rx="8"/>
+<text class="lh u" x="286" y="1117">UBUNTU-24.04</text>
+<rect class="box u" x="286" y="1126" width="302.8" height="46" rx="5"/><text class="n" x="296" y="1145">changed files</text><text class="s" x="296" y="1161">job changes</text>
+<path class="arr" d="M244,1149 L286,1149" marker-end="url(#ah)"/>
+<rect class="box u" x="644.8" y="1126" width="302.8" height="46" rx="5"/><text class="n" x="654.8" y="1145">perf (ubuntu-24.04)</text><text class="s" x="654.8" y="1161">job perf</text>
+<rect class="box u" x="1003.6" y="1126" width="302.8" height="46" rx="5"/><text class="n" x="1013.6" y="1145">record and report</text><text class="s" x="1013.6" y="1161">job record</text>
+<path class="arr" d="M244,1123 L244,1217"/>
+<path class="arr" d="M588.8,1149 L616.8,1149 L616.8,1149 L644.8,1149" marker-end="url(#ah)"/>
+<path class="arr" d="M947.6,1149 L975.6,1149 L975.6,1149 L1003.6,1149" marker-end="url(#ah)"/>
+<line class="sep" x1="20" y1="1264" x2="1318.4" y2="1264"/>
+<text class="h" x="20" y="1286">PR text · pr-text.yml</text>
+<rect class="trig" x="20" y="1300" width="200" height="46" rx="5"/><text class="n" x="30" y="1319">pull_request</text><text class="s" x="30" y="1335">edited, labeled, unlabeled</text>
+<path class="arr" d="M220,1323 L244,1323"/>
+<rect class="lane u" x="274" y="1300" width="1044.4" height="84" rx="8"/>
+<text class="lh u" x="286" y="1317">UBUNTU-24.04</text>
+<rect class="box u" x="286" y="1326" width="302.8" height="46" rx="5"/><text class="n" x="296" y="1345">trace-check (PR text)</text><text class="s" x="296" y="1361">job pr-text</text>
+<path class="arr" d="M244,1349 L286,1349" marker-end="url(#ah)"/>
+<path class="arr" d="M244,1323 L244,1349"/>
+<line class="sep" x1="20" y1="1408" x2="1318.4" y2="1408"/>
+<text class="h" x="20" y="1430">Project sync · project-sync.yml</text>
+<rect class="trig" x="20" y="1444" width="200" height="60" rx="5"/><text class="n" x="30" y="1463">issues</text><text class="s" x="30" y="1479">opened, edited, labeled,</text><text class="s" x="30" y="1493">unlabeled, closed, reopened</text>
+<path class="arr" d="M220,1474 L244,1474"/>
+<rect class="trig" x="20" y="1514" width="200" height="46" rx="5"/><text class="n" x="30" y="1533">schedule</text><text class="s" x="30" y="1549">cron 17 3 * * * (UTC)</text>
+<path class="arr" d="M220,1537 L244,1537"/>
+<rect class="trig" x="20" y="1570" width="200" height="28" rx="5"/><text class="n" x="30" y="1589">workflow_dispatch</text>
+<path class="arr" d="M220,1584 L244,1584"/>
+<rect class="lane u" x="274" y="1444" width="1044.4" height="84" rx="8"/>
+<text class="lh u" x="286" y="1461">UBUNTU-24.04</text>
+<rect class="box u" x="286" y="1470" width="302.8" height="46" rx="5"/><text class="n" x="296" y="1489">sync</text><text class="s" x="296" y="1505">job sync</text>
+<path class="arr" d="M244,1493 L286,1493" marker-end="url(#ah)"/>
+<path class="arr" d="M244,1474 L244,1584"/>
+<line class="sep" x1="20" y1="1622" x2="1318.4" y2="1622"/>
+<text class="h" x="20" y="1644">Release · release.yml</text>
+<rect class="trig" x="20" y="1658" width="200" height="46" rx="5"/><text class="n" x="30" y="1677">push</text><text class="s" x="30" y="1693">tags: v*</text>
+<path class="arr" d="M220,1681 L244,1681"/>
+<rect class="trig" x="20" y="1714" width="200" height="28" rx="5"/><text class="n" x="30" y="1733">workflow_dispatch</text>
+<path class="arr" d="M220,1728 L244,1728"/>
+<rect class="lane u" x="274" y="1658" width="1044.4" height="84" rx="8"/>
+<text class="lh u" x="286" y="1675">UBUNTU-24.04</text>
+<rect class="box u" x="286" y="1684" width="302.8" height="46" rx="5"/><text class="n" x="296" y="1703">build (ubuntu-24.04)</text><text class="s" x="296" y="1719">job build</text>
+<path class="arr" d="M244,1707 L286,1707" marker-end="url(#ah)"/>
+<rect class="box u" x="644.8" y="1684" width="302.8" height="46" rx="5"/><text class="n" x="654.8" y="1703">release</text><text class="s" x="654.8" y="1719">job release</text>
+<rect class="lane m" x="274" y="1752" width="1044.4" height="84" rx="8"/>
+<text class="lh m" x="286" y="1769">MACOS-26</text>
+<rect class="box m" x="286" y="1778" width="302.8" height="46" rx="5"/><text class="n" x="296" y="1797">build (macos-26)</text><text class="s" x="296" y="1813">job build</text>
+<path class="arr" d="M244,1801 L286,1801" marker-end="url(#ah)"/>
+<rect class="lane w" x="274" y="1846" width="1044.4" height="84" rx="8"/>
+<text class="lh w" x="286" y="1863">WINDOWS-2025</text>
+<rect class="box w" x="286" y="1872" width="302.8" height="46" rx="5"/><text class="n" x="296" y="1891">build (windows-2025)</text><text class="s" x="296" y="1907">job build</text>
+<path class="arr" d="M244,1895 L286,1895" marker-end="url(#ah)"/>
+<rect class="lane o" x="274" y="1940" width="1044.4" height="84" rx="8"/>
+<text class="lh o" x="286" y="1957">REUSABLE WORKFLOW</text>
+<rect class="box o" x="1003.6" y="1966" width="302.8" height="46" rx="5"/><text class="n" x="1013.6" y="1985">docs</text><text class="s" x="1013.6" y="2001">calls ./.github/workflows/docs-pages.yml</text>
+<path class="arr" d="M244,1681 L244,1895"/>
+<path class="arr" d="M588.8,1707 L616.8,1707 L616.8,1707 L644.8,1707" marker-end="url(#ah)"/>
+<path class="arr" d="M588.8,1801 L616.8,1801 L616.8,1707 L644.8,1707" marker-end="url(#ah)"/>
+<path class="arr" d="M588.8,1895 L616.8,1895 L616.8,1707 L644.8,1707" marker-end="url(#ah)"/>
+<path class="arr" d="M947.6,1707 L975.6,1707 L975.6,1989 L1003.6,1989" marker-end="url(#ah)"/>
 </svg>
