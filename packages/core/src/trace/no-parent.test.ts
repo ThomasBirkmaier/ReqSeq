@@ -71,6 +71,15 @@ describe("requirements without a parent (SR-022 AK6)", () => {
     expect(noParent(out.problems)).toEqual([]);
   });
 
+  it("[SR-022/AK6] reports no superseded requirement: a retired element needs no origin", async () => {
+    const workspace = await open(ORPHANED);
+    await invoke("element.setStatus", { refs: [ORPHAN], status: "obsolete" }, { workspace });
+    const out = (await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">;
+    expect(noParent(out.problems)).toEqual([]);
+    const hints = (await invoke("hint.list", {}, { workspace })) as CommandOutput<"hint.list">;
+    expect(noParent(hints.hints)).toEqual([]);
+  });
+
   it("reports nothing without a relation kind with the meaning derivation, or against a metamodel that is not valid", async () => {
     const withoutDerivation = await open({ fixture: "SR-089/missing-targets" }, "system");
     expect(await withoutDerivation.get(noParentProblemsState)).toEqual([]);

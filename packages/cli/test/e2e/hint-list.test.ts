@@ -62,7 +62,6 @@ describe("reqseq hint list (SR-026)", () => {
       ["relation.target-superseded", `${P}b3`, `${P}b9`],
       ["variant.superseded-in-validity", `${P}b3`, `${P}c3`],
       ["trace.no-parent", `${P}b4`, undefined],
-      ["trace.no-parent", `${P}b9`, undefined],
       ["relation.outdated", `${P}b1`, `${P}a1`],
       ["relation.outdated", `${P}b1`, `${P}a1`],
     ]);
@@ -83,7 +82,7 @@ describe("reqseq hint list (SR-026)", () => {
       expect.stringMatching(/ {2}hint: relation\.outdated\/system\/.*\/derives-from\/.*\?version=n1:0{16}$/),
       expect.stringMatching(/ {2}hint: relation\.outdated\/system\/.*\/@text\/.*&n=1$/),
     ]);
-    expect(lines).toHaveLength(11);
+    expect(lines).toHaveLength(10);
   });
 
   it("[SR-026/AK2] prints only the hints that pass the filters", async () => {

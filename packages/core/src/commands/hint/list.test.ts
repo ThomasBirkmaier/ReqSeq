@@ -88,7 +88,6 @@ const UNKNOWN_R4 = ["element.unknown-property", R4, undefined];
 const SUPERSEDED_R3 = ["relation.target-superseded", R3, OLD];
 const VALIDITY_R3 = ["variant.superseded-in-validity", R3, VO];
 const NO_PARENT_R4 = ["trace.no-parent", R4, undefined];
-const NO_PARENT_OLD = ["trace.no-parent", OLD, undefined];
 const OUTDATED_R1 = ["relation.outdated", R1, N1];
 const ALL = [
   REQUIRED_R2,
@@ -97,7 +96,6 @@ const ALL = [
   SUPERSEDED_R3,
   VALIDITY_R3,
   NO_PARENT_R4,
-  NO_PARENT_OLD,
   OUTDATED_R1,
   OUTDATED_R1,
 ];
@@ -219,7 +217,6 @@ describe("hint.list (SR-026)", () => {
     expect(rows((await list(workspace, { variant: VA })).hints)).toEqual([
       REQUIRED_R2,
       UNKNOWN_N2,
-      NO_PARENT_OLD,
       OUTDATED_R1,
       OUTDATED_R1,
     ]);
@@ -230,7 +227,6 @@ describe("hint.list (SR-026)", () => {
       SUPERSEDED_R3,
       VALIDITY_R3,
       NO_PARENT_R4,
-      NO_PARENT_OLD,
     ]);
   });
 

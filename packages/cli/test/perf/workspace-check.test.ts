@@ -46,6 +46,27 @@ const storedVersions = (files: ReadonlyMap<string, string>): number => {
   return count;
 };
 
+/**
+ * The generated system requirements that got no derivation (no `derives-from` or `refines` key): each
+ * is a `trace.no-parent` hint of workspace.check (SR-022 AK6). The generator gives no invalid status.
+ */
+const withoutParent = (files: ReadonlyMap<string, string>): number => {
+  let count = 0;
+  for (const content of files.values()) {
+    if (/^type: system-requirement$/m.test(content) && !/^(derives-from|refines):/m.test(content)) {
+      count += 1;
+    }
+  }
+  return count;
+};
+
+/** The `trace.no-parent` hints of `problems`, after checking that each is a warning about an element. */
+const noParentHints = (problems: readonly Problem[]): Problem[] => {
+  const hints = problems.filter((p) => p.code === "trace.no-parent");
+  expect(hints.filter((p) => p.severity !== "warning" || p.elementId === undefined)).toEqual([]);
+  return hints;
+};
+
 type Metamodel = CommandOutput<"metamodel.get">;
 
 /** The standard model as `metamodel.get` gives it for a workspace with the generator's model file. */
@@ -88,11 +109,13 @@ const versionOf =
 describe("reqseq workspace check with 50,000 elements and 200,000 relations (SR-020, N-036)", () => {
   let fixture: LargeFixtureWorkspace | undefined;
   let cache: string | undefined;
+  let orphans = 0;
 
   beforeAll(async () => {
     requireBuiltCli("pnpm test:perf");
     const version = versionOf(await standardModel());
     const tree = generateLargeWorkspace({ version, elements: ELEMENTS, relations: RELATIONS });
+    orphans = withoutParent(tree.files);
     fixture = await writeLargeWorkspace(tree);
     cache = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-sr-020-cache-"));
   }, 600_000);
@@ -122,6 +145,8 @@ describe("reqseq workspace check with 50,000 elements and 200,000 relations (SR-
     expect(run.code).toBe(0);
     // The generated requirements that got no derivation are hints (SR-022 AK6); nothing else is reported.
     const clean = JSON.parse(run.stdout) as { ok: boolean; problems: Problem[]; checkedElements: number };
+    expect(orphans).toBeGreaterThan(0);
+    expect(noParentHints(clean.problems)).toHaveLength(orphans);
     expect({ ...clean, problems: clean.problems.filter((p) => p.code !== "trace.no-parent") }).toEqual({
       ok: true,
       problems: [],
@@ -151,6 +176,7 @@ describe("reqseq workspace check with 50,000 elements and 200,000 relations (SR-
       expect(out.ok).toBe(true);
       expect(out.checkedElements).toBe(ELEMENTS);
       // Besides the generated requirements that got no derivation (SR-022 AK6).
+      expect(noParentHints(out.problems)).toHaveLength(withoutParent(tree.files));
       const outdatedProblems = out.problems.filter((p) => p.code !== "trace.no-parent");
       expect(outdatedProblems).toHaveLength(storedVersions(tree.files));
       expect(outdatedProblems.filter((p) => p.code !== "relation.outdated" || p.line === undefined)).toEqual(

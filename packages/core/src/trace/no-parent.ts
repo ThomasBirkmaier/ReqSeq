@@ -12,7 +12,10 @@
 // - Which relation kinds derive is the metamodel's (D-012): in the standard model `based-on` has no
 //   meaning, so a requirement based only on a decision is reported (product owner decision,
 //   2026-11-01). A parent in a repository that is not here, or a missing target (SR-089, an error of
-//   its own), still is a parent. The status is not looked at, as for the chain's other gaps.
+//   its own), still is a parent. An element with a status the metamodel marks invalid (superseded,
+//   D-044, D-045) is left out: a retired element needs no origin, and nothing else could settle its
+//   hint (the reading of AK6; as `evidence.coverage` leaves it out). The chain's gap stays, as for its
+//   other gaps.
 // - No line: the finding is about something the file lacks, so there is no line to point at, and
 //   no file is read again (`locateFindings` re-reads every file with findings; a workspace without
 //   derivations would re-read all of them).
@@ -25,7 +28,7 @@ import type { Problem } from "../catalog.js";
 import { metamodelState, typesWithMeaning } from "../metamodel/index.js";
 import type { Metamodel } from "../metamodel/index.js";
 import type { ElementRecord, ElementStore, LocatableFinding, ShortIds } from "../model/index.js";
-import { elementLabel, elementStoreState, shortIdState } from "../model/index.js";
+import { elementLabel, elementStoreState, invalidStatuses, shortIdState } from "../model/index.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import type { DerivationGraph } from "./graph.js";
 import { derivationKinds, namesParent } from "./graph.js";
@@ -37,9 +40,14 @@ export const noParentProblems = (
   shortIds: ShortIds,
 ): Problem[] => {
   const requirements = new Set(typesWithMeaning(graph.metamodel, "requirement").map((t) => t.key));
+  const invalid = invalidStatuses(graph.metamodel);
   const problems: Problem[] = [];
   for (const element of store.elements) {
-    if (requirements.has(element.type) && !namesParent(graph, element)) {
+    if (
+      requirements.has(element.type) &&
+      !invalid.has(String(element.data["status"])) &&
+      !namesParent(graph, element)
+    ) {
       problems.push({
         code: "trace.no-parent",
         severity: "warning",

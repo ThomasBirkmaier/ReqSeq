@@ -26,7 +26,7 @@
 //   relation kind with the meaning `derivation` (`namesParent`) is `no-parent`. Whatever the view and
 //   the target's state: a parent that does not apply in the view, lies in a repository that is not
 //   here (SR-006 AK2) or is missing (SR-089) still is one, so the chain shows the same orphans as
-//   `workspace.check` (AK6, `noParentProblemsState`). Which relation kinds derive is the metamodel's
+//   `workspace.check` (AK6, `noParentProblemsState`), which leaves out superseded ones. Which relation kinds derive is the metamodel's
 //   (D-012): in the standard model `based-on` has no meaning, so a decision is no parent (product
 //   owner decision, 2026-11-01).
 // - Cycles (AK4): the cycles of each walk (strongly connected components, the notion of SR-090), one
