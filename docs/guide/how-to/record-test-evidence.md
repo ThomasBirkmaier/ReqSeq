@@ -81,6 +81,8 @@ No problems.
 
 The command exits with 1 when a test names an ID the workspace does not have, usually a typo, and lists those test cases; the others are enriched all the same. When the tool writes its file elsewhere, add `--output evidence/ci/results-build-1.xml`; the folder must exist. Commit the enriched file: ReqSeq never commits.
 
+For the test run of a variant build, add `--variant` with the variant's short ID, UUID or identifier, for example `--variant VAR-f23826`: each enriched test case then counts for that variant. A test case may also name its variant itself with the property `reqseq:variant`, by short ID or identifier; ReqSeq writes the UUID in its place. The command exits with 1 and leaves a test case unchanged when it names another variant than `--variant`, or a requirement that does not count in its variant (excluded, replaced or not valid there).
+
 ```sh
 reqseq evidence status
 ```

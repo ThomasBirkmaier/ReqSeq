@@ -6211,7 +6211,7 @@
     {
       "name": "evidence_enrichJunit",
       "title": "Enrich JUnit file",
-      "description": "Add UUID, version, item and date to every test case of a JUnit XML file that names an element by short ID, UUID or identifier. Test cases with an unknown reference stay unchanged and are listed; the CLI exits 1.",
+      "description": "Add UUID, version, item and date, and the variant's UUID when there is one, to every test case of a JUnit XML file that names an element by short ID, UUID or identifier. Test cases with an unknown reference, or whose variant does not fit, stay unchanged and are listed; the CLI exits 1.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -6231,6 +6231,10 @@
           "date": {
             "$ref": "#/$defs/common/$defs/dateTime",
             "description": "The date of the test run. Default: an existing `reqseq:date` of the test case, else the `timestamp` of its test suite when that has a time zone, else the time of the call."
+          },
+          "variant": {
+            "$ref": "#/$defs/common/$defs/elementRef",
+            "description": "The variant the test run was for (an element whose type has the meaning variant): each enriched test case gets its UUID as `reqseq:variant`. Absent: a test case keeps its own `reqseq:variant`, if any, whose short ID or identifier becomes the UUID; `core` is none, but is checked like a variant. A test case that names another variant, or names an element that does not count in its variant (not valid there, excluded or replaced, as at `evidence.record`), stays unchanged and gets `evidence.invalid-record`; so does an enriched test case (never changed, D-026) whose variant differs from the given one."
           },
           "output": {
             "$ref": "#/$defs/common/$defs/localPath",
