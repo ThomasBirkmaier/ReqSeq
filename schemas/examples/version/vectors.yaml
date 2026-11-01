@@ -31,7 +31,7 @@ vectors:
     canonical: SR-825b7146fb54.canonical.txt
     version: n1:e386ab40f7f71d31
   # Frontmatter LF, text CR only; trailing NBSP and form feed (kept), U+2028 inside a line, a tabs-only line,
-  # a tab inside an acceptance criterion, a single (non-list) validity target. Images: one outside the
+  # a tab inside an acceptance criterion, a single (non-list) validity target, a verification method (does not count). Images: one outside the
   # element's folder and linked twice (once via ./ and ..), one percent-encoded, one reference-style and
   # missing; an absolute URL, a path outside the repository and a plain (non-image) link do not count.
   - element: SR-9f0a1b2c3d4e.md
