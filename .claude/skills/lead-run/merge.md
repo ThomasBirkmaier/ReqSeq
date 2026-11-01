@@ -36,4 +36,4 @@ The steps below follow every merge, an auto-merge too: its `closed` event wakes 
 
 `main` gets no CI run of its own after a merge, only the nightly run and a manual one (product owner decision, 2026-10-28). A red nightly run is the first work of the morning, fixed through a PR to `main` (#340). This is no licence to merge without green PR CI.
 
-Comment on the SR issue with the merge commit and the tests that cover each AK, and reopen it if an AK with method Test has none (the merge closes it through `Closes #`), tick the stage epic, and remove `agent:working`. For a PR that changes the spec, schemas, ADRs, agent rules, skills or CI, add one line in the stage epic for the product owner, without waiting for an answer.
+Comment on the SR issue with the merge commit and the tests that cover each AK, and reopen it if an AK with method Test has none (the merge closes it through `Closes #`), tick its epic, and remove `agent:working`. For a PR that changes the spec, schemas, ADRs, agent rules, skills or CI, add one line in the epic for the product owner, without waiting for an answer.

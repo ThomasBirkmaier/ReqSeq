@@ -129,12 +129,12 @@ def main():
         marker = f"<!-- epic:stage-{n} -->"
         if n == "querschnitt":
             title = "Cross-cutting: requirements for every stage"
-            labels = ["querschnitt"]
+            labels = ["querschnitt", "epic"]
             text = ("Cross-cutting system requirements apply to every function (all accesses, offline, local only, English UI, Git read-only, stable files, selection). "
-                    "Every stage checks them. They stay open across all stages and close at the end of stage 6.")
+                    "Every stage checks them. They stay open across all stages and close with milestone v0.8 Consolidation.")
         else:
             title = f"Stage {n}: {D035[n]}"
-            labels = [f"stage:{n}"]
+            labels = [f"stage:{n}", "epic"]
             text = f"Scope after D-035: \"{SCOPE[n]}\".\n\nStage acceptance (D-035, D-050): all SRs of the stage closed, `pnpm trace-check --stage {n}` green, cross-cutting SRs checked, verification records in `verification/` confirmed by the product owner."
             if n == "1":
                 text += "\n\nN-036 (50,000 requirements) is the performance benchmark from stage 1 on (D-035)."

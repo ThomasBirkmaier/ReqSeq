@@ -17,12 +17,15 @@ export const FIELDS = {
   Stage: ["0", "1", "2", "3", "4", "5", "6", "Querschnitt", "Später"],
   Kind: ["Epic", "SR", "Enabler", "Bug", "Spec question", "Other"],
   "Agent state": ["Ready", "Working", "Blocked", "Needs human", "Done"],
+  // The built-in field that board progress bars count; its default options.
+  Status: ["Todo", "In Progress", "Done"],
+  Priority: ["P1", "P2", "P3"],
   Thema: Object.values(TOPICS),
   SR: null, // text
 };
 
 function kindOf(issue, has) {
-  if ((issue.body ?? "").includes("<!-- epic:")) {
+  if (has("epic") || (issue.body ?? "").includes("<!-- epic:")) {
     return "Epic";
   }
   const kinds = [
@@ -47,6 +50,14 @@ function agentStateOf(issue, has) {
   return has("agent:working") ? "Working" : "Ready";
 }
 
+// Blocked, needs-human and spec-frage issues stay Todo; "Agent state" tells them apart.
+function statusOf(issue, has) {
+  if (issue.state === "closed") {
+    return "Done";
+  }
+  return has("agent:working") ? "In Progress" : "Todo";
+}
+
 /** The project field values of an issue (REST shape), derived from its labels, state, body and title. */
 export function derive(issue) {
   const labels = issue.labels.map((l) => (typeof l === "string" ? l : l.name));
@@ -59,6 +70,8 @@ export function derive(issue) {
     Stage: stage,
     Kind: kindOf(issue, has),
     "Agent state": agentStateOf(issue, has),
+    Status: statusOf(issue, has),
+    Priority: ["P1", "P2", "P3"].find(has),
     Thema: topic,
     SR: sr,
   };
