@@ -302,6 +302,7 @@ export type ProblemCode =
   | "element.missing-status"
   | "relation.missing-target"
   | "relation.unresolved-link"
+  | "relation.not-a-link"
   | "relation.inaccessible-target"
   | "relation.not-allowed"
   | "relation.outdated"
@@ -1579,7 +1580,7 @@ export interface MetamodelGetOutput {
 export interface ElementCreateInput {
   readonly type: Key;
   readonly title: string;
-  /** Markdown text of the element, written below the frontmatter after one blank line; that blank line after the closing `---` is not part of the text. A final line break is added (ADR-0004). */
+  /** Markdown text of the element, written below the frontmatter after one blank line; that blank line after the closing `---` is not part of the text. A final line break is added (ADR-0004). Another element is named by a Markdown link, `[Title](reqseq:N-6010df)` with its UUID, short ID or identifier, which is written as UUID and version; `reqseq:N-6010df` alone is no link and counts for nothing. */
   readonly text?: string;
   readonly properties?: Readonly<Record<string, ElementInputValue>>;
   /** Relations of the new element by kind, written in the same file (#175), e.g. {"derives-from": ["N-073", "N-030"], "based-on": "D-062"}; on the CLI --relations derives-from='["N-073","N-030"]' --relations based-on=D-062. */
@@ -1761,7 +1762,7 @@ export interface ElementFacetsOutput {
 export interface ElementUpdateInput {
   readonly ref: ElementRef;
   readonly title?: string;
-  /** New Markdown text of the element; the blank line after the closing `---` is not part of the text, so the text element.get gives can be passed back unchanged. A changed text gets a final line break (ADR-0004). */
+  /** New Markdown text of the element; the blank line after the closing `---` is not part of the text, so the text element.get gives can be passed back unchanged. A changed text gets a final line break (ADR-0004). Another element is named by a Markdown link, `[Title](reqseq:N-6010df)` with its UUID, short ID or identifier, which is written as UUID and version; `reqseq:N-6010df` alone is no link and counts for nothing. */
   readonly text?: string;
   readonly set?: Readonly<Record<string, ElementInputValue>>;
   readonly unset?: readonly Key[];

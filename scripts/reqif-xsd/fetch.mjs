@@ -167,7 +167,9 @@ const download = async (url, { fetch, sleep, deadline, now }) => {
       cause = error?.cause?.code ?? error?.name ?? String(error);
     }
   }
-  throw new Error(cause);
+  // A timeout signal can fire a moment before the clock reaches the deadline, so the last attempt may
+  // start with time left and still end at the deadline: name the deadline whenever it has passed.
+  throw new Error(deadline - now() <= 0 ? `${cause}; then the deadline of all downloads passed` : cause);
 };
 
 /** Brings one file into `dir`; gives its `::error` line, or undefined when it is there and checked. */

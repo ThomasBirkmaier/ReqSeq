@@ -89,6 +89,8 @@ The relation is stored in the file of the requirement, with the version of the n
 
 In the app: **Create relation**. Reference: [relation.add](/reference/commands/relation-add/).
 
+The text of an element can name another element too, with a Markdown link whose destination is `reqseq:` and the short ID: `[the need](reqseq:N-7fe707)`. ReqSeq writes it with the UUID and version, and it counts like a relation. `reqseq:N-7fe707` alone is no link; `workspace check` warns about it (`relation.not-a-link`).
+
 ![The requirement "Show the wind speed" open in the app: its text, its requirement type and acceptance criteria, and below them the need it derives from.](../images/app-element.png)
 
 ## Look at the chain
