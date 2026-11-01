@@ -65,6 +65,8 @@ export {
   missingTargetFindings,
   missingTargetProblemsState,
 } from "./missing-targets.js";
+export { unresolvedLinkProblems, unresolvedLinkProblemsState } from "./unresolved-links.js";
+export type { UnresolvedLinkContext } from "./unresolved-links.js";
 export { hasId, relationItems, relationKey } from "./relation-keys.js";
 export type { RelationKey, TargetItem } from "./relation-keys.js";
 export type {

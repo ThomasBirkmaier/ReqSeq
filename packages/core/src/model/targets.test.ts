@@ -9,6 +9,7 @@ import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
 import { computeVersion } from "../version/version.js";
 import { workspaceLayoutState } from "../workspace/index.js";
+import { shortIdState } from "./short-id.js";
 import { elementStoreState } from "./store.js";
 import { watchWorkspace } from "./watch.js";
 import type { TargetContext } from "./targets.js";
@@ -361,13 +362,98 @@ describe("relation targets with ID and version (SR-021)", () => {
       "",
       `    [indented code](${ref(PKG.id)})`,
       "",
-      "[no UUID](reqseq:SR-3d8b2c) and [upper case](reqseq:0C8A3E5F-2D1B-4F6E-8A9C-7B3D5E1F2A4C)",
+      "[empty](reqseq:) and [only a query](reqseq:?version=x)",
       `> [in a quote](${ref(PKG.id)})`,
       "",
     ].join("\n");
     const out = await run(opened, "element.update", { ref: SOURCE.id, text });
     expect(out.element.text).toBe(
       text.replace(`[in a quote](${ref(PKG.id)})`, `[in a quote](${ref(PKG.id, versionOf(PKG))})`),
+    );
+  });
+
+  it("resolves a link that names its target by short ID or a UUID in upper case, like any element reference (#176)", async () => {
+    const opened = await open();
+    const out = await run(opened, "element.create", {
+      type: "need",
+      title: "Gusts",
+      text: [
+        "[short](reqseq:N-1f2a4c) and [lower](reqseq:n-1f2a4c?view=pro)",
+        "[upper](reqseq:0C8A3E5F-2D1B-4F6E-8A9C-7B3D5E1F2A4C) and [across](reqseq:N-5b3a21)",
+        "`[in code](reqseq:N-1f2a4c)`",
+        "",
+      ].join("\n"),
+    });
+    expect(out.element.text).toBe(
+      [
+        `[short](${ref(NEED.id, versionOf(NEED))}) and [lower](reqseq:${NEED.id}?view=pro&version=${versionOf(NEED)})`,
+        `[upper](${ref(NEED.id, versionOf(NEED))}) and [across](${ref(SENSOR_NEED.id, versionOf(SENSOR_NEED))}&repository=sensor)`,
+        "`[in code](reqseq:N-1f2a4c)`",
+        "",
+      ].join("\n"),
+    );
+    // In a property marked markdown too, within the repository the link names.
+    const update = await run(opened, "element.update", {
+      ref: SOURCE.id,
+      set: { rationale: "See [the sensor](reqseq:N-5b3a21?repository=sensor)." },
+    });
+    expect(update.element.properties["rationale"]).toBe(
+      `See [the sensor](reqseq:${SENSOR_NEED.id}?repository=sensor&version=${versionOf(SENSOR_NEED)}).`,
+    );
+  });
+
+  it("refuses a new link whose short ID names no element or several, and keeps a stored one as written (#176)", async () => {
+    const stored = "Old [gone](reqseq:N-000000) and [resolvable](reqseq:PKG-3c7e10).\n";
+    const opened = await open({
+      [`system/${SOURCE.file}`]: await sourceWithText(stored),
+      // A copied file: the variant's UUID names two files (SR-088).
+      "system/variants/copy-of-VAR.md": `---\nid: ${VAR.id}\ntype: variant\nstatus: draft\ntitle: Pro\n---\n`,
+    });
+    const out = await run(opened, "element.update", { ref: SOURCE.id, text: stored });
+    expect(out.element.text).toBe(
+      `Old [gone](reqseq:N-000000) and [resolvable](${ref(PKG.id, versionOf(PKG))}).\n`,
+    );
+    const unknown = await runError(opened, "element.update", {
+      ref: SOURCE.id,
+      text: `${stored}[new](reqseq:N-111111)\n`,
+    });
+    expect(unknown.code).toBe("ref.unknown");
+    expect(unknown.message).toBe(
+      'No element has the short ID or identifier "N-111111", in the link reqseq:N-111111',
+    );
+    expect(unknown.details).toEqual({ ref: "N-111111", link: "reqseq:N-111111" });
+    const ambiguous = await runError(opened, "element.update", {
+      ref: SOURCE.id,
+      text: "[copied](reqseq:VAR-f4b9a3)\n",
+    });
+    expect([ambiguous.code, ambiguous.details?.["link"]]).toEqual(["ref.ambiguous", "reqseq:VAR-f4b9a3"]);
+    const elsewhere = await runError(opened, "element.update", {
+      ref: SOURCE.id,
+      text: "[not there](reqseq:N-5b3a21?repository=system)\n",
+    });
+    expect(elsewhere.code).toBe("ref.unknown");
+  });
+
+  it("builds the short IDs once per store and metamodel when the context brings none, and takes those it brings (#176)", async () => {
+    const opened = await open();
+    const base = await context(opened);
+    const text = "[a](reqseq:N-1f2a4c)\n";
+    const expected = `[a](${ref(NEED.id, versionOf(NEED))})\n`;
+    expect(await setInlineReferences(base, text, "", "system")).toBe(expected);
+    expect(await setInlineReferences(base, text, "", "system")).toBe(expected);
+    const shortIds = await opened.workspace.get(shortIdState);
+    expect(await setInlineReferences({ ...base, shortIds }, text, "", "system")).toBe(expected);
+    const failing = {
+      ...base,
+      store: {
+        ...base.store,
+        get byId(): never {
+          throw new Error("broken store");
+        },
+      },
+    };
+    await expect(setInlineReferences(failing, "[b](reqseq:N-1f2a4c)\n", "", "system")).rejects.toThrow(
+      "broken store",
     );
   });
 

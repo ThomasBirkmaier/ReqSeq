@@ -1271,6 +1271,24 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
   ],
   "element.update": [
     {
+      name: "a reqseq: link by short ID is written as UUID and version, an unknown one is refused (#176)",
+      fixture: {
+        fixture: "SR-004/one-repository",
+        git: true,
+        files: {
+          "requirements/SR-0000000b0176.md":
+            "---\nid: 17600000-0000-4000-8000-0000000b0176\ntype: system-requirement\nstatus: draft\ntitle: Linking\n---\n",
+        },
+      },
+      input: { ref: "SR-0b0176", text: "See [wind](reqseq:SR-e88fb3).\n" },
+      expect: "output",
+    },
+    {
+      name: "a reqseq: link whose short ID names no element is refused (#176)",
+      input: { ref: "SR-e88fb3", text: "See [gone](reqseq:SR-999999).\n" },
+      expect: "error",
+    },
+    {
       name: "setting an origin property is refused: only reqif.import writes it",
       input: { ref: "SR-e88fb3", set: { source: "Kunde B" } },
       tag: "[SR-057/AK3]",
@@ -2687,6 +2705,19 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
         files: {
           "requirements/SR-0000000b0038.md":
             "---\nid: 30500000-0000-4000-8000-0000000b0038\ntype: system-requirement\nstatus: draft\ntitle: Twin\nspec-id: SR-036\n---\n",
+        },
+      },
+      input: {},
+      expect: "output",
+    },
+    {
+      name: "reqseq: links whose target is no UUID, with the element they name (#176)",
+      fixture: {
+        fixture: "SR-004/one-repository",
+        git: true,
+        files: {
+          "requirements/SR-0000000b0176.md":
+            "---\nid: 17600000-0000-4000-8000-0000000b0176\ntype: system-requirement\nstatus: draft\ntitle: Linking\n---\n\nSee [wind](reqseq:SR-e88fb3) and [gone](reqseq:SR-999999).\n",
         },
       },
       input: {},

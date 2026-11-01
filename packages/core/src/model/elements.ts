@@ -5,8 +5,8 @@ import { Scalar, isMap, isNode, isScalar } from "yaml";
 import type { Problem } from "../catalog.js";
 import type { FileSnapshot, LineEnding, ParsedContent, ParsedFile } from "../files/index.js";
 import { FRONTMATTER_FIRST_LINE } from "../files/index.js";
-import type { PropertyReference, TextReference } from "./references.js";
-import { propertyReferences, textReferences } from "./references.js";
+import type { PropertyReference, StoredUnresolvedLink, TextReference } from "./references.js";
+import { propertyReferences, storedUnresolvedLinks, textReferences } from "./references.js";
 import { isUuid } from "./uuid.js";
 
 /**
@@ -36,6 +36,11 @@ export interface ElementRecord {
    * (`referencesOf`): only properties marked `markdown` hold references.
    */
   readonly propertyReferences?: readonly PropertyReference[];
+  /**
+   * The `reqseq:` links whose target is no UUID (#176), in the properties (whatever the key) and
+   * then in the text; left out when there is none. `workspace.check` reports those that count.
+   */
+  readonly unresolvedLinks?: readonly StoredUnresolvedLink[];
   /** Line endings and byte order mark of the file (ADR-0007). */
   readonly eol: LineEnding;
   readonly closingEol: LineEnding | "";
@@ -170,7 +175,9 @@ export const classifyFile = (repository: string, file: ParsedFile): Classified =
   }
   const { eol, closingEol, bom, snapshot } = file;
   const references = textReferences(file.frontmatter, file.body);
-  const inProperties = propertyReferences(file.frontmatter, data, (key, item) => placeOf(file, key, item));
+  const place = (key: string, item: number | undefined) => placeOf(file, key, item);
+  const inProperties = propertyReferences(file.frontmatter, data, place);
+  const unresolved = storedUnresolvedLinks(file.frontmatter, file.body, data, place);
   return {
     kind: "element",
     element: {
@@ -181,6 +188,7 @@ export const classifyFile = (repository: string, file: ParsedFile): Classified =
       data,
       ...(references.length === 0 ? {} : { references }),
       ...(inProperties.length === 0 ? {} : { propertyReferences: inProperties }),
+      ...(unresolved.length === 0 ? {} : { unresolvedLinks: unresolved }),
       eol,
       closingEol,
       bom,

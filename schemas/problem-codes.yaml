@@ -54,6 +54,9 @@ problems:
   relation.missing-target:
     cause: A relation or an inline reference points to an ID that no element in the named repository has, for example because the target file was removed or its file cannot be read.
     remedy: Point the relation to an existing element, remove it, or fix the target's file if the message names one.
+  relation.unresolved-link:
+    cause: A `reqseq:` link in the text or in a Markdown property names its target by a short ID or an identifier instead of a UUID, for example one written into the file by hand. Such a link counts for nothing, neither for outdated relations nor for the trace.
+    remedy: Give the text or the property again with element.update, which resolves the short ID or identifier to the target's UUID and version, or write `reqseq:<uuid>` yourself.
   relation.inaccessible-target:
     cause: The target of a relation is in a repository of the workspace that is not on this machine. This version does not raise it yet; it shows such targets as not accessible.
     remedy: Clone the repository where the workspace file expects it.
