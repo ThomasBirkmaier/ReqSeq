@@ -248,6 +248,32 @@ describe("inputFields", () => {
     expect(Object.values(f).every((field) => field.required)).toBe(true);
   });
 
+  it("gives maps as repeated key=value, marks Markdown texts, and takes the flag name of the catalog (#171)", () => {
+    const f = fieldsOf({
+      map: { type: "object", additionalProperties: { type: "string" } },
+      open: { type: "object", additionalProperties: true },
+      record: { type: "object", properties: { a: { type: "string" } }, additionalProperties: {} },
+      markdown: { type: "string", contentMediaType: "text/markdown" },
+      plain: { type: "string" },
+    });
+    expect(Object.values(f).map((x) => `${shape(x)}:${String(x.entries)}:${String(x.textFile)}`)).toEqual([
+      "complex:flag:true:false",
+      "complex:input-only:false:false",
+      "complex:input-only:false:false",
+      "string:flag:false:true",
+      "string:flag:false:false",
+    ]);
+    const create = getCommandRuntime().contracts.entry("element.create");
+    expect(create && inputFields(create).map((x) => `${x.name}:--${x.flag}:${x.use}`)).toEqual([
+      "type:--type:positional",
+      "title:--title:positional",
+      "text:--text:flag",
+      "properties:--set:flag",
+      "repository:--repository:flag",
+      "folder:--folder:flag",
+    ]);
+  });
+
   it("keeps the names of the common options free", () => {
     const f = fieldsOf(Object.fromEntries(RESERVED_FLAGS.map((name) => [name, { type: "string" }])));
     expect(Object.values(f).map(shape)).toEqual(RESERVED_FLAGS.map(() => "string:input-only"));
@@ -299,7 +325,7 @@ describe("inputFields", () => {
       "element.update:repository": "string:flag",
       "element.update:title": "string:flag",
       "element.update:text": "string:flag",
-      "element.update:set": "complex:input-only",
+      "element.update:set": "complex:flag",
       "element.update:unset": "string[]:flag",
     });
   });

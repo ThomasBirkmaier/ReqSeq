@@ -624,6 +624,12 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
   ],
   "element.bulkUpdate": [
     {
+      name: "a package reference that names no element is refused, nothing is written (#287)",
+      fixture: FILTER,
+      input: { selection: {}, property: "packages", operation: "add", value: "PKG-999999", confirm: true },
+      expect: "error",
+    },
+    {
       name: "an origin property is refused: only reqif.import writes it",
       fixture: FILTER,
       input: { selection: {}, property: "delivery", operation: "set", value: "1", confirm: true },
@@ -1287,6 +1293,12 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       name: "a reqseq: link whose short ID names no element is refused (#176)",
       input: { ref: "SR-e88fb3", text: "See [gone](reqseq:SR-999999).\n" },
       expect: "error",
+    },
+    {
+      name: "packages given by short ID in { id } are written as UUID and version (#169, #196)",
+      fixture: FILTER,
+      input: { ref: "SR-0000b1", set: { packages: [{ id: "PKG-0000d2" }, { id: "pkg-0000D1" }] } },
+      expect: "output",
     },
     {
       name: "setting an origin property is refused: only reqif.import writes it",

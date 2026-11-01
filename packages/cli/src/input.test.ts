@@ -1,10 +1,11 @@
 import path from "node:path";
 import { Readable } from "node:stream";
-import { CommandError } from "@reqseq/core";
+import { CommandError, getCommandRuntime } from "@reqseq/core";
 import type { FixtureWorkspace } from "@reqseq/testkit";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { InputField } from "./fields.js";
+import { inputFields } from "./fields.js";
 import { buildInput, readInputOption } from "./input.js";
 import type { Invocation } from "./program.js";
 
@@ -26,6 +27,7 @@ beforeEach(async () => {
       "odd.json": Buffer.from([0xfe, 0xff, 0x00, 0x7b, 0x00]),
       "odd-le.json": Buffer.from([0xff, 0xfe, 0x7b, 0x00, 0x7d]),
       "sub/list.json": "[1]",
+      "text.md": "Erster Absatz mit „Zitat“.\n\nZweiter Absatz.\n",
     },
   });
 });
@@ -104,7 +106,7 @@ describe("readInputOption", () => {
 const field = (
   name: string,
   kind: InputField["kind"],
-  options: { array?: boolean; localPath?: boolean } = {},
+  options: { array?: boolean; localPath?: boolean; entries?: boolean; textFile?: boolean } = {},
 ): InputField => ({
   name,
   flag: name,
@@ -117,6 +119,8 @@ const field = (
   defaultValue: undefined,
   localPath: options.localPath ?? false,
   nullable: false,
+  entries: options.entries ?? false,
+  textFile: options.textFile ?? false,
 });
 
 const invocation = (parts: Partial<Invocation>): Invocation => ({
@@ -133,6 +137,7 @@ const invocation = (parts: Partial<Invocation>): Invocation => ({
   },
   fields: [],
   positionals: [],
+  extraArguments: [],
   flags: [],
   json: false,
   yaml: false,
@@ -208,9 +213,72 @@ describe("buildInput", () => {
     );
     expect(tooMany.toJSON()).toEqual({
       code: "input.invalid",
-      message: "Unexpected argument b: --input or a flag already gives kind, target",
-      details: { argument: "b" },
+      message:
+        "Unexpected argument b: --input or a flag already gives kind, target; the form is reqseq test echo <source> <kind> <target> [options] (reqseq test echo --help)",
+      details: { argument: "b", usage: "reqseq test echo <source> <kind> <target> [options]" },
     });
+  });
+
+  it("names the form of the call for too many arguments, without guessing which value is meant (#449)", async () => {
+    const commandOf = (name: string): Pick<Invocation, "entry" | "fields" | "positionals"> => {
+      const entry = getCommandRuntime().contracts.entry(name);
+      if (entry === undefined) {
+        throw new Error(name);
+      }
+      const fields = inputFields(entry);
+      const positionals = fields
+        .filter((f) => f.use === "positional")
+        .map((f) => ({ field: f, value: undefined }));
+      return { entry, fields, positionals };
+    };
+    const refused = async (
+      name: string,
+      values: string[],
+      parts: Partial<Invocation> = {},
+    ): Promise<unknown> => {
+      const command = commandOf(name);
+      const count = command.positionals.length;
+      const positionals = command.positionals.map((p, i) => ({ ...p, value: values[i] }));
+      const error = await rejection(
+        buildInput(
+          invocation({ ...command, positionals, extraArguments: values.slice(count), ...parts }),
+          fixture.root,
+          noStdin,
+        ),
+      );
+      return error.toJSON();
+    };
+    expect(await refused("element.setStatus", ["SR-143", "approved"])).toEqual({
+      code: "input.invalid",
+      message:
+        "Unexpected argument approved: element set-status takes <status>; the form is reqseq element set-status <status> --refs <refs>... [options] (reqseq element set-status --help)",
+      details: {
+        argument: "approved",
+        usage: "reqseq element set-status <status> --refs <refs>... [options]",
+      },
+    });
+    // No guess which value is meant for which field: the form only, with the element flags of the catalog.
+    expect(await refused("element.setStatus", ["approved", "SR-143"])).toMatchObject({
+      details: { argument: "SR-143", usage: "reqseq element set-status <status> --refs <refs>... [options]" },
+    });
+    expect(await refused("hint.list", ["SR-143"])).toMatchObject({
+      message:
+        "Unexpected argument SR-143: hint list takes no arguments; the form is reqseq hint list [--package <package>] [--variant <variant>] [--ref <ref>] [options] (reqseq hint list --help)",
+    });
+    expect(await refused("evidence.record", ["SR-1", "verification", "passed", "test"])).toMatchObject({
+      details: {
+        argument: "test",
+        usage: "reqseq evidence record <ref> <kind> <result> [--variant <variant>] [options]",
+      },
+    });
+    const flagged = commandOf("element.setStatus").fields.find((f) => f.name === "refs");
+    const given = await refused("element.setStatus", ["approved", "x"], {
+      input: '{"status":"approved"}',
+      flags: flagged === undefined ? [] : [{ field: flagged, value: ["SR-143"] }],
+    });
+    expect(JSON.stringify(given)).toContain(
+      "Unexpected argument approved: --input or a flag already gives status;",
+    );
   });
 
   it("fills only the positional fields no flag gives, so `<type> --title x` and `--type t x` both work", async () => {
@@ -258,5 +326,85 @@ describe("buildInput", () => {
       odd: 7,
       name: "plain",
     });
+  });
+
+  it("gives an entries flag as key=value, the value as JSON when it parses, key by key over --input (#171)", async () => {
+    const set = field("set", "complex", { entries: true });
+    const input = await buildInput(
+      invocation({
+        input: '{"set":{"kept":1,"over":"old"}}',
+        flags: [
+          {
+            field: set,
+            value: [
+              "over=new",
+              "list=[1,2]",
+              "on=true",
+              "id=D-064",
+              "eq=a=b",
+              "empty=",
+              'quoted="12"',
+              "n=12",
+            ],
+          },
+        ],
+      }),
+      fixture.root,
+      noStdin,
+    );
+    expect(input).toEqual({
+      set: {
+        kept: 1,
+        over: "new",
+        list: [1, 2],
+        on: true,
+        id: "D-064",
+        eq: "a=b",
+        empty: "",
+        quoted: "12",
+        n: 12,
+      },
+    });
+    // A --input value that is no object is replaced, so core sees only the flag's entries.
+    expect(
+      await buildInput(
+        invocation({ input: '{"set":3}', flags: [{ field: set, value: ["a=b"] }] }),
+        fixture.root,
+        noStdin,
+      ),
+    ).toEqual({ set: { a: "b" } });
+    for (const item of ["novalue", "=x"]) {
+      const error = await rejection(
+        buildInput(invocation({ flags: [{ field: set, value: [item] }] }), fixture.root, noStdin),
+      );
+      expect(error.toJSON()).toEqual({
+        code: "input.invalid",
+        message: `--set expects key=value, not ${item}`,
+        details: { argument: item },
+      });
+    }
+  });
+
+  it("reads a text flag from @file or - like --input, and takes any other value as it is (#171)", async () => {
+    const text = field("text", "string", { textFile: true });
+    const read = (value: string, stdin = noStdin, input?: string): Promise<Record<string, unknown>> =>
+      buildInput(invocation({ input, flags: [{ field: text, value }] }), fixture.root, stdin);
+    expect(await read("@text.md")).toEqual({ text: "Erster Absatz mit „Zitat“.\n\nZweiter Absatz.\n" });
+    expect(await read("-", Readable.from([utf16("Größe", false)]))).toEqual({ text: "Größe" });
+    expect(await read("inline @ text")).toEqual({ text: "inline @ text" });
+    expect((await rejection(read("@nothing.md"))).message).toBe("Cannot read the input file nothing.md");
+    const twice = await rejection(read("-", Readable.from(['{"a":1}']), "-"));
+    expect(twice.toJSON()).toEqual({
+      code: "input.invalid",
+      message: "--text - cannot read standard input a second time",
+    });
+    // Without textFile, @ is part of the value.
+    expect(
+      await buildInput(
+        invocation({ flags: [{ field: field("title", "string"), value: "@file" }] }),
+        fixture.root,
+        noStdin,
+      ),
+    ).toEqual({ title: "@file" });
   });
 });

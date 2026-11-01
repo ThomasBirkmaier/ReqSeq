@@ -71,7 +71,7 @@ warning  element.missing-required  ...
 warning  element.missing-required  ...
 ```
 
-The two warnings say that a system requirement also needs a requirement type and acceptance criteria. Fill them in later, in the file or in the app; ReqSeq never fills them in for you.
+The two warnings say that a system requirement also needs a requirement type and acceptance criteria. Fill them in later, in the file, in the app or with `reqseq element update SR-c67baa --set requirement-type=functional`; ReqSeq never fills them in for you.
 
 Now link the requirement to the need it derives from, again with your own short IDs:
 

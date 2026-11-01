@@ -51,6 +51,22 @@ describe("catalog checks (titles and argument sources, SR-108)", () => {
     expect(check(command("relation.one", "Remove relation"))).toEqual([]);
   });
 
+  it("a flag of its own clashes neither with another field's flag nor with a common option (ADR-0009)", () => {
+    const flagged = (flag) => ALL.map((a) => (a.field === "limit" ? { ...a, flag } : a));
+    expect(check(command("test.one", "One", flagged("max")))).toEqual([]);
+    expect(check(command("test.one", "One", flagged("json")))).toEqual([
+      'catalog.json: test.one: arguments: "limit": flag "json" is a common option',
+    ]);
+    expect(check(command("test.one", "One", flagged("deep")))).toEqual([
+      'catalog.json: test.one: arguments: "limit": flag "deep" is also the flag of another field',
+    ]);
+    // `deep` is a boolean, so `--no-deep` is taken too.
+    expect(check(command("test.one", "One", flagged("no-deep")))).toEqual([
+      'catalog.json: test.one: arguments: "limit": flag "no-deep" is also the flag of another field',
+    ]);
+    expect(check(command("test.one", "One", flagged("no-kind")))).toEqual([]);
+  });
+
   it("lists every input field exactly once", () => {
     expect(check(command("test.one", "One", ALL.slice(1)))).toEqual([
       'catalog.json: test.one: arguments: input field "ref" must be listed exactly once in arguments (found 0)',

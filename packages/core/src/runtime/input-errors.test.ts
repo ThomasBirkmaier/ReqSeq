@@ -136,7 +136,7 @@ describe("readable messages of an input that fails its schema (#309)", () => {
     expect(
       messages(product, "element.update", { ref: "SR-e88fb3", set: { a: { b: 1 } }, unset: ["status"] }),
     ).toEqual([
-      "set.a (an object) is not a property value (text, a number, true or false, a list of these, a relation target { id } or a list of them)",
+      "set.a (an object) is not a property value (text, a number, true or false, a list of these, a relation target { id } with an element reference, or a list of them)",
       'unset[0] "status" is not allowed here',
     ]);
     expect(messages(product, "element.update", { ref: "SR-e88fb3", set: { status: "x" } })).toEqual([

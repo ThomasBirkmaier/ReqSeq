@@ -111,7 +111,6 @@ properties:
     name: Emergent
     description: "Whether the requirement has emergent behaviour: behaviour that does not follow from its children alone. Such a requirement needs evidence of its own."
     kind: choice
-    content: true
     meaning: emergent
     choices:
       - { key: "yes", name: "Yes" }
@@ -120,7 +119,6 @@ properties:
     name: Verification Method
     description: "How the requirement is verified."
     kind: choice
-    content: true
     meaning: verification-method
     choices:
       - { key: test, name: Test }

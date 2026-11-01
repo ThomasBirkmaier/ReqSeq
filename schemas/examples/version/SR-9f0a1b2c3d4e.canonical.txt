@@ -7,8 +7,6 @@ prop requirement-type
 "interface"
 prop validity
 "ca0dd4a9-0f6b-4c38-9d1f-2b6b0b1e8a11"
-prop verification-method
-"demonstration"
 file SR-9f0a1b2c3d4e/arrow head.png
 a808c25014759a2a3635cc1b889a1af8034214e87292b9cbff4ca4a7a472c5f8
 file SR-9f0a1b2c3d4e/sketch.png

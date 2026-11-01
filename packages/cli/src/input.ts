@@ -4,6 +4,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { CommandError } from "@reqseq/core";
 import type { InputField, ScalarKind } from "./fields.js";
+import { kebab } from "./fields.js";
 import type { Invocation } from "./program.js";
 
 /** Where `--input -` reads from. */
@@ -86,6 +87,25 @@ export async function readInputOption(
   return parsed as Record<string, unknown>;
 }
 
+/** `key=value` of an entries flag (#171): the value as JSON when it parses, else the text as it is. */
+const entryOf = (field: InputField, item: string): [string, unknown] => {
+  const at = item.indexOf("=");
+  if (at <= 0) {
+    throw new CommandError("input.invalid", `--${field.flag} expects key=value, not ${item}`, {
+      argument: item,
+    });
+  }
+  const text = item.slice(at + 1);
+  try {
+    return [item.slice(0, at), JSON.parse(text)];
+  } catch {
+    return [item.slice(0, at), text];
+  }
+};
+
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
 /** Local paths are relative to the current folder on the command line; the command gets them absolute. */
 const absolute = (value: unknown, cwd: string): unknown =>
   typeof value === "string" && value !== "" ? path.resolve(cwd, value) : value;
@@ -103,10 +123,99 @@ const resolveLocalPaths = (
   }
 };
 
+/** Where a text flag reads `@file` and `-` from; standard input is read once per call. */
+interface TextSource {
+  readonly cwd: string;
+  readonly stdin: InputStream;
+  stdinRead: boolean;
+}
+
+/** `@file` or `-` of a text flag (#171): the text of that file or of standard input. */
+const readText = async (field: InputField, value: string, source: TextSource): Promise<string> => {
+  if (value !== "-") {
+    return decode(await readInputFile(value.slice(1), source.cwd), value.slice(1));
+  }
+  if (source.stdinRead) {
+    throw new CommandError("input.invalid", `--${field.flag} - cannot read standard input a second time`);
+  }
+  source.stdinRead = true;
+  return decode(await readStream(source.stdin), "standard input");
+};
+
+/** The value a given flag puts into the input; `given` is what `--input` or an argument gave. */
+const flagValue = async (
+  field: InputField,
+  value: unknown,
+  given: unknown,
+  source: TextSource,
+): Promise<unknown> => {
+  if (field.entries && Array.isArray(value)) {
+    return {
+      ...(isObject(given) ? given : {}),
+      ...Object.fromEntries(value.map((item: string) => entryOf(field, item))),
+    };
+  }
+  if (field.textFile && typeof value === "string" && (value === "-" || value.startsWith("@"))) {
+    return readText(field, value, source);
+  }
+  if (Array.isArray(value)) {
+    return value.map((item: string) => convert(field.kind, item));
+  }
+  // Boolean flags are true for --x and false for --no-x.
+  return typeof value === "string" ? convert(field.kind, value) : value;
+};
+
+/**
+ * The form of a call: the positional fields, the other required fields as flags (`--refs <refs>...`
+ * for a list), the optional element flags of the catalog (`[--successor <successor>]`), then
+ * `[options]` (#449).
+ */
+const usageOf = (invocation: Invocation, command: string): string => {
+  const elements = new Set(
+    invocation.entry.arguments.filter((a) => a.complete === "element").map((a) => a.field),
+  );
+  const flag = (f: InputField): string => `--${f.flag} <${f.flag}>${f.array ? "..." : ""}`;
+  const flags = invocation.fields.filter((f) => f.use === "flag");
+  return [
+    `reqseq ${command}`,
+    ...invocation.positionals.map((p) => `<${p.field.flag}>`),
+    ...flags.filter((f) => f.required).map(flag),
+    ...flags.filter((f) => !f.required && elements.has(f.name)).map((f) => `[${flag(f)}]`),
+    "[options]",
+  ].join(" ");
+};
+
+/**
+ * `input.invalid` for an argument that no positional field takes, with the form of the call. It does not
+ * guess which value belongs to which field: the order the user had in mind is not known (#449).
+ */
+const unexpectedArgument = (
+  invocation: Invocation,
+  given: ReadonlySet<string>,
+  value: string,
+): CommandError => {
+  const name = invocation.entry.name;
+  const command = `${name.slice(0, name.indexOf("."))} ${kebab(name.slice(name.indexOf(".") + 1))}`;
+  const taken = invocation.positionals.map((p) => p.field).filter((f) => given.has(f.name));
+  const takes = invocation.positionals.map((p) => `<${p.field.flag}>`).join(" ");
+  const reason =
+    taken.length > 0
+      ? `--input or a flag already gives ${taken.map((f) => f.name).join(", ")}`
+      : takes === ""
+        ? `${command} takes no arguments`
+        : `${command} takes ${takes}`;
+  const usage = usageOf(invocation, command);
+  return new CommandError(
+    "input.invalid",
+    `Unexpected argument ${value}: ${reason}; the form is ${usage} (reqseq ${command} --help)`,
+    { argument: value, usage },
+  );
+};
+
 /**
  * The command input: `--input` first; positional values fill the positional fields that neither
- * `--input` nor a flag gives, in order; flags override the same field from `--input`; local paths
- * become absolute.
+ * `--input` nor a flag gives, in order; flags override the same field from `--input`, an entries flag
+ * (`--set key=value`) key by key; a text flag reads `@file` and `-`; local paths become absolute.
  */
 export async function buildInput(
   invocation: Invocation,
@@ -114,33 +223,26 @@ export async function buildInput(
   stdin: InputStream,
 ): Promise<Record<string, unknown>> {
   const input = invocation.input === undefined ? {} : await readInputOption(invocation.input, cwd, stdin);
-  const values = invocation.positionals.flatMap(({ value }) => (value === undefined ? [] : [value]));
-  const flagged = new Set(invocation.flags.filter((f) => f.value !== undefined).map((f) => f.field.name));
-  const open = invocation.positionals
-    .map(({ field }) => field)
-    .filter((f) => !Object.hasOwn(input, f.name) && !flagged.has(f.name));
+  const values = [
+    ...invocation.positionals.flatMap(({ value }) => (value === undefined ? [] : [value])),
+    ...invocation.extraArguments,
+  ];
+  const given = new Set([
+    ...Object.keys(input),
+    ...invocation.flags.filter((f) => f.value !== undefined).map((f) => f.field.name),
+  ]);
+  const open = invocation.positionals.map(({ field }) => field).filter((f) => !given.has(f.name));
   values.forEach((value, i) => {
     const field = open[i];
     if (field === undefined) {
-      const given = invocation.positionals
-        .map((p) => p.field.name)
-        .filter((name) => !open.some((f) => f.name === name));
-      throw new CommandError(
-        "input.invalid",
-        `Unexpected argument ${value}: --input or a flag already gives ${given.join(", ")}`,
-        { argument: value },
-      );
+      throw unexpectedArgument(invocation, given, value);
     }
     input[field.name] = value;
   });
+  const source = { cwd, stdin, stdinRead: invocation.input === "-" };
   for (const { field, value } of invocation.flags) {
-    if (Array.isArray(value)) {
-      input[field.name] = value.map((item: string) => convert(field.kind, item));
-    } else if (typeof value === "string") {
-      input[field.name] = convert(field.kind, value);
-    } else if (value !== undefined) {
-      // Boolean flags: true for --x, false for --no-x.
-      input[field.name] = value;
+    if (value !== undefined) {
+      input[field.name] = await flagValue(field, value, input[field.name], source);
     }
   }
   resolveLocalPaths(invocation.fields, input, cwd);

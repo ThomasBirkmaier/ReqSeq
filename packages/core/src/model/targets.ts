@@ -30,6 +30,7 @@ import type { ShortIds } from "./short-id.js";
 import { buildShortIds } from "./short-id.js";
 import { isUnavailableRepository, resolveTarget } from "./relations.js";
 import type { ElementStore } from "./store.js";
+import { isUuid, normalizeRef } from "./uuid.js";
 import { ignoredBy } from "./store.js";
 import { elementVersion, titleKeyOf } from "./view.js";
 
@@ -199,6 +200,64 @@ const hasVersion = (item: Readonly<Record<string, unknown>>): boolean => isVersi
 
 const isLookupError = (error: unknown): boolean =>
   error instanceof CommandError && (error.code === "ref.unknown" || error.code === "ref.ambiguous");
+
+/**
+ * The value of a relation-valued property (`validity`, `packages`, ...) as a caller gives it to
+ * `element.create`, `element.update` or `element.bulkUpdate`, with every item as a target `{ id }`
+ * (plus `repository` across repositories) that `setRelationTargets` takes (#169, #196, #287). An
+ * item is an element reference in either form: a string, or `{ id }` with an optional
+ * `repository`. A reference of the UUID form stays as given, so a stored target is matched and
+ * looked up as before (`resolveTarget`, also one that names an unavailable repository); any other
+ * reference, a short ID or an identifier, is resolved as `relation.add` resolves its target
+ * (`resolveRef`, in the repository the item names when it names one) and becomes the UUID of that
+ * element with its repository (which `currentTarget` drops within the source's own repository, and
+ * which matches a stored target without one there). An unresolvable reference is
+ * `ref.unknown` or `ref.ambiguous` naming the property in the message and in `details.key`; an item
+ * that is neither (a number, true or false) is `input.invalid`. Nothing is ever kept as text. A
+ * value of `null` stays as it is (`element.update` refuses or removes it elsewhere).
+ */
+export const relationTargetRefs = (
+  store: ElementStore,
+  shortIds: ShortIds,
+  key: string,
+  given: ElementInputValue,
+): ElementInputValue => {
+  const target = (item: unknown, index: number | undefined): unknown => {
+    const at = index === undefined ? "" : ` item ${String(index + 1)}`;
+    const named = typeof item === "string" ? { id: item } : isTargetInput(item) ? item : undefined;
+    if (named === undefined) {
+      throw new CommandError(
+        "input.invalid",
+        `${key}:${at} is the ${typeof item} ${JSON.stringify(item)}; a relation-valued property takes element references (UUID, short ID or identifier, or { id } with one)`,
+        { key, ...(index === undefined ? {} : { index }), reason: "not-a-reference" },
+      );
+    }
+    if (isUuid(normalizeRef(named.id))) {
+      return named;
+    }
+    try {
+      const record = resolveRef(
+        store,
+        shortIds,
+        named.id,
+        named.repository === undefined ? {} : { repository: named.repository },
+      );
+      return { id: record.id, repository: record.repository };
+    } catch (error) {
+      const failed = commandErrorOrThrow(error);
+      throw new CommandError(failed.code, `${failed.message} (in the property ${key})`, {
+        ...failed.details,
+        key,
+      });
+    }
+  };
+  if (given === null) {
+    return given;
+  }
+  return (
+    Array.isArray(given) ? (given as unknown[]).map((item, i) => target(item, i)) : target(given, undefined)
+  ) as ElementInputValue;
+};
 
 /**
  * The value of a relation-valued property as it is stored (SR-021 AK1). A target is the pair of

@@ -12,6 +12,8 @@ export interface Invocation {
   readonly fields: readonly InputField[];
   /** Positional fields with their values (`undefined` when not given). */
   readonly positionals: readonly { readonly field: InputField; readonly value: string | undefined }[];
+  /** Arguments beyond the positional fields; `buildInput` refuses them and names the right call (#449). */
+  readonly extraArguments: readonly string[];
   /**
    * Flag fields with their raw values (`undefined` when not given); positional fields given as a
    * flag (`--title` next to `<title>`) too.
@@ -92,10 +94,17 @@ const describeField = (field: InputField): string =>
     field.choices === undefined ? undefined : `one of: ${field.choices.join(", ")}`,
     field.defaultValue === undefined ? undefined : `default: ${JSON.stringify(field.defaultValue)}`,
     field.array ? "repeatable" : undefined,
+    field.entries
+      ? "repeatable; the value as JSON when it parses (a list, number, true, null), else as text: version=1.10 is the number 1.1, give 'version=\"1.10\"' for text; the last value of a key counts; keys add to --input"
+      : undefined,
+    field.textFile
+      ? "@file or - reads it from a file or standard input, as --input does; a text that is - or starts with @ only via --input"
+      : undefined,
     field.nullable ? "null only via --input" : undefined,
   ]
     .filter((part) => part !== undefined)
-    .join("; ");
+    .join("; ")
+    .replaceAll(".; ", ". ");
 
 const collect = (value: string, previous: unknown): string[] => [
   ...(Array.isArray(previous) ? (previous as string[]) : []),
@@ -118,9 +127,15 @@ const optionsOf = (field: InputField): FieldOptions => {
       negation: new Option(`--no-${field.flag}`, `set ${field.flag} to false`),
     };
   }
-  const placeholder = field.kind === "number" ? "<number>" : "<value>";
+  const placeholder = field.entries
+    ? "<key=value>"
+    : field.textFile
+      ? "<text|@file|->"
+      : field.kind === "number"
+        ? "<number>"
+        : "<value>";
   const option = new Option(`--${field.flag} ${placeholder}`, description);
-  return { main: field.array ? option.argParser(collect) : option, negation: undefined };
+  return { main: field.array || field.entries ? option.argParser(collect) : option, negation: undefined };
 };
 
 const addCommand = (group: Command, entry: CatalogEntry, options: ProgramOptions): void => {
@@ -134,7 +149,9 @@ const addCommand = (group: Command, entry: CatalogEntry, options: ProgramOptions
   const command = group
     .command(kebab(action))
     .description(implemented ? entry.summary : `${entry.summary} (not implemented yet)`)
-    .usage([...positional.map((f) => `<${f.flag}>`), "[options]"].join(" "));
+    .usage([...positional.map((f) => `<${f.flag}>`), "[options]"].join(" "))
+    // Too many arguments reach buildInput, whose error names the call they fit (#449).
+    .allowExcessArguments();
   // Optional for commander, so the value may also come from --input; core reports a missing one.
   for (const field of positional) {
     command.argument(`[${field.flag}]`, describeField(field));
@@ -182,6 +199,7 @@ const addCommand = (group: Command, entry: CatalogEntry, options: ProgramOptions
       entry,
       fields,
       positionals: positional.map((field, i) => ({ field, value: text(args[i]) })),
+      extraArguments: command.args.slice(positional.length),
       flags: flagOptions.map(({ field, main }) => ({ field, value: opts[main.attributeName()] })),
       json: opts["json"] === true,
       yaml: opts["yaml"] === true,

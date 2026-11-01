@@ -99,7 +99,6 @@ properties:
   - key: emergent
     name: Emergent
     kind: choice
-    content: true
     meaning: emergent
     choices:
       - { key: "yes", name: "Yes" }
@@ -107,7 +106,6 @@ properties:
   - key: verification-method
     name: Verification Method
     kind: choice
-    content: true
     meaning: verification-method
     choices:
       - { key: test, name: Test }

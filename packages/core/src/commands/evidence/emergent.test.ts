@@ -106,7 +106,6 @@ const misdefined = async (): Promise<FixtureOptions> => ({
     [METAMODEL]: await edited(METAMODEL, (text) => {
       const definition = [
         "    kind: choice",
-        "    content: true",
         "    meaning: emergent",
         "    choices:",
         '      - { key: "yes", name: "Yes" }',
@@ -114,7 +113,7 @@ const misdefined = async (): Promise<FixtureOptions> => ({
         "",
       ].join("\n");
       expect(text).toContain(definition);
-      return text.replace(definition, "    kind: text\n    content: true\n    meaning: emergent\n");
+      return text.replace(definition, "    kind: text\n    meaning: emergent\n");
     }),
   },
 });
@@ -190,25 +189,21 @@ describe("emergent requirements need their own record (SR-035)", () => {
     });
   });
 
-  it("marking a requirement emergent changes its version (ADR-0005, #591 Q4)", async () => {
+  it("marking a requirement emergent leaves its version (D-057, #378)", async () => {
     const ws = await open();
     const before = (await get(ws, E2)).element.version;
     const out = await update(ws, { ref: E2, set: { emergent: "no" } });
-    expect(out.affected).toBeGreaterThan(0);
+    expect(out.affected).toBe(0);
     const after = await get(ws, E2);
-    expect(after.element.version).not.toBe(before);
-    // Its own record is of the old version now; it is no longer emergent, but its own record decides.
-    expect(after.element.verification).toEqual(core("outdated"));
+    expect(after.element.version).toBe(before);
+    // Its own record stays current; it is no longer emergent, but its own record decides.
+    expect(after.element.verification).toEqual(core("verified"));
     const child = await get(ws, C21);
-    expect(
-      child.element.problems?.filter((p) => p.code === "relation.outdated").map((p) => p.targetId),
-    ).toEqual([E2]);
+    expect(child.element.problems?.filter((p) => p.code === "relation.outdated") ?? []).toEqual([]);
     // The same for P1 when it is marked.
     await update(ws, { ref: P1, set: { emergent: "yes" } });
     const c13 = await get(ws, C13);
-    expect(
-      c13.element.problems?.filter((p) => p.code === "relation.outdated").map((p) => p.targetId),
-    ).toEqual([P1]);
+    expect(c13.element.problems?.filter((p) => p.code === "relation.outdated") ?? []).toEqual([]);
   });
 
   it("a misdefined emergent property gives a warning and marks nothing (#591 Q1)", async () => {
