@@ -189,6 +189,18 @@ export const targetsDiffer = (
   return own.size !== delivered.size || [...own].some((k) => !delivered.has(k));
 };
 
+/**
+ * Whether the stored and the planned value of a relation-valued property name other targets (UUID
+ * and repository, not the version): a local edit the delivery replaces (#575/4).
+ */
+export const propertyTargetsDiffer = (stored: unknown, planned: unknown): boolean => {
+  const targets = (value: unknown): string[] =>
+    storedItems({ value }, "value").flatMap((item) => (hasId(item) ? [targetKey(item)] : []));
+  const before = new Set(targets(stored));
+  const after = new Set(targets(planned));
+  return before.size !== after.size || [...before].some((k) => !after.has(k));
+};
+
 /** The parts of an item the import compares: target, version and repository. */
 const comparable = (item: Readonly<Record<string, unknown>>): Record<string, unknown> => ({
   id: item["id"],

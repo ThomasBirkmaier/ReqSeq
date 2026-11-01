@@ -621,4 +621,30 @@ describe("repeated ReqIF import (SR-056)", () => {
     expect((await fs.readdir(path.join(root, "Kunde-A", stem))).sort()).toEqual(["a.png", "b.png", "drafts"]);
     expect((await get(workspace, String(first.created[0]?.id))).element.text).toContain(`](${stem}/b.png)`);
   });
+
+  it("checks every image copy of an updated element before it creates a folder for one", async () => {
+    const withImage = (text: string): string =>
+      `${text} <xhtml:object data="img/a.png" type="image/png">a</xhtml:object>`;
+    const { workspace, root } = await open({
+      "in/1.reqif": DELIVERY_1,
+      "in/2.reqif": DELIVERY_1.replace(
+        "The station measures the wind speed.",
+        withImage("The station measures the wind speed."),
+      ).replace("The display shows the wind speed.", withImage("The display shows the wind speed.")),
+    });
+    await fs.mkdir(path.join(root, "in/img"));
+    await fs.writeFile(path.join(root, "in/img/a.png"), PNG);
+    const ids = idsOf(await importOf(workspace, 1));
+    const stem = async (identifier: string): Promise<string> =>
+      path.basename((await get(workspace, String(ids[identifier]))).element.file, ".md");
+    const [first, second] = [await stem("REQ-1"), await stem("REQ-2")];
+    // The image folder of the second element is a link, which the walk does not follow.
+    await fs.mkdir(path.join(root, "in/elsewhere"));
+    await fs.symlink(path.join(root, "in/elsewhere"), path.join(root, "Kunde-A", second), "junction");
+    await expect(importOf(workspace, 2)).rejects.toMatchObject({
+      details: { rule: "link", file: `Kunde-A/${second}/a.png` },
+    });
+    // Refused before the image folder of the first one was created.
+    await expect(fs.stat(path.join(root, "Kunde-A", first))).rejects.toMatchObject({ code: "ENOENT" });
+  });
 });

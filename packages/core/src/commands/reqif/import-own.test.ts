@@ -211,6 +211,33 @@ describe("reqif.import of a file of ReqSeq (SR-052)", () => {
     expect(fifth.files).toContain(MAPPING);
   });
 
+  it("[SR-056/AK2] warns before a repeated file of ReqSeq writes over a local edit of packages, which does not count (#575/4a)", async () => {
+    const all = await exported(undefined);
+    const { workspace } = await target(all.text, all.images);
+    const first = await run<Imported>(workspace, "reqif.import", { file: "in/x.reqif", delivery: "1" });
+    const wind = first.created.find((c) => c.identifier === `_${WIND}`)?.id;
+    await run(workspace, "element.update", { ref: wind, set: { packages: [] } });
+    const warning = {
+      code: "reqif.replaces-local",
+      elementId: wind,
+      message: expect.stringContaining("writes packages into") as unknown,
+    };
+    const analysis = await run<CommandOutput<"reqif.analyze">>(workspace, "reqif.analyze", {
+      file: "in/x.reqif",
+      mapping: MAPPING,
+    });
+    expect([analysis.changed, analysis.conflicts, analysis.problems]).toEqual([
+      [],
+      [],
+      [expect.objectContaining(warning)],
+    ]);
+    const again = await run<Imported>(workspace, "reqif.import", { file: "in/x.reqif", delivery: "2" });
+    expect(again.updated.map((u) => u.id)).toEqual([wind]);
+    expect(again.problems).toEqual([expect.objectContaining(warning)]);
+    const got = await run<Got>(workspace, "element.get", { ref: wind });
+    expect((got.element.properties["packages"] as { id: string }[]).length).toBe(1);
+  });
+
   it("[SR-052/AK3] never bypasses a given mapping: an attribute it omits is not taken from reqseq-values", async () => {
     const all = await exported(undefined);
     const { fixture, workspace } = await target(all.text, all.images);

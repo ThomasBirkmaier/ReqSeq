@@ -1,7 +1,7 @@
 // The relation edits of a repeated delivery (SR-056, ADR-0013 "Import"): the items to elements of
 // the source follow the delivery, every other item stays.
 import { describe, expect, it } from "vitest";
-import { relationEdits, targetsDiffer } from "./repeat.js";
+import { propertyTargetsDiffer, relationEdits, targetsDiffer } from "./repeat.js";
 
 const OWN = "6f1c2a3b-4d5e-4f60-9a7b-c0ffe0000001";
 const OTHER = "6f1c2a3b-4d5e-4f60-9a7b-c0ffe0000002";
@@ -53,5 +53,13 @@ describe("relationEdits (SR-056)", () => {
     expect(targetsDiffer({ k: stored }, "k", delivered, ids)).toBe(false);
     expect(targetsDiffer({ k: stored }, "k", [], ids)).toBe(false);
     expect(targetsDiffer({ k: [{ id: OWN, version: "n1:1" }] }, "k", delivered, ids)).toBe(true);
+  });
+
+  it("compares the targets of a relation-valued property, not their versions", () => {
+    const own = { id: OWN, version: "n1:1", title: "x" };
+    expect(propertyTargetsDiffer([own], [{ id: OWN, version: "n1:2" }])).toBe(false);
+    expect(propertyTargetsDiffer(own, ["not an item", { id: OWN, version: "n1:2" }])).toBe(false);
+    expect(propertyTargetsDiffer([own], [{ id: OTHER, version: "n1:1" }])).toBe(true);
+    expect(propertyTargetsDiffer([], [own])).toBe(true);
   });
 });

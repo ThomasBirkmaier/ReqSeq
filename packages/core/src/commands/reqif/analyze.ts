@@ -20,6 +20,7 @@ import { metamodelState } from "../../metamodel/index.js";
 import { elementStoreState } from "../../model/index.js";
 import type { AnyMapping } from "../../reqif/index.js";
 import {
+  OWN_TOOL_ID,
   existingElements,
   imageReader,
   importDate,
@@ -89,7 +90,8 @@ export default defineCommand({
         // Never written: the analysis names no delivery.
         { delivery: "", date: importDate(new Date()) },
         imageReader(path.resolve(workspace.root, input.file), ctx.localPaths),
-        false,
+        // A file of ReqSeq is planned as reqif.import plans it, from its channels (SR-052).
+        delivery.header.toolId === OWN_TOOL_ID,
         { existing },
       );
       // The planned UUIDs name no element yet, so neither list carries them; existing ones do.

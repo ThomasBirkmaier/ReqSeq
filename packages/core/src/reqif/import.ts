@@ -97,7 +97,7 @@ import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js"
 import { locate } from "../workspace/index.js";
 import type { AnyMapping } from "./mapping.js";
 import type { ExistingElement, ExistingElements, RelationItem } from "./repeat.js";
-import { NO_EXISTING, relationEdits, targetsDiffer } from "./repeat.js";
+import { NO_EXISTING, propertyTargetsDiffer, relationEdits, targetsDiffer } from "./repeat.js";
 import type {
   ReqifAttributeDefinition,
   ReqifDatatype,
@@ -1721,6 +1721,9 @@ const planUpdates = (
   const { keys } = context;
   // Relation kinds only: a relation-valued property (`validity`, `packages`) is a property of the draft.
   const properties = new Set(context.metamodel.properties.map((p) => p.key));
+  const uncountedTargets = context.metamodel.properties
+    .filter((p) => p.kind === "relation" && p.content !== true)
+    .map((p) => p.key);
   const kinds = [
     ...new Set(
       [...context.coverage.relations.values()].flatMap((k) =>
@@ -1782,6 +1785,10 @@ const planUpdates = (
     const replaced = [
       ...(data[draft.base.titleKey] === draft.title ? [] : [draft.base.titleKey]),
       ...draft.uncounted.filter((key) => !isDeepStrictEqual(data[key], draft.properties.get(key))),
+      // A relation-valued property that does not count (`packages`), as a file of ReqSeq gives it.
+      ...uncountedTargets
+        .filter((key) => draft.properties.has(key) && !draft.uncounted.includes(key))
+        .filter((key) => propertyTargetsDiffer(data[key], draft.properties.get(key))),
       ...relations.filter((r) => r.targets).map((r) => r.kind),
     ];
     if (replaced.length > 0) {
