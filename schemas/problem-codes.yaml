@@ -199,7 +199,7 @@ errors:
     remedy: Choose another name. ReqSeq never replaces a baseline.
   reqif.invalid:
     cause: The ReqIF file cannot be read or does not match the ReqIF format.
-    remedy: Check the file, or export it again from the source tool.
+    remedy: Check the file, or export it again from the source tool. A packed delivery (`.reqifz`, a ZIP archive) is not read; unpack it and use the `.reqif` file inside.
   reqif.unmapped:
     cause: The ReqIF file has types, attributes, relation types or enumeration values that the mapping neither maps nor omits; `details.unmapped` is the same list as `reqif.analyze` gives, and no file was written (SR-055). Raised by `reqif.import`; `reqif.analyze` does not list it yet.
     remedy: Map or omit each entry with `reqif.saveMapping` or in the mapping file, and run the import again.
