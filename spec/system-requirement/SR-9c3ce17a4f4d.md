@@ -4,13 +4,14 @@ type: system-requirement
 status: approved
 title: Export an die Quelle in ihrem Modell schreiben
 spec-id: SR-158
-rationale: "Entscheidung des Produktverantwortlichen, 2026-11-01: Der Export an eine Quelle bleibt eine ReqSeq-Datei und nutzt von der Zuordnung nur ihre Export-Einstellungen (SR-054 AK2). Damit Werkzeuge wie DOORS Next oder Polarion Werte wie die Stellungnahme (SR-058) in ihre vorhandenen Objekte übernehmen, soll der Export die Datei zusätzlich im Modell der Quelle schreiben können. Eingetragen in Später."
+rationale: "Entscheidung des Produktverantwortlichen, 2026-11-01: Der Export an eine Quelle bleibt eine ReqSeq-Datei und nutzt von der Zuordnung nur ihre Einstellungen für den Export. Damit Werkzeuge wie DOORS Next oder Polarion Werte wie die Stellungnahme (SR-058) in ihre vorhandenen Objekte übernehmen, soll der Export die Datei zusätzlich im Modell der Quelle schreiben können. Eingetragen in Später."
 requirement-type: interface
 acceptance-criteria:
   - Gegeben importierte Requirements einer Quelle und ihre gespeicherte Zuordnung, wenn sie im Modell der Quelle an die Quelle exportiert werden, dann tragen SPEC-OBJECT-TYPE, ATTRIBUTE-DEFINITION und Datentyp jeweils den IDENTIFIER und den LONG-NAME der Quelle und jedes Requirement seinen ursprünglichen IDENTIFIER.
   - Gegeben eine Auswahl-Property, deren Werte die Zuordnung den Werten einer Aufzählung der Quelle zuordnet, wenn sie so exportiert wird, dann trägt die Datei die Aufzählungswerte der Quelle.
   - Gegeben importierte Requirements mit Stellungnahme, wenn sie so mit Stellungnahme exportiert werden (SR-058), dann steht die Stellungnahme im Attribut laut Zuordnung am SPEC-OBJECT-TYPE der Quelle.
   - Gegeben dieser Export, wenn er gegen das Schema von ReqIF 1.2 geprüft wird, dann ist er gültig.
+  - Gegeben ein Export an die Quelle, bei dem das Modell der Quelle nicht gewählt ist, wenn er geschrieben wird, dann bleibt die Datei eine ReqSeq-Datei wie bisher (SR-058).
 verification-method: test
 topic: Import und Export
 packages:
