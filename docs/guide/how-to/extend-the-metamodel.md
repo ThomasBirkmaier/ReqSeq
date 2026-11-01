@@ -5,9 +5,9 @@ sidebar:
   order: 5
 ---
 
-The metamodel says which element types, properties, relation kinds and statuses a workspace has. `workspace init` writes the standard model to `metamodel/standard-model.yaml`; ReqSeq reads every `*.yaml` file directly in that folder, in name order, and merges them. So you extend the model with a file of your own next to it, and keep the standard model as it is. The fields are on the [metamodel format](/reference/formats/metamodel/) page.
+The metamodel says which element types, properties, relation kinds and statuses a workspace has. `workspace init` writes the standard model to `metamodel/standard-model.yaml`; ReqSeq reads every `*.yaml` file directly in that folder, in name order, and merges them; subfolders and hidden files are not read, and a `*.yml` file only gives a warning. So you extend the model with a file of your own next to it, and keep the standard model as it is. The fields are on the [metamodel format](/reference/formats/metamodel/) page.
 
-This page adds the type `component`, a property `component-id` with the meaning `identifier`, so a component can be named by a readable ID such as `C-ANEMO`, and the relation kind `allocated-to` from a system requirement to a component. A key must be new: a key defined twice is an error, and the workspace is then read-only until it is fixed. To give a type of the standard model a property, add the key to that type's `properties` in `standard-model.yaml`.
+This page adds the type `component`, a property `component-id` with the meaning `identifier`, so a component can be named by a readable ID such as `C-ANEMO`, and the relation kind `allocated-to` from a system requirement to a component. A key must be new: a key used twice, also between a property and a relation kind, is an error, and the workspace is then read-only until it is fixed. The one change your own file cannot make is a new property on a type of the standard model: for that, add the key to that type's `properties` in `standard-model.yaml`.
 
 ## App
 
