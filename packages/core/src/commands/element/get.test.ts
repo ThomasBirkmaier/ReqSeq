@@ -75,7 +75,11 @@ describe("element.get", () => {
       file: WIND.file,
       readOnly: false,
     });
-    expect(hints(byId).map((p) => p.code)).toEqual(["element.missing-required", "element.missing-required"]);
+    expect(hints(byId).map((p) => p.code)).toEqual([
+      "element.missing-required",
+      "element.missing-required",
+      "trace.no-parent",
+    ]);
     expect(byId.version).toMatch(/^n1:[0-9a-f]{16}$/);
     expect(byId.text).toBe((await fs.readFile(opened.fixture.path(WIND.file), "utf8")).split("---\n\n")[1]);
     // The date only on request (D-013, ADR-0005 "Version date"); not in a Git repository: none.
@@ -488,8 +492,12 @@ describe("element.get, more of what stage 1 shows", () => {
     expect(element).toMatchObject({ id: GUSTS.id, title: "Show gusts", text: "Gusts.\n", readOnly: false });
     expect(element).not.toHaveProperty("version");
     expect(element).not.toHaveProperty("versionDate");
-    // The value-kind hint first (SR-085), then why the version is missing.
-    expect(hints(element).map((p) => p.code)).toEqual(["element.wrong-value-kind", "file.faulty"]);
+    // The value-kind hint first (SR-085), the missing parent (SR-022 AK6), then why the version is missing.
+    expect(hints(element).map((p) => p.code)).toEqual([
+      "element.wrong-value-kind",
+      "trace.no-parent",
+      "file.faulty",
+    ]);
     expect(hints(element).at(-1)).toEqual({
       code: "file.faulty",
       severity: "warning",

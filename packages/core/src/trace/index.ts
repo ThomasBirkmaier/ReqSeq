@@ -41,12 +41,15 @@ export {
   derivationEdges,
   derivationGraph,
   derivationKinds,
+  namesParent,
   parentPositions,
   parentsOf,
   traceContext,
   walkDerivation,
 } from "./graph.js";
 export { closedCycle, upwardGraph } from "./new-cycle.js";
+export { elementNoParentFindings, noParentProblems, noParentProblemsState } from "./no-parent.js";
+export type { ElementNoParentContext } from "./no-parent.js";
 export type {
   Cycle,
   Expand,

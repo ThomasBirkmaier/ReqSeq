@@ -197,7 +197,9 @@ describe("reqseq binary", () => {
       "requirement-type",
       "acceptance-criteria",
     ]);
-    expect(lines).toHaveLength(3 + missing.length + 1);
+    // And the missing parent, since it was created without a relation (SR-022 AK6).
+    expect(lines.filter((l) => l.startsWith("warning  trace.no-parent  "))).toHaveLength(1);
+    expect(lines).toHaveLength(3 + missing.length + 2);
     const positional = await reqseq(["element", "create", "system-requirement", "Show calm", "--json"], {
       cwd: ws.root,
     });
@@ -214,6 +216,7 @@ describe("reqseq binary", () => {
     ).toEqual([
       ["element.missing-required", "warning", "requirement-type"],
       ["element.missing-required", "warning", "acceptance-criteria"],
+      ["trace.no-parent", "warning", undefined],
     ]);
     const shown = await reqseq(["element", "get", lines[0]?.split("  ")[0] ?? ""], { cwd: ws.root });
     expect(shown.stdout).toMatch(

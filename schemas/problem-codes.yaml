@@ -87,6 +87,9 @@ problems:
   trace.cycle:
     cause: Relations of a deriving kind form a cycle, so the chain of the elements in it never ends.
     remedy: Remove or change one of the relations of the cycle the message lists.
+  trace.no-parent:
+    cause: An element of a type with the meaning `requirement` names no parent through a relation kind with the meaning `derivation`, so its chain ends without a parent (SR-022). In the standard model `based-on` has no meaning, so a decision is no parent.
+    remedy: Give the element a parent with a relation of a deriving kind such as `derives-from`. To let a relation kind of your own count as derivation, give it the meaning `derivation` in your metamodel.
   variant.core-changed:
     cause: A core requirement that a variant requirement replaces has changed since the replacement stored its version (SR-045). It comes instead of `relation.outdated` for a `replaces` item (meaning `replacement`) from a requirement with a validity onto a core requirement, whatever the variant excludes, so the change gives one hint, not two. A superseded core requirement keeps the usual hints of a relation instead, `relation.target-superseded` and, when its content changed too, `relation.outdated` (SR-045 AK4).
     remedy: Check the replacing requirement against the change, then confirm the hint (`hint.confirm`). It stores the core requirement's current version, and its title when both are in one repository (D-058); a variant in its own repository (D-020) gets the version only.

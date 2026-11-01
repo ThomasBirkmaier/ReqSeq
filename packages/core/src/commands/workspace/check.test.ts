@@ -33,6 +33,26 @@ const kinds = (out: Output): (readonly [string, string | undefined, string | und
 const NEED = "1a1a1a1a-1111-4111-8111-a0000000000";
 const SR = "2b2b2b2b-2222-4222-8222-b0000000000";
 
+/** fixtures/SR-072/supersede with a parent for its one requirement without one (SR-022 AK6): a workspace without findings. */
+const CLEAN = {
+  fixture: "SR-072/supersede",
+  files: {
+    "requirements/SR-d4e5f6a7b8c9.md": [
+      "---",
+      "id: 7a1e0c2b-4d3f-4a5b-8c6d-d4e5f6a7b8c9",
+      "type: system-requirement",
+      "status: draft",
+      "title: Show wind speed and gusts",
+      "requirement-type: functional",
+      "acceptance-criteria: [Given wind, when it is measured, then the display shows it with its gusts.]",
+      "derives-from:",
+      "  - { id: 7a1e0c2b-4d3f-4a5b-8c6d-b2c3d4e5f6a7, version: n1:35c6eb1777c77824, title: See wind and gusts }",
+      "---",
+      "",
+    ].join("\n"),
+  },
+};
+
 /** One finding of every kind of stage 1 in fixtures/SR-019/findings, in the order the check gives them. */
 const FINDINGS = [
   ["file.invalid-yaml", "requirements/SR-b00000000006.md", undefined], // SR-008 AK1
@@ -50,7 +70,7 @@ const FINDINGS = [
 
 describe("workspace.check", () => {
   it("[SR-019/AK1] is ok and lists no problem for a workspace without findings", async () => {
-    const ws = await fixture({ fixture: "SR-072/supersede" });
+    const ws = await fixture(CLEAN);
     const out = await check(open(ws.root));
     expect(out).toEqual({ ok: true, problems: [], checkedElements: 5 });
   });
@@ -149,7 +169,7 @@ describe("workspace.check", () => {
       checkedElements: 4,
     });
     // A clean workspace hides nothing.
-    const clean = await fixture({ fixture: "SR-072/supersede" });
+    const clean = await fixture(CLEAN);
     expect(await check(open(clean.root), { severity: "error" })).toEqual({
       ok: true,
       problems: [],
@@ -217,7 +237,7 @@ describe("workspace.check", () => {
     expect(kinds(await check(workspace))).toEqual(FINDINGS);
     await ws.write(
       "requirements/SR-b00000000004.md",
-      `---\nid: ${SR}4\ntype: system-requirement\nstatus: draft\ntitle: Weigh the mast\nverification-method: inspection\nweight: 12\n---\n`,
+      `---\nid: ${SR}4\ntype: system-requirement\nstatus: draft\ntitle: Weigh the mast\nverification-method: inspection\nweight: 12\nderives-from:\n  - { id: ${NEED}1, version: n1:3bb0ba3cfe019202 }\n---\n`,
     );
     await workspace.reset(elementStoreState);
     expect(kinds(await check(workspace))).toEqual(

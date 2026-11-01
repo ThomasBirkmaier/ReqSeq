@@ -266,6 +266,7 @@ describe("element.update", () => {
         code: "element.missing-required",
         message: expect.stringContaining("(acceptance-criteria)") as unknown,
       }),
+      expect.objectContaining({ code: "trace.no-parent" }),
     ]);
     await opened.workspace.close();
 
@@ -292,7 +293,8 @@ describe("element.update", () => {
       },
       { workspace: again },
     )) as Output;
-    expect(out.problems).toEqual([]);
+    // The required properties are filled; the parent is still missing (SR-022 AK6).
+    expect(out.problems?.map((p) => p.code)).toEqual(["trace.no-parent"]);
     const file = await read(opened, created.files[0] ?? "");
     const keys = file
       .split("\n")

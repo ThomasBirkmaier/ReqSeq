@@ -64,11 +64,15 @@ beforeAll(() => {
   requireBuiltCli("pnpm test:e2e");
 });
 
+/** The problems but the hints of the fixture's requirements, which have no parent (SR-022 AK6). */
+const withoutNoParent = <P extends { readonly code: string }>(problems: readonly P[]): P[] =>
+  problems.filter((p) => p.code !== "trace.no-parent");
+
 describe("reqseq workspace check with evidence records (SR-028)", () => {
   it("[SR-028/AK1] reqseq workspace check reads a record from a repository of another tool", async () => {
     const output = await checkJson(await fixture());
     // The record of B in ci-results (nested folder) is read: its version is compared with B's.
-    expect(output.problems.map((p) => [p.code, p.repository, p.file, p.elementId])).toEqual([
+    expect(withoutNoParent(output.problems).map((p) => [p.code, p.repository, p.file, p.elementId])).toEqual([
       ["evidence.outdated", "ci-results", B_RECORD, B],
     ]);
     expect(output.checkedElements).toBe(2);
@@ -105,7 +109,7 @@ describe("outdated evidence in workspace check (SR-025)", () => {
     const { human, output } = await check(await fixture(), ["--fail-on", "warning"]);
     expect(human.code).toBe(1);
     expect(output.ok).toBe(false);
-    expect(output.problems).toEqual([
+    expect(withoutNoParent(output.problems)).toEqual([
       {
         code: "evidence.outdated",
         severity: "warning",

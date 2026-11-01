@@ -223,7 +223,20 @@ describe("unknown properties and types (SR-016)", () => {
       legacy: { source: "DOORS", object: "WS-17" },
       tags: ["wind", "display"],
     });
-    expect(out.problems).toEqual(GUSTS_PROBLEMS.map((p) => ({ ...p, elementShortId: "SR-1b2c3d" })));
+    // The fixture's requirement has no parent: its hint follows those of the element's own properties (SR-022 AK6).
+    expect(out.problems).toEqual([
+      ...GUSTS_PROBLEMS.map((p) => ({ ...p, elementShortId: "SR-1b2c3d" })),
+      {
+        code: "trace.no-parent",
+        severity: "warning",
+        message:
+          "System Requirement SR-1b2c3d has no parent: no relation with the meaning derivation names one",
+        repository: "system",
+        file: GUSTS_FILE,
+        elementId: GUSTS,
+        elementShortId: "SR-1b2c3d",
+      },
+    ]);
   });
 
   it("[SR-016/AK2] keeps unknown properties when a known property and the text change", async () => {

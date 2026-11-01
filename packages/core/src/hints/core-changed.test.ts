@@ -32,8 +32,11 @@ const open = async (
   return { workspace, root: fixture.root };
 };
 
+/** The findings of workspace.check but the fixture's requirements without a parent (SR-022 AK6), which this file does not test. */
 const check = async (workspace: Workspace): Promise<readonly Problem[]> =>
-  ((await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">).problems;
+  ((await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">).problems.filter(
+    (p) => p.code !== "trace.no-parent",
+  );
 
 const listed = async (workspace: Workspace, input: Record<string, unknown>): Promise<readonly Problem[]> =>
   ((await invoke("hint.list", input, { workspace })) as CommandOutput<"hint.list">).hints;
@@ -69,7 +72,8 @@ describe("a changed core requirement at its replacement (SR-045)", () => {
     expect(await listed(workspace, { variant: "VAR-0000c2", kind: ["variant.core-changed"] })).toEqual([]);
     // At the element too (SR-026 AK3).
     const shown = (await invoke("element.get", { ref: A1 }, { workspace })) as CommandOutput<"element.get">;
-    expect(shown.element.problems?.map((p) => p.hintId)).toEqual([hint?.hintId]);
+    // Besides the missing parent of the fixture's requirement (SR-022 AK6), which cannot be confirmed.
+    expect(shown.element.problems?.map((p) => p.hintId ?? p.code)).toEqual(["trace.no-parent", hint?.hintId]);
   });
 
   it("[SR-045/AK2] hint.confirm writes the current version and title of SR-K into replaces and the hint is gone", async () => {

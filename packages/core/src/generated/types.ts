@@ -312,6 +312,7 @@ export type ProblemCode =
   | "hint.not-confirmable"
   | "hint.not-found"
   | "trace.cycle"
+  | "trace.no-parent"
   | "variant.core-changed"
   | "variant.superseded-in-validity"
   | "variant.nested"
@@ -1479,7 +1480,7 @@ export interface WorkspaceStatusOutput {
 }
 
 /**
- * Input of `workspace.check` as `run` gets it: validated, properties with a `default` filled in. Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, missing targets, cycles, duplicate IDs, outdated relations, evidence records that cannot be read or name an unknown element. ok is false, and the CLI exits 1, on findings at or above failOn (default error).
+ * Input of `workspace.check` as `run` gets it: validated, properties with a `default` filled in. Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, missing targets, cycles, requirements without a parent (a warning, SR-022 AK6), duplicate IDs, outdated relations, evidence records that cannot be read or name an unknown element. ok is false, and the CLI exits 1, on findings at or above failOn (default error).
  * Schema: `schemas/commands/catalog.json workspace.check input`.
  */
 export interface WorkspaceCheckInput {
@@ -1494,7 +1495,7 @@ export interface WorkspaceCheckInput {
 }
 
 /**
- * Output of `workspace.check`. Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, missing targets, cycles, duplicate IDs, outdated relations, evidence records that cannot be read or name an unknown element. ok is false, and the CLI exits 1, on findings at or above failOn (default error).
+ * Output of `workspace.check`. Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, missing targets, cycles, requirements without a parent (a warning, SR-022 AK6), duplicate IDs, outdated relations, evidence records that cannot be read or name an unknown element. ok is false, and the CLI exits 1, on findings at or above failOn (default error).
  * Schema: `schemas/commands/catalog.json workspace.check output`.
  */
 export interface WorkspaceCheckOutput {
@@ -1967,7 +1968,7 @@ export interface RelationRemoveOutput {
 }
 
 /**
- * Input of `trace.chain` as `run` gets it: validated, properties with a `default` filled in. Chain up to the top parents and down to evidence, with depth, gaps and cycles; one page of nodes at a time, total counts all.
+ * Input of `trace.chain` as `run` gets it: validated, properties with a `default` filled in. Chain up to the top parents and down to evidence, with depth, gaps (also a requirement without a parent) and cycles; one page of nodes at a time, total counts all.
  * Schema: `schemas/commands/catalog.json trace.chain input`.
  */
 export interface TraceChainInput {
@@ -1982,7 +1983,7 @@ export interface TraceChainInput {
 }
 
 /**
- * Output of `trace.chain`. Chain up to the top parents and down to evidence, with depth, gaps and cycles; one page of nodes at a time, total counts all.
+ * Output of `trace.chain`. Chain up to the top parents and down to evidence, with depth, gaps (also a requirement without a parent) and cycles; one page of nodes at a time, total counts all.
  * Schema: `schemas/commands/catalog.json trace.chain output`.
  */
 export interface TraceChainOutput {
@@ -2022,12 +2023,12 @@ export interface TraceChainOutput {
     /** Both ends lie in one cycle of derivations (SR-022 AK4). */
     readonly cyclic: boolean;
   }[];
-  /** The gaps of the downward chain (SR-022 AK3), in the order of `nodes`, only those of the nodes of the page: `no-child` for a need without a child, `no-evidence` for a requirement without a child and without evidence. Only for elements whose children were looked at (`expanded`). `no-evidence`: the element has no verification record in `view`, in the core without `view` (as `evidence.coverage` and the filter condition `verification`; any version and result, spec question #527 Q3), so without `view` a requirement verified only for a variant shows its records in `evidence` and still has the gap (spec question #527 Q4). A test case that was only skipped does not close the gap. */
+  /** The gaps of the chain, in the order of `nodes` (the `no-parent` gaps of the upward chain first, the root's among them, then those of the downward chain), only those of the nodes of the page. Downward (SR-022 AK3), only for elements whose children were looked at (`expanded`): `no-child` for a need without a child, `no-evidence` for a requirement without a child and without evidence. Upward (SR-022 AK5), only for elements whose parents were looked at, so not with `direction: down`: `no-parent` for a requirement that names no parent through a relation kind with the meaning `derivation`, whatever the view and the state of the target (a parent in a repository that is not here is one); the metamodel says which kinds derive, so in the standard model a requirement based only on a decision (`based-on`) has the gap. `workspace.check` reports the same elements (`trace.no-parent`). `no-evidence`: the element has no verification record in `view`, in the core without `view` (as `evidence.coverage` and the filter condition `verification`; any version and result, spec question #527 Q3), so without `view` a requirement verified only for a variant shows its records in `evidence` and still has the gap (spec question #527 Q4). A test case that was only skipped does not close the gap. */
   readonly gaps: readonly {
     readonly id: Uuid;
     /** Workspace name of the repository of the element with the gap. */
     readonly repository: string;
-    readonly kind: "no-child" | "no-evidence";
+    readonly kind: "no-child" | "no-evidence" | "no-parent";
   }[];
   /** The evidence (Nachweise) of the downward chain (SR-022 AK1, SR-033 AK1 to AK3), in the order of `nodes`, only for the nodes of the page whose children were looked at (`expanded`), paged like `gaps`; one item per element that has any, none with `direction` `up`. Only verification records (D-007: the chain ends at the Nachweise; validation records are in `evidence.list`). With `view` only the records that hold in it (SR-047: the core the records without a variant, a variant those for it); without `view` every record, each with its `variant`, as `evidence.list`. A test case all of whose executions of the element hold in another view is left out; a test case that was only skipped shows in every view. The Beleg of a record is its `evidence`; a JUnit execution has none, its Beleg is its record file (`repository`, `file`, `line`; D-007: for automatic tests the record is the result file). Belege are text and never opened. */
   readonly evidence: readonly {
@@ -2061,7 +2062,7 @@ export interface TraceChainOutput {
   }[];
   /** True when a part of the chain lies in a repository that is not on this machine (SR-006 AK2), in the view of a variant while a repository of the workspace is not on this machine (it may hold a replacement or an exclusion), or, when the chain goes down, an evidence location does: evidence there is not seen. */
   readonly incomplete: Incomplete;
-  /** Hints: `trace.cycle` once per cycle of derivations in the chain, naming its elements (SR-022 AK4); `metamodel.meaning-unassigned` when no type has the meaning `need` or `requirement`, so those gaps cannot be found (SR-013 AK3). The hints are those of the whole chain, on every page. */
+  /** Hints: `trace.cycle` once per cycle of derivations in the chain, naming its elements (SR-022 AK4); `metamodel.meaning-unassigned` when no type has the meaning `need` or `requirement`, so those gaps cannot be found (SR-013 AK3; upward only `requirement`). The hints are those of the whole chain, on every page. */
   readonly problems: readonly Problem[];
 }
 

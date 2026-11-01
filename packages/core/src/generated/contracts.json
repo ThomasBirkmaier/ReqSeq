@@ -607,6 +607,7 @@
             "hint.not-confirmable",
             "hint.not-found",
             "trace.cycle",
+            "trace.no-parent",
             "variant.core-changed",
             "variant.superseded-in-validity",
             "variant.nested",
@@ -3192,7 +3193,7 @@
       {
         "name": "workspace.check",
         "title": "Check workspace",
-        "summary": "Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, missing targets, cycles, duplicate IDs, outdated relations, evidence records that cannot be read or name an unknown element. ok is false, and the CLI exits 1, on findings at or above failOn (default error).",
+        "summary": "Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, missing targets, cycles, requirements without a parent (a warning, SR-022 AK6), duplicate IDs, outdated relations, evidence records that cannot be read or name an unknown element. ok is false, and the CLI exits 1, on findings at or above failOn (default error).",
         "effect": "read",
         "stage": 1,
         "implements": [
@@ -3201,6 +3202,7 @@
           "SR-016",
           "SR-019",
           "SR-020",
+          "SR-022",
           "SR-025",
           "SR-028",
           "SR-085",
@@ -4960,7 +4962,7 @@
       {
         "name": "trace.chain",
         "title": "Show trace chain",
-        "summary": "Chain up to the top parents and down to evidence, with depth, gaps and cycles; one page of nodes at a time, total counts all.",
+        "summary": "Chain up to the top parents and down to evidence, with depth, gaps (also a requirement without a parent) and cycles; one page of nodes at a time, total counts all.",
         "effect": "read",
         "stage": 2,
         "implements": [
@@ -5156,7 +5158,7 @@
             },
             "gaps": {
               "type": "array",
-              "description": "The gaps of the downward chain (SR-022 AK3), in the order of `nodes`, only those of the nodes of the page: `no-child` for a need without a child, `no-evidence` for a requirement without a child and without evidence. Only for elements whose children were looked at (`expanded`). `no-evidence`: the element has no verification record in `view`, in the core without `view` (as `evidence.coverage` and the filter condition `verification`; any version and result, spec question #527 Q3), so without `view` a requirement verified only for a variant shows its records in `evidence` and still has the gap (spec question #527 Q4). A test case that was only skipped does not close the gap.",
+              "description": "The gaps of the chain, in the order of `nodes` (the `no-parent` gaps of the upward chain first, the root's among them, then those of the downward chain), only those of the nodes of the page. Downward (SR-022 AK3), only for elements whose children were looked at (`expanded`): `no-child` for a need without a child, `no-evidence` for a requirement without a child and without evidence. Upward (SR-022 AK5), only for elements whose parents were looked at, so not with `direction: down`: `no-parent` for a requirement that names no parent through a relation kind with the meaning `derivation`, whatever the view and the state of the target (a parent in a repository that is not here is one); the metamodel says which kinds derive, so in the standard model a requirement based only on a decision (`based-on`) has the gap. `workspace.check` reports the same elements (`trace.no-parent`). `no-evidence`: the element has no verification record in `view`, in the core without `view` (as `evidence.coverage` and the filter condition `verification`; any version and result, spec question #527 Q3), so without `view` a requirement verified only for a variant shows its records in `evidence` and still has the gap (spec question #527 Q4). A test case that was only skipped does not close the gap.",
               "items": {
                 "type": "object",
                 "properties": {
@@ -5170,7 +5172,8 @@
                   "kind": {
                     "enum": [
                       "no-child",
-                      "no-evidence"
+                      "no-evidence",
+                      "no-parent"
                     ]
                   }
                 },
@@ -5290,7 +5293,7 @@
             },
             "problems": {
               "type": "array",
-              "description": "Hints: `trace.cycle` once per cycle of derivations in the chain, naming its elements (SR-022 AK4); `metamodel.meaning-unassigned` when no type has the meaning `need` or `requirement`, so those gaps cannot be found (SR-013 AK3). The hints are those of the whole chain, on every page.",
+              "description": "Hints: `trace.cycle` once per cycle of derivations in the chain, naming its elements (SR-022 AK4); `metamodel.meaning-unassigned` when no type has the meaning `need` or `requirement`, so those gaps cannot be found (SR-013 AK3; upward only `requirement`). The hints are those of the whole chain, on every page.",
               "items": {
                 "$ref": "../common.schema.json#/$defs/problem"
               }

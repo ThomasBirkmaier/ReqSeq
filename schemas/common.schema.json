@@ -275,6 +275,7 @@
         "hint.not-confirmable",
         "hint.not-found",
         "trace.cycle",
+        "trace.no-parent",
         "variant.core-changed",
         "variant.superseded-in-validity",
         "variant.nested",

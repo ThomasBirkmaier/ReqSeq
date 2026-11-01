@@ -61,6 +61,7 @@ describe("reqseq hint list (SR-026)", () => {
       ["element.unknown-property", `${P}b4`, undefined],
       ["relation.target-superseded", `${P}b3`, `${P}b9`],
       ["variant.superseded-in-validity", `${P}b3`, `${P}c3`],
+      ["trace.no-parent", `${P}b4`, undefined],
       ["relation.outdated", `${P}b1`, `${P}a1`],
       ["relation.outdated", `${P}b1`, `${P}a1`],
     ]);
@@ -81,7 +82,7 @@ describe("reqseq hint list (SR-026)", () => {
       expect.stringMatching(/ {2}hint: relation\.outdated\/system\/.*\/derives-from\/.*\?version=n1:0{16}$/),
       expect.stringMatching(/ {2}hint: relation\.outdated\/system\/.*\/@text\/.*&n=1$/),
     ]);
-    expect(lines).toHaveLength(9);
+    expect(lines).toHaveLength(10);
   });
 
   it("[SR-026/AK2] prints only the hints that pass the filters", async () => {
@@ -138,14 +139,16 @@ describe("reqseq hint list with a changed core requirement (SR-045)", () => {
       readonly hints: readonly (Hint & { storedVersion: string; currentVersion: string })[];
     };
     const C = "45045045-0000-4000-8000-0000000000";
-    // B2 has no validity: its replacement stays an outdated relation (SR-041 AK6).
-    expect(hints.map((h) => [h.code, h.elementId, h.targetId])).toEqual([
+    // B2 has no validity: its replacement stays an outdated relation (SR-041 AK6). The fixture's
+    // requirements have no parent (SR-022 AK6), which this test does not look at.
+    const changed = hints.filter((h) => h.code !== "trace.no-parent");
+    expect(changed.map((h) => [h.code, h.elementId, h.targetId])).toEqual([
       ["variant.core-changed", `${C}b1`, `${C}a1`],
       ["relation.outdated", `${C}b2`, `${C}a1`],
     ]);
-    expect(hints[0]?.storedVersion).toBe("n1:0b18d8dadbb9f1a5");
-    expect(hints[0]?.currentVersion).not.toBe("n1:0b18d8dadbb9f1a5");
-    expect(hints[0]?.currentDate).toMatch(/^\d{4}-/);
+    expect(changed[0]?.storedVersion).toBe("n1:0b18d8dadbb9f1a5");
+    expect(changed[0]?.currentVersion).not.toBe("n1:0b18d8dadbb9f1a5");
+    expect(changed[0]?.currentDate).toMatch(/^\d{4}-/);
     const human = await reqseq(["hint", "list", "--variant", "VAR-0000c1"], ws.root);
     expect(human.stdout).toMatch(
       /\n {2}SR-0000b1 {2}variant\.core-changed {2}Core requirement System Requirement SR-0000a1, which System Requirement SR-0000b1 replaces, has changed .* {2}hint: variant\.core-changed\/system\/.*\/replaces\/.*\?version=n1:0b18d8dadbb9f1a5\n/,

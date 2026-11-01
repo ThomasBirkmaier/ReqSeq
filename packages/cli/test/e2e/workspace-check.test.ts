@@ -76,6 +76,13 @@ const CYCLE = "5e9c0a7d-2b4f-4c61-9d08-0b000000000";
 describe("reqseq workspace check (SR-019)", () => {
   it("[SR-019/AK1] ends with exit code 0 for a workspace without findings", async () => {
     const ws = await fixture("SR-072/supersede");
+    // Its one requirement without a parent gets one (SR-022 AK6).
+    const successor = ws.path("requirements/SR-d4e5f6a7b8c9.md");
+    const derived = (await fs.readFile(successor, "utf8")).replace(
+      "\n---\n",
+      "\nderives-from:\n  - { id: 7a1e0c2b-4d3f-4a5b-8c6d-b2c3d4e5f6a7, version: n1:35c6eb1777c77824 }\n---\n",
+    );
+    await fs.writeFile(successor, derived);
     const { human, json, output } = await checkBoth(ws.root);
     expect(human).toEqual({ code: 0, stdout: "ok: true\ncheckedElements: 5\nNo problems.\n", stderr: "" });
     expect(json.code).toBe(0);

@@ -136,6 +136,19 @@ export const parentsOf = (graph: DerivationGraph, element: ElementRecord): Expan
 };
 
 /**
+ * Whether `element` stores a derivation item that names a parent (SR-022 AK5, AK6): an item with an
+ * `id` under a relation kind of the graph, whatever its target's state. A parent in a repository
+ * that is not on this machine is still a parent (SR-006 AK2); a missing (SR-089) or ambiguous
+ * (SR-088) target is a finding of its own. The same items `parentsOf` looks at, without looking
+ * any target up.
+ */
+export const namesParent = (graph: Pick<DerivationGraph, "kinds">, element: ElementRecord): boolean =>
+  graph.kinds.some(({ key }) => {
+    const value: unknown = element.data[key];
+    return Array.isArray(value) && value.some((item) => hasId(item));
+  });
+
+/**
  * The children of `element` (named by its repository and UUID): one step per derivation relation
  * that points at it; unresolved as `ambiguous` instead while other files of its repository share
  * its UUID (see the file comment).

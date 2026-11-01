@@ -248,6 +248,20 @@ const unchangedDelivery =
 const AFFECTED: FixtureOptions = { fixture: "SR-024/affected", git: true };
 /** Needs, system and component requirements and a variant (SR-022). */
 const CHAIN: FixtureOptions = { fixture: "SR-022/chain", git: true };
+/** CHAIN with a system requirement based only on a decision, so without a parent, and a component requirement below it (SR-022 AK5, AK6). */
+const ORPHANED_CHAIN: FixtureOptions = {
+  ...CHAIN,
+  files: {
+    "decisions/D-00000000e001.md":
+      "---\nid: 5c0e1d2a-0022-4022-8022-00000000e001\ntype: decision\nstatus: draft\ntitle: Knots\n---\n",
+    "requirements/SR-00000000b004.md":
+      "---\nid: 5c0e1d2a-0022-4022-8022-00000000b004\ntype: system-requirement\nstatus: draft\ntitle: Show knots\n" +
+      "based-on:\n  - { id: 5c0e1d2a-0022-4022-8022-00000000e001, version: n1:0000000000000000 }\n---\n",
+    "components/CR-00000000c003.md":
+      "---\nid: 5c0e1d2a-0022-4022-8022-00000000c003\ntype: component-requirement\nstatus: draft\ntitle: Convert to knots\n" +
+      "derives-from:\n  - { id: 5c0e1d2a-0022-4022-8022-00000000b004, version: n1:0000000000000000 }\n---\n",
+  },
+};
 /** Inheritance, per-type statuses, relation kinds open on a side or both (SR-130). */
 const METAMODEL: FixtureOptions = { fixture: "SR-130/metamodel", git: true };
 /** Needs, requirements, variants and packages to filter (SR-069). */
@@ -897,6 +911,7 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
         expect(output.problems.map((p) => [p.code, p.severity, requiredKey(p.message)])).toEqual([
           ["element.missing-required", "warning", "requirement-type"],
           ["element.missing-required", "warning", "acceptance-criteria"],
+          ["trace.no-parent", "warning", undefined],
         ]);
         // Saved: the file is on disk with only what was given, whatever the access (placeholders, newElement).
         const file = "system-requirement/SR-<tail12>.md";
@@ -1530,6 +1545,7 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
         });
         expect(output.problems.map((p) => [p.code, requiredKey(p.message)])).toEqual([
           ["element.missing-required", "acceptance-criteria"],
+          ["trace.no-parent", undefined],
         ]);
       },
     },
@@ -2026,7 +2042,9 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
         const output = (
           results["core"]?.outcome as { output: { hints: { code: string; elementShortId: string }[] } }
         ).output;
-        expect(output.hints.map((h) => [h.code, h.elementShortId])).toEqual([
+        // The fixture's requirements have no parent (SR-022 AK6), which this scenario does not test.
+        const hints = output.hints.filter((h) => h.code !== "trace.no-parent");
+        expect(hints.map((h) => [h.code, h.elementShortId])).toEqual([
           ["variant.core-changed-since-baseline", "VAR-0000c1"],
         ]);
       },
@@ -2135,6 +2153,20 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       fixture: CHAIN,
       input: { ref: "N-00a001" },
       expect: "output",
+    },
+    {
+      name: "up from a component requirement to a requirement without a parent, marked as a gap",
+      fixture: ORPHANED_CHAIN,
+      input: { ref: "CR-00c003", direction: "up" },
+      tag: "[SR-022/AK5]",
+      expect: "output",
+      check: (results) => {
+        const output = (results["core"]?.outcome as { output: { gaps: { id: string; kind: string }[] } })
+          .output;
+        expect(output.gaps).toEqual([
+          { id: "5c0e1d2a-0022-4022-8022-00000000b004", repository: "system", kind: "no-parent" },
+        ]);
+      },
     },
     {
       name: "the chain of a requirement with an executed and a skipped test case and an inspection (SR-033)",
@@ -2947,6 +2979,23 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
     { name: "existing workspace", input: { path: ".", name: "Again" }, expect: "error" },
   ],
   "workspace.check": [
+    {
+      name: "a requirement without a parent is a hint with its ID",
+      fixture: ORPHANED_CHAIN,
+      input: {},
+      tag: "[SR-022/AK6]",
+      expect: "output",
+      check: (results) => {
+        const output = (
+          results["core"]?.outcome as {
+            output: { problems: { code: string; severity: string; elementId?: string }[] };
+          }
+        ).output;
+        expect(
+          output.problems.filter((p) => p.code === "trace.no-parent").map((p) => [p.severity, p.elementId]),
+        ).toEqual([["warning", "5c0e1d2a-0022-4022-8022-00000000b004"]]);
+      },
+    },
     {
       name: "a workspace with an evidence location (#535)",
       fixture: EVIDENCE,

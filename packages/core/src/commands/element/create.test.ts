@@ -13,6 +13,17 @@ import { computeVersion } from "../../version/version.js";
 
 type Output = CommandOutput<"element.create">;
 
+/** The hint of a new requirement created without a parent (SR-022 AK6). */
+const noParent = (out: Output): Record<string, unknown> => ({
+  code: "trace.no-parent",
+  severity: "warning",
+  message: `System Requirement ${out.element.shortId} has no parent: no relation with the meaning derivation names one`,
+  repository: "system",
+  file: out.element.file,
+  elementId: out.element.id,
+  elementShortId: out.element.shortId,
+});
+
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 interface Opened {
@@ -174,9 +185,9 @@ describe("element.create", () => {
         "acceptance-criteria": ["Given rain, when it falls, then the station shows it."],
       },
       relations: [],
-      problems: [],
+      problems: [noParent(out)],
     });
-    expect(out.problems).toEqual([]);
+    expect(out.problems).toEqual([noParent(out)]);
   });
 
   it("[SR-002/AK1] gives every new element a new random UUID of version 4", async () => {
@@ -380,6 +391,7 @@ describe("element.create", () => {
     expect(bare.problems).toEqual([
       missing(bare, "requirement-type", "Requirement Type"),
       missing(bare, "acceptance-criteria", "Acceptance Criteria"),
+      noParent(bare),
     ]);
     expect(bare.element.problems).toEqual(bare.problems);
     expect(await read(opened, bare.files[0] ?? "")).toBe(
@@ -396,6 +408,7 @@ describe("element.create", () => {
       missing(empty, "title", "Title", 5),
       missing(empty, "requirement-type", "Requirement Type"),
       missing(empty, "acceptance-criteria", "Acceptance Criteria"),
+      noParent(empty),
     ]);
     expect(await read(opened, empty.files[0] ?? "")).toBe(
       [...head(empty), 'title: ""', "---", ""].join("\n"),
@@ -516,6 +529,7 @@ describe("element.create", () => {
         line: 7,
         elementId: out.element.id,
       }),
+      noParent(out),
     ]);
     expect(out.element.problems).toEqual(out.problems);
   });
