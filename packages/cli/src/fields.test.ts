@@ -269,6 +269,7 @@ describe("inputFields", () => {
       "title:--title:positional",
       "text:--text:flag",
       "properties:--set:flag",
+      "relations:--relations:flag",
       "repository:--repository:flag",
       "folder:--folder:flag",
     ]);
@@ -327,6 +328,8 @@ describe("inputFields", () => {
       "element.update:text": "string:flag",
       "element.update:set": "complex:flag",
       "element.update:unset": "string[]:flag",
+      "element.update:addRelations": "complex:flag",
+      "element.update:removeRelations": "complex:flag",
     });
   });
 });

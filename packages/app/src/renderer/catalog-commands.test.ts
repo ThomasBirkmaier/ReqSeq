@@ -1016,7 +1016,8 @@ describe('"Create element": the required properties asked in the command line (S
     (await last(decision.asked)).text?.("Use wind");
     await flush();
     expect(decision.call).toHaveBeenLastCalledWith("element.create", { type: "decision", title: "Use wind" });
-    // With Ctrl/Cmd+Enter on the title its optional arguments follow, never `properties`.
+    // With Ctrl/Cmd+Enter on the title its optional arguments follow, never `properties`; the
+    // relations of the new element are one of them (#175).
     const more = creating();
     start(more.context, "element.create");
     item((await last(more.asked)).items, "Decision").run();
@@ -1024,6 +1025,7 @@ describe('"Create element": the required properties asked in the command line (S
     expect((await last(more.asked)).items.map((i) => i.name)).toEqual([
       "Run",
       "text",
+      "relations",
       "repository",
       "folder",
     ]);
@@ -1119,7 +1121,7 @@ describe('"Create element": the required properties asked in the command line (S
     const more = await last(asked);
     expect(more.label).toBe("Create element Note On wind SR-000004 · more arguments:");
     // The other properties are added in the element buffer, not as `properties` here.
-    expect(more.items.map((i) => i.name)).toEqual(["Run", "text", "repository", "folder"]);
+    expect(more.items.map((i) => i.name)).toEqual(["Run", "text", "relations", "repository", "folder"]);
     item(more.items, "Run").run();
     await flush();
     expect(call).toHaveBeenLastCalledWith("element.create", {

@@ -713,6 +713,17 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
   ],
   "element.create": [
     {
+      name: "relations by short ID are written into the new file with UUID and version (#175)",
+      fixture: FILTER,
+      input: {
+        type: "system-requirement",
+        title: "Survive hail",
+        relations: { "derives-from": ["N-0000a1"], "based-on": ["D-0000e1"] },
+      },
+      expect: "output",
+      newElement: true,
+    },
+    {
       name: "a variant is an element file of type variant in the workspace of the core",
       fixture: { fixture: "SR-040/validity", git: true },
       input: { type: "variant", title: "Valley" },
@@ -1276,6 +1287,23 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
     },
   ],
   "element.update": [
+    {
+      name: "relations added and removed by short ID in the same write as a property (#175)",
+      fixture: FILTER,
+      input: {
+        ref: "SR-0000b1",
+        set: { topic: "Gusts" },
+        addRelations: { "derives-from": ["N-0000a2"] },
+        removeRelations: { "based-on": "D-0000e1" },
+      },
+      expect: "output",
+    },
+    {
+      name: "a relation the metamodel does not allow is refused (#175)",
+      fixture: FILTER,
+      input: { ref: "SR-0000b1", addRelations: { "derives-from": ["PKG-0000d1"] } },
+      expect: "error",
+    },
     {
       name: "a reqseq: link by short ID is written as UUID and version, an unknown one is refused (#176)",
       fixture: {

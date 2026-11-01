@@ -105,6 +105,26 @@
         "required": ["title", "repository"]
       }
     },
+    "relationRefs": {
+      "description": "Relations a caller gives to element.create or element.update by relation kind key, each with the element reference of its target or a list of them (UUID, short ID or identifier, as relation.add takes them). The tool checks them as relation.add does and stores each target with its current version (#175).",
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/key"
+      },
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/elementRef"
+          },
+          {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/elementRef"
+            }
+          }
+        ]
+      }
+    },
     "relationTargetInput": {
       "description": "Target of a relation as a caller gives it to element.create, element.update or element.bulkUpdate (SR-021). Only `id` and, across repositories, `repository` name the target; `id` is an element reference like the one relation.add takes (UUID, short ID or identifier), and the tool writes the target's UUID (#169). A plain string item is the same as `{ id }` with it (#196). A target the property already stores keeps its stored version and form; for every other target the tool writes its current version and the title (same repository) or repository (across repositories) itself. A given `version` or `title` is ignored (spec question #177).",
       "type": "object",
