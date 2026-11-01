@@ -1466,7 +1466,7 @@
           ]
         },
         "inputValue": {
-          "description": "Property value as a caller gives it to element.create or element.update: like `value`, but relation targets need only `id` (and `repository` across repositories); the tool sets their version (SR-021). For a property of kind relation every item is an element reference: a string or `{ id }`, with a UUID, short ID or identifier (#169, #196, #287).",
+          "description": "Property value as a caller gives it to element.create, element.update or element.bulkUpdate: like `value`, but relation targets need only `id` (and `repository` across repositories); the tool sets their version (SR-021). For a property of kind relation every item is an element reference: a string or `{ id }`, with a UUID, short ID or identifier (#169, #196, #287).",
           "anyOf": [
             {
               "$ref": "#/$defs/scalar"

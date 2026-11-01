@@ -769,7 +769,7 @@ export interface ElementFile {
 export type ElementScalar = string | number | boolean;
 
 /**
- * Property value as a caller gives it to element.create or element.update: like `value`, but relation targets need only `id` (and `repository` across repositories); the tool sets their version (SR-021). For a property of kind relation every item is an element reference: a string or `{ id }`, with a UUID, short ID or identifier (#169, #196, #287).
+ * Property value as a caller gives it to element.create, element.update or element.bulkUpdate: like `value`, but relation targets need only `id` (and `repository` across repositories); the tool sets their version (SR-021). For a property of kind relation every item is an element reference: a string or `{ id }`, with a UUID, short ID or identifier (#169, #196, #287).
  * Schema: `schemas/element.schema.json#/$defs/inputValue`.
  */
 export type ElementInputValue =
