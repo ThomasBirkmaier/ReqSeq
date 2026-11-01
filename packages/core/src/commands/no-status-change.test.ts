@@ -505,7 +505,7 @@ describe("no status change by itself (SR-087, D-030, ADR-0002 rule 6)", () => {
       { file: RAW_JUNIT, item: "build-513", date: "2026-10-27T10:00:00Z" },
       { workspace },
     );
-    expect(out).toEqual({ testCases: 4, unknown: [], files: [RAW_JUNIT], problems: [] });
+    expect(out).toEqual({ testCases: 4, withoutReference: 0, unknown: [], files: [RAW_JUNIT], problems: [] });
     expect(fs.readFileSync(fixture.path(RAW_JUNIT), "utf8").match(/reqseq:version/g)).toHaveLength(4);
     expect(statusLines(fixture.root)).toEqual(STATUS_LINES);
   });

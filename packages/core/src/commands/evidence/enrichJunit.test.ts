@@ -94,7 +94,13 @@ describe("evidence.enrichJunit (SR-029)", () => {
   it("[SR-029/AK1] enriches the pytest and Vitest files of the real tools: each test case that names a requirement has UUID, version, item and date", async () => {
     const { fixture, workspace } = await open();
     const pytest = await enrich(workspace, { file: "results/pytest.xml" });
-    expect(pytest).toEqual({ testCases: 3, unknown: [], files: ["results/pytest.xml"], problems: [] });
+    expect(pytest).toEqual({
+      testCases: 3,
+      withoutReference: 5,
+      unknown: [],
+      files: ["results/pytest.xml"],
+      problems: [],
+    });
     const pytestBytes = await bytesOf(fixture, "results/pytest.xml");
     expect(enrichedNames(pytestBytes)).toEqual([
       "test_login_by_property",
@@ -107,7 +113,13 @@ describe("evidence.enrichJunit (SR-029)", () => {
       ["test_named[SR-036]", SPEC],
     ]);
     const vitest = await enrich(workspace, { file: "results/vitest.xml" });
-    expect(vitest).toEqual({ testCases: 2, unknown: [], files: ["results/vitest.xml"], problems: [] });
+    expect(vitest).toEqual({
+      testCases: 2,
+      withoutReference: 3,
+      unknown: [],
+      files: ["results/vitest.xml"],
+      problems: [],
+    });
     const vitestBytes = await bytesOf(fixture, "results/vitest.xml");
     expect(enrichedNames(vitestBytes)).toEqual([
       "login > [SR-46fb54/AK1] accepts a valid password",
@@ -153,7 +165,13 @@ describe("evidence.enrichJunit (SR-029)", () => {
     expect(await workspace.get(evidenceRecordsState)).toEqual([]);
     const before = await bytesOf(fixture, "results/two.xml");
     const output = await enrich(workspace, { file: "results/two.xml", output: "evidence/ci/two.xml" });
-    expect(output).toEqual({ testCases: 3, unknown: [], files: ["evidence/ci/two.xml"], problems: [] });
+    expect(output).toEqual({
+      testCases: 3,
+      withoutReference: 0,
+      unknown: [],
+      files: ["evidence/ci/two.xml"],
+      problems: [],
+    });
     // The input stays as it was; the evidence folder now holds the records.
     expect(await bytesOf(fixture, "results/two.xml")).toEqual(before);
     const records = await workspace.get(evidenceRecordsState);
@@ -166,6 +184,57 @@ describe("evidence.enrichJunit (SR-029)", () => {
     expect((await workspace.get(evidenceReadState)).skipped.map((s) => s.name)).toEqual([
       "[SR-46fb54] is skipped",
     ]);
+  });
+
+  it("[SR-029/AK4] counts the test cases that name no requirement", async () => {
+    const { workspace } = await open();
+    const output = await enrich(workspace, { file: "results/pytest.xml" });
+    // test_add[1-2], test_add[3-4], test_fails, test_skipped and test_error.
+    expect([output.testCases, output.withoutReference]).toEqual([3, 5]);
+  });
+
+  it("[SR-029/AK5] assigns the Rust test cases of a nextest file through a name pattern and enriches them as in AK1", async () => {
+    const { fixture, workspace } = await open();
+    const output = await enrich(workspace, {
+      file: "results/nextest.xml",
+      namePattern: "{prefix}_{id}_ak{ak}",
+    });
+    expect(output).toEqual({
+      testCases: 2,
+      withoutReference: 2,
+      unknown: [],
+      files: ["results/nextest.xml"],
+      problems: [],
+    });
+    const bytes = await bytesOf(fixture, "results/nextest.xml");
+    expect(enrichedNames(bytes)).toEqual([
+      "tests::sr_46fb54_ak1_accepts_a_valid_password",
+      "tests::sr_0b0036_ak1_and_sr_0c0037_ak2_report_a_failure",
+    ]);
+    expect(recordsOf(bytes)).toEqual([
+      ["tests::sr_46fb54_ak1_accepts_a_valid_password", LOGIN],
+      ["tests::sr_0b0036_ak1_and_sr_0c0037_ak2_report_a_failure", REPORT],
+      ["tests::sr_0b0036_ak1_and_sr_0c0037_ak2_report_a_failure", LOG],
+    ]);
+  });
+
+  it("refuses a name pattern that is no template before it reads the file, and leaves the file unchanged", async () => {
+    const { fixture, workspace } = await open();
+    const before = await bytesOf(fixture, "results/nextest.xml");
+    for (const namePattern of ["sr_{id}", "{prefix}_{id}{ak}", "{prefix}_{name}"]) {
+      const error = await failure(workspace, { file: "results/nextest.xml", namePattern });
+      expect([error.code, error.details?.["reason"]]).toEqual(["input.invalid", "name-pattern"]);
+    }
+    // The catalog refuses one too long or with a control character.
+    for (const namePattern of [`{prefix}_{id}${"x".repeat(100)}`, "{prefix}_{id}\n"]) {
+      expect((await failure(workspace, { file: "results/nextest.xml", namePattern })).code).toBe(
+        "input.invalid",
+      );
+    }
+    expect(
+      (await failure(workspace, { file: "results/gone.xml", namePattern: "{id}" })).details?.["reason"],
+    ).toBe("name-pattern");
+    expect(await bytesOf(fixture, "results/nextest.xml")).toEqual(before);
   });
 
   it("keeps the byte order mark and CRLF of a hand-written file, and takes the time of the call for a suite timestamp without time zone", async () => {
@@ -323,7 +392,7 @@ describe("evidence.enrichJunit (SR-029)", () => {
     await enrich(workspace, { file: "results/vitest.xml" });
     const { mtimeMs } = await fs.stat(fixture.path("results/vitest.xml"));
     const again = await enrich(workspace, { file: "results/vitest.xml", item: "build-513" });
-    expect(again).toEqual({ testCases: 2, unknown: [], files: [], problems: [] });
+    expect(again).toEqual({ testCases: 2, withoutReference: 3, unknown: [], files: [], problems: [] });
     expect((await fs.stat(fixture.path("results/vitest.xml"))).mtimeMs).toBe(mtimeMs);
   });
 
@@ -336,11 +405,23 @@ describe("evidence.enrichJunit (SR-029)", () => {
     const enriched = await bytesOf(fixture, "results/vitest.xml");
     expect(await workspace.get(evidenceRecordsState)).toEqual([]);
     const again = await enrich(workspace, { file: "results/vitest.xml", output: "evidence/ci/vitest.xml" });
-    expect(again).toEqual({ testCases: 2, unknown: [], files: ["evidence/ci/vitest.xml"], problems: [] });
+    expect(again).toEqual({
+      testCases: 2,
+      withoutReference: 3,
+      unknown: [],
+      files: ["evidence/ci/vitest.xml"],
+      problems: [],
+    });
     expect(await bytesOf(fixture, "evidence/ci/vitest.xml")).toEqual(enriched);
     expect((await workspace.get(evidenceRecordsState)).map((r) => r.element)).toEqual([LOGIN, SPEC]);
     const plain = await enrich(workspace, { file: "results/plain.xml", output: "evidence/ci/plain.xml" });
-    expect(plain).toEqual({ testCases: 0, unknown: [], files: ["evidence/ci/plain.xml"], problems: [] });
+    expect(plain).toEqual({
+      testCases: 0,
+      withoutReference: 1,
+      unknown: [],
+      files: ["evidence/ci/plain.xml"],
+      problems: [],
+    });
     expect(await bytesOf(fixture, "evidence/ci/plain.xml")).toEqual(
       await bytesOf(fixture, "results/plain.xml"),
     );
@@ -351,7 +432,7 @@ describe("evidence.enrichJunit (SR-029)", () => {
     await enrich(workspace, { file: "results/vitest.xml", output: "evidence/ci/vitest.xml" });
     const { mtimeMs } = await fs.stat(fixture.path("evidence/ci/vitest.xml"));
     const again = await enrich(workspace, { file: "results/vitest.xml", output: "evidence/ci/vitest.xml" });
-    expect(again).toEqual({ testCases: 2, unknown: [], files: [], problems: [] });
+    expect(again).toEqual({ testCases: 2, withoutReference: 3, unknown: [], files: [], problems: [] });
     expect((await fs.stat(fixture.path("evidence/ci/vitest.xml"))).mtimeMs).toBe(mtimeMs);
   });
 
@@ -484,7 +565,13 @@ describe("evidence.enrichJunit with variants (SR-029)", () => {
         '<testcase name="[SR-0000a3] rain"/><testcase name="[SR-0000b2] storm"/><testcase name="names nothing"/>',
       );
       const output = await enrich(workspace, { file: "results/run.xml", variant });
-      expect(output).toEqual({ testCases: 2, unknown: [], files: ["results/run.xml"], problems: [] });
+      expect(output).toEqual({
+        testCases: 2,
+        withoutReference: 1,
+        unknown: [],
+        files: ["results/run.xml"],
+        problems: [],
+      });
       expect(await variantRecords(fixture)).toEqual([
         ["[SR-0000a3] rain", uuid43("a3"), COAST],
         ["[SR-0000b2] storm", uuid43("b2"), COAST],

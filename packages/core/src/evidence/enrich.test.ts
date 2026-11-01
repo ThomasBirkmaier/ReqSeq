@@ -13,6 +13,7 @@ import type {
 import { checkReadBack, enrichJunitBytes, escapeAttribute, escapeText, readsBackAs } from "./enrich.js";
 import { readJunitRecords } from "./junit.js";
 import { junitTestCases } from "./junit-model.js";
+import { nameMatcher, parseNamePattern } from "./name-pattern.js";
 
 const LOGIN = "0b9e7a3c-1d2f-4a5b-8c6d-825b7146fb54";
 const REPORT = "93000000-0000-4000-8000-0000000b0036";
@@ -68,6 +69,10 @@ const versionsOf = (ids: readonly string[]): Promise<ReadonlyMap<string, Version
   );
 
 const DATE = "2026-10-27T10:00:00Z";
+
+/** A compiled name pattern with the prefixes SR and VAR. */
+const pattern = (text: string): EnrichOptions["namePattern"] =>
+  nameMatcher(parseNamePattern(text), ["SR", "VAR"]);
 
 /** Two variants: Coast by short ID, identifier `coast` or UUID (any case), Mountain by short ID or UUID. */
 const COAST = "29000000-0000-4000-8000-0000000aaaaa";
@@ -212,6 +217,85 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
       ["[SR-46fb54] logs in", LOGIN, V[LOGIN], "build-1", DATE, "passed"],
       ["[SR-0b0036] [SR-0c0037] reports a failure", REPORT, V[REPORT], "build-1", DATE, "failed"],
       ["[SR-0b0036] [SR-0c0037] reports a failure", LOG, V[LOG], "build-1", DATE, "failed"],
+    ]);
+  });
+
+  it("[SR-029/AK4] counts the test cases that name no element, apart from the listed, refused and kept ones", async () => {
+    const xml = suite(
+      '<testcase name="names nothing"/><testcase name="test_add[1-2]"/><testcase name="skipped"><skipped/></testcase>' +
+        '<testcase name="[SR-ffffff] unknown"/><testcase name="[SR-46fb54] enriched"/>' +
+        `<testcase name="kept"><properties>${four(LOGIN, V[LOGIN])}</properties></testcase>` +
+        `<testcase name="[SR-46fb54] other variant"><properties>${prop("reqseq:variant", "nowhere")}</properties></testcase>`,
+    );
+    const result = await enrich(xml);
+    // Three without reference (a parameter list and a skipped test case among them); the unknown one is
+    // listed, the kept one (D-026) and the enriched one count in testCases, the refused one nowhere.
+    expect(result).toMatchObject({ testCases: 2, withoutReference: 3 });
+    expect(result.unknown.map((u) => u.testCase)).toEqual(["[SR-ffffff] unknown"]);
+    expect(result.problems.map((p) => p.code)).toEqual([
+      "evidence.unknown-element",
+      "evidence.invalid-record",
+    ]);
+  });
+
+  it("[SR-029/AK5] assigns test cases through a name pattern and enriches them as in AK1, which the reader reads back", async () => {
+    const xml = suite(
+      '<testcase classname="tests" name="tests::sr_46fb54_ak1_max_mass"/>' +
+        '<testcase classname="tests" name="tests::SR_0B0036_AK2_and_sr_0c0037_ak1"/>' +
+        '<testcase classname="tests" name="tests::no_requirement"/>',
+    );
+    const result = await enrich(xml, { namePattern: pattern("{prefix}_{id}_ak{ak}") });
+    expect(result).toMatchObject({
+      changed: true,
+      testCases: 2,
+      withoutReference: 1,
+      unknown: [],
+      problems: [],
+    });
+    expect(properties(result.bytes)["tests::sr_46fb54_ak1_max_mass"]).toEqual([
+      `reqseq:element=${LOGIN}`,
+      `reqseq:version=${V[LOGIN]}`,
+      "reqseq:item=build-1",
+      `reqseq:date=${DATE}`,
+    ]);
+    const read = readJunitRecords({ repository: "system", file: "results.xml" }, result.bytes);
+    expect(read.problems).toBeUndefined();
+    expect(read.records.map((r) => [r.testCase, r.element, r.version])).toEqual([
+      ["tests::sr_46fb54_ak1_max_mass", LOGIN, V[LOGIN]],
+      ["tests::SR_0B0036_AK2_and_sr_0c0037_ak1", REPORT, V[REPORT]],
+      ["tests::SR_0B0036_AK2_and_sr_0c0037_ak1", LOG, V[LOG]],
+    ]);
+  });
+
+  it("counts an element that the pattern, the brackets and a property name once, and reports a pattern match that names no element or several", async () => {
+    const xml = suite(
+      `<testcase name="[SR-46fb54] sr_46fb54_ak1"><properties>${prop("reqseq:element", LOGIN)}</properties></testcase>` +
+        '<testcase classname="k" name="sr_ffffff_ak1 unknown"/><testcase name="sr_aaaaaa_ak2 ambiguous"/>' +
+        '<testcase name="test_parse[sr_ffffff_ak1] is test data"/>',
+    );
+    const result = await enrich(xml, { namePattern: pattern("{prefix}_{id}_ak{ak}") });
+    expect(properties(result.bytes)["[SR-46fb54] sr_46fb54_ak1"]).toEqual([
+      `reqseq:element=${LOGIN}`,
+      `reqseq:version=${V[LOGIN]}`,
+      "reqseq:item=build-1",
+      `reqseq:date=${DATE}`,
+    ]);
+    expect(result).toMatchObject({ testCases: 1, withoutReference: 1 });
+    expect(result.unknown).toEqual([
+      { testCase: "sr_ffffff_ak1 unknown", className: "k", line: 1, ref: "SR-ffffff" },
+      { testCase: "sr_aaaaaa_ak2 ambiguous", line: 1, ref: "SR-aaaaaa" },
+    ]);
+    expect(result.problems.map((p) => [p.code, p.message])).toEqual([
+      [
+        "evidence.unknown-element",
+        'Test case "sr_ffffff_ak1 unknown" (line 1): no element has the reference "SR-ffffff" (read as "sr_ffffff_ak1" by the name pattern)',
+      ],
+      [
+        "evidence.ambiguous-element",
+        expect.stringContaining(
+          '"SR-aaaaaa" (read as "sr_aaaaaa_ak2" by the name pattern) names more than one element',
+        ),
+      ],
     ]);
   });
 

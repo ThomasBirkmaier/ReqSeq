@@ -7,6 +7,10 @@
 //   one is reported. A name token of the form of a short ID or UUID is reported the same way; any
 //   other name token (an identifier such as `[SR-036]`, a pytest parameter list) counts only when it
 //   names exactly one element. Elements named twice count once.
+// - With a name pattern (`namePattern`, AK5, `name-pattern.ts`) the short IDs it finds in the name are
+//   name tokens of the form of a short ID too, so one that names no element or several is reported.
+// - A test case that names no element (no property, no token that names one) counts in
+//   `withoutReference` (AK4); kept, reported and refused test cases do not.
 // - A test case with a reported reference stays unchanged and is listed (AK2, spec question #529 Q1);
 //   the others are enriched and the file is written.
 // - A test case that already has a `reqseq:version` is never changed: its version is the one it was
@@ -35,6 +39,8 @@ import { refuseGit, shownPath, workspaceLayoutState } from "../workspace/index.j
 import { enrichmentOf } from "./junit.js";
 import type { JunitProperty, JunitTestCase } from "./junit-model.js";
 import { elementRefsOf, junitTestCases } from "./junit-model.js";
+import type { NameMatch } from "./name-pattern.js";
+import { nameMatcher, parseNamePattern } from "./name-pattern.js";
 import type { ViewContext } from "./in-variant.js";
 import { outOfView } from "./in-variant.js";
 import { evidenceReadState } from "./state.js";
@@ -105,6 +111,8 @@ export interface EnrichOptions {
    * counts (AK9).
    */
   readonly outOfVariant: (id: string, view: string) => string | undefined;
+  /** The compiled name pattern (AK5, `nameMatcher`); absent: brackets and properties only. */
+  readonly namePattern?: ((name: string) => readonly NameMatch[]) | undefined;
 }
 
 export interface EnrichResult {
@@ -113,6 +121,8 @@ export interface EnrichResult {
   readonly changed: boolean;
   /** Test cases that name an element and are enriched, by this call or before. */
   readonly testCases: number;
+  /** Test cases that name no element (AK4). */
+  readonly withoutReference: number;
   readonly unknown: readonly UnknownRef[];
   readonly problems: readonly Problem[];
 }
@@ -301,6 +311,8 @@ const variantPlanOf = (
 interface Reported {
   readonly ref: string;
   readonly resolution: RefResolution;
+  /** The text the name pattern matched, for a short ID it built (AK5). */
+  readonly matched?: string | undefined;
 }
 
 /**
@@ -310,19 +322,20 @@ interface Reported {
  */
 const nameElements = (
   testCase: JunitTestCase,
-  resolve: EnrichOptions["resolve"],
+  options: EnrichOptions,
   named: readonly string[],
   reported: Reported[],
 ): string[] => {
+  const { resolve } = options;
   const added: string[] = [];
-  for (const token of elementRefsOf(testCase).filter((t) => t.source === "name")) {
+  for (const token of elementRefsOf(testCase, options.namePattern).filter((t) => t.source === "name")) {
     const resolution = resolve(token.text);
     if (resolution.kind === "found") {
       if (!named.includes(resolution.id) && !added.includes(resolution.id)) {
         added.push(resolution.id);
       }
     } else if (token.kind !== "other" && !reported.some((r) => r.ref === token.text)) {
-      reported.push({ ref: token.text, resolution });
+      reported.push({ ref: token.text, resolution, matched: token.matched });
     }
   }
   return added;
@@ -351,7 +364,7 @@ const planOf = (testCase: JunitTestCase, options: EnrichOptions): Plan => {
   }
   const added = nameElements(
     testCase,
-    resolve,
+    options,
     named.map((n) => n.id),
     reported,
   );
@@ -370,11 +383,11 @@ const planOf = (testCase: JunitTestCase, options: EnrichOptions): Plan => {
 /** The message of a reported reference (N2: the test case, its line, the reference). */
 const reportedMessage = (
   testCase: JunitTestCase,
-  ref: string,
-  resolution: RefResolution,
+  { ref, resolution, matched }: Reported,
   note: string,
 ): string => {
-  const what = ref === "" ? `an empty ${ELEMENT} property` : `"${shown(ref)}"`;
+  const pattern = matched === undefined ? "" : ` (read as "${shown(matched)}" by the name pattern)`;
+  const what = ref === "" ? `an empty ${ELEMENT} property` : `"${shown(ref)}"${pattern}`;
   return resolution.kind === "ambiguous"
     ? `${testCaseText(testCase)}: ${what} names more than one element (${resolution.candidates.join(", ")}); give the full UUID`
     : `${testCaseText(testCase)}: no element has the reference ${what}${note}`;
@@ -646,6 +659,7 @@ interface Outcome {
   readonly splices: Splice[];
   readonly intended: Intended[];
   count: number;
+  withoutReference: number;
 }
 
 /** What the plans need: the lookups and the values, for `addPlan`. */
@@ -706,6 +720,7 @@ const addPlan = (outcome: Outcome, plan: Plan, context: Context): void => {
   const { where, options } = context;
   switch (plan.kind) {
     case "none":
+      outcome.withoutReference += 1;
       return;
     case "invalid":
       outcome.problems.push({
@@ -717,14 +732,17 @@ const addPlan = (outcome: Outcome, plan: Plan, context: Context): void => {
       });
       return;
     case "reported":
-      for (const { ref, resolution } of plan.refs) {
-        outcome.unknown.push({ ...nameOf(plan.testCase), ref });
+      for (const reported of plan.refs) {
+        outcome.unknown.push({ ...nameOf(plan.testCase), ref: reported.ref });
         outcome.problems.push({
-          code: resolution.kind === "ambiguous" ? "evidence.ambiguous-element" : "evidence.unknown-element",
+          code:
+            reported.resolution.kind === "ambiguous"
+              ? "evidence.ambiguous-element"
+              : "evidence.unknown-element",
           severity: "error",
           ...where,
           line: plan.testCase.line,
-          message: reportedMessage(plan.testCase, ref, resolution, options.unknownNote ?? ""),
+          message: reportedMessage(plan.testCase, reported, options.unknownNote ?? ""),
         });
       }
       return;
@@ -802,12 +820,24 @@ const planFile = async (bytes: Uint8Array, options: EnrichOptions): Promise<Plan
   const versions =
     wanted.size === 0 ? new Map<string, VersionLookup>() : await options.versionsOf([...wanted]);
   const context: Context = { bytes, options, resolutions, versions, where: { file: options.file } };
-  const outcome: Outcome = { unknown: [], problems: [], splices: [], intended: [], count: 0 };
+  const outcome: Outcome = {
+    unknown: [],
+    problems: [],
+    splices: [],
+    intended: [],
+    count: 0,
+    withoutReference: 0,
+  };
   for (const plan of plans) {
     addPlan(outcome, plan, context);
   }
   return {
-    result: { testCases: outcome.count, unknown: outcome.unknown, problems: byLine(outcome.problems) },
+    result: {
+      testCases: outcome.count,
+      withoutReference: outcome.withoutReference,
+      unknown: outcome.unknown,
+      problems: byLine(outcome.problems),
+    },
     splices: outcome.splices,
     intended: outcome.intended,
   };
@@ -1068,6 +1098,8 @@ export const enrichJunitFile = async (
   workspace: Workspace,
   input: EvidenceEnrichJunitInput,
 ): Promise<EvidenceEnrichJunitOutput> => {
+  // The pattern's syntax first: a refusal touches no file.
+  const pattern = input.namePattern === undefined ? undefined : parseNamePattern(input.namePattern);
   const layout = await workspace.get(workspaceLayoutState);
   const main = await fs.realpath(layout.root);
   const source = path.resolve(workspace.root, input.file);
@@ -1107,9 +1139,17 @@ export const enrichJunitFile = async (
     variant,
     resolveVariant: variantResolverOf(views, variants, incompleteNote(layout)),
     outOfVariant: outOfVariantOf(views, found, variants),
+    namePattern:
+      pattern === undefined
+        ? undefined
+        : nameMatcher(
+            pattern,
+            metamodel.effectiveTypes.map((t) => t.prefix),
+          ),
   });
   const output = {
     testCases: result.testCases,
+    withoutReference: result.withoutReference,
     unknown: [...result.unknown],
     problems: [...result.problems],
   };

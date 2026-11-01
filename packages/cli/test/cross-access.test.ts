@@ -400,6 +400,25 @@ const RAW_JUNIT: FixtureOptions = {
   },
 };
 
+/**
+ * The #535 workspace with a JUnit file of Rust test names that cannot hold brackets (SR-029 AK4, AK5):
+ * one names SR-e88fb3 in the form `{prefix}_{id}_ak{ak}`, one names nothing.
+ */
+const PATTERN_JUNIT: FixtureOptions = {
+  ...EVIDENCE,
+  files: {
+    "results/nextest.xml":
+      '<?xml version="1.0" encoding="UTF-8"?>\n<testsuites>\n  <testsuite name="station" timestamp="2026-10-27T09:00:00">\n' +
+      '    <testcase classname="station" name="tests::sr_e88fb3_ak1_shows_the_wind_speed"/>\n' +
+      '    <testcase classname="station" name="tests::adds_two_numbers"/>\n' +
+      "  </testsuite>\n</testsuites>\n",
+  },
+};
+
+/** The output of evidence.enrichJunit through core. */
+const enrichOutput = (results: Readonly<Record<string, Result>>): Record<string, unknown> | undefined =>
+  (results["core"]?.outcome as { output?: Record<string, unknown> }).output;
+
 const VARIANT_C1 = "43043043-0000-4000-8000-0000000000c1";
 const VARIANT_C2 = "43043043-0000-4000-8000-0000000000c2";
 /** The problem messages of evidence.enrichJunit through core (SR-029 AK8, AK9). */
@@ -1692,6 +1711,40 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       name: "a file that is not there",
       fixture: EVIDENCE,
       input: { file: "results/gone.xml", item: "build-513" },
+      expect: "error",
+    },
+    {
+      name: "a test case named in another form is assigned through a name pattern",
+      fixture: PATTERN_JUNIT,
+      input: {
+        file: "results/nextest.xml",
+        item: "build-627",
+        date: "2026-11-01T10:00:00Z",
+        namePattern: "{prefix}_{id}_ak{ak}",
+      },
+      tag: "[SR-029/AK5]",
+      expect: "output",
+      check: (results) => {
+        expect(enrichOutput(results)).toMatchObject({ testCases: 1, unknown: [], problems: [] });
+        expect(results["core"]?.files["results/nextest.xml"]).toContain(
+          'name="tests::sr_e88fb3_ak1_shows_the_wind_speed"><properties><property name="reqseq:element" value="e8df96ea-a168-4d90-8d65-6328cee88fb3"/>',
+        );
+      },
+    },
+    {
+      name: "the number of test cases that name no requirement",
+      fixture: PATTERN_JUNIT,
+      input: { file: "results/nextest.xml", item: "build-627", date: "2026-11-01T10:00:00Z" },
+      tag: "[SR-029/AK4]",
+      expect: "output",
+      check: (results) => {
+        expect(enrichOutput(results)).toMatchObject({ testCases: 0, withoutReference: 2 });
+      },
+    },
+    {
+      name: "a name pattern that is no template",
+      fixture: PATTERN_JUNIT,
+      input: { file: "results/nextest.xml", item: "build-627", namePattern: "{prefix}_{id}{ak}" },
       expect: "error",
     },
     {
