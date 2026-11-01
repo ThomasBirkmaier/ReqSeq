@@ -191,6 +191,66 @@ describe("reqif.export with statements (SR-058)", () => {
     await expect(fs.stat(fixture.path("x.reqif"))).rejects.toThrow();
   });
 
+  it("writes a statement that is no text as its text: a choice by its name, the items of a list joined; refuses a relation-valued one", async () => {
+    const mapping = (property: string): string =>
+      `reqseq-reqif-mapping: 1\nsource: { name: Kunde A }\nstatement: { property: ${property}, attribute: Statement }\n`;
+    const { fixture, workspace } = await open({
+      "reqif/choice.yaml": mapping("requirement-type"),
+      "reqif/list.yaml": mapping("acceptance-criteria"),
+      "reqif/relation.yaml": mapping("validity"),
+      "Kunde-A/SR-0000000058a7.md": `---\nid: 58058058-0000-4000-8000-0000000058a7\ntype: system-requirement\nstatus: draft\ntitle: Typed\nrequirement-type: functional\nacceptance-criteria: [First, 2, { a: 1 }]\nsource: Kunde A\nsource-identifier: _cr-7\n---\n`,
+    });
+    const values = async (name: string): Promise<unknown[]> => {
+      const out = await run<Exported>(workspace, {
+        output: name,
+        mapping: `reqif/${name}.yaml`,
+        statements: true,
+      });
+      const file = await parsed(fixture.path(name));
+      return [
+        out.withoutStatement,
+        file.specObjects
+          .find((o) => o.identifier === "_cr-7")
+          ?.values.map((v) => (v.kind === "string" ? v.value : "")),
+      ];
+    };
+    expect(await values("choice")).toEqual([3, ["Functional"]]);
+    expect(await values("list")).toEqual([3, ["First, 2"]]);
+    const refused = await failure(workspace, {
+      output: "x.reqif",
+      mapping: "reqif/relation.yaml",
+      statements: true,
+    });
+    expect([refused.code, refused.details?.["fields"]]).toEqual(["input.invalid", ["mapping"]]);
+  });
+
+  it("takes no statement back on an import into ReqSeq and reports each object as a loss (spec question #583)", async () => {
+    const { fixture, workspace } = await open();
+    await run<Exported>(workspace, { output: "back.reqif", mapping: STRING_MAPPING, statements: true });
+    const other = await createFixtureWorkspace({
+      fixture: "SR-052/empty",
+      files: { "in/back.reqif": await fs.readFile(fixture.path("back.reqif"), "utf8") },
+    });
+    onTestFinished(() => other.cleanup());
+    const target = new Workspace(other.root);
+    onTestFinished(() => target.close());
+    const imported = (await invoke(
+      "reqif.import",
+      { file: "in/back.reqif", delivery: "Antwort 1" },
+      { workspace: target },
+    )) as CommandOutput<"reqif.import">;
+    expect(imported.created).toEqual([]);
+    expect(
+      imported.losses.filter((l) => l.kind === "spec-object").map((l) => [l.identifier, l.code, l.reason]),
+    ).toEqual(
+      ["_cr-1", "_cr-2", "_cr-3"].map((identifier) => [
+        identifier,
+        "omitted-type",
+        "a statement of a statements export of ReqSeq (SR-058) is not imported: the import takes no statement back into the element it answers (spec question #583)",
+      ]),
+    );
+  });
+
   it("needs the origin meanings source and source-identifier in the metamodel", async () => {
     const model = await fs.readFile(
       new URL("../../../../../fixtures/SR-058/statements/metamodel/standard-model.yaml", import.meta.url),

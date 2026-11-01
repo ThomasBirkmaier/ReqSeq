@@ -48,7 +48,8 @@ export interface StatementsPlan {
   readonly withoutStatement: number;
 }
 
-const STATEMENT_TYPE = "_ot-statement";
+/** The SPEC-OBJECT-TYPE of a statements export, which the import of a file of ReqSeq recognises. */
+export const STATEMENT_TYPE = "_ot-statement";
 
 /** Code points: a surrogate pair is one character, as MAX-LENGTH counts. */
 const characters = (text: string): number => text.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, "_").length;

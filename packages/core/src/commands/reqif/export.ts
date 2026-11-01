@@ -15,7 +15,8 @@
 //   read (`file.changed-on-disk`), an output that is no XML file (`file.faulty`).
 // - Statements (SR-058): with `statements` and `mapping`, the elements whose `source` is the
 //   mapping's source, narrowed by `selection`, in the order of the list, each by its source
-//   IDENTIFIER (`source-identifier`) with only its statement (reqif/statements.ts); no images.
+//   IDENTIFIER (`source-identifier`) with only its statement (reqif/statements.ts) as text
+//   (`statementText`: a choice by its name, a list joined); no images.
 //   Refused: no `mapping` or a mapping without `statement` (`input.invalid`), an element of the
 //   source without a source IDENTIFIER (`input.invalid`), two with one (`ref.ambiguous`).
 // - Not yet: `profile` (SR-101 profiles of a mapping), `mapping` without `statements` (SR-054 AK2,
@@ -31,6 +32,7 @@ import {
   sha256,
   writeFileAtomic,
 } from "../../files/index.js";
+import type { MetamodelProperty } from "../../generated/types.js";
 import type { Workspace } from "../../runtime/workspace.js";
 import { meaningUnassigned, propertyWithMeaning } from "../../metamodel/index.js";
 import type { ElementRecord, TargetItem } from "../../model/index.js";
@@ -137,6 +139,24 @@ const notYet = (input: CommandInput<"reqif.export">): string[] => [
 /** The export time: now, in UTC, to the second. */
 const exportTime = (now: Date): string => `${now.toISOString().slice(0, 19)}Z`;
 
+/**
+ * The statement `value` of property `definition` as text (SR-058): a text as stored, a choice by the
+ * name of its choice, a number, date or truth value as written, the items of a list joined by
+ * `, `; undefined when there is none.
+ */
+const statementText = (definition: MetamodelProperty | undefined, value: unknown): string | undefined => {
+  const one = (item: unknown): string | undefined => {
+    if (typeof item !== "string" && typeof item !== "number" && typeof item !== "boolean") {
+      return undefined;
+    }
+    const text = String(item);
+    return definition?.choices?.find((c) => c.key === text)?.name ?? text;
+  };
+  const texts = (Array.isArray(value) ? value : [value]).flatMap((item) => one(item) ?? []);
+  const text = texts.join(", ");
+  return text === "" ? undefined : text;
+};
+
 /** The key of the property with origin meaning `meaning`, which the statements export needs. */
 const originKey = (
   meaning: "source" | "source-identifier",
@@ -168,6 +188,15 @@ const statementsOf = async (
     throw new CommandError(
       "input.invalid",
       `mapping: ${mappingPath} names no statement; add statement: { property, attribute } for the attribute of the source that takes it`,
+      { command, fields: ["mapping"] },
+    );
+  }
+  // checkMapping found the property in the metamodel.
+  const definition = metamodel.properties.find((p) => p.key === statement.property);
+  if (definition?.kind === "relation") {
+    throw new CommandError(
+      "input.invalid",
+      `mapping: statement.property ${statement.property} holds relations, which have no statement text; name a text or choice property`,
       { command, fields: ["mapping"] },
     );
   }
@@ -210,7 +239,7 @@ const statementsOf = async (
       return {
         id: record.id,
         identifier: String(record.data[identifierKey]),
-        statement: typeof value === "string" && value !== "" ? value : undefined,
+        statement: statementText(definition, value),
       };
     }),
   });
