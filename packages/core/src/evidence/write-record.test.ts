@@ -569,6 +569,36 @@ describe("evidence.record and the evidence state (S12, S1 of the plan review)", 
     ]);
   });
 
+  it("keeps both records of two calls at once in the evidence state (#308)", async () => {
+    const { workspace } = await open();
+    const layout = await workspace.get(workspaceLayoutState);
+    await workspace.get(evidenceRecordsState);
+    // Both files are written before either call updates the state, so both start from the same read.
+    let written = 0;
+    let release = (): void => undefined;
+    const both = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const write: RecordDeps["write"] = async (...args) => {
+      const result = await writeFileAtomic(...args);
+      written += 1;
+      if (written === 2) {
+        release();
+      }
+      await both;
+      return result;
+    };
+    const deps = { ...DEFAULT_DEPS, write };
+    await Promise.all([
+      recordEvidence(workspace, { ref: "SR-00c002", ...INSPECTION }, deps),
+      recordEvidence(workspace, { ref: "SR-00c002", ...INSPECTION, folder: "evidence/a" }, deps),
+    ]);
+    const files = (await workspace.get(evidenceRecordsState)).map((r) => r.file);
+    expect(files).toContain("evidence/2026-10-27-SR-00c002-inspection.md");
+    expect(files).toContain("evidence/a/2026-10-27-SR-00c002-inspection.md");
+    expect(await workspace.get(evidenceReadState)).toEqual(await readEvidence(layout));
+  });
+
   it("resets a read that runs, and leaves an unbuilt read unbuilt", async () => {
     const { workspace } = await open();
     await record(workspace, { ref: "SR-00c002", ...INSPECTION });
