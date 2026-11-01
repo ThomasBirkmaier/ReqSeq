@@ -136,7 +136,7 @@ describe("reqif.export with statements (SR-058)", () => {
     }
   });
 
-  it("refuses statements without a mapping, a mapping without statement, an element without or with a shared source IDENTIFIER, and a mapping without statements", async () => {
+  it("refuses statements without a mapping, a mapping without statement, and an element without or with a shared source IDENTIFIER", async () => {
     const { fixture, workspace } = await open({
       "reqif/plain.yaml": "reqseq-reqif-mapping: 1\nsource: { name: Kunde A }\n",
     });
@@ -149,11 +149,15 @@ describe("reqif.export with statements (SR-058)", () => {
       "input.invalid",
       ["mapping"],
     ]);
-    // A mapping without statements is the export of SR-054 AK2 and SR-059, not yet.
-    expect(await codes({ mapping: STRING_MAPPING })).toEqual(["input.invalid", ["mapping"]]);
-    expect((await failure(workspace, { output: "x.reqif", mapping: STRING_MAPPING })).message).toBe(
-      "mapping: not available yet in this version; export a selection without it",
-    );
+    // A mapping without statements is a plain export through the mapping (SR-059).
+    const plain = (await invoke(
+      "reqif.export",
+      { output: "plain.reqif", mapping: STRING_MAPPING },
+      { workspace },
+    )) as {
+      readonly elements: number;
+    };
+    expect(plain.elements).toBeGreaterThan(0);
     await fs.writeFile(
       fixture.path("Kunde-A/SR-0000000058a4.md"),
       `---\nid: 58058058-0000-4000-8000-0000000058a4\ntype: system-requirement\nstatus: draft\ntitle: Twice\nsource: Kunde A\nsource-identifier: _cr-1\n---\n`,

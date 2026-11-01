@@ -13,12 +13,17 @@
 //   first), then `_st-specification`.
 // - SPEC-OBJECTs: each element `_<uuid>` in the order of the list (SR-052 AK1, AK2), LONG-NAME its
 //   title, with its readable values and both round-trip attributes; then a stub per relation target
-//   outside the export (IDENTIFIER and type, no values), in the order first named.
+//   outside the export (IDENTIFIER and type, no values), in the order first named. Of such a target
+//   the file holds the ID only (SR-059 AK2): `reqseq-values` drops the title its relation items cache.
 // - SPEC-RELATIONs (SR-052 AK2): each item with a UUID of a relation kind or a relation-valued
 //   property (validity, packages; also a readable STRING of short IDs) of an exported element, in the
 //   order of the elements and of `ownRelationKeys`, as `_sr-<hash of source, key, target>`; a
 //   relation named twice is written once.
 // - One flat SPECIFICATION `_sp-<hash of the list>` with a SPEC-HIERARCHY `_sh-<uuid>` per element.
+// - Omitted properties (`omit`, SR-059 AK1) are left out of the file: no attribute definition, no
+//   readable value, not in `reqseq-values`, and for a relation-valued property no SPEC-RELATION (so
+//   no stub for its targets); the title key also drops LONG-NAME, the title attribute and the title
+//   every relation item caches, of targets inside the export too.
 import { createHash } from "node:crypto";
 import type { Metamodel } from "../metamodel/index.js";
 import { findType } from "../metamodel/index.js";
@@ -61,6 +66,8 @@ export interface ExportInput {
   readonly shortId: (source: ElementRecord, item: TargetItem) => string;
   /** The `data` of the `object` of an image link of the text of `element`, relative to the output. */
   readonly image: (element: ExportedElement, url: string) => string;
+  /** The property keys left out of the file (SR-059 AK1). */
+  readonly omit: ReadonlySet<string>;
 }
 
 export interface ExportPlan {
@@ -195,18 +202,58 @@ const addRelations = (
   }
 };
 
+/** `item` without the cached title of its target unless that target is `titled` (SR-059 AK2). */
+const withoutOutsideTitle = (item: unknown, titled: ReadonlySet<string>): unknown => {
+  if (typeof item !== "object" || item === null || Array.isArray(item) || !("title" in item)) {
+    return item;
+  }
+  const { id } = item as { readonly id?: unknown };
+  return typeof id === "string" && titled.has(id)
+    ? item
+    : Object.fromEntries(Object.entries(item).filter(([key]) => key !== "title"));
+};
+
+/**
+ * The frontmatter of an exported element as the file holds it: without the `omit` keys (SR-059 AK1),
+ * and the items of each relation key of `kinds` without the cached title of a target that is not
+ * `titled` (SR-059 AK2: of a target outside the export the file holds the ID only; with the title
+ * omitted, no target is `titled`).
+ */
+const exportedData = (
+  data: Readonly<Record<string, unknown>>,
+  omit: ReadonlySet<string>,
+  kinds: readonly RelationKind[],
+  titled: ReadonlySet<string>,
+): Record<string, unknown> => {
+  const relationKeys = new Set(kinds.map((k) => k.key));
+  return Object.fromEntries(
+    Object.entries(data)
+      .filter(([key]) => !omit.has(key))
+      .map(([key, value]) => [
+        key,
+        !relationKeys.has(key)
+          ? value
+          : Array.isArray(value)
+            ? value.map((item) => withoutOutsideTitle(item, titled))
+            : withoutOutsideTitle(value, titled),
+      ]),
+  );
+};
+
 /** The ReqIF model of the export of `input.elements` (see the file comment). */
 export const planExport = (input: ExportInput): ExportPlan => {
-  const { metamodel, time: lastChange } = input;
+  const { metamodel, time: lastChange, omit } = input;
   const titleKey = titleKeyOrEmpty(metamodel);
   // A key is never both a property's and a relation kind's (the metamodel check, ADR-0004).
   const kinds: RelationKind[] = [
     ...metamodel.relations.map((r) => ({ key: r.key, name: r.name, many: true })),
     ...metamodel.properties
-      .filter((p) => p.kind === "relation")
+      .filter((p) => p.kind === "relation" && !omit.has(p.key))
       .map((p) => ({ key: p.key, name: p.name, many: p.many === true })),
   ];
   const exported = new Set(input.elements.map((e) => e.record.id));
+  // An omitted title is dropped from every relation item, inside targets too (SR-059 AK1).
+  const titled = omit.has(titleKey) ? new Set<string>() : exported;
   const attributesOf = new Map<string, OwnAttribute[]>();
   const objects: SpecObject[] = [];
   const found: Found = { relations: [], identifiers: new Set(), kinds: new Set(), stubs: new Map() };
@@ -217,10 +264,13 @@ export const planExport = (input: ExportInput): ExportPlan => {
     const type = findType(metamodel, record.type);
     let attributes = attributesOf.get(record.type);
     if (attributes === undefined) {
-      attributes = ownAttributes(metamodel, record.type, type, titleKey);
+      attributes = ownAttributes(metamodel, record.type, type, titleKey).filter(
+        (a) => !omit.has(a.role === "title" ? titleKey : (a.property?.key ?? "")),
+      );
       attributesOf.set(record.type, attributes);
     }
-    const values = readableValues(metamodel, attributes, { data: record.data, text }, titleKey, {
+    const data = exportedData(record.data, omit, kinds, titled);
+    const values = readableValues(metamodel, attributes, { data, text }, titleKey, {
       shortId: (item) => input.shortId(record, item),
       image: (url) => input.image(element, url),
     });
@@ -229,7 +279,7 @@ export const planExport = (input: ExportInput): ExportPlan => {
         longest = Math.max(longest, characters(value.value));
       }
     }
-    const title = record.data[titleKey];
+    const title = data[titleKey];
     objects.push({
       identifier: ownId.element(record.id),
       lastChange,
