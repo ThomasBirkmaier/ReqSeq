@@ -440,7 +440,7 @@
           },
           "relations": {
             "$ref": "../common.schema.json#/$defs/relationRefs",
-            "description": "Relations of the new element by kind, written in the same file (#175), e.g. {\"derives-from\": [\"N-073\"]}."
+            "description": "Relations of the new element by kind, written in the same file (#175), e.g. {\"derives-from\": [\"N-073\", \"N-030\"], \"based-on\": \"D-062\"}; on the CLI --relations derives-from='[\"N-073\",\"N-030\"]' --relations based-on=D-062."
           },
           "repository": {
             "type": "string"

@@ -14,7 +14,7 @@ import { elementStoreState } from "./store.js";
 /** The elements of fixtures/SR-021/targets. */
 const NEED = { id: "0c8a3e5f-2d1b-4f6e-8a9c-7b3d5e1f2a4c", short: "N-1f2a4c" };
 const SENSOR_NEED = { id: "a7f3c1e9-5b2d-4e8f-b6a4-0e9d7c5b3a21", short: "N-5b3a21" };
-const PKG = { short: "PKG-3c7e10" };
+const PKG = { id: "5b0c2f9e-7a41-4c3d-9e2b-1f6a8d3c7e10", short: "PKG-3c7e10" };
 const SOURCE = { id: "6e2f8a4c-1b3d-4c5e-9f7a-3d8b2c6e1f05", file: "requirements/SR-3d8b2c6e1f05.md" };
 
 const version = (text: string): string =>
@@ -130,6 +130,17 @@ describe("relations in element.create (#175)", () => {
       const error = await runError(opened, "element.create", input(relations));
       expect([error.code, error.details]).toMatchObject([code, details]);
     }
+    const notAllowed = await runError(opened, "element.create", input({ "derives-from": PKG.short }));
+    expect(notAllowed.message).toMatch(
+      /^Relation Derives from \(derives-from\) from System Requirement \(the new element\) to Package PKG-3c7e10 is not allowed/,
+    );
+    const asProperty = await runError(opened, "element.create", {
+      ...input({}),
+      properties: { "derives-from": [] },
+    });
+    expect(asProperty.message).toBe(
+      "derives-from is a relation kind, not a property; give relations in relations",
+    );
     const unknown = await runError(opened, "element.create", input({ "derives-from": ["N-999999"] }));
     expect(unknown.message).toBe(
       'No element has the short ID or identifier "N-999999" (in the relation derives-from)',
@@ -139,6 +150,34 @@ describe("relations in element.create (#175)", () => {
 });
 
 describe("relations in element.update (#175)", () => {
+  it("keeps a relation the element has with a valid version unchecked, as relation.add does, and says when set names a relation kind", async () => {
+    const opened = await open("SR-021/targets", "system", {
+      [`system/${SOURCE.file}`]: `---\nid: ${SOURCE.id}\ntype: system-requirement\nstatus: draft\ntitle: Show wind speed in large digits\nderives-from:\n  - { id: ${PKG.id}, version: n1:0000000000000000 }\n---\n`,
+    });
+    const before = await read(opened, SOURCE.file);
+    const out = await update(opened, { addRelations: { "derives-from": PKG.short } });
+    expect(out.files).toEqual([]);
+    expect(await read(opened, SOURCE.file)).toBe(before);
+    const added = await update(opened, { addRelations: { refines: NEED.short } });
+    expect(added.problems.filter((p) => p.code === "relation.version-added")).toEqual([]);
+    const asSet = await runError(opened, "element.update", { ref: SOURCE.id, set: { refines: [] } });
+    expect(asSet.message).toBe(
+      "refines is a relation kind, not a property; add and remove relations with addRelations and removeRelations",
+    );
+    const notAllowed = await runError(opened, "element.update", {
+      ref: SOURCE.id,
+      addRelations: { "based-on": NEED.short },
+    });
+    expect(notAllowed.message).toMatch(
+      /^Relation Based on \(based-on\) from System Requirement SR-6e1f05 to Need N-1f2a4c is not allowed/,
+    );
+    const unknown = await runError(opened, "element.update", {
+      ref: SOURCE.id,
+      removeRelations: { refines: "N-999999" },
+    });
+    expect([unknown.code, unknown.details]).toEqual(["ref.unknown", { ref: "N-999999", kind: "refines" }]);
+  });
+
   it("adds relations together with a property and the title in one write, and keeps a relation it has", async () => {
     const opened = await open();
     const out = await update(opened, {
@@ -156,15 +195,44 @@ describe("relations in element.update (#175)", () => {
     expect(await read(opened, SOURCE.file)).toBe(text);
   });
 
-  it("gives a relation without a valid version its version in place", async () => {
+  it("gives a relation without a valid version its version in place and says so at its line, after the removals before it", async () => {
     const opened = await open();
-    await update(opened, { addRelations: { refines: [SENSOR_NEED.short] } });
+    await update(opened, { addRelations: { refines: SENSOR_NEED.short } });
     const file = opened.fixture.path(`system/${SOURCE.file}`);
     const before = await fs.readFile(file, "utf8");
-    await fs.writeFile(file, before.replace("refines:\n", `refines:\n  - { id: ${NEED.id} }\n`));
+    await fs.writeFile(
+      file,
+      before.replace(`${SENSOR_ENTRY}\n`, `${SENSOR_ENTRY}\n  - { id: ${NEED.id} }\n`),
+    );
     await opened.workspace.reset(elementStoreState);
-    await update(opened, { addRelations: { refines: [NEED.short] } });
-    expect(linesOf(await read(opened, SOURCE.file), "refines")).toEqual([NEED_ENTRY, SENSOR_ENTRY]);
+    const out = await update(opened, {
+      addRelations: { refines: NEED.short },
+      removeRelations: { refines: [SENSOR_NEED.short] },
+    });
+    const text = await read(opened, SOURCE.file);
+    expect(linesOf(text, "refines")).toEqual([NEED_ENTRY]);
+    // Without a removal under the kind the item stays where it is.
+    const plain = await open();
+    const plainFile = plain.fixture.path(`system/${SOURCE.file}`);
+    await fs.writeFile(
+      plainFile,
+      (await fs.readFile(plainFile, "utf8")).replace(
+        "validity:",
+        `refines:\n  - { id: ${NEED.id} }\nvalidity:`,
+      ),
+    );
+    const given = await update(plain, { addRelations: { refines: NEED.id } });
+    expect(given.problems[0]).toMatchObject({ code: "relation.version-added", line: 10 });
+    expect(out.problems[0]).toMatchObject({
+      code: "relation.version-added",
+      severity: "info",
+      file: SOURCE.file,
+      line: text.split("\n").indexOf(NEED_ENTRY) + 1,
+      targetId: NEED.id,
+      message: expect.stringContaining(
+        "had the relation Refines (refines) to Need N-1f2a4c without a valid version",
+      ) as unknown,
+    });
   });
 
   it("removes relations, the key with its last item unless the call adds to it, and says when there is nothing to remove", async () => {

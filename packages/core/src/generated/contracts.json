@@ -422,16 +422,23 @@
           }
         },
         "relationRefs": {
-          "description": "Relations a caller gives to element.create or element.update by relation kind key, each with the element references of its targets (UUID, short ID or identifier, as relation.add takes them). The tool checks them as relation.add does and stores each target with its current version (#175).",
+          "description": "Relations a caller gives to element.create or element.update by relation kind key, each with the element reference of its target or a list of them (UUID, short ID or identifier, as relation.add takes them). The tool checks them as relation.add does and stores each target with its current version (#175).",
           "type": "object",
           "propertyNames": {
             "$ref": "#/$defs/key"
           },
           "additionalProperties": {
-            "type": "array",
-            "items": {
-              "$ref": "#/$defs/elementRef"
-            }
+            "anyOf": [
+              {
+                "$ref": "#/$defs/elementRef"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/elementRef"
+                }
+              }
+            ]
           }
         },
         "relationTargetInput": {
@@ -3561,7 +3568,7 @@
             },
             "relations": {
               "$ref": "../common.schema.json#/$defs/relationRefs",
-              "description": "Relations of the new element by kind, written in the same file (#175), e.g. {\"derives-from\": [\"N-073\"]}."
+              "description": "Relations of the new element by kind, written in the same file (#175), e.g. {\"derives-from\": [\"N-073\", \"N-030\"], \"based-on\": \"D-062\"}; on the CLI --relations derives-from='[\"N-073\",\"N-030\"]' --relations based-on=D-062."
             },
             "repository": {
               "type": "string"

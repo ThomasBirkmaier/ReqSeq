@@ -74,6 +74,7 @@ import type { TitleContext } from "./relation-titles.js";
 import { withCurrentTitles } from "./relation-titles.js";
 import type { ElementHints } from "./get.js";
 import type { LocatableFinding } from "./locate.js";
+import { locateIn } from "./locate.js";
 import { elementContent, elementView, titleKeyOf } from "./view.js";
 
 /** What `element.create` and `element.update` return. */
@@ -152,6 +153,17 @@ const titleKeyFor = (metamodel: Metamodel, type: MetamodelEffectiveType, command
   return key;
 };
 
+/** The input fields that take property keys: of element.create, element.update and a ReqIF mapping. */
+export type PropertyKeyField = "properties" | "set" | "unset" | "property";
+
+/** Where the input of a command takes a relation kind that its `field` refuses (#175). */
+const RELATIONS_HINT: Readonly<Record<PropertyKeyField, string>> = {
+  properties: "give relations in relations",
+  set: "add and remove relations with addRelations and removeRelations",
+  unset: "add and remove relations with addRelations and removeRelations",
+  property: "add relations with relation.add",
+};
+
 /**
  * Why `key` may not be written as a property of `type` (`element.create`, `reqif.import`), or
  * undefined: properties of the type only, never the structural keys `id`, `type`, `status`
@@ -164,7 +176,7 @@ export const propertyKeyRefusal = (
   metamodel: Metamodel,
   type: MetamodelEffectiveType,
   titleKey: string,
-  field: string,
+  field: PropertyKeyField,
 ): { readonly message: string; readonly details: Readonly<Record<string, string>> } | undefined => {
   if (STRUCTURAL_KEYS.includes(key)) {
     return { message: `${field} cannot hold ${key}: ReqSeq sets it`, details: { key, reason: "structural" } };
@@ -177,7 +189,7 @@ export const propertyKeyRefusal = (
   }
   if (metamodel.relations.some((r) => r.key === key)) {
     return {
-      message: `${key} is a relation kind, not a property; add relations with relation.add`,
+      message: `${key} is a relation kind, not a property; ${RELATIONS_HINT[field]}`,
       details: { key, reason: "relation" },
     };
   }
@@ -202,7 +214,7 @@ const checkPropertyKeys = (
   metamodel: Metamodel,
   type: MetamodelEffectiveType,
   titleKey: string,
-  field: string,
+  field: PropertyKeyField,
 ): void => {
   for (const key of keys) {
     const refusal = propertyKeyRefusal(key, metamodel, type, titleKey, field);
@@ -1131,6 +1143,7 @@ export const updateElement = async (
   });
   let result: ElementWriteResult & { readonly affected?: number };
   let fileSha256 = current.file.snapshot.sha256;
+  let versionsAdded: readonly Problem[] = [];
   if (edited.changed) {
     // The stored titles of same-repository targets follow their targets (decision on #307).
     let { bytes } = edited;
@@ -1149,6 +1162,10 @@ export const updateElement = async (
       await writeFileAtomic(repository.folder, record.file, decode(bytes), record.snapshot),
     );
     fileSha256 = written.file.snapshot.sha256;
+    versionsAdded = locateIn(
+      written.file,
+      relations.versionsAdded.map(({ path, problem }) => ({ element: written.record, path, problem })),
+    );
     result = await finish(workspace, written, context, {
       shortIds,
       titleKey,
@@ -1160,10 +1177,11 @@ export const updateElement = async (
   } else {
     result = await finish(workspace, current, context, { shortIds, titleKey, files: [], extraFindings });
   }
-  // Nothing written: nothing affected (AK3). Removals that found nothing come first (#175).
+  // Nothing written: nothing affected (AK3). Removals that found nothing and relations given their
+  // version come first (#175).
   return {
     ...result,
-    problems: [...relations.problems, ...result.problems],
+    problems: [...relations.problems, ...versionsAdded, ...result.problems],
     affected: result.affected ?? 0,
     fileSha256,
   };

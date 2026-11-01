@@ -26,11 +26,16 @@ import type { RelationState } from "./relation-write.js";
 import { itemsUnder, notFoundProblem, removalEdits, removalMatch } from "./relation-write.js";
 import { relationTypeFindings } from "./relation-types.js";
 import { resolveRef } from "./resolve.js";
+import { elementLabel } from "./superseded.js";
 import type { TargetContext } from "./targets.js";
 import { currentTarget } from "./targets.js";
 
-/** Relation kinds by key, each with the references of its targets. */
-export type RelationRefs = Readonly<Record<string, readonly string[]>>;
+/** Relation kinds by key, each with the reference of its target or a list of them. */
+export type RelationRefs = Readonly<Record<string, string | readonly string[]>>;
+
+/** The references of one kind as a list. */
+const refsOf = (refs: string | readonly string[]): readonly string[] =>
+  typeof refs === "string" ? [refs] : refs;
 
 /** A target to add under a kind, resolved and checked. */
 interface Addition {
@@ -70,6 +75,28 @@ const asItem = (source: ElementRecord, target: ElementRecord): { id: string; rep
     ? { id: target.id }
     : { id: target.id, repository: target.repository };
 
+/** Whether `item` names `target` with a valid version: a relation the element has as relation.add keeps it. */
+const storedWithVersion = (source: ElementRecord, target: ElementRecord, item: unknown): boolean =>
+  namesTarget(source, target, item) && isVersion((item as Record<string, unknown>)["version"]);
+
+/** Whether `item` names `target`: its UUID and its repository, the source's own when it names none. */
+const namesTarget = (source: ElementRecord, target: ElementRecord, item: unknown): boolean =>
+  hasId(item) && item.id === target.id && (item["repository"] ?? source.repository) === target.repository;
+
+/** `removalMatch` of `ref` under `kind`, its errors with the kind (`inKind`). */
+const removalIn = (
+  state: RelationState,
+  source: ElementRecord,
+  kind: MetamodelRelationKind,
+  ref: string,
+): ReturnType<typeof removalMatch> => {
+  try {
+    return removalMatch(state, source, kind, ref, undefined);
+  } catch (error) {
+    throw inKind(error, kind.key);
+  }
+};
+
 const sameTarget = (a: ElementRecord, b: ElementRecord): boolean =>
   a.id === b.id && a.repository === b.repository;
 
@@ -90,7 +117,7 @@ export const planRelations = (
   const additions: Addition[] = [];
   for (const [key, refs] of Object.entries(add ?? {})) {
     const kind = relationKindFor(metamodel, key, source.type);
-    for (const ref of refs) {
+    for (const ref of refsOf(refs)) {
       let target: ElementRecord;
       try {
         target = resolveRef(store, shortIds, ref);
@@ -100,13 +127,22 @@ export const planRelations = (
       if (additions.some((a) => a.kind === kind && sameTarget(a.target, target))) {
         continue;
       }
+      // A relation the element has with a valid version is kept as it is, unchecked, as in relation.add.
+      if (itemsUnder(source, kind.key).some((item) => storedWithVersion(source, target, item))) {
+        additions.push({ kind, target });
+        continue;
+      }
       const [finding] = relationTypeFindings(
         // The check reads a target with a version; which one does not matter to it.
         { ...source, data: { [kind.key]: [{ ...asItem(source, target), version: CHECK_VERSION }] } },
         { store, metamodel, shortIds },
       );
       if (finding !== undefined) {
-        throw new CommandError("relation.not-allowed", finding.problem.message, {
+        // A new element has no short ID yet that a person could look up.
+        const message = store.byId.has(source.id)
+          ? finding.problem.message
+          : finding.problem.message.replace(` ${shortIds.of(source)} to `, " (the new element) to ");
+        throw new CommandError("relation.not-allowed", message, {
           relation: kind.key,
           sourceType: source.type,
           targetType: target.type,
@@ -118,8 +154,8 @@ export const planRelations = (
   const removals: Removal[] = [];
   for (const [key, refs] of Object.entries(remove ?? {})) {
     const kind = relationKindFor(metamodel, key, source.type);
-    for (const ref of refs) {
-      const { target } = removalMatch(state, source, kind, ref, undefined);
+    for (const ref of refsOf(refs)) {
+      const { target } = removalIn(state, source, kind, ref);
       const added = additions.find(
         (a) =>
           a.kind === kind &&
@@ -159,6 +195,15 @@ export const newRelations = async (
 };
 
 /**
+ * The `info` problem `relation.version-added` of a relation that had no valid version and got one
+ * (as `relation.add` gives it, #302), with the path of the item in the file as written.
+ */
+export interface VersionAdded {
+  readonly path: readonly [string, number];
+  readonly problem: Problem;
+}
+
+/**
  * The edits of `plan` on `source` as read for the write, and the `relation.not-found` problems of
  * removals that find nothing. Per kind: items given a version in place, then removed items from the
  * last, then new items appended, so every index names the item it was computed for.
@@ -168,15 +213,19 @@ export const relationEdits = async (
   state: RelationState,
   source: ElementRecord,
   plan: RelationPlan,
-): Promise<{ readonly edits: FrontmatterEdit[]; readonly problems: Problem[] }> => {
+): Promise<{
+  readonly edits: FrontmatterEdit[];
+  readonly problems: Problem[];
+  readonly versionsAdded: VersionAdded[];
+}> => {
   const replaced: FrontmatterEdit[] = [];
+  const given: { readonly key: string; readonly index: number; readonly problem: Problem }[] = [];
   const appended: FrontmatterEdit[] = [];
   const addedKeys = new Set<string>();
   for (const { kind, target } of plan.additions) {
     const items = itemsUnder(source, kind.key);
-    const names = (item: unknown): boolean =>
-      hasId(item) && item.id === target.id && (item["repository"] ?? source.repository) === target.repository;
-    if (items.some((item) => names(item) && isVersion((item as Record<string, unknown>)["version"]))) {
+    const names = (item: unknown): boolean => namesTarget(source, target, item);
+    if (items.some((item) => storedWithVersion(source, target, item))) {
       continue;
     }
     const value = (await currentTarget(context, source.repository, {
@@ -189,12 +238,26 @@ export const relationEdits = async (
       addedKeys.add(kind.key);
     } else {
       replaced.push({ kind: "replace-item", key: kind.key, index: unversioned, value });
+      given.push({
+        key: kind.key,
+        index: unversioned,
+        problem: {
+          code: "relation.version-added",
+          severity: "info",
+          message: `${elementLabel(state, source)} had the relation ${kind.name} (${kind.key}) to ${elementLabel(state, target)} without a valid version; its current version is stored now`,
+          repository: source.repository,
+          file: source.file,
+          elementId: source.id,
+          targetId: target.id,
+          currentVersion: (value as unknown as RelationTarget).version,
+        },
+      });
     }
   }
   const problems: Problem[] = [];
   const removed = new Map<string, Set<number>>();
   for (const { kind, ref } of plan.removals) {
-    const { target, indexes } = removalMatch(state, source, kind, ref, undefined);
+    const { target, indexes } = removalIn(state, source, kind, ref);
     if (indexes.length === 0) {
       problems.push(notFoundProblem(state, source, kind, ref, target.id));
       continue;
@@ -211,5 +274,10 @@ export const relationEdits = async (
       addedKeys.has(key) ? Number.POSITIVE_INFINITY : itemsUnder(source, key).length,
     ),
   );
-  return { edits: [...replaced, ...removing, ...appended], problems };
+  // Each item given its version, at its position after the removals before it.
+  const versionsAdded = given.map(({ key, index, problem }): VersionAdded => {
+    const before = [...(removed.get(key) ?? [])].filter((i) => i < index).length;
+    return { path: [key, index - before], problem };
+  });
+  return { edits: [...replaced, ...removing, ...appended], problems, versionsAdded };
 };

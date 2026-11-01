@@ -196,10 +196,10 @@ export interface RelationTarget {
 }
 
 /**
- * Relations a caller gives to element.create or element.update by relation kind key, each with the element references of its targets (UUID, short ID or identifier, as relation.add takes them). The tool checks them as relation.add does and stores each target with its current version (#175).
+ * Relations a caller gives to element.create or element.update by relation kind key, each with the element reference of its target or a list of them (UUID, short ID or identifier, as relation.add takes them). The tool checks them as relation.add does and stores each target with its current version (#175).
  * Schema: `schemas/common.schema.json#/$defs/relationRefs`.
  */
-export type RelationRefs = Readonly<Record<string, readonly ElementRef[]>>;
+export type RelationRefs = Readonly<Record<string, ElementRef | readonly ElementRef[]>>;
 
 /**
  * Target of a relation as a caller gives it to element.create or element.update (SR-021). Only `id` and, across repositories, `repository` name the target. A target the property already stores keeps its stored version and form; for every other target the tool writes its current version and the title (same repository) or repository (across repositories) itself. A given `version` or `title` is ignored (spec question #177).
@@ -1580,7 +1580,7 @@ export interface ElementCreateInput {
   /** Markdown text of the element, written below the frontmatter after one blank line; that blank line after the closing `---` is not part of the text. A final line break is added (ADR-0004). */
   readonly text?: string;
   readonly properties?: Readonly<Record<string, ElementInputValue>>;
-  /** Relations of the new element by kind, written in the same file (#175), e.g. {"derives-from": ["N-073"]}. */
+  /** Relations of the new element by kind, written in the same file (#175), e.g. {"derives-from": ["N-073", "N-030"], "based-on": "D-062"}; on the CLI --relations derives-from='["N-073","N-030"]' --relations based-on=D-062. */
   readonly relations?: RelationRefs;
   readonly repository?: string;
   /** Folder relative to the repository; default from the type. */

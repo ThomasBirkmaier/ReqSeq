@@ -1288,7 +1288,7 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
         ref: "SR-0000b1",
         set: { topic: "Gusts" },
         addRelations: { "derives-from": ["N-0000a2"] },
-        removeRelations: { "based-on": ["D-0000e1"] },
+        removeRelations: { "based-on": "D-0000e1" },
       },
       expect: "output",
     },
