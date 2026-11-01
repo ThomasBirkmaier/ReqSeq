@@ -183,8 +183,14 @@ describe("unknown types before a ReqIF import (SR-055)", () => {
     const kundeC = { ...IMPORT, mapping: "reqif/kunde-c.yaml" };
     await fs.writeFile(fixture.path("reqif/kunde-c.yaml"), third(""));
     const round2 = await analyze(workspace, { file: IMPORT.file, mapping: kundeC.mapping });
-    expect(round2.unmapped.map((u) => u.kind)).toEqual(["value", "value"]);
-    expect(round2.unmapped.map((u) => u.source).sort()).toEqual(["High", "Low"]);
+    const value = (source: string) => ({
+      kind: "value",
+      source,
+      sourceType: "Customer Requirement",
+      attribute: "Priority",
+    });
+    expect(round2.unmapped).toHaveLength(2);
+    expect(round2.unmapped).toEqual(expect.arrayContaining([value("High"), value("Low")]));
     await fs.writeFile(
       fixture.path("reqif/kunde-c.yaml"),
       third(", values: { High: functional, Low: quality }"),
