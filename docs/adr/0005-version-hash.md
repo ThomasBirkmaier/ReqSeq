@@ -13,7 +13,7 @@ Relations and references store the version of their target as a hash over its co
 **Content of normal form 1:**
 
 1. Text: the Markdown body, everything after the line that closes the frontmatter.
-2. Every property whose definition has `content: true` (D-013, D-057: the flag "counts to the version" per property; in the standard model text, acceptance criteria, requirement type, verification method, emergent and validity count; title, status, packages, rationale, topic, statement and origin do not). Title, status and properties without the flag are not content (SR-021 AK3). Relation kinds are not content, so a new child does not change the parent. Unknown properties are not content.
+2. Every property whose definition has `content: true` (D-013, D-057: the flag "counts to the version" per property; in the standard model text, acceptance criteria, requirement type and validity count; title, status, packages, rationale, emergent, verification method, topic, statement and origin do not, product owner decision, 2026-11-01, #378). Title, status and properties without the flag are not content (SR-021 AK3). Relation kinds are not content, so a new child does not change the parent. Unknown properties are not content.
 3. Embedded images (D-057: "eingebettete Bilder zählen immer mit"): every image the text embeds with a relative link that resolves inside the same repository, with its SHA-256 (see **Files**). Where the editor puts new images (next to the element file) is SR-097 AK1; any image in the repository counts.
 
 **Canonical form (n1):** UTF-8 bytes of

@@ -27,6 +27,7 @@ beforeEach(async () => {
       "odd.json": Buffer.from([0xfe, 0xff, 0x00, 0x7b, 0x00]),
       "odd-le.json": Buffer.from([0xff, 0xfe, 0x7b, 0x00, 0x7d]),
       "sub/list.json": "[1]",
+      "text.md": "Erster Absatz mit „Zitat“.\n\nZweiter Absatz.\n",
     },
   });
 });
@@ -105,7 +106,7 @@ describe("readInputOption", () => {
 const field = (
   name: string,
   kind: InputField["kind"],
-  options: { array?: boolean; localPath?: boolean } = {},
+  options: { array?: boolean; localPath?: boolean; entries?: boolean; textFile?: boolean } = {},
 ): InputField => ({
   name,
   flag: name,
@@ -118,6 +119,8 @@ const field = (
   defaultValue: undefined,
   localPath: options.localPath ?? false,
   nullable: false,
+  entries: options.entries ?? false,
+  textFile: options.textFile ?? false,
 });
 
 const invocation = (parts: Partial<Invocation>): Invocation => ({
@@ -323,5 +326,85 @@ describe("buildInput", () => {
       odd: 7,
       name: "plain",
     });
+  });
+
+  it("gives an entries flag as key=value, the value as JSON when it parses, key by key over --input (#171)", async () => {
+    const set = field("set", "complex", { entries: true });
+    const input = await buildInput(
+      invocation({
+        input: '{"set":{"kept":1,"over":"old"}}',
+        flags: [
+          {
+            field: set,
+            value: [
+              "over=new",
+              "list=[1,2]",
+              "on=true",
+              "id=D-064",
+              "eq=a=b",
+              "empty=",
+              'quoted="12"',
+              "n=12",
+            ],
+          },
+        ],
+      }),
+      fixture.root,
+      noStdin,
+    );
+    expect(input).toEqual({
+      set: {
+        kept: 1,
+        over: "new",
+        list: [1, 2],
+        on: true,
+        id: "D-064",
+        eq: "a=b",
+        empty: "",
+        quoted: "12",
+        n: 12,
+      },
+    });
+    // A --input value that is no object is replaced, so core sees only the flag's entries.
+    expect(
+      await buildInput(
+        invocation({ input: '{"set":3}', flags: [{ field: set, value: ["a=b"] }] }),
+        fixture.root,
+        noStdin,
+      ),
+    ).toEqual({ set: { a: "b" } });
+    for (const item of ["novalue", "=x"]) {
+      const error = await rejection(
+        buildInput(invocation({ flags: [{ field: set, value: [item] }] }), fixture.root, noStdin),
+      );
+      expect(error.toJSON()).toEqual({
+        code: "input.invalid",
+        message: `--set expects key=value, not ${item}`,
+        details: { argument: item },
+      });
+    }
+  });
+
+  it("reads a text flag from @file or - like --input, and takes any other value as it is (#171)", async () => {
+    const text = field("text", "string", { textFile: true });
+    const read = (value: string, stdin = noStdin, input?: string): Promise<Record<string, unknown>> =>
+      buildInput(invocation({ input, flags: [{ field: text, value }] }), fixture.root, stdin);
+    expect(await read("@text.md")).toEqual({ text: "Erster Absatz mit „Zitat“.\n\nZweiter Absatz.\n" });
+    expect(await read("-", Readable.from([utf16("Größe", false)]))).toEqual({ text: "Größe" });
+    expect(await read("inline @ text")).toEqual({ text: "inline @ text" });
+    expect((await rejection(read("@nothing.md"))).message).toBe("Cannot read the input file nothing.md");
+    const twice = await rejection(read("-", Readable.from(['{"a":1}']), "-"));
+    expect(twice.toJSON()).toEqual({
+      code: "input.invalid",
+      message: "--text - cannot read standard input a second time",
+    });
+    // Without textFile, @ is part of the value.
+    expect(
+      await buildInput(
+        invocation({ flags: [{ field: field("title", "string"), value: "@file" }] }),
+        fixture.root,
+        noStdin,
+      ),
+    ).toEqual({ title: "@file" });
   });
 });
