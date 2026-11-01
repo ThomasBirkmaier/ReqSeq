@@ -534,9 +534,10 @@ describe("evidence.enrichJunit with variants (SR-029)", () => {
     );
     const before = await bytesOf(fixture, "results/run.xml");
     const output = await enrich(workspace, { file: "results/run.xml", variant: "core" });
-    // The core given: the test case that names Mountain is another variant (AK8); nothing counts nowhere.
+    // The core given: the test case that names Mountain is another variant (AK8); SR-0000b1 holds only in Coast.
     expect(output.problems.map((p) => p.message)).toEqual([
       'Test case "[SR-0000b2] storm" (line 1) is not enriched: reqseq:variant "VAR-0000c2" names another variant than the given one, core',
+      'Test case "[SR-0000b1] response" (line 1) is not enriched: SR-0000b1 does not apply in core, so a record for it there would count nowhere (SR-040)',
     ]);
     await fixture.write("results/run.xml", before);
     const coast = await enrich(workspace, { file: "results/run.xml", variant: "VAR-0000c1" });
@@ -555,6 +556,33 @@ describe("evidence.enrichJunit with variants (SR-029)", () => {
       ["[SR-0000a1] response", uuid43("a1"), undefined],
       ["[SR-0000b1] response", uuid43("b1"), undefined],
     ]);
+  });
+
+  it("[SR-029/AK8] reports a test case enriched before for another variant than the given one, and keeps it", async () => {
+    const { fixture, workspace } = await openExample('<testcase name="[SR-0000a3] rain"/>');
+    expect((await enrich(workspace, { file: "results/run.xml", variant: "VAR-0000c2" })).problems).toEqual(
+      [],
+    );
+    const before = await bytesOf(fixture, "results/run.xml");
+    const again = await enrich(workspace, { file: "results/run.xml", variant: "VAR-0000c1" });
+    expect(again.problems.map((p) => [p.code, p.severity, p.message])).toEqual([
+      [
+        "evidence.invalid-record",
+        "error",
+        `Test case "[SR-0000a3] rain" (line 1) does not fit: it is enriched already for the variant ${MOUNTAIN}, not for the given VAR-0000c1; an enriched test case is never changed (D-026)`,
+      ],
+    ]);
+    expect(again.files).toEqual([]);
+    expect(await bytesOf(fixture, "results/run.xml")).toEqual(before);
+  });
+
+  it("[SR-029/AK9] reports a requirement that does not apply in the given core, as evidence.record does", async () => {
+    const { fixture, workspace } = await openExample('<testcase name="[SR-0000b2] storm"/>');
+    const output = await enrich(workspace, { file: "results/run.xml", variant: "core" });
+    expect(output.problems.map((p) => p.message)).toEqual([
+      'Test case "[SR-0000b2] storm" (line 1) is not enriched: SR-0000b2 does not apply in core, so a record for it there would count nowhere (SR-040)',
+    ]);
+    expect(await variantRecords(fixture)).toEqual([]);
   });
 
   it("reports a reqseq:variant that names no variant or the core, and refuses a given variant that is none", async () => {
@@ -586,6 +614,11 @@ describe("evidence.enrichJunit with variants (SR-029)", () => {
     };
     const check = outOfVariantOf(views, new Map(), new Map());
     expect(check(uuid43("a2"), COAST)).toBeUndefined();
+    // One lookup per distinct value.
+    const resolver = variantResolverOf(views, new Map());
+    const first = resolver("VAR-0000c1");
+    expect(first).toEqual({ kind: "variant", id: COAST });
+    expect(resolver("VAR-0000c1")).toBe(first);
     const throwing = new Proxy(
       {},
       {

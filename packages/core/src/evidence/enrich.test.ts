@@ -85,9 +85,13 @@ const resolveVariant = (ref: string): VariantLookup => {
   return id === undefined ? { kind: "invalid", reason: `no variant is "${ref}"` } : { kind: "variant", id };
 };
 
-/** Coast excludes SR-0b0036 (REPORT); everything else counts everywhere. */
-const outOfVariant = (id: string, variant: string): string | undefined =>
-  id === REPORT && variant === COAST ? "SR-0b0036 is excluded in VAR-0aaaaa" : undefined;
+/** Coast excludes SR-0b0036 (REPORT), SR-0c0037 (LOG) holds only in a variant; everything else counts everywhere. */
+const outOfVariant = (id: string, view: string): string | undefined => {
+  if (id === REPORT && view === COAST) {
+    return "SR-0b0036 is excluded in VAR-0aaaaa";
+  }
+  return id === LOG && view === "core" ? "SR-0c0037 does not apply in core" : undefined;
+};
 
 const options = (more: Partial<EnrichOptions> = {}): EnrichOptions => ({
   resolve,
@@ -586,6 +590,69 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
       ]);
       expect(result.changed).toBe(false);
     }
+  });
+
+  it("checks the given core too: an element that does not apply in the core is reported (AK9)", async () => {
+    const xml = suite(`<testcase name="[SR-0c0037] a"/><testcase name="[SR-46fb54] b"/>`);
+    const result = await enrich(xml, { variant: { id: undefined, name: "core" } });
+    expect(result.problems.map((p) => p.message)).toEqual([
+      'Test case "[SR-0c0037] a" (line 1) is not enriched: SR-0c0037 does not apply in core',
+    ]);
+    expect(result.testCases).toBe(1);
+  });
+
+  it("reports a kept test case enriched for another variant, or the core, than the given one, and keeps it unchanged (AK8)", async () => {
+    const kept = (variant?: string): string =>
+      `<testcase name="k"><properties>${four(LOGIN, V[LOGIN])}${variant === undefined ? "" : prop("reqseq:variant", variant)}</properties></testcase>`;
+    const xml = suite(kept(MOUNTAIN) + kept() + kept(COAST.toUpperCase()));
+    const result = await enrich(xml, { variant: { id: COAST, name: "VAR-0aaaaa" } });
+    expect(result.problems.map((p) => [p.code, p.severity, p.message])).toEqual([
+      [
+        "evidence.invalid-record",
+        "error",
+        `Test case "k" (line 1) does not fit: it is enriched already for the variant ${MOUNTAIN}, not for the given VAR-0aaaaa; an enriched test case is never changed (D-026)`,
+      ],
+      [
+        "evidence.invalid-record",
+        "error",
+        'Test case "k" (line 1) does not fit: it is enriched already for the core, not for the given VAR-0aaaaa; an enriched test case is never changed (D-026)',
+      ],
+    ]);
+    expect(result).toMatchObject({ changed: false, testCases: 1 });
+  });
+
+  it("reports a kept test case that names an element which does not count in its variant, or the given core (AK9)", async () => {
+    const xml = suite(
+      `<testcase name="a"><properties>${four(REPORT, V[REPORT])}${prop("reqseq:variant", COAST)}</properties></testcase>` +
+        `<testcase name="b"><properties>${four(LOG, V[LOG])}</properties></testcase>` +
+        `<testcase name="c"><properties>${four(REPORT, V[REPORT])}${prop("reqseq:variant", "29000000-0000-4000-8000-0000000fffff")}</properties></testcase>`,
+    );
+    const own = await enrich(xml);
+    expect(own.problems.map((p) => p.message)).toEqual([
+      'Test case "a" (line 1) does not fit: SR-0b0036 is excluded in VAR-0aaaaa',
+    ]);
+    const core = await enrich(
+      suite(`<testcase name="b"><properties>${four(LOG, V[LOG])}</properties></testcase>`),
+      {
+        variant: { id: undefined, name: "core" },
+      },
+    );
+    expect(core.problems.map((p) => p.message)).toEqual([
+      'Test case "b" (line 1) does not fit: SR-0c0037 does not apply in core',
+    ]);
+  });
+
+  it("says which UUID to write when a kept test case gives its variant by short ID, and leaves it unchanged", async () => {
+    const xml = suite(
+      `<testcase name="a"><properties>${four(LOGIN, V[LOGIN])}${prop("reqseq:variant", "VAR-0aaaaa")}</properties></testcase>` +
+        `<testcase name="b"><properties>${four(LOGIN, V[LOGIN])}${prop("reqseq:variant", "VAR-1")}</properties></testcase>`,
+    );
+    const result = await enrich(xml);
+    expect(result.problems.map((p) => p.message)).toEqual([
+      `Test case "a" (line 1) is not enriched: reqseq:variant "VAR-0aaaaa" is not a UUID; it names the variant ${COAST}: write that UUID, as enrich never changes an enriched test case (D-026)`,
+      'Test case "b" (line 1) is not enriched: reqseq:variant "VAR-1" is not a UUID',
+    ]);
+    expect(result.changed).toBe(false);
   });
 
   it("reports a test case that names an element that does not count in its variant, given or its own, and leaves it unchanged (AK9)", async () => {

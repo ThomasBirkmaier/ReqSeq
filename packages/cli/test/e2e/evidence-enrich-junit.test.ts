@@ -192,4 +192,23 @@ describe("reqseq evidence enrich-junit (SR-029)", () => {
     ).toHaveLength(3);
     expect(await fs.readFile(ws.path("results/pytest.xml"))).toEqual(before);
   });
+
+  it("[SR-029/AK8] [SR-029/AK9] reqseq evidence enrich-junit names a test case whose variant does not fit and exits with code 1", async () => {
+    const ws = await createFixtureWorkspace({
+      fixture: "SR-043/example",
+      files: {
+        "results/run.xml":
+          '<testsuites><testsuite name="s"><testcase name="[SR-0000a3] rain">' +
+          '<properties><property name="reqseq:variant" value="VAR-0000c2"/></properties></testcase>' +
+          '<testcase name="[SR-0000a2] wind"/></testsuite></testsuites>',
+      },
+    });
+    fixtures.push(ws);
+    const run = await enrich(ws, ["results/run.xml", "build-631", "--date", DATE, "--variant", "VAR-0000c1"]);
+    expect(run.code).toBe(1);
+    expect(run.stdout + run.stderr).toContain(
+      'reqseq:variant "VAR-0000c2" names another variant than the given one, VAR-0000c1',
+    );
+    expect(run.stdout + run.stderr).toContain("SR-0000a2 is excluded in VAR-0000c1");
+  });
 });

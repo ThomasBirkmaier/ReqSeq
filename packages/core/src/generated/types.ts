@@ -2598,7 +2598,7 @@ export interface EvidenceEnrichJunitInput {
   readonly item: Item;
   /** The date of the test run. Default: an existing `reqseq:date` of the test case, else the `timestamp` of its test suite when that has a time zone, else the time of the call. */
   readonly date?: IsoDateTime;
-  /** The variant the test run was for (an element whose type has the meaning variant): each enriched test case gets its UUID as `reqseq:variant`. Absent: a test case keeps its own `reqseq:variant`, if any, whose short ID or identifier becomes the UUID; `core` is none. A test case that names another variant, or names an element that does not count in its variant (not valid there, excluded or replaced, as at `evidence.record`), stays unchanged and gets `evidence.invalid-record`. */
+  /** The variant the test run was for (an element whose type has the meaning variant): each enriched test case gets its UUID as `reqseq:variant`. Absent: a test case keeps its own `reqseq:variant`, if any, whose short ID or identifier becomes the UUID; `core` is none, but is checked like a variant. A test case that names another variant, or names an element that does not count in its variant (not valid there, excluded or replaced, as at `evidence.record`), stays unchanged and gets `evidence.invalid-record`; so does an enriched test case (never changed, D-026) whose variant differs from the given one. */
   readonly variant?: ElementRef;
   /** Default: overwrite the input file. An existing file is replaced only when it is a JUnit XML file the scanner accepts; its folder must exist. */
   readonly output?: LocalPath;

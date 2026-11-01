@@ -100,10 +100,11 @@ export interface EnrichOptions {
   /** What a `reqseq:variant` value of a test case names (AK7). */
   readonly resolveVariant: (ref: string) => VariantLookup;
   /**
-   * Why a record of the element `id` for the variant `variant` (UUIDs) would count nowhere (excluded,
-   * replaced or not valid there), as a sentence that names both; undefined when it counts (AK9).
+   * Why a record of the element `id` for the view `view` (a variant's UUID, or `core`) would count
+   * nowhere (excluded, replaced or not valid there), as a sentence that names both; undefined when it
+   * counts (AK9).
    */
-  readonly outOfVariant: (id: string, variant: string) => string | undefined;
+  readonly outOfVariant: (id: string, view: string) => string | undefined;
 }
 
 export interface EnrichResult {
@@ -148,7 +149,13 @@ interface Splice {
 /** What one test case gives. */
 type Plan =
   | { readonly kind: "none" }
-  | { readonly kind: "kept"; readonly testCase: JunitTestCase; readonly pairs: ReadonlyMap<string, string> }
+  | {
+      readonly kind: "kept";
+      readonly testCase: JunitTestCase;
+      readonly pairs: ReadonlyMap<string, string>;
+      /** Its `reqseq:variant` (a UUID), if any. */
+      readonly variant: string | undefined;
+    }
   | { readonly kind: "invalid"; readonly testCase: JunitTestCase; readonly reason: string }
   | {
       readonly kind: "reported";
@@ -187,6 +194,58 @@ const nameOf = (testCase: JunitTestCase): Pick<UnknownRef, "testCase" | "classNa
 const valuesOf = (testCase: JunitTestCase, name: string): string[] =>
   testCase.properties.filter((p) => p.name === name).map((p) => p.value.trim());
 
+/** The view `core` as `outOfVariant` takes it (`viewIdOf`). */
+const CORE = "core";
+
+/**
+ * Why records of the elements `ids` would count nowhere in `view` (a variant's UUID or `core`), joined;
+ * undefined when they all count or no view is given (AK9).
+ */
+const outOfViewText = (
+  ids: readonly string[],
+  view: string | undefined,
+  options: EnrichOptions,
+): string | undefined => {
+  const out = view === undefined ? [] : ids.flatMap((element) => options.outOfVariant(element, view) ?? []);
+  return out.length === 0 ? undefined : out.join("; ");
+};
+
+/**
+ * Why a kept test case does not fit its variant (AK8, AK9), or undefined: it is enriched for another
+ * variant (or the core) than the given one, or names an element that does not count in its variant (or
+ * the given core). `ids`: the elements of its UUIDs that the workspace has. It stays unchanged either way.
+ */
+const keptVariantProblem = (
+  plan: Extract<Plan, { kind: "kept" }>,
+  ids: readonly string[],
+  options: EnrichOptions,
+): string | undefined => {
+  const mine = plan.variant;
+  const given = options.variant;
+  if (given !== undefined && mine !== given.id) {
+    const what = mine === undefined ? "the core" : `the variant ${mine}`;
+    return `it is enriched already for ${what}, not for the given ${given.name}; an enriched test case is never changed (D-026)`;
+  }
+  if (mine !== undefined && options.resolveVariant(mine).kind === "invalid") {
+    // A variant the workspace does not have: nothing to check against, as for an unknown element.
+    return undefined;
+  }
+  return outOfViewText(ids, mine ?? (given === undefined ? undefined : CORE), options);
+};
+
+/**
+ * `; it names the variant <uuid>, …` when a kept test case gives its `reqseq:variant` by short ID or
+ * identifier (which the reader refuses): enrich does not rewrite an enriched test case (D-026), so it
+ * says which UUID to write.
+ */
+const keptVariantHint = (testCase: JunitTestCase, options: EnrichOptions): string => {
+  const value = valuesOf(testCase, VARIANT).find((v) => !isUuidText(v));
+  const lookup = value === undefined ? undefined : options.resolveVariant(value);
+  return lookup?.kind === "variant"
+    ? `; it names the variant ${lookup.id}: write that UUID, as enrich never changes an enriched test case (D-026)`
+    : "";
+};
+
 /** Whether `value` is the UUID `id` already (any case). */
 const isUuidOf = (value: string, id: string): boolean => isUuidText(value) && value.toLowerCase() === id;
 
@@ -224,12 +283,12 @@ const variantPlanOf = (
     };
   }
   const id = mine ?? given?.id;
+  const out = outOfViewText(ids, id ?? (given === undefined ? undefined : CORE), options);
+  if (out !== undefined) {
+    return { error: out };
+  }
   if (id === undefined) {
     return { id, rewrite: [], add: false };
-  }
-  const out = ids.flatMap((element) => options.outOfVariant(element, id) ?? []);
-  if (out.length > 0) {
-    return { error: out.join("; ") };
   }
   return {
     id,
@@ -275,8 +334,8 @@ const planOf = (testCase: JunitTestCase, options: EnrichOptions): Plan => {
   if (testCase.properties.some((p) => p.name === VERSION)) {
     const enrichment = enrichmentOf(testCase);
     return "error" in enrichment
-      ? { kind: "invalid", testCase, reason: enrichment.error }
-      : { kind: "kept", testCase, pairs: enrichment.pairs };
+      ? { kind: "invalid", testCase, reason: enrichment.error + keptVariantHint(testCase, options) }
+      : { kind: "kept", testCase, pairs: enrichment.pairs, variant: enrichment.variant };
   }
   const reported: Reported[] = [];
   const named: { property: JunitProperty; id: string }[] = [];
@@ -669,10 +728,26 @@ const addPlan = (outcome: Outcome, plan: Plan, context: Context): void => {
         });
       }
       return;
-    case "kept":
+    case "kept": {
+      const ids = [...plan.pairs.keys()].flatMap((uuid) => {
+        const resolution = context.resolutions.get(uuid);
+        return resolution?.kind === "found" ? [resolution.id] : [];
+      });
+      const variant = keptVariantProblem(plan, ids, options);
+      if (variant !== undefined) {
+        outcome.problems.push({
+          code: "evidence.invalid-record",
+          severity: "error",
+          ...where,
+          line: plan.testCase.line,
+          message: `${testCaseText(plan.testCase)} does not fit: ${variant}`,
+        });
+        return;
+      }
       outcome.count += 1;
       outcome.problems.push(...keptProblems(plan, context));
       return;
+    }
     case "enrich":
       addEnriched(outcome, plan, context);
   }
@@ -919,23 +994,43 @@ const givenVariant = (
  * What a `reqseq:variant` of a test case names (AK7), through `resolveView`: any refusal (no element,
  * several, no variant, `core`, a metamodel without variants) is a result. Remembers each variant found.
  */
-export const variantResolverOf =
-  (views: ViewContext, variants: Map<string, ElementRecord>) =>
-  (ref: string): VariantLookup => {
-    try {
-      const view = resolveView(views, ref, COMMAND, VARIANT, false);
-      if (view.kind === "core") {
-        return { kind: "invalid", reason: "core is no variant; leave the property out for the core" };
-      }
-      variants.set(view.variant.id, view.variant);
-      return { kind: "variant", id: view.variant.id };
-    } catch (error) {
-      if (error instanceof CommandError) {
-        return { kind: "invalid", reason: error.message };
-      }
-      throw error;
+export const variantResolverOf = (
+  views: ViewContext,
+  variants: Map<string, ElementRecord>,
+): ((ref: string) => VariantLookup) => {
+  /** One lookup per distinct value: a CI file repeats the same variant in every test case. */
+  const known = new Map<string, VariantLookup>();
+  return (ref) => {
+    const before = known.get(ref);
+    if (before !== undefined) {
+      return before;
     }
+    const lookup = lookupVariant(views, variants, ref);
+    known.set(ref, lookup);
+    return lookup;
   };
+};
+
+/** One lookup of `variantResolverOf`. */
+const lookupVariant = (
+  views: ViewContext,
+  variants: Map<string, ElementRecord>,
+  ref: string,
+): VariantLookup => {
+  try {
+    const view = resolveView(views, ref, COMMAND, VARIANT, false);
+    if (view.kind === "core") {
+      return { kind: "invalid", reason: "core is no variant; leave the property out for the core" };
+    }
+    variants.set(view.variant.id, view.variant);
+    return { kind: "variant", id: view.variant.id };
+  } catch (error) {
+    if (error instanceof CommandError) {
+      return { kind: "invalid", reason: error.message };
+    }
+    throw error;
+  }
+};
 
 /**
  * `outOfVariant` over the records `resolve` and `resolveVariant` found (`outOfView`, as
@@ -948,13 +1043,17 @@ export const outOfVariantOf =
     found: ReadonlyMap<string, ElementRecord>,
     variants: ReadonlyMap<string, ElementRecord>,
   ) =>
-  (id: string, variantId: string): string | undefined => {
+  (id: string, viewId: string): string | undefined => {
     const element = found.get(id);
-    const variant = variants.get(variantId);
-    if (element === undefined || variant === undefined) {
+    const variant = variants.get(viewId);
+    if (element === undefined || (variant === undefined && viewId !== CORE)) {
       return undefined;
     }
-    const out = outOfView(views, element, { kind: "variant", variant });
+    const out = outOfView(
+      views,
+      element,
+      variant === undefined ? { kind: "core" } : { kind: "variant", variant },
+    );
     return out === undefined ? undefined : `${views.shortIds.of(element)} ${out.why}`;
   };
 
