@@ -50,6 +50,7 @@ function agentStateOf(issue, has) {
   return has("agent:working") ? "Working" : "Ready";
 }
 
+// Blocked, needs-human and spec-frage issues stay Todo; "Agent state" tells them apart.
 function statusOf(issue, has) {
   if (issue.state === "closed") {
     return "Done";
