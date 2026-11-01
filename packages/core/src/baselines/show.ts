@@ -244,8 +244,11 @@ export const showBaseline = async (workspace: Workspace, request: ShowRequest): 
       ...named,
       // The view was resolved in this store.
       ...(request.view === undefined ? [] : (store.byId.get(request.view) as ElementRecord[])),
-      // The rows name variants of the workspace's store, which the selection was resolved in.
-      ...[...variants].flatMap((id) => store.byId.get(id) as ElementRecord[]),
+      // The rows name variants of the workspace's store, which the selection was resolved in; the
+      // rows are read after the store, so a variant added in between is left unnamed.
+      ...[...variants]
+        .filter((id) => store.byId.has(id))
+        .flatMap((id) => store.byId.get(id) as ElementRecord[]),
     ]),
     ...(problems.length === 0 ? {} : { problems }),
     ...(request.incomplete ? { incomplete: true } : {}),
