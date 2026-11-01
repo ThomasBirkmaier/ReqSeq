@@ -1405,6 +1405,8 @@ export interface CommandCatalog {
         | "json";
       /** An earlier field of `arguments`. */
       readonly of?: string;
+      /** Name of the CLI flag, without `--`, when it is not the field name in kebab-case (ADR-0009): `element.create` takes its `properties` as `--set key=value`, as `element.update` takes `set`. Not the name of another field's flag, nor of a common option (`validate-schemas.mjs`, `catalog-checks.mjs`). */
+      readonly flag?: string;
     }[];
     readonly input: Readonly<Record<string, unknown>>;
     /** The command also gives its output as JSON Lines (one compact JSON object and LF per line, UTF-8): the CLI with `--jsonl`, the API with `Accept: application/x-ndjson` (ADR-0009). Each line is the listed `fields` of the output, then one item of `items`; the other top-level fields are not in the lines. MCP and the app keep the JSON object (ADR-0002 rule 3, #319). */

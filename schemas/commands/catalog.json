@@ -413,7 +413,7 @@
         { "field": "type", "complete": "type" },
         { "field": "title", "complete": "text" },
         { "field": "text", "complete": "text" },
-        { "field": "properties", "complete": "json" },
+        { "field": "properties", "complete": "json", "flag": "set" },
         { "field": "relations", "complete": "json" },
         { "field": "repository", "complete": "repository" },
         { "field": "folder", "complete": "text" }
@@ -429,6 +429,7 @@
           },
           "text": {
             "type": "string",
+            "contentMediaType": "text/markdown",
             "description": "Markdown text of the element, written below the frontmatter after one blank line; that blank line after the closing `---` is not part of the text. A final line break is added (ADR-0004)."
           },
           "properties": {
@@ -910,6 +911,7 @@
           },
           "text": {
             "type": "string",
+            "contentMediaType": "text/markdown",
             "description": "New Markdown text of the element; the blank line after the closing `---` is not part of the text, so the text element.get gives can be passed back unchanged. A changed text gets a final line break (ADR-0004)."
           },
           "set": {

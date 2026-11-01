@@ -217,8 +217,6 @@ describe("standard model", () => {
       "requirement-type",
       "acceptance-criteria",
       "validity",
-      "emergent",
-      "verification-method",
     ]);
     expect(metamodel.statuses.filter((s) => s.invalid === true).map((s) => s.key)).toEqual(["obsolete"]);
     expect(metamodel.statuses.filter((s) => s.initial === true).map((s) => s.key)).toEqual(["draft"]);

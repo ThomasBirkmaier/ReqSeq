@@ -2920,6 +2920,11 @@
                   "of": {
                     "type": "string",
                     "description": "An earlier field of `arguments`."
+                  },
+                  "flag": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+                    "description": "Name of the CLI flag, without `--`, when it is not the field name in kebab-case (ADR-0009): `element.create` takes its `properties` as `--set key=value`, as `element.update` takes `set`. Not the name of another field's flag, nor of a common option (`validate-schemas.mjs`, `catalog-checks.mjs`)."
                   }
                 },
                 "additionalProperties": false
@@ -3518,7 +3523,8 @@
           },
           {
             "field": "properties",
-            "complete": "json"
+            "complete": "json",
+            "flag": "set"
           },
           {
             "field": "relations",
@@ -3544,6 +3550,7 @@
             },
             "text": {
               "type": "string",
+              "contentMediaType": "text/markdown",
               "description": "Markdown text of the element, written below the frontmatter after one blank line; that blank line after the closing `---` is not part of the text. A final line break is added (ADR-0004)."
             },
             "properties": {
@@ -4213,6 +4220,7 @@
             },
             "text": {
               "type": "string",
+              "contentMediaType": "text/markdown",
               "description": "New Markdown text of the element; the blank line after the closing `---` is not part of the text, so the text element.get gives can be passed back unchanged. A changed text gets a final line break (ADR-0004)."
             },
             "set": {

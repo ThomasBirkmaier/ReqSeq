@@ -89,6 +89,7 @@ const IGNORED_KEYWORDS = new Set([
   "readOnly",
   "writeOnly",
   "format",
+  "contentMediaType",
   "pattern",
   "minLength",
   "maxLength",
