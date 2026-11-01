@@ -7,7 +7,7 @@ spec-id: "SR-055"
 requirement-type: functional
 acceptance-criteria:
   - Gegeben eine ReqIF-Datei mit Typen oder Attributen ohne Zuordnung, wenn sie mit `reqseq reqif analyze` gelesen oder der Import gestartet wird, dann listet das Tool sie vor dem Schreiben jeder Datei auf; der Import lehnt dann mit `reqif.unmapped` und derselben Liste ab.
-  - "Gegeben diese Liste, wenn für jeden Eintrag in der Zuordnung ein Typ oder eine Property gewählt oder Weglassen (`omit: true`) eingetragen wird, über `reqseq reqif save-mapping` oder in der YAML-Datei, dann läuft der erneut gestartete Import durch."
+  - "Gegeben diese Liste, wenn für jeden Eintrag in der Zuordnung ein Typ oder eine Property, bei einer Auswahl-Property auch ihre Werte, gewählt oder Weglassen (`omit: true`) eingetragen wird, über `reqseq reqif save-mapping` oder in der YAML-Datei, dann läuft der erneut gestartete Import durch. Die Werte einer Auswahl-Property listet das Tool erst, wenn die Property gewählt ist; dafür kann eine zweite Runde nötig sein."
   - Gegeben der Import lehnt ab (fehlende Zuordnung, ungültige Datei oder Konflikt ohne Wahl nach SR-056), wenn die Dateien geprüft werden, dann ist keine Datei geändert.
 verification-method: test
 topic: "Import und Export"
