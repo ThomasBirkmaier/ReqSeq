@@ -363,7 +363,8 @@ export const withRecord = (
 /**
  * Rule 7: the evidence state after `record` was written: a built read gets the record (`withRecord`;
  * `replace` carries the records, the index and the status over the one record, `registerInsertion`),
- * a read that runs is reset, an unbuilt one stays unbuilt.
+ * a read that runs is reset, an unbuilt one stays unbuilt. When another write replaced the read
+ * while this one waited for it (two calls at once), the replace fails and the read is reset (#308).
  */
 const updateEvidence = async (
   workspace: Workspace,
@@ -389,7 +390,10 @@ const updateEvidence = async (
   if (ofRead && workspace.peek(evidenceRecordsState) === records) {
     registerInsertion(next, record);
   }
-  await workspace.replace(evidenceReadState, from, next);
+  if (!(await workspace.replace(evidenceReadState, from, next))) {
+    // Another write replaced the read in between (#308): the files are right, so read them again.
+    await workspace.reset(evidenceReadState);
+  }
 };
 
 /** The element of a record and the fields to write (rules 1 to 3). */
