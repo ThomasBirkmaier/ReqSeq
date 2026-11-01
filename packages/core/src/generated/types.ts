@@ -196,14 +196,14 @@ export interface RelationTarget {
 }
 
 /**
- * Target of a relation as a caller gives it to element.create or element.update (SR-021). Only `id` and, across repositories, `repository` name the target. A target the property already stores keeps its stored version and form; for every other target the tool writes its current version and the title (same repository) or repository (across repositories) itself. A given `version` or `title` is ignored (spec question #177).
+ * Target of a relation as a caller gives it to element.create, element.update or element.bulkUpdate (SR-021). Only `id` and, across repositories, `repository` name the target; `id` is an element reference like the one relation.add takes (UUID, short ID or identifier), and the tool writes the target's UUID (#169). A plain string item is the same as `{ id }` with it (#196). A target the property already stores keeps its stored version and form; for every other target the tool writes its current version and the title (same repository) or repository (across repositories) itself. A given `version` or `title` is ignored (spec question #177).
  * Schema: `schemas/common.schema.json#/$defs/relationTargetInput`.
  */
 export interface RelationTargetInput {
-  readonly id: UuidRef;
+  readonly id: ElementRef;
   readonly version?: Version;
   readonly title?: string;
-  /** Workspace name of the target's repository; absent for the source's own repository. */
+  /** Workspace name of the target's repository; absent for the source's own repository. A short ID or identifier is resolved in it. */
   readonly repository?: string;
 }
 
@@ -769,7 +769,7 @@ export interface ElementFile {
 export type ElementScalar = string | number | boolean;
 
 /**
- * Property value as a caller gives it to element.create or element.update: like `value`, but relation targets need only `id` (and `repository` across repositories); the tool sets their version (SR-021).
+ * Property value as a caller gives it to element.create or element.update: like `value`, but relation targets need only `id` (and `repository` across repositories); the tool sets their version (SR-021). For a property of kind relation every item is an element reference: a string or `{ id }`, with a UUID, short ID or identifier (#169, #196, #287).
  * Schema: `schemas/element.schema.json#/$defs/inputValue`.
  */
 export type ElementInputValue =
