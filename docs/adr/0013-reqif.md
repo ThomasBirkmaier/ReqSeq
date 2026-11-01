@@ -46,7 +46,7 @@ Status: Proposed · Based on: D-022, D-030, D-032, D-033, D-045, D-056, D-057, D
   | status | ENUMERATION, for information | never read (D-030, SR-087) |
 
 - Images: the export copies each image the text embeds to `<output stem>-images/<element file stem>/<file>` next to the output, confined like `output`, and writes `data` relative to the output file; `files[]` lists the copies.
-- A target outside the export is a stub: a SPEC-OBJECT with IDENTIFIER and type only and without values, so in a ReqSeq file without `reqseq-values` (SR-059 AK2). A target whose file is missing or whose repository is not on this machine (N-041, D-058) gets the type `_ot.missing`.
+- A target outside the export is a stub: a SPEC-OBJECT with IDENTIFIER and type only and without values, so in a ReqSeq file without `reqseq-values` (SR-059 AK2). For the same reason the `reqseq-values` of an exported element drop the title its relation items cache for a target outside the export, keeping its ID and version (spec question #584, assumption). A target whose file is missing or whose repository is not on this machine (N-041, D-058) gets the type `_ot.missing`.
 - Omitted properties (SR-059 AK1) are left out of both channels. The export omits the union of the mapping's `omit-properties`, the chosen profile's `omit-properties` and the input `omitProperties`; with `mapping`, the input is added to the mapping's list and saved (AK3), and a mapping outside the mapping folder is then refused with `input.invalid`. Statements go back to the source with the source IDENTIFIER from `source-identifier`, as STRING or, when `statement.datatype` says so, as XHTML (SR-058); the output counts the elements without one.
 
 ### Import (SR-053..SR-057, SR-095)

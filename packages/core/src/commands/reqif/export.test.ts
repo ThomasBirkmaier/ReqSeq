@@ -353,10 +353,7 @@ describe("reqif.export (SR-052)", () => {
       omitProperties: ["topic"],
       statements: true,
     });
-    expect([later.code, later.details?.["fields"]]).toEqual([
-      "input.invalid",
-      ["profile", "mapping", "omitProperties", "statements"],
-    ]);
+    expect([later.code, later.details?.["fields"]]).toEqual(["input.invalid", ["profile", "statements"]]);
     expect((await failure(workspace, { output: "x.reqif", profile: "p" })).message).toBe(
       "profile: not available yet in this version; export a selection without it",
     );

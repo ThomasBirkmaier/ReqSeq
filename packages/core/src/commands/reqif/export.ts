@@ -13,8 +13,11 @@
 //   SR-088: the file would name one IDENTIFIER twice, ReqIF 1.2 §10.8.32), a content the writer
 //   refuses (`reqif.invalid` naming each problem), an element or image file changed since it was
 //   read (`file.changed-on-disk`), an output that is no XML file (`file.faulty`).
-// - Not yet: `profile` (SR-101 profiles of a mapping), `mapping` and `omitProperties` (SR-059) and
-//   `statements` (SR-058). Each refuses with `input.invalid` naming itself.
+// - Omitted properties (SR-059, reqif/omit.ts): the mapping's `omit-properties` and `omitProperties`
+//   are left out of the file; with `mapping`, the input is added to the mapping and saved after the
+//   export (`files` lists it last). A target outside the export is a stub (SR-059 AK2, reqif/export.ts).
+// - Not yet: `profile` (SR-101 profiles of a mapping) and `statements` (SR-058). Each refuses with
+//   `input.invalid` naming itself.
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import type { CommandInput, CommandOutput } from "../../catalog.js";
@@ -32,7 +35,7 @@ import { PRODUCT_VERSION } from "../../product.js";
 import { orderedSelection, resolveSelection } from "../../query/index.js";
 import type { ExportedElement } from "../../reqif/export.js";
 import { planExport } from "../../reqif/export.js";
-import { problemText, writeReqif } from "../../reqif/index.js";
+import { exportOmissions, problemText, saveOmissions, writeReqif } from "../../reqif/index.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../../workspace/index.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
 
@@ -120,8 +123,6 @@ const shown = (root: string, absolute: string): string => {
 /** The inputs this version does not take yet, each when it asks for something. */
 const notYet = (input: CommandInput<"reqif.export">): string[] => [
   ...(input.profile === undefined ? [] : ["profile"]),
-  ...(input.mapping === undefined ? [] : ["mapping"]),
-  ...((input.omitProperties ?? []).length === 0 ? [] : ["omitProperties"]),
   ...(input.statements === true ? ["statements"] : []),
 ];
 
@@ -144,6 +145,14 @@ export default defineCommand({
     const layout = await workspace.get(workspaceLayoutState);
     const selected = await resolveSelection(workspace, input.selection ?? {}, command);
     const { elements } = orderedSelection(selected, command, undefined);
+    const omissions = await exportOmissions(
+      layout,
+      selected.metamodel,
+      workspace.root,
+      input.mapping,
+      input.omitProperties,
+      command,
+    );
     const ids = new Set<string>();
     for (const record of elements) {
       if (ids.has(record.id)) {
@@ -196,6 +205,7 @@ export default defineCommand({
         const link = imageLink(record.file, url, () => false);
         return (link === undefined ? undefined : images.get(link.path)) ?? url;
       },
+      omit: omissions.keys,
     });
     const written = writeReqif(plan.file);
     if (written.kind === "refused") {
@@ -219,11 +229,12 @@ export default defineCommand({
     await writeFileAtomic(outputFolder, name, () => chunks, before.kind === "read" ? before.snapshot : null, {
       kind: "xml",
     });
+    const saved = await saveOmissions(layout, omissions);
     return {
       file: shown(workspace.root, absolute),
       elements: read.length,
       relations: plan.relations,
-      files: copies.map((copy) => shown(workspace.root, path.join(outputFolder, copy.target))),
+      files: [...copies.map((copy) => shown(workspace.root, path.join(outputFolder, copy.target))), ...saved],
       problems: [],
     };
   },

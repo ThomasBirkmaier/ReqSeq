@@ -84,8 +84,8 @@ const invalid = (message: string, details: Record<string, unknown>): CommandErro
   new CommandError("input.invalid", message, details);
 
 /**
- * The file a mapping of `source` is written to: `given` (a local path, resolved against `root`)
- * or the default name, directly in the mapping folder (see the file comment).
+ * The file a mapping of `source` is written to: `given` (a local path, resolved against `root`, the
+ * input `field`) or the default name, directly in the mapping folder (see the file comment).
  */
 export const mappingTarget = async (
   layout: WorkspaceLayout,
@@ -93,6 +93,7 @@ export const mappingTarget = async (
   source: string,
   given: string | undefined,
   command: string,
+  field = "file",
 ): Promise<MappingTarget> => {
   const location = settingLocation(layout, "mappings");
   const { repository, folder } = locate(layout, location);
@@ -123,8 +124,8 @@ export const mappingTarget = async (
     name = path.basename(absolute);
     if (!samePath(await realOf(path.dirname(absolute)), folder) || !name.endsWith(MAPPING_FILE_EXTENSION)) {
       throw invalid(
-        `file: a mapping file is written only as a ${MAPPING_FILE_EXTENSION} file directly in the mapping folder ${location.path} of repository ${repository.name}`,
-        { command, fields: ["file"], reason: "outside-mapping-folder", repository: repository.name },
+        `${field}: a mapping file is written only as a ${MAPPING_FILE_EXTENSION} file directly in the mapping folder ${location.path} of repository ${repository.name}`,
+        { command, fields: [field], reason: "outside-mapping-folder", repository: repository.name },
       );
     }
   }
@@ -229,6 +230,25 @@ const mappingViolations = (
       omitted(profile["omit-properties"], `${at}.export-profiles[${String(i)}].omit-properties`),
     ),
   ];
+};
+
+/**
+ * Checks the properties `keys` an export leaves out (SR-059 AK1), the input `field`: each must be a
+ * property of the own metamodel, else one `input.invalid` lists every violation.
+ */
+export const checkOmitted = (
+  metamodel: Metamodel,
+  keys: readonly string[],
+  field: string,
+  command: string,
+): void => {
+  const violations = keys.flatMap((key, i) => propertyViolations(metamodel, key, `${field}[${String(i)}]`));
+  if (violations.length > 0) {
+    throw invalid(violations.map((v) => `${v.field}: ${v.message}`).join("; "), {
+      command,
+      fields: violations.map((v) => v.field),
+    });
+  }
 };
 
 /** Whether a SPEC-RELATION-TYPE can map to `kind`: a relation kind or a relation-valued property. */

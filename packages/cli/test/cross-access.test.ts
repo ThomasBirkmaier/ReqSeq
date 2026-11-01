@@ -139,6 +139,12 @@ const DELIVERY: FixtureOptions = {
 };
 /** A package with requirements, a need and a decision, relations among them and to a missing element (SR-052). */
 const REQIF_EXPORT: FixtureOptions = { fixture: "SR-052/package", git: true };
+/** The package and a requirement of REQIF_EXPORT (SR-059). */
+const PACKAGE_S6 = "52052052-0000-4000-8000-0000000052f1";
+const WIND_S6 = "52052052-0000-4000-8000-0000000052a1";
+/** REQIF_EXPORT with the mapping of a supplier it delivers to (SR-059 AK3). */
+const SUPPLIER_MAPPING = "reqseq-reqif-mapping: 1\nsource: { name: Zulieferer }\n";
+const SUPPLIER: FixtureOptions = { ...REQIF_EXPORT, files: { "reqif/zulieferer.yaml": SUPPLIER_MAPPING } };
 /** A workspace with the standard model only, and an export of SR-052/package in folder in (SR-052). */
 const ROUND_TRIP: FixtureOptions = { fixture: "SR-052/empty", git: true };
 /** The export time and the header IDENTIFIER of a ReqIF file ReqSeq writes. */
@@ -2169,6 +2175,64 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       fixture: REQIF_EXPORT,
       input: { output: "s6.reqif", profile: "stage-6" },
       expect: "error",
+    },
+    {
+      tag: "[SR-059/AK1]",
+      name: "the properties to omit are missing from the file",
+      fixture: REQIF_EXPORT,
+      input: { output: "s6.reqif", selection: { package: PACKAGE_S6 }, omitProperties: ["rationale"] },
+      expect: "output",
+      masks: EXPORT_MASKS,
+      check: (results) => {
+        for (const result of Object.values(results)) {
+          expect(result.files["s6.reqif"]).not.toContain("rationale");
+        }
+      },
+    },
+    {
+      tag: "[SR-059/AK2]",
+      name: "a target outside the export is a SPEC-OBJECT with IDENTIFIER and type only",
+      fixture: REQIF_EXPORT,
+      input: { output: "wind.reqif", selection: { ids: [WIND_S6] } },
+      expect: "output",
+      masks: EXPORT_MASKS,
+      check: (results) => {
+        for (const result of Object.values(results)) {
+          expect(result.files["wind.reqif"]).toMatch(
+            /<SPEC-OBJECT IDENTIFIER="_52052052-0000-4000-8000-0000000052d1" LAST-CHANGE="[^"]*"><TYPE>/,
+          );
+          expect(result.files["wind.reqif"]).not.toContain("Know the weather");
+        }
+      },
+    },
+    {
+      tag: "[SR-059/AK3]",
+      name: "the properties to omit are saved in the mapping of the target",
+      fixture: SUPPLIER,
+      input: { output: "s6.reqif", mapping: "reqif/zulieferer.yaml", omitProperties: ["rationale"] },
+      expect: "output",
+      masks: EXPORT_MASKS,
+      check: (results) => {
+        for (const result of Object.values(results)) {
+          expect(result.files["reqif/zulieferer.yaml"]).toContain("omit-properties");
+        }
+      },
+    },
+    {
+      tag: "[SR-059/AK3]",
+      name: "a later delivery leaves out the properties the mapping saved",
+      fixture: {
+        ...SUPPLIER,
+        files: { "reqif/zulieferer.yaml": `${SUPPLIER_MAPPING}omit-properties: [rationale]\n` },
+      },
+      input: { output: "s6.reqif", mapping: "reqif/zulieferer.yaml" },
+      expect: "output",
+      masks: EXPORT_MASKS,
+      check: (results) => {
+        for (const result of Object.values(results)) {
+          expect(result.files["s6.reqif"]).not.toContain("rationale");
+        }
+      },
     },
   ],
   "reqif.analyze": [
