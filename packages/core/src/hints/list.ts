@@ -53,6 +53,7 @@ import {
   statusProblemsState,
   supersededTargetProblemsState,
   unknownProblemsState,
+  unresolvedLinkProblemsState,
   valueKindProblemsState,
 } from "../model/index.js";
 import type { Workspace } from "../runtime/workspace.js";
@@ -93,6 +94,7 @@ export const HINT_STATES = [
   valueKindProblemsState, // SR-085
   relationTypeProblemsState, // SR-086
   duplicateIdentifierProblemsState, // #305
+  unresolvedLinkProblemsState, // #176
   derivationCycleProblemsState, // SR-090
   outdatedEvidenceProblemsState, // SR-025 AK4
 ] as const;

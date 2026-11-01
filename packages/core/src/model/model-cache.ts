@@ -43,9 +43,10 @@ export const MODEL_CACHE_FILE = "model.json";
 /**
  * The format of `model.json`; a cache of another format is discarded. 4: element records carry the
  * inline references of their text (`ElementRecord.references`, #240). 5: and those in the string
- * values of their frontmatter (`ElementRecord.propertyReferences`, SR-127).
+ * values of their frontmatter (`ElementRecord.propertyReferences`, SR-127). 6: and their `reqseq:`
+ * links whose target is no UUID (`ElementRecord.unresolvedLinks`, #176).
  */
-export const MODEL_CACHE_FORMAT = 5;
+export const MODEL_CACHE_FORMAT = 6;
 
 /**
  * An entry whose modification time lies less than this before the start of the load that wrote it
@@ -200,8 +201,8 @@ const isSnapshotOf = (value: unknown, file: string): value is Record<string, unk
 const isOptionalText = (value: unknown): boolean => value === undefined || typeof value === "string";
 
 /**
- * Whether `value` is a list of inline references as `textReferences` makes it (one or more), or,
- * with `inProperty`, as `propertyReferences` makes it: each also with the key of its property and,
+ * Whether `value` is a list of inline references as `elementLinks` makes them (one or more), the
+ * text's, or with `inProperty` those of the properties: each also with the key of its property and,
  * for a list, its position.
  */
 const isReferences = (value: unknown, inProperty: boolean): boolean =>
@@ -223,6 +224,33 @@ const isReferences = (value: unknown, inProperty: boolean): boolean =>
         : r["key"] === undefined && r["item"] === undefined),
   );
 
+/** Whether `value` is a list of links as `elementLinks` makes them (one or more). */
+const isUnresolvedLinks = (value: unknown): boolean =>
+  Array.isArray(value) &&
+  value.length > 0 &&
+  value.every(
+    (l: unknown) =>
+      isRecord(l) &&
+      typeof l["target"] === "string" &&
+      l["target"] !== "" &&
+      typeof l["line"] === "number" &&
+      Number.isInteger(l["line"]) &&
+      l["line"] >= 1 &&
+      isOptionalText(l["repository"]) &&
+      isOptionalText(l["key"]) &&
+      (l["item"] === undefined ||
+        (typeof l["key"] === "string" &&
+          typeof l["item"] === "number" &&
+          Number.isInteger(l["item"]) &&
+          l["item"] >= 0)),
+  );
+
+/** Whether the optional link lists of an element record have the shape `classifyFile` gives them. */
+const hasLinksOfRecord = (value: Readonly<Record<string, unknown>>): boolean =>
+  (value["references"] === undefined || isReferences(value["references"], false)) &&
+  (value["propertyReferences"] === undefined || isReferences(value["propertyReferences"], true)) &&
+  (value["unresolvedLinks"] === undefined || isUnresolvedLinks(value["unresolvedLinks"]));
+
 /** Whether `value` is the record of an element in `file` of repository `name`, as `classifyFile` makes it. */
 const isElementOf = (value: unknown, file: string, name: string): value is Record<string, unknown> =>
   isRecord(value) &&
@@ -231,8 +259,7 @@ const isElementOf = (value: unknown, file: string, name: string): value is Recor
   typeof value["id"] === "string" &&
   typeof value["type"] === "string" &&
   isRecord(value["data"]) &&
-  (value["references"] === undefined || isReferences(value["references"], false)) &&
-  (value["propertyReferences"] === undefined || isReferences(value["propertyReferences"], true)) &&
+  hasLinksOfRecord(value) &&
   LINE_ENDINGS.includes(value["eol"]) &&
   (value["closingEol"] === "" || LINE_ENDINGS.includes(value["closingEol"])) &&
   typeof value["bom"] === "boolean";

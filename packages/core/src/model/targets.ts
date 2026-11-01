@@ -23,10 +23,12 @@ import {
   resolveReference,
   SCHEME,
   unavailableRepositoryHint,
+  unresolvedLinks,
 } from "./references.js";
-import { isUnavailableRepository, resolveTarget } from "./relations.js";
 import { resolveRef } from "./resolve.js";
 import type { ShortIds } from "./short-id.js";
+import { buildShortIds } from "./short-id.js";
+import { isUnavailableRepository, resolveTarget } from "./relations.js";
 import type { ElementStore } from "./store.js";
 import { isUuid, normalizeRef } from "./uuid.js";
 import { ignoredBy } from "./store.js";
@@ -39,7 +41,30 @@ export interface TargetContext {
   readonly store: ElementStore;
   /** Folder listings and image hashes shared by the targets of one command (`imageMemo`). */
   readonly images?: ImageMemo;
+  /**
+   * The short IDs and identifiers of the store, to resolve a `reqseq:` link that names its target by
+   * one (#176); built from the store when not given, only when such a link occurs.
+   */
+  readonly shortIds?: ShortIds;
 }
+
+/** Short IDs built per store and metamodel for `TargetContext`s without them. */
+const builtShortIds = new WeakMap<ElementStore, WeakMap<Metamodel, ShortIds>>();
+
+const shortIdsOf = (context: TargetContext): ShortIds => {
+  if (context.shortIds !== undefined) {
+    return context.shortIds;
+  }
+  const byMetamodel = builtShortIds.get(context.store) ?? new WeakMap<Metamodel, ShortIds>();
+  builtShortIds.set(context.store, byMetamodel);
+  const known = byMetamodel.get(context.metamodel);
+  if (known !== undefined) {
+    return known;
+  }
+  const built = buildShortIds(context.store.byId, context.metamodel);
+  byMetamodel.set(context.metamodel, built);
+  return built;
+};
 
 /** The one record a match names; `ref.unknown` or `ref.ambiguous` otherwise (like `resolveRef`). */
 const single = (
@@ -336,10 +361,11 @@ const referenceKey = (reference: InlineReference): string =>
  */
 export const setInlineReferences = async (
   context: TargetContext,
-  text: string,
+  given: string,
   storedText: string,
   sourceRepository: string,
 ): Promise<string> => {
+  const text = withUuids(context, given, storedText);
   const before = inlineReferences(storedText);
   const kept = new Set(before.flatMap((r) => (r.version === undefined ? [] : [referenceKey(r)])));
   const destinations = new Set(before.map((r) => r.destination));
@@ -386,6 +412,55 @@ export const setInlineReferences = async (
       withTarget(reference, target.version, across, sourceRepository),
     );
     last = reference.end;
+  }
+  parts.push(text.slice(last));
+  return parts.join("");
+};
+
+/**
+ * `text` with every `reqseq:` link whose target is a short ID or an identifier (#176) naming the
+ * target's UUID instead, the query kept as written: `[D-031](reqseq:D-031)` becomes
+ * `[D-031](reqseq:<uuid>)`, which `setInlineReferences` then gives its version like any new
+ * reference. The target is resolved like every element reference (`resolveRef`: UUID, short ID or
+ * identifier, in any case), within the repository the link names, if any. A link that does not
+ * resolve refuses the write (`ref.unknown`, `ref.ambiguous`), unless `storedText` has it as written:
+ * then it stays, so it never blocks other changes (`workspace.check` reports it).
+ */
+const withUuids = (context: TargetContext, text: string, storedText: string): string => {
+  const links = text.includes(SCHEME) ? unresolvedLinks(text) : [];
+  if (links.length === 0) {
+    return text;
+  }
+  const stored = new Set(unresolvedLinks(storedText).map((l) => l.destination));
+  const parts: string[] = [];
+  let last = 0;
+  for (const link of links) {
+    let id: string;
+    try {
+      id = resolveRef(
+        context.store,
+        shortIdsOf(context),
+        link.target,
+        link.repository === undefined ? {} : { repository: link.repository },
+      ).id;
+    } catch (error) {
+      if (!isLookupError(error)) {
+        throw error;
+      }
+      if (stored.has(link.destination)) {
+        continue;
+      }
+      const failed = error as CommandError;
+      throw new CommandError(failed.code, `${failed.message}, in the link ${link.destination}`, {
+        ...failed.details,
+        link: link.destination,
+      });
+    }
+    parts.push(
+      text.slice(last, link.start),
+      `${SCHEME}${id}${link.destination.slice(SCHEME.length + link.target.length)}`,
+    );
+    last = link.end;
   }
   parts.push(text.slice(last));
   return parts.join("");

@@ -58,6 +58,7 @@ import {
   statusProblemsState,
   supersededTargetProblemsState,
   unknownProblemsState,
+  unresolvedLinkProblemsState,
   valueKindProblemsState,
 } from "../../model/index.js";
 import {
@@ -98,6 +99,7 @@ export const FINDING_STATES = [
   duplicateIdProblemsState, // SR-088
   duplicateIdentifierProblemsState, // #305
   missingTargetProblemsState, // SR-089
+  unresolvedLinkProblemsState, // #176
   derivationCycleProblemsState, // SR-090
   evidenceProblemsState, // SR-028
   outdatedEvidenceProblemsState, // SR-025 AK4

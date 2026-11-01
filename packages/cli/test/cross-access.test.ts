@@ -1305,6 +1305,24 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       expect: "error",
     },
     {
+      name: "a reqseq: link by short ID is written as UUID and version, an unknown one is refused (#176)",
+      fixture: {
+        fixture: "SR-004/one-repository",
+        git: true,
+        files: {
+          "requirements/SR-0000000b0176.md":
+            "---\nid: 17600000-0000-4000-8000-0000000b0176\ntype: system-requirement\nstatus: draft\ntitle: Linking\n---\n",
+        },
+      },
+      input: { ref: "SR-0b0176", text: "See [wind](reqseq:SR-e88fb3).\n" },
+      expect: "output",
+    },
+    {
+      name: "a reqseq: link whose short ID names no element is refused (#176)",
+      input: { ref: "SR-e88fb3", text: "See [gone](reqseq:SR-999999).\n" },
+      expect: "error",
+    },
+    {
       name: "packages given by short ID in { id } are written as UUID and version (#169, #196)",
       fixture: FILTER,
       input: { ref: "SR-0000b1", set: { packages: [{ id: "PKG-0000d2" }, { id: "pkg-0000D1" }] } },
@@ -2727,6 +2745,19 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
         files: {
           "requirements/SR-0000000b0038.md":
             "---\nid: 30500000-0000-4000-8000-0000000b0038\ntype: system-requirement\nstatus: draft\ntitle: Twin\nspec-id: SR-036\n---\n",
+        },
+      },
+      input: {},
+      expect: "output",
+    },
+    {
+      name: "reqseq: links whose target is no UUID, with the element they name (#176)",
+      fixture: {
+        fixture: "SR-004/one-repository",
+        git: true,
+        files: {
+          "requirements/SR-0000000b0176.md":
+            "---\nid: 17600000-0000-4000-8000-0000000b0176\ntype: system-requirement\nstatus: draft\ntitle: Linking\n---\n\nSee [wind](reqseq:SR-e88fb3) and [gone](reqseq:SR-999999).\n",
         },
       },
       input: {},
