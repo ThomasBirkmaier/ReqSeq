@@ -31,9 +31,9 @@
 // unescaped quote or parenthesis of its kind), code spans at most O(n·√n).
 //
 // `markdownLinksAndMentions` also gives where a word (the `reqseq:` scheme) stands in inline text
-// outside code spans and link destinations, in the same pass: what is written as plain text there
-// (also in a label or an autolink `<…>`, which this scanner does not read as a link) and not on a
-// definition line.
+// outside code spans and links (label and destination), in the same pass: what is written as
+// plain text there (also in an autolink `<…>`, which this scanner does not read as a link) and not
+// on a definition line.
 //
 // Not handled: reference-style links (only images), links and definitions that span lines, HTML
 // (links in HTML blocks and comments are found), entity references (`&amp;` stays as written).
@@ -263,6 +263,16 @@ const noteMention = (mentions: Mentions, text: string, i: number, offset: number
   }
 };
 
+/**
+ * Drops the mentions at or after `at` (an offset in the text): they lie in the label of a link or
+ * the alt text of an image that just closed, so they are part of a link, not plain text.
+ */
+const dropMentions = (mentions: Mentions | undefined, at: number): void => {
+  while (mentions !== undefined && (mentions.at.at(-1) ?? -1) >= at) {
+    mentions.at.pop();
+  }
+};
+
 /** What one line has given so far: links with where each opens, and reference images. */
 interface LineFound {
   readonly links: MarkdownLink[];
@@ -332,6 +342,7 @@ const lineLinks = (
       } else {
         inactiveBelow = opener.at;
       }
+      dropMentions(word, offset + opener.at);
       links.push({
         image: opener.image,
         label: text.slice(opener.at + 1, i),
@@ -609,7 +620,7 @@ export const markdownLinks = (text: string): MarkdownLink[] => scan(text, { link
 
 /**
  * The inline links and images of a Markdown text as `markdownLinks` gives them, and in the same pass
- * the offsets where `word` stands in inline text outside code spans and link destinations, in order
+ * the offsets where `word` stands in inline text outside code spans and links, in order
  * (see the file comment).
  */
 export const markdownLinksAndMentions = (

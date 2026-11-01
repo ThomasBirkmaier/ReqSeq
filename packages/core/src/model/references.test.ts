@@ -263,6 +263,9 @@ describe("references in the properties of the frontmatter (SR-127)", () => {
         `- (reqseq:${A}) and reqseq:D-031, reqseq:SR-036-`,
         "- `reqseq:N-1` and [x](reqseq:N-2) and [y](https://e.org/?q=reqseq:N-3)",
         "- myreqseq:N-4, reqseq: alone, reqseq:-x, reqseq:",
+        "- https://e.org/a?q=reqseq:N-5&r=reqseq:N-6#reqseq:N-7 <https://e.org/reqseq:N-8> x=reqseq:N-9",
+        "- <!-- reqseq:N-10 -->reqseq:N-11 <!-- open",
+        "reqseq:N-12",
         "",
       ].join("\n"),
     );
@@ -271,7 +274,9 @@ describe("references in the properties of the frontmatter (SR-127)", () => {
       { target: A, line: 7 },
       { target: "D-031", line: 7 },
       { target: "SR-036", line: 7 },
+      { target: "N-11", line: 11 },
     ]);
+    expect(element("", "<!-- c --> reqseq:N-1\n").bareReferences).toEqual([{ target: "N-1", line: 5 }]);
     expect(Object.hasOwn(element("", "[x](reqseq:N-2)\n"), "bareReferences")).toBe(false);
   });
 

@@ -173,7 +173,7 @@ describe("reqseq: references outside a Markdown link (#633)", () => {
             "Confirms:",
             "",
             "- reqseq:N-1f2a4c",
-            "- <reqseq:N-000000>, a link: [the need](reqseq:N-1f2a4c)",
+            "- <reqseq:N-000000>, a link: [the need](reqseq:N-1f2a4c), [reqseq:N-1f2a4c](reqseq:N-1f2a4c)",
             "- in code: `reqseq:N-1f2a4c`",
             "",
             "```",

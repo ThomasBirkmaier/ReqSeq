@@ -117,8 +117,18 @@ export interface BareReference {
  */
 const REFERENCE_TOKEN = /[A-Za-z0-9](?:[\w.-]*[A-Za-z0-9])?/y;
 
-/** A letter or digit right before `reqseq:` makes it part of another word. */
-const WORD_CHAR = /[\p{L}\p{N}_]/u;
+/**
+ * A letter or digit right before `reqseq:` makes it part of another word, and `/`, `=`, `?`, `&`
+ * or `#` part of a URL (`https://example.org/?q=reqseq:N-1`).
+ */
+const WORD_CHAR = /[\p{L}\p{N}_/=?&#]/u;
+
+/** An HTML comment, also one that does not close before the end of the text. */
+const COMMENT = /<!--[\s\S]*?(?:-->|$)/g;
+
+/** The ranges of the HTML comments of `text` as [start, end) pairs, in order. */
+const commentsOf = (text: string): [number, number][] =>
+  text.includes("<!--") ? [...text.matchAll(COMMENT)].map((m) => [m.index, m.index + m[0].length]) : [];
 
 /**
  * Counts lines over offsets given in increasing order, once over the whole text: the line of each
@@ -141,8 +151,17 @@ const lineCounter = (text: string): ((offset: number) => number) => {
 /** The bare references among the offsets where `reqseq:` stands outside links and code, in order. */
 const bareOf = (text: string, mentions: readonly number[]): BareReference[] => {
   const lineOf = lineCounter(text);
+  const comments = commentsOf(text);
+  // Mentions and comments come in text order, so one index walks the comments once.
+  let next = 0;
+  const inComment = (at: number): boolean => {
+    while ((comments[next]?.[1] ?? Infinity) <= at) {
+      next++;
+    }
+    return (comments[next]?.[0] ?? Infinity) <= at;
+  };
   return mentions.flatMap((at): BareReference[] => {
-    if (at > 0 && WORD_CHAR.test(text.charAt(at - 1))) {
+    if (inComment(at) || (at > 0 && WORD_CHAR.test(text.charAt(at - 1)))) {
       return [];
     }
     REFERENCE_TOKEN.lastIndex = at + SCHEME.length;

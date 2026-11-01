@@ -353,7 +353,7 @@ describe("Markdown images", () => {
 });
 
 describe("mentions of a word in inline text (#633)", () => {
-  it("gives where the word stands outside code spans, code blocks, link destinations and definitions, in the same pass as the links", () => {
+  it("gives where the word stands outside code spans, code blocks, links and definitions, in the same pass as the links", () => {
     const text = [
       "w:a and [w:b label](w:c) and `w:d` and <w:e>",
       "```",
@@ -368,7 +368,9 @@ describe("mentions of a word in inline text (#633)", () => {
     ].join("\n");
     const { links, mentions } = markdownLinksAndMentions(text, "w:");
     expect(links.map((l) => l.destination)).toEqual(["w:c", "w:k"]);
-    expect(mentions.map((at) => text.slice(at, at + 3))).toEqual(["w:a", "w:b", "w:e", "w:i", "w:j"]);
+    // The label of a link and the alt text of an image are part of them; an unclosed bracket is text.
+    expect(mentions.map((at) => text.slice(at, at + 3))).toEqual(["w:a", "w:e", "w:i"]);
+    expect(markdownLinksAndMentions("[w:a] w:b [w:c](x) [w:d", "w:").mentions).toEqual([1, 6, 20]);
     expect(markdownLinksAndMentions("plain", "w:").mentions).toEqual([]);
   });
 });
