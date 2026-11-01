@@ -1457,7 +1457,7 @@
                   "text": {
                     "type": "string",
                     "contentMediaType": "text/markdown",
-                    "description": "Markdown text of the element, written below the frontmatter after one blank line; that blank line after the closing `---` is not part of the text. A final line break is added (ADR-0004)."
+                    "description": "Markdown text of the element, written below the frontmatter after one blank line; that blank line after the closing `---` is not part of the text. A final line break is added (ADR-0004). Another element is named by a Markdown link, `[Title](reqseq:N-6010df)` with its UUID, short ID or identifier, which is written as UUID and version; `reqseq:N-6010df` alone is no link and counts for nothing."
                   },
                   "properties": {
                     "type": "object",
@@ -2606,7 +2606,7 @@
                   "text": {
                     "type": "string",
                     "contentMediaType": "text/markdown",
-                    "description": "New Markdown text of the element; the blank line after the closing `---` is not part of the text, so the text element.get gives can be passed back unchanged. A changed text gets a final line break (ADR-0004)."
+                    "description": "New Markdown text of the element; the blank line after the closing `---` is not part of the text, so the text element.get gives can be passed back unchanged. A changed text gets a final line break (ADR-0004). Another element is named by a Markdown link, `[Title](reqseq:N-6010df)` with its UUID, short ID or identifier, which is written as UUID and version; `reqseq:N-6010df` alone is no link and counts for nothing."
                   },
                   "set": {
                     "type": "object",
@@ -11696,6 +11696,7 @@
               "element.missing-status",
               "relation.missing-target",
               "relation.unresolved-link",
+              "relation.not-a-link",
               "relation.inaccessible-target",
               "relation.not-allowed",
               "relation.outdated",

@@ -10,7 +10,8 @@
 // - the cycle of derivations the element lies in (SR-090, `elementCycleFindings`);
 // - its outdated evidence (SR-025 AK4, `elementEvidenceFindings`);
 // - its outdated relations and inline references (SR-025, `outdatedOfShown`);
-// - its `reqseq:` links whose target is no UUID (#176, `unresolvedLinkProblems`);
+// - its `reqseq:` links whose target is no UUID (#176) and its references outside links (#633,
+//   `unresolvedLinkProblems`);
 // - at a variant, the core requirements changed or new since its newest baseline (SR-103,
 //   `sinceBaselineFindingsOf`).
 //

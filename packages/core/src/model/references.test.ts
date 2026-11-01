@@ -255,6 +255,26 @@ describe("references in the properties of the frontmatter (SR-127)", () => {
     ]);
   });
 
+  it("keeps the reqseq: references of the text outside links and code apart, with their lines, and none of the properties (#633)", () => {
+    const record = element(
+      "notes: Like reqseq:N-1f2a4c.\n",
+      [
+        "- reqseq:N-6010df.",
+        `- (reqseq:${A}) and reqseq:D-031, reqseq:SR-036-`,
+        "- `reqseq:N-1` and [x](reqseq:N-2) and [y](https://e.org/?q=reqseq:N-3)",
+        "- myreqseq:N-4, reqseq: alone, reqseq:-x, reqseq:",
+        "",
+      ].join("\n"),
+    );
+    expect(record.bareReferences).toEqual([
+      { target: "N-6010df", line: 6 },
+      { target: A, line: 7 },
+      { target: "D-031", line: 7 },
+      { target: "SR-036", line: 7 },
+    ]);
+    expect(Object.hasOwn(element("", "[x](reqseq:N-2)\n"), "bareReferences")).toBe(false);
+  });
+
   it("puts a link in a value whose key is written as an alias on line 1, as the line cannot be found", () => {
     expect(element(`kk: &k other\n*k : "Then ${link}"\n`).propertyReferences).toEqual([
       { id: B, version: V, line: 1, key: "other" },

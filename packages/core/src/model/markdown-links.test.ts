@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { markdownImages, markdownLinks } from "./markdown-links.js";
+import { markdownImages, markdownLinks, markdownLinksAndMentions } from "./markdown-links.js";
 
 /** The destinations found, `!` in front of images. */
 const found = (text: string): string[] =>
@@ -349,5 +349,26 @@ describe("Markdown images", () => {
 
   it("finds no reference image in code spans or code blocks", () => {
     expect(markdownImages("`![a][r]`\n\n    ![b][r]\n\n[r]: r.png")).toEqual([]);
+  });
+});
+
+describe("mentions of a word in inline text (#633)", () => {
+  it("gives where the word stands outside code spans, code blocks, link destinations and definitions, in the same pass as the links", () => {
+    const text = [
+      "w:a and [w:b label](w:c) and `w:d` and <w:e>",
+      "```",
+      "w:f",
+      "```",
+      "",
+      "    w:g",
+      "",
+      "[ref]: w:h",
+      "> quoted w:i ![w:j alt](w:k)",
+      "no word here",
+    ].join("\n");
+    const { links, mentions } = markdownLinksAndMentions(text, "w:");
+    expect(links.map((l) => l.destination)).toEqual(["w:c", "w:k"]);
+    expect(mentions.map((at) => text.slice(at, at + 3))).toEqual(["w:a", "w:b", "w:e", "w:i", "w:j"]);
+    expect(markdownLinksAndMentions("plain", "w:").mentions).toEqual([]);
   });
 });
