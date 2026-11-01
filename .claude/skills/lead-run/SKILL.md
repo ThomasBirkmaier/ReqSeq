@@ -14,7 +14,7 @@ The state is in the milestone and its epics, the issue labels and `deps` blocks,
 The GitHub project "ReqSeq" is filled by the `project-sync` workflow from the labels and state (milestone and parent epic show as built-in fields), so change those and sub-issues, never project fields. The model (product owner decision, 2026-11-01, #595):
 
 - **Milestones are the roadmap gates**: `v0.7 Pilot ready`, `v0.8 Consolidation`, `v0.9 Own use and simplicity`, `1.0 Trust and distribution`. They say when. Stages 1–6 ended with v0.6; from v0.7 on a milestone takes the place of a stage, and „Stage done“ below applies to it, with its version.
-- **Epics are lanes inside a milestone** (label `epic`, the issues as sub-issues). They say what.
+- **Epics are lanes across the milestones** (label `epic`, the issues as sub-issues): data, CLI/MCP, app, performance, cross-cutting SRs (#7), development, docs and security. They say what.
 - **Every open issue** except the epics has exactly one of `sr`, `enabler`, `bug` and `spec-frage`, one milestone, one of `P1` (must for the milestone), `P2` (should), `P3` (could), and hangs under one epic. SR issues stay under the epic of their spec package (the stage epics, and the Querschnitt epic #7 as the lane for cross-cutting SRs); `spec-change` gives new SR issues their milestone and priority. `querschnitt` marks cross-cutting SRs; `stage:<n>` remains only on SR issues the spec puts in a stage package. Findings from a pilot run also get `pilot`.
 - **A new issue is classified when it is opened.** A wish for after 1.0 becomes an element in package „Später“ (`spec-change`) and the issue is closed with a link to it. At 1.0 no issue is open (product owner decision, 2026-10-31).
 
