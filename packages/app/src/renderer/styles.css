@@ -694,7 +694,9 @@ mark {
   left: 0;
   z-index: 1;
   max-width: 28rem;
-  overflow: hidden;
+  /* clip, not hidden: a hidden cell is a scroll container, and scrollIntoView on its too-wide target
+     scrolls it by its padding, so its row begins further left than the others (#649). */
+  overflow: clip;
   text-overflow: ellipsis;
 }
 
@@ -723,7 +725,7 @@ mark {
 
 .matrix .relation {
   max-width: 24rem;
-  overflow: hidden;
+  overflow: clip;
   text-overflow: ellipsis;
 }
 
