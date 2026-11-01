@@ -390,6 +390,18 @@ describe("reqif.import of a file of ReqSeq (SR-052)", () => {
     ]);
   });
 
+  it("[SR-052/AK3] takes the channels of a text with line breaks and raw HTML, so the text equals the original (#579)", async () => {
+    const text = "before\\\nafter  \nend <br> x\n\nbefore<br>after and a <b>x</b> & y\n\n```\n```\n";
+    const { text: file } = await exported([GUSTS], {
+      ...OWNER_MODEL,
+      "measures/MS-0000000052b1.md": `---\nid: ${GUSTS}\ntype: measure\nstatus: draft\ntitle: Gusts\n---\n\n${text}`,
+    });
+    const { workspace } = await target(file, undefined, OWNER_MODEL);
+    const imported = await run<Imported>(workspace, "reqif.import", { file: "in/x.reqif", delivery: "1" });
+    expect(imported.problems).toEqual([]);
+    expect((await element(workspace, imported, GUSTS)).text).toBe(text);
+  });
+
   it("[SR-052/AK3] copies the images of the text and points its links at the copies; an image not there is a loss", async () => {
     const files = {
       "requirements/SR-0000000052b5.md": [
