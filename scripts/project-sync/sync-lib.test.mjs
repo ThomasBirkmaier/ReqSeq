@@ -71,6 +71,28 @@ describe("project sync plan", () => {
     ]);
   });
 
+  it("sets the built-in Status from the state and the priority from its label", () => {
+    const f = {
+      Status: { id: "F-status", options: ["Todo", "In Progress", "Done"].map((n) => ({ id: n, name: n })) },
+      Priority: { id: "F-prio", options: [{ id: "O-p1", name: "P1" }] },
+      Kind: fields.Kind,
+    };
+    const closed = { ...issue(2, ["epic"]), state: "closed" };
+    const ops = plan(
+      [issue(1, ["agent:working", "P1"]), closed],
+      new Map([
+        [1, { id: "P1", values: {} }],
+        [2, { id: "P2", values: { Kind: "Epic" } }],
+      ]),
+      f,
+    );
+    expect(ops).toEqual([
+      { op: "set", number: 1, field: "F-status", value: { singleSelectOptionId: "In Progress" } },
+      { op: "set", number: 1, field: "F-prio", value: { singleSelectOptionId: "O-p1" } },
+      { op: "set", number: 2, field: "F-status", value: { singleSelectOptionId: "Done" } },
+    ]);
+  });
+
   it("reads select and text values of an item and skips other field types", () => {
     expect(
       itemValues([{ name: "5", field: { name: "Stage" } }, { text: "SR-051", field: { name: "SR" } }, {}]),

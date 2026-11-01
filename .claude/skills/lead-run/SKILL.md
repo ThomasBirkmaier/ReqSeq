@@ -11,7 +11,14 @@ The lead runs a stage over hours or days and stays the one place that knows its 
 
 The state is in the stage epic, the issue labels and `deps` blocks, the merged PRs, and the handover file `/mnt/project-files/stufe<n>/lead-uebergabe.md`, which lists open PRs, running agents, decisions and the next steps. A fresh lead starts by reading the epic and that file. Claim progress only from tool results (a merged PR, a green check), and name failures and skipped steps.
 
-The GitHub project "ReqSeq" is filled by the `project-sync` workflow from the labels, so change labels, state and sub-issues, never project fields. Each open issue except the epics has exactly one of `sr`, `enabler`, `bug` and `spec-frage`, and exactly one of `stage:<n>` (the stage whose scope it belongs to by D-035), `querschnitt` (serves every stage) and `stage:later` (not planned for a stage, package „Später“). SR and enabler issues hang under their epic. A duplicate is closed as `duplicate` with a link to the original, an issue a merged PR finished as `completed` with a link to the PR. Remove `agent:working` when an agent stops, and remove `blocked` when its blocker closed.
+The GitHub project "ReqSeq" is filled by the `project-sync` workflow from the labels, state and milestones, so change those and sub-issues, never project fields. The model (product owner decision, 2026-11-01, #595):
+
+- **Milestones are the roadmap gates**: `v0.7 Pilot ready`, `v0.8 Consolidation`, `v0.9 Own use and simplicity`, `1.0 Trust and distribution`. They say when.
+- **Epics are lanes inside a milestone** (label `epic`, the issues as sub-issues). They say what.
+- **Every open issue** except the epics has exactly one of `sr`, `enabler`, `bug` and `spec-frage`, one milestone, one of `P1` (must for the milestone), `P2` (should), `P3` (could), and hangs under one epic. `querschnitt` marks cross-cutting SRs; `stage:<n>` remains only on SR issues the spec puts in a stage package. Findings from a pilot run also get `pilot`.
+- **A new issue is classified when it is opened.** A wish for after 1.0 becomes an element in package „Später“ (`spec-change`) and the issue is closed with a link to it. Before 1.0 no issue is open (product owner decision, 2026-10-31).
+
+A duplicate is closed as `duplicate` with a link to the original, an issue a merged PR finished as `completed` with a link to the PR, one that will not be done as `not planned` with a reason. Remove `agent:working` when an agent stops, and remove `blocked` when its blocker closed.
 
 ## Order
 
