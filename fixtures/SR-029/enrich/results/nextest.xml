@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="nextest-run" tests="4" failures="1" errors="0" timestamp="2026-10-27T10:00:00.000+00:00" time="0.012">
+    <testsuite name="station" tests="4" disabled="0" errors="0" failures="1">
+        <testcase name="tests::sr_46fb54_ak1_accepts_a_valid_password" classname="station" time="0.001"/>
+        <testcase name="tests::sr_0b0036_ak1_and_sr_0c0037_ak2_report_a_failure" classname="station" time="0.002">
+            <failure type="test failure">assertion failed</failure>
+        </testcase>
+        <testcase name="tests::adds_two_numbers" classname="station" time="0.001"/>
+        <testcase name="tests::sr_029_is_an_identifier" classname="station" time="0.001"/>
+    </testsuite>
+</testsuites>

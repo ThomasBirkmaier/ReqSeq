@@ -2590,7 +2590,7 @@ export interface EvidenceRecordOutput {
 }
 
 /**
- * Input of `evidence.enrichJunit` as `run` gets it: validated, properties with a `default` filled in. Add UUID, version, item and date, and the variant's UUID when there is one, to every test case of a JUnit XML file that names an element by short ID, UUID or identifier. Test cases with an unknown reference, or whose variant does not fit, stay unchanged and are listed; the CLI exits 1.
+ * Input of `evidence.enrichJunit` as `run` gets it: validated, properties with a `default` filled in. Add UUID, version, item and date, and the variant's UUID when there is one, to every test case of a JUnit XML file that names an element by short ID, UUID or identifier, or by a short ID in another form that a name pattern finds. Test cases with an unknown reference, or whose variant does not fit, stay unchanged and are listed; the CLI exits 1. The output counts the test cases that name no element.
  * Schema: `schemas/commands/catalog.json evidence.enrichJunit input`.
  */
 export interface EvidenceEnrichJunitInput {
@@ -2602,17 +2602,21 @@ export interface EvidenceEnrichJunitInput {
   readonly date?: IsoDateTime;
   /** The variant the test run was for (an element whose type has the meaning variant): each enriched test case gets its UUID as `reqseq:variant`. Absent: a test case keeps its own `reqseq:variant`, if any, whose short ID or identifier becomes the UUID; `core` is none, but is checked like a variant. A test case that names another variant, or names an element that does not count in its variant (not valid there, excluded or replaced, as at `evidence.record`), stays unchanged and gets `evidence.invalid-record`; so does an enriched test case (never changed, D-026) whose variant differs from the given one. */
   readonly variant?: ElementRef;
+  /** A template that finds a short ID written in another form in test case names, for names that cannot hold brackets, e.g. `{prefix}_{id}_ak{ak}` for `sr_348143_ak1` (SR-348143). `{prefix}` is a type prefix of the metamodel, `{id}` 6 to 32 hex digits, `{ak}` 1 to 9 digits (ignored); `{prefix}` and `{id}` once each, `{ak}` once at most and not next to `{id}`. The rest is literal text; `{{` and `}}` are braces, square brackets are refused. All of it is ASCII case-insensitive. A match starts and ends at a word boundary (the start or end of the name, a character that is not a letter or digit, or the start of a camel case word) and is looked for in the name outside `[...]` only, not in the class name. It adds to the bracket form and the `reqseq:element` property; a short ID it finds that names no element, or several, is listed in `unknown`. */
+  readonly namePattern?: string;
   /** Default: overwrite the input file. An existing file is replaced only when it is a JUnit XML file the scanner accepts; its folder must exist. */
   readonly output?: LocalPath;
 }
 
 /**
- * Output of `evidence.enrichJunit`. Add UUID, version, item and date, and the variant's UUID when there is one, to every test case of a JUnit XML file that names an element by short ID, UUID or identifier. Test cases with an unknown reference, or whose variant does not fit, stay unchanged and are listed; the CLI exits 1.
+ * Output of `evidence.enrichJunit`. Add UUID, version, item and date, and the variant's UUID when there is one, to every test case of a JUnit XML file that names an element by short ID, UUID or identifier, or by a short ID in another form that a name pattern finds. Test cases with an unknown reference, or whose variant does not fit, stay unchanged and are listed; the CLI exits 1. The output counts the test cases that name no element.
  * Schema: `schemas/commands/catalog.json evidence.enrichJunit output`.
  */
 export interface EvidenceEnrichJunitOutput {
   /** The test cases that name at least one element and are enriched: by this call, or already before. */
   readonly testCases: number;
+  /** The test cases that name no element: no `reqseq:element` property and no name token or pattern match that names one (a pytest parameter list counts here). Test cases enriched already, listed in `unknown` or refused are not counted. Information only: it does not change the exit code. */
+  readonly withoutReference: number;
   /** Each reference that names no element or more than one, with its test case; that test case stays unchanged. */
   readonly unknown: readonly {
     readonly testCase: string;

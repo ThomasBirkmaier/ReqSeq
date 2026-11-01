@@ -85,6 +85,8 @@ def test_locks_the_account(passwords):
 
 pytest writes properties into its JUnit file only with `junit_family = xunit1` in `pytest.ini` (see `pytest/pytest.ini`). pytest's own parameter lists such as `test_add[1-2]` are passed over; only a bracket that holds an ID counts.
 
+**Rust, Go, Java and other names without brackets.** Write the ID into the name in another form, for example `sr_b2c0de_ak1_locks_the_account` (Rust), `TestSRb2c0deAK1` (Go) or `srb2c0deAk1` (Java), and give the form in step 4 with `--name-pattern`: `"{prefix}_{id}_ak{ak}"`, `"Test{prefix}{id}AK{ak}"` or `"{prefix}{id}Ak{ak}"`. `{prefix}` is the type prefix (`SR`), `{id}` the six or more hex digits, `{ak}` the number of an acceptance criterion (ignored); the rest is literal text, and case does not matter. A match starts and ends at a word boundary (the start or end of the name, a character that is no letter or digit, or the start of a camel case word), and an ID it finds that the workspace does not have is reported like one in brackets. The guide page "Record test evidence from JUnit XML" lists the forms that stay ambiguous.
+
 **Any other tool.** Its JUnit file must have, for each test case that checks a requirement, either the ID in brackets in the `name` attribute of the `<testcase>`, or a `<property name="reqseq:element" value="SR-b2c0de"/>` inside its `<properties>`. Most tools can do one of the two: put the ID into the test name, or use the tool's way of adding a property. Write one test, run it, open the JUnit file and look for the ID. Step 4 then tells you whether ReqSeq finds it.
 
 ## Step 3: let the tool write JUnit XML
@@ -115,7 +117,7 @@ reqseq evidence enrich-junit results.xml "$BUILD" --workspace "$REQSEQ_WORKSPACE
 
 The folder of `--output` must exist. Git keeps no empty folders, so create it once in the repository that holds the evidence folder and commit it with an empty file `.gitkeep` in it (as `workspace/evidence/ci/.gitkeep` here), or let the pipeline run `mkdir -p "$REQSEQ_WORKSPACE/evidence/ci"` before the line, as the CI snippets below do.
 
-ReqSeq adds the UUID, the version, the item (`$BUILD`) and the date to every test case that names a requirement, and prints how many test cases it enriched. It exits with **0** when every named ID is known. It exits with **1** when a test case names an ID the workspace does not have (usually a typo); it lists each such test case with its line, and the pipeline step fails. The other test cases are enriched all the same.
+ReqSeq adds the UUID, the version, the item (`$BUILD`) and the date to every test case that names a requirement, and prints how many test cases it enriched (`testCases`) and how many name no requirement (`withoutReference`; a high number may mean a test names its requirement in a form ReqSeq does not read). It exits with **0** when every named ID is known. It exits with **1** when a test case names an ID the workspace does not have (usually a typo); it lists each such test case with its line, and the pipeline step fails. The other test cases are enriched all the same.
 
 If you have more than one JUnit file, run the line once per file, each with its own `--output` name, for example `results-$BUILD-unit.xml` and `results-$BUILD-api.xml`. The same `--output` twice keeps only the last file, without a message. Tools that write a folder of files (Maven Surefire writes one per test class, so does Gradle) need one line per file, each with its own name, or the tool's option to write one file.
 

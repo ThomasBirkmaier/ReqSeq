@@ -4,6 +4,7 @@
 // in at those offsets and keeps every other byte (BOM, CRLF, non-ASCII text, formatting) unchanged.
 import type { XmlAttribute, XmlElement, XmlRefusalReason } from "../files/index.js";
 import { scanXml, xmlAttribute } from "../files/index.js";
+import type { NameMatch } from "./name-pattern.js";
 
 /** passed unless the test case has `<error>`, `<failure>` or `<skipped>` (ADR-0012). */
 export type JunitOutcome = "passed" | "failed" | "error" | "skipped";
@@ -219,6 +220,8 @@ export interface ElementRefToken {
   readonly text: string;
   readonly kind: ElementRefKind;
   readonly source: ElementRefSource;
+  /** For a token the name pattern found (SR-029 AK5): the text it matched; `text` is the short ID built. */
+  readonly matched?: string;
 }
 
 const SHORT_ID = /^[A-Z][A-Z0-9]*-[0-9a-f]{6,32}$/;
@@ -249,20 +252,38 @@ const tokens = (texts: readonly string[], source: ElementRefSource): readonly El
  *   `other` counts only when it names exactly one element and is otherwise ignored silently, so a
  *   pytest parameter list (`test_add[1-2]`) is never reported.
  *
+ * With `pattern` (`evidence.enrichJunit` only, SR-029 AK5) the short IDs it finds in the name follow,
+ * each once, as name tokens of kind `shortId` with the `matched` text; a short ID the brackets give
+ * already is not repeated.
+ *
  * Two texts can name the same element (an enriched file has the UUID in the property and the short
  * ID in the name): the caller deduplicates after resolving, so each element counts once (SR-033 AK2).
  */
 export const elementRefsOf = (
   testCase: Pick<JunitTestCase, "name" | "properties">,
-): readonly ElementRefToken[] => [
-  ...tokens(
-    testCase.properties
-      .filter((property) => property.name === "reqseq:element")
-      .map((property) => property.value),
-    "property",
-  ),
-  ...tokens(
-    Array.from(testCase.name.matchAll(NAME_TOKEN), ([token]) => token),
-    "name",
-  ),
-];
+  pattern?: (name: string) => readonly NameMatch[],
+): readonly ElementRefToken[] => {
+  const found: ElementRefToken[] = [
+    ...tokens(
+      testCase.properties
+        .filter((property) => property.name === "reqseq:element")
+        .map((property) => property.value),
+      "property",
+    ),
+    ...tokens(
+      Array.from(testCase.name.matchAll(NAME_TOKEN), ([token]) => token),
+      "name",
+    ),
+  ];
+  if (pattern === undefined) {
+    return found;
+  }
+  const texts = new Set(found.filter((t) => t.source === "name").map((t) => t.text));
+  for (const { shortId, matched } of pattern(testCase.name)) {
+    if (!texts.has(shortId)) {
+      texts.add(shortId);
+      found.push({ text: shortId, kind: "shortId", source: "name", matched });
+    }
+  }
+  return found;
+};
