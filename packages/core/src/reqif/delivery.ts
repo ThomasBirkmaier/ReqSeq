@@ -10,6 +10,9 @@ import { REQIF_LIMITS, parseReqif } from "./parse.js";
 /** Opening never waits: a FIFO in place of the file opens at once and is then no file (no O_NONBLOCK on Windows). */
 const READ_NOW = constants.O_RDONLY | constants.O_NONBLOCK;
 
+/** The start of a ZIP archive, which a packed delivery (`.reqifz`) is. */
+const ZIP_SIGNATURE = [0x50, 0x4b, 0x03, 0x04];
+
 /** Bytes read at a time. */
 const CHUNK = 1024 * 1024;
 
@@ -57,9 +60,24 @@ const readBytes = async (root: string, given: string): Promise<Uint8Array> => {
   }
 };
 
-/** The parsed ReqIF file at the local path `given` (relative to `root`); `reqif.invalid` when it is none. */
+/**
+ * The parsed ReqIF file at the local path `given` (relative to `root`); `reqif.invalid` when it is none.
+ * A packed delivery (`.reqifz`, a ZIP archive) is refused as such before decoding (SR-053: not read).
+ */
 export const readDelivery = async (root: string, given: string): Promise<ReqifFile> => {
-  const parsed = parseReqif(await readBytes(root, given));
+  const bytes = await readBytes(root, given);
+  const name = path.basename(given);
+  if (
+    path.extname(name).toLowerCase() === ".reqifz" ||
+    ZIP_SIGNATURE.every((byte, index) => bytes[index] === byte)
+  ) {
+    throw new CommandError(
+      "reqif.invalid",
+      `file: ${name} is a packed ReqIF delivery (.reqifz, a ZIP archive), which ReqSeq does not read; unpack it and use the .reqif file inside`,
+      { fields: ["file"] },
+    );
+  }
+  const parsed = parseReqif(bytes);
   if (parsed.kind === "refused") {
     throw new CommandError("reqif.invalid", `file: line ${String(parsed.line)}: ${parsed.message}`, {
       fields: ["file"],
