@@ -382,6 +382,24 @@ const removeOwn = async (absolute: string, expected: string): Promise<boolean> =
 };
 
 /**
+ * Removes files a call created below `root` (`createFilesAtomic`), each only while its bytes are
+ * still those of its SHA-256, for a command whose later step failed (D-045: never a file that was
+ * there before). Returns the paths it could not remove.
+ */
+export const removeCreatedFiles = async (
+  root: string,
+  files: readonly { readonly path: string; readonly sha256: string }[],
+): Promise<string[]> => {
+  const kept: string[] = [];
+  for (const file of files) {
+    if (!(await removeOwn(resolveInRoot(root, file.path).absolute, file.sha256))) {
+      kept.push(file.path);
+    }
+  }
+  return kept;
+};
+
+/**
  * Creates every file of `files` below `root`, all or nothing (`reqif.import`, ADR-0013 "Import"),
  * and returns each with its snapshot, in the order given. Each is first written and fsynced as a temp file
  * next to its target; only when all are on disk does each get its name (`nameNew`). When one fails,

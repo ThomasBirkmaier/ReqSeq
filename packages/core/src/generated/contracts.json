@@ -607,6 +607,8 @@
             "workspace.not-watched",
             "git.unavailable",
             "git.revision-missing",
+            "reqif.replaces-local",
+            "reqif.choice-unused",
             "reqif.edited-elsewhere",
             "reqif.mapping-differs"
           ]
@@ -8413,24 +8415,28 @@
             },
             "new": {
               "type": "array",
+              "description": "Objects the import would create as new elements, without UUID.",
               "items": {
                 "$ref": "../common.schema.json#/$defs/reqifObject"
               }
             },
             "changed": {
               "type": "array",
+              "description": "Elements of an earlier delivery of the source (same source IDENTIFIER) whose version with the delivery differs from their import version, conflicts included (SR-056 AK1).",
               "items": {
                 "$ref": "../common.schema.json#/$defs/reqifObject"
               }
             },
             "dropped": {
               "type": "array",
+              "description": "Elements of the source whose object the file no longer has; the import only lists them (SR-056 AK3).",
               "items": {
                 "$ref": "../common.schema.json#/$defs/reqifObject"
               }
             },
             "conflicts": {
               "type": "array",
+              "description": "Changed elements that were also changed locally since their import; reqif.import needs take or keep for each (SR-056 AK4).",
               "items": {
                 "$ref": "../common.schema.json#/$defs/reqifObject"
               }
@@ -8443,6 +8449,7 @@
             },
             "problems": {
               "type": "array",
+              "description": "Warnings: a title, property or relation the import writes over another value (reqif.replaces-local), a repository not on this machine, an element file that cannot be read.",
               "items": {
                 "$ref": "../common.schema.json#/$defs/problem"
               }
@@ -8462,7 +8469,7 @@
       {
         "name": "reqif.import",
         "title": "Import ReqIF file",
-        "summary": "Import a ReqIF 1.2 file through a saved mapping, all or nothing: creates an element per object and reports losses. Each element keeps its origin (source, source IDENTIFIER, import date, delivery, import version), which no other command writes. This version creates new elements on every import; updating those of an earlier delivery, and take and keep come later.",
+        "summary": "Import a ReqIF 1.2 file through a saved mapping, all or nothing: creates an element per object and reports losses. Each element keeps its origin (source, source IDENTIFIER, import date, delivery, import version), which no other command writes. A repeated delivery of the same source updates the elements of the earlier one in place (matched by source and source IDENTIFIER) and only lists the dropped ones; an element changed locally and in the delivery is a conflict that needs take or keep, else the import is refused (reqif.conflict).",
         "effect": "write-files",
         "whileReadOnly": "refuse",
         "whileReadOnlyReason": "Creates and changes elements, and no change can be checked against a missing or faulty metamodel.",
@@ -8548,24 +8555,28 @@
           "properties": {
             "created": {
               "type": "array",
+              "description": "New elements.",
               "items": {
                 "$ref": "../common.schema.json#/$defs/reqifObject"
               }
             },
             "updated": {
               "type": "array",
+              "description": "Elements of an earlier delivery the delivery was written into (changed, taken, or a title, property or relation that differed).",
               "items": {
                 "$ref": "../common.schema.json#/$defs/reqifObject"
               }
             },
             "kept": {
               "type": "array",
+              "description": "Conflicts in keep: content left, only the origin written.",
               "items": {
                 "$ref": "../common.schema.json#/$defs/reqifObject"
               }
             },
             "dropped": {
               "type": "array",
+              "description": "Elements of the source whose object the file no longer has; not changed.",
               "items": {
                 "$ref": "../common.schema.json#/$defs/reqifObject"
               }

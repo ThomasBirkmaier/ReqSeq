@@ -13,7 +13,17 @@ export type { AnyMapping, MappingFile, MappingTarget } from "./mapping.js";
 export { REQIF_LIMITS, parseReqif } from "./parse.js";
 export { readDelivery } from "./delivery.js";
 export { planImport } from "./import.js";
-export type { ImportOrigin, ImportPlan, PlannedImage } from "./import.js";
+export type {
+  ConflictChoices,
+  ImportOrigin,
+  ImportPlan,
+  PlannedImage,
+  PlannedUpdate,
+  PlannedUpdateImage,
+  RepeatOptions,
+} from "./import.js";
+export { NO_EXISTING, existingElements, unreadableFiles } from "./repeat.js";
+export type { ExistingElement, ExistingElements } from "./repeat.js";
 export { importDate, originKeys } from "./origin.js";
 export { OWN_TOOL_ID, ownMapping } from "./own.js";
 export type { OwnMappingFile } from "./own.js";

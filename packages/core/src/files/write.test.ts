@@ -7,7 +7,7 @@ import type { ParsedFile } from "./read.js";
 import { readElementFile, readYamlFile } from "./read.js";
 import { retry } from "./retry.js";
 import type { FileSnapshot } from "./snapshot.js";
-import { isTempFile, writeFileAtomic } from "./write.js";
+import { isTempFile, removeCreatedFiles, writeFileAtomic } from "./write.js";
 
 let root: string;
 
@@ -566,5 +566,22 @@ describe("SR-008 AK3: a faulty file is never written by ReqSeq", () => {
       code: "file.changed-on-disk",
     });
     expect(await text("a.md")).toBe(broken);
+  });
+});
+
+describe("removeCreatedFiles", () => {
+  it("removes a created file only while it is unchanged, and returns those it keeps", async () => {
+    const hash = (s: string): string => createHash("sha256").update(s).digest("hex");
+    await put("own.png", "own");
+    await put("changed.png", "changed since");
+    expect(
+      await removeCreatedFiles(root, [
+        { path: "own.png", sha256: hash("own") },
+        { path: "changed.png", sha256: hash("changed") },
+        { path: "gone.png", sha256: hash("gone") },
+      ]),
+    ).toEqual(["changed.png"]);
+    await expect(fs.stat(abs("own.png"))).rejects.toThrow();
+    expect(await text("changed.png")).toBe("changed since");
   });
 });

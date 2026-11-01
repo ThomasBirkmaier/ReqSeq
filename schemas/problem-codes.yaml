@@ -147,6 +147,12 @@ problems:
   git.revision-missing:
     cause: The commit to compare with is not in a repository, so its changes were not looked at.
     remedy: Fetch the commit, or deepen a shallow clone.
+  reqif.replaces-local:
+    cause: A repeated ReqIF import writes the delivery's title, a property that does not count to the version, or the targets of a relation of a mapped kind into an element whose file holds other values there (SR-056); the import version cannot show a local edit of them (D-057). The message names the keys.
+    remedy: If the local value should stay, change it in the source as well, or edit the element again after the import; Git shows the earlier value.
+  reqif.choice-unused:
+    cause: An entry of `take` or `keep` of `reqif.import` names no conflict of this delivery (SR-056 AK4), so it changes nothing.
+    remedy: Name a conflict by its source IDENTIFIER or its element, as `reqif.analyze` lists them under `conflicts`.
   reqif.edited-elsewhere:
     cause: An object of a ReqIF file of ReqSeq has attribute values that differ from what its `reqseq-markdown` and `reqseq-values` give, so another tool changed it after the export (SR-052). `reqif.import` takes its readable attributes instead, through the mapping.
     remedy: Check the imported element; nothing else is needed. Edit elements in ReqSeq to keep the full round trip.
@@ -198,7 +204,7 @@ errors:
     cause: The ReqIF file has types, attributes, relation types or enumeration values that the mapping neither maps nor omits; `details.unmapped` is the same list as `reqif.analyze` gives, and no file was written (SR-055). Raised by `reqif.import`; `reqif.analyze` does not list it yet.
     remedy: Map or omit each entry with `reqif.saveMapping` or in the mapping file, and run the import again.
   reqif.conflict:
-    cause: Elements of an earlier delivery were changed locally and the new delivery changes them too, and the import names no choice for them; `details.conflicts` lists them, and no file was written (SR-056 AK4). This version does not raise it yet.
+    cause: Elements of an earlier delivery were changed locally and the new delivery changes them too, and the import names no choice for them; `details.conflicts` lists them, and no file was written (SR-056 AK4).
     remedy: Name each conflict in `take` (the delivery wins) or `keep` (the local element stays), and run the import again.
   git.unavailable:
     cause: The command needs Git, but the `git` program is not on the PATH or the folder is not a Git repository; for a baseline also when a repository involved is not under Git or has no commit (SR-050 AK7).

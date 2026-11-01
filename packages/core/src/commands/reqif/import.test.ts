@@ -331,7 +331,9 @@ describe("reqif.import (SR-053)", () => {
       ].join("\n"),
       "reqif/kunde-a.yaml": `${MAPPING}target: { repository: customer, path: kunde-a }\n`,
     });
+    // While a repository is not on this machine its elements of the source cannot be matched, so
+    // every import is refused before the target is looked at (SR-056, #575/7).
     const error = await failure(workspace);
-    expect([error.code, error.details?.["repository"]]).toEqual(["file.folder-missing", "customer"]);
+    expect([error.code, error.details?.["repositories"]]).toEqual(["file.folder-missing", ["customer"]]);
   });
 });
