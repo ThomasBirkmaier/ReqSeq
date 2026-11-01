@@ -23,13 +23,13 @@ vectors:
     canonical: N-42cdd0f51ca7.canonical.txt
     version: n1:4d6e3c81753d1f36
   # LF; trailing spaces and tabs, extra blank lines, an image, a validity target, an inline reference with the
-  # real version of the N vector, and properties that do not count (title, status, packages, relation kind,
-  # unknown key).
+  # real version of the N vector, and properties that do not count (title, status, packages, emergent,
+  # verification method, relation kind, unknown key).
   - element: SR-825b7146fb54.md
     files: [SR-825b7146fb54/layout.png]
     missing: []
     canonical: SR-825b7146fb54.canonical.txt
-    version: n1:7e0a3def7f72fcaf
+    version: n1:e386ab40f7f71d31
   # Frontmatter LF, text CR only; trailing NBSP and form feed (kept), U+2028 inside a line, a tabs-only line,
   # a tab inside an acceptance criterion, a single (non-list) validity target. Images: one outside the
   # element's folder and linked twice (once via ./ and ..), one percent-encoded, one reference-style and
@@ -38,7 +38,7 @@ vectors:
     files: [SR-9f0a1b2c3d4e/arrow head.png, shared/compass.png]
     missing: [SR-9f0a1b2c3d4e/sketch.png]
     canonical: SR-9f0a1b2c3d4e.canonical.txt
-    version: n1:7ac152eeae14c896
+    version: n1:eeca493b104dc3e0
   # The Markdown subset (ADR-0005 "Files"): an image in an HTML comment counts; a definition line inside a
   # paragraph is none, so its reference image does not count; a definition after a list item marker with
   # balanced parentheses, and one in a list item right after another item; a line indented by a tab after a
