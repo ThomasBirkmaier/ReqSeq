@@ -91,6 +91,7 @@ import type {
 import type { OriginKeys } from "./origin.js";
 import { originKeys } from "./origin.js";
 import { ownAttributes, ownId, ownMapping, ownRelationKeys, readableValues } from "./own.js";
+import { STATEMENT_TYPE } from "./statements.js";
 import type { ImageFile, ImageReader } from "./images.js";
 import { ImageNames } from "./images.js";
 import type { XhtmlImage } from "./xhtml-markdown.js";
@@ -1013,7 +1014,10 @@ const planObject = async (
       identifier: object.identifier,
       kind: "spec-object",
       code: "omitted-type",
-      reason: `the mapping omits its type ${nameOf(t)}`,
+      reason:
+        context.own && t.identifier === STATEMENT_TYPE
+          ? "a statement of a statements export of ReqSeq (SR-058) is not imported: the import takes no statement back into the element it answers (spec question #583)"
+          : `the mapping omits its type ${nameOf(t)}`,
     });
     return undefined;
   }

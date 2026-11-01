@@ -75,7 +75,7 @@ const CHUNK = 4096;
 // eslint-disable-next-line no-control-regex -- these control characters are exactly what XML 1.0 cannot carry
 const NOT_XML = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\uD800-\uDFFF￾￿]/gu;
 /** An NCName, the type of every IDENTIFIER (`xsd:ID`). */
-const NC_NAME = /^[\p{L}_][\p{L}\p{N}\p{Mn}\p{Mc}_.·-]*$/u;
+export const NC_NAME = /^[\p{L}_][\p{L}\p{N}\p{Mn}\p{Mc}_.·-]*$/u;
 /** An XML name without prefix, as an XHTML element or attribute local name. */
 const SURROGATE_PAIR = /[\uD800-\uDBFF][\uDC00-\uDFFF]/g;
 const LOCAL_NAME = /^[A-Za-z_][\w.-]*$/;
