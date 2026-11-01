@@ -2883,13 +2883,13 @@ export interface BaselineListOutput {
 }
 
 /**
- * Input of `baseline.get` as `run` gets it: validated, properties with a `default` filled in. Elements of a baseline with their version then and its date, marked changed, superseded, removed or added since (SR-051); with withEvidence the evidence status of each requirement at its version in the baseline (SR-094).
+ * Input of `baseline.get` as `run` gets it: validated, properties with a `default` filled in. Elements of a baseline with their version then and its date, marked changed, superseded, removed or added since (SR-051); with withEvidence the verification status of each requirement per view and the validation status at its version in the baseline, with the records dated after it named (SR-094).
  * Schema: `schemas/commands/catalog.json baseline.get input`.
  */
 export interface BaselineGetInput {
   /** Name of a baseline, or its file name (with or without .yaml). */
   readonly baseline: string;
-  /** Also give the status of each requirement at its version in the baseline: records up to the baseline's date and time, own records only, in the view of its selection (SR-094). */
+  /** Also give, at each entry's version in the baseline, the verification status of each requirement in every view it applies in (only the variant's when the stored selection has one) and the validation status: own records up to the baseline's date and time, records of that version dated after it named apart (SR-094). */
   readonly withEvidence: boolean;
   /** Elements of the page; total counts all. */
   readonly limit: number;
@@ -2897,7 +2897,7 @@ export interface BaselineGetInput {
 }
 
 /**
- * Output of `baseline.get`. Elements of a baseline with their version then and its date, marked changed, superseded, removed or added since (SR-051); with withEvidence the evidence status of each requirement at its version in the baseline (SR-094).
+ * Output of `baseline.get`. Elements of a baseline with their version then and its date, marked changed, superseded, removed or added since (SR-051); with withEvidence the verification status of each requirement per view and the validation status at its version in the baseline, with the records dated after it named (SR-094).
  * Schema: `schemas/commands/catalog.json baseline.get output`.
  */
 export interface BaselineGetOutput {
@@ -2928,18 +2928,18 @@ export interface BaselineGetOutput {
     readonly versionDate?: string | null;
     /** The current version when it differs, also for removed and added. */
     readonly current?: Version;
-    /** With withEvidence, for entries of the file whose type has the meaning requirement; never indirect (SR-094 AK5). */
-    readonly verification?: {
+    /** With withEvidence, for entries of the file (not added or missing) whose type has the meaning requirement: one row per view it applies in now, the core first, then the variants in store order (SR-094 AK4, SR-047 AK3); with a variant in the stored selection only that variant's row (AK5). Empty when it applies in no view shown. Own records only, never indirect (AK6). Left out when the stored view cannot be resolved. */
+    readonly verification?: readonly {
       readonly view: ViewId;
+      /** From the records of the view that count for the baseline: dated at or before it (AK2); outdated with records of other versions only, open without (AK3). */
       readonly status: "open" | "verified" | "failed" | "outdated";
-      /** The record that decides the status. */
-      readonly decidedBy?: {
-        readonly repository: string;
-        /** Relative to the workspace root, / as separator. */
-        readonly file: string;
-        readonly line?: number;
-      };
-    };
+      /** The records of the baseline version in this view dated after the baseline, newest first: they do not count (AK2). Left out when there is none. */
+      readonly later?: readonly DataExportEvidenceRecord[];
+    }[];
+    /** With withEvidence, for entries of the file (not added or missing) of a type with the meaning need and for any other with a validation record (SR-038, SR-094 AK7): the status at the baseline version from the validation records that count for the baseline, without view. Open without such records. */
+    readonly validation?: ValidationStatus;
+    /** With validation: the validation records of the baseline version dated after the baseline, newest first; they do not count (AK2). Left out when there is none. */
+    readonly validationLater?: readonly DataExportEvidenceRecord[];
   }[];
   /** Elements per state over all pages. */
   readonly counts: {
@@ -2952,7 +2952,7 @@ export interface BaselineGetOutput {
   };
   /** Entries of the file plus added elements. */
   readonly total: number;
-  /** The elements of the page and the variant of `view`, each once in the order first named (#588). */
+  /** The elements of the page, the variant of `view` and the variants the verification rows name, each once in the order first named (#588). */
   readonly names: readonly ElementName[];
   readonly problems?: readonly Problem[];
   readonly incomplete?: Incomplete;

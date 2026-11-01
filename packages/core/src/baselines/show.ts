@@ -19,8 +19,9 @@
 // - Cost (N-036): the states of all entries from one current-versions lookup and one index of the
 //   store by UUID; version dates (ADR-0005, `versionDates`) for the page only. The content of an
 //   old version is never read: Git shows it (D-033, `baseline.compare`).
-// - With `withEvidence` the command passes how to compute the verification of an entry (SR-094,
-//   `commands/baseline/get.ts`: the evidence block lies above this one); asked for the page only.
+// - With `withEvidence` the command passes how to compute the evidence of an entry (SR-094,
+//   `commands/baseline/get.ts`: the evidence block lies above this one): its verification rows per
+//   view and its validation status, asked for the page only. `names` names the variants of the rows.
 import type { CommandOutput } from "../catalog.js";
 import type { Problem } from "../generated/types.js";
 import type { ElementRecord, ElementStore } from "../model/index.js";
@@ -50,10 +51,13 @@ export interface ShowRequest {
   readonly limit: number;
   readonly offset: number;
   /**
-   * With `withEvidence` (SR-094): the verification of an entry of the file at its version in the
-   * baseline, undefined for one that is no requirement. Asked for the page only.
+   * With `withEvidence` (SR-094): the evidence of an entry of the file at its version in the
+   * baseline (`baselineEvidence` of the evidence block). Asked for the page only.
    */
-  readonly verification?: (record: ElementRecord, version: string) => Row["verification"];
+  readonly evidence?: (
+    record: ElementRecord,
+    version: string,
+  ) => Pick<Row, "verification" | "validation" | "validationLater">;
 }
 
 /**
@@ -203,20 +207,28 @@ export const showBaseline = async (workspace: Workspace, request: ShowRequest): 
   const dateOf = new Map(
     asked.map((request, index) => [`${request.id}\n${request.repository}`, dates[index]]),
   );
-  // An added element has no version in the baseline; a missing one no date and no verification.
-  const verificationOf = request.verification;
-  const elements = page.map(({ row, record }) => {
+  // An added element has no version in the baseline; a missing one no date and no evidence.
+  const evidenceOf = request.evidence;
+  const elements = page.map(({ row, record }): Row => {
     if (row.version === undefined) {
       return row;
     }
-    const verification = record === undefined ? undefined : verificationOf?.(record, row.version);
     return {
       ...row,
       versionDate: dateOf.get(`${row.id}\n${String(row.repository)}`) ?? null,
-      ...(verification === undefined ? {} : { verification }),
+      ...(record === undefined ? {} : evidenceOf?.(record, row.version)),
     };
   });
   const named = page.flatMap(({ record }) => (record === undefined ? [] : [record]));
+  // The variants the verification rows name by UUID (#588), resolved in this store.
+  const variants = new Set<string>();
+  for (const { verification } of elements) {
+    for (const { view } of verification ?? []) {
+      if (view !== "core") {
+        variants.add(view);
+      }
+    }
+  }
   return {
     name: baseline.name,
     file: baseline.shown,
@@ -232,6 +244,8 @@ export const showBaseline = async (workspace: Workspace, request: ShowRequest): 
       ...named,
       // The view was resolved in this store.
       ...(request.view === undefined ? [] : (store.byId.get(request.view) as ElementRecord[])),
+      // The rows name variants of the workspace's store, which the selection was resolved in.
+      ...[...variants].flatMap((id) => store.byId.get(id) as ElementRecord[]),
     ]),
     ...(problems.length === 0 ? {} : { problems }),
     ...(request.incomplete ? { incomplete: true } : {}),

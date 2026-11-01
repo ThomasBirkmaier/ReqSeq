@@ -32,6 +32,7 @@ export { childRulesOf, hasOwnRecordIn, verificationEvaluator } from "./indirect.
 export type { ChildRules, Shown, VerificationEvaluator, VerificationResult } from "./indirect.js";
 export {
   hasValidationRecord,
+  hasValidationStatus,
   holdsIn,
   recordStatusOf,
   statusSource,
@@ -46,7 +47,7 @@ export {
   workspaceStatus,
   workspaceStatusOf,
 } from "./verification.js";
-export type { VersionReader, WorkspaceStatus } from "./verification.js";
+export type { VersionReader, ViewHolder, WorkspaceStatus } from "./verification.js";
 export { variantIdsOf, verificationNameIds } from "./names.js";
 export { matrixEvidence, matrixTestCases, showsEvidence, testCaseMark } from "./matrix.js";
 export type { MatrixRowEvidence, MatrixTestCase, MatrixTestCaseMark } from "./matrix.js";
@@ -60,3 +61,5 @@ export {
 export type { ElementEvidence, RecordKind } from "./views.js";
 export { recordDate, recordEvidence, recordFileName, renderRecordFile, withRecord } from "./write-record.js";
 export type { PlacedRecord, RecordDeps, RecordFields } from "./write-record.js";
+export { baselineEvidence } from "./baseline.js";
+export type { BaselineEvidence } from "./baseline.js";

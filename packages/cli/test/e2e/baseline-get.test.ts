@@ -133,21 +133,32 @@ describe("reqseq baseline get --with-evidence", () => {
     const result = await run(["baseline", "get", "Release 1", "--with-evidence", "--json"], { cwd: ws.root });
     expect(result.code).toBe(0);
     const shown = JSON.parse(result.stdout) as {
-      elements: { id: string; verification?: { view: string; status: string } }[];
+      elements: { id: string; verification?: { view: string; status: string }[]; validation?: string }[];
     };
-    expect(shown.elements.map((e) => [e.id.slice(-2), e.verification?.status])).toEqual([
-      ["a1", undefined],
-      ["b1", "verified"],
-      ["b2", "outdated"],
-      ["b3", "open"],
-      ["b5", "open"],
-      ["b6", "verified"],
+    const view = (id: string): string => (id === "core" ? "core" : id.slice(-2));
+    expect(
+      shown.elements.map((e) => [
+        e.id.slice(-2),
+        e.verification?.map((r) => `${view(r.view)} ${r.status}`) ?? e.validation,
+      ]),
+    ).toEqual([
+      ["a1", "validated"],
+      ["a2", "open"],
+      ["b1", ["core verified", "c1 verified", "c2 open"]],
+      ["b2", ["core outdated", "c1 open"]],
+      ["b3", ["core open", "c1 open"]],
+      ["b5", ["core open", "c1 open", "c2 open"]],
+      ["b6", ["core verified", "c1 open", "c2 open"]],
+      ["b7", ["c2 verified"]],
     ]);
     const human = await run(["baseline", "get", "Release 1", "--with-evidence"], { cwd: ws.root });
     expect(human.stdout).toContain(
       "- id: SR-0000b2  Show rainfall per day\n    repository: system\n    state: unchanged\n",
     );
-    expect(human.stdout).toContain("    verification:\n      view: core\n      status: outdated\n");
+    expect(human.stdout).toContain(
+      "    verification:\n      - view: core\n        status: outdated\n        later:\n",
+    );
+    expect(human.stdout).toContain("      - view: VAR-0000c1  Alpine\n        status: open\n");
   });
 });
 
