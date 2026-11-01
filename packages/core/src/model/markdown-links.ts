@@ -30,6 +30,11 @@
 // and one in `<…>` end at the same place, and a title that does not close ends at the next
 // unescaped quote or parenthesis of its kind), code spans at most O(n·√n).
 //
+// `markdownLinksAndMentions` also gives where a word (the `reqseq:` scheme) stands in inline text
+// outside code spans and links (label and destination), in the same pass: what is written as
+// plain text there (also in an autolink `<…>`, which this scanner does not read as a link) and not
+// on a definition line.
+//
 // Not handled: reference-style links (only images), links and definitions that span lines, HTML
 // (links in HTML blocks and comments are found), entity references (`&amp;` stays as written).
 // Known limitations: links and images in the alt text of a reference image are found; list
@@ -241,6 +246,33 @@ interface Opener {
   readonly image: boolean;
 }
 
+/** Where a word stands in inline text: `word` as given, its offsets in the text in order. */
+interface Mentions {
+  readonly word: string;
+  readonly at: number[];
+}
+
+/** The mentions to look for on a line: none when the line lacks the word, as most lines do. */
+const watched = (text: string, mentions: Mentions | undefined): Mentions | undefined =>
+  mentions !== undefined && text.includes(mentions.word) ? mentions : undefined;
+
+/** Records the word when it starts at `i` of a line that starts at `offset` in the text. */
+const noteMention = (mentions: Mentions, text: string, i: number, offset: number): void => {
+  if (text[i] === mentions.word[0] && text.startsWith(mentions.word, i)) {
+    mentions.at.push(offset + i);
+  }
+};
+
+/**
+ * Drops the mentions at or after `at` (an offset in the text): they lie in the label of a link or
+ * the alt text of an image that just closed, so they are part of a link, not plain text.
+ */
+const dropMentions = (mentions: Mentions | undefined, at: number): void => {
+  while (mentions !== undefined && (mentions.at.at(-1) ?? -1) >= at) {
+    mentions.at.pop();
+  }
+};
+
 /** What one line has given so far: links with where each opens, and reference images. */
 interface LineFound {
   readonly links: MarkdownLink[];
@@ -267,8 +299,14 @@ const dropAltText = (found: LineFound, at: number, offset: number): void => {
  * makes the open link brackets before it text (links do not nest); an image drops what was found
  * in its alt text. No recursion, so nesting depth costs neither time nor stack.
  */
-const lineLinks = (text: string, offset: number, references?: ReferenceImage[]): MarkdownLink[] => {
+const lineLinks = (
+  text: string,
+  offset: number,
+  references?: ReferenceImage[],
+  mentions?: Mentions,
+): MarkdownLink[] => {
   const line: Line = { text, lastParen: text.lastIndexOf(")") };
+  const word = watched(text, mentions);
   const links: MarkdownLink[] = [];
   /** Where each link of `links` opens. */
   const opens: number[] = [];
@@ -304,6 +342,7 @@ const lineLinks = (text: string, offset: number, references?: ReferenceImage[]):
       } else {
         inactiveBelow = opener.at;
       }
+      dropMentions(word, offset + opener.at);
       links.push({
         image: opener.image,
         label: text.slice(opener.at + 1, i),
@@ -313,6 +352,8 @@ const lineLinks = (text: string, offset: number, references?: ReferenceImage[]):
       });
       opens.push(opener.at);
       i = destination.after - 1;
+    } else if (word !== undefined) {
+      noteMention(word, text, i, offset);
     }
   }
   return links;
@@ -551,6 +592,7 @@ interface Scan {
   readonly links: MarkdownLink[];
   readonly references?: ReferenceImage[];
   readonly definitions?: Map<string, string>;
+  readonly mentions?: Mentions;
 }
 
 const scan = (text: string, found: Scan): Scan => {
@@ -563,7 +605,8 @@ const scan = (text: string, found: Scan): Scan => {
     enterQuote(blocks, countQuotes(line, content), content);
     if (isInline(content, blocks, found.definitions)) {
       // One by one: spreading the links of a long line into `push` exceeds the argument limit.
-      for (const link of lineLinks(content, offset + line.length - content.length, found.references)) {
+      const start = offset + line.length - content.length;
+      for (const link of lineLinks(content, start, found.references, found.mentions)) {
         found.links.push(link);
       }
     }
@@ -574,6 +617,20 @@ const scan = (text: string, found: Scan): Scan => {
 
 /** The inline links and images of a Markdown text, in order, outside code (see file comment). */
 export const markdownLinks = (text: string): MarkdownLink[] => scan(text, { links: [] }).links;
+
+/**
+ * The inline links and images of a Markdown text as `markdownLinks` gives them, and in the same pass
+ * the offsets where `word` stands in inline text outside code spans and links, in order
+ * (see the file comment).
+ */
+export const markdownLinksAndMentions = (
+  text: string,
+  word: string,
+): { links: MarkdownLink[]; mentions: number[] } => {
+  const at: number[] = [];
+  const { links } = scan(text, { links: [], mentions: { word, at } });
+  return { links, mentions: at };
+};
 
 /**
  * The destinations of the images of a Markdown text as written (without `<…>`), outside code:

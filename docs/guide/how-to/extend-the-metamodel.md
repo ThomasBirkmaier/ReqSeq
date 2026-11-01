@@ -9,6 +9,27 @@ The metamodel says which element types, properties, relation kinds and statuses 
 
 This page adds the type `component`, a property `component-id` with the meaning `identifier`, so a component can be named by a readable ID such as `C-ANEMO`, and the relation kind `allocated-to` from a system requirement to a component. A key must be new: a key used twice, also between a property and a relation kind, is an error, and the workspace is then read-only until it is fixed. The one change your own file cannot make is a new property on a type of the standard model: for that, add the key to that type's `properties` in `standard-model.yaml`.
 
+## Which properties count to the version
+
+Set `content: true` on every property whose change must give the element a new version, so that its evidence and the relations pointing to it become outdated. The version is computed from the text, the embedded images and the properties marked this way only. A property without `content: true`, such as the definition of a glossary term or a validation criterion in a type of your own, changes no version when its value changes, and two elements with the same text and the same marked values have the same version. In the standard model, acceptance criteria, requirement type and validity count; title, status, package and rationale do not.
+
+```yaml title="metamodel/glossary.yaml"
+reqseq-metamodel: 1
+types:
+  - key: glossary-term
+    name: Glossary Term
+    prefix: G
+    properties: [title, definition]
+    required: [title, definition]
+properties:
+  - key: definition
+    name: Definition
+    kind: text
+    content: true
+```
+
+`reqseq metamodel get` shows `content: true` or `content: false` for every property, and the app's metamodel text (**Show metamodel**, then Ctrl+T, ⌘T on macOS) marks those that count with "counts to version".
+
 ## App
 
 Not possible in the app: the metamodel is a file you edit in a text editor. The app reads the change when you save it; **Show metamodel** in the command prompt (Ctrl+Shift+P, ⌘⇧P on macOS) shows the types and relation kinds with their problems, and **Check workspace** lists what does not fit the new model. Then create a component with **Create element** and link it with **Create relation**.

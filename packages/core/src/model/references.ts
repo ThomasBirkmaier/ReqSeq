@@ -16,7 +16,7 @@ import type { Metamodel } from "../metamodel/index.js";
 import { markdownKeysOf } from "../metamodel/index.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import type { ElementMatch, ElementRecord } from "./elements.js";
-import { markdownLinks } from "./markdown-links.js";
+import { markdownLinksAndMentions } from "./markdown-links.js";
 import type { TargetState } from "./relations.js";
 import { resolveTarget, targetState } from "./relations.js";
 import type { ElementStore } from "./store.js";
@@ -99,11 +99,85 @@ export interface UnresolvedLink {
   readonly line: number;
 }
 
-/** The `reqseq:` links (not images) of a Markdown text in order, outside code, with their lines; an empty target is none. */
-const reqseqLinks = (text: string): UnresolvedLink[] => {
+/**
+ * A `reqseq:` reference written outside a Markdown link and outside code (`reqseq:N-6010df` instead
+ * of `[Title](reqseq:N-6010df)`, #633, SR-021 AK3): it is no link (ADR-0004), so it counts for
+ * nothing, and `workspace.check` warns about one in the text of an element.
+ */
+export interface BareReference {
+  /** What follows `reqseq:` up to the end of the reference token. */
+  readonly target: string;
+  /** The line in the text, from 1. */
+  readonly line: number;
+}
+
+/**
+ * What may follow `reqseq:` for it to read as a reference: a short ID, a UUID or an identifier
+ * token, letters and digits with `-`, `_` or `.` inside (a `.` or `-` at its end is punctuation).
+ */
+const REFERENCE_TOKEN = /[A-Za-z0-9](?:[\w.-]*[A-Za-z0-9])?/y;
+
+/**
+ * A letter or digit right before `reqseq:` makes it part of another word, and `/`, `=`, `?`, `&`
+ * or `#` part of a URL (`https://example.org/?q=reqseq:N-1`).
+ */
+const WORD_CHAR = /[\p{L}\p{N}_/=?&#]/u;
+
+/** An HTML comment, also one that does not close before the end of the text. */
+const COMMENT = /<!--[\s\S]*?(?:-->|$)/g;
+
+/** The ranges of the HTML comments of `text` as [start, end) pairs, in order. */
+const commentsOf = (text: string): [number, number][] =>
+  text.includes("<!--") ? [...text.matchAll(COMMENT)].map((m) => [m.index, m.index + m[0].length]) : [];
+
+/**
+ * Counts lines over offsets given in increasing order, once over the whole text: the line of each
+ * offset, from 1.
+ */
+const lineCounter = (text: string): ((offset: number) => number) => {
   let line = 1;
   let counted = 0;
-  return markdownLinks(text).flatMap((link): UnresolvedLink[] => {
+  return (offset) => {
+    let at = text.indexOf("\n", counted);
+    while (at !== -1 && at < offset) {
+      line += 1;
+      counted = at + 1;
+      at = text.indexOf("\n", counted);
+    }
+    return line;
+  };
+};
+
+/** The bare references among the offsets where `reqseq:` stands outside links and code, in order. */
+const bareOf = (text: string, mentions: readonly number[]): BareReference[] => {
+  const lineOf = lineCounter(text);
+  const comments = commentsOf(text);
+  // Mentions and comments come in text order, so one index walks the comments once.
+  let next = 0;
+  const inComment = (at: number): boolean => {
+    while ((comments[next]?.[1] ?? Infinity) <= at) {
+      next++;
+    }
+    return (comments[next]?.[0] ?? Infinity) <= at;
+  };
+  return mentions.flatMap((at): BareReference[] => {
+    if (inComment(at) || (at > 0 && WORD_CHAR.test(text.charAt(at - 1)))) {
+      return [];
+    }
+    REFERENCE_TOKEN.lastIndex = at + SCHEME.length;
+    const token = REFERENCE_TOKEN.exec(text);
+    return token === null ? [] : [{ target: token[0], line: lineOf(at) }];
+  });
+};
+
+/**
+ * The `reqseq:` links (not images) of a Markdown text in order, outside code, with their lines (an
+ * empty target is none), and in the same pass the bare references (`BareReference`).
+ */
+const reqseqLinks = (text: string): { links: UnresolvedLink[]; bare: BareReference[] } => {
+  const lineOf = lineCounter(text);
+  const scanned = markdownLinksAndMentions(text, SCHEME);
+  const links = scanned.links.flatMap((link): UnresolvedLink[] => {
     if (link.image || !link.destination.startsWith(SCHEME)) {
       return [];
     }
@@ -117,14 +191,10 @@ const reqseqLinks = (text: string): UnresolvedLink[] => {
     const repository = named === "" ? undefined : named;
     const { destination, start, end } = link;
     // Links come in text order, so the lines are counted once over the whole text.
-    let at = text.indexOf("\n", counted);
-    while (at !== -1 && at < start) {
-      line += 1;
-      counted = at + 1;
-      at = text.indexOf("\n", counted);
-    }
+    const line = lineOf(start);
     return [{ target, ...(repository === undefined ? {} : { repository }), destination, start, end, line }];
   });
+  return { links, bare: bareOf(text, scanned.mentions) };
 };
 
 /** A link whose target is a UUID as an inline reference, with its version. */
@@ -148,18 +218,24 @@ const asReference = ({
   };
 };
 
-/** The `reqseq:` links of a text in one scan: the inline references, and the links whose target is no UUID (#176). */
-const linksOf = (text: string): { references: InlineReference[]; unresolved: UnresolvedLink[] } => {
+/**
+ * The `reqseq:` links of a text in one scan: the inline references, the links whose target is no
+ * UUID (#176), and the bare references outside links (#633).
+ */
+const linksOf = (
+  text: string,
+): { references: InlineReference[]; unresolved: UnresolvedLink[]; bare: BareReference[] } => {
   const references: InlineReference[] = [];
   const unresolved: UnresolvedLink[] = [];
-  for (const link of reqseqLinks(text)) {
+  const { links, bare } = reqseqLinks(text);
+  for (const link of links) {
     if (isUuid(link.target)) {
       references.push(asReference(link));
     } else {
       unresolved.push(link);
     }
   }
-  return { references, unresolved };
+  return { references, unresolved, bare };
 };
 
 /**
@@ -196,6 +272,8 @@ export interface ElementLinks {
   readonly references: TextReference[];
   readonly propertyReferences: PropertyReference[];
   readonly unresolvedLinks: StoredUnresolvedLink[];
+  /** The bare references of the text, with their lines in the file (#633). */
+  readonly bareReferences: BareReference[];
 }
 
 /** A reference or link with its target and repository, without offsets and destination. */
@@ -212,7 +290,8 @@ const stored = (link: {
  * `body` with their lines in the file; those in the string values of the frontmatter `data` (a value,
  * or the strings of a list), whatever the key, since the metamodel is not known when a file is read
  * (`referencesOf` takes the marked properties, SR-127), with the line `place` gives; and the links
- * whose target is no UUID (#176), those of the properties first, then those of the text. A text or
+ * whose target is no UUID (#176), those of the properties first, then those of the text; and the
+ * bare references of the text (#633, SR-021 AK3: the text only, not the properties). A text or
  * frontmatter without `reqseq:`, which is nearly every file, is not scanned.
  */
 export const elementLinks = (
@@ -256,6 +335,7 @@ export const elementLinks = (
     }
   }
   const references: TextReference[] = [];
+  const bareReferences: BareReference[] = [];
   if (body.includes(SCHEME)) {
     // Line 1 is the opening `---`, then the frontmatter lines, then the closing `---`.
     const before = 2 + frontmatter.split("\n").length - 1;
@@ -266,8 +346,11 @@ export const elementLinks = (
     for (const link of found.unresolved) {
       unresolvedLinks.push({ target: link.target, ...stored(link), line: before + link.line });
     }
+    for (const bare of found.bare) {
+      bareReferences.push({ target: bare.target, line: before + bare.line });
+    }
   }
-  return { references, propertyReferences, unresolvedLinks };
+  return { references, propertyReferences, unresolvedLinks, bareReferences };
 };
 
 /**

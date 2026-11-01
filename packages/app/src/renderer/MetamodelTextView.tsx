@@ -1,7 +1,7 @@
 // The metamodel as text (SR-130 AK5): the answer of `metamodel.get` that the graph shows, as rows on the
 // white sheet (`metamodel-text.ts` says which words stand for which field). One section per type: its
-// name, prefix and key, "abstract", its parent, its properties with value kind and "required" (the
-// inherited ones muted, as in the graph) and its statuses; then one line per relation kind with its
+// name, prefix and key, "abstract", its parent, its properties with value kind, "required" and "counts to
+// version" (the inherited ones muted, as in the graph) and its statuses; then one line per relation kind with its
 // source and target types; then the problems of the output. Greys only (D-062).
 // Keys as in every list of the main window (SR-122 AK4, AK5; `rowTarget`): Down and Ctrl+N, Up and
 // Ctrl+P, Page Up and Page Down, Home and End move the selection. The selected type is the graph's
@@ -48,6 +48,7 @@ const TypeSection = ({ row }: { readonly row: TypeRow }): React.JSX.Element => (
         <span className="mm-key">{property.key}</span>
         <span className="mm-value">{property.value}</span>
         <span className="mm-required">{property.required ? "required" : ""}</span>
+        <span className="mm-content">{property.content ? "counts to version" : ""}</span>
       </div>
     ))}
     <div className="mm-fact" data-statuses="">

@@ -265,6 +265,7 @@
         "element.missing-status",
         "relation.missing-target",
         "relation.unresolved-link",
+        "relation.not-a-link",
         "relation.inaccessible-target",
         "relation.not-allowed",
         "relation.outdated",

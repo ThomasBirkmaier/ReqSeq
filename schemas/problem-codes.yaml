@@ -57,6 +57,9 @@ problems:
   relation.unresolved-link:
     cause: A `reqseq:` link in the text or in a Markdown property names its target by a short ID or an identifier instead of a UUID, for example one written into the file by hand. Such a link counts for nothing, neither for outdated relations nor for the trace.
     remedy: Give the text or the property again with element.update, which resolves the short ID or identifier to the target's UUID and version, or write `reqseq:<uuid>` yourself.
+  relation.not-a-link:
+    cause: The text of an element names an element with the scheme `reqseq:` outside a Markdown link and outside code, for example `reqseq:N-6010df` instead of `[Title](reqseq:N-6010df)`. Only a Markdown link is a reference, so this one counts for nothing, neither for outdated relations nor for the trace.
+    remedy: Write it as a Markdown link, `[Title](reqseq:N-6010df)`, and give the text again with element.update, which resolves the target to its UUID and version. If it is no reference, put it in code (`` `reqseq:…` ``).
   relation.inaccessible-target:
     cause: The target of a relation is in a repository of the workspace that is not on this machine. This version does not raise it yet; it shows such targets as not accessible.
     remedy: Clone the repository where the workspace file expects it.

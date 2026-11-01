@@ -1221,7 +1221,7 @@
     "/v1/commands/metamodel.get": {
       "post": {
         "operationId": "metamodel_get",
-        "summary": "The effective metamodel: types with inherited properties and statuses, properties, relation kinds, statuses, meanings.",
+        "summary": "The effective metamodel: types with inherited properties and statuses, properties with whether they count to the version, relation kinds, statuses, meanings.",
         "tags": [
           "metamodel"
         ],
@@ -1262,7 +1262,8 @@
                       "type": "array",
                       "items": {
                         "$ref": "#/components/schemas/metamodel/$defs/property"
-                      }
+                      },
+                      "description": "The property definitions as written, except that each carries `content`, false when not written: whether a change of its value gives a new version and makes evidence and relations outdated (D-057, #624)."
                     },
                     "relations": {
                       "type": "array",
@@ -1458,7 +1459,7 @@
                   "text": {
                     "type": "string",
                     "contentMediaType": "text/markdown",
-                    "description": "Markdown text of the element, written below the frontmatter after one blank line; that blank line after the closing `---` is not part of the text. A final line break is added (ADR-0004)."
+                    "description": "Markdown text of the element, written below the frontmatter after one blank line; that blank line after the closing `---` is not part of the text. A final line break is added (ADR-0004). Another element is named by a Markdown link, `[Title](reqseq:N-6010df)` with its UUID, short ID or identifier, which is written as UUID and version; `reqseq:N-6010df` alone is no link and counts for nothing."
                   },
                   "properties": {
                     "type": "object",
@@ -2607,7 +2608,7 @@
                   "text": {
                     "type": "string",
                     "contentMediaType": "text/markdown",
-                    "description": "New Markdown text of the element; the blank line after the closing `---` is not part of the text, so the text element.get gives can be passed back unchanged. A changed text gets a final line break (ADR-0004)."
+                    "description": "New Markdown text of the element; the blank line after the closing `---` is not part of the text, so the text element.get gives can be passed back unchanged. A changed text gets a final line break (ADR-0004). Another element is named by a Markdown link, `[Title](reqseq:N-6010df)` with its UUID, short ID or identifier, which is written as UUID and version; `reqseq:N-6010df` alone is no link and counts for nothing."
                   },
                   "set": {
                     "type": "object",
@@ -11698,6 +11699,7 @@
               "element.missing-status",
               "relation.missing-target",
               "relation.unresolved-link",
+              "relation.not-a-link",
               "relation.inaccessible-target",
               "relation.not-allowed",
               "relation.outdated",

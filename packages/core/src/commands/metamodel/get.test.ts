@@ -208,4 +208,15 @@ describe("metamodel.get", () => {
       ["severity", "Severity", "number", undefined, undefined],
     ]);
   });
+
+  it("[SR-130/AK5] says of each property whether it counts to the version, false where content is not written", async () => {
+    const out = await get("SR-130/metamodel");
+    expect(out.properties.map((p) => [p.key, p.content])).toEqual([
+      ["title", false],
+      ["rationale", false],
+      ["component", true],
+      ["packages", false],
+      ["severity", false],
+    ]);
+  });
 });

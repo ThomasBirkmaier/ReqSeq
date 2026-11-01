@@ -3,8 +3,8 @@
 // properties, every inheritance and relation kind a labelled curve, as `reqseq metamodel get` gives them
 // (AK2); a relation kind open on a side appears once per type of the other side, at "Any type", with the
 // open side in its label (AK3); the arrows move between the boxes, and Ctrl/Cmd+T switches between graph
-// and text (AK4); the text names every type's key, name, prefix, parent, properties with value kind and
-// "required" and statuses, and every relation kind's source and target types (AK5), the same that the CLI
+// and text (AK4); the text names every type's key, name, prefix, parent, properties with value kind,
+// "required" and "counts to version" and statuses, and every relation kind's source and target types (AK5), the same that the CLI
 // and the MCP server give (AK6). What the window shows is compared with the CLI's output for the same
 // workspace (SR-080), mapped by this test itself, never through the app's modules.
 // Keys use ControlOrMeta, so the same tests run on Linux and macOS.
@@ -31,6 +31,7 @@ interface Metamodel {
     readonly kind: string;
     readonly many?: boolean;
     readonly "target-types"?: readonly string[];
+    readonly content?: boolean;
   }[];
   readonly relations: readonly {
     readonly key: string;
@@ -196,7 +197,7 @@ const drawingProblems = (window: Page): Promise<string[]> =>
 
 /**
  * One row of the text as words, its lines joined by " | ": the head, "extends …", "Properties", one line
- * per property (name, key, value kind, "required", "(inherited)"), "Statuses …".
+ * per property (name, key, value kind, "required", "counts to version", "(inherited)"), "Statuses …".
  */
 const shownText = (window: Page): Promise<string[]> =>
   window.evaluate(() =>
@@ -242,6 +243,7 @@ const expectedText = (model: Metamodel): string[] => {
         key,
         value,
         type.required.includes(key) ? "required" : "",
+        property?.content === true ? "counts to version" : "",
         parent.includes(key) ? "(inherited)" : "",
       ]
         .filter((part) => part !== "")
@@ -408,7 +410,7 @@ test.describe("the metamodel on a fixture workspace", () => {
     await expectSelected(window, "requirement");
   });
 
-  test("[SR-130/AK5] the text names every type's key, name, prefix, parent, properties with value kind and required and statuses, and every relation kind's source and target types, as reqseq metamodel get gives them", async () => {
+  test("[SR-130/AK5] the text names every type's key, name, prefix, parent, properties with value kind, required and whether they count to the version and statuses, and every relation kind's source and target types, as reqseq metamodel get gives them", async () => {
     const { window } = await launch();
     const model = await metamodel(running);
     await showMetamodel(window, model.types.length + 1);

@@ -5,7 +5,7 @@ import { Scalar, isMap, isNode, isScalar } from "yaml";
 import type { Problem } from "../catalog.js";
 import type { FileSnapshot, LineEnding, ParsedContent, ParsedFile } from "../files/index.js";
 import { FRONTMATTER_FIRST_LINE } from "../files/index.js";
-import type { PropertyReference, StoredUnresolvedLink, TextReference } from "./references.js";
+import type { BareReference, PropertyReference, StoredUnresolvedLink, TextReference } from "./references.js";
 import { elementLinks } from "./references.js";
 import { isUuid } from "./uuid.js";
 
@@ -41,6 +41,11 @@ export interface ElementRecord {
    * then in the text; left out when there is none. `workspace.check` reports those that count.
    */
   readonly unresolvedLinks?: readonly StoredUnresolvedLink[];
+  /**
+   * The `reqseq:` references of the text written outside a Markdown link and outside code (#633),
+   * with their lines in the file; left out when there is none. `workspace.check` reports each.
+   */
+  readonly bareReferences?: readonly BareReference[];
   /** Line endings and byte order mark of the file (ADR-0007). */
   readonly eol: LineEnding;
   readonly closingEol: LineEnding | "";
@@ -178,6 +183,7 @@ export const classifyFile = (repository: string, file: ParsedFile): Classified =
     references,
     propertyReferences: inProperties,
     unresolvedLinks: unresolved,
+    bareReferences: bare,
   } = elementLinks(file.frontmatter, file.body, data, (key, item) => placeOf(file, key, item));
   return {
     kind: "element",
@@ -190,6 +196,7 @@ export const classifyFile = (repository: string, file: ParsedFile): Classified =
       ...(references.length === 0 ? {} : { references }),
       ...(inProperties.length === 0 ? {} : { propertyReferences: inProperties }),
       ...(unresolved.length === 0 ? {} : { unresolvedLinks: unresolved }),
+      ...(bare.length === 0 ? {} : { bareReferences: bare }),
       eol,
       closingEol,
       bom,

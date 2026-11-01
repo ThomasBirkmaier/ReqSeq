@@ -2813,6 +2813,20 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       expect: "output",
     },
     {
+      name: "a reqseq: reference outside a Markdown link and outside code, with file and line (#633)",
+      tag: "[SR-021/AK3]",
+      fixture: {
+        fixture: "SR-004/one-repository",
+        git: true,
+        files: {
+          "requirements/SR-0000000b0633.md":
+            "---\nid: 63300000-0000-4000-8000-0000000b0633\ntype: system-requirement\nstatus: draft\ntitle: Confirms\n---\n\n- reqseq:SR-e88fb3\n- `reqseq:SR-e88fb3` and [wind](reqseq:SR-e88fb3)\n",
+        },
+      },
+      input: {},
+      expect: "output",
+    },
+    {
       name: "one finding of each kind",
       fixture: { fixture: "SR-019/findings", git: true },
       input: {},
@@ -2944,6 +2958,17 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
             "component",
           ]);
           expect(type("package")?.statuses, access).toEqual([]);
+          // Whether each property counts to the version (D-057, #624): false where not written.
+          expect(
+            output.properties.map((property) => [property.key, property.content]),
+            access,
+          ).toEqual([
+            ["title", false],
+            ["rationale", false],
+            ["component", true],
+            ["packages", false],
+            ["severity", false],
+          ]);
           expect(kind("based-on"), access).not.toHaveProperty("source-types");
           expect(kind("blocks")?.["source-types"], access).toEqual([]);
         }

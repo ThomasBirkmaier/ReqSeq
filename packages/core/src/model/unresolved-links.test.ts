@@ -161,3 +161,83 @@ describe("reqseq: links whose target is no UUID (#176)", () => {
     expect(listed.hints.filter((p) => p.code === "relation.unresolved-link")).toEqual(found);
   });
 });
+
+describe("reqseq: references outside a Markdown link (#633)", () => {
+  it("[SR-021/AK3] warns through workspace.check with file and line about one in the text outside links and code", async () => {
+    const fixture = await createFixtureWorkspace({
+      fixture: "SR-021/targets",
+      files: {
+        [`system/${SOURCE}`]: source(
+          "rationale: Like reqseq:N-1f2a4c in a property.\n",
+          [
+            "Confirms:",
+            "",
+            "- reqseq:N-1f2a4c",
+            "- <reqseq:N-000000>, a link: [the need](reqseq:N-1f2a4c), [reqseq:N-1f2a4c](reqseq:N-1f2a4c)",
+            "- in code: `reqseq:N-1f2a4c`",
+            "",
+            "```",
+            "reqseq:N-1f2a4c",
+            "```",
+            "",
+            "    reqseq:N-1f2a4c",
+            "",
+            "[def]: reqseq:N-1f2a4c",
+            "",
+          ].join("\n"),
+        ),
+      },
+    });
+    onTestFinished(() => fixture.cleanup());
+    const workspace = new Workspace(fixture.path("system"));
+    onTestFinished(() => workspace.close());
+    const check = (await invoke("workspace.check", {}, { workspace })) as {
+      readonly ok: boolean;
+      readonly problems: readonly Problem[];
+    };
+    const at = {
+      repository: "system",
+      file: SOURCE,
+      elementId: "6e2f8a4c-1b3d-4c5e-9f7a-3d8b2c6e1f05",
+      elementShortId: "SR-6e1f05",
+    };
+    expect(check.ok).toBe(true);
+    expect(check.problems.filter((p) => p.code === "relation.not-a-link")).toEqual([
+      {
+        code: "relation.not-a-link",
+        severity: "warning",
+        message:
+          "The text of System Requirement SR-6e1f05 names reqseq:N-1f2a4c outside a Markdown link, so it counts for nothing (no relation, no outdated check, no trace): write it as a link, [Title](reqseq:N-1f2a4c), or put it in code if it is no reference",
+        line: 11,
+        ...at,
+      },
+      {
+        code: "relation.not-a-link",
+        severity: "warning",
+        message:
+          "The text of System Requirement SR-6e1f05 names reqseq:N-000000 outside a Markdown link, so it counts for nothing (no relation, no outdated check, no trace): write it as a link, [Title](reqseq:N-000000), or put it in code if it is no reference",
+        line: 12,
+        ...at,
+      },
+    ]);
+    const shown = (await invoke("element.get", { ref: "SR-6e1f05" }, { workspace })) as {
+      readonly element: { readonly problems: readonly Problem[] };
+    };
+    expect(shown.element.problems.filter((p) => p.code === "relation.not-a-link")).toHaveLength(2);
+  });
+
+  it("reports them after the unresolved links of the element, and alone when it has none", async () => {
+    const codes = (problems: readonly Problem[]): string[] =>
+      problems.map((p) => `${p.code}:${String(p.line)}`);
+    expect(
+      codes(
+        await problemsOf({
+          [`system/${SOURCE}`]: source("", "reqseq:N-1f2a4c and [gone](reqseq:N-000000).\n"),
+        }),
+      ),
+    ).toEqual(["relation.unresolved-link:8", "relation.not-a-link:8"]);
+    expect(codes(await problemsOf({ [`system/${SOURCE}`]: source("", "Only reqseq:N-1f2a4c.\n") }))).toEqual([
+      "relation.not-a-link:8",
+    ]);
+  });
+});

@@ -66,6 +66,7 @@ export const FIXTURE_METAMODEL: MetamodelGetOutput = {
       key: "title",
       name: "Title",
       kind: "text",
+      content: false,
       meaning: "title",
     },
     {
@@ -73,6 +74,7 @@ export const FIXTURE_METAMODEL: MetamodelGetOutput = {
       name: "Rationale",
       kind: "text",
       markdown: true,
+      content: false,
     },
     {
       key: "component",
@@ -98,11 +100,13 @@ export const FIXTURE_METAMODEL: MetamodelGetOutput = {
       many: true,
       "target-types": ["package"],
       meaning: "packages",
+      content: false,
     },
     {
       key: "severity",
       name: "Severity",
       kind: "number",
+      content: false,
     },
   ],
   relations: [

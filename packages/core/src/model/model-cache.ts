@@ -44,9 +44,10 @@ export const MODEL_CACHE_FILE = "model.json";
  * The format of `model.json`; a cache of another format is discarded. 4: element records carry the
  * inline references of their text (`ElementRecord.references`, #240). 5: and those in the string
  * values of their frontmatter (`ElementRecord.propertyReferences`, SR-127). 6: and their `reqseq:`
- * links whose target is no UUID (`ElementRecord.unresolvedLinks`, #176).
+ * links whose target is no UUID (`ElementRecord.unresolvedLinks`, #176). 7: and the `reqseq:`
+ * references of their text outside links (`ElementRecord.bareReferences`, #633).
  */
-export const MODEL_CACHE_FORMAT = 6;
+export const MODEL_CACHE_FORMAT = 7;
 
 /**
  * An entry whose modification time lies less than this before the start of the load that wrote it
@@ -245,11 +246,26 @@ const isUnresolvedLinks = (value: unknown): boolean =>
           l["item"] >= 0)),
   );
 
+/** Whether `value` is a list of bare references as `elementLinks` makes them (one or more). */
+const isBareReferences = (value: unknown): boolean =>
+  Array.isArray(value) &&
+  value.length > 0 &&
+  value.every(
+    (r: unknown) =>
+      isRecord(r) &&
+      typeof r["target"] === "string" &&
+      r["target"] !== "" &&
+      typeof r["line"] === "number" &&
+      Number.isInteger(r["line"]) &&
+      r["line"] >= 1,
+  );
+
 /** Whether the optional link lists of an element record have the shape `classifyFile` gives them. */
 const hasLinksOfRecord = (value: Readonly<Record<string, unknown>>): boolean =>
   (value["references"] === undefined || isReferences(value["references"], false)) &&
   (value["propertyReferences"] === undefined || isReferences(value["propertyReferences"], true)) &&
-  (value["unresolvedLinks"] === undefined || isUnresolvedLinks(value["unresolvedLinks"]));
+  (value["unresolvedLinks"] === undefined || isUnresolvedLinks(value["unresolvedLinks"])) &&
+  (value["bareReferences"] === undefined || isBareReferences(value["bareReferences"]));
 
 /** Whether `value` is the record of an element in `file` of repository `name`, as `classifyFile` makes it. */
 const isElementOf = (value: unknown, file: string, name: string): value is Record<string, unknown> =>

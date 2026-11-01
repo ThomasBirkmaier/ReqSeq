@@ -5,6 +5,13 @@
 // with the element it names when it names one. The links come from the element store
 // (`ElementRecord.unresolvedLinks`), so no text is read; those in a property count only when the
 // metamodel marks it `markdown` (SR-127), as for inline references.
+//
+// A `reqseq:` reference in the text outside a Markdown link and outside code (`reqseq:N-6010df`
+// instead of `[Title](reqseq:N-6010df)`) is no link at all (ADR-0004) and counts for nothing too:
+// SR-021 AK3 "Gegeben der Text eines Elements nennt außerhalb von Code und außerhalb eines
+// Markdown-Links ein Element mit dem Schema `reqseq:` …, wenn der Bestand geprüft wird (CLI, API,
+// MCP: `workspace.check`), dann meldet das Tool eine Warnung mit Datei und Zeile." It is reported
+// as `relation.not-a-link` (#633), from `ElementRecord.bareReferences`, the same way.
 import type { Problem } from "../catalog.js";
 import { commandErrorOrThrow } from "../catalog.js";
 import type { Metamodel } from "../metamodel/index.js";
@@ -65,17 +72,32 @@ const namesOf = (link: StoredUnresolvedLink, context: UnresolvedLinkContext): st
   }
 };
 
-/** The unresolved links of one element that count under the metamodel, as problems, in store order. */
+/** The references of the text of `element` outside links and code (#633), as warnings. */
+const bareReferenceProblems = (element: ElementRecord, context: UnresolvedLinkContext): Problem[] =>
+  (element.bareReferences ?? []).map(({ target, line }) => ({
+    code: "relation.not-a-link",
+    severity: "warning",
+    message: `The text of ${nameOf(element, context)} names reqseq:${target} outside a Markdown link, so it counts for nothing (no relation, no outdated check, no trace): write it as a link, [Title](reqseq:${target}), or put it in code if it is no reference`,
+    repository: element.repository,
+    file: element.file,
+    line,
+    elementId: element.id,
+  }));
+
+/**
+ * The unresolved links of one element that count under the metamodel, in store order, then the
+ * references of its text outside links (#633), as problems.
+ */
 export const unresolvedLinkProblems = (
   element: ElementRecord,
   context: UnresolvedLinkContext,
 ): readonly Problem[] => {
   const links = element.unresolvedLinks;
   if (links === undefined) {
-    return [];
+    return bareReferenceProblems(element, context);
   }
   const marked = markdownKeysOf(context.metamodel);
-  return links
+  const problems: Problem[] = links
     .filter((link) => link.key === undefined || marked.has(link.key))
     .map((link) => ({
       code: "relation.unresolved-link",
@@ -86,10 +108,14 @@ export const unresolvedLinkProblems = (
       line: link.line,
       elementId: element.id,
     }));
+  for (const problem of bareReferenceProblems(element, context)) {
+    problems.push(problem);
+  }
+  return problems;
 };
 
 /**
- * Every unresolved link of the workspace that counts, as a warning with repository, file, line and
+ * Every unresolved link of the workspace that counts and every reference outside a link (#633), as a warning with repository, file, line and
  * element ID, for `workspace.check` (SR-019): one pass over the store, no file read (N-036).
  */
 export const unresolvedLinkProblemsState = defineWorkspaceState(
