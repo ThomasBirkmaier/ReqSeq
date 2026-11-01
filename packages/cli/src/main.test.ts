@@ -663,6 +663,7 @@ describe("reqseq <group> <action>", () => {
         body: "x\n",
       },
       { ref, name: "via input", props: { "a=b": 1 }, body: "@not a file" },
+      { ref, name: "dash", body: "-" },
       { ref, name: "empty", props: {} },
     ];
     for (const input of inputs) {

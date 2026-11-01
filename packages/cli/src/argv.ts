@@ -33,7 +33,7 @@ const flagArgs = (field: InputField, value: unknown): string[] | undefined => {
     return entriesArgs(field, value);
   }
   // A text that names a file or standard input would be read instead of taken.
-  if (field.textFile && typeof value === "string" && value.startsWith("@")) {
+  if (field.textFile && typeof value === "string" && (value.startsWith("@") || value === "-")) {
     return undefined;
   }
   if (field.array) {

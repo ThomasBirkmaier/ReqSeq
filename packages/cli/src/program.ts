@@ -93,9 +93,11 @@ const describeField = (field: InputField): string =>
     field.defaultValue === undefined ? undefined : `default: ${JSON.stringify(field.defaultValue)}`,
     field.array ? "repeatable" : undefined,
     field.entries
-      ? "repeatable; the value as JSON when it parses (a list, number, true, null), else as text; keys add to --input"
+      ? "repeatable; the value as JSON when it parses (a list, number, true, null), else as text: version=1.10 is the number 1.1, give 'version=\"1.10\"' for text; the last value of a key counts; keys add to --input"
       : undefined,
-    field.textFile ? "@file or - reads it from a file or standard input, as --input does" : undefined,
+    field.textFile
+      ? "@file or - reads it from a file or standard input, as --input does; a text that is - or starts with @ only via --input"
+      : undefined,
     field.nullable ? "null only via --input" : undefined,
   ]
     .filter((part) => part !== undefined)

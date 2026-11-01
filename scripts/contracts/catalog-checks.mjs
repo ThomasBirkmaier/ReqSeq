@@ -71,18 +71,29 @@ function checkContext(arg, earlier) {
     : [`"${arg.field}": ${arg.complete} needs an earlier ${kinds} field`];
 }
 
-/** Options every CLI command has (`RESERVED_FLAGS` and `--jsonl` in `packages/cli`). */
+/**
+ * Options every CLI command has: keep in step with `RESERVED_FLAGS` in `packages/cli/src/fields.ts`,
+ * plus `--jsonl` (`packages/cli/src/program.ts`).
+ */
 const COMMON_OPTIONS = ["json", "yaml", "jsonl", "workspace", "input", "help"];
 
-/** `flag`: a CLI flag name of its own (ADR-0009), neither another field's flag nor a common option. */
+/**
+ * `flag`: a CLI flag name of its own (ADR-0009), neither another field's flag (nor `--no-<flag>` of an
+ * inline boolean field) nor a common option.
+ */
 function checkFlags(cmd) {
   const flagOf = (arg) => arg.flag ?? arg.field.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
+  const isBoolean = (arg) => cmd.input.properties?.[arg.field]?.type === "boolean";
   return cmd.arguments
     .filter((arg) => arg.flag !== undefined)
     .flatMap((arg) =>
       COMMON_OPTIONS.includes(arg.flag)
         ? [`"${arg.field}": flag "${arg.flag}" is a common option`]
-        : cmd.arguments.some((other) => other !== arg && flagOf(other) === arg.flag)
+        : cmd.arguments.some(
+              (other) =>
+                other !== arg &&
+                (flagOf(other) === arg.flag || (isBoolean(other) && `no-${flagOf(other)}` === arg.flag)),
+            )
           ? [`"${arg.field}": flag "${arg.flag}" is also the flag of another field`]
           : [],
     );
