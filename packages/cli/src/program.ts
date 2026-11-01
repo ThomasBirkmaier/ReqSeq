@@ -99,7 +99,8 @@ const describeField = (field: InputField): string =>
     field.nullable ? "null only via --input" : undefined,
   ]
     .filter((part) => part !== undefined)
-    .join("; ");
+    .join("; ")
+    .replaceAll(".; ", ". ");
 
 const collect = (value: string, previous: unknown): string[] => [
   ...(Array.isArray(previous) ? (previous as string[]) : []),

@@ -51,7 +51,7 @@ const catalog = {
           file: { $ref: "../common.schema.json#/$defs/localPath" },
           note: { type: ["string", "null"] },
           props: { type: "object", additionalProperties: {} },
-          body: { type: "string", contentMediaType: "text/markdown" },
+          body: { type: "string", contentMediaType: "text/markdown", description: "Body text." },
         },
         required: ["ref", "name"],
       }),
@@ -240,9 +240,7 @@ describe("reqseq help and version", () => {
     expect(result.stdout).toMatch(/--level <value>\s+one of: low, high; default: "low"/);
     expect(result.stdout).toMatch(/--note <value>\s+null only via --input/);
     expect(result.stdout).toMatch(/--set <key=value>\s+repeatable; the value as JSON when it parses/);
-    expect(result.stdout).toMatch(
-      /--body <text\|@file\|->\s+@file or - reads it from a file or standard input/,
-    );
+    expect(result.stdout).toMatch(/--body <text\|@file\|->\s+Body text\. @file or - reads it from a file/);
     expect(result.stdout).toMatch(/--input <json\|@file\|->/);
     expect(result.stdout).toMatch(/--workspace <path>/);
     expect(result.stdout).toMatch(/--json\s/);
