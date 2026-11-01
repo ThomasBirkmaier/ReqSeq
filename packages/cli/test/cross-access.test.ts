@@ -186,6 +186,23 @@ const REPEATED: FixtureOptions = {
     ),
   },
 };
+/**
+ * DELIVERY after a first import of its two requirements (REQ-1 and REQ-2 of fixtures/SR-056/imported,
+ * with fixed UUIDs, so every access compares the same files), so a command takes the same source again
+ * (SR-054 AK2).
+ */
+const FIRST_IMPORT: FixtureOptions = {
+  ...DELIVERY,
+  files: {
+    ...DELIVERY.files,
+    ...Object.fromEntries(
+      [1, 2].map((n) => [
+        `Kunde-A/SR-00000000000${String(n)}.md`,
+        sr056(`imported/Kunde-A/SR-00000000000${String(n)}.md`),
+      ]),
+    ),
+  },
+};
 const REPEAT = { file: "in/2.reqif", mapping: "reqif/kunde-a.yaml", delivery: "Lastenheft 2026-12" };
 /** Every access left the files of delivery 1 as they were. */
 const unchangedRepeat = (results: Readonly<Record<string, Result>>): void => {
@@ -2225,6 +2242,28 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       expect: "error",
     },
     {
+      tag: "[SR-054/AK2]",
+      name: "an export to the same source through the saved mapping the command names, without a question on types and attributes",
+      fixture: {
+        ...FIRST_IMPORT,
+        files: {
+          ...FIRST_IMPORT.files,
+          "reqif/kunde-a.yaml": `${String(DELIVERY.files?.["reqif/kunde-a.yaml"])}omit-properties: [delivery, import-date]\n`,
+        },
+      },
+      input: { output: "kunde-a.reqif", mapping: "reqif/kunde-a.yaml" },
+      expect: "output",
+      masks: EXPORT_MASKS,
+      check: (results) => {
+        for (const { files } of Object.values(results)) {
+          // The mapping's omitted properties are left out, and the mapping is used as saved.
+          expect(files["kunde-a.reqif"]).toContain("Measure the wind");
+          expect(files["kunde-a.reqif"]).not.toContain("Lastenheft 2026-11");
+          expect(files["reqif/kunde-a.yaml"]).toContain("omit-properties: [delivery, import-date]");
+        }
+      },
+    },
+    {
       tag: "[SR-059/AK1]",
       name: "the properties to omit are missing from the file",
       fixture: REQIF_EXPORT,
@@ -2472,19 +2511,25 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
     {
       tag: "[SR-054/AK2]",
       name: "the same source again through the saved mapping the command names, without a question on types and attributes",
-      fixture: DELIVERY,
+      fixture: FIRST_IMPORT,
       input: { file: "in/lieferung.reqif", mapping: "reqif/kunde-a.yaml", delivery: "Lastenheft 2026-12" },
       expect: "output",
-      newElement: true,
       check: (results) => {
-        const files = results["core"]?.files ?? {};
-        const output = (
-          results["core"]?.outcome as { output: { created: readonly { identifier: string }[] } }
-        ).output;
-        expect(output.created.map((c) => c.identifier)).toEqual(["REQ-1", "REQ-2"]);
-        // The types and attributes come from the file; the mapping is used as saved, not rewritten.
-        expect(files["reqif/kunde-a.yaml"]).toBe(DELIVERY.files?.["reqif/kunde-a.yaml"]);
-        expect(files["Kunde-A/SR-<tail12-0>.md"]).toContain("type: system-requirement");
+        const output = (coreOutput(results) as { updated: readonly { identifier: string }[] }).updated;
+        expect(output.map((u) => u.identifier)).toEqual(["REQ-1", "REQ-2"]);
+        for (const { files } of Object.values(results)) {
+          // The mapping is used as saved, not rewritten.
+          expect(files["reqif/kunde-a.yaml"]).toBe(DELIVERY.files?.["reqif/kunde-a.yaml"]);
+          // Its attributes: the title from ReqIF.Name, Priority High as requirement-type functional,
+          // Internal Comment omitted; its type: Customer Requirement as system-requirement.
+          const first = files["Kunde-A/SR-000000000001.md"];
+          expect(first).toContain("type: system-requirement");
+          expect(first).toContain("title: Measure the wind");
+          expect(first).toContain("requirement-type: functional");
+          expect(first).toContain("delivery: Lastenheft 2026-12");
+          expect(first).not.toContain("check with team");
+          expect(Object.keys(files).filter((f) => f.startsWith("Kunde-A/"))).toHaveLength(2);
+        }
       },
     },
     {
