@@ -37,6 +37,16 @@ export interface InputField {
    * the current folder, so the command gets an absolute path (ADR-0009).
    */
   readonly localPath: boolean;
+  /**
+   * An object of named values (`additionalProperties`, no `properties`): given as a repeated
+   * `--<flag> key=value`, the value as JSON when it parses, else as a string (#171).
+   */
+  readonly entries: boolean;
+  /**
+   * A string with `contentMediaType` (a Markdown text): the flag also takes `@file` and `-`, read like
+   * `--input` (#171).
+   */
+  readonly textFile: boolean;
 }
 
 /** `$ref` target of local file and folder paths. */
@@ -59,6 +69,15 @@ interface Located {
 
 // Deep enough for every schema of the catalog; a deeper (or circular) chain counts as complex.
 const MAX_DEPTH = 16;
+
+const NO_SHAPE = {
+  array: false,
+  choices: undefined,
+  localPath: false,
+  nullable: false,
+  entries: false,
+  textFile: false,
+} as const;
 
 const scalarOf = (value: unknown): Kind => {
   if (value === null) {
@@ -111,7 +130,10 @@ const typeKind = (type: unknown, keepNull: boolean): Kind => {
 const scalarOrComplex = (kind: Kind): ScalarKind | "complex" =>
   kind === "any" || kind === "null" ? "complex" : kind;
 
-type Shape = Pick<InputField, "kind" | "array" | "choices" | "localPath" | "nullable">;
+type Shape = Pick<
+  InputField,
+  "kind" | "array" | "choices" | "localPath" | "nullable" | "entries" | "textFile"
+>;
 
 /** Reads field schemas; `$ref`s resolve only against `schemas` (identifiers, never fetched). */
 const schemaReader = (schemas: readonly JsonSchema[]): ((located: Located) => Shape) => {
@@ -195,9 +217,15 @@ const schemaReader = (schemas: readonly JsonSchema[]): ((located: Located) => Sh
     const itemSchema = isSchema(items) ? { schema: items, base: located.base } : undefined;
     const item = itemSchema === undefined ? "complex" : scalarOrComplex(kindOf(itemSchema));
     return itemSchema === undefined || item === "complex"
-      ? { kind: "complex", array: false, choices: undefined, localPath: false, nullable: false }
-      : { kind: item, array: true, choices: undefined, localPath: isLocalPath(itemSchema), nullable: false };
+      ? { ...NO_SHAPE, kind: "complex" }
+      : { ...NO_SHAPE, kind: item, array: true, localPath: isLocalPath(itemSchema) };
   };
+
+  /** A map: `type: object` with `additionalProperties` and without `properties`. */
+  const isEntries = (located: Located | undefined): boolean =>
+    located?.schema["type"] === "object" &&
+    isSchema(located.schema["additionalProperties"]) &&
+    !("properties" in located.schema);
 
   return (field) => {
     const located = dereference(field);
@@ -214,6 +242,8 @@ const schemaReader = (schemas: readonly JsonSchema[]): ((located: Located) => Sh
       localPath: strings && isLocalPath(field),
       // A scalar whose kind does not hold once `null` counts as a kind of its own allows `null`.
       nullable: kind !== "complex" && kindOf(field, 0, true) !== kind,
+      entries: isEntries(located),
+      textFile: strings && typeof located?.schema["contentMediaType"] === "string",
     };
   };
 };
@@ -222,12 +252,15 @@ const useOf = (field: Omit<InputField, "use">): FieldUse => {
   if (field.required && field.kind === "string" && !field.array) {
     return "positional";
   }
-  return field.kind === "complex" || RESERVED_FLAGS.includes(field.flag) ? "input-only" : "flag";
+  return (field.kind === "complex" && !field.entries) || RESERVED_FLAGS.includes(field.flag)
+    ? "input-only"
+    : "flag";
 };
 
 /**
  * The fields of a command's input, in schema property order. `$ref`s resolve against `schemas`
- * (default: the schemas of this version, `contractsBundle`).
+ * (default: the schemas of this version, `contractsBundle`). The flag is the field name in kebab-case,
+ * or the `flag` of the field's catalog argument (`--set` for `properties` of `element.create`).
  */
 export function inputFields(
   entry: CatalogEntry,
@@ -243,7 +276,7 @@ export function inputFields(
     const description = schema["description"];
     const field = {
       name,
-      flag: kebab(name),
+      flag: entry.arguments.find((a) => a.field === name)?.flag ?? kebab(name),
       ...read({ schema, base }),
       required: requiredNames.includes(name),
       description: typeof description === "string" ? description : undefined,

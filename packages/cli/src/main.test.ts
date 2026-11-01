@@ -36,22 +36,28 @@ const entry = (name: string, input: Record<string, unknown>, summary = `Test com
 const catalog = {
   "reqseq-catalog": 1,
   commands: [
-    entry("test.echo", {
-      properties: {
-        ref: { $ref: "../common.schema.json#/$defs/elementRef", description: "Element to echo." },
-        name: { type: "string" },
-        count: { type: "integer", minimum: 0 },
-        verbose: { type: "boolean" },
-        version: { type: "string" },
-        tags: { type: "array", items: { type: "string" } },
-        checks: { type: "array", items: { type: "boolean" } },
-        level: { enum: ["low", "high"], default: "low" },
-        selection: { $ref: "../common.schema.json#/$defs/selection" },
-        file: { $ref: "../common.schema.json#/$defs/localPath" },
-        note: { type: ["string", "null"] },
-      },
-      required: ["ref", "name"],
-    }),
+    {
+      ...entry("test.echo", {
+        properties: {
+          ref: { $ref: "../common.schema.json#/$defs/elementRef", description: "Element to echo." },
+          name: { type: "string" },
+          count: { type: "integer", minimum: 0 },
+          verbose: { type: "boolean" },
+          version: { type: "string" },
+          tags: { type: "array", items: { type: "string" } },
+          checks: { type: "array", items: { type: "boolean" } },
+          level: { enum: ["low", "high"], default: "low" },
+          selection: { $ref: "../common.schema.json#/$defs/selection" },
+          file: { $ref: "../common.schema.json#/$defs/localPath" },
+          note: { type: ["string", "null"] },
+          props: { type: "object", additionalProperties: {} },
+          body: { type: "string", contentMediaType: "text/markdown" },
+        },
+        required: ["ref", "name"],
+      }),
+      // `props` is given as `--set key=value` (#171).
+      arguments: [{ field: "props", complete: "json", flag: "set" }],
+    },
     entry("test.findings", { properties: { mode: { enum: ["clean", "warning", "error", "failed"] } } }),
     entry("test.fail", { properties: { code: { type: "string" } }, required: ["code"] }),
     entry("test.root", { properties: {} }),
@@ -233,6 +239,10 @@ describe("reqseq help and version", () => {
     expect(result.stdout).toMatch(/--tags <value>\s+repeatable/);
     expect(result.stdout).toMatch(/--level <value>\s+one of: low, high; default: "low"/);
     expect(result.stdout).toMatch(/--note <value>\s+null only via --input/);
+    expect(result.stdout).toMatch(/--set <key=value>\s+repeatable; the value as JSON when it parses/);
+    expect(result.stdout).toMatch(
+      /--body <text\|@file\|->\s+@file or - reads it from a file or standard input/,
+    );
     expect(result.stdout).toMatch(/--input <json\|@file\|->/);
     expect(result.stdout).toMatch(/--workspace <path>/);
     expect(result.stdout).toMatch(/--json\s/);
@@ -329,6 +339,34 @@ describe("reqseq <group> <action>", () => {
       stdin: Readable.from([JSON.stringify({ ref, name: "from stdin" })]),
     });
     expect(JSON.parse(stdin.stdout)).toEqual({ input: { ref, name: "from stdin", level: "low" } });
+  });
+
+  it("takes --set key=value over the entries of --input, and a text from @file or - (#171)", async () => {
+    const ws = await fixture({ "body.md": "Absatz „eins“.\n\nAbsatz zwei.\n" });
+    const result = await run(
+      [
+        ...["test", "echo", ref, "n", "--input", '{"props":{"kept":true,"spec-id":"old"}}'],
+        ...["--set", "spec-id=D-064", "--set", 'tags=["a",1]', "--body", "@body.md", "--json"],
+      ],
+      { cwd: ws.root },
+    );
+    expect(result.stderr).toBe("");
+    expect(JSON.parse(result.stdout)).toEqual({
+      input: {
+        ref,
+        name: "n",
+        level: "low",
+        props: { kept: true, "spec-id": "D-064", tags: ["a", 1] },
+        body: "Absatz „eins“.\n\nAbsatz zwei.\n",
+      },
+    });
+    const stdin = await run(["test", "echo", ref, "n", "--body", "-", "--json"], {
+      stdin: Readable.from(["from stdin\n"]),
+    });
+    expect(JSON.parse(stdin.stdout)).toMatchObject({ input: { body: "from stdin\n" } });
+    const bad = await run(["test", "echo", ref, "n", "--set", "novalue"]);
+    expect(bad.code).toBe(EXIT.usage);
+    expect(bad.stderr).toBe("error input.invalid: --set expects key=value, not novalue\n");
   });
 
   it("renders the output for people by default", async () => {
@@ -620,6 +658,14 @@ describe("reqseq <group> <action>", () => {
       { ref, name: "-starts with a dash", verbose: true, count: 0, selection: { ids: [ref] } },
       { ref, name: "empty list", tags: [], level: "low" },
       { ref, name: "n", version: "n1:0123456789abcdef" },
+      {
+        ref,
+        name: "entries",
+        props: { a: "D-064", b: "12", c: 12, d: [1, { id: ref }], e: null },
+        body: "x\n",
+      },
+      { ref, name: "via input", props: { "a=b": 1 }, body: "@not a file" },
+      { ref, name: "empty", props: {} },
     ];
     for (const input of inputs) {
       const argv = argvFor(echo, input, runtime.contracts.schemas);
@@ -639,6 +685,14 @@ describe("reqseq <group> <action>", () => {
     ]);
     const odd = { ref: 5, name: "x", tags: ["ok", 3], count: -1, verbose: "yes" };
     expect(argvFor(echo, odd)).toEqual(["test", "echo", "--input", JSON.stringify(odd)]);
+    expect(argvFor(echo, { ref, name: "s", props: { id: "D-1", n: 1 } })).toEqual([
+      ...["test", "echo", ref, "s"],
+      ...["--set", 'id="D-1"', "--set", "n=1"],
+    ]);
+    expect(argvFor(echo, { ref, name: "z", props: ["x"] })).toEqual([
+      ...["test", "echo", ref, "z"],
+      ...["--input", '{"props":["x"]}'],
+    ]);
     expect(argvFor(echo, { ref, name: "y", tags: "single" })).toEqual([
       "test",
       "echo",

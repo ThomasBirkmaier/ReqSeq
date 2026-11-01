@@ -18,8 +18,24 @@ const scalarText = (field: InputField, value: unknown): string | undefined => {
   return field.kind === "boolean" && typeof value === "boolean" ? String(value) : undefined;
 };
 
+/** `--<flag> key=<JSON>` per entry; a key with `=` and an empty object need `--input`. */
+const entriesArgs = (field: InputField, value: unknown): string[] | undefined => {
+  const entries =
+    typeof value === "object" && value !== null && !Array.isArray(value) ? Object.entries(value) : [];
+  return entries.length > 0 && entries.every(([key]) => key !== "" && !key.includes("="))
+    ? entries.flatMap(([key, item]) => [`--${field.flag}`, `${key}=${JSON.stringify(item)}`])
+    : undefined;
+};
+
 /** Flag arguments of one field, or `undefined` when the value needs `--input`. */
 const flagArgs = (field: InputField, value: unknown): string[] | undefined => {
+  if (field.entries) {
+    return entriesArgs(field, value);
+  }
+  // A text that names a file or standard input would be read instead of taken.
+  if (field.textFile && typeof value === "string" && value.startsWith("@")) {
+    return undefined;
+  }
   if (field.array) {
     const items = Array.isArray(value) ? value.map((item) => scalarText(field, item)) : [];
     return items.length > 0 && items.every((item) => item !== undefined)

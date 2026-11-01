@@ -92,6 +92,10 @@ const describeField = (field: InputField): string =>
     field.choices === undefined ? undefined : `one of: ${field.choices.join(", ")}`,
     field.defaultValue === undefined ? undefined : `default: ${JSON.stringify(field.defaultValue)}`,
     field.array ? "repeatable" : undefined,
+    field.entries
+      ? "repeatable; the value as JSON when it parses (a list, number, true, null), else as text; keys add to --input"
+      : undefined,
+    field.textFile ? "@file or - reads it from a file or standard input, as --input does" : undefined,
     field.nullable ? "null only via --input" : undefined,
   ]
     .filter((part) => part !== undefined)
@@ -118,9 +122,15 @@ const optionsOf = (field: InputField): FieldOptions => {
       negation: new Option(`--no-${field.flag}`, `set ${field.flag} to false`),
     };
   }
-  const placeholder = field.kind === "number" ? "<number>" : "<value>";
+  const placeholder = field.entries
+    ? "<key=value>"
+    : field.textFile
+      ? "<text|@file|->"
+      : field.kind === "number"
+        ? "<number>"
+        : "<value>";
   const option = new Option(`--${field.flag} ${placeholder}`, description);
-  return { main: field.array ? option.argParser(collect) : option, negation: undefined };
+  return { main: field.array || field.entries ? option.argParser(collect) : option, negation: undefined };
 };
 
 const addCommand = (group: Command, entry: CatalogEntry, options: ProgramOptions): void => {
