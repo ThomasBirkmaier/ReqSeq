@@ -48,7 +48,7 @@ import { hasId } from "./relation-keys.js";
 import type { ShortIds } from "./short-id.js";
 import type { ElementStore } from "./store.js";
 import type { TargetContext } from "./targets.js";
-import { currentTarget, setMarkdownReferences, setRelationTargets } from "./targets.js";
+import { currentTarget, relationTargetRefs, setMarkdownReferences, setRelationTargets } from "./targets.js";
 import { valueFindings } from "./values.js";
 import { titleKeyOf } from "./view.js";
 import type { ElementFileWrite, ReadElement, WriteCheck } from "./write.js";
@@ -193,6 +193,20 @@ const valueOf = (
   return keyed;
 };
 
+/**
+ * The value with each item of a relation-valued property as a target `{ id }` (`relationTargetRefs`,
+ * #287): a short ID or identifier is resolved and any other item that is no reference refused,
+ * before a file is read.
+ */
+const refsOf = (
+  selection: BulkSelection,
+  property: MetamodelProperty,
+  value: ElementInputValue | undefined,
+): ElementInputValue | undefined =>
+  value === undefined || property.kind !== "relation"
+    ? value
+    : relationTargetRefs(selection.store, selection.shortIds, property.key, value);
+
 /** The target an item names, as UUID and repository (the source's own when it names none). */
 const targetOf = (item: TargetItem, repository: string): string =>
   JSON.stringify([
@@ -274,12 +288,10 @@ const addEdits = async (
     return [];
   }
   // A new item is no stored target, so it gets its current version (`setRelationTargets` would give
-  // the same); an item that is no target is kept as given (the value-kind check reports it).
+  // the same); every item of a relation-valued property is a target by now (`refsOf`).
   const added =
     plan.property.kind === "relation"
-      ? await Promise.all(
-          fresh.map((item) => (hasId(item) ? newTarget(plan, record.repository, item) : item)),
-        )
+      ? await Promise.all(fresh.map((item) => newTarget(plan, record.repository, item as TargetItem)))
       : markdownKeysOf(plan.context.metamodel).has(key)
         ? ((await setMarkdownReferences(
             plan.context,
@@ -351,7 +363,7 @@ export const bulkUpdateElements = async (
 ): Promise<BulkUpdateResult> => {
   const { metamodel, store, shortIds } = selection;
   const property = propertyOf(metamodel, input.property);
-  const value = valueOf(metamodel, property, input);
+  const value = refsOf(selection, property, valueOf(metamodel, property, input));
   const layout = await workspace.get(workspaceLayoutState);
   const named = (record: ElementRecord): NamedElement => ({ id: record.id, shortId: shortIds.of(record) });
   const skipped: SkippedElement[] = [];

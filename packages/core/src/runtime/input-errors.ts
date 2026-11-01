@@ -40,7 +40,7 @@ const DEF_MESSAGES: Readonly<Record<string, string>> = {
   "filter.schema.json#/$defs/name":
     "is not a filter name (at most 200 characters, without control characters or spaces at either end)",
   "element.schema.json#/$defs/inputValue":
-    "is not a property value (text, a number, true or false, a list of these, a relation target { id } or a list of them)",
+    "is not a property value (text, a number, true or false, a list of these, a relation target { id } with an element reference, or a list of them)",
 };
 
 /**

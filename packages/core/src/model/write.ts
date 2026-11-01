@@ -66,7 +66,12 @@ import type { ShortIds } from "./short-id.js";
 import type { ElementStore } from "./store.js";
 import { elementStoreState, ignoredBy, recordWrites } from "./store.js";
 import type { TargetContext } from "./targets.js";
-import { setInlineReferences, setMarkdownReferences, setRelationTargets } from "./targets.js";
+import {
+  relationTargetRefs,
+  setInlineReferences,
+  setMarkdownReferences,
+  setRelationTargets,
+} from "./targets.js";
 import { successionsFor } from "./successors.js";
 import type { TitleContext } from "./relation-titles.js";
 import { withCurrentTitles } from "./relation-titles.js";
@@ -425,6 +430,22 @@ const isRelationProperty = (metamodel: Metamodel, key: string): boolean =>
   metamodel.properties.some((p) => p.key === key && p.kind === "relation");
 
 /**
+ * The given property values with each item of a relation-valued property as a target `{ id }`
+ * (`relationTargetRefs`: a short ID or identifier resolved, #169, #196); before any file is read.
+ */
+const withTargetRefs = (
+  context: TargetContext,
+  shortIds: ShortIds,
+  values: readonly (readonly [string, ElementInputValue])[],
+): [string, ElementInputValue][] =>
+  values.map(([key, value]) => [
+    key,
+    isRelationProperty(context.metamodel, key)
+      ? relationTargetRefs(context.store, shortIds, key, value)
+      : value,
+  ]);
+
+/**
  * The given property values with their relation targets (SR-021 AK1, `setRelationTargets`) and the
  * inline references in properties marked `markdown` (SR-127, `setMarkdownReferences`) as stored,
  * compared with the values `stored` in the source file now.
@@ -707,10 +728,14 @@ export const createElement = async (
   const properties = await withTargets(
     context,
     repository.name,
-    withChoiceKeys(
-      metamodel,
-      Object.entries(input.properties ?? {}).filter(([, value]) => !isEmpty(value)),
-      "properties",
+    withTargetRefs(
+      context,
+      await workspace.get(shortIdState),
+      withChoiceKeys(
+        metamodel,
+        Object.entries(input.properties ?? {}).filter(([, value]) => !isEmpty(value)),
+        "properties",
+      ),
     ),
     {},
   );
@@ -1090,7 +1115,12 @@ export const updateElement = async (
     throw invalid(`${both} is in both set and unset`, { key: both, reason: "set-and-unset" });
   }
   // Before the file is read: a choice value that is no choice is refused at once.
-  const given = withChoiceKeys(metamodel, Object.entries(input.set ?? {}), "set");
+  // So is a relation target that names no element (#169, #196).
+  const given = withTargetRefs(
+    context,
+    shortIds,
+    withChoiceKeys(metamodel, Object.entries(input.set ?? {}), "set"),
+  );
   const { repository, current } = await readUnchanged(workspace, layout, record);
   expectedFile(record, current, input.expectedFileSha256);
   const set = await withTargets(context, record.repository, given, current.record.data);

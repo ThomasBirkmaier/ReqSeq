@@ -596,7 +596,7 @@ describe("element.bulkUpdate (SR-071)", () => {
     expect(await texts(fixture.root)).toEqual(before);
   });
 
-  it("adds a target named with its repository, and keeps an item that is no target as given", async () => {
+  it("adds a target named with its repository, and refuses text that names no element (#287)", async () => {
     const { fixture, workspace } = await open();
     const named = await bulk(workspace, {
       selection: { ids: [B1, B3] },
@@ -606,22 +606,19 @@ describe("element.bulkUpdate (SR-071)", () => {
       confirm: true,
     });
     expect(named).toMatchObject({ count: 2, problems: [] });
-    const out = await bulk(workspace, {
+    const before = await texts(fixture.root);
+    const error = await failure(workspace, {
       selection: { ids: [B3] },
       property: "packages",
       operation: "add",
       value: "not a target",
       confirm: true,
     });
-    // The item that is no target gets the hint of SR-085.
-    expect(out.problems.map((p) => [p.code, p.file, p.line])).toEqual([
-      ["element.wrong-value-kind", FILES[B3], 16],
-    ]);
+    expect([error.code, error.details]).toEqual(["ref.unknown", { ref: "not a target", key: "packages" }]);
     const after = await texts(fixture.root);
+    expect(after).toEqual(before);
     expect(after[FILES[B3] ?? ""]).toMatch(
-      new RegExp(
-        `packages:\\n  - \\{ id: ${P2}, version: n1:[0-9a-f]{16}, title: Display \\}\\n  - not a target\\n`,
-      ),
+      new RegExp(`packages:\\n  - \\{ id: ${P2}, version: n1:[0-9a-f]{16}, title: Display \\}\\n(?!  - )`),
     );
   });
 
