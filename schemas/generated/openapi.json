@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "ReqSeq local API",
-    "version": "0.5.0",
+    "version": "0.6.0",
     "description": "Generated from schemas/commands/catalog.json. Listens on 127.0.0.1 and ::1 only (SR-079). Every request needs `Authorization: Bearer <token>` from api.json in the cache folder of the working copy (schemas/api-endpoint.schema.json, ADR-0009). One endpoint per command; same input, output and errors as CLI and MCP (SR-080)."
   },
   "servers": [
