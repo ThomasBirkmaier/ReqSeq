@@ -226,6 +226,27 @@ describe("xhtmlToMarkdown", () => {
     ]);
   });
 
+  it("[SR-095/AK3] keeps a flattened heading in ATX form and a code span on one line (#580)", () => {
+    const converted = xhtmlToMarkdown(
+      value("<h1>a<ins><p>b</p></ins>c</h1><p><code>a<pre>b\nc</pre>d</code></p>"),
+    );
+    expect(converted.markdown).toBe("# a b c\n\n`a b c d`");
+    expect(converted.losses).toEqual([
+      { code: "xhtml-element", reason: `<ins> in ${XHTML_NAMESPACE}` },
+      { code: "xhtml-element", reason: "<pre> inside <p>" },
+    ]);
+  });
+
+  it("strikes each block of a struck div or a del at block level, without flattening or loss (#580)", () => {
+    const struck = xhtmlToMarkdown(
+      value(
+        '<div style="text-decoration:line-through"><p>a</p><p>b</p></div><div><del><p>c</p><p>d</p></del></div><del><h1>H</h1></del>',
+      ),
+    );
+    expect(struck.markdown).toBe("~~a~~\n\n~~b~~\n\n~~c~~\n\n~~d~~\n\n# ~~H~~");
+    expect(struck.losses).toEqual([]);
+  });
+
   it("lists the images of the text as written and keeps a non-image object's content", () => {
     const converted = xhtmlToMarkdown(
       value(

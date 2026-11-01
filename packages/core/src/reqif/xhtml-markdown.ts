@@ -66,8 +66,14 @@ const CELL_BLOCKS: ReadonlySet<string> = new Set(
 );
 /** Elements whose children are rows or items, so a `del` cannot wrap them. */
 const STRUCTURE: ReadonlySet<string> = new Set("table thead tbody tfoot tr ul ol dl".split(" "));
-/** Elements Markdown holds as inline content only: a block inside one is flattened (`Flattener`). */
-const PHRASING: ReadonlySet<string> = new Set("p h1 h2 h3 h4 h5 h6 strong b em i code del s".split(" "));
+/**
+ * Elements whose content Markdown holds as inline content only, so a block inside one is flattened
+ * (`Flattener`); inline elements inside them are flattened with them. Not `del` and `s`: at block
+ * level hast-util-to-mdast strikes each block they hold (as for `style="text-decoration:line-through"`).
+ */
+const PHRASING: ReadonlySet<string> = new Set("p h1 h2 h3 h4 h5 h6 strong b em i".split(" "));
+/** Elements whose lines a flattened block joins with a space: an ATX heading and a code span are one line. */
+const ONE_LINE: ReadonlySet<string> = new Set("h1 h2 h3 h4 h5 h6 code".split(" "));
 /** The one `style` declaration Markdown holds (ReqIF 1.2 §10.8.20 names it): `~~`. */
 const LINE_THROUGH = /^text-decoration\s*:\s*line-through$/i;
 /** The nesting the Markdown libraries convert; a few hundred is far beyond any real text. */
@@ -139,10 +145,13 @@ interface FlattenFrame {
   readonly into: XhtmlNode[];
   readonly pre: boolean;
   readonly block: boolean;
+  /** What a line end before content of this frame becomes. */
+  readonly lineBreak: XhtmlNode;
 }
 
 /**
- * Content as inline content, at every depth: blocks and `br` end a line (`lineBreak`), text runs
+ * Content as inline content, at every depth: blocks and `br` end a line (`lineBreak`, a space inside
+ * `code`), text runs
  * collapse their white space (a `pre` keeps its lines), and each block in `CELL_BLOCKS` is passed to
  * `block` (the loss). A table cell is flattened so (one GFM line, breaks as `<br>`), and so is the
  * content of an inline element that holds a block. Walked without recursion.
@@ -154,13 +163,11 @@ class Flattener {
   /** A break due before the next content. */
   private pending = false;
   private readonly frames: FlattenFrame[];
-  private readonly lineBreak: XhtmlElement;
   private readonly block: (name: string) => void;
 
-  constructor(content: readonly XhtmlNode[], lineBreak: XhtmlElement, block: (name: string) => void) {
-    this.lineBreak = lineBreak;
+  constructor(content: readonly XhtmlNode[], lineBreak: XhtmlNode, block: (name: string) => void) {
     this.block = block;
-    this.frames = [{ children: content, index: 0, into: this.out, pre: false, block: false }];
+    this.frames = [{ children: content, index: 0, into: this.out, pre: false, block: false, lineBreak }];
   }
 
   run(): XhtmlNode[] {
@@ -185,13 +192,13 @@ class Flattener {
     this.pending ||= this.open;
   }
 
-  private place(into: XhtmlNode[], node: XhtmlNode): void {
+  private place(frame: FlattenFrame, node: XhtmlNode): void {
     if (this.pending) {
-      into.push(this.lineBreak);
+      frame.into.push(frame.lineBreak);
       this.pending = false;
       this.open = false;
     }
-    into.push(node);
+    frame.into.push(node);
   }
 
   private text(frame: FlattenFrame, text: string): void {
@@ -202,7 +209,7 @@ class Flattener {
       }
       // White space alone is layout at the start of a line.
       if (line.trim() !== "" || (this.open && !this.pending && !frame.pre)) {
-        this.place(frame.into, line);
+        this.place(frame, line);
         this.open = true;
       }
     }
@@ -217,13 +224,20 @@ class Flattener {
       }
       this.lineEnd();
       const pre = frame.pre || child.name === "pre";
-      this.frames.push({ children: child.children, index: 0, into: frame.into, pre, block: true });
+      this.frames.push({ ...frame, children: child.children, index: 0, pre, block: true });
     } else {
       // Inline: kept with its own content flattened; an image is content of its own.
       const children: XhtmlNode[] = [];
-      this.place(frame.into, { ...child, children });
+      this.place(frame, { ...child, children });
       this.open ||= child.name === "object" || child.name === "img";
-      this.frames.push({ children: child.children, index: 0, into: children, pre: frame.pre, block: false });
+      this.frames.push({
+        children: child.children,
+        index: 0,
+        into: children,
+        pre: frame.pre,
+        block: false,
+        lineBreak: isXhtml(child, ONE_LINE) ? " " : frame.lineBreak,
+      });
     }
   }
 }
@@ -361,14 +375,21 @@ class ToHast {
     if (inline || !PHRASING.has(name)) {
       return { element, children, before: [] };
     }
-    // Markdown has no block inside inline content (`<p><ins><h1>`, which the Edit module allows):
-    // flattened to lines, the structure a loss, so no marker lands mid-line (#580).
-    const flat = holdsBlock(children)
-      ? new Flattener(children, xhtml("br", []), (block) => {
-          this.lost("xhtml-element", `<${block}> inside <${name}>`);
-        }).run()
-      : children;
-    return { element, children: flat, before: [], inline: true };
+    return { element, children: this.inlineContent(name, children), before: [], inline: true };
+  }
+
+  /**
+   * Markdown has no block inside inline content (`<p><ins><h1>`, which the Edit module allows): the
+   * content of `name` is flattened to lines, the structure a loss, so no marker lands mid-line (#580).
+   */
+  private inlineContent(name: string, children: readonly XhtmlNode[]): readonly XhtmlNode[] {
+    if (!holdsBlock(children)) {
+      return children;
+    }
+    const lineBreak = ONE_LINE.has(name) ? " " : xhtml("br", []);
+    return new Flattener(children, lineBreak, (block) => {
+      this.lost("xhtml-element", `<${block}> inside <${name}>`);
+    }).run();
   }
 
   /** The hast properties hast-util-to-mdast reads; spanned cells are a loss. */
