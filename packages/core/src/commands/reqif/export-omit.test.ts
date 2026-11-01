@@ -7,10 +7,13 @@ import { describe, expect, it, onTestFinished } from "vitest";
 import { parse } from "yaml";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
+import { metamodelState } from "../../metamodel/index.js";
+import { checkOmissions, exportOmissions } from "../../reqif/index.js";
 import type { ReqifFile } from "../../reqif/model.js";
 import { parseReqif } from "../../reqif/parse.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
+import { workspaceLayoutState } from "../../workspace/index.js";
 
 type Exported = CommandOutput<"reqif.export">;
 
@@ -188,13 +191,47 @@ describe("reqif.export (SR-059)", () => {
       omitProperties: ["rationale"],
     });
     expect(await text("b.reqif")).not.toContain("Operators");
-    // The title too, LONG-NAME and its attribute included.
-    await exported({ output: "c.reqif", selection: { ids: [WIND] }, omitProperties: ["title"] });
+    // The title too: LONG-NAME, its attribute and the title a relation caches, of a target inside the export too.
+    await exported({ output: "c.reqif", selection: { ids: [HISTORY, WIND] }, omitProperties: ["title"] });
     const file = await parsed("c.reqif");
-    expect(file.specObjects[0]?.longName).toBeUndefined();
+    expect(file.specObjects.slice(0, 2).map((o) => o.longName)).toEqual([undefined, undefined]);
     expect(file.specTypes[0]?.attributes.map((a) => a.identifier)).not.toContain(
       "_ad-system-requirement.title",
     );
-    expect(await text("c.reqif")).not.toContain("Show wind speed");
+    expect(valuesOf(file, HISTORY)["refines"]).toEqual([
+      { id: WIND, version: "n1:584cedef0a756936" },
+      { id: "52052052-0000-4000-8000-0000000052a3", version: "n1:9de1cddc22503560" },
+    ]);
+    const raw = await text("c.reqif");
+    expect(raw).not.toContain("Show wind speed");
+    expect(raw).not.toContain("Store wind history");
+  });
+
+  it("refuses a mapping to save that changed since it was read, before the export writes anything", async () => {
+    const { fixture } = await open({ "reqif/zulieferer.yaml": MAPPING });
+    const workspace = new Workspace(fixture.root);
+    onTestFinished(() => workspace.close());
+    const layout = await workspace.get(workspaceLayoutState);
+    const metamodel = await workspace.get(metamodelState);
+    const command = "reqif.export";
+    const omissions = await exportOmissions(
+      layout,
+      metamodel,
+      fixture.root,
+      "reqif/zulieferer.yaml",
+      ["rationale"],
+      command,
+    );
+    await checkOmissions(omissions, command);
+    await fs.writeFile(fixture.path("reqif/zulieferer.yaml"), `${MAPPING}# edited\n`);
+    const error = await checkOmissions(omissions, command).catch((e: unknown) => e);
+    expect(error instanceof CommandError ? [error.code, error.details?.["fields"]] : error).toEqual([
+      "file.changed-on-disk",
+      ["mapping"],
+    ]);
+    await fs.rm(fixture.path("reqif/zulieferer.yaml"));
+    expect(((await checkOmissions(omissions, command).catch((e: unknown) => e)) as CommandError).code).toBe(
+      "file.changed-on-disk",
+    );
   });
 });

@@ -5,11 +5,12 @@
 // - With `mapping`, the input keys the mapping lacks are added to its `omit-properties` after the
 //   ones it has and saved, so later deliveries to that target leave them out too (AK3). Only that key
 //   is rewritten (`editYamlDocument`, ADR-0007); the file must lie directly in the mapping folder
-//   (`mappingTarget`, `input.invalid` at `mapping`), which is checked before the export writes
-//   anything, and is saved after the export only while unchanged since it was read
-//   (`file.changed-on-disk`). Nothing new to add writes nothing.
+//   (`mappingTarget`, `input.invalid` at `mapping`) and be unchanged since it was read
+//   (`checkOmissions`, `file.changed-on-disk`), both checked before the export writes anything; it is
+//   saved after the output. Nothing new to add writes nothing.
 import path from "node:path";
-import { editYamlDocument, writeFileAtomic } from "../files/index.js";
+import { CommandError } from "../catalog.js";
+import { editYamlDocument, readFileSnapshot, writeFileAtomic } from "../files/index.js";
 import type { YamlFile } from "../files/index.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { workspacePath } from "../model/index.js";
@@ -56,6 +57,32 @@ export const exportOmissions = async (
   return { keys, save: { target, yaml: read.yaml, value: [...saved, ...added] } };
 };
 
+/** The folder and name of the mapping file to save, as `readMappingFile` read it. */
+const fileOf = (target: MappingTarget): { readonly folder: string; readonly name: string } => ({
+  folder: path.join(target.repository.folder, path.posix.dirname(target.file)),
+  name: path.posix.basename(target.file),
+});
+
+/**
+ * Refuses with `file.changed-on-disk` when the mapping of `omissions` to save changed since it was
+ * read, so the export writes nothing it cannot finish (see the file comment).
+ */
+export const checkOmissions = async (omissions: Omissions, command: string): Promise<void> => {
+  const { save } = omissions;
+  if (save === undefined) {
+    return;
+  }
+  const { folder, name } = fileOf(save.target);
+  const now = await readFileSnapshot(folder, name);
+  if (now.kind !== "read" || now.snapshot.sha256 !== save.yaml.snapshot.sha256) {
+    throw new CommandError(
+      "file.changed-on-disk",
+      `Not exported: the mapping ${save.target.file} changed since it was read; run the export again`,
+      { command, file: save.target.file, fields: ["mapping"] },
+    );
+  }
+};
+
 /** Saves the mapping of `omissions` when it has keys to add; gives the file saved, relative to the workspace root. */
 export const saveOmissions = async (layout: WorkspaceLayout, omissions: Omissions): Promise<string[]> => {
   const { save } = omissions;
@@ -64,9 +91,8 @@ export const saveOmissions = async (layout: WorkspaceLayout, omissions: Omission
   }
   const { target, yaml, value } = save;
   const edited = editYamlDocument(yaml, [{ key: "omit-properties", value }]);
-  // The snapshot is of the file as read, by its name in its folder (`readMappingFile`).
-  const folder = path.join(target.repository.folder, path.posix.dirname(target.file));
-  await writeFileAtomic(folder, path.posix.basename(target.file), edited.bytes, yaml.snapshot, {
+  const { folder, name } = fileOf(target);
+  await writeFileAtomic(folder, name, edited.bytes, yaml.snapshot, {
     kind: "yaml",
   });
   return [workspacePath(layout, target.repository, target.file)];

@@ -22,7 +22,8 @@
 // - One flat SPECIFICATION `_sp-<hash of the list>` with a SPEC-HIERARCHY `_sh-<uuid>` per element.
 // - Omitted properties (`omit`, SR-059 AK1) are left out of the file: no attribute definition, no
 //   readable value, not in `reqseq-values`, and for a relation-valued property no SPEC-RELATION (so
-//   no stub for its targets); the title key also drops LONG-NAME and the title attribute.
+//   no stub for its targets); the title key also drops LONG-NAME, the title attribute and the title
+//   every relation item caches, of targets inside the export too.
 import { createHash } from "node:crypto";
 import type { Metamodel } from "../metamodel/index.js";
 import { findType } from "../metamodel/index.js";
@@ -201,27 +202,28 @@ const addRelations = (
   }
 };
 
-/** `item` without the cached title of its target unless that target is `exported` (SR-059 AK2). */
-const withoutOutsideTitle = (item: unknown, exported: ReadonlySet<string>): unknown => {
+/** `item` without the cached title of its target unless that target is `titled` (SR-059 AK2). */
+const withoutOutsideTitle = (item: unknown, titled: ReadonlySet<string>): unknown => {
   if (typeof item !== "object" || item === null || Array.isArray(item) || !("title" in item)) {
     return item;
   }
   const { id } = item as { readonly id?: unknown };
-  return typeof id === "string" && exported.has(id)
+  return typeof id === "string" && titled.has(id)
     ? item
     : Object.fromEntries(Object.entries(item).filter(([key]) => key !== "title"));
 };
 
 /**
  * The frontmatter of an exported element as the file holds it: without the `omit` keys (SR-059 AK1),
- * and the items of each relation key of `kinds` without the title of a target outside the export
- * (SR-059 AK2: of such a target the file holds the ID only).
+ * and the items of each relation key of `kinds` without the cached title of a target that is not
+ * `titled` (SR-059 AK2: of a target outside the export the file holds the ID only; with the title
+ * omitted, no target is `titled`).
  */
 const exportedData = (
   data: Readonly<Record<string, unknown>>,
   omit: ReadonlySet<string>,
   kinds: readonly RelationKind[],
-  exported: ReadonlySet<string>,
+  titled: ReadonlySet<string>,
 ): Record<string, unknown> => {
   const relationKeys = new Set(kinds.map((k) => k.key));
   return Object.fromEntries(
@@ -232,8 +234,8 @@ const exportedData = (
         !relationKeys.has(key)
           ? value
           : Array.isArray(value)
-            ? value.map((item) => withoutOutsideTitle(item, exported))
-            : withoutOutsideTitle(value, exported),
+            ? value.map((item) => withoutOutsideTitle(item, titled))
+            : withoutOutsideTitle(value, titled),
       ]),
   );
 };
@@ -250,6 +252,8 @@ export const planExport = (input: ExportInput): ExportPlan => {
       .map((p) => ({ key: p.key, name: p.name, many: p.many === true })),
   ];
   const exported = new Set(input.elements.map((e) => e.record.id));
+  // An omitted title is dropped from every relation item, inside targets too (SR-059 AK1).
+  const titled = omit.has(titleKey) ? new Set<string>() : exported;
   const attributesOf = new Map<string, OwnAttribute[]>();
   const objects: SpecObject[] = [];
   const found: Found = { relations: [], identifiers: new Set(), kinds: new Set(), stubs: new Map() };
@@ -265,7 +269,7 @@ export const planExport = (input: ExportInput): ExportPlan => {
       );
       attributesOf.set(record.type, attributes);
     }
-    const data = exportedData(record.data, omit, kinds, exported);
+    const data = exportedData(record.data, omit, kinds, titled);
     const values = readableValues(metamodel, attributes, { data, text }, titleKey, {
       shortId: (item) => input.shortId(record, item),
       image: (url) => input.image(element, url),

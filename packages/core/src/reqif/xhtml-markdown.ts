@@ -50,19 +50,30 @@ const LOSSLESS: ReadonlySet<string> = new Set(
     " ",
   ),
 );
-/** Blocks that end a line in a table cell; their content goes on as lines joined with `<br>`. */
+/**
+ * Blocks that end a line in a table cell or in inline content (a block inside `<p>` or `<strong>`,
+ * for example through `ins`); their content goes on as lines joined with a line break.
+ */
 const CELL_LINE_ENDS: ReadonlySet<string> = new Set(
   "address blockquote caption dd div dl dt h1 h2 h3 h4 h5 h6 hr li ol p pre table tbody td tfoot th thead tr ul".split(
     " ",
   ),
 );
 const LINE_BREAKS: ReadonlySet<string> = new Set(["br"]);
-/** Blocks a table cell cannot hold: their text stays, the structure is a loss. */
+/** Blocks a table cell or inline content cannot hold: their text stays, the structure is a loss. */
 const CELL_BLOCKS: ReadonlySet<string> = new Set(
   "ul ol dl table pre blockquote hr h1 h2 h3 h4 h5 h6".split(" "),
 );
 /** Elements whose children are rows or items, so a `del` cannot wrap them. */
 const STRUCTURE: ReadonlySet<string> = new Set("table thead tbody tfoot tr ul ol dl".split(" "));
+/**
+ * Elements whose content Markdown holds as inline content only, so a block inside one is flattened
+ * (`Flattener`); inline elements inside them are flattened with them. Not `del` and `s`: at block
+ * level hast-util-to-mdast strikes each block they hold (as for `style="text-decoration:line-through"`).
+ */
+const PHRASING: ReadonlySet<string> = new Set("p h1 h2 h3 h4 h5 h6 strong b em i".split(" "));
+/** Elements whose lines a flattened block joins with a space: an ATX heading and a code span are one line. */
+const ONE_LINE: ReadonlySet<string> = new Set("h1 h2 h3 h4 h5 h6 code".split(" "));
 /** The one `style` declaration Markdown holds (ReqIF 1.2 §10.8.20 names it): `~~`. */
 const LINE_THROUGH = /^text-decoration\s*:\s*line-through$/i;
 /** The nesting the Markdown libraries convert; a few hundred is far beyond any real text. */
@@ -128,31 +139,35 @@ const isXhtml = (node: XhtmlElement, names: ReadonlySet<string>): boolean =>
 /** A line break inside a table cell, written as `<br>` (GFM has no other). */
 const CELL_BREAK: XhtmlElement = xhtml("br", []);
 
-interface CellFrame {
+interface FlattenFrame {
   readonly children: readonly XhtmlNode[];
   index: number;
   readonly into: XhtmlNode[];
   readonly pre: boolean;
   readonly block: boolean;
+  /** What a line end before content of this frame becomes. */
+  readonly lineBreak: XhtmlNode;
 }
 
 /**
- * The content of a table cell as one line of inline content, at every depth: blocks and `br` end a
- * line (`<br>`), text runs collapse their white space (a `pre` keeps its lines), and blocks a cell
- * cannot hold are a loss. Walked without recursion.
+ * Content as inline content, at every depth: blocks and `br` end a line (`lineBreak`, a space inside
+ * `code`), text runs
+ * collapse their white space (a `pre` keeps its lines), and each block in `CELL_BLOCKS` is passed to
+ * `block` (the loss). A table cell is flattened so (one GFM line, breaks as `<br>`), and so is the
+ * content of an inline element that holds a block. Walked without recursion.
  */
-class CellFlattener {
+class Flattener {
   private readonly out: XhtmlNode[] = [];
   /** Content since the last break. */
   private open = false;
   /** A break due before the next content. */
   private pending = false;
-  private readonly frames: CellFrame[];
-  private readonly lost: Lost;
+  private readonly frames: FlattenFrame[];
+  private readonly block: (name: string) => void;
 
-  constructor(cell: readonly XhtmlNode[], lost: Lost) {
-    this.lost = lost;
-    this.frames = [{ children: cell, index: 0, into: this.out, pre: false, block: false }];
+  constructor(content: readonly XhtmlNode[], lineBreak: XhtmlNode, block: (name: string) => void) {
+    this.block = block;
+    this.frames = [{ children: content, index: 0, into: this.out, pre: false, block: false, lineBreak }];
   }
 
   run(): XhtmlNode[] {
@@ -177,16 +192,16 @@ class CellFlattener {
     this.pending ||= this.open;
   }
 
-  private place(into: XhtmlNode[], node: XhtmlNode): void {
+  private place(frame: FlattenFrame, node: XhtmlNode): void {
     if (this.pending) {
-      into.push(CELL_BREAK);
+      frame.into.push(frame.lineBreak);
       this.pending = false;
       this.open = false;
     }
-    into.push(node);
+    frame.into.push(node);
   }
 
-  private text(frame: CellFrame, text: string): void {
+  private text(frame: FlattenFrame, text: string): void {
     const lines = frame.pre ? text.split(/\r?\n/) : [text.replace(/[ \t\r\n]+/g, " ")];
     for (const [i, line] of lines.entries()) {
       if (i > 0) {
@@ -194,31 +209,53 @@ class CellFlattener {
       }
       // White space alone is layout at the start of a line.
       if (line.trim() !== "" || (this.open && !this.pending && !frame.pre)) {
-        this.place(frame.into, line);
+        this.place(frame, line);
         this.open = true;
       }
     }
   }
 
-  private element(frame: CellFrame, child: XhtmlElement): void {
+  private element(frame: FlattenFrame, child: XhtmlElement): void {
     if (isXhtml(child, LINE_BREAKS)) {
       this.lineEnd();
     } else if (isXhtml(child, CELL_LINE_ENDS)) {
       if (CELL_BLOCKS.has(child.name)) {
-        this.lost("xhtml-cell-block", `<${child.name}> in a table cell`);
+        this.block(child.name);
       }
       this.lineEnd();
       const pre = frame.pre || child.name === "pre";
-      this.frames.push({ children: child.children, index: 0, into: frame.into, pre, block: true });
+      this.frames.push({ ...frame, children: child.children, index: 0, pre, block: true });
     } else {
       // Inline: kept with its own content flattened; an image is content of its own.
       const children: XhtmlNode[] = [];
-      this.place(frame.into, { ...child, children });
+      this.place(frame, { ...child, children });
       this.open ||= child.name === "object" || child.name === "img";
-      this.frames.push({ children: child.children, index: 0, into: children, pre: frame.pre, block: false });
+      this.frames.push({
+        children: child.children,
+        index: 0,
+        into: children,
+        pre: frame.pre,
+        block: false,
+        lineBreak: isXhtml(child, ONE_LINE) ? " " : frame.lineBreak,
+      });
     }
   }
 }
+
+/** True when `content` holds a block (`CELL_LINE_ENDS`) inside inline elements at any depth. */
+const holdsBlock = (content: readonly XhtmlNode[]): boolean => {
+  const pending: XhtmlNode[] = [];
+  pushReversed(pending, content, (node) => node);
+  for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
+    if (typeof next !== "string") {
+      if (isXhtml(next, CELL_LINE_ENDS)) {
+        return true;
+      }
+      pushReversed(pending, next.children, (node) => node);
+    }
+  }
+  return false;
+};
 
 /** GFM has no caption: a table's captions go before it as paragraphs; undefined without one. */
 const withoutCaption = (table: XhtmlElement, children: readonly XhtmlNode[]): XhtmlNode[] | undefined => {
@@ -238,6 +275,8 @@ interface Converted {
   readonly element?: HastElement;
   readonly children: readonly XhtmlNode[];
   readonly before: ElementContent[];
+  /** The children are inline content without blocks (flattened, or checked to hold none). */
+  readonly inline?: boolean;
 }
 
 /** Our node tree to hast, noting the losses; walked without recursion (a value may nest deeply). */
@@ -261,17 +300,20 @@ class ToHast {
       readonly node: XhtmlNode;
       readonly into: (RootContent | ElementContent)[];
       readonly depth: number;
+      /** Inside inline content already flattened or checked (`Converted.inline`). */
+      readonly inline: boolean;
     }[] = [];
     const push = (
       children: readonly XhtmlNode[],
       into: (RootContent | ElementContent)[],
       depth: number,
+      inline: boolean,
     ): void => {
-      pushReversed(pending, children, (node) => ({ node, into, depth }));
+      pushReversed(pending, children, (node) => ({ node, into, depth, inline }));
     };
-    push(nodes, root.children, 0);
+    push(nodes, root.children, 0, false);
     for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
-      const { node, into, depth } = next;
+      const { node, into, depth, inline } = next;
       const last = into.at(-1);
       if (typeof node === "string" && last?.type === "text") {
         // One text node per run: hast-util-to-mdast joins adjacent ones in quadratic time.
@@ -281,23 +323,27 @@ class ToHast {
       } else if (depth === MAX_DEPTH) {
         // hast-util-to-mdast and mdast-util-to-markdown recurse: deeper elements keep only their text.
         this.lost("xhtml-element", `elements nested deeper than ${String(MAX_DEPTH)}`);
-        push(node.children, into, depth);
+        push(node.children, into, depth, inline);
       } else {
-        const converted = this.element(node);
+        const converted = this.element(node, inline);
+        const within = inline || converted.inline === true;
         into.push(...converted.before);
         if (converted.element === undefined) {
-          push(converted.children, into, depth);
+          push(converted.children, into, depth, within);
         } else {
           into.push(converted.element);
-          push(converted.children, converted.element.children, depth + 1);
+          push(converted.children, converted.element.children, depth + 1, within);
         }
       }
     }
     return root;
   }
 
-  /** One element: its hast element (none to keep only its content) and the children to convert into it. */
-  private element(node: XhtmlElement): Converted {
+  /**
+   * One element: its hast element (none to keep only its content) and the children to convert into
+   * it. `inline`: inside content already flattened or checked, so no block is left in it.
+   */
+  private element(node: XhtmlElement, inline: boolean): Converted {
     const { name } = node;
     if (node === CELL_BREAK) {
       return { element: hastElement("br", { dataCell: true }, []), children: [], before: [] };
@@ -319,11 +365,31 @@ class ToHast {
       return { children: captioned, before: [] };
     }
     const properties = this.properties(node);
-    return {
-      element: hastElement(name, properties, []),
-      children: name === "td" || name === "th" ? new CellFlattener(children, this.lost).run() : children,
-      before: [],
-    };
+    const element = hastElement(name, properties, []);
+    if (name === "td" || name === "th") {
+      const cell = new Flattener(children, CELL_BREAK, (block) => {
+        this.lost("xhtml-cell-block", `<${block}> in a table cell`);
+      });
+      return { element, children: cell.run(), before: [], inline: true };
+    }
+    if (inline || !PHRASING.has(name)) {
+      return { element, children, before: [] };
+    }
+    return { element, children: this.inlineContent(name, children), before: [], inline: true };
+  }
+
+  /**
+   * Markdown has no block inside inline content (`<p><ins><h1>`, which the Edit module allows): the
+   * content of `name` is flattened to lines, the structure a loss, so no marker lands mid-line (#580).
+   */
+  private inlineContent(name: string, children: readonly XhtmlNode[]): readonly XhtmlNode[] {
+    if (!holdsBlock(children)) {
+      return children;
+    }
+    const lineBreak = ONE_LINE.has(name) ? " " : xhtml("br", []);
+    return new Flattener(children, lineBreak, (block) => {
+      this.lost("xhtml-element", `<${block}> inside <${name}>`);
+    }).run();
   }
 
   /** The hast properties hast-util-to-mdast reads; spanned cells are a loss. */
@@ -618,8 +684,16 @@ const converted = (markdown: string, options: XhtmlOptions): XhtmlElement => {
     if (node.type === "element") {
       push(...exported(node, into, options));
     } else if (!(BLOCKS.has(parent) && node.value === "\n")) {
-      // The newlines mdast-util-to-hast puts between blocks are layout only.
-      into.push(node.value);
+      // The newlines mdast-util-to-hast puts between blocks are layout only. Adjacent text is one
+      // run, as a parser reads the written file (`a<br>` gives `a`, `<br>`, `\nb`, not `\n`, `b`), so
+      // the value equals what is read back (SR-052 AK3).
+      const at = into.length - 1;
+      const last = into[at];
+      if (typeof last === "string") {
+        into[at] = last + node.value;
+      } else if (node.value !== "") {
+        into.push(node.value);
+      }
     }
   }
   return div;

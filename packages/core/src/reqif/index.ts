@@ -14,7 +14,7 @@ export type { AnyMapping, MappingFile, MappingTarget } from "./mapping.js";
 export { REQIF_LIMITS, parseReqif } from "./parse.js";
 export { readDelivery } from "./delivery.js";
 export { planImport } from "./import.js";
-export { exportOmissions, saveOmissions } from "./omit.js";
+export { checkOmissions, exportOmissions, saveOmissions } from "./omit.js";
 export type { Omissions } from "./omit.js";
 export type { ImportOrigin, ImportPlan, PlannedImage } from "./import.js";
 export { importDate, originKeys } from "./origin.js";
