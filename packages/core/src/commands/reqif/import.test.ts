@@ -183,6 +183,30 @@ describe("reqif.import (SR-053)", () => {
     expect([got.element.type, got.element.properties["rationale"]]).toEqual(["need", "check with team"]);
   });
 
+  it("[SR-054/AK2] exports to the same source through the saved mapping the command names, asking nothing about types and attributes", async () => {
+    // The mapping of Kunde A keeps the delivery and the import date of its elements out of every export.
+    const saved = `${MAPPING}omit-properties: [delivery, import-date]\n`;
+    const { fixture, workspace } = await open({ "reqif/kunde-a.yaml": saved });
+    const first = await run(workspace);
+    const exported = (await invoke(
+      "reqif.export",
+      {
+        output: "kunde-a.reqif",
+        selection: { ids: first.created.map((c) => c.id) },
+        mapping: "reqif/kunde-a.yaml",
+      },
+      { workspace },
+    )) as CommandOutput<"reqif.export">;
+    expect([exported.elements, exported.files]).toEqual([2, []]);
+    const file = await fs.readFile(fixture.path("kunde-a.reqif"), "utf8");
+    expect(file).toContain("Measure the wind");
+    expect(file).toContain("source-identifier");
+    expect(file).not.toContain("Lastenheft 2026-11");
+    expect(file).not.toContain("import-date");
+    // The mapping is used as saved, not rewritten.
+    expect(await fs.readFile(fixture.path("reqif/kunde-a.yaml"), "utf8")).toBe(saved);
+  });
+
   it("[SR-054/AK3] reading the types and attributes of the source changes nothing of the own metamodel", async () => {
     const { fixture, workspace } = await open();
     const before = await metamodelHash(fixture);
