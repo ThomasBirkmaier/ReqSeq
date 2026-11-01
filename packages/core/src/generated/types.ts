@@ -295,6 +295,7 @@ export type ProblemCode =
   | "element.status-not-allowed"
   | "element.missing-status"
   | "relation.missing-target"
+  | "relation.unresolved-link"
   | "relation.inaccessible-target"
   | "relation.not-allowed"
   | "relation.outdated"

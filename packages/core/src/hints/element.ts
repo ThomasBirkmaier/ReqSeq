@@ -10,6 +10,7 @@
 // - the cycle of derivations the element lies in (SR-090, `elementCycleFindings`);
 // - its outdated evidence (SR-025 AK4, `elementEvidenceFindings`);
 // - its outdated relations and inline references (SR-025, `outdatedOfShown`);
+// - its `reqseq:` links whose target is no UUID (#176, `unresolvedLinkProblems`);
 // - at a variant, the core requirements changed or new since its newest baseline (SR-103,
 //   `sinceBaselineFindingsOf`).
 //
@@ -20,6 +21,7 @@
 // second call to show the version at the reference, SR-110 AK2): without either no git runs, so
 // opening an element stays fast (SR-082 AK3). `hint.list` always gives the dates.
 import type { ElementHints, LocatableFinding } from "../model/index.js";
+import { unresolvedLinkProblems } from "../model/index.js";
 import { elementCycleFindings } from "../trace/index.js";
 import {
   nestedVariantFindingsOf,
@@ -59,5 +61,12 @@ export const elementHints: ElementHints = async (context, record, withDate) => {
     ...evidence,
     ...sinceBaseline,
     ...hints,
+    // A link has its line in the file just read already.
+    ...unresolvedLinkProblems(record, context).map((problem): LocatableFinding => ({
+      element: record,
+      path: [],
+      at: "line",
+      problem,
+    })),
   ];
 };

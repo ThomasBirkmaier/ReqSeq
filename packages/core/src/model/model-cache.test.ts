@@ -626,6 +626,36 @@ describe("parseModelCache", () => {
       "a property reference with an item below 0",
       withRecord({ propertyReferences: [{ id: ID_A, line: 3, key: "notes", item: -1 }] }),
     ],
+    ["unresolved links that are no list", withRecord({ unresolvedLinks: {} })],
+    ["an empty list of unresolved links", withRecord({ unresolvedLinks: [] })],
+    ["an unresolved link that is no object", withRecord({ unresolvedLinks: ["D-1"] })],
+    ["an unresolved link with an empty target", withRecord({ unresolvedLinks: [{ target: "", line: 3 }] })],
+    ["an unresolved link on line 0", withRecord({ unresolvedLinks: [{ target: "D-1", line: 0 }] })],
+    [
+      "an unresolved link on a line that is no whole number",
+      withRecord({ unresolvedLinks: [{ target: "D-1", line: 1.5 }] }),
+    ],
+    ["an unresolved link without a line", withRecord({ unresolvedLinks: [{ target: "D-1" }] })],
+    [
+      "an unresolved link with a repository that is no text",
+      withRecord({ unresolvedLinks: [{ target: "D-1", line: 3, repository: 1 }] }),
+    ],
+    [
+      "an unresolved link with a key that is no text",
+      withRecord({ unresolvedLinks: [{ target: "D-1", line: 3, key: 1 }] }),
+    ],
+    [
+      "an unresolved link with an item but no key",
+      withRecord({ unresolvedLinks: [{ target: "D-1", line: 3, item: 0 }] }),
+    ],
+    [
+      "an unresolved link with an item below 0",
+      withRecord({ unresolvedLinks: [{ target: "D-1", line: 3, key: "notes", item: -1 }] }),
+    ],
+    [
+      "an unresolved link with an item that is no whole number",
+      withRecord({ unresolvedLinks: [{ target: "D-1", line: 3, key: "notes", item: "1" }] }),
+    ],
     ["a file that is no element, of another file", withContribution({ kind: "not-element", file: "b.md" })],
     ["a problem that is none", withContribution({ kind: "problem", problem: { message: "m" } })],
   ])("discards a cache with %s", (_case, value) => {
@@ -665,6 +695,20 @@ describe("parseModelCache", () => {
               key: "acceptance-criteria",
               item: 1,
             },
+          ],
+        },
+      },
+    ],
+    [
+      "an element with links whose target is no UUID (#176)",
+      {
+        ...elementEntry,
+        element: {
+          ...record,
+          unresolvedLinks: [
+            { target: "D-031", repository: "sensor", line: 4, key: "rationale" },
+            { target: "D-030", line: 5, key: "acceptance-criteria", item: 0 },
+            { target: "SR-1", line: 9 },
           ],
         },
       },
@@ -718,8 +762,13 @@ describe("parseModelCache", () => {
   });
 
   it("[SR-127/AK3] discards a cache of format 4, whose records know no references in properties", () => {
-    expect(MODEL_CACHE_FORMAT).toBe(5);
+    expect(MODEL_CACHE_FORMAT).toBeGreaterThan(4);
     expect(parse({ ...valid, format: 4 })).toBeUndefined();
+  });
+
+  it("discards a cache of format 5, whose records know no links whose target is no UUID (#176)", () => {
+    expect(MODEL_CACHE_FORMAT).toBe(6);
+    expect(parse({ ...valid, format: 5 })).toBeUndefined();
   });
 
   it("discards a cache of format 2, with inodes and change times as numbers", () => {

@@ -84,26 +84,36 @@ const param = (params: readonly string[], name: string): string | undefined =>
   params.find((p) => p.startsWith(`${name}=`))?.slice(name.length + 1);
 
 /**
- * The inline references of a Markdown text in order: links (not images) whose destination is
- * `reqseq:<uuid>`, outside code (`markdownLinks`). A `reqseq:` link whose target is no UUID is not
- * one.
+ * A `reqseq:` link of a text whose target is no UUID (#176), such as a short ID or an identifier
+ * (`reqseq:D-031`): the writer resolves it (`setInlineReferences`), `workspace.check` reports one
+ * that is stored (`unresolvedLinkProblemsState`).
  */
-export const inlineReferences = (text: string): InlineReference[] => {
+export interface UnresolvedLink {
+  /** The target as written, between `reqseq:` and the query; not empty. */
+  readonly target: string;
+  /** The first `repository` parameter as written; undefined when the link has none or an empty one. */
+  readonly repository?: string;
+  readonly destination: string;
+  readonly start: number;
+  readonly end: number;
+  readonly line: number;
+}
+
+/** The `reqseq:` links (not images) of a Markdown text in order, outside code, with their lines; an empty target is none. */
+const reqseqLinks = (text: string): UnresolvedLink[] => {
   let line = 1;
   let counted = 0;
-  return markdownLinks(text).flatMap((link): InlineReference[] => {
+  return markdownLinks(text).flatMap((link): UnresolvedLink[] => {
     if (link.image || !link.destination.startsWith(SCHEME)) {
       return [];
     }
     const rest = link.destination.slice(SCHEME.length);
-    const id = rest.includes("?") ? rest.slice(0, rest.indexOf("?")) : rest;
-    if (!isUuid(id)) {
+    const target = rest.includes("?") ? rest.slice(0, rest.indexOf("?")) : rest;
+    if (target === "") {
       return [];
     }
-    const params = queryOf(link.destination);
-    const version = param(params, "version");
     // An empty `repository=` names no repository.
-    const named = param(params, "repository");
+    const named = param(queryOf(link.destination), "repository");
     const repository = named === "" ? undefined : named;
     const { destination, start, end } = link;
     // Links come in text order, so the lines are counted once over the whole text.
@@ -113,38 +123,67 @@ export const inlineReferences = (text: string): InlineReference[] => {
       counted = at + 1;
       at = text.indexOf("\n", counted);
     }
-    return [
-      {
-        id,
-        ...(version === undefined ? {} : { version }),
-        ...(repository === undefined ? {} : { repository }),
-        destination,
-        start,
-        end,
-        line,
-      },
-    ];
+    return [{ target, ...(repository === undefined ? {} : { repository }), destination, start, end, line }];
   });
 };
 
-/**
- * The inline references of the text `body` of a file whose frontmatter is `frontmatter` (the raw
- * YAML between the `---` lines), with their lines in the file, for the element store. Most texts
- * have no `reqseq:` link, so they are not scanned (N-036).
- */
-export const textReferences = (frontmatter: string, body: string): TextReference[] => {
-  if (!body.includes(SCHEME)) {
-    return [];
-  }
-  // Line 1 is the opening `---`, then the frontmatter lines, then the closing `---`.
-  const before = 2 + frontmatter.split("\n").length - 1;
-  return inlineReferences(body).map(({ id, version, repository, line }) => ({
-    id,
+/** A link whose target is a UUID as an inline reference, with its version. */
+const asReference = ({
+  target,
+  repository,
+  destination,
+  start,
+  end,
+  line,
+}: UnresolvedLink): InlineReference => {
+  const version = param(queryOf(destination), "version");
+  return {
+    id: target,
     ...(version === undefined ? {} : { version }),
     ...(repository === undefined ? {} : { repository }),
-    line: before + line,
-  }));
+    destination,
+    start,
+    end,
+    line,
+  };
 };
+
+/** The `reqseq:` links of a text in one scan: the inline references, and the links whose target is no UUID (#176). */
+const linksOf = (text: string): { references: InlineReference[]; unresolved: UnresolvedLink[] } => {
+  const references: InlineReference[] = [];
+  const unresolved: UnresolvedLink[] = [];
+  for (const link of reqseqLinks(text)) {
+    if (isUuid(link.target)) {
+      references.push(asReference(link));
+    } else {
+      unresolved.push(link);
+    }
+  }
+  return { references, unresolved };
+};
+
+/**
+ * The inline references of a Markdown text in order: links (not images) whose destination is
+ * `reqseq:<uuid>`, outside code (`markdownLinks`). A `reqseq:` link whose target is no UUID is not
+ * one (`unresolvedLinks`).
+ */
+export const inlineReferences = (text: string): InlineReference[] => linksOf(text).references;
+
+/** The `reqseq:` links of a Markdown text whose target is no UUID, in order (#176). */
+export const unresolvedLinks = (text: string): UnresolvedLink[] => linksOf(text).unresolved;
+
+/**
+ * A `reqseq:` link whose target is no UUID as the element store keeps it (`ElementRecord.unresolvedLinks`,
+ * #176): the target and repository as written, its line in the file, and for a link in a property
+ * its key and position, as `PropertyReference` has them.
+ */
+export interface StoredUnresolvedLink {
+  readonly target: string;
+  readonly repository?: string;
+  readonly line: number;
+  readonly key?: string;
+  readonly item?: number;
+}
 
 /** Where a scalar of the frontmatter is: the line of its value and whether it is a block scalar (`|`, `>`). */
 export type ValuePlace = (
@@ -152,48 +191,83 @@ export type ValuePlace = (
   item: number | undefined,
 ) => { line: number; block: boolean } | undefined;
 
+/** The links of an element file, as `classifyFile` keeps them in its record. */
+export interface ElementLinks {
+  readonly references: TextReference[];
+  readonly propertyReferences: PropertyReference[];
+  readonly unresolvedLinks: StoredUnresolvedLink[];
+}
+
+/** A reference or link with its target and repository, without offsets and destination. */
+const stored = (link: {
+  readonly version?: string;
+  readonly repository?: string;
+}): { version?: string; repository?: string } => ({
+  ...(link.version === undefined ? {} : { version: link.version }),
+  ...(link.repository === undefined ? {} : { repository: link.repository }),
+});
+
 /**
- * The inline references in the string values of the frontmatter `data` (a value, or the strings of
- * a list), whatever the key: the metamodel is not known when a file is read, `referencesOf` takes
- * the marked properties (SR-127). `place` gives the line of a value. A file whose frontmatter has
- * no `reqseq:` has none, which is nearly every file, so it is not scanned (N-036).
+ * The links of an element file, each string scanned once (N-036): the inline references of the text
+ * `body` with their lines in the file; those in the string values of the frontmatter `data` (a value,
+ * or the strings of a list), whatever the key, since the metamodel is not known when a file is read
+ * (`referencesOf` takes the marked properties, SR-127), with the line `place` gives; and the links
+ * whose target is no UUID (#176), those of the properties first, then those of the text. A text or
+ * frontmatter without `reqseq:`, which is nearly every file, is not scanned.
  */
-export const propertyReferences = (
+export const elementLinks = (
   frontmatter: string,
+  body: string,
   data: Readonly<Record<string, unknown>>,
   place: ValuePlace,
-): PropertyReference[] => {
-  if (!frontmatter.includes(SCHEME)) {
-    return [];
+): ElementLinks => {
+  const propertyReferences: PropertyReference[] = [];
+  const unresolvedLinks: StoredUnresolvedLink[] = [];
+  if (frontmatter.includes(SCHEME)) {
+    const scan = (key: string, item: number | undefined, value: unknown): void => {
+      if (typeof value !== "string" || !value.includes(SCHEME)) {
+        return;
+      }
+      const where = place(key, item);
+      // A link in a block scalar lies below the line with its `|` or `>`.
+      const lineOf = (line: number): number => (where?.line ?? 1) + (where?.block === true ? line : 0);
+      const at = { key, ...(item === undefined ? {} : { item }) };
+      const found = linksOf(value);
+      for (const reference of found.references) {
+        propertyReferences.push({
+          id: reference.id,
+          ...stored(reference),
+          line: lineOf(reference.line),
+          ...at,
+        });
+      }
+      for (const link of found.unresolved) {
+        unresolvedLinks.push({ target: link.target, ...stored(link), line: lineOf(link.line), ...at });
+      }
+    };
+    for (const [key, value] of Object.entries(data)) {
+      if (Array.isArray(value)) {
+        value.forEach((v: unknown, i) => {
+          scan(key, i, v);
+        });
+      } else {
+        scan(key, undefined, value);
+      }
+    }
   }
-  const out: PropertyReference[] = [];
-  const scan = (key: string, item: number | undefined, value: unknown): void => {
-    if (typeof value !== "string" || !value.includes(SCHEME)) {
-      return;
+  const references: TextReference[] = [];
+  if (body.includes(SCHEME)) {
+    // Line 1 is the opening `---`, then the frontmatter lines, then the closing `---`.
+    const before = 2 + frontmatter.split("\n").length - 1;
+    const found = linksOf(body);
+    for (const reference of found.references) {
+      references.push({ id: reference.id, ...stored(reference), line: before + reference.line });
     }
-    const where = place(key, item);
-    for (const { id, version, repository, line } of inlineReferences(value)) {
-      out.push({
-        id,
-        ...(version === undefined ? {} : { version }),
-        ...(repository === undefined ? {} : { repository }),
-        // A link in a block scalar lies below the line with its `|` or `>`.
-        line: (where?.line ?? 1) + (where?.block === true ? line : 0),
-        key,
-        ...(item === undefined ? {} : { item }),
-      });
-    }
-  };
-  for (const [key, value] of Object.entries(data)) {
-    if (Array.isArray(value)) {
-      value.forEach((v: unknown, i) => {
-        scan(key, i, v);
-      });
-    } else {
-      scan(key, undefined, value);
+    for (const link of found.unresolved) {
+      unresolvedLinks.push({ target: link.target, ...stored(link), line: before + link.line });
     }
   }
-  return out;
+  return { references, propertyReferences, unresolvedLinks };
 };
 
 /**
