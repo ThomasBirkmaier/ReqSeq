@@ -421,6 +421,19 @@
             ]
           }
         },
+        "relationRefs": {
+          "description": "Relations a caller gives to element.create or element.update by relation kind key, each with the element references of its targets (UUID, short ID or identifier, as relation.add takes them). The tool checks them as relation.add does and stores each target with its current version (#175).",
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/key"
+          },
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/elementRef"
+            }
+          }
+        },
         "relationTargetInput": {
           "description": "Target of a relation as a caller gives it to element.create or element.update (SR-021). Only `id` and, across repositories, `repository` name the target. A target the property already stores keeps its stored version and form; for every other target the tool writes its current version and the title (same repository) or repository (across repositories) itself. A given `version` or `title` is ignored (spec question #177).",
           "type": "object",
@@ -3508,6 +3521,10 @@
             "complete": "json"
           },
           {
+            "field": "relations",
+            "complete": "json"
+          },
+          {
             "field": "repository",
             "complete": "repository"
           },
@@ -3534,6 +3551,10 @@
               "additionalProperties": {
                 "$ref": "../element.schema.json#/$defs/inputValue"
               }
+            },
+            "relations": {
+              "$ref": "../common.schema.json#/$defs/relationRefs",
+              "description": "Relations of the new element by kind, written in the same file (#175), e.g. {\"derives-from\": [\"N-073\"]}."
             },
             "repository": {
               "type": "string"
@@ -4165,6 +4186,14 @@
             "of": "ref"
           },
           {
+            "field": "addRelations",
+            "complete": "json"
+          },
+          {
+            "field": "removeRelations",
+            "complete": "json"
+          },
+          {
             "field": "repository",
             "complete": "repository"
           },
@@ -4219,6 +4248,14 @@
                   }
                 ]
               }
+            },
+            "addRelations": {
+              "$ref": "../common.schema.json#/$defs/relationRefs",
+              "description": "Relations to add by kind, as relation.add adds them, in the same file write (#175). A relation the element has with a valid version is kept."
+            },
+            "removeRelations": {
+              "$ref": "../common.schema.json#/$defs/relationRefs",
+              "description": "Relations to remove by kind, as relation.remove removes them (a UUID as given), in the same file write (#175). Nothing to remove is an info problem relation.not-found."
             },
             "repository": {
               "type": "string",

@@ -414,6 +414,7 @@
         { "field": "title", "complete": "text" },
         { "field": "text", "complete": "text" },
         { "field": "properties", "complete": "json" },
+        { "field": "relations", "complete": "json" },
         { "field": "repository", "complete": "repository" },
         { "field": "folder", "complete": "text" }
       ],
@@ -435,6 +436,10 @@
             "additionalProperties": {
               "$ref": "../element.schema.json#/$defs/inputValue"
             }
+          },
+          "relations": {
+            "$ref": "../common.schema.json#/$defs/relationRefs",
+            "description": "Relations of the new element by kind, written in the same file (#175), e.g. {\"derives-from\": [\"N-073\"]}."
           },
           "repository": {
             "type": "string"
@@ -889,6 +894,8 @@
         { "field": "text", "complete": "text" },
         { "field": "set", "complete": "json" },
         { "field": "unset", "complete": "property", "of": "ref" },
+        { "field": "addRelations", "complete": "json" },
+        { "field": "removeRelations", "complete": "json" },
         { "field": "repository", "complete": "repository" },
         { "field": "expectedFileSha256", "complete": "text" }
       ],
@@ -930,6 +937,14 @@
                 }
               ]
             }
+          },
+          "addRelations": {
+            "$ref": "../common.schema.json#/$defs/relationRefs",
+            "description": "Relations to add by kind, as relation.add adds them, in the same file write (#175). A relation the element has with a valid version is kept."
+          },
+          "removeRelations": {
+            "$ref": "../common.schema.json#/$defs/relationRefs",
+            "description": "Relations to remove by kind, as relation.remove removes them (a UUID as given), in the same file write (#175). Nothing to remove is an info problem relation.not-found."
           },
           "repository": {
             "type": "string",

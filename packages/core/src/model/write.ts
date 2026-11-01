@@ -60,6 +60,8 @@ import { fileNameFor } from "./file-name.js";
 import type { ImageMemo } from "./images.js";
 import { embeddedImages, imageMemo } from "./images.js";
 import { incomingFor } from "./incoming.js";
+import type { RelationRefs } from "./relation-inputs.js";
+import { newRelations, planRelations, relationEdits } from "./relation-inputs.js";
 import { resolveRef } from "./resolve.js";
 import { buildShortIds, shortIdState } from "./short-id.js";
 import type { ShortIds } from "./short-id.js";
@@ -100,6 +102,8 @@ export interface CreateElementInput {
   readonly title: string;
   readonly text?: string;
   readonly properties?: Readonly<Record<string, ElementInputValue>>;
+  /** Relations of the new element by kind, each target by element reference (#175, relation-inputs.ts). */
+  readonly relations?: RelationRefs;
   readonly repository?: string;
   readonly folder?: string;
 }
@@ -110,6 +114,9 @@ export interface UpdateElementInput {
   readonly text?: string;
   readonly set?: Readonly<Record<string, ElementInputValue>>;
   readonly unset?: readonly string[];
+  /** Relations to add and to remove by kind, in the same write (#175, relation-inputs.ts). */
+  readonly addRelations?: RelationRefs;
+  readonly removeRelations?: RelationRefs;
   /** Which of the elements `ref` names: the workspace name of its repository (`resolveRef`, #255). */
   readonly repository?: string;
   /** Write precondition (SR-106): the SHA-256 the element file must still have (`expectedFile`). */
@@ -704,6 +711,27 @@ export const createElement = async (
   // Every given key is checked, also one with an empty value (`status: null` is refused).
   checkPropertyKeys(Object.keys(input.properties ?? {}), metamodel, type, titleKey, "properties");
   const repository = targetRepository(layout, input.repository);
+  const id = randomUUID();
+  const name = fileNameFor({ prefix: type.prefix, id });
+  // The new element as the relation checks see it: its type and repository, no data yet (#175).
+  const self: ElementRecord = {
+    id,
+    type: type.key,
+    repository: repository.name,
+    file: name,
+    data: {},
+    eol: "\n",
+    closingEol: "\n",
+    bom: false,
+    snapshot: { path: name, size: 0, mtimeMs: 0, sha256: "" },
+  };
+  // Before any file is read: the relations are checked like relation.add checks them.
+  const relationPlan = planRelations(
+    { ...context, shortIds: await workspace.get(shortIdState) },
+    self,
+    input.relations,
+    undefined,
+  );
   const properties = await withTargets(
     context,
     repository.name,
@@ -715,8 +743,6 @@ export const createElement = async (
     {},
   );
   const given = folderOf(input.folder ?? type.key);
-  const id = randomUUID();
-  const name = fileNameFor({ prefix: type.prefix, id });
   // A folder that leaves the repository (`..`, `/x`) is refused with the error `createFolder` gives.
   // Any other folder is judged by its names first, so `a:b` (on Windows a path relative to drive
   // A:) is refused as not portable on every OS. The check gives the folder as spelled on disk where
@@ -729,13 +755,10 @@ export const createElement = async (
     resolveInRoot(repository.folder, folder);
   }
   const text = await setInlineReferences(context, input.text ?? "", "", repository.name);
-  const bytes = newElementBytes(
-    base,
-    id,
-    input.title,
-    text,
-    properties.map(([key, value]) => [key, toPropertyValue(value)] as const),
-  );
+  const bytes = newElementBytes(base, id, input.title, text, [
+    ...properties.map(([key, value]) => [key, toPropertyValue(value)] as const),
+    ...(await newRelations(context, self, relationPlan)),
+  ]);
   await refuseByCheck(
     check,
     repository.name,
@@ -1091,15 +1114,18 @@ export const updateElement = async (
   }
   // Before the file is read: a choice value that is no choice is refused at once.
   const given = withChoiceKeys(metamodel, Object.entries(input.set ?? {}), "set");
+  const relationState = { ...context, shortIds };
+  const relationPlan = planRelations(relationState, record, input.addRelations, input.removeRelations);
   const { repository, current } = await readUnchanged(workspace, layout, record);
   expectedFile(record, current, input.expectedFileSha256);
   const set = await withTargets(context, record.repository, given, current.record.data);
+  const relations = await relationEdits(context, relationState, current.record, relationPlan);
   const text =
     input.text === undefined
       ? undefined
       : await setInlineReferences(context, input.text, elementText(current.file.body), record.repository);
   const edited = editElementFile(current.file, {
-    edits: updateEdits(input, set, titleKey),
+    edits: [...updateEdits(input, set, titleKey), ...relations.edits],
     ...(text === undefined ? {} : { body: bodyForText(current.file.body, text) }),
     keyOrder: type.properties,
   });
@@ -1134,6 +1160,11 @@ export const updateElement = async (
   } else {
     result = await finish(workspace, current, context, { shortIds, titleKey, files: [], extraFindings });
   }
-  // Nothing written: nothing affected (AK3).
-  return { ...result, affected: result.affected ?? 0, fileSha256 };
+  // Nothing written: nothing affected (AK3). Removals that found nothing come first (#175).
+  return {
+    ...result,
+    problems: [...relations.problems, ...result.problems],
+    affected: result.affected ?? 0,
+    fileSha256,
+  };
 };
