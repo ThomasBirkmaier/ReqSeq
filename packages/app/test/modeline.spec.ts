@@ -68,7 +68,8 @@ test.describe("the counts of the modeline", () => {
     // The fixture has each case once: outdated and other hints, an outdated inline reference only, none.
     await goTo(window, "Show a dial");
     await expect(parts(window).nth(1)).toHaveText("1 outdated");
-    await expect(parts(window).nth(2)).toHaveText("1 hint");
+    // Its other hint and its missing parent (SR-022 AK6).
+    await expect(parts(window).nth(2)).toHaveText("2 hints");
     await goTo(window, REFERENCE_SOURCE_TITLE);
     await expect(parts(window)).toHaveCount(2);
     await expect(parts(window).nth(1)).toHaveText("1 outdated");

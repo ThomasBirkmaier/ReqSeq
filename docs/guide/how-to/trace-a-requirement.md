@@ -104,6 +104,40 @@ reqseq element update SR-c67baa --remove-relations derives-from=N-7fe707
 reqseq element update SR-c67baa --add-relations derives-from='["N-7fe707"]'
 ```
 
+A requirement that derives from nothing is a gap in the chain: its parent is missing. The chain marks it, and `workspace check` lists every such requirement as a warning `trace.no-parent`, so one command finds them all:
+
+```sh
+reqseq element create system-requirement "Log the wind" --text "The station must log the wind speed every minute."
+```
+
+```text title="Output"
+SR-62fb87  draft  Log the wind
+...
+warning  trace.no-parent  ...
+```
+
+```sh
+reqseq trace chain SR-62fb87
+```
+
+```text title="Output"
+SR-62fb87  draft  Log the wind  [gap: no parent]  [gap: no evidence]
+total: 1
+No problems.
+```
+
+```sh
+reqseq workspace check
+```
+
+```text title="Output"
+ok: true
+...
+warning  trace.no-parent  ...  System Requirement SR-62fb87 has no parent: no relation with the meaning derivation names one  (element SR-62fb87)
+```
+
+Which relation kinds lead to a parent is up to the metamodel: every kind with the meaning `derivation`, in the standard model `derives-from` and `refines`. `based-on` has no meaning, so a decision is no parent; [Extend the metamodel](/how-to/extend-the-metamodel/) shows how a project makes it one.
+
 ## API
 
 Start the API in the workspace with `reqseq serve api`, and send each command with the token of `api.json` as `Authorization: Bearer <token>`:
@@ -132,6 +166,12 @@ POST /v1/commands/trace.matrix
 {}
 ```
 
+```http
+POST /v1/commands/workspace.check
+
+{}
+```
+
 The answer is the output of the command as JSON, the same as `--json` of the CLI.
 
 ## MCP
@@ -154,4 +194,8 @@ An agent connected to `reqseq mcp` calls the same commands as tools:
 { "name": "trace_matrix", "arguments": {} }
 ```
 
-The reference has every option of [relation.add](/reference/commands/relation-add/), [trace.chain](/reference/commands/trace-chain/), [trace.related](/reference/commands/trace-related/) and [trace.matrix](/reference/commands/trace-matrix/).
+```json
+{ "name": "workspace_check", "arguments": {} }
+```
+
+The reference has every option of [relation.add](/reference/commands/relation-add/), [trace.chain](/reference/commands/trace-chain/), [trace.related](/reference/commands/trace-related/), [trace.matrix](/reference/commands/trace-matrix/) and [workspace.check](/reference/commands/workspace-check/).

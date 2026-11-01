@@ -239,7 +239,8 @@ interface EnrichOutput {
 interface StatusOutput {
   readonly elements: readonly {
     readonly shortId: string;
-    readonly verification: readonly { readonly view: string; readonly status: string }[];
+    /** Not for the need the requirements derive from. */
+    readonly verification?: readonly { readonly view: string; readonly status: string }[];
   }[];
 }
 
@@ -255,7 +256,7 @@ const statusOf = async (workspace: string): Promise<Record<string, string | unde
   return Object.fromEntries(
     (JSON.parse(run.stdout) as StatusOutput).elements.map((e) => [
       e.shortId,
-      e.verification.find((v) => v.view === "core")?.status,
+      e.verification?.find((v) => v.view === "core")?.status,
     ]),
   );
 };

@@ -553,6 +553,69 @@ describe("trace chain (SR-022)", () => {
       /^The chain stops at a cycle of derivations with 22 elements: Component Requirement CR-00e000, .*, Component Requirement CR-00e019, and 2 more$/,
     );
   });
+  it("[SR-022/AK5] marks a requirement without a parent as a gap of the upward chain, the root's too", async () => {
+    // A system requirement whose only relation is to a decision (based-on, no meaning in the standard
+    // model), and a component requirement deriving from it.
+    const ORPHAN = `${P}b004`;
+    const DECISION = `${P}e001`;
+    const opened = await open({
+      ...CHAIN,
+      files: {
+        "decisions/D-00000000e001.md": `---\nid: ${DECISION}\ntype: decision\nstatus: draft\ntitle: Knots\n---\n`,
+        "requirements/SR-00000000b004.md": `---\nid: ${ORPHAN}\ntype: system-requirement\nstatus: draft\ntitle: Orphan\nbased-on:\n  - { id: ${DECISION}, version: ${V} }\n---\n`,
+        "components/CR-00000000c003.md": component(`${P}c003`, [ORPHAN]),
+      },
+    });
+    expect(gaps(chainOf(opened, ORPHAN, { direction: "up" }))).toEqual([[ORPHAN, "no-parent"]]);
+    // From below: the gap is at the element of the upward walk that has no parent; first in `gaps`.
+    expect(gaps(chainOf(opened, `${P}c003`, { direction: "both" }))).toEqual([
+      [ORPHAN, "no-parent"],
+      [`${P}c003`, "no-evidence"],
+    ]);
+    // A requirement with a parent, a need and a decision have none.
+    expect(gaps(chainOf(opened, STALL, { direction: "up" }))).toEqual([]);
+    expect(gaps(chainOf(opened, DECISION, { direction: "up" }))).toEqual([]);
+    expect(gaps(chainOf(opened, RAIN, { direction: "up" }))).toEqual([]);
+    // Only where the parents were looked at: not downwards only, not at maxDepth 0.
+    expect(gaps(chainOf(opened, ORPHAN, { direction: "down" }))).toEqual([[`${P}c003`, "no-evidence"]]);
+    expect(gaps(chainOf(opened, ORPHAN, { direction: "up", maxDepth: 0 }))).toEqual([]);
+    // Whatever the view: a parent that does not apply in it is still a parent.
+    expect(gaps(chainOf(opened, STALL, { direction: "up", includes: (e) => e.id === STALL }))).toEqual([]);
+  });
+
+  it("[SR-022/AK5] takes a parent of any relation kind with the meaning derivation, also one of the project's own", async () => {
+    const DECISION = `${P}e001`;
+    const decided = `---\nid: ${SPEED}\ntype: system-requirement\nstatus: draft\ntitle: Show wind speed\ndecided-by:\n  - { id: ${DECISION}, version: ${V} }\n---\n`;
+    const opened = await open({
+      ...CHAIN,
+      files: {
+        "decisions/D-00000000e001.md": `---\nid: ${DECISION}\ntype: decision\nstatus: draft\ntitle: Knots\n---\n`,
+        "requirements/SR-00000000b001.md": decided,
+        "metamodel/origin.yaml": [
+          "reqseq-metamodel: 1",
+          "relations:",
+          "  - key: decided-by",
+          "    name: Decided by",
+          "    target-types: [decision]",
+          "    meaning: derivation",
+          "",
+        ].join("\n"),
+      },
+    });
+    const chain = chainOf(opened, SPEED, { direction: "up" });
+    expect(levels(chain)).toEqual([
+      [
+        "up",
+        [
+          [SPEED, 0, true],
+          [DECISION, 1, true],
+        ],
+      ],
+    ]);
+    expect(chain.gaps).toEqual([]);
+    // DIRECTION refines its need (refines has the meaning derivation too).
+    expect(gaps(chainOf(opened, DIRECTION, { direction: "up" }))).toEqual([]);
+  });
 });
 
 describe("trace chain in a view and with missing repositories", () => {
@@ -638,9 +701,61 @@ describe("trace chain in a view and with missing repositories", () => {
     // Downwards children in a repository that is not here cannot be seen (#262 option 1).
     expect(chainOf(fixture, STALL, { direction: "down" }).incomplete).toBe(true);
   });
+
+  it("[SR-022/AK5] counts a parent in a repository that is not on this machine, and a missing one, as a parent", async () => {
+    const opened = await open({
+      ...CHAIN,
+      files: {
+        "reqseq-workspace.yaml": [
+          "reqseq-workspace: 1",
+          "name: Weather station",
+          "repositories:",
+          '  - { name: system, url: "git@git.example.com:ws/system.git", main: true }',
+          "  - { name: away, url: git@example.com:away.git, path: ../away }",
+          "metamodel: { repository: system, path: metamodel }",
+          "",
+        ].join("\n"),
+        "components/CR-00000000c001.md": component(
+          TURNS,
+          [],
+          ["refines:", `  - { id: ${P}f001, version: ${V}, repository: away }`],
+        ),
+        "components/CR-00000000c002.md": component(STALL, [`${P}f002`]),
+      },
+    });
+    expect(gaps(chainOf(opened, TURNS, { direction: "up" }))).toEqual([]);
+    expect(gaps(chainOf(opened, STALL, { direction: "up" }))).toEqual([]);
+  });
 });
 
 describe("trace chain output", () => {
+  it("[SR-022/AK5] gives a no-parent gap with the page of its node in the upward walk", async () => {
+    const ORPHAN = `${P}b004`;
+    const CHILD = `${P}c003`;
+    const opened = await open({
+      ...CHAIN,
+      files: {
+        "requirements/SR-00000000b004.md": `---\nid: ${ORPHAN}\ntype: system-requirement\nstatus: draft\ntitle: Orphan\n---\n`,
+        "components/CR-00000000c003.md": component(CHILD, [ORPHAN]),
+      },
+    });
+    const context = { metamodel: opened.graph.metamodel, shortIds: await opened.workspace.get(shortIdState) };
+    const chain = chainOf(opened, CHILD, { direction: "both" });
+    const gapsOn = (page?: { limit: number; offset: number }): unknown[] =>
+      chainOutput(chain, context, page).gaps.map((g) => [g.id, g.kind]);
+    expect(gapsOn()).toEqual([
+      [ORPHAN, "no-parent"],
+      [CHILD, "no-evidence"],
+    ]);
+    expect(gapsOn({ limit: 1, offset: 0 })).toEqual([[CHILD, "no-evidence"]]);
+    expect(gapsOn({ limit: 1, offset: 1 })).toEqual([[ORPHAN, "no-parent"]]);
+    // The root's own gap is on the first page, with the root.
+    const root = chainOf(opened, ORPHAN, { direction: "both" });
+    expect(chainOutput(root, context, { limit: 1, offset: 0 }).gaps).toEqual([
+      { id: ORPHAN, repository: "system", kind: "no-parent" },
+    ]);
+  });
+
   it("names the repository of every end, also across repositories (D-058)", async () => {
     const workspaceFile = [
       "reqseq-workspace: 1",

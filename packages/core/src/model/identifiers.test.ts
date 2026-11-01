@@ -283,7 +283,7 @@ describe("identifiers in outputs (#305)", () => {
 
 describe("duplicate identifiers (#305)", () => {
   const twin = (specId: string): string =>
-    `---\nid: 30500000-0000-4000-8000-0000000b0038\ntype: system-requirement\nstatus: draft\ntitle: Twin\nspec-id: ${specId}\n---\n`;
+    `---\nid: 30500000-0000-4000-8000-0000000b0038\ntype: system-requirement\nstatus: draft\ntitle: Twin\nspec-id: ${specId}\nderives-from:\n  - { id: ${N001.id}, version: n1:ef8aec5dd4656003 }\n---\n`;
   const TWIN_FILE = "requirements/SR-0000000b0038.md";
 
   it("reports each element of a type whose identifier another one has, in any case", async () => {

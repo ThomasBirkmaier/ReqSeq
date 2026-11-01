@@ -85,6 +85,7 @@ describe("hints at the element equal the hints hint.list lists for it (SR-026 AK
       "element.unknown-property",
       "relation.outdated",
       "relation.target-superseded",
+      "trace.no-parent",
       "variant.superseded-in-validity",
     ]);
   });

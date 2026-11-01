@@ -120,7 +120,13 @@ describe("reqseq workspace check with 50,000 elements and 200,000 relations (SR-
     );
     expect(run.stderr).toBe("");
     expect(run.code).toBe(0);
-    expect(JSON.parse(run.stdout)).toEqual({ ok: true, problems: [], checkedElements: ELEMENTS });
+    // The generated requirements that got no derivation are hints (SR-022 AK6); nothing else is reported.
+    const clean = JSON.parse(run.stdout) as { ok: boolean; problems: Problem[]; checkedElements: number };
+    expect({ ...clean, problems: clean.problems.filter((p) => p.code !== "trace.no-parent") }).toEqual({
+      ok: true,
+      problems: [],
+      checkedElements: ELEMENTS,
+    });
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(THRESHOLD_MS);
   }, 600_000);
 
@@ -144,8 +150,12 @@ describe("reqseq workspace check with 50,000 elements and 200,000 relations (SR-
       const out = JSON.parse(run.stdout) as { ok: boolean; problems: Problem[]; checkedElements: number };
       expect(out.ok).toBe(true);
       expect(out.checkedElements).toBe(ELEMENTS);
-      expect(out.problems).toHaveLength(storedVersions(tree.files));
-      expect(out.problems.filter((p) => p.code !== "relation.outdated" || p.line === undefined)).toEqual([]);
+      // Besides the generated requirements that got no derivation (SR-022 AK6).
+      const outdatedProblems = out.problems.filter((p) => p.code !== "trace.no-parent");
+      expect(outdatedProblems).toHaveLength(storedVersions(tree.files));
+      expect(outdatedProblems.filter((p) => p.code !== "relation.outdated" || p.line === undefined)).toEqual(
+        [],
+      );
       expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(THRESHOLD_MS);
     } finally {
       await outdated.cleanup();

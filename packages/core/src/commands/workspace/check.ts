@@ -1,5 +1,5 @@
-// workspace.check (SR-019; aggregates SR-008, SR-015, SR-016, SR-028, SR-040, SR-072, SR-085,
-// SR-086, SR-088, SR-089 and SR-090): every finding of the whole workspace against the metamodel, as
+// workspace.check (SR-019; aggregates SR-008, SR-015, SR-016, SR-022 AK6, SR-028, SR-040, SR-072,
+// SR-085, SR-086, SR-088, SR-089 and SR-090): every finding of the whole workspace against the metamodel, as
 // `problems`, and `ok`, from which the CLI takes its exit code (ADR-0009). Each finding comes from
 // the whole-workspace state of its block, which is kept until the element store or the metamodel is
 // reset, so a second check of an unchanged workspace reads no file again.
@@ -69,7 +69,7 @@ import {
 } from "../../hints/index.js";
 import type { SinceBaselineContext } from "../../hints/index.js";
 import type { Workspace } from "../../runtime/workspace.js";
-import { derivationCycleProblemsState } from "../../trace/index.js";
+import { derivationCycleProblemsState, noParentProblemsState } from "../../trace/index.js";
 import {
   nestedVariantsState,
   supersededValidityProblemsState,
@@ -101,6 +101,7 @@ export const FINDING_STATES = [
   missingTargetProblemsState, // SR-089
   unresolvedLinkProblemsState, // #176
   derivationCycleProblemsState, // SR-090
+  noParentProblemsState, // SR-022 AK6
   evidenceProblemsState, // SR-028
   outdatedEvidenceProblemsState, // SR-025 AK4
 ] as const;

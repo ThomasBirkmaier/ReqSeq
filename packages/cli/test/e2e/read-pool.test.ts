@@ -126,7 +126,13 @@ describe("cold load in worker threads (ADR-0008, #148)", () => {
     const run = await reqseq(["workspace", "check", "--json"], fixture.workspaceRoot);
     expect(run.stderr).toBe("");
     expect(run.code).toBe(0);
-    const output = JSON.parse(run.stdout) as { ok: boolean; problems: unknown[]; checkedElements: number };
-    expect(output).toMatchObject({ ok: true, problems: [], checkedElements: ELEMENTS });
+    const output = JSON.parse(run.stdout) as {
+      ok: boolean;
+      problems: { code: string }[];
+      checkedElements: number;
+    };
+    expect(output).toMatchObject({ ok: true, checkedElements: ELEMENTS });
+    // The generated requirements that got no derivation are hints (SR-022 AK6); nothing else is reported.
+    expect(output.problems.filter((p) => p.code !== "trace.no-parent")).toEqual([]);
   });
 });

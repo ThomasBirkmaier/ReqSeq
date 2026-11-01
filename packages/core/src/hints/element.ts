@@ -8,6 +8,7 @@
 // - the validity entries of a variant (SR-039 AK3);
 // - the replacements and exclusions that name no core requirement (SR-041 AK8);
 // - the cycle of derivations the element lies in (SR-090, `elementCycleFindings`);
+// - a requirement without a parent (SR-022 AK6, `elementNoParentFindings`);
 // - its outdated evidence (SR-025 AK4, `elementEvidenceFindings`);
 // - its outdated relations and inline references (SR-025, `outdatedOfShown`);
 // - its `reqseq:` links whose target is no UUID (#176, `unresolvedLinkProblems`);
@@ -22,7 +23,7 @@
 // opening an element stays fast (SR-082 AK3). `hint.list` always gives the dates.
 import type { ElementHints, LocatableFinding } from "../model/index.js";
 import { unresolvedLinkProblems } from "../model/index.js";
-import { elementCycleFindings } from "../trace/index.js";
+import { elementCycleFindings, elementNoParentFindings } from "../trace/index.js";
 import {
   nestedVariantFindingsOf,
   supersededValidityFindingsOf,
@@ -58,6 +59,7 @@ export const elementHints: ElementHints = async (context, record, withDate) => {
     ...nestedVariantFindingsOf(context, record),
     ...targetNotCoreFindingsOf(context, record),
     ...cycles,
+    ...elementNoParentFindings(context, record),
     ...evidence,
     ...sinceBaseline,
     ...hints,

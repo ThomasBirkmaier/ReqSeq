@@ -79,6 +79,23 @@ reqseq element get SR-c67baa
 ...
 ```
 
+### Decisions as parents
+
+The trace chain follows every relation kind with the meaning `derivation`. In the standard model `based-on` has none, so a requirement based on a decision has no parent: the chain marks it `[gap: no parent]` and `workspace check` reports it (`trace.no-parent`). If your project wants decisions as parents, give a relation kind the meaning `derivation`: either `based-on` itself, with `meaning: derivation` added to its entry in `standard-model.yaml`, or a kind of your own in your file:
+
+```yaml title="metamodel/origins.yaml"
+reqseq-metamodel: 1
+relations:
+  - key: decided-by
+    name: Decided by
+    inverse-name: Decides
+    source-types: [system-requirement]
+    target-types: [decision]
+    meaning: derivation
+```
+
+A requirement with `decided-by` then has the decision as its parent in `trace chain`, and `workspace check` no longer reports it.
+
 ## API
 
 Write the file as above, then start the API in the workspace with `reqseq serve api`, and send each command with the token of `api.json` as `Authorization: Bearer <token>`:

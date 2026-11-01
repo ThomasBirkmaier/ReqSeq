@@ -21,6 +21,14 @@
 //   meaning `requirement` without a child and without evidence is `no-evidence` (a requirement is
 //   closed by a child or by its own evidence; SR-034 counts children for a parent). Other types have
 //   no gap. A child that only an ambiguous relation names (SR-088, `childrenOf`) is not a child here.
+// - Gap above (AK5): an element of the upward walk whose parents were looked at (`expanded`, so not
+//   in a chain `down` only), of a type with the meaning `requirement`, that names no parent through a
+//   relation kind with the meaning `derivation` (`namesParent`) is `no-parent`. Whatever the view and
+//   the target's state: a parent that does not apply in the view, lies in a repository that is not
+//   here (SR-006 AK2) or is missing (SR-089) still is one, so the chain shows the same orphans as
+//   `workspace.check` (AK6, `noParentProblemsState`). Which relation kinds derive is the metamodel's
+//   (D-012): in the standard model `based-on` has no meaning, so a decision is no parent (product
+//   owner decision, 2026-11-01).
 // - Cycles (AK4): the cycles of each walk (strongly connected components, the notion of SR-090), one
 //   hint `trace.cycle` each. When the root lies in a cycle, both walks see it: it is reported once.
 // - `incomplete` (SR-006 AK2) and the unresolved links (SR-006 AK1, SR-088, SR-089) come from the
@@ -47,7 +55,7 @@ import type { ElementRecord, ShortIds } from "../model/index.js";
 import { UNKNOWN_TYPE_PREFIX, elementLabel, identifierField, titleKeyOf } from "../model/index.js";
 import type { DerivationGraph, DerivationLink } from "./graph.js";
 import { cycleNames } from "./cycles.js";
-import { childrenOf, parentsOf } from "./graph.js";
+import { childrenOf, namesParent, parentsOf } from "./graph.js";
 import type { Expansion, WalkCycle, WalkResult } from "./walk.js";
 import { walk } from "./walk.js";
 
@@ -75,8 +83,8 @@ export interface ChainWalk<L> {
   readonly result: WalkResult<DerivationLink, L>;
 }
 
-/** What is missing below an element of the downward chain (SR-022 AK3). */
-export type GapKind = "no-child" | "no-evidence";
+/** What is missing below an element of the downward chain (SR-022 AK3) or above one of the upward chain (AK5). */
+export type GapKind = "no-child" | "no-evidence" | "no-parent";
 
 export interface ChainGap {
   readonly element: ElementRecord;
@@ -100,7 +108,7 @@ export interface Chain<L> {
   readonly rootExpanded: boolean;
   /** The upward walk first, then the downward one; each starts with the root. */
   readonly walks: readonly ChainWalk<L>[];
-  /** The gaps of the downward walk, in node order. */
+  /** The `no-parent` gaps of the upward walk, then the gaps of the downward walk, each in node order. */
   readonly gaps: readonly ChainGap[];
   /** The evidence of the expanded elements of the downward walk, in node order. */
   readonly evidence: readonly ChainEvidence<L>[];
@@ -210,6 +218,18 @@ export const lacksEvidence = (
     gapOf(types, element, children(element).steps.length > 0, leaves, hasLeaves) === "no-evidence";
 };
 
+/** The `no-parent` gaps of the upward walk (AK5, see the file comment), in node order. */
+const parentGapsOf = (graph: DerivationGraph, up: WalkResult<DerivationLink, unknown>): ChainGap[] => {
+  const requirements = typeKeys(graph.metamodel, "requirement");
+  const gaps: ChainGap[] = [];
+  for (const { element, expanded } of up.nodes) {
+    if (expanded && requirements.has(element.type) && !namesParent(graph, element)) {
+      gaps.push({ element, kind: "no-parent" });
+    }
+  }
+  return gaps;
+};
+
 /** Gaps and evidence of the downward walk (see the file comment). */
 const gapsOf = <L>(
   graph: DerivationGraph,
@@ -255,12 +275,17 @@ export const traceChain = <L = never>(
   const { direction, maxDepth, includes, leaves, hasEvidence } = options;
   const limit = maxDepth === undefined ? {} : { maxDepth };
   const walks: ChainWalk<L>[] = [];
+  const gaps: ChainGap[] = [];
   if (direction !== "down") {
     const expand =
       includes === undefined
         ? (e: ElementRecord) => parentsOf(graph, e)
         : (e: ElementRecord) => within(parentsOf(graph, e), includes, false);
-    walks.push({ direction: "up", result: walk<DerivationLink, L>([root], expand, limit) });
+    const up = walk<DerivationLink, L>([root], expand, limit);
+    walks.push({ direction: "up", result: up });
+    for (const gap of parentGapsOf(graph, up)) {
+      gaps.push(gap);
+    }
   }
   let down: WalkResult<DerivationLink, L> | undefined;
   if (direction !== "up") {
@@ -275,17 +300,20 @@ export const traceChain = <L = never>(
       }
     }
   }
-  const { gaps, evidence } =
-    down === undefined ? { gaps: [], evidence: [] } : gapsOf(graph, down, hasEvidence);
-  const meanings: readonly GapMeaning[] = ["need", "requirement"];
+  const below = down === undefined ? { gaps: [], evidence: [] } : gapsOf(graph, down, hasEvidence);
+  for (const gap of below.gaps) {
+    gaps.push(gap);
+  }
+  // The upward walk needs only the meaning `requirement` (AK5), the downward one both (AK3).
+  const meanings: readonly GapMeaning[] = down === undefined ? ["requirement"] : ["need", "requirement"];
   return {
     root,
     rootExpanded: maxDepth === undefined || maxDepth > 0,
     walks,
     gaps,
-    evidence,
+    evidence: below.evidence,
     cycles,
-    unassigned: down === undefined ? [] : meanings.filter((m) => graph.metamodel.meanings[m].length === 0),
+    unassigned: meanings.filter((m) => graph.metamodel.meanings[m].length === 0),
     incomplete: walks.some((w) => w.result.incomplete),
   };
 };
@@ -516,12 +544,13 @@ export const chainOutput = (
     if (onPage.size === 0) {
       continue;
     }
-    if (direction === "down") {
-      for (const gap of chain.gaps) {
-        if (onPage.has(gap.element)) {
-          gaps.push(gap);
-        }
+    // The `no-parent` gaps belong to the upward walk, the others to the downward one.
+    for (const gap of chain.gaps) {
+      if ((gap.kind === "no-parent") === (direction === "up") && onPage.has(gap.element)) {
+        gaps.push(gap);
       }
+    }
+    if (direction === "down") {
       if (evidenceOf !== undefined) {
         addEvidenceOf(evidence, rootOnPage ? [...result.nodes.slice(0, 1), ...shown] : shown, evidenceOf);
       }
