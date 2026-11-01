@@ -57,7 +57,7 @@ import {
   valueKindProblemsState,
 } from "../model/index.js";
 import type { Workspace } from "../runtime/workspace.js";
-import { derivationCycleProblemsState } from "../trace/index.js";
+import { derivationCycleProblemsState, noParentProblemsState } from "../trace/index.js";
 import type { ResolvedView, ViewRule } from "../variants/index.js";
 import {
   nestedVariantsState,
@@ -96,6 +96,7 @@ export const HINT_STATES = [
   duplicateIdentifierProblemsState, // #305
   unresolvedLinkProblemsState, // #176
   derivationCycleProblemsState, // SR-090
+  noParentProblemsState, // SR-022 AK6
   outdatedEvidenceProblemsState, // SR-025 AK4
 ] as const;
 

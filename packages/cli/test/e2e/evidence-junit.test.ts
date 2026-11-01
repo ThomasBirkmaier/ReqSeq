@@ -76,8 +76,10 @@ describe("reqseq reads JUnit XML as records (SR-093)", () => {
       '<testcase classname="test_sample" name="test_skipped" time="0.000"><skipped/></testcase>' +
       "</testsuite></testsuites>";
     const { code, output } = await check({ "evidence/ci/pytest.xml": pytest });
-    expect(output.problems.map((p) => p.code)).toEqual(["evidence.outdated", "evidence.outdated"]);
-    expect(output.problems.every((p) => p.file === RESULTS)).toBe(true);
+    // Besides the hints of the fixture's requirements, which have no parent (SR-022 AK6).
+    const problems = output.problems.filter((p) => p.code !== "trace.no-parent");
+    expect(problems.map((p) => p.code)).toEqual(["evidence.outdated", "evidence.outdated"]);
+    expect(problems.every((p) => p.file === RESULTS)).toBe(true);
     expect(code).toBe(0);
   });
 });

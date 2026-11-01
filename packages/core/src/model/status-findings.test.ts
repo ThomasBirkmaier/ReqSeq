@@ -101,7 +101,7 @@ describe("status hints of elements against the statuses of their type (#306)", (
   it("shows the hint of one element with element.get, with the line of an empty status key", async () => {
     const opened = await open({
       "elements/SR-000000bbb003.md":
-        "---\nid: 2b2b2b2b-2222-4222-8222-000000bbb003\ntype: requirement\nstatus:\ntitle: Without status\n---\n",
+        "---\nid: 2b2b2b2b-2222-4222-8222-000000bbb003\ntype: requirement\nstatus:\ntitle: Without status\nderives-from: [{ id: 1a1a1a1a-1111-4111-8111-000000aaa001, version: n1:67ebd0624004c969 }]\n---\n",
     });
     const get = (ref: string): Promise<CommandOutput<"element.get">> =>
       invoke("element.get", { ref }, { workspace: opened.workspace }) as Promise<

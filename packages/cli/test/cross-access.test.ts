@@ -20,6 +20,7 @@ import { startApiServer } from "@reqseq/api";
 import type { Channel, IpcRendererLike } from "@reqseq/app";
 import { SAVE_CHANNEL, WORKSPACE_CHANNEL, createBridge, createCoreHost } from "@reqseq/app";
 import type {
+  BaselineGetOutput,
   CatalogEntry,
   CommandName,
   MetamodelGetOutput as MetamodelOutput,
@@ -83,6 +84,21 @@ interface Scenario {
   /** More checks on the results of all accesses, after they compared equal. */
   readonly check?: (results: Readonly<Record<string, Result>>) => void;
 }
+
+/** SR-094: the core output of a baseline.get scenario, its entries by the last two characters of their UUID. */
+const baselineEntries = (
+  results: Readonly<Record<string, Result>>,
+): Readonly<Record<string, BaselineGetOutput["elements"][number]>> =>
+  Object.fromEntries(
+    (results["core"]?.outcome as { output: BaselineGetOutput }).output.elements.map((e) => [
+      e.id.slice(-2),
+      e,
+    ]),
+  );
+/** SR-094: the rows of an entry as `view status`, the view by the last two characters of a variant's UUID. */
+const baselineRows = (entry: BaselineGetOutput["elements"][number] | undefined): string[] | undefined =>
+  entry?.verification?.map((r) => `${r.view === "core" ? "core" : r.view.slice(-2)} ${r.status}`);
+const SR094: FixtureOptions = { fixture: "SR-094/baseline", git: true };
 
 /** What element.create and element.update give, as far as the checks of their SR-064 scenarios read it. */
 interface Written {
@@ -232,6 +248,20 @@ const unchangedDelivery =
 const AFFECTED: FixtureOptions = { fixture: "SR-024/affected", git: true };
 /** Needs, system and component requirements and a variant (SR-022). */
 const CHAIN: FixtureOptions = { fixture: "SR-022/chain", git: true };
+/** CHAIN with a system requirement based only on a decision, so without a parent, and a component requirement below it (SR-022 AK5, AK6). */
+const ORPHANED_CHAIN: FixtureOptions = {
+  ...CHAIN,
+  files: {
+    "decisions/D-00000000e001.md":
+      "---\nid: 5c0e1d2a-0022-4022-8022-00000000e001\ntype: decision\nstatus: draft\ntitle: Knots\n---\n",
+    "requirements/SR-00000000b004.md":
+      "---\nid: 5c0e1d2a-0022-4022-8022-00000000b004\ntype: system-requirement\nstatus: draft\ntitle: Show knots\n" +
+      "based-on:\n  - { id: 5c0e1d2a-0022-4022-8022-00000000e001, version: n1:0000000000000000 }\n---\n",
+    "components/CR-00000000c003.md":
+      "---\nid: 5c0e1d2a-0022-4022-8022-00000000c003\ntype: component-requirement\nstatus: draft\ntitle: Convert to knots\n" +
+      "derives-from:\n  - { id: 5c0e1d2a-0022-4022-8022-00000000b004, version: n1:0000000000000000 }\n---\n",
+  },
+};
 /** Inheritance, per-type statuses, relation kinds open on a side or both (SR-130). */
 const METAMODEL: FixtureOptions = { fixture: "SR-130/metamodel", git: true };
 /** Needs, requirements, variants and packages to filter (SR-069). */
@@ -366,6 +396,55 @@ const RAW_JUNIT: FixtureOptions = {
       '<?xml version="1.0" encoding="UTF-8"?>\n<testsuites>\n  <testsuite name="station" timestamp="2026-10-27T09:00:00">\n' +
       '    <testcase classname="station" name="[SR-e88fb3] shows the wind speed"/>\n' +
       '    <testcase classname="station" name="[SR-ffffff] names no element"/>\n' +
+      "  </testsuite>\n</testsuites>\n",
+  },
+};
+
+/**
+ * The #535 workspace with a JUnit file of Rust test names that cannot hold brackets (SR-029 AK4, AK5):
+ * one names SR-e88fb3 in the form `{prefix}_{id}_ak{ak}`, one names nothing.
+ */
+const PATTERN_JUNIT: FixtureOptions = {
+  ...EVIDENCE,
+  files: {
+    "results/nextest.xml":
+      '<?xml version="1.0" encoding="UTF-8"?>\n<testsuites>\n  <testsuite name="station" timestamp="2026-10-27T09:00:00">\n' +
+      '    <testcase classname="station" name="tests::sr_e88fb3_ak1_shows_the_wind_speed"/>\n' +
+      '    <testcase classname="station" name="tests::adds_two_numbers"/>\n' +
+      "  </testsuite>\n</testsuites>\n",
+  },
+};
+
+/** The output of evidence.enrichJunit through core. */
+const enrichOutput = (results: Readonly<Record<string, Result>>): Record<string, unknown> | undefined =>
+  (results["core"]?.outcome as { output?: Record<string, unknown> }).output;
+
+const VARIANT_C1 = "43043043-0000-4000-8000-0000000000c1";
+const VARIANT_C2 = "43043043-0000-4000-8000-0000000000c2";
+/** The problem messages of evidence.enrichJunit through core (SR-029 AK8, AK9). */
+const enrichMessages = (results: Readonly<Record<string, Result>>): string[] =>
+  (
+    (results["core"]?.outcome as { output?: { problems?: { message: string }[] } }).output?.problems ?? []
+  ).map((p) => p.message);
+
+/**
+ * The example of SR-043 with a JUnit file of variant runs (SR-029 AK6 to AK9): SR-0000a3 (core) and
+ * SR-0000b2 (only Coast) without variant, SR-0000a3 for Mountain by short ID, and SR-0000a2 (excluded
+ * in Coast), SR-0000a1 (replaced in Coast) and SR-0000b2 for Mountain (not valid there).
+ */
+const VARIANT_JUNIT: FixtureOptions = {
+  fixture: "SR-043/example",
+  git: true,
+  files: {
+    "results/run.xml":
+      '<?xml version="1.0" encoding="UTF-8"?>\n<testsuites>\n  <testsuite name="station">\n' +
+      '    <testcase classname="station" name="[SR-0000a3] [SR-0000b2] rain and storm"/>\n' +
+      '    <testcase classname="station" name="[SR-0000a3] rain on the mountain">\n' +
+      '      <properties><property name="reqseq:variant" value="VAR-0000c2"/></properties>\n    </testcase>\n' +
+      '    <testcase classname="station" name="[SR-0000a2] wind"/>\n' +
+      '    <testcase classname="station" name="[SR-0000a1] response"/>\n' +
+      '    <testcase classname="station" name="[SR-0000b2] storm on the mountain">\n' +
+      '      <properties><property name="reqseq:variant" value="VAR-0000c2"/></properties>\n    </testcase>\n' +
       "  </testsuite>\n</testsuites>\n",
   },
 };
@@ -527,10 +606,96 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
     },
     {
       name: "the evidence status of each requirement at its baseline version (SR-094 AK1)",
-      fixture: { fixture: "SR-094/baseline", git: true },
+      fixture: SR094,
       input: { baseline: "Release 1", withEvidence: true },
       tag: "[SR-094/AK1]",
       expect: "output",
+      check: (results) => {
+        const e = baselineEntries(results);
+        expect(Object.keys(e)).toEqual(["a1", "a2", "b1", "b2", "b3", "b5", "b6", "b7"]);
+        expect(baselineRows(e["b1"])).toEqual(["core verified", "c1 verified", "c2 open"]);
+      },
+    },
+    {
+      name: "records dated after the baseline do not count and are named (SR-094 AK2)",
+      fixture: SR094,
+      input: { baseline: "Release 1", withEvidence: true, offset: 2, limit: 2 },
+      tag: "[SR-094/AK2]",
+      expect: "output",
+      check: (results) => {
+        const e = baselineEntries(results);
+        expect(e["b1"]?.verification?.map((r) => [r.status, r.later?.map((l) => l.date)])).toEqual([
+          ["verified", ["2026-11-02T15:00:00Z"]],
+          ["verified", ["2026-11-02T16:00:00Z"]],
+          ["open", undefined],
+        ]);
+        expect(e["b2"]?.verification?.[0]?.later?.map((l) => l.date)).toEqual(["2026-11-03T09:00:00Z"]);
+      },
+    },
+    {
+      name: "outdated with records of older versions only, else open (SR-094 AK3)",
+      fixture: SR094,
+      input: { baseline: "Release 1", withEvidence: true, offset: 3, limit: 2 },
+      tag: "[SR-094/AK3]",
+      expect: "output",
+      check: (results) => {
+        const e = baselineEntries(results);
+        expect(baselineRows(e["b2"])?.[0]).toBe("core outdated");
+        expect(baselineRows(e["b3"])?.[0]).toBe("core open");
+      },
+    },
+    {
+      name: "without a variant in the selection a row for the core and every variant it applies in (SR-094 AK4)",
+      fixture: SR094,
+      input: { baseline: "Release 1", withEvidence: true, offset: 3 },
+      tag: "[SR-094/AK4]",
+      expect: "output",
+      check: (results) => {
+        const e = baselineEntries(results);
+        expect(baselineRows(e["b2"])).toEqual(["core outdated", "c1 open"]);
+        expect(baselineRows(e["b3"])).toEqual(["core open", "c1 open"]);
+        expect(baselineRows(e["b7"])).toEqual(["c2 verified"]);
+      },
+    },
+    {
+      name: "with a variant in the selection only that variant's row (SR-094 AK5)",
+      fixture: SR094,
+      input: { baseline: "Alpine 1", withEvidence: true },
+      tag: "[SR-094/AK5]",
+      expect: "output",
+      check: (results) => {
+        const e = baselineEntries(results);
+        expect([baselineRows(e["b1"]), baselineRows(e["b4"])]).toEqual([["c1 verified"], ["c1 verified"]]);
+      },
+    },
+    {
+      name: "no indirect verification in a baseline (SR-094 AK6)",
+      fixture: SR094,
+      input: { baseline: "Release 1", withEvidence: true, offset: 5, limit: 2 },
+      tag: "[SR-094/AK6]",
+      expect: "output",
+      check: (results) => {
+        const e = baselineEntries(results);
+        expect([baselineRows(e["b5"])?.[0], baselineRows(e["b6"])?.[0]]).toEqual([
+          "core open",
+          "core verified",
+        ]);
+      },
+    },
+    {
+      name: "the validation status at the baseline version, without view (SR-094 AK7)",
+      fixture: SR094,
+      input: { baseline: "Release 1", withEvidence: true, limit: 3 },
+      tag: "[SR-094/AK7]",
+      expect: "output",
+      check: (results) => {
+        const e = baselineEntries(results);
+        expect([e["a1"]?.validation, e["a1"]?.validationLater?.map((l) => l.date)]).toEqual([
+          "validated",
+          ["2026-11-02T15:00:00Z"],
+        ]);
+        expect([e["a2"]?.validation, e["b1"]?.validation]).toEqual(["open", undefined]);
+      },
     },
   ],
   "baseline.list": [
@@ -765,6 +930,7 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
         expect(output.problems.map((p) => [p.code, p.severity, requiredKey(p.message)])).toEqual([
           ["element.missing-required", "warning", "requirement-type"],
           ["element.missing-required", "warning", "acceptance-criteria"],
+          ["trace.no-parent", "warning", undefined],
         ]);
         // Saved: the file is on disk with only what was given, whatever the access (placeholders, newElement).
         const file = "system-requirement/SR-<tail12>.md";
@@ -1398,6 +1564,7 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
         });
         expect(output.problems.map((p) => [p.code, requiredKey(p.message)])).toEqual([
           ["element.missing-required", "acceptance-criteria"],
+          ["trace.no-parent", undefined],
         ]);
       },
     },
@@ -1545,6 +1712,123 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       fixture: EVIDENCE,
       input: { file: "results/gone.xml", item: "build-513" },
       expect: "error",
+    },
+    {
+      name: "a test case named in another form is assigned through a name pattern",
+      fixture: PATTERN_JUNIT,
+      input: {
+        file: "results/nextest.xml",
+        item: "build-627",
+        date: "2026-11-01T10:00:00Z",
+        namePattern: "{prefix}_{id}_ak{ak}",
+      },
+      tag: "[SR-029/AK5]",
+      expect: "output",
+      check: (results) => {
+        expect(enrichOutput(results)).toMatchObject({ testCases: 1, unknown: [], problems: [] });
+        expect(results["core"]?.files["results/nextest.xml"]).toContain(
+          'name="tests::sr_e88fb3_ak1_shows_the_wind_speed"><properties><property name="reqseq:element" value="e8df96ea-a168-4d90-8d65-6328cee88fb3"/>',
+        );
+      },
+    },
+    {
+      name: "the number of test cases that name no requirement",
+      fixture: PATTERN_JUNIT,
+      input: { file: "results/nextest.xml", item: "build-627", date: "2026-11-01T10:00:00Z" },
+      tag: "[SR-029/AK4]",
+      expect: "output",
+      check: (results) => {
+        expect(enrichOutput(results)).toMatchObject({ testCases: 0, withoutReference: 2 });
+      },
+    },
+    {
+      name: "a name pattern that is no template",
+      fixture: PATTERN_JUNIT,
+      input: { file: "results/nextest.xml", item: "build-627", namePattern: "{prefix}_{id}{ak}" },
+      expect: "error",
+    },
+    {
+      name: "the given variant goes into each enriched test case",
+      fixture: VARIANT_JUNIT,
+      input: {
+        file: "results/run.xml",
+        item: "build-631",
+        date: "2026-11-01T10:00:00Z",
+        variant: "VAR-0000c1",
+      },
+      tag: "[SR-029/AK6]",
+      expect: "output",
+      check: (results) => {
+        const run = results["core"]?.files["results/run.xml"] ?? "";
+        expect(run.match(/reqseq:variant" value="[^"]*"/g)).toEqual([
+          `reqseq:variant" value="${VARIANT_C1}"`,
+          'reqseq:variant" value="VAR-0000c2"',
+          'reqseq:variant" value="VAR-0000c2"',
+        ]);
+      },
+    },
+    {
+      name: "a reqseq:variant given by short ID becomes its UUID",
+      fixture: VARIANT_JUNIT,
+      input: { file: "results/run.xml", item: "build-631", date: "2026-11-01T10:00:00Z" },
+      tag: "[SR-029/AK7]",
+      expect: "output",
+      check: (results) => {
+        const run = results["core"]?.files["results/run.xml"] ?? "";
+        expect(run.match(/reqseq:variant" value="[^"]*"/g)).toEqual([
+          `reqseq:variant" value="${VARIANT_C2}"`,
+          'reqseq:variant" value="VAR-0000c2"',
+        ]);
+      },
+    },
+    {
+      name: "a test case that names another variant than the given one is reported",
+      fixture: VARIANT_JUNIT,
+      input: {
+        file: "results/run.xml",
+        item: "build-631",
+        date: "2026-11-01T10:00:00Z",
+        variant: "VAR-0000c1",
+      },
+      tag: "[SR-029/AK8]",
+      expect: "output",
+      check: (results) => {
+        expect(enrichMessages(results)).toContain(
+          'Test case "[SR-0000a3] rain on the mountain" (line 5) is not enriched: reqseq:variant "VAR-0000c2" names another variant than the given one, VAR-0000c1',
+        );
+      },
+    },
+    {
+      name: "a test case that names a requirement excluded, replaced or not valid in its variant is reported",
+      fixture: VARIANT_JUNIT,
+      input: {
+        file: "results/run.xml",
+        item: "build-631",
+        date: "2026-11-01T10:00:00Z",
+        variant: "VAR-0000c1",
+      },
+      tag: "[SR-029/AK9]",
+      expect: "output",
+      check: (results) => {
+        expect(enrichMessages(results)).toEqual([
+          expect.stringContaining('"[SR-0000a3] rain on the mountain" (line 5)'),
+          expect.stringContaining("SR-0000a2 is excluded in VAR-0000c1"),
+          expect.stringContaining("SR-0000a1 is replaced in VAR-0000c1 by SR-0000b1"),
+          expect.stringContaining('"[SR-0000b2] storm on the mountain" (line 10)'),
+        ]);
+      },
+    },
+    {
+      name: "a requirement not valid in the variant a test case names itself is reported",
+      fixture: VARIANT_JUNIT,
+      input: { file: "results/run.xml", item: "build-631", date: "2026-11-01T10:00:00Z" },
+      tag: "[SR-029/AK9]",
+      expect: "output",
+      check: (results) => {
+        expect(enrichMessages(results)).toEqual([
+          'Test case "[SR-0000b2] storm on the mountain" (line 10) is not enriched: SR-0000b2 does not apply in VAR-0000c2, so a record for it there would count nowhere (SR-040)',
+        ]);
+      },
     },
   ],
   "evidence.list": [
@@ -1811,7 +2095,9 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
         const output = (
           results["core"]?.outcome as { output: { hints: { code: string; elementShortId: string }[] } }
         ).output;
-        expect(output.hints.map((h) => [h.code, h.elementShortId])).toEqual([
+        // The fixture's requirements have no parent (SR-022 AK6), which this scenario does not test.
+        const hints = output.hints.filter((h) => h.code !== "trace.no-parent");
+        expect(hints.map((h) => [h.code, h.elementShortId])).toEqual([
           ["variant.core-changed-since-baseline", "VAR-0000c1"],
         ]);
       },
@@ -1920,6 +2206,20 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       fixture: CHAIN,
       input: { ref: "N-00a001" },
       expect: "output",
+    },
+    {
+      name: "up from a component requirement to a requirement without a parent, marked as a gap",
+      fixture: ORPHANED_CHAIN,
+      input: { ref: "CR-00c003", direction: "up" },
+      tag: "[SR-022/AK5]",
+      expect: "output",
+      check: (results) => {
+        const output = (results["core"]?.outcome as { output: { gaps: { id: string; kind: string }[] } })
+          .output;
+        expect(output.gaps).toEqual([
+          { id: "5c0e1d2a-0022-4022-8022-00000000b004", repository: "system", kind: "no-parent" },
+        ]);
+      },
     },
     {
       name: "the chain of a requirement with an executed and a skipped test case and an inspection (SR-033)",
@@ -2732,6 +3032,23 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
     { name: "existing workspace", input: { path: ".", name: "Again" }, expect: "error" },
   ],
   "workspace.check": [
+    {
+      name: "a requirement without a parent is a hint with its ID",
+      fixture: ORPHANED_CHAIN,
+      input: {},
+      tag: "[SR-022/AK6]",
+      expect: "output",
+      check: (results) => {
+        const output = (
+          results["core"]?.outcome as {
+            output: { problems: { code: string; severity: string; elementId?: string }[] };
+          }
+        ).output;
+        expect(
+          output.problems.filter((p) => p.code === "trace.no-parent").map((p) => [p.severity, p.elementId]),
+        ).toEqual([["warning", "5c0e1d2a-0022-4022-8022-00000000b004"]]);
+      },
+    },
     {
       name: "a workspace with an evidence location (#535)",
       fixture: EVIDENCE,

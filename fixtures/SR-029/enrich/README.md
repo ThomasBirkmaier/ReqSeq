@@ -9,7 +9,7 @@
 | SR-0c0037 | `93000000-0000-4000-8000-0000000c0037` | short ID |
 | SR-0d0038 | `29000000-0000-4000-8000-0000000d0038` | identifier `SR-036` (`spec-id`) |
 
-`results/pytest.xml` and `results/vitest.xml` are byte copies of `fixtures/junit-samples/` (written by pytest 9.1.1 and Vitest 5.0.5, D-054). `two.xml` and `unknown.xml` are hand-written.
+`results/pytest.xml` and `results/vitest.xml` are byte copies of `fixtures/junit-samples/` (written by pytest 9.1.1 and Vitest 5.0.5, D-054). `two.xml`, `unknown.xml` and `nextest.xml` are hand-written; `nextest.xml` has test case names as Rust tests have them, which cannot hold brackets (SR-029 AK5, read with `--name-pattern '{prefix}_{id}_ak{ak}'`).
 
 | File | Test case | Names | After enrich |
 |---|---|---|---|
@@ -28,3 +28,7 @@
 | `unknown.xml` | `[SR-ffffff] names no element` | unknown short ID | unchanged, listed |
 | | `a typo in the property` | property `SR-0366`, names no element | unchanged, listed |
 | | `[SR-46fb54] logs in` | SR-46fb54 | enriched |
+| `nextest.xml` (with `{prefix}_{id}_ak{ak}`) | `tests::sr_46fb54_ak1_accepts_a_valid_password` | SR-46fb54 (pattern) | enriched |
+| | `tests::sr_0b0036_ak1_and_sr_0c0037_ak2_report_a_failure` | SR-0b0036, SR-0c0037 (pattern) | enriched |
+| | `tests::adds_two_numbers` | nothing | unchanged, counted without reference |
+| | `tests::sr_029_is_an_identifier` | nothing (`029` is no short ID) | unchanged, counted without reference |

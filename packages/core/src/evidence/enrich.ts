@@ -7,6 +7,10 @@
 //   one is reported. A name token of the form of a short ID or UUID is reported the same way; any
 //   other name token (an identifier such as `[SR-036]`, a pytest parameter list) counts only when it
 //   names exactly one element. Elements named twice count once.
+// - With a name pattern (`namePattern`, AK5, `name-pattern.ts`) the short IDs it finds in the name are
+//   name tokens of the form of a short ID too, so one that names no element or several is reported.
+// - A test case that names no element (no property, no token that names one) counts in
+//   `withoutReference` (AK4); kept, reported and refused test cases do not.
 // - A test case with a reported reference stays unchanged and is listed (AK2, spec question #529 Q1);
 //   the others are enriched and the file is written.
 // - A test case that already has a `reqseq:version` is never changed: its version is the one it was
@@ -24,16 +28,24 @@ import { CommandError } from "../catalog.js";
 import { readFileSnapshot, shown, writeFileAtomic, zip } from "../files/index.js";
 import type { FileSnapshot } from "../files/index.js";
 import type { EvidenceEnrichJunitInput, EvidenceEnrichJunitOutput } from "../generated/types.js";
+import { metamodelState } from "../metamodel/index.js";
 import type { ElementRecord } from "../model/index.js";
 import { currentVersionsOf, elementStoreState, resolveRef, shortIdState } from "../model/index.js";
 import { fileSchemaValidator } from "../runtime/contracts.js";
 import type { Workspace } from "../runtime/workspace.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
+import { resolveView } from "../variants/index.js";
 import { refuseGit, shownPath, workspaceLayoutState } from "../workspace/index.js";
 import { enrichmentOf } from "./junit.js";
 import type { JunitProperty, JunitTestCase } from "./junit-model.js";
 import { elementRefsOf, junitTestCases } from "./junit-model.js";
+import type { NameMatch } from "./name-pattern.js";
+import { nameMatcher, parseNamePattern } from "./name-pattern.js";
+import type { ViewContext } from "./in-variant.js";
+import { outOfView } from "./in-variant.js";
 import { evidenceReadState } from "./state.js";
+
+const COMMAND = "evidence.enrichJunit";
 
 const ELEMENT = "reqseq:element";
 const VERSION = "reqseq:version";
@@ -52,6 +64,18 @@ export type RefResolution =
 export type VersionLookup =
   | { readonly kind: "version"; readonly version: string }
   | { readonly kind: "unknown"; readonly message: string };
+
+/** What a `reqseq:variant` value names: a variant's UUID, or why it names none. */
+export type VariantLookup =
+  { readonly kind: "variant"; readonly id: string } | { readonly kind: "invalid"; readonly reason: string };
+
+/** The variant given for every test case (SR-029 AK6). */
+export interface GivenVariant {
+  /** The variant's UUID; undefined for `core` (no variant). */
+  readonly id: string | undefined;
+  /** How messages name it: its short ID, or `core`. */
+  readonly name: string;
+}
 
 /** One reported reference (`unknown` of the output). */
 export interface UnknownRef {
@@ -77,6 +101,18 @@ export interface EnrichOptions {
   readonly file: string;
   /** Appended to the message of an unknown reference, e.g. that a repository is not on this machine. */
   readonly unknownNote?: string;
+  /** The variant every enriched test case gets (AK6); absent: each keeps its own, if any. */
+  readonly variant?: GivenVariant | undefined;
+  /** What a `reqseq:variant` value of a test case names (AK7). */
+  readonly resolveVariant: (ref: string) => VariantLookup;
+  /**
+   * Why a record of the element `id` for the view `view` (a variant's UUID, or `core`) would count
+   * nowhere (excluded, replaced or not valid there), as a sentence that names both; undefined when it
+   * counts (AK9).
+   */
+  readonly outOfVariant: (id: string, view: string) => string | undefined;
+  /** The compiled name pattern (AK5, `nameMatcher`); absent: brackets and properties only. */
+  readonly namePattern?: ((name: string) => readonly NameMatch[]) | undefined;
 }
 
 export interface EnrichResult {
@@ -85,6 +121,8 @@ export interface EnrichResult {
   readonly changed: boolean;
   /** Test cases that name an element and are enriched, by this call or before. */
   readonly testCases: number;
+  /** Test cases that name no element (AK4). */
+  readonly withoutReference: number;
   readonly unknown: readonly UnknownRef[];
   readonly problems: readonly Problem[];
 }
@@ -121,7 +159,13 @@ interface Splice {
 /** What one test case gives. */
 type Plan =
   | { readonly kind: "none" }
-  | { readonly kind: "kept"; readonly testCase: JunitTestCase; readonly pairs: ReadonlyMap<string, string> }
+  | {
+      readonly kind: "kept";
+      readonly testCase: JunitTestCase;
+      readonly pairs: ReadonlyMap<string, string>;
+      /** Its `reqseq:variant` (a UUID), if any. */
+      readonly variant: string | undefined;
+    }
   | { readonly kind: "invalid"; readonly testCase: JunitTestCase; readonly reason: string }
   | {
       readonly kind: "reported";
@@ -135,7 +179,17 @@ type Plan =
       readonly named: readonly { readonly property: JunitProperty; readonly id: string }[];
       /** Elements only the name names, to append. */
       readonly added: readonly string[];
+      readonly variant: VariantPlan;
     };
+
+/** The variant an enriched test case gets: its UUID (none: the core), and how it is written. */
+interface VariantPlan {
+  readonly id: string | undefined;
+  /** Existing `reqseq:variant` properties whose value becomes the UUID (AK7). */
+  readonly rewrite: readonly JunitProperty[];
+  /** Whether a `reqseq:variant` property is added (AK6). */
+  readonly add: boolean;
+}
 
 const testCaseText = (testCase: JunitTestCase): string =>
   `Test case "${shown(testCase.name)}" (line ${String(testCase.line)})`;
@@ -150,22 +204,115 @@ const nameOf = (testCase: JunitTestCase): Pick<UnknownRef, "testCase" | "classNa
 const valuesOf = (testCase: JunitTestCase, name: string): string[] =>
   testCase.properties.filter((p) => p.name === name).map((p) => p.value.trim());
 
-/** Why an existing `reqseq:variant` does not fit (enrich writes none, S2), or undefined. */
-const variantProblem = (testCase: JunitTestCase): string | undefined => {
-  const variants = valuesOf(testCase, VARIANT);
-  const wrong = variants.find((v) => !isUuidText(v));
-  if (wrong !== undefined) {
-    return `${VARIANT} "${shown(wrong)}" is not a UUID`;
+/** The view `core` as `outOfVariant` takes it (`viewIdOf`). */
+const CORE = "core";
+
+/**
+ * Why records of the elements `ids` would count nowhere in `view` (a variant's UUID or `core`), joined;
+ * undefined when they all count or no view is given (AK9).
+ */
+const outOfViewText = (
+  ids: readonly string[],
+  view: string | undefined,
+  options: EnrichOptions,
+): string | undefined => {
+  const out = view === undefined ? [] : ids.flatMap((element) => options.outOfVariant(element, view) ?? []);
+  return out.length === 0 ? undefined : out.join("; ");
+};
+
+/**
+ * Why a kept test case does not fit its variant (AK8, AK9), or undefined: it is enriched for another
+ * variant (or the core) than the given one, or names an element that does not count in its variant (or
+ * the given core). `ids`: the elements of its UUIDs that the workspace has. It stays unchanged either way.
+ */
+const keptVariantProblem = (
+  plan: Extract<Plan, { kind: "kept" }>,
+  ids: readonly string[],
+  options: EnrichOptions,
+): string | undefined => {
+  const mine = plan.variant;
+  const given = options.variant;
+  if (given !== undefined && mine !== given.id) {
+    const what = mine === undefined ? "the core" : `the variant ${mine}`;
+    return `it is enriched already for ${what}, not for the given ${given.name}; an enriched test case is never changed (D-026)`;
   }
-  return new Set(variants.map((v) => v.toLowerCase())).size > 1
-    ? `${VARIANT} is given with different values`
-    : undefined;
+  if (mine !== undefined && options.resolveVariant(mine).kind === "invalid") {
+    // A variant the workspace does not have: nothing to check against, as for an unknown element.
+    return undefined;
+  }
+  return outOfViewText(ids, mine ?? (given === undefined ? undefined : CORE), options);
+};
+
+/**
+ * `; it names the variant <uuid>, …` when a kept test case gives its `reqseq:variant` by short ID or
+ * identifier (which the reader refuses): enrich does not rewrite an enriched test case (D-026), so it
+ * says which UUID to write.
+ */
+const keptVariantHint = (testCase: JunitTestCase, options: EnrichOptions): string => {
+  const value = valuesOf(testCase, VARIANT).find((v) => !isUuidText(v));
+  const lookup = value === undefined ? undefined : options.resolveVariant(value);
+  return lookup?.kind === "variant"
+    ? `; it names the variant ${lookup.id}: write that UUID, as enrich never changes an enriched test case (D-026)`
+    : "";
+};
+
+/** Whether `value` is the UUID `id` already (any case). */
+const isUuidOf = (value: string, id: string): boolean => isUuidText(value) && value.toLowerCase() === id;
+
+/**
+ * The variant of a test case that names the elements `ids` (AK6 to AK9), or why it is not enriched:
+ * each `reqseq:variant` must name one variant (by UUID, short ID or identifier) and all the same one;
+ * one given for every test case must be that one; and each element must count in it (not excluded,
+ * not replaced, valid there).
+ */
+const variantPlanOf = (
+  testCase: JunitTestCase,
+  ids: readonly string[],
+  options: EnrichOptions,
+): VariantPlan | { readonly error: string } => {
+  const properties = testCase.properties.filter((p) => p.name === VARIANT);
+  /** Each variant named, with the first value that names it. */
+  const own = new Map<string, string>();
+  for (const property of properties) {
+    const value = property.value.trim();
+    const lookup = options.resolveVariant(value);
+    if (lookup.kind === "invalid") {
+      return { error: `${VARIANT} "${shown(value)}" names no variant: ${lookup.reason}` };
+    }
+    own.set(lookup.id, own.get(lookup.id) ?? value);
+  }
+  if (own.size > 1) {
+    return { error: `${VARIANT} is given with different values` };
+  }
+  const [entry] = own;
+  const mine = entry?.[0];
+  const given = options.variant;
+  if (given !== undefined && entry !== undefined && entry[0] !== given.id) {
+    return {
+      error: `${VARIANT} "${shown(entry[1])}" names another variant than the given one, ${given.name}`,
+    };
+  }
+  const id = mine ?? given?.id;
+  const out = outOfViewText(ids, id ?? (given === undefined ? undefined : CORE), options);
+  if (out !== undefined) {
+    return { error: out };
+  }
+  if (id === undefined) {
+    return { id, rewrite: [], add: false };
+  }
+  return {
+    id,
+    rewrite: properties.filter((p) => !isUuidOf(p.value.trim(), id)),
+    add: properties.length === 0,
+  };
 };
 
 /** A reference that names no element or more than one, with what it names. */
 interface Reported {
   readonly ref: string;
   readonly resolution: RefResolution;
+  /** The text the name pattern matched, for a short ID it built (AK5). */
+  readonly matched?: string | undefined;
 }
 
 /**
@@ -175,31 +322,33 @@ interface Reported {
  */
 const nameElements = (
   testCase: JunitTestCase,
-  resolve: EnrichOptions["resolve"],
+  options: EnrichOptions,
   named: readonly string[],
   reported: Reported[],
 ): string[] => {
+  const { resolve } = options;
   const added: string[] = [];
-  for (const token of elementRefsOf(testCase).filter((t) => t.source === "name")) {
+  for (const token of elementRefsOf(testCase, options.namePattern).filter((t) => t.source === "name")) {
     const resolution = resolve(token.text);
     if (resolution.kind === "found") {
       if (!named.includes(resolution.id) && !added.includes(resolution.id)) {
         added.push(resolution.id);
       }
     } else if (token.kind !== "other" && !reported.some((r) => r.ref === token.text)) {
-      reported.push({ ref: token.text, resolution });
+      reported.push({ ref: token.text, resolution, matched: token.matched });
     }
   }
   return added;
 };
 
 /** What `testCase` gives (see the file comment). */
-const planOf = (testCase: JunitTestCase, resolve: EnrichOptions["resolve"]): Plan => {
+const planOf = (testCase: JunitTestCase, options: EnrichOptions): Plan => {
+  const { resolve } = options;
   if (testCase.properties.some((p) => p.name === VERSION)) {
     const enrichment = enrichmentOf(testCase);
     return "error" in enrichment
-      ? { kind: "invalid", testCase, reason: enrichment.error }
-      : { kind: "kept", testCase, pairs: enrichment.pairs };
+      ? { kind: "invalid", testCase, reason: enrichment.error + keptVariantHint(testCase, options) }
+      : { kind: "kept", testCase, pairs: enrichment.pairs, variant: enrichment.variant };
   }
   const reported: Reported[] = [];
   const named: { property: JunitProperty; id: string }[] = [];
@@ -215,7 +364,7 @@ const planOf = (testCase: JunitTestCase, resolve: EnrichOptions["resolve"]): Pla
   }
   const added = nameElements(
     testCase,
-    resolve,
+    options,
     named.map((n) => n.id),
     reported,
   );
@@ -225,20 +374,20 @@ const planOf = (testCase: JunitTestCase, resolve: EnrichOptions["resolve"]): Pla
   if (named.length === 0 && added.length === 0) {
     return { kind: "none" };
   }
-  const variant = variantProblem(testCase);
-  return variant === undefined
-    ? { kind: "enrich", testCase, named, added }
-    : { kind: "invalid", testCase, reason: variant };
+  const variant = variantPlanOf(testCase, [...named.map((n) => n.id), ...added], options);
+  return "error" in variant
+    ? { kind: "invalid", testCase, reason: variant.error }
+    : { kind: "enrich", testCase, named, added, variant };
 };
 
 /** The message of a reported reference (N2: the test case, its line, the reference). */
 const reportedMessage = (
   testCase: JunitTestCase,
-  ref: string,
-  resolution: RefResolution,
+  { ref, resolution, matched }: Reported,
   note: string,
 ): string => {
-  const what = ref === "" ? `an empty ${ELEMENT} property` : `"${shown(ref)}"`;
+  const pattern = matched === undefined ? "" : ` (read as "${shown(matched)}" by the name pattern)`;
+  const what = ref === "" ? `an empty ${ELEMENT} property` : `"${shown(ref)}"${pattern}`;
   return resolution.kind === "ambiguous"
     ? `${testCaseText(testCase)}: ${what} names more than one element (${resolution.candidates.join(", ")}); give the full UUID`
     : `${testCaseText(testCase)}: no element has the reference ${what}${note}`;
@@ -277,6 +426,25 @@ const separatorAfter = (bytes: Uint8Array, anchor: JunitProperty): string => {
   }
 };
 
+/**
+ * The variant of an enriched test case (AK6, AK7): each `rewrite` property gets the UUID in place
+ * (`replace`), and the new property (`property`) is returned when one is added.
+ */
+const variantSplices = (
+  variant: VariantPlan,
+  replace: (existing: JunitProperty, id: string) => void,
+  property: (id: string) => string,
+): string[] => {
+  const { id } = variant;
+  if (id === undefined) {
+    return [];
+  }
+  for (const existing of variant.rewrite) {
+    replace(existing, id);
+  }
+  return variant.add ? [property(id)] : [];
+};
+
 /** What enriching one test case changes; the splices are numbered from `seq`. */
 const splicesOf = (
   bytes: Uint8Array,
@@ -285,7 +453,7 @@ const splicesOf = (
   item: string,
   date: string,
 ): Splice[] => {
-  const { testCase, named, added } = plan;
+  const { testCase, named, added, variant } = plan;
   const splices: Omit<Splice, "seq">[] = [];
   const property = (name: string, value: string): string =>
     `<property name="${name}" value="${escapeAttribute(value, '"')}"/>`;
@@ -319,6 +487,15 @@ const splicesOf = (
     });
   }
   rest.push(...versions.map((version) => property(VERSION, version)));
+  rest.push(
+    ...variantSplices(
+      variant,
+      (p, id) => {
+        replace(p, VARIANT, id);
+      },
+      (id) => property(VARIANT, id),
+    ),
+  );
   for (const [name, value] of [
     [ITEM, item],
     [DATE, date],
@@ -401,6 +578,8 @@ export interface Intended {
   readonly pairs: ReadonlyMap<string, string>;
   readonly item: string;
   readonly date: string;
+  /** The variant's UUID; undefined for none. */
+  readonly variant?: string | undefined;
 }
 
 const NOT_READ_BACK = "Enrich produced a file that does not read back; nothing written";
@@ -430,6 +609,7 @@ export const readsBackAs = (testCase: Uint8Array, wanted: Intended): boolean => 
     !("error" in got) &&
     got.item === wanted.item.trim() &&
     got.date === wanted.date &&
+    got.variant === wanted.variant &&
     got.pairs.size === wanted.pairs.size &&
     [...wanted.pairs].every(([id, version]) => got.pairs.get(id) === version)
   );
@@ -479,6 +659,7 @@ interface Outcome {
   readonly splices: Splice[];
   readonly intended: Intended[];
   count: number;
+  withoutReference: number;
 }
 
 /** What the plans need: the lookups and the values, for `addPlan`. */
@@ -529,6 +710,7 @@ const addEnriched = (outcome: Outcome, plan: Extract<Plan, { kind: "enrich" }>, 
     pairs: new Map(zip(ids, current)),
     item: options.item,
     date,
+    variant: plan.variant.id,
   });
   outcome.count += 1;
 };
@@ -538,6 +720,7 @@ const addPlan = (outcome: Outcome, plan: Plan, context: Context): void => {
   const { where, options } = context;
   switch (plan.kind) {
     case "none":
+      outcome.withoutReference += 1;
       return;
     case "invalid":
       outcome.problems.push({
@@ -549,21 +732,40 @@ const addPlan = (outcome: Outcome, plan: Plan, context: Context): void => {
       });
       return;
     case "reported":
-      for (const { ref, resolution } of plan.refs) {
-        outcome.unknown.push({ ...nameOf(plan.testCase), ref });
+      for (const reported of plan.refs) {
+        outcome.unknown.push({ ...nameOf(plan.testCase), ref: reported.ref });
         outcome.problems.push({
-          code: resolution.kind === "ambiguous" ? "evidence.ambiguous-element" : "evidence.unknown-element",
+          code:
+            reported.resolution.kind === "ambiguous"
+              ? "evidence.ambiguous-element"
+              : "evidence.unknown-element",
           severity: "error",
           ...where,
           line: plan.testCase.line,
-          message: reportedMessage(plan.testCase, ref, resolution, options.unknownNote ?? ""),
+          message: reportedMessage(plan.testCase, reported, options.unknownNote ?? ""),
         });
       }
       return;
-    case "kept":
+    case "kept": {
+      const ids = [...plan.pairs.keys()].flatMap((uuid) => {
+        const resolution = context.resolutions.get(uuid);
+        return resolution?.kind === "found" ? [resolution.id] : [];
+      });
+      const variant = keptVariantProblem(plan, ids, options);
+      if (variant !== undefined) {
+        outcome.problems.push({
+          code: "evidence.invalid-record",
+          severity: "error",
+          ...where,
+          line: plan.testCase.line,
+          message: `${testCaseText(plan.testCase)} does not fit: ${variant}`,
+        });
+        return;
+      }
       outcome.count += 1;
       outcome.problems.push(...keptProblems(plan, context));
       return;
+    }
     case "enrich":
       addEnriched(outcome, plan, context);
   }
@@ -601,7 +803,7 @@ const planFile = async (bytes: Uint8Array, options: EnrichOptions): Promise<Plan
     );
   }
   const testCases = read.file.testCases;
-  const plans = testCases.map((testCase) => planOf(testCase, options.resolve));
+  const plans = testCases.map((testCase) => planOf(testCase, options));
   // The UUIDs of kept test cases are looked up too, to tell whether their versions are current.
   const resolutions = new Map<string, RefResolution>();
   for (const plan of plans.filter((p) => p.kind === "kept")) {
@@ -618,12 +820,24 @@ const planFile = async (bytes: Uint8Array, options: EnrichOptions): Promise<Plan
   const versions =
     wanted.size === 0 ? new Map<string, VersionLookup>() : await options.versionsOf([...wanted]);
   const context: Context = { bytes, options, resolutions, versions, where: { file: options.file } };
-  const outcome: Outcome = { unknown: [], problems: [], splices: [], intended: [], count: 0 };
+  const outcome: Outcome = {
+    unknown: [],
+    problems: [],
+    splices: [],
+    intended: [],
+    count: 0,
+    withoutReference: 0,
+  };
   for (const plan of plans) {
     addPlan(outcome, plan, context);
   }
   return {
-    result: { testCases: outcome.count, unknown: outcome.unknown, problems: byLine(outcome.problems) },
+    result: {
+      testCases: outcome.count,
+      withoutReference: outcome.withoutReference,
+      unknown: outcome.unknown,
+      problems: byLine(outcome.problems),
+    },
     splices: outcome.splices,
     intended: outcome.intended,
   };
@@ -789,6 +1003,93 @@ export const resolverOf =
     }
   };
 
+/** The given variant (AK6) through `resolveView`, as `evidence.record` takes it; `core` is none. */
+const givenVariant = (
+  views: ViewContext,
+  ref: string | undefined,
+  variants: Map<string, ElementRecord>,
+): GivenVariant | undefined => {
+  if (ref === undefined) {
+    return undefined;
+  }
+  const view = resolveView(views, ref, COMMAND, "variant", false);
+  if (view.kind === "core") {
+    return { id: undefined, name: "core" };
+  }
+  variants.set(view.variant.id, view.variant);
+  return { id: view.variant.id, name: views.shortIds.of(view.variant) };
+};
+
+/**
+ * What a `reqseq:variant` of a test case names (AK7), through `resolveView`: any refusal (no element,
+ * several, no variant, `core`, a metamodel without variants) is a result. Remembers each variant found.
+ * `unknownNote` follows the reason when no element has the reference, as for an unknown element.
+ */
+export const variantResolverOf = (
+  views: ViewContext,
+  variants: Map<string, ElementRecord>,
+  unknownNote = "",
+): ((ref: string) => VariantLookup) => {
+  /** One lookup per distinct value: a CI file repeats the same variant in every test case. */
+  const known = new Map<string, VariantLookup>();
+  return (ref) => {
+    const before = known.get(ref);
+    if (before !== undefined) {
+      return before;
+    }
+    const lookup = lookupVariant(views, variants, ref, unknownNote);
+    known.set(ref, lookup);
+    return lookup;
+  };
+};
+
+/** One lookup of `variantResolverOf`. */
+const lookupVariant = (
+  views: ViewContext,
+  variants: Map<string, ElementRecord>,
+  ref: string,
+  unknownNote: string,
+): VariantLookup => {
+  try {
+    const view = resolveView(views, ref, COMMAND, VARIANT, false);
+    if (view.kind === "core") {
+      return { kind: "invalid", reason: "core is no variant; leave the property out for the core" };
+    }
+    variants.set(view.variant.id, view.variant);
+    return { kind: "variant", id: view.variant.id };
+  } catch (error) {
+    if (error instanceof CommandError) {
+      return { kind: "invalid", reason: error.message + (error.code === "ref.unknown" ? unknownNote : "") };
+    }
+    throw error;
+  }
+};
+
+/**
+ * `outOfVariant` over the records `resolve` and `resolveVariant` found (`outOfView`, as
+ * `evidence.record` refuses a record, SR-047 AK4). An element or variant not found counts: enrich asks
+ * only for those it found.
+ */
+export const outOfVariantOf =
+  (
+    views: ViewContext,
+    found: ReadonlyMap<string, ElementRecord>,
+    variants: ReadonlyMap<string, ElementRecord>,
+  ) =>
+  (id: string, viewId: string): string | undefined => {
+    const element = found.get(id);
+    const variant = variants.get(viewId);
+    if (element === undefined || (variant === undefined && viewId !== CORE)) {
+      return undefined;
+    }
+    const out = outOfView(
+      views,
+      element,
+      variant === undefined ? { kind: "core" } : { kind: "variant", variant },
+    );
+    return out === undefined ? undefined : `${views.shortIds.of(element)} ${out.why}`;
+  };
+
 /**
  * `evidence.enrichJunit` (SR-029): enriches the JUnit file `input.file` (a local path, relative to
  * the workspace root or absolute) and writes it in place or to `input.output` (see the file comment).
@@ -797,6 +1098,8 @@ export const enrichJunitFile = async (
   workspace: Workspace,
   input: EvidenceEnrichJunitInput,
 ): Promise<EvidenceEnrichJunitOutput> => {
+  // The pattern's syntax first: a refusal touches no file.
+  const pattern = input.namePattern === undefined ? undefined : parseNamePattern(input.namePattern);
   const layout = await workspace.get(workspaceLayoutState);
   const main = await fs.realpath(layout.root);
   const source = path.resolve(workspace.root, input.file);
@@ -809,7 +1112,11 @@ export const enrichJunitFile = async (
     path.join(targetFolder, path.basename(target)) === path.join(sourceFolder, path.basename(source));
   const store = await workspace.get(elementStoreState);
   const shortIds = await workspace.get(shortIdState);
+  const metamodel = await workspace.get(metamodelState);
   const found = new Map<string, ElementRecord>();
+  const views: ViewContext = { workspace, metamodel, store, shortIds };
+  const variants = new Map<string, ElementRecord>();
+  const variant = givenVariant(views, input.variant, variants);
   const result = await enrichJunitBytes(bytes, {
     resolve: resolverOf((ref) => resolveRef(store, shortIds, ref), found),
     versionsOf: async (ids) => {
@@ -829,9 +1136,20 @@ export const enrichJunitFile = async (
     name: path.basename(source),
     file: shownPath(layout, main, sourceFolder, source),
     unknownNote: incompleteNote(layout),
+    variant,
+    resolveVariant: variantResolverOf(views, variants, incompleteNote(layout)),
+    outOfVariant: outOfVariantOf(views, found, variants),
+    namePattern:
+      pattern === undefined
+        ? undefined
+        : nameMatcher(
+            pattern,
+            metamodel.effectiveTypes.map((t) => t.prefix),
+          ),
   });
   const output = {
     testCases: result.testCases,
+    withoutReference: result.withoutReference,
     unknown: [...result.unknown],
     problems: [...result.problems],
   };

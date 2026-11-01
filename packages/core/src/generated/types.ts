@@ -312,6 +312,7 @@ export type ProblemCode =
   | "hint.not-confirmable"
   | "hint.not-found"
   | "trace.cycle"
+  | "trace.no-parent"
   | "variant.core-changed"
   | "variant.superseded-in-validity"
   | "variant.nested"
@@ -1479,7 +1480,7 @@ export interface WorkspaceStatusOutput {
 }
 
 /**
- * Input of `workspace.check` as `run` gets it: validated, properties with a `default` filled in. Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, missing targets, cycles, duplicate IDs, outdated relations, evidence records that cannot be read or name an unknown element. ok is false, and the CLI exits 1, on findings at or above failOn (default error).
+ * Input of `workspace.check` as `run` gets it: validated, properties with a `default` filled in. Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, missing targets, cycles, requirements without a parent (a warning, SR-022 AK6), duplicate IDs, outdated relations, evidence records that cannot be read or name an unknown element. ok is false, and the CLI exits 1, on findings at or above failOn (default error).
  * Schema: `schemas/commands/catalog.json workspace.check input`.
  */
 export interface WorkspaceCheckInput {
@@ -1494,7 +1495,7 @@ export interface WorkspaceCheckInput {
 }
 
 /**
- * Output of `workspace.check`. Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, missing targets, cycles, duplicate IDs, outdated relations, evidence records that cannot be read or name an unknown element. ok is false, and the CLI exits 1, on findings at or above failOn (default error).
+ * Output of `workspace.check`. Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, missing targets, cycles, requirements without a parent (a warning, SR-022 AK6), duplicate IDs, outdated relations, evidence records that cannot be read or name an unknown element. ok is false, and the CLI exits 1, on findings at or above failOn (default error).
  * Schema: `schemas/commands/catalog.json workspace.check output`.
  */
 export interface WorkspaceCheckOutput {
@@ -1967,7 +1968,7 @@ export interface RelationRemoveOutput {
 }
 
 /**
- * Input of `trace.chain` as `run` gets it: validated, properties with a `default` filled in. Chain up to the top parents and down to evidence, with depth, gaps and cycles; one page of nodes at a time, total counts all.
+ * Input of `trace.chain` as `run` gets it: validated, properties with a `default` filled in. Chain up to the top parents and down to evidence, with depth, gaps (also a requirement without a parent) and cycles; one page of nodes at a time, total counts all.
  * Schema: `schemas/commands/catalog.json trace.chain input`.
  */
 export interface TraceChainInput {
@@ -1982,7 +1983,7 @@ export interface TraceChainInput {
 }
 
 /**
- * Output of `trace.chain`. Chain up to the top parents and down to evidence, with depth, gaps and cycles; one page of nodes at a time, total counts all.
+ * Output of `trace.chain`. Chain up to the top parents and down to evidence, with depth, gaps (also a requirement without a parent) and cycles; one page of nodes at a time, total counts all.
  * Schema: `schemas/commands/catalog.json trace.chain output`.
  */
 export interface TraceChainOutput {
@@ -2022,12 +2023,12 @@ export interface TraceChainOutput {
     /** Both ends lie in one cycle of derivations (SR-022 AK4). */
     readonly cyclic: boolean;
   }[];
-  /** The gaps of the downward chain (SR-022 AK3), in the order of `nodes`, only those of the nodes of the page: `no-child` for a need without a child, `no-evidence` for a requirement without a child and without evidence. Only for elements whose children were looked at (`expanded`). `no-evidence`: the element has no verification record in `view`, in the core without `view` (as `evidence.coverage` and the filter condition `verification`; any version and result, spec question #527 Q3), so without `view` a requirement verified only for a variant shows its records in `evidence` and still has the gap (spec question #527 Q4). A test case that was only skipped does not close the gap. */
+  /** The gaps of the chain, in the order of `nodes` (the `no-parent` gaps of the upward chain first, the root's among them, then those of the downward chain), only those of the nodes of the page. Downward (SR-022 AK3), only for elements whose children were looked at (`expanded`): `no-child` for a need without a child, `no-evidence` for a requirement without a child and without evidence. Upward (SR-022 AK5), only for elements whose parents were looked at, so not with `direction: down`: `no-parent` for a requirement that names no parent through a relation kind with the meaning `derivation`, whatever the view and the state of the target (a parent in a repository that is not here is one); the metamodel says which kinds derive, so in the standard model a requirement based only on a decision (`based-on`) has the gap. `workspace.check` reports the same elements (`trace.no-parent`). `no-evidence`: the element has no verification record in `view`, in the core without `view` (as `evidence.coverage` and the filter condition `verification`; any version and result, spec question #527 Q3), so without `view` a requirement verified only for a variant shows its records in `evidence` and still has the gap (spec question #527 Q4). A test case that was only skipped does not close the gap. */
   readonly gaps: readonly {
     readonly id: Uuid;
     /** Workspace name of the repository of the element with the gap. */
     readonly repository: string;
-    readonly kind: "no-child" | "no-evidence";
+    readonly kind: "no-child" | "no-evidence" | "no-parent";
   }[];
   /** The evidence (Nachweise) of the downward chain (SR-022 AK1, SR-033 AK1 to AK3), in the order of `nodes`, only for the nodes of the page whose children were looked at (`expanded`), paged like `gaps`; one item per element that has any, none with `direction` `up`. Only verification records (D-007: the chain ends at the Nachweise; validation records are in `evidence.list`). With `view` only the records that hold in it (SR-047: the core the records without a variant, a variant those for it); without `view` every record, each with its `variant`, as `evidence.list`. A test case all of whose executions of the element hold in another view is left out; a test case that was only skipped shows in every view. The Beleg of a record is its `evidence`; a JUnit execution has none, its Beleg is its record file (`repository`, `file`, `line`; D-007: for automatic tests the record is the result file). Belege are text and never opened. */
   readonly evidence: readonly {
@@ -2061,7 +2062,7 @@ export interface TraceChainOutput {
   }[];
   /** True when a part of the chain lies in a repository that is not on this machine (SR-006 AK2), in the view of a variant while a repository of the workspace is not on this machine (it may hold a replacement or an exclusion), or, when the chain goes down, an evidence location does: evidence there is not seen. */
   readonly incomplete: Incomplete;
-  /** Hints: `trace.cycle` once per cycle of derivations in the chain, naming its elements (SR-022 AK4); `metamodel.meaning-unassigned` when no type has the meaning `need` or `requirement`, so those gaps cannot be found (SR-013 AK3). The hints are those of the whole chain, on every page. */
+  /** Hints: `trace.cycle` once per cycle of derivations in the chain, naming its elements (SR-022 AK4); `metamodel.meaning-unassigned` when no type has the meaning `need` or `requirement`, so those gaps cannot be found (SR-013 AK3; upward only `requirement`). The hints are those of the whole chain, on every page. */
   readonly problems: readonly Problem[];
 }
 
@@ -2590,7 +2591,7 @@ export interface EvidenceRecordOutput {
 }
 
 /**
- * Input of `evidence.enrichJunit` as `run` gets it: validated, properties with a `default` filled in. Add UUID, version, item and date to every test case of a JUnit XML file that names an element by short ID, UUID or identifier. Test cases with an unknown reference stay unchanged and are listed; the CLI exits 1.
+ * Input of `evidence.enrichJunit` as `run` gets it: validated, properties with a `default` filled in. Add UUID, version, item and date, and the variant's UUID when there is one, to every test case of a JUnit XML file that names an element by short ID, UUID or identifier, or by a short ID in another form that a name pattern finds. Test cases with an unknown reference, or whose variant does not fit, stay unchanged and are listed; the CLI exits 1. The output counts the test cases that name no element.
  * Schema: `schemas/commands/catalog.json evidence.enrichJunit input`.
  */
 export interface EvidenceEnrichJunitInput {
@@ -2600,17 +2601,23 @@ export interface EvidenceEnrichJunitInput {
   readonly item: Item;
   /** The date of the test run. Default: an existing `reqseq:date` of the test case, else the `timestamp` of its test suite when that has a time zone, else the time of the call. */
   readonly date?: IsoDateTime;
+  /** The variant the test run was for (an element whose type has the meaning variant): each enriched test case gets its UUID as `reqseq:variant`. Absent: a test case keeps its own `reqseq:variant`, if any, whose short ID or identifier becomes the UUID; `core` is none, but is checked like a variant. A test case that names another variant, or names an element that does not count in its variant (not valid there, excluded or replaced, as at `evidence.record`), stays unchanged and gets `evidence.invalid-record`; so does an enriched test case (never changed, D-026) whose variant differs from the given one. */
+  readonly variant?: ElementRef;
+  /** A template that finds a short ID written in another form in test case names, for names that cannot hold brackets, e.g. `{prefix}_{id}_ak{ak}` for `sr_348143_ak1` (SR-348143). `{prefix}` is a type prefix of the metamodel, `{id}` 6 to 32 hex digits, `{ak}` 1 to 9 digits (ignored); `{prefix}` and `{id}` once each, `{ak}` once at most and not next to `{id}`. The rest is literal text; `{{` and `}}` are braces, square brackets are refused. All of it is ASCII case-insensitive. A match starts and ends at a word boundary (the start or end of the name, a character that is not a letter or digit, or the start of a camel case word) and is looked for in the name outside `[...]` only, not in the class name. It adds to the bracket form and the `reqseq:element` property; a short ID it finds that names no element, or several, is listed in `unknown`. */
+  readonly namePattern?: string;
   /** Default: overwrite the input file. An existing file is replaced only when it is a JUnit XML file the scanner accepts; its folder must exist. */
   readonly output?: LocalPath;
 }
 
 /**
- * Output of `evidence.enrichJunit`. Add UUID, version, item and date to every test case of a JUnit XML file that names an element by short ID, UUID or identifier. Test cases with an unknown reference stay unchanged and are listed; the CLI exits 1.
+ * Output of `evidence.enrichJunit`. Add UUID, version, item and date, and the variant's UUID when there is one, to every test case of a JUnit XML file that names an element by short ID, UUID or identifier, or by a short ID in another form that a name pattern finds. Test cases with an unknown reference, or whose variant does not fit, stay unchanged and are listed; the CLI exits 1. The output counts the test cases that name no element.
  * Schema: `schemas/commands/catalog.json evidence.enrichJunit output`.
  */
 export interface EvidenceEnrichJunitOutput {
   /** The test cases that name at least one element and are enriched: by this call, or already before. */
   readonly testCases: number;
+  /** The test cases that name no element: no `reqseq:element` property and no name token or pattern match that names one (a pytest parameter list counts here). Test cases enriched already, listed in `unknown` or refused are not counted. Information only: it does not change the exit code. */
+  readonly withoutReference: number;
   /** Each reference that names no element or more than one, with its test case; that test case stays unchanged. */
   readonly unknown: readonly {
     readonly testCase: string;
@@ -2885,13 +2892,13 @@ export interface BaselineListOutput {
 }
 
 /**
- * Input of `baseline.get` as `run` gets it: validated, properties with a `default` filled in. Elements of a baseline with their version then and its date, marked changed, superseded, removed or added since (SR-051); with withEvidence the evidence status of each requirement at its version in the baseline (SR-094).
+ * Input of `baseline.get` as `run` gets it: validated, properties with a `default` filled in. Elements of a baseline with their version then and its date, marked changed, superseded, removed or added since (SR-051); with withEvidence the verification status of each requirement per view and the validation status at its version in the baseline, with the records dated after it named (SR-094).
  * Schema: `schemas/commands/catalog.json baseline.get input`.
  */
 export interface BaselineGetInput {
   /** Name of a baseline, or its file name (with or without .yaml). */
   readonly baseline: string;
-  /** Also give the status of each requirement at its version in the baseline: records up to the baseline's date and time, own records only, in the view of its selection (SR-094). */
+  /** Also give, at each entry's version in the baseline, the verification status of each requirement in every view it applies in (only the variant's when the stored selection has one) and the validation status: own records up to the baseline's date and time, records of that version dated after it named apart (SR-094). */
   readonly withEvidence: boolean;
   /** Elements of the page; total counts all. */
   readonly limit: number;
@@ -2899,7 +2906,7 @@ export interface BaselineGetInput {
 }
 
 /**
- * Output of `baseline.get`. Elements of a baseline with their version then and its date, marked changed, superseded, removed or added since (SR-051); with withEvidence the evidence status of each requirement at its version in the baseline (SR-094).
+ * Output of `baseline.get`. Elements of a baseline with their version then and its date, marked changed, superseded, removed or added since (SR-051); with withEvidence the verification status of each requirement per view and the validation status at its version in the baseline, with the records dated after it named (SR-094).
  * Schema: `schemas/commands/catalog.json baseline.get output`.
  */
 export interface BaselineGetOutput {
@@ -2930,18 +2937,18 @@ export interface BaselineGetOutput {
     readonly versionDate?: string | null;
     /** The current version when it differs, also for removed and added. */
     readonly current?: Version;
-    /** With withEvidence, for entries of the file whose type has the meaning requirement; never indirect (SR-094 AK5). */
-    readonly verification?: {
+    /** With withEvidence, for entries of the file (not added or missing) whose type has the meaning requirement: one row per view it applies in now, the core first, then the variants in store order (SR-094 AK4, SR-047 AK3); with a variant in the stored selection only that variant's row (AK5). Empty when it applies in no view shown. Own records only, never indirect (AK6). Left out when the stored view cannot be resolved. */
+    readonly verification?: readonly {
       readonly view: ViewId;
+      /** From the records of the view that count for the baseline: dated at or before it (AK2); outdated with records of other versions only, open without (AK3). */
       readonly status: "open" | "verified" | "failed" | "outdated";
-      /** The record that decides the status. */
-      readonly decidedBy?: {
-        readonly repository: string;
-        /** Relative to the workspace root, / as separator. */
-        readonly file: string;
-        readonly line?: number;
-      };
-    };
+      /** The records of the baseline version in this view dated after the baseline, newest first: they do not count (AK2). Left out when there is none. */
+      readonly later?: readonly DataExportEvidenceRecord[];
+    }[];
+    /** With withEvidence, for entries of the file (not added or missing) of a type with the meaning need and for any other with a validation record (SR-038, SR-094 AK7): the status at the baseline version from the validation records that count for the baseline, without view. Open without such records. */
+    readonly validation?: ValidationStatus;
+    /** With validation: the validation records of the baseline version dated after the baseline, newest first; they do not count (AK2). Left out when there is none. */
+    readonly validationLater?: readonly DataExportEvidenceRecord[];
   }[];
   /** Elements per state over all pages. */
   readonly counts: {
@@ -2954,7 +2961,7 @@ export interface BaselineGetOutput {
   };
   /** Entries of the file plus added elements. */
   readonly total: number;
-  /** The elements of the page and the variant of `view`, each once in the order first named (#588). */
+  /** The elements of the page, the variant of `view` and the variants the verification rows name, each once in the order first named (#588). */
   readonly names: readonly ElementName[];
   readonly problems?: readonly Problem[];
   readonly incomplete?: Incomplete;

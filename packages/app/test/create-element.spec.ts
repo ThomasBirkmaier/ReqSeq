@@ -137,8 +137,9 @@ test.describe("Create element", () => {
       "acceptance-criteria": ["Böen über 20 m/s erscheinen.", "Ohne Messung erscheint n/a."],
     });
     expect(Object.keys(got.element.properties).filter((key) => !type.properties.includes(key))).toEqual([]);
-    expect(got.element.problems ?? []).toEqual([]);
-    await expect(echo(window)).toContainText(new RegExp(`Created SR-\\w+ ${TITLE}$`, "u"));
+    // Created without a relation, it has no parent yet (SR-022 AK6).
+    expect((got.element.problems ?? []).map((problem) => problem.code)).toEqual(["trace.no-parent"]);
+    await expect(echo(window)).toContainText(new RegExp(`Created SR-\\w+ ${TITLE} · 1 hint$`, "u"));
   });
 
   test("[SR-064/AK2] with the required properties left empty the element is saved anyway, and the minibuffer and the modeline show the hints", async () => {
@@ -158,9 +159,10 @@ test.describe("Create element", () => {
     expect((got.element.problems ?? []).map((problem) => problem.code)).toEqual([
       "element.missing-required",
       "element.missing-required",
+      "trace.no-parent",
     ]);
-    await expect(echo(window)).toContainText(" · 2 hints");
-    await expect(modeline(window)).toContainText("2 hints");
+    await expect(echo(window)).toContainText(" · 3 hints");
+    await expect(modeline(window)).toContainText("3 hints");
     // No box for an empty property (D-062).
     expect(await boxLabels(window)).toEqual([]);
     // The text is saved like that of any element, and the hints stay counted.
@@ -169,7 +171,7 @@ test.describe("Create element", () => {
     await window.keyboard.press("ControlOrMeta+S");
     await expect(modeline(window)).not.toContainText("modified");
     await expect.poll(async () => (await created(running)).element.text).toContain("Das Tool zeigt Böen an.");
-    await expect(modeline(window)).toContainText("2 hints");
+    await expect(modeline(window)).toContainText("3 hints");
   });
 
   test("[SR-064/AK3] after reopening, Add property offers every other property of the type, and a value added is saved to the file", async () => {

@@ -129,9 +129,10 @@ test.describe("the command prompt", () => {
     const hints = async (): Promise<string[]> => {
       const listed = await running.cli(["hint", "list"]);
       expect(listed.code).toBe(0);
-      return (JSON.parse(listed.stdout) as { hints: { code: string; elementShortId: string }[] }).hints.map(
-        (hint) => `${hint.code} ${hint.elementShortId}`,
-      );
+      // The fixture's requirement without a parent (SR-022 AK6) is a hint that cannot be confirmed.
+      return (JSON.parse(listed.stdout) as { hints: { code: string; elementShortId: string }[] }).hints
+        .filter((hint) => hint.code !== "trace.no-parent")
+        .map((hint) => `${hint.code} ${hint.elementShortId}`);
     };
     expect(await hints()).toEqual(["relation.outdated SR-b0000000001"]);
     await expect(window.getByRole("listbox", { name: "Overview" })).toBeVisible();

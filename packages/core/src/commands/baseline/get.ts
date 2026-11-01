@@ -11,15 +11,15 @@
 // - A stored selection that cannot be resolved now (an element of it in a repository that is not
 //   here, a saved filter that is gone) is a `baseline.invalid` warning with the reason, and the
 //   answer is given as without stored selection.
-// - `withEvidence` (SR-094): the verification status of each entry whose type has the meaning
-//   requirement at its version in the baseline, by `recordStatusOf` of the evidence block (ADR-0012
-//   "Status rules") over its own records only (AK5: no indirect verification) that count for the
-//   baseline (`countsFor`, AK2) and hold in the view of the stored selection (AK4: its variant, else
-//   the core). None of the baseline version but others: `outdated`; none: `open` (AK3). When the
-//   stored selection cannot be resolved, its `view` alone is resolved for this; a view that is gone
-//   leaves the verification out, with a warning. While the metamodel is not valid there are no
-//   records (`statusSource`): every requirement is `open`. Page only; one index of all records,
-//   built once per state of the records (N-036).
+// - `withEvidence` (SR-094): the evidence of each entry at its version in the baseline,
+//   `baselineEvidence` of the evidence block over the views of `verificationState` (the same as
+//   `evidence.status`, SR-080) and the records that count for the baseline (`countsFor`, AK2). The
+//   rows: with a variant in the stored selection only that variant's (AK5), else the core and every
+//   variant the requirement applies in (AK4, a stored `view: core` included). When the stored
+//   selection cannot be resolved, its `view` alone is resolved for this; a view that is gone leaves
+//   the verification out, with a warning, and keeps the validation status, which has no view (AK7).
+//   While the metamodel is not valid there are no records: every row is `open`. Page only; one
+//   index of all records, built once per state of the records (N-036).
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
 import type { Baseline, ShowRequest } from "../../baselines/index.js";
@@ -30,7 +30,8 @@ import type {
   ElementSelection,
   Problem,
 } from "../../generated/types.js";
-import { evidenceIndexState, recordStatusOf, statusSource } from "../../evidence/index.js";
+import type { ViewHolder } from "../../evidence/index.js";
+import { baselineEvidence, verificationState } from "../../evidence/index.js";
 import type { Metamodel } from "../../metamodel/index.js";
 import { metamodelState } from "../../metamodel/index.js";
 import type { ElementRecord } from "../../model/index.js";
@@ -84,30 +85,19 @@ const selectedNow = async (
 
 const CORE: View = { kind: "core" };
 
-type Verification = NonNullable<CommandOutput<typeof command>["elements"][number]["verification"]>;
-
-/** The verification of an entry at its baseline version in `view` (see the file comment). */
-const verificationIn = async (
-  workspace: Workspace,
-  metamodel: Metamodel,
-  baseline: Baseline,
-  view: View,
-): Promise<(record: ElementRecord, version: string) => Verification | undefined> => {
-  const source = statusSource(
-    metamodel,
-    metamodel.valid ? await workspace.get(evidenceIndexState) : undefined,
-  );
-  const counts = countsFor(baseline.data.date);
-  const viewId = view.kind === "core" ? "core" : view.variant.id;
-  return (record, version) => {
-    if (!source.requirements.has(record.type)) {
-      return undefined;
-    }
-    const records = source.recordsOf(record.id).filter((r) => counts(r.date));
-    const status = recordStatusOf(records, "verification", version, view);
-    return { view: viewId, status: status === "passed" ? "verified" : status };
-  };
-};
+/**
+ * The views of the rows of `holders` for the view `shown` (see the file comment): a variant's view
+ * alone, every view for the core.
+ */
+const rowViews = (holders: readonly ViewHolder[], shown: View): readonly ViewHolder[] =>
+  shown.kind === "core"
+    ? holders
+    : holders.filter(
+        ({ view }) =>
+          view.kind === "variant" &&
+          view.variant.id === shown.variant.id &&
+          view.variant.repository === shown.variant.repository,
+      );
 
 /**
  * The view of the evidence when the stored selection could not be resolved: its `view` alone, the
@@ -143,9 +133,9 @@ const storedView = async (
 };
 
 /**
- * `ShowRequest.verification` for `withEvidence`: in the first of `views`, those of the resolved stored
- * selection (none: the core), or, when it was not resolved (undefined), in its `view` alone
- * (`storedView`).
+ * `ShowRequest.evidence` for `withEvidence`: rows for the first of `views`, those of the resolved
+ * stored selection (none: the core), or, when it was not resolved (undefined), for its `view` alone
+ * (`storedView`); no rows when that is gone.
  */
 const evidenceOf = async (
   workspace: Workspace,
@@ -153,12 +143,12 @@ const evidenceOf = async (
   baseline: Baseline,
   views: readonly View[] | undefined,
   problems: Problem[],
-): Promise<Pick<ShowRequest, "verification">> => {
+): Promise<Pick<ShowRequest, "evidence">> => {
   const shown =
     views === undefined ? await storedView(workspace, metamodel, baseline, problems) : (views[0] ?? CORE);
-  return shown === undefined
-    ? {}
-    : { verification: await verificationIn(workspace, metamodel, baseline, shown) };
+  const status = await workspace.get(verificationState);
+  const rows = shown === undefined ? undefined : rowViews(status.holders, shown);
+  return { evidence: baselineEvidence(status, rows, countsFor(baseline.data.date)) };
 };
 
 export default defineCommand({

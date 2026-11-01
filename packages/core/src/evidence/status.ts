@@ -114,6 +114,16 @@ export const validationStatusOf = (
 export const hasValidationRecord = (records: readonly EvidenceRecord[]): boolean =>
   records.some((r) => r.kind === "validation" && holdsIn(r, CORE));
 
+/**
+ * Whether `element` has a validation status (SR-038): a need, and any other element with a counted
+ * validation record among its `records` (#534 assumption).
+ */
+export const hasValidationStatus = (
+  source: Pick<StatusSource, "needs">,
+  element: Pick<ElementRecord, "type">,
+  records: readonly EvidenceRecord[],
+): boolean => source.needs.has(element.type) || hasValidationRecord(records);
+
 /** What the verification status of the elements of a workspace is computed from. */
 export interface StatusSource {
   /** The effective type keys with the meaning `requirement` (own or inherited, SR-012). */

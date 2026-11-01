@@ -69,9 +69,10 @@ files:
   system-requirement/SR-58b371c67baa.md
 warning  element.missing-required  ...
 warning  element.missing-required  ...
+warning  trace.no-parent  ...
 ```
 
-The two warnings say that a system requirement also needs a requirement type and acceptance criteria. Fill them in later, in the file, in the app or with `reqseq element update SR-c67baa --set requirement-type=functional`; ReqSeq never fills them in for you.
+The first two warnings say that a system requirement also needs a requirement type and acceptance criteria. Fill them in later, in the file, in the app or with `reqseq element update SR-c67baa --set requirement-type=functional`; ReqSeq never fills them in for you. The third says that the requirement has no parent yet, so its chain does not reach a need.
 
 Now link the requirement to the need it derives from, again with your own short IDs:
 

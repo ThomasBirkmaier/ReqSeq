@@ -75,8 +75,11 @@ const reopened = (fixture: { readonly root: string }): Workspace => {
   return workspace;
 };
 
+/** The findings of workspace.check but the fixture's requirements without a parent (SR-022 AK6), which this file does not test. */
 const check = async (workspace: Workspace): Promise<readonly Problem[]> =>
-  ((await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">).problems;
+  ((await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">).problems.filter(
+    (p) => p.code !== "trace.no-parent",
+  );
 
 const listed = async (
   workspace: Workspace,

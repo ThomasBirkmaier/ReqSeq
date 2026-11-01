@@ -36,7 +36,10 @@ describe("workspace.check with many findings", () => {
       { workspace },
     )) as CommandOutput<"workspace.check">;
     expect(out.ok).toBe(false);
-    expect(out.problems).toHaveLength(MANY);
-    expect(out.problems.at(-1)?.message).toBe(`finding ${String(MANY - 1)}`);
+    // Besides them, the fixture's one requirement without a parent (SR-022 AK6).
+    const many = out.problems.filter((p) => p.code === "variant.superseded-in-validity");
+    expect(out.problems.length - many.length).toBe(1);
+    expect(many).toHaveLength(MANY);
+    expect(many.at(-1)?.message).toBe(`finding ${String(MANY - 1)}`);
   });
 });

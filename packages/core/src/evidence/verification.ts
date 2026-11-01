@@ -71,7 +71,7 @@ import {
 import type { EvidenceRecord } from "./record.js";
 import { insertionOf } from "./state.js";
 import type { StatusSource, VerificationEntries } from "./status.js";
-import { hasValidationRecord, statusSource, validationStatusOf } from "./status.js";
+import { hasValidationRecord, hasValidationStatus, statusSource, validationStatusOf } from "./status.js";
 
 /**
  * The verification entries of `element` (`$defs/element` `verification`): the core and each variant
@@ -79,18 +79,14 @@ import { hasValidationRecord, statusSource, validationStatusOf } from "./status.
  * undefined for an element that is no requirement. `shown`: see `VerificationEvaluator`.
  */
 export const verificationOf = (
-  status: Pick<WorkspaceStatus, "source" | "variants" | "evaluate">,
+  status: Pick<WorkspaceStatus, "source" | "holders" | "evaluate">,
   element: ElementRecord,
   shown?: Shown,
 ): VerificationEntries | undefined => {
   if (!status.source.requirements.has(element.type)) {
     return undefined;
   }
-  const views: View[] = [
-    { kind: "core" },
-    ...status.variants.map((variant): View => ({ kind: "variant", variant })),
-  ];
-  return views.flatMap((view) => {
+  return status.holders.flatMap(({ view }) => {
     const result = status.evaluate(element, view, shown);
     if (result === undefined) {
       return [];
@@ -106,6 +102,12 @@ export const verificationOf = (
   });
 };
 
+/** A view of a status with what it holds (the view rule of the status's store, `ruleScope`). */
+export interface ViewHolder {
+  readonly view: View;
+  readonly includes: (element: ElementRecord) => boolean;
+}
+
 /**
  * The verification status of a workspace's elements (`verificationState`): the status source, the
  * variants, the evaluator of SR-031 and SR-034, and the current versions it needs, read lazily.
@@ -114,6 +116,11 @@ export interface WorkspaceStatus {
   readonly source: StatusSource;
   /** The variants of the workspace in store order (`variantsOf`). */
   readonly variants: readonly ElementRecord[];
+  /**
+   * The views, the core first, then each variant in store order, with what each holds: the views of
+   * `verificationOf` and of a baseline's evidence (SR-094), so both give the same rows (SR-080).
+   */
+  readonly holders: readonly ViewHolder[];
   /**
    * Reads the current versions that the status of `elements` needs and that were not read before:
    * those of the counted children below them, down to the children with an own record in every view
@@ -287,6 +294,7 @@ const statusWith = (
   return {
     source,
     variants,
+    holders,
     children,
     caches: {
       versions,
@@ -304,7 +312,7 @@ const statusWith = (
     evaluate: evaluatorOf((element) => versions.get(element)),
     validate: (element, shown) => {
       const records = source.recordsOf(element.id);
-      if (!source.needs.has(element.type) && !hasValidationRecord(records)) {
+      if (!hasValidationStatus(source, element, records)) {
         return undefined;
       }
       return validationStatusOf(records, shown === undefined ? versions.get(element) : shown.current);

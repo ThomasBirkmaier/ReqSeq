@@ -23,6 +23,7 @@ interface Problem {
 
 interface Output {
   readonly testCases: number;
+  readonly withoutReference: number;
   readonly unknown: readonly { readonly testCase: string; readonly line: number; readonly ref: string }[];
   readonly files: readonly string[];
   readonly problems: readonly Problem[];
@@ -83,6 +84,7 @@ describe("reqseq evidence enrich-junit (SR-029)", () => {
     expect([run.code, run.stderr]).toEqual([0, ""]);
     expect(JSON.parse(run.stdout)).toEqual({
       testCases: 3,
+      withoutReference: 5,
       unknown: [],
       files: ["results/pytest.xml"],
       problems: [],
@@ -191,5 +193,79 @@ describe("reqseq evidence enrich-junit (SR-029)", () => {
       Object.values(properties(await fs.readFile(target, "utf8"))).filter((p) => p["reqseq:version"]),
     ).toHaveLength(3);
     expect(await fs.readFile(ws.path("results/pytest.xml"))).toEqual(before);
+  });
+
+  it("[SR-029/AK8] [SR-029/AK9] reqseq evidence enrich-junit names a test case whose variant does not fit and exits with code 1", async () => {
+    const ws = await createFixtureWorkspace({
+      fixture: "SR-043/example",
+      files: {
+        "results/run.xml":
+          '<testsuites><testsuite name="s"><testcase name="[SR-0000a3] rain">' +
+          '<properties><property name="reqseq:variant" value="VAR-0000c2"/></properties></testcase>' +
+          '<testcase name="[SR-0000a2] wind"/></testsuite></testsuites>',
+      },
+    });
+    fixtures.push(ws);
+    const run = await enrich(ws, ["results/run.xml", "build-631", "--date", DATE, "--variant", "VAR-0000c1"]);
+    expect(run.code).toBe(1);
+    expect(run.stdout + run.stderr).toContain(
+      'reqseq:variant "VAR-0000c2" names another variant than the given one, VAR-0000c1',
+    );
+    expect(run.stdout + run.stderr).toContain("SR-0000a2 is excluded in VAR-0000c1");
+  });
+
+  it("[SR-029/AK4] reqseq evidence enrich-junit prints the number of test cases that name no requirement", async () => {
+    const ws = await open();
+    const run = await enrich(ws, ["results/pytest.xml", "build-512", "--date", DATE]);
+    expect([run.code, run.stderr]).toEqual([0, ""]);
+    // test_add[1-2], test_add[3-4], test_fails, test_skipped and test_error.
+    expect(run.stdout).toMatch(/withoutReference:\s*5\b/);
+    expect(run.stdout).toMatch(/testCases:\s*3\b/);
+  });
+
+  it("[SR-029/AK5] reqseq evidence enrich-junit --name-pattern assigns Rust test cases and enriches them as in AK1", async () => {
+    const ws = await open();
+    const run = await enrich(ws, [
+      "results/nextest.xml",
+      "build-512",
+      "--date",
+      DATE,
+      "--name-pattern",
+      "{prefix}_{id}_ak{ak}",
+      "--json",
+    ]);
+    expect([run.code, run.stderr]).toEqual([0, ""]);
+    expect(JSON.parse(run.stdout)).toEqual({
+      testCases: 2,
+      withoutReference: 2,
+      unknown: [],
+      files: ["results/nextest.xml"],
+      problems: [],
+    });
+    const props = properties(await fs.readFile(ws.path("results/nextest.xml"), "utf8"));
+    const named = props["tests::sr_46fb54_ak1_accepts_a_valid_password"];
+    expect(named?.["reqseq:element"]).toEqual([LOGIN]);
+    expect(named?.["reqseq:version"]?.[0]).toMatch(/^n1:[0-9a-f]{16}$/);
+    expect([named?.["reqseq:item"], named?.["reqseq:date"]]).toEqual([["build-512"], [DATE]]);
+    expect(props["tests::sr_0b0036_ak1_and_sr_0c0037_ak2_report_a_failure"]?.["reqseq:element"]).toHaveLength(
+      2,
+    );
+    expect(props["tests::adds_two_numbers"]).toEqual({});
+  });
+
+  it("reqseq evidence enrich-junit --name-pattern names a test case whose short ID names no element and exits with code 1, and refuses a bad pattern", async () => {
+    const ws = await open();
+    await fs.writeFile(
+      ws.path("results/rust.xml"),
+      '<testsuites><testsuite name="s"><testcase name="tests::sr_ffffff_ak1_unknown"/></testsuite></testsuites>',
+    );
+    const run = await enrich(ws, ["results/rust.xml", "build-512", "--name-pattern", "{prefix}_{id}_ak{ak}"]);
+    expect(run.code).toBe(1);
+    expect(run.stdout + run.stderr).toContain(
+      'no element has the reference "SR-ffffff" (read as "sr_ffffff_ak1" by the name pattern)',
+    );
+    const bad = await enrich(ws, ["results/rust.xml", "build-512", "--name-pattern", "{prefix}_{id}{ak}"]);
+    expect(bad.code).not.toBe(0);
+    expect(bad.stderr).toContain("has {id} and {ak} next to each other");
   });
 });

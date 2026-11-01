@@ -87,8 +87,18 @@ const UNKNOWN_N2 = ["element.unknown-property", N2, undefined];
 const UNKNOWN_R4 = ["element.unknown-property", R4, undefined];
 const SUPERSEDED_R3 = ["relation.target-superseded", R3, OLD];
 const VALIDITY_R3 = ["variant.superseded-in-validity", R3, VO];
+const NO_PARENT_R4 = ["trace.no-parent", R4, undefined];
 const OUTDATED_R1 = ["relation.outdated", R1, N1];
-const ALL = [REQUIRED_R2, UNKNOWN_N2, UNKNOWN_R4, SUPERSEDED_R3, VALIDITY_R3, OUTDATED_R1, OUTDATED_R1];
+const ALL = [
+  REQUIRED_R2,
+  UNKNOWN_N2,
+  UNKNOWN_R4,
+  SUPERSEDED_R3,
+  VALIDITY_R3,
+  NO_PARENT_R4,
+  OUTDATED_R1,
+  OUTDATED_R1,
+];
 
 /** The committer date of HEAD as ADR-0005 writes a version date. */
 const headDate = async (ws: FixtureWorkspace): Promise<string> =>
@@ -176,13 +186,17 @@ describe("hint.list (SR-026)", () => {
   it("[SR-026/AK2] filters by type, a type that extends it included", async () => {
     const workspace = await opened();
     expect(rows((await list(workspace, { type: ["need"] })).hints)).toEqual([UNKNOWN_N2]);
-    expect(rows((await list(workspace, { type: ["safety-requirement"] })).hints)).toEqual([UNKNOWN_R4]);
+    expect(rows((await list(workspace, { type: ["safety-requirement"] })).hints)).toEqual([
+      UNKNOWN_R4,
+      NO_PARENT_R4,
+    ]);
     expect(rows((await list(workspace, { type: ["system-requirement"] })).hints)).toEqual(
       ALL.filter((r) => r !== UNKNOWN_N2),
     );
     expect(rows((await list(workspace, { type: ["need", "safety-requirement"] })).hints)).toEqual([
       UNKNOWN_N2,
       UNKNOWN_R4,
+      NO_PARENT_R4,
     ]);
     expect((await list(workspace, { type: ["variant"] })).hints).toEqual([]);
   });
@@ -191,6 +205,7 @@ describe("hint.list (SR-026)", () => {
     const workspace = await opened();
     expect(rows((await list(workspace, { package: "PKG-0000d1" })).hints)).toEqual([
       UNKNOWN_R4,
+      NO_PARENT_R4,
       OUTDATED_R1,
       OUTDATED_R1,
     ]);
@@ -211,6 +226,7 @@ describe("hint.list (SR-026)", () => {
       UNKNOWN_R4,
       SUPERSEDED_R3,
       VALIDITY_R3,
+      NO_PARENT_R4,
     ]);
   });
 

@@ -192,7 +192,8 @@ interface Shown {
     readonly version?: string;
     readonly versionDate?: string | null;
     readonly current?: string;
-    readonly verification?: { readonly status: string };
+    readonly verification?: readonly { readonly view: string; readonly status: string }[];
+    readonly validation?: string;
   }[];
 }
 
@@ -205,6 +206,10 @@ const cliGet = async (running: RunningApp, argv: readonly string[]): Promise<Sho
 
 const entry = (shown: Shown, tail: string): Shown["elements"][number] | undefined =>
   shown.elements.find((element) => element.id === `${ID}${tail}`);
+
+/** The entry of fixtures/SR-094/baseline whose UUID ends with `tail`. */
+const entry94 = (shown: Shown, tail: string): Shown["elements"][number] | undefined =>
+  shown.elements.find((element) => element.id === `94094094-0000-4000-8000-0000000000${tail}`);
 
 test.describe("baselines in the app", () => {
   let running: RunningApp | undefined;
@@ -381,21 +386,36 @@ test.describe("baselines in the app", () => {
     await window.keyboard.press("Enter");
     await expect(window.locator(".result")).toContainText("verification");
     const lines = await resultLines(window);
-    /** The status under the row of `shortId`, as "Show baseline" gives it. */
-    const status = (shortId: string): string | undefined => {
-      const row = lines.find((line) => line.trim().startsWith(`${shortId} `))?.trim() ?? shortId;
-      return fieldsOf(lines, row)
-        .find((line) => line.startsWith("status "))
-        ?.slice("status ".length);
-    };
-    const tails = ["b1", "b2", "b3", "b5", "b6"];
-    const app = tails.map((tail) => status(`SR-0000${tail}`));
-    expect(app).toEqual(["verified", "outdated", "open", "open", "verified"]);
+    /** The fields under the row of `shortId`, as "Show baseline" gives them. */
+    const fields = (shortId: string): string[] =>
+      fieldsOf(lines, lines.find((line) => line.trim().startsWith(`${shortId} `))?.trim() ?? shortId);
+    /** The status of each verification row under the row of `shortId`, in order (SR-094 AK4). */
+    const statuses = (shortId: string): string[] =>
+      fields(shortId)
+        .filter((line) => line.startsWith("status "))
+        .map((line) => line.slice("status ".length));
+    const tails = ["b1", "b2", "b3", "b5", "b6", "b7"];
+    const app = tails.map((tail) => statuses(`SR-0000${tail}`));
+    expect(app).toEqual([
+      ["verified", "verified", "open"],
+      ["outdated", "open"],
+      ["open", "open"],
+      ["open", "open", "open"],
+      ["verified", "open", "open"],
+      ["verified"],
+    ]);
     const shown = await cliGet(running, ["Release 1", "--with-evidence"]);
     expect(app).toEqual(
-      tails.map((tail) => shown.elements.find((element) => element.id.endsWith(tail))?.verification?.status),
+      tails.map((tail) => (entry94(shown, tail)?.verification ?? []).map((row) => row.status)),
     );
-    // The need has no verification status here: only requirements have one.
-    expect(status("N-0000a1")).toBeUndefined();
+    // The needs have no verification status, but a validation status (SR-094 AK7).
+    expect(statuses("N-0000a1")).toEqual([]);
+    const validation = (shortId: string): string | undefined =>
+      fields(shortId)
+        .find((line) => line.startsWith("validation "))
+        ?.slice("validation ".length);
+    expect([validation("N-0000a1"), validation("N-0000a2")]).toEqual(
+      ["a1", "a2"].map((tail) => entry94(shown, tail)?.validation),
+    );
   });
 });
