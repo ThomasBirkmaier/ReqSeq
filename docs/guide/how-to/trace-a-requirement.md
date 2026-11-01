@@ -69,13 +69,6 @@ No problems.
 
 Both requirements are children of the need; the number is their depth below it, and the order of elements at the same depth may differ. A gap says what is missing, here evidence that the requirement is met.
 
-A relation can also be set in the same call that creates or changes the element, by any reference `relation add` takes, one target or a JSON list per kind:
-
-```sh
-reqseq element create system-requirement "Warn of gusts" --relations derives-from=N-7fe707
-reqseq element update SR-c67baa --add-relations derives-from='["N-7fe707"]' --remove-relations based-on=D-1a2b3c
-```
-
 ```sh
 reqseq trace related parents --refs SR-5e1d0a
 ```
@@ -102,6 +95,14 @@ total: 3
 ```
 
 `count` says how many rows have a link in a column. With `--json`, each row has its cells: the elements at the other end, each with `outdated`.
+
+A relation can also be set in the same call that creates or changes the element, by any reference `relation add` takes, one target or a JSON list per kind:
+
+```sh
+reqseq element create system-requirement "Warn of storms" --relations derives-from=N-7fe707
+reqseq element update SR-c67baa --remove-relations derives-from=N-7fe707
+reqseq element update SR-c67baa --add-relations derives-from='["N-7fe707"]'
+```
 
 ## API
 
