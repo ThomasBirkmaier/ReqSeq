@@ -261,7 +261,7 @@ describe("reqseq help and version", () => {
     const result = await run(["test", "echo", ref, "n", "extra"]);
     expect(result.code).toBe(EXIT.usage);
     expect(result.stderr).toBe(
-      "error input.invalid: Unexpected argument extra: test echo takes <ref> <name>; see reqseq test echo --help\n",
+      "error input.invalid: Unexpected argument extra: test echo takes <ref> <name>; the form is reqseq test echo <ref> <name> [options] (reqseq test echo --help)\n",
     );
   });
 

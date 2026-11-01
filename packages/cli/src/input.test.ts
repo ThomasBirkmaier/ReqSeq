@@ -211,12 +211,12 @@ describe("buildInput", () => {
     expect(tooMany.toJSON()).toEqual({
       code: "input.invalid",
       message:
-        "Unexpected argument b: --input or a flag already gives kind, target; see reqseq test echo --help",
-      details: { argument: "b" },
+        "Unexpected argument b: --input or a flag already gives kind, target; the form is reqseq test echo <source> <kind> <target> [options] (reqseq test echo --help)",
+      details: { argument: "b", usage: "reqseq test echo <source> <kind> <target> [options]" },
     });
   });
 
-  it("names the call that too many arguments fit, read in the order of the catalog's arguments (#449)", async () => {
+  it("names the form of the call for too many arguments, without guessing which value is meant (#449)", async () => {
     const commandOf = (name: string): Pick<Invocation, "entry" | "fields" | "positionals"> => {
       const entry = getCommandRuntime().contracts.entry(name);
       if (entry === undefined) {
@@ -248,32 +248,34 @@ describe("buildInput", () => {
     expect(await refused("element.setStatus", ["SR-143", "approved"])).toEqual({
       code: "input.invalid",
       message:
-        "Unexpected argument approved: element set-status takes <status>; did you mean: reqseq element set-status approved --refs SR-143 (the values in the order --refs <status>)?",
+        "Unexpected argument approved: element set-status takes <status>; the form is reqseq element set-status <status> --refs <refs>... [options] (reqseq element set-status --help)",
       details: {
         argument: "approved",
-        suggestion: ["reqseq", "element", "set-status", "approved", "--refs", "SR-143"],
+        usage: "reqseq element set-status <status> --refs <refs>... [options]",
       },
     });
-    expect(await refused("element.supersede", ["SR-001", "obsolete", "Sturm und Böen"])).toMatchObject({
-      message:
-        "Unexpected argument Sturm und Böen: element supersede takes <ref> <status>; did you mean: reqseq element supersede SR-001 obsolete --successor 'Sturm und Böen' (the values in the order <ref> <status> --successor)?",
+    // No guess which value is meant for which field: the form only, with the element flags of the catalog.
+    expect(await refused("element.setStatus", ["approved", "SR-143"])).toMatchObject({
+      details: { argument: "SR-143", usage: "reqseq element set-status <status> --refs <refs>... [options]" },
     });
-    // A flag that gives the element leaves no field for the second value; a command without element flags gets no guess.
+    expect(await refused("hint.list", ["SR-143"])).toMatchObject({
+      message:
+        "Unexpected argument SR-143: hint list takes no arguments; the form is reqseq hint list [--package <package>] [--variant <variant>] [--ref <ref>] [options] (reqseq hint list --help)",
+    });
+    expect(await refused("evidence.record", ["SR-1", "verification", "passed", "test"])).toMatchObject({
+      details: {
+        argument: "test",
+        usage: "reqseq evidence record <ref> <kind> <result> [--variant <variant>] [options]",
+      },
+    });
     const flagged = commandOf("element.setStatus").fields.find((f) => f.name === "refs");
-    expect(
-      await refused("element.setStatus", ["approved", "x"], {
-        flags: flagged === undefined ? [] : [{ field: flagged, value: ["SR-143"] }],
-      }),
-    ).toMatchObject({
-      message:
-        "Unexpected argument x: element set-status takes <status>; see reqseq element set-status --help",
+    const given = await refused("element.setStatus", ["approved", "x"], {
+      input: '{"status":"approved"}',
+      flags: flagged === undefined ? [] : [{ field: flagged, value: ["SR-143"] }],
     });
-    expect(await refused("element.get", ["SR-143", "extra"])).toMatchObject({
-      message: "Unexpected argument extra: element get takes <ref>; see reqseq element get --help",
-    });
-    expect(await refused("workspace.check", ["x"])).toMatchObject({
-      message: "Unexpected argument x: workspace check takes no arguments; see reqseq workspace check --help",
-    });
+    expect(JSON.stringify(given)).toContain(
+      "Unexpected argument approved: --input or a flag already gives status;",
+    );
   });
 
   it("fills only the positional fields no flag gives, so `<type> --title x` and `--type t x` both work", async () => {

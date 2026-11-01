@@ -3,7 +3,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { CommandError } from "@reqseq/core";
-import { argvFor } from "./argv.js";
 import type { InputField, ScalarKind } from "./fields.js";
 import { kebab } from "./fields.js";
 import type { Invocation } from "./program.js";
@@ -105,46 +104,33 @@ const resolveLocalPaths = (
   }
 };
 
-/** A shell word: as it is when it needs no quotes, else in single quotes. */
-const shellWord = (value: string): string =>
-  /^[\w@%+=:,./-]+$/u.test(value) ? value : `'${value.replaceAll("'", `'\\''`)}'`;
-
 /**
- * The call that `values` fit when they are read in the order of the catalog's arguments (the order the
- * command prompt asks them, the element first), over the positional fields and the element flags
- * (`complete: element`) that no flag and no `--input` gives; `undefined` when there are more values
- * than such fields (#449).
+ * The form of a call: the positional fields, the other required fields as flags (`--refs <refs>...`
+ * for a list), the optional element flags of the catalog (`[--successor <successor>]`), then
+ * `[options]` (#449).
  */
-const fittingCall = (
-  invocation: Invocation,
-  given: ReadonlySet<string>,
-  values: readonly string[],
-): { readonly argv: string[]; readonly order: string[] } | undefined => {
-  const { entry, fields } = invocation;
-  const elements = new Set(entry.arguments.filter((a) => a.complete === "element").map((a) => a.field));
-  const names = entry.arguments.length > 0 ? entry.arguments.map((a) => a.field) : fields.map((f) => f.name);
-  const open = names
-    .map((name) => fields.find((f) => f.name === name))
-    .filter((f): f is InputField => f?.kind === "string")
-    .filter(
-      (f) => (f.use === "positional" || (f.use === "flag" && elements.has(f.name))) && !given.has(f.name),
-    );
-  if (values.length > open.length) {
-    return undefined;
-  }
-  const fitted = open.slice(0, values.length);
-  const input = Object.fromEntries(fitted.map((f, i) => [f.name, f.array ? [values[i]] : values[i]]));
-  return {
-    argv: argvFor(entry, input).map(shellWord),
-    order: fitted.map((f) => (f.use === "positional" ? `<${f.flag}>` : `--${f.flag}`)),
-  };
+const usageOf = (invocation: Invocation, command: string): string => {
+  const elements = new Set(
+    invocation.entry.arguments.filter((a) => a.complete === "element").map((a) => a.field),
+  );
+  const flag = (f: InputField): string => `--${f.flag} <${f.flag}>${f.array ? "..." : ""}`;
+  const flags = invocation.fields.filter((f) => f.use === "flag");
+  return [
+    `reqseq ${command}`,
+    ...invocation.positionals.map((p) => `<${p.field.flag}>`),
+    ...flags.filter((f) => f.required).map(flag),
+    ...flags.filter((f) => !f.required && elements.has(f.name)).map((f) => `[${flag(f)}]`),
+    "[options]",
+  ].join(" ");
 };
 
-/** `input.invalid` for an argument that no positional field takes, naming the call the values fit. */
+/**
+ * `input.invalid` for an argument that no positional field takes, with the form of the call. It does not
+ * guess which value belongs to which field: the order the user had in mind is not known (#449).
+ */
 const unexpectedArgument = (
   invocation: Invocation,
   given: ReadonlySet<string>,
-  values: readonly string[],
   value: string,
 ): CommandError => {
   const name = invocation.entry.name;
@@ -157,15 +143,12 @@ const unexpectedArgument = (
       : takes === ""
         ? `${command} takes no arguments`
         : `${command} takes ${takes}`;
-  const call = fittingCall(invocation, given, values);
-  const hint =
-    call === undefined
-      ? `; see reqseq ${command} --help`
-      : `; did you mean: reqseq ${call.argv.join(" ")} (the values in the order ${call.order.join(" ")})?`;
-  return new CommandError("input.invalid", `Unexpected argument ${value}: ${reason}${hint}`, {
-    argument: value,
-    ...(call === undefined ? {} : { suggestion: ["reqseq", ...call.argv] }),
-  });
+  const usage = usageOf(invocation, command);
+  return new CommandError(
+    "input.invalid",
+    `Unexpected argument ${value}: ${reason}; the form is ${usage} (reqseq ${command} --help)`,
+    { argument: value, usage },
+  );
 };
 
 /**
@@ -191,7 +174,7 @@ export async function buildInput(
   values.forEach((value, i) => {
     const field = open[i];
     if (field === undefined) {
-      throw unexpectedArgument(invocation, given, values, value);
+      throw unexpectedArgument(invocation, given, value);
     }
     input[field.name] = value;
   });
