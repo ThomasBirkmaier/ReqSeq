@@ -1,0 +1,29 @@
+name: Default assignee
+
+# Every issue and pull request gets the repository owner as assignee when it is opened without one,
+# so the project board shows no unassigned items. Runs no repository code.
+
+on:
+  issues:
+    types: [opened, reopened]
+  pull_request_target:
+    types: [opened, reopened]
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  assign:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Assign the owner
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
+          COUNT: ${{ toJSON(github.event.issue.assignees || github.event.pull_request.assignees) }}
+        run: |
+          if [ "$(echo "$COUNT" | jq length)" -eq 0 ]; then
+            gh api -X POST "repos/$GITHUB_REPOSITORY/issues/$NUMBER/assignees" -f "assignees[]=$GITHUB_REPOSITORY_OWNER" --silent
+          fi
