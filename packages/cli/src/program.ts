@@ -12,6 +12,8 @@ export interface Invocation {
   readonly fields: readonly InputField[];
   /** Positional fields with their values (`undefined` when not given). */
   readonly positionals: readonly { readonly field: InputField; readonly value: string | undefined }[];
+  /** Arguments beyond the positional fields; `buildInput` refuses them and names the right call (#449). */
+  readonly extraArguments: readonly string[];
   /**
    * Flag fields with their raw values (`undefined` when not given); positional fields given as a
    * flag (`--title` next to `<title>`) too.
@@ -147,7 +149,9 @@ const addCommand = (group: Command, entry: CatalogEntry, options: ProgramOptions
   const command = group
     .command(kebab(action))
     .description(implemented ? entry.summary : `${entry.summary} (not implemented yet)`)
-    .usage([...positional.map((f) => `<${f.flag}>`), "[options]"].join(" "));
+    .usage([...positional.map((f) => `<${f.flag}>`), "[options]"].join(" "))
+    // Too many arguments reach buildInput, whose error names the call they fit (#449).
+    .allowExcessArguments();
   // Optional for commander, so the value may also come from --input; core reports a missing one.
   for (const field of positional) {
     command.argument(`[${field.flag}]`, describeField(field));
@@ -195,6 +199,7 @@ const addCommand = (group: Command, entry: CatalogEntry, options: ProgramOptions
       entry,
       fields,
       positionals: positional.map((field, i) => ({ field, value: text(args[i]) })),
+      extraArguments: command.args.slice(positional.length),
       flags: flagOptions.map(({ field, main }) => ({ field, value: opts[main.attributeName()] })),
       json: opts["json"] === true,
       yaml: opts["yaml"] === true,

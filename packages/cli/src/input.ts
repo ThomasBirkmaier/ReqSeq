@@ -4,6 +4,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { CommandError } from "@reqseq/core";
 import type { InputField, ScalarKind } from "./fields.js";
+import { kebab } from "./fields.js";
 import type { Invocation } from "./program.js";
 
 /** Where `--input -` reads from. */
@@ -165,6 +166,53 @@ const flagValue = async (
 };
 
 /**
+ * The form of a call: the positional fields, the other required fields as flags (`--refs <refs>...`
+ * for a list), the optional element flags of the catalog (`[--successor <successor>]`), then
+ * `[options]` (#449).
+ */
+const usageOf = (invocation: Invocation, command: string): string => {
+  const elements = new Set(
+    invocation.entry.arguments.filter((a) => a.complete === "element").map((a) => a.field),
+  );
+  const flag = (f: InputField): string => `--${f.flag} <${f.flag}>${f.array ? "..." : ""}`;
+  const flags = invocation.fields.filter((f) => f.use === "flag");
+  return [
+    `reqseq ${command}`,
+    ...invocation.positionals.map((p) => `<${p.field.flag}>`),
+    ...flags.filter((f) => f.required).map(flag),
+    ...flags.filter((f) => !f.required && elements.has(f.name)).map((f) => `[${flag(f)}]`),
+    "[options]",
+  ].join(" ");
+};
+
+/**
+ * `input.invalid` for an argument that no positional field takes, with the form of the call. It does not
+ * guess which value belongs to which field: the order the user had in mind is not known (#449).
+ */
+const unexpectedArgument = (
+  invocation: Invocation,
+  given: ReadonlySet<string>,
+  value: string,
+): CommandError => {
+  const name = invocation.entry.name;
+  const command = `${name.slice(0, name.indexOf("."))} ${kebab(name.slice(name.indexOf(".") + 1))}`;
+  const taken = invocation.positionals.map((p) => p.field).filter((f) => given.has(f.name));
+  const takes = invocation.positionals.map((p) => `<${p.field.flag}>`).join(" ");
+  const reason =
+    taken.length > 0
+      ? `--input or a flag already gives ${taken.map((f) => f.name).join(", ")}`
+      : takes === ""
+        ? `${command} takes no arguments`
+        : `${command} takes ${takes}`;
+  const usage = usageOf(invocation, command);
+  return new CommandError(
+    "input.invalid",
+    `Unexpected argument ${value}: ${reason}; the form is ${usage} (reqseq ${command} --help)`,
+    { argument: value, usage },
+  );
+};
+
+/**
  * The command input: `--input` first; positional values fill the positional fields that neither
  * `--input` nor a flag gives, in order; flags override the same field from `--input`, an entries flag
  * (`--set key=value`) key by key; a text flag reads `@file` and `-`; local paths become absolute.
@@ -175,22 +223,19 @@ export async function buildInput(
   stdin: InputStream,
 ): Promise<Record<string, unknown>> {
   const input = invocation.input === undefined ? {} : await readInputOption(invocation.input, cwd, stdin);
-  const values = invocation.positionals.flatMap(({ value }) => (value === undefined ? [] : [value]));
-  const flagged = new Set(invocation.flags.filter((f) => f.value !== undefined).map((f) => f.field.name));
-  const open = invocation.positionals
-    .map(({ field }) => field)
-    .filter((f) => !Object.hasOwn(input, f.name) && !flagged.has(f.name));
+  const values = [
+    ...invocation.positionals.flatMap(({ value }) => (value === undefined ? [] : [value])),
+    ...invocation.extraArguments,
+  ];
+  const given = new Set([
+    ...Object.keys(input),
+    ...invocation.flags.filter((f) => f.value !== undefined).map((f) => f.field.name),
+  ]);
+  const open = invocation.positionals.map(({ field }) => field).filter((f) => !given.has(f.name));
   values.forEach((value, i) => {
     const field = open[i];
     if (field === undefined) {
-      const given = invocation.positionals
-        .map((p) => p.field.name)
-        .filter((name) => !open.some((f) => f.name === name));
-      throw new CommandError(
-        "input.invalid",
-        `Unexpected argument ${value}: --input or a flag already gives ${given.join(", ")}`,
-        { argument: value },
-      );
+      throw unexpectedArgument(invocation, given, value);
     }
     input[field.name] = value;
   });
