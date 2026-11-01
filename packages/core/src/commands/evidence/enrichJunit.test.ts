@@ -619,6 +619,16 @@ describe("evidence.enrichJunit with variants (SR-029)", () => {
     const first = resolver("VAR-0000c1");
     expect(first).toEqual({ kind: "variant", id: COAST });
     expect(resolver("VAR-0000c1")).toBe(first);
+    // The note of an incomplete workspace follows only a reference no element has.
+    const noted = variantResolverOf(views, new Map(), "; the workspace is incomplete");
+    expect(noted("VAR-ffffff")).toEqual({
+      kind: "invalid",
+      reason: expect.stringMatching(/; the workspace is incomplete$/),
+    });
+    expect(noted("SR-0000a4")).toEqual({
+      kind: "invalid",
+      reason: expect.not.stringContaining("incomplete"),
+    });
     const throwing = new Proxy(
       {},
       {

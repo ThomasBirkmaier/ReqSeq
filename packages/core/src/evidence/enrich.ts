@@ -993,10 +993,12 @@ const givenVariant = (
 /**
  * What a `reqseq:variant` of a test case names (AK7), through `resolveView`: any refusal (no element,
  * several, no variant, `core`, a metamodel without variants) is a result. Remembers each variant found.
+ * `unknownNote` follows the reason when no element has the reference, as for an unknown element.
  */
 export const variantResolverOf = (
   views: ViewContext,
   variants: Map<string, ElementRecord>,
+  unknownNote = "",
 ): ((ref: string) => VariantLookup) => {
   /** One lookup per distinct value: a CI file repeats the same variant in every test case. */
   const known = new Map<string, VariantLookup>();
@@ -1005,7 +1007,7 @@ export const variantResolverOf = (
     if (before !== undefined) {
       return before;
     }
-    const lookup = lookupVariant(views, variants, ref);
+    const lookup = lookupVariant(views, variants, ref, unknownNote);
     known.set(ref, lookup);
     return lookup;
   };
@@ -1016,6 +1018,7 @@ const lookupVariant = (
   views: ViewContext,
   variants: Map<string, ElementRecord>,
   ref: string,
+  unknownNote: string,
 ): VariantLookup => {
   try {
     const view = resolveView(views, ref, COMMAND, VARIANT, false);
@@ -1026,7 +1029,7 @@ const lookupVariant = (
     return { kind: "variant", id: view.variant.id };
   } catch (error) {
     if (error instanceof CommandError) {
-      return { kind: "invalid", reason: error.message };
+      return { kind: "invalid", reason: error.message + (error.code === "ref.unknown" ? unknownNote : "") };
     }
     throw error;
   }
@@ -1102,7 +1105,7 @@ export const enrichJunitFile = async (
     file: shownPath(layout, main, sourceFolder, source),
     unknownNote: incompleteNote(layout),
     variant,
-    resolveVariant: variantResolverOf(views, variants),
+    resolveVariant: variantResolverOf(views, variants, incompleteNote(layout)),
     outOfVariant: outOfVariantOf(views, found, variants),
   });
   const output = {
