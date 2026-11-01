@@ -231,6 +231,36 @@ describe("local paths through API and MCP only inside the repositories (SR-142)"
     expect(await state(ws)).toEqual(before);
   });
 
+  it("[SR-142/AK1] reqif.import over MCP refuses ~/Downloads/lieferung.reqif and a path outside, reqif.export over the API an output outside", async () => {
+    const ws = await fixture();
+    // A real delivery in the home folder (`~`, stubbed above) and outside the repositories.
+    const delivery = await fs.readFile(
+      new URL("../../../fixtures/SR-053/delivery/lieferung.reqif", import.meta.url),
+    );
+    const downloads = path.join(cacheHome, "Downloads");
+    await fs.mkdir(downloads, { recursive: true });
+    await fs.writeFile(path.join(downloads, "lieferung.reqif"), delivery);
+    await fs.writeFile(ws.path("outside/lieferung.reqif"), delivery);
+    const home = async (): Promise<string[]> => (await fs.readdir(downloads)).sort();
+    const before = { ws: await state(ws), home: await home() };
+
+    const tilde = await mcp(ws, "reqif.import", { file: "~/Downloads/lieferung.reqif", delivery: "D1" });
+    expect(tilde).toEqual({ isError: true, body: refusedFor(["file"]) });
+    expect(String(tilde.body["message"])).toContain("~ is not expanded");
+    const absolute = await mcp(ws, "reqif.import", {
+      file: ws.path("outside/lieferung.reqif"),
+      delivery: "D1",
+    });
+    expect(absolute).toEqual({ isError: true, body: refusedFor(["file"]) });
+    expect(JSON.stringify([tilde.body, absolute.body])).not.toContain(ws.root);
+
+    await withApi(ws, async (api) => {
+      const exported = await api("reqif.export", { output: ws.path("outside/export.reqif") });
+      expect([exported.status, exported.body]).toEqual([400, refusedFor(["output"])]);
+    });
+    expect({ ws: await state(ws), home: await home() }).toEqual(before);
+  });
+
   it("[SR-142/AK2] the API and the MCP server run a command on a path inside a repository", async () => {
     const ws = await fixture();
     await withApi(ws, async (api) => {
