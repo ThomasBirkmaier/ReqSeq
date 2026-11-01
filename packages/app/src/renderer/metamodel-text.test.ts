@@ -4,7 +4,7 @@ import { metamodelText } from "./metamodel-text.js";
 import type { TextRow } from "./metamodel-text.js";
 import { FIXTURE_METAMODEL, effectiveType, metamodelOutput } from "./metamodel-test-data.js";
 
-/** A row as one line of words, a property as "name key value [required] [(inherited)]". */
+/** A row as one line of words, a property as "name key value [required] [counts to version] [(inherited)]". */
 const words = (row: TextRow): string =>
   row.kind === "relation"
     ? `${row.key} | ${row.name} ${row.relation} | ${row.source} → ${row.target}`
@@ -13,18 +13,18 @@ const words = (row: TextRow): string =>
         `extends ${row.parent ?? "-"}`,
         ...row.properties.map(
           (property) =>
-            `${property.name} ${property.key} ${property.value}${property.required ? " required" : ""}${property.inherited ? " (inherited)" : ""}`,
+            `${property.name} ${property.key} ${property.value}${property.required ? " required" : ""}${property.content ? " counts to version" : ""}${property.inherited ? " (inherited)" : ""}`,
         ),
         `statuses ${row.statuses.join(" · ")}`,
       ].join(" | ");
 
 describe("metamodelText", () => {
-  it("[SR-130/AK5] names for each type its key, name, prefix, parent, properties with value kind and required, and statuses, and for each relation kind its source and target types", () => {
+  it("[SR-130/AK5] names for each type its key, name, prefix, parent, properties with value kind, required and whether they count to the version, and statuses, and for each relation kind its source and target types", () => {
     const text = metamodelText(FIXTURE_METAMODEL);
     expect(text.rows.map(words)).toEqual([
       "type:item | Item ITM item abstract | extends - | Title title text required | statuses Draft · Approved · Retired",
       "type:requirement | System Requirement SR requirement | extends Item | Title title text required (inherited) | Rationale rationale text | Package packages list of relation → Package | statuses Draft · Approved · Retired",
-      "type:software-requirement | Software Requirement SWR software-requirement | extends System Requirement | Title title text required (inherited) | Rationale rationale text (inherited) | Package packages list of relation → Package (inherited) | Component component list of choice required | statuses Draft · Approved · Retired",
+      "type:software-requirement | Software Requirement SWR software-requirement | extends System Requirement | Title title text required (inherited) | Rationale rationale text (inherited) | Package packages list of relation → Package (inherited) | Component component list of choice required counts to version | statuses Draft · Approved · Retired",
       "type:decision | Decision D decision | extends - | Title title text | statuses Open · Decided",
       "type:package | Package PKG package | extends - | Title title text | statuses ",
       "relation:derives-from | Derives from derives-from | Software Requirement → System Requirement, Software Requirement",

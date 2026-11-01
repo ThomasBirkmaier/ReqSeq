@@ -1,10 +1,11 @@
 // The metamodel as text (SR-130 AK5): what `metamodel.get` gives, in the words the text view shows. Pure
 // display (ADR-0002 rule 3, SR-080 AK1), like `metamodel-graph.ts`: every word is a value of the output or
-// a word for a field ("extends", "abstract", "required", "list of", "any type", "none").
+// a word for a field ("extends", "abstract", "required", "counts to version", "list of", "any type", "none").
 // - One row per type, in metamodel order: its key, name and prefix, "abstract" when it is, its parent
 //   (`extends`, by the parent's name, by the key when no type has it), its properties (own and inherited,
-//   in the output's order) each with its value kind and "required", and its statuses by name. A property
-//   is inherited by the same reading as in the graph (`inheritedProperties`).
+//   in the output's order) each with its value kind, "required" and "counts to version" (its `content`,
+//   D-057, #624), and its statuses by name. A property is inherited by the same reading as in the graph
+//   (`inheritedProperties`).
 // - The value kind (Wertart) of a property is its `kind`; "list of" when it takes several values
 //   (`many`); for kind `relation` the types it may point to. Choice values are not listed (on demand).
 // - One row per relation kind, in metamodel order: its key and name, its source and target types by name.
@@ -20,6 +21,8 @@ export interface TextProperty {
   /** The value kind: "text", "list of choice", "relation → Package". */
   readonly value: string;
   readonly required: boolean;
+  /** Whether a change of its value gives a new version (`content`, D-057). */
+  readonly content: boolean;
   /** Muted, as in the graph. */
   readonly inherited: boolean;
 }
@@ -120,6 +123,7 @@ export const metamodelText = (output: MetamodelGetOutput): MetamodelText => {
         name: properties.get(key)?.name ?? key,
         value: valueOf(properties.get(key), typeNames),
         required: type.required.includes(key),
+        content: properties.get(key)?.content === true,
         inherited: fromParent.has(key),
       })),
       statuses: type.statuses.map((key) => statusNames.get(key) ?? key),

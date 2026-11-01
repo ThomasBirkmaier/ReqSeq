@@ -2895,6 +2895,17 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
             "component",
           ]);
           expect(type("package")?.statuses, access).toEqual([]);
+          // Whether each property counts to the version (D-057, #624): false where not written.
+          expect(
+            output.properties.map((property) => [property.key, property.content]),
+            access,
+          ).toEqual([
+            ["title", false],
+            ["rationale", false],
+            ["component", true],
+            ["packages", false],
+            ["severity", false],
+          ]);
           expect(kind("based-on"), access).not.toHaveProperty("source-types");
           expect(kind("blocks")?.["source-types"], access).toEqual([]);
         }

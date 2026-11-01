@@ -1220,7 +1220,7 @@
     "/v1/commands/metamodel.get": {
       "post": {
         "operationId": "metamodel_get",
-        "summary": "The effective metamodel: types with inherited properties and statuses, properties, relation kinds, statuses, meanings.",
+        "summary": "The effective metamodel: types with inherited properties and statuses, properties with whether they count to the version, relation kinds, statuses, meanings.",
         "tags": [
           "metamodel"
         ],
@@ -1261,7 +1261,8 @@
                       "type": "array",
                       "items": {
                         "$ref": "#/components/schemas/metamodel/$defs/property"
-                      }
+                      },
+                      "description": "The property definitions as written, except that each carries `content`, false when not written: whether a change of its value gives a new version and makes evidence and relations outdated (D-057, #624)."
                     },
                     "relations": {
                       "type": "array",
