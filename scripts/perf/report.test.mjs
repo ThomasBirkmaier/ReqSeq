@@ -6,6 +6,7 @@ import { THRESHOLD_FAILURE as TESTKIT_THRESHOLD_FAILURE } from "../../packages/t
 import {
   THRESHOLD_FAILURE,
   completeRun,
+  duration,
   exceeded,
   machineOf,
   main,
@@ -24,6 +25,7 @@ const WRONG =
 
 const COLD = { name: "cold load", basis: "N-036, SR-082 AK2", ms: 40867.9, thresholdMs: 30000 };
 const CHECK = { name: "checks", basis: "SR-020", ms: 1289.3, thresholdMs: 60000 };
+const OPEN = { name: "open", basis: "SR-082 AK3", ms: 38.2, thresholdMs: 200 };
 const WRITE = { name: "write", basis: "D-055 generator", ms: 5316.2 };
 const MACHINE = { os: "Linux 6 (x64)", cores: 4, memoryGb: 16, node: "v22.12.0" };
 
@@ -64,12 +66,24 @@ describe("perf report", () => {
     expect(report).toContain("- Commit: abc123\n- Run: https://github.com/o/r/actions/runs/1\n");
     expect(report).toContain("- Machine: Linux 6 (x64), 4 cores, 16 GB, Node v22.12.0");
     expect(report).toContain("| cold load | N-036, SR-082 AK2 | 40.9 s | 30.0 s | **exceeded** |");
-    expect(report).toContain("| checks | SR-020 | 1.3 s | 60.0 s | within |");
-    expect(report).toContain("| write | D-055 generator | 5.3 s |  | no threshold |");
+    expect(report).toContain("| checks | SR-020 | 1290 ms | 60.0 s | within |");
+    expect(report).toContain("| write | D-055 generator | 5317 ms |  | no threshold |");
     expect(report).toContain("Result: 1 of 3 measurements over their threshold: cold load.");
-    const within = renderReport({ measurements: [CHECK], machine: MACHINE, date: "2026-10-24" });
+    const within = renderReport({ measurements: [CHECK, OPEN], machine: MACHINE, date: "2026-10-24" });
     expect(within).toContain("- Commit: unknown\n- Machine");
+    expect(within).toContain("| open | SR-082 AK3 | 39 ms | 200 ms | within |");
     expect(within).toContain("Result: every measured time is within its threshold.");
+  });
+
+  it("shows times under 10 s in ms and longer ones in s", () => {
+    expect(duration(0)).toBe("0 ms");
+    expect(duration(0.4)).toBe("1 ms");
+    expect(duration(38.4)).toBe("39 ms");
+    expect(duration(200.4)).toBe("201 ms");
+    expect(duration(200)).toBe("200 ms");
+    expect(duration(9999)).toBe("9999 ms");
+    expect(duration(9999.1)).toBe("10.0 s");
+    expect(duration(40867.9)).toBe("40.9 s");
   });
 
   it("describes the machine it runs on", () => {

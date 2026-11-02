@@ -1,6 +1,6 @@
 # ADR-0014: Packaging and delivery
 
-Status: Proposed · Based on: D-003, D-004, D-029 · SRs: SR-076, SR-077, SR-078 · Changed 2026-10-28: portable delivery instead of installers, release workflow (#324)
+Status: Accepted · Based on: D-003, D-004, D-029 · SRs: SR-076, SR-077, SR-078 · Changed 2026-10-28: portable delivery instead of installers, release workflow (#324)
 
 ## Context
 
