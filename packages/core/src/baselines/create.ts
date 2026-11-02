@@ -11,6 +11,7 @@
 import path from "node:path";
 import { CommandError } from "../catalog.js";
 import type { CommandOutput } from "../catalog.js";
+import { recordDate } from "../evidence/index.js";
 import type { BaselineFile, BaselineStoredSelection } from "../generated/types.js";
 import type { ElementRecord } from "../model/index.js";
 import { currentVersionsOf, elementStoreState, workspacePath } from "../model/index.js";
@@ -35,9 +36,12 @@ export interface BaselineRequest {
   readonly metamodel: Checked["metamodel"];
 }
 
-/** A file relative to its repository as `relativeIn` gives it: `/`, NFC, `""` for the folder itself. */
+/**
+ * A folder relative to its repository: `/`, `""` for the folder itself. The name stays as the file
+ * system spells it (#444): an NFC copy of an NFD folder name would be a second folder on ext4.
+ */
 const relativeTo = (repository: RepositoryLocation, absolute: string): string =>
-  path.relative(repository.folder, absolute).split(path.sep).join("/").normalize("NFC");
+  path.relative(repository.folder, absolute).split(path.sep).join("/");
 
 /** The entries of the selected elements and the files they embed (see `Checked`); `file.faulty` for one without version. */
 const entriesOf = async (
@@ -115,14 +119,15 @@ export const createBaseline = async (
       { repository: baselines.location.repository },
     );
   }
-  const { entries, embeds } = await entriesOf(workspace, request.elements, repository.name);
+  // A repository without a commit (AK7) is refused before any version is computed (#444, N-036).
   const commits = await involvedCommits(layout, request.elements);
+  const { entries, embeds } = await entriesOf(workspace, request.elements, repository.name);
   await refuseUncommitted(workspace, commits, {
     elements: request.elements,
     embeds,
     metamodel: request.metamodel,
   });
-  const date = `${new Date().toISOString().slice(0, 19)}Z`;
+  const date = recordDate(new Date());
   const text = baselineText({
     "reqseq-baseline": 1,
     name: request.name,
