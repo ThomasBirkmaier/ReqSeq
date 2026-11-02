@@ -527,14 +527,15 @@ const isTestCase = (value: unknown): value is Rec =>
   isRecord(value) && typeof value["name"] === "string" && Array.isArray(value["executions"]);
 
 /**
- * A record of a list of records (evidence.list, #275): `recordLine`, its kind when it is no
- * verification, and the baselines that hold its version.
+ * A record of a list of records (evidence.list, trace.affected, #275): `recordLine`, its kind when it
+ * is no verification, the version it was recorded against and the baselines that hold that version.
  */
 const listedRecordLine = (record: Rec): string => {
   const baselines = listOf(record["baselines"]).map(text);
   return join(
     record["kind"] === "verification" ? "" : text(record["kind"]),
     recordLine(record, true),
+    text(record["version"]) === "" ? "" : `[version ${text(record["version"])}]`,
     baselines.length === 0 ? "" : `[baselines: ${baselines.join(", ")}]`,
   );
 };

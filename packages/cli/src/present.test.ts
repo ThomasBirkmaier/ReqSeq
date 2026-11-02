@@ -1013,6 +1013,7 @@ describe("renderHuman: evidence records and test cases (#275)", () => {
       method: "review",
       result: "passed",
       evidence: "notes.md",
+      version: "n1:ab",
       baselines: ["v1", "v2"],
     };
     expect(
@@ -1034,7 +1035,7 @@ describe("renderHuman: evidence records and test cases (#275)", () => {
       [
         "records:",
         "  2026-10-22T09:00:00Z  test  failed  build-513  system/evidence/ci/run-2.xml:4",
-        "  validation  2026-10-22T09:00:00Z  review  passed  build-513  notes.md  [baselines: v1, v2]",
+        "  validation  2026-10-22T09:00:00Z  review  passed  build-513  notes.md  [version n1:ab]  [baselines: v1, v2]",
         "testCases:",
         "  tests.test_wind › test_speed  last: failed  2026-10-22T09:00:00Z  executions: 2",
         "  manual check  [not executed]  executions: 0",
