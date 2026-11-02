@@ -301,6 +301,7 @@ export type ProblemCode =
   | "element.status-not-allowed"
   | "element.missing-status"
   | "element.statement-without-text"
+  | "element.text-emptied"
   | "relation.missing-target"
   | "relation.unresolved-link"
   | "relation.not-a-link"

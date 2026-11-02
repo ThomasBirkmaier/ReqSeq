@@ -54,6 +54,9 @@ problems:
   element.statement-without-text:
     cause: A requirement has no text, but a value in the property with the meaning `statement`, which holds the supplier's statement on an imported requirement and does not count to the version. So a change of the requirement written there gives no new version and outdates no evidence or relation.
     remedy: Put the requirement into the element text with element.update, and keep the statement property for the supplier's statement.
+  element.text-emptied:
+    cause: An element.update gave an empty text to an element whose text was not empty, so the whole text was removed (#677). The save is done; the warning only shows it, since an empty text is mostly a broken shell substitution.
+    remedy: If the text was removed by mistake, restore it from Git or give it again with element.update.
   relation.missing-target:
     cause: A relation or an inline reference points to an ID that no element in the named repository has, for example because the target file was removed or its file cannot be read.
     remedy: Point the relation to an existing element, remove it, or fix the target's file if the message names one.
