@@ -3,6 +3,8 @@
 // on Linux under xvfb, in a network namespace with loopback only, as a non-root user with Chromium's sandbox on.
 // The packaged app has Node's inspect arguments switched off (fuse), so Playwright cannot launch it; the test
 // connects through Chromium's DevTools port instead.
+// It also loads a generated workspace above the read pool's threshold, so the core process (a utility process)
+// starts the read workers of the cold load from `read-worker.js` inside `app.asar` (ADR-0008, ADR-0014, #142).
 import type { ChildProcess } from "node:child_process";
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
@@ -18,9 +20,12 @@ import {
   connectProbe,
   deliveryArtifactName,
   deliveryLayout,
+  generateLargeWorkspace,
   installDelivery,
   offlineProblems,
+  writeLargeWorkspace,
 } from "@reqseq/testkit";
+import type { Page } from "@playwright/test";
 import { chromium } from "@playwright/test";
 import { afterAll, afterEach, describe, expect, it } from "vitest";
 
@@ -110,15 +115,39 @@ const prepareSandbox = async (installed: string): Promise<string> => {
   return "sandbox: setuid chrome-sandbox (the documented admin step)";
 };
 
-/**
- * Starts the installed app on a copy of a fixture with its own home, cache and user data folders (never
- * the real user's) and returns how it was seen started: the overview of the workspace through the
- * DevTools port, or, when no port opens, the workspace in the recent list the app writes on opening.
- */
-const startApp = async (installed: string, system: DeliverySystem): Promise<string> => {
-  const top = await tempFolder();
+/** How a start was seen, and what the app wrote to standard error until then. */
+interface Started {
+  readonly seen: string;
+  readonly stderr: string;
+}
+
+interface StartOptions {
+  /** The workspace to open (default: a copy of the fixture `SR-004/one-repository`). */
+  readonly workspace?: (top: string) => Promise<string>;
+  /** More environment of the app. */
+  readonly env?: Readonly<Record<string, string>>;
+  /** Checks the window once its overview shows (only when the DevTools port opened). */
+  readonly check?: (page: Page) => Promise<void>;
+}
+
+const fixtureCopy = async (top: string): Promise<string> => {
   const workspace = path.join(top, "workspace");
   await fs.cp(path.join(repo, "fixtures", "SR-004", "one-repository"), workspace, { recursive: true });
+  return workspace;
+};
+
+/**
+ * Starts the installed app on a workspace with its own home, cache and user data folders (never the real
+ * user's) and gives how it was seen started: the overview of the workspace through the DevTools port, or,
+ * when no port opens, the workspace in the recent list the app writes on opening.
+ */
+const startApp = async (
+  installed: string,
+  system: DeliverySystem,
+  options: StartOptions = {},
+): Promise<Started> => {
+  const top = await tempFolder();
+  const workspace = await (options.workspace ?? fixtureCopy)(top);
   const home = path.join(top, "home");
   const userData = path.join(home, "user-data");
   await fs.mkdir(userData, { recursive: true });
@@ -130,6 +159,7 @@ const startApp = async (installed: string, system: DeliverySystem): Promise<stri
     XDG_CONFIG_HOME: path.join(home, "config"),
     APPDATA: home,
     LOCALAPPDATA: home,
+    ...options.env,
   };
   const binary = path.join(installed, deliveryLayout(names, system).app);
   const app = spawn(
@@ -156,17 +186,47 @@ const startApp = async (installed: string, system: DeliverySystem): Promise<stri
       );
       expect(page, "the app opened no window").toBeDefined();
       await page?.getByRole("listbox", { name: "Overview" }).waitFor({ timeout: 30_000 });
+      if (page !== undefined) {
+        await options.check?.(page);
+      }
     } finally {
       await browser.close();
     }
-    return "seen through the DevTools port: the overview of the workspace";
+    return { seen: "seen through the DevTools port: the overview of the workspace", stderr };
   }
   // Fallback: the app runs and has opened the workspace (SR-131 list, in the test's own cache folder).
   await new Promise((resolve) => setTimeout(resolve, 10_000));
   expect(app.exitCode, `the app ended: ${stderr}`).toBeNull();
   const recent = await readRecentWorkspaces({ platform: process.platform, env, home });
   expect(recent.map((r) => r.root)).toContain(await fs.realpath(workspace));
-  return "seen through the recent workspaces: the app runs and opened the workspace";
+  return { seen: "seen through the recent workspaces: the app runs and opened the workspace", stderr };
+};
+
+/** More element files than the read pool's threshold of 1,000 (ADR-0008), as in the CLI's e2e test. */
+const ELEMENTS = 1_200;
+
+/**
+ * Node's own trace of a worker thread (`NODE_DEBUG=worker`), written by the new thread itself
+ * (`lib/internal/main/worker_thread.js`) before it loads its script: the read worker of core inside the app's
+ * asar archive. It shows where the worker started from, not that it ran; the overview counts show that.
+ */
+const ASAR_READ_WORKER =
+  /starts worker script .*app\.asar[\\/]node_modules[\\/]@reqseq[\\/]core[\\/]dist[\\/]model[\\/]read-worker\.js/g;
+
+/** A workspace of `ELEMENTS` generated element files in `top`; the versions do not matter to a load. */
+const largeWorkspace = async (top: string): Promise<string> => {
+  const generated = generateLargeWorkspace({
+    version: () => "n1:0000000000000000",
+    elements: ELEMENTS,
+    relations: ELEMENTS * 2,
+  });
+  return (await writeLargeWorkspace(generated, { tempDir: top })).workspaceRoot;
+};
+
+/** The counts of the overview's type lines, added up: every element of the workspace has one type. */
+const overviewTotal = async (page: Page): Promise<number> => {
+  const counts = await page.locator(".overview .line.type .count").allTextContents();
+  return counts.reduce((sum, count) => sum + Number(count), 0);
 };
 
 describe.each(DELIVERY_SYSTEMS)("the app of the %s delivery", (system: DeliverySystem) => {
@@ -181,11 +241,15 @@ describe.each(DELIVERY_SYSTEMS)("the app of the %s delivery", (system: DeliveryS
         ? "runs as root: the app starts only as a normal user with its sandbox on"
         : undefined;
 
-  /** Installs (unpacks, and on Linux the admin step if needed) and starts the app; gives how it was seen. */
-  const installAndStart = async (): Promise<string> => {
+  /**
+   * Installs (unpacks, and on Linux the admin step if needed) and starts the app; gives how it was seen (with
+   * the sandbox on Linux) and what it wrote to standard error.
+   */
+  const installAndStart = async (options: StartOptions = {}): Promise<Started> => {
     const installed = await installDelivery(artifact, await tempFolder(), names);
     const sandbox = system === "linux" ? `; ${await prepareSandbox(installed)}` : "";
-    return `${await startApp(installed, system)}${sandbox}`;
+    const started = await startApp(installed, system, options);
+    return { seen: `${started.seen}${sandbox}`, stderr: started.stderr };
   };
 
   it(`[SR-076/AK1] the app of the ${system} delivery starts after unpacking`, async (ctx) => {
@@ -193,7 +257,7 @@ describe.each(DELIVERY_SYSTEMS)("the app of the %s delivery", (system: DeliveryS
       ctx.skip(reason);
     }
     // The record says which way the start was seen (verification/SR-076.md).
-    await ctx.annotate(await installAndStart());
+    await ctx.annotate((await installAndStart()).seen);
   }, 120_000);
 
   it(`[SR-078/AK2] the ${system} delivery installs without network and its app starts`, async (ctx) => {
@@ -204,6 +268,37 @@ describe.each(DELIVERY_SYSTEMS)("the app of the %s delivery", (system: DeliveryS
       ctx.skip(NO_NAMESPACE);
     }
     await assertOffline();
-    await ctx.annotate(await installAndStart());
+    await ctx.annotate((await installAndStart()).seen);
   }, 120_000);
+
+  it(`the app of the ${system} delivery reads ${String(ELEMENTS)} element files in read workers from app.asar (#142)`, async (ctx) => {
+    if (reason !== undefined) {
+      ctx.skip(reason);
+    }
+    let total: number | undefined;
+    const { seen, stderr } = await installAndStart({
+      workspace: largeWorkspace,
+      env: { NODE_DEBUG: "worker" },
+      check: async (page) => {
+        total = await until(async () => {
+          const sum = await overviewTotal(page);
+          return sum === ELEMENTS ? sum : undefined;
+        }, 60_000);
+        total ??= await overviewTotal(page);
+      },
+    });
+    // A worker that cannot run fails the read and leaves the overview without counts; the core process goes
+    // on (its warm load drops the failure). So only the counts show that the workers read the files, and they
+    // are seen only through the DevTools port: the reference system Linux must open it, elsewhere the test is
+    // skipped without it, never passed.
+    if (total === undefined && system !== "linux") {
+      ctx.skip(`${seen}: the overview counts could not be seen, so the read in the workers is not shown`);
+    }
+    expect(total, "the overview was not seen through the DevTools port").toBe(ELEMENTS);
+    const workers = [...stderr.matchAll(ASAR_READ_WORKER)].length;
+    expect(workers, `no read worker started from app.asar:\n${stderr}`).toBeGreaterThan(0);
+    await ctx.annotate(
+      `${seen}; ${String(workers)} read workers started from app.asar; the overview counts ${String(total)} elements`,
+    );
+  }, 240_000);
 });

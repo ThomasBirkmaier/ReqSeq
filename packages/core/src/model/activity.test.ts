@@ -38,6 +38,7 @@ import {
 } from "./activity.js";
 import { elementStoreState } from "./store.js";
 import { watchWorkspace } from "./watch.js";
+import { readFirstFor } from "../runtime/read-first.test-helper.js";
 
 // The real `watch`, wrapped so that a test can make the watch of the cache folder fail.
 vi.mock("node:fs", async (importOriginal) => {
@@ -101,12 +102,17 @@ const copy = async (options: FixtureOptions, root = ""): Promise<Copy> => {
   return { fixture: created, cache, workspace: open(root === "" ? created.root : created.path(root), cache) };
 };
 
-const call = (
+const call = async (
   workspace: Workspace,
   name: string,
   input: object,
   access?: InvokeContext["access"],
-): Promise<unknown> => invoke(name, input, access === undefined ? { workspace } : { workspace, access });
+): Promise<unknown> =>
+  invoke(
+    name,
+    await readFirstFor(name, input, access === undefined ? { workspace } : { workspace, access }),
+    access === undefined ? { workspace } : { workspace, access },
+  );
 
 /** The activity file after the workspace closed (closing writes the pending access). */
 const recorded = async (opened: Copy): Promise<ActivityFile | undefined> => {

@@ -5,12 +5,19 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import YAML from "yaml";
-import { loadContracts, commandSchema, schemasDir, BASE } from "./load.mjs";
+import { loadContracts, commandSchema, schemasDir, BASE, CATALOG_HEADER } from "./load.mjs";
 import { checkCatalog } from "./catalog-checks.mjs";
 import { PROBLEM_CODES_FILE, checkProblemCodes } from "./problem-codes.mjs";
 
 const errors = [];
-const { ajv, schemas, catalog } = loadContracts();
+let contracts;
+try {
+  contracts = loadContracts();
+} catch (e) {
+  console.error(`error: ${e.message}`);
+  process.exit(1);
+}
+const { ajv, schemas, catalog } = contracts;
 
 for (const f of Object.keys(schemas)) {
   try {
@@ -20,31 +27,37 @@ for (const f of Object.keys(schemas)) {
   }
 }
 
-const validCatalog = ajv.getSchema(BASE + "commands/catalog.meta.schema.json");
-if (!validCatalog(catalog)) {
-  errors.push(`catalog.json: ${ajv.errorsText(validCatalog.errors)}`);
+// The catalog is one file per command plus catalog.header.json (ADR-0002, load.mjs): each command file is
+// checked against the entry schema and the header keys against the root, so every message names its file
+// and each problem is reported once.
+const meta = `${BASE}commands/catalog.meta.schema.json`;
+const validHeader = ajv.getSchema(meta);
+if (!validHeader({ ...catalog, commands: [] })) {
+  errors.push(`schemas/commands/${CATALOG_HEADER}: ${ajv.errorsText(validHeader.errors)}`);
 }
-const names = new Set();
+const validEntry = ajv.compile({ $ref: `${meta}#/properties/commands/items` });
+let entriesValid = true;
 for (const cmd of catalog.commands) {
-  if (names.has(cmd.name)) {
-    errors.push(`catalog.json: duplicate command ${cmd.name}`);
+  const file = `schemas/commands/${cmd.name}.json`;
+  if (!validEntry(cmd)) {
+    entriesValid = false;
+    errors.push(`${file}: ${ajv.errorsText(validEntry.errors)}`);
   }
-  names.add(cmd.name);
   // D-045, SR-072 AK2: no access may offer deleting an element.
   if (/delete|remove/i.test(cmd.name) && !cmd.name.startsWith("relation.")) {
-    errors.push(`catalog.json: ${cmd.name}: elements are superseded, never deleted (D-045)`);
+    errors.push(`${file}: elements are superseded, never deleted (D-045)`);
   }
   for (const part of ["input", "output"]) {
     try {
       ajv.compile(commandSchema(cmd, part));
     } catch (e) {
-      errors.push(`catalog.json: ${cmd.name}.${part}: ${e.message}`);
+      errors.push(`${file}: ${part}: ${e.message}`);
     }
   }
 }
 
-// Titles, argument sources of the command prompt (SR-108) and jsonLines; needs a catalog that matches the meta-schema.
-if (validCatalog.errors === null) {
+// Titles, argument sources of the command prompt (SR-108) and jsonLines; needs entries that match the meta-schema.
+if (entriesValid) {
   errors.push(...checkCatalog(catalog, schemas));
 }
 

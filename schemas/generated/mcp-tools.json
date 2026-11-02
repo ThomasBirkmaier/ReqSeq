@@ -1,5 +1,5 @@
 {
-  "description": "Generated from schemas/commands/catalog.json. The MCP server (stdio) lists those of these tools that the running version implements (ADR-0009). $refs point into the top-level $defs; the server sends each tool schema with only the definitions it uses.",
+  "description": "Generated from the command catalog, one file per command in schemas/commands/. The MCP server (stdio) lists those of these tools that the running version implements (ADR-0009). $refs point into the top-level $defs; the server sends each tool schema with only the definitions it uses.",
   "$defs": {
     "activity": {
       "title": "Activity file",
@@ -618,6 +618,7 @@
             "filter.invalid",
             "filter.duplicate-name",
             "metamodel.invalid",
+            "metamodel.optional-status",
             "metamodel.meaning-unassigned",
             "workspace.repository-missing",
             "workspace.metamodel-mismatch",
@@ -3794,7 +3795,7 @@
           },
           "expectedFileSha256": {
             "$ref": "#/$defs/common/$defs/fileSha256",
-            "description": "Write precondition (SR-106): the fileSha256 the change was made on. If the file has other bytes now, nothing is written: file.changed-on-disk, also when nothing would change."
+            "description": "Write precondition (SR-106): the fileSha256 the change was made on, from element.get. Required with title or text, else input.invalid (precondition-missing); optional for set, unset and relations alone. If the file has other bytes now, nothing is written: file.changed-on-disk, also when nothing would change."
           }
         },
         "additionalProperties": false,
@@ -5542,7 +5543,7 @@
                       "no-evidence"
                     ]
                   },
-                  "description": "In this order, only those that hold (SR-111 AK4): `outdated`, the element stores an outdated relation, relation property or inline reference (SR-025, the `relation.outdated` and `variant.core-changed` hints of element.get), whatever kinds are followed; `superseded`, its status is one the metamodel marks invalid (D-044); `no-evidence`, the gap rule of trace.chain (SR-022 AK3): a requirement without a derivation child that applies in the view and without evidence, whatever depth is shown. Evidence records come in stage 4: until then every requirement without a child is `no-evidence`. Empty when none holds."
+                  "description": "In this order, only those that hold (SR-111 AK4): `outdated`, the element stores an outdated relation, relation property or inline reference (SR-025, the `relation.outdated` and `variant.core-changed` hints of element.get), whatever kinds are followed; `superseded`, its status is one the metamodel marks invalid (D-044); `no-evidence`, the gap rule of trace.chain (SR-022 AK3): a requirement without a derivation child that applies in the view and without evidence, whatever depth is shown. Evidence is a verification record in the view (the core without one), as for trace.chain (SR-033). Empty when none holds."
                 }
               },
               "additionalProperties": false,

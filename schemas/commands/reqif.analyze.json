@@ -1,0 +1,85 @@
+{
+  "name": "reqif.analyze",
+  "title": "Analyse ReqIF file",
+  "summary": "Preview the import of a ReqIF file: types, attributes and values without mapping; for a repeated delivery the new, changed and dropped requirements and the conflicts with local changes; the losses. Writes nothing.",
+  "effect": "read",
+  "stage": 6,
+  "implements": ["SR-053", "SR-055", "SR-056"],
+  "arguments": [
+    { "field": "file", "complete": "text" },
+    { "field": "mapping", "complete": "text" },
+    { "field": "source", "complete": "text" }
+  ],
+  "input": {
+    "type": "object",
+    "properties": {
+      "file": {
+        "$ref": "../common.schema.json#/$defs/localPath"
+      },
+      "mapping": {
+        "$ref": "../common.schema.json#/$defs/localPath"
+      },
+      "source": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Source name for a file of ReqSeq without mapping; default the header TITLE."
+      }
+    },
+    "additionalProperties": false,
+    "required": ["file"]
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "unmapped": {
+        "type": "array",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/reqifUnmapped"
+        }
+      },
+      "new": {
+        "type": "array",
+        "description": "Objects the import would create as new elements, without UUID.",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/reqifObject"
+        }
+      },
+      "changed": {
+        "type": "array",
+        "description": "Elements of an earlier delivery of the source (same source IDENTIFIER) whose version with the delivery differs from their import version, conflicts included (SR-056 AK1).",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/reqifObject"
+        }
+      },
+      "dropped": {
+        "type": "array",
+        "description": "Elements of the source whose object the file no longer has; the import only lists them (SR-056 AK3).",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/reqifObject"
+        }
+      },
+      "conflicts": {
+        "type": "array",
+        "description": "Changed elements that were also changed locally since their import; reqif.import needs take or keep for each (SR-056 AK4).",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/reqifObject"
+        }
+      },
+      "losses": {
+        "type": "array",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/reqifLoss"
+        }
+      },
+      "problems": {
+        "type": "array",
+        "description": "Warnings: a title, property or relation the import writes over another value (reqif.replaces-local), a repository not on this machine, an element file that cannot be read.",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/problem"
+        }
+      }
+    },
+    "additionalProperties": false,
+    "required": ["unmapped", "new", "changed", "dropped", "conflicts", "losses"]
+  }
+}

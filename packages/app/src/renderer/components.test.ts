@@ -4238,21 +4238,33 @@ describe("ElementView", () => {
       expect(echoed.at(-1)).toBe("No changes to save");
     });
 
-    it("sends a decimal literal of a number property as a number, anything else as the text typed", async () => {
+    it("sends what reads as a number in a number property as a number, anything else as the text typed (#614)", async () => {
       const { controls, call } = await mountBoxes({ effort: "1", topic: "t" }, {}, undefined, () =>
         savedWith({ effort: 2.5, topic: "t" }),
       );
       await replaceIn("effort", "2.5");
       await save(controls);
-      await replaceIn("effort", "0x10");
+      await replaceIn("effort", "5 ");
       await save(controls);
-      await replaceIn("effort", "-3");
+      await replaceIn("effort", "abc");
       await save(controls);
       expect(updates(call)).toEqual([
         { ref: "uuid-1", set: { effort: 2.5 } },
-        { ref: "uuid-1", set: { effort: "0x10" } },
-        { ref: "uuid-1", set: { effort: -3 } },
+        { ref: "uuid-1", set: { effort: 5 } },
+        { ref: "uuid-1", set: { effort: "abc" } },
       ]);
+    });
+
+    it("keeps a number box and says why when core refuses a text that is no number (#614)", async () => {
+      const refusal = 'effort: the text "abc" is no number; give a decimal number';
+      const { controls, echoed, drafts } = await mountBoxes({ effort: 1, topic: "t" }, {}, undefined, () => {
+        return new Error(refusal);
+      });
+      await replaceIn("effort", "abc");
+      await save(controls);
+      expect(echoed.at(-1)).toBe(refusal);
+      expect(viewOf("effort").state.doc.toString()).toBe("abc");
+      expect(drafts.at(-1)?.[1]?.boxes?.get("effort")).toEqual({ doc: "abc", base: "1" });
     });
 
     it("keeps the draft and the caret and says why when core refuses the update", async () => {
@@ -4267,16 +4279,17 @@ describe("ElementView", () => {
     });
 
     it("appends the first hint about a saved key to the echo", async () => {
+      // A required property emptied: core saves it and gives the hint (SR-064 AK2).
       const { controls, echoed } = await mountBoxes({ effort: "1", topic: "t" }, {}, undefined, () => ({
-        ...savedWith({ effort: "abc", topic: "t" }),
+        ...savedWith({ effort: "1", topic: "" }),
         problems: [
-          { code: "element.wrong-value-kind", severity: "warning", message: "topic is odd" },
-          { code: "element.wrong-value-kind", severity: "warning", message: "effort expects a number" },
+          { code: "element.missing-required", severity: "warning", message: "effort is odd" },
+          { code: "element.missing-required", severity: "warning", message: "topic has no value" },
         ],
       }));
-      await replaceIn("effort", "abc");
+      await replaceIn("topic", " ");
       await save(controls);
-      expect(echoed.at(-1)).toBe("Saved SR-036 Measure wind. effort expects a number");
+      expect(echoed.at(-1)).toBe("Saved SR-036 Measure wind. topic has no value");
     });
 
     it("keeps input typed while the save ran as a draft, and shows the saved value in a box that was not touched", async () => {
