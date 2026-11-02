@@ -237,8 +237,8 @@ export function closedSrs(text) {
   if (!/\bCloses #\d+/i.test(rest.join("\n"))) {
     return [];
   }
-  const lead = /^(?:SR-\d{3}[\s,/+&]*)+/.exec(title)?.[0] ?? "";
-  return [...new Set([...lead.matchAll(/SR-\d{3}/g)].map((m) => m[0]))];
+  const lead = /^(?:SR-\d{3}\b[\s,/+&]*)+/.exec(title)?.[0] ?? "";
+  return [...new Set([...lead.matchAll(/SR-\d{3}\b/g)].map((m) => m[0]))];
 }
 
 /** Runs the check in `root` with the command-line `args`; returns the report and the exit code. */
@@ -269,7 +269,8 @@ export function traceCheck(root, args) {
   if (prBodyFile && !args.includes("--enabler")) {
     const text = fs.readFileSync(prBodyFile, "utf8");
     checkPrBody(spec, text, errors);
-    required = required.concat(closedSrs(text).filter((id) => !required.includes(id)));
+    // An unknown SR is already reported as named by the PR.
+    required = required.concat(closedSrs(text).filter((id) => spec.srs.has(id) && !required.includes(id)));
   }
   const rows = checkRequired(root, spec, required, testRefs, errors);
 

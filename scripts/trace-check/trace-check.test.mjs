@@ -158,6 +158,7 @@ describe("trace-check on the ReqSeq workspace in spec/", () => {
     const body = path.join(root, "body.txt");
     fs.writeFileSync(body, "SR-001, SR-002: title\r\n\r\nCloses #12");
     expect(closedSrs(fs.readFileSync(body, "utf8"))).toEqual(["SR-001", "SR-002"]);
+    expect(closedSrs("SR-0011: title\n\nCloses #12")).toEqual([]);
     expect(traceCheck(root, ["--pr-body", body, "--require", "SR-001"]).errors).toEqual([
       "SR-001 AK2 has no test",
       "SR-002 (inspection) has no record verification/SR-002.md",
@@ -171,6 +172,8 @@ describe("trace-check on the ReqSeq workspace in spec/", () => {
       fs.writeFileSync(body, text);
       expect(traceCheck(root, ["--pr-body", body, ...extra]).errors).toEqual([]);
     }
+    fs.writeFileSync(body, "SR-404: title\n\nCloses #12");
+    expect(traceCheck(root, ["--pr-body", body]).errors).toEqual(["PR names unknown SR-404"]);
   });
 
   it("reports a spec ID that two system requirements share", () => {
