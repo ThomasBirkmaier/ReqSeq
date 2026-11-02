@@ -123,11 +123,12 @@ test.describe("Markdown properties in the element buffer", () => {
     await expect(lines.nth(1)).toContainText("*lesbar*");
     await expect(lines.nth(1)).toContainText("`n/a`");
     await expect(lines.nth(0)).not.toContainText("**");
-    // The keys move the cursor from value to value the same way (a long value takes more than one Down).
+    // The keys move the cursor from value to value the same way (a long value takes more than one Down; the
+    // numbers of the list make the line narrower, so on Windows' wider font the first value wraps more).
     await window.keyboard.press("ControlOrMeta+Home");
     await expect(lines.nth(0)).toContainText("**Gegeben**");
     await expect(lines.nth(1)).not.toContainText("*lesbar*");
-    for (let step = 0; step < 4 && !(await lines.nth(1).innerText()).includes("*lesbar*"); step += 1) {
+    for (let step = 0; step < 8 && !(await lines.nth(1).innerText()).includes("*lesbar*"); step += 1) {
       await window.keyboard.press("ArrowDown");
     }
     await expect(lines.nth(1)).toContainText("*lesbar*");
