@@ -106,7 +106,9 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
   for (const command of options.commands ?? productCommands) {
     const entry = contracts.entry(command.name);
     if (entry === undefined) {
-      throw new Error(`command ${command.name} has no entry in schemas/commands/catalog.json`);
+      throw new Error(
+        `command ${command.name} has no entry in the catalog, schemas/commands/${command.name}.json`,
+      );
     }
     if (registry.has(command.name)) {
       throw new Error(`command ${command.name} is registered twice`);

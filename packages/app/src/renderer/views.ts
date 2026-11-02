@@ -27,7 +27,7 @@ export const viewMark = (shown: ShownView | undefined): string | undefined =>
 
 /**
  * The reads that take the view in their selection (`selection.view`): every read command of the catalog
- * with a `selection` argument (`views.test.ts` checks the list against `catalog.json`).
+ * with a `selection` argument (`views.test.ts` checks the list against the command catalog).
  */
 export const IN_SELECTION: ReadonlySet<string> = new Set([
   "element.list",

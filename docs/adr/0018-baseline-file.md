@@ -1,6 +1,6 @@
 # ADR-0018: Baseline file
 
-Status: Proposed · Based on: D-006, D-036, D-039, D-045, D-058, N-036 · SRs: SR-050, SR-051, SR-094, SR-103 · Schema: `schemas/baseline.schema.json`
+Status: Accepted · Based on: D-006, D-036, D-039, D-045, D-058, N-036 · SRs: SR-050, SR-051, SR-094, SR-103 · Schema: `schemas/baseline.schema.json`
 
 ## Context
 
@@ -44,7 +44,7 @@ elements:
 
 **`repositories`.** The repositories of the selected elements, the main repository and the metamodel's, each once (a name listed twice is `baseline.invalid`), in the order of the workspace file, each with its HEAD commit (SR-050 AK4). A repository involved that is not under Git or has no commit refuses the baseline with `git.unavailable` (AK7).
 
-**`elements`.** Sorted by `id`, then `repository`, by code units (none first); each element copy once. An entry listed twice, also once without `repository` and once with the file's own repository, is `baseline.invalid` with the file and the line of the second entry. The writer writes `repository` when the element lies outside the repository of the baseline file, or when its UUID has copies in several repositories (SR-088). The reader takes an entry without `repository` as the copy in the repository of the baseline file, else, when the UUID has no copy there, as its only copy; with several copies elsewhere the entry is `baseline.invalid` (ambiguous) instead of matching every copy (`baselineOf` follows with SR-051).
+**`elements`.** Sorted by `id`, then `repository`, by code units (none first); each element copy once. An entry listed twice, also once without `repository` and once with the file's own repository, is `baseline.invalid` with the file and the line of the second entry. The writer writes `repository` when the element lies outside the repository of the baseline file, or when its UUID has copies in several repositories (SR-088). The reader takes an entry without `repository` as the copy in the repository of the baseline file, else, when the UUID has no copy there, as its only copy; with several copies elsewhere the entry is ambiguous and names none (`baseline.get` warns with `baseline.invalid`) instead of matching every copy. `baseline.get`, `baseline.compare` and `data.export` with `selection.baseline` take an entry by this one rule (`copyOf`, #690).
 
 **Reading (N-036).** No cache on disk; two readers of the canonical layout, and YAML as fallback (`baselines/scan.ts`, `files` `readYamlFileFast`):
 

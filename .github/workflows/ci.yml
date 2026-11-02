@@ -113,6 +113,8 @@ jobs:
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: pnpm audit --prod --audit-level high
       # trace-check reads the ReqSeq workspace in spec/ with the `yaml` package (#326), and the PR text (D-050).
+      # pr-text-follow-up.yml re-runs `static` when it failed only in `Trace check` and reads the time of `Write PR body`,
+      # so it knows both steps by name.
       - name: Write PR body
         if: ${{ !cancelled() && github.event_name == 'pull_request' }}
         env:
@@ -407,8 +409,9 @@ jobs:
   # for the jobs of all three systems to be present and green.
   checks-platform:
     name: checks (${{ matrix.os }})
-    # A normal run takes 7 (macOS) to 13 (Windows) minutes; the bound ends a hang.
-    timeout-minutes: 25
+    # A normal run takes 7 (macOS) to 20 (Windows) minutes; the bound ends a hang. Windows runs its unit tests with
+    # 2 workers instead of 3 (vitest.config.ts, #701), which may add up to 5 minutes, so it gets a longer bound.
+    timeout-minutes: ${{ matrix.os == 'windows-2025' && 35 || 25 }}
     if: >-
       ${{ github.event_name != 'pull_request' || (github.event.action != 'closed' && !github.event.pull_request.draft) }}
     strategy:

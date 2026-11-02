@@ -234,11 +234,10 @@ describe("App, the open buffers after the app opens again (SR-115 AK4)", () => {
     expect(await walk(4)).toEqual(["Overview", "SR-000001 Title 1", "Search: wind", "All elements"]);
     // The element was named by one read of the elements, and nothing was written.
     expect(invoke).toHaveBeenCalledWith("element.list", { selection: { ids: ["uuid-1"] } });
-    const catalog = JSON.parse(
-      readFileSync(join(import.meta.dirname, "../../../../schemas/commands/catalog.json"), "utf8"),
-    ) as { commands: { name: string; effect: string }[] };
     for (const name of new Set(invoke.mock.calls.map(([called]) => called))) {
-      expect(catalog.commands.find((command) => command.name === name)?.effect).toBe("read");
+      // One file per catalog command (ADR-0002); core's index cannot load under happy-dom.
+      const file = join(import.meta.dirname, `../../../../schemas/commands/${name}.json`);
+      expect((JSON.parse(readFileSync(file, "utf8")) as { effect: string }).effect).toBe("read");
     }
   });
 

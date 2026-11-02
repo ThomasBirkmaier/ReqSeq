@@ -310,7 +310,7 @@ describe("baseline files, read-only (SR-032 AK2)", () => {
 });
 
 describe("selection by baseline (data.export, SR-061 AK2)", () => {
-  it("selects the elements a baseline lists in any version, a copy only where an entry names its repository", async () => {
+  it("selects the copy each entry names by the copy rule of baseline.get, in any version (#690)", async () => {
     const { layout } = await open({
       "baselines/copies.yaml": baseline(
         "Copies",
@@ -318,23 +318,41 @@ describe("selection by baseline (data.export, SR-061 AK2)", () => {
         `{ id: ${A1}, version: ${V2}, repository: sensor }`,
         `{ id: ${A2}, version: ${V2} }`,
         `{ id: ${A2}, version: ${V1}, repository: sensor }`,
-        `{ id: ${P}a3, version: ${V1}, repository: system }`,
+        `{ id: ${P}a3, version: ${V1} }`,
+        `{ id: ${P}a5, version: ${V1} }`,
       ),
     });
     const found = findBaseline(await readBaselines(layout), "Copies");
     if (found.kind !== "found") {
       throw new Error(found.kind);
     }
-    const { selects } = found.baseline;
-    expect([
-      selects({ id: A1, repository: "system" }),
-      selects({ id: A1, repository: "sensor" }),
-      selects({ id: A1, repository: "other" }),
-      // An entry without repository names every copy, whatever came before.
-      selects({ id: A2, repository: "other" }),
-      selects({ id: `${P}a3`, repository: "system" }),
-      selects({ id: `${P}a4`, repository: "system" }),
-    ]).toEqual([true, true, false, true, true, false]);
+    const copies = [
+      ...["system", "sensor", "other"].flatMap((repository) => [
+        { id: A1, repository },
+        { id: A2, repository },
+      ]),
+      { id: `${P}a3`, repository: "sensor" },
+      { id: `${P}a4`, repository: "system" },
+      { id: `${P}a5`, repository: "sensor" },
+      { id: `${P}a5`, repository: "other" },
+    ];
+    const byId = new Map<string, (typeof copies)[number][]>();
+    for (const copy of copies) {
+      byId.set(copy.id, [...(byId.get(copy.id) ?? []), copy]);
+    }
+    const selected = copies.filter((copy) => found.baseline.selects(copy, byId));
+    expect(selected.map((copy) => `${copy.id.slice(-2)} ${copy.repository}`)).toEqual([
+      "a1 system",
+      // Without repository: the copy in the file's repository (system), not every copy.
+      "a2 system",
+      "a1 sensor",
+      "a2 sensor",
+      // Without repository and no copy in system: the only copy.
+      "a3 sensor",
+      // a5 has copies in sensor and other: ambiguous, so neither is selected.
+    ]);
+    // A record that is no copy of the store is not selected.
+    expect(found.baseline.selects({ id: A1, repository: "system" }, byId)).toBe(false);
   });
 
   it("finds a baseline by name in any case, then by its file name with or without .yaml", async () => {

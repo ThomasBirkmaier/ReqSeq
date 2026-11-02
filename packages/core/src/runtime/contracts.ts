@@ -12,7 +12,7 @@ import type { CommandCatalog } from "../generated/types.js";
 /** `$id` prefix of every schema; an identifier only, never fetched (no network, N-047). */
 export const SCHEMA_BASE = "https://reqseq.dev/schemas/";
 
-/** One entry of `schemas/commands/catalog.json` (shape checked by `catalog.meta.schema.json`). */
+/** One entry of the catalog, `schemas/commands/<name>.json` (shape checked by `catalog.meta.schema.json`). */
 export type CatalogEntry = CommandCatalog["commands"][number];
 
 export type SchemaPart = "input" | "output";
@@ -40,7 +40,7 @@ export interface Contracts {
 }
 
 export interface LoadContractsOptions {
-  /** Use this catalog instead of `commands/catalog.json` (tests with test-only commands). */
+  /** Use this catalog instead of the product catalog (tests with test-only commands). */
   readonly catalog?: unknown;
 }
 

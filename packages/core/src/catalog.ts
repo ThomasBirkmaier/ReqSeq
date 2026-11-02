@@ -30,7 +30,7 @@ export type CommandErrorDetails = NonNullable<CommandErrorObject["details"]>;
 
 /**
  * Implementation of one command. Only the name and `run` live here; summary, effect, stage,
- * `implements` and the input and output schemas come from `schemas/commands/catalog.json`, so they
+ * `implements` and the input and output schemas come from `schemas/commands/<name>.json`, so they
  * cannot drift from the contract. Product commands use `defineCommand`, which types `In` and `Out`
  * from the catalog; tests with test-only catalogs write the types themselves.
  */

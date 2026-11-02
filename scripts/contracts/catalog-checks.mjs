@@ -204,7 +204,7 @@ export function checkCatalog(catalog, schemas = {}) {
   const titles = new Map();
   return catalog.commands.flatMap((cmd) =>
     [...checkTitle(cmd, titles), ...checkArguments(cmd), ...checkJsonLines(cmd, schemas)].map(
-      (e) => `catalog.json: ${cmd.name}: ${e}`,
+      (e) => `schemas/commands/${cmd.name}.json: ${e}`,
     ),
   );
 }
