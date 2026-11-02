@@ -1,6 +1,6 @@
 # ADR-0015: Dependency policy
 
-Status: Proposed · Based on: N-046, N-047, D-051
+Status: Accepted · Based on: N-046, N-047, D-051
 
 ## Decision
 

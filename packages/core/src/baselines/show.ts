@@ -30,6 +30,7 @@ import { versionDates } from "../model/version-date.js";
 import type { Workspace } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import type { Baseline } from "./read.js";
+import { copyOf } from "./read.js";
 
 type Output = CommandOutput<"baseline.get">;
 type Row = Output["elements"][number];
@@ -59,23 +60,6 @@ export interface ShowRequest {
     version: string,
   ) => Pick<Row, "verification" | "validation" | "validationLater">;
 }
-
-/**
- * The copy an entry of `baseline` (or a stored `ids` item) names (see the file comment): undefined
- * for none, `ambiguous` for an entry without `repository` whose UUID has several copies elsewhere.
- */
-export const copyOf = (
-  byId: ReadonlyMap<string, readonly ElementRecord[]>,
-  baseline: Pick<Baseline, "repository">,
-  entry: { readonly id: string; readonly repository?: string },
-): ElementRecord | "ambiguous" | undefined => {
-  const copies = byId.get(entry.id) ?? [];
-  const home = copies.find((r) => r.repository === (entry.repository ?? baseline.repository));
-  if (home !== undefined || entry.repository !== undefined) {
-    return home;
-  }
-  return copies.length < 2 ? copies[0] : "ambiguous";
-};
 
 /** A `baseline.invalid` warning of the file of `baseline`. */
 const warningIn = (baseline: Baseline, message: string): Problem => ({
