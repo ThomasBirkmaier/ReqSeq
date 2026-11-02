@@ -197,17 +197,22 @@ const valueOf = (
 /**
  * The value with each item of a relation-valued property as a target `{ id }` (`relationTargetRefs`,
  * #287): a short ID or identifier is resolved and any other item that is no reference refused,
- * before a file is read. A value of a number property that is no number is refused (`numberInput`, #614).
+ * before a file is read. A value of a number property that is no number is refused for `set` and
+ * `add` (`numberInput`, #614); `remove` writes no value, so it can remove a hand-written text item.
  */
 const refsOf = (
   selection: BulkSelection,
   property: MetamodelProperty,
+  operation: BulkOperation,
   value: ElementInputValue | undefined,
 ): ElementInputValue | undefined => {
   if (value === undefined) {
     return value;
   }
   if (property.kind === "number") {
+    if (operation === "remove") {
+      return value;
+    }
     return numberInput(property.key, value);
   }
   return property.kind === "relation"
@@ -371,7 +376,7 @@ export const bulkUpdateElements = async (
 ): Promise<BulkUpdateResult> => {
   const { metamodel, store, shortIds } = selection;
   const property = propertyOf(metamodel, input.property);
-  const value = refsOf(selection, property, valueOf(metamodel, property, input));
+  const value = refsOf(selection, property, input.operation, valueOf(metamodel, property, input));
   const layout = await workspace.get(workspaceLayoutState);
   const named = (record: ElementRecord): NamedElement => ({ id: record.id, shortId: shortIds.of(record) });
   const skipped: SkippedElement[] = [];
