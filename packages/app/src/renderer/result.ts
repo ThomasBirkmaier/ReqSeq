@@ -6,7 +6,8 @@
 // of its element, and `names` itself is not shown. A record of exactly two named UUIDs, such as a replaced
 // row of `variant.diff` (`core`, `replacement`), is one line that opens both side by side, read-only
 // (SR-044 AK2); a row with a third field would be an outline again. A UUID in two repositories (SR-088)
-// opens in the repository `names` gives first. Layout only: nothing here knows a command (ADR-0002).
+// opens in the repository `names` gives first. A top-level `total` and `incomplete` go to the modeline,
+// and a top-level `view` is not shown (#276). Layout only: nothing here knows a command (ADR-0002).
 import { degreePercent, degreeShareOf } from "@reqseq/core/verification-degree";
 import type { ElementBuffer } from "./buffers.js";
 import { idTitle } from "./id-title.js";
@@ -255,12 +256,30 @@ const namesOf = (output: unknown): { readonly names: Names; readonly shown: unkn
   return { names, shown };
 };
 
+/**
+ * The fields of an output that describe the answer, not its content (#276): a number `total` and a
+ * boolean `incomplete` at the top go to the modeline; a text `view` is not shown, since the modeline
+ * names the view the window shows (`viewMark`) and the buffer's name the one the command was given.
+ */
+const SUMMARY_FIELDS = { total: "number", view: "string", incomplete: "boolean" } as const;
+
+/** The output without its summary fields (`SUMMARY_FIELDS`), which the modeline shows. */
+const withoutSummary = (output: unknown): unknown =>
+  isRecord(output)
+    ? Object.fromEntries(
+        Object.entries(output).filter(
+          ([key, value]) =>
+            !(key in SUMMARY_FIELDS) || typeof value !== SUMMARY_FIELDS[key as keyof typeof SUMMARY_FIELDS],
+        ),
+      )
+    : output;
+
 /** The lines of an output (none while there is none), at most `MAX_RESULT_LINES` and a last one that counts the rest. */
 export const resultLines = (output: unknown): ResultLine[] => {
   const sink: Sink = { lines: [], rest: 0 };
   if (output !== undefined) {
     const { names, shown } = namesOf(output);
-    linesOf(shown, 0, "", sink, names);
+    linesOf(withoutSummary(shown), 0, "", sink, names);
   }
   const { lines, rest } = sink;
   if (rest > 0) {
@@ -274,6 +293,18 @@ export const resultLines = (output: unknown): ResultLine[] => {
   return lines;
 };
 
-/** The count an output gives for its whole answer (`total`), for the modeline; undefined without one. */
-export const resultTotal = (output: unknown): number | undefined =>
-  isRecord(output) && typeof output["total"] === "number" ? output["total"] : undefined;
+/** What the modeline says about an output (#276): its `total` and whether it is `incomplete`. */
+export interface ResultSummary {
+  /** The count of the whole answer; undefined without one. */
+  readonly total: number | undefined;
+  readonly incomplete: boolean;
+}
+
+/** The summary fields of an output (`SUMMARY_FIELDS`) the modeline shows. */
+export const resultSummary = (output: unknown): ResultSummary =>
+  isRecord(output)
+    ? {
+        total: typeof output["total"] === "number" ? output["total"] : undefined,
+        incomplete: output["incomplete"] === true,
+      }
+    : { total: undefined, incomplete: false };

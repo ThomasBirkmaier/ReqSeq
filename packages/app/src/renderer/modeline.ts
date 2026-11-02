@@ -7,6 +7,7 @@ import { bufferName } from "./buffers.js";
 import { depthLabel, filterLabel } from "./graph.js";
 import { isOutdatedCode } from "./outdated-codes.js";
 import type { GraphFilterChoice } from "./graph-choices.js";
+import type { ResultSummary } from "./result.js";
 
 /** The part of the `workspace.status` output the modeline shows. */
 interface StatusOutput {
@@ -77,7 +78,7 @@ export type BufferData =
       /** The element of the selected row (SR-150). */
       readonly marked?: ElementBuffer;
     }
-  | { readonly kind: "result"; readonly total: number | undefined }
+  | ({ readonly kind: "result" } & ResultSummary)
   /** The metamodel (SR-130): how many types it defines. */
   | { readonly kind: "metamodel"; readonly types: number }
   | {
@@ -238,7 +239,11 @@ export const bufferView = (
     return [bufferName(buffer), ...(data.incomplete ? [INCOMPLETE] : [])];
   }
   if (data.kind === "result") {
-    return [bufferName(buffer), ...(data.total === undefined ? [] : [`${String(data.total)} in all`])];
+    return [
+      bufferName(buffer),
+      ...(data.total === undefined ? [] : [`${String(data.total)} in all`]),
+      ...(data.incomplete ? [INCOMPLETE] : []),
+    ];
   }
   if (data.kind === "metamodel") {
     return [bufferName(buffer), plural(data.types, "type")];
