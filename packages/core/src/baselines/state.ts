@@ -10,11 +10,12 @@
 //   no other element. `baseline.uncommitted-changes` names the elements whose file or embedded file
 //   changed (`details.elements`) and the other files (`details.files`); `git.unavailable` where Git
 //   cannot tell.
-// - Differing commits (`commitDifferences`, `baseline.get`, #668): every command reads the files on
+// - Differing commits (`commitDifferences`, `baseline.get`, #668): `baseline.get` reads the files on
 //   disk, not the baseline's commits (D-036, D-039), so a repository the baseline names whose HEAD is
 //   another commit is a `baseline.repository-commit-differs` warning with both commits (short in the
-//   message). A repository that is not here or whose commit Git cannot tell gives nothing; whether the
-//   work tree has uncommitted changes is not asked (it costs a pass over every state file).
+//   message). One Git refuses is the `git.unavailable` info of `repositoryCommit`; one that is not
+//   here or has no commit Git tells gives nothing. Whether the work tree has uncommitted changes is
+//   not asked (it costs a pass over every state file).
 import path from "node:path";
 import { CommandError } from "../catalog.js";
 import type { Problem } from "../generated/types.js";
@@ -163,7 +164,11 @@ export const commitDifferences = async (
         return undefined;
       }
       const head = await repositoryCommit(repository);
-      if (head.commit === undefined || head.commit === commit) {
+      if (head.commit === undefined) {
+        // Git refusing the repository (safe.directory) is told, as workspace.status tells it.
+        return head.problem;
+      }
+      if (head.commit === commit) {
         return undefined;
       }
       return {

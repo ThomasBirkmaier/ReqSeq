@@ -257,9 +257,8 @@ describe("baseline.get", () => {
         file: "requirements/SR-0000000000b4.md",
       }),
     ]);
-    expect((await call(ws, "baseline.get", { baseline: "Nope" })).problems?.[1]?.code).toBe(
-      "baseline.invalid",
-    );
+    const nope = await call(ws, "baseline.get", { baseline: "Nope" });
+    expect(nope.problems?.find((p) => p.code === "baseline.invalid")).toBeDefined();
     const gone = await call(ws, "baseline.get", { baseline: "Gone" });
     expect(gone.selectionKnown).toBe(false);
     expect(gone.problems).toEqual([
