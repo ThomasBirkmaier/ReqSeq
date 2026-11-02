@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { parseDocument } from "yaml";
-import { doubleQuoted, isPlainSafe, renderItem, renderKey, renderScalar, renderValue } from "./yaml-text.js";
+import {
+  doubleQuoted,
+  isPlainByCharacters,
+  isPlainSafe,
+  isPlainSafeByProbe,
+  renderItem,
+  renderKey,
+  renderScalar,
+  renderValue,
+} from "./yaml-text.js";
 
 const read = (yaml: string): unknown => {
   const doc = parseDocument(yaml, { version: "1.2", schema: "core" });
@@ -160,6 +169,141 @@ describe("isPlainSafe", () => {
     expect(isPlainSafe("a, b", "flow-key")).toBe(false);
     expect(isPlainSafe("- a", "key")).toBe(false);
     expect(isPlainSafe("!x y", "value")).toBe(false);
+  });
+});
+
+const CONTEXTS = ["key", "value", "item", "flow-key", "flow-value"] as const;
+
+// Pieces for generated strings: indicators at every place, YAML 1.1 and 1.2 look-alikes, spaces,
+// line breaks, non-ASCII letters and digits (#696).
+const PIECES = [
+  ...Array.from("aZäßé1097 _.,()/'+-:#?![]{}&*%@`|>~<=\"\\\t\n\u00a0\u2028"),
+  "Ⅻ",
+  "٣",
+  "🙂",
+  " ",
+  "  ",
+  ": ",
+  " #",
+  "- ",
+  "? ",
+  "<<",
+  "yes",
+  "No",
+  "ON",
+  "off",
+  "Y",
+  "n",
+  "true",
+  "FALSE",
+  "null",
+  "Null",
+  "~",
+  ".inf",
+  ".NaN",
+  "0x1F",
+  "0o17",
+  "0b101",
+  "1_000",
+  "1e3",
+  "12:30",
+  "2026-10-24",
+  "2026-10-24T10:00:00Z",
+  "n1:",
+  "878e339e-773f-4cd0-b414-825b7146fb54",
+  "---",
+  "...",
+];
+
+// Pieces near the edge of the characters check: its own set, `:`, `,`, spaces and look-alike letters.
+const WORD_PIECES = [...Array.from("aZäeEyYnNoO1 _.,()/'+-:"), "e5", "on", "ull", "rue"];
+
+/** A seeded generator, so a failure names a string that comes back on every run. */
+const generated = (count: number, pieces: readonly string[]): string[] => {
+  let seed = 696;
+  const next = (n: number): number => {
+    seed = (seed * 1103515245 + 12345) % 2147483648;
+    return seed % n;
+  };
+  const out: string[] = [];
+  for (let i = 0; i < count; i++) {
+    let s = "";
+    for (let j = 1 + next(5); j > 0; j--) {
+      s += pieces[next(pieces.length)] ?? "";
+    }
+    out.push(s);
+  }
+  return out;
+};
+
+// Strings the characters check accepts, at its edges: these must be plain for the probe too.
+const WORDY = [
+  "Measure the wind 42",
+  "REQ-1",
+  "a",
+  "Grüße aus Köln",
+  "x1",
+  "it's (nearly) done/finished",
+  "a  b",
+  "a, b",
+  "n1:9b4c91f8cfbe62b7",
+  "a:b:c",
+  "C++",
+  "e5x",
+  "E-3x",
+  "Yess",
+  "nulls",
+  "onion",
+  "xⅫ",
+  "00000000-0000-4000-8000-000000000001",
+  "12345678-1234-1234-1234-123456789012",
+  "1e000000-0000-0000-0000-000000000000",
+  "ABCDEF01-2345-6789-ABCD-EF0123456789",
+  "k".repeat(1000),
+  "k".repeat(1001),
+  "word ".repeat(300).trim(),
+];
+
+describe("isPlainSafe by characters (#696)", () => {
+  const samples = [...TRICKY, ...WORDY, ...generated(3000, PIECES), ...generated(3000, WORD_PIECES)];
+
+  it("decides plain only where the probe in YAML 1.2 and 1.1 decides plain too", () => {
+    const wrong = CONTEXTS.flatMap((context) =>
+      samples
+        .filter((s) => isPlainByCharacters(s, context) && !isPlainSafeByProbe(s, context))
+        .map((s) => `${context}: ${JSON.stringify(s)}`),
+    );
+    expect(wrong).toEqual([]);
+  });
+
+  it("gives the probe's answer for every string and place, so files stay byte-identical", () => {
+    for (const context of CONTEXTS) {
+      const differ = samples.filter((s) => isPlainSafe(s, context) !== isPlainSafeByProbe(s, context));
+      expect(differ.map((s) => JSON.stringify(s))).toEqual([]);
+      // A second call reads the cache.
+      expect(samples.filter((s) => isPlainSafe(s, context) !== isPlainSafeByProbe(s, context))).toEqual([]);
+    }
+  });
+
+  it("decides the values of an imported element without the probe", () => {
+    for (const s of WORDY.slice(0, -2)) {
+      expect([s, isPlainByCharacters(s, "value")]).toEqual([s, true]);
+    }
+    expect(isPlainByCharacters("k".repeat(1001), "key")).toBe(false);
+    expect(isPlainByCharacters("k".repeat(1001), "value")).toBe(true);
+    expect(isPlainByCharacters("a, b", "flow-value")).toBe(false);
+    expect(isPlainByCharacters("a ", "value")).toBe(false);
+    expect(isPlainByCharacters("a:", "value")).toBe(false);
+    expect(isPlainByCharacters("a: b", "value")).toBe(false);
+    expect(isPlainByCharacters("On", "value")).toBe(false);
+    expect(isPlainByCharacters("e5", "value")).toBe(false);
+  });
+
+  it("keeps its cache bounded and still answers after it is cleared", () => {
+    const many = Array.from({ length: 5000 }, (_, i) => `${String(i)}:x`);
+    expect(many.every((s) => isPlainSafe(s, "item"))).toBe(true);
+    expect(isPlainSafe("12:30", "item")).toBe(false);
+    expect(isPlainSafe("0:x", "item")).toBe(true);
   });
 });
 
