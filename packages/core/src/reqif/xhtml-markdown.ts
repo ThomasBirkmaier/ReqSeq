@@ -479,16 +479,36 @@ const joinAttention = (tree: MdastNodes): void => {
 };
 type Attention = Extract<MdastNodes, { type: "emphasis" | "strong" | "delete" }>;
 const isAttention = (node: MdastNodes): node is Attention => ATTENTION.has(node.type);
-/** Emphasis of white space alone: Markdown has no form for it (`* *` is no emphasis). */
-const isBlank = (node: Attention): boolean =>
-  node.children.every((child) => child.type === "text" && child.value.trim() === "");
+/**
+ * The white space of a text or of an emphasis that holds white space alone, also inside another
+ * emphasis (Markdown has no form for it: `* *` is no emphasis); undefined for anything else.
+ */
+const blankText = (node: MdastNodes): string | undefined => {
+  if (node.type === "text") {
+    return node.value.trim() === "" ? node.value : undefined;
+  }
+  if (!isAttention(node)) {
+    return undefined;
+  }
+  let text = "";
+  for (const child of node.children) {
+    const blank = blankText(child);
+    if (blank === undefined) {
+      return undefined;
+    }
+    text += blank;
+  }
+  return text;
+};
 const joinRuns = (children: readonly MdastNodes[]): MdastNodes[] => {
   const joined: MdastNodes[] = [];
   for (const child of children) {
     const last = joined.at(-1);
-    if (isAttention(child) && isBlank(child)) {
-      for (const inner of child.children) {
-        joined.push(inner);
+    const blank = isAttention(child) ? blankText(child) : undefined;
+    if (blank !== undefined) {
+      // As one text, so no emphasis nested in it is left to write as bare delimiters.
+      if (blank !== "") {
+        joined.push({ type: "text", value: blank });
       }
     } else if (isAttention(child) && last !== undefined && isAttention(last) && last.type === child.type) {
       const into = last.children as MdastNodes[];
@@ -500,6 +520,50 @@ const joinRuns = (children: readonly MdastNodes[]): MdastNodes[] => {
     }
   }
   return joined;
+};
+
+/**
+ * Moves white space at the start and end of an emphasis, strong or strike-through out of it
+ * (`<em> text</em>` is ` *text*`): Markdown cannot open or close one next to white space, so
+ * mdast-util-to-markdown would write character references (`&#x20;`). Inner nodes go first, so
+ * white space of a nested one moves out of every one around it.
+ */
+const moveSpaceOut = (tree: MdastNodes): void => {
+  const parents: MdastParent[] = [];
+  const pending: MdastNodes[] = [tree];
+  for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
+    if ("children" in next) {
+      parents.push(next);
+      pushReversed(pending, next.children, (child) => child);
+    }
+  }
+  for (const parent of parents.reverse()) {
+    parent.children = parent.children.flatMap((child) =>
+      isAttention(child) && blankText(child) === undefined ? spaceOutside(child) : [child],
+    ) as typeof parent.children;
+  }
+};
+/** `node` with the white space of its first and last text before and after it. */
+const spaceOutside = (node: Attention): MdastNodes[] => {
+  const inner = node.children as MdastNodes[];
+  const first = inner[0];
+  const leading = first?.type === "text" ? /^\s+/u.exec(first.value)?.[0] : undefined;
+  if (first?.type === "text" && leading !== undefined) {
+    first.value = first.value.slice(leading.length);
+  }
+  const last = inner.at(-1);
+  const trailing = last?.type === "text" ? /\s+$/u.exec(last.value)?.[0] : undefined;
+  if (last?.type === "text" && trailing !== undefined) {
+    last.value = last.value.slice(0, -trailing.length);
+  }
+  node.children = inner.filter(
+    (child) => child.type !== "text" || child.value !== "",
+  ) as typeof node.children;
+  return [
+    ...(leading === undefined ? [] : [{ type: "text", value: leading } satisfies MdastNodes]),
+    node,
+    ...(trailing === undefined ? [] : [{ type: "text", value: trailing } satisfies MdastNodes]),
+  ];
 };
 
 /** An XHTML value converted up to its links: its images and losses, and then its Markdown. */
@@ -544,6 +608,7 @@ export const prepareMarkdown = (value: readonly XhtmlNode[]): PreparedMarkdown =
             : ({ type: "html", value: "<br>" } satisfies Html),
       },
     });
+    moveSpaceOut(mdast);
     joinAttention(mdast);
     const text = toMarkdown(mdast, {
       extensions: [gfmToMarkdown()],
