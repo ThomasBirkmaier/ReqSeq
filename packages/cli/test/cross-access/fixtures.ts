@@ -1,8 +1,8 @@
-// Fixtures and helpers that scenarios of more than one command use (cross-access.test.ts). A fixture
-// or helper that only one command uses lives in that command's module under scenarios/.
+// Fixtures and helpers that scenarios of more than one command use, and what they are built from
+// (cross-access.test.ts). A fixture or helper that only one command uses lives in that command's module
+// under scenarios/, and so does the setup of its template (`templateSetup`).
 import { readFileSync } from "node:fs";
-import fs from "node:fs/promises";
-import type { FixtureOptions, FixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureOptions } from "@reqseq/testkit";
 import type { Result } from "./scenario.js";
 
 /** What element.create and element.update give, as far as the checks of their SR-064 scenarios read it. */
@@ -47,7 +47,7 @@ export const PARTIAL_DELIVERY: FixtureOptions = {
   files: { ...DELIVERY.files, "reqif/kunde-a.yaml": PARTIAL_MAPPING },
 };
 /** The fixture files of fixtures/SR-056 under `name`. */
-export const sr056 = (name: string): string =>
+const sr056 = (name: string): string =>
   readFileSync(new URL(`../../../../fixtures/SR-056/${name}`, import.meta.url), "utf8");
 /** The UUID of REQ-n of delivery 1 as fixtures/SR-056/imported holds it. */
 export const imported = (n: number): string => `6adc0560-0000-4000-8000-00000000000${String(n)}`;
@@ -154,22 +154,6 @@ export const IN_CRITERIA: FixtureOptions = {
   },
 };
 
-/** One finding of each kind (SR-019), then a second commit that changes one requirement (SR-092). */
-export const SECOND_COMMIT: FixtureOptions = { fixture: "SR-019/findings", git: true };
-
-/** What is done to a template once it is built: more commits. */
-export const TEMPLATE_SETUP = new Map<FixtureOptions, (ws: FixtureWorkspace) => Promise<void>>([
-  [
-    SECOND_COMMIT,
-    async (ws) => {
-      const file = ws.path("requirements/SR-b00000000004.md");
-      await fs.appendFile(file, "Changed in a second commit.\n");
-      await ws.commit();
-    },
-  ],
-]);
-
-/** Relations across repositories, one of them missing; no relation kind has the meaning derivation. */
 /** Spec IDs in a property with the meaning identifier (#305). */
 export const IDENTIFIERS: FixtureOptions = { fixture: "enabler-305/identifiers", git: true };
 export const MISSING_TARGETS: FixtureOptions = {
@@ -219,7 +203,7 @@ export const SINCE_BASELINE: FixtureOptions = {
 };
 
 /** A verification record of the example's `tail` with `result`, for `variant` when given (SR-047). */
-export const exampleRecord = (tail: string, result: string, variant?: string): string =>
+const exampleRecord = (tail: string, result: string, variant?: string): string =>
   `---\nreqseq-record: 1\nkind: verification\nelement: 43043043-0000-4000-8000-0000000000${tail}\n` +
   `version: n1:67ebd0624004c969\nmethod: test\n${variant === undefined ? "" : `variant: 43043043-0000-4000-8000-0000000000${variant}\n`}` +
   `item: build-47\nresult: ${result}\ndate: 2026-11-01T10:00:00Z\n---\n`;

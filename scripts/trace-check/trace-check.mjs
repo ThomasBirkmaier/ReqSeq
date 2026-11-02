@@ -16,8 +16,9 @@ import YAML from "yaml";
 
 const SKIP = new Set(["node_modules", ".git", "dist", "out", "coverage", "spec", ".reqseq"]);
 const TEST_FILE = /\.(test|spec)\.(ts|tsx|js|mjs)$|^test_.*\.py$|_test\.py$/;
-// The cross-access scenarios of each command, in modules that cross-access.test.ts runs (#527).
-const SCENARIO_FILE = /(^|\/)test\/cross-access\/scenarios\/.+\.ts$/;
+// The cross-access scenarios of each command, in the modules that cross-access.test.ts loads with its
+// glob `./cross-access/scenarios/*/*.ts`: exactly one folder deep (#527).
+const SCENARIO_FILE = /(^|\/)test\/cross-access\/scenarios\/[^/]+\/[^/]+\.ts$/;
 
 /** The frontmatter of a Markdown file as an object, or undefined when it has none that parses. */
 export function frontmatter(text) {

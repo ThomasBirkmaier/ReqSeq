@@ -1,7 +1,17 @@
 // Cross-access scenarios of workspace.check, in addition to the default one (cross-access.test.ts).
+import fs from "node:fs/promises";
+import type { FixtureOptions } from "@reqseq/testkit";
 import { expect } from "vitest";
-import { scenariosOf } from "../../scenario.js";
-import { EVIDENCE, IDENTIFIERS, MISSING_TARGETS, ORPHANED_CHAIN, SECOND_COMMIT } from "../../fixtures.js";
+import { scenariosOf, templateSetup } from "../../scenario.js";
+import { EVIDENCE, IDENTIFIERS, MISSING_TARGETS, ORPHANED_CHAIN } from "../../fixtures.js";
+
+/** One finding of each kind (SR-019), then a second commit that changes one requirement (SR-092). */
+const SECOND_COMMIT: FixtureOptions = { fixture: "SR-019/findings", git: true };
+templateSetup(SECOND_COMMIT, async (ws) => {
+  const file = ws.path("requirements/SR-b00000000004.md");
+  await fs.appendFile(file, "Changed in a second commit.\n");
+  await ws.commit();
+});
 
 scenariosOf("workspace.check", [
   {

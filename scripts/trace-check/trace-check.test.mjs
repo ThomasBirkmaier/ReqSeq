@@ -111,6 +111,9 @@ describe("trace-check on the ReqSeq workspace in spec/", () => {
     const root = repo({
       "packages/cli/test/cross-access/scenarios/x/a.ts": `scenariosOf("x.a", [{ tag: "${tag("SR-001", 1)}" }]);\n`,
       "packages/cli/test/cross-access/fixtures.ts": `// ${tag("SR-001", 2)}\n`,
+      // Too shallow and too deep: the runner's glob loads neither.
+      "packages/cli/test/cross-access/scenarios/b.ts": `// ${tag("SR-001", 2)}\n`,
+      "packages/cli/test/cross-access/scenarios/x/a/c.ts": `// ${tag("SR-001", 2)}\n`,
       "verification/SR-002.md": "# SR-002\n",
     });
     const result = traceCheck(root, ["--require", "SR-001"]);

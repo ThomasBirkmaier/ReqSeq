@@ -26,9 +26,9 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { stringify } from "yaml";
 import { EXIT, argvFor, runCli } from "../src/index.js";
 import { YAML_OPTIONS, yamlPieces } from "../src/render.js";
-import { EXPORT, ONE_REPOSITORY, TEMPLATE_SETUP } from "./cross-access/fixtures.js";
+import { EXPORT, ONE_REPOSITORY } from "./cross-access/fixtures.js";
 import type { Copy, Outcome, Result, Scenario } from "./cross-access/scenario.js";
-import { SCENARIOS } from "./cross-access/scenario.js";
+import { SCENARIOS, TEMPLATE_SETUPS } from "./cross-access/scenario.js";
 
 /** The product catalog and implementations; outputs are checked against the catalog (vitest.config.ts). */
 const runtime = createCommandRuntime();
@@ -37,10 +37,16 @@ const runtime = createCommandRuntime();
 interface GlobImportMeta {
   glob(pattern: string, options: { readonly eager: true }): Record<string, unknown>;
 }
-// Each module of cross-access/scenarios/<group>/ registers the explicit scenarios of one command with
-// `scenariosOf`. The glob finds them, so a new command adds a file and edits no shared one (#527); as the
-// imports are static, `vitest related` finds this test from a scenario module.
-(import.meta as unknown as GlobImportMeta).glob("./cross-access/scenarios/*/*.ts", { eager: true });
+// Each module cross-access/scenarios/<group>/<command>.ts registers the explicit scenarios of one command
+// with `scenariosOf` (and the setup of its own fixtures with `templateSetup`). The glob finds them, so a new
+// command adds a file and edits no shared one (#527); as the imports are static, `vitest related` finds this
+// test from a scenario module. trace-check reads the tags of the same files, exactly one folder deep.
+// Vite turns `Object.keys(import.meta.glob(...))` into the keys alone, without importing the modules, so
+// the glob gets a variable of its own.
+const loaded = (import.meta as unknown as GlobImportMeta).glob("./cross-access/scenarios/*/*.ts", {
+  eager: true,
+});
+const SCENARIO_MODULES = Object.keys(loaded);
 
 const errorOf = (error: unknown): unknown => (error instanceof CommandError ? error.toJSON() : error);
 
@@ -290,7 +296,7 @@ beforeAll(async () => {
     for (const options of queue) {
       const template = await createFixtureWorkspace(options);
       templates.set(options, template);
-      await TEMPLATE_SETUP.get(options)?.(template);
+      await TEMPLATE_SETUPS.get(options)?.(template);
     }
   };
   await Promise.all(Array.from({ length: BUILD_CONCURRENCY }, worker));
@@ -487,6 +493,11 @@ describe(
     it("has scenarios only for catalog commands", () => {
       const names = new Set(runtime.contracts.commands.map((e) => e.name));
       expect([...SCENARIOS.keys()].filter((name) => !names.has(name))).toEqual([]);
+      // Each module registers the command its path names, so none is loaded without scenarios.
+      const byPath = SCENARIO_MODULES.map((file) =>
+        file.replace(/^\.\/cross-access\/scenarios\/([^/]+)\/([^/]+)\.ts$/, "$1.$2"),
+      );
+      expect([...SCENARIOS.keys()].sort()).toEqual(byPath.sort());
     });
   },
 );

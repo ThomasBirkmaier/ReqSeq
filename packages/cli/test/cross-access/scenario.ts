@@ -1,6 +1,6 @@
 // The shape of a cross-access scenario and of the results it compares (cross-access.test.ts).
 import type { CommandName } from "@reqseq/core";
-import type { FixtureOptions } from "@reqseq/testkit";
+import type { FixtureOptions, FixtureWorkspace } from "@reqseq/testkit";
 
 export interface Scenario {
   readonly name: string;
@@ -49,10 +49,32 @@ export interface Result {
 /** The explicit scenarios by command, as the modules under scenarios/ register them. */
 export const SCENARIOS = new Map<CommandName, readonly Scenario[]>();
 
-/** Registers the explicit scenarios of `command`, in addition to its default one; one module per command. */
+/**
+ * Registers the explicit scenarios of `command`, in addition to its default one; one module per command.
+ * A command registered twice, or two scenarios of the same name (as a merge can duplicate one), are refused.
+ */
 export const scenariosOf = (command: CommandName, scenarios: readonly Scenario[]): void => {
   if (SCENARIOS.has(command)) {
     throw new Error(`Scenarios of ${command} registered twice`);
   }
+  const names = scenarios.map((s) => s.name);
+  const twice = names.filter((name, index) => names.indexOf(name) !== index);
+  if (twice.length > 0) {
+    throw new Error(`Scenarios of ${command} named twice: ${twice.join(", ")}`);
+  }
   SCENARIOS.set(command, scenarios);
+};
+
+/** What is done to the template of a fixture once it is built (more commits), by fixture. */
+export const TEMPLATE_SETUPS = new Map<FixtureOptions, (ws: FixtureWorkspace) => Promise<void>>();
+
+/** Registers what is done to the template of `fixture` once it is built; once per fixture. */
+export const templateSetup = (
+  fixture: FixtureOptions,
+  setup: (ws: FixtureWorkspace) => Promise<void>,
+): void => {
+  if (TEMPLATE_SETUPS.has(fixture)) {
+    throw new Error(`Template setup of ${String(fixture.fixture)} registered twice`);
+  }
+  TEMPLATE_SETUPS.set(fixture, setup);
 };

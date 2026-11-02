@@ -9,7 +9,7 @@ const WITH_IMAGE: FixtureOptions = {
   git: true,
 };
 
-// `sourcePath` is a localPath, like `path` of workspace.init below: the same file through every access.
+// `sourcePath` is a localPath, like `path` of workspace.init (scenarios/workspace/init.ts): the same file through every access.
 scenariosOf("element.addAttachment", [
   {
     name: "an image into the folder next to the element file, with its Markdown (SR-097 AK1, AK2)",

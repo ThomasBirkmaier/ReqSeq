@@ -69,7 +69,7 @@ const VARIANT_JUNIT: FixtureOptions = {
   },
 };
 
-// `file` and `output` are localPaths (see workspace.init below). The date is given: without it the
+// `file` and `output` are localPaths (see scenarios/workspace/init.ts). The date is given: without it the
 // time of the call would differ between the accesses.
 scenariosOf("evidence.enrichJunit", [
   {
