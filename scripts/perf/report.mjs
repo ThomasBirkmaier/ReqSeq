@@ -64,7 +64,15 @@ export function completeRun(junit) {
   });
 }
 
-const seconds = (ms) => `${(ms / 1000).toFixed(1)} s`;
+/**
+ * A time for the record: under 10 s in whole milliseconds, so a reader sees how close a short time is to a
+ * threshold of 200 ms (#174); from 10 s on in seconds with one decimal. Milliseconds round up, so a time
+ * over a whole-millisecond threshold never reads as equal to it.
+ */
+export const duration = (ms) => {
+  const rounded = Math.ceil(ms);
+  return rounded < 10_000 ? `${rounded} ms` : `${(ms / 1000).toFixed(1)} s`;
+};
 
 /** The machine the run measured on. */
 export const machineOf = () => ({
@@ -80,8 +88,8 @@ export function renderReport({ measurements, machine, commit, runUrl, date }) {
   const rows = measurements.map((m) => {
     const result =
       m.thresholdMs === undefined ? "no threshold" : m.ms > m.thresholdMs ? "**exceeded**" : "within";
-    const threshold = m.thresholdMs === undefined ? "" : seconds(m.thresholdMs);
-    return `| ${m.name} | ${m.basis} | ${seconds(m.ms)} | ${threshold} | ${result} |`;
+    const threshold = m.thresholdMs === undefined ? "" : duration(m.thresholdMs);
+    return `| ${m.name} | ${m.basis} | ${duration(m.ms)} | ${threshold} | ${result} |`;
   });
   return [
     "# Performance with 50,000 elements and 200,000 relations (N-036)",

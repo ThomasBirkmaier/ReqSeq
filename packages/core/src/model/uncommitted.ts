@@ -10,12 +10,14 @@
 //   every file an element of the store embeds, of any extension. Not counted: evidence records (the
 //   pipeline writes new ones in the same run, and each names its version, D-026), `.reqseq/local.yaml`,
 //   code, every other file, and the stored `*.jsonl` files. Paths compare in NFC (ADR-0006).
-// - How a repository is found dirty, read only and with no new git command:
+// - How a repository is found dirty, read only:
 //   1. `changedPaths` against the commit (diff without index refresh, untracked files); the listed
 //      paths that are or were state files are kept.
-//   2. One `info` round of the object reader for `<commit>:<path>` of every state file of the store
-//      in the repository and of every kept path, in its spelling, in NFC and in NFD, so that a
-//      repository committed on macOS is not dirty by its spelling.
+//   2. The blob IDs of the commit (`commitBlobs`: one `ls-tree` of the folder, #439) for every state
+//      file of the store in the repository and every kept path, in its spelling, in NFC and in NFD,
+//      so that a repository committed on macOS is not dirty by its spelling. Only blobs count, as
+//      the object reader's `info` of `<commit>:<path>` found them before: a folder or submodule at
+//      the path is none.
 //   3. A state file without a blob at the commit is dirty when it is on disk in one of its spellings:
 //      a new element file, also one Git ignores, and an embedded file Git ignores. One that is neither
 //      in the commit nor on disk (a committed link to an image that exists nowhere) is no change.
@@ -31,8 +33,8 @@ import { createReadStream } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { listFolderFiles } from "../files/index.js";
-import type { ChangedPaths, GitUnknownReason, ObjectInfos } from "../git/reader.js";
-import { changedPaths, isGitPath, openObjectReader } from "../git/reader.js";
+import type { ChangedPaths, CommitBlobs, GitUnknownReason } from "../git/reader.js";
+import { changedPaths, commitBlobs, isGitPath } from "../git/reader.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
 import { WORKSPACE_FILE, settingLocation } from "../workspace/index.js";
 import { ELEMENT_FILE_EXTENSION, SKIPPED_NAMES } from "./discover.js";
@@ -181,8 +183,8 @@ export const gitBlobId = async (
 /** What `repositoryState` reads (tests replace it). */
 export interface StateReader {
   readonly changedPaths: (folder: string, commit: string) => Promise<ChangedPaths>;
-  /** ID, type and size of each of `names` (`<commit>:<path>`), as an object reader's `info` round gives them. */
-  readonly objects: (folder: string, names: readonly string[]) => Promise<ObjectInfos>;
+  /** The blob ID `commit` holds for each of `paths` that is a blob there (`commitBlobs`: one tree listing). */
+  readonly blobs: (folder: string, commit: string, paths: readonly string[]) => Promise<CommitBlobs>;
   /** The blob ID of the regular file `absolute` as it is now, or undefined when it is none (missing, a link, a folder). */
   readonly blobId: (absolute: string, idLength: number) => Promise<string | undefined>;
   /** Whether there is anything at `absolute` (a file, a link or a folder). */
@@ -206,14 +208,7 @@ export const workingBlobId =
 /** The readers of git and of the disk. */
 export const DEFAULT_STATE_READER: StateReader = {
   changedPaths: async (folder, commit) => changedPaths(folder, commit),
-  objects: async (folder, names) => {
-    const reader = openObjectReader(folder);
-    try {
-      return await reader.info(names);
-    } finally {
-      reader.close();
-    }
-  },
+  blobs: async (folder, commit, paths) => commitBlobs(folder, commit, paths),
   blobId: workingBlobId((absolute) => createReadStream(absolute)),
   exists: async (absolute) =>
     fs.lstat(absolute).then(
@@ -278,19 +273,14 @@ export const uncommittedFiles = async (
   const odd = all.filter((file) => !isGitPath(file));
   const asked = all.filter((file) => isGitPath(file));
   const spelled = asked.map(spellings);
-  const infos = await read.objects(
-    folder,
-    spelled.flat().map((file) => `${commit}:${file}`),
-  );
-  if (!infos.known) {
-    return { known: false, reason: infos.reason };
+  const listed = await read.blobs(folder, commit, spelled.flat());
+  if (!listed.known) {
+    return { known: false, reason: listed.reason };
   }
-  let at = 0;
-  const blobs = spelled.map((names) => {
-    const found = infos.objects.slice(at, at + names.length).find((info) => info?.type === "blob");
-    at += names.length;
-    return found?.id;
-  });
+  // The first spelling that is a blob at the commit.
+  const blobs = spelled.map((names) =>
+    names.map((name) => listed.ids.get(name)).find((id) => id !== undefined),
+  );
   /** The absolute path of `file` in each of its spellings. */
   const absolute = (file: string): string[] =>
     spellings(file).map((name) => path.join(folder, ...name.split("/")));

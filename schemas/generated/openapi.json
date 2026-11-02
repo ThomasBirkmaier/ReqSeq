@@ -3,7 +3,7 @@
   "info": {
     "title": "ReqSeq local API",
     "version": "0.7.2",
-    "description": "Generated from schemas/commands/catalog.json. Listens on 127.0.0.1 and ::1 only (SR-079). Every request needs `Authorization: Bearer <token>` from api.json in the cache folder of the working copy (schemas/api-endpoint.schema.json, ADR-0009). One endpoint per command; same input, output and errors as CLI and MCP (SR-080)."
+    "description": "Generated from the command catalog, one file per command in schemas/commands/. Listens on 127.0.0.1 and ::1 only (SR-079). Every request needs `Authorization: Bearer <token>` from api.json in the cache folder of the working copy (schemas/api-endpoint.schema.json, ADR-0009). One endpoint per command; same input, output and errors as CLI and MCP (SR-080)."
   },
   "servers": [
     {
@@ -2659,7 +2659,7 @@
                   },
                   "expectedFileSha256": {
                     "$ref": "#/components/schemas/common/$defs/fileSha256",
-                    "description": "Write precondition (SR-106): the fileSha256 the change was made on. If the file has other bytes now, nothing is written: file.changed-on-disk, also when nothing would change."
+                    "description": "Write precondition (SR-106): the fileSha256 the change was made on, from element.get. Required with title or text, else input.invalid (precondition-missing); optional for set, unset and relations alone. If the file has other bytes now, nothing is written: file.changed-on-disk, also when nothing would change."
                   }
                 },
                 "additionalProperties": false,

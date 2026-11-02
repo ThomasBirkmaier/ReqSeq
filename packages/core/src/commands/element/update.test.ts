@@ -363,7 +363,11 @@ describe("element.update", () => {
     expect(now?.byId.get(WIND.id)?.[0]?.data["title"]).toBe("Renamed");
     // The other element was not read again, and the store is what a full read gives.
     expect(now?.byId.get(GUSTS.id)?.[0]).toBe(store.byId.get(GUSTS.id)?.[0]);
-    expect(now).toEqual(await loadElements(await opened.workspace.get(workspaceLayoutState)));
+    expect(now).toEqual(
+      await loadElements(await opened.workspace.get(workspaceLayoutState), undefined, {
+        versioning: now?.versioning,
+      }),
+    );
     // The states built on the store follow it.
     const rebuilt = await opened.workspace.get(shortIdState);
     expect(rebuilt).not.toBe(shortIds);
@@ -497,6 +501,19 @@ describe("element.update", () => {
       /^set\.requirement-type: Sometimes is not a value of Requirement Type; the values are: functional \(Functional\), /,
     );
     expect(await read(opened, GUSTS.file)).toBe(before);
+  });
+
+  it("[SR-064/AK2] saves an empty string of a required choice property as no value and gives its element.missing-required hint (#242)", async () => {
+    const opened = await open();
+    const out = await update(opened, { ref: GUSTS.id, set: { "requirement-type": "" } });
+    expect(await read(opened, GUSTS.file)).toContain('\nrequirement-type: ""\n');
+    expect(out.problems?.filter((p) => p.code === "element.missing-required")).toContainEqual(
+      expect.objectContaining({
+        message: expect.stringContaining("Required property Requirement Type (requirement-type)") as unknown,
+        elementId: GUSTS.id,
+      }),
+    );
+    expect(out.problems?.filter((p) => p.code === "element.wrong-value-kind")).toEqual([]);
   });
 
   it("refuses a file that changed on disk since it was read and works again on the next call", async () => {

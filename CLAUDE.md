@@ -14,7 +14,7 @@ ReqSeq is an offline requirements tool (core, CLI, API, MCP server, Electron app
 - ReqSeq reads Git and never writes to it (D-036).
 - ReqSeq never deletes elements. It supersedes them (D-045).
 - Status values are set only by people, never computed by the tool.
-- Every function is available in the app, CLI, API and MCP, with the same result (D-029, SR-080). New functions start in `schemas/commands/catalog.json`, with one implementation in `packages/core/src/commands/`. No logic goes into `cli`, `api`, `mcp` or `app` (ADR-0002).
+- Every function is available in the app, CLI, API and MCP, with the same result (D-029, SR-080). New functions start in `schemas/commands/<name>.json`, listed in `catalog.header.json`, with one implementation in `packages/core/src/commands/`. No logic goes into `cli`, `api`, `mcp` or `app` (ADR-0002).
 - Performance target: 50,000 requirements (N-036).
 
 ## Repository text
@@ -26,7 +26,7 @@ ReqSeq is an offline requirements tool (core, CLI, API, MCP server, Electron app
 
 ## Traceability (D-049, D-050)
 
-- One issue per system requirement. Work without its own SR is labelled `enabler`, on the issue and on the PR. Label the PR right when you open it: the required check `static` reads the label when it runs, and after a later label it stays red until `trace-check (PR text)` re-runs it once the CI run has completed (`merge.md`).
+- One issue per system requirement. Work without its own SR is labelled `enabler`, on the issue and on the PR. Label the PR right when you open it: the required check `static` reads the label when it runs, and after a later label it stays red until a passing `trace-check (PR text)` gets it re-run once the CI run has completed (`merge.md`).
 - Branch `sr-036-short-slug` or `enabler-<issue>-short-slug`. Commits follow Conventional Commits; the body ends with `Implements: SR-036` (one line per SR) and `Refs #<issue>`. The PR title starts with the SR ID, and the body has `Closes #<issue>` and a "Verification" section.
 - Each acceptance criterion with method Test has a test named `[SR-036/AK2] ...` (AK counted from 1 in the order of the spec file). Other methods get a record in `verification/SR-036.md`, which a person confirms at stage acceptance.
 - `pnpm trace-check` must pass. A PR text must not name an SR ID that is not in `spec/` yet.

@@ -1,0 +1,58 @@
+{
+  "name": "evidence.list",
+  "title": "List evidence",
+  "summary": "Evidence records of an element with version, item, date, result, evidence location and baselines that contain the version.",
+  "effect": "read",
+  "stage": 4,
+  "implements": ["SR-028", "SR-032", "SR-033", "SR-093"],
+  "arguments": [
+    { "field": "ref", "complete": "element" },
+    { "field": "view", "complete": "view" }
+  ],
+  "input": {
+    "type": "object",
+    "properties": {
+      "ref": {
+        "$ref": "../common.schema.json#/$defs/elementRef"
+      },
+      "view": {
+        "$ref": "../common.schema.json#/$defs/view",
+        "description": "`core`: only the records without a variant; a variant: only the records for that variant (SR-047 AK1, AK2); absent: every record of the element."
+      }
+    },
+    "additionalProperties": false,
+    "required": ["ref"]
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "records": {
+        "type": "array",
+        "description": "The evidence records of the element (SR-028, SR-093), newest first, each with its version, item, date, result and evidence (SR-032 AK1) and the baselines that contain its version (`baselines`, SR-032 AK2; empty when none does).",
+        "items": {
+          "$ref": "../data-export.schema.json#/$defs/evidenceRecord"
+        }
+      },
+      "testCases": {
+        "type": "array",
+        "description": "The test cases that name the element (SR-033), by class name, then name, each with the element's own records only, newest first, and every kind of record as in `records`; with `view` only the executions that hold in it, and a test case all of whose executions hold in another view is left out (a test case that was only skipped stays, `executed` false).",
+        "items": {
+          "$ref": "../data-export.schema.json#/$defs/testCase"
+        }
+      },
+      "problems": {
+        "type": "array",
+        "description": "Findings in the baseline files (`baseline.invalid`, `file.invalid-yaml`, ...): a baseline file that cannot be read names no baseline in `baselines`.",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/problem"
+        }
+      },
+      "incomplete": {
+        "$ref": "../common.schema.json#/$defs/incomplete",
+        "description": "True when an evidence location or the baselines folder lies in a repository that is not on this machine: records or baselines there are not seen (SR-006 AK2)."
+      }
+    },
+    "additionalProperties": false,
+    "required": ["records", "testCases", "problems", "incomplete"]
+  }
+}

@@ -50,7 +50,7 @@ const openapi = {
     title: "ReqSeq local API",
     version,
     description:
-      "Generated from schemas/commands/catalog.json. Listens on 127.0.0.1 and ::1 only (SR-079). Every request needs `Authorization: Bearer <token>` from api.json in the cache folder of the working copy (schemas/api-endpoint.schema.json, ADR-0009). One endpoint per command; same input, output and errors as CLI and MCP (SR-080).",
+      "Generated from the command catalog, one file per command in schemas/commands/. Listens on 127.0.0.1 and ::1 only (SR-079). Every request needs `Authorization: Bearer <token>` from api.json in the cache folder of the working copy (schemas/api-endpoint.schema.json, ADR-0009). One endpoint per command; same input, output and errors as CLI and MCP (SR-080).",
   },
   servers: [{ url: "http://127.0.0.1:{port}", variables: { port: { default: "0" } } }],
   security: [{ token: [] }],
@@ -169,7 +169,7 @@ for (const [file, s] of Object.entries(schemas)) {
 // self-contained and small (packages/mcp/src/tools.ts, #303).
 const mcp = {
   description:
-    "Generated from schemas/commands/catalog.json. The MCP server (stdio) lists those of these tools that the running version implements (ADR-0009). $refs point into the top-level $defs; the server sends each tool schema with only the definitions it uses.",
+    "Generated from the command catalog, one file per command in schemas/commands/. The MCP server (stdio) lists those of these tools that the running version implements (ADR-0009). $refs point into the top-level $defs; the server sends each tool schema with only the definitions it uses.",
   $defs: mcpDefs,
   tools: catalog.commands.map((cmd) => {
     const toRef = refTo("#/$defs/", "common.schema.json");

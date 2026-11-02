@@ -1,0 +1,48 @@
+{
+  "name": "reqif.saveMapping",
+  "title": "Save ReqIF mapping",
+  "summary": "Save or change the mapping of a source to the own metamodel, in the mapping folder (default `reqif`).",
+  "effect": "write-files",
+  "whileReadOnly": "refuse",
+  "whileReadOnlyReason": "Maps a source to the own metamodel, which is missing or faulty.",
+  "stage": 6,
+  "implements": ["SR-054", "SR-055", "SR-059"],
+  "arguments": [
+    { "field": "mapping", "complete": "json" },
+    { "field": "file", "complete": "text" }
+  ],
+  "input": {
+    "type": "object",
+    "properties": {
+      "mapping": {
+        "$ref": "../reqif-mapping.schema.json"
+      },
+      "file": {
+        "$ref": "../common.schema.json#/$defs/localPath",
+        "description": "Inside the mapping folder of the workspace, for every access; default the portable source name."
+      }
+    },
+    "additionalProperties": false,
+    "required": ["mapping"]
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "files": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "description": "Written file, relative to the workspace root."
+        }
+      },
+      "problems": {
+        "type": "array",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/problem"
+        }
+      }
+    },
+    "additionalProperties": false,
+    "required": ["files"]
+  }
+}

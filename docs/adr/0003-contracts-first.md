@@ -1,6 +1,6 @@
 # ADR-0003: JSON Schema files are the contracts
 
-Status: Proposed · Based on: D-026, D-056, D-052 · SRs: SR-009, SR-010, SR-061
+Status: Accepted · Based on: D-026, D-056, D-052 · SRs: SR-009, SR-010, SR-061
 
 ## Context
 
@@ -9,7 +9,7 @@ All file formats must be documented publicly so that other tools can read and wr
 ## Decision
 
 - **JSON Schema 2020-12** files in `schemas/` are the single source for every file format and every command input and output:
-  `element`, `metamodel`, `workspace`, `baseline`, `filter`, `evidence-record`, `reqif-mapping`, `data-export`, shared `common`, and `commands/catalog.json`.
+  `element`, `metamodel`, `workspace`, `baseline`, `filter`, `evidence-record`, `reqif-mapping`, `data-export`, shared `common`, and the command catalog in `commands/` (one `<name>.json` per command plus `catalog.header.json`, ADR-0002).
 - Each schema has `$id` `https://reqseq.dev/schemas/<file>` (an identifier, never fetched; ReqSeq opens no network connections).
 - `schemas/examples/<format>/` holds at least one example per format. `pnpm schemas:check` compiles all schemas with Ajv in strict mode and validates every example (SR-009 AK2, AK3). The format documentation shipped with the product (SR-009 AK1) is generated from these schemas and examples in stage 1.
 - `schemas/generated/` (OpenAPI 3.1, MCP tool list), `packages/core/src/generated/contracts.json` (all schemas and the catalog for runtime validation in `core`), `packages/core/src/generated/standard-model.json` (the text of `schemas/examples/metamodel/standard-model.yaml`, the standard model that `workspace.init` writes, SR-014) and `packages/core/src/generated/types.ts` (TypeScript types) are derived by `pnpm contracts:generate`; `pnpm contracts:check` (CI) fails if they are stale. Never edit them by hand.

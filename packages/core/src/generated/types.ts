@@ -1432,7 +1432,7 @@ export interface CommandCatalog {
 
 /**
  * Input of `workspace.init` as `run` gets it: validated, properties with a `default` filled in. Create a workspace with the standard model in an existing folder.
- * Schema: `schemas/commands/catalog.json workspace.init input`.
+ * Schema: `schemas/commands/workspace.init.json input`.
  */
 export interface WorkspaceInitInput {
   /** Existing folder; must not contain reqseq-workspace.yaml or the metamodel file. */
@@ -1446,7 +1446,7 @@ export interface WorkspaceInitInput {
 
 /**
  * Output of `workspace.init`. Create a workspace with the standard model in an existing folder.
- * Schema: `schemas/commands/catalog.json workspace.init output`.
+ * Schema: `schemas/commands/workspace.init.json output`.
  */
 export interface WorkspaceInitOutput {
   readonly files: readonly string[];
@@ -1455,13 +1455,13 @@ export interface WorkspaceInitOutput {
 
 /**
  * Input of `workspace.status` as `run` gets it: validated, properties with a `default` filled in. Repositories of the workspace, which are available, where the metamodel comes from, read-only state.
- * Schema: `schemas/commands/catalog.json workspace.status input`.
+ * Schema: `schemas/commands/workspace.status.json input`.
  */
 export type WorkspaceStatusInput = Readonly<Record<string, never>>;
 
 /**
  * Output of `workspace.status`. Repositories of the workspace, which are available, where the metamodel comes from, read-only state.
- * Schema: `schemas/commands/catalog.json workspace.status output`.
+ * Schema: `schemas/commands/workspace.status.json output`.
  */
 export interface WorkspaceStatusOutput {
   readonly name: string;
@@ -1484,7 +1484,7 @@ export interface WorkspaceStatusOutput {
 
 /**
  * Input of `workspace.check` as `run` gets it: validated, properties with a `default` filled in. Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, requirements with a statement but no text (a warning), missing targets, cycles, requirements without a parent (a warning, SR-022 AK6), duplicate IDs, outdated relations, evidence records that cannot be read or name an unknown element, a repository that is a workspace of its own whose metamodel counts other properties to the version. ok is false, and the CLI exits 1, on findings at or above failOn (default error).
- * Schema: `schemas/commands/catalog.json workspace.check input`.
+ * Schema: `schemas/commands/workspace.check.json input`.
  */
 export interface WorkspaceCheckInput {
   /** Restrict the check to the elements in these files and their targets (SR-092). A file must lie in a repository of the workspace and be no folder; deleted and non-element files add nothing. With changedSince, both count. To cover deleted elements, use changedSince: a deleted file named only in changedFiles adds no old UUID. */
@@ -1499,7 +1499,7 @@ export interface WorkspaceCheckInput {
 
 /**
  * Output of `workspace.check`. Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, requirements with a statement but no text (a warning), missing targets, cycles, requirements without a parent (a warning, SR-022 AK6), duplicate IDs, outdated relations, evidence records that cannot be read or name an unknown element, a repository that is a workspace of its own whose metamodel counts other properties to the version. ok is false, and the CLI exits 1, on findings at or above failOn (default error).
- * Schema: `schemas/commands/catalog.json workspace.check output`.
+ * Schema: `schemas/commands/workspace.check.json output`.
  */
 export interface WorkspaceCheckOutput {
   /** False when the workspace has a finding at or above failOn, shown or not (CLI exit code 1, ADR-0009). In a restricted check, of the findings the restriction keeps. */
@@ -1520,13 +1520,13 @@ export interface WorkspaceCheckOutput {
 
 /**
  * Input of `workspace.activity` as `run` gets it: validated, properties with a `default` filled in. The element read or changed last through the local API or the MCP server on this working copy: which access, command and effect, when, and the element (UUID, repository); null when none is recorded.
- * Schema: `schemas/commands/catalog.json workspace.activity input`.
+ * Schema: `schemas/commands/workspace.activity.json input`.
  */
 export type WorkspaceActivityInput = Readonly<Record<string, never>>;
 
 /**
  * Output of `workspace.activity`. The element read or changed last through the local API or the MCP server on this working copy: which access, command and effect, when, and the element (UUID, repository); null when none is recorded.
- * Schema: `schemas/commands/catalog.json workspace.activity output`.
+ * Schema: `schemas/commands/workspace.activity.json output`.
  */
 export interface WorkspaceActivityOutput {
   /** The last call through the API or the MCP server that named one element (the element reference it was given, or else the one element file a write wrote), as an API or MCP process of this copy recorded it in the cache folder of the copy (ADR-0008). null when there is none, the copy has no usable cache folder, or the record cannot be read. Calls of the command line and of the app are not recorded. */
@@ -1535,13 +1535,13 @@ export interface WorkspaceActivityOutput {
 
 /**
  * Input of `workspace.recent` as `run` gets it: validated, properties with a `default` filled in. The workspaces the app opened last, the most recent first (at most 20): the root of each, when it was opened, and whether the root still holds reqseq-workspace.yaml. The list belongs to the user, not to a workspace, so every access gives the same list from any folder.
- * Schema: `schemas/commands/catalog.json workspace.recent input`.
+ * Schema: `schemas/commands/workspace.recent.json input`.
  */
 export type WorkspaceRecentInput = Readonly<Record<string, never>>;
 
 /**
  * Output of `workspace.recent`. The workspaces the app opened last, the most recent first (at most 20): the root of each, when it was opened, and whether the root still holds reqseq-workspace.yaml. The list belongs to the user, not to a workspace, so every access gives the same list from any folder.
- * Schema: `schemas/commands/catalog.json workspace.recent output`.
+ * Schema: `schemas/commands/workspace.recent.json output`.
  */
 export interface WorkspaceRecentOutput {
   /** The workspaces the app opened last, the most recent first, as the app's core process recorded them in `<OS cache>/reqseq/recent-workspaces.json` (ADR-0008). Empty when none is recorded or the list cannot be read. Only the app records; the command line, the API and the MCP server only read the list. */
@@ -1557,13 +1557,13 @@ export interface WorkspaceRecentOutput {
 
 /**
  * Input of `metamodel.get` as `run` gets it: validated, properties with a `default` filled in. The effective metamodel: types with inherited properties and statuses, properties with whether they count to the version, relation kinds, statuses, meanings.
- * Schema: `schemas/commands/catalog.json metamodel.get input`.
+ * Schema: `schemas/commands/metamodel.get.json input`.
  */
 export type MetamodelGetInput = Readonly<Record<string, never>>;
 
 /**
  * Output of `metamodel.get`. The effective metamodel: types with inherited properties and statuses, properties with whether they count to the version, relation kinds, statuses, meanings.
- * Schema: `schemas/commands/catalog.json metamodel.get output`.
+ * Schema: `schemas/commands/metamodel.get.json output`.
  */
 export interface MetamodelGetOutput {
   /** The types with inheritance resolved (SR-012), in metamodel order; `statuses` are the statuses each type offers (#306). */
@@ -1579,7 +1579,7 @@ export interface MetamodelGetOutput {
 
 /**
  * Input of `element.create` as `run` gets it: validated, properties with a `default` filled in. Create an element with a new random UUID. Only title, text and required properties are needed; empty required properties give a hint (SR-064). New elements always get the initial status of the metamodel (D-030); when their type lacks it or it is marked invalid, the first status of the type in metamodel order that is not marked invalid, and no status for a type without status or with only invalid statuses (#306, #344).
- * Schema: `schemas/commands/catalog.json element.create input`.
+ * Schema: `schemas/commands/element.create.json input`.
  */
 export interface ElementCreateInput {
   readonly type: Key;
@@ -1596,7 +1596,7 @@ export interface ElementCreateInput {
 
 /**
  * Output of `element.create`. Create an element with a new random UUID. Only title, text and required properties are needed; empty required properties give a hint (SR-064). New elements always get the initial status of the metamodel (D-030); when their type lacks it or it is marked invalid, the first status of the type in metamodel order that is not marked invalid, and no status for a type without status or with only invalid statuses (#306, #344).
- * Schema: `schemas/commands/catalog.json element.create output`.
+ * Schema: `schemas/commands/element.create.json output`.
  */
 export interface ElementCreateOutput {
   readonly element: DataExportElement;
@@ -1606,7 +1606,7 @@ export interface ElementCreateOutput {
 
 /**
  * Input of `element.get` as `run` gets it: validated, properties with a `default` filled in. One element with text, properties, relations, version (and on request its date), hints, and which variants replace or exclude it.
- * Schema: `schemas/commands/catalog.json element.get input`.
+ * Schema: `schemas/commands/element.get.json input`.
  */
 export interface ElementGetInput {
   readonly ref: ElementRef;
@@ -1623,7 +1623,7 @@ export interface ElementGetInput {
 
 /**
  * Output of `element.get`. One element with text, properties, relations, version (and on request its date), hints, and which variants replace or exclude it.
- * Schema: `schemas/commands/catalog.json element.get output`.
+ * Schema: `schemas/commands/element.get.json output`.
  */
 export interface ElementGetOutput {
   /** Text, properties, version and, with the input `versionDate`, its date (`versionDate`, D-013, ADR-0005: the committer date in UTC of the newest commit that started this version; null for content no commit has and when Git cannot tell, including a git call that timed out; left out without the input), the own relations, the successors of a superseded element (SR-072 AK3), the hints of the element (none while the metamodel is not valid; also `variant.superseded-in-validity`, SR-040 AK3, `variant.target-not-core` for a replacement or exclusion of the element that names no core requirement, SR-041 AK8, the outdated relations and inline references of the element, `relation.outdated`, and the changed core requirements of its replacements, `variant.core-changed` (SR-045), at a variant the core requirements changed or new since its newest baseline, `variant.core-changed-since-baseline` and `variant.core-new-since-baseline` (SR-103), SR-026 AK3, whose messages name the dates of both versions only with the input `versionDate` or `hintDates`, and `metamodel.meaning-unassigned` when no property has the meaning title) and `readOnly`, always given (unknown type, invalid metamodel or a repository folder that cannot be written). An element with a value that counts and has no normal form (`.inf`, `.nan`, ADR-0005) comes without `version` and `versionDate`, with a `file.faulty` warning last in its hints that says why (#276). The incoming relations of every kind: `trace.neighbourhood` with `direction: down`. `verification`, for an element whose type has the meaning `requirement`: its verification status in each view it is in by the view rule (SR-043, SR-047 AK3), as evidence.status gives it (SR-031), with the indirect verification and the children that are missing (SR-034). `validation`: its validation status (SR-038), for every need and for any other element with a validation record, separate from `verification`. `replacedBy` and `excludedBy`, for a core requirement: the variants that replace it (with the replacing requirement) and those that exclude it (SR-046 AK3). */
@@ -1638,7 +1638,7 @@ export interface ElementGetOutput {
 
 /**
  * Input of `element.resolve` as `run` gets it: validated, properties with a `default` filled in. Resolve a reference from another tool (UUID, short ID or identifier, optional version) and tell whether the version is current.
- * Schema: `schemas/commands/catalog.json element.resolve input`.
+ * Schema: `schemas/commands/element.resolve.json input`.
  */
 export interface ElementResolveInput {
   readonly ref: ElementRef;
@@ -1654,7 +1654,7 @@ export interface ElementResolveInput {
 
 /**
  * Output of `element.resolve`. Resolve a reference from another tool (UUID, short ID or identifier, optional version) and tell whether the version is current.
- * Schema: `schemas/commands/catalog.json element.resolve output`.
+ * Schema: `schemas/commands/element.resolve.json output`.
  */
 export interface ElementResolveOutput {
   /** The element as element.get shows it, with title, text, status, current version (SR-060 AK1), verification status per view it is in (SR-031, SR-034, SR-047 AK3) and validation status (SR-038) and, with the input `versionDate`, the date of that version (as element.get gives it; left out without the input). Without a version (a value that counts has no normal form) `version` and `versionDate` are left out and the hints end with a `file.faulty` warning, as in element.get (#276). An unknown reference is the error ref.unknown, one that fits several elements ref.ambiguous with details.candidates (AK3). A short ID whose prefix fits no element stays ref.unknown, never another element; when its tail fits exactly one element of another type, details.candidates names that element and the message asks whether its short ID was meant (prefix may be outdated, #275). */
@@ -1665,7 +1665,7 @@ export interface ElementResolveOutput {
 
 /**
  * Input of `element.list` as `run` gets it: validated, properties with a `default` filled in. Elements of a selection, sorted; optionally as derivation tree.
- * Schema: `schemas/commands/catalog.json element.list input`.
+ * Schema: `schemas/commands/element.list.json input`.
  */
 export interface ElementListInput {
   /** Every part given must hold (SR-101 AK2). */
@@ -1680,7 +1680,7 @@ export interface ElementListInput {
 
 /**
  * Output of `element.list`. Elements of a selection, sorted; optionally as derivation tree.
- * Schema: `schemas/commands/catalog.json element.list output`.
+ * Schema: `schemas/commands/element.list.json output`.
  */
 export interface ElementListOutput {
   readonly elements: readonly DataExportElement[];
@@ -1703,7 +1703,7 @@ export interface ElementListOutput {
 
 /**
  * Input of `element.facets` as `run` gets it: validated, properties with a `default` filled in. Types, statuses and property values of the elements of a selection, with counts, to choose a filter from.
- * Schema: `schemas/commands/catalog.json element.facets input`.
+ * Schema: `schemas/commands/element.facets.json input`.
  */
 export interface ElementFacetsInput {
   /** Every part given must hold (SR-101 AK2). Without it, every element. */
@@ -1714,7 +1714,7 @@ export interface ElementFacetsInput {
 
 /**
  * Output of `element.facets`. Types, statuses and property values of the elements of a selection, with counts, to choose a filter from.
- * Schema: `schemas/commands/catalog.json element.facets output`.
+ * Schema: `schemas/commands/element.facets.json output`.
  */
 export interface ElementFacetsOutput {
   /** Elements in the selection. */
@@ -1761,7 +1761,7 @@ export interface ElementFacetsOutput {
 
 /**
  * Input of `element.update` as `run` gets it: validated, properties with a `default` filled in. Change title, text or properties of one element. Unknown properties are kept; status changes only via element.setStatus, and the origin of an imported element only via reqif.import (SR-057).
- * Schema: `schemas/commands/catalog.json element.update input`.
+ * Schema: `schemas/commands/element.update.json input`.
  */
 export interface ElementUpdateInput {
   readonly ref: ElementRef;
@@ -1776,13 +1776,13 @@ export interface ElementUpdateInput {
   readonly removeRelations?: RelationRefs;
   /** Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it (for example one copy of a file whose UUID another file shares, SR-088; #255). Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates. */
   readonly repository?: string;
-  /** Write precondition (SR-106): the fileSha256 the change was made on. If the file has other bytes now, nothing is written: file.changed-on-disk, also when nothing would change. */
+  /** Write precondition (SR-106): the fileSha256 the change was made on, from element.get. Required with title or text, else input.invalid (precondition-missing); optional for set, unset and relations alone. If the file has other bytes now, nothing is written: file.changed-on-disk, also when nothing would change. */
   readonly expectedFileSha256?: FileSha256;
 }
 
 /**
  * Output of `element.update`. Change title, text or properties of one element. Unknown properties are kept; status changes only via element.setStatus, and the origin of an imported element only via reqif.import (SR-057).
- * Schema: `schemas/commands/catalog.json element.update output`.
+ * Schema: `schemas/commands/element.update.json output`.
  */
 export interface ElementUpdateOutput {
   readonly element: DataExportElement;
@@ -1796,7 +1796,7 @@ export interface ElementUpdateOutput {
 
 /**
  * Input of `element.setStatus` as `run` gets it: validated, properties with a `default` filled in. Set or remove the status of elements on explicit request of the caller. Only a status of each element's type is taken (`statuses` of the type in metamodel.get, #306); an element of a type without status gets none. `status: null` removes the status line where the type's status is optional (#343). The only command besides element.supersede that changes a status; no command changes a status on its own (D-030, SR-087).
- * Schema: `schemas/commands/catalog.json element.setStatus input`.
+ * Schema: `schemas/commands/element.setStatus.json input`.
  */
 export interface ElementSetStatusInput {
   readonly refs: readonly ElementRef[];
@@ -1806,7 +1806,7 @@ export interface ElementSetStatusInput {
 
 /**
  * Output of `element.setStatus`. Set or remove the status of elements on explicit request of the caller. Only a status of each element's type is taken (`statuses` of the type in metamodel.get, #306); an element of a type without status gets none. `status: null` removes the status line where the type's status is optional (#343). The only command besides element.supersede that changes a status; no command changes a status on its own (D-030, SR-087).
- * Schema: `schemas/commands/catalog.json element.setStatus output`.
+ * Schema: `schemas/commands/element.setStatus.json output`.
  */
 export interface ElementSetStatusOutput {
   readonly files: readonly string[];
@@ -1815,7 +1815,7 @@ export interface ElementSetStatusOutput {
 
 /**
  * Input of `element.supersede` as `run` gets it: validated, properties with a `default` filled in. Supersede an element: set an invalid status of its type and optionally name a successor (relation with meaning succession, written into the successor's file). There is no delete (D-045).
- * Schema: `schemas/commands/catalog.json element.supersede input`.
+ * Schema: `schemas/commands/element.supersede.json input`.
  */
 export interface ElementSupersedeInput {
   readonly ref: ElementRef;
@@ -1828,7 +1828,7 @@ export interface ElementSupersedeInput {
 
 /**
  * Output of `element.supersede`. Supersede an element: set an invalid status of its type and optionally name a successor (relation with meaning succession, written into the successor's file). There is no delete (D-045).
- * Schema: `schemas/commands/catalog.json element.supersede output`.
+ * Schema: `schemas/commands/element.supersede.json output`.
  */
 export interface ElementSupersedeOutput {
   readonly files: readonly string[];
@@ -1837,7 +1837,7 @@ export interface ElementSupersedeOutput {
 
 /**
  * Input of `element.bulkUpdate` as `run` gets it: validated, properties with a `default` filled in. Set, add to or remove one property for all elements of a selection. Without `confirm` only previews: the number of affected elements and the skipped ones, whose type does not have the property. With `confirm` writes only that property's lines (SR-102). Never id, type or status (element.setStatus takes several refs).
- * Schema: `schemas/commands/catalog.json element.bulkUpdate input`.
+ * Schema: `schemas/commands/element.bulkUpdate.json input`.
  */
 export interface ElementBulkUpdateInput {
   readonly selection: ElementSelection;
@@ -1855,7 +1855,7 @@ export interface ElementBulkUpdateInput {
 
 /**
  * Output of `element.bulkUpdate`. Set, add to or remove one property for all elements of a selection. Without `confirm` only previews: the number of affected elements and the skipped ones, whose type does not have the property. With `confirm` writes only that property's lines (SR-102). Never id, type or status (element.setStatus takes several refs).
- * Schema: `schemas/commands/catalog.json element.bulkUpdate output`.
+ * Schema: `schemas/commands/element.bulkUpdate.json output`.
  */
 export interface ElementBulkUpdateOutput {
   /** True when the files were written (confirm). */
@@ -1885,7 +1885,7 @@ export interface ElementBulkUpdateOutput {
 
 /**
  * Input of `element.addAttachment` as `run` gets it: validated, properties with a `default` filled in. Copy an image into the folder named like the element file, next to it, and return the Markdown that embeds it relatively; once the text embeds it, the image counts to the version (SR-097, D-057). Never replaces a file.
- * Schema: `schemas/commands/catalog.json element.addAttachment input`.
+ * Schema: `schemas/commands/element.addAttachment.json input`.
  */
 export interface ElementAddAttachmentInput {
   readonly ref: ElementRef;
@@ -1895,7 +1895,7 @@ export interface ElementAddAttachmentInput {
 
 /**
  * Output of `element.addAttachment`. Copy an image into the folder named like the element file, next to it, and return the Markdown that embeds it relatively; once the text embeds it, the image counts to the version (SR-097, D-057). Never replaces a file.
- * Schema: `schemas/commands/catalog.json element.addAttachment output`.
+ * Schema: `schemas/commands/element.addAttachment.json output`.
  */
 export interface ElementAddAttachmentOutput {
   /** The image file relative to the workspace root, / as separator, e.g. requirements/SR-825b7146fb54/layout.png. Its name is the source name with only ASCII letters, digits, _ and -, and -2, -3, ... when the folder has that name already; a file there with the same bytes is reused. */
@@ -1906,7 +1906,7 @@ export interface ElementAddAttachmentOutput {
 
 /**
  * Input of `relation.options` as `run` gets it: validated, properties with a `default` filled in. Relation kinds the metamodel allows from an element, each with the types its target may have (SR-067); search a target with element.search and selection.where: { type: targetTypes }.
- * Schema: `schemas/commands/catalog.json relation.options input`.
+ * Schema: `schemas/commands/relation.options.json input`.
  */
 export interface RelationOptionsInput {
   /** The element that gets the relation (its source). */
@@ -1917,7 +1917,7 @@ export interface RelationOptionsInput {
 
 /**
  * Output of `relation.options`. Relation kinds the metamodel allows from an element, each with the types its target may have (SR-067); search a target with element.search and selection.where: { type: targetTypes }.
- * Schema: `schemas/commands/catalog.json relation.options output`.
+ * Schema: `schemas/commands/relation.options.json output`.
  */
 export interface RelationOptionsOutput {
   /** In metamodel order: every relation kind whose source-types allow the type of the element (subtypes count) and whose target-types allow some type; none for an element of a type the metamodel does not know (SR-016 AK3). These are the kinds relation.add accepts. */
@@ -1932,7 +1932,7 @@ export interface RelationOptionsOutput {
 
 /**
  * Input of `relation.add` as `run` gets it: validated, properties with a `default` filled in. Add a relation; stores target UUID and current version, plus the title only within the same repository.
- * Schema: `schemas/commands/catalog.json relation.add input`.
+ * Schema: `schemas/commands/relation.add.json input`.
  */
 export interface RelationAddInput {
   readonly source: ElementRef;
@@ -1942,7 +1942,7 @@ export interface RelationAddInput {
 
 /**
  * Output of `relation.add`. Add a relation; stores target UUID and current version, plus the title only within the same repository.
- * Schema: `schemas/commands/catalog.json relation.add output`.
+ * Schema: `schemas/commands/relation.add.json output`.
  */
 export interface RelationAddOutput {
   readonly files: readonly string[];
@@ -1951,7 +1951,7 @@ export interface RelationAddOutput {
 
 /**
  * Input of `relation.remove` as `run` gets it: validated, properties with a `default` filled in. Remove a relation from the source file.
- * Schema: `schemas/commands/catalog.json relation.remove input`.
+ * Schema: `schemas/commands/relation.remove.json input`.
  */
 export interface RelationRemoveInput {
   readonly source: ElementRef;
@@ -1963,7 +1963,7 @@ export interface RelationRemoveInput {
 
 /**
  * Output of `relation.remove`. Remove a relation from the source file.
- * Schema: `schemas/commands/catalog.json relation.remove output`.
+ * Schema: `schemas/commands/relation.remove.json output`.
  */
 export interface RelationRemoveOutput {
   readonly files: readonly string[];
@@ -1972,7 +1972,7 @@ export interface RelationRemoveOutput {
 
 /**
  * Input of `trace.chain` as `run` gets it: validated, properties with a `default` filled in. Chain up to the top parents and down to evidence, with depth, gaps (also a requirement without a parent) and cycles; one page of nodes at a time, total counts all.
- * Schema: `schemas/commands/catalog.json trace.chain input`.
+ * Schema: `schemas/commands/trace.chain.json input`.
  */
 export interface TraceChainInput {
   readonly ref: ElementRef;
@@ -1987,7 +1987,7 @@ export interface TraceChainInput {
 
 /**
  * Output of `trace.chain`. Chain up to the top parents and down to evidence, with depth, gaps (also a requirement without a parent) and cycles; one page of nodes at a time, total counts all.
- * Schema: `schemas/commands/catalog.json trace.chain output`.
+ * Schema: `schemas/commands/trace.chain.json output`.
  */
 export interface TraceChainOutput {
   readonly root: Uuid;
@@ -2071,7 +2071,7 @@ export interface TraceChainOutput {
 
 /**
  * Input of `trace.related` as `run` gets it: validated, properties with a `default` filled in. All children of a set of parents, or all parents of a set of requirements, each once, optionally up to a depth; one page at a time, total counts all.
- * Schema: `schemas/commands/catalog.json trace.related input`.
+ * Schema: `schemas/commands/trace.related.json input`.
  */
 export interface TraceRelatedInput {
   readonly refs: readonly ElementRef[];
@@ -2086,7 +2086,7 @@ export interface TraceRelatedInput {
 
 /**
  * Output of `trace.related`. All children of a set of parents, or all parents of a set of requirements, each once, optionally up to a depth; one page at a time, total counts all.
- * Schema: `schemas/commands/catalog.json trace.related output`.
+ * Schema: `schemas/commands/trace.related.json output`.
  */
 export interface TraceRelatedOutput {
   readonly elements: readonly DataExportElement[];
@@ -2096,7 +2096,7 @@ export interface TraceRelatedOutput {
 
 /**
  * Input of `trace.affected` as `run` gets it: validated, properties with a `default` filled in. Elements affected by a change of one element, with path and distance.
- * Schema: `schemas/commands/catalog.json trace.affected input`.
+ * Schema: `schemas/commands/trace.affected.json input`.
  */
 export interface TraceAffectedInput {
   readonly ref: ElementRef;
@@ -2106,7 +2106,7 @@ export interface TraceAffectedInput {
 
 /**
  * Output of `trace.affected`. Elements affected by a change of one element, with path and distance.
- * Schema: `schemas/commands/catalog.json trace.affected output`.
+ * Schema: `schemas/commands/trace.affected.json output`.
  */
 export interface TraceAffectedOutput {
   /** The page of `limit` affected elements from `offset` (`total` counts all). The affected elements: every element that has a relation or an inline reference (in the text or in a property marked `markdown`, SR-127) to the element, directly or through the chain (SR-024 AK1), each once at its shortest distance, breadth first, the element itself never. Distance 1: every element whose file holds a relation (any relation kind or relation-valued property) or an inline reference to it. From there onward along the derivation chain (meaning `derivation`, SR-013) and inline references that point at an affected element. */
@@ -2143,7 +2143,7 @@ export interface TraceAffectedOutput {
 
 /**
  * Input of `trace.neighbourhood` as `run` gets it: validated, properties with a `default` filled in. The surroundings of one element over every relation kind and inline reference, up and down to a depth; each edge says whether it repeats an element and whether it is outdated. One page of nodes at a time.
- * Schema: `schemas/commands/catalog.json trace.neighbourhood input`.
+ * Schema: `schemas/commands/trace.neighbourhood.json input`.
  */
 export interface TraceNeighbourhoodInput {
   readonly ref: ElementRef;
@@ -2168,7 +2168,7 @@ export interface TraceNeighbourhoodInput {
 
 /**
  * Output of `trace.neighbourhood`. The surroundings of one element over every relation kind and inline reference, up and down to a depth; each edge says whether it repeats an element and whether it is outdated. One page of nodes at a time.
- * Schema: `schemas/commands/catalog.json trace.neighbourhood output`.
+ * Schema: `schemas/commands/trace.neighbourhood.json output`.
  */
 export interface TraceNeighbourhoodOutput {
   readonly root: Uuid;
@@ -2225,7 +2225,7 @@ export interface TraceNeighbourhoodOutput {
 
 /**
  * Input of `trace.matrix` as `run` gets it: validated, properties with a `default` filled in. Traceability matrix of a selection: one row per element in list order, one column per relation kind and direction that occurs, each cell the elements at the other end with outdated and missing marks; per column how many rows have a link. One page of rows at a time. With evidence locations also each requirement's test cases and verification status, and the degree.
- * Schema: `schemas/commands/catalog.json trace.matrix input`.
+ * Schema: `schemas/commands/trace.matrix.json input`.
  */
 export interface TraceMatrixInput {
   /** The rows: every element the selection selects, as `element.list` selects them (every part given must hold, SR-101 AK2). In a variant view (`selection.view`, or the view of the saved filter) a link whose other end the view does not hold (SR-040, SR-043: also a core requirement the variant excludes or replaces) is left out of the cells and the counts, as `trace.neighbourhood` leaves it out of its walk. */
@@ -2242,7 +2242,7 @@ export interface TraceMatrixInput {
 
 /**
  * Output of `trace.matrix`. Traceability matrix of a selection: one row per element in list order, one column per relation kind and direction that occurs, each cell the elements at the other end with outdated and missing marks; per column how many rows have a link. One page of rows at a time. With evidence locations also each requirement's test cases and verification status, and the degree.
- * Schema: `schemas/commands/catalog.json trace.matrix output`.
+ * Schema: `schemas/commands/trace.matrix.json output`.
  */
 export interface TraceMatrixOutput {
   /** One column per relation kind and direction that occurs in the whole selection (SR-125 AK2), not only on the page: a kind or direction no row has makes no column. Order: relation kinds in the order of the metamodel, then properties of kind `relation` in property order; per key `out` before `in`. `type` says what a column holds and so the shape of its cells; every column is `relation`. The evidence columns (SR-126) are no column type: their header is `evidence` and their cells are `rows[].testCases` and `rows[].verification`, so a reader of `columns` and `cells` needs no other shape. */
@@ -2314,7 +2314,7 @@ export interface TraceMatrixOutput {
 
 /**
  * Input of `trace.graph` as `run` gets it: validated, properties with a `default` filled in. The graph of one element: what its links lead to above it and what links to it below, to a depth, over the chosen kinds. Each element is one node with its level and marks, and each link between two nodes is one edge. At most `limit` nodes, nearest levels first.
- * Schema: `schemas/commands/catalog.json trace.graph input`.
+ * Schema: `schemas/commands/trace.graph.json input`.
  */
 export interface TraceGraphInput {
   readonly ref: ElementRef;
@@ -2335,7 +2335,7 @@ export interface TraceGraphInput {
 
 /**
  * Output of `trace.graph`. The graph of one element: what its links lead to above it and what links to it below, to a depth, over the chosen kinds. Each element is one node with its level and marks, and each link between two nodes is one edge. At most `limit` nodes, nearest levels first.
- * Schema: `schemas/commands/catalog.json trace.graph output`.
+ * Schema: `schemas/commands/trace.graph.json output`.
  */
 export interface TraceGraphOutput {
   readonly root: Uuid;
@@ -2388,7 +2388,7 @@ export interface TraceGraphOutput {
 
 /**
  * Input of `hint.list` as `run` gets it: validated, properties with a `default` filled in. Open hints of the workspace, filterable by kind, type, package or variant.
- * Schema: `schemas/commands/catalog.json hint.list input`.
+ * Schema: `schemas/commands/hint.list.json input`.
  */
 export interface HintListInput {
   /** Only hints with one of these codes. */
@@ -2405,7 +2405,7 @@ export interface HintListInput {
 
 /**
  * Output of `hint.list`. Open hints of the workspace, filterable by kind, type, package or variant.
- * Schema: `schemas/commands/catalog.json hint.list output`.
+ * Schema: `schemas/commands/hint.list.json output`.
  */
 export interface HintListOutput {
   /** The open hints: findings of severity warning about one element (glossary "Hinweis": the element should be checked; it blocks nothing and changes no status), from the same whole-workspace findings as workspace.check; errors, info and warnings about no element are not hints. Filters combine with AND. Each hint with its kind (code), the element it is about (elementId, repository, file, line), its target where it has one (targetId) and its reason (message; for an outdated relation with both versions and their dates, D-013). In the order of workspace.check. */
@@ -2416,7 +2416,7 @@ export interface HintListOutput {
 
 /**
  * Input of `hint.confirm` as `run` gets it: validated, properties with a `default` filled in. Confirm hints, by ID (hintIds) or all of one element (ref, target): writes the current target version into the relation or inline reference (in the text or in a property marked `markdown`, SR-127; `relation.outdated`) or into the `replaces` item (`variant.core-changed`, SR-045), and nothing else but the current titles of the file's same-repository targets (D-042); an ID no open hint has gives a warning, for example one confirmed already.
- * Schema: `schemas/commands/catalog.json hint.confirm input`.
+ * Schema: `schemas/commands/hint.confirm.json input`.
  */
 export interface HintConfirmInput {
   /** IDs of hints to confirm (`hintId` of hint.list). */
@@ -2431,7 +2431,7 @@ export interface HintConfirmInput {
 
 /**
  * Output of `hint.confirm`. Confirm hints, by ID (hintIds) or all of one element (ref, target): writes the current target version into the relation or inline reference (in the text or in a property marked `markdown`, SR-127; `relation.outdated`) or into the `replaces` item (`variant.core-changed`, SR-045), and nothing else but the current titles of the file's same-repository targets (D-042); an ID no open hint has gives a warning, for example one confirmed already.
- * Schema: `schemas/commands/catalog.json hint.confirm output`.
+ * Schema: `schemas/commands/hint.confirm.json output`.
  */
 export interface HintConfirmOutput {
   readonly confirmed: readonly string[];
@@ -2441,7 +2441,7 @@ export interface HintConfirmOutput {
 
 /**
  * Input of `element.search` as `run` gets it: validated, properties with a `default` filled in. Full-text search over title, text, properties and IDs of the elements of a selection, typo tolerant, in any case, the best first.
- * Schema: `schemas/commands/catalog.json element.search input`.
+ * Schema: `schemas/commands/element.search.json input`.
  */
 export interface ElementSearchInput {
   /** Words split at spaces; every word must match (in the title, the text, a property value, the type or status name, or an ID). A word matches words it begins (from 2 letters) and with a typo (1 edit from 4 letters, 2 from 8; none for a query word with a digit), in any case. A short ID, an identifier or at least 6 hex digits of a UUID match that element exactly; ID matches come first. A query without a word finds nothing. */
@@ -2456,7 +2456,7 @@ export interface ElementSearchInput {
 
 /**
  * Output of `element.search`. Full-text search over title, text, properties and IDs of the elements of a selection, typo tolerant, in any case, the best first.
- * Schema: `schemas/commands/catalog.json element.search output`.
+ * Schema: `schemas/commands/element.search.json output`.
  */
 export interface ElementSearchOutput {
   readonly hits: readonly {
@@ -2484,13 +2484,13 @@ export interface ElementSearchOutput {
 
 /**
  * Input of `filter.list` as `run` gets it: validated, properties with a `default` filled in. Saved filters of the workspace, with their definitions.
- * Schema: `schemas/commands/catalog.json filter.list input`.
+ * Schema: `schemas/commands/filter.list.json input`.
  */
 export type FilterListInput = Readonly<Record<string, never>>;
 
 /**
  * Output of `filter.list`. Saved filters of the workspace, with their definitions.
- * Schema: `schemas/commands/catalog.json filter.list output`.
+ * Schema: `schemas/commands/filter.list.json output`.
  */
 export interface FilterListOutput {
   /** In the order of their files. A faulty file is not listed; it is one of `problems`. */
@@ -2510,7 +2510,7 @@ export interface FilterListOutput {
 
 /**
  * Input of `filter.save` as `run` gets it: validated, properties with a `default` filled in. Save a named filter as YAML in the repository; an existing name replaces that filter.
- * Schema: `schemas/commands/catalog.json filter.save input`.
+ * Schema: `schemas/commands/filter.save.json input`.
  */
 export interface FilterSaveInput {
   readonly name: FilterName;
@@ -2524,7 +2524,7 @@ export interface FilterSaveInput {
 
 /**
  * Output of `filter.save`. Save a named filter as YAML in the repository; an existing name replaces that filter.
- * Schema: `schemas/commands/catalog.json filter.save output`.
+ * Schema: `schemas/commands/filter.save.json output`.
  */
 export interface FilterSaveOutput {
   readonly files: readonly string[];
@@ -2533,7 +2533,7 @@ export interface FilterSaveOutput {
 
 /**
  * Input of `evidence.list` as `run` gets it: validated, properties with a `default` filled in. Evidence records of an element with version, item, date, result, evidence location and baselines that contain the version.
- * Schema: `schemas/commands/catalog.json evidence.list input`.
+ * Schema: `schemas/commands/evidence.list.json input`.
  */
 export interface EvidenceListInput {
   readonly ref: ElementRef;
@@ -2543,7 +2543,7 @@ export interface EvidenceListInput {
 
 /**
  * Output of `evidence.list`. Evidence records of an element with version, item, date, result, evidence location and baselines that contain the version.
- * Schema: `schemas/commands/catalog.json evidence.list output`.
+ * Schema: `schemas/commands/evidence.list.json output`.
  */
 export interface EvidenceListOutput {
   /** The evidence records of the element (SR-028, SR-093), newest first, each with its version, item, date, result and evidence (SR-032 AK1) and the baselines that contain its version (`baselines`, SR-032 AK2; empty when none does). */
@@ -2558,7 +2558,7 @@ export interface EvidenceListOutput {
 
 /**
  * Input of `evidence.record` as `run` gets it: validated, properties with a `default` filled in. Write a manual verification or validation record (Markdown, evidence-record.schema.json) into an evidence folder of the workspace; the element's UUID and current version are filled in. A verification names a requirement, a validation a need or a requirement (D-012). Never replaces a file: a name that is taken gets -2, -3, ...
- * Schema: `schemas/commands/catalog.json evidence.record input`.
+ * Schema: `schemas/commands/evidence.record.json input`.
  */
 export interface EvidenceRecordInput {
   /** The element the record is about. Its UUID and current version are written into the record; neither is an input (D-026). */
@@ -2584,7 +2584,7 @@ export interface EvidenceRecordInput {
 
 /**
  * Output of `evidence.record`. Write a manual verification or validation record (Markdown, evidence-record.schema.json) into an evidence folder of the workspace; the element's UUID and current version are filled in. A verification names a requirement, a validation a need or a requirement (D-012). Never replaces a file: a name that is taken gets -2, -3, ...
- * Schema: `schemas/commands/catalog.json evidence.record output`.
+ * Schema: `schemas/commands/evidence.record.json output`.
  */
 export interface EvidenceRecordOutput {
   readonly files: readonly string[];
@@ -2595,7 +2595,7 @@ export interface EvidenceRecordOutput {
 
 /**
  * Input of `evidence.enrichJunit` as `run` gets it: validated, properties with a `default` filled in. Add UUID, version, item and date, and the variant's UUID when there is one, to every test case of a JUnit XML file that names an element by short ID, UUID or identifier, or by a short ID in another form that a name pattern finds. Test cases with an unknown reference, or whose variant does not fit, stay unchanged and are listed; the CLI exits 1. The output counts the test cases that name no element.
- * Schema: `schemas/commands/catalog.json evidence.enrichJunit input`.
+ * Schema: `schemas/commands/evidence.enrichJunit.json input`.
  */
 export interface EvidenceEnrichJunitInput {
   /** The JUnit XML file to enrich. It is rewritten in place unless `output` is given. A test case that already has a `reqseq:version` is never changed (D-026). */
@@ -2614,7 +2614,7 @@ export interface EvidenceEnrichJunitInput {
 
 /**
  * Output of `evidence.enrichJunit`. Add UUID, version, item and date, and the variant's UUID when there is one, to every test case of a JUnit XML file that names an element by short ID, UUID or identifier, or by a short ID in another form that a name pattern finds. Test cases with an unknown reference, or whose variant does not fit, stay unchanged and are listed; the CLI exits 1. The output counts the test cases that name no element.
- * Schema: `schemas/commands/catalog.json evidence.enrichJunit output`.
+ * Schema: `schemas/commands/evidence.enrichJunit.json output`.
  */
 export interface EvidenceEnrichJunitOutput {
   /** The test cases that name at least one element and are enriched: by this call, or already before. */
@@ -2636,7 +2636,7 @@ export interface EvidenceEnrichJunitOutput {
 
 /**
  * Input of `evidence.status` as `run` gets it: validated, properties with a `default` filled in. Verification status of a selection per view, from the evidence records (SR-031) and, without own record, from the children with the children that are missing (SR-034); validation status from the validation records (SR-038).
- * Schema: `schemas/commands/catalog.json evidence.status input`.
+ * Schema: `schemas/commands/evidence.status.json input`.
  */
 export interface EvidenceStatusInput {
   readonly selection?: ElementSelection;
@@ -2646,7 +2646,7 @@ export interface EvidenceStatusInput {
 
 /**
  * Output of `evidence.status`. Verification status of a selection per view, from the evidence records (SR-031) and, without own record, from the children with the children that are missing (SR-034); validation status from the validation records (SR-038).
- * Schema: `schemas/commands/catalog.json evidence.status output`.
+ * Schema: `schemas/commands/evidence.status.json output`.
  */
 export interface EvidenceStatusOutput {
   /** One page of the selection in workspace order, each element as element.list gives it, with `verification` for every element whose type has the meaning `requirement`: its verification status (SR-031, ADR-0012 "Status rules") in each view it is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it (SR-043, SR-047 AK3), and for a requirement without own verification record in a view its indirect verification from its children (`indirect`) or the children that are missing (`missingChildren`, SR-034); an element marked emergent (SR-035) is never `indirect`; and `validation`, the validation status (SR-038, `$defs/element` `validation`: every need, any other element with a validation record). Derived from the evidence records; it is not the element's `status` and never changes it (D-030). While the metamodel is not valid the records are not compared: every requirement is `open`, every need `open`, and no other element has `validation`. */
@@ -2661,7 +2661,7 @@ export interface EvidenceStatusOutput {
 
 /**
  * Input of `evidence.coverage` as `run` gets it: validated, properties with a `default` filled in. Coverage of a selection per level: how many have children, how many have evidence; with the element lists.
- * Schema: `schemas/commands/catalog.json evidence.coverage input`.
+ * Schema: `schemas/commands/evidence.coverage.json input`.
  */
 export interface EvidenceCoverageInput {
   /** The elements to cover, as `element.list` takes them; every part given must hold (SR-101 AK2). Its view (else the view of its saved filter, else the core, SR-036 AK5) narrows the counted elements and their children to those it holds (SR-043: no core requirement the variant excludes or replaces), and evidence records count for that view, as the filter condition `verification` does. */
@@ -2670,7 +2670,7 @@ export interface EvidenceCoverageInput {
 
 /**
  * Output of `evidence.coverage`. Coverage of a selection per level: how many have children, how many have evidence; with the element lists.
- * Schema: `schemas/commands/catalog.json evidence.coverage output`.
+ * Schema: `schemas/commands/evidence.coverage.json output`.
  */
 export interface EvidenceCoverageOutput {
   /** One level per element type of the selection with the meaning `need` or `requirement` (a subtype is its own level), in metamodel order (spec question #527). Elements whose status the metamodel marks invalid are not counted (SR-036 AK4, D-044); other types have no level. */
@@ -2697,7 +2697,7 @@ export interface EvidenceCoverageOutput {
 
 /**
  * Input of `evidence.degree` as `run` gets it: validated, properties with a `default` filled in. Verification degree of a selection in one view: the share of the requirements verified or indirect, and the count per verification status (SR-037).
- * Schema: `schemas/commands/catalog.json evidence.degree input`.
+ * Schema: `schemas/commands/evidence.degree.json input`.
  */
 export interface EvidenceDegreeInput {
   /** The requirements to count, as element.list takes them. Its view (else its saved filter's, else the core) is the view of the status. */
@@ -2706,7 +2706,7 @@ export interface EvidenceDegreeInput {
 
 /**
  * Output of `evidence.degree`. Verification degree of a selection in one view: the share of the requirements verified or indirect, and the count per verification status (SR-037).
- * Schema: `schemas/commands/catalog.json evidence.degree output`.
+ * Schema: `schemas/commands/evidence.degree.json output`.
  */
 export interface EvidenceDegreeOutput {
   readonly degree: DataExportVerificationDegree;
@@ -2719,7 +2719,7 @@ export interface EvidenceDegreeOutput {
 
 /**
  * Input of `evidence.withoutPassedTest` as `run` gets it: validated, properties with a `default` filled in. Every requirement without a passed test execution in one view (SR-120): no verification record with method test and result passed, of any version, holds there (spec question #532). Each with its verification status.
- * Schema: `schemas/commands/catalog.json evidence.withoutPassedTest input`.
+ * Schema: `schemas/commands/evidence.withoutPassedTest.json input`.
  */
 export interface EvidenceWithoutPassedTestInput {
   /** Default: the core. A variant: only records for it count, and only requirements its view holds (SR-047, SR-043). */
@@ -2730,7 +2730,7 @@ export interface EvidenceWithoutPassedTestInput {
 
 /**
  * Output of `evidence.withoutPassedTest`. Every requirement without a passed test execution in one view (SR-120): no verification record with method test and result passed, of any version, holds there (spec question #532). Each with its verification status.
- * Schema: `schemas/commands/catalog.json evidence.withoutPassedTest output`.
+ * Schema: `schemas/commands/evidence.withoutPassedTest.json output`.
  */
 export interface EvidenceWithoutPassedTestOutput {
   /** One page, by type, then identifier, else short ID: every requirement (type with the meaning `requirement`, status not marked invalid, applies in the view) without a verification record with method `test` and result `passed` that holds in the view, of any version and also when a later run failed (spec question #532). Each as evidence.status gives it, with `verification` and `validation`. */
@@ -2747,7 +2747,7 @@ export interface EvidenceWithoutPassedTestOutput {
 
 /**
  * Input of `data.export` as `run` gets it: validated, properties with a `default` filled in. Data of the current state as JSON for external evaluation, or, from the command line and the API, as JSON Lines with one element per line: every element unless a selection is given, so an evaluation selects by filter, package, baseline or variant instead of exporting everything; no paging. With `data store` the only commands so far that take `selection.baseline`: the elements the baseline lists, as they are now. `data store` writes a whole state to a file.
- * Schema: `schemas/commands/catalog.json data.export input`.
+ * Schema: `schemas/commands/data.export.json input`.
  */
 export interface DataExportInput {
   readonly selection?: ElementSelection;
@@ -2755,13 +2755,13 @@ export interface DataExportInput {
 
 /**
  * Output of `data.export`. Data of the current state as JSON for external evaluation, or, from the command line and the API, as JSON Lines with one element per line: every element unless a selection is given, so an evaluation selects by filter, package, baseline or variant instead of exporting everything; no paging. With `data store` the only commands so far that take `selection.baseline`: the elements the baseline lists, as they are now. `data store` writes a whole state to a file.
- * Schema: `schemas/commands/catalog.json data.export output`.
+ * Schema: `schemas/commands/data.export.json output`.
  */
 export type DataExportOutput = DataExportFile & Readonly<Record<string, unknown>>;
 
 /**
  * Input of `data.store` as `run` gets it: validated, properties with a `default` filled in. Write the data of the current state (as data export gives it) as JSON Lines, one element per line, to `<commit>.jsonl` in a folder; `-dirty` with uncommitted ReqSeq files, replaces the file of the same commit; an old `<commit>.json` stays as it is. Many such files load as one table, grouped by `commit` and `dirty`. One folder per selection: the name is the same for every selection. Takes `selection.baseline` as `data export` does.
- * Schema: `schemas/commands/catalog.json data.store input`.
+ * Schema: `schemas/commands/data.store.json input`.
  */
 export interface DataStoreInput {
   /** Folder for the file; created when missing inside a repository of the workspace (also an ignored one), must exist outside. */
@@ -2771,7 +2771,7 @@ export interface DataStoreInput {
 
 /**
  * Output of `data.store`. Write the data of the current state (as data export gives it) as JSON Lines, one element per line, to `<commit>.jsonl` in a folder; `-dirty` with uncommitted ReqSeq files, replaces the file of the same commit; an old `<commit>.json` stays as it is. Many such files load as one table, grouped by `commit` and `dirty`. One folder per selection: the name is the same for every selection. Takes `selection.baseline` as `data export` does.
- * Schema: `schemas/commands/catalog.json data.store output`.
+ * Schema: `schemas/commands/data.store.json output`.
  */
 export interface DataStoreOutput {
   readonly files: readonly string[];
@@ -2780,7 +2780,7 @@ export interface DataStoreOutput {
 
 /**
  * Input of `variant.diff` as `run` gets it: validated, properties with a `default` filled in. What a variant adds, replaces and excludes compared to the core.
- * Schema: `schemas/commands/catalog.json variant.diff input`.
+ * Schema: `schemas/commands/variant.diff.json input`.
  */
 export interface VariantDiffInput {
   /** The variant. An element whose type has no meaning `variant` is `input.invalid` with `details.reason: "not-a-variant"`; an unknown or ambiguous reference is `ref.unknown` or `ref.ambiguous`. */
@@ -2789,7 +2789,7 @@ export interface VariantDiffInput {
 
 /**
  * Output of `variant.diff`. What a variant adds, replaces and excludes compared to the core.
- * Schema: `schemas/commands/catalog.json variant.diff output`.
+ * Schema: `schemas/commands/variant.diff.json output`.
  */
 export interface VariantDiffOutput {
   /** Requirements whose validity names the variant and that replace no core requirement that is not excluded in it (SR-044 AK1), also the source of a replaces onto an element that is no core requirement (SR-041 AK8). Store order. */
@@ -2811,7 +2811,7 @@ export interface VariantDiffOutput {
 
 /**
  * Input of `variant.exclude` as `run` gets it: validated, properties with a `default` filled in. Exclude core requirements for a variant; written into the variant file only.
- * Schema: `schemas/commands/catalog.json variant.exclude input`.
+ * Schema: `schemas/commands/variant.exclude.json input`.
  */
 export interface VariantExcludeInput {
   /** The variant. An element whose type has no meaning `variant` is `input.invalid` with `details.reason: "not-a-variant"`; an unknown or ambiguous reference is `ref.unknown` or `ref.ambiguous`. */
@@ -2824,7 +2824,7 @@ export interface VariantExcludeInput {
 
 /**
  * Output of `variant.exclude`. Exclude core requirements for a variant; written into the variant file only.
- * Schema: `schemas/commands/catalog.json variant.exclude output`.
+ * Schema: `schemas/commands/variant.exclude.json output`.
  */
 export interface VariantExcludeOutput {
   readonly files: readonly string[];
@@ -2833,7 +2833,7 @@ export interface VariantExcludeOutput {
 
 /**
  * Input of `baseline.create` as `run` gets it: validated, properties with a `default` filled in. Write a baseline file for a selection (SR-050, ADR-0018): name, date, the HEAD commit of every repository involved, ID and version of every element. Refused while files of the selection are not committed. Never commits, never replaces a baseline.
- * Schema: `schemas/commands/catalog.json baseline.create input`.
+ * Schema: `schemas/commands/baseline.create.json input`.
  */
 export interface BaselineCreateInput {
   readonly name: BaselineName;
@@ -2843,7 +2843,7 @@ export interface BaselineCreateInput {
 
 /**
  * Output of `baseline.create`. Write a baseline file for a selection (SR-050, ADR-0018): name, date, the HEAD commit of every repository involved, ID and version of every element. Refused while files of the selection are not committed. Never commits, never replaces a baseline.
- * Schema: `schemas/commands/catalog.json baseline.create output`.
+ * Schema: `schemas/commands/baseline.create.json output`.
  */
 export interface BaselineCreateOutput {
   readonly files: readonly string[];
@@ -2864,13 +2864,13 @@ export interface BaselineCreateOutput {
 
 /**
  * Input of `baseline.list` as `run` gets it: validated, properties with a `default` filled in. Baseline files of the workspace, with name, date, view and number of elements (ADR-0018).
- * Schema: `schemas/commands/catalog.json baseline.list input`.
+ * Schema: `schemas/commands/baseline.list.json input`.
  */
 export type BaselineListInput = Readonly<Record<string, never>>;
 
 /**
  * Output of `baseline.list`. Baseline files of the workspace, with name, date, view and number of elements (ADR-0018).
- * Schema: `schemas/commands/catalog.json baseline.list output`.
+ * Schema: `schemas/commands/baseline.list.json output`.
  */
 export interface BaselineListOutput {
   /** The valid baselines, in file order (code units of the file name). */
@@ -2896,7 +2896,7 @@ export interface BaselineListOutput {
 
 /**
  * Input of `baseline.get` as `run` gets it: validated, properties with a `default` filled in. Elements of a baseline with their version then and its date, marked changed, superseded, removed or added since (SR-051); with withEvidence the verification status of each requirement per view and the validation status at its version in the baseline, with the records dated after it named (SR-094).
- * Schema: `schemas/commands/catalog.json baseline.get input`.
+ * Schema: `schemas/commands/baseline.get.json input`.
  */
 export interface BaselineGetInput {
   /** Name of a baseline, or its file name (with or without .yaml). */
@@ -2910,7 +2910,7 @@ export interface BaselineGetInput {
 
 /**
  * Output of `baseline.get`. Elements of a baseline with their version then and its date, marked changed, superseded, removed or added since (SR-051); with withEvidence the verification status of each requirement per view and the validation status at its version in the baseline, with the records dated after it named (SR-094).
- * Schema: `schemas/commands/catalog.json baseline.get output`.
+ * Schema: `schemas/commands/baseline.get.json output`.
  */
 export interface BaselineGetOutput {
   readonly name: string;
@@ -2972,7 +2972,7 @@ export interface BaselineGetOutput {
 
 /**
  * Input of `baseline.compare` as `run` gets it: validated, properties with a `default` filled in. The two commits and the Git command that show the difference of an element since a baseline (SR-051 AK4). Runs nothing.
- * Schema: `schemas/commands/catalog.json baseline.compare input`.
+ * Schema: `schemas/commands/baseline.compare.json input`.
  */
 export interface BaselineCompareInput {
   /** Name of a baseline, or its file name (with or without .yaml). */
@@ -2982,7 +2982,7 @@ export interface BaselineCompareInput {
 
 /**
  * Output of `baseline.compare`. The two commits and the Git command that show the difference of an element since a baseline (SR-051 AK4). Runs nothing.
- * Schema: `schemas/commands/catalog.json baseline.compare output`.
+ * Schema: `schemas/commands/baseline.compare.json output`.
  */
 export interface BaselineCompareOutput {
   readonly repository: string;
@@ -2999,7 +2999,7 @@ export interface BaselineCompareOutput {
 
 /**
  * Input of `reqif.analyze` as `run` gets it: validated, properties with a `default` filled in. Preview the import of a ReqIF file: types, attributes and values without mapping; for a repeated delivery the new, changed and dropped requirements and the conflicts with local changes; the losses. Writes nothing.
- * Schema: `schemas/commands/catalog.json reqif.analyze input`.
+ * Schema: `schemas/commands/reqif.analyze.json input`.
  */
 export interface ReqifAnalyzeInput {
   readonly file: LocalPath;
@@ -3010,7 +3010,7 @@ export interface ReqifAnalyzeInput {
 
 /**
  * Output of `reqif.analyze`. Preview the import of a ReqIF file: types, attributes and values without mapping; for a repeated delivery the new, changed and dropped requirements and the conflicts with local changes; the losses. Writes nothing.
- * Schema: `schemas/commands/catalog.json reqif.analyze output`.
+ * Schema: `schemas/commands/reqif.analyze.json output`.
  */
 export interface ReqifAnalyzeOutput {
   readonly unmapped: readonly ReqifUnmapped[];
@@ -3029,7 +3029,7 @@ export interface ReqifAnalyzeOutput {
 
 /**
  * Input of `reqif.import` as `run` gets it: validated, properties with a `default` filled in. Import a ReqIF 1.2 file through a saved mapping, all or nothing: creates an element per object and reports losses. Each element keeps its origin (source, source IDENTIFIER, import date, delivery, import version), which no other command writes. A repeated delivery of the same source updates the elements of the earlier one in place (matched by source and source IDENTIFIER) and only lists the dropped ones; an element changed locally and in the delivery is a conflict that needs take or keep, else the import is refused (reqif.conflict).
- * Schema: `schemas/commands/catalog.json reqif.import input`.
+ * Schema: `schemas/commands/reqif.import.json input`.
  */
 export interface ReqifImportInput {
   readonly file: LocalPath;
@@ -3046,7 +3046,7 @@ export interface ReqifImportInput {
 
 /**
  * Output of `reqif.import`. Import a ReqIF 1.2 file through a saved mapping, all or nothing: creates an element per object and reports losses. Each element keeps its origin (source, source IDENTIFIER, import date, delivery, import version), which no other command writes. A repeated delivery of the same source updates the elements of the earlier one in place (matched by source and source IDENTIFIER) and only lists the dropped ones; an element changed locally and in the delivery is a conflict that needs take or keep, else the import is refused (reqif.conflict).
- * Schema: `schemas/commands/catalog.json reqif.import output`.
+ * Schema: `schemas/commands/reqif.import.json output`.
  */
 export interface ReqifImportOutput {
   /** New elements. */
@@ -3064,7 +3064,7 @@ export interface ReqifImportOutput {
 
 /**
  * Input of `reqif.saveMapping` as `run` gets it: validated, properties with a `default` filled in. Save or change the mapping of a source to the own metamodel, in the mapping folder (default `reqif`).
- * Schema: `schemas/commands/catalog.json reqif.saveMapping input`.
+ * Schema: `schemas/commands/reqif.saveMapping.json input`.
  */
 export interface ReqifSaveMappingInput {
   readonly mapping: ReqifMappingFileWithDefaults;
@@ -3074,7 +3074,7 @@ export interface ReqifSaveMappingInput {
 
 /**
  * Output of `reqif.saveMapping`. Save or change the mapping of a source to the own metamodel, in the mapping folder (default `reqif`).
- * Schema: `schemas/commands/catalog.json reqif.saveMapping output`.
+ * Schema: `schemas/commands/reqif.saveMapping.json output`.
  */
 export interface ReqifSaveMappingOutput {
   readonly files: readonly string[];
@@ -3083,7 +3083,7 @@ export interface ReqifSaveMappingOutput {
 
 /**
  * Input of `reqif.export` as `run` gets it: validated, properties with a `default` filled in. Export a selection or a saved export profile, or with statements the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID (the source IDENTIFIER for statements), text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.
- * Schema: `schemas/commands/catalog.json reqif.export input`.
+ * Schema: `schemas/commands/reqif.export.json input`.
  */
 export interface ReqifExportInput {
   readonly output: LocalPath;
@@ -3097,7 +3097,7 @@ export interface ReqifExportInput {
 
 /**
  * Output of `reqif.export`. Export a selection or a saved export profile, or with statements the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID (the source IDENTIFIER for statements), text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.
- * Schema: `schemas/commands/catalog.json reqif.export output`.
+ * Schema: `schemas/commands/reqif.export.json output`.
  */
 export interface ReqifExportOutput {
   readonly file: string;

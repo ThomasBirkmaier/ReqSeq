@@ -43,6 +43,7 @@ import type { ElementRecord } from "./elements.js";
 import { imageMemo } from "./images.js";
 import { locateIn } from "./locate.js";
 import { relationTypeFindings } from "./relation-types.js";
+import { isEmptyValue } from "./required.js";
 import type { TargetItem } from "./relation-keys.js";
 import { hasId } from "./relation-keys.js";
 import type { ShortIds } from "./short-id.js";
@@ -151,13 +152,20 @@ const propertyOf = (metamodel: Metamodel, key: string): MetamodelProperty => {
   return found.definition;
 };
 
-const isEmpty = (value: ElementInputValue): boolean =>
-  value === null || (Array.isArray(value) && value.length === 0);
+/**
+ * Whether `value` is empty for the operation: `null` and `[]`, and for `set` and `add` of a choice
+ * also an empty or blank string (`isEmptyValue`), which `withChoiceKeys` would keep as no value (#242).
+ */
+const isEmpty = (value: ElementInputValue, property: MetamodelProperty, operation: BulkOperation): boolean =>
+  value === null ||
+  (Array.isArray(value) && value.length === 0) ||
+  (property.kind === "choice" && operation !== "remove" && isEmptyValue(value));
 
 /**
  * The value of the input with each choice as its key (`withChoiceKeys`), after the checks of the
  * operation: `set` and `add` need a value, `add` and `remove` with a value a property with `many`,
- * and an empty value (`null`, `[]`) is refused, since removing is `remove`.
+ * and an empty value (`null`, `[]`, for `set` and `add` of a choice a blank string) is refused,
+ * since removing is `remove`.
  */
 const valueOf = (
   metamodel: Metamodel,
@@ -171,7 +179,7 @@ const valueOf = (
     }
     return undefined;
   }
-  if (isEmpty(value)) {
+  if (isEmpty(value, property, operation)) {
     throw invalid(
       `value: an empty value changes nothing; to remove ${property.key}, use remove without a value`,
       {

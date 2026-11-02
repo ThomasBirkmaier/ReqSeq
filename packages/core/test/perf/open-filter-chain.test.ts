@@ -9,7 +9,16 @@
 // (SR-070) applied by name through the catalog (`element.list` with `selection.filter`, #228). The
 // tests are tagged, so they assert their thresholds (ADR-0011, #215) after `measure` recorded the times.
 import type { GeneratedWorkspace, HistoryCommitSpec, LargeFixtureWorkspace } from "@reqseq/testkit";
-import { generateLargeWorkspace, measure, thresholdMessage, writeLargeWorkspace } from "@reqseq/testkit";
+import {
+  generateLargeWorkspace,
+  malformedNoParentHints,
+  measure,
+  noParentHints,
+  thresholdMessage,
+  withoutNoParent,
+  withoutParent,
+  writeLargeWorkspace,
+} from "@reqseq/testkit";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -544,15 +553,17 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     // Only warnings (outdated relations): ok by default (failOn error, #304).
     expect(checked.ok).toBe(true);
     expect(checked.checkedElements).toBe(ELEMENTS);
-    expect(checked.problems.length).toBeGreaterThan(0);
+    // Besides the generated requirements that got no derivation (SR-022 AK6, #659).
+    expect(malformedNoParentHints(checked.problems)).toEqual([]);
+    expect(noParentHints(checked.problems)).toHaveLength(withoutParent(tree.files));
+    const outdated = withoutNoParent(checked.problems);
+    expect(outdated.length).toBeGreaterThan(0);
     // Exactly the relations and references to it (17 = 10 + 7 in the generated workspace).
     const index = incomingFor(current, await current.get(elementStoreState), metamodel);
-    expect(checked.problems).toHaveLength(
+    expect(outdated).toHaveLength(
       (index.relationsById.get(changed)?.length ?? 0) + (index.referencesById.get(changed)?.length ?? 0),
     );
-    expect(checked.problems.filter((p) => p.code !== "relation.outdated" || p.targetId !== changed)).toEqual(
-      [],
-    );
+    expect(outdated.filter((p) => p.code !== "relation.outdated" || p.targetId !== changed)).toEqual([]);
     // The save puts the written file into the store and carries the short IDs and findings over (#184).
     const titled = await readFirst(
       { ref: saved, title: "Saved in the performance suite" },
