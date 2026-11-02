@@ -656,7 +656,7 @@
     "/v1/commands/workspace.check": {
       "post": {
         "operationId": "workspace_check",
-        "summary": "Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, missing targets, cycles, requirements without a parent (a warning, SR-022 AK6), duplicate IDs, outdated relations, evidence records that cannot be read or name an unknown element. ok is false, and the CLI exits 1, on findings at or above failOn (default error).",
+        "summary": "Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, missing targets, cycles, requirements without a parent (a warning, SR-022 AK6), duplicate IDs, outdated relations, evidence records that cannot be read or name an unknown element, a repository that is a workspace of its own whose metamodel counts other properties to the version. ok is false, and the CLI exits 1, on findings at or above failOn (default error).",
         "tags": [
           "workspace"
         ],
@@ -11746,6 +11746,7 @@
               "metamodel.invalid",
               "metamodel.meaning-unassigned",
               "workspace.repository-missing",
+              "workspace.metamodel-mismatch",
               "workspace.invalid",
               "workspace.not-watched",
               "git.unavailable",

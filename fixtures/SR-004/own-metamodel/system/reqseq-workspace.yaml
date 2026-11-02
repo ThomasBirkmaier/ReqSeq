@@ -1,0 +1,6 @@
+reqseq-workspace: 1
+name: Aircraft
+repositories:
+  - { name: system, url: "git@git.example.com:ac/system.git", main: true }
+  - { name: fuel, url: "git@git.example.com:ac/fuel.git" }
+metamodel: { repository: system, path: metamodel }
