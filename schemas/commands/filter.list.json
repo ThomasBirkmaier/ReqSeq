@@ -1,0 +1,64 @@
+{
+  "name": "filter.list",
+  "title": "List saved filters",
+  "summary": "Saved filters of the workspace, with their definitions.",
+  "effect": "read",
+  "stage": 3,
+  "implements": ["SR-070"],
+  "arguments": [],
+  "input": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "filters": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "$ref": "../filter.schema.json#/$defs/name"
+            },
+            "file": {
+              "type": "string",
+              "description": "The filter file, relative to the workspace root."
+            },
+            "description": {
+              "type": "string"
+            },
+            "view": {
+              "$ref": "../common.schema.json#/$defs/view"
+            },
+            "where": {
+              "$ref": "../filter.schema.json#/$defs/condition"
+            },
+            "sort": {
+              "type": "array",
+              "items": {
+                "$ref": "../filter.schema.json#/$defs/sortKey"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": ["name", "file", "where"]
+        },
+        "description": "In the order of their files. A faulty file is not listed; it is one of `problems`."
+      },
+      "problems": {
+        "type": "array",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/problem"
+        },
+        "description": "Filter files that cannot be read, do not match filter.schema.json, or repeat the name of an earlier file."
+      },
+      "incomplete": {
+        "$ref": "../common.schema.json#/$defs/incomplete"
+      }
+    },
+    "additionalProperties": false,
+    "required": ["filters"]
+  }
+}

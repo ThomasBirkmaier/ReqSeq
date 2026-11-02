@@ -11,11 +11,11 @@ const fieldsOf = (schema: JsonSchema, schemas = contracts.schemas) =>
 
 describe("the local path fields of a command input (SR-142)", () => {
   it("finds every localPath of the product catalog, by its definition", () => {
-    const raw = fs.readFileSync(
-      new URL("../../../../schemas/commands/catalog.json", import.meta.url),
-      "utf8",
-    );
-    const inRaw = raw.split(`"$ref": "${LOCAL_PATH}"`).length - 1;
+    const inRaw = contracts.commands
+      .map((entry) =>
+        fs.readFileSync(new URL(`../../../../schemas/commands/${entry.name}.json`, import.meta.url), "utf8"),
+      )
+      .reduce((sum, raw) => sum + raw.split(`"$ref": "${LOCAL_PATH}"`).length - 1, 0);
     const found = contracts.commands.flatMap((entry) =>
       localPathFields(entry.input, `${SCHEMA_BASE}commands/${entry.name}.input.json`, contracts.schemas).map(
         (field) => `${entry.name}:${field.map((part) => part ?? "[]").join(".")}`,

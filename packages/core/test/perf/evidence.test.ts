@@ -15,7 +15,8 @@
 // "Cold" is the first use after a start: a new `Workspace` on the same files, its model loaded as
 // `warmWorkspace` loads it but without the background search index (`warmModel`, so no build competes
 // for the cores), and its evidence files read (a row of its own), so the cold rows hold the status
-// state (`verificationState`: the walk and one batch of current versions) and nothing else. At most
+// state (`verificationState`: the walk and one batch of current versions) and nothing else; the
+// cold row of the filter without evidence reads no batch (#439). At most
 // one workspace is open at a time, so the heap holds one store.
 import type { GeneratedEvidence, LargeFixtureWorkspace } from "@reqseq/testkit";
 import {
@@ -229,6 +230,25 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 #5
     expect(without.total).toBeLessThan(requirements / 2);
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
     expect(withoutEvidence.ms, thresholdMessage(withoutEvidence)).toBeLessThanOrEqual(RESULT_MS);
+  });
+
+  it("records the filter without evidence as the first filter after the start: no current version read (SR-069 AK3, #439)", async () => {
+    await reopen();
+    await readEvidence(ws());
+    const { result: without } = await measure(
+      "filter system requirements without evidence (relation direction evidence, exists false), first page: first filter after the start",
+      () =>
+        run("element.list", {
+          selection: {
+            where: {
+              all: [{ type: ["system-requirement"] }, { relation: { direction: "evidence" }, exists: false }],
+            },
+          },
+        }),
+      { basis: `SR-069 AK3, SR-082 AK4 (cold; ${COMPARE_AK4})`, ...COMPARED },
+    );
+    expect(without.total).toBeGreaterThan(0);
+    expect((await ws().get(verificationState)).versionBatches()).toBe(0);
   });
 
   it("[SR-082/AK4] applies the filter on the validation status within 500 ms once its state is built (SR-038)", async () => {

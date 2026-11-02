@@ -263,7 +263,7 @@ describe("repositoryState", () => {
     const { rules: inRepo, commit } = await repo();
     const unknownObjects: StateReader = {
       ...DEFAULT_STATE_READER,
-      objects: () => Promise.resolve({ known: false, reason: "timeout", detail: "slow" }),
+      blobs: () => Promise.resolve({ known: false, reason: "timeout", detail: "slow" }),
     };
     expect(await repositoryState(inRepo, ["a.md"], unknownObjects)).toEqual({
       commit,

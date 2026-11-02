@@ -26,7 +26,10 @@
 // state, memoised per store and metamodel (`viewRuleIndexState`, a WeakMap like the succession
 // index). Which variants remove which core requirement is one map per index, built on first use
 // from the items, O(replacements + exclusions) (`removalOf`); `includes` of every view reads it, so
-// a new store costs one pass, not one per variant (N-036, SR-082 AK3). The lists of a variant's rule
+// a new store costs one pass, not one per variant (N-036, SR-082 AK3). So does where each record of
+// the store is in the views of the variants (`membershipOf`), which makes a variant's `includes` one
+// lookup by record: a walk asks it once per step, about 110,000 times for the chain of the first need
+// at N-036 (#463). The lists of a variant's rule
 // (`replacedBy`, `addedOf`, ...) are built only when asked. An element is looked up by repository and
 // UUID, not by record, so a record read again from its file (element.get) gets the same answer.
 import type { Metamodel } from "../metamodel/index.js";
@@ -235,6 +238,51 @@ const removalOf = (index: ViewRuleIndex): Removal => {
 export const removersOf = (index: ViewRuleIndex, element: ElementRecord): readonly string[] =>
   removersIn(removalOf(index), element);
 
+/**
+ * Where a record of the store is in the views of the variants: `ALWAYS` in every one (no validity
+ * entry, or a type without the validity property, and no variant removes it), else the variants its
+ * validity names (`validFor`, undefined: every one) and those whose rule removes it, each as
+ * `repository\0UUID`.
+ */
+type Membership =
+  | typeof ALWAYS
+  | { readonly validFor: ReadonlySet<string> | undefined; readonly removers: readonly string[] };
+
+const ALWAYS = "always";
+
+const CORE: View = { kind: "core" };
+
+/** The membership of every record of each index, built once per index (`membershipOf`). */
+const membershipByIndex = new WeakMap<ViewRuleIndex, ReadonlyMap<ElementRecord, Membership>>();
+
+/**
+ * The membership of every record of `index.store` (see `Membership`): one pass over the store per
+ * index, shared by the rules of all variants, so `includes` is one lookup by record (#463).
+ */
+const membershipOf = (index: ViewRuleIndex): ReadonlyMap<ElementRecord, Membership> => {
+  let members = membershipByIndex.get(index);
+  if (members === undefined) {
+    const validity = validityOf(index.metamodel);
+    const removal = removalOf(index);
+    const found = new Map<ElementRecord, Membership>();
+    for (const e of index.store.elements) {
+      const removers = removersIn(removal, e);
+      // `appliesInView` in the core view: in every view by validity (no entry, or no validity property).
+      const validFor = appliesInView(index, validity, e, CORE)
+        ? undefined
+        : new Set(
+            validityEntries(validity, e)
+              .flatMap((entry) => validityTarget(entry.value, e) ?? [])
+              .map((t) => `${t.repository}\0${t.id}`),
+          );
+      found.set(e, validFor === undefined && removers.length === 0 ? ALWAYS : { validFor, removers });
+    }
+    members = found;
+    membershipByIndex.set(index, members);
+  }
+  return members;
+};
+
 /** An element by repository and UUID (the key of the lists of a variant's rule). */
 const keyOf = (element: ElementRecord): string => `${element.repository}\0${element.id}`;
 
@@ -279,10 +327,23 @@ const variantRule = (index: ViewRuleIndex, view: View & { readonly kind: "varian
   let details: ReturnType<typeof variantDetails> | undefined;
   const detailsOf = () => (details ??= variantDetails(index, view));
   const replacedBy = (e: ElementRecord): readonly ElementRecord[] => detailsOf().replaced.get(keyOf(e)) ?? [];
+  let members: ReadonlyMap<ElementRecord, Membership> | undefined;
   return {
     view,
-    includes: (e) =>
-      appliesInView(index, validity, e, view) && !removersIn((removal ??= removalOf(index)), e).includes(key),
+    includes: (e) => {
+      const member = (members ??= membershipOf(index)).get(e);
+      if (member === ALWAYS) {
+        return true;
+      }
+      if (member !== undefined) {
+        return (member.validFor === undefined || member.validFor.has(key)) && !member.removers.includes(key);
+      }
+      // A record that is not the store's (read again from its file): the same rule, by repository and UUID.
+      return (
+        appliesInView(index, validity, e, view) &&
+        !removersIn((removal ??= removalOf(index)), e).includes(key)
+      );
+    },
     replacedBy,
     excludes: (e) => detailsOf().excluded.has(keyOf(e)),
     addedOf: () => {

@@ -1,0 +1,43 @@
+{
+  "name": "evidence.degree",
+  "title": "Show verification degree",
+  "summary": "Verification degree of a selection in one view: the share of the requirements verified or indirect, and the count per verification status (SR-037).",
+  "effect": "read",
+  "stage": 4,
+  "implements": ["SR-037", "SR-042", "SR-101"],
+  "arguments": [{ "field": "selection", "complete": "selection" }],
+  "input": {
+    "type": "object",
+    "properties": {
+      "selection": {
+        "$ref": "../common.schema.json#/$defs/selection",
+        "description": "The requirements to count, as element.list takes them. Its view (else its saved filter's, else the core) is the view of the status."
+      }
+    },
+    "additionalProperties": false
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "degree": {
+        "$ref": "../data-export.schema.json#/$defs/verificationDegree"
+      },
+      "view": {
+        "$ref": "../common.schema.json#/$defs/viewId",
+        "description": "core, or the variant of the selection's view (else of its saved filter's)."
+      },
+      "incomplete": {
+        "$ref": "../common.schema.json#/$defs/incomplete"
+      },
+      "names": {
+        "type": "array",
+        "description": "The variant of `view` (#588), so a reader names it by short ID and title. Left out in the core.",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/elementName"
+        }
+      }
+    },
+    "additionalProperties": false,
+    "required": ["degree", "view"]
+  }
+}
