@@ -992,3 +992,55 @@ describe("renderHuman: a chain", () => {
     );
   });
 });
+
+describe("renderHuman: evidence records and test cases (#275)", () => {
+  const record = {
+    element: "e",
+    kind: "verification",
+    method: "test",
+    item: "build-513",
+    result: "failed",
+    date: "2026-10-22T09:00:00Z",
+    repository: "system",
+    file: "evidence/ci/run-2.xml",
+    line: 4,
+    baselines: [],
+  };
+  it("prints one line per record and per test case, with the last result and the number of executions", () => {
+    const validation = {
+      ...record,
+      kind: "validation",
+      method: "review",
+      result: "passed",
+      evidence: "notes.md",
+      baselines: ["v1", "v2"],
+    };
+    expect(
+      renderHuman({
+        records: [record, validation],
+        testCases: [
+          {
+            name: "test_speed",
+            className: "tests.test_wind",
+            executed: true,
+            executions: [record, record],
+            last: record,
+          },
+          { name: "manual check", executed: false, executions: [] },
+        ],
+        problems: [],
+      }),
+    ).toBe(
+      [
+        "records:",
+        "  2026-10-22T09:00:00Z  test  failed  build-513  system/evidence/ci/run-2.xml:4",
+        "  validation  2026-10-22T09:00:00Z  review  passed  build-513  notes.md  [baselines: v1, v2]",
+        "testCases:",
+        "  tests.test_wind › test_speed  last: failed  2026-10-22T09:00:00Z  executions: 2",
+        "  manual check  [not executed]  executions: 0",
+        "No problems.",
+        "",
+      ].join("\n"),
+    );
+  });
+});

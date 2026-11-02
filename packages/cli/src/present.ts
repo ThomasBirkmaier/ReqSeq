@@ -14,6 +14,9 @@
 // - A chain (`nodes` with `depth`, and `edges`) is an indented tree per direction with the depth in
 //   front, its gaps, cycles and the edges to an element listed elsewhere marked. Its `evidence` is
 //   indented below the element it belongs to (`evidenceLines`).
+// - A list of evidence records (`kind`, `date`, `result`) is one line per record, a list of test cases
+//   (`name`, `executions`) one line per test case with its last result and the number of executions
+//   (evidence.list, #275); `--json` and `--yaml` keep every execution.
 // - A list of elements with a `tree` of their places (`depth`, `parent`; one per element, element.list
 //   by hierarchy, SR-075 AK2) is indented two spaces per level; an element whose parent is not shown
 //   before it (on an earlier page) names it, `[under X]`.
@@ -336,6 +339,12 @@ const valueLines = (
     if (value.every(isProblem)) {
       return [`${key}:`, ...indent(value.map(findingLine))];
     }
+    if (value.every(isEvidenceRecord)) {
+      return [`${key}:`, ...indent(value.map(listedRecordLine))];
+    }
+    if (value.every(isTestCase)) {
+      return [`${key}:`, ...indent(value.map(testCaseLine))];
+    }
     if (value.every((item) => typeof item === "string")) {
       return [`${key}:`, ...indent(value.map((item) => text(withNames(item, names))))];
     }
@@ -508,6 +517,41 @@ const recordLine = (record: Rec, withMethod: boolean): string =>
     belegOf(record),
     text(record["variant"]) === "" ? "" : `[variant ${text(record["variant"])}]`,
   );
+
+/** An evidence record (`data-export.schema.json#/$defs/evidenceRecord`), as far as a line reads it. */
+const isEvidenceRecord = (value: unknown): value is Rec =>
+  isRecord(value) && ["kind", "date", "result"].every((key) => typeof value[key] === "string");
+
+/** A test case with its executions (`data-export.schema.json#/$defs/testCase`). */
+const isTestCase = (value: unknown): value is Rec =>
+  isRecord(value) && typeof value["name"] === "string" && Array.isArray(value["executions"]);
+
+/**
+ * A record of a list of records (evidence.list, #275): `recordLine`, its kind when it is no
+ * verification, and the baselines that hold its version.
+ */
+const listedRecordLine = (record: Rec): string => {
+  const baselines = listOf(record["baselines"]).map(text);
+  return join(
+    record["kind"] === "verification" ? "" : text(record["kind"]),
+    recordLine(record, true),
+    baselines.length === 0 ? "" : `[baselines: ${baselines.join(", ")}]`,
+  );
+};
+
+/** A test case of a list as one line (#275): its name, then its last result and date and the number of executions. */
+const testCaseLine = (test: Rec): string => {
+  const className = text(test["className"]);
+  const name = className === "" ? text(test["name"]) : `${className} › ${text(test["name"])}`;
+  const last = test["last"];
+  const executions = listOf(test["executions"]).length;
+  return join(
+    name,
+    isRecord(last) ? `last: ${join(text(last["result"]), text(last["date"]))}` : "",
+    test["executed"] === false ? "[not executed]" : "",
+    `executions: ${String(executions)}`,
+  );
+};
 
 /**
  * The evidence below an element of a chain (SR-033): per test case `test case  CLASS › NAME`, marked
