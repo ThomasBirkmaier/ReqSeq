@@ -164,7 +164,7 @@ const refusalAtVariant = async (context: ShownContext, input: ConfirmInput): Pro
         {
           code: "hint.not-confirmable",
           severity: "error",
-          message: `${String(hints.length)} open hints at ${input.ref} (${codes}) are not confirmed: they are settled only by a new baseline of the variant (baseline.create with the view of the variant), not by confirming them (D-042)`,
+          message: `${String(hints.length)} open hints at ${context.shortIds.of(record)} (${codes}) are not confirmed: they are settled only by a new baseline of the variant (baseline.create with the view of the variant), not by confirming them (D-042)`,
           elementId: record.id,
         },
       ];

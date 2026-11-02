@@ -11,6 +11,7 @@ import { STANDARD_MODEL_TEXT as STANDARD } from "../../metamodel/standard-model.
 import type { ElementRecord, ElementStore } from "../../model/index.js";
 import { elementStoreState, loadElements, shortIdState } from "../../model/index.js";
 import { invoke } from "../../runtime/invoke.js";
+import { readFirst } from "../../runtime/read-first.test-helper.js";
 import { Workspace } from "../../runtime/workspace.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
 
@@ -33,12 +34,19 @@ const open = async (options: FixtureOptions = {}): Promise<Opened> => {
   return { fixture, workspace };
 };
 
-const update = async (opened: Opened, input: Record<string, unknown>): Promise<Output> =>
-  (await invoke("element.update", input, { workspace: opened.workspace })) as Output;
+/** A hash no file has: the write precondition of a call that is refused before it is checked (SR-106). */
+const NO_FILE = "f".repeat(64);
 
-const updateError = async (opened: Opened, input: Record<string, unknown>): Promise<CommandError> => {
+type Input = Record<string, unknown> & { readonly ref: string };
+
+const update = async (opened: Opened, input: Input): Promise<Output> => {
+  const context = { workspace: opened.workspace };
+  return (await invoke("element.update", await readFirst(input, context), context)) as Output;
+};
+
+const updateError = async (opened: Opened, input: Input): Promise<CommandError> => {
   try {
-    await update(opened, input);
+    await update(opened, { expectedFileSha256: NO_FILE, ...input });
   } catch (error) {
     if (error instanceof CommandError) {
       return error;
@@ -131,15 +139,11 @@ describe("element.update", () => {
   it("[SR-001/AK3] changes of different elements on two branches merge without a conflict", async () => {
     const opened = await open({ git: true });
     const { fixture } = opened;
-    const onBranch = async (
-      branch: string,
-      input: Record<string, unknown>,
-      extra?: Record<string, unknown>,
-    ): Promise<void> => {
+    const onBranch = async (branch: string, input: Input, extra?: Record<string, unknown>): Promise<void> => {
       await fixture.git(["checkout", "--quiet", "-b", branch, "main"]);
       const workspace = new Workspace(fixture.root);
       try {
-        await invoke("element.update", input, { workspace });
+        await invoke("element.update", await readFirst(input, { workspace }), { workspace });
         if (extra !== undefined) {
           await invoke("element.create", extra, { workspace });
         }
@@ -517,7 +521,9 @@ describe("element.update", () => {
     await opened.workspace.get(elementStoreState);
     const changed = (await read(opened, WIND.file)).replace("Show wind speed", "Changed elsewhere");
     await fs.writeFile(opened.fixture.path(WIND.file), changed);
-    const error = await updateError(opened, { ref: WIND.id, text: "Mine\n" });
+    // The hash of the file as it is now: only the store's own check finds the change.
+    const now = await sha256Of(opened, WIND.file);
+    const error = await updateError(opened, { ref: WIND.id, text: "Mine\n", expectedFileSha256: now });
     expect([error.code, error.details]).toEqual([
       "file.changed-on-disk",
       { file: WIND.file, repository: "system" },
@@ -531,10 +537,17 @@ describe("element.update", () => {
     const opened = await open();
     await opened.workspace.get(elementStoreState);
     await fs.writeFile(opened.fixture.path(WIND.file), "---\nid: [\n---\n");
-    expect((await updateError(opened, { ref: WIND.id, title: "x" })).code).toBe("file.changed-on-disk");
+    // With the hash of the file as it is now (no title for a file that is gone), only the store's own
+    // check finds the change.
+    const faulty = await sha256Of(opened, WIND.file);
+    expect((await updateError(opened, { ref: WIND.id, title: "x", expectedFileSha256: faulty })).code).toBe(
+      "file.changed-on-disk",
+    );
     await opened.workspace.get(elementStoreState);
     await fs.rm(opened.fixture.path(GUSTS.file));
-    expect((await updateError(opened, { ref: GUSTS.id, title: "x" })).code).toBe("file.changed-on-disk");
+    expect((await updateError(opened, { ref: GUSTS.id, set: { rationale: "x" } })).code).toBe(
+      "file.changed-on-disk",
+    );
     await fs.writeFile(opened.fixture.path(GUSTS.file), "---\ntitle: no longer an element\n---\n");
     await opened.workspace.reset(elementStoreState);
     await fs.writeFile(
@@ -543,7 +556,10 @@ describe("element.update", () => {
     );
     await opened.workspace.get(elementStoreState);
     await fs.writeFile(opened.fixture.path(WIND.file), "---\ntitle: no longer an element\n---\n");
-    expect((await updateError(opened, { ref: WIND.id, title: "x" })).code).toBe("file.changed-on-disk");
+    const other = await sha256Of(opened, WIND.file);
+    expect((await updateError(opened, { ref: WIND.id, title: "x", expectedFileSha256: other })).code).toBe(
+      "file.changed-on-disk",
+    );
   });
 });
 
@@ -555,6 +571,29 @@ const sha256Of = async (opened: Opened, file: string): Promise<string> =>
 
 describe("element.update: the write precondition expectedFileSha256 (SR-106)", () => {
   const OLD = "0".repeat(64);
+
+  it("refuses a change of the text or the title without the precondition and writes nothing (#269)", async () => {
+    const opened = await open();
+    const before = await read(opened, WIND.file);
+    for (const input of [{ text: "Mine\n" }, { title: "Mine" }, { title: "", set: { rationale: "x" } }]) {
+      const error = await invoke(
+        "element.update",
+        { ref: WIND.id, ...input },
+        { workspace: opened.workspace },
+      )
+        .then(() => undefined)
+        .catch((e: unknown) => e as CommandError);
+      expect([error?.code, error?.details, error?.message]).toEqual([
+        "input.invalid",
+        { field: "expectedFileSha256", reason: "precondition-missing" },
+        "expectedFileSha256 is required to change text or title: pass fileSha256 of element.get",
+      ]);
+    }
+    expect(await read(opened, WIND.file)).toBe(before);
+    // Properties and relations are written line by line onto the bytes as they are: no precondition.
+    const out = await update(opened, { ref: WIND.id, set: { rationale: "Pilots" } });
+    expect(out.files).toEqual([WIND.file]);
+  });
 
   it("gives the SHA-256 of the file as written, or as read when nothing changed (SR-106)", async () => {
     const opened = await open();
@@ -877,10 +916,15 @@ describe("element.update in a workspace of 50,000 elements (#166, N-036)", () =>
       reads.mockRestore();
     });
     const times: number[] = [];
+    let expectedFileSha256 = await sha256Of(opened, WIND.file);
     for (const title of ["Show wind", "Show the wind", "Show wind speed again"]) {
       reads.mockClear();
       const start = performance.now();
-      await update(opened, { ref: WIND.id, title });
+      ({ fileSha256: expectedFileSha256 } = await update(opened, {
+        ref: WIND.id,
+        title,
+        expectedFileSha256,
+      }));
       // What element.get will read: the store and the short IDs.
       const after = await opened.workspace.get(elementStoreState);
       const found = (await opened.workspace.get(shortIdState)).find("SR-e88fb3");

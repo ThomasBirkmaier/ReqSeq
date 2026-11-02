@@ -6,6 +6,7 @@ import { describe, expect, it, onTestFinished } from "vitest";
 import { elementStoreState } from "../../model/index.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
+import { readFirst } from "../../runtime/read-first.test-helper.js";
 
 const WIND = "e8df96ea-a168-4d90-8d65-6328cee88fb3";
 const GUSTS = "3f2a9c1e-5b7d-4e8a-9c0b-1d2e3f4a5b6c";
@@ -48,7 +49,7 @@ describe("element.create and element.update never change a status (ADR-0002 rule
       { ref: "N-aaaaaa", title: "Need", text: "unchanged status\n" },
     ];
     for (const input of updates) {
-      await invoke("element.update", input, { workspace });
+      await invoke("element.update", await readFirst(input, { workspace }), { workspace });
     }
 
     const after = await statuses();

@@ -8,6 +8,7 @@ import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput, Problem } from "../catalog.js";
 import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
+import { readFirst } from "../runtime/read-first.test-helper.js";
 
 const P = "45045045-0000-4000-8000-0000000000";
 const K = `${P}a1`;
@@ -103,7 +104,7 @@ describe("a changed core requirement at its replacement (SR-045)", () => {
     expect(await check(workspace)).toEqual([]);
     await invoke(
       "element.update",
-      { ref: A1, text: "At the coast the station answers in 20 ms.\n" },
+      await readFirst({ ref: A1, text: "At the coast the station answers in 20 ms.\n" }, { workspace }),
       { workspace },
     );
     const text = await readFile(path.join(root, A1_FILE), "utf8");
@@ -123,7 +124,11 @@ describe("a changed core requirement at its replacement (SR-045)", () => {
     expect(rows(superseded)).toEqual([["relation.target-superseded", A1, K]]);
     expect(superseded[0]?.message).toContain("SR-0000a2");
     // Its content changed too: the usual hints of a relation to it (assumption, see core-changed.ts).
-    await invoke("element.update", { ref: K, text: "Superseded by SR-0000a2.\n" }, { workspace });
+    await invoke(
+      "element.update",
+      await readFirst({ ref: K, text: "Superseded by SR-0000a2.\n" }, { workspace }),
+      { workspace },
+    );
     expect(rows(await atA1())).toEqual([
       ["relation.target-superseded", A1, K],
       ["relation.outdated", A1, K],

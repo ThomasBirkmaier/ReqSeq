@@ -18,6 +18,7 @@ import { embeddedImages, imageLinks, imageMemo, imagesUnchanged, lookUpImages } 
 import { ignoreMatcher } from "./ignore.js";
 import { elementStoreState } from "./store.js";
 import { currentTarget } from "./targets.js";
+import { readFirst } from "../runtime/read-first.test-helper.js";
 
 /** The paths `imageLinks` gives, `!` in front of those that are missing whatever is on disk. */
 const links = (elementFile: string, body: string, ignore: readonly string[] = []): string[] =>
@@ -463,11 +464,9 @@ describe("the version counts embedded images (SR-091 AK4, ADR-0005)", () => {
     const { fixture, workspace } = await open({ "system/needs/N-7b3d5e1f2a4c/layout.png": "first" });
     const update = async (): Promise<string | undefined> =>
       (
-        (await invoke(
-          "element.update",
-          { ref: NEED.id, text },
-          { workspace },
-        )) as CommandOutput<"element.update">
+        (await invoke("element.update", await readFirst({ ref: NEED.id, text }, { workspace }), {
+          workspace,
+        })) as CommandOutput<"element.update">
       ).element.version;
     const shown = await update();
     expect(shown).toBe(await storedVersion(workspace));

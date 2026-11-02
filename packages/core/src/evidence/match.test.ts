@@ -5,7 +5,7 @@ import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput, Problem } from "../catalog.js";
 import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
-import { evidenceProblemsState, recordElementProblems } from "./match.js";
+import { evidenceProblemsState, recordElementProblems, recordKindProblems } from "./match.js";
 import type { EvidenceRecord } from "./record.js";
 import { evidenceRecordsState } from "./state.js";
 
@@ -129,6 +129,43 @@ describe("SR-028 findings of the evidence records", () => {
       "file.invalid-yaml",
     ]);
     expect(checked.ok).toBe(false);
+  });
+
+  it("warns about a verification of a need, not about validations (#628)", async () => {
+    const need = "3c3c3c3c-3333-4333-8333-0d00000000a1";
+    const decision = "3c3c3c3c-3333-4333-8333-0d00000000a2";
+    const workspace = await open({
+      "system/needs/N-0d00000000a1.md": `---\nid: ${need}\ntype: need\nstatus: draft\ntitle: Weigh the load\n---\n`,
+      "system/decisions/D-0d00000000a2.md": `---\nid: ${decision}\ntype: decision\nstatus: draft\ntitle: Use kg\n---\n`,
+      "ci-results/evidence/2026-10-23-need-test.md": recordFile(need),
+      "ci-results/evidence/2026-10-23-need-validation.md": recordFile(need).replace(
+        "kind: verification",
+        "kind: validation",
+      ),
+      "ci-results/evidence/2026-10-23-decision-validation.md": recordFile(decision).replace(
+        "kind: verification",
+        "kind: validation",
+      ),
+    });
+    const found = (await workspace.get(evidenceProblemsState)).filter(
+      (p) => p.code === "evidence.kind-mismatch",
+    );
+    expect(found.map((p) => [p.file, p.targetId, p.severity])).toEqual([
+      ["evidence/2026-10-23-need-test.md", need, "warning"],
+    ]);
+    expect(found[0]?.message).toBe(
+      `The verification record names element ${need} of type need, so it counts for no status: a verification record names a requirement (D-012)`,
+    );
+  });
+
+  it("checks no kind while the metamodel is not valid", () => {
+    const record = { element: A, kind: "verification" } as EvidenceRecord;
+    const store = { byId: new Map([[A, [{ type: "need" }]]]) } as unknown as Parameters<
+      typeof recordKindProblems
+    >[1];
+    expect(
+      recordKindProblems([record], store, { valid: false } as Parameters<typeof recordKindProblems>[2]),
+    ).toEqual([]);
   });
 
   it("matches records injected through evidenceRecordsState", async () => {
