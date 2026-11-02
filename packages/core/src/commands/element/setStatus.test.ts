@@ -299,7 +299,11 @@ describe("element.setStatus writes only the status", () => {
     expect(now).not.toBe(store);
     expect(now?.byId.get(GUSTS.id)?.[0]).toBe(store.byId.get(GUSTS.id)?.[0]);
     expect(now?.byId.get(WIND.id)?.[0]?.data["status"]).toBe("in-change");
-    expect(now).toEqual(await loadElements(await opened.workspace.get(workspaceLayoutState)));
+    expect(now).toEqual(
+      await loadElements(await opened.workspace.get(workspaceLayoutState), undefined, {
+        versioning: now?.versioning,
+      }),
+    );
   });
 
   it("writes the first file back when a later one is refused at write time (read-only)", async () => {

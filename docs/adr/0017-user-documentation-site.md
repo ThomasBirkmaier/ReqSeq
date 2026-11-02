@@ -1,6 +1,6 @@
 # ADR-0017: User documentation site
 
-Status: Proposed · Based on: D-067, N-081 · SRs: SR-139, SR-140, SR-141 · Issue #344
+Status: Accepted · Based on: D-067, N-081 · SRs: SR-139, SR-140, SR-141 · Issue #344
 
 ## Context
 

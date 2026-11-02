@@ -415,6 +415,12 @@ const PATTERN_JUNIT: FixtureOptions = {
   },
 };
 
+/** The files of the `relation.target-superseded` hints in one access's output (SR-072 AK2). */
+const supersededHintFiles = (result: Result): (string | undefined)[] =>
+  ((result.outcome as { output?: { problems?: { code: string; file?: string }[] } }).output?.problems ?? [])
+    .filter((p) => p.code === "relation.target-superseded")
+    .map((p) => p.file);
+
 /** The output of evidence.enrichJunit through core. */
 const enrichOutput = (results: Readonly<Record<string, Result>>): Record<string, unknown> | undefined =>
   (results["core"]?.outcome as { output?: Record<string, unknown> }).output;
@@ -805,6 +811,7 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
   "element.bulkUpdate": [
     {
       name: "a number given as text is refused, nothing is written (#614)",
+      tag: "[SR-085/AK4]",
       fixture: FILTER,
       input: { selection: {}, property: "priority", operation: "set", value: "3", confirm: true },
       expect: "error",
@@ -997,9 +1004,29 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
     },
     {
       name: "a number given as text is refused, nothing is written (#614)",
+      tag: "[SR-085/AK4]",
       fixture: FILTER,
       input: { type: "software-requirement", title: "Smooth", properties: { priority: "3" } },
       expect: "error",
+    },
+    {
+      name: "an empty string of a required choice property is no value: saved, with the hint (#242)",
+      input: { type: "system-requirement", title: "Show gusts", properties: { "requirement-type": "" } },
+      tag: "[SR-064/AK2]",
+      expect: "output",
+      newElement: true,
+      check: (results) => {
+        const output = (results["core"]?.outcome as { output: Written }).output;
+        expect(output.problems.map((p) => [p.code, requiredKey(p.message)])).toEqual([
+          ["element.missing-required", "requirement-type"],
+          ["element.missing-required", "acceptance-criteria"],
+          ["trace.no-parent", undefined],
+        ]);
+        const file = "system-requirement/SR-<tail12>.md";
+        expect(results["core"]?.files[file]).toBe(
+          '---\nid: <id>\ntype: system-requirement\nstatus: draft\ntitle: Show gusts\nrequirement-type: ""\n---\n',
+        );
+      },
     },
     {
       name: "malformed input: readable messages, no regular expression (#309)",
@@ -1399,10 +1426,19 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
   ],
   "element.supersede": [
     {
-      name: "supersede with a successor and hints",
+      tag: "[SR-072/AK2]",
+      name: "supersede with a successor: a hint on each relation but the successor's own",
       fixture: { fixture: "SR-072/supersede", git: true },
       input: { ref: "N-d4e5f6", status: "obsolete", successor: "N-e5f6a7" },
       expect: "output",
+      check: (results) => {
+        for (const result of Object.values(results)) {
+          expect(supersededHintFiles(result)).toEqual([
+            "requirements/SR-c3d4e5f6a7b8.md",
+            "requirements/SR-e5f6a7b8c9d0.md",
+          ]);
+        }
+      },
     },
     {
       name: "status not marked invalid",
@@ -1482,6 +1518,7 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
   "element.update": [
     {
       name: "a number given as text is refused, the file stays (#614)",
+      tag: "[SR-085/AK4]",
       fixture: FILTER,
       input: { ref: "SWR-0000f1", set: { priority: "3" } },
       expect: "error",
@@ -1561,6 +1598,27 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       },
       input: { ref: "N-d4e5f6", text: "Changed.\n" },
       expect: "output",
+    },
+    {
+      tag: "[SR-072/AK2]",
+      name: "update the successor of a superseded element: its own succession relation gets no hint",
+      fixture: {
+        fixture: "SR-072/supersede",
+        git: true,
+        files: {
+          "needs/N-a1b2c3d4e5f6.md":
+            "---\nid: 7a1e0c2b-4d3f-4a5b-8c6d-a1b2c3d4e5f6\ntype: need\nstatus: obsolete\ntitle: See the wind\n---\n",
+          "needs/N-b2c3d4e5f6a7.md":
+            "---\nid: 7a1e0c2b-4d3f-4a5b-8c6d-b2c3d4e5f6a7\ntype: need\nstatus: draft\ntitle: See wind and gusts\nsupersedes:\n  - { id: 7a1e0c2b-4d3f-4a5b-8c6d-a1b2c3d4e5f6, version: n1:1111111111111111, title: See the wind }\n---\n",
+        },
+      },
+      input: { ref: "N-e5f6a7", text: "Changed.\n" },
+      expect: "output",
+      check: (results) => {
+        for (const result of Object.values(results)) {
+          expect(supersededHintFiles(result)).toEqual([]);
+        }
+      },
     },
     {
       name: "update an element with a relation to a superseded element (SR-072 AK2 hint)",

@@ -63,6 +63,7 @@ import { incomingFor } from "./incoming.js";
 import type { RelationRefs } from "./relation-inputs.js";
 import { newRelations, planRelations, relationEdits } from "./relation-inputs.js";
 import { isNumberProperty, numberInput } from "./number-input.js";
+import { isEmptyValue } from "./required.js";
 import { resolveRef } from "./resolve.js";
 import { buildShortIds, shortIdState } from "./short-id.js";
 import type { ShortIds } from "./short-id.js";
@@ -236,7 +237,10 @@ const checkPropertyKeys = (
  * gets the key (SR-012 AK3). A value that names no choice, or more than one, is refused with
  * `input.invalid` (`reason: unknown-choice`, `ambiguous-choice`) and the choices as `key (Name)`, so
  * a command never writes a choice value that is no key; a hand-written file is still read as it is
- * (SR-085 AK2). Values of the other kinds are kept as given (a wrong kind gives the hint of SR-085).
+ * (SR-085 AK2). A value that counts as no value (`isEmptyValue`: `null`, an empty or blank string) is
+ * no choice to look up: it is kept as given and saved with the hint `element.missing-required` where
+ * the property is required (SR-064 AK2, #242). Values of the other kinds are kept as given (a wrong
+ * kind gives the hint of SR-085).
  */
 export const withChoiceKeys = (
   metamodel: Metamodel,
@@ -271,7 +275,11 @@ export const withChoiceKeys = (
     };
     return [
       key,
-      (Array.isArray(value) ? value.map(keyOf) : value === null ? null : keyOf(value)) as ElementInputValue,
+      (Array.isArray(value)
+        ? value.map(keyOf)
+        : isEmptyValue(value)
+          ? value
+          : keyOf(value)) as ElementInputValue,
     ];
   });
 

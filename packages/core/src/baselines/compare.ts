@@ -30,7 +30,7 @@ import {
 import type { Workspace } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import type { Baseline } from "./read.js";
-import { copyOf } from "./show.js";
+import { copyOf } from "./read.js";
 
 type Output = CommandOutput<"baseline.compare">;
 

@@ -497,6 +497,17 @@ describe("element.bulkUpdate (SR-071)", () => {
       // A number given as text is refused, not converted (#614).
       [{ property: "priority", operation: "set", value: "3" }, "input.invalid", { reason: "not-a-number" }],
       [{ property: "packages", operation: "add", value: [] }, "input.invalid", { reason: "value-empty" }],
+      // An empty or blank choice value is no value: set and add refuse it as they refuse null (#242).
+      [
+        { property: "requirement-type", operation: "set", value: "" },
+        "input.invalid",
+        { reason: "value-empty" },
+      ],
+      [
+        { property: "verification-method", operation: "add", value: "  " },
+        "input.invalid",
+        { reason: "value-empty" },
+      ],
       [
         { property: "verification-method", operation: "set", value: "guess" },
         "input.invalid",
