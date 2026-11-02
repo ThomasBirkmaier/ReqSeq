@@ -55,6 +55,7 @@ SR-028 (#40). `readMarkdownRecord(file, bytes)` (`markdown.ts`), registered as `
 
 - the problems of `evidenceReadState` (walk and readers), without those the element store reports for the same code, repository, file and line: the store reads every Markdown file of every available repository, evidence folders included, so a record with broken YAML shows once;
 - `recordElementProblems(records, store, layout)` over the records of `evidenceRecordsState` (injected ones too), in their order: `evidence.unknown-element` (warning, SR-028 AK3) for a UUID the store does not have, with a note naming the repositories that are not on this machine; `evidence.ambiguous-element` (warning) for a UUID with several copies (SR-088). Both carry the record's repository, file and line and the UUID as `targetId`, never as `elementId`: they are about the record, not confirmable and not in `hint.list` (spec question #533 Q2, assumption).
+- `recordKindProblems(records, store, metamodel)`: `evidence.kind-mismatch` (warning, #628) for a record whose element (one copy) is of a type its kind cannot name (D-012: a verification a requirement, a validation a need or a requirement), so a JUnit test case naming a need no longer passes silently; the same place and `targetId`; nothing while the metamodel is not valid. `enrich-junit` itself does not check the kind yet.
 
 Nothing here needs the metamodel, so the findings show while it is not valid.
 
