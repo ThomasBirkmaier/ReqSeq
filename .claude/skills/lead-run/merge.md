@@ -26,7 +26,7 @@ PRs labelled `blocked` or `needs-human` are not merged. Once the review has no o
 
 A change of the base branch starts no CI run (#372): after it, merge the new base with `pnpm merge:main` and push before the merge, so the checks ran against it.
 
-If `static` failed only in its Trace check step and you fixed the PR text or its label `enabler`, `trace-check (PR text)` re-runs `static` once the CI run has completed. Check the text first with `pnpm trace-check --pr-body <file>`. Agents cannot re-run other jobs (403): a job that failed in a flaky step needs the next real push, never an empty commit. You find the failed step with `GET .../actions/runs/{run_id}/jobs` (`steps[].conclusion`), because the annotation only says "exit code 1" (#566).
+If `static` failed only in its Trace check step and you fixed the PR text or its label `enabler`, `re-run static` (`pr-text-follow-up.yml`) re-runs `static` once both the CI run and a passing `trace-check (PR text)` have completed, whichever completes last; no job waits for the other run (#739). Its check run shows on the newest commit of `main`, not on the PR. Check the text first with `pnpm trace-check --pr-body <file>`. Agents cannot re-run other jobs (403): a job that failed in a flaky step needs the next real push, never an empty commit. You find the failed step with `GET .../actions/runs/{run_id}/jobs` (`steps[].conclusion`), because the annotation only says "exit code 1" (#566).
 
 Merge with `PUT /repos/ThomasBirkmaier/ReqSeq/pulls/{n}/merge` and `merge_method: squash`, keeping the `Implements:` trailers; GitHub deletes the branch. Use `rebase` instead only when the commits should stay revertible one by one. Never merge red, and never approve your own PR.
 

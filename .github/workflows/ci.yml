@@ -113,6 +113,8 @@ jobs:
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: pnpm audit --prod --audit-level high
       # trace-check reads the ReqSeq workspace in spec/ with the `yaml` package (#326), and the PR text (D-050).
+      # pr-text-follow-up.yml re-runs `static` when it failed only in `Trace check` and reads the time of `Write PR body`,
+      # so it knows both steps by name.
       - name: Write PR body
         if: ${{ !cancelled() && github.event_name == 'pull_request' }}
         env:
