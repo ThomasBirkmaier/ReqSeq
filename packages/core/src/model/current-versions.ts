@@ -14,9 +14,17 @@
 // - A store change of the watcher or of ReqSeq's own writes (`applyStoreChange`, `recordWrites`) is
 //   carried: the records it changed get their version again, every other entry is kept. A change of
 //   the metamodel (which properties count) or of the layout (the `ignore` globs) resets it.
+// - The version the store computed while reading a file (`loadedVersionsOf`, #439) is taken
+//   without reading the file again when its type counts the same properties now (the fingerprint of
+//   `typeVersioningOf`) and an `lstat` of the file still gives the size and time of the store's
+//   snapshot; otherwise the file is read as above. So a version is that of the bytes the store read,
+//   as all store data is, and a file changed outside ReqSeq is read again even before the watcher's
+//   batch (S4 of the plan review). Elements that embed images have none (they are checked on use).
 // - Images are no Markdown files, and the watcher drops their events (ADR-0008). Each version keeps
 //   what the lookup of its images found (`ImageSeen`); `currentVersions` checks it on use and
 //   computes the versions of elements whose images changed again.
+import fs from "node:fs";
+import path from "node:path";
 import { setImmediate as nextTurn } from "node:timers/promises";
 import { CommandError } from "../catalog.js";
 import { readElementBodySync } from "../files/index.js";
@@ -31,8 +39,11 @@ import type { ElementRecord } from "./elements.js";
 import { classifyFile } from "./elements.js";
 import type { ImageMemo, ImageSeen, ImageSource, LookedUpImages } from "./images.js";
 import { imageLinks, imageMemo, imagesUnchanged, lookUpImages, mapBounded } from "./images.js";
+import type { LoadedVersion, Versioning } from "./loaded-version.js";
+import { typeVersioningOf, versioningOf } from "./loaded-version.js";
 import type { ElementStore } from "./store.js";
-import { carryStoreUpdate, elementStoreState, ignoredBy } from "./store.js";
+import { carryStoreUpdate, elementStoreState, ignoredBy, loadedVersionsOf } from "./store.js";
+import { NORMAL_FORM } from "../version/version.js";
 import { elementVersion, notComputableMessage, versionOrRangeError } from "./view.js";
 
 /** The current version of one element, or why it has none. */
@@ -92,14 +103,61 @@ interface Run {
   readonly ignored: (relativePath: string) => boolean;
   /** Folder listings and image hashes of this run. */
   readonly memo: ImageMemo;
+  /** The versions the store computed while reading (`loadedVersionsOf`). */
+  readonly loaded: ReadonlyMap<ElementRecord, LoadedVersion>;
+  /** What counts for a version now, to compare with a loaded one; undefined: none is taken. */
+  readonly versioning: Versioning | undefined;
 }
 
-const runOf = (versions: Pick<CurrentVersions, "layout" | "metamodel">): Run => ({
+/** `versioningOf` of each metamodel, so a page does not hash the types again. */
+const versioningByMetamodel = new WeakMap<Metamodel, Versioning | undefined>();
+
+const versioningNow = (metamodel: Metamodel): Versioning | undefined => {
+  if (!versioningByMetamodel.has(metamodel)) {
+    versioningByMetamodel.set(metamodel, versioningOf(metamodel));
+  }
+  return versioningByMetamodel.get(metamodel);
+};
+
+const runOf = (versions: Pick<CurrentVersions, "store" | "layout" | "metamodel">): Run => ({
   metamodel: versions.metamodel,
   repositories: new Map(versions.layout.repositories.map((r) => [r.name, r])),
   ignored: ignoredBy(versions.layout),
   memo: imageMemo(),
+  loaded: loadedVersionsOf(versions.store),
+  versioning: versioningNow(versions.metamodel),
 });
+
+/** No image looked up: the `images` of every loaded version, shared and frozen. */
+const NO_SEEN: readonly ImageSeen[] = Object.freeze([]);
+
+/**
+ * The entry of `record` from the version the store computed while reading its file, when that still
+ * holds: the type counts the same properties (fingerprint) and the file has the size and time of the
+ * store's snapshot. Undefined otherwise: the file is read (`versionNow`).
+ */
+const loadedEntry = (run: Run, record: ElementRecord): CurrentVersion | undefined => {
+  const loaded = run.loaded.get(record);
+  const version = loaded?.byForm[NORMAL_FORM];
+  const repository = run.repositories.get(record.repository);
+  if (
+    loaded === undefined ||
+    version === undefined ||
+    repository === undefined ||
+    run.versioning === undefined ||
+    typeVersioningOf(run.versioning, record.type).fingerprint !== loaded.fingerprint
+  ) {
+    return undefined;
+  }
+  const stats = fs.lstatSync(path.join(repository.folder, ...record.file.split("/")), {
+    throwIfNoEntry: false,
+  });
+  return stats?.isFile() === true &&
+    stats.size === record.snapshot.size &&
+    stats.mtimeMs === record.snapshot.mtimeMs
+    ? { kind: "version", version, images: NO_SEEN }
+    : undefined;
+};
 
 const notInFile = (record: ElementRecord, why: string): CurrentVersion => ({
   kind: "unknown",
@@ -173,6 +231,11 @@ const entriesOf = async (
       byRecord.set(record, kept);
       continue;
     }
+    const loaded = loadedEntry(run, record);
+    if (loaded !== undefined) {
+      byRecord.set(record, loaded);
+      continue;
+    }
     byRecord.set(record, await versionNow(run, record));
     read += 1;
     if (read >= CHUNK || performance.now() - since >= SLICE_MS) {
@@ -193,7 +256,7 @@ export const buildCurrentVersions = async (
   store,
   layout,
   metamodel,
-  byRecord: await entriesOf(runOf({ layout, metamodel }), store.elements),
+  byRecord: await entriesOf(runOf({ store, layout, metamodel }), store.elements),
 });
 
 /**
@@ -206,7 +269,7 @@ export const carryCurrentVersions = async (
 ): Promise<CurrentVersions> => ({
   ...versions,
   store,
-  byRecord: await entriesOf(runOf(versions), store.elements, versions.byRecord),
+  byRecord: await entriesOf(runOf({ ...versions, store }), store.elements, versions.byRecord),
 });
 
 /**
@@ -390,7 +453,7 @@ export const currentVersionsOf = async (
     (records.length * WHOLE_STORE_SHARE >= store.elements.length
       ? await currentVersions(workspace)
       : undefined);
-  const run = runOf({ layout, metamodel });
+  const run = runOf({ store, layout, metamodel });
   const known = versions === undefined ? undefined : await keptFor(run, versions, new Set(records));
   return entriesOf(run, records, known);
 };
