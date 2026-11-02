@@ -325,6 +325,33 @@ describe("data.export: only the selection (SR-061 AK2, SR-101)", () => {
     }
   });
 
+  it("[SR-061/AK2] a baseline gives the copy each entry names, as baseline.get takes it (SR-088, #690)", async () => {
+    const ws = await fixture();
+    const b1 = await readFile(ws.path("system/requirements/SR-0000000000b1.md"), "utf8");
+    const e1 = await readFile(ws.path("sensor/requirements/SR-0000000000e1.md"), "utf8");
+    // A copy of b1 in sensor, a copy of e1 in system, and two of a4 in sensor (none in system).
+    await ws.write("sensor/requirements/SR-0000000000b1.md", b1);
+    await ws.write("system/requirements/SR-0000000000e1.md", e1);
+    const a4 = b1.replace(ID.b1, `${P}a4`);
+    await ws.write("sensor/requirements/a/SR-0000000000a4.md", a4);
+    await ws.write("sensor/requirements/b/SR-0000000000a4.md", a4);
+    await ws.write(
+      "system/baselines/m1.yaml",
+      "reqseq-baseline: 1\nname: M1\ndate: 2026-10-24T09:00:00Z\n" +
+        "repositories:\n  - { name: system, commit: 61aa061aa061aa061aa061aa061aa061aa061aa0 }\n" +
+        `elements:\n  - { id: ${P}a4, version: ${OLD} }\n  - { id: ${ID.b1}, version: ${VERSION.b1} }\n` +
+        `  - { id: ${ID.e1}, version: ${OLD}, repository: sensor }\n`,
+    );
+    const workspace = open(ws);
+    const out = await exportOf(workspace, { selection: { baseline: "M1" } });
+    // b1 without repository: the copy in system only; e1: the copy in sensor its entry names;
+    // a4 without repository and two copies elsewhere: ambiguous, none.
+    expect(out.elements.map((e) => [NAME.get(e.id) ?? e.id, e.repository])).toEqual([
+      ["b1", "system"],
+      ["e1", "sensor"],
+    ]);
+  });
+
   it("[SR-061/AK2] a variant view gives only the elements valid in it", async () => {
     const workspace = open(await fixture());
     const out = await exportOf(workspace, { selection: { view: "VAR-0000c1" } });

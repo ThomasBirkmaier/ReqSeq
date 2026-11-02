@@ -38,8 +38,9 @@
 //   and never an element. For a type whose mapping, relation types included, is the one-to-one one
 //   (`oneToOneTypes`), an object whose readable values `readableValues` (own.ts) writes again from
 //   `reqseq-markdown` and `reqseq-values` equal to the file's (relation-valued properties, whose
-//   short IDs depend on the workspace, aside), whose SPEC-RELATIONs are those of `reqseq-values`
-//   and whose text has as many images takes the title, the text byte for byte (its image links
+//   short IDs depend on the workspace, aside), whose SPEC-RELATIONs of the kinds the metamodel
+//   knows are those of `reqseq-values` (one of another kind is an `omitted-type` loss) and whose
+//   text has as many images takes the title, the text byte for byte (its image links
 //   pointed at the copies), the properties of its type and the relations from those two; the status
 //   and the origin stored there are not taken, and a relation the metamodel does not allow is a
 //   loss (`checkOwnRelations`). Otherwise another tool changed it, or a mapping differs: the
@@ -870,6 +871,31 @@ const jsonObject = (text: string): Readonly<Record<string, unknown>> | undefined
   }
 };
 
+/**
+ * The deepest nesting of arrays and objects (an XHTML element counts two: itself and its children)
+ * the round-trip check of an object takes; far beyond a real text or value, and far within the
+ * stack of the recursive steps after it (`comparable`, the frontmatter edit), so a hostile file
+ * cannot exhaust the stack (ADR-0013).
+ */
+const MAX_NESTING = 1000;
+
+/** True when `root` nests arrays and objects deeper than `MAX_NESTING`; walked without recursion. */
+const tooDeep = (root: unknown): boolean => {
+  const pending: { readonly value: unknown; readonly depth: number }[] = [{ value: root, depth: 0 }];
+  for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
+    const { value, depth } = next;
+    if (typeof value === "object" && value !== null) {
+      if (depth === MAX_NESTING) {
+        return true;
+      }
+      for (const child of Object.values(value)) {
+        pending.push({ value: child, depth: depth + 1 });
+      }
+    }
+  }
+  return false;
+};
+
 /** Values in a form two sets compare by, ordered by attribute. */
 const comparable = (values: readonly ReqifValue[]): string =>
   JSON.stringify([...values].sort((a, b) => (a.definition < b.definition ? -1 : 1)));
@@ -886,13 +912,22 @@ const storedRelations = (metamodel: Metamodel, data: Readonly<Record<string, unk
     ),
   );
 
+/**
+ * Of the SPEC-RELATIONs `relations` (`<type>|<target>`), those of a kind `metamodel` knows: one it
+ * does not know is a loss `omitted-type`, not a change by another tool (#695).
+ */
+const knownRelations = (metamodel: Metamodel, relations: ReadonlySet<string> | undefined): Set<string> => {
+  const kinds = new Set(ownRelationKeys(metamodel).map((key) => ownId.relationType(key)));
+  return new Set([...(relations ?? [])].filter((r) => kinds.has(r.slice(0, r.indexOf("|")))));
+};
+
 const sameSet = (a: ReadonlySet<string>, b: ReadonlySet<string>): boolean =>
   a.size === b.size && [...a].every((x) => b.has(x));
 
 /**
  * The round-trip channels of `object` of a file of ReqSeq, when the readable values written again
- * from them equal the file's and its SPEC-RELATIONs those `reqseq-values` names (see the file
- * comment); else undefined, with the warning.
+ * from them equal the file's and its SPEC-RELATIONs of a kind the metamodel knows those
+ * `reqseq-values` names (see the file comment); else undefined, with the warning.
  */
 const ownChannels = (
   context: Context,
@@ -906,6 +941,12 @@ const ownChannels = (
   const valuesId = ownId.values(key);
   const text = stringValue(object, markdownId);
   const data = jsonObject(stringValue(object, valuesId) ?? "");
+  if (tooDeep(object.values) || tooDeep(data)) {
+    throw invalidFile(
+      `SPEC-OBJECT ${object.identifier} nests its values deeper than ${String(MAX_NESTING)} levels`,
+      object.line,
+    );
+  }
   const titleKey = titleKeyOrEmpty(metamodel);
   const attributes = ownAttributes(metamodel, key, findType(metamodel, ownType), titleKey);
   // Compared: the readable attributes this metamodel knows (one it does not know is not imported),
@@ -939,7 +980,10 @@ const ownChannels = (
       ).filter(known),
     ) === comparable(object.values.filter(known)) &&
     images.length === objects.length &&
-    sameSet(storedRelations(metamodel, data), context.ownRelationsOf.get(object.identifier) ?? new Set());
+    sameSet(
+      storedRelations(metamodel, data),
+      knownRelations(metamodel, context.ownRelationsOf.get(object.identifier)),
+    );
   if (same) {
     return { data, text, images };
   }
@@ -1297,8 +1341,9 @@ const planRelation = (
 ): void => {
   const { index } = context;
   const source = drafts.get(relation.source);
-  if (source?.ownRelations !== undefined) {
-    // Its relations come from `reqseq-values` (see the file comment).
+  if (source?.ownRelations !== undefined && kind !== undefined) {
+    // Its relations come from `reqseq-values` (see the file comment); a kind the metamodel here
+    // does not know is still a loss (#695).
     return;
   }
   const loss: Loss = (code, reason) => {
