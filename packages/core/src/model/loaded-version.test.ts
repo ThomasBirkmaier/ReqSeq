@@ -183,7 +183,7 @@ describe("versions as read (#439)", () => {
     await expectAsRead(workspace, fresh);
   });
 
-  it("writes no version into the model cache, so a store from it computes them on use", async () => {
+  it("writes the versions into the model cache per form, so a store from it has them as read (#439)", async () => {
     const cacheFolder = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-loaded-"));
     onTestFinished(() => fs.rm(cacheFolder, { recursive: true, force: true }));
     const { fixture, workspace } = await open(FILES, { cacheFolder });
@@ -203,11 +203,25 @@ describe("versions as read (#439)", () => {
       (reuse) => loadElements(layout, undefined, { versioning, ...(reuse === undefined ? {} : { reuse }) }),
       () => Date.now() + RACY_MS + 200,
     );
-    expect(loadedVersionsOf(store).size).toBeGreaterThan(0);
+    const loaded = loadedVersionsOf(store);
+    expect(loaded.size).toBeGreaterThan(0);
     await workspace.close();
     const text = await fs.readFile(path.join(cacheFolder, MODEL_CACHE_FILE), "utf8");
     expect(text).toContain("loaded/N-1.md");
-    expect(text).not.toContain("byForm");
+    expect(text).toContain('"byForm":{"n1":');
+    // A start from the cache reuses every entry, with its version.
+    const again = new Workspace(fixture.root, { cacheFolder });
+    onTestFinished(() => again.close());
+    const cached = await loadThroughCache(
+      again,
+      cacheFolder,
+      layout,
+      (reuse) => loadElements(layout, undefined, { versioning, ...(reuse === undefined ? {} : { reuse }) }),
+      () => Date.now() + RACY_MS + 200,
+    );
+    const byFile = (versions: typeof loaded): Record<string, unknown> =>
+      Object.fromEntries([...versions].map(([record, version]) => [record.file, version]));
+    expect(byFile(loadedVersionsOf(cached))).toEqual(byFile(loaded));
   });
 });
 

@@ -339,7 +339,7 @@ const invalidInitialProblems = (statuses: readonly Located<MetamodelStatus>[]): 
     );
 
 /**
- * An info note for every type, not abstract, whose statuses are all marked invalid (#343): its
+ * An info note `metamodel.optional-status` for every type, not abstract, whose statuses are all marked invalid (#343): its
  * status is optional (#344, option 1), as `hasWorkingStatus` decides for its elements. On the type's
  * `statuses` line, else (an inherited list, or no list and every status invalid) on the type.
  */
@@ -360,12 +360,15 @@ const optionalStatusNotes = (
       return [];
     }
     return [
-      problem(
-        "info",
-        `Type ${effective.key} has an optional status (only invalid statuses: ${effective.statuses.join(", ")}): an element of it without status is current, element.supersede retires it, and element.setStatus with status null makes it current again`,
-        type.file,
-        type.lineOf(["statuses"]),
-      ),
+      {
+        ...problem(
+          "info",
+          `Type ${effective.key} has an optional status (only invalid statuses: ${effective.statuses.join(", ")}): an element of it without status is current, element.supersede retires it, and element.setStatus with status null makes it current again`,
+          type.file,
+          type.lineOf(["statuses"]),
+        ),
+        code: "metamodel.optional-status",
+      },
     ];
   });
 };

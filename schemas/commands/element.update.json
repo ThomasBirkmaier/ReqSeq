@@ -88,7 +88,7 @@
       },
       "expectedFileSha256": {
         "$ref": "../common.schema.json#/$defs/fileSha256",
-        "description": "Write precondition (SR-106): the fileSha256 the change was made on. If the file has other bytes now, nothing is written: file.changed-on-disk, also when nothing would change."
+        "description": "Write precondition (SR-106): the fileSha256 the change was made on, from element.get. Required with title or text, else input.invalid (precondition-missing); optional for set, unset and relations alone. If the file has other bytes now, nothing is written: file.changed-on-disk, also when nothing would change."
       }
     },
     "additionalProperties": false,

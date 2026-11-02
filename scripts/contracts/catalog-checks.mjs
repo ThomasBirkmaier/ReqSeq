@@ -71,6 +71,16 @@ function checkContext(arg, earlier) {
     : [`"${arg.field}": ${arg.complete} needs an earlier ${kinds} field`];
 }
 
+/** `replaces`: only earlier optional fields, each once (a required one is always given). */
+function checkReplaces(arg, earlier, required) {
+  const names = arg.replaces ?? [];
+  return names
+    .filter(
+      (name, i) => !earlier.some((e) => e.field === name) || required.has(name) || names.indexOf(name) !== i,
+    )
+    .map((name) => `"${arg.field}": "replaces" must name earlier optional fields, each once, not "${name}"`);
+}
+
 /**
  * Options every CLI command has: keep in step with `RESERVED_FLAGS` in `packages/cli/src/fields.ts`,
  * plus `--jsonl` (`packages/cli/src/program.ts`).
@@ -175,7 +185,11 @@ function checkArguments(cmd) {
     } else if (optionalSeen) {
       errors.push(`required "${arg.field}" comes after optional "${optionalSeen}"`);
     }
-    errors.push(...checkContext(arg, cmd.arguments.slice(0, index)), ...checkKind(arg, property));
+    errors.push(
+      ...checkContext(arg, cmd.arguments.slice(0, index)),
+      ...checkKind(arg, property),
+      ...checkReplaces(arg, cmd.arguments.slice(0, index), required),
+    );
   });
   errors.push(...checkFlags(cmd), ...checkPartFlags(cmd));
   return errors.map((e) => `arguments: ${e}`);

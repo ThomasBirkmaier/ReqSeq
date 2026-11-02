@@ -93,6 +93,24 @@ const addServers = (program: Command, options: ProgramOptions): void => {
   });
 };
 
+/**
+ * `text` with every input field name that the command line spells otherwise (`changedSince`) as its
+ * flag (`--changed-since`) or argument (`<ref>`), so help names what a person types (#148). Only
+ * names with a capital letter are respelled: a one-word name is its own flag and reads as prose. A
+ * name in backticks is left as it is: the catalog quotes output fields so, which may share the name.
+ */
+const spelledHelp = (text: string, fields: readonly InputField[]): string =>
+  fields
+    .filter((field) => field.use !== "input-only" && field.name !== field.flag && /[A-Z]/.test(field.name))
+    .reduce(
+      (spelled, field) =>
+        spelled.replace(
+          new RegExp(`(?<![\\w.\`-])${field.name}(?![\\w\`])`, "g"),
+          field.use === "positional" ? `<${field.flag}>` : `--${field.flag}`,
+        ),
+      text,
+    );
+
 const describeField = (field: InputField): string =>
   [
     field.description,
@@ -167,8 +185,8 @@ interface FieldOptions {
 }
 
 /** The commander options of one flag field (two for a boolean: `--x` and `--no-x`). */
-const optionsOf = (field: InputField): FieldOptions => {
-  const description = describeField(field);
+const optionsOf = (field: InputField, fields: readonly InputField[]): FieldOptions => {
+  const description = spelledHelp(describeField(field), fields);
   if (field.kind === "boolean" && !field.array) {
     return {
       main: new Option(`--${field.flag}`, description),
@@ -197,13 +215,13 @@ const addCommand = (group: Command, entry: CatalogEntry, options: ProgramOptions
 
   const command = group
     .command(kebab(action))
-    .description(implemented ? entry.summary : `${entry.summary} (not implemented yet)`)
+    .description(spelledHelp(implemented ? entry.summary : `${entry.summary} (not implemented yet)`, fields))
     .usage([...positional.map((f) => `<${f.flag}>`), "[options]"].join(" "))
     // Too many arguments reach buildInput, whose error names the call they fit (#449).
     .allowExcessArguments();
   // Optional for commander, so the value may also come from --input; core reports a missing one.
   for (const field of positional) {
-    command.argument(`[${field.flag}]`, describeField(field));
+    command.argument(`[${field.flag}]`, spelledHelp(describeField(field), fields));
   }
   // A positional field can also be given as a flag, so `element create <type> --title x` and
   // `element update <ref> --title x` read alike (#310); a field given so is not filled positionally.
@@ -216,7 +234,7 @@ const addCommand = (group: Command, entry: CatalogEntry, options: ProgramOptions
         main: new Option(`--${field.flag} <value>`, `instead of the argument <${field.flag}>`),
         negation: undefined,
       })),
-    ...flags.map((field) => ({ field, part: undefined, ...optionsOf(field) })),
+    ...flags.map((field) => ({ field, part: undefined, ...optionsOf(field, fields) })),
     ...parted.flatMap((field) =>
       field.parts.map((part) => ({ field, part, main: partOption(field, part), negation: undefined })),
     ),

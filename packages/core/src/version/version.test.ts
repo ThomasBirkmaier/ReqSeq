@@ -293,3 +293,43 @@ describe("version (ADR-0005, normal form n1)", () => {
     expect(sha256Hex(new TextEncoder().encode("abc"))).toBe(sha256Hex("abc"));
   });
 });
+
+describe("normal form n2 (ADR-0005, #166, #688)", () => {
+  it("writes the header n2 and the prefix n2, and computes n1 by default while the tool writes n1", () => {
+    expect(NORMAL_FORM).toBe("n1");
+    expect(canonicalContent(base, "n2").startsWith("reqseq-version n2\n")).toBe(true);
+    expect(computeVersion(base, "n2")).toMatch(/^n2:[0-9a-f]{16}$/);
+    expect(computeVersion(base)).toBe(computeVersion(base, "n1"));
+    expect(comparableContent(base, "n2")).toBe(canonicalContent(base, "n2"));
+  });
+
+  it("[SR-091/AK5] gives the same n2 for reordered and duplicated relation targets, and one target equals a list of one", () => {
+    const of = (validity: VersionInput["properties"][string]): string =>
+      computeVersion({ ...base, properties: { ...base.properties, validity } }, "n2");
+    const ordered = of([{ id: lite }, { id: pro }]);
+    expect(of([{ id: pro }, { id: lite }, { id: pro, version: "n1:1111111111111111" }])).toBe(ordered);
+    expect(of({ id: pro })).toBe(of([{ id: pro }]));
+    // n1 keeps order, duplicates and the single form.
+    const n1 = (validity: VersionInput["properties"][string]): string =>
+      computeVersion({ ...base, properties: { ...base.properties, validity } }, "n1");
+    expect(n1([{ id: pro }, { id: lite }])).not.toBe(n1([{ id: lite }, { id: pro }]));
+    expect(n1({ id: pro })).not.toBe(n1([{ id: pro }]));
+  });
+
+  it("[SR-091/AK3] gives another n2 for an added relation target", () => {
+    const of = (validity: VersionInput["properties"][string]): string =>
+      computeVersion({ ...base, properties: { ...base.properties, validity } }, "n2");
+    expect(of([{ id: pro }, { id: lite }])).not.toBe(of([{ id: pro }]));
+  });
+
+  it("writes malformed relation entries after the sorted ids, in file order", () => {
+    const content = canonicalContent(
+      {
+        ...base,
+        properties: { ...base.properties, validity: [{ id: pro }, { title: "x" }, 3, { id: lite }] },
+      },
+      "n2",
+    );
+    expect(content).toContain(`prop validity\n["${lite}","${pro}",{"title":"x"},3]\n`);
+  });
+});

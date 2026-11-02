@@ -4,6 +4,13 @@ import { FILTER, NESTED, NESTED_A } from "../../fixtures.js";
 
 scenariosOf("element.bulkUpdate", [
   {
+    name: "a number given as text is refused, nothing is written (#614)",
+    tag: "[SR-085/AK4]",
+    fixture: FILTER,
+    input: { selection: {}, property: "priority", operation: "set", value: "3", confirm: true },
+    expect: "error",
+  },
+  {
     name: "a package reference that names no element is refused, nothing is written (#287)",
     fixture: FILTER,
     input: { selection: {}, property: "packages", operation: "add", value: "PKG-999999", confirm: true },

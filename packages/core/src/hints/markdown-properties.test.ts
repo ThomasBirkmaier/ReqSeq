@@ -10,6 +10,7 @@ import type { CommandOutput, Problem } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
+import { readFirst } from "../runtime/read-first.test-helper.js";
 
 const P = "5e025a7d-2b4f-4c61-9d08-0";
 const N = `${P}a0000000001`;
@@ -312,8 +313,8 @@ describe("references in properties marked markdown (SR-127)", () => {
   });
 
   describe("writing", () => {
-    const update = (workspace: Workspace, input: Record<string, unknown>): Promise<unknown> =>
-      invoke("element.update", { ref: A, ...input }, { workspace });
+    const update = async (workspace: Workspace, input: Record<string, unknown>): Promise<unknown> =>
+      invoke("element.update", await readFirst({ ref: A, ...input }, { workspace }), { workspace });
 
     it("element.update stores a new reference in an acceptance criterion with id and version, and keeps one that is stored (#444)", async () => {
       const ws = await fixture();

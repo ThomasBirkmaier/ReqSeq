@@ -14,7 +14,8 @@ import { rememberWorkspace } from "@reqseq/core/recent-workspaces";
 const execFileAsync = promisify(execFile);
 
 /** How long `close()` waits for the app to end after it closed the window (main waits at most 2 s for the save). */
-const CLOSE_WAIT_MS = 5000;
+// Three times as long on the Windows and macOS runners in CI, which stall under load (#753, playwright.config.ts).
+const CLOSE_WAIT_MS = process.env["CI"] !== undefined && process.platform !== "linux" ? 15_000 : 5000;
 /** How long a call into the main process may take while `close()` ends the app or describes a hang. */
 const CALL_WAIT_MS = 1000;
 /**
@@ -279,6 +280,16 @@ const hangState = async (app: ElectronApplication, window: Page, stderr: string)
     .catch(() => "(not readable)");
   const log = stderr.trim().split(/\r?\n/).slice(-10).join(" | ");
   return `Open windows: ${String(windows)}. Minibuffer: ${JSON.stringify(minibuffer)}. Last log lines: ${log}`;
+};
+
+/**
+ * The `fileSha256` that `reqseq element get <ref>` gives on the app's workspace: the write precondition a
+ * change of the text or the title needs (`expectedFileSha256`, SR-106, #269). The CLI is no followed
+ * access (SR-117), so reading it moves no buffer.
+ */
+export const fileSha256 = async (running: RunningApp, ref: string): Promise<string> => {
+  const got = await running.cli(["element", "get", ref]);
+  return (JSON.parse(got.stdout) as { fileSha256: string }).fileSha256;
 };
 
 /** Starts the app on a new fixture workspace (`undefined`: without a workspace), or on `options.kept`. */

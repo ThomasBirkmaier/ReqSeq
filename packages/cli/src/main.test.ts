@@ -42,7 +42,12 @@ const catalog = {
         properties: {
           ref: { $ref: "../common.schema.json#/$defs/elementRef", description: "Element to echo." },
           name: { type: "string" },
-          count: { type: "integer", minimum: 0 },
+          count: {
+            type: "integer",
+            minimum: 0,
+            description: "At most maxDepth; the output `maxDepth`, not input.maxDepth.",
+          },
+          maxDepth: { type: "integer" },
           verbose: { type: "boolean" },
           version: { type: "string" },
           tags: { type: "array", items: { type: "string" } },
@@ -236,7 +241,10 @@ describe("reqseq help and version", () => {
     expect(result.code).toBe(EXIT.ok);
     expect(result.stdout).toContain("Usage: reqseq test echo <ref> <name> [options]");
     expect(result.stdout).toMatch(/ref\s+Element to echo\./);
-    expect(result.stdout).toMatch(/--count <number>/);
+    // Field names in help as the command line spells them (#148).
+    expect(result.stdout).toMatch(
+      /--count <number>\s+At most --max-depth; the output `maxDepth`, not\s+input\.maxDepth\./,
+    );
     expect(result.stdout).toMatch(/--verbose\s/);
     expect(result.stdout).toMatch(/--no-verbose\s+set verbose to false/);
     expect(result.stdout).toMatch(/--tags <value>\s+repeatable/);
@@ -404,6 +412,27 @@ describe("reqseq <group> <action>", () => {
     const bad = await run(["test", "echo", ref, "n", "--set", "novalue"]);
     expect(bad.code).toBe(EXIT.usage);
     expect(bad.stderr).toBe("error input.invalid: --set expects key=value, not novalue\n");
+  });
+
+  it('sends --set key=3 as a number and key=.5 or key="3" as text, which core refuses for a number property (#614)', async () => {
+    const result = await run([
+      ...[
+        "test",
+        "echo",
+        ref,
+        "n",
+        "--set",
+        "a=3",
+        "--set",
+        "b=2.5",
+        "--set",
+        "c=.5",
+        "--set",
+        'd="3"',
+        "--json",
+      ],
+    ]);
+    expect(JSON.parse(result.stdout)).toMatchObject({ input: { props: { a: 3, b: 2.5, c: ".5", d: "3" } } });
   });
 
   it("renders the output for people by default", async () => {
