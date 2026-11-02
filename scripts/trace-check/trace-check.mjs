@@ -228,6 +228,19 @@ function checkPrBody(spec, body, errors) {
   }
 }
 
+/**
+ * The system requirements a PR closes (#394): the SR IDs at the start of its title (the first line of the PR text),
+ * when the body has `Closes #<issue>`. A PR of an SR that does not close its issue requires nothing.
+ */
+export function closedSrs(text) {
+  const [title = "", ...rest] = text.split(/\r?\n/);
+  if (!/\bCloses #\d+/i.test(rest.join("\n"))) {
+    return [];
+  }
+  const lead = /^(?:SR-\d{3}[\s,/+&]*)+/.exec(title)?.[0] ?? "";
+  return [...new Set([...lead.matchAll(/SR-\d{3}/g)].map((m) => m[0]))];
+}
+
 /** Runs the check in `root` with the command-line `args`; returns the report and the exit code. */
 export function traceCheck(root, args) {
   const opt = (name) => {
@@ -252,12 +265,13 @@ export function traceCheck(root, args) {
     }
     required = required.concat(members ?? []);
   }
-  const rows = checkRequired(root, spec, required, testRefs, errors);
-
   const prBodyFile = opt("--pr-body");
   if (prBodyFile && !args.includes("--enabler")) {
-    checkPrBody(spec, fs.readFileSync(prBodyFile, "utf8"), errors);
+    const text = fs.readFileSync(prBodyFile, "utf8");
+    checkPrBody(spec, text, errors);
+    required = required.concat(closedSrs(text).filter((id) => !required.includes(id)));
   }
+  const rows = checkRequired(root, spec, required, testRefs, errors);
 
   const report = [
     `# Trace check`,
