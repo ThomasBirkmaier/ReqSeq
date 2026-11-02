@@ -1,6 +1,9 @@
 // Core's versions for the generator (D-055), as in packages/cli/test/perf/start.test.ts: every generated relation
 // stores the version core computes for its target (ADR-0005), so the generated workspace has no outdated relation
-// (SR-025) and the app starts on data like a real workspace's.
+// (SR-025) and the app starts on data like a real workspace's. A copy, not shared: core's own
+// (packages/core/test/perf/core-version.ts) uses core's internal modules, which tests outside core may not import
+// (eslint `coreInternals`); the CLI's is inside its test file; and the testkit, where a shared one would go, does
+// not depend on core, which is why the generator takes the version function as an argument.
 import fs from "node:fs/promises";
 import type { CommandOutput, VersionValue } from "@reqseq/core";
 import { Workspace, computeVersion, invoke } from "@reqseq/core";

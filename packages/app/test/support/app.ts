@@ -312,8 +312,9 @@ export const launchApp = async (
       now: new Date(Date.now() - (recent.length - index) * 60_000),
     });
   }
+  const { REQSEQ_VALIDATE_OUTPUT: _exported, ...inherited } = process.env;
   const env = {
-    ...process.env,
+    ...(options.validateOutput === false ? inherited : process.env),
     HOME: home,
     USERPROFILE: home,
     XDG_CACHE_HOME: home,

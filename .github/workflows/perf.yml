@@ -74,7 +74,9 @@ jobs:
     # GitHub's hosted Ubuntu runner for public repositories has 4 cores and 16 GB, the reference machine
     # (ADR-0011); the job prints what it got.
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    # The Vitest suite alone took 36 min at night (2026-11-02); the app's suite adds about 5 min with its setup
+    # (Electron from the cache, build, about 2 min of tests, #147). 75 min leaves about 34 min for a slow runner.
+    timeout-minutes: 75
     outputs:
       exceeded: ${{ steps.report.outputs.exceeded }}
       complete: ${{ steps.report.outputs.complete }}

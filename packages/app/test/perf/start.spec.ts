@@ -9,11 +9,14 @@
 //   höchstens 1 Sekunde sichtbar.“ and AK3 „Gegeben derselbe Arbeitsbereich, in dem seit dem Start bereits ein
 //   Element geöffnet wurde, wenn ein Element geöffnet wird, dann ist es nach höchstens 200 ms sichtbar.“ After the
 //   second start.
-// "bedienbar" (#112, #147): the main view (SR-100) shows the first page of the list and accepts input. The app
-// starts with the overview (SR-118 AK4: no list of all elements), so a start runs from the launch of Electron
-// until the overview shows its counts of all 50,000 elements, its key Ctrl+K L ("List all elements") was taken
-// and the list shows its first row: the time of the person's keystroke included, nothing left out. "sichtbar":
-// the element's title and text are rendered, from the keydown of Enter to the frame after the paint.
+// "bedienbar" (#112, #147, assumption of spec question #750): the main view (SR-100) shows the first page of
+// the list and accepts input. The app starts with the overview (SR-118 AK4: no list of all elements), so a start
+// runs from the launch of Electron until the overview shows its counts of all 50,000 elements, plus the answer to
+// Ctrl+K L ("List all elements") from its keydown until the list shows its first row. Playwright's attach does not
+// hold the app back: `launchApp` gives Electron's `executablePath`, so Playwright adds no loader that delays
+// `ready`, and the times are taken in the window, not when Playwright has connected. Its attach (until
+// `launchApp` gives the window) is recorded on its own.
+// "sichtbar": the element's title and text are rendered, from the keydown of Enter to the frame after the paint.
 // Times are taken in the window (`requestAnimationFrame` polling and the keydown's `event.timeStamp`), so
 // Playwright's own polling adds nothing. Core runs without the output check of tests (`validateOutput: false`),
 // as a user's app does. The core-level measurements of the same criteria stay in
@@ -24,7 +27,7 @@ import os from "node:os";
 import path from "node:path";
 import type { JSHandle, Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { MODEL_CACHE_FILE } from "@reqseq/core";
+import { MODEL_CACHE_FILE, cacheFolder } from "@reqseq/core";
 import type { GeneratedElement, LargeFixtureWorkspace, PerfMeasurement } from "@reqseq/testkit";
 import { generateLargeWorkspace, recordValue, thresholdMessage, writeLargeWorkspace } from "@reqseq/testkit";
 import type { Kept, RunningApp } from "../support/app.js";
@@ -39,9 +42,9 @@ const WARM_MS = 3_000;
 const COLD_MS = 30_000;
 /** SR-082 AK5: the first open after the start. */
 const FIRST_OPEN_MS = 1_000;
-/** SR-082 AK3: a later open. */
+/** SR-082 AK3: every later open. */
 const OPEN_MS = 200;
-/** Later opens, each of another element; their median is the measurement (ADR-0011, `measureMedian`). */
+/** Later opens, each of another element; the slowest is the measurement of AK3. */
 const LATER_OPENS = 5;
 /**
  * The model cache trusts an entry only when its file is older than 2 s before the load that wrote the cache
@@ -49,25 +52,15 @@ const LATER_OPENS = 5;
  */
 const SETTLE_MS = 2_100;
 
-/** Wall-clock milliseconds since the epoch, comparable between this process and the window. */
+/** Wall-clock milliseconds since the epoch, comparable between this process, the main process and the window. */
 const now = (): number => performance.timeOrigin + performance.now();
 
-/** Every file named `name` below `folder`. */
-const findFiles = async (folder: string, name: string): Promise<string[]> => {
-  const entries = await fs.readdir(folder, { recursive: true, withFileTypes: true });
-  return entries.filter((e) => e.isFile() && e.name === name).map((e) => path.join(e.parentPath, e.name));
-};
-
-/** Waits until a model cache appears below `home` (core writes it in the background after a load). */
-const modelCacheBelow = async (home: string, withinMs: number): Promise<string> => {
+/** Waits until `file` exists (core writes the model cache in the background after a load). */
+const appeared = async (file: string, withinMs: number): Promise<void> => {
   const until = Date.now() + withinMs;
-  for (;;) {
-    const [file] = await findFiles(home, MODEL_CACHE_FILE);
-    if (file !== undefined) {
-      return file;
-    }
+  while (!existsSync(file)) {
     if (Date.now() > until) {
-      throw new Error(`no ${MODEL_CACHE_FILE} below ${home} within ${String(withinMs)} ms`);
+      throw new Error(`${file} did not appear within ${String(withinMs)} ms`);
     }
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
@@ -84,6 +77,8 @@ const timeOf = async (handle: JSHandle<number | false>): Promise<number> => {
 
 /** The parts of a start, in ms. */
 interface Start {
+  /** From the launch until Playwright has attached and `launchApp` gives the window; runs beside the app's start. */
+  readonly attach: number;
   /** From the launch until the overview shows its counts of all elements. */
   readonly overview: number;
   /** From the keydown of Ctrl+K until the list of all elements shows its first row. */
@@ -100,6 +95,7 @@ interface Start {
 const timeStart = async (kept: Kept): Promise<{ readonly running: RunningApp; readonly start: Start }> => {
   const launched = now();
   const running = await launchApp(undefined, { kept, validateOutput: false });
+  const attach = now() - launched;
   const { window } = running;
   // Polled in the window on every frame, so the time is the frame in which the condition first held.
   const overviewAt = await window.waitForFunction(
@@ -113,7 +109,7 @@ const timeStart = async (kept: Kept): Promise<{ readonly running: RunningApp; re
     String(ELEMENTS),
     { polling: "raf", timeout: 0 },
   );
-  const overview = (await timeOf(overviewAt)) - launched;
+  const shown = await timeOf(overviewAt);
   await window.evaluate(() => {
     const w = globalThis as unknown as { __keyAt?: number };
     addEventListener(
@@ -143,7 +139,8 @@ const timeStart = async (kept: Kept): Promise<{ readonly running: RunningApp; re
     { polling: "raf", timeout: 0 },
   );
   const answer = await timeOf(answeredIn);
-  return { running, start: { overview, answer, usable: overview + answer } };
+  const overview = shown - launched;
+  return { running, start: { attach, overview, answer, usable: overview + answer } };
 };
 
 /**
@@ -193,9 +190,14 @@ const timeOpen = async (window: Page, title: string, text: string): Promise<numb
 const median = (values: readonly number[]): number =>
   [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)] ?? Number.NaN;
 
-/** Asserts a tagged measurement's threshold, after every measurement of the test was recorded (ADR-0011). */
+/**
+ * Asserts a tagged measurement's threshold, after every measurement of the test was recorded (ADR-0011). Soft, so
+ * that one time over its threshold does not hide the others.
+ */
 const assertWithin = (measurement: PerfMeasurement): void => {
-  expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(measurement.thresholdMs ?? 0);
+  expect
+    .soft(measurement.ms, thresholdMessage(measurement))
+    .toBeLessThanOrEqual(measurement.thresholdMs ?? 0);
 };
 
 test.describe("start and open with 50,000 elements and 200,000 relations (SR-082, N-036)", () => {
@@ -203,8 +205,6 @@ test.describe("start and open with 50,000 elements and 200,000 relations (SR-082
   let home = "";
   let requirements: GeneratedElement[] = [];
   let running: RunningApp | undefined;
-  /** The model cache the first start wrote. */
-  let modelCache = "";
 
   test.beforeAll(async () => {
     test.setTimeout(600_000);
@@ -241,44 +241,55 @@ test.describe("start and open with 50,000 elements and 200,000 relations (SR-082
 
   /** Records the parts of a start; gives the measurement of the whole start. */
   const recordStart = async (start: Start, cache: string, criterion: string, thresholdMs: number) => {
+    await recordValue(
+      `app: Playwright's launch and attach until it has the window (${cache})`,
+      start.attach,
+      {
+        basis: `SR-082 ${criterion} (beside the start, not part of it; untagged, threshold for comparison only, #147)`,
+        thresholdMs,
+      },
+    );
     await recordValue(`app: start until the overview shows all elements (${cache})`, start.overview, {
       basis: `SR-082 ${criterion} (part of the start; recorded)`,
     });
     await recordValue(
       `app: Ctrl+K L until the list of all elements shows its first page (${cache})`,
       start.answer,
-      {
-        basis: `SR-082 ${criterion} (part of the start; recorded)`,
-      },
+      { basis: `SR-082 ${criterion} (part of the start; recorded)` },
     );
     return recordValue(
       `app: start until usable, the overview plus Ctrl+K L until the list shows its first page (${cache})`,
       start.usable,
-      { basis: `SR-082 ${criterion} (start ${cache}; the app, #147)`, thresholdMs },
+      {
+        basis: `SR-082 ${criterion} (start ${cache}; the app, #147)`,
+        thresholdMs,
+      },
     );
   };
 
-  test("[SR-082/AK2] the app is usable within 30 s without the cache", async () => {
-    test.setTimeout(300_000);
-    const { running: started, start } = await timeStart(kept());
-    running = started;
-    const measurement = await recordStart(start, "no cache", "AK2", COLD_MS);
+  // One test for all four criteria: Playwright starts a new worker after a failed test, whose `beforeAll` would
+  // generate the workspace again, and the second start needs the cache of the first. Every time is recorded
+  // before the thresholds are asserted, softly.
+  test("[SR-082/AK2] [SR-082/AK1] [SR-082/AK5] [SR-082/AK3] the app is usable within 30 s without the cache and 3 s with it, shows the first element within 1 s and later ones within 200 ms", async () => {
+    test.setTimeout(600_000);
+    const root = fixture?.workspaceRoot ?? "";
+    const modelCache = path.join(
+      cacheFolder(root, {
+        platform: process.platform,
+        env: { XDG_CACHE_HOME: home, LOCALAPPDATA: home },
+        home,
+      }),
+      MODEL_CACHE_FILE,
+    );
+    expect(existsSync(modelCache), `a model cache before the first start: ${modelCache}`).toBe(false);
+    const { running: cold, start: coldStart } = await timeStart(kept());
+    running = cold;
+    const coldUsable = await recordStart(coldStart, "no cache", "AK2", COLD_MS);
     // The first start writes the model cache for the next one.
-    modelCache = await modelCacheBelow(home, 120_000);
-    await running.close({ keep: true });
+    await appeared(modelCache, 120_000);
+    await cold.close({ keep: true });
     running = undefined;
-    assertWithin(measurement);
-  });
 
-  test("[SR-082/AK1] [SR-082/AK5] [SR-082/AK3] the app is usable within 3 s with the cache, shows the first element within 1 s and later ones within 200 ms", async () => {
-    test.setTimeout(300_000);
-    // Run alone (`-g AK1`), the test starts once without the cache first, as the AK2 test does.
-    if (modelCache === "") {
-      const { running: first } = await timeStart(kept());
-      modelCache = await modelCacheBelow(home, 120_000);
-      await first.close({ keep: true });
-    }
-    expect(existsSync(modelCache), `no model cache at ${modelCache}`).toBe(true);
     const written = (await fs.stat(modelCache)).mtimeMs;
     const { running: started, start } = await timeStart(kept());
     running = started;
@@ -307,19 +318,20 @@ test.describe("start and open with 50,000 elements and 200,000 relations (SR-082
       { basis: "SR-082 AK5 (the first open after the start; the app, #147)", thresholdMs: FIRST_OPEN_MS },
     );
     const later = await recordValue(
-      `app: later element opened through Ctrl+P, Enter until title and text are shown (median of ${String(LATER_OPENS)})`,
-      median(laterMs),
-      { basis: "SR-082 AK3 (an open after the first; the app, #147)", thresholdMs: OPEN_MS },
-    );
-    await recordValue(
       `app: later element opened through Ctrl+P, Enter until title and text are shown (slowest of ${String(LATER_OPENS)})`,
       Math.max(...laterMs),
+      { basis: "SR-082 AK3 (every open after the first; the app, #147)", thresholdMs: OPEN_MS },
+    );
+    await recordValue(
+      `app: later element opened through Ctrl+P, Enter until title and text are shown (median of ${String(LATER_OPENS)})`,
+      median(laterMs),
       { basis: "SR-082 AK3 (recorded)" },
     );
     // Every model cache entry was reused: the second start did not write the cache again.
     expect((await fs.stat(modelCache)).mtimeMs).toBe(written);
     // eslint-disable-next-line no-console -- the numbers are the result of this test, the PR quotes them.
-    console.log(`PERF app start and open ${JSON.stringify({ start, opens: times })}`);
+    console.log(`PERF app start and open ${JSON.stringify({ cold: coldStart, warm: start, opens: times })}`);
+    assertWithin(coldUsable);
     assertWithin(warm);
     assertWithin(first);
     assertWithin(later);
