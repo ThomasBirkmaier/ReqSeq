@@ -19,10 +19,12 @@ import type { ElementRecord } from "./elements.js";
 import { ignoreMatcher } from "./ignore.js";
 import type { Reuse } from "./model-cache.js";
 import { loadThroughCache } from "./model-cache.js";
+import { inPathOrder } from "./path-order.js";
 import type { ReadRequest } from "./read-pool.js";
 import { openReadPool, readWorkers } from "./read-pool.js";
 
 export type { Contribution } from "./contribution.js";
+export { byPath } from "./path-order.js";
 
 /** A file of a repository of the workspace. */
 export interface RepositoryFile {
@@ -180,13 +182,6 @@ const assemble = (repositories: readonly RepositoryContents[]): LoadedStore => {
 };
 
 /**
- * The order of file paths in a repository of the store: by UTF-16 code units, as
- * `listMarkdownFiles` sorts them (not `localeCompare`). States that merge in store order use it
- * (`carryProblems`, `carryIncomingIndex`).
- */
-export const byPath = (a: string, b: string): number => Number(a > b) - Number(a < b);
-
-/**
  * Contributions of the files listed, in path order (code units, as `listMarkdownFiles` sorts):
  * `fresh` where read, else `before`. Every listed file is in one of them.
  */
@@ -197,8 +192,7 @@ const inListOrder = (
 ): Map<string, Contribution> => {
   const listed = new Set(files);
   const kept = [...before].filter(([file]) => listed.has(file) && !fresh.has(file));
-  const entries = [...kept, ...fresh].sort(([a], [b]) => byPath(a, b));
-  return new Map(entries);
+  return inPathOrder([...kept, ...fresh]);
 };
 
 /** The `ignore` globs of the workspace file as a test (the element walk and the watcher). */
@@ -440,14 +434,15 @@ const listedNew = async (
 
 /** The files of a repository after a write: put in path order once when the write added a file (#729). */
 const afterWrite = (files: Map<string, Contribution>, added: boolean): Map<string, Contribution> =>
-  added ? inListOrder([...files.keys()], files) : files;
+  added ? inPathOrder(files) : files;
 
 /**
  * The store with files as ReqSeq has just written them (#166, ADR-0008), without reading any
  * file: each file's contribution is built from the bytes written and the snapshot of the write,
- * the same way a full read builds it, and swapped in (new files put in path order with one sort
- * per repository, so a bulk write stays O(n log n), #729); the store is assembled once for all of them and every other record stays the same object. Undefined when the
- * store has every file as written already (the watcher saw them first), so a write is never
+ * the same way a full read builds it, and swapped in; a repository with new files is put in path
+ * order with one sort, so a bulk write of n new files stays O(n log n) (#729). The store is
+ * assembled once for all of them and every other record stays the same object. Undefined when
+ * the store has every file as written already (the watcher saw them first), so a write is never
  * applied twice; the watcher, in turn, finds the snapshots unchanged when it sees the files.
  * Rejects with `StoreFallback` when the result could differ from `loadElements` on the working
  * tree now, and the caller then resets the store: a store without `repositories` or without the

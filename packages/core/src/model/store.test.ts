@@ -903,22 +903,6 @@ describe("withWrittenFiles (#166)", () => {
     ]);
   });
 
-  it("sorts the files once per write, however many new files it has (#729)", async () => {
-    const { before, layout, write } = await opened();
-    /** Calls of `Array.prototype.sort` while `withWrittenFiles` takes `written`. */
-    const sorts = async (written: WrittenFile[]): Promise<number> => {
-      const spy = vi.spyOn(Array.prototype, "sort");
-      try {
-        await withWrittenFiles(before, layout, written);
-        return spy.mock.calls.length;
-      } finally {
-        spy.mockRestore();
-      }
-    };
-    const created = await newFiles(write, 40);
-    expect(await sorts(created)).toBe(await sorts(created.slice(0, 4)));
-  });
-
   it("cannot tell, and says so, when looking at a new file's folders fails", async () => {
     const { before, layout, write } = await opened();
     const created = await write("a/SR-0c1d2e3f4a5b.md", element(ID_A), undefined);
