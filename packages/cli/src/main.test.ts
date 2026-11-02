@@ -41,7 +41,12 @@ const catalog = {
         properties: {
           ref: { $ref: "../common.schema.json#/$defs/elementRef", description: "Element to echo." },
           name: { type: "string" },
-          count: { type: "integer", minimum: 0 },
+          count: {
+            type: "integer",
+            minimum: 0,
+            description: "At most maxDepth; the output `maxDepth`, not input.maxDepth.",
+          },
+          maxDepth: { type: "integer" },
           verbose: { type: "boolean" },
           version: { type: "string" },
           tags: { type: "array", items: { type: "string" } },
@@ -233,7 +238,10 @@ describe("reqseq help and version", () => {
     expect(result.code).toBe(EXIT.ok);
     expect(result.stdout).toContain("Usage: reqseq test echo <ref> <name> [options]");
     expect(result.stdout).toMatch(/ref\s+Element to echo\./);
-    expect(result.stdout).toMatch(/--count <number>/);
+    // Field names in help as the command line spells them (#148).
+    expect(result.stdout).toMatch(
+      /--count <number>\s+At most --max-depth; the output `maxDepth`, not\s+input\.maxDepth\./,
+    );
     expect(result.stdout).toMatch(/--verbose\s/);
     expect(result.stdout).toMatch(/--no-verbose\s+set verbose to false/);
     expect(result.stdout).toMatch(/--tags <value>\s+repeatable/);
