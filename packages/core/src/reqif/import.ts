@@ -1340,6 +1340,9 @@ const planRelation = (
   relation: ReqifSpecRelation,
 ): void => {
   const { index } = context;
+  const t = index.types.get(relation.type);
+  // The import needs no reference of a relation, so one the file does not define is a loss.
+  const kind = t === undefined ? undefined : context.coverage.relations.get(t.identifier);
   const source = drafts.get(relation.source);
   if (source?.ownRelations !== undefined && kind !== undefined) {
     // Its relations come from `reqseq-values` (see the file comment); a kind the metamodel here
@@ -1355,9 +1358,6 @@ const planRelation = (
       reason,
     });
   };
-  const t = index.types.get(relation.type);
-  // The import needs no reference of a relation, so one the file does not define is a loss.
-  const kind = t === undefined ? undefined : context.coverage.relations.get(t.identifier);
   if (t?.category !== "spec-relation") {
     loss("omitted-type", `its SPEC-RELATION-TYPE ${relation.type} is not in the file`);
   } else if (kind === undefined) {
