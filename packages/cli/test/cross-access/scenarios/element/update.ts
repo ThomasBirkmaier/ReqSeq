@@ -20,6 +20,13 @@ const WIND_SHA256 = createHash("sha256")
 
 scenariosOf("element.update", [
   {
+    name: "a number given as text is refused, the file stays (#614)",
+    tag: "[SR-085/AK4]",
+    fixture: FILTER,
+    input: { ref: "SWR-0000f1", set: { priority: "3" } },
+    expect: "error",
+  },
+  {
     name: "relations added and removed by short ID in the same write as a property (#175)",
     fixture: FILTER,
     input: {

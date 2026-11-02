@@ -49,6 +49,7 @@ import { hasId } from "./relation-keys.js";
 import type { ShortIds } from "./short-id.js";
 import type { ElementStore } from "./store.js";
 import type { TargetContext } from "./targets.js";
+import { numberInput } from "./number-input.js";
 import { currentTarget, relationTargetRefs, setMarkdownReferences, setRelationTargets } from "./targets.js";
 import { valueFindings } from "./values.js";
 import { titleKeyOf } from "./view.js";
@@ -204,16 +205,28 @@ const valueOf = (
 /**
  * The value with each item of a relation-valued property as a target `{ id }` (`relationTargetRefs`,
  * #287): a short ID or identifier is resolved and any other item that is no reference refused,
- * before a file is read.
+ * before a file is read. A value of a number property that is no number is refused for `set` and
+ * `add` (`numberInput`, #614); `remove` writes no value, so it can remove a hand-written text item.
  */
 const refsOf = (
   selection: BulkSelection,
   property: MetamodelProperty,
+  operation: BulkOperation,
   value: ElementInputValue | undefined,
-): ElementInputValue | undefined =>
-  value === undefined || property.kind !== "relation"
-    ? value
-    : relationTargetRefs(selection.store, selection.shortIds, property.key, value);
+): ElementInputValue | undefined => {
+  if (value === undefined) {
+    return value;
+  }
+  if (property.kind === "number") {
+    if (operation === "remove") {
+      return value;
+    }
+    return numberInput(property.key, value);
+  }
+  return property.kind === "relation"
+    ? relationTargetRefs(selection.store, selection.shortIds, property.key, value)
+    : value;
+};
 
 /** The target an item names, as UUID and repository (the source's own when it names none). */
 const targetOf = (item: TargetItem, repository: string): string =>
@@ -371,7 +384,7 @@ export const bulkUpdateElements = async (
 ): Promise<BulkUpdateResult> => {
   const { metamodel, store, shortIds } = selection;
   const property = propertyOf(metamodel, input.property);
-  const value = refsOf(selection, property, valueOf(metamodel, property, input));
+  const value = refsOf(selection, property, input.operation, valueOf(metamodel, property, input));
   const layout = await workspace.get(workspaceLayoutState);
   const named = (record: ElementRecord): NamedElement => ({ id: record.id, shortId: shortIds.of(record) });
   const skipped: SkippedElement[] = [];
