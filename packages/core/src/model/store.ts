@@ -10,6 +10,7 @@ import type { FileSnapshot, ParsedFile } from "../files/index.js";
 import type { StateChange, Workspace } from "../runtime/workspace.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
+import { loadMetamodel, metamodelState } from "../metamodel/index.js";
 import { availableRepositories, workspaceLayoutState } from "../workspace/index.js";
 import type { Contribution } from "./contribution.js";
 import { contribution, parsedContribution } from "./contribution.js";
@@ -19,6 +20,8 @@ import type { ElementRecord } from "./elements.js";
 import { ignoreMatcher } from "./ignore.js";
 import type { Reuse } from "./model-cache.js";
 import { loadThroughCache } from "./model-cache.js";
+import type { LoadedVersion, Versioning } from "./loaded-version.js";
+import { versioningOf } from "./loaded-version.js";
 import { inPathOrder } from "./path-order.js";
 import type { ReadRequest } from "./read-pool.js";
 import { openReadPool, readWorkers } from "./read-pool.js";
@@ -71,6 +74,11 @@ export interface ElementStore {
    * fields above are built from it. `updateElements` reads a store without it in full.
    */
   readonly repositories?: readonly RepositoryContents[];
+  /**
+   * What the files were read with to give each element its version as read (`loadedVersionsOf`,
+   * #439); the store's later reads (watcher batches, writes) use it too. Undefined: none were computed.
+   */
+  readonly versioning?: Versioning;
 }
 
 /** A store as a full read gives it: with what each file of each repository contributed. */
@@ -87,6 +95,7 @@ const readRepository = async (
   repository: RepositoryLocation,
   files: readonly string[],
   signal: AbortSignal | undefined,
+  versioning: Versioning | undefined,
 ): Promise<ReadonlyMap<string, Contribution>> => {
   const results = new Map<string, Contribution>();
   // One shared iterator: each worker takes the next file until none are left.
@@ -94,7 +103,7 @@ const readRepository = async (
   const worker = async (): Promise<void> => {
     for (const file of queue) {
       signal?.throwIfAborted();
-      results.set(file, await contribution(repository, file));
+      results.set(file, await contribution(repository, file, versioning));
     }
   };
   await Promise.all(Array.from({ length: Math.min(READ_CONCURRENCY, files.length) }, worker));
@@ -112,7 +121,43 @@ export interface ReadOptions {
    * (`loadThroughCache`, SR-082). Default: read every file.
    */
   readonly reuse?: Reuse;
+  /**
+   * When given, each element read gets its version as read (`parsedContribution`, #439), and the
+   * store keeps the `Versioning`; asked only when a file is read. Default: none.
+   */
+  readonly versioning?: VersioningSource | undefined;
 }
+
+/**
+ * Where the versions as read come from (`ReadOptions.versioning`): a `Versioning`, its promise, or a
+ * function asked only when a file is read. One that fails or gives none means no versions.
+ */
+export type VersioningSource =
+  Versioning | PromiseLike<Versioning | undefined> | (() => PromiseLike<Versioning | undefined>);
+
+/** The `Versioning` of `source`; undefined when it gives none or fails, so it never fails a read. */
+const versioningFrom = async (source: VersioningSource | undefined): Promise<Versioning | undefined> => {
+  try {
+    return await (typeof source === "function" ? source() : source);
+  } catch {
+    return undefined;
+  }
+};
+
+/** The `Versioning` for a read into `store`: from `source` when given, else the one `store` was read with. */
+const versioningFor = async (
+  store: ElementStore,
+  source: VersioningSource | undefined,
+): Promise<Versioning | undefined> => (source === undefined ? store.versioning : versioningFrom(source));
+
+/**
+ * The `Versioning` of the metamodel of `workspace` as it is now (#439), without building its metamodel
+ * state, so that reading the store builds no other state: the state's value when it is there, else
+ * the metamodel read from `layout`.
+ */
+export const workspaceVersioning =
+  (workspace: Workspace, layout: WorkspaceLayout) => async (): Promise<Versioning | undefined> =>
+    versioningOf(await (workspace.peek(metamodelState) ?? loadMetamodel(layout)));
 
 /**
  * From this many files a read goes to worker threads (ADR-0008, N-036). Measured in a fresh process
@@ -133,26 +178,30 @@ const readAll = async <R extends ReadRequest & { readonly repository: Repository
   requests: readonly R[],
   signal: AbortSignal | undefined,
   options: ReadOptions,
+  versioning: Versioning | undefined,
 ): Promise<(readonly [R, ReadonlyMap<string, Contribution>])[]> => {
   const count = requests.reduce((sum, { files }) => sum + files.length, 0);
   if (count < (options.workerThreshold ?? WORKER_THRESHOLD)) {
     const read: (readonly [R, ReadonlyMap<string, Contribution>])[] = [];
     for (const request of requests) {
-      read.push([request, await readRepository(request.repository, request.files, signal)]);
+      read.push([request, await readRepository(request.repository, request.files, signal, versioning)]);
     }
     return read;
   }
   signal?.throwIfAborted();
   const pool = openReadPool(options.workers ?? readWorkers());
   try {
-    return await pool.read(requests, signal);
+    return await pool.read(requests, signal, versioning);
   } finally {
     await pool.close();
   }
 };
 
 /** The store fields from the contents of the repositories, in their order. */
-const assemble = (repositories: readonly RepositoryContents[]): LoadedStore => {
+const assemble = (
+  repositories: readonly RepositoryContents[],
+  versioning: Versioning | undefined,
+): LoadedStore => {
   const elements: ElementRecord[] = [];
   const nonElements: RepositoryFile[] = [];
   const problems: Problem[] = [];
@@ -178,7 +227,14 @@ const assemble = (repositories: readonly RepositoryContents[]): LoadedStore => {
       same.push(element);
     }
   }
-  return { elements, byId, nonElements, problems, repositories };
+  return {
+    elements,
+    byId,
+    nonElements,
+    problems,
+    repositories,
+    ...(versioning === undefined ? {} : { versioning }),
+  };
 };
 
 /**
@@ -227,7 +283,11 @@ export const loadElements = async (
     };
     walks.push({ repository, listed, reused, files: read });
   }
-  const read = await readAll(walks, signal, options);
+  // Only when a file is read: a start that takes every file from the model cache loads no metamodel.
+  const versioning = walks.some((w) => w.files.length > 0)
+    ? await versioningFrom(options.versioning)
+    : undefined;
+  const read = await readAll(walks, signal, options, versioning);
   return assemble(
     read.map(([{ repository, listed, reused }, files]) => ({
       repository: repository.name,
@@ -235,6 +295,7 @@ export const loadElements = async (
       listing: listed.problems,
       files: inListOrder(listed.files, files, reused),
     })),
+    versioning,
   );
 };
 
@@ -300,6 +361,7 @@ const updateContents = async (
   changes: RepositoryChanges,
   ignored: (relativePath: string) => boolean,
   signal: AbortSignal | undefined,
+  versioning: Versioning | undefined,
 ): Promise<RepositoryContents> => {
   const repository = before.location;
   // One walk again: it sees new, moved and deleted files and folders and applies every rule of the
@@ -323,7 +385,9 @@ const updateContents = async (
     }
   }
   const read = new Map(
-    (await readAll([{ repository, files: check }], signal, {})).flatMap(([, files]) => [...files]),
+    (await readAll([{ repository, files: check }], signal, {}, versioning)).flatMap(([, files]) => [
+      ...files,
+    ]),
   );
   // A file deleted between the walk and its read is gone, not unreadable.
   const gone = new Set<string>();
@@ -379,18 +443,22 @@ export const updateElements = async (
   layout: WorkspaceLayout,
   changes: ReadonlyMap<string, RepositoryChanges>,
   signal?: AbortSignal,
+  source?: VersioningSource,
 ): Promise<ElementStore | undefined> => {
   const before = store.repositories;
+  const versioning = await versioningFor(store, source);
   if (before === undefined || readsInFull(store, layout)) {
-    return loadElements(layout, signal);
+    return loadElements(layout, signal, { versioning });
   }
   const ignored = ignoredBy(layout);
   const repositories: RepositoryContents[] = [];
   for (const old of before) {
     const change = changes.get(old.repository);
-    repositories.push(change === undefined ? old : await updateContents(old, change, ignored, signal));
+    repositories.push(
+      change === undefined ? old : await updateContents(old, change, ignored, signal, versioning),
+    );
   }
-  return repositories.every((r, i) => r === before[i]) ? undefined : assemble(repositories);
+  return repositories.every((r, i) => r === before[i]) ? undefined : assemble(repositories, versioning);
 };
 
 /** A file ReqSeq has just written (`element.create`, `element.update`, ...), for `withWrittenFiles`. */
@@ -455,7 +523,9 @@ export const withWrittenFiles = async (
   store: ElementStore,
   layout: WorkspaceLayout,
   written: readonly WrittenFile[],
+  source?: VersioningSource,
 ): Promise<ElementStore | undefined> => {
+  const versioning = await versioningFor(store, source);
   const repositories = [...(store.repositories ?? [])];
   /** By index in `repositories`: the contents before and the files after the writes. */
   const changed = new Map<
@@ -482,7 +552,7 @@ export const withWrittenFiles = async (
     if (old === undefined && !(await listedNew(contents, layout, file))) {
       throw new StoreFallback(`a full read may not list ${file} under repository ${repository}`);
     }
-    files.set(file, parsedContribution(repository, parsed));
+    files.set(file, parsedContribution(repository, parsed, versioning));
     changed.set(index, { contents, files });
     if (old === undefined) {
       grown.add(index);
@@ -494,7 +564,7 @@ export const withWrittenFiles = async (
   for (const [index, { contents, files }] of changed) {
     repositories[index] = { ...contents, files: afterWrite(files, grown.has(index)) };
   }
-  return assemble(repositories);
+  return assemble(repositories, versioning);
 };
 
 /**
@@ -515,10 +585,13 @@ export const elementStoreState = defineWorkspaceState(
   async (workspace): Promise<ElementStore> => {
     const layout = await workspace.get(workspaceLayoutState);
     const folder = workspace.cacheFolder;
+    // The versions as read (#439) need the metamodel, asked only when files are read and without
+    // building its state; the store does not depend on it (none valid: no versions).
+    const versioning = workspaceVersioning(workspace, layout);
     return folder === undefined
-      ? loadElements(layout)
+      ? loadElements(layout, undefined, { versioning })
       : loadThroughCache(workspace, folder, layout, (reuse) =>
-          loadElements(layout, undefined, reuse === undefined ? {} : { reuse }),
+          loadElements(layout, undefined, reuse === undefined ? { versioning } : { reuse, versioning }),
         );
   },
   { dependsOn: [workspaceLayoutState] },
@@ -678,7 +751,7 @@ export const recordWrites = async (
       if ((await workspace.peek(workspaceLayoutState)) !== layout) {
         throw new StoreFallback("the workspace layout changed since the write");
       }
-      return withWrittenFiles(store, layout, written);
+      return withWrittenFiles(store, layout, written, workspaceVersioning(workspace, layout));
     });
   } catch (error) {
     if (!(error instanceof StoreFallback)) {
@@ -686,4 +759,28 @@ export const recordWrites = async (
     }
     await workspace.reset(elementStoreState);
   }
+};
+
+/** The versions as read of each store (`loadedVersionsOf`), built on first use. */
+const loadedByStore = new WeakMap<ElementStore, ReadonlyMap<ElementRecord, LoadedVersion>>();
+
+/**
+ * The version of each element of `store` as its file was read (#439, `loaded-version.ts`), by
+ * record: only those that have one. Empty for a store without `repositories`.
+ */
+export const loadedVersionsOf = (store: ElementStore): ReadonlyMap<ElementRecord, LoadedVersion> => {
+  let loaded = loadedByStore.get(store);
+  if (loaded === undefined) {
+    const byRecord = new Map<ElementRecord, LoadedVersion>();
+    for (const { files } of store.repositories ?? []) {
+      for (const result of files.values()) {
+        if (result.kind === "element" && result.version !== undefined) {
+          byRecord.set(result.element, result.version);
+        }
+      }
+    }
+    loaded = byRecord;
+    loadedByStore.set(store, loaded);
+  }
+  return loaded;
 };
