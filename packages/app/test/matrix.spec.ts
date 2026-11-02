@@ -5,7 +5,7 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { DEFAULT_SORT, launchApp, listAll } from "./support/app.js";
+import { DEFAULT_SORT, fileSha256, launchApp, listAll } from "./support/app.js";
 
 interface Relation {
   readonly id?: string;
@@ -353,7 +353,16 @@ test.describe("the traceability matrix on a fixture workspace", () => {
     // A requirement and the need it derives from get titles longer than the element and link columns.
     const long = `Show wind speed ${"and the gusts over the whole field ".repeat(4).trim()}`;
     for (const element of ["5e125a7d-2b4f-4c61-9d08-0b0000000001", "5e125a7d-2b4f-4c61-9d08-0a0000000001"]) {
-      const result = await running.cli(["element", "update", element, "--title", long]);
+      const sha = await fileSha256(running, element);
+      const result = await running.cli([
+        "element",
+        "update",
+        element,
+        "--title",
+        long,
+        "--expected-file-sha256",
+        sha,
+      ]);
       expect(result.code).toBe(0);
     }
     await requirements(window);

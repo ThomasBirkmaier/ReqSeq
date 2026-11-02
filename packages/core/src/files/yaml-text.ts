@@ -51,8 +51,12 @@ const probedNode = (contents: unknown, context: Context): unknown => {
 // byte order mark: never written raw.
 export const NEEDS_ESCAPE = /[\p{Cc}\p{Cs}\u2028\u2029\ufeff\ufffe\uffff]/u;
 
-/** True when `text` written plain in `context` reads back as exactly this string. */
-export const isPlainSafe = (text: string, context: Context): boolean => {
+/**
+ * True when `text` written plain in `context` reads back as exactly this string, decided by parsing
+ * a probe document in YAML 1.2 (core) and YAML 1.1. Slow (#696): `isPlainSafe` calls it only when
+ * the character check cannot decide.
+ */
+export const isPlainSafeByProbe = (text: string, context: Context): boolean => {
   if (text === "" || text.trim() !== text || NEEDS_ESCAPE.test(text)) {
     return false;
   }
@@ -69,6 +73,76 @@ export const isPlainSafe = (text: string, context: Context): boolean => {
     const node = probedNode(probe.contents, context);
     return isScalar(node) && node.type === Scalar.PLAIN && node.value === text;
   });
+};
+
+// The characters check (#696): text that starts with a letter, holds only letters, digits, spaces and
+// `_ . ( ) / ' + -` and does not end in a space is plain in both YAML versions, unless it is a
+// boolean or null word or a YAML 1.1 float such as `e5` (the tag tests of the `yaml` library). `:`
+// is allowed only before a character of the set, `,` only outside a flow mapping. A UUID is never a
+// number or a date in either version. Anything else goes to the probe.
+const WORD = String.raw`\p{L}\p{N}_.()/'+\-`;
+const BY_CHARACTERS: Readonly<Record<"block" | "flow", RegExp>> = {
+  block: new RegExp(String.raw`^\p{L}(?:[${WORD} ,]|:(?=[${WORD}]))*(?<! )$`, "u"),
+  flow: new RegExp(String.raw`^\p{L}(?:[${WORD} ]|:(?=[${WORD}]))*(?<! )$`, "u"),
+};
+const LOOK_ALIKES = /^(?:y|n|yes|no|true|false|on|off|null|e[-+]?[0-9]+)$/i;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** Below YAML's limit of 1024 characters for an implicit key. */
+const KEY_LENGTH = 1000;
+
+/**
+ * True when the characters alone show that `text` is plain-safe in `context`; false means "ask the
+ * probe", never "not plain". Every true must agree with `isPlainSafeByProbe` (yaml-text.test.ts).
+ */
+export const isPlainByCharacters = (text: string, context: Context): boolean => {
+  if (UUID.test(text)) {
+    return true;
+  }
+  const key = context === "key" || context === "flow-key";
+  const flow = context === "flow-key" || context === "flow-value";
+  return (
+    !(key && text.length > KEY_LENGTH) &&
+    BY_CHARACTERS[flow ? "flow" : "block"].test(text) &&
+    !LOOK_ALIKES.test(text)
+  );
+};
+
+/** Probe results of short texts per context; cleared when full, so its size stays bounded. */
+export const PROBE_CACHE_SIZE = 4096;
+const CACHED_LENGTH = 256;
+const probed: Readonly<Record<Context, Map<string, boolean>>> = {
+  key: new Map(),
+  value: new Map(),
+  item: new Map(),
+  "flow-key": new Map(),
+  "flow-value": new Map(),
+};
+
+/** Entries of the probe cache of `context`, for the test of its bound. */
+export const probeCacheSize = (context: Context): number => probed[context].size;
+
+/** True when `text` written plain in `context` reads back as exactly this string. */
+export const isPlainSafe = (text: string, context: Context): boolean => {
+  if (text === "" || text.trim() !== text || NEEDS_ESCAPE.test(text)) {
+    return false;
+  }
+  if (isPlainByCharacters(text, context)) {
+    return true;
+  }
+  if (text.length > CACHED_LENGTH) {
+    return isPlainSafeByProbe(text, context);
+  }
+  const cache = probed[context];
+  const known = cache.get(text);
+  if (known !== undefined) {
+    return known;
+  }
+  const safe = isPlainSafeByProbe(text, context);
+  if (cache.size >= PROBE_CACHE_SIZE) {
+    cache.clear();
+  }
+  cache.set(text, safe);
+  return safe;
 };
 
 const SHORT_ESCAPES: Readonly<Record<string, string>> = {

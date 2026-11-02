@@ -1,6 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { parseDocument } from "yaml";
-import { doubleQuoted, isPlainSafe, renderItem, renderKey, renderScalar, renderValue } from "./yaml-text.js";
+import { Random } from "@reqseq/testkit";
+import {
+  doubleQuoted,
+  isPlainByCharacters,
+  isPlainSafe,
+  isPlainSafeByProbe,
+  PROBE_CACHE_SIZE,
+  probeCacheSize,
+  renderItem,
+  renderKey,
+  renderScalar,
+  renderValue,
+} from "./yaml-text.js";
 
 const read = (yaml: string): unknown => {
   const doc = parseDocument(yaml, { version: "1.2", schema: "core" });
@@ -160,6 +172,159 @@ describe("isPlainSafe", () => {
     expect(isPlainSafe("a, b", "flow-key")).toBe(false);
     expect(isPlainSafe("- a", "key")).toBe(false);
     expect(isPlainSafe("!x y", "value")).toBe(false);
+  });
+});
+
+const CONTEXTS = ["key", "value", "item", "flow-key", "flow-value"] as const;
+
+// Pieces for generated strings: indicators at every place, YAML 1.1 and 1.2 look-alikes, spaces,
+// line breaks, non-ASCII letters and digits (#696).
+const PIECES = [
+  ...Array.from("aZäßé1097 _.,()/'+-:#?![]{}&*%@`|>~<=\"\\\t\n\u00a0\u2028"),
+  "Ⅻ",
+  "٣",
+  "🙂",
+  " ",
+  "  ",
+  ": ",
+  " #",
+  "- ",
+  "? ",
+  "<<",
+  "yes",
+  "No",
+  "ON",
+  "off",
+  "Y",
+  "n",
+  "true",
+  "FALSE",
+  "null",
+  "Null",
+  "~",
+  ".inf",
+  ".NaN",
+  "0x1F",
+  "0o17",
+  "0b101",
+  "1_000",
+  "1e3",
+  "12:30",
+  "2026-10-24",
+  "2026-10-24T10:00:00Z",
+  "n1:",
+  "878e339e-773f-4cd0-b414-825b7146fb54",
+  "---",
+  "...",
+];
+
+// Pieces near the edge of the characters check: its own set, `:`, `,`, spaces and look-alike letters.
+const WORD_PIECES = [...Array.from("aZäeEyYnNoO1 _.,()/'+-:"), "e5", "on", "ull", "rue"];
+
+/**
+ * Strings of 2 to 8 pieces from a seeded generator (mulberry32), so a failure names a string that
+ * comes back on every run.
+ */
+const generated = (count: number, pieces: readonly string[]): string[] => {
+  const random = new Random(696);
+  return Array.from({ length: count }, () =>
+    Array.from({ length: 2 + random.below(7) }, () => random.pick(pieces)).join(""),
+  );
+};
+
+// Strings the characters check accepts, at its edges: these must be plain for the probe too.
+const ACCEPTED = [
+  "Measure the wind 42",
+  "REQ-1",
+  "a",
+  "Grüße aus Köln",
+  "x1",
+  "it's (nearly) done/finished",
+  "a  b",
+  "a, b",
+  "n1:9b4c91f8cfbe62b7",
+  "a:b:c",
+  "C++",
+  "e5x",
+  "E-3x",
+  "Yess",
+  "nulls",
+  "onion",
+  "xⅫ",
+  "00000000-0000-4000-8000-000000000001",
+  "12345678-1234-1234-1234-123456789012",
+  "1e000000-0000-0000-0000-000000000000",
+  "ABCDEF01-2345-6789-ABCD-EF0123456789",
+  "k".repeat(1000),
+];
+// Long texts: a key over YAML's limit goes to the probe, a long value does not.
+const LONG = ["k".repeat(1001), "word ".repeat(300).trim()];
+
+describe("isPlainSafe by characters (#696)", () => {
+  const fromPieces = generated(3000, PIECES);
+  const fromWordPieces = generated(3000, WORD_PIECES);
+  const samples = [
+    ...TRICKY,
+    ...ACCEPTED,
+    ...LONG,
+    ...PIECES,
+    ...WORD_PIECES,
+    ...fromPieces,
+    ...fromWordPieces,
+  ];
+
+  it("generates strings from every piece, mostly distinct", () => {
+    for (const [strings, pieces] of [
+      [fromPieces, PIECES],
+      [fromWordPieces, WORD_PIECES],
+    ] as const) {
+      expect(pieces.filter((piece) => !strings.some((s) => s.includes(piece)))).toEqual([]);
+      expect(new Set(strings).size).toBeGreaterThan(strings.length * 0.9);
+    }
+  });
+
+  it("decides plain only where the probe in YAML 1.2 and 1.1 decides plain too", () => {
+    const wrong = CONTEXTS.flatMap((context) =>
+      samples
+        .filter((s) => isPlainByCharacters(s, context) && !isPlainSafeByProbe(s, context))
+        .map((s) => `${context}: ${JSON.stringify(s)}`),
+    );
+    expect(wrong).toEqual([]);
+  });
+
+  it("gives the probe's answer for every string and place, so files stay byte-identical", () => {
+    for (const context of CONTEXTS) {
+      const differ = samples.filter((s) => isPlainSafe(s, context) !== isPlainSafeByProbe(s, context));
+      expect(differ.map((s) => JSON.stringify(s))).toEqual([]);
+      // A second call reads the cache.
+      expect(samples.filter((s) => isPlainSafe(s, context) !== isPlainSafeByProbe(s, context))).toEqual([]);
+    }
+  });
+
+  it("decides the values of an imported element without the probe", () => {
+    for (const s of ACCEPTED) {
+      expect([s, isPlainByCharacters(s, "value")]).toEqual([s, true]);
+    }
+    expect(isPlainByCharacters("k".repeat(1001), "key")).toBe(false);
+    expect(isPlainByCharacters("k".repeat(1001), "value")).toBe(true);
+    expect(isPlainByCharacters("a, b", "flow-value")).toBe(false);
+    expect(isPlainByCharacters("a ", "value")).toBe(false);
+    expect(isPlainByCharacters("a:", "value")).toBe(false);
+    expect(isPlainByCharacters("a: b", "value")).toBe(false);
+    expect(isPlainByCharacters("On", "value")).toBe(false);
+    expect(isPlainByCharacters("e5", "value")).toBe(false);
+  });
+
+  it("keeps its cache bounded and still answers after it is cleared", () => {
+    let largest = 0;
+    for (let i = 0; i < PROBE_CACHE_SIZE + 100; i++) {
+      expect(isPlainSafe(`${String(i)}:x`, "item")).toBe(true);
+      largest = Math.max(largest, probeCacheSize("item"));
+    }
+    expect(largest).toBe(PROBE_CACHE_SIZE);
+    expect(probeCacheSize("item")).toBeLessThan(PROBE_CACHE_SIZE);
+    expect(isPlainSafe("12:30", "item")).toBe(false);
+    expect(isPlainSafe("0:x", "item")).toBe(true);
   });
 });
 

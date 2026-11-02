@@ -25,6 +25,7 @@ import { embeddedImages } from "./images.js";
 import { applyStoreChange, elementStoreState, ignoredBy, updateElements } from "./store.js";
 import { elementVersion } from "./view.js";
 import { createElement, updateElement } from "./write.js";
+import { readStored } from "../runtime/read-first.test-helper.js";
 
 const NEED = "1a1a1a1a-1111-4111-8111-a0000000000";
 const PICTURED = "7c7c7c7c-7777-4777-8777-c00000000001";
@@ -227,7 +228,7 @@ describe("the current versions carried over a change of the store (ADR-0008, #18
     const { workspace } = await open();
     const before = await currentVersions(workspace);
     const old = await recordOf(workspace, "needs/N-a00000000001.md");
-    await updateElement(workspace, { ref: `${NEED}1`, text: "A new text." });
+    await updateElement(workspace, await readStored({ ref: `${NEED}1`, text: "A new text." }, workspace));
     // Carried, not reset: the state is there right after the save.
     expect(workspace.peek(currentVersionsState)).toBeDefined();
     const after = await currentVersions(workspace);

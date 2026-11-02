@@ -55,11 +55,35 @@ class Validation(unittest.TestCase):
             s.validate(srs, STAGES),
             [
                 "SR-002: needs exactly one stage package",
-                "SR-003: package release-1 is no stage (1, 2, 3, 4, 5, 6, querschnitt)",
+                "SR-003: package release-1 is no stage (1, 2, 3, 4, 5, 6, querschnitt) or milestone (v<major>.<minor>)",
                 "SR-004: no topic",
                 "SR-abcdef: no spec-id",
             ],
         )
+
+
+class MilestonePackages(unittest.TestCase):
+    MILESTONES = [{"number": 2, "title": "v0.8 Consolidation"}, {"number": 3, "title": "v0.9 Own use and simplicity"}, {"number": 9, "title": "v0.10"}]
+
+    def test_a_package_named_like_a_milestone_is_valid_when_its_topic_has_a_lane(self):
+        srs = [sr("SR-167", packages=["v0.9"], topic="Import und Export"), sr("SR-171", packages=["v0.9"], topic="Betrieb und Leistung")]
+        self.assertEqual(s.stage_of(srs[0]), "v0.9")
+        self.assertEqual(s.validate(srs, STAGES), ["SR-171: topic Betrieb und Leistung has no lane epic (LANE in sr_issues.py)"])
+        self.assertEqual(s.LANE["Import und Export"], "lane-data")
+
+    def test_milestone_by_title_prefix(self):
+        self.assertEqual(s.milestone_number(self.MILESTONES, "v0.9"), 3)
+        self.assertEqual(s.milestone_number(self.MILESTONES, "v0.1"), None)
+        self.assertEqual(s.milestone_number(self.MILESTONES, "v0.10"), 9)
+        self.assertIsNone(s.milestone_number(self.MILESTONES + [{"number": 7, "title": "v0.9 again"}], "v0.9"))
+
+    def test_no_stage_label_for_a_milestone_package(self):
+        self.assertEqual(s.placement("v0.9"), ("Milestone v0.9", []))
+        self.assertEqual(s.placement("3"), ("Stage 3", ["stage:3"]))
+        self.assertEqual(s.placement("querschnitt"), ("Querschnitt (all stages)", ["querschnitt"]))
+        self.assertFalse(s.is_milestone("6"))
+        self.assertFalse(s.is_milestone(None))
+        self.assertFalse(s.is_milestone("v1"))
 
 
 class Reopen(unittest.TestCase):

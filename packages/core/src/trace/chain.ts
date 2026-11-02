@@ -210,20 +210,20 @@ const hasLeaves = (_element: ElementRecord, leaves: readonly unknown[]): boolean
 /**
  * Whether an element is a `no-evidence` gap of the downward chain (SR-022 AK3), whatever depth a
  * chain would look at: its children are counted as the chain's down walk counts them (in the view,
- * `includes`; a child named only by an ambiguous relation is none, SR-088), and `leaves` is its
- * evidence. For the marks of `trace.graph` (SR-111 AK4): the chain decides its gaps with the records
- * (`hasEvidence`, SR-033), while `trace.graph` passes no records until #565, so with records the two
- * can differ until then.
+ * `includes`; a child named only by an ambiguous relation is none, SR-088), and `hasEvidence` decides
+ * its evidence as it does for `traceChain` (SR-033), so the marks of `trace.graph` and the gaps of
+ * the chain agree (SR-111 AK4).
  */
 export const lacksEvidence = (
   graph: DerivationGraph,
-  includes?: (element: ElementRecord) => boolean,
-): ((element: ElementRecord, leaves: readonly unknown[]) => boolean) => {
+  includes: ((element: ElementRecord) => boolean) | undefined,
+  hasEvidence: (element: ElementRecord) => boolean,
+): ((element: ElementRecord) => boolean) => {
   const types = gapTypes(graph.metamodel);
   const children = childrenWithin(graph, includes);
-  return (element, leaves) =>
+  return (element) =>
     types.requirements.has(element.type) &&
-    gapOf(types, element, children(element).steps.length > 0, leaves, hasLeaves) === "no-evidence";
+    gapOf(types, element, children(element).steps.length > 0, [], hasEvidence) === "no-evidence";
 };
 
 /** The `no-parent` gaps of the upward walk (AK5, see the file comment), in node order. */

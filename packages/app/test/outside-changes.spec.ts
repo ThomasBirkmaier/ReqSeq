@@ -6,7 +6,7 @@ import path from "node:path";
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { launchApp, listAll } from "./support/app.js";
+import { fileSha256, launchApp, listAll } from "./support/app.js";
 
 /** 14 elements with a derivation tree (fixtures/README.md). */
 const FIXTURE = { fixture: "SR-069/filter" };
@@ -53,8 +53,14 @@ test.describe("changes from outside the app", () => {
     // A list row: the title an agent gives an element is in the list within 2 s, and its row is marked.
     const row = window.locator(".row", { hasText: "SR-0000b2" });
     await expect(row).toBeVisible();
+    // A change of the title or the text carries the bytes it was made on (#269), read before the clock starts.
+    const b2 = await fileSha256(running, "SR-0000b2");
     let start = Date.now();
-    await mcp.call("element_update", { ref: "SR-0000b2", title: "Measure twice a second" });
+    await mcp.call("element_update", {
+      ref: "SR-0000b2",
+      title: "Measure twice a second",
+      expectedFileSha256: b2,
+    });
     await expect(row.locator(".title")).toHaveText("Measure twice a second", {
       timeout: Math.max(1, SHOWN_WITHIN_MS - (Date.now() - start)),
     });
@@ -63,8 +69,13 @@ test.describe("changes from outside the app", () => {
     await expect(window.locator(".outside-change")).toHaveCount(1);
     // The element buffer: the text field that changed is marked, the title is not.
     await opened(window, TITLE);
+    const expectedFileSha256 = await fileSha256(running, ELEMENT);
     start = Date.now();
-    await mcp.call("element_update", { ref: ELEMENT, text: `${TEXT}\n\nMeasured by the agent.` });
+    await mcp.call("element_update", {
+      ref: ELEMENT,
+      text: `${TEXT}\n\nMeasured by the agent.`,
+      expectedFileSha256,
+    });
     await expect(text(window)).toContainText("Measured by the agent.", {
       timeout: Math.max(1, SHOWN_WITHIN_MS - (Date.now() - start)),
     });
@@ -118,7 +129,8 @@ test.describe("changes from outside the app", () => {
     });
     const marks = (): Promise<{ readonly kind: string; readonly at: number }[]> =>
       window.evaluate(() => Reflect.get(globalThis, "outsideMarks") as { kind: string; at: number }[]);
-    await mcp.call("element_update", { ref: ELEMENT, title: "Measure the wind speed" });
+    const expectedFileSha256 = await fileSha256(running, ELEMENT);
+    await mcp.call("element_update", { ref: ELEMENT, title: "Measure the wind speed", expectedFileSha256 });
     await expect(window.locator("article h1")).toHaveText("Measure the wind speed");
     await expect
       .poll(async () => (await marks()).map((mark) => mark.kind), { timeout: GONE_AFTER_MS + 2000 })
@@ -143,7 +155,16 @@ test.describe("changes from outside the app", () => {
     }
     // A person changes the file through the CLI: a word before the caret.
     const changed = `Now: ${TEXT}`;
-    const update = await running.cli(["element", "update", ELEMENT, "--text", changed]);
+    const sha = await fileSha256(running, ELEMENT);
+    const update = await running.cli([
+      "element",
+      "update",
+      ELEMENT,
+      "--text",
+      changed,
+      "--expected-file-sha256",
+      sha,
+    ]);
     expect(update.code).toBe(0);
     await expect(text(window)).toHaveText(changed);
     await expect(window.getByLabel("Modeline")).not.toContainText("modified");

@@ -81,7 +81,7 @@ The workspace packages and their dependencies, generated from `packages/*/packag
 
 ![Workspace packages and their dependencies](packages.svg)
 
-The diagram and the table below follow the imports of the product code in `packages/core/src` (relative imports across block folders, test files left out) as of 2026-10-28 (#635). A block is a folder of `packages/core/src`; `runtime` is split into its entry modules and its state modules because they sit at opposite ends of the graph.
+The diagram and the table below follow the imports of the product code in `packages/core/src` (relative imports across block folders, test files and test helpers `*.test-helper.ts` left out) as of 2026-10-28 (#635). A block is a folder of `packages/core/src`; `runtime` is split into its entry modules and its state modules because they sit at opposite ends of the graph.
 
 ```mermaid
 flowchart TB
