@@ -10,7 +10,8 @@ import { describe, expect, it, onTestFinished } from "vitest";
 import { parse, stringify } from "yaml";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
-import type { ReqifFile, ReqifSpecObject } from "../../reqif/model.js";
+import type { ReqifFile, ReqifSpecObject, XhtmlNode } from "../../reqif/model.js";
+import { XHTML_NAMESPACE } from "../../reqif/model.js";
 import { parseReqif } from "../../reqif/parse.js";
 import { writeReqif } from "../../reqif/write.js";
 import { invoke } from "../../runtime/invoke.js";
@@ -163,6 +164,30 @@ const attributeEntry = (m: Record<string, unknown>, source: string): Entry => {
 };
 
 describe("reqif.import of a file of ReqSeq (SR-052)", () => {
+  it("[SR-052/AK3] reqif.analyze without a mapping plans with the mapping reqif.import builds, so both show the same result (#692)", async () => {
+    const all = await exported(undefined);
+    const { fixture, workspace } = await target(all.text, all.images);
+    const analyze = (): Promise<CommandOutput<"reqif.analyze">> =>
+      run(workspace, "reqif.analyze", { file: "in/x.reqif" });
+    const analysis = await analyze();
+    expect(analysis.unmapped).toEqual([]);
+    // The analysis writes nothing, not even the mapping.
+    await expect(fs.access(fixture.path(MAPPING))).rejects.toThrow();
+    const imported = await run<Imported>(workspace, "reqif.import", { file: "in/x.reqif", delivery: "1" });
+    expect(analysis.new).toEqual(imported.created.map(({ identifier }) => ({ identifier })));
+    expect(analysis.new).toHaveLength(7);
+    expect(analysis.losses).toEqual(imported.losses);
+    // Again, through the saved mapping, whose differing tool ID is a warning as in reqif.import.
+    await editMapping(fixture, (m) => {
+      (m["source"] as Record<string, unknown>)["tool-id"] = "other-tool";
+    });
+    const again = await analyze();
+    expect([again.unmapped, again.new, again.changed]).toEqual([[], [], []]);
+    expect(again.problems).toEqual([
+      expect.objectContaining({ code: "reqif.mapping-differs", file: MAPPING }),
+    ]);
+  });
+
   it("[SR-052/AK3] extends the saved mapping by what a later file of the same source adds, keeping what it holds", async () => {
     const one = await exported([TEMPERATURE]);
     const all = await exported(undefined);
@@ -488,6 +513,67 @@ describe("reqif.import of a file of ReqSeq (SR-052)", () => {
       delivery: "1",
     });
     expect(edited.problems?.map((p) => p.code)).toEqual(["reqif.edited-elsewhere"]);
+  });
+
+  it("refuses XHTML or reqseq-values nested too deep as reqif.invalid, writing nothing (#691)", async () => {
+    const { file } = await exported(undefined);
+    const nested = (depth: number, inner: string): string => "[".repeat(depth) + inner + "]".repeat(depth);
+    const deepXhtml = changed(file, TEMPERATURE, (o) => ({
+      ...o,
+      values: o.values.map((v) => {
+        if (v.kind !== "xhtml") {
+          return v;
+        }
+        let node: XhtmlNode = "deep";
+        for (let i = 0; i < 20_000; i += 1) {
+          node = { name: "div", namespace: XHTML_NAMESPACE, attributes: [], children: [node] };
+        }
+        return { ...v, value: [node] };
+      }),
+    }));
+    // The readable topic removed, so the stored one (an array nested 100,000 deep) is what differs.
+    const deepJson = changed(file, TEMPERATURE, (o) => ({
+      ...o,
+      values: o.values.flatMap((v) => {
+        if (v.definition.endsWith(".topic")) {
+          return [];
+        }
+        if (v.kind !== "string" || !v.definition.endsWith(".values")) {
+          return [v];
+        }
+        const data = JSON.parse(v.value) as Record<string, unknown>;
+        const json = JSON.stringify({ ...data, topic: "@" });
+        return [{ ...v, value: json.replace('"@"', nested(100_000, "1")) }];
+      }),
+    }));
+    // A nesting a real text has (here 200 levels of the stored topic) is no problem.
+    const fine = changed(file, TEMPERATURE, (o) => ({
+      ...o,
+      values: o.values.map((v) =>
+        v.kind === "string" && v.definition.endsWith(".values")
+          ? {
+              ...v,
+              value: JSON.stringify({
+                ...(JSON.parse(v.value) as object),
+                extra: JSON.parse(nested(200, "1")) as unknown,
+              }),
+            }
+          : v,
+      ),
+    }));
+    for (const hostile of [deepXhtml, deepJson]) {
+      const roomy = { ...hostile, datatypes: hostile.datatypes.map((d) => ({ ...d, maxLength: "1000000" })) };
+      const { fixture, workspace } = await target(rewritten(roomy), undefined);
+      const error = await refusal(workspace, { file: "in/x.reqif", delivery: "1" });
+      expect([error.code, error.message]).toEqual([
+        "reqif.invalid",
+        `file: SPEC-OBJECT _${TEMPERATURE} nests its values deeper than 1000 levels`,
+      ]);
+      await expect(fs.stat(fixture.path("reqif"))).rejects.toThrow();
+    }
+    const { workspace } = await target(rewritten(fine), undefined);
+    const imported = await run<Imported>(workspace, "reqif.import", { file: "in/x.reqif", delivery: "1" });
+    expect(imported.created.length).toBeGreaterThan(0);
   });
 
   it("writes no mapping folder for a refused import, and refuses a mapping path that is no file", async () => {
