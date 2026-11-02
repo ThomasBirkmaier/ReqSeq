@@ -146,6 +146,14 @@
                                   "type": "string",
                                   "description": "An earlier field of `arguments`."
                                 },
+                                "replaces": {
+                                  "type": "array",
+                                  "minItems": 1,
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "description": "Earlier optional fields a value of this field takes the place of: the prompt leaves them out of the input when this field has a value, so they only said what it offers. `hint.confirm`: hints chosen at `hintIds` confirm only those, not every hint `ref`, `target` and `kind` select (#291). `catalog-checks.mjs` checks the fields."
+                                },
                                 "flag": {
                                   "type": "string",
                                   "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
