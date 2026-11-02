@@ -19,7 +19,8 @@ export interface DiscoveredFiles {
   readonly files: readonly string[];
   /**
    * Folders that could not be listed (error) and files of the kind listed that are not read
-   * (warning: links, an extension such as `.MD`), sorted by path; `file` is relative to the repository
+   * (warning: links, an extension such as `.MD`), and temp files of ReqSeq left by a crash (warning
+   * `file.stale-temp`, element walk only), sorted by path; `file` is relative to the repository
    * (`.` for its root).
    */
   readonly problems: readonly Problem[];
