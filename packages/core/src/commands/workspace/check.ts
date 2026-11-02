@@ -2,7 +2,8 @@
 // SR-085, SR-086, SR-088, SR-089 and SR-090): every finding of the whole workspace against the metamodel, as
 // `problems`, and `ok`, from which the CLI takes its exit code (ADR-0009). Each finding comes from
 // the whole-workspace state of its block, which is kept until the element store or the metamodel is
-// reset, so a second check of an unchanged workspace reads no file again.
+// reset, so a second check of an unchanged workspace reads no file again, except the workspace file
+// and metamodel of each repository that is a workspace of its own (#666, read on every call).
 //
 // - `ok` is false when the workspace has a finding at or above `failOn`, shown or not; the default
 //   `error` lets warnings and info pass (#304, product owner decision, 2026-10-26, option 1): a correct

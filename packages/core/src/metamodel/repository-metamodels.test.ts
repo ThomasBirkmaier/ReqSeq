@@ -87,7 +87,7 @@ describe("workspace.metamodel-mismatch (#666)", () => {
     );
     const without = await metamodelOf(path.join(created.root, "fuel"));
     expect(versionDifferences(without, here)).toEqual([
-      "system-requirement.acceptance-criteria counts to the version here but is not in its metamodel",
+      "system-requirement.acceptance-criteria counts to the version here but is not a property of system-requirement there",
     ]);
     const relation = edited([
       "    kind: choice\n    content: true\n",
@@ -108,8 +108,29 @@ describe("workspace.metamodel-mismatch (#666)", () => {
     await created.write(FUEL_MODEL, typed);
     const more = await metamodelOf(path.join(created.root, "fuel"));
     expect([...versionDifferences(more, here), ...versionDifferences(here, more)]).toEqual([
-      "hazard.acceptance-criteria counts to the version there but is not in this workspace's metamodel",
-      "hazard.acceptance-criteria counts to the version here but is not in its metamodel",
+      "hazard.acceptance-criteria counts to the version there but is not a property of hazard here",
+      "hazard.acceptance-criteria counts to the version here but is not a property of hazard there",
+    ]);
+  });
+
+  it("tells a property that is defined but not on the type from one that is not defined", async () => {
+    const created = await fixture();
+    const fuel = await metamodelOf(path.join(created.root, "fuel"));
+    const standard = await metamodelOf(path.join(created.root, "system"));
+    expect(versionDifferences(standard, fuel)).toEqual([
+      "need.stakeholder counts to the version here but is not in its metamodel",
+    ]);
+    await created.write(
+      "system/metamodel/standard-model.yaml",
+      edited([
+        "properties:\n  - key: title\n",
+        "properties:\n  - { key: stakeholder, name: Stakeholder, kind: text }\n  - key: title\n",
+      ]),
+    );
+    const here = await metamodelOf(path.join(created.root, "system"));
+    expect([...versionDifferences(fuel, here), ...versionDifferences(here, fuel)]).toEqual([
+      "need.stakeholder counts to the version there but is not a property of need here",
+      "need.stakeholder counts to the version here but is not a property of need there",
     ]);
   });
 

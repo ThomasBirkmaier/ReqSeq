@@ -24,6 +24,8 @@ type Keys = ReadonlyMap<string, ReadonlySet<string>>;
 interface VersionModel {
   readonly counted: Counted;
   readonly keys: Keys;
+  /** Every property key the metamodel defines. */
+  readonly defined: ReadonlySet<string>;
 }
 
 const versionModel = (metamodel: Metamodel): VersionModel => {
@@ -46,10 +48,21 @@ const versionModel = (metamodel: Metamodel): VersionModel => {
     }
     counted.set(type.key, own);
   }
-  return { counted, keys };
+  return { counted, keys, defined: new Set(metamodel.properties.map((p) => p.key)) };
 };
 
 const NONE: ReadonlyMap<string, string> = new Map();
+
+/** Why `key` does not count for `type` in `model`: not marked, not on the type, or not defined at all. */
+const absence = (model: VersionModel, type: string, key: string, where: "here" | "there"): string => {
+  if (model.keys.get(type)?.has(key) === true) {
+    return `not ${where}`;
+  }
+  if (model.defined.has(key)) {
+    return `is not a property of ${type} ${where}`;
+  }
+  return where === "here" ? "is not in this workspace's metamodel" : "is not in its metamodel";
+};
 
 /**
  * What decides the versions and differs between the repository's metamodel (`there`) and the
@@ -68,10 +81,7 @@ export const versionDifferences = (there: Metamodel, here: Metamodel): readonly 
     for (const [key, kind] of countsThere) {
       const hereKind = countsHere.get(key);
       if (hereKind === undefined) {
-        const known = b.keys.get(type)?.has(key) === true;
-        items.push(
-          `${type}.${key} counts to the version there but ${known ? "not here" : "is not in this workspace's metamodel"}`,
-        );
+        items.push(`${type}.${key} counts to the version there but ${absence(b, type, key, "here")}`);
       } else if ((kind === "relation") !== (hereKind === "relation")) {
         items.push(
           `${type}.${key} is a relation ${kind === "relation" ? "there but not here" : "here but not there"}`,
@@ -80,10 +90,7 @@ export const versionDifferences = (there: Metamodel, here: Metamodel): readonly 
     }
     for (const key of countsHere.keys()) {
       if (!countsThere.has(key)) {
-        const known = a.keys.get(type)?.has(key) === true;
-        items.push(
-          `${type}.${key} counts to the version here but ${known ? "not there" : "is not in its metamodel"}`,
-        );
+        items.push(`${type}.${key} counts to the version here but ${absence(a, type, key, "there")}`);
       }
     }
   }
