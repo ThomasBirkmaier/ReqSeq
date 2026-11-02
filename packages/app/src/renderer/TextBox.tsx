@@ -9,12 +9,15 @@
 // box only: a title or an identifier stays plain text (SR-127 AK5). A reference to another repository shows
 // the title of its target when it is here (D-058).
 //
+// A list numbers its values from 1 in file order, one per line, the numbers `reqseq element get` shows (#615):
+// a muted gutter, no prefix.
+//
 // Keys: Enter in a list starts a new value at the caret; in a single value it leaves the box (back to the
 // box itself, where Enter enters again); Escape leaves the box; Up and Down at the first and last line move
 // to the box before and after (`editor/box-navigation.ts`). The box has one Tab stop, the field around it.
 import { insertNewline } from "@codemirror/commands";
 import { Prec } from "@codemirror/state";
-import { EditorView, keymap } from "@codemirror/view";
+import { EditorView, keymap, lineNumbers } from "@codemirror/view";
 import { useMemo, useRef } from "react";
 import type { EditorHandle } from "./editor/Editor.js";
 import { Editor } from "./editor/Editor.js";
@@ -128,6 +131,7 @@ export const TextBox = ({
           }),
           // One Tab stop per box: the field. The text is entered with Enter or a click.
           EditorView.contentAttributes.of({ tabindex: "-1" }),
+          ...(many ? [lineNumbers()] : []),
         ],
       },
     );

@@ -99,6 +99,15 @@ test.describe("the main view on a fixture workspace", () => {
     await permanent(3);
     await expect(window.locator('article [data-field="acceptance-criteria"] .cm-content')).toHaveCount(1);
     await expect(window.locator('article [data-field="priority"] .cm-content')).toHaveCount(1);
+    // A list numbers its values from 1, as `element get` does (#615); a single value has no numbers.
+    const numbers = await window
+      .locator('article [data-field="acceptance-criteria"] .cm-lineNumbers .cm-gutterElement')
+      .evaluateAll((all) =>
+        all.filter((e) => getComputedStyle(e).visibility !== "hidden").map((e) => e.textContent),
+      );
+    expect(numbers.length).toBeGreaterThan(0);
+    expect(numbers).toEqual(numbers.map((_, at) => String(at + 1)));
+    await expect(window.locator('article [data-field="priority"] .cm-lineNumbers')).toHaveCount(0);
     // The prompt, which is the search line, is there only while it is asked for.
     await window.keyboard.press("ControlOrMeta+Shift+F");
     await expect(window.getByRole("combobox")).toBeVisible();
