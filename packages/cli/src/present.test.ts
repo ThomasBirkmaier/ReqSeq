@@ -973,6 +973,13 @@ describe("renderHuman: a chain", () => {
         "No problems.",
       ),
     );
+    // With `names` the variant is named by short ID and title, and `names` is not printed (#676).
+    const named = renderHuman({
+      ...output,
+      names: [{ id: "v1", repository: "system", shortId: "VAR-v1", title: "Gusty" }],
+    });
+    expect(named).toContain("reports/b4.pdf  [variant VAR-v1  Gusty]");
+    expect(named).not.toContain("names:");
   });
 
   it("is a chain only when every node has a depth; else its lists are shown as they are", () => {
