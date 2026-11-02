@@ -34,7 +34,7 @@
 //   and never an element. For a type whose mapping, relation types included, is the one-to-one one
 //   (`oneToOneTypes`), an object whose readable values `readableValues` (own.ts) writes again from
 //   `reqseq-markdown` and `reqseq-values` equal to the file's (relation-valued properties, whose
-//   short IDs depend on the workspace, aside), whose SPEC-RELATIONs are those of `reqseq-values`
+//   short IDs depend on the workspace, aside), whose SPEC-RELATIONs (of the kinds the metamodel knows) are those of `reqseq-values`
 //   and whose text has as many images takes the title, the text byte for byte (its image links
 //   pointed at the copies), the properties of its type and the relations from those two; the status
 //   and the origin stored there are not taken, and a relation the metamodel does not allow is a
@@ -879,6 +879,15 @@ const storedRelations = (metamodel: Metamodel, data: Readonly<Record<string, unk
     ),
   );
 
+/**
+ * Of the SPEC-RELATIONs `relations` (`<type>|<target>`), those of a kind `metamodel` knows: one it
+ * does not know is a loss `omitted-type`, not a change by another tool (#695).
+ */
+const knownRelations = (metamodel: Metamodel, relations: ReadonlySet<string> | undefined): Set<string> => {
+  const kinds = new Set(ownRelationKeys(metamodel).map((key) => ownId.relationType(key)));
+  return new Set([...(relations ?? [])].filter((r) => kinds.has(r.slice(0, r.indexOf("|")))));
+};
+
 const sameSet = (a: ReadonlySet<string>, b: ReadonlySet<string>): boolean =>
   a.size === b.size && [...a].every((x) => b.has(x));
 
@@ -932,7 +941,10 @@ const ownChannels = (
       ).filter(known),
     ) === comparable(object.values.filter(known)) &&
     images.length === objects.length &&
-    sameSet(storedRelations(metamodel, data), context.ownRelationsOf.get(object.identifier) ?? new Set());
+    sameSet(
+      storedRelations(metamodel, data),
+      knownRelations(metamodel, context.ownRelationsOf.get(object.identifier)),
+    );
   if (same) {
     return { data, text, images };
   }
@@ -1309,8 +1321,9 @@ const planRelation = (
   }
   const kind = context.coverage.relations.get(t.identifier);
   const source = drafts.get(relation.source);
-  if (source?.ownRelations !== undefined) {
-    // Its relations come from `reqseq-values` (see the file comment).
+  if (source?.ownRelations !== undefined && kind !== undefined) {
+    // Its relations come from `reqseq-values` (see the file comment); a kind the metamodel here
+    // does not know is still a loss (#695).
     return;
   }
   const loss: Loss = (code, reason) => {

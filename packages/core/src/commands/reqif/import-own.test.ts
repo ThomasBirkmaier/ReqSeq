@@ -420,6 +420,43 @@ describe("reqif.import of a file of ReqSeq (SR-052)", () => {
     ]);
   });
 
+  it("[SR-052/AK3] takes the channels of an object with a relation kind the metamodel here does not know, without a warning (#695)", async () => {
+    const conflicting = {
+      "metamodel/extra.yaml": [
+        "reqseq-metamodel: 1",
+        "relations:",
+        "  - { key: conflicts-with, name: Conflicts with, source-types: [system-requirement], target-types: [system-requirement] }",
+        "",
+      ].join("\n"),
+      "requirements/SR-0000000052a3.md": [
+        "---",
+        `id: ${TEMPERATURE}`,
+        "type: system-requirement",
+        "status: draft",
+        "title: Measure temperature",
+        "requirement-type: functional",
+        "conflicts-with:",
+        `  - { id: ${HISTORY}, version: n1:0000000000000000, title: Store wind history }`,
+        "---",
+        "",
+        "The station measures the air temperature.",
+        "",
+      ].join("\n"),
+    };
+    const { text } = await exported([TEMPERATURE, HISTORY], conflicting);
+    const { workspace } = await target(text, undefined);
+    const imported = await run<Imported>(workspace, "reqif.import", { file: "in/x.reqif", delivery: "1" });
+    expect(imported.problems).toEqual([]);
+    // The relation of the unknown kind is a loss, not a change by another tool.
+    expect(imported.losses.map((l) => [l.kind, l.code])).toContainEqual(["spec-relation", "omitted-type"]);
+    const temperature = await element(workspace, imported, TEMPERATURE);
+    expect([temperature.title, temperature.text, temperature.properties["conflicts-with"]]).toEqual([
+      "Measure temperature",
+      "The station measures the air temperature.\n",
+      undefined,
+    ]);
+  });
+
   it("[SR-052/AK3] takes the channels of a text with line breaks and raw HTML, so the text equals the original (#579)", async () => {
     const text = "before\\\nafter  \nend <br> x\n\nbefore<br>after and a <b>x</b> & y\n\n```\n```\n";
     const { text: file } = await exported([GUSTS], {
