@@ -579,13 +579,12 @@ const inputOf = (context: ActionContext, entry: Entry): Record<string, unknown> 
       input[arg.field] = isListField(entry.command, arg.field) ? values : values[0];
     }
   }
-  // A field that narrows its `of` takes its place (`hint.confirm`: the chosen `hintIds`, not every hint of `ref`).
-  const narrowed = new Set(
-    entry.command.arguments.flatMap((arg) =>
-      arg.narrows === true && arg.of !== undefined && input[arg.field] !== undefined ? [arg.of] : [],
-    ),
+  // A field given a value takes the place of the fields it `replaces` (`hint.confirm`: the chosen `hintIds`,
+  // not every hint of `ref`, `target` and `kind`).
+  const replaced = new Set(
+    entry.command.arguments.flatMap((arg) => (input[arg.field] === undefined ? [] : (arg.replaces ?? []))),
   );
-  return Object.fromEntries(Object.entries(input).filter(([field]) => !narrowed.has(field)));
+  return Object.fromEntries(Object.entries(input).filter(([field]) => !replaced.has(field)));
 };
 
 /**
