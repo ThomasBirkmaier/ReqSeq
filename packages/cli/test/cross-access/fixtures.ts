@@ -231,3 +231,9 @@ export const MATRIX_EVIDENCE: FixtureOptions = { fixture: "SR-126/matrix", git: 
 
 /** Two repositories with Markdown and JUnit records, variants, a package, a saved filter and baselines (SR-061). */
 export const EXPORT: FixtureOptions = { fixture: "SR-061/export", git: ["system", "sensor"] };
+
+/** The files of the `relation.target-superseded` hints in one access's output (SR-072 AK2). */
+export const supersededHintFiles = (result: Result): (string | undefined)[] =>
+  ((result.outcome as { output?: { problems?: { code: string; file?: string }[] } }).output?.problems ?? [])
+    .filter((p) => p.code === "relation.target-superseded")
+    .map((p) => p.file);

@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { expect } from "vitest";
 import { scenariosOf } from "../../scenario.js";
 import type { Written } from "../../fixtures.js";
-import { AFFECTED, FILTER, NESTED, requiredKey } from "../../fixtures.js";
+import { AFFECTED, FILTER, NESTED, requiredKey, supersededHintFiles } from "../../fixtures.js";
 
 /** The SHA-256 of SR-e88fb3 in SR-004/one-repository, as element.get gives it (`fileSha256`, SR-106). */
 const WIND_SHA256 = createHash("sha256")
@@ -94,6 +94,27 @@ scenariosOf("element.update", [
     },
     input: { ref: "N-d4e5f6", text: "Changed.\n" },
     expect: "output",
+  },
+  {
+    tag: "[SR-072/AK2]",
+    name: "update the successor of a superseded element: its own succession relation gets no hint",
+    fixture: {
+      fixture: "SR-072/supersede",
+      git: true,
+      files: {
+        "needs/N-a1b2c3d4e5f6.md":
+          "---\nid: 7a1e0c2b-4d3f-4a5b-8c6d-a1b2c3d4e5f6\ntype: need\nstatus: obsolete\ntitle: See the wind\n---\n",
+        "needs/N-b2c3d4e5f6a7.md":
+          "---\nid: 7a1e0c2b-4d3f-4a5b-8c6d-b2c3d4e5f6a7\ntype: need\nstatus: draft\ntitle: See wind and gusts\nsupersedes:\n  - { id: 7a1e0c2b-4d3f-4a5b-8c6d-a1b2c3d4e5f6, version: n1:1111111111111111, title: See the wind }\n---\n",
+      },
+    },
+    input: { ref: "N-e5f6a7", text: "Changed.\n" },
+    expect: "output",
+    check: (results) => {
+      for (const result of Object.values(results)) {
+        expect(supersededHintFiles(result)).toEqual([]);
+      }
+    },
   },
   {
     name: "update an element with a relation to a superseded element (SR-072 AK2 hint)",

@@ -170,16 +170,17 @@ describe("spec migration (Logseq export -> ReqSeq workspace, #326)", () => {
       inProperties: 1,
     });
 
-    // Every relation got its version from ReqSeq and nothing is outdated. The warnings are the relations
-    // to the superseded D-001: SR-001 is based on it, and D-002's own supersedes relation (#304).
+    // Every relation got its version from ReqSeq and nothing is outdated. The warning is the relation
+    // to the superseded D-001: SR-001 is based on it; D-002's own supersedes relation gets none
+    // (SR-072 AK2, #170).
     expect(result.confirmed).toBe(0);
     expect(result.versionsAdded).toBe(plan.relations.length);
     expect(result.check.ok).toBe(true);
     expect(result.check.problems.map((p) => p.code)).toEqual([
       "metamodel.invalid",
       "relation.target-superseded",
-      "relation.target-superseded",
     ]);
+    expect(result.check.problems[1]?.message).toMatch(/^Relation Based on \(based-on\) from /);
   });
 
   it("never writes into a folder that is not empty", () => {

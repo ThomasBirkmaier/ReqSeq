@@ -12,8 +12,12 @@ import path from "node:path";
 import {
   createFixtureWorkspace,
   generateLargeWorkspace,
+  malformedNoParentHints,
   measure,
   measureMedian,
+  noParentHints,
+  withoutNoParent,
+  withoutParent,
   writeLargeWorkspace,
 } from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -21,7 +25,7 @@ import type { CommandOutput } from "../../src/catalog.js";
 import { STANDARD_MODEL_TEXT, metamodelState } from "../../src/metamodel/index.js";
 import { currentVersionOf, currentVersions } from "../../src/model/current-versions.js";
 import { shortIdState } from "../../src/model/short-id.js";
-import { elementStoreState } from "../../src/model/store.js";
+import { elementStoreState, loadedVersionsOf } from "../../src/model/store.js";
 import { buildSuccessionIndex, successionsOf } from "../../src/model/successors.js";
 import { supersededTargetFindings } from "../../src/model/superseded.js";
 import { currentTarget } from "../../src/model/targets.js";
@@ -93,7 +97,7 @@ describe("workspace with 50,000 elements and 200,000 relations (N-036)", () => {
     expect(store.problems).toEqual([]);
   }, 600_000);
 
-  it("runs workspace.check, finding nothing (SR-020: 60 s)", async () => {
+  it("runs workspace.check, finding only the hints of requirements without a parent (SR-020: 60 s)", async () => {
     await workspace.get(elementStoreState);
     const { result: findings } = await measure(
       "workspace.check (every finding state, with the current versions of SR-025)",
@@ -107,7 +111,10 @@ describe("workspace with 50,000 elements and 200,000 relations (N-036)", () => {
         thresholdMs: 60_000,
       },
     );
-    expect(findings).toEqual([]);
+    // The generated requirements that got no derivation are hints (SR-022 AK6, #659); nothing else.
+    expect(malformedNoParentHints(findings)).toEqual([]);
+    expect(noParentHints(findings)).toHaveLength(withoutParent(tree.files));
+    expect(withoutNoParent(findings)).toEqual([]);
   }, 600_000);
 
   it("computes the current version of every element once per store and carries it over a save (#259)", async () => {
@@ -133,6 +140,12 @@ describe("workspace with 50,000 elements and 200,000 relations (N-036)", () => {
     expect(versions.byRecord.size).toBe(ELEMENTS);
     expect(
       versions.store.elements.filter((e) => currentVersionOf(versions, e) !== generated.get(e.id)),
+    ).toEqual([]);
+    // The versions as read (#439) equal those of the files: every generated element has one (no images).
+    const loaded = loadedVersionsOf(versions.store);
+    expect(loaded.size).toBe(ELEMENTS);
+    expect(
+      versions.store.elements.filter((e) => loaded.get(e)?.byForm["n1"] !== generated.get(e.id)),
     ).toEqual([]);
     const { result: again } = await measure(
       "current versions on a later use (embedded images checked; the generator embeds none)",
