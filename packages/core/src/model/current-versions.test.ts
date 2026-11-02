@@ -6,6 +6,7 @@ import fs from "node:fs/promises";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
+import * as files from "../files/index.js";
 import { readElementFile } from "../files/index.js";
 import { metamodelState } from "../metamodel/index.js";
 import { Workspace } from "../runtime/workspace.js";
@@ -22,9 +23,15 @@ import {
 import type { ElementRecord } from "./elements.js";
 import { classifyFile } from "./elements.js";
 import { embeddedImages } from "./images.js";
-import { applyStoreChange, elementStoreState, ignoredBy, updateElements } from "./store.js";
+import { applyStoreChange, elementStoreState, ignoredBy, loadedVersionsOf, updateElements } from "./store.js";
 import { elementVersion } from "./view.js";
 import { createElement, updateElement } from "./write.js";
+
+// The file reads of the versions, counted (passed on to the real ones).
+vi.mock("../files/index.js", async (importOriginal) => {
+  const original = await importOriginal<typeof files>();
+  return { ...original, readElementBodySync: vi.fn(original.readElementBodySync) };
+});
 
 const NEED = "1a1a1a1a-1111-4111-8111-a0000000000";
 const PICTURED = "7c7c7c7c-7777-4777-8777-c00000000001";
@@ -145,6 +152,27 @@ describe("the current version of every element (#259)", () => {
         ) as unknown,
       });
     }
+  });
+
+  it("takes the version computed at load while the file keeps its size and time, and reads it once they differ (#439)", async () => {
+    const { fixture, workspace } = await open();
+    const file = "needs/N-a00000000001.md";
+    const record = await recordOf(workspace, file);
+    expect(loadedVersionsOf(await workspace.get(elementStoreState)).has(record)).toBe(true);
+    // One record of the store: no state is built, each call reads what it needs.
+    const read = async (): Promise<unknown> => {
+      const entry = (await currentVersionsOf(workspace, [record])).get(record);
+      return entry?.kind === "version" ? entry.version : entry;
+    };
+    vi.mocked(files.readElementBodySync).mockClear();
+    const before = await read();
+    expect(before).toMatch(/^n1:/);
+    expect(files.readElementBodySync).not.toHaveBeenCalled();
+    // Another time: the file is read as it is now, with the same version for the same bytes.
+    const later = new Date(record.snapshot.mtimeMs + 2000);
+    await fs.utimes(fixture.path(file), later, later);
+    expect(await read()).toBe(before);
+    expect(files.readElementBodySync).toHaveBeenCalledTimes(1);
   });
 
   it("gives none for an element of a repository the layout does not have", async () => {
