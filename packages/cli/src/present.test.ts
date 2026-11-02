@@ -807,6 +807,28 @@ describe("renderHuman: a chain", () => {
     );
   });
 
+  it("names the kind of a neighbourhood relation that is no derivation, and heads its direction so (#643)", () => {
+    const output = chain({
+      nodes: [node("r", "STK-r", 0), node("n", "N-n", 1, "down"), node("p", "N-p", 1, "up")],
+      total: 3,
+      edges: [
+        { ...edge("n", "r", "down"), link: "relation", kind: "has-stakeholder" },
+        { ...edge("r", "p", "up"), link: "relation", meaning: "derivation" },
+      ],
+    });
+    expect(renderHuman(output)).toBe(
+      lines(
+        "STK-r  draft  Title STK-r",
+        "parents:",
+        "  1  N-p  draft  Title N-p",
+        "downward:",
+        "  1  N-n  draft  Title N-n  [has-stakeholder]",
+        "total: 3",
+        "No problems.",
+      ),
+    );
+  });
+
   it("marks an edge to an element shown elsewhere, and a cycle, where the edge starts", () => {
     const output = chain({
       nodes: [node("r", "SR-r", 0), node("a", "SR-a", 1, "down"), node("b", "SR-b", 1, "down")],
@@ -973,6 +995,13 @@ describe("renderHuman: a chain", () => {
         "No problems.",
       ),
     );
+    // With `names` the variant is named by short ID and title, and `names` is not printed (#676).
+    const named = renderHuman({
+      ...output,
+      names: [{ id: "v1", repository: "system", shortId: "VAR-v1", title: "Gusty" }],
+    });
+    expect(named).toContain("reports/b4.pdf  [variant VAR-v1  Gusty]");
+    expect(named).not.toContain("names:");
   });
 
   it("is a chain only when every node has a depth; else its lists are shown as they are", () => {

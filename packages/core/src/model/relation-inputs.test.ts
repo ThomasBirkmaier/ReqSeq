@@ -10,6 +10,7 @@ import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
 import { computeVersion } from "../version/version.js";
 import { elementStoreState } from "./store.js";
+import { readFirstFor } from "../runtime/read-first.test-helper.js";
 
 /** The elements of fixtures/SR-021/targets. */
 const NEED = { id: "0c8a3e5f-2d1b-4f6e-8a9c-7b3d5e1f2a4c", short: "N-1f2a4c" };
@@ -39,8 +40,10 @@ const open = async (
   return { fixture: created, workspace };
 };
 
-const run = (opened: Opened, name: CommandName, input: Record<string, unknown>): Promise<unknown> =>
-  invoke(name, input, { workspace: opened.workspace });
+const run = async (opened: Opened, name: CommandName, input: Record<string, unknown>): Promise<unknown> =>
+  invoke(name, await readFirstFor(name, input, { workspace: opened.workspace }), {
+    workspace: opened.workspace,
+  });
 
 const runError = async (
   opened: Opened,

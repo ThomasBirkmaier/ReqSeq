@@ -7,7 +7,7 @@ import type { FixtureWorkspace } from "@reqseq/testkit";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import type { Run } from "../support/reqseq.js";
-import { reqseq as run, requireBuiltCli } from "../support/reqseq.js";
+import { fileSha256, reqseq as run, requireBuiltCli } from "../support/reqseq.js";
 
 const reqseq = (args: readonly string[], cwd: string): Promise<Run> => run(args, { cwd });
 
@@ -86,17 +86,42 @@ describe("reqseq trace affected (SR-024)", () => {
 
   it("[SR-024/AK2] prints the number of directly affected elements after a change of the text", async () => {
     const ws = await fixture();
-    const json = await reqseq(["element", "update", "SR-00b001", "--text", "In knots.\n", "--json"], ws.root);
+    const sha = ["--expected-file-sha256", await fileSha256("SR-00b001", { cwd: ws.root })];
+    const json = await reqseq(
+      ["element", "update", "SR-00b001", "--text", "In knots.\n", ...sha, "--json"],
+      ws.root,
+    );
     expect([json.code, json.stderr]).toEqual([0, ""]);
-    expect((JSON.parse(json.stdout) as { affected: number }).affected).toBe(2);
-    const human = await reqseq(["element", "update", "SR-00b001", "--text", "In km/h.\n"], ws.root);
+    const written = JSON.parse(json.stdout) as { affected: number; fileSha256: string };
+    expect(written.affected).toBe(2);
+    const human = await reqseq(
+      [
+        "element",
+        "update",
+        "SR-00b001",
+        "--text",
+        "In km/h.\n",
+        "--expected-file-sha256",
+        written.fileSha256,
+      ],
+      ws.root,
+    );
     expect(human.stdout).toContain("\naffected: 2\n");
   });
 
   it("[SR-024/AK3] prints no affected elements after a change of the title only", async () => {
     const ws = await fixture();
     const json = await reqseq(
-      ["element", "update", "SR-00b001", "--title", "Show the wind speed", "--json"],
+      [
+        "element",
+        "update",
+        "SR-00b001",
+        "--title",
+        "Show the wind speed",
+        "--expected-file-sha256",
+        await fileSha256("SR-00b001", { cwd: ws.root }),
+        "--json",
+      ],
       ws.root,
     );
     expect([json.code, (JSON.parse(json.stdout) as { affected: number }).affected]).toEqual([0, 0]);

@@ -262,6 +262,34 @@ describe("the view rule (SR-041, SR-043)", () => {
     expect([core.addedOf(), core.replacedOf(), core.excludedOf()]).toEqual([[], [], []]);
   });
 
+  it("includes gives a record of the store and a copy read again the same answer in every view (#463)", async () => {
+    // b3 names a free name only (no target, D-020), b4 a single value where the list belongs (SR-085):
+    // each has a validity but no entry that names a variant, so neither is in any view.
+    const ws = await open({
+      ...requirement("b3", "validity: [Coast]\n"),
+      ...requirement("b4", `validity: ${A}\n`),
+      ...requirement("b5", `validity: [${A}, ${B}]\nreplaces: [${to("a3")}]\n`),
+    });
+    const store = await ws.get(elementStoreState);
+    const metamodel = await ws.get(metamodelState);
+    const rows = VARIANTS.map((v, i) => {
+      const tail = ["c1", "c2", "c3"][i] ?? "";
+      const rule = viewRuleOf(
+        { workspace: ws, store, metamodel },
+        { kind: "variant", variant: { id: `${P}${tail}`, repository: "system" } },
+      );
+      const copies = store.elements.filter((e) => rule.includes({ ...e })).map((e) => name(e.id));
+      return [v, store.elements.filter((e) => rule.includes(e)).map((e) => name(e.id)), copies];
+    });
+    const a = ["D1", "N1", "P1", "K4", "A1", "A2", "b5", ...VARIANTS];
+    const b = ["D1", "N1", "P1", "K1", "K2", "K4", "b5", ...VARIANTS];
+    expect(rows).toEqual([
+      ["A", a, a],
+      ["B", b, b],
+      ["C", CORE, CORE],
+    ]);
+  });
+
   it("removersOf names the variants that may remove a core requirement, and none for a target that is not core", async () => {
     const ws = await open(
       requirement("b3", `validity: [${B}, free]\nreplaces: [${to("a3")}, ${to("d1")}, ${to("ff")}]\n`),

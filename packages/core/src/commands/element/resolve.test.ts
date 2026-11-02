@@ -6,6 +6,7 @@ import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
+import { readFirst } from "../../runtime/read-first.test-helper.js";
 
 type Resolved = CommandOutput<"element.resolve">;
 
@@ -303,7 +304,7 @@ describe("element.resolve", () => {
     );
     await invoke(
       "element.update",
-      { ref: GUSTS.id, title: "Show gusts now" },
+      await readFirst({ ref: GUSTS.id, title: "Show gusts now" }, { workspace: opened.workspace }),
       { workspace: opened.workspace },
     );
     const after = await resolve(opened, { ref: GUSTS.id, version: before.version });

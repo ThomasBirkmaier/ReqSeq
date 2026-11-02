@@ -42,7 +42,7 @@ def system_requirements():
     return out["elements"]
 
 def stage_of(e):
-    """Stage key ("3", "querschnitt") from the package the SR names (identifier Stufe-3, Querschnitt), or None."""
+    """Stage key ("3", "querschnitt", "v0.9") from the package the SR names (identifier Stufe-3, Querschnitt, v0.9), or None."""
     ids = [r.get("identifier", "") for r in e["relations"] if r["kind"] == "packages" and r["direction"] == "out"]
     if len(ids) != 1 or ids[0] == "":
         return None
@@ -51,6 +51,34 @@ def stage_of(e):
 # Wishes parked during a stage (package Später, product owner decision, 2026-10-27): no stage yet,
 # so no issue from this script.
 PARKED = "später"
+
+# From v0.9 on, new SRs go into a package named like their milestone (product owner decision, 2026-11-02):
+# the issue gets that GitHub milestone, no stage label, and hangs under a lane epic (#595).
+MILESTONE = re.compile(r"^v\d+\.\d+$")
+
+def is_milestone(st):
+    return st is not None and MILESTONE.match(st) is not None
+
+# The lane epic (its body marker <!-- epic:lane-... -->) of an SR in a milestone package, by its topic.
+# Lanes cut across topics, so no rule derives one from the other. "Betrieb und Leistung" mixes performance,
+# security, docs and accesses and has no row: an SR with a topic missing here stops the run until a row is added.
+LANE = {
+ "Ablage und Repositories": "lane-data", "Import und Export": "lane-data", "Metamodell und Typen": "lane-data",
+ "Nachweis und Abdeckung": "lane-data", "Pakete und Baselines": "lane-data", "Traceability und Ketten": "lane-data",
+ "Varianten": "lane-data", "Bearbeiten und Finden": "lane-app", "Anbindung und Auswertung": "lane-cli"}
+
+def milestone_number(milestones, key):
+    """The number of the one GitHub milestone titled `key` or `key` plus a name (v0.9 Own use and simplicity), or None."""
+    found = [m["number"] for m in milestones if m["title"] == key or m["title"].startswith(key + " ")]
+    return found[0] if len(found) == 1 else None
+
+def placement(st):
+    """The stage text of the issue head and the labels from the package, without sr and thema."""
+    if st == "querschnitt":
+        return "Querschnitt (all stages)", ["querschnitt"]
+    if is_milestone(st):
+        return f"Milestone {st}", []
+    return f"Stage {st}", [f"stage:{st}"]
 
 def invalid_statuses():
     """Status keys the metamodel of the spec marks invalid (D-044), e.g. obsolete."""
@@ -68,8 +96,12 @@ def validate(srs, stages):
             problems.append(f"{sr}: needs exactly one stage package")
         elif st == PARKED:
             pass
+        elif is_milestone(st):
+            topic = e["properties"].get("topic")
+            if topic and topic not in LANE:
+                problems.append(f"{sr}: topic {topic} has no lane epic (LANE in sr_issues.py)")
         elif st not in stages:
-            problems.append(f"{sr}: package {st} is no stage ({', '.join(stages)})")
+            problems.append(f"{sr}: package {st} is no stage ({', '.join(stages)}) or milestone (v<major>.<minor>)")
         if not e["properties"].get("topic"):
             problems.append(f"{sr}: no topic")
     return problems
@@ -123,6 +155,19 @@ def main():
     def find(marker):
         return next((i for i in issues if marker in (i.get("body") or "")), None)
 
+    # Milestones and lane epics of the milestone packages, all found before the first write.
+    placed = [e for e in srs if e.get("status") not in invalid and is_milestone(stage_of(e))]
+    gh_milestones = api("milestones?state=all&per_page=100") if placed else []
+    milestones, lanes, missing = {}, {}, []
+    for e in placed:
+        st, lane = stage_of(e), LANE[e["properties"]["topic"]]
+        milestones[st] = milestone_number(gh_milestones, st)
+        lanes[lane] = find(f"<!-- epic:{lane} -->")
+    missing += [f"package {st}: no single GitHub milestone titled {st}" for st, m in milestones.items() if m is None]
+    missing += [f"no epic with <!-- epic:{lane} -->" for lane, i in lanes.items() if i is None]
+    if missing:
+        raise SystemExit("nothing written:\n  " + "\n  ".join(missing))
+
     created = updated = 0
     epics = {}
     for n in list(D035) + ["querschnitt"]:
@@ -165,7 +210,7 @@ def main():
         h = content_hash(e, text)
         slug = re.sub(r"[^a-z0-9äöüß]+", "-", thema.lower()).strip("-")
         aks = "\n".join(f"- [ ] AK{i}: {a}" for i, a in enumerate(p.get("acceptance-criteria", []), 1))
-        stage_txt = "Querschnitt (all stages)" if st == "querschnitt" else f"Stage {st}"
+        stage_txt, placed_labels = placement(st)
         rel = []
         targets = lambda kind: ", ".join(r.get("identifier", r["shortId"]) for r in e["relations"] if r["kind"] == kind and r["direction"] == "out")
         if targets("derives-from"): rel.append("Derives from: " + targets("derives-from"))
@@ -173,23 +218,34 @@ def main():
         head = (f"<!-- sr:{sr} -->\n**{sr}** · UUID `{e['id']}` · {stage_txt} · Thema {thema} · Nachweismethode {METHOD.get(p.get('verification-method'), p.get('verification-method', ''))}\n"
                 + (" · ".join(rel) + "\n" if rel else "")
                 + f"\n{text}\n\n**Akzeptanzkriterien**\n{aks}\n\nSpec: `spec/{e['file']}` (`reqseq element get {sr} --workspace spec`)\n\n<!-- spec-content:{h} -->\n")
-        labels = ["sr", f"thema:{slug}"] + (["querschnitt"] if st == "querschnitt" else [f"stage:{st}"])
+        labels = ["sr", f"thema:{slug}"] + placed_labels
         title = f"{sr} {e['title']}"
+        # A milestone package sets the milestone and the lane epic; P1-P3 stays with the lead (lead-run).
+        milestone = milestones.get(st)
+        epic = lanes[LANE[thema]] if milestone else epics[st]
         i = find(f"<!-- sr:{sr} -->")
         if DRY:
-            print(title, labels); print(head + "<!-- deps:start --><!-- deps:end -->") if sr == "SR-036" else None; continue
+            print(title, labels, *([f"milestone {st} (#{milestone})", f"epic #{epic['number']}"] if milestone else []))
+            print(head + "<!-- deps:start --><!-- deps:end -->") if sr == "SR-036" else None
+            continue
         if not i:
-            i = api("issues", "POST", {"title": title, "body": head + "<!-- deps:start --><!-- deps:end -->", "labels": labels, "assignees": ["ThomasBirkmaier"]})
+            post = {"title": title, "body": head + "<!-- deps:start --><!-- deps:end -->", "labels": labels, "assignees": ["ThomasBirkmaier"]}
+            if milestone:
+                post["milestone"] = milestone
+            i = api("issues", "POST", post)
             created += 1
-            api(f"issues/{epics[st]['number']}/sub_issues", "POST", {"sub_issue_id": i["id"]})
+            api(f"issues/{epic['number']}/sub_issues", "POST", {"sub_issue_id": i["id"]})
             time.sleep(1.5)
         else:
             old = i["body"] or ""
             tail = old[old.index("<!-- deps:start -->"):] if "<!-- deps:start -->" in old else "<!-- deps:start --><!-- deps:end -->"
-            if head + tail != old or i["title"] != title:
+            moved = milestone is not None and (i.get("milestone") or {}).get("number") != milestone
+            if head + tail != old or i["title"] != title or moved:
                 existing = [label["name"] for label in i.get("labels", [])]
                 reopen = i["state"] == "closed" and quoted_changed(old, head, h)
                 patch = {"title": title, "body": head + tail, "labels": merged_labels(existing, labels, ["spec-geändert"] if reopen else [])}
+                if milestone:
+                    patch["milestone"] = milestone
                 if reopen:
                     patch["state"] = "open"
                 api(f"issues/{i['number']}", "PATCH", patch); updated += 1; time.sleep(1)

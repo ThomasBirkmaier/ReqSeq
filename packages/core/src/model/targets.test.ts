@@ -15,6 +15,7 @@ import { watchWorkspace } from "./watch.js";
 import type { TargetContext } from "./targets.js";
 import { inlineReferences } from "./references.js";
 import { currentTarget, setInlineReferences, setRelationTargets } from "./targets.js";
+import { readFirstFor } from "../runtime/read-first.test-helper.js";
 
 /** The elements of fixtures/SR-021/targets; `text` is the text of the file. */
 const PKG = {
@@ -71,7 +72,9 @@ const run = async <N extends CommandName>(
   name: N,
   input: Record<string, unknown>,
 ): Promise<CommandOutput<N>> =>
-  (await invoke(name, input, { workspace: opened.workspace })) as CommandOutput<N>;
+  (await invoke(name, await readFirstFor(name, input, { workspace: opened.workspace }), {
+    workspace: opened.workspace,
+  })) as CommandOutput<N>;
 
 const runError = async (
   opened: Opened,

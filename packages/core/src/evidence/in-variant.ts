@@ -1,7 +1,9 @@
-// Whether a verification record of an element for a view would count there (SR-040, SR-047 AK4): the
-// element must apply in the view, and in a variant the variant's view rule must hold it (not excluded,
-// not replaced). `evidence.record` refuses such a record, `evidence.enrichJunit` such a test case
-// (SR-029 AK9); both name the element and the variant by short ID.
+// Whether a verification record of an element for a view would count there: the view must hold it by
+// the view rule (`viewRuleOf`, as the views decide it), so an element of a type without the validity
+// property counts in every view (SR-043 AK10). Out of the view, it does not apply there (SR-040), or
+// the variant excludes or replaces it (SR-047 AK4). `evidence.record` refuses such a record for a
+// variant, `evidence.enrichJunit` such a test case for a variant or the core (SR-029 AK9); both name
+// the element and the view by short ID.
 import type { Metamodel } from "../metamodel/index.js";
 import type { ElementRecord, ElementStore, ShortIds } from "../model/index.js";
 import type { Workspace } from "../runtime/workspace.js";
@@ -32,19 +34,17 @@ export const outOfView = (
   view: ResolvedView,
 ): OutOfView | undefined => {
   const { shortIds } = context;
+  const rule = viewRuleOf(context, view);
+  if (rule.includes(element)) {
+    return undefined;
+  }
   const variant = view.kind === "core" ? "core" : shortIds.of(view.variant);
-  if (!appliesIn(validityOf(context.metamodel), element, view)) {
+  // Out of the core view, or out of a variant's by its validity (the type has the validity property).
+  if (view.kind === "core" || !appliesIn(validityOf(context.metamodel), element, view)) {
     return {
       reason: "not-valid-in-variant",
       why: `does not apply in ${variant}, so a record for it there would count nowhere (SR-040)`,
     };
-  }
-  if (view.kind === "core") {
-    return undefined;
-  }
-  const rule = viewRuleOf(context, view);
-  if (rule.includes(element)) {
-    return undefined;
   }
   // Out of the view though it applies: the variant excludes it, or a requirement replaces it there.
   if (rule.excludes(element)) {

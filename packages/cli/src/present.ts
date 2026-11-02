@@ -13,7 +13,9 @@
 //   numbers its items from 1 (`1: ...`), as tests name acceptance criteria (#401).
 // - A chain (`nodes` with `depth`, and `edges`) is an indented tree per direction with the depth in
 //   front, its gaps, cycles and the edges to an element listed elsewhere marked. Its `evidence` is
-//   indented below the element it belongs to (`evidenceLines`).
+//   indented below the element it belongs to (`evidenceLines`). An element reached by a relation
+//   whose meaning is not `derivation` names its kind (`[has-stakeholder]`), and a direction with such
+//   an element is headed `upward:` or `downward:` instead of `parents:` or `children:` (#643).
 // - A list of elements with a `tree` of their places (`depth`, `parent`; one per element, element.list
 //   by hierarchy, SR-075 AK2) is indented two spaces per level; an element whose parent is not shown
 //   before it (on an earlier page) names it, `[under X]`.
@@ -26,7 +28,8 @@
 //   #588) is not printed: those UUIDs print as the element instead, `SHORT-ID (IDENTIFIER)  title` in a
 //   value printed as YAML (the lists of evidence.coverage, a variant `view`, the details of an element) and in a list of UUIDs one per
 //   line (the lists of variant.diff), `SHORT-ID (IDENTIFIER)` in
-//   the verification status of an element line. A UUID that `names` leaves out stays as it is.
+//   the verification status of an element line, and `SHORT-ID  title` as the variant of a record of a
+//   chain (#676). A UUID that `names` leaves out stays as it is.
 // - Every other value stays YAML. Problems come last, each once: those of the output and the hints
 //   at an element it shows; then `No problems.`, or how many findings the output left out (`hidden`).
 import { degreePercent, degreeShareOf } from "@reqseq/core";
@@ -111,6 +114,12 @@ const namesIn = (output: Rec): Names => {
 /** A named element in a line: `SHORT-ID (IDENTIFIER)  title`. */
 const nameText = (name: Rec & { readonly shortId: string; readonly title: string }): string =>
   join(withIdentifier(name.shortId, name["identifier"]), name.title);
+
+/** A variant of a record by `nameText` when `names` has it, else its UUID (#676). */
+const variantName = (id: string, names: Names): string => {
+  const name = names.get(id);
+  return name === undefined ? id : nameText(name);
+};
 
 /** `value` with every string that is a UUID of `names` as the element it names (`nameText`), in objects and lists. */
 const withNames = (value: unknown, names: Names): unknown => {
@@ -362,6 +371,17 @@ interface ChainEdge extends Rec {
   readonly cyclic: boolean;
 }
 
+/**
+ * How a trace.neighbourhood edge (one with `link`) relates when its meaning is not `derivation`: the
+ * relation kind, else the link (`reference`); "" for a derivation and for an edge of trace.chain (#643).
+ */
+const otherKindOf = (edge: ChainEdge): string => {
+  if (typeof edge["link"] !== "string" || edge["meaning"] === "derivation") {
+    return "";
+  }
+  return typeof edge["kind"] === "string" ? edge["kind"] : edge["link"];
+};
+
 /** What the tree of a chain reads (`trace.chain`); gaps and unresolved derivations are read loosely. */
 interface Chain extends Rec {
   readonly nodes: readonly ChainNode[];
@@ -498,15 +518,18 @@ const belegOf = (record: Rec): string => {
   return `${text(record["repository"])}/${text(record["file"])}${typeof line === "number" ? `:${String(line)}` : ""}`;
 };
 
-/** A record as one line: date, method (`withMethod`), result, item, Beleg and variant. */
-const recordLine = (record: Rec, withMethod: boolean): string =>
+/**
+ * A record as one line: date, method (`withMethod`), result, item, Beleg and variant, the variant by
+ * its short ID when `names` has it (#676).
+ */
+const recordLine = (record: Rec, withMethod: boolean, names: Names): string =>
   join(
     text(record["date"]),
     withMethod ? text(record["method"]) : "",
     text(record["result"]),
     text(record["item"]),
     belegOf(record),
-    text(record["variant"]) === "" ? "" : `[variant ${text(record["variant"])}]`,
+    text(record["variant"]) === "" ? "" : `[variant ${variantName(text(record["variant"]), names)}]`,
   );
 
 /**
@@ -515,18 +538,18 @@ const recordLine = (record: Rec, withMethod: boolean): string =>
  * item, Beleg); then one line per record without a test case, `record  DATE  METHOD  RESULT  ITEM
  * BELEG`. `item` gives the lines of the test cases and records, `under` those of the executions.
  */
-const evidenceLines = (item: Rec, at: string, under: string): string[] => {
+const evidenceLines = (item: Rec, at: string, under: string, names: Names): string[] => {
   const lines: string[] = [];
   for (const test of listOf(item["testCases"]).filter(isRecord)) {
     const className = text(test["className"]);
     const name = className === "" ? text(test["name"]) : `${className} › ${text(test["name"])}`;
     lines.push(`${at}${join("test case", name, test["executed"] === false ? "[not executed]" : "")}`);
     for (const execution of listOf(test["executions"]).filter(isRecord)) {
-      lines.push(`${under}${recordLine(execution, false)}`);
+      lines.push(`${under}${recordLine(execution, false, names)}`);
     }
   }
   for (const record of listOf(item["records"]).filter(isRecord)) {
-    lines.push(`${at}${join("record", recordLine(record, true))}`);
+    lines.push(`${at}${join("record", recordLine(record, true, names))}`);
   }
   return lines;
 };
@@ -541,7 +564,10 @@ const offPageMark = (first: boolean, cyclic: boolean, from: string): string =>
 
 /** The tree of a chain (see `treeOf`). */
 interface Tree {
-  readonly children: ReadonlyMap<string, readonly { readonly key: string; readonly node: ChainNode }[]>;
+  readonly children: ReadonlyMap<
+    string,
+    readonly { readonly key: string; readonly node: ChainNode; readonly kind: string }[]
+  >;
   /** References printed below the node an edge starts at (that node is on the page). */
   readonly references: ReadonlyMap<string, readonly string[]>;
   /** Marks on the node an edge leads to, for edges that start on another page. */
@@ -557,7 +583,10 @@ interface Tree {
  * `[also under X]`.
  */
 const treeOf = (chain: Chain, nodes: ReadonlyMap<string, ChainNode>, root: ChainNode | undefined): Tree => {
-  const children = new Map<string, { readonly key: string; readonly node: ChainNode }[]>();
+  const children = new Map<
+    string,
+    { readonly key: string; readonly node: ChainNode; readonly kind: string }[]
+  >();
   const references: Marks = new Map();
   const marks: Marks = new Map();
   const placed = new Set<string>();
@@ -582,7 +611,10 @@ const treeOf = (chain: Chain, nodes: ReadonlyMap<string, ChainNode>, root: Chain
       mark(marks, farKey, offPageMark(first, edge.cyclic, nearLabel));
     } else if (farNode !== undefined && !placed.has(farKey) && nearNode.depth === farNode.depth - 1) {
       placed.add(farKey);
-      children.set(nearKey, [...(children.get(nearKey) ?? []), { key: farKey, node: farNode }]);
+      children.set(nearKey, [
+        ...(children.get(nearKey) ?? []),
+        { key: farKey, node: farNode, kind: otherKindOf(edge) },
+      ]);
     } else {
       mark(references, nearKey, join(farLabel, edge.cyclic ? "[cycle]" : "[listed elsewhere]"));
     }
@@ -591,7 +623,7 @@ const treeOf = (chain: Chain, nodes: ReadonlyMap<string, ChainNode>, root: Chain
 };
 
 /** The chain as a tree per direction: the root, then `parents:` and `children:` (see the file comment). */
-const chainLines = (chain: Chain): string[] => {
+const chainLines = (chain: Chain, names: Names): string[] => {
   const width = String(Math.max(...chain.nodes.map((n) => n.depth), 0)).length;
   const gaps = gapMarks(chain);
   const keyOf = (node: ChainNode): string =>
@@ -600,9 +632,10 @@ const chainLines = (chain: Chain): string[] => {
   const root = nodes.get(ROOT);
   const { children, references, marks, placed } = treeOf(chain, nodes, root);
   const evidence = evidenceByNode(chain);
-  const line = (node: ChainNode): string =>
+  const line = (node: ChainNode, kind = ""): string =>
     join(
       elementLine(node),
+      kind === "" ? "" : `[${kind}]`,
       ...(gaps.get(nodeKey("", node.repository, node.id)) ?? []),
       node["expanded"] === false ? "[not expanded]" : "",
       ...(marks.get(keyOf(node)) ?? []),
@@ -616,7 +649,7 @@ const chainLines = (chain: Chain): string[] => {
     const item = node["direction"] === "up" ? undefined : evidence.get(nodeKey("", node.repository, node.id));
     if (item !== undefined) {
       const at = prefix(node.depth + 1, level + 1);
-      lines.push(...evidenceLines(item, at, `${" ".repeat(at.length)}  `));
+      lines.push(...evidenceLines(item, at, `${" ".repeat(at.length)}  `, names));
     }
   };
   if (root !== undefined) {
@@ -624,7 +657,7 @@ const chainLines = (chain: Chain): string[] => {
   }
   const walk = (key: string, depth: number, level: number): void => {
     for (const child of children.get(key) ?? []) {
-      lines.push(`${prefix(child.node.depth, level + 1)}${line(child.node)}`);
+      lines.push(`${prefix(child.node.depth, level + 1)}${line(child.node, child.kind)}`);
       evidenceOf(child.node, level + 1);
       walk(child.key, child.node.depth, level + 1);
     }
@@ -632,13 +665,16 @@ const chainLines = (chain: Chain): string[] => {
       lines.push(`${prefix(depth + 1, level + 1)}${reference}`);
     }
   };
-  for (const [direction, label] of [
-    ["up", "parents:"],
-    ["down", "children:"],
+  for (const [direction, label, otherLabel] of [
+    ["up", "parents:", "upward:"],
+    ["down", "children:", "downward:"],
   ] as const) {
     const section = chain.nodes.filter((node) => node["direction"] === direction);
     if (section.length > 0) {
-      lines.push(label);
+      const derivedOnly = chain.edges.every(
+        (edge) => edge.direction !== direction || otherKindOf(edge) === "",
+      );
+      lines.push(derivedOnly ? label : otherLabel);
       walk(`${ROOT}/${direction}`, 0, 0);
       // Nodes whose parent is on another page: not nested, the parent named by `[under X]`.
       for (const node of section) {
@@ -685,7 +721,7 @@ export function renderHuman(output: unknown, details = true): string {
   const lifted: unknown[] = [];
   const chain = isChain(rest);
   if (chain) {
-    lines.push(...chainLines(rest));
+    lines.push(...chainLines(rest, namesIn(rest)));
   }
   const shown = chain
     ? new Set(["root", "nodes", "edges", "gaps", "evidence", "unresolved"])

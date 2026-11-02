@@ -346,15 +346,18 @@ describe("serveCoreProcess: changes from outside (SR-116, SR-106)", () => {
     parent.send({ type: "connect" }, [core]);
     window.postMessage({ id: 1, kind: "invoke", name: "element.get", input: { ref: "SR-e88fb3" } });
     await waitUntil(() => received.length === 1);
-    const answer = received[0] as { result: { output: { element: { id: string; text: string } } } };
+    const answer = received[0] as {
+      result: { output: { element: { id: string; text: string }; fileSha256: string } };
+    };
     const { id, text } = answer.result.output.element;
+    const { fileSha256 } = answer.result.output;
     const events = (): PortMessage[] => received.filter((message) => "event" in message);
     // The app's own write: `written`, and the watcher sees its own bytes, so no element is named.
     window.postMessage({
       id: 2,
       kind: "invoke",
       name: "element.update",
-      input: { ref: id, text: `${text}\nSaved in the app.\n` },
+      input: { ref: id, text: `${text}\nSaved in the app.\n`, expectedFileSha256: fileSha256 },
     });
     await waitUntil(() => events().length >= 1);
     expect(events()).toEqual([{ event: "workspace-changed", data: { reason: "written" } }]);
