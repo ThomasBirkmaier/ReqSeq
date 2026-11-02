@@ -24,6 +24,7 @@ import {
   searchElements,
 } from "./search-index.js";
 import { searchIndex, searchIndexState } from "./search-state.js";
+import { readFirst } from "../runtime/read-first.test-helper.js";
 
 const V = "n1:1111111111111111";
 const N1 = "6adc6d88-2177-457b-959d-545b7b379da2";
@@ -514,7 +515,10 @@ describe("carried search index (ADR-0008, #184)", () => {
     // Without preparation the first search builds them, the next ones do not.
     expect(buildsArrays(first)).toBe(true);
     expect(buildsArrays(first)).toBe(false);
-    await updateElement(workspace, { ref: N1, title: "Rain on the display", text: "Drizzle.\n" });
+    await updateElement(
+      workspace,
+      await readFirst({ ref: N1, title: "Rain on the display", text: "Drizzle.\n" }, { workspace }),
+    );
     const carried = await expectCarried(fixture, workspace, first);
     expect(buildsArrays(carried)).toBe(false);
     // The index of the previous store is a distinct index: its arrays are its own.
@@ -556,7 +560,10 @@ describe("carried search index (ADR-0008, #184)", () => {
   it("equals a fresh build after element.update, element.create and element.setStatus", async () => {
     const { fixture, workspace } = await open();
     const first = await searchIndex(workspace);
-    await updateElement(workspace, { ref: N1, title: "Rain on the display", text: "Drizzle.\n" });
+    await updateElement(
+      workspace,
+      await readFirst({ ref: N1, title: "Rain on the display", text: "Drizzle.\n" }, { workspace }),
+    );
     const updated = await expectCarried(fixture, workspace, first);
     expect(ids(updated, "drizzle")).toEqual([N1]);
     expect(ids(updated, "wind")).toEqual([]);

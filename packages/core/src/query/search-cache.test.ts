@@ -32,6 +32,7 @@ import {
   searchIndexOf,
 } from "./search-index.js";
 import { searchIndex, searchIndexState, warmSearchIndex } from "./search-state.js";
+import { readFirst } from "../runtime/read-first.test-helper.js";
 
 const N1 = "6adc6d88-2177-457b-959d-545b7b379da2";
 const S1 = "0b0e6f6c-3c1f-4c55-9d0e-0c1d2e3f4a5b";
@@ -178,7 +179,7 @@ describe("search.json (ADR-0008)", () => {
     const { index, expected, workspace } = await built(ws);
     const folder = await tempFolder();
     // A carry changes the MiniSearch object, which the index of the old store shares.
-    await updateElement(workspace, { ref: N1, title: "Rain" });
+    await updateElement(workspace, await readFirst({ ref: N1, title: "Rain" }, { workspace }));
     expect((await searchIndex(workspace)).engine).toBe(index.engine);
     await saveSearchCache(folder, expected, index);
     await expect(fs.readdir(folder)).resolves.toEqual([]);
@@ -236,7 +237,10 @@ describe("search index state with a cache folder (ADR-0008)", () => {
     const loaded = await searchIndex(second);
     // The cache holds the index, not the documents a carry would remove exactly.
     expect(loaded.engine.documents).toBeUndefined();
-    await updateElement(second, { ref: N1, title: "Rain", text: "Drizzle.\n" });
+    await updateElement(
+      second,
+      await readFirst({ ref: N1, title: "Rain", text: "Drizzle.\n" }, { workspace: second }),
+    );
     const carried = await searchIndex(second);
     expect(carried.engine).toBe(loaded.engine);
     expect(hitIds(carried, "drizzle")).toEqual([N1]);

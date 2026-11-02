@@ -5,7 +5,7 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { launchApp } from "./support/app.js";
+import { fileSha256, launchApp } from "./support/app.js";
 
 const R1 = "SR-0000b1";
 
@@ -84,6 +84,8 @@ test.describe("packages on a fixture workspace", () => {
       "Measure the wind speed",
       "--text",
       "R1: changed once.",
+      "--expected-file-sha256",
+      await fileSha256(running, R1),
     ]);
     const texts: string[] = [];
     for (const pkg of ["Release 1", "Release 2"]) {

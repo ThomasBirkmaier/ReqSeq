@@ -19,6 +19,7 @@ import {
 import { setElementStatus } from "./status.js";
 import { applyStoreChange, elementStoreState, updateElements } from "./store.js";
 import { createElement, updateElement } from "./write.js";
+import { readFirst } from "../runtime/read-first.test-helper.js";
 
 const V = "n1:1111111111111111";
 const uuid = (n: number): string => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
@@ -334,17 +335,23 @@ describe("incoming relation index carried over a change of the store (ADR-0008, 
     const { fixture, workspace } = await openFixture();
     const index = await indexNow(workspace);
     // A title only: no link changes, every list and link is kept as it was.
-    await updateElement(workspace, { ref: N1, title: "A new title" });
+    await updateElement(workspace, await readFirst({ ref: N1, title: "A new title" }, { workspace }));
     const titled = await expectCarried(fixture, workspace);
     expect(titled.relationsById.get(N1)).toBe(index.relationsById.get(N1));
     expect(titled.referencesById.get(P1)).toBe(index.referencesById.get(P1));
     // S2 gets a validity, a target in another repository and a reference in its text; its links
     // come after those of S1, which are kept as the same objects.
-    await updateElement(workspace, {
-      ref: S2,
-      set: { validity: [{ id: VAR1 }], packages: [{ id: P1, repository: "platform" }] },
-      text: `See [the need](reqseq:${N1}?version=${V}).\n`,
-    });
+    await updateElement(
+      workspace,
+      await readFirst(
+        {
+          ref: S2,
+          set: { validity: [{ id: VAR1 }], packages: [{ id: P1, repository: "platform" }] },
+          text: `See [the need](reqseq:${N1}?version=${V}).\n`,
+        },
+        { workspace },
+      ),
+    );
     const updated = await expectCarried(fixture, workspace);
     expect(updated.relationsById.get(N1)?.[0]).toBe(index.relationsById.get(N1)?.[0]);
     expect(incomingTo(updated, "system", VAR1).map((l) => l.source.id)).toEqual([S1, S2]);
@@ -381,10 +388,16 @@ describe("incoming relation index carried over a change of the store (ADR-0008, 
   it("[SR-127/AK3] equals a fresh build after a save and after a change from outside that add and drop a reference in an acceptance criterion (SR-082 AK4)", async () => {
     const { fixture, workspace } = await openFixture();
     await indexNow(workspace);
-    await updateElement(workspace, {
-      ref: S2,
-      set: { "acceptance-criteria": [`Then [the need](reqseq:${N1}?version=${V}).`] },
-    });
+    await updateElement(
+      workspace,
+      await readFirst(
+        {
+          ref: S2,
+          set: { "acceptance-criteria": [`Then [the need](reqseq:${N1}?version=${V}).`] },
+        },
+        { workspace },
+      ),
+    );
     const saved = await expectCarried(fixture, workspace);
     const criterion = (l: IncomingLink): unknown =>
       l.kind === "reference" ? [l.source.id, l.reference.key, l.reference.item] : undefined;
@@ -471,8 +484,10 @@ describe("incoming relation index carried over a change of the store (ADR-0008, 
     const { fixture, workspace } = await openFixture();
     // The memo is there but holds no index of the store: a save builds none.
     const memo = workspace.get(incomingState);
-    await workspace.get(elementStoreState);
-    await updateElement(workspace, { ref: N1, title: "Saved" });
+    // The hash of the file from the store: element.get would build the index.
+    const read = await workspace.get(elementStoreState);
+    const expectedFileSha256 = read.byId.get(N1)?.[0]?.snapshot.sha256 ?? "";
+    await updateElement(workspace, { ref: N1, title: "Saved", expectedFileSha256 });
     expect(workspace.peek(incomingState)).toBe(memo);
     expect(memo.get(await workspace.get(elementStoreState))).toBeUndefined();
     // An index built with another metamodel object is carried with it; a chain with the current
@@ -480,7 +495,12 @@ describe("incoming relation index carried over a change of the store (ADR-0008, 
     const metamodel = await workspace.get(metamodelState);
     const other = { ...metamodel };
     incomingFor(workspace, await workspace.get(elementStoreState), other);
-    await updateElement(workspace, { ref: N1, title: "Saved again" });
+    const saved = await workspace.get(elementStoreState);
+    await updateElement(workspace, {
+      ref: N1,
+      title: "Saved again",
+      expectedFileSha256: saved.byId.get(N1)?.[0]?.snapshot.sha256 ?? "",
+    });
     const carried = await expectCarried(fixture, workspace);
     expect(carried.metamodel).toBe(other);
     const store = await workspace.get(elementStoreState);

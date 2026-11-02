@@ -11,6 +11,7 @@ import type { EvidenceRecord } from "../../evidence/index.js";
 import { evidenceRecordsState, verificationState } from "../../evidence/index.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
+import { readFirst } from "../../runtime/read-first.test-helper.js";
 
 type Output = CommandOutput<"evidence.status">;
 type Element = Output["elements"][number];
@@ -105,7 +106,11 @@ describe("validation status in element.get, element.resolve, evidence.status and
   it("[SR-038/AK2] a validated need becomes outdated when its file changes", async () => {
     const ws = await open();
     expect((await get(ws, N1)).element.validation).toBe("validated");
-    await invoke("element.update", { ref: N1, text: "Changed after the validation.\n" }, { workspace: ws });
+    await invoke(
+      "element.update",
+      await readFirst({ ref: N1, text: "Changed after the validation.\n" }, { workspace: ws }),
+      { workspace: ws },
+    );
     expect((await get(ws, N1)).element.validation).toBe("outdated");
     expect(await where(ws, { validation: ["outdated"] })).toEqual([N1, N3]);
   });

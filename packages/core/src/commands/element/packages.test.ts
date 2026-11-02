@@ -11,6 +11,7 @@ import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
+import { readFirstFor } from "../../runtime/read-first.test-helper.js";
 
 const P = "48048048-0000-4000-8000-0000000000";
 const [P1, P2, R1, R2, R3] = ["d1", "d2", "b1", "b2", "b3"].map((tail) => `${P}${tail}`) as [
@@ -46,7 +47,9 @@ const run = async <N extends "element.create" | "element.update" | "element.list
   name: N,
   input: Record<string, unknown>,
 ): Promise<CommandOutput<N>> =>
-  (await invoke(name, input, { workspace: opened.workspace })) as CommandOutput<N>;
+  (await invoke(name, await readFirstFor(name, input, { workspace: opened.workspace }), {
+    workspace: opened.workspace,
+  })) as CommandOutput<N>;
 
 const read = (opened: Opened, file: string): Promise<string> =>
   fs.readFile(opened.fixture.path(file), "utf8");
