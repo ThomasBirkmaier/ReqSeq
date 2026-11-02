@@ -225,6 +225,11 @@ export interface LaunchOptions {
    * core's core process records them, in the test's OS cache folder.
    */
   readonly recent?: readonly string[];
+  /**
+   * Whether core checks every command's output against its schema (`REQSEQ_VALIDATE_OUTPUT=1`, tests and debug
+   * builds). Default true; the performance suite starts the app without it, as a user's app runs (#147).
+   */
+  readonly validateOutput?: boolean;
 }
 
 /**
@@ -315,7 +320,7 @@ export const launchApp = async (
     XDG_CONFIG_HOME: home,
     APPDATA: home,
     LOCALAPPDATA: home,
-    REQSEQ_VALIDATE_OUTPUT: "1",
+    ...(options.validateOutput === false ? {} : { REQSEQ_VALIDATE_OUTPUT: "1" }),
   };
   const app = await electron.launch({
     executablePath: ELECTRON,

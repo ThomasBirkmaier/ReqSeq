@@ -1,11 +1,12 @@
-// SR-082 AK1 and AK2 in the performance suite (ADR-0011): the start of ReqSeq on the generated
-// workspace of N-036 with 50,000 elements and 200,000 relations. Until the app comes (stage 3), the
-// start is measured over the local API (#127, option 1): a new process of the built `reqseq serve api`
-// loads the workspace before it listens (`warmWorkspace`), so the time from spawn until it answers
-// `workspace.status` is the time until ReqSeq is usable. AK2 starts with an empty cache folder; AK1
-// starts again with the model cache the first start wrote (ADR-0008). Runs with `pnpm test:perf` after
-// `pnpm build`, nightly and on pull requests labelled `perf`, never in the required test run. The tests
-// are tagged, so they assert their thresholds (ADR-0011, #215) after `measure` recorded the times.
+// The start of ReqSeq over the local API in the performance suite (ADR-0011), on the generated workspace of
+// N-036 with 50,000 elements and 200,000 relations: a new process of the built `reqseq serve api` loads the
+// workspace before it listens (`warmWorkspace`), so the time from spawn until it answers `workspace.status` is
+// the time until ReqSeq is usable over the API. The first start has an empty cache folder; the second starts
+// again with the model cache the first start wrote (ADR-0008). Until the app came, these tests stood in for
+// SR-082 AK1 and AK2 (#127, option 1). Those criteria name the app's start, so their tags moved to the app's
+// test (packages/app/test/perf/start.spec.ts, #147); these times are recorded, with the thresholds of
+// SR-082 AK1 and AK2 for comparison only. Runs with `pnpm test:perf` after `pnpm build`, nightly and on pull
+// requests labelled `perf`, never in the required test run.
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -15,13 +16,12 @@ import os from "node:os";
 import path from "node:path";
 import type { CommandOutput, VersionValue } from "@reqseq/core";
 import { MODEL_CACHE_FILE, Workspace, computeVersion, invoke } from "@reqseq/core";
-import type { LargeFixtureWorkspace, PerfMeasurement, VersionFunction } from "@reqseq/testkit";
+import type { LargeFixtureWorkspace, VersionFunction } from "@reqseq/testkit";
 import {
   createFixtureWorkspace,
   defaultStandardModelFile,
   generateLargeWorkspace,
   measure,
-  thresholdMessage,
   writeLargeWorkspace,
 } from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -29,9 +29,9 @@ import { bin, blockNetwork, cliEnv, requireBuiltCli } from "../support/reqseq.js
 
 const ELEMENTS = 50_000;
 const RELATIONS = 200_000;
-/** SR-082 AK1: start with the cache. */
+/** SR-082 AK1: start with the cache (for comparison). */
 const WARM_MS = 3_000;
-/** SR-082 AK2: start without the cache. */
+/** SR-082 AK2: start without the cache (for comparison). */
 const COLD_MS = 30_000;
 /**
  * The model cache trusts an entry only when its file is older than 2 s before the load that wrote
@@ -207,40 +207,35 @@ describe("start with 50,000 elements and 200,000 relations (SR-082, N-036)", () 
     return started;
   };
 
-  it("[SR-082/AK2] is usable over the API within 30 s without the cache", async () => {
+  it("records the start over the API without the cache (SR-082 AK2 asserted in the app)", async () => {
     const root = fixture?.workspaceRoot ?? "";
-    let measured: PerfMeasurement | undefined;
     await coldStart(async () => {
-      const { result, measurement } = await measure(
+      const { result } = await measure(
         "reqseq serve api until workspace.status answers (new process, no cache)",
         () => startApi(root, home),
         {
-          basis: "SR-082 AK2 (start without cache; over the API until the app comes, #127)",
+          basis:
+            "SR-082 AK2 (start without cache over the API; untagged, threshold for comparison only, #147)",
           thresholdMs: COLD_MS,
         },
       );
-      measured = measurement;
       return result;
     });
-    if (measured === undefined) {
-      throw new Error("the start was not measured");
-    }
-    expect(measured.ms, thresholdMessage(measured)).toBeLessThanOrEqual(COLD_MS);
   }, 600_000);
 
-  it("[SR-082/AK1] is usable over the API within 3 s with the cache", async () => {
+  it("records the start over the API with the cache (SR-082 AK1 asserted in the app)", async () => {
     const root = fixture?.workspaceRoot ?? "";
-    // Run alone (`-t AK1`), the test writes the cache first, as the AK2 test does.
+    // Run alone (`-t "with the cache"`), the test writes the cache first, as the test without the cache does.
     if (modelCache === "") {
       await coldStart(() => startApi(root, home));
     }
     expect(existsSync(modelCache), `no model cache at ${modelCache}`).toBe(true);
     const written = (await fs.stat(modelCache)).mtimeMs;
-    const { result: started, measurement } = await measure(
+    const { result: started } = await measure(
       "reqseq serve api until workspace.status answers (new process, with cache)",
       () => startApi(root, home),
       {
-        basis: "SR-082 AK1 (start with cache; over the API until the app comes, #127)",
+        basis: "SR-082 AK1 (start with cache over the API; untagged, threshold for comparison only, #147)",
         thresholdMs: WARM_MS,
       },
     );
@@ -251,6 +246,5 @@ describe("start with 50,000 elements and 200,000 relations (SR-082, N-036)", () 
     await stop(started.child);
     // Every entry was reused: the start did not write the cache again.
     expect((await fs.stat(modelCache)).mtimeMs).toBe(written);
-    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(WARM_MS);
   }, 600_000);
 });
