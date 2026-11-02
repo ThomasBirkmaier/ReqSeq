@@ -218,8 +218,17 @@ const statusWith = (
     { kind: "core" },
     ...variants.map((variant): View => ({ kind: "variant", variant })),
   ];
-  const hasRecords = (element: ElementRecord): boolean =>
-    source.recordsOf(element.id).some((r) => r.kind === "verification");
+  // Whether an element has verification records, by UUID: asked once each, since the walks of
+  // `prepare` ask the same children again and the records do not change for the life of a status.
+  const verified = new Map<string, boolean>();
+  const hasRecords = (element: ElementRecord): boolean => {
+    let known = verified.get(element.id);
+    if (known === undefined) {
+      known = source.recordsOf(element.id).some((r) => r.kind === "verification");
+      verified.set(element.id, known);
+    }
+    return known;
+  };
   // Below an element with an own record in every view it applies in, or one marked emergent (SR-035),
   // its children decide nothing.
   const holders = views.map((view) => ({ view, includes: scope.includesIn(view) }));

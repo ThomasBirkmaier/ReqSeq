@@ -231,6 +231,25 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 #5
     expect(withoutEvidence.ms, thresholdMessage(withoutEvidence)).toBeLessThanOrEqual(RESULT_MS);
   });
 
+  it("records the filter without evidence as the first filter after the start: no current version read (SR-069 AK3, #439)", async () => {
+    await reopen();
+    await readEvidence(ws());
+    const { result: without } = await measure(
+      "filter system requirements without evidence (relation direction evidence, exists false), first page: first filter after the start",
+      () =>
+        run("element.list", {
+          selection: {
+            where: {
+              all: [{ type: ["system-requirement"] }, { relation: { direction: "evidence" }, exists: false }],
+            },
+          },
+        }),
+      { basis: `SR-069 AK3, SR-082 AK4 (cold; ${COMPARE_AK4})`, ...COMPARED },
+    );
+    expect(without.total).toBeGreaterThan(0);
+    expect((await ws().get(verificationState)).versionBatches()).toBe(0);
+  });
+
   it("[SR-082/AK4] applies the filter on the validation status within 500 ms once its state is built (SR-038)", async () => {
     await reopen();
     await readEvidence(ws());
