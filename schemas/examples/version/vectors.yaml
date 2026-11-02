@@ -75,16 +75,18 @@ vectors:
     n2:
       canonical: SR-7a8b9c0d1e2f.n2.canonical.txt
       version: n2:8b7ecfbbdc75e89d
-  # n2 (#166, #688): `version=` parameters of inline references removed in the text, in an HTML comment and in an
-  # acceptance criterion (alone, before and after `repository`, next to an empty parameter, in `<…>` with a
-  # title, with a fragment, with an escaped `&`); kept where no inline reference is (`Version=`, a bare
-  # `version`, `%3D`, an image, an upper-case UUID, code, a reference-style link); validity targets out of
-  # order with a duplicate.
+  # n2 (#166, #688): `version=` parameters of inline references removed in the text, in an HTML comment, in an
+  # unclosed one at the end and in an acceptance criterion (alone, before and after `repository`, next to an
+  # empty parameter and an empty `repository=` (kept), twice, in `<…>` with a title, with a fragment, with an
+  # escaped `&`, the inner of two nested links); kept where no inline reference is (`Version=`, a bare
+  # `version`, `%3D`, an image, an upper-case or non-v4 UUID, a short ID, code, a reference-style link, a label
+  # over two lines, the outer of two nested links); validity targets out of order, with a duplicate and the
+  # same UUID in another repository.
   - element: SR-00000000a2b2.md
     files: []
     missing: []
     canonical: SR-00000000a2b2.canonical.txt
-    version: n1:6e23009589d8cc43
+    version: n1:baa2e4dcf4d211aa
     n2:
       canonical: SR-00000000a2b2.n2.canonical.txt
-      version: n2:c78cfed77c0b4efa
+      version: n2:c8072066502ad01b
