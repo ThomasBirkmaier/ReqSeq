@@ -264,15 +264,29 @@ export const noteAccess = async (
 
 /**
  * Writes the noted accesses of one workspace: the first at once, then at most one per
- * `ACTIVITY_WRITE_MS` with the latest access, one write at a time. A failed write is dropped without
- * a word (core has no logger and writes nothing to stdout or stderr). The timer never keeps the
- * process alive; `flush` (on `workspace.close()`) writes the pending access.
+ * `ACTIVITY_WRITE_MS` with the latest access, one write at a time. A write that fails for a moment
+ * (`TRANSIENT_CODES`: a reader, a virus scanner or an indexer holds the file on Windows) stays pending
+ * and is tried again on the next tick, at most `ACTIVITY_WRITE_TRIES` times, unless a newer access took
+ * its place (#388); any other failed write is dropped without a word (core has no logger and writes
+ * nothing to stdout or stderr). The timer never keeps the process alive; `flush` (on
+ * `workspace.close()`) writes the pending access once.
  */
+/** The error codes of a write that may work a moment later (#388). */
+const TRANSIENT_CODES: ReadonlySet<string> = new Set(["EPERM", "EACCES", "EBUSY"]);
+
+/** How often one access is written at most when its write fails for a moment. */
+export const ACTIVITY_WRITE_TRIES = 5;
+
+const isTransient = (error: unknown): boolean =>
+  error instanceof Error && TRANSIENT_CODES.has(String((error as NodeJS.ErrnoException).code));
+
 class Recorder {
   /** New for each recorder, so that `(process, seq)` of a rebuilt one is new too. */
   readonly process = `${String(process.pid)}-${randomBytes(4).toString("hex")}`;
   #seq = 0;
   #pending: NotedAccess | undefined;
+  /** The tries of the pending access so far: 0 for a new one. */
+  #tries = 0;
   #timer: NodeJS.Timeout | undefined;
   #writing: Promise<void> | undefined;
   #lastWrite = Number.NEGATIVE_INFINITY;
@@ -292,6 +306,7 @@ class Recorder {
 
   #add(noted: NotedAccess): void {
     this.#pending = noted;
+    this.#tries = 0;
     this.#next();
   }
 
@@ -317,6 +332,7 @@ class Recorder {
   }
 
   #write(noted: NotedAccess): void {
+    const tries = this.#tries + 1;
     this.#pending = undefined;
     this.#lastWrite = Date.now();
     this.#seq += 1;
@@ -330,8 +346,14 @@ class Recorder {
     this.#writing = (async (): Promise<void> => {
       try {
         await writeCacheFile(noted.folder, ACTIVITY_FILE, `${JSON.stringify(file)}\n`);
-      } catch {
-        // The cache folder cannot be written (read-only, full, a file in its place): nothing is recorded.
+      } catch (error) {
+        // A moment's failure is tried again on the next tick, unless a newer access came meanwhile.
+        if (isTransient(error) && tries < ACTIVITY_WRITE_TRIES && this.#pending === undefined) {
+          this.#pending = noted;
+          this.#tries = tries;
+        }
+        // Otherwise the cache folder cannot be written (read-only, full, a file in its place): nothing
+        // is recorded.
       } finally {
         this.#writing = undefined;
         this.#next();
@@ -614,8 +636,10 @@ class ActivityWatcher implements ActivityWatch {
    * watcher does that when it watches its repositories anew after a layout change, and tells it with
    * this batch; a change of an element, which an agent's change writes just before the access, gives
    * one as well. This narrows the gap but does not close it: Node does not tell when the stream runs
-   * again, so an access written after this read and before then waits for the next batch or access.
-   * It is no polling: nothing is read without a batch.
+   * again, so an access written after this read and before then waits for the next batch or access,
+   * and so does one when a restart gives no batch (this watch's own cache-folder watch, another
+   * workspace opening or closing) or a read-only access, which writes no element file (#388). It is no
+   * polling: nothing is read without a batch.
    */
   async #recheck(): Promise<void> {
     await this.#read();
