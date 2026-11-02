@@ -683,20 +683,17 @@ const cellItem = (relation: unknown): string => {
     return "";
   }
   const shortId = text(relation["shortId"]);
+  const state = text(relation["targetState"]);
   return join(
     shortId === "" ? text(relation["id"]) : withIdentifier(shortId, relation["identifier"]),
+    state === "" || state === "available" ? "" : `[${state}]`,
     relation["outdated"] === true ? "[outdated]" : "",
   );
 };
 
-/**
- * A matrix (#629): the columns numbered, with count and share; then per row its element line and one
- * line of cells, `n: SHORT-ID, SHORT-ID` per column, `–` for an empty cell, and its test cases when the
- * row has them (SR-126).
- */
-const matrixLines = (output: Rec, names: Names): string[] => {
+/** The columns of a matrix (#629), numbered, with count and share. */
+const matrixColumnLines = (output: Rec): string[] => {
   const columns = listOf(output["columns"]).filter(isRecord);
-  const rows = listOf(output["rows"]).filter(isElement);
   const lines = columns.length === 0 ? ["columns: none"] : ["columns:"];
   for (const [index, column] of columns.entries()) {
     const share = column["share"];
@@ -710,10 +707,20 @@ const matrixLines = (output: Rec, names: Names): string[] => {
       )}`,
     );
   }
+  return lines;
+};
+
+/**
+ * The rows of a matrix (#629): per row its element line and one line of cells, `n: SHORT-ID, ...` per
+ * column, `–` for an empty cell, the target state when it is not available, and its test cases when
+ * the row has them (SR-126).
+ */
+const matrixRowLines = (output: Rec, names: Names): string[] => {
+  const rows = listOf(output["rows"]).filter(isElement);
   if (rows.length === 0) {
-    return [...lines, "rows: none"];
+    return ["rows: none"];
   }
-  lines.push("rows:");
+  const lines = ["rows:"];
   const name = namerOf(rows);
   const view = viewNamerOf(rows, names);
   for (const row of rows) {
@@ -734,7 +741,10 @@ const matrixLines = (output: Rec, names: Names): string[] => {
                 .join(", ")
         }`
       : "";
-    lines.push(`    ${join(...cells, testText)}`);
+    const cellLine = join(...cells, testText);
+    if (cellLine !== "") {
+      lines.push(`    ${cellLine}`);
+    }
   }
   return lines;
 };
@@ -773,8 +783,14 @@ export function renderHuman(output: unknown, details = true): string {
     ? new Set(["root", "nodes", "edges", "gaps", "evidence", "unresolved"])
     : new Set<string>();
   if (isMatrix(rest)) {
-    lines.push(...matrixLines(rest, namesIn(rest)));
+    // The evidence header (the degree, SR-126 AK4) stands above the rows that hold the status.
+    lines.push(...matrixColumnLines(rest));
+    if (rest["evidence"] !== undefined) {
+      lines.push(...valueLines("evidence", rest["evidence"], details, lifted, namesIn(rest)));
+    }
+    lines.push(...matrixRowLines(rest, namesIn(rest)));
     shown.add("columns");
+    shown.add("evidence");
     shown.add("rows");
   }
   const tree = rest["tree"];

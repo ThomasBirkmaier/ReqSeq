@@ -1024,7 +1024,7 @@ describe("renderHuman: a matrix (#629)", () => {
             [
               [
                 { shortId: "N-x", identifier: "N-001", outdated: true },
-                { id: "0000-uuid", shortId: "" },
+                { id: "0000-uuid", shortId: "", targetState: "missing" },
               ],
               [],
             ],
@@ -1043,7 +1043,7 @@ describe("renderHuman: a matrix (#629)", () => {
         "  2:  Derived by  (derives-from, in)  0  0 %",
         "rows:",
         "    SR-a  draft  Title SR-a",
-        "    1: N-x (N-001)  [outdated], 0000-uuid  2: –  tests: –",
+        "    1: N-x (N-001)  [outdated], 0000-uuid  [missing]  2: –  tests: –",
         "  SR-b  draft  Title SR-b",
         "    1: –  2: –  tests: test_b",
         "total: 2",
