@@ -1,0 +1,63 @@
+{
+  "name": "evidence.status",
+  "title": "Show evidence status",
+  "summary": "Verification status of a selection per view, from the evidence records (SR-031) and, without own record, from the children with the children that are missing (SR-034); validation status from the validation records (SR-038).",
+  "effect": "read",
+  "stage": 4,
+  "implements": ["SR-031", "SR-034", "SR-035", "SR-038", "SR-047", "SR-093"],
+  "arguments": [
+    { "field": "selection", "complete": "selection" },
+    { "field": "limit", "complete": "number" },
+    { "field": "offset", "complete": "number" }
+  ],
+  "input": {
+    "type": "object",
+    "properties": {
+      "selection": {
+        "$ref": "../common.schema.json#/$defs/selection"
+      },
+      "limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 5000,
+        "default": 200
+      },
+      "offset": {
+        "type": "integer",
+        "minimum": 0,
+        "default": 0
+      }
+    },
+    "additionalProperties": false
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "elements": {
+        "type": "array",
+        "description": "One page of the selection in workspace order, each element as element.list gives it, with `verification` for every element whose type has the meaning `requirement`: its verification status (SR-031, ADR-0012 \"Status rules\") in each view it is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it (SR-043, SR-047 AK3), and for a requirement without own verification record in a view its indirect verification from its children (`indirect`) or the children that are missing (`missingChildren`, SR-034); an element marked emergent (SR-035) is never `indirect`; and `validation`, the validation status (SR-038, `$defs/element` `validation`: every need, any other element with a validation record). Derived from the evidence records; it is not the element's `status` and never changes it (D-030). While the metamodel is not valid the records are not compared: every requirement is `open`, every need `open`, and no other element has `validation`.",
+        "items": {
+          "$ref": "../data-export.schema.json#/$defs/element"
+        }
+      },
+      "total": {
+        "type": "integer",
+        "minimum": 0,
+        "description": "Every element of the selection, not only the page."
+      },
+      "incomplete": {
+        "$ref": "../common.schema.json#/$defs/incomplete",
+        "description": "A repository of the workspace is not available here (SR-006 AK2): its elements, and the records of its evidence locations, are missing."
+      },
+      "names": {
+        "type": "array",
+        "description": "The elements that `verification` names by UUID only, each once in the order first named: the variants of its views and the missing children (`missingChildren`), so a reader names them by short ID, identifier and title (#588). Left out when it names none.",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/elementName"
+        }
+      }
+    },
+    "additionalProperties": false,
+    "required": ["elements", "total"]
+  }
+}

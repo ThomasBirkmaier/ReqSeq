@@ -1,0 +1,104 @@
+{
+  "name": "element.list",
+  "title": "List all elements",
+  "summary": "Elements of a selection, sorted; optionally as derivation tree.",
+  "effect": "read",
+  "stage": 3,
+  "implements": ["SR-035", "SR-043", "SR-048", "SR-069", "SR-070", "SR-075", "SR-101"],
+  "arguments": [
+    { "field": "selection", "complete": "selection" },
+    { "field": "sort", "complete": "json" },
+    { "field": "withText", "complete": "boolean" },
+    { "field": "limit", "complete": "number" },
+    { "field": "offset", "complete": "number" }
+  ],
+  "input": {
+    "type": "object",
+    "properties": {
+      "selection": {
+        "$ref": "../common.schema.json#/$defs/selection",
+        "description": "Every part given must hold (SR-101 AK2)."
+      },
+      "sort": {
+        "type": "array",
+        "description": "Keys in order: ties go to the next key, then to the workspace order (also without sort). `hierarchy` only first: the list is then the derivation tree, see `tree`. Without sort, the sort of the saved filter in `selection.filter`.",
+        "items": {
+          "$ref": "../filter.schema.json#/$defs/sortKey"
+        }
+      },
+      "withText": {
+        "type": "boolean",
+        "description": "Also give the text of each element. Left out for an element without a version, and when its file changed while the list was built (list again)."
+      },
+      "limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 5000,
+        "default": 200
+      },
+      "offset": {
+        "type": "integer",
+        "minimum": 0,
+        "default": 0
+      }
+    },
+    "additionalProperties": false
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "elements": {
+        "type": "array",
+        "items": {
+          "$ref": "../data-export.schema.json#/$defs/element"
+        }
+      },
+      "tree": {
+        "type": "array",
+        "description": "Only when `sort` starts with `hierarchy` (SR-075 AK2): the place in the derivation tree of each element of `elements`, in the same order. The list is the tree depth first: each root, then the elements below it. Each element of the selection appears once (spec-frage #354): below the parent of the list that reaches it at the shortest depth, the first in sort order among equals; an element without a parent in the list is a root, and so is the first element in sort order of a cycle that no root reaches. Its other parents are in its `relations`.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "$ref": "../common.schema.json#/$defs/uuid"
+            },
+            "repository": {
+              "type": "string",
+              "description": "Workspace name of the repository of the element."
+            },
+            "depth": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "0 for a root, 1 for an element below it, and so on."
+            },
+            "parent": {
+              "type": "object",
+              "description": "The element it is shown below, a parent of it by a derivation; left out for a root. It may lie on an earlier page.",
+              "properties": {
+                "id": {
+                  "$ref": "../common.schema.json#/$defs/uuid"
+                },
+                "repository": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false,
+              "required": ["id", "repository"]
+            }
+          },
+          "additionalProperties": false,
+          "required": ["id", "repository", "depth"]
+        }
+      },
+      "total": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "incomplete": {
+        "$ref": "../common.schema.json#/$defs/incomplete"
+      }
+    },
+    "additionalProperties": false,
+    "required": ["elements", "total"]
+  }
+}

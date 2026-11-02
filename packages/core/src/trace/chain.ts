@@ -129,12 +129,20 @@ export const within = <E extends { readonly source: ElementRecord }>(
   expansion: Expansion<E>,
   includes: (element: ElementRecord) => boolean,
   down: boolean,
-): Expansion<E> => ({
-  steps: expansion.steps.filter((step) => includes(step.to)),
+): Expansion<E> => {
+  const steps = kept(expansion.steps, (step) => includes(step.to));
   // Downwards the other end of an unresolved relation is the child that stores it.
-  unresolved: down ? expansion.unresolved.filter((u) => includes(u.link.source)) : expansion.unresolved,
-  incomplete: expansion.incomplete,
-});
+  const unresolved = down ? kept(expansion.unresolved, (u) => includes(u.link.source)) : expansion.unresolved;
+  return steps === expansion.steps && unresolved === expansion.unresolved
+    ? expansion
+    : { steps, unresolved, incomplete: expansion.incomplete };
+};
+
+/** `items` itself while `keep` holds for each, else the items it holds for (no copy per step, #463). */
+const kept = <T>(items: readonly T[], keep: (item: T) => boolean): readonly T[] => {
+  const out = items.findIndex((item) => !keep(item));
+  return out < 0 ? items : [...items.slice(0, out), ...items.slice(out + 1).filter(keep)];
+};
 
 /** The keys of the effective types with `meaning`. */
 const typeKeys = (metamodel: Metamodel, meaning: GapMeaning): ReadonlySet<string> =>

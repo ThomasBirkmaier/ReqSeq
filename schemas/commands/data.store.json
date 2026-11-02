@@ -1,0 +1,48 @@
+{
+  "name": "data.store",
+  "title": "Store data",
+  "summary": "Write the data of the current state (as data export gives it) as JSON Lines, one element per line, to `<commit>.jsonl` in a folder; `-dirty` with uncommitted ReqSeq files, replaces the file of the same commit; an old `<commit>.json` stays as it is. Many such files load as one table, grouped by `commit` and `dirty`. One folder per selection: the name is the same for every selection. Takes `selection.baseline` as `data export` does.",
+  "effect": "write-files",
+  "whileReadOnly": "refuse",
+  "whileReadOnlyReason": "Stores the data of the current state with the versions of its elements, which depend on the metamodel (which properties count).",
+  "stage": 4,
+  "implements": ["SR-062"],
+  "arguments": [
+    { "field": "folder", "complete": "text" },
+    { "field": "selection", "complete": "selection" }
+  ],
+  "input": {
+    "type": "object",
+    "properties": {
+      "folder": {
+        "$ref": "../common.schema.json#/$defs/localPath",
+        "description": "Folder for the file; created when missing inside a repository of the workspace (also an ignored one), must exist outside."
+      },
+      "selection": {
+        "$ref": "../common.schema.json#/$defs/selection"
+      }
+    },
+    "additionalProperties": false,
+    "required": ["folder"]
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "files": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "description": "Written file: relative to the workspace root when it lies in a repository of the workspace, else absolute."
+        }
+      },
+      "problems": {
+        "type": "array",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/problem"
+        }
+      }
+    },
+    "additionalProperties": false,
+    "required": ["files"]
+  }
+}

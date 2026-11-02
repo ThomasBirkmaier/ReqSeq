@@ -1,0 +1,58 @@
+{
+  "name": "variant.exclude",
+  "title": "Exclude requirements from variant",
+  "summary": "Exclude core requirements for a variant; written into the variant file only.",
+  "effect": "write-files",
+  "whileReadOnly": "refuse",
+  "whileReadOnlyReason": "Writes a variant file, and no change can be checked against a missing or faulty metamodel.",
+  "stage": 5,
+  "implements": ["SR-042"],
+  "arguments": [
+    { "field": "variant", "complete": "element" },
+    { "field": "refs", "complete": "element" },
+    { "field": "undo", "complete": "boolean" }
+  ],
+  "input": {
+    "type": "object",
+    "properties": {
+      "variant": {
+        "$ref": "../common.schema.json#/$defs/elementRef",
+        "description": "The variant. An element whose type has no meaning `variant` is `input.invalid` with `details.reason: \"not-a-variant\"`; an unknown or ambiguous reference is `ref.unknown` or `ref.ambiguous`."
+      },
+      "refs": {
+        "type": "array",
+        "description": "The core requirements to exclude, or with `undo` whose exclusion to remove. Adding an exclusion of a requirement with a validity, a need or a package is refused (SR-042 AK4): `input.invalid` with `details.reason: \"not-core\"` and `details.refs` (the refused refs); nothing is written. With `undo` every exclusion entry that is there is removed, also one of no core requirement (SR-042 AK7).",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/elementRef"
+        }
+      },
+      "undo": {
+        "type": "boolean",
+        "default": false,
+        "description": "Remove the exclusions of `refs` instead. An exclusion that is not there is an `info` problem `relation.not-found` in `problems`, as relation.remove gives it; the other refs are undone."
+      }
+    },
+    "additionalProperties": false,
+    "required": ["variant", "refs"]
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "files": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "description": "Written file, relative to the workspace root."
+        }
+      },
+      "problems": {
+        "type": "array",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/problem"
+        }
+      }
+    },
+    "additionalProperties": false,
+    "required": ["files"]
+  }
+}

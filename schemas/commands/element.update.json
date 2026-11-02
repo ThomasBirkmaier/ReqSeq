@@ -1,0 +1,128 @@
+{
+  "name": "element.update",
+  "title": "Update element",
+  "summary": "Change title, text or properties of one element. Unknown properties are kept; status changes only via element.setStatus, and the origin of an imported element only via reqif.import (SR-057).",
+  "effect": "write-files",
+  "whileReadOnly": "refuse",
+  "whileReadOnlyReason": "Changes an element file, and no change can be checked against a missing or faulty metamodel.",
+  "stage": 1,
+  "implements": [
+    "SR-001",
+    "SR-016",
+    "SR-021",
+    "SR-024",
+    "SR-035",
+    "SR-039",
+    "SR-040",
+    "SR-049",
+    "SR-057",
+    "SR-064",
+    "SR-065",
+    "SR-087",
+    "SR-102",
+    "SR-106"
+  ],
+  "arguments": [
+    { "field": "ref", "complete": "element" },
+    { "field": "title", "complete": "text" },
+    { "field": "text", "complete": "text" },
+    { "field": "set", "complete": "json" },
+    { "field": "unset", "complete": "property", "of": "ref" },
+    { "field": "addRelations", "complete": "json" },
+    { "field": "removeRelations", "complete": "json" },
+    { "field": "repository", "complete": "repository" },
+    { "field": "expectedFileSha256", "complete": "text" }
+  ],
+  "input": {
+    "type": "object",
+    "properties": {
+      "ref": {
+        "$ref": "../common.schema.json#/$defs/elementRef"
+      },
+      "title": {
+        "type": "string"
+      },
+      "text": {
+        "type": "string",
+        "contentMediaType": "text/markdown",
+        "description": "New Markdown text of the element; the blank line after the closing `---` is not part of the text, so the text element.get gives can be passed back unchanged. A changed text gets a final line break (ADR-0004). Another element is named by a Markdown link, `[Title](reqseq:N-6010df)` with its UUID, short ID or identifier, which is written as UUID and version; `reqseq:N-6010df` alone is no link and counts for nothing."
+      },
+      "set": {
+        "type": "object",
+        "additionalProperties": {
+          "$ref": "../element.schema.json#/$defs/inputValue"
+        },
+        "propertyNames": {
+          "not": {
+            "enum": ["id", "type", "status"]
+          }
+        }
+      },
+      "unset": {
+        "type": "array",
+        "items": {
+          "allOf": [
+            {
+              "$ref": "../common.schema.json#/$defs/key"
+            },
+            {
+              "not": {
+                "enum": ["id", "type", "status"]
+              }
+            }
+          ]
+        }
+      },
+      "addRelations": {
+        "$ref": "../common.schema.json#/$defs/relationRefs",
+        "description": "Relations to add by kind, as relation.add adds them, in the same file write (#175). A relation the element has with a valid version is kept."
+      },
+      "removeRelations": {
+        "$ref": "../common.schema.json#/$defs/relationRefs",
+        "description": "Relations to remove by kind, as relation.remove removes them (a UUID as given), in the same file write (#175). Nothing to remove is an info problem relation.not-found."
+      },
+      "repository": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it (for example one copy of a file whose UUID another file shares, SR-088; #255). Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates."
+      },
+      "expectedFileSha256": {
+        "$ref": "../common.schema.json#/$defs/fileSha256",
+        "description": "Write precondition (SR-106): the fileSha256 the change was made on. If the file has other bytes now, nothing is written: file.changed-on-disk, also when nothing would change."
+      }
+    },
+    "additionalProperties": false,
+    "required": ["ref"]
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "element": {
+        "$ref": "../data-export.schema.json#/$defs/element"
+      },
+      "fileSha256": {
+        "$ref": "../common.schema.json#/$defs/fileSha256",
+        "description": "Of the file as written, or as read when nothing changed (SR-106)."
+      },
+      "files": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "affected": {
+        "type": "integer",
+        "minimum": 0,
+        "description": "The number of directly affected elements (SR-024 AK2): the distinct elements other than this one whose files hold a relation or an inline reference to it, the elements at distance 1 of `trace.affected`. Counted only when the save changed the version (the content, D-013); 0 when only the title or properties that do not count to the version changed, or nothing changed (SR-024 AK3). For an element without a version (a value that counts has no normal form, ADR-0005) what the version is computed from is compared, so a save of only its title or status also gives 0 (#276)."
+      },
+      "problems": {
+        "type": "array",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/problem"
+        }
+      }
+    },
+    "additionalProperties": false,
+    "required": ["element", "fileSha256", "files", "affected"]
+  }
+}

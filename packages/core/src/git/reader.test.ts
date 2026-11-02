@@ -12,6 +12,7 @@ import * as reader from "./reader.js";
 import type { ObjectInfos, ObjectReader } from "./reader.js";
 import {
   changedPaths,
+  commitBlobs,
   fileHistory,
   fileMoves,
   headCommit,
@@ -84,7 +85,12 @@ const fakeChild = (run: FakeProcess): EventEmitter => {
     });
     return child;
   }
-  stdin.once("data", () => {
+  let started = false;
+  const start = (): void => {
+    if (started) {
+      return;
+    }
+    started = true;
     // The reader may stop it after any piece it read.
     for (const chunk of run.output ?? []) {
       if (!closed) {
@@ -97,7 +103,10 @@ const fakeChild = (run: FakeProcess): EventEmitter => {
     if (run.code !== undefined) {
       close(run.code);
     }
-  });
+  };
+  // A process starts on its first input, or, for one that gets none, when its input ends.
+  stdin.once("data", start);
+  stdin.once("finish", start);
   return child;
 };
 
@@ -179,6 +188,7 @@ describe("git reader", () => {
   it("exports only typed functions and checks, no way to run another subcommand or argument", () => {
     expect(Object.keys(reader).sort()).toEqual([
       "changedPaths",
+      "commitBlobs",
       "fileHistory",
       "fileMoves",
       "headCommit",
@@ -1368,5 +1378,150 @@ describe("a repository folder below the top level of its work tree (#377)", () =
     await ws.write("docs/untracked.md", "new\n");
     const since = await changedPaths(folder, commitOf(made, "first"));
     expect(since.known ? [...since.paths].sort() : since).toEqual(["a.md", "deep/new.md"]);
+  });
+
+  it("lists the blobs of a commit below the folder, relative to it (#439)", async () => {
+    const { ws, folder, made } = await nested();
+    const head = commitOf(made, "outside");
+    const blob = async (file: string): Promise<string> =>
+      (await ws.git(["rev-parse", `${head}:${file}`])).trim();
+    const listed = await commitBlobs(folder, head, ["a.md", "deep/b.md", "top.md", "docs/spec/a.md", "deep"]);
+    expect(listed).toEqual({
+      known: true,
+      ids: new Map([
+        ["a.md", await blob("docs/spec/a.md")],
+        ["deep/b.md", await blob("docs/spec/deep/b.md")],
+      ]),
+    });
+    // No `--full-tree`: git lists only the folder, so a path outside it is never there.
+    expect(mock.calls.map((c) => [c.args.slice(FIXED.length), c.options.cwd])).toEqual([
+      [["ls-tree", "-r", "-z", head], folder],
+    ]);
+  });
+});
+
+describe("blobs of a commit (#439)", () => {
+  /** `repo` with `a.md`, then `b.md`, `sub/c.md` and a name git would quote without `-z`. */
+  const tree = async (): Promise<{ ws: FixtureWorkspace; folder: string; first: string; second: string }> => {
+    const ws = await fixture(["repo"]);
+    const first = await ws.head("repo");
+    await ws.write("repo/b.md", "b\n");
+    await ws.write("repo/sub/c.md", "c\n");
+    await ws.write("repo/ä b.md", "odd\n");
+    const second = await ws.commit("repo");
+    mock.calls.length = 0;
+    return { ws, folder: ws.path("repo"), first, second };
+  };
+  const blob = async (ws: FixtureWorkspace, name: string): Promise<string> =>
+    (await ws.git(["rev-parse", name], "repo")).trim();
+
+  it("keeps only the asked paths that are blobs in that commit, from one listing", async () => {
+    const { ws, folder, first, second } = await tree();
+    const asked = ["a.md", "b.md", "sub/c.md", "sub", "ä b.md", "gone.md"];
+    expect(await commitBlobs(folder, second, asked)).toEqual({
+      known: true,
+      ids: new Map([
+        ["a.md", await blob(ws, `${second}:a.md`)],
+        ["b.md", await blob(ws, `${second}:b.md`)],
+        ["sub/c.md", await blob(ws, `${second}:sub/c.md`)],
+        ["ä b.md", await blob(ws, `${second}:ä b.md`)],
+      ]),
+    });
+    // An earlier commit has only its own files.
+    expect(await commitBlobs(folder, first, asked)).toEqual({
+      known: true,
+      ids: new Map([["a.md", await blob(ws, `${first}:a.md`)]]),
+    });
+    // Nothing asked: no git.
+    expect(await commitBlobs(folder, second, [])).toEqual({ known: true, ids: new Map() });
+    expect(mock.calls.map((c) => c.args)).toEqual([
+      [...FIXED, "ls-tree", "-r", "-z", second],
+      [...FIXED, "ls-tree", "-r", "-z", first],
+    ]);
+  });
+
+  it("refuses anything but a commit ID before it starts git", async () => {
+    const { folder } = await tree();
+    for (const name of ["HEAD", "--output=x", "a".repeat(39), `${"a".repeat(40)} b`]) {
+      await expect(commitBlobs(folder, name, ["a.md"])).rejects.toThrow(/needs a commit ID/);
+    }
+    expect(mock.calls).toEqual([]);
+  });
+
+  it("is unknown when git fails, is missing, does not answer in time or is stopped", async () => {
+    const { folder, second } = await tree();
+    // A submodule entry and a tree are no blobs; an entry may come in pieces.
+    const id = "b".repeat(40);
+    mock.process = () => ({
+      output: [
+        `160000 commit ${"c".repeat(40)}\tmodule\u0000040000 tree ${"d".repeat(40)}\tsub\u0000100644 bl`,
+        `ob ${id}\ta.md\0`,
+      ],
+      code: 0,
+    });
+    expect(await commitBlobs(folder, second, ["a.md", "module", "sub"])).toEqual({
+      known: true,
+      ids: new Map([["a.md", id]]),
+    });
+    mock.process = () => ({ errors: "fatal: not a git repository", code: 128 });
+    expect(await commitBlobs(folder, second, ["a.md"])).toEqual({
+      known: false,
+      reason: "not-a-repository",
+      detail: "fatal: not a git repository",
+    });
+    mock.process = () => ({ errors: "fatal: detected dubious ownership", code: 128 });
+    expect(await commitBlobs(folder, second, ["a.md"])).toMatchObject({ known: false, reason: "refused" });
+    mock.process = () => ({ code: 1 });
+    expect(await commitBlobs(folder, second, ["a.md"])).toEqual({
+      known: false,
+      reason: "not-a-repository",
+      detail: "git ls-tree ended (1)",
+    });
+    mock.process = () => ({ error: execError("spawn git ENOENT", { code: "ENOENT" }) });
+    expect(await commitBlobs(folder, second, ["a.md"])).toMatchObject({ known: false, reason: "no-git" });
+    // Another start failure is no timeout.
+    mock.process = () => ({ error: execError("spawn git EACCES", { code: "EACCES" }) });
+    expect(await commitBlobs(folder, second, ["a.md"])).toEqual({
+      known: false,
+      reason: "not-a-repository",
+      detail: "spawn git EACCES",
+    });
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    mock.process = () => ({});
+    const pending = commitBlobs(folder, second, ["a.md"]);
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(await pending).toEqual({
+      known: false,
+      reason: "timeout",
+      detail: "git ls-tree did not answer in time",
+    });
+    vi.useRealTimers();
+    mock.process = undefined;
+    expect(await commitBlobs(folder, second, ["a.md"], { signal: AbortSignal.abort() })).toMatchObject({
+      known: false,
+      reason: "timeout",
+    });
+    // A commit the repository does not have.
+    expect(await commitBlobs(folder, "0".repeat(40), ["a.md"])).toMatchObject({
+      known: false,
+      reason: "not-a-repository",
+    });
+  });
+
+  it("writes nothing into the Git folder", async () => {
+    const { ws, folder, second } = await tree();
+    const files = async (): Promise<Record<string, number>> => {
+      const out: Record<string, number> = {};
+      for (const entry of await fs.readdir(ws.path("repo/.git"), { recursive: true, withFileTypes: true })) {
+        if (entry.isFile()) {
+          const file = path.join(entry.parentPath, entry.name);
+          out[file] = (await fs.stat(file)).mtimeMs;
+        }
+      }
+      return out;
+    };
+    const before = await files();
+    expect(await commitBlobs(folder, second, ["a.md"])).toMatchObject({ known: true });
+    expect(await files()).toEqual(before);
   });
 });

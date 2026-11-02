@@ -14,7 +14,7 @@ ReqSeq is an offline requirements tool (core, CLI, API, MCP server, Electron app
 - ReqSeq reads Git and never writes to it (D-036).
 - ReqSeq never deletes elements. It supersedes them (D-045).
 - Status values are set only by people, never computed by the tool.
-- Every function is available in the app, CLI, API and MCP, with the same result (D-029, SR-080). New functions start in `schemas/commands/catalog.json`, with one implementation in `packages/core/src/commands/`. No logic goes into `cli`, `api`, `mcp` or `app` (ADR-0002).
+- Every function is available in the app, CLI, API and MCP, with the same result (D-029, SR-080). New functions start in `schemas/commands/<name>.json`, listed in `catalog.header.json`, with one implementation in `packages/core/src/commands/`. No logic goes into `cli`, `api`, `mcp` or `app` (ADR-0002).
 - Performance target: 50,000 requirements (N-036).
 
 ## Repository text
@@ -40,7 +40,6 @@ Strict typecheck, lint with zero warnings, format, and unit test coverage of 100
 - GitHub has no GraphQL from cloud sessions, so `gh issue ...` and `gh pr ...` fail with 403. Use the GitHub MCP tools or `gh api repos/ThomasBirkmaier/ReqSeq/...` (REST). Sub-issues: `POST /repos/{owner}/{repo}/issues/{n}/sub_issues`.
 - Do not read `schemas/generated/` or `packages/core/src/generated/` unless you debug the generator. Regenerate them with `pnpm contracts:generate`. Merge `main` into a branch (only on a conflict, `merge.md`) with `pnpm merge:main`, which regenerates conflicting generated files.
 - In `packages/core` and `packages/app`, read the README and only the parts under their `docs/` you work on; ADR-0008 and ADR-0010 are split the same way under `docs/adr/0008/` and `docs/adr/0010/`.
-- Squash merges have duplicated scenario blocks in `packages/cli/test/cross-access.test.ts` (TS1117). Check it after merging `main`.
 - The GitHub project "ReqSeq" is filled from the labels by `project-sync`. Change labels, never project fields.
 - Keep code platform-neutral (paths via `node:path`, CRLF-safe), because drafts run on Linux only, macOS and Windows run alongside Ubuntu once a PR is ready, and main is checked on all three at night.
 

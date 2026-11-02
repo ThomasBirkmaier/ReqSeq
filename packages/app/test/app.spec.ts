@@ -13,10 +13,12 @@ declare global {
   }
 }
 
-/** The command catalog (ADR-0002). */
-const CATALOG = JSON.parse(
-  fs.readFileSync(new URL("../../../schemas/commands/catalog.json", import.meta.url), "utf8"),
-) as { readonly commands: readonly { readonly name: string }[] };
+/** The command names in catalog order (ADR-0002). */
+const CATALOG_ORDER = (
+  JSON.parse(
+    fs.readFileSync(new URL("../../../schemas/commands/catalog.header.json", import.meta.url), "utf8"),
+  ) as { readonly order: readonly string[] }
+).order;
 
 /** A 1×1 PNG. */
 const PNG = Buffer.from(
@@ -97,7 +99,7 @@ test.describe("on a fixture workspace", () => {
     const names = await running.window.evaluate(async () =>
       (await window.reqseq.commands()).map((c) => c.name),
     );
-    expect(names).toEqual(CATALOG.commands.map((c) => c.name));
+    expect(names).toEqual(CATALOG_ORDER);
     expect(names.filter((name) => /delete/i.test(name))).toEqual([]);
     const refused = await invoke(running, "element.delete", { ref: "SR-e88fb3" });
     expect(refused).toEqual({

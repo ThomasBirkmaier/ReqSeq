@@ -1,0 +1,57 @@
+{
+  "name": "element.supersede",
+  "title": "Supersede element",
+  "summary": "Supersede an element: set an invalid status of its type and optionally name a successor (relation with meaning succession, written into the successor's file). There is no delete (D-045).",
+  "effect": "write-files",
+  "whileReadOnly": "refuse",
+  "whileReadOnlyReason": "Sets an invalid status of the metamodel, and no change can be checked against a missing or faulty metamodel.",
+  "stage": 1,
+  "implements": ["SR-072", "SR-087", "SR-099"],
+  "arguments": [
+    { "field": "ref", "complete": "element" },
+    { "field": "status", "complete": "invalidStatus", "of": "ref" },
+    { "field": "successor", "complete": "element" },
+    { "field": "relation", "complete": "relationKind", "of": "successor" }
+  ],
+  "input": {
+    "type": "object",
+    "properties": {
+      "ref": {
+        "$ref": "../common.schema.json#/$defs/elementRef"
+      },
+      "status": {
+        "$ref": "../common.schema.json#/$defs/keyOrName",
+        "description": "Key or display name of a status of the metamodel, in any case; the key is written. It must be a status of the element's type that the metamodel marks invalid (#306)."
+      },
+      "successor": {
+        "$ref": "../common.schema.json#/$defs/elementRef"
+      },
+      "relation": {
+        "$ref": "../common.schema.json#/$defs/key",
+        "description": "Relation kind with meaning succession to write from the successor; needed only when more than one fits the types and the successor does not already have the relation under exactly one of them."
+      }
+    },
+    "additionalProperties": false,
+    "required": ["ref", "status"]
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "files": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "description": "Written file, relative to the workspace root."
+        }
+      },
+      "problems": {
+        "type": "array",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/problem"
+        }
+      }
+    },
+    "additionalProperties": false,
+    "required": ["files"]
+  }
+}
