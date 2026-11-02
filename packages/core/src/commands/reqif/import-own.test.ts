@@ -617,8 +617,8 @@ describe("reqif.import of a file of ReqSeq (SR-052)", () => {
 
   it("refuses a reqseq-values value of a shape no element file holds as reqif.invalid, writing nothing (#716)", async () => {
     const { file } = await exported(undefined);
-    // The readable topic removed, so the stored one is what the import would take.
-    const storedTopic = (json: string): ReturnType<typeof changed> =>
+    // The readable topic removed, so the stored value of `key` is what the import would take.
+    const stored = (key: string, json: string): ReturnType<typeof changed> =>
       changed(file, TEMPERATURE, (o) => ({
         ...o,
         values: o.values.flatMap((v) => {
@@ -629,18 +629,25 @@ describe("reqif.import of a file of ReqSeq (SR-052)", () => {
             return [v];
           }
           const data = JSON.parse(v.value) as Record<string, unknown>;
-          return [{ ...v, value: JSON.stringify({ ...data, topic: "@" }).replace('"@"', json) }];
+          return [{ ...v, value: JSON.stringify({ ...data, [key]: "@" }).replace('"@"', json) }];
         }),
       }));
     const nested = (depth: number): string => "[".repeat(depth) + "1" + "]".repeat(depth);
-    for (const json of [nested(2), nested(995), '[{"id":{"x":1}}]', '{"a":[1]}']) {
-      const hostile = storedTopic(json);
+    for (const [key, json] of [
+      ["topic", nested(2)],
+      ["topic", nested(995)],
+      ["topic", '[{"id":{"x":1}}]'],
+      ["topic", '{"a":[1]}'],
+      ["derives-from", '[{"id":"x","version":1e400}]'],
+      ["derives-from", '[[{"id":"x"}]]'],
+    ] as const) {
+      const hostile = stored(key, json);
       const roomy = { ...hostile, datatypes: hostile.datatypes.map((d) => ({ ...d, maxLength: "1000000" })) };
       const { fixture, workspace } = await target(rewritten(roomy), undefined);
       const error = await refusal(workspace, { file: "in/x.reqif", delivery: "1" });
       expect([error.code, error.message]).toEqual([
         "reqif.invalid",
-        `file: SPEC-OBJECT _${TEMPERATURE} holds a value of topic in reqseq-values that no element file can hold`,
+        `file: SPEC-OBJECT _${TEMPERATURE} holds a value of ${key} in reqseq-values that ReqSeq cannot write`,
       ]);
       await expect(fs.stat(fixture.path("reqif"))).rejects.toThrow();
     }

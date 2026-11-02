@@ -897,7 +897,9 @@ const tooDeep = (root: unknown): boolean => {
 };
 
 const isScalarShape = (value: unknown): boolean =>
-  value === null || ["string", "number", "boolean"].includes(typeof value);
+  value === null ||
+  ["string", "boolean"].includes(typeof value) ||
+  (typeof value === "number" && Number.isFinite(value));
 
 /** True for a scalar or a mapping of scalars (a relation target), the items an element file holds. */
 const isItemShape = (value: unknown): boolean =>
@@ -905,19 +907,14 @@ const isItemShape = (value: unknown): boolean =>
   (value instanceof Object && !Array.isArray(value) && Object.values(value).every(isScalarShape));
 
 /**
- * The first key of a property or relation kind `metamodel` knows whose value in `data` has a shape
- * no element file holds (`PropertyValue`: a scalar, a relation target or a list of those), so the
- * import cannot write it (#716).
+ * The first of `keys` whose value in `data` has a shape no element file holds (`PropertyValue`: a
+ * scalar, a relation target or a list of those, a number finite), so the import cannot write it (#716).
  */
-const misshapenKey = (metamodel: Metamodel, data: Readonly<Record<string, unknown>>): string | undefined =>
-  [...metamodel.properties, ...metamodel.relations]
-    .map((d) => d.key)
-    .find((key) => {
-      const value = data[key];
-      return (
-        value !== undefined && !isItemShape(value) && !(Array.isArray(value) && value.every(isItemShape))
-      );
-    });
+const misshapenKey = (keys: readonly string[], data: Readonly<Record<string, unknown>>): string | undefined =>
+  keys.find((key) => {
+    const value = data[key];
+    return value !== undefined && !isItemShape(value) && !(Array.isArray(value) && value.every(isItemShape));
+  });
 
 /** Values in a form two sets compare by, ordered by attribute. */
 const comparable = (values: readonly ReqifValue[]): string =>
@@ -970,13 +967,6 @@ const ownChannels = (
       object.line,
     );
   }
-  const misshapen = data === undefined ? undefined : misshapenKey(metamodel, data);
-  if (misshapen !== undefined) {
-    throw invalidFile(
-      `SPEC-OBJECT ${object.identifier} holds a value of ${misshapen} in reqseq-values that no element file can hold`,
-      object.line,
-    );
-  }
   const titleKey = titleKeyOrEmpty(metamodel);
   const attributes = ownAttributes(metamodel, key, findType(metamodel, ownType), titleKey);
   // Compared: the readable attributes this metamodel knows (one it does not know is not imported),
@@ -1015,6 +1005,21 @@ const ownChannels = (
       knownRelations(metamodel, context.ownRelationsOf.get(object.identifier)),
     );
   if (same) {
+    // The values the import takes from the channels (`planOwnValues`) must be ones it can write.
+    const origin = new Set<string>(Object.values(context.keys));
+    const taken = [
+      ...attributes.flatMap((a) =>
+        a.property === undefined || origin.has(a.property.key) ? [] : [a.property.key],
+      ),
+      ...metamodel.relations.map((r) => r.key),
+    ];
+    const misshapen = misshapenKey(taken, data);
+    if (misshapen !== undefined) {
+      throw invalidFile(
+        `SPEC-OBJECT ${object.identifier} holds a value of ${misshapen} in reqseq-values that ReqSeq cannot write`,
+        object.line,
+      );
+    }
     return { data, text, images };
   }
   if (data !== undefined) {
