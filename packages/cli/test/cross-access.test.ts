@@ -990,6 +990,25 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       expect: "error",
     },
     {
+      name: "an empty string of a required choice property is no value: saved, with the hint (#242)",
+      input: { type: "system-requirement", title: "Show gusts", properties: { "requirement-type": "" } },
+      tag: "[SR-064/AK2]",
+      expect: "output",
+      newElement: true,
+      check: (results) => {
+        const output = (results["core"]?.outcome as { output: Written }).output;
+        expect(output.problems.map((p) => [p.code, requiredKey(p.message)])).toEqual([
+          ["element.missing-required", "requirement-type"],
+          ["element.missing-required", "acceptance-criteria"],
+          ["trace.no-parent", undefined],
+        ]);
+        const file = "system-requirement/SR-<tail12>.md";
+        expect(results["core"]?.files[file]).toBe(
+          '---\nid: <id>\ntype: system-requirement\nstatus: draft\ntitle: Show gusts\nrequirement-type: ""\n---\n',
+        );
+      },
+    },
+    {
       name: "malformed input: readable messages, no regular expression (#309)",
       input: { type: "System Requirement", title: 3 },
       expect: "error",
