@@ -1,13 +1,15 @@
-// Outdated evidence (SR-025 AK4, D-013): an element whose newest evidence record (Datensatz) belongs
-// to an older version than its current one. The records come from `evidenceRecordsState` of the
+// Outdated evidence (SR-025 AK4, D-013): an element whose evidence records (Datensätze) of one kind
+// and variant all belong to older versions than its current one. The records come from `evidenceRecordsState` of the
 // evidence block (ADR-0012): the Markdown records since SR-028 (#40), the JUnit records with SR-093
 // (#105). The check of AK4 is tested at core level with records given through it (decision on #127,
 // option 1) and end to end on record files (`packages/cli/test/e2e/evidence-records.test.ts`).
 //
-// - Per element, kind (verification, validation) and variant (none: the core, SR-047) the newest
-//   record by `date` decides (SR-025 AK4: "dessen neuester Datensatz zu einer älteren Fassung
-//   gehört"). When its version is not the current version of the element, the evidence is
-//   outdated. Of records with the same newest date, one for the current version counts.
+// - Per element, kind (verification, validation) and variant (none: the core, SR-047) the evidence
+//   is outdated when no record belongs to the current version of the element (SR-025 AK4: „dessen
+//   Datensätze nur zu älteren Fassungen gehören“); the hint names the newest record by `date`.
+//   A newer record of an older version next to one of the current version gives no hint, as the
+//   status (SR-031, evidence/status.ts) then follows the current one (#201, product owner decision,
+//   2026-10-29: the hint follows the status).
 // - Problem `evidence.outdated`, severity `warning` (as `relation.outdated`: SR-019 AK2 ends the
 //   check with exit code 1 for it), with the record's repository, file and line when it has them,
 //   `elementId` with the element's own repository and file (`elementRepository`, `elementFile`:
@@ -17,10 +19,6 @@
 // - Records of elements that are not in the store, or whose current version is unknown, are left
 //   out (an unknown element is `evidence.unknown-element` of `evidence/match.ts`, SR-028 AK3).
 // - Order: by element in store order, then kind, then variant as the records give them.
-// - The verification status (SR-031, evidence/status.ts) takes the newest record of the current
-//   version instead, so a verified requirement can carry this hint (#43). Whether the hint follows
-//   the status is spec question #525 Q1; until it is answered this rule stays (ADR-0012 "Status
-//   rules").
 import type { Problem } from "../catalog.js";
 import type { EvidenceRecord } from "../evidence/index.js";
 import { evidenceIndexState, evidenceRecordsState, instantOf } from "../evidence/index.js";
@@ -45,35 +43,41 @@ export type EvidenceVersion = Pick<
   "kind" | "element" | "version" | "date" | "variant" | "repository" | "file" | "line"
 >;
 
-/** The newest record of each element, kind and variant (`date` compared as an instant), the current one on a tie. */
+/**
+ * The newest record (`date` compared as an instant) of each element, kind and variant that has no
+ * record of the element's current version (#201).
+ */
 const newestRecords = (
   records: readonly EvidenceVersion[],
   currentOf: (id: string) => string | undefined,
 ): Map<string, EvidenceVersion[]> => {
   const newest = new Map<string, EvidenceVersion>();
+  const settled = new Set<string>();
   for (const record of records) {
     const group = `${record.element}\n${record.kind}\n${record.variant ?? ""}`;
+    if (record.version === currentOf(record.element)) {
+      settled.add(group);
+    }
     const before = newest.get(group);
     const time = instantOf(record.date);
     const beforeTime = before === undefined ? Number.NEGATIVE_INFINITY : instantOf(before.date);
-    if (
-      before === undefined ||
-      time > beforeTime ||
-      (time === beforeTime && record.version === currentOf(record.element))
-    ) {
+    if (before === undefined || time > beforeTime) {
       newest.set(group, record);
     }
   }
   const byElement = new Map<string, EvidenceVersion[]>();
-  for (const record of newest.values()) {
+  for (const [group, record] of newest) {
+    if (settled.has(group)) {
+      continue;
+    }
     byElement.set(record.element, [...(byElement.get(record.element) ?? []), record]);
   }
   return byElement;
 };
 
 /**
- * The outdated evidence of `elements` (SR-025 AK4): for each element in the given order, each of
- * its newest records (per kind and variant) that belongs to an older version than `currentOf` gives.
+ * The outdated evidence of `elements` (SR-025 AK4): for each element in the given order, per kind
+ * and variant whose records all belong to older versions than `currentOf` gives, the newest record.
  */
 export const outdatedEvidenceFindings = (
   elements: readonly ElementRecord[],
@@ -158,8 +162,8 @@ export interface ElementEvidenceContext {
  * grouping cost about 0.17 s), until the index is carried over a new record (#698 PR D, #713).
  * `element` may be the element as its file holds it now; it is looked up in the store by
  * repository and file. Each problem keeps the line in its record file. For two copies of one UUID
- * (SR-088) a tie of dates is decided with the version of the copy shown, the state uses one copy's
- * version for both (known divergence, as before #698, #713).
+ * (SR-088) whether a record is current is told with the version of the copy shown, while the state
+ * uses one copy's version for both (known divergence, as before #698, #713).
  */
 export const elementEvidenceFindings = async (
   context: ElementEvidenceContext,

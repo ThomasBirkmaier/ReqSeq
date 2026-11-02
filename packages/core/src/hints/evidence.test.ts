@@ -60,9 +60,9 @@ const record = (
 ): EvidenceRecord => ({ kind: "verification", element, version, date, result: "passed", ...more });
 
 describe("outdated evidence (SR-025 AK4)", () => {
-  it("[SR-025/AK4] reports the evidence of a requirement whose newest record is for an older version", async () => {
+  it("[SR-025/AK4] reports the evidence of a requirement whose records all belong to older versions, naming the newest", async () => {
     const workspace = await withRecords([
-      record(A, A_VERSION, "2026-01-01T10:00:00Z"),
+      record(A, OLD, "2026-01-01T10:00:00Z"),
       record(A, OLD, "2026-01-02T10:00:00Z", { repository: "system", file: "evidence/results.xml", line: 7 }),
     ]);
     const out = await check(workspace);
@@ -86,6 +86,15 @@ describe("outdated evidence (SR-025 AK4)", () => {
         currentVersion: A_VERSION,
       },
     ]);
+  });
+
+  it("[SR-025/AK4] reports nothing when a record of the current version is older than one of an older version (#201)", async () => {
+    // The hint follows the status (product owner decision, 2026-10-29): verified by the current record.
+    const workspace = await withRecords([
+      record(A, A_VERSION, "2026-01-01T10:00:00Z"),
+      record(A, OLD, "2026-01-02T10:00:00Z"),
+    ]);
+    expect(await check(workspace)).toEqual({ ok: true, problems: [], checkedElements: 4 });
   });
 
   it("[SR-025/AK4] reports nothing when the newest record is for the current version", async () => {
@@ -324,12 +333,12 @@ describe("outdated evidence (SR-025 AK4)", () => {
       expect(asked).toEqual([A, N]);
     });
 
-    it("[SR-026/AK3] [SR-025/AK4] differs from the state for two copies of one UUID with a tie (known, as before #698)", async () => {
-      // Two copies of one need with different versions (SR-088), one record for each copy's version,
-      // equal dates. The state decides the tie of both copies with the version of the last copy in
-      // the store (`byId` of `outdatedEvidenceFindings`), so it reports the other copy; the hint of one
-      // element uses the version of the copy shown and reports neither. Grouping all records, as
-      // before #698, gave the same result; which version is current for a shared UUID is open (#713).
+    it("[SR-026/AK3] [SR-025/AK4] agrees with the state for two copies of one UUID and a record of one copy's version", async () => {
+      // Two copies of one need with different versions (SR-088) and one record of the first copy's
+      // version. The state takes the version of the last copy in the store (`byId` of
+      // `outdatedEvidenceFindings`) to tell whether any record is current, which none is, then checks
+      // each copy against its own version: only the second copy is reported. The hint of one element
+      // gives the same. Which version is current for a shared UUID is open (#713).
       const COPIED = "948a10f1-05c3-4212-bd19-00606ccf2661";
       const fixture = await createFixtureWorkspace({
         fixture: "SR-088/copied-file",
@@ -359,10 +368,7 @@ describe("outdated evidence (SR-025 AK4)", () => {
       await workspace.replace(
         evidenceRecordsState,
         workspace.get(evidenceRecordsState),
-        Promise.resolve([
-          record(COPIED, first ?? "", at, { file: "evidence/a.md", line: 1 }),
-          record(COPIED, second ?? "", at, { file: "evidence/b.md", line: 1 }),
-        ]),
+        Promise.resolve([record(COPIED, first ?? "", at, { file: "evidence/a.md", line: 1 })]),
       );
       const context = {
         workspace,
@@ -376,10 +382,10 @@ describe("outdated evidence (SR-025 AK4)", () => {
         alone.push(...(await elementEvidenceFindings(context, copy)).map((f) => f.problem));
       }
       const state = await workspace.get(outdatedEvidenceProblemsState);
-      expect(alone).toEqual([]);
-      expect(state.map((p) => [p.elementFile, p.storedVersion, p.currentVersion])).toEqual([
-        [copies[0]?.file, second, first],
-      ]);
+      const rows = (problems: readonly Problem[]): unknown[] =>
+        problems.map((p) => [p.elementFile, p.storedVersion, p.currentVersion]);
+      expect(rows(state)).toEqual([[copies[1]?.file, first, second]]);
+      expect(rows(alone)).toEqual(rows(state));
     });
   });
 });
