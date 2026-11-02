@@ -52,7 +52,7 @@ import type { SchemaViolation } from "../runtime/contracts.js";
 import { fileSchemaValidator, schemaViolations } from "../runtime/contracts.js";
 import { settledValue } from "../runtime/settled.js";
 import type { Workspace } from "../runtime/workspace.js";
-import { resolveView, viewRuleOf } from "../variants/index.js";
+import { resolveView } from "../variants/index.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
 import { locate, workspaceLayoutState } from "../workspace/index.js";
 import type { ViewContext } from "./in-variant.js";
@@ -411,7 +411,7 @@ interface Prepared {
 /**
  * The variant of rule 1: its UUID, undefined when none is given (the core); `input.invalid` for
  * `core`, which names no variant (#464), for a validation record (SR-038 AK4), and when the variant's
- * view (`viewRuleOf`, the rule the views use) leaves the element out: it does not apply there
+ * view (`outOfView`: the view rule, as the views decide it) leaves the element out: it does not apply there
  * (SR-040), or the variant excludes or replaces it (SR-047 AK4).
  * Every refusal of the view names the element and the variant by short ID (the app gives UUIDs) and
  * gives `details.variant`, the UUID of the variant.
@@ -438,8 +438,7 @@ const variantOf = (
       variant: view.variant.id,
     });
   }
-  // The view rule first (SR-043 AK10); `outOfView` only says why an element out of the view is out.
-  const out = viewRuleOf(context, view).includes(element) ? undefined : outOfView(context, element, view);
+  const out = outOfView(context, element, view);
   if (out === undefined) {
     return view.variant.id;
   }
