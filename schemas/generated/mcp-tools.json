@@ -2784,7 +2784,7 @@
     {
       "name": "workspace_init",
       "title": "Initialise workspace",
-      "description": "Create a workspace with the standard model in an existing folder.",
+      "description": "Create a workspace with the standard model in an existing folder. Adds `*.reqseq-tmp` (temp files of an interrupted write) to the folder's `.gitignore`.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,

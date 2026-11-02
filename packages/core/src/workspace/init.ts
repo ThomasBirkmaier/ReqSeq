@@ -5,7 +5,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { stringify } from "yaml";
 import { CommandError } from "../catalog.js";
-import { createFolder, writeFileAtomic } from "../files/index.js";
+import { createFolder, readFileSnapshot, writeFileAtomic } from "../files/index.js";
 import type { WorkspaceFile, WorkspaceLocation, WorkspaceRepository } from "../generated/types.js";
 import { describeViolations, fileSchemaValidator, schemaViolations } from "../runtime/contracts.js";
 import { WORKSPACE_FILE } from "./config.js";
@@ -138,11 +138,43 @@ export const createWorkspace = async (root: string, input: NewWorkspace): Promis
       kind: "yaml",
     });
     written.push(snapshot.path);
+    const ignore = await ignoreTempFiles(root);
+    if (ignore !== undefined) {
+      written.push(ignore);
+    }
   } catch (error) {
     throw withWritten(error, written);
   }
   return written;
 };
+
+/** The line of `.gitignore` that keeps ReqSeq's temp files out of Git (#271, `TEMP_FILE_PATTERN`). */
+export const TEMP_FILE_IGNORE = "*.reqseq-tmp";
+
+/**
+ * Adds `TEMP_FILE_IGNORE` to the `.gitignore` of `root` (product owner decision, 2026-11-02, #271):
+ * creates the file, or appends the line with the file's own line ending when no line is it. A
+ * `.gitignore` that cannot be read (a link, not a file) is left alone. Gives the path written, else
+ * undefined.
+ */
+const ignoreTempFiles = async (root: string): Promise<string | undefined> => {
+  const current = await readFileSnapshot(root, GITIGNORE);
+  if (current.kind === "problem") {
+    return current.missing
+      ? (await writeFileAtomic(root, GITIGNORE, `${TEMP_FILE_IGNORE}\n`, null, { kind: "copy" })).path
+      : undefined;
+  }
+  const text = Buffer.from(current.bytes).toString("utf8");
+  if (text.split(/\r?\n/).some((line) => line.trim() === TEMP_FILE_IGNORE)) {
+    return undefined;
+  }
+  const eol = text.includes("\r\n") ? "\r\n" : "\n";
+  const lead = text === "" || text.endsWith("\n") ? "" : eol;
+  const bytes = `${text}${lead}${TEMP_FILE_IGNORE}${eol}`;
+  return (await writeFileAtomic(root, GITIGNORE, bytes, current.snapshot, { kind: "copy" })).path;
+};
+
+const GITIGNORE = ".gitignore";
 
 /**
  * The failure of the workspace file write, naming the metamodel file that was written before it and
