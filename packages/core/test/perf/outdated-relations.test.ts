@@ -15,9 +15,17 @@
 // `[SR-020/AK1]` CLI test.
 import fs from "node:fs/promises";
 import type { GeneratedWorkspace, LargeFixtureWorkspace, VersionFunction } from "@reqseq/testkit";
-import { generateLargeWorkspace, measure, writeLargeWorkspace } from "@reqseq/testkit";
+import {
+  generateLargeWorkspace,
+  malformedNoParentHints,
+  measure,
+  noParentHints,
+  withoutNoParent,
+  withoutParent,
+  writeLargeWorkspace,
+} from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { CommandOutput, Problem } from "../../src/catalog.js";
+import type { CommandOutput } from "../../src/catalog.js";
 import { datedProblems, outdatedRelationsState } from "../../src/hints/index.js";
 import { currentVersions } from "../../src/model/current-versions.js";
 import { elementStoreState } from "../../src/model/store.js";
@@ -35,31 +43,6 @@ const OLD_VERSION: VersionFunction = () => "n1:0000000000000000";
 const FIRST_OPEN_MS = 1000;
 /** SR-082 AK3: an open after another one. */
 const OPEN_MS = 200;
-
-/**
- * The generated system requirements that got no derivation (no `derives-from` or `refines` key): each
- * is a `trace.no-parent` hint of workspace.check (SR-022 AK6). The generator gives no invalid status.
- */
-const withoutParent = (tree: GeneratedWorkspace): number => {
-  let count = 0;
-  for (const content of tree.files.values()) {
-    if (/^type: system-requirement$/m.test(content) && !/^(derives-from|refines):/m.test(content)) {
-      count += 1;
-    }
-  }
-  return count;
-};
-
-/** The `trace.no-parent` hints of `problems`, after checking that each is a warning about an element. */
-const noParentHints = (problems: readonly Problem[]): Problem[] => {
-  const hints = problems.filter((p) => p.code === "trace.no-parent");
-  expect(hints.filter((p) => p.severity !== "warning" || p.elementId === undefined)).toEqual([]);
-  return hints;
-};
-
-/** `problems` without the `trace.no-parent` hints. */
-const withoutNoParent = (problems: readonly Problem[]): Problem[] =>
-  problems.filter((p) => p.code !== "trace.no-parent");
 
 /** How often the files of `tree` store a version of one of `ids`: relation items and inline references. */
 const storedTargets = (tree: GeneratedWorkspace, ids: ReadonlySet<string>): number => {
@@ -120,8 +103,9 @@ describe("outdated relations in workspace.check with 50,000 elements and 200,000
     expect(out.ok).toBe(true);
     const expected = storedTargets(tree, changed);
     expect(expected).toBeGreaterThan(changed.size);
-    const orphans = withoutParent(tree);
+    const orphans = withoutParent(tree.files);
     expect(orphans).toBeGreaterThan(0);
+    expect(malformedNoParentHints(out.problems)).toEqual([]);
     expect(noParentHints(out.problems)).toHaveLength(orphans);
     const outdated = withoutNoParent(out.problems);
     expect(outdated.filter((p) => p.code !== "relation.outdated")).toEqual([]);
@@ -155,8 +139,9 @@ describe("outdated relations in workspace.check with 50,000 elements and 200,000
       async () => (await invoke("hint.list", { type: [type] }, { workspace })) as CommandOutput<"hint.list">,
       { basis: "SR-026 AK2; SR-068 (filter within 500 ms) for comparison", thresholdMs: 500 },
     );
-    expect(typed.hints.length).toBeGreaterThan(0);
-    expect(typed.hints.length).toBeLessThanOrEqual(all.hints.length);
+    const typedOutdated = withoutNoParent(typed.hints);
+    expect(typedOutdated.length).toBeGreaterThan(0);
+    expect(typedOutdated.length).toBeLessThanOrEqual(withoutNoParent(all.hints).length);
     const { result: own } = await measure(
       "hint.list of one element (states kept)",
       async () =>
@@ -166,6 +151,9 @@ describe("outdated relations in workspace.check with 50,000 elements and 200,000
     const ownOutdated = withoutNoParent(own.hints);
     expect(ownOutdated.length).toBeGreaterThan(0);
     expect(ownOutdated.every((h) => h.code === "relation.outdated")).toBe(true);
+    // Another element first, so that the measured open is a later one (SR-082 AK3, not AK5).
+    const other = tree.elements.find((e) => e.id !== source?.elementId)?.id;
+    await invoke("element.get", { ref: other }, { workspace });
     const shown = await measure(
       "element.get of an element with outdated relations (versions built)",
       async () =>
@@ -285,7 +273,8 @@ describe("every relation outdated, with Git (SR-025 worst case, N-036)", () => {
     // Only warnings: ok by default (failOn error, #304).
     expect(kept.ok).toBe(true);
     // Every finding is of a changed element or one of its targets, or a relation to a changed element.
-    expect(kept.problems.length).toBeGreaterThan(0);
+    expect(malformedNoParentHints(kept.problems)).toEqual([]);
+    expect(withoutNoParent(kept.problems).length).toBeGreaterThan(0);
     expect(kept.problems.some((p) => p.targetId !== undefined && ids.has(p.targetId))).toBe(true);
     expect(kept.checkedElements).toBeLessThan(100);
   }, 1_800_000);
