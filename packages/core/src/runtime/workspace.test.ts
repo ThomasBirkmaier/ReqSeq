@@ -262,6 +262,40 @@ describe("Workspace", () => {
   });
 });
 
+/** Resolves once `count` commands have started, each pushing its end to `ends`. */
+const started = async (ends: readonly unknown[], count: number): Promise<void> => {
+  while (ends.length < count) {
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+};
+
+describe("Workspace.runCommand (SR-166)", () => {
+  it("starts a write command only after the write command before it has ended, and lets reads run", async () => {
+    const ws = new Workspace("/w");
+    const ends: (() => void)[] = [];
+    const write = (): Promise<void> =>
+      ws.runCommand(() => new Promise<void>((resolve) => ends.push(resolve)), { writes: true });
+    const first = write();
+    const second = write();
+    await started(ends, 1);
+    await expect(ws.runCommand(() => Promise.resolve("read"))).resolves.toBe("read");
+    expect(ends).toHaveLength(1);
+    ends[0]?.();
+    await first;
+    await started(ends, 2);
+    ends[1]?.();
+    await second;
+  });
+
+  it("starts the next write command after one that failed", async () => {
+    const ws = new Workspace("/w");
+    const failed = ws.runCommand(() => Promise.reject(new Error("full")), { writes: true });
+    const next = ws.runCommand(() => Promise.resolve("next"), { writes: true });
+    await expect(failed).rejects.toThrow("full");
+    await expect(next).resolves.toBe("next");
+  });
+});
+
 describe("Workspace.writesSettled (#432)", () => {
   it("waits for the write commands that run, and not for other commands", async () => {
     const ws = new Workspace("/w");
@@ -275,9 +309,11 @@ describe("Workspace.writesSettled (#432)", () => {
     const writes = [write(), write()];
     let settled = false;
     const waiting = ws.writesSettled().then(() => (settled = true));
+    await started(ends, 1);
     ends[0]?.();
     await writes[0];
     expect(settled).toBe(false);
+    await started(ends, 2);
     ends[1]?.();
     await waiting;
     expect(settled).toBe(true);
@@ -295,9 +331,11 @@ describe("Workspace.writesSettled (#432)", () => {
     const first = write();
     const waiting = ws.writesSettled();
     const second = write();
+    await started(ends, 1);
     ends[0]?.();
     await first;
     await waiting;
+    await started(ends, 2);
     ends[1]?.();
     await second;
   });
