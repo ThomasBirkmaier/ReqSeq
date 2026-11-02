@@ -1,6 +1,6 @@
 # ADR-0006: Read Git through the git program, read-only
 
-Status: Proposed · Based on: D-014, D-024, D-036, D-039 · SRs: SR-050, SR-051, SR-062, SR-083, SR-092
+Status: Accepted · Based on: D-014, D-024, D-036, D-039 · SRs: SR-050, SR-051, SR-062, SR-083, SR-092
 
 ## Context
 
