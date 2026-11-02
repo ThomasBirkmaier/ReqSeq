@@ -1,0 +1,92 @@
+{
+  "name": "evidence.record",
+  "title": "Record evidence",
+  "summary": "Write a manual verification or validation record (Markdown, evidence-record.schema.json) into an evidence folder of the workspace; the element's UUID and current version are filled in. A verification names a requirement, a validation a need or a requirement (D-012). Never replaces a file: a name that is taken gets -2, -3, ...",
+  "effect": "write-files",
+  "whileReadOnly": "refuse",
+  "whileReadOnlyReason": "Fills in the current version of the element, which depends on the metamodel (which properties count).",
+  "stage": 4,
+  "implements": ["SR-030", "SR-047"],
+  "arguments": [
+    { "field": "ref", "complete": "element" },
+    { "field": "kind", "complete": "choice" },
+    { "field": "result", "complete": "choice" },
+    { "field": "method", "complete": "choice" },
+    { "field": "item", "complete": "text" },
+    { "field": "variant", "complete": "element" },
+    { "field": "date", "complete": "text" },
+    { "field": "evidence", "complete": "text" },
+    { "field": "testCase", "complete": "text" },
+    { "field": "folder", "complete": "text" }
+  ],
+  "input": {
+    "type": "object",
+    "properties": {
+      "ref": {
+        "$ref": "../common.schema.json#/$defs/elementRef",
+        "description": "The element the record is about. Its UUID and current version are written into the record; neither is an input (D-026)."
+      },
+      "kind": {
+        "enum": ["verification", "validation"],
+        "description": "Verification (Nachweis) of a requirement, or validation of a need or a requirement (D-007, D-012). A validation record counts for the validation status only (SR-030 AK3)."
+      },
+      "method": {
+        "enum": ["test", "analysis", "inspection", "demonstration"],
+        "description": "Required for verification."
+      },
+      "result": {
+        "enum": ["passed", "failed"]
+      },
+      "item": {
+        "$ref": "../common.schema.json#/$defs/item",
+        "description": "The item under test (Prüfling), for example the build or sample. Required for verification. No white space at either end and no control characters other than tab, line feed and carriage return."
+      },
+      "variant": {
+        "$ref": "../common.schema.json#/$defs/elementRef",
+        "description": "A variant the element applies in (an element whose type has the meaning variant); the record holds for it. Absent: the core. Verification only: a variant with `kind` validation is `input.invalid` with `details.reason` `validation-with-variant` (SR-038 AK4, D-007); `core` is allowed. A variant the element is not in is `input.invalid` with `details.reason` `not-valid-in-variant`, or `excluded-in-variant` or `replaced-in-variant` when the variant excludes or replaces the requirement (SR-047 AK4)."
+      },
+      "date": {
+        "$ref": "../common.schema.json#/$defs/dateTime",
+        "description": "When the check was done. Default: the time of the call, UTC, whole seconds. Its first ten characters (the day in its own offset) start the file name."
+      },
+      "evidence": {
+        "type": "string",
+        "description": "Where the Beleg is: a path relative to the record file, a file URL or any URI. Written as given; ReqSeq never opens it (D-007)."
+      },
+      "testCase": {
+        "type": "string",
+        "description": "Optional test case name or ID (`test-case` in the file, SR-033)."
+      },
+      "folder": {
+        "type": "string",
+        "description": "The folder to write into: an evidence location of the workspace file or a folder below one, relative to the workspace root (the folder of the main repository) with `/`, for example `evidence/manual` or `../tests/evidence`. Missing folders below the location are created. Default: the first evidence location whose repository is on this machine."
+      }
+    },
+    "additionalProperties": false,
+    "required": ["ref", "kind", "result"]
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "files": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "description": "The written record file, relative to the workspace root as `workspacePath` gives it (with `/`)."
+        }
+      },
+      "record": {
+        "$ref": "../data-export.schema.json#/$defs/evidenceRecord",
+        "description": "The record as the Markdown reader reads it back from the written file (`source: markdown`, its repository and file, line 1), with the UUID and current version of the element."
+      },
+      "problems": {
+        "type": "array",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/problem"
+        }
+      }
+    },
+    "additionalProperties": false,
+    "required": ["files", "record"]
+  }
+}

@@ -1,0 +1,104 @@
+{
+  "name": "workspace.check",
+  "title": "Check workspace",
+  "summary": "Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, requirements with a statement but no text (a warning), missing targets, cycles, requirements without a parent (a warning, SR-022 AK6), duplicate IDs, outdated relations, evidence records that cannot be read or name an unknown element, a repository that is a workspace of its own whose metamodel counts other properties to the version. ok is false, and the CLI exits 1, on findings at or above failOn (default error).",
+  "effect": "read",
+  "stage": 1,
+  "implements": [
+    "SR-008",
+    "SR-015",
+    "SR-016",
+    "SR-019",
+    "SR-020",
+    "SR-022",
+    "SR-025",
+    "SR-028",
+    "SR-085",
+    "SR-086",
+    "SR-088",
+    "SR-089",
+    "SR-090",
+    "SR-092"
+  ],
+  "arguments": [
+    { "field": "changedFiles", "complete": "text" },
+    { "field": "changedSince", "complete": "text" },
+    { "field": "severity", "complete": "choice" },
+    { "field": "failOn", "complete": "choice" }
+  ],
+  "input": {
+    "type": "object",
+    "properties": {
+      "changedFiles": {
+        "type": "array",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/localPath"
+        },
+        "description": "Restrict the check to the elements in these files and their targets (SR-092). A file must lie in a repository of the workspace and be no folder; deleted and non-element files add nothing. With changedSince, both count. To cover deleted elements, use changedSince: a deleted file named only in changedFiles adds no old UUID."
+      },
+      "changedSince": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Git revision, e.g. the target commit of a merge request: restrict the check to the elements whose files (or embedded images) in the working copy differ from it, untracked files included, and their targets (SR-092). Looked up in every repository of the workspace; a repository without it, or without Git, adds nothing and gets an info problem (git.revision-missing, git.unavailable). The relations to an element file deleted since, or whose UUID changed, are kept. Error git.commit-not-found (CLI exit code 4) when no repository has it."
+      },
+      "severity": {
+        "enum": ["error", "warning", "info"],
+        "default": "info",
+        "description": "Lowest severity of the problems shown; does not change ok or the exit code. Findings left out are counted in hidden."
+      },
+      "failOn": {
+        "enum": ["error", "warning", "info"],
+        "default": "error",
+        "description": "Lowest severity of a finding that makes ok false (CLI exit code 1), shown or not; independent of severity. With the default, warnings and info never fail the check."
+      }
+    },
+    "additionalProperties": false
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "ok": {
+        "type": "boolean",
+        "description": "False when the workspace has a finding at or above failOn, shown or not (CLI exit code 1, ADR-0009). In a restricted check, of the findings the restriction keeps."
+      },
+      "problems": {
+        "type": "array",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/problem"
+        }
+      },
+      "hidden": {
+        "type": "object",
+        "description": "The findings that severity leaves out of problems, by severity; only when it leaves out at least one, so that no problems shown does not read as no findings.",
+        "properties": {
+          "below": {
+            "enum": ["error", "warning"],
+            "description": "The severity given: the findings counted are below it."
+          },
+          "warning": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "info": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false,
+        "required": ["below", "warning", "info"]
+      },
+      "checkedElements": {
+        "type": "integer",
+        "minimum": 0,
+        "description": "Number of elements checked: all of the workspace, or in a restricted check the changed elements and their targets (SR-092)."
+      },
+      "durationMs": {
+        "type": "integer",
+        "minimum": 0,
+        "description": "Time the check took in milliseconds. Not given yet: it differs between calls, and the cross-access test compares outputs (SR-080 AK2)."
+      }
+    },
+    "additionalProperties": false,
+    "required": ["ok", "problems"]
+  }
+}

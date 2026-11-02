@@ -1,4 +1,4 @@
-// Catalog test (ADR-0002 rule 2): implementations, the registry list and schemas/commands/catalog.json agree.
+// Catalog test (ADR-0002 rule 2): implementations, the registry list and the catalog (schemas/commands/) agree.
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
