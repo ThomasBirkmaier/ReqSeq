@@ -8,7 +8,7 @@ import path from "node:path";
 import type { FixtureWorkspace } from "@reqseq/testkit";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { reqseq, requireBuiltCli } from "../support/reqseq.js";
+import { fileSha256, reqseq, requireBuiltCli } from "../support/reqseq.js";
 
 const ELEMENT_FILE = "requirements/SR-6328cee88fb3.md";
 const IMAGE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
@@ -56,7 +56,13 @@ describe("reqseq element add-attachment (SR-097)", () => {
     expect(await fs.readFile(ws.path(added.file))).toEqual(IMAGE);
 
     const text = `The station shows the current wind speed.\n\n${added.markdown}\n`;
-    const saved = await reqseq(["element", "update", "SR-e88fb3", "--text", text], { cwd: ws.root });
+    const sha = await fileSha256("SR-e88fb3", { cwd: ws.root });
+    const saved = await reqseq(
+      ["element", "update", "SR-e88fb3", "--text", text, "--expected-file-sha256", sha],
+      {
+        cwd: ws.root,
+      },
+    );
     expect([saved.code, saved.stderr]).toEqual([0, ""]);
     await ws.commit();
 

@@ -6,17 +6,30 @@ import { scenariosOf } from "../../scenario.js";
 import type { Written } from "../../fixtures.js";
 import { AFFECTED, FILTER, NESTED, requiredKey, supersededHintFiles } from "../../fixtures.js";
 
-/** The SHA-256 of SR-e88fb3 in SR-004/one-repository, as element.get gives it (`fileSha256`, SR-106). */
-const WIND_SHA256 = createHash("sha256")
-  .update(
-    readFileSync(
-      new URL(
-        "../../../../../../fixtures/SR-004/one-repository/requirements/SR-6328cee88fb3.md",
-        import.meta.url,
-      ),
-    ),
-  )
-  .digest("hex");
+/** The SHA-256 of a file's bytes, as element.get gives it (`fileSha256`, SR-106). */
+const sha256 = (bytes: string | Buffer): string => createHash("sha256").update(bytes).digest("hex");
+
+/**
+ * The SHA-256 of a file of a fixture under fixtures/: the write precondition a change of the text or the
+ * title of that element needs (`expectedFileSha256`, #269).
+ */
+const fixtureSha256 = (fixture: string, file: string): string =>
+  sha256(readFileSync(new URL(`../../../../../../fixtures/${fixture}/${file}`, import.meta.url)));
+
+/** The SHA-256 of SR-e88fb3 in SR-004/one-repository. */
+const WIND_SHA256 = fixtureSha256("SR-004/one-repository", "requirements/SR-6328cee88fb3.md");
+
+/** An element without text whose text gets a reqseq: link (#176). */
+const LINKING =
+  "---\nid: 17600000-0000-4000-8000-0000000b0176\ntype: system-requirement\nstatus: draft\ntitle: Linking\n---\n";
+
+/** A superseded need of SR-072/supersede, written over the fixture's file (SR-072 AK3). */
+const SEE_THE_WIND =
+  "---\nid: 7a1e0c2b-4d3f-4a5b-8c6d-a1b2c3d4e5f6\ntype: need\nstatus: obsolete\ntitle: See the wind\n---\n";
+
+/** Its successor in SR-072/supersede. */
+const SEE_WIND_AND_GUSTS =
+  "---\nid: 7a1e0c2b-4d3f-4a5b-8c6d-b2c3d4e5f6a7\ntype: need\nstatus: draft\ntitle: See wind and gusts\nsupersedes:\n  - { id: 7a1e0c2b-4d3f-4a5b-8c6d-a1b2c3d4e5f6, version: n1:1111111111111111, title: See the wind }\n---\n";
 
 scenariosOf("element.update", [
   {
@@ -49,16 +62,15 @@ scenariosOf("element.update", [
       fixture: "SR-004/one-repository",
       git: true,
       files: {
-        "requirements/SR-0000000b0176.md":
-          "---\nid: 17600000-0000-4000-8000-0000000b0176\ntype: system-requirement\nstatus: draft\ntitle: Linking\n---\n",
+        "requirements/SR-0000000b0176.md": LINKING,
       },
     },
-    input: { ref: "SR-0b0176", text: "See [wind](reqseq:SR-e88fb3).\n" },
+    input: { ref: "SR-0b0176", text: "See [wind](reqseq:SR-e88fb3).\n", expectedFileSha256: sha256(LINKING) },
     expect: "output",
   },
   {
     name: "a reqseq: link whose short ID names no element is refused (#176)",
-    input: { ref: "SR-e88fb3", text: "See [gone](reqseq:SR-999999).\n" },
+    input: { ref: "SR-e88fb3", text: "See [gone](reqseq:SR-999999).\n", expectedFileSha256: WIND_SHA256 },
     expect: "error",
   },
   {
@@ -76,14 +88,22 @@ scenariosOf("element.update", [
   {
     name: "a variant whose validity names a variant is refused (variant.nested)",
     fixture: NESTED,
-    input: { ref: "VAR-0000b2", title: "North" },
+    input: {
+      ref: "VAR-0000b2",
+      title: "North",
+      expectedFileSha256: fixtureSha256("SR-039/nested", "variants/VAR-0000000000b2.md"),
+    },
     tag: "[SR-039/AK2]",
     expect: "error",
   },
   {
     name: "a relation between variants is allowed",
     fixture: NESTED,
-    input: { ref: "VAR-0000c3", title: "Mountains" },
+    input: {
+      ref: "VAR-0000c3",
+      title: "Mountains",
+      expectedFileSha256: fixtureSha256("SR-039/nested", "variants/VAR-0000000000c3.md"),
+    },
     tag: "[SR-039/AK2]",
     expect: "output",
   },
@@ -93,13 +113,11 @@ scenariosOf("element.update", [
       fixture: "SR-072/supersede",
       git: true,
       files: {
-        "needs/N-a1b2c3d4e5f6.md":
-          "---\nid: 7a1e0c2b-4d3f-4a5b-8c6d-a1b2c3d4e5f6\ntype: need\nstatus: obsolete\ntitle: See the wind\n---\n",
-        "needs/N-b2c3d4e5f6a7.md":
-          "---\nid: 7a1e0c2b-4d3f-4a5b-8c6d-b2c3d4e5f6a7\ntype: need\nstatus: draft\ntitle: See wind and gusts\nsupersedes:\n  - { id: 7a1e0c2b-4d3f-4a5b-8c6d-a1b2c3d4e5f6, version: n1:1111111111111111, title: See the wind }\n---\n",
+        "needs/N-a1b2c3d4e5f6.md": SEE_THE_WIND,
+        "needs/N-b2c3d4e5f6a7.md": SEE_WIND_AND_GUSTS,
       },
     },
-    input: { ref: "N-d4e5f6", text: "Changed.\n" },
+    input: { ref: "N-d4e5f6", text: "Changed.\n", expectedFileSha256: sha256(SEE_THE_WIND) },
     expect: "output",
   },
   {
@@ -109,13 +127,11 @@ scenariosOf("element.update", [
       fixture: "SR-072/supersede",
       git: true,
       files: {
-        "needs/N-a1b2c3d4e5f6.md":
-          "---\nid: 7a1e0c2b-4d3f-4a5b-8c6d-a1b2c3d4e5f6\ntype: need\nstatus: obsolete\ntitle: See the wind\n---\n",
-        "needs/N-b2c3d4e5f6a7.md":
-          "---\nid: 7a1e0c2b-4d3f-4a5b-8c6d-b2c3d4e5f6a7\ntype: need\nstatus: draft\ntitle: See wind and gusts\nsupersedes:\n  - { id: 7a1e0c2b-4d3f-4a5b-8c6d-a1b2c3d4e5f6, version: n1:1111111111111111, title: See the wind }\n---\n",
+        "needs/N-a1b2c3d4e5f6.md": SEE_THE_WIND,
+        "needs/N-b2c3d4e5f6a7.md": SEE_WIND_AND_GUSTS,
       },
     },
-    input: { ref: "N-e5f6a7", text: "Changed.\n" },
+    input: { ref: "N-e5f6a7", text: "Changed.\n", expectedFileSha256: sha256(SEE_WIND_AND_GUSTS) },
     expect: "output",
     check: (results) => {
       for (const result of Object.values(results)) {
@@ -126,13 +142,21 @@ scenariosOf("element.update", [
   {
     name: "update an element with a relation to a superseded element (SR-072 AK2 hint)",
     fixture: { fixture: "SR-019/findings", git: true },
-    input: { ref: "2b2b2b2b-2222-4222-8222-b00000000008", text: "Changed.\n" },
+    input: {
+      ref: "2b2b2b2b-2222-4222-8222-b00000000008",
+      text: "Changed.\n",
+      expectedFileSha256: fixtureSha256("SR-019/findings", "requirements/SR-b00000000008.md"),
+    },
     expect: "output",
   },
   {
     name: "update an element with a validity target, shown in relations (#187)",
     fixture: { fixture: "SR-019/findings", git: true },
-    input: { ref: "2b2b2b2b-2222-4222-8222-b00000000009", text: "Changed.\n" },
+    input: {
+      ref: "2b2b2b2b-2222-4222-8222-b00000000009",
+      text: "Changed.\n",
+      expectedFileSha256: fixtureSha256("SR-019/findings", "requirements/SR-b00000000009.md"),
+    },
     expect: "output",
   },
   {
@@ -142,6 +166,7 @@ scenariosOf("element.update", [
       title: "Show the wind speed",
       text: "New text.\n",
       set: { rationale: "Pilots" },
+      expectedFileSha256: WIND_SHA256,
     },
     expect: "output",
   },
@@ -162,7 +187,24 @@ scenariosOf("element.update", [
       ]);
     },
   },
-  { name: "unknown reference", input: { ref: "SR-ffffff", title: "x" }, expect: "error" },
+  {
+    name: "unknown reference",
+    input: { ref: "SR-ffffff", title: "x", expectedFileSha256: WIND_SHA256 },
+    expect: "error",
+  },
+  {
+    name: "a change of the title without expectedFileSha256 is refused: input.invalid (SR-106, #269)",
+    input: { ref: "SR-e88fb3", title: "Show the wind speed" },
+    expect: "error",
+    check: (results) => {
+      expect(results["core"]?.outcome).toMatchObject({
+        error: {
+          code: "input.invalid",
+          details: { field: "expectedFileSha256", reason: "precondition-missing" },
+        },
+      });
+    },
+  },
   {
     name: "a save with the SHA-256 of the file as read is written (SR-106)",
     input: { ref: "SR-e88fb3", title: "Show the wind speed", expectedFileSha256: WIND_SHA256 },
@@ -176,7 +218,11 @@ scenariosOf("element.update", [
   {
     name: "change the text of an element two others point at: affected 2 (SR-024 AK2)",
     fixture: AFFECTED,
-    input: { ref: "SR-00b001", text: "Changed.\n" },
+    input: {
+      ref: "SR-00b001",
+      text: "Changed.\n",
+      expectedFileSha256: fixtureSha256("SR-024/affected", "requirements/SR-00000000b001.md"),
+    },
     expect: "output",
   },
 ]);

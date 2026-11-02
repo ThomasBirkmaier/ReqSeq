@@ -934,6 +934,22 @@ const expectedFile = (record: ElementRecord, current: ReadElement, expected: str
 };
 
 /**
+ * The write precondition is required for a change of the text or the title (SR-106, product owner
+ * decision, 2026-10-29, on #269): without `expectedFileSha256` such a save is refused with
+ * `input.invalid` on every access (SR-080), before anything is read, so a caller that read the
+ * element earlier cannot overwrite a change saved in the meantime (the app's autosave). Properties
+ * and relations need none, as their edits go line by line onto the current bytes.
+ */
+const requirePrecondition = (input: UpdateElementInput): void => {
+  if ((input.text !== undefined || input.title !== undefined) && input.expectedFileSha256 === undefined) {
+    throw invalid("expectedFileSha256 is required to change text or title: pass fileSha256 of element.get", {
+      field: "expectedFileSha256",
+      reason: "precondition-missing",
+    });
+  }
+};
+
+/**
  * `readUnchanged` for the records of many items at once, in their order, for a command that changes many
  * elements (`element.bulkUpdate`): the files of each repository are read `readElementFiles` style,
  * several at a time, and then checked one by one, so the first file that changed on disk throws
@@ -1135,7 +1151,8 @@ export const writeElementFiles = async (
  * changed since the element store read it; the store is then read again on the next call. Also
  * refused, before anything is planned and without reading the store again, when the caller gives
  * `expectedFileSha256` and the file no longer has it (SR-106, `expectedFile`), even when the input
- * would change nothing. `repository` picks one copy of a duplicate as in `element.get` (`resolveRef`,
+ * would change nothing, and refused with `input.invalid` when it changes the text or the title without
+ * `expectedFileSha256` (`requirePrecondition`, #269). `repository` picks one copy of a duplicate as in `element.get` (`resolveRef`,
  * #255). `fileSha256` is the SHA-256 of the file as written, or as read when nothing changed. A save
  * that writes the file also sets the stored titles of its same-repository relation targets to their
  * current titles (`withCurrentTitles`, decision on #307); a save that changes nothing writes nothing.
@@ -1147,6 +1164,7 @@ export const updateElement = async (
   extraFindings?: ElementHints,
   check?: WriteCheck,
 ): Promise<UpdateElementResult> => {
+  requirePrecondition(input);
   const context = await contextOf(workspace);
   const { layout, metamodel, store } = context;
   const shortIds = await workspace.get(shortIdState);

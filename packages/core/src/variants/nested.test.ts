@@ -7,6 +7,7 @@ import { CommandError } from "../catalog.js";
 import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
 import { nestedVariantsState } from "./nested.js";
+import { readFirstFor } from "../runtime/read-first.test-helper.js";
 
 /** Elements of fixtures/SR-039/nested: A, B (validity names A, relation to A), C (relation to A only). */
 const A = "39039039-0000-4000-8000-0000000000a1";
@@ -38,7 +39,9 @@ const run = async <C extends CommandName>(
   command: C,
   input: Record<string, unknown>,
 ): Promise<CommandOutput<C>> =>
-  (await invoke(command, input, { workspace: opened.workspace })) as CommandOutput<C>;
+  (await invoke(command, await readFirstFor(command, input, { workspace: opened.workspace }), {
+    workspace: opened.workspace,
+  })) as CommandOutput<C>;
 
 const failure = async (
   opened: Opened,

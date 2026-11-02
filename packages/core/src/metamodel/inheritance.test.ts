@@ -9,6 +9,7 @@ import { Workspace } from "../runtime/workspace.js";
 import type { EffectiveType, LocatedType, Metamodel } from "./index.js";
 import { requiredProblemsState, unknownProblemsState } from "../model/index.js";
 import { metamodelState, resolveTypes, workspaceAccess } from "./index.js";
+import { readFirst } from "../runtime/read-first.test-helper.js";
 
 const fixture = async (options: FixtureOptions = {}): Promise<FixtureWorkspace> => {
   const created = await createFixtureWorkspace({ fixture: "SR-012/inheritance", ...options });
@@ -237,7 +238,10 @@ describe("type inheritance", () => {
     });
     const updated = (await invoke(
       "element.update",
-      { ref: "9a8b7c6d-5e4f-4a3b-8c2d-0b1c2d3e4f5a", title: "Ice on the wind sensor" },
+      await readFirst(
+        { ref: "9a8b7c6d-5e4f-4a3b-8c2d-0b1c2d3e4f5a", title: "Ice on the wind sensor" },
+        { workspace },
+      ),
       { workspace },
     )) as CommandOutput<"element.update">;
     expect(updated.problems).toContainEqual(

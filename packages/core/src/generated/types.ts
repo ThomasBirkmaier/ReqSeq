@@ -1777,7 +1777,7 @@ export interface ElementUpdateInput {
   readonly removeRelations?: RelationRefs;
   /** Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it (for example one copy of a file whose UUID another file shares, SR-088; #255). Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates. */
   readonly repository?: string;
-  /** Write precondition (SR-106): the fileSha256 the change was made on. If the file has other bytes now, nothing is written: file.changed-on-disk, also when nothing would change. */
+  /** Write precondition (SR-106): the fileSha256 the change was made on, from element.get. Required with title or text, else input.invalid (precondition-missing); optional for set, unset and relations alone. If the file has other bytes now, nothing is written: file.changed-on-disk, also when nothing would change. */
   readonly expectedFileSha256?: FileSha256;
 }
 
