@@ -407,8 +407,9 @@ jobs:
   # for the jobs of all three systems to be present and green.
   checks-platform:
     name: checks (${{ matrix.os }})
-    # A normal run takes 7 (macOS) to 13 (Windows) minutes; the bound ends a hang.
-    timeout-minutes: 25
+    # A normal run takes 7 (macOS) to 20 (Windows) minutes; the bound ends a hang. Windows runs its unit tests with
+    # 2 workers instead of 3 (vitest.config.ts, #701), which may add up to 5 minutes, so it gets a longer bound.
+    timeout-minutes: ${{ matrix.os == 'windows-2025' && 35 || 25 }}
     if: >-
       ${{ github.event_name != 'pull_request' || (github.event.action != 'closed' && !github.event.pull_request.draft) }}
     strategy:
