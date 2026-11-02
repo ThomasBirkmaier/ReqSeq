@@ -25,7 +25,7 @@ import type { CommandOutput } from "../../src/catalog.js";
 import { STANDARD_MODEL_TEXT, metamodelState } from "../../src/metamodel/index.js";
 import { currentVersionOf, currentVersions } from "../../src/model/current-versions.js";
 import { shortIdState } from "../../src/model/short-id.js";
-import { elementStoreState } from "../../src/model/store.js";
+import { elementStoreState, loadedVersionsOf } from "../../src/model/store.js";
 import { buildSuccessionIndex, successionsOf } from "../../src/model/successors.js";
 import { supersededTargetFindings } from "../../src/model/superseded.js";
 import { currentTarget } from "../../src/model/targets.js";
@@ -140,6 +140,12 @@ describe("workspace with 50,000 elements and 200,000 relations (N-036)", () => {
     expect(versions.byRecord.size).toBe(ELEMENTS);
     expect(
       versions.store.elements.filter((e) => currentVersionOf(versions, e) !== generated.get(e.id)),
+    ).toEqual([]);
+    // The versions as read (#439) equal those of the files: every generated element has one (no images).
+    const loaded = loadedVersionsOf(versions.store);
+    expect(loaded.size).toBe(ELEMENTS);
+    expect(
+      versions.store.elements.filter((e) => loaded.get(e)?.byForm["n1"] !== generated.get(e.id)),
     ).toEqual([]);
     const { result: again } = await measure(
       "current versions on a later use (embedded images checked; the generator embeds none)",
