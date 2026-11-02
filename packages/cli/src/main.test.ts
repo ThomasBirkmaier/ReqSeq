@@ -44,7 +44,7 @@ const catalog = {
           count: {
             type: "integer",
             minimum: 0,
-            description: "At most maxDepth, `maxDepth`, not input.maxDepth.",
+            description: "At most maxDepth; the output `maxDepth`, not input.maxDepth.",
           },
           maxDepth: { type: "integer" },
           verbose: { type: "boolean" },
@@ -240,7 +240,7 @@ describe("reqseq help and version", () => {
     expect(result.stdout).toMatch(/ref\s+Element to echo\./);
     // Field names in help as the command line spells them (#148).
     expect(result.stdout).toMatch(
-      /--count <number>\s+At most --max-depth, --max-depth, not\s+input\.maxDepth\./,
+      /--count <number>\s+At most --max-depth; the output `maxDepth`, not\s+input\.maxDepth\./,
     );
     expect(result.stdout).toMatch(/--verbose\s/);
     expect(result.stdout).toMatch(/--no-verbose\s+set verbose to false/);

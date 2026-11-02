@@ -91,7 +91,8 @@ const addServers = (program: Command, options: ProgramOptions): void => {
 /**
  * `text` with every input field name that the command line spells otherwise (`changedSince`) as its
  * flag (`--changed-since`) or argument (`<ref>`), so help names what a person types (#148). Only
- * names with a capital letter are respelled: a one-word name is its own flag and reads as prose.
+ * names with a capital letter are respelled: a one-word name is its own flag and reads as prose. A
+ * name in backticks is left as it is: the catalog quotes output fields so, which may share the name.
  */
 const spelledHelp = (text: string, fields: readonly InputField[]): string =>
   fields
@@ -99,7 +100,7 @@ const spelledHelp = (text: string, fields: readonly InputField[]): string =>
     .reduce(
       (spelled, field) =>
         spelled.replace(
-          new RegExp(`(?<![\\w.-])\`?${field.name}\`?(?!\\w)`, "g"),
+          new RegExp(`(?<![\\w.\`-])${field.name}(?![\\w\`])`, "g"),
           field.use === "positional" ? `<${field.flag}>` : `--${field.flag}`,
         ),
       text,
