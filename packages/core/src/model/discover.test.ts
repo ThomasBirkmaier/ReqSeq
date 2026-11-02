@@ -6,7 +6,7 @@ import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { Workspace } from "../runtime/workspace.js";
 import type { RepositoryLocation } from "../workspace/index.js";
 import type { NewFileProblem } from "./discover.js";
-import { listMarkdownFiles, listsFile, newFileTarget } from "./discover.js";
+import { STALE_TEMP_AGE_MS, listFiles, listMarkdownFiles, listsFile, newFileTarget } from "./discover.js";
 import { ignoreMatcher } from "./ignore.js";
 import { elementStoreState } from "./store.js";
 
@@ -91,6 +91,43 @@ describe("listMarkdownFiles", () => {
         skippedWarning("sub/c.Md", "element files end in .md in lower case"),
       ],
     });
+  });
+
+  it("warns about a temp file of ReqSeq left by an interrupted write, not about a fresh one (#271)", async () => {
+    const stale = "needs/.N-a1.md.0a1b2c3d.reqseq-tmp";
+    const fresh = "needs/.N-b2.md.4e5f6a7b.reqseq-tmp";
+    const ws = await fixture({ "needs/a.md": "", [stale]: "x", [fresh]: "x", "needs/.x.reqseq-tmp": "x" });
+    const old = new Date(Date.now() - 2 * STALE_TEMP_AGE_MS);
+    await fs.utimes(ws.path(stale), old, old);
+    await fs.utimes(ws.path("needs/.x.reqseq-tmp"), old, old);
+    expect(await listMarkdownFiles(repository(ws.root), nothing)).toEqual({
+      files: ["needs/a.md"],
+      problems: [
+        {
+          code: "file.stale-temp",
+          severity: "warning",
+          repository: "r",
+          file: stale,
+          message:
+            "Temporary file left by an interrupted write of ReqSeq; it is not an element and can be removed by hand",
+        },
+      ],
+    });
+    // The evidence walk lists below the element walk and leaves the report to it.
+    expect(
+      (await listFiles(repository(ws.root), nothing, "needs", { extensions: [".md"], what: "x" })).problems,
+    ).toEqual([]);
+  });
+
+  it("does not report a temp file that is gone before its age is read", async () => {
+    const ws = await fixture({ ".a.md.0a1b2c3d.reqseq-tmp": "x" });
+    const lstat = vi
+      .spyOn(fs, "lstat")
+      .mockRejectedValueOnce(Object.assign(new Error("gone"), { code: "ENOENT" }));
+    onTestFinished(() => {
+      lstat.mockRestore();
+    });
+    expect((await listMarkdownFiles(repository(ws.root), nothing)).problems).toEqual([]);
   });
 
   it("skips the folders it is told to exclude", async () => {

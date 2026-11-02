@@ -253,6 +253,10 @@ describe("core requirements changed since a variant's newest baseline (SR-103)",
         "1 open hints at VAR-0000c1 (variant.core-changed-since-baseline) are not confirmed: they are settled only by a new baseline of the variant (baseline.create with the view of the variant), not by confirming them (D-042)",
       ],
     ]);
+    // Given by its UUID, as the app does, the refusal still names the short ID (#444).
+    expect((await confirm(String(COAST))).problems?.map((p) => p.message)).toEqual([
+      refused.problems?.[0]?.message,
+    ]);
     // A variant without such hints, and another element: the usual warning.
     for (const ref of ["VAR-0000c2", "SR-0000a2"]) {
       expect((await confirm(ref)).problems?.map((p) => p.code)).toEqual(["hint.not-found"]);
