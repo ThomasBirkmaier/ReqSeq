@@ -1,6 +1,6 @@
 # ADR-0018: Baseline file
 
-Status: Proposed · Based on: D-006, D-036, D-039, D-045, D-058, N-036 · SRs: SR-050, SR-051, SR-094, SR-103 · Schema: `schemas/baseline.schema.json`
+Status: Accepted · Based on: D-006, D-036, D-039, D-045, D-058, N-036 · SRs: SR-050, SR-051, SR-094, SR-103 · Schema: `schemas/baseline.schema.json`
 
 ## Context
 
