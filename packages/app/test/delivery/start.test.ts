@@ -206,11 +206,12 @@ const startApp = async (
 const ELEMENTS = 1_200;
 
 /**
- * Node's own trace of a worker thread starting (`NODE_DEBUG=worker`, `lib/internal/worker.js`), with the file
- * it runs: the read worker of core inside the app's asar archive.
+ * Node's own trace of a worker thread (`NODE_DEBUG=worker`), written by the new thread itself
+ * (`lib/internal/main/worker_thread.js`) before it loads its script: the read worker of core inside the app's
+ * asar archive. It shows where the worker started from, not that it ran; the overview counts show that.
  */
 const ASAR_READ_WORKER =
-  /starts worker script \S*app\.asar[\\/]node_modules[\\/]@reqseq[\\/]core[\\/]dist[\\/]model[\\/]read-worker\.js /g;
+  /starts worker script .*app\.asar[\\/]node_modules[\\/]@reqseq[\\/]core[\\/]dist[\\/]model[\\/]read-worker\.js/g;
 
 /** A workspace of `ELEMENTS` generated element files in `top`; the versions do not matter to a load. */
 const largeWorkspace = async (top: string): Promise<string> => {
@@ -240,11 +241,15 @@ describe.each(DELIVERY_SYSTEMS)("the app of the %s delivery", (system: DeliveryS
         ? "runs as root: the app starts only as a normal user with its sandbox on"
         : undefined;
 
-  /** Installs (unpacks, and on Linux the admin step if needed) and starts the app; gives how it was seen. */
-  const installAndStart = async (): Promise<string> => {
+  /**
+   * Installs (unpacks, and on Linux the admin step if needed) and starts the app; gives how it was seen (with
+   * the sandbox on Linux) and what it wrote to standard error.
+   */
+  const installAndStart = async (options: StartOptions = {}): Promise<Started> => {
     const installed = await installDelivery(artifact, await tempFolder(), names);
     const sandbox = system === "linux" ? `; ${await prepareSandbox(installed)}` : "";
-    return `${(await startApp(installed, system)).seen}${sandbox}`;
+    const started = await startApp(installed, system, options);
+    return { seen: `${started.seen}${sandbox}`, stderr: started.stderr };
   };
 
   it(`[SR-076/AK1] the app of the ${system} delivery starts after unpacking`, async (ctx) => {
@@ -252,7 +257,7 @@ describe.each(DELIVERY_SYSTEMS)("the app of the %s delivery", (system: DeliveryS
       ctx.skip(reason);
     }
     // The record says which way the start was seen (verification/SR-076.md).
-    await ctx.annotate(await installAndStart());
+    await ctx.annotate((await installAndStart()).seen);
   }, 120_000);
 
   it(`[SR-078/AK2] the ${system} delivery installs without network and its app starts`, async (ctx) => {
@@ -263,19 +268,15 @@ describe.each(DELIVERY_SYSTEMS)("the app of the %s delivery", (system: DeliveryS
       ctx.skip(NO_NAMESPACE);
     }
     await assertOffline();
-    await ctx.annotate(await installAndStart());
+    await ctx.annotate((await installAndStart()).seen);
   }, 120_000);
 
   it(`the app of the ${system} delivery reads ${String(ELEMENTS)} element files in read workers from app.asar (#142)`, async (ctx) => {
     if (reason !== undefined) {
       ctx.skip(reason);
     }
-    const installed = await installDelivery(artifact, await tempFolder(), names);
-    if (system === "linux") {
-      await prepareSandbox(installed);
-    }
     let total: number | undefined;
-    const { seen, stderr } = await startApp(installed, system, {
+    const { seen, stderr } = await installAndStart({
       workspace: largeWorkspace,
       env: { NODE_DEBUG: "worker" },
       check: async (page) => {
@@ -286,20 +287,18 @@ describe.each(DELIVERY_SYSTEMS)("the app of the %s delivery", (system: DeliveryS
         total ??= await overviewTotal(page);
       },
     });
-    // The pool has no fallback: a worker that cannot start fails the load, and the core process ends.
+    // A worker that cannot run fails the read and leaves the overview without counts; the core process goes
+    // on (its warm load drops the failure). So only the counts show that the workers read the files, and they
+    // are seen only through the DevTools port: the reference system Linux must open it, elsewhere the test is
+    // skipped without it, never passed.
+    if (total === undefined && system !== "linux") {
+      ctx.skip(`${seen}: the overview counts could not be seen, so the read in the workers is not shown`);
+    }
+    expect(total, "the overview was not seen through the DevTools port").toBe(ELEMENTS);
     const workers = [...stderr.matchAll(ASAR_READ_WORKER)].length;
     expect(workers, `no read worker started from app.asar:\n${stderr}`).toBeGreaterThan(0);
-    expect(stderr).not.toMatch(/The core process (?:stopped|could not open)/);
-    // A worker that starts but cannot run leaves the overview without counts. That shows only through the
-    // DevTools port, which the reference system Linux always opens; elsewhere the record says when it did not.
-    if (system === "linux") {
-      expect(total, "the overview was not seen through the DevTools port").toBeDefined();
-    }
-    if (total !== undefined) {
-      expect(total).toBe(ELEMENTS);
-    }
-    const read =
-      total === undefined ? "the counts were not seen" : `the overview counts ${String(total)} elements`;
-    await ctx.annotate(`${seen}; ${String(workers)} read workers started from app.asar; ${read}`);
+    await ctx.annotate(
+      `${seen}; ${String(workers)} read workers started from app.asar; the overview counts ${String(total)} elements`,
+    );
   }, 240_000);
 });
