@@ -21,6 +21,9 @@ problems:
   file.skipped:
     cause: A file or folder is not read, because it is a symbolic link, not a regular file, has its extension in upper case (`.MD`), or is excluded by the workspace file.
     remedy: Replace a link by the real file, rename the extension to lower case (`.md`), or change the ignore globs of the workspace file if the file should be read.
+  file.stale-temp:
+    cause: A temporary file of ReqSeq (`.<name>.<8 hex>.reqseq-tmp`) is older than a minute, left by a write that was interrupted, for example by a crash.
+    remedy: Remove the file by hand after checking that its element file is as expected; ReqSeq never deletes it.
   element.invalid:
     cause: An element file lacks what every element needs, for example an `id` that is a UUID version 4 in lower case or a `type` key.
     remedy: Correct the field the message names in the element's frontmatter.
