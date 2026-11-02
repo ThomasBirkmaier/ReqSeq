@@ -384,6 +384,27 @@ describe("trace.graph (SR-111)", () => {
     }
   });
 
+  it("[SR-111/AK4] is incomplete, as trace.chain, while an evidence location is not on this machine", async () => {
+    const workspace = await open(async (fixture) => {
+      const { readFile } = await import("node:fs/promises");
+      const config = await readFile(fixture.path("reqseq-workspace.yaml"), "utf8");
+      await fixture.write(
+        "reqseq-workspace.yaml",
+        config.replace(
+          "repositories:\n",
+          'repositories:\n  - { name: tests, url: "git@git.example.com:ws/tests.git" }\n',
+        ) + "evidence:\n  - { repository: tests, path: evidence }\n",
+      );
+    });
+    const output = await graph(workspace, { ref: ID.S1 });
+    const chain = (await invoke(
+      "trace.chain",
+      { ref: ID.S1 },
+      { workspace },
+    )) as CommandOutput<"trace.chain">;
+    expect([output.incomplete, chain.incomplete]).toEqual([true, true]);
+  });
+
   it("gives a hint and no no-evidence mark without a relation kind with the meaning derivation (SR-013 AK3)", async () => {
     const workspace = await open(async (fixture) => {
       const file = fixture.path("metamodel/standard-model.yaml");

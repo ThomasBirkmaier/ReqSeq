@@ -13,11 +13,12 @@
 // - `superseded`: its status is one the metamodel marks invalid (D-044, `invalidStatuses`), the rule
 //   of `relation.target-superseded`;
 // - `no-evidence`: the gap rule of trace.chain (`lacksEvidence`, SR-022 AK3) with the same records
-//   (`hasVerificationRecord` in the view, the core without one), so the graph and the chain agree.
+//   (`hasVerificationRecord` in the view, the core without one), so the graph and the chain agree; an
+//   evidence location that is not on this machine makes the graph `incomplete`, as the chain.
 //   Without the meanings `derivation` and `requirement` there is none, and a hint says so.
 import type { CommandOutput, Problem } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
-import { evidenceIndexState, hasVerificationRecord } from "../../evidence/index.js";
+import { evidenceIndexState, evidenceReadState, hasVerificationRecord } from "../../evidence/index.js";
 import { outdatedAmong } from "../../hints/index.js";
 import type { Metamodel } from "../../metamodel/index.js";
 import { meaningUnassignedMessage } from "../../metamodel/index.js";
@@ -84,6 +85,13 @@ const marksOf = async (
   };
 };
 
+/**
+ * Whether the records the `no-evidence` mark reads are incomplete: an evidence location is not on this
+ * machine (SR-006 AK2, as trace.chain says). Read only when the mark is given.
+ */
+const evidenceIncomplete = async (workspace: Workspace, metamodel: Metamodel): Promise<boolean> =>
+  unassignedOf(metamodel).length === 0 && (await workspace.get(evidenceReadState)).incomplete;
+
 /** The hints: the meanings `no-evidence` needs that no key has (SR-013 AK3), while the metamodel is valid. */
 const problemsOf = (metamodel: Metamodel): Problem[] =>
   metamodel.valid
@@ -138,7 +146,9 @@ export default defineCommand({
     );
     return {
       ...output,
-      ...(viewIncomplete(base.layout, view) ? { incomplete: true } : {}),
+      ...(viewIncomplete(base.layout, view) || (await evidenceIncomplete(ctx.workspace, metamodel))
+        ? { incomplete: true }
+        : {}),
       problems: problemsOf(metamodel),
     };
   },
