@@ -171,39 +171,43 @@ describe("result lines", () => {
     ).toEqual(["id: SR-000001", "state"]);
   });
 
-  it("takes total and incomplete for the modeline and leaves them and view out of the lines (#276)", () => {
+  it("takes total, view and incomplete for the modeline and leaves them out of the lines (#276)", () => {
     const output = {
       elements: [{ ...element(1), status: "draft" }],
       total: 1,
-      view: "core",
+      view: "uuid-2",
       incomplete: false,
       names: [element(2)],
     };
-    expect(resultSummary(output)).toEqual({ total: 1, incomplete: false });
+    expect(resultSummary(output)).toEqual({ total: 1, view: "Title 2", incomplete: false });
     expect(resultLines(output).map((line) => line.label)).toEqual(["elements", "SR-000001"]);
-    expect(resultSummary({ incomplete: true })).toEqual({ total: undefined, incomplete: true });
-    expect(resultSummary([1])).toEqual({ total: undefined, incomplete: false });
-    // A field of that name with another shape is content and stays.
-    expect(resultLines({ view: { kind: "core" }, total: "many" }).map((line) => line.label)).toEqual([
-      "view",
-      "kind",
-      "total",
-    ]);
+    expect(resultSummary({ view: "core", incomplete: true })).toEqual({
+      total: undefined,
+      view: "Core",
+      incomplete: true,
+    });
+    expect(resultSummary({ view: "uuid-9" }).view).toBe("uuid-9");
+    expect(resultSummary([1])).toEqual({ total: undefined, view: undefined, incomplete: false });
+    // A field of that name with another shape, or an inherited key, is content and stays.
+    expect(
+      resultLines({ view: { kind: "core" }, total: "many", constructor: 1 }).map((line) => line.label),
+    ).toEqual(["view", "kind", "total", "constructor"]);
   });
 
   it("names the buffer by the command prompt's line and gives one buffer per command and input", () => {
     const buffer = resultBuffer("hint.list", { ref: "uuid-1" }, "List hints SR-1", {}, 0);
     expect(buffer.key).toBe('result:hint.list:{"ref":"uuid-1"}');
     expect(bufferName(buffer)).toBe("List hints SR-1");
-    const none = { total: undefined, incomplete: false };
+    const none = { total: undefined, view: undefined, incomplete: false };
     expect(bufferView(buffer, { kind: "result", ...none, total: 3 })).toEqual([
       "List hints SR-1",
       "3 in all",
     ]);
     expect(bufferView(buffer, { kind: "result", ...none })).toEqual(["List hints SR-1"]);
-    expect(bufferView(buffer, { kind: "result", ...none, incomplete: true })).toEqual([
+    expect(bufferView(buffer, { kind: "result", ...none, view: "Coast", incomplete: true })).toEqual([
       "List hints SR-1",
-      "incomplete: a repository is missing",
+      "view: Coast",
+      "incomplete",
     ]);
   });
 });
@@ -287,11 +291,11 @@ describe("result view", () => {
 
   it("shows the output it was opened with, selects lines with the keys and opens an element row with Enter", async () => {
     const call = vi.fn<Call>();
-    const output = { count: 2, elements: [element(1), element(2)] };
+    const output = { count: 2, total: 2, elements: [element(1), element(2)] };
     const { actions, data } = await mount(call, resultBuffer("trace.affected", {}, "Affected", output, 4), 4);
     expect(call).not.toHaveBeenCalled();
     expect(texts()).toEqual(["count2", "elements2", "SR-000001Title 1", "SR-000002Title 2"]);
-    expect(data.at(-1)).toEqual({ kind: "result", total: undefined, incomplete: false });
+    expect(data.at(-1)).toEqual({ kind: "result", total: 2, view: undefined, incomplete: false });
     // Only the element rows are options; the cursor on a text line names no active option.
     expect([...container.querySelectorAll('[role="option"]')].map((line) => line.textContent)).toEqual([
       "SR-000001Title 1",

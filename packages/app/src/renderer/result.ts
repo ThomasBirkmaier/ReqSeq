@@ -6,8 +6,8 @@
 // of its element, and `names` itself is not shown. A record of exactly two named UUIDs, such as a replaced
 // row of `variant.diff` (`core`, `replacement`), is one line that opens both side by side, read-only
 // (SR-044 AK2); a row with a third field would be an outline again. A UUID in two repositories (SR-088)
-// opens in the repository `names` gives first. A top-level `total` and `incomplete` go to the modeline,
-// and a top-level `view` is not shown (#276). Layout only: nothing here knows a command (ADR-0002).
+// opens in the repository `names` gives first. A top-level `total`, `view` and `incomplete` describe the
+// answer and go to the modeline (#276). Layout only: nothing here knows a command (ADR-0002).
 import { degreePercent, degreeShareOf } from "@reqseq/core/verification-degree";
 import type { ElementBuffer } from "./buffers.js";
 import { idTitle } from "./id-title.js";
@@ -153,7 +153,7 @@ const pairLine = (pair: NonNullable<ReturnType<typeof pairOf>>, depth: number): 
 
 /**
  * A value that is no list and no record: its text, or the row of the element a named UUID is. Under a key
- * (`view`, `id`) the row keeps it in its label ("view: VAR-1"); an item of a list has its key on the count
+ * (`variant`, `id`) the row keeps it in its label ("variant: VAR-1"); an item of a list has its key on the count
  * line above.
  */
 const leafLine = (value: unknown, depth: number, label: string, names: Names): ResultLine => {
@@ -256,30 +256,54 @@ const namesOf = (output: unknown): { readonly names: Names; readonly shown: unkn
   return { names, shown };
 };
 
-/**
- * The fields of an output that describe the answer, not its content (#276): a number `total` and a
- * boolean `incomplete` at the top go to the modeline; a text `view` is not shown, since the modeline
- * names the view the window shows (`viewMark`) and the buffer's name the one the command was given.
- */
-const SUMMARY_FIELDS = { total: "number", view: "string", incomplete: "boolean" } as const;
+/** What the modeline says about an output (#276): its `total`, its `view` and whether it is `incomplete`. */
+export interface ResultSummary {
+  /** The count of the whole answer; undefined without one. */
+  readonly total: number | undefined;
+  /** The view the answer holds for: "Core", or the title of the variant `names` gives (else its ID). */
+  readonly view: string | undefined;
+  readonly incomplete: boolean;
+}
 
-/** The output without its summary fields (`SUMMARY_FIELDS`), which the modeline shows. */
-const withoutSummary = (output: unknown): unknown =>
-  isRecord(output)
-    ? Object.fromEntries(
-        Object.entries(output).filter(
-          ([key, value]) =>
-            !(key in SUMMARY_FIELDS) || typeof value !== SUMMARY_FIELDS[key as keyof typeof SUMMARY_FIELDS],
-        ),
-      )
-    : output;
+/** The type each summary field has at the top of an output; with another type it is content. */
+const SUMMARY_FIELDS: Readonly<Record<string, string>> = {
+  total: "number",
+  view: "string",
+  incomplete: "boolean",
+};
+
+/**
+ * An output split into its summary fields (`SUMMARY_FIELDS`), which describe the answer and go to the
+ * modeline (#276), and the rest, which the lines show.
+ */
+const splitSummary = (
+  output: unknown,
+  names: Names,
+): { readonly summary: ResultSummary; readonly rest: unknown } => {
+  if (!isRecord(output)) {
+    return { summary: { total: undefined, view: undefined, incomplete: false }, rest: output };
+  }
+  const isSummary = (key: string, value: unknown): boolean =>
+    Object.hasOwn(SUMMARY_FIELDS, key) && typeof value === SUMMARY_FIELDS[key];
+  const field = (key: string): unknown => (isSummary(key, output[key]) ? output[key] : undefined);
+  const view = field("view") as string | undefined;
+  const named = view === undefined ? undefined : names.get(view);
+  return {
+    summary: {
+      total: field("total") as number | undefined,
+      view: view === "core" ? "Core" : (named?.title ?? view),
+      incomplete: field("incomplete") === true,
+    },
+    rest: Object.fromEntries(Object.entries(output).filter(([key, value]) => !isSummary(key, value))),
+  };
+};
 
 /** The lines of an output (none while there is none), at most `MAX_RESULT_LINES` and a last one that counts the rest. */
 export const resultLines = (output: unknown): ResultLine[] => {
   const sink: Sink = { lines: [], rest: 0 };
   if (output !== undefined) {
     const { names, shown } = namesOf(output);
-    linesOf(withoutSummary(shown), 0, "", sink, names);
+    linesOf(splitSummary(shown, names).rest, 0, "", sink, names);
   }
   const { lines, rest } = sink;
   if (rest > 0) {
@@ -293,18 +317,8 @@ export const resultLines = (output: unknown): ResultLine[] => {
   return lines;
 };
 
-/** What the modeline says about an output (#276): its `total` and whether it is `incomplete`. */
-export interface ResultSummary {
-  /** The count of the whole answer; undefined without one. */
-  readonly total: number | undefined;
-  readonly incomplete: boolean;
-}
-
-/** The summary fields of an output (`SUMMARY_FIELDS`) the modeline shows. */
-export const resultSummary = (output: unknown): ResultSummary =>
-  isRecord(output)
-    ? {
-        total: typeof output["total"] === "number" ? output["total"] : undefined,
-        incomplete: output["incomplete"] === true,
-      }
-    : { total: undefined, incomplete: false };
+/** The summary fields of an output (`splitSummary`) the modeline shows. */
+export const resultSummary = (output: unknown): ResultSummary => {
+  const { names, shown } = namesOf(output);
+  return splitSummary(shown, names).summary;
+};

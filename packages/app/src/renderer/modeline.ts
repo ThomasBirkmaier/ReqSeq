@@ -217,6 +217,14 @@ const graphParts = (
   ];
 };
 
+/** The modeline parts of a result buffer's output (#276). */
+const resultParts = (summary: ResultSummary): string[] => [
+  ...(summary.total === undefined ? [] : [`${String(summary.total)} in all`]),
+  ...(summary.view === undefined ? [] : [`view: ${summary.view}`]),
+  // An output is incomplete for more than a missing repository (an evidence location, a replacement).
+  ...(summary.incomplete ? ["incomplete"] : []),
+];
+
 /**
  * The parts of the modeline for the shown buffer, left of the workspace; each only when it says
  * something. Values are the output's as they are: nothing is computed about a status. An element is
@@ -239,11 +247,7 @@ export const bufferView = (
     return [bufferName(buffer), ...(data.incomplete ? [INCOMPLETE] : [])];
   }
   if (data.kind === "result") {
-    return [
-      bufferName(buffer),
-      ...(data.total === undefined ? [] : [`${String(data.total)} in all`]),
-      ...(data.incomplete ? [INCOMPLETE] : []),
-    ];
+    return [bufferName(buffer), ...resultParts(data)];
   }
   if (data.kind === "metamodel") {
     return [bufferName(buffer), plural(data.types, "type")];

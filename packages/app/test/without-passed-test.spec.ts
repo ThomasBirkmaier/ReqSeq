@@ -50,7 +50,7 @@ test.describe("the requirements without a passed test in the app", () => {
     );
     // The total is in the modeline, not among the lines (#276).
     await expect(window.getByLabel("Modeline")).toContainText("5 in all");
-    await expect(window.locator(".result")).not.toContainText("total");
+    await expect(window.locator(".result .label", { hasText: /^total$/ })).toHaveCount(0);
     // A row opens its element.
     await rows(window).first().click();
     await expect(window.locator("article h1")).toHaveText("Log wind speed");
