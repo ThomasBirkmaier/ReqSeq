@@ -1,0 +1,43 @@
+{
+  "name": "element.addAttachment",
+  "title": "Add attachment",
+  "summary": "Copy an image into the folder named like the element file, next to it, and return the Markdown that embeds it relatively; once the text embeds it, the image counts to the version (SR-097, D-057). Never replaces a file.",
+  "effect": "write-files",
+  "whileReadOnly": "refuse",
+  "whileReadOnlyReason": "Adds a file to an element, and no change can be checked against a missing or faulty metamodel.",
+  "stage": 3,
+  "implements": ["SR-065", "SR-097"],
+  "arguments": [
+    { "field": "ref", "complete": "element" },
+    { "field": "sourcePath", "complete": "text" }
+  ],
+  "input": {
+    "type": "object",
+    "properties": {
+      "ref": {
+        "$ref": "../common.schema.json#/$defs/elementRef"
+      },
+      "sourcePath": {
+        "$ref": "../common.schema.json#/$defs/localPath",
+        "description": "The image to copy: a file ending in .avif, .bmp, .gif, .jpeg, .jpg, .png, .svg or .webp (any case)."
+      }
+    },
+    "additionalProperties": false,
+    "required": ["ref", "sourcePath"]
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "file": {
+        "type": "string",
+        "description": "The image file relative to the workspace root, / as separator, e.g. requirements/SR-825b7146fb54/layout.png. Its name is the source name with only ASCII letters, digits, _ and -, and -2, -3, ... when the folder has that name already; a file there with the same bytes is reused."
+      },
+      "markdown": {
+        "type": "string",
+        "description": "The image as Markdown with a link relative to the element file, e.g. ![layout](SR-825b7146fb54/layout.png), to insert into the text and save with element.update."
+      }
+    },
+    "additionalProperties": false,
+    "required": ["file", "markdown"]
+  }
+}

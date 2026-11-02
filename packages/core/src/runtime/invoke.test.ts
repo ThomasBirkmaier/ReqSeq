@@ -154,7 +154,7 @@ describe("createCommandRuntime", () => {
   it("refuses an implementation without catalog entry", () => {
     const stray = defineTestCommand({ name: "test.stray", run: () => Promise.resolve({}) });
     expect(() => runtime({ commands: [stray] })).toThrow(
-      "command test.stray has no entry in schemas/commands/catalog.json",
+      "command test.stray has no entry in the catalog, schemas/commands/test.stray.json",
     );
   });
 

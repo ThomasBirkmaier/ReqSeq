@@ -1,0 +1,72 @@
+{
+  "name": "trace.related",
+  "title": "Show related elements",
+  "summary": "All children of a set of parents, or all parents of a set of requirements, each once, optionally up to a depth; one page at a time, total counts all.",
+  "effect": "read",
+  "stage": 2,
+  "implements": ["SR-023"],
+  "arguments": [
+    { "field": "refs", "complete": "element" },
+    { "field": "direction", "complete": "choice" },
+    { "field": "maxDepth", "complete": "number" },
+    { "field": "view", "complete": "view" },
+    { "field": "limit", "complete": "number" },
+    { "field": "offset", "complete": "number" }
+  ],
+  "input": {
+    "type": "object",
+    "properties": {
+      "refs": {
+        "type": "array",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/elementRef"
+        }
+      },
+      "direction": {
+        "enum": ["children", "parents"]
+      },
+      "maxDepth": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "view": {
+        "$ref": "../common.schema.json#/$defs/view"
+      },
+      "limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 5000,
+        "default": 200,
+        "description": "Elements of the page; total counts all."
+      },
+      "offset": {
+        "type": "integer",
+        "minimum": 0,
+        "default": 0,
+        "description": "Elements skipped before the page, in the order of the list (by distance from the selection)."
+      }
+    },
+    "additionalProperties": false,
+    "required": ["refs", "direction"]
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "elements": {
+        "type": "array",
+        "items": {
+          "$ref": "../data-export.schema.json#/$defs/element"
+        }
+      },
+      "total": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "incomplete": {
+        "$ref": "../common.schema.json#/$defs/incomplete"
+      }
+    },
+    "additionalProperties": false,
+    "required": ["elements", "total"]
+  }
+}

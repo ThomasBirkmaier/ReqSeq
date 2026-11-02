@@ -1,0 +1,61 @@
+{
+  "name": "workspace.init",
+  "title": "Initialise workspace",
+  "summary": "Create a workspace with the standard model in an existing folder.",
+  "effect": "write-files",
+  "whileReadOnly": "allow",
+  "whileReadOnlyReason": "Creates the workspace, so there is no metamodel yet that could make it read-only.",
+  "stage": 1,
+  "implements": ["SR-014"],
+  "arguments": [
+    { "field": "path", "complete": "text" },
+    { "field": "name", "complete": "text" },
+    { "field": "metamodel", "complete": "json" }
+  ],
+  "input": {
+    "type": "object",
+    "properties": {
+      "path": {
+        "$ref": "../common.schema.json#/$defs/localPath",
+        "description": "Existing folder; must not contain reqseq-workspace.yaml or the metamodel file."
+      },
+      "name": {
+        "type": "string"
+      },
+      "metamodel": {
+        "type": "object",
+        "properties": {
+          "repository": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false,
+    "required": ["path", "name"]
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "files": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "description": "Written file, relative to the workspace root."
+        }
+      },
+      "problems": {
+        "type": "array",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/problem"
+        }
+      }
+    },
+    "additionalProperties": false,
+    "required": ["files"]
+  }
+}

@@ -43,10 +43,10 @@ describe("catalog checks (titles and argument sources, SR-108)", () => {
 
   it("every title is unique and delete words are only for relations (D-045)", () => {
     expect(check(command("test.one", "Same"), command("test.two", "Same"))).toEqual([
-      'catalog.json: test.two: title "Same" is also the title of test.one',
+      'schemas/commands/test.two.json: title "Same" is also the title of test.one',
     ]);
     expect(check(command("test.one", "Remove it"))).toEqual([
-      'catalog.json: test.one: title "Remove it": elements are superseded, never deleted (D-045)',
+      'schemas/commands/test.one.json: title "Remove it": elements are superseded, never deleted (D-045)',
     ]);
     expect(check(command("relation.one", "Remove relation"))).toEqual([]);
   });
@@ -55,49 +55,49 @@ describe("catalog checks (titles and argument sources, SR-108)", () => {
     const flagged = (flag) => ALL.map((a) => (a.field === "limit" ? { ...a, flag } : a));
     expect(check(command("test.one", "One", flagged("max")))).toEqual([]);
     expect(check(command("test.one", "One", flagged("json")))).toEqual([
-      'catalog.json: test.one: arguments: "limit": flag "json" is a common option',
+      'schemas/commands/test.one.json: arguments: "limit": flag "json" is a common option',
     ]);
     expect(check(command("test.one", "One", flagged("deep")))).toEqual([
-      'catalog.json: test.one: arguments: "limit": flag "deep" is also the flag of another field',
+      'schemas/commands/test.one.json: arguments: "limit": flag "deep" is also the flag of another field',
     ]);
     // `deep` is a boolean, so `--no-deep` is taken too.
     expect(check(command("test.one", "One", flagged("no-deep")))).toEqual([
-      'catalog.json: test.one: arguments: "limit": flag "no-deep" is also the flag of another field',
+      'schemas/commands/test.one.json: arguments: "limit": flag "no-deep" is also the flag of another field',
     ]);
     expect(check(command("test.one", "One", flagged("no-kind")))).toEqual([]);
   });
 
   it("lists every input field exactly once", () => {
     expect(check(command("test.one", "One", ALL.slice(1)))).toEqual([
-      'catalog.json: test.one: arguments: input field "ref" must be listed exactly once in arguments (found 0)',
-      'catalog.json: test.one: arguments: "kind": "of" must name an earlier element or relationTarget field, not "ref"',
+      'schemas/commands/test.one.json: arguments: input field "ref" must be listed exactly once in arguments (found 0)',
+      'schemas/commands/test.one.json: arguments: "kind": "of" must name an earlier element or relationTarget field, not "ref"',
     ]);
     expect(check(command("test.one", "One", [...ALL, arg("limit", "number")]))).toEqual([
-      'catalog.json: test.one: arguments: input field "limit" must be listed exactly once in arguments (found 2)',
+      'schemas/commands/test.one.json: arguments: input field "limit" must be listed exactly once in arguments (found 2)',
     ]);
     expect(check(command("test.one", "One", [...ALL, arg("other", "text")]))).toEqual([
-      'catalog.json: test.one: arguments: "other" is no input field',
+      'schemas/commands/test.one.json: arguments: "other" is no input field',
     ]);
   });
 
   it("asks the required fields first", () => {
     const args = [ALL[2], ALL[0], ALL[1], ALL[3], ALL[4], ALL[5]];
     expect(check(command("test.one", "One", args))).toEqual([
-      'catalog.json: test.one: arguments: required "ref" comes after optional "limit"',
+      'schemas/commands/test.one.json: arguments: required "ref" comes after optional "limit"',
     ]);
   });
 
   it("`of` names an earlier field of a fitting source and only a source that reads one", () => {
     const later = [ALL[0], arg("kind", "relationKind", "limit"), ...ALL.slice(2)];
     expect(check(command("test.one", "One", later))).toEqual([
-      'catalog.json: test.one: arguments: "kind": "of" must name an earlier element or relationTarget field, not "limit"',
+      'schemas/commands/test.one.json: arguments: "kind": "of" must name an earlier element or relationTarget field, not "limit"',
     ]);
     // relation reads the elements of a source, or the kind of a relation asked before.
     const relation = [ALL[0], arg("kind", "relation", "ref"), arg("limit", "number"), ...ALL.slice(3)];
     expect(check(command("test.one", "One", relation))).toEqual([]);
     const text = [ALL[0], arg("kind", "text", "ref"), ...ALL.slice(2)];
     expect(check(command("test.one", "One", text))).toEqual([
-      'catalog.json: test.one: arguments: "kind": text takes no "of"',
+      'schemas/commands/test.one.json: arguments: "kind": text takes no "of"',
     ]);
   });
 
@@ -105,12 +105,12 @@ describe("catalog checks (titles and argument sources, SR-108)", () => {
     const first = { ...input, required: ["kind"] };
     const args = [arg("kind", "value"), ...ALL.filter((a) => a.field !== "kind")];
     expect(check(command("test.one", "One", args, first))).toEqual([
-      'catalog.json: test.one: arguments: "kind": value needs an earlier property field',
+      'schemas/commands/test.one.json: arguments: "kind": value needs an earlier property field',
     ]);
     // An earlier field of another source does not count.
     const target = [ALL[0], arg("kind", "relationTarget"), ...ALL.slice(2)];
     expect(check(command("test.one", "One", target))).toEqual([
-      'catalog.json: test.one: arguments: "kind": relationTarget needs an earlier relationKind field',
+      'schemas/commands/test.one.json: arguments: "kind": relationTarget needs an earlier relationKind field',
     ]);
     // Every relation kind of the metamodel when no element comes before.
     const kinds = [arg("kind", "relationKind"), ...ALL.filter((a) => a.field !== "kind")];
@@ -127,14 +127,14 @@ describe("catalog checks (titles and argument sources, SR-108)", () => {
       arg("meanings", "number"),
     ];
     expect(check(command("test.one", "One", wrong))).toEqual([
-      'catalog.json: test.one: arguments: "limit": boolean needs a boolean field',
-      'catalog.json: test.one: arguments: "deep": number needs an integer field',
-      'catalog.json: test.one: arguments: "direction": boolean needs a boolean field',
-      'catalog.json: test.one: arguments: "meanings": number needs an integer field',
+      'schemas/commands/test.one.json: arguments: "limit": boolean needs a boolean field',
+      'schemas/commands/test.one.json: arguments: "deep": number needs an integer field',
+      'schemas/commands/test.one.json: arguments: "direction": boolean needs a boolean field',
+      'schemas/commands/test.one.json: arguments: "meanings": number needs an integer field',
     ]);
     const choice = [ALL[0], arg("kind", "choice"), ...ALL.slice(2)];
     expect(check(command("test.one", "One", choice))).toEqual([
-      'catalog.json: test.one: arguments: "kind": choice needs an inline enum',
+      'schemas/commands/test.one.json: arguments: "kind": choice needs an inline enum',
     ]);
   });
 
@@ -176,18 +176,18 @@ describe("catalog checks (jsonLines, #319)", () => {
 
   it("refuses items that are no top-level array", () => {
     expect(lines({ items: "version", fields: [] })).toEqual([
-      'catalog.json: test.one: jsonLines: "version" is not a top-level array of the output',
+      'schemas/commands/test.one.json: jsonLines: "version" is not a top-level array of the output',
     ]);
     expect(lines({ items: "missing", fields: [] })).toEqual([
-      'catalog.json: test.one: jsonLines: "missing" is not a top-level array of the output',
+      'schemas/commands/test.one.json: jsonLines: "missing" is not a top-level array of the output',
     ]);
   });
 
   it("refuses fields that are missing, arrays, or also keys of an item", () => {
     expect(lines({ items: "rows", fields: ["missing", "names", "version"] })).toEqual([
-      'catalog.json: test.one: jsonLines: "missing" is not a top-level field of the output',
-      'catalog.json: test.one: jsonLines: "names" is an array',
-      'catalog.json: test.one: jsonLines: "version" is also a property of the items of "rows"',
+      'schemas/commands/test.one.json: jsonLines: "missing" is not a top-level field of the output',
+      'schemas/commands/test.one.json: jsonLines: "names" is an array',
+      'schemas/commands/test.one.json: jsonLines: "version" is also a property of the items of "rows"',
     ]);
   });
 });
