@@ -175,6 +175,25 @@ describe("the current version of every element (#259)", () => {
     expect(files.readElementBodySync).toHaveBeenCalledTimes(1);
   });
 
+  it("reads the file when it is gone or its folder became a file, and fails no command (#439)", async () => {
+    const { fixture, workspace } = await open();
+    const gone = await recordOf(workspace, "needs/N-a00000000001.md");
+    const store = await workspace.get(elementStoreState);
+    const below = store.elements.find(
+      (r) => r.file.startsWith("requirements/") && loadedVersionsOf(store).has(r),
+    );
+    if (below === undefined) {
+      throw new Error("the fixture has a loaded requirement");
+    }
+    await fs.rm(fixture.path(gone.file));
+    // ENOTDIR from the lstat: the read reports the element as not in its file.
+    await fs.rm(fixture.path("requirements"), { recursive: true });
+    await fs.writeFile(fixture.path("requirements"), "a file now");
+    const versions = await currentVersionsOf(workspace, [gone, below]);
+    expect(versions.get(gone)).toMatchObject({ kind: "unknown", reason: "not-in-file" });
+    expect(versions.get(below)).toMatchObject({ kind: "unknown", reason: "not-in-file" });
+  });
+
   it("gives none for an element of a repository the layout does not have", async () => {
     const { workspace } = await open();
     const store = await workspace.get(elementStoreState);

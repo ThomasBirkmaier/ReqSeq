@@ -47,7 +47,8 @@ export const MODEL_CACHE_FILE = "model.json";
  * values of their frontmatter (`ElementRecord.propertyReferences`, SR-127). 6: and their `reqseq:`
  * links whose target is no UUID (`ElementRecord.unresolvedLinks`, #176). 7: and the `reqseq:`
  * references of their text outside links (`ElementRecord.bareReferences`, #633). 8: and whether
- * their text is blank (`ElementRecord.blankText`, #667).
+ * their text is blank (`ElementRecord.blankText`, #667). 9: and their version as read with a header
+ * table of the fingerprints (`LoadedVersion`, #439).
  */
 export const MODEL_CACHE_FORMAT = 9;
 

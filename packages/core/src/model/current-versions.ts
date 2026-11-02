@@ -18,8 +18,9 @@
 //   without reading the file again when its type counts the same properties now (the fingerprint of
 //   `typeVersioningOf`) and an `lstat` of the file still gives the size and time of the store's
 //   snapshot; otherwise the file is read as above. So a version is that of the bytes the store read,
-//   as all store data is, and a file changed outside ReqSeq is read again even before the watcher's
-//   batch (S4 of the plan review). Elements that embed images have none (they are checked on use).
+//   as all store data is, and a file changed outside ReqSeq to another size or time is read again
+//   even before the watcher's batch (S4 of the plan review); a same-size change within the time
+//   resolution waits for that batch. Elements that embed images have none (they are checked on use).
 // - Images are no Markdown files, and the watcher drops their events (ADR-0008). Each version keeps
 //   what the lookup of its images found (`ImageSeen`); `currentVersions` checks it on use and
 //   computes the versions of elements whose images changed again.
@@ -149,9 +150,15 @@ const loadedEntry = (run: Run, record: ElementRecord): CurrentVersion | undefine
   ) {
     return undefined;
   }
-  const stats = fs.lstatSync(path.join(repository.folder, ...record.file.split("/")), {
-    throwIfNoEntry: false,
-  });
+  let stats: fs.Stats | undefined;
+  try {
+    stats = fs.lstatSync(path.join(repository.folder, ...record.file.split("/")), {
+      throwIfNoEntry: false,
+    });
+  } catch {
+    // ENOTDIR, ELOOP, EACCES, EPERM: the file is read as before, which reports why.
+    return undefined;
+  }
   return stats?.isFile() === true &&
     stats.size === record.snapshot.size &&
     stats.mtimeMs === record.snapshot.mtimeMs
@@ -232,11 +239,8 @@ const entriesOf = async (
       continue;
     }
     const loaded = loadedEntry(run, record);
-    if (loaded !== undefined) {
-      byRecord.set(record, loaded);
-      continue;
-    }
-    byRecord.set(record, await versionNow(run, record));
+    // A loaded version costs an lstat, so it counts towards the slice like a read.
+    byRecord.set(record, loaded ?? (await versionNow(run, record)));
     read += 1;
     if (read >= CHUNK || performance.now() - since >= SLICE_MS) {
       await nextTurn();
