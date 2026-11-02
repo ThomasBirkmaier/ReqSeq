@@ -384,6 +384,16 @@ describe("reqif.export (SR-052)", () => {
     ).toBe(outside);
   });
 
+  it("refuses an output folder that does not exist with file.folder-missing, with images and without, and writes nothing (#694)", async () => {
+    const { fixture, workspace } = await open();
+    // WIND embeds an image, TEMPERATURE none.
+    for (const ids of [[WIND], [TEMPERATURE]]) {
+      const refused = await failure(workspace, { output: "gone/x.reqif", selection: { ids } });
+      expect([refused.code, refused.details?.["fields"]]).toEqual(["file.folder-missing", ["output"]]);
+    }
+    await expect(fs.access(fixture.path("gone"))).rejects.toThrow();
+  });
+
   it("copies each image once per name, replaces only an earlier copy, and refuses two elements with one UUID", async () => {
     const { fixture, workspace } = await open("SR-052/package", {
       "requirements/SR-0000000052b6.md": [

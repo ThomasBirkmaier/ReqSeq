@@ -415,15 +415,25 @@ const exactInJson = (value: unknown, ancestors: Set<object> = new Set()): boolea
   return exact;
 };
 
+/** `contribution` without the element's version as read. */
+const withoutVersion = (contribution: Contribution): Contribution => {
+  if (contribution.kind !== "element" || contribution.version === undefined) {
+    return contribution;
+  }
+  const { version: _version, ...rest } = contribution;
+  return rest;
+};
+
 /**
  * The JSON of a contribution that JSON gives back exactly, else undefined. It never throws: a value
- * that fails while it is checked or written (a getter that throws) only keeps the entry out.
+ * that fails while it is checked or written (a getter that throws) only keeps the entry out. An
+ * element's version as read is not written (format 8 holds none, #439): the start that reuses the
+ * entry computes it on use.
  */
 const cacheableJson = (contribution: Contribution): string | undefined => {
   try {
-    return contribution.snapshot !== undefined && exactInJson(contribution)
-      ? JSON.stringify(contribution)
-      : undefined;
+    const kept = withoutVersion(contribution);
+    return kept.snapshot !== undefined && exactInJson(kept) ? JSON.stringify(kept) : undefined;
   } catch {
     return undefined;
   }

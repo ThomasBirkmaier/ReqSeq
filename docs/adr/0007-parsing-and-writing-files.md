@@ -1,6 +1,6 @@
 # ADR-0007: Parsing and writing YAML and Markdown
 
-Status: Proposed · Based on: D-012, D-015, D-056 · SRs: SR-008, SR-009, SR-016, SR-018, SR-065
+Status: Accepted · Based on: D-012, D-015, D-056 · SRs: SR-008, SR-009, SR-016, SR-018, SR-065
 
 ## Decision
 

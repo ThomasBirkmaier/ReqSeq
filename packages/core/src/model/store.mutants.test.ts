@@ -51,7 +51,7 @@ describe("updating the element store file by file (SR-007)", () => {
     await ws.write(FAULTY, "---\ntitle: T\nid: [\n---\n");
     const next = await updateElements(before, layout, new Map([["system", { paths: [FAULTY] }]]));
     expect(next).toBeDefined();
-    expect(next).toEqual(await loadElements(layout));
+    expect(next).toEqual(await loadElements(layout, undefined, { versioning: before.versioning }));
     expect(problemsOf(next ?? before)).not.toEqual(problemsOf(before));
   });
 });

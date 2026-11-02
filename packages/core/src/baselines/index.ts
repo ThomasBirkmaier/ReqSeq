@@ -14,6 +14,7 @@ export {
   MAX_VIOLATIONS,
   baselineFilesState,
   baselinesContaining,
+  copyOf,
   findBaseline,
   foldName,
   namedBaseline,
@@ -21,11 +22,11 @@ export {
   versionKey,
   workspaceBaselines,
 } from "./read.js";
-export type { Baseline, BaselineFiles, Baselines, FoundBaseline } from "./read.js";
+export type { Baseline, BaselineFiles, Baselines, CopiesById, FoundBaseline, StoredCopy } from "./read.js";
 export { baselineHeader, scanBaseline } from "./scan.js";
 export { HEADER_BYTES, baselineHeadersState, newestBaselines } from "./newest.js";
 export type { BaselineCandidate } from "./newest.js";
-export { copyOf, showBaseline } from "./show.js";
+export { showBaseline } from "./show.js";
 export type { ShowRequest } from "./show.js";
 export { compareBaseline } from "./compare.js";
 export { countsFor } from "./counting.js";
