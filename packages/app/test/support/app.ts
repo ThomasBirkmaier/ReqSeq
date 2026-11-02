@@ -281,7 +281,6 @@ const hangState = async (app: ElectronApplication, window: Page, stderr: string)
   return `Open windows: ${String(windows)}. Minibuffer: ${JSON.stringify(minibuffer)}. Last log lines: ${log}`;
 };
 
-/** Starts the app on a new fixture workspace (`undefined`: without a workspace), or on `options.kept`. */
 /**
  * The `fileSha256` that `reqseq element get <ref>` gives on the app's workspace: the write precondition a
  * change of the text or the title needs (`expectedFileSha256`, SR-106, #269). The CLI is no followed
@@ -292,6 +291,7 @@ export const fileSha256 = async (running: RunningApp, ref: string): Promise<stri
   return (JSON.parse(got.stdout) as { fileSha256: string }).fileSha256;
 };
 
+/** Starts the app on a new fixture workspace (`undefined`: without a workspace), or on `options.kept`. */
 export const launchApp = async (
   fixture: Fixture | undefined,
   options: LaunchOptions = {},

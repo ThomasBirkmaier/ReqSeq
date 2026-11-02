@@ -11,7 +11,7 @@ import { baselineHeadersState, HEADER_BYTES } from "../baselines/index.js";
 import { currentVersionsState } from "../model/index.js";
 import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
-import { readFirst } from "../runtime/read-first.test-helper.js";
+import { readStored } from "../runtime/read-first.test-helper.js";
 
 const P = "10310310-0000-4000-8000-0000000000";
 const [K1, K2, K3, K4, K5, B1, COAST, MOUNTAIN] = ["a1", "a2", "a3", "a4", "a5", "b1", "c1", "c2"].map(
@@ -480,7 +480,7 @@ describe("kept between calls", () => {
     };
     const changed = "variant.core-changed-since-baseline";
     const update = async (ref: string, input: Record<string, unknown>): Promise<unknown> =>
-      invoke("element.update", await readFirst({ ref, ...input }, { workspace }), { workspace });
+      invoke("element.update", await readStored({ ref, ...input }, workspace), { workspace });
     expect(await step(() => Promise.resolve(undefined))).toEqual([[changed, COAST, K1]]);
     // A core requirement changes: only its hit is computed again.
     expect(
@@ -548,9 +548,13 @@ describe("kept between calls", () => {
     expect(await shown()).toEqual([[changed, COAST, K2]]);
     // A save elsewhere: the carried hits keep it, and hint.list gives what a new workspace gives.
     await fs.writeFile(fixture.path("img/x.svg"), svg("<g><g/></g>"));
-    await invoke("element.update", await readFirst({ ref: K1, text: "Every 30 seconds.\n" }, { workspace }), {
-      workspace,
-    });
+    await invoke(
+      "element.update",
+      await readStored({ ref: String(K1), text: "Every 30 seconds.\n" }, workspace),
+      {
+        workspace,
+      },
+    );
     const warm = rows(await listed(workspace));
     expect(warm).toEqual(rows(await listed(reopened(fixture))));
     expect(warm).toEqual([

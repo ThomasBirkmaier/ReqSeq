@@ -18,7 +18,7 @@ import type { ElementStore } from "./store.js";
 import { elementStoreState } from "./store.js";
 import type { WatchFunction, WatcherOptions, WorkspaceChange, WorkspaceWatcher } from "./watch.js";
 import { startWatcher, watchWorkspace, watcherProblems } from "./watch.js";
-import { readFirst } from "../runtime/read-first.test-helper.js";
+import { readStored } from "../runtime/read-first.test-helper.js";
 
 const NEED = "224dedea-c0ac-4ec8-a228-8beffcbd8c26";
 const NEED_FILE = "needs/N-8beffcbd8c26.md";
@@ -1539,7 +1539,7 @@ describe("the watcher and ReqSeq's own writes (#166)", () => {
     const { fake, watcher } = await watched(workspace);
     await invoke(
       "element.update",
-      await readFirst({ ref: REQUIREMENT, title: "Renamed by ReqSeq" }, { workspace }),
+      await readStored({ ref: REQUIREMENT, title: "Renamed by ReqSeq" }, workspace),
       { workspace },
     );
     const created = (await invoke("element.create", { type: "need", title: "New" }, { workspace })) as {
@@ -1904,7 +1904,7 @@ describe("the watcher tells its listeners what changed (#331, SR-007)", () => {
     const changes = changesOf(watcher);
     await invoke(
       "element.update",
-      await readFirst({ ref: REQUIREMENT, title: "Renamed by ReqSeq" }, { workspace }),
+      await readStored({ ref: REQUIREMENT, title: "Renamed by ReqSeq" }, workspace),
       { workspace },
     );
     const created = (await invoke("element.create", { type: "need", title: "New" }, { workspace })) as {

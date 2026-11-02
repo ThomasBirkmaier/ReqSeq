@@ -25,7 +25,7 @@ import { workspaceLayoutState } from "../workspace/index.js";
 import { parseHintId } from "./hint-id.js";
 import type { OutdatedFinding } from "./outdated.js";
 import { datedProblems, outdatedFindingsOf, outdatedRelationsState } from "./outdated.js";
-import { readFirst } from "../runtime/read-first.test-helper.js";
+import { readStored } from "../runtime/read-first.test-helper.js";
 
 type Output = CommandOutput<"workspace.check">;
 
@@ -423,7 +423,7 @@ describe("outdated relations and references (SR-025)", () => {
     // The need gets its old text back: A's relations to it are current again, while A's file is unchanged.
     await updateElement(
       workspace,
-      await readFirst({ ref: N, text: "The operator sees the wind at a glance." }, { workspace }),
+      await readStored({ ref: N, text: "The operator sees the wind at a glance." }, workspace),
     );
     const kept = workspace.peek(outdatedRelationsState);
     expect(kept).toBeDefined();
@@ -437,7 +437,7 @@ describe("outdated relations and references (SR-025)", () => {
     // A save of B (no relation points at it) keeps A's findings as they are.
     await updateElement(
       workspace,
-      await readFirst({ ref: B, text: "Refines how the wind speed is shown, again." }, { workspace }),
+      await readStored({ ref: B, text: "Refines how the wind speed is shown, again." }, workspace),
     );
     expect(shape(await workspace.get(outdatedRelationsState))).toEqual(shape(after));
   });
@@ -576,7 +576,7 @@ describe("outdated relations and references (SR-025)", () => {
     incomingFor(workspace, await workspace.get(elementStoreState), await workspace.get(metamodelState));
     await updateElement(
       workspace,
-      await readFirst({ ref: N, text: "The operator sees the wind at a glance." }, { workspace }),
+      await readStored({ ref: N, text: "The operator sees the wind at a glance." }, workspace),
     );
     expect(workspace.peek(outdatedRelationsState)).toBeDefined();
     expect(await workspace.get(outdatedRelationsState)).toEqual([]);

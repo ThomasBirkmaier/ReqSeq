@@ -504,7 +504,9 @@ describe("element.update", () => {
     await opened.workspace.get(elementStoreState);
     const changed = (await read(opened, WIND.file)).replace("Show wind speed", "Changed elsewhere");
     await fs.writeFile(opened.fixture.path(WIND.file), changed);
-    const error = await updateError(opened, { ref: WIND.id, text: "Mine\n" });
+    // The hash of the file as it is now: only the store's own check finds the change.
+    const now = await sha256Of(opened, WIND.file);
+    const error = await updateError(opened, { ref: WIND.id, text: "Mine\n", expectedFileSha256: now });
     expect([error.code, error.details]).toEqual([
       "file.changed-on-disk",
       { file: WIND.file, repository: "system" },
@@ -518,10 +520,17 @@ describe("element.update", () => {
     const opened = await open();
     await opened.workspace.get(elementStoreState);
     await fs.writeFile(opened.fixture.path(WIND.file), "---\nid: [\n---\n");
-    expect((await updateError(opened, { ref: WIND.id, title: "x" })).code).toBe("file.changed-on-disk");
+    // With the hash of the file as it is now (no title for a file that is gone), only the store's own
+    // check finds the change.
+    const faulty = await sha256Of(opened, WIND.file);
+    expect((await updateError(opened, { ref: WIND.id, title: "x", expectedFileSha256: faulty })).code).toBe(
+      "file.changed-on-disk",
+    );
     await opened.workspace.get(elementStoreState);
     await fs.rm(opened.fixture.path(GUSTS.file));
-    expect((await updateError(opened, { ref: GUSTS.id, title: "x" })).code).toBe("file.changed-on-disk");
+    expect((await updateError(opened, { ref: GUSTS.id, set: { rationale: "x" } })).code).toBe(
+      "file.changed-on-disk",
+    );
     await fs.writeFile(opened.fixture.path(GUSTS.file), "---\ntitle: no longer an element\n---\n");
     await opened.workspace.reset(elementStoreState);
     await fs.writeFile(
@@ -530,7 +539,10 @@ describe("element.update", () => {
     );
     await opened.workspace.get(elementStoreState);
     await fs.writeFile(opened.fixture.path(WIND.file), "---\ntitle: no longer an element\n---\n");
-    expect((await updateError(opened, { ref: WIND.id, title: "x" })).code).toBe("file.changed-on-disk");
+    const other = await sha256Of(opened, WIND.file);
+    expect((await updateError(opened, { ref: WIND.id, title: "x", expectedFileSha256: other })).code).toBe(
+      "file.changed-on-disk",
+    );
   });
 });
 

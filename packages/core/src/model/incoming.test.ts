@@ -19,7 +19,7 @@ import {
 import { setElementStatus } from "./status.js";
 import { applyStoreChange, elementStoreState, updateElements } from "./store.js";
 import { createElement, updateElement } from "./write.js";
-import { readFirst } from "../runtime/read-first.test-helper.js";
+import { readStored } from "../runtime/read-first.test-helper.js";
 
 const V = "n1:1111111111111111";
 const uuid = (n: number): string => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
@@ -335,7 +335,7 @@ describe("incoming relation index carried over a change of the store (ADR-0008, 
     const { fixture, workspace } = await openFixture();
     const index = await indexNow(workspace);
     // A title only: no link changes, every list and link is kept as it was.
-    await updateElement(workspace, await readFirst({ ref: N1, title: "A new title" }, { workspace }));
+    await updateElement(workspace, await readStored({ ref: N1, title: "A new title" }, workspace));
     const titled = await expectCarried(fixture, workspace);
     expect(titled.relationsById.get(N1)).toBe(index.relationsById.get(N1));
     expect(titled.referencesById.get(P1)).toBe(index.referencesById.get(P1));
@@ -343,13 +343,13 @@ describe("incoming relation index carried over a change of the store (ADR-0008, 
     // come after those of S1, which are kept as the same objects.
     await updateElement(
       workspace,
-      await readFirst(
+      await readStored(
         {
           ref: S2,
           set: { validity: [{ id: VAR1 }], packages: [{ id: P1, repository: "platform" }] },
           text: `See [the need](reqseq:${N1}?version=${V}).\n`,
         },
-        { workspace },
+        workspace,
       ),
     );
     const updated = await expectCarried(fixture, workspace);
@@ -388,16 +388,10 @@ describe("incoming relation index carried over a change of the store (ADR-0008, 
   it("[SR-127/AK3] equals a fresh build after a save and after a change from outside that add and drop a reference in an acceptance criterion (SR-082 AK4)", async () => {
     const { fixture, workspace } = await openFixture();
     await indexNow(workspace);
-    await updateElement(
-      workspace,
-      await readFirst(
-        {
-          ref: S2,
-          set: { "acceptance-criteria": [`Then [the need](reqseq:${N1}?version=${V}).`] },
-        },
-        { workspace },
-      ),
-    );
+    await updateElement(workspace, {
+      ref: S2,
+      set: { "acceptance-criteria": [`Then [the need](reqseq:${N1}?version=${V}).`] },
+    });
     const saved = await expectCarried(fixture, workspace);
     const criterion = (l: IncomingLink): unknown =>
       l.kind === "reference" ? [l.source.id, l.reference.key, l.reference.item] : undefined;

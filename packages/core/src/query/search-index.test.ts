@@ -24,7 +24,7 @@ import {
   searchElements,
 } from "./search-index.js";
 import { searchIndex, searchIndexState } from "./search-state.js";
-import { readFirst } from "../runtime/read-first.test-helper.js";
+import { readStored } from "../runtime/read-first.test-helper.js";
 
 const V = "n1:1111111111111111";
 const N1 = "6adc6d88-2177-457b-959d-545b7b379da2";
@@ -517,7 +517,7 @@ describe("carried search index (ADR-0008, #184)", () => {
     expect(buildsArrays(first)).toBe(false);
     await updateElement(
       workspace,
-      await readFirst({ ref: N1, title: "Rain on the display", text: "Drizzle.\n" }, { workspace }),
+      await readStored({ ref: N1, title: "Rain on the display", text: "Drizzle.\n" }, workspace),
     );
     const carried = await expectCarried(fixture, workspace, first);
     expect(buildsArrays(carried)).toBe(false);
@@ -562,7 +562,7 @@ describe("carried search index (ADR-0008, #184)", () => {
     const first = await searchIndex(workspace);
     await updateElement(
       workspace,
-      await readFirst({ ref: N1, title: "Rain on the display", text: "Drizzle.\n" }, { workspace }),
+      await readStored({ ref: N1, title: "Rain on the display", text: "Drizzle.\n" }, workspace),
     );
     const updated = await expectCarried(fixture, workspace, first);
     expect(ids(updated, "drizzle")).toEqual([N1]);
