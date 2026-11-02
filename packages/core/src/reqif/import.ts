@@ -896,6 +896,29 @@ const tooDeep = (root: unknown): boolean => {
   return false;
 };
 
+const isScalarShape = (value: unknown): boolean =>
+  value === null || ["string", "number", "boolean"].includes(typeof value);
+
+/** True for a scalar or a mapping of scalars (a relation target), the items an element file holds. */
+const isItemShape = (value: unknown): boolean =>
+  isScalarShape(value) ||
+  (value instanceof Object && !Array.isArray(value) && Object.values(value).every(isScalarShape));
+
+/**
+ * The first key of a property or relation kind `metamodel` knows whose value in `data` has a shape
+ * no element file holds (`PropertyValue`: a scalar, a relation target or a list of those), so the
+ * import cannot write it (#716).
+ */
+const misshapenKey = (metamodel: Metamodel, data: Readonly<Record<string, unknown>>): string | undefined =>
+  [...metamodel.properties, ...metamodel.relations]
+    .map((d) => d.key)
+    .find((key) => {
+      const value = data[key];
+      return (
+        value !== undefined && !isItemShape(value) && !(Array.isArray(value) && value.every(isItemShape))
+      );
+    });
+
 /** Values in a form two sets compare by, ordered by attribute. */
 const comparable = (values: readonly ReqifValue[]): string =>
   JSON.stringify([...values].sort((a, b) => (a.definition < b.definition ? -1 : 1)));
@@ -944,6 +967,13 @@ const ownChannels = (
   if (tooDeep(object.values) || tooDeep(data)) {
     throw invalidFile(
       `SPEC-OBJECT ${object.identifier} nests its values deeper than ${String(MAX_NESTING)} levels`,
+      object.line,
+    );
+  }
+  const misshapen = data === undefined ? undefined : misshapenKey(metamodel, data);
+  if (misshapen !== undefined) {
+    throw invalidFile(
+      `SPEC-OBJECT ${object.identifier} holds a value of ${misshapen} in reqseq-values that no element file can hold`,
       object.line,
     );
   }
