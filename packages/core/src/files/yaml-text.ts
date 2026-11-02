@@ -108,7 +108,7 @@ export const isPlainByCharacters = (text: string, context: Context): boolean => 
 };
 
 /** Probe results of short texts per context; cleared when full, so its size stays bounded. */
-const CACHE_SIZE = 4096;
+export const PROBE_CACHE_SIZE = 4096;
 const CACHED_LENGTH = 256;
 const probed: Readonly<Record<Context, Map<string, boolean>>> = {
   key: new Map(),
@@ -117,6 +117,9 @@ const probed: Readonly<Record<Context, Map<string, boolean>>> = {
   "flow-key": new Map(),
   "flow-value": new Map(),
 };
+
+/** Entries of the probe cache of `context`, for the test of its bound. */
+export const probeCacheSize = (context: Context): number => probed[context].size;
 
 /** True when `text` written plain in `context` reads back as exactly this string. */
 export const isPlainSafe = (text: string, context: Context): boolean => {
@@ -135,7 +138,7 @@ export const isPlainSafe = (text: string, context: Context): boolean => {
     return known;
   }
   const safe = isPlainSafeByProbe(text, context);
-  if (cache.size >= CACHE_SIZE) {
+  if (cache.size >= PROBE_CACHE_SIZE) {
     cache.clear();
   }
   cache.set(text, safe);

@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { parseDocument } from "yaml";
+import { Random } from "@reqseq/testkit";
 import {
   doubleQuoted,
   isPlainByCharacters,
   isPlainSafe,
   isPlainSafeByProbe,
+  PROBE_CACHE_SIZE,
+  probeCacheSize,
   renderItem,
   renderKey,
   renderScalar,
@@ -218,26 +221,19 @@ const PIECES = [
 // Pieces near the edge of the characters check: its own set, `:`, `,`, spaces and look-alike letters.
 const WORD_PIECES = [...Array.from("aZäeEyYnNoO1 _.,()/'+-:"), "e5", "on", "ull", "rue"];
 
-/** A seeded generator, so a failure names a string that comes back on every run. */
+/**
+ * Strings of 2 to 8 pieces from a seeded generator (mulberry32), so a failure names a string that
+ * comes back on every run.
+ */
 const generated = (count: number, pieces: readonly string[]): string[] => {
-  let seed = 696;
-  const next = (n: number): number => {
-    seed = (seed * 1103515245 + 12345) % 2147483648;
-    return seed % n;
-  };
-  const out: string[] = [];
-  for (let i = 0; i < count; i++) {
-    let s = "";
-    for (let j = 1 + next(5); j > 0; j--) {
-      s += pieces[next(pieces.length)] ?? "";
-    }
-    out.push(s);
-  }
-  return out;
+  const random = new Random(696);
+  return Array.from({ length: count }, () =>
+    Array.from({ length: 2 + random.below(7) }, () => random.pick(pieces)).join(""),
+  );
 };
 
 // Strings the characters check accepts, at its edges: these must be plain for the probe too.
-const WORDY = [
+const ACCEPTED = [
   "Measure the wind 42",
   "REQ-1",
   "a",
@@ -260,12 +256,32 @@ const WORDY = [
   "1e000000-0000-0000-0000-000000000000",
   "ABCDEF01-2345-6789-ABCD-EF0123456789",
   "k".repeat(1000),
-  "k".repeat(1001),
-  "word ".repeat(300).trim(),
 ];
+// Long texts: a key over YAML's limit goes to the probe, a long value does not.
+const LONG = ["k".repeat(1001), "word ".repeat(300).trim()];
 
 describe("isPlainSafe by characters (#696)", () => {
-  const samples = [...TRICKY, ...WORDY, ...generated(3000, PIECES), ...generated(3000, WORD_PIECES)];
+  const fromPieces = generated(3000, PIECES);
+  const fromWordPieces = generated(3000, WORD_PIECES);
+  const samples = [
+    ...TRICKY,
+    ...ACCEPTED,
+    ...LONG,
+    ...PIECES,
+    ...WORD_PIECES,
+    ...fromPieces,
+    ...fromWordPieces,
+  ];
+
+  it("generates strings from every piece, mostly distinct", () => {
+    for (const [strings, pieces] of [
+      [fromPieces, PIECES],
+      [fromWordPieces, WORD_PIECES],
+    ] as const) {
+      expect(pieces.filter((piece) => !strings.some((s) => s.includes(piece)))).toEqual([]);
+      expect(new Set(strings).size).toBeGreaterThan(strings.length * 0.9);
+    }
+  });
 
   it("decides plain only where the probe in YAML 1.2 and 1.1 decides plain too", () => {
     const wrong = CONTEXTS.flatMap((context) =>
@@ -286,7 +302,7 @@ describe("isPlainSafe by characters (#696)", () => {
   });
 
   it("decides the values of an imported element without the probe", () => {
-    for (const s of WORDY.slice(0, -2)) {
+    for (const s of ACCEPTED) {
       expect([s, isPlainByCharacters(s, "value")]).toEqual([s, true]);
     }
     expect(isPlainByCharacters("k".repeat(1001), "key")).toBe(false);
@@ -300,8 +316,13 @@ describe("isPlainSafe by characters (#696)", () => {
   });
 
   it("keeps its cache bounded and still answers after it is cleared", () => {
-    const many = Array.from({ length: 5000 }, (_, i) => `${String(i)}:x`);
-    expect(many.every((s) => isPlainSafe(s, "item"))).toBe(true);
+    let largest = 0;
+    for (let i = 0; i < PROBE_CACHE_SIZE + 100; i++) {
+      expect(isPlainSafe(`${String(i)}:x`, "item")).toBe(true);
+      largest = Math.max(largest, probeCacheSize("item"));
+    }
+    expect(largest).toBe(PROBE_CACHE_SIZE);
+    expect(probeCacheSize("item")).toBeLessThan(PROBE_CACHE_SIZE);
     expect(isPlainSafe("12:30", "item")).toBe(false);
     expect(isPlainSafe("0:x", "item")).toBe(true);
   });
