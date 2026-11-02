@@ -12,7 +12,8 @@
 // - Refused before anything is written: two selected elements with one UUID (`ref.ambiguous`,
 //   SR-088: the file would name one IDENTIFIER twice, ReqIF 1.2 §10.8.32), a content the writer
 //   refuses (`reqif.invalid` naming each problem), an element or image file changed since it was
-//   read (`file.changed-on-disk`), an output that is no XML file (`file.faulty`).
+//   read (`file.changed-on-disk`), an output that is no XML file (`file.faulty`), an output
+//   folder that does not exist (`file.folder-missing`, checked before any image is copied).
 // - Statements (SR-058): with `statements` and `mapping`, the elements whose `source` is the
 //   mapping's source, narrowed by `selection`, in the order of the list, each by its source
 //   IDENTIFIER (`source-identifier`) with only its statement (reqif/statements.ts) as text
@@ -31,6 +32,7 @@ import type { CommandInput, CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
 import {
   createFolder,
+  listFolderFiles,
   readElementText,
   readFileSnapshot,
   sha256,
@@ -278,6 +280,13 @@ const writeOutput = async (
   const before = await readFileSnapshot(outputFolder, name);
   if (before.kind === "problem" && !before.missing) {
     throw new CommandError("file.faulty", `output: ${name} cannot be replaced: ${before.problem.message}`, {
+      command,
+      fields: ["output"],
+    });
+  }
+  // Checked before any image copy, whose folders would be created below a folder that is not there.
+  if ((await listFolderFiles(outputFolder)).kind === "missing") {
+    throw new CommandError("file.folder-missing", `Not exported: the folder of ${name} does not exist`, {
       command,
       fields: ["output"],
     });

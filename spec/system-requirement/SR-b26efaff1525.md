@@ -6,9 +6,10 @@ title: "Property-Werte nach Wertart prüfen"
 spec-id: "SR-085"
 requirement-type: functional
 acceptance-criteria:
-  - "Gegeben eine Property mit Wertart Text, Zahl, Datum, Auswahl oder Beziehung, wenn ein Wert der falschen Art eingetragen wird, dann zeigt das Tool einen Hinweis."
-  - "Gegeben eine Auswahl-Property mit den Werten low, medium und high, wenn in der Datei ein anderer Wert steht, dann zeigt das Tool einen Hinweis mit den erlaubten Werten."
-  - "Gegeben ein solcher Wert, wenn der Bestand über die Kommandozeile geprüft wird, dann erscheint er als Befund."
+  - Gegeben eine Property mit Wertart Text, Zahl, Datum, Auswahl oder Beziehung, wenn in der Datei ein Wert der falschen Art steht, dann zeigt das Tool einen Hinweis.
+  - Gegeben eine Auswahl-Property mit den Werten low, medium und high, wenn in der Datei ein anderer Wert steht, dann zeigt das Tool einen Hinweis mit den erlaubten Werten.
+  - Gegeben ein solcher Wert, wenn der Bestand über die Kommandozeile geprüft wird, dann erscheint er als Befund.
+  - Gegeben eine Property mit Wertart Zahl, wenn über einen Schreibbefehl ein Text als Wert eingetragen wird, dann weist das Tool den Wert zurück und schreibt nichts.
 verification-method: test
 topic: "Metamodell und Typen"
 packages:

@@ -15,10 +15,14 @@
 //   answer (N-036).
 // - Contains: a baseline contains the version of an element when its `elements` list the element's
 //   UUID with that version, in any repository (`elements[].repository` names a copy, SR-088).
+// - The copy of an entry (`copyOf`, ADR-0018 "elements", SR-088): the one its `repository` names,
+//   else the copy in the repository of the file, else the only copy; an entry without `repository`
+//   whose UUID has several copies elsewhere is ambiguous and names none. `baseline.get`,
+//   `baseline.compare`, the hints since a baseline and `selects` share it (#690).
 // - Selects (`data.export` with `selection.baseline`, SR-061 AK2, assumption A1 of #530 Q2/Q4): a
-//   baseline selects an element, whatever its version now, when its `elements` list the element's
-//   UUID: an entry with `repository` the copy in that repository, one without every copy (as
-//   `contains`). One index per file read, kept with the file, so a large baseline is indexed once.
+//   baseline selects an element, whatever its version now, when an entry of its `elements` names
+//   that copy (`copyOf` in the store the caller passes). One index per file read, kept with the
+//   file, so a large baseline is indexed once.
 // - Found (`findBaseline`): by `name` first (ignoring case and Unicode normal form, as saved
 //   filters), then by its file name in the folder, with or without `.yaml`. A name two valid files
 //   share is ambiguous; a text that names only a faulty file by its file name names that file.
@@ -66,8 +70,11 @@ export interface Baseline {
   readonly contains: (id: string, version: string) => boolean;
   /** `contains` by the key `versionKey(id, version)`: one key string serves many baselines (SR-103, N-036). */
   readonly containsKey: (key: string) => boolean;
-  /** Whether it lists the element, in any version (see the file comment). */
-  readonly selects: (element: { readonly id: string; readonly repository: string }) => boolean;
+  /**
+   * Whether an entry names the copy `element` (one of `byId`, the copies by UUID of the store), in
+   * any version (see the file comment).
+   */
+  readonly selects: <T extends StoredCopy>(element: T, byId: CopiesById<T>) => boolean;
   /** The file as read: date, stored selection, commits and entries (SR-051). */
   readonly data: BaselineFile;
 }
@@ -110,23 +117,44 @@ const problemIn = (repository: string, file: string, message: string, line?: num
   ...(line === undefined ? {} : { line }),
 });
 
+/** A copy of an element in the store: its UUID and the repository it lies in. */
+export interface StoredCopy {
+  readonly id: string;
+  readonly repository: string;
+}
+
+/** The copies of each UUID in the store, as `ElementStore.byId` holds them. */
+export type CopiesById<T> = ReadonlyMap<string, readonly T[]>;
+
+/**
+ * The copy an entry of `baseline` (or a stored `ids` item) names (see the file comment): undefined
+ * for none, `ambiguous` for an entry without `repository` whose UUID has several copies elsewhere.
+ */
+export const copyOf = <T extends StoredCopy>(
+  byId: CopiesById<T>,
+  baseline: { readonly repository: string },
+  entry: { readonly id: string; readonly repository?: string | undefined },
+): T | "ambiguous" | undefined => {
+  const copies = byId.get(entry.id) ?? [];
+  const home = copies.find((r) => r.repository === (entry.repository ?? baseline.repository));
+  if (home !== undefined || entry.repository !== undefined) {
+    return home;
+  }
+  return copies.length < 2 ? copies[0] : "ambiguous";
+};
+
 /** The key of an element version in `Baseline.contains` and `containsKey`. */
 export const versionKey = (id: string, version: string): string => `${id}\n${version}`;
 
 /** A valid baseline of `data`. */
 const baselineOf = (data: BaselineFile, repository: string, file: string, shown: string): Baseline => {
   const versions = new Set(data.elements.map((e) => versionKey(e.id, e.version)));
-  // By UUID: the repositories its entries name, or `true` when an entry names none (every copy).
-  const listed = new Map<string, Set<string> | true>();
+  // By UUID: the `repository` of each of its entries, undefined for none (`copyOf` decides).
+  const listed = new Map<string, (string | undefined)[]>();
   for (const entry of data.elements) {
-    const before = listed.get(entry.id);
-    if (entry.repository === undefined) {
-      listed.set(entry.id, true);
-    } else if (before === undefined) {
-      listed.set(entry.id, new Set([entry.repository]));
-    } else if (before !== true) {
-      before.add(entry.repository);
-    }
+    const names = listed.get(entry.id) ?? [];
+    listed.set(entry.id, names);
+    names.push(entry.repository);
   }
   return {
     name: data.name,
@@ -136,10 +164,10 @@ const baselineOf = (data: BaselineFile, repository: string, file: string, shown:
     data,
     contains: (id, version) => versions.has(versionKey(id, version)),
     containsKey: (key) => versions.has(key),
-    selects: (element) => {
-      const copies = listed.get(element.id);
-      return copies === true || (copies?.has(element.repository) ?? false);
-    },
+    selects: (element, byId) =>
+      (listed.get(element.id) ?? []).some(
+        (name) => copyOf(byId, { repository }, { id: element.id, repository: name }) === element,
+      ),
   };
 };
 
