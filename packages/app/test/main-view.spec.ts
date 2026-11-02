@@ -50,6 +50,9 @@ test.describe("the main view on a fixture workspace", () => {
     const permanent = async (editors: number): Promise<void> => {
       // The editors mount after the buffer shows: wait for them before the instant counts below.
       await expect(window.getByRole("textbox")).toHaveCount(editors);
+      // A field shows its copy symbol while the pointer is over it (SR-128): keep the pointer off the sheet,
+      // where the window's own pointer may rest when the element's layout moves under it (Windows).
+      await window.mouse.move(0, 0);
       for (const role of [
         "button",
         "tab",
