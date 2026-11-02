@@ -183,7 +183,8 @@ describe("workspace.init", () => {
     const ws = await createFixtureWorkspace({
       files: {
         "a/.gitignore": "node_modules/\r\ndist/",
-        "b/.gitignore": "x\n  *.reqseq-tmp\n",
+        "b/.gitignore": "x\n*.reqseq-tmp  \n",
+        "d/.gitignore": "  *.reqseq-tmp\n",
         "c/.keep": "",
       },
     });
@@ -194,10 +195,25 @@ describe("workspace.init", () => {
       "node_modules/\r\ndist/\r\n*.reqseq-tmp\r\n",
     );
     expect((await init(workspace, { path: "b", name: "B" })).files).not.toContain(".gitignore");
-    expect(await fs.readFile(ws.path("b/.gitignore"), "utf8")).toBe("x\n  *.reqseq-tmp\n");
+    expect(await fs.readFile(ws.path("b/.gitignore"), "utf8")).toBe("x\n*.reqseq-tmp  \n");
+    // A leading space is part of a Git pattern, so that line does not count.
+    await init(workspace, { path: "d", name: "D" });
+    expect(await fs.readFile(ws.path("d/.gitignore"), "utf8")).toBe("  *.reqseq-tmp\n*.reqseq-tmp\n");
     // A .gitignore that is a link is not followed and left alone.
     await fs.symlink(ws.path("a/.gitignore"), ws.path("c/.gitignore"), "file");
     expect((await init(workspace, { path: "c", name: "C" })).files).not.toContain(".gitignore");
+  });
+
+  it("keeps the bytes of a .gitignore that is not UTF-8", async () => {
+    const ws = await emptyFolder();
+    await fs.writeFile(ws.path(".gitignore"), Buffer.from([0x62, 0xfc, 0x0a]));
+    await init(open(ws.root), { path: ws.root, name: "W" });
+    expect([...(await fs.readFile(ws.path(".gitignore")))]).toEqual([
+      0x62,
+      0xfc,
+      0x0a,
+      ...Buffer.from("*.reqseq-tmp\n"),
+    ]);
   });
 
   it("appends to an empty .gitignore without a blank line", async () => {
