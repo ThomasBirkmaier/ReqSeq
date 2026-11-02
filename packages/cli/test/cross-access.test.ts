@@ -3095,6 +3095,19 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       expect: "output",
     },
     {
+      name: "a requirement with a statement but no text, with file and line (#667)",
+      fixture: {
+        fixture: "SR-004/one-repository",
+        git: true,
+        files: {
+          "requirements/SR-0000000a0667.md":
+            "---\nid: 66700000-0000-4000-8000-0000000a0667\ntype: system-requirement\nstatus: draft\ntitle: Rounding\nstatement: The mass is rounded to 0.001 kg.\n---\n",
+        },
+      },
+      input: {},
+      expect: "output",
+    },
+    {
       name: "one finding of each kind",
       fixture: { fixture: "SR-019/findings", git: true },
       input: {},

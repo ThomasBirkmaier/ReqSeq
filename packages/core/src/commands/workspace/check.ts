@@ -55,6 +55,7 @@ import {
   requiredProblemsState,
   restrictTo,
   shortIdState,
+  statementProblemsState,
   statusProblemsState,
   supersededTargetProblemsState,
   unknownProblemsState,
@@ -90,6 +91,7 @@ export const FINDING_STATES = [
   requiredProblemsState, // SR-015
   unknownProblemsState, // SR-016
   statusProblemsState, // #306
+  statementProblemsState, // #667
   supersededTargetProblemsState, // SR-072
   supersededValidityProblemsState, // SR-040
   nestedVariantsState, // SR-039

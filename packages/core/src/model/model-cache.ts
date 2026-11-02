@@ -45,9 +45,10 @@ export const MODEL_CACHE_FILE = "model.json";
  * inline references of their text (`ElementRecord.references`, #240). 5: and those in the string
  * values of their frontmatter (`ElementRecord.propertyReferences`, SR-127). 6: and their `reqseq:`
  * links whose target is no UUID (`ElementRecord.unresolvedLinks`, #176). 7: and the `reqseq:`
- * references of their text outside links (`ElementRecord.bareReferences`, #633).
+ * references of their text outside links (`ElementRecord.bareReferences`, #633). 8: and whether
+ * their text is blank (`ElementRecord.blankText`, #667).
  */
-export const MODEL_CACHE_FORMAT = 7;
+export const MODEL_CACHE_FORMAT = 8;
 
 /**
  * An entry whose modification time lies less than this before the start of the load that wrote it
@@ -265,7 +266,8 @@ const hasLinksOfRecord = (value: Readonly<Record<string, unknown>>): boolean =>
   (value["references"] === undefined || isReferences(value["references"], false)) &&
   (value["propertyReferences"] === undefined || isReferences(value["propertyReferences"], true)) &&
   (value["unresolvedLinks"] === undefined || isUnresolvedLinks(value["unresolvedLinks"])) &&
-  (value["bareReferences"] === undefined || isBareReferences(value["bareReferences"]));
+  (value["bareReferences"] === undefined || isBareReferences(value["bareReferences"])) &&
+  (value["blankText"] === undefined || value["blankText"] === true);
 
 /** Whether `value` is the record of an element in `file` of repository `name`, as `classifyFile` makes it. */
 const isElementOf = (value: unknown, file: string, name: string): value is Record<string, unknown> =>

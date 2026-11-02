@@ -300,6 +300,7 @@ export type ProblemCode =
   | "element.wrong-value-kind"
   | "element.status-not-allowed"
   | "element.missing-status"
+  | "element.statement-without-text"
   | "relation.missing-target"
   | "relation.unresolved-link"
   | "relation.not-a-link"
