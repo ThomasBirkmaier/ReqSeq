@@ -1,0 +1,79 @@
+{
+  "name": "baseline.create",
+  "title": "Create baseline",
+  "summary": "Write a baseline file for a selection (SR-050, ADR-0018): name, date, the HEAD commit of every repository involved, ID and version of every element. Refused while files of the selection are not committed. Never commits, never replaces a baseline.",
+  "effect": "write-files",
+  "whileReadOnly": "refuse",
+  "whileReadOnlyReason": "Stores the current versions of the selection, which depend on the metamodel (which properties count).",
+  "stage": 5,
+  "implements": ["SR-050", "SR-101"],
+  "arguments": [
+    { "field": "name", "complete": "text" },
+    { "field": "selection", "complete": "selection" }
+  ],
+  "input": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "$ref": "../baseline.schema.json#/$defs/name"
+      },
+      "selection": {
+        "$ref": "../common.schema.json#/$defs/selection",
+        "description": "Stored in the file: a saved filter as its where and view, package and view with their title. Not baseline."
+      }
+    },
+    "additionalProperties": false,
+    "required": ["name", "selection"]
+  },
+  "output": {
+    "type": "object",
+    "description": "Errors: baseline.exists when a baseline has the name, ignoring case and Unicode normal form (details.file, details.repository: its file; nothing written, SR-050 AK6); a taken file name gets -2, -3, …; baseline.uncommitted-changes (details.elements[] {id, repository, file}, details.files[] {repository, file}; SR-050 AK2); git.unavailable when a repository involved is not under Git or has no commit (details.repository; AK7); file.faulty when a selected element has no version (details.elements[]); input.invalid for selection.baseline, and for selection.view when it names another view than the saved filter (spec question #440); file.faulty when the baselines folder cannot be listed (details.repository, details.file). The baseline is never replaced afterwards.",
+    "properties": {
+      "files": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "description": "Written file, relative to the workspace root, / as separator."
+        }
+      },
+      "baseline": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "file": {
+            "type": "string",
+            "description": "The file, relative to the workspace root, / as separator."
+          },
+          "repository": {
+            "type": "string",
+            "description": "The repository that holds the file; `repository` in the file is relative to it."
+          },
+          "date": {
+            "$ref": "../common.schema.json#/$defs/dateTime"
+          },
+          "elements": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of elements in the file."
+          }
+        },
+        "additionalProperties": false,
+        "required": ["name", "file", "repository", "date", "elements"]
+      },
+      "problems": {
+        "type": "array",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/problem"
+        }
+      },
+      "incomplete": {
+        "$ref": "../common.schema.json#/$defs/incomplete",
+        "description": "A repository is not here, so the view may miss a replacement or exclusion stored there (SR-006); the file is written all the same, with a warning."
+      }
+    },
+    "additionalProperties": false,
+    "required": ["files", "baseline"]
+  }
+}

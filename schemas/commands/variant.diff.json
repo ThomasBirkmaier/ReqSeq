@@ -1,0 +1,64 @@
+{
+  "name": "variant.diff",
+  "title": "Show variant difference",
+  "summary": "What a variant adds, replaces and excludes compared to the core.",
+  "effect": "read",
+  "stage": 5,
+  "implements": ["SR-041", "SR-042", "SR-044"],
+  "arguments": [{ "field": "variant", "complete": "element" }],
+  "input": {
+    "type": "object",
+    "properties": {
+      "variant": {
+        "$ref": "../common.schema.json#/$defs/elementRef",
+        "description": "The variant. An element whose type has no meaning `variant` is `input.invalid` with `details.reason: \"not-a-variant\"`; an unknown or ambiguous reference is `ref.unknown` or `ref.ambiguous`."
+      }
+    },
+    "additionalProperties": false,
+    "required": ["variant"]
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "added": {
+        "type": "array",
+        "items": { "$ref": "../common.schema.json#/$defs/uuid" },
+        "description": "Requirements whose validity names the variant and that replace no core requirement that is not excluded in it (SR-044 AK1), also the source of a replaces onto an element that is no core requirement (SR-041 AK8). Store order."
+      },
+      "replaced": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "core": { "$ref": "../common.schema.json#/$defs/uuid" },
+            "replacement": { "$ref": "../common.schema.json#/$defs/uuid" }
+          },
+          "additionalProperties": false,
+          "required": ["core", "replacement"]
+        },
+        "description": "One row per pair, in store order of the core requirement, then of the replacement: two replacements of one core requirement are two rows (SR-041 AK7). A core requirement that is also excluded is not here (SR-042 AK5)."
+      },
+      "excluded": {
+        "type": "array",
+        "items": { "$ref": "../common.schema.json#/$defs/uuid" },
+        "description": "Core requirements the variant excludes, also when replaced too; store order."
+      },
+      "names": {
+        "type": "array",
+        "items": { "$ref": "../common.schema.json#/$defs/elementName" },
+        "description": "Every element the lists name, each once, in order first named (#588). Left out when it names none."
+      },
+      "problems": {
+        "type": "array",
+        "items": { "$ref": "../common.schema.json#/$defs/problem" },
+        "description": "The variant.target-not-core hints of the variant's own entries and of its replacements."
+      },
+      "incomplete": {
+        "$ref": "../common.schema.json#/$defs/incomplete",
+        "description": "A repository is not here: a replacement or exclusion stored there is missing (SR-006 AK2)."
+      }
+    },
+    "additionalProperties": false,
+    "required": ["added", "replaced", "excluded"]
+  }
+}

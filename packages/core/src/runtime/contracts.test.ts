@@ -33,10 +33,8 @@ const catalogOf = (...commands: object[]): object => ({ "reqseq-catalog": 1, com
 describe("loadContracts", () => {
   it("loads the catalog of this repository", () => {
     const contracts = loadContracts();
-    const file = readJson("commands/catalog.json") as {
-      readonly commands: readonly { readonly name: string }[];
-    };
-    expect(contracts.commands.map((c) => c.name)).toEqual(file.commands.map((c) => c.name));
+    const header = readJson("commands/catalog.header.json") as { readonly order: readonly string[] };
+    expect(contracts.commands.map((c) => c.name)).toEqual(header.order);
     expect(contracts.entry("workspace.status")?.stage).toBe(1);
     expect(contracts.entry("no.such")).toBeUndefined();
     expect(contracts.schemas.map((s) => s["$id"])).toContain("https://reqseq.dev/schemas/common.schema.json");
@@ -122,7 +120,20 @@ describe("loadContracts", () => {
       .sort();
     expect(contractsBundle.schemas).toEqual(files.map(readJson));
     expect(contractsBundle.catalogMeta).toEqual(readJson("commands/catalog.meta.schema.json"));
-    expect(contractsBundle.catalog).toEqual(readJson("commands/catalog.json"));
+    // One file per command, `<name>.json`, besides the header and the meta-schema (ADR-0002, #528).
+    const commandFiles = fs
+      .readdirSync(path.join(schemasDir, "commands"), { withFileTypes: true })
+      .filter((d) => d.isFile() && d.name.endsWith(".json"))
+      .map((d) => d.name)
+      .filter((f) => f !== "catalog.header.json" && f !== "catalog.meta.schema.json")
+      .sort();
+    const { commands } = contractsBundle.catalog as {
+      readonly commands: readonly { readonly name: string }[];
+    };
+    expect(commands.map((c) => `${c.name}.json`).sort()).toEqual(commandFiles);
+    for (const command of commands) {
+      expect(command).toEqual(readJson(`commands/${command.name}.json`));
+    }
   });
 });
 

@@ -1,0 +1,70 @@
+{
+  "name": "baseline.list",
+  "title": "List baselines",
+  "summary": "Baseline files of the workspace, with name, date, view and number of elements (ADR-0018).",
+  "effect": "read",
+  "stage": 5,
+  "implements": ["SR-051"],
+  "arguments": [],
+  "input": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "baselines": {
+        "type": "array",
+        "description": "The valid baselines, in file order (code units of the file name).",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "file": {
+              "type": "string",
+              "description": "Relative to the workspace root, / as separator."
+            },
+            "repository": {
+              "type": "string",
+              "description": "The repository that holds the file."
+            },
+            "date": {
+              "$ref": "../common.schema.json#/$defs/dateTime"
+            },
+            "view": {
+              "$ref": "../common.schema.json#/$defs/viewId",
+              "description": "The variant whose baseline it is: its stored selection is only that view (SR-103 AK4). Left out otherwise."
+            },
+            "elements": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Number of elements in the file."
+            }
+          },
+          "additionalProperties": false,
+          "required": ["name", "file", "repository", "date", "elements"]
+        }
+      },
+      "location": {
+        "$ref": "../workspace.schema.json#/$defs/location",
+        "description": "The baselines folder: the workspace file's `baselines`, or `baselines` in the main repository."
+      },
+      "problems": {
+        "type": "array",
+        "description": "baseline.invalid of the files that are no valid baseline.",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/problem"
+        }
+      },
+      "incomplete": {
+        "$ref": "../common.schema.json#/$defs/incomplete",
+        "description": "The repository of the baselines folder is not here, so its baselines are not seen (SR-006 AK2)."
+      }
+    },
+    "additionalProperties": false,
+    "required": ["baselines", "location"]
+  }
+}
