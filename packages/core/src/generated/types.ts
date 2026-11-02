@@ -2895,7 +2895,7 @@ export interface BaselineListOutput {
 }
 
 /**
- * Input of `baseline.get` as `run` gets it: validated, properties with a `default` filled in. Elements of a baseline with their version then and its date, marked changed, superseded, removed or added since (SR-051); with withEvidence the verification status of each requirement per view and the validation status at its version in the baseline, with the records dated after it named (SR-094).
+ * Input of `baseline.get` as `run` gets it: validated, properties with a `default` filled in. Elements of a baseline with their version then and its date, marked changed, superseded, removed or added since (SR-051); with withEvidence the verification status of each requirement per view and the validation status at its version in the baseline, with the records dated after it named (SR-094). Only properties marked `content` in the metamodel count to the version; relations such as `serves` or `derives-from` do not, so an element whose relations changed is `unchanged`: compare it with Git (`git diff <commit of the baseline> -- <file>`).
  * Schema: `schemas/commands/baseline.get.json input`.
  */
 export interface BaselineGetInput {
@@ -2909,7 +2909,7 @@ export interface BaselineGetInput {
 }
 
 /**
- * Output of `baseline.get`. Elements of a baseline with their version then and its date, marked changed, superseded, removed or added since (SR-051); with withEvidence the verification status of each requirement per view and the validation status at its version in the baseline, with the records dated after it named (SR-094).
+ * Output of `baseline.get`. Elements of a baseline with their version then and its date, marked changed, superseded, removed or added since (SR-051); with withEvidence the verification status of each requirement per view and the validation status at its version in the baseline, with the records dated after it named (SR-094). Only properties marked `content` in the metamodel count to the version; relations such as `serves` or `derives-from` do not, so an element whose relations changed is `unchanged`: compare it with Git (`git diff <commit of the baseline> -- <file>`).
  * Schema: `schemas/commands/baseline.get.json output`.
  */
 export interface BaselineGetOutput {
