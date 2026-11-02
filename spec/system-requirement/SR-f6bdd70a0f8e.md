@@ -11,7 +11,7 @@ acceptance-criteria:
   - Gegeben eine Spalte, für die das Metamodell keine Mindestzahl ab 1 festlegt, zum Beispiel „Refines“ zwischen System Requirements oder eine Spalte der Gegenrichtung wie „Refined by“, wenn die Matrix angezeigt wird, dann ist eine leere Zelle nicht als Lücke gekennzeichnet, und über der Spalte steht nur die Anzahl der Zeilen mit einer Beziehung dieser Art, ohne Anteil.
   - Gegeben dieselbe Auswahl, wenn die Matrix über Kommandozeile, API oder MCP abgefragt wird, dann liefert das Tool dieselben Lücken, Anzahlen und Anteile wie die App.
 packages:
-  - { id: c64ee86d-761a-4180-bfb1-cde819bfc27c, version: n1:fd3ed3f03b3d762f, title: Später }
+  - { id: 76455508-8047-4fdc-ba94-495751bd880b, version: n1:fc6046c245ac6717, title: "Stufe 2: Traceability" }
 verification-method: test
 topic: Traceability und Ketten
 refines:
