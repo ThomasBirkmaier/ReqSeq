@@ -1303,13 +1303,12 @@ describe("App, the overview (SR-118)", () => {
     await keyDown(query('[role="listbox"]'), "Enter");
     await runCommand("show overview");
     expect(setItem).toHaveBeenCalledWith(KEY(), JSON.stringify([known(1)]));
-    const catalog = JSON.parse(
-      readFileSync(join(import.meta.dirname, "../../../../schemas/commands/catalog.json"), "utf8"),
-    ) as { commands: { name: string; effect: string }[] };
     const called = new Set(invoke.mock.calls.map(([name]) => name));
     expect(called.size).toBeGreaterThan(3);
     for (const name of called) {
-      expect(catalog.commands.find((command) => command.name === name)?.effect).toBe("read");
+      // One file per catalog command (ADR-0002); core's index cannot load under happy-dom.
+      const file = join(import.meta.dirname, `../../../../schemas/commands/${name}.json`);
+      expect((JSON.parse(readFileSync(file, "utf8")) as { effect: string }).effect).toBe("read");
     }
   });
 

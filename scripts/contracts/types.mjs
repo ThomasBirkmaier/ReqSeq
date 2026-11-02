@@ -564,13 +564,14 @@ export function generateTypes({ schemas, meta, catalog }, { renames = RENAMES } 
   const commandType = (cmd, part) => {
     const name = `${pascal(cmd.name)}${pascal(part)}`;
     claim(name, `${cmd.name} ${part}`);
-    const at = `commands/catalog.json ${cmd.name}.${part}`;
-    const node = toNode(cmd[part], { file: "commands/catalog.json", fill: part === "input", at });
+    const file = `commands/${cmd.name}.json`;
+    const at = `${file} ${part}`;
+    const node = toNode(cmd[part], { file, fill: part === "input", at });
     const note =
       part === "input"
         ? `Input of \`${cmd.name}\` as \`run\` gets it: validated, properties with a \`default\` filled in.`
         : `Output of \`${cmd.name}\`.`;
-    return [name, node, `${note} ${cmd.summary}`, `schemas/commands/catalog.json ${cmd.name} ${part}`];
+    return [name, node, `${note} ${cmd.summary}`, `schemas/${file} ${part}`];
   };
   const commandDecls = [];
   const map = [];

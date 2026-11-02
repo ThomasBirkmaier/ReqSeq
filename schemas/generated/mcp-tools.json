@@ -1,5 +1,5 @@
 {
-  "description": "Generated from schemas/commands/catalog.json. The MCP server (stdio) lists those of these tools that the running version implements (ADR-0009). $refs point into the top-level $defs; the server sends each tool schema with only the definitions it uses.",
+  "description": "Generated from the command catalog, one file per command in schemas/commands/. The MCP server (stdio) lists those of these tools that the running version implements (ADR-0009). $refs point into the top-level $defs; the server sends each tool schema with only the definitions it uses.",
   "$defs": {
     "activity": {
       "title": "Activity file",

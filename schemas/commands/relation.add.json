@@ -1,0 +1,50 @@
+{
+  "name": "relation.add",
+  "title": "Create relation",
+  "summary": "Add a relation; stores target UUID and current version, plus the title only within the same repository.",
+  "effect": "write-files",
+  "whileReadOnly": "refuse",
+  "whileReadOnlyReason": "Writes the current version of the target, which depends on the metamodel (which properties count).",
+  "stage": 2,
+  "implements": ["SR-005", "SR-021", "SR-041", "SR-067"],
+  "arguments": [
+    { "field": "source", "complete": "element" },
+    { "field": "kind", "complete": "relationKind", "of": "source" },
+    { "field": "target", "complete": "relationTarget", "of": "kind" }
+  ],
+  "input": {
+    "type": "object",
+    "properties": {
+      "source": {
+        "$ref": "../common.schema.json#/$defs/elementRef"
+      },
+      "kind": {
+        "$ref": "../common.schema.json#/$defs/key"
+      },
+      "target": {
+        "$ref": "../common.schema.json#/$defs/elementRef"
+      }
+    },
+    "additionalProperties": false,
+    "required": ["source", "kind", "target"]
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "files": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "problems": {
+        "type": "array",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/problem"
+        }
+      }
+    },
+    "additionalProperties": false,
+    "required": ["files"]
+  }
+}

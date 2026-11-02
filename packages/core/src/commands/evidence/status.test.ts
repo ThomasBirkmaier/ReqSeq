@@ -12,7 +12,7 @@ import type { FixtureOptions } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import type { EvidenceRecord } from "../../evidence/index.js";
-import { evidenceReadState, evidenceRecordsState } from "../../evidence/index.js";
+import { evidenceReadState, evidenceRecordsState, verificationState } from "../../evidence/index.js";
 import { elementStoreState } from "../../model/index.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
@@ -351,5 +351,48 @@ describe("evidence.status (SR-031)", () => {
     expect(await ids({ all: [{ type: ["system-requirement"] }, noEvidence] }, V1)).toEqual([B1, B3]);
     expect(await ids({ relation: { direction: "evidence" }, exists: true })).toEqual([B1, B3]);
     expect(await ids({ verification: ["verified"] })).toEqual([B1]);
+  });
+
+  it("reads no current version for the condition without evidence, and one batch for the first verification (#439)", async () => {
+    const ws = await open();
+    await withRecords(ws, [
+      record(B1, OLDER, "2026-01-01T10:00:00Z", "passed"),
+      record(N1, OLDER, "2026-01-01T10:00:00Z", "passed", { kind: "validation" }),
+    ]);
+    const ids = async (where: unknown): Promise<string[]> =>
+      (
+        (await invoke(
+          "element.list",
+          { selection: { where } },
+          { workspace: ws },
+        )) as CommandOutput<"element.list">
+      ).elements.map((e) => e.id);
+    const state = await ws.get(verificationState);
+    expect(await ids({ relation: { direction: "evidence" }, exists: false })).toEqual([N1, B2, B3, V1, V2]);
+    expect(state.versionBatches()).toBe(0);
+    expect(await ids({ verification: ["outdated"] })).toEqual([B1]);
+    expect(await ids({ validation: ["outdated"] })).toEqual([N1]);
+    expect(state.versionBatches()).toBe(1);
+  });
+
+  it("reads the versions again after a failed read of the evidence provider (#439)", async () => {
+    const ws = await open();
+    await withRecords(ws, [record(B1, OLDER, "2026-01-01T10:00:00Z", "passed")]);
+    const before = ws.get(verificationState);
+    const real = await before;
+    let calls = 0;
+    const failingOnce: typeof real = {
+      ...real,
+      prepare: (elements, options) => {
+        calls += 1;
+        return calls === 1 ? Promise.reject(new Error("read failed")) : real.prepare(elements, options);
+      },
+    };
+    expect(await ws.replace(verificationState, before, Promise.resolve(failingOnce))).toBe(true);
+    const list = async (): Promise<unknown> =>
+      invoke("element.list", { selection: { where: { verification: ["outdated"] } } }, { workspace: ws });
+    await expect(list()).rejects.toThrow();
+    expect(await list()).toMatchObject({ elements: [{ id: B1 }] });
+    expect(calls).toBe(2);
   });
 });
