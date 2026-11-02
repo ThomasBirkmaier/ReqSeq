@@ -2909,7 +2909,7 @@ export interface BaselineListOutput {
 export interface BaselineGetInput {
   /** Name of a baseline, or its file name (with or without .yaml). */
   readonly baseline: string;
-  /** Also give, at each entry's version in the baseline, the verification status of each requirement in every view it applies in (only the variant's when the stored selection has one) and the validation status: own records up to the baseline's date and time, records of that version dated after it named apart (SR-094). Like the rest of the output it reads the evidence files on disk, so each repository should be checked out at the commit the baseline names; a `baseline.repository-commit-differs` warning names each one that is not. */
+  /** Also give, at each entry's version in the baseline, the verification status of each requirement in every view it applies in (only the variant's when the stored selection has one) and the validation status: own records up to the baseline's date and time, records of that version dated after it named apart (SR-094). Only each requirement's own records count, never indirect evidence (SR-094 AK6): a requirement that `evidence.status` gives as `indirect` today, verified through its children, is `open` here. Like the rest of the output it reads the evidence files on disk, so each repository should be checked out at the commit the baseline names; a `baseline.repository-commit-differs` warning names each one that is not. */
   readonly withEvidence: boolean;
   /** Elements of the page; total counts all. */
   readonly limit: number;
