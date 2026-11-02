@@ -4,9 +4,10 @@
 // a blank text and a value there most likely has its requirement in the wrong place, so a change of
 // it gives no new version and outdates no evidence or relation. One hint, severity `warning`
 // (D-012: the element is shown and kept, nothing is blocked), on the line of the value:
-// `element.statement-without-text`. Only for an element of a type with the meaning `requirement`,
-// and only while the statement property does not count (`content` not true): a metamodel that makes
-// it count has no such gap. The text comes from `ElementRecord.blankText`, so no file is read to
+// `element.statement-without-text`. Only for an element of a type with the meaning `requirement`
+// that lists the statement property, while that property does not count (`content` not true): a
+// metamodel that makes it count has no such gap. An element whose status the metamodel marks invalid
+// (superseded, obsolete) gets none: it is not worked on any more. The text comes from `ElementRecord.blankText`, so no file is read to
 // find them. Nothing while the metamodel is not valid (#208, #220 option 1).
 import type { Problem } from "../catalog.js";
 import type { Metamodel } from "../metamodel/index.js";
@@ -21,6 +22,10 @@ import { isEmptyValue } from "./required.js";
 import type { ElementStore } from "./store.js";
 import { carryStoreUpdate, elementStoreState } from "./store.js";
 
+/** Whether `status` is one the metamodel marks invalid (superseded, obsolete): such an element needs no fix. */
+const isInvalidStatus = (metamodel: Metamodel, status: unknown): boolean =>
+  metamodel.statuses.some((s) => s.key === status && s.invalid === true);
+
 /** The hint of `element`, if it is a requirement with a blank text and a statement that does not count. */
 export const statementFindings = (
   element: ElementRecord,
@@ -31,11 +36,16 @@ export const statementFindings = (
   }
   const property = propertyWithMeaning(metamodel, "statement");
   const type = findType(metamodel, element.type);
+  // As the version reads it (`versionDefinitions`): a property counts only on a type that lists it;
+  // a type without it gets `element.unknown-property` for the value instead (SR-016).
   if (
     property === undefined ||
     property.content === true ||
     type?.meaning !== "requirement" ||
-    isEmptyValue(element.data[property.key])
+    !type.properties.includes(property.key) ||
+    !Object.hasOwn(element.data, property.key) ||
+    isEmptyValue(element.data[property.key]) ||
+    isInvalidStatus(metamodel, element.data["status"])
   ) {
     return [];
   }

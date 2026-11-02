@@ -11,8 +11,8 @@ const CODE = "element.statement-without-text";
 const MODEL = "metamodel/standard-model.yaml";
 
 /** A requirement with its statement on line 6 and `text` below the frontmatter. */
-const requirement = (id: string, statement: string, text = ""): string =>
-  `---\nid: 66700000-0000-4000-8000-${id}\ntype: system-requirement\nstatus: draft\ntitle: Rounding\nstatement: ${statement}\n---\n${text}`;
+const requirement = (id: string, statement: string, text = "", status = "draft"): string =>
+  `---\nid: 66700000-0000-4000-8000-${id}\ntype: system-requirement\nstatus: ${status}\ntitle: Rounding\nstatement: ${statement}\n---\n${text}`;
 
 const FILES = {
   // Only the statement holds the requirement: the hint.
@@ -25,6 +25,11 @@ const FILES = {
   "requirements/SR-000000b00667.md": requirement("000000b00667", "Agreed.", "\nThe mass is rounded.\n"),
   // No statement: a requirement without text is no gap of this kind.
   "requirements/SR-000000c00667.md": requirement("000000c00667", '""'),
+  // No statement key at all.
+  "requirements/SR-000000f00667.md":
+    "---\nid: 66700000-0000-4000-8000-000000f00667\ntype: system-requirement\nstatus: draft\ntitle: Rounding\n---\n",
+  // Obsolete (a status the metamodel marks invalid): not worked on any more.
+  "requirements/SR-000000e00667.md": requirement("000000e00667", "Rounded to 0.1 m.", "", "obsolete"),
   // Not a requirement type.
   "decisions/D-000000d00667.md":
     "---\nid: 66700000-0000-4000-8000-000000d00667\ntype: decision\nstatus: accepted\ntitle: Rounding\nstatement: Agreed.\n---\n",
@@ -113,7 +118,7 @@ describe("a requirement whose wording is only in the statement (#667)", () => {
     expect(await hints(opened.workspace)).toEqual([]);
   });
 
-  it("gives none when the statement counts to the version, no property has its meaning, or the metamodel is not valid", async () => {
+  it("gives none when the statement counts to the version, no property has its meaning, the type lacks the property, or the metamodel is not valid", async () => {
     const counts = await open();
     const content = await withModel(counts, (m) =>
       m.replace("meaning: statement,", "meaning: statement,\n      content: true,"),
@@ -122,6 +127,21 @@ describe("a requirement whose wording is only in the statement (#667)", () => {
     const unassigned = await open();
     const none = await withModel(unassigned, (m) => m.replace("meaning: statement,", ""));
     expect(await hints(none)).toEqual([]);
+    // A requirement type without the statement property: the value is an unknown property (SR-016), and
+    // it does not count to the version on that type whatever its `content` (`versionDefinitions`).
+    const without = await open();
+    const notOnType = await withModel(without, (m) =>
+      m
+        .replace("        statement,\n", "")
+        .replace("meaning: statement,", "meaning: statement,\n      content: false,"),
+    );
+    const problems = (
+      (await invoke("workspace.check", {}, { workspace: notOnType })) as CommandOutput<"workspace.check">
+    ).problems;
+    expect(problems.filter((p) => p.code === CODE)).toEqual([]);
+    expect(problems).toContainEqual(
+      expect.objectContaining({ code: "element.unknown-property", elementId: HINT.elementId }),
+    );
     const broken = await open();
     await broken.fixture.write("metamodel/broken.yaml", "reqseq-metamodel: 2\n");
     const invalid = new Workspace(broken.fixture.root);

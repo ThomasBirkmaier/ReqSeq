@@ -3106,6 +3106,17 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       },
       input: {},
       expect: "output",
+      check: (results) => {
+        const { problems } = (results["core"]?.outcome as { output: { problems: Record<string, unknown>[] } })
+          .output;
+        expect(problems).toContainEqual(
+          expect.objectContaining({
+            code: "element.statement-without-text",
+            file: "requirements/SR-0000000a0667.md",
+            line: 6,
+          }),
+        );
+      },
     },
     {
       name: "one finding of each kind",
