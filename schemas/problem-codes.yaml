@@ -130,7 +130,7 @@ problems:
     cause: An evidence record or a test case names an element ID that several files share, so it is assigned to none of them.
     remedy: Give the copied element file a new UUID (see `element.duplicate-id`).
   evidence.kind-mismatch:
-    cause: An evidence record names an element of a type its kind cannot name, for example a test case of a JUnit file (a verification) that names a need. A verification names a requirement, a validation a need or a requirement (D-012). The record counts for no status.
+    cause: A verification record names an element whose type is no requirement, for example a test case of a JUnit file that names a need. A verification names a requirement (D-012); the record counts for no status.
     remedy: Name a requirement in the test case, or record the validation of the need with `evidence record` and kind validation.
   baseline.invalid:
     cause: A baseline file cannot be read or does not match its format (ADR-0018), for example an element copy or a repository listed twice.

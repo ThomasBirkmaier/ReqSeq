@@ -131,7 +131,7 @@ describe("SR-028 findings of the evidence records", () => {
     expect(checked.ok).toBe(false);
   });
 
-  it("warns about a verification of a need and a validation of a decision, not a validation of a need (#628)", async () => {
+  it("warns about a verification of a need, not about validations (#628)", async () => {
     const need = "3c3c3c3c-3333-4333-8333-0d00000000a1";
     const decision = "3c3c3c3c-3333-4333-8333-0d00000000a2";
     const workspace = await open({
@@ -151,11 +151,10 @@ describe("SR-028 findings of the evidence records", () => {
       (p) => p.code === "evidence.kind-mismatch",
     );
     expect(found.map((p) => [p.file, p.targetId, p.severity])).toEqual([
-      ["evidence/2026-10-23-decision-validation.md", decision, "warning"],
       ["evidence/2026-10-23-need-test.md", need, "warning"],
     ]);
-    expect(found[1]?.message).toBe(
-      `The verification record names element ${need} of type need, so it counts for no status: a verification record names a requirement, a validation record a need or a requirement (D-012)`,
+    expect(found[0]?.message).toBe(
+      `The verification record names element ${need} of type need, so it counts for no status: a verification record names a requirement (D-012)`,
     );
   });
 
