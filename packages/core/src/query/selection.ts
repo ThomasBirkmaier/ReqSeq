@@ -181,7 +181,7 @@ export const resolveSelection = async (
     notes.push(compiled.notes);
   }
   if (baseline !== undefined) {
-    tests.push(baseline.selects);
+    tests.push((element) => baseline.selects(element, store.byId));
   }
   if (selection.package !== undefined) {
     const compiled = await compileWhere(context, { package: selection.package }, "selection");

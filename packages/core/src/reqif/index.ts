@@ -30,6 +30,8 @@ export type { ExistingElement, ExistingElements } from "./repeat.js";
 export { importDate, originKeys } from "./origin.js";
 export { OWN_TOOL_ID, ownMapping } from "./own.js";
 export type { OwnMappingFile } from "./own.js";
+export { ownMappingOf } from "./own-mapping.js";
+export type { OwnMapping, SavedMapping } from "./own-mapping.js";
 export type { OriginKeys } from "./origin.js";
 export { markdownToXhtml, prepareMarkdown, xhtmlToMarkdown } from "./xhtml-markdown.js";
 export type {
