@@ -7,7 +7,10 @@
 // Each step is a frame with the time it stays, and typing is a frame every few letters. The frames go to
 // `test-results/electron/guide-animation/` (the CI artifact); with REQSEQ_GUIDE_IMAGES set (`pnpm docs:screenshots`)
 // ffmpeg also makes `docs/guide/images/app-get-started.gif` of them, committed after a run (ADR-0017). Linux only,
-// light, 1024×576, as the guide's screenshots; nothing compares pixels.
+// light, 1024×576, as the guide's screenshots; nothing compares pixels. The animation gets a grey frame with round
+// corners, transparent outside, so that it reads as a screen on a light page and leaves no square corners on a dark
+// one; ImageMagick then stores each frame as the rectangle that changed, which ffmpeg does not do once a frame has
+// transparent pixels.
 import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -33,6 +36,26 @@ const REQUIREMENT = {
   title: "Show the wind speed",
   text: "The station must show the wind speed in knots, updated every 10 seconds.",
 };
+/**
+ * The ffmpeg filter that draws the frame: a border of `B` pixels in a grey that shows on light and dark pages, round
+ * corners of radius `R`, and transparent pixels outside them. `D` is the distance from the centre of the nearest
+ * corner's circle, 0 away from the corners.
+ */
+const ROUNDED_FRAME = (() => {
+  const R = "12";
+  /** The radius at which the border starts: R less its width of 2 pixels. */
+  const inner = "10";
+  const B = "2";
+  const D = `hypot(max(max(${R}-X,X-(W-1-${R})),0),max(max(${R}-Y,Y-(H-1-${R})),0))`;
+  const border = `lt(min(min(X,W-1-X),min(Y,H-1-Y)),${B})+gt(${D},${inner})`;
+  const grey = { r: "175", g: "184", b: "193" };
+  return [
+    `geq=r='if(${border},${grey.r},r(X,Y))'`,
+    `g='if(${border},${grey.g},g(X,Y))'`,
+    `b='if(${border},${grey.b},b(X,Y))'`,
+    `a='if(gt(${D},${R}),0,255)'`,
+  ].join(":");
+})();
 /** How long a frame of typing stays, and how many letters it adds. */
 const TYPING = { ms: 60, letters: 4 };
 
@@ -194,19 +217,22 @@ test("[SR-140/AK4] the README animation: Get started in the app, ending in the g
   ];
   await fs.writeFile(path.join(FRAMES, "frames.txt"), `${list.join("\n")}\n`);
   if ((process.env["REQSEQ_GUIDE_IMAGES"] ?? "") !== "") {
-    // One palette for all frames from what changes, and each frame stored as the rectangle that changed: the
-    // animation stays small, and the text sharp without dithering.
+    // One palette for all frames from what changes, with a transparent entry for the corners, and no dithering, so
+    // that the text stays sharp.
+    const raw = path.join(FRAMES, "app-get-started.raw.gif");
     await execFileAsync(
       "ffmpeg",
       [
         ["-y", "-loglevel", "error", "-f", "concat", "-i", "frames.txt"],
         [
           "-filter_complex",
-          "split[a][b];[a]palettegen=stats_mode=diff[p];[b][p]paletteuse=dither=none:diff_mode=rectangle",
+          `format=rgba,${ROUNDED_FRAME},split[a][b];[a]palettegen=stats_mode=diff:reserve_transparent=1[p];` +
+            "[b][p]paletteuse=dither=none:alpha_threshold=128",
         ],
-        ["-loop", "0", GIF],
+        ["-loop", "0", raw],
       ].flat(),
       { cwd: FRAMES },
     );
+    await execFileAsync("convert", [raw, "-layers", "Optimize", GIF]);
   }
 });

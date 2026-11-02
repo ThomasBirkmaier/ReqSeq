@@ -9,6 +9,8 @@ ReqSeq is a local, Git-based requirements tool: one Markdown file per element, t
 
 You keep your requirements as plain files in your own folders and repositories. ReqSeq reads them, checks them against a metamodel, follows their relations and shows what is covered and verified, from a desktop app, a command line, a local API and an MCP server.
 
+That makes it a tool for spec-driven development with coding agents: the specification lives in the repository next to the code, agents read and change it through the command line or the MCP server, and the pipeline checks it and records which requirement each test run verified. ReqSeq itself is built that way.
+
 ![The steps of Get started in the app: initialise a workspace, create a need and a system requirement with their texts, let the requirement derive from the need, and show the graph of the need.](docs/guide/images/app-get-started.gif)
 
 ## What it does
@@ -20,6 +22,35 @@ You keep your requirements as plain files in your own folders and repositories. 
 - **Checks in pipelines.** `reqseq workspace check` checks the whole workspace, or only the changed files, and exits with 1 on errors.
 - **Variants, baselines and exchange.** Variants that exclude or replace requirements of the core, baselines to compare against, ReqIF import and export, and data export.
 - **Four ways in, one result.** The desktop app, the `reqseq` command line, a local HTTP API on loopback and an MCP server for AI agents run the same commands.
+
+## Spec-driven development with coding agents
+
+A spec that an agent writes code from is only half of the job. ReqSeq keeps it after that: each requirement has a version, its relations follow it down to the tests, and every pull request shows what the change breaks and what is still unverified.
+
+1. **Give the agent the workspace.** Either the `reqseq` command line in the repository, or the MCP server, one tool per command with the same result as the CLI:
+
+   ```json
+   { "mcpServers": { "reqseq": { "command": "reqseq", "args": ["mcp", "--workspace", "spec"] } } }
+   ```
+
+2. **Let it change the spec with commands.** `element create`, `element update`, `relation add` and `element supersede` keep IDs, versions and relations consistent; `element search` and `trace chain` let it read before it writes. A requirement is never deleted, only superseded, and a status is only ever set, never computed, so approving stays a decision someone makes.
+3. **Name the requirement in the test.** `[SR-c67baa] shows the wind speed` in any test tool that writes JUnit XML, or a name pattern such as `sr_c67baa_ak1` where brackets do not fit.
+4. **Check it in CI.** On every pull request, as steps of a GitHub Actions job (checkout with `fetch-depth: 0`, workspace in `spec/`):
+
+   ```yaml
+   - run: reqseq workspace check --workspace spec --changed-since origin/${{ github.base_ref }} --fail-on warning
+   - run: reqseq evidence enrich-junit spec/evidence/ci/results.xml ${{ github.sha }} --workspace spec
+   - run: reqseq evidence without-passed-test --workspace spec
+   ```
+
+   The check fails the job on a broken relation, a missing property or an outdated link; the enriched JUnit file ties each passed test to the version of the requirement it ran against, and the last command lists what no test shows yet.
+
+Where this runs today:
+
+- **ReqSeq itself.** `spec/` holds the more than 160 system requirements of this repository as a ReqSeq workspace. The agents that build ReqSeq change it only through ReqSeq, every pull request checks it, and each acceptance criterion with the method Test has a test named after it (`[SR-036/AK2] ...`), which `pnpm trace-check` enforces.
+- **A pilot.** [reqseq-weight-and-balance](https://github.com/ThomasBirkmaier/reqseq-weight-and-balance) is a small web app built by agents that had not used ReqSeq before, from stakeholders and hazards down to Rust and Playwright tests. Its CI checks the workspace and enriches the JUnit results of both test suites.
+
+[Check a workspace in CI](https://thomasbirkmaier.github.io/ReqSeq/how-to/check-a-workspace-in-ci/) and [Record test evidence](https://thomasbirkmaier.github.io/ReqSeq/how-to/record-test-evidence/) in the documentation have the details.
 
 ## Get started
 
