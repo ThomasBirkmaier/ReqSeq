@@ -65,19 +65,35 @@ const targetIds = (record: ElementRecord, key: string): string[] => {
 };
 
 /**
- * The view of `variant` from the element data (SR-043 AK1): requirements whose validity names it,
- * core requirements it neither excludes nor has replaced by one of those, every other element.
- * Every rule item of the generator names a core requirement of this workspace.
+ * The core requirements each variant excludes or a requirement valid in it replaces, by the
+ * variant's UUID, from the element data in one pass (every rule item of the generator names a core
+ * requirement of this workspace).
  */
-const oracleOf = (store: ElementStore, variant: string): ((e: ElementRecord) => boolean) => {
-  const removed = new Set<string>();
+const removedByVariant = (store: ElementStore): Map<string, Set<string>> => {
+  const removed = new Map<string, Set<string>>();
+  const add = (variant: string, ids: readonly string[]): void => {
+    const set = removed.get(variant) ?? new Set<string>();
+    ids.forEach((id) => set.add(id));
+    removed.set(variant, set);
+  };
   for (const e of store.elements) {
-    if (e.id === variant) {
-      targetIds(e, "excludes").forEach((id) => removed.add(id));
-    } else if (targetIds(e, "validity").includes(variant)) {
-      targetIds(e, "replaces").forEach((id) => removed.add(id));
+    add(e.id, targetIds(e, "excludes"));
+    const replaces = targetIds(e, "replaces");
+    if (replaces.length > 0) {
+      targetIds(e, "validity").forEach((variant) => {
+        add(variant, replaces);
+      });
     }
   }
+  return removed;
+};
+
+/**
+ * The view of `variant` from the element data (SR-043 AK1): requirements whose validity names it,
+ * core requirements it neither excludes nor has replaced by one of those, every other element.
+ */
+const oracleOf = (store: ElementStore, variant: string): ((e: ElementRecord) => boolean) => {
+  const removed = removedByVariant(store).get(variant) ?? new Set<string>();
   return (e) => {
     if (e.type !== REQUIREMENT) {
       return true;
@@ -97,6 +113,7 @@ describe("the view of a variant with 50,000 elements, 5,000 exclusions and 5,000
   let metamodel: Metamodel;
   /** The variant that removes the most core requirements, and its oracle. */
   let variant = "";
+  /** The oracle of `variant` for the store before any change; never reassigned after `beforeAll`. */
   let inView: (e: ElementRecord) => boolean = () => false;
 
   const ws = (): Workspace => {
@@ -121,8 +138,8 @@ describe("the view of a variant with 50,000 elements, 5,000 exclusions and 5,000
     const element = store.byId.get(id)?.[0];
     return element !== undefined && inView(element);
   };
-  const draftsInView = (now: ElementStore): number =>
-    now.elements.filter((e) => e.type === REQUIREMENT && e.data["status"] === "draft" && inView(e)).length;
+  const draftsInView = (now: ElementStore, holds: (e: ElementRecord) => boolean = inView): number =>
+    now.elements.filter((e) => e.type === REQUIREMENT && e.data["status"] === "draft" && holds(e)).length;
 
   beforeAll(async () => {
     const version = versionOf(await standardModel());
@@ -142,13 +159,17 @@ describe("the view of a variant with 50,000 elements, 5,000 exclusions and 5,000
     expect([tree.exclusions, tree.replacements]).toEqual([5000, 5000]);
     const variants = store.elements.filter((e) => e.type === "variant");
     expect(variants).toHaveLength(100);
-    const sizes = variants.map((v) => {
-      const oracle = oracleOf(store, v.id);
-      return {
-        id: v.id,
-        out: store.elements.filter((e) => targetIds(e, "validity").length === 0 && !oracle(e)).length,
-      };
-    });
+    // The core requirements each variant removes, from one pass over the store.
+    const removed = removedByVariant(store);
+    const core = new Set(
+      store.elements
+        .filter((e) => e.type === REQUIREMENT && targetIds(e, "validity").length === 0)
+        .map((e) => e.id),
+    );
+    const sizes = variants.map((v) => ({
+      id: v.id,
+      out: [...(removed.get(v.id) ?? [])].filter((id) => core.has(id)).length,
+    }));
     const largest = sizes.reduce((a, b) => (b.out > a.out ? b : a));
     variant = largest.id;
     inView = oracleOf(store, variant);
@@ -331,14 +352,15 @@ describe("the view of a variant with 50,000 elements, 5,000 exclusions and 5,000
     expect(excluded.files).toHaveLength(1);
     const now = await ws().get(elementStoreState);
     expect(now).not.toBe(store);
-    inView = oracleOf(now, variant);
+    // The oracle of the new store, kept here: the tests before read the store before the change.
+    const nowInView = oracleOf(now, variant);
     const { result: list } = await measure(
       "filter in the view of a variant, first page: right after variant.exclude (view rule index of the new store)",
       () => run("element.list", filter()),
       { basis: `SR-082 AK4, SR-042 (after a change; ${COMPARE_AK4})`, ...COMPARED },
     );
     expect(list.total).toBe(before - 1);
-    expect(list.total).toBe(draftsInView(now));
+    expect(list.total).toBe(draftsInView(now, nowInView));
     await measure(
       "evidence.coverage of the system requirements in the view of a variant: right after variant.exclude",
       () => coverage(variant),
