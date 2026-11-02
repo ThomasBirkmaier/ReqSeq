@@ -6,17 +6,13 @@ import type { ParsedFile } from "../files/index.js";
 import { elementText } from "../files/index.js";
 import type { DataExportElement, DataExportRelation } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
-import { findType, propertyWithMeaning } from "../metamodel/index.js";
+import { propertyWithMeaning } from "../metamodel/index.js";
 import { isVersion } from "./is-version.js";
 import { comparableContent, computeVersion } from "../version/version.js";
-import type {
-  VersionFile,
-  VersionInput,
-  VersionPropertyDefinition,
-  VersionValue,
-} from "../version/version.js";
+import type { VersionFile, VersionInput, VersionValue } from "../version/version.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import type { ElementRecord } from "./elements.js";
+import { versionDefinitions } from "./loaded-version.js";
 import { STRUCTURAL_KEYS, isUuid } from "./elements.js";
 import type { LocatableFinding } from "./locate.js";
 import { findingLine } from "./locate.js";
@@ -184,17 +180,6 @@ export const sourceLink = (
     targetState: state.kind,
     ...(isVersion(item["version"]) ? { storedVersion: item["version"] } : {}),
   };
-};
-
-/** The definitions of the properties the element's type has; none for an unknown type. */
-const versionDefinitions = (
-  record: Pick<ElementRecord, "type">,
-  metamodel: Metamodel,
-): VersionPropertyDefinition[] => {
-  const keys = new Set(findType(metamodel, record.type)?.properties ?? []);
-  return metamodel.properties
-    .filter((p) => keys.has(p.key))
-    .map((p) => ({ key: p.key, kind: p.kind, ...(p.content === undefined ? {} : { content: p.content }) }));
 };
 
 /**

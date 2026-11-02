@@ -616,6 +616,9 @@ describe("withElementShortIds", () => {
     expect(workspace.peek(elementStoreState)).toBeUndefined();
     expect(workspace.peek(metamodelState)).toBeUndefined();
     await workspace.get(elementStoreState);
+    // Reading the store loads the metamodel for the versions as read (#439); the store does not depend on it.
+    await workspace.reset(metamodelState);
+    expect(workspace.peek(elementStoreState)).toBeDefined();
     expect(await withElementShortIds(workspace, where, output)).toBe(output);
     expect(workspace.peek(metamodelState)).toBeUndefined();
     expect(workspace.peek(shortIdState)).toBeUndefined();

@@ -534,7 +534,8 @@ describe("updating the element store file by file (SR-007)", () => {
         "reqs",
       ]),
     );
-    expect(next).toEqual(await loadElements(layout));
+    expect(before.versioning).toBeDefined();
+    expect(next).toEqual(await loadElements(layout, undefined, { versioning: before.versioning }));
     expect(only(next, REQUIREMENT).data["title"]).toBe("Show gusts");
     expect(only(next, REQUIREMENT).file).toBe("reqs/SR-88cc6ebc472a.md");
     expect(next.byId.has(NEED)).toBe(false);
@@ -555,7 +556,7 @@ describe("updating the element store file by file (SR-007)", () => {
     await ws.write(REQUIREMENT_FILE, text);
     await fs.utimes(ws.path(REQUIREMENT_FILE), later, later);
     const next = await updated(before, layout, changes([REQUIREMENT_FILE]));
-    expect(next).toEqual(await loadElements(layout));
+    expect(next).toEqual(await loadElements(layout, undefined, { versioning: before.versioning }));
     expect(only(next, REQUIREMENT).snapshot.mtimeMs).toBe(later.getTime());
     expect(only(next, REQUIREMENT).snapshot.sha256).toBe(only(before, REQUIREMENT).snapshot.sha256);
   });
@@ -592,7 +593,7 @@ describe("updating the element store file by file (SR-007)", () => {
     await ws.write(REQUIREMENT_FILE, element(REQUIREMENT, "system-requirement", "extra: a longer file\n"));
     for (const change of [changes(["requirements"]), changes([], true)]) {
       const next = await updated(before, layout, change);
-      expect(next).toEqual(await loadElements(layout));
+      expect(next).toEqual(await loadElements(layout, undefined, { versioning: before.versioning }));
       expect(only(next, REQUIREMENT).data["extra"]).toBe("a longer file");
       expect(only(next, NEED)).toBe(only(before, NEED));
     }
@@ -607,7 +608,7 @@ describe("updating the element store file by file (SR-007)", () => {
     await ws.write("notes/faulty.md", "---\nid: [\n---\n");
     await ws.write("notes/README.MD", "# Upper case\n");
     const next = await updated(before, layout, changes(["notes"]));
-    expect(next).toEqual(await loadElements(layout));
+    expect(next).toEqual(await loadElements(layout, undefined, { versioning: before.versioning }));
     expect(only(next, ID_B).file).toBe("notes/plain.md");
     expect(next.problems.map((p) => [p.code, p.file])).toEqual([
       ["file.skipped", "notes/README.MD"],
@@ -621,14 +622,18 @@ describe("updating the element store file by file (SR-007)", () => {
   it("reads the store in full when it has no per-file contents or other repositories are available", async () => {
     const { layout, before } = await opened();
     const { repositories: _ignored, ...plain } = before;
-    expect(await updateElements(plain, layout, changes([]))).toEqual(await loadElements(layout));
+    expect(await updateElements(plain, layout, changes([]))).toEqual(
+      await loadElements(layout, undefined, { versioning: before.versioning }),
+    );
     const three = await fixture({ fixture: "SR-004/three-repositories" });
     await fs.rename(three.path("sensor"), three.path("sensor-away"));
     const without = open(three.path("system"));
     const partial = await without.get(elementStoreState);
     await fs.rename(three.path("sensor-away"), three.path("sensor"));
     const full = await open(three.path("system")).get(workspaceLayoutState);
-    expect(await updateElements(partial, full, new Map())).toEqual(await loadElements(full));
+    expect(await updateElements(partial, full, new Map())).toEqual(
+      await loadElements(full, undefined, { versioning: partial.versioning }),
+    );
   });
 
   it("keeps the contents of repositories without changes", async () => {
@@ -638,7 +643,7 @@ describe("updating the element store file by file (SR-007)", () => {
     const before = await workspace.get(elementStoreState);
     await three.write("product/SR-0c1d2e3f4a5b.md", element(ID_A));
     const next = await updated(before, layout, new Map([["product", { paths: ["SR-0c1d2e3f4a5b.md"] }]]));
-    expect(next).toEqual(await loadElements(layout));
+    expect(next).toEqual(await loadElements(layout, undefined, { versioning: before.versioning }));
     expect(next.repositories?.[0]).toBe(before.repositories?.[0]);
     expect(next.repositories?.[1]).not.toBe(before.repositories?.[1]);
   });
@@ -770,7 +775,7 @@ describe("withWrittenFiles (#166)", () => {
     );
     const { result: after, count } = await reads(() => withWrittenFile(before, layout, written));
     expect(count).toBe(0);
-    expect(after).toEqual(await loadElements(layout));
+    expect(after).toEqual(await loadElements(layout, undefined, { versioning: before.versioning }));
     expect(after && only(after, REQUIREMENT).data["x"]).toBe(1);
     expect(after && only(after, NEED)).toBe(only(before, NEED));
   });
@@ -779,7 +784,7 @@ describe("withWrittenFiles (#166)", () => {
     const { before, layout, write } = await opened();
     const first = await write("a/SR-0c1d2e3f4a5b.md", element(ID_A), undefined);
     const once = await withWrittenFile(before, layout, first);
-    expect(once).toEqual(await loadElements(layout));
+    expect(once).toEqual(await loadElements(layout, undefined, { versioning: before.versioning }));
     if (once === undefined) {
       throw new Error("expected a store");
     }
@@ -790,7 +795,7 @@ describe("withWrittenFiles (#166)", () => {
     ]);
     const second = await write("z/new/SR-1d2e3f4a5b6c.md", element(ID_B), undefined);
     const twice = await withWrittenFile(once, layout, second);
-    expect(twice).toEqual(await loadElements(layout));
+    expect(twice).toEqual(await loadElements(layout, undefined, { versioning: before.versioning }));
     expect(twice?.elements.at(-1)?.file).toBe("z/new/SR-1d2e3f4a5b6c.md");
   });
 
@@ -864,7 +869,7 @@ describe("withWrittenFiles (#166)", () => {
       withWrittenFiles(before, layout, [changed, first, second]),
     );
     expect(count).toBe(0);
-    expect(after).toEqual(await loadElements(layout));
+    expect(after).toEqual(await loadElements(layout, undefined, { versioning: before.versioning }));
     expect(await withWrittenFiles(before, layout, [])).toBeUndefined();
   });
 

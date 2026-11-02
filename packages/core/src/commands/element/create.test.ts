@@ -634,7 +634,11 @@ describe("element.create", () => {
     expect(out.element.shortId).toMatch(/^N-[0-9a-f]{6,}$/);
     // In place (#166): the other elements were not read again; the store is what a full read gives.
     expect(after.elements.filter((e) => before.elements.includes(e))).toHaveLength(before.elements.length);
-    expect(after).toEqual(await loadElements(await opened.workspace.get(workspaceLayoutState)));
+    expect(after).toEqual(
+      await loadElements(await opened.workspace.get(workspaceLayoutState), undefined, {
+        versioning: after.versioning,
+      }),
+    );
     expect((await opened.workspace.get(shortIdState)).find(out.element.shortId)).toMatchObject({
       kind: "found",
       element: { id: out.element.id },
