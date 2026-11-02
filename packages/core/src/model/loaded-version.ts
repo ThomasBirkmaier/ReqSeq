@@ -14,9 +14,13 @@
 //   reads (watcher batches, writes); a changed metamodel does not reset the store.
 // - A loaded version holds one value per normal form, by its prefix (`n1` today, D-027), so that a
 //   later form can be added or computed lazily next to it.
-import { sha256Hex } from "../version/version.js";
-import type { VersionPropertyDefinition } from "../version/version.js";
-import { computeVersion, NORMAL_FORM } from "../version/version.js";
+import type {
+  VersionFile,
+  VersionInput,
+  VersionPropertyDefinition,
+  VersionValue,
+} from "../version/version.js";
+import { computeVersion, NORMAL_FORM, sha256Hex } from "../version/version.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { findType } from "../metamodel/index.js";
 import type { ElementRecord } from "./elements.js";
@@ -56,6 +60,23 @@ export const versionDefinitions = (
     .map((p) => ({ key: p.key, kind: p.kind, ...(p.content === undefined ? {} : { content: p.content }) }));
 };
 
+/**
+ * What the version of an element is computed from (ADR-0005): its text, its values, the definitions
+ * of its type (`versionDefinitions`) and the images its text embeds. The one input both the lazy
+ * path (`elementVersion`, `view.ts`) and the versions as read (`loadedVersion`) build.
+ */
+export const versionInputOf = (
+  record: Pick<ElementRecord, "data">,
+  body: string,
+  definitions: readonly VersionPropertyDefinition[],
+  images: readonly VersionFile[],
+): VersionInput => ({
+  text: body,
+  properties: record.data as Readonly<Record<string, VersionValue>>,
+  definitions,
+  files: images,
+});
+
 const typeVersioning = (definitions: readonly VersionPropertyDefinition[]): TypeVersioning => ({
   definitions,
   fingerprint: sha256Hex(JSON.stringify(definitions)),
@@ -93,12 +114,7 @@ export const loadedVersion = (
       return undefined;
     }
     const typed = typeVersioningOf(versioning, element.type);
-    const version = computeVersion({
-      text: body,
-      properties: element.data as Parameters<typeof computeVersion>[0]["properties"],
-      definitions: typed.definitions,
-      files: [],
-    });
+    const version = computeVersion(versionInputOf(element, body, typed.definitions, []));
     return { byForm: { [NORMAL_FORM]: version }, fingerprint: typed.fingerprint };
   } catch {
     return undefined;

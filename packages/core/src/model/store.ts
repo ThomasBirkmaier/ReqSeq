@@ -10,7 +10,7 @@ import type { FileSnapshot, ParsedFile } from "../files/index.js";
 import type { StateChange, Workspace } from "../runtime/workspace.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
-import { metamodelState } from "../metamodel/index.js";
+import { loadMetamodel, metamodelState } from "../metamodel/index.js";
 import { availableRepositories, workspaceLayoutState } from "../workspace/index.js";
 import type { Contribution } from "./contribution.js";
 import { contribution, parsedContribution } from "./contribution.js";
@@ -120,11 +120,42 @@ export interface ReadOptions {
    */
   readonly reuse?: Reuse;
   /**
-   * When given (or once it resolves to one), each element read gets its version as read
-   * (`parsedContribution`, #439), and the store keeps it. Default: none.
+   * When given, each element read gets its version as read (`parsedContribution`, #439), and the
+   * store keeps the `Versioning`; asked only when a file is read. Default: none.
    */
-  readonly versioning?: Versioning | PromiseLike<Versioning | undefined> | undefined;
+  readonly versioning?: VersioningSource | undefined;
 }
+
+/**
+ * Where the versions as read come from (`ReadOptions.versioning`): a `Versioning`, its promise, or a
+ * function asked only when a file is read. One that fails or gives none means no versions.
+ */
+export type VersioningSource =
+  Versioning | PromiseLike<Versioning | undefined> | (() => PromiseLike<Versioning | undefined>);
+
+/** The `Versioning` of `source`; undefined when it gives none or fails, so it never fails a read. */
+const versioningFrom = async (source: VersioningSource | undefined): Promise<Versioning | undefined> => {
+  try {
+    return await (typeof source === "function" ? source() : source);
+  } catch {
+    return undefined;
+  }
+};
+
+/** The `Versioning` for a read into `store`: from `source` when given, else the one `store` was read with. */
+const versioningFor = async (
+  store: ElementStore,
+  source: VersioningSource | undefined,
+): Promise<Versioning | undefined> => (source === undefined ? store.versioning : versioningFrom(source));
+
+/**
+ * The `Versioning` of the metamodel of `workspace` as it is now (#439), without building its metamodel
+ * state, so that reading the store builds no other state: the state's value when it is there, else
+ * the metamodel read from `layout`.
+ */
+export const workspaceVersioning =
+  (workspace: Workspace, layout: WorkspaceLayout) => async (): Promise<Versioning | undefined> =>
+    versioningOf(await (workspace.peek(metamodelState) ?? loadMetamodel(layout)));
 
 /**
  * From this many files a read goes to worker threads (ADR-0008, N-036). Measured in a fresh process
@@ -258,8 +289,10 @@ export const loadElements = async (
     };
     walks.push({ repository, listed, reused, files: read });
   }
-  // Awaited after the walks, so that the metamodel loads meanwhile (`elementStoreState`).
-  const versioning = await options.versioning;
+  // Only when a file is read: a start that takes every file from the model cache loads no metamodel.
+  const versioning = walks.some((w) => w.files.length > 0)
+    ? await versioningFrom(options.versioning)
+    : undefined;
   const read = await readAll(walks, signal, options, versioning);
   return assemble(
     read.map(([{ repository, listed, reused }, files]) => ({
@@ -416,9 +449,10 @@ export const updateElements = async (
   layout: WorkspaceLayout,
   changes: ReadonlyMap<string, RepositoryChanges>,
   signal?: AbortSignal,
+  source?: VersioningSource,
 ): Promise<ElementStore | undefined> => {
   const before = store.repositories;
-  const { versioning } = store;
+  const versioning = await versioningFor(store, source);
   if (before === undefined || readsInFull(store, layout)) {
     return loadElements(layout, signal, { versioning });
   }
@@ -490,7 +524,9 @@ export const withWrittenFiles = async (
   store: ElementStore,
   layout: WorkspaceLayout,
   written: readonly WrittenFile[],
+  source?: VersioningSource,
 ): Promise<ElementStore | undefined> => {
+  const versioning = await versioningFor(store, source);
   const repositories = [...(store.repositories ?? [])];
   /** By index in `repositories`: the contents before and the files after the writes. */
   const changed = new Map<
@@ -515,7 +551,7 @@ export const withWrittenFiles = async (
     if (old === undefined && !(await listedNew(contents, layout, file))) {
       throw new StoreFallback(`a full read may not list ${file} under repository ${repository}`);
     }
-    files.set(file, parsedContribution(repository, parsed, store.versioning));
+    files.set(file, parsedContribution(repository, parsed, versioning));
     changed.set(index, {
       contents,
       files: old === undefined ? inListOrder([...files.keys()], files) : files,
@@ -527,7 +563,7 @@ export const withWrittenFiles = async (
   for (const [index, { contents, files }] of changed) {
     repositories[index] = { ...contents, files };
   }
-  return assemble(repositories, store.versioning);
+  return assemble(repositories, versioning);
 };
 
 /**
@@ -546,12 +582,11 @@ export const withWrittenFiles = async (
 export const elementStoreState = defineWorkspaceState(
   "elements",
   async (workspace): Promise<ElementStore> => {
-    // The versions as read (#439) need the metamodel, which loads while the files are listed. The
-    // store does not depend on it: a metamodel that fails or is not valid gives no versions, and so
-    // does a workspace closed meanwhile (`get` throws).
-    const versioning = (async () => workspace.get(metamodelState))().then(versioningOf, () => undefined);
     const layout = await workspace.get(workspaceLayoutState);
     const folder = workspace.cacheFolder;
+    // The versions as read (#439) need the metamodel, asked only when files are read and without
+    // building its state; the store does not depend on it (none valid: no versions).
+    const versioning = workspaceVersioning(workspace, layout);
     return folder === undefined
       ? loadElements(layout, undefined, { versioning })
       : loadThroughCache(workspace, folder, layout, (reuse) =>
@@ -715,7 +750,7 @@ export const recordWrites = async (
       if ((await workspace.peek(workspaceLayoutState)) !== layout) {
         throw new StoreFallback("the workspace layout changed since the write");
       }
-      return withWrittenFiles(store, layout, written);
+      return withWrittenFiles(store, layout, written, workspaceVersioning(workspace, layout));
     });
   } catch (error) {
     if (!(error instanceof StoreFallback)) {

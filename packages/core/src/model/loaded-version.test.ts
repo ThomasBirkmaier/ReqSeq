@@ -31,6 +31,7 @@ import {
   loadedVersionsOf,
   updateElements,
   withWrittenFiles,
+  workspaceVersioning,
 } from "./store.js";
 import { readElementFile } from "../files/index.js";
 
@@ -210,6 +211,122 @@ describe("versions as read (#439)", () => {
   });
 });
 
+describe("versions as read and the metamodel (#439)", () => {
+  it("reads the store without building the metamodel state", async () => {
+    const { workspace } = await open();
+    const store = await workspace.get(elementStoreState);
+    expect(workspace.peek(metamodelState)).toBeUndefined();
+    expect(loadedVersionsOf(store).size).toBeGreaterThan(0);
+  });
+
+  it("asks for no versioning when no file is read, and a versioning that fails gives none", async () => {
+    const { workspace } = await open();
+    const layout = await workspace.get(workspaceLayoutState);
+    const first = await workspace.get(elementStoreState);
+    const reused = new Map(first.repositories?.[0]?.files ?? []);
+    let asked = 0;
+    const counted = (): Promise<Versioning | undefined> => {
+      asked += 1;
+      return Promise.resolve(first.versioning);
+    };
+    const fromReuse = await loadElements(layout, undefined, {
+      versioning: counted,
+      reuse: () => Promise.resolve({ reused, read: [] }),
+    });
+    expect(asked).toBe(0);
+    expect(fromReuse.versioning).toBeUndefined();
+    expect(fromReuse.elements).toEqual(first.elements);
+    for (const versioning of [
+      (): Promise<Versioning | undefined> => Promise.reject(new Error("no metamodel")),
+      // A source that throws at once (a bug in `versioningOf`, say).
+      (): Promise<Versioning | undefined> => {
+        throw new TypeError("a bug");
+      },
+    ]) {
+      const none = await loadElements(layout, undefined, { versioning });
+      expect(none.versioning).toBeUndefined();
+      expect(loadedVersionsOf(none).size).toBe(0);
+      expect(none.elements).toHaveLength(first.elements.length);
+    }
+  });
+
+  it("gives files read after a metamodel change the new fingerprint of a changed type only", async () => {
+    const { fixture, workspace } = await open();
+    const layout = await workspace.get(workspaceLayoutState);
+    const before = await workspace.get(elementStoreState);
+    const old = defined(before.versioning);
+    const model = await fs.readFile(fixture.path("metamodel/model.yaml"), "utf8");
+    await fixture.write(
+      "metamodel/model.yaml",
+      model.replace(
+        "{ key: weight, name: Weight, kind: number }",
+        "{ key: weight, name: Weight, kind: number, content: true }",
+      ),
+    );
+    await workspace.reset(metamodelState);
+    const now = defined(versioningOf(await workspace.get(metamodelState)));
+    expect(typeVersioningOf(now, "system-requirement").fingerprint).not.toBe(
+      typeVersioningOf(old, "system-requirement").fingerprint,
+    );
+    expect(typeVersioningOf(now, "need").fingerprint).toBe(typeVersioningOf(old, "need").fingerprint);
+    const requirement = before.elements.find((e) => e.type === "system-requirement");
+    const kept = byFile(before, "loaded/N-3.md");
+    if (requirement === undefined) {
+      throw new Error("no requirement");
+    }
+    await fixture.write(
+      requirement.file,
+      `${await fs.readFile(fixture.path(requirement.file), "utf8")}\nMore.\n`,
+    );
+    await fixture.write("loaded/N-1.md", need(ID(1), "Changed after the metamodel.", "priority: high\n"));
+    const next = await updateElements(
+      before,
+      layout,
+      new Map([["system", { paths: [requirement.file, "loaded/N-1.md"] }]]),
+      undefined,
+      workspaceVersioning(workspace, layout),
+    );
+    if (next === undefined) {
+      throw new Error("expected a new store");
+    }
+    expect(next.versioning).toEqual(now);
+    const loaded = loadedVersionsOf(next);
+    const changed = byFile(next, requirement.file);
+    expect(loaded.get(changed)?.fingerprint).toBe(typeVersioningOf(now, "system-requirement").fingerprint);
+    expect(loaded.get(byFile(next, "loaded/N-1.md"))?.fingerprint).toBe(
+      typeVersioningOf(old, "need").fingerprint,
+    );
+    // A file not read again keeps the fingerprint it was read with.
+    expect(loaded.get(kept)).toBe(loadedVersionsOf(before).get(kept));
+    // Its version is the one the new metamodel gives.
+    const versions = await currentVersions(workspace);
+    const record = (await workspace.get(elementStoreState)).elements.find((e) => e.file === requirement.file);
+    if (record === undefined) {
+      throw new Error("no requirement");
+    }
+    expect(loaded.get(changed)?.byForm[NORMAL_FORM]).toBe(currentVersionOf(versions, record));
+    // A write after the change gets the new fingerprint too.
+    const read = await readElementFile(fixture.root, requirement.file);
+    if (read.kind !== "parsed") {
+      throw new Error("expected a parsed file");
+    }
+    const { repositories: _r, versioning: _v, ...withoutVersioning } = next;
+    const written = await withWrittenFiles(
+      { ...withoutVersioning, repositories: next.repositories ?? [] },
+      layout,
+      [
+        {
+          repository: "system",
+          file: { ...read.file, snapshot: { ...read.file.snapshot, mtimeMs: 1 } },
+          replaced: changed.snapshot,
+        },
+      ],
+      workspaceVersioning(workspace, layout),
+    );
+    expect(written?.versioning).toEqual(now);
+  });
+});
+
 describe("loadedVersion and internedVersion", () => {
   const metamodel = {
     valid: true,
@@ -229,6 +346,14 @@ describe("loadedVersion and internedVersion", () => {
       /^n1:[0-9a-f]{16}$/,
     );
     expect(loadedVersion(thing({ weight: Number.POSITIVE_INFINITY }), "Text.", versioning)).toBeUndefined();
+    expect(loadedVersion(thing({ weight: Number.NaN }), "Text.", versioning)).toBeUndefined();
+    const throwing = Object.defineProperty({}, "weight", {
+      enumerable: true,
+      get: () => {
+        throw new TypeError("a getter that fails");
+      },
+    }) as Record<string, unknown>;
+    expect(loadedVersion(thing(throwing), "Text.", versioning)).toBeUndefined();
   });
 
   it("takes the fingerprint string the versioning holds, and keeps an unknown one", () => {
