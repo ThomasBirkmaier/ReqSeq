@@ -3033,6 +3033,21 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
   ],
   "workspace.check": [
     {
+      name: "a repository whose own metamodel counts another property to the version (#666)",
+      fixture: { fixture: "SR-004/own-metamodel", git: ["system", "fuel"] },
+      root: "system",
+      input: {},
+      expect: "output",
+      check: (results) => {
+        const output = (
+          results["core"]?.outcome as { output: { problems: { code: string; severity: string }[] } }
+        ).output;
+        expect(
+          output.problems.filter((p) => p.code === "workspace.metamodel-mismatch").map((p) => p.severity),
+        ).toEqual(["warning"]);
+      },
+    },
+    {
       name: "a requirement without a parent is a hint with its ID",
       fixture: ORPHANED_CHAIN,
       input: {},

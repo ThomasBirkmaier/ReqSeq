@@ -30,6 +30,8 @@ properties:
 
 `reqseq metamodel get` shows `content: true` or `content: false` for every property, and the app's metamodel text (**Show metamodel**, then Ctrl+T, ⌘T on macOS) marks those that count with "counts to version".
 
+All repositories of a workspace are read with the workspace's metamodel; a repository that is also a workspace of its own must use the same metamodel, or its elements get other versions. `workspace check` warns when they differ (`workspace.metamodel-mismatch`).
+
 ## App
 
 Not possible in the app: the metamodel is a file you edit in a text editor. The app reads the change when you save it; **Show metamodel** in the command prompt (Ctrl+Shift+P, ⌘⇧P on macOS) shows the types and relation kinds with their problems, and **Check workspace** lists what does not fit the new model. Then create a component with **Create element** and link it with **Create relation**.

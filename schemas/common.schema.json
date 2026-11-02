@@ -294,6 +294,7 @@
         "metamodel.invalid",
         "metamodel.meaning-unassigned",
         "workspace.repository-missing",
+        "workspace.metamodel-mismatch",
         "workspace.invalid",
         "workspace.not-watched",
         "git.unavailable",

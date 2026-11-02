@@ -36,6 +36,10 @@
 //   reading them and the records of unknown elements are `evidenceProblemsState` (SR-028 AK3).
 // - The core requirements changed or new since a variant's newest baseline (SR-103), after the
 //   states and before the outdated relations, are computed on every call (`sinceBaselineProblems`).
+// - A repository that is also a workspace of its own with another metamodel (#666,
+//   `repositoryMetamodelProblems`): its own metamodel is loaded and compared on every call, since no
+//   watcher state covers files of another workspace; only the workspace's metamodel is used.
+//   These problems come with those of the metamodel and are always kept.
 // - Folders a running watcher cannot watch (`workspace.not-watched`) are left to `workspace.status`:
 //   they are about the running process, not about the files.
 // - `durationMs` is left out: it differs between calls, and the same call gives the same output in
@@ -43,7 +47,7 @@
 import type { CommandOutput, Problem } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import { evidenceProblemsState } from "../../evidence/index.js";
-import { metamodelState } from "../../metamodel/index.js";
+import { metamodelState, repositoryMetamodelProblems } from "../../metamodel/index.js";
 import {
   changedFiles,
   currentVersions,
@@ -149,7 +153,12 @@ export default defineCommand({
     const restriction =
       changed === undefined ? undefined : restrictTo(changed, { store, layout, metamodel, versions });
     const keeps = (problem: Problem): boolean => restriction?.keeps(problem) ?? true;
-    const findings: Problem[] = [...layout.problems, ...metamodel.problems, ...(changed?.problems ?? [])];
+    const findings: Problem[] = [
+      ...layout.problems,
+      ...metamodel.problems,
+      ...(await repositoryMetamodelProblems(layout, metamodel)),
+      ...(changed?.problems ?? []),
+    ];
     for (const problem of store.problems) {
       if (keeps(problem)) {
         findings.push(problem);

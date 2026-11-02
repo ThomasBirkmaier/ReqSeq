@@ -144,6 +144,9 @@ problems:
   workspace.repository-missing:
     cause: A repository of the workspace file is not on this machine. Its elements are missing from the results.
     remedy: Clone the repository where the workspace file expects it, if you need its elements.
+  workspace.metamodel-mismatch:
+    cause: A repository of the workspace is also a workspace of its own, and its metamodel differs from this workspace's in the properties that count to the version (`content`). All repositories of a workspace are read with the workspace's metamodel, so its elements get other versions here than in their own workspace, and relations and evidence read as outdated in one of the two. As info, its workspace file or metamodel cannot be read, so they are not compared.
+    remedy: Give both workspaces the same metamodel, for example from a metamodel repository both include, or make the properties the message names count the same in both.
   workspace.invalid:
     cause: The workspace file does not match its format, for example a repository listed twice.
     remedy: Fix the workspace file at the place the message gives.
