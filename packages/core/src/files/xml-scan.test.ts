@@ -255,16 +255,22 @@ describe("scanXml", () => {
     };
     expect(limited("<a>\n12345678</a>", 8)).toEqual({
       reason: "size",
-      message: "A text of 9 characters is longer than the longest string that can be read (8)",
+      message: "A text of 9 bytes is longer than the longest string that can be read (8)",
       offset: 3,
     });
     expect(limited('<a x="123456789"/>', 8)).toMatchObject({ reason: "size", offset: 6 });
     expect(limited("<abcdefghi/>", 8)).toMatchObject({ reason: "size", offset: 1 });
-    // More bytes than the limit, but no more UTF-16 units: "ä" is two bytes, "😀" four bytes and two units.
-    expect(limited("<a>ääää😀</a>", 8)).toBe("scanned");
-    expect(limited("<a>äääää😀</a>", 6)).toMatchObject({
+    // The limit counts bytes, as Node's decoding does: 5 characters, 10 bytes.
+    expect(limited("<a>äääää</a>", 8)).toMatchObject({
       reason: "size",
-      message: "A text of 7 characters is longer than the longest string that can be read (6)",
+      message: "A text of 10 bytes is longer than the longest string that can be read (8)",
+    });
+    expect(limited("<a>12345678</a>", 8)).toBe("scanned");
+    // Runs that each fit but not together, in the element tree of scanXml.
+    expect(limited("<a>\n<b>12345<!-- -->6789</b></a>", 8)).toEqual({
+      reason: "size",
+      message: "The text of <b> has 9 characters, more than the longest string that can be read (8)",
+      offset: 7,
     });
     // The default is the platform's limit.
     expect(scanXml(utf8("<a>12345678</a>")).kind).toBe("scanned");

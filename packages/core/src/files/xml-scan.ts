@@ -281,6 +281,12 @@ interface Building extends XmlElement {
 
 /** The events that build the element tree of `scanXml`. */
 class Tree implements XmlEvents<Building> {
+  private readonly maxStringLength: number;
+
+  constructor(maxStringLength: number) {
+    this.maxStringLength = maxStringLength;
+  }
+
   open(
     name: string,
     attributes: readonly XmlAttribute[],
@@ -305,6 +311,15 @@ class Tree implements XmlEvents<Building> {
   }
 
   text(element: Building, text: string): void {
+    // Runs that each fit (CDATA sections, text around a comment) can be too long together.
+    const length = element.text.length + text.length;
+    if (length > this.maxStringLength) {
+      throw new Refusal(
+        "size",
+        `The text of <${shown(element.name)}> has ${String(length)} characters, more than the longest string that can be read (${String(this.maxStringLength)})`,
+        element.contentStart,
+      );
+    }
     element.text += text;
   }
 
@@ -340,22 +355,11 @@ const firstNonUtf8 = (bytes: Uint8Array): number => {
 /** Bytes decoded at once while `firstNonUtf8` looks for the first sequence that is not UTF-8. */
 const UTF8_CHUNK = 1024 * 1024;
 
-/**
- * The length in UTF-16 units of the UTF-8 `bytes`: one unit per byte that starts a sequence, two for a
- * four-byte sequence.
- */
-const utf16Length = (bytes: Uint8Array): number => {
-  let units = 0;
-  for (const byte of bytes) {
-    units += byte >= 0xf0 ? 2 : byte >= 0x80 && byte < 0xc0 ? 0 : 1;
-  }
-  return units;
-};
-
 export interface XmlStreamOptions {
   /**
-   * The longest string, in UTF-16 units, that a text, name or value may decode to; a longer one is
-   * refused (reason `size`). The default is the platform's limit; tests give a small one.
+   * The longest text, name or value read, in UTF-8 bytes (and, for the joined text of a `scanXml`
+   * element, in characters); a longer one is refused (reason `size`). The default is the platform's
+   * longest string; tests give a small one.
    */
   readonly maxStringLength?: number;
 }
@@ -407,20 +411,17 @@ class Scanner<T> {
   }
 
   /**
-   * The bytes from `start` to `end` as text; the whole file is UTF-8 (checked first). Refuses a text
-   * longer than the longest string the platform holds, which `toString` would throw on. A UTF-8 byte
-   * gives at most one UTF-16 unit, so only a run of more bytes than the limit is counted.
+   * The bytes from `start` to `end` as text; the whole file is UTF-8 (checked first). Refuses more
+   * bytes than the longest string the platform holds: `toString` throws on that byte length, even
+   * when the text would have fewer characters.
    */
   private decode(start: number, end: number): string {
     if (end - start > this.maxStringLength) {
-      const units = utf16Length(this.bytes.subarray(start, end));
-      if (units > this.maxStringLength) {
-        throw new Refusal(
-          "size",
-          `A text of ${String(units)} characters is longer than the longest string that can be read (${String(this.maxStringLength)})`,
-          start,
-        );
-      }
+      throw new Refusal(
+        "size",
+        `A text of ${String(end - start)} bytes is longer than the longest string that can be read (${String(this.maxStringLength)})`,
+        start,
+      );
     }
     return this.buffer.toString("utf8", start, end);
   }
@@ -682,8 +683,11 @@ export const streamXml = <T>(
  * Scans `bytes` as XML. Gives the element tree with byte offsets and lines, or why the file was
  * refused (not UTF-8, a `<!DOCTYPE`, an unknown entity, not well-formed, a text too long) with its line.
  */
-export const scanXml = (bytes: Uint8Array, options: XmlStreamOptions = {}): XmlScanOutcome => {
-  const outcome = streamXml(bytes, new Tree(), options);
+export const scanXml = (
+  bytes: Uint8Array,
+  { maxStringLength = constants.MAX_STRING_LENGTH }: XmlStreamOptions = {},
+): XmlScanOutcome => {
+  const outcome = streamXml(bytes, new Tree(maxStringLength), { maxStringLength });
   return outcome.kind === "refused"
     ? outcome
     : { kind: "scanned", document: { root: outcome.root, bom: outcome.bom } };
