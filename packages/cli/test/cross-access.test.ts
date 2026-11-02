@@ -804,6 +804,12 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
   ],
   "element.bulkUpdate": [
     {
+      name: "a number given as text is refused, nothing is written (#614)",
+      fixture: FILTER,
+      input: { selection: {}, property: "priority", operation: "set", value: "3", confirm: true },
+      expect: "error",
+    },
+    {
       name: "a package reference that names no element is refused, nothing is written (#287)",
       fixture: FILTER,
       input: { selection: {}, property: "packages", operation: "add", value: "PKG-999999", confirm: true },
@@ -987,6 +993,12 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
         title: "Show gusts",
         properties: { "requirement-type": "sometimes" },
       },
+      expect: "error",
+    },
+    {
+      name: "a number given as text is refused, nothing is written (#614)",
+      fixture: FILTER,
+      input: { type: "software-requirement", title: "Smooth", properties: { priority: "3" } },
       expect: "error",
     },
     {
@@ -1468,6 +1480,12 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
     },
   ],
   "element.update": [
+    {
+      name: "a number given as text is refused, the file stays (#614)",
+      fixture: FILTER,
+      input: { ref: "SWR-0000f1", set: { priority: "3" } },
+      expect: "error",
+    },
     {
       name: "relations added and removed by short ID in the same write as a property (#175)",
       fixture: FILTER,

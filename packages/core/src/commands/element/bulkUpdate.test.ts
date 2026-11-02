@@ -454,14 +454,15 @@ describe("element.bulkUpdate (SR-071)", () => {
       selection: { ids: [F1] },
       property: "priority",
       operation: "set",
-      value: "high",
+      // A list where the property takes one number; a text is refused before (#614).
+      value: [3],
     });
     expect(kind.problems).toEqual([
       expect.objectContaining({
         code: "element.wrong-value-kind",
         severity: "warning",
         file: FILES[F1],
-        line: 9,
+        line: 10,
         elementId: F1,
         elementShortId: "SWR-0000f1",
       }),
@@ -493,6 +494,8 @@ describe("element.bulkUpdate (SR-071)", () => {
       [{ property: "topic", operation: "remove", value: "Wind" }, "input.invalid", { reason: "not-many" }],
       [{ property: "topic", operation: "set" }, "input.invalid", { reason: "value-missing" }],
       [{ property: "topic", operation: "set", value: null }, "input.invalid", { reason: "value-empty" }],
+      // A number given as text is refused, not converted (#614).
+      [{ property: "priority", operation: "set", value: "3" }, "input.invalid", { reason: "not-a-number" }],
       [{ property: "packages", operation: "add", value: [] }, "input.invalid", { reason: "value-empty" }],
       [
         { property: "verification-method", operation: "set", value: "guess" },

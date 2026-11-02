@@ -62,6 +62,7 @@ import { embeddedImages, imageMemo } from "./images.js";
 import { incomingFor } from "./incoming.js";
 import type { RelationRefs } from "./relation-inputs.js";
 import { newRelations, planRelations, relationEdits } from "./relation-inputs.js";
+import { isNumberProperty, numberInput } from "./number-input.js";
 import { resolveRef } from "./resolve.js";
 import { buildShortIds, shortIdState } from "./short-id.js";
 import type { ShortIds } from "./short-id.js";
@@ -450,7 +451,8 @@ const isRelationProperty = (metamodel: Metamodel, key: string): boolean =>
 
 /**
  * The given property values with each item of a relation-valued property as a target `{ id }`
- * (`relationTargetRefs`: a short ID or identifier resolved, #169, #196); before any file is read.
+ * (`relationTargetRefs`: a short ID or identifier resolved, #169, #196), and a value of a number
+ * property that is no number refused (`numberInput`, #614); before any file is read.
  */
 const withTargetRefs = (
   context: TargetContext,
@@ -461,7 +463,9 @@ const withTargetRefs = (
     key,
     isRelationProperty(context.metamodel, key)
       ? relationTargetRefs(context.store, shortIds, key, value)
-      : value,
+      : isNumberProperty(context.metamodel, key)
+        ? numberInput(key, value)
+        : value,
   ]);
 
 /**
