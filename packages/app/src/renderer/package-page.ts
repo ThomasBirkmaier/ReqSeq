@@ -3,10 +3,10 @@
 // (`where.package`) and tells which types are packages; core selects and sorts (ADR-0002). The rule
 // "which types are packages" is the one of core: the effective `meaning` of the type in `metamodel.get`.
 // The line under the title (AK3, AK4) is core's counts with core's formatter (`packageSummaryText`).
-import type { ElementSelection, MetamodelGetOutput } from "@reqseq/core";
+import type { ElementSelection, EvidenceCoverageOutput, MetamodelGetOutput } from "@reqseq/core";
 import { packageSummaryText } from "@reqseq/core/verification-degree";
-import type { ElementBuffer, ListBuffer } from "./buffers.js";
-import { sortLabel } from "./buffers.js";
+import type { ElementBuffer, ListBuffer, ResultBuffer } from "./buffers.js";
+import { resultBuffer, sortLabel } from "./buffers.js";
 import type { Call } from "./call.js";
 import type { BufferData } from "./modeline.js";
 import { INCOMPLETE } from "./modeline.js";
@@ -65,7 +65,8 @@ export const memberSummary = (count: MemberCount, sort: ElementBuffer["memberSor
 
 /** The line under the title of a package page (SR-112 AK3, AK4): undefined when it has none, or the message of a failed call. */
 export type PackageSummary =
-  { readonly ok: true; readonly line: string | undefined } | { readonly ok: false; readonly message: string };
+  | { readonly ok: true; readonly line: string | undefined; readonly coverage: EvidenceCoverageOutput }
+  | { readonly ok: false; readonly message: string };
 
 /**
  * Asks `evidence.coverage` and `evidence.degree` for the package with this UUID, side by side, as the CLI,
@@ -86,5 +87,29 @@ export const askPackageSummary = async (call: Call, id: string): Promise<Package
   }
   const text = packageSummaryText(coverage.output.levels, degree.output.degree);
   const incomplete = coverage.output.incomplete === true || degree.output.incomplete === true;
-  return { ok: true, line: text === undefined || !incomplete ? text : `${text} · ${INCOMPLETE}` };
+  return {
+    ok: true,
+    line: text === undefined || !incomplete ? text : `${text} · ${INCOMPLETE}`,
+    coverage: coverage.output,
+  };
 };
+
+/**
+ * The result buffer a click on the line opens (SR-036 AK2): core's `evidence.coverage` of the package, the
+ * answer the line was counted from, which lists under every number its requirements, those without children
+ * or evidence included. One buffer per package: a
+ * second click shows it again.
+ */
+export const coverageBuffer = (
+  id: string,
+  name: string,
+  coverage: EvidenceCoverageOutput,
+  revision: number,
+): ResultBuffer =>
+  resultBuffer(
+    "evidence.coverage",
+    { selection: { package: id } },
+    `Show evidence coverage ${name}`,
+    coverage,
+    revision,
+  );

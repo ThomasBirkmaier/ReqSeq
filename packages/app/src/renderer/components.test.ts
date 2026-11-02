@@ -2426,6 +2426,7 @@ describe("ElementView", () => {
         onEcho: (message) => echoed.push(message),
         onCopy: (label, text) => copies.push([label, text]),
         onOpenRelation: (target) => targets.push(target.key),
+        onOpenResult: () => undefined,
         onOpenTarget: (id, repository) => {
           opened.push([id, repository]);
         },

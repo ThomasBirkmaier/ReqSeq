@@ -38,7 +38,7 @@ import type { BufferKeep, UndoMemory } from "./buffer-memory.js";
 import type { DataExportElement, ElementGetOutput } from "@reqseq/core";
 import type { ElementControls, Prompt } from "./actions.js";
 import { findElements } from "./actions.js";
-import type { BufferAction, ElementBuffer } from "./buffers.js";
+import type { BufferAction, ElementBuffer, ResultBuffer } from "./buffers.js";
 import { filteredList } from "./buffers.js";
 import type { Answer, Call } from "./call.js";
 import { NOTHING, PROMPT_INPUT, copyField, copyable, cursorField, docOf } from "./copy.js";
@@ -223,6 +223,8 @@ export interface ElementViewProps {
   readonly onCopy: (label: string, text: string) => void;
   /** A relation target is opened: its element buffer, by UUID and repository (#416). */
   readonly onOpenRelation: (target: ElementBuffer) => void;
+  /** Opens a result buffer: the coverage behind the line of a package page (SR-036 AK2). */
+  readonly onOpenResult: (buffer: ResultBuffer) => void;
   /**
    * A relation target or the target of an inline reference is opened: by its UUID, and by the repository
    * the link names (a relation has none: the output has no repository).
@@ -386,6 +388,7 @@ export const ElementView = ({
   onCopy,
   onOpenTarget,
   onOpenRelation,
+  onOpenResult,
   onPickElement,
   titles,
   onAsk,
@@ -1841,8 +1844,10 @@ export const ElementView = ({
                   <PackageSummaryLine
                     call={call}
                     id={buffer.id}
+                    name={buffer.name}
                     revision={revision + outside.seq}
                     onEcho={onEcho}
+                    onOpenResult={onOpenResult}
                   />
                 )
               }

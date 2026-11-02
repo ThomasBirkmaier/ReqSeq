@@ -507,16 +507,20 @@ mark {
   list-style: none;
 }
 
-/* The links of a relation and of the variant lines (SR-046) look the same, focused too. */
+/* The links of a relation, of the variant lines (SR-046) and of the coverage line of a package page
+   (SR-036 AK2) look the same, focused too. */
 .element .relation [role="link"],
-.element .variant-line [role="link"] {
+.element .variant-line [role="link"],
+.element .package-summary [role="link"] {
   cursor: pointer;
 }
 
 .element .relation [role="link"]:hover,
 .element .relation [role="link"]:focus-visible,
 .element .variant-line [role="link"]:hover,
-.element .variant-line [role="link"]:focus-visible {
+.element .variant-line [role="link"]:focus-visible,
+.element .package-summary [role="link"]:hover,
+.element .package-summary [role="link"]:focus-visible {
   text-decoration: underline;
 }
 
