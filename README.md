@@ -11,7 +11,7 @@ You keep your requirements as plain files in your own folders and repositories. 
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/guide/images/context-dark.svg">
-  <img src="docs/guide/images/context-light.svg" alt="ReqSeq in the middle with its four ways in: you work in the desktop app, you and an AI assistant over MCP, a coding agent and a CI pipeline over the CLI, and scripts and tools over the local API. ReqSeq reads and writes the spec as Markdown files in spec/ in your Git repository, reads Git and never commits, and opens no network connections.">
+  <img src="docs/guide/images/context-light.svg" alt="ReqSeq in the middle with its four ways in: you work in the desktop app, you and an AI assistant over MCP, a coding agent and a CI pipeline over the CLI, and scripts and tools over the local API. ReqSeq reads and writes the spec as Markdown files in a workspace folder of your Git repository, such as spec/, reads Git and never commits, and opens no network connections.">
 </picture>
 
 That makes it a tool for spec-driven development with coding agents: the specification lives in the repository next to the code, agents read and change it through the command line or the MCP server, and the pipeline checks it and records which requirement each test run verified. ReqSeq itself is built that way.

@@ -5,7 +5,7 @@ description: User documentation of ReqSeq, a local, Git-based requirements tool.
 
 ReqSeq is a local, Git-based requirements tool: one Markdown file per element, traceability, coverage and evidence.
 
-![ReqSeq in the middle with its four ways in: you work in the desktop app, you and an AI assistant over MCP, a coding agent and a CI pipeline over the CLI, and scripts and tools over the local API. ReqSeq reads and writes the spec as Markdown files in spec/ in your Git repository, reads Git and never commits, and opens no network connections.](./images/context.svg)
+![ReqSeq in the middle with its four ways in: you work in the desktop app, you and an AI assistant over MCP, a coding agent and a CI pipeline over the CLI, and scripts and tools over the local API. ReqSeq reads and writes the spec as Markdown files in a workspace folder of your Git repository, such as spec/, reads Git and never commits, and opens no network connections.](./images/context.svg)
 
 You can use it in four ways, and each gives the same result:
 
