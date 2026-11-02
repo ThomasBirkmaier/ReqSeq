@@ -242,7 +242,9 @@ const sourcesFromIndex = (
 /**
  * The hints on the relations of one element (SR-072 AK2), in the order of its keys and items, for
  * a command about one element (`elementView`: `element.create`, `element.update`, `element.get`),
- * like `unknownFindings`. `source` need not be in the store as it is (a new or just written
+ * like `unknownFindings`, by the rules of the whole workspace: none on a relation with the meaning
+ * `succession` when `source` is the target's successor (`isSuccession`, `findingsOf`; product
+ * owner decision, 2026-10-29, #170). `source` need not be in the store as it is (a new or just written
  * element): the successors are the sources of `succession` relations in the store to the same
  * targets, with `source` in place of the store's copy of it. They are looked up with `successionsOfTarget`
  * (`successionsFor` on the same store) in the succession index, not by a walk over the store
@@ -253,7 +255,7 @@ export const supersededFindingsOf = (
   source: ElementRecord,
   successionsOfTarget: (target: ElementRecord) => readonly Succession[],
 ): readonly LocatableFinding[] => {
-  const own = hitsOf(context, [source], undefined).filter((hit) => !isSuccession(hit));
+  const own = hitsOf(context, [source], undefined);
   return own.length === 0 ? [] : findingsOf(context, own, successorsFrom(own, successionsOfTarget));
 };
 
