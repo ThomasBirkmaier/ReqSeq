@@ -242,7 +242,10 @@ test.describe("the line under the title of a package page", () => {
     await expect(window.getByLabel("Modeline")).toContainText("Show evidence coverage");
     const rows = window.locator(".result .line.element");
     await expect(rows).toHaveCount(levels.flatMap((level) => Object.values(level.elements).flat()).length);
-    await expect(window.locator(".result")).toContainText("withoutEvidence10");
+    const count = window.locator(".result .line", {
+      has: window.locator(".label", { hasText: /^withoutEvidence$/ }),
+    });
+    await expect(count.locator(".text")).toHaveText(["10"]);
     // A row opens its requirement.
     const first = (await rows.first().locator(".text").textContent()) ?? "";
     await rows.first().click();

@@ -31,16 +31,23 @@ export const PackageSummaryLine = ({
   onOpenResult,
 }: PackageSummaryProps): React.JSX.Element | null => {
   const [line, setLine] = useState<
-    { readonly text: string | undefined; readonly coverage: EvidenceCoverageOutput } | undefined
+    | {
+        readonly text: string | undefined;
+        readonly coverage: EvidenceCoverageOutput;
+        /** The revision the answer was asked at: a buffer from an older answer asks core again. */
+        readonly asked: number;
+      }
+    | undefined
   >(undefined);
   useEffect(() => {
     let current = true;
+    const asked = revision;
     void askPackageSummary(call, id).then((summary) => {
       if (!current) {
         return;
       }
       if (summary.ok) {
-        setLine({ text: summary.line, coverage: summary.coverage });
+        setLine({ text: summary.line, coverage: summary.coverage, asked });
       } else {
         onEcho(summary.message);
       }
@@ -53,7 +60,7 @@ export const PackageSummaryLine = ({
     return null;
   }
   const open = (): void => {
-    onOpenResult(coverageBuffer(id, name, line.coverage, revision));
+    onOpenResult(coverageBuffer(id, name, line.coverage, line.asked));
   };
   return (
     <p className="package-summary" hidden={line.text === undefined}>
@@ -63,7 +70,7 @@ export const PackageSummaryLine = ({
         title="Show the requirements behind these numbers"
         onClick={open}
         onKeyDown={(event) => {
-          if (event.key === "Enter" && !event.ctrlKey && !event.metaKey && !event.altKey) {
+          if (event.key === "Enter" && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
             event.preventDefault();
             open();
           }
