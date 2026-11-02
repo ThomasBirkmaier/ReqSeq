@@ -1,6 +1,12 @@
 import { fileURLToPath } from "node:url";
 import { configDefaults, defineConfig } from "vitest/config";
 
+// The hosted windows-2025 runner of CI (4 vCPUs) stalls tests that take 0.1-1.6 s on Linux for more than 30 s,
+// in whole files at once and in files no change touched (#701). Only there, fewer test workers leave cores for the
+// git processes the fixtures spawn and the virus scanner that reads each new file, and the hang bound is longer.
+// Linux, macOS and local Windows runs keep the defaults.
+const windowsCi = process.platform === "win32" && process.env.CI === "true";
+
 // ADR-0011: one Vitest run for all packages; JUnit output is the evidence record (D-050).
 // ADR-0016: coverage thresholds (100 % per file in core, 80 % per adapter package) are a required gate.
 export default defineConfig({
@@ -34,8 +40,11 @@ export default defineConfig({
     // 30 s, as in vitest.e2e.config.ts, is several times the slowest passing run seen (about 4.3 s)
     // and still ends a real hang. Hooks build fixtures too, so they get the same bound (default 10 s).
     // Tests with their own timeout keep it.
-    testTimeout: 30_000,
-    hookTimeout: 30_000,
+    // On the Windows runner of CI a stall went past 30 s (37 s seen, #701): 60 s there still ends a real hang.
+    testTimeout: windowsCi ? 60_000 : 30_000,
+    hookTimeout: windowsCi ? 60_000 : 30_000,
+    // Vitest's default is one worker per core minus one (3 on the 4 vCPUs of windows-2025); 2 there (#701).
+    ...(windowsCi ? { maxWorkers: 2 } : {}),
     // ADR-0002 rule 4: command outputs are checked against the catalog in tests (packages/core runtime/invoke.ts).
     env: { REQSEQ_VALIDATE_OUTPUT: "1" },
     // `agent` prints only failures and the summary: short logs for agents and CI (#392).
