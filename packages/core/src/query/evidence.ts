@@ -12,8 +12,11 @@
 // from the evidence block's `verificationState` (`evidence/verification.ts`), which element.get and
 // evidence.status share. Only the elements that have records get a current version
 // (`currentVersionsOf`: the files of those elements, or the whole store when they are a large share
-// of it, ADR-0008), so a workspace without records reads no element file for it. While the metamodel
-// is not valid the records are not compared: every requirement is `open`, every need `open`.
+// of it, ADR-0008), so a workspace without records reads no element file for it. The versions are
+// read by `ready`, which the conditions `verification` and `validation` await once before they ask
+// (#439): the condition "has evidence" needs no version and reads none. While the metamodel is not
+// valid the records are not compared: every requirement is `open`, every need `open`, nothing has
+// evidence, and `ready` reads nothing.
 // "Has evidence" is `hasVerificationRecord` of the evidence block: a verification record in the
 // view, any version and result (spec question #527); validation records never count (D-007).
 // The conditions are tested at core level with records given through `evidenceRecordsState` or a
@@ -36,17 +39,29 @@ export interface EvidenceStatuses {
   readonly validation: (element: ElementRecord) => ValidationStatus | undefined;
   /** Whether verification records point at `element` in `view` (SR-069 AK3 "ohne Nachweis"). */
   readonly hasEvidence: (element: ElementRecord, view: View) => boolean;
+  /**
+   * Reads what `verification` and `validation` need (the current versions), once; await it before
+   * asking them. Left out by a provider that needs nothing read (a test's).
+   */
+  readonly ready?: () => Promise<void>;
 }
 
 /**
- * The provider of the verification and validation `status` with the records of `index` (see the file
- * comment).
+ * The provider of the verification and validation `status` with the records of `index` and `ready`
+ * (see the file comment).
  */
-const providerOf = (status: WorkspaceStatus, index: EvidenceIndex | undefined): EvidenceStatuses => ({
+const providerOf = (
+  status: WorkspaceStatus,
+  index: EvidenceIndex | undefined,
+  ready: () => Promise<void>,
+): EvidenceStatuses => ({
   verification: (element, view) => status.evaluate(element, view)?.status,
   validation: (element) => status.validate(element),
   hasEvidence: (element, view) => index !== undefined && hasVerificationRecord(index, element.id, view),
+  ready,
 });
+
+const NOTHING_TO_READ = (): Promise<void> => Promise.resolve();
 
 /** The provider of a workspace (see the file comment). */
 const evidenceStatuses = async (workspace: Workspace): Promise<EvidenceStatuses> => {
@@ -55,16 +70,22 @@ const evidenceStatuses = async (workspace: Workspace): Promise<EvidenceStatuses>
     workspace.get(verificationState),
   ]);
   if (!metamodel.valid) {
-    return providerOf(status, undefined);
+    return providerOf(status, undefined, NOTHING_TO_READ);
   }
   const [store, index] = await Promise.all([
     workspace.get(elementStoreState),
     workspace.get(evidenceIndexState),
   ]);
   // Every element may be asked about: the versions of all requirements with verification records and
-  // of all elements with validation records, one batch.
-  await status.prepare(store.elements, { own: true });
-  return providerOf(status, index);
+  // of all elements with validation records, one batch, on the first `ready`. A failed read is read
+  // again by the next one.
+  let prepared: Promise<void> | undefined;
+  const ready = (): Promise<void> =>
+    (prepared ??= status.prepare(store.elements, { own: true }).catch((error: unknown) => {
+      prepared = undefined;
+      throw error;
+    }));
+  return providerOf(status, index, ready);
 };
 
 /**

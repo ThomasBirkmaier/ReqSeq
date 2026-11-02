@@ -1,0 +1,83 @@
+{
+  "name": "reqif.export",
+  "title": "Export ReqIF",
+  "summary": "Export a selection or a saved export profile, or with statements the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID (the source IDENTIFIER for statements), text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.",
+  "effect": "write-files",
+  "whileReadOnly": "refuse",
+  "whileReadOnlyReason": "Exports the types and properties of the metamodel, which is missing or faulty.",
+  "stage": 6,
+  "implements": ["SR-052", "SR-054", "SR-058", "SR-059", "SR-101"],
+  "arguments": [
+    { "field": "output", "complete": "text" },
+    { "field": "selection", "complete": "selection" },
+    { "field": "profile", "complete": "text" },
+    { "field": "mapping", "complete": "text" },
+    { "field": "omitProperties", "complete": "property" },
+    { "field": "statements", "complete": "boolean" }
+  ],
+  "input": {
+    "type": "object",
+    "properties": {
+      "output": {
+        "$ref": "../common.schema.json#/$defs/localPath"
+      },
+      "selection": {
+        "$ref": "../common.schema.json#/$defs/selection"
+      },
+      "profile": {
+        "type": "string"
+      },
+      "mapping": {
+        "$ref": "../common.schema.json#/$defs/localPath"
+      },
+      "omitProperties": {
+        "type": "array",
+        "description": "Added to the omitted properties of the mapping and the profile; with mapping, saved in it for later deliveries.",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/key"
+        }
+      },
+      "statements": {
+        "type": "boolean"
+      }
+    },
+    "additionalProperties": false,
+    "required": ["output"]
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "file": {
+        "type": "string"
+      },
+      "elements": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "relations": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "withoutStatement": {
+        "type": "integer",
+        "minimum": 0,
+        "description": "With statements: exported elements without a statement."
+      },
+      "files": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "description": "Copied image or saved mapping file, relative to the workspace root."
+        }
+      },
+      "problems": {
+        "type": "array",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/problem"
+        }
+      }
+    },
+    "additionalProperties": false,
+    "required": ["file", "elements", "relations"]
+  }
+}

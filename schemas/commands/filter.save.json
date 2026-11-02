@@ -1,0 +1,64 @@
+{
+  "name": "filter.save",
+  "title": "Save filter",
+  "summary": "Save a named filter as YAML in the repository; an existing name replaces that filter.",
+  "effect": "write-files",
+  "whileReadOnly": "refuse",
+  "whileReadOnlyReason": "Checks the sort of the filter against the metamodel, which is missing or faulty.",
+  "stage": 3,
+  "implements": ["SR-070"],
+  "arguments": [
+    { "field": "name", "complete": "text" },
+    { "field": "where", "complete": "json" },
+    { "field": "description", "complete": "text" },
+    { "field": "view", "complete": "view" },
+    { "field": "sort", "complete": "json" }
+  ],
+  "input": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "$ref": "../filter.schema.json#/$defs/name"
+      },
+      "description": {
+        "type": "string"
+      },
+      "view": {
+        "$ref": "../common.schema.json#/$defs/view"
+      },
+      "where": {
+        "$ref": "../filter.schema.json#/$defs/condition",
+        "description": "Checked as in a selection; element references are written as UUIDs."
+      },
+      "sort": {
+        "type": "array",
+        "description": "Order of element.list with this filter when its input gives no sort.",
+        "items": {
+          "$ref": "../filter.schema.json#/$defs/sortKey"
+        }
+      }
+    },
+    "additionalProperties": false,
+    "required": ["name", "where"]
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "files": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "description": "Written file, relative to the workspace root."
+        }
+      },
+      "problems": {
+        "type": "array",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/problem"
+        }
+      }
+    },
+    "additionalProperties": false,
+    "required": ["files"]
+  }
+}
