@@ -479,16 +479,36 @@ const joinAttention = (tree: MdastNodes): void => {
 };
 type Attention = Extract<MdastNodes, { type: "emphasis" | "strong" | "delete" }>;
 const isAttention = (node: MdastNodes): node is Attention => ATTENTION.has(node.type);
-/** Emphasis of white space alone: Markdown has no form for it (`* *` is no emphasis). */
-const isBlank = (node: Attention): boolean =>
-  node.children.every((child) => child.type === "text" && child.value.trim() === "");
+/**
+ * The white space of a text or of an emphasis that holds white space alone, also inside another
+ * emphasis (Markdown has no form for it: `* *` is no emphasis); undefined for anything else.
+ */
+const blankText = (node: MdastNodes): string | undefined => {
+  if (node.type === "text") {
+    return node.value.trim() === "" ? node.value : undefined;
+  }
+  if (!isAttention(node)) {
+    return undefined;
+  }
+  let text = "";
+  for (const child of node.children) {
+    const blank = blankText(child);
+    if (blank === undefined) {
+      return undefined;
+    }
+    text += blank;
+  }
+  return text;
+};
 const joinRuns = (children: readonly MdastNodes[]): MdastNodes[] => {
   const joined: MdastNodes[] = [];
   for (const child of children) {
     const last = joined.at(-1);
-    if (isAttention(child) && isBlank(child)) {
-      for (const inner of child.children) {
-        joined.push(inner);
+    const blank = isAttention(child) ? blankText(child) : undefined;
+    if (blank !== undefined) {
+      // As one text, so no emphasis nested in it is left to write as bare delimiters.
+      if (blank !== "") {
+        joined.push({ type: "text", value: blank });
       }
     } else if (isAttention(child) && last !== undefined && isAttention(last) && last.type === child.type) {
       const into = last.children as MdastNodes[];
@@ -519,7 +539,7 @@ const moveSpaceOut = (tree: MdastNodes): void => {
   }
   for (const parent of parents.reverse()) {
     parent.children = parent.children.flatMap((child) =>
-      isAttention(child) && !isBlank(child) ? spaceOutside(child) : [child],
+      isAttention(child) && blankText(child) === undefined ? spaceOutside(child) : [child],
     ) as typeof parent.children;
   }
 };
