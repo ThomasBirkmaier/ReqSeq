@@ -863,6 +863,31 @@ const jsonObject = (text: string): Readonly<Record<string, unknown>> | undefined
   }
 };
 
+/**
+ * The deepest nesting of arrays and objects (an XHTML element counts two: itself and its children)
+ * the round-trip check of an object takes; far beyond a real text or value, and far within the
+ * stack of the recursive steps after it (`comparable`, the frontmatter edit), so a hostile file
+ * cannot exhaust the stack (ADR-0013).
+ */
+const MAX_NESTING = 1000;
+
+/** True when `root` nests arrays and objects deeper than `MAX_NESTING`; walked without recursion. */
+const tooDeep = (root: unknown): boolean => {
+  const pending: { readonly value: unknown; readonly depth: number }[] = [{ value: root, depth: 0 }];
+  for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
+    const { value, depth } = next;
+    if (typeof value === "object" && value !== null) {
+      if (depth === MAX_NESTING) {
+        return true;
+      }
+      for (const child of Object.values(value)) {
+        pending.push({ value: child, depth: depth + 1 });
+      }
+    }
+  }
+  return false;
+};
+
 /** Values in a form two sets compare by, ordered by attribute. */
 const comparable = (values: readonly ReqifValue[]): string =>
   JSON.stringify([...values].sort((a, b) => (a.definition < b.definition ? -1 : 1)));
@@ -899,6 +924,12 @@ const ownChannels = (
   const valuesId = ownId.values(key);
   const text = stringValue(object, markdownId);
   const data = jsonObject(stringValue(object, valuesId) ?? "");
+  if (tooDeep(object.values) || tooDeep(data)) {
+    throw invalidFile(
+      `SPEC-OBJECT ${object.identifier} nests its values deeper than ${String(MAX_NESTING)} levels`,
+      object.line,
+    );
+  }
   const titleKey = titleKeyOrEmpty(metamodel);
   const attributes = ownAttributes(metamodel, key, findType(metamodel, ownType), titleKey);
   // Compared: the readable attributes this metamodel knows (one it does not know is not imported),

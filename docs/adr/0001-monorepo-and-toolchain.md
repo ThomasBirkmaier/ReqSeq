@@ -1,6 +1,6 @@
 # ADR-0001: Monorepo with pnpm, TypeScript and Node 22
 
-Status: Proposed · Based on: D-004, D-046, D-048
+Status: Accepted · Based on: D-004, D-046, D-048
 
 ## Context
 

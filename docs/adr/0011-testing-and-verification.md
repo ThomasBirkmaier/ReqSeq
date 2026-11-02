@@ -1,6 +1,6 @@
 # ADR-0011: Test tools, evidence and quality gates
 
-Status: Proposed · Based on: D-026, D-050, D-051, D-054, D-055 · SRs: SR-019, SR-020, SR-068, SR-076..SR-083
+Status: Accepted · Based on: D-026, D-050, D-051, D-054, D-055 · SRs: SR-019, SR-020, SR-068, SR-076..SR-083
 
 ## Decision
 
