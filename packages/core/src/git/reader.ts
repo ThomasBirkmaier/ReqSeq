@@ -12,7 +12,7 @@
 // A repository folder may lie below the top level of its Git work tree (#377): a workspace in
 // `spec/` of a code repository. Every path in and out of this module is relative to the folder git
 // runs in, never to the top level: `log` gets its paths from there and its answer has the prefix
-// taken off, object names are sent as `<commit>:./<path>`, and `diff` and `ls-files` list relative
+// taken off, object names are sent as `<commit>:./<path>`, and `diff`, `ls-files` and `ls-tree` list relative
 // to it anyway.
 import type { ChildProcessByStdio } from "node:child_process";
 import { execFile, spawn } from "node:child_process";
@@ -125,6 +125,14 @@ const COMMANDS = {
    * (SR-092). No untracked cache, which git would otherwise store in the index.
    */
   untracked: ["-c", "core.untrackedCache=false", "ls-files", "--others", "--exclude-standard", "-z"],
+  /**
+   * Every file of a given commit below the folder git runs in, relative to it (no `--full-tree`, so
+   * a folder below the top level lists only its own files, #377), with mode, type and object ID,
+   * NUL after each (`-z`, no quoting). The commit ID is the only argument, so no path or option is
+   * ever on the command line. One listing instead of a lookup per path (#439: 50,000 lookups of
+   * `<commit>:<path>` took about 10 s, the listing about 0.03 s).
+   */
+  tree: ["ls-tree", "-r", "-z"],
 } as const satisfies Readonly<Record<string, readonly string[]>>;
 
 type GitCommand = keyof typeof COMMANDS;
@@ -1108,4 +1116,85 @@ export const changedPaths = async (
     return unknown(untracked);
   }
   return { known: true, paths: [...zList(changes.stdout), ...zList(untracked.stdout)] };
+};
+
+/** The blob IDs a commit holds for some paths (`commitBlobs`), or why Git cannot tell. */
+export type CommitBlobs = { readonly known: true; readonly ids: ReadonlyMap<string, string> } | GitUnknown;
+
+/** One entry of `ls-tree -z`: `<mode> <type> <object ID>\t<path>`; the path and ID of a blob, else undefined. */
+const treeBlob = (entry: string): readonly [string, string] | undefined => {
+  const tab = entry.indexOf("\t");
+  const [, type, id] = entry.slice(0, tab).split(" ");
+  return tab > 0 && type === "blob" && id !== undefined ? [entry.slice(tab + 1), id] : undefined;
+};
+
+/**
+ * The blob ID `commit` holds for each of `paths` (relative to `folder`, with `/`, as Git stores
+ * them) that is a blob there (a file or a link; not a folder or a submodule): one `ls-tree` of the
+ * commit, read as it streams, keeping only these paths, so a large repository costs no memory for
+ * the rest. Unknown when git fails or takes longer than the time limit of a read; a commit whose
+ * trees are not there (a partial clone) fails too, since git fetches nothing (ADR-0006). A
+ * programming error when `commit` is not an object ID.
+ */
+export const commitBlobs = async (
+  folder: string,
+  commit: string,
+  paths: Iterable<string>,
+  options: ReadOptions = {},
+): Promise<CommitBlobs> => {
+  if (!isObjectId(commit)) {
+    throw new Error(`commitBlobs needs a commit ID, not ${commit}`);
+  }
+  const wanted = new Set(paths);
+  const ids = new Map<string, string>();
+  return new Promise((resolve) => {
+    const child = spawn("git", [...FIXED_OPTIONS, ...COMMANDS.tree, commit], {
+      cwd: folder,
+      env: gitEnv(),
+      stdio: ["pipe", "pipe", "pipe"],
+      windowsHide: true,
+      ...(options.signal === undefined ? {} : { signal: options.signal, killSignal: "SIGKILL" }),
+    });
+    let failed: Omit<GitUnknown, "known"> | undefined;
+    let errors = "";
+    let rest = Buffer.alloc(0);
+    const fail = (failure: Omit<GitUnknown, "known">): void => {
+      failed ??= failure;
+      child.kill("SIGKILL");
+    };
+    const timer = setTimeout(() => {
+      fail({ reason: "timeout", detail: "git ls-tree did not answer in time" });
+    }, READ_TIMEOUT_MS);
+    child.stdout.on("data", (chunk: Buffer) => {
+      const bytes = Buffer.concat([rest, chunk]);
+      let start = 0;
+      for (let end = bytes.indexOf(0, start); end >= 0; end = bytes.indexOf(0, start)) {
+        const blob = treeBlob(bytes.subarray(start, end).toString("utf8"));
+        if (blob !== undefined && wanted.has(blob[0])) {
+          ids.set(blob[0], blob[1]);
+        }
+        start = end + 1;
+      }
+      rest = bytes.subarray(start);
+    });
+    child.stderr.on("data", (chunk: Buffer) => {
+      errors = `${errors}${chunk.toString("utf8")}`.slice(0, MAX_ERROR_OUTPUT);
+    });
+    child.stdin.on("error", ignore);
+    child.on("error", (error: ExecError) => {
+      fail({ reason: error.code === "ENOENT" ? "no-git" : "timeout", detail: error.message });
+    });
+    child.on("close", (code) => {
+      clearTimeout(timer);
+      if (failed === undefined && code !== 0) {
+        failed = {
+          reason: reasonOf(errors),
+          detail: errors === "" ? `git ls-tree ended (${String(code)})` : errors,
+        };
+      }
+      resolve(failed === undefined ? { known: true, ids } : unknown(failed));
+    });
+    // Nothing on standard input: the commit ID is the only argument.
+    child.stdin.end();
+  });
 };
