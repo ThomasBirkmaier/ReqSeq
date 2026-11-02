@@ -1432,11 +1432,11 @@ describe("blobs of a commit (#439)", () => {
       known: true,
       ids: new Map([["a.md", await blob(ws, `${first}:a.md`)]]),
     });
+    // Nothing asked: no git.
     expect(await commitBlobs(folder, second, [])).toEqual({ known: true, ids: new Map() });
     expect(mock.calls.map((c) => c.args)).toEqual([
       [...FIXED, "ls-tree", "-r", "-z", second],
       [...FIXED, "ls-tree", "-r", "-z", first],
-      [...FIXED, "ls-tree", "-r", "-z", second],
     ]);
   });
 
@@ -1479,6 +1479,13 @@ describe("blobs of a commit (#439)", () => {
     });
     mock.process = () => ({ error: execError("spawn git ENOENT", { code: "ENOENT" }) });
     expect(await commitBlobs(folder, second, ["a.md"])).toMatchObject({ known: false, reason: "no-git" });
+    // Another start failure is no timeout.
+    mock.process = () => ({ error: execError("spawn git EACCES", { code: "EACCES" }) });
+    expect(await commitBlobs(folder, second, ["a.md"])).toEqual({
+      known: false,
+      reason: "not-a-repository",
+      detail: "spawn git EACCES",
+    });
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     mock.process = () => ({});
     const pending = commitBlobs(folder, second, ["a.md"]);

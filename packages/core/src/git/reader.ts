@@ -1147,6 +1147,9 @@ export const commitBlobs = async (
   }
   const wanted = new Set(paths);
   const ids = new Map<string, string>();
+  if (wanted.size === 0) {
+    return { known: true, ids };
+  }
   return new Promise((resolve) => {
     const child = spawn("git", [...FIXED_OPTIONS, ...COMMANDS.tree, commit], {
       cwd: folder,
@@ -1182,7 +1185,7 @@ export const commitBlobs = async (
     });
     child.stdin.on("error", ignore);
     child.on("error", (error: ExecError) => {
-      fail({ reason: error.code === "ENOENT" ? "no-git" : "timeout", detail: error.message });
+      fail({ reason: unknownReason(error), detail: error.message });
     });
     child.on("close", (code) => {
       clearTimeout(timer);
