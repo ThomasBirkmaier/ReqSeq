@@ -1,7 +1,7 @@
 ---
 id: 583888a0-ca2b-4883-b1bd-df0abc110b90
 type: system-requirement
-status: draft
+status: approved
 title: Gleichzeitige Schreibaufrufe in einem Prozess
 spec-id: SR-166
 rationale: "Entscheidung des Produktverantwortlichen, 2026-11-02: Gleichzeitige Schreibaufrufe im selben Prozess (API, MCP-Server) müssen verlustfrei sein (#685)."
