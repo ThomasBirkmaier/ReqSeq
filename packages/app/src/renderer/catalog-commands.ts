@@ -579,7 +579,13 @@ const inputOf = (context: ActionContext, entry: Entry): Record<string, unknown> 
       input[arg.field] = isListField(entry.command, arg.field) ? values : values[0];
     }
   }
-  return input;
+  // A field that narrows its `of` takes its place (`hint.confirm`: the chosen `hintIds`, not every hint of `ref`).
+  const narrowed = new Set(
+    entry.command.arguments.flatMap((arg) =>
+      arg.narrows === true && arg.of !== undefined && input[arg.field] !== undefined ? [arg.of] : [],
+    ),
+  );
+  return Object.fromEntries(Object.entries(input).filter(([field]) => !narrowed.has(field)));
 };
 
 /**

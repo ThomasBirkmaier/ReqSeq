@@ -1411,6 +1411,8 @@ export interface CommandCatalog {
         | "json";
       /** An earlier field of `arguments`. */
       readonly of?: string;
+      /** A value of this field takes the place of the field in `of` in the input: `of` then only says what this field offers. `hint.confirm`: hints chosen at `hintIds` of `ref` confirm only those, not every hint of `ref` (#291). Only with `of`. */
+      readonly narrows?: true;
       /** Name of the CLI flag, without `--`, when it is not the field name in kebab-case (ADR-0009): `element.create` takes its `properties` as `--set key=value`, as `element.update` takes `set`. Not the name of another field's flag, nor of a common option (`validate-schemas.mjs`, `catalog-checks.mjs`). */
       readonly flag?: string;
     }[];

@@ -1433,7 +1433,8 @@ describe("write commands in the command prompt (SR-073 AK2, #85)", () => {
     expect(second.items).toEqual([]);
     second.empty?.(false);
     await flush();
-    expect(call).toHaveBeenLastCalledWith("hint.confirm", { ref: "uuid-1", hintIds: ["h1"] });
+    // The chosen hints take the place of `ref` (`narrows`): only they are confirmed, not every hint of SR-1 (#291).
+    expect(call).toHaveBeenLastCalledWith("hint.confirm", { hintIds: ["h1"] });
     // Skipped with Ctrl/Cmd+Enter: the optional arguments follow, the skipped one among them.
     const again = setup([shown], { "hint.confirm": () => ({ confirmed: [] }), "hint.list": () => HINTS });
     start(again.context, "hint.confirm");
