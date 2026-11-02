@@ -34,8 +34,9 @@
 //   and never an element. For a type whose mapping, relation types included, is the one-to-one one
 //   (`oneToOneTypes`), an object whose readable values `readableValues` (own.ts) writes again from
 //   `reqseq-markdown` and `reqseq-values` equal to the file's (relation-valued properties, whose
-//   short IDs depend on the workspace, aside), whose SPEC-RELATIONs (of the kinds the metamodel knows) are those of `reqseq-values`
-//   and whose text has as many images takes the title, the text byte for byte (its image links
+//   short IDs depend on the workspace, aside), whose SPEC-RELATIONs of the kinds the metamodel
+//   knows are those of `reqseq-values` (one of another kind is an `omitted-type` loss) and whose
+//   text has as many images takes the title, the text byte for byte (its image links
 //   pointed at the copies), the properties of its type and the relations from those two; the status
 //   and the origin stored there are not taken, and a relation the metamodel does not allow is a
 //   loss (`checkOwnRelations`). Otherwise another tool changed it, or a mapping differs: the
@@ -918,8 +919,8 @@ const sameSet = (a: ReadonlySet<string>, b: ReadonlySet<string>): boolean =>
 
 /**
  * The round-trip channels of `object` of a file of ReqSeq, when the readable values written again
- * from them equal the file's and its SPEC-RELATIONs those `reqseq-values` names (see the file
- * comment); else undefined, with the warning.
+ * from them equal the file's and its SPEC-RELATIONs of a kind the metamodel knows those
+ * `reqseq-values` names (see the file comment); else undefined, with the warning.
  */
 const ownChannels = (
   context: Context,

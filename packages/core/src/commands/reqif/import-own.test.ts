@@ -472,14 +472,16 @@ describe("reqif.import of a file of ReqSeq (SR-052)", () => {
     const { workspace } = await target(text, undefined);
     const imported = await run<Imported>(workspace, "reqif.import", { file: "in/x.reqif", delivery: "1" });
     expect(imported.problems).toEqual([]);
-    // The relation of the unknown kind is a loss, not a change by another tool.
-    expect(imported.losses.map((l) => [l.kind, l.code])).toContainEqual(["spec-relation", "omitted-type"]);
     const temperature = await element(workspace, imported, TEMPERATURE);
-    expect([temperature.title, temperature.text, temperature.properties["conflicts-with"]]).toEqual([
+    // The relation of the unknown kind is a loss of that element, not a change by another tool.
+    expect(
+      imported.losses.filter((l) => l.kind === "spec-relation").map((l) => [l.code, l.id, l.reason]),
+    ).toEqual([["omitted-type", temperature.id, "the mapping omits its type Conflicts with"]]);
+    expect([temperature.title, temperature.text]).toEqual([
       "Measure temperature",
       "The station measures the air temperature.\n",
-      undefined,
     ]);
+    expect(temperature.relations.filter((r) => r.direction === "out").map((r) => r.kind)).toEqual([]);
   });
 
   it("[SR-052/AK3] takes the channels of a text with line breaks and raw HTML, so the text equals the original (#579)", async () => {
