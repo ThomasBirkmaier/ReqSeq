@@ -99,13 +99,15 @@ describe("testCaseMark (SR-126 AK2, spec questions #528 Q1/Q2, #593 Q2)", () => 
     ).toBe("outdated");
   });
 
-  it("a test case whose newest run is of an older version is outdated while the status is verified", () => {
+  it("a test case whose newest run is of an older version follows the run of the current version, as the status does (#201)", () => {
     const ofCurrent = run("2026-01-01T10:00:00Z");
     const newestOlder = run("2026-01-02T10:00:00Z", { version: OLDER, item: "build-old" });
     const test = testCase(ofCurrent, newestOlder);
     expect(test.last).toEqual(newestOlder);
-    expect(testCaseMark(test, CURRENT)).toBe("outdated");
+    expect(testCaseMark(test, CURRENT)).toBeUndefined();
     expect(recordStatusOf([newestOlder, ofCurrent], "verification", CURRENT, CORE)).toBe("passed");
+    const failedCurrent = run("2026-01-01T10:00:00Z", { result: "failed" });
+    expect(testCaseMark(testCase(failedCurrent, newestOlder), CURRENT)).toBe("failed");
   });
 
   it("an unknown current version marks every executed test case outdated", () => {

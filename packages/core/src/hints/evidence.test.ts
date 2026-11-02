@@ -334,11 +334,10 @@ describe("outdated evidence (SR-025 AK4)", () => {
     });
 
     it("[SR-026/AK3] [SR-025/AK4] agrees with the state for two copies of one UUID and a record of one copy's version", async () => {
-      // Two copies of one need with different versions (SR-088) and one record of the first copy's
-      // version. The state takes the version of the last copy in the store (`byId` of
-      // `outdatedEvidenceFindings`) to tell whether any record is current, which none is, then checks
-      // each copy against its own version: only the second copy is reported. The hint of one element
-      // gives the same. Which version is current for a shared UUID is open (#713).
+      // Two copies of one need with different versions (SR-088) and one record of one copy's version.
+      // Each copy is checked against its own version: only the other copy is reported, whichever copy
+      // the record is of. The hint of one element gives the same. Which version is current for a
+      // shared UUID is open (#713).
       const COPIED = "948a10f1-05c3-4212-bd19-00606ccf2661";
       const fixture = await createFixtureWorkspace({
         fixture: "SR-088/copied-file",
@@ -364,12 +363,6 @@ describe("outdated evidence (SR-025 AK4)", () => {
       const [first, second] = copies.map((copy) => currentVersionOf(versions, copy) ?? "");
       expect(copies).toHaveLength(2);
       expect(first).not.toEqual(second);
-      const at = "2026-01-02T10:00:00Z";
-      await workspace.replace(
-        evidenceRecordsState,
-        workspace.get(evidenceRecordsState),
-        Promise.resolve([record(COPIED, first ?? "", at, { file: "evidence/a.md", line: 1 })]),
-      );
       const context = {
         workspace,
         layout: await workspace.get(workspaceLayoutState),
@@ -377,15 +370,26 @@ describe("outdated evidence (SR-025 AK4)", () => {
         store: versions.store,
         shortIds: await workspace.get(shortIdState),
       };
-      const alone: Problem[] = [];
-      for (const copy of copies) {
-        alone.push(...(await elementEvidenceFindings(context, copy)).map((f) => f.problem));
-      }
-      const state = await workspace.get(outdatedEvidenceProblemsState);
       const rows = (problems: readonly Problem[]): unknown[] =>
         problems.map((p) => [p.elementFile, p.storedVersion, p.currentVersion]);
-      expect(rows(state)).toEqual([[copies[1]?.file, first, second]]);
-      expect(rows(alone)).toEqual(rows(state));
+      const cases = [
+        { of: first ?? "", other: copies[1], expected: second },
+        { of: second ?? "", other: copies[0], expected: first },
+      ];
+      for (const { of, other, expected } of cases) {
+        await workspace.replace(
+          evidenceRecordsState,
+          workspace.get(evidenceRecordsState),
+          Promise.resolve([record(COPIED, of, "2026-01-02T10:00:00Z", { file: "evidence/a.md", line: 1 })]),
+        );
+        const alone: Problem[] = [];
+        for (const copy of copies) {
+          alone.push(...(await elementEvidenceFindings(context, copy)).map((f) => f.problem));
+        }
+        const state = await workspace.get(outdatedEvidenceProblemsState);
+        expect(rows(state)).toEqual([[other?.file, of, expected]]);
+        expect(rows(alone)).toEqual(rows(state));
+      }
     });
   });
 });

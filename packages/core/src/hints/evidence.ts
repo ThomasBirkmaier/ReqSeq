@@ -43,41 +43,39 @@ export type EvidenceVersion = Pick<
   "kind" | "element" | "version" | "date" | "variant" | "repository" | "file" | "line"
 >;
 
-/**
- * The newest record (`date` compared as an instant) of each element, kind and variant that has no
- * record of the element's current version (#201).
- */
-const newestRecords = (
-  records: readonly EvidenceVersion[],
-  currentOf: (id: string) => string | undefined,
-): Map<string, EvidenceVersion[]> => {
-  const newest = new Map<string, EvidenceVersion>();
-  const settled = new Set<string>();
+/** The records of one element, kind and variant: the newest (`date` compared as an instant) and every version. */
+interface RecordGroup {
+  readonly newest: EvidenceVersion;
+  readonly versions: Set<string>;
+}
+
+/** The record groups of each element by UUID, in the order the records give them. */
+const recordGroups = (records: readonly EvidenceVersion[]): Map<string, RecordGroup[]> => {
+  const groups = new Map<string, { newest: EvidenceVersion; versions: Set<string> }>();
   for (const record of records) {
-    const group = `${record.element}\n${record.kind}\n${record.variant ?? ""}`;
-    if (record.version === currentOf(record.element)) {
-      settled.add(group);
-    }
-    const before = newest.get(group);
-    const time = instantOf(record.date);
-    const beforeTime = before === undefined ? Number.NEGATIVE_INFINITY : instantOf(before.date);
-    if (before === undefined || time > beforeTime) {
-      newest.set(group, record);
-    }
-  }
-  const byElement = new Map<string, EvidenceVersion[]>();
-  for (const [group, record] of newest) {
-    if (settled.has(group)) {
+    const key = `${record.element}\n${record.kind}\n${record.variant ?? ""}`;
+    const group = groups.get(key);
+    if (group === undefined) {
+      groups.set(key, { newest: record, versions: new Set([record.version]) });
       continue;
     }
-    byElement.set(record.element, [...(byElement.get(record.element) ?? []), record]);
+    group.versions.add(record.version);
+    if (instantOf(record.date) > instantOf(group.newest.date)) {
+      group.newest = record;
+    }
+  }
+  const byElement = new Map<string, RecordGroup[]>();
+  for (const group of groups.values()) {
+    const id = group.newest.element;
+    byElement.set(id, [...(byElement.get(id) ?? []), group]);
   }
   return byElement;
 };
 
 /**
  * The outdated evidence of `elements` (SR-025 AK4): for each element in the given order, per kind
- * and variant whose records all belong to older versions than `currentOf` gives, the newest record.
+ * and variant with no record of the version `currentOf` gives for that element (each copy of a UUID
+ * against its own, SR-088), the newest record.
  */
 export const outdatedEvidenceFindings = (
   elements: readonly ElementRecord[],
@@ -85,17 +83,12 @@ export const outdatedEvidenceFindings = (
   currentOf: (element: ElementRecord) => string | undefined,
   label: (element: ElementRecord) => string,
 ): Problem[] => {
-  const byId = new Map(elements.map((e) => [e.id, e]));
-  const current = (id: string): string | undefined => {
-    const element = byId.get(id);
-    return element === undefined ? undefined : currentOf(element);
-  };
-  const newest = newestRecords(records, current);
+  const groups = recordGroups(records);
   const problems: Problem[] = [];
   for (const element of elements) {
     const version = currentOf(element);
-    for (const record of newest.get(element.id) ?? []) {
-      if (version === undefined || record.version === version) {
+    for (const { newest: record, versions } of groups.get(element.id) ?? []) {
+      if (version === undefined || versions.has(version)) {
         continue;
       }
       const variant = record.variant === undefined ? "" : ` for variant ${record.variant}`;
@@ -162,8 +155,7 @@ export interface ElementEvidenceContext {
  * grouping cost about 0.17 s), until the index is carried over a new record (#698 PR D, #713).
  * `element` may be the element as its file holds it now; it is looked up in the store by
  * repository and file. Each problem keeps the line in its record file. For two copies of one UUID
- * (SR-088) whether a record is current is told with the version of the copy shown, while the state
- * uses one copy's version for both (known divergence, as before #698, #713).
+ * (SR-088) each copy is compared with its own version, here as in the state (#201).
  */
 export const elementEvidenceFindings = async (
   context: ElementEvidenceContext,
