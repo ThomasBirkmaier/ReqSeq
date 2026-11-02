@@ -331,6 +331,7 @@ export type ProblemCode =
   | "filter.invalid"
   | "filter.duplicate-name"
   | "metamodel.invalid"
+  | "metamodel.optional-status"
   | "metamodel.meaning-unassigned"
   | "workspace.repository-missing"
   | "workspace.metamodel-mismatch"

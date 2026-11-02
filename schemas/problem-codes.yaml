@@ -144,6 +144,9 @@ problems:
   metamodel.invalid:
     cause: The metamodel is missing or faulty. An error makes the workspace read-only; a warning does not.
     remedy: Fix the metamodel files at the places the messages give and open the workspace again.
+  metamodel.optional-status:
+    cause: Every status of the type is marked invalid, so the status of its elements is optional. An element without status is current. This is a note, not an error.
+    remedy: Nothing, if this is intended. Otherwise mark one status of the type as not invalid.
   metamodel.meaning-unassigned:
     cause: No relation kind of the metamodel has the meaning a command needs (for example derivation for the chain), so that part of the result is empty.
     remedy: Assign the meaning to a relation kind in the metamodel.

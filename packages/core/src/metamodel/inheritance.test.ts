@@ -442,7 +442,9 @@ describe("statuses per type (#306)", () => {
       ]),
     );
     expect(
-      metamodel.problems.every((p) => p.code === "metamodel.invalid" && p.file === "model/z-gone.yaml"),
+      metamodel.problems.every(
+        (p) => p.code === "metamodel.optional-status" && p.file === "model/z-gone.yaml",
+      ),
     ).toBe(true);
     expect(
       metamodel.effectiveTypes.filter((t) => t.key.startsWith("gone-")).map((t) => [t.key, t.statuses]),
