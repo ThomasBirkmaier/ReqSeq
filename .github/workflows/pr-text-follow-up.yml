@@ -37,8 +37,8 @@ jobs:
       actions: write # Re-run static
       pull-requests: read # The pull request of the head commit
     runs-on: ubuntu-24.04
-    # A few API calls; it never waits for another run.
-    timeout-minutes: 5
+    # A few API calls; it waits at most 12 minutes, and only for a re-run of `static` (see the script).
+    timeout-minutes: 15
     steps:
       - name: Re-run static
         uses: actions/github-script@v7
@@ -71,12 +71,23 @@ jobs:
             if (pr.user.login === "dependabot[bot]") return core.info("Dependabot pull request");
 
             // The newest CI run of the head commit is the one GitHub reads the required checks from.
-            const { data: ci } = await github.rest.actions.listWorkflowRuns({
-              owner, repo, workflow_id: "ci.yml", event: "pull_request", head_sha: headSha, per_page: 20,
-            });
-            const run = newestFirst(ci.workflow_runs)[0];
-            if (!run) return core.info("No CI run of the head commit");
-            if (run.status !== "completed") return core.info(`CI run ${run.html_url} still runs; its completion starts this workflow again`);
+            // A re-run made with this workflow's token most likely starts no `workflow_run` when it completes, so a
+            // re-run of `static` that still runs is polled here (every 15 seconds, at most 12 minutes: `static` has a
+            // bound of 8). This wait is bounded by one short job, not by the whole CI run as before #739. A first
+            // attempt that still runs starts this workflow itself when it completes.
+            const deadline = Date.now() + 12 * 60 * 1000;
+            let run;
+            for (;;) {
+              const { data: ci } = await github.rest.actions.listWorkflowRuns({
+                owner, repo, workflow_id: "ci.yml", event: "pull_request", head_sha: headSha, per_page: 20,
+              });
+              run = newestFirst(ci.workflow_runs)[0];
+              if (!run) return core.info("No CI run of the head commit");
+              if (run.status === "completed") break;
+              if (run.run_attempt === 1) return core.info(`CI run ${run.html_url} still runs; its completion starts this workflow again`);
+              if (Date.now() > deadline) return core.warning(`The re-run of CI run ${run.html_url} did not complete in time`);
+              await new Promise((resolve) => setTimeout(resolve, 15 * 1000));
+            }
             const job = (await jobsOf(run)).find((j) => j.name === "static");
             if (!job || job.conclusion !== "failure") return core.info(`static: ${job?.conclusion ?? job?.status ?? "missing"}`);
             const failed = job.steps.filter((step) => step.conclusion === "failure").map((step) => step.name);
@@ -104,5 +115,9 @@ jobs:
             if (!checkRead || Date.parse(checkRead) <= Date.parse(staticRead)) {
               return core.info("trace-check (PR text) read the PR text before static did");
             }
+            // Read the head again right before the re-run: a push during the calls above made a new CI run, which a
+            // re-run of the old run would cancel by joining the pull request's CI group (merge.md).
+            const { data: now } = await github.rest.pulls.get({ owner, repo, pull_number: number });
+            if (now.state !== "open" || now.head.sha !== headSha) return core.info("The head commit changed; its own run checks");
             await github.rest.actions.reRunJobForWorkflowRun({ owner, repo, job_id: job.id });
             core.info(`Re-running ${job.html_url}`);
