@@ -2570,7 +2570,7 @@ export interface EvidenceRecordInput {
   readonly result: "passed" | "failed";
   /** The item under test (Prüfling), for example the build or sample. Required for verification. No white space at either end and no control characters other than tab, line feed and carriage return. */
   readonly item?: Item;
-  /** A variant the element applies in (an element whose type has the meaning variant); the record holds for it. Absent: the core. Verification only: a variant with `kind` validation is `input.invalid` with `details.reason` `validation-with-variant` (SR-038 AK4, D-007); `core` is allowed. A variant the element is not in is `input.invalid` with `details.reason` `not-valid-in-variant`, or `excluded-in-variant` or `replaced-in-variant` when the variant excludes or replaces the requirement (SR-047 AK4). */
+  /** A variant the element applies in (an element whose type has the meaning variant); the record holds for it. Absent: the core. Verification only: a variant with `kind` validation is `input.invalid` with `details.reason` `validation-with-variant` (SR-038 AK4, D-007). `core` names no variant and is `input.invalid` with `details.reason` `core-is-no-variant`; leave `variant` out for the core. A variant the element is not in is `input.invalid` with `details.reason` `not-valid-in-variant`, or `excluded-in-variant` or `replaced-in-variant` when the variant excludes or replaces the requirement (SR-047 AK4). */
   readonly variant?: ElementRef;
   /** When the check was done. Default: the time of the call, UTC, whole seconds. Its first ten characters (the day in its own offset) start the file name. */
   readonly date?: IsoDateTime;
