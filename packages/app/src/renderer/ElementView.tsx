@@ -316,8 +316,8 @@ const useHintDates = (
 
 /**
  * A change from outside that did not name the element can still change its variant lines (SR-046, SR-047): a
- * variant's exclusions, a replacing requirement, the records. A requirement (one with a verification
- * status) is read again for the lines alone on each such change (`elsewhere` counts them), as the parents
+ * variant's exclusions, a replacing requirement, the records. A requirement or need (one with a
+ * verification or validation status) is read again for the lines alone on each such change (`elsewhere` counts them), as the parents
  * line is on every change. Only the lines take the answer, so the fields, their highlights and the input
  * stay as they are.
  */
@@ -328,7 +328,7 @@ const useLinesAgain = (
   got: Pick<ElementGetOutput, "element" | "names"> | undefined,
   setGot: (output: Pick<ElementGetOutput, "element" | "names">) => void,
 ): void => {
-  const asked = got?.element.verification !== undefined;
+  const asked = got?.element.verification !== undefined || got?.element.validation !== undefined;
   useEffect(() => {
     if (elsewhere === 0 || !asked) {
       return;

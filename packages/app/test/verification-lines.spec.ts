@@ -37,11 +37,13 @@ test.describe("the children missing for an indirect verification", () => {
       readonly element: {
         readonly verification: readonly { readonly missingChildren?: readonly string[] }[];
       };
+      readonly names: readonly { readonly id: string; readonly shortId: string }[];
     };
-    expect(got.element.verification[0]?.missingChildren?.map((id) => id.slice(-6))).toEqual([
-      "00b121",
-      "00b122",
-      "00b123",
+    const shortIds = new Map(got.names.map((named) => [named.id, named.shortId]));
+    expect(got.element.verification[0]?.missingChildren?.map((id) => shortIds.get(id))).toEqual([
+      "SR-00b121",
+      "SR-00b122",
+      "SR-00b123",
     ]);
     const verification = line(window, "Verification");
     await expect(verification).toHaveText(
