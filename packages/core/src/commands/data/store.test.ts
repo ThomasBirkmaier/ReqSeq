@@ -25,7 +25,7 @@ vi.mock("../../git/reader.js", async (importOriginal) => {
     ...original,
     headCommit: vi.fn(original.headCommit),
     changedPaths: vi.fn(original.changedPaths),
-    openObjectReader: vi.fn(original.openObjectReader),
+    commitBlobs: vi.fn(original.commitBlobs),
   };
 });
 vi.mock("../../files/index.js", async (importOriginal) => {
@@ -330,11 +330,11 @@ describe("data.store: a second repository without a known commit (#531 Q2, revie
       ],
     });
     expect(stateIn(ws.path(`out/${commit}-dirty.jsonl`))).toEqual([[commit, true]]);
-    vi.mocked(reader.openObjectReader).mockImplementationOnce(() => ({
-      info: () => Promise.resolve({ known: false, reason: "not-a-repository", detail: "broken" }),
-      read: () => Promise.resolve({ known: false, reason: "not-a-repository", detail: "broken" }),
-      close: () => undefined,
-    }));
+    vi.mocked(reader.commitBlobs).mockResolvedValueOnce({
+      known: false,
+      reason: "not-a-repository",
+      detail: "broken",
+    });
     const failed = await storeIn(ws.root, { folder: "out" });
     expect(failed.problems?.map((p) => p.message)).toEqual([
       "Git cannot tell whether repository system has uncommitted changes (git failed); a stored state is marked dirty",

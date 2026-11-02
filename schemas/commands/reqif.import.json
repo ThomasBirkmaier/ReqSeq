@@ -1,0 +1,109 @@
+{
+  "name": "reqif.import",
+  "title": "Import ReqIF file",
+  "summary": "Import a ReqIF 1.2 file through a saved mapping, all or nothing: creates an element per object and reports losses. Each element keeps its origin (source, source IDENTIFIER, import date, delivery, import version), which no other command writes. A repeated delivery of the same source updates the elements of the earlier one in place (matched by source and source IDENTIFIER) and only lists the dropped ones; an element changed locally and in the delivery is a conflict that needs take or keep, else the import is refused (reqif.conflict).",
+  "effect": "write-files",
+  "whileReadOnly": "refuse",
+  "whileReadOnlyReason": "Creates and changes elements, and no change can be checked against a missing or faulty metamodel.",
+  "stage": 6,
+  "implements": ["SR-052", "SR-053", "SR-054", "SR-055", "SR-056", "SR-057", "SR-087", "SR-095"],
+  "arguments": [
+    { "field": "file", "complete": "text" },
+    { "field": "delivery", "complete": "text" },
+    { "field": "mapping", "complete": "text" },
+    { "field": "source", "complete": "text" },
+    { "field": "take", "complete": "element" },
+    { "field": "keep", "complete": "element" }
+  ],
+  "input": {
+    "type": "object",
+    "properties": {
+      "file": {
+        "$ref": "../common.schema.json#/$defs/localPath"
+      },
+      "delivery": {
+        "type": "string",
+        "minLength": 1
+      },
+      "mapping": {
+        "$ref": "../common.schema.json#/$defs/localPath",
+        "description": "Needed unless the file comes from ReqSeq (REQ-IF-TOOL-ID reqseq), which is mapped one to one."
+      },
+      "source": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Source name for a file of ReqSeq without mapping; default the header TITLE."
+      },
+      "take": {
+        "type": "array",
+        "description": "Conflicts for which the delivery is taken: an exact source IDENTIFIER, else an element among the conflicts.",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/elementRef"
+        }
+      },
+      "keep": {
+        "type": "array",
+        "description": "Conflicts for which the local element is kept: an exact source IDENTIFIER, else an element among the conflicts.",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/elementRef"
+        }
+      }
+    },
+    "additionalProperties": false,
+    "required": ["file", "delivery"]
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "created": {
+        "type": "array",
+        "description": "New elements.",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/reqifObject"
+        }
+      },
+      "updated": {
+        "type": "array",
+        "description": "Elements of an earlier delivery the delivery was written into (changed, taken, or a title, property or relation that differed).",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/reqifObject"
+        }
+      },
+      "kept": {
+        "type": "array",
+        "description": "Conflicts in keep: content left, only the origin written.",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/reqifObject"
+        }
+      },
+      "dropped": {
+        "type": "array",
+        "description": "Elements of the source whose object the file no longer has; not changed.",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/reqifObject"
+        }
+      },
+      "losses": {
+        "type": "array",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/reqifLoss"
+        }
+      },
+      "files": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "description": "Written file, relative to the workspace root."
+        }
+      },
+      "problems": {
+        "type": "array",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/problem"
+        }
+      }
+    },
+    "additionalProperties": false,
+    "required": ["created", "updated", "kept", "dropped", "losses", "files"]
+  }
+}

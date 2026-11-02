@@ -1,5 +1,4 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { loadContracts } from "@reqseq/core";
 import { describe, expect, it, vi } from "vitest";
 import type { Call } from "./call.js";
 import {
@@ -14,24 +13,14 @@ import {
   withView,
 } from "./views.js";
 
-interface CatalogCommand {
-  readonly name: string;
-  readonly effect: string;
-  readonly arguments: readonly { readonly field: string; readonly complete: string }[];
-}
-
-/** The read commands of `catalog.json` whose argument has the source `source`. */
-const readsWith = (source: string): string[] => {
-  const catalog = JSON.parse(
-    readFileSync(join(import.meta.dirname, "../../../../schemas/commands/catalog.json"), "utf8"),
-  ) as { readonly commands: readonly CatalogCommand[] };
-  return catalog.commands
-    .filter(
+/** The read commands of the catalog whose argument has the source `source`. */
+const readsWith = (source: string): string[] =>
+  loadContracts()
+    .commands.filter(
       (command) => command.effect === "read" && command.arguments.some((arg) => arg.complete === source),
     )
     .map((command) => command.name)
     .sort();
-};
 
 const COAST = { view: "43043043-0000-4000-8000-0000000000c1", title: "Coast", shortId: "VAR-0000c1" };
 

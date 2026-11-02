@@ -1,0 +1,59 @@
+{
+  "name": "baseline.compare",
+  "title": "Compare baseline",
+  "summary": "The two commits and the Git command that show the difference of an element since a baseline (SR-051 AK4). Runs nothing.",
+  "effect": "read",
+  "stage": 5,
+  "implements": ["SR-051", "SR-083"],
+  "arguments": [
+    { "field": "baseline", "complete": "baseline" },
+    { "field": "ref", "complete": "element" }
+  ],
+  "input": {
+    "type": "object",
+    "properties": {
+      "baseline": {
+        "type": "string",
+        "description": "Name of a baseline, or its file name (with or without .yaml)."
+      },
+      "ref": {
+        "$ref": "../common.schema.json#/$defs/elementRef"
+      }
+    },
+    "additionalProperties": false,
+    "required": ["baseline", "ref"]
+  },
+  "output": {
+    "type": "object",
+    "description": "Errors: git.commit-not-found when the baseline names no commit of the repository or the repository does not have it, git.unavailable when Git cannot tell, ref.unknown, ref.ambiguous when the baseline lists several copies of the UUID (details.repositories), input.invalid with details.reason unknown-baseline, ambiguous-baseline or not-in-baseline. The copy the baseline lists is taken, also after its file was removed. A file moved to a path Git does not track shows only as deleted until that path is added to Git (git add -N); ReqSeq never stages.",
+    "properties": {
+      "repository": {
+        "type": "string"
+      },
+      "from": {
+        "$ref": "../common.schema.json#/$defs/commit"
+      },
+      "to": {
+        "type": ["string", "null"],
+        "description": "The commit to compare with; null for the working copy."
+      },
+      "file": {
+        "type": "string",
+        "description": "The element file now, relative to its repository."
+      },
+      "oldFile": {
+        "type": "string",
+        "description": "Its path at the baseline commit, when the file moved."
+      },
+      "command": {
+        "type": "array",
+        "description": "git -C <repository folder> diff <from> [<to>] -- [<oldFile>] <file>, to run in the workspace root, / as separator, the same on every access.",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "additionalProperties": false,
+    "required": ["repository", "from", "to", "file", "command"]
+  }
+}

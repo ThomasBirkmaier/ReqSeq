@@ -1,0 +1,89 @@
+{
+  "name": "evidence.coverage",
+  "title": "Show evidence coverage",
+  "summary": "Coverage of a selection per level: how many have children, how many have evidence; with the element lists.",
+  "effect": "read",
+  "stage": 4,
+  "implements": ["SR-036", "SR-042", "SR-101"],
+  "arguments": [{ "field": "selection", "complete": "selection" }],
+  "input": {
+    "type": "object",
+    "properties": {
+      "selection": {
+        "$ref": "../common.schema.json#/$defs/selection",
+        "description": "The elements to cover, as `element.list` takes them; every part given must hold (SR-101 AK2). Its view (else the view of its saved filter, else the core, SR-036 AK5) narrows the counted elements and their children to those it holds (SR-043: no core requirement the variant excludes or replaces), and evidence records count for that view, as the filter condition `verification` does."
+      }
+    },
+    "additionalProperties": false
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "levels": {
+        "type": "array",
+        "description": "One level per element type of the selection with the meaning `need` or `requirement` (a subtype is its own level), in metamodel order (spec question #527). Elements whose status the metamodel marks invalid are not counted (SR-036 AK4, D-044); other types have no level.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "$ref": "../common.schema.json#/$defs/key"
+            },
+            "total": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "The counted elements of the type."
+            },
+            "withChildren": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "How many have a derivation child that counts: one whose status is not marked invalid and, with a view, that applies in it; in any repository."
+            },
+            "withEvidence": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Only for a type with the meaning `requirement`: how many have at least one verification record in the view (the core without one), of any version and result (`hasVerificationRecord`, spec question #527)."
+            },
+            "elements": {
+              "type": "object",
+              "description": "The UUIDs behind every number, in selection order (SR-036 AK2): pass them as `selection.ids` to `element.list`. `withEvidence` and `withoutEvidence` only where the level has `withEvidence`.",
+              "properties": {
+                "withChildren": {
+                  "type": "array",
+                  "items": { "$ref": "../common.schema.json#/$defs/uuid" }
+                },
+                "withoutChildren": {
+                  "type": "array",
+                  "items": { "$ref": "../common.schema.json#/$defs/uuid" }
+                },
+                "withEvidence": {
+                  "type": "array",
+                  "items": { "$ref": "../common.schema.json#/$defs/uuid" }
+                },
+                "withoutEvidence": {
+                  "type": "array",
+                  "items": { "$ref": "../common.schema.json#/$defs/uuid" }
+                }
+              },
+              "additionalProperties": false,
+              "required": ["withChildren", "withoutChildren"]
+            }
+          },
+          "additionalProperties": false,
+          "required": ["type", "total", "withChildren", "elements"]
+        }
+      },
+      "incomplete": {
+        "$ref": "../common.schema.json#/$defs/incomplete"
+      },
+      "names": {
+        "type": "array",
+        "description": "Every element of `levels[].elements`, each once in selection order, so a reader names them by short ID, identifier and title (#588). Left out when no level lists an element.",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/elementName"
+        }
+      }
+    },
+    "additionalProperties": false,
+    "required": ["levels"]
+  }
+}
