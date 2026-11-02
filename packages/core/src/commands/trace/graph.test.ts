@@ -348,6 +348,42 @@ describe("trace.graph (SR-111)", () => {
     ]);
   });
 
+  it("[SR-111/AK4] no-evidence reads the verification records as trace.chain does", async () => {
+    const workspace = await open(async (fixture) => {
+      const { readFile } = await import("node:fs/promises");
+      const config = await readFile(fixture.path("reqseq-workspace.yaml"), "utf8");
+      await fixture.write(
+        "reqseq-workspace.yaml",
+        `${config}evidence:\n  - { repository: system, path: evidence }\n`,
+      );
+      await fixture.write(
+        "evidence/ci/run.xml",
+        [
+          '<testsuites><testsuite name="station" tests="1">',
+          '<testcase classname="t" name="turns"><properties>',
+          `<property name="reqseq:element" value="${ID.C3}"/>`,
+          '<property name="reqseq:version" value="n1:0000000000000000"/>',
+          '<property name="reqseq:item" value="build-1"/>',
+          '<property name="reqseq:date" value="2026-10-21T09:00:00Z"/>',
+          "</properties></testcase></testsuite></testsuites>",
+          "",
+        ].join("\n"),
+      );
+    });
+    const output = await graph(workspace, { ref: ID.S1, allLevels: true });
+    expect(marked(output, "no-evidence")).toEqual(["O1", "C2", "GG1"]);
+    for (const view of [undefined, "core", ID.V1]) {
+      const input = { ref: ID.S1, ...(view === undefined ? {} : { view }) };
+      const shown = await graph(workspace, { ...input, allLevels: true });
+      const chain = (await invoke("trace.chain", input, { workspace })) as CommandOutput<"trace.chain">;
+      const expanded = new Set(
+        chain.nodes.filter((n) => n.expanded && n.direction !== "up").map((n) => n.id),
+      );
+      const gaps = chain.gaps.filter((g) => g.kind === "no-evidence").map((g) => nameOf(g.id));
+      expect(marked(shown, "no-evidence").filter((name) => expanded.has(ID[name as Name]))).toEqual(gaps);
+    }
+  });
+
   it("gives a hint and no no-evidence mark without a relation kind with the meaning derivation (SR-013 AK3)", async () => {
     const workspace = await open(async (fixture) => {
       const file = fixture.path("metamodel/standard-model.yaml");

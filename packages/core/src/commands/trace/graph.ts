@@ -12,10 +12,12 @@
 //   kinds are followed;
 // - `superseded`: its status is one the metamodel marks invalid (D-044, `invalidStatuses`), the rule
 //   of `relation.target-superseded`;
-// - `no-evidence`: the gap rule of trace.chain (`lacksEvidence`, SR-022 AK3), in the same view.
+// - `no-evidence`: the gap rule of trace.chain (`lacksEvidence`, SR-022 AK3) with the same records
+//   (`hasVerificationRecord` in the view, the core without one), so the graph and the chain agree.
 //   Without the meanings `derivation` and `requirement` there is none, and a hint says so.
 import type { CommandOutput, Problem } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
+import { evidenceIndexState, hasVerificationRecord } from "../../evidence/index.js";
 import { outdatedAmong } from "../../hints/index.js";
 import type { Metamodel } from "../../metamodel/index.js";
 import { meaningUnassignedMessage } from "../../metamodel/index.js";
@@ -33,13 +35,14 @@ import {
   neighbourhoodContext,
   traceContext,
 } from "../../trace/index.js";
+import type { View } from "../../variants/index.js";
 import { resolveView, viewIncomplete, viewRuleOf } from "../../variants/index.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
 
 /** The meanings the `no-evidence` mark needs. */
 const GAP_MEANINGS = ["derivation", "requirement"] as const;
 
-const NO_EVIDENCE: readonly never[] = Object.freeze([]);
+const CORE: View = { kind: "core" };
 
 /** The meanings of `GAP_MEANINGS` that no key of `metamodel` has. */
 const unassignedOf = (metamodel: Metamodel): readonly (typeof GAP_MEANINGS)[number][] =>
@@ -50,15 +53,19 @@ const marksOf = async (
   workspace: Workspace,
   base: TraceContext,
   includes: ((element: ElementRecord) => boolean) | undefined,
+  view: View | undefined,
 ): Promise<MarksOf> => {
   const { metamodel, store } = base;
   const layout = await workspace.get(workspaceLayoutState);
   const invalid = invalidStatuses(metamodel);
-  // Stage 4 passes each element's evidence records here (SR-028); until then there are none.
-  const gap =
-    unassignedOf(metamodel).length === 0
-      ? lacksEvidence(derivationGraph(base, "trace.graph"), includes)
-      : undefined;
+  let gap: ((element: ElementRecord) => boolean) | undefined;
+  if (unassignedOf(metamodel).length === 0) {
+    const index = await workspace.get(evidenceIndexState);
+    const gapView = view ?? CORE;
+    gap = lacksEvidence(derivationGraph(base, "trace.graph"), includes, (element) =>
+      hasVerificationRecord(index, element.id, gapView),
+    );
+  }
   return async (elements) => {
     const outdated = await outdatedAmong({ workspace, layout, metamodel, store }, elements);
     return (element) => {
@@ -69,7 +76,7 @@ const marksOf = async (
       if (invalid.has(String(element.data["status"]))) {
         marks.push("superseded");
       }
-      if (gap?.(element, NO_EVIDENCE) === true) {
+      if (gap?.(element) === true) {
         marks.push("no-evidence");
       }
       return marks;
@@ -127,7 +134,7 @@ export default defineCommand({
       graph,
       { ...context, shortIds },
       currentVersionLookup(ctx.workspace),
-      await marksOf(ctx.workspace, base, includes),
+      await marksOf(ctx.workspace, base, includes, view),
     );
     return {
       ...output,
