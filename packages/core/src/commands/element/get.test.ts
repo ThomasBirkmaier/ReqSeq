@@ -10,6 +10,7 @@ import { elementStoreState, showElement, shortIdState } from "../../model/index.
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
+import { readFirst } from "../../runtime/read-first.test-helper.js";
 
 type Element = CommandOutput<"element.get">["element"];
 
@@ -548,7 +549,10 @@ describe("element.get, more of what stage 1 shows", () => {
     const updated = (
       (await invoke(
         "element.update",
-        { ref: "40a0e000-0000-4000-8000-000000000ab2", text: element.text ?? "" },
+        await readFirst(
+          { ref: "40a0e000-0000-4000-8000-000000000ab2", text: element.text ?? "" },
+          { workspace: opened.workspace },
+        ),
         { workspace: opened.workspace },
       )) as CommandOutput<"element.update">
     ).element;

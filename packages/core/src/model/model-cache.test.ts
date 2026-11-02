@@ -527,12 +527,15 @@ describe("parseModelCache", () => {
     snapshot,
   };
   const warning = { code: "file.yaml-warning", severity: "warning", message: "w" };
+  const FP = "f".repeat(64);
+  const cachedVersion = { byForm: { n1: "n1:0123456789abcdef" }, f: 0 };
   const elementEntry = { kind: "element", element: record, warnings: [warning], snapshot };
   const valid = {
     format: MODEL_CACHE_FORMAT,
     code: CODE,
     root: ROOT,
     startedAt: 5000,
+    fingerprints: [FP],
     repositories: [
       { name: "system", folder: "/work/copy", files: [["a.md", elementEntry, "7", "900000000"]] },
     ],
@@ -566,6 +569,30 @@ describe("parseModelCache", () => {
     ["not an object", []],
     ["no format", { ...valid, format: undefined }],
     ["a start that is no number", { ...valid, startedAt: "now" }],
+    ["no fingerprint table (format 8)", { ...valid, fingerprints: undefined }],
+    ["a fingerprint that is no SHA-256", { ...valid, fingerprints: ["f".repeat(63)] }],
+    [
+      "a version of a file that is no element",
+      withEntry([
+        "a.md",
+        { kind: "not-element", file: "a.md", warnings: [], snapshot, version: cachedVersion },
+        "7",
+        "900000000",
+      ]),
+    ],
+    ["a version that is no object", withContribution({ version: "n1:0123456789abcdef" })],
+    ["a version with another key", withContribution({ version: { ...cachedVersion, fingerprint: FP } })],
+    ["a version without forms", withContribution({ version: { byForm: {}, f: 0 } })],
+    [
+      "a version under another form",
+      withContribution({ version: { byForm: { n2: "n1:0123456789abcdef" }, f: 0 } }),
+    ],
+    ["a version that is no version", withContribution({ version: { byForm: { n1: "n1:0123" }, f: 0 } })],
+    ["a fingerprint index outside the table", withContribution({ version: { ...cachedVersion, f: 1 } })],
+    [
+      "a fingerprint index that is no whole number",
+      withContribution({ version: { ...cachedVersion, f: 0.5 } }),
+    ],
     ["repositories that are no list", { ...valid, repositories: {} }],
     ["a repository that is no object", { ...valid, repositories: [1] }],
     ["a repository without a name", { ...valid, repositories: [{ folder: "/f", files: [] }] }],
@@ -793,8 +820,23 @@ describe("parseModelCache", () => {
   });
 
   it("discards a cache of format 7, whose records know no blank text (#667)", () => {
-    expect(MODEL_CACHE_FORMAT).toBe(8);
+    expect(MODEL_CACHE_FORMAT).toBeGreaterThan(7);
     expect(parse({ ...valid, format: 7 })).toBeUndefined();
+  });
+
+  it("discards a cache of format 8, which holds no versions as read (#439)", () => {
+    expect(MODEL_CACHE_FORMAT).toBe(9);
+    expect(parse({ ...valid, format: 8 })).toBeUndefined();
+  });
+
+  it("revives an element's version as read with its fingerprint from the table (#439)", () => {
+    const contribution = parse(withContribution({ version: cachedVersion }))
+      ?.repositories.get("system")
+      ?.files.get("a.md")?.contribution;
+    expect(contribution?.kind === "element" ? contribution.version : undefined).toEqual({
+      byForm: { n1: "n1:0123456789abcdef" },
+      fingerprint: FP,
+    });
   });
 
   it("discards a cache of format 2, with inodes and change times as numbers", () => {

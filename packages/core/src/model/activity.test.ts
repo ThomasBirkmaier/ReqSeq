@@ -28,6 +28,7 @@ import {
   ACTIVITY_FILE,
   ACTIVITY_HOLD_MS,
   ACTIVITY_WRITE_MS,
+  ACTIVITY_WRITE_TRIES,
   FOLLOWED_ACCESSES,
   accessSubject,
   lastAccess,
@@ -38,6 +39,7 @@ import {
 } from "./activity.js";
 import { elementStoreState } from "./store.js";
 import { watchWorkspace } from "./watch.js";
+import { readFirstFor } from "../runtime/read-first.test-helper.js";
 
 // The real `watch`, wrapped so that a test can make the watch of the cache folder fail.
 vi.mock("node:fs", async (importOriginal) => {
@@ -101,12 +103,17 @@ const copy = async (options: FixtureOptions, root = ""): Promise<Copy> => {
   return { fixture: created, cache, workspace: open(root === "" ? created.root : created.path(root), cache) };
 };
 
-const call = (
+const call = async (
   workspace: Workspace,
   name: string,
   input: object,
   access?: InvokeContext["access"],
-): Promise<unknown> => invoke(name, input, access === undefined ? { workspace } : { workspace, access });
+): Promise<unknown> =>
+  invoke(
+    name,
+    await readFirstFor(name, input, access === undefined ? { workspace } : { workspace, access }),
+    access === undefined ? { workspace } : { workspace, access },
+  );
 
 /** The activity file after the workspace closed (closing writes the pending access). */
 const recorded = async (opened: Copy): Promise<ActivityFile | undefined> => {
@@ -442,6 +449,55 @@ describe("recording the last API or MCP access (SR-117)", () => {
     expect((await readActivity(opened.cache))?.access.element.id).toBe(SR_037);
   });
 
+  it("tries a write that fails for a moment again on the next tick, a bounded number of times (#388)", async () => {
+    const opened = await copy(IDENTIFIERS);
+    const { workspace } = opened;
+    await call(workspace, "element.get", { ref: "SR-036" });
+    const noted = await noteAccess(workspace, mcpCall("element.get"), { ref: SR_036 }, {});
+    const write = vi.mocked(WorkspaceBlock.writeCacheFile);
+    const real = write.getMockImplementation();
+    if (real === undefined) {
+      throw new Error("writeCacheFile is not wrapped");
+    }
+    onTestFinished(() => {
+      write.mockImplementation(real);
+    });
+    /** The next `fails` writes of activity.json fail with `code`, the others write. */
+    const failing = (code: string, fails: number): void => {
+      let left = fails;
+      write.mockImplementation((folder, name, text) => {
+        if (name === ACTIVITY_FILE && left > 0) {
+          left -= 1;
+          return Promise.reject(Object.assign(new Error(code), { code }));
+        }
+        return real(folder, name, text);
+      });
+    };
+    // A reader holds the file twice (Windows): the third try writes it.
+    failing("EBUSY", 2);
+    let before = writes();
+    recordAccess(workspace, Promise.resolve(noted));
+    await vi.waitFor(async () => {
+      expect((await readActivity(opened.cache))?.access.element.id).toBe(SR_036);
+    });
+    expect(writes() - before).toBe(3);
+    // It always fails: tried ACTIVITY_WRITE_TRIES times, then dropped.
+    failing("EPERM", Number.POSITIVE_INFINITY);
+    before = writes();
+    recordAccess(workspace, Promise.resolve(noted));
+    await vi.waitFor(() => {
+      expect(writes() - before).toBe(ACTIVITY_WRITE_TRIES);
+    });
+    await quiet(3 * ACTIVITY_WRITE_MS);
+    expect(writes() - before).toBe(ACTIVITY_WRITE_TRIES);
+    // A lasting failure is not tried again.
+    failing("ENOSPC", Number.POSITIVE_INFINITY);
+    before = writes();
+    recordAccess(workspace, Promise.resolve(noted));
+    await quiet(3 * ACTIVITY_WRITE_MS);
+    expect(writes() - before).toBe(1);
+  });
+
   it("drops an access noted after the workspace closed, and a write that fails", async () => {
     const opened = await copy(ONE);
     await call(opened.workspace, "element.get", { ref: "SR-e88fb3" });
@@ -742,14 +798,24 @@ describe("watching the last access (SR-117)", () => {
     // records nothing.
     const agent = server(opened);
     await call(agent, "element.get", { ref: "SR-036" }, "cli");
+    // The watch of the cache folder runs once an access of the probe is seen (#388): one cache-folder
+    // event right after `watching()` can be lost on macOS (#385), which is not what AK1 measures.
+    await untilWatching({
+      probe: async () => {
+        await call(agent, "element.get", { ref: "SR-036" }, "mcp");
+      },
+      seen: () => Promise.resolve(seen.seen.length > 0),
+    });
+    await quiet(300);
+    const probes = seen.seen.length;
     const next = seen.next();
-    await call(agent, "element.get", { ref: "SR-036" }, "mcp");
+    await call(agent, "element.get", { ref: "SR-037" }, "mcp");
     const access = await next;
-    expect(access.element).toEqual({ id: SR_036, repository: "spec" });
+    expect(access.element).toEqual({ id: SR_037, repository: "spec" });
     // AK1 counts from the read, which `access.at` records when the call ends.
     expect(Date.now() - Date.parse(access.at)).toBeLessThan(1000);
     await quiet(300);
-    expect(seen.seen).toHaveLength(1);
+    expect(seen.seen).toHaveLength(probes + 1);
   });
 
   it("[SR-117/AK1] reports a change only once the store of the watching process holds it", async () => {

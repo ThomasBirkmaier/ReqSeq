@@ -19,6 +19,7 @@ import type { ElementStore } from "./store.js";
 import { elementStoreState } from "./store.js";
 import { allUnknownFindings, unknownFindings, unknownProblemsState } from "./unknown.js";
 import { elementView } from "./view.js";
+import { readFirst } from "../runtime/read-first.test-helper.js";
 
 const FIXTURE = "SR-016/unknown";
 
@@ -91,7 +92,7 @@ const GADGET_PROBLEMS: readonly Problem[] = [UNKNOWN_TYPE, unknownProperty(GADGE
 type UpdateOutput = CommandOutput<"element.update">;
 
 const update = async (workspace: Workspace, input: Record<string, unknown>): Promise<UpdateOutput> =>
-  (await invoke("element.update", input, { workspace })) as UpdateOutput;
+  (await invoke("element.update", await readFirst(input, { workspace }), { workspace })) as UpdateOutput;
 
 /** The lines of `before` that `after` changes, as `git diff` would show them for a single change. */
 const changedLines = (before: string, after: string): { removed: string[]; added: string[] } => {

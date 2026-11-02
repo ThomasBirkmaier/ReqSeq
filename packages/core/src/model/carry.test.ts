@@ -35,6 +35,7 @@ import { supersededTargetProblemsState } from "./superseded.js";
 import { unknownProblemsState } from "./unknown.js";
 import { valueKindProblemsState } from "./values.js";
 import { createElement, updateElement } from "./write.js";
+import { readStored } from "../runtime/read-first.test-helper.js";
 
 const NEED = "1a1a1a1a-1111-4111-8111-a0000000000";
 const SR = "2b2b2b2b-2222-4222-8222-b0000000000";
@@ -155,7 +156,10 @@ describe.each([
     await expectFresh(fixture, workspace);
     // SR-015 gone, SR-016 still there; a title change only.
     await updateElement(workspace, { ref: `${SR}2`, set: { "verification-method": "test" } });
-    await updateElement(workspace, { ref: `${SR}3`, title: "Show the direction" });
+    await updateElement(
+      workspace,
+      await readStored({ ref: `${SR}3`, title: "Show the direction" }, workspace),
+    );
     expectCarried(workspace);
     await expectFresh(fixture, workspace);
   });
@@ -279,7 +283,7 @@ describe.each([
       (p) => p.file === "needs/N-a00000000002.md",
     );
     expect(hint).toBeDefined();
-    await updateElement(workspace, { ref: `${SR}1`, title: "A new title" });
+    await updateElement(workspace, await readStored({ ref: `${SR}1`, title: "A new title" }, workspace));
     expectCarried(workspace);
     const [after] = (await workspace.get(relationTypeProblemsState)).filter(
       (p) => p.file === "needs/N-a00000000002.md",

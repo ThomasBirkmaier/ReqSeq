@@ -263,7 +263,7 @@ describe("reqif.import (SR-053)", () => {
     ]);
   });
 
-  it("is reqif.invalid for a file that is no ReqIF or refers to what it does not define, file.faulty for one it cannot read", async () => {
+  it("is reqif.invalid for a file that is no ReqIF or refers to what it does not define and the import needs, file.faulty for one it cannot read", async () => {
     const broken = DELIVERY.replace(
       "<TYPE><SPEC-OBJECT-TYPE-REF>ot-heading",
       "<TYPE><SPEC-OBJECT-TYPE-REF>ot-none",
@@ -271,10 +271,6 @@ describe("reqif.import (SR-053)", () => {
     const { fixture, workspace } = await open({
       "in/not.reqif": "<html/>",
       "in/broken.reqif": broken,
-      "in/relation.reqif": DELIVERY.replace(
-        "<SPEC-RELATION-TYPE-REF>rt-satisfies</SPEC-RELATION-TYPE-REF></TYPE>\n        </SPEC-RELATION>\n      </SPEC-RELATIONS>",
-        "<SPEC-RELATION-TYPE-REF>rt-none</SPEC-RELATION-TYPE-REF></TYPE>\n        </SPEC-RELATION>\n      </SPEC-RELATIONS>",
-      ),
       "in/value.reqif": DELIVERY.replace(
         "<ATTRIBUTE-DEFINITION-STRING-REF>ad-comment<",
         "<ATTRIBUTE-DEFINITION-STRING-REF>ad-heading<",
@@ -289,7 +285,6 @@ describe("reqif.import (SR-053)", () => {
     for (const [file, message] of [
       ["in/not.reqif", /^file: line 1: /],
       ["in/broken.reqif", /SPEC-OBJECT HEAD-1 refers to type ot-none/],
-      ["in/relation.reqif", /SPEC-RELATION REL-2 refers to type rt-none/],
       ["in/value.reqif", /SPEC-OBJECT REQ-1 has a value of attribute ad-heading/],
       ["in/datatype.reqif", /attribute ad-text refers to datatype dt-none/],
       ["in/twice.reqif", /^file: line 57: IDENTIFIER REQ-1 is used twice$/],

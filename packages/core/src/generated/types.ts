@@ -290,6 +290,7 @@ export type ProblemCode =
   | "file.faulty"
   | "file.yaml-warning"
   | "file.skipped"
+  | "file.stale-temp"
   | "element.invalid"
   | "element.duplicate-id"
   | "element.duplicate-identifier"
@@ -301,6 +302,7 @@ export type ProblemCode =
   | "element.status-not-allowed"
   | "element.missing-status"
   | "element.statement-without-text"
+  | "element.text-emptied"
   | "relation.missing-target"
   | "relation.unresolved-link"
   | "relation.not-a-link"
@@ -326,11 +328,13 @@ export type ProblemCode =
   | "evidence.not-enriched"
   | "evidence.folder-missing"
   | "evidence.ambiguous-element"
+  | "evidence.kind-mismatch"
   | "baseline.invalid"
   | "baseline.repository-commit-differs"
   | "filter.invalid"
   | "filter.duplicate-name"
   | "metamodel.invalid"
+  | "metamodel.optional-status"
   | "metamodel.meaning-unassigned"
   | "workspace.repository-missing"
   | "workspace.metamodel-mismatch"
@@ -1411,6 +1415,8 @@ export interface CommandCatalog {
         | "json";
       /** An earlier field of `arguments`. */
       readonly of?: string;
+      /** Earlier optional fields a value of this field takes the place of: the prompt leaves them out of the input when this field has a value, so they only said what it offers. `hint.confirm`: hints chosen at `hintIds` confirm only those, not every hint `ref`, `target` and `kind` select (#291). `catalog-checks.mjs` checks the fields. */
+      readonly replaces?: readonly string[];
       /** Name of the CLI flag, without `--`, when it is not the field name in kebab-case (ADR-0009): `element.create` takes its `properties` as `--set key=value`, as `element.update` takes `set`. Not the name of another field's flag, nor of a common option (`validate-schemas.mjs`, `catalog-checks.mjs`). */
       readonly flag?: string;
     }[];
@@ -1776,7 +1782,7 @@ export interface ElementUpdateInput {
   readonly removeRelations?: RelationRefs;
   /** Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it (for example one copy of a file whose UUID another file shares, SR-088; #255). Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates. */
   readonly repository?: string;
-  /** Write precondition (SR-106): the fileSha256 the change was made on. If the file has other bytes now, nothing is written: file.changed-on-disk, also when nothing would change. */
+  /** Write precondition (SR-106): the fileSha256 the change was made on, from element.get. Required with title or text, else input.invalid (precondition-missing); optional for set, unset and relations alone. If the file has other bytes now, nothing is written: file.changed-on-disk, also when nothing would change. */
   readonly expectedFileSha256?: FileSha256;
 }
 
@@ -1836,7 +1842,7 @@ export interface ElementSupersedeOutput {
 }
 
 /**
- * Input of `element.bulkUpdate` as `run` gets it: validated, properties with a `default` filled in. Set, add to or remove one property for all elements of a selection. Without `confirm` only previews: the number of affected elements and the skipped ones, whose type does not have the property. With `confirm` writes only that property's lines (SR-102). Never id, type or status (element.setStatus takes several refs).
+ * Input of `element.bulkUpdate` as `run` gets it: validated, properties with a `default` filled in. Set, add to or remove one property for all elements of a selection. Without `confirm` only previews: the number of affected elements and the skipped ones, whose type does not have the property. With `confirm` writes only that property's lines (SR-102). Never id, type or status (element.setStatus takes several refs). A failed write is rolled back, but a crash can leave part of the selection written: repeat the same call without `expected`, which writes only the remaining elements.
  * Schema: `schemas/commands/element.bulkUpdate.json input`.
  */
 export interface ElementBulkUpdateInput {
@@ -1854,7 +1860,7 @@ export interface ElementBulkUpdateInput {
 }
 
 /**
- * Output of `element.bulkUpdate`. Set, add to or remove one property for all elements of a selection. Without `confirm` only previews: the number of affected elements and the skipped ones, whose type does not have the property. With `confirm` writes only that property's lines (SR-102). Never id, type or status (element.setStatus takes several refs).
+ * Output of `element.bulkUpdate`. Set, add to or remove one property for all elements of a selection. Without `confirm` only previews: the number of affected elements and the skipped ones, whose type does not have the property. With `confirm` writes only that property's lines (SR-102). Never id, type or status (element.setStatus takes several refs). A failed write is rolled back, but a crash can leave part of the selection written: repeat the same call without `expected`, which writes only the remaining elements.
  * Schema: `schemas/commands/element.bulkUpdate.json output`.
  */
 export interface ElementBulkUpdateOutput {
@@ -2355,7 +2361,7 @@ export interface TraceGraphOutput {
     readonly expanded: boolean;
     /** 0 for the element; -d for an element reached d steps up along the links the files store (its parents, the targets of its other relations and relation properties, its inline references), +d for one reached d steps down along links that point at it. The source of a link is placed below its target (ADR-0004). */
     readonly level: number;
-    /** In this order, only those that hold (SR-111 AK4): `outdated`, the element stores an outdated relation, relation property or inline reference (SR-025, the `relation.outdated` and `variant.core-changed` hints of element.get), whatever kinds are followed; `superseded`, its status is one the metamodel marks invalid (D-044); `no-evidence`, the gap rule of trace.chain (SR-022 AK3): a requirement without a derivation child that applies in the view and without evidence, whatever depth is shown. Evidence records come in stage 4: until then every requirement without a child is `no-evidence`. Empty when none holds. */
+    /** In this order, only those that hold (SR-111 AK4): `outdated`, the element stores an outdated relation, relation property or inline reference (SR-025, the `relation.outdated` and `variant.core-changed` hints of element.get), whatever kinds are followed; `superseded`, its status is one the metamodel marks invalid (D-044); `no-evidence`, the gap rule of trace.chain (SR-022 AK3): a requirement without a derivation child that applies in the view and without evidence, whatever depth is shown. Evidence is a verification record in the view (the core without one), as for trace.chain (SR-033). Empty when none holds. */
     readonly marks: readonly ("outdated" | "superseded" | "no-evidence")[];
   }[];
   /** Every followed link from one node to another, also one the walks did not take (a link between two parents, or from a child to a parent): by source in the order of `nodes`, then in the order its file stores them (relations and relation properties in frontmatter order, then inline references). A link from an element to itself is no edge. Not listed: unresolved links (`element.get` and `workspace.check` report them). */
@@ -2570,7 +2576,7 @@ export interface EvidenceRecordInput {
   readonly result: "passed" | "failed";
   /** The item under test (Prüfling), for example the build or sample. Required for verification. No white space at either end and no control characters other than tab, line feed and carriage return. */
   readonly item?: Item;
-  /** A variant the element applies in (an element whose type has the meaning variant); the record holds for it. Absent: the core. Verification only: a variant with `kind` validation is `input.invalid` with `details.reason` `validation-with-variant` (SR-038 AK4, D-007); `core` is allowed. A variant the element is not in is `input.invalid` with `details.reason` `not-valid-in-variant`, or `excluded-in-variant` or `replaced-in-variant` when the variant excludes or replaces the requirement (SR-047 AK4). */
+  /** A variant the element applies in (an element whose type has the meaning variant); the record holds for it. Absent: the core. Verification only: a variant with `kind` validation is `input.invalid` with `details.reason` `validation-with-variant` (SR-038 AK4, D-007). `core` names no variant and is `input.invalid` with `details.reason` `core-is-no-variant`; leave `variant` out for the core. A variant the element is not in is `input.invalid` with `details.reason` `not-valid-in-variant`, or `excluded-in-variant` or `replaced-in-variant` when the variant excludes or replaces the requirement (SR-047 AK4). */
   readonly variant?: ElementRef;
   /** When the check was done. Default: the time of the call, UTC, whole seconds. Its first ten characters (the day in its own offset) start the file name. */
   readonly date?: IsoDateTime;
@@ -2895,7 +2901,7 @@ export interface BaselineListOutput {
 }
 
 /**
- * Input of `baseline.get` as `run` gets it: validated, properties with a `default` filled in. Elements of a baseline with their version then and its date, marked changed, superseded, removed or added since (SR-051); with withEvidence the verification status of each requirement per view and the validation status at its version in the baseline, with the records dated after it named (SR-094).
+ * Input of `baseline.get` as `run` gets it: validated, properties with a `default` filled in. Elements of a baseline with their version then and its date, marked changed, superseded, removed or added since (SR-051); with withEvidence the verification status of each requirement per view and the validation status at its version in the baseline, with the records dated after it named (SR-094). The version counts the text, embedded images and the properties marked `content` (a relation property such as `validity` too); the relation kinds of the metamodel, such as `refines` or `derives-from`, never count, so an element whose only change is such a relation is not marked `changed`: baseline.compare gives the commits and the Git command that show it.
  * Schema: `schemas/commands/baseline.get.json input`.
  */
 export interface BaselineGetInput {
@@ -2909,7 +2915,7 @@ export interface BaselineGetInput {
 }
 
 /**
- * Output of `baseline.get`. Elements of a baseline with their version then and its date, marked changed, superseded, removed or added since (SR-051); with withEvidence the verification status of each requirement per view and the validation status at its version in the baseline, with the records dated after it named (SR-094).
+ * Output of `baseline.get`. Elements of a baseline with their version then and its date, marked changed, superseded, removed or added since (SR-051); with withEvidence the verification status of each requirement per view and the validation status at its version in the baseline, with the records dated after it named (SR-094). The version counts the text, embedded images and the properties marked `content` (a relation property such as `validity` too); the relation kinds of the metamodel, such as `refines` or `derives-from`, never count, so an element whose only change is such a relation is not marked `changed`: baseline.compare gives the commits and the Git command that show it.
  * Schema: `schemas/commands/baseline.get.json output`.
  */
 export interface BaselineGetOutput {

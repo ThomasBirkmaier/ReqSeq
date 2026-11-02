@@ -138,9 +138,9 @@ const SHOWN_TEXT = 40;
 /**
  * A short description of a value for messages; long texts are cut. A number or boolean where text
  * is expected is what YAML made of unquoted text (`1.0` is read as 1), so the message says how to
- * keep it as text.
+ * keep it as text. Also the refusal of a value that is no number (`number-input.ts`, #614).
  */
-const describe = (value: unknown, kind?: ValueKind): string => {
+export const describe = (value: unknown, kind?: ValueKind): string => {
   if (typeof value === "string") {
     const shown = value.length > SHOWN_TEXT ? `${value.slice(0, SHOWN_TEXT)}...` : value;
     return `the text ${JSON.stringify(shown)}`;

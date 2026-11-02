@@ -312,11 +312,15 @@ export const editsOf = (
     return doc === undefined ? [] : [{ key, info: box.info, base: box.doc, doc }];
   });
 
-const DECIMAL = /^-?\d+(\.\d+)?$/;
-
-/** One line of a box as a value: a decimal literal of a number property is a number, anything else stays text. */
-const valueOf = (kind: PropertyInfo["kind"], line: string): string | number =>
-  kind === "number" && DECIMAL.test(line) ? Number(line) : line;
+/**
+ * One line of a box as a value: in a number property, a line that reads as a finite number (blanks around
+ * it aside, as `numberOr` of the bulk prompt reads it: `5 `, `.5`, `1e3`) is that number; anything else stays
+ * the text typed, which core refuses for a number property with its message (#614).
+ */
+const valueOf = (kind: PropertyInfo["kind"], line: string): string | number => {
+  const value = Number(line);
+  return kind === "number" && line.trim() !== "" && Number.isFinite(value) ? value : line;
+};
 
 /**
  * The value a box with the document `doc` stores: none (the property is removed) when nothing but blank is

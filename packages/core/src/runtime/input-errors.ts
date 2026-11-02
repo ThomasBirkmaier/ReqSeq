@@ -76,6 +76,9 @@ const quote = (value: unknown): string => {
   if (value === null) {
     return "empty";
   }
+  if (value === undefined) {
+    return "missing";
+  }
   return Array.isArray(value) ? "a list" : "an object";
 };
 

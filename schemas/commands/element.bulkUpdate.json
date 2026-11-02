@@ -1,7 +1,7 @@
 {
   "name": "element.bulkUpdate",
   "title": "Bulk update elements",
-  "summary": "Set, add to or remove one property for all elements of a selection. Without `confirm` only previews: the number of affected elements and the skipped ones, whose type does not have the property. With `confirm` writes only that property's lines (SR-102). Never id, type or status (element.setStatus takes several refs).",
+  "summary": "Set, add to or remove one property for all elements of a selection. Without `confirm` only previews: the number of affected elements and the skipped ones, whose type does not have the property. With `confirm` writes only that property's lines (SR-102). Never id, type or status (element.setStatus takes several refs). A failed write is rolled back, but a crash can leave part of the selection written: repeat the same call without `expected`, which writes only the remaining elements.",
   "effect": "write-files",
   "whileReadOnly": "refuse",
   "whileReadOnlyReason": "Changes element files, and no change can be checked against a missing or faulty metamodel.",
