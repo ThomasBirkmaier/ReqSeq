@@ -66,10 +66,11 @@ export function completeRun(junit) {
 
 /**
  * A time for the record: under 10 s in whole milliseconds, so a reader sees how close a short time is to a
- * threshold of 200 ms (#174); from 10 s on in seconds with one decimal.
+ * threshold of 200 ms (#174); from 10 s on in seconds with one decimal. Milliseconds round up, so a time
+ * over a whole-millisecond threshold never reads as equal to it.
  */
 export const duration = (ms) => {
-  const rounded = Math.round(ms);
+  const rounded = Math.ceil(ms);
   return rounded < 10_000 ? `${rounded} ms` : `${(ms / 1000).toFixed(1)} s`;
 };
 

@@ -66,7 +66,7 @@ describe("perf report", () => {
     expect(report).toContain("- Commit: abc123\n- Run: https://github.com/o/r/actions/runs/1\n");
     expect(report).toContain("- Machine: Linux 6 (x64), 4 cores, 16 GB, Node v22.12.0");
     expect(report).toContain("| cold load | N-036, SR-082 AK2 | 40.9 s | 30.0 s | **exceeded** |");
-    expect(report).toContain("| checks | SR-020 | 1289 ms | 60.0 s | within |");
+    expect(report).toContain("| checks | SR-020 | 1290 ms | 60.0 s | within |");
     expect(report).toContain("| write | D-055 generator | 5316 ms |  | no threshold |");
     expect(report).toContain("Result: 1 of 3 measurements over their threshold: cold load.");
     const within = renderReport({ measurements: [CHECK, OPEN], machine: MACHINE, date: "2026-10-24" });
@@ -76,11 +76,13 @@ describe("perf report", () => {
   });
 
   it("shows times under 10 s in ms and longer ones in s", () => {
-    expect(duration(0.4)).toBe("0 ms");
-    expect(duration(38.4)).toBe("38 ms");
+    expect(duration(0)).toBe("0 ms");
+    expect(duration(0.4)).toBe("1 ms");
+    expect(duration(38.4)).toBe("39 ms");
+    expect(duration(200.4)).toBe("201 ms");
     expect(duration(200)).toBe("200 ms");
-    expect(duration(9999.4)).toBe("9999 ms");
-    expect(duration(9999.5)).toBe("10.0 s");
+    expect(duration(9999)).toBe("9999 ms");
+    expect(duration(9999.1)).toBe("10.0 s");
     expect(duration(40867.9)).toBe("40.9 s");
   });
 
