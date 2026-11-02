@@ -28,7 +28,8 @@
 //   #588) is not printed: those UUIDs print as the element instead, `SHORT-ID (IDENTIFIER)  title` in a
 //   value printed as YAML (the lists of evidence.coverage, a variant `view`, the details of an element) and in a list of UUIDs one per
 //   line (the lists of variant.diff), `SHORT-ID (IDENTIFIER)` in
-//   the verification status of an element line. A UUID that `names` leaves out stays as it is.
+//   the verification status of an element line, and `SHORT-ID  title` as the variant of a record of a
+//   chain (#676). A UUID that `names` leaves out stays as it is.
 // - Every other value stays YAML. Problems come last, each once: those of the output and the hints
 //   at an element it shows; then `No problems.`, or how many findings the output left out (`hidden`).
 import { degreePercent, degreeShareOf } from "@reqseq/core";
@@ -113,6 +114,12 @@ const namesIn = (output: Rec): Names => {
 /** A named element in a line: `SHORT-ID (IDENTIFIER)  title`. */
 const nameText = (name: Rec & { readonly shortId: string; readonly title: string }): string =>
   join(withIdentifier(name.shortId, name["identifier"]), name.title);
+
+/** A variant of a record by `nameText` when `names` has it, else its UUID (#676). */
+const variantName = (id: string, names: Names): string => {
+  const name = names.get(id);
+  return name === undefined ? id : nameText(name);
+};
 
 /** `value` with every string that is a UUID of `names` as the element it names (`nameText`), in objects and lists. */
 const withNames = (value: unknown, names: Names): unknown => {
@@ -511,15 +518,18 @@ const belegOf = (record: Rec): string => {
   return `${text(record["repository"])}/${text(record["file"])}${typeof line === "number" ? `:${String(line)}` : ""}`;
 };
 
-/** A record as one line: date, method (`withMethod`), result, item, Beleg and variant. */
-const recordLine = (record: Rec, withMethod: boolean): string =>
+/**
+ * A record as one line: date, method (`withMethod`), result, item, Beleg and variant, the variant by
+ * its short ID when `names` has it (#676).
+ */
+const recordLine = (record: Rec, withMethod: boolean, names: Names): string =>
   join(
     text(record["date"]),
     withMethod ? text(record["method"]) : "",
     text(record["result"]),
     text(record["item"]),
     belegOf(record),
-    text(record["variant"]) === "" ? "" : `[variant ${text(record["variant"])}]`,
+    text(record["variant"]) === "" ? "" : `[variant ${variantName(text(record["variant"]), names)}]`,
   );
 
 /**
@@ -528,18 +538,18 @@ const recordLine = (record: Rec, withMethod: boolean): string =>
  * item, Beleg); then one line per record without a test case, `record  DATE  METHOD  RESULT  ITEM
  * BELEG`. `item` gives the lines of the test cases and records, `under` those of the executions.
  */
-const evidenceLines = (item: Rec, at: string, under: string): string[] => {
+const evidenceLines = (item: Rec, at: string, under: string, names: Names): string[] => {
   const lines: string[] = [];
   for (const test of listOf(item["testCases"]).filter(isRecord)) {
     const className = text(test["className"]);
     const name = className === "" ? text(test["name"]) : `${className} › ${text(test["name"])}`;
     lines.push(`${at}${join("test case", name, test["executed"] === false ? "[not executed]" : "")}`);
     for (const execution of listOf(test["executions"]).filter(isRecord)) {
-      lines.push(`${under}${recordLine(execution, false)}`);
+      lines.push(`${under}${recordLine(execution, false, names)}`);
     }
   }
   for (const record of listOf(item["records"]).filter(isRecord)) {
-    lines.push(`${at}${join("record", recordLine(record, true))}`);
+    lines.push(`${at}${join("record", recordLine(record, true, names))}`);
   }
   return lines;
 };
@@ -613,7 +623,7 @@ const treeOf = (chain: Chain, nodes: ReadonlyMap<string, ChainNode>, root: Chain
 };
 
 /** The chain as a tree per direction: the root, then `parents:` and `children:` (see the file comment). */
-const chainLines = (chain: Chain): string[] => {
+const chainLines = (chain: Chain, names: Names): string[] => {
   const width = String(Math.max(...chain.nodes.map((n) => n.depth), 0)).length;
   const gaps = gapMarks(chain);
   const keyOf = (node: ChainNode): string =>
@@ -639,7 +649,7 @@ const chainLines = (chain: Chain): string[] => {
     const item = node["direction"] === "up" ? undefined : evidence.get(nodeKey("", node.repository, node.id));
     if (item !== undefined) {
       const at = prefix(node.depth + 1, level + 1);
-      lines.push(...evidenceLines(item, at, `${" ".repeat(at.length)}  `));
+      lines.push(...evidenceLines(item, at, `${" ".repeat(at.length)}  `, names));
     }
   };
   if (root !== undefined) {
@@ -711,7 +721,7 @@ export function renderHuman(output: unknown, details = true): string {
   const lifted: unknown[] = [];
   const chain = isChain(rest);
   if (chain) {
-    lines.push(...chainLines(rest));
+    lines.push(...chainLines(rest, namesIn(rest)));
   }
   const shown = chain
     ? new Set(["root", "nodes", "edges", "gaps", "evidence", "unresolved"])

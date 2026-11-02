@@ -601,9 +601,15 @@ describe("trace.chain: test cases and executions in the chain (SR-033)", () => {
       [SHOW, 1, [["test_speed[SR-33b001]", true, ["coast-7"]]], ["Coast sample"]],
     ]);
     // Without a view, every record (each with its variant), as evidence.list.
-    expect(evidenceOf(await chain(workspace, { ref: SHOW }))).toEqual([
+    const all = await chain(workspace, { ref: SHOW });
+    expect(evidenceOf(all)).toEqual([
       [SHOW, 1, [["test_speed[SR-33b001]", true, ["build-512", "coast-7"]]], ["Coast sample"]],
     ]);
+    // `names` names the variant once (#676); a chain without variant records has none.
+    expect(all.names?.map((n) => [n.id, n.shortId, n.title])).toEqual([
+      [COAST, "VAR-33d001", "Coast edition"],
+    ]);
+    expect((await chain(workspace, { ref: SHOW, view: "core" })).names).toBeUndefined();
   });
 
   it("without a view shows a variant's records and still marks the no-evidence gap in the core (#527 Q4)", async () => {
