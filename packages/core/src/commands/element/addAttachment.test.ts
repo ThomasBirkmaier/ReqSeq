@@ -8,6 +8,7 @@ import { CommandError } from "../../catalog.js";
 import { portableName } from "../../model/index.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
+import { readFirst } from "../../runtime/read-first.test-helper.js";
 
 type Output = CommandOutput<"element.addAttachment">;
 
@@ -106,7 +107,7 @@ describe("element.addAttachment", () => {
     const text = `The station shows the current wind speed.\n\n${out.markdown}\n`;
     const saved = (await invoke(
       "element.update",
-      { ref: WIND.id, text },
+      await readFirst({ ref: WIND.id, text }, { workspace: opened.workspace }),
       { workspace: opened.workspace },
     )) as CommandOutput<"element.update">;
     expect(saved.files).toEqual([WIND.file]);
@@ -123,7 +124,10 @@ describe("element.addAttachment", () => {
     const out = await add(opened, { ref: WIND.id, sourcePath: opened.fixture.path("incoming/layout.png") });
     await invoke(
       "element.update",
-      { ref: WIND.id, text: `Wind speed.\n\n${out.markdown}\n` },
+      await readFirst(
+        { ref: WIND.id, text: `Wind speed.\n\n${out.markdown}\n` },
+        { workspace: opened.workspace },
+      ),
       { workspace: opened.workspace },
     );
     await opened.fixture.commit();
@@ -234,7 +238,10 @@ describe("element.addAttachment", () => {
     const opened = await open();
     await invoke(
       "element.update",
-      { ref: WIND.id, text: "Wind.\n\n![old](SR-6328cee88fb3/Layout.png)\n" },
+      await readFirst(
+        { ref: WIND.id, text: "Wind.\n\n![old](SR-6328cee88fb3/Layout.png)\n" },
+        { workspace: opened.workspace },
+      ),
       { workspace: opened.workspace },
     );
     const version = await versionOf(opened, WIND.id);

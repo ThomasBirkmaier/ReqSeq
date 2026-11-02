@@ -279,11 +279,11 @@ const openRetirable = async (): Promise<Opened> =>
   });
 
 describe("a type whose statuses are all marked invalid (#344, option 1)", () => {
-  it("is no metamodel problem but an info note (#343), and an element of it without status gets no hint", async () => {
+  it("is no metamodel problem but an info note metamodel.optional-status (#343, #451), and an element of it without status gets no hint", async () => {
     const opened = await openRetirable();
     expect(await metamodelProblems(opened)).toEqual([
       {
-        code: "metamodel.invalid",
+        code: "metamodel.optional-status",
         severity: "info",
         repository: "system",
         message:

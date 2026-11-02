@@ -146,6 +146,31 @@ describe("xhtmlToMarkdown", () => {
     );
   });
 
+  it("[SR-095/AK1] moves white space at the edges of emphasis out of it instead of writing character references (#573)", () => {
+    const converted = markdown(
+      "<p>Type<em> text</em> more, a <strong>bold </strong>b, c<em><strong> both</strong></em> d, e<em> <code>x</code></em></p>",
+    );
+    expect(converted).toBe("Type *text* more, a **bold** b, c ***both*** d, e *`x`*");
+    // Read back, the text holds the same words and emphasis, the white space next to it.
+    expect(exported(converted)).toBe(
+      "<div><p>Type <em>text</em> more, a <strong>bold</strong> b, c <em><strong>both</strong></em> d, e <em><code>x</code></em></p></div>",
+    );
+  });
+
+  it("drops emphasis of white space alone also when nested, and keeps its white space (#573)", () => {
+    const inputs = [
+      "<p>x<em> <strong> </strong></em>y</p>",
+      "<p>x<strong> <em> </em> </strong>y</p>",
+      "<p>x<del> <em> </em></del>y</p>",
+      "<p>x <em> <strong> </strong></em> y</p>",
+    ];
+    for (const input of inputs) {
+      const converted = markdown(input);
+      expect(converted, input).toBe("x y");
+      expect(exported(converted), input).toBe("<div><p>x y</p></div>");
+    }
+  });
+
   it("writes a caption as a paragraph before its table", () => {
     expect(markdown("<table><caption>Cap <b>bold</b></caption><tr><th>h</th></tr></table>"))
       .toMatchInlineSnapshot(`

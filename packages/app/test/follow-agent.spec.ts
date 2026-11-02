@@ -5,7 +5,7 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import type { McpSession, RunningApp } from "./support/app.js";
-import { launchApp } from "./support/app.js";
+import { fileSha256, launchApp } from "./support/app.js";
 
 const FIXTURE = { fixture: "SR-069/filter" };
 const SEE = { id: "69069069-0000-4000-8000-0000000000a1", title: "See the wind" };
@@ -158,7 +158,7 @@ test("[SR-117/AK1] following, an MCP element_get, element_update and element_cre
       window,
       agent,
       "element_update",
-      { ref: WARN.id, title: "Warn of gales" },
+      { ref: WARN.id, title: "Warn of gales", expectedFileSha256: await fileSha256(running, WARN.id) },
       "Warn of gales",
       WARN.id,
     );
@@ -192,7 +192,8 @@ test("[SR-117/AK2] not following, MCP reads leave the shown buffer as it was; af
   try {
     await open(window, MEASURE.title);
     await agent.call("element_get", { ref: SEE.id });
-    await agent.call("element_update", { ref: WARN.id, title: "Warn of gales" });
+    const expectedFileSha256 = await fileSha256(running, WARN.id);
+    await agent.call("element_update", { ref: WARN.id, title: "Warn of gales", expectedFileSha256 });
     // Longer than AK1 allows: nothing moved.
     await window.waitForTimeout(LIMIT_MS + 500);
     await expect(title(window)).toHaveText(MEASURE.title);

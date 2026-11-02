@@ -146,6 +146,14 @@
                                   "type": "string",
                                   "description": "An earlier field of `arguments`."
                                 },
+                                "replaces": {
+                                  "type": "array",
+                                  "minItems": 1,
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "description": "Earlier optional fields a value of this field takes the place of: the prompt leaves them out of the input when this field has a value, so they only said what it offers. `hint.confirm`: hints chosen at `hintIds` confirm only those, not every hint `ref`, `target` and `kind` select (#291). `catalog-checks.mjs` checks the fields."
+                                },
                                 "flag": {
                                   "type": "string",
                                   "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
@@ -2659,7 +2667,7 @@
                   },
                   "expectedFileSha256": {
                     "$ref": "#/components/schemas/common/$defs/fileSha256",
-                    "description": "Write precondition (SR-106): the fileSha256 the change was made on. If the file has other bytes now, nothing is written: file.changed-on-disk, also when nothing would change."
+                    "description": "Write precondition (SR-106): the fileSha256 the change was made on, from element.get. Required with title or text, else input.invalid (precondition-missing); optional for set, unset and relations alone. If the file has other bytes now, nothing is written: file.changed-on-disk, also when nothing would change."
                   }
                 },
                 "additionalProperties": false,
@@ -5990,7 +5998,7 @@
                                 "no-evidence"
                               ]
                             },
-                            "description": "In this order, only those that hold (SR-111 AK4): `outdated`, the element stores an outdated relation, relation property or inline reference (SR-025, the `relation.outdated` and `variant.core-changed` hints of element.get), whatever kinds are followed; `superseded`, its status is one the metamodel marks invalid (D-044); `no-evidence`, the gap rule of trace.chain (SR-022 AK3): a requirement without a derivation child that applies in the view and without evidence, whatever depth is shown. Evidence records come in stage 4: until then every requirement without a child is `no-evidence`. Empty when none holds."
+                            "description": "In this order, only those that hold (SR-111 AK4): `outdated`, the element stores an outdated relation, relation property or inline reference (SR-025, the `relation.outdated` and `variant.core-changed` hints of element.get), whatever kinds are followed; `superseded`, its status is one the metamodel marks invalid (D-044); `no-evidence`, the gap rule of trace.chain (SR-022 AK3): a requirement without a derivation child that applies in the view and without evidence, whatever depth is shown. Evidence is a verification record in the view (the core without one), as for trace.chain (SR-033). Empty when none holds."
                           }
                         },
                         "additionalProperties": false,
@@ -7452,7 +7460,7 @@
                   },
                   "variant": {
                     "$ref": "#/components/schemas/common/$defs/elementRef",
-                    "description": "A variant the element applies in (an element whose type has the meaning variant); the record holds for it. Absent: the core. Verification only: a variant with `kind` validation is `input.invalid` with `details.reason` `validation-with-variant` (SR-038 AK4, D-007); `core` is allowed. A variant the element is not in is `input.invalid` with `details.reason` `not-valid-in-variant`, or `excluded-in-variant` or `replaced-in-variant` when the variant excludes or replaces the requirement (SR-047 AK4)."
+                    "description": "A variant the element applies in (an element whose type has the meaning variant); the record holds for it. Absent: the core. Verification only: a variant with `kind` validation is `input.invalid` with `details.reason` `validation-with-variant` (SR-038 AK4, D-007). `core` names no variant and is `input.invalid` with `details.reason` `core-is-no-variant`; leave `variant` out for the core. A variant the element is not in is `input.invalid` with `details.reason` `not-valid-in-variant`, or `excluded-in-variant` or `replaced-in-variant` when the variant excludes or replaces the requirement (SR-047 AK4)."
                   },
                   "date": {
                     "$ref": "#/components/schemas/common/$defs/dateTime",
@@ -11745,6 +11753,7 @@
               "filter.invalid",
               "filter.duplicate-name",
               "metamodel.invalid",
+              "metamodel.optional-status",
               "metamodel.meaning-unassigned",
               "workspace.repository-missing",
               "workspace.metamodel-mismatch",

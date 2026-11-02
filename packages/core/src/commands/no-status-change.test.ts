@@ -18,6 +18,7 @@ import { loadContracts } from "../runtime/contracts.js";
 import { createCommandRuntime } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
 import { commands } from "./index.js";
+import { readFirst } from "../runtime/read-first.test-helper.js";
 
 const contracts = loadContracts();
 const runtime = createCommandRuntime({ commands });
@@ -553,7 +554,11 @@ describe("no status change by itself (SR-087, D-030, ADR-0002 rule 6)", () => {
     const { fixture, workspace } = await open();
     const store = await workspace.get(elementStoreState);
     expect(store.elements.find((e) => e.id === RETIRED)?.data["status"]).toBe("retired");
-    await runtime.invoke("element.update", { ref: RETIRED, title: "Renamed" }, { workspace });
+    await runtime.invoke(
+      "element.update",
+      await readFirst({ ref: RETIRED, title: "Renamed" }, { workspace }),
+      { workspace },
+    );
     await runtime.invoke("element.setStatus", { refs: [APPROVED], status: "draft" }, { workspace });
     await expect(
       runtime.invoke("element.setStatus", { refs: [WIND], status: "retired" }, { workspace }),
@@ -601,8 +606,16 @@ describe("no status change by itself (SR-087, D-030, ADR-0002 rule 6)", () => {
     expect(contents(fixture.root, elementFiles)).toEqual(bytes);
 
     // The tool writes files with the changed metamodel: `approved` and `retired` stay as they are.
-    await runtime.invoke("element.update", { ref: APPROVED, title: "Still approved" }, { workspace });
-    await runtime.invoke("element.update", { ref: RETIRED, text: "Still retired\n" }, { workspace });
+    await runtime.invoke(
+      "element.update",
+      await readFirst({ ref: APPROVED, title: "Still approved" }, { workspace }),
+      { workspace },
+    );
+    await runtime.invoke(
+      "element.update",
+      await readFirst({ ref: RETIRED, text: "Still retired\n" }, { workspace }),
+      { workspace },
+    );
     await runtime.invoke(
       "element.create",
       { type: "need", title: "Another", folder: "needs" },

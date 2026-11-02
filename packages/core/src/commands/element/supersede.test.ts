@@ -14,6 +14,7 @@ import {
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
+import { readFirst } from "../../runtime/read-first.test-helper.js";
 
 type Output = CommandOutput<"element.supersede">;
 
@@ -540,7 +541,7 @@ describe("relations to a superseded element get a hint each (SR-072 AK2)", () =>
       (
         (await invoke(
           "element.update",
-          { ref, text: "Changed.\n" },
+          await readFirst({ ref, text: "Changed.\n" }, { workspace: opened.workspace }),
           { workspace: opened.workspace },
         )) as CommandOutput<"element.update">
       ).problems ?? [];
@@ -582,7 +583,7 @@ describe("a superseded element names its successor without a relation of its own
     (
       (await invoke(
         "element.update",
-        { ref, text: "Changed.\n" },
+        await readFirst({ ref, text: "Changed.\n" }, { workspace: opened.workspace }),
         { workspace: opened.workspace },
       )) as CommandOutput<"element.update">
     ).element;

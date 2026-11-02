@@ -42,15 +42,22 @@ describe("write calls at the same time in one process (SR-166)", () => {
     const { workspace, read } = await open();
     const ctx = { workspace, access: "mcp" as const };
     const targets = await needs(workspace, CALLS);
+    // A change of title or text carries the bytes it was made on (#269), so one call writes both.
+    const { fileSha256 } = (await invoke("element.get", { ref: S }, ctx)) as CommandOutput<"element.get">;
     const results = await Promise.allSettled([
-      invoke("element.update", { ref: S, title: "New title" }, ctx),
-      invoke("element.update", { ref: S, text: "New text" }, ctx),
+      invoke(
+        "element.update",
+        { ref: S, title: "New title", text: "New text", expectedFileSha256: fileSha256 },
+        ctx,
+      ),
+      invoke("element.update", { ref: S, set: { rationale: "New rationale" } }, ctx),
       ...targets.map((target) => invoke("relation.add", { source: S, kind: "derives-from", target }, ctx)),
     ]);
     expect(results.map((result) => result.status)).toEqual(results.map(() => "fulfilled"));
     const file = await read();
     expect(file).toContain("title: New title");
     expect(file).toContain("New text");
+    expect(file).toContain("rationale: New rationale");
     for (const target of targets) {
       expect(file).toContain(target);
     }
