@@ -82,8 +82,6 @@ describe("hints on relations to superseded elements (SR-072 AK2)", () => {
     });
     expect(out.map((p) => (p as { message: string }).message)).toEqual([
       "Relation Refines (refines) from Need N-0a0a0a points to gadget UNKNOWN-c9d0e1, which is superseded (status Obsolete); successor: Need N-e5f6a7",
-      "Relation Supersedes (supersedes) from Need N-e5f6a7 points to gadget UNKNOWN-c9d0e1, which is superseded (status Obsolete)",
-      "Relation Supersedes (supersedes) from Need N-e5f6a7 points to gadget UNKNOWN-c9d0e1, which is superseded (status Obsolete)",
     ]);
   });
 
@@ -95,11 +93,39 @@ describe("hints on relations to superseded elements (SR-072 AK2)", () => {
       "needs/N-0a0a0a0a0a0a.md": element("7a1e0c2b-4d3f-4a5b-8c6d-0a0a0a0a0a0a", "need", "draft", supersedes),
     });
     expect(out.map((p) => (p as { message: string }).message)).toEqual([
-      "Relation Supersedes (supersedes) from Need N-0a0a0a points to Need N-d4e5f6, which is superseded (status Obsolete); successor: Need N-e5f6a7",
-      "Relation Supersedes (supersedes) from Need N-e5f6a7 points to Need N-d4e5f6, which is superseded (status Obsolete); successor: Need N-0a0a0a",
       "Relation Derives from (derives-from) from System Requirement SR-f6a7b8 points to Need N-d4e5f6, which is superseded (status Obsolete); successors: Need N-0a0a0a, Need N-e5f6a7",
       "Relation Derives from (derives-from) from System Requirement SR-b8c9d0 points to Need N-d4e5f6, which is superseded (status Obsolete); successors: Need N-0a0a0a, Need N-e5f6a7",
     ]);
+  });
+
+  it("[SR-072/AK2] gives no hint on a successor's own relation with the meaning succession, by meaning, not by key", async () => {
+    const supersedes = `supersedes:\n  - { id: ${N_OLD}, version: n1:1111111111111111 }\n`;
+    const files = {
+      "needs/N-a1b2c3d4e5f6.md": OLD_NEED,
+      "needs/N-b2c3d4e5f6a7.md": element(N_NEW, "need", "draft", supersedes),
+      // An element that supersedes itself is no successor of itself: its relation keeps the hint.
+      "needs/N-0a0a0a0a0a0a.md": element(
+        "7a1e0c2b-4d3f-4a5b-8c6d-0a0a0a0a0a0a",
+        "need",
+        "obsolete",
+        "supersedes:\n  - { id: 7a1e0c2b-4d3f-4a5b-8c6d-0a0a0a0a0a0a, version: n1:1111111111111111 }\n",
+      ),
+    };
+    const messages = async (extra: Readonly<Record<string, string>>) =>
+      (await hints({ ...files, ...extra })).map((p) => (p as { message: string }).message);
+    expect(await messages({})).toEqual([
+      "Relation Supersedes (supersedes) from Need N-0a0a0a points to Need N-0a0a0a, which is superseded (status Obsolete)",
+      "Relation Derives from (derives-from) from System Requirement SR-f6a7b8 points to Need N-d4e5f6, which is superseded (status Obsolete); successor: Need N-e5f6a7",
+      "Relation Derives from (derives-from) from System Requirement SR-b8c9d0 points to Need N-d4e5f6, which is superseded (status Obsolete); successor: Need N-e5f6a7",
+    ]);
+    // The same kind without the meaning succession names no successor and gets the hint.
+    const model = await fs.readFile(
+      new URL(`../../../../fixtures/SR-072/supersede/${MODEL}`, import.meta.url),
+      "utf8",
+    );
+    expect(await messages({ [MODEL]: model.replace("    meaning: succession\n", "") })).toContain(
+      "Relation Supersedes (supersedes) from Need N-e5f6a7 points to Need N-d4e5f6, which is superseded (status Obsolete)",
+    );
   });
 });
 
@@ -143,11 +169,8 @@ describe("hints on relations to the targets of a status change, from the incomin
     const targets = await targetsOf(workspace, N_OLD, GADGET);
     const scanned = await supersededTargetProblems(workspace, targets);
     expect(scanned.map((p) => [p.file, p.line, p.targetId])).toEqual([
-      ["needs/N-0a0a0a0a0a0a.md", 7, GADGET],
       ["needs/N-b2c3d4e5f6a7.md", 7, GADGET],
       ["needs/N-b2c3d4e5f6a7.md", 9, N_OLD],
-      ["needs/N-b2c3d4e5f6a7.md", 11, N_OLD],
-      ["needs/N-b2c3d4e5f6a7.md", 12, GADGET],
       ["requirements/SR-c3d4e5f6a7b8.md", 10, N_OLD],
       ["requirements/SR-e5f6a7b8c9d0.md", 11, N_OLD],
     ]);
@@ -176,7 +199,7 @@ describe("hints on relations to the targets of a status change, from the incomin
     const targets = await targetsOf(workspace, N_OLD, GADGET);
     const context = { store, metamodel, shortIds };
     const scanned = supersededTargetFindings(context, targets);
-    expect(scanned).toHaveLength(7);
+    expect(scanned).toHaveLength(4);
     // An index of a store without the sources would find nothing.
     const empty = buildIncomingIndex({ ...store, elements: [] }, metamodel);
     expect(supersededTargetFindings(context, targets, empty)).toEqual(scanned);
@@ -195,6 +218,6 @@ describe("hints on relations to the targets of a status change, from the incomin
     expect(supersededTargetFindings({ ...context, metamodel: shadowed }, targets, index)).toEqual(
       supersededTargetFindings({ ...context, metamodel: shadowed }, targets),
     );
-    expect(supersededTargetFindings({ ...context, metamodel: shadowed }, targets)).toHaveLength(7);
+    expect(supersededTargetFindings({ ...context, metamodel: shadowed }, targets)).toHaveLength(4);
   });
 });

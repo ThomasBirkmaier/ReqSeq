@@ -2,8 +2,9 @@
 // when its status is one the metamodel marks `invalid` (D-044); which command or person set that
 // status does not matter (`element.supersede`, `element.setStatus` or an edit by hand). Every
 // relation of a relation kind of the metamodel whose target is such an element gets one hint
-// `relation.target-superseded` (a `warning`: it blocks nothing and changes no status), also the
-// successor's own relation with the meaning `succession` (assumption, spec question #192). The
+// `relation.target-superseded` (a `warning`: it blocks nothing and changes no status), except the
+// successor's own relation with the meaning `succession` (`isSuccession`): it records the
+// supersede and is nothing to review (SR-072 AK2, product owner decision, 2026-10-29, #170). The
 // hint names the successors: the sources of `succession` relations to the same element.
 // Relation-valued properties (validity, packages) and inline references are not counted here; a
 // superseded variant in a validity is `variant.superseded-in-validity` (SR-040 AK3,
@@ -126,14 +127,23 @@ export const elementLabel = (
   `${findType(context.metamodel, record.type)?.name ?? record.type} ${context.shortIds.of(record)}`;
 
 /**
+ * Whether a hit is a successor's own relation to the element it superseded: a relation kind with
+ * the meaning `succession` (from the metamodel, whatever the kind's key or name) from another
+ * element. An element that replaces itself is no successor of itself, as in the view
+ * (`successionsOf`). The one rule for both: such a hit names a successor and gives no hint
+ * (SR-072 AK2).
+ */
+const isSuccession = (hit: Hit): boolean =>
+  hit.kind.meaning === "succession" && placeOf(hit.source) !== placeOf(hit.target);
+
+/**
  * The successors of each superseded target, by its place: the sources of the `succession` hits
  * among `hits`, each element (place) once, in the order of the hits.
  */
 const successorsOf = (hits: readonly Hit[]): ReadonlyMap<string, readonly ElementRecord[]> => {
   const successors = new Map<string, ElementRecord[]>();
   for (const hit of hits) {
-    // An element that replaces itself is no successor of itself, as in the view (`successionsOf`).
-    if (hit.kind.meaning === "succession" && placeOf(hit.source) !== placeOf(hit.target)) {
+    if (isSuccession(hit)) {
       const place = placeOf(hit.target);
       const known = successors.get(place) ?? [];
       if (!known.some((s) => placeOf(s) === placeOf(hit.source))) {
@@ -145,29 +155,34 @@ const successorsOf = (hits: readonly Hit[]): ReadonlyMap<string, readonly Elemen
   return successors;
 };
 
-/** The hint of each hit; it names the target's successors other than the hit's source. */
+/**
+ * The hint of each hit but a successor's own relation (`isSuccession`, SR-072 AK2); it names the
+ * target's successors other than the hit's source.
+ */
 const findingsOf = (
   context: SupersededContext,
   hits: readonly Hit[],
   successors: ReadonlyMap<string, readonly ElementRecord[]>,
 ): LocatableFinding[] =>
-  hits.map(({ source, kind, index, target, status }): LocatableFinding => {
-    const others = (successors.get(placeOf(target)) ?? []).filter((s) => placeOf(s) !== placeOf(source));
-    const successorText =
-      others.length === 0
-        ? ""
-        : `; ${others.length === 1 ? "successor" : "successors"}: ${others.map((s) => elementLabel(context, s)).join(", ")}`;
-    const problem: Problem = {
-      code: "relation.target-superseded",
-      severity: "warning",
-      message: `Relation ${kind.name} (${kind.key}) from ${elementLabel(context, source)} points to ${elementLabel(context, target)}, which is superseded (status ${status.name})${successorText}`,
-      repository: source.repository,
-      file: source.file,
-      elementId: source.id,
-      targetId: target.id,
-    };
-    return { element: source, path: [kind.key, index], problem };
-  });
+  hits
+    .filter((hit) => !isSuccession(hit))
+    .map(({ source, kind, index, target, status }): LocatableFinding => {
+      const others = (successors.get(placeOf(target)) ?? []).filter((s) => placeOf(s) !== placeOf(source));
+      const successorText =
+        others.length === 0
+          ? ""
+          : `; ${others.length === 1 ? "successor" : "successors"}: ${others.map((s) => elementLabel(context, s)).join(", ")}`;
+      const problem: Problem = {
+        code: "relation.target-superseded",
+        severity: "warning",
+        message: `Relation ${kind.name} (${kind.key}) from ${elementLabel(context, source)} points to ${elementLabel(context, target)}, which is superseded (status ${status.name})${successorText}`,
+        repository: source.repository,
+        file: source.file,
+        elementId: source.id,
+        targetId: target.id,
+      };
+      return { element: source, path: [kind.key, index], problem };
+    });
 
 /**
  * The hints `relation.target-superseded` (SR-072 AK2), one per relation to a superseded element,
@@ -238,7 +253,7 @@ export const supersededFindingsOf = (
   source: ElementRecord,
   successionsOfTarget: (target: ElementRecord) => readonly Succession[],
 ): readonly LocatableFinding[] => {
-  const own = hitsOf(context, [source], undefined);
+  const own = hitsOf(context, [source], undefined).filter((hit) => !isSuccession(hit));
   return own.length === 0 ? [] : findingsOf(context, own, successorsFrom(own, successionsOfTarget));
 };
 
