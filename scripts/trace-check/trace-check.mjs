@@ -16,6 +16,8 @@ import YAML from "yaml";
 
 const SKIP = new Set(["node_modules", ".git", "dist", "out", "coverage", "spec", ".reqseq"]);
 const TEST_FILE = /\.(test|spec)\.(ts|tsx|js|mjs)$|^test_.*\.py$|_test\.py$/;
+// The cross-access scenarios of each command, in modules that cross-access.test.ts runs (#527).
+const SCENARIO_FILE = /(^|\/)test\/cross-access\/scenarios\/.+\.ts$/;
 
 /** The frontmatter of a Markdown file as an object, or undefined when it has none that parses. */
 export function frontmatter(text) {
@@ -156,7 +158,7 @@ export function testReferences(root) {
       const p = path.join(dir, entry.name);
       if (entry.isDirectory()) {
         walk(p);
-      } else if (TEST_FILE.test(entry.name)) {
+      } else if (TEST_FILE.test(entry.name) || SCENARIO_FILE.test(repoPath(root, p))) {
         fs.readFileSync(p, "utf8")
           .split("\n")
           .forEach((line, i) => {

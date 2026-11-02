@@ -107,6 +107,16 @@ describe("trace-check on the ReqSeq workspace in spec/", () => {
     expect(result.report).toContain("| SR-002 | all | inspection | verification/SR-002.md |");
   });
 
+  it("reads the tags of the cross-access scenario modules, which are no test files of their own (#527)", () => {
+    const root = repo({
+      "packages/cli/test/cross-access/scenarios/x/a.ts": `scenariosOf("x.a", [{ tag: "${tag("SR-001", 1)}" }]);\n`,
+      "packages/cli/test/cross-access/fixtures.ts": `// ${tag("SR-001", 2)}\n`,
+      "verification/SR-002.md": "# SR-002\n",
+    });
+    const result = traceCheck(root, ["--require", "SR-001"]);
+    expect(result.errors).toEqual(["SR-001 AK2 has no test"]);
+  });
+
   it("reports missing tests, unknown SRs and criteria, records, stages and invalid statuses", () => {
     const root = repo({
       "packages/x/a.test.ts": `it("${tag("SR-009", 1)} a");\nit("${tag("SR-001", 3)} b");\n`,
