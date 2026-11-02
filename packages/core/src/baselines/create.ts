@@ -12,7 +12,6 @@
 import path from "node:path";
 import { CommandError } from "../catalog.js";
 import type { CommandOutput } from "../catalog.js";
-import { recordDate } from "../evidence/index.js";
 import type { BaselineFile, BaselineStoredSelection } from "../generated/types.js";
 import type { ElementRecord } from "../model/index.js";
 import { currentVersionsOf, elementStoreState, workspacePath } from "../model/index.js";
@@ -129,7 +128,8 @@ export const createBaseline = async (
     embeds,
     metamodel: request.metamodel,
   });
-  const date = recordDate(new Date());
+  // The format of `recordDate` (ADR-0018), built here: the evidence block is a higher layer (#444).
+  const date = `${new Date().toISOString().slice(0, 19)}Z`;
   const text = baselineText({
     "reqseq-baseline": 1,
     name: request.name,
