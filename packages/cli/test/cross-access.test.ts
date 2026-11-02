@@ -3929,3 +3929,126 @@ describe("cross-access: JSON Lines (#319)", { timeout: TEST_TIMEOUT }, () => {
     }
   });
 });
+
+/** The system requirement of SR-004/one-repository and its file. */
+const WIND = "e8df96ea-a168-4d90-8d65-6328cee88fb3";
+const WIND_FILE = "requirements/SR-6328cee88fb3.md";
+
+/** Calls at the same time, as many as an MCP client sends in one turn (#686). */
+const PARALLEL_CALLS = 8;
+
+/** A copy of SR-004/one-repository with `count` new needs, created one after the other; their IDs. */
+const withNeeds = async (count: number): Promise<{ readonly root: string; readonly needs: string[] }> => {
+  const { root } = await copy({ name: "parallel", input: {}, expect: "output" });
+  const workspace = new Workspace(root);
+  const needs: string[] = [];
+  try {
+    for (let i = 0; i < count; i++) {
+      const created = (await runtime.invoke(
+        "element.create",
+        { type: "need", title: `Need ${String(i)}` },
+        { workspace },
+      )) as {
+        element: { id: string };
+      };
+      needs.push(created.element.id);
+    }
+  } finally {
+    await workspace.close();
+  }
+  return { root, needs };
+};
+
+describe("cross-access: write calls at the same time (SR-166)", { timeout: TEST_TIMEOUT }, () => {
+  it("[SR-166/AK1] the API, the MCP server and the app keep every relation that eight relation.add calls at once report", async () => {
+    // The API: eight requests at once.
+    {
+      const { root, needs } = await withNeeds(PARALLEL_CALLS);
+      const workspace = new Workspace(root);
+      const server = await startApiServer({ workspace, runtime, cacheFolder: cache });
+      try {
+        const { token } = JSON.parse(await fs.readFile(server.endpointFile, "utf8")) as { token: string };
+        const statuses = await Promise.all(
+          needs.map(
+            (target) =>
+              new Promise<number | undefined>((resolve, reject) => {
+                const req = http.request(
+                  {
+                    host: "127.0.0.1",
+                    port: server.port,
+                    method: "POST",
+                    path: "/v1/commands/relation.add",
+                    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+                  },
+                  (res) => {
+                    res.resume();
+                    res.on("end", () => {
+                      resolve(res.statusCode);
+                    });
+                  },
+                );
+                req.on("error", reject);
+                req.end(JSON.stringify({ source: WIND, kind: "derives-from", target }));
+              }),
+          ),
+        );
+        expect(statuses).toEqual(needs.map(() => 200));
+      } finally {
+        await server.close();
+        await workspace.close();
+      }
+      const file = await fs.readFile(path.join(root, WIND_FILE), "utf8");
+      expect(needs.filter((id) => !file.includes(id))).toEqual([]);
+    }
+    // The MCP server: eight tool calls at once.
+    {
+      const { root, needs } = await withNeeds(PARALLEL_CALLS);
+      const workspace = new Workspace(root);
+      const toServer = new PassThrough();
+      const toClient = new PassThrough();
+      const served = serveMcp({
+        runtime,
+        workspace,
+        input: toServer,
+        output: { write: (t) => toClient.write(t) },
+      });
+      const client = new Client({ name: "cross-access", version: "1" });
+      try {
+        await client.connect(new LineTransport(toClient, { write: (t) => toServer.write(t) }));
+        const results = await Promise.all(
+          needs.map((target) =>
+            client.callTool({
+              name: toolName("relation.add"),
+              arguments: { source: WIND, kind: "derives-from", target },
+            }),
+          ),
+        );
+        expect(results.map((result) => result.isError === true)).toEqual(needs.map(() => false));
+      } finally {
+        toServer.end();
+        await served;
+        await client.close();
+        await workspace.close();
+      }
+      const file = await fs.readFile(path.join(root, WIND_FILE), "utf8");
+      expect(needs.filter((id) => !file.includes(id))).toEqual([]);
+    }
+    // The app: eight calls at once through its bridge.
+    {
+      const { root, needs } = await withNeeds(PARALLEL_CALLS);
+      const app = connectApp(new Workspace(root));
+      try {
+        const results = await Promise.all(
+          needs.map((target) =>
+            app.bridge.invoke("relation.add", { source: WIND, kind: "derives-from", target }),
+          ),
+        );
+        expect(results.map((result) => result.ok)).toEqual(needs.map(() => true));
+      } finally {
+        await app.close();
+      }
+      const file = await fs.readFile(path.join(root, WIND_FILE), "utf8");
+      expect(needs.filter((id) => !file.includes(id))).toEqual([]);
+    }
+  });
+});

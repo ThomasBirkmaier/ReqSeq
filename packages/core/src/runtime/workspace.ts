@@ -127,6 +127,8 @@ export class Workspace {
   #commands = 0;
   /** Write commands among them, each settled when it ends (`writesSettled`). */
   readonly #writes = new Set<Promise<unknown>>();
+  /** The end of the write command queued last, which the next one waits for (`runCommand`, SR-166). */
+  #lastWrite: Promise<unknown> = Promise.resolve();
 
   /** Creates the object only; nothing is read until a command asks for state. */
   constructor(root: string, options: WorkspaceOptions = {}) {
@@ -149,14 +151,25 @@ export class Workspace {
 
   /**
    * Runs `command` as a command on this workspace: `busy` while it runs (`invoke`). With `writes`
-   * (a `write-files` command), `writesSettled` waits for it too.
+   * (a `write-files` command), `writesSettled` waits for it too, and it starts only after the write
+   * command before it has ended: write commands of one process run one after the other, so each
+   * reads the files and the element store the one before it left, and no change of a call that
+   * reported success is lost (SR-166). Read commands do not wait.
    */
   async runCommand<T>(command: () => Promise<T>, options: { readonly writes?: boolean } = {}): Promise<T> {
     this.#commands += 1;
+    const writes = options.writes === true;
+    const before = writes ? this.#lastWrite : undefined;
     // A synchronous throw of `command` becomes a rejection, so `finally` counts it as ended too.
-    const run = (async () => command())();
+    const run = (async () => {
+      if (before !== undefined) {
+        await before;
+      }
+      return command();
+    })();
     const ended = run.catch(() => undefined);
-    if (options.writes === true) {
+    if (writes) {
+      this.#lastWrite = ended;
       this.#writes.add(ended);
       void ended.then(() => this.#writes.delete(ended));
     }
