@@ -1,6 +1,6 @@
 # ADR-0012: Evidence records and the JUnit convention
 
-Status: Proposed · Based on: D-007, D-008, D-026, D-056 · SRs: SR-028..SR-034, SR-047, SR-093 · Schema: `schemas/evidence-record.schema.json`
+Status: Accepted · Based on: D-007, D-008, D-026, D-056 · SRs: SR-028..SR-034, SR-047, SR-093 · Schema: `schemas/evidence-record.schema.json`
 
 ## Decision
 

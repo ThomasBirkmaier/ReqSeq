@@ -1,6 +1,6 @@
 # ADR-0010: Electron app: process model and security
 
-Status: Proposed · Based on: D-003, D-004, D-019, D-029, D-061, D-062, D-063 · SRs: SR-065, SR-066, SR-073, SR-074, SR-076, SR-077, SR-078, SR-082, SR-100, SR-104, SR-106, SR-111, SR-113, SR-115, SR-116, SR-117, SR-125, SR-127, SR-128, SR-129, SR-130, SR-131, SR-132
+Status: Accepted · Based on: D-003, D-004, D-019, D-029, D-061, D-062, D-063 · SRs: SR-065, SR-066, SR-073, SR-074, SR-076, SR-077, SR-078, SR-082, SR-100, SR-104, SR-106, SR-111, SR-113, SR-115, SR-116, SR-117, SR-125, SR-127, SR-128, SR-129, SR-130, SR-131, SR-132
 
 ## Decision
 
