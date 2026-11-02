@@ -15,6 +15,7 @@ import { fileSchemaValidator } from "../../runtime/contracts.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 import { parseFileBytes } from "../../files/index.js";
+import { readFirst } from "../../runtime/read-first.test-helper.js";
 
 type Output = CommandOutput<"evidence.record">;
 
@@ -102,7 +103,11 @@ describe("evidence.record (SR-030)", () => {
   it("[SR-030/AK1] after the requirement changed, the next record takes its new version", async () => {
     const { fixture, workspace } = await open();
     const first = await record(workspace, { ref: "SR-00c002", ...INSPECTION });
-    await invoke("element.update", { ref: "SR-00c002", text: "Changed text.\n" }, { workspace });
+    await invoke(
+      "element.update",
+      await readFirst({ ref: "SR-00c002", text: "Changed text.\n" }, { workspace }),
+      { workspace },
+    );
     const { version } = await get(workspace, "SR-00c002");
     expect(version).not.toBe(first.record.version);
     const second = await record(workspace, { ref: "SR-00c002", ...INSPECTION });

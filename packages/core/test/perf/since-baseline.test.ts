@@ -38,6 +38,7 @@ import { metamodelState } from "../../src/metamodel/index.js";
 import type { ElementRecord } from "../../src/model/index.js";
 import { currentVersionOf, currentVersions, elementStoreState, shortIdState } from "../../src/model/index.js";
 import { getCommandRuntime, invoke } from "../../src/runtime/invoke.js";
+import { readFirst } from "../../src/runtime/read-first.test-helper.js";
 import { Workspace } from "../../src/runtime/workspace.js";
 import { isCoreRequirement, viewRuleOf } from "../../src/variants/index.js";
 import { workspaceLayoutState } from "../../src/workspace/index.js";
@@ -193,7 +194,8 @@ describe("hints since a variant's newest baseline with 50,000 elements (SR-103, 
     const get = async (): Promise<CommandOutput<"element.get">> =>
       (await invoke("element.get", { ref: a.id }, { workspace })) as CommandOutput<"element.get">;
     await get();
-    await invoke("element.update", { ref: elsewhere.id, title: "Saved elsewhere" }, { workspace });
+    const input = { ref: elsewhere.id, title: "Saved elsewhere" };
+    await invoke("element.update", await readFirst(input, { workspace }), { workspace });
     const { result, measurement } = await measure("element.get of A after one changed file", get, {
       basis: BASIS,
       thresholdMs: GET_MS,
@@ -204,10 +206,18 @@ describe("hints since a variant's newest baseline with 50,000 elements (SR-103, 
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(GET_MS);
     // A save of any variant here takes some 150 ms without these hints (the store, the view rules);
     // the bound is on what A's baseline adds: its hints carried over and shown again.
+    // Each save is made on the bytes the one before wrote (#269); the first hash is read before.
     let n = 0;
+    const hashes = new Map<string, string | undefined>();
+    for (const ref of [other.id, a.id]) {
+      hashes.set(ref, (await readFirst({ ref, title: "" }, { workspace })).expectedFileSha256);
+    }
     const save = (ref: string) => async (): Promise<unknown> => {
       n += 1;
-      return invoke("element.update", { ref, title: `Saved ${String(n)}` }, { workspace });
+      const input = { ref, title: `Saved ${String(n)}`, expectedFileSha256: hashes.get(ref) };
+      const out = (await invoke("element.update", input, { workspace })) as CommandOutput<"element.update">;
+      hashes.set(ref, out.fileSha256);
+      return out;
     };
     const plain = await measureMedian(
       "element.update of a variant without a baseline (title)",

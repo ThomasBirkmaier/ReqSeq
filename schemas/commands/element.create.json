@@ -1,0 +1,87 @@
+{
+  "name": "element.create",
+  "title": "Create element",
+  "summary": "Create an element with a new random UUID. Only title, text and required properties are needed; empty required properties give a hint (SR-064). New elements always get the initial status of the metamodel (D-030); when their type lacks it or it is marked invalid, the first status of the type in metamodel order that is not marked invalid, and no status for a type without status or with only invalid statuses (#306, #344).",
+  "effect": "write-files",
+  "whileReadOnly": "refuse",
+  "whileReadOnlyReason": "Writes an element file, and no change can be checked against a missing or faulty metamodel.",
+  "stage": 1,
+  "implements": [
+    "SR-001",
+    "SR-002",
+    "SR-021",
+    "SR-039",
+    "SR-048",
+    "SR-057",
+    "SR-064",
+    "SR-084",
+    "SR-091",
+    "SR-102"
+  ],
+  "arguments": [
+    { "field": "type", "complete": "type" },
+    { "field": "title", "complete": "text" },
+    { "field": "text", "complete": "text" },
+    { "field": "properties", "complete": "json", "flag": "set" },
+    { "field": "relations", "complete": "json" },
+    { "field": "repository", "complete": "repository" },
+    { "field": "folder", "complete": "text" }
+  ],
+  "input": {
+    "type": "object",
+    "properties": {
+      "type": {
+        "$ref": "../common.schema.json#/$defs/key"
+      },
+      "title": {
+        "type": "string"
+      },
+      "text": {
+        "type": "string",
+        "contentMediaType": "text/markdown",
+        "description": "Markdown text of the element, written below the frontmatter after one blank line; that blank line after the closing `---` is not part of the text. A final line break is added (ADR-0004). Another element is named by a Markdown link, `[Title](reqseq:N-6010df)` with its UUID, short ID or identifier, which is written as UUID and version; `reqseq:N-6010df` alone is no link and counts for nothing."
+      },
+      "properties": {
+        "type": "object",
+        "additionalProperties": {
+          "$ref": "../element.schema.json#/$defs/inputValue"
+        }
+      },
+      "relations": {
+        "$ref": "../common.schema.json#/$defs/relationRefs",
+        "description": "Relations of the new element by kind, written in the same file (#175), e.g. {\"derives-from\": [\"N-073\", \"N-030\"], \"based-on\": \"D-062\"}; on the CLI --relations derives-from='[\"N-073\",\"N-030\"]' --relations based-on=D-062."
+      },
+      "repository": {
+        "type": "string"
+      },
+      "folder": {
+        "type": "string",
+        "description": "Folder relative to the repository; default from the type."
+      }
+    },
+    "additionalProperties": false,
+    "required": ["type", "title"]
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "element": {
+        "$ref": "../data-export.schema.json#/$defs/element"
+      },
+      "files": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "problems": {
+        "type": "array",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/problem"
+        }
+      }
+    },
+    "additionalProperties": false,
+    "required": ["element", "files"]
+  }
+}

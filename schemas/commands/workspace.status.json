@@ -1,0 +1,75 @@
+{
+  "name": "workspace.status",
+  "title": "Show workspace status",
+  "summary": "Repositories of the workspace, which are available, where the metamodel comes from, read-only state.",
+  "effect": "read",
+  "stage": 1,
+  "implements": ["SR-004", "SR-006", "SR-011", "SR-018"],
+  "arguments": [],
+  "input": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string"
+      },
+      "repositories": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "available": {
+              "type": "boolean"
+            },
+            "path": {
+              "type": "string"
+            },
+            "commit": {
+              "$ref": "../common.schema.json#/$defs/commit"
+            },
+            "readOnly": {
+              "type": "boolean",
+              "description": "ReqSeq cannot write the repository folder itself (read-only file system or no write permission). Reading works as usual and the workspace stays writable; writes into this repository are refused with file.read-only (SR-018 AK2). Rights on the Git server are not visible here (D-016, D-024). Only for available repositories; left out where the operating system cannot tell (Windows)."
+            }
+          },
+          "additionalProperties": false,
+          "required": ["name", "available"]
+        }
+      },
+      "metamodel": {
+        "type": "object",
+        "properties": {
+          "repository": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "valid": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false,
+        "required": ["repository", "path", "valid"]
+      },
+      "readOnly": {
+        "type": "boolean"
+      },
+      "problems": {
+        "type": "array",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/problem"
+        }
+      }
+    },
+    "additionalProperties": false,
+    "required": ["name", "repositories", "metamodel", "readOnly"]
+  }
+}

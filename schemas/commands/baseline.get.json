@@ -1,0 +1,205 @@
+{
+  "name": "baseline.get",
+  "title": "Show baseline",
+  "summary": "Elements of a baseline with their version then and its date, marked changed, superseded, removed or added since (SR-051); with withEvidence the verification status of each requirement per view and the validation status at its version in the baseline, with the records dated after it named (SR-094). The version counts the text, embedded images and the properties marked `content` (a relation property such as `validity` too); the relation kinds of the metamodel, such as `refines` or `derives-from`, never count, so an element whose only change is such a relation is not marked `changed`: baseline.compare gives the commits and the Git command that show it.",
+  "effect": "read",
+  "stage": 5,
+  "implements": ["SR-051", "SR-094"],
+  "arguments": [
+    { "field": "baseline", "complete": "baseline" },
+    { "field": "withEvidence", "complete": "boolean" },
+    { "field": "limit", "complete": "number" },
+    { "field": "offset", "complete": "number" }
+  ],
+  "input": {
+    "type": "object",
+    "properties": {
+      "baseline": {
+        "type": "string",
+        "description": "Name of a baseline, or its file name (with or without .yaml)."
+      },
+      "withEvidence": {
+        "type": "boolean",
+        "default": false,
+        "description": "Also give, at each entry's version in the baseline, the verification status of each requirement in every view it applies in (only the variant's when the stored selection has one) and the validation status: own records up to the baseline's date and time, records of that version dated after it named apart (SR-094). Like the rest of the output it reads the evidence files on disk, so each repository should be checked out at the commit the baseline names; a `baseline.repository-commit-differs` warning names each one that is not."
+      },
+      "limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 5000,
+        "default": 200,
+        "description": "Elements of the page; total counts all."
+      },
+      "offset": {
+        "type": "integer",
+        "minimum": 0,
+        "default": 0
+      }
+    },
+    "additionalProperties": false,
+    "required": ["baseline"]
+  },
+  "output": {
+    "type": "object",
+    "description": "An unknown or ambiguous baseline is input.invalid with details.reason unknown-baseline or ambiguous-baseline. The files on disk are read, not the baseline's commits: a repository here whose HEAD is another commit than the one under repositories is a baseline.repository-commit-differs warning with both commits, which names what was read; for withEvidence check out the baseline's commits to read the evidence as it stood.",
+    "properties": {
+      "name": {
+        "type": "string"
+      },
+      "file": {
+        "type": "string",
+        "description": "Relative to the workspace root, / as separator."
+      },
+      "repository": {
+        "type": "string",
+        "description": "The repository that holds the file."
+      },
+      "date": {
+        "$ref": "../common.schema.json#/$defs/dateTime"
+      },
+      "view": {
+        "$ref": "../common.schema.json#/$defs/viewId",
+        "description": "The view of the stored selection; left out for the core."
+      },
+      "selectionKnown": {
+        "type": "boolean",
+        "description": "The file stores a selection. Without it no element is added or removed (SR-051 AK2/AK3)."
+      },
+      "repositories": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "commit": {
+              "$ref": "../common.schema.json#/$defs/commit"
+            }
+          },
+          "additionalProperties": false,
+          "required": ["name", "commit"]
+        }
+      },
+      "elements": {
+        "type": "array",
+        "description": "One page: the file's entries in file order, then the added elements in store order. State precedence: missing, superseded, removed, changed, unchanged; added only for elements not in the file.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "$ref": "../common.schema.json#/$defs/uuid"
+            },
+            "repository": {
+              "type": "string",
+              "description": "The repository of the copy, whenever it is known."
+            },
+            "state": {
+              "enum": ["unchanged", "changed", "superseded", "removed", "added", "missing"],
+              "description": "missing: not in the store, or in a repository that is not here (incomplete). removed: not superseded and no longer in the stored selection (SR-051 AK3). added: in the stored selection and not in the file."
+            },
+            "version": {
+              "$ref": "../common.schema.json#/$defs/version",
+              "description": "The version in the baseline; left out for added."
+            },
+            "versionDate": {
+              "type": ["string", "null"],
+              "format": "date-time",
+              "description": "Date of that version from the Git history (ADR-0005), read for the page only; null when unknown."
+            },
+            "current": {
+              "$ref": "../common.schema.json#/$defs/version",
+              "description": "The current version when it differs, also for removed and added."
+            },
+            "verification": {
+              "type": "array",
+              "description": "With withEvidence, for entries of the file (not added or missing) whose type has the meaning requirement: one row per view it applies in now, the core first, then the variants in store order (SR-094 AK4, SR-047 AK3); with a variant in the stored selection only that variant's row (AK5). Empty when it applies in no view shown. Own records only, never indirect (AK6). Left out when the stored view cannot be resolved.",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "view": {
+                    "$ref": "../common.schema.json#/$defs/viewId"
+                  },
+                  "status": {
+                    "enum": ["open", "verified", "failed", "outdated"],
+                    "description": "From the records of the view that count for the baseline: dated at or before it (AK2); outdated with records of other versions only, open without (AK3)."
+                  },
+                  "later": {
+                    "type": "array",
+                    "description": "The records of the baseline version in this view dated after the baseline, newest first: they do not count (AK2). Left out when there is none.",
+                    "items": {
+                      "$ref": "../data-export.schema.json#/$defs/evidenceRecord"
+                    }
+                  }
+                },
+                "additionalProperties": false,
+                "required": ["view", "status"]
+              }
+            },
+            "validation": {
+              "$ref": "../common.schema.json#/$defs/validationStatus",
+              "description": "With withEvidence, for entries of the file (not added or missing) of a type with the meaning need and for any other with a validation record (SR-038, SR-094 AK7): the status at the baseline version from the validation records that count for the baseline, without view. Open without such records."
+            },
+            "validationLater": {
+              "type": "array",
+              "description": "With validation: the validation records of the baseline version dated after the baseline, newest first; they do not count (AK2). Left out when there is none.",
+              "items": {
+                "$ref": "../data-export.schema.json#/$defs/evidenceRecord"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": ["id", "state"]
+        }
+      },
+      "counts": {
+        "type": "object",
+        "description": "Elements per state over all pages.",
+        "properties": {
+          "unchanged": { "type": "integer", "minimum": 0 },
+          "changed": { "type": "integer", "minimum": 0 },
+          "superseded": { "type": "integer", "minimum": 0 },
+          "removed": { "type": "integer", "minimum": 0 },
+          "added": { "type": "integer", "minimum": 0 },
+          "missing": { "type": "integer", "minimum": 0 }
+        },
+        "additionalProperties": false,
+        "required": ["unchanged", "changed", "superseded", "removed", "added", "missing"]
+      },
+      "total": {
+        "type": "integer",
+        "minimum": 0,
+        "description": "Entries of the file plus added elements."
+      },
+      "names": {
+        "type": "array",
+        "description": "The elements of the page, the variant of `view` and the variants the verification rows name, each once in the order first named (#588).",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/elementName"
+        }
+      },
+      "problems": {
+        "type": "array",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/problem"
+        }
+      },
+      "incomplete": {
+        "$ref": "../common.schema.json#/$defs/incomplete"
+      }
+    },
+    "additionalProperties": false,
+    "required": [
+      "name",
+      "file",
+      "repository",
+      "date",
+      "selectionKnown",
+      "repositories",
+      "elements",
+      "counts",
+      "total",
+      "names"
+    ]
+  }
+}

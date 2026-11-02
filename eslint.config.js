@@ -18,7 +18,13 @@ const testCommandInProduct = {
   message: "defineTestCommand is for tests only; use defineCommand.",
 };
 const productFiles = ["packages/**/*.ts", "packages/**/*.tsx"];
-const testFiles = ["**/*.test.ts", "**/*.test.tsx"];
+// The cross-access scenarios are test code in modules of their own, one per command (#527).
+const testFiles = [
+  "**/*.test.ts",
+  "**/*.test.tsx",
+  "**/*.test-helper.ts",
+  "packages/cli/test/cross-access/**/*.ts",
+];
 
 // ADR-0016: strictest rule sets with type information; any warning fails the run (--max-warnings 0).
 export default tseslint.config(

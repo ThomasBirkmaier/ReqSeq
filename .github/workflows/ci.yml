@@ -213,6 +213,15 @@ jobs:
       - name: Unit tests
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: ${{ runner.os != 'Windows' && 'pnpm test:coverage' || 'pnpm test' }}
+      # The spec check dates element versions from Git history; the shallow checkout above has none, which gave a
+      # "no date" warning per outdated relation (#453). The full history of the checked-out commit takes seconds.
+      - name: Full history for the spec check
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        shell: bash
+        run: |
+          if [ "$(git rev-parse --is-shallow-repository)" = true ]; then
+            git fetch --unshallow --no-tags origin "$(git rev-parse HEAD)"
+          fi
       # The spec is a ReqSeq workspace (D-064, #326): ReqSeq checks it like any other (exit 1 on errors).
       - name: Check the spec with ReqSeq
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}

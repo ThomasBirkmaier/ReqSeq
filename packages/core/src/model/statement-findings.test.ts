@@ -6,6 +6,7 @@ import type { CommandOutput, Problem } from "../catalog.js";
 import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
 import { statementProblemsState } from "./index.js";
+import { readFirst } from "../runtime/read-first.test-helper.js";
 
 const CODE = "element.statement-without-text";
 const MODEL = "metamodel/standard-model.yaml";
@@ -112,7 +113,10 @@ describe("a requirement whose wording is only in the statement (#667)", () => {
     expect(await hints(opened.workspace)).toHaveLength(1);
     await invoke(
       "element.update",
-      { ref: HINT.elementId, text: "The mass is rounded to 0.001 kg." },
+      await readFirst(
+        { ref: HINT.elementId, text: "The mass is rounded to 0.001 kg." },
+        { workspace: opened.workspace },
+      ),
       { workspace: opened.workspace },
     );
     expect(await hints(opened.workspace)).toEqual([]);

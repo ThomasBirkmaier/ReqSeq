@@ -1,5 +1,5 @@
 // #635: the blocks of packages/core/src import each other only downward, as docs/architecture/README.md
-// section 5 states. This test reads the relative imports of every product module (test files left out)
+// section 5 states. This test reads the relative imports of every product module (test files and helpers left out)
 // and fails on an import that goes to the same or a higher layer or that the README's block table does
 // not list. A new block or runtime module, or a new allowed import, is added to the README and here.
 import fs from "node:fs";
@@ -292,12 +292,18 @@ function problemsOf(module: string, text: string): string[] {
   return problems;
 }
 
-/** Every non-test `.ts` module of `src`, relative with `/`. */
+/** Every `.ts` module of `src` that is neither a test nor a test helper (`*.test-helper.ts`), relative with `/`. */
 function productModules(): string[] {
   return fs
     .readdirSync(SRC, { recursive: true, encoding: "utf8" })
     .map((entry) => entry.split(path.sep).join("/"))
-    .filter((entry) => entry.endsWith(".ts") && !entry.endsWith(".test.ts") && !entry.endsWith(".d.ts"))
+    .filter(
+      (entry) =>
+        entry.endsWith(".ts") &&
+        !entry.endsWith(".test.ts") &&
+        !entry.endsWith(".test-helper.ts") &&
+        !entry.endsWith(".d.ts"),
+    )
     .sort();
 }
 

@@ -251,8 +251,13 @@ export const supersedeElement = async (
       writes.push({ ...next, bytes });
     }
   }
-  const files = (await writeElementFiles(workspace, layout, writes, { titles: { metamodel, store } })).map(
-    (w) => w.file,
-  );
+  // The successor is written first (#271): an interruption between the two writes then leaves a
+  // successor that points to a still valid predecessor, which a second call heals (it writes only the
+  // status), never a retired element without a successor. The result keeps the predecessor first.
+  const files = (
+    await writeElementFiles(workspace, layout, [...writes].reverse(), { titles: { metamodel, store } })
+  )
+    .map((w) => w.file)
+    .reverse();
   return { files, problems: [...(await supersededTargetProblems(workspace, [record]))] };
 };

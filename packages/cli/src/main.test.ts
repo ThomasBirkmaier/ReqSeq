@@ -375,6 +375,27 @@ describe("reqseq <group> <action>", () => {
     expect(bad.stderr).toBe("error input.invalid: --set expects key=value, not novalue\n");
   });
 
+  it('sends --set key=3 as a number and key=.5 or key="3" as text, which core refuses for a number property (#614)', async () => {
+    const result = await run([
+      ...[
+        "test",
+        "echo",
+        ref,
+        "n",
+        "--set",
+        "a=3",
+        "--set",
+        "b=2.5",
+        "--set",
+        "c=.5",
+        "--set",
+        'd="3"',
+        "--json",
+      ],
+    ]);
+    expect(JSON.parse(result.stdout)).toMatchObject({ input: { props: { a: 3, b: 2.5, c: ".5", d: "3" } } });
+  });
+
   it("renders the output for people by default", async () => {
     const result = await run(["test", "echo", ref, "n"]);
     expect(result).toEqual({

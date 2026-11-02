@@ -10,6 +10,7 @@ import type { CommandName, CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
+import { readFirstFor } from "../../runtime/read-first.test-helper.js";
 
 type Imported = CommandOutput<"reqif.import">;
 type Got = CommandOutput<"element.get">;
@@ -45,7 +46,10 @@ const run = async <C extends CommandName>(
   workspace: Workspace,
   command: C,
   input: Record<string, unknown>,
-): Promise<CommandOutput<C>> => (await invoke(command, input, { workspace })) as CommandOutput<C>;
+): Promise<CommandOutput<C>> =>
+  (await invoke(command, await readFirstFor(command, input, { workspace }), {
+    workspace,
+  })) as CommandOutput<C>;
 
 const failure = async (
   workspace: Workspace,
