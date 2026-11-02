@@ -1,0 +1,5 @@
+reqseq-workspace: 1
+name: Fuel
+repositories:
+  - { name: fuel, url: "git@git.example.com:ac/fuel.git" }
+metamodel: { repository: fuel, path: metamodel }

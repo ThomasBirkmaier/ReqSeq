@@ -15,6 +15,7 @@ const FIXTURES = new URL("../../../../fixtures/", import.meta.url);
 const FIXTURE_COPIES = [
   "SR-001/two-elements/metamodel/standard-model.yaml",
   "SR-004/one-repository/metamodel/standard-model.yaml",
+  "SR-004/own-metamodel/system/metamodel/standard-model.yaml",
   "SR-004/three-repositories/system/metamodel/standard-model.yaml",
   "SR-005/cross-repository/system/metamodel/standard-model.yaml",
   "SR-021/targets/system/metamodel/standard-model.yaml",

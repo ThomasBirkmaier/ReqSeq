@@ -605,6 +605,21 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       expect: "output",
     },
     {
+      name: "a warning for a repository at another commit than the baseline names (#668)",
+      fixture: EXPORT,
+      root: "system",
+      input: { baseline: "release-1", withEvidence: true, limit: 1 },
+      expect: "output",
+      check: (results) => {
+        const { problems } = (results["core"]?.outcome as { output: BaselineGetOutput }).output;
+        expect([problems?.[0]?.code, problems?.[0]?.repository]).toEqual([
+          "baseline.repository-commit-differs",
+          "system",
+        ]);
+        expect(problems?.[0]?.message).toContain("the baseline names 61aa061");
+      },
+    },
+    {
       name: "the evidence status of each requirement at its baseline version (SR-094 AK1)",
       fixture: SR094,
       input: { baseline: "Release 1", withEvidence: true },
@@ -3032,6 +3047,21 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
     { name: "existing workspace", input: { path: ".", name: "Again" }, expect: "error" },
   ],
   "workspace.check": [
+    {
+      name: "a repository whose own metamodel counts another property to the version (#666)",
+      fixture: { fixture: "SR-004/own-metamodel", git: ["system", "fuel"] },
+      root: "system",
+      input: {},
+      expect: "output",
+      check: (results) => {
+        const output = (
+          results["core"]?.outcome as { output: { problems: { code: string; severity: string }[] } }
+        ).output;
+        expect(
+          output.problems.filter((p) => p.code === "workspace.metamodel-mismatch").map((p) => p.severity),
+        ).toEqual(["warning"]);
+      },
+    },
     {
       name: "a requirement without a parent is a hint with its ID",
       fixture: ORPHANED_CHAIN,

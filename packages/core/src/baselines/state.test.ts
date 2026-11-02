@@ -13,12 +13,13 @@ import { elementStoreState } from "../model/index.js";
 import { Workspace } from "../runtime/workspace.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
+import type { Baseline } from "./read.js";
 import type { Checked } from "./state.js";
-import { involvedCommits, refuseUncommitted } from "./state.js";
+import { commitDifferences, involvedCommits, refuseUncommitted } from "./state.js";
 
 vi.mock("../git/reader.js", async (importOriginal) => {
   const original = await importOriginal<typeof reader>();
-  return { ...original, changedPaths: vi.fn(original.changedPaths) };
+  return { ...original, changedPaths: vi.fn(original.changedPaths), headCommit: vi.fn(original.headCommit) };
 });
 
 const ID = "61061061-0000-4000-8000-0000000000";
@@ -128,6 +129,32 @@ describe("refuseUncommitted", () => {
     expect([error.code, error.message]).toEqual([
       "git.unavailable",
       "Not created: repository system cannot be read by Git (timeout)",
+    ]);
+  });
+});
+
+describe("commitDifferences", () => {
+  it("passes on the info when Git refuses a repository, so its commit is unknown (#668)", async () => {
+    const { ws, layout } = await open();
+    const sensor = await ws.head("sensor");
+    // The first git call is system's: Git refuses it; sensor is at the baseline's commit.
+    vi.mocked(reader.headCommit).mockResolvedValueOnce({
+      known: false,
+      reason: "refused",
+      detail: "dubious ownership",
+    });
+    const data: Baseline["data"] = {
+      "reqseq-baseline": 1,
+      name: "R",
+      date: "2026-11-02T13:00:00Z",
+      repositories: [
+        { name: "system", commit: sensor },
+        { name: "sensor", commit: sensor },
+      ],
+      elements: [],
+    };
+    expect(await commitDifferences(layout, { data })).toEqual([
+      expect.objectContaining({ code: "git.unavailable", severity: "info", repository: "system" }),
     ]);
   });
 });
