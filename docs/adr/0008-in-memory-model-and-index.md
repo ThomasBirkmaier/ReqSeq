@@ -1,6 +1,6 @@
 # ADR-0008: In-memory model, search index, cache and file watching
 
-Status: Proposed · Based on: D-002, D-014 · SRs: SR-003, SR-007, SR-015, SR-020, SR-068, SR-081, SR-082
+Status: Accepted · Based on: D-002, D-014 · SRs: SR-003, SR-007, SR-015, SR-020, SR-068, SR-081, SR-082
 
 ## Context
 
