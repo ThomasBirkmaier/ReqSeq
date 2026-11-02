@@ -97,6 +97,28 @@ describe("element.update", () => {
     });
   });
 
+  it("warns when the update empties a text that was not empty, and only then (#677)", async () => {
+    const opened = await open();
+    const emptied = (out: Output): unknown[] =>
+      (out.problems ?? []).filter((p) => p.code === "element.text-emptied");
+    const out = await update(opened, { ref: WIND.id, text: "" });
+    expect(out.element.text).toBe("");
+    expect(emptied(out)).toEqual([
+      {
+        code: "element.text-emptied",
+        severity: "warning",
+        message: `The text of element ${WIND.id} was not empty and is now empty; restore it from Git if this was not intended`,
+        repository: "system",
+        file: WIND.file,
+        elementId: WIND.id,
+        elementShortId: "SR-e88fb3",
+      },
+    ]);
+    // An empty text given again (whitespace only) does not warn, nor does a new text.
+    expect(emptied(await update(opened, { ref: WIND.id, text: "  \n" }))).toEqual([]);
+    expect(emptied(await update(opened, { ref: WIND.id, text: "Back.\n" }))).toEqual([]);
+  });
+
   it("[SR-002/AK2] keeps the UUID when title and text change", async () => {
     const opened = await open();
     const out = await update(opened, { ref: WIND.id, title: "Show wind", text: "New text.\n" });
