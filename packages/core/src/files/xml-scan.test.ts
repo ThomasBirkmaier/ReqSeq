@@ -236,6 +236,40 @@ describe("scanXml", () => {
     expect(refusal(Uint8Array.of(0xff, 0xfe, 0x3c, 0x00)).reason).toBe("encoding");
   });
 
+  it("finds a byte that is not UTF-8 after the first MiB, also behind a sequence cut by a chunk end", () => {
+    // 0xc3 0xa4 ("ä") straddles the 1 MiB chunk boundary; the bad byte follows on line 3.
+    const head = utf8(`<a>\n${"x".repeat(1024 * 1024 - 5)}`);
+    const bytes = Uint8Array.from([...head, 0xc3, 0xa4, ...utf8("\n"), 0xff, ...utf8("</a>")]);
+    expect(refusal(bytes)).toMatchObject({ reason: "encoding", line: 3, offset: head.length + 3 });
+    // A sequence cut short at the end of the file is found when the decoder is flushed.
+    const cut = Uint8Array.from([...utf8("<a/>"), 0xe2, 0x82]);
+    expect(refusal(cut)).toMatchObject({ reason: "encoding", offset: 4 });
+  });
+
+  it("refuses a text, value or name longer than the longest string, before it is decoded (#693)", () => {
+    const limited = (text: string, maxStringLength: number) => {
+      const outcome = scanXml(utf8(text), { maxStringLength });
+      return outcome.kind === "refused"
+        ? { reason: outcome.reason, message: outcome.message, offset: outcome.offset }
+        : outcome.kind;
+    };
+    expect(limited("<a>\n12345678</a>", 8)).toEqual({
+      reason: "size",
+      message: "A text of 9 characters is longer than the longest string that can be read (8)",
+      offset: 3,
+    });
+    expect(limited('<a x="123456789"/>', 8)).toMatchObject({ reason: "size", offset: 6 });
+    expect(limited("<abcdefghi/>", 8)).toMatchObject({ reason: "size", offset: 1 });
+    // More bytes than the limit, but no more UTF-16 units: "ä" is two bytes, "😀" four bytes and two units.
+    expect(limited("<a>ääää😀</a>", 8)).toBe("scanned");
+    expect(limited("<a>äääää😀</a>", 6)).toMatchObject({
+      reason: "size",
+      message: "A text of 7 characters is longer than the longest string that can be read (6)",
+    });
+    // The default is the platform's limit.
+    expect(scanXml(utf8("<a>12345678</a>")).kind).toBe("scanned");
+  });
+
   it("refuses XML that is not well-formed, with the line", () => {
     const cases: readonly (readonly [string, string, number])[] = [
       ["", "No root element", 1],
