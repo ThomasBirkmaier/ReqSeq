@@ -495,6 +495,19 @@ describe("element.update", () => {
     expect(await read(opened, GUSTS.file)).toBe(before);
   });
 
+  it("[SR-064/AK2] saves an empty string of a required choice property as no value and gives its element.missing-required hint (#242)", async () => {
+    const opened = await open();
+    const out = await update(opened, { ref: GUSTS.id, set: { "requirement-type": "" } });
+    expect(await read(opened, GUSTS.file)).toContain('\nrequirement-type: ""\n');
+    expect(out.problems?.filter((p) => p.code === "element.missing-required")).toContainEqual(
+      expect.objectContaining({
+        message: expect.stringContaining("Required property Requirement Type (requirement-type)") as unknown,
+        elementId: GUSTS.id,
+      }),
+    );
+    expect(out.problems?.filter((p) => p.code === "element.wrong-value-kind")).toEqual([]);
+  });
+
   it("refuses a file that changed on disk since it was read and works again on the next call", async () => {
     const opened = await open();
     await opened.workspace.get(elementStoreState);
