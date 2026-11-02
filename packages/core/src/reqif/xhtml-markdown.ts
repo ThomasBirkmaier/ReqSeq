@@ -502,6 +502,50 @@ const joinRuns = (children: readonly MdastNodes[]): MdastNodes[] => {
   return joined;
 };
 
+/**
+ * Moves white space at the start and end of an emphasis, strong or strike-through out of it
+ * (`<em> text</em>` is ` *text*`): Markdown cannot open or close one next to white space, so
+ * mdast-util-to-markdown would write character references (`&#x20;`). Inner nodes go first, so
+ * white space of a nested one moves out of every one around it.
+ */
+const moveSpaceOut = (tree: MdastNodes): void => {
+  const parents: MdastParent[] = [];
+  const pending: MdastNodes[] = [tree];
+  for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
+    if ("children" in next) {
+      parents.push(next);
+      pushReversed(pending, next.children, (child) => child);
+    }
+  }
+  for (const parent of parents.reverse()) {
+    parent.children = parent.children.flatMap((child) =>
+      isAttention(child) && !isBlank(child) ? spaceOutside(child) : [child],
+    ) as typeof parent.children;
+  }
+};
+/** `node` with the white space of its first and last text before and after it. */
+const spaceOutside = (node: Attention): MdastNodes[] => {
+  const inner = node.children as MdastNodes[];
+  const first = inner[0];
+  const leading = first?.type === "text" ? /^\s+/u.exec(first.value)?.[0] : undefined;
+  if (first?.type === "text" && leading !== undefined) {
+    first.value = first.value.slice(leading.length);
+  }
+  const last = inner.at(-1);
+  const trailing = last?.type === "text" ? /\s+$/u.exec(last.value)?.[0] : undefined;
+  if (last?.type === "text" && trailing !== undefined) {
+    last.value = last.value.slice(0, -trailing.length);
+  }
+  node.children = inner.filter(
+    (child) => child.type !== "text" || child.value !== "",
+  ) as typeof node.children;
+  return [
+    ...(leading === undefined ? [] : [{ type: "text", value: leading } satisfies MdastNodes]),
+    node,
+    ...(trailing === undefined ? [] : [{ type: "text", value: trailing } satisfies MdastNodes]),
+  ];
+};
+
 /** An XHTML value converted up to its links: its images and losses, and then its Markdown. */
 export interface PreparedMarkdown {
   /** In the order of the text, as written. */
@@ -544,6 +588,7 @@ export const prepareMarkdown = (value: readonly XhtmlNode[]): PreparedMarkdown =
             : ({ type: "html", value: "<br>" } satisfies Html),
       },
     });
+    moveSpaceOut(mdast);
     joinAttention(mdast);
     const text = toMarkdown(mdast, {
       extensions: [gfmToMarkdown()],

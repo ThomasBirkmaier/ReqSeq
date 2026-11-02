@@ -146,6 +146,17 @@ describe("xhtmlToMarkdown", () => {
     );
   });
 
+  it("[SR-095/AK1] moves white space at the edges of emphasis out of it instead of writing character references (#573)", () => {
+    const converted = markdown(
+      "<p>Type<em> text</em> more, a <strong>bold </strong>b, c<em><strong> both</strong></em> d, e<em> <code>x</code></em></p>",
+    );
+    expect(converted).toBe("Type *text* more, a **bold** b, c ***both*** d, e *`x`*");
+    // Read back, the text holds the same words and emphasis, the white space next to it.
+    expect(exported(converted)).toBe(
+      "<div><p>Type <em>text</em> more, a <strong>bold</strong> b, c <em><strong>both</strong></em> d, e <em><code>x</code></em></p></div>",
+    );
+  });
+
   it("writes a caption as a paragraph before its table", () => {
     expect(markdown("<table><caption>Cap <b>bold</b></caption><tr><th>h</th></tr></table>"))
       .toMatchInlineSnapshot(`
