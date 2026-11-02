@@ -163,6 +163,30 @@ const attributeEntry = (m: Record<string, unknown>, source: string): Entry => {
 };
 
 describe("reqif.import of a file of ReqSeq (SR-052)", () => {
+  it("[SR-052/AK3] reqif.analyze without a mapping plans with the mapping reqif.import builds, so both show the same result (#692)", async () => {
+    const all = await exported(undefined);
+    const { fixture, workspace } = await target(all.text, all.images);
+    const analyze = (): Promise<CommandOutput<"reqif.analyze">> =>
+      run(workspace, "reqif.analyze", { file: "in/x.reqif" });
+    const analysis = await analyze();
+    expect(analysis.unmapped).toEqual([]);
+    // The analysis writes nothing, not even the mapping.
+    await expect(fs.access(fixture.path(MAPPING))).rejects.toThrow();
+    const imported = await run<Imported>(workspace, "reqif.import", { file: "in/x.reqif", delivery: "1" });
+    expect(analysis.new).toEqual(imported.created.map(({ identifier }) => ({ identifier })));
+    expect(analysis.new).toHaveLength(7);
+    expect(analysis.losses).toEqual(imported.losses);
+    // Again, through the saved mapping, whose differing tool ID is a warning as in reqif.import.
+    await editMapping(fixture, (m) => {
+      (m["source"] as Record<string, unknown>)["tool-id"] = "other-tool";
+    });
+    const again = await analyze();
+    expect([again.unmapped, again.new, again.changed]).toEqual([[], [], []]);
+    expect(again.problems).toEqual([
+      expect.objectContaining({ code: "reqif.mapping-differs", file: MAPPING }),
+    ]);
+  });
+
   it("[SR-052/AK3] extends the saved mapping by what a later file of the same source adds, keeping what it holds", async () => {
     const one = await exported([TEMPERATURE]);
     const all = await exported(undefined);
