@@ -62,6 +62,7 @@ import { embeddedImages, imageMemo } from "./images.js";
 import { incomingFor } from "./incoming.js";
 import type { RelationRefs } from "./relation-inputs.js";
 import { newRelations, planRelations, relationEdits } from "./relation-inputs.js";
+import { isNumberProperty, numberInput } from "./number-input.js";
 import { isEmptyValue } from "./required.js";
 import { resolveRef } from "./resolve.js";
 import { buildShortIds, shortIdState } from "./short-id.js";
@@ -458,7 +459,8 @@ const isRelationProperty = (metamodel: Metamodel, key: string): boolean =>
 
 /**
  * The given property values with each item of a relation-valued property as a target `{ id }`
- * (`relationTargetRefs`: a short ID or identifier resolved, #169, #196); before any file is read.
+ * (`relationTargetRefs`: a short ID or identifier resolved, #169, #196), and a value of a number
+ * property that is no number refused (`numberInput`, #614); before any file is read.
  */
 const withTargetRefs = (
   context: TargetContext,
@@ -469,7 +471,9 @@ const withTargetRefs = (
     key,
     isRelationProperty(context.metamodel, key)
       ? relationTargetRefs(context.store, shortIds, key, value)
-      : value,
+      : isNumberProperty(context.metamodel, key)
+        ? numberInput(key, value)
+        : value,
   ]);
 
 /**
@@ -930,6 +934,22 @@ const expectedFile = (record: ElementRecord, current: ReadElement, expected: str
 };
 
 /**
+ * The write precondition is required for a change of the text or the title (SR-106, product owner
+ * decision, 2026-10-29, on #269): without `expectedFileSha256` such a save is refused with
+ * `input.invalid` on every access (SR-080), before anything is read, so a caller that read the
+ * element earlier cannot overwrite a change saved in the meantime (the app's autosave). Properties
+ * and relations need none, as their edits go line by line onto the current bytes.
+ */
+const requirePrecondition = (input: UpdateElementInput): void => {
+  if ((input.text !== undefined || input.title !== undefined) && input.expectedFileSha256 === undefined) {
+    throw invalid("expectedFileSha256 is required to change text or title: pass fileSha256 of element.get", {
+      field: "expectedFileSha256",
+      reason: "precondition-missing",
+    });
+  }
+};
+
+/**
  * `readUnchanged` for the records of many items at once, in their order, for a command that changes many
  * elements (`element.bulkUpdate`): the files of each repository are read `readElementFiles` style,
  * several at a time, and then checked one by one, so the first file that changed on disk throws
@@ -1124,6 +1144,20 @@ export const writeElementFiles = async (
 };
 
 /**
+ * `element.text-emptied` (warning, #677; product owner decision, 2026-11-02: a warning in the result,
+ * not a refusal): the update gave an empty text to an element whose text was not empty. The save is
+ * done; an empty text is mostly a broken shell substitution, so the result says so.
+ */
+const textEmptied = (repository: string, record: ElementRecord): Problem => ({
+  code: "element.text-emptied",
+  severity: "warning",
+  message: `The text of element ${record.id} was not empty and is now empty; restore it from Git if this was not intended`,
+  repository,
+  file: record.file,
+  elementId: record.id,
+});
+
+/**
  * `element.update` (SR-001, SR-102): changes title, text and properties of one element. Only the
  * lines of changed keys and the text are rewritten; unknown keys, comments, quoting, key order,
  * line endings and the file name stay (SR-001 AK2, SR-016 AK2). The UUID, the type and the status
@@ -1131,11 +1165,13 @@ export const writeElementFiles = async (
  * changed since the element store read it; the store is then read again on the next call. Also
  * refused, before anything is planned and without reading the store again, when the caller gives
  * `expectedFileSha256` and the file no longer has it (SR-106, `expectedFile`), even when the input
- * would change nothing. `repository` picks one copy of a duplicate as in `element.get` (`resolveRef`,
+ * would change nothing, and refused with `input.invalid` when it changes the text or the title without
+ * `expectedFileSha256` (`requirePrecondition`, #269). `repository` picks one copy of a duplicate as in `element.get` (`resolveRef`,
  * #255). `fileSha256` is the SHA-256 of the file as written, or as read when nothing changed. A save
  * that writes the file also sets the stored titles of its same-repository relation targets to their
  * current titles (`withCurrentTitles`, decision on #307); a save that changes nothing writes nothing.
  * `affected`: the number of directly affected elements when the version changed (SR-024 AK2, AK3).
+ * A text emptied by the save gives `element.text-emptied` (`textEmptied`).
  */
 export const updateElement = async (
   workspace: Workspace,
@@ -1143,6 +1179,7 @@ export const updateElement = async (
   extraFindings?: ElementHints,
   check?: WriteCheck,
 ): Promise<UpdateElementResult> => {
+  requirePrecondition(input);
   const context = await contextOf(workspace);
   const { layout, metamodel, store } = context;
   const shortIds = await workspace.get(shortIdState);
@@ -1216,10 +1253,14 @@ export const updateElement = async (
     result = await finish(workspace, current, context, { shortIds, titleKey, files: [], extraFindings });
   }
   // Nothing written: nothing affected (AK3). Removals that found nothing and relations given their
-  // version come first (#175).
+  // version come first (#175), then a text that was emptied (#677).
+  const emptied =
+    edited.changed && text?.trim() === "" && current.record.blankText !== true
+      ? [textEmptied(repository.name, record)]
+      : [];
   return {
     ...result,
-    problems: [...relations.problems, ...versionsAdded, ...result.problems],
+    problems: [...relations.problems, ...versionsAdded, ...emptied, ...result.problems],
     affected: result.affected ?? 0,
     fileSha256,
   };

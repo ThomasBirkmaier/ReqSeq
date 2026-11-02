@@ -6,6 +6,13 @@ import { FILTER, NESTED, NESTED_A, requiredKey } from "../../fixtures.js";
 
 scenariosOf("element.create", [
   {
+    name: "a number given as text is refused, nothing is written (#614)",
+    tag: "[SR-085/AK4]",
+    fixture: FILTER,
+    input: { type: "software-requirement", title: "Smooth", properties: { priority: "3" } },
+    expect: "error",
+  },
+  {
     name: "relations by short ID are written into the new file with UUID and version (#175)",
     fixture: FILTER,
     input: {

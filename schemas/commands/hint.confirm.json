@@ -11,7 +11,7 @@
     { "field": "ref", "complete": "element" },
     { "field": "target", "complete": "element" },
     { "field": "kind", "complete": "text" },
-    { "field": "hintIds", "complete": "hint", "of": "ref" }
+    { "field": "hintIds", "complete": "hint", "of": "ref", "replaces": ["ref", "target", "kind"] }
   ],
   "input": {
     "type": "object",

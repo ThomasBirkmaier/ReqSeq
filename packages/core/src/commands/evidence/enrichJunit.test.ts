@@ -663,13 +663,26 @@ describe("evidence.enrichJunit with variants (SR-029)", () => {
     expect(await bytesOf(fixture, "results/run.xml")).toEqual(before);
   });
 
-  it("[SR-029/AK9] reports a requirement that does not apply in the given core, as evidence.record does", async () => {
+  it("[SR-029/AK9] reports a requirement that does not apply in the given core", async () => {
     const { fixture, workspace } = await openExample('<testcase name="[SR-0000b2] storm"/>');
     const output = await enrich(workspace, { file: "results/run.xml", variant: "core" });
     expect(output.problems.map((p) => p.message)).toEqual([
       'Test case "[SR-0000b2] storm" (line 1) is not enriched: SR-0000b2 does not apply in core, so a record for it there would count nowhere (SR-040)',
     ]);
     expect(await variantRecords(fixture)).toEqual([]);
+  });
+
+  it("enriches for a variant an element whose type has no validity property, a stray validity notwithstanding (SR-043 AK10, #464)", async () => {
+    // The system requirement type without `validity`: SR-0000b2 keeps its entry (Coast), which the views pass over.
+    const { fixture, workspace } = await openExample('<testcase name="[SR-0000b2] storm"/>');
+    const model = await bytesOf(fixture, "metamodel/model.yaml");
+    await fixture.write(
+      "metamodel/model.yaml",
+      String(model).replace("properties: [title, validity]", "properties: [title]"),
+    );
+    const output = await enrich(workspace, { file: "results/run.xml", variant: "VAR-0000c2" });
+    expect(output.problems).toEqual([]);
+    expect(await variantRecords(fixture)).toEqual([["[SR-0000b2] storm", uuid43("b2"), MOUNTAIN]]);
   });
 
   it("reports a reqseq:variant that names no variant or the core, and refuses a given variant that is none", async () => {

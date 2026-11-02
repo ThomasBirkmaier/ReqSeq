@@ -539,7 +539,9 @@ export async function fillWithReqSeq(dir, plan, core) {
   const run = (name, input) => core.invoke(name, input, { workspace });
   try {
     for (const { id, text } of plan.texts) {
-      await run("element.update", { ref: id, text });
+      // A change of the text carries the bytes it was made on (expectedFileSha256, #269).
+      const { fileSha256 } = await run("element.get", { ref: id });
+      await run("element.update", { ref: id, text, expectedFileSha256: fileSha256 });
     }
     const outdated = (await run("hint.list", { kind: ["relation.outdated"] })).hints;
     const hintIds = outdated.flatMap((h) => (h.hintId === undefined ? [] : [h.hintId]));

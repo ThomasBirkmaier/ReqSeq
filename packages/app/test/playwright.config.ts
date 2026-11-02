@@ -29,6 +29,12 @@ function exactPath(file: string): RegExp {
   return new RegExp(`^${escaped}$`);
 }
 
+// The Windows and macOS runners in CI stall under load (#753): the first load of a workspace or the end of the app
+// took longer than 5 s in tests no change touched, each time another one, while a re-run passed. There, and only
+// there, expect and close waits are three times as long and the test timeout twice; Linux and local runs keep the tighter bounds, and no test
+// is retried, so green still means every test passed in one go.
+const slowCi = process.env["CI"] !== undefined && process.platform !== "linux";
+
 const shard = process.env["ELECTRON_SHARD"];
 // Absolute paths, so that a file name never also matches a file of the same name in another folder.
 const testMatch = shard === undefined || shard === "" ? "**/*.spec.ts" : shardFiles(shard);
@@ -45,7 +51,8 @@ export default defineConfig({
   // only wait for its timeout and hold the runner for half an hour. The run stays red and names the first failures.
   maxFailures: process.env["CI"] !== undefined ? 10 : 0,
   // A start takes about a second; the bound only catches a hang (slow Windows runners at night).
-  timeout: 60_000,
+  timeout: slowCi ? 120_000 : 60_000,
+  expect: { timeout: slowCi ? 15_000 : 5_000 },
   outputDir: "../../../test-results/electron",
   reporter: [
     ["list"],

@@ -10,6 +10,7 @@ import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
 import { computeVersion } from "../../version/version.js";
+import { readFirst } from "../../runtime/read-first.test-helper.js";
 
 type Output = CommandOutput<"element.create">;
 
@@ -619,14 +620,18 @@ describe("element.create", () => {
     const created = await read(opened, file);
     const again = (await invoke(
       "element.update",
-      { ref: out.element.id, text: out.element.text },
+      await readFirst({ ref: out.element.id, text: out.element.text }, { workspace: opened.workspace }),
       { workspace: opened.workspace },
     )) as CommandOutput<"element.update">;
     expect(again.files).toEqual([]);
-    await invoke("element.update", { ref: out.element.id, text: "Snow" }, { workspace: opened.workspace });
     await invoke(
       "element.update",
-      { ref: out.element.id, text: "Rain is shown." },
+      await readFirst({ ref: out.element.id, text: "Snow" }, { workspace: opened.workspace }),
+      { workspace: opened.workspace },
+    );
+    await invoke(
+      "element.update",
+      await readFirst({ ref: out.element.id, text: "Rain is shown." }, { workspace: opened.workspace }),
       { workspace: opened.workspace },
     );
     expect(await read(opened, file)).toBe(created);

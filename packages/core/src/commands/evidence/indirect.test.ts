@@ -13,6 +13,7 @@ import type { EvidenceRecord } from "../../evidence/index.js";
 import { evidenceRecordsState, verificationState } from "../../evidence/index.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
+import { readFirst } from "../../runtime/read-first.test-helper.js";
 
 type Output = CommandOutput<"evidence.status">;
 type Verification = Output["elements"][number]["verification"];
@@ -249,7 +250,11 @@ describe("indirect verification in evidence.status, element.get and the filter (
     expect((await get(ws, G)).element.verification).toEqual(core("indirect"));
     expect((await get(ws, P1)).element.verification).toEqual(core("indirect"));
     const before = await ws.get(verificationState);
-    await invoke("element.update", { ref: C11, text: "Changed text.\n" }, { workspace: ws });
+    await invoke(
+      "element.update",
+      await readFirst({ ref: C11, text: "Changed text.\n" }, { workspace: ws }),
+      { workspace: ws },
+    );
     expect((await get(ws, P1)).element.verification).toEqual(core("open", [C11]));
     expect((await get(ws, G)).element.verification).toEqual(core("open", [P1]));
     const indirect = (await invoke(
