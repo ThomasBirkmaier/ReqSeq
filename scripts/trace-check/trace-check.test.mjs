@@ -209,6 +209,50 @@ describe("trace-check on the ReqSeq workspace in spec/", () => {
     expect(() => traceCheck(root, [])).toThrow(/no property with the meaning identifier/);
   });
 
+  it("counts a tag only in the name of an active test, not in comments or skipped tests (#689)", () => {
+    const root = repo({
+      "pkg/demo.test.ts": [
+        'import { it } from "vitest";',
+        `// ${tag("SR-001", 1)} only a comment`,
+        `it.skip("${tag("SR-001", 1)} skipped test", () => {});`,
+        `it.todo("${tag("SR-001", 1)} todo test");`,
+        `/* ${tag("SR-001", 1)} block comment */`,
+        `it.fails("${tag("SR-001", 1)} a", () => {});`,
+        `it.only("${tag("SR-001", 1)} a", () => {});`,
+        `describe.skip("x", () => { it("${tag("SR-001", 1)} a", () => {}); });`,
+        `it("b", () => { expect("${tag("SR-001", 1)} data").toBe(""); });`,
+        `const re = /^.*\\//; const t = \`\${"x".replace(re, "")}\`;`,
+        "",
+      ].join("\n"),
+      "packages/app/test/x.spec.ts": `test.describe.skip("x", () => { test("${tag("SR-001", 2)} a", () => {}); });\n`,
+      "packages/x/tags.test.ts": `const scenario = { tag: "${tag("SR-001", 2)}" };\n`,
+    });
+    expect(traceCheck(root, ["--require", "SR-001"]).errors).toEqual([
+      "SR-001 AK1 has no test",
+      "SR-001 AK2 has no test",
+    ]);
+  });
+
+  it("counts the names of it, test, .each, .skipIf, template literals and cross-access scenarios", () => {
+    const root = repo({
+      "pkg/a.test.ts": [
+        `it.each([["a"], ["b"]])(`,
+        `  "${tag("SR-001", 1)} %s",`,
+        "  () => {},",
+        ");",
+        `describe("block", () => {`,
+        `  it.skipIf(process.platform === "win32")(\`\${"${tag("SR-002", 1)}"} \${name}\`, () => {});`,
+        "});",
+        "",
+      ].join("\n"),
+      "packages/cli/test/cross-access.test.ts": `const s = [{ name: "x", tag: "${tag("SR-001", 2)}" }];\n`,
+    });
+    const report = traceCheck(root, ["--require", "SR-001"]).report;
+    expect(report).toContain("| SR-001 | AK1 | test | pkg/a.test.ts:2 |");
+    expect(report).toContain("| SR-001 | AK2 | test | packages/cli/test/cross-access.test.ts:1 |");
+    expect(traceCheck(root, []).warnings).toEqual(["pkg/a.test.ts:6: SR-002 is obsolete"]);
+  });
+
   it("reads frontmatter only when it is a mapping that parses", () => {
     expect(frontmatter("---\na: 1\n---\n")).toEqual({ a: 1 });
     expect(frontmatter("﻿---\r\na: 1\r\n---")).toEqual({ a: 1 });

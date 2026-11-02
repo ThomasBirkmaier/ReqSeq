@@ -14,6 +14,7 @@ import { workspaceLayoutState } from "../workspace/index.js";
 import { withCurrentTitles } from "./relation-titles.js";
 import { elementStoreState } from "./store.js";
 import { readUnchanged } from "./write.js";
+import { readFirstFor } from "../runtime/read-first.test-helper.js";
 
 const P = "5e025a7d-2b4f-4c61-9d08-0";
 const N = `${P}a0000000001`;
@@ -49,7 +50,8 @@ const run = async <C extends CommandName>(
   { workspace }: Opened,
   name: C,
   input: Record<string, unknown>,
-): Promise<CommandOutput<C>> => (await invoke(name, input, { workspace })) as CommandOutput<C>;
+): Promise<CommandOutput<C>> =>
+  (await invoke(name, await readFirstFor(name, input, { workspace }), { workspace })) as CommandOutput<C>;
 
 const read = ({ ws }: Opened, file: string): string => fs.readFileSync(ws.path(file), "utf8");
 

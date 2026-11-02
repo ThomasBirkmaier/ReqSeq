@@ -22,6 +22,10 @@
 //   specifications, a duplicate relation, a relation the metamodel does not allow, the SPEC-
 //   HIERARCHY (once per SPECIFICATION that has one) and every part of an imported object the parser
 //   did not read. A DEFAULT-VALUE is the value of an object without its own (ReqIF 1.2 §10.8.3).
+//   A reference the import does not need that the file does not define (the type or an end of a
+//   SPEC-RELATION, an attribute of a value of a relation or specification) is such a loss whose
+//   reason says "not in the file"; one it needs (the type of a SPEC-OBJECT, an attribute of its
+//   values, the datatype of a mapped attribute) is `reqif.invalid`.
 // - Origin (SR-057 AK1): each element gets the source name of the mapping, the object's IDENTIFIER,
 //   the import date, the delivery and the import version: the element's planned version as written
 //   (D-059; `import-version` never counts to it). A mapping that maps a SPEC-OBJECT-TYPE to a type
@@ -254,6 +258,8 @@ interface Index {
     { readonly type: ReqifSpecType; readonly a: ReqifAttributeDefinition }
   >;
   readonly datatypes: ReadonlyMap<string, ReqifDatatype>;
+  /** The IDENTIFIERs of the SPEC-OBJECTs. */
+  readonly objects: ReadonlySet<string>;
 }
 
 /** The file's definitions; the parser refused an IDENTIFIER used twice (ReqIF 1.2 §10.8.32). */
@@ -271,6 +277,7 @@ const indexOf = (file: ReqifFile): Index => {
     types: new Map(file.specTypes.map((t) => [t.identifier, t])),
     attributes,
     datatypes: new Map(file.datatypes.map((d) => [d.identifier, d])),
+    objects: new Set(file.specObjects.map((o) => o.identifier)),
   };
 };
 
@@ -1315,28 +1322,16 @@ const planObject = async (
 };
 
 /**
- * The names of the attributes of `values`, which the type `t` of their owner must define (else
- * `reqif.invalid`); the import takes no value of a relation or specification over (a loss).
+ * The names of the attributes of the `values` of a relation or specification, which the import does
+ * not take over (a loss); an attribute the file does not define is named as such.
  */
-const valueNames = (
-  index: Index,
-  owner: ReqifIdentifiable,
-  what: string,
-  t: ReqifSpecType | undefined,
-  values: readonly ReqifValue[],
-): string => {
-  const names = values.map((value) => {
-    const known = index.attributes.get(value.definition);
-    if (known === undefined || known.type !== t) {
-      throw invalidFile(
-        `${what} ${owner.identifier} has a value of attribute ${value.definition}, which its type does not define`,
-        owner.line,
-      );
-    }
-    return nameOf(known.a);
-  });
-  return names.join(", ");
-};
+const valueNames = (index: Index, values: readonly ReqifValue[]): string =>
+  values
+    .map((value) => {
+      const known = index.attributes.get(value.definition);
+      return known === undefined ? `${value.definition} (not in the file)` : nameOf(known.a);
+    })
+    .join(", ");
 
 /** Adds `relation` to the draft of its source, or lists it as a loss. */
 const planRelation = (
@@ -1344,14 +1339,10 @@ const planRelation = (
   drafts: ReadonlyMap<string, Draft>,
   relation: ReqifSpecRelation,
 ): void => {
-  const t = context.index.types.get(relation.type);
-  if (t?.category !== "spec-relation") {
-    throw invalidFile(
-      `SPEC-RELATION ${relation.identifier} refers to type ${relation.type}, which the file does not define`,
-      relation.line,
-    );
-  }
-  const kind = context.coverage.relations.get(t.identifier);
+  const { index } = context;
+  const t = index.types.get(relation.type);
+  // The import needs no reference of a relation, so one the file does not define is a loss.
+  const kind = t === undefined ? undefined : context.coverage.relations.get(t.identifier);
   const source = drafts.get(relation.source);
   if (source?.ownRelations !== undefined && kind !== undefined) {
     // Its relations come from `reqseq-values` (see the file comment); a kind the metamodel here
@@ -1367,13 +1358,17 @@ const planRelation = (
       reason,
     });
   };
-  if (kind === undefined) {
+  if (t?.category !== "spec-relation") {
+    loss("omitted-type", `its SPEC-RELATION-TYPE ${relation.type} is not in the file`);
+  } else if (kind === undefined) {
     loss("omitted-type", `the mapping omits its type ${nameOf(t)}`);
   } else {
     const target = drafts.get(relation.target) ?? ownMissingTarget(context, relation, kind);
     if (source === undefined || target === undefined) {
-      const end = source === undefined ? `source ${relation.source}` : `target ${relation.target}`;
-      loss("relation-end-not-imported", `its ${end} is not imported`);
+      const [end, identifier] =
+        source === undefined ? ["source", relation.source] : ["target", relation.target];
+      const why = index.objects.has(identifier) ? "is not imported" : "is not in the file";
+      loss("relation-end-not-imported", `its ${end} ${identifier} ${why}`);
     } else {
       addRelation(context, source, kind, target, relation, loss);
     }
@@ -1381,7 +1376,7 @@ const planRelation = (
   if (relation.values.length > 0) {
     loss(
       "omitted-attribute",
-      `the values of a SPEC-RELATION are not imported: ${valueNames(context.index, relation, "SPEC-RELATION", t, relation.values)}`,
+      `the values of a SPEC-RELATION are not imported: ${valueNames(index, relation.values)}`,
     );
   }
 };
@@ -1592,13 +1587,7 @@ const specificationLosses = (context: Context, file: ReqifFile): void => {
   const { index } = context;
   for (const specification of file.specifications) {
     if (specification.values.length > 0) {
-      const names = valueNames(
-        index,
-        specification,
-        "SPECIFICATION",
-        index.types.get(specification.type),
-        specification.values,
-      );
+      const names = valueNames(index, specification.values);
       context.losses.push({
         identifier: specification.identifier,
         kind: "specification",

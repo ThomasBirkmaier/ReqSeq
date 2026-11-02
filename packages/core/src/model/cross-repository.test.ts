@@ -14,6 +14,7 @@ import { workspaceLayoutState } from "../workspace/index.js";
 import type { FollowedTargets } from "./relations.js";
 import { followTargets } from "./relations.js";
 import { elementStoreState } from "./store.js";
+import { readFirstFor } from "../runtime/read-first.test-helper.js";
 
 /** The elements of fixtures/SR-005/cross-repository; `text` is the text of the file. */
 const SOURCE = { id: "8f1e3d5c-7b9a-4c2e-a4f6-1a3c5e7b9d0f", file: "requirements/SR-1a3c5e7b9d0f.md" };
@@ -61,7 +62,9 @@ const run = async <N extends CommandName>(
   name: N,
   input: Record<string, unknown>,
 ): Promise<CommandOutput<N>> =>
-  (await invoke(name, input, { workspace: opened.workspace })) as CommandOutput<N>;
+  (await invoke(name, await readFirstFor(name, input, { workspace: opened.workspace }), {
+    workspace: opened.workspace,
+  })) as CommandOutput<N>;
 
 const read = (opened: Opened, file: string): Promise<string> =>
   fs.readFile(opened.fixture.path(`system/${file}`), "utf8");

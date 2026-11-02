@@ -233,6 +233,9 @@ describe("readable messages of an input that fails its schema (#309)", () => {
         params: { type: "object" },
       },
     ]);
+    expect(violations(keywords, "test.fields", undefined).map((v) => v.message)).toEqual([
+      "The input must be an object, not missing",
+    ]);
   });
 
   it("gives no violation for no errors", () => {

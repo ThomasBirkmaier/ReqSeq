@@ -227,29 +227,19 @@ describe("separate working copies used at the same time (SR-081)", { timeout: 12
       expect(await titlesIn(copy.root)).toEqual(expected.sort());
       // Each running API sees its own copy only: it finds the needs of its agent, also those that the
       // CLI and MCP wrote (its watcher shows them within the bound of SR-007), and not those of the next
-      // agent. element.get is not implemented yet (stage 1 has no read command with a reference), so the
-      // lookup is an element.update of the text; switch to element.get once it exists.
+      // agent: element.get finds them, and refuses the next agent's.
       const mine = outputs.slice(agent * 3 * PER_ACCESS, (agent + 1) * 3 * PER_ACCESS);
       const next = nth(outputs, (agent + 1) * 3 * PER_ACCESS);
       for (const { element } of mine) {
         const deadline = performance.now() + SEEN_LIMIT_MS;
-        let reply = await post(own.server, own.token, "element.update", {
-          ref: element.shortId,
-          text: "Seen.\n",
-        });
+        let reply = await post(own.server, own.token, "element.get", { ref: element.shortId });
         while (reply.status === 404 && performance.now() < deadline) {
           await new Promise((resolve) => setTimeout(resolve, 20));
-          reply = await post(own.server, own.token, "element.update", {
-            ref: element.shortId,
-            text: "Seen.\n",
-          });
+          reply = await post(own.server, own.token, "element.get", { ref: element.shortId });
         }
         expect(reply.status).toBe(200);
       }
-      const other = await post(own.server, own.token, "element.update", {
-        ref: next.element.shortId,
-        text: "x\n",
-      });
+      const other = await post(own.server, own.token, "element.get", { ref: next.element.shortId });
       expect(other.body).toMatchObject({ code: "ref.unknown" });
       const status = (await post(own.server, own.token, "workspace.status", {})).body as {
         problems: unknown[];

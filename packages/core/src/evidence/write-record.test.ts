@@ -474,17 +474,54 @@ describe("evidence.record variants (SR-030, SR-040)", () => {
   const COAST = "40a0e000-0000-4000-8000-a1a1a1a1a1a1";
   const TEST = { kind: "verification", result: "passed", method: "test", item: "build-40", date: DATE };
 
-  it("writes the UUID of a variant the element applies in; core is the core", async () => {
+  it("writes the UUID of a variant the element applies in, and no variant when none is given", async () => {
     const { workspace } = await variants();
     expect(
       (await record(workspace, { ref: "SR-000ab2", ...TEST, variant: "VAR-a1a1a1" })).record.variant,
     ).toBe(COAST);
-    expect(
-      (await record(workspace, { ref: "SR-000a11", ...TEST, variant: "core" })).record,
-    ).not.toHaveProperty("variant");
+    expect((await record(workspace, { ref: "SR-000a11", ...TEST })).record).not.toHaveProperty("variant");
   });
 
-  it("[SR-038/AK4] refuses a validation record with a variant, names the reason and writes nothing; core is allowed", async () => {
+  it("refuses core, in any case and for either kind, since it names no variant, and writes nothing (#464)", async () => {
+    const { fixture, workspace } = await variants();
+    for (const input of [
+      { ref: "SR-000a11", ...TEST, variant: "core" },
+      { ref: "SR-000ab2", ...TEST, variant: "Core" },
+      { ref: "SR-000a11", kind: "validation", result: "passed", date: DATE, variant: "core" },
+    ]) {
+      const error = await refusedLeavingNothing(
+        fixture,
+        () => record(workspace, input),
+        "core-is-no-variant",
+      );
+      expect([error.message, error.details]).toEqual([
+        `${input.variant} is no variant: variant takes a variant, an element whose type has the meaning variant; leave it out for a record of the core`,
+        { command: "evidence.record", fields: ["variant"], reason: "core-is-no-variant" },
+      ]);
+    }
+  });
+
+  it("takes any variant for an element whose type has no validity property, a stray validity notwithstanding (SR-043 AK10, #464)", async () => {
+    // The system requirement type without `validity`: SR-000ab2 keeps its entries (Coast, Mountain),
+    // which the views pass over, so it is in the view of Desert too.
+    const metamodel = await fs.readFile(
+      path.join(import.meta.dirname, "../../../../fixtures/SR-040/validity/metamodel/standard-model.yaml"),
+      "utf8",
+    );
+    const { workspace } = await open(
+      {
+        "reqseq-workspace.yaml": `reqseq-workspace: 1\nname: Weather station\n${REPOSITORIES}metamodel: { repository: system, path: metamodel }\nevidence:\n  - { repository: system, path: evidence }\n`,
+        "evidence/.keep": "",
+        "metamodel/standard-model.yaml": metamodel.replace(/(acceptance-criteria,\s*)validity,/, "$1"),
+      },
+      "SR-040/validity",
+    );
+    expect(
+      (await record(workspace, { ref: "SR-000ab2", ...TEST, variant: "VAR-c3c3c3" })).record.variant,
+    ).toBe("40a0e000-0000-4000-8000-c3c3c3c3c3c3");
+  });
+
+  it("[SR-038/AK4] refuses a validation record with a variant, names the reason and writes nothing", async () => {
     const { fixture, workspace } = await variants();
     const VALIDATION = { ref: "SR-000ab2", kind: "validation", result: "passed", date: DATE } as const;
     const error = await refusedLeavingNothing(fixture, () =>
@@ -495,9 +532,6 @@ describe("evidence.record variants (SR-030, SR-040)", () => {
       "Not written: a validation record names no variant, it holds for the core (D-007, SR-038 AK4)",
       { command: "evidence.record", fields: ["variant"], reason: "validation-with-variant", variant: COAST },
     ]);
-    expect(
-      (await record(workspace, { ...VALIDATION, ref: "SR-000a11", variant: "core" })).record,
-    ).not.toHaveProperty("variant");
   });
 
   it("refuses a variant the element does not apply in, and an element that is no variant", async () => {
@@ -516,15 +550,6 @@ describe("evidence.record variants (SR-030, SR-040)", () => {
     expect([desert.message, desert.details?.["variant"]]).toEqual([
       "SR-000ab2 does not apply in VAR-c3c3c3, so a record for it there would count nowhere (SR-040)",
       "40a0e000-0000-4000-8000-c3c3c3c3c3c3",
-    ]);
-    const core = await refusedLeavingNothing(
-      fixture,
-      () => record(workspace, { ref: "SR-000ab2", ...TEST, variant: "core" }),
-      "not-valid-in-variant",
-    );
-    expect([core.message, core.details?.["variant"]]).toEqual([
-      "SR-000ab2 does not apply in core, so a record for it there would count nowhere (SR-040)",
-      "core",
     ]);
     const error = await refusedLeavingNothing(fixture, () =>
       record(workspace, { ref: "SR-000ab2", ...TEST, variant: "SR-000a11" }),

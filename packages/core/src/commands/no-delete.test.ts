@@ -9,6 +9,7 @@ import { describe, expect, it, onTestFinished } from "vitest";
 import { elementStoreState } from "../model/index.js";
 import { loadContracts } from "../runtime/contracts.js";
 import { createCommandRuntime } from "../runtime/invoke.js";
+import { readFirstFor } from "../runtime/read-first.test-helper.js";
 import { Workspace } from "../runtime/workspace.js";
 import { commands } from "./index.js";
 
@@ -79,7 +80,7 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
   "element.update": [
     { ref: WIND, title: "Renamed", text: "" },
     { ref: GUSTS, unset: ["acceptance-criteria", "rationale"] },
-    { ref: "SR-ffffff", title: "Unknown element" },
+    { ref: "SR-ffffff", title: "Unknown element", expectedFileSha256: "0".repeat(64) },
   ],
   "element.setStatus": [
     { refs: [WIND, GUSTS], status: "obsolete" },
@@ -223,7 +224,7 @@ describe("no delete of an element (SR-099, D-045)", () => {
         const filesBefore = filesBelow(fixture.root);
         const idsBefore = await ids();
         try {
-          await runtime.invoke(name, input, { workspace });
+          await runtime.invoke(name, await readFirstFor(name, input, { workspace }), { workspace });
           outcomes.push("output");
         } catch {
           outcomes.push("error");

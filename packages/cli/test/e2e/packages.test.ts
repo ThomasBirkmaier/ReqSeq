@@ -7,7 +7,7 @@ import fs from "node:fs/promises";
 import type { FixtureWorkspace } from "@reqseq/testkit";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { reqseq, requireBuiltCli } from "../support/reqseq.js";
+import { fileSha256, reqseq, requireBuiltCli } from "../support/reqseq.js";
 
 const P = "48048048-0000-4000-8000-0000000000";
 const [P1, P2] = [`${P}d1`, `${P}d2`];
@@ -117,7 +117,16 @@ describe("reqseq packages (SR-048, SR-049)", () => {
 
   it("[SR-049/AK2] after a change both packages show the same content and there is exactly one file", async () => {
     const ws = await workspace();
-    await json(ws, ["element", "update", "SR-0000b1", "--text", "R1: changed once."]);
+    const sha = await fileSha256("SR-0000b1", { cwd: ws.root });
+    await json(ws, [
+      "element",
+      "update",
+      "SR-0000b1",
+      "--text",
+      "R1: changed once.",
+      "--expected-file-sha256",
+      sha,
+    ]);
     const [one, two] = [await opened(ws, P1, true), await opened(ws, P2, true)];
     const r1 = (listed: Listed): unknown => listed.elements.find((e) => e.shortId === "SR-0000b1");
     expect(r1(one)).toMatchObject({ text: "R1: changed once.\n" });

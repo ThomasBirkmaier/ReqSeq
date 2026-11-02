@@ -577,6 +577,7 @@
             "file.faulty",
             "file.yaml-warning",
             "file.skipped",
+            "file.stale-temp",
             "element.invalid",
             "element.duplicate-id",
             "element.duplicate-identifier",
@@ -613,11 +614,13 @@
             "evidence.not-enriched",
             "evidence.folder-missing",
             "evidence.ambiguous-element",
+            "evidence.kind-mismatch",
             "baseline.invalid",
             "baseline.repository-commit-differs",
             "filter.invalid",
             "filter.duplicate-name",
             "metamodel.invalid",
+            "metamodel.optional-status",
             "metamodel.meaning-unassigned",
             "workspace.repository-missing",
             "workspace.metamodel-mismatch",
@@ -3794,7 +3797,7 @@
           },
           "expectedFileSha256": {
             "$ref": "#/$defs/common/$defs/fileSha256",
-            "description": "Write precondition (SR-106): the fileSha256 the change was made on. If the file has other bytes now, nothing is written: file.changed-on-disk, also when nothing would change."
+            "description": "Write precondition (SR-106): the fileSha256 the change was made on, from element.get. Required with title or text, else input.invalid (precondition-missing); optional for set, unset and relations alone. If the file has other bytes now, nothing is written: file.changed-on-disk, also when nothing would change."
           }
         },
         "additionalProperties": false,
@@ -3957,7 +3960,7 @@
     {
       "name": "element_bulkUpdate",
       "title": "Bulk update elements",
-      "description": "Set, add to or remove one property for all elements of a selection. Without `confirm` only previews: the number of affected elements and the skipped ones, whose type does not have the property. With `confirm` writes only that property's lines (SR-102). Never id, type or status (element.setStatus takes several refs).",
+      "description": "Set, add to or remove one property for all elements of a selection. Without `confirm` only previews: the number of affected elements and the skipped ones, whose type does not have the property. With `confirm` writes only that property's lines (SR-102). Never id, type or status (element.setStatus takes several refs). A failed write is rolled back, but a crash can leave part of the selection written: repeat the same call without `expected`, which writes only the remaining elements.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -5542,7 +5545,7 @@
                       "no-evidence"
                     ]
                   },
-                  "description": "In this order, only those that hold (SR-111 AK4): `outdated`, the element stores an outdated relation, relation property or inline reference (SR-025, the `relation.outdated` and `variant.core-changed` hints of element.get), whatever kinds are followed; `superseded`, its status is one the metamodel marks invalid (D-044); `no-evidence`, the gap rule of trace.chain (SR-022 AK3): a requirement without a derivation child that applies in the view and without evidence, whatever depth is shown. Evidence records come in stage 4: until then every requirement without a child is `no-evidence`. Empty when none holds."
+                  "description": "In this order, only those that hold (SR-111 AK4): `outdated`, the element stores an outdated relation, relation property or inline reference (SR-025, the `relation.outdated` and `variant.core-changed` hints of element.get), whatever kinds are followed; `superseded`, its status is one the metamodel marks invalid (D-044); `no-evidence`, the gap rule of trace.chain (SR-022 AK3): a requirement without a derivation child that applies in the view and without evidence, whatever depth is shown. Evidence is a verification record in the view (the core without one), as for trace.chain (SR-033). Empty when none holds."
                 }
               },
               "additionalProperties": false,
@@ -6159,7 +6162,7 @@
           },
           "variant": {
             "$ref": "#/$defs/common/$defs/elementRef",
-            "description": "A variant the element applies in (an element whose type has the meaning variant); the record holds for it. Absent: the core. Verification only: a variant with `kind` validation is `input.invalid` with `details.reason` `validation-with-variant` (SR-038 AK4, D-007); `core` is allowed. A variant the element is not in is `input.invalid` with `details.reason` `not-valid-in-variant`, or `excluded-in-variant` or `replaced-in-variant` when the variant excludes or replaces the requirement (SR-047 AK4)."
+            "description": "A variant the element applies in (an element whose type has the meaning variant); the record holds for it. Absent: the core. Verification only: a variant with `kind` validation is `input.invalid` with `details.reason` `validation-with-variant` (SR-038 AK4, D-007). `core` names no variant and is `input.invalid` with `details.reason` `core-is-no-variant`; leave `variant` out for the core. A variant the element is not in is `input.invalid` with `details.reason` `not-valid-in-variant`, or `excluded-in-variant` or `replaced-in-variant` when the variant excludes or replaces the requirement (SR-047 AK4)."
           },
           "date": {
             "$ref": "#/$defs/common/$defs/dateTime",
@@ -6997,7 +7000,7 @@
     {
       "name": "baseline_get",
       "title": "Show baseline",
-      "description": "Elements of a baseline with their version then and its date, marked changed, superseded, removed or added since (SR-051); with withEvidence the verification status of each requirement per view and the validation status at its version in the baseline, with the records dated after it named (SR-094).",
+      "description": "Elements of a baseline with their version then and its date, marked changed, superseded, removed or added since (SR-051); with withEvidence the verification status of each requirement per view and the validation status at its version in the baseline, with the records dated after it named (SR-094). The version counts the text, embedded images and the properties marked `content` (a relation property such as `validity` too); the relation kinds of the metamodel, such as `refines` or `derives-from`, never count, so an element whose only change is such a relation is not marked `changed`: baseline.compare gives the commits and the Git command that show it.",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,

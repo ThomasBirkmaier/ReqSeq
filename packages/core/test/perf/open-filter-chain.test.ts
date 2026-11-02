@@ -43,6 +43,7 @@ import {
   shortIdState,
 } from "../../src/model/index.js";
 import { warmWorkspace } from "../../src/runtime/warm.js";
+import { readFirst } from "../../src/runtime/read-first.test-helper.js";
 import { Workspace } from "../../src/runtime/workspace.js";
 import {
   affectedOutput,
@@ -507,10 +508,17 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
   it("records two content saves in a row that count the affected elements (SR-024 AK2, #273)", async () => {
     const current = opened();
     const { target } = relationToTarget();
-    const save = (text: string): Promise<CommandOutput<"element.update">> =>
-      invoke("element.update", { ref: target.id, text }, { workspace: current }) as Promise<
-        CommandOutput<"element.update">
-      >;
+    // Each save is made on the bytes the one before wrote (#269); the first hash is read before.
+    let { expectedFileSha256 } = await readFirst({ ref: target.id, text: "" }, { workspace: current });
+    const save = async (text: string): Promise<CommandOutput<"element.update">> => {
+      const out = (await invoke(
+        "element.update",
+        { ref: target.id, text, expectedFileSha256 },
+        { workspace: current },
+      )) as CommandOutput<"element.update">;
+      expectedFileSha256 = out.fileSha256;
+      return out;
+    };
     // The incoming index of this store was built by trace.affected above.
     const { result: first } = await measure(
       "content save that counts the affected elements (incoming index of the store built before)",
@@ -557,14 +565,13 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     );
     expect(outdated.filter((p) => p.code !== "relation.outdated" || p.targetId !== changed)).toEqual([]);
     // The save puts the written file into the store and carries the short IDs and findings over (#184).
+    const titled = await readFirst(
+      { ref: saved, title: "Saved in the performance suite" },
+      { workspace: current },
+    );
     await measure(
       "save one element (element.update of its title)",
-      () =>
-        invoke(
-          "element.update",
-          { ref: saved, title: "Saved in the performance suite" },
-          { workspace: current },
-        ),
+      () => invoke("element.update", titled, { workspace: current }),
       { basis: "SR-082 AK3 (the save before the open; no threshold of its own)" },
     );
     const repository = tree.elements[Math.floor(ELEMENTS / 2) + 1]?.repository ?? "";
@@ -624,10 +631,10 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     const need = firstNeed();
     // The save rewrites a source of relations: its links are dropped and added again (#267).
     const { source } = relationToTarget();
+    const titled = await readFirst({ ref: source.id, title: "Saved before a chain" }, { workspace: current });
     await measure(
       "save one element with relations (element.update of its title, incoming index carried)",
-      () =>
-        invoke("element.update", { ref: source.id, title: "Saved before a chain" }, { workspace: current }),
+      () => invoke("element.update", titled, { workspace: current }),
       { basis: "SR-082 AK4 (the save before the chain; no threshold of its own; #184, #267)" },
     );
     // The save carried the index over to the new store (#267): the chain below does not build it.
