@@ -1097,13 +1097,13 @@ mark {
 }
 
 /* The numbers of a list's values (#615): muted, without the editor's gutter border or background. */
-.box .cm-gutters {
+.element .box .cm-gutters {
   border: none;
   background: none;
   color: var(--muted);
 }
 
-.box .cm-lineNumbers .cm-gutterElement {
+.element .box .cm-lineNumbers .cm-gutterElement {
   padding: 0 0.5em 0 0;
   min-width: 1.5em;
 }

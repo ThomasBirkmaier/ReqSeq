@@ -9,8 +9,8 @@
 // box only: a title or an identifier stays plain text (SR-127 AK5). A reference to another repository shows
 // the title of its target when it is here (D-058).
 //
-// A list numbers its values from 1 in file order, one per line, the numbers `reqseq element get` shows (#615):
-// a muted gutter, no prefix.
+// A list of texts numbers its values from 1 in file order, one per line, the numbers `reqseq element get`
+// shows (#615): a muted gutter, no prefix; not a list with a line break in a value, nor numbers.
 //
 // Keys: Enter in a list starts a new value at the caret; in a single value it leaves the box (back to the
 // box itself, where Enter enters again); Escape leaves the box; Up and Down at the first and last line move
@@ -46,6 +46,8 @@ export interface TextBoxProps {
   readonly readOnly: boolean;
   /** The values are a list: Enter starts a new value. */
   readonly many: boolean;
+  /** The stored values are numbered as `element get` numbers them (`isNumberedList`, #615). */
+  readonly numbered: boolean;
   /** The property is marked `markdown` (SR-127). */
   readonly markdown: boolean;
   /** The outdated references in the values: `outdatedKey` to the message of the hint and the word. */
@@ -78,6 +80,7 @@ export const TextBox = ({
   initial,
   readOnly,
   many,
+  numbered,
   markdown,
   outdated,
   follow,
@@ -131,11 +134,11 @@ export const TextBox = ({
           }),
           // One Tab stop per box: the field. The text is entered with Enter or a click.
           EditorView.contentAttributes.of({ tabindex: "-1" }),
-          ...(many ? [lineNumbers()] : []),
+          ...(numbered ? [lineNumbers()] : []),
         ],
       },
     );
-  }, [signature, follow, title, many, markdown, readOnly, brackets]);
+  }, [signature, follow, title, many, numbered, markdown, readOnly, brackets]);
   return (
     <Editor
       text={text}

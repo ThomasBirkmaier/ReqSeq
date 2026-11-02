@@ -15,6 +15,7 @@ import {
   fieldBoxes,
   hintKeys,
   isLocked,
+  isNumberedList,
   isValueKind,
   lineBreakNote,
   lockNote,
@@ -105,6 +106,16 @@ const target = (
     Object.entries(relation).filter(([field]) => !without.includes(field as keyof DataExportRelation)),
   ) as unknown as DataExportRelation;
 };
+
+describe("isNumberedList (#615)", () => {
+  it("numbers a list of texts as element get does, not one with a line break, numbers or nothing", () => {
+    expect(isNumberedList(["a", "b"])).toBe(true);
+    expect(isNumberedList(["one\ntwo", "three"])).toBe(false);
+    expect(isNumberedList(["a", 3])).toBe(false);
+    expect(isNumberedList([])).toBe(false);
+    expect(isNumberedList("a")).toBe(false);
+  });
+});
 
 describe("boxValue", () => {
   it("[SR-104/AK1] is the stored value as it is: a string, a number as its text, a list with one item per line", () => {

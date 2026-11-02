@@ -55,6 +55,16 @@ export const boxValue = (value: unknown, many: boolean): Omit<EditableBox, "key"
   };
 };
 
+/**
+ * Whether a stored value is numbered on the element page (#615): a list of texts that is not empty, the
+ * rule by which `reqseq element get` numbers it from 1 (`present.ts`), and none holds a line break, since
+ * the box shows one value per line.
+ */
+export const isNumberedList = (value: unknown): boolean =>
+  Array.isArray(value) &&
+  value.length > 0 &&
+  value.every((item) => typeof item === "string" && !item.includes("\n"));
+
 /** The kinds whose value the user picks in the minibuffer: there is no text to type (SR-104 AK3). */
 export const isValueKind = (kind: PropertyInfo["kind"]): boolean => kind === "choice" || kind === "relation";
 
