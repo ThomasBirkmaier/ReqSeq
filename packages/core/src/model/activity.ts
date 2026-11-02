@@ -16,7 +16,7 @@ import { watch } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { JsonSchema } from "../catalog.js";
-import { createPrivateFolder } from "../files/index.js";
+import { TRANSIENT_CODES, createPrivateFolder, errorCode } from "../files/index.js";
 import type { ActivityAccess, ActivityFile } from "../generated/types.js";
 import { metamodelState } from "../metamodel/index.js";
 import type { CatalogEntry } from "../runtime/contracts.js";
@@ -262,24 +262,22 @@ export const noteAccess = async (
   }
 };
 
+/** How often one access is written at most when its write fails for a moment (#388). */
+export const ACTIVITY_WRITE_TRIES = 5;
+
+/** A write that may work a moment later: a reader, virus scanner or indexer holds the file (#388). */
+const isTransient = (error: unknown): boolean => TRANSIENT_CODES.includes(String(errorCode(error)));
+
 /**
  * Writes the noted accesses of one workspace: the first at once, then at most one per
  * `ACTIVITY_WRITE_MS` with the latest access, one write at a time. A write that fails for a moment
- * (`TRANSIENT_CODES`: a reader, a virus scanner or an indexer holds the file on Windows) stays pending
- * and is tried again on the next tick, at most `ACTIVITY_WRITE_TRIES` times, unless a newer access took
+ * (`TRANSIENT_CODES`: a reader, a virus scanner or an indexer holds the file on Windows), after the
+ * retries of `writeCacheFile` itself, stays pending and is tried again `ACTIVITY_WRITE_MS` after that
+ * write ended, at most `ACTIVITY_WRITE_TRIES` times, unless a newer access took
  * its place (#388); any other failed write is dropped without a word (core has no logger and writes
  * nothing to stdout or stderr). The timer never keeps the process alive; `flush` (on
  * `workspace.close()`) writes the pending access once.
  */
-/** The error codes of a write that may work a moment later (#388). */
-const TRANSIENT_CODES: ReadonlySet<string> = new Set(["EPERM", "EACCES", "EBUSY"]);
-
-/** How often one access is written at most when its write fails for a moment. */
-export const ACTIVITY_WRITE_TRIES = 5;
-
-const isTransient = (error: unknown): boolean =>
-  error instanceof Error && TRANSIENT_CODES.has(String((error as NodeJS.ErrnoException).code));
-
 class Recorder {
   /** New for each recorder, so that `(process, seq)` of a rebuilt one is new too. */
   readonly process = `${String(process.pid)}-${randomBytes(4).toString("hex")}`;
@@ -355,6 +353,8 @@ class Recorder {
         // Otherwise the cache folder cannot be written (read-only, full, a file in its place): nothing
         // is recorded.
       } finally {
+        // The next write waits from the end of this one, so a try after a failure waits too.
+        this.#lastWrite = Date.now();
         this.#writing = undefined;
         this.#next();
       }

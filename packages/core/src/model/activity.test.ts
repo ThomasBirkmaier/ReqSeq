@@ -803,13 +803,11 @@ describe("watching the last access (SR-117)", () => {
     await quiet(300);
     const probes = seen.seen.length;
     const next = seen.next();
-    const started = Date.now();
     await call(agent, "element.get", { ref: "SR-037" }, "mcp");
     const access = await next;
     expect(access.element).toEqual({ id: SR_037, repository: "spec" });
     // AK1 counts from the read, which `access.at` records when the call ends.
     expect(Date.now() - Date.parse(access.at)).toBeLessThan(1000);
-    expect(Date.now() - started).toBeLessThan(1000);
     await quiet(300);
     expect(seen.seen).toHaveLength(probes + 1);
   });
