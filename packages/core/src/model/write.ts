@@ -1255,7 +1255,7 @@ export const updateElement = async (
   // Nothing written: nothing affected (AK3). Removals that found nothing and relations given their
   // version come first (#175), then a text that was emptied (#677).
   const emptied =
-    edited.changed && text?.trim() === "" && elementText(current.file.body).trim() !== ""
+    edited.changed && text?.trim() === "" && current.record.blankText !== true
       ? [textEmptied(repository.name, record)]
       : [];
   return {

@@ -114,7 +114,7 @@ describe("element.update", () => {
         elementShortId: "SR-e88fb3",
       },
     ]);
-    // Already empty: nothing changes and nothing warns; a new text does not warn either.
+    // An empty text given again (whitespace only) does not warn, nor does a new text.
     expect(emptied(await update(opened, { ref: WIND.id, text: "  \n" }))).toEqual([]);
     expect(emptied(await update(opened, { ref: WIND.id, text: "Back.\n" }))).toEqual([]);
   });
