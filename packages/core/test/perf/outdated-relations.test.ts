@@ -5,7 +5,8 @@
 // versions (D-013, `versionDates`). Times are recorded with `measure` against SR-020 (check ≤ 60 s);
 // like the other component times of this suite they record and do not fail a test (the tagged
 // `[SR-020/AK1]` CLI tests assert the threshold, also for the worst case below). Correctness is
-// asserted as usual.
+// asserted as usual. Besides the outdated relations, each generated system requirement without a
+// derivation is a `trace.no-parent` hint (SR-022 AK6, #659); the tests count those apart.
 //
 // The worst case: every relation and inline reference outdated (the generator's versions are not
 // core's), with Git. Its parts are recorded one by one: the current versions, the findings with
@@ -16,7 +17,7 @@ import fs from "node:fs/promises";
 import type { GeneratedWorkspace, LargeFixtureWorkspace, VersionFunction } from "@reqseq/testkit";
 import { generateLargeWorkspace, measure, writeLargeWorkspace } from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { CommandOutput } from "../../src/catalog.js";
+import type { CommandOutput, Problem } from "../../src/catalog.js";
 import { datedProblems, outdatedRelationsState } from "../../src/hints/index.js";
 import { currentVersions } from "../../src/model/current-versions.js";
 import { elementStoreState } from "../../src/model/store.js";
@@ -30,6 +31,35 @@ const RELATIONS = 200_000;
 const EVERY = 100;
 /** A version no element has: every relation and reference that stores it is outdated. */
 const OLD_VERSION: VersionFunction = () => "n1:0000000000000000";
+/** SR-082 AK5: the first open after the start. */
+const FIRST_OPEN_MS = 1000;
+/** SR-082 AK3: an open after another one. */
+const OPEN_MS = 200;
+
+/**
+ * The generated system requirements that got no derivation (no `derives-from` or `refines` key): each
+ * is a `trace.no-parent` hint of workspace.check (SR-022 AK6). The generator gives no invalid status.
+ */
+const withoutParent = (tree: GeneratedWorkspace): number => {
+  let count = 0;
+  for (const content of tree.files.values()) {
+    if (/^type: system-requirement$/m.test(content) && !/^(derives-from|refines):/m.test(content)) {
+      count += 1;
+    }
+  }
+  return count;
+};
+
+/** The `trace.no-parent` hints of `problems`, after checking that each is a warning about an element. */
+const noParentHints = (problems: readonly Problem[]): Problem[] => {
+  const hints = problems.filter((p) => p.code === "trace.no-parent");
+  expect(hints.filter((p) => p.severity !== "warning" || p.elementId === undefined)).toEqual([]);
+  return hints;
+};
+
+/** `problems` without the `trace.no-parent` hints. */
+const withoutNoParent = (problems: readonly Problem[]): Problem[] =>
+  problems.filter((p) => p.code !== "trace.no-parent");
 
 /** How often the files of `tree` store a version of one of `ids`: relation items and inline references. */
 const storedTargets = (tree: GeneratedWorkspace, ids: ReadonlySet<string>): number => {
@@ -90,12 +120,16 @@ describe("outdated relations in workspace.check with 50,000 elements and 200,000
     expect(out.ok).toBe(true);
     const expected = storedTargets(tree, changed);
     expect(expected).toBeGreaterThan(changed.size);
-    expect(out.problems.filter((p) => p.code !== "relation.outdated")).toEqual([]);
-    expect(out.problems).toHaveLength(expected);
-    expect(out.problems.every((p) => p.targetId !== undefined && changed.has(p.targetId))).toBe(true);
+    const orphans = withoutParent(tree);
+    expect(orphans).toBeGreaterThan(0);
+    expect(noParentHints(out.problems)).toHaveLength(orphans);
+    const outdated = withoutNoParent(out.problems);
+    expect(outdated.filter((p) => p.code !== "relation.outdated")).toEqual([]);
+    expect(outdated).toHaveLength(expected);
+    expect(outdated.every((p) => p.targetId !== undefined && changed.has(p.targetId))).toBe(true);
     // Stored: the version of the commit; current: not committed.
-    expect(new Set(out.problems.map((p) => p.currentDate))).toEqual(new Set([null]));
-    expect(out.problems.every((p) => typeof p.storedDate === "string")).toBe(true);
+    expect(new Set(outdated.map((p) => p.currentDate))).toEqual(new Set([null]));
+    expect(outdated.every((p) => typeof p.storedDate === "string")).toBe(true);
     const { result: again } = await measure(
       "workspace.check again (states kept, dates asked again)",
       async () => (await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">,
@@ -112,7 +146,9 @@ describe("outdated relations in workspace.check with 50,000 elements and 200,000
       { basis: "SR-026, SR-020 (60 s)", thresholdMs: 60_000 },
     );
     expect(all.hints).toEqual(check.problems);
-    const source = all.hints[0];
+    // An element with outdated relations, not one that is only a hint without a parent.
+    const source = all.hints.find((h) => h.code === "relation.outdated");
+    expect(source).toBeDefined();
     const type = tree.elements.find((e) => e.id === source?.elementId)?.type ?? "";
     const { result: typed } = await measure(
       `hint.list filtered by type ${type} (states kept)`,
@@ -125,9 +161,11 @@ describe("outdated relations in workspace.check with 50,000 elements and 200,000
       "hint.list of one element (states kept)",
       async () =>
         (await invoke("hint.list", { ref: source?.elementId }, { workspace })) as CommandOutput<"hint.list">,
-      { basis: "SR-026 AK3; SR-082 AK3 (open within 200 ms) for comparison", thresholdMs: 200 },
+      { basis: "SR-026 AK3; SR-082 AK3 (open within 200 ms) for comparison", thresholdMs: OPEN_MS },
     );
-    expect(own.hints.length).toBeGreaterThan(0);
+    const ownOutdated = withoutNoParent(own.hints);
+    expect(ownOutdated.length).toBeGreaterThan(0);
+    expect(ownOutdated.every((h) => h.code === "relation.outdated")).toBe(true);
     const shown = await measure(
       "element.get of an element with outdated relations (versions built)",
       async () =>
@@ -136,13 +174,14 @@ describe("outdated relations in workspace.check with 50,000 elements and 200,000
           { ref: source?.elementId },
           { workspace },
         )) as CommandOutput<"element.get">,
-      { basis: "SR-026 AK3, SR-082 AK3 (200 ms)", thresholdMs: 200 },
+      { basis: "SR-026 AK3, SR-082 AK3 (200 ms)", thresholdMs: OPEN_MS },
     );
     expect(shown.result.element.problems?.filter((p) => p.code === "relation.outdated")).toHaveLength(
-      own.hints.length,
+      ownOutdated.length,
     );
     // A second process: the store from the cache folder is not there, so it is loaded first; the
-    // element view then reads only the versions of its targets (ADR-0008).
+    // element view then reads only the versions of its targets (ADR-0008). It is the first element
+    // opened after this start, so SR-082 AK5 (1 s) applies, not AK3 (#439).
     const fresh = new Workspace(fixture.workspaceRoot);
     try {
       await fresh.get(elementStoreState);
@@ -154,7 +193,7 @@ describe("outdated relations in workspace.check with 50,000 elements and 200,000
             { ref: source?.elementId },
             { workspace: fresh },
           )) as CommandOutput<"element.get">,
-        { basis: "SR-026 AK3, SR-082 AK3 (200 ms)", thresholdMs: 200 },
+        { basis: "SR-026 AK3, SR-082 AK5 (the first open after the start, 1 s)", thresholdMs: FIRST_OPEN_MS },
       );
       expect(cold.element.problems).toEqual(shown.result.element.problems);
     } finally {
