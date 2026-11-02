@@ -1,7 +1,8 @@
 // Versions computed while the element store is read (#439, ADR-0008 "Cold start"): the thread that
 // parses a file already holds its text, so it computes the element's version there (ADR-0005), in
 // the read workers of a cold load as in this thread, and for ReqSeq's own writes. The store keeps
-// them next to its records (`loadedVersionsOf`); no command reads them yet.
+// them next to its records (`loadedVersionsOf`); `current-versions.ts` takes them while the file's
+// `lstat` matches the store's snapshot.
 //
 // - Only for an element whose text links no image (`imageLinks` without ignore globs, a lexical
 //   test, so the result does not depend on the `ignore` of the layout): the images are checked on
