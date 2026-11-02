@@ -1,6 +1,6 @@
 # ADR-0002: Command catalog as the only program logic
 
-Status: Proposed · Based on: D-025, D-029, D-045, D-052 · SRs: SR-080, SR-072, SR-017, SR-081
+Status: Accepted · Based on: D-025, D-029, D-045, D-052 · SRs: SR-080, SR-072, SR-017, SR-081
 
 ## Context
 

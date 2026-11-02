@@ -20,8 +20,12 @@ import {
   createFixtureWorkspace,
   defaultStandardModelFile,
   generateLargeWorkspace,
+  malformedNoParentHints,
   measure,
+  noParentHints,
   thresholdMessage,
+  withoutNoParent,
+  withoutParent,
   writeLargeWorkspace,
 } from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -165,15 +169,17 @@ const appeared = async (file: string, withinMs: number): Promise<void> => {
 
 describe("start with 50,000 elements and 200,000 relations (SR-082, N-036)", () => {
   let fixture: LargeFixtureWorkspace | undefined;
+  /** The generated system requirements without a derivation: each a `trace.no-parent` hint (#659). */
+  let orphans = 0;
   let home = "";
   const children: ChildProcessWithoutNullStreams[] = [];
 
   beforeAll(async () => {
     requireBuiltCli("pnpm test:perf");
     const version = versionOf(await standardModel());
-    fixture = await writeLargeWorkspace(
-      generateLargeWorkspace({ version, elements: ELEMENTS, relations: RELATIONS }),
-    );
+    const tree = generateLargeWorkspace({ version, elements: ELEMENTS, relations: RELATIONS });
+    orphans = withoutParent(tree.files);
+    fixture = await writeLargeWorkspace(tree);
     home = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-sr-082-home-"));
     await new Promise((resolve) => setTimeout(resolve, SETTLE_MS));
   }, 600_000);
@@ -189,6 +195,18 @@ describe("start with 50,000 elements and 200,000 relations (SR-082, N-036)", () 
   /** The model cache of the copy: next to `api.json` in its cache folder; set by the first start. */
   let modelCache = "";
 
+  /** The store is complete: the check finds only the hints of the requirements without a parent (SR-022 AK6). */
+  const expectComplete = (body: unknown): void => {
+    const { ok, problems } = body as {
+      ok: boolean;
+      problems: { code: string; severity?: string; elementId?: string }[];
+    };
+    expect(ok).toBe(true);
+    expect(malformedNoParentHints(problems)).toEqual([]);
+    expect(noParentHints(problems)).toHaveLength(orphans);
+    expect(withoutNoParent(problems)).toEqual([]);
+  };
+
   /**
    * Starts the API without a cache, checks that the store is complete, waits until the model cache
    * is written and stops the API. Returns the start.
@@ -199,9 +217,8 @@ describe("start with 50,000 elements and 200,000 relations (SR-082, N-036)", () 
     expect(started.status.status).toBe(200);
     expect(started.status.body).toMatchObject({ readOnly: false, problems: [] });
     modelCache = path.join(path.dirname(started.endpointFile), MODEL_CACHE_FILE);
-    // The store is complete: the check finds nothing in the generated workspace.
     const check = await post(started.endpoint.urls[0] ?? "", started.endpoint.token, "workspace.check");
-    expect(check.body).toMatchObject({ ok: true, problems: [] });
+    expectComplete(check.body);
     await appeared(modelCache, 120_000);
     await stop(started.child);
     return started;
@@ -247,7 +264,7 @@ describe("start with 50,000 elements and 200,000 relations (SR-082, N-036)", () 
     children.push(started.child);
     expect(started.status.status).toBe(200);
     const check = await post(started.endpoint.urls[0] ?? "", started.endpoint.token, "workspace.check");
-    expect(check.body).toMatchObject({ ok: true, problems: [] });
+    expectComplete(check.body);
     await stop(started.child);
     // Every entry was reused: the start did not write the cache again.
     expect((await fs.stat(modelCache)).mtimeMs).toBe(written);

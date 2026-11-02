@@ -1,6 +1,6 @@
 # ADR-0013: ReqIF import and export
 
-Status: Proposed · Based on: D-022, D-030, D-032, D-033, D-045, D-056, D-057, D-058, D-059 · SRs: SR-052..SR-059, SR-095 · Schema: `schemas/reqif-mapping.schema.json`, catalog `reqif.*` · Needs: #357 (origin on every type of the standard model, `import-version`)
+Status: Accepted · Based on: D-022, D-030, D-032, D-033, D-045, D-056, D-057, D-058, D-059 · SRs: SR-052..SR-059, SR-095 · Schema: `schemas/reqif-mapping.schema.json`, catalog `reqif.*` · Needs: #357 (origin on every type of the standard model, `import-version`)
 
 ## Decision
 

@@ -1,6 +1,6 @@
 # ADR-0003: JSON Schema files are the contracts
 
-Status: Proposed · Based on: D-026, D-056, D-052 · SRs: SR-009, SR-010, SR-061
+Status: Accepted · Based on: D-026, D-056, D-052 · SRs: SR-009, SR-010, SR-061
 
 ## Context
 

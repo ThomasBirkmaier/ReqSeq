@@ -12,8 +12,12 @@ import path from "node:path";
 import {
   createFixtureWorkspace,
   generateLargeWorkspace,
+  malformedNoParentHints,
   measure,
   measureMedian,
+  noParentHints,
+  withoutNoParent,
+  withoutParent,
   writeLargeWorkspace,
 } from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -93,7 +97,7 @@ describe("workspace with 50,000 elements and 200,000 relations (N-036)", () => {
     expect(store.problems).toEqual([]);
   }, 600_000);
 
-  it("runs workspace.check, finding nothing (SR-020: 60 s)", async () => {
+  it("runs workspace.check, finding only the hints of requirements without a parent (SR-020: 60 s)", async () => {
     await workspace.get(elementStoreState);
     const { result: findings } = await measure(
       "workspace.check (every finding state, with the current versions of SR-025)",
@@ -107,7 +111,10 @@ describe("workspace with 50,000 elements and 200,000 relations (N-036)", () => {
         thresholdMs: 60_000,
       },
     );
-    expect(findings).toEqual([]);
+    // The generated requirements that got no derivation are hints (SR-022 AK6, #659); nothing else.
+    expect(malformedNoParentHints(findings)).toEqual([]);
+    expect(noParentHints(findings)).toHaveLength(withoutParent(tree.files));
+    expect(withoutNoParent(findings)).toEqual([]);
   }, 600_000);
 
   it("computes the current version of every element once per store and carries it over a save (#259)", async () => {

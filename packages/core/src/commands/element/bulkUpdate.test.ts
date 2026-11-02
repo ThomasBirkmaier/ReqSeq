@@ -494,6 +494,17 @@ describe("element.bulkUpdate (SR-071)", () => {
       [{ property: "topic", operation: "set" }, "input.invalid", { reason: "value-missing" }],
       [{ property: "topic", operation: "set", value: null }, "input.invalid", { reason: "value-empty" }],
       [{ property: "packages", operation: "add", value: [] }, "input.invalid", { reason: "value-empty" }],
+      // An empty or blank choice value is no value: set and add refuse it as they refuse null (#242).
+      [
+        { property: "requirement-type", operation: "set", value: "" },
+        "input.invalid",
+        { reason: "value-empty" },
+      ],
+      [
+        { property: "verification-method", operation: "add", value: "  " },
+        "input.invalid",
+        { reason: "value-empty" },
+      ],
       [
         { property: "verification-method", operation: "set", value: "guess" },
         "input.invalid",
