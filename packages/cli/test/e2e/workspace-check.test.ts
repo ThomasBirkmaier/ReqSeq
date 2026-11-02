@@ -442,9 +442,9 @@ describe("which findings fail the check: --fail-on, apart from --severity (#304)
     expect(errors.stdout.endsWith("\n6 warnings below error not shown.\n")).toBe(true);
   });
 
-  it("ends with exit code 0 after a supersede with a successor, whose own relation gets a hint", async () => {
-    // The issue's steps 2 and 3: the successor's succession relation points at a superseded element,
-    // a hint that cannot be confirmed (SR-072 AK2); it must not fail a correct workspace.
+  it("[SR-072/AK2] ends with exit code 0 after a supersede with a successor, whose own relation gets no hint", async () => {
+    // The successor's succession relation records the supersede and gets no hint (#170); the other
+    // relations to the superseded element get one each, warnings that must not fail the workspace.
     const ws = await fixture("SR-072/supersede");
     const supersede = await reqseq(
       [
@@ -460,7 +460,11 @@ describe("which findings fail the check: --fail-on, apart from --severity (#304)
     expect(supersede.code).toBe(0);
     const { human, json, output } = await checkBoth(ws.root);
     expect([human.code, json.code, output.ok]).toEqual([0, 0, true]);
-    expect(output.problems.map((p) => p.code)).toContain("relation.target-superseded");
+    const superseded = output.problems.filter((p) => p.code === "relation.target-superseded");
+    expect(superseded.map((p) => p.file)).toEqual([
+      "requirements/SR-c3d4e5f6a7b8.md",
+      "requirements/SR-e5f6a7b8c9d0.md",
+    ]);
     expect(new Set(output.problems.map((p) => p.severity))).toEqual(new Set(["warning"]));
     expect((await reqseq(["workspace", "check", ...FAIL_ON_WARNING], ws.root)).code).toBe(1);
   });

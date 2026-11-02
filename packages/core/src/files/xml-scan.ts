@@ -10,14 +10,15 @@
 // expansion and no external reference is ever followed, so no file can make ReqSeq open a network
 // connection or read another file (offline, XXE safe). The scan is iterative (an explicit stack), so
 // deep nesting cannot overflow the call stack, and linear in the size of the file, also for hostile
-// input (one tag with many attributes, long texts). Refusal messages quote at most a few characters
+// input (one tag with many attributes, long texts). A text longer than the longest string the platform
+// holds is refused before it is decoded. Refusal messages quote at most a few characters
 // of the file, escaped (`shown`).
 //
 // Lenient where it costs nothing: it accepts some input that XML forbids but that never leads to
 // expansion or I/O: literal control characters in text and values, `]]>` in text, `--` in a
 // comment, and any non-ASCII character in a name.
 
-import { isUtf8 } from "node:buffer";
+import { constants, isUtf8 } from "node:buffer";
 
 /** Why a file was refused. */
 export type XmlRefusalReason =
@@ -28,7 +29,9 @@ export type XmlRefusalReason =
   /** An entity reference other than the five predefined ones and numeric references. */
   | "entity"
   /** Not well-formed XML. */
-  | "malformed";
+  | "malformed"
+  /** A text, name or value is longer than the longest string the platform holds. */
+  | "size";
 
 /** An attribute of a start tag. Offsets are byte offsets into the scanned bytes. */
 export interface XmlAttribute {
@@ -278,6 +281,12 @@ interface Building extends XmlElement {
 
 /** The events that build the element tree of `scanXml`. */
 class Tree implements XmlEvents<Building> {
+  private readonly maxStringLength: number;
+
+  constructor(maxStringLength: number) {
+    this.maxStringLength = maxStringLength;
+  }
+
   open(
     name: string,
     attributes: readonly XmlAttribute[],
@@ -302,6 +311,15 @@ class Tree implements XmlEvents<Building> {
   }
 
   text(element: Building, text: string): void {
+    // Runs that each fit (CDATA sections, text around a comment) can be too long together.
+    const length = element.text.length + text.length;
+    if (length > this.maxStringLength) {
+      throw new Refusal(
+        "size",
+        `The text of <${shown(element.name)}> has ${String(length)} characters, more than the longest string that can be read (${String(this.maxStringLength)})`,
+        element.contentStart,
+      );
+    }
     element.text += text;
   }
 
@@ -319,12 +337,32 @@ class Tree implements XmlEvents<Building> {
  * is right.
  */
 const firstNonUtf8 = (bytes: Uint8Array): number => {
-  const again = new TextEncoder().encode(new TextDecoder("utf-8", { ignoreBOM: true }).decode(bytes));
-  return Math.max(
-    0,
-    bytes.findIndex((byte, i) => byte !== again[i]),
-  );
+  // In chunks: the whole file as one string can exceed the longest string the platform holds.
+  const decoder = new TextDecoder("utf-8", { ignoreBOM: true });
+  const encoder = new TextEncoder();
+  for (let at = 0, compared = 0; ; at += UTF8_CHUNK) {
+    const last = at + UTF8_CHUNK >= bytes.length;
+    // A sequence cut by the chunk end is kept back by the decoder and decoded with the next chunk.
+    const again = encoder.encode(decoder.decode(bytes.subarray(at, at + UTF8_CHUNK), { stream: !last }));
+    const index = again.findIndex((byte, i) => byte !== bytes[compared + i]);
+    if (index !== -1 || last) {
+      return compared + Math.max(0, index);
+    }
+    compared += again.length;
+  }
 };
+
+/** Bytes decoded at once while `firstNonUtf8` looks for the first sequence that is not UTF-8. */
+const UTF8_CHUNK = 1024 * 1024;
+
+export interface XmlStreamOptions {
+  /**
+   * The longest text, name or value read, in UTF-8 bytes (and, for the joined text of a `scanXml`
+   * element, in characters); a longer one is refused (reason `size`). The default is the platform's
+   * longest string; tests give a small one.
+   */
+  readonly maxStringLength?: number;
+}
 
 /** One pass over the bytes. Each method reads one construct and returns the offset after it. */
 class Scanner<T> {
@@ -339,9 +377,11 @@ class Scanner<T> {
   private readonly names = new Set<string>();
   /** The receiver's value of the root element, once it is open. */
   private root: { readonly value: T } | undefined;
+  private readonly maxStringLength: number;
 
-  constructor(bytes: Uint8Array, events: XmlEvents<T>) {
+  constructor(bytes: Uint8Array, events: XmlEvents<T>, maxStringLength: number) {
     this.events = events;
+    this.maxStringLength = maxStringLength;
     this.bytes = bytes;
     this.lines = new Lines(bytes);
     this.buffer = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
@@ -370,8 +410,19 @@ class Scanner<T> {
     return { bom, root: this.root.value };
   }
 
-  /** The bytes from `start` to `end` as text; the whole file is UTF-8 (checked first). */
+  /**
+   * The bytes from `start` to `end` as text; the whole file is UTF-8 (checked first). Refuses more
+   * bytes than the longest string the platform holds: `toString` throws on that byte length, even
+   * when the text would have fewer characters.
+   */
   private decode(start: number, end: number): string {
+    if (end - start > this.maxStringLength) {
+      throw new Refusal(
+        "size",
+        `A text of ${String(end - start)} bytes is longer than the longest string that can be read (${String(this.maxStringLength)})`,
+        start,
+      );
+    }
     return this.buffer.toString("utf8", start, end);
   }
 
@@ -612,9 +663,13 @@ export type XmlStreamOutcome<T> =
  * Reads `bytes` as `scanXml` does and reports each start tag, text run and end to `events` instead of
  * building a tree. An error that `events` throws is not caught.
  */
-export const streamXml = <T>(bytes: Uint8Array, events: XmlEvents<T>): XmlStreamOutcome<T> => {
+export const streamXml = <T>(
+  bytes: Uint8Array,
+  events: XmlEvents<T>,
+  { maxStringLength = constants.MAX_STRING_LENGTH }: XmlStreamOptions = {},
+): XmlStreamOutcome<T> => {
   try {
-    return { kind: "streamed", ...new Scanner(bytes, events).scan() };
+    return { kind: "streamed", ...new Scanner(bytes, events, maxStringLength).scan() };
   } catch (error) {
     if (!(error instanceof Refusal)) {
       throw error;
@@ -626,10 +681,13 @@ export const streamXml = <T>(bytes: Uint8Array, events: XmlEvents<T>): XmlStream
 
 /**
  * Scans `bytes` as XML. Gives the element tree with byte offsets and lines, or why the file was
- * refused (not UTF-8, a `<!DOCTYPE`, an unknown entity, not well-formed) with its line.
+ * refused (not UTF-8, a `<!DOCTYPE`, an unknown entity, not well-formed, a text too long) with its line.
  */
-export const scanXml = (bytes: Uint8Array): XmlScanOutcome => {
-  const outcome = streamXml(bytes, new Tree());
+export const scanXml = (
+  bytes: Uint8Array,
+  { maxStringLength = constants.MAX_STRING_LENGTH }: XmlStreamOptions = {},
+): XmlScanOutcome => {
+  const outcome = streamXml(bytes, new Tree(maxStringLength), { maxStringLength });
   return outcome.kind === "refused"
     ? outcome
     : { kind: "scanned", document: { root: outcome.root, bom: outcome.bom } };

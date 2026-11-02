@@ -18,7 +18,8 @@ const testCommandInProduct = {
   message: "defineTestCommand is for tests only; use defineCommand.",
 };
 const productFiles = ["packages/**/*.ts", "packages/**/*.tsx"];
-const testFiles = ["**/*.test.ts", "**/*.test.tsx"];
+// The cross-access scenarios are test code in modules of their own, one per command (#527).
+const testFiles = ["**/*.test.ts", "**/*.test.tsx", "packages/cli/test/cross-access/**/*.ts"];
 // The app's part of the performance suite (Playwright, #147) generates its workspace with the testkit.
 const appPerfFiles = ["packages/app/test/perf/**/*.ts"];
 

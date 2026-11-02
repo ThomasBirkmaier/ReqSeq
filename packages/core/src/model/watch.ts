@@ -44,7 +44,14 @@ import {
 } from "../workspace/index.js";
 import { ELEMENT_FILE_EXTENSION } from "./discover.js";
 import type { RepositoryChanges } from "./store.js";
-import { applyStoreChange, elementStoreState, ignoredBy, readsInFull, updateElements } from "./store.js";
+import {
+  applyStoreChange,
+  elementStoreState,
+  ignoredBy,
+  readsInFull,
+  updateElements,
+  workspaceVersioning,
+} from "./store.js";
 import type { ChangedElements, WorkspaceChange, WorkspaceChangeListener } from "./watch-change.js";
 import { NO_ELEMENTS, changedElements } from "./watch-change.js";
 import type { WatchFunction } from "./watch-tree.js";
@@ -657,7 +664,14 @@ class Watcher implements WorkspaceWatcher {
     const installed = await applyStoreChange(this.#workspace, async (store) => {
       // A store read in full has every record anew: nothing names what changed.
       const full = readsInFull(store, layout);
-      const next = await updateElements(store, layout, changes, signal);
+      // The versions as read of the files read again follow the metamodel as it is now (#439).
+      const next = await updateElements(
+        store,
+        layout,
+        changes,
+        signal,
+        workspaceVersioning(this.#workspace, layout),
+      );
       // A watcher closed during the update replaces nothing.
       signal.throwIfAborted();
       changed = next === undefined || full ? undefined : changedElements(store, next);

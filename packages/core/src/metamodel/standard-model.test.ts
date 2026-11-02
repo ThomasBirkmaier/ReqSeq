@@ -89,8 +89,9 @@ describe("standard model", () => {
     ]);
     // D-037: "die Properties Title, Status, Rationale, Requirement Type, Acceptance Criteria und
     // Validity"; D-059: "zusätzlich die Properties Package, Emergent, Verification Method und
-    // Statement sowie für die Herkunft Source, Source Identifier, Import Date und Delivery"; D-060:
-    // "Das Standardmodell enthält zusätzlich zu D-037 die Property Topic (Schlüssel `topic`)".
+    // Statement sowie für die Herkunft Source, Source Identifier, Import Date, Delivery und Import
+    // Version"; D-060: "Das Standardmodell enthält zusätzlich zu D-037 die Property Topic (Schlüssel
+    // `topic`)".
     // Status is the structural key `status` of every element (D-012), its values are the statuses.
     expect(pairs(metamodel.properties)).toEqual([
       ["title", "Title"],
@@ -143,6 +144,15 @@ describe("standard model", () => {
     expect(withTopic.map((t) => t.key)).toEqual(["need", "system-requirement"]);
     for (const type of withTopic) {
       expect(type.required, type.key).not.toContain("topic");
+    }
+    // D-059: the origin ("für die Herkunft Source, Source Identifier, Import Date, Delivery und Import
+    // Version") on every type, Variant and Package included (assumption, #511), and never required.
+    const origin = ["source", "source-identifier", "import-date", "delivery", "import-version"];
+    for (const type of metamodel.types) {
+      expect(type.properties, type.key).toEqual(expect.arrayContaining(origin));
+      for (const key of origin) {
+        expect(type.required ?? [], type.key).not.toContain(key);
+      }
     }
     // English names and keys throughout (D-019).
     const all = [...metamodel.types, ...metamodel.properties, ...metamodel.relations, ...metamodel.statuses];
@@ -214,6 +224,8 @@ describe("standard model", () => {
       }
     }
     // Flags that D-012 also fixes: the content flag (D-013, D-057; #129 option 1) and the invalid status (D-044).
+    // D-057: "Im Standardmodell zählen Acceptance Criteria, Requirement Type und Validity; Title, Status,
+    // Package, Rationale, Emergent und die Herkunft zählen nicht."
     expect(metamodel.properties.filter((p) => p.content === true).map((p) => p.key)).toEqual([
       "requirement-type",
       "acceptance-criteria",

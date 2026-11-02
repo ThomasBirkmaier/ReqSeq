@@ -79,7 +79,7 @@ describe("sorting the files of a write (#729)", () => {
     expect((await sorts(before, layout, created.slice(0, 4))).count).toBe(1);
     const { count, after } = await sorts(before, layout, created);
     expect(count).toBe(1);
-    expect(after).toEqual(await loadElements(layout));
+    expect(after).toEqual(await loadElements(layout, undefined, { versioning: before.versioning }));
   });
 
   it("sorts each repository with a new file once, and none that only has changed files", async () => {
@@ -97,7 +97,7 @@ describe("sorting the files of a write (#729)", () => {
     ];
     const { count, after } = await sorts(before, layout, written);
     expect(count).toBe(2);
-    expect(after).toEqual(await loadElements(layout));
+    expect(after).toEqual(await loadElements(layout, undefined, { versioning: before.versioning }));
     expect(after?.elements.map((e) => [e.repository, e.file])).toEqual([
       ["system", changed.file],
       ["product", "N-929eca5f9cf4.md"],

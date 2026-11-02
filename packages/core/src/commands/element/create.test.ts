@@ -425,6 +425,26 @@ describe("element.create", () => {
     }
   });
 
+  it("[SR-064/AK2] saves an empty or blank string of a required choice property as no value and gives its element.missing-required hint (#242)", async () => {
+    const opened = await standard();
+    for (const empty of ["", "  "]) {
+      const out = await create(opened, {
+        type: "system-requirement",
+        title: "Show gusts",
+        properties: { "requirement-type": empty },
+      });
+      expect(await read(opened, out.files[0] ?? "")).toContain(
+        `\nrequirement-type: ${JSON.stringify(empty)}\n`,
+      );
+      expect(out.problems?.map((p) => [p.code, p.line])).toEqual([
+        ["element.missing-required", 6],
+        ["element.missing-required", undefined],
+        ["trace.no-parent", undefined],
+      ]);
+      expect(out.problems?.[0]?.message).toContain("Required property Requirement Type (requirement-type)");
+    }
+  });
+
   it("[SR-012/AK3] writes the key of a choice value given by its display name, in any case (#309)", async () => {
     const opened = await standard();
     const out = await create(opened, {
@@ -634,7 +654,11 @@ describe("element.create", () => {
     expect(out.element.shortId).toMatch(/^N-[0-9a-f]{6,}$/);
     // In place (#166): the other elements were not read again; the store is what a full read gives.
     expect(after.elements.filter((e) => before.elements.includes(e))).toHaveLength(before.elements.length);
-    expect(after).toEqual(await loadElements(await opened.workspace.get(workspaceLayoutState)));
+    expect(after).toEqual(
+      await loadElements(await opened.workspace.get(workspaceLayoutState), undefined, {
+        versioning: after.versioning,
+      }),
+    );
     expect((await opened.workspace.get(shortIdState)).find(out.element.shortId)).toMatchObject({
       kind: "found",
       element: { id: out.element.id },

@@ -11,8 +11,9 @@
 //   conditions (property.ts) read the frontmatter of the element (AK1). Type and status keys are
 //   taken as written: a file may hold a key the metamodel does not know (SR-016 AK3), and the check
 //   reports it, not the filter.
-// - `verification` and `validation` ask the evidence provider (evidence.ts, AK1 "Nachweisstatus"),
-//   and so does a relation condition with the direction `evidence` (relation.ts, AK3).
+// - `verification` and `validation` ask the evidence provider (evidence.ts, AK1 "Nachweisstatus")
+//   after its `ready` (the current versions), and so does a relation condition with the direction
+//   `evidence` (relation.ts, AK3), without it: a record exists or not, whatever its version.
 // - `text` (SR-068): the elements `element.search` finds for the query, from the search index of
 //   the workspace (`searchIndex`, which waits for a build that runs), compared by repository and
 //   file, so the store the index was carried to may be newer than the one compiled against.
@@ -131,6 +132,7 @@ const compileEvidence = async (
   at: string,
 ): Promise<Predicate> => {
   const evidence = await context.evidence();
+  await evidence.ready?.();
   if ("validation" in condition) {
     const wanted: ReadonlySet<unknown> = new Set(condition.validation);
     return (e) => wanted.has(evidence.validation(e));

@@ -6,17 +6,13 @@ import type { ParsedFile } from "../files/index.js";
 import { elementText } from "../files/index.js";
 import type { DataExportElement, DataExportRelation } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
-import { findType, propertyWithMeaning } from "../metamodel/index.js";
+import { propertyWithMeaning } from "../metamodel/index.js";
 import { isVersion } from "./is-version.js";
 import { comparableContent, computeVersion } from "../version/version.js";
-import type {
-  VersionFile,
-  VersionInput,
-  VersionPropertyDefinition,
-  VersionValue,
-} from "../version/version.js";
+import type { VersionFile, VersionInput } from "../version/version.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import type { ElementRecord } from "./elements.js";
+import { versionDefinitions, versionInputOf } from "./loaded-version.js";
 import { STRUCTURAL_KEYS, isUuid } from "./elements.js";
 import type { LocatableFinding } from "./locate.js";
 import { findingLine } from "./locate.js";
@@ -186,21 +182,11 @@ export const sourceLink = (
   };
 };
 
-/** The definitions of the properties the element's type has; none for an unknown type. */
-const versionDefinitions = (
-  record: Pick<ElementRecord, "type">,
-  metamodel: Metamodel,
-): VersionPropertyDefinition[] => {
-  const keys = new Set(findType(metamodel, record.type)?.properties ?? []);
-  return metamodel.properties
-    .filter((p) => keys.has(p.key))
-    .map((p) => ({ key: p.key, kind: p.kind, ...(p.content === undefined ? {} : { content: p.content }) }));
-};
-
 /**
  * The version of an element (ADR-0005) from its record, the text of its file and the images the
- * text embeds (`embeddedImages`). The one place model code computes it, for views, stored targets
- * and the versions at old commits (`version-date.ts`).
+ * text embeds (`embeddedImages`), for views, stored targets and the versions at old commits
+ * (`version-date.ts`). Its input is `versionInputOf`, which the versions as read (`loadedVersion`)
+ * build too, so both give the same version.
  */
 export const elementVersion = (
   record: Pick<ElementRecord, "type" | "data">,
@@ -209,18 +195,13 @@ export const elementVersion = (
   images: readonly VersionFile[],
 ): string => computeVersion(versionInput(record, body, metamodel, images));
 
-/** What the version of an element is computed from (`elementVersion`, `elementContent`). */
+/** What the version of an element is computed from (`elementVersion`, `elementContent`; `versionInputOf`). */
 const versionInput = (
   record: Pick<ElementRecord, "type" | "data">,
   body: string,
   metamodel: Metamodel,
   images: readonly VersionFile[],
-): VersionInput => ({
-  text: body,
-  properties: record.data as Readonly<Record<string, VersionValue>>,
-  definitions: versionDefinitions(record, metamodel),
-  files: images,
-});
+): VersionInput => versionInputOf(record, body, versionDefinitions(record, metamodel), images);
 
 /**
  * What the version of an element is computed from, as `comparableContent` writes it: equal for two
