@@ -13,6 +13,7 @@ import type { EvidenceRecord } from "../../evidence/index.js";
 import { evidenceRecordsState } from "../../evidence/index.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
+import { readFirst } from "../../runtime/read-first.test-helper.js";
 
 type Output = CommandOutput<"evidence.status">;
 type Verification = Output["elements"][number]["verification"];
@@ -70,7 +71,9 @@ const update = async (
   workspace: Workspace,
   input: Readonly<Record<string, unknown>>,
 ): Promise<CommandOutput<"element.update">> =>
-  (await invoke("element.update", input, { workspace })) as CommandOutput<"element.update">;
+  (await invoke("element.update", await readFirst(input, { workspace }), {
+    workspace,
+  })) as CommandOutput<"element.update">;
 
 const core = (state: string, missingChildren?: readonly string[]): Verification =>
   [

@@ -3,9 +3,10 @@
 //
 // - Refused, in this order, and nothing is written: a valid baseline has the name, ignoring case and
 //   Unicode normal form (`baseline.exists` with its file, AK6); the folder's repository is not here
-//   (`file.folder-missing`); a selected element has no version (`file.faulty`); then the Git state
-//   (state.ts): a repository involved without commit (`git.unavailable`, AK4, AK7), a file of the
-//   selection not committed (`baseline.uncommitted-changes`, AK2).
+//   (`file.folder-missing`); a repository involved without commit (`git.unavailable`, AK4, AK7,
+//   state.ts), before any version is computed (#444, N-036); a selected element has no version
+//   (`file.faulty`); a file of the selection not committed, or Git cannot tell
+//   (`baseline.uncommitted-changes`, AK2; `git.unavailable`).
 // - The text and the file name are text.ts (`elements: []` for an empty selection, AK5), the write
 //   write.ts: a new file under a free name, never replacing one, never committed (D-036).
 import path from "node:path";
@@ -35,9 +36,13 @@ export interface BaselineRequest {
   readonly metamodel: Checked["metamodel"];
 }
 
-/** A file relative to its repository as `relativeIn` gives it: `/`, NFC, `""` for the folder itself. */
+/**
+ * A folder relative to its repository: `/`, `""` for the folder itself. The name stays as the
+ * workspace file spells it, as the reader uses it (#444): an NFC copy of an NFD folder name would be
+ * a second folder on ext4.
+ */
 const relativeTo = (repository: RepositoryLocation, absolute: string): string =>
-  path.relative(repository.folder, absolute).split(path.sep).join("/").normalize("NFC");
+  path.relative(repository.folder, absolute).split(path.sep).join("/");
 
 /** The entries of the selected elements and the files they embed (see `Checked`); `file.faulty` for one without version. */
 const entriesOf = async (
@@ -115,13 +120,15 @@ export const createBaseline = async (
       { repository: baselines.location.repository },
     );
   }
-  const { entries, embeds } = await entriesOf(workspace, request.elements, repository.name);
+  // A repository without a commit (AK7) is refused before any version is computed (#444, N-036).
   const commits = await involvedCommits(layout, request.elements);
+  const { entries, embeds } = await entriesOf(workspace, request.elements, repository.name);
   await refuseUncommitted(workspace, commits, {
     elements: request.elements,
     embeds,
     metamodel: request.metamodel,
   });
+  // The format of `recordDate` (ADR-0018), built here: the evidence block is a higher layer (#444).
   const date = `${new Date().toISOString().slice(0, 19)}Z`;
   const text = baselineText({
     "reqseq-baseline": 1,

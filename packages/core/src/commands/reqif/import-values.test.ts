@@ -406,13 +406,44 @@ describe("reqif.import of each datatype (SR-053)", () => {
     ]);
   });
 
-  it("is reqif.invalid for a value of an attribute the relation's type does not define", async () => {
-    const workspace = await open(MAPPING, METAMODEL, DELIVERY.replace(">ar-why<", ">a-name<"));
-    const error = await failure(workspace);
-    expect([error.code, error.message]).toEqual([
-      "reqif.invalid",
-      "file: SPEC-RELATION R-1 has a value of attribute a-name, which its type does not define",
+  it("[SR-053/AK2] lists a reference the import does not need and the file does not define as a loss, in reqif.analyze and reqif.import (#573)", async () => {
+    const delivery = DELIVERY.replace(
+      "</SPEC-RELATIONS>",
+      [
+        relation("R-6", "rt-none", "O-1", "O-2"),
+        relation("R-7", "rt-trace", "O-1", "X-9"),
+        relation("R-8", "rt-trace", "X-8", "O-2", value("STRING", "ar-none", "Because")),
+        "</SPEC-RELATIONS>",
+      ].join(""),
+    ).replace(">as-title<", ">as-none<");
+    const workspace = await open(MAPPING, METAMODEL, delivery);
+    const analysis = (await invoke(
+      "reqif.analyze",
+      { file: INPUT.file, mapping: INPUT.mapping },
+      { workspace },
+    )) as CommandOutput<"reqif.analyze">;
+    const out = (await invoke("reqif.import", INPUT, { workspace })) as Imported;
+    const missing = (losses: Imported["losses"]): string[][] =>
+      losses
+        .filter((l) => ["R-6", "R-7", "R-8", "SP-1"].includes(l.identifier) && !l.reason.endsWith("not read"))
+        .map((l) => [l.identifier, l.code, l.reason]);
+    expect(missing(analysis.losses)).toEqual(missing(out.losses));
+    expect(missing(out.losses)).toEqual([
+      ["R-6", "omitted-type", "its SPEC-RELATION-TYPE rt-none is not in the file"],
+      ["R-7", "relation-end-not-imported", "its target X-9 is not in the file"],
+      ["R-8", "relation-end-not-imported", "its source X-8 is not in the file"],
+      [
+        "R-8",
+        "omitted-attribute",
+        "the values of a SPEC-RELATION are not imported: ar-none (not in the file)",
+      ],
+      [
+        "SP-1",
+        "omitted-attribute",
+        "the values of a SPECIFICATION are not imported: as-none (not in the file)",
+      ],
     ]);
+    expect(out.created).toHaveLength(6);
   });
 
   it("lists every value and attribute a mapping without them leaves unmapped", async () => {

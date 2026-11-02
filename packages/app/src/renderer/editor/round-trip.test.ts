@@ -6,6 +6,7 @@
 import fs from "node:fs/promises";
 import { insertNewlineContinueMarkup } from "@codemirror/lang-markdown";
 import { EditorState } from "@codemirror/state";
+import type { CommandOutput } from "@reqseq/core";
 import { Workspace, invoke } from "@reqseq/core";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import { micromark } from "micromark";
@@ -78,7 +79,17 @@ describe("SR-065 AK2, the file of a text written in the editor", () => {
     });
     const workspace = new Workspace(fixture.root);
     try {
-      await invoke("element.update", { ref: ELEMENT, text: doc }, { workspace });
+      // As the app saves it: on the bytes it read (`expectedFileSha256`, SR-106).
+      const { fileSha256 } = (await invoke(
+        "element.get",
+        { ref: ELEMENT },
+        { workspace },
+      )) as CommandOutput<"element.get">;
+      await invoke(
+        "element.update",
+        { ref: ELEMENT, text: doc, expectedFileSha256: fileSha256 },
+        { workspace },
+      );
 
       const file = await fs.readFile(fixture.path(FILE), "utf8");
       // (1) The front matter is untouched. (2) The body is the text, with the final line break.

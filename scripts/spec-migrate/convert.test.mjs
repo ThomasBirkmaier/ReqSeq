@@ -177,7 +177,7 @@ describe("spec migration (Logseq export -> ReqSeq workspace, #326)", () => {
     expect(result.versionsAdded).toBe(plan.relations.length);
     expect(result.check.ok).toBe(true);
     expect(result.check.problems.map((p) => p.code)).toEqual([
-      "metamodel.invalid",
+      "metamodel.optional-status",
       "relation.target-superseded",
     ]);
     expect(result.check.problems[1]?.message).toMatch(/^Relation Based on \(based-on\) from /);

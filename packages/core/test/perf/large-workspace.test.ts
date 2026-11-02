@@ -31,6 +31,7 @@ import { supersededTargetFindings } from "../../src/model/superseded.js";
 import { currentTarget } from "../../src/model/targets.js";
 import { REQIF_LIMITS } from "../../src/reqif/index.js";
 import { invoke } from "../../src/runtime/invoke.js";
+import { readFirst } from "../../src/runtime/read-first.test-helper.js";
 import { Workspace } from "../../src/runtime/workspace.js";
 import { standardModel, versionOf } from "./core-version.js";
 import { workspaceLayoutState } from "../../src/workspace/index.js";
@@ -157,9 +158,11 @@ describe("workspace with 50,000 elements and 200,000 relations (N-036)", () => {
     if (first === undefined) {
       throw new Error("the generated store is empty");
     }
+    // The hash the save is made on (#269), read before the measurement.
+    const input = await readFirst({ ref: first.id, text: "A new text." }, { workspace });
     await measure(
       "save one element with the current versions built (element.update of its text, versions carried)",
-      () => invoke("element.update", { ref: first.id, text: "A new text." }, { workspace }),
+      () => invoke("element.update", input, { workspace }),
       { basis: "SR-082 AK3, ADR-0008 (#184, #259: the saved element gets its version again)" },
     );
     const { result: carried } = await measure(

@@ -101,6 +101,16 @@ describe("catalog checks (titles and argument sources, SR-108)", () => {
     ]);
   });
 
+  it("replaces names earlier optional fields only, each once", () => {
+    const at = (replaces) => ALL.map((a) => (a.field === "deep" ? { ...a, replaces } : a));
+    expect(check(command("test.one", "One", at(["kind", "limit"])))).toEqual([]);
+    expect(check(command("test.one", "One", at(["ref", "direction", "limit", "limit"])))).toEqual([
+      'schemas/commands/test.one.json: arguments: "deep": "replaces" must name earlier optional fields, each once, not "ref"',
+      'schemas/commands/test.one.json: arguments: "deep": "replaces" must name earlier optional fields, each once, not "direction"',
+      'schemas/commands/test.one.json: arguments: "deep": "replaces" must name earlier optional fields, each once, not "limit"',
+    ]);
+  });
+
   it("a source that reads a field needs a fitting one before it, unless it can give every value", () => {
     const first = { ...input, required: ["kind"] };
     const args = [arg("kind", "value"), ...ALL.filter((a) => a.field !== "kind")];

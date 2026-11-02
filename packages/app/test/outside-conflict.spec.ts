@@ -168,9 +168,13 @@ test.describe("an open element changed or deleted outside the app", () => {
     const { window } = running;
     const mcp = await running.mcp();
     // The agent has its workspace loaded, so its change comes before autosave writes the input.
-    await mcp.call("element_get", { ref: ELEMENT });
+    const { fileSha256 } = (await mcp.call("element_get", { ref: ELEMENT })) as { fileSha256: string };
     await typed(window);
-    await mcp.call("element_update", { ref: ELEMENT, text: `${TEXT}\n\nMeasured by the agent.` });
+    await mcp.call("element_update", {
+      ref: ELEMENT,
+      text: `${TEXT}\n\nMeasured by the agent.`,
+      expectedFileSha256: fileSha256,
+    });
     await expect(window.locator('[data-on-disk="Text"]')).toContainText("Measured by the agent.");
     await expect(text(window)).toHaveText(`${TEXT}${MINE}`);
     await expect(window.getByLabel("Minibuffer")).toHaveText(CHANGED);

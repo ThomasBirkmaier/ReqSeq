@@ -1433,7 +1433,8 @@ describe("write commands in the command prompt (SR-073 AK2, #85)", () => {
     expect(second.items).toEqual([]);
     second.empty?.(false);
     await flush();
-    expect(call).toHaveBeenLastCalledWith("hint.confirm", { ref: "uuid-1", hintIds: ["h1"] });
+    // The chosen hints take the place of `ref` (`replaces`): only they are confirmed, not every hint of SR-1 (#291).
+    expect(call).toHaveBeenLastCalledWith("hint.confirm", { hintIds: ["h1"] });
     // Skipped with Ctrl/Cmd+Enter: the optional arguments follow, the skipped one among them.
     const again = setup([shown], { "hint.confirm": () => ({ confirmed: [] }), "hint.list": () => HINTS });
     start(again.context, "hint.confirm");
@@ -1444,6 +1445,25 @@ describe("write commands in the command prompt (SR-073 AK2, #85)", () => {
     // Backspace on it asks the skipped one again.
     more.back?.();
     expect((await last(again.asked)).label).toBe("Confirm hints SR-1 · hintIds:");
+  });
+
+  it("leaves every field hintIds replaces out of the input, target and kind too (#291)", async () => {
+    const { context, asked, call } = setup([shown], {
+      "hint.confirm": () => ({ confirmed: [] }),
+      "hint.list": () => HINTS,
+    });
+    start(context, "hint.confirm");
+    (await last(asked)).items[0]?.run();
+    (await last(asked)).empty?.(true);
+    item((await last(asked)).items, "target").run();
+    (await last(asked)).items[0]?.run();
+    item((await last(asked)).items, "hintIds").run();
+    item((await last(asked)).items, "Relation Refines is outdated").run();
+    (await last(asked)).empty?.(false);
+    item((await last(asked)).items, "Run").run();
+    await flush();
+    // Given were ref and target SR-1 and the hint h1: only h1 is confirmed, not every hint pointing at SR-1.
+    expect(call).toHaveBeenLastCalledWith("hint.confirm", { hintIds: ["h1"] });
   });
 
   it("asks no optional argument that reads one not given: Supersede element runs without successor and relation", async () => {
