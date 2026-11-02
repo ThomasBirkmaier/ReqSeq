@@ -621,6 +621,7 @@
             "evidence.folder-missing",
             "evidence.ambiguous-element",
             "baseline.invalid",
+            "baseline.repository-commit-differs",
             "filter.invalid",
             "filter.duplicate-name",
             "metamodel.invalid",
@@ -8129,7 +8130,7 @@
             "withEvidence": {
               "type": "boolean",
               "default": false,
-              "description": "Also give, at each entry's version in the baseline, the verification status of each requirement in every view it applies in (only the variant's when the stored selection has one) and the validation status: own records up to the baseline's date and time, records of that version dated after it named apart (SR-094)."
+              "description": "Also give, at each entry's version in the baseline, the verification status of each requirement in every view it applies in (only the variant's when the stored selection has one) and the validation status: own records up to the baseline's date and time, records of that version dated after it named apart (SR-094). Like the rest of the output it reads the evidence files on disk, so each repository should be checked out at the commit the baseline names; a `baseline.repository-commit-differs` warning names each one that is not."
             },
             "limit": {
               "type": "integer",
@@ -8151,7 +8152,7 @@
         },
         "output": {
           "type": "object",
-          "description": "An unknown or ambiguous baseline is input.invalid with details.reason unknown-baseline or ambiguous-baseline.",
+          "description": "An unknown or ambiguous baseline is input.invalid with details.reason unknown-baseline or ambiguous-baseline. The files on disk are read, not the baseline's commits: a repository here whose HEAD is another commit than the one under repositories is a baseline.repository-commit-differs warning with both commits, which names what was read; for withEvidence check out the baseline's commits to read the evidence as it stood.",
           "properties": {
             "name": {
               "type": "string"

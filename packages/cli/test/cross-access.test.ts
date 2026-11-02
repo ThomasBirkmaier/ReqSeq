@@ -605,6 +605,21 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       expect: "output",
     },
     {
+      name: "a warning for a repository at another commit than the baseline names (#668)",
+      fixture: EXPORT,
+      root: "system",
+      input: { baseline: "release-1", withEvidence: true, limit: 1 },
+      expect: "output",
+      check: (results) => {
+        const { problems } = (results["core"]?.outcome as { output: BaselineGetOutput }).output;
+        expect([problems?.[0]?.code, problems?.[0]?.repository]).toEqual([
+          "baseline.repository-commit-differs",
+          "system",
+        ]);
+        expect(problems?.[0]?.message).toContain("the baseline names 61aa061");
+      },
+    },
+    {
       name: "the evidence status of each requirement at its baseline version (SR-094 AK1)",
       fixture: SR094,
       input: { baseline: "Release 1", withEvidence: true },

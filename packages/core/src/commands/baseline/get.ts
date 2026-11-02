@@ -20,10 +20,12 @@
 //   the verification out, with a warning, and keeps the validation status, which has no view (AK7).
 //   While the metamodel is not valid there are no records: every row is `open`. Page only; one
 //   index of all records, built once per state of the records (N-036).
+// - Both read the files on disk: a repository whose HEAD is not the baseline's commit is a
+//   `baseline.repository-commit-differs` warning first (`commitDifferences`, #668).
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
 import type { Baseline, ShowRequest } from "../../baselines/index.js";
-import { copyOf, countsFor, namedBaseline, showBaseline } from "../../baselines/index.js";
+import { commitDifferences, copyOf, countsFor, namedBaseline, showBaseline } from "../../baselines/index.js";
 import type {
   BaselineStoredRef,
   BaselineStoredSelection,
@@ -157,7 +159,8 @@ export default defineCommand({
     const baseline = await namedBaseline(workspace, input.baseline, command);
     const layout = await workspace.get(workspaceLayoutState);
     const metamodel = await workspace.get(metamodelState);
-    const problems: Problem[] = [];
+    // The files on disk are read, not the baseline's commits (#668).
+    const problems: Problem[] = await commitDifferences(layout, baseline);
     let selected: Pick<Selected, "elements" | "views" | "incomplete" | "store"> | undefined;
     if (baseline.data.selection !== undefined) {
       try {
