@@ -868,6 +868,57 @@ describe("withWrittenFiles (#166)", () => {
     expect(await withWrittenFiles(before, layout, [])).toBeUndefined();
   });
 
+  /** `count` new files with distinct IDs, under folders that do not sort in write order. */
+  const newFiles = async (
+    write: (file: string, text: string, replaced: FileSnapshot | undefined) => Promise<WrittenFile>,
+    count: number,
+  ): Promise<WrittenFile[]> => {
+    const written: WrittenFile[] = [];
+    for (let i = 0; i < count; i++) {
+      const tail = (0x100000000000 + ((i * 7919) % 104729)).toString(16).slice(-12);
+      const folder = ["z", "a", "m/deep", "_", "B"][i % 5] ?? "";
+      written.push(
+        await write(`${folder}/SR-${tail}.md`, element(`00000000-0000-4000-8000-${tail}`), undefined),
+      );
+    }
+    return written;
+  };
+
+  it("puts many new files of one write into the store in path order, equal to a full read (#729)", async () => {
+    const { before, layout, write } = await opened();
+    const changed = await write(REQUIREMENT_FILE, element(REQUIREMENT), only(before, REQUIREMENT).snapshot);
+    const created = await newFiles(write, 60);
+    const after = await withWrittenFiles(before, layout, [
+      ...created.slice(0, 30),
+      changed,
+      ...created.slice(30),
+    ]);
+    const full = await loadElements(layout);
+    expect(after).toEqual(full);
+    const files = after?.elements.map((e) => e.file) ?? [];
+    expect(files).toHaveLength(62);
+    expect(files).toEqual(full.elements.map((e) => e.file));
+    expect([...(after?.repositories?.[0]?.files.keys() ?? [])]).toEqual([
+      ...(full.repositories[0]?.files.keys() ?? []),
+    ]);
+  });
+
+  it("sorts the files once per write, however many new files it has (#729)", async () => {
+    const { before, layout, write } = await opened();
+    /** Calls of `Array.prototype.sort` while `withWrittenFiles` takes `written`. */
+    const sorts = async (written: WrittenFile[]): Promise<number> => {
+      const spy = vi.spyOn(Array.prototype, "sort");
+      try {
+        await withWrittenFiles(before, layout, written);
+        return spy.mock.calls.length;
+      } finally {
+        spy.mockRestore();
+      }
+    };
+    const created = await newFiles(write, 40);
+    expect(await sorts(created)).toBe(await sorts(created.slice(0, 4)));
+  });
+
   it("cannot tell, and says so, when looking at a new file's folders fails", async () => {
     const { before, layout, write } = await opened();
     const created = await write("a/SR-0c1d2e3f4a5b.md", element(ID_A), undefined);

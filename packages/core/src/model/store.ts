@@ -438,11 +438,15 @@ const listedNew = async (
   }
 };
 
+/** The files of a repository after a write: put in path order once when the write added a file (#729). */
+const afterWrite = (files: Map<string, Contribution>, added: boolean): Map<string, Contribution> =>
+  added ? inListOrder([...files.keys()], files) : files;
+
 /**
  * The store with files as ReqSeq has just written them (#166, ADR-0008), without reading any
  * file: each file's contribution is built from the bytes written and the snapshot of the write,
- * the same way a full read builds it, and swapped in (a new file in path order); the store is
- * assembled once for all of them and every other record stays the same object. Undefined when the
+ * the same way a full read builds it, and swapped in (new files put in path order with one sort
+ * per repository, so a bulk write stays O(n log n), #729); the store is assembled once for all of them and every other record stays the same object. Undefined when the
  * store has every file as written already (the watcher saw them first), so a write is never
  * applied twice; the watcher, in turn, finds the snapshots unchanged when it sees the files.
  * Rejects with `StoreFallback` when the result could differ from `loadElements` on the working
@@ -463,6 +467,8 @@ export const withWrittenFiles = async (
     number,
     { readonly contents: RepositoryContents; files: Map<string, Contribution> }
   >();
+  /** Indexes of repositories with a new file: their files are put in path order once, after the loop (#729). */
+  const grown = new Set<number>();
   for (const { repository, file: parsed, replaced } of written) {
     const index = repositories.findIndex((r) => r.repository === repository);
     const contents = repositories[index];
@@ -482,16 +488,16 @@ export const withWrittenFiles = async (
       throw new StoreFallback(`a full read may not list ${file} under repository ${repository}`);
     }
     files.set(file, parsedContribution(repository, parsed));
-    changed.set(index, {
-      contents,
-      files: old === undefined ? inListOrder([...files.keys()], files) : files,
-    });
+    changed.set(index, { contents, files });
+    if (old === undefined) {
+      grown.add(index);
+    }
   }
   if (changed.size === 0) {
     return undefined;
   }
   for (const [index, { contents, files }] of changed) {
-    repositories[index] = { ...contents, files };
+    repositories[index] = { ...contents, files: afterWrite(files, grown.has(index)) };
   }
   return assemble(repositories);
 };
