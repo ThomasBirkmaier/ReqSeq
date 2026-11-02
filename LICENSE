@@ -1,6 +1,19 @@
 Copyright (c) 2026 Thomas Birkmaier. All rights reserved.
 
-No license is granted. You may not use, copy, modify, merge, publish, distribute,
-sublicense or sell any part of this repository without the written permission of
-the copyright holder. Viewing and forking on GitHub remain possible as far as
-GitHub's Terms of Service allow them for public repositories.
+Evaluation permission. You may download, install and run ReqSeq, from the
+releases of this repository or built from its source, to try and evaluate it,
+on your own machines and with your own data. This permission is free of charge,
+non-exclusive and non-transferable. It does not allow you to distribute,
+sublicense or sell ReqSeq or any modified version of it. The copyright holder
+may revoke it at any time, and it ends for every version once a new license
+for ReqSeq is published in this repository.
+
+No other license is granted. Beyond the evaluation permission above, you may not
+use, copy, modify, merge, publish, distribute, sublicense or sell any part of
+this repository without the written permission of the copyright holder. Viewing
+and forking on GitHub remain possible as far as GitHub's Terms of Service allow
+them for public repositories.
+
+ReqSeq is provided "as is", without warranty of any kind, express or implied.
+In no event shall the copyright holder be liable for any claim, damages or other
+liability arising from the use of ReqSeq.
