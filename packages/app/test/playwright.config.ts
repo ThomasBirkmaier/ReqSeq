@@ -1,7 +1,7 @@
 // Electron tests (ADR-0011): Playwright drives the built app (`pnpm build:electron`) through
 // `_electron.launch`, under `xvfb-run` on Linux. `pnpm test:electron` builds and runs them.
 import { readdirSync } from "node:fs";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 import { defineConfig } from "@playwright/test";
 
 // CI runs the files in shards on Ubuntu and Windows (#303, #412), given as ELECTRON_SHARD=<shard>/<total>, for example 1/2;
@@ -16,7 +16,7 @@ function shardFiles(value: string): RegExp[] {
     throw new Error(`ELECTRON_SHARD must be <shard>/<total> with 1 <= shard <= total, got "${value}"`);
   }
   return readdirSync(import.meta.dirname, { recursive: true, encoding: "utf8" })
-    .filter((file) => file.endsWith(".spec.ts"))
+    .filter((file) => file.endsWith(".spec.ts") && !file.startsWith(`perf${sep}`))
     .sort()
     .filter((_, index) => index % total === shard - 1)
     .map((file) => exactPath(join(import.meta.dirname, file)));
@@ -42,6 +42,8 @@ const testMatch = shard === undefined || shard === "" ? "**/*.spec.ts" : shardFi
 export default defineConfig({
   testDir: ".",
   testMatch,
+  // The app's part of the performance suite (test/perf/playwright.config.ts) runs in the perf job only (#147).
+  testIgnore: "perf/**",
   // One app at a time: each test starts its own Electron with its own workspace and cache folder.
   workers: 1,
   fullyParallel: false,

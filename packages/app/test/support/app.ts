@@ -226,6 +226,11 @@ export interface LaunchOptions {
    * core's core process records them, in the test's OS cache folder.
    */
   readonly recent?: readonly string[];
+  /**
+   * Whether core checks every command's output against its schema (`REQSEQ_VALIDATE_OUTPUT=1`, tests and debug
+   * builds). Default true; the performance suite starts the app without it, as a user's app runs (#147).
+   */
+  readonly validateOutput?: boolean;
 }
 
 /**
@@ -318,15 +323,16 @@ export const launchApp = async (
       now: new Date(Date.now() - (recent.length - index) * 60_000),
     });
   }
+  const { REQSEQ_VALIDATE_OUTPUT: _exported, ...inherited } = process.env;
   const env = {
-    ...process.env,
+    ...(options.validateOutput === false ? inherited : process.env),
     HOME: home,
     USERPROFILE: home,
     XDG_CACHE_HOME: home,
     XDG_CONFIG_HOME: home,
     APPDATA: home,
     LOCALAPPDATA: home,
-    REQSEQ_VALIDATE_OUTPUT: "1",
+    ...(options.validateOutput === false ? {} : { REQSEQ_VALIDATE_OUTPUT: "1" }),
   };
   const app = await electron.launch({
     executablePath: ELECTRON,
