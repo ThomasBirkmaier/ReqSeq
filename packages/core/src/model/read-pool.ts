@@ -6,6 +6,8 @@ import { availableParallelism } from "node:os";
 import { Worker } from "node:worker_threads";
 import type { Contribution, RepositoryPlace } from "./contribution.js";
 import { contributionSync } from "./contribution.js";
+import type { Versioning } from "./loaded-version.js";
+import { internedVersion } from "./loaded-version.js";
 
 /** Files a worker reads per message: few messages, and work stays spread when one chunk is slow. */
 export const READ_CHUNK = 250;
@@ -21,6 +23,8 @@ export interface ReadJob {
   readonly id: number;
   readonly repository: RepositoryPlace;
   readonly files: readonly string[];
+  /** When given, each element gets its version as read (`parsedContribution`). */
+  readonly versioning?: Versioning;
 }
 
 /** The answer to job `id`: what each file contributes, in the order of the job. */
@@ -44,10 +48,10 @@ export const serveReads = (port: ReadPort | null, workerData: unknown): void => 
   if (port === null || workerData !== READ_WORKER) {
     return;
   }
-  port.on("message", ({ id, repository, files }) => {
+  port.on("message", ({ id, repository, files, versioning }) => {
     port.postMessage({
       id,
-      contributions: files.map((file) => [file, contributionSync(repository, file)] as const),
+      contributions: files.map((file) => [file, contributionSync(repository, file, versioning)] as const),
     });
   });
 };
@@ -70,11 +74,13 @@ export interface ReadPool {
    * (the answers of a request in the order they came). All files go into one queue that every
    * worker takes chunks from. With `signal` aborted no further chunk is sent and the call rejects
    * with its reason. A worker that fails or stops rejects the call and every later one. Calls may
-   * overlap; each answer finds its call by the id of its job.
+   * overlap; each answer finds its call by the id of its job. With `versioning`, each element gets
+   * its version as read (`parsedContribution`), its fingerprint the object `versioning` holds.
    */
   read<R extends ReadRequest>(
     requests: readonly R[],
     signal?: AbortSignal,
+    versioning?: Versioning,
   ): Promise<(readonly [R, ReadonlyMap<string, Contribution>])[]>;
   /** Stops every worker at once (`terminate`), work still running included. */
   close(): Promise<void>;
@@ -136,11 +142,13 @@ const call = (slot: Slot, job: ReadJob): Promise<ReadAnswer> => {
  * A structured clone drops `Object.freeze`; snapshots are frozen as `makeSnapshot` makes them. A
  * clone keeps shared objects shared, so the element's snapshot is this one too.
  */
-const revive = (contribution: Contribution): Contribution => {
+const revive = (contribution: Contribution, versioning: Versioning | undefined): Contribution => {
   if (contribution.snapshot !== undefined) {
     Object.freeze(contribution.snapshot);
   }
-  return contribution;
+  return contribution.kind === "element" && contribution.version !== undefined && versioning !== undefined
+    ? { ...contribution, version: internedVersion(contribution.version, versioning) }
+    : contribution;
 };
 
 /** Starts `size` worker threads (at least one) running `entry` (default: `read-worker.js`). */
@@ -149,7 +157,7 @@ export const openReadPool = (size: number, entry: URL = READ_WORKER_ENTRY): Read
   let jobs = 0;
   return {
     size: slots.length,
-    read: async (requests, signal) => {
+    read: async (requests, signal, versioning) => {
       const results: (readonly [(typeof requests)[number], Map<string, Contribution>])[] = [];
       const chunks: {
         readonly repository: RepositoryPlace;
@@ -172,9 +180,15 @@ export const openReadPool = (size: number, entry: URL = READ_WORKER_ENTRY): Read
           for (const { repository, files, into } of queue) {
             signal?.throwIfAborted();
             jobs += 1;
-            const answer = await call(slot, { id: jobs, repository, files });
+            const job: ReadJob = {
+              id: jobs,
+              repository,
+              files,
+              ...(versioning === undefined ? {} : { versioning }),
+            };
+            const answer = await call(slot, job);
             for (const [file, contribution] of answer.contributions) {
-              into.set(file, revive(contribution));
+              into.set(file, revive(contribution, versioning));
             }
           }
         }),

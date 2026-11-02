@@ -1,6 +1,6 @@
 # ADR-0005: Version (Fassung) as content hash
 
-Status: Proposed · Based on: D-013, D-027, D-036, D-042, D-057, D-060 · SRs: SR-021, SR-025, SR-031, SR-065, SR-091, SR-097 · Schema: `common.schema.json#/$defs/version`
+Status: Accepted · Based on: D-013, D-027, D-036, D-042, D-057, D-060 · SRs: SR-021, SR-025, SR-031, SR-065, SR-091, SR-097 · Schema: `common.schema.json#/$defs/version`
 
 ## Context
 
