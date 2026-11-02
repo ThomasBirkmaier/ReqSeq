@@ -14,7 +14,7 @@ ReqSeq is an offline requirements tool (core, CLI, API, MCP server, Electron app
 - ReqSeq reads Git and never writes to it (D-036).
 - ReqSeq never deletes elements. It supersedes them (D-045).
 - Status values are set only by people, never computed by the tool.
-- Every function is available in the app, CLI, API and MCP, with the same result (D-029, SR-080). New functions start in `schemas/commands/catalog.json`, with one implementation in `packages/core/src/commands/`. No logic goes into `cli`, `api`, `mcp` or `app` (ADR-0002).
+- Every function is available in the app, CLI, API and MCP, with the same result (D-029, SR-080). New functions start in `schemas/commands/<name>.json`, listed in `catalog.header.json`, with one implementation in `packages/core/src/commands/`. No logic goes into `cli`, `api`, `mcp` or `app` (ADR-0002).
 - Performance target: 50,000 requirements (N-036).
 
 ## Repository text
