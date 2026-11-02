@@ -301,7 +301,8 @@ describe("element.supersede sets the chosen invalid status and on request a rela
     const out = await supersede(opened, { ref: SR_OLD.id, status: "obsolete", successor: SR_NEW.id });
     expect(out.files).toEqual([SR_OLD.file]);
     expect(await read(opened, SR_NEW.file)).toBe(successor(["obsoletes"]));
-    expect((out.problems ?? []).map((p) => [p.file, p.line])).toContainEqual([SR_NEW.file, 7]);
+    // Its own relation is the record of the supersede: no hint on it (AK2).
+    expect((out.problems ?? []).map((p) => p.file)).not.toContain(SR_NEW.file);
 
     // Under both kinds, the caller still has to name one.
     const both = await open({
@@ -350,9 +351,9 @@ describe("element.supersede sets the chosen invalid status and on request a rela
       `supersedes:\n  - { id: ${platformNeed}, version: ${String(target["version"])}, repository: platform }\n`,
     );
     expect(await read(opened, "platform-checkout/needs/N-6f7a8b9c0d1e.md")).toContain("status: obsolete\n");
-    // The system requirement derives from the platform need across repositories (AK2).
+    // The system requirement derives from the platform need across repositories (AK2); the
+    // successor's own relation gets no hint.
     expect((out.problems ?? []).map((p) => [p.code, p.repository, p.file, p.elementId, p.targetId])).toEqual([
-      ["relation.target-superseded", "system", file, "7a1e0c2b-4d3f-4a5b-8c6d-0a1b2c3d4e5f", platformNeed],
       [
         "relation.target-superseded",
         "system",
@@ -467,12 +468,11 @@ describe("element.supersede sets the chosen invalid status and on request a rela
 describe("relations to a superseded element get a hint each (SR-072 AK2)", () => {
   const SEE_THE_WIND = "Need N-d4e5f6, which is superseded (status Obsolete)";
 
-  it("[SR-072/AK2] element.supersede gives one hint per relation to the superseded element, with its line", async () => {
+  it("[SR-072/AK2] element.supersede gives one hint per relation to the superseded element, with its line, none on the successor's own", async () => {
     const opened = await open();
     const out = await supersede(opened, { ref: N_OLD.id, status: "obsolete", successor: N_NEW.id });
     const successor = "; successor: Need N-e5f6a7";
     expect(out.problems).toEqual([
-      hint(N_NEW, N_OLD, 7, `Relation Supersedes (supersedes) from Need N-e5f6a7 points to ${SEE_THE_WIND}`),
       hint(
         SR_OLD,
         N_OLD,
@@ -490,7 +490,7 @@ describe("relations to a superseded element get a hint each (SR-072 AK2)", () =>
     expect((out.problems ?? []).map((p) => p.targetId)).not.toContain(SR_OLD.id);
   });
 
-  it("[SR-072/AK2] gives a hint for every relation kind and every relation to the element", async () => {
+  it("[SR-072/AK2] gives a hint for every relation kind and every relation to the element but the successor's own", async () => {
     const opened = await open({ files: OBSOLETES });
     const out = await supersede(opened, {
       ref: SR_OLD.id,
@@ -498,12 +498,8 @@ describe("relations to a superseded element get a hint each (SR-072 AK2)", () =>
       successor: SR_NEW.id,
       relation: "obsoletes",
     });
+    // `obsoletes` has the meaning succession too: the successor's relation under it gets none.
     expect((out.problems ?? []).map((p) => [p.file, p.line, p.message])).toEqual([
-      [
-        SR_NEW.file,
-        10,
-        "Relation Obsoletes (obsoletes) from System Requirement SR-a7b8c9 points to System Requirement SR-f6a7b8, which is superseded (status Obsolete)",
-      ],
       [
         SR_CHILD.file,
         10,
@@ -556,10 +552,8 @@ describe("relations to a superseded element get a hint each (SR-072 AK2)", () =>
         `Relation Derives from (derives-from) from System Requirement SR-f6a7b8 points to ${SEE_THE_WIND}; successor: Need N-e5f6a7`,
       ),
     ]);
-    // The successor's own relation names no successor: the store's copy of it is not another one.
-    expect(await update(N_NEW.id)).toEqual([
-      hint(N_NEW, N_OLD, 7, `Relation Supersedes (supersedes) from Need N-e5f6a7 points to ${SEE_THE_WIND}`),
-    ]);
+    // The successor's own relation with the meaning succession gets none.
+    expect(await update(N_NEW.id)).toEqual([]);
     // An element without relations to a superseded element gets none.
     expect(await update(N_OLD.id)).toEqual([]);
   });

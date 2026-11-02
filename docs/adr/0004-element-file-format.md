@@ -1,6 +1,6 @@
 # ADR-0004: Element file format
 
-Status: Proposed · Based on: D-012, D-015, D-017, D-020, D-040, D-041, D-042, D-043, D-045, D-056, D-057, D-058, D-059 · SRs: SR-001..SR-005, SR-010, SR-016, SR-021, SR-042, SR-048, SR-057, SR-066, SR-072, SR-089, SR-102 · Schema: `schemas/element.schema.json`
+Status: Accepted · Based on: D-012, D-015, D-017, D-020, D-040, D-041, D-042, D-043, D-045, D-056, D-057, D-058, D-059 · SRs: SR-001..SR-005, SR-010, SR-016, SR-021, SR-042, SR-048, SR-057, SR-066, SR-072, SR-089, SR-102 · Schema: `schemas/element.schema.json`
 
 ## Context
 
