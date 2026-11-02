@@ -615,6 +615,44 @@ describe("reqif.import of a file of ReqSeq (SR-052)", () => {
     expect(imported.created.length).toBeGreaterThan(0);
   });
 
+  it("refuses a reqseq-values value of a shape no element file holds as reqif.invalid, writing nothing (#716)", async () => {
+    const { file } = await exported(undefined);
+    // The readable topic removed, so the stored value of `key` is what the import would take.
+    const stored = (key: string, json: string): ReturnType<typeof changed> =>
+      changed(file, TEMPERATURE, (o) => ({
+        ...o,
+        values: o.values.flatMap((v) => {
+          if (v.definition.endsWith(".topic")) {
+            return [];
+          }
+          if (v.kind !== "string" || !v.definition.endsWith(".values")) {
+            return [v];
+          }
+          const data = JSON.parse(v.value) as Record<string, unknown>;
+          return [{ ...v, value: JSON.stringify({ ...data, [key]: "@" }).replace('"@"', json) }];
+        }),
+      }));
+    const nested = (depth: number): string => "[".repeat(depth) + "1" + "]".repeat(depth);
+    for (const [key, json] of [
+      ["topic", nested(2)],
+      ["topic", nested(995)],
+      ["topic", '[{"id":{"x":1}}]'],
+      ["topic", '{"a":[1]}'],
+      ["derives-from", '[{"id":"x","version":1e400}]'],
+      ["derives-from", '[[{"id":"x"}]]'],
+    ] as const) {
+      const hostile = stored(key, json);
+      const roomy = { ...hostile, datatypes: hostile.datatypes.map((d) => ({ ...d, maxLength: "1000000" })) };
+      const { fixture, workspace } = await target(rewritten(roomy), undefined);
+      const error = await refusal(workspace, { file: "in/x.reqif", delivery: "1" });
+      expect([error.code, error.message]).toEqual([
+        "reqif.invalid",
+        `file: SPEC-OBJECT _${TEMPERATURE} holds a value of ${key} in reqseq-values that ReqSeq cannot write`,
+      ]);
+      await expect(fs.stat(fixture.path("reqif"))).rejects.toThrow();
+    }
+  });
+
   it("writes no mapping folder for a refused import, and refuses a mapping path that is no file", async () => {
     const all = await exported(undefined);
     const settings = await fs.readFile(
