@@ -477,9 +477,39 @@ describe("buildInput with part flags (#149, #173)", () => {
     expect(
       await withFlags("filter.save", { where: "-" }, undefined, Readable.from(['{"invalid":false}'])),
     ).toEqual({ where: { invalid: false } });
+    // An `all` alone takes the key conditions into its list; a value that is no object stays for core.
+    expect(
+      await withFlags(
+        "element.list",
+        { "where-type": ["sr"] },
+        '{"selection":{"where":{"all":[{"invalid":true}]}}}',
+      ),
+    ).toEqual({ selection: { where: { all: [{ invalid: true }, { type: ["sr"] }] } } });
+    expect(await withFlags("element.list", { ids: ["a"] }, '{"selection":"x"}')).toEqual({
+      selection: "x",
+    });
     const invalid = await rejection(withFlags("element.list", { where: "{nope" }));
     expect(invalid.message).toBe(
       "--where is not valid JSON (if the shell removed the quotes, as PowerShell and cmd.exe do, use --where @file or --where -)",
+    );
+  });
+
+  it("names a required selection in the form of the call by its part flags", async () => {
+    const entry = getCommandRuntime().contracts.entry("element.bulkUpdate");
+    if (entry === undefined) {
+      throw new Error("element.bulkUpdate");
+    }
+    const fields = inputFields(entry);
+    const positionals = fields.filter((f) => f.use === "positional").map((f) => ({ field: f, value: "v" }));
+    const error = await rejection(
+      buildInput(
+        invocation({ entry, fields, positionals, extraArguments: ["extra"] }),
+        fixture.root,
+        noStdin,
+      ),
+    );
+    expect(error.details?.["usage"]).toContain(
+      "{--ids|--filter|--where|--where-type|--where-status|--package|--baseline|--view}",
     );
   });
 

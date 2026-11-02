@@ -169,13 +169,19 @@ const flagValue = async (
   return typeof value === "string" ? convert(field.kind, value) : value;
 };
 
-/** `value` with `item` at `path` (`[]`: `item` itself); objects on the way are copied, others replaced. */
+/**
+ * `value` with `item` at `path` (`[]`: `item` itself); objects on the way are copied. A value on the
+ * way that is no object stays as `--input` gave it, so core reports it.
+ */
 const setAt = (value: unknown, path: readonly string[], item: unknown): unknown => {
   const [head, ...rest] = path;
   if (head === undefined) {
     return item;
   }
-  const object = isObject(value) ? value : {};
+  if (value !== undefined && !isObject(value)) {
+    return value;
+  }
+  const object = value ?? {};
   return { ...object, [head]: setAt(object[head], rest, item) };
 };
 
@@ -232,7 +238,13 @@ const withParts = async (
   }
   for (const { path: at, conditions } of keyConditions.values()) {
     const before = getAt(value, at);
-    const all = before === undefined ? conditions : [before, ...conditions];
+    // An `all` alone takes the conditions into its list, so it is not nested.
+    const all =
+      before === undefined
+        ? conditions
+        : isObject(before) && Object.keys(before).join() === "all" && Array.isArray(before["all"])
+          ? [...(before["all"] as unknown[]), ...conditions]
+          : [before, ...conditions];
     value = setAt(value, at, all.length === 1 ? all[0] : { all });
   }
   return value;
@@ -253,6 +265,10 @@ const usageOf = (invocation: Invocation, command: string): string => {
     `reqseq ${command}`,
     ...invocation.positionals.map((p) => `<${p.field.flag}>`),
     ...flags.filter((f) => f.required).map(flag),
+    // A required field with part flags: any of them gives it (#149).
+    ...invocation.fields
+      .filter((f) => f.use === "parts" && f.required)
+      .map((f) => `{${f.parts.map((p) => `--${p.flag}`).join("|")}}`),
     ...flags.filter((f) => !f.required && elements.has(f.name)).map((f) => `[${flag(f)}]`),
     "[options]",
   ].join(" ");

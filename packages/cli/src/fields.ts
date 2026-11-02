@@ -413,14 +413,13 @@ export function inputFields(
   const requiredNames: unknown[] = Array.isArray(required) ? required : [];
   return Object.entries(isSchema(properties) ? properties : {}).map(([name, value]) => {
     const schema = isSchema(value) ? value : {};
-    const description = schema["description"];
     const flag = entry.arguments.find((a) => a.field === name)?.flag ?? kebab(name);
     const field = {
       name,
       flag,
       ...read({ schema, base }, flag),
       required: requiredNames.includes(name),
-      description: typeof description === "string" ? description : undefined,
+      description: describe(schema),
       defaultValue: schema["default"],
     };
     return { ...field, use: useOf(field) };
