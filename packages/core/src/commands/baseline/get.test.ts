@@ -250,18 +250,20 @@ describe("baseline.get", () => {
     ]);
     expect(byId(ids.elements)["b4"]).not.toHaveProperty("current");
     expect(ids.problems).toEqual([
+      expect.objectContaining({ code: "baseline.repository-commit-differs", repository: "system" }),
       expect.objectContaining({
         code: "file.faulty",
         severity: "warning",
         file: "requirements/SR-0000000000b4.md",
       }),
     ]);
-    expect((await call(ws, "baseline.get", { baseline: "Nope" })).problems?.[0]?.code).toBe(
+    expect((await call(ws, "baseline.get", { baseline: "Nope" })).problems?.[1]?.code).toBe(
       "baseline.invalid",
     );
     const gone = await call(ws, "baseline.get", { baseline: "Gone" });
     expect(gone.selectionKnown).toBe(false);
     expect(gone.problems).toEqual([
+      expect.objectContaining({ code: "baseline.repository-commit-differs" }),
       expect.objectContaining({ code: "baseline.invalid", severity: "warning", file: "baselines/Gone.yaml" }),
     ]);
   });
@@ -277,6 +279,48 @@ describe("baseline.get", () => {
       reason: "ambiguous-baseline",
     });
     expect((await failure(ws, "baseline.get", { baseline: "broken" })).code).toBe("file.faulty");
+  });
+
+  it("warns of each repository here whose HEAD is not the baseline's commit, with and without evidence (#668)", async () => {
+    const { ws, first, second } = await made();
+    const sensor = await ws.head("sensor");
+    await ws.write(
+      "system/baselines/Head.yaml",
+      baselineText(
+        "Head",
+        [],
+        [
+          `  - { name: system, commit: ${second} }`,
+          `  - { name: sensor, commit: ${sensor} }`,
+          `  - { name: elsewhere, commit: ${first} }`,
+        ],
+        [],
+      ),
+    );
+    const differs = {
+      code: "baseline.repository-commit-differs",
+      severity: "warning",
+      repository: "system",
+      message: `Repository system is at ${second.slice(0, 7)}, the baseline names ${first.slice(0, 7)}; the result reads the files on disk`,
+    };
+    expect((await call(ws, "baseline.get", { baseline: "Release 2" })).problems).toEqual([differs]);
+    const evidence = await call(ws, "baseline.get", { baseline: "Release 2", withEvidence: true });
+    expect(evidence.problems).toEqual([differs]);
+    // At the baseline's commits, and a repository the workspace does not list: nothing.
+    expect((await call(ws, "baseline.get", { baseline: "Head" })).problems).toBeUndefined();
+    // sensor at another commit; then without Git, then not here: nothing for it.
+    await ws.write("sensor/notes.txt", "later\n");
+    const later = await ws.commit("sensor", "later");
+    expect((await call(ws, "baseline.get", { baseline: "Head" })).problems).toEqual([
+      expect.objectContaining({
+        repository: "sensor",
+        message: `Repository sensor is at ${later.slice(0, 7)}, the baseline names ${sensor.slice(0, 7)}; the result reads the files on disk`,
+      }),
+    ]);
+    await rm(ws.path("sensor/.git"), { recursive: true });
+    expect((await call(ws, "baseline.get", { baseline: "Head" })).problems).toBeUndefined();
+    await rm(ws.path("sensor"), { recursive: true });
+    expect((await call(ws, "baseline.get", { baseline: "Head" })).problems).toBeUndefined();
   });
 
   it("is incomplete while a repository is not here, and gives a programming error as it is", async () => {

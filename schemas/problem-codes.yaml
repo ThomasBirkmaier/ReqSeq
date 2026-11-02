@@ -129,6 +129,9 @@ problems:
   baseline.invalid:
     cause: A baseline file cannot be read or does not match its format (ADR-0018), for example an element copy or a repository listed twice.
     remedy: Fix the file at the place the message gives.
+  baseline.repository-commit-differs:
+    cause: A repository the baseline names is checked out at another commit than the one the baseline stores for it. `baseline.get` reads the files on disk, not the baseline's commits, so its versions, states and evidence status are those of the checked-out files, for example an evidence record committed after the baseline is missing when the repository is at an older commit.
+    remedy: Check out the commit the baseline names in that repository (`git -C <repository> checkout <commit>`, the full commit is under `repositories` of the output) and run the command again, or read the result as the state of the files on disk.
   filter.invalid:
     cause: A saved filter cannot be read or does not match its format.
     remedy: Fix or save the filter again.

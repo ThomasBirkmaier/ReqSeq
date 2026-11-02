@@ -10,8 +10,14 @@
 //   no other element. `baseline.uncommitted-changes` names the elements whose file or embedded file
 //   changed (`details.elements`) and the other files (`details.files`); `git.unavailable` where Git
 //   cannot tell.
+// - Differing commits (`commitDifferences`, `baseline.get`, #668): every command reads the files on
+//   disk, not the baseline's commits (D-036, D-039), so a repository the baseline names whose HEAD is
+//   another commit is a `baseline.repository-commit-differs` warning with both commits (short in the
+//   message). A repository that is not here or whose commit Git cannot tell gives nothing; whether the
+//   work tree has uncommitted changes is not asked (it costs a pass over every state file).
 import path from "node:path";
 import { CommandError } from "../catalog.js";
+import type { Problem } from "../generated/types.js";
 import type { ElementRecord } from "../model/index.js";
 import {
   NO_COMMIT_TEXT,
@@ -23,6 +29,7 @@ import {
 import type { Workspace } from "../runtime/workspace.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
 import { WORKSPACE_FILE } from "../workspace/index.js";
+import type { Baseline } from "./read.js";
 
 const gitUnavailable = (repository: string, why: string): CommandError =>
   new CommandError("git.unavailable", `Not created: repository ${repository} ${why}`, { repository });
@@ -136,4 +143,36 @@ export const refuseUncommitted = async (
       { elements: elementNames(elements), files },
     );
   }
+};
+
+/** The abbreviated commit of a message, as Git shows it by default. */
+const short = (commit: string): string => commit.slice(0, 7);
+
+/**
+ * A `baseline.repository-commit-differs` warning for each repository of `baseline` on this machine
+ * whose HEAD differs from the commit the baseline names, in the baseline's order (see the file comment).
+ */
+export const commitDifferences = async (
+  layout: WorkspaceLayout,
+  baseline: Pick<Baseline, "data">,
+): Promise<Problem[]> => {
+  const found = await Promise.all(
+    baseline.data.repositories.map(async ({ name, commit }): Promise<Problem | undefined> => {
+      const repository = layout.repositories.find((r) => r.name === name);
+      if (repository?.available !== true) {
+        return undefined;
+      }
+      const head = await repositoryCommit(repository);
+      if (head.commit === undefined || head.commit === commit) {
+        return undefined;
+      }
+      return {
+        code: "baseline.repository-commit-differs",
+        severity: "warning",
+        repository: name,
+        message: `Repository ${name} is at ${short(head.commit)}, the baseline names ${short(commit)}; the result reads the files on disk`,
+      };
+    }),
+  );
+  return found.filter((p) => p !== undefined);
 };
