@@ -807,6 +807,28 @@ describe("renderHuman: a chain", () => {
     );
   });
 
+  it("names the kind of a neighbourhood relation that is no derivation, and heads its direction so (#643)", () => {
+    const output = chain({
+      nodes: [node("r", "STK-r", 0), node("n", "N-n", 1, "down"), node("p", "N-p", 1, "up")],
+      total: 3,
+      edges: [
+        { ...edge("n", "r", "down"), link: "relation", kind: "has-stakeholder" },
+        { ...edge("r", "p", "up"), link: "relation", meaning: "derivation" },
+      ],
+    });
+    expect(renderHuman(output)).toBe(
+      lines(
+        "STK-r  draft  Title STK-r",
+        "parents:",
+        "  1  N-p  draft  Title N-p",
+        "downward:",
+        "  1  N-n  draft  Title N-n  [has-stakeholder]",
+        "total: 3",
+        "No problems.",
+      ),
+    );
+  });
+
   it("marks an edge to an element shown elsewhere, and a cycle, where the edge starts", () => {
     const output = chain({
       nodes: [node("r", "SR-r", 0), node("a", "SR-a", 1, "down"), node("b", "SR-b", 1, "down")],
