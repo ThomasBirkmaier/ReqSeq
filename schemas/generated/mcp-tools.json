@@ -6997,7 +6997,7 @@
     {
       "name": "baseline_get",
       "title": "Show baseline",
-      "description": "Elements of a baseline with their version then and its date, marked changed, superseded, removed or added since (SR-051); with withEvidence the verification status of each requirement per view and the validation status at its version in the baseline, with the records dated after it named (SR-094). Only properties marked `content` in the metamodel count to the version; relations such as `serves` or `derives-from` do not, so an element whose relations changed is `unchanged`: compare it with Git (`git diff <commit of the baseline> -- <file>`).",
+      "description": "Elements of a baseline with their version then and its date, marked changed, superseded, removed or added since (SR-051); with withEvidence the verification status of each requirement per view and the validation status at its version in the baseline, with the records dated after it named (SR-094). The version counts the text, embedded images and the properties marked `content` (a relation property such as `validity` too); the relation kinds of the metamodel, such as `refines` or `derives-from`, never count, so an element whose only change is such a relation is not marked `changed`: baseline.compare gives the commits and the Git command that show it.",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
