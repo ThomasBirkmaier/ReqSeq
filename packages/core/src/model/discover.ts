@@ -5,6 +5,7 @@ import type { Dirent, Stats } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { Problem } from "../catalog.js";
+import { isTempFile } from "../files/index.js";
 import type { RepositoryLocation } from "../workspace/index.js";
 
 /** Never read: Git's own folder (or the `.git` file of a submodule) and installed packages (workspace.schema.json). */
@@ -39,6 +40,48 @@ const skipped = (repository: string, file: string, reason: string): Problem => (
   file,
   message: `Not read: ${reason}`,
 });
+
+/**
+ * How old a temp file of ReqSeq must be to count as left behind (#271). A write renames its temp
+ * file within milliseconds, so a younger one may belong to a write that is still running.
+ */
+export const STALE_TEMP_AGE_MS = 60_000;
+
+const staleTemp = (repository: string, file: string): Problem => ({
+  code: "file.stale-temp",
+  severity: "warning",
+  repository,
+  file,
+  message:
+    "Temporary file left by an interrupted write of ReqSeq; it is not an element and can be removed by hand",
+});
+
+/** Whether `file` (absolute) is older than `STALE_TEMP_AGE_MS`; a file gone in between is not. */
+const isStale = async (file: string): Promise<boolean> => {
+  try {
+    return Date.now() - (await fs.lstat(file)).mtimeMs > STALE_TEMP_AGE_MS;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * The `file.stale-temp` warning for a folder entry that is a temp file of ReqSeq left by a crash, else
+ * undefined. ReqSeq never reads or deletes its temp files; only the element walk reports them, which
+ * covers the evidence folders too.
+ */
+const staleTempProblem = async (
+  repository: RepositoryLocation,
+  relative: string,
+  entry: Dirent,
+  kind: ListedKind,
+): Promise<Problem | undefined> =>
+  kind === ELEMENT_FILES &&
+  entry.isFile() &&
+  isTempFile(entry.name) &&
+  (await isStale(path.join(repository.folder, relative)))
+    ? staleTemp(repository.name, relative)
+    : undefined;
 
 /** What a walk lists: files ending in one of `extensions` (lower case), named `what` in messages. */
 export interface ListedKind {
@@ -76,7 +119,8 @@ const skipReason = (entry: Dirent, kind: ListedKind): string | undefined => {
  * `ignored` is true (the `ignore` globs of the workspace file, `ignoreMatcher`, which compares in
  * NFC; it gets each path as `readdir` spells it; a matching folder is skipped as a whole). Links
  * are never followed: a linked folder is skipped, a linked `*.md` file and a Markdown file with an
- * extension such as `.MD` are reported as `file.skipped` warnings. A folder that cannot be listed
+ * extension such as `.MD` are reported as `file.skipped` warnings. A temp file of ReqSeq older than
+ * `STALE_TEMP_AGE_MS` is a `file.stale-temp` warning (#271). A folder that cannot be listed
  * becomes a problem; the walk goes on.
  */
 export const listMarkdownFiles = (
@@ -128,6 +172,10 @@ export const listFiles = async (
         continue;
       }
       if (extensionIn(entry.name, kind) === undefined) {
+        const stale = await staleTempProblem(repository, relative, entry, kind);
+        if (stale !== undefined) {
+          problems.set(relative, stale);
+        }
         continue;
       }
       const reason = skipReason(entry, kind);

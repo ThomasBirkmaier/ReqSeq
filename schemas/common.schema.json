@@ -253,6 +253,7 @@
         "file.faulty",
         "file.yaml-warning",
         "file.skipped",
+        "file.stale-temp",
         "element.invalid",
         "element.duplicate-id",
         "element.duplicate-identifier",
