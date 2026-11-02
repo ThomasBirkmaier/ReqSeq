@@ -1,6 +1,6 @@
 # ADR-0009: CLI, local API and MCP server
 
-Status: Proposed · Based on: D-025, D-029 · SRs: SR-019, SR-079, SR-080, SR-081 · Contracts: `schemas/commands/catalog.json`, `schemas/generated/`
+Status: Accepted · Based on: D-025, D-029 · SRs: SR-019, SR-079, SR-080, SR-081 · Contracts: `schemas/commands/catalog.json`, `schemas/generated/`
 
 ## Decision
 
