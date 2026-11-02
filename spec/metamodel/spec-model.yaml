@@ -46,6 +46,7 @@ types:
         source-identifier,
         import-date,
         delivery,
+        import-version,
         topic,
         issue,
       ]
@@ -143,6 +144,7 @@ properties:
   - { key: source-identifier, name: Source Identifier, kind: text, meaning: source-identifier }
   - { key: import-date, name: Import Date, kind: date, meaning: import-date }
   - { key: delivery, name: Delivery, kind: text, meaning: delivery }
+  - { key: import-version, name: Import Version, kind: text, meaning: import-version }
   - { key: topic, name: Topic, kind: text }
   - { key: issue, name: Issue, kind: text }
   - key: area
