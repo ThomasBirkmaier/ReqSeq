@@ -15,7 +15,8 @@
 // "Cold" is the first use after a start: a new `Workspace` on the same files, its model loaded as
 // `warmWorkspace` loads it but without the background search index (`warmModel`, so no build competes
 // for the cores), and its evidence files read (a row of its own), so the cold rows hold the status
-// state (`verificationState`: the walk and one batch of current versions) and nothing else. At most
+// state (`verificationState`: the walk and one batch of current versions) and nothing else; the
+// cold row of the filter without evidence reads no batch (#439). At most
 // one workspace is open at a time, so the heap holds one store.
 import type { GeneratedEvidence, LargeFixtureWorkspace } from "@reqseq/testkit";
 import {
