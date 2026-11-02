@@ -288,11 +288,14 @@ const MEANING_SHAPES: Readonly<
   packages: { kind: "relation", many: true, target: "package" },
 };
 
+/** The resolved type of a key with its own or inherited meaning, undefined when no type has the key. */
+export type TypeLookup = (key: string) => { readonly meaning?: string | undefined } | undefined;
+
 /** Why `property` does not fit the shape of its meaning, or undefined when it fits. */
 const shapeMisfit = (
   property: MetamodelProperty,
   shape: NonNullable<(typeof MEANING_SHAPES)[Meaning]>,
-  typeMeaning: (key: string) => string | undefined,
+  typeOf: TypeLookup,
 ): string | undefined => {
   if (property.kind !== shape.kind) {
     return `kind ${property.kind}`;
@@ -300,8 +303,20 @@ const shapeMisfit = (
   if ((property.many === true) !== shape.many) {
     return shape.many ? "a single value" : "a list";
   }
-  const wrong = (property["target-types"] ?? []).filter((key) => typeMeaning(key) !== shape.target);
-  return shape.target === undefined || wrong.length === 0
+  if (shape.target === undefined) {
+    return undefined;
+  }
+  // No target-types means every type (metamodel.schema.json). A key no type has is left to
+  // `unknownTypeProblems`, which waits until every file was read.
+  const targets = property["target-types"];
+  if (targets === undefined) {
+    return "every type (no target-types)";
+  }
+  const wrong = targets.filter((key) => {
+    const type = typeOf(key);
+    return type !== undefined && type.meaning !== shape.target;
+  });
+  return wrong.length === 0
     ? undefined
     : `target types ${wrong.join(", ")} without the meaning ${shape.target}`;
 };
@@ -312,15 +327,16 @@ const shapeMisfit = (
  * `meaning`: title, statement, source, source identifier and delivery are one text, the import date
  * a date, the verification method a choice, validity and packages relations with many values to
  * types with the meaning variant or package (D-020, D-040). Import version, identifier and emergent
- * are `meaningKindProblems`. `typeMeaning` gives the meaning of a type, own or inherited.
+ * are `meaningKindProblems`. `typeOf` gives the resolved type of a key (its meaning own or
+ * inherited); a target key without a type is not checked here.
  */
 export const meaningShapeProblems = (
   properties: readonly Located<MetamodelProperty>[],
-  typeMeaning: (key: string) => string | undefined,
+  typeOf: TypeLookup,
 ): Problem[] =>
   properties.flatMap(({ definition, file, lineOf }): Problem[] => {
     const shape = definition.meaning === undefined ? undefined : MEANING_SHAPES[definition.meaning];
-    const misfit = shape === undefined ? undefined : shapeMisfit(definition, shape, typeMeaning);
+    const misfit = shape === undefined ? undefined : shapeMisfit(definition, shape, typeOf);
     if (shape === undefined || misfit === undefined) {
       return [];
     }

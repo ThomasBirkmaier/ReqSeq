@@ -391,13 +391,38 @@ describe("built-in meanings", () => {
     ]);
   });
 
+  it("#141: takes the meaning of a validity target type from its parent", async () => {
+    const properties = (targets: string): string =>
+      "reqseq-metamodel: 1\nproperties:\n  - { key: label, name: Label, kind: text, meaning: title }\n" +
+      `  - { key: applies-to, name: Applies to, kind: relation, many: true, target-types: [${targets}], meaning: validity }\n` +
+      "  - { key: validity, name: Validity note, kind: text }\n";
+    const sub =
+      "reqseq-metamodel: 1\ntypes:\n  - { key: sub-edition, name: Sub-edition, prefix: SE, extends: edition }\n";
+    const inherited = await load({
+      files: { "model/properties.yaml": properties("sub-edition"), "model/sub.yaml": sub },
+    });
+    expect(inherited.problems).toEqual([]);
+    const wrong = await load({ files: { "model/properties.yaml": properties("wish") } });
+    expect(wrong.problems.map((p) => [p.severity, p.message])).toEqual([
+      [
+        "error",
+        "Property applies-to has the meaning validity, which needs kind relation with many to types with the meaning variant, not target types wish without the meaning variant",
+      ],
+    ]);
+  });
+
   it("#141: reports a property meaning on a property of the wrong kind as an error at its meaning", () => {
     const at = (definition: MetamodelProperty): Located<MetamodelProperty> => ({
       definition,
       file: "model/properties.yaml",
       lineOf: (path) => (path[0] === "meaning" ? 7 : undefined),
     });
-    const typeMeaning = (key: string): string | undefined => ({ edition: "variant", box: "package" })[key];
+    const types: Readonly<Record<string, { meaning?: string }>> = {
+      edition: { meaning: "variant" },
+      box: { meaning: "package" },
+      plain: {},
+    };
+    const typeOf = (key: string): { meaning?: string } | undefined => types[key];
     const messages = meaningShapeProblems(
       [
         at({ key: "t", name: "T", kind: "text", meaning: "title" }),
@@ -409,7 +434,7 @@ describe("built-in meanings", () => {
           name: "W",
           kind: "relation",
           many: true,
-          "target-types": ["edition", "box"],
+          "target-types": ["edition", "box", "plain", "nosuch"],
           meaning: "validity",
         }),
         at({
@@ -425,14 +450,15 @@ describe("built-in meanings", () => {
         at({ key: "e", name: "E", kind: "text", meaning: "emergent" }),
         at({ key: "x", name: "X", kind: "text" }),
       ],
-      typeMeaning,
+      typeOf,
     );
     expect(messages).toEqual(
       [
         "Property s has the meaning statement, which needs kind text without many, not a list",
         "Property d has the meaning import-date, which needs kind date without many, not kind text",
         "Property v has the meaning validity, which needs kind relation with many to types with the meaning variant, not a single value",
-        "Property w has the meaning validity, which needs kind relation with many to types with the meaning variant, not target types box without the meaning variant",
+        "Property w has the meaning validity, which needs kind relation with many to types with the meaning variant, not target types box, plain without the meaning variant",
+        "Property q has the meaning packages, which needs kind relation with many to types with the meaning package, not every type (no target-types)",
       ].map((message) => ({
         code: "metamodel.invalid",
         severity: "error",

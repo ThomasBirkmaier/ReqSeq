@@ -485,7 +485,7 @@ const readMetamodel = async (layout: WorkspaceLayout): Promise<Metamodel> => {
       properties.filter(({ definition: { key, meaning } }) =>
         meaning === undefined ? false : assigned.meanings[meaning][0] === key,
       ),
-      (key) => resolved.types.find((t) => t.key === key)?.meaning,
+      (key) => resolved.types.find((t) => t.key === key),
     ),
     ...markdownProblems(properties),
     // A type or the initial status that seems missing may be in a faulty file, which is reported
