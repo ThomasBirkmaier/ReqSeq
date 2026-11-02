@@ -14,7 +14,7 @@ acceptance-criteria:
   - Gegeben die Analyse schlägt einen Ausschnitt vor, wenn die Dateien danach geprüft werden, dann ist das Metamodell unverändert (SR-054); der Ausschnitt steht nur in der Ausgabe der Analyse.
   - Gegeben dieselbe Datei und dieselbe Zuordnung, wenn die Analyse über App, Kommandozeile, API oder MCP ausgeführt wird, dann liefert das Tool dasselbe Ergebnis.
 packages:
-  - { id: 7755a224-01c9-4710-869a-7b1477fbd624, version: n1:cd51c9fc3d83c915, title: "Stufe 6: Austausch per ReqIF und Schutz" }
+  - { id: e1fe7f8d-f43e-4b7a-80cc-1a1b1c514172, version: n1:05ae761a2172c3ab, title: "v0.9: Eigenbetrieb und Einfachheit" }
 verification-method: test
 topic: Import und Export
 derives-from:
