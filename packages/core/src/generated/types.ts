@@ -326,6 +326,7 @@ export type ProblemCode =
   | "evidence.not-enriched"
   | "evidence.folder-missing"
   | "evidence.ambiguous-element"
+  | "evidence.kind-mismatch"
   | "baseline.invalid"
   | "baseline.repository-commit-differs"
   | "filter.invalid"
