@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760" width="1200" height="760" role="img" aria-label="ReqSeq in the middle: you use the app, you and an AI assistant use MCP, coding agents and CI pipelines use the CLI, scripts use the API; ReqSeq keeps the spec as files in Git.">
+<style>
+svg { --bg:#ffffff; --card:#ffffff; --fg:#18202b; --muted:#5a6575; --line:#c6ced9; --soft:#f3f5f8;
+  --app:#1c6db0; --mcp:#7a4fb0; --cli:#c4521b; --api:#0d8257; --hubA:#2f5fc4; --hubB:#7a4fb0; --shadow:#18202b; --sh:0.08; }
+text { font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(--fg); }
+.mono { font-family: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; }
+.bg { fill: var(--bg); }
+.card { fill: var(--card); stroke: var(--line); stroke-width: 1; }
+.muted { fill: var(--muted); }
+.t { font-size: 15px; font-weight: 600; }
+.s { font-size: 12px; fill: var(--muted); }
+.ico { fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.app { --c: var(--app); } .mcp { --c: var(--mcp); } .cli { --c: var(--cli); } .api { --c: var(--api); }
+.cs { stroke: var(--c); } .cf { fill: var(--c); } .ct { fill: var(--c); }
+.tint { fill: var(--c); fill-opacity: 0.12; }
+.wire { fill: none; stroke: var(--c); stroke-width: 2; }
+.shadow { fill: var(--shadow); opacity: var(--sh); filter: url(#blur); }
+</style>
+<defs>
+<filter id="blur" x="-20%" y="-20%" width="140%" height="160%"><feGaussianBlur stdDeviation="8"/></filter>
+<linearGradient id="hub" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="var(--hubA)"/><stop offset="1" stop-color="var(--hubB)"/></linearGradient>
+</defs>
+<rect class="bg" width="1200" height="760" rx="16"/>
+<text x="40" y="52" style="font-size:22px;font-weight:700">Who works with ReqSeq, and how</text>
+<text x="40" y="76" class="s" style="font-size:13.5px">Four ways in, one command catalog, one result. The spec stays plain files in your repository.</text>
+<path class="app wire" d="M302,213.0 C364.02691597225123,213.0 364.02691597225123,266.6072607388951 426.05383194450246,266.6072607388951"/>
+<circle class="app cf" cx="302" cy="213.0" r="4"/>
+<path class="mcp wire" d="M302,443.0 C364.02691597225123,443.0 364.02691597225123,393.3927392611049 426.0538319445025,393.3927392611049"/>
+<circle class="mcp cf" cx="302" cy="443.0" r="4"/>
+<path class="cli wire" d="M898,173.0 C835.9730840277488,173.0 835.9730840277488,266.6072607388951 773.9461680554975,266.6072607388951"/>
+<circle class="cli cf" cx="898" cy="173.0" r="4"/>
+<path class="cli wire" d="M898,305.0 C835.9730840277488,305.0 835.9730840277488,266.6072607388951 773.9461680554975,266.6072607388951"/>
+<circle class="cli cf" cx="898" cy="305.0" r="4"/>
+<path class="api wire" d="M898,463.0 C835.9730840277488,463.0 835.9730840277488,393.3927392611049 773.9461680554975,393.3927392611049"/>
+<circle class="api cf" cx="898" cy="463.0" r="4"/>
+<path d="M600,442 L600,498 M600,526 L600,548" style="stroke:var(--muted);stroke-width:2;stroke-dasharray:2 5;stroke-linecap:round;fill:none"/>
+<rect x="524" y="500" width="152" height="24" rx="12" style="fill:var(--bg)"/><text x="600" y="516" text-anchor="middle" class="s">reads and writes files</text>
+<circle cx="600" cy="330" r="150" style="fill:none;stroke:var(--line);stroke-width:1.5;stroke-dasharray:3 6"/>
+<circle class="shadow" cx="600" cy="340" r="108"/>
+<circle cx="600" cy="330" r="110" fill="url(#hub)"/>
+<circle cx="600" cy="330" r="110" style="fill:none;stroke:#ffffff;stroke-opacity:.25;stroke-width:1"/>
+<text x="600" y="324" text-anchor="middle" style="font-size:34px;font-weight:700;fill:#fff;letter-spacing:-0.5px">ReqSeq</text>
+<text x="600" y="350" text-anchor="middle" style="font-size:12.5px;fill:#fff;fill-opacity:.85">one core,</text>
+<text x="600" y="366" text-anchor="middle" style="font-size:12.5px;fill:#fff;fill-opacity:.85">the same result everywhere</text>
+<g class="app"><rect x="426.05383194450246" y="250.6072607388951" width="76" height="32" rx="16" class="cf"/><rect x="426.05383194450246" y="250.6072607388951" width="76" height="32" rx="16" style="fill:none;stroke:var(--bg);stroke-width:3"/><text x="464.05383194450246" y="271.6072607388951" text-anchor="middle" class="mono" style="font-size:14px;font-weight:700;fill:var(--bg)">App</text></g>
+<g class="mcp"><rect x="426.0538319445025" y="377.3927392611049" width="76" height="32" rx="16" class="cf"/><rect x="426.0538319445025" y="377.3927392611049" width="76" height="32" rx="16" style="fill:none;stroke:var(--bg);stroke-width:3"/><text x="464.0538319445025" y="398.3927392611049" text-anchor="middle" class="mono" style="font-size:14px;font-weight:700;fill:var(--bg)">MCP</text></g>
+<g class="cli"><rect x="697.9461680554975" y="250.6072607388951" width="76" height="32" rx="16" class="cf"/><rect x="697.9461680554975" y="250.6072607388951" width="76" height="32" rx="16" style="fill:none;stroke:var(--bg);stroke-width:3"/><text x="735.9461680554975" y="271.6072607388951" text-anchor="middle" class="mono" style="font-size:14px;font-weight:700;fill:var(--bg)">CLI</text></g>
+<g class="api"><rect x="697.9461680554975" y="377.3927392611049" width="76" height="32" rx="16" class="cf"/><rect x="697.9461680554975" y="377.3927392611049" width="76" height="32" rx="16" style="fill:none;stroke:var(--bg);stroke-width:3"/><text x="735.9461680554975" y="398.3927392611049" text-anchor="middle" class="mono" style="font-size:14px;font-weight:700;fill:var(--bg)">API</text></g>
+<g class="app"><rect class="shadow" x="44" y="178" width="254" height="86" rx="14"/><rect class="card" x="40" y="170" width="262" height="86" rx="14"/><circle class="tint" cx="80" cy="213.0" r="23"/><g transform="translate(68,201.0) scale(1.0)" class="ico cs"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.2 3.6-7 8-7s8 2.8 8 7"/></g><text class="t" x="116" y="200">You</text><text class="s" x="116" y="222">Read, edit and trace</text><text class="s" x="116" y="238">in the desktop app</text></g>
+<g class="mcp"><rect class="shadow" x="44" y="408" width="254" height="86" rx="14"/><rect class="card" x="40" y="400" width="262" height="86" rx="14"/><circle class="tint" cx="80" cy="443.0" r="23"/><g transform="translate(68,431.0) scale(1.0)" class="ico cs"><circle cx="8" cy="8.5" r="3.4"/><path d="M2 20c0-3.6 2.7-6 6-6s6 2.4 6 6"/><path d="M18 3l1.1 3.9L23 8l-3.9 1.1L18 13l-1.1-3.9L13 8l3.9-1.1z"/></g><text class="t" x="116" y="430">You and an AI assistant</text><text class="s" x="116" y="452">Chat; the assistant calls</text><text class="s" x="116" y="468">ReqSeq tools over MCP</text></g>
+<g class="cli"><rect class="shadow" x="902" y="138" width="254" height="86" rx="14"/><rect class="card" x="898" y="130" width="262" height="86" rx="14"/><circle class="tint" cx="938" cy="173.0" r="23"/><g transform="translate(926,161.0) scale(1.0)" class="ico cs"><rect x="4.5" y="8" width="15" height="11.5" rx="3.5"/><path d="M12 8V4.5"/><circle cx="12" cy="3.5" r="1"/><circle cx="9.3" cy="13.6" r="1.1"/><circle cx="14.7" cy="13.6" r="1.1"/><path d="M2 13v2.5M22 13v2.5"/></g><text class="t" x="974" y="160">Coding agent</text><text class="s" x="974" y="182">Changes the spec with</text><text class="s" x="974" y="198">commands in a shell</text></g>
+<g class="cli"><rect class="shadow" x="902" y="270" width="254" height="86" rx="14"/><rect class="card" x="898" y="262" width="262" height="86" rx="14"/><circle class="tint" cx="938" cy="305.0" r="23"/><g transform="translate(926,293.0) scale(1.0)" class="ico cs"><circle cx="5" cy="6" r="2.4"/><circle cx="5" cy="18" r="2.4"/><path d="M5 8.4v7.2"/><path d="M5 12h6a4 4 0 0 0 4-4V6"/><path d="M13 16.5l2.5 2.5 5-5.5"/></g><text class="t" x="974" y="292">CI pipeline</text><text class="s" x="974" y="314">Checks every pull request,</text><text class="s" x="974" y="330">records test evidence</text></g>
+<g class="api"><rect class="shadow" x="902" y="428" width="254" height="86" rx="14"/><rect class="card" x="898" y="420" width="262" height="86" rx="14"/><circle class="tint" cx="938" cy="463.0" r="23"/><g transform="translate(926,451.0) scale(1.0)" class="ico cs"><path d="M8.5 4.5c-2 0-3 1-3 3v2c0 1.4-.8 2.5-2 2.5 1.2 0 2 1.1 2 2.5v2c0 2 1 3 3 3"/><path d="M15.5 4.5c2 0 3 1 3 3v2c0 1.4.8 2.5 2 2.5-1.2 0-2 1.1-2 2.5v2c0 2-1 3-3 3"/><path d="M10 12h.01M14 12h.01"/></g><text class="t" x="974" y="450">Scripts and tools</text><text class="s" x="974" y="472">Call commands over HTTP</text><text class="s" x="974" y="488">on loopback</text></g>
+<rect class="shadow" x="366" y="558" width="468" height="128" rx="16"/>
+<rect class="card" x="360" y="548" width="480" height="128" rx="16"/>
+<g style="--c:var(--fg)"><g transform="translate(384,570) scale(1.0833333333333333)" class="ico cs"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H9l2 2.5h7.5A2.5 2.5 0 0 1 21 10v7.5a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z"/></g></g>
+<text class="t" x="422" y="588"><tspan class="mono">spec/</tspan> in your Git repository</text>
+<text class="s" x="384" y="616">One Markdown file per element, next to the code. ReqSeq reads</text>
+<text class="s" x="384" y="632">the Git history and never commits.</text>
+<g class="app"><rect class="tint" x="384" y="644" width="103.6" height="22" rx="6"/><text class="mono ct" x="394" y="659" style="font-size:11.5px">N-7fe707.md</text></g>
+<g class="cli"><rect class="tint" x="495.6" y="644" width="111.19999999999999" height="22" rx="6"/><text class="mono ct" x="505.6" y="659" style="font-size:11.5px">SR-c67baa.md</text></g>
+<g class="mcp"><rect class="tint" x="614.8" y="644" width="96.0" height="22" rx="6"/><text class="mono ct" x="624.8" y="659" style="font-size:11.5px">metamodel/</text></g>
+<g class="api"><rect class="tint" x="718.8" y="644" width="96.0" height="22" rx="6"/><text class="mono ct" x="728.8" y="659" style="font-size:11.5px">baselines/</text></g>
+<line x1="40" x2="1160" y1="690" y2="690" style="stroke:var(--line)"/>
+<g style="--c:var(--muted)"><g transform="translate(40,704) scale(0.75)" class="ico cs"><path d="M12 3l7.5 3v5.5c0 4.6-3.2 8.2-7.5 9.5-4.3-1.3-7.5-4.9-7.5-9.5V6z"/><path d="M9 12l2.2 2.2L15.5 10"/></g></g><text class="s" x="66" y="718" style="font-size:12.5px">Offline: no network connections, no telemetry</text>
+<g style="--c:var(--muted)"><g transform="translate(440,704) scale(0.75)" class="ico cs"><circle cx="6" cy="5.5" r="2.3"/><circle cx="6" cy="18.5" r="2.3"/><circle cx="18" cy="8" r="2.3"/><path d="M6 7.8v8.4M18 10.3c0 4-5 4-11 6.4"/></g></g><text class="s" x="466" y="718" style="font-size:12.5px">Requirement versions follow relations down to tests</text>
+</svg>
