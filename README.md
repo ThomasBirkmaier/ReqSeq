@@ -4,7 +4,7 @@ ReqSeq is a local, Git-based requirements tool: one Markdown file per element, t
 
 [![CI](https://github.com/ThomasBirkmaier/ReqSeq/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ThomasBirkmaier/ReqSeq/actions/workflows/ci.yml)
 [![Latest release](https://img.shields.io/github/v/release/ThomasBirkmaier/ReqSeq)](https://github.com/ThomasBirkmaier/ReqSeq/releases/latest)
-[![License: all rights reserved](https://img.shields.io/badge/license-all%20rights%20reserved-lightgrey)](LICENSE)
+[![License: free to try](https://img.shields.io/badge/license-free%20to%20try-lightgrey)](#license)
 [![Documentation](https://img.shields.io/badge/docs-thomasbirkmaier.github.io%2FReqSeq-blue)](https://thomasbirkmaier.github.io/ReqSeq/)
 
 You keep your requirements as plain files in your own folders and repositories. ReqSeq reads them, checks them against a metamodel, follows their relations and shows what is covered and verified, from a desktop app, a command line, a local API and an MCP server.
@@ -103,4 +103,6 @@ Test data for realistic scenarios lives in the separate repository `ReqSeq-testd
 
 ## License
 
-Copyright (c) 2026 Thomas Birkmaier. All rights reserved. No license is granted; see [LICENSE](LICENSE).
+ReqSeq is free to try. We plan to publish it under a source-available license before 1.0. Feedback and [issues](https://github.com/ThomasBirkmaier/ReqSeq/issues) are very welcome.
+
+Copyright (c) 2026 Thomas Birkmaier. The current terms are in [LICENSE](LICENSE).
