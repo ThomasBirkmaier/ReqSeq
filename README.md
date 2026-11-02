@@ -35,12 +35,12 @@ A spec that an agent writes code from is only half of the job. ReqSeq keeps it a
 
 2. **Let it change the spec with commands.** `element create`, `element update`, `relation add` and `element supersede` keep IDs, versions and relations consistent; `element search` and `trace chain` let it read before it writes. A requirement is never deleted, only superseded, and a status is only ever set, never computed, so approving stays a decision someone makes.
 3. **Name the requirement in the test.** `[SR-c67baa] shows the wind speed` in any test tool that writes JUnit XML, or a name pattern such as `sr_c67baa_ak1` where brackets do not fit.
-4. **Check it in CI.** On every pull request, in the workspace folder (or with `--workspace <folder>`):
+4. **Check it in CI.** On every pull request, as steps of a GitHub Actions job (checkout with `fetch-depth: 0`, workspace in `spec/`):
 
-   ```sh
-   reqseq workspace check --changed-since origin/main --fail-on warning
-   reqseq evidence enrich-junit evidence/ci/results.xml "$GITHUB_SHA"
-   reqseq evidence without-passed-test
+   ```yaml
+   - run: reqseq workspace check --workspace spec --changed-since origin/${{ github.base_ref }} --fail-on warning
+   - run: reqseq evidence enrich-junit spec/evidence/ci/results.xml ${{ github.sha }} --workspace spec
+   - run: reqseq evidence without-passed-test --workspace spec
    ```
 
    The check fails the job on a broken relation, a missing property or an outdated link; the enriched JUnit file ties each passed test to the version of the requirement it ran against, and the last command lists what no test shows yet.
