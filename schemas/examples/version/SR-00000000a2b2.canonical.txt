@@ -1,0 +1,9 @@
+reqseq-version n1
+text
+"Removed (n2): [only version](reqseq:878e339e-1f73-4746-abab-42cdd0f51ca7?version=n1:4d6e3c81753d1f36), [with repository](reqseq:878e339e-1f73-4746-abab-42cdd0f51ca7?version=n1:4d6e3c81753d1f36&repository=sensor), [repository first](reqseq:878e339e-1f73-4746-abab-42cdd0f51ca7?repository=sensor&version=n1:aa), [empty parameter](reqseq:878e339e-1f73-4746-abab-42cdd0f51ca7?version=a&&repository=x), [angle brackets and title](<reqseq:878e339e-1f73-4746-abab-42cdd0f51ca7?version=n1:bb> \"Wind\"), [fragment](reqseq:878e339e-1f73-4746-abab-42cdd0f51ca7?version=n1:cc#part), [escape](reqseq:878e339e-1f73-4746-abab-42cdd0f51ca7?version=n1:dd\\&x=1).\nIn a comment: <!-- [hidden](reqseq:878e339e-1f73-4746-abab-42cdd0f51ca7?version=n1:ee) -->\n\nKept: [no parameter](reqseq:878e339e-1f73-4746-abab-42cdd0f51ca7), [other parameter](reqseq:878e339e-1f73-4746-abab-42cdd0f51ca7?repository=sensor), [capital](reqseq:878e339e-1f73-4746-abab-42cdd0f51ca7?Version=n1:ff), [bare](reqseq:878e339e-1f73-4746-abab-42cdd0f51ca7?version), [encoded](reqseq:878e339e-1f73-4746-abab-42cdd0f51ca7?version%3Dn1:ff), ![image](reqseq:878e339e-1f73-4746-abab-42cdd0f51ca7?version=n1:ff), [upper case](reqseq:878E339E-1F73-4746-ABAB-42CDD0F51CA7?version=n1:ff), `[code](reqseq:878e339e-1f73-4746-abab-42cdd0f51ca7?version=n1:ff)`, [reference style][wind].\n\n[wind]: reqseq:878e339e-1f73-4746-abab-42cdd0f51ca7?version=n1:ff"
+prop acceptance-criteria
+["Given the [wind need](reqseq:878e339e-1f73-4746-abab-42cdd0f51ca7?version=n1:4d6e3c81753d1f36), when it changes, then this criterion is checked again."]
+prop requirement-type
+"functional"
+prop validity
+["fe5fce30-2b2c-4b3d-8e4f-5a6b7c8d9e0f","ca0dd4a9-0f6b-4c38-9d1f-2b6b0b1e8a11","fe5fce30-2b2c-4b3d-8e4f-5a6b7c8d9e0f"]

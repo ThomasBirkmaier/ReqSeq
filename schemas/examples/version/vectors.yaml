@@ -1,4 +1,4 @@
-# Test vectors for the version (Fassung), normal form n1 (ADR-0005, D-013, D-027, D-057, SR-091).
+# Test vectors for the version (Fassung), normal forms n1 and n2 (ADR-0005, D-013, D-027, D-057, SR-091).
 # Other tools can reimplement the version with them (N-048).
 #
 # For each vector:
@@ -9,11 +9,15 @@
 #   missing    images the text embeds that do not exist; they count with the marker `missing`.
 #   canonical  the exact canonical bytes (UTF-8) of normal form n1.
 #   version    "n1:" + the first 16 hex characters of SHA-256 over the canonical bytes.
+#   n2         the same for normal form n2: `canonical` bytes and `version` ("n2:" + 16 hex). n2 removes the
+#              `version=` parameters of inline references in the text and in string values that count, and
+#              writes the targets of a relation-valued property as a sorted list without duplicates.
 # Text is everything after the line that closes the frontmatter. Frontmatter values are as parsed by the
 # YAML 1.2 core schema. Which properties count comes from the property definitions of the element's type in
 # `metamodel` (flag `content`).
 # `pnpm schemas:check` checks element schema, files and hash; packages/core/src/version/vectors.test.ts
-# recomputes canonical bytes and version from the element file.
+# recomputes canonical bytes and version from the element file, and packages/core/src/model/version-input.test.ts
+# the n2 ones.
 metamodel: ../metamodel/standard-model.yaml
 vectors:
   # CRLF line endings and non-ASCII text, no content properties, no files.
@@ -22,6 +26,9 @@ vectors:
     missing: []
     canonical: N-42cdd0f51ca7.canonical.txt
     version: n1:4d6e3c81753d1f36
+    n2:
+      canonical: N-42cdd0f51ca7.n2.canonical.txt
+      version: n2:d905acac520ff9ec
   # LF; trailing spaces and tabs, extra blank lines, an image, a validity target, an inline reference with the
   # real version of the N vector, and properties that do not count (title, status, packages, emergent,
   # verification method, relation kind, unknown key).
@@ -30,6 +37,9 @@ vectors:
     missing: []
     canonical: SR-825b7146fb54.canonical.txt
     version: n1:e386ab40f7f71d31
+    n2:
+      canonical: SR-825b7146fb54.n2.canonical.txt
+      version: n2:872e1eaf7d9d4d4b
   # Frontmatter LF, text CR only; trailing NBSP and form feed (kept), U+2028 inside a line, a tabs-only line,
   # a tab inside an acceptance criterion, a single (non-list) validity target, a verification method (does not count). Images: one outside the
   # element's folder and linked twice (once via ./ and ..), one percent-encoded, one reference-style and
@@ -39,6 +49,9 @@ vectors:
     missing: [SR-9f0a1b2c3d4e/sketch.png]
     canonical: SR-9f0a1b2c3d4e.canonical.txt
     version: n1:eeca493b104dc3e0
+    n2:
+      canonical: SR-9f0a1b2c3d4e.n2.canonical.txt
+      version: n2:a381f1209fb4bb12
   # The Markdown subset (ADR-0005 "Files"): an image in an HTML comment counts; a definition line inside a
   # paragraph is none, so its reference image does not count; a definition after a list item marker with
   # balanced parentheses, and one in a list item right after another item; a line indented by a tab after a
@@ -59,3 +72,19 @@ vectors:
       - SR-7a8b9c0d1e2f/photo.png/
     canonical: SR-7a8b9c0d1e2f.canonical.txt
     version: n1:45959b807c3bfb7d
+    n2:
+      canonical: SR-7a8b9c0d1e2f.n2.canonical.txt
+      version: n2:8b7ecfbbdc75e89d
+  # n2 (#166, #688): `version=` parameters of inline references removed in the text, in an HTML comment and in an
+  # acceptance criterion (alone, before and after `repository`, next to an empty parameter, in `<…>` with a
+  # title, with a fragment, with an escaped `&`); kept where no inline reference is (`Version=`, a bare
+  # `version`, `%3D`, an image, an upper-case UUID, code, a reference-style link); validity targets out of
+  # order with a duplicate.
+  - element: SR-00000000a2b2.md
+    files: []
+    missing: []
+    canonical: SR-00000000a2b2.canonical.txt
+    version: n1:6e23009589d8cc43
+    n2:
+      canonical: SR-00000000a2b2.n2.canonical.txt
+      version: n2:c78cfed77c0b4efa

@@ -1,0 +1,3 @@
+reqseq-version n2
+text
+"As a sailor I need to see the current wind speed at a glance,\nfrom a distance of three metres.\n\nGrüße an Bord: café, naïve, 風速."
