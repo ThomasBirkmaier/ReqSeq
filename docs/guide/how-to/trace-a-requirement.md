@@ -85,16 +85,16 @@ reqseq trace matrix
 
 ```text title="Output"
 columns:
-...
-    name: Derives from
-    count: 2
+  1:  Derives from  (derives-from, out)  2  66.6 %
 ...
 rows:
+  SR-c67baa  draft  Show the wind speed
+    1: N-7fe707  ...
 ...
 total: 3
 ```
 
-`count` says how many rows have a link in a column. With `--json`, each row has its cells: the elements at the other end, each with `outdated`.
+The columns are numbered; the count says how many rows have a link in a column. Below each row, its cells name the elements at the other end by column number, `–` for an empty cell and `[outdated]` for a link to an older version. `--json` gives each cell in full.
 
 A relation can also be set in the same call that creates or changes the element, by any reference `relation add` takes, one target or a JSON list per kind:
 
