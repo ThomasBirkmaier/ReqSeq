@@ -666,6 +666,7 @@ describe("parseModelCache", () => {
       withRecord({ bareReferences: [{ target: "N-1", line: 1.5 }] }),
     ],
     ["a bare reference without a line", withRecord({ bareReferences: [{ target: "N-1" }] })],
+    ["a blank text that is not true", withRecord({ blankText: false })],
     ["a file that is no element, of another file", withContribution({ kind: "not-element", file: "b.md" })],
     ["a problem that is none", withContribution({ kind: "problem", problem: { message: "m" } })],
   ])("discards a cache with %s", (_case, value) => {
@@ -727,6 +728,7 @@ describe("parseModelCache", () => {
       "an element with references outside links (#633)",
       { ...elementEntry, element: { ...record, bareReferences: [{ target: "N-6010df", line: 7 }] } },
     ],
+    ["an element with a blank text (#667)", { ...elementEntry, element: { ...record, blankText: true } }],
   ])("takes %s as it is", (_case, contribution) => {
     expect(
       parse(withEntry(["a.md", contribution, "7", "900000000"]))
@@ -786,8 +788,13 @@ describe("parseModelCache", () => {
   });
 
   it("discards a cache of format 6, whose records know no references outside links (#633)", () => {
-    expect(MODEL_CACHE_FORMAT).toBe(7);
+    expect(MODEL_CACHE_FORMAT).toBeGreaterThan(6);
     expect(parse({ ...valid, format: 6 })).toBeUndefined();
+  });
+
+  it("discards a cache of format 7, whose records know no blank text (#667)", () => {
+    expect(MODEL_CACHE_FORMAT).toBe(8);
+    expect(parse({ ...valid, format: 7 })).toBeUndefined();
   });
 
   it("discards a cache of format 2, with inodes and change times as numbers", () => {

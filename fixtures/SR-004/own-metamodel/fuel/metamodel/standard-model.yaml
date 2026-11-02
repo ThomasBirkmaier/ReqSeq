@@ -137,7 +137,7 @@ properties:
       name: Statement,
       kind: text,
       meaning: statement,
-      description: "The statement of the requirement.",
+      description: "The supplier's statement on an imported requirement, exported to the source with `reqif export --statements`. It does not count to the version; the requirement itself is the element text.",
     }
   - {
       key: source,

@@ -25,6 +25,7 @@ import { hasId, relationItems } from "./relation-keys.js";
 import { relationTypeFindings } from "./relation-types.js";
 import { targetRepository, targetState } from "./relations.js";
 import { requiredFindings } from "./required.js";
+import { statementFindings } from "./statement-findings.js";
 import { statusFindings } from "./status-findings.js";
 import type { ShortIds } from "./short-id.js";
 import { UNKNOWN_TYPE_PREFIX, identifierField } from "./short-id.js";
@@ -371,6 +372,7 @@ export const elementView = (
         ...unknownFindings(record, metamodel),
         ...requiredFindings(record, metamodel),
         ...statusFindings(record, metamodel),
+        ...statementFindings(record, metamodel),
         ...valueFindings(record, metamodel),
         ...duplicateIdentifierFindings(record, { metamodel, shortIds }),
         ...relationTypeFindings(record, { store: input.store, metamodel, shortIds }),

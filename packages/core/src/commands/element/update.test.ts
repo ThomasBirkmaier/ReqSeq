@@ -293,8 +293,9 @@ describe("element.update", () => {
       },
       { workspace: again },
     )) as Output;
-    // The required properties are filled; the parent is still missing (SR-022 AK6).
-    expect(out.problems?.map((p) => p.code)).toEqual(["trace.no-parent"]);
+    // The required properties are filled; the parent is still missing (SR-022 AK6), and the
+    // statement stands without a text (#667).
+    expect(out.problems?.map((p) => p.code)).toEqual(["element.statement-without-text", "trace.no-parent"]);
     const file = await read(opened, created.files[0] ?? "");
     const keys = file
       .split("\n")

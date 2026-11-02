@@ -46,6 +46,11 @@ export interface ElementRecord {
    * with their lines in the file; left out when there is none. `workspace.check` reports each.
    */
   readonly bareReferences?: readonly BareReference[];
+  /**
+   * `true` when the text below the frontmatter is empty or only whitespace (#667); left out when it
+   * has text. `workspace.check` warns about a requirement with a statement but no text.
+   */
+  readonly blankText?: true;
   /** Line endings and byte order mark of the file (ADR-0007). */
   readonly eol: LineEnding;
   readonly closingEol: LineEnding | "";
@@ -197,6 +202,7 @@ export const classifyFile = (repository: string, file: ParsedFile): Classified =
       ...(inProperties.length === 0 ? {} : { propertyReferences: inProperties }),
       ...(unresolved.length === 0 ? {} : { unresolvedLinks: unresolved }),
       ...(bare.length === 0 ? {} : { bareReferences: bare }),
+      ...(file.body.trim() === "" ? { blankText: true } : {}),
       eol,
       closingEol,
       bom,
