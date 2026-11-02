@@ -14,7 +14,8 @@ import { rememberWorkspace } from "@reqseq/core/recent-workspaces";
 const execFileAsync = promisify(execFile);
 
 /** How long `close()` waits for the app to end after it closed the window (main waits at most 2 s for the save). */
-const CLOSE_WAIT_MS = 5000;
+// Three times as long on the Windows and macOS runners in CI, which stall under load (#753, playwright.config.ts).
+const CLOSE_WAIT_MS = process.env["CI"] !== undefined && process.platform !== "linux" ? 15_000 : 5000;
 /** How long a call into the main process may take while `close()` ends the app or describes a hang. */
 const CALL_WAIT_MS = 1000;
 /**
