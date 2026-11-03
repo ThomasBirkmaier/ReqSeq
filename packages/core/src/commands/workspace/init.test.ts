@@ -233,11 +233,21 @@ describe("workspace.init", () => {
     expect(await listFiles(ws.root)).toEqual(["metamodel/standard-model.yaml"]);
   });
 
-  it("refuses a missing folder and a path that is a file", async () => {
+  it("creates the folder of the workspace when only it is missing (#637)", async () => {
+    const ws = await emptyFolder();
+    await init(open(ws.root), { path: "spec", name: "W" });
+    expect(await listFiles(ws.root)).toEqual([
+      "spec/.gitignore",
+      "spec/metamodel/standard-model.yaml",
+      "spec/reqseq-workspace.yaml",
+    ]);
+  });
+
+  it("refuses a folder whose parent is missing too and a path that is a file", async () => {
     const ws = await createFixtureWorkspace({ files: { "a-file": "x" } });
     onTestFinished(() => ws.cleanup());
     const workspace = open(ws.root);
-    const missing = await init(workspace, { path: "missing", name: "W" }).catch((e: unknown) => e);
+    const missing = await init(workspace, { path: "missing/below", name: "W" }).catch((e: unknown) => e);
     expect(missing).toMatchObject({
       code: "file.folder-missing",
       message: expect.not.stringContaining(ws.root) as string,

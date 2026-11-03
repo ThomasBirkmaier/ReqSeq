@@ -1437,11 +1437,11 @@ export interface CommandCatalog {
 }
 
 /**
- * Input of `workspace.init` as `run` gets it: validated, properties with a `default` filled in. Create a workspace with the standard model in an existing folder. Adds `*.reqseq-tmp` (temp files of an interrupted write) to the folder's `.gitignore`.
+ * Input of `workspace.init` as `run` gets it: validated, properties with a `default` filled in. Create a workspace with the standard model in a folder, which is created when only it is missing. Adds `*.reqseq-tmp` (temp files of an interrupted write) to the folder's `.gitignore`.
  * Schema: `schemas/commands/workspace.init.json input`.
  */
 export interface WorkspaceInitInput {
-  /** Existing folder; must not contain reqseq-workspace.yaml or the metamodel file. */
+  /** Folder of the workspace, created when only it is missing; must not contain reqseq-workspace.yaml or the metamodel file. */
   readonly path: LocalPath;
   readonly name: string;
   readonly metamodel?: {
@@ -1451,7 +1451,7 @@ export interface WorkspaceInitInput {
 }
 
 /**
- * Output of `workspace.init`. Create a workspace with the standard model in an existing folder. Adds `*.reqseq-tmp` (temp files of an interrupted write) to the folder's `.gitignore`.
+ * Output of `workspace.init`. Create a workspace with the standard model in a folder, which is created when only it is missing. Adds `*.reqseq-tmp` (temp files of an interrupted write) to the folder's `.gitignore`.
  * Schema: `schemas/commands/workspace.init.json output`.
  */
 export interface WorkspaceInitOutput {
