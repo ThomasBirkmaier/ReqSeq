@@ -1,5 +1,5 @@
 # Most entries of a list property (SR-171): at most three acceptance criteria per system
-# requirement; keywords have no limit.
+# requirement; keywords have no limit. A note has no acceptance criteria (SR-016).
 reqseq-metamodel: 1
 
 types:
@@ -8,6 +8,11 @@ types:
     prefix: SR
     meaning: requirement
     properties: [title, acceptance-criteria, keywords]
+    required: [title]
+  - key: note
+    name: Note
+    prefix: "NO"
+    properties: [title, keywords]
     required: [title]
 
 properties:

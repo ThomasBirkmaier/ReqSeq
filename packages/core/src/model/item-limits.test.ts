@@ -82,6 +82,8 @@ describe("the most entries of a list property (SR-171)", () => {
       { ...record, type: "gizmo" },
       { ...record, data: { ...record.data, "acceptance-criteria": "one text" } },
       { ...record, data: { ...record.data, "acceptance-criteria": undefined, extra: criteria } },
+      // A note has no acceptance criteria: its four entries are an unknown property (SR-016), not too many.
+      { ...record, type: "note" },
     ];
     expect(variants.flatMap((element) => itemLimitFindings(element, metamodel))).toEqual([]);
   });
