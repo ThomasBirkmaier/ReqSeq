@@ -10,6 +10,8 @@ import type { CommandName, CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
+import { metamodelState } from "../../metamodel/index.js";
+import { originKeys } from "../../reqif/index.js";
 import { readFirstFor } from "../../runtime/read-first.test-helper.js";
 
 type Imported = CommandOutput<"reqif.import">;
@@ -133,12 +135,16 @@ describe("origin of imported elements (SR-057)", () => {
         "      many: true,\n      meaning: delivery,",
       ),
     });
-    const kind = await failure(many, "reqif.import", INPUT);
-    expect([kind.code, kind.message, kind.details?.["reason"]]).toEqual([
-      "input.invalid",
+    // The metamodel itself is invalid then (#141), so the workspace is read-only before the import
+    // looks; `originKeys` keeps its own refusal for a metamodel it is given directly.
+    expect((await failure(many, "reqif.import", INPUT)).code).toBe("workspace.read-only");
+    const metamodel = await many.get(metamodelState);
+    expect(metamodel.problems.map((p) => p.message)).toContain(
+      "Property delivery has the meaning delivery, which needs kind text without many, not a list",
+    );
+    expect(() => originKeys(metamodel)).toThrow(
       "Not imported: property delivery has the meaning delivery, which needs kind text without many",
-      "origin-kind",
-    ]);
+    );
 
     const unassigned = await open({
       "metamodel/standard-model.yaml": METAMODEL.replace("      meaning: delivery,\n", ""),

@@ -15,7 +15,7 @@ import type {
   RelationMeaning,
   TypeMeaning,
 } from "./index.js";
-import { assignMeanings, markdownProblems, meaningKindProblems } from "./meanings.js";
+import { assignMeanings, markdownProblems, meaningKindProblems, meaningShapeProblems } from "./meanings.js";
 import {
   MEANINGS,
   metamodelState,
@@ -246,7 +246,7 @@ describe("built-in meanings", () => {
           "  - { key: spec-item, name: Specification Item, prefix: SPI, meaning: requirement }",
           "  - { key: sub-item, name: Sub Item, prefix: SUB, extends: spec-item }",
           "  # The target type of applies-to in properties.yaml.",
-          "  - { key: edition, name: Edition, prefix: ED }",
+          "  - { key: edition, name: Edition, prefix: ED, meaning: variant }",
           "",
         ].join("\n"),
       },
@@ -309,7 +309,7 @@ describe("built-in meanings", () => {
           "  - { key: spec-item, name: Specification Item, prefix: SPI, extends: base }",
           "  - { key: sub-item, name: Sub Item, prefix: SUB, extends: spec-item, meaning: requirement }",
           "  # The target type of applies-to in properties.yaml.",
-          "  - { key: edition, name: Edition, prefix: ED }",
+          "  - { key: edition, name: Edition, prefix: ED, meaning: variant }",
           "",
         ].join("\n"),
       },
@@ -335,7 +335,7 @@ describe("built-in meanings", () => {
           "  - { key: spec-item, name: Specification Item, prefix: SPI, extends: base, meaning: need }",
           "  - { key: sub-item, name: Sub Item, prefix: SUB, extends: spec-item, meaning: requirement }",
           "  # The target type of applies-to in properties.yaml.",
-          "  - { key: edition, name: Edition, prefix: ED }",
+          "  - { key: edition, name: Edition, prefix: ED, meaning: variant }",
           "",
         ].join("\n"),
       },
@@ -389,6 +389,84 @@ describe("built-in meanings", () => {
         file: "model/properties.yaml",
       },
     ]);
+  });
+
+  it("#141: takes the meaning of a validity target type from its parent", async () => {
+    const properties = (targets: string): string =>
+      "reqseq-metamodel: 1\nproperties:\n  - { key: label, name: Label, kind: text, meaning: title }\n" +
+      `  - { key: applies-to, name: Applies to, kind: relation, many: true, target-types: [${targets}], meaning: validity }\n` +
+      "  - { key: validity, name: Validity note, kind: text }\n";
+    const sub =
+      "reqseq-metamodel: 1\ntypes:\n  - { key: sub-edition, name: Sub-edition, prefix: SE, extends: edition }\n";
+    const inherited = await load({
+      files: { "model/properties.yaml": properties("sub-edition"), "model/sub.yaml": sub },
+    });
+    expect(inherited.problems).toEqual([]);
+    const wrong = await load({ files: { "model/properties.yaml": properties("wish") } });
+    expect(wrong.problems.map((p) => [p.severity, p.message])).toEqual([
+      [
+        "error",
+        "Property applies-to has the meaning validity, which needs kind relation with many to types with the meaning variant, not target types wish without the meaning variant",
+      ],
+    ]);
+  });
+
+  it("#141: reports a property meaning on a property of the wrong kind as an error at its meaning", () => {
+    const at = (definition: MetamodelProperty): Located<MetamodelProperty> => ({
+      definition,
+      file: "model/properties.yaml",
+      lineOf: (path) => (path[0] === "meaning" ? 7 : undefined),
+    });
+    const types: Readonly<Record<string, { meaning?: string }>> = {
+      edition: { meaning: "variant" },
+      box: { meaning: "package" },
+      plain: {},
+    };
+    const typeOf = (key: string): { meaning?: string } | undefined => types[key];
+    const messages = meaningShapeProblems(
+      [
+        at({ key: "t", name: "T", kind: "text", meaning: "title" }),
+        at({ key: "s", name: "S", kind: "text", many: true, meaning: "statement" }),
+        at({ key: "d", name: "D", kind: "text", meaning: "import-date" }),
+        at({ key: "v", name: "V", kind: "relation", meaning: "validity" }),
+        at({
+          key: "w",
+          name: "W",
+          kind: "relation",
+          many: true,
+          "target-types": ["edition", "box", "plain", "nosuch"],
+          meaning: "validity",
+        }),
+        at({
+          key: "p",
+          name: "P",
+          kind: "relation",
+          many: true,
+          "target-types": ["box"],
+          meaning: "packages",
+        }),
+        at({ key: "q", name: "Q", kind: "relation", many: true, meaning: "packages" }),
+        at({ key: "m", name: "M", kind: "choice", meaning: "verification-method" }),
+        at({ key: "e", name: "E", kind: "text", meaning: "emergent" }),
+        at({ key: "x", name: "X", kind: "text" }),
+      ],
+      typeOf,
+    );
+    expect(messages).toEqual(
+      [
+        "Property s has the meaning statement, which needs kind text without many, not a list",
+        "Property d has the meaning import-date, which needs kind date without many, not kind text",
+        "Property v has the meaning validity, which needs kind relation with many to types with the meaning variant, not a single value",
+        "Property w has the meaning validity, which needs kind relation with many to types with the meaning variant, not target types box, plain without the meaning variant",
+        "Property q has the meaning packages, which needs kind relation with many to types with the meaning package, not every type (no target-types)",
+      ].map((message) => ({
+        code: "metamodel.invalid",
+        severity: "error",
+        message,
+        file: "model/properties.yaml",
+        line: 7,
+      })),
+    );
   });
 
   it("#357: the meaning import-version needs kind text without many and never content, else an error on that line", () => {
