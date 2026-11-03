@@ -34,6 +34,38 @@ const exists = async (file: string): Promise<boolean> =>
     () => false,
   );
 
+/** At most this many workspaces one level below are named in `workspace.not-found`. */
+const BELOW_SHOWN = 3;
+
+/**
+ * The folders directly below `root` that hold a workspace file, sorted, for the message of
+ * `workspace.not-found` (#640): a call from the repository root of a workspace in `spec/` then names
+ * it. Only read when there is no workspace file; a folder that cannot be read gives none, and a link
+ * to a folder is not followed.
+ */
+const workspacesBelow = async (root: string): Promise<readonly string[]> => {
+  const entries = await fs.readdir(root, { withFileTypes: true }).catch(() => []);
+  const folders = entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name);
+  const found = await Promise.all(
+    folders.map(async (name) => ((await exists(path.join(root, name, WORKSPACE_FILE))) ? name : undefined)),
+  );
+  return found.filter((name) => name !== undefined).sort();
+};
+
+const notFound = async (root: string): Promise<CommandError> => {
+  const below = await workspacesBelow(root);
+  const shown = below.slice(0, BELOW_SHOWN).map((name) => `${name}/${WORKSPACE_FILE}`);
+  const more = below.length > BELOW_SHOWN ? ` and ${String(below.length - BELOW_SHOWN)} more` : "";
+  const hint =
+    below.length === 0
+      ? ""
+      : `; one level below lies ${shown.join(", ")}${more}: open that folder as the workspace`;
+  return new CommandError("workspace.not-found", `No ${WORKSPACE_FILE} in the workspace folder${hint}`, {
+    file: WORKSPACE_FILE,
+    ...(below.length === 0 ? {} : { below }),
+  });
+};
+
 /** Schema violations as `workspace.invalid` problems of `file`. */
 const violations = (schema: string, file: string, data: unknown): readonly Problem[] => {
   const validate = fileSchemaValidator(schema);
@@ -69,14 +101,12 @@ const workspaceFileProblems = (data: unknown): readonly Problem[] => {
 
 /**
  * Reads and checks `reqseq-workspace.yaml` in `root`. Throws `workspace.not-found` when there is
- * none and `file.faulty` (with `details.problems`) when it is not valid YAML, does not match
+ * none (naming workspaces one level below, `details.below`) and `file.faulty` (with `details.problems`) when it is not valid YAML, does not match
  * `workspace.schema.json` or names a repository twice: a faulty workspace file is never used in part.
  */
 export const readWorkspaceFile = async (root: string): Promise<Read<CheckedWorkspaceFile>> => {
   if (!(await exists(path.join(root, WORKSPACE_FILE)))) {
-    throw new CommandError("workspace.not-found", `No ${WORKSPACE_FILE} in the workspace folder`, {
-      file: WORKSPACE_FILE,
-    });
+    throw await notFound(root);
   }
   const read = await readYamlFile(root, WORKSPACE_FILE);
   const problems = read.kind === "problem" ? [read.problem] : workspaceFileProblems(read.file.data);

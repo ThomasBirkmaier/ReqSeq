@@ -240,6 +240,24 @@
         "hintId": {
           "type": "string",
           "description": "Stable ID of a confirmable hint (D-042); on the hint.* problems of hint.confirm, the ID as given."
+        },
+        "key": {
+          "$ref": "#/$defs/key",
+          "description": "The relation kind a count hint is about (`relation.too-many`, `relation.too-few`, SR-152)."
+        },
+        "targetType": {
+          "$ref": "#/$defs/key",
+          "description": "The target type of the limit a count hint is about (SR-152)."
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "How many relations the element has that the limit counts (SR-152)."
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "The maximum (`relation.too-many`) or minimum (`relation.too-few`) the metamodel sets (SR-152)."
         }
       },
       "additionalProperties": false
@@ -271,6 +289,8 @@
         "relation.not-a-link",
         "relation.inaccessible-target",
         "relation.not-allowed",
+        "relation.too-many",
+        "relation.too-few",
         "relation.outdated",
         "relation.target-superseded",
         "relation.not-found",

@@ -272,7 +272,7 @@
     "/v1/commands/workspace.init": {
       "post": {
         "operationId": "workspace_init",
-        "summary": "Create a workspace with the standard model in an existing folder. Adds `*.reqseq-tmp` (temp files of an interrupted write) to the folder's `.gitignore`.",
+        "summary": "Create a workspace with the standard model in a folder, which is created when only it is missing. Adds `*.reqseq-tmp` (temp files of an interrupted write) to the folder's `.gitignore`.",
         "tags": [
           "workspace"
         ],
@@ -290,7 +290,7 @@
                 "properties": {
                   "path": {
                     "$ref": "#/components/schemas/common/$defs/localPath",
-                    "description": "Existing folder; must not contain reqseq-workspace.yaml or the metamodel file."
+                    "description": "Folder of the workspace, created when only it is missing; must not contain reqseq-workspace.yaml or the metamodel file."
                   },
                   "name": {
                     "type": "string"
@@ -664,7 +664,7 @@
     "/v1/commands/workspace.check": {
       "post": {
         "operationId": "workspace_check",
-        "summary": "Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, requirements with a statement but no text (a warning), missing targets, cycles, requirements without a parent (a warning, SR-022 AK6), duplicate IDs, outdated relations, evidence records that cannot be read or name an unknown element, a repository that is a workspace of its own whose metamodel counts other properties to the version. ok is false, and the CLI exits 1, on findings at or above failOn (default error).",
+        "summary": "Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, requirements with a statement but no text (a warning), missing targets, cycles, requirements without a parent (a warning, SR-022 AK6), elements with more or fewer relations of a kind than its limits allow (a hint), duplicate IDs, outdated relations, evidence records that cannot be read or name an unknown element, a repository that is a workspace of its own whose metamodel counts other properties to the version. ok is false, and the CLI exits 1, on findings at or above failOn (default error).",
         "tags": [
           "workspace"
         ],
@@ -684,7 +684,8 @@
           "SR-088",
           "SR-089",
           "SR-090",
-          "SR-092"
+          "SR-092",
+          "SR-152"
         ],
         "requestBody": {
           "required": true,
@@ -4356,7 +4357,7 @@
                     },
                     "gaps": {
                       "type": "array",
-                      "description": "The gaps of the chain, in the order of `nodes` (the `no-parent` gaps of the upward chain first, the root's among them, then those of the downward chain), only those of the nodes of the page. Downward (SR-022 AK3), only for elements whose children were looked at (`expanded`): `no-child` for a need without a child, `no-evidence` for a requirement without a child and without evidence. Upward (SR-022 AK5), only for elements whose parents were looked at, so not with `direction: down`: `no-parent` for a requirement that names no parent through a relation kind with the meaning `derivation`, whatever the view and the state of the target (a parent in a repository that is not here is one); the metamodel says which kinds derive, so in the standard model a requirement based only on a decision (`based-on`) has the gap. `workspace.check` reports the same elements (`trace.no-parent`). `no-evidence`: the element has no verification record in `view`, in the core without `view` (as `evidence.coverage` and the filter condition `verification`; any version and result, spec question #527 Q3), so without `view` a requirement verified only for a variant shows its records in `evidence` and still has the gap (spec question #527 Q4). A test case that was only skipped does not close the gap.",
+                      "description": "The gaps of the chain, in the order of `nodes` (the `no-parent` gaps of the upward chain first, the root's among them, then those of the downward chain), only those of the nodes of the page. Downward (SR-022 AK3), only for elements whose children were looked at (`expanded`): `no-child` for a need without a child, `no-evidence` for a requirement without a child and without evidence. Upward (SR-022 AK5), only for elements whose parents were looked at, so not with `direction: down`: `no-parent` for a requirement that names no parent through a relation kind with the meaning `derivation`, whatever the view and the state of the target (a parent in a repository that is not here is one); the metamodel says which kinds derive, so in the standard model a requirement based only on a decision (`based-on`) has the gap. `workspace.check` reports the same elements (`trace.no-parent`). `no-evidence`: the element has no verification record in `view`, in the core without `view` (as `evidence.coverage` and the filter condition `verification`; any version and result, spec question #527 Q3). A test case that was only skipped does not close the gap. `not-in-view` (#674, product owner decision, 2026-11-02): a requirement without a child that `view` does not hold, without `view` the core (its validity names only variants), instead of `no-evidence`, whatever its records; `views` names the views that hold it. It is no evidence gap: a client that counts the gaps of a chain leaves it out. With `view` only the root can have it, as the chain reaches only elements the view holds.",
                       "items": {
                         "type": "object",
                         "properties": {
@@ -4371,8 +4372,16 @@
                             "enum": [
                               "no-child",
                               "no-evidence",
-                              "no-parent"
+                              "no-parent",
+                              "not-in-view"
                             ]
+                          },
+                          "views": {
+                            "type": "array",
+                            "items": {
+                              "$ref": "#/components/schemas/common/$defs/viewId"
+                            },
+                            "description": "Only with `not-in-view`: the views that hold the element, `core` first, then the variants in store order; empty when none does (a validity that names no variant of the workspace). `names` names the variants."
                           }
                         },
                         "additionalProperties": false,
@@ -4491,7 +4500,7 @@
                     },
                     "names": {
                       "type": "array",
-                      "description": "The variants that the records of `evidence` name by UUID only (`variant`), each once in the order first named, so a reader names them by short ID, identifier and title (#588, #676). Left out when it names none, and for a variant in a repository that is not here.",
+                      "description": "The variants that the records of `evidence` name by UUID only (`variant`), then those the `views` of `gaps` name, each once in the order first named, so a reader names them by short ID, identifier and title (#588, #676). Left out when it names none, and for a variant in a repository that is not here.",
                       "items": {
                         "$ref": "#/components/schemas/common/$defs/elementName"
                       }
@@ -7878,7 +7887,7 @@
     "/v1/commands/evidence.status": {
       "post": {
         "operationId": "evidence_status",
-        "summary": "Verification status of a selection per view, from the evidence records (SR-031) and, without own record, from the children with the children that are missing (SR-034); validation status from the validation records (SR-038).",
+        "summary": "Verification status of a selection per view, from the evidence records (SR-031) and, without own record, from the children with the children that are missing (SR-034); validation status from the validation records (SR-038). Without a selection every element of the workspace is listed, and only requirements, needs and elements with a validation record carry a status, so select them, for example by type.",
         "tags": [
           "evidence"
         ],
@@ -11718,6 +11727,24 @@
               "hintId": {
                 "type": "string",
                 "description": "Stable ID of a confirmable hint (D-042); on the hint.* problems of hint.confirm, the ID as given."
+              },
+              "key": {
+                "$ref": "#/components/schemas/common/$defs/key",
+                "description": "The relation kind a count hint is about (`relation.too-many`, `relation.too-few`, SR-152)."
+              },
+              "targetType": {
+                "$ref": "#/components/schemas/common/$defs/key",
+                "description": "The target type of the limit a count hint is about (SR-152)."
+              },
+              "count": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "How many relations the element has that the limit counts (SR-152)."
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "The maximum (`relation.too-many`) or minimum (`relation.too-few`) the metamodel sets (SR-152)."
               }
             },
             "additionalProperties": false
@@ -11749,6 +11776,8 @@
               "relation.not-a-link",
               "relation.inaccessible-target",
               "relation.not-allowed",
+              "relation.too-many",
+              "relation.too-few",
               "relation.outdated",
               "relation.target-superseded",
               "relation.not-found",
@@ -13530,11 +13559,58 @@
                 },
                 "description": "Allowed target types: absent: every type; empty: none; a type also allows its subtypes (types that extend it, SR-086)."
               },
+              "limits": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/metamodel/$defs/relationLimit"
+                },
+                "description": "How many relations of this kind an element may or must have, per target type (SR-152): a count outside a limit is a hint (`relation.too-many`, `relation.too-few`) when the workspace is checked, never a refusal. Absent: any number, also none. One limit per pair of source type and target type."
+              },
               "meaning": {
                 "$ref": "#/components/schemas/metamodel/$defs/relationMeaning"
               }
             },
             "unevaluatedProperties": false
+          },
+          "relationLimit": {
+            "description": "A minimum, a maximum or both for the number of relations of the kind from one source element to elements of `target-type` (SR-152). Both types include their subtypes (types that extend them). A relation counts when its target resolves to one element of a known type; a duplicate item counts twice.",
+            "type": "object",
+            "required": [
+              "target-type"
+            ],
+            "properties": {
+              "source-type": {
+                "$ref": "#/components/schemas/metamodel/$defs/key",
+                "description": "The source elements the limit applies to. Absent: the kind's `source-types`, or every type when the kind has none."
+              },
+              "target-type": {
+                "$ref": "#/components/schemas/metamodel/$defs/key",
+                "description": "The type of the targets that are counted."
+              },
+              "min": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "At least this many relations; fewer is the hint `relation.too-few`."
+              },
+              "max": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "At most this many relations; more is the hint `relation.too-many`."
+              }
+            },
+            "anyOf": [
+              {
+                "required": [
+                  "min"
+                ]
+              },
+              {
+                "required": [
+                  "max"
+                ]
+              }
+            ],
+            "additionalProperties": false
           },
           "relationMeaning": {
             "description": "Built-in meaning (D-012, D-059). `derivation`: source is child, target is parent (chain, coverage, indirect verification). `replacement`: source replaces target core requirement for the variants in the source's validity (D-020). `succession`: source is the successor that supersedes target (D-045, SR-072). `exclusion`: source variant excludes target core requirement, written in the variant file (SR-042, D-059). Without meaning a relation has no traceability semantics.",

@@ -281,6 +281,26 @@ describe("trace chain (SR-022)", () => {
     expect(gaps(chainOf(opened, AIRFIELD, { direction: "both" }))).toEqual([]);
   });
 
+  it("a requirement outsideView does not hold is not-in-view, with no views when the context names none (#674)", async () => {
+    const opened = await open();
+    const chain = chainOf(opened, SEE_WIND, {
+      direction: "down",
+      outsideView: (e) => e.id === DIRECTION || e.id === SEE_WIND,
+    });
+    // Only requirements are judged by the view; the need SEE_WIND keeps its rule.
+    expect(chain.gaps.filter((g) => g.element.id === DIRECTION).map((g) => g.kind)).toEqual(["not-in-view"]);
+    const output = chainOutput(chain, {
+      metamodel: opened.graph.metamodel,
+      shortIds: await opened.workspace.get(shortIdState),
+    });
+    expect(output.gaps.find((g) => g.id === DIRECTION)).toEqual({
+      id: DIRECTION,
+      repository: "system",
+      kind: "not-in-view",
+      views: [],
+    });
+  });
+
   it("[SR-022/AK3] marks no gap where the chain was cut at maxDepth", async () => {
     const opened = await open();
     const chain = chainOf(opened, SEE_WIND, { direction: "down", maxDepth: 1 });

@@ -31,6 +31,29 @@ scenariosOf("trace.chain", [
     },
   },
   {
+    name: "a requirement that only a variant holds is not in the core's view, no evidence gap (#674)",
+    fixture: CHAIN,
+    input: { ref: "SR-00b002", view: "core" },
+    tag: "[SR-022/AK3]",
+    expect: "output",
+    check: (results) => {
+      const output = (
+        results["core"]?.outcome as { output: { gaps: unknown[]; names?: { shortId: string }[] } }
+      ).output;
+      expect([output.gaps, output.names?.map((n) => n.shortId)]).toEqual([
+        [
+          {
+            id: "5c0e1d2a-0022-4022-8022-00000000b002",
+            repository: "system",
+            kind: "not-in-view",
+            views: ["5c0e1d2a-0022-4022-8022-00000000d001"],
+          },
+        ],
+        ["VAR-00d001"],
+      ]);
+    },
+  },
+  {
     name: "the chain of a requirement with an executed and a skipped test case and an inspection (SR-033)",
     fixture: EVIDENCE,
     input: { ref: "SR-e88fb3" },

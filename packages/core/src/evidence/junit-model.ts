@@ -79,7 +79,7 @@ export interface JunitFile {
   readonly bom: boolean;
   /** Every `<testsuite>`, nested ones included, in file order. */
   readonly suites: readonly JunitSuite[];
-  /** Every `<testcase>` of a `<testsuite>`, in file order. */
+  /** Every `<testcase>` of a `<testsuite>` or directly below `<testsuites>` (#670), in file order. */
   readonly testCases: readonly JunitTestCase[];
 }
 
@@ -157,6 +157,8 @@ const testCaseOf = (element: XmlElement, timestamp: string | undefined): JunitTe
   };
 };
 
+const SUITE_NAMES: ReadonlySet<string> = new Set(["testsuite", "testsuites"]);
+
 /** The suites and test cases below `root` in file order, walked with an explicit stack (no recursion). */
 const collect = (root: XmlElement): Pick<JunitFile, "suites" | "testCases"> => {
   const suites: JunitSuite[] = [];
@@ -178,10 +180,10 @@ const collect = (root: XmlElement): Pick<JunitFile, "suites" | "testCases"> => {
         ...stamp(timestamp),
       });
     }
-    // Children in reverse, so that the stack gives them back in file order. Test cases count only
-    // inside a `<testsuite>`.
+    // Children in reverse, so that the stack gives them back in file order. Test cases count inside a
+    // `<testsuite>` and directly below `<testsuites>`, where the Node test runner writes them (#670).
     for (const child of element.children.toReversed()) {
-      if (child.name === "testsuite" || (child.name === "testcase" && element.name === "testsuite")) {
+      if (child.name === "testsuite" || (child.name === "testcase" && SUITE_NAMES.has(element.name))) {
         stack.push({ element: child, timestamp });
       }
     }

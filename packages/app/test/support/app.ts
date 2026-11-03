@@ -14,8 +14,11 @@ import { rememberWorkspace } from "@reqseq/core/recent-workspaces";
 const execFileAsync = promisify(execFile);
 
 /** How long `close()` waits for the app to end after it closed the window (main waits at most 2 s for the save). */
-// Three times as long on the Windows and macOS runners in CI, which stall under load (#753, playwright.config.ts).
-const CLOSE_WAIT_MS = process.env["CI"] !== undefined && process.platform !== "linux" ? 15_000 : 5000;
+// The Windows and macOS runners in CI stall under load (#753, playwright.config.ts): there the wait is three times as
+// long, and `close()` closes the window again after `SECOND_CLOSE_MS`.
+const SLOW_CI = process.env["CI"] !== undefined && process.platform !== "linux";
+const CLOSE_WAIT_MS = SLOW_CI ? 15_000 : 5000;
+const SECOND_CLOSE_MS = 3000;
 /** How long a call into the main process may take while `close()` ends the app or describes a hang. */
 const CALL_WAIT_MS = 1000;
 /**
@@ -422,11 +425,23 @@ export const launchApp = async (
           }, CLOSE_WAIT_MS);
         });
         // Not awaited on its own: a main process that does not answer is a hang, within the same wait.
-        void app
-          .evaluate(({ BrowserWindow }) => {
-            BrowserWindow.getAllWindows()[0]?.close();
-          })
-          .catch(() => undefined);
+        const closeWindow = (): void => {
+          void app
+            .evaluate(({ BrowserWindow }) => {
+              BrowserWindow.getAllWindows()[0]?.close();
+            })
+            .catch(() => undefined);
+        };
+        closeWindow();
+        // On the Windows and macOS CI runners the save before the close can take longer than main's 2 s; the
+        // window then stays open and says that a second close within 10 s closes it without waiting (#753).
+        // There the test closes it a second time, as a person would; the save tests still check the file.
+        if (
+          SLOW_CI &&
+          !(await Promise.race([end.then(() => true), delay(SECOND_CLOSE_MS).then(() => false)]))
+        ) {
+          closeWindow();
+        }
         hung = !(await Promise.race([end, late]));
         clearTimeout(timer);
       }

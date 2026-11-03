@@ -56,7 +56,7 @@ const unchangedFiles = async (
 /**
  * The problem of each of `findings` with the line of its path when the file is unchanged since the
  * store read it, as a function of the finding. Reads every file with findings once, per repository
- * with `readElementFiles` (32 at a time); a finding that was not passed gets no line.
+ * with `readElementFiles` (32 at a time), not for findings `at: "line"`; a finding that was not passed gets no line.
  */
 export const findingLocator = async (
   layout: WorkspaceLayout,
@@ -64,7 +64,8 @@ export const findingLocator = async (
   options: LocateOptions = {},
 ): Promise<(finding: LocatableFinding) => Problem> => {
   const byRepository = new Map<string, Map<string, ElementRecord>>();
-  for (const { element } of findings) {
+  // A finding `at: "line"` has its line (or none) already: its file is not read for it.
+  for (const { element } of findings.filter((f) => f.at !== "line")) {
     const files = byRepository.get(element.repository) ?? new Map<string, ElementRecord>();
     files.set(element.file, element);
     byRepository.set(element.repository, files);
