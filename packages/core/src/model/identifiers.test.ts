@@ -80,7 +80,8 @@ describe("identifiers as element references (#305)", () => {
       element: unknown;
       current: unknown;
     };
-    expect(resolved).toEqual({ element: byUuid, current: null });
+    // `names` and `incomplete` as element.get gives them (#456) are checked in resolve.test.ts.
+    expect([resolved.element, resolved.current]).toEqual([byUuid, null]);
     // The short ID still names the element.
     expect(await elementOf(opened, "SR-0b0036")).toEqual(byUuid);
   });
