@@ -1986,7 +1986,7 @@ export interface RelationOptionsOutput {
 }
 
 /**
- * Input of `relation.add` as `run` gets it: validated, properties with a `default` filled in. Add a relation; stores target UUID and current version, plus the title only within the same repository.
+ * Input of `relation.add` as `run` gets it: validated, properties with a `default` filled in. Add a relation; stores target UUID and current version, plus the title only within the same repository. A relation over a limit of the kind is saved too, with a relation.too-many hint.
  * Schema: `schemas/commands/relation.add.json input`.
  */
 export interface RelationAddInput {
@@ -1996,7 +1996,7 @@ export interface RelationAddInput {
 }
 
 /**
- * Output of `relation.add`. Add a relation; stores target UUID and current version, plus the title only within the same repository.
+ * Output of `relation.add`. Add a relation; stores target UUID and current version, plus the title only within the same repository. A relation over a limit of the kind is saved too, with a relation.too-many hint.
  * Schema: `schemas/commands/relation.add.json output`.
  */
 export interface RelationAddOutput {

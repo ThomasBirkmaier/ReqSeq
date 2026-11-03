@@ -3793,7 +3793,8 @@
           "SR-085",
           "SR-086",
           "SR-088",
-          "SR-091"
+          "SR-091",
+          "SR-152"
         ],
         "arguments": [
           {
@@ -4983,7 +4984,7 @@
       {
         "name": "relation.add",
         "title": "Create relation",
-        "summary": "Add a relation; stores target UUID and current version, plus the title only within the same repository.",
+        "summary": "Add a relation; stores target UUID and current version, plus the title only within the same repository. A relation over a limit of the kind is saved too, with a relation.too-many hint.",
         "effect": "write-files",
         "whileReadOnly": "refuse",
         "whileReadOnlyReason": "Writes the current version of the target, which depends on the metamodel (which properties count).",
@@ -4992,7 +4993,8 @@
           "SR-005",
           "SR-021",
           "SR-041",
-          "SR-067"
+          "SR-067",
+          "SR-152"
         ],
         "arguments": [
           {

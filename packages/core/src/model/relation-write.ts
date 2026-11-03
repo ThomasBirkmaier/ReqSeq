@@ -15,7 +15,10 @@
 //   ADR-0005) gets the current version in place, with the same checks as a new relation: its line
 //   is replaced by `currentTarget` (`replace-item`, the position in the list stays) and an `info`
 //   problem `relation.version-added` says so (ADR-0004 "Setting a target", as `element.update`
-//   does for relation-valued properties; #302). Whether it closes a cycle of derivations is the
+//   does for relation-valued properties; #302). A relation over a limit of the kind (SR-152) is
+//   written too, and the `relation.too-many` hints of the check on the limits the new target counts
+//   toward come back for each written copy of the source, after `relation.version-added` (SR-152
+//   AK3). Whether it closes a cycle of derivations is the
 //   command's to say (SR-067 AK3, `trace/new-cycle.ts`): the model block does not import trace.
 // - `relation.remove` removes every item of the kind that names the target, and the key with the
 //   last one. The target is matched by its UUID as written, so a relation to a target that is gone
@@ -30,7 +33,7 @@ import type { FrontmatterEdit } from "../files/index.js";
 import { editElementFile } from "../files/index.js";
 import type { MetamodelRelationKind } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
-import { metamodelState, relationKindFor } from "../metamodel/index.js";
+import { allowsType, metamodelState, relationKindFor } from "../metamodel/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
@@ -38,6 +41,7 @@ import type { ElementRecord } from "./elements.js";
 import { isVersion } from "./is-version.js";
 import { locateFindings } from "./locate.js";
 import { hasId } from "./relation-keys.js";
+import { relationLimitFindings } from "./relation-limits.js";
 import { relationTypeFindings } from "./relation-types.js";
 import { resolveRef } from "./resolve.js";
 import type { ShortIds } from "./short-id.js";
@@ -73,7 +77,10 @@ export interface AddedRelation {
   readonly sources: readonly ElementRecord[];
   /** The position of the relation in the list under the kind's key in the source file. */
   readonly index: number;
-  /** One `info` problem `relation.version-added` when a stored entry without a valid version got its version. */
+  /**
+   * One `info` problem `relation.version-added` when a stored entry without a valid version got its
+   * version, then the `relation.too-many` hints of the kind on the written source (SR-152 AK3).
+   */
   readonly problems: readonly Problem[];
 }
 
@@ -152,6 +159,7 @@ export const writeSourceEdits = async (
  * into the source file (see the file comment). Every check comes before the write: both references
  * (`ref.unknown`, `ref.ambiguous`), that the source may be written (SR-016 AK3), the kind, the
  * types (`relation.not-allowed`) and that the file is as the store read it (`file.changed-on-disk`).
+ * A count over a limit refuses nothing: its hint is returned (SR-152 AK3).
  */
 export const addRelation = async (workspace: Workspace, input: RelationInput): Promise<AddedRelation> => {
   const state = await relationStateOf(workspace);
@@ -210,18 +218,28 @@ export const addRelation = async (workspace: Workspace, input: RelationInput): P
     targetId: target.id,
     currentVersion: stored.version,
   };
+  // The count hints of the check (SR-152) on the store after the write: the maxima of the kind
+  // that the new relation counts toward, so a hint on another target type is not repeated here.
+  const after = { layout, store: await workspace.get(elementStoreState), metamodel, shortIds };
+  const overLimit = sources.flatMap((element) =>
+    relationLimitFindings(element, after).filter(
+      (f) =>
+        f.problem.code === "relation.too-many" &&
+        f.problem.key === kind.key &&
+        allowsType([String(f.problem.targetType)], target.type, metamodel),
+    ),
+  );
   return {
     files: written.files,
     kind,
     sources,
     index,
-    problems:
-      unversioned < 0
+    problems: await locateFindings(layout, [
+      ...(unversioned < 0
         ? []
-        : await locateFindings(
-            layout,
-            sources.map((element) => ({ element, path: [kind.key, index], problem: added })),
-          ),
+        : sources.map((element) => ({ element, path: [kind.key, index], problem: added }))),
+      ...overLimit,
+    ]),
   };
 };
 
