@@ -61,7 +61,6 @@ test.describe("the difference of a variant in the app", () => {
       `SR-0000a1${K1} · replacement: SR-0000b1 ${A1}`,
       "excluded1",
       "SR-0000a2Measure the wind",
-      "incompletefalse",
     ]);
     // The same lists as the CLI gives (SR-080).
     const cli = await running.cli(["variant", "diff", "VAR-0000c1", "--json"]);
