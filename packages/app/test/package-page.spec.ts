@@ -225,4 +225,30 @@ test.describe("the line under the title of a package page", () => {
     await expect(window.locator("article .package-summary")).toBeHidden();
     expect(await lineOfCli("PKG-00d005")).toBeUndefined();
   });
+  test("[SR-036/AK2] a click on a coverage number lists its requirements, those without coverage included", async () => {
+    const { window } = running;
+    await openById(window, "PKG-00d004", "Ten open");
+    const input = JSON.stringify({ selection: { package: "PKG-00d004" } });
+    const cli = await running.cli(["evidence", "coverage", "--input", input, "--json"]);
+    const levels = (
+      JSON.parse(cli.stdout) as {
+        readonly levels: readonly { readonly elements: Readonly<Record<string, readonly string[]>> }[];
+      }
+    ).levels;
+    const without = levels.flatMap((level) => level.elements["withoutEvidence"] ?? []);
+    // The ten requirements have no evidence: each is listed under the number of those without.
+    expect(without).toHaveLength(10);
+    await window.locator("article .package-summary [role=link]").click();
+    await expect(window.getByLabel("Modeline")).toContainText("Show evidence coverage");
+    const rows = window.locator(".result .line.element");
+    await expect(rows).toHaveCount(levels.flatMap((level) => Object.values(level.elements).flat()).length);
+    const count = window.locator(".result .line", {
+      has: window.locator(".label", { hasText: /^withoutEvidence$/ }),
+    });
+    await expect(count.locator(".text")).toHaveText(["10"]);
+    // A row opens its requirement.
+    const first = (await rows.first().locator(".text").textContent()) ?? "";
+    await rows.first().click();
+    await expect(window.locator("article h1")).toHaveText(first);
+  });
 });
