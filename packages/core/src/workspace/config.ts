@@ -40,7 +40,8 @@ const BELOW_SHOWN = 3;
 /**
  * The folders directly below `root` that hold a workspace file, sorted, for the message of
  * `workspace.not-found` (#640): a call from the repository root of a workspace in `spec/` then names
- * it. Only read when there is no workspace file; a folder that cannot be read gives none.
+ * it. Only read when there is no workspace file; a folder that cannot be read gives none, and a link
+ * to a folder is not followed.
  */
 const workspacesBelow = async (root: string): Promise<readonly string[]> => {
   const entries = await fs.readdir(root, { withFileTypes: true }).catch(() => []);
