@@ -11,13 +11,13 @@
 // which the app shows at the reference (SR-110 AK2, #702): Git then reads only the histories of
 // their targets, and nothing when the element has none. A core requirement names the variants that
 // replace it (with the replacement) and those that exclude it (`replacedBy`, `excludedBy`, SR-046
-// AK3), with `names` and `incomplete` (`shownWithNames`, shared with element.resolve, #456).
+// AK3), with `names` and `incomplete` (`shownWithNames` of `data/`, shared with element.resolve, #456).
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
 import type { ElementHints } from "../../model/index.js";
 import { getElement } from "../../model/index.js";
+import { shownWithNames } from "../../data/index.js";
 import { elementHints } from "../../hints/index.js";
-import { shownWithNames } from "./shown.js";
 
 export default defineCommand({
   name: "element.get",

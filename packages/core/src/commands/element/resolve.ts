@@ -18,10 +18,10 @@ import type { CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
 import type { ElementCopy } from "../../model/index.js";
 import { getElement, shortIdState } from "../../model/index.js";
+import { shownWithNames } from "../../data/index.js";
 import type { Workspace } from "../../runtime/workspace.js";
 import { elementHints } from "../../hints/index.js";
 import { NORMAL_FORM } from "../../version/version.js";
-import { shownWithNames } from "./shown.js";
 
 /**
  * `error` with the one element whose UUID ends with the tail of `ref` as candidate, if there is one
