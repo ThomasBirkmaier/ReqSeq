@@ -10,6 +10,7 @@ export {
   windowsChanges,
 } from "./discover.js";
 export { classifyFile, isUuid, keyLinesOf } from "./elements.js";
+export { evidenceFilesState, ownEvidenceWrite } from "./evidence-files.js";
 export { FILE_NAME_DIGITS, fileNameFor } from "./file-name.js";
 export type { FileNameParts } from "./file-name.js";
 export type { Classified, ElementMatch, ElementRecord } from "./elements.js";

@@ -16,6 +16,7 @@
 import fs from "node:fs/promises";
 import type { Problem } from "../catalog.js";
 import type { StateChange } from "../runtime/workspace.js";
+import { evidenceFilesState } from "../model/index.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
@@ -113,11 +114,12 @@ export const readEvidence = async (
   };
 };
 
-/** The evidence folders of the workspace, read (see the file comment). Reset with the workspace layout. */
+/** The evidence folders of the workspace, read (see the file comment). Reset with the workspace layout and by the watcher. */
 export const evidenceReadState = defineWorkspaceState(
   "evidence-read",
   async (workspace): Promise<EvidenceRead> => readEvidence(await workspace.get(workspaceLayoutState)),
-  { dependsOn: [workspaceLayoutState] },
+  // The watcher resets `evidenceFilesState` when a file of an evidence folder changed outside (#785).
+  { dependsOn: [workspaceLayoutState, evidenceFilesState] },
 );
 
 /** The record each read value got from `evidence.record`, by the value (see the file comment). */

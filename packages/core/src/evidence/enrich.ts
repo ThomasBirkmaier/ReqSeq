@@ -30,7 +30,13 @@ import type { FileSnapshot } from "../files/index.js";
 import type { EvidenceEnrichJunitInput, EvidenceEnrichJunitOutput } from "../generated/types.js";
 import { metamodelState } from "../metamodel/index.js";
 import type { ElementRecord } from "../model/index.js";
-import { currentVersionsOf, elementStoreState, resolveRef, shortIdState } from "../model/index.js";
+import {
+  currentVersionsOf,
+  elementStoreState,
+  ownEvidenceWrite,
+  resolveRef,
+  shortIdState,
+} from "../model/index.js";
 import { fileSchemaValidator } from "../runtime/contracts.js";
 import type { Workspace } from "../runtime/workspace.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
@@ -1162,7 +1168,7 @@ export const enrichJunitFile = async (
   if (!inPlace && existing !== null && Buffer.from(existing.bytes).equals(result.bytes)) {
     return { ...output, files: [] };
   }
-  await writeFileAtomic(
+  const written = await writeFileAtomic(
     path.dirname(target),
     path.basename(target),
     result.bytes,
@@ -1172,7 +1178,9 @@ export const enrichJunitFile = async (
     },
   );
   // The written file may lie in an evidence folder: read the records again, so app, API and MCP see
-  // it at once. Unconditional for any written path: cheap, and outside changes are E3's.
+  // it at once. Unconditional for any written path: cheap. The watcher then leaves this read alone
+  // for the file while it holds these bytes (#785).
+  ownEvidenceWrite(workspace, target, written.sha256);
   await workspace.reset(evidenceReadState);
   return { ...output, files: [shownPath(layout, main, targetFolder, target)] };
 };

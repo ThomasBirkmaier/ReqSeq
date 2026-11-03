@@ -12,6 +12,11 @@
 // - a path in the metamodel folder changed: the metamodel is reset (SR-015); a change of the folder
 //   itself or a folder above it, or a path that may be the appearance of a missing one, makes the
 //   layout be read and compared;
+// - a path at, below or above an evidence location changed (a record, a JUnit file, a folder; #785):
+//   the evidence read is reset (`evidenceFilesState`), and with it the index and the status, unless
+//   every such path is a file this process wrote and still holds its bytes (`ownEvidenceWrite`), so
+//   `evidence.record` keeps the read it carried its record into (#278). A batch of evidence files
+//   alone is told as an `elements` change with empty lists;
 // - element paths changed: the store is updated file by file (`updateElements`, hashes compared)
 //   and replaced (`applyStoreChange`), which carries the state built on it (short IDs, findings)
 //   over the change or resets it (#184). A store nobody has read yet is left alone: the next read
@@ -31,6 +36,13 @@ import fs from "node:fs";
 import path from "node:path";
 import type { Problem } from "../catalog.js";
 import { isTempFile } from "../files/index.js";
+import type { EvidenceFolders } from "./evidence-files.js";
+import {
+  evidenceFilesState,
+  evidenceFolders,
+  forgetOwnEvidenceWrites,
+  onlyOwnEvidenceWrites,
+} from "./evidence-files.js";
 import { metamodelState } from "../metamodel/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
@@ -234,6 +246,8 @@ interface Batch {
   checkLayout: boolean;
   metamodel: boolean;
   elements: ElementChanges | undefined;
+  /** Paths that touch an evidence location (#785); `all` after an overflow there. */
+  evidence: Set<string> | "all";
 }
 
 const emptyBatch = (): Batch => ({
@@ -241,6 +255,7 @@ const emptyBatch = (): Batch => ({
   checkLayout: false,
   metamodel: false,
   elements: undefined,
+  evidence: new Set(),
 });
 
 /**
@@ -413,6 +428,7 @@ class Watcher implements WorkspaceWatcher {
     }
     const watched = layout;
     const metamodel = metamodelFolder(layout);
+    const evidence = evidenceFolders(layout);
     this.#watched = layout;
     const repositories = availableRepositories(layout);
     for (const repository of repositories) {
@@ -421,7 +437,7 @@ class Watcher implements WorkspaceWatcher {
         return;
       }
       const onName = (name: string | null): void => {
-        this.#onEvent(watched, metamodel, repository.folder, name);
+        this.#onEvent(watched, metamodel, evidence, repository.folder, name);
       };
       if (!this.#recursive) {
         // Every repository has its own tree; a nested one is left out of the outer tree (`excludes`).
@@ -484,7 +500,13 @@ class Watcher implements WorkspaceWatcher {
   }
 
   /** Sorts one event of a repository watcher into the batch. */
-  #onEvent(layout: WorkspaceLayout, metamodel: MetamodelFolder, folder: string, name: string | null): void {
+  #onEvent(
+    layout: WorkspaceLayout,
+    metamodel: MetamodelFolder,
+    evidence: EvidenceFolders,
+    folder: string,
+    name: string | null,
+  ): void {
     // An event of a watch whose layout is no longer watched (its start was superseded) is dropped.
     if (layout !== this.#watched) {
       return;
@@ -502,6 +524,9 @@ class Watcher implements WorkspaceWatcher {
           b.metamodel ||= metamodel.exists;
           b.checkLayout = true;
         }
+        if (evidence.touches(folder)) {
+          b.evidence = "all";
+        }
         // The repository folders are real paths; the root is the path the workspace was opened with.
         if (repositories.some((r) => r.main && within(folder, r.folder))) {
           b.checkLayout = true;
@@ -517,6 +542,13 @@ class Watcher implements WorkspaceWatcher {
     if (metamodel.isAtOrBelowMetamodel(absolute) || metamodel.holdsMetamodel(absolute)) {
       this.#mark((b) => {
         markMetamodel(b, metamodel, absolute);
+      });
+    }
+    if (!isTempFile(path.basename(absolute)) && evidence.touches(absolute)) {
+      this.#mark((b) => {
+        if (b.evidence !== "all") {
+          b.evidence.add(absolute);
+        }
       });
     }
     // The innermost repository holds the file (a nested repository is read under its own name).
@@ -593,6 +625,7 @@ class Watcher implements WorkspaceWatcher {
       if (batch.metamodel) {
         await this.#workspace.reset(metamodelState);
       }
+      const evidence = await this.#resetEvidence(batch.evidence);
       const elements = await this.#update(batch.elements);
       if (elements === EVERY_ELEMENT) {
         this.#emit("workspace", NO_ELEMENTS);
@@ -600,6 +633,8 @@ class Watcher implements WorkspaceWatcher {
         this.#emit("metamodel", elements ?? NO_ELEMENTS);
       } else if (elements !== undefined) {
         this.#emit("elements", elements);
+      } else if (evidence) {
+        this.#emit("elements", NO_ELEMENTS);
       }
     } catch {
       if (!this.#abort.signal.aborted) {
@@ -609,6 +644,19 @@ class Watcher implements WorkspaceWatcher {
         this.#emit("workspace", NO_ELEMENTS);
       }
     }
+  }
+
+  /**
+   * Resets the evidence read when `paths` touch an evidence location other than with this process's
+   * own writes (see the file comment); whether it did.
+   */
+  async #resetEvidence(paths: Batch["evidence"]): Promise<boolean> {
+    if (paths !== "all" && (paths.size === 0 || (await onlyOwnEvidenceWrites(this.#workspace, [...paths])))) {
+      return false;
+    }
+    forgetOwnEvidenceWrites(this.#workspace);
+    await this.#workspace.reset(evidenceFilesState);
+    return true;
   }
 
   /** Whether the workspace and local files now give another layout than the watched one. */
