@@ -47,6 +47,35 @@ scenariosOf("workspace.check", [
     },
   },
   {
+    name: "relations above a maximum and below a minimum of the metamodel, with count and limit",
+    fixture: { fixture: "SR-152/limits" },
+    input: {},
+    tag: "[SR-152/AK1]",
+    expect: "output",
+    check: (results) => {
+      const { problems } = (results["core"]?.outcome as { output: { problems: Record<string, unknown>[] } })
+        .output;
+      // AK1 the maximum, AK2 the minimum (no line without the key), AK4 none for based-on.
+      expect(
+        problems
+          .filter((p) => p["key"] !== undefined)
+          .map((p) => [
+            p["code"],
+            p["elementShortId"],
+            p["key"],
+            p["targetType"],
+            p["count"],
+            p["limit"],
+            p["line"],
+          ]),
+      ).toEqual([
+        ["relation.too-many", "SR-c00001", "derives-from", "use-case", 2, 1, 6],
+        ["relation.too-few", "SR-c00002", "derives-from", "need", 0, 1, undefined],
+        ["relation.too-few", "SR-c00003", "derives-from", "need", 0, 1, 6],
+      ]);
+    },
+  },
+  {
     name: "a workspace with an evidence location (#535)",
     fixture: EVIDENCE,
     input: {},
