@@ -186,8 +186,9 @@ export interface InputErrorContext {
 const NAMES_SHOWN = 12;
 
 /**
- * The names the object at an `additionalProperties` error takes, as `; known: a, b, c` (#641: a caller
- * who sends `properties` to `element.update` reads `set` there). Empty when the schema lists none.
+ * The names the object at an `additionalProperties` error takes, as ` (known: a, b, c)` (#641: a caller
+ * who sends `properties` to `element.update` reads `set` there). Empty when the schema lists none. Parentheses, not `; `, because
+ * `describeInputViolations` joins violations with `; `.
  */
 export const knownNames = (schema: unknown): string => {
   const properties = (schema as { readonly properties?: unknown } | undefined)?.properties;
@@ -196,7 +197,7 @@ export const knownNames = (schema: unknown): string => {
     return "";
   }
   const more = names.length > NAMES_SHOWN ? ", ..." : "";
-  return `; known: ${names.slice(0, NAMES_SHOWN).join(", ")}${more}`;
+  return ` (known: ${names.slice(0, NAMES_SHOWN).join(", ")}${more})`;
 };
 
 const known = new WeakMap<readonly JsonSchema[], WeakMap<object, string>>();

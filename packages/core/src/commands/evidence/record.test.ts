@@ -217,7 +217,7 @@ describe("evidence.record (SR-030)", () => {
       expect(error.code).toBe("input.invalid");
       expect(error.message).toMatch(
         new RegExp(
-          `^Invalid input for evidence\\.record: ${Object.keys(extra)[0] ?? ""} is not an input of this command; known: ref, `,
+          `^Invalid input for evidence\\.record: ${Object.keys(extra)[0] ?? ""} is not an input of this command \\(known: ref, `,
         ),
       );
     }
