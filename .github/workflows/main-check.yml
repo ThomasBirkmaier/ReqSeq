@@ -1,0 +1,71 @@
+# A fast check of each push to main (#796): two pull requests can each be green against an older main and still break
+# it together after their squash merges, since the ruleset does not require an up-to-date branch (a full run takes
+# about 18 min per pull request). Typecheck and lint on Linux show such a break within minutes. A red run opens an
+# issue labelled `main-red` (or comments on the open one), and a green run closes it.
+name: main check
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: main-check
+  cancel-in-progress: true
+
+jobs:
+  typecheck-lint:
+    name: typecheck and lint
+    timeout-minutes: 10
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Lint
+        if: ${{ !cancelled() }}
+        run: pnpm lint
+
+  report:
+    name: report on main
+    needs: typecheck-lint
+    # A cancelled run (a newer push) reports nothing; its successor does.
+    if: ${{ !cancelled() && needs.typecheck-lint.result != 'cancelled' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/github-script@v7
+        env:
+          RESULT: ${{ needs.typecheck-lint.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const label = "main-red";
+            const open = await github.paginate(github.rest.issues.listForRepo, { owner, repo, labels: label, state: "open" });
+            const footer = "\n\n---\n_Written by the main check workflow_";
+            if (process.env.RESULT === "success") {
+              for (const issue of open) {
+                await github.rest.issues.createComment({ owner, repo, issue_number: issue.number, body: `Green again at ${context.sha} (${process.env.RUN_URL}).${footer}` });
+                await github.rest.issues.update({ owner, repo, issue_number: issue.number, state: "closed", state_reason: "completed" });
+              }
+              return;
+            }
+            const text = `Typecheck or lint failed on main at ${context.sha}: ${process.env.RUN_URL}. Fix main first; pull requests merge main only when they are red because of it (merge.md, #796).`;
+            if (open.length > 0) {
+              await github.rest.issues.createComment({ owner, repo, issue_number: open[0].number, body: text + footer });
+            } else {
+              await github.rest.issues.create({ owner, repo, title: "main is red: typecheck or lint", labels: [label, "bug", "P1"], body: text + footer });
+            }
