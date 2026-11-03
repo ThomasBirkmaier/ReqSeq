@@ -19,6 +19,8 @@ import { elementStoreState } from "./store.js";
 import type { WatchFunction, WatcherOptions, WorkspaceChange, WorkspaceWatcher } from "./watch.js";
 import { startWatcher, watchWorkspace, watcherProblems } from "./watch.js";
 import { readStored } from "../runtime/read-first.test-helper.js";
+import { evidenceReadState } from "../evidence/index.js";
+import { NO_ELEMENTS } from "./watch-change.js";
 
 const NEED = "224dedea-c0ac-4ec8-a228-8beffcbd8c26";
 const NEED_FILE = "needs/N-8beffcbd8c26.md";
@@ -1935,5 +1937,127 @@ describe("the watcher tells its listeners what changed (#331, SR-007)", () => {
     await closing;
     expect(closing).toBeDefined();
     expect(changes).toEqual([]);
+  });
+});
+
+// Evidence files (#785): a record or JUnit file changed outside resets the evidence read, and with it
+// the index and the status; the record `evidence.record` wrote keeps the read it was carried into.
+// On fixtures/SR-030/record: evidence locations `evidence` and `reviews`, S2 without a record.
+const S2 = "30303030-3030-4030-8030-00000000c002";
+const S2_VERSION = "n1:8a2f8c93f0261f80";
+
+/** A passed verification record of S2 on its current version, as another tool writes it. */
+const s2Record = (item: string): string =>
+  `---\nreqseq-record: 1\nkind: verification\nelement: ${S2}\nversion: ${S2_VERSION}\nmethod: test\nitem: ${item}\nresult: passed\ndate: 2026-11-02T10:00:00Z\n---\n\nPassed.\n`;
+
+const openedRecords = async (
+  files: Readonly<Record<string, string>> = {},
+): Promise<{ fixture: FixtureWorkspace; workspace: Workspace }> => {
+  const fixture = await createFixtureWorkspace({ fixture: "SR-030/record", files });
+  const workspace = new Workspace(fixture.root);
+  onTestFinished(async () => {
+    await workspace.close();
+    await fixture.cleanup();
+  });
+  return { fixture, workspace };
+};
+
+/** The verification of S2 as `evidence.status` shows it. */
+const s2Verification = async (workspace: Workspace): Promise<unknown> => {
+  const out = (await invoke("evidence.status", { selection: { ids: [S2] } }, { workspace })) as {
+    elements: readonly { id: string; verification?: unknown }[];
+  };
+  return out.elements.find((e) => e.id === S2)?.verification;
+};
+
+describe("the watcher's rules for evidence files (#785)", () => {
+  it("resets the evidence read for a JUnit or record file written outside, and tells it as a change of elements", async () => {
+    const { fixture, workspace } = await openedRecords();
+    await workspace.get(elementStoreState);
+    const { fake, watcher } = await watched(workspace);
+    const heard: WorkspaceChange[] = [];
+    watcher.onChange((change) => {
+      heard.push(change);
+    });
+    await workspace.get(evidenceReadState);
+    await fixture.write("evidence/junit.xml", "<testsuites/>\n");
+    fake.only().send("evidence/junit.xml");
+    await watcher.settled();
+    expect(workspace.peek(evidenceReadState)).toBeUndefined();
+    expect(heard.map((change) => [change.scope, change.elements])).toEqual([["elements", NO_ELEMENTS]]);
+    await workspace.get(evidenceReadState);
+    await fixture.write("reviews/2026-11-02-SR-00c002-test.md", s2Record("build-31"));
+    fake.only().send("reviews/2026-11-02-SR-00c002-test.md");
+    await watcher.settled();
+    expect(workspace.peek(evidenceReadState)).toBeUndefined();
+    expect(heard).toHaveLength(2);
+  });
+
+  it("keeps the read evidence.record carried its record into, and resets it once the file is changed outside", async () => {
+    const { fixture, workspace } = await openedRecords();
+    await workspace.get(elementStoreState);
+    const { fake, watcher } = await watched(workspace);
+    await workspace.get(evidenceReadState);
+    const written = (await invoke(
+      "evidence.record",
+      { ref: "SR-00c002", kind: "verification", result: "passed", method: "inspection", item: "unit 7" },
+      { workspace },
+    )) as { files: readonly string[] };
+    const [file] = written.files;
+    const carried = workspace.peek(evidenceReadState);
+    expect(carried).toBeDefined();
+    const relative = String(file);
+    fake.only().send(relative);
+    await watcher.settled();
+    expect(workspace.peek(evidenceReadState)).toBe(carried);
+    await fs.appendFile(fixture.path(relative), "More text.\n");
+    fake.only().send(relative);
+    await watcher.settled();
+    expect(workspace.peek(evidenceReadState)).toBeUndefined();
+  });
+
+  it("resets the read for an evidence folder or a folder above one, gone or new, and for an overflow, and keeps it for other paths", async () => {
+    const { workspace } = await openedRecords({
+      "reqseq-workspace.yaml":
+        'reqseq-workspace: 1\nname: Weather station\nrepositories:\n  - { name: system, url: "git@git.example.com:ws/system.git", main: true }\n  - { name: tests, url: x, path: ../no-such-repository-785 }\nmetamodel: { repository: system, path: metamodel }\nevidence:\n  - { repository: system, path: Results/Evidence }\n  - { repository: tests, path: evidence }\n',
+    });
+    await workspace.get(elementStoreState);
+    const { fake, watcher } = await watched(workspace);
+    for (const name of ["results/evidence", "Results", "RESULTS/EVIDENCE/run-1/junit.xml", null]) {
+      await workspace.get(evidenceReadState);
+      fake.only().send(name);
+      await watcher.settled();
+      expect([name, workspace.peek(evidenceReadState)]).toEqual([name, undefined]);
+    }
+    // A named event after an overflow in one batch.
+    await workspace.get(evidenceReadState);
+    fake.only().send(null);
+    fake.only().send("Results/Evidence/junit.xml");
+    await watcher.settled();
+    expect(workspace.peek(evidenceReadState)).toBeUndefined();
+    await workspace.get(evidenceReadState);
+    const read = workspace.peek(evidenceReadState);
+    for (const name of [
+      "requirements/SR-00000000c002.md",
+      "Results/other/x.md",
+      "evidence/x.md",
+      "Results/Evidence2",
+    ]) {
+      fake.only().send(name);
+    }
+    await watcher.settled();
+    expect(workspace.peek(evidenceReadState)).toBe(read);
+  });
+
+  it("shows the status of a record written outside the tool through the commands", async () => {
+    const { fixture, workspace } = await openedRecords();
+    const before = await s2Verification(workspace);
+    await watching(fixture, workspace);
+    await fixture.write("evidence/2026-11-02-SR-00c002-test.md", s2Record("build-31"));
+    await within(SAVE_LIMIT_MS, async () => {
+      const now = await s2Verification(workspace);
+      return JSON.stringify(now) !== JSON.stringify(before);
+    });
+    expect(await s2Verification(workspace)).toEqual([{ view: "core", status: "verified" }]);
   });
 });

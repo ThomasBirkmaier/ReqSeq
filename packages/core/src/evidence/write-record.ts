@@ -30,6 +30,7 @@
 //    When another call replaced the read in between (two calls at once), the replace fails and the read
 //    is reset (#308).
 // The element's file and status are never read for writing or changed (D-030); the Beleg is never opened.
+import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
@@ -43,6 +44,7 @@ import {
   clashKey,
   currentVersionsOf,
   elementStoreState,
+  ownEvidenceWrite,
   refuseUnlisted,
   resolveRef,
   shortIdState,
@@ -556,6 +558,12 @@ export const recordEvidence = async (
   const name = (n: number): string => recordFileName(fields.date.slice(0, 10), shortId, what, n);
   const read = readBack(fields, bytes, repository.name, inFolder(folder, name(1)));
   const file = await createRecordFile(layout, repository, folder, name, bytes, deps.write);
+  // The watcher leaves the read alone for this file while it holds these bytes (#785).
+  ownEvidenceWrite(
+    workspace,
+    path.join(repository.folder, file),
+    createHash("sha256").update(bytes).digest("hex"),
+  );
   const record: PlacedRecord = { ...read, repository: repository.name, file };
   await updateEvidence(workspace, layout, record);
   return { files: [workspacePath(layout, repository, file)], record, problems: [] };
