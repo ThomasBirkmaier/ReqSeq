@@ -193,6 +193,22 @@ describe("evidence.enrichJunit (SR-029)", () => {
     expect([output.testCases, output.withoutReference]).toEqual([3, 5]);
   });
 
+  it("enriches and reads the test cases the Node test runner writes directly below <testsuites> (#670)", async () => {
+    const xml = [
+      "<testsuites>",
+      '  <testcase name="[SR-46fb54] logs in" classname="test" time="0.1"/>',
+      '  <testcase name="no requirement" classname="test" time="0.1"/>',
+      "</testsuites>",
+      "",
+    ].join("\n");
+    const { fixture, workspace } = await open({ "results/node.xml": xml });
+    const output = await enrich(workspace, { file: "results/node.xml" });
+    expect([output.testCases, output.withoutReference]).toEqual([1, 1]);
+    const after = await bytesOf(fixture, "results/node.xml");
+    expect(enrichedNames(after)).toEqual(["[SR-46fb54] logs in"]);
+    expect(recordsOf(after)).toEqual([["[SR-46fb54] logs in", LOGIN]]);
+  });
+
   it("[SR-029/AK5] assigns the Rust test cases of a nextest file through a name pattern and enriches them as in AK1", async () => {
     const { fixture, workspace } = await open();
     const output = await enrich(workspace, {
