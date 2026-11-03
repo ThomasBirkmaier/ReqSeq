@@ -19,6 +19,9 @@
 // - A list of evidence records (`kind`, `date`, `result`) is one line per record, a list of test cases
 //   (`name`, `executions`) one line per test case with its last result and the number of executions
 //   (evidence.list, #275); `--json` and `--yaml` keep every execution.
+// - A matrix (`columns` with `name` and `direction`, `rows` of elements with one cell per column) lists
+//   its columns numbered, then per row the element line and one line of cells, `n: SHORT-ID, ...`,
+//   `–` for an empty cell (trace.matrix, #629).
 // - A list of elements with a `tree` of their places (`depth`, `parent`; one per element, element.list
 //   by hierarchy, SR-075 AK2) is indented two spaces per level; an element whose parent is not shown
 //   before it (on an earlier page) names it, `[under X]`.
@@ -738,6 +741,95 @@ const chainLines = (chain: Chain, names: Names): string[] => {
   return [...lines, ...(unresolved.length === 0 ? [] : ["unresolved:", ...unresolved])];
 };
 
+/** A column of a matrix (trace.matrix `columns`): a name and a direction. */
+const isMatrixColumn = (value: unknown): value is Rec =>
+  isRecord(value) && typeof value["name"] === "string" && typeof value["direction"] === "string";
+
+/** A matrix: `columns`, and `rows` of elements whose `cells` hold one list per column (#629). */
+const isMatrix = (output: Rec): boolean => {
+  const { columns, rows } = output;
+  return (
+    Array.isArray(columns) &&
+    columns.every(isMatrixColumn) &&
+    Array.isArray(rows) &&
+    rows.every(
+      (row) => isElement(row) && Array.isArray(row["cells"]) && row["cells"].length === columns.length,
+    )
+  );
+};
+
+/** A relation in a cell: the other end by short ID (else its UUID), `[outdated]` when it is. */
+const cellItem = (relation: unknown): string => {
+  if (!isRecord(relation)) {
+    return "";
+  }
+  const shortId = text(relation["shortId"]);
+  const state = text(relation["targetState"]);
+  return join(
+    shortId === "" ? text(relation["id"]) : withIdentifier(shortId, relation["identifier"]),
+    state === "" || state === "available" ? "" : `[${state}]`,
+    relation["outdated"] === true ? "[outdated]" : "",
+  );
+};
+
+/** The columns of a matrix (#629), numbered, with count and share. */
+const matrixColumnLines = (output: Rec): string[] => {
+  const columns = listOf(output["columns"]).filter(isRecord);
+  const lines = columns.length === 0 ? ["columns: none"] : ["columns:"];
+  for (const [index, column] of columns.entries()) {
+    const share = column["share"];
+    lines.push(
+      `  ${join(
+        `${String(index + 1)}:`,
+        text(column["name"]),
+        `(${text(column["kind"])}, ${text(column["direction"])})`,
+        typeof column["count"] === "number" ? String(column["count"]) : "",
+        typeof share === "number" ? degreePercent(share) : "",
+      )}`,
+    );
+  }
+  return lines;
+};
+
+/**
+ * The rows of a matrix (#629): per row its element line and one line of cells, `n: SHORT-ID, ...` per
+ * column, `–` for an empty cell, the target state when it is not available, and its test cases when
+ * the row has them (SR-126).
+ */
+const matrixRowLines = (output: Rec, names: Names): string[] => {
+  const rows = listOf(output["rows"]).filter(isElement);
+  if (rows.length === 0) {
+    return ["rows: none"];
+  }
+  const lines = ["rows:"];
+  const name = namerOf(rows);
+  const view = viewNamerOf(rows, names);
+  for (const row of rows) {
+    const depth = row["depth"];
+    lines.push(`  ${typeof depth === "number" ? "  ".repeat(depth) : ""}${elementLine(row, name, view)}`);
+    const cells = listOf(row["cells"]).map((cell, index) => {
+      const items = listOf(cell).map(cellItem);
+      return `${String(index + 1)}: ${items.length === 0 ? "–" : items.join(", ")}`;
+    });
+    const tests = row["testCases"];
+    const testText = Array.isArray(tests)
+      ? `tests: ${
+          tests.length === 0
+            ? "–"
+            : listOf(tests)
+                .filter(isRecord)
+                .map((t) => text(t["name"]))
+                .join(", ")
+        }`
+      : "";
+    const cellLine = join(...cells, testText);
+    if (cellLine !== "") {
+      lines.push(`    ${cellLine}`);
+    }
+  }
+  return lines;
+};
+
 /**
  * The note on a page shorter than `total`. The page is the list of elements: the nodes of a chain, the
  * elements of a list (never `names`).
@@ -771,6 +863,17 @@ export function renderHuman(output: unknown, details = true): string {
   const shown = chain
     ? new Set(["root", "nodes", "edges", "gaps", "evidence", "unresolved"])
     : new Set<string>();
+  if (isMatrix(rest)) {
+    // The evidence header (the degree, SR-126 AK4) stands above the rows that hold the status.
+    lines.push(...matrixColumnLines(rest));
+    if (rest["evidence"] !== undefined) {
+      lines.push(...valueLines("evidence", rest["evidence"], details, lifted, namesIn(rest)));
+    }
+    lines.push(...matrixRowLines(rest, namesIn(rest)));
+    shown.add("columns");
+    shown.add("evidence");
+    shown.add("rows");
+  }
   const tree = rest["tree"];
   const treeList = Array.isArray(tree) ? treeListOf(listOf(rest["elements"]), tree) : undefined;
   if (treeList !== undefined) {

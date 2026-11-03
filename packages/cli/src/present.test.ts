@@ -1074,3 +1074,67 @@ describe("renderHuman: evidence records and test cases (#275)", () => {
     );
   });
 });
+
+describe("renderHuman: a matrix (#629)", () => {
+  it("numbers the columns and prints the cells of each row, a dash for an empty one", () => {
+    const row = (shortId: string, cells: unknown[][], extra: Record<string, unknown> = {}) => ({
+      id: shortId,
+      repository: "system",
+      shortId,
+      type: "system-requirement",
+      status: "draft",
+      title: `Title ${shortId}`,
+      cells,
+      ...extra,
+    });
+    expect(
+      renderHuman({
+        columns: [
+          {
+            type: "relation",
+            kind: "derives-from",
+            direction: "out",
+            name: "Derives from",
+            count: 1,
+            share: 0.5,
+          },
+          { type: "relation", kind: "derives-from", direction: "in", name: "Derived by", count: 0, share: 0 },
+        ],
+        rows: [
+          row(
+            "SR-a",
+            [
+              [
+                { shortId: "N-x", identifier: "N-001", outdated: true },
+                { id: "0000-uuid", shortId: "", targetState: "missing" },
+              ],
+              [],
+            ],
+            { depth: 1, testCases: [] },
+          ),
+          row("SR-b", [[], []], { testCases: [{ name: "test_b" }] }),
+        ],
+        total: 2,
+        incomplete: false,
+        problems: [],
+      }),
+    ).toBe(
+      [
+        "columns:",
+        "  1:  Derives from  (derives-from, out)  1  50 %",
+        "  2:  Derived by  (derives-from, in)  0  0 %",
+        "rows:",
+        "    SR-a  draft  Title SR-a",
+        "    1: N-x (N-001)  [outdated], 0000-uuid  [missing]  2: –  tests: –",
+        "  SR-b  draft  Title SR-b",
+        "    1: –  2: –  tests: test_b",
+        "total: 2",
+        "No problems.",
+        "",
+      ].join("\n"),
+    );
+    expect(renderHuman({ columns: [], rows: [], total: 0, problems: [] })).toBe(
+      ["columns: none", "rows: none", "total: 0", "No problems.", ""].join("\n"),
+    );
+  });
+});
