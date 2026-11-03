@@ -364,8 +364,12 @@ describe("workspace with 50,000 elements and 200,000 relations (N-036)", () => {
       if (first === undefined) {
         throw new Error("the generated store is empty");
       }
-      const input = await readFirst({ ref: first.id, text: "A new text." }, { workspace: limited });
-      await invoke("element.update", input, { workspace: limited });
+      // Another text than the earlier save of this element, so that the update writes and the store changes.
+      const input = await readFirst({ ref: first.id, text: "A text under limits." }, { workspace: limited });
+      const updated = (await invoke("element.update", input, {
+        workspace: limited,
+      })) as CommandOutput<"element.update">;
+      expect(updated.files).toHaveLength(1);
       const { result: carried } = await measure(
         "relation limits right after saving one element (carried, #184)",
         () => limited.get(relationLimitProblemsState),
