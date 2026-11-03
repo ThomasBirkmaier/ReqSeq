@@ -140,8 +140,8 @@ describe("junitTestCases", () => {
           "    </testsuite>",
           '    <testcase name="c"/>',
           "  </testsuite>",
-          "  <testcase name='not in a suite'/>",
-          "  <other><testcase name='not in a suite either'/></other>",
+          "  <testcase name='below testsuites'/>",
+          "  <other><testcase name='not in a suite'/></other>",
           "</testsuites>",
         ].join("\n"),
       ),
@@ -154,6 +154,25 @@ describe("junitTestCases", () => {
       ["a", 3, "2026-10-01T00:00:00"],
       ["b", 5, "2026-10-02T00:00:00"],
       ["c", 7, "2026-10-01T00:00:00"],
+      ["below testsuites", 9, "2026-10-01T00:00:00"],
+    ]);
+  });
+
+  it("reads test cases directly below <testsuites>, as the Node test runner writes them (#670)", () => {
+    const file = read(
+      utf8(
+        [
+          "<testsuites>",
+          '  <testcase name="[SR-036/AK1] one" classname="test" time="0.1"/>',
+          '  <testcase name="two" classname="test"><failure message="x"/></testcase>',
+          "</testsuites>",
+        ].join("\n"),
+      ),
+    );
+    expect(file.suites).toEqual([]);
+    expect(file.testCases.map(({ name, outcome }) => [name, outcome])).toEqual([
+      ["[SR-036/AK1] one", "passed"],
+      ["two", "failed"],
     ]);
   });
 

@@ -5,7 +5,7 @@ sidebar:
   order: 4
 ---
 
-Any test tool that writes JUnit XML (Vitest, pytest, Jest, Maven, Gradle, CTest and others) can show that requirements are met, without a converter or plugin:
+Any test tool that writes JUnit XML (Vitest, pytest, Jest, the Node test runner with `--test-reporter=junit`, Maven, Gradle, CTest and others) can show that requirements are met, without a converter or plugin:
 
 1. Each test names the requirement it checks by its short ID, in square brackets in the test name (`[SR-c67baa] shows the wind speed`), or as the test case property `reqseq:element`. Where test names cannot hold brackets, as in Rust, Go or Java, a name pattern finds the short ID in another form (`sr_c67baa_ak1`).
 2. The test tool writes its JUnit file into an evidence folder of the workspace, one file per build.
