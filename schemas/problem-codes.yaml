@@ -21,6 +21,9 @@ problems:
   file.skipped:
     cause: A file or folder is not read, because it is a symbolic link, not a regular file, has its extension in upper case (`.MD`), or is excluded by the workspace file.
     remedy: Replace a link by the real file, rename the extension to lower case (`.md`), or change the ignore globs of the workspace file if the file should be read.
+  file.stale-temp:
+    cause: A temporary file of ReqSeq (`.<name>.<8 hex>.reqseq-tmp`) is older than a minute, left by a write that was interrupted, for example by a crash.
+    remedy: Remove the file by hand after checking that its element file is as expected; ReqSeq never deletes it.
   element.invalid:
     cause: An element file lacks what every element needs, for example an `id` that is a UUID version 4 in lower case or a `type` key.
     remedy: Correct the field the message names in the element's frontmatter.
@@ -54,6 +57,9 @@ problems:
   element.statement-without-text:
     cause: A requirement has no text, but a value in the property with the meaning `statement`, which holds the supplier's statement on an imported requirement and does not count to the version. So a change of the requirement written there gives no new version and outdates no evidence or relation.
     remedy: Put the requirement into the element text with element.update, and keep the statement property for the supplier's statement.
+  element.text-emptied:
+    cause: An element.update gave an empty text to an element whose text was not empty, so the whole text was removed (#677). The save is done; the warning only shows it, since an empty text is mostly a broken shell substitution.
+    remedy: If the text was removed by mistake, restore it from Git or give it again with element.update.
   relation.missing-target:
     cause: A relation or an inline reference points to an ID that no element in the named repository has, for example because the target file was removed or its file cannot be read.
     remedy: Point the relation to an existing element, remove it, or fix the target's file if the message names one.
@@ -69,6 +75,12 @@ problems:
   relation.not-allowed:
     cause: A relation connects two element types that the metamodel does not allow for this relation kind.
     remedy: Use a relation kind that is allowed between the two types, or change the metamodel.
+  relation.too-many:
+    cause: An element has more relations of a kind to elements of a type than the `max` of a limit in the metamodel allows (SR-152). The relations are kept; the hint only shows it.
+    remedy: Remove the relations that are too many, or raise or remove the limit in the metamodel.
+  relation.too-few:
+    cause: An element has fewer relations of a kind to elements of a type than the `min` of a limit in the metamodel asks for (SR-152). Only relations whose target is found count; while a target lies in a repository that is not on this machine, none is reported.
+    remedy: Add the missing relations, or lower or remove the limit in the metamodel.
   relation.outdated:
     cause: The target of a relation or inline reference has changed since the relation stored its version, so the relation may need a review. A `replaces` item onto a core requirement from a requirement with a validity gives `variant.core-changed` instead; onto an element that is no core requirement (SR-041 AK8) or from a requirement without validity (SR-041 AK6) it stays `relation.outdated`.
     remedy: Check the source against the changed target, then confirm the hint (`hint.confirm`), which stores the target's current version.
@@ -129,6 +141,9 @@ problems:
   evidence.ambiguous-element:
     cause: An evidence record or a test case names an element ID that several files share, so it is assigned to none of them.
     remedy: Give the copied element file a new UUID (see `element.duplicate-id`).
+  evidence.kind-mismatch:
+    cause: A verification record names an element whose type is no requirement, for example a test case of a JUnit file that names a need. A verification names a requirement (D-012); the record counts for no status.
+    remedy: Name a requirement in the test case, or record the validation of the need with `evidence record` and kind validation.
   baseline.invalid:
     cause: A baseline file cannot be read or does not match its format (ADR-0018), for example an element copy or a repository listed twice.
     remedy: Fix the file at the place the message gives.
@@ -144,6 +159,9 @@ problems:
   metamodel.invalid:
     cause: The metamodel is missing or faulty. An error makes the workspace read-only; a warning does not.
     remedy: Fix the metamodel files at the places the messages give and open the workspace again.
+  metamodel.optional-status:
+    cause: Every status of the type is marked invalid, so the status of its elements is optional. An element without status is current. This is a note, not an error.
+    remedy: Nothing, if this is intended. Otherwise mark one status of the type as not invalid.
   metamodel.meaning-unassigned:
     cause: No relation kind of the metamodel has the meaning a command needs (for example derivation for the chain), so that part of the result is empty.
     remedy: Assign the meaning to a relation kind in the metamodel.

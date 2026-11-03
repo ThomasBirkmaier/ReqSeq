@@ -15,6 +15,7 @@ import {
   fieldBoxes,
   hintKeys,
   isLocked,
+  isNumberedList,
   isValueKind,
   lineBreakNote,
   lockNote,
@@ -105,6 +106,16 @@ const target = (
     Object.entries(relation).filter(([field]) => !without.includes(field as keyof DataExportRelation)),
   ) as unknown as DataExportRelation;
 };
+
+describe("isNumberedList (#615)", () => {
+  it("numbers a list of texts as element get does, not one with a line break, numbers or nothing", () => {
+    expect(isNumberedList(["a", "b"])).toBe(true);
+    expect(isNumberedList(["one\ntwo", "three"])).toBe(false);
+    expect(isNumberedList(["a", 3])).toBe(false);
+    expect(isNumberedList([])).toBe(false);
+    expect(isNumberedList("a")).toBe(false);
+  });
+});
 
 describe("boxValue", () => {
   it("[SR-104/AK1] is the stored value as it is: a string, a number as its text, a list with one item per line", () => {
@@ -476,12 +487,25 @@ describe("updateInput", () => {
     });
   });
 
-  it("makes a number of a decimal literal, and leaves anything else as the text typed", () => {
+  it("makes a number of what reads as a finite number, and leaves anything else as the text typed (#614)", () => {
     const sent = (doc: string) => updateInput("u", undefined, [edit("effort", number, "1", doc)]).set;
-    expect(sent("2")).toEqual({ effort: 2 });
-    expect(sent("-3")).toEqual({ effort: -3 });
-    expect(sent("2.50")).toEqual({ effort: 2.5 });
-    for (const doc of ["0x10", "1e3", "1,5", " 5", "5 ", ".5", "5.", "+5", "abc", "Infinity"]) {
+    const numbers: readonly (readonly [string, number])[] = [
+      ["2", 2],
+      ["-3", -3],
+      ["2.50", 2.5],
+      [" 5", 5],
+      ["5 ", 5],
+      [".5", 0.5],
+      ["5.", 5],
+      ["+5", 5],
+      ["1e3", 1000],
+      ["0x10", 16],
+    ];
+    for (const [doc, value] of numbers) {
+      expect(sent(doc)).toEqual({ effort: value });
+    }
+    // Core refuses these for a number property (input.invalid, not-a-number).
+    for (const doc of ["1,5", "abc", "Infinity"]) {
       expect(sent(doc)).toEqual({ effort: doc });
     }
     expect(

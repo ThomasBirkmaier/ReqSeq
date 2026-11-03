@@ -5,10 +5,11 @@
 //
 // 1. Element: `resolveRef`. D-012: a verification names a requirement, a validation a need or a
 //    requirement (by the meaning of the element's type); anything else is `input.invalid`. A given
-//    `variant` must be a variant the element applies in (SR-040), else the record would count nowhere;
-//    for a core requirement the variant excludes or replaces (the view rule) the refusal names the
-//    exclusion or the replacing requirements (SR-047 AK4). A validation record takes no variant
-//    (SR-038 AK4, D-007); `core` is none.
+//    `variant` must be a variant (`core` names none: a record for the core gives no variant, #464)
+//    whose view holds the element by the view rule, as the views decide it (SR-040, SR-043 AK10: an
+//    element of a type without the validity property is in every view), else the record would count
+//    nowhere; for a core requirement the variant excludes or replaces the refusal names the exclusion
+//    or the replacing requirements (SR-047 AK4). A validation record takes no variant (SR-038 AK4, D-007).
 // 2. ID and current version (AK1): the UUID and `currentVersionsOf` (one file read in a fresh process,
 //    N-036); neither is an input. No current version: `file.faulty`, nothing written.
 // 3. Fields as given; `date` defaults to the time of the call, UTC, whole seconds. The frontmatter is
@@ -29,6 +30,7 @@
 //    When another call replaced the read in between (two calls at once), the replace fails and the read
 //    is reset (#308).
 // The element's file and status are never read for writing or changed (D-030); the Beleg is never opened.
+import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
@@ -42,6 +44,7 @@ import {
   clashKey,
   currentVersionsOf,
   elementStoreState,
+  ownEvidenceWrite,
   refuseUnlisted,
   resolveRef,
   shortIdState,
@@ -408,11 +411,12 @@ interface Prepared {
 }
 
 /**
- * The variant of rule 1: its UUID, undefined for the core; `input.invalid` for a validation record
- * (SR-038 AK4), when the element does not apply in it (SR-040), or when the variant's view leaves it
- * out: excluded, or replaced (SR-047 AK4).
- * Every refusal names the element and the variant by short ID (the app gives UUIDs) and gives
- * `details.variant`, the UUID of the variant or `core`.
+ * The variant of rule 1: its UUID, undefined when none is given (the core); `input.invalid` for
+ * `core`, which names no variant (#464), for a validation record (SR-038 AK4), and when the variant's
+ * view (`outOfView`: the view rule, as the views decide it) leaves the element out: it does not apply there
+ * (SR-040), or the variant excludes or replaces it (SR-047 AK4).
+ * Every refusal of the view names the element and the variant by short ID (the app gives UUIDs) and
+ * gives `details.variant`, the UUID of the variant.
  */
 const variantOf = (
   context: ViewContext,
@@ -423,7 +427,13 @@ const variantOf = (
     return undefined;
   }
   const view = resolveView(context, input.variant, COMMAND, "variant", false);
-  if (input.kind === "validation" && view.kind === "variant") {
+  if (view.kind === "core") {
+    throw invalid(
+      `${input.variant} is no variant: variant takes a variant, an element whose type has the meaning variant; leave it out for a record of the core`,
+      { fields: ["variant"], reason: "core-is-no-variant" },
+    );
+  }
+  if (input.kind === "validation") {
     throw invalid(`Not written: ${VALIDATION_VARIANT_REASON}`, {
       fields: ["variant"],
       reason: "validation-with-variant",
@@ -432,12 +442,12 @@ const variantOf = (
   }
   const out = outOfView(context, element, view);
   if (out === undefined) {
-    return view.kind === "core" ? undefined : view.variant.id;
+    return view.variant.id;
   }
   throw invalid(`${context.shortIds.of(element)} ${out.why}`, {
     fields: ["variant"],
     reason: out.reason,
-    variant: view.kind === "core" ? "core" : view.variant.id,
+    variant: view.variant.id,
     ...(out.replacedBy === undefined ? {} : { replacedBy: out.replacedBy }),
   });
 };
@@ -548,6 +558,12 @@ export const recordEvidence = async (
   const name = (n: number): string => recordFileName(fields.date.slice(0, 10), shortId, what, n);
   const read = readBack(fields, bytes, repository.name, inFolder(folder, name(1)));
   const file = await createRecordFile(layout, repository, folder, name, bytes, deps.write);
+  // The watcher leaves the read alone for this file while it holds these bytes (#785).
+  ownEvidenceWrite(
+    workspace,
+    path.join(repository.folder, file),
+    createHash("sha256").update(bytes).digest("hex"),
+  );
   const record: PlacedRecord = { ...read, repository: repository.name, file };
   await updateEvidence(workspace, layout, record);
   return { files: [workspacePath(layout, repository, file)], record, problems: [] };

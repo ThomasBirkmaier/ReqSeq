@@ -19,7 +19,14 @@ const testCommandInProduct = {
 };
 const productFiles = ["packages/**/*.ts", "packages/**/*.tsx"];
 // The cross-access scenarios are test code in modules of their own, one per command (#527).
-const testFiles = ["**/*.test.ts", "**/*.test.tsx", "packages/cli/test/cross-access/**/*.ts"];
+const testFiles = [
+  "**/*.test.ts",
+  "**/*.test.tsx",
+  "**/*.test-helper.ts",
+  "packages/cli/test/cross-access/**/*.ts",
+];
+// The app's part of the performance suite (Playwright, #147) generates its workspace with the testkit.
+const appPerfFiles = ["packages/app/test/perf/**/*.ts"];
 
 // ADR-0016: strictest rule sets with type information; any warning fails the run (--max-warnings 0).
 export default tseslint.config(
@@ -92,7 +99,7 @@ export default tseslint.config(
   {
     // Adapters: only the public API of core, never the testkit.
     files: productFiles,
-    ignores: [...testFiles, "packages/core/**", "packages/testkit/**"],
+    ignores: [...testFiles, ...appPerfFiles, "packages/core/**", "packages/testkit/**"],
     rules: {
       "no-restricted-imports": [
         "error",
@@ -118,7 +125,7 @@ export default tseslint.config(
   },
   {
     // Tests outside core and the testkit itself: the testkit is fine, core internals are not.
-    files: [...testFiles, "packages/testkit/**/*.ts", "packages/testkit/**/*.tsx"],
+    files: [...testFiles, ...appPerfFiles, "packages/testkit/**/*.ts", "packages/testkit/**/*.tsx"],
     ignores: ["packages/core/**"],
     rules: {
       "no-restricted-imports": ["error", { patterns: [coreInternals] }],

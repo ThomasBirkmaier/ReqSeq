@@ -39,8 +39,12 @@ describe("workspace.init", () => {
   it("[SR-014/AK1] creates the standard model as metamodel files in an empty folder", async () => {
     const ws = await emptyFolder();
     const out = await init(open(ws.root), { path: ws.root, name: "Weather station" });
-    expect(out).toEqual({ files: ["metamodel/standard-model.yaml", WORKSPACE_FILE], problems: [] });
-    expect(await listFiles(ws.root)).toEqual(["metamodel/standard-model.yaml", WORKSPACE_FILE]);
+    expect(out).toEqual({
+      files: ["metamodel/standard-model.yaml", WORKSPACE_FILE, ".gitignore"],
+      problems: [],
+    });
+    expect(await listFiles(ws.root)).toEqual([".gitignore", "metamodel/standard-model.yaml", WORKSPACE_FILE]);
+    expect(await fs.readFile(ws.path(".gitignore"), "utf8")).toBe("*.reqseq-tmp\n");
     // The metamodel file is the shipped standard model, byte for byte.
     expect(await fs.readFile(ws.path("metamodel/standard-model.yaml"), "utf8")).toBe(STANDARD_MODEL_TEXT);
     const name = path.basename(ws.root);
@@ -113,8 +117,9 @@ describe("workspace.init", () => {
     const ws = await createFixtureWorkspace({ files: { "new/.keep": "" } });
     onTestFinished(() => ws.cleanup());
     const out = await init(open(ws.root), { path: "new", name: "New" });
-    expect(out.files).toEqual(["metamodel/standard-model.yaml", WORKSPACE_FILE]);
+    expect(out.files).toEqual(["metamodel/standard-model.yaml", WORKSPACE_FILE, ".gitignore"]);
     expect(await listFiles(ws.root)).toEqual([
+      "new/.gitignore",
       "new/.keep",
       "new/metamodel/standard-model.yaml",
       `new/${WORKSPACE_FILE}`,
@@ -126,11 +131,14 @@ describe("workspace.init", () => {
   it("writes the metamodel into the folder the caller names, also the repository root", async () => {
     const ws = await emptyFolder();
     const out = await init(open(ws.root), { path: ws.root, name: "W", metamodel: { path: "model/std" } });
-    expect(out).toEqual({ files: ["model/std/standard-model.yaml", WORKSPACE_FILE], problems: [] });
+    expect(out).toEqual({
+      files: ["model/std/standard-model.yaml", WORKSPACE_FILE, ".gitignore"],
+      problems: [],
+    });
 
     const root = await emptyFolder();
     const atRoot = await init(open(root.root), { path: root.root, name: "W", metamodel: { path: "." } });
-    expect(atRoot).toEqual({ files: ["standard-model.yaml", WORKSPACE_FILE], problems: [] });
+    expect(atRoot).toEqual({ files: ["standard-model.yaml", WORKSPACE_FILE, ".gitignore"], problems: [] });
   });
 
   it("lists an own metamodel repository and writes nothing into it (SR-018)", async () => {
@@ -141,7 +149,7 @@ describe("workspace.init", () => {
       name: "W",
       metamodel: { repository: "metamodel", path: "model" },
     });
-    expect(out.files).toEqual([WORKSPACE_FILE]);
+    expect(out.files).toEqual([WORKSPACE_FILE, ".gitignore"]);
     expect(out.problems).toEqual([
       {
         code: "workspace.repository-missing",
@@ -171,6 +179,50 @@ describe("workspace.init", () => {
     expect(await fs.readFile(ws.path(WORKSPACE_FILE), "utf8")).toBe(before);
   });
 
+  it("adds the temp file pattern to an existing .gitignore once, with its line ending (#271)", async () => {
+    const ws = await createFixtureWorkspace({
+      files: {
+        "a/.gitignore": "node_modules/\r\ndist/",
+        "b/.gitignore": "x\n*.reqseq-tmp  \n",
+        "d/.gitignore": "  *.reqseq-tmp\n",
+        "c/.keep": "",
+      },
+    });
+    onTestFinished(() => ws.cleanup());
+    const workspace = open(ws.root);
+    expect((await init(workspace, { path: "a", name: "A" })).files).toContain(".gitignore");
+    expect(await fs.readFile(ws.path("a/.gitignore"), "utf8")).toBe(
+      "node_modules/\r\ndist/\r\n*.reqseq-tmp\r\n",
+    );
+    expect((await init(workspace, { path: "b", name: "B" })).files).not.toContain(".gitignore");
+    expect(await fs.readFile(ws.path("b/.gitignore"), "utf8")).toBe("x\n*.reqseq-tmp  \n");
+    // A leading space is part of a Git pattern, so that line does not count.
+    await init(workspace, { path: "d", name: "D" });
+    expect(await fs.readFile(ws.path("d/.gitignore"), "utf8")).toBe("  *.reqseq-tmp\n*.reqseq-tmp\n");
+    // A .gitignore that is a link is not followed and left alone.
+    await fs.symlink(ws.path("a/.gitignore"), ws.path("c/.gitignore"), "file");
+    expect((await init(workspace, { path: "c", name: "C" })).files).not.toContain(".gitignore");
+  });
+
+  it("keeps the bytes of a .gitignore that is not UTF-8", async () => {
+    const ws = await emptyFolder();
+    await fs.writeFile(ws.path(".gitignore"), Buffer.from([0x62, 0xfc, 0x0a]));
+    await init(open(ws.root), { path: ws.root, name: "W" });
+    expect([...(await fs.readFile(ws.path(".gitignore")))]).toEqual([
+      0x62,
+      0xfc,
+      0x0a,
+      ...Buffer.from("*.reqseq-tmp\n"),
+    ]);
+  });
+
+  it("appends to an empty .gitignore without a blank line", async () => {
+    const ws = await createFixtureWorkspace({ files: { ".gitignore": "" } });
+    onTestFinished(() => ws.cleanup());
+    await init(open(ws.root), { path: ws.root, name: "W" });
+    expect(await fs.readFile(ws.path(".gitignore"), "utf8")).toBe("*.reqseq-tmp\n");
+  });
+
   it("refuses an existing metamodel file before it writes anything", async () => {
     const ws = await createFixtureWorkspace({ files: { "metamodel/standard-model.yaml": "mine\n" } });
     onTestFinished(() => ws.cleanup());
@@ -181,11 +233,21 @@ describe("workspace.init", () => {
     expect(await listFiles(ws.root)).toEqual(["metamodel/standard-model.yaml"]);
   });
 
-  it("refuses a missing folder and a path that is a file", async () => {
+  it("creates the folder of the workspace when only it is missing (#637)", async () => {
+    const ws = await emptyFolder();
+    await init(open(ws.root), { path: "spec", name: "W" });
+    expect(await listFiles(ws.root)).toEqual([
+      "spec/.gitignore",
+      "spec/metamodel/standard-model.yaml",
+      "spec/reqseq-workspace.yaml",
+    ]);
+  });
+
+  it("refuses a folder whose parent is missing too and a path that is a file", async () => {
     const ws = await createFixtureWorkspace({ files: { "a-file": "x" } });
     onTestFinished(() => ws.cleanup());
     const workspace = open(ws.root);
-    const missing = await init(workspace, { path: "missing", name: "W" }).catch((e: unknown) => e);
+    const missing = await init(workspace, { path: "missing/below", name: "W" }).catch((e: unknown) => e);
     expect(missing).toMatchObject({
       code: "file.folder-missing",
       message: expect.not.stringContaining(ws.root) as string,
@@ -225,8 +287,23 @@ describe("workspace.init when the folder cannot be read", () => {
     await expect(init(workspace, { path: "a-file/below", name: "W" })).rejects.toMatchObject({
       code: "file.folder-missing",
     });
+    await expect(init(workspace, { path: "a-file/below", name: "W" })).rejects.toMatchObject({
+      code: "file.folder-missing",
+      message: "Not written: the path above the new workspace is not a folder",
+    });
     vi.spyOn(fs, "stat").mockRejectedValueOnce(Object.assign(new Error("EACCES"), { code: "EACCES" }));
     await expect(init(workspace, { path: ws.root, name: "W" })).rejects.toMatchObject({ code: "internal" });
     expect(await listFiles(ws.root)).toEqual(["a-file"]);
+  });
+
+  it("refuses a link to a missing folder instead of creating it (#637)", async () => {
+    const ws = await emptyFolder();
+    // lstat finds the link while stat finds no target: a dangling link, mocked to stay platform-neutral.
+    vi.spyOn(fs, "lstat").mockResolvedValueOnce({} as Awaited<ReturnType<typeof fs.lstat>>);
+    await expect(init(open(ws.root), { path: "dangling", name: "W" })).rejects.toMatchObject({
+      code: "file.folder-missing",
+      message: "Not written: the path of the new workspace links to a missing folder",
+    });
+    expect(await listFiles(ws.root)).toEqual([]);
   });
 });

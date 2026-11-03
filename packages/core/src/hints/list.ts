@@ -46,6 +46,7 @@ import {
   elementStoreState,
   problemElement,
   relationKey,
+  relationLimitProblemsState,
   relationTypeProblemsState,
   requiredProblemsState,
   resolveRef,
@@ -95,6 +96,7 @@ export const HINT_STATES = [
   targetNotCoreProblemsState, // SR-041 AK8
   valueKindProblemsState, // SR-085
   relationTypeProblemsState, // SR-086
+  relationLimitProblemsState, // SR-152
   duplicateIdentifierProblemsState, // #305
   unresolvedLinkProblemsState, // #176
   derivationCycleProblemsState, // SR-090

@@ -14,6 +14,7 @@ import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
+import { readFirst } from "../../runtime/read-first.test-helper.js";
 
 type Output = CommandOutput<"element.search">;
 
@@ -279,7 +280,11 @@ describe("element.search (SR-068)", () => {
   it("finds what a save changed: the index is carried over the write", async () => {
     const ws = await open();
     expect(await hits(ws, "anemometer")).toEqual([]);
-    await invoke("element.update", { ref: "SR-0000b2", text: "With an anemometer.\n" }, { workspace: ws });
+    await invoke(
+      "element.update",
+      await readFirst({ ref: "SR-0000b2", text: "With an anemometer.\n" }, { workspace: ws }),
+      { workspace: ws },
+    );
     expect(await hits(ws, "anemometer")).toEqual([B2]);
     expect(await hits(ws, "anemometer", { selection: { where: { status: ["draft"] } } })).toEqual([B2]);
   });

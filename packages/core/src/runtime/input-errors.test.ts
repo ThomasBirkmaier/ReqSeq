@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Contracts } from "./contracts.js";
 import { contractsBundle, loadContracts } from "./contracts.js";
 import type { InputViolation } from "./input-errors.js";
-import { describeInputViolations, inputViolations } from "./input-errors.js";
+import { describeInputViolations, inputViolations, knownNames } from "./input-errors.js";
 
 const product = loadContracts();
 
@@ -117,10 +117,24 @@ describe("readable messages of an input that fails its schema (#309)", () => {
 
   it("names a field the command does not have", () => {
     expect(messages(product, "element.supersede", { ref: "SR-e88fb3", status: "obsolete", old: 1 })).toEqual([
-      "old is not an input of this command",
+      "old is not an input of this command (known: ref, status, successor, relation)",
     ]);
-    expect(field({ nested: { inner: "x", extra: 1 } })).toEqual(["nested.extra is not a field of nested"]);
+    expect(field({ nested: { inner: "x", extra: 1 } })).toEqual([
+      "nested.extra is not a field of nested (known: inner, a/b)",
+    ]);
     expect(field({ nested: {} })).toEqual(["nested.inner is required"]);
+  });
+
+  it("names the inputs an update takes when it gets those of a create (#641)", () => {
+    const [message] = messages(product, "element.update", { ref: "SR-e88fb3", properties: { x: 1 } });
+    expect(message).toMatch(/^properties is not an input of this command \(known: .*\bset\b.*\)$/);
+  });
+
+  it("lists at most twelve names, and none for an object without listed fields", () => {
+    expect(
+      knownNames({ properties: Object.fromEntries([...Array(13).keys()].map((i) => [`f${String(i)}`, {}])) }),
+    ).toBe(" (known: f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, ...)");
+    expect(knownNames(undefined)).toBe("");
   });
 
   it("collapses the branches of a variant view into one message", () => {
@@ -232,6 +246,9 @@ describe("readable messages of an input that fails its schema (#309)", () => {
         message: "The input must be an object, not 5",
         params: { type: "object" },
       },
+    ]);
+    expect(violations(keywords, "test.fields", undefined).map((v) => v.message)).toEqual([
+      "The input must be an object, not missing",
     ]);
   });
 

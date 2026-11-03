@@ -1,5 +1,6 @@
 // The muted lines under the boxes of a requirement (D-062: only when they say something): where it is
-// replaced or excluded (SR-046 AK2) and its verification status per view (SR-047 AK3); on the page of a
+// replaced or excluded (SR-046 AK2), its verification status per view with the missing children of an
+// indirect verification (SR-047 AK3, SR-034 AK2) and its validation status (SR-038 AK1); on the page of a
 // variant, its hints since its newest baseline (SR-103 AK1, AK7), one line each. Layout only:
 // `variant-lines.ts` builds them from the element buffer's last answer of `element.get`, so they ask
 // nothing of their own and follow the element's reads. A variant or replacement is a link to its element.
@@ -72,6 +73,7 @@ export const VariantLines = ({ output, onOpenRelation }: VariantLinesProps): Rea
     <>
       <Line parts={lines.use} label="Replaced or excluded" onOpen={onOpenRelation} />
       <Line parts={lines.verification} label="Verification" onOpen={onOpenRelation} />
+      <Line parts={lines.validation} label="Validation" onOpen={onOpenRelation} />
       {lines.sinceBaseline.map((hint) => (
         <p
           key={hint.message}

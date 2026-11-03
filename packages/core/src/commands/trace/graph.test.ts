@@ -290,7 +290,8 @@ describe("trace.graph (SR-111)", () => {
       ["C3", "component-requirement", "Convert turns to speed", ["no-evidence"]],
       ["E1", "decision", "Show values on the display", []],
       ["G1", "component-requirement", "Debounce the turn sensor", []],
-      ["GG1", "component-requirement", "Heat the turn sensor", ["no-evidence"]],
+      // GG1 holds only in V1: not in the core, so no evidence gap there (#674).
+      ["GG1", "component-requirement", "Heat the turn sensor", []],
     ]);
     expect(output.nodes.every((n) => n.shortId.length > 0 && n.file.endsWith(".md"))).toBe(true);
     expect(output.nodes.find((n) => n.id === ID.O1)?.status).toBe("obsolete");
@@ -346,6 +347,63 @@ describe("trace.graph (SR-111)", () => {
       ["S1", "N1", "D1", "PKG", "O1", "D2", "C1", "C2", "C3", "E1", "G1"],
       ["O1", "C2", "C3", "G1"],
     ]);
+  });
+
+  it("[SR-111/AK4] no-evidence reads the verification records as trace.chain does", async () => {
+    const workspace = await open(async (fixture) => {
+      const { readFile } = await import("node:fs/promises");
+      const config = await readFile(fixture.path("reqseq-workspace.yaml"), "utf8");
+      await fixture.write(
+        "reqseq-workspace.yaml",
+        `${config}evidence:\n  - { repository: system, path: evidence }\n`,
+      );
+      await fixture.write(
+        "evidence/ci/run.xml",
+        [
+          '<testsuites><testsuite name="station" tests="1">',
+          '<testcase classname="t" name="turns"><properties>',
+          `<property name="reqseq:element" value="${ID.C3}"/>`,
+          '<property name="reqseq:version" value="n1:0000000000000000"/>',
+          '<property name="reqseq:item" value="build-1"/>',
+          '<property name="reqseq:date" value="2026-10-21T09:00:00Z"/>',
+          "</properties></testcase></testsuite></testsuites>",
+          "",
+        ].join("\n"),
+      );
+    });
+    const output = await graph(workspace, { ref: ID.S1, allLevels: true });
+    expect(marked(output, "no-evidence")).toEqual(["O1", "C2"]);
+    for (const view of [undefined, "core", ID.V1]) {
+      const input = { ref: ID.S1, ...(view === undefined ? {} : { view }) };
+      const shown = await graph(workspace, { ...input, allLevels: true });
+      const chain = (await invoke("trace.chain", input, { workspace })) as CommandOutput<"trace.chain">;
+      const expanded = new Set(
+        chain.nodes.filter((n) => n.expanded && n.direction !== "up").map((n) => n.id),
+      );
+      const gaps = chain.gaps.filter((g) => g.kind === "no-evidence").map((g) => nameOf(g.id));
+      expect(marked(shown, "no-evidence").filter((name) => expanded.has(ID[name as Name]))).toEqual(gaps);
+    }
+  });
+
+  it("[SR-111/AK4] is incomplete, as trace.chain, while an evidence location is not on this machine", async () => {
+    const workspace = await open(async (fixture) => {
+      const { readFile } = await import("node:fs/promises");
+      const config = await readFile(fixture.path("reqseq-workspace.yaml"), "utf8");
+      await fixture.write(
+        "reqseq-workspace.yaml",
+        config.replace(
+          "repositories:\n",
+          'repositories:\n  - { name: tests, url: "git@git.example.com:ws/tests.git" }\n',
+        ) + "evidence:\n  - { repository: tests, path: evidence }\n",
+      );
+    });
+    const output = await graph(workspace, { ref: ID.S1 });
+    const chain = (await invoke(
+      "trace.chain",
+      { ref: ID.S1 },
+      { workspace },
+    )) as CommandOutput<"trace.chain">;
+    expect([output.incomplete, chain.incomplete]).toEqual([true, true]);
   });
 
   it("gives a hint and no no-evidence mark without a relation kind with the meaning derivation (SR-013 AK3)", async () => {

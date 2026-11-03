@@ -2,7 +2,7 @@
 // named here: groups, actions, arguments and flags all come from the catalog entries.
 import type { CatalogEntry, CommandRuntime } from "@reqseq/core";
 import { Command, Option } from "commander";
-import type { InputField } from "./fields.js";
+import type { InputField, PartFlag } from "./fields.js";
 import { RESERVED_FLAGS, inputFields, kebab } from "./fields.js";
 
 /** What the command line asked for, before it becomes a command input. */
@@ -18,7 +18,12 @@ export interface Invocation {
    * Flag fields with their raw values (`undefined` when not given); positional fields given as a
    * flag (`--title` next to `<title>`) too.
    */
-  readonly flags: readonly { readonly field: InputField; readonly value: unknown }[];
+  readonly flags: readonly {
+    readonly field: InputField;
+    /** The part of the field this flag sets (`--ids` of `selection`), `undefined` for a whole field. */
+    readonly part?: PartFlag | undefined;
+    readonly value: unknown;
+  }[];
   /** `--json`. */
   readonly json: boolean;
   /** `--yaml`: the whole output as YAML instead of the compact form. */
@@ -88,6 +93,24 @@ const addServers = (program: Command, options: ProgramOptions): void => {
   });
 };
 
+/**
+ * `text` with every input field name that the command line spells otherwise (`changedSince`) as its
+ * flag (`--changed-since`) or argument (`<ref>`), so help names what a person types (#148). Only
+ * names with a capital letter are respelled: a one-word name is its own flag and reads as prose. A
+ * name in backticks is left as it is: the catalog quotes output fields so, which may share the name.
+ */
+const spelledHelp = (text: string, fields: readonly InputField[]): string =>
+  fields
+    .filter((field) => field.use !== "input-only" && field.name !== field.flag && /[A-Z]/.test(field.name))
+    .reduce(
+      (spelled, field) =>
+        spelled.replace(
+          new RegExp(`(?<![\\w.\`-])${field.name}(?![\\w\`])`, "g"),
+          field.use === "positional" ? `<${field.flag}>` : `--${field.flag}`,
+        ),
+      text,
+    );
+
 const describeField = (field: InputField): string =>
   [
     field.description,
@@ -111,6 +134,49 @@ const collect = (value: string, previous: unknown): string[] => [
   value,
 ];
 
+/** Help text of a part flag: what it sets and how it combines with `--input` (#149, #173). */
+const describePart = (field: InputField, part: PartFlag): string => {
+  const at = [field.name, ...part.path].join(".");
+  const rule = {
+    property: part.array
+      ? `repeatable; sets ${at}, replacing the list of --input`
+      : `sets ${at}, replacing that of --input`,
+    condition: `a condition as JSON (filter.schema.json): inline, @file or -; replaces ${at} of --input`,
+    key: `repeatable; matches any of them; added to ${at} with all`,
+    sort: `<by>[:asc|desc], repeatable; replaces ${at} of --input`,
+  }[part.role];
+  return [part.description, rule]
+    .filter((text) => text !== undefined)
+    .join("; ")
+    .replaceAll(".; ", ". ");
+};
+
+const PART_PLACEHOLDER: Readonly<Record<PartFlag["role"], string>> = {
+  property: "<value>",
+  condition: "<json|@file|->",
+  key: "<key>",
+  sort: "<by[:asc|desc]>",
+};
+
+/** The option of a part flag. */
+const partOption = (field: InputField, part: PartFlag): Option => {
+  const option = new Option(`--${part.flag} ${PART_PLACEHOLDER[part.role]}`, describePart(field, part));
+  return part.array ? option.argParser(collect) : option;
+};
+
+/** The flag names a command line takes, each with `--no-x`; a name twice throws (#149). */
+const checkClashes = (entry: CatalogEntry, options: readonly Option[], jsonl: boolean): void => {
+  const names = [
+    ...RESERVED_FLAGS,
+    ...(jsonl ? ["jsonl"] : []),
+    ...options.map((option) => option.long?.replace(/^--/, "") ?? ""),
+  ];
+  const twice = names.filter((name, i) => names.indexOf(name) !== i);
+  if (twice.length > 0) {
+    throw new Error(`${entry.name}: the flag --${twice.join(", --")} is derived twice`);
+  }
+};
+
 interface FieldOptions {
   /** Carries the value; `--no-x` shares its attribute. */
   readonly main: Option;
@@ -119,8 +185,8 @@ interface FieldOptions {
 }
 
 /** The commander options of one flag field (two for a boolean: `--x` and `--no-x`). */
-const optionsOf = (field: InputField): FieldOptions => {
-  const description = describeField(field);
+const optionsOf = (field: InputField, fields: readonly InputField[]): FieldOptions => {
+  const description = spelledHelp(describeField(field), fields);
   if (field.kind === "boolean" && !field.array) {
     return {
       main: new Option(`--${field.flag}`, description),
@@ -144,17 +210,18 @@ const addCommand = (group: Command, entry: CatalogEntry, options: ProgramOptions
   const fields = inputFields(entry, options.runtime.contracts.schemas);
   const positional = fields.filter((f) => f.use === "positional");
   const flags = fields.filter((f) => f.use === "flag");
+  const parted = fields.filter((f) => f.use === "parts");
   const inputOnly = fields.filter((f) => f.use === "input-only");
 
   const command = group
     .command(kebab(action))
-    .description(implemented ? entry.summary : `${entry.summary} (not implemented yet)`)
+    .description(spelledHelp(implemented ? entry.summary : `${entry.summary} (not implemented yet)`, fields))
     .usage([...positional.map((f) => `<${f.flag}>`), "[options]"].join(" "))
     // Too many arguments reach buildInput, whose error names the call they fit (#449).
     .allowExcessArguments();
   // Optional for commander, so the value may also come from --input; core reports a missing one.
   for (const field of positional) {
-    command.argument(`[${field.flag}]`, describeField(field));
+    command.argument(`[${field.flag}]`, spelledHelp(describeField(field), fields));
   }
   // A positional field can also be given as a flag, so `element create <type> --title x` and
   // `element update <ref> --title x` read alike (#310); a field given so is not filled positionally.
@@ -163,11 +230,20 @@ const addCommand = (group: Command, entry: CatalogEntry, options: ProgramOptions
       .filter((field) => !RESERVED_FLAGS.includes(field.flag))
       .map((field) => ({
         field,
+        part: undefined,
         main: new Option(`--${field.flag} <value>`, `instead of the argument <${field.flag}>`),
         negation: undefined,
       })),
-    ...flags.map((field) => ({ field, ...optionsOf(field) })),
+    ...flags.map((field) => ({ field, part: undefined, ...optionsOf(field, fields) })),
+    ...parted.flatMap((field) =>
+      field.parts.map((part) => ({ field, part, main: partOption(field, part), negation: undefined })),
+    ),
   ];
+  checkClashes(
+    entry,
+    flagOptions.flatMap(({ main, negation }) => (negation === undefined ? [main] : [main, negation])),
+    entry.jsonLines !== undefined,
+  );
   for (const { main, negation } of flagOptions) {
     command.addOption(main);
     if (negation !== undefined) {
@@ -200,7 +276,11 @@ const addCommand = (group: Command, entry: CatalogEntry, options: ProgramOptions
       fields,
       positionals: positional.map((field, i) => ({ field, value: text(args[i]) })),
       extraArguments: command.args.slice(positional.length),
-      flags: flagOptions.map(({ field, main }) => ({ field, value: opts[main.attributeName()] })),
+      flags: flagOptions.map(({ field, part, main }) => ({
+        field,
+        part,
+        value: opts[main.attributeName()],
+      })),
       json: opts["json"] === true,
       yaml: opts["yaml"] === true,
       jsonl: opts["jsonl"] === true,

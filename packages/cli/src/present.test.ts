@@ -807,6 +807,44 @@ describe("renderHuman: a chain", () => {
     );
   });
 
+  it("marks a requirement the view does not hold as not in view, with the views that hold it, not as a gap (#674)", () => {
+    const shown = (views: readonly string[]): string =>
+      renderHuman(
+        chain({
+          nodes: [node("r", "SR-r", 0)],
+          total: 1,
+          gaps: [{ id: "r", repository: "system", kind: "not-in-view", views }],
+          names: [{ id: "v1", repository: "system", shortId: "VAR-v1", title: "Gusty" }],
+        }),
+      );
+    expect(shown(["core", "v1", "v2"])).toBe(
+      lines("SR-r  draft  Title SR-r  [not in view, holds in core, VAR-v1, v2]", "total: 1", "No problems."),
+    );
+    expect(shown([])).toContain("[not in view, holds in no view]");
+  });
+
+  it("names the kind of a neighbourhood relation that is no derivation, and heads its direction so (#643)", () => {
+    const output = chain({
+      nodes: [node("r", "STK-r", 0), node("n", "N-n", 1, "down"), node("p", "N-p", 1, "up")],
+      total: 3,
+      edges: [
+        { ...edge("n", "r", "down"), link: "relation", kind: "has-stakeholder" },
+        { ...edge("r", "p", "up"), link: "relation", meaning: "derivation" },
+      ],
+    });
+    expect(renderHuman(output)).toBe(
+      lines(
+        "STK-r  draft  Title STK-r",
+        "parents:",
+        "  1  N-p  draft  Title N-p",
+        "downward:",
+        "  1  N-n  draft  Title N-n  [has-stakeholder]",
+        "total: 3",
+        "No problems.",
+      ),
+    );
+  });
+
   it("marks an edge to an element shown elsewhere, and a cycle, where the edge starts", () => {
     const output = chain({
       nodes: [node("r", "SR-r", 0), node("a", "SR-a", 1, "down"), node("b", "SR-b", 1, "down")],
@@ -973,6 +1011,13 @@ describe("renderHuman: a chain", () => {
         "No problems.",
       ),
     );
+    // With `names` the variant is named by short ID and title, and `names` is not printed (#676).
+    const named = renderHuman({
+      ...output,
+      names: [{ id: "v1", repository: "system", shortId: "VAR-v1", title: "Gusty" }],
+    });
+    expect(named).toContain("reports/b4.pdf  [variant VAR-v1  Gusty]");
+    expect(named).not.toContain("names:");
   });
 
   it("is a chain only when every node has a depth; else its lists are shown as they are", () => {
@@ -989,6 +1034,123 @@ describe("renderHuman: a chain", () => {
     );
     expect(renderHuman({ nodes: [{ shortId: "SR-r", title: "R" }], edges: [] })).toBe(
       lines("nodes:", "  SR-r  R", "edges: none"),
+    );
+  });
+});
+
+describe("renderHuman: evidence records and test cases (#275)", () => {
+  const record = {
+    element: "e",
+    kind: "verification",
+    method: "test",
+    item: "build-513",
+    result: "failed",
+    date: "2026-10-22T09:00:00Z",
+    repository: "system",
+    file: "evidence/ci/run-2.xml",
+    line: 4,
+    baselines: [],
+  };
+  it("prints one line per record and per test case, with the last result and the number of executions", () => {
+    const validation = {
+      ...record,
+      kind: "validation",
+      method: "review",
+      result: "passed",
+      evidence: "notes.md",
+      version: "n1:ab",
+      baselines: ["v1", "v2"],
+    };
+    expect(
+      renderHuman({
+        records: [record, validation],
+        testCases: [
+          {
+            name: "test_speed",
+            className: "tests.test_wind",
+            executed: true,
+            executions: [record, record],
+            last: record,
+          },
+          { name: "manual check", executed: false, executions: [] },
+        ],
+        problems: [],
+      }),
+    ).toBe(
+      [
+        "records:",
+        "  2026-10-22T09:00:00Z  test  failed  build-513  system/evidence/ci/run-2.xml:4",
+        "  validation  2026-10-22T09:00:00Z  review  passed  build-513  notes.md  [version n1:ab]  [baselines: v1, v2]",
+        "testCases:",
+        "  tests.test_wind › test_speed  last: failed  2026-10-22T09:00:00Z  executions: 2",
+        "  manual check  [not executed]  executions: 0",
+        "No problems.",
+        "",
+      ].join("\n"),
+    );
+  });
+});
+
+describe("renderHuman: a matrix (#629)", () => {
+  it("numbers the columns and prints the cells of each row, a dash for an empty one", () => {
+    const row = (shortId: string, cells: unknown[][], extra: Record<string, unknown> = {}) => ({
+      id: shortId,
+      repository: "system",
+      shortId,
+      type: "system-requirement",
+      status: "draft",
+      title: `Title ${shortId}`,
+      cells,
+      ...extra,
+    });
+    expect(
+      renderHuman({
+        columns: [
+          {
+            type: "relation",
+            kind: "derives-from",
+            direction: "out",
+            name: "Derives from",
+            count: 1,
+            share: 0.5,
+          },
+          { type: "relation", kind: "derives-from", direction: "in", name: "Derived by", count: 0, share: 0 },
+        ],
+        rows: [
+          row(
+            "SR-a",
+            [
+              [
+                { shortId: "N-x", identifier: "N-001", outdated: true },
+                { id: "0000-uuid", shortId: "", targetState: "missing" },
+              ],
+              [],
+            ],
+            { depth: 1, testCases: [] },
+          ),
+          row("SR-b", [[], []], { testCases: [{ name: "test_b" }] }),
+        ],
+        total: 2,
+        incomplete: false,
+        problems: [],
+      }),
+    ).toBe(
+      [
+        "columns:",
+        "  1:  Derives from  (derives-from, out)  1  50 %",
+        "  2:  Derived by  (derives-from, in)  0  0 %",
+        "rows:",
+        "    SR-a  draft  Title SR-a",
+        "    1: N-x (N-001)  [outdated], 0000-uuid  [missing]  2: –  tests: –",
+        "  SR-b  draft  Title SR-b",
+        "    1: –  2: –  tests: test_b",
+        "total: 2",
+        "No problems.",
+        "",
+      ].join("\n"),
+    );
+    expect(renderHuman({ columns: [], rows: [], total: 0, problems: [] })).toBe(
+      ["columns: none", "rows: none", "total: 0", "No problems.", ""].join("\n"),
     );
   });
 });

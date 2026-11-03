@@ -7,7 +7,7 @@
 // (SR-013, meanings.ts). Checks across the lists (enabler #157): a key is either a property or a
 // relation kind (ADR-0004, while merging); after all files, every type in `source-types`/
 // `target-types` is defined and exactly one status is initial; an initial status marked invalid is
-// a warning (#350). No type uses the prefix that short IDs of elements of an unknown type use
+// a warning (#350); the relation limits are consistent (SR-152, limits.ts). No type uses the prefix that short IDs of elements of an unknown type use
 // (#154). A type whose statuses are all marked invalid gets an info note that its status is
 // optional (#343), so a metamodel that marks them all invalid by mistake does not go unnoticed.
 import fs from "node:fs/promises";
@@ -30,6 +30,7 @@ import type {
 } from "../generated/types.js";
 import type { EffectiveType, Located } from "./inheritance.js";
 import { resolveTypes } from "./inheritance.js";
+import { limitProblems } from "./limits.js";
 import type { MeaningAssignment } from "./meanings.js";
 import { assignMeanings, markdownProblems, meaningKindProblems, meaningShapeProblems } from "./meanings.js";
 
@@ -67,7 +68,8 @@ export interface Metamodel {
    * The folder exists and no file has an error (faulty YAML, schema violation, key defined twice,
    * key used by a property and a relation kind), every type has known parents without a cycle (an
    * unknown property in a type is only a warning, #141 c), no type or property meaning is declared
-   * by two keys, every type in `source-types`/`target-types` is defined, exactly one status is
+   * by two keys, every type in `source-types`/`target-types` and in the relation limits is defined,
+   * no limit has `min` above `max` or a second limit for its pair of types, exactly one status is
    * initial, and no type uses the prefix `UNKNOWN_TYPE_PREFIX`.
    * When false the workspace is read-only (SR-011 AK3).
    */
@@ -339,7 +341,7 @@ const invalidInitialProblems = (statuses: readonly Located<MetamodelStatus>[]): 
     );
 
 /**
- * An info note for every type, not abstract, whose statuses are all marked invalid (#343): its
+ * An info note `metamodel.optional-status` for every type, not abstract, whose statuses are all marked invalid (#343): its
  * status is optional (#344, option 1), as `hasWorkingStatus` decides for its elements. On the type's
  * `statuses` line, else (an inherited list, or no list and every status invalid) on the type.
  */
@@ -360,12 +362,15 @@ const optionalStatusNotes = (
       return [];
     }
     return [
-      problem(
-        "info",
-        `Type ${effective.key} has an optional status (only invalid statuses: ${effective.statuses.join(", ")}): an element of it without status is current, element.supersede retires it, and element.setStatus with status null makes it current again`,
-        type.file,
-        type.lineOf(["statuses"]),
-      ),
+      {
+        ...problem(
+          "info",
+          `Type ${effective.key} has an optional status (only invalid statuses: ${effective.statuses.join(", ")}): an element of it without status is current, element.supersede retires it, and element.setStatus with status null makes it current again`,
+          type.file,
+          type.lineOf(["statuses"]),
+        ),
+        code: "metamodel.optional-status",
+      },
     ];
   });
 };
@@ -492,6 +497,7 @@ const readMetamodel = async (layout: WorkspaceLayout): Promise<Metamodel> => {
     // already; so these (like an unknown parent or property in `resolveTypes`) are checked only when
     // every file was read.
     ...(complete ? unknownTypeProblems(new Set(merged.types.firstFile.keys()), properties, relations) : []),
+    ...limitProblems(relations, resolved.types, complete),
     ...initialStatusProblems(statuses, folderName, complete),
     ...invalidInitialProblems(statuses),
     ...optionalStatusNotes(types, resolved.types, statuses),

@@ -5,10 +5,12 @@
 // With --junit, `complete=true` in the GitHub output says that the record may be committed: the suite
 // ran, and its only failures are threshold assertions, which come after their time was recorded. Any
 // other failure, an error or a skipped test may have left rows out (#202), so then `complete=false`.
+// `--junit` may be given once per suite (Vitest and the app's Playwright suite, #147): complete only when every
+// report is.
 //
 // Usage: node scripts/perf/report.mjs --results test-results/perf.jsonl --out verification/performance.md
 //        [--commit <sha>] [--run-url <url>] [--summary <file>] [--github-output <file>]
-//        [--junit test-results/junit-perf.xml]
+//        [--junit test-results/junit-perf.xml [--junit test-results/junit-perf-electron.xml]]
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -121,6 +123,10 @@ const option = (args, name) => {
   return i === -1 ? undefined : args[i + 1];
 };
 
+/** Every value of an option that may be given more than once, in order. */
+const options = (args, name) =>
+  args.flatMap((arg, i) => (arg === name && i + 1 < args.length ? [args[i + 1]] : []));
+
 /** Runs the command line; returns the number of exceeded thresholds. */
 export function main(args, now = new Date()) {
   const results = option(args, "--results") ?? "test-results/perf.jsonl";
@@ -144,12 +150,14 @@ export function main(args, now = new Date()) {
   }
   const over = exceeded(measurements);
   const output = option(args, "--github-output");
-  const junit = option(args, "--junit");
+  const junit = options(args, "--junit");
   if (output !== undefined) {
     fs.appendFileSync(output, `exceeded=${over.length}\n`);
-    if (junit !== undefined) {
-      const text = fs.existsSync(junit) ? fs.readFileSync(junit, "utf8") : undefined;
-      fs.appendFileSync(output, `complete=${String(completeRun(text))}\n`);
+    if (junit.length > 0) {
+      const complete = junit.every((file) =>
+        completeRun(fs.existsSync(file) ? fs.readFileSync(file, "utf8") : undefined),
+      );
+      fs.appendFileSync(output, `complete=${String(complete)}\n`);
     }
   }
   console.log(`wrote ${out}: ${measurements.length} measurements, ${over.length} over their threshold`);

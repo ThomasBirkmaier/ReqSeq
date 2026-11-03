@@ -25,10 +25,11 @@ reqseq workspace init . "Weather station"
 files:
   metamodel/standard-model.yaml
   reqseq-workspace.yaml
+  .gitignore
 No problems.
 ```
 
-ReqSeq reads Git but never commits. Put the folder under Git yourself when you want its history.
+The `.gitignore` gets `*.reqseq-tmp`, so a temporary file left by an interrupted write is never committed. ReqSeq reads Git but never commits. Put the folder under Git yourself when you want its history.
 
 In the app: open the command prompt with Ctrl+Shift+P (⌘⇧P on macOS) and run **Initialise workspace**. The reference has the details of [workspace.init](/reference/commands/workspace-init/).
 

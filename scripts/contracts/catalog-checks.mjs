@@ -71,6 +71,16 @@ function checkContext(arg, earlier) {
     : [`"${arg.field}": ${arg.complete} needs an earlier ${kinds} field`];
 }
 
+/** `replaces`: only earlier optional fields, each once (a required one is always given). */
+function checkReplaces(arg, earlier, required) {
+  const names = arg.replaces ?? [];
+  return names
+    .filter(
+      (name, i) => !earlier.some((e) => e.field === name) || required.has(name) || names.indexOf(name) !== i,
+    )
+    .map((name) => `"${arg.field}": "replaces" must name earlier optional fields, each once, not "${name}"`);
+}
+
 /**
  * Options every CLI command has: keep in step with `RESERVED_FLAGS` in `packages/cli/src/fields.ts`,
  * plus `--jsonl` (`packages/cli/src/program.ts`).
@@ -99,6 +109,58 @@ function checkFlags(cmd) {
     );
 }
 
+/**
+ * Flags the CLI derives from the parts of a field (#149, #173): keep in step with `partsOf` in
+ * `packages/cli/src/fields.ts`, whose `buildProgram` refuses a clash too. Direct `$ref`s only.
+ */
+const SELECTION_FLAGS = [
+  "ids",
+  "filter",
+  "where",
+  "where-type",
+  "where-status",
+  "package",
+  "baseline",
+  "view",
+];
+function partFlags(property, flag) {
+  const ref = property?.$ref ?? "";
+  if (ref.endsWith("common.schema.json#/$defs/selection")) {
+    return SELECTION_FLAGS;
+  }
+  if (ref.endsWith("filter.schema.json#/$defs/condition")) {
+    return [flag, `${flag}-type`, `${flag}-status`];
+  }
+  return property?.type === "array" &&
+    (property.items?.$ref ?? "").endsWith("filter.schema.json#/$defs/sortKey")
+    ? [flag]
+    : [];
+}
+
+/** A part flag (`--ids` of a selection) is neither a common option nor another field's flag. */
+function checkPartFlags(cmd) {
+  const flagOf = (arg) => arg.flag ?? arg.field.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
+  const properties = cmd.input.properties ?? {};
+  const derived = cmd.arguments.map((arg) => ({ arg, parts: partFlags(properties[arg.field], flagOf(arg)) }));
+  const plain = derived
+    .filter(({ parts }) => parts.length === 0)
+    .flatMap(({ arg }) => [
+      flagOf(arg),
+      ...(properties[arg.field]?.type === "boolean" ? [`no-${flagOf(arg)}`] : []),
+    ]);
+  return derived.flatMap(({ arg, parts }) =>
+    parts.flatMap((flag) => {
+      if (COMMON_OPTIONS.includes(flag)) {
+        return [`"${arg.field}": part flag "${flag}" is a common option`];
+      }
+      const others = derived.filter((d) => d.arg !== arg).flatMap((d) => d.parts);
+      return plain.includes(flag) || others.includes(flag)
+        ? [`"${arg.field}": part flag "${flag}" is also the flag of another field`]
+        : [];
+    }),
+  );
+}
+
 /** Every input field exactly once, the required ones first, each source fitting its field. */
 function checkArguments(cmd) {
   const errors = [];
@@ -123,9 +185,13 @@ function checkArguments(cmd) {
     } else if (optionalSeen) {
       errors.push(`required "${arg.field}" comes after optional "${optionalSeen}"`);
     }
-    errors.push(...checkContext(arg, cmd.arguments.slice(0, index)), ...checkKind(arg, property));
+    errors.push(
+      ...checkContext(arg, cmd.arguments.slice(0, index)),
+      ...checkKind(arg, property),
+      ...checkReplaces(arg, cmd.arguments.slice(0, index), required),
+    );
   });
-  errors.push(...checkFlags(cmd));
+  errors.push(...checkFlags(cmd), ...checkPartFlags(cmd));
   return errors.map((e) => `arguments: ${e}`);
 }
 

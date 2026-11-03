@@ -277,6 +277,14 @@ export interface Problem {
   readonly currentDate?: string | null;
   /** Stable ID of a confirmable hint (D-042); on the hint.* problems of hint.confirm, the ID as given. */
   readonly hintId?: string;
+  /** The relation kind a count hint is about (`relation.too-many`, `relation.too-few`, SR-152). */
+  readonly key?: Key;
+  /** The target type of the limit a count hint is about (SR-152). */
+  readonly targetType?: Key;
+  /** How many relations the element has that the limit counts (SR-152). */
+  readonly count?: number;
+  /** The maximum (`relation.too-many`) or minimum (`relation.too-few`) the metamodel sets (SR-152). */
+  readonly limit?: number;
 }
 
 /**
@@ -290,6 +298,7 @@ export type ProblemCode =
   | "file.faulty"
   | "file.yaml-warning"
   | "file.skipped"
+  | "file.stale-temp"
   | "element.invalid"
   | "element.duplicate-id"
   | "element.duplicate-identifier"
@@ -301,11 +310,14 @@ export type ProblemCode =
   | "element.status-not-allowed"
   | "element.missing-status"
   | "element.statement-without-text"
+  | "element.text-emptied"
   | "relation.missing-target"
   | "relation.unresolved-link"
   | "relation.not-a-link"
   | "relation.inaccessible-target"
   | "relation.not-allowed"
+  | "relation.too-many"
+  | "relation.too-few"
   | "relation.outdated"
   | "relation.target-superseded"
   | "relation.not-found"
@@ -326,11 +338,13 @@ export type ProblemCode =
   | "evidence.not-enriched"
   | "evidence.folder-missing"
   | "evidence.ambiguous-element"
+  | "evidence.kind-mismatch"
   | "baseline.invalid"
   | "baseline.repository-commit-differs"
   | "filter.invalid"
   | "filter.duplicate-name"
   | "metamodel.invalid"
+  | "metamodel.optional-status"
   | "metamodel.meaning-unassigned"
   | "workspace.repository-missing"
   | "workspace.metamodel-mismatch"
@@ -1106,8 +1120,31 @@ export interface MetamodelRelationKind {
   readonly "source-types"?: readonly MetamodelKey[];
   /** Allowed target types: absent: every type; empty: none; a type also allows its subtypes (types that extend it, SR-086). */
   readonly "target-types"?: readonly MetamodelKey[];
+  /** How many relations of this kind an element may or must have, per target type (SR-152): a count outside a limit is a hint (`relation.too-many`, `relation.too-few`) when the workspace is checked, never a refusal. Absent: any number, also none. One limit per pair of source type and target type. */
+  readonly limits?: readonly MetamodelRelationLimit[];
   readonly meaning?: MetamodelRelationMeaning;
 }
+
+/**
+ * A minimum, a maximum or both for the number of relations of the kind from one source element to elements of `target-type` (SR-152). Both types include their subtypes (types that extend them). A relation counts when its target resolves to one element of a known type; a duplicate item counts twice.
+ * Schema: `schemas/metamodel.schema.json#/$defs/relationLimit`.
+ */
+export type MetamodelRelationLimit = {
+  /** The source elements the limit applies to. Absent: the kind's `source-types`, or every type when the kind has none. */
+  readonly "source-type"?: MetamodelKey;
+  /** The type of the targets that are counted. */
+  readonly "target-type": MetamodelKey;
+  /** At least this many relations; fewer is the hint `relation.too-few`. */
+  readonly min?: number;
+  /** At most this many relations; more is the hint `relation.too-many`. */
+  readonly max?: number;
+} & (
+  | {
+    readonly min: unknown;
+  }
+  | {
+    readonly max: unknown;
+  });
 
 /**
  * Built-in meaning (D-012, D-059). `derivation`: source is child, target is parent (chain, coverage, indirect verification). `replacement`: source replaces target core requirement for the variants in the source's validity (D-020). `succession`: source is the successor that supersedes target (D-045, SR-072). `exclusion`: source variant excludes target core requirement, written in the variant file (SR-042, D-059). Without meaning a relation has no traceability semantics.
@@ -1411,6 +1448,8 @@ export interface CommandCatalog {
         | "json";
       /** An earlier field of `arguments`. */
       readonly of?: string;
+      /** Earlier optional fields a value of this field takes the place of: the prompt leaves them out of the input when this field has a value, so they only said what it offers. `hint.confirm`: hints chosen at `hintIds` confirm only those, not every hint `ref`, `target` and `kind` select (#291). `catalog-checks.mjs` checks the fields. */
+      readonly replaces?: readonly string[];
       /** Name of the CLI flag, without `--`, when it is not the field name in kebab-case (ADR-0009): `element.create` takes its `properties` as `--set key=value`, as `element.update` takes `set`. Not the name of another field's flag, nor of a common option (`validate-schemas.mjs`, `catalog-checks.mjs`). */
       readonly flag?: string;
     }[];
@@ -1431,11 +1470,11 @@ export interface CommandCatalog {
 }
 
 /**
- * Input of `workspace.init` as `run` gets it: validated, properties with a `default` filled in. Create a workspace with the standard model in an existing folder.
+ * Input of `workspace.init` as `run` gets it: validated, properties with a `default` filled in. Create a workspace with the standard model in a folder, which is created when only it is missing. Adds `*.reqseq-tmp` (temp files of an interrupted write) to the folder's `.gitignore`.
  * Schema: `schemas/commands/workspace.init.json input`.
  */
 export interface WorkspaceInitInput {
-  /** Existing folder; must not contain reqseq-workspace.yaml or the metamodel file. */
+  /** Folder of the workspace, created when only it is missing; must not contain reqseq-workspace.yaml or the metamodel file. */
   readonly path: LocalPath;
   readonly name: string;
   readonly metamodel?: {
@@ -1445,7 +1484,7 @@ export interface WorkspaceInitInput {
 }
 
 /**
- * Output of `workspace.init`. Create a workspace with the standard model in an existing folder.
+ * Output of `workspace.init`. Create a workspace with the standard model in a folder, which is created when only it is missing. Adds `*.reqseq-tmp` (temp files of an interrupted write) to the folder's `.gitignore`.
  * Schema: `schemas/commands/workspace.init.json output`.
  */
 export interface WorkspaceInitOutput {
@@ -1483,7 +1522,7 @@ export interface WorkspaceStatusOutput {
 }
 
 /**
- * Input of `workspace.check` as `run` gets it: validated, properties with a `default` filled in. Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, requirements with a statement but no text (a warning), missing targets, cycles, requirements without a parent (a warning, SR-022 AK6), duplicate IDs, outdated relations, evidence records that cannot be read or name an unknown element, a repository that is a workspace of its own whose metamodel counts other properties to the version. ok is false, and the CLI exits 1, on findings at or above failOn (default error).
+ * Input of `workspace.check` as `run` gets it: validated, properties with a `default` filled in. Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, requirements with a statement but no text (a warning), missing targets, cycles, requirements without a parent (a warning, SR-022 AK6), elements with more or fewer relations of a kind than its limits allow (a hint), duplicate IDs, outdated relations, evidence records that cannot be read or name an unknown element, a repository that is a workspace of its own whose metamodel counts other properties to the version. ok is false, and the CLI exits 1, on findings at or above failOn (default error).
  * Schema: `schemas/commands/workspace.check.json input`.
  */
 export interface WorkspaceCheckInput {
@@ -1498,7 +1537,7 @@ export interface WorkspaceCheckInput {
 }
 
 /**
- * Output of `workspace.check`. Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, requirements with a statement but no text (a warning), missing targets, cycles, requirements without a parent (a warning, SR-022 AK6), duplicate IDs, outdated relations, evidence records that cannot be read or name an unknown element, a repository that is a workspace of its own whose metamodel counts other properties to the version. ok is false, and the CLI exits 1, on findings at or above failOn (default error).
+ * Output of `workspace.check`. Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, requirements with a statement but no text (a warning), missing targets, cycles, requirements without a parent (a warning, SR-022 AK6), elements with more or fewer relations of a kind than its limits allow (a hint), duplicate IDs, outdated relations, evidence records that cannot be read or name an unknown element, a repository that is a workspace of its own whose metamodel counts other properties to the version. ok is false, and the CLI exits 1, on findings at or above failOn (default error).
  * Schema: `schemas/commands/workspace.check.json output`.
  */
 export interface WorkspaceCheckOutput {
@@ -1776,7 +1815,7 @@ export interface ElementUpdateInput {
   readonly removeRelations?: RelationRefs;
   /** Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it (for example one copy of a file whose UUID another file shares, SR-088; #255). Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates. */
   readonly repository?: string;
-  /** Write precondition (SR-106): the fileSha256 the change was made on. If the file has other bytes now, nothing is written: file.changed-on-disk, also when nothing would change. */
+  /** Write precondition (SR-106): the fileSha256 the change was made on, from element.get. Required with title or text, else input.invalid (precondition-missing); optional for set, unset and relations alone. If the file has other bytes now, nothing is written: file.changed-on-disk, also when nothing would change. */
   readonly expectedFileSha256?: FileSha256;
 }
 
@@ -1836,7 +1875,7 @@ export interface ElementSupersedeOutput {
 }
 
 /**
- * Input of `element.bulkUpdate` as `run` gets it: validated, properties with a `default` filled in. Set, add to or remove one property for all elements of a selection. Without `confirm` only previews: the number of affected elements and the skipped ones, whose type does not have the property. With `confirm` writes only that property's lines (SR-102). Never id, type or status (element.setStatus takes several refs).
+ * Input of `element.bulkUpdate` as `run` gets it: validated, properties with a `default` filled in. Set, add to or remove one property for all elements of a selection. Without `confirm` only previews: the number of affected elements and the skipped ones, whose type does not have the property. With `confirm` writes only that property's lines (SR-102). Never id, type or status (element.setStatus takes several refs). A failed write is rolled back, but a crash can leave part of the selection written: repeat the same call without `expected`, which writes only the remaining elements.
  * Schema: `schemas/commands/element.bulkUpdate.json input`.
  */
 export interface ElementBulkUpdateInput {
@@ -1854,7 +1893,7 @@ export interface ElementBulkUpdateInput {
 }
 
 /**
- * Output of `element.bulkUpdate`. Set, add to or remove one property for all elements of a selection. Without `confirm` only previews: the number of affected elements and the skipped ones, whose type does not have the property. With `confirm` writes only that property's lines (SR-102). Never id, type or status (element.setStatus takes several refs).
+ * Output of `element.bulkUpdate`. Set, add to or remove one property for all elements of a selection. Without `confirm` only previews: the number of affected elements and the skipped ones, whose type does not have the property. With `confirm` writes only that property's lines (SR-102). Never id, type or status (element.setStatus takes several refs). A failed write is rolled back, but a crash can leave part of the selection written: repeat the same call without `expected`, which writes only the remaining elements.
  * Schema: `schemas/commands/element.bulkUpdate.json output`.
  */
 export interface ElementBulkUpdateOutput {
@@ -2026,12 +2065,14 @@ export interface TraceChainOutput {
     /** Both ends lie in one cycle of derivations (SR-022 AK4). */
     readonly cyclic: boolean;
   }[];
-  /** The gaps of the chain, in the order of `nodes` (the `no-parent` gaps of the upward chain first, the root's among them, then those of the downward chain), only those of the nodes of the page. Downward (SR-022 AK3), only for elements whose children were looked at (`expanded`): `no-child` for a need without a child, `no-evidence` for a requirement without a child and without evidence. Upward (SR-022 AK5), only for elements whose parents were looked at, so not with `direction: down`: `no-parent` for a requirement that names no parent through a relation kind with the meaning `derivation`, whatever the view and the state of the target (a parent in a repository that is not here is one); the metamodel says which kinds derive, so in the standard model a requirement based only on a decision (`based-on`) has the gap. `workspace.check` reports the same elements (`trace.no-parent`). `no-evidence`: the element has no verification record in `view`, in the core without `view` (as `evidence.coverage` and the filter condition `verification`; any version and result, spec question #527 Q3), so without `view` a requirement verified only for a variant shows its records in `evidence` and still has the gap (spec question #527 Q4). A test case that was only skipped does not close the gap. */
+  /** The gaps of the chain, in the order of `nodes` (the `no-parent` gaps of the upward chain first, the root's among them, then those of the downward chain), only those of the nodes of the page. Downward (SR-022 AK3), only for elements whose children were looked at (`expanded`): `no-child` for a need without a child, `no-evidence` for a requirement without a child and without evidence. Upward (SR-022 AK5), only for elements whose parents were looked at, so not with `direction: down`: `no-parent` for a requirement that names no parent through a relation kind with the meaning `derivation`, whatever the view and the state of the target (a parent in a repository that is not here is one); the metamodel says which kinds derive, so in the standard model a requirement based only on a decision (`based-on`) has the gap. `workspace.check` reports the same elements (`trace.no-parent`). `no-evidence`: the element has no verification record in `view`, in the core without `view` (as `evidence.coverage` and the filter condition `verification`; any version and result, spec question #527 Q3). A test case that was only skipped does not close the gap. `not-in-view` (#674, product owner decision, 2026-11-02): a requirement without a child that `view` does not hold, without `view` the core (its validity names only variants), instead of `no-evidence`, whatever its records; `views` names the views that hold it. It is no evidence gap: a client that counts the gaps of a chain leaves it out. With `view` only the root can have it, as the chain reaches only elements the view holds. */
   readonly gaps: readonly {
     readonly id: Uuid;
     /** Workspace name of the repository of the element with the gap. */
     readonly repository: string;
-    readonly kind: "no-child" | "no-evidence" | "no-parent";
+    readonly kind: "no-child" | "no-evidence" | "no-parent" | "not-in-view";
+    /** Only with `not-in-view`: the views that hold the element, `core` first, then the variants in store order; empty when none does (a validity that names no variant of the workspace). `names` names the variants. */
+    readonly views?: readonly ViewId[];
   }[];
   /** The evidence (Nachweise) of the downward chain (SR-022 AK1, SR-033 AK1 to AK3), in the order of `nodes`, only for the nodes of the page whose children were looked at (`expanded`), paged like `gaps`; one item per element that has any, none with `direction` `up`. Only verification records (D-007: the chain ends at the Nachweise; validation records are in `evidence.list`). With `view` only the records that hold in it (SR-047: the core the records without a variant, a variant those for it); without `view` every record, each with its `variant`, as `evidence.list`. A test case all of whose executions of the element hold in another view is left out; a test case that was only skipped shows in every view. The Beleg of a record is its `evidence`; a JUnit execution has none, its Beleg is its record file (`repository`, `file`, `line`; D-007: for automatic tests the record is the result file). Belege are text and never opened. */
   readonly evidence: readonly {
@@ -2065,6 +2106,8 @@ export interface TraceChainOutput {
   }[];
   /** True when a part of the chain lies in a repository that is not on this machine (SR-006 AK2), in the view of a variant while a repository of the workspace is not on this machine (it may hold a replacement or an exclusion), or, when the chain goes down, an evidence location does: evidence there is not seen. */
   readonly incomplete: Incomplete;
+  /** The variants that the records of `evidence` name by UUID only (`variant`), then those the `views` of `gaps` name, each once in the order first named, so a reader names them by short ID, identifier and title (#588, #676). Left out when it names none, and for a variant in a repository that is not here. */
+  readonly names?: readonly ElementName[];
   /** Hints: `trace.cycle` once per cycle of derivations in the chain, naming its elements (SR-022 AK4); `metamodel.meaning-unassigned` when no type has the meaning `need` or `requirement`, so those gaps cannot be found (SR-013 AK3; upward only `requirement`). The hints are those of the whole chain, on every page. */
   readonly problems: readonly Problem[];
 }
@@ -2355,7 +2398,7 @@ export interface TraceGraphOutput {
     readonly expanded: boolean;
     /** 0 for the element; -d for an element reached d steps up along the links the files store (its parents, the targets of its other relations and relation properties, its inline references), +d for one reached d steps down along links that point at it. The source of a link is placed below its target (ADR-0004). */
     readonly level: number;
-    /** In this order, only those that hold (SR-111 AK4): `outdated`, the element stores an outdated relation, relation property or inline reference (SR-025, the `relation.outdated` and `variant.core-changed` hints of element.get), whatever kinds are followed; `superseded`, its status is one the metamodel marks invalid (D-044); `no-evidence`, the gap rule of trace.chain (SR-022 AK3): a requirement without a derivation child that applies in the view and without evidence, whatever depth is shown. Evidence records come in stage 4: until then every requirement without a child is `no-evidence`. Empty when none holds. */
+    /** In this order, only those that hold (SR-111 AK4): `outdated`, the element stores an outdated relation, relation property or inline reference (SR-025, the `relation.outdated` and `variant.core-changed` hints of element.get), whatever kinds are followed; `superseded`, its status is one the metamodel marks invalid (D-044); `no-evidence`, the gap rule of trace.chain (SR-022 AK3): a requirement without a derivation child that applies in the view and without evidence, whatever depth is shown. Evidence is a verification record in the view (the core without one), as for trace.chain (SR-033). Empty when none holds. */
     readonly marks: readonly ("outdated" | "superseded" | "no-evidence")[];
   }[];
   /** Every followed link from one node to another, also one the walks did not take (a link between two parents, or from a child to a parent): by source in the order of `nodes`, then in the order its file stores them (relations and relation properties in frontmatter order, then inline references). A link from an element to itself is no edge. Not listed: unresolved links (`element.get` and `workspace.check` report them). */
@@ -2570,7 +2613,7 @@ export interface EvidenceRecordInput {
   readonly result: "passed" | "failed";
   /** The item under test (Prüfling), for example the build or sample. Required for verification. No white space at either end and no control characters other than tab, line feed and carriage return. */
   readonly item?: Item;
-  /** A variant the element applies in (an element whose type has the meaning variant); the record holds for it. Absent: the core. Verification only: a variant with `kind` validation is `input.invalid` with `details.reason` `validation-with-variant` (SR-038 AK4, D-007); `core` is allowed. A variant the element is not in is `input.invalid` with `details.reason` `not-valid-in-variant`, or `excluded-in-variant` or `replaced-in-variant` when the variant excludes or replaces the requirement (SR-047 AK4). */
+  /** A variant the element applies in (an element whose type has the meaning variant); the record holds for it. Absent: the core. Verification only: a variant with `kind` validation is `input.invalid` with `details.reason` `validation-with-variant` (SR-038 AK4, D-007). `core` names no variant and is `input.invalid` with `details.reason` `core-is-no-variant`; leave `variant` out for the core. A variant the element is not in is `input.invalid` with `details.reason` `not-valid-in-variant`, or `excluded-in-variant` or `replaced-in-variant` when the variant excludes or replaces the requirement (SR-047 AK4). */
   readonly variant?: ElementRef;
   /** When the check was done. Default: the time of the call, UTC, whole seconds. Its first ten characters (the day in its own offset) start the file name. */
   readonly date?: IsoDateTime;
@@ -2635,7 +2678,7 @@ export interface EvidenceEnrichJunitOutput {
 }
 
 /**
- * Input of `evidence.status` as `run` gets it: validated, properties with a `default` filled in. Verification status of a selection per view, from the evidence records (SR-031) and, without own record, from the children with the children that are missing (SR-034); validation status from the validation records (SR-038).
+ * Input of `evidence.status` as `run` gets it: validated, properties with a `default` filled in. Verification status of a selection per view, from the evidence records (SR-031) and, without own record, from the children with the children that are missing (SR-034); validation status from the validation records (SR-038). Without a selection every element of the workspace is listed, and only requirements, needs and elements with a validation record carry a status, so select them, for example by type.
  * Schema: `schemas/commands/evidence.status.json input`.
  */
 export interface EvidenceStatusInput {
@@ -2645,7 +2688,7 @@ export interface EvidenceStatusInput {
 }
 
 /**
- * Output of `evidence.status`. Verification status of a selection per view, from the evidence records (SR-031) and, without own record, from the children with the children that are missing (SR-034); validation status from the validation records (SR-038).
+ * Output of `evidence.status`. Verification status of a selection per view, from the evidence records (SR-031) and, without own record, from the children with the children that are missing (SR-034); validation status from the validation records (SR-038). Without a selection every element of the workspace is listed, and only requirements, needs and elements with a validation record carry a status, so select them, for example by type.
  * Schema: `schemas/commands/evidence.status.json output`.
  */
 export interface EvidenceStatusOutput {
@@ -2895,13 +2938,13 @@ export interface BaselineListOutput {
 }
 
 /**
- * Input of `baseline.get` as `run` gets it: validated, properties with a `default` filled in. Elements of a baseline with their version then and its date, marked changed, superseded, removed or added since (SR-051); with withEvidence the verification status of each requirement per view and the validation status at its version in the baseline, with the records dated after it named (SR-094).
+ * Input of `baseline.get` as `run` gets it: validated, properties with a `default` filled in. Elements of a baseline with their version then and its date, marked changed, superseded, removed or added since (SR-051); with withEvidence the verification status of each requirement per view and the validation status at its version in the baseline, with the records dated after it named (SR-094). The version counts the text, embedded images and the properties marked `content` (a relation property such as `validity` too); the relation kinds of the metamodel, such as `refines` or `derives-from`, never count, so an element whose only change is such a relation is not marked `changed`: baseline.compare gives the commits and the Git command that show it.
  * Schema: `schemas/commands/baseline.get.json input`.
  */
 export interface BaselineGetInput {
   /** Name of a baseline, or its file name (with or without .yaml). */
   readonly baseline: string;
-  /** Also give, at each entry's version in the baseline, the verification status of each requirement in every view it applies in (only the variant's when the stored selection has one) and the validation status: own records up to the baseline's date and time, records of that version dated after it named apart (SR-094). Like the rest of the output it reads the evidence files on disk, so each repository should be checked out at the commit the baseline names; a `baseline.repository-commit-differs` warning names each one that is not. */
+  /** Also give, at each entry's version in the baseline, the verification status of each requirement in every view it applies in (only the variant's when the stored selection has one) and the validation status: own records up to the baseline's date and time, records of that version dated after it named apart (SR-094). Only each requirement's own records count, never indirect evidence (SR-094 AK6): a requirement of the baseline that `evidence.status` gives as `indirect` in a view today, verified through its children, is `open` in that view's row. Like the rest of the output it reads the evidence files on disk, so each repository should be checked out at the commit the baseline names; a `baseline.repository-commit-differs` warning names each one that is not. */
   readonly withEvidence: boolean;
   /** Elements of the page; total counts all. */
   readonly limit: number;
@@ -2909,7 +2952,7 @@ export interface BaselineGetInput {
 }
 
 /**
- * Output of `baseline.get`. Elements of a baseline with their version then and its date, marked changed, superseded, removed or added since (SR-051); with withEvidence the verification status of each requirement per view and the validation status at its version in the baseline, with the records dated after it named (SR-094).
+ * Output of `baseline.get`. Elements of a baseline with their version then and its date, marked changed, superseded, removed or added since (SR-051); with withEvidence the verification status of each requirement per view and the validation status at its version in the baseline, with the records dated after it named (SR-094). The version counts the text, embedded images and the properties marked `content` (a relation property such as `validity` too); the relation kinds of the metamodel, such as `refines` or `derives-from`, never count, so an element whose only change is such a relation is not marked `changed`: baseline.compare gives the commits and the Git command that show it.
  * Schema: `schemas/commands/baseline.get.json output`.
  */
 export interface BaselineGetOutput {

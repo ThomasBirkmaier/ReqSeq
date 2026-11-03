@@ -8,8 +8,35 @@ export type ScalarKind = "string" | "number" | "boolean";
 /** `null`: a schema that allows only `null`; next to another kind it leaves that kind (#343). */
 type Kind = ScalarKind | "complex" | "any" | "null";
 
-/** How a field is given: positional argument, `--<flag>`, or only inside `--input`. */
-export type FieldUse = "positional" | "flag" | "input-only";
+/**
+ * How a field is given: positional argument, `--<flag>`, flags for its parts (`parts`), or only
+ * inside `--input`.
+ */
+export type FieldUse = "positional" | "flag" | "parts" | "input-only";
+
+/**
+ * A flag that sets one part of an object field (#149, #173), keyed to the `$def` the field references:
+ * a selection gets one flag per scalar property (`--ids`, `--filter`) and the flags of its condition;
+ * a condition gets `--where <json>` and one repeatable flag per key condition (`--where-type`); a list
+ * of sort keys gets `--sort <by>[:asc|desc]`.
+ */
+export interface PartFlag {
+  readonly flag: string;
+  /**
+   * `property`: a scalar or a list of scalars; `condition`: a whole condition as JSON; `key`: the
+   * condition `{ <key>: [values] }`, added to the condition at `path` with `all`; `sort`: sort keys.
+   */
+  readonly role: "property" | "condition" | "key" | "sort";
+  /** Where inside the field's value the part goes (`["ids"]`; `[]` for the value itself). */
+  readonly path: readonly string[];
+  /** The condition key of a `key` part (`type`), else `undefined`. */
+  readonly key: string | undefined;
+  /** Scalar kind of a `property` part (of each item for a list); `string` for the others. */
+  readonly kind: ScalarKind;
+  /** Given by repeating the flag. */
+  readonly array: boolean;
+  readonly description: string | undefined;
+}
 
 export interface InputField {
   /** Property name in the input schema (camelCase). */
@@ -47,10 +74,18 @@ export interface InputField {
    * `--input` (#171).
    */
   readonly textFile: boolean;
+  /** The part flags of a selection, a condition or a list of sort keys (`use` is `parts`), else empty. */
+  readonly parts: readonly PartFlag[];
 }
 
 /** `$ref` target of local file and folder paths. */
 export const LOCAL_PATH_REF = `${SCHEMA_BASE}common.schema.json#/$defs/localPath`;
+/** `$ref` targets whose fields get part flags (#149, #173). */
+export const SELECTION_REF = `${SCHEMA_BASE}common.schema.json#/$defs/selection`;
+export const CONDITION_REF = `${SCHEMA_BASE}filter.schema.json#/$defs/condition`;
+export const SORT_KEY_REF = `${SCHEMA_BASE}filter.schema.json#/$defs/sortKey`;
+/** The values of a key condition (`{ type: [...] }`). */
+const KEYS_REF = `${SCHEMA_BASE}filter.schema.json#/$defs/keys`;
 
 /** Options of every command; an input field with one of these names is only reachable via `--input`. */
 export const RESERVED_FLAGS: readonly string[] = ["json", "yaml", "workspace", "input", "help"];
@@ -77,6 +112,7 @@ const NO_SHAPE = {
   nullable: false,
   entries: false,
   textFile: false,
+  parts: [],
 } as const;
 
 const scalarOf = (value: unknown): Kind => {
@@ -132,11 +168,14 @@ const scalarOrComplex = (kind: Kind): ScalarKind | "complex" =>
 
 type Shape = Pick<
   InputField,
-  "kind" | "array" | "choices" | "localPath" | "nullable" | "entries" | "textFile"
+  "kind" | "array" | "choices" | "localPath" | "nullable" | "entries" | "textFile" | "parts"
 >;
 
+const describe = (schema: JsonSchema): string | undefined =>
+  typeof schema["description"] === "string" ? schema["description"] : undefined;
+
 /** Reads field schemas; `$ref`s resolve only against `schemas` (identifiers, never fetched). */
-const schemaReader = (schemas: readonly JsonSchema[]): ((located: Located) => Shape) => {
+const schemaReader = (schemas: readonly JsonSchema[]): ((located: Located, flag: string) => Shape) => {
   const byId = new Map<string, JsonSchema>(schemas.map((schema) => [String(schema["$id"]), schema]));
 
   /** Follow a `$ref`; `undefined` when it leads nowhere. */
@@ -161,18 +200,19 @@ const schemaReader = (schemas: readonly JsonSchema[]): ((located: Located) => Sh
     return target === undefined ? undefined : dereference(target, depth + 1);
   };
 
-  /** Whether the `$ref` chain at the top of a schema leads through `$defs/localPath`. */
-  const isLocalPath = (located: Located, depth = 0): boolean => {
+  /** Whether the `$ref` chain at the top of a schema leads through `target`. */
+  const leadsTo = (located: Located, target: string, depth = 0): boolean => {
     const ref = located.schema["$ref"];
     if (typeof ref !== "string" || depth >= MAX_DEPTH) {
       return false;
     }
-    if (new URL(ref, located.base).href === LOCAL_PATH_REF) {
+    if (new URL(ref, located.base).href === target) {
       return true;
     }
-    const target = resolveRef(ref, located.base);
-    return target !== undefined && isLocalPath(target, depth + 1);
+    const next = resolveRef(ref, located.base);
+    return next !== undefined && leadsTo(next, target, depth + 1);
   };
+  const isLocalPath = (located: Located): boolean => leadsTo(located, LOCAL_PATH_REF);
 
   /** The kind of a schema; with `keepNull`, one that also allows `null` is `complex` (see `nullable`). */
   const kindOf = (start: Located, depth = 0, keepNull = false): Kind => {
@@ -227,7 +267,7 @@ const schemaReader = (schemas: readonly JsonSchema[]): ((located: Located) => Sh
     isSchema(located.schema["additionalProperties"]) &&
     !("properties" in located.schema);
 
-  return (field) => {
+  const read = (field: Located): Shape => {
     const located = dereference(field);
     if (located?.schema["type"] === "array") {
       return arrayShape(located);
@@ -244,13 +284,113 @@ const schemaReader = (schemas: readonly JsonSchema[]): ((located: Located) => Sh
       nullable: kind !== "complex" && kindOf(field, 0, true) !== kind,
       entries: isEntries(located),
       textFile: strings && typeof located?.schema["contentMediaType"] === "string",
+      parts: [],
     };
+  };
+
+  /** `--<flag> <json>` and, per key condition among its branches, `--<flag>-<key> <key>...`. */
+  const conditionParts = (located: Located, flag: string, path: readonly string[]): PartFlag[] => {
+    const condition = dereference(located);
+    const branches = condition?.schema["oneOf"];
+    const keyParts = (Array.isArray(branches) ? branches : []).flatMap((branch: unknown): PartFlag[] => {
+      const required = isSchema(branch) ? branch["required"] : undefined;
+      const properties = isSchema(branch) ? branch["properties"] : undefined;
+      const key: unknown = Array.isArray(required) && required.length === 1 ? required[0] : undefined;
+      const value = typeof key === "string" && isSchema(properties) ? properties[key] : undefined;
+      return condition !== undefined &&
+        typeof key === "string" &&
+        isSchema(value) &&
+        leadsTo({ schema: value, base: condition.base }, KEYS_REF)
+        ? [
+            {
+              flag: `${flag}-${kebab(key)}`,
+              role: "key",
+              path,
+              key,
+              kind: "string",
+              array: true,
+              description: describe(value),
+            },
+          ]
+        : [];
+    });
+    const whole: PartFlag = {
+      flag,
+      role: "condition",
+      path,
+      key: undefined,
+      kind: "string",
+      array: false,
+      description: describe(located.schema),
+    };
+    return [whole, ...keyParts];
+  };
+
+  /** One flag per scalar property of a selection (or list of them), and the flags of its condition. */
+  const selectionParts = (located: Located): PartFlag[] => {
+    const selection = dereference(located);
+    const properties = selection?.schema["properties"];
+    return Object.entries(isSchema(properties) ? properties : {}).flatMap(([name, value]): PartFlag[] => {
+      const property = { schema: isSchema(value) ? value : {}, base: selection?.base ?? located.base };
+      if (leadsTo(property, CONDITION_REF)) {
+        return conditionParts(property, kebab(name), [name]);
+      }
+      const shape = read(property);
+      return shape.kind === "complex"
+        ? []
+        : [
+            {
+              flag: kebab(name),
+              role: "property",
+              path: [name],
+              key: undefined,
+              kind: shape.kind,
+              array: shape.array,
+              description: describe(property.schema),
+            },
+          ];
+    });
+  };
+
+  /** The part flags of a field, keyed to the `$def` it references (#149, #173); empty for others. */
+  const partsOf = (field: Located, flag: string): PartFlag[] => {
+    if (leadsTo(field, SELECTION_REF)) {
+      return selectionParts(field);
+    }
+    if (leadsTo(field, CONDITION_REF)) {
+      return conditionParts(field, flag, []);
+    }
+    const located = dereference(field);
+    const items = located?.schema["items"];
+    return located?.schema["type"] === "array" &&
+      isSchema(items) &&
+      leadsTo({ schema: items, base: located.base }, SORT_KEY_REF)
+      ? [
+          {
+            flag,
+            role: "sort",
+            path: [],
+            key: undefined,
+            kind: "string",
+            array: true,
+            description: describe(field.schema),
+          },
+        ]
+      : [];
+  };
+
+  return (field, flag) => {
+    const parts = partsOf(field, flag);
+    return parts.length > 0 ? { ...NO_SHAPE, kind: "complex", parts } : read(field);
   };
 };
 
 const useOf = (field: Omit<InputField, "use">): FieldUse => {
   if (field.required && field.kind === "string" && !field.array) {
     return "positional";
+  }
+  if (field.parts.length > 0) {
+    return "parts";
   }
   return (field.kind === "complex" && !field.entries) || RESERVED_FLAGS.includes(field.flag)
     ? "input-only"
@@ -273,13 +413,13 @@ export function inputFields(
   const requiredNames: unknown[] = Array.isArray(required) ? required : [];
   return Object.entries(isSchema(properties) ? properties : {}).map(([name, value]) => {
     const schema = isSchema(value) ? value : {};
-    const description = schema["description"];
+    const flag = entry.arguments.find((a) => a.field === name)?.flag ?? kebab(name);
     const field = {
       name,
-      flag: entry.arguments.find((a) => a.field === name)?.flag ?? kebab(name),
-      ...read({ schema, base }),
+      flag,
+      ...read({ schema, base }, flag),
       required: requiredNames.includes(name),
-      description: typeof description === "string" ? description : undefined,
+      description: describe(schema),
       defaultValue: schema["default"],
     };
     return { ...field, use: useOf(field) };

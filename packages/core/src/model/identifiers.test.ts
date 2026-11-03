@@ -12,6 +12,7 @@ import { Workspace } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import { duplicateIdentifierProblemsState } from "./identifiers.js";
 import { applyStoreChange, updateElements } from "./store.js";
+import { readFirstFor } from "../runtime/read-first.test-helper.js";
 
 const FIXTURE = "enabler-305/identifiers";
 
@@ -35,7 +36,9 @@ const open = async (files: FixtureOptions["files"] = {}): Promise<Opened> => {
 };
 
 const run = async (opened: Opened, name: CommandName, input: Record<string, unknown>): Promise<unknown> =>
-  invoke(name, input, { workspace: opened.workspace });
+  invoke(name, await readFirstFor(name, input, { workspace: opened.workspace }), {
+    workspace: opened.workspace,
+  });
 
 const failure = async (
   opened: Opened,

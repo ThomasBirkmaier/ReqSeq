@@ -8,7 +8,7 @@ import path from "node:path";
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { launchApp, listAll } from "./support/app.js";
+import { fileSha256, launchApp, listAll } from "./support/app.js";
 
 /** 14 elements with a derivation tree (fixtures/README.md). */
 const FIXTURE = { fixture: "SR-069/filter" };
@@ -218,7 +218,16 @@ test.describe("the title of an element, edited in its heading (#621)", () => {
     const { window } = running;
     // A second element, given a title that wraps, before it is opened.
     const long = `Show a dial ${"and the gusts over the whole field ".repeat(5).trim()}`;
-    const result = await running.cli(["element", "update", "SR-0000b4", "--title", long]);
+    const sha = await fileSha256(running, "SR-0000b4");
+    const result = await running.cli([
+      "element",
+      "update",
+      "SR-0000b4",
+      "--title",
+      long,
+      "--expected-file-sha256",
+      sha,
+    ]);
     expect(result.code).toBe(0);
     for (const [element, title] of [
       [ELEMENT, TITLE],

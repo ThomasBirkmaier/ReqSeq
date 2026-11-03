@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { frontmatter, readMetamodel, readSpec, stageMembers, traceCheck } from "./trace-check.mjs";
+import { closedSrs, frontmatter, readMetamodel, readSpec, stageMembers, traceCheck } from "./trace-check.mjs";
 
 const roots = [];
 afterEach(() => {
@@ -153,6 +153,29 @@ describe("trace-check on the ReqSeq workspace in spec/", () => {
     expect(traceCheck(root, ["--pr-body", body]).errors).toEqual(["PR names unknown SR-117"]);
   });
 
+  it("requires every acceptance criterion of the SRs a PR closes, as its title names them (#394)", () => {
+    const root = repo({ "packages/x/a.test.ts": `it("${tag("SR-001", 1)} a");\n` });
+    const body = path.join(root, "body.txt");
+    fs.writeFileSync(body, "SR-001, SR-002: title\r\n\r\nCloses #12");
+    expect(closedSrs(fs.readFileSync(body, "utf8"))).toEqual(["SR-001", "SR-002"]);
+    expect(closedSrs("SR-0011: title\n\nCloses #12")).toEqual([]);
+    expect(traceCheck(root, ["--pr-body", body, "--require", "SR-001"]).errors).toEqual([
+      "SR-001 AK2 has no test",
+      "SR-002 (inspection) has no record verification/SR-002.md",
+    ]);
+    // Without `Closes #`, an SR named only in the body, or as an enabler, nothing more is required.
+    for (const [text, extra] of [
+      ["SR-001: part one\n\nRefs #12", []],
+      ["fix: SR-001\n\nCloses #12", []],
+      ["SR-001: title\n\nCloses #12", ["--enabler"]],
+    ]) {
+      fs.writeFileSync(body, text);
+      expect(traceCheck(root, ["--pr-body", body, ...extra]).errors).toEqual([]);
+    }
+    fs.writeFileSync(body, "SR-404: title\n\nCloses #12");
+    expect(traceCheck(root, ["--pr-body", body]).errors).toEqual(["PR names unknown SR-404"]);
+  });
+
   it("reports a spec ID that two system requirements share", () => {
     const root = repo({
       "spec/system-requirement/SR-000000000003.md":
@@ -184,6 +207,50 @@ describe("trace-check on the ReqSeq workspace in spec/", () => {
   it("needs a property with the meaning identifier in the metamodel", () => {
     const root = repo({ "spec/metamodel/spec-model.yaml": "reqseq-metamodel: 1\n" });
     expect(() => traceCheck(root, [])).toThrow(/no property with the meaning identifier/);
+  });
+
+  it("counts a tag only in the name of an active test, not in comments or skipped tests (#689)", () => {
+    const root = repo({
+      "pkg/demo.test.ts": [
+        'import { it } from "vitest";',
+        `// ${tag("SR-001", 1)} only a comment`,
+        `it.skip("${tag("SR-001", 1)} skipped test", () => {});`,
+        `it.todo("${tag("SR-001", 1)} todo test");`,
+        `/* ${tag("SR-001", 1)} block comment */`,
+        `it.fails("${tag("SR-001", 1)} a", () => {});`,
+        `it.only("${tag("SR-001", 1)} a", () => {});`,
+        `describe.skip("x", () => { it("${tag("SR-001", 1)} a", () => {}); });`,
+        `it("b", () => { expect("${tag("SR-001", 1)} data").toBe(""); });`,
+        `const re = /^.*\\//; const t = \`\${"x".replace(re, "")}\`;`,
+        "",
+      ].join("\n"),
+      "packages/app/test/x.spec.ts": `test.describe.skip("x", () => { test("${tag("SR-001", 2)} a", () => {}); });\n`,
+      "packages/x/tags.test.ts": `const scenario = { tag: "${tag("SR-001", 2)}" };\n`,
+    });
+    expect(traceCheck(root, ["--require", "SR-001"]).errors).toEqual([
+      "SR-001 AK1 has no test",
+      "SR-001 AK2 has no test",
+    ]);
+  });
+
+  it("counts the names of it, test, .each, .skipIf, template literals and cross-access scenarios", () => {
+    const root = repo({
+      "pkg/a.test.ts": [
+        `it.each([["a"], ["b"]])(`,
+        `  "${tag("SR-001", 1)} %s",`,
+        "  () => {},",
+        ");",
+        `describe("block", () => {`,
+        `  it.skipIf(process.platform === "win32")(\`\${"${tag("SR-002", 1)}"} \${name}\`, () => {});`,
+        "});",
+        "",
+      ].join("\n"),
+      "packages/cli/test/cross-access.test.ts": `const s = [{ name: "x", tag: "${tag("SR-001", 2)}" }];\n`,
+    });
+    const report = traceCheck(root, ["--require", "SR-001"]).report;
+    expect(report).toContain("| SR-001 | AK1 | test | pkg/a.test.ts:2 |");
+    expect(report).toContain("| SR-001 | AK2 | test | packages/cli/test/cross-access.test.ts:1 |");
+    expect(traceCheck(root, []).warnings).toEqual(["pkg/a.test.ts:6: SR-002 is obsolete"]);
   });
 
   it("reads frontmatter only when it is a mapping that parses", () => {

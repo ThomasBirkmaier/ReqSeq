@@ -24,6 +24,7 @@ import {
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 import { FINDING_STATES } from "../workspace/check.js";
+import { readFirst } from "../../runtime/read-first.test-helper.js";
 
 type Output = CommandOutput<"hint.list">;
 type Shown = CommandOutput<"element.get">;
@@ -431,11 +432,9 @@ describe("hints at the element (SR-026 AK3)", () => {
     const workspace = await opened();
     const shown = await get(workspace, { ref: R1 });
     const updated = (
-      (await invoke(
-        "element.update",
-        { ref: R1, title: "Show wind speed" },
-        { workspace },
-      )) as CommandOutput<"element.update">
+      (await invoke("element.update", await readFirst({ ref: R1, title: "Show wind speed" }, { workspace }), {
+        workspace,
+      })) as CommandOutput<"element.update">
     ).element;
     expect(updated.problems).toEqual(shown.problems);
     expect(updated.problems?.filter((p) => p.code === "relation.outdated").map((p) => p.line)).toEqual([

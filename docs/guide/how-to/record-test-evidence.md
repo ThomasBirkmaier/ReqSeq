@@ -5,7 +5,7 @@ sidebar:
   order: 4
 ---
 
-Any test tool that writes JUnit XML (Vitest, pytest, Jest, Maven, Gradle, CTest and others) can show that requirements are met, without a converter or plugin:
+Any test tool that writes JUnit XML (Vitest, pytest, Jest, the Node test runner with `--test-reporter=junit`, Maven, Gradle, CTest and others) can show that requirements are met, without a converter or plugin:
 
 1. Each test names the requirement it checks by its short ID, in square brackets in the test name (`[SR-c67baa] shows the wind speed`), or as the test case property `reqseq:element`. Where test names cannot hold brackets, as in Rust, Go or Java, a name pattern finds the short ID in another form (`sr_c67baa_ak1`).
 2. The test tool writes its JUnit file into an evidence folder of the workspace, one file per build.
@@ -115,7 +115,7 @@ total: 1
 
 The status is `verified` when the newest result for the current version passed, `failed` when it failed, `outdated` with results for an older version only, and `open` without results. `reqseq evidence coverage` counts the requirements with and without evidence.
 
-To see the evidence as it stood at a baseline, run `reqseq baseline get "Release 1" --with-evidence`. It gives each requirement's status at its version in the baseline, per view (only the variant's view when the baseline was made for one), and each need's validation status. Only results dated up to the baseline count; results for that version dated after it are listed under `later`. The command reads the files on disk, not the commits the baseline names, so check out every repository at the commit the baseline names (its `repositories`); for each one that is at another commit it warns with `baseline.repository-commit-differs` and both commits.
+To see the evidence as it stood at a baseline, run `reqseq baseline get "Release 1" --with-evidence`. It gives each requirement's status at its version in the baseline, per view (only the variant's view when the baseline was made for one), and each need's validation status. Only results dated up to the baseline count; results for that version dated after it are listed under `later`. Only each requirement's own results count, so a requirement that `evidence status` shows as `indirect` in a view is `open` in that view's row. The command reads the files on disk, not the commits the baseline names, so check out every repository at the commit the baseline names (its `repositories`); for each one that is at another commit it warns with `baseline.repository-commit-differs` and both commits.
 
 For a check that is no automated test, such as an inspection, write a record by hand:
 

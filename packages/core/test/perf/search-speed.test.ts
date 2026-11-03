@@ -41,6 +41,7 @@ import { documentKeys, scoreWords, searchOptionsOf } from "../../src/query/searc
 import { searchIndex } from "../../src/query/search-state.js";
 import { getCommandRuntime, invoke } from "../../src/runtime/invoke.js";
 import { warmWorkspace } from "../../src/runtime/warm.js";
+import { readFirst } from "../../src/runtime/read-first.test-helper.js";
 import { Workspace } from "../../src/runtime/workspace.js";
 import { standardModel, versionOf } from "./core-version.js";
 
@@ -222,7 +223,8 @@ describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", ()
       if (record === undefined) {
         throw new Error("no element");
       }
-      await invoke("element.update", { ref: record.id, text: `Saved ${String(n)} times.` }, { workspace });
+      const input = { ref: record.id, text: `Saved ${String(n)} times.` };
+      await invoke("element.update", await readFirst(input, { workspace }), { workspace });
       await searchIndex(workspace);
       const started = performance.now();
       const result = await search("th");

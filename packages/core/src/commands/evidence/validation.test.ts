@@ -11,6 +11,7 @@ import type { EvidenceRecord } from "../../evidence/index.js";
 import { evidenceRecordsState, verificationState } from "../../evidence/index.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
+import { readFirst } from "../../runtime/read-first.test-helper.js";
 
 type Output = CommandOutput<"evidence.status">;
 type Element = Output["elements"][number];
@@ -105,7 +106,11 @@ describe("validation status in element.get, element.resolve, evidence.status and
   it("[SR-038/AK2] a validated need becomes outdated when its file changes", async () => {
     const ws = await open();
     expect((await get(ws, N1)).element.validation).toBe("validated");
-    await invoke("element.update", { ref: N1, text: "Changed after the validation.\n" }, { workspace: ws });
+    await invoke(
+      "element.update",
+      await readFirst({ ref: N1, text: "Changed after the validation.\n" }, { workspace: ws }),
+      { workspace: ws },
+    );
     expect((await get(ws, N1)).element.validation).toBe("outdated");
     expect(await where(ws, { validation: ["outdated"] })).toEqual([N1, N3]);
   });
@@ -124,10 +129,10 @@ describe("validation status in element.get, element.resolve, evidence.status and
     expect(await where(ws, { validation: ["open"] })).toEqual([N4]);
   });
 
-  it("element.get of a validated need shows the hint of a newer record of an older version (SR-025 AK4)", async () => {
+  it("element.get of a validated need shows no outdated hint for a newer record of an older version (SR-025 AK4, #201)", async () => {
     const out = (await get(await open(), N6)).element;
     expect(out.validation).toBe("validated");
-    expect(out.problems?.map((p) => p.code)).toEqual(["evidence.outdated"]);
+    expect(out.problems?.map((p) => p.code) ?? []).not.toContain("evidence.outdated");
   });
 
   it("gives the status from records given through evidenceRecordsState too", async () => {

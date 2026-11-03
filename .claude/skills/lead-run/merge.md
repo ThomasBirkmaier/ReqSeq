@@ -14,7 +14,7 @@ The filter applies this list and never downgrades a finding on it. Blocking find
 
 No stacked PRs (#412): branch every PR from `main`, never from another PR's branch. A squash merge of the lower PR forces every PR above it to merge `main` and run the whole CI again. Work that builds on an open PR waits for its merge, or goes into the same PR.
 
-Merge `main` into a PR only when GitHub reports a conflict, or after a change of its base branch (below). The ruleset does not require an up-to-date branch, so merging `main` without a conflict only starts a full run. Merge it with `pnpm merge:main`, which regenerates conflicting generated files. A conflict resolved by hand needs a look at that diff before the merge. If the two sides cannot both be kept, label the PR `needs-human` and give the product owner the options.
+Merge `main` into a PR only when GitHub reports a conflict, after a change of its base branch (below), or when the PR is red because `main` is (an open issue labelled `main-red`, written by `main-check.yml`, #796; fix `main` first, then merge it into the PRs it broke). The ruleset does not require an up-to-date branch, so merging `main` without a conflict only starts a full run. Merge it with `pnpm merge:main`, which regenerates conflicting generated files. A conflict resolved by hand needs a look at that diff before the merge. If the two sides cannot both be kept, label the PR `needs-human` and give the product owner the options.
 
 ## Merge as soon as it is green
 
@@ -36,4 +36,4 @@ The steps below follow every merge, an auto-merge too: its `closed` event wakes 
 
 `main` gets no CI run of its own after a merge, only the nightly run and a manual one (product owner decision, 2026-10-28). A red nightly run is the first work of the morning, fixed through a PR to `main` (#340). This is no licence to merge without green PR CI.
 
-Comment on the SR issue with the merge commit and the tests that cover each AK, and reopen it if an AK with method Test has none (the merge closes it through `Closes #`), tick its epic, and remove `agent:working`. For a PR that changes the spec, schemas, ADRs, agent rules, skills or CI, add one line in the epic for the product owner, without waiting for an answer.
+Comment on the SR issue with the merge commit and the tests that cover each AK (`trace-check` already fails a PR that closes an SR with an AK without its test or record, #394), tick its epic, and remove `agent:working`. For a PR that changes the spec, schemas, ADRs, agent rules, skills or CI, add one line in the epic for the product owner, without waiting for an answer.

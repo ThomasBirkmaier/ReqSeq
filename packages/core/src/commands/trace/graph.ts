@@ -12,10 +12,15 @@
 //   kinds are followed;
 // - `superseded`: its status is one the metamodel marks invalid (D-044, `invalidStatuses`), the rule
 //   of `relation.target-superseded`;
-// - `no-evidence`: the gap rule of trace.chain (`lacksEvidence`, SR-022 AK3), in the same view.
+// - `no-evidence`: the gap rule of trace.chain (`lacksEvidence`, SR-022 AK3) with the same records
+//   (`hasVerificationRecord` in the view, the core without one), so the graph and the chain agree; an
+//   evidence location that is not on this machine makes the graph `incomplete`, as the chain. A
+//   requirement the view (the core without one) does not hold has no such mark, as the chain gives it
+//   `not-in-view` (#674); the graph has no mark of its own for that.
 //   Without the meanings `derivation` and `requirement` there is none, and a hint says so.
 import type { CommandOutput, Problem } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
+import { evidenceIndexState, evidenceReadState, hasVerificationRecord } from "../../evidence/index.js";
 import { outdatedAmong } from "../../hints/index.js";
 import type { Metamodel } from "../../metamodel/index.js";
 import { meaningUnassignedMessage } from "../../metamodel/index.js";
@@ -33,13 +38,14 @@ import {
   neighbourhoodContext,
   traceContext,
 } from "../../trace/index.js";
+import type { View } from "../../variants/index.js";
 import { resolveView, viewIncomplete, viewRuleOf } from "../../variants/index.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
 
 /** The meanings the `no-evidence` mark needs. */
 const GAP_MEANINGS = ["derivation", "requirement"] as const;
 
-const NO_EVIDENCE: readonly never[] = Object.freeze([]);
+const CORE: View = { kind: "core" };
 
 /** The meanings of `GAP_MEANINGS` that no key of `metamodel` has. */
 const unassignedOf = (metamodel: Metamodel): readonly (typeof GAP_MEANINGS)[number][] =>
@@ -50,15 +56,23 @@ const marksOf = async (
   workspace: Workspace,
   base: TraceContext,
   includes: ((element: ElementRecord) => boolean) | undefined,
+  view: View | undefined,
 ): Promise<MarksOf> => {
   const { metamodel, store } = base;
   const layout = await workspace.get(workspaceLayoutState);
   const invalid = invalidStatuses(metamodel);
-  // Stage 4 passes each element's evidence records here (SR-028); until then there are none.
-  const gap =
-    unassignedOf(metamodel).length === 0
-      ? lacksEvidence(derivationGraph(base, "trace.graph"), includes)
-      : undefined;
+  let gap: ((element: ElementRecord) => boolean) | undefined;
+  if (unassignedOf(metamodel).length === 0) {
+    const index = await workspace.get(evidenceIndexState);
+    const gapView = view ?? CORE;
+    const held = viewRuleOf({ workspace, store, metamodel }, gapView).includes;
+    gap = lacksEvidence(
+      derivationGraph(base, "trace.graph"),
+      includes,
+      (element) => hasVerificationRecord(index, element.id, gapView),
+      (element) => !held(element),
+    );
+  }
   return async (elements) => {
     const outdated = await outdatedAmong({ workspace, layout, metamodel, store }, elements);
     return (element) => {
@@ -69,13 +83,20 @@ const marksOf = async (
       if (invalid.has(String(element.data["status"]))) {
         marks.push("superseded");
       }
-      if (gap?.(element, NO_EVIDENCE) === true) {
+      if (gap?.(element) === true) {
         marks.push("no-evidence");
       }
       return marks;
     };
   };
 };
+
+/**
+ * Whether the records the `no-evidence` mark reads are incomplete: an evidence location is not on this
+ * machine (SR-006 AK2, as trace.chain says). Read only when the mark is given.
+ */
+const evidenceIncomplete = async (workspace: Workspace, metamodel: Metamodel): Promise<boolean> =>
+  unassignedOf(metamodel).length === 0 && (await workspace.get(evidenceReadState)).incomplete;
 
 /** The hints: the meanings `no-evidence` needs that no key has (SR-013 AK3), while the metamodel is valid. */
 const problemsOf = (metamodel: Metamodel): Problem[] =>
@@ -127,11 +148,13 @@ export default defineCommand({
       graph,
       { ...context, shortIds },
       currentVersionLookup(ctx.workspace),
-      await marksOf(ctx.workspace, base, includes),
+      await marksOf(ctx.workspace, base, includes, view),
     );
     return {
       ...output,
-      ...(viewIncomplete(base.layout, view) ? { incomplete: true } : {}),
+      ...(viewIncomplete(base.layout, view) || (await evidenceIncomplete(ctx.workspace, metamodel))
+        ? { incomplete: true }
+        : {}),
       problems: problemsOf(metamodel),
     };
   },

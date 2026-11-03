@@ -572,6 +572,24 @@
             "hintId": {
               "type": "string",
               "description": "Stable ID of a confirmable hint (D-042); on the hint.* problems of hint.confirm, the ID as given."
+            },
+            "key": {
+              "$ref": "#/$defs/key",
+              "description": "The relation kind a count hint is about (`relation.too-many`, `relation.too-few`, SR-152)."
+            },
+            "targetType": {
+              "$ref": "#/$defs/key",
+              "description": "The target type of the limit a count hint is about (SR-152)."
+            },
+            "count": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "How many relations the element has that the limit counts (SR-152)."
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "The maximum (`relation.too-many`) or minimum (`relation.too-few`) the metamodel sets (SR-152)."
             }
           },
           "additionalProperties": false
@@ -585,6 +603,7 @@
             "file.faulty",
             "file.yaml-warning",
             "file.skipped",
+            "file.stale-temp",
             "element.invalid",
             "element.duplicate-id",
             "element.duplicate-identifier",
@@ -596,11 +615,14 @@
             "element.status-not-allowed",
             "element.missing-status",
             "element.statement-without-text",
+            "element.text-emptied",
             "relation.missing-target",
             "relation.unresolved-link",
             "relation.not-a-link",
             "relation.inaccessible-target",
             "relation.not-allowed",
+            "relation.too-many",
+            "relation.too-few",
             "relation.outdated",
             "relation.target-superseded",
             "relation.not-found",
@@ -621,11 +643,13 @@
             "evidence.not-enriched",
             "evidence.folder-missing",
             "evidence.ambiguous-element",
+            "evidence.kind-mismatch",
             "baseline.invalid",
             "baseline.repository-commit-differs",
             "filter.invalid",
             "filter.duplicate-name",
             "metamodel.invalid",
+            "metamodel.optional-status",
             "metamodel.meaning-unassigned",
             "workspace.repository-missing",
             "workspace.metamodel-mismatch",
@@ -2313,11 +2337,58 @@
               },
               "description": "Allowed target types: absent: every type; empty: none; a type also allows its subtypes (types that extend it, SR-086)."
             },
+            "limits": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/relationLimit"
+              },
+              "description": "How many relations of this kind an element may or must have, per target type (SR-152): a count outside a limit is a hint (`relation.too-many`, `relation.too-few`) when the workspace is checked, never a refusal. Absent: any number, also none. One limit per pair of source type and target type."
+            },
             "meaning": {
               "$ref": "#/$defs/relationMeaning"
             }
           },
           "unevaluatedProperties": false
+        },
+        "relationLimit": {
+          "description": "A minimum, a maximum or both for the number of relations of the kind from one source element to elements of `target-type` (SR-152). Both types include their subtypes (types that extend them). A relation counts when its target resolves to one element of a known type; a duplicate item counts twice.",
+          "type": "object",
+          "required": [
+            "target-type"
+          ],
+          "properties": {
+            "source-type": {
+              "$ref": "#/$defs/key",
+              "description": "The source elements the limit applies to. Absent: the kind's `source-types`, or every type when the kind has none."
+            },
+            "target-type": {
+              "$ref": "#/$defs/key",
+              "description": "The type of the targets that are counted."
+            },
+            "min": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "At least this many relations; fewer is the hint `relation.too-few`."
+            },
+            "max": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "At most this many relations; more is the hint `relation.too-many`."
+            }
+          },
+          "anyOf": [
+            {
+              "required": [
+                "min"
+              ]
+            },
+            {
+              "required": [
+                "max"
+              ]
+            }
+          ],
+          "additionalProperties": false
         },
         "relationMeaning": {
           "description": "Built-in meaning (D-012, D-059). `derivation`: source is child, target is parent (chain, coverage, indirect verification). `replacement`: source replaces target core requirement for the variants in the source's validity (D-020). `succession`: source is the successor that supersedes target (D-045, SR-072). `exclusion`: source variant excludes target core requirement, written in the variant file (SR-042, D-059). Without meaning a relation has no traceability semantics.",
@@ -2934,6 +3005,14 @@
                     "type": "string",
                     "description": "An earlier field of `arguments`."
                   },
+                  "replaces": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Earlier optional fields a value of this field takes the place of: the prompt leaves them out of the input when this field has a value, so they only said what it offers. `hint.confirm`: hints chosen at `hintIds` confirm only those, not every hint `ref`, `target` and `kind` select (#291). `catalog-checks.mjs` checks the fields."
+                  },
                   "flag": {
                     "type": "string",
                     "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
@@ -3027,7 +3106,7 @@
       {
         "name": "workspace.init",
         "title": "Initialise workspace",
-        "summary": "Create a workspace with the standard model in an existing folder.",
+        "summary": "Create a workspace with the standard model in a folder, which is created when only it is missing. Adds `*.reqseq-tmp` (temp files of an interrupted write) to the folder's `.gitignore`.",
         "effect": "write-files",
         "whileReadOnly": "allow",
         "whileReadOnlyReason": "Creates the workspace, so there is no metamodel yet that could make it read-only.",
@@ -3054,7 +3133,7 @@
           "properties": {
             "path": {
               "$ref": "../common.schema.json#/$defs/localPath",
-              "description": "Existing folder; must not contain reqseq-workspace.yaml or the metamodel file."
+              "description": "Folder of the workspace, created when only it is missing; must not contain reqseq-workspace.yaml or the metamodel file."
             },
             "name": {
               "type": "string"
@@ -3196,7 +3275,7 @@
       {
         "name": "workspace.check",
         "title": "Check workspace",
-        "summary": "Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, requirements with a statement but no text (a warning), missing targets, cycles, requirements without a parent (a warning, SR-022 AK6), duplicate IDs, outdated relations, evidence records that cannot be read or name an unknown element, a repository that is a workspace of its own whose metamodel counts other properties to the version. ok is false, and the CLI exits 1, on findings at or above failOn (default error).",
+        "summary": "Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, requirements with a statement but no text (a warning), missing targets, cycles, requirements without a parent (a warning, SR-022 AK6), elements with more or fewer relations of a kind than its limits allow (a hint), duplicate IDs, outdated relations, evidence records that cannot be read or name an unknown element, a repository that is a workspace of its own whose metamodel counts other properties to the version. ok is false, and the CLI exits 1, on findings at or above failOn (default error).",
         "effect": "read",
         "stage": 1,
         "implements": [
@@ -3213,7 +3292,8 @@
           "SR-088",
           "SR-089",
           "SR-090",
-          "SR-092"
+          "SR-092",
+          "SR-152"
         ],
         "arguments": [
           {
@@ -4287,7 +4367,7 @@
             },
             "expectedFileSha256": {
               "$ref": "../common.schema.json#/$defs/fileSha256",
-              "description": "Write precondition (SR-106): the fileSha256 the change was made on. If the file has other bytes now, nothing is written: file.changed-on-disk, also when nothing would change."
+              "description": "Write precondition (SR-106): the fileSha256 the change was made on, from element.get. Required with title or text, else input.invalid (precondition-missing); optional for set, unset and relations alone. If the file has other bytes now, nothing is written: file.changed-on-disk, also when nothing would change."
             }
           },
           "additionalProperties": false,
@@ -4488,7 +4568,7 @@
       {
         "name": "element.bulkUpdate",
         "title": "Bulk update elements",
-        "summary": "Set, add to or remove one property for all elements of a selection. Without `confirm` only previews: the number of affected elements and the skipped ones, whose type does not have the property. With `confirm` writes only that property's lines (SR-102). Never id, type or status (element.setStatus takes several refs).",
+        "summary": "Set, add to or remove one property for all elements of a selection. Without `confirm` only previews: the number of affected elements and the skipped ones, whose type does not have the property. With `confirm` writes only that property's lines (SR-102). Never id, type or status (element.setStatus takes several refs). A failed write is rolled back, but a crash can leave part of the selection written: repeat the same call without `expected`, which writes only the remaining elements.",
         "effect": "write-files",
         "whileReadOnly": "refuse",
         "whileReadOnlyReason": "Changes element files, and no change can be checked against a missing or faulty metamodel.",
@@ -5161,7 +5241,7 @@
             },
             "gaps": {
               "type": "array",
-              "description": "The gaps of the chain, in the order of `nodes` (the `no-parent` gaps of the upward chain first, the root's among them, then those of the downward chain), only those of the nodes of the page. Downward (SR-022 AK3), only for elements whose children were looked at (`expanded`): `no-child` for a need without a child, `no-evidence` for a requirement without a child and without evidence. Upward (SR-022 AK5), only for elements whose parents were looked at, so not with `direction: down`: `no-parent` for a requirement that names no parent through a relation kind with the meaning `derivation`, whatever the view and the state of the target (a parent in a repository that is not here is one); the metamodel says which kinds derive, so in the standard model a requirement based only on a decision (`based-on`) has the gap. `workspace.check` reports the same elements (`trace.no-parent`). `no-evidence`: the element has no verification record in `view`, in the core without `view` (as `evidence.coverage` and the filter condition `verification`; any version and result, spec question #527 Q3), so without `view` a requirement verified only for a variant shows its records in `evidence` and still has the gap (spec question #527 Q4). A test case that was only skipped does not close the gap.",
+              "description": "The gaps of the chain, in the order of `nodes` (the `no-parent` gaps of the upward chain first, the root's among them, then those of the downward chain), only those of the nodes of the page. Downward (SR-022 AK3), only for elements whose children were looked at (`expanded`): `no-child` for a need without a child, `no-evidence` for a requirement without a child and without evidence. Upward (SR-022 AK5), only for elements whose parents were looked at, so not with `direction: down`: `no-parent` for a requirement that names no parent through a relation kind with the meaning `derivation`, whatever the view and the state of the target (a parent in a repository that is not here is one); the metamodel says which kinds derive, so in the standard model a requirement based only on a decision (`based-on`) has the gap. `workspace.check` reports the same elements (`trace.no-parent`). `no-evidence`: the element has no verification record in `view`, in the core without `view` (as `evidence.coverage` and the filter condition `verification`; any version and result, spec question #527 Q3). A test case that was only skipped does not close the gap. `not-in-view` (#674, product owner decision, 2026-11-02): a requirement without a child that `view` does not hold, without `view` the core (its validity names only variants), instead of `no-evidence`, whatever its records; `views` names the views that hold it. It is no evidence gap: a client that counts the gaps of a chain leaves it out. With `view` only the root can have it, as the chain reaches only elements the view holds.",
               "items": {
                 "type": "object",
                 "properties": {
@@ -5176,8 +5256,16 @@
                     "enum": [
                       "no-child",
                       "no-evidence",
-                      "no-parent"
+                      "no-parent",
+                      "not-in-view"
                     ]
+                  },
+                  "views": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "../common.schema.json#/$defs/viewId"
+                    },
+                    "description": "Only with `not-in-view`: the views that hold the element, `core` first, then the variants in store order; empty when none does (a validity that names no variant of the workspace). `names` names the variants."
                   }
                 },
                 "additionalProperties": false,
@@ -5293,6 +5381,13 @@
             "incomplete": {
               "$ref": "../common.schema.json#/$defs/incomplete",
               "description": "True when a part of the chain lies in a repository that is not on this machine (SR-006 AK2), in the view of a variant while a repository of the workspace is not on this machine (it may hold a replacement or an exclusion), or, when the chain goes down, an evidence location does: evidence there is not seen."
+            },
+            "names": {
+              "type": "array",
+              "description": "The variants that the records of `evidence` name by UUID only (`variant`), then those the `views` of `gaps` name, each once in the order first named, so a reader names them by short ID, identifier and title (#588, #676). Left out when it names none, and for a variant in a repository that is not here.",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/elementName"
+              }
             },
             "problems": {
               "type": "array",
@@ -6342,7 +6437,7 @@
                         "no-evidence"
                       ]
                     },
-                    "description": "In this order, only those that hold (SR-111 AK4): `outdated`, the element stores an outdated relation, relation property or inline reference (SR-025, the `relation.outdated` and `variant.core-changed` hints of element.get), whatever kinds are followed; `superseded`, its status is one the metamodel marks invalid (D-044); `no-evidence`, the gap rule of trace.chain (SR-022 AK3): a requirement without a derivation child that applies in the view and without evidence, whatever depth is shown. Evidence records come in stage 4: until then every requirement without a child is `no-evidence`. Empty when none holds."
+                    "description": "In this order, only those that hold (SR-111 AK4): `outdated`, the element stores an outdated relation, relation property or inline reference (SR-025, the `relation.outdated` and `variant.core-changed` hints of element.get), whatever kinds are followed; `superseded`, its status is one the metamodel marks invalid (D-044); `no-evidence`, the gap rule of trace.chain (SR-022 AK3): a requirement without a derivation child that applies in the view and without evidence, whatever depth is shown. Evidence is a verification record in the view (the core without one), as for trace.chain (SR-033). Empty when none holds."
                   }
                 },
                 "additionalProperties": false,
@@ -6567,7 +6662,12 @@
           {
             "field": "hintIds",
             "complete": "hint",
-            "of": "ref"
+            "of": "ref",
+            "replaces": [
+              "ref",
+              "target",
+              "kind"
+            ]
           }
         ],
         "input": {
@@ -7116,7 +7216,7 @@
             },
             "variant": {
               "$ref": "../common.schema.json#/$defs/elementRef",
-              "description": "A variant the element applies in (an element whose type has the meaning variant); the record holds for it. Absent: the core. Verification only: a variant with `kind` validation is `input.invalid` with `details.reason` `validation-with-variant` (SR-038 AK4, D-007); `core` is allowed. A variant the element is not in is `input.invalid` with `details.reason` `not-valid-in-variant`, or `excluded-in-variant` or `replaced-in-variant` when the variant excludes or replaces the requirement (SR-047 AK4)."
+              "description": "A variant the element applies in (an element whose type has the meaning variant); the record holds for it. Absent: the core. Verification only: a variant with `kind` validation is `input.invalid` with `details.reason` `validation-with-variant` (SR-038 AK4, D-007). `core` names no variant and is `input.invalid` with `details.reason` `core-is-no-variant`; leave `variant` out for the core. A variant the element is not in is `input.invalid` with `details.reason` `not-valid-in-variant`, or `excluded-in-variant` or `replaced-in-variant` when the variant excludes or replaces the requirement (SR-047 AK4)."
             },
             "date": {
               "$ref": "../common.schema.json#/$defs/dateTime",
@@ -7314,7 +7414,7 @@
       {
         "name": "evidence.status",
         "title": "Show evidence status",
-        "summary": "Verification status of a selection per view, from the evidence records (SR-031) and, without own record, from the children with the children that are missing (SR-034); validation status from the validation records (SR-038).",
+        "summary": "Verification status of a selection per view, from the evidence records (SR-031) and, without own record, from the children with the children that are missing (SR-034); validation status from the validation records (SR-038). Without a selection every element of the workspace is listed, and only requirements, needs and elements with a validation record carry a status, so select them, for example by type.",
         "effect": "read",
         "stage": 4,
         "implements": [
@@ -7566,7 +7666,7 @@
       },
       {
         "name": "evidence.withoutPassedTest",
-        "title": "List requirements without passed/no test",
+        "title": "List requirements without a passed test",
         "summary": "Every requirement without a passed test execution in one view (SR-120): no verification record with method test and result passed, of any version, holds there (spec question #532). Each with its verification status.",
         "effect": "read",
         "stage": 4,
@@ -8097,7 +8197,7 @@
       {
         "name": "baseline.get",
         "title": "Show baseline",
-        "summary": "Elements of a baseline with their version then and its date, marked changed, superseded, removed or added since (SR-051); with withEvidence the verification status of each requirement per view and the validation status at its version in the baseline, with the records dated after it named (SR-094).",
+        "summary": "Elements of a baseline with their version then and its date, marked changed, superseded, removed or added since (SR-051); with withEvidence the verification status of each requirement per view and the validation status at its version in the baseline, with the records dated after it named (SR-094). The version counts the text, embedded images and the properties marked `content` (a relation property such as `validity` too); the relation kinds of the metamodel, such as `refines` or `derives-from`, never count, so an element whose only change is such a relation is not marked `changed`: baseline.compare gives the commits and the Git command that show it.",
         "effect": "read",
         "stage": 5,
         "implements": [
@@ -8132,7 +8232,7 @@
             "withEvidence": {
               "type": "boolean",
               "default": false,
-              "description": "Also give, at each entry's version in the baseline, the verification status of each requirement in every view it applies in (only the variant's when the stored selection has one) and the validation status: own records up to the baseline's date and time, records of that version dated after it named apart (SR-094). Like the rest of the output it reads the evidence files on disk, so each repository should be checked out at the commit the baseline names; a `baseline.repository-commit-differs` warning names each one that is not."
+              "description": "Also give, at each entry's version in the baseline, the verification status of each requirement in every view it applies in (only the variant's when the stored selection has one) and the validation status: own records up to the baseline's date and time, records of that version dated after it named apart (SR-094). Only each requirement's own records count, never indirect evidence (SR-094 AK6): a requirement of the baseline that `evidence.status` gives as `indirect` in a view today, verified through its children, is `open` in that view's row. Like the rest of the output it reads the evidence files on disk, so each repository should be checked out at the commit the baseline names; a `baseline.repository-commit-differs` warning names each one that is not."
             },
             "limit": {
               "type": "integer",

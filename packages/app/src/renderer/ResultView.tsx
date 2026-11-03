@@ -10,7 +10,7 @@ import type { ResultBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
 import { rowTarget } from "./keys.js";
 import type { BufferData } from "./modeline.js";
-import { resultLines, resultTotal } from "./result.js";
+import { resultLines, resultSummary } from "./result.js";
 import type { WindowAction } from "./window-layout.js";
 
 export interface ResultViewProps {
@@ -35,7 +35,7 @@ export const ResultView = ({
   const cursor = Math.min(buffer.cursor, Math.max(0, lines.length - 1));
 
   useEffect(() => {
-    onData(buffer.key, { kind: "result", total: resultTotal(buffer.output) });
+    onData(buffer.key, { kind: "result", ...resultSummary(buffer.output) });
   }, [buffer.key, buffer.output, onData]);
 
   useEffect(() => {

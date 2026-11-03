@@ -1095,3 +1095,15 @@ mark {
   padding: 0.1rem 0.75rem;
   font-size: 12px;
 }
+
+/* The numbers of a list's values (#615): muted, without the editor's gutter border or background. */
+.element .box .cm-gutters {
+  border: none;
+  background: none;
+  color: var(--muted);
+}
+
+.element .box .cm-lineNumbers .cm-gutterElement {
+  padding: 0 0.5em 0 0;
+  min-width: 1.5em;
+}
