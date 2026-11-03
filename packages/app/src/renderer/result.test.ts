@@ -8,7 +8,7 @@ import { bufferName, elementBuffer, readOnlyBuffer, resultBuffer } from "./buffe
 import type { Call } from "./call.js";
 import { bufferView } from "./modeline.js";
 import type { BufferData } from "./modeline.js";
-import { MAX_RESULT_LINES, resultLines, resultTotal } from "./result.js";
+import { MAX_RESULT_LINES, resultLines, resultSummary } from "./result.js";
 import { ResultView } from "./ResultView.js";
 import { LoadingView } from "./BufferArea.js";
 import type { WindowAction } from "./window-layout.js";
@@ -54,7 +54,7 @@ describe("result lines", () => {
       ["text", 0, "depth", ""],
       ["text", 1, "up", "2"],
       ["text", 1, "down", "0"],
-      ["text", 0, "incomplete", "false"],
+      // `incomplete` goes to the modeline (#276).
       ["text", 0, "name", "Weather"],
     ]);
     expect(lines[0]?.open).toEqual(elementBuffer("uuid-1", "spec", "SR-1 Title 1"));
@@ -107,7 +107,7 @@ describe("result lines", () => {
       replaced: [{ core: "uuid-1", replacement: "uuid-2" }],
       excluded: ["uuid-4", "uuid-9"],
       other: { core: "uuid-1", replacement: "uuid-9" },
-      view: "uuid-4",
+      variant: "uuid-4",
       names: [element(1, { identifier: "SR-1" }), element(2), element(3), element(4), element(1), "x"],
     });
     expect(lines.map((line) => [line.kind, line.depth, line.label, line.text])).toEqual([
@@ -122,7 +122,7 @@ describe("result lines", () => {
       ["element", 1, "core: SR-1", "Title 1"],
       ["text", 1, "replacement", "uuid-9"],
       // A named UUID under a key keeps the key; it opens like any element row.
-      ["element", 0, "view: SR-000004", "Title 4"],
+      ["element", 0, "variant: SR-000004", "Title 4"],
     ]);
     expect(lines.at(-1)?.open).toEqual(elementBuffer("uuid-4", "spec", "SR-000004 Title 4"));
     expect(lines[1]?.open).toEqual(elementBuffer("uuid-3", "spec", "SR-000003 Title 3"));
@@ -171,18 +171,44 @@ describe("result lines", () => {
     ).toEqual(["id: SR-000001", "state"]);
   });
 
-  it("takes the total of the whole answer for the modeline", () => {
-    expect(resultTotal({ total: 7, nodes: [] })).toBe(7);
-    expect(resultTotal({ nodes: [] })).toBeUndefined();
-    expect(resultTotal([1])).toBeUndefined();
+  it("takes total, view and incomplete for the modeline and leaves them out of the lines (#276)", () => {
+    const output = {
+      elements: [{ ...element(1), status: "draft" }],
+      total: 1,
+      view: "uuid-2",
+      incomplete: false,
+      names: [element(2)],
+    };
+    expect(resultSummary(output)).toEqual({ total: 1, view: "Title 2", incomplete: false });
+    expect(resultLines(output).map((line) => line.label)).toEqual(["elements", "SR-000001"]);
+    expect(resultSummary({ view: "core", incomplete: true })).toEqual({
+      total: undefined,
+      view: "Core",
+      incomplete: true,
+    });
+    expect(resultSummary({ view: "uuid-9" }).view).toBe("uuid-9");
+    expect(resultSummary([1])).toEqual({ total: undefined, view: undefined, incomplete: false });
+    // A field of that name with another shape, or an inherited key, is content and stays.
+    expect(
+      resultLines({ view: { kind: "core" }, total: "many", constructor: 1 }).map((line) => line.label),
+    ).toEqual(["view", "kind", "total", "constructor"]);
   });
 
   it("names the buffer by the command prompt's line and gives one buffer per command and input", () => {
     const buffer = resultBuffer("hint.list", { ref: "uuid-1" }, "List hints SR-1", {}, 0);
     expect(buffer.key).toBe('result:hint.list:{"ref":"uuid-1"}');
     expect(bufferName(buffer)).toBe("List hints SR-1");
-    expect(bufferView(buffer, { kind: "result", total: 3 })).toEqual(["List hints SR-1", "3 in all"]);
-    expect(bufferView(buffer, { kind: "result", total: undefined })).toEqual(["List hints SR-1"]);
+    const none = { total: undefined, view: undefined, incomplete: false };
+    expect(bufferView(buffer, { kind: "result", ...none, total: 3 })).toEqual([
+      "List hints SR-1",
+      "3 in all",
+    ]);
+    expect(bufferView(buffer, { kind: "result", ...none })).toEqual(["List hints SR-1"]);
+    expect(bufferView(buffer, { kind: "result", ...none, view: "Coast", incomplete: true })).toEqual([
+      "List hints SR-1",
+      "view: Coast",
+      "incomplete",
+    ]);
   });
 });
 
@@ -265,11 +291,11 @@ describe("result view", () => {
 
   it("shows the output it was opened with, selects lines with the keys and opens an element row with Enter", async () => {
     const call = vi.fn<Call>();
-    const output = { total: 2, elements: [element(1), element(2)] };
+    const output = { count: 2, total: 2, elements: [element(1), element(2)] };
     const { actions, data } = await mount(call, resultBuffer("trace.affected", {}, "Affected", output, 4), 4);
     expect(call).not.toHaveBeenCalled();
-    expect(texts()).toEqual(["total2", "elements2", "SR-000001Title 1", "SR-000002Title 2"]);
-    expect(data.at(-1)).toEqual({ kind: "result", total: 2 });
+    expect(texts()).toEqual(["count2", "elements2", "SR-000001Title 1", "SR-000002Title 2"]);
+    expect(data.at(-1)).toEqual({ kind: "result", total: 2, view: undefined, incomplete: false });
     // Only the element rows are options; the cursor on a text line names no active option.
     expect([...container.querySelectorAll('[role="option"]')].map((line) => line.textContent)).toEqual([
       "SR-000001Title 1",
@@ -320,13 +346,13 @@ describe("result view", () => {
   });
 
   it("[SR-122/AK4] Ctrl+N and Ctrl+P walk the lines like Down and Up; Ctrl+N first selects the first line, and Ctrl+P is Go to until one is", async () => {
-    const output = { total: 2, elements: [element(1), element(2)] };
+    const output = { count: 2, elements: [element(1), element(2)] };
     await mount(vi.fn<Call>(), resultBuffer("trace.affected", {}, "Affected", output, 0), 0);
     const cursorLine = (): string | null | undefined => container.querySelector("[data-cursor]")?.textContent;
     expect((await press("p", { ctrlKey: true })).defaultPrevented).toBe(false);
     expect(cursorLine()).toBeUndefined();
     expect((await press("n", { ctrlKey: true })).defaultPrevented).toBe(true);
-    expect(cursorLine()).toBe("total2");
+    expect(cursorLine()).toBe("count2");
     await press("n", { ctrlKey: true });
     await press("n", { ctrlKey: true });
     expect(cursorLine()).toBe("SR-000001Title 1");
@@ -334,12 +360,12 @@ describe("result view", () => {
     expect(cursorLine()).toBe("elements2");
     await press("p", { ctrlKey: true });
     expect((await press("p", { ctrlKey: true })).defaultPrevented).toBe(true);
-    expect(cursorLine()).toBe("total2");
+    expect(cursorLine()).toBe("count2");
     expect((await press("p", { metaKey: true })).defaultPrevented).toBe(false);
   });
 
   it("Enter with no line selected acts on the first line and selects it", async () => {
-    const output = { total: 1, elements: [element(1)] };
+    const output = { count: 1, elements: [element(1)] };
     const { actions } = await mount(
       vi.fn<Call>(),
       resultBuffer("trace.affected", {}, "Affected", output, 0),
@@ -347,7 +373,7 @@ describe("result view", () => {
     );
     await press("Enter");
     expect(actions).toEqual([{ type: "cursor", key: "result:trace.affected:{}", cursor: 0 }]);
-    expect(container.querySelector("[data-cursor]")?.textContent).toBe("total1");
+    expect(container.querySelector("[data-cursor]")?.textContent).toBe("count1");
   });
 
   it("opens an element row on a click; a line without an element opens nothing", async () => {
@@ -386,7 +412,7 @@ describe("result view", () => {
 
   it("asks the command again with the same input when the workspace changed, and says why it failed", async () => {
     const answers = [
-      { ok: true as const, output: { total: 1, elements: [element(3)], problems: [hint] } },
+      { ok: true as const, output: { count: 1, elements: [element(3)], problems: [hint] } },
       { ok: false as const, code: "x.failed", message: "The workspace is gone" },
     ];
     const call = vi.fn(() => Promise.resolve(answers.shift())) as unknown as Call;
@@ -397,7 +423,7 @@ describe("result view", () => {
     );
     expect(call).toHaveBeenCalledWith("trace.affected", { ref: "uuid-1" });
     expect(texts()).toEqual([
-      "total1",
+      "count1",
       "elements1",
       "SR-000003Title 3",
       "problems1",

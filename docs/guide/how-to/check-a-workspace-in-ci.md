@@ -77,6 +77,27 @@ jobs:
       - run: reqseq workspace check --changed-since origin/${{ github.base_ref }} --fail-on warning
 ```
 
+### Gate on evidence
+
+`workspace check` does not fail on missing evidence. To let a pipeline fail while a requirement is not verified at its current version, list the requirements whose verification status is `open`, `failed` or `outdated`, leaving out the obsolete ones, and fail when `total` is not 0:
+
+```sh
+reqseq element create system-requirement "Show the wind speed" --text "The station shows the wind speed."
+reqseq element list --input '{"selection":{"where":{"all":[{"not":{"status":["obsolete"]}},{"verification":["open","failed","outdated"]}]}}}'
+```
+
+```text title="Output"
+elements:
+  SR-9d35ce  draft  Show the wind speed
+total: 1
+```
+
+The status counts the newest record of the current version, so a passed test of an older version, or a later failed run, keeps the requirement in the list. It counts a passed record of any method, not only a test, and a requirement without records of its own is `indirect` when its children are verified. `evidence without-passed-test` is not a gate: a passed test of any version takes a requirement off its list. Name the status keys your metamodel marks invalid in the `not` condition. To gate only approved requirements, use `{"status":["approved"]}` instead. The list checks the core; for a variant, add `"view"` to the selection and run it once per variant. In the job, read `total` from `--json`:
+
+```yaml
+- run: test "$(reqseq element list --json --input '{"selection":{"where":{"all":[{"not":{"status":["obsolete"]}},{"verification":["open","failed","outdated"]}]}}}' | jq .total)" = 0
+```
+
 ## API
 
 With `reqseq serve api` running in the workspace, and the token of `api.json` as `Authorization: Bearer <token>`:

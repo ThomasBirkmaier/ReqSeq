@@ -129,10 +129,10 @@ describe("validation status in element.get, element.resolve, evidence.status and
     expect(await where(ws, { validation: ["open"] })).toEqual([N4]);
   });
 
-  it("element.get of a validated need shows the hint of a newer record of an older version (SR-025 AK4)", async () => {
+  it("element.get of a validated need shows no outdated hint for a newer record of an older version (SR-025 AK4, #201)", async () => {
     const out = (await get(await open(), N6)).element;
     expect(out.validation).toBe("validated");
-    expect(out.problems?.map((p) => p.code)).toEqual(["evidence.outdated"]);
+    expect(out.problems?.map((p) => p.code) ?? []).not.toContain("evidence.outdated");
   });
 
   it("gives the status from records given through evidenceRecordsState too", async () => {
