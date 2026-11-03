@@ -292,6 +292,15 @@ describe("inconclusive validation (SR-172)", () => {
       "inconclusive",
       "inconclusive",
     ]);
+    // The reason is that of the newest records in either order, never of an older one.
+    expect(validationsOf([older, tie("passed", "a.md"), tie("inconclusive", "b.md", WHY)])).toEqual([
+      { status: "inconclusive", reason: WHY },
+      { status: "inconclusive", reason: WHY },
+    ]);
+    expect(validationsOf([tie("inconclusive", "a.md"), older])).toEqual([
+      { status: "inconclusive" },
+      { status: "inconclusive" },
+    ]);
     expect(statusesOf([tie("inconclusive", "a.md", WHY), tie("failed", "b.md")])).toEqual([
       "failed",
       "failed",

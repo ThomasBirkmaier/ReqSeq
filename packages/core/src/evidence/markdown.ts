@@ -143,7 +143,13 @@ export const readMarkdownRecord = (file: EvidenceFile, bytes: Uint8Array): Evide
   const validate = fileSchemaValidator(SCHEMA);
   const valid = validate(data);
   // `if` repeats the violation of its `then` (a verification record without `method` or `item`).
-  const violations = valid ? [] : schemaViolations(validate.errors).filter((v) => v.keyword !== "if");
+  // On a record that is not inconclusive, `reason` is only a warning (#807 Q4): its own type or
+  // pattern does not matter, so only the `false` subschema of `else` is kept for it.
+  const ignored = (v: SchemaViolation): boolean =>
+    v.path === "/reason" && data["result"] !== "inconclusive" && !misplacedReason(v);
+  const violations = valid
+    ? []
+    : schemaViolations(validate.errors).filter((v) => v.keyword !== "if" && !ignored(v));
   const faulty = violations.some((v) => !isWarning(v));
   // The lines of the keys in one pass (linear also for a record with thousands of unknown keys).
   const keyLines = violations.length === 0 ? new Map<string, number>() : keyLinesOf(parsed.content);

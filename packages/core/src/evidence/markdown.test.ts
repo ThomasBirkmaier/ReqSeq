@@ -304,6 +304,14 @@ describe("SR-028 reading Markdown records", () => {
         "The evidence record has a reason, but only a record with the result inconclusive has a reason (SR-172); the record is read without it",
       ],
     ]);
+    // An empty, blank or non-text reason, say from a template, is the same warning, and the record counts.
+    for (const reason of ["reason:", "reason: ''", "reason: '  '", "reason: 3"]) {
+      const blank = read(record(reason));
+      expect([blank.records[0]?.result, blank.problems?.map((p) => p.severity)], reason).toEqual([
+        "failed",
+        ["warning"],
+      ]);
+    }
   });
 
   it("an invalid record gives evidence.invalid-record with the line of the failing key and no record", () => {
