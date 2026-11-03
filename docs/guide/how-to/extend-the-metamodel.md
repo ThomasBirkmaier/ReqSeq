@@ -119,6 +119,25 @@ relations:
 
 A requirement with `decided-by` then has the decision as its parent in `trace chain`, and `workspace check` no longer reports it.
 
+### Limit the number of relations
+
+A relation kind can say how many relations of it an element may or must have to elements of a type, with `limits`: each entry names a `target-type`, at least one of `min` and `max`, and optionally a `source-type` (without it, the limit applies to the kind's `source-types`, or to every type when the kind has none). Subtypes count on both sides. For example, a system requirement derives from at most one use case and from at least one need:
+
+```yaml title="metamodel/limits.yaml"
+reqseq-metamodel: 1
+relations:
+  - key: realizes
+    name: Realizes
+    inverse-name: Realized by
+    source-types: [system-requirement]
+    target-types: [need, component]
+    limits:
+      - { target-type: component, max: 1 }
+      - { source-type: system-requirement, target-type: need, min: 1 }
+```
+
+`workspace check` and `hint list` then report an element with more relations than `max` (`relation.too-many`) or fewer than `min` (`relation.too-few`) as a hint with the element, the relation kind, the target type, the count and the limit. Nothing is refused: a relation over the limit is still saved. Only relations whose target is found count, and while a target lies in a repository that is not on this machine, no `relation.too-few` is given. A relation kind without `limits` allows any number, also none.
+
 ## API
 
 Write the file as above, then start the API in the workspace with `reqseq serve api`, and send each command with the token of `api.json` as `Authorization: Bearer <token>`:

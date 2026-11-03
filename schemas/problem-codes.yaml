@@ -75,6 +75,12 @@ problems:
   relation.not-allowed:
     cause: A relation connects two element types that the metamodel does not allow for this relation kind.
     remedy: Use a relation kind that is allowed between the two types, or change the metamodel.
+  relation.too-many:
+    cause: An element has more relations of a kind to elements of a type than the `max` of a limit in the metamodel allows (SR-152). The relations are kept; the hint only shows it.
+    remedy: Remove the relations that are too many, or raise or remove the limit in the metamodel.
+  relation.too-few:
+    cause: An element has fewer relations of a kind to elements of a type than the `min` of a limit in the metamodel asks for (SR-152). Only relations whose target is found count; while a target lies in a repository that is not on this machine, none is reported.
+    remedy: Add the missing relations, or lower or remove the limit in the metamodel.
   relation.outdated:
     cause: The target of a relation or inline reference has changed since the relation stored its version, so the relation may need a review. A `replaces` item onto a core requirement from a requirement with a validity gives `variant.core-changed` instead; onto an element that is no core requirement (SR-041 AK8) or from a requirement without validity (SR-041 AK6) it stays `relation.outdated`.
     remedy: Check the source against the changed target, then confirm the hint (`hint.confirm`), which stores the target's current version.

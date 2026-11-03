@@ -207,13 +207,12 @@ const targetIn = (item: unknown, groups: ReadonlySet<string>): boolean =>
  * incoming relation index (`againFromIndex`): no allocation per relation, so it scans 200,000
  * relations in about 40 ms with the walk of `carryProblems`.
  */
-const namesGroup = (element: ElementRecord, rules: Rules, groups: ReadonlySet<string>): boolean => {
+const namesGroup = (element: ElementRecord, hasRule: HasRule, groups: ReadonlySet<string>): boolean => {
   if (groups.has(shortIdGroup(element.id))) {
     return true;
   }
   for (const [key, value] of Object.entries(element.data)) {
-    const keyRule = rules(key);
-    if (keyRule === undefined) {
+    if (!hasRule(key)) {
       continue;
     }
     // Every item of a list, else the value: more than `relationItems` gives, never less.
@@ -241,7 +240,7 @@ const namesGroup = (element: ElementRecord, rules: Rules, groups: ReadonlySet<st
 const againFromIndex = (
   index: IncomingIndex,
   to: ElementStore,
-  rules: Rules,
+  hasRule: HasRule,
   groups: ReadonlySet<string>,
 ): readonly ElementRecord[] => {
   const again: ElementRecord[] = [];
@@ -253,7 +252,7 @@ const againFromIndex = (
   for (const [id, links] of index.relationsById) {
     if (groups.has(shortIdGroup(id))) {
       for (const link of links) {
-        if (rules(link.key) !== undefined) {
+        if (hasRule(link.key)) {
           again.push(link.source);
         }
       }
@@ -262,22 +261,36 @@ const againFromIndex = (
   return again;
 };
 
+/** Whether the check has a rule for the relations under a key. */
+export type HasRule = (key: string) => boolean;
+
 /**
  * The elements whose files did not change but whose findings may differ after `update`, for
  * `carryProblems` (`again`) when a changed UUID came, went or changed its repository or type: from
  * `incoming`, the incoming relation index of `update.from` built with `metamodel`, a list
- * (`againFromIndex`); without it, a test that every element is put to (`namesGroup`).
+ * (`againFromIndex`); without it, a test that every element is put to (`namesGroup`). Only the
+ * relations under a key `hasRule` names count; shared with the relation limits (SR-152).
  */
+export const relationSourcesAgain = (
+  update: StoreUpdate,
+  metamodel: Metamodel,
+  incoming: IncomingIndex | undefined,
+  hasRule: HasRule,
+): ((element: ElementRecord) => boolean) | readonly ElementRecord[] => {
+  const groups = new Set([...update.ids].map(shortIdGroup));
+  return incoming?.store === update.from && incoming.metamodel === metamodel
+    ? againFromIndex(incoming, update.to, hasRule, groups)
+    : (element) => namesGroup(element, hasRule, groups);
+};
+
+/** `relationSourcesAgain` for the keys with a rule of SR-086. */
 export const relationTypeAgain = (
   update: StoreUpdate,
   metamodel: Metamodel,
   incoming: IncomingIndex | undefined,
 ): ((element: ElementRecord) => boolean) | readonly ElementRecord[] => {
   const rules = rulesOf(metamodel);
-  const groups = new Set([...update.ids].map(shortIdGroup));
-  return incoming?.store === update.from && incoming.metamodel === metamodel
-    ? againFromIndex(incoming, update.to, rules, groups)
-    : (element) => namesGroup(element, rules, groups);
+  return relationSourcesAgain(update, metamodel, incoming, (key) => rules(key) !== undefined);
 };
 
 /** Repository and type of each record of `id`, in store order. */
@@ -285,7 +298,7 @@ const places = (store: ElementStore, id: string): string =>
   JSON.stringify((store.byId.get(id) ?? []).map((r) => [r.repository, r.type]));
 
 /** Whether `id` has as many records in both stores, with the same repository and type pair by pair. */
-const samePlaces = (from: ElementStore, to: ElementStore, id: string): boolean =>
+export const samePlaces = (from: ElementStore, to: ElementStore, id: string): boolean =>
   places(from, id) === places(to, id);
 
 /**

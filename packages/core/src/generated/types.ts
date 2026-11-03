@@ -277,6 +277,14 @@ export interface Problem {
   readonly currentDate?: string | null;
   /** Stable ID of a confirmable hint (D-042); on the hint.* problems of hint.confirm, the ID as given. */
   readonly hintId?: string;
+  /** The relation kind a count hint is about (`relation.too-many`, `relation.too-few`, SR-152). */
+  readonly key?: Key;
+  /** The target type of the limit a count hint is about (SR-152). */
+  readonly targetType?: Key;
+  /** How many relations the element has that the limit counts (SR-152). */
+  readonly count?: number;
+  /** The maximum (`relation.too-many`) or minimum (`relation.too-few`) the metamodel sets (SR-152). */
+  readonly limit?: number;
 }
 
 /**
@@ -308,6 +316,8 @@ export type ProblemCode =
   | "relation.not-a-link"
   | "relation.inaccessible-target"
   | "relation.not-allowed"
+  | "relation.too-many"
+  | "relation.too-few"
   | "relation.outdated"
   | "relation.target-superseded"
   | "relation.not-found"
@@ -1110,8 +1120,31 @@ export interface MetamodelRelationKind {
   readonly "source-types"?: readonly MetamodelKey[];
   /** Allowed target types: absent: every type; empty: none; a type also allows its subtypes (types that extend it, SR-086). */
   readonly "target-types"?: readonly MetamodelKey[];
+  /** How many relations of this kind an element may or must have, per target type (SR-152): a count outside a limit is a hint (`relation.too-many`, `relation.too-few`) when the workspace is checked, never a refusal. Absent: any number, also none. One limit per pair of source type and target type. */
+  readonly limits?: readonly MetamodelRelationLimit[];
   readonly meaning?: MetamodelRelationMeaning;
 }
+
+/**
+ * A minimum, a maximum or both for the number of relations of the kind from one source element to elements of `target-type` (SR-152). Both types include their subtypes (types that extend them). A relation counts when its target resolves to one element of a known type; a duplicate item counts twice.
+ * Schema: `schemas/metamodel.schema.json#/$defs/relationLimit`.
+ */
+export type MetamodelRelationLimit = {
+  /** The source elements the limit applies to. Absent: the kind's `source-types`, or every type when the kind has none. */
+  readonly "source-type"?: MetamodelKey;
+  /** The type of the targets that are counted. */
+  readonly "target-type": MetamodelKey;
+  /** At least this many relations; fewer is the hint `relation.too-few`. */
+  readonly min?: number;
+  /** At most this many relations; more is the hint `relation.too-many`. */
+  readonly max?: number;
+} & (
+  | {
+    readonly min: unknown;
+  }
+  | {
+    readonly max: unknown;
+  });
 
 /**
  * Built-in meaning (D-012, D-059). `derivation`: source is child, target is parent (chain, coverage, indirect verification). `replacement`: source replaces target core requirement for the variants in the source's validity (D-020). `succession`: source is the successor that supersedes target (D-045, SR-072). `exclusion`: source variant excludes target core requirement, written in the variant file (SR-042, D-059). Without meaning a relation has no traceability semantics.
