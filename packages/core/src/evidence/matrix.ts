@@ -42,20 +42,22 @@ export type MatrixTestCaseMark = NonNullable<MatrixTestCase["mark"]>;
 /**
  * The mark of `test` for an element whose current version is `current` (assumptions, spec questions
  * #528 Q1, Q2 and #593 Q2), the first that holds: `not-executed` without an execution; `outdated`
- * when the last execution is of another version, or the current version is not known (#276), the
- * version test of `recordStatusOf`; `failed` when it failed. Undefined when the last execution passed
- * for the current version. Records of one instant may tie: `last` is the first in index order, while
- * the status counts a failed one among them (#525 Q2).
+ * when no execution is of the current version, or the current version is not known (#276), the
+ * version test of `recordStatusOf`; `failed` when the newest execution of the current version failed.
+ * Undefined when it passed. A newer execution of an older version does not mark the test case
+ * outdated, as the status then follows the current one (#201, product owner decision, 2026-10-29:
+ * the mark follows the status). Records of one instant may tie: the first in index order is taken,
+ * while the status counts a failed one among them (#525 Q2).
  */
 export const testCaseMark = (test: TestCase, current: string | undefined): MatrixTestCaseMark | undefined => {
-  const { last } = test;
-  if (last === undefined) {
+  if (test.last === undefined) {
     return "not-executed";
   }
-  if (current === undefined || last.version !== current) {
+  const ofCurrent = current === undefined ? undefined : test.executions.find((e) => e.version === current);
+  if (ofCurrent === undefined) {
     return "outdated";
   }
-  return last.result === "failed" ? "failed" : undefined;
+  return ofCurrent.result === "failed" ? "failed" : undefined;
 };
 
 /**

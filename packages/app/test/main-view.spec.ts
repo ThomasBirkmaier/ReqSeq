@@ -50,6 +50,9 @@ test.describe("the main view on a fixture workspace", () => {
     const permanent = async (editors: number): Promise<void> => {
       // The editors mount after the buffer shows: wait for them before the instant counts below.
       await expect(window.getByRole("textbox")).toHaveCount(editors);
+      // A field shows its copy symbol while the pointer is over it (SR-128): keep the pointer off the sheet,
+      // where the window's own pointer may rest when the element's layout moves under it (Windows).
+      await window.mouse.move(0, 0);
       for (const role of [
         "button",
         "tab",
@@ -99,6 +102,15 @@ test.describe("the main view on a fixture workspace", () => {
     await permanent(3);
     await expect(window.locator('article [data-field="acceptance-criteria"] .cm-content')).toHaveCount(1);
     await expect(window.locator('article [data-field="priority"] .cm-content')).toHaveCount(1);
+    // A list numbers its values from 1, as `element get` does (#615); a single value has no numbers.
+    const numbers = await window
+      .locator('article [data-field="acceptance-criteria"] .cm-lineNumbers .cm-gutterElement')
+      .evaluateAll((all) =>
+        all.filter((e) => getComputedStyle(e).visibility !== "hidden").map((e) => e.textContent),
+      );
+    expect(numbers.length).toBeGreaterThan(0);
+    expect(numbers).toEqual(numbers.map((_, at) => String(at + 1)));
+    await expect(window.locator('article [data-field="priority"] .cm-lineNumbers')).toHaveCount(0);
     // The prompt, which is the search line, is there only while it is asked for.
     await window.keyboard.press("ControlOrMeta+Shift+F");
     await expect(window.getByRole("combobox")).toBeVisible();
