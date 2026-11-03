@@ -233,11 +233,21 @@ describe("workspace.init", () => {
     expect(await listFiles(ws.root)).toEqual(["metamodel/standard-model.yaml"]);
   });
 
-  it("refuses a missing folder and a path that is a file", async () => {
+  it("creates the folder of the workspace when only it is missing (#637)", async () => {
+    const ws = await emptyFolder();
+    await init(open(ws.root), { path: "spec", name: "W" });
+    expect(await listFiles(ws.root)).toEqual([
+      "spec/.gitignore",
+      "spec/metamodel/standard-model.yaml",
+      "spec/reqseq-workspace.yaml",
+    ]);
+  });
+
+  it("refuses a folder whose parent is missing too and a path that is a file", async () => {
     const ws = await createFixtureWorkspace({ files: { "a-file": "x" } });
     onTestFinished(() => ws.cleanup());
     const workspace = open(ws.root);
-    const missing = await init(workspace, { path: "missing", name: "W" }).catch((e: unknown) => e);
+    const missing = await init(workspace, { path: "missing/below", name: "W" }).catch((e: unknown) => e);
     expect(missing).toMatchObject({
       code: "file.folder-missing",
       message: expect.not.stringContaining(ws.root) as string,
@@ -277,8 +287,23 @@ describe("workspace.init when the folder cannot be read", () => {
     await expect(init(workspace, { path: "a-file/below", name: "W" })).rejects.toMatchObject({
       code: "file.folder-missing",
     });
+    await expect(init(workspace, { path: "a-file/below", name: "W" })).rejects.toMatchObject({
+      code: "file.folder-missing",
+      message: "Not written: the path above the new workspace is not a folder",
+    });
     vi.spyOn(fs, "stat").mockRejectedValueOnce(Object.assign(new Error("EACCES"), { code: "EACCES" }));
     await expect(init(workspace, { path: ws.root, name: "W" })).rejects.toMatchObject({ code: "internal" });
     expect(await listFiles(ws.root)).toEqual(["a-file"]);
+  });
+
+  it("refuses a link to a missing folder instead of creating it (#637)", async () => {
+    const ws = await emptyFolder();
+    // lstat finds the link while stat finds no target: a dangling link, mocked to stay platform-neutral.
+    vi.spyOn(fs, "lstat").mockResolvedValueOnce({} as Awaited<ReturnType<typeof fs.lstat>>);
+    await expect(init(open(ws.root), { path: "dangling", name: "W" })).rejects.toMatchObject({
+      code: "file.folder-missing",
+      message: "Not written: the path of the new workspace links to a missing folder",
+    });
+    expect(await listFiles(ws.root)).toEqual([]);
   });
 });

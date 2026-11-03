@@ -2788,7 +2788,7 @@
     {
       "name": "workspace_init",
       "title": "Initialise workspace",
-      "description": "Create a workspace with the standard model in an existing folder. Adds `*.reqseq-tmp` (temp files of an interrupted write) to the folder's `.gitignore`.",
+      "description": "Create a workspace with the standard model in a folder, which is created when only it is missing. Adds `*.reqseq-tmp` (temp files of an interrupted write) to the folder's `.gitignore`.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -2799,7 +2799,7 @@
         "properties": {
           "path": {
             "$ref": "#/$defs/common/$defs/localPath",
-            "description": "Existing folder; must not contain reqseq-workspace.yaml or the metamodel file."
+            "description": "Folder of the workspace, created when only it is missing; must not contain reqseq-workspace.yaml or the metamodel file."
           },
           "name": {
             "type": "string"
