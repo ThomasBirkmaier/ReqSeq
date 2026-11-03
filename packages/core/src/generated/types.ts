@@ -1667,6 +1667,10 @@ export interface ElementResolveOutput {
   readonly element: DataExportElement;
   /** Whether the given version is the element's current version, computed from its file as it is now (SR-060 AK2): "current" or "outdated"; "unknown" when the element has no version to compare with (a value that counts has no normal form, `.inf` or `.nan`, ADR-0005: `element` comes without `version` and with a `file.faulty` warning that says why, #276); null when no version was given. Strings, not booleans, so a caller that tests the field for truth never takes "unknown" for current. */
   readonly current: "current" | "outdated" | "unknown" | null;
+  /** The elements the element names by UUID only, as element.get gives them: the variants of `validity`, `replacedBy` and `excludedBy`, the replacements and the views of `verification` (SR-046 AK1/AK2, SR-047 AK3, #588, #456). Left out when it names none. */
+  readonly names?: readonly ElementName[];
+  /** A repository of the workspace is not here (SR-006 AK2): replacements, exclusions and records stored there are missing (#456). */
+  readonly incomplete?: Incomplete;
 }
 
 /**
