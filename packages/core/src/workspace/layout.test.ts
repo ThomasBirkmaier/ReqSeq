@@ -394,6 +394,23 @@ describe("loadWorkspaceLayout", () => {
     });
   });
 
+  it("names the workspaces one level below in workspace.not-found (#640)", async () => {
+    const ws = await setup(undefined);
+    const folder = ws.path("main");
+    for (const name of ["spec", "a", "b", "c"]) {
+      await fs.mkdir(path.join(folder, name), { recursive: true });
+      await fs.writeFile(path.join(folder, name, WORKSPACE_FILE), "");
+    }
+    await fs.mkdir(path.join(folder, "empty"), { recursive: true });
+    await fs.writeFile(path.join(folder, "a-file"), "");
+    const error = await failure(loadWorkspaceLayout(folder));
+    expect(error.toJSON()).toEqual({
+      code: "workspace.not-found",
+      message: `No ${WORKSPACE_FILE} in the workspace folder; one level below lies a/${WORKSPACE_FILE}, b/${WORKSPACE_FILE}, c/${WORKSPACE_FILE} and 1 more: open that folder as the workspace`,
+      details: { file: WORKSPACE_FILE, below: ["a", "b", "c", "spec"] },
+    });
+  });
+
   it("fails with workspace.not-found when the folder does not exist", async () => {
     const ws = await setup(undefined);
     const error = await failure(loadWorkspaceLayout(ws.path("nowhere")));
