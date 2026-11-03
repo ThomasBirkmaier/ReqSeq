@@ -28,6 +28,7 @@ beforeEach(async () => {
       "odd-le.json": Buffer.from([0xff, 0xfe, 0x7b, 0x00, 0x7d]),
       "sub/list.json": "[1]",
       "text.md": "Erster Absatz mit „Zitat“.\n\nZweiter Absatz.\n",
+      "cond.json": '{"status":["draft"]}',
     },
   });
 });
@@ -121,6 +122,7 @@ const field = (
   nullable: false,
   entries: options.entries ?? false,
   textFile: options.textFile ?? false,
+  parts: [],
 });
 
 const invocation = (parts: Partial<Invocation>): Invocation => ({
@@ -406,5 +408,125 @@ describe("buildInput", () => {
         noStdin,
       ),
     ).toEqual({ title: "@file" });
+  });
+});
+
+describe("buildInput with part flags (#149, #173)", () => {
+  /** The flags of a catalog command, given by flag name. */
+  const withFlags = (
+    name: string,
+    given: Record<string, unknown>,
+    input?: string,
+    stdin = noStdin,
+  ): Promise<Record<string, unknown>> => {
+    const entry = getCommandRuntime().contracts.entry(name);
+    if (entry === undefined) {
+      throw new Error(name);
+    }
+    const fields = inputFields(entry);
+    const flags = fields.flatMap((field) =>
+      field.parts.map((part) => ({ field, part, value: given[part.flag] })),
+    );
+    return buildInput(invocation({ entry, fields, flags, input }), fixture.root, stdin);
+  };
+
+  it("sets each property of the selection, a list flag the whole list, over --input", async () => {
+    expect(
+      await withFlags(
+        "element.list",
+        { ids: ["SR-1", "SR-2"], filter: "open", package: "P-1", baseline: "r1", view: "core" },
+        '{"selection":{"ids":["X"],"filter":"old","where":{"invalid":true}},"limit":5}',
+      ),
+    ).toEqual({
+      selection: {
+        ids: ["SR-1", "SR-2"],
+        filter: "open",
+        package: "P-1",
+        baseline: "r1",
+        view: "core",
+        where: { invalid: true },
+      },
+      limit: 5,
+    });
+  });
+
+  it("replaces the condition with --where and adds the key flags with all", async () => {
+    expect(await withFlags("element.list", { "where-type": ["SR", "N"] })).toEqual({
+      selection: { where: { type: ["SR", "N"] } },
+    });
+    expect(
+      await withFlags(
+        "element.list",
+        { where: '{"invalid":true}', "where-type": ["SR"], "where-status": ["draft"] },
+        '{"selection":{"where":{"status":["x"]}}}',
+      ),
+    ).toEqual({
+      selection: { where: { all: [{ invalid: true }, { type: ["SR"] }, { status: ["draft"] }] } },
+    });
+    expect(
+      await withFlags(
+        "element.list",
+        { "where-status": ["draft"] },
+        '{"selection":{"where":{"invalid":true}}}',
+      ),
+    ).toEqual({ selection: { where: { all: [{ invalid: true }, { status: ["draft"] }] } } });
+    // A condition at the top level (filter.save) works the same.
+    expect(await withFlags("filter.save", { where: "@cond.json", "where-type": ["SR"] })).toEqual({
+      where: { all: [{ status: ["draft"] }, { type: ["SR"] }] },
+    });
+    expect(
+      await withFlags("filter.save", { where: "-" }, undefined, Readable.from(['{"invalid":false}'])),
+    ).toEqual({ where: { invalid: false } });
+    // An `all` alone takes the key conditions into its list; a value that is no object stays for core.
+    expect(
+      await withFlags(
+        "element.list",
+        { "where-type": ["sr"] },
+        '{"selection":{"where":{"all":[{"invalid":true}]}}}',
+      ),
+    ).toEqual({ selection: { where: { all: [{ invalid: true }, { type: ["sr"] }] } } });
+    expect(await withFlags("element.list", { ids: ["a"] }, '{"selection":"x"}')).toEqual({
+      selection: "x",
+    });
+    const invalid = await rejection(withFlags("element.list", { where: "{nope" }));
+    expect(invalid.message).toBe(
+      "--where is not valid JSON (if the shell removed the quotes, as PowerShell and cmd.exe do, use --where @file or --where -)",
+    );
+  });
+
+  it("names a required selection in the form of the call by its part flags", async () => {
+    const entry = getCommandRuntime().contracts.entry("element.bulkUpdate");
+    if (entry === undefined) {
+      throw new Error("element.bulkUpdate");
+    }
+    const fields = inputFields(entry);
+    const positionals = fields.filter((f) => f.use === "positional").map((f) => ({ field: f, value: "v" }));
+    const error = await rejection(
+      buildInput(
+        invocation({ entry, fields, positionals, extraArguments: ["extra"] }),
+        fixture.root,
+        noStdin,
+      ),
+    );
+    expect(error.details?.["usage"]).toContain(
+      "{--ids|--filter|--where|--where-type|--where-status|--package|--baseline|--view}",
+    );
+  });
+
+  it("reads --sort as <by>[:asc|desc] and replaces the list of --input", async () => {
+    expect(
+      await withFlags(
+        "element.list",
+        { sort: ["status:desc", "title", "a:b:asc", "x:ascending"] },
+        '{"sort":[{"by":"id"}]}',
+      ),
+    ).toEqual({
+      sort: [
+        { by: "status", order: "desc" },
+        { by: "title" },
+        { by: "a:b", order: "asc" },
+        { by: "x:ascending" },
+      ],
+    });
   });
 });

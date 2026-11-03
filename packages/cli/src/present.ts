@@ -557,7 +557,7 @@ const listedRecordLine = (record: Rec): string => {
   const baselines = listOf(record["baselines"]).map(text);
   return join(
     record["kind"] === "verification" ? "" : text(record["kind"]),
-    recordLine(record, true),
+    recordLine(record, true, new Map()),
     text(record["version"]) === "" ? "" : `[version ${text(record["version"])}]`,
     baselines.length === 0 ? "" : `[baselines: ${baselines.join(", ")}]`,
   );
