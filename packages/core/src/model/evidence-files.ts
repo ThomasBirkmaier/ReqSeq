@@ -7,7 +7,8 @@
 // A file this process wrote into an evidence folder (`evidence.record`, `evidence.enrichJunit`) is
 // registered with the SHA-256 of its bytes (`ownEvidenceWrite`), so its own event does not throw
 // away the read it carried the new record into (#278, N-036). Any other file, a changed one, a
-// folder, a path gone or an overflow resets the read.
+// folder, a path gone or an overflow resets the read, and forgets the own writes. Temporary files
+// of `writeFileAtomic` are not looked at.
 import path from "node:path";
 import { readFileSha256 } from "../files/index.js";
 import type { Workspace } from "../runtime/workspace.js";
@@ -24,7 +25,10 @@ const folded = (absolute: string): string => absolute.normalize("NFC").toLowerCa
 /** Whether `absolute` is `folder` or lies below it (both folded). */
 const within = (folder: string, absolute: string): boolean => {
   const relative = path.relative(folder, absolute);
-  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+  return (
+    relative === "" ||
+    (relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative))
+  );
 };
 
 /** Compares event paths with the evidence locations of one layout. */
@@ -60,6 +64,14 @@ export const ownEvidenceWrite = (workspace: Workspace, absolute: string, sha256:
   const written = ownWrites.get(workspace) ?? new Map<string, string>();
   written.set(folded(absolute), sha256);
   ownWrites.set(workspace, written);
+};
+
+/**
+ * Forgets the own writes of `workspace`: once the watcher reset the read, it is read from the files
+ * again, so a later change of one of them, a revert to the bytes written too, is a change outside.
+ */
+export const forgetOwnEvidenceWrites = (workspace: Workspace): void => {
+  ownWrites.delete(workspace);
 };
 
 /**

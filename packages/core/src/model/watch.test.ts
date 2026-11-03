@@ -2007,10 +2007,19 @@ describe("the watcher's rules for evidence files (#785)", () => {
     const carried = workspace.peek(evidenceReadState);
     expect(carried).toBeDefined();
     const relative = String(file);
+    // The events of an atomic write: the temporary file, gone by the time the batch runs, and the file.
+    fake.only().send(`${path.posix.dirname(relative)}/.${path.posix.basename(relative)}.0a1b2c3d.reqseq-tmp`);
     fake.only().send(relative);
     await watcher.settled();
     expect(workspace.peek(evidenceReadState)).toBe(carried);
+    const bytes = await fs.readFile(fixture.path(relative));
     await fs.appendFile(fixture.path(relative), "More text.\n");
+    fake.only().send(relative);
+    await watcher.settled();
+    expect(workspace.peek(evidenceReadState)).toBeUndefined();
+    // Reverted outside to the bytes written: a change outside as well.
+    await workspace.get(evidenceReadState);
+    await fs.writeFile(fixture.path(relative), bytes);
     fake.only().send(relative);
     await watcher.settled();
     expect(workspace.peek(evidenceReadState)).toBeUndefined();
@@ -2023,7 +2032,13 @@ describe("the watcher's rules for evidence files (#785)", () => {
     });
     await workspace.get(elementStoreState);
     const { fake, watcher } = await watched(workspace);
-    for (const name of ["results/evidence", "Results", "RESULTS/EVIDENCE/run-1/junit.xml", null]) {
+    for (const name of [
+      "results/evidence",
+      "Results",
+      "RESULTS/EVIDENCE/run-1/junit.xml",
+      "Results/Evidence/..run/junit.xml",
+      null,
+    ]) {
       await workspace.get(evidenceReadState);
       fake.only().send(name);
       await watcher.settled();

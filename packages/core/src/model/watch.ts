@@ -37,7 +37,12 @@ import path from "node:path";
 import type { Problem } from "../catalog.js";
 import { isTempFile } from "../files/index.js";
 import type { EvidenceFolders } from "./evidence-files.js";
-import { evidenceFilesState, evidenceFolders, onlyOwnEvidenceWrites } from "./evidence-files.js";
+import {
+  evidenceFilesState,
+  evidenceFolders,
+  forgetOwnEvidenceWrites,
+  onlyOwnEvidenceWrites,
+} from "./evidence-files.js";
 import { metamodelState } from "../metamodel/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
@@ -539,7 +544,7 @@ class Watcher implements WorkspaceWatcher {
         markMetamodel(b, metamodel, absolute);
       });
     }
-    if (evidence.touches(absolute)) {
+    if (!isTempFile(path.basename(absolute)) && evidence.touches(absolute)) {
       this.#mark((b) => {
         if (b.evidence !== "all") {
           b.evidence.add(absolute);
@@ -649,6 +654,7 @@ class Watcher implements WorkspaceWatcher {
     if (paths !== "all" && (paths.size === 0 || (await onlyOwnEvidenceWrites(this.#workspace, [...paths])))) {
       return false;
     }
+    forgetOwnEvidenceWrites(this.#workspace);
     await this.#workspace.reset(evidenceFilesState);
     return true;
   }
