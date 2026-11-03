@@ -818,11 +818,7 @@ describe("renderHuman: a chain", () => {
         }),
       );
     expect(shown(["core", "v1", "v2"])).toBe(
-      lines(
-        "SR-r  draft  Title SR-r  [not in view, holds in core, VAR-v1  Gusty, v2]",
-        "total: 1",
-        "No problems.",
-      ),
+      lines("SR-r  draft  Title SR-r  [not in view, holds in core, VAR-v1, v2]", "total: 1", "No problems."),
     );
     expect(shown([])).toContain("[not in view, holds in no view]");
   });

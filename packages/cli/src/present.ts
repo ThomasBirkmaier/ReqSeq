@@ -498,13 +498,13 @@ const mark = (marks: Marks, key: string, text: string): void => {
 
 /**
  * The mark of a gap: `[gap: no evidence]`; a requirement the view does not hold is no gap (#674):
- * `[not in view, holds in VAR-x, core]`, the variants by short ID when `names` has them.
+ * `[not in view, holds in core, VAR-x]`, the variants by short ID when `names` has them.
  */
 const gapMark = (gap: Rec, names: Names): string => {
   if (gap["kind"] !== "not-in-view") {
     return `[gap: ${text(gap["kind"]).replaceAll("-", " ")}]`;
   }
-  const views = listOf(gap["views"]).map((view) => variantName(text(view), names));
+  const views = listOf(gap["views"]).map((view) => names.get(text(view))?.shortId ?? text(view));
   return `[not in view${views.length === 0 ? ", holds in no view" : `, holds in ${views.join(", ")}`}]`;
 };
 

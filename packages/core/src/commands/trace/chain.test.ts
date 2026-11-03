@@ -644,6 +644,35 @@ describe("trace.chain: test cases and executions in the chain (SR-033)", () => {
     expect([inCore.evidence, gapsOf(inCore)]).toEqual([[], [[SHOW, "no-evidence"]]]);
   });
 
+  it("[SR-022/AK3] a requirement that holds only in a variant with a passed test there is not in the core's view, and no gap in the variant (#674)", async () => {
+    // SR-33b001 of the fixture, valid only in the variant COAST.
+    const onlyCoast = [
+      "---",
+      `id: ${SHOW}`,
+      "type: system-requirement",
+      "status: draft",
+      "title: Show wind speed",
+      "requirement-type: functional",
+      "acceptance-criteria:",
+      "  - Given wind, when it is measured, then the display shows its speed.",
+      "validity:",
+      `  - { id: ${COAST}, version: n1:0000000000000000, title: Coast edition }`,
+      "refines:",
+      `  - { id: ${WIND}, version: n1:0924bc9a63298251, title: See the wind }`,
+      "---",
+      "",
+      "The display shows the wind speed.",
+      "",
+    ].join("\n");
+    const workspace = await withEvidence([junit({ item: "coast-7", variant: COAST })], [], {
+      files: { ...COAST_FILE, "requirements/SR-00000033b001.md": onlyCoast },
+    });
+    const output = await chain(workspace, { ref: SHOW });
+    expect([gapsOf(output), output.gaps[0]?.views]).toEqual([[[SHOW, "not-in-view"]], [COAST]]);
+    expect(evidenceOf(output)).toEqual([[SHOW, 1, [["test_speed[SR-33b001]", true, ["coast-7"]]], []]]);
+    expect((await chain(workspace, { ref: SHOW, view: "VAR-33d001" })).gaps).toEqual([]);
+  });
+
   it("gives the evidence only of the nodes of the page", async () => {
     const records = [SHOW, LOG, GUSTS, DISPLAY].map((element, i) =>
       markdown({ element, item: `sample ${String(i + 1)}` }),
