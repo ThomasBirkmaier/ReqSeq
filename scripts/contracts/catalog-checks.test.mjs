@@ -67,6 +67,38 @@ describe("catalog checks (titles and argument sources, SR-108)", () => {
     expect(check(command("test.one", "One", flagged("no-kind")))).toEqual([]);
   });
 
+  it("a part flag of a selection, condition or sort clashes with no other flag (#149)", () => {
+    const withParts = (properties, extra) =>
+      command("test.one", "One", [...ALL, ...extra], {
+        ...input,
+        properties: { ...input.properties, ...properties },
+      });
+    const selection = { $ref: "../common.schema.json#/$defs/selection" };
+    const sort = { type: "array", items: { $ref: "../filter.schema.json#/$defs/sortKey" } };
+    expect(
+      check(withParts({ selection, sort }, [arg("selection", "selection"), arg("sort", "json")])),
+    ).toEqual([]);
+    expect(
+      check(
+        withParts({ selection, ids: { type: "string" } }, [
+          arg("selection", "selection"),
+          arg("ids", "json"),
+        ]),
+      ),
+    ).toEqual([
+      'schemas/commands/test.one.json: arguments: "selection": part flag "ids" is also the flag of another field',
+    ]);
+    const condition = { $ref: "../filter.schema.json#/$defs/condition" };
+    expect(
+      check(
+        withParts({ selection, where: condition }, [arg("selection", "selection"), arg("where", "json")]),
+      ),
+    ).toHaveLength(6);
+    expect(check(withParts({ json: sort }, [arg("json", "json")]))).toEqual([
+      'schemas/commands/test.one.json: arguments: "json": part flag "json" is a common option',
+    ]);
+  });
+
   it("lists every input field exactly once", () => {
     expect(check(command("test.one", "One", ALL.slice(1)))).toEqual([
       'schemas/commands/test.one.json: arguments: input field "ref" must be listed exactly once in arguments (found 0)',

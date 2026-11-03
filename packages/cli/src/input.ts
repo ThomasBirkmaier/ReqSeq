@@ -3,7 +3,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { CommandError } from "@reqseq/core";
-import type { InputField, ScalarKind } from "./fields.js";
+import type { InputField, PartFlag, ScalarKind } from "./fields.js";
 import { kebab } from "./fields.js";
 import type { Invocation } from "./program.js";
 
@@ -131,7 +131,11 @@ interface TextSource {
 }
 
 /** `@file` or `-` of a text flag (#171): the text of that file or of standard input. */
-const readText = async (field: InputField, value: string, source: TextSource): Promise<string> => {
+const readText = async (
+  field: { readonly flag: string },
+  value: string,
+  source: TextSource,
+): Promise<string> => {
   if (value !== "-") {
     return decode(await readInputFile(value.slice(1), source.cwd), value.slice(1));
   }
@@ -166,6 +170,87 @@ const flagValue = async (
 };
 
 /**
+ * `value` with `item` at `path` (`[]`: `item` itself); objects on the way are copied. A value on the
+ * way that is no object stays as `--input` gave it, so core reports it.
+ */
+const setAt = (value: unknown, path: readonly string[], item: unknown): unknown => {
+  const [head, ...rest] = path;
+  if (head === undefined) {
+    return item;
+  }
+  if (value !== undefined && !isObject(value)) {
+    return value;
+  }
+  const object = value ?? {};
+  return { ...object, [head]: setAt(object[head], rest, item) };
+};
+
+const getAt = (value: unknown, path: readonly string[]): unknown =>
+  path.reduce<unknown>((at, key) => (isObject(at) ? at[key] : undefined), value);
+
+/** `<by>[:asc|desc]`: only `:asc` or `:desc` at the end is split off. */
+const sortKeyOf = (text: string): Record<string, string> => {
+  const match = /^(.+):(asc|desc)$/.exec(text);
+  return match?.[1] !== undefined && match[2] !== undefined
+    ? { by: match[1], order: match[2] }
+    : { by: text };
+};
+
+/** `--where <json|@file|->`: the condition as JSON; core checks it. */
+const conditionOf = async (part: PartFlag, value: string, source: TextSource): Promise<unknown> => {
+  const text = value === "-" || value.startsWith("@") ? await readText(part, value, source) : value;
+  try {
+    return JSON.parse(text) as unknown;
+  } catch (error) {
+    const hint = text === value ? INLINE_HINT.replaceAll("--input", `--${part.flag}`) : "";
+    throw new CommandError("input.invalid", `--${part.flag} is not valid JSON${hint}`, undefined, {
+      cause: error,
+    });
+  }
+};
+
+/**
+ * The value of a field with part flags (#149, #173), from what `--input` gave: each property flag
+ * replaces that property (a list flag the whole list), `--where` the condition, `--sort` the list; the
+ * values of one key flag form `{ <key>: [values] }`, added to the condition there with `all`.
+ */
+const withParts = async (
+  given: unknown,
+  parts: readonly { readonly part: PartFlag; readonly value: unknown }[],
+  source: TextSource,
+): Promise<unknown> => {
+  let value = given;
+  const keyConditions = new Map<string, { path: readonly string[]; conditions: unknown[] }>();
+  for (const { part, value: raw } of parts) {
+    const items = (Array.isArray(raw) ? raw : [raw]).map(String);
+    if (part.role === "key") {
+      const at = keyConditions.get(part.path.join("/")) ?? { path: part.path, conditions: [] };
+      at.conditions.push({ [String(part.key)]: items });
+      keyConditions.set(part.path.join("/"), at);
+    } else if (part.role === "condition") {
+      value = setAt(value, part.path, await conditionOf(part, items.join(""), source));
+    } else if (part.role === "sort") {
+      value = setAt(value, part.path, items.map(sortKeyOf));
+    } else {
+      const converted = items.map((item) => convert(part.kind, item));
+      value = setAt(value, part.path, part.array ? converted : converted[0]);
+    }
+  }
+  for (const { path: at, conditions } of keyConditions.values()) {
+    const before = getAt(value, at);
+    // An `all` alone takes the conditions into its list, so it is not nested.
+    const all =
+      before === undefined
+        ? conditions
+        : isObject(before) && Object.keys(before).join() === "all" && Array.isArray(before["all"])
+          ? [...(before["all"] as unknown[]), ...conditions]
+          : [before, ...conditions];
+    value = setAt(value, at, all.length === 1 ? all[0] : { all });
+  }
+  return value;
+};
+
+/**
  * The form of a call: the positional fields, the other required fields as flags (`--refs <refs>...`
  * for a list), the optional element flags of the catalog (`[--successor <successor>]`), then
  * `[options]` (#449).
@@ -180,6 +265,10 @@ const usageOf = (invocation: Invocation, command: string): string => {
     `reqseq ${command}`,
     ...invocation.positionals.map((p) => `<${p.field.flag}>`),
     ...flags.filter((f) => f.required).map(flag),
+    // A required field with part flags: any of them gives it (#149).
+    ...invocation.fields
+      .filter((f) => f.use === "parts" && f.required)
+      .map((f) => `{${f.parts.map((p) => `--${p.flag}`).join("|")}}`),
     ...flags.filter((f) => !f.required && elements.has(f.name)).map((f) => `[${flag(f)}]`),
     "[options]",
   ].join(" ");
@@ -215,7 +304,8 @@ const unexpectedArgument = (
 /**
  * The command input: `--input` first; positional values fill the positional fields that neither
  * `--input` nor a flag gives, in order; flags override the same field from `--input`, an entries flag
- * (`--set key=value`) key by key; a text flag reads `@file` and `-`; local paths become absolute.
+ * (`--set key=value`) key by key, part flags (`--ids`, `--where-type`) part by part (`withParts`); a
+ * text flag reads `@file` and `-`; local paths become absolute.
  */
 export async function buildInput(
   invocation: Invocation,
@@ -240,10 +330,19 @@ export async function buildInput(
     input[field.name] = value;
   });
   const source = { cwd, stdin, stdinRead: invocation.input === "-" };
-  for (const { field, value } of invocation.flags) {
-    if (value !== undefined) {
-      input[field.name] = await flagValue(field, value, input[field.name], source);
+  const parted = new Map<InputField, { part: PartFlag; value: unknown }[]>();
+  for (const { field, part, value } of invocation.flags) {
+    if (value === undefined) {
+      continue;
     }
+    if (part === undefined) {
+      input[field.name] = await flagValue(field, value, input[field.name], source);
+    } else {
+      parted.set(field, [...(parted.get(field) ?? []), { part, value }]);
+    }
+  }
+  for (const [field, parts] of parted) {
+    input[field.name] = await withParts(input[field.name], parts, source);
   }
   resolveLocalPaths(invocation.fields, input, cwd);
   return input;

@@ -1,5 +1,5 @@
 // `reqseq element list` end to end (SR-069, SR-101): the built binary on fixtures/SR-069/filter, as
-// JSON and as lines. The selection is complex input, so it comes with `--input` (ADR-0009). The
+// JSON and as lines. The selection comes with `--input`, and as flags in one test (ADR-0009). The
 // fixture: needs N1 and N2; SR b1 (approved) and b2 (draft, valid for V1) derive from N1, b3 (draft,
 // valid for V2) from b1, b5 (approved) from N2; b4 is obsolete and has no parent; SWR f1 (draft) and
 // f2 (approved), a subtype, derive from b1 and b2. Run after `pnpm build` with `pnpm test:e2e`.
@@ -105,5 +105,39 @@ describe("reqseq element list (SR-069)", () => {
       code: "input.invalid",
       details: { fields: ["selection.baseline"] },
     });
+  });
+
+  it("takes the selection and the sort as flags, with the same result as --input (#149, #173)", async () => {
+    const root = (await workspace()).root;
+    const flags = await run(
+      [
+        ...["element", "list", "--where", '{"not":{"invalid":true}}'],
+        ...["--where-type", "system-requirement", "--where-type", "software-requirement"],
+        ...["--where-status", "approved", "--sort", "id:desc", "--json"],
+      ],
+      { cwd: root },
+    );
+    const where = {
+      all: [
+        { not: { invalid: true } },
+        { type: ["system-requirement", "software-requirement"] },
+        { status: ["approved"] },
+      ],
+    };
+    const input = await list({ selection: { where }, sort: [{ by: "id", order: "desc" }] });
+    expect([flags.code, flags.stderr]).toEqual([0, ""]);
+    expect(flags.stdout).toBe(input.stdout);
+    expect((JSON.parse(flags.stdout) as Output).elements.map((e) => e.shortId)).toEqual([
+      "SWR-0000f2",
+      "SR-0000b5",
+      "SR-0000b1",
+    ]);
+    const ids = await run(["element", "list", "--ids", "SR-0000b2", "--ids", "SR-0000b1", "--json"], {
+      cwd: root,
+    });
+    expect((JSON.parse(ids.stdout) as Output).elements.map((e) => e.shortId)).toEqual([
+      "SR-0000b1",
+      "SR-0000b2",
+    ]);
   });
 });

@@ -158,7 +158,7 @@ describe("inputFields", () => {
       "string:flag",
       "string:flag",
       "string:flag",
-      "complex:input-only",
+      "complex:parts",
       "number:flag",
       "complex:input-only",
       "complex:input-only",
@@ -331,5 +331,56 @@ describe("inputFields", () => {
       "element.update:addRelations": "complex:flag",
       "element.update:removeRelations": "complex:flag",
     });
+  });
+
+  it("derives part flags from the $def a field references, not from its being an object (#149, #173)", () => {
+    const flags = (name: string): Record<string, string> => {
+      const command = getCommandRuntime().contracts.entry(name);
+      return Object.fromEntries(
+        (command === undefined ? [] : inputFields(command))
+          .filter((f) => f.use === "parts")
+          .flatMap((f) =>
+            f.parts.map((p) => [
+              p.flag,
+              `${f.name}.${p.path.join(".")}:${p.role}${p.array ? "[]" : ""}${p.key === undefined ? "" : `=${p.key}`}`,
+            ]),
+          ),
+      );
+    };
+    expect(flags("element.list")).toEqual({
+      ids: "selection.ids:property[]",
+      filter: "selection.filter:property",
+      where: "selection.where:condition",
+      "where-type": "selection.where:key[]=type",
+      "where-status": "selection.where:key[]=status",
+      package: "selection.package:property",
+      baseline: "selection.baseline:property",
+      view: "selection.view:property",
+      sort: "sort.:sort[]",
+    });
+    expect(flags("filter.save")).toMatchObject({
+      where: "where.:condition",
+      "where-type": "where.:key[]=type",
+      sort: "sort.:sort[]",
+    });
+    // An object that references none of them stays input-only.
+    const init = getCommandRuntime().contracts.entry("workspace.init");
+    expect(
+      init === undefined
+        ? []
+        : inputFields(init)
+            .filter((f) => f.name === "metamodel")
+            .map(shape),
+    ).toEqual(["complex:input-only"]);
+    // Also behind a further reference.
+    const odd: JsonSchema = {
+      $id: "https://reqseq.dev/schemas/odd.schema.json",
+      $defs: { sel: { $ref: "common.schema.json#/$defs/selection" } },
+    };
+    const f = inputFields(
+      entry({ type: "object", properties: { s: { $ref: "../odd.schema.json#/$defs/sel" } } }),
+      [...schemas, odd],
+    );
+    expect(f[0]?.parts.map((p) => p.flag)).toContain("ids");
   });
 });

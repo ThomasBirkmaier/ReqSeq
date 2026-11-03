@@ -18,7 +18,7 @@ const DESERT = name("uuid-c", "VAR-0000c3", "Desert");
 const REPLACEMENT = name("uuid-r", "SR-0000b1", "Response time at most 20 ms", "SR-900");
 
 const output = (
-  fields: Pick<DataExportElement, "replacedBy" | "excludedBy" | "verification" | "problems">,
+  fields: Pick<DataExportElement, "replacedBy" | "excludedBy" | "verification" | "validation" | "problems">,
   names?: readonly ElementName[],
 ): Pick<ElementGetOutput, "element" | "names"> => ({
   element: { ...fields } as DataExportElement,
@@ -65,6 +65,38 @@ describe("the lines of a requirement's variants", () => {
     );
     expect(text(lines.verification)).toBe("Verification — Core: verified · Coast: open · Mountain: failed");
     expect(lines.use).toBeUndefined();
+  });
+
+  it("[SR-034/AK2] names the children missing for an indirect verification, each a link by ID and title", () => {
+    const one = name("uuid-1", "SR-00b121", "Log wind", "SR-121");
+    const lines = variantLines(
+      output(
+        {
+          verification: [
+            { view: "core", status: "open", missingChildren: ["uuid-1", "uuid-2"] },
+            { view: "uuid-a", status: "indirect" },
+          ],
+        },
+        [one, COAST],
+      ),
+    );
+    expect(text(lines.verification)).toBe(
+      "Verification — Core: open (missing SR-121 Log wind, uuid-2) · Coast: indirect",
+    );
+    expect(lines.verification?.find((part) => part.text === "SR-121 Log wind")).toEqual({
+      text: "SR-121 Log wind",
+      id: "uuid-1",
+      open: elementBuffer("uuid-1", "system", "SR-121 Log wind"),
+    });
+  });
+
+  it("[SR-038/AK1] gives the validation status on a line of its own, apart from the verification status", () => {
+    const lines = variantLines(
+      output({ verification: [{ view: "core", status: "open" }], validation: "validated" }),
+    );
+    expect(text(lines.validation)).toBe("Validation — validated");
+    expect(text(lines.verification)).toBe("Verification — Core: open");
+    expect(variantLines(output({})).validation).toBeUndefined();
   });
 
   it("names an element that names lacks by its UUID, without a link", () => {

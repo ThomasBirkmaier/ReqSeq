@@ -5,6 +5,7 @@
 import type { CatalogEntry, CommandError } from "@reqseq/core";
 import { jsonChunks } from "@reqseq/core";
 import { stringify } from "yaml";
+import type { PartFlag } from "./fields.js";
 import { inputFields } from "./fields.js";
 
 const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
@@ -190,9 +191,18 @@ export const spelledMessage = (error: CommandError, entry: CatalogEntry): string
     // `refs[0]`, `selection.ids` -> the field the command line has: `refs`, `selection`.
     const top = name.replace(/[.[].*$/, "");
     const field = fields.get(top);
-    return field !== undefined && field.use !== "input-only" && said.startsWith(name)
-      ? `${field.use === "positional" ? `<${field.flag}>` : `--${field.flag}`}${said.slice(top.length)}`
-      : said;
+    if (field === undefined || field.use === "input-only" || !said.startsWith(name)) {
+      return said;
+    }
+    if (field.use === "parts") {
+      // `selection.ids[0]` -> `--ids[0]`: the part flag whose path the name starts with (#149).
+      const atOf = (p: PartFlag): string => [top, ...p.path].join(".");
+      const part = field.parts.find(
+        (p) => p.role !== "key" && name.startsWith(atOf(p)) && /^($|[.[])/.test(name.slice(atOf(p).length)),
+      );
+      return part === undefined ? said : `--${part.flag}${said.slice(atOf(part).length)}`;
+    }
+    return `${field.use === "positional" ? `<${field.flag}>` : `--${field.flag}`}${said.slice(top.length)}`;
   });
   return `Invalid input for ${entry.name}: ${spelled.join("; ")}`;
 };

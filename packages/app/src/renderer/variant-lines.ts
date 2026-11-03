@@ -3,7 +3,10 @@
 // by <replacement> · Excluded in <variant>, <variant>", from `replacedBy` and `excludedBy`. The line of the
 // verification status (SR-047 AK3): "Verification — Core: verified · <variant>: open", one part per entry of
 // `verification` in core's order (core gives no row for a variant that excludes or replaces the
-// requirement). Variants and replacements are named by `names`; one `names` lacks is named by its UUID.
+// requirement); an `open` one without own record names the children that are missing for an indirect
+// verification (SR-034 AK2): "Core: open (missing SR-1 Title, SR-2 Title)". The validation status (SR-038
+// AK1) is a line of its own: "Validation — validated". Variants, replacements and missing children are
+// named by `names`; one `names` lacks is named by its UUID.
 // On the page of a variant, one line per hint about a core requirement since its newest baseline (SR-103:
 // changed, or new in its view), with core's message as `element.get` and the CLI give it (SR-080).
 import type { ElementGetOutput, ElementName, ProblemCode } from "@reqseq/core";
@@ -21,6 +24,8 @@ export interface VariantLines {
   readonly use: readonly LinePart[] | undefined;
   /** Its verification status per view; undefined when `element.get` gives none (not a requirement). */
   readonly verification: readonly LinePart[] | undefined;
+  /** Its validation status (SR-038), apart from the verification status; undefined when `element.get` gives none. */
+  readonly validation: readonly LinePart[] | undefined;
   /** The variant's hints since its newest baseline (SR-103), in core's order: whether new, and core's message. */
   readonly sinceBaseline: readonly SinceBaseline[];
 }
@@ -56,6 +61,19 @@ const idTitleOf = (name: ElementName): string => idTitle(name.identifier ?? name
 const joined = (groups: readonly (readonly LinePart[])[]): LinePart[] =>
   groups.flatMap((group, at) => (at === 0 ? group : [SEPARATOR, ...group]));
 
+/** " (missing <child>, <child>)", each child a link by ID and title; nothing without missing children. */
+const missing = (byId: ReadonlyMap<string, ElementName>, children: readonly string[]): LinePart[] =>
+  children.length === 0
+    ? []
+    : [
+        { text: " (missing " },
+        ...children.flatMap((child, at) => [
+          ...(at === 0 ? [] : [{ text: ", " }]),
+          named(byId, child, idTitleOf),
+        ]),
+        { text: ")" },
+      ];
+
 /** The lines of the element `output` gives. */
 export const variantLines = (output: Pick<ElementGetOutput, "element" | "names">): VariantLines => {
   const { element } = output;
@@ -83,6 +101,7 @@ export const variantLines = (output: Pick<ElementGetOutput, "element" | "names">
   const verification = element.verification?.map((entry): LinePart[] => [
     entry.view === CORE_VIEW.view ? { text: CORE_VIEW.title } : named(byId, entry.view, titleOf),
     { text: `: ${entry.status}` },
+    ...missing(byId, entry.missingChildren ?? []),
   ]);
   return {
     use: use.length === 0 ? undefined : joined(use),
@@ -90,6 +109,8 @@ export const variantLines = (output: Pick<ElementGetOutput, "element" | "names">
       verification === undefined || verification.length === 0
         ? undefined
         : [{ text: "Verification — " }, ...joined(verification)],
+    validation:
+      element.validation === undefined ? undefined : [{ text: `Validation — ${element.validation}` }],
     sinceBaseline: (element.problems ?? [])
       .filter((problem) => SINCE_BASELINE_CODES.has(problem.code))
       .map((problem) => ({
