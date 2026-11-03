@@ -378,6 +378,7 @@ describe("relation.add gives a stored target without a valid version its current
     elementId: MIGRATED.id,
     elementShortId: "SR-fffff1",
     targetId: NEED.id,
+    targetRepository: "system",
     targetShortId: "N-aaaaa1",
     currentVersion: version,
   });
@@ -488,7 +489,11 @@ describe("relation.add shows a hint when a derivation closes a cycle (SR-067 AK3
     elementShortId: name(source === A ? 1 : 4).replace(/^.* /, ""),
     ...(target === undefined
       ? {}
-      : { targetId: target.id, targetShortId: name(target === A ? 1 : 4).replace(/^.* /, "") }),
+      : {
+          targetId: target.id,
+          targetRepository: "system",
+          targetShortId: name(target === A ? 1 : 4).replace(/^.* /, ""),
+        }),
     line,
   });
 

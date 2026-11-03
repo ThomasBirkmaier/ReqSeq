@@ -570,15 +570,15 @@ describe("problemTarget (#172)", () => {
     repository: "system",
   } as const;
 
-  it("takes the target in the repository of the problem, else the only one, else none", () => {
+  it("takes the one target in the repository the producer resolved it in, else none (never a guess)", () => {
     const here = record("system");
     const there = record("sensor");
-    expect(problemTarget(storeOf(there, here), about)).toBe(here);
-    expect(problemTarget(storeOf(there), about)).toBe(there);
-    // The element's own repository counts before the file's (outdated evidence names its record file).
-    expect(problemTarget(storeOf(there, here), { ...about, elementRepository: "sensor" })).toBe(there);
-    expect(problemTarget(storeOf(there, record("third")), about)).toBeUndefined();
-    expect(problemTarget(storeOf(here, record("system")), about)).toBeUndefined();
-    expect(problemTarget(storeOf(), about)).toBeUndefined();
+    const resolved = { ...about, targetRepository: "sensor" };
+    expect(problemTarget(storeOf(here, there), resolved)).toBe(there);
+    // Without a resolved repository (a missing target, an evidence record) none, even with one copy.
+    expect(problemTarget(storeOf(there), about)).toBeUndefined();
+    expect(problemTarget(storeOf(here), { ...resolved, targetRepository: "third" })).toBeUndefined();
+    expect(problemTarget(storeOf(there, record("sensor")), resolved)).toBeUndefined();
+    expect(problemTarget(storeOf(), resolved)).toBeUndefined();
   });
 });

@@ -377,17 +377,19 @@ export const problemElement = (
 };
 
 /**
- * The element the `targetId` of `problem` names (#172): the one with that UUID in the repository of
- * the element the problem is about (a relation without a repository names one there, D-058), else the
- * only one with it in the store; undefined when there is none or several are left.
+ * The element the `targetId` of `problem` names (#172): the one record with that UUID in
+ * `targetRepository`, the repository the producer resolved the target in. A problem without it (a
+ * target that is missing, ambiguous or not resolved) names none, so a target is never guessed
+ * (ADR-0004); several copies there name none either.
  */
 export const problemTarget = (
   store: ElementStore,
   problem: Problem & { readonly targetId: string },
 ): ElementRecord | undefined => {
-  const records = store.byId.get(problem.targetId) ?? [];
-  const repository = problem.elementRepository ?? problem.repository;
-  const here = records.filter((e) => e.repository === repository);
-  const candidates = here.length > 0 ? here : records;
-  return candidates.length === 1 ? candidates[0] : undefined;
+  const { targetRepository } = problem;
+  if (targetRepository === undefined) {
+    return undefined;
+  }
+  const here = (store.byId.get(problem.targetId) ?? []).filter((e) => e.repository === targetRepository);
+  return here.length === 1 ? here[0] : undefined;
 };

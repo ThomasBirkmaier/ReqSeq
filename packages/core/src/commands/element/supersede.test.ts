@@ -121,6 +121,7 @@ const hint = (
   elementId: source.id,
   elementShortId: shortIdOf(source),
   targetId: target.id,
+  targetRepository: "system",
   targetShortId: shortIdOf(target),
   line,
 });

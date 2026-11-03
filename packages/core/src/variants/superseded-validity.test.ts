@@ -60,6 +60,7 @@ describe("hints on validities that list a superseded variant (SR-040 AK3)", () =
         line: 11,
         elementId: COAST_AND_MOUNTAIN,
         targetId: MOUNTAIN,
+        targetRepository: "system",
       },
       {
         code: "variant.superseded-in-validity",
@@ -71,6 +72,7 @@ describe("hints on validities that list a superseded variant (SR-040 AK3)", () =
         line: 10,
         elementId: other,
         targetId: MOUNTAIN,
+        targetRepository: "system",
       },
     ]);
   });

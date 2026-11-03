@@ -208,6 +208,7 @@ export const addRelation = async (workspace: Workspace, input: RelationInput): P
     file: source.file,
     elementId: source.id,
     targetId: target.id,
+    targetRepository: target.repository,
     currentVersion: stored.version,
   };
   return {

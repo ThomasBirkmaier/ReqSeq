@@ -224,22 +224,27 @@ export const problemLocator = (
 };
 
 /** What a problem that names an element or a target gets: their short IDs and identifiers. */
-export interface ElementNames {
+export interface ProblemNames {
   readonly elementShortId?: string;
   readonly elementIdentifier?: string;
   readonly targetShortId?: string;
   readonly targetIdentifier?: string;
 }
 
-type ShortIdOf = (problem: Problem) => ElementNames | undefined;
+type ShortIdOf = (problem: Problem) => ProblemNames | undefined;
 
 /** Whether `value` names an element without its short ID. */
 const needsElementShortId = (value: Rec): boolean =>
   typeof value["elementId"] === "string" && value["elementShortId"] === undefined;
 
-/** Whether `value` names a target without its short ID (#172). */
+/**
+ * Whether `value` names a target its producer resolved (`targetRepository`) without its short ID
+ * (#172). A target without it is never named, so it builds no short IDs.
+ */
 const needsTargetShortId = (value: Rec): boolean =>
-  typeof value["targetId"] === "string" && value["targetShortId"] === undefined;
+  typeof value["targetId"] === "string" &&
+  typeof value["targetRepository"] === "string" &&
+  value["targetShortId"] === undefined;
 
 /** Whether `value` is a problem that names an element or a target and has no short ID for it yet. */
 const needsShortId = (value: unknown): value is Problem =>
@@ -349,7 +354,7 @@ export const withElementShortIds = async (
       ? kept
       : buildShortIds(store.byId, metamodel);
   /** The short ID and identifier of `element`, under the names of `prefix` ("element" or "target"). */
-  const namesOf = (element: ElementRecord | undefined, prefix: "element" | "target"): ElementNames => {
+  const namesOf = (element: ElementRecord | undefined, prefix: "element" | "target"): ProblemNames => {
     if (element === undefined) {
       return {};
     }

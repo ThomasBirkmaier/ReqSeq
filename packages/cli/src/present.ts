@@ -304,16 +304,19 @@ const elementDetails = (element: Rec, names: Names): string[] => {
 
 /**
  * A hint of a list: the element's short ID with its identifier (else its file), the kind, the
- * message and the hint ID.
+ * message, the target's short ID with its identifier (#172) and the hint ID.
  */
 const findingLine = (finding: Rec): string => {
   const shortId = text(finding["elementShortId"]);
   const element = shortId === "" ? "" : withIdentifier(shortId, finding["elementIdentifier"]);
   const hintId = text(finding["hintId"]);
+  // The target by its short ID and identifier, when core named it (#172).
+  const targetShortId = text(finding["targetShortId"]);
   return join(
     element === "" ? text(finding["file"]) : element,
     text(finding["code"]),
     text(finding["message"]),
+    targetShortId === "" ? "" : `target: ${withIdentifier(targetShortId, finding["targetIdentifier"])}`,
     hintId === "" ? "" : `hint: ${hintId}`,
   );
 };

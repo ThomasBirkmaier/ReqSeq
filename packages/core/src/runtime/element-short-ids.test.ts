@@ -17,7 +17,7 @@ import {
 } from "../model/index.js";
 import { SCHEMA_BASE, loadContracts } from "./contracts.js";
 import type { ProblemLocator } from "./element-short-ids.js";
-import type { ElementNames } from "./element-short-ids.js";
+import type { ProblemNames } from "./element-short-ids.js";
 import { fillElementShortIds, problemLocator, withElementShortIds } from "./element-short-ids.js";
 import { createCommandRuntime, invoke } from "./invoke.js";
 import { Workspace } from "./workspace.js";
@@ -498,7 +498,7 @@ describe("every problem of every output schema is located (#319)", () => {
 
 describe("fillElementShortIds", () => {
   const where = locator({ properties: { problems: PROBLEMS, other: PROBLEMS } }) ?? {};
-  const shortIdOf = (problem: Problem): ElementNames | undefined =>
+  const shortIdOf = (problem: Problem): ProblemNames | undefined =>
     problem.elementId === N1 ? { elementShortId: "N-0000a1" } : undefined;
 
   it("adds the short ID to the problems that name an element, in a copy", () => {
@@ -532,7 +532,7 @@ describe("fillElementShortIds", () => {
 });
 
 describe("fillElementShortIds at every place of a value (#319)", () => {
-  const shortIdOf = (): ElementNames => ({ elementShortId: "N-0000a1" });
+  const shortIdOf = (): ProblemNames => ({ elementShortId: "N-0000a1" });
   const problem = about(N1, "x.md");
   const shown = { ...problem, elementShortId: "N-0000a1" };
 
@@ -664,7 +664,10 @@ describe("withElementShortIds names the target of a problem (#172)", () => {
   };
 
   it("adds the short ID of the target next to the element's, and of a target alone", async () => {
-    const problem = about(R2, "requirements/SR-0000000000b2.md", { targetId: N1 });
+    const problem = about(R2, "requirements/SR-0000000000b2.md", {
+      targetId: N1,
+      targetRepository: "system",
+    });
     expect(await fill(problem)).toEqual({
       ...problem,
       elementShortId: "SR-0000b2",
@@ -675,17 +678,28 @@ describe("withElementShortIds names the target of a problem (#172)", () => {
   });
 
   it("keeps a short ID that is there and leaves out a target that is not in the store", async () => {
-    const shown = about(R2, "requirements/SR-0000000000b2.md", { targetId: N1, targetShortId: "N-1" });
+    const shown = about(R2, "requirements/SR-0000000000b2.md", {
+      targetId: N1,
+      targetRepository: "system",
+      targetShortId: "N-1",
+    });
     expect(await fill(shown)).toEqual({ ...shown, elementShortId: "SR-0000b2" });
     const elementShown = about(R2, "requirements/SR-0000000000b2.md", {
       targetId: N1,
+      targetRepository: "system",
       elementShortId: "SR-1",
     });
     expect(await fill(elementShown)).toEqual({ ...elementShown, targetShortId: "N-0000a1" });
-    const stray = about(R2, "requirements/SR-0000000000b2.md", { targetId: `${P}ee` });
+    const stray = about(R2, "requirements/SR-0000000000b2.md", {
+      targetId: `${P}ee`,
+      targetRepository: "system",
+    });
     expect(await fill(stray)).toEqual({ ...stray, elementShortId: "SR-0000b2" });
     const { elementId: _element, ...strayAlone } = stray;
     expect(await fill(strayAlone)).toBe(strayAlone);
+    // A target the producer did not resolve (no targetRepository, e.g. a missing one) is never named.
+    const unresolved = about(R2, "requirements/SR-0000000000b2.md", { targetId: N1 });
+    expect(await fill(unresolved)).toEqual({ ...unresolved, elementShortId: "SR-0000b2" });
   });
 });
 

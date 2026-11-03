@@ -218,6 +218,17 @@ describe("renderHuman: values", () => {
             hintId: "relation.outdated/x",
           },
           { code: "element.unknown-property", severity: "warning", message: "Unknown", file: "b.md" },
+          // The target by its short ID and identifier when core named it (#172).
+          {
+            code: "relation.target-superseded",
+            severity: "warning",
+            message: "Points to a superseded decision",
+            file: "c.md",
+            elementShortId: "D-589cf2",
+            elementIdentifier: "D-017",
+            targetShortId: "D-fd8f46",
+            targetIdentifier: "D-011",
+          },
         ],
         incomplete: false,
       }),
@@ -226,6 +237,7 @@ describe("renderHuman: values", () => {
         "hints:",
         "  SR-1  relation.outdated  Points to an older version  hint: relation.outdated/x",
         "  b.md  element.unknown-property  Unknown",
+        "  D-589cf2 (D-017)  relation.target-superseded  Points to a superseded decision  target: D-fd8f46 (D-011)",
       ),
     );
   });

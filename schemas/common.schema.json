@@ -223,9 +223,13 @@
         "targetId": {
           "$ref": "#/$defs/uuid"
         },
+        "targetRepository": {
+          "type": "string",
+          "description": "Workspace name of the repository the target `targetId` names was resolved in (#172); given when the problem's target is one element there."
+        },
         "targetShortId": {
           "$ref": "#/$defs/shortId",
-          "description": "Short ID of the element `targetId` names, for display (#172); given when that UUID names one element in the repository of the element the problem is about, or one element in the workspace, by every command that has read the elements."
+          "description": "Short ID of the element `targetId` names, for display (#172); given with `targetRepository` when that UUID names one element there, by every command that has read the elements. A missing, ambiguous or unresolved target gets none."
         },
         "targetIdentifier": {
           "type": "string",
