@@ -1437,7 +1437,7 @@ export interface CommandCatalog {
 }
 
 /**
- * Input of `workspace.init` as `run` gets it: validated, properties with a `default` filled in. Create a workspace with the standard model in an existing folder.
+ * Input of `workspace.init` as `run` gets it: validated, properties with a `default` filled in. Create a workspace with the standard model in an existing folder. Adds `*.reqseq-tmp` (temp files of an interrupted write) to the folder's `.gitignore`.
  * Schema: `schemas/commands/workspace.init.json input`.
  */
 export interface WorkspaceInitInput {
@@ -1451,7 +1451,7 @@ export interface WorkspaceInitInput {
 }
 
 /**
- * Output of `workspace.init`. Create a workspace with the standard model in an existing folder.
+ * Output of `workspace.init`. Create a workspace with the standard model in an existing folder. Adds `*.reqseq-tmp` (temp files of an interrupted write) to the folder's `.gitignore`.
  * Schema: `schemas/commands/workspace.init.json output`.
  */
 export interface WorkspaceInitOutput {
