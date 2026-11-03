@@ -121,7 +121,7 @@ A requirement with `decided-by` then has the decision as its parent in `trace ch
 
 ### Limit the number of relations
 
-A relation kind can say how many relations of it an element may or must have to elements of a type, with `limits`: each entry names a `target-type`, at least one of `min` and `max`, and optionally a `source-type` (without it, the limit applies to the kind's `source-types`, or to every type when the kind has none). Subtypes count on both sides. For example, a system requirement derives from at most one use case and from at least one need:
+A relation kind can say how many relations of it an element may or must have to elements of a type, with `limits`: each entry names a `target-type`, at least one of `min` and `max`, and optionally a `source-type` (without it, the limit applies to the kind's `source-types`, or to every type when the kind has none; with it, only to the types the kind's `source-types` also allow). Subtypes count on both sides. For example, a system requirement realizes at most one component and at least one need:
 
 ```yaml title="metamodel/limits.yaml"
 reqseq-metamodel: 1

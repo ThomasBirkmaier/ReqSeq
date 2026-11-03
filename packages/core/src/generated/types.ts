@@ -1522,7 +1522,7 @@ export interface WorkspaceStatusOutput {
 }
 
 /**
- * Input of `workspace.check` as `run` gets it: validated, properties with a `default` filled in. Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, requirements with a statement but no text (a warning), missing targets, cycles, requirements without a parent (a warning, SR-022 AK6), duplicate IDs, outdated relations, evidence records that cannot be read or name an unknown element, a repository that is a workspace of its own whose metamodel counts other properties to the version. ok is false, and the CLI exits 1, on findings at or above failOn (default error).
+ * Input of `workspace.check` as `run` gets it: validated, properties with a `default` filled in. Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, requirements with a statement but no text (a warning), missing targets, cycles, requirements without a parent (a warning, SR-022 AK6), elements with more or fewer relations of a kind than its limits allow (a hint), duplicate IDs, outdated relations, evidence records that cannot be read or name an unknown element, a repository that is a workspace of its own whose metamodel counts other properties to the version. ok is false, and the CLI exits 1, on findings at or above failOn (default error).
  * Schema: `schemas/commands/workspace.check.json input`.
  */
 export interface WorkspaceCheckInput {
@@ -1537,7 +1537,7 @@ export interface WorkspaceCheckInput {
 }
 
 /**
- * Output of `workspace.check`. Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, requirements with a statement but no text (a warning), missing targets, cycles, requirements without a parent (a warning, SR-022 AK6), duplicate IDs, outdated relations, evidence records that cannot be read or name an unknown element, a repository that is a workspace of its own whose metamodel counts other properties to the version. ok is false, and the CLI exits 1, on findings at or above failOn (default error).
+ * Output of `workspace.check`. Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, requirements with a statement but no text (a warning), missing targets, cycles, requirements without a parent (a warning, SR-022 AK6), elements with more or fewer relations of a kind than its limits allow (a hint), duplicate IDs, outdated relations, evidence records that cannot be read or name an unknown element, a repository that is a workspace of its own whose metamodel counts other properties to the version. ok is false, and the CLI exits 1, on findings at or above failOn (default error).
  * Schema: `schemas/commands/workspace.check.json output`.
  */
 export interface WorkspaceCheckOutput {

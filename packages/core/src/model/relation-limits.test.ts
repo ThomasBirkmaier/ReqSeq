@@ -11,7 +11,7 @@ import type { ElementRecord } from "./elements.js";
 import type { RelationLimitContext } from "./relation-limits.js";
 import { relationLimitFindings, relationLimitProblemsState } from "./relation-limits.js";
 import { shortIdState } from "./short-id.js";
-import { elementStoreState } from "./store.js";
+import { applyStoreChange, elementStoreState, updateElements } from "./store.js";
 
 const ID = "15200000-0000-4000-8000-000000";
 const NEED = `${ID}a00001`;
@@ -195,6 +195,31 @@ describe("relation limits (SR-152)", () => {
     expect(carried.map((p) => [p.elementId, p.count])).toEqual([
       [SR1, 3],
       [SR2, 0],
+    ]);
+  });
+
+  it("checks a source whose file is unchanged again when its target changes type on disk", async () => {
+    const { fixture, workspace } = await open();
+    expect((await workspace.get(relationLimitProblemsState)).map((p) => p.elementId)).toContain(SR1);
+    const file = "use-cases/UC-000000b00001.md";
+    await fixture.write(
+      file,
+      (await fs.readFile(fixture.path(file), "utf8")).replace("type: use-case", "type: need"),
+    );
+    const layout = await workspace.get(workspaceLayoutState);
+    const changed = await applyStoreChange(workspace, (store) =>
+      updateElements(store, layout, new Map([["system", { paths: [file] }]])),
+    );
+    expect(changed).toBeDefined();
+    expect(workspace.peek(relationLimitProblemsState)).toBeDefined();
+    const fresh = new Workspace(fixture.root);
+    onTestFinished(() => fresh.close());
+    const carried = await workspace.get(relationLimitProblemsState);
+    expect(carried).toEqual(await fresh.get(relationLimitProblemsState));
+    // SR1 now derives from one use case and two needs: within both limits.
+    expect(carried.map((p) => [p.elementId, p.count])).toEqual([
+      [SR2, 0],
+      [SR3, 0],
     ]);
   });
 });

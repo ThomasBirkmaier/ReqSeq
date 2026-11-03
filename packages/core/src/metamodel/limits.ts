@@ -106,7 +106,8 @@ const indexes = new WeakMap<Metamodel, ReadonlyMap<MetamodelKey, readonly Relati
 
 /**
  * The limits that apply to the elements of each type, by type key, in metamodel order: a limit
- * with a `source-type` applies to that type and its subtypes, one without to the kind's
+ * with a `source-type` applies to that type and its subtypes as far as the kind's `source-types`
+ * allow them as sources, one without to the kind's
  * `source-types` (and their subtypes), or to every type when the kind has none. Every limit that
  * applies is checked on its own. Built once per metamodel object; empty for a metamodel that is not
  * valid, whose limits are not trusted.
@@ -122,7 +123,10 @@ export const limitsOf = (metamodel: Metamodel): ReadonlyMap<MetamodelKey, readon
       const sources = limit["source-type"] === undefined ? kind["source-types"] : [limit["source-type"]];
       // A valid metamodel defines the target type: its one entry gives the name.
       for (const target of metamodel.effectiveTypes.filter((t) => t.key === limit["target-type"])) {
-        for (const type of metamodel.effectiveTypes.filter((t) => allowsType(sources, t.key, metamodel))) {
+        // A type the kind does not allow as a source is never a source element of it.
+        const applies = (key: MetamodelKey): boolean =>
+          allowsType(sources, key, metamodel) && allowsType(kind["source-types"], key, metamodel);
+        for (const type of metamodel.effectiveTypes.filter((t) => applies(t.key))) {
           const list = index.get(type.key) ?? [];
           index.set(type.key, list);
           list.push({

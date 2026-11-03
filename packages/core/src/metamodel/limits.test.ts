@@ -90,13 +90,17 @@ describe("relation limits in the metamodel (SR-152)", () => {
     );
   });
 
-  it("gives the limits per source type: by source-type with subtypes, else the kind's source-types, else every type", async () => {
+  it("gives the limits per source type: by source-type with subtypes the kind allows, else the kind's source-types, else every type", async () => {
     const metamodel = await load({
       "metamodel/z-more.yaml": `reqseq-metamodel: 1
 types:
   - { key: safety-requirement, name: Safety Requirement, prefix: SSR, extends: system-requirement }
 relations:
   - { key: refers-to, name: Refers to, limits: [{ target-type: decision, max: 2 }] }
+  - key: refines
+    name: Refines
+    source-types: [safety-requirement]
+    limits: [{ source-type: system-requirement, target-type: need, min: 1 }]
 `,
     });
     expect(metamodel.problems).toEqual([]);
@@ -123,12 +127,20 @@ relations:
       targetName: "Decision",
       max: 2,
     };
+    const refines = {
+      key: "refines",
+      label: "Refines (refines)",
+      targetType: "need",
+      targetName: "Need",
+      min: 1,
+    };
     expect(Object.fromEntries(limits)).toEqual({
       need: [decision],
       "use-case": [decision],
       "system-requirement": [useCase, need, decision],
       decision: [decision],
-      "safety-requirement": [useCase, need, decision],
+      // refines allows only safety requirements as sources, so its limit skips the parent type.
+      "safety-requirement": [useCase, need, decision, refines],
     });
   });
 });
