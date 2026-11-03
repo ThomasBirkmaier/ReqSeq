@@ -29,11 +29,13 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      - name: Install
+        id: install
+        run: pnpm install --frozen-lockfile
       - name: Typecheck
         run: pnpm typecheck
       - name: Lint
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: pnpm lint
 
   report:
@@ -54,7 +56,8 @@ jobs:
           script: |
             const { owner, repo } = context.repo;
             const label = "main-red";
-            const open = await github.paginate(github.rest.issues.listForRepo, { owner, repo, labels: label, state: "open" });
+            // The list holds pull requests too; only issues count.
+            const open = (await github.paginate(github.rest.issues.listForRepo, { owner, repo, labels: label, state: "open" })).filter((i) => !i.pull_request);
             const footer = "\n\n---\n_Written by the main check workflow_";
             if (process.env.RESULT === "success") {
               for (const issue of open) {
