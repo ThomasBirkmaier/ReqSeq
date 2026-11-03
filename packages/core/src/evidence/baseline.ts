@@ -5,8 +5,8 @@
 //
 // - Own records only (AK6): no walk to children, so no current version is read; the version is the
 //   baseline's. The status rule is that of `evidence.status` (`verificationStatusOf`,
-//   `validationStatusOf`, ADR-0012 "Status rules"): records of other versions only give `outdated`,
-//   none `open` (AK3).
+//   `validationOf`, ADR-0012 "Status rules"): records of other versions only give `outdated`,
+//   none `open` (AK3); an `inconclusive` validation gives its `validationReason` (SR-172 AK2).
 // - Rows (AK4, AK5): the views the command passes, a subset of `WorkspaceStatus.holders` (the core,
 //   then the variants in store order, each with the view rule of now), and of these the ones the
 //   entry applies in now, so a variant that excludes or replaces it has no row (SR-047 AK3). Whether
@@ -23,13 +23,16 @@
 import type { BaselineGetOutput } from "../generated/types.js";
 import type { ElementRecord } from "../model/index.js";
 import type { EvidenceRecord } from "./record.js";
-import { hasValidationStatus, validationStatusOf, verificationStatusOf } from "./status.js";
+import { hasValidationStatus, validationOf, verificationStatusOf } from "./status.js";
 import type { ViewHolder, WorkspaceStatus } from "./verification.js";
 
 type Entry = BaselineGetOutput["elements"][number];
 
 /** The evidence fields of an entry of `baseline.get`. */
-export type BaselineEvidence = Pick<Entry, "verification" | "validation" | "validationLater">;
+export type BaselineEvidence = Pick<
+  Entry,
+  "verification" | "validation" | "validationReason" | "validationLater"
+>;
 
 /** The key of the view a record holds in: its variant, none for the core. */
 type ViewKey = string | undefined;
@@ -47,6 +50,18 @@ const push = (groups: Map<ViewKey, EvidenceRecord[]>, key: ViewKey, record: Evid
 };
 
 const NONE: readonly EvidenceRecord[] = Object.freeze([]);
+
+/** `validation` and `validationReason` of an entry from the counting validation records, or nothing. */
+const validationFields = (
+  validating: readonly EvidenceRecord[] | undefined,
+  version: string,
+): Pick<BaselineEvidence, "validation" | "validationReason"> => {
+  if (validating === undefined) {
+    return {};
+  }
+  const { status, reason } = validationOf(validating, version);
+  return { validation: status, ...(reason === undefined ? {} : { validationReason: reason }) };
+};
 
 /**
  * The evidence of an entry at its `version` in a baseline (see the file comment): `views` are the
@@ -71,7 +86,7 @@ export const baselineEvidence =
     for (const record of records) {
       const counted = counts(record.date);
       if (record.kind === "validation") {
-        // Only the records of the core count (D-026, `validationStatusOf`); so are the later ones.
+        // Only the records of the core count (D-026, `validationOf`); so are the later ones.
         if (record.variant !== undefined) {
           continue;
         }
@@ -106,7 +121,7 @@ export const baselineEvidence =
       : undefined;
     return {
       ...(verification === undefined ? {} : { verification }),
-      ...(validation ? { validation: validationStatusOf(validating, version) } : {}),
+      ...validationFields(validation ? validating : undefined, version),
       ...(validation && validationLater.length > 0 ? { validationLater } : {}),
     };
   };

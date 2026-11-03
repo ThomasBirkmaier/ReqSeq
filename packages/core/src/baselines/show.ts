@@ -21,7 +21,7 @@
 //   old version is never read: Git shows it (D-033, `baseline.compare`).
 // - With `withEvidence` the command passes how to compute the evidence of an entry (SR-094,
 //   `commands/baseline/get.ts`: the evidence block lies above this one): its verification rows per
-//   view and its validation status, asked for the page only. `names` names the variants of the rows.
+//   view and its validation status (with the reason of an inconclusive one, SR-172), asked for the page only. `names` names the variants of the rows.
 import type { CommandOutput } from "../catalog.js";
 import type { Problem } from "../generated/types.js";
 import type { ElementRecord, ElementStore } from "../model/index.js";
@@ -58,7 +58,7 @@ export interface ShowRequest {
   readonly evidence?: (
     record: ElementRecord,
     version: string,
-  ) => Pick<Row, "verification" | "validation" | "validationLater">;
+  ) => Pick<Row, "verification" | "validation" | "validationReason" | "validationLater">;
 }
 
 /** A `baseline.invalid` warning of the file of `baseline`. */

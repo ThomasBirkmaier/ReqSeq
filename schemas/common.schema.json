@@ -414,8 +414,8 @@
       "enum": ["open", "verified", "indirect", "failed", "outdated"]
     },
     "validationStatus": {
-      "description": "offen, erfolgreich, nicht erfolgreich, veraltet.",
-      "enum": ["open", "validated", "failed", "outdated"]
+      "description": "offen, erfolgreich, nicht erfolgreich, veraltet, nicht beurteilbar (SR-172).",
+      "enum": ["open", "validated", "failed", "outdated", "inconclusive"]
     },
     "reqifObject": {
       "description": "An object of a ReqIF file by its IDENTIFIER in the source, with the UUID of its element when there is one (ADR-0013).",

@@ -421,10 +421,10 @@ export type View = ElementRef;
 export type VerificationStatus = "open" | "verified" | "indirect" | "failed" | "outdated";
 
 /**
- * offen, erfolgreich, nicht erfolgreich, veraltet.
+ * offen, erfolgreich, nicht erfolgreich, veraltet, nicht beurteilbar (SR-172).
  * Schema: `schemas/common.schema.json#/$defs/validationStatus`.
  */
-export type ValidationStatus = "open" | "validated" | "failed" | "outdated";
+export type ValidationStatus = "open" | "validated" | "failed" | "outdated" | "inconclusive";
 
 /**
  * An object of a ReqIF file by its IDENTIFIER in the source, with the UUID of its element when there is one (ADR-0013).
@@ -548,8 +548,10 @@ export interface DataExportElement {
   readonly relations: readonly DataExportRelation[];
   /** Verification status, one entry per view the requirement is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it (SR-047 AK3). */
   readonly verification?: readonly DataExportVerificationEntry[];
-  /** SR-038: the Validierungsstatus from the validation records of the core (no `variant`) against the element's current version; the newest record of that version decides, only records of older versions give `outdated`. Given for every element whose type has the meaning `need` (`open` without record) and for every other element with a validation record; left out otherwise (assumption, spec question #534). Never inherited from children; never the element's `status` (D-030). */
+  /** SR-038: the Validierungsstatus from the validation records of the core (no `variant`) against the element's current version; the newest record of that version decides, only records of older versions give `outdated`. Given for every element whose type has the meaning `need` (`open` without record) and for every other element with a validation record; left out otherwise (assumption, spec question #534). Never inherited from children; never the element's `status` (D-030). `inconclusive` when that record is inconclusive (SR-172 AK2); on a tie at the newest date `failed` before `inconclusive` before `validated` (assumption, spec question #807). */
   readonly validation?: ValidationStatus;
+  /** SR-172 AK2: the `reason` of the inconclusive record that decides `validation`; given exactly when `validation` is `inconclusive`. */
+  readonly validationReason?: string;
   readonly problems?: readonly Problem[];
 }
 
@@ -596,8 +598,10 @@ export interface DataExportLine {
   readonly relations: readonly DataExportRelation[];
   /** Verification status, one entry per view the requirement is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it (SR-047 AK3). */
   readonly verification?: readonly DataExportVerificationEntry[];
-  /** SR-038: the Validierungsstatus from the validation records of the core (no `variant`) against the element's current version; the newest record of that version decides, only records of older versions give `outdated`. Given for every element whose type has the meaning `need` (`open` without record) and for every other element with a validation record; left out otherwise (assumption, spec question #534). Never inherited from children; never the element's `status` (D-030). */
+  /** SR-038: the Validierungsstatus from the validation records of the core (no `variant`) against the element's current version; the newest record of that version decides, only records of older versions give `outdated`. Given for every element whose type has the meaning `need` (`open` without record) and for every other element with a validation record; left out otherwise (assumption, spec question #534). Never inherited from children; never the element's `status` (D-030). `inconclusive` when that record is inconclusive (SR-172 AK2); on a tie at the newest date `failed` before `inconclusive` before `validated` (assumption, spec question #807). */
   readonly validation?: ValidationStatus;
+  /** SR-172 AK2: the `reason` of the inconclusive record that decides `validation`; given exactly when `validation` is `inconclusive`. */
+  readonly validationReason?: string;
   readonly problems?: readonly Problem[];
   readonly "reqseq-data": 3;
   /** As `commit` of the JSON form. */
@@ -649,8 +653,10 @@ export interface DataExportElementFields {
   readonly relations: readonly DataExportRelation[];
   /** Verification status, one entry per view the requirement is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it (SR-047 AK3). */
   readonly verification?: readonly DataExportVerificationEntry[];
-  /** SR-038: the Validierungsstatus from the validation records of the core (no `variant`) against the element's current version; the newest record of that version decides, only records of older versions give `outdated`. Given for every element whose type has the meaning `need` (`open` without record) and for every other element with a validation record; left out otherwise (assumption, spec question #534). Never inherited from children; never the element's `status` (D-030). */
+  /** SR-038: the Validierungsstatus from the validation records of the core (no `variant`) against the element's current version; the newest record of that version decides, only records of older versions give `outdated`. Given for every element whose type has the meaning `need` (`open` without record) and for every other element with a validation record; left out otherwise (assumption, spec question #534). Never inherited from children; never the element's `status` (D-030). `inconclusive` when that record is inconclusive (SR-172 AK2); on a tie at the newest date `failed` before `inconclusive` before `validated` (assumption, spec question #807). */
   readonly validation?: ValidationStatus;
+  /** SR-172 AK2: the `reason` of the inconclusive record that decides `validation`; given exactly when `validation` is `inconclusive`. */
+  readonly validationReason?: string;
   readonly problems?: readonly Problem[];
   readonly [key: string]: unknown;
 }
@@ -697,7 +703,10 @@ export interface DataExportEvidenceRecord {
   readonly variant?: Uuid;
   /** Prüfling. Required for verification, optional for validation (D-007). */
   readonly item?: string;
-  readonly result: "passed" | "failed";
+  /** `inconclusive` (nicht beurteilbar): validation only, with `reason` (SR-172). */
+  readonly result: "passed" | "failed" | "inconclusive";
+  /** Begründung of an `inconclusive` validation record (SR-172); given exactly with that result. */
+  readonly reason?: string;
   readonly date: IsoDateTime;
   /** Where the Beleg is: relative path, file URL or any URI. */
   readonly evidence?: string;
@@ -823,7 +832,10 @@ export interface EvidenceRecordFile {
   readonly variant?: Uuid;
   /** Prüfling: the concrete build or sample that was checked. Required for verification, optional for validation (D-007). */
   readonly item?: string;
-  readonly result: "passed" | "failed";
+  /** `inconclusive` (nicht beurteilbar): validation only, with `reason` (SR-172). */
+  readonly result: "passed" | "failed" | "inconclusive";
+  /** Begründung of an `inconclusive` validation, at least one character that is not white space; required with `inconclusive` and only there (SR-172 AK1). A reader warns about it on another result and reads the record without it (spec question #807). */
+  readonly reason?: string;
   readonly date: IsoDateTime;
   /** Where the Beleg is: relative path, file URL or any URI. ReqSeq does not open or manage it. */
   readonly evidence?: string;
@@ -2575,7 +2587,10 @@ export interface EvidenceRecordInput {
   readonly kind: "verification" | "validation";
   /** Required for verification. */
   readonly method?: "test" | "analysis" | "inspection" | "demonstration";
-  readonly result: "passed" | "failed";
+  /** `inconclusive` (nicht beurteilbar) for a validation only, with `reason` (SR-172 AK1): without `reason` it is `input.invalid` naming `reason`, for a verification `input.invalid` naming `result`. */
+  readonly result: "passed" | "failed" | "inconclusive";
+  /** Why the validation is inconclusive (Begründung, SR-172): required with the result `inconclusive` and refused with any other (`input.invalid` naming `reason`). At least one character that is not white space, no control characters other than tab, line feed and carriage return. */
+  readonly reason?: string;
   /** The item under test (Prüfling), for example the build or sample. Required for verification. No white space at either end and no control characters other than tab, line feed and carriage return. */
   readonly item?: Item;
   /** A variant the element applies in (an element whose type has the meaning variant); the record holds for it. Absent: the core. Verification only: a variant with `kind` validation is `input.invalid` with `details.reason` `validation-with-variant` (SR-038 AK4, D-007). `core` names no variant and is `input.invalid` with `details.reason` `core-is-no-variant`; leave `variant` out for the core. A variant the element is not in is `input.invalid` with `details.reason` `not-valid-in-variant`, or `excluded-in-variant` or `replaced-in-variant` when the variant excludes or replaces the requirement (SR-047 AK4). */
@@ -2958,6 +2973,8 @@ export interface BaselineGetOutput {
     }[];
     /** With withEvidence, for entries of the file (not added or missing) of a type with the meaning need and for any other with a validation record (SR-038, SR-094 AK7): the status at the baseline version from the validation records that count for the baseline, without view. Open without such records. */
     readonly validation?: ValidationStatus;
+    /** With validation `inconclusive`: the `reason` of the record that decides it (SR-172 AK2). */
+    readonly validationReason?: string;
     /** With validation: the validation records of the baseline version dated after the baseline, newest first; they do not count (AK2). Left out when there is none. */
     readonly validationLater?: readonly DataExportEvidenceRecord[];
   }[];

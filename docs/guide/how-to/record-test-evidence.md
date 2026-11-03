@@ -123,6 +123,12 @@ For a check that is no automated test, such as an inspection, write a record by 
 reqseq evidence record SR-c67baa verification passed --method inspection --item build-1
 ```
 
+A validation that cannot be judged yet is recorded as `inconclusive`, with the reason, which `evidence status` and `element get` then show:
+
+```sh
+reqseq evidence record SR-c67baa validation inconclusive --reason "The field test needs a winter with frost"
+```
+
 ## API
 
 With `reqseq serve api` running in the workspace, and the token of `api.json` as `Authorization: Bearer <token>`:

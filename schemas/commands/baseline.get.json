@@ -140,6 +140,10 @@
               "$ref": "../common.schema.json#/$defs/validationStatus",
               "description": "With withEvidence, for entries of the file (not added or missing) of a type with the meaning need and for any other with a validation record (SR-038, SR-094 AK7): the status at the baseline version from the validation records that count for the baseline, without view. Open without such records."
             },
+            "validationReason": {
+              "type": "string",
+              "description": "With validation `inconclusive`: the `reason` of the record that decides it (SR-172 AK2)."
+            },
             "validationLater": {
               "type": "array",
               "description": "With validation: the validation records of the baseline version dated after the baseline, newest first; they do not count (AK2). Left out when there is none.",
