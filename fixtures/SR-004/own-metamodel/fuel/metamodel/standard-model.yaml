@@ -104,6 +104,9 @@ properties:
     description: "Who has the need."
     kind: text
     content: true
+  # D-071 names only the two properties of need. Marked "assumption" (#769): priority a choice of
+  # high, medium and low that does not count, validation criteria a list that counts to the version
+  # like the acceptance criteria, no Markdown.
   - key: priority
     name: Priority
     description: "How important the need is to its stakeholders."
