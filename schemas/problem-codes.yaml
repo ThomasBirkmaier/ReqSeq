@@ -208,7 +208,7 @@ errors:
     remedy: Give the full UUID of the element meant, or for copies of a file its repository or file, as the candidates in the error's details show.
   workspace.not-found:
     cause: The folder has no `reqseq-workspace.yaml`, and no folder above it has one.
-    remedy: Run the command inside a workspace, give `--workspace`, or create one with `workspace.init`.
+    remedy: Run the command inside a workspace, give `--workspace` (the message names a workspace one level below), or create one with `workspace.init`.
   workspace.read-only:
     cause: The workspace is read-only because its metamodel is missing or faulty, so the command changes no file.
     remedy: Fix the metamodel files and open the workspace again.
