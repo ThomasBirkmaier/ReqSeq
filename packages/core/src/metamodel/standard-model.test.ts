@@ -91,12 +91,15 @@ describe("standard model", () => {
     // Validity"; D-059: "zusätzlich die Properties Package, Emergent, Verification Method und
     // Statement sowie für die Herkunft Source, Source Identifier, Import Date, Delivery und Import
     // Version"; D-060: "Das Standardmodell enthält zusätzlich zu D-037 die Property Topic (Schlüssel
-    // `topic`)".
+    // `topic`)"; D-071: "am Typ Need die Properties Priority (Schlüssel `priority`) und Validation
+    // Criteria (Schlüssel `validation-criteria`)".
     // Status is the structural key `status` of every element (D-012), its values are the statuses.
     expect(pairs(metamodel.properties)).toEqual([
       ["title", "Title"],
       ["rationale", "Rationale"],
       ["requirement-type", "Requirement Type"],
+      ["priority", "Priority"],
+      ["validation-criteria", "Validation Criteria"],
       ["acceptance-criteria", "Acceptance Criteria"],
       ["validity", "Validity"],
       ["packages", "Package"],
@@ -225,9 +228,12 @@ describe("standard model", () => {
     }
     // Flags that D-012 also fixes: the content flag (D-013, D-057; #129 option 1) and the invalid status (D-044).
     // D-057: "Im Standardmodell zählen Acceptance Criteria, Requirement Type und Validity; Title, Status,
-    // Package, Rationale, Emergent und die Herkunft zählen nicht."
+    // Package, Rationale, Emergent und die Herkunft zählen nicht." D-071 leaves it open for its two
+    // properties; assumed (#769): the validation criteria count like the acceptance criteria, the
+    // priority does not.
     expect(metamodel.properties.filter((p) => p.content === true).map((p) => p.key)).toEqual([
       "requirement-type",
+      "validation-criteria",
       "acceptance-criteria",
       "validity",
     ]);

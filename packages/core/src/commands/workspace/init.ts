@@ -1,5 +1,5 @@
 // workspace.init (SR-014): create a workspace with the shipped standard model as its metamodel in
-// an existing folder, then open it once and return its problems (none for a new standard
+// a folder (created when only it is missing, #637), then open it once and return its problems (none for a new standard
 // workspace; an own metamodel repository that is not there yet shows up here, SR-018).
 import fs from "node:fs/promises";
 import path from "node:path";

@@ -112,7 +112,12 @@ describe("reqseq trace matrix with evidence (SR-126)", () => {
   it("[SR-126/AK1] reqseq trace matrix prints the verification status after each requirement", async () => {
     const result = await matrix(SR);
     expect([result.code, result.stderr]).toEqual([0, ""]);
-    expect(result.stdout).toContain(`${ROWS}\ntotal: 10\n`);
+    // Each row line is followed by its cells (#629), indented below it.
+    const rowLines = result.stdout
+      .split("\n")
+      .filter((line) => !line.startsWith("    1:"))
+      .join("\n");
+    expect(rowLines).toContain(`${ROWS}\ntotal: 10\n`);
   });
 
   it("[SR-126/AK2] reqseq trace matrix --json marks the cells read from record files", async () => {
