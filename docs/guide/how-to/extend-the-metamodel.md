@@ -11,7 +11,7 @@ This page adds the type `component`, a property `component-id` with the meaning 
 
 ## Which properties count to the version
 
-Set `content: true` on every property whose change must give the element a new version, so that its evidence and the relations pointing to it become outdated. The version is computed from the text, the embedded images and the properties marked this way only. A property without `content: true`, such as the definition of a glossary term or a validation criterion in a type of your own, changes no version when its value changes, and two elements with the same text and the same marked values have the same version. The element text always counts. In the standard model, acceptance criteria, requirement type and validity count; title, status, package, rationale and statement do not. The statement is the supplier's statement on an imported requirement (exported with `reqif export --statements`), not the requirement itself: write the requirement into the text. `workspace check` warns about a requirement with a statement but no text (`element.statement-without-text`).
+Set `content: true` on every property whose change must give the element a new version, so that its evidence and the relations pointing to it become outdated. The version is computed from the text, the embedded images and the properties marked this way only. A property without `content: true`, such as the definition of a glossary term or an internal note in a type of your own, changes no version when its value changes, and two elements with the same text and the same marked values have the same version. The element text always counts. In the standard model, acceptance criteria, requirement type, validity and the validation criteria of a need count; title, status, package, rationale, priority and statement do not. The statement is the supplier's statement on an imported requirement (exported with `reqif export --statements`), not the requirement itself: write the requirement into the text. `workspace check` warns about a requirement with a statement but no text (`element.statement-without-text`).
 
 ```yaml title="metamodel/glossary.yaml"
 reqseq-metamodel: 1
@@ -118,6 +118,25 @@ relations:
 ```
 
 A requirement with `decided-by` then has the decision as its parent in `trace chain`, and `workspace check` no longer reports it.
+
+### Limit the number of relations
+
+A relation kind can say how many relations of it an element may or must have to elements of a type, with `limits`: each entry names a `target-type`, at least one of `min` and `max`, and optionally a `source-type` (without it, the limit applies to the kind's `source-types`, or to every type when the kind has none; with it, only to the types the kind's `source-types` also allow). Subtypes count on both sides. For example, a system requirement realizes at most one component and at least one need:
+
+```yaml title="metamodel/limits.yaml"
+reqseq-metamodel: 1
+relations:
+  - key: realizes
+    name: Realizes
+    inverse-name: Realized by
+    source-types: [system-requirement]
+    target-types: [need, component]
+    limits:
+      - { target-type: component, max: 1 }
+      - { source-type: system-requirement, target-type: need, min: 1 }
+```
+
+`workspace check` and `hint list` then report an element with more relations than `max` (`relation.too-many`) or fewer than `min` (`relation.too-few`) as a hint with the element, the relation kind, the target type, the count and the limit. `element get` shows the hints of the element too. Nothing is refused: `relation add` saves a relation over the limit and returns the `relation.too-many` hint. Only relations whose target is found count, and while a target lies in a repository that is not on this machine, no `relation.too-few` is given. A relation kind without `limits` allows any number, also none.
 
 ## API
 

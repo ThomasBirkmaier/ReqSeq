@@ -7,13 +7,22 @@
 //   identifier next to the short ID when it has one (`SR-3c90b0 (SR-036)`, #305), `[emergent]` when it
 //   is marked emergent (SR-035), and its verification status per view at the end, apart from its own
 //   status (`[verification: core verified]`, SR-031, D-030; the children missing for SR-034 as
-//   `core open (missing SR-0000b2)`), then its validation status (`[validation: validated]`, SR-038);
+//   `core open (missing SR-0000b2)`), then its validation status (`[validation: validated]`, SR-038;
+//   an inconclusive one with its reason on one line, `[validation: inconclusive — <reason>]`, SR-172);
 //   a list of them one such line per element. A read command (element.get) shows the element's details
 //   below its line, a write command only the line; there, a property whose value is a list of texts
 //   numbers its items from 1 (`1: ...`), as tests name acceptance criteria (#401).
 // - A chain (`nodes` with `depth`, and `edges`) is an indented tree per direction with the depth in
 //   front, its gaps, cycles and the edges to an element listed elsewhere marked. Its `evidence` is
-//   indented below the element it belongs to (`evidenceLines`).
+//   indented below the element it belongs to (`evidenceLines`). An element reached by a relation
+//   whose meaning is not `derivation` names its kind (`[has-stakeholder]`), and a direction with such
+//   an element is headed `upward:` or `downward:` instead of `parents:` or `children:` (#643).
+// - A list of evidence records (`kind`, `date`, `result`, the reason of an inconclusive one) is one line per record, a list of test cases
+//   (`name`, `executions`) one line per test case with its last result and the number of executions
+//   (evidence.list, #275); `--json` and `--yaml` keep every execution.
+// - A matrix (`columns` with `name` and `direction`, `rows` of elements with one cell per column) lists
+//   its columns numbered, then per row the element line and one line of cells, `n: SHORT-ID, ...`,
+//   `–` for an empty cell (trace.matrix, #629).
 // - A list of elements with a `tree` of their places (`depth`, `parent`; one per element, element.list
 //   by hierarchy, SR-075 AK2) is indented two spaces per level; an element whose parent is not shown
 //   before it (on an earlier page) names it, `[under X]`.
@@ -26,7 +35,8 @@
 //   #588) is not printed: those UUIDs print as the element instead, `SHORT-ID (IDENTIFIER)  title` in a
 //   value printed as YAML (the lists of evidence.coverage, a variant `view`, the details of an element) and in a list of UUIDs one per
 //   line (the lists of variant.diff), `SHORT-ID (IDENTIFIER)` in
-//   the verification status of an element line. A UUID that `names` leaves out stays as it is.
+//   the verification status of an element line, and `SHORT-ID  title` as the variant of a record of a
+//   chain (#676). A UUID that `names` leaves out stays as it is.
 // - Every other value stays YAML. Problems come last, each once: those of the output and the hints
 //   at an element it shows; then `No problems.`, or how many findings the output left out (`hidden`).
 import { degreePercent, degreeShareOf } from "@reqseq/core";
@@ -39,6 +49,20 @@ const isRecord = (value: unknown): value is Rec =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
 const text = (value: unknown): string => (typeof value === "string" ? value : "");
+
+/** The longest reason a line shows; a longer one ends in `…` (`--json` and `--yaml` keep it whole). */
+const REASON_LENGTH = 120;
+
+/**
+ * A reason (SR-172) on one line: each run of white space and control characters one space, cut to
+ * `REASON_LENGTH` characters.
+ */
+const reasonText = (value: unknown): string => {
+  const line = text(value)
+    .replace(/[\s\p{Cc}]+/gu, " ")
+    .trim();
+  return line.length > REASON_LENGTH ? `${line.slice(0, REASON_LENGTH - 1)}…` : line;
+};
 
 /** The parts that are not empty, two spaces apart. */
 const join = (...parts: readonly string[]): string => parts.filter((part) => part !== "").join("  ");
@@ -111,6 +135,12 @@ const namesIn = (output: Rec): Names => {
 /** A named element in a line: `SHORT-ID (IDENTIFIER)  title`. */
 const nameText = (name: Rec & { readonly shortId: string; readonly title: string }): string =>
   join(withIdentifier(name.shortId, name["identifier"]), name.title);
+
+/** A variant of a record by `nameText` when `names` has it, else its UUID (#676). */
+const variantName = (id: string, names: Names): string => {
+  const name = names.get(id);
+  return name === undefined ? id : nameText(name);
+};
 
 /** `value` with every string that is a UUID of `names` as the element it names (`nameText`), in objects and lists. */
 const withNames = (value: unknown, names: Names): unknown => {
@@ -191,10 +221,14 @@ const verificationText = (element: Rec, view: ViewNamer): string => {
   return entries.length === 0 ? "" : `[verification: ${entries.map(entryText).join(", ")}]`;
 };
 
-/** The validation status of an element (SR-038), apart from its verification status: `[validation: validated]`. */
+/**
+ * The validation status of an element (SR-038), apart from its verification status: `[validation: validated]`,
+ * `[validation: inconclusive — <reason>]` with the reason of an inconclusive one (SR-172 AK2).
+ */
 const validationText = (element: Rec): string => {
   const validation = text(element["validation"]);
-  return validation === "" ? "" : `[validation: ${validation}]`;
+  const reason = reasonText(element["validationReason"]);
+  return validation === "" ? "" : `[validation: ${validation}${reason === "" ? "" : ` — ${reason}`}]`;
 };
 
 /** `[emergent]` for an element marked emergent (SR-035), next to the `open` it explains; else nothing. */
@@ -264,6 +298,7 @@ const elementDetails = (element: Rec, names: Names): string[] => {
     problems: _problems,
     verification: _verification,
     validation: _validation,
+    validationReason: _validationReason,
     emergent: _emergent,
     repository,
     file,
@@ -336,6 +371,12 @@ const valueLines = (
     if (value.every(isProblem)) {
       return [`${key}:`, ...indent(value.map(findingLine))];
     }
+    if (value.every(isEvidenceRecord)) {
+      return [`${key}:`, ...indent(value.map(listedRecordLine))];
+    }
+    if (value.every(isTestCase)) {
+      return [`${key}:`, ...indent(value.map(testCaseLine))];
+    }
     if (value.every((item) => typeof item === "string")) {
       return [`${key}:`, ...indent(value.map((item) => text(withNames(item, names))))];
     }
@@ -361,6 +402,17 @@ interface ChainEdge extends Rec {
   readonly direction: string;
   readonly cyclic: boolean;
 }
+
+/**
+ * How a trace.neighbourhood edge (one with `link`) relates when its meaning is not `derivation`: the
+ * relation kind, else the link (`reference`); "" for a derivation and for an edge of trace.chain (#643).
+ */
+const otherKindOf = (edge: ChainEdge): string => {
+  if (typeof edge["link"] !== "string" || edge["meaning"] === "derivation") {
+    return "";
+  }
+  return typeof edge["kind"] === "string" ? edge["kind"] : edge["link"];
+};
 
 /** What the tree of a chain reads (`trace.chain`); gaps and unresolved derivations are read loosely. */
 interface Chain extends Rec {
@@ -467,15 +519,23 @@ const mark = (marks: Marks, key: string, text: string): void => {
   marks.set(key, [...(marks.get(key) ?? []), text]);
 };
 
+/**
+ * The mark of a gap: `[gap: no evidence]`; a requirement the view does not hold is no gap (#674):
+ * `[not in view, holds in core, VAR-x]`, the variants by short ID when `names` has them.
+ */
+const gapMark = (gap: Rec, names: Names): string => {
+  if (gap["kind"] !== "not-in-view") {
+    return `[gap: ${text(gap["kind"]).replaceAll("-", " ")}]`;
+  }
+  const views = listOf(gap["views"]).map((view) => names.get(text(view))?.shortId ?? text(view));
+  return `[not in view${views.length === 0 ? ", holds in no view" : `, holds in ${views.join(", ")}`}]`;
+};
+
 /** The marks of the gaps of each element of the chain, by `nodeKey("", repository, id)`. */
-const gapMarks = (chain: Chain): Marks => {
+const gapMarks = (chain: Chain, names: Names): Marks => {
   const gaps: Marks = new Map();
   for (const gap of listOf(chain["gaps"]).filter(isRecord)) {
-    mark(
-      gaps,
-      nodeKey("", text(gap["repository"]), text(gap["id"])),
-      `[gap: ${text(gap["kind"]).replace("-", " ")}]`,
-    );
+    mark(gaps, nodeKey("", text(gap["repository"]), text(gap["id"])), gapMark(gap, names));
   }
   return gaps;
 };
@@ -498,16 +558,57 @@ const belegOf = (record: Rec): string => {
   return `${text(record["repository"])}/${text(record["file"])}${typeof line === "number" ? `:${String(line)}` : ""}`;
 };
 
-/** A record as one line: date, method (`withMethod`), result, item, Beleg and variant. */
-const recordLine = (record: Rec, withMethod: boolean): string =>
+/**
+ * A record as one line: date, method (`withMethod`), result, the reason of an inconclusive one (SR-172),
+ * item, Beleg and variant, the variant by
+ * its short ID when `names` has it (#676).
+ */
+const recordLine = (record: Rec, withMethod: boolean, names: Names): string =>
   join(
     text(record["date"]),
     withMethod ? text(record["method"]) : "",
     text(record["result"]),
+    reasonText(record["reason"]),
     text(record["item"]),
     belegOf(record),
-    text(record["variant"]) === "" ? "" : `[variant ${text(record["variant"])}]`,
+    text(record["variant"]) === "" ? "" : `[variant ${variantName(text(record["variant"]), names)}]`,
   );
+
+/** An evidence record (`data-export.schema.json#/$defs/evidenceRecord`), as far as a line reads it. */
+const isEvidenceRecord = (value: unknown): value is Rec =>
+  isRecord(value) && ["kind", "date", "result"].every((key) => typeof value[key] === "string");
+
+/** A test case with its executions (`data-export.schema.json#/$defs/testCase`). */
+const isTestCase = (value: unknown): value is Rec =>
+  isRecord(value) && typeof value["name"] === "string" && Array.isArray(value["executions"]);
+
+/**
+ * A record of a list of records (evidence.list, trace.affected, #275): `recordLine`, its kind when it
+ * is no verification, the version it was recorded against and the baselines that hold that version.
+ */
+const listedRecordLine = (record: Rec): string => {
+  const baselines = listOf(record["baselines"]).map(text);
+  return join(
+    record["kind"] === "verification" ? "" : text(record["kind"]),
+    recordLine(record, true, new Map()),
+    text(record["version"]) === "" ? "" : `[version ${text(record["version"])}]`,
+    baselines.length === 0 ? "" : `[baselines: ${baselines.join(", ")}]`,
+  );
+};
+
+/** A test case of a list as one line (#275): its name, then its last result and date and the number of executions. */
+const testCaseLine = (test: Rec): string => {
+  const className = text(test["className"]);
+  const name = className === "" ? text(test["name"]) : `${className} › ${text(test["name"])}`;
+  const last = test["last"];
+  const executions = listOf(test["executions"]).length;
+  return join(
+    name,
+    isRecord(last) ? `last: ${join(text(last["result"]), text(last["date"]))}` : "",
+    test["executed"] === false ? "[not executed]" : "",
+    `executions: ${String(executions)}`,
+  );
+};
 
 /**
  * The evidence below an element of a chain (SR-033): per test case `test case  CLASS › NAME`, marked
@@ -515,18 +616,18 @@ const recordLine = (record: Rec, withMethod: boolean): string =>
  * item, Beleg); then one line per record without a test case, `record  DATE  METHOD  RESULT  ITEM
  * BELEG`. `item` gives the lines of the test cases and records, `under` those of the executions.
  */
-const evidenceLines = (item: Rec, at: string, under: string): string[] => {
+const evidenceLines = (item: Rec, at: string, under: string, names: Names): string[] => {
   const lines: string[] = [];
   for (const test of listOf(item["testCases"]).filter(isRecord)) {
     const className = text(test["className"]);
     const name = className === "" ? text(test["name"]) : `${className} › ${text(test["name"])}`;
     lines.push(`${at}${join("test case", name, test["executed"] === false ? "[not executed]" : "")}`);
     for (const execution of listOf(test["executions"]).filter(isRecord)) {
-      lines.push(`${under}${recordLine(execution, false)}`);
+      lines.push(`${under}${recordLine(execution, false, names)}`);
     }
   }
   for (const record of listOf(item["records"]).filter(isRecord)) {
-    lines.push(`${at}${join("record", recordLine(record, true))}`);
+    lines.push(`${at}${join("record", recordLine(record, true, names))}`);
   }
   return lines;
 };
@@ -541,7 +642,10 @@ const offPageMark = (first: boolean, cyclic: boolean, from: string): string =>
 
 /** The tree of a chain (see `treeOf`). */
 interface Tree {
-  readonly children: ReadonlyMap<string, readonly { readonly key: string; readonly node: ChainNode }[]>;
+  readonly children: ReadonlyMap<
+    string,
+    readonly { readonly key: string; readonly node: ChainNode; readonly kind: string }[]
+  >;
   /** References printed below the node an edge starts at (that node is on the page). */
   readonly references: ReadonlyMap<string, readonly string[]>;
   /** Marks on the node an edge leads to, for edges that start on another page. */
@@ -557,7 +661,10 @@ interface Tree {
  * `[also under X]`.
  */
 const treeOf = (chain: Chain, nodes: ReadonlyMap<string, ChainNode>, root: ChainNode | undefined): Tree => {
-  const children = new Map<string, { readonly key: string; readonly node: ChainNode }[]>();
+  const children = new Map<
+    string,
+    { readonly key: string; readonly node: ChainNode; readonly kind: string }[]
+  >();
   const references: Marks = new Map();
   const marks: Marks = new Map();
   const placed = new Set<string>();
@@ -582,7 +689,10 @@ const treeOf = (chain: Chain, nodes: ReadonlyMap<string, ChainNode>, root: Chain
       mark(marks, farKey, offPageMark(first, edge.cyclic, nearLabel));
     } else if (farNode !== undefined && !placed.has(farKey) && nearNode.depth === farNode.depth - 1) {
       placed.add(farKey);
-      children.set(nearKey, [...(children.get(nearKey) ?? []), { key: farKey, node: farNode }]);
+      children.set(nearKey, [
+        ...(children.get(nearKey) ?? []),
+        { key: farKey, node: farNode, kind: otherKindOf(edge) },
+      ]);
     } else {
       mark(references, nearKey, join(farLabel, edge.cyclic ? "[cycle]" : "[listed elsewhere]"));
     }
@@ -591,18 +701,19 @@ const treeOf = (chain: Chain, nodes: ReadonlyMap<string, ChainNode>, root: Chain
 };
 
 /** The chain as a tree per direction: the root, then `parents:` and `children:` (see the file comment). */
-const chainLines = (chain: Chain): string[] => {
+const chainLines = (chain: Chain, names: Names): string[] => {
   const width = String(Math.max(...chain.nodes.map((n) => n.depth), 0)).length;
-  const gaps = gapMarks(chain);
+  const gaps = gapMarks(chain, names);
   const keyOf = (node: ChainNode): string =>
     node.depth === 0 ? ROOT : nodeKey(text(node["direction"]), node.repository, node.id);
   const nodes = new Map(chain.nodes.map((node) => [keyOf(node), node]));
   const root = nodes.get(ROOT);
   const { children, references, marks, placed } = treeOf(chain, nodes, root);
   const evidence = evidenceByNode(chain);
-  const line = (node: ChainNode): string =>
+  const line = (node: ChainNode, kind = ""): string =>
     join(
       elementLine(node),
+      kind === "" ? "" : `[${kind}]`,
       ...(gaps.get(nodeKey("", node.repository, node.id)) ?? []),
       node["expanded"] === false ? "[not expanded]" : "",
       ...(marks.get(keyOf(node)) ?? []),
@@ -616,7 +727,7 @@ const chainLines = (chain: Chain): string[] => {
     const item = node["direction"] === "up" ? undefined : evidence.get(nodeKey("", node.repository, node.id));
     if (item !== undefined) {
       const at = prefix(node.depth + 1, level + 1);
-      lines.push(...evidenceLines(item, at, `${" ".repeat(at.length)}  `));
+      lines.push(...evidenceLines(item, at, `${" ".repeat(at.length)}  `, names));
     }
   };
   if (root !== undefined) {
@@ -624,7 +735,7 @@ const chainLines = (chain: Chain): string[] => {
   }
   const walk = (key: string, depth: number, level: number): void => {
     for (const child of children.get(key) ?? []) {
-      lines.push(`${prefix(child.node.depth, level + 1)}${line(child.node)}`);
+      lines.push(`${prefix(child.node.depth, level + 1)}${line(child.node, child.kind)}`);
       evidenceOf(child.node, level + 1);
       walk(child.key, child.node.depth, level + 1);
     }
@@ -632,13 +743,16 @@ const chainLines = (chain: Chain): string[] => {
       lines.push(`${prefix(depth + 1, level + 1)}${reference}`);
     }
   };
-  for (const [direction, label] of [
-    ["up", "parents:"],
-    ["down", "children:"],
+  for (const [direction, label, otherLabel] of [
+    ["up", "parents:", "upward:"],
+    ["down", "children:", "downward:"],
   ] as const) {
     const section = chain.nodes.filter((node) => node["direction"] === direction);
     if (section.length > 0) {
-      lines.push(label);
+      const derivedOnly = chain.edges.every(
+        (edge) => edge.direction !== direction || otherKindOf(edge) === "",
+      );
+      lines.push(derivedOnly ? label : otherLabel);
       walk(`${ROOT}/${direction}`, 0, 0);
       // Nodes whose parent is on another page: not nested, the parent named by `[under X]`.
       for (const node of section) {
@@ -655,6 +769,95 @@ const chainLines = (chain: Chain): string[] => {
     .filter(isRecord)
     .map((item) => `  ${unresolvedLine(item, chain)}`);
   return [...lines, ...(unresolved.length === 0 ? [] : ["unresolved:", ...unresolved])];
+};
+
+/** A column of a matrix (trace.matrix `columns`): a name and a direction. */
+const isMatrixColumn = (value: unknown): value is Rec =>
+  isRecord(value) && typeof value["name"] === "string" && typeof value["direction"] === "string";
+
+/** A matrix: `columns`, and `rows` of elements whose `cells` hold one list per column (#629). */
+const isMatrix = (output: Rec): boolean => {
+  const { columns, rows } = output;
+  return (
+    Array.isArray(columns) &&
+    columns.every(isMatrixColumn) &&
+    Array.isArray(rows) &&
+    rows.every(
+      (row) => isElement(row) && Array.isArray(row["cells"]) && row["cells"].length === columns.length,
+    )
+  );
+};
+
+/** A relation in a cell: the other end by short ID (else its UUID), `[outdated]` when it is. */
+const cellItem = (relation: unknown): string => {
+  if (!isRecord(relation)) {
+    return "";
+  }
+  const shortId = text(relation["shortId"]);
+  const state = text(relation["targetState"]);
+  return join(
+    shortId === "" ? text(relation["id"]) : withIdentifier(shortId, relation["identifier"]),
+    state === "" || state === "available" ? "" : `[${state}]`,
+    relation["outdated"] === true ? "[outdated]" : "",
+  );
+};
+
+/** The columns of a matrix (#629), numbered, with count and share. */
+const matrixColumnLines = (output: Rec): string[] => {
+  const columns = listOf(output["columns"]).filter(isRecord);
+  const lines = columns.length === 0 ? ["columns: none"] : ["columns:"];
+  for (const [index, column] of columns.entries()) {
+    const share = column["share"];
+    lines.push(
+      `  ${join(
+        `${String(index + 1)}:`,
+        text(column["name"]),
+        `(${text(column["kind"])}, ${text(column["direction"])})`,
+        typeof column["count"] === "number" ? String(column["count"]) : "",
+        typeof share === "number" ? degreePercent(share) : "",
+      )}`,
+    );
+  }
+  return lines;
+};
+
+/**
+ * The rows of a matrix (#629): per row its element line and one line of cells, `n: SHORT-ID, ...` per
+ * column, `–` for an empty cell, the target state when it is not available, and its test cases when
+ * the row has them (SR-126).
+ */
+const matrixRowLines = (output: Rec, names: Names): string[] => {
+  const rows = listOf(output["rows"]).filter(isElement);
+  if (rows.length === 0) {
+    return ["rows: none"];
+  }
+  const lines = ["rows:"];
+  const name = namerOf(rows);
+  const view = viewNamerOf(rows, names);
+  for (const row of rows) {
+    const depth = row["depth"];
+    lines.push(`  ${typeof depth === "number" ? "  ".repeat(depth) : ""}${elementLine(row, name, view)}`);
+    const cells = listOf(row["cells"]).map((cell, index) => {
+      const items = listOf(cell).map(cellItem);
+      return `${String(index + 1)}: ${items.length === 0 ? "–" : items.join(", ")}`;
+    });
+    const tests = row["testCases"];
+    const testText = Array.isArray(tests)
+      ? `tests: ${
+          tests.length === 0
+            ? "–"
+            : listOf(tests)
+                .filter(isRecord)
+                .map((t) => text(t["name"]))
+                .join(", ")
+        }`
+      : "";
+    const cellLine = join(...cells, testText);
+    if (cellLine !== "") {
+      lines.push(`    ${cellLine}`);
+    }
+  }
+  return lines;
 };
 
 /**
@@ -685,11 +888,22 @@ export function renderHuman(output: unknown, details = true): string {
   const lifted: unknown[] = [];
   const chain = isChain(rest);
   if (chain) {
-    lines.push(...chainLines(rest));
+    lines.push(...chainLines(rest, namesIn(rest)));
   }
   const shown = chain
     ? new Set(["root", "nodes", "edges", "gaps", "evidence", "unresolved"])
     : new Set<string>();
+  if (isMatrix(rest)) {
+    // The evidence header (the degree, SR-126 AK4) stands above the rows that hold the status.
+    lines.push(...matrixColumnLines(rest));
+    if (rest["evidence"] !== undefined) {
+      lines.push(...valueLines("evidence", rest["evidence"], details, lifted, namesIn(rest)));
+    }
+    lines.push(...matrixRowLines(rest, namesIn(rest)));
+    shown.add("columns");
+    shown.add("evidence");
+    shown.add("rows");
+  }
   const tree = rest["tree"];
   const treeList = Array.isArray(tree) ? treeListOf(listOf(rest["elements"]), tree) : undefined;
   if (treeList !== undefined) {

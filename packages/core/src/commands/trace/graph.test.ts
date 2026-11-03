@@ -290,7 +290,8 @@ describe("trace.graph (SR-111)", () => {
       ["C3", "component-requirement", "Convert turns to speed", ["no-evidence"]],
       ["E1", "decision", "Show values on the display", []],
       ["G1", "component-requirement", "Debounce the turn sensor", []],
-      ["GG1", "component-requirement", "Heat the turn sensor", ["no-evidence"]],
+      // GG1 holds only in V1: not in the core, so no evidence gap there (#674).
+      ["GG1", "component-requirement", "Heat the turn sensor", []],
     ]);
     expect(output.nodes.every((n) => n.shortId.length > 0 && n.file.endsWith(".md"))).toBe(true);
     expect(output.nodes.find((n) => n.id === ID.O1)?.status).toBe("obsolete");
@@ -371,7 +372,7 @@ describe("trace.graph (SR-111)", () => {
       );
     });
     const output = await graph(workspace, { ref: ID.S1, allLevels: true });
-    expect(marked(output, "no-evidence")).toEqual(["O1", "C2", "GG1"]);
+    expect(marked(output, "no-evidence")).toEqual(["O1", "C2"]);
     for (const view of [undefined, "core", ID.V1]) {
       const input = { ref: ID.S1, ...(view === undefined ? {} : { view }) };
       const shown = await graph(workspace, { ...input, allLevels: true });

@@ -10,7 +10,7 @@ import { launchApp } from "./support/app.js";
 
 /** JUnit runs with a skipped test case and an inspection record; its README lists the elements. */
 const FIXTURE = { fixture: "SR-126/matrix" };
-const TITLE = "List requirements without passed/no test";
+const TITLE = "List requirements without a passed test";
 
 const names = (window: Page) => window.locator('.candidates [role="option"] .name');
 const rows = (window: Page) => window.locator(".result .line.element");
@@ -48,16 +48,18 @@ test.describe("the requirements without a passed test in the app", () => {
     expect(await rows(window).locator(".text").allTextContents()).toEqual(
       listed.elements.map((e) => e.title),
     );
-    await expect(window.locator(".result")).toContainText("total5");
+    // The total is in the modeline, not among the lines (#276).
+    await expect(window.getByLabel("Modeline")).toContainText("5 in all");
+    await expect(window.locator(".result .label", { hasText: /^total$/ })).toHaveCount(0);
     // A row opens its element.
     await rows(window).first().click();
     await expect(window.locator("article h1")).toHaveText("Log wind speed");
   });
 
-  test("[SR-120/AK1] the prompt finds the command for the texts passed test and no test as well", async () => {
+  test("[SR-120/AK1] the prompt finds the command for the texts passed test and without test as well", async () => {
     const { window } = running;
     await expect(window.getByRole("listbox", { name: "Overview" })).toBeVisible();
-    for (const text of ["passed test", "no test"]) {
+    for (const text of ["passed test", "without test"]) {
       await window.keyboard.press("ControlOrMeta+Shift+P");
       await window.keyboard.type(text);
       await expect(names(window).first()).toHaveText(TITLE);

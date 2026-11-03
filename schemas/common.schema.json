@@ -240,6 +240,24 @@
         "hintId": {
           "type": "string",
           "description": "Stable ID of a confirmable hint (D-042); on the hint.* problems of hint.confirm, the ID as given."
+        },
+        "key": {
+          "$ref": "#/$defs/key",
+          "description": "The relation kind a count hint is about (`relation.too-many`, `relation.too-few`, SR-152)."
+        },
+        "targetType": {
+          "$ref": "#/$defs/key",
+          "description": "The target type of the limit a count hint is about (SR-152)."
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "How many relations the element has that the limit counts (SR-152)."
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "The maximum (`relation.too-many`) or minimum (`relation.too-few`) the metamodel sets (SR-152)."
         }
       },
       "additionalProperties": false
@@ -253,6 +271,7 @@
         "file.faulty",
         "file.yaml-warning",
         "file.skipped",
+        "file.stale-temp",
         "element.invalid",
         "element.duplicate-id",
         "element.duplicate-identifier",
@@ -264,11 +283,14 @@
         "element.status-not-allowed",
         "element.missing-status",
         "element.statement-without-text",
+        "element.text-emptied",
         "relation.missing-target",
         "relation.unresolved-link",
         "relation.not-a-link",
         "relation.inaccessible-target",
         "relation.not-allowed",
+        "relation.too-many",
+        "relation.too-few",
         "relation.outdated",
         "relation.target-superseded",
         "relation.not-found",
@@ -289,6 +311,7 @@
         "evidence.not-enriched",
         "evidence.folder-missing",
         "evidence.ambiguous-element",
+        "evidence.kind-mismatch",
         "baseline.invalid",
         "baseline.repository-commit-differs",
         "filter.invalid",
@@ -411,8 +434,8 @@
       "enum": ["open", "verified", "indirect", "failed", "outdated"]
     },
     "validationStatus": {
-      "description": "offen, erfolgreich, nicht erfolgreich, veraltet.",
-      "enum": ["open", "validated", "failed", "outdated"]
+      "description": "offen, erfolgreich, nicht erfolgreich, veraltet, nicht beurteilbar (SR-172).",
+      "enum": ["open", "validated", "failed", "outdated", "inconclusive"]
     },
     "reqifObject": {
       "description": "An object of a ReqIF file by its IDENTIFIER in the source, with the UUID of its element when there is one (ADR-0013).",

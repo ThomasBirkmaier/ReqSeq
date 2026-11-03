@@ -129,10 +129,10 @@ describe("validation status in element.get, element.resolve, evidence.status and
     expect(await where(ws, { validation: ["open"] })).toEqual([N4]);
   });
 
-  it("element.get of a validated need shows the hint of a newer record of an older version (SR-025 AK4)", async () => {
+  it("element.get of a validated need shows no outdated hint for a newer record of an older version (SR-025 AK4, #201)", async () => {
     const out = (await get(await open(), N6)).element;
     expect(out.validation).toBe("validated");
-    expect(out.problems?.map((p) => p.code)).toEqual(["evidence.outdated"]);
+    expect(out.problems?.map((p) => p.code) ?? []).not.toContain("evidence.outdated");
   });
 
   it("gives the status from records given through evidenceRecordsState too", async () => {
@@ -239,5 +239,49 @@ describe("validation status in element.get, element.resolve, evidence.status and
     await get(ws, N1);
     await status(ws, { selection: { ids: [N1, N2, N3] } });
     expect((await ws.get(verificationState)).versionBatches()).toBe(0);
+  });
+});
+
+describe("an inconclusive validation (SR-172) on fixtures/SR-172/inconclusive", () => {
+  const I = (tail: string): string => `17201720-1720-4720-8720-00000000${tail}`;
+  const INCONCLUSIVE: FixtureOptions = { fixture: "SR-172/inconclusive" };
+  const FROST = "The frost sensor was replaced; the field test starts again.";
+
+  it("[SR-172/AK2] element.get shows the status inconclusive and the reason of the newest record of the current version", async () => {
+    const ws = await open(INCONCLUSIVE);
+    expect((await get(ws, "N-00a003")).element).toMatchObject({
+      validation: "inconclusive",
+      validationReason: FROST,
+    });
+    const rain = (await get(ws, "N-00a002")).element;
+    expect([rain.validation, rain.validationReason]).toEqual(["validated", undefined]);
+  });
+
+  it("[SR-172/AK1] a hand-written inconclusive record without reason is refused when read and counts for no status", async () => {
+    const ws = await open(INCONCLUSIVE);
+    expect((await get(ws, "N-00a005")).element.validation).toBe("open");
+    const checked = (await invoke(
+      "workspace.check",
+      {},
+      { workspace: ws },
+    )) as CommandOutput<"workspace.check">;
+    expect(
+      checked.problems
+        .filter((p) => p.code === "evidence.invalid-record")
+        .map((p) => [p.severity, p.file, p.line, p.message]),
+    ).toEqual([
+      [
+        "error",
+        "evidence/2026-11-01-N-00a005-validation.md",
+        6,
+        "Invalid evidence record, not counted: /reason: a record with the result inconclusive needs a reason (SR-172 AK1)",
+      ],
+    ]);
+  });
+
+  it("the filter condition validation finds the inconclusive elements", async () => {
+    const ws = await open(INCONCLUSIVE);
+    expect(await where(ws, { validation: ["inconclusive"] })).toEqual([I("a001"), I("a003")]);
+    expect(await where(ws, { validation: ["outdated"] })).toEqual([I("a004")]);
   });
 });

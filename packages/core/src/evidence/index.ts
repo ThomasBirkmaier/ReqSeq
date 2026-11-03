@@ -36,10 +36,16 @@ export {
   holdsIn,
   recordStatusOf,
   statusSource,
-  validationStatusOf,
+  validationOf,
   verificationStatusOf,
 } from "./status.js";
-export type { RecordStatus, RecordVerificationStatus, StatusSource, VerificationEntries } from "./status.js";
+export type {
+  RecordStatus,
+  RecordVerificationStatus,
+  StatusSource,
+  Validation,
+  VerificationEntries,
+} from "./status.js";
 export {
   verificationOf,
   verificationState,

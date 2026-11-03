@@ -688,3 +688,72 @@ describe("evidence.record and the evidence state (S12, S1 of the plan review)", 
     ).toEqual({ records: [injected, written], skipped: [], problems: [other], incomplete: false });
   });
 });
+
+describe("evidence.record inconclusive validation (SR-172)", () => {
+  const INCONCLUSIVE = { ref: "N-00a001", kind: "validation", result: "inconclusive", date: DATE } as const;
+  const WHY = "The field test needs frost:\nnone so far";
+  const REQUIRED = "reason is required: a record with the result inconclusive needs a reason (SR-172 AK1)";
+
+  it("[SR-172/AK1] refuses an inconclusive validation without a reason, or with a blank one, naming reason, and writes nothing", async () => {
+    const { fixture, workspace } = await open();
+    const missing = await refusedLeavingNothing(fixture, () => record(workspace, INCONCLUSIVE));
+    expect([missing.message, missing.details]).toEqual([
+      `Invalid input for evidence.record: ${REQUIRED}`,
+      {
+        command: "evidence.record",
+        errors: [
+          {
+            path: "",
+            field: "reason",
+            keyword: "required",
+            message: REQUIRED,
+            params: { missingProperty: "reason" },
+          },
+        ],
+      },
+    ]);
+    const blank = await refusedLeavingNothing(fixture, () =>
+      record(workspace, { ...INCONCLUSIVE, reason: " \n\t" }),
+    );
+    expect(blank.details).toMatchObject({ errors: [{ path: "/reason", keyword: "pattern" }] });
+  });
+
+  it("[SR-172/AK1] writes an inconclusive validation with its reason after the result, and reads it back", async () => {
+    const { fixture, workspace } = await open();
+    const out = await record(workspace, { ...INCONCLUSIVE, reason: WHY });
+    expect(out.record).toMatchObject({ kind: "validation", result: "inconclusive", reason: WHY });
+    const file = out.files[0] ?? "";
+    const text = await fs.readFile(path.join(fixture.root, ...file.split("/")), "utf8");
+    expect(text).toMatch(/\nresult: inconclusive\nreason: [|"][\s\S]*\ndate: /);
+    expect(await invoke("element.get", { ref: "N-00a001" }, { workspace })).toMatchObject({
+      element: { validation: "inconclusive", validationReason: WHY },
+    });
+  });
+
+  it("refuses an inconclusive verification and a reason with another result, naming the field (#807 Q2, Q4)", async () => {
+    const { fixture, workspace } = await open();
+    const verification = await refusedLeavingNothing(fixture, () =>
+      record(workspace, { ...INSPECTION, ref: "SR-00c002", result: "inconclusive", reason: "no sample" }),
+    );
+    expect(verification.details).toMatchObject({
+      errors: [
+        {
+          field: "result",
+          message:
+            "result: only a validation record can be inconclusive, a verification record is passed or failed (SR-172)",
+        },
+      ],
+    });
+    const passed = await refusedLeavingNothing(fixture, () =>
+      record(workspace, { ...INCONCLUSIVE, result: "passed", reason: "fine" }),
+    );
+    expect(passed.details).toMatchObject({
+      errors: [
+        {
+          field: "reason",
+          message: "reason: only a record with the result inconclusive has a reason (SR-172)",
+        },
+      ],
+    });
+  });
+});

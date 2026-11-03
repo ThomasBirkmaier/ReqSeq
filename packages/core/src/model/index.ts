@@ -10,6 +10,7 @@ export {
   windowsChanges,
 } from "./discover.js";
 export { classifyFile, isUuid, keyLinesOf } from "./elements.js";
+export { evidenceFilesState, ownEvidenceWrite } from "./evidence-files.js";
 export { FILE_NAME_DIGITS, fileNameFor } from "./file-name.js";
 export type { FileNameParts } from "./file-name.js";
 export type { Classified, ElementMatch, ElementRecord } from "./elements.js";
@@ -59,6 +60,12 @@ export {
   relationTypeProblemsState,
 } from "./relation-types.js";
 export type { RelationTypeContext, RelationTypeFinding } from "./relation-types.js";
+export {
+  allRelationLimitFindings,
+  relationLimitFindings,
+  relationLimitProblemsState,
+} from "./relation-limits.js";
+export type { RelationLimitContext } from "./relation-limits.js";
 export {
   allMissingReferenceFindings,
   allMissingTargetFindings,

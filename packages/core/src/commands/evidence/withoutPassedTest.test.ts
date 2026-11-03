@@ -107,7 +107,7 @@ describe("evidence.withoutPassedTest (SR-120)", () => {
   it("is a read command the command prompt runs without asking: a title and no required input", async () => {
     const entry = getCommandRuntime().contracts.commands.find((c) => c.name === COMMAND);
     expect(entry?.effect).toBe("read");
-    expect(entry?.title).toBe("List requirements without passed/no test");
+    expect(entry?.title).toBe("List requirements without a passed test");
     expect((entry?.input as { required?: unknown }).required).toBeUndefined();
     expect(shortIds(await run(await open(), {}))).toEqual(LISTED);
   });

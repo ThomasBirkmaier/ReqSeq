@@ -17,6 +17,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 import type { RunCliOptions } from "./main.js";
 import { argvFor } from "./argv.js";
 import { EXIT, exitCodeFor, runCli, writePieces } from "./main.js";
+import { buildProgram } from "./program.js";
 import { YAML_OPTIONS } from "./render.js";
 import { stringify } from "yaml";
 
@@ -41,13 +42,20 @@ const catalog = {
         properties: {
           ref: { $ref: "../common.schema.json#/$defs/elementRef", description: "Element to echo." },
           name: { type: "string" },
-          count: { type: "integer", minimum: 0 },
+          count: {
+            type: "integer",
+            minimum: 0,
+            description: "At most maxDepth; the output `maxDepth`, not input.maxDepth.",
+          },
+          maxDepth: { type: "integer" },
           verbose: { type: "boolean" },
           version: { type: "string" },
           tags: { type: "array", items: { type: "string" } },
           checks: { type: "array", items: { type: "boolean" } },
           level: { enum: ["low", "high"], default: "low" },
           selection: { $ref: "../common.schema.json#/$defs/selection" },
+          sort: { type: "array", items: { $ref: "../filter.schema.json#/$defs/sortKey" } },
+          meta: { type: "object", properties: { a: { type: "string" } } },
           file: { $ref: "../common.schema.json#/$defs/localPath" },
           note: { type: ["string", "null"] },
           props: { type: "object", additionalProperties: {} },
@@ -233,7 +241,10 @@ describe("reqseq help and version", () => {
     expect(result.code).toBe(EXIT.ok);
     expect(result.stdout).toContain("Usage: reqseq test echo <ref> <name> [options]");
     expect(result.stdout).toMatch(/ref\s+Element to echo\./);
-    expect(result.stdout).toMatch(/--count <number>/);
+    // Field names in help as the command line spells them (#148).
+    expect(result.stdout).toMatch(
+      /--count <number>\s+At most --max-depth; the output `maxDepth`, not\s+input\.maxDepth\./,
+    );
     expect(result.stdout).toMatch(/--verbose\s/);
     expect(result.stdout).toMatch(/--no-verbose\s+set verbose to false/);
     expect(result.stdout).toMatch(/--tags <value>\s+repeatable/);
@@ -244,9 +255,37 @@ describe("reqseq help and version", () => {
     expect(result.stdout).toMatch(/--input <json\|@file\|->/);
     expect(result.stdout).toMatch(/--workspace <path>/);
     expect(result.stdout).toMatch(/--json\s/);
-    expect(result.stdout).toContain("Only via --input: selection");
+    expect(result.stdout).toMatch(/--ids <value>\s+repeatable; sets selection.ids, replacing the list/);
+    expect(result.stdout).toMatch(/--where <json\|@file\|->\s+a condition as JSON/);
+    expect(result.stdout).toMatch(/--where-type <key>\s+Type keys;/);
+    expect(result.stdout).toMatch(/--sort <by\[:asc\|desc\]>\s+<by>\[:asc\|desc\], repeatable/);
+    expect(result.stdout).toContain("Only via --input: meta");
     const plain = await run(["test", "root", "--help"]);
     expect(plain.stdout).not.toContain("Only via --input");
+  });
+
+  it("refuses a catalog in which two fields derive the same flag (#149)", () => {
+    const programOf = (properties: Record<string, unknown>) => () =>
+      buildProgram({
+        runtime: createCommandRuntime({
+          contracts: loadContracts({
+            catalog: { "reqseq-catalog": 1, commands: [entry("test.clash", { properties })] },
+          }),
+          commands: [],
+        }),
+        version: "0",
+        writeOut: () => undefined,
+        writeErr: () => undefined,
+        jsonErrors: false,
+        run: () => Promise.resolve(),
+        serve: () => Promise.resolve(),
+      });
+    const selection = { $ref: "../common.schema.json#/$defs/selection" };
+    expect(programOf({ selection, ids: { type: "string" } })).toThrow(
+      "test.clash: the flag --ids is derived twice",
+    );
+    expect(programOf({ on: { type: "boolean" }, noOn: { type: "string" } })).toThrow("--no-on");
+    expect(programOf({ selection })).not.toThrow();
   });
 
   it("treats a missing or unknown command or option as usage error", async () => {
@@ -502,19 +541,15 @@ describe("reqseq <group> <action>", () => {
     );
     expect(human.stderr).not.toMatch(/\(root\)|\^\[/);
     // A field only --input carries keeps its input name; a field of a list item keeps its index.
-    const nested = await run([
-      "test",
-      "echo",
-      ref,
-      "n",
-      "--tags",
-      "a",
-      "--input",
-      '{"selection":{"ids":[" x"]}}',
-    ]);
+    const nested = await run(["test", "echo", ref, "n", "--tags", "a", "--input", '{"meta":{"a":1}}']);
     expect(nested.stderr).toBe(
+      "error input.invalid: Invalid input for test.echo: meta.a must be text, not 1\n",
+    );
+    // A part flag names the part (#149); a violation of the whole selection keeps its input name.
+    const part = await run(["test", "echo", ref, "n", "--ids", " x"]);
+    expect(part.stderr).toBe(
       "error input.invalid: Invalid input for test.echo: " +
-        'selection.ids[0] " x" is not a reference to an element (a UUID, a short ID such as SR-3c90b0 or an identifier such as SR-036; at most 256 characters, without control characters or spaces at either end)\n',
+        '--ids[0] " x" is not a reference to an element (a UUID, a short ID such as SR-3c90b0 or an identifier such as SR-036; at most 256 characters, without control characters or spaces at either end)\n',
     );
     const item = await run(["test", "echo", ref, "n", "--input", '{"tags":[1]}']);
     expect(item.stderr).toBe(
@@ -694,6 +729,24 @@ describe("reqseq <group> <action>", () => {
       { ref, name: "via input", props: { "a=b": 1 }, body: "@not a file" },
       { ref, name: "dash", body: "-" },
       { ref, name: "empty", props: {} },
+      {
+        ref,
+        name: "parts",
+        selection: {
+          ids: [ref, "SR-2"],
+          filter: "f",
+          package: "P-1",
+          view: "core",
+          where: { type: ["requirement"] },
+        },
+        sort: [
+          { by: "status", order: "desc" },
+          { by: "title", order: "asc" },
+        ],
+      },
+      { ref, name: "where json", selection: { where: { all: [{ invalid: true }] } } },
+      { ref, name: "via input", selection: { ids: ["-x"] } },
+      { ref, name: "empty selection", selection: {}, sort: [] },
     ];
     for (const input of inputs) {
       const argv = argvFor(echo, input, runtime.contracts.schemas);
@@ -711,6 +764,29 @@ describe("reqseq <group> <action>", () => {
       "--tags",
       "a",
     ]);
+    expect(
+      argvFor(echo, {
+        ref,
+        name: "p",
+        selection: { baseline: "r1", where: { status: ["draft"] } },
+        sort: [{ by: "id", order: "asc" }],
+      }),
+    ).toEqual([
+      ...["test", "echo", ref, "p"],
+      ...["--baseline", "r1", "--where-status", "draft", "--sort", "id:asc"],
+    ]);
+    // A sort key the parser would read otherwise, or with more than by and order, needs --input.
+    for (const sort of [
+      [{ by: "a:asc" }],
+      [{ by: "a", order: "asc", x: 1 }],
+      [{ by: "a", order: "up" }],
+      [3],
+    ]) {
+      expect(argvFor(echo, { ref, name: "q", sort })).toEqual([
+        ...["test", "echo", ref, "q"],
+        ...["--input", JSON.stringify({ sort })],
+      ]);
+    }
     const odd = { ref: 5, name: "x", tags: ["ok", 3], count: -1, verbose: "yes" };
     expect(argvFor(echo, odd)).toEqual(["test", "echo", "--input", JSON.stringify(odd)]);
     expect(argvFor(echo, { ref, name: "s", props: { id: "D-1", n: 1 } })).toEqual([

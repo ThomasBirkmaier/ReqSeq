@@ -2,7 +2,7 @@ import type { DataExportElement, ElementGetOutput, ElementName, ProblemCode } fr
 import { describe, expect, it } from "vitest";
 import { elementBuffer } from "./buffers.js";
 import type { LinePart } from "./variant-lines.js";
-import { variantLines } from "./variant-lines.js";
+import { REASON_LENGTH, variantLines } from "./variant-lines.js";
 
 const name = (id: string, shortId: string, title: string, identifier?: string): ElementName => ({
   id,
@@ -18,7 +18,10 @@ const DESERT = name("uuid-c", "VAR-0000c3", "Desert");
 const REPLACEMENT = name("uuid-r", "SR-0000b1", "Response time at most 20 ms", "SR-900");
 
 const output = (
-  fields: Pick<DataExportElement, "replacedBy" | "excludedBy" | "verification" | "problems">,
+  fields: Pick<
+    DataExportElement,
+    "replacedBy" | "excludedBy" | "verification" | "validation" | "validationReason" | "problems"
+  >,
   names?: readonly ElementName[],
 ): Pick<ElementGetOutput, "element" | "names"> => ({
   element: { ...fields } as DataExportElement,
@@ -65,6 +68,47 @@ describe("the lines of a requirement's variants", () => {
     );
     expect(text(lines.verification)).toBe("Verification — Core: verified · Coast: open · Mountain: failed");
     expect(lines.use).toBeUndefined();
+  });
+
+  it("[SR-034/AK2] names the children missing for an indirect verification, each a link by ID and title", () => {
+    const one = name("uuid-1", "SR-00b121", "Log wind", "SR-121");
+    const lines = variantLines(
+      output(
+        {
+          verification: [
+            { view: "core", status: "open", missingChildren: ["uuid-1", "uuid-2"] },
+            { view: "uuid-a", status: "indirect" },
+          ],
+        },
+        [one, COAST],
+      ),
+    );
+    expect(text(lines.verification)).toBe(
+      "Verification — Core: open (missing SR-121 Log wind, uuid-2) · Coast: indirect",
+    );
+    expect(lines.verification?.find((part) => part.text === "SR-121 Log wind")).toEqual({
+      text: "SR-121 Log wind",
+      id: "uuid-1",
+      open: elementBuffer("uuid-1", "system", "SR-121 Log wind"),
+    });
+  });
+
+  it("[SR-038/AK1] gives the validation status on a line of its own, apart from the verification status", () => {
+    const lines = variantLines(
+      output({ verification: [{ view: "core", status: "open" }], validation: "validated" }),
+    );
+    expect(text(lines.validation)).toBe("Validation — validated");
+    expect(text(lines.verification)).toBe("Verification — Core: open");
+    expect(variantLines(output({})).validation).toBeUndefined();
+  });
+
+  it("[SR-172/AK2] gives an inconclusive validation with its reason on one line, cut when long", () => {
+    const lines = variantLines(
+      output({ validation: "inconclusive", validationReason: "No frost\n\tyet,\u0007 see notes" }),
+    );
+    expect(text(lines.validation)).toBe("Validation — inconclusive: No frost yet, see notes");
+    const long = variantLines(output({ validation: "inconclusive", validationReason: "x".repeat(300) }));
+    expect(text(long.validation)).toBe(`Validation — inconclusive: ${"x".repeat(REASON_LENGTH - 1)}…`);
   });
 
   it("names an element that names lacks by its UUID, without a link", () => {

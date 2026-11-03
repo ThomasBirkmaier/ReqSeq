@@ -1,4 +1,4 @@
-# Standard model (D-037, extended by D-059 and D-060), shipped with ReqSeq and written by workspace.init (SR-014).
+# Standard model (D-037, extended by D-059, D-060 and D-071), shipped with ReqSeq and written by workspace.init (SR-014).
 # Keys never change (D-043); names are English (D-019). Every built-in meaning has a key (SR-014 AK3):
 # each type and property meaning exactly one, derivation two relation kinds
 # (open question #150).
@@ -12,7 +12,19 @@ types:
     prefix: N
     meaning: need
     properties:
-      [title, rationale, topic, stakeholder, source, source-identifier, import-date, delivery, import-version]
+      [
+        title,
+        priority,
+        validation-criteria,
+        rationale,
+        topic,
+        stakeholder,
+        source,
+        source-identifier,
+        import-date,
+        delivery,
+        import-version,
+      ]
     required: [title]
   - key: use-case
     name: Use Case
@@ -66,11 +78,6 @@ types:
     required: [title]
 
 properties:
-  - key: stakeholder
-    name: Stakeholder
-    description: "Who has the need."
-    kind: text
-    content: true
   - key: title
     name: Title
     description: "Short name of the element, shown with its short ID."
@@ -92,6 +99,28 @@ properties:
       - { key: performance, name: Performance }
       - { key: interface, name: Interface }
       - { key: constraint, name: Constraint }
+  - key: stakeholder
+    name: Stakeholder
+    description: "Who has the need."
+    kind: text
+    content: true
+  # D-071 names only the two properties of need. Marked "assumption" (#769): priority a choice of
+  # high, medium and low that does not count, validation criteria a list that counts to the version
+  # like the acceptance criteria, no Markdown.
+  - key: priority
+    name: Priority
+    description: "How important the need is to its stakeholders."
+    kind: choice
+    choices:
+      - { key: high, name: High }
+      - { key: medium, name: Medium }
+      - { key: low, name: Low }
+  - key: validation-criteria
+    name: Validation Criteria
+    description: "The conditions under which the need counts as validated, one per entry."
+    kind: text
+    many: true
+    content: true
   - key: acceptance-criteria
     name: Acceptance Criteria
     description: "The conditions under which the requirement is met, one per entry."

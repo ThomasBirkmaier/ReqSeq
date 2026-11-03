@@ -5,8 +5,9 @@
 // `workspace.check` warns about it (`workspace.metamodel-mismatch`). The other metamodel is only
 // read and compared, never used. Cost: one layout and one metamodel load per repository with its
 // own workspace file and its own metamodel folder, per call; nothing per element (N-036).
+import fs from "node:fs/promises";
+import path from "node:path";
 import type { Problem } from "../catalog.js";
-import { CommandError } from "../catalog.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
 import { WORKSPACE_FILE, loadWorkspaceLayout } from "../workspace/index.js";
 import type { Metamodel } from "./load.js";
@@ -112,13 +113,16 @@ const repositoryProblem = async (
   metamodel: Metamodel,
 ): Promise<Problem | undefined> => {
   const { name } = repository;
+  // Most repositories have no workspace file: one lstat, not the search for workspaces below that
+  // the message of `workspace.not-found` makes (#640).
+  const ownFile = await fs.lstat(path.join(repository.folder, WORKSPACE_FILE)).catch(() => undefined);
+  if (ownFile === undefined) {
+    return undefined;
+  }
   let own: WorkspaceLayout;
   try {
     own = await loadWorkspaceLayout(repository.folder);
-  } catch (error) {
-    if (error instanceof CommandError && error.code === "workspace.not-found") {
-      return undefined;
-    }
+  } catch {
     return problem(
       name,
       "info",

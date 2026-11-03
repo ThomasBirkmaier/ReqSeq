@@ -28,7 +28,15 @@
       "type": "string",
       "description": "Prüfling: the concrete build or sample that was checked. Required for verification, optional for validation (D-007)."
     },
-    "result": { "enum": ["passed", "failed"] },
+    "result": {
+      "enum": ["passed", "failed", "inconclusive"],
+      "description": "`inconclusive` (nicht beurteilbar): validation only, with `reason` (SR-172)."
+    },
+    "reason": {
+      "type": "string",
+      "pattern": "\\S",
+      "description": "Begründung of an `inconclusive` validation, at least one character that is not white space; required with `inconclusive` and only there (SR-172 AK1). A reader warns about it on another result and reads the record without it (spec question #807)."
+    },
     "date": { "$ref": "common.schema.json#/$defs/dateTime" },
     "evidence": {
       "type": "string",
@@ -39,11 +47,19 @@
   "allOf": [
     {
       "if": { "required": ["kind"], "properties": { "kind": { "const": "verification" } } },
-      "then": { "required": ["method", "item"] }
+      "then": {
+        "required": ["method", "item"],
+        "properties": { "result": { "not": { "const": "inconclusive" } } }
+      }
     },
     {
       "if": { "required": ["kind"], "properties": { "kind": { "const": "validation" } } },
       "then": { "properties": { "variant": false } }
+    },
+    {
+      "if": { "required": ["result"], "properties": { "result": { "const": "inconclusive" } } },
+      "then": { "required": ["reason"] },
+      "else": { "properties": { "reason": false } }
     }
   ],
   "additionalProperties": false

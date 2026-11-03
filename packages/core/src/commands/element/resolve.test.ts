@@ -366,3 +366,33 @@ describe("element.resolve", () => {
     expect((error.details as { candidates: unknown[] }).candidates).toHaveLength(2);
   });
 });
+
+describe("element.resolve names the variants and replacements as element.get does (#456)", () => {
+  const P = "43043043-0000-4000-8000-0000000000";
+  /** fixtures/SR-043/example, where A (Coast) replaces K1 by A1, with B (Mountain) excluding K1. */
+  const EXAMPLE: FixtureOptions = {
+    fixture: "SR-043/example",
+    files: {
+      "variants/VAR-0000000000c2.md": `---\nid: ${P}c2\ntype: variant\nstatus: draft\ntitle: Mountain\nexcludes: [{ id: ${P}a1 }]\n---\n`,
+    },
+  };
+  const get = async (opened: Opened, ref: string): Promise<CommandOutput<"element.get">> =>
+    (await invoke("element.get", { ref }, { workspace: opened.workspace })) as CommandOutput<"element.get">;
+
+  it("gives names and incomplete as element.get gives them", async () => {
+    const opened = await open(EXAMPLE);
+    const k1 = await resolve(opened, { ref: "SR-0000a1" });
+    expect(k1.names?.slice(0, 3).map((n) => [n.shortId, n.title])).toEqual([
+      ["VAR-0000c1", "Coast"],
+      ["VAR-0000c2", "Mountain"],
+      ["SR-0000b1", "Response time at most 20 ms"],
+    ]);
+    expect(k1.names).toEqual((await get(opened, "SR-0000a1")).names);
+    expect(k1).not.toHaveProperty("incomplete");
+    const missing = await open({ fixture: "SR-089/missing-targets" }, "system");
+    expect(await resolve(missing, { ref: "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d" })).toHaveProperty(
+      "incomplete",
+      true,
+    );
+  });
+});

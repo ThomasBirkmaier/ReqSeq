@@ -263,6 +263,94 @@ export const meaningKindProblems = (properties: readonly Located<MetamodelProper
     ];
   });
 
+/** The value kind each further property meaning needs (#141); `target` names the type meaning of a relation's targets. */
+const MEANING_SHAPES: Readonly<
+  Partial<
+    Record<
+      Meaning,
+      {
+        readonly kind: MetamodelProperty["kind"];
+        readonly many: boolean;
+        readonly target?: "variant" | "package";
+      }
+    >
+  >
+> = {
+  title: { kind: "text", many: false },
+  statement: { kind: "text", many: false },
+  source: { kind: "text", many: false },
+  "source-identifier": { kind: "text", many: false },
+  delivery: { kind: "text", many: false },
+  "import-date": { kind: "date", many: false },
+  "verification-method": { kind: "choice", many: false },
+  // D-020: validity names the variants; D-040: packages names the packages.
+  validity: { kind: "relation", many: true, target: "variant" },
+  packages: { kind: "relation", many: true, target: "package" },
+};
+
+/** The resolved type of a key with its own or inherited meaning, undefined when no type has the key. */
+export type TypeLookup = (key: string) => { readonly meaning?: string | undefined } | undefined;
+
+/** Why `property` does not fit the shape of its meaning, or undefined when it fits. */
+const shapeMisfit = (
+  property: MetamodelProperty,
+  shape: NonNullable<(typeof MEANING_SHAPES)[Meaning]>,
+  typeOf: TypeLookup,
+): string | undefined => {
+  if (property.kind !== shape.kind) {
+    return `kind ${property.kind}`;
+  }
+  if ((property.many === true) !== shape.many) {
+    return shape.many ? "a single value" : "a list";
+  }
+  if (shape.target === undefined) {
+    return undefined;
+  }
+  // No target-types means every type (metamodel.schema.json). A key no type has is left to
+  // `unknownTypeProblems`, which waits until every file was read.
+  const targets = property["target-types"];
+  if (targets === undefined) {
+    return "every type (no target-types)";
+  }
+  const wrong = targets.filter((key) => {
+    const type = typeOf(key);
+    return type !== undefined && type.meaning !== shape.target;
+  });
+  return wrong.length === 0
+    ? undefined
+    : `target types ${wrong.join(", ")} without the meaning ${shape.target}`;
+};
+
+/**
+ * `metamodel.invalid` errors for a property whose meaning needs another value kind (#141; product
+ * owner decision, 2026-11-02: an error like the other metamodel errors), with the line of its
+ * `meaning`: title, statement, source, source identifier and delivery are one text, the import date
+ * a date, the verification method a choice, validity and packages relations with many values to
+ * types with the meaning variant or package (D-020, D-040). Import version, identifier and emergent
+ * are `meaningKindProblems`. `typeOf` gives the resolved type of a key (its meaning own or
+ * inherited); a target key without a type is not checked here.
+ */
+export const meaningShapeProblems = (
+  properties: readonly Located<MetamodelProperty>[],
+  typeOf: TypeLookup,
+): Problem[] =>
+  properties.flatMap(({ definition, file, lineOf }): Problem[] => {
+    const shape = definition.meaning === undefined ? undefined : MEANING_SHAPES[definition.meaning];
+    const misfit = shape === undefined ? undefined : shapeMisfit(definition, shape, typeOf);
+    if (shape === undefined || misfit === undefined) {
+      return [];
+    }
+    const wanted = `kind ${shape.kind}${shape.many ? " with many" : " without many"}${shape.target === undefined ? "" : ` to types with the meaning ${shape.target}`}`;
+    return [
+      problemAt(
+        file,
+        lineOf(["meaning"]),
+        `Property ${definition.key} has the meaning ${String(definition.meaning)}, which needs ${wanted}, not ${misfit}`,
+        "error",
+      ),
+    ];
+  });
+
 /**
  * `metamodel.invalid` errors for a property marked `markdown` that cannot hold Markdown (SR-127
  * AK5): only a property of kind `text` can, and the title and an identifier stay plain text (they

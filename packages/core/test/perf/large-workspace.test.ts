@@ -24,6 +24,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { CommandOutput } from "../../src/catalog.js";
 import { STANDARD_MODEL_TEXT, metamodelState } from "../../src/metamodel/index.js";
 import { currentVersionOf, currentVersions } from "../../src/model/current-versions.js";
+import { allRelationLimitFindings, relationLimitProblemsState } from "../../src/model/relation-limits.js";
 import { shortIdState } from "../../src/model/short-id.js";
 import { elementStoreState, loadedVersionsOf } from "../../src/model/store.js";
 import { buildSuccessionIndex, successionsOf } from "../../src/model/successors.js";
@@ -317,4 +318,68 @@ describe("workspace with 50,000 elements and 200,000 relations (N-036)", () => {
       await empty.cleanup();
     }
   }, 1_200_000);
+
+  // Last: it changes the metamodel of the generated workspace and puts it back afterwards.
+  it("counts the relations of every element against limits and carries the hints over a save (SR-152)", async () => {
+    const file = fixture.path("system/metamodel/standard-model.yaml");
+    const model = await fs.readFile(file, "utf8");
+    const kind = "    target-types: [need, use-case, system-requirement]\n    meaning: derivation\n";
+    expect(model).toContain(kind);
+    await fs.writeFile(
+      file,
+      model.replace(
+        kind,
+        `${kind}    limits:\n      - { target-type: use-case, max: 1 }\n      - { target-type: need, min: 1 }\n`,
+      ),
+    );
+    const limited = new Workspace(fixture.workspaceRoot);
+    try {
+      expect((await limited.get(metamodelState)).valid).toBe(true);
+      const context = {
+        layout: await limited.get(workspaceLayoutState),
+        store: await limited.get(elementStoreState),
+        metamodel: await limited.get(metamodelState),
+        shortIds: await limited.get(shortIdState),
+      };
+      const { result: counted } = await measure(
+        "relation limits of every element, counted in memory without lines",
+        () => Promise.resolve(allRelationLimitFindings(context)),
+        { basis: "SR-152, N-036 (one pass over the items of limited kinds, no file read)" },
+      );
+      const { result: full } = await measure(
+        "relation limits of every element (max 1 use case, min 1 need on derives-from), with lines",
+        () => limited.get(relationLimitProblemsState),
+        { basis: "SR-152, N-036 (one pass; files with a hint under the key are read for the line)" },
+      );
+      // Generated requirements derive from requirements, needs or use cases, so many lack a need.
+      expect(full.filter((p) => p.code === "relation.too-few").length).toBeGreaterThan(0);
+      expect(full).toHaveLength(counted.length);
+      // Each hint is a count above its maximum or below its minimum, and nothing else.
+      const outside = (p: (typeof full)[number]): boolean =>
+        p.code === "relation.too-many"
+          ? (p.count ?? 0) > (p.limit ?? 0)
+          : p.code === "relation.too-few" && (p.count ?? 0) < (p.limit ?? 0);
+      expect(full.filter((p) => !outside(p))).toEqual([]);
+      const [first] = (await limited.get(elementStoreState)).elements;
+      if (first === undefined) {
+        throw new Error("the generated store is empty");
+      }
+      // Another text than the earlier save of this element, so that the update writes and the store changes.
+      const input = await readFirst({ ref: first.id, text: "A text under limits." }, { workspace: limited });
+      const updated = (await invoke("element.update", input, {
+        workspace: limited,
+      })) as CommandOutput<"element.update">;
+      expect(updated.files).toHaveLength(1);
+      const { result: carried } = await measure(
+        "relation limits right after saving one element (carried, #184)",
+        () => limited.get(relationLimitProblemsState),
+        { basis: "SR-152, ADR-0008 (#184: only the saved file is looked at again)" },
+      );
+      // A new text changes no relation and no line of the frontmatter.
+      expect(carried).toEqual(full);
+    } finally {
+      await limited.close();
+      await fs.writeFile(file, model);
+    }
+  }, 600_000);
 });

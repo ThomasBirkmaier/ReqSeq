@@ -65,4 +65,24 @@ scenariosOf("evidence.record", [
     tag: "[SR-038/AK4]",
     expect: "error",
   },
+  {
+    name: "an inconclusive validation without a reason is refused (SR-172 AK1)",
+    fixture: EVIDENCE,
+    input: { ref: "SR-e88fb3", kind: "validation", result: "inconclusive", date: "2026-10-27T10:00:00Z" },
+    tag: "[SR-172/AK1]",
+    expect: "error",
+  },
+  {
+    name: "an inconclusive validation is written with its reason (SR-172 AK1)",
+    fixture: EVIDENCE,
+    input: {
+      ref: "SR-e88fb3",
+      kind: "validation",
+      result: "inconclusive",
+      reason: "The field test needs frost; none so far.",
+      date: "2026-10-27T10:00:00Z",
+    },
+    tag: "[SR-172/AK1]",
+    expect: "output",
+  },
 ]);

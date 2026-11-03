@@ -6,7 +6,7 @@
   "whileReadOnly": "refuse",
   "whileReadOnlyReason": "Fills in the current version of the element, which depends on the metamodel (which properties count).",
   "stage": 4,
-  "implements": ["SR-030", "SR-047"],
+  "implements": ["SR-030", "SR-047", "SR-172"],
   "arguments": [
     { "field": "ref", "complete": "element" },
     { "field": "kind", "complete": "choice" },
@@ -17,6 +17,7 @@
     { "field": "date", "complete": "text" },
     { "field": "evidence", "complete": "text" },
     { "field": "testCase", "complete": "text" },
+    { "field": "reason", "complete": "text" },
     { "field": "folder", "complete": "text" }
   ],
   "input": {
@@ -35,7 +36,13 @@
         "description": "Required for verification."
       },
       "result": {
-        "enum": ["passed", "failed"]
+        "enum": ["passed", "failed", "inconclusive"],
+        "description": "`inconclusive` (nicht beurteilbar) for a validation only, with `reason` (SR-172 AK1): without `reason` it is `input.invalid` naming `reason`, for a verification `input.invalid` naming `result`."
+      },
+      "reason": {
+        "type": "string",
+        "pattern": "^(?![\\s\\S]*[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F])[\\s\\S]*\\S[\\s\\S]*$",
+        "description": "Why the validation is inconclusive (Begründung, SR-172): required with the result `inconclusive` and refused with any other (`input.invalid` naming `reason`). At least one character that is not white space, no control characters other than tab, line feed and carriage return."
       },
       "item": {
         "$ref": "../common.schema.json#/$defs/item",

@@ -1,9 +1,10 @@
-// relation.add (enabler #264; SR-005, SR-021, SR-041, SR-067 AK3, SR-086, SR-102): adds one
+// relation.add (enabler #264; SR-005, SR-021, SR-041, SR-067 AK3, SR-086, SR-102, SR-152): adds one
 // relation to the source file (model/relation-write.ts). When a relation with the meaning
 // derivation closes a cycle, the relation is written and the cycle comes back as `trace.cycle`
 // hints, one per element with its line (SR-067 AK3: "zeigt das Tool einen Hinweis"; SR-090). A
 // stored entry without a valid version gets its current version, said by `relation.version-added`
-// before the cycle hints (#302).
+// before the cycle hints (#302). A relation over a maximum of SR-152 is written too, and its
+// `relation.too-many` hint comes after `relation.version-added` and before the cycle hints (AK3).
 import type { CommandOutput, Problem } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import type { AddedRelation } from "../../model/index.js";
