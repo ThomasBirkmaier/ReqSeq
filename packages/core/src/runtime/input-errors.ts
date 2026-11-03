@@ -182,6 +182,23 @@ export interface InputErrorContext {
   readonly schemas: readonly JsonSchema[];
 }
 
+/** At most this many names are listed after an unknown input or field. */
+const NAMES_SHOWN = 12;
+
+/**
+ * The names the object at an `additionalProperties` error takes, as `; known: a, b, c` (#641: a caller
+ * who sends `properties` to `element.update` reads `set` there). Empty when the schema lists none.
+ */
+export const knownNames = (schema: unknown): string => {
+  const properties = (schema as { readonly properties?: unknown } | undefined)?.properties;
+  const names = typeof properties === "object" && properties !== null ? Object.keys(properties) : [];
+  if (names.length === 0) {
+    return "";
+  }
+  const more = names.length > NAMES_SHOWN ? ", ..." : "";
+  return `; known: ${names.slice(0, NAMES_SHOWN).join(", ")}${more}`;
+};
+
 const known = new WeakMap<readonly JsonSchema[], WeakMap<object, string>>();
 
 /**
@@ -225,7 +242,9 @@ export function inputViolations(
       message = `${field} is required`;
     } else if (error.keyword === "additionalProperties") {
       field = fieldOf([...segments, String(p["additionalProperty"])]);
-      message = `${field} is not ${segments.length === 0 ? "an input of this command" : `a field of ${fieldOf(segments)}`}`;
+      const names = knownNames(error.parentSchema);
+      const where = segments.length === 0 ? "an input of this command" : `a field of ${fieldOf(segments)}`;
+      message = `${field} is not ${where}${names}`;
     } else if (error.keyword === "propertyNames") {
       message = `${field} cannot hold ${String(p["propertyName"])}`;
     } else {

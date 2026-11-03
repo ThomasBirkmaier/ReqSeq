@@ -214,10 +214,12 @@ describe("evidence.record (SR-030)", () => {
     expect((await failure(workspace, { ref: "SR-ffffff", ...INSPECTION })).code).toBe("ref.unknown");
     for (const extra of [{ version: "n1:0000000000000000" }, { element: S1 }]) {
       const error = await failure(workspace, { ref: "SR-00c002", ...INSPECTION, ...extra });
-      expect([error.code, error.message]).toEqual([
-        "input.invalid",
-        `Invalid input for evidence.record: ${Object.keys(extra)[0] ?? ""} is not an input of this command`,
-      ]);
+      expect(error.code).toBe("input.invalid");
+      expect(error.message).toMatch(
+        new RegExp(
+          `^Invalid input for evidence\\.record: ${Object.keys(extra)[0] ?? ""} is not an input of this command; known: ref, `,
+        ),
+      );
     }
     expect(await filesOf(fixture)).toEqual(before);
   });
