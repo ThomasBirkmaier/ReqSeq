@@ -117,7 +117,11 @@ export const cycleFindings = (
       count === 1
         ? `${label(element)} derives from itself through its relation ${kind}`
         : `${problem.message}: its relation ${kind} to ${label(edge.to)} leads back to it`;
-    return { element, path: relationPath(edge.link), problem: { ...problem, message, targetId: edge.to.id } };
+    return {
+      element,
+      path: relationPath(edge.link),
+      problem: { ...problem, message, targetId: edge.to.id, targetRepository: edge.to.repository },
+    };
   });
 };
 

@@ -1,5 +1,6 @@
 // The short ID of the element a problem names (`elementShortId`, SR-002 AK3, #315), and its
-// identifier when it has one (`elementIdentifier`, #305), added in one place for every command:
+// identifier when it has one (`elementIdentifier`, #305), added in one place for every command; the
+// same for the target a problem names (`targetShortId`, `targetIdentifier`, #172):
 // where its output leaves the runtime (`invoke`). Which parts of an output hold problems follows
 // from the command's output schema alone (`problemLocator`: every place that references
 // `common.schema.json#/$defs/problem`), never from the command name (ADR-0002 rule 3).
@@ -15,11 +16,13 @@
 // So the field depends on what a command reads, not on the calls before it on the same workspace
 // (SR-080 AK2: an API server and a fresh CLI call give the same output).
 import type { JsonSchema, Problem } from "../catalog.js";
+import type { ElementRecord } from "../model/index.js";
 import { metamodelState } from "../metamodel/index.js";
 import {
   buildShortIds,
   elementStoreState,
   problemElement,
+  problemTarget,
   shortIdState,
   shortIdsBuiltFrom,
 } from "../model/index.js";
@@ -220,20 +223,32 @@ export const problemLocator = (
   return locate(schema, base, `${base}#`);
 };
 
-/** A problem that names an element. */
-type NamingProblem = Problem & { readonly elementId: string };
-
-/** What a problem that names an element gets: its short ID and, when it has one, its identifier. */
-export interface ElementNames {
-  readonly elementShortId: string;
+/** What a problem that names an element or a target gets: their short IDs and identifiers. */
+export interface ProblemNames {
+  readonly elementShortId?: string;
   readonly elementIdentifier?: string;
+  readonly targetShortId?: string;
+  readonly targetIdentifier?: string;
 }
 
-type ShortIdOf = (problem: NamingProblem) => ElementNames | undefined;
+type ShortIdOf = (problem: Problem) => ProblemNames | undefined;
 
-/** Whether `value` is a problem that names an element and has no short ID yet. */
-const needsShortId = (value: unknown): value is NamingProblem =>
-  isRecord(value) && typeof value["elementId"] === "string" && value["elementShortId"] === undefined;
+/** Whether `value` names an element without its short ID. */
+const needsElementShortId = (value: Rec): boolean =>
+  typeof value["elementId"] === "string" && value["elementShortId"] === undefined;
+
+/**
+ * Whether `value` names a target its producer resolved (`targetRepository`) without its short ID
+ * (#172). A target without it is never named, so it builds no short IDs.
+ */
+const needsTargetShortId = (value: Rec): boolean =>
+  typeof value["targetId"] === "string" &&
+  typeof value["targetRepository"] === "string" &&
+  value["targetShortId"] === undefined;
+
+/** Whether `value` is a problem that names an element or a target and has no short ID for it yet. */
+const needsShortId = (value: unknown): value is Problem =>
+  isRecord(value) && (needsElementShortId(value) || needsTargetShortId(value));
 
 /** The properties of `value` filled at the places of `locator`; `value` itself when none changed. */
 const fillProperties = (value: Rec, locator: ProblemLocator, shortIdOf: ShortIdOf): Rec => {
@@ -275,7 +290,8 @@ const fillItems = (value: readonly unknown[], locator: ProblemLocator, shortIdOf
 
 /**
  * `value` with `elementShortId` (and `elementIdentifier`) added to each problem at the places of
- * `locator` that names an element (`elementId`) and has none yet, as `shortIdOf` gives them
+ * `locator` that names an element (`elementId`) and has none yet, and `targetShortId` (and
+ * `targetIdentifier`) to each that names a target (`targetId`), as `shortIdOf` gives them
  * (undefined: left out). Changes nothing in place: a changed value is a copy, an unchanged one is
  * `value` itself, so problems kept in workspace states stay as they are. A problem that has its
  * short ID is left alone, so the places of `also` are filled one after the other.
@@ -314,7 +330,7 @@ export const withElementShortIds = async (
   if (locator === undefined) {
     return output;
   }
-  const named: NamingProblem[] = [];
+  const named: Problem[] = [];
   fillElementShortIds(output, locator, (problem) => {
     named.push(problem);
     return undefined;
@@ -337,15 +353,27 @@ export const withElementShortIds = async (
     kept !== undefined && shortIdsBuiltFrom(kept, store.byId, metamodel)
       ? kept
       : buildShortIds(store.byId, metamodel);
-  return fillElementShortIds(output, locator, (problem) => {
-    const element = problemElement(store, problem);
+  /** The short ID and identifier of `element`, under the names of `prefix` ("element" or "target"). */
+  const namesOf = (element: ElementRecord | undefined, prefix: "element" | "target"): ProblemNames => {
     if (element === undefined) {
-      return undefined;
+      return {};
     }
     const identifier = shortIds.identifierOf(element);
     return {
-      elementShortId: shortIds.of(element),
-      ...(identifier === undefined ? {} : { elementIdentifier: identifier }),
+      [`${prefix}ShortId`]: shortIds.of(element),
+      ...(identifier === undefined ? {} : { [`${prefix}Identifier`]: identifier }),
     };
+  };
+  return fillElementShortIds(output, locator, (problem) => {
+    const { elementId, targetId } = problem;
+    const names = {
+      ...(elementId !== undefined && problem.elementShortId === undefined
+        ? namesOf(problemElement(store, { ...problem, elementId }), "element")
+        : {}),
+      ...(targetId !== undefined && problem.targetShortId === undefined
+        ? namesOf(problemTarget(store, { ...problem, targetId }), "target")
+        : {}),
+    };
+    return Object.keys(names).length === 0 ? undefined : names;
   });
 };

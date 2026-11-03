@@ -249,6 +249,7 @@ export const relationEdits = async (
           file: source.file,
           elementId: source.id,
           targetId: target.id,
+          targetRepository: target.repository,
           currentVersion: (value as unknown as RelationTarget).version,
         },
       });

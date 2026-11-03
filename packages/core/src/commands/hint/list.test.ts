@@ -125,6 +125,8 @@ describe("hint.list (SR-026)", () => {
       elementId: R1,
       elementShortId: "SR-0000b1",
       targetId: N1,
+      targetRepository: "system",
+      targetShortId: "N-0000a1",
       storedVersion: "n1:0000000000000000",
       currentVersion: "n1:d809de2e934d94f3",
       storedDate: null,

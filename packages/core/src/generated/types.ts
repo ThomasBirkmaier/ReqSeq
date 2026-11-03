@@ -271,6 +271,12 @@ export interface Problem {
   /** Identifier of the element `elementId` names (the value of its property with the meaning `identifier`, #305), for display next to `elementShortId`; given with it when the element has one. */
   readonly elementIdentifier?: string;
   readonly targetId?: Uuid;
+  /** Workspace name of the repository the target `targetId` names was resolved in (#172); given when the problem's target is one element there. */
+  readonly targetRepository?: string;
+  /** Short ID of the element `targetId` names, for display (#172); given with `targetRepository` when that UUID names one element there, by every command that has read the elements. A missing, ambiguous or unresolved target gets none. */
+  readonly targetShortId?: ShortId;
+  /** Identifier of the element `targetId` names (the value of its property with the meaning `identifier`, #305, #172), for display next to `targetShortId`; given with it when the element has one. */
+  readonly targetIdentifier?: string;
   readonly storedVersion?: Version;
   readonly currentVersion?: Version;
   readonly storedDate?: string | null;
@@ -2467,7 +2473,7 @@ export interface HintListInput {
  * Schema: `schemas/commands/hint.list.json output`.
  */
 export interface HintListOutput {
-  /** The open hints: findings of severity warning about one element (glossary "Hinweis": the element should be checked; it blocks nothing and changes no status), from the same whole-workspace findings as workspace.check; errors, info and warnings about no element are not hints. Filters combine with AND. Each hint with its kind (code), the element it is about (elementId, repository, file, line), its target where it has one (targetId) and its reason (message; for an outdated relation with both versions and their dates, D-013). In the order of workspace.check. */
+  /** The open hints: findings of severity warning about one element (glossary "Hinweis": the element should be checked; it blocks nothing and changes no status), from the same whole-workspace findings as workspace.check; errors, info and warnings about no element are not hints. Filters combine with AND. Each hint with its kind (code), the element it is about (elementId, repository, file, line), its target where it has one (targetId; with targetRepository, targetShortId and targetIdentifier when it was resolved to one element, #172) and its reason (message; for an outdated relation with both versions and their dates, D-013). In the order of workspace.check. */
   readonly hints: readonly Problem[];
   /** True while a repository of the workspace file is not on this machine: the hints of its elements are not listed (SR-006 AK2). */
   readonly incomplete: Incomplete;

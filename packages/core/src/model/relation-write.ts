@@ -216,6 +216,7 @@ export const addRelation = async (workspace: Workspace, input: RelationInput): P
     file: source.file,
     elementId: source.id,
     targetId: target.id,
+    targetRepository: target.repository,
     currentVersion: stored.version,
   };
   // The count hints of the check (SR-152) on the store after the write: the maxima of the kind
