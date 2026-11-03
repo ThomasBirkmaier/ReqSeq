@@ -243,7 +243,7 @@
         },
         "key": {
           "$ref": "#/$defs/key",
-          "description": "The relation kind a count hint is about (`relation.too-many`, `relation.too-few`, SR-152)."
+          "description": "The relation kind (`relation.too-many`, `relation.too-few`, SR-152) or the property (`element.too-many-items`, SR-171) a count hint is about."
         },
         "targetType": {
           "$ref": "#/$defs/key",
@@ -252,12 +252,12 @@
         "count": {
           "type": "integer",
           "minimum": 0,
-          "description": "How many relations the element has that the limit counts (SR-152)."
+          "description": "How many relations the element has that the limit counts (SR-152), or how many entries its list property has (SR-171)."
         },
         "limit": {
           "type": "integer",
           "minimum": 0,
-          "description": "The maximum (`relation.too-many`) or minimum (`relation.too-few`) the metamodel sets (SR-152)."
+          "description": "The maximum (`relation.too-many`, `element.too-many-items`) or minimum (`relation.too-few`) the metamodel sets (SR-152, SR-171)."
         }
       },
       "additionalProperties": false
@@ -283,6 +283,7 @@
         "element.status-not-allowed",
         "element.missing-status",
         "element.statement-without-text",
+        "element.too-many-items",
         "element.text-emptied",
         "relation.missing-target",
         "relation.unresolved-link",

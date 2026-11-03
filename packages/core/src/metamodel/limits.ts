@@ -2,9 +2,10 @@
 // optionally per source type, how many relations of it one source element may (`max`) or must
 // (`min`) have. The checks of the limits when the metamodel is loaded, and `limitsOf`, the limits
 // that apply to the elements of each type, which the check of the elements reads
-// (`model/relation-limits.ts`).
+// (`model/relation-limits.ts`). Likewise the most entries of a list property (`max-items`,
+// SR-171): `maxItemsProblems` and `maxItemsOf` (`model/item-limits.ts`).
 import type { Problem } from "../catalog.js";
-import type { MetamodelKey, MetamodelRelationKind } from "../generated/types.js";
+import type { MetamodelKey, MetamodelProperty, MetamodelRelationKind } from "../generated/types.js";
 import type { EffectiveType, Located } from "./inheritance.js";
 import type { Metamodel } from "./load.js";
 import { allowsType } from "./lookup.js";
@@ -23,7 +24,7 @@ export interface RelationLimit {
 }
 
 const problem = (
-  located: Located<MetamodelRelationKind>,
+  located: Located<MetamodelRelationKind | MetamodelProperty>,
   severity: Problem["severity"],
   segments: readonly string[],
   message: string,
@@ -142,5 +143,48 @@ export const limitsOf = (metamodel: Metamodel): ReadonlyMap<MetamodelKey, readon
     }
   }
   indexes.set(metamodel, index);
+  return index;
+};
+
+/**
+ * `max-items` on a property that holds no list (`many` not true) or holds relations (kind
+ * `relation`, spec question #808 question 2): an error on the line of `max-items`, as a misplaced
+ * `markdown`.
+ */
+export const maxItemsProblems = (properties: readonly Located<MetamodelProperty>[]): Problem[] =>
+  properties.flatMap((located): Problem[] => {
+    const { key, kind, many } = located.definition;
+    if (located.definition["max-items"] === undefined || (many === true && kind !== "relation")) {
+      return [];
+    }
+    const reason = kind === "relation" ? "kind relation" : "a single value";
+    const message = `Property ${key} has max-items, which needs a list (many: true) that holds no relations, not ${reason}`;
+    return [problem(located, "error", ["max-items"], message)];
+  });
+
+/** The most entries of a list property (SR-171). */
+export interface ItemLimit {
+  readonly max: number;
+  /** How messages name the property: display name and key (D-043). */
+  readonly label: string;
+}
+
+const itemIndexes = new WeakMap<Metamodel, ReadonlyMap<MetamodelKey, ItemLimit>>();
+
+/**
+ * The `max-items` of each property that has one, by key (SR-171). Built once per metamodel
+ * object; empty for a metamodel that is not valid, whose limits are not trusted.
+ */
+export const maxItemsOf = (metamodel: Metamodel): ReadonlyMap<MetamodelKey, ItemLimit> => {
+  let index = itemIndexes.get(metamodel);
+  if (index === undefined) {
+    index = new Map(
+      (metamodel.valid ? metamodel.properties : []).flatMap((p) => {
+        const max = p["max-items"];
+        return max === undefined ? [] : [[p.key, { max, label: `${p.name} (${p.key})` }] as const];
+      }),
+    );
+    itemIndexes.set(metamodel, index);
+  }
   return index;
 };

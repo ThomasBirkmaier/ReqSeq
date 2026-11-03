@@ -22,6 +22,7 @@ import { relationTypeFindings } from "./relation-types.js";
 import { targetRepository, targetState } from "./relations.js";
 import { requiredFindings } from "./required.js";
 import { statementFindings } from "./statement-findings.js";
+import { itemLimitFindings } from "./item-limits.js";
 import { statusFindings } from "./status-findings.js";
 import type { ShortIds } from "./short-id.js";
 import { UNKNOWN_TYPE_PREFIX, identifierField } from "./short-id.js";
@@ -332,7 +333,8 @@ export const listedElement = (input: ListedElementInput, version: string | undef
 /**
  * The element as `listedElement` gives it, with its text, its version (ADR-0005, with the embedded
  * images of `input.images`) and the hints with their lines: unknown type and properties (SR-016),
- * required properties without a value (SR-015, SR-064), values of the wrong kind (SR-085), an
+ * required properties without a value (SR-015, SR-064), values of the wrong kind (SR-085), lists
+ * with more entries than `max-items` (SR-171), an
  * identifier another element of its type has (#305),
  * relations between types the metamodel does not allow (SR-086), then relations to superseded
  * elements (SR-072 AK2); no hints while the metamodel is not valid (#208, #220 option 1). The
@@ -355,6 +357,7 @@ export const elementView = (
         ...statusFindings(record, metamodel),
         ...statementFindings(record, metamodel),
         ...valueFindings(record, metamodel),
+        ...itemLimitFindings(record, metamodel),
         ...duplicateIdentifierFindings(record, { metamodel, shortIds }),
         ...relationTypeFindings(record, { store: input.store, metamodel, shortIds }),
         ...supersededFindingsOf({ store: input.store, metamodel, shortIds }, record, input.successionsOf),

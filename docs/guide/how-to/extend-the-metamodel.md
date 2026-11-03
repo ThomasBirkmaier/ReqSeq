@@ -138,6 +138,18 @@ relations:
 
 `workspace check` and `hint list` then report an element with more relations than `max` (`relation.too-many`) or fewer than `min` (`relation.too-few`) as a hint with the element, the relation kind, the target type, the count and the limit. Nothing is refused: a relation over the limit is still saved. Only relations whose target is found count, and while a target lies in a repository that is not on this machine, no `relation.too-few` is given. A relation kind without `limits` allows any number, also none.
 
+### Limit the entries of a list
+
+A property with `many: true` that holds no relations can say how many entries it may have, with `max-items`. For example, a system requirement has at most three acceptance criteria:
+
+```yaml title="metamodel/max-items.yaml"
+reqseq-metamodel: 1
+properties:
+  - { key: acceptance-criteria, name: Acceptance criteria, kind: text, many: true, max-items: 3 }
+```
+
+`workspace check` and `hint list` then report an element with more entries (`element.too-many-items`) as a hint with the element, the property, the count and the limit, and `element get` shows it at the element. Nothing is refused: the entries are kept. A property without `max-items` allows any number. `max-items` on a property without `many: true` or of kind `relation` is a metamodel error.
+
 ## API
 
 Write the file as above, then start the API in the workspace with `reqseq serve api`, and send each command with the token of `api.json` as `Authorization: Bearer <token>`:

@@ -277,13 +277,13 @@ export interface Problem {
   readonly currentDate?: string | null;
   /** Stable ID of a confirmable hint (D-042); on the hint.* problems of hint.confirm, the ID as given. */
   readonly hintId?: string;
-  /** The relation kind a count hint is about (`relation.too-many`, `relation.too-few`, SR-152). */
+  /** The relation kind (`relation.too-many`, `relation.too-few`, SR-152) or the property (`element.too-many-items`, SR-171) a count hint is about. */
   readonly key?: Key;
   /** The target type of the limit a count hint is about (SR-152). */
   readonly targetType?: Key;
-  /** How many relations the element has that the limit counts (SR-152). */
+  /** How many relations the element has that the limit counts (SR-152), or how many entries its list property has (SR-171). */
   readonly count?: number;
-  /** The maximum (`relation.too-many`) or minimum (`relation.too-few`) the metamodel sets (SR-152). */
+  /** The maximum (`relation.too-many`, `element.too-many-items`) or minimum (`relation.too-few`) the metamodel sets (SR-152, SR-171). */
   readonly limit?: number;
 }
 
@@ -310,6 +310,7 @@ export type ProblemCode =
   | "element.status-not-allowed"
   | "element.missing-status"
   | "element.statement-without-text"
+  | "element.too-many-items"
   | "element.text-emptied"
   | "relation.missing-target"
   | "relation.unresolved-link"
@@ -1084,6 +1085,8 @@ export interface MetamodelProperty {
   readonly content?: boolean;
   /** Values are Markdown like the text: emphasis, code and inline references `[label](reqseq:<uuid>?version=...)`, which are followed, checked and confirmed like those in the text (SR-127). Only for kind `text`, and never with the meaning `title` or `identifier`. It does not change the version of an element (ADR-0005); images in such a value are no embedded images. */
   readonly markdown?: boolean;
+  /** At most this many entries in the list (SR-171): an element with more is the hint `element.too-many-items` when the workspace is checked, never a refusal. Only with `many: true` and not for kind `relation`. Absent: any number. */
+  readonly "max-items"?: number;
   readonly meaning?: MetamodelPropertyMeaning;
 }
 
@@ -1522,7 +1525,7 @@ export interface WorkspaceStatusOutput {
 }
 
 /**
- * Input of `workspace.check` as `run` gets it: validated, properties with a `default` filled in. Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, requirements with a statement but no text (a warning), missing targets, cycles, requirements without a parent (a warning, SR-022 AK6), elements with more or fewer relations of a kind than its limits allow (a hint), duplicate IDs, outdated relations, evidence records that cannot be read or name an unknown element, a repository that is a workspace of its own whose metamodel counts other properties to the version. ok is false, and the CLI exits 1, on findings at or above failOn (default error).
+ * Input of `workspace.check` as `run` gets it: validated, properties with a `default` filled in. Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, requirements with a statement but no text (a warning), missing targets, cycles, requirements without a parent (a warning, SR-022 AK6), elements with more or fewer relations of a kind than its limits allow (a hint), lists with more entries than the property's max-items (a hint), duplicate IDs, outdated relations, evidence records that cannot be read or name an unknown element, a repository that is a workspace of its own whose metamodel counts other properties to the version. ok is false, and the CLI exits 1, on findings at or above failOn (default error).
  * Schema: `schemas/commands/workspace.check.json input`.
  */
 export interface WorkspaceCheckInput {
@@ -1537,7 +1540,7 @@ export interface WorkspaceCheckInput {
 }
 
 /**
- * Output of `workspace.check`. Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, requirements with a statement but no text (a warning), missing targets, cycles, requirements without a parent (a warning, SR-022 AK6), elements with more or fewer relations of a kind than its limits allow (a hint), duplicate IDs, outdated relations, evidence records that cannot be read or name an unknown element, a repository that is a workspace of its own whose metamodel counts other properties to the version. ok is false, and the CLI exits 1, on findings at or above failOn (default error).
+ * Output of `workspace.check`. Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, requirements with a statement but no text (a warning), missing targets, cycles, requirements without a parent (a warning, SR-022 AK6), elements with more or fewer relations of a kind than its limits allow (a hint), lists with more entries than the property's max-items (a hint), duplicate IDs, outdated relations, evidence records that cannot be read or name an unknown element, a repository that is a workspace of its own whose metamodel counts other properties to the version. ok is false, and the CLI exits 1, on findings at or above failOn (default error).
  * Schema: `schemas/commands/workspace.check.json output`.
  */
 export interface WorkspaceCheckOutput {
@@ -1917,7 +1920,7 @@ export interface ElementBulkUpdateOutput {
   }[];
   /** Written files relative to the workspace root; empty in a preview. */
   readonly files: readonly string[];
-  /** Hints at the property in the affected elements after the change: value kind (SR-085), target types (SR-086). */
+  /** Hints at the property in the affected elements after the change: value kind (SR-085), more entries than `max-items` (SR-171), target types (SR-086). */
   readonly problems: readonly Problem[];
   readonly incomplete?: Incomplete;
 }

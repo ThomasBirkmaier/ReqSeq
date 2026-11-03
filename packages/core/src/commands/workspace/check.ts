@@ -55,6 +55,7 @@ import {
   duplicateIdProblemsState,
   duplicateIdentifierProblemsState,
   elementStoreState,
+  itemLimitProblemsState,
   missingTargetProblemsState,
   relationLimitProblemsState,
   relationTypeProblemsState,
@@ -103,6 +104,7 @@ export const FINDING_STATES = [
   nestedVariantsState, // SR-039
   targetNotCoreProblemsState, // SR-041 AK8
   valueKindProblemsState, // SR-085
+  itemLimitProblemsState, // SR-171
   relationTypeProblemsState, // SR-086
   relationLimitProblemsState, // SR-152
   duplicateIdProblemsState, // SR-088

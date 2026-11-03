@@ -1,0 +1,20 @@
+# Most entries of a list property (SR-171): at most three acceptance criteria per system
+# requirement; keywords have no limit.
+reqseq-metamodel: 1
+
+types:
+  - key: system-requirement
+    name: System Requirement
+    prefix: SR
+    meaning: requirement
+    properties: [title, acceptance-criteria, keywords]
+    required: [title]
+
+properties:
+  - { key: title, name: Title, kind: text, meaning: title }
+  - { key: acceptance-criteria, name: Acceptance criteria, kind: text, many: true, max-items: 3 }
+  - { key: keywords, name: Keywords, kind: text, many: true }
+
+statuses:
+  - { key: draft, name: Draft, initial: true }
+  - { key: rejected, name: Rejected, invalid: true }
