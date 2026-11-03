@@ -14,7 +14,9 @@
 //   of `relation.target-superseded`;
 // - `no-evidence`: the gap rule of trace.chain (`lacksEvidence`, SR-022 AK3) with the same records
 //   (`hasVerificationRecord` in the view, the core without one), so the graph and the chain agree; an
-//   evidence location that is not on this machine makes the graph `incomplete`, as the chain.
+//   evidence location that is not on this machine makes the graph `incomplete`, as the chain. A
+//   requirement the view (the core without one) does not hold has no such mark, as the chain gives it
+//   `not-in-view` (#674); the graph has no mark of its own for that.
 //   Without the meanings `derivation` and `requirement` there is none, and a hint says so.
 import type { CommandOutput, Problem } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
@@ -63,8 +65,12 @@ const marksOf = async (
   if (unassignedOf(metamodel).length === 0) {
     const index = await workspace.get(evidenceIndexState);
     const gapView = view ?? CORE;
-    gap = lacksEvidence(derivationGraph(base, "trace.graph"), includes, (element) =>
-      hasVerificationRecord(index, element.id, gapView),
+    const held = viewRuleOf({ workspace, store, metamodel }, gapView).includes;
+    gap = lacksEvidence(
+      derivationGraph(base, "trace.graph"),
+      includes,
+      (element) => hasVerificationRecord(index, element.id, gapView),
+      (element) => !held(element),
     );
   }
   return async (elements) => {

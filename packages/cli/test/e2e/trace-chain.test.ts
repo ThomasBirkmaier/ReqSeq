@@ -67,7 +67,7 @@ describe("reqseq trace chain (SR-022)", () => {
         "  1  SR-00b001  draft  Show wind speed",
         "  2    CR-00c001  draft  Count anemometer turns  [gap: no evidence]",
         "  2    CR-00c002  draft  Report a stalled anemometer  [gap: no evidence]",
-        "  1  SR-00b002  draft  Show wind direction  [gap: no evidence]",
+        "  1  SR-00b002  draft  Show wind direction  [not in view, holds in VAR-00d001]",
         "total: 5",
         "No problems.",
         "",
@@ -84,7 +84,7 @@ describe("reqseq trace chain (SR-022)", () => {
     const page = await reqseq(["trace", "chain", "N-00a001", "--limit", "2", "--offset", "2"], ws.root);
     expect(page.stdout.split("\n").slice(0, 3)).toEqual([
       "children:",
-      `  1  SR-00b002  draft  Show wind direction  [gap: no evidence]  [under ${P}a001]`,
+      `  1  SR-00b002  draft  Show wind direction  [not in view, holds in VAR-00d001]  [under ${P}a001]`,
       // CR-00c001 derives from SR-00b001 (on the first page), not from SR-00b002 above it.
       `  2  CR-00c001  draft  Count anemometer turns  [gap: no evidence]  [under ${P}b001]`,
     ]);
