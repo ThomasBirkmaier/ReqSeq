@@ -10,7 +10,7 @@ import { launchApp } from "./support/app.js";
 
 /** JUnit runs with a skipped test case and an inspection record; its README lists the elements. */
 const FIXTURE = { fixture: "SR-126/matrix" };
-const TITLE = "List requirements without passed/no test";
+const TITLE = "List requirements without a passed test";
 
 const names = (window: Page) => window.locator('.candidates [role="option"] .name');
 const rows = (window: Page) => window.locator(".result .line.element");

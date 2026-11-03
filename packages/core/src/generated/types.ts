@@ -2643,7 +2643,7 @@ export interface EvidenceEnrichJunitOutput {
 }
 
 /**
- * Input of `evidence.status` as `run` gets it: validated, properties with a `default` filled in. Verification status of a selection per view, from the evidence records (SR-031) and, without own record, from the children with the children that are missing (SR-034); validation status from the validation records (SR-038).
+ * Input of `evidence.status` as `run` gets it: validated, properties with a `default` filled in. Verification status of a selection per view, from the evidence records (SR-031) and, without own record, from the children with the children that are missing (SR-034); validation status from the validation records (SR-038). Without a selection every element of the workspace is listed, and only requirements and needs carry a status, so select them, for example by type.
  * Schema: `schemas/commands/evidence.status.json input`.
  */
 export interface EvidenceStatusInput {
@@ -2653,7 +2653,7 @@ export interface EvidenceStatusInput {
 }
 
 /**
- * Output of `evidence.status`. Verification status of a selection per view, from the evidence records (SR-031) and, without own record, from the children with the children that are missing (SR-034); validation status from the validation records (SR-038).
+ * Output of `evidence.status`. Verification status of a selection per view, from the evidence records (SR-031) and, without own record, from the children with the children that are missing (SR-034); validation status from the validation records (SR-038). Without a selection every element of the workspace is listed, and only requirements and needs carry a status, so select them, for example by type.
  * Schema: `schemas/commands/evidence.status.json output`.
  */
 export interface EvidenceStatusOutput {
