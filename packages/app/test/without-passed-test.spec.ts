@@ -56,10 +56,10 @@ test.describe("the requirements without a passed test in the app", () => {
     await expect(window.locator("article h1")).toHaveText("Log wind speed");
   });
 
-  test("[SR-120/AK1] the prompt finds the command for the texts passed test and no test as well", async () => {
+  test("[SR-120/AK1] the prompt finds the command for the texts passed test and without test as well", async () => {
     const { window } = running;
     await expect(window.getByRole("listbox", { name: "Overview" })).toBeVisible();
-    for (const text of ["passed test", "no test"]) {
+    for (const text of ["passed test", "without test"]) {
       await window.keyboard.press("ControlOrMeta+Shift+P");
       await window.keyboard.type(text);
       await expect(names(window).first()).toHaveText(TITLE);
