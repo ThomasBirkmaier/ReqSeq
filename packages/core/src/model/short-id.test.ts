@@ -10,6 +10,7 @@ import { Workspace } from "../runtime/workspace.js";
 import type { ElementRecord } from "./elements.js";
 import type { ShortIds } from "./short-id.js";
 import {
+  problemTarget,
   SHORT_ID_MIN_LENGTH,
   UNKNOWN_TYPE_PREFIX,
   buildShortIds,
@@ -553,5 +554,31 @@ describe("updateShortIds (#184)", () => {
     expect(shortIdGroup(PAIR_1)).toBe("abc123");
     // Something else than a UUID: dashes near the end are skipped.
     expect(shortIdGroup("aaaa-bb-cc")).toBe("aabbcc");
+  });
+});
+
+describe("problemTarget (#172)", () => {
+  const T = "c1b2c3d4-0000-4000-a000-0000000000f1";
+  const record = (repository: string): ElementRecord => ({ id: T, repository }) as unknown as ElementRecord;
+  const storeOf = (...records: readonly ElementRecord[]): ElementStore =>
+    ({ byId: new Map(records.length === 0 ? [] : [[T, records]]) }) as unknown as ElementStore;
+  const about = {
+    code: "relation.outdated",
+    severity: "warning",
+    message: "m",
+    targetId: T,
+    repository: "system",
+  } as const;
+
+  it("takes the target in the repository of the problem, else the only one, else none", () => {
+    const here = record("system");
+    const there = record("sensor");
+    expect(problemTarget(storeOf(there, here), about)).toBe(here);
+    expect(problemTarget(storeOf(there), about)).toBe(there);
+    // The element's own repository counts before the file's (outdated evidence names its record file).
+    expect(problemTarget(storeOf(there, here), { ...about, elementRepository: "sensor" })).toBe(there);
+    expect(problemTarget(storeOf(there, record("third")), about)).toBeUndefined();
+    expect(problemTarget(storeOf(here, record("system")), about)).toBeUndefined();
+    expect(problemTarget(storeOf(), about)).toBeUndefined();
   });
 });

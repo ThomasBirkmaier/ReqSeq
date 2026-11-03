@@ -255,14 +255,20 @@ describe("identifiers in outputs (#305)", () => {
     expect(affected.affected.map((e) => e.identifier)).toEqual(["SR-036", "SR-037"]);
   });
 
-  it("names the identifier of the element of a problem next to its short ID", async () => {
+  it("names the identifier of the element and of the target of a problem next to their short IDs (#172)", async () => {
     const opened = await open();
     const file = opened.fixture.path(N001.file);
     await writeFile(file, (await readFile(file, "utf8")).replace("by their spec ID.", "by their IDs."));
     const problems = await problemsOf(opened);
-    expect(problems.map((p) => [p.code, p.elementShortId, p.elementIdentifier])).toEqual([
-      ["relation.outdated", "SR-0b0036", "SR-036"],
-    ]);
+    expect(
+      problems.map((p) => [
+        p.code,
+        p.elementShortId,
+        p.elementIdentifier,
+        p.targetShortId,
+        p.targetIdentifier,
+      ]),
+    ).toEqual([["relation.outdated", "SR-0b0036", "SR-036", "N-0a0001", "N-001"]]);
   });
 
   it("shows the identifier of the child an unresolved derivation comes from", async () => {

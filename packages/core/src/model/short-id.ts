@@ -375,3 +375,19 @@ export const problemElement = (
     (records.length === 1 ? only : undefined)
   );
 };
+
+/**
+ * The element the `targetId` of `problem` names (#172): the one with that UUID in the repository of
+ * the element the problem is about (a relation without a repository names one there, D-058), else the
+ * only one with it in the store; undefined when there is none or several are left.
+ */
+export const problemTarget = (
+  store: ElementStore,
+  problem: Problem & { readonly targetId: string },
+): ElementRecord | undefined => {
+  const records = store.byId.get(problem.targetId) ?? [];
+  const repository = problem.elementRepository ?? problem.repository;
+  const here = records.filter((e) => e.repository === repository);
+  const candidates = here.length > 0 ? here : records;
+  return candidates.length === 1 ? candidates[0] : undefined;
+};

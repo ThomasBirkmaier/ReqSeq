@@ -31,7 +31,8 @@ export const renderJson = (output: unknown): string => [...jsonOutput(output)].j
  * out; the repository only when the problem names one and has a file (e.g. element files of
  * several repositories, metamodel files); the element by its short ID (`elementShortId`, #315), by
  * its UUID when the problem has no short ID, and its identifier when it has one
- * (`(element SR-3c90b0, identifier SR-036)`, `elementIdentifier`, #305).
+ * (`(element SR-3c90b0, identifier SR-036)`, `elementIdentifier`, #305); then the target the same way
+ * when the problem names it by short ID (`(target D-fd8f46, identifier D-011)`, #172).
  */
 export const renderProblem = (problem: unknown): string => {
   const p = isRecord(problem) ? problem : { message: JSON.stringify(problem) };
@@ -48,12 +49,17 @@ export const renderProblem = (problem: unknown): string => {
       : identifier === ""
         ? shortId
         : `${shortId}, identifier ${identifier}`;
+  // The target by its short ID and identifier, when the problem gives them (#172).
+  const targetShortId = text(p["targetShortId"]);
+  const targetIdentifier = text(p["targetIdentifier"]);
+  const target = targetIdentifier === "" ? targetShortId : `${targetShortId}, identifier ${targetIdentifier}`;
   return `${[
     text(p["severity"]),
     text(p["code"]),
     location,
     text(p["message"]),
     element === "" ? "" : `(element ${element})`,
+    targetShortId === "" ? "" : `(target ${target})`,
   ]
     .filter((part) => part !== "")
     .join("  ")}\n`;

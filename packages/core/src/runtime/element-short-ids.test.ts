@@ -498,7 +498,7 @@ describe("every problem of every output schema is located (#319)", () => {
 
 describe("fillElementShortIds", () => {
   const where = locator({ properties: { problems: PROBLEMS, other: PROBLEMS } }) ?? {};
-  const shortIdOf = (problem: Problem & { readonly elementId: string }): ElementNames | undefined =>
+  const shortIdOf = (problem: Problem): ElementNames | undefined =>
     problem.elementId === N1 ? { elementShortId: "N-0000a1" } : undefined;
 
   it("adds the short ID to the problems that name an element, in a copy", () => {
@@ -651,6 +651,41 @@ describe("withElementShortIds", () => {
     // A file that holds no copy of the UUID: none of the two is meant.
     expect(problemElement(store, about(N1, "elsewhere.md"))).toBeUndefined();
     expect(problemElement(store, about(R2, "elsewhere.md"))?.file).toBe("requirements/SR-0000000000b2.md");
+  });
+});
+
+describe("withElementShortIds names the target of a problem (#172)", () => {
+  const where = locator({ properties: { problems: PROBLEMS } });
+  const fill = async (problem: Problem): Promise<unknown> => {
+    const workspace = await open();
+    await Promise.all([workspace.get(elementStoreState), workspace.get(metamodelState)]);
+    return ((await withElementShortIds(workspace, where, { problems: [problem] })) as { problems: unknown[] })
+      .problems[0];
+  };
+
+  it("adds the short ID of the target next to the element's, and of a target alone", async () => {
+    const problem = about(R2, "requirements/SR-0000000000b2.md", { targetId: N1 });
+    expect(await fill(problem)).toEqual({
+      ...problem,
+      elementShortId: "SR-0000b2",
+      targetShortId: "N-0000a1",
+    });
+    const { elementId: _element, ...alone } = problem;
+    expect(await fill(alone)).toEqual({ ...alone, targetShortId: "N-0000a1" });
+  });
+
+  it("keeps a short ID that is there and leaves out a target that is not in the store", async () => {
+    const shown = about(R2, "requirements/SR-0000000000b2.md", { targetId: N1, targetShortId: "N-1" });
+    expect(await fill(shown)).toEqual({ ...shown, elementShortId: "SR-0000b2" });
+    const elementShown = about(R2, "requirements/SR-0000000000b2.md", {
+      targetId: N1,
+      elementShortId: "SR-1",
+    });
+    expect(await fill(elementShown)).toEqual({ ...elementShown, targetShortId: "N-0000a1" });
+    const stray = about(R2, "requirements/SR-0000000000b2.md", { targetId: `${P}ee` });
+    expect(await fill(stray)).toEqual({ ...stray, elementShortId: "SR-0000b2" });
+    const { elementId: _element, ...strayAlone } = stray;
+    expect(await fill(strayAlone)).toBe(strayAlone);
   });
 });
 

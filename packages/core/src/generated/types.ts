@@ -271,6 +271,10 @@ export interface Problem {
   /** Identifier of the element `elementId` names (the value of its property with the meaning `identifier`, #305), for display next to `elementShortId`; given with it when the element has one. */
   readonly elementIdentifier?: string;
   readonly targetId?: Uuid;
+  /** Short ID of the element `targetId` names, for display (#172); given when that UUID names one element in the repository of the element the problem is about, or one element in the workspace, by every command that has read the elements. */
+  readonly targetShortId?: ShortId;
+  /** Identifier of the element `targetId` names (the value of its property with the meaning `identifier`, #305, #172), for display next to `targetShortId`; given with it when the element has one. */
+  readonly targetIdentifier?: string;
   readonly storedVersion?: Version;
   readonly currentVersion?: Version;
   readonly storedDate?: string | null;

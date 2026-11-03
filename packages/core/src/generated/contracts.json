@@ -549,6 +549,14 @@
             "targetId": {
               "$ref": "#/$defs/uuid"
             },
+            "targetShortId": {
+              "$ref": "#/$defs/shortId",
+              "description": "Short ID of the element `targetId` names, for display (#172); given when that UUID names one element in the repository of the element the problem is about, or one element in the workspace, by every command that has read the elements."
+            },
+            "targetIdentifier": {
+              "type": "string",
+              "description": "Identifier of the element `targetId` names (the value of its property with the meaning `identifier`, #305, #172), for display next to `targetShortId`; given with it when the element has one."
+            },
             "storedVersion": {
               "$ref": "#/$defs/version"
             },

@@ -125,6 +125,7 @@ export {
   buildShortIds,
   identifierField,
   problemElement,
+  problemTarget,
   shortIdState,
   shortIdsBuiltFrom,
 } from "./short-id.js";

@@ -161,7 +161,12 @@ describe("cycles in the derivations (SR-090)", () => {
       [C, "SR-000003"],
     ]);
     expect(out.problems).toEqual(
-      problems.map((p) => ({ ...p, elementShortId: shortIds.get(p.elementId ?? "") })),
+      problems.map((p) => ({
+        ...p,
+        elementShortId: shortIds.get(p.elementId ?? ""),
+        // The target named by its short ID too (#172).
+        targetShortId: shortIds.get(p.targetId ?? ""),
+      })),
     );
   });
 

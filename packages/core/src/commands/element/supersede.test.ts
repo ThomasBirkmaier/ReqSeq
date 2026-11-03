@@ -103,9 +103,13 @@ const targetNow = async (
   return { ...(await currentTarget(context, repository, target)) };
 };
 
+/** The prefix of its file name and the last six digits of its UUID (SR-084; no two share them here). */
+const shortIdOf = (element: { readonly id: string; readonly file: string }): string =>
+  `${element.file.replace(/^.*\//, "").replace(/-.*$/, "")}-${element.id.slice(-6)}`;
+
 const hint = (
   source: { readonly id: string; readonly file: string },
-  target: { readonly id: string },
+  target: { readonly id: string; readonly file: string },
   line: number,
   message: string,
 ): Problem => ({
@@ -115,9 +119,9 @@ const hint = (
   repository: "system",
   file: source.file,
   elementId: source.id,
-  // The prefix of its file name and the last six digits of its UUID (SR-084; no two share them here).
-  elementShortId: `${source.file.replace(/^.*\//, "").replace(/-.*$/, "")}-${source.id.slice(-6)}`,
+  elementShortId: shortIdOf(source),
   targetId: target.id,
+  targetShortId: shortIdOf(target),
   line,
 });
 
