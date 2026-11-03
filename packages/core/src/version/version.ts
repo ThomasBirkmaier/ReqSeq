@@ -1,9 +1,12 @@
-// Version (Fassung) of an element as content hash, normal form n1 (ADR-0005, D-013, D-027, D-057, SR-091).
+// Version (Fassung) of an element as content hash, normal forms n1 and n2 (ADR-0005, D-013, D-027, D-057, SR-091).
 // Pure: no file system access. The model module reads the element and its linked files and passes them in.
 import { createHash } from "node:crypto";
 
-/** Prefix of every version this module computes. A new normal form gets a new prefix (D-027). */
-export const NORMAL_FORM = "n1";
+/** A normal form this module computes. A new normal form gets a new prefix (D-027). */
+export type NormalForm = "n1" | "n2";
+
+/** The normal form of every version the tool writes (n1 until the switch of #166). */
+export const NORMAL_FORM: NormalForm = "n1";
 
 /** Value kind of a property (metamodel.schema.json, `kind`). */
 export type VersionPropertyKind = "text" | "number" | "date" | "choice" | "relation";
@@ -116,12 +119,27 @@ function targetId(value: VersionValue): VersionValue {
 const relationIds = (value: VersionValue): VersionValue =>
   Array.isArray(value) ? value.map(targetId) : targetId(value);
 
+/**
+ * n2: the targets of a relation-valued property count as a set (D-027): the ids sorted by code
+ * point and deduplicated, always as a list; malformed entries follow in file order (ADR-0005).
+ */
+function relationIdSet(value: VersionValue): VersionValue {
+  const all = (Array.isArray(value) ? value : [value]).map(targetId);
+  const ids = [...new Set(all.filter((v): v is string => typeof v === "string"))].sort(byCodePoint);
+  return [...ids, ...all.filter((v) => typeof v !== "string")];
+}
+
 /** Absent, `null` and an empty list are the same and are left out (ADR-0005). */
 const isAbsent = (value: VersionValue | undefined): value is undefined | null | readonly [] =>
   value === undefined || value === null || (Array.isArray(value) && value.length === 0);
 
-/** The canonical content of normal form n1 (ADR-0005). Its UTF-8 bytes are hashed. */
-export const canonicalContent = (input: VersionInput): string => contentOf(input, "throw");
+/**
+ * The canonical content of a normal form (ADR-0005). Its UTF-8 bytes are hashed. For n2 the caller
+ * passes the text and string values with the `version=` parameters of their inline references
+ * removed (`withoutReferenceVersions` in `model/version-input.ts`); this block only writes them.
+ */
+export const canonicalContent = (input: VersionInput, form: NormalForm = NORMAL_FORM): string =>
+  contentOf(input, "throw", form);
 
 /**
  * The canonical content with a number that is not finite written as `String(value)` instead of
@@ -129,11 +147,13 @@ export const canonicalContent = (input: VersionInput): string => contentOf(input
  * hashed and never a version; for telling whether a save changed the content of an element whose
  * version cannot be computed (SR-024 AK2, AK3; #276).
  */
-export const comparableContent = (input: VersionInput): string => contentOf(input, "write");
+export const comparableContent = (input: VersionInput, form: NormalForm = NORMAL_FORM): string =>
+  contentOf(input, "write", form);
 
-function contentOf(input: VersionInput, nonFinite: NonFinite): string {
+function contentOf(input: VersionInput, nonFinite: NonFinite, form: NormalForm): string {
   // The text is one JSON string line, so no text can look like a `prop` or `file` section.
-  const parts = [`reqseq-version ${NORMAL_FORM}\n`, `text\n${JSON.stringify(normalizeText(input.text))}\n`];
+  const parts = [`reqseq-version ${form}\n`, `text\n${JSON.stringify(normalizeText(input.text))}\n`];
+  const relation = form === "n1" ? relationIds : relationIdSet;
   const counted = input.definitions.filter((d) => d.content === true);
   for (const def of counted.sort((a, b) => byCodePoint(a.key, b.key))) {
     // Own keys only: a property key such as `constructor` must not read Object.prototype.
@@ -142,7 +162,7 @@ function contentOf(input: VersionInput, nonFinite: NonFinite): string {
       continue;
     }
     parts.push(
-      `prop ${def.key}\n${canonicalJson(def.kind === "relation" ? relationIds(value) : value, nonFinite)}\n`,
+      `prop ${def.key}\n${canonicalJson(def.kind === "relation" ? relation(value) : value, nonFinite)}\n`,
     );
   }
   const seen = new Set<string>();
@@ -156,6 +176,9 @@ function contentOf(input: VersionInput, nonFinite: NonFinite): string {
   return parts.join("");
 }
 
-/** The version of an element: `n1:` and the first 64 bits of SHA-256 over the canonical content, as hex. */
-export const computeVersion = (input: VersionInput): string =>
-  `${NORMAL_FORM}:${sha256Hex(canonicalContent(input)).slice(0, 16)}`;
+/**
+ * The version of an element in a normal form: the prefix (`n1:`, `n2:`) and the first 64 bits of
+ * SHA-256 over the canonical content, as hex.
+ */
+export const computeVersion = (input: VersionInput, form: NormalForm = NORMAL_FORM): string =>
+  `${form}:${sha256Hex(canonicalContent(input, form)).slice(0, 16)}`;

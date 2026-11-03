@@ -12,6 +12,7 @@
 // each expanded downward node of the page (`chainEvidenceOf`: verification records that hold in the
 // view, every one without a view; assumptions A2 and A5 of #528 Q4). An evidence location that is
 // not on this machine makes the chain `incomplete` (SR-006 AK2). The upward chain reads no records.
+// `names` names the variants of those records (#676), as evidence.status names its views (#588).
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import {
@@ -20,12 +21,21 @@ import {
   evidenceReadState,
   hasVerificationRecord,
 } from "../../evidence/index.js";
-import { resolveRef, shortIdState } from "../../model/index.js";
+import { namesField, namesOf, resolveRef, shortIdState } from "../../model/index.js";
 import { chainOutput, derivationGraph, traceChain, traceContext } from "../../trace/index.js";
 import type { View } from "../../variants/index.js";
 import { resolveView, viewIncomplete, viewRuleOf } from "../../variants/index.js";
 
 const CORE: View = { kind: "core" };
+
+/** The variants the records of the chain's evidence name, in the order named (with repeats). */
+const variantsOf = (evidence: CommandOutput<"trace.chain">["evidence"]): string[] =>
+  evidence
+    .flatMap((item) => [
+      ...item.testCases.flatMap((test) => test.executions.map((execution) => execution.variant)),
+      ...item.records.map((record) => record.variant),
+    ])
+    .filter((variant): variant is string => variant !== undefined);
 
 export default defineCommand({
   name: "trace.chain",
@@ -61,8 +71,12 @@ export default defineCommand({
       },
       { limit: input.limit, offset: input.offset },
     );
+    const named = {
+      ...output,
+      ...namesField(namesOf({ metamodel, store, shortIds }, variantsOf(output.evidence))),
+    };
     return read?.incomplete === true || viewIncomplete(graph.layout, view)
-      ? { ...output, incomplete: true }
-      : output;
+      ? { ...named, incomplete: true }
+      : named;
   },
 });

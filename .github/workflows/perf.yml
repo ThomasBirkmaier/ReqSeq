@@ -1,7 +1,7 @@
 name: Performance
 
 # ADR-0011, #126: the performance suite on the generated workspace with 50,000 elements and 200,000
-# relations (packages/testkit, D-055; tests in packages/*/test/perf/). Nightly and on pull requests
+# relations (packages/testkit, D-055; tests in packages/*/test/perf/, the app's with Playwright, #147). Nightly and on pull requests
 # labelled `perf` (once, when the label is added: a later push does not run it again, so a pull request does not
 # hold a runner for every push, product owner decision 2026-10-28; to measure again, remove the label and add it
 # again); it is not a required check. Every time goes into the record
@@ -74,7 +74,9 @@ jobs:
     # GitHub's hosted Ubuntu runner for public repositories has 4 cores and 16 GB, the reference machine
     # (ADR-0011); the job prints what it got.
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    # The Vitest suite alone took 36 min at night (2026-11-02); the app's suite adds about 5 min with its setup
+    # (Electron from the cache, build, about 2 min of tests, #147). 75 min leaves about 34 min for a slow runner.
+    timeout-minutes: 75
     outputs:
       exceeded: ${{ steps.report.outputs.exceeded }}
       complete: ${{ steps.report.outputs.complete }}
@@ -89,6 +91,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
+        id: build
       - name: Performance suite without network (unshare -rn)
         run: |
           # As in ci.yml (CLI e2e): Ubuntu 24.04 lets AppArmor block unprivileged user namespaces; allow
@@ -99,8 +102,46 @@ jobs:
           echo "Runner: $(nproc) cores, $(free -g | awk '/^Mem:/ {print $2}') GB memory"
           # `pnpm test:perf` without pnpm inside the namespace: remove old results, then run Vitest.
           # Keep in step with the `test:perf` script in package.json.
-          rm -f test-results/perf.jsonl test-results/junit-perf.xml
+          rm -f test-results/perf.jsonl test-results/junit-perf.xml test-results/junit-perf-electron.xml
           unshare -rn sh -c 'ip link set lo up && exec ./node_modules/.bin/vitest run --config vitest.perf.config.ts'
+      # The app's part (#147, packages/app/test/perf/playwright.config.ts): Playwright starts the built app on the
+      # generated workspace (SR-082 start and open), after the Vitest suite on the same runner, so the two never
+      # compete for the cores. It runs when the build passed, also after a red Vitest suite. The Electron binary
+      # comes from the cache that ci.yml fills (#303); this job only reads it.
+      - name: Electron version
+        id: electron
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          version="$(node -p "require('./packages/app/node_modules/electron/package.json').version")"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "electron_config_cache=$RUNNER_TEMP/electron-cache" >> "$GITHUB_ENV"
+      - uses: actions/cache/restore@v4
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        with:
+          path: ${{ runner.temp }}/electron-cache
+          key: electron-${{ runner.os }}-${{ runner.arch }}-${{ steps.electron.outputs.version }}
+      - name: Electron binary, the app's build, display server
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          pnpm --filter @reqseq/app electron:install
+          pnpm --filter @reqseq/app build:electron
+          # As in ci.yml: GitHub's image has most of these; install whatever is missing.
+          packages="xvfb xauth libgtk-3-0t64 libnss3 libgbm1 libasound2t64 libcups2t64 libatk-bridge2.0-0t64 libxkbcommon0 libdrm2"
+          if ! dpkg -s $packages >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends $packages
+          fi
+      - name: App performance suite without network (xvfb, unshare)
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          if ! unshare -r true 2>/dev/null; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+          # Without network like the suite above, but as the runner's own user, not as root in the namespace:
+          # Chromium refuses to run as root without --no-sandbox, and its sandbox stays on. `--keep-caps` lets the
+          # shell bring up the loopback, which Playwright's connection to the app needs. The display server runs
+          # inside the namespace, because its abstract socket belongs to the namespace.
+          unshare --user --map-current-user --net --keep-caps sh -c 'ip link set lo up && exec xvfb-run -a packages/app/node_modules/.bin/playwright test --config packages/app/test/perf/playwright.config.ts'
       - name: Report
         id: report
         if: always() && hashFiles('test-results/perf.jsonl') != ''
@@ -108,6 +149,7 @@ jobs:
           node scripts/perf/report.mjs --results test-results/perf.jsonl --out verification/performance.md
           --commit "$GITHUB_SHA" --run-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           --summary "$GITHUB_STEP_SUMMARY" --github-output "$GITHUB_OUTPUT" --junit test-results/junit-perf.xml
+          --junit test-results/junit-perf-electron.xml
       - name: Upload results
         if: always()
         uses: actions/upload-artifact@v4

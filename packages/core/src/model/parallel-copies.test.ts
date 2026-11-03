@@ -13,26 +13,9 @@ import { Workspace } from "../runtime/workspace.js";
 import { duplicateIdProblemsState } from "./duplicates.js";
 import { RACY_MS } from "./model-cache.js";
 import { shortIdState } from "./short-id.js";
-import type { Contribution, ElementStore } from "./store.js";
+import type { ElementStore } from "./store.js";
 import { elementStoreState } from "./store.js";
 import { watchWorkspace } from "./watch.js";
-
-/** `store` without the versions its elements got as read (`loaded-version.ts`). */
-const withoutLoadedVersions = (store: ElementStore): ElementStore => ({
-  ...store,
-  repositories: (store.repositories ?? []).map((r) => ({
-    ...r,
-    files: new Map(
-      [...r.files].map(([file, c]): [string, Contribution] => {
-        if (c.kind !== "element") {
-          return [file, c];
-        }
-        const { version: _version, ...rest } = c;
-        return [file, rest];
-      }),
-    ),
-  })),
-});
 
 /** New elements per copy (SR-081 AK3). */
 const PER_COPY = 100;
@@ -210,9 +193,8 @@ describe("separate copies merged with Git (SR-081)", { timeout: 60_000 }, () => 
     const fresh = open(a);
     const [kept, read] = await Promise.all([cached.get(elementStoreState), fresh.get(elementStoreState)]);
     expect(kept.elements).toHaveLength(FIXTURE_ELEMENTS + 2 * PER_COPY);
-    // The model cache holds no versions as read yet (format 8, #439), so a store from it has none.
-    expect(kept.versioning).toStrictEqual(read.versioning);
-    expect(withoutLoadedVersions(kept)).toStrictEqual(withoutLoadedVersions(read));
+    // The model cache holds the versions as read (format 9, #439): the same store as a full read.
+    expect(kept).toStrictEqual(read);
     expect(await findings(cached)).toEqual(await findings(fresh));
     expect(await cached.get(duplicateIdProblemsState)).toEqual([]);
   });

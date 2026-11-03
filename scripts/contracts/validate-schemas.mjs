@@ -123,7 +123,31 @@ function vectorList(v, key) {
   return [];
 }
 
+// The version a canonical file gives in a normal form: the prefix and the first 16 hex of its SHA-256.
+const versionOfFile = (dir, form, file) =>
+  `${form}:${crypto
+    .createHash("sha256")
+    .update(fs.readFileSync(path.join(dir, file)))
+    .digest("hex")
+    .slice(0, 16)}`;
+
+// The n2 entry of a vector (#166): its canonical file exists and gives its version.
+function checkN2(dir, v) {
+  if (v.n2 === undefined) {
+    return;
+  }
+  if (!existsIn(dir, v.n2?.canonical)) {
+    errors.push(`${vectorsWhere}: ${v.element}: n2 canonical ${v.n2?.canonical} not found`);
+    return;
+  }
+  const got = versionOfFile(dir, "n2", v.n2.canonical);
+  if (v.n2.version !== got) {
+    errors.push(`${vectorsWhere}: ${v.element}: n2 version ${v.n2.version}, canonical bytes give ${got}`);
+  }
+}
+
 function checkVector(dir, v, validate) {
+  checkN2(dir, v);
   for (const f of [v.element, v.canonical, ...vectorList(v, "files")]) {
     if (!existsIn(dir, f)) {
       errors.push(`${vectorsWhere}: ${f} not found`);
@@ -141,14 +165,9 @@ function checkVector(dir, v, validate) {
   if (!validate(data)) {
     errors.push(`examples/version/${v.element}: ${ajv.errorsText(validate.errors)}`);
   }
-  const hash = crypto
-    .createHash("sha256")
-    .update(fs.readFileSync(path.join(dir, v.canonical)))
-    .digest("hex");
-  if (v.version !== `n1:${hash.slice(0, 16)}`) {
-    errors.push(
-      `${vectorsWhere}: ${v.element}: version ${v.version}, canonical bytes give n1:${hash.slice(0, 16)}`,
-    );
+  const got = versionOfFile(dir, "n1", v.canonical);
+  if (v.version !== got) {
+    errors.push(`${vectorsWhere}: ${v.element}: version ${v.version}, canonical bytes give ${got}`);
   }
   return 1;
 }

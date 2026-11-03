@@ -18,7 +18,8 @@
     "build:electron": "electron-vite build",
     "electron:install": "node node_modules/electron/install.js",
     "start": "electron .",
-    "test:electron": "pnpm electron:install && pnpm build:electron && playwright test --config test/playwright.config.ts"
+    "test:electron": "pnpm electron:install && pnpm build:electron && playwright test --config test/playwright.config.ts",
+    "test:perf": "pnpm electron:install && pnpm build:electron && playwright test --config test/perf/playwright.config.ts"
   },
   "dependencies": {
     "@codemirror/autocomplete": "6.20.4",

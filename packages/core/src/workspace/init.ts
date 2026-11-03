@@ -5,7 +5,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { stringify } from "yaml";
 import { CommandError } from "../catalog.js";
-import { createFolder, writeFileAtomic } from "../files/index.js";
+import { createFolder, readFileSnapshot, writeFileAtomic } from "../files/index.js";
 import type { WorkspaceFile, WorkspaceLocation, WorkspaceRepository } from "../generated/types.js";
 import { describeViolations, fileSchemaValidator, schemaViolations } from "../runtime/contracts.js";
 import { WORKSPACE_FILE } from "./config.js";
@@ -141,8 +141,40 @@ export const createWorkspace = async (root: string, input: NewWorkspace): Promis
   } catch (error) {
     throw withWritten(error, written);
   }
-  return written;
+  // The workspace is complete here; the `.gitignore` line is a convenience and never fails the call.
+  const ignore = await ignoreTempFiles(root).catch(() => undefined);
+  return ignore === undefined ? written : [...written, ignore];
 };
+
+/** The line of `.gitignore` that keeps ReqSeq's temp files out of Git (#271, `TEMP_FILE_PATTERN`). */
+export const TEMP_FILE_IGNORE = "*.reqseq-tmp";
+
+/**
+ * Adds `TEMP_FILE_IGNORE` to the `.gitignore` of `root` (product owner decision, 2026-11-02, #271):
+ * creates the file, or appends the line with the file's own line ending when no line is it. A
+ * `.gitignore` that cannot be read (a link, not a file) is left alone; its bytes are kept as they are.
+ * Gives the path written, else undefined.
+ */
+const ignoreTempFiles = async (root: string): Promise<string | undefined> => {
+  const current = await readFileSnapshot(root, GITIGNORE);
+  if (current.kind === "problem") {
+    return current.missing
+      ? (await writeFileAtomic(root, GITIGNORE, `${TEMP_FILE_IGNORE}\n`, null, { kind: "copy" })).path
+      : undefined;
+  }
+  // Only read to find the line and the line ending; the bytes are kept as they are (any encoding).
+  const text = Buffer.from(current.bytes).toString("latin1");
+  // Git keeps leading spaces as part of a pattern and drops trailing ones.
+  if (text.split(/\r?\n/).some((line) => line.trimEnd() === TEMP_FILE_IGNORE)) {
+    return undefined;
+  }
+  const eol = text.includes("\r\n") ? "\r\n" : "\n";
+  const lead = text === "" || text.endsWith("\n") ? "" : eol;
+  const bytes = Buffer.concat([current.bytes, Buffer.from(`${lead}${TEMP_FILE_IGNORE}${eol}`)]);
+  return (await writeFileAtomic(root, GITIGNORE, bytes, current.snapshot, { kind: "copy" })).path;
+};
+
+const GITIGNORE = ".gitignore";
 
 /**
  * The failure of the workspace file write, naming the metamodel file that was written before it and

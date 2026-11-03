@@ -20,6 +20,7 @@ import { defineWorkspaceState } from "../runtime/workspace.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
 import { availableRepositories, canonicalRoot, readCacheFile, writeCacheFile } from "../workspace/index.js";
 import type { Contribution } from "./contribution.js";
+import type { LoadedVersion } from "./loaded-version.js";
 import type { LoadedStore } from "./store.js";
 import { isUuid } from "./uuid.js";
 
@@ -46,9 +47,10 @@ export const MODEL_CACHE_FILE = "model.json";
  * values of their frontmatter (`ElementRecord.propertyReferences`, SR-127). 6: and their `reqseq:`
  * links whose target is no UUID (`ElementRecord.unresolvedLinks`, #176). 7: and the `reqseq:`
  * references of their text outside links (`ElementRecord.bareReferences`, #633). 8: and whether
- * their text is blank (`ElementRecord.blankText`, #667).
+ * their text is blank (`ElementRecord.blankText`, #667). 9: and their version as read with a header
+ * table of the fingerprints (`LoadedVersion`, #439).
  */
-export const MODEL_CACHE_FORMAT = 8;
+export const MODEL_CACHE_FORMAT = 9;
 
 /**
  * An entry whose modification time lies less than this before the start of the load that wrote it
@@ -282,6 +284,30 @@ const isElementOf = (value: unknown, file: string, name: string): value is Recor
   (value["closingEol"] === "" || LINE_ENDINGS.includes(value["closingEol"])) &&
   typeof value["bom"] === "boolean";
 
+/** A version of one normal form, `n<k>:<16 hex>` (ADR-0005), under its key `n<k>`. */
+const VERSION = /^(n[1-9][0-9]*):[0-9a-f]{16}$/;
+
+/** A fingerprint of the header's table: SHA-256, hex. */
+const FINGERPRINT = /^[0-9a-f]{64}$/;
+
+/**
+ * The element's version as read from its cache form `{ byForm, f }` (`f`: index into the header's
+ * `fingerprints`), or undefined when it has another shape. Each version is under its own form key.
+ */
+const reviveVersion = (value: unknown, fingerprints: readonly string[]): LoadedVersion | undefined => {
+  if (!isRecord(value) || !isRecord(value["byForm"]) || Object.keys(value).length !== 2) {
+    return undefined;
+  }
+  const { byForm, f } = value;
+  const fingerprint = typeof f === "number" && Number.isInteger(f) ? fingerprints[f] : undefined;
+  const forms = Object.entries(byForm);
+  return fingerprint !== undefined &&
+    forms.length > 0 &&
+    forms.every(([form, version]) => typeof version === "string" && VERSION.exec(version)?.[1] === form)
+    ? { byForm: byForm as Record<string, string>, fingerprint }
+    : undefined;
+};
+
 /** Whether the part of `contribution` that its kind adds has the shape a read gives. */
 const kindFits = (contribution: Record<string, unknown>, file: string, name: string): boolean => {
   switch (contribution["kind"]) {
@@ -301,7 +327,11 @@ const kindFits = (contribution: Record<string, unknown>, file: string, name: str
  * snapshots frozen (`makeSnapshot`) and shared with the element, as a read gives them. Undefined
  * when it does not have the shape the cache writes, so the whole cache is discarded.
  */
-const reviveEntry = (entry: unknown, name: string): readonly [string, CacheEntry] | undefined => {
+const reviveEntry = (
+  entry: unknown,
+  name: string,
+  fingerprints: readonly string[],
+): readonly [string, CacheEntry] | undefined => {
   if (!Array.isArray(entry) || entry.length !== 4) {
     return undefined;
   }
@@ -318,6 +348,14 @@ const reviveEntry = (entry: unknown, name: string): readonly [string, CacheEntry
   ) {
     return undefined;
   }
+  if (contribution["version"] !== undefined) {
+    const version =
+      contribution["kind"] === "element" ? reviveVersion(contribution["version"], fingerprints) : undefined;
+    if (version === undefined) {
+      return undefined;
+    }
+    contribution["version"] = version;
+  }
   const snapshot = Object.freeze(contribution["snapshot"]);
   if (isRecord(contribution["element"])) {
     contribution["element"]["snapshot"] = snapshot;
@@ -325,7 +363,10 @@ const reviveEntry = (entry: unknown, name: string): readonly [string, CacheEntry
   return [file, { contribution: contribution as unknown as CachedContribution, ino, ctimeNs }];
 };
 
-const reviveRepository = (value: unknown): readonly [string, CachedRepository] | undefined => {
+const reviveRepository = (
+  value: unknown,
+  fingerprints: readonly string[],
+): readonly [string, CachedRepository] | undefined => {
   if (!isRecord(value)) {
     return undefined;
   }
@@ -335,7 +376,7 @@ const reviveRepository = (value: unknown): readonly [string, CachedRepository] |
   }
   const entries = new Map<string, CacheEntry>();
   for (const entry of files) {
-    const revived = reviveEntry(entry, name);
+    const revived = reviveEntry(entry, name, fingerprints);
     if (revived === undefined) {
       return undefined;
     }
@@ -365,13 +406,16 @@ export const parseModelCache = (
     value["code"] !== code ||
     value["root"] !== root ||
     typeof value["startedAt"] !== "number" ||
-    !Array.isArray(value["repositories"])
+    !Array.isArray(value["repositories"]) ||
+    !Array.isArray(value["fingerprints"]) ||
+    !value["fingerprints"].every((f) => typeof f === "string" && FINGERPRINT.test(f))
   ) {
     return undefined;
   }
+  const fingerprints = value["fingerprints"] as readonly string[];
   const repositories = new Map<string, CachedRepository>();
   for (const repository of value["repositories"]) {
-    const revived = reviveRepository(repository);
+    const revived = reviveRepository(repository, fingerprints);
     if (revived === undefined) {
       return undefined;
     }
@@ -415,24 +459,30 @@ const exactInJson = (value: unknown, ancestors: Set<object> = new Set()): boolea
   return exact;
 };
 
-/** `contribution` without the element's version as read. */
-const withoutVersion = (contribution: Contribution): Contribution => {
+/** The index of a fingerprint in the header's table (`fingerprints`), added on first use. */
+type FingerprintIndex = (fingerprint: string) => number;
+
+/** `contribution` with the element's version as read in its cache form `{ byForm, f }` (#439). */
+const withCachedVersion = (contribution: Contribution, indexOf: FingerprintIndex): unknown => {
   if (contribution.kind !== "element" || contribution.version === undefined) {
     return contribution;
   }
-  const { version: _version, ...rest } = contribution;
-  return rest;
+  const { byForm, fingerprint } = contribution.version;
+  return { ...contribution, version: { byForm, f: indexOf(fingerprint) } };
 };
 
 /**
  * The JSON of a contribution that JSON gives back exactly, else undefined. It never throws: a value
  * that fails while it is checked or written (a getter that throws) only keeps the entry out. An
- * element's version as read is not written (format 8 holds none, #439): the start that reuses the
- * entry computes it on use.
+ * element's version as read is written per normal form with the index of its fingerprint (format 9,
+ * #439), so the start that reuses the entry has it as a read would.
  */
-const cacheableJson = (contribution: Contribution): string | undefined => {
+const cacheableJson = (
+  contribution: Contribution,
+  indexOf: FingerprintIndex = () => 0,
+): string | undefined => {
   try {
-    const kept = withoutVersion(contribution);
+    const kept = withCachedVersion(contribution, indexOf) as Contribution;
     return kept.snapshot !== undefined && exactInJson(kept) ? JSON.stringify(kept) : undefined;
   } catch {
     return undefined;
@@ -506,10 +556,20 @@ export const serializeModelCache = (
   startedAt: number,
   code: string = codeFingerprint(),
 ): string => {
+  const fingerprints: string[] = [];
+  const indexes = new Map<string, number>();
+  const indexOf: FingerprintIndex = (fingerprint) => {
+    let index = indexes.get(fingerprint);
+    if (index === undefined) {
+      index = fingerprints.push(fingerprint) - 1;
+      indexes.set(fingerprint, index);
+    }
+    return index;
+  };
   const repositories = store.repositories.map(({ repository, location, files }) => {
     const entries: string[] = [];
     for (const [file, contribution] of files) {
-      const text = cacheableJson(contribution);
+      const text = cacheableJson(contribution, indexOf);
       const stat = text === undefined ? undefined : lstatQuietly(path.join(location.folder, file));
       const keys = stat === undefined ? undefined : statKeys(stat);
       if (
@@ -526,7 +586,7 @@ export const serializeModelCache = (
     const folder = JSON.stringify(canonicalRoot(location.folder));
     return `{"name":${JSON.stringify(repository)},"folder":${folder},"files":[${entries.join(",")}]}`;
   });
-  const header = `"format":${String(MODEL_CACHE_FORMAT)},"code":${JSON.stringify(code)},"root":${JSON.stringify(root)},"startedAt":${String(startedAt)}`;
+  const header = `"format":${String(MODEL_CACHE_FORMAT)},"code":${JSON.stringify(code)},"root":${JSON.stringify(root)},"startedAt":${String(startedAt)},"fingerprints":${JSON.stringify(fingerprints)}`;
   return `{${header},"repositories":[${repositories.join(",")}]}\n`;
 };
 
