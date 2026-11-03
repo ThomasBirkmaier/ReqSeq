@@ -496,15 +496,23 @@ const mark = (marks: Marks, key: string, text: string): void => {
   marks.set(key, [...(marks.get(key) ?? []), text]);
 };
 
+/**
+ * The mark of a gap: `[gap: no evidence]`; a requirement the view does not hold is no gap (#674):
+ * `[not in view, holds in VAR-x, core]`, the variants by short ID when `names` has them.
+ */
+const gapMark = (gap: Rec, names: Names): string => {
+  if (gap["kind"] !== "not-in-view") {
+    return `[gap: ${text(gap["kind"]).replaceAll("-", " ")}]`;
+  }
+  const views = listOf(gap["views"]).map((view) => variantName(text(view), names));
+  return `[not in view${views.length === 0 ? ", holds in no view" : `, holds in ${views.join(", ")}`}]`;
+};
+
 /** The marks of the gaps of each element of the chain, by `nodeKey("", repository, id)`. */
-const gapMarks = (chain: Chain): Marks => {
+const gapMarks = (chain: Chain, names: Names): Marks => {
   const gaps: Marks = new Map();
   for (const gap of listOf(chain["gaps"]).filter(isRecord)) {
-    mark(
-      gaps,
-      nodeKey("", text(gap["repository"]), text(gap["id"])),
-      `[gap: ${text(gap["kind"]).replace("-", " ")}]`,
-    );
+    mark(gaps, nodeKey("", text(gap["repository"]), text(gap["id"])), gapMark(gap, names));
   }
   return gaps;
 };
@@ -557,7 +565,7 @@ const listedRecordLine = (record: Rec): string => {
   const baselines = listOf(record["baselines"]).map(text);
   return join(
     record["kind"] === "verification" ? "" : text(record["kind"]),
-    recordLine(record, true),
+    recordLine(record, true, new Map()),
     text(record["version"]) === "" ? "" : `[version ${text(record["version"])}]`,
     baselines.length === 0 ? "" : `[baselines: ${baselines.join(", ")}]`,
   );
@@ -670,7 +678,7 @@ const treeOf = (chain: Chain, nodes: ReadonlyMap<string, ChainNode>, root: Chain
 /** The chain as a tree per direction: the root, then `parents:` and `children:` (see the file comment). */
 const chainLines = (chain: Chain, names: Names): string[] => {
   const width = String(Math.max(...chain.nodes.map((n) => n.depth), 0)).length;
-  const gaps = gapMarks(chain);
+  const gaps = gapMarks(chain, names);
   const keyOf = (node: ChainNode): string =>
     node.depth === 0 ? ROOT : nodeKey(text(node["direction"]), node.repository, node.id);
   const nodes = new Map(chain.nodes.map((node) => [keyOf(node), node]));

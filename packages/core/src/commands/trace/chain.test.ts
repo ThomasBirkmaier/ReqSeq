@@ -26,6 +26,7 @@ const DIRECTION = `${P}b002`;
 const SENSOR = `${P}b003`;
 const TURNS = `${P}c001`;
 const STALL = `${P}c002`;
+const AIRFIELD = `${P}d001`;
 
 const CHAIN: FixtureOptions = { fixture: "SR-022/chain" };
 
@@ -86,11 +87,14 @@ describe("trace.chain (SR-022)", () => {
 
   it("[SR-022/AK3] marks a need without a child and requirements without a child and evidence", async () => {
     const workspace = await open();
-    expect((await chain(workspace, { ref: SEE_WIND })).gaps).toEqual([
-      { id: DIRECTION, repository: "system", kind: "no-evidence" },
+    // DIRECTION holds only in the variant d001: without a view it is not in the core's view (#674).
+    const full = await chain(workspace, { ref: SEE_WIND });
+    expect(full.gaps).toEqual([
+      { id: DIRECTION, repository: "system", kind: "not-in-view", views: [AIRFIELD] },
       { id: TURNS, repository: "system", kind: "no-evidence" },
       { id: STALL, repository: "system", kind: "no-evidence" },
     ]);
+    expect(full.names?.map((n) => n.id)).toEqual([AIRFIELD]);
     expect((await chain(workspace, { ref: RAIN })).gaps).toEqual([
       { id: RAIN, repository: "system", kind: "no-child" },
     ]);
@@ -213,6 +217,22 @@ describe("trace.chain in a view (SR-040 appliesIn)", () => {
     expect(airfield.nodes.map((n) => n.id)).toEqual([SEE_WIND, SPEED, DIRECTION, TURNS, STALL]);
     // Without a view: every element.
     expect((await chain(workspace, { ref: TRUST })).nodes.map((n) => n.id)).toEqual([TRUST, SENSOR, STALL]);
+  });
+
+  it("[SR-022/AK3] a requirement the view does not hold is not-in-view, not an evidence gap (#674)", async () => {
+    const workspace = await open();
+    // With a view only the root can be outside it; `views` names every view that holds it.
+    expect((await chain(workspace, { ref: DIRECTION, view: "core" })).gaps).toEqual([
+      { id: DIRECTION, repository: "system", kind: "not-in-view", views: [AIRFIELD] },
+    ]);
+    // In the variant that holds it, it is judged by its evidence.
+    expect((await chain(workspace, { ref: DIRECTION, view: "VAR-00d001" })).gaps).toEqual([
+      { id: DIRECTION, repository: "system", kind: "no-evidence" },
+    ]);
+    // An element without validity holds in every view: no change.
+    expect((await chain(workspace, { ref: TURNS })).gaps).toEqual([
+      { id: TURNS, repository: "system", kind: "no-evidence" },
+    ]);
   });
 
   it("refuses a view that names no variant", async () => {

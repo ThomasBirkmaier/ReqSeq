@@ -19,7 +19,10 @@
 // - Gaps (AK3), downward and only for elements whose children were looked at (`expanded`): an element
 //   of a type with the meaning `need` without a child is `no-child`; an element of a type with the
 //   meaning `requirement` without a child and without evidence is `no-evidence` (a requirement is
-//   closed by a child or by its own evidence; SR-034 counts children for a parent). Other types have
+//   closed by a child or by its own evidence; SR-034 counts children for a parent). A requirement
+//   without a child that the view of the chain does not hold (`outsideView`; without a view the core)
+//   is `not-in-view` instead, with the views that hold it, and is no evidence gap (#674, product owner
+//   decision, 2026-11-02). Other types have
 //   no gap. A child that only an ambiguous relation names (SR-088, `childrenOf`) is not a child here.
 // - Gap above (AK5): an element of the upward walk whose parents were looked at (`expanded`, so not
 //   in a chain `down` only), of a type with the meaning `requirement`, that names no parent through a
@@ -75,6 +78,11 @@ export interface ChainOptions<L> {
    * requirement without a child. Default: it has leaves.
    */
   readonly hasEvidence?: (element: ElementRecord) => boolean;
+  /**
+   * Whether the view of the chain does not hold an element (#674): such a requirement without a
+   * child is `not-in-view`, not `no-evidence`. Default: every element is held.
+   */
+  readonly outsideView?: (element: ElementRecord) => boolean;
 }
 
 /** One walk of the chain. */
@@ -84,7 +92,7 @@ export interface ChainWalk<L> {
 }
 
 /** What is missing below an element of the downward chain (SR-022 AK3) or above one of the upward chain (AK5). */
-export type GapKind = "no-child" | "no-evidence" | "no-parent";
+export type GapKind = "no-child" | "no-evidence" | "no-parent" | "not-in-view";
 
 export interface ChainGap {
   readonly element: ElementRecord;
@@ -184,7 +192,8 @@ const gapTypes = (metamodel: Metamodel): GapTypes => ({
 
 /**
  * The gap of an element whose children were looked at (SR-022 AK3, see the file comment): `no-child`
- * for a need without a child, `no-evidence` for a requirement without a child and without evidence
+ * for a need without a child, `not-in-view` for a requirement without a child that the view does not
+ * hold (`outsideView`, #674), `no-evidence` for one without a child and without evidence
  * (`hasEvidence` of the element and its leaves, asked only then), none otherwise. The one rule of
  * `trace.chain` and of the marks of `trace.graph` (SR-111 AK4).
  */
@@ -194,6 +203,7 @@ const gapOf = (
   hasChild: boolean,
   leaves: readonly unknown[],
   hasEvidence: (element: ElementRecord, leaves: readonly unknown[]) => boolean,
+  outsideView: ((element: ElementRecord) => boolean) | undefined,
 ): GapKind | undefined => {
   if (hasChild) {
     return undefined;
@@ -201,7 +211,13 @@ const gapOf = (
   if (types.needs.has(element.type)) {
     return "no-child";
   }
-  return types.requirements.has(element.type) && !hasEvidence(element, leaves) ? "no-evidence" : undefined;
+  if (!types.requirements.has(element.type)) {
+    return undefined;
+  }
+  if (outsideView?.(element) === true) {
+    return "not-in-view";
+  }
+  return hasEvidence(element, leaves) ? undefined : "no-evidence";
 };
 
 /** The default evidence of an element: it has leaves. */
@@ -212,18 +228,19 @@ const hasLeaves = (_element: ElementRecord, leaves: readonly unknown[]): boolean
  * chain would look at: its children are counted as the chain's down walk counts them (in the view,
  * `includes`; a child named only by an ambiguous relation is none, SR-088), and `hasEvidence` decides
  * its evidence as it does for `traceChain` (SR-033), so the marks of `trace.graph` and the gaps of
- * the chain agree (SR-111 AK4).
+ * the chain agree (SR-111 AK4). A requirement `outsideView` does not hold lacks none (#674).
  */
 export const lacksEvidence = (
   graph: DerivationGraph,
   includes: ((element: ElementRecord) => boolean) | undefined,
   hasEvidence: (element: ElementRecord) => boolean,
+  outsideView?: (element: ElementRecord) => boolean,
 ): ((element: ElementRecord) => boolean) => {
   const types = gapTypes(graph.metamodel);
   const children = childrenWithin(graph, includes);
   return (element) =>
     types.requirements.has(element.type) &&
-    gapOf(types, element, children(element).steps.length > 0, [], hasEvidence) === "no-evidence";
+    gapOf(types, element, children(element).steps.length > 0, [], hasEvidence, outsideView) === "no-evidence";
 };
 
 /** The `no-parent` gaps of the upward walk (AK5, see the file comment), in node order. */
@@ -243,6 +260,7 @@ const gapsOf = <L>(
   graph: DerivationGraph,
   down: WalkResult<DerivationLink, L>,
   hasEvidence: ((element: ElementRecord) => boolean) | undefined,
+  outsideView: ((element: ElementRecord) => boolean) | undefined,
 ): { readonly gaps: ChainGap[]; readonly evidence: ChainEvidence<L>[] } => {
   const types = gapTypes(graph.metamodel);
   const gaps: ChainGap[] = [];
@@ -263,7 +281,7 @@ const gapsOf = <L>(
     for (const leaf of leaves) {
       evidence.push({ element, depth: depth + 1, leaf });
     }
-    const kind = gapOf(types, element, parent, leaves, evidenced);
+    const kind = gapOf(types, element, parent, leaves, evidenced, outsideView);
     if (kind !== undefined) {
       gaps.push({ element, kind });
     }
@@ -280,7 +298,7 @@ export const traceChain = <L = never>(
   root: ElementRecord,
   options: ChainOptions<L>,
 ): Chain<L> => {
-  const { direction, maxDepth, includes, leaves, hasEvidence } = options;
+  const { direction, maxDepth, includes, leaves, hasEvidence, outsideView } = options;
   const limit = maxDepth === undefined ? {} : { maxDepth };
   const walks: ChainWalk<L>[] = [];
   const gaps: ChainGap[] = [];
@@ -308,7 +326,8 @@ export const traceChain = <L = never>(
       }
     }
   }
-  const below = down === undefined ? { gaps: [], evidence: [] } : gapsOf(graph, down, hasEvidence);
+  const below =
+    down === undefined ? { gaps: [], evidence: [] } : gapsOf(graph, down, hasEvidence, outsideView);
   for (const gap of below.gaps) {
     gaps.push(gap);
   }
@@ -338,6 +357,11 @@ export interface ChainOutputContext {
    * none; asked only for the expanded downward nodes of the page. Default: none.
    */
   readonly evidenceOf?: (element: ElementRecord) => ChainEvidenceLeaf | undefined;
+  /**
+   * The views that hold an element (`core`, then variant UUIDs), asked only for the `not-in-view`
+   * gaps of the page (#674). Default: none.
+   */
+  readonly viewsOf?: (element: ElementRecord) => readonly string[];
 }
 
 export type ChainNode = TraceChainOutput["nodes"][number];
@@ -571,7 +595,12 @@ export const chainOutput = (
     nodes,
     total: start,
     edges,
-    gaps: gaps.map(({ element, kind }) => ({ id: element.id, repository: element.repository, kind })),
+    gaps: gaps.map(({ element, kind }) => ({
+      id: element.id,
+      repository: element.repository,
+      kind,
+      ...(kind === "not-in-view" ? { views: [...(context.viewsOf?.(element) ?? [])] } : {}),
+    })),
     evidence,
     unresolved,
     incomplete: chain.incomplete,

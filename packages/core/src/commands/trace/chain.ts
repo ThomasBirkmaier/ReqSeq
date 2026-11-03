@@ -13,6 +13,13 @@
 // view, every one without a view; assumptions A2 and A5 of #528 Q4). An evidence location that is
 // not on this machine makes the chain `incomplete` (SR-006 AK2). The upward chain reads no records.
 // `names` names the variants of those records (#676), as evidence.status names its views (#588).
+//
+// Not in view (#674, product owner decision, 2026-11-02): a requirement without a child that the view
+// of the chain does not hold (`viewRuleOf(view ?? core).includes`, so SR-043 AK10 holds) is
+// `not-in-view`, not `no-evidence`; with `view` only the root can be. Its `views` (`viewsOf`) are
+// built only for the gaps of the page, with the rules of the core and of each variant read once per
+// command (N-036), and `names` names those variants too. Without `view` the children still count in
+// every view (unchanged).
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import {
@@ -24,7 +31,13 @@ import {
 import { namesField, namesOf, resolveRef, shortIdState } from "../../model/index.js";
 import { chainOutput, derivationGraph, traceChain, traceContext } from "../../trace/index.js";
 import type { View } from "../../variants/index.js";
-import { resolveView, viewIncomplete, viewRuleOf } from "../../variants/index.js";
+import type { ElementRecord } from "../../model/index.js";
+import {
+  resolveView,
+  variantsOf as variantElementsOf,
+  viewIncomplete,
+  viewRuleOf,
+} from "../../variants/index.js";
 
 const CORE: View = { kind: "core" };
 
@@ -36,6 +49,17 @@ const variantsOf = (evidence: CommandOutput<"trace.chain">["evidence"]): string[
       ...item.records.map((record) => record.variant),
     ])
     .filter((variant): variant is string => variant !== undefined);
+
+/** The views that hold an element (`core`, then variant UUIDs in store order), with each view's rule read once. */
+const viewsHolding = (
+  rules: () => readonly { readonly id: string; readonly includes: (e: ElementRecord) => boolean }[],
+) => {
+  let read: ReturnType<typeof rules> | undefined;
+  return (element: ElementRecord): readonly string[] => {
+    read ??= rules();
+    return read.filter((rule) => rule.includes(element)).map((rule) => rule.id);
+  };
+};
 
 export default defineCommand({
   name: "trace.chain",
@@ -52,28 +76,44 @@ export default defineCommand({
     const index = down ? await ctx.workspace.get(evidenceIndexState) : undefined;
     const read = down ? await ctx.workspace.get(evidenceReadState) : undefined;
     const gapView = view ?? CORE;
+    const ruleContext = { workspace: ctx.workspace, store, metamodel };
+    const held = viewRuleOf(ruleContext, gapView).includes;
+    const viewsOf = viewsHolding(() => [
+      { id: "core", includes: viewRuleOf(ruleContext, CORE).includes },
+      ...variantElementsOf(store, metamodel).map((variant) => ({
+        id: variant.id,
+        includes: viewRuleOf(ruleContext, { kind: "variant", variant }).includes,
+      })),
+    ]);
     const chain = traceChain(graph, root, {
       direction: input.direction,
       ...(input.maxDepth === undefined ? {} : { maxDepth: input.maxDepth }),
-      ...(view === undefined
-        ? {}
-        : { includes: viewRuleOf({ workspace: ctx.workspace, store, metamodel }, view).includes }),
+      ...(view === undefined ? {} : { includes: viewRuleOf(ruleContext, view).includes }),
       ...(index === undefined
         ? {}
-        : { hasEvidence: (element) => hasVerificationRecord(index, element.id, gapView) }),
+        : {
+            hasEvidence: (element) => hasVerificationRecord(index, element.id, gapView),
+            outsideView: (element) => !held(element),
+          }),
     });
     const output = chainOutput(
       chain,
       {
         metamodel,
         shortIds,
+        viewsOf,
         ...(index === undefined ? {} : { evidenceOf: (element) => chainEvidenceOf(index, element.id, view) }),
       },
       { limit: input.limit, offset: input.offset },
     );
     const named = {
       ...output,
-      ...namesField(namesOf({ metamodel, store, shortIds }, variantsOf(output.evidence))),
+      ...namesField(
+        namesOf({ metamodel, store, shortIds }, [
+          ...variantsOf(output.evidence),
+          ...output.gaps.flatMap((gap) => (gap.views ?? []).filter((id) => id !== "core")),
+        ]),
+      ),
     };
     return read?.incomplete === true || viewIncomplete(graph.layout, view)
       ? { ...named, incomplete: true }

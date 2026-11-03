@@ -807,6 +807,26 @@ describe("renderHuman: a chain", () => {
     );
   });
 
+  it("marks a requirement the view does not hold as not in view, with the views that hold it, not as a gap (#674)", () => {
+    const shown = (views: readonly string[]): string =>
+      renderHuman(
+        chain({
+          nodes: [node("r", "SR-r", 0)],
+          total: 1,
+          gaps: [{ id: "r", repository: "system", kind: "not-in-view", views }],
+          names: [{ id: "v1", repository: "system", shortId: "VAR-v1", title: "Gusty" }],
+        }),
+      );
+    expect(shown(["core", "v1", "v2"])).toBe(
+      lines(
+        "SR-r  draft  Title SR-r  [not in view, holds in core, VAR-v1  Gusty, v2]",
+        "total: 1",
+        "No problems.",
+      ),
+    );
+    expect(shown([])).toContain("[not in view, holds in no view]");
+  });
+
   it("names the kind of a neighbourhood relation that is no derivation, and heads its direction so (#643)", () => {
     const output = chain({
       nodes: [node("r", "STK-r", 0), node("n", "N-n", 1, "down"), node("p", "N-p", 1, "up")],
