@@ -92,10 +92,24 @@ const statOf = async (file: string): Promise<Awaited<ReturnType<typeof fs.stat>>
 const checkFolder = async (root: string): Promise<{ readonly create: boolean }> => {
   const stat = await statOf(root);
   if (stat === undefined) {
-    if ((await statOf(path.dirname(root)))?.isDirectory() !== true) {
+    const parent = await statOf(path.dirname(root));
+    if (parent === undefined) {
       throw new CommandError(
         "file.folder-missing",
         "Not written: neither the folder of the new workspace nor the folder above it exists; create the folder above it first",
+      );
+    }
+    if (!parent.isDirectory()) {
+      throw new CommandError(
+        "file.folder-missing",
+        "Not written: the path above the new workspace is not a folder",
+      );
+    }
+    // A link whose target is missing is no folder to create.
+    if (await exists(root)) {
+      throw new CommandError(
+        "file.folder-missing",
+        "Not written: the path of the new workspace links to a missing folder",
       );
     }
     return { create: true };
@@ -107,8 +121,8 @@ const checkFolder = async (root: string): Promise<{ readonly create: boolean }> 
 };
 
 /**
- * Creates a workspace in the folder `root`, which is created when only it is missing (#637): the metamodel file in the metamodel folder of
- * the main repository (created when missing), then `reqseq-workspace.yaml`, which makes the folder
+ * Creates a workspace in the folder `root`, which is created when only it is missing (#637): the
+ * metamodel file in the metamodel folder of the main repository (created when missing), then `reqseq-workspace.yaml`, which makes the folder
  * a workspace. The folder may hold other files (a fresh clone has `.git`). Before anything is
  * written it refuses a folder whose parent is missing too (`file.folder-missing`), a path that is no folder or input
  * that gives an invalid workspace file (`input.invalid`), and a workspace file or metamodel file
