@@ -4298,7 +4298,7 @@
     {
       "name": "relation_add",
       "title": "Create relation",
-      "description": "Add a relation; stores target UUID and current version, plus the title only within the same repository.",
+      "description": "Add a relation; stores target UUID and current version, plus the title only within the same repository. A relation over a limit of the kind is saved too, with a relation.too-many hint.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,

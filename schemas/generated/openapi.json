@@ -1654,7 +1654,8 @@
           "SR-085",
           "SR-086",
           "SR-088",
-          "SR-091"
+          "SR-091",
+          "SR-152"
         ],
         "requestBody": {
           "required": true,
@@ -3822,7 +3823,7 @@
     "/v1/commands/relation.add": {
       "post": {
         "operationId": "relation_add",
-        "summary": "Add a relation; stores target UUID and current version, plus the title only within the same repository.",
+        "summary": "Add a relation; stores target UUID and current version, plus the title only within the same repository. A relation over a limit of the kind is saved too, with a relation.too-many hint.",
         "tags": [
           "relation"
         ],
@@ -3832,7 +3833,8 @@
           "SR-005",
           "SR-021",
           "SR-041",
-          "SR-067"
+          "SR-067",
+          "SR-152"
         ],
         "requestBody": {
           "required": true,
