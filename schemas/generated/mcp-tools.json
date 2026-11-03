@@ -6339,7 +6339,7 @@
     {
       "name": "evidence_status",
       "title": "Show evidence status",
-      "description": "Verification status of a selection per view, from the evidence records (SR-031) and, without own record, from the children with the children that are missing (SR-034); validation status from the validation records (SR-038).",
+      "description": "Verification status of a selection per view, from the evidence records (SR-031) and, without own record, from the children with the children that are missing (SR-034); validation status from the validation records (SR-038). Without a selection every element of the workspace is listed, and only requirements, needs and elements with a validation record carry a status, so select them, for example by type.",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
@@ -6556,7 +6556,7 @@
     },
     {
       "name": "evidence_withoutPassedTest",
-      "title": "List requirements without passed/no test",
+      "title": "List requirements without a passed test",
       "description": "Every requirement without a passed test execution in one view (SR-120): no verification record with method test and result passed, of any version, holds there (spec question #532). Each with its verification status.",
       "annotations": {
         "readOnlyHint": true,
