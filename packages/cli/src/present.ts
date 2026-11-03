@@ -7,7 +7,8 @@
 //   identifier next to the short ID when it has one (`SR-3c90b0 (SR-036)`, #305), `[emergent]` when it
 //   is marked emergent (SR-035), and its verification status per view at the end, apart from its own
 //   status (`[verification: core verified]`, SR-031, D-030; the children missing for SR-034 as
-//   `core open (missing SR-0000b2)`), then its validation status (`[validation: validated]`, SR-038);
+//   `core open (missing SR-0000b2)`), then its validation status (`[validation: validated]`, SR-038;
+//   an inconclusive one with its reason on one line, `[validation: inconclusive — <reason>]`, SR-172);
 //   a list of them one such line per element. A read command (element.get) shows the element's details
 //   below its line, a write command only the line; there, a property whose value is a list of texts
 //   numbers its items from 1 (`1: ...`), as tests name acceptance criteria (#401).
@@ -16,7 +17,7 @@
 //   indented below the element it belongs to (`evidenceLines`). An element reached by a relation
 //   whose meaning is not `derivation` names its kind (`[has-stakeholder]`), and a direction with such
 //   an element is headed `upward:` or `downward:` instead of `parents:` or `children:` (#643).
-// - A list of evidence records (`kind`, `date`, `result`) is one line per record, a list of test cases
+// - A list of evidence records (`kind`, `date`, `result`, the reason of an inconclusive one) is one line per record, a list of test cases
 //   (`name`, `executions`) one line per test case with its last result and the number of executions
 //   (evidence.list, #275); `--json` and `--yaml` keep every execution.
 // - A matrix (`columns` with `name` and `direction`, `rows` of elements with one cell per column) lists
@@ -48,6 +49,20 @@ const isRecord = (value: unknown): value is Rec =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
 const text = (value: unknown): string => (typeof value === "string" ? value : "");
+
+/** The longest reason a line shows; a longer one ends in `…` (`--json` and `--yaml` keep it whole). */
+const REASON_LENGTH = 120;
+
+/**
+ * A reason (SR-172) on one line: each run of white space and control characters one space, cut to
+ * `REASON_LENGTH` characters.
+ */
+const reasonText = (value: unknown): string => {
+  const line = text(value)
+    .replace(/[\s\p{Cc}]+/gu, " ")
+    .trim();
+  return line.length > REASON_LENGTH ? `${line.slice(0, REASON_LENGTH - 1)}…` : line;
+};
 
 /** The parts that are not empty, two spaces apart. */
 const join = (...parts: readonly string[]): string => parts.filter((part) => part !== "").join("  ");
@@ -206,10 +221,14 @@ const verificationText = (element: Rec, view: ViewNamer): string => {
   return entries.length === 0 ? "" : `[verification: ${entries.map(entryText).join(", ")}]`;
 };
 
-/** The validation status of an element (SR-038), apart from its verification status: `[validation: validated]`. */
+/**
+ * The validation status of an element (SR-038), apart from its verification status: `[validation: validated]`,
+ * `[validation: inconclusive — <reason>]` with the reason of an inconclusive one (SR-172 AK2).
+ */
 const validationText = (element: Rec): string => {
   const validation = text(element["validation"]);
-  return validation === "" ? "" : `[validation: ${validation}]`;
+  const reason = reasonText(element["validationReason"]);
+  return validation === "" ? "" : `[validation: ${validation}${reason === "" ? "" : ` — ${reason}`}]`;
 };
 
 /** `[emergent]` for an element marked emergent (SR-035), next to the `open` it explains; else nothing. */
@@ -279,6 +298,7 @@ const elementDetails = (element: Rec, names: Names): string[] => {
     problems: _problems,
     verification: _verification,
     validation: _validation,
+    validationReason: _validationReason,
     emergent: _emergent,
     repository,
     file,
@@ -539,7 +559,8 @@ const belegOf = (record: Rec): string => {
 };
 
 /**
- * A record as one line: date, method (`withMethod`), result, item, Beleg and variant, the variant by
+ * A record as one line: date, method (`withMethod`), result, the reason of an inconclusive one (SR-172),
+ * item, Beleg and variant, the variant by
  * its short ID when `names` has it (#676).
  */
 const recordLine = (record: Rec, withMethod: boolean, names: Names): string =>
@@ -547,6 +568,7 @@ const recordLine = (record: Rec, withMethod: boolean, names: Names): string =>
     text(record["date"]),
     withMethod ? text(record["method"]) : "",
     text(record["result"]),
+    reasonText(record["reason"]),
     text(record["item"]),
     belegOf(record),
     text(record["variant"]) === "" ? "" : `[variant ${variantName(text(record["variant"]), names)}]`,

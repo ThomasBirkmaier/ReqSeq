@@ -1,7 +1,8 @@
 // The status lines under the boxes of a requirement on the built app (#214): the children missing for an
 // indirect verification (SR-034 AK2), each a link to its element, and the validation status on a line of
-// its own, apart from the verification status (SR-038 AK1). Both are `element.get` as it is, the CLI's
-// `verification[].missingChildren` and `validation`. Keys use ControlOrMeta, so the same
+// its own, apart from the verification status (SR-038 AK1), an inconclusive one with its reason (SR-172
+// AK2). All are `element.get` as it is, the CLI's `verification[].missingChildren`, `validation` and
+// `validationReason`. Keys use ControlOrMeta, so the same
 // tests run on Linux and macOS.
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
@@ -72,5 +73,26 @@ test.describe("the validation status", () => {
     await openEditor(window, "Know the wind");
     await expect(line(window, "Validation")).toHaveText("Validation — validated");
     await expect(line(window, "Verification")).toHaveCount(0);
+  });
+});
+
+test.describe("an inconclusive validation", () => {
+  let running: RunningApp;
+  test.beforeEach(async () => {
+    running = await launchApp({ fixture: "SR-172/inconclusive" });
+  });
+  test.afterEach(async () => {
+    await running.close();
+  });
+
+  test("[SR-172/AK2] a need whose newest validation is inconclusive shows that status with the reason", async () => {
+    const { window } = running;
+    await openEditor(window, "Know the frost");
+    await expect(line(window, "Validation")).toHaveText(
+      "Validation — inconclusive: The frost sensor was replaced; the field test starts again.",
+    );
+    // A later passed validation decides over an earlier inconclusive one.
+    await openEditor(window, "Know the rain");
+    await expect(line(window, "Validation")).toHaveText("Validation — validated");
   });
 });

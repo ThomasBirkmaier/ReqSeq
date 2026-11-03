@@ -571,6 +571,39 @@ describe("renderHuman: validation status (SR-038)", () => {
     expect(out.split("\n")[0]).toBe("N-1  approved  Need  [validation: outdated]");
     expect(out.split("\n").filter((line) => line.trimStart().startsWith("validation:"))).toEqual([]);
   });
+
+  it("[SR-172/AK2] shows an inconclusive validation with its reason on one line, cut when long, not again in the details", () => {
+    const element = {
+      id: "n",
+      shortId: "N-1",
+      status: "approved",
+      title: "Need",
+      type: "need",
+      validation: "inconclusive",
+      validationReason: "No frost\n\tyet,\u0007 see notes",
+    };
+    const out = renderHuman({ element });
+    expect(out.split("\n")[0]).toBe(
+      "N-1  approved  Need  [validation: inconclusive — No frost yet, see notes]",
+    );
+    expect(out).not.toContain("validationReason");
+    const long = renderHuman({ elements: [{ ...element, validationReason: "x".repeat(200) }] });
+    expect(long).toContain(`[validation: inconclusive — ${"x".repeat(119)}…]`);
+  });
+
+  it("shows the reason of an inconclusive record in a list of records", () => {
+    const record = {
+      kind: "validation",
+      element: "n",
+      version: "n1:ab",
+      result: "inconclusive",
+      reason: "No frost yet",
+      date: "2026-11-02T09:00:00Z",
+    };
+    expect(renderHuman({ records: [record] }).split("\n")[1]).toBe(
+      "  validation  2026-11-02T09:00:00Z  inconclusive  No frost yet  [version n1:ab]",
+    );
+  });
 });
 
 describe("renderHuman: verification degree (SR-037)", () => {

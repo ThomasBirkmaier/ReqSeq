@@ -249,6 +249,28 @@ describe("baseline.get withEvidence", () => {
     expect(b3.validationLater).toBeUndefined();
   });
 
+  it("a baseline gives an inconclusive validation at the baseline version with its reason (SR-094 AK7, SR-172)", async () => {
+    const { workspace } = await opened();
+    const record = (date: string, result: EvidenceRecord["result"], more = {}): EvidenceRecord => ({
+      element: `${P}b3`,
+      version: V.b3,
+      kind: "validation",
+      result,
+      date,
+      ...more,
+    });
+    await recordsAre(workspace, [
+      record("2026-11-03T09:00:00Z", "passed"),
+      record("2026-11-02T09:00:00Z", "inconclusive", { reason: "No frost yet" }),
+    ]);
+    const b3 = entry(await get(workspace, "Release 1"), "b3");
+    expect([b3.validation, b3.validationReason, b3.validationLater?.length]).toEqual([
+      "inconclusive",
+      "No frost yet",
+      1,
+    ]);
+  });
+
   it("takes the stored view alone when the selection cannot be resolved, and leaves the rows out when that cannot be either", async () => {
     const { fixture, workspace } = await opened();
     await fixture.write(

@@ -5,7 +5,8 @@
 // `verification` in core's order (core gives no row for a variant that excludes or replaces the
 // requirement); an `open` one without own record names the children that are missing for an indirect
 // verification (SR-034 AK2): "Core: open (missing SR-1 Title, SR-2 Title)". The validation status (SR-038
-// AK1) is a line of its own: "Validation — validated". Variants, replacements and missing children are
+// AK1) is a line of its own: "Validation — validated"; an inconclusive one gives its reason on that line
+// (SR-172 AK2): "Validation — inconclusive: <reason>", one line, cut at `REASON_LENGTH`. Variants, replacements and missing children are
 // named by `names`; one `names` lacks is named by its UUID.
 // On the page of a variant, one line per hint about a core requirement since its newest baseline (SR-103:
 // changed, or new in its view), with core's message as `element.get` and the CLI give it (SR-080).
@@ -43,6 +44,21 @@ export const SINCE_BASELINE_CODES: ReadonlySet<ProblemCode> = new Set<ProblemCod
 ]);
 
 const SEPARATOR: LinePart = { text: " · " };
+
+/** The longest reason the validation line shows; a longer one ends in `…` (the file keeps it whole). */
+export const REASON_LENGTH = 200;
+
+/** A reason (SR-172) on one line: each run of white space and control characters one space, cut to `REASON_LENGTH`. */
+const reasonLine = (reason: string): string => {
+  const line = reason.replace(/[\s\p{Cc}]+/gu, " ").trim();
+  return line.length > REASON_LENGTH ? `${line.slice(0, REASON_LENGTH - 1)}…` : line;
+};
+
+/** The validation line: "Validation — <status>", with ": <reason>" for an inconclusive one (SR-172 AK2). */
+const validationLine = (element: ElementGetOutput["element"]): string =>
+  `Validation — ${String(element.validation)}${
+    element.validationReason === undefined ? "" : `: ${reasonLine(element.validationReason)}`
+  }`;
 
 /** An element by UUID: a link with `label` of its name, or its UUID when `names` lacks it. */
 const named = (
@@ -109,8 +125,7 @@ export const variantLines = (output: Pick<ElementGetOutput, "element" | "names">
       verification === undefined || verification.length === 0
         ? undefined
         : [{ text: "Verification — " }, ...joined(verification)],
-    validation:
-      element.validation === undefined ? undefined : [{ text: `Validation — ${element.validation}` }],
+    validation: element.validation === undefined ? undefined : [{ text: validationLine(element) }],
     sinceBaseline: (element.problems ?? [])
       .filter((problem) => SINCE_BASELINE_CODES.has(problem.code))
       .map((problem) => ({

@@ -284,11 +284,11 @@ describe("workspaceStatusOf: validation status (SR-038)", () => {
       reader().read,
     );
     await status.prepare([need, requirement, useCase], { own: true });
-    expect([status.validate(need), status.validate(requirement), status.validate(useCase)]).toEqual([
-      "open",
-      "validated",
-      "failed",
-    ]);
+    expect([
+      status.validate(need)?.status,
+      status.validate(requirement)?.status,
+      status.validate(useCase)?.status,
+    ]).toEqual(["open", "validated", "failed"]);
   });
 
   it("a requirement or other element without validation record has no validation status (#534)", () => {
@@ -307,10 +307,10 @@ describe("workspaceStatusOf: validation status (SR-038)", () => {
       undefined,
       reader().read,
     );
-    expect([status.validate(need, { current: CURRENT }), status.validate(requirement)]).toEqual([
-      "open",
-      undefined,
-    ]);
+    expect([
+      status.validate(need, { current: CURRENT })?.status,
+      status.validate(requirement)?.status,
+    ]).toEqual(["open", undefined]);
   });
 
   it("prepare with own reads the versions of validation-recorded elements in the one batch, once", async () => {
@@ -346,10 +346,10 @@ describe("workspaceStatusOf: validation status (SR-038)", () => {
     const need = element({}, "need");
     const status = workspaceStatusOf(sourceOf([validation(need)]), [], undefined, reader().read);
     await status.prepare([need], { own: true });
-    expect(status.validate(need)).toBe("validated");
-    expect(status.validate(need, { current: undefined })).toBe("outdated");
-    expect(status.validate(need, { current: "n1:2222222222222222" })).toBe("outdated");
-    expect(status.validate(need)).toBe("validated");
+    expect(status.validate(need)?.status).toBe("validated");
+    expect(status.validate(need, { current: undefined })?.status).toBe("outdated");
+    expect(status.validate(need, { current: "n1:2222222222222222" })?.status).toBe("outdated");
+    expect(status.validate(need)?.status).toBe("validated");
     expect(status.versionBatches()).toBe(1);
   });
 });

@@ -14,7 +14,8 @@
 //    N-036); neither is an input. No current version: `file.faulty`, nothing written.
 // 3. Fields as given; `date` defaults to the time of the call, UTC, whole seconds. The frontmatter is
 //    checked against the format before anything is done on disk, so the format's rules (`method` and
-//    `item` for a verification) give `input.invalid` naming the input field.
+//    `item` for a verification; `reason` with the result `inconclusive` and only there, which only a
+//    validation may have, SR-172 AK1) give `input.invalid` naming the input field.
 // 4. Folder (AK2, "in der gewählten Ablage"): an evidence location of the workspace file or a folder
 //    below one, relative to the workspace root; default the first location whose repository is on this
 //    machine. The full target passes the rules of every new ReqSeq file (`refuseUnlisted`) before and
@@ -59,7 +60,16 @@ import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js"
 import { locate, workspaceLayoutState } from "../workspace/index.js";
 import type { ViewContext } from "./in-variant.js";
 import { outOfView } from "./in-variant.js";
-import { readMarkdownRecord, RECORD_KEY, VALIDATION_VARIANT_REASON } from "./markdown.js";
+import {
+  INCONCLUSIVE_REASON_REQUIRED,
+  INCONCLUSIVE_VALIDATION_ONLY,
+  misplacedReason,
+  readMarkdownRecord,
+  RECORD_KEY,
+  REASON_INCONCLUSIVE_ONLY,
+  VALIDATION_VARIANT_REASON,
+  verificationInconclusive,
+} from "./markdown.js";
 import type { EvidenceRecord } from "./record.js";
 import type { EvidenceRead } from "./state.js";
 import { evidenceReadState, evidenceRecordsState, registerInsertion } from "./state.js";
@@ -103,6 +113,7 @@ const FORMAT_ORDER: readonly (keyof RecordFields)[] = [
   "variant",
   "item",
   "result",
+  "reason",
   "date",
   "evidence",
   "test-case",
@@ -150,16 +161,24 @@ export const recordViolations = (
           path: "",
           field,
           keyword: v.keyword,
-          message: `${field} is required for a ${fields.kind} record`,
+          message:
+            field === "reason"
+              ? `reason is required: ${INCONCLUSIVE_REASON_REQUIRED}`
+              : `${field} is required for a ${fields.kind} record`,
           params: { missingProperty: field },
         };
       }
       const field = fieldOf(v.path.slice(1));
+      const why = misplacedReason(v)
+        ? `: ${REASON_INCONCLUSIVE_ONLY}`
+        : verificationInconclusive(v)
+          ? `: ${INCONCLUSIVE_VALIDATION_ONLY}`
+          : ` ${v.message}`;
       return {
         path: `/${field}`,
         field,
         keyword: v.keyword,
-        message: `${field} ${v.message}`,
+        message: `${field}${why}`,
         params: v.params,
       };
     });
@@ -486,6 +505,7 @@ const prepare = async (
     ...(variant === undefined ? {} : { variant }),
     ...(input.item === undefined ? {} : { item: input.item }),
     result: input.result,
+    ...(input.reason === undefined ? {} : { reason: input.reason }),
     date: input.date ?? recordDate(now()),
     ...(input.evidence === undefined ? {} : { evidence: input.evidence }),
     ...(input.testCase === undefined ? {} : { "test-case": input.testCase }),

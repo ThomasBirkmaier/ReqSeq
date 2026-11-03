@@ -13,7 +13,11 @@
 //   violation of the schema is an error `evidence.invalid-record` at the line of the failing key,
 //   and the file gives no record. So is a validation record with `variant` (SR-038 AK4: „... weist
 //   das Tool ihn ab, nennt den Grund und er zählt für keinen Status“; D-007 names only the item
-//   under test for a validation), whose message gives that reason.
+//   under test for a validation), whose message gives that reason. An `inconclusive` record without
+//   `reason` is such an error (SR-172 AK1, spec question #807 Q1), and so is an `inconclusive`
+//   verification record (#807 Q2), each at the line of `result` with its own message. A `reason` on a
+//   passed or failed record is a warning at the line of `result`, and the record counts without it
+//   (#807 Q4, as an unknown key).
 // - The record is `$defs/evidenceRecord` of `data-export.schema.json`: the frontmatter without
 //   `reqseq-record`, `test-case` as `testCase`, and where it lies (`source: markdown`, line 1).
 import type { Problem } from "../catalog.js";
@@ -47,18 +51,57 @@ const unknownKey = (violation: SchemaViolation): string | undefined => {
 export const VALIDATION_VARIANT_REASON =
   "a validation record names no variant, it holds for the core (D-007, SR-038 AK4)";
 
-/** What a violation says, with the reason of SR-038 AK4 for a validation record with `variant`. */
-const violationText = (violation: SchemaViolation): string =>
-  violation.keyword === "false schema" && violation.path === "/variant"
-    ? `/variant: ${VALIDATION_VARIANT_REASON}`
+/** Why an inconclusive record needs `reason` (SR-172 AK1), for its `required` violation. */
+export const INCONCLUSIVE_REASON_REQUIRED =
+  "a record with the result inconclusive needs a reason (SR-172 AK1)";
+
+/** Why a verification record cannot be inconclusive (spec question #807 Q2). */
+export const INCONCLUSIVE_VALIDATION_ONLY =
+  "only a validation record can be inconclusive, a verification record is passed or failed (SR-172)";
+
+/** Why `reason` is ignored on a passed or failed record (spec question #807 Q4). */
+export const REASON_INCONCLUSIVE_ONLY = "only a record with the result inconclusive has a reason (SR-172)";
+
+/** Whether `violation` is the missing `reason` of an inconclusive record. */
+const missingReason = (violation: SchemaViolation): boolean =>
+  violation.keyword === "required" && violation.params["missingProperty"] === "reason";
+
+/** Whether `violation` is a `reason` on a passed or failed record (the `false` subschema of `else`). */
+export const misplacedReason = (violation: SchemaViolation): boolean =>
+  violation.keyword === "false schema" && violation.path === "/reason";
+
+/** Whether `violation` is `inconclusive` on a verification record (the `not` of its `then`). */
+export const verificationInconclusive = (violation: SchemaViolation): boolean =>
+  violation.keyword === "not" && violation.path === "/result";
+
+/** What a violation says, with the reasons of SR-038 AK4 and SR-172 where they apply. */
+const violationText = (violation: SchemaViolation): string => {
+  if (violation.keyword === "false schema" && violation.path === "/variant") {
+    return `/variant: ${VALIDATION_VARIANT_REASON}`;
+  }
+  if (missingReason(violation)) {
+    return `/reason: ${INCONCLUSIVE_REASON_REQUIRED}`;
+  }
+  return verificationInconclusive(violation)
+    ? `/result: ${INCONCLUSIVE_VALIDATION_ONLY}`
     : describeViolations([violation]);
+};
 
 /**
- * The top-level key a violation is about: the unknown key it names, or the key of its path (the
- * schema is flat, so a path is `""` or `/<key>`); undefined for the record as a whole (a missing key).
+ * The top-level key a violation is about: the unknown key it names, `result` for a missing or
+ * misplaced `reason` (SR-172), or the key of its path (the schema is flat, so a path is `""` or
+ * `/<key>`); undefined for the record as a whole (a missing key).
  */
-const keyOf = (violation: SchemaViolation): string | undefined =>
-  unknownKey(violation) ?? (violation.path === "" ? undefined : violation.path.slice(1));
+const keyOf = (violation: SchemaViolation): string | undefined => {
+  if (missingReason(violation) || misplacedReason(violation)) {
+    return "result";
+  }
+  return unknownKey(violation) ?? (violation.path === "" ? undefined : violation.path.slice(1));
+};
+
+/** Whether a violation is only a warning: an unknown key, or a misplaced `reason` (#807 Q4). */
+const isWarning = (violation: SchemaViolation): boolean =>
+  unknownKey(violation) !== undefined || misplacedReason(violation);
 
 /** The record of a frontmatter that matches the schema (keys it does not know are left out). */
 const recordOf = (data: EvidenceRecordFile, file: EvidenceFile): EvidenceRecord => ({
@@ -69,6 +112,7 @@ const recordOf = (data: EvidenceRecordFile, file: EvidenceFile): EvidenceRecord 
   ...(data.variant === undefined ? {} : { variant: data.variant }),
   ...(data.item === undefined ? {} : { item: data.item }),
   result: data.result,
+  ...(data.reason === undefined || data.result !== "inconclusive" ? {} : { reason: data.reason }),
   date: data.date,
   ...(data.evidence === undefined ? {} : { evidence: data.evidence }),
   ...(data["test-case"] === undefined ? {} : { testCase: data["test-case"] }),
@@ -99,8 +143,14 @@ export const readMarkdownRecord = (file: EvidenceFile, bytes: Uint8Array): Evide
   const validate = fileSchemaValidator(SCHEMA);
   const valid = validate(data);
   // `if` repeats the violation of its `then` (a verification record without `method` or `item`).
-  const violations = valid ? [] : schemaViolations(validate.errors).filter((v) => v.keyword !== "if");
-  const faulty = violations.some((v) => unknownKey(v) === undefined);
+  // On a record that is not inconclusive, `reason` is only a warning (#807 Q4): its own type or
+  // pattern does not matter, so only the `false` subschema of `else` is kept for it.
+  const ignored = (v: SchemaViolation): boolean =>
+    v.path === "/reason" && data["result"] !== "inconclusive" && !misplacedReason(v);
+  const violations = valid
+    ? []
+    : schemaViolations(validate.errors).filter((v) => v.keyword !== "if" && !ignored(v));
+  const faulty = violations.some((v) => !isWarning(v));
   // The lines of the keys in one pass (linear also for a record with thousands of unknown keys).
   const keyLines = violations.length === 0 ? new Map<string, number>() : keyLinesOf(parsed.content);
   const lineOf = (key: string | undefined): number => (key === undefined ? 1 : (keyLines.get(key) ?? 1));
@@ -111,25 +161,31 @@ export const readMarkdownRecord = (file: EvidenceFile, bytes: Uint8Array): Evide
       problem: at({ ...w, line }),
     }),
   );
+  const rest = faulty ? "the record is not counted for its other errors" : "the record is read without it";
   for (const violation of violations) {
     const key = unknownKey(violation);
     const line = lineOf(keyOf(violation));
-    const problem: Problem =
-      key === undefined
-        ? {
-            code: "evidence.invalid-record",
-            severity: "error",
-            line,
-            message: `Invalid evidence record, not counted: ${violationText(violation)}`,
-          }
-        : {
-            code: "evidence.invalid-record",
-            severity: "warning",
-            line,
-            message: `The evidence record has the key ${JSON.stringify(key)}, which the format does not know; ${
-              faulty ? "the record is not counted for its other errors" : "the record is read without it"
-            }`,
-          };
+    const warning = (message: string): Problem => ({
+      code: "evidence.invalid-record",
+      severity: "warning",
+      line,
+      message,
+    });
+    let problem: Problem;
+    if (key !== undefined) {
+      problem = warning(
+        `The evidence record has the key ${JSON.stringify(key)}, which the format does not know; ${rest}`,
+      );
+    } else if (misplacedReason(violation)) {
+      problem = warning(`The evidence record has a reason, but ${REASON_INCONCLUSIVE_ONLY}; ${rest}`);
+    } else {
+      problem = {
+        code: "evidence.invalid-record",
+        severity: "error",
+        line,
+        message: `Invalid evidence record, not counted: ${violationText(violation)}`,
+      };
+    }
     found.push({ line, problem: at(problem) });
   }
   // In the order of the file (`sort` is stable: Ajv's order on one line).

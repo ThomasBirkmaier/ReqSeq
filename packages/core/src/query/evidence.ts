@@ -56,7 +56,7 @@ const providerOf = (
   ready: () => Promise<void>,
 ): EvidenceStatuses => ({
   verification: (element, view) => status.evaluate(element, view)?.status,
-  validation: (element) => status.validate(element),
+  validation: (element) => status.validate(element)?.status,
   hasEvidence: (element, view) => index !== undefined && hasVerificationRecord(index, element.id, view),
   ready,
 });

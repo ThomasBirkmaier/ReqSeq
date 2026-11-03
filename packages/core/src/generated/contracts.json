@@ -775,12 +775,13 @@
           ]
         },
         "validationStatus": {
-          "description": "offen, erfolgreich, nicht erfolgreich, veraltet.",
+          "description": "offen, erfolgreich, nicht erfolgreich, veraltet, nicht beurteilbar (SR-172).",
           "enum": [
             "open",
             "validated",
             "failed",
-            "outdated"
+            "outdated",
+            "inconclusive"
           ]
         },
         "reqifObject": {
@@ -1122,7 +1123,11 @@
             },
             "validation": {
               "$ref": "common.schema.json#/$defs/validationStatus",
-              "description": "SR-038: the Validierungsstatus from the validation records of the core (no `variant`) against the element's current version; the newest record of that version decides, only records of older versions give `outdated`. Given for every element whose type has the meaning `need` (`open` without record) and for every other element with a validation record; left out otherwise (assumption, spec question #534). Never inherited from children; never the element's `status` (D-030)."
+              "description": "SR-038: the Validierungsstatus from the validation records of the core (no `variant`) against the element's current version; the newest record of that version decides, only records of older versions give `outdated`. Given for every element whose type has the meaning `need` (`open` without record) and for every other element with a validation record; left out otherwise (assumption, spec question #534). Never inherited from children; never the element's `status` (D-030). `inconclusive` when that record is inconclusive (SR-172 AK2); on a tie at the newest date `failed` before `inconclusive` before `validated` (assumption, spec question #807)."
+            },
+            "validationReason": {
+              "type": "string",
+              "description": "SR-172 AK2: the `reason` of the inconclusive record that decides `validation`; given exactly when `validation` is `inconclusive`."
             },
             "problems": {
               "type": "array",
@@ -1256,8 +1261,15 @@
             "result": {
               "enum": [
                 "passed",
-                "failed"
-              ]
+                "failed",
+                "inconclusive"
+              ],
+              "description": "`inconclusive` (nicht beurteilbar): validation only, with `reason` (SR-172)."
+            },
+            "reason": {
+              "type": "string",
+              "pattern": "\\S",
+              "description": "Begründung of an `inconclusive` validation record (SR-172); given exactly with that result."
             },
             "date": {
               "$ref": "common.schema.json#/$defs/dateTime"
@@ -1315,7 +1327,36 @@
                 "required": [
                   "method",
                   "item"
+                ],
+                "properties": {
+                  "result": {
+                    "not": {
+                      "const": "inconclusive"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "required": [
+                  "result"
+                ],
+                "properties": {
+                  "result": {
+                    "const": "inconclusive"
+                  }
+                }
+              },
+              "then": {
+                "required": [
+                  "reason"
                 ]
+              },
+              "else": {
+                "properties": {
+                  "reason": false
+                }
               }
             }
           ],
@@ -1621,8 +1662,15 @@
         "result": {
           "enum": [
             "passed",
-            "failed"
-          ]
+            "failed",
+            "inconclusive"
+          ],
+          "description": "`inconclusive` (nicht beurteilbar): validation only, with `reason` (SR-172)."
+        },
+        "reason": {
+          "type": "string",
+          "pattern": "\\S",
+          "description": "Begründung of an `inconclusive` validation, at least one character that is not white space; required with `inconclusive` and only there (SR-172 AK1). A reader warns about it on another result and reads the record without it (spec question #807)."
         },
         "date": {
           "$ref": "common.schema.json#/$defs/dateTime"
@@ -1652,7 +1700,14 @@
             "required": [
               "method",
               "item"
-            ]
+            ],
+            "properties": {
+              "result": {
+                "not": {
+                  "const": "inconclusive"
+                }
+              }
+            }
           }
         },
         {
@@ -1669,6 +1724,28 @@
           "then": {
             "properties": {
               "variant": false
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "result"
+            ],
+            "properties": {
+              "result": {
+                "const": "inconclusive"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "reason"
+            ]
+          },
+          "else": {
+            "properties": {
+              "reason": false
             }
           }
         }
@@ -7148,7 +7225,8 @@
         "stage": 4,
         "implements": [
           "SR-030",
-          "SR-047"
+          "SR-047",
+          "SR-172"
         ],
         "arguments": [
           {
@@ -7188,6 +7266,10 @@
             "complete": "text"
           },
           {
+            "field": "reason",
+            "complete": "text"
+          },
+          {
             "field": "folder",
             "complete": "text"
           }
@@ -7218,8 +7300,15 @@
             "result": {
               "enum": [
                 "passed",
-                "failed"
-              ]
+                "failed",
+                "inconclusive"
+              ],
+              "description": "`inconclusive` (nicht beurteilbar) for a validation only, with `reason` (SR-172 AK1): without `reason` it is `input.invalid` naming `reason`, for a verification `input.invalid` naming `result`."
+            },
+            "reason": {
+              "type": "string",
+              "pattern": "^(?![\\s\\S]*[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F])[\\s\\S]*\\S[\\s\\S]*$",
+              "description": "Why the validation is inconclusive (Begründung, SR-172): required with the result `inconclusive` and refused with any other (`input.invalid` naming `reason`). At least one character that is not white space, no control characters other than tab, line feed and carriage return."
             },
             "item": {
               "$ref": "../common.schema.json#/$defs/item",
@@ -8384,6 +8473,10 @@
                   "validation": {
                     "$ref": "../common.schema.json#/$defs/validationStatus",
                     "description": "With withEvidence, for entries of the file (not added or missing) of a type with the meaning need and for any other with a validation record (SR-038, SR-094 AK7): the status at the baseline version from the validation records that count for the baseline, without view. Open without such records."
+                  },
+                  "validationReason": {
+                    "type": "string",
+                    "description": "With validation `inconclusive`: the `reason` of the record that decides it (SR-172 AK2)."
                   },
                   "validationLater": {
                     "type": "array",
