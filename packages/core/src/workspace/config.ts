@@ -54,7 +54,7 @@ const workspacesBelow = async (root: string): Promise<readonly string[]> => {
 const notFound = async (root: string): Promise<CommandError> => {
   const below = await workspacesBelow(root);
   const shown = below.slice(0, BELOW_SHOWN).map((name) => `${name}/${WORKSPACE_FILE}`);
-  const more = below.length > BELOW_SHOWN ? ` and ${below.length - BELOW_SHOWN} more` : "";
+  const more = below.length > BELOW_SHOWN ? ` and ${String(below.length - BELOW_SHOWN)} more` : "";
   const hint =
     below.length === 0
       ? ""
