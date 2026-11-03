@@ -13,5 +13,7 @@ export {
   withRelationVersions,
 } from "./export.js";
 export type { ExportOptions, ExportWithProblems, ExportedProperties } from "./export.js";
+export { shownWithNames } from "./shown.js";
+export type { ShownWithNames } from "./shown.js";
 export { DATA_LINES, dataFileName, storeData } from "./store.js";
 export type { StoreOptions } from "./store.js";
