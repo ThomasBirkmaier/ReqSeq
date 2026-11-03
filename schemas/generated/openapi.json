@@ -272,7 +272,7 @@
     "/v1/commands/workspace.init": {
       "post": {
         "operationId": "workspace_init",
-        "summary": "Create a workspace with the standard model in an existing folder.",
+        "summary": "Create a workspace with the standard model in an existing folder. Adds `*.reqseq-tmp` (temp files of an interrupted write) to the folder's `.gitignore`.",
         "tags": [
           "workspace"
         ],
@@ -4488,6 +4488,13 @@
                     "incomplete": {
                       "$ref": "#/components/schemas/common/$defs/incomplete",
                       "description": "True when a part of the chain lies in a repository that is not on this machine (SR-006 AK2), in the view of a variant while a repository of the workspace is not on this machine (it may hold a replacement or an exclusion), or, when the chain goes down, an evidence location does: evidence there is not seen."
+                    },
+                    "names": {
+                      "type": "array",
+                      "description": "The variants that the records of `evidence` name by UUID only (`variant`), each once in the order first named, so a reader names them by short ID, identifier and title (#588, #676). Left out when it names none, and for a variant in a repository that is not here.",
+                      "items": {
+                        "$ref": "#/components/schemas/common/$defs/elementName"
+                      }
                     },
                     "problems": {
                       "type": "array",

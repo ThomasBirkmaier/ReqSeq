@@ -22,3 +22,4 @@ __pycache__/
 # User documentation site (ADR-0017): the content folder the generator fills, and Astro's cache
 packages/docs/site/src/content/docs/
 packages/docs/site/.astro/
+*.reqseq-tmp

@@ -14,9 +14,10 @@ import { rememberWorkspace } from "@reqseq/core/recent-workspaces";
 const execFileAsync = promisify(execFile);
 
 /** How long `close()` waits for the app to end after it closed the window (main waits at most 2 s for the save). */
-const CLOSE_WAIT_MS = 5000;
-/** In CI on Windows and macOS only, `close()` closes the window again after this long (#753). */
-const SECOND_CLOSE = process.env["CI"] !== undefined && process.platform !== "linux";
+// The Windows and macOS runners in CI stall under load (#753, playwright.config.ts): there the wait is three times as
+// long, and `close()` closes the window again after `SECOND_CLOSE_MS`.
+const SLOW_CI = process.env["CI"] !== undefined && process.platform !== "linux";
+const CLOSE_WAIT_MS = SLOW_CI ? 15_000 : 5000;
 const SECOND_CLOSE_MS = 3000;
 /** How long a call into the main process may take while `close()` ends the app or describes a hang. */
 const CALL_WAIT_MS = 1000;
@@ -228,6 +229,11 @@ export interface LaunchOptions {
    * core's core process records them, in the test's OS cache folder.
    */
   readonly recent?: readonly string[];
+  /**
+   * Whether core checks every command's output against its schema (`REQSEQ_VALIDATE_OUTPUT=1`, tests and debug
+   * builds). Default true; the performance suite starts the app without it, as a user's app runs (#147).
+   */
+  readonly validateOutput?: boolean;
 }
 
 /**
@@ -320,15 +326,16 @@ export const launchApp = async (
       now: new Date(Date.now() - (recent.length - index) * 60_000),
     });
   }
+  const { REQSEQ_VALIDATE_OUTPUT: _exported, ...inherited } = process.env;
   const env = {
-    ...process.env,
+    ...(options.validateOutput === false ? inherited : process.env),
     HOME: home,
     USERPROFILE: home,
     XDG_CACHE_HOME: home,
     XDG_CONFIG_HOME: home,
     APPDATA: home,
     LOCALAPPDATA: home,
-    REQSEQ_VALIDATE_OUTPUT: "1",
+    ...(options.validateOutput === false ? {} : { REQSEQ_VALIDATE_OUTPUT: "1" }),
   };
   const app = await electron.launch({
     executablePath: ELECTRON,
@@ -430,7 +437,7 @@ export const launchApp = async (
         // window then stays open and says that a second close within 10 s closes it without waiting (#753).
         // There the test closes it a second time, as a person would; the save tests still check the file.
         if (
-          SECOND_CLOSE &&
+          SLOW_CI &&
           !(await Promise.race([end.then(() => true), delay(SECOND_CLOSE_MS).then(() => false)]))
         ) {
           closeWindow();

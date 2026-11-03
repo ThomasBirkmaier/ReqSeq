@@ -995,6 +995,13 @@ describe("renderHuman: a chain", () => {
         "No problems.",
       ),
     );
+    // With `names` the variant is named by short ID and title, and `names` is not printed (#676).
+    const named = renderHuman({
+      ...output,
+      names: [{ id: "v1", repository: "system", shortId: "VAR-v1", title: "Gusty" }],
+    });
+    expect(named).toContain("reports/b4.pdf  [variant VAR-v1  Gusty]");
+    expect(named).not.toContain("names:");
   });
 
   it("is a chain only when every node has a depth; else its lists are shown as they are", () => {
@@ -1011,6 +1018,59 @@ describe("renderHuman: a chain", () => {
     );
     expect(renderHuman({ nodes: [{ shortId: "SR-r", title: "R" }], edges: [] })).toBe(
       lines("nodes:", "  SR-r  R", "edges: none"),
+    );
+  });
+});
+
+describe("renderHuman: evidence records and test cases (#275)", () => {
+  const record = {
+    element: "e",
+    kind: "verification",
+    method: "test",
+    item: "build-513",
+    result: "failed",
+    date: "2026-10-22T09:00:00Z",
+    repository: "system",
+    file: "evidence/ci/run-2.xml",
+    line: 4,
+    baselines: [],
+  };
+  it("prints one line per record and per test case, with the last result and the number of executions", () => {
+    const validation = {
+      ...record,
+      kind: "validation",
+      method: "review",
+      result: "passed",
+      evidence: "notes.md",
+      version: "n1:ab",
+      baselines: ["v1", "v2"],
+    };
+    expect(
+      renderHuman({
+        records: [record, validation],
+        testCases: [
+          {
+            name: "test_speed",
+            className: "tests.test_wind",
+            executed: true,
+            executions: [record, record],
+            last: record,
+          },
+          { name: "manual check", executed: false, executions: [] },
+        ],
+        problems: [],
+      }),
+    ).toBe(
+      [
+        "records:",
+        "  2026-10-22T09:00:00Z  test  failed  build-513  system/evidence/ci/run-2.xml:4",
+        "  validation  2026-10-22T09:00:00Z  review  passed  build-513  notes.md  [version n1:ab]  [baselines: v1, v2]",
+        "testCases:",
+        "  tests.test_wind › test_speed  last: failed  2026-10-22T09:00:00Z  executions: 2",
+        "  manual check  [not executed]  executions: 0",
+        "No problems.",
+        "",
+      ].join("\n"),
     );
   });
 });

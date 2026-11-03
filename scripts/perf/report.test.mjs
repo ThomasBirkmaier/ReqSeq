@@ -158,4 +158,37 @@ describe("perf report", () => {
     main(args);
     expect(fs.readFileSync(output, "utf8")).toBe("exceeded=0\ncomplete=true\nexceeded=0\ncomplete=false\n");
   });
+
+  it("is complete only when every JUnit report is (the Vitest suite and the app's, #147)", () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const folder = temp();
+    const results = path.join(folder, "perf.jsonl");
+    fs.writeFileSync(results, `${JSON.stringify(CHECK)}\n`);
+    const out = path.join(folder, "performance.md");
+    const output = path.join(folder, "output.txt");
+    const vitest = path.join(folder, "junit-perf.xml");
+    const app = path.join(folder, "junit-perf-electron.xml");
+    fs.writeFileSync(vitest, junit([PASSED, THRESHOLD]));
+    fs.writeFileSync(app, junit([PASSED]));
+    const args = [
+      "--results",
+      results,
+      "--out",
+      out,
+      "--github-output",
+      output,
+      "--junit",
+      vitest,
+      "--junit",
+      app,
+    ];
+    main(args);
+    fs.writeFileSync(app, junit([WRONG]));
+    main(args);
+    fs.rmSync(app);
+    main(args);
+    expect(fs.readFileSync(output, "utf8")).toBe(
+      "exceeded=0\ncomplete=true\nexceeded=0\ncomplete=false\nexceeded=0\ncomplete=false\n",
+    );
+  });
 });
