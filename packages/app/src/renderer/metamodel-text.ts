@@ -7,9 +7,12 @@
 //   D-057, #624), and its statuses by name. A property is inherited by the same reading as in the graph
 //   (`inheritedProperties`).
 // - The value kind (Wertart) of a property is its `kind`; "list of" when it takes several values
-//   (`many`); for kind `relation` the types it may point to. Choice values are not listed (on demand).
+//   (`many`), with "at most <n>" for its `max-items` (SR-171); for kind `relation` the types it may point
+//   to. Choice values are not listed (on demand).
 // - One row per relation kind, in metamodel order: its key and name, its source and target types by name.
-//   A side left out allows every type ("any type"), an empty list none ("none"), as the schema says.
+//   A side left out allows every type ("any type"), an empty list none ("none"), as the schema says. Below
+//   it one line per limit (SR-152), "<source type> → <target type>: at least 1", "at most 2", "1 to 3" or
+//   "exactly 2"; a limit without a source type holds for the kind's sources and starts with "→".
 // - The problems of the output, one line each; they are no rows.
 import type { MetamodelGetOutput } from "@reqseq/core";
 import { inheritedProperties, typeKey } from "./metamodel-graph.js";
@@ -52,6 +55,8 @@ export interface RelationRow {
   readonly source: string;
   /** The target types by name, "any type" or "none". */
   readonly target: string;
+  /** One line per limit of the kind (SR-152), in metamodel order; empty: any number. */
+  readonly limits: readonly string[];
 }
 
 export type TextRow = TypeRow | RelationRow;
@@ -87,7 +92,30 @@ const valueOf = (
     return "";
   }
   const kind = property.many === true ? `list of ${property.kind}` : property.kind;
-  return property.kind === "relation" ? `${kind} → ${sideOf(property["target-types"], names)}` : kind;
+  if (property.kind === "relation") {
+    return `${kind} → ${sideOf(property["target-types"], names)}`;
+  }
+  // A list limit only for a list: an invalid single value with `max-items` shows none.
+  const most = property.many === true ? property["max-items"] : undefined;
+  return most === undefined ? kind : `${kind} · at most ${String(most)}`;
+};
+
+type Limit = NonNullable<MetamodelGetOutput["relations"][number]["limits"]>[number];
+
+/** How many relations a limit allows: "at least 1", "at most 2", "1 to 3", "exactly 2". */
+const countOf = (limit: Limit): string => {
+  const { min, max } = limit;
+  if (min !== undefined && max !== undefined) {
+    return min === max ? `exactly ${String(min)}` : `${String(min)} to ${String(max)}`;
+  }
+  return min === undefined ? `at most ${String(max)}` : `at least ${String(min)}`;
+};
+
+/** A limit as a line: its source type (if it names one) → its target type, and how many. */
+const limitLine = (limit: Limit, names: ReadonlyMap<string, string>): string => {
+  const name = (key: string): string => names.get(key) ?? key;
+  const source = limit["source-type"] === undefined ? "" : `${name(limit["source-type"])} `;
+  return `${source}→ ${name(limit["target-type"])}: ${countOf(limit)}`;
 };
 
 const problemLine = (problem: NonNullable<MetamodelGetOutput["problems"]>[number]): string => {
@@ -136,6 +164,7 @@ export const metamodelText = (output: MetamodelGetOutput): MetamodelText => {
     name: kind.name,
     source: sideOf(kind["source-types"], typeNames),
     target: sideOf(kind["target-types"], typeNames),
+    limits: (kind.limits ?? []).map((limit) => limitLine(limit, typeNames)),
   }));
   return { rows: [...types, ...relations], problems: (output.problems ?? []).map(problemLine) };
 };

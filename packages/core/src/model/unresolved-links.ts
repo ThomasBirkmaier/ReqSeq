@@ -12,6 +12,13 @@
 // Markdown-Links ein Element mit dem Schema `reqseq:` …, wenn der Bestand geprüft wird (CLI, API,
 // MCP: `workspace.check`), dann meldet das Tool eine Warnung mit Datei und Zeile." It is reported
 // as `relation.not-a-link` (#633), from `ElementRecord.bareReferences`, the same way.
+//
+// A reference-style link `[x][ref]` whose definition `[ref]: reqseq:SR-001` names an element is no
+// reference either (ADR-0004: only inline links are), so it counts for nothing silently. Product
+// owner decision, 2026-11-04: warn and name the inline form; such links stay unresolved. Reported as
+// `relation.reference-style` (#844) once per definition, on its line, since the definition holds
+// the `reqseq:` destination as an unresolved link holds it, and one definition serves every use;
+// from `ElementRecord.referenceDefinitions`, in the text and in properties marked `markdown`.
 import type { Problem } from "../catalog.js";
 import { commandErrorOrThrow } from "../catalog.js";
 import type { Metamodel } from "../metamodel/index.js";
@@ -84,19 +91,35 @@ const bareReferenceProblems = (element: ElementRecord, context: UnresolvedLinkCo
     elementId: element.id,
   }));
 
+/** The definitions of reference-style `reqseq:` links of `element` that count (#844), as warnings. */
+const referenceDefinitionProblems = (
+  element: ElementRecord,
+  context: UnresolvedLinkContext,
+  marked: ReadonlySet<string>,
+): Problem[] =>
+  (element.referenceDefinitions ?? [])
+    .filter((definition) => definition.key === undefined || marked.has(definition.key))
+    .map((definition) => ({
+      code: "relation.reference-style",
+      severity: "warning",
+      message: `The reference-style link [${definition.label}]: reqseq:${definition.target} in ${placeOfReference(definition)} of ${nameOf(element, context)} counts for nothing (no relation, no outdated check, no trace), since only an inline link is a reference: write the link inline, [Title](reqseq:${definition.target})`,
+      repository: element.repository,
+      file: element.file,
+      line: definition.line,
+      elementId: element.id,
+    }));
+
 /**
  * The unresolved links of one element that count under the metamodel, in store order, then the
- * references of its text outside links (#633), as problems.
+ * references of its text outside links (#633), then the definitions of its reference-style
+ * `reqseq:` links that count (#844), as problems.
  */
 export const unresolvedLinkProblems = (
   element: ElementRecord,
   context: UnresolvedLinkContext,
 ): readonly Problem[] => {
-  const links = element.unresolvedLinks;
-  if (links === undefined) {
-    return bareReferenceProblems(element, context);
-  }
   const marked = markdownKeysOf(context.metamodel);
+  const links = element.unresolvedLinks ?? [];
   const problems: Problem[] = links
     .filter((link) => link.key === undefined || marked.has(link.key))
     .map((link) => ({
@@ -109,6 +132,9 @@ export const unresolvedLinkProblems = (
       elementId: element.id,
     }));
   for (const problem of bareReferenceProblems(element, context)) {
+    problems.push(problem);
+  }
+  for (const problem of referenceDefinitionProblems(element, context, marked)) {
     problems.push(problem);
   }
   return problems;

@@ -11,9 +11,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { ElementGetOutput, EvidenceListOutput } from "@reqseq/core";
 import type { ElementBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
-import { evidenceLines, evidenceNotes } from "./evidence-lines.js";
+import { evidenceNotes, evidenceRows } from "./evidence-lines.js";
 import { hasStatus } from "./variant-lines.js";
-import { Part } from "./VariantLines.js";
+import { CutLine } from "./VariantLines.js";
 
 export interface EvidenceLinesProps {
   readonly call: Call;
@@ -80,7 +80,7 @@ export const EvidenceLines = ({
       current = false;
     };
   }, [call, buffer.id, asks, asked]);
-  const lines = useMemo(() => (listed === undefined ? [] : evidenceLines(listed, names)), [listed, names]);
+  const lines = useMemo(() => (listed === undefined ? [] : evidenceRows(listed, names)), [listed, names]);
   const notes = useMemo(() => (listed === undefined ? [] : evidenceNotes(listed)), [listed]);
   if (lines.length === 0 && notes.length === 0) {
     return null;
@@ -88,12 +88,15 @@ export const EvidenceLines = ({
   return (
     <div className="evidence-lines" role="group" aria-label="Evidence">
       <p className="variant-line">Evidence</p>
-      {lines.map((parts, at) => (
-        <p key={at} className="variant-line evidence-record" role="group" aria-label="Evidence record">
-          {parts.map((part, index) => (
-            <Part key={index} part={part} onOpen={onOpenRelation} />
-          ))}
-        </p>
+      {lines.map((row) => (
+        <CutLine
+          key={row.key}
+          className="variant-line evidence-record"
+          parts={row.parts}
+          label="Evidence record"
+          whole={row.whole}
+          onOpen={onOpenRelation}
+        />
       ))}
       {notes.map((note, at) => (
         <p key={at} className="variant-line evidence-record" role="note">

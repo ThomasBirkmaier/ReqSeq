@@ -14,8 +14,6 @@ import {
   warmWorkspace,
   watchWorkspace,
 } from "@reqseq/core";
-import { checkPort, refuseRunningApi, startApiServer } from "@reqseq/api";
-import { serveMcp } from "@reqseq/mcp";
 import { CommanderError } from "commander";
 import type { InputStream } from "./input.js";
 import { buildInput } from "./input.js";
@@ -236,6 +234,8 @@ async function serveUntilStopped(
       const watching = watchWorkspace(workspace).ready;
       if (request.server === "mcp") {
         await watching;
+        // Loaded only for the server (#178): every other call starts without the MCP SDK.
+        const { serveMcp } = await import("@reqseq/mcp");
         // The workspace loads while the client connects: a cold load (up to 30 s at 50,000 elements,
         // SR-082 AK2) must not hold up the handshake. The first tool call waits for it.
         void warmWorkspace(workspace);
@@ -243,6 +243,8 @@ async function serveUntilStopped(
         await serveMcp({ runtime, workspace, input: options.stdin, output: options.stdout, signal });
         return;
       }
+      // Loaded only for the server (#178), as the MCP server is.
+      const { checkPort, refuseRunningApi, startApiServer } = await import("@reqseq/api");
       // A wrong port and a second API for the copy are refused before anything loads (ADR-0009).
       const port = checkPort(portNumber(request.port));
       await refuseRunningApi({ workspace });

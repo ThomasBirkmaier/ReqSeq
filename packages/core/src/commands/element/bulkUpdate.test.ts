@@ -776,3 +776,91 @@ describe("element.bulkUpdate plan (#158)", () => {
     expect(await texts(fixture.root)).toEqual(before);
   });
 });
+
+// Follow-ups of #158 (#836): a blank value and the hint of a removed required property.
+describe("element.bulkUpdate blank values and hints (#836)", () => {
+  const B8 = id("b8");
+  /** A blank criterion. */
+  const HAND: FixtureOptions = {
+    fixture: "SR-069/filter",
+    files: {
+      "requirements/SR-0000000000b8.md": `---\nid: ${B8}\ntype: system-requirement\nstatus: draft\ntitle: Blank criterion\nrequirement-type: functional\nacceptance-criteria: "  "\n---\n`,
+    },
+  };
+
+  it("adds to a blank value as to no value: the item is the only one", async () => {
+    const { fixture, workspace } = await open(HAND);
+    const out = await bulk(workspace, {
+      selection: { ids: [B8] },
+      property: "acceptance-criteria",
+      operation: "add",
+      value: ["Given two, then it holds."],
+      confirm: true,
+    });
+    expect(out.count).toBe(1);
+    expect((await texts(fixture.root))["requirements/SR-0000000000b8.md"]).toContain(
+      "\nacceptance-criteria:\n  - Given two, then it holds.\n---\n",
+    );
+  });
+
+  it("warns for each element whose list property the change empties, in a preview too (#841)", async () => {
+    const { workspace } = await open();
+    const input = {
+      selection: { ids: [B1, B2] },
+      property: "packages",
+      operation: "remove",
+      value: [P1],
+    };
+    const emptied = (out: Output): unknown[] => out.problems.filter((p) => p.code === "element.text-emptied");
+    const expected = [
+      {
+        code: "element.text-emptied",
+        severity: "warning",
+        message: `Property Package (packages) of element ${B1} was not empty and is now empty; restore it from Git if this was not intended`,
+        repository: "system",
+        file: FILES[B1],
+        elementId: B1,
+        elementShortId: "SR-0000b1",
+        key: "packages",
+      },
+    ];
+    // b2 keeps P2; a preview says what the confirmation would do.
+    expect(emptied(await bulk(workspace, input))).toEqual([
+      {
+        ...expected[0],
+        message: `Property Package (packages) of element ${B1} is not empty and would be empty after this change`,
+      },
+    ]);
+    expect(emptied(await bulk(workspace, { ...input, confirm: true }))).toEqual(expected);
+    // A plain text property is not covered.
+    const topic = await bulk(workspace, {
+      selection: { ids: [B1] },
+      property: "topic",
+      operation: "set",
+      value: "",
+    });
+    expect(topic.count).toBe(1);
+    expect(emptied(topic)).toEqual([]);
+  });
+
+  it("names a required property that the change leaves without a value (element.missing-required)", async () => {
+    const { workspace } = await open();
+    const out = await bulk(workspace, {
+      selection: { ids: [B1, N1] },
+      property: "acceptance-criteria",
+      operation: "remove",
+    });
+    expect(ids(out.affected)).toEqual([B1]);
+    expect(out.problems).toEqual([
+      expect.objectContaining({
+        code: "element.missing-required",
+        severity: "warning",
+        file: FILES[B1],
+        elementId: B1,
+        elementShortId: "SR-0000b1",
+      }),
+      // The criteria held a value (#841).
+      expect.objectContaining({ code: "element.text-emptied", elementId: B1, key: "acceptance-criteria" }),
+    ]);
+  });
+});

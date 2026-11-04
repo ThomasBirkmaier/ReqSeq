@@ -27,6 +27,8 @@ export interface ResultLine {
   readonly open?: ElementBuffer;
   /** The element a pair line shows beside `open`, in the other area. */
   readonly beside?: ElementBuffer;
+  /** Shown on hover: the whole text the line cuts, such as a long reason (#862). */
+  readonly title?: string;
 }
 
 /** The most lines shown; an output beyond it ends with a line that says how many more there are. */

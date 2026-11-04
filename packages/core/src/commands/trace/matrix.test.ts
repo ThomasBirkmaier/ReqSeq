@@ -1,11 +1,14 @@
-// trace.matrix through `invoke` (SR-125, N-076, D-062): the data of the acceptance criteria on
-// fixtures/SR-125/matrix, one repository `system` with the standard model:
+// trace.matrix through `invoke` (SR-125, SR-153, N-076, D-062): the data of the acceptance criteria on
+// fixtures/SR-125/matrix, one repository `system` with the standard model plus one minimum (SR-153):
+// a system requirement derives from at least one need (`derives-from`, `min: 1`);
 // - needs N1 and N2, decision D1, packages P1 (Stage 3) and P2 (Stage 4), variant V1;
 // - SR S1 (P1) derives from N1 (current version) and is based on D1; S2 (P1) derives from N1 (an
 //   older version) and N2; S3 (P1) has no derivation but refines S1; S4 (P1) derives from S1 (its
 //   current version) and from an element that is not there; S5 (P1) derives from S1 (an older
 //   version); S6 (P2) derives from N1 (an older version);
 // - the saved filter "Stage SRs": the system requirements of P1, sorted by title descending.
+// So in Stage 3 (S1 to S5) S3 (no derivation), S4 (S1 and a missing target) and S5 (S1) undershoot the
+// minimum: expected 5, met 2.
 // The AK5 (opening an element) is the app's. The same matrix on every access: cross-access.test.ts.
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -14,11 +17,13 @@ import type { FixtureOptions, FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
+import { STANDARD_MODEL_TEXT } from "../../metamodel/index.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 
 type Output = CommandOutput<"trace.matrix">;
 type ListOutput = CommandOutput<"element.list">;
+type HintOutput = CommandOutput<"hint.list">;
 
 const P = "5e125a7d-2b4f-4c61-9d08-";
 const ID = {
@@ -80,6 +85,34 @@ const failure = async (workspace: Workspace, input: Record<string, unknown>): Pr
 };
 
 const STAGE_3 = { package: ID.P1 };
+const MODEL = "metamodel/standard-model.yaml";
+/** The minimum of the fixture, as its metamodel file writes it. */
+const MINIMUM = "      - { source-type: system-requirement, target-type: need, min: 1 }\n";
+
+/** The fixture with the limits of `derives-from` written as `limits` (lines of the list). */
+const withLimits =
+  (limits: string) =>
+  async (fixture: FixtureWorkspace): Promise<void> => {
+    const model = await fs.readFile(fixture.path(MODEL), "utf8");
+    await fixture.write(MODEL, model.replace(MINIMUM, limits));
+  };
+
+/** The gaps of each row that has some, by row name: `column` as `kind/direction`. */
+const gapsOf = (output: Output): Record<string, unknown[]> => {
+  const keys = columnKeys(output);
+  return Object.fromEntries(
+    output.rows.flatMap((r) =>
+      r.gaps === undefined
+        ? []
+        : [[nameOf(r.id), r.gaps.map(({ column, ...gap }) => ({ column: keys[column], ...gap }))]],
+    ),
+  );
+};
+/** A gap of the fixture's minimum. */
+const NEED_GAP = { column: "derives-from/out", targetType: "need", targetName: "Need", count: 0, min: 1 };
+/** The head of each column: kind, direction, count, and expected, met and share when it has minima. */
+const heads = (output: Output): unknown[][] =>
+  output.columns.map((c) => [c.kind, c.direction, c.count, c.expected, c.met, c.share]);
 const rowIds = (output: Output): string[] => output.rows.map((r) => nameOf(r.id));
 /** The columns as `kind/direction`. */
 const columnKeys = (output: Output): string[] => output.columns.map((c) => `${c.kind}/${c.direction}`);
@@ -261,8 +294,9 @@ describe("trace.matrix columns and cells", () => {
     const workspace = await open();
     const narrowed = await matrix(workspace, { selection: STAGE_3, kinds: ["derives-from"] });
     expect(columnKeys(narrowed)).toEqual(["derives-from/out", "derives-from/in"]);
-    // Order of the output, not of the request.
+    // Order of the output, not of the request. A relation property has no minimum (#808 Q2).
     const both = await matrix(workspace, { selection: STAGE_3, kinds: ["packages", "based-on"] });
+    expect(both.columns.every((c) => c.share === undefined)).toBe(true);
     expect(both.columns.map((c) => [c.kind, c.direction, c.name, c.property, c.meaning, c.count])).toEqual([
       ["based-on", "out", "Based on", undefined, undefined, 1],
       ["packages", "out", "Package", true, undefined, 5],
@@ -366,52 +400,176 @@ describe("trace.matrix reads relations as the element view reads them", () => {
 });
 
 describe("trace.matrix gaps and counts", () => {
-  it("[SR-125/AK3] leaves the cell of a row without such a relation empty", async () => {
+  it("[SR-125/AK3] [SR-153/AK2] leaves the cell of a row without such a relation empty, and no gap, where no minimum is", async () => {
     const workspace = await open();
     const output = await matrix(workspace, { selection: STAGE_3 });
-    expect(cell(output, "S3", "derives-from/out")).toEqual([]);
     expect(cell(output, "S1", "refines/out")).toEqual([]);
     expect(cell(output, "S2", "derives-from/in")).toEqual([]);
-    // A gap is an empty array, never a missing cell.
+    expect(cell(output, "S2", "based-on/out")).toEqual([]);
     for (const row of output.rows) {
       expect(row.cells).toHaveLength(output.columns.length);
     }
+    // Refines between system requirements, Based on and every incoming column have no minimum: no gap,
+    // and the head is the count of the rows with such a relation, without share.
+    expect(Object.values(gapsOf(output)).flat()).toEqual([NEED_GAP, NEED_GAP, NEED_GAP]);
+    expect(
+      heads(output).filter(([kind, direction]) => kind !== "derives-from" || direction !== "out"),
+    ).toEqual([
+      ["refines", "out", 1, undefined, undefined, undefined],
+      ["refines", "in", 1, undefined, undefined, undefined],
+      ["derives-from", "in", 1, undefined, undefined, undefined],
+      ["based-on", "out", 1, undefined, undefined, undefined],
+    ]);
   });
 
-  it("[SR-125/AK3] counts the rows of the whole selection with a relation of the column, as number and share", async () => {
+  it("[SR-153/AK1] marks the cells below the minimum as gaps and heads the column with met of expected and share, on every page", async () => {
     const workspace = await open();
-    const expected = [
-      ["refines", "out", 1, 0.2],
-      ["refines", "in", 1, 0.2],
-      ["derives-from", "out", 4, 0.8],
-      ["derives-from", "in", 1, 0.2],
-      ["based-on", "out", 1, 0.2],
-    ];
-    for (const page of [{}, { limit: 1 }, { limit: 2, offset: 4 }, { offset: 9 }]) {
+    const all = await matrix(workspace, { selection: STAGE_3 });
+    expect(gapsOf(all)).toEqual({ S3: [NEED_GAP], S4: [NEED_GAP], S5: [NEED_GAP] });
+    for (const page of [{}, { limit: 1 }, { limit: 2, offset: 3 }, { offset: 9 }]) {
       const output = await matrix(workspace, { selection: STAGE_3, ...page });
-      expect(output.columns.map((c) => [c.kind, c.direction, c.count, c.share])).toEqual(expected);
-      expect(output.total).toBe(5);
+      expect(heads(output)).toEqual([
+        ["refines", "out", 1, undefined, undefined, undefined],
+        ["refines", "in", 1, undefined, undefined, undefined],
+        ["derives-from", "out", 4, 5, 2, 0.4],
+        ["derives-from", "in", 1, undefined, undefined, undefined],
+        ["based-on", "out", 1, undefined, undefined, undefined],
+      ]);
+      expect(output.rows.map((r) => r.gaps)).toEqual(
+        all.rows.filter((r) => output.rows.some((o) => o.id === r.id)).map((r) => r.gaps),
+      );
     }
-    // The share is of the selection: with S6 and the needs, S6 derives from N1 as well.
+    // The share is of the whole selection: with S6, which derives from N1, too.
     const wider = await matrix(workspace, { selection: { where: { type: ["system-requirement"] } } });
     expect(wider.total).toBe(6);
     expect(wider.columns.find((c) => c.kind === "derives-from" && c.direction === "out")).toMatchObject({
       count: 5,
-      share: 5 / 6,
+      expected: 6,
+      met: 3,
+      share: 0.5,
     });
   });
 
-  it("[SR-125/AK3] counts a relation to a target that is not there, so its row is no gap", async () => {
+  it("[SR-153/AK1] marks a cell with relations as a gap when none counts: a missing target and a system requirement", async () => {
     const workspace = await open();
     const output = await matrix(workspace, { selection: { ids: [ID.S4] } });
-    expect(output.columns.map((c) => [c.kind, c.direction, c.count, c.share])).toEqual([
-      ["derives-from", "out", 1, 1],
+    expect(cell(output, "S4", "derives-from/out")).toEqual(["S1", "GONE"]);
+    expect(heads(output)).toEqual([["derives-from", "out", 1, 1, 0, 0]]);
+    expect(gapsOf(output)).toEqual({ S4: [NEED_GAP] });
+  });
+
+  it("[SR-153/AK1] gives the column of a minimum even when no row of the selection has such a relation", async () => {
+    const workspace = await open();
+    const output = await matrix(workspace, { selection: { ids: [ID.S3] } });
+    expect(heads(output)).toEqual([
+      ["refines", "out", 1, undefined, undefined, undefined],
+      ["derives-from", "out", 0, 1, 0, 0],
+    ]);
+    expect(gapsOf(output)).toEqual({ S3: [NEED_GAP] });
+    // `kinds` still narrows the columns.
+    expect(columnKeys(await matrix(workspace, { selection: { ids: [ID.S3] }, kinds: ["refines"] }))).toEqual([
+      "refines/out",
     ]);
   });
 
-  it("[SR-125/AK3] counts and shows only the relations whose other end applies in a view", async () => {
+  it("[SR-153/AK1] counts only the rows whose type has a minimum: a need has none", async () => {
+    const workspace = await open();
+    const output = await matrix(workspace, { selection: { ids: [ID.S1, ID.S3, ID.N1, ID.N2] } });
+    expect(output.columns.find((c) => c.kind === "derives-from" && c.direction === "out")).toMatchObject({
+      count: 1,
+      expected: 2,
+      met: 1,
+      share: 0.5,
+    });
+    expect(Object.keys(gapsOf(output))).toEqual(["S3"]);
+  });
+
+  it("[SR-153/AK1] needs every minimum of the kind: one gap per minimum it undershoots", async () => {
+    const workspace = await open(
+      MATRIX,
+      withLimits(
+        `${MINIMUM}      - { source-type: system-requirement, target-type: system-requirement, min: 1 }\n`,
+      ),
+    );
+    const output = await matrix(workspace, { selection: STAGE_3 });
+    expect(output.columns.find((c) => c.kind === "derives-from" && c.direction === "out")).toMatchObject({
+      expected: 5,
+      met: 0,
+      share: 0,
+    });
+    const srGap = { ...NEED_GAP, targetType: "system-requirement", targetName: "System Requirement" };
+    expect(gapsOf(output)).toEqual({
+      S1: [srGap],
+      S2: [srGap],
+      S3: [NEED_GAP, srGap],
+      S4: [NEED_GAP],
+      S5: [NEED_GAP],
+    });
+  });
+
+  it("[SR-153/AK1] checks two limits that apply to the same pair each, as the hints do", async () => {
+    // Without `source-type` the limit applies to the one source type of the kind: a warning, both checked.
+    const workspace = await open(MATRIX, withLimits(`${MINIMUM}      - { target-type: need, min: 2 }\n`));
+    const output = await matrix(workspace, { selection: { ids: [ID.S1, ID.S2] } });
+    expect(gapsOf(output)).toEqual({ S1: [{ ...NEED_GAP, count: 1, min: 2 }] });
+    expect(output.columns.find((c) => c.kind === "derives-from" && c.direction === "out")).toMatchObject({
+      expected: 2,
+      met: 1,
+    });
+  });
+
+  it("[SR-153/AK1] gives the gaps hint.list gives as relation.too-few, with the same count", async () => {
+    for (const limits of [
+      MINIMUM,
+      `      - { target-type: need, min: 2 }\n      - { target-type: system-requirement, min: 1 }\n`,
+    ]) {
+      const workspace = await open(MATRIX, withLimits(limits));
+      const output = await matrix(workspace, { selection: {} });
+      const hints = (await invoke("hint.list", { kind: ["relation.too-few"] }, { workspace })) as HintOutput;
+      const fromMatrix = output.rows.flatMap((r) =>
+        (r.gaps ?? []).map((g) => [r.id, output.columns[g.column]?.kind, g.targetType, g.count, g.min]),
+      );
+      const fromHints = hints.hints.map((h) => [h.elementId, h.key, h.targetType, h.count, h.limit]);
+      expect(fromMatrix.length).toBeGreaterThan(0);
+      expect(new Set(fromMatrix.map((g) => JSON.stringify(g)))).toEqual(
+        new Set(fromHints.map((h) => JSON.stringify(h))),
+      );
+    }
+  });
+
+  it("[SR-153/AK2] gives no gap and no share for min 0 or a limit with max only", async () => {
+    for (const limits of [
+      "      - { source-type: system-requirement, target-type: need, min: 0 }\n",
+      "      - { source-type: system-requirement, target-type: need, max: 1 }\n",
+    ]) {
+      const workspace = await open(MATRIX, withLimits(limits));
+      const output = await matrix(workspace, { selection: { ids: [ID.S3, ID.S4] } });
+      expect(heads(output)).toEqual([
+        ["refines", "out", 1, undefined, undefined, undefined],
+        ["derives-from", "out", 1, undefined, undefined, undefined],
+      ]);
+      expect(gapsOf(output)).toEqual({});
+    }
+  });
+
+  it("[SR-125/AK3] [SR-153/AK2] the standard model sets no minimum: no gap and no share in any column", async () => {
+    const workspace = await open(MATRIX, (fixture) => fixture.write(MODEL, STANDARD_MODEL_TEXT));
+    const output = await matrix(workspace, { selection: STAGE_3 });
+    expect(heads(output)).toEqual([
+      ["refines", "out", 1, undefined, undefined, undefined],
+      ["refines", "in", 1, undefined, undefined, undefined],
+      ["derives-from", "out", 4, undefined, undefined, undefined],
+      ["derives-from", "in", 1, undefined, undefined, undefined],
+      ["based-on", "out", 1, undefined, undefined, undefined],
+    ]);
+    expect(cell(output, "S3", "derives-from/out")).toEqual([]);
+    expect(gapsOf(output)).toEqual({});
+  });
+
+  it("[SR-125/AK2] [SR-153/AK1] counts and shows only the relations whose other end applies in a view", async () => {
     // S1 is valid for the variant only: in the core view it does not apply, so the relations to it are
-    // left out; S5 derives only from S1 and is a gap there, and S4 keeps its relation to the missing target.
+    // left out of the cells, the counts and the minima; S5 derives only from S1 and S4 from S1 and a
+    // missing target, so both are gaps there, as S3; S2 meets the minimum.
     const workspace = await open(MATRIX, async (fixture) => {
       const file = "requirements/SR-0b0000000001.md";
       const text = await fs.readFile(fixture.path(file), "utf8");
@@ -427,9 +585,8 @@ describe("trace.matrix gaps and counts", () => {
     const core = await matrix(workspace, { selection: { ...STAGE_3, view: "core" } });
     expect(rowIds(core)).toEqual(["S2", "S3", "S4", "S5"]);
     expect(rowIds(plain)).toEqual(["S1", "S2", "S3", "S4", "S5"]);
-    expect(core.columns.map((c) => [c.kind, c.direction, c.count, c.share])).toEqual([
-      ["derives-from", "out", 2, 0.5],
-    ]);
+    expect(heads(core)).toEqual([["derives-from", "out", 2, 4, 1, 0.25]]);
+    expect(gapsOf(core)).toEqual({ S3: [NEED_GAP], S4: [NEED_GAP], S5: [NEED_GAP] });
     expect(cell(core, "S5", "derives-from/out")).toEqual([]);
     expect(cell(core, "S4", "derives-from/out")).toEqual(["GONE"]);
     expect(cell(core, "S2", "derives-from/out")).toEqual(["N1", "N2"]);
@@ -622,12 +779,12 @@ describe("trace.matrix selections", () => {
     expect(new Set(rowIds(stage))).toEqual(new Set(rowIds(byPackage)));
     const ids = await matrix(workspace, { selection: { ids: [ID.S3, ID.S1] } });
     expect(rowIds(ids)).toEqual(["S1", "S3"]);
-    expect(ids.columns.map((c) => [c.kind, c.direction, c.count, c.share])).toEqual([
-      ["refines", "out", 1, 0.5],
-      ["refines", "in", 1, 0.5],
-      ["derives-from", "out", 1, 0.5],
-      ["derives-from", "in", 1, 0.5],
-      ["based-on", "out", 1, 0.5],
+    expect(heads(ids)).toEqual([
+      ["refines", "out", 1, undefined, undefined, undefined],
+      ["refines", "in", 1, undefined, undefined, undefined],
+      ["derives-from", "out", 1, 2, 1, 0.5],
+      ["derives-from", "in", 1, undefined, undefined, undefined],
+      ["based-on", "out", 1, undefined, undefined, undefined],
     ]);
   });
 

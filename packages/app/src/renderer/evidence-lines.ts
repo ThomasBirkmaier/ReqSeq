@@ -12,7 +12,7 @@
 import type { DataExportEvidenceRecord, ElementName, EvidenceListOutput } from "@reqseq/core";
 import { elementBufferOf } from "./buffers.js";
 import type { LinePart } from "./variant-lines.js";
-import { joined, reasonLine } from "./variant-lines.js";
+import { joined, reasonLine, wholeReason } from "./variant-lines.js";
 
 /** The note of an incomplete answer (SR-006 AK2). */
 export const INCOMPLETE_NOTE =
@@ -62,6 +62,30 @@ export const evidenceLines = (
 ): LinePart[][] => {
   const byId = new Map((names ?? []).map((name) => [name.id, name]));
   return output.records.map((record) => recordLine(record, byId));
+};
+
+/** The whole reason of `record` when its line cuts it (#862), else undefined. */
+export const wholeReasonOf = (record: DataExportEvidenceRecord): string | undefined =>
+  record.reason === undefined ? undefined : wholeReason(record.reason);
+
+/** A record's line with what keys it among the others and the whole reason it cuts (#862). */
+export interface EvidenceRow {
+  readonly key: string;
+  readonly parts: LinePart[];
+  readonly whole: string | undefined;
+}
+
+/** One row per record of `output`, in its order; a key per record, so an open reason stays at its record. */
+export const evidenceRows = (
+  output: Pick<EvidenceListOutput, "records">,
+  names: readonly ElementName[] | undefined,
+): EvidenceRow[] => {
+  const lines = evidenceLines(output, names);
+  return output.records.map((record, at) => ({
+    key: [record.date, record.repository, record.file, record.line, record.version, at].join("\u0000"),
+    parts: lines[at] ?? [],
+    whole: wholeReasonOf(record),
+  }));
 };
 
 /** The notes under the records: each problem as "<severity> · <code> · <message>", then the incomplete note. */

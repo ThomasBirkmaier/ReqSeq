@@ -2872,12 +2872,6 @@ describe("ElementView", () => {
       controls().save();
       await Promise.resolve();
     });
-    // A second Ctrl+S while the first runs does nothing.
-    await act(async () => {
-      controls().save();
-      await Promise.resolve();
-    });
-    expect(call.mock.calls.filter(([name]) => name === "element.update")).toHaveLength(1);
     await typeInto("?");
     await act(async () => {
       answer({ ok: true, output: saved("base!") });
@@ -2886,6 +2880,68 @@ describe("ElementView", () => {
     await flush();
     expect(editorView().state.doc.toString()).toBe("base!?");
     expect(drafts.at(-1)).toEqual(["element:spec:uuid-1", { text: "base!?", base: "base!" }]);
+    expect(echoed.at(-1)).toBe("Saved SR-036 Measure wind");
+  });
+
+  it("waits with a Ctrl+S pressed while a save runs, then saves what is left and says so (#563)", async () => {
+    const answers: ((value: unknown) => void)[] = [];
+    const call = vi.fn((name: string) =>
+      name === "element.update"
+        ? new Promise((resolve) => {
+            answers.push(resolve);
+          })
+        : Promise.resolve({
+            ok: true,
+            output:
+              name === "trace.neighbourhood" ? alone({ ref: "uuid-1" }) : { element: read({ text: "base" }) },
+          }),
+    );
+    const updates = (): number => call.mock.calls.filter(([name]) => name === "element.update").length;
+    const { controls, drafts, echoed } = await mount(asCall(call as never));
+    await typeInto("!");
+    await act(async () => {
+      controls().save();
+      await Promise.resolve();
+    });
+    // Pressed while the first runs: it waits for it, it is not dropped.
+    await act(async () => {
+      controls().save();
+      await Promise.resolve();
+    });
+    expect(updates()).toBe(1);
+    echoed.length = 0;
+    await act(async () => {
+      answers[0]?.({ ok: true, output: saved("base!") });
+      await Promise.resolve();
+    });
+    await flush();
+    // That save left nothing: the second says Saved, not "No changes to save", and writes nothing.
+    expect(updates()).toBe(1);
+    expect(echoed.at(-1)).toBe("Saved SR-036 Measure wind");
+    // Typed while a save runs: the waiting Ctrl+S writes it after that save.
+    await typeInto("?");
+    await act(async () => {
+      controls().save();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      controls().save();
+      await Promise.resolve();
+    });
+    await typeInto("#");
+    await act(async () => {
+      answers[1]?.({ ok: true, output: saved("base!?") });
+      await Promise.resolve();
+    });
+    await flush();
+    expect(updates()).toBe(3);
+    await act(async () => {
+      answers[2]?.({ ok: true, output: saved("base!?#") });
+      await Promise.resolve();
+    });
+    await flush();
+    expect(editorView().state.doc.toString()).toBe("base!?#");
+    expect(drafts.at(-1)).toEqual(["element:spec:uuid-1", undefined]);
     expect(echoed.at(-1)).toBe("Saved SR-036 Measure wind");
   });
 

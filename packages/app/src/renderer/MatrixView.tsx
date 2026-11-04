@@ -1,6 +1,9 @@
 // The traceability matrix (SR-125): a list buffer in matrix mode. One row per element of the list, in its
-// order; one column per relation kind and direction that occurs; each cell the elements at the other end,
-// "—" where the row has none; above each column how many rows have a relation and their share. Everything
+// order; one column per relation kind and direction that occurs; each cell the elements at the other end.
+// A cell that core names in the row's `gaps` (SR-153: it undershoots a minimum of the metamodel) has the
+// accent "—" after its links, with the minimum on demand; another empty cell has a grey "—", no gap. Above
+// each column, with minima, how many rows meet them of how many and their share, else how many rows have
+// a relation. Everything
 // is what `trace.matrix` gives (ADR-0002); the rows come in pages like the list's. Right and Left walk
 // through the row element and its relations, Enter or a click opens the element. The row element of an
 // element that changed outside the app is highlighted briefly (SR-116). With evidence locations, two columns
@@ -16,9 +19,11 @@ import { bufferName, listSort } from "./buffers.js";
 import type { Call } from "./call.js";
 import { relationLabel } from "./element-view.js";
 import {
+  cellGaps,
   columnCount,
   columnName,
   degreeLine,
+  gapTitle,
   matrixInput,
   matrixRows,
   opening,
@@ -339,24 +344,26 @@ export const MatrixView = ({
                 {row.cells.map((cell, column) => {
                   const first = next;
                   next += cell.length;
+                  const gaps = cellGaps(row, column);
                   return (
                     <td key={column} role="gridcell" className="cell">
-                      {cell.length === 0 ? (
-                        <span className="gap" title="No relation">
+                      {cell.map((relation, place) => (
+                        <Link
+                          key={`${relation.id}:${String(place)}`}
+                          relation={relation}
+                          current={index === cursor && at === first + place}
+                          onChoose={() => {
+                            open(index, first + place);
+                          }}
+                        />
+                      ))}
+                      {gaps.length > 0 ? (
+                        <span className="gap" title={gapTitle(gaps)}>
                           —
                         </span>
-                      ) : (
-                        cell.map((relation, place) => (
-                          <Link
-                            key={`${relation.id}:${String(place)}`}
-                            relation={relation}
-                            current={index === cursor && at === first + place}
-                            onChoose={() => {
-                              open(index, first + place);
-                            }}
-                          />
-                        ))
-                      )}
+                      ) : cell.length === 0 ? (
+                        <span className="none">—</span>
+                      ) : null}
                     </td>
                   );
                 })}

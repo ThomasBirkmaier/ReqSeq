@@ -21,6 +21,8 @@ const FIXTURE_COPIES = [
   "SR-021/targets/system/metamodel/standard-model.yaml",
   "SR-040/validity/metamodel/standard-model.yaml",
   "SR-072/supersede/metamodel/standard-model.yaml",
+  // The workspace of the guide images (#849): they show the standard model as `workspace init` writes it.
+  "enabler-344/weather-station/metamodel/standard-model.yaml",
 ];
 
 /**

@@ -17,7 +17,7 @@
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
 import type { ElementCopy } from "../../model/index.js";
-import { getElement, shortIdState } from "../../model/index.js";
+import { getElement, shortIdState, UNKNOWN_TYPE_PREFIX } from "../../model/index.js";
 import { shownWithNames } from "../../data/index.js";
 import type { Workspace } from "../../runtime/workspace.js";
 import { elementHints } from "../../hints/index.js";
@@ -50,6 +50,11 @@ const withOutdatedPrefix = async (
     return error;
   }
   const meant = shortIds.of(only);
+  // A type left out with a faulty metamodel file is no outdated prefix (#853 review): the message
+  // already names the metamodel.
+  if (!shortIds.metamodelValid && meant.startsWith(`${UNKNOWN_TYPE_PREFIX}-`)) {
+    return error;
+  }
   return new CommandError("ref.unknown", `${error.message}; prefix may be outdated; did you mean ${meant}?`, {
     ...error.details,
     candidates: [{ id: only.id, repository: only.repository, file: only.file }],

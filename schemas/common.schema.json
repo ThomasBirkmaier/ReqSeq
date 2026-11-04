@@ -255,7 +255,7 @@
         },
         "key": {
           "$ref": "#/$defs/key",
-          "description": "The relation kind (`relation.too-many`, `relation.too-few`, SR-152) or the property (`element.too-many-items`, SR-171) a count hint is about."
+          "description": "The relation kind (`relation.too-many`, `relation.too-few`, SR-152) or the property (`element.too-many-items`, SR-171) a count hint is about, or the property an `element.text-emptied` warning names (#841)."
         },
         "targetType": {
           "$ref": "#/$defs/key",
@@ -284,6 +284,7 @@
         "file.yaml-warning",
         "file.skipped",
         "file.stale-temp",
+        "file.read-only",
         "element.invalid",
         "element.duplicate-id",
         "element.duplicate-identifier",
@@ -300,6 +301,7 @@
         "relation.missing-target",
         "relation.unresolved-link",
         "relation.not-a-link",
+        "relation.reference-style",
         "relation.inaccessible-target",
         "relation.not-allowed",
         "relation.too-many",
@@ -332,6 +334,7 @@
         "metamodel.invalid",
         "metamodel.optional-status",
         "metamodel.meaning-unassigned",
+        "metamodel.meaning-type-mismatch",
         "workspace.repository-missing",
         "workspace.metamodel-mismatch",
         "workspace.invalid",

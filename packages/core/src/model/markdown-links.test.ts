@@ -374,3 +374,38 @@ describe("mentions of a word in inline text (#633)", () => {
     expect(markdownLinksAndMentions("plain", "w:").mentions).toEqual([]);
   });
 });
+
+describe("definitions of reference-style links to a word (#844)", () => {
+  it("gives each definition whose destination starts with the word, with the offset of its line, outside code", () => {
+    const text = [
+      "[a]: w:a",
+      "[A]: <w:b> 'title'",
+      "> [Quoted Label]: w:c",
+      "- [item]: w:d",
+      "[other]: x:e",
+      "`[span]: w:f`",
+      "```",
+      "[fenced]: w:g",
+      "```",
+      "",
+      "    [indented]: w:h",
+      "paragraph",
+      "[in paragraph]: w:i",
+    ].join("\r\n");
+    const { links, mentions, definitions } = markdownLinksAndMentions(text, "w:");
+    expect(links).toEqual([]);
+    // A definition right after paragraph text is paragraph text (ADR-0005), so its word is a mention.
+    expect(mentions.map((at) => text.slice(at, at + 3))).toEqual(["w:i"]);
+    expect(definitions.map((d) => ({ ...d, line: text.slice(d.offset, d.offset + 4) }))).toEqual([
+      { label: "a", destination: "w:a", offset: 0, line: "[a]:" },
+      // A label defined before is given again: each definition counts on its own.
+      { label: "A", destination: "w:b", offset: 10, line: "[A]:" },
+      { label: "Quoted Label", destination: "w:c", offset: 30, line: "> [Q" },
+      { label: "item", destination: "w:d", offset: 53, line: "- [i" },
+    ]);
+  });
+
+  it("still lets the first definition of a label win for reference images", () => {
+    expect(markdownImages("![x][a]\n\n[a]: one.png\n[A]: two.png\n")).toEqual(["one.png"]);
+  });
+});

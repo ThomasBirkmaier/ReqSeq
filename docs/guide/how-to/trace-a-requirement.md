@@ -85,7 +85,7 @@ reqseq trace matrix
 
 ```text title="Output"
 columns:
-  1:  Derives from  (derives-from, out)  2  66.6 %
+  1:  Derives from  (derives-from, out)  2
 ...
 rows:
 ...
@@ -96,6 +96,8 @@ total: 3
 ```
 
 The columns are numbered; the count says how many rows have a link in a column. Below each row, its cells name the elements at the other end by column number, `–` for an empty cell and `[outdated]` for a link to an older version. `--json` gives each cell in full.
+
+Gaps and shares appear only where the metamodel sets a minimum: a relation kind's `limits` with `min`, for example `{ source-type: system-requirement, target-type: need, min: 1 }` under `derives-from`. Such a column reads `2 of 3 · 66.6 %` (rows that meet the minimum, of the rows it applies to, and their share), and a row below it has `[gap]` after its cell. An empty cell without a minimum is no gap. The standard model sets no minimum.
 
 A relation can also be set in the same call that creates or changes the element, by any reference `relation add` takes, one target or a JSON list per kind:
 

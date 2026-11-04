@@ -32,12 +32,19 @@ interface Metamodel {
     readonly many?: boolean;
     readonly "target-types"?: readonly string[];
     readonly content?: boolean;
+    readonly "max-items"?: number;
   }[];
   readonly relations: readonly {
     readonly key: string;
     readonly name: string;
     readonly "source-types"?: readonly string[];
     readonly "target-types"?: readonly string[];
+    readonly limits?: readonly {
+      readonly "source-type"?: string;
+      readonly "target-type": string;
+      readonly min?: number;
+      readonly max?: number;
+    }[];
   }[];
   readonly statuses: readonly { readonly key: string; readonly name: string }[];
 }
@@ -205,7 +212,9 @@ const shownText = (window: Page): Promise<string[]> =>
       [
         [...row.querySelectorAll(".mm-text-head > span")].map((part) => part.textContent).join(" "),
         ...[
-          ...row.querySelectorAll("[data-parent], [data-properties], .mm-text-property, [data-statuses]"),
+          ...row.querySelectorAll(
+            "[data-parent], [data-properties], .mm-text-property, [data-statuses], [data-limit]",
+          ),
         ].map((line) =>
           line.classList.contains("mm-text-property")
             ? [
@@ -232,12 +241,19 @@ const expectedText = (model: Metamodel): string[] => {
       : keys.length === 0
         ? "none"
         : keys.map((key) => typeNames.get(key) ?? key).join(", ");
+  const valueOf = (property: Metamodel["properties"][number] | undefined): string => {
+    const kind = `${property?.many === true ? "list of " : ""}${property?.kind ?? ""}`;
+    if (property?.kind === "relation") {
+      return `${kind} → ${side(property["target-types"])}`;
+    }
+    const most = property?.many === true ? property["max-items"] : undefined;
+    return most === undefined ? kind : `${kind} · at most ${String(most)}`;
+  };
   const types = model.types.map((type) => {
     const parent = type.extends === undefined ? [] : (byKey.get(type.extends)?.properties ?? []);
     const lines = type.properties.map((key) => {
       const property = properties.get(key);
-      const kind = `${property?.many === true ? "list of " : ""}${property?.kind ?? ""}`;
-      const value = property?.kind === "relation" ? `${kind} → ${side(property["target-types"])}` : kind;
+      const value = valueOf(property);
       return [
         property?.name ?? key,
         key,
@@ -257,8 +273,23 @@ const expectedText = (model: Metamodel): string[] => {
       `Statuses ${type.statuses.length === 0 ? "none" : type.statuses.map((key) => statusNames.get(key) ?? key).join(" · ")}`,
     ].join(" | ");
   });
-  const kinds = model.relations.map(
-    (kind) => `${kind.name} ${kind.key} ${side(kind["source-types"])} → ${side(kind["target-types"])}`,
+  const name = (key: string): string => typeNames.get(key) ?? key;
+  const count = (min: number | undefined, max: number | undefined): string =>
+    min === undefined
+      ? `at most ${String(max)}`
+      : max === undefined
+        ? `at least ${String(min)}`
+        : min === max
+          ? `exactly ${String(min)}`
+          : `${String(min)} to ${String(max)}`;
+  const kinds = model.relations.map((kind) =>
+    [
+      `${kind.name} ${kind.key} ${side(kind["source-types"])} → ${side(kind["target-types"])}`,
+      ...(kind.limits ?? []).map(
+        (limit) =>
+          `limit ${limit["source-type"] === undefined ? "" : `${name(limit["source-type"])} `}→ ${name(limit["target-type"])}: ${count(limit.min, limit.max)}`,
+      ),
+    ].join(" | "),
   );
   return [...types, ...kinds];
 };

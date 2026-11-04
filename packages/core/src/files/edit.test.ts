@@ -759,3 +759,27 @@ describe("set-scalar: one scalar replaced in place (SR-027 AK1, SR-102 AK1)", ()
     expect(edit(text, { edits })).toBe(text.replace("z: old", "z: new").replace("c: plain", "c: new"));
   });
 });
+
+describe("editElementFile: the new bytes as read back (#836)", () => {
+  it("gives what parseFileBytes reads the changed bytes as, named by the file's path; nothing when nothing changed", () => {
+    const text = "---\nid: a\ntitle: A\nunknown: !odd x\n---\nText\n";
+    const file = { ...fileOf(text), path: "req/a.md" };
+    const edited = editElementFile(file, { edits: [{ kind: "set", key: "title", value: "B" }] });
+    const again = parseFileBytes("req/a.md", edited.bytes);
+    expect(again.kind).toBe("parsed");
+    // The document as its text: two parses give equal documents, not structurally equal objects.
+    const shown = (content: ParsedContent | undefined) =>
+      content === undefined ? undefined : { ...content, document: content.document.toString() };
+    expect(shown(edited.parsed)).toEqual(shown(again.kind === "parsed" ? again.content : undefined));
+    // The YAML warning of the unknown tag names the file.
+    expect(edited.parsed?.warnings).toEqual([expect.objectContaining({ file: "req/a.md" })]);
+    const { path: _path, ...unnamed } = file;
+    expect(
+      editElementFile(unnamed, { edits: [{ kind: "set", key: "title", value: "B" }] }).parsed?.warnings,
+    ).toEqual([expect.objectContaining({ file: "(edited file)" })]);
+    expect(editElementFile(file, { edits: [{ kind: "set", key: "title", value: "A" }] })).toEqual({
+      bytes: new TextEncoder().encode(text),
+      changed: false,
+    });
+  });
+});

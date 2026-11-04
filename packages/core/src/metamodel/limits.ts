@@ -2,7 +2,8 @@
 // optionally per source type, how many relations of it one source element may (`max`) or must
 // (`min`) have. The checks of the limits when the metamodel is loaded, and `limitsOf`, the limits
 // that apply to the elements of each type, which the check of the elements reads
-// (`model/relation-limits.ts`). Likewise the most entries of a list property (`max-items`,
+// (`model/relation-limits.ts`), and `minimaOf`, the limits with a `min` of 1 or more, which mark
+// the gaps of the traceability matrix (SR-153, `trace/matrix.ts`). Likewise the most entries of a list property (`max-items`,
 // SR-171): `maxItemsProblems` and `maxItemsOf` (`model/item-limits.ts`).
 import type { Problem } from "../catalog.js";
 import type { MetamodelKey, MetamodelProperty, MetamodelRelationKind } from "../generated/types.js";
@@ -154,6 +155,42 @@ export const limitsOf = (metamodel: Metamodel): ReadonlyMap<MetamodelKey, readon
     }
   }
   indexes.set(metamodel, index);
+  return index;
+};
+
+/** A limit with a minimum (SR-153): `min` is 1 or more. */
+export type RelationMinimum = RelationLimit & { readonly min: number };
+
+/** The minima of each type, by type key and then by relation kind key. */
+export type Minima = ReadonlyMap<MetamodelKey, ReadonlyMap<MetamodelKey, readonly RelationMinimum[]>>;
+
+const minimaIndexes = new WeakMap<Metamodel, Minima>();
+
+/**
+ * The minima of each type (SR-153): by type key, then by relation kind key, the limits of
+ * `limitsOf` with a `min` of 1 or more, in metamodel order (`min: 0` is no minimum). A type without
+ * one has no entry. Built once per metamodel object; empty for a metamodel that is not valid.
+ */
+export const minimaOf = (metamodel: Metamodel): Minima => {
+  const known = minimaIndexes.get(metamodel);
+  if (known !== undefined) {
+    return known;
+  }
+  const index = new Map<MetamodelKey, Map<MetamodelKey, RelationMinimum[]>>();
+  for (const [type, limits] of limitsOf(metamodel)) {
+    for (const limit of limits) {
+      const { min } = limit;
+      if (min === undefined || min < 1) {
+        continue;
+      }
+      const byKey = index.get(type) ?? new Map<MetamodelKey, RelationMinimum[]>();
+      index.set(type, byKey);
+      const list = byKey.get(limit.key) ?? [];
+      byKey.set(limit.key, list);
+      list.push({ ...limit, min });
+    }
+  }
+  minimaIndexes.set(metamodel, index);
   return index;
 };
 

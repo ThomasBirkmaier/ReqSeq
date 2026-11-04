@@ -39,6 +39,9 @@ const DEF_MESSAGES: Readonly<Record<string, string>> = {
   "common.schema.json#/$defs/dateTime": "is not a date and time (for example 2026-10-26T09:30:00Z)",
   "filter.schema.json#/$defs/name":
     "is not a filter name (at most 200 characters, without control characters or spaces at either end)",
+  "metamodel.schema.json#/$defs/prefix":
+    "is not a prefix (upper case letters and digits, starting with a letter, for example SR)",
+  "metamodel.schema.json#/$defs/relationLimit": "has neither min nor max (a limit needs one of them or both)",
   "element.schema.json#/$defs/inputValue":
     "is not a property value (text, a number, true or false, a list of these, a relation target { id } with an element reference, or a list of them)",
 };
@@ -103,7 +106,7 @@ const typeName = (type: unknown): string =>
   (Array.isArray(type) ? type : [type]).map((t) => String(TYPE_NAMES[String(t)])).join(" or ");
 
 /** JSON Pointer segments of an Ajv `instancePath`. */
-const segmentsOf = (pointer: string): string[] =>
+export const segmentsOf = (pointer: string): string[] =>
   pointer === ""
     ? []
     : pointer
@@ -112,7 +115,7 @@ const segmentsOf = (pointer: string): string[] =>
         .map((s) => s.replaceAll("~1", "/").replaceAll("~0", "~"));
 
 /** `["refs", "0"]` -> `refs[0]`, `["properties", "type"]` -> `properties.type`. */
-const fieldOf = (segments: readonly string[]): string =>
+export const fieldOf = (segments: readonly string[]): string =>
   segments.reduce(
     (name, segment) =>
       /^\d+$/.test(segment) ? `${name}[${segment}]` : name === "" ? segment : `${name}.${segment}`,
@@ -168,6 +171,22 @@ const KEYWORD_TEXTS: Readonly<Record<string, KeywordText>> = {
   exclusiveMaximum: bound,
   format: (value, p) => `${subject(value)} is not a valid ${String(p["format"])}`,
   not: (value) => `${subject(value)} is not allowed here`,
+  contains: (_v, p, error) => {
+    // Ajv gives minContains always (1 when the schema has none) and maxContains only when there is one.
+    const min = Number(p["minContains"]);
+    const max = p["maxContains"] === undefined ? undefined : Number(p["maxContains"]);
+    const range =
+      max === undefined
+        ? `at least ${String(min)}`
+        : min === 0
+          ? `at most ${String(max)}`
+          : min === max
+            ? `exactly ${String(min)}`
+            : `${String(min)} to ${String(max)}`;
+    // The description of the `contains` schema says which items count (#851); without one, its form.
+    const description = (error.schema as JsonSchema | undefined)?.["description"];
+    return `must have ${range} ${(max ?? min) === 1 ? "item" : "items"} ${typeof description === "string" ? description : "of the expected form"}`;
+  },
   pattern: notTheForm,
   anyOf: notTheForm,
   oneOf: notTheForm,
@@ -332,6 +351,41 @@ const narrowed = (
 };
 
 /**
+ * Whether an error is told by another one, so left out: errors inside a branch of an `anyOf` (or
+ * `oneOf`) at the same place, under a `propertyNames`, of the items a `contains` tried (#851: its
+ * schema, inline or the def it refers to, below its place), and an `if`, which only says that its
+ * `then` or `else` failed, whose errors are told.
+ */
+const swallowedOf = (all: readonly ErrorObject[]): ((error: ErrorObject, index: number) => boolean) => {
+  const either = all.filter((e) => e.keyword === "anyOf" || e.keyword === "oneOf");
+  const propertyNames = all.filter((e) => e.keyword === "propertyNames");
+  const contains = all.flatMap((e) => {
+    if (e.keyword !== "contains") {
+      return [];
+    }
+    const ref = (e.schema as JsonSchema | undefined)?.["$ref"];
+    return [
+      { path: e.instancePath, schemas: typeof ref === "string" ? [e.schemaPath, ref] : [e.schemaPath] },
+    ];
+  });
+  return (error, index) =>
+    error.keyword === "if" ||
+    either.some(
+      (e) => e !== error && all.indexOf(e) > index && isUnder(error.instancePath, e.instancePath),
+    ) ||
+    propertyNames.some(
+      (e) =>
+        e !== error && e.instancePath === error.instancePath && error.schemaPath.includes("/propertyNames/"),
+    ) ||
+    contains.some(
+      (c) =>
+        error.instancePath !== c.path &&
+        isUnder(error.instancePath, c.path) &&
+        c.schemas.some((schema) => error.schemaPath.startsWith(`${schema}/`)),
+    );
+};
+
+/**
  * The readable violations of an input that failed its schema, in Ajv's order, each once. Errors
  * inside a branch of an `anyOf` (or `oneOf`) at the same place are left out: the `anyOf` gives one
  * message for them. Requires errors of an Ajv instance with `verbose: true`.
@@ -351,21 +405,10 @@ export function inputViolations(
     rootsKnown.set(context.schemas, roots);
   }
   const all = narrowed(errors ?? [], context.input, roots);
-  const either = all.filter((e) => e.keyword === "anyOf" || e.keyword === "oneOf");
-  const propertyNames = all.filter((e) => e.keyword === "propertyNames");
+  const swallowed = swallowedOf(all);
   const out: InputViolation[] = [];
   all.forEach((error, index) => {
-    const swallowed =
-      either.some(
-        (e) => e !== error && all.indexOf(e) > index && isUnder(error.instancePath, e.instancePath),
-      ) ||
-      propertyNames.some(
-        (e) =>
-          e !== error &&
-          e.instancePath === error.instancePath &&
-          error.schemaPath.includes("/propertyNames/"),
-      );
-    if (swallowed) {
+    if (swallowed(error, index)) {
       return;
     }
     const segments = segmentsOf(error.instancePath);
@@ -375,8 +418,8 @@ export function inputViolations(
     if (error.keyword === "required") {
       field = fieldOf([...segments, String(p["missingProperty"])]);
       message = `${field} is required`;
-    } else if (error.keyword === "additionalProperties") {
-      field = fieldOf([...segments, String(p["additionalProperty"])]);
+    } else if (error.keyword === "additionalProperties" || error.keyword === "unevaluatedProperties") {
+      field = fieldOf([...segments, String(p["additionalProperty"] ?? p["unevaluatedProperty"])]);
       const names = knownNames(error.parentSchema);
       const where = segments.length === 0 ? "an input of this command" : `a field of ${fieldOf(segments)}`;
       message = `${field} is not ${where}${names}`;
@@ -395,6 +438,24 @@ export function inputViolations(
   });
   return out;
 }
+
+/** The keywords of a key the object does not take. */
+export const UNKNOWN_KEY: ReadonlySet<string> = new Set(["additionalProperties", "unevaluatedProperties"]);
+
+/**
+ * The message of a violation in a hand-written file rather than a command input (#835): the input as a
+ * whole is "the file", and a key it does not take is "not a field of the file".
+ */
+export const fileMessage = (violation: InputViolation): string => {
+  // By the violation's form, never by its text: a key or value may hold the same words (#837 review).
+  if (UNKNOWN_KEY.has(violation.keyword) && violation.path === "") {
+    return violation.message.replace(
+      `${violation.field} is not an input of this command`,
+      `${violation.field} is not a field of the file`,
+    );
+  }
+  return violation.field === "" ? violation.message.replace(/^The input /, "the file ") : violation.message;
+};
 
 /** The violations for the message of `input.invalid`, joined with `; `. */
 export const describeInputViolations = (violations: readonly InputViolation[]): string =>

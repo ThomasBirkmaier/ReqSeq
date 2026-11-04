@@ -352,6 +352,102 @@ export const meaningShapeProblems = (
   });
 
 /**
+ * What the sources and the targets of a relation kind with each meaning are (#842), by the
+ * predicates the variant view uses (`variants/core.ts`, `variants/view-rule.ts`): `variant`, a type
+ * with that type meaning, own or inherited (D-059: the variant excludes); `validity`, a type with the
+ * property of the meaning `validity` among its effective properties (SR-041 AK8, SR-042 AK7: an
+ * element without it, such as a need or a package, is no valid target; a replacing element is one
+ * with a validity, D-020). `exclusion` goes from a variant to such a type, `replacement` from such a
+ * type to such a type. `derivation` (a child of a need, a use case or a requirement) and
+ * `succession` (any successor of any element, D-045) imply none, so they are not checked.
+ */
+type SideRule = "variant" | "validity";
+
+const RELATION_SIDES: Readonly<
+  Partial<Record<RelationMeaning, { readonly source: SideRule; readonly target: SideRule }>>
+> = {
+  exclusion: { source: "variant", target: "validity" },
+  replacement: { source: "validity", target: "validity" },
+};
+
+/** The resolved type of a key, with its effective properties; undefined when no type has the key. */
+export type EffectiveTypeLookup = (
+  key: string,
+) => { readonly meaning?: string | undefined; readonly properties: readonly string[] } | undefined;
+
+/** What a side rule asks of a type, as a message names it. */
+const ruleLabel = (rule: SideRule, validity: string | undefined): string =>
+  rule === "variant"
+    ? "types with the meaning variant"
+    : `types with the property of the meaning validity${validity === undefined ? " (no property has it)" : ` (${validity})`}`;
+
+/** The types of one side of a relation kind that miss `rule`, as a message names them; undefined when none does. */
+const sideMisfit = (
+  keys: readonly string[] | undefined,
+  side: "source-types" | "target-types",
+  rule: SideRule,
+  validity: string | undefined,
+  typeOf: EffectiveTypeLookup,
+): string | undefined => {
+  // No list means every type (metamodel.schema.json). A key no type has is left to
+  // `unknownTypeProblems`.
+  if (keys === undefined) {
+    return `every type (no ${side})`;
+  }
+  const wrong = keys.flatMap((key) => {
+    const type = typeOf(key);
+    if (type === undefined) {
+      return [];
+    }
+    if (rule === "variant") {
+      return type.meaning === "variant"
+        ? []
+        : [type.meaning === undefined ? `${key} (no meaning)` : `${key} (meaning ${type.meaning})`];
+    }
+    return validity !== undefined && type.properties.includes(validity) ? [] : [key];
+  });
+  return wrong.length === 0 ? undefined : wrong.join(", ");
+};
+
+/**
+ * `metamodel.meaning-type-mismatch` warnings for a relation kind whose `source-types` or
+ * `target-types` allow a type its meaning does not fit (`RELATION_SIDES`, #842; product owner
+ * decision, 2026-11-04: a warning, the workspace stays writable). One per side, with the line of that
+ * list, or of `meaning` when the list is missing. `typeOf` gives the resolved type of a key (its
+ * meaning own or inherited, its effective properties); `validity` is the key of the property with
+ * the meaning `validity`, if any.
+ */
+export const relationMeaningProblems = (
+  relations: readonly Located<MetamodelRelationKind>[],
+  typeOf: EffectiveTypeLookup,
+  validity: string | undefined,
+): Problem[] =>
+  relations.flatMap(({ definition, file, lineOf }): Problem[] => {
+    const sides = definition.meaning === undefined ? undefined : RELATION_SIDES[definition.meaning];
+    if (sides === undefined) {
+      return [];
+    }
+    return (["source", "target"] as const).flatMap((end): Problem[] => {
+      const side = end === "source" ? "source-types" : "target-types";
+      const keys = definition[side];
+      const misfit = sideMisfit(keys, side, sides[end], validity, typeOf);
+      if (misfit === undefined) {
+        return [];
+      }
+      const line = lineOf([keys === undefined ? "meaning" : side]);
+      return [
+        {
+          code: "metamodel.meaning-type-mismatch",
+          severity: "warning",
+          message: `Relation kind ${definition.key} has the meaning ${String(definition.meaning)}, whose ${end}s are ${ruleLabel(sides[end], validity)}, not ${misfit}`,
+          file,
+          ...(line === undefined ? {} : { line }),
+        },
+      ];
+    });
+  });
+
+/**
  * `metamodel.invalid` errors for a property marked `markdown` that cannot hold Markdown (SR-127
  * AK5): only a property of kind `text` can, and the title and an identifier stay plain text (they
  * are names, shown and searched as written). Each with the file and the line of its `markdown`.

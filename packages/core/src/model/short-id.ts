@@ -69,6 +69,12 @@ export interface ShortIds {
    * type (an identifier is unique per type only). None when no property has the meaning.
    */
   withIdentifier(value: string): readonly ElementRecord[];
+  /**
+   * Whether the metamodel the short IDs and identifiers are read with is valid. A faulty metamodel
+   * file is left out, with its types and its property with the meaning `identifier`, so a short ID or
+   * identifier may name no element only because of that (#399).
+   */
+  readonly metamodelValid: boolean;
 }
 
 /** `common.schema.json#/$defs/shortId`. */
@@ -212,6 +218,7 @@ const shortIdsOf = (index: Index): ShortIds => {
     withTail,
     identifierOf: (element) => identifierValue(element, identifiers.key),
     withIdentifier: (value) => elementsWithIdentifier(identifiers, value),
+    metamodelValid: metamodel.valid,
   };
   indexes.set(ids, index);
   return ids;

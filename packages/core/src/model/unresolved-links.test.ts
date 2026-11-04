@@ -241,3 +241,97 @@ describe("reqseq: references outside a Markdown link (#633)", () => {
     ]);
   });
 });
+
+describe("reference-style reqseq: links (#844)", () => {
+  it("warns once per definition with file and line, in the text and in marked properties, and names the inline form", async () => {
+    const fixture = await createFixtureWorkspace({
+      fixture: "SR-021/targets",
+      files: {
+        [`system/${SOURCE}`]: source(
+          [
+            "rationale: |-",
+            "  See [need][n].",
+            "",
+            "  [n]: reqseq:N-1f2a4c",
+            "topic: |-",
+            "  [t]: reqseq:N-1f2a4c",
+            "",
+          ].join("\n"),
+          [
+            "Confirms [the need][need], [the need][need] and [need].",
+            "",
+            "[need]: <reqseq:N-1f2a4c?version=n1:0000000000000000> 'A title'",
+            "[web]: https://example.org/reqseq:N-1",
+            "[empty]: reqseq:",
+            "",
+            "`[code]: reqseq:N-1f2a4c`",
+            "",
+            "```",
+            "[fenced]: reqseq:N-1f2a4c",
+            "```",
+            "",
+            "    [indented]: reqseq:N-1f2a4c",
+            "",
+          ].join("\n"),
+        ),
+      },
+    });
+    onTestFinished(() => fixture.cleanup());
+    const workspace = new Workspace(fixture.path("system"));
+    onTestFinished(() => workspace.close());
+    const check = (await invoke("workspace.check", {}, { workspace })) as {
+      readonly ok: boolean;
+      readonly problems: readonly Problem[];
+    };
+    const at = {
+      repository: "system",
+      file: SOURCE,
+      elementId: "6e2f8a4c-1b3d-4c5e-9f7a-3d8b2c6e1f05",
+      elementShortId: "SR-6e1f05",
+    };
+    expect(check.ok).toBe(true);
+    // The property topic is not marked markdown, so its definition does not count.
+    expect(check.problems.filter((p) => p.code === "relation.reference-style")).toEqual([
+      {
+        code: "relation.reference-style",
+        severity: "warning",
+        message:
+          "The reference-style link [n]: reqseq:N-1f2a4c in rationale of System Requirement SR-6e1f05 counts for nothing (no relation, no outdated check, no trace), since only an inline link is a reference: write the link inline, [Title](reqseq:N-1f2a4c)",
+        line: 9,
+        ...at,
+      },
+      {
+        code: "relation.reference-style",
+        severity: "warning",
+        message:
+          "The reference-style link [need]: reqseq:N-1f2a4c?version=n1:0000000000000000 in the text of System Requirement SR-6e1f05 counts for nothing (no relation, no outdated check, no trace), since only an inline link is a reference: write the link inline, [Title](reqseq:N-1f2a4c?version=n1:0000000000000000)",
+        line: 16,
+        ...at,
+      },
+    ]);
+    // Neither the definition nor the uses are references outside a link.
+    expect(check.problems.filter((p) => p.code === "relation.not-a-link")).toEqual([]);
+    const shown = (await invoke("element.get", { ref: "SR-6e1f05" }, { workspace })) as {
+      readonly element: { readonly problems: readonly Problem[] };
+    };
+    expect(shown.element.problems.filter((p) => p.code === "relation.reference-style")).toHaveLength(2);
+  });
+
+  it("reports them after the unresolved links and the references outside links of the element", async () => {
+    const codes = (problems: readonly Problem[]): string[] =>
+      problems.map((p) => `${p.code}:${String(p.line)}`);
+    expect(
+      codes(
+        await problemsOf({
+          [`system/${SOURCE}`]: source(
+            "",
+            "[n]: reqseq:N-1f2a4c\n\nreqseq:N-1f2a4c and [gone](reqseq:N-000000) and [x][n].\n",
+          ),
+        }),
+      ),
+    ).toEqual(["relation.unresolved-link:10", "relation.not-a-link:10", "relation.reference-style:8"]);
+    expect(codes(await problemsOf({ [`system/${SOURCE}`]: source("", "[n]: reqseq:N-1f2a4c\n") }))).toEqual([
+      "relation.reference-style:8",
+    ]);
+  });
+});

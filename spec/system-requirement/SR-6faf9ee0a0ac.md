@@ -21,6 +21,7 @@ based-on:
   - { id: 6adc615b-8a00-4ce4-9526-56bd3b72bfc9, version: n1:f2e6b92128858d5d, title: Keine feste Reihenfolge }
   - { id: 6adc691e-6394-45b3-a796-31e830aa3392, version: n1:63da2ba5c1572d36, title: Das Standardmodell entspricht dem Modell dieser Spec }
   - { id: 6adc78d3-0812-43dc-94fe-7af63b9acd96, version: n1:be14797fb9d20d4c, title: Bedeutungen und Standardmodell vervollständigt }
+  - { id: dc1e4965-0c68-474e-9ab6-2233c6ec2ad3, version: n1:de3237b2f32e42e4, title: Priorität und Validierungskriterien am Need }
 ---
 
 Das Tool muss das Standardmodell mitliefern und es beim Anlegen eines neuen Arbeitsbereichs als Metamodell anlegen.

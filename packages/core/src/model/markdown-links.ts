@@ -33,7 +33,8 @@
 // `markdownLinksAndMentions` also gives where a word (the `reqseq:` scheme) stands in inline text
 // outside code spans and links (label and destination), in the same pass: what is written as
 // plain text there (also in an autolink `<…>`, which this scanner does not read as a link) and not
-// on a definition line.
+// on a definition line; and the link reference definitions whose destination starts with that word
+// (#844), since a reference-style link to such a definition is no reference.
 //
 // Not handled: reference-style links (only images), links and definitions that span lines, HTML
 // (links in HTML blocks and comments are found), entity references (`&amp;` stays as written).
@@ -404,8 +405,13 @@ const DEFINITION =
 /** A link reference definition: its normalised label and its destination as written. */
 interface Definition {
   readonly label: string;
+  /** The label as written. */
+  readonly written: string;
   readonly destination: string;
 }
+
+/** Takes each link reference definition of a text, in order, with the offset of its line. */
+type OnDefinition = (definition: Definition, offset: number) => void;
 
 /**
  * Whether the parentheses of a destination without `<…>` are balanced (CommonMark): every
@@ -459,15 +465,15 @@ const definitionOf = (content: string, indented: boolean, blocks: Blocks): Defin
   const destination = match[2] ?? String(match[3]);
   return label.trim() === "" || label.length > MAX_LABEL || (match[2] === undefined && !balanced(destination))
     ? undefined
-    : { label: normalizeLabel(label), destination };
+    : { label: normalizeLabel(label), written: label, destination };
 };
 
-/** Whether a line is a definition; records it in `definitions` when given. */
+/** Whether a line is a definition; hands it to `onDefinition` when given. */
 const isDefinition = (
   content: string,
   indented: boolean,
   blocks: Blocks,
-  definitions: Map<string, string> | undefined,
+  onDefinition: ((definition: Definition) => void) | undefined,
 ): boolean => {
   const definition = definitionOf(content, indented, blocks);
   if (definition === undefined) {
@@ -477,10 +483,7 @@ const isDefinition = (
     blocks.list = true;
   }
   blocks.definition = true;
-  // The first definition of a label wins (CommonMark).
-  if (definitions !== undefined && !definitions.has(definition.label)) {
-    definitions.set(definition.label, definition.destination);
-  }
+  onDefinition?.(definition);
   return true;
 };
 
@@ -543,9 +546,13 @@ const endList = (content: string, blocks: Blocks): void => {
 
 /**
  * Whether `content` (a line without its block quote markers) is inline text; updates `blocks`. A
- * definition line is none; it goes to `definitions` when given.
+ * definition line is none; it goes to `onDefinition` when given.
  */
-const isInline = (content: string, blocks: Blocks, definitions?: Map<string, string>): boolean => {
+const isInline = (
+  content: string,
+  blocks: Blocks,
+  onDefinition?: (definition: Definition) => void,
+): boolean => {
   const afterDefinition = blocks.definition;
   blocks.definition = false;
   endList(content, blocks);
@@ -556,7 +563,7 @@ const isInline = (content: string, blocks: Blocks, definitions?: Map<string, str
   if (isNoText(content, indented, blocks, afterDefinition)) {
     return false;
   }
-  if (isDefinition(content, indented, blocks, definitions)) {
+  if (isDefinition(content, indented, blocks, onDefinition)) {
     return false;
   }
   if (LIST_ITEM.test(content)) {
@@ -591,19 +598,27 @@ const enterQuote = (blocks: Blocks, quote: number, content: string): void => {
 interface Scan {
   readonly links: MarkdownLink[];
   readonly references?: ReferenceImage[];
-  readonly definitions?: Map<string, string>;
+  readonly definitions?: OnDefinition;
   readonly mentions?: Mentions;
 }
 
 const scan = (text: string, found: Scan): Scan => {
   const blocks: Blocks = { paragraph: false, list: false, definition: false, quote: 0 };
   let offset = 0;
+  // One closure for the whole text: it reads `offset`, the start of the line being classified.
+  const { definitions } = found;
+  const onDefinition =
+    definitions === undefined
+      ? undefined
+      : (definition: Definition): void => {
+          definitions(definition, offset);
+        };
   // Lines end with LF, CRLF or CR (CommonMark).
   for (const raw of text.split(/(?<=\n|\r(?!\n))/)) {
     const line = raw.replace(/\r?\n$|\r$/, "");
     const content = line.replace(BLOCK_QUOTE, "");
     enterQuote(blocks, countQuotes(line, content), content);
-    if (isInline(content, blocks, found.definitions)) {
+    if (isInline(content, blocks, onDefinition)) {
       // One by one: spreading the links of a long line into `push` exceeds the argument limit.
       const start = offset + line.length - content.length;
       for (const link of lineLinks(content, start, found.references, found.mentions)) {
@@ -618,18 +633,38 @@ const scan = (text: string, found: Scan): Scan => {
 /** The inline links and images of a Markdown text, in order, outside code (see file comment). */
 export const markdownLinks = (text: string): MarkdownLink[] => scan(text, { links: [] }).links;
 
+/** A link reference definition whose destination starts with the word asked for (#844). */
+export interface DefinitionMention {
+  /** The label as written, without the brackets. */
+  readonly label: string;
+  /** The destination as written, without `<…>`. */
+  readonly destination: string;
+  /** The offset of the start of the definition's line in the text. */
+  readonly offset: number;
+}
+
 /**
  * The inline links and images of a Markdown text as `markdownLinks` gives them, and in the same pass
- * the offsets where `word` stands in inline text outside code spans and links, in order
- * (see the file comment).
+ * the offsets where `word` stands in inline text outside code spans and links, in order, and the
+ * link reference definitions whose destination starts with `word`, in order, also a label defined
+ * before (see the file comment).
  */
 export const markdownLinksAndMentions = (
   text: string,
   word: string,
-): { links: MarkdownLink[]; mentions: number[] } => {
+): { links: MarkdownLink[]; mentions: number[]; definitions: DefinitionMention[] } => {
   const at: number[] = [];
-  const { links } = scan(text, { links: [], mentions: { word, at } });
-  return { links, mentions: at };
+  const definitions: DefinitionMention[] = [];
+  const { links } = scan(text, {
+    links: [],
+    mentions: { word, at },
+    definitions: ({ written, destination }, offset) => {
+      if (destination.startsWith(word)) {
+        definitions.push({ label: written, destination, offset });
+      }
+    },
+  });
+  return { links, mentions: at, definitions };
 };
 
 /**
@@ -640,7 +675,16 @@ export const markdownLinksAndMentions = (
 export const markdownImages = (text: string): string[] => {
   const references: ReferenceImage[] = [];
   const definitions = new Map<string, string>();
-  const { links } = scan(text, { links: [], references, definitions });
+  const { links } = scan(text, {
+    links: [],
+    references,
+    // The first definition of a label wins (CommonMark).
+    definitions: ({ label, destination }) => {
+      if (!definitions.has(label)) {
+        definitions.set(label, destination);
+      }
+    },
+  });
   return [
     ...links.filter((l) => l.image).map((l) => l.destination),
     ...references.flatMap((r) => {

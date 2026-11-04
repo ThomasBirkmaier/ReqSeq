@@ -115,7 +115,7 @@ One file per block, so you read only the area you work on. Update the file of th
 
 ## Schemas at runtime
 
-`loadContracts()` uses `src/generated/contracts.json`: all `schemas/*.schema.json`, the catalog meta schema and the catalog in one JSON module, written by `pnpm contracts:generate` and checked by `pnpm contracts:check`. So the package needs no `schemas/` folder at run time (ADR-0014) and works from `src/` without a build. After changing a schema or the catalog, run `pnpm contracts:generate`. Validation uses the Ajv options of `scripts/contracts/load.mjs` plus ajv-formats.
+`loadContracts()` uses `src/generated/contracts.json`: all `schemas/*.schema.json`, the catalog meta schema and the catalog in one JSON module, written by `pnpm contracts:generate` and checked by `pnpm contracts:check`. So the package needs no `schemas/` folder at run time (ADR-0014) and works from `src/` without a build. After changing a schema or the catalog, run `pnpm contracts:generate`. Validation uses the Ajv options of `scripts/contracts/load.mjs` plus ajv-formats, except that the bundled schemas and catalog are not checked against their meta-schemas again at run time: `pnpm schemas:check` does it on every pull request, and the validators are built on first use, so a start pays for neither (#178). A catalog passed in (tests) is still checked.
 
 ## Tests
 

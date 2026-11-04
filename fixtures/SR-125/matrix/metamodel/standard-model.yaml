@@ -130,6 +130,8 @@ relations:
     source-types: [system-requirement]
     target-types: [need, use-case, system-requirement]
     meaning: derivation
+    limits: # SR-153: a system requirement derives from a need, so the matrix has gaps
+      - { source-type: system-requirement, target-type: need, min: 1 }
   - key: based-on
     name: Based on
     inverse-name: Basis for

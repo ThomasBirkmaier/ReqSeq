@@ -5,6 +5,7 @@ import { LineCounter, parseDocument, visit } from "yaml";
 import type { Document } from "yaml";
 import type { Problem, ProblemCode } from "../generated/types.js";
 import { findConflictMarker } from "./conflict-markers.js";
+import type { EditableFile } from "./edit.js";
 import type { LineEnding } from "./frontmatter.js";
 import { splitFrontmatter } from "./frontmatter.js";
 
@@ -195,6 +196,28 @@ export const elementBody = (file: string, bytes: Uint8Array): string | undefined
  */
 export const elementFrontmatter = (file: string, bytes: Uint8Array): string | undefined =>
   elementParts(file, bytes)?.yaml;
+
+/**
+ * The texts of an element file's bytes that the writer needs (`EditableFile`), as `parseFileBytes`
+ * gives them, without parsing the YAML: for bytes that parsed before (a write that has checked the
+ * bytes against the element store, N-036). Undefined as for `elementBody`.
+ */
+export const elementEditable = (file: string, bytes: Uint8Array): EditableFile | undefined => {
+  const decoded = decode(file, bytes);
+  if (decoded.kind !== "text") {
+    return undefined;
+  }
+  const split = splitFrontmatter(decoded.text);
+  return split.kind === "frontmatter"
+    ? {
+        frontmatter: split.yaml,
+        body: split.body,
+        eol: split.eol,
+        closingEol: split.closingEol,
+        bom: decoded.bom,
+      }
+    : undefined;
+};
 
 /** The frontmatter and the text of an element file's bytes, split without parsing; undefined as for `elementBody`. */
 const elementParts = (file: string, bytes: Uint8Array): { yaml: string; body: string } | undefined => {

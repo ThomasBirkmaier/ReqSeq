@@ -17,8 +17,9 @@ import { isNode } from "yaml";
 import type { Problem } from "../catalog.js";
 import type { YamlFile } from "../files/index.js";
 import { readYamlFile } from "../files/index.js";
-import type { SchemaViolation } from "../runtime/contracts.js";
-import { describeViolations, fileSchemaValidator, schemaViolations } from "../runtime/contracts.js";
+import { contractsBundle, fileSchemaErrors, fileSchemaValidator } from "../runtime/contracts.js";
+import type { InputViolation } from "../runtime/input-errors.js";
+import { fieldOf, fileMessage, inputViolations, segmentsOf, UNKNOWN_KEY } from "../runtime/input-errors.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import { WORKSPACE_FILE } from "../workspace/index.js";
 import type {
@@ -33,7 +34,13 @@ import type { EffectiveType, Located } from "./inheritance.js";
 import { resolveTypes } from "./inheritance.js";
 import { limitProblems, maxItemsProblems } from "./limits.js";
 import type { MeaningAssignment } from "./meanings.js";
-import { assignMeanings, markdownProblems, meaningKindProblems, meaningShapeProblems } from "./meanings.js";
+import {
+  assignMeanings,
+  markdownProblems,
+  meaningKindProblems,
+  meaningShapeProblems,
+  relationMeaningProblems,
+} from "./meanings.js";
 
 /** Metamodel files end in `.yaml` (metamodel.schema.json). */
 export const METAMODEL_FILE_EXTENSION = ".yaml";
@@ -104,29 +111,47 @@ const lineAt = (yaml: YamlFile, segments: readonly string[]): number | undefined
   return undefined;
 };
 
-/** The name of the property a violation is about when the schema does not know it. */
-const unknownProperty = (violation: SchemaViolation): string | undefined => {
-  const name = violation.params["additionalProperty"] ?? violation.params["unevaluatedProperty"];
-  return typeof name === "string" ? name : undefined;
+/** A key as the schema takes it: only such a key names its definition in a message (#840 review). */
+const NAMING_KEY = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
+const MAX_KEY_LENGTH = 64;
+
+/**
+ * The message of a violation with the definition it is in named by its key (#151): `types[0].prefix is
+ * required` is `Type variant: prefix is required`, as other metamodel problems name definitions. A
+ * definition without a valid key keeps its place in the list. Built from the violation's form, never by
+ * replacing text in its message, which quotes values and keys of the file (#840 review).
+ */
+const namedMessage = (yaml: YamlFile, violation: InputViolation): string => {
+  const message = fileMessage(violation);
+  // A field below an entry of a list; its message starts with that field.
+  const place = /^([a-z]+)\[(\d+)\]\./.exec(violation.field);
+  const list = place?.[1];
+  const index = place?.[2];
+  if (list === undefined || index === undefined || !isListName(list)) {
+    return message;
+  }
+  const key: unknown = yaml.document.getIn([list, Number(index), "key"]);
+  if (typeof key !== "string" || key.length > MAX_KEY_LENGTH || !NAMING_KEY.test(key)) {
+    return message;
+  }
+  const at = `${list}[${index}]`;
+  const label = `${LABELS[list]} ${key}`;
+  const inEntry = (field: string): string => field.slice(at.length + 1);
+  if (!UNKNOWN_KEY.has(violation.keyword)) {
+    return `${label}: ${inEntry(message)}`;
+  }
+  // `<field> is not a field of <parent><known names>`: the label says where when the parent is the entry.
+  const parent = fieldOf(segmentsOf(violation.path));
+  const names = message.slice(`${violation.field} is not a field of ${parent}`.length);
+  const of = parent === at ? "" : ` of ${inEntry(parent)}`;
+  return `${label}: ${inEntry(violation.field)} is not a field${of}${names}`;
 };
 
-/** JSON Pointer segments of a violation; an unknown property points at that property. */
-const violationSegments = (violation: SchemaViolation): readonly string[] => {
-  const segments =
-    violation.path === ""
-      ? []
-      : violation.path
-          .slice(1)
-          .split("/")
-          .map((s) => s.replaceAll("~1", "/").replaceAll("~0", "~"));
-  const unknown = unknownProperty(violation);
-  return unknown === undefined ? segments : [...segments, unknown];
-};
-
-/** `Invalid model/types.yaml: /types/0 must NOT have unevaluated properties: colour`. */
-const violationMessage = (file: string, violation: SchemaViolation): string => {
-  const unknown = unknownProperty(violation);
-  return `Invalid ${file}: ${describeViolations([violation])}${unknown === undefined ? "" : `: ${unknown}`}`;
+/** JSON Pointer segments of a violation; an unknown key points at that key. */
+const violationSegments = (violation: InputViolation): readonly string[] => {
+  const segments = segmentsOf(violation.path);
+  const unknown = violation.params["additionalProperty"] ?? violation.params["unevaluatedProperty"];
+  return typeof unknown === "string" ? [...segments, unknown] : segments;
 };
 
 /** A metamodel file that is valid YAML and matches the schema. */
@@ -155,8 +180,12 @@ const checkFile = async (root: string, file: string): Promise<CheckedFile> => {
       problems: yaml.warnings,
     };
   }
-  const violations = schemaViolations(validate.errors).map((v) =>
-    problem("error", violationMessage(file, v), file, lineAt(yaml, violationSegments(v))),
+  // Readable as input errors are (#309, #151), each definition named by its key.
+  const violations = inputViolations(fileSchemaErrors("metamodel.schema.json", yaml.data), {
+    input: yaml.data,
+    schemas: contractsBundle.schemas,
+  }).map((v) =>
+    problem("error", `Invalid ${file}: ${namedMessage(yaml, v)}`, file, lineAt(yaml, violationSegments(v))),
   );
   return { kind: "faulty", problems: [...yaml.warnings, ...violations] };
 };
@@ -482,6 +511,7 @@ const readMetamodel = async (layout: WorkspaceLayout): Promise<Metamodel> => {
     complete,
   );
   const assigned = assignMeanings({ types, effectiveTypes: resolved.types, properties, relations });
+  const typeOf = (key: string): EffectiveType | undefined => resolved.types.find((t) => t.key === key);
   problems.push(
     ...reservedPrefixProblems(types),
     ...resolved.problems,
@@ -492,8 +522,9 @@ const readMetamodel = async (layout: WorkspaceLayout): Promise<Metamodel> => {
       properties.filter(({ definition: { key, meaning } }) =>
         meaning === undefined ? false : assigned.meanings[meaning][0] === key,
       ),
-      (key) => resolved.types.find((t) => t.key === key),
+      typeOf,
     ),
+    ...relationMeaningProblems(relations, typeOf, assigned.meanings.validity[0]),
     ...markdownProblems(properties),
     ...maxItemsProblems(properties),
     // A type or the initial status that seems missing may be in a faulty file, which is reported

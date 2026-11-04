@@ -3,7 +3,10 @@ import type { FixtureOptions } from "@reqseq/testkit";
 import { scenariosOf } from "../../scenario.js";
 import { MATRIX_EVIDENCE, STATUS } from "../../fixtures.js";
 
-/** Needs, a decision, packages and system requirements with current, outdated and missing relations (SR-125). */
+/**
+ * Needs, a decision, packages and system requirements with current, outdated and missing relations
+ * (SR-125), and a minimum: a system requirement derives from at least one need (SR-153).
+ */
 const MATRIX: FixtureOptions = { fixture: "SR-125/matrix", git: true };
 const MX = "5e125a7d-2b4f-4c61-9d08-";
 
@@ -49,7 +52,21 @@ scenariosOf("trace.matrix", [
     expect: "output",
   },
   {
-    name: "relations seen through the core view (SR-125 AK3)",
+    tag: "[SR-153/AK3]",
+    name: "one page of gaps, with the head of a column with a minimum and of the columns without",
+    fixture: MATRIX,
+    input: { selection: { package: "PKG-000001" }, limit: 3, offset: 2 },
+    expect: "output",
+  },
+  {
+    tag: "[SR-153/AK3]",
+    name: "rows of a type without a minimum and the column of a minimum no row has",
+    fixture: MATRIX,
+    input: { selection: { ids: [`${MX}0b0000000003`, `${MX}0a0000000001`] } },
+    expect: "output",
+  },
+  {
+    name: "relations and gaps seen through the core view (SR-125 AK2, SR-153 AK1)",
     fixture: MATRIX,
     input: { selection: { package: "PKG-000001", view: "core" } },
     expect: "output",

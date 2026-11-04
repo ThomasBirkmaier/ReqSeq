@@ -49,9 +49,10 @@ export const MODEL_CACHE_FILE = "model.json";
  * links whose target is no UUID (`ElementRecord.unresolvedLinks`, #176). 7: and the `reqseq:`
  * references of their text outside links (`ElementRecord.bareReferences`, #633). 8: and whether
  * their text is blank (`ElementRecord.blankText`, #667). 9: and their version as read with a header
- * table of the fingerprints (`LoadedVersion`, #439).
+ * table of the fingerprints (`LoadedVersion`, #439). 10: and the definitions of their reference-style
+ * `reqseq:` links (`ElementRecord.referenceDefinitions`, #844).
  */
-export const MODEL_CACHE_FORMAT = 9;
+export const MODEL_CACHE_FORMAT = 10;
 
 /**
  * An entry whose modification time lies less than this before the start of the load that wrote it
@@ -229,26 +230,28 @@ const isReferences = (value: unknown, inProperty: boolean): boolean =>
         : r["key"] === undefined && r["item"] === undefined),
   );
 
+/**
+ * Whether `l` has a target, a line from 1 and, in a property, its key and the position of the
+ * value, as the unresolved links and reference definitions of `elementLinks` have them.
+ */
+const isPlacedTarget = (l: Readonly<Record<string, unknown>>): boolean =>
+  typeof l["target"] === "string" &&
+  l["target"] !== "" &&
+  typeof l["line"] === "number" &&
+  Number.isInteger(l["line"]) &&
+  l["line"] >= 1 &&
+  isOptionalText(l["key"]) &&
+  (l["item"] === undefined ||
+    (typeof l["key"] === "string" &&
+      typeof l["item"] === "number" &&
+      Number.isInteger(l["item"]) &&
+      l["item"] >= 0));
+
 /** Whether `value` is a list of links as `elementLinks` makes them (one or more). */
 const isUnresolvedLinks = (value: unknown): boolean =>
   Array.isArray(value) &&
   value.length > 0 &&
-  value.every(
-    (l: unknown) =>
-      isRecord(l) &&
-      typeof l["target"] === "string" &&
-      l["target"] !== "" &&
-      typeof l["line"] === "number" &&
-      Number.isInteger(l["line"]) &&
-      l["line"] >= 1 &&
-      isOptionalText(l["repository"]) &&
-      isOptionalText(l["key"]) &&
-      (l["item"] === undefined ||
-        (typeof l["key"] === "string" &&
-          typeof l["item"] === "number" &&
-          Number.isInteger(l["item"]) &&
-          l["item"] >= 0)),
-  );
+  value.every((l: unknown) => isRecord(l) && isPlacedTarget(l) && isOptionalText(l["repository"]));
 
 /** Whether `value` is a list of bare references as `elementLinks` makes them (one or more). */
 const isBareReferences = (value: unknown): boolean =>
@@ -264,12 +267,19 @@ const isBareReferences = (value: unknown): boolean =>
       r["line"] >= 1,
   );
 
+/** Whether `value` is a list of reference definitions as `elementLinks` makes them (one or more). */
+const isReferenceDefinitions = (value: unknown): boolean =>
+  Array.isArray(value) &&
+  value.length > 0 &&
+  value.every((d: unknown) => isRecord(d) && isPlacedTarget(d) && typeof d["label"] === "string");
+
 /** Whether the optional link lists of an element record have the shape `classifyFile` gives them. */
 const hasLinksOfRecord = (value: Readonly<Record<string, unknown>>): boolean =>
   (value["references"] === undefined || isReferences(value["references"], false)) &&
   (value["propertyReferences"] === undefined || isReferences(value["propertyReferences"], true)) &&
   (value["unresolvedLinks"] === undefined || isUnresolvedLinks(value["unresolvedLinks"])) &&
   (value["bareReferences"] === undefined || isBareReferences(value["bareReferences"])) &&
+  (value["referenceDefinitions"] === undefined || isReferenceDefinitions(value["referenceDefinitions"])) &&
   (value["blankText"] === undefined || value["blankText"] === true);
 
 /** Whether `value` is the record of an element in `file` of repository `name`, as `classifyFile` makes it. */

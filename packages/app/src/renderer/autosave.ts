@@ -35,6 +35,8 @@ export interface Autosave {
   readonly now: <T>(job: () => Promise<T>) => Promise<T>;
   /** Whether input waits for its save or a save runs. */
   readonly busy: () => boolean;
+  /** Whether a save runs (its write, a read after a refusal, or a wait behind another save of the buffer). */
+  readonly running: () => boolean;
   /** The buffer is gone: no timer is left. A save that runs still finishes. */
   readonly dispose: () => void;
 }
@@ -116,6 +118,7 @@ export const createAutosave = ({ save, held, delay = AUTOSAVE_MS }: AutosaveOpti
       return run(job);
     },
     busy: () => pending || running !== undefined,
+    running: () => running !== undefined,
     dispose: () => {
       disposed = true;
       stop();

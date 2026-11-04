@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
-// The traceability matrix buffer (SR-125) over a call that answers `trace.matrix`: header with count and
-// share, one row per element, cells with the other ends, gaps, outdated and missing marks, paging, and the
-// keys that walk through a row and open an element.
+// The traceability matrix buffer (SR-125, SR-153) over a call that answers `trace.matrix`: header with
+// count, or with met, expected and share where a minimum is, one row per element, cells with the other
+// ends, the gaps core names, outdated and missing marks, paging, and the keys that walk through a row and
+// open an element.
 import type { DataExportRelation } from "@reqseq/core";
 import { Fragment, act, createElement, useLayoutEffect, useReducer } from "react";
 import type { Root } from "react-dom/client";
@@ -97,12 +98,28 @@ const missing = (): DataExportRelation => {
   return { ...rest, id: "uuid-gone", shortId: "UNKNOWN-1", targetState: "missing", accessible: false };
 };
 
+/** "Derives from" has a minimum (SR-153): 2 of 4 rows meet it; "Derived by" has none. */
 const COLUMNS = [
-  { type: "relation", kind: "derives-from", direction: "out", name: "Derives from", count: 3, share: 0.75 },
-  { type: "relation", kind: "derives-from", direction: "in", name: "Derived by", count: 1, share: 0.25 },
+  {
+    type: "relation",
+    kind: "derives-from",
+    direction: "out",
+    name: "Derives from",
+    count: 3,
+    expected: 4,
+    met: 2,
+    share: 0.5,
+  },
+  { type: "relation", kind: "derives-from", direction: "in", name: "Derived by", count: 1 },
 ];
 
-/** Four rows (a tree depth on the first): S1 has one link and a derived one, S2 an outdated, S3 a missing target, S4 nothing. */
+/** The gap of a row below the minimum of "Derives from": at least 1 to Need. */
+const NEED_GAP = { column: 0, targetType: "need", targetName: "Need", count: 0, min: 1 };
+
+/**
+ * Four rows (a tree depth on the first): S1 has one link and a derived one, S2 an outdated, S3 a missing
+ * target, S4 nothing; S3 and S4 are gaps of "Derives from".
+ */
 const element = (n: number, cells: DataExportRelation[][], extra: object = {}) => ({
   id: `uuid-s${String(n)}`,
   repository: "spec",
@@ -136,8 +153,8 @@ const ROWS = [
   element(2, [[link({ id: "uuid-n2", identifier: "N-2", title: "See the rain", outdated: true })], []], {
     depth: 1,
   }),
-  element(3, [[missing()], []]),
-  element(4, [[], []]),
+  element(3, [[missing()], []], { gaps: [NEED_GAP] }),
+  element(4, [[], []], { gaps: [NEED_GAP] }),
 ];
 
 const matrixAnswer = (rows = ROWS, extra: object = {}) => ({
@@ -227,12 +244,23 @@ describe("MatrixView", () => {
     ]);
   });
 
-  it("[SR-125/AK3] marks a cell without relation as a gap and shows count and share over the selection above each column", async () => {
+  it("[SR-153/AK1] marks the cells core names as gaps in the accent, also one with a link, and heads the column with met of expected and share", async () => {
     await mount(asCall(fakeCall()));
-    expect(texts("thead th .count")).toEqual(["3 · 75 %", "1 · 25 %"]);
-    expect(texts("td.cell .gap")).toEqual(["—", "—", "—", "—"]);
-    expect(texts("tbody tr:nth-child(4) td.cell")).toEqual(["—", "—"]);
+    expect(texts("thead th:nth-child(2) .count")).toEqual(["2 of 4 · 50 %"]);
+    expect(texts("td.cell .gap")).toEqual(["—", "—"]);
+    // S3 holds a missing target and is a gap; S4 holds nothing.
+    expect(query("tbody tr:nth-child(3) td.cell .gap").closest("td")?.textContent).toBe("UNKNOWN-1 missing—");
+    expect(query("tbody tr:nth-child(4) td.cell .gap").title).toBe("at least 1 to Need, has 0");
     expect(texts("tbody tr:nth-child(1) td.cell .gap")).toEqual([]);
+    expect(texts("tbody tr:nth-child(2) td.cell .gap")).toEqual([]);
+  });
+
+  it("[SR-125/AK3] [SR-153/AK2] shows an empty cell without a minimum as a grey dash, no gap, and heads its column with the count only", async () => {
+    await mount(asCall(fakeCall()));
+    expect(texts("thead th:nth-child(3) .count")).toEqual(["1"]);
+    expect(texts("td.cell .none")).toEqual(["—", "—", "—"]);
+    expect(texts("tbody tr:nth-child(4) td.cell")).toEqual(["—", "—"]);
+    expect(texts("tbody tr:nth-child(4) td.cell:nth-child(3) .gap")).toEqual([]);
   });
 
   it("[SR-125/AK4] marks an outdated relation as outdated and one to a missing target as missing, in its cell", async () => {
@@ -242,7 +270,7 @@ describe("MatrixView", () => {
       "N-2 See the rain link outdated",
     );
     expect(texts("td.cell .state")).toEqual([" missing"]);
-    expect(query("tbody tr:nth-child(3) .state").closest("td")?.textContent).toBe("UNKNOWN-1 missing");
+    expect(query("tbody tr:nth-child(3) .state").closest(".relation")?.textContent).toBe("UNKNOWN-1 missing");
     expect(query("tbody tr:nth-child(3) .relation").className).toBe("relation unavailable");
   });
 

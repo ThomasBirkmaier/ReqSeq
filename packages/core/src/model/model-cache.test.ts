@@ -693,6 +693,17 @@ describe("parseModelCache", () => {
       withRecord({ bareReferences: [{ target: "N-1", line: 1.5 }] }),
     ],
     ["a bare reference without a line", withRecord({ bareReferences: [{ target: "N-1" }] })],
+    ["reference definitions that are no list", withRecord({ referenceDefinitions: {} })],
+    ["an empty list of reference definitions", withRecord({ referenceDefinitions: [] })],
+    ["a reference definition that is no object", withRecord({ referenceDefinitions: ["N-1"] })],
+    [
+      "a reference definition without a label",
+      withRecord({ referenceDefinitions: [{ target: "N-1", line: 3 }] }),
+    ],
+    [
+      "a reference definition with an empty target",
+      withRecord({ referenceDefinitions: [{ label: "n", target: "", line: 3 }] }),
+    ],
     ["a blank text that is not true", withRecord({ blankText: false })],
     ["a file that is no element, of another file", withContribution({ kind: "not-element", file: "b.md" })],
     ["a problem that is none", withContribution({ kind: "problem", problem: { message: "m" } })],
@@ -754,6 +765,19 @@ describe("parseModelCache", () => {
     [
       "an element with references outside links (#633)",
       { ...elementEntry, element: { ...record, bareReferences: [{ target: "N-6010df", line: 7 }] } },
+    ],
+    [
+      "an element with definitions of reference-style links (#844)",
+      {
+        ...elementEntry,
+        element: {
+          ...record,
+          referenceDefinitions: [
+            { label: "p", target: "N-6010df", line: 3, key: "rationale", item: 0 },
+            { label: "n", target: "N-6010df?version=n1:0000000000000000", line: 7 },
+          ],
+        },
+      },
     ],
     ["an element with a blank text (#667)", { ...elementEntry, element: { ...record, blankText: true } }],
   ])("takes %s as it is", (_case, contribution) => {
@@ -825,8 +849,13 @@ describe("parseModelCache", () => {
   });
 
   it("discards a cache of format 8, which holds no versions as read (#439)", () => {
-    expect(MODEL_CACHE_FORMAT).toBe(9);
+    expect(MODEL_CACHE_FORMAT).toBeGreaterThan(8);
     expect(parse({ ...valid, format: 8 })).toBeUndefined();
+  });
+
+  it("discards a cache of format 9, whose records know no reference-style links (#844)", () => {
+    expect(MODEL_CACHE_FORMAT).toBe(10);
+    expect(parse({ ...valid, format: 9 })).toBeUndefined();
   });
 
   it("revives an element's version as read with its fingerprint from the table (#439)", () => {

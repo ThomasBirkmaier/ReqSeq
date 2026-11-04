@@ -283,7 +283,7 @@ export interface Problem {
   readonly currentDate?: string | null;
   /** Stable ID of a confirmable hint (D-042); on the hint.* problems of hint.confirm, the ID as given. */
   readonly hintId?: string;
-  /** The relation kind (`relation.too-many`, `relation.too-few`, SR-152) or the property (`element.too-many-items`, SR-171) a count hint is about. */
+  /** The relation kind (`relation.too-many`, `relation.too-few`, SR-152) or the property (`element.too-many-items`, SR-171) a count hint is about, or the property an `element.text-emptied` warning names (#841). */
   readonly key?: Key;
   /** The target type of the limit a count hint is about (SR-152). */
   readonly targetType?: Key;
@@ -305,6 +305,7 @@ export type ProblemCode =
   | "file.yaml-warning"
   | "file.skipped"
   | "file.stale-temp"
+  | "file.read-only"
   | "element.invalid"
   | "element.duplicate-id"
   | "element.duplicate-identifier"
@@ -321,6 +322,7 @@ export type ProblemCode =
   | "relation.missing-target"
   | "relation.unresolved-link"
   | "relation.not-a-link"
+  | "relation.reference-style"
   | "relation.inaccessible-target"
   | "relation.not-allowed"
   | "relation.too-many"
@@ -353,6 +355,7 @@ export type ProblemCode =
   | "metamodel.invalid"
   | "metamodel.optional-status"
   | "metamodel.meaning-unassigned"
+  | "metamodel.meaning-type-mismatch"
   | "workspace.repository-missing"
   | "workspace.metamodel-mismatch"
   | "workspace.invalid"
@@ -1019,6 +1022,12 @@ export interface MetamodelFile {
 /** Schema: `schemas/metamodel.schema.json#/$defs/key`. */
 export type MetamodelKey = Key;
 
+/**
+ * Prefix of a short ID: upper case letters and digits, starting with a letter (D-017).
+ * Schema: `schemas/metamodel.schema.json#/$defs/prefix`.
+ */
+export type MetamodelPrefix = string;
+
 /** Schema: `schemas/metamodel.schema.json#/$defs/named`. */
 export interface MetamodelNamed {
   readonly key: MetamodelKey;
@@ -1038,7 +1047,7 @@ export interface MetamodelType {
   readonly name: string;
   readonly description?: string;
   /** Prefix of the short ID, e.g. SR (D-017). UNKNOWN is reserved for elements of an unknown type and is a metamodel error (#154). */
-  readonly prefix: string;
+  readonly prefix: MetamodelPrefix;
   /** Parent type; its properties and required properties are inherited, over any number of levels (SR-012 AK2). A parent that is not defined, or a cycle, is a metamodel error. */
   readonly extends?: MetamodelKey;
   /** No elements of this type can be created; only for inheritance. */
@@ -1066,7 +1075,7 @@ export interface MetamodelEffectiveType {
   readonly key: MetamodelKey;
   readonly name: string;
   readonly description?: string;
-  readonly prefix: string;
+  readonly prefix: MetamodelPrefix;
   readonly extends?: MetamodelKey;
   /** Not inherited: a type is abstract only when its own definition says so. */
   readonly abstract: boolean;
@@ -1950,7 +1959,7 @@ export interface ElementBulkUpdateOutput {
   }[];
   /** Written files relative to the workspace root; empty in a preview. */
   readonly files: readonly string[];
-  /** Hints at the property in the affected elements after the change: value kind (SR-085), more entries than `max-items` (SR-171), target types (SR-086). */
+  /** Hints at the property in the affected elements after the change: missing required value, value kind (SR-085), more entries than `max-items` (SR-171), target types (SR-086). A preview also names what a confirmation refuses: a not writable folder (file.read-only). */
   readonly problems: readonly Problem[];
   readonly incomplete?: Incomplete;
   /** Fingerprint of the files the change writes and their new bytes; pass it with confirm. */
@@ -2302,7 +2311,7 @@ export interface TraceNeighbourhoodOutput {
 }
 
 /**
- * Input of `trace.matrix` as `run` gets it: validated, properties with a `default` filled in. Traceability matrix of a selection: one row per element in list order, one column per relation kind and direction that occurs, each cell the elements at the other end with outdated and missing marks; per column how many rows have a link. One page of rows at a time. With evidence locations also each requirement's test cases and verification status, and the degree.
+ * Input of `trace.matrix` as `run` gets it: validated, properties with a `default` filled in. Traceability matrix of a selection: one row per element in list order, one column per relation kind and direction that occurs, each cell the elements at the other end with outdated and missing marks; per column how many rows have a link. Gaps only where the metamodel sets a minimum (limits with min): such a column also gives how many of the rows it applies to meet it, and their share, and marks the rows below it. One page of rows at a time. With evidence locations also each requirement's test cases and verification status, and the degree.
  * Schema: `schemas/commands/trace.matrix.json input`.
  */
 export interface TraceMatrixInput {
@@ -2319,11 +2328,11 @@ export interface TraceMatrixInput {
 }
 
 /**
- * Output of `trace.matrix`. Traceability matrix of a selection: one row per element in list order, one column per relation kind and direction that occurs, each cell the elements at the other end with outdated and missing marks; per column how many rows have a link. One page of rows at a time. With evidence locations also each requirement's test cases and verification status, and the degree.
+ * Output of `trace.matrix`. Traceability matrix of a selection: one row per element in list order, one column per relation kind and direction that occurs, each cell the elements at the other end with outdated and missing marks; per column how many rows have a link. Gaps only where the metamodel sets a minimum (limits with min): such a column also gives how many of the rows it applies to meet it, and their share, and marks the rows below it. One page of rows at a time. With evidence locations also each requirement's test cases and verification status, and the degree.
  * Schema: `schemas/commands/trace.matrix.json output`.
  */
 export interface TraceMatrixOutput {
-  /** One column per relation kind and direction that occurs in the whole selection (SR-125 AK2), not only on the page: a kind or direction no row has makes no column. Order: relation kinds in the order of the metamodel, then properties of kind `relation` in property order; per key `out` before `in`. `type` says what a column holds and so the shape of its cells; every column is `relation`. The evidence columns (SR-126) are no column type: their header is `evidence` and their cells are `rows[].testCases` and `rows[].verification`, so a reader of `columns` and `cells` needs no other shape. */
+  /** One column per relation kind and direction that occurs in the whole selection (SR-125 AK2), not only on the page: a kind or direction no row has makes no column, except the `out` column of a relation kind whose limits set a minimum (`min` of 1 or more) for the type of a row, which is there even when no row has such a relation (SR-153, spec question #838 Q1). Order: relation kinds in the order of the metamodel, then properties of kind `relation` in property order; per key `out` before `in`. `type` says what a column holds and so the shape of its cells; every column is `relation`. The evidence columns (SR-126) are no column type: their header is `evidence` and their cells are `rows[].testCases` and `rows[].verification`, so a reader of `columns` and `cells` needs no other shape. */
   readonly columns: readonly {
     /** The column holds relations: its cell in each row is an array of relations (`data-export#/$defs/relation`) of `kind` and `direction`. The evidence columns of SR-126 are `evidence`, `rows[].testCases` and `rows[].verification`, not a column type. */
     readonly type: "relation";
@@ -2337,10 +2346,14 @@ export interface TraceMatrixOutput {
     readonly direction: "out" | "in";
     /** For `out`, the `name` of the kind (e.g. Derives from); for `in`, its `inverse-name` (e.g. Derived by), the `name` when it has none. A name can be the same for both directions (Distinct from): `direction` tells them apart. */
     readonly name: string;
-    /** How many rows of the whole selection have at least one relation in this column (SR-125 AK3), whatever state its other end is in; a relation to a missing target counts. With a view, the relations the cells show. */
+    /** How many rows of the whole selection have at least one relation in this column (SR-125 AK3, SR-153 AK2), whatever state its other end is in; a relation to a missing target counts. With a view, the relations the cells show. 0 only for a column with minima that no row has a relation in. */
     readonly count: number;
-    /** `count` divided by `total`: the share of the rows of the whole selection. */
-    readonly share: number;
+    /** SR-153 AK1: only on the `out` column of a relation kind whose limits set a minimum (`min` of 1 or more) for the type of a row of the whole selection: how many rows have such a minimum (spec question #838 Q2). Rows of an unknown type or with a status the metamodel marks invalid have none (as SR-152). Left out on every other column, which has no gap and no share (SR-153 AK2). */
+    readonly expected?: number;
+    /** SR-153 AK1: with `expected`, how many of those rows meet all minima of the kind, counted as `hint.list` counts for `relation.too-few` (SR-152): a relation counts when its target is one element of a known type within the minimum's target type; with a view, only a target that applies in it. A row whose count an unreachable target leaves open is not met and no gap (spec question #838 Q5). */
+    readonly met?: number;
+    /** SR-153 AK1: with `expected`, `met` divided by `expected`. Left out on a column without a minimum (SR-153 AK2). */
+    readonly share?: number;
   }[];
   /** The page: one row per element of the list, in its order (SR-125 AK1). */
   readonly rows: readonly {
@@ -2372,8 +2385,21 @@ export interface TraceMatrixOutput {
     }[];
     /** SR-126 AK1, AK3: only with `evidence`, on a row whose type has the meaning `requirement` and that applies in its view. Its verification status in the view of `evidence`, one entry, the same as `element.get` and `evidence.status` give for that view: `indirect` when it is verified through its children (AK3). */
     readonly verification?: readonly DataExportVerificationEntry[];
-    /** One cell per entry of `columns`, in the same order; a cell takes its shape from the type of its column. For `relation`, an array of the relations of the row element in the column's `kind` and `direction`, each with `shortId` and `title` of the other end when it is available (SR-125 AK2), and an empty array when it has none: a gap (AK3). Outgoing relations come in the order of the file, incoming ones in the order of the incoming index (store order). A relation to an older version of its target is `outdated`, one to a target that is not there has `targetState: "missing"` (SR-125 AK4); for an incoming relation, `outdated` means its source stores an older version of the row element and `currentVersion` is the row element's. */
+    /** One cell per entry of `columns`, in the same order; a cell takes its shape from the type of its column. For `relation`, an array of the relations of the row element in the column's `kind` and `direction`, each with `shortId` and `title` of the other end when it is available (SR-125 AK2), and an empty array when it has none. An empty cell is no gap by itself: `gaps` names the gaps (SR-153). Outgoing relations come in the order of the file, incoming ones in the order of the incoming index (store order). A relation to an older version of its target is `outdated`, one to a target that is not there has `targetState: "missing"` (SR-125 AK4); for an incoming relation, `outdated` means its source stores an older version of the row element and `currentVersion` is the row element's. */
     readonly cells: readonly (readonly DataExportRelation[])[];
+    /** SR-153 AK1: the minima of the row that its cells undershoot, one entry per minimum, in column order and then metamodel order; a cell is a gap when an entry names its column. Only `out` columns of relation kinds whose limits set a minimum for the row's type; a cell can hold relations and be a gap (to a missing target, or to an element of another type). Counted as `expected` and `met` count. Left out when the row has none. */
+    readonly gaps?: readonly {
+      /** The index of the column in `columns`, and so of the cell in `cells`. */
+      readonly column: number;
+      /** The target type of the minimum. */
+      readonly targetType: Key;
+      /** The display name of `targetType`. */
+      readonly targetName: string;
+      /** The relations that count for the minimum, as `relation.too-few` gives `count`. */
+      readonly count: number;
+      /** The minimum, the `min` of the limit (the `limit` of `relation.too-few`; not the page size `limit` of the input). */
+      readonly min: number;
+    }[];
   }[];
   /** The number of rows of the whole selection. */
   readonly total: number;

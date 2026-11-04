@@ -42,7 +42,7 @@ import type { YamlFile } from "../files/index.js";
 import { listFolderFiles, readYamlFile, readYamlFileFast, yamlPointerLine } from "../files/index.js";
 import { changeStamp, workspacePath } from "../model/index.js";
 import { contractsBundle, fileSchemaErrors, fileSchemaValidator } from "../runtime/contracts.js";
-import { inputViolations } from "../runtime/input-errors.js";
+import { fileMessage, inputViolations } from "../runtime/input-errors.js";
 import type { Workspace } from "../runtime/workspace.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
@@ -182,8 +182,7 @@ const violationsOf = (yaml: YamlFile, repository: string, file: string): Problem
     schemas: contractsBundle.schemas,
   });
   const shown = violations.slice(0, MAX_VIOLATIONS).map((violation) => {
-    const message =
-      violation.field === "" ? violation.message.replace(/^The input /, "the file ") : violation.message;
+    const message = fileMessage(violation);
     return problemIn(
       repository,
       file,

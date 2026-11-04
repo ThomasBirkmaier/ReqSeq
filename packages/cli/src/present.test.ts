@@ -1151,7 +1151,7 @@ describe("renderHuman: evidence records and test cases (#275)", () => {
 });
 
 describe("renderHuman: a matrix (#629)", () => {
-  it("numbers the columns and prints the cells of each row, a dash for an empty one", () => {
+  it("numbers the columns and prints the cells of each row, a dash for an empty one and [gap] for a gap (SR-153)", () => {
     const row = (shortId: string, cells: unknown[][], extra: Record<string, unknown> = {}) => ({
       id: shortId,
       repository: "system",
@@ -1171,9 +1171,12 @@ describe("renderHuman: a matrix (#629)", () => {
             direction: "out",
             name: "Derives from",
             count: 1,
-            share: 0.5,
+            expected: 3,
+            met: 2,
+            share: 2 / 3,
           },
-          { type: "relation", kind: "derives-from", direction: "in", name: "Derived by", count: 0, share: 0 },
+          { type: "relation", kind: "derives-from", direction: "in", name: "Derived by", count: 1 },
+          { type: "relation", kind: "refines", direction: "out", name: "Refines" },
         ],
         rows: [
           row(
@@ -1184,10 +1187,11 @@ describe("renderHuman: a matrix (#629)", () => {
                 { id: "0000-uuid", shortId: "", targetState: "missing" },
               ],
               [],
+              [],
             ],
-            { depth: 1, testCases: [] },
+            { depth: 1, testCases: [], gaps: [{ column: 0 }, "no gap", { column: "1" }] },
           ),
-          row("SR-b", [[], []], { testCases: [{ name: "test_b" }] }),
+          row("SR-b", [[], [], []], { testCases: [{ name: "test_b" }] }),
         ],
         total: 2,
         incomplete: false,
@@ -1196,13 +1200,14 @@ describe("renderHuman: a matrix (#629)", () => {
     ).toBe(
       [
         "columns:",
-        "  1:  Derives from  (derives-from, out)  1  50 %",
-        "  2:  Derived by  (derives-from, in)  0  0 %",
+        "  1:  Derives from  (derives-from, out)  2 of 3 · 66.6 %",
+        "  2:  Derived by  (derives-from, in)  1",
+        "  3:  Refines  (refines, out)",
         "rows:",
         "    SR-a  draft  Title SR-a",
-        "    1: N-x (N-001)  [outdated], 0000-uuid  [missing]  2: –  tests: –",
+        "    1: N-x (N-001)  [outdated], 0000-uuid  [missing] [gap]  2: –  3: –  tests: –",
         "  SR-b  draft  Title SR-b",
-        "    1: –  2: –  tests: test_b",
+        "    1: –  2: –  3: –  tests: test_b",
         "total: 2",
         "No problems.",
         "",

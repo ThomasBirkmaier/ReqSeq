@@ -75,6 +75,36 @@ describe("a save (SR-105, SR-106)", () => {
       result: true,
       echo: "No changes to save",
     });
+    // Asked while a write ran that left no input (#563): that write saved it.
+    expect(
+      saveStep({
+        editor: EDITOR,
+        input: false,
+        note: undefined,
+        mode: "asked",
+        afterWrite: { name: "SR-036", hint: undefined },
+      }),
+    ).toEqual({ kind: "done", result: true, echo: "Saved SR-036" });
+    // With the hint of core, as a save that wrote says it.
+    expect(
+      saveStep({
+        editor: EDITOR,
+        input: false,
+        note: undefined,
+        mode: "asked",
+        afterWrite: { name: "SR-036", hint: "Unknown key x" },
+      }),
+    ).toEqual({ kind: "done", result: true, echo: "Saved SR-036. Unknown key x" });
+    // Input left after it: this save writes it.
+    expect(
+      saveStep({
+        editor: EDITOR,
+        input: true,
+        note: undefined,
+        mode: "asked",
+        afterWrite: { name: "SR-036", hint: undefined },
+      }),
+    ).toEqual({ kind: "write", editor: EDITOR });
     // A note stops the save: true when there is no input to lose (R4: not simply false).
     expect(saveStep({ editor: EDITOR, input: false, note: "SR-036 is read-only", mode: "quiet" })).toEqual({
       kind: "done",

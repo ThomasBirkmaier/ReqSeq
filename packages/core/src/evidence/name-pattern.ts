@@ -52,7 +52,6 @@ const isPlaceholder = (name: string): name is Placeholder =>
   (PLACEHOLDERS as readonly string[]).includes(name);
 
 const lowerAscii = (text: string): string => text.replace(/[A-Z]/g, (c) => c.toLowerCase());
-const upperAscii = (text: string): string => text.replace(/[a-z]/g, (c) => c.toUpperCase());
 
 /** The parts of `pattern` in order, consecutive literal text joined; throws on a brace that is not one. */
 const partsOf = (pattern: string): NamePatternPart[] => {
@@ -186,8 +185,26 @@ export const nameMatcher = (
   pattern: NamePattern,
   prefixes: readonly string[],
 ): ((name: string) => readonly NameMatch[]) => {
-  const known = new Set(prefixes);
-  const longest = Math.max(0, ...prefixes.map((p) => p.length));
+  // The prefixes by length, each with its ASCII lower case form for `literalAt`, so a try compares in
+  // place. A prefix with an ASCII lower case letter never fits: the name is read in upper case.
+  const byLength = new Map<number, { readonly prefix: string; readonly lower: string }[]>();
+  for (const prefix of new Set(prefixes)) {
+    if (!/[a-z]/.test(prefix)) {
+      const list = byLength.get(prefix.length) ?? [];
+      list.push({ prefix, lower: lowerAscii(prefix) });
+      byLength.set(prefix.length, list);
+    }
+  }
+  const longest = Math.max(0, ...byLength.keys());
+  /** The prefix of length `n` that stands at `at` of `name`, or "": at most one can (they differ in upper case). */
+  const prefixAt = (name: string, at: number, n: number): string => {
+    for (const candidate of byLength.get(n) ?? []) {
+      if (literalAt(name, at, candidate.lower)) {
+        return candidate.prefix;
+      }
+    }
+    return "";
+  };
   const { parts } = pattern;
   return (whole) => {
     const matches: NameMatch[] = [];
@@ -209,8 +226,8 @@ export const nameMatcher = (
           }
           case "prefix":
             for (let n = Math.min(longest, name.length - at); n >= 1; n -= 1) {
-              const candidate = upperAscii(name.slice(at, at + n));
-              const end = known.has(candidate) ? step(k + 1, at + n) : -1;
+              const candidate = prefixAt(name, at, n);
+              const end = candidate === "" ? -1 : step(k + 1, at + n);
               if (end >= 0) {
                 prefix = candidate;
                 return end;

@@ -29,7 +29,9 @@
 // an empty input skips it. Before it runs, the input of every open buffer is saved; when one cannot be
 // saved, it does not run. Its output opens a result buffer that is not asked again (that would write
 // again). `element.bulkUpdate` writes only with `confirm` yes, given with Ctrl/Cmd+Enter; without it, it
-// shows what it would change.
+// shows what it would change. A confirmation writes only the plan of an open preview of the same input
+// (#836): it passes that preview's `plan`; without one it opens the preview and writes nothing,
+// and when core refuses the plan (`plan-changed`) it shows the new preview.
 //
 // The arguments a command expects are completed with the values the metamodel allows (SR-108 AK4), each
 // source from one read command: `status` the statuses of the element's type (`element.get`,
@@ -557,6 +559,13 @@ const answersOf = (entry: Entry): { readonly key: string; readonly value: Proper
   );
 
 /**
+ * The list of all elements outside a view shows every element: a command that requires a selection takes
+ * all of them, the empty selection (#856: "Bulk update elements" was refused there); else none.
+ */
+const everyElement = (context: ActionContext, command: CommandListing, field: string): object | undefined =>
+  context.buffers[0]?.kind === "list" && requiredOf(command).includes(field) ? {} : undefined;
+
+/**
  * The input the given values make, with the shown list's selection for a `selection` argument, in the view
  * the window shows (`selectionInView`): a write on the list acts on the set the list shows.
  */
@@ -565,7 +574,7 @@ const inputOf = (context: ActionContext, entry: Entry): Record<string, unknown> 
   const listed = shownSelection(context);
   const shown = context.views?.shown;
   // The list of all elements has no selection: in a view it is the view's (`baseline.create` of a variant's
-  // view, SR-103), elsewhere none.
+  // view, SR-103), elsewhere none, or every element for a command that requires one (below).
   const selection =
     shown === undefined || (listed === undefined && context.buffers[0]?.kind !== "list")
       ? listed
@@ -575,8 +584,9 @@ const inputOf = (context: ActionContext, entry: Entry): Record<string, unknown> 
       .filter((given) => given.field === arg.field && given.skipped !== true)
       .map((given) => given.value);
     if (arg.complete === "selection") {
-      if (selection !== undefined) {
-        input[arg.field] = selection;
+      const taken = selection ?? everyElement(context, entry.command, arg.field);
+      if (taken !== undefined) {
+        input[arg.field] = taken;
       }
     } else if (entry.given.some((given) => given.field === arg.field && given.property !== undefined)) {
       const properties = propertiesInput(asksOf(entry), answersOf(entry));
@@ -615,13 +625,100 @@ const unsavedBefore = async (context: CatalogContext): Promise<Buffer | undefine
 };
 
 /**
+ * The one command with a flow of its own (product owner decision, 2026-11-04, #836; an exception to
+ * ADR-0002 rule 3): a confirmation of `element.bulkUpdate` writes only the plan of an open preview of the
+ * same input (#158). The app passes the preview's `plan` through and handles the refusal; core decides.
+ */
+type Input = Readonly<Record<string, unknown>>;
+const PREVIEWED: keyof CommandTypes = "element.bulkUpdate";
+/** The fields of a confirmation that its preview does not have. */
+const CONFIRMING = new Set(["confirm", "plan", "expected"]);
+
+/** The input of the preview of a confirmation: without `confirm`, `plan` and `expected`. */
+const previewOf = (input: Input): Input =>
+  Object.fromEntries(Object.entries(input).filter(([field]) => !CONFIRMING.has(field)));
+
+/** The `plan` of an open preview of the same input (a result buffer of it), if any. */
+const shownPlan = (context: CatalogContext, preview: Input): string | undefined => {
+  const wanted = JSON.stringify(preview);
+  for (const buffer of context.buffers) {
+    if (buffer.kind === "result" && buffer.command === PREVIEWED && JSON.stringify(buffer.input) === wanted) {
+      const output = buffer.output as { readonly applied?: unknown; readonly plan?: unknown } | undefined;
+      if (output?.applied === false && typeof output.plan === "string") {
+        return output.plan;
+      }
+    }
+  }
+  return undefined;
+};
+
+/** Runs the preview of a confirmation and shows it; `why` says why nothing was written. */
+const showPreview = async (
+  context: CatalogContext,
+  entry: Entry,
+  preview: Input,
+  why: string,
+): Promise<void> => {
+  const revision = context.revision();
+  const answer = await (context.shownCall ?? context.call)(PREVIEWED, preview);
+  if (!answer.ok) {
+    context.echo(answer.message);
+    return;
+  }
+  const line = lineOf({ ...entry, given: entry.given.filter((given) => !CONFIRMING.has(given.field)) });
+  context.dispatch({
+    type: "open",
+    buffer: resultBuffer(PREVIEWED, preview, line, answer.output, revision, true),
+  });
+  context.echo(why);
+};
+
+/** Whether the run is a confirmation of a bulk update without a `plan` of its own. */
+const isConfirmation = (name: keyof CommandTypes, input: Input): boolean =>
+  name === PREVIEWED && input["confirm"] === true && input["plan"] === undefined;
+
+/**
+ * The input a confirmation of a bulk update sends: with the plan of an open preview of the same input
+ * (#836); without one, the preview is opened first, nothing is written, and the result is undefined.
+ */
+const planned = async (context: CatalogContext, entry: Entry, given: Input): Promise<Input | undefined> => {
+  const plan = shownPlan(context, previewOf(given));
+  if (plan === undefined) {
+    await showPreview(
+      context,
+      entry,
+      previewOf(given),
+      `${entry.command.title}: nothing was written; confirm again to write what the preview shows`,
+    );
+    return undefined;
+  }
+  return { ...given, plan };
+};
+
+/** Whether core refused a confirmation because the change is no longer the one of its plan (#158). */
+const planChanged = (answer: {
+  readonly ok: boolean;
+  readonly code?: string;
+  readonly details?: unknown;
+}): boolean =>
+  !answer.ok &&
+  answer.code === "input.invalid" &&
+  (answer.details as { readonly reason?: unknown } | undefined)?.reason === "plan-changed";
+
+/**
  * Runs the command with the given values: the output opens a result buffer (of a write command, one that
  * is not asked again), a new element its element buffer (SR-064); a refused input asks again. A write
  * command first saves the input of every open buffer, and does not run when one cannot be saved.
  */
 const execute = async (context: CatalogContext, entry: Entry): Promise<void> => {
-  const input = inputOf(context, entry);
   const name = entry.command.name as keyof CommandTypes;
+  const given = inputOf(context, entry);
+  const confirming = isConfirmation(name, given);
+  // Awaited only for a confirmation, so every other command is sent as before.
+  const input = confirming ? await planned(context, entry, given) : given;
+  if (input === undefined) {
+    return;
+  }
   const write = isWrite(entry.command);
   // Only when there is input to save: the command is sent at once otherwise.
   const drafted = write && context.buffers.some((buffer) => context.drafted(buffer.key));
@@ -642,6 +739,13 @@ const execute = async (context: CatalogContext, entry: Entry): Promise<void> => 
       type: "open",
       buffer: resultBuffer(name, input, lineOf(entry), answer.output, revision, write),
     });
+  } else if (confirming && planChanged(answer)) {
+    await showPreview(
+      context,
+      entry,
+      previewOf(input),
+      `${entry.command.title}: something changed since the preview, so nothing was written; the new preview is shown`,
+    );
   } else if (answer.code === "input.invalid" && entry.given.length > 0) {
     // The prompt asks the value core refused again, else the one given last, with core's message.
     askAgain(context, { ...entry, error: answer.message }, refusedAt(entry, answer.details));

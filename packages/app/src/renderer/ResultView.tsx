@@ -1,7 +1,8 @@
 // The result buffer (SR-073 AK2): the output of a catalog command run from the command prompt that no
 // other buffer shows, as lines laid out by its shape (`result.ts`). Up and Down, Ctrl+N and Ctrl+P select
 // a line (none is selected at first, SR-122), Enter or a click opens the element of an element row or of
-// a problem, and the two elements of a pair line side by side, read-only (SR-044 AK2). When the
+// a problem, and the two elements of a pair line side by side, read-only (SR-044 AK2). The output of
+// `trace.chain` has its evidence under the elements it belongs to (`chain-lines.ts`, SR-033). When the
 // workspace changed, it asks the command again with the same input (ADR-0002: the app runs commands and
 // shows what they give); the output of a write command stays as it came (#85).
 import { useEffect, useMemo } from "react";
@@ -10,6 +11,7 @@ import type { ResultBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
 import { rowTarget } from "./keys.js";
 import type { BufferData } from "./modeline.js";
+import { chainLines } from "./chain-lines.js";
 import { resultLines, resultSummary } from "./result.js";
 import type { WindowAction } from "./window-layout.js";
 
@@ -31,7 +33,11 @@ export const ResultView = ({
   onEcho,
 }: ResultViewProps): React.JSX.Element => {
   const scope = useIdScope();
-  const lines = useMemo(() => resultLines(buffer.output), [buffer.output]);
+  // The chain shows its evidence under the elements (SR-033); every other output is laid out by shape.
+  const lines = useMemo(
+    () => (buffer.command === "trace.chain" ? chainLines : resultLines)(buffer.output),
+    [buffer.command, buffer.output],
+  );
   const cursor = Math.min(buffer.cursor, Math.max(0, lines.length - 1));
 
   useEffect(() => {
@@ -111,6 +117,7 @@ export const ResultView = ({
           key={at}
           id={`${scope}result-${String(at)}`}
           className={`line ${line.kind}`}
+          title={line.title}
           // Only a line that opens an element is an option; a text line is shown, not chosen.
           {...(line.open === undefined ? {} : { role: "option", "aria-selected": at === cursor })}
           data-cursor={at === cursor ? "" : undefined}

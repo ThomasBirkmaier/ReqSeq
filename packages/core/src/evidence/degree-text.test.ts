@@ -5,7 +5,14 @@ import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../catalog.js";
 import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
-import { degreePercent, degreeShareOf, packageSummaryText } from "./degree-text.js";
+import { degreePercent, degreeShareOf, minimumHeadText, packageSummaryText } from "./degree-text.js";
+
+describe("minimumHeadText (SR-153)", () => {
+  it("names the rows that meet the minima, of those they apply to, and their share rounded down", () => {
+    expect(minimumHeadText(2, 5, 2 / 5)).toBe("2 of 5 · 40 %");
+    expect(minimumHeadText(2, 3, 2 / 3)).toBe("2 of 3 · 66.6 %");
+  });
+});
 
 describe("degreePercent (SR-037)", () => {
   it("[SR-037/AK1] shows 6 of 10 as 60 %", () => {

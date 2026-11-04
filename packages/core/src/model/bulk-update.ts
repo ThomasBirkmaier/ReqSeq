@@ -17,8 +17,14 @@
 //   the files as written, and refreshes the stored titles of their same-repository relation targets
 //   (decision on #307; the preview does not show that).
 // - Cost (N-036, perf suite): one pass over the selection, the files of the candidates read 32 at a
-//   time, then per file the lossless writer (about 1 to 3 ms) and, with `confirm`, an atomic write
-//   that syncs to disk.
+//   time without parsing them (`readAllUnchanged`: the store parsed the same bytes), then per file the
+//   lossless writer (about 1 ms: its parse and the parse of its check, which the preview and the
+//   write check take as the read-back, `FileEditResult.parsed`) and, with `confirm`, an atomic write
+//   that syncs to disk. A not writable folder is asked once (`readOnlyFolders`).
+// - Hints at the property include `element.missing-required` (a `remove` of a required property) and
+//   `element.text-emptied` (a Markdown or list property that held a value and holds none, #841);
+//   a preview names a not writable folder with `file.read-only`, which a confirmation refuses before
+//   its first write (#836).
 // - Without `confirm` nothing is written (AK2): the result is the same plan, so a preview and its
 //   confirmation give the same elements while no file changes in between. `plan`, the fingerprint
 //   the preview returned (`bulk-plan.ts`, #158), makes a confirmation refused when the change now
@@ -28,11 +34,12 @@
 //   writes only the remaining elements.
 // - `id`, `type` and `status` are refused by the input schema (ADR-0002 rule 6, D-030); nothing is
 //   deleted (D-045): a removed key or item is a change of the element's file only.
+import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import type { Problem } from "../catalog.js";
 import { CommandError } from "../catalog.js";
-import type { FrontmatterEdit, ItemValue, PropertyValue } from "../files/index.js";
-import { editElementFile } from "../files/index.js";
+import type { FrontmatterEdit, ItemValue, ParsedContent, PropertyValue } from "../files/index.js";
+import { editElementFile, zip } from "../files/index.js";
 import type {
   ElementInputValue,
   MetamodelEffectiveType,
@@ -42,12 +49,14 @@ import type {
 import type { Metamodel } from "../metamodel/index.js";
 import { findType, keyDefinition, markdownKeysOf, originMeaning } from "../metamodel/index.js";
 import type { Workspace } from "../runtime/workspace.js";
-import { workspaceLayoutState } from "../workspace/index.js";
+import type { RepositoryLocation } from "../workspace/index.js";
+import { isWritableFolder, workspaceLayoutState } from "../workspace/index.js";
 import type { ElementRecord } from "./elements.js";
 import { imageMemo } from "./images.js";
+import { propertiesEmptied } from "./emptied.js";
 import { locateIn } from "./locate.js";
 import { relationTypeFindings } from "./relation-types.js";
-import { isEmptyValue } from "./required.js";
+import { isEmptyValue, requiredFindings } from "./required.js";
 import type { TargetItem } from "./relation-keys.js";
 import { hasId } from "./relation-keys.js";
 import type { ShortIds } from "./short-id.js";
@@ -304,9 +313,10 @@ const addEdits = async (
   given: readonly unknown[],
 ): Promise<FrontmatterEdit[]> => {
   const { key } = plan.property;
+  // A blank scalar (`isEmptyValue`, e.g. `key: ""`) holds no item.
   const held: unknown[] = Array.isArray(stored)
     ? [...(stored as unknown[])]
-    : isAbsent(stored)
+    : isEmptyValue(stored)
       ? []
       : [stored];
   const fresh: unknown[] = [];
@@ -332,9 +342,10 @@ const addEdits = async (
             stored,
           )) as unknown[])
         : fresh;
-  if (held.length > 0 && !Array.isArray(stored)) {
-    // One value where a list belongs: the key becomes the list of it and the new items.
-    return [{ kind: "set", key, value: [stored, ...added] as PropertyValue }];
+  if (!Array.isArray(stored) && !isAbsent(stored)) {
+    // One value where a list belongs: the key becomes the list of it (none when it is blank) and the
+    // new items.
+    return [{ kind: "set", key, value: [...held, ...added] as PropertyValue }];
   }
   return added.map((item): FrontmatterEdit => ({ kind: "append-item", key, value: item as ItemValue }));
 };
@@ -369,20 +380,69 @@ const editsFor = async (plan: Plan, record: ElementRecord): Promise<FrontmatterE
 };
 
 /**
- * The value-kind (SR-085), item-limit (SR-171) and relation-type (SR-086) hints at `key` in
- * `elements` (as written, or as they would be), each with its line in that file.
+ * The missing-required (SR-064), value-kind (SR-085), item-limit (SR-171) and relation-type (SR-086)
+ * hints at `key` in `elements` (as written, or as they would be), each with its line in that file.
  */
 const hintsAt = (key: string, elements: readonly ReadElement[], selection: BulkSelection): Problem[] =>
   elements.flatMap(({ file, record }) =>
     locateIn(
       file,
       [
+        ...requiredFindings(record, selection.metamodel),
         ...valueFindings(record, selection.metamodel),
         ...itemLimitFindings(record, selection.metamodel),
         ...relationTypeFindings(record, selection),
       ].filter((finding) => finding.path[0] === key),
     ),
   );
+
+/** The planned writes of one folder: its repository, its path in it (`/`) and how many files. */
+interface PlannedFolder {
+  readonly repository: RepositoryLocation;
+  readonly folder: string;
+  readonly files: number;
+}
+
+/**
+ * The folders of the planned files that this process cannot write (`isWritableFolder`, SR-018 AK2:
+ * a read-only file system or no write permission; unknown on Windows, where the write itself
+ * refuses), in the order of their first file: every write there is refused with `file.read-only`.
+ * One check per folder (N-036).
+ */
+const readOnlyFolders = async (planned: readonly ElementFileWrite[]): Promise<PlannedFolder[]> => {
+  const folders = new Map<string, PlannedFolder>();
+  for (const { repository, current } of planned) {
+    const folder = path.posix.dirname(current.record.file);
+    const place = JSON.stringify([repository.name, folder]);
+    folders.set(place, { repository, folder, files: (folders.get(place)?.files ?? 0) + 1 });
+  }
+  const checked = await Promise.all(
+    [...folders.values()].map(async (f) => ({
+      ...f,
+      writable: await isWritableFolder(path.join(f.repository.folder, f.folder)),
+    })),
+  );
+  return checked
+    .filter((f) => f.writable === false)
+    .map(({ repository, folder, files }) => ({ repository, folder, files }));
+};
+
+/** The folder as a message names it. */
+const folderName = ({ repository, folder }: PlannedFolder): string =>
+  folder === "."
+    ? `the folder of repository ${repository.name}`
+    : `folder ${folder} of repository ${repository.name}`;
+
+/**
+ * `file.read-only` of a preview for a folder it would write into but cannot (`readOnlyFolders`): the
+ * confirmation is refused.
+ */
+const readOnlyProblem = (folder: PlannedFolder): Problem => ({
+  code: "file.read-only",
+  severity: "error",
+  message: `${folderName(folder)} is not writable (${String(folder.files)} of the planned files), so a confirmation is refused; check the permissions of the folder`,
+  repository: folder.repository.name,
+});
 
 /**
  * Refuses a confirmation (nothing is written) whose plan is not the preview's `plan` (#158), or whose
@@ -446,13 +506,18 @@ export const bulkUpdateElements = async (
     value,
     targets: new Map(),
   };
-  const planned: (ElementFileWrite & { readonly named: NamedElement })[] = [];
+  // `parsed`: the planned bytes as the writer's check read them back, so a preview and the write
+  // check do not parse them again (N-036).
+  const planned: (ElementFileWrite & {
+    readonly named: NamedElement;
+    readonly parsed: ParsedContent | undefined;
+  })[] = [];
   let unchanged = 0;
   for (const { record, type, repository, current } of await readAllUnchanged(workspace, layout, candidates)) {
     const edits = await editsFor(plan, current.record);
-    const { bytes, changed } = editElementFile(current.file, { edits, keyOrder: type.properties });
+    const { bytes, changed, parsed } = editElementFile(current.file, { edits, keyOrder: type.properties });
     if (changed) {
-      planned.push({ repository, current, bytes, named: named(record) });
+      planned.push({ repository, current, bytes, named: named(record), parsed });
     } else {
       unchanged += 1;
     }
@@ -472,13 +537,30 @@ export const bulkUpdateElements = async (
   // The write check sees each element as it would be written: a confirmation is refused as a whole.
   const found = await Promise.all(
     planned.map((p) =>
-      checkedBefore(check, p.repository.name, p.bytes, p.current.file.snapshot, p.current.record.type),
+      checkedBefore(
+        check,
+        p.repository.name,
+        p.bytes,
+        p.current.file.snapshot,
+        p.current.record.type,
+        p.parsed,
+      ),
     ),
   );
   const checked = found.filter((c) => c !== undefined);
   const refused = checked.flatMap((c) => c.findings);
   if (input.confirm && check !== undefined && refused.length > 0) {
     throw check.refusal(refused);
+  }
+  const readOnly = await readOnlyFolders(planned);
+  const [first] = readOnly;
+  if (input.confirm && first !== undefined) {
+    // Refused before the first write, rather than rolled back after it.
+    throw new CommandError(
+      "file.read-only",
+      `Not written: ${folderName(first)} is not writable; nothing was written`,
+      { repository: first.repository.name, folder: first.folder },
+    );
   }
   const written = input.confirm
     ? await writeElementFiles(workspace, layout, planned, {
@@ -489,7 +571,7 @@ export const bulkUpdateElements = async (
   // A preview checks that every planned file reads back as an element, as the write does.
   const results = input.confirm
     ? written.map((w) => w.written)
-    : planned.map((p) => writtenElement(p.repository.name, p.bytes, p.current.file.snapshot));
+    : planned.map((p) => writtenElement(p.repository.name, p.bytes, p.current.file.snapshot, p.parsed));
   return {
     applied: input.confirm,
     affected: planned.map((p) => p.named),
@@ -498,7 +580,11 @@ export const bulkUpdateElements = async (
     files: written.map((w) => w.file),
     problems: [
       ...hintsAt(property.key, results, selection),
+      ...zip(planned, results).flatMap(([p, result]) =>
+        propertiesEmptied(p.repository.name, p.current.record, result.record, [property], input.confirm),
+      ),
       ...checked.flatMap(({ element, findings }) => locateIn(element.file, findings)),
+      ...readOnly.map(readOnlyProblem),
     ],
     plan: fingerprint,
   };

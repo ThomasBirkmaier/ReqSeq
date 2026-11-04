@@ -10,7 +10,8 @@
 //   not allow between the two types is refused with `relation.not-allowed`, by the rule of the
 //   check of SR-086 (`relationTypeFindings`): the tool sets only allowed relations (SR-067 AK1;
 //   assumption, stated in the PR of #264). A relation the source already has with a valid version
-//   is kept with its stored version and nothing is written (#177 (a)). One it has only without a
+//   is kept with its stored version and nothing is written (#177 (a)); the `relation.too-many` hints
+//   below come back for it all the same (#845). One it has only without a
 //   valid version (written by hand or by a migration script, which cannot compute versions,
 //   ADR-0005) gets the current version in place, with the same checks as a new relation: its line
 //   is replaced by `currentTarget` (`replace-item`, the position in the list stays) and an `info`
@@ -39,6 +40,7 @@ import type { WorkspaceLayout } from "../workspace/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import type { ElementRecord } from "./elements.js";
 import { isVersion } from "./is-version.js";
+import type { LocatableFinding } from "./locate.js";
 import { locateFindings } from "./locate.js";
 import { hasId } from "./relation-keys.js";
 import { relationLimitFindings } from "./relation-limits.js";
@@ -79,7 +81,8 @@ export interface AddedRelation {
   readonly index: number;
   /**
    * One `info` problem `relation.version-added` when a stored entry without a valid version got its
-   * version, then the `relation.too-many` hints of the kind on the written source (SR-152 AK3).
+   * version, then the `relation.too-many` hints of the kind on the source (SR-152 AK3), also when
+   * nothing was written (#845).
    */
   readonly problems: readonly Problem[];
 }
@@ -155,6 +158,25 @@ export const writeSourceEdits = async (
 };
 
 /**
+ * The `relation.too-many` hints of the check (SR-152) on `sources` for the kind `kind` and the limits
+ * whose target type `target` is or extends, so a hint on another target type is not repeated.
+ */
+const tooManyFindings = (
+  sources: readonly ElementRecord[],
+  state: RelationState,
+  kind: MetamodelRelationKind,
+  target: ElementRecord,
+): LocatableFinding[] =>
+  sources.flatMap((element) =>
+    relationLimitFindings(element, state).filter(
+      (f) =>
+        f.problem.code === "relation.too-many" &&
+        f.problem.key === kind.key &&
+        allowsType([String(f.problem.targetType)], target.type, state.metamodel),
+    ),
+  );
+
+/**
  * `relation.add`: a relation of kind `input.kind` from `input.source` to `input.target`, written
  * into the source file (see the file comment). Every check comes before the write: both references
  * (`ref.unknown`, `ref.ambiguous`), that the source may be written (SR-016 AK3), the kind, the
@@ -173,7 +195,14 @@ export const addRelation = async (workspace: Workspace, input: RelationInput): P
     hasId(item) && item.id === target.id && repositoryOf(item, source.repository) === target.repository;
   const present = items.findIndex((item) => namesTarget(item) && isVersion(item["version"]));
   if (present >= 0) {
-    return { files: [], kind, sources: [source], index: present, problems: [] };
+    // Nothing is written, but the count hints still hold for the source as it is (#845).
+    return {
+      files: [],
+      kind,
+      sources: [source],
+      index: present,
+      problems: await locateFindings(layout, tooManyFindings([source], state, kind, target)),
+    };
   }
   // A stored entry without a valid version is set anew in its place (ADR-0004, #302).
   const unversioned = items.findIndex(namesTarget);
@@ -221,15 +250,8 @@ export const addRelation = async (workspace: Workspace, input: RelationInput): P
   };
   // The count hints of the check (SR-152) on the store after the write: the maxima of the kind
   // that the new relation counts toward, so a hint on another target type is not repeated here.
-  const after = { layout, store: await workspace.get(elementStoreState), metamodel, shortIds };
-  const overLimit = sources.flatMap((element) =>
-    relationLimitFindings(element, after).filter(
-      (f) =>
-        f.problem.code === "relation.too-many" &&
-        f.problem.key === kind.key &&
-        allowsType([String(f.problem.targetType)], target.type, metamodel),
-    ),
-  );
+  const after = { ...state, store: await workspace.get(elementStoreState) };
+  const overLimit = tooManyFindings(sources, after, kind, target);
   return {
     files: written.files,
     kind,

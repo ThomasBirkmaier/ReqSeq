@@ -112,6 +112,23 @@ export interface BareReference {
 }
 
 /**
+ * A link reference definition whose destination is a `reqseq:` link (`[ref]: reqseq:SR-001`,
+ * #844). Only inline links are references (ADR-0004), so a reference-style link `[x][ref]` to it
+ * counts for nothing, and `workspace.check` warns about the definition. In the store
+ * (`ElementRecord.referenceDefinitions`) its line is the line in the file, with the property `key`
+ * and position `item` for one in a property.
+ */
+export interface ReferenceDefinition {
+  /** The label as written, without the brackets. */
+  readonly label: string;
+  /** What follows `reqseq:` in the destination as written, the query included; not empty. */
+  readonly target: string;
+  readonly line: number;
+  readonly key?: string;
+  readonly item?: number;
+}
+
+/**
  * What may follow `reqseq:` for it to read as a reference: a short ID, a UUID or an identifier
  * token, letters and digits with `-`, `_` or `.` inside (a `.` or `-` at its end is punctuation).
  */
@@ -172,11 +189,19 @@ const bareOf = (text: string, mentions: readonly number[]): BareReference[] => {
 
 /**
  * The `reqseq:` links (not images) of a Markdown text in order, outside code, with their lines (an
- * empty target is none), and in the same pass the bare references (`BareReference`).
+ * empty target is none), and in the same pass the bare references (`BareReference`) and the
+ * definitions of reference-style `reqseq:` links (`ReferenceDefinition`, an empty target is none).
  */
-const reqseqLinks = (text: string): { links: UnresolvedLink[]; bare: BareReference[] } => {
+const reqseqLinks = (
+  text: string,
+): { links: UnresolvedLink[]; bare: BareReference[]; definitions: ReferenceDefinition[] } => {
   const lineOf = lineCounter(text);
   const scanned = markdownLinksAndMentions(text, SCHEME);
+  const definitionLineOf = lineCounter(text);
+  const definitions = scanned.definitions.flatMap(({ label, destination, offset }) => {
+    const target = destination.slice(SCHEME.length);
+    return target === "" ? [] : [{ label, target, line: definitionLineOf(offset) }];
+  });
   const links = scanned.links.flatMap((link): UnresolvedLink[] => {
     if (link.image || !link.destination.startsWith(SCHEME)) {
       return [];
@@ -194,7 +219,7 @@ const reqseqLinks = (text: string): { links: UnresolvedLink[]; bare: BareReferen
     const line = lineOf(start);
     return [{ target, ...(repository === undefined ? {} : { repository }), destination, start, end, line }];
   });
-  return { links, bare: bareOf(text, scanned.mentions) };
+  return { links, bare: bareOf(text, scanned.mentions), definitions };
 };
 
 /** A link whose target is a UUID as an inline reference, with its version. */
@@ -220,14 +245,20 @@ const asReference = ({
 
 /**
  * The `reqseq:` links of a text in one scan: the inline references, the links whose target is no
- * UUID (#176), and the bare references outside links (#633).
+ * UUID (#176), the bare references outside links (#633) and the definitions of reference-style
+ * links (#844).
  */
 const linksOf = (
   text: string,
-): { references: InlineReference[]; unresolved: UnresolvedLink[]; bare: BareReference[] } => {
+): {
+  references: InlineReference[];
+  unresolved: UnresolvedLink[];
+  bare: BareReference[];
+  definitions: ReferenceDefinition[];
+} => {
   const references: InlineReference[] = [];
   const unresolved: UnresolvedLink[] = [];
-  const { links, bare } = reqseqLinks(text);
+  const { links, bare, definitions } = reqseqLinks(text);
   for (const link of links) {
     if (isUuid(link.target)) {
       references.push(asReference(link));
@@ -235,7 +266,7 @@ const linksOf = (
       unresolved.push(link);
     }
   }
-  return { references, unresolved, bare };
+  return { references, unresolved, bare, definitions };
 };
 
 /**
@@ -274,6 +305,11 @@ export interface ElementLinks {
   readonly unresolvedLinks: StoredUnresolvedLink[];
   /** The bare references of the text, with their lines in the file (#633). */
   readonly bareReferences: BareReference[];
+  /**
+   * The definitions of reference-style `reqseq:` links (#844), those of the properties first, then
+   * those of the text, with their lines in the file.
+   */
+  readonly referenceDefinitions: ReferenceDefinition[];
 }
 
 /** A reference or link with its target and repository, without offsets and destination. */
@@ -290,8 +326,9 @@ const stored = (link: {
  * `body` with their lines in the file; those in the string values of the frontmatter `data` (a value,
  * or the strings of a list), whatever the key, since the metamodel is not known when a file is read
  * (`referencesOf` takes the marked properties, SR-127), with the line `place` gives; and the links
- * whose target is no UUID (#176), those of the properties first, then those of the text; and the
- * bare references of the text (#633, SR-021 AK3: the text only, not the properties). A text or
+ * whose target is no UUID (#176), those of the properties first, then those of the text; the
+ * bare references of the text (#633, SR-021 AK3: the text only, not the properties); and the
+ * definitions of reference-style `reqseq:` links (#844), in the same order as unresolved links. A text or
  * frontmatter without `reqseq:`, which is nearly every file, is not scanned.
  */
 export const elementLinks = (
@@ -302,6 +339,7 @@ export const elementLinks = (
 ): ElementLinks => {
   const propertyReferences: PropertyReference[] = [];
   const unresolvedLinks: StoredUnresolvedLink[] = [];
+  const referenceDefinitions: ReferenceDefinition[] = [];
   if (frontmatter.includes(SCHEME)) {
     const scan = (key: string, item: number | undefined, value: unknown): void => {
       if (typeof value !== "string" || !value.includes(SCHEME)) {
@@ -322,6 +360,9 @@ export const elementLinks = (
       }
       for (const link of found.unresolved) {
         unresolvedLinks.push({ target: link.target, ...stored(link), line: lineOf(link.line), ...at });
+      }
+      for (const definition of found.definitions) {
+        referenceDefinitions.push({ ...definition, line: lineOf(definition.line), ...at });
       }
     };
     for (const [key, value] of Object.entries(data)) {
@@ -349,8 +390,11 @@ export const elementLinks = (
     for (const bare of found.bare) {
       bareReferences.push({ target: bare.target, line: before + bare.line });
     }
+    for (const definition of found.definitions) {
+      referenceDefinitions.push({ ...definition, line: before + definition.line });
+    }
   }
-  return { references, propertyReferences, unresolvedLinks, bareReferences };
+  return { references, propertyReferences, unresolvedLinks, bareReferences, referenceDefinitions };
 };
 
 /**

@@ -119,6 +119,49 @@ describe("element.update", () => {
     expect(emptied(await update(opened, { ref: WIND.id, text: "Back.\n" }))).toEqual([]);
   });
 
+  it("warns when the update empties a Markdown property that was not empty, and only then (#841)", async () => {
+    const opened = await open();
+    const emptied = (out: Output): unknown[] =>
+      (out.problems ?? []).filter((p) => p.code === "element.text-emptied");
+    expect(emptied(await update(opened, { ref: WIND.id, set: { rationale: "Pilots need it" } }))).toEqual([]);
+    expect(emptied(await update(opened, { ref: WIND.id, set: { rationale: "" } }))).toEqual([
+      {
+        code: "element.text-emptied",
+        severity: "warning",
+        message: `Property Rationale (rationale) of element ${WIND.id} was not empty and is now empty; restore it from Git if this was not intended`,
+        repository: "system",
+        file: WIND.file,
+        elementId: WIND.id,
+        elementShortId: "SR-e88fb3",
+        key: "rationale",
+      },
+    ]);
+    // Emptied again (null), or a value given again: no warning.
+    expect(emptied(await update(opened, { ref: WIND.id, set: { rationale: null } }))).toEqual([]);
+    expect(emptied(await update(opened, { ref: WIND.id, set: { rationale: "Back" } }))).toEqual([]);
+  });
+
+  it("warns when the update empties a list property, by set or unset, but not a single value (#841)", async () => {
+    const opened = await open();
+    const emptiedKeys = (out: Output): unknown[] =>
+      (out.problems ?? []).filter((p) => p.code === "element.text-emptied").map((p) => p.key);
+    expect(
+      emptiedKeys(
+        await update(opened, {
+          ref: GUSTS.id,
+          set: { "acceptance-criteria": [], "requirement-type": null },
+        }),
+      ),
+    ).toEqual(["acceptance-criteria"]);
+    await update(opened, {
+      ref: GUSTS.id,
+      set: { "acceptance-criteria": ["Given a gust, then it is shown."] },
+    });
+    expect(emptiedKeys(await update(opened, { ref: GUSTS.id, unset: ["acceptance-criteria"] }))).toEqual([
+      "acceptance-criteria",
+    ]);
+  });
+
   it("[SR-002/AK2] keeps the UUID when title and text change", async () => {
     const opened = await open();
     const out = await update(opened, { ref: WIND.id, title: "Show wind", text: "New text.\n" });
