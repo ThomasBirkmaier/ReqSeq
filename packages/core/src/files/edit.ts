@@ -11,6 +11,7 @@ import { Scalar, isCollection, isMap, isScalar, isSeq, parseDocument } from "yam
 import type { CST, Node, Pair, YAMLSeq } from "yaml";
 import { CommandError } from "../catalog.js";
 import type { LineEnding } from "./frontmatter.js";
+import type { ParsedContent } from "./parse.js";
 import { parseFileBytes } from "./parse.js";
 import type { ItemValue, PropertyValue, ScalarValue } from "./yaml-text.js";
 import {
@@ -63,6 +64,11 @@ type ScalarEdit = Extract<FrontmatterEdit, { readonly kind: "set-scalar" }>;
 
 /** The texts of a read file the writer needs; a `ParsedFile` fits. */
 export interface EditableFile {
+  /**
+   * The file's path relative to its root (a `ParsedFile` has it): the name of the file in the
+   * warnings of `FileEditResult.parsed`; `(edited file)` without it.
+   */
+  readonly path?: string;
   /** Raw YAML between the `---` lines: empty or ending with a line break. */
   readonly frontmatter: string;
   readonly body: string;
@@ -84,6 +90,12 @@ export interface FileEditResult {
   readonly bytes: Uint8Array;
   /** False when nothing changed; the caller then need not write. */
   readonly changed: boolean;
+  /**
+   * When the bytes changed: what `parseFileBytes(file.path, bytes)` gives for them, which the check
+   * of the result has parsed, so a caller that reads the new bytes back needs no parse of its own
+   * (N-036, `writtenElement`).
+   */
+  readonly parsed?: ParsedContent;
 }
 
 type BlockMapItem = CST.BlockMap["items"][number];
@@ -616,13 +628,14 @@ const planFrontmatter = (file: EditableFile, request: FileEditRequest): Plan => 
   return { frontmatter: out, expected };
 };
 
-/** Parses the result again: it must be readable and hold exactly the intended data and text. */
+/** Parses the result again: it must be readable and hold exactly the intended data and text. Gives what it parsed. */
 const verify = (
+  file: string,
   bytes: Uint8Array,
   expected: Readonly<Record<string, unknown>> | null,
   body: string,
-): void => {
-  const outcome = parseFileBytes("(edited file)", bytes);
+): ParsedContent => {
+  const outcome = parseFileBytes(file, bytes);
   if (outcome.kind !== "parsed") {
     if (outcome.kind === "problem" && outcome.problem.code === "file.conflict-markers") {
       throw invalid("Not written: the text contains a Git conflict (<<<<<<<, =======, >>>>>>> lines)");
@@ -642,6 +655,7 @@ const verify = (
       "Not written: the edit would change other values too (for example through a YAML alias, or a `|+` block scalar at the end of the frontmatter)",
     );
   }
+  return outcome.content;
 };
 
 const LINE_BREAKS = /\r?\n/g;
@@ -670,8 +684,8 @@ export const editElementFile = (file: EditableFile, request: FileEditRequest): F
   const text = `${file.bom ? BOM : ""}${DELIMITER}${file.eol}${plan.frontmatter}${DELIMITER}${closing}${body}`;
   const changed = plan.frontmatter !== file.frontmatter || body !== file.body;
   const bytes = new TextEncoder().encode(text);
-  if (changed) {
-    verify(bytes, plan.expected, body);
+  if (!changed) {
+    return { bytes, changed };
   }
-  return { bytes, changed };
+  return { bytes, changed, parsed: verify(file.path ?? "(edited file)", bytes, plan.expected, body) };
 };

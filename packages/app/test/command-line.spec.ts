@@ -296,6 +296,57 @@ test.describe("the command prompt", () => {
       await window.keyboard.press("Escape");
       await expect(label(window)).toHaveCount(0);
     });
+
+    test("Bulk update with confirm yes writes only after its preview was shown, with its plan (#836)", async () => {
+      running = await launchApp(FIXTURE);
+      const { window } = running;
+      const rationale = async (): Promise<unknown> =>
+        (
+          JSON.parse((await running.cli(["element", "get", "SR-0000b1"])).stdout) as {
+            readonly element: { readonly properties: Readonly<Record<string, unknown>> };
+          }
+        ).element.properties["rationale"];
+      const confirmed = async (): Promise<void> => {
+        // The system requirements: a list with a selection (the list of all elements has none).
+        await listAll(window);
+        await command(window, "Filter list by type");
+        await expect(label(window)).toHaveText("Type");
+        await window.keyboard.type("system-requirement");
+        await expect(names(window).first()).toHaveText("system-requirement");
+        await window.keyboard.press("Enter");
+        await expect(window.getByRole("listbox", { name: "type: system-requirement" })).toBeVisible();
+        await command(window, "Bulk update elements");
+        await window.keyboard.type("Rationale");
+        await expect(names(window).first()).toHaveText("Rationale");
+        await window.keyboard.press("Enter");
+        await window.keyboard.type("set");
+        await expect(names(window).first()).toHaveText("set");
+        await window.keyboard.press("Enter");
+        await expect(label(window)).toHaveText("Bulk update elements Rationale set · value:");
+        await window.keyboard.type("Previewed first");
+        await window.keyboard.press("ControlOrMeta+Enter");
+        await expect(label(window)).toContainText("more arguments:");
+        await window.keyboard.type("confirm");
+        await expect(names(window).first()).toHaveText("confirm");
+        await window.keyboard.press("Enter");
+        await window.keyboard.type("yes");
+        await expect(names(window).first()).toHaveText("yes");
+        await window.keyboard.press("Enter");
+        await expect(names(window).first()).toHaveText("Run");
+        await window.keyboard.press("Enter");
+      };
+      await confirmed();
+      // No preview was shown: the preview is, and nothing is written.
+      await expect(window.locator(".minibuffer .echo")).toHaveText(
+        "Bulk update elements: nothing was written; confirm again to write what the preview shows",
+      );
+      await expect(window.locator(".result")).toContainText("plan");
+      expect(await rationale()).toBeUndefined();
+      // The same change again, with its preview open: written.
+      await confirmed();
+      await expect(window.locator(".result")).toContainText("applied");
+      await expect.poll(rationale).toBe("Previewed first");
+    });
   });
 });
 

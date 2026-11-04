@@ -776,3 +776,49 @@ describe("element.bulkUpdate plan (#158)", () => {
     expect(await texts(fixture.root)).toEqual(before);
   });
 });
+
+// Follow-ups of #158 (#836): a blank value and the hint of a removed required property.
+describe("element.bulkUpdate blank values and hints (#836)", () => {
+  const B8 = id("b8");
+  /** A blank criterion. */
+  const HAND: FixtureOptions = {
+    fixture: "SR-069/filter",
+    files: {
+      "requirements/SR-0000000000b8.md": `---\nid: ${B8}\ntype: system-requirement\nstatus: draft\ntitle: Blank criterion\nrequirement-type: functional\nacceptance-criteria: "  "\n---\n`,
+    },
+  };
+
+  it("adds to a blank value as to no value: the item is the only one", async () => {
+    const { fixture, workspace } = await open(HAND);
+    const out = await bulk(workspace, {
+      selection: { ids: [B8] },
+      property: "acceptance-criteria",
+      operation: "add",
+      value: ["Given two, then it holds."],
+      confirm: true,
+    });
+    expect(out.count).toBe(1);
+    expect((await texts(fixture.root))["requirements/SR-0000000000b8.md"]).toContain(
+      "\nacceptance-criteria:\n  - Given two, then it holds.\n---\n",
+    );
+  });
+
+  it("names a required property that the change leaves without a value (element.missing-required)", async () => {
+    const { workspace } = await open();
+    const out = await bulk(workspace, {
+      selection: { ids: [B1, N1] },
+      property: "acceptance-criteria",
+      operation: "remove",
+    });
+    expect(ids(out.affected)).toEqual([B1]);
+    expect(out.problems).toEqual([
+      expect.objectContaining({
+        code: "element.missing-required",
+        severity: "warning",
+        file: FILES[B1],
+        elementId: B1,
+        elementShortId: "SR-0000b1",
+      }),
+    ]);
+  });
+});
