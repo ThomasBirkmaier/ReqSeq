@@ -3,6 +3,8 @@
 // one target), also after the state was carried over a save or a watcher batch, and after images
 // changed on disk, which the watcher does not report.
 import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
@@ -21,8 +23,10 @@ import {
   currentVersionOf,
 } from "./current-versions.js";
 import type { ElementRecord } from "./elements.js";
+import type { LoadedVersion } from "./loaded-version.js";
 import { classifyFile } from "./elements.js";
 import { embeddedImages } from "./images.js";
+import { RACY_MS } from "./model-cache.js";
 import { applyStoreChange, elementStoreState, ignoredBy, loadedVersionsOf, updateElements } from "./store.js";
 import { elementVersion } from "./view.js";
 import { createElement, updateElement } from "./write.js";
@@ -403,5 +407,91 @@ describe("images checked on use (the watcher does not report them, ADR-0008)", (
     );
     expect([...versions.byRecord.values()].some((v) => v.kind === "unknown")).toBe(true);
     expect(await checkImages(versions)).toBe(versions);
+  });
+});
+
+describe("the versions of the model cache after a metamodel change (#755)", () => {
+  /** Sets every file a minute back and waits until their change times lie `RACY_MS` back (model-cache.test.ts). */
+  const settle = async (root: string): Promise<void> => {
+    const when = new Date(Date.now() - 60_000);
+    let latest = 0;
+    for (const entry of await fs.readdir(root, { recursive: true, withFileTypes: true })) {
+      if (entry.isFile()) {
+        const file = path.join(entry.parentPath, entry.name);
+        await fs.utimes(file, when, when);
+        latest = Math.max(latest, (await fs.lstat(file)).ctimeMs);
+      }
+    }
+    await new Promise((resolve) => setTimeout(resolve, Math.max(0, latest + RACY_MS + 200 - Date.now())));
+  };
+
+  /** Opens the workspace with `cacheFolder`, builds its current versions and closes it (waiting for the saves). */
+  const start = async (
+    root: string,
+    cacheFolder: string,
+  ): Promise<{ versions: CurrentVersions; read: string[] }> => {
+    const workspace = new Workspace(root, { cacheFolder });
+    try {
+      vi.mocked(files.readElementBodySync).mockClear();
+      const versions = await currentVersions(workspace);
+      const read = vi.mocked(files.readElementBodySync).mock.calls.map(([, file]) => file);
+      return { versions, read };
+    } finally {
+      await workspace.close();
+    }
+  };
+
+  const byFile = (versions: CurrentVersions): Record<string, string | undefined> =>
+    Object.fromEntries(
+      versions.store.elements.map((r) => [`${r.repository}/${r.file}`, currentVersionOf(versions, r)]),
+    );
+
+  it("are written again with the versions for the new metamodel, so the next start reads no file for them", async () => {
+    const fixture = await createFixtureWorkspace({ fixture: "SR-019/findings", files: PICTURES });
+    onTestFinished(() => fixture.cleanup());
+    const cacheFolder = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-relearn-"));
+    onTestFinished(() => fs.rm(cacheFolder, { recursive: true, force: true }));
+    const model = await fs.readFile(fixture.path("metamodel/model.yaml"), "utf8");
+    await settle(fixture.root);
+    // The first start writes the cache; the second takes every file from it.
+    await start(fixture.root, cacheFolder);
+    const cached = await start(fixture.root, cacheFolder);
+    expect(cached.read).toEqual(["pictures/N-c00000000001.md"]);
+    // The title counts now: every cached version is of the old metamodel and is read again once.
+    await fixture.write(
+      "metamodel/model.yaml",
+      model.replace(
+        "{ key: title, name: Title, kind: text, meaning: title }",
+        "{ key: title, name: Title, kind: text, meaning: title, content: true }",
+      ),
+    );
+    const changed = await start(fixture.root, cacheFolder);
+    expect(changed.read.length).toBe(changed.versions.store.elements.length);
+    expect(byFile(changed.versions)).not.toEqual(byFile(cached.versions));
+    // The next start takes them from the cache again, with the same versions.
+    const again = await start(fixture.root, cacheFolder);
+    expect(again.read).toEqual(["pictures/N-c00000000001.md"]);
+    expect(byFile(again.versions)).toEqual(byFile(changed.versions));
+  });
+
+  it("collects no version for a file read again whose loaded version has the current fingerprint", async () => {
+    const { fixture, workspace } = await open();
+    const store = await workspace.get(elementStoreState);
+    const record = await recordOf(workspace, "needs/N-a00000000001.md");
+    expect(loadedVersionsOf(store).has(record)).toBe(true);
+    // Another time, the same bytes: the file is read, and its version is the loaded one.
+    const later = new Date(record.snapshot.mtimeMs + 2000);
+    await fs.utimes(fixture.path(record.file), later, later);
+    vi.mocked(files.readElementBodySync).mockClear();
+    const relearned = new Map<ElementRecord, LoadedVersion>();
+    const versions = await buildCurrentVersions(
+      store,
+      await workspace.get(workspaceLayoutState),
+      await workspace.get(metamodelState),
+      relearned,
+    );
+    expect(vi.mocked(files.readElementBodySync).mock.calls.map(([, file]) => file)).toContain(record.file);
+    expect(currentVersionOf(versions, record)).toBe(loadedVersionsOf(store).get(record)?.byForm["n1"]);
+    expect(relearned.size).toBe(0);
   });
 });
