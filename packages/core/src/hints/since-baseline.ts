@@ -395,6 +395,7 @@ const findingOf = (
       file: variant.file,
       elementId: variant.id,
       targetId: core.id,
+      targetRepository: core.repository,
       ...(current === undefined ? {} : { currentVersion: current }),
     },
   };

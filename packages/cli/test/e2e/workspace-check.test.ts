@@ -262,7 +262,7 @@ describe("findings handed over to workspace check", () => {
     // D only derives from A: it is no element of the cycle.
     expect(output.problems.map((p) => p.elementId)).not.toContain(`${CYCLE}4`);
     expect(human.stdout).toContain(
-      "warning  trace.cycle  system:requirements/SR-0b0000000002.md:10  System Requirement SR-000002 is in a cycle of derivations with 3 elements (System Requirement SR-b0000000001, System Requirement SR-000002, System Requirement SR-000003): its relation Derives from to System Requirement SR-000003 leads back to it  (element SR-000002)\n",
+      "warning  trace.cycle  system:requirements/SR-0b0000000002.md:10  System Requirement SR-000002 is in a cycle of derivations with 3 elements (System Requirement SR-b0000000001, System Requirement SR-000002, System Requirement SR-000003): its relation Derives from to System Requirement SR-000003 leads back to it  (element SR-000002)  (target SR-000003)\n",
     );
   });
 
@@ -357,7 +357,7 @@ describe("outdated relations in workspace check (SR-025)", () => {
       ),
     ]);
     expect(human.stdout).toContain(
-      `warning  relation.outdated  system:requirements/SR-0b0000000001.md:12  Relation Derives from (derives-from) of System Requirement SR-b0000000001 points to an older version of Need N-a0000000001: stored version from ${stored}, current version from ${current}  (element SR-b0000000001)\n`,
+      `warning  relation.outdated  system:requirements/SR-0b0000000001.md:12  Relation Derives from (derives-from) of System Requirement SR-b0000000001 points to an older version of Need N-a0000000001: stored version from ${stored}, current version from ${current}  (element SR-b0000000001)  (target N-a0000000001)\n`,
     );
   });
 

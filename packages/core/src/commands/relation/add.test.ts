@@ -378,6 +378,8 @@ describe("relation.add gives a stored target without a valid version its current
     elementId: MIGRATED.id,
     elementShortId: "SR-fffff1",
     targetId: NEED.id,
+    targetRepository: "system",
+    targetShortId: "N-aaaaa1",
     currentVersion: version,
   });
 
@@ -485,7 +487,13 @@ describe("relation.add shows a hint when a derivation closes a cycle (SR-067 AK3
     file: source.file,
     elementId: source.id,
     elementShortId: name(source === A ? 1 : 4).replace(/^.* /, ""),
-    ...(target === undefined ? {} : { targetId: target.id }),
+    ...(target === undefined
+      ? {}
+      : {
+          targetId: target.id,
+          targetRepository: "system",
+          targetShortId: name(target === A ? 1 : 4).replace(/^.* /, ""),
+        }),
     line,
   });
 
@@ -599,6 +607,66 @@ describe("relation.add shows a hint when a derivation closes a cycle (SR-067 AK3
     // A supersedes D, which derives from A: no derivation, so no cycle.
     expect(await add(opened, { source: A.id, kind: "supersedes", target: D.id })).toEqual({
       files: [A.file],
+      problems: [],
+    });
+  });
+});
+
+describe("relation.add saves a relation over a limit and shows the hint of the check (SR-152 AK3)", () => {
+  /** fixtures/SR-152/limits: a system requirement derives from at most one use case, at least one need. */
+  const LIMITS: FixtureOptions = { fixture: "SR-152/limits" };
+  const L = "15200000-0000-4000-8000-000000";
+  const LOGGED = { id: `${L}c00003`, file: "requirements/SR-000000c00003.md" };
+
+  it("[SR-152/AK3] writes a relation over the maximum and returns the hint of AK1 with its line", async () => {
+    const opened = await open(LIMITS);
+    const before = await read(opened, LOGGED.file);
+    const out = await add(opened, { source: LOGGED.id, kind: "derives-from", target: `${L}b00001` });
+    expect(out).toEqual({
+      files: [LOGGED.file],
+      problems: [
+        {
+          code: "relation.too-many",
+          severity: "warning",
+          message:
+            "System Requirement SR-c00003 has 2 relations Derives from (derives-from) to Use Case (use-case); at most 1",
+          repository: "system",
+          file: LOGGED.file,
+          elementId: LOGGED.id,
+          elementShortId: "SR-c00003",
+          key: "derives-from",
+          targetType: "use-case",
+          count: 2,
+          limit: 1,
+          line: 6,
+        },
+      ],
+    });
+    expect(lineDiff(before, await read(opened, LOGGED.file)).added).toEqual([
+      expect.stringMatching(
+        new RegExp(`^ {2}- \\{ id: ${L}b00001, version: n1:[0-9a-f]{16}, title: Read the wind \\}$`),
+      ),
+    ]);
+  });
+
+  it("gives no count hint for a relation within its limits, nor the hint on another target type again", async () => {
+    const opened = await open({
+      ...LIMITS,
+      files: { "needs/N-000000a00002.md": element(`${L}a00002`, "need", "Wind logged") },
+    });
+    // Within the limit: the first need of SR-c00003.
+    expect(await add(opened, { source: LOGGED.id, kind: "derives-from", target: `${L}a00001` })).toEqual({
+      files: [LOGGED.file],
+      problems: [],
+    });
+    // SR-c00002 still lacks a need: a too-few is not a hint of relation.add.
+    expect(await add(opened, { source: `${L}c00002`, kind: "derives-from", target: `${L}b00001` })).toEqual({
+      files: ["requirements/SR-000000c00002.md"],
+      problems: [],
+    });
+    // SR-c00001 is over the use-case limit already; a second need does not repeat that hint.
+    expect(await add(opened, { source: `${L}c00001`, kind: "derives-from", target: `${L}a00002` })).toEqual({
+      files: ["requirements/SR-000000c00001.md"],
       problems: [],
     });
   });

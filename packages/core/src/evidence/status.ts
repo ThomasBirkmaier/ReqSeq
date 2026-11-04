@@ -15,8 +15,12 @@
 //   Nachweis verweist immer auf ein Requirement"), in the core and each variant whose view holds
 //   them (the view rule, SR-040, SR-043; `ViewScope` of `indirect.ts`). While the metamodel is not valid the records are not compared (the
 //   versions follow the metamodel): every requirement is `open`, as without records.
-// The validation status (SR-038, `validationStatusOf`) follows the same record rule for the records of
-// kind `validation` of the core.
+// The validation status (SR-038, `validationOf`) follows the same record rule for the records of
+// kind `validation` of the core. A validation record may be `inconclusive` (SR-172 AK2): newest of the
+// current version, it gives `inconclusive` with its `reason`; on a tie at the newest date `failed`
+// comes before `inconclusive` before `passed` (spec question #807 Q3, assumption). A verification
+// record is never inconclusive (the format refuses it, #807 Q2); one given otherwise counts as a
+// record of no current version.
 // The indirect verification of a requirement without own record (SR-034) is `indirect.ts`; the state
 // that commands and the filter share is `verification.ts`.
 import type { DataExportElement, ValidationStatus, VerificationStatus } from "../generated/types.js";
@@ -31,7 +35,7 @@ import { instantOf } from "./by-element.js";
 import type { EvidenceRecord } from "./record.js";
 
 /** What the records of one kind say about an element in a view, before it is named for its kind. */
-export type RecordStatus = "open" | "passed" | "failed" | "outdated";
+export type RecordStatus = "open" | "passed" | "failed" | "inconclusive" | "outdated";
 
 /**
  * The verification status computed from records alone; `indirect` comes from the children (SR-034,
@@ -45,6 +49,19 @@ export type VerificationEntries = NonNullable<DataExportElement["verification"]>
 /** Whether `record` holds in `view`: the core without variant, a variant for that variant (SR-047). */
 export const holdsIn = (record: Pick<EvidenceRecord, "variant">, view: View): boolean =>
   record.variant === (view.kind === "core" ? undefined : view.variant.id);
+
+/**
+ * Whether `record` (of `kind`) is a record of the `current` version that decides: an inconclusive one
+ * only for validation (see the file comment).
+ */
+const ofVersion = (
+  record: EvidenceRecord,
+  kind: EvidenceRecord["kind"],
+  current: string | undefined,
+): boolean =>
+  current !== undefined &&
+  record.version === current &&
+  (kind === "validation" || record.result !== "inconclusive");
 
 /**
  * What the records of `kind` of one element say in `view`, measured against its `current` version
@@ -61,24 +78,30 @@ export const recordStatusOf = (
   let newest = Number.NEGATIVE_INFINITY;
   let ofCurrent = false;
   let failed = false;
+  let inconclusive = false;
   for (const record of records) {
     if (record.kind !== kind || !holdsIn(record, view)) {
       continue;
     }
     counted = true;
-    if (current === undefined || record.version !== current) {
+    if (!ofVersion(record, kind, current)) {
       continue;
     }
+    ofCurrent = true;
     const time = instantOf(record.date);
-    if (!ofCurrent || time > newest) {
+    if (time < newest) {
+      continue;
+    }
+    if (time > newest) {
       newest = time;
       failed = false;
+      inconclusive = false;
     }
-    ofCurrent = true;
-    failed ||= time === newest && record.result === "failed";
+    failed ||= record.result === "failed";
+    inconclusive ||= record.result === "inconclusive";
   }
   if (ofCurrent) {
-    return failed ? "failed" : "passed";
+    return failed ? "failed" : inconclusive ? "inconclusive" : "passed";
   }
   return counted ? "outdated" : "open";
 };
@@ -90,10 +113,45 @@ export const verificationStatusOf = (
   view: View,
 ): RecordVerificationStatus => {
   const status = recordStatusOf(records, "verification", current, view);
-  return status === "passed" ? "verified" : status;
+  // `recordStatusOf` gives `inconclusive` for validation records only (see the file comment).
+  return status === "passed" ? "verified" : (status as RecordVerificationStatus);
 };
 
 const CORE: View = Object.freeze({ kind: "core" });
+
+/** The validation status of an element and, when it is `inconclusive`, the reason of the deciding record (SR-172 AK2). */
+export interface Validation {
+  readonly status: ValidationStatus;
+  readonly reason?: string;
+}
+
+/** Whether `record` is a validation record of the core for `current` (`validationOf`). */
+const validatesCurrent = (record: EvidenceRecord, current: string | undefined): boolean =>
+  record.kind === "validation" && holdsIn(record, CORE) && record.version === current;
+
+/**
+ * The reason of an `inconclusive` validation (SR-172 AK2): the first inconclusive record, in the
+ * order of `records`, among the newest validation records of the core for `current`. Only asked
+ * when `recordStatusOf` gave `inconclusive`, so such a record exists.
+ */
+const reasonOf = (records: readonly EvidenceRecord[], current: string | undefined): string | undefined => {
+  let newest = Number.NEGATIVE_INFINITY;
+  let reason: string | undefined;
+  for (const record of records) {
+    if (!validatesCurrent(record, current)) {
+      continue;
+    }
+    const time = instantOf(record.date);
+    if (time > newest) {
+      newest = time;
+      reason = undefined;
+    }
+    if (time === newest && reason === undefined && record.result === "inconclusive") {
+      reason = record.reason;
+    }
+  }
+  return reason;
+};
 
 /**
  * The validation status of an element from its records (SR-038, ADR-0012 "Status rules"): the
@@ -101,16 +159,18 @@ const CORE: View = Object.freeze({ kind: "core" });
  * validation record with one, SR-038 AK4, so this guards records given otherwise) by the rule of
  * `recordStatusOf`, `passed` named `validated` (AK3). Records only of other versions give
  * `outdated` (AK2, AK3), none gives `open` (AK3). Verification records never count (D-007, AK1).
+ * `inconclusive` comes with the reason of the deciding record (SR-172 AK2).
  */
-export const validationStatusOf = (
-  records: readonly EvidenceRecord[],
-  current: string | undefined,
-): ValidationStatus => {
+export const validationOf = (records: readonly EvidenceRecord[], current: string | undefined): Validation => {
   const status = recordStatusOf(records, "validation", current, CORE);
-  return status === "passed" ? "validated" : status;
+  if (status === "inconclusive") {
+    const reason = reasonOf(records, current);
+    return reason === undefined ? { status } : { status, reason };
+  }
+  return { status: status === "passed" ? "validated" : status };
 };
 
-/** Whether `records` hold a validation record that counts (`validationStatusOf`: the core's). */
+/** Whether `records` hold a validation record that counts (`validationOf`: the core's). */
 export const hasValidationRecord = (records: readonly EvidenceRecord[]): boolean =>
   records.some((r) => r.kind === "validation" && holdsIn(r, CORE));
 

@@ -75,7 +75,9 @@ const findingsOf = (context: SupersededContext, scope: Scope, record: ElementRec
       repository: record.repository,
       file: record.file,
       elementId: record.id,
-      ...(match?.kind === "found" ? { targetId: match.element.id } : {}),
+      ...(match?.kind === "found"
+        ? { targetId: match.element.id, targetRepository: match.element.repository }
+        : {}),
     };
     return { element: record, path, problem };
   });

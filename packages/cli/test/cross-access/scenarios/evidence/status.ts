@@ -1,5 +1,6 @@
 // Cross-access scenarios of evidence.status, in addition to the default one (cross-access.test.ts).
 import type { FixtureOptions } from "@reqseq/testkit";
+import { expect } from "vitest";
 import { scenariosOf } from "../../scenario.js";
 import { EMERGENT, EVIDENCE, FILTER, VARIANT_EVIDENCE } from "../../fixtures.js";
 
@@ -8,6 +9,9 @@ const INDIRECT: FixtureOptions = { fixture: "SR-034/indirect", git: true };
 
 /** Needs, requirements and a use case with validation and verification records (SR-038). */
 const VALIDATION: FixtureOptions = { fixture: "SR-038/validation", git: true };
+
+/** Needs with inconclusive validation records: current, decided by a newer one, older version, without reason (SR-172). */
+const INCONCLUSIVE: FixtureOptions = { fixture: "SR-172/inconclusive", git: true };
 
 scenariosOf("evidence.status", [
   {
@@ -40,6 +44,25 @@ scenariosOf("evidence.status", [
     fixture: VALIDATION,
     input: {},
     expect: "output",
+  },
+  {
+    name: "an inconclusive validation with its reason as a status of its own (SR-172 AK2)",
+    fixture: INCONCLUSIVE,
+    input: {},
+    tag: "[SR-172/AK2]",
+    expect: "output",
+    check: (results) => {
+      const { elements } = (
+        results["core"]?.outcome as { output: { elements: readonly Record<string, unknown>[] } }
+      ).output;
+      expect(elements.map((e) => [e["shortId"], e["validation"], e["validationReason"]])).toEqual([
+        ["N-00a001", "inconclusive", "The field test needs a winter with frost; none so far."],
+        ["N-00a002", "validated", undefined],
+        ["N-00a003", "inconclusive", "The frost sensor was replaced; the field test starts again."],
+        ["N-00a004", "outdated", undefined],
+        ["N-00a005", "open", undefined],
+      ]);
+    },
   },
   {
     name: "emergent requirements need their own record (SR-035)",

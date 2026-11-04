@@ -126,6 +126,7 @@ export const recordKindProblems = (
       message: `The verification record names element ${record.element} of type ${element.type}, so it counts for no status: a verification record names a requirement (D-012)`,
       ...recordPlace(record),
       targetId: record.element,
+      targetRepository: element.repository,
     });
   }
   return problems;

@@ -223,3 +223,21 @@ describe("relation limits (SR-152)", () => {
     ]);
   });
 });
+
+describe("relation limits in the view of one element (SR-152)", () => {
+  it("element.get gives the count hints of the element with their lines", async () => {
+    const { workspace } = await open();
+    // The count hints only: SR-c00002 has `trace.no-parent` too (SR-022 AK6).
+    const problemsOf = async (ref: string): Promise<unknown> =>
+      (
+        (await invoke("element.get", { ref }, { workspace })) as { element: { problems: Problem[] } }
+      ).element.problems.filter((p) => p.code.startsWith("relation.too-"));
+    // `invoke` adds the short ID of the element to each problem.
+    expect(await problemsOf(SR1)).toEqual([
+      { ...hint("relation.too-many", 1, "use-case", 2, 1, 6), elementShortId: "SR-c00001" },
+    ]);
+    expect(await problemsOf(SR2)).toEqual([
+      { ...hint("relation.too-few", 2, "need", 0, 1), elementShortId: "SR-c00002" },
+    ]);
+  });
+});

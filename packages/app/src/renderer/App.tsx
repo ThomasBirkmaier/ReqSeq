@@ -908,6 +908,9 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       onCopy: copy,
       onOpenTarget: openTarget,
       onOpenRelation: openRelation,
+      onOpenResult: (opened) => {
+        dispatch({ type: "open", buffer: opened });
+      },
       onPickElement: (request) => {
         ask(referencePrompt(context, titles.picking(request)));
       },

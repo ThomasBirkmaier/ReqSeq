@@ -18,6 +18,7 @@ import type { LocatableFinding } from "./locate.js";
 import { findingLine } from "./locate.js";
 import type { RelationKey, TargetItem } from "./relation-keys.js";
 import { hasId, relationItems } from "./relation-keys.js";
+import { relationLimitFindings } from "./relation-limits.js";
 import { relationTypeFindings } from "./relation-types.js";
 import { targetRepository, targetState } from "./relations.js";
 import { requiredFindings } from "./required.js";
@@ -336,7 +337,8 @@ export const listedElement = (input: ListedElementInput, version: string | undef
  * required properties without a value (SR-015, SR-064), values of the wrong kind (SR-085), lists
  * with more entries than `max-items` (SR-171), an
  * identifier another element of its type has (#305),
- * relations between types the metamodel does not allow (SR-086), then relations to superseded
+ * relations between types the metamodel does not allow (SR-086), more or fewer relations of a
+ * kind than its limits allow (SR-152), then relations to superseded
  * elements (SR-072 AK2); no hints while the metamodel is not valid (#208, #220 option 1). The
  * successor relations are relations, not hints, so they are listed also then. Other relations
  * pointing at it and the version date are left out.
@@ -360,6 +362,7 @@ export const elementView = (
         ...itemLimitFindings(record, metamodel),
         ...duplicateIdentifierFindings(record, { metamodel, shortIds }),
         ...relationTypeFindings(record, { store: input.store, metamodel, shortIds }),
+        ...relationLimitFindings(record, { layout: input.layout, store: input.store, metamodel, shortIds }),
         ...supersededFindingsOf({ store: input.store, metamodel, shortIds }, record, input.successionsOf),
         ...(input.extraFindings ?? []),
       ]

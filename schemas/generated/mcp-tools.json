@@ -541,6 +541,18 @@
             "targetId": {
               "$ref": "#/$defs/common/$defs/uuid"
             },
+            "targetRepository": {
+              "type": "string",
+              "description": "Workspace name of the repository the target `targetId` names was resolved in (#172); given when the problem's target is one element there."
+            },
+            "targetShortId": {
+              "$ref": "#/$defs/common/$defs/shortId",
+              "description": "Short ID of the element `targetId` names, for display (#172); given with `targetRepository` when that UUID names one element there, by every command that has read the elements. A missing, ambiguous or unresolved target gets none."
+            },
+            "targetIdentifier": {
+              "type": "string",
+              "description": "Identifier of the element `targetId` names (the value of its property with the meaning `identifier`, #305, #172), for display next to `targetShortId`; given with it when the element has one."
+            },
             "storedVersion": {
               "$ref": "#/$defs/common/$defs/version"
             },
@@ -768,12 +780,13 @@
           ]
         },
         "validationStatus": {
-          "description": "offen, erfolgreich, nicht erfolgreich, veraltet.",
+          "description": "offen, erfolgreich, nicht erfolgreich, veraltet, nicht beurteilbar (SR-172).",
           "enum": [
             "open",
             "validated",
             "failed",
-            "outdated"
+            "outdated",
+            "inconclusive"
           ]
         },
         "reqifObject": {
@@ -1113,7 +1126,11 @@
             },
             "validation": {
               "$ref": "#/$defs/common/$defs/validationStatus",
-              "description": "SR-038: the Validierungsstatus from the validation records of the core (no `variant`) against the element's current version; the newest record of that version decides, only records of older versions give `outdated`. Given for every element whose type has the meaning `need` (`open` without record) and for every other element with a validation record; left out otherwise (assumption, spec question #534). Never inherited from children; never the element's `status` (D-030)."
+              "description": "SR-038: the Validierungsstatus from the validation records of the core (no `variant`) against the element's current version; the newest record of that version decides, only records of older versions give `outdated`. Given for every element whose type has the meaning `need` (`open` without record) and for every other element with a validation record; left out otherwise (assumption, spec question #534). Never inherited from children; never the element's `status` (D-030). `inconclusive` when that record is inconclusive (SR-172 AK2); on a tie at the newest date `failed` before `inconclusive` before `validated` (assumption, spec question #807)."
+            },
+            "validationReason": {
+              "type": "string",
+              "description": "SR-172 AK2: the `reason` of the inconclusive record that decides `validation`; given exactly when `validation` is `inconclusive`."
             },
             "problems": {
               "type": "array",
@@ -1247,8 +1264,15 @@
             "result": {
               "enum": [
                 "passed",
-                "failed"
-              ]
+                "failed",
+                "inconclusive"
+              ],
+              "description": "`inconclusive` (nicht beurteilbar): validation only, with `reason` (SR-172)."
+            },
+            "reason": {
+              "type": "string",
+              "pattern": "\\S",
+              "description": "Begründung of an `inconclusive` validation record (SR-172); given exactly with that result."
             },
             "date": {
               "$ref": "#/$defs/common/$defs/dateTime"
@@ -1306,7 +1330,36 @@
                 "required": [
                   "method",
                   "item"
+                ],
+                "properties": {
+                  "result": {
+                    "not": {
+                      "const": "inconclusive"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "required": [
+                  "result"
+                ],
+                "properties": {
+                  "result": {
+                    "const": "inconclusive"
+                  }
+                }
+              },
+              "then": {
+                "required": [
+                  "reason"
                 ]
+              },
+              "else": {
+                "properties": {
+                  "reason": false
+                }
               }
             }
           ],
@@ -1608,8 +1661,15 @@
         "result": {
           "enum": [
             "passed",
-            "failed"
-          ]
+            "failed",
+            "inconclusive"
+          ],
+          "description": "`inconclusive` (nicht beurteilbar): validation only, with `reason` (SR-172)."
+        },
+        "reason": {
+          "type": "string",
+          "pattern": "\\S",
+          "description": "Begründung of an `inconclusive` validation, at least one character that is not white space; required with `inconclusive` and only there (SR-172 AK1). A reader warns about it on another result and reads the record without it (spec question #807)."
         },
         "date": {
           "$ref": "#/$defs/common/$defs/dateTime"
@@ -1639,7 +1699,14 @@
             "required": [
               "method",
               "item"
-            ]
+            ],
+            "properties": {
+              "result": {
+                "not": {
+                  "const": "inconclusive"
+                }
+              }
+            }
           }
         },
         {
@@ -1656,6 +1723,28 @@
           "then": {
             "properties": {
               "variant": false
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "result"
+            ],
+            "properties": {
+              "result": {
+                "const": "inconclusive"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "reason"
+            ]
+          },
+          "else": {
+            "properties": {
+              "reason": false
             }
           }
         }
@@ -3496,6 +3585,17 @@
               null
             ],
             "description": "Whether the given version is the element's current version, computed from its file as it is now (SR-060 AK2): \"current\" or \"outdated\"; \"unknown\" when the element has no version to compare with (a value that counts has no normal form, `.inf` or `.nan`, ADR-0005: `element` comes without `version` and with a `file.faulty` warning that says why, #276); null when no version was given. Strings, not booleans, so a caller that tests the field for truth never takes \"unknown\" for current."
+          },
+          "names": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/common/$defs/elementName"
+            },
+            "description": "The elements the element names by UUID only, as element.get gives them: the variants of `validity`, `replacedBy` and `excludedBy`, the replacements and the views of `verification` (SR-046 AK1/AK2, SR-047 AK3, #588, #456). Left out when it names none."
+          },
+          "incomplete": {
+            "$ref": "#/$defs/common/$defs/incomplete",
+            "description": "A repository of the workspace is not here (SR-006 AK2): replacements, exclusions and records stored there are missing (#456)."
           }
         },
         "additionalProperties": false,
@@ -4304,7 +4404,7 @@
     {
       "name": "relation_add",
       "title": "Create relation",
-      "description": "Add a relation; stores target UUID and current version, plus the title only within the same repository.",
+      "description": "Add a relation; stores target UUID and current version, plus the title only within the same repository. A relation over a limit of the kind is saved too, with a relation.too-many hint.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -5786,7 +5886,7 @@
         "properties": {
           "hints": {
             "type": "array",
-            "description": "The open hints: findings of severity warning about one element (glossary \"Hinweis\": the element should be checked; it blocks nothing and changes no status), from the same whole-workspace findings as workspace.check; errors, info and warnings about no element are not hints. Filters combine with AND. Each hint with its kind (code), the element it is about (elementId, repository, file, line), its target where it has one (targetId) and its reason (message; for an outdated relation with both versions and their dates, D-013). In the order of workspace.check.",
+            "description": "The open hints: findings of severity warning about one element (glossary \"Hinweis\": the element should be checked; it blocks nothing and changes no status), from the same whole-workspace findings as workspace.check; errors, info and warnings about no element are not hints. Filters combine with AND. Each hint with its kind (code), the element it is about (elementId, repository, file, line), its target where it has one (targetId; with targetRepository, targetShortId and targetIdentifier when it was resolved to one element, #172) and its reason (message; for an outdated relation with both versions and their dates, D-013). In the order of workspace.check.",
             "items": {
               "$ref": "#/$defs/common/$defs/problem"
             }
@@ -6242,8 +6342,15 @@
           "result": {
             "enum": [
               "passed",
-              "failed"
-            ]
+              "failed",
+              "inconclusive"
+            ],
+            "description": "`inconclusive` (nicht beurteilbar) for a validation only, with `reason` (SR-172 AK1): without `reason` it is `input.invalid` naming `reason`, for a verification `input.invalid` naming `result`."
+          },
+          "reason": {
+            "type": "string",
+            "pattern": "^(?![\\s\\S]*[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F])[\\s\\S]*\\S[\\s\\S]*$",
+            "description": "Why the validation is inconclusive (Begründung, SR-172): required with the result `inconclusive` and refused with any other (`input.invalid` naming `reason`). At least one character that is not white space, no control characters other than tab, line feed and carriage return."
           },
           "item": {
             "$ref": "#/$defs/common/$defs/item",
@@ -7246,6 +7353,10 @@
                 "validation": {
                   "$ref": "#/$defs/common/$defs/validationStatus",
                   "description": "With withEvidence, for entries of the file (not added or missing) of a type with the meaning need and for any other with a validation record (SR-038, SR-094 AK7): the status at the baseline version from the validation records that count for the baseline, without view. Open without such records."
+                },
+                "validationReason": {
+                  "type": "string",
+                  "description": "With validation `inconclusive`: the `reason` of the record that decides it (SR-172 AK2)."
                 },
                 "validationLater": {
                   "type": "array",

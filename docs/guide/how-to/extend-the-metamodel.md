@@ -136,7 +136,7 @@ relations:
       - { source-type: system-requirement, target-type: need, min: 1 }
 ```
 
-`workspace check` and `hint list` then report an element with more relations than `max` (`relation.too-many`) or fewer than `min` (`relation.too-few`) as a hint with the element, the relation kind, the target type, the count and the limit. Nothing is refused: a relation over the limit is still saved. Only relations whose target is found count, and while a target lies in a repository that is not on this machine, no `relation.too-few` is given. A relation kind without `limits` allows any number, also none.
+`workspace check` and `hint list` then report an element with more relations than `max` (`relation.too-many`) or fewer than `min` (`relation.too-few`) as a hint with the element, the relation kind, the target type, the count and the limit. `element get` shows the hints of the element too. Nothing is refused: `relation add` saves a relation over the limit and returns the `relation.too-many` hint. Only relations whose target is found count, and while a target lies in a repository that is not on this machine, no `relation.too-few` is given. A relation kind without `limits` allows any number, also none.
 
 ### Limit the entries of a list
 

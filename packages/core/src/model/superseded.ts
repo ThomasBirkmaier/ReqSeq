@@ -180,6 +180,7 @@ const findingsOf = (
         file: source.file,
         elementId: source.id,
         targetId: target.id,
+        targetRepository: target.repository,
       };
       return { element: source, path: [kind.key, index], problem };
     });

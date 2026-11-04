@@ -83,6 +83,7 @@ const findingsOfSource = (
       file: source.file,
       elementId: source.id,
       targetId: target.id,
+      targetRepository: target.repository,
     };
     findings.push({ element: source, path, problem });
   }

@@ -257,6 +257,63 @@ describe("SR-028 reading Markdown records", () => {
     });
   });
 
+  it("[SR-172/AK1] reads an inconclusive validation with its reason, and refuses one without at the line of result", () => {
+    const validation = record()
+      .replace("kind: verification", "kind: validation")
+      .replace("method: analysis\n", "")
+      .replace("item: model v3\n", "")
+      .replace("result: failed", "result: inconclusive");
+    const withReason = read(validation.replace("---\n\nText", "reason: No frost yet\n---\n\nText"));
+    expect([withReason.problems, withReason.records[0]?.result, withReason.records[0]?.reason]).toEqual([
+      undefined,
+      "inconclusive",
+      "No frost yet",
+    ]);
+    expect(read(validation)).toEqual({
+      records: [],
+      problems: [
+        {
+          code: "evidence.invalid-record",
+          severity: "error",
+          repository: "results",
+          file: "evidence/r.md",
+          line: 6,
+          message:
+            "Invalid evidence record, not counted: /reason: a record with the result inconclusive needs a reason (SR-172 AK1)",
+        },
+      ],
+    });
+    expect(read(validation.replace("---\n\nText", "reason: ' '\n---\n\nText")).records).toEqual([]);
+  });
+
+  it("refuses an inconclusive verification; a reason on another result is a warning and ignored (#807 Q2, Q4)", () => {
+    const inconclusive = record("reason: no sample").replace("result: failed", "result: inconclusive");
+    expect(read(inconclusive).problems?.map((p) => [p.line, p.severity, p.message])).toEqual([
+      [
+        8,
+        "error",
+        "Invalid evidence record, not counted: /result: only a validation record can be inconclusive, a verification record is passed or failed (SR-172)",
+      ],
+    ]);
+    const passed = read(record("reason: why not"));
+    expect(passed.records[0]).not.toHaveProperty("reason");
+    expect(passed.problems?.map((p) => [p.line, p.severity, p.message])).toEqual([
+      [
+        8,
+        "warning",
+        "The evidence record has a reason, but only a record with the result inconclusive has a reason (SR-172); the record is read without it",
+      ],
+    ]);
+    // An empty, blank or non-text reason, say from a template, is the same warning, and the record counts.
+    for (const reason of ["reason:", "reason: ''", "reason: '  '", "reason: 3"]) {
+      const blank = read(record(reason));
+      expect([blank.records[0]?.result, blank.problems?.map((p) => p.severity)], reason).toEqual([
+        "failed",
+        ["warning"],
+      ]);
+    }
+  });
+
   it("an invalid record gives evidence.invalid-record with the line of the failing key and no record", () => {
     const text = record().replace("result: failed", "result: maybe").replace("item: model v3\n", "");
     expect(read(text)).toEqual({

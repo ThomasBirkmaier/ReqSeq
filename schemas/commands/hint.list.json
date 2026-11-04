@@ -49,7 +49,7 @@
     "properties": {
       "hints": {
         "type": "array",
-        "description": "The open hints: findings of severity warning about one element (glossary \"Hinweis\": the element should be checked; it blocks nothing and changes no status), from the same whole-workspace findings as workspace.check; errors, info and warnings about no element are not hints. Filters combine with AND. Each hint with its kind (code), the element it is about (elementId, repository, file, line), its target where it has one (targetId) and its reason (message; for an outdated relation with both versions and their dates, D-013). In the order of workspace.check.",
+        "description": "The open hints: findings of severity warning about one element (glossary \"Hinweis\": the element should be checked; it blocks nothing and changes no status), from the same whole-workspace findings as workspace.check; errors, info and warnings about no element are not hints. Filters combine with AND. Each hint with its kind (code), the element it is about (elementId, repository, file, line), its target where it has one (targetId; with targetRepository, targetShortId and targetIdentifier when it was resolved to one element, #172) and its reason (message; for an outdated relation with both versions and their dates, D-013). In the order of workspace.check.",
         "items": {
           "$ref": "../common.schema.json#/$defs/problem"
         }

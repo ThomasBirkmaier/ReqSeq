@@ -31,6 +31,7 @@ const findingOf = (context: SupersededContext, item: RuleItem): LocatableFinding
     file: item.source.file,
     elementId: item.source.id,
     targetId: target.id,
+    targetRepository: target.repository,
   };
   return [{ element: item.source, path: item.path, problem }];
 };

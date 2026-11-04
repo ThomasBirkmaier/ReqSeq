@@ -105,6 +105,29 @@ describe("renderProblem", () => {
     ).toBe("warning  relation.outdated  m  (element SR-0b0036, identifier SR-036)\n");
   });
 
+  it("names the target by its short ID and identifier when the problem gives them (#172)", () => {
+    const problem = {
+      severity: "warning",
+      code: "relation.target-superseded",
+      message: "m",
+      elementId: "u1",
+      elementShortId: "D-589cf2",
+      elementIdentifier: "D-017",
+      targetId: "u2",
+      targetShortId: "D-fd8f46",
+    };
+    expect(renderProblem({ ...problem, targetIdentifier: "D-011" })).toBe(
+      "warning  relation.target-superseded  m  (element D-589cf2, identifier D-017)  (target D-fd8f46, identifier D-011)\n",
+    );
+    expect(renderProblem(problem)).toBe(
+      "warning  relation.target-superseded  m  (element D-589cf2, identifier D-017)  (target D-fd8f46)\n",
+    );
+    // A target without a short ID (not in the workspace) stays in the message only.
+    expect(renderProblem({ ...problem, targetShortId: undefined })).toBe(
+      "warning  relation.target-superseded  m  (element D-589cf2, identifier D-017)\n",
+    );
+  });
+
   it("names the repository of the file when the problem has one", () => {
     expect(
       renderProblem({

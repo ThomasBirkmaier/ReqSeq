@@ -141,6 +141,7 @@ const problemOf = (
   file: element.file,
   elementId: element.id,
   targetId: target.id,
+  targetRepository: target.repository,
   storedVersion: versions.stored,
   currentVersion: versions.current,
   hintId,

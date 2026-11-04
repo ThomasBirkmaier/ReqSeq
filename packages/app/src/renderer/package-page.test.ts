@@ -1,10 +1,11 @@
 import type { MetamodelGetOutput } from "@reqseq/core";
 import { describe, expect, it, vi } from "vitest";
-import { DEFAULT_SORT, elementBuffer } from "./buffers.js";
+import { DEFAULT_SORT, NO_ROW, elementBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
 import type { BufferData } from "./modeline.js";
 import {
   askPackageSummary,
+  coverageBuffer,
   memberCount,
   memberList,
   memberSummary,
@@ -120,6 +121,7 @@ describe("package page", () => {
     expect(await askPackageSummary(call as unknown as Call, "uuid-p")).toEqual({
       ok: true,
       line: "Coverage 8 of 10 with evidence · Degree 60 % (6 verified, 1 failed, 1 outdated, 2 open) · incomplete: a repository is missing",
+      coverage: answers["evidence.coverage"],
     });
     expect(call.mock.calls).toEqual([
       ["evidence.coverage", { selection: { package: "uuid-p" } }],
@@ -137,6 +139,7 @@ describe("package page", () => {
     expect(await askPackageSummary(answer(undefined) as unknown as Call, "p")).toEqual({
       ok: true,
       line: undefined,
+      coverage: none["evidence.coverage"].output,
     });
     expect(await askPackageSummary(answer("evidence.coverage") as unknown as Call, "p")).toEqual({
       ok: false,
@@ -145,6 +148,20 @@ describe("package page", () => {
     expect(await askPackageSummary(answer("evidence.degree") as unknown as Call, "p")).toEqual({
       ok: false,
       message: "no evidence.degree",
+    });
+  });
+
+  it("[SR-036/AK2] a click on the line opens core's coverage of the package, one result buffer per package", () => {
+    const coverage = { levels: [{ type: "system-requirement", total: 2, withChildren: 0, elements: {} }] };
+    expect(coverageBuffer("uuid-p", "PKG-1 Stage", coverage as never, 3)).toEqual({
+      kind: "result",
+      key: 'result:evidence.coverage:{"selection":{"package":"uuid-p"}}',
+      command: "evidence.coverage",
+      input: { selection: { package: "uuid-p" } },
+      name: "Show evidence coverage PKG-1 Stage",
+      output: coverage,
+      revision: 3,
+      cursor: NO_ROW,
     });
   });
 });

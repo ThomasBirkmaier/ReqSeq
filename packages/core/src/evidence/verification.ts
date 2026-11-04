@@ -24,7 +24,7 @@
 // the validity of its source changed) moves the core requirements it names in or out of a view, so
 // the carry takes them, with their ancestors, as affected.
 // The state never reads or changes the element's `status` beyond the invalid flag (D-030).
-import type { DataExportElement, ValidationStatus } from "../generated/types.js";
+import type { DataExportElement } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { metamodelState } from "../metamodel/index.js";
 import type {
@@ -70,8 +70,8 @@ import {
 } from "./indirect.js";
 import type { EvidenceRecord } from "./record.js";
 import { insertionOf } from "./state.js";
-import type { StatusSource, VerificationEntries } from "./status.js";
-import { hasValidationRecord, hasValidationStatus, statusSource, validationStatusOf } from "./status.js";
+import type { StatusSource, Validation, VerificationEntries } from "./status.js";
+import { hasValidationRecord, hasValidationStatus, statusSource, validationOf } from "./status.js";
 
 /**
  * The verification entries of `element` (`$defs/element` `verification`): the core and each variant
@@ -136,9 +136,9 @@ export interface WorkspaceStatus {
    * The validation status of `element` (SR-038): for a need, and for any other element with a
    * counted validation record (#534 assumption); undefined otherwise. Measured against `shown.current`
    * when given (also when that is undefined, #276), else against the version read by `prepare`
-   * (`own`); `shown` is never kept.
+   * (`own`); `shown` is never kept. `inconclusive` comes with its reason (SR-172 AK2).
    */
-  readonly validate: (element: ElementRecord, shown?: Shown) => ValidationStatus | undefined;
+  readonly validate: (element: ElementRecord, shown?: Shown) => Validation | undefined;
   /** How many batches of current versions were read so far (tests and measurements, B1 of the plan review). */
   readonly versionBatches: () => number;
 }
@@ -315,7 +315,7 @@ const statusWith = (
       if (!hasValidationStatus(source, element, records)) {
         return undefined;
       }
-      return validationStatusOf(records, shown === undefined ? versions.get(element) : shown.current);
+      return validationOf(records, shown === undefined ? versions.get(element) : shown.current);
     },
     versionBatches: () => batches,
   };
@@ -627,7 +627,8 @@ export const workspaceStatus = async (
 
 /**
  * `element` with its verification entries (`verificationOf`, SR-031, SR-034) and its validation status
- * (`validate`, SR-038), each when it has one, both measured against the `version` it shows.
+ * (`validate`, SR-038), each when it has one, both measured against the `version` it shows; an
+ * `inconclusive` validation with its `validationReason` (SR-172 AK2).
  */
 export const withEvidenceStatus = (
   status: WorkspaceStatus,
@@ -640,6 +641,7 @@ export const withEvidenceStatus = (
   return {
     ...element,
     ...(verification === undefined ? {} : { verification }),
-    ...(validation === undefined ? {} : { validation }),
+    ...(validation === undefined ? {} : { validation: validation.status }),
+    ...(validation?.reason === undefined ? {} : { validationReason: validation.reason }),
   };
 };

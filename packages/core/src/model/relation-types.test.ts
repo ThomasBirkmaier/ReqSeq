@@ -43,6 +43,7 @@ const NEED_PROBLEM: Problem = {
   line: 7,
   elementId: NEED,
   targetId: SR,
+  targetRepository: "system",
 };
 
 const SAFETY_PROBLEM: Problem = {
@@ -55,6 +56,7 @@ const SAFETY_PROBLEM: Problem = {
   line: 8,
   elementId: SAFETY,
   targetId: SR,
+  targetRepository: "system",
 };
 
 const open = async (files: Readonly<Record<string, string>> = {}): Promise<Workspace> => {

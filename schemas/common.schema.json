@@ -223,6 +223,18 @@
         "targetId": {
           "$ref": "#/$defs/uuid"
         },
+        "targetRepository": {
+          "type": "string",
+          "description": "Workspace name of the repository the target `targetId` names was resolved in (#172); given when the problem's target is one element there."
+        },
+        "targetShortId": {
+          "$ref": "#/$defs/shortId",
+          "description": "Short ID of the element `targetId` names, for display (#172); given with `targetRepository` when that UUID names one element there, by every command that has read the elements. A missing, ambiguous or unresolved target gets none."
+        },
+        "targetIdentifier": {
+          "type": "string",
+          "description": "Identifier of the element `targetId` names (the value of its property with the meaning `identifier`, #305, #172), for display next to `targetShortId`; given with it when the element has one."
+        },
         "storedVersion": {
           "$ref": "#/$defs/version"
         },
@@ -435,8 +447,8 @@
       "enum": ["open", "verified", "indirect", "failed", "outdated"]
     },
     "validationStatus": {
-      "description": "offen, erfolgreich, nicht erfolgreich, veraltet.",
-      "enum": ["open", "validated", "failed", "outdated"]
+      "description": "offen, erfolgreich, nicht erfolgreich, veraltet, nicht beurteilbar (SR-172).",
+      "enum": ["open", "validated", "failed", "outdated", "inconclusive"]
     },
     "reqifObject": {
       "description": "An object of a ReqIF file by its IDENTIFIER in the source, with the UUID of its element when there is one (ADR-0013).",

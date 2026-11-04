@@ -187,6 +187,7 @@ const mountView = async (
       onEcho: (message) => echoed.push(message),
       onCopy: () => undefined,
       onOpenRelation: () => undefined,
+      onOpenResult: () => undefined,
       onOpenTarget: () => undefined,
       onPickElement: () => undefined,
       onAsk: (prompt) => asked.push(prompt),

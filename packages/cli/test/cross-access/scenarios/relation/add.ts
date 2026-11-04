@@ -1,4 +1,5 @@
 // Cross-access scenarios of relation.add, in addition to the default one (cross-access.test.ts).
+import { expect } from "vitest";
 import { scenariosOf } from "../../scenario.js";
 
 scenariosOf("relation.add", [
@@ -44,5 +45,21 @@ scenariosOf("relation.add", [
     },
     input: { source: "SR-b0000000004", kind: "derives-from", target: "SR-b0000000001" },
     expect: "output",
+  },
+  {
+    name: "a relation over the maximum of the metamodel is saved, with the hint",
+    fixture: { fixture: "SR-152/limits", git: true },
+    input: { source: "SR-c00003", kind: "derives-from", target: "15200000-0000-4000-8000-000000b00001" },
+    tag: "[SR-152/AK3]",
+    expect: "output",
+    check: (results) => {
+      const { files, problems } = (
+        results["core"]?.outcome as { output: { files: string[]; problems: Record<string, unknown>[] } }
+      ).output;
+      expect(files).toEqual(["requirements/SR-000000c00003.md"]);
+      expect(problems.map((p) => [p["code"], p["targetType"], p["count"], p["limit"], p["line"]])).toEqual([
+        ["relation.too-many", "use-case", 2, 1, 6],
+      ]);
+    },
   },
 ]);

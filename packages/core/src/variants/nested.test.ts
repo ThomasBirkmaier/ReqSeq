@@ -129,6 +129,8 @@ describe("a variant as an element (SR-039)", () => {
         elementId: C,
         elementShortId: "VAR-0000c3",
         targetId: A,
+        targetRepository: "system",
+        targetShortId: "VAR-0000a1",
       },
     ]);
     expect(await failure(opened, "element.bulkUpdate", { ...bulk, confirm: true })).toEqual(
@@ -195,6 +197,8 @@ describe("a variant as an element (SR-039)", () => {
       elementId: B,
       elementShortId: "VAR-0000b2",
       targetId: A,
+      targetRepository: "system",
+      targetShortId: "VAR-0000a1",
     };
     const desert = (line: number, named: string): unknown => ({
       code: "variant.nested",

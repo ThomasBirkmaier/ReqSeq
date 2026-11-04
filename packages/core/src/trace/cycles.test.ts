@@ -127,6 +127,7 @@ describe("cycles in the derivations (SR-090)", () => {
         line: 11,
         elementId: A,
         targetId: B,
+        targetRepository: "system",
       },
       {
         code: "trace.cycle",
@@ -137,6 +138,7 @@ describe("cycles in the derivations (SR-090)", () => {
         line: 10,
         elementId: B,
         targetId: C,
+        targetRepository: "system",
       },
       {
         code: "trace.cycle",
@@ -147,6 +149,7 @@ describe("cycles in the derivations (SR-090)", () => {
         line: 10,
         elementId: C,
         targetId: A,
+        targetRepository: "system",
       },
     ]);
     expect(problems.map((p) => p.elementId)).not.toContain(NEED);
@@ -161,7 +164,12 @@ describe("cycles in the derivations (SR-090)", () => {
       [C, "SR-000003"],
     ]);
     expect(out.problems).toEqual(
-      problems.map((p) => ({ ...p, elementShortId: shortIds.get(p.elementId ?? "") })),
+      problems.map((p) => ({
+        ...p,
+        elementShortId: shortIds.get(p.elementId ?? ""),
+        // The target named by its short ID too (#172).
+        targetShortId: shortIds.get(p.targetId ?? ""),
+      })),
     );
   });
 
@@ -180,6 +188,7 @@ describe("cycles in the derivations (SR-090)", () => {
         line: 9,
         elementId: S,
         targetId: S,
+        targetRepository: "system",
       },
     ]);
   });
