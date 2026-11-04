@@ -452,8 +452,22 @@ describe("updateShortIds (#184)", () => {
     return byId;
   };
 
-  /** UUIDs of no element whose ends lie in the groups above, for `tail`. */
-  const PROBES = ["c1b2c3d4-0000-4000-8000-000003abc123", "aaaaaaaa-aaaa-4aaa-8a02-abcdefabcdef", MOVED_N];
+  /**
+   * UUIDs of no element whose ends lie in the groups above, for `tail`, and every UUID of the steps
+   * below: one that is gone keeps no digits it shared (#215).
+   */
+  const PROBES = [
+    "c1b2c3d4-0000-4000-8000-000003abc123",
+    "aaaaaaaa-aaaa-4aaa-8a02-abcdefabcdef",
+    MOVED_N,
+    PAIR_1,
+    PAIR_2,
+    GROUP_A,
+    GROUP_B,
+    GROUP_C,
+    LONG_X,
+    LONG_Y,
+  ];
 
   /** What a caller can see of short IDs: every element's short ID, what it and longer tails find, probes. */
   const seen = (shortIds: ShortIds, byId: ReadonlyMap<string, readonly ElementRecord[]>): unknown => {
@@ -533,6 +547,25 @@ describe("updateShortIds (#184)", () => {
       expect(seen(shortIds, byId)).toEqual(before);
       byId = next;
       shortIds = updated;
+    }
+  });
+
+  it("forgets the digits a gone UUID shared, also once its closest neighbour is gone too (#215)", async () => {
+    const metamodel = await metamodelOf();
+    // All three end with abc123; the first two share 8 digits at the end.
+    const first = record("a1b2c3d4-0000-4000-8000-000a11abc123", "requirements/1.md");
+    const second = record("b1b2c3d4-0000-4000-8000-000b11abc123", "requirements/2.md");
+    const third = record("c1b2c3d4-0000-4000-8000-0000c2abc123", "requirements/3.md");
+    let byId = byIdOf([first, second, third]);
+    let shortIds = buildShortIds(byId, metamodel);
+    for (const gone of [first, second]) {
+      const next = new Map([...byId].filter(([id]) => id !== gone.id));
+      shortIds = updateShortIds(shortIds, next, [gone.id]);
+      byId = next;
+      const fresh = buildShortIds(byId, metamodel);
+      expect([first, second, third].map((r) => shortIds.tail(r.id))).toEqual(
+        [first, second, third].map((r) => fresh.tail(r.id)),
+      );
     }
   });
 

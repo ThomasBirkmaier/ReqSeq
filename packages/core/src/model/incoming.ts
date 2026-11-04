@@ -46,6 +46,7 @@ import type { RelationKey, TargetItem } from "./relation-keys.js";
 import { hasId, relationKey } from "./relation-keys.js";
 import type { ElementStore, StoreUpdate } from "./store.js";
 import { byPath, carryStoreUpdate, elementStoreState } from "./store.js";
+import { PatchedMap } from "./patched-map.js";
 import type { ValuePath } from "./values.js";
 
 /** A relation in the frontmatter of `source` that points at a target. */
@@ -280,8 +281,9 @@ const carriedList = <T extends IncomingLink>(
 };
 
 /**
- * A copy of `byId` with the lists of the UUIDs in `affected` carried over (`carriedList`); a UUID
- * whose list comes out empty is left out, as a fresh build has no list for it.
+ * `byId` with the lists of the UUIDs in `affected` carried over (`carriedList`), as a patch of it
+ * (`PatchedMap`, #215: O(affected), not a copy of the map); a UUID whose list comes out empty is
+ * left out, as a fresh build has no list for it.
  */
 const carriedMap = <T extends IncomingLink>(
   byId: ReadonlyMap<string, readonly T[]>,
@@ -289,18 +291,14 @@ const carriedMap = <T extends IncomingLink>(
   added: ReadonlyMap<string, readonly T[]>,
   changed: (source: ElementRecord) => boolean,
   before: (a: ElementRecord, b: ElementRecord) => boolean,
-): ReadonlyMap<string, readonly T[]> => {
-  const next = new Map(byId);
-  for (const id of affected) {
-    const links = carriedList(byId.get(id) ?? NONE, added.get(id) ?? NONE, changed, before);
-    if (links.length === 0) {
-      next.delete(id);
-    } else {
-      next.set(id, links);
-    }
-  }
-  return next;
-};
+): ReadonlyMap<string, readonly T[]> =>
+  PatchedMap.patch(
+    byId,
+    [...affected].map((id): [string, readonly T[] | undefined] => {
+      const links = carriedList(byId.get(id) ?? NONE, added.get(id) ?? NONE, changed, before);
+      return [id, links.length === 0 ? undefined : links];
+    }),
+  );
 
 /**
  * The incoming relation index of `update.to`, carried over from `index`, the index of `update.from`
@@ -309,8 +307,8 @@ const carriedMap = <T extends IncomingLink>(
  * every other list and link is kept as the same object. `index` itself is not changed. Each list is
  * in the order a fresh build gives it; the maps themselves may name their UUIDs in another order (a
  * UUID that was not in `index` comes last). The records of the changed files, before and after, are
- * those of `StoreUpdate.ids` that lie in them (`storeUpdate` names the UUIDs of both). Costs a copy
- * of both maps plus the lists of the UUIDs that these records point at (N-036).
+ * those of `StoreUpdate.ids` that lie in them (`storeUpdate` names the UUIDs of both). Costs the lists
+ * of the UUIDs that these records point at; both maps are patches of those of `index` (#215).
  */
 export const carryIncomingIndex = (index: IncomingIndex, update: StoreUpdate): IncomingIndex => {
   const keys = relationKeysOf(index.metamodel);
@@ -375,7 +373,7 @@ export const incomingTo = (index: IncomingIndex, repository: string, id: string)
 /**
  * The most UUIDs a store change may name (`StoreUpdate.ids`, before and after) for the index to be
  * carried over it. The carry runs inside `Workspace.replace`, in the thread that serves commands, and
- * costs a fixed 30 to 50 ms (copying both maps) plus about 0.1 ms per changed record at N-036
+ * costs about 1 ms for one changed file (both maps are patched, `PatchedMap`, #215) plus about 0.1 ms per changed record at N-036
  * (50,000 elements, 200,000 relations, local runs: 0.13 to 0.25 s for 1,000, about 0.2 s for 2,000,
  * 0.3 to 0.4 s for 5,000, 1 s for all), while a build takes 0.3 to 0.5 s. Above the limit the new
  * store gets no index, and the next chain builds it, outside the change (#273). The same 1,000
