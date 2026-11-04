@@ -5,7 +5,13 @@ import { Scalar, isMap, isNode, isScalar } from "yaml";
 import type { Problem } from "../catalog.js";
 import type { FileSnapshot, LineEnding, ParsedContent, ParsedFile } from "../files/index.js";
 import { FRONTMATTER_FIRST_LINE } from "../files/index.js";
-import type { BareReference, PropertyReference, StoredUnresolvedLink, TextReference } from "./references.js";
+import type {
+  BareReference,
+  PropertyReference,
+  ReferenceDefinition,
+  StoredUnresolvedLink,
+  TextReference,
+} from "./references.js";
 import { elementLinks } from "./references.js";
 import { isUuid } from "./uuid.js";
 
@@ -46,6 +52,12 @@ export interface ElementRecord {
    * with their lines in the file; left out when there is none. `workspace.check` reports each.
    */
   readonly bareReferences?: readonly BareReference[];
+  /**
+   * The link reference definitions whose destination is a `reqseq:` link (#844), in the properties
+   * (whatever the key) and then in the text, with their lines in the file; left out when there is
+   * none. A reference-style link counts for nothing; `workspace.check` reports those that count.
+   */
+  readonly referenceDefinitions?: readonly ReferenceDefinition[];
   /**
    * `true` when the text below the frontmatter is empty or only whitespace (#667); left out when it
    * has text. `workspace.check` warns about a requirement with a statement but no text.
@@ -189,6 +201,7 @@ export const classifyFile = (repository: string, file: ParsedFile): Classified =
     propertyReferences: inProperties,
     unresolvedLinks: unresolved,
     bareReferences: bare,
+    referenceDefinitions: definitions,
   } = elementLinks(file.frontmatter, file.body, data, (key, item) => placeOf(file, key, item));
   return {
     kind: "element",
@@ -202,6 +215,7 @@ export const classifyFile = (repository: string, file: ParsedFile): Classified =
       ...(inProperties.length === 0 ? {} : { propertyReferences: inProperties }),
       ...(unresolved.length === 0 ? {} : { unresolvedLinks: unresolved }),
       ...(bare.length === 0 ? {} : { bareReferences: bare }),
+      ...(definitions.length === 0 ? {} : { referenceDefinitions: definitions }),
       ...(file.body.trim() === "" ? { blankText: true } : {}),
       eol,
       closingEol,

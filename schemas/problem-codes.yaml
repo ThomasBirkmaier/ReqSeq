@@ -75,6 +75,9 @@ problems:
   relation.not-a-link:
     cause: The text of an element names an element with the scheme `reqseq:` outside a Markdown link and outside code, for example `reqseq:N-6010df` instead of `[Title](reqseq:N-6010df)`. Only a Markdown link is a reference, so this one counts for nothing, neither for outdated relations nor for the trace.
     remedy: Write it as a Markdown link, `[Title](reqseq:N-6010df)`, and give the text again with element.update, which resolves the target to its UUID and version. If it is no reference, put it in code (`` `reqseq:…` ``).
+  relation.reference-style:
+    cause: "A link reference definition in the text or in a Markdown property has a `reqseq:` destination, for example `[ref]: reqseq:SR-001` for the reference-style link `[Title][ref]`. Only an inline Markdown link is a reference, so such a link counts for nothing, neither for outdated relations nor for the trace (product owner decision, 2026-11-04, #844)."
+    remedy: Write the link inline, `[Title](reqseq:SR-001)`, and give the text again with element.update, which resolves the target to its UUID and version. Then remove the definition.
   relation.inaccessible-target:
     cause: The target of a relation is in a repository of the workspace that is not on this machine. This version does not raise it yet; it shows such targets as not accessible.
     remedy: Clone the repository where the workspace file expects it.

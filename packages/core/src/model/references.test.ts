@@ -256,6 +256,31 @@ describe("references in the properties of the frontmatter (SR-127)", () => {
     ]);
   });
 
+  it("keeps the definitions of reference-style reqseq: links apart, of the properties first, with their lines (#844)", () => {
+    const record = element(
+      [
+        "notes:",
+        "  - plain",
+        "  - '[p]: reqseq:N-1'",
+        "rationale: |-",
+        "  x",
+        "",
+        "  [q]: reqseq:N-2",
+        "",
+      ].join("\n"),
+      ["[t]: reqseq:N-3?version=n1:0000000000000000", "[empty]: reqseq:", "[web]: https://e.org", ""].join(
+        "\n",
+      ),
+    );
+    expect(record.referenceDefinitions).toEqual([
+      { label: "p", target: "N-1", line: 6, key: "notes", item: 1 },
+      { label: "q", target: "N-2", line: 10, key: "rationale" },
+      { label: "t", target: "N-3?version=n1:0000000000000000", line: 12 },
+    ]);
+    expect(record.unresolvedLinks).toBeUndefined();
+    expect(Object.hasOwn(element("", "[x](reqseq:N-2)\n"), "referenceDefinitions")).toBe(false);
+  });
+
   it("keeps the reqseq: references of the text outside links and code apart, with their lines, and none of the properties (#633)", () => {
     const record = element(
       "notes: Like reqseq:N-1f2a4c.\n",
