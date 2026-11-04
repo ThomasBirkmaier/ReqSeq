@@ -17,6 +17,9 @@
 //   indented below the element it belongs to (`evidenceLines`). An element reached by a relation
 //   whose meaning is not `derivation` names its kind (`[has-stakeholder]`), and a direction with such
 //   an element is headed `upward:` or `downward:` instead of `parents:` or `children:` (#643).
+// - A graph (`nodes` of elements with a `level`) with `evidence` summaries (trace.graph `withEvidence`,
+//   SR-111 AK3) lists its nodes, each with its summary on the line below it:
+//   `evidence: 2 test cases, 1 record · 2 passed, 1 failed`; the edges stay YAML.
 // - A list of evidence records (`kind`, `date`, `result`, the reason of an inconclusive one) is one line per record, a list of test cases
 //   (`name`, `executions`) one line per test case with its last result and the number of executions
 //   (evidence.list, #275); `--json` and `--yaml` keep every execution.
@@ -789,6 +792,64 @@ const chainLines = (chain: Chain, names: Names): string[] => {
   return [...lines, ...(unresolved.length === 0 ? [] : ["unresolved:", ...unresolved])];
 };
 
+/** A summary of the evidence below a node of a graph (trace.graph `evidence`). */
+type EvidenceSummary = Rec & { readonly testCases: number; readonly records: number; readonly results: Rec };
+
+const isEvidenceSummary = (value: unknown): value is EvidenceSummary =>
+  isRecord(value) &&
+  typeof value["id"] === "string" &&
+  typeof value["testCases"] === "number" &&
+  typeof value["records"] === "number" &&
+  isRecord(value["results"]);
+
+/** A graph with evidence: `nodes` of elements with a `level`, and `evidence` summaries. */
+const isGraphWithEvidence = (output: Rec): boolean => {
+  const { nodes, evidence } = output;
+  return (
+    Array.isArray(nodes) &&
+    nodes.length > 0 &&
+    nodes.every((n) => isElement(n) && typeof n["level"] === "number") &&
+    Array.isArray(evidence) &&
+    evidence.every(isEvidenceSummary)
+  );
+};
+
+/** `n thing`, `n things`. */
+const counted = (n: number, thing: string): string => `${String(n)} ${thing}${n === 1 ? "" : "s"}`;
+
+/** `evidence: 2 test cases, 1 record · 2 passed, 1 failed` (a count of 0 left out). */
+const evidenceSummaryLine = (summary: EvidenceSummary): string => {
+  const kinds = [
+    summary.testCases > 0 ? counted(summary.testCases, "test case") : "",
+    summary.records > 0 ? counted(summary.records, "record") : "",
+  ]
+    .filter((part) => part !== "")
+    .join(", ");
+  const results = Object.entries(summary.results)
+    .map(([result, n]) => `${String(n)} ${result}`)
+    .join(", ");
+  return `evidence: ${[kinds, results].filter((part) => part !== "").join(" · ")}`;
+};
+
+/** The nodes of a graph, each with the summary of its evidence on the line below (SR-111 AK3). */
+const graphNodeLines = (output: Rec): string[] => {
+  const nodes = listOf(output["nodes"]).filter(isElement);
+  const summaries = new Map(
+    listOf(output["evidence"])
+      .filter(isEvidenceSummary)
+      .map((summary) => [nodeKey("", text(summary["repository"]), text(summary["id"])), summary]),
+  );
+  const lines = ["nodes:"];
+  for (const node of nodes) {
+    lines.push(`  ${elementLine(node)}`);
+    const summary = summaries.get(nodeKey("", text(node["repository"]), text(node["id"])));
+    if (summary !== undefined) {
+      lines.push(`    ${evidenceSummaryLine(summary)}`);
+    }
+  }
+  return lines;
+};
+
 /** A column of a matrix (trace.matrix `columns`): a name and a direction. */
 const isMatrixColumn = (value: unknown): value is Rec =>
   isRecord(value) && typeof value["name"] === "string" && typeof value["direction"] === "string";
@@ -917,6 +978,26 @@ const pageNote = (output: Rec): string[] => {
 };
 
 /**
+ * The lines of a graph with evidence (its nodes with their summaries) or of a list of elements with a
+ * `tree`, adding the keys they show to `shown`; none for any other output.
+ */
+const nodeListLines = (rest: Rec, shown: Set<string>): string[] => {
+  if (isGraphWithEvidence(rest)) {
+    shown.add("nodes");
+    shown.add("evidence");
+    return graphNodeLines(rest);
+  }
+  const tree = rest["tree"];
+  const treeList = Array.isArray(tree) ? treeListOf(listOf(rest["elements"]), tree) : undefined;
+  if (treeList === undefined) {
+    return [];
+  }
+  shown.add("elements");
+  shown.add("tree");
+  return treeListLines(treeList);
+};
+
+/**
  * The output for people (see the file comment). `details`: show an element's details below its line
  * (commands that read).
  */
@@ -945,13 +1026,7 @@ export function renderHuman(output: unknown, details = true): string {
     shown.add("evidence");
     shown.add("rows");
   }
-  const tree = rest["tree"];
-  const treeList = Array.isArray(tree) ? treeListOf(listOf(rest["elements"]), tree) : undefined;
-  if (treeList !== undefined) {
-    lines.push(...treeListLines(treeList));
-    shown.add("elements");
-    shown.add("tree");
-  }
+  lines.push(...nodeListLines(rest, shown));
   // The findings left out are said after the problems (`problemsEnd`).
   if (hiddenOf(rest) !== undefined) {
     shown.add("hidden");

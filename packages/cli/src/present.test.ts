@@ -1218,3 +1218,57 @@ describe("renderHuman: a matrix (#629)", () => {
     );
   });
 });
+
+describe("renderHuman: a graph with evidence (SR-111 AK3)", () => {
+  const graphNode = (id: string, shortId: string, level: number): Record<string, unknown> => {
+    const { depth: _depth, ...rest } = node(id, shortId, 0);
+    return { ...rest, level, marks: [] };
+  };
+  it("[SR-111/AK3] prints the evidence summary of a node on the line below it", () => {
+    expect(
+      renderHuman({
+        root: "a",
+        nodes: [
+          graphNode("a", "SR-00000a", 0),
+          graphNode("b", "N-00000b", -1),
+          graphNode("c", "CR-00000c", 1),
+        ],
+        evidence: [
+          {
+            id: "a",
+            repository: "system",
+            level: 1,
+            testCases: 2,
+            records: 1,
+            results: { passed: 2, failed: 1 },
+          },
+          { id: "c", repository: "system", level: 2, testCases: 1, records: 0, results: { skipped: 1 } },
+          { id: "c", repository: "other", level: 2, testCases: 0, records: 2, results: {} },
+        ],
+        problems: [],
+      }),
+    ).toBe(
+      lines(
+        "nodes:",
+        "  SR-00000a  draft  Title SR-00000a",
+        "    evidence: 2 test cases, 1 record · 2 passed, 1 failed",
+        "  N-00000b  draft  Title N-00000b",
+        "  CR-00000c  draft  Title CR-00000c",
+        "    evidence: 1 test case · 1 skipped",
+        "root: a",
+        "No problems.",
+      ),
+    );
+  });
+
+  it("[SR-111/AK3] counts records alone, and shows nodes without evidence as a list", () => {
+    const summary = { id: "a", repository: "system", level: 1, testCases: 0, records: 2, results: {} };
+    expect(renderHuman({ nodes: [graphNode("a", "SR-00000a", 0)], evidence: [summary] })).toBe(
+      lines("nodes:", "  SR-00000a  draft  Title SR-00000a", "    evidence: 2 records"),
+    );
+    expect(renderHuman({ nodes: [graphNode("a", "SR-00000a", 0)] })).toBe(
+      lines("nodes:", "  SR-00000a  draft  Title SR-00000a"),
+    );
+    expect(renderHuman({ nodes: [], evidence: [] })).toBe(lines("nodes: none", "evidence: none"));
+  });
+});

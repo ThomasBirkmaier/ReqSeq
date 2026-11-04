@@ -351,14 +351,8 @@ describe("trace.graph (SR-111)", () => {
 
   it("[SR-111/AK4] no-evidence reads the verification records as trace.chain does", async () => {
     const workspace = await open(async (fixture) => {
-      const { readFile } = await import("node:fs/promises");
-      const config = await readFile(fixture.path("reqseq-workspace.yaml"), "utf8");
       await fixture.write(
-        "reqseq-workspace.yaml",
-        `${config}evidence:\n  - { repository: system, path: evidence }\n`,
-      );
-      await fixture.write(
-        "evidence/ci/run.xml",
+        "evidence/ci/run-c3.xml",
         [
           '<testsuites><testsuite name="station" tests="1">',
           '<testcase classname="t" name="turns"><properties>',
@@ -375,14 +369,78 @@ describe("trace.graph (SR-111)", () => {
     expect(marked(output, "no-evidence")).toEqual(["O1", "C2"]);
     for (const view of [undefined, "core", ID.V1]) {
       const input = { ref: ID.S1, ...(view === undefined ? {} : { view }) };
-      const shown = await graph(workspace, { ...input, allLevels: true });
+      const shown = await graph(workspace, { ...input, allLevels: true, withEvidence: true });
       const chain = (await invoke("trace.chain", input, { workspace })) as CommandOutput<"trace.chain">;
       const expanded = new Set(
         chain.nodes.filter((n) => n.expanded && n.direction !== "up").map((n) => n.id),
       );
       const gaps = chain.gaps.filter((g) => g.kind === "no-evidence").map((g) => nameOf(g.id));
       expect(marked(shown, "no-evidence").filter((name) => expanded.has(ID[name as Name]))).toEqual(gaps);
+      // The evidence is the chain's in the same view (the core without one, as the mark reads it).
+      const viewed = (await invoke(
+        "trace.chain",
+        { ref: ID.S1, view: view ?? "core" },
+        { workspace },
+      )) as CommandOutput<"trace.chain">;
+      const summaries = shown.evidence ?? [];
+      expect(summaries.map((e) => [nameOf(e.id), e.level, e.testCases, e.records])).toEqual(
+        viewed.evidence.map((e) => [nameOf(e.id), e.depth, e.testCases.length, e.records.length]),
+      );
+      // A requirement without a child in the view that carries no no-evidence mark has a summary (one the
+      // view does not hold has neither, #674). Not the other way round: a leaf whose only evidence is a
+      // skipped test case has the mark and a summary, as the chain shows the gap and the test case.
+      const summarised = new Set(summaries.map((e) => e.id));
+      const outside = new Set(chain.gaps.filter((g) => g.kind === "not-in-view").map((g) => g.id));
+      const leaves = chain.nodes.filter(
+        (n) =>
+          n.direction !== "up" &&
+          n.depth > 0 &&
+          !outside.has(n.id) &&
+          !chain.edges.some((e) => e.target === n.id),
+      );
+      expect(leaves.length).toBeGreaterThan(0);
+      for (const leaf of leaves) {
+        const node = shown.nodes.find((n) => n.id === leaf.id);
+        if (node?.marks.includes("no-evidence") === false) {
+          expect([nameOf(leaf.id), summarised.has(leaf.id)]).toEqual([nameOf(leaf.id), true]);
+        }
+      }
     }
+  });
+
+  it("[SR-111/AK3] withEvidence gives a summary of the evidence below each node, in the view", async () => {
+    const workspace = await open();
+    const summaries = async (input: Record<string, unknown>): Promise<unknown[]> =>
+      ((await graph(workspace, { ...input, withEvidence: true })).evidence ?? []).map((e) => [
+        nameOf(e.id),
+        e.repository,
+        e.level,
+        e.testCases,
+        e.records,
+        e.results,
+      ]);
+    // S1: two JUnit test cases (one failed) and an inspection; C1: a skipped test case, and in the
+    // variant V1 a demonstration.
+    expect(await summaries({ ref: ID.S1, allLevels: true })).toEqual([
+      ["S1", "system", 1, 2, 1, { passed: 2, failed: 1 }],
+      ["C1", "system", 2, 1, 0, { skipped: 1 }],
+    ]);
+    // In V1 the records without a variant do not hold (S1); the demonstration for V1 does, and the
+    // skipped test case shows in every view (C1).
+    expect(await summaries({ ref: ID.S1, allLevels: true, view: ID.V1 })).toEqual([
+      ["C1", "system", 2, 1, 1, { passed: 1, skipped: 1 }],
+    ]);
+    // Within the depth asked: the direct neighbours give the element's evidence only, depth 0 none.
+    expect(await summaries({ ref: ID.S1 })).toEqual([["S1", "system", 1, 2, 1, { passed: 2, failed: 1 }]]);
+    expect(await summaries({ ref: ID.S1, maxDepth: 0 })).toEqual([]);
+    // None above the element: S1 is C1's parent.
+    expect(await summaries({ ref: ID.C1 })).toEqual([["C1", "system", 1, 1, 0, { skipped: 1 }]]);
+    // A node that `limit` left unexpanded keeps its evidence, and the evidence is no node.
+    const cut = await graph(workspace, { ref: ID.S1, allLevels: true, limit: 7, withEvidence: true });
+    expect([cut.nodes.length, cut.nodes.find((n) => n.id === ID.C1)?.expanded]).toEqual([7, false]);
+    expect(cut.evidence?.map((e) => nameOf(e.id))).toEqual(["S1", "C1"]);
+    // Without withEvidence, no evidence.
+    expect("evidence" in (await graph(workspace, { ref: ID.S1 }))).toBe(false);
   });
 
   it("[SR-111/AK4] is incomplete, as trace.chain, while an evidence location is not on this machine", async () => {
@@ -394,7 +452,7 @@ describe("trace.graph (SR-111)", () => {
         config.replace(
           "repositories:\n",
           'repositories:\n  - { name: tests, url: "git@git.example.com:ws/tests.git" }\n',
-        ) + "evidence:\n  - { repository: tests, path: evidence }\n",
+        ) + "  - { repository: tests, path: evidence }\n",
       );
     });
     const output = await graph(workspace, { ref: ID.S1 });
@@ -404,6 +462,26 @@ describe("trace.graph (SR-111)", () => {
       { workspace },
     )) as CommandOutput<"trace.chain">;
     expect([output.incomplete, chain.incomplete]).toEqual([true, true]);
+  });
+
+  it("[SR-111/AK3] withEvidence is incomplete while an evidence location is not on this machine, also without the no-evidence mark", async () => {
+    const workspace = await open(async (fixture) => {
+      const { readFile } = await import("node:fs/promises");
+      const model = await readFile(fixture.path("metamodel/standard-model.yaml"), "utf8");
+      await fixture.write("metamodel/standard-model.yaml", model.replaceAll("    meaning: derivation\n", ""));
+      const config = await readFile(fixture.path("reqseq-workspace.yaml"), "utf8");
+      await fixture.write(
+        "reqseq-workspace.yaml",
+        config.replace(
+          "repositories:\n",
+          'repositories:\n  - { name: tests, url: "git@git.example.com:ws/tests.git" }\n',
+        ) + "  - { repository: tests, path: evidence }\n",
+      );
+    });
+    // Depth 0 takes no step into the missing repository; only the evidence read is incomplete.
+    const plain = await graph(workspace, { ref: ID.S1, maxDepth: 0 });
+    const shown = await graph(workspace, { ref: ID.S1, maxDepth: 0, withEvidence: true });
+    expect([plain.incomplete, shown.incomplete, shown.evidence]).toEqual([false, true, []]);
   });
 
   it("gives a hint and no no-evidence mark without a relation kind with the meaning derivation (SR-013 AK3)", async () => {

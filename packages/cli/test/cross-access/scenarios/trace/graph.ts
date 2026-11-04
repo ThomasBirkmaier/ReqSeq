@@ -1,5 +1,6 @@
 // Cross-access scenarios of trace.graph, in addition to the default one (cross-access.test.ts).
 import type { FixtureOptions } from "@reqseq/testkit";
+import { expect } from "vitest";
 import { scenariosOf } from "../../scenario.js";
 
 /** An element with parents, children, a superseded and an outdated link and a variant (SR-111). */
@@ -31,6 +32,34 @@ scenariosOf("trace.graph", [
     fixture: GRAPH,
     input: { ref: `${GR}0b0000000001`, allLevels: true, view: "core", limit: 8 },
     expect: "output",
+  },
+  {
+    name: "the derivation chain with the evidence below each node (SR-111 AK3)",
+    fixture: GRAPH,
+    input: { ref: `${GR}0b0000000001`, allLevels: true, meanings: ["derivation"], withEvidence: true },
+    tag: "[SR-111/AK3]",
+    expect: "output",
+    check: (results) => {
+      const output = (results["core"]?.outcome as { output: { evidence: unknown[] } }).output;
+      expect(output.evidence).toEqual([
+        {
+          id: `${GR}0b0000000001`,
+          repository: "system",
+          level: 1,
+          testCases: 2,
+          records: 1,
+          results: { passed: 2, failed: 1 },
+        },
+        {
+          id: `${GR}0c0000000001`,
+          repository: "system",
+          level: 2,
+          testCases: 1,
+          records: 0,
+          results: { skipped: 1 },
+        },
+      ]);
+    },
   },
   {
     name: "maxDepth and allLevels together",

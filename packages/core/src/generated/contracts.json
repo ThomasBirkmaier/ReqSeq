@@ -6485,7 +6485,7 @@
       {
         "name": "trace.graph",
         "title": "Show graph",
-        "summary": "The graph of one element: what its links lead to above it and what links to it below, to a depth, over the chosen kinds. Each element is one node with its level and marks, and each link between two nodes is one edge. At most `limit` nodes, nearest levels first.",
+        "summary": "The graph of one element: what its links lead to above it and what links to it below, to a depth, over the chosen kinds. Each element is one node with its level and marks, and each link between two nodes is one edge. At most `limit` nodes, nearest levels first. With `withEvidence` also a summary of the evidence below each element.",
         "effect": "read",
         "stage": 3,
         "implements": [
@@ -6519,6 +6519,10 @@
           {
             "field": "view",
             "complete": "view"
+          },
+          {
+            "field": "withEvidence",
+            "complete": "boolean"
           },
           {
             "field": "limit",
@@ -6570,6 +6574,11 @@
             },
             "view": {
               "$ref": "../common.schema.json#/$defs/view"
+            },
+            "withEvidence": {
+              "type": "boolean",
+              "default": false,
+              "description": "Also give `evidence`, a summary of the Nachweise (verification records and test cases) of each element shown below the element (SR-111 AK3). Evidence is no link between elements, so `kinds` and `meanings` do not choose it, and it is no node: `limit` counts the elements only."
             },
             "limit": {
               "type": "integer",
@@ -6717,6 +6726,70 @@
                   "targetRepository",
                   "link",
                   "outdated"
+                ]
+              }
+            },
+            "evidence": {
+              "type": "array",
+              "description": "Only with `withEvidence`: one summary of the Nachweise below each node that has any (SR-111 AK3), in the order of `nodes`; `[]` when none has. Only nodes at level 0 or below whose evidence level (`level`) is within the depth asked (`maxDepth`, every level with `allLevels`), whether `expanded` or not; none above the element. The counts are those of trace.chain's `evidence` (`chainEvidenceOf`) in the view, the core without one, as the `no-evidence` mark reads them (SR-047, SR-173): only verification records (D-007). The details are in trace.chain and evidence.list.",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "$ref": "../common.schema.json#/$defs/uuid",
+                    "description": "The node the evidence belongs to."
+                  },
+                  "repository": {
+                    "type": "string",
+                    "description": "Workspace name of the repository of that node."
+                  },
+                  "level": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "The node's level plus one: the evidence is one level below it."
+                  },
+                  "testCases": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "The test cases that name the node and hold in the view, a test case that was only skipped included (SR-033 AK3)."
+                  },
+                  "records": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "The node's verification records without a test case that hold in the view (inspection, analysis, demonstration, manual records without `test-case`)."
+                  },
+                  "results": {
+                    "type": "object",
+                    "description": "The newest result of each test case (`skipped` for one that was only skipped) and of each record, counted; a result none has is left out.",
+                    "properties": {
+                      "passed": {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "failed": {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "inconclusive": {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "skipped": {
+                        "type": "integer",
+                        "minimum": 1
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "repository",
+                  "level",
+                  "testCases",
+                  "records",
+                  "results"
                 ]
               }
             },
