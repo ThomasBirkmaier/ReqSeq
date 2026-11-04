@@ -4,12 +4,12 @@ type: system-requirement
 status: approved
 title: Traceability-Matrix einer Auswahl zeigen
 spec-id: SR-125
-rationale: "Entscheidung des Produktverantwortlichen, 2026-10-26: Eine Traceability-Matrix ist Pflicht und fehlt noch; sie soll neu gedacht werden: mit kaskadierten Filtern zum Beispiel alle SRs eines Pakets wählen, die Matrix aufrufen und so die relative Übersicht bekommen. Die Spalten mit Nachweisen folgen in Stufe 4. Entscheidung des Produktverantwortlichen, 2026-11-04: SR-153 ersetzt AK3; eine leere Zelle gilt nicht mehr in jeder Spalte als Lücke, sondern nur, wo das Metamodell eine Mindestzahl verlangt."
+rationale: "Entscheidung des Produktverantwortlichen, 2026-10-26: Eine Traceability-Matrix ist Pflicht und fehlt noch; sie soll neu gedacht werden: mit kaskadierten Filtern zum Beispiel alle SRs eines Pakets wählen, die Matrix aufrufen und so die relative Übersicht bekommen. Die Spalten mit Nachweisen folgen in Stufe 4. Entscheidung des Produktverantwortlichen, 2026-11-04: SR-153 ersetzt AK3; als Lücke gilt nur eine Zelle, die eine Mindestzahl ab 1 aus dem Metamodell unterschreitet (SR-152)."
 requirement-type: functional
 acceptance-criteria:
   - Gegeben eine gefilterte Liste, zum Beispiel alle System Requirements des Pakets Stufe-3, wenn die Matrix per Befehl aufgerufen wird, dann zeigt das Tool sie in einem Buffer mit genau einer Zeile je Element der Liste, in der Reihenfolge der Liste.
   - Gegeben die Elemente der Auswahl haben Beziehungen, wenn die Matrix angezeigt wird, dann hat sie je Beziehungsart und Richtung, die vorkommt, eine Spalte, zum Beispiel „Derives from“ und „Derived by“, und jede Zelle nennt die verbundenen Elemente mit Kurz-ID und Titel.
-  - Gegeben ein Element ohne Beziehung der Art einer Spalte, wenn die Matrix angezeigt wird, dann kennzeichnet das Tool Lücken und nennt über der Spalte Anzahl und Anteil so, wie SR-153 es festlegt; SR-153 ersetzt die frühere Fassung dieses Kriteriums, nach der jede leere Zelle eine Lücke war.
+  - Gegeben eine Spalte der Matrix, wenn die Matrix angezeigt wird, dann kennzeichnet das Tool Lücken und nennt die Angaben über der Spalte so, wie SR-153 es festlegt; eine leere Zelle ist nicht schon deshalb eine Lücke.
   - Gegeben eine Beziehung zeigt auf eine ältere Fassung ihres Ziels oder auf ein fehlendes Ziel, wenn die Matrix angezeigt wird, dann ist sie in ihrer Zelle als veraltet oder fehlend gekennzeichnet.
   - Gegeben ein Element in einer Zeile oder Zelle der Matrix, wenn es gewählt wird, dann öffnet das Tool dieses Element.
   - Gegeben eine Auswahl über Paket, gespeicherten Filter oder eine Liste von IDs, wenn die Matrix über Kommandozeile, API oder MCP abgefragt wird, dann liefert das Tool dieselben Zeilen, Spalten und Zellen wie die App für dieselbe Auswahl.
