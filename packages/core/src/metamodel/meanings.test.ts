@@ -4,7 +4,7 @@ import { describe, expect, expectTypeOf, it, onTestFinished } from "vitest";
 import { CommandError, errorClass } from "../catalog.js";
 import type { CommandName, Problem } from "../catalog.js";
 import { Workspace } from "../runtime/workspace.js";
-import type { MetamodelProperty, MetamodelType } from "../generated/types.js";
+import type { MetamodelProperty, MetamodelRelationKind, MetamodelType } from "../generated/types.js";
 import { SCHEMA_BASE, loadContracts } from "../runtime/contracts.js";
 import type {
   Located,
@@ -15,7 +15,13 @@ import type {
   RelationMeaning,
   TypeMeaning,
 } from "./index.js";
-import { assignMeanings, markdownProblems, meaningKindProblems, meaningShapeProblems } from "./meanings.js";
+import {
+  assignMeanings,
+  markdownProblems,
+  meaningKindProblems,
+  meaningShapeProblems,
+  relationMeaningProblems,
+} from "./meanings.js";
 import {
   MEANINGS,
   metamodelState,
@@ -88,7 +94,7 @@ describe("built-in meanings", () => {
           "  - { key: satisfies, name: Satisfies, meaning: derivation }",
           "  - { key: traces-to, name: Traces to }",
           "  - { key: refines, name: Refines, meaning: derivation }",
-          "  - { key: obsoletes, name: Obsoletes, meaning: replacement }",
+          "  - { key: obsoletes, name: Obsoletes, source-types: [spec-item], target-types: [spec-item], meaning: replacement }",
           "",
         ].join("\n"),
       },
@@ -467,6 +473,96 @@ describe("built-in meanings", () => {
         line: 7,
       })),
     );
+  });
+
+  it("#842: warns about a relation kind with the meaning exclusion from a type that is no variant, at its source-types", async () => {
+    const relations = (sources: string, targets: string): string =>
+      "reqseq-metamodel: 1\nrelations:\n  - { key: satisfies, name: Satisfies, meaning: derivation }\n" +
+      `  - key: excludes\n    name: Excludes\n    source-types: [${sources}]\n    target-types: [${targets}]\n    meaning: exclusion\n`;
+    const misfit = await load({ files: { "model/relations.yaml": relations("wish, edition", "spec-item") } });
+    expect(misfit.valid).toBe(true);
+    expect(misfit.problems).toEqual([
+      {
+        code: "metamodel.meaning-type-mismatch",
+        severity: "warning",
+        message:
+          "Relation kind excludes has the meaning exclusion, whose sources are types with the meaning variant, not wish (meaning need)",
+        file: "model/relations.yaml",
+        line: 6,
+        repository: "system",
+      },
+    ]);
+    const fitting = await load({ files: { "model/relations.yaml": relations("edition", "spec-item") } });
+    expect(fitting.problems).toEqual([]);
+  });
+
+  it("#842: warns about a relation kind with the meaning replacement to a type that is no requirement, at its target-types", async () => {
+    const relations =
+      "reqseq-metamodel: 1\nrelations:\n  - key: replaces\n    name: Replaces\n    source-types: [spec-item]\n" +
+      "    target-types: [spec-item, edition]\n    meaning: replacement\n";
+    const misfit = await load({ files: { "model/relations.yaml": relations } });
+    expect(misfit.problems.map((p) => [p.code, p.severity, p.line, p.message])).toEqual([
+      [
+        "metamodel.meaning-type-mismatch",
+        "warning",
+        6,
+        "Relation kind replaces has the meaning replacement, whose targets are types with the meaning requirement, not edition (meaning variant)",
+      ],
+    ]);
+  });
+
+  it("#842: checks only exclusion and replacement, takes inherited meanings, skips unknown keys and names a missing list", () => {
+    const at = (definition: MetamodelRelationKind): Located<MetamodelRelationKind> => ({
+      definition,
+      file: "model/relations.yaml",
+      lineOf: (path) => (path[0] === "meaning" ? 9 : undefined),
+    });
+    const types: Readonly<Record<string, { meaning?: string }>> = {
+      edition: { meaning: "variant" },
+      "sub-edition": { meaning: "variant" },
+      item: { meaning: "requirement" },
+      plain: {},
+    };
+    const typeOf = (key: string): { meaning?: string } | undefined => types[key];
+    const problems = relationMeaningProblems(
+      [
+        at({
+          key: "d",
+          name: "D",
+          "source-types": ["plain"],
+          "target-types": ["plain"],
+          meaning: "derivation",
+        }),
+        at({ key: "s", name: "S", meaning: "succession" }),
+        at({ key: "n", name: "N", "source-types": ["plain"] }),
+        at({
+          key: "e",
+          name: "E",
+          "source-types": ["sub-edition", "nosuch"],
+          "target-types": [],
+          meaning: "exclusion",
+        }),
+        at({ key: "r", name: "R", "target-types": ["item", "plain"], meaning: "replacement" }),
+      ],
+      typeOf,
+    );
+    expect(problems).toEqual([
+      {
+        code: "metamodel.meaning-type-mismatch",
+        severity: "warning",
+        message:
+          "Relation kind r has the meaning replacement, whose sources are types with the meaning requirement, not every type (no source-types)",
+        file: "model/relations.yaml",
+        line: 9,
+      },
+      {
+        code: "metamodel.meaning-type-mismatch",
+        severity: "warning",
+        message:
+          "Relation kind r has the meaning replacement, whose targets are types with the meaning requirement, not plain (no meaning)",
+        file: "model/relations.yaml",
+      },
+    ]);
   });
 
   it("#357: the meaning import-version needs kind text without many and never content, else an error on that line", () => {

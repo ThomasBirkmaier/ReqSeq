@@ -34,7 +34,13 @@ import type { EffectiveType, Located } from "./inheritance.js";
 import { resolveTypes } from "./inheritance.js";
 import { limitProblems, maxItemsProblems } from "./limits.js";
 import type { MeaningAssignment } from "./meanings.js";
-import { assignMeanings, markdownProblems, meaningKindProblems, meaningShapeProblems } from "./meanings.js";
+import {
+  assignMeanings,
+  markdownProblems,
+  meaningKindProblems,
+  meaningShapeProblems,
+  relationMeaningProblems,
+} from "./meanings.js";
 
 /** Metamodel files end in `.yaml` (metamodel.schema.json). */
 export const METAMODEL_FILE_EXTENSION = ".yaml";
@@ -505,6 +511,7 @@ const readMetamodel = async (layout: WorkspaceLayout): Promise<Metamodel> => {
     complete,
   );
   const assigned = assignMeanings({ types, effectiveTypes: resolved.types, properties, relations });
+  const typeOf = (key: string): EffectiveType | undefined => resolved.types.find((t) => t.key === key);
   problems.push(
     ...reservedPrefixProblems(types),
     ...resolved.problems,
@@ -515,8 +522,9 @@ const readMetamodel = async (layout: WorkspaceLayout): Promise<Metamodel> => {
       properties.filter(({ definition: { key, meaning } }) =>
         meaning === undefined ? false : assigned.meanings[meaning][0] === key,
       ),
-      (key) => resolved.types.find((t) => t.key === key),
+      typeOf,
     ),
+    ...relationMeaningProblems(relations, typeOf),
     ...markdownProblems(properties),
     ...maxItemsProblems(properties),
     // A type or the initial status that seems missing may be in a faulty file, which is reported

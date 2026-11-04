@@ -352,6 +352,78 @@ export const meaningShapeProblems = (
   });
 
 /**
+ * The type meaning of the sources and of the targets each relation meaning implies (#842):
+ * `exclusion` from a variant to a core requirement (D-059, SR-042, ADR-0004), `replacement` from a
+ * variant requirement to a core requirement (D-020, SR-041, ADR-0004). `derivation` (a child of
+ * a need, a use case or a requirement) and `succession` (any successor of any element, D-045)
+ * imply none, so they are not checked.
+ */
+const RELATION_TYPE_MEANINGS: Readonly<
+  Partial<Record<RelationMeaning, { readonly source: TypeMeaning; readonly target: TypeMeaning }>>
+> = {
+  exclusion: { source: "variant", target: "requirement" },
+  replacement: { source: "requirement", target: "requirement" },
+};
+
+/** The types of one side of a relation kind that lack `expected`, as a message names them; undefined when all have it. */
+const sideMisfit = (
+  keys: readonly string[] | undefined,
+  side: "source-types" | "target-types",
+  expected: TypeMeaning,
+  typeOf: TypeLookup,
+): string | undefined => {
+  // No list means every type (metamodel.schema.json). A key no type has is left to
+  // `unknownTypeProblems`.
+  if (keys === undefined) {
+    return `every type (no ${side})`;
+  }
+  const wrong = keys.flatMap((key) => {
+    const type = typeOf(key);
+    if (type === undefined || type.meaning === expected) {
+      return [];
+    }
+    return [type.meaning === undefined ? `${key} (no meaning)` : `${key} (meaning ${type.meaning})`];
+  });
+  return wrong.length === 0 ? undefined : wrong.join(", ");
+};
+
+/**
+ * `metamodel.meaning-type-mismatch` warnings for a relation kind whose `source-types` or
+ * `target-types` allow a type without the type meaning its meaning implies (`RELATION_TYPE_MEANINGS`,
+ * #842; product owner decision, 2026-11-04: a warning, the workspace stays writable). One per side,
+ * with the line of that list, or of `meaning` when the list is missing. `typeOf` gives the resolved
+ * type of a key (its meaning own or inherited).
+ */
+export const relationMeaningProblems = (
+  relations: readonly Located<MetamodelRelationKind>[],
+  typeOf: TypeLookup,
+): Problem[] =>
+  relations.flatMap(({ definition, file, lineOf }): Problem[] => {
+    const implied = definition.meaning === undefined ? undefined : RELATION_TYPE_MEANINGS[definition.meaning];
+    if (implied === undefined) {
+      return [];
+    }
+    return (["source", "target"] as const).flatMap((end): Problem[] => {
+      const side = end === "source" ? "source-types" : "target-types";
+      const keys = definition[side];
+      const misfit = sideMisfit(keys, side, implied[end], typeOf);
+      if (misfit === undefined) {
+        return [];
+      }
+      const line = lineOf([keys === undefined ? "meaning" : side]);
+      return [
+        {
+          code: "metamodel.meaning-type-mismatch",
+          severity: "warning",
+          message: `Relation kind ${definition.key} has the meaning ${String(definition.meaning)}, whose ${end}s are types with the meaning ${implied[end]}, not ${misfit}`,
+          file,
+          ...(line === undefined ? {} : { line }),
+        },
+      ];
+    });
+  });
+
+/**
  * `metamodel.invalid` errors for a property marked `markdown` that cannot hold Markdown (SR-127
  * AK5): only a property of kind `text` can, and the title and an identifier stay plain text (they
  * are names, shown and searched as written). Each with the file and the line of its `markdown`.

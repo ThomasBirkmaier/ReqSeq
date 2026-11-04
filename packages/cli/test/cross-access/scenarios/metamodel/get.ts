@@ -81,4 +81,30 @@ scenariosOf("metamodel.get", [
       }
     },
   },
+  {
+    name: "a relation kind whose types do not fit its meaning: a warning, the metamodel stays valid (#842)",
+    fixture: {
+      ...METAMODEL,
+      files: {
+        "model/excludes.yaml":
+          "reqseq-metamodel: 1\nrelations:\n  - key: excludes\n    name: Excludes\n    source-types: [decision]\n    target-types: [requirement]\n    meaning: exclusion\n",
+      },
+    },
+    input: {},
+    expect: "output",
+    check: (results) => {
+      for (const [access, { outcome }] of Object.entries(results)) {
+        const output = (outcome as { output: MetamodelOutput }).output;
+        // A warning only: no error, so the workspace stays writable.
+        expect(output.problems, access).toMatchObject([
+          {
+            code: "metamodel.meaning-type-mismatch",
+            severity: "warning",
+            file: "model/excludes.yaml",
+            line: 5,
+          },
+        ]);
+      }
+    },
+  },
 ]);

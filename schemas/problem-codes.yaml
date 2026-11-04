@@ -171,6 +171,9 @@ problems:
   metamodel.meaning-unassigned:
     cause: No relation kind of the metamodel has the meaning a command needs (for example derivation for the chain), so that part of the result is empty.
     remedy: Assign the meaning to a relation kind in the metamodel.
+  metamodel.meaning-type-mismatch:
+    cause: A relation kind has a meaning whose sources or targets are types of a certain meaning, but the kind allows a type without it (#842), for example `exclusion` from a type that is no variant. This is a warning; the workspace stays writable.
+    remedy: Restrict `source-types` and `target-types` of the relation kind to types with the meaning the message names, or remove the meaning from the kind.
   workspace.repository-missing:
     cause: A repository of the workspace file is not on this machine. Its elements are missing from the results.
     remedy: Clone the repository where the workspace file expects it, if you need its elements.
