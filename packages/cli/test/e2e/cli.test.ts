@@ -184,7 +184,8 @@ describe("reqseq binary", () => {
     });
     expect([created.code, created.stderr]).toEqual([0, ""]);
     const lines = created.stdout.split("\n");
-    expect(lines[0]).toMatch(/^SR-[0-9a-f]{6,} {2}draft {2}Show gusts$/);
+    // The answer has the verification status, as element get shows it (#214).
+    expect(lines[0]).toMatch(/^SR-[0-9a-f]{6,} {2}draft {2}Show gusts {2}\[verification: core open\]$/);
     expect(lines[1]).toBe("files:");
     const file = lines[2]?.trim() ?? "";
     expect(file).toMatch(/^system-requirement\/SR-[0-9a-f]{12}\.md$/);

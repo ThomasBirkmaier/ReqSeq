@@ -34,7 +34,7 @@ reqseq element create system-requirement "Show the wind speed" --text "The stati
 ```
 
 ```text title="Output"
-SR-c67baa  draft  Show the wind speed
+SR-c67baa  draft  Show the wind speed  [verification: core open]
 ...
 ```
 

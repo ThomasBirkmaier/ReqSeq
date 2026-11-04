@@ -30,7 +30,7 @@ reqseq element create need "See the wind speed" --text "As a sailor, I want to s
 ```
 
 ```text title="Output"
-N-7fe707  draft  See the wind speed
+N-7fe707  draft  See the wind speed  [validation: open]
 ...
 ```
 
@@ -39,7 +39,7 @@ reqseq element create system-requirement "Show the wind speed" --text "The stati
 ```
 
 ```text title="Output"
-SR-c67baa  draft  Show the wind speed
+SR-c67baa  draft  Show the wind speed  [verification: core open]
 ...
 ```
 
@@ -48,7 +48,7 @@ reqseq element create system-requirement "Warn of gusts" --text "The station mus
 ```
 
 ```text title="Output"
-SR-5e1d0a  draft  Warn of gusts
+SR-5e1d0a  draft  Warn of gusts  [verification: core open]
 ...
 ```
 
@@ -114,7 +114,7 @@ reqseq element create system-requirement "Log the wind" --text "The station must
 ```
 
 ```text title="Output"
-SR-62fb87  draft  Log the wind
+SR-62fb87  draft  Log the wind  [verification: core open]
 ...
 warning  trace.no-parent  ...
 ```

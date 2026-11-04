@@ -25,7 +25,7 @@ Who shows it:
 
 Cost at N-036: one pass over the records of each element shown; the filter computes the current versions of the requirements with records once per store (`currentVersionsOf`, the cost #489 measures for `trace.graph`), measured with records in E4. A filter that asks only "has evidence" reads none: the provider reads them on the first `ready()`, which only the `verification` and `validation` conditions await (#439); E4 measures that path as its own row.
 
-Not yet: `element.create` and `element.update` return their element without `verification` and `validation` (#554, before the app shows the status, plan §5). The `evidence.outdated` hint of SR-025 AK4 (`hints/evidence.ts`) follows the status: it is given only when no record of a kind and variant is of the current version (#201).
+`element.create` and `element.update` return their element with `verification` and `validation` as `element.get` gives them, from the record of the store after the write (`writtenWithStatus` in `data/shown.ts`, #214; `replacedBy`, `excludedBy`, `names` and `incomplete` stay with `element.get`). In a process that has not built the status yet (a single CLI or MCP call), the first write builds it like the first `element.get`; in the app and the API it is carried over the save (above). The `evidence.outdated` hint of SR-025 AK4 (`hints/evidence.ts`) follows the status: it is given only when no record of a kind and variant is of the current version (#201).
 
 ## Indirect verification and emergent
 

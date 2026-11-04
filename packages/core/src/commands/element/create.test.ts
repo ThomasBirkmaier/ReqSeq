@@ -187,6 +187,8 @@ describe("element.create", () => {
       },
       relations: [],
       problems: [noParent(out)],
+      // A new requirement has no record yet, as element.get gives it (#214).
+      verification: [{ view: "core", status: "open" }],
     });
     expect(out.problems).toEqual([noParent(out)]);
   });

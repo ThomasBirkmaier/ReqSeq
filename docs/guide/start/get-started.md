@@ -46,7 +46,7 @@ reqseq element create need "See the wind speed" --text "As a sailor, I want to s
 ```
 
 ```text title="Output"
-N-7fe707  draft  See the wind speed
+N-7fe707  draft  See the wind speed  [validation: open]
 files:
   need/N-d0e44b7fe707.md
 No problems.
@@ -65,7 +65,7 @@ reqseq element create system-requirement "Show the wind speed" --text "The stati
 ```
 
 ```text title="Output"
-SR-c67baa  draft  Show the wind speed
+SR-c67baa  draft  Show the wind speed  [verification: core open]
 files:
   system-requirement/SR-58b371c67baa.md
 warning  element.missing-required  ...
