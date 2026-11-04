@@ -31,7 +31,59 @@ const SEE_THE_WIND =
 const SEE_WIND_AND_GUSTS =
   "---\nid: 7a1e0c2b-4d3f-4a5b-8c6d-b2c3d4e5f6a7\ntype: need\nstatus: draft\ntitle: See wind and gusts\nsupersedes:\n  - { id: 7a1e0c2b-4d3f-4a5b-8c6d-a1b2c3d4e5f6, version: n1:1111111111111111, title: See the wind }\n---\n";
 
+/** An element with three acceptance criteria in three quotings, for setItems (#177). */
+const CRITERIA = [
+  "---",
+  "id: 17700000-0000-4000-8000-000000000177",
+  "type: system-requirement",
+  "status: draft",
+  "title: Criteria",
+  "acceptance-criteria:",
+  '  - "Given a quoted first, then it stays."',
+  "  - Given a plain second, when it is read, then it is shown.",
+  "  - 'Given a single third, then it stays.'",
+  "---",
+  "",
+].join("\n");
+
+const CRITERIA_FIXTURE = {
+  fixture: "SR-004/one-repository",
+  git: true,
+  files: { "requirements/SR-000000000177.md": CRITERIA },
+} as const;
+
 scenariosOf("element.update", [
+  {
+    name: "setItems replaces criterion 2 and appends one with a reqseq: link by short ID (#177)",
+    fixture: CRITERIA_FIXTURE,
+    input: {
+      ref: "SR-000177",
+      setItems: {
+        "acceptance-criteria": {
+          "2": "Given a plain second, when it changes, then it is shown.",
+          "4": "Given [the wind](reqseq:SR-e88fb3), then it is shown.",
+        },
+      },
+      expectedFileSha256: sha256(CRITERIA),
+    },
+    expect: "output",
+  },
+  {
+    name: "setItems without expectedFileSha256 is refused (#177)",
+    fixture: CRITERIA_FIXTURE,
+    input: { ref: "SR-000177", setItems: { "acceptance-criteria": { "1": "x" } } },
+    expect: "error",
+  },
+  {
+    name: "setItems with a position after a gap is refused (#177)",
+    fixture: CRITERIA_FIXTURE,
+    input: {
+      ref: "SR-000177",
+      setItems: { "acceptance-criteria": { "5": "x" } },
+      expectedFileSha256: sha256(CRITERIA),
+    },
+    expect: "error",
+  },
   {
     name: "a number given as text is refused, the file stays (#614)",
     tag: "[SR-085/AK4]",

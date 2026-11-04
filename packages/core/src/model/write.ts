@@ -9,12 +9,13 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import type { CommandName, Problem } from "../catalog.js";
-import { CommandError } from "../catalog.js";
+import { CommandError, commandErrorOrThrow } from "../catalog.js";
 import type {
   EditableElementFile,
   EditableFile,
   FileSnapshot,
   FrontmatterEdit,
+  ItemValue,
   ParsedContent,
   ParsedFile,
   PropertyValue,
@@ -34,6 +35,7 @@ import {
 import type {
   DataExportElement,
   ElementInputValue,
+  ElementScalar,
   ElementValue,
   MetamodelEffectiveType,
 } from "../generated/types.js";
@@ -54,7 +56,7 @@ import type { Workspace } from "../runtime/workspace.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import { directlyAffectedCount } from "./affected.js";
-import { propertiesEmptied, textEmptied } from "./emptied.js";
+import { itemsEmptied, propertiesEmptied, textEmptied } from "./emptied.js";
 import type { NewFileRule } from "./discover.js";
 import { newFileTarget } from "./discover.js";
 import type { ElementRecord } from "./elements.js";
@@ -125,6 +127,8 @@ export interface UpdateElementInput {
   readonly text?: string;
   readonly set?: Readonly<Record<string, ElementInputValue>>;
   readonly unset?: readonly string[];
+  /** Items of list properties by position from 1: replaced, or appended after the last (#177, `setItemEdits`). */
+  readonly setItems?: Readonly<Record<string, Readonly<Record<string, ElementScalar>>>>;
   /** Relations to add and to remove by kind, in the same write (#175, relation-inputs.ts). */
   readonly addRelations?: RelationRefs;
   readonly removeRelations?: RelationRefs;
@@ -164,13 +168,14 @@ const titleKeyFor = (metamodel: Metamodel, type: MetamodelEffectiveType, command
 };
 
 /** The input fields that take property keys: of element.create, element.update and a ReqIF mapping. */
-export type PropertyKeyField = "properties" | "set" | "unset" | "property";
+export type PropertyKeyField = "properties" | "set" | "unset" | "setItems" | "property";
 
 /** Where the input of a command takes a relation kind that its `field` refuses (#175). */
 const RELATIONS_HINT: Readonly<Record<PropertyKeyField, string>> = {
   properties: "give relations in relations",
   set: "add and remove relations with addRelations and removeRelations",
   unset: "add and remove relations with addRelations and removeRelations",
+  setItems: "add and remove relations with addRelations and removeRelations",
   property: "add relations with relation.add",
 };
 
@@ -848,6 +853,141 @@ export const createElement = async (
   });
 };
 
+/** The items `setItems` gives for one list property, by position from 1 in ascending order. */
+interface ItemChange {
+  readonly key: string;
+  readonly items: readonly (readonly [number, ElementInputValue])[];
+}
+
+/**
+ * The `setItems` of the input checked before any file is read (#177): keys as `set` takes them
+ * (`propertyKeyRefusal`), none that `set` or `unset` holds, only list properties (`many`) that are no
+ * relation property; each item with its choice key (`withChoiceKeys`) and a number checked
+ * (`numberInput`), as `set` does it.
+ */
+const checkedSetItems = (
+  metamodel: Metamodel,
+  type: MetamodelEffectiveType,
+  titleKey: string,
+  input: UpdateElementInput,
+): ItemChange[] => {
+  const given = Object.entries(input.setItems ?? {});
+  checkPropertyKeys(
+    given.map(([key]) => key),
+    metamodel,
+    type,
+    titleKey,
+    "setItems",
+  );
+  return given.map(([key, byPosition]): ItemChange => {
+    if (Object.hasOwn(input.set ?? {}, key) || (input.unset ?? []).includes(key)) {
+      throw invalid(`${key} is in setItems and in set or unset`, { key, reason: "set-and-setItems" });
+    }
+    const property = metamodel.properties.find((p) => p.key === key);
+    if (property?.kind === "relation") {
+      throw invalid(`setItems cannot change ${key}: it holds relation targets; give the whole list in set`, {
+        key,
+        reason: "relation-property",
+      });
+    }
+    if (property?.many !== true) {
+      throw invalid(`setItems cannot change ${key}: it is no list (the property has no many)`, {
+        key,
+        reason: "not-a-list",
+      });
+    }
+    // Positions and values in the same order; integer keys come out ascending.
+    const positions = Object.keys(byPosition);
+    const values = Object.values(byPosition);
+    // As a list, so a blank item is checked as set checks the items of a list.
+    const [[, checked] = [key, values]] = withChoiceKeys(metamodel, [[key, values]], "setItems");
+    if (isNumberProperty(metamodel, key)) {
+      itemNumbers(key, positions, checked);
+    }
+    const items = [checked]
+      .flat()
+      .map((item, index): [number, ElementInputValue] => [Number(positions[index]), item]);
+    return { key, items };
+  });
+};
+
+/**
+ * `numberInput` for the items `checked` given at `positions`, with the position from 1 of an item
+ * that is no number in the message and the details, in place of its index.
+ */
+const itemNumbers = (key: string, positions: readonly string[], checked: ElementInputValue): void => {
+  try {
+    numberInput(key, checked);
+  } catch (error) {
+    const refused = commandErrorOrThrow(error);
+    const { index, ...details } = { ...refused.details };
+    const position = Number(positions[Number(index)]);
+    throw new CommandError(
+      "input.invalid",
+      refused.message.replace(/ item \d+:/u, ` item ${String(position)}:`),
+      {
+        ...details,
+        position,
+      },
+    );
+  }
+};
+
+/**
+ * The writer edits of `changes` on the values `stored` in the file now (#177): a position up to the
+ * length replaces that item (`replace-item`), the next ones append (`append-item`); a gap, or a value
+ * in the file that is no list, is `input.invalid`. A property marked `markdown` gets its references
+ * stored as `set` stores them (SR-127, `setMarkdownReferences`, on the whole new list).
+ */
+const setItemEdits = async (
+  context: TargetContext,
+  sourceRepository: string,
+  changes: readonly ItemChange[],
+  stored: Readonly<Record<string, unknown>>,
+): Promise<FrontmatterEdit[]> => {
+  const edits: FrontmatterEdit[] = [];
+  for (const { key, items } of changes) {
+    const now = stored[key] ?? [];
+    if (!Array.isArray(now)) {
+      throw invalid(
+        `setItems cannot change ${key}: the file holds one value, not a list; give the list in set`,
+        {
+          key,
+          reason: "not-a-list",
+        },
+      );
+    }
+    const list: unknown[] = [...(now as unknown[])];
+    for (const [position, value] of items) {
+      if (position > list.length + 1) {
+        throw invalid(
+          `${key} has ${String(now.length)} items: setItems takes positions 1 to ${String(now.length)} to replace and the next ones without a gap to append, not ${String(position)}`,
+          { key, position, length: now.length, reason: "position-out-of-range" },
+        );
+      }
+      list[position - 1] = value;
+    }
+    const value = markdownKeysOf(context.metamodel).has(key)
+      ? ((await setMarkdownReferences(
+          context,
+          key,
+          sourceRepository,
+          list as ElementInputValue,
+          now,
+        )) as unknown[])
+      : list;
+    for (const [position] of items) {
+      const item = value[position - 1] as ItemValue;
+      edits.push(
+        position <= now.length
+          ? { kind: "replace-item", key, index: position - 1, value: item }
+          : { kind: "append-item", key, value: item },
+      );
+    }
+  }
+  return edits;
+};
+
 /** The edits of `element.update`; `set` holds the values of `input.set` as they are stored. */
 const updateEdits = (
   input: UpdateElementInput,
@@ -946,15 +1086,20 @@ const expectedFile = (record: ElementRecord, current: ReadElement, expected: str
  * The write precondition is required for a change of the text or the title (SR-106, product owner
  * decision, 2026-10-29, on #269): without `expectedFileSha256` such a save is refused with
  * `input.invalid` on every access (SR-080), before anything is read, so a caller that read the
- * element earlier cannot overwrite a change saved in the meantime (the app's autosave). Properties
+ * element earlier cannot overwrite a change saved in the meantime (the app's autosave). So does
+ * `setItems`, as a position only means something in the list it was read from (#177). Properties
  * and relations need none, as their edits go line by line onto the current bytes.
  */
 const requirePrecondition = (input: UpdateElementInput): void => {
-  if ((input.text !== undefined || input.title !== undefined) && input.expectedFileSha256 === undefined) {
-    throw invalid("expectedFileSha256 is required to change text or title: pass fileSha256 of element.get", {
-      field: "expectedFileSha256",
-      reason: "precondition-missing",
-    });
+  const needs = input.text !== undefined || input.title !== undefined || input.setItems !== undefined;
+  if (needs && input.expectedFileSha256 === undefined) {
+    throw invalid(
+      "expectedFileSha256 is required to change text, title or setItems: pass fileSha256 of element.get",
+      {
+        field: "expectedFileSha256",
+        reason: "precondition-missing",
+      },
+    );
   }
 };
 
@@ -1220,6 +1365,7 @@ export const updateElement = async (
   if (both !== undefined) {
     throw invalid(`${both} is in both set and unset`, { key: both, reason: "set-and-unset" });
   }
+  const itemChanges = checkedSetItems(metamodel, type, titleKey, input);
   // Before the file is read: a choice value that is no choice is refused at once.
   // So is a relation target that names no element (#169, #196).
   const given = withTargetRefs(
@@ -1233,12 +1379,13 @@ export const updateElement = async (
   expectedFile(record, current, input.expectedFileSha256);
   const set = await withTargets(context, record.repository, given, current.record.data);
   const relations = await relationEdits(context, relationState, current.record, relationPlan);
+  const items = await setItemEdits(context, record.repository, itemChanges, current.record.data);
   const text =
     input.text === undefined
       ? undefined
       : await setInlineReferences(context, input.text, elementText(current.file.body), record.repository);
   const edited = editElementFile(current.file, {
-    edits: [...updateEdits(input, set, titleKey), ...relations.edits],
+    edits: [...updateEdits(input, set, titleKey), ...items, ...relations.edits],
     ...(text === undefined ? {} : { body: bodyForText(current.file.body, text) }),
     keyOrder: type.properties,
   });
@@ -1274,6 +1421,7 @@ export const updateElement = async (
         written.record,
         metamodel.properties.filter((p) => setKeys.includes(p.key) || unsetKeys.includes(p.key)),
       ),
+      ...itemsEmptied(repository.name, written.record, metamodel.properties, itemChanges),
     ];
     versionsAdded = locateIn(
       written.file,

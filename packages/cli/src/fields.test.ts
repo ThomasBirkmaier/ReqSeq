@@ -328,6 +328,7 @@ describe("inputFields", () => {
       "element.update:text": "string:flag",
       "element.update:set": "complex:flag",
       "element.update:unset": "string[]:flag",
+      "element.update:setItems": "complex:flag",
       "element.update:addRelations": "complex:flag",
       "element.update:removeRelations": "complex:flag",
     });

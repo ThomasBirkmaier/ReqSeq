@@ -52,3 +52,30 @@ export const propertiesEmptied = (
       },
     ];
   });
+
+/**
+ * The warning, with `key`, for each item that `element.update` `setItems` gave blank (`isEmptyValue`:
+ * `null` or a blank string), with its position from 1 in the message (#177): a blank item is mostly a
+ * broken shell substitution too, and a list keeps it as an item, so `propertiesEmptied` never sees it.
+ * In the order of `properties`.
+ */
+export const itemsEmptied = (
+  repository: string,
+  record: ElementRecord,
+  properties: readonly MetamodelProperty[],
+  items: readonly { readonly key: string; readonly items: readonly (readonly [number, unknown])[] }[],
+): Problem[] =>
+  properties.flatMap(({ key, name }) => {
+    const given = items.find((item) => item.key === key)?.items ?? [];
+    return given
+      .filter(([, value]) => isEmptyValue(value))
+      .map(([position]): Problem => ({
+        code: "element.text-emptied",
+        severity: "warning",
+        message: `Item ${String(position)} of property ${name} (${key}) of element ${record.id} is empty now; restore it from Git if this was not intended`,
+        repository,
+        file: record.file,
+        elementId: record.id,
+        key,
+      }));
+  });
