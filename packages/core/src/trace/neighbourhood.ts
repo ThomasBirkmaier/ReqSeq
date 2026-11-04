@@ -48,7 +48,6 @@ import {
   hasId,
   incomingTo,
   isOutdatedVersion,
-  recordsById,
   referenceTargetState,
   referencesOf,
   relationKeysOf,
@@ -207,7 +206,7 @@ const followed = (context: NeighbourhoodContext, link: IncomingLink): boolean =>
  */
 const incomingOf = (context: NeighbourhoodContext, element: ElementRecord): Expansion<IncomingLink> => {
   const { repository, id } = element;
-  const records = recordsById(context.store.byId, id) ?? NONE;
+  const records = context.store.byId.get(id) ?? NONE;
   const ambiguous = records.length > 1 && records.filter((r) => r.repository === repository).length > 1;
   const steps: Step<IncomingLink>[] = [];
   if (!ambiguous) {

@@ -38,7 +38,6 @@ export {
   StoreFallback,
   withWrittenFiles,
 } from "./store.js";
-export { recordsById } from "./by-id.js";
 export type {
   Contribution,
   ElementStore,

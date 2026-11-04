@@ -25,7 +25,7 @@ import type { MetamodelRelationKind } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { metamodelState, relationKindsWithMeaning, requireMeaning } from "../metamodel/index.js";
 import type { ElementRecord, ElementStore, IncomingIndex, IncomingRelation } from "../model/index.js";
-import { elementStoreState, hasId, incomingFor, recordsById, targetState } from "../model/index.js";
+import { elementStoreState, hasId, incomingFor, targetState } from "../model/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
@@ -163,7 +163,7 @@ export const childrenOf = (graph: DerivationGraph, element: ElementRecord): Expa
     return { steps: NONE, unresolved: NONE, incomplete: graph.unavailable };
   }
   // Most UUIDs have one record: only a shared one is looked at further (SR-088).
-  const records = recordsById(graph.store.byId, element.id) ?? NONE;
+  const records = graph.store.byId.get(element.id) ?? NONE;
   const twins = records.length > 1 ? records.filter((r) => r.repository === repository) : NONE;
   const ambiguous: UnresolvedState | undefined =
     twins.length > 1 ? { kind: "ambiguous", repository, elements: twins } : undefined;
@@ -268,8 +268,7 @@ export const parentPositions = (graph: Pick<DerivationGraph, "kinds" | "store">)
 export const derivationEdges = (graph: DerivationGraph): GraphEdge<DerivationLink>[] => {
   const edges: GraphEdge<DerivationLink>[] = [];
   for (const [id, links] of graph.incoming.relationsById) {
-    // Once per UUID of the incoming index: a plain map (#215).
-    const records = recordsById(graph.store.byId, id) ?? NONE;
+    const records = graph.store.byId.get(id) ?? NONE;
     for (const link of links) {
       const parent = graph.kindByKey.has(link.key) ? onlyRecordIn(records, link.repository) : undefined;
       if (parent !== undefined) {

@@ -37,7 +37,6 @@ import {
   identifierField,
   isOutdatedVersion,
   isUuid,
-  recordsById,
   relationKey,
   relationLink,
   sourceLink,
@@ -174,7 +173,7 @@ const showsIncoming = (context: MatrixContext, record: ElementRecord, link: Inco
 
 /** Whether other files of the repository of `record` share its UUID (SR-088): no incoming relation is shown. */
 const sharesUuid = (context: MatrixContext, { id, repository }: ElementRecord): boolean => {
-  const records = recordsById(context.store.byId, id);
+  const records = context.store.byId.get(id);
   return (
     records !== undefined &&
     records.length > 1 &&

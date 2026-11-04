@@ -68,21 +68,23 @@ export const handOverView = (
   views.set(to, view);
 };
 
-/**
- * `byId.get(id)` for a hot read loop (`resolveTarget`, `resolveId`, the identifier index, the
- * derivation edges and walks, the neighbourhood and the matrix): the same
- * records (a list equal to the store's, not always the same array), read from a plain `Map`: the
- * store's own, or a plain view of a patched one once it was looked up `plainAt` times.
- */
-export const recordsById = (byId: ById, id: string): readonly ElementRecord[] | undefined => {
-  if (byId !== lastMap) {
-    const view =
-      byId instanceof PatchedMap ? viewOf(byId as PatchedMap<string, readonly ElementRecord[]>) : byId;
-    if (view === undefined) {
-      return byId.get(id);
-    }
-    lastMap = byId;
-    lastView = view;
+/** `recordsById` for another map than the last one: switches to it, or to its view. */
+const switchTo = (byId: ById, id: string): readonly ElementRecord[] | undefined => {
+  const view =
+    byId instanceof PatchedMap ? viewOf(byId as PatchedMap<string, readonly ElementRecord[]>) : byId;
+  if (view === undefined) {
+    return byId.get(id);
   }
-  return lastView.get(id);
+  lastMap = byId;
+  lastView = view;
+  return view.get(id);
 };
+
+/**
+ * `byId.get(id)` for a hot read loop (`resolveTarget`, `resolveId`, the identifier index): the same
+ * records (a list equal to the store's, not always the same array), read from a plain `Map`: the
+ * store's own, or a plain view of a patched one once it was looked up `plainAt` times. Small, so
+ * that the engine inlines it into the loop: one comparison and one `Map#get`.
+ */
+export const recordsById = (byId: ById, id: string): readonly ElementRecord[] | undefined =>
+  byId === lastMap ? lastView.get(id) : switchTo(byId, id);
