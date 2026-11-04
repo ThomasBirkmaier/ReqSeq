@@ -245,6 +245,43 @@ describe("renderHuman: values", () => {
     expect(renderHuman({ elements: [], tree: [], total: 0 })).toBe(lines("elements: none", "total: 0"));
   });
 
+  it("shows the texts of a tree list at each element's depth (#397)", () => {
+    const element = (id: string, body: string | undefined): Record<string, unknown> => ({
+      id,
+      repository: "system",
+      shortId: `SR-${id}`,
+      title: id,
+      properties: { "acceptance-criteria": ["Given x, then y."] },
+      ...(body === undefined ? {} : { text: body }),
+    });
+    expect(
+      renderHuman({
+        elements: [element("a", "A.\n"), element("b", undefined)],
+        tree: [
+          { id: "a", repository: "system", depth: 0 },
+          { id: "b", repository: "system", depth: 1, parent: { id: "a", repository: "system" } },
+        ],
+        total: 2,
+      }),
+    ).toBe(
+      lines(
+        "elements:",
+        "  SR-a  a",
+        "    properties:",
+        "      acceptance-criteria:",
+        "        1: Given x, then y.",
+        "    text: |",
+        "      A.",
+        "",
+        "    SR-b  b",
+        "      properties:",
+        "        acceptance-criteria:",
+        "          1: Given x, then y.",
+        "total: 2",
+      ),
+    );
+  });
+
   it("shows a tree that does not fit the elements as it is", () => {
     const one = { shortId: "SR-1", title: "One" };
     expect(renderHuman({ elements: [one], tree: [] })).toBe(lines("elements:", "  SR-1  One", "tree: none"));

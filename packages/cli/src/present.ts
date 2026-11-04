@@ -11,9 +11,10 @@
 //   an inconclusive one with its reason on one line, `[validation: inconclusive — <reason>]`, SR-172);
 //   a list of them one such line per element; a list whose elements carry their text (element.list
 //   `withText`) shows below each line its properties without relation targets, its relations one line
-//   each and its text, with a blank line between elements (#397). A read command (element.get) shows the element's details
-//   below its line, a write command only the line; there, a property whose value is a list of texts
-//   numbers its items from 1 (`1: ...`), as tests name acceptance criteria (#401).
+//   each and its text, with a blank line between elements (#397). A read command (element.get) shows
+//   the element's details below its line, a write command only the line; there, a property whose
+//   value is a list of texts numbers its items from 1 (`1: ...`), as tests name acceptance criteria
+//   (#401).
 // - A chain (`nodes` with `depth`, and `edges`) is an indented tree per direction with the depth in
 //   front, its gaps, cycles and the edges to an element listed elsewhere marked. Its `evidence` is
 //   indented below the element it belongs to (`evidenceLines`). An element reached by a relation
@@ -555,11 +556,20 @@ const treeListLines = (placed: readonly Placed[]): string[] => {
   const keyOf = (repository: unknown, id: unknown): string => JSON.stringify([text(repository), text(id)]);
   const before = new Set<string>();
   const lines = ["elements:"];
+  // With their texts (`withText`), each element with its details at its depth, as in a plain list (#397).
+  const withText = placed.some(([element]) => typeof element["text"] === "string");
   for (const [element, place] of placed) {
     const parent = place["parent"];
     const away = isRecord(parent) && !before.has(keyOf(parent["repository"], parent["id"]));
     const under = away ? `[under ${name(text(parent["repository"]), text(parent["id"]))}]` : "";
-    lines.push(`  ${"  ".repeat(place.depth)}${join(elementLine(element, name), under)}`);
+    const at = `  ${"  ".repeat(place.depth)}`;
+    if (withText && lines.length > 1) {
+      lines.push("");
+    }
+    lines.push(`${at}${join(elementLine(element, name), under)}`);
+    if (withText) {
+      lines.push(...indent(listedElementDetails(element), at));
+    }
     before.add(keyOf(element["repository"], element["id"]));
   }
   return lines;
