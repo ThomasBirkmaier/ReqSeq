@@ -43,6 +43,16 @@ scenariosOf("hint.list", [
     input: { ref: "SR-0000b1" },
     expect: "output",
   },
+  {
+    name: "hints of one element in the order of the check, by the single-element path (#145)",
+    fixture: HINTS,
+    input: { ref: "SAF-0000b4" },
+    expect: "output",
+    check: (results) => {
+      const output = (results["core"]?.outcome as { output: { hints: { code: string }[] } }).output;
+      expect(output.hints.map((h) => h.code)).toEqual(["element.unknown-property", "trace.no-parent"]);
+    },
+  },
   { name: "no package", fixture: HINTS, input: { package: "VAR-0000c1" }, expect: "error" },
   {
     tag: "[SR-045/AK1]",

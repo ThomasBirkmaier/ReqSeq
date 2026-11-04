@@ -425,7 +425,8 @@ describe("what hint.list computes (N-036)", () => {
     for (const input of inputs) {
       expect(await listed(workspace, input)).toEqual([]);
     }
-    expect(spy).not.toHaveBeenCalled();
+    // `ref` reads the element's own file (the single-element path, #145), but no baseline.
+    expect(spy.mock.calls.filter(([file]) => String(file).includes("baselines"))).toEqual([]);
     expect(
       rows(
         await listed(workspace, {
