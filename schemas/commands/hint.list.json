@@ -1,7 +1,7 @@
 {
   "name": "hint.list",
   "title": "List hints",
-  "summary": "Open hints of the workspace, filterable by kind, type, package or variant.",
+  "summary": "Open hints of the workspace, filterable by kind, type, package or variant; one page of hints at a time, total counts all.",
   "effect": "read",
   "stage": 2,
   "implements": ["SR-026", "SR-040", "SR-045", "SR-072", "SR-103"],
@@ -10,7 +10,9 @@
     { "field": "type", "complete": "type" },
     { "field": "package", "complete": "element" },
     { "field": "variant", "complete": "element" },
-    { "field": "ref", "complete": "element" }
+    { "field": "ref", "complete": "element" },
+    { "field": "limit", "complete": "number" },
+    { "field": "offset", "complete": "number" }
   ],
   "input": {
     "type": "object",
@@ -40,6 +42,19 @@
       "ref": {
         "$ref": "../common.schema.json#/$defs/elementRef",
         "description": "Only the hints about this element."
+      },
+      "limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 5000,
+        "default": 200,
+        "description": "Hints of the page; total counts all. Every page finds every hint again; only the dates of outdated relations (D-013) are asked for the hints of the page alone."
+      },
+      "offset": {
+        "type": "integer",
+        "minimum": 0,
+        "default": 0,
+        "description": "Hints skipped before the page, in the order of `hints`."
       }
     },
     "additionalProperties": false
@@ -49,10 +64,15 @@
     "properties": {
       "hints": {
         "type": "array",
-        "description": "The open hints: findings of severity warning about one element (glossary \"Hinweis\": the element should be checked; it blocks nothing and changes no status), from the same whole-workspace findings as workspace.check; errors, info and warnings about no element are not hints. Filters combine with AND. Each hint with its kind (code), the element it is about (elementId, repository, file, line), its target where it has one (targetId; with targetRepository, targetShortId and targetIdentifier when it was resolved to one element, #172) and its reason (message; for an outdated relation with both versions and their dates, D-013). In the order of workspace.check.",
+        "description": "The open hints: findings of severity warning about one element (glossary \"Hinweis\": the element should be checked; it blocks nothing and changes no status), from the same whole-workspace findings as workspace.check; errors, info and warnings about no element are not hints. Filters combine with AND. Each hint with its kind (code), the element it is about (elementId, repository, file, line), its target where it has one (targetId; with targetRepository, targetShortId and targetIdentifier when it was resolved to one element, #172) and its reason (message; for an outdated relation with both versions and their dates, D-013). In the order of workspace.check. Only the page of `limit` hints from `offset` (in this order) is listed; `total` counts every hint that passes the filters.",
         "items": {
           "$ref": "../common.schema.json#/$defs/problem"
         }
+      },
+      "total": {
+        "type": "integer",
+        "minimum": 0,
+        "description": "The number of all hints that pass the filters; `hints` holds the page of `limit` from `offset`."
       },
       "incomplete": {
         "$ref": "../common.schema.json#/$defs/incomplete",
@@ -60,6 +80,6 @@
       }
     },
     "additionalProperties": false,
-    "required": ["hints", "incomplete"]
+    "required": ["hints", "total", "incomplete"]
   }
 }

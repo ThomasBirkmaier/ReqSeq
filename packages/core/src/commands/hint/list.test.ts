@@ -253,6 +253,30 @@ describe("hint.list (SR-026)", () => {
     ).toEqual([]);
   });
 
+  it("pages its output as trace.chain does: limit hints from offset, total counts all (#146)", async () => {
+    const ws = await fixture({ ...HINTS, git: true });
+    const workspace = open(ws.root);
+    const all = await list(workspace);
+    expect(all.total).toBe(ALL.length);
+    expect(rows(all.hints)).toEqual(ALL);
+    // A page across the end of the states and the outdated relations, the last page, and past the end.
+    for (const [offset, limit] of [
+      [5, 2],
+      [7, 5],
+      [8, 1],
+      [0, 1],
+    ] as const) {
+      const page = await list(workspace, { offset, limit });
+      expect(page).toEqual({
+        hints: all.hints.slice(offset, offset + limit),
+        total: ALL.length,
+        incomplete: false,
+      });
+    }
+    // The page of a filter counts the hints that pass it.
+    expect(await list(workspace, { kind: ["relation.outdated"], limit: 1 })).toMatchObject({ total: 2 });
+  });
+
   it("refuses an element that is no package or no variant, and an unknown one", async () => {
     const workspace = await opened();
     expect(await listError(workspace, { package: VA })).toMatchObject({
@@ -318,7 +342,7 @@ describe("hint.list (SR-026)", () => {
       files: { "metamodel/broken.yaml": "reqseq-metamodel: 1\ntypes: 5\n" },
     });
     expect((await workspace.get(metamodelState)).valid).toBe(false);
-    expect(await list(workspace)).toEqual({ hints: [], incomplete: false });
+    expect(await list(workspace)).toEqual({ hints: [], total: 0, incomplete: false });
   });
 
   it("matches the element of a hint by its UUID, repository and file, or the only record of its UUID", async () => {
@@ -338,12 +362,16 @@ describe("hint.list (SR-026)", () => {
     // A file that holds no record of the UUID: the only record of the UUID is meant.
     const elsewhere: Problem = { ...stray, elementId: N2, file: "needs/elsewhere.md" };
     const context = { metamodel, store };
-    expect(await hintsOf(workspace, context, { types: ["need"] }, [stray, elsewhere], [])).toEqual([
-      elsewhere,
-    ]);
+    expect(await hintsOf(workspace, context, { types: ["need"] }, [stray, elsewhere], [])).toEqual({
+      hints: [elsewhere],
+      total: 1,
+    });
     // No record of the UUID: no element filter matches it.
-    expect(await hintsOf(workspace, context, { types: ["need"] }, [stray], [])).toEqual([]);
-    expect(await hintsOf(workspace, context, {}, [stray], [])).toEqual([stray]);
+    expect(await hintsOf(workspace, context, { types: ["need"] }, [stray], [])).toEqual({
+      hints: [],
+      total: 0,
+    });
+    expect(await hintsOf(workspace, context, {}, [stray], [])).toEqual({ hints: [stray], total: 1 });
   });
 
   it("matches outdated evidence by the element it names, not by its record file", async () => {
@@ -377,9 +405,9 @@ describe("hint.list (SR-026)", () => {
     ];
     expect(filters).toHaveLength(3);
     for (const filter of filters) {
-      expect(await hintsOf(workspace, context, filter, [evidence], [])).toEqual([evidence]);
+      expect((await hintsOf(workspace, context, filter, [evidence], [])).hints).toEqual([evidence]);
     }
-    expect(await hintsOf(workspace, context, { types: ["need"] }, [evidence], [])).toEqual([]);
+    expect((await hintsOf(workspace, context, { types: ["need"] }, [evidence], [])).hints).toEqual([]);
   });
 });
 

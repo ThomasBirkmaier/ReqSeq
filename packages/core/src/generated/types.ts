@@ -2455,7 +2455,7 @@ export interface TraceGraphOutput {
 }
 
 /**
- * Input of `hint.list` as `run` gets it: validated, properties with a `default` filled in. Open hints of the workspace, filterable by kind, type, package or variant.
+ * Input of `hint.list` as `run` gets it: validated, properties with a `default` filled in. Open hints of the workspace, filterable by kind, type, package or variant; one page of hints at a time, total counts all.
  * Schema: `schemas/commands/hint.list.json input`.
  */
 export interface HintListInput {
@@ -2469,15 +2469,21 @@ export interface HintListInput {
   readonly variant?: ElementRef;
   /** Only the hints about this element. */
   readonly ref?: ElementRef;
+  /** Hints of the page; total counts all. Every page finds every hint again; only the dates of outdated relations (D-013) are asked for the hints of the page alone. */
+  readonly limit: number;
+  /** Hints skipped before the page, in the order of `hints`. */
+  readonly offset: number;
 }
 
 /**
- * Output of `hint.list`. Open hints of the workspace, filterable by kind, type, package or variant.
+ * Output of `hint.list`. Open hints of the workspace, filterable by kind, type, package or variant; one page of hints at a time, total counts all.
  * Schema: `schemas/commands/hint.list.json output`.
  */
 export interface HintListOutput {
-  /** The open hints: findings of severity warning about one element (glossary "Hinweis": the element should be checked; it blocks nothing and changes no status), from the same whole-workspace findings as workspace.check; errors, info and warnings about no element are not hints. Filters combine with AND. Each hint with its kind (code), the element it is about (elementId, repository, file, line), its target where it has one (targetId; with targetRepository, targetShortId and targetIdentifier when it was resolved to one element, #172) and its reason (message; for an outdated relation with both versions and their dates, D-013). In the order of workspace.check. */
+  /** The open hints: findings of severity warning about one element (glossary "Hinweis": the element should be checked; it blocks nothing and changes no status), from the same whole-workspace findings as workspace.check; errors, info and warnings about no element are not hints. Filters combine with AND. Each hint with its kind (code), the element it is about (elementId, repository, file, line), its target where it has one (targetId; with targetRepository, targetShortId and targetIdentifier when it was resolved to one element, #172) and its reason (message; for an outdated relation with both versions and their dates, D-013). In the order of workspace.check. Only the page of `limit` hints from `offset` (in this order) is listed; `total` counts every hint that passes the filters. */
   readonly hints: readonly Problem[];
+  /** The number of all hints that pass the filters; `hints` holds the page of `limit` from `offset`. */
+  readonly total: number;
   /** True while a repository of the workspace file is not on this machine: the hints of its elements are not listed (SR-006 AK2). */
   readonly incomplete: Incomplete;
 }
