@@ -10,7 +10,7 @@
 import type { Metamodel } from "../metamodel/index.js";
 import { propertyWithMeaning } from "../metamodel/index.js";
 import type { ElementRecord } from "./elements.js";
-import { plainOf } from "./patched-map.js";
+import { recordsById } from "./by-id.js";
 
 /** The elements of a workspace by identifier, as `ShortIds` keeps them. */
 export interface IdentifierIndex {
@@ -57,7 +57,7 @@ const byPlace = (a: ElementRecord, b: ElementRecord): number =>
 const recordsOf = (
   byId: ReadonlyMap<string, readonly ElementRecord[]>,
   id: string,
-): readonly ElementRecord[] => plainOf(byId).get(id) ?? [];
+): readonly ElementRecord[] => recordsById(byId, id) ?? [];
 
 /** The `identifierMatch` of each record of a UUID that has an identifier. */
 const matchesOf = (elements: readonly ElementRecord[], key: string): Set<string> => {

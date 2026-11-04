@@ -8,7 +8,7 @@ import { carryProblems } from "./carry.js";
 import type { ElementMatch, ElementRecord } from "./elements.js";
 import type { LocatableFinding } from "./locate.js";
 import { locateFindings } from "./locate.js";
-import { plainOf } from "./patched-map.js";
+import { recordsById } from "./by-id.js";
 import type { ElementStore } from "./store.js";
 import { carryStoreUpdate, elementStoreState } from "./store.js";
 
@@ -55,7 +55,7 @@ export const duplicateIdFindings = (store: ElementStore): readonly LocatableFind
  * ambiguous (SR-088 AK2); the elements keep the order of the element store.
  */
 export const resolveId = (byId: ReadonlyMap<string, readonly ElementRecord[]>, id: string): ElementMatch => {
-  const elements = plainOf(byId).get(id) ?? [];
+  const elements = recordsById(byId, id) ?? [];
   const [first] = elements;
   if (first === undefined) {
     return { kind: "unknown" };

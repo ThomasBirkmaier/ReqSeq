@@ -59,7 +59,7 @@ export interface ElementStore {
   readonly elements: readonly ElementRecord[];
   /**
    * Elements by UUID, each list in the order of `elements`; the order of the UUIDs is not defined
-   * (after a change a `PatchedMap`, #215). More than one record when files share a UUID (a copied
+   * after a change (a `PatchedMap`, #215; a hot read loop looks it up through `recordsById`). More than one record when files share a UUID (a copied
    * file); reporting that is SR-088.
    */
   readonly byId: ReadonlyMap<string, readonly ElementRecord[]>;
@@ -312,7 +312,7 @@ const lowerBound = (
  * The store after the files `touched` of `before` changed to those of `repositories` (#215,
  * ADR-0008): `elements` is copied once and patched at the places of the records that went and came
  * (binary search by repository index and path), `byId` is a `PatchedMap` in which each touched
- * UUID's list is built again in store order; `problems` and `nonElements` are kept when every
+ * UUID's list is built again in store order (hot read loops look it up through `recordsById`); `problems` and `nonElements` are kept when every
  * repository has the same `listing` object and every touched file contributes, before and
  * after, nothing or an element without warnings, else they are collected again. Every other record
  * stays the same object. From `PATCH_LIMIT` touched files the store is assembled anew. Either way the

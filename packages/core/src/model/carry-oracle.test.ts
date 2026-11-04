@@ -37,7 +37,7 @@ import { updateElement } from "./write.js";
 
 /**
  * Whether the seed runs with small patch limits: the store is assembled anew from 2 touched files,
- * maps compact from 4 entries and give their plain entries from 2 lookups (`plainOf`).
+ * maps compact from 4 entries, and a patched `byId` gets its plain view after 2 lookups (`recordsById`).
  */
 let small = false;
 
