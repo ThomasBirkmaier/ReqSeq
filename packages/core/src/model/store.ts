@@ -15,7 +15,7 @@ import { availableRepositories, workspaceLayoutState } from "../workspace/index.
 import type { Contribution } from "./contribution.js";
 import { contribution, parsedContribution } from "./contribution.js";
 import type { DiscoveredFiles } from "./discover.js";
-import { listMarkdownFiles, listsFile } from "./discover.js";
+import { ELEMENT_FILE_EXTENSION, listMarkdownFiles, listsFile, pathState } from "./discover.js";
 import type { ElementRecord } from "./elements.js";
 import { ignoreMatcher } from "./ignore.js";
 import type { Reuse } from "./model-cache.js";
@@ -355,6 +355,81 @@ const same = (before: Contribution, after: Contribution): boolean =>
   JSON.stringify(before.snapshot) === JSON.stringify(after.snapshot) &&
   (before.snapshot !== undefined || JSON.stringify(before) === JSON.stringify(after));
 
+/**
+ * The most paths a batch may name in one repository for `listedWithoutWalk` to look at them one by
+ * one: each costs a few `lstat`, `opendir` and `realpath` calls, while a walk of 50,000 files costs
+ * about 25 ms (N-036, #215); a larger batch (a pull) walks.
+ */
+export const WALK_SKIP_LIMIT = 64;
+
+/** `relative` folded as a file system that ignores case and normal form compares it. */
+const folded = (relative: string): string => relative.normalize("NFC").toLowerCase();
+
+/**
+ * A test whether the store holds a file at or below a path, compared ignoring case and normal form:
+ * the folded files and every folder above one are put in a set once, on the first question.
+ */
+const holdsBelow = (before: RepositoryContents): ((relative: string) => boolean) => {
+  let held: Set<string> | undefined;
+  return (relative) => {
+    if (held === undefined) {
+      held = new Set();
+      for (const file of before.files.keys()) {
+        const key = folded(file);
+        for (let end = key.length; end > 0; end = key.lastIndexOf("/", end - 1)) {
+          held.add(key.slice(0, end));
+        }
+      }
+    }
+    return held.has(folded(relative));
+  };
+};
+
+/**
+ * What a walk of the repository would list after `changes`, found without a walk (#215), or
+ * undefined when only a walk can tell. That is so only when the OS named the paths (no `all`), there
+ * are at most `WALK_SKIP_LIMIT` of them, the repository had no listing problem before (an unreadable
+ * folder, a link or `.MD` file, a stale temp file: a walk keeps those current), and each path is
+ * one of: a file the store holds that the walk still lists (`listsFile`: every folder above it a
+ * real folder without a `.git` entry, the spelling as on disk), a file it holds that is gone from a
+ * folder the walk goes into, a new `*.md` file the walk lists that is no folder above a file of the
+ * store (one moved away and replaced by the file), or a path that is gone and is no file of the store
+ * and no folder above one (a temporary file of an editor; both compared ignoring case and normal
+ * form). Anything else (a folder, a link, another spelling, a name Windows abbreviates, an error)
+ * walks.
+ */
+const listedWithoutWalk = async (
+  before: RepositoryContents,
+  changes: RepositoryChanges,
+  ignored: (relativePath: string) => boolean,
+): Promise<DiscoveredFiles | undefined> => {
+  if (changes.all === true || changes.paths.length > WALK_SKIP_LIMIT || before.listing.length > 0) {
+    return undefined;
+  }
+  const gone = new Set<string>();
+  const added: string[] = [];
+  const below = holdsBelow(before);
+  for (const relative of changes.paths) {
+    const state = await pathState(before.location, ignored, relative);
+    const held = before.files.has(relative);
+    if (state === "listed" && held) {
+      continue;
+    }
+    if (state === "gone" && held) {
+      gone.add(relative);
+    } else if (state === "listed" && relative.endsWith(ELEMENT_FILE_EXTENSION) && !below(relative)) {
+      // New, and no folder of that name held files (it was moved away, the file took its place).
+      added.push(relative);
+    } else if (state !== "gone" || below(relative)) {
+      return undefined;
+    }
+  }
+  return {
+    files: [...[...before.files.keys()].filter((file) => !gone.has(file)), ...added],
+    problems: before.listing,
+  };
+};
+
 /** One repository after `changes`, or `before` itself when nothing it contributes changed. */
 const updateContents = async (
   before: RepositoryContents,
@@ -364,9 +439,11 @@ const updateContents = async (
   versioning: Versioning | undefined,
 ): Promise<RepositoryContents> => {
   const repository = before.location;
-  // One walk again: it sees new, moved and deleted files and folders and applies every rule of the
-  // full read (ignore globs, nested repositories, links) without reading a file (N-036).
-  const listed = await listMarkdownFiles(repository, ignored);
+  // The changed paths alone when they tell what a walk would list (#215), else one walk again: it
+  // sees new, moved and deleted files and folders and applies every rule of the full read (ignore
+  // globs, nested repositories, links) without reading a file (N-036).
+  const listed =
+    (await listedWithoutWalk(before, changes, ignored)) ?? (await listMarkdownFiles(repository, ignored));
   // Compared in Unicode NFC (#225): the watcher may spell a path in another normal form than
   // `readdir` (FSEvents on macOS). Where a file system keeps the forms apart, a file is at most
   // checked once more.
@@ -431,7 +508,8 @@ export const readsInFull = (store: ElementStore, layout: WorkspaceLayout): boole
 
 /**
  * The store after files changed outside the tool (SR-007): for each repository with changes its
- * Markdown files are listed again (one walk, no reads), files that are gone are dropped, new files
+ * Markdown files are listed again (one walk, no reads, skipped when the changed paths alone tell
+ * what it would list: `listedWithoutWalk`), files that are gone are dropped, new files
  * are read and the changed ones read again; a file whose snapshot (SHA-256, size, time) is
  * unchanged keeps its record, and a file deleted while it is read counts as gone. The result
  * equals `loadElements` on the working tree now. Undefined when nothing changed, so dependent

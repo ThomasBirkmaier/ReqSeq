@@ -496,6 +496,39 @@ const held = async (workspace: Workspace): Promise<() => void> => {
 };
 
 describe("the watcher's rules (SR-007)", () => {
+  it("walks again for a `.git` entry created or removed in a subfolder and for a folder swapped for a link (#215)", async () => {
+    const { fixture, workspace } = await opened({
+      files: { "sub/SR-0c1d2e3f4a5b.md": requirement(OTHER, "Sub") },
+    });
+    await workspace.get(elementStoreState);
+    const { fake, watcher } = await watched(workspace);
+    const held = async (): Promise<boolean> =>
+      records(await workspace.get(elementStoreState), OTHER).some((r) => r.file === "sub/SR-0c1d2e3f4a5b.md");
+    expect(await held()).toBe(true);
+    // A nested repository that is not in the workspace: the walk leaves the folder out.
+    await fs.mkdir(fixture.path("sub/.git"));
+    fake.only().send("sub/.git");
+    await watcher.settled();
+    expect(await held()).toBe(false);
+    // Its `.git` removed again: the folder is read again.
+    await fs.rm(fixture.path("sub/.git"), { recursive: true });
+    fake.only().send("sub/.git");
+    await watcher.settled();
+    expect(await held()).toBe(true);
+    // Paths inside `.git` change nothing.
+    fake.only().send("sub/.git/index");
+    await watcher.settled();
+    expect(await held()).toBe(true);
+    if (process.platform !== "win32") {
+      // A link in place of the folder: the walk does not follow it.
+      await fs.rename(fixture.path("sub"), fixture.path("away"));
+      await fs.symlink(fixture.path("away"), fixture.path("sub"));
+      fake.only().send("sub");
+      await watcher.settled();
+      expect(await held()).toBe(false);
+    }
+  });
+
   it("watches every available repository once, recursively, and the nested one through the outer watcher", async () => {
     const { fixture, workspace } = await opened({
       files: {

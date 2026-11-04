@@ -19,6 +19,7 @@ import {
   updateElements,
   recordWrites,
   StoreFallback,
+  WALK_SKIP_LIMIT,
   withWrittenFiles,
 } from "./store.js";
 import { writtenElement } from "./write.js";
@@ -646,6 +647,82 @@ describe("updating the element store file by file (SR-007)", () => {
     expect(next).toEqual(await loadElements(layout, undefined, { versioning: before.versioning }));
     expect(next.repositories?.[0]).toBe(before.repositories?.[0]);
     expect(next.repositories?.[1]).not.toBe(before.repositories?.[1]);
+  });
+
+  /** Counts the folders listed (`readdir`) while `run` runs. */
+  const walked = async <T>(
+    run: () => Promise<T>,
+  ): Promise<{ readonly result: T; readonly folders: number }> => {
+    const spy = vi.spyOn(fs, "readdir");
+    try {
+      const result = await run();
+      return { result, folders: spy.mock.calls.length };
+    } finally {
+      spy.mockRestore();
+    }
+  };
+
+  it("walks no folder when the paths alone tell what a walk lists: files kept, gone or new, gone temp names (#215)", async () => {
+    const { ws, layout, before } = await opened();
+    await ws.write(REQUIREMENT_FILE, element(REQUIREMENT, "system-requirement", "extra: edited\n"));
+    await ws.write("extra/SR-1d2e3f4a5b6c.md", element(ID_B));
+    await fs.rm(ws.path("needs/N-8beffcbd8c26.md"));
+    const { result: next, folders } = await walked(() =>
+      updated(
+        before,
+        layout,
+        changes([
+          REQUIREMENT_FILE,
+          "extra/SR-1d2e3f4a5b6c.md",
+          "needs/N-8beffcbd8c26.md",
+          // An editor's temporary file, gone by the time of the batch.
+          "requirements/.SR-88cc6ebc472a.md.swp",
+        ]),
+      ),
+    );
+    expect(folders).toBe(0);
+    expect(next).toEqual(await loadElements(layout, undefined, { versioning: before.versioning }));
+    expect(only(next, REQUIREMENT).data["extra"]).toBe("edited");
+    expect(only(next, ID_A)).toBe(only(before, ID_A));
+  });
+
+  it("walks for a new file where a folder of that name held files of the store (#215 review B1)", async () => {
+    const { ws, layout, before } = await opened({ "x.md/inner.md": element(ID_B) });
+    await fs.rename(ws.path("x.md"), ws.path("away"));
+    await ws.write("x.md", "# Now a file\n");
+    const { result: next, folders } = await walked(() => updated(before, layout, changes(["x.md"])));
+    expect(folders).toBeGreaterThan(0);
+    expect(next).toEqual(await loadElements(layout, undefined, { versioning: before.versioning }));
+    expect(only(next, ID_B).file).toBe("away/inner.md");
+  });
+
+  it("walks when the paths alone cannot tell (#215)", async () => {
+    const { ws, layout, before } = await opened();
+    await ws.write("notes.txt", "Not an element file.\n");
+    await fs.rm(ws.path("needs"), { recursive: true });
+    const cases: Map<string, RepositoryChanges>[] = [
+      // Too many paths, a new file that is no `.md` file, a gone folder above files of the store,
+      // a folder, and no paths at all.
+      changes(Array.from({ length: WALK_SKIP_LIMIT + 1 }, () => REQUIREMENT_FILE)),
+      changes(["notes.txt"]),
+      changes(["needs"]),
+      changes(["requirements"]),
+      changes([], true),
+    ];
+    for (const change of cases) {
+      const { result: next, folders } = await walked(() => updateElements(before, layout, change));
+      expect(folders).toBeGreaterThan(0);
+      expect(next ?? before).toEqual(
+        await loadElements(layout, undefined, { versioning: before.versioning }),
+      );
+    }
+    // A repository with a listing problem walks too, so the problem stays current.
+    await ws.write("notes/README.MD", "# Upper case\n");
+    const listed = await updated(before, layout, changes(["notes/README.MD"]));
+    expect(listed.problems.map((p) => p.code)).toEqual(["file.skipped"]);
+    await ws.write(REQUIREMENT_FILE, element(REQUIREMENT, "system-requirement", "extra: again\n"));
+    const { folders } = await walked(() => updated(listed, layout, changes([REQUIREMENT_FILE])));
+    expect(folders).toBeGreaterThan(0);
   });
 
   it("stops reading when the signal is aborted", async () => {

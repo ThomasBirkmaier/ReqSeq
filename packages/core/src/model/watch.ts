@@ -183,16 +183,27 @@ export const counts = (relative: string): boolean =>
   !hasSkippedName(relative) && !isTempFile(path.posix.basename(relative));
 
 /**
- * Whether a path that does not end in `.md` can change the store: a folder (created, moved) or a
- * path that is gone (a deleted folder). Other files (build output, images) are left out, so they
- * cost no walk. Exported for the carry oracle (#215).
+ * The folder of a `.git` entry that was created or removed below the repository folder, which the
+ * walk then leaves out or goes into again (a nested repository): the batch names the folder, so it
+ * walks (#215). Any other path as it is; a path inside `.git` is dropped later (`counts`). Exported
+ * for the carry oracle (#215).
+ */
+export const gitEntryFolder = (relative: string): string =>
+  path.posix.basename(relative) === ".git" && relative !== ".git" ? path.posix.dirname(relative) : relative;
+
+/**
+ * Whether a path that does not end in `.md` can change the store: a folder (created, moved), a link
+ * (it may have replaced a folder, which the walk then leaves out) or a path that is gone (a deleted
+ * folder). Other files (build output, images) are left out, so they cost no walk. Exported for the
+ * carry oracle (#215).
  */
 export const mayHoldElements = async (folder: string, relative: string): Promise<boolean> => {
   if (relative.toLowerCase().endsWith(ELEMENT_FILE_EXTENSION)) {
     return true;
   }
   try {
-    return (await fs.promises.lstat(path.join(folder, relative))).isDirectory();
+    const stat = await fs.promises.lstat(path.join(folder, relative));
+    return stat.isDirectory() || stat.isSymbolicLink();
   } catch {
     return true;
   }
@@ -561,6 +572,9 @@ class Watcher implements WorkspaceWatcher {
       if (relative !== undefined && (owner === undefined || owner.relative.length > relative.length)) {
         owner = { repository, relative };
       }
+    }
+    if (owner !== undefined) {
+      owner = { ...owner, relative: gitEntryFolder(owner.relative) };
     }
     if (owner !== undefined && counts(owner.relative)) {
       const { repository, relative } = owner;

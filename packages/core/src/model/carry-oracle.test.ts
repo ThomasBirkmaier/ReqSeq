@@ -31,7 +31,7 @@ import {
   updateElements,
   workspaceVersioning,
 } from "./store.js";
-import { counts, mayHoldElements, watchWorkspace } from "./watch.js";
+import { counts, gitEntryFolder, mayHoldElements, watchWorkspace } from "./watch.js";
 import { updateElement } from "./write.js";
 
 /** Links need a privilege on Windows, and modes do not keep a file from being read there. */
@@ -218,7 +218,8 @@ class Oracle {
       return { kind: "watcher", label: result.label, changes: changesOf(true) };
     }
     if (result.kind === "write") {
-      return result;
+      // A mode given back above is still named, by a batch queued with the save.
+      return named.size === 0 ? result : { ...result, kind: "interleave", changes: changesOf(false) };
     }
     return result.kind === "retry"
       ? { ...result, changes: changesOf(false) }
@@ -379,16 +380,19 @@ const OPS: readonly Op[] = [
     if (!POSIX) {
       return undefined;
     }
-    // A folder swapped for a link to a folder outside: the watcher drops the link itself (no
-    // folder, no .md), so an edit through it is what names the folder (review B1).
+    // A folder swapped for a link to a folder outside; the watcher names the link, and now and then
+    // an edit through it as well (#215 reviews B1, N1).
     const folder = path.posix.dirname(t.file);
     const outside = o.fixture.path(`outside/${String(o.link())}`);
     await fs.mkdir(path.dirname(outside), { recursive: true });
     await fs.rename(o.abs(t.repository, folder), outside);
     await fs.symlink(outside, o.abs(t.repository, folder));
-    await fs.writeFile(path.join(outside, path.posix.basename(t.file)), o.element(t.id));
     o.forget(t.repository, folder);
-    name(t.repository, folder, t.file);
+    name(t.repository, folder);
+    if (o.int(2) === 0) {
+      await fs.writeFile(path.join(outside, path.posix.basename(t.file)), o.element(t.id));
+      name(t.repository, t.file);
+    }
     return `folder ${t.repository}/${folder} swapped for a link`;
   },
   async (o, { target: t, name }) => {
@@ -411,13 +415,42 @@ const OPS: readonly Op[] = [
     return `${t.repository}/${t.file} swapped for a link`;
   },
   async (o, { target: t, name }) => {
-    // A `.git` entry in a subfolder: the watcher drops its path; an edit below names the folder.
+    // A `.git` entry in a subfolder (the watcher names its folder), now and then with an edit below.
     const folder = path.posix.dirname(t.file);
     await fs.mkdir(path.join(o.abs(t.repository, folder), ".git"), { recursive: true });
-    await o.write(t.repository, t.file, o.element(t.id));
     o.forget(t.repository, folder);
-    name(t.repository, `${folder}/.git`, t.file);
+    name(t.repository, `${folder}/.git`);
+    if (o.int(2) === 0) {
+      await o.write(t.repository, t.file, o.element(t.id));
+      name(t.repository, t.file);
+    }
     return `git init in ${t.repository}/${folder}`;
+  },
+  async (o, { name }) => {
+    // A folder named like an element file (`F1.md/`) moved out of the repository and a file of that
+    // name created in its place: the watcher names only the new file (#215 review B1).
+    const inFolder = o.files.find((k) => path.posix.dirname(k.file).endsWith(".md"));
+    if (inFolder === undefined) {
+      const known = {
+        repository: o.pick(REPOSITORIES),
+        file: `deep/F${String(o.count())}.md/inner.md`,
+        id: o.uuid(),
+      };
+      await o.write(known.repository, known.file, o.element(known.id));
+      o.files.push(known);
+      name(known.repository, known.file);
+      return `add ${known.repository}/${known.file}`;
+    }
+    const folder = path.posix.dirname(inFolder.file);
+    const outside = o.fixture.path(`outside/${String(o.link())}`);
+    await fs.mkdir(path.dirname(outside), { recursive: true });
+    await fs.rename(o.abs(inFolder.repository, folder), outside);
+    o.forget(inFolder.repository, folder);
+    const replacing = { repository: inFolder.repository, file: folder, id: o.uuid() };
+    await o.write(replacing.repository, replacing.file, o.element(replacing.id));
+    o.files.push(replacing);
+    name(replacing.repository, replacing.file);
+    return `folder ${replacing.repository}/${folder} replaced by a file`;
   },
   async (o, { target: t, name }) => {
     if (!POSIX) {
@@ -485,7 +518,7 @@ const filtered = async (
       out.set(repository.name, change);
     } else if (change !== undefined) {
       const kept: string[] = [];
-      for (const p of change.paths) {
+      for (const p of change.paths.map(gitEntryFolder)) {
         if (counts(p) && (await mayHoldElements(repository.folder, p))) {
           kept.push(p);
         }

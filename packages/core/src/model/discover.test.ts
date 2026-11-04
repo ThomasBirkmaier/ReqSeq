@@ -6,7 +6,14 @@ import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { Workspace } from "../runtime/workspace.js";
 import type { RepositoryLocation } from "../workspace/index.js";
 import type { NewFileProblem } from "./discover.js";
-import { STALE_TEMP_AGE_MS, listFiles, listMarkdownFiles, listsFile, newFileTarget } from "./discover.js";
+import {
+  STALE_TEMP_AGE_MS,
+  listFiles,
+  listMarkdownFiles,
+  listsFile,
+  newFileTarget,
+  pathState,
+} from "./discover.js";
 import { ignoreMatcher } from "./ignore.js";
 import { elementStoreState } from "./store.js";
 
@@ -216,6 +223,55 @@ describe("listMarkdownFiles", () => {
     expect(s.problems.map((p) => [p.code, p.severity, p.repository, p.file])).toEqual([
       ["file.skipped", "warning", "solo", "CLAUDE.md"],
     ]);
+  });
+});
+
+describe("pathState: what the walk says about one changed path, without a walk (#215)", () => {
+  it("is listed for a file the walk lists, gone for a path gone from a folder it goes into, else unclear", async () => {
+    const ws = await fixture({
+      "a.md": "",
+      "deep/b.md": "",
+      "own/.git": "gitdir: elsewhere\n",
+      "own/c.md": "",
+      "docs/d.md": "",
+      "outside/e.md": "",
+      "notes.txt": "",
+    });
+    if (process.platform !== "win32") {
+      await fs.symlink(ws.path("outside"), ws.path("linked"));
+    }
+    const repo = repository(ws.root);
+    const ignored = ignoreMatcher(["docs/**"]);
+    const cases: [string, string][] = [
+      ["a.md", "listed"],
+      ["deep/b.md", "listed"],
+      // Any regular file along walkable folders: whether its extension counts is the caller's question.
+      ["notes.txt", "listed"],
+      // A folder, a file below a `.git` entry, an ignored file: the walk tells.
+      ["deep", "unclear"],
+      ["own/c.md", "unclear"],
+      ["docs/d.md", "unclear"],
+      // Gone from the root or from a folder the walk goes into.
+      ["gone.md", "gone"],
+      ["deep/gone.md", "gone"],
+      ["deep/b.md.tmp-1", "gone"],
+      // Gone below a folder that is gone, has a `.git` entry or is ignored.
+      ["gone/x.md", "unclear"],
+      ["own/gone.md", "unclear"],
+      ["docs/gone.md", "unclear"],
+      // A path below a file: `ENOTDIR`.
+      ["a.md/x.md", "unclear"],
+      // Gone under a name Windows abbreviates or changes: it may name a held folder.
+      ["DEEP~1", "unclear"],
+      ["deep/gone.md.", "unclear"],
+    ];
+    if (process.platform !== "win32") {
+      // Below a linked folder: the walk does not go into it, the realpath spells it elsewhere.
+      cases.push(["linked/e.md", "unclear"], ["linked/gone.md", "unclear"]);
+    }
+    for (const [file, state] of cases) {
+      expect([file, await pathState(repo, ignored, file)]).toEqual([file, state]);
+    }
   });
 });
 

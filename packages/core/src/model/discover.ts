@@ -305,11 +305,35 @@ export const listsFile = async (
   ignored: (relativePath: string) => boolean,
   file: string,
 ): Promise<boolean> => {
+  if (!(await walksInto(repository, ignored, file.split("/").slice(0, -1)))) {
+    return false;
+  }
+  const absolute = path.join(repository.folder, file);
+  if (
+    nameRule(repository, ignored, file) !== undefined ||
+    (await lstatIfThere(absolute))?.isFile() !== true
+  ) {
+    return false;
+  }
+  return (await spelledOnDisk(repository, file)) === file;
+};
+
+/**
+ * Whether the walk opens the repository folder and goes into every folder of `names` (the folders
+ * from the repository down, one name each): each one exists, is a real folder (no link) without a
+ * `.git` entry, is not left out by its name, an `ignore` glob or a nested repository, and can be
+ * opened. Errors other than "nothing there" reject.
+ */
+const walksInto = async (
+  repository: RepositoryLocation,
+  ignored: (relativePath: string) => boolean,
+  names: readonly string[],
+): Promise<boolean> => {
   if (!(await canList(repository.folder))) {
     return false;
   }
   let folder = "";
-  for (const name of file.split("/").slice(0, -1)) {
+  for (const name of names) {
     folder = folder === "" ? name : `${folder}/${name}`;
     const absolute = path.join(repository.folder, folder);
     if (nameRule(repository, ignored, folder) !== undefined) {
@@ -320,14 +344,41 @@ export const listsFile = async (
       return false;
     }
   }
-  const absolute = path.join(repository.folder, file);
-  if (
-    nameRule(repository, ignored, file) !== undefined ||
-    (await lstatIfThere(absolute))?.isFile() !== true
-  ) {
-    return false;
+  return true;
+};
+
+/**
+ * What the walk would say about one changed path (relative to the repository, `/`), checked along
+ * its path only (#215): `listed` when it lists the path as a file (`listsFile`); `gone` when nothing
+ * is there and the walk goes into its folder, spelled as on disk, so that no other path changed with
+ * it; `unclear` otherwise (a folder, a link, a file the walk reports or leaves out, another spelling,
+ * a gone path with a name Windows changes or abbreviates, any error such as `ENOTDIR` or `EACCES`),
+ * and then only a walk tells.
+ */
+export const pathState = async (
+  repository: RepositoryLocation,
+  ignored: (relativePath: string) => boolean,
+  relative: string,
+): Promise<"listed" | "gone" | "unclear"> => {
+  try {
+    if (await listsFile(repository, ignored, relative)) {
+      return "listed";
+    }
+    if ((await lstatIfThere(path.join(repository.folder, relative))) !== undefined) {
+      return "unclear";
+    }
+    // A name Windows changes (a short name such as `REQUIR~1`, a trailing dot): the path may be a
+    // spelling of a held folder that folding case and normal form does not find.
+    if (relative.split("/").some((name) => portableRule(name) !== undefined)) {
+      return "unclear";
+    }
+    const folders = relative.split("/").slice(0, -1);
+    const spelled =
+      folders.length === 0 || (await spelledOnDisk(repository, folders.join("/"))) === folders.join("/");
+    return spelled && (await walksInto(repository, ignored, folders)) ? "gone" : "unclear";
+  } catch {
+    return "unclear";
   }
-  return (await spelledOnDisk(repository, file)) === file;
 };
 
 /** Names Windows reserves for devices, with or without an extension (`NUL`, `com1.md`, `CONIN$`). */
