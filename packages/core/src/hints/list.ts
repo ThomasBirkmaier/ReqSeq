@@ -32,7 +32,8 @@
 // - `ref` takes the single-element path of `element.get` (#145, ADR-0008): the hints at the element
 //   as `showElement` gives them with `elementHints` (dated), not the whole-workspace states, so it
 //   builds neither the incoming index nor the cycles of the store. They are put into the order of
-//   the check by code (`CHECK_ORDER`, a stable sort keeps the element's order within one state), the
+//   the check by code (`CHECK_ORDER`, a stable sort keeps the element's order within one state; a code
+//   the check gives no hint with, such as `element.get`'s `file.faulty` of #276, is left out), the
 //   other filters apply as above, and since-baseline hints are computed only where
 //   `sinceBaselineVariants` admits the element; the page applies as above. The image check of
 //   `currentVersions` is left out, as at `element.get`.
@@ -147,13 +148,20 @@ const RANK: ReadonlyMap<string, number> = new Map(
   CHECK_ORDER.flatMap((codes, rank) => codes.map((code) => [code, rank] as const)),
 );
 
+/** The codes of the hints the whole-workspace path of `hint.list` can give (`CHECK_ORDER`). */
+export const CHECK_HINT_CODES: ReadonlySet<string> = new Set(RANK.keys());
+
 /**
- * The hints of one element in the order of `workspace.check` (`CHECK_ORDER`); a code it does not
- * name comes last. Stable: within one state the element's own order stays.
+ * The problems of one element whose code the check gives as a hint (`CHECK_ORDER`), in the order of
+ * `workspace.check`; any other (such as the `file.faulty` warning of an element without a version
+ * that `element.get` adds, #276) is left out. Stable: within one state the element's own order stays.
  */
-export const inCheckOrder = (hints: readonly Problem[]): Problem[] => {
-  const rank = (hint: Problem): number => RANK.get(hint.code) ?? CHECK_ORDER.length;
-  return [...hints].sort((a, b) => rank(a) - rank(b));
+export const inCheckOrder = (problems: readonly Problem[]): Problem[] => {
+  const ranked = problems.flatMap((problem) => {
+    const rank = RANK.get(problem.code);
+    return rank === undefined ? [] : [{ problem, rank }];
+  });
+  return ranked.sort((a, b) => a.rank - b.rank).map((entry) => entry.problem);
 };
 
 /** Whether `problem` is a hint: a warning about an element (glossary "Hinweis"). */

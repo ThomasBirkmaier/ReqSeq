@@ -11,7 +11,9 @@ import { elementStoreState, incomingState, problemElement } from "../model/index
 import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
 import { derivationCycleProblemsState } from "../trace/index.js";
-import { inCheckOrder, isHint } from "./list.js";
+import { CHECK_HINT_CODES, HINT_STATES, inCheckOrder, isHint } from "./list.js";
+import { SINCE_BASELINE_CODES } from "./since-baseline.js";
+import { outdatedRelationsState } from "./outdated.js";
 
 type Output = CommandOutput<"hint.list">;
 
@@ -60,6 +62,16 @@ const MORE_HINTS: FixtureOptions = {
   },
 };
 
+/** GUSTS with a counted value without a normal form: element.get adds a `file.faulty` warning (#276), no hint. */
+const ENDLESS: FixtureOptions = {
+  fixture: "SR-001/two-elements",
+  files: {
+    "requirements/SR-1d2e3f4a5b6c.md":
+      "---\nid: 3f2a9c1e-5b7d-4e8a-9c0b-1d2e3f4a5b6c\ntype: system-requirement\nstatus: draft\ntitle: Show gusts\n" +
+      "requirement-type: functional\nacceptance-criteria: .inf\n---\n\nGusts.\n",
+  },
+};
+
 /** enabler-305/identifiers with a second requirement SR-037 (#305). */
 const DUPLICATE_IDENTIFIER: FixtureOptions = {
   fixture: "enabler-305/identifiers",
@@ -101,6 +113,16 @@ const sameByRef = async (
   const workspace = await open(options, root);
   const all = (await list(workspace, filters)).hints;
   const whole = await workspace.get(elementStoreState);
+  // Every hint code a state of the check gives is in the order of one element (`CHECK_ORDER`).
+  const given = [
+    ...(await Promise.all(HINT_STATES.map((state) => workspace.get(state)))).flat(),
+    ...(await workspace.get(outdatedRelationsState)).map((finding) => finding.problem),
+  ];
+  expect(
+    given.filter((p) => isHint(p) && !CHECK_HINT_CODES.has(p.code)).map((p) => p.code),
+    "codes missing from CHECK_ORDER",
+  ).toEqual([]);
+  expect([...SINCE_BASELINE_CODES].every((code) => CHECK_HINT_CODES.has(code))).toBe(true);
   const codes = new Set<string>();
   for (const id of ids) {
     const record = whole.byId.get(id)?.[0];
@@ -126,6 +148,7 @@ describe("hint.list with ref takes the single-element path (#145)", () => {
       ...(await sameByRef({ fixture: "SR-039/nested" })),
       ...(await sameByRef({ fixture: "SR-152/limits" })),
       ...(await sameByRef({ fixture: "SR-171/max-items" })),
+      ...(await sameByRef(ENDLESS)),
       ...(await sameByRef(CORE_CHANGED)),
       ...(await sameByRef(MORE_HINTS)),
       ...(await sameByRef(DUPLICATE_IDENTIFIER)),
@@ -187,7 +210,7 @@ describe("hint.list with ref takes the single-element path (#145)", () => {
     expect(workspace.peek(derivationCycleProblemsState)).toBeUndefined();
   });
 
-  it("orders the hints of one element by the states of the check, a code it does not name last", () => {
+  it("orders the hints of one element by the states of the check and leaves out other codes", () => {
     const hint = (code: Problem["code"]): Problem => ({
       code,
       severity: "warning",
@@ -202,12 +225,6 @@ describe("hint.list with ref takes the single-element path (#145)", () => {
         hint("element.unknown-property"),
         hint("variant.core-changed"),
       ]).map((h) => h.code),
-    ).toEqual([
-      "element.unknown-property",
-      "trace.no-parent",
-      "relation.outdated",
-      "variant.core-changed",
-      "file.faulty",
-    ]);
+    ).toEqual(["element.unknown-property", "trace.no-parent", "relation.outdated", "variant.core-changed"]);
   });
 });
