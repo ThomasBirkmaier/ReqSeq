@@ -51,7 +51,6 @@ import { classifyFile, markdownLinks, relationKey, titleKeyOf } from "../model/i
 import { identifierKeyOf, identifierMatch, identifierValue } from "../model/identifier-index.js";
 import { PatchedMap } from "../model/patched-map.js";
 import type { StoreUpdate } from "../model/store.js";
-import { byPath } from "../model/store.js";
 import type { Scored, ScoringOptions } from "./search-scoring.js";
 import {
   carryLengths,
@@ -686,6 +685,12 @@ const placesOf = (layout: WorkspaceLayout): ReadonlyMap<string, number> => {
   return places;
 };
 
+/** The place of the repository of a record in `layout` (`placesOf`); after every other one when it lists none. */
+const placeIn = (layout: WorkspaceLayout): ((record: Pick<ElementRecord, "repository">) => number) => {
+  const places = placesOf(layout);
+  return (record) => places.get(record.repository) ?? places.size;
+};
+
 /** What found the words of a document: a result of MiniSearch, or a document of a scoring (`scoreWords`). */
 type WordsMatch = Pick<SearchResult, "match"> | { readonly scored: Scored; readonly doc: number };
 
@@ -736,16 +741,15 @@ const searchOf = (
   const admit = (record: ElementRecord | undefined, key: string): record is ElementRecord =>
     record !== undefined && (within === undefined || within.has(key));
   const scoring = scoringOf(searched, options.fuzzy ?? 0.2, options.prefix ?? true);
-  const places = placesOf(index.layout);
-  const placeOf = (record: ElementRecord): number => places.get(record.repository) ?? places.size;
-  return { index, admit, scoring, options: searchOptionsOf(scoring), placeOf };
+  return { index, admit, scoring, options: searchOptionsOf(scoring), placeOf: placeIn(index.layout) };
 };
 
-/** The records and keys of the documents of an index, by MiniSearch's short ID. */
+/** The records, keys and repository places (`placesOf`) of the documents of an index, by MiniSearch's short ID. */
 interface Documents {
   readonly generation: number;
   readonly records: readonly (ElementRecord | undefined)[];
   readonly keys: readonly (string | undefined)[];
+  readonly places: Int32Array;
 }
 
 const documentsCache = new WeakMap<SearchIndex, Documents>();
@@ -761,16 +765,19 @@ const documentsOf = (index: SearchIndex): Documents => {
   if (known?.generation === generation) {
     return known;
   }
-  const records: (ElementRecord | undefined)[] = new Array<ElementRecord | undefined>(nextShortId(mini));
-  const keys: (string | undefined)[] = new Array<string | undefined>(nextShortId(mini));
+  const placeOf = placeIn(index.layout);
+  const records: (ElementRecord | undefined)[] = [];
+  const keys: (string | undefined)[] = [];
+  const places = new Int32Array(nextShortId(mini));
   for (const [doc, key] of documentKeys(mini)) {
     const record = index.records.get(String(key));
     if (record !== undefined) {
       records[doc] = record;
       keys[doc] = String(key);
+      places[doc] = placeOf(record);
     }
   }
-  const built = { generation, records, keys };
+  const built = { generation, records, keys, places };
   documentsCache.set(index, built);
   return built;
 };
@@ -795,8 +802,9 @@ const carryArrays = (
   }
   const records = [...known.records];
   const keys = [...known.keys];
-  records.length = nextShortId(mini);
-  keys.length = nextShortId(mini);
+  const places = new Int32Array(nextShortId(mini));
+  places.set(known.places);
+  const placeOf = placeIn(carried.layout);
   // No search reads a removed short ID (MiniSearch's words no longer name it); cleared anyway, so
   // the arrays hold no record that left the store. They grow by one slot per added document, as
   // MiniSearch's short IDs do (`nextShortId`), and so did a fresh `documentsOf`.
@@ -807,10 +815,13 @@ const carryArrays = (
   for (const doc of added) {
     // An added document holds the record of its key (`carrySearchIndex`).
     const key = String(documentKeys(mini).get(doc));
-    records[doc] = carried.records.get(key);
+    const record = carried.records.get(key);
+    records[doc] = record;
     keys[doc] = key;
+    // Its key names its repository (`docKey`).
+    places[doc] = placeOf({ repository: key.slice(0, key.indexOf("\0")) });
   }
-  documentsCache.set(carried, { generation, records, keys });
+  documentsCache.set(carried, { generation, records, keys, places });
 };
 
 /**
@@ -851,7 +862,7 @@ const wordsFound = (search: Search, queries: readonly string[], and: boolean): F
         found.push({
           key,
           element,
-          place: search.placeOf(element),
+          place: Number(documents.places[doc]),
           score: Number(scored.scores[at]),
           matches: [{ scored, doc }],
           ids: 0,
@@ -973,7 +984,7 @@ const before = (a: Found, b: Found): boolean =>
       ? a.score > b.score
       : a.place !== b.place
         ? a.place < b.place
-        : byPath(a.element.file, b.element.file) < 0;
+        : a.element.file < b.element.file;
 
 const order = (a: Found, b: Found): number => (before(a, b) ? -1 : 1);
 
