@@ -14,8 +14,6 @@ const FIXTURES = new URL("../../../../fixtures/", import.meta.url);
 /** Fixture cases whose metamodel is the standard model; other cases hold their own models. */
 const FIXTURE_COPIES = [
   "SR-001/two-elements/metamodel/standard-model.yaml",
-  // The workspace of the guide images (#849): they show the standard model as `workspace init` writes it.
-  "enabler-344/weather-station/metamodel/standard-model.yaml",
   "SR-004/one-repository/metamodel/standard-model.yaml",
   "SR-004/own-metamodel/system/metamodel/standard-model.yaml",
   "SR-004/three-repositories/system/metamodel/standard-model.yaml",
@@ -23,6 +21,8 @@ const FIXTURE_COPIES = [
   "SR-021/targets/system/metamodel/standard-model.yaml",
   "SR-040/validity/metamodel/standard-model.yaml",
   "SR-072/supersede/metamodel/standard-model.yaml",
+  // The workspace of the guide images (#849): they show the standard model as `workspace init` writes it.
+  "enabler-344/weather-station/metamodel/standard-model.yaml",
 ];
 
 /**

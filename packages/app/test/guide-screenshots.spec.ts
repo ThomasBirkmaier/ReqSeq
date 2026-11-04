@@ -94,7 +94,9 @@ test("screenshots of the app for the user guide", async () => {
 
     // The standard model (the fixture's metamodel is the one `workspace.init` writes), on its own page: the
     // graph of its six types and "Any type", cut to the boxes and the names of their relations.
-    await resize(running, 1600, 1000);
+    // Tall enough for the boxes and their margin; a box below the window would be cut off unseen.
+    const [wide, high] = [1600, 1200];
+    await resize(running, wide, high);
     await window.keyboard.press("ControlOrMeta+Shift+P");
     await window.keyboard.type("Show metamodel");
     await expect(window.locator('.candidates [aria-selected="true"] .name')).toHaveText("Show metamodel");
@@ -112,11 +114,15 @@ test("screenshots of the app for the user guide", async () => {
     const right = 280;
     const x = Math.max(0, Math.min(...boxes.map((box) => box.x)) - margin);
     const y = Math.max(0, Math.min(...boxes.map((box) => box.y)) - margin);
+    const bottom = Math.max(...boxes.map((box) => box.y + box.height)) + margin;
+    // The modeline stands at the bottom of the window: the image ends above it.
+    const modeline = await window.getByLabel("Modeline").boundingBox();
+    expect(bottom).toBeLessThanOrEqual(modeline?.y ?? high);
     await shot("standard-model", {
       x,
       y,
-      width: Math.min(1600, Math.max(...boxes.map((box) => box.x + box.width)) + right) - x,
-      height: Math.min(1000, Math.max(...boxes.map((box) => box.y + box.height)) + margin) - y,
+      width: Math.min(wide, Math.max(...boxes.map((box) => box.x + box.width)) + right) - x,
+      height: bottom - y,
     });
   } finally {
     await running.close();
