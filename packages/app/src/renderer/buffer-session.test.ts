@@ -100,6 +100,7 @@ const everyKind = (): Buffer[] => [
     depth: "all",
     kinds: ["refines"],
     meanings: ["derivation"],
+    withEvidence: true,
     view: "core",
     selected: "spec:uuid-1",
   },
@@ -150,6 +151,7 @@ describe("buffer session (SR-115 AK4)", () => {
       depth: "all",
       kinds: ["refines"],
       meanings: ["derivation"],
+      withEvidence: true,
       view: "core",
     });
     expect(metamodel).toEqual(metamodelBuffer("text"));

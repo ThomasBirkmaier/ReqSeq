@@ -4,7 +4,9 @@
 // "outdated" and "no evidence" (D-062). The element stands in the middle of its graph, between its
 // parents and its children, marked by its border; the view opens on it (AK1).
 // The graph is one tab stop; the selection moves inside it (`graph-nav.ts`), Enter or a click opens a
-// node as the current element (AK5), `+` and `-` show one level more or less.
+// node as the current element (AK5), `+` and `-` show one level more or less. With evidence (AK3), a
+// muted box below a node sums up its evidence; it is no option, so the keys and Enter skip it, and the
+// node's accessible name says the summary.
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { TraceGraphOutput } from "@reqseq/core";
 import { useIdScope } from "./area-scope.js";
@@ -15,6 +17,7 @@ import {
   MARK_WORDS,
   deeper,
   edgeClasses,
+  evidenceText,
   graphInput,
   nodeId,
   nodeKey,
@@ -23,7 +26,14 @@ import {
   spotlit,
 } from "./graph.js";
 import type { GraphLayout } from "./graph-layout.js";
-import { NODE_HEIGHT, NODE_WIDTH, RANK_SEP, layoutGraph, viewStart } from "./graph-layout.js";
+import {
+  EVIDENCE_HEIGHT,
+  NODE_HEIGHT,
+  NODE_WIDTH,
+  RANK_SEP,
+  layoutGraph,
+  viewStart,
+} from "./graph-layout.js";
 import { DEPTH_LESS, DEPTH_MORE, GRAPH_MOVES, graphStep } from "./graph-nav.js";
 import type { BufferData } from "./modeline.js";
 
@@ -232,6 +242,7 @@ export const GraphView = ({
       Number(b.source === selected || b.target === selected),
   );
   const lit = spotlit(paths, selected);
+  const evidenceOf = new Map(layout?.evidence.map((box) => [box.node, box.evidence]));
   return (
     <div
       ref={root}
@@ -272,7 +283,26 @@ export const GraphView = ({
                   data-target={path.target}
                 />
               ))}
+              {layout.evidence.map((box) => (
+                <path key={box.key} className="graph-evidence-line" d={box.d} data-evidence={box.node} />
+              ))}
             </svg>
+            {layout.evidence.map((box) => {
+              const text = evidenceText(box.evidence);
+              return (
+                // No option and no selection: the node's accessible name says it (AK5).
+                <div
+                  key={box.key}
+                  className="graph-evidence"
+                  aria-hidden="true"
+                  title={text}
+                  data-evidence={box.node}
+                  style={{ left: box.x, top: box.y, width: NODE_WIDTH, height: EVIDENCE_HEIGHT }}
+                >
+                  {text}
+                </div>
+              );
+            })}
             {layout.nodes.map((placed, index) => {
               const typeName = typeNames.get(placed.node.type) ?? placed.node.type;
               const classes = [
@@ -287,7 +317,7 @@ export const GraphView = ({
                   className={classes.join(" ")}
                   role="option"
                   aria-selected={placed.key === selected}
-                  aria-label={nodeLabel(placed.node, typeName)}
+                  aria-label={nodeLabel(placed.node, typeName, evidenceOf.get(placed.key))}
                   title={`${nodeId(placed.node)} · ${typeName}\n${placed.node.title}`}
                   data-node={placed.key}
                   style={{ left: placed.x, top: placed.y, width: NODE_WIDTH, height: NODE_HEIGHT }}

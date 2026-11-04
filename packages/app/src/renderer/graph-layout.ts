@@ -20,15 +20,21 @@
 // above 0 below it (AK1): a node whose links do not put it on its side (its walk reached it through a
 // node that took its level from the other walk) gets an invisible layout link from the element, or to
 // it, which is never drawn.
+// With evidence (SR-111 AK3, `withEvidence`), each summary is one muted box below its node, joined to it
+// by a layout link, so dagre makes room for it in the layer under the node. The boxes are no nodes: they
+// are not in `nodes`, `byKey` or `layers`, so the keys never select them (AK5), and they do not count
+// for the bounds of the levelled layout.
 import type { TraceGraphOutput } from "@reqseq/core";
 import type { Point } from "./dagre.js";
 import { layoutGraphOf, runLayout } from "./dagre.js";
-import type { GraphEdge, GraphNode } from "./graph.js";
+import type { GraphEdge, GraphEvidence, GraphNode } from "./graph.js";
 import { keyOfNode, nodeKey } from "./graph.js";
 
 /** The size of a node in CSS pixels; `styles.css` gives `.graph-node` the same, so no node is measured. */
 export const NODE_WIDTH = 224;
 export const NODE_HEIGHT = 86;
+/** The height of an evidence box (`.graph-evidence` in `styles.css`): up to three lines of muted text. */
+export const EVIDENCE_HEIGHT = 64;
 /** The space between two nodes of a layer, and between two layers. */
 export const NODE_SEP = 24;
 export const RANK_SEP = 56;
@@ -58,14 +64,30 @@ const PORT_INSET = 12;
 
 export type { Point } from "./dagre.js";
 
-/** A node and its place: `x` and `y` are its top left corner; `layer` counts the drawn layers from the top. */
-export interface PlacedNode {
+/** A box and its place: `x` and `y` are its top left corner; every box is `NODE_WIDTH` wide. */
+interface PlacedBox {
   readonly key: string;
-  readonly node: GraphNode;
   readonly x: number;
   readonly y: number;
+}
+
+/** A node and its place; `layer` counts the drawn layers of nodes from the top. */
+export interface PlacedNode extends PlacedBox {
+  readonly node: GraphNode;
   readonly layer: number;
 }
+
+/** The evidence box of a node (`evidence:<repository>:<id>`), its place, and the line from its node. */
+export interface PlacedEvidence extends PlacedBox {
+  /** The key of its node. */
+  readonly node: string;
+  readonly evidence: GraphEvidence;
+  /** The SVG path from its node down to it. */
+  readonly d: string;
+}
+
+/** The key of the evidence box of the node `key`; never a node's key, which is `<repository>:<id>`. */
+export const evidenceKey = (key: string): string => `evidence:${key}`;
 
 const coordinate = (value: number): string => String(Math.round(value * 10) / 10);
 const at = (point: Point): string => `${coordinate(point.x)},${coordinate(point.y)}`;
@@ -103,7 +125,7 @@ export const edgePath = (points: readonly Point[]): string => {
   return `${d}${piece(a, b, b)}L${at(b)}`;
 };
 
-const centreX = (node: PlacedNode): number => node.x + NODE_WIDTH / 2;
+const centreX = (node: PlacedBox): number => node.x + NODE_WIDTH / 2;
 
 /** The x of the ends of one link: where it leaves `from` and where it enters `to`. */
 interface Ports {
@@ -116,7 +138,7 @@ interface Ports {
  * from its port on the edge, passes dagre's bend points and enters `to` straight. Two nodes of one
  * layer are joined by an arch above them.
  */
-const route = (from: PlacedNode, to: PlacedNode, bends: readonly Point[], ports: Ports): Point[] => {
+const route = (from: PlacedBox, to: PlacedBox, bends: readonly Point[], ports: Ports): Point[] => {
   if (from.y === to.y) {
     const top = from.y - RANK_SEP / 2;
     return [
@@ -133,18 +155,19 @@ const route = (from: PlacedNode, to: PlacedNode, bends: readonly Point[], ports:
   return [start, { x: start.x, y: start.y + step }, ...bends, { x: end.x, y: end.y - step }, end];
 };
 
-/** A drawn link: its nodes and links, and dagre's bend points from its target to its source. */
+/**
+ * A drawn line: its upper box (`target`, where a link points) and its lower one (`source`), and dagre's
+ * bend points from its target to its source.
+ */
 interface Bent {
-  readonly pair: Pair<PlacedNode>;
+  readonly target: PlacedBox;
+  readonly source: PlacedBox;
   /** None for a link drawn after the layout. */
   readonly bends: readonly Point[];
 }
 
-/** A drawn link and its ports. */
-interface Ported extends Bent {
-  from: number;
-  to: number;
-}
+/** A drawn line and its ports. */
+type Ported<B extends Bent> = B & { from: number; to: number };
 
 /**
  * Where a curve without bends (drawn after the layout) is half a layer gap from the edge of `node`, the
@@ -152,7 +175,7 @@ interface Ported extends Bent {
  * (both nodes in one layer), the other node's centre. Two nodes of different layers are at least a layer
  * gap apart, so the point is never past the other node.
  */
-const lean = (node: PlacedNode, other: PlacedNode): number => {
+const lean = (node: PlacedBox, other: PlacedBox): number => {
   if (node.y === other.y) {
     return centreX(other);
   }
@@ -165,7 +188,7 @@ const lean = (node: PlacedNode, other: PlacedNode): number => {
  * through a bend but through (previous + 4 · bend + next) / 6 of the points around it. The previous point
  * is the port, which is not known yet, so the node's centre stands for it.
  */
-const near = (node: PlacedNode, bend: Point, next: number): number => (centreX(node) + 4 * bend.x + next) / 6;
+const near = (node: PlacedBox, bend: Point, next: number): number => (centreX(node) + 4 * bend.x + next) / 6;
 
 /**
  * The ports of the drawn links, each from its target (above) to its source (below), the way dagre's
@@ -177,11 +200,11 @@ const near = (node: PlacedNode, bend: Point, next: number): number => (centreX(n
  * the curves of one edge seldom cross near it, but a curve that swings back after that height still can.
  * A node with one link on an edge meets it in the middle.
  */
-const portsOf = (links: readonly Bent[]): Ported[] => {
+const portsOf = <B extends Bent>(links: readonly B[]): Ported<B>[] => {
   interface End {
-    readonly link: Ported;
+    readonly link: Ported<B>;
     readonly end: keyof Ports;
-    readonly node: PlacedNode;
+    readonly node: PlacedBox;
     readonly heading: number;
     readonly far: number;
   }
@@ -195,9 +218,9 @@ const portsOf = (links: readonly Bent[]): Ported[] => {
       ends.push(end);
     }
   };
-  const ported = links.map(({ pair, bends }): Ported => {
-    const { target: from, source: to } = pair;
-    const link = { pair, bends, from: centreX(from), to: centreX(to) };
+  const ported = links.map((bent): Ported<B> => {
+    const { target: from, source: to, bends } = bent;
+    const link = { ...bent, from: centreX(from), to: centreX(to) };
     const first = bends[0];
     const last = bends.at(-1);
     const atFrom = first === undefined ? lean(from, to) : near(from, first, bends[1]?.x ?? centreX(to));
@@ -238,8 +261,10 @@ export interface GraphLayout {
   /** In the order of the output: the element first. */
   readonly nodes: readonly PlacedNode[];
   readonly byKey: ReadonlyMap<string, PlacedNode>;
-  /** The drawn layers from the top, each from left to right. */
+  /** The drawn layers of nodes from the top, each from left to right. */
   readonly layers: readonly (readonly PlacedNode[])[];
+  /** The evidence boxes, in the order of their nodes; none without the output's `evidence`. */
+  readonly evidence: readonly PlacedEvidence[];
   /** Whether the links within a level are drawn after the layout, so the layers follow the levels. */
   readonly levelled: boolean;
   readonly paths: readonly EdgePath[];
@@ -491,6 +516,16 @@ export const layoutGraph = (output: TraceGraphOutput): GraphLayout => {
   for (const { from, to } of anchors) {
     graph.setEdge(from, to, { minlen: 1, weight: 0 });
   }
+  // Each evidence box below its node; a summary of a node that is not shown has no box.
+  const summaries = new Map(
+    (output.evidence ?? [])
+      .map((evidence) => [nodeKey(evidence.repository, evidence.id), evidence] as const)
+      .filter(([node]) => nodes.has(node)),
+  );
+  for (const node of summaries.keys()) {
+    graph.setNode(evidenceKey(node), { width: NODE_WIDTH, height: EVIDENCE_HEIGHT });
+    graph.setEdge(node, evidenceKey(node), { minlen: 1, weight: 1 });
+  }
   runLayout(graph);
   const label = graph.graph();
   const tops = [...new Set([...nodes.keys()].map((key) => graph.node(key).y))].sort((a, b) => a - b);
@@ -509,17 +544,58 @@ export const layoutGraph = (output: TraceGraphOutput): GraphLayout => {
     placed.filter((node) => node.layer === layer).sort((a, b) => a.x - b.x),
   );
   // The bends first: the ports on a node's edge follow where each curve heads.
-  const bent = pairsOf(output, byKey, (placedNode) => placedNode.node.level, levelled).map((pair): Bent => ({
-    pair,
+  const bent = pairsOf(output, byKey, (placedNode) => placedNode.node.level, levelled).map((pair) => ({
+    target: pair.target,
+    source: pair.source,
+    links: pair.links,
     bends: pair.drawnAfter ? [] : graph.edge(pair.target.key, pair.source.key).points.slice(1, -1),
   }));
-  const paths = portsOf(bent).map((link): EdgePath => ({
-    source: link.pair.source.key,
-    target: link.pair.target.key,
-    links: link.pair.links,
-    d: edgePath(route(link.pair.target, link.pair.source, link.bends, link)),
-  }));
-  return { width: label.width, height: label.height, nodes: placed, byKey, layers, levelled, paths };
+  const boxes = placed.flatMap((from) => {
+    const evidence = summaries.get(from.key);
+    if (evidence === undefined) {
+      return [];
+    }
+    const key = evidenceKey(from.key);
+    const centre = graph.node(key);
+    const box = { key, x: centre.x - NODE_WIDTH / 2, y: centre.y - EVIDENCE_HEIGHT / 2 };
+    return [{ target: from, source: box, evidence, bends: graph.edge(from.key, key).points.slice(1, -1) }];
+  });
+  // One port order for both: an evidence line leaves its node's bottom edge among the node's links.
+  const lines = portsOf<Bent & { links?: GraphEdge[]; evidence?: GraphEvidence }>([...bent, ...boxes]);
+  const paths = lines.flatMap((line): EdgePath[] =>
+    line.links === undefined
+      ? []
+      : [
+          {
+            source: line.source.key,
+            target: line.target.key,
+            links: line.links,
+            d: edgePath(route(line.target, line.source, line.bends, line)),
+          },
+        ],
+  );
+  const evidence = lines.flatMap((line): PlacedEvidence[] =>
+    line.evidence === undefined
+      ? []
+      : [
+          {
+            ...line.source,
+            node: line.target.key,
+            evidence: line.evidence,
+            d: edgePath(route(line.target, line.source, line.bends, line)),
+          },
+        ],
+  );
+  return {
+    width: label.width,
+    height: label.height,
+    nodes: placed,
+    byKey,
+    layers,
+    evidence,
+    levelled,
+    paths,
+  };
 };
 
 /**

@@ -137,6 +137,8 @@ export interface GraphBuffer {
   readonly depth: GraphDepth;
   readonly kinds?: TraceGraphInput["kinds"];
   readonly meanings?: TraceGraphInput["meanings"];
+  /** Also the summaries of the evidence below the nodes (SR-111 AK3, "Evidence" in the kind prompts). */
+  readonly withEvidence?: true;
   readonly view?: TraceGraphInput["view"];
   /** The selected node as `<repository>:<id>`; not set: the element. */
   readonly selected?: string;

@@ -4,7 +4,8 @@
 //   that of the package Stufe-3 with its members in one wide layer, and the whole chain of the glossary
 //   term GL-f81ba9 (a node whose walk parent took its level from the other walk, #519), the decision
 //   D-062 at depth 1 (a fan of 30 links among 43) and the largest whole chain, that of D-035;
-// - on fixtures/SR-111/graph: the graph of S1 at depth 1, with a fan on each edge of the element;
+// - on fixtures/SR-111/graph: the graph of S1 at depth 1, with a fan on each edge of the element, and at
+//   depth 2 with "Also show relation kind" > "Evidence" (SR-111 AK3: the evidence boxes of S1 and C1);
 // - on the generated workspaces of SR-111 AK6: a package graph of 500 nodes at depth 1 and a whole chain
 //   of 500 nodes, both laid out in the layers of their levels (#500).
 // The window is 1280×800. The PNGs go to `test-results/electron/screenshots/` (or the folder in
@@ -129,6 +130,16 @@ for (const scheme of ["light", "dark"] as const) {
       const s1 = await nodeCount(running, { ref: "SR-b0000000001", maxDepth: 1 });
       await expect(window.locator(".graph")).toHaveAttribute("data-laid-out", String(s1));
       await window.screenshot({ path: path.join(OUT, `sr-111-fixture-s1-${scheme}.png`) });
+      await window.keyboard.press("+");
+      await window.keyboard.press("ControlOrMeta+Shift+P");
+      await window.keyboard.type("Also show relation kind");
+      await expect(window.locator('.candidates [role="option"]').first()).toContainText("Also show");
+      await window.keyboard.press("Enter");
+      await window.keyboard.type("Evidence");
+      await expect(window.locator('.candidates [role="option"]').first()).toContainText("Evidence");
+      await window.keyboard.press("Enter");
+      await expect(window.locator(".graph-evidence")).toHaveCount(2);
+      await window.screenshot({ path: path.join(OUT, `sr-111-fixture-s1-evidence-${scheme}.png`) });
     } finally {
       await running.close();
     }

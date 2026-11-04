@@ -215,6 +215,87 @@ describe("GraphView", () => {
     expect(query("#elsewhere").textContent).toBe(`element:${String(top)}`);
   });
 
+  it("[SR-111/AK3] draws a muted box below each node with evidence, which the keys, Enter and a click skip", async () => {
+    const summary = {
+      id: "uuid-C1",
+      repository: "spec",
+      level: 2,
+      testCases: 2,
+      records: 1,
+      results: { passed: 2, failed: 1 },
+    };
+    const call = fakeCall(() => ({ ...S1_GRAPH, evidence: [summary] }));
+    const { actions } = await mount(asCall(call), { ...S1, kinds: [], withEvidence: true });
+    expect(call).toHaveBeenCalledWith("trace.graph", {
+      ref: "uuid-S1",
+      repository: "spec",
+      maxDepth: 1,
+      kinds: [],
+      withEvidence: true,
+      limit: 500,
+    });
+    const boxes = [...container.querySelectorAll<HTMLElement>(".graph-evidence")];
+    expect(boxes.map((box) => [box.dataset["evidence"], box.textContent])).toEqual([
+      [key("C1"), "evidence · 2 test cases, 1 record · 2 passed, 1 failed"],
+    ]);
+    const [box] = boxes;
+    expect(box?.getAttribute("aria-hidden")).toBe("true");
+    expect(box?.getAttribute("role")).toBeNull();
+    expect(box?.title).toBe("evidence · 2 test cases, 1 record · 2 passed, 1 failed");
+    expect(container.querySelectorAll(`path.graph-evidence-line[data-evidence="${key("C1")}"]`)).toHaveLength(
+      1,
+    );
+    // The boxes are no nodes: the options and the drawn links are those of the graph.
+    expect(query(".graph").dataset["laidOut"]).toBe("10");
+    expect(container.querySelectorAll('[role="option"]')).toHaveLength(10);
+    expect(container.querySelectorAll("path.graph-edge")).toHaveLength(13);
+    // The node says its evidence.
+    expect(query(`[data-node="${key("C1")}"]`).getAttribute("aria-label")).toBe(
+      "C1 System Requirement Title C1 evidence · 2 test cases, 1 record · 2 passed, 1 failed",
+    );
+    // A click on the node with evidence opens it as before.
+    await act(async () => {
+      query(`[data-node="${key("C1")}"]`).dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      await Promise.resolve();
+    });
+    await flush();
+    expect(actions.at(-1)).toEqual({
+      type: "open",
+      buffer: expect.objectContaining({ key: `element:${key("C1")}` }) as unknown,
+    });
+  });
+
+  it("[SR-111/AK5] the keys never select an evidence box, and a click on one does nothing", async () => {
+    const summary = {
+      id: "uuid-S1",
+      repository: "spec",
+      level: 1,
+      testCases: 1,
+      records: 0,
+      results: { passed: 1 },
+    };
+    const { actions } = await mount(asCall(fakeCall(() => ({ ...S1_GRAPH, evidence: [summary] }))));
+    const reached = new Set<string | undefined>([selected()]);
+    for (const step of [
+      "ArrowDown",
+      "ArrowRight",
+      "ArrowRight",
+      "PageDown",
+      "PageDown",
+      "ArrowDown",
+      "Home",
+    ]) {
+      await press(step);
+      reached.add(selected());
+    }
+    expect([...reached].every((at) => at !== undefined && !at.startsWith("evidence:"))).toBe(true);
+    expect(container.querySelectorAll(".graph-evidence[aria-selected], .graph-evidence[id]")).toHaveLength(0);
+    const before = actions.length;
+    await click(query(".graph-evidence"));
+    expect(actions).toHaveLength(before);
+    expect(selected()).toBe(key("S1"));
+  });
+
   it("[SR-111/AK5] leaves a key with Ctrl, Cmd or Alt held to the window", async () => {
     const { actions } = await mount(asCall(fakeCall()));
     for (const held of [{ ctrlKey: true }, { metaKey: true }, { altKey: true }]) {

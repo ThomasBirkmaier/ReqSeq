@@ -1206,12 +1206,16 @@ export const ACTIONS: readonly Action[] = [
     run: graphPrompt("Show only", onlyChoices),
   },
   {
-    // SR-111 AK3: one more kind or meaning; only while the graph follows some kinds only.
+    // SR-111 AK3: one more kind or meaning while the graph follows some kinds only, or the evidence
+    // while it is not shown.
     id: "graph-also",
     title: "Also show relation kind",
     available: (context: ActionContext): boolean => {
       const shown = context.buffers[0];
-      return shown?.kind === "graph" && hasFilter(shown);
+      return (
+        shown?.kind === "graph" &&
+        (hasFilter(shown) || alsoChoices(shown, context.graphChoices ?? [EVERYTHING]).length > 0)
+      );
     },
     run: graphPrompt("Also show", alsoChoices, "Every relation kind is shown already."),
   },

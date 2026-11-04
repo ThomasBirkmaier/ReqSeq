@@ -14,14 +14,20 @@ export const MAX_DEPTH = 9;
 export type GraphNode = TraceGraphOutput["nodes"][number];
 export type GraphEdge = TraceGraphOutput["edges"][number];
 export type GraphMark = GraphNode["marks"][number];
+/** The summary of the evidence below a node (SR-111 AK3, `withEvidence`). */
+export type GraphEvidence = NonNullable<TraceGraphOutput["evidence"]>[number];
 
-/** The input of `trace.graph` for the buffer: its element, depth, kinds, meanings and view, at most 500 nodes. */
+/**
+ * The input of `trace.graph` for the buffer: its element, depth, kinds, meanings, evidence and view, at
+ * most 500 nodes.
+ */
 export const graphInput = (buffer: GraphBuffer): Partial<TraceGraphInput> => ({
   ref: buffer.id,
   repository: buffer.repository,
   ...(buffer.depth === "all" ? { allLevels: true } : { maxDepth: buffer.depth }),
   ...(buffer.kinds === undefined ? {} : { kinds: buffer.kinds }),
   ...(buffer.meanings === undefined ? {} : { meanings: buffer.meanings }),
+  ...(buffer.withEvidence === true ? { withEvidence: true } : {}),
   ...(buffer.view === undefined ? {} : { view: buffer.view }),
   limit: GRAPH_LIMIT,
 });
@@ -46,15 +52,20 @@ export const depthLabel = (depth: GraphDepth): string =>
 
 /**
  * "only Derivations, Based on" when the buffer follows some kinds only, each by the name of its entry in
- * the relation kind prompts (`graph-choices.ts`; the meanings first, then the kinds), a key that no entry
- * names as it is; nothing for every kind (D-062).
+ * the relation kind prompts (`graph-choices.ts`; the meanings first, then the kinds, then "Evidence"), a
+ * key that no entry names as it is; "with Evidence" for every kind and the evidence; nothing for every
+ * kind (D-062).
  */
 export const filterLabel = (
   buffer: GraphBuffer,
   choices: readonly GraphFilterChoice[] = [],
 ): string | undefined => {
+  const evidence =
+    buffer.withEvidence === true
+      ? (choices.find((choice) => choice.filter.withEvidence === true)?.name ?? "Evidence")
+      : undefined;
   if (buffer.kinds === undefined && buffer.meanings === undefined) {
-    return undefined;
+    return evidence === undefined ? undefined : `with ${evidence}`;
   }
   const named = (field: "kinds" | "meanings", key: string): string =>
     choices.find((choice) => {
@@ -64,6 +75,7 @@ export const filterLabel = (
   const followed = [
     ...(buffer.meanings ?? []).map((meaning) => named("meanings", meaning)),
     ...(buffer.kinds ?? []).map((kind) => named("kinds", kind)),
+    ...(evidence === undefined ? [] : [evidence]),
   ];
   return followed.length === 0 ? "nothing followed" : `only ${followed.join(", ")}`;
 };
@@ -78,9 +90,37 @@ export const MARK_WORDS: Readonly<Record<GraphMark, string>> = {
 /** What a node is called: its identifier, else its short ID. */
 export const nodeId = (node: GraphNode): string => node.identifier ?? node.shortId;
 
-/** The accessible name of a node: "<ID> <type> <title>" and its marks. */
-export const nodeLabel = (node: GraphNode, typeName: string): string =>
-  [nodeId(node), typeName, node.title, ...node.marks.map((mark) => MARK_WORDS[mark])].join(" ");
+/** `n thing`, `n things`. */
+const counted = (n: number, thing: string): string => `${String(n)} ${thing}${n === 1 ? "" : "s"}`;
+
+/**
+ * The text of an evidence box, with the counts of the CLI's line (`present.ts`):
+ * "evidence · 2 test cases, 1 record · 2 passed, 1 failed", a count of 0 left out, the results in the
+ * order of the output.
+ */
+export const evidenceText = (summary: GraphEvidence): string => {
+  const kinds = [
+    ...(summary.testCases > 0 ? [counted(summary.testCases, "test case")] : []),
+    ...(summary.records > 0 ? [counted(summary.records, "record")] : []),
+  ].join(", ");
+  const results = Object.entries(summary.results)
+    .map(([result, n]) => `${String(n)} ${result}`)
+    .join(", ");
+  return ["evidence", ...[kinds, results].filter((part) => part !== "")].join(" · ");
+};
+
+/**
+ * The accessible name of a node: "<ID> <type> <title>" and its marks, then the summary of its evidence
+ * when it has one (its box is no option, so the node says it).
+ */
+export const nodeLabel = (node: GraphNode, typeName: string, evidence?: GraphEvidence): string =>
+  [
+    nodeId(node),
+    typeName,
+    node.title,
+    ...node.marks.map((mark) => MARK_WORDS[mark]),
+    ...(evidence === undefined ? [] : [evidenceText(evidence)]),
+  ].join(" ");
 
 /**
  * The classes of a drawn link: `derivation` (a darker grey) when one of its links derives, `reference`

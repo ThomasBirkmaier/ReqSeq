@@ -6,6 +6,7 @@ import {
   deeper,
   depthLabel,
   edgeClasses,
+  evidenceText,
   filterLabel,
   graphInput,
   keyOfNode,
@@ -44,6 +45,17 @@ describe("the input of trace.graph", () => {
       limit: 500,
     });
   });
+
+  it("[SR-111/AK3] asks for the evidence while the buffer shows it", () => {
+    expect(graphInput({ ...buffer, kinds: [], withEvidence: true })).toEqual({
+      ref: "uuid-S1",
+      repository: "spec",
+      maxDepth: 1,
+      kinds: [],
+      withEvidence: true,
+      limit: 500,
+    });
+  });
 });
 
 describe("depth and filter", () => {
@@ -64,6 +76,17 @@ describe("depth and filter", () => {
     expect(filterLabel({ ...buffer, kinds: ["packages"] })).toBe("only packages");
     expect(filterLabel({ ...buffer, meanings: [] })).toBe("nothing followed");
   });
+
+  it("[SR-111/AK3] names the evidence after the kinds, by the name of its entry", () => {
+    const evidence = [{ name: "Nachweise", filter: { withEvidence: true as const } }];
+    expect(filterLabel({ ...buffer, kinds: [], withEvidence: true })).toBe("only Evidence");
+    expect(filterLabel({ ...buffer, kinds: [], withEvidence: true }, evidence)).toBe("only Nachweise");
+    expect(filterLabel({ ...buffer, meanings: ["derivation"], withEvidence: true })).toBe(
+      "only derivation, Evidence",
+    );
+    // Every link and the evidence.
+    expect(filterLabel({ ...buffer, withEvidence: true })).toBe("with Evidence");
+  });
 });
 
 describe("what a node shows", () => {
@@ -75,6 +98,26 @@ describe("what a node shows", () => {
     expect(pkg === undefined ? "" : nodeId(pkg)).toBe("PKG-1");
     expect(o1 === undefined ? "" : nodeLabel(o1, "System Requirement")).toBe(
       "O1 System Requirement Title O1 superseded no evidence",
+    );
+  });
+
+  it("[SR-111/AK3] sums up the evidence below a node with the counts of the CLI, and the node's name says it", () => {
+    const summary = {
+      id: "uuid-S1",
+      repository: "spec",
+      level: 1,
+      testCases: 2,
+      records: 1,
+      results: { passed: 2, failed: 1 },
+    };
+    expect(evidenceText(summary)).toBe("evidence · 2 test cases, 1 record · 2 passed, 1 failed");
+    expect(evidenceText({ ...summary, testCases: 1, records: 0, results: { skipped: 1 } })).toBe(
+      "evidence · 1 test case · 1 skipped",
+    );
+    expect(evidenceText({ ...summary, testCases: 0, records: 2, results: {} })).toBe("evidence · 2 records");
+    const [s1] = S1_GRAPH.nodes;
+    expect(s1 === undefined ? "" : nodeLabel(s1, "System Requirement", summary)).toBe(
+      "S1 System Requirement Title S1 outdated evidence · 2 test cases, 1 record · 2 passed, 1 failed",
     );
   });
 

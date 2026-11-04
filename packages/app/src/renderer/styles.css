@@ -918,6 +918,32 @@ mark {
   text-decoration: line-through;
 }
 
+/* An evidence box (SR-111 AK3): the summary of the evidence below a node, muted and dashed, so it reads
+   as no element; 224 × 64 px (`EVIDENCE_HEIGHT`), up to three lines. Its line is dotted. */
+.graph-evidence {
+  position: absolute;
+  display: -webkit-box;
+  box-sizing: border-box;
+  overflow: hidden;
+  padding: 6px 8px;
+  border: 1px dashed var(--edge);
+  border-radius: 4px;
+  background: var(--raised);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 16px;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.graph-evidence-line {
+  fill: none;
+  stroke: var(--edge);
+  stroke-width: 1.5px;
+  stroke-dasharray: 2 3;
+}
+
 /* The metamodel (SR-130, D-063): a box per type over soft curves on the white sheet, no grid, no legend,
    no controls, greys only. A box has the size `metamodel-layout.ts` places it with: as wide as its
    widest line measured in these fonts, at least 224 px; 7 px of border and padding above and below, a
