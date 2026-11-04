@@ -986,7 +986,33 @@ const before = (a: Found, b: Found): boolean =>
         ? a.place < b.place
         : a.element.file < b.element.file;
 
-const order = (a: Found, b: Found): number => (before(a, b) ? -1 : 1);
+/** The position of each record of a store in its `elements`, built on the first sort of all hits in it (`sorted`). */
+const positions = new WeakMap<ElementStore, ReadonlyMap<ElementRecord, number>>();
+
+const positionsOf = (store: ElementStore): ReadonlyMap<ElementRecord, number> => {
+  let known = positions.get(store);
+  if (known === undefined) {
+    known = new Map(store.elements.map((record, at) => [record, at]));
+    positions.set(store, known);
+  }
+  return known;
+};
+
+/**
+ * `all` in page order (`before`), sorted by numbers: store order is the order of `store.elements`
+ * (by repository in the workspace file, then path), so a tie compares positions, not paths. Built
+ * when a search first sorts all its hits in a store, not on each carry (#215).
+ */
+const sorted = (all: readonly Found[], store: ElementStore): Found[] => {
+  const position = positionsOf(store);
+  const ranked = all.map((found) => ({
+    found,
+    /* v8 ignore next -- every hit is a record of the store searched (`index.records`). */
+    at: position.get(found.element) ?? position.size,
+  }));
+  ranked.sort((a, b) => b.found.ids - a.found.ids || b.found.score - a.found.score || a.at - b.at);
+  return ranked.map(({ found }) => found);
+};
 
 /**
  * The first `size` of `hits` in page order (`before`), without sorting the rest: the first ones so
@@ -1022,14 +1048,18 @@ const firstOf = (hits: Iterable<Found>, size: number): Found[] => {
 const MAX_FIRST = 1000;
 
 /** The page of `found`, the best first (see `searchElements`). */
-const pageOf = (found: Iterable<Found>, options: SearchElementsOptions): SearchResults => {
+const pageOf = (
+  found: Iterable<Found>,
+  store: ElementStore,
+  options: SearchElementsOptions,
+): SearchResults => {
   const all = Array.from(found, (one) => {
     one.score = roundScore(one.score);
     return one;
   });
   const offset = options.offset ?? 0;
   const end = options.limit === undefined ? all.length : offset + options.limit;
-  const first = end <= MAX_FIRST && end < all.length ? firstOf(all, end) : all.sort(order);
+  const first = end <= MAX_FIRST && end < all.length ? firstOf(all, end) : sorted(all, store);
   return { total: all.length, hits: first.slice(offset, end).map(hitOf) };
 };
 
@@ -1087,7 +1117,7 @@ export const searchElements = (
   index: SearchIndex,
   query: string,
   options: SearchElementsOptions = {},
-): SearchResults => pageOf(foundBy(index, query, options) ?? [], options);
+): SearchResults => pageOf(foundBy(index, query, options) ?? [], index.store, options);
 
 /**
  * The keys (`recordKey`) of the elements `searchElements` finds for `query`, all of them, without

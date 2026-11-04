@@ -310,7 +310,7 @@ describe("searchElements (ADR-0008, SR-068)", () => {
   it("gives every page as the part of all hits in order, however small or large (SR-098: the first page only)", async () => {
     const { workspace } = await open();
     const index = await searchIndex(workspace);
-    for (const query of ["the", "wind", "s", "station shall", "SR-3f4a5b twin", "copied"]) {
+    for (const query of ["the", "wind", "s", "station shall", "SR-3f4a5b twin", "wind SR-3f4a5b", "copied"]) {
       for (const combineWith of ["and", "or"] as const) {
         const all = searchElements(index, query, { combineWith });
         expect(all.hits).toHaveLength(all.total);
