@@ -1994,8 +1994,8 @@ describe("a view the window shows (SR-043 AK1)", () => {
 });
 
 // Product owner decision, 2026-11-04 (#836): a confirmation of a bulk update writes only the plan of the
-// preview the window shows.
-describe("a bulk update confirms the plan of the preview shown (#836)", () => {
+// open preview of the same input.
+describe("a bulk update confirms the plan of an open preview of the same input (#836)", () => {
   const list = listBuffer("type: need", { where: { type: ["need"] } });
   const PLAN = `p1:${"a".repeat(64)}`;
   const PREVIEW = {
@@ -2030,7 +2030,7 @@ describe("a bulk update confirms the plan of the preview shown (#836)", () => {
     await flush();
   };
 
-  it("shows the preview first and writes nothing when no preview of the change is shown", async () => {
+  it("opens the preview first and writes nothing when no preview of the same input is open", async () => {
     const { context, asked, call, dispatched, echoed } = setup([list], {
       "metamodel.get": () => FIXTURE_METAMODEL,
       "element.bulkUpdate": () => preview,
@@ -2047,7 +2047,7 @@ describe("a bulk update confirms the plan of the preview shown (#836)", () => {
     );
   });
 
-  it("passes the plan of the preview shown, and shows the new preview when core refuses it", async () => {
+  it("passes the plan of the open preview, and opens the new preview when core refuses it", async () => {
     const shownPreview = resultBuffer(
       "element.bulkUpdate",
       PREVIEW,
@@ -2078,7 +2078,23 @@ describe("a bulk update confirms the plan of the preview shown (#836)", () => {
     expect(refused.echoed.at(-1)).toBe(
       "Bulk update elements: something changed since the preview, so nothing was written; the new preview is shown",
     );
-    // Another refusal of the confirmation is asked again as before; a failing preview says why.
+    // Another refusal of a confirmation with the plan (`count-changed`) asks again, as any refused input.
+    const count = setup([list, shownPreview], {
+      "metamodel.get": () => FIXTURE_METAMODEL,
+      "element.bulkUpdate": (input) =>
+        input["confirm"] === true
+          ? refusedWith("expected: the change now affects 3 elements", { reason: "count-changed" })
+          : changed,
+    });
+    await confirm(count.context, count.asked);
+    expect(count.call).toHaveBeenLastCalledWith("element.bulkUpdate", {
+      ...PREVIEW,
+      confirm: true,
+      plan: PLAN,
+    });
+    expect(count.dispatched).toEqual([]);
+    expect((await last(count.asked)).label).toContain("expected: the change now affects 3 elements");
+    // A failing preview says why.
     const other = setup([list], {
       "metamodel.get": () => FIXTURE_METAMODEL,
       "element.bulkUpdate": () =>

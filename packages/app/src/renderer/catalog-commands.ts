@@ -29,8 +29,8 @@
 // an empty input skips it. Before it runs, the input of every open buffer is saved; when one cannot be
 // saved, it does not run. Its output opens a result buffer that is not asked again (that would write
 // again). `element.bulkUpdate` writes only with `confirm` yes, given with Ctrl/Cmd+Enter; without it, it
-// shows what it would change. A confirmation writes only the plan of the preview shown (#836): it passes
-// the `plan` of the shown preview of the same input; without one it shows the preview and writes nothing,
+// shows what it would change. A confirmation writes only the plan of an open preview of the same input
+// (#836): it passes that preview's `plan`; without one it opens the preview and writes nothing,
 // and when core refuses the plan (`plan-changed`) it shows the new preview.
 //
 // The arguments a command expects are completed with the values the metamodel allows (SR-108 AK4), each
@@ -618,8 +618,8 @@ const unsavedBefore = async (context: CatalogContext): Promise<Buffer | undefine
 
 /**
  * The one command with a flow of its own (product owner decision, 2026-11-04, #836; an exception to
- * ADR-0002 rule 3): a confirmation of `element.bulkUpdate` writes only the plan of the preview the window
- * shows (#158). The app passes the preview's `plan` through and handles the refusal; core decides.
+ * ADR-0002 rule 3): a confirmation of `element.bulkUpdate` writes only the plan of an open preview of the
+ * same input (#158). The app passes the preview's `plan` through and handles the refusal; core decides.
  */
 type Input = Readonly<Record<string, unknown>>;
 const PREVIEWED: keyof CommandTypes = "element.bulkUpdate";
@@ -630,7 +630,7 @@ const CONFIRMING = new Set(["confirm", "plan", "expected"]);
 const previewOf = (input: Input): Input =>
   Object.fromEntries(Object.entries(input).filter(([field]) => !CONFIRMING.has(field)));
 
-/** The `plan` of a preview with this input that the window shows (a result buffer of it), if any. */
+/** The `plan` of an open preview of the same input (a result buffer of it), if any. */
 const shownPlan = (context: CatalogContext, preview: Input): string | undefined => {
   const wanted = JSON.stringify(preview);
   for (const buffer of context.buffers) {
@@ -670,8 +670,8 @@ const isConfirmation = (name: keyof CommandTypes, input: Input): boolean =>
   name === PREVIEWED && input["confirm"] === true && input["plan"] === undefined;
 
 /**
- * The input a confirmation of a bulk update sends: with the plan of the preview shown (#836); without
- * one, the preview is shown first, nothing is written, and the result is undefined.
+ * The input a confirmation of a bulk update sends: with the plan of an open preview of the same input
+ * (#836); without one, the preview is opened first, nothing is written, and the result is undefined.
  */
 const planned = async (context: CatalogContext, entry: Entry, given: Input): Promise<Input | undefined> => {
   const plan = shownPlan(context, previewOf(given));

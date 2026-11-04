@@ -342,7 +342,7 @@ test.describe("the command prompt", () => {
       );
       await expect(window.locator(".result")).toContainText("plan");
       expect(await rationale()).toBeUndefined();
-      // The same change again, with the preview shown: written.
+      // The same change again, with its preview open: written.
       await confirmed();
       await expect(window.locator(".result")).toContainText("applied");
       await expect.poll(rationale).toBe("Previewed first");

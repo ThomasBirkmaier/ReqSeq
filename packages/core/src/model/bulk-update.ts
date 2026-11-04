@@ -212,36 +212,11 @@ const valueOf = (
       { key: property.key, operation, reason: "not-many" },
     );
   }
-  if (operation === "remove") {
-    return Array.isArray(value)
-      ? ((value as readonly ElementInputValue[]).map((item) =>
-          removalKey(metamodel, property.key, item),
-        ) as ElementInputValue)
-      : removalKey(metamodel, property.key, value);
-  }
-  return choiceKey(metamodel, property.key, value);
-};
-
-/** The value with each choice as its key (`withChoiceKeys`): one entry in, one out. */
-const choiceKey = (metamodel: Metamodel, key: string, value: ElementInputValue): ElementInputValue => {
-  const [[, keyed]] = withChoiceKeys(metamodel, [[key, value]], "value") as [[string, ElementInputValue]];
+  // One entry in, one out.
+  const [[, keyed]] = withChoiceKeys(metamodel, [[property.key, value]], "value") as [
+    [string, ElementInputValue],
+  ];
   return keyed;
-};
-
-/**
- * An item `remove` takes out: a choice by key or display name (`withChoiceKeys`), and a value that
- * names no choice as given, so a hand-written value that is no key can be removed (SR-085 AK2 reads
- * it as it is); an ambiguous name is still refused. `remove` writes no value.
- */
-const removalKey = (metamodel: Metamodel, key: string, item: ElementInputValue): ElementInputValue => {
-  try {
-    return choiceKey(metamodel, key, item);
-  } catch (error) {
-    if (error instanceof CommandError && error.details?.["reason"] === "unknown-choice") {
-      return item;
-    }
-    throw error;
-  }
 };
 
 /**

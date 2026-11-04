@@ -1090,8 +1090,9 @@ export interface WriteFilesOptions {
  * (`element.setStatus`, `element.supersede`, `element.bulkUpdate`), one at a time or, with
  * `options.concurrency`, several at a time; after the first failure no further write starts and
  * the writes in flight end before the rollback, which also restores those of them that succeeded.
- * Of several failures, the one of the earliest write in `writes` is thrown. Every check must be done before. Each planned
- * file that changes also gets the current titles of its same-repository relation targets
+ * Of several failures, the one of the earliest write in `writes` is thrown. Every check must be
+ * done before. Each planned file that changes also gets the current titles of its same-repository
+ * relation targets
  * (`withCurrentTitles`, decision on #307): only those title values change. A write can still be
  * refused (`file.read-only`, a file changed in the meantime, a disk error), or written bytes may
  * not read back as an element (`internal`); then every file this call has written is written back
