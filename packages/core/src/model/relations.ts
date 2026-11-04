@@ -26,7 +26,13 @@ export const resolveTarget = (
   target: Pick<RelationTarget, "id"> & Partial<RelationTarget>,
 ): ElementMatch => {
   const repository = target.repository ?? sourceRepository;
-  const elements = (store.byId.get(target.id) ?? []).filter((r) => r.repository === repository);
+  const records = store.byId.get(target.id);
+  // The common case, one file with the UUID, without a new array (N-036: the matrix resolves every
+  // relation under a minimum, SR-153).
+  if (records?.length === 1 && records[0]?.repository === repository) {
+    return { kind: "found", element: records[0] };
+  }
+  const elements = (records ?? []).filter((r) => r.repository === repository);
   const [first] = elements;
   if (first === undefined) {
     return { kind: "unknown" };

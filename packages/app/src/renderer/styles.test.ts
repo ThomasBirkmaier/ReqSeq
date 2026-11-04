@@ -158,13 +158,17 @@ const ruleOf = (selector: string): string => {
   return at;
 };
 
-describe("the traceability matrix (SR-125)", () => {
-  it("[SR-125/AK3] marks a gap in the accent colour, by a token, and the outdated and missing marks as the element view does", () => {
+describe("the traceability matrix (SR-125, SR-153)", () => {
+  it("[SR-153/AK1] marks a gap in the accent colour, by a token, and the outdated and missing marks as the element view does", () => {
     expect(ruleOf(".matrix .gap")).toMatch(/color:\s*var\(--accent-gap\);/);
     expect(ruleOf(".matrix .outdated")).toMatch(/color:\s*var\(--accent-outdated\);/);
     expect(ruleOf(".matrix .unavailable, .matrix .state")).toMatch(/color:\s*var\(--muted\);/);
     // The gap is the accent colour of "outdated": one accent in both schemes (D-062).
     expect(values("accent-gap")).toEqual(values("accent-outdated"));
+  });
+
+  it("[SR-153/AK2] shows an empty cell that is no gap in the muted colour, as an unavailable end, with no new token", () => {
+    expect(ruleOf(".matrix .none")).toMatch(/color:\s*var\(--muted\);/);
   });
 });
 

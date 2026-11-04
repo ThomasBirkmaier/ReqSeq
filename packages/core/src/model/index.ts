@@ -63,10 +63,12 @@ export {
 export type { RelationTypeContext, RelationTypeFinding } from "./relation-types.js";
 export {
   allRelationLimitFindings,
+  limitCount,
+  limitedType,
   relationLimitFindings,
   relationLimitProblemsState,
 } from "./relation-limits.js";
-export type { RelationLimitContext } from "./relation-limits.js";
+export type { LimitCountContext, RelationLimitContext } from "./relation-limits.js";
 export {
   allMissingReferenceFindings,
   allMissingTargetFindings,

@@ -9,7 +9,7 @@
 // given. An element of an unknown type (SR-016) or with a status the metamodel marks invalid gets
 // none, as #667. The target's status does not matter.
 import type { Problem } from "../catalog.js";
-import type { Metamodel, RelationLimit } from "../metamodel/index.js";
+import type { EffectiveType, Metamodel, RelationLimit } from "../metamodel/index.js";
 import { allowsType, findType, limitsOf, metamodelState } from "../metamodel/index.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
@@ -35,16 +35,51 @@ export interface RelationLimitContext {
   readonly shortIds: ShortIds;
 }
 
-/** The relations under `limit.key` that count, and whether some target could not be reached. */
-const countOf = (
+/** What the count of one limit reads: where targets are and the types of the metamodel. */
+export type LimitCountContext = Pick<RelationLimitContext, "layout" | "store" | "metamodel">;
+
+/** Per metamodel object and target type: the keys of the known types that are or extend it. */
+const withinIndexes = new WeakMap<Metamodel, Map<string, ReadonlySet<string>>>();
+
+/** The keys of the known types of `metamodel` that are `targetType` or extend it, built once per pair. */
+const typesWithin = (metamodel: Metamodel, targetType: string): ReadonlySet<string> => {
+  let byTarget = withinIndexes.get(metamodel);
+  if (byTarget === undefined) {
+    byTarget = new Map();
+    withinIndexes.set(metamodel, byTarget);
+  }
+  let within = byTarget.get(targetType);
+  if (within === undefined) {
+    within = new Set(
+      metamodel.effectiveTypes
+        .filter((t) => findType(metamodel, t.key) !== undefined && allowsType([targetType], t.key, metamodel))
+        .map((t) => t.key),
+    );
+    byTarget.set(targetType, within);
+  }
+  return within;
+};
+
+/**
+ * The relations of `element` under `limit.key` that count for `limit` (see the file comment), and
+ * whether some target could not be reached. The one count of SR-152, which the gaps of the
+ * traceability matrix read too (SR-153). `includes`, in a view (SR-040): an available target that
+ * does not apply in it does not count.
+ */
+export const limitCount = (
   element: ElementRecord,
   limit: RelationLimit,
-  context: RelationLimitContext,
+  context: LimitCountContext,
+  includes?: (target: ElementRecord) => boolean,
 ): { readonly count: number; readonly unreachable: boolean } => {
   const value = element.data[limit.key];
   let count = 0;
   let unreachable = false;
-  for (const item of Array.isArray(value) ? (value as readonly unknown[]) : []) {
+  if (!Array.isArray(value)) {
+    return { count, unreachable };
+  }
+  const within = typesWithin(context.metamodel, limit.targetType);
+  for (const item of value as readonly unknown[]) {
     if (!hasId(item)) {
       continue;
     }
@@ -53,13 +88,25 @@ const countOf = (
       unreachable = true;
     } else if (
       state.kind === "available" &&
-      findType(context.metamodel, state.element.type) !== undefined &&
-      allowsType([limit.targetType], state.element.type, context.metamodel)
+      within.has(state.element.type) &&
+      (includes === undefined || includes(state.element))
     ) {
       count += 1;
     }
   }
   return { count, unreachable };
+};
+
+/**
+ * The type whose limits `element` is held to: undefined for an unknown type (SR-016) and for a status
+ * the metamodel marks invalid, which get no count hint (#667) and no gap (SR-153).
+ */
+export const limitedType = (element: ElementRecord, metamodel: Metamodel): EffectiveType | undefined => {
+  const type = findType(metamodel, element.type);
+  return type === undefined ||
+    metamodel.statuses.some((s) => s.key === element.data["status"] && s.invalid === true)
+    ? undefined
+    : type;
 };
 
 const plural = (count: number): string => `${String(count)} relation${count === 1 ? "" : "s"}`;
@@ -71,7 +118,7 @@ const limitFinding = (
   limit: RelationLimit,
   context: RelationLimitContext,
 ): LocatableFinding | undefined => {
-  const { count, unreachable } = countOf(element, limit, context);
+  const { count, unreachable } = limitCount(element, limit, context);
   const over = limit.max !== undefined && count > limit.max ? limit.max : undefined;
   const under = limit.min !== undefined && count < limit.min && !unreachable ? limit.min : undefined;
   const bound = over ?? under;
@@ -107,14 +154,9 @@ export const relationLimitFindings = (
   element: ElementRecord,
   context: RelationLimitContext,
 ): readonly LocatableFinding[] => {
-  const { metamodel } = context;
-  const type = findType(metamodel, element.type);
-  const limits = type === undefined ? undefined : limitsOf(metamodel).get(type.key);
-  if (
-    type === undefined ||
-    limits === undefined ||
-    metamodel.statuses.some((s) => s.key === element.data["status"] && s.invalid === true)
-  ) {
+  const type = limitedType(element, context.metamodel);
+  const limits = type === undefined ? undefined : limitsOf(context.metamodel).get(type.key);
+  if (type === undefined || limits === undefined) {
     return [];
   }
   return limits.flatMap((limit) => limitFinding(element, type.name, limit, context) ?? []);

@@ -21,8 +21,9 @@
 //   (`name`, `executions`) one line per test case with its last result and the number of executions
 //   (evidence.list, #275); `--json` and `--yaml` keep every execution.
 // - A matrix (`columns` with `name` and `direction`, `rows` of elements with one cell per column) lists
-//   its columns numbered, then per row the element line and one line of cells, `n: SHORT-ID, ...`,
-//   `–` for an empty cell (trace.matrix, #629).
+//   its columns numbered with the head of each (the count, or with minima `met of expected · share`, as
+//   the app, SR-153), then per row the element line and one line of cells, `n: SHORT-ID, ...`, `–` for an
+//   empty cell, `[gap]` after a cell the row's `gaps` names (trace.matrix, #629).
 // - A list of elements with a `tree` of their places (`depth`, `parent`; one per element, element.list
 //   by hierarchy, SR-075 AK2) is indented two spaces per level; an element whose parent is not shown
 //   before it (on an earlier page) names it, `[under X]`.
@@ -819,29 +820,48 @@ const cellItem = (relation: unknown): string => {
   );
 };
 
-/** The columns of a matrix (#629), numbered, with count and share. */
+/**
+ * The head of a matrix column (SR-153): with minima `met of expected · share` (core's `degreePercent`, as
+ * the app), else the count of the rows with a relation.
+ */
+const columnHead = (column: Rec): string => {
+  const { count, expected, met, share } = column;
+  if (typeof share === "number" && typeof expected === "number" && typeof met === "number") {
+    return `${String(met)} of ${String(expected)} · ${degreePercent(share)}`;
+  }
+  return typeof count === "number" ? String(count) : "";
+};
+
+/** The columns of a matrix (#629), numbered, with their heads. */
 const matrixColumnLines = (output: Rec): string[] => {
   const columns = listOf(output["columns"]).filter(isRecord);
   const lines = columns.length === 0 ? ["columns: none"] : ["columns:"];
   for (const [index, column] of columns.entries()) {
-    const share = column["share"];
     lines.push(
       `  ${join(
         `${String(index + 1)}:`,
         text(column["name"]),
         `(${text(column["kind"])}, ${text(column["direction"])})`,
-        typeof column["count"] === "number" ? String(column["count"]) : "",
-        typeof share === "number" ? degreePercent(share) : "",
+        columnHead(column),
       )}`,
     );
   }
   return lines;
 };
 
+/** The indexes of the columns that the row's `gaps` names (SR-153). */
+const gapColumns = (row: Rec): ReadonlySet<number> =>
+  new Set(
+    listOf(row["gaps"])
+      .filter(isRecord)
+      .map((gap) => gap["column"])
+      .filter((column): column is number => typeof column === "number"),
+  );
+
 /**
  * The rows of a matrix (#629): per row its element line and one line of cells, `n: SHORT-ID, ...` per
- * column, `–` for an empty cell, the target state when it is not available, and its test cases when
- * the row has them (SR-126).
+ * column, `–` for an empty cell, the target state when it is not available, `[gap]` after a cell below a
+ * minimum (SR-153), and its test cases when the row has them (SR-126).
  */
 const matrixRowLines = (output: Rec, names: Names): string[] => {
   const rows = listOf(output["rows"]).filter(isElement);
@@ -854,9 +874,10 @@ const matrixRowLines = (output: Rec, names: Names): string[] => {
   for (const row of rows) {
     const depth = row["depth"];
     lines.push(`  ${typeof depth === "number" ? "  ".repeat(depth) : ""}${elementLine(row, name, view)}`);
+    const gaps = gapColumns(row);
     const cells = listOf(row["cells"]).map((cell, index) => {
       const items = listOf(cell).map(cellItem);
-      return `${String(index + 1)}: ${items.length === 0 ? "–" : items.join(", ")}`;
+      return `${String(index + 1)}: ${items.length === 0 ? "–" : items.join(", ")}${gaps.has(index) ? " [gap]" : ""}`;
     });
     const tests = row["testCases"];
     const testText = Array.isArray(tests)

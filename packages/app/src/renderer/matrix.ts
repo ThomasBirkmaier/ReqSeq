@@ -1,7 +1,8 @@
 // The traceability matrix of a list (SR-125): the input of `trace.matrix` for a list buffer and the rows,
 // columns and cursor steps of its answer. The matrix is a mode of the list buffer (D-062). Pure display of
 // the command's output (ADR-0002): columns, counts, shares, gaps, outdated and missing all come from core, so
-// every access shows the same (SR-125 AK6); the app only lays them out. With evidence locations, two more
+// every access shows the same (SR-125 AK6, SR-153 AK3); the app only lays them out. A gap is what core's
+// `gaps` names, only where the metamodel sets a minimum (SR-153); an empty cell is no gap by itself. With evidence locations, two more
 // columns (SR-126): the test cases of each requirement with the result and date of their last execution,
 // and its verification status, with the degree of the selection above it (`degreeLine`, `testCaseLine`,
 // `statusLine`).
@@ -35,14 +36,18 @@ export const matrixInput = (list: ListBuffer, offset: number, limit: number): Pa
 
 export type MatrixTestCase = NonNullable<MatrixOutputRow["testCases"]>[number];
 
+export type MatrixGap = NonNullable<MatrixOutputRow["gaps"]>[number];
+
 /**
- * One row of the matrix: the element, and one cell (a list of relations, empty for a gap) per column; with
- * evidence, a requirement's test cases and verification status (SR-126), both left out on any other row.
+ * One row of the matrix: the element, one cell (a list of relations, empty when it has none) per column,
+ * and the minima its cells undershoot (`gaps`, SR-153); with evidence, a requirement's test cases and
+ * verification status (SR-126), both left out on any other row.
  */
 export interface MatrixRow {
   /** The row element, as a list row shows it. */
   readonly element: Row;
   readonly cells: readonly (readonly DataExportRelation[])[];
+  readonly gaps: readonly MatrixGap[];
   readonly testCases?: readonly MatrixTestCase[];
   readonly verification?: DataExportVerificationEntry;
 }
@@ -51,6 +56,7 @@ export const matrixRows = (output: TraceMatrixOutput): MatrixRow[] =>
   output.rows.map((row: MatrixOutputRow) => ({
     element: rowOf(row, row.depth ?? 0, [], false),
     cells: row.cells,
+    gaps: row.gaps ?? [],
     ...(row.testCases === undefined ? {} : { testCases: row.testCases }),
     ...(row.verification?.[0] === undefined ? {} : { verification: row.verification[0] }),
   }));
@@ -87,14 +93,22 @@ export const columnName = (column: MatrixColumn, columns: readonly MatrixColumn[
     : column.name;
 
 /**
- * The share as a whole percent, rounded down: 100 only when every row has a relation (a share just under
- * 1 must not read "100 %" while gaps exist). The small addend absorbs the error of the float (0.29 * 100).
+ * The head of a column. With minima (SR-153 AK1): how many rows meet them, of how many they apply to, and
+ * their share as core's percentage (`degreePercent`, one decimal rounded down, as the CLI), e.g.
+ * "2 of 5 · 40 %". Without (AK2): how many rows have a relation in the column, e.g. "4".
  */
-export const percent = (share: number): number => Math.floor(share * 100 + 1e-9);
-
-/** "4 · 80 %": how many rows of the whole selection have a relation in the column, and their share. */
 export const columnCount = (column: MatrixColumn): string =>
-  `${String(column.count)} · ${String(percent(column.share))} %`;
+  column.share === undefined || column.expected === undefined || column.met === undefined
+    ? String(column.count)
+    : `${String(column.met)} of ${String(column.expected)} · ${degreePercent(column.share)}`;
+
+/** The gaps of a row in the column at `index`: one per minimum its cell undershoots. */
+export const cellGaps = (row: MatrixRow, index: number): readonly MatrixGap[] =>
+  row.gaps.filter((gap) => gap.column === index);
+
+/** What a gap mark says on demand: "at least 1 to Need, has 0", one line per minimum. */
+export const gapTitle = (gaps: readonly MatrixGap[]): string =>
+  gaps.map((gap) => `at least ${String(gap.min)} to ${gap.targetName}, has ${String(gap.count)}`).join("\n");
 
 /** The statuses in the order the degree line names them: those that count for the degree first. */
 const STATUSES = ["verified", "indirect", "failed", "outdated", "open"] as const;

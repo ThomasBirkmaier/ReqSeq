@@ -7,8 +7,8 @@ export { assertWritable, metamodelProblems, workspaceAccess } from "./access.js"
 export type { WorkspaceAccess } from "./access.js";
 export { resolveTypes } from "./inheritance.js";
 export type { DefinedKeys, EffectiveType, Located, LocatedType, ResolvedTypes } from "./inheritance.js";
-export { limitsOf, maxItemsOf } from "./limits.js";
-export type { ItemLimit, RelationLimit } from "./limits.js";
+export { limitsOf, maxItemsOf, minimaOf } from "./limits.js";
+export type { ItemLimit, Minima, RelationLimit, RelationMinimum } from "./limits.js";
 export { METAMODEL_FILE_EXTENSION, UNKNOWN_TYPE_PREFIX, loadMetamodel } from "./load.js";
 export type { Metamodel } from "./load.js";
 export {
