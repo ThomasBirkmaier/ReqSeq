@@ -386,8 +386,9 @@ describe("trace.graph (SR-111)", () => {
       expect(summaries.map((e) => [nameOf(e.id), e.level, e.testCases, e.records])).toEqual(
         viewed.evidence.map((e) => [nameOf(e.id), e.depth, e.testCases.length, e.records.length]),
       );
-      // A requirement without a child in the view has a summary exactly when it carries no no-evidence
-      // mark (one the view does not hold has neither, #674).
+      // A requirement without a child in the view that carries no no-evidence mark has a summary (one the
+      // view does not hold has neither, #674). Not the other way round: a leaf whose only evidence is a
+      // skipped test case has the mark and a summary, as the chain shows the gap and the test case.
       const summarised = new Set(summaries.map((e) => e.id));
       const outside = new Set(chain.gaps.filter((g) => g.kind === "not-in-view").map((g) => g.id));
       const leaves = chain.nodes.filter(
@@ -400,10 +401,9 @@ describe("trace.graph (SR-111)", () => {
       expect(leaves.length).toBeGreaterThan(0);
       for (const leaf of leaves) {
         const node = shown.nodes.find((n) => n.id === leaf.id);
-        expect([nameOf(leaf.id), node?.marks.includes("no-evidence")]).toEqual([
-          nameOf(leaf.id),
-          !summarised.has(leaf.id),
-        ]);
+        if (node?.marks.includes("no-evidence") === false) {
+          expect([nameOf(leaf.id), summarised.has(leaf.id)]).toEqual([nameOf(leaf.id), true]);
+        }
       }
     }
   });
