@@ -2,6 +2,9 @@
 import { scenariosOf } from "../../scenario.js";
 import { FILTER, NESTED, NESTED_A } from "../../fixtures.js";
 
+/** The plan of the preview of `topic remove` on SR-0000b1 and SR-0000b2 of FILTER (#158). */
+const PLAN = "p1:f77058b6376ff78f9f9febef65e53aa6f03c87562777d572ddb121ac6840c29c";
+
 scenariosOf("element.bulkUpdate", [
   {
     name: "a number given as text is refused, nothing is written (#614)",
@@ -77,6 +80,32 @@ scenariosOf("element.bulkUpdate", [
       confirm: true,
     },
     expect: "output",
+  },
+  {
+    // The plan is the preview's in every access and every copy of the fixture: it holds no path (#158).
+    name: "a confirmation with the plan of the preview writes",
+    fixture: FILTER,
+    input: {
+      selection: { ids: ["SR-0000b1", "SR-0000b2"] },
+      property: "topic",
+      operation: "remove",
+      confirm: true,
+      plan: PLAN,
+    },
+    expect: "output",
+  },
+  {
+    name: "a confirmation with the plan of another change is refused, nothing is written (#158)",
+    fixture: FILTER,
+    input: {
+      selection: { ids: ["SR-0000b1", "SR-0000b2"] },
+      property: "topic",
+      operation: "set",
+      value: "Rain",
+      confirm: true,
+      plan: PLAN,
+    },
+    expect: "error",
   },
   {
     name: "a confirmation whose count no longer holds (a choice by its display name)",

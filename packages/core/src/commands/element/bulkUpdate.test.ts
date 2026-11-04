@@ -646,3 +646,133 @@ describe("element.bulkUpdate (SR-071)", () => {
     expect(error.code).toBe("ref.unknown");
   });
 });
+
+// The plan of a preview (#158): a confirmation with it writes exactly the files and bytes the preview showed.
+describe("element.bulkUpdate plan (#158)", () => {
+  const REMOVE = { selection: { ids: [B1, B2, B3] }, property: "topic", operation: "remove" };
+
+  /** The element file with `from` replaced by `to`, written outside ReqSeq. */
+  const edit = async (
+    fixture: FixtureWorkspace,
+    element: string,
+    from: string,
+    to: string,
+  ): Promise<void> => {
+    const file = fixture.path(FILES[element] ?? "");
+    const text = await fs.readFile(file, "utf8");
+    expect(text).toContain(from);
+    await fs.writeFile(file, text.replace(from, to));
+  };
+
+  /** A fresh workspace on the same files: a server that read them anew (a watcher). */
+  const reopened = (fixture: FixtureWorkspace): Workspace => {
+    const workspace = new Workspace(fixture.root);
+    onTestFinished(() => workspace.close());
+    return workspace;
+  };
+
+  const planChanged = async (workspace: Workspace, input: Record<string, unknown>): Promise<CommandError> => {
+    const error = await failure(workspace, input);
+    expect(error.code).toBe("input.invalid");
+    expect(error.details?.["reason"]).toBe("plan-changed");
+    expect(error.message).toContain("nothing was written");
+    return error;
+  };
+
+  it("[SR-071/AK2] gives the same plan for the same preview, and a confirmation with it writes", async () => {
+    const { fixture, workspace } = await open();
+    const before = await texts(fixture.root);
+    const preview = await bulk(workspace, REMOVE);
+    expect(preview.plan).toMatch(/^p1:[0-9a-f]{64}$/);
+    expect(ids(preview.affected)).toEqual([B1, B2]);
+    expect((await bulk(workspace, REMOVE)).plan).toBe(preview.plan);
+    expect((await bulk(reopened(fixture), REMOVE)).plan).toBe(preview.plan);
+    const done = await bulk(workspace, { ...REMOVE, confirm: true, plan: preview.plan, expected: 2 });
+    expect(done).toMatchObject({ applied: true, count: 2, plan: preview.plan });
+    expect(done.files).toEqual(filesOf([B1, B2]));
+    expectOnlyKeyChanged(before, await texts(fixture.root), "topic", done.files);
+  });
+
+  it("[SR-071/AK2] refuses a confirmation when other elements are affected now, though their count is the same", async () => {
+    const { fixture, workspace } = await open();
+    const preview = await bulk(workspace, REMOVE);
+    await edit(fixture, B1, "topic: Wind\n", "");
+    await edit(fixture, B3, "emergent:", "topic: Ice\nemergent:");
+    const before = await texts(fixture.root);
+    const confirm = { ...REMOVE, confirm: true, plan: preview.plan, expected: preview.count };
+    // The store still holds the old b1: the first confirmation reads it again.
+    expect((await failure(workspace, confirm)).code).toBe("file.changed-on-disk");
+    const error = await planChanged(workspace, confirm);
+    expect(error.details).toEqual({ count: 2, reason: "plan-changed" });
+    // The current plan is not given away: only a new preview shows it.
+    const again = await bulk(workspace, REMOVE);
+    expect(ids(again.affected)).toEqual([B2, B3]);
+    expect(JSON.stringify(error)).not.toContain(again.plan.slice(3));
+    expect(error.message).not.toContain("p1:");
+    // A server that read the files anew refuses at the first try.
+    await planChanged(reopened(fixture), confirm);
+    expect(await texts(fixture.root)).toEqual(before);
+  });
+
+  it("[SR-071/AK2] refuses a confirmation when an affected file changed, or the value is another", async () => {
+    const { fixture, workspace } = await open();
+    const preview = await bulk(workspace, REMOVE);
+    await planChanged(workspace, {
+      ...REMOVE,
+      operation: "set",
+      value: "Rain",
+      confirm: true,
+      plan: preview.plan,
+    });
+    await edit(fixture, B2, "title: Measure every second", "title: Measure each second");
+    const before = await texts(fixture.root);
+    const fresh = reopened(fixture);
+    expect(ids((await bulk(fresh, REMOVE)).affected)).toEqual([B1, B2]);
+    await planChanged(fresh, { ...REMOVE, confirm: true, plan: preview.plan });
+    expect(await texts(fixture.root)).toEqual(before);
+  });
+
+  it("refuses a confirmation when a relation target that add gives changed in between", async () => {
+    const { fixture, workspace } = await open();
+    const input = { selection: { ids: [B1] }, property: "packages", operation: "add", value: [P2] };
+    const preview = await bulk(workspace, input);
+    expect(preview.count).toBe(1);
+    await edit(fixture, P2, "P2.", "P2, changed.");
+    const before = await texts(fixture.root);
+    await planChanged(reopened(fixture), { ...input, confirm: true, plan: preview.plan });
+    expect(await texts(fixture.root)).toEqual(before);
+  });
+
+  it("refuses a confirmation when one of two files with the same UUID changed", async () => {
+    const twin = `---\nid: ${B2}\ntype: system-requirement\nstatus: draft\ntitle: Twin\nrequirement-type: functional\ntopic: Timing\n---\n`;
+    const { fixture, workspace } = await open({
+      fixture: "SR-069/filter",
+      files: { "other/SR-twin.md": twin },
+    });
+    const input = {
+      selection: { where: { property: "title", op: "eq", value: "Twin" } },
+      property: "topic",
+      operation: "remove",
+    };
+    const preview = await bulk(workspace, input);
+    expect(ids(preview.affected)).toEqual([B2]);
+    await fs.writeFile(fixture.path("other/SR-twin.md"), twin.replace("topic: Timing", "topic: Time"));
+    const before = await texts(fixture.root);
+    const error = await failure(reopened(fixture), { ...input, confirm: true, plan: preview.plan });
+    expect(error.details?.["reason"]).toBe("plan-changed");
+    expect(await texts(fixture.root)).toEqual(before);
+  });
+
+  it("checks the plan only with confirm, and refuses one that is no plan", async () => {
+    const { fixture, workspace } = await open();
+    const before = await texts(fixture.root);
+    expect(await bulk(workspace, { ...REMOVE, plan: `p1:${"0".repeat(64)}` })).toMatchObject({
+      applied: false,
+      count: 2,
+    });
+    for (const plan of ["p1:abc", `p2:${"0".repeat(64)}`, `p1:${"A".repeat(64)}`]) {
+      expect((await failure(workspace, { ...REMOVE, confirm: true, plan })).code).toBe("input.invalid");
+    }
+    expect(await texts(fixture.root)).toEqual(before);
+  });
+});
