@@ -50,6 +50,21 @@ const keywordCatalog = {
           },
           either: { anyOf: [{ type: "string", pattern: "^a$" }, { type: "number" }] },
           one: { oneOf: [{ type: "string" }, { type: "string", minLength: 2 }] },
+          // Object branches told apart by their required keys (#150); `b` is open and lists no fields.
+          shape: {
+            oneOf: [
+              {
+                type: "object",
+                required: ["a"],
+                properties: { a: { type: "string" }, n: { type: "number" } },
+                additionalProperties: false,
+              },
+              { type: "object", required: ["b"], minProperties: 3 },
+            ],
+          },
+          foreign: {
+            anyOf: [{ type: "object", required: ["a"] }, { $ref: "../common.schema.json#/$defs/uuid" }],
+          },
           other: { type: "string", not: { const: "no" } },
           even: { type: "number", multipleOf: 2 },
           nested: {
@@ -250,6 +265,69 @@ describe("readable messages of an input that fails its schema (#309)", () => {
     expect(violations(keywords, "test.fields", undefined).map((v) => v.message)).toEqual([
       "The input must be an object, not missing",
     ]);
+  });
+
+  it("names the error of the condition branch the operator means (#150)", () => {
+    const where = (condition: unknown): string[] =>
+      messages(product, "element.list", { selection: { where: condition } });
+    expect(where({ property: "topic", op: "nope", value: 1 })).toEqual([
+      'selection.where.op "nope" is not one of: eq, ne, in, contains, lt, le, gt, ge, exists, missing, matches',
+    ]);
+    expect(where({ all: [{ type: ["need"] }, { status: "draft" }] })).toEqual([
+      'selection.where.all[1].status must be a list, not "draft"',
+    ]);
+    expect(where({ not: { relation: { direction: "sideways" }, exists: true } })).toEqual([
+      'selection.where.not.relation.direction "sideways" is not one of: up, down, evidence',
+    ]);
+    expect(where({ status: ["draft"], extra: 1 })).toEqual([
+      "selection.where.extra is not a field of selection.where (known: status)",
+    ]);
+    expect(where({ status: ["draft"], toString: 1 })).toEqual([
+      "selection.where.toString is not a field of selection.where (known: status)",
+    ]);
+    expect(where({ property: "topic" })).toEqual(["selection.where.op is required"]);
+    expect(where({ relation: { direction: "up" } })).toEqual(["selection.where.exists is required"]);
+    const operators =
+      " (one of: all, any, not, type, status, invalid, package, validFor, verification, validation, emergent, source, text, property, relation)";
+    for (const condition of [{ typ: ["need"] }, { status: ["draft"], type: ["need"] }]) {
+      const [message, ...rest] = where(condition);
+      expect(rest).toEqual([]);
+      expect(message).toMatch(
+        /^selection\.where \(an object\) does not have the expected form: Combinable condition/,
+      );
+      expect(message?.endsWith(operators)).toBe(true);
+    }
+  });
+
+  it("tells object branches apart only when every branch names its keys (#150)", () => {
+    expect(field({ shape: { a: 1, n: "x", z: true } })).toEqual([
+      "shape.a must be text, not 1",
+      'shape.n must be a number, not "x"',
+      "shape.z is not a field of shape (known: a, n)",
+    ]);
+    expect(field({ shape: { b: 1, z: true } })).toEqual(["shape must NOT have fewer than 3 properties"]);
+    expect(field({ shape: [] })).toEqual(["shape (a list) does not have the expected form"]);
+    expect(field({ shape: {} })).toEqual([
+      "shape (an object) does not have the expected form (one of: a, b)",
+    ]);
+    expect(field({ foreign: {} })).toEqual(["foreign (an object) does not have the expected form"]);
+    // A local reference without the file of its def cannot be resolved: the branches stay one message.
+    const error = {
+      instancePath: "",
+      schemaPath: "#/oneOf",
+      keyword: "oneOf",
+      params: {},
+      schema: [{ $ref: "#/$defs/elsewhere" }],
+      parentSchema: {},
+    };
+    expect(
+      describeInputViolations(inputViolations([error], { input: { a: 1 }, schemas: product.schemas })),
+    ).toBe("The input (an object) does not have the expected form");
+    // A validator without `verbose` gives no schema with its errors: nothing to tell the branches by.
+    const plain = { instancePath: "", schemaPath: "#/oneOf", keyword: "oneOf", params: {} };
+    expect(
+      describeInputViolations(inputViolations([plain], { input: { a: 1 }, schemas: product.schemas })),
+    ).toBe("The input (an object) does not have the expected form");
   });
 
   it("gives no violation for no errors", () => {
