@@ -96,3 +96,25 @@ test.describe("an inconclusive validation", () => {
     await expect(line(window, "Validation")).toHaveText("Validation — validated");
   });
 });
+
+test("a validation line that cuts a long reason gives the whole reason on hover (#846)", async () => {
+  // The reason over two lines and longer than the line shows it; the record keeps it as written.
+  const reason = `The frost sensor was replaced.\n${"The field test starts again. ".repeat(10).trim()}`;
+  const running = await launchApp({
+    fixture: "SR-172/inconclusive",
+    files: {
+      "evidence/2026-11-01-N-00a003-validation.md":
+        "---\nreqseq-record: 1\nkind: validation\nelement: 17201720-1720-4720-8720-00000000a003\n" +
+        `version: n1:80a1df5694b73266\nresult: inconclusive\nreason: ${JSON.stringify(reason)}\n` +
+        "date: 2026-11-01T09:00:00Z\n---\n",
+    },
+  });
+  try {
+    const { window } = running;
+    await openEditor(window, "Know the frost");
+    await expect(line(window, "Validation")).toContainText("…");
+    await expect(line(window, "Validation")).toHaveAttribute("title", reason);
+  } finally {
+    await running.close();
+  }
+});

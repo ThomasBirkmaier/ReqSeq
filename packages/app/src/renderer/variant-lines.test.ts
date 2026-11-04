@@ -119,6 +119,17 @@ describe("the lines of a requirement's variants", () => {
     expect(text(fits.validation)).toBe(`Validation — inconclusive: ${"👍🏽".repeat(REASON_LENGTH)}`);
   });
 
+  it("gives the whole reason as written as the title of a cut validation line, else none (#846)", () => {
+    const whole = `First line\n${"x".repeat(300)}`;
+    expect(
+      variantLines(output({ validation: "inconclusive", validationReason: whole })).validationTitle,
+    ).toBe(whole);
+    const short = variantLines(output({ validation: "inconclusive", validationReason: "No frost\nyet" }));
+    expect(short.validationTitle).toBeUndefined();
+    expect(variantLines(output({ validation: "validated" })).validationTitle).toBeUndefined();
+    expect(variantLines(output({ validationReason: "x".repeat(300) })).validationTitle).toBeUndefined();
+  });
+
   it("names an element that names lacks by its UUID, without a link", () => {
     const lines = variantLines(
       output({ replacedBy: [{ variant: "uuid-x", replacement: "uuid-y" }], verification: [] }),
