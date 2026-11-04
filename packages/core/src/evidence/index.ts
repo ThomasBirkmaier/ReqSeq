@@ -28,12 +28,12 @@ export { testCaseKey, testCaseKeyOf } from "./record.js";
 export type { EvidenceRecord, SkippedTestCase, TestCase, TestCaseName } from "./record.js";
 export { EVIDENCE_READERS, evidenceReadState, evidenceRecordsState, readEvidence } from "./state.js";
 export type { EvidenceFileRead, EvidenceRead, EvidenceReader } from "./state.js";
+export { holdsIn } from "./holds.js";
 export { childRulesOf, hasOwnRecordIn, verificationEvaluator } from "./indirect.js";
 export type { ChildRules, Shown, VerificationEvaluator, VerificationResult } from "./indirect.js";
 export {
   hasValidationRecord,
   hasValidationStatus,
-  holdsIn,
   recordStatusOf,
   statusSource,
   validationOf,

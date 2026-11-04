@@ -5,6 +5,7 @@ repositories:
   - { name: metamodel, url: "git@git.example.com:ws/metamodel.git" }
   - { name: subsystem-sensor, url: "git@git.example.com:ws/subsystem-sensor.git" }
   - { name: confidential, url: "git@git.example.com:ws/confidential.git" }
+  - { name: supplier, url: "git@git.example.com:ws/supplier.git", variant-independent: true }
 metamodel: { repository: metamodel, path: model }
 evidence:
   - { repository: system, path: evidence }

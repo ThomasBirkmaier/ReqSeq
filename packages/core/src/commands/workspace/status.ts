@@ -1,6 +1,6 @@
 // workspace.status (SR-004, SR-011, SR-018; SR-006 extends it): the repositories of the workspace,
 // which are available and writable, where the metamodel lies, whether it is valid and whether the
-// workspace is read-only.
+// workspace is read-only. `variantIndependent` shows the mark of the workspace file (SR-173).
 import type { CommandOutput, Problem } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import { metamodelState, workspaceAccess } from "../../metamodel/index.js";
@@ -23,8 +23,9 @@ interface Checked {
  * `isWritableFolder`).
  */
 const checkRepository = async (repository: RepositoryLocation): Promise<Checked> => {
+  const marked = repository.variantIndependent ? { variantIndependent: true as const } : {};
   if (!repository.available) {
-    return { status: { name: repository.name, available: false, path: repository.path } };
+    return { status: { name: repository.name, available: false, path: repository.path, ...marked } };
   }
   const [{ commit, problem }, writable] = await Promise.all([
     repositoryCommit(repository),
@@ -35,6 +36,7 @@ const checkRepository = async (repository: RepositoryLocation): Promise<Checked>
       name: repository.name,
       available: true,
       path: repository.path,
+      ...marked,
       ...(commit === undefined ? {} : { commit }),
       ...(writable === undefined ? {} : { readOnly: !writable }),
     },

@@ -50,13 +50,14 @@ const record = (of: ElementRecord, more: Partial<EvidenceRecord> = {}): Evidence
 });
 
 /** A status source over `records` (by element), with a validity property `validity`. */
-const sourceOf = (records: readonly EvidenceRecord[]): StatusSource => ({
+const sourceOf = (records: readonly EvidenceRecord[], independent = false): StatusSource => ({
   requirements: new Set(["req", "sub-req"]),
   needs: new Set(["need"]),
   invalid: new Set(["obsolete"]),
   validity: { key: "validity", many: true, label: "property Validity (validity)" },
   recordsOf: (id) => records.filter((r) => r.element === id),
   emergent: () => false,
+  independent: () => independent,
 });
 
 /** The views by validity alone, as the view rule without replacements and exclusions. */
@@ -119,6 +120,14 @@ describe("withoutPassedTest (SR-120)", () => {
     expect([listed(inCore, [record(inCore)]), listed(inCore, [record(inCore)], IN_V)]).toEqual([false, true]);
   });
 
+  it("counts a passed test without variant in every view for an element of a marked repository (SR-173)", () => {
+    const of = element();
+    const records = [record(of)];
+    expect(withoutPassedTest(sourceOf(records, true), [of], IN_V, byValidity(IN_V))).toEqual([]);
+    expect(withoutPassedTest(sourceOf(records, false), [of], IN_V, byValidity(IN_V))).toEqual([of]);
+    expect(isPassedTest(record(of), IN_V, true)).toBe(true);
+  });
+
   it("lists only requirements with a valid status that apply in the view, in the order given (#532)", () => {
     const need = element({ type: "need" });
     const sub = element({ type: "sub-req" });
@@ -134,10 +143,10 @@ describe("withoutPassedTest (SR-120)", () => {
 
   it("isPassedTest asks kind, method, result and view", () => {
     const of = element();
-    expect(isPassedTest(record(of), CORE)).toBe(true);
-    expect(isPassedTest(record(of, { kind: "validation" }), CORE)).toBe(false);
-    expect(isPassedTest(record(of, { method: "inspection" }), CORE)).toBe(false);
-    expect(isPassedTest(record(of, { result: "failed" }), CORE)).toBe(false);
-    expect(isPassedTest(record(of), IN_V)).toBe(false);
+    expect(isPassedTest(record(of), CORE, false)).toBe(true);
+    expect(isPassedTest(record(of, { kind: "validation" }), CORE, false)).toBe(false);
+    expect(isPassedTest(record(of, { method: "inspection" }), CORE, false)).toBe(false);
+    expect(isPassedTest(record(of, { result: "failed" }), CORE, false)).toBe(false);
+    expect(isPassedTest(record(of), IN_V, false)).toBe(false);
   });
 });

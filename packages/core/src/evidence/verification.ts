@@ -22,7 +22,8 @@
 // requirement has no entry for a variant that excludes or replaces it (SR-047 AK3), and a parent
 // counts no such child there (SR-043 AK7). A change of a rule item (a `replaces` added or removed, or
 // the validity of its source changed) moves the core requirements it names in or out of a view, so
-// the carry takes them, with their ancestors, as affected.
+// the carry takes them, with their ancestors, as affected. A change of the workspace file (the mark
+// `variant-independent`, SR-173, which the status source takes from the layout) resets the state.
 // The state never reads or changes the element's `status` beyond the invalid flag (D-030).
 import type { DataExportElement } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
@@ -56,7 +57,7 @@ import {
   viewRuleIndexState,
 } from "../variants/index.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
-import { workspaceLayoutState } from "../workspace/index.js";
+import { variantIndependentOf, workspaceLayoutState } from "../workspace/index.js";
 import type { EvidenceIndex } from "./by-element.js";
 import { evidenceIndexState } from "./by-element.js";
 import type { ChildRules, Shown, VerificationEvaluator, ViewScope } from "./indirect.js";
@@ -342,7 +343,7 @@ export interface StateStatus extends KeptStatus {
 const statusOfInputs = (inputs: StatusInputs, read: VersionReader): StateStatus => {
   const { metamodel, layout, store, index, incoming } = inputs;
   const children = incoming === undefined ? undefined : childRulesOf({ layout, metamodel, store, incoming });
-  const source = statusSource(metamodel, index);
+  const source = statusSource(metamodel, index, variantIndependentOf(layout));
   const scope = ruleScope(inputs.rules);
   const status = statusWith(
     source,
@@ -530,7 +531,7 @@ const recordedStatus = (
     { from: store, to: store, ids: new Set([record.element]) },
     {
       inputs,
-      source: statusSource(inputs.metamodel, index),
+      source: statusSource(inputs.metamodel, index, variantIndependentOf(inputs.layout)),
       children: old.children,
       versionsOfChanged: true,
     },

@@ -20,6 +20,7 @@ const repository = (folder: string, excludes: readonly string[] = []): Repositor
   name: "r",
   url: "u",
   main: true,
+  variantIndependent: false,
   path: ".",
   folder,
   available: true,

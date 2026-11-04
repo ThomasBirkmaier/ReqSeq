@@ -6,18 +6,25 @@
 // - The test cases of an element in a view (SR-033, `testCasesIn`) for `evidence.list`, the chain and
 //   the matrix (`verificationTestCasesIn`, SR-126), and the evidence below an element of the chain
 //   (`chainEvidenceOf`, `trace.chain` `evidence`).
+// Each takes `independent`, whether the element's repository is marked `variant-independent`
+// (SR-173): then its records without variant hold in every variant too. It is per element, not per
+// UUID, since twins in two repositories may differ (SR-088).
 import type { View } from "../variants/index.js";
 import type { EvidenceIndex } from "./by-element.js";
 import type { EvidenceRecord, TestCase } from "./record.js";
-import { holdsIn } from "./status.js";
+import { holdsIn } from "./holds.js";
 
 /**
  * Whether `record` holds for `view`: in the core a record without a variant, in a variant a record
- * for that variant (SR-047 AK1, AK2; `holdsIn` of the status), as `hasVerificationRecord` counts; without a view
- * every record.
+ * for that variant and, when `independent`, a verification record without a variant (SR-047 AK1,
+ * AK2, SR-173; `holdsIn`; validation counts only in the core, D-007, SR-038), as
+ * `hasVerificationRecord` counts; without a view every record.
  */
-export const recordHoldsIn = (record: EvidenceRecord, view: View | undefined): boolean =>
-  view === undefined || holdsIn(record, view);
+export const recordHoldsIn = (
+  record: EvidenceRecord,
+  view: View | undefined,
+  independent: boolean,
+): boolean => view === undefined || holdsIn(record, view, independent && record.kind === "verification");
 
 /**
  * `records` (newest first, as the index keeps them) that hold for `view`, each with the names of the
@@ -26,10 +33,11 @@ export const recordHoldsIn = (record: EvidenceRecord, view: View | undefined): b
 export const listedRecords = (
   records: readonly EvidenceRecord[],
   view: View | undefined,
+  independent: boolean,
   containing: (id: string, version: string) => readonly string[],
 ): EvidenceRecord[] =>
   records
-    .filter((record) => recordHoldsIn(record, view))
+    .filter((record) => recordHoldsIn(record, view, independent))
     .map((record) => ({ ...record, baselines: [...containing(record.element, record.version)] }));
 
 /** The kind of a record: verification (Nachweis) or validation (D-007). */
@@ -47,11 +55,12 @@ export const testCasesIn = (
   index: EvidenceIndex,
   id: string,
   view: View | undefined,
+  independent: boolean,
   kinds?: readonly RecordKind[],
 ): readonly TestCase[] => {
   const cases = index.testCasesOf(id);
   const keep = (record: EvidenceRecord): boolean =>
-    recordHoldsIn(record, view) && (kinds === undefined || kinds.includes(record.kind));
+    recordHoldsIn(record, view, independent) && (kinds === undefined || kinds.includes(record.kind));
   if (cases.every((test) => test.executions.every(keep))) {
     return cases;
   }
@@ -85,7 +94,8 @@ export const verificationTestCasesIn = (
   index: EvidenceIndex,
   id: string,
   view: View | undefined,
-): readonly TestCase[] => testCasesIn(index, id, view, VERIFICATION);
+  independent: boolean,
+): readonly TestCase[] => testCasesIn(index, id, view, independent, VERIFICATION);
 
 /**
  * The evidence below the element `id` in the chain (SR-022 AK1, SR-033 AK1 to AK3): its test cases
@@ -98,11 +108,14 @@ export const chainEvidenceOf = (
   index: EvidenceIndex,
   id: string,
   view: View | undefined,
+  independent: boolean,
 ): ElementEvidence | undefined => {
-  const testCases = verificationTestCasesIn(index, id, view);
+  const testCases = verificationTestCasesIn(index, id, view, independent);
   const records = (index.byElement.get(id) ?? []).filter(
     (record) =>
-      record.kind === "verification" && record.testCase === undefined && recordHoldsIn(record, view),
+      record.kind === "verification" &&
+      record.testCase === undefined &&
+      recordHoldsIn(record, view, independent),
   );
   return testCases.length === 0 && records.length === 0 ? undefined : { testCases, records };
 };

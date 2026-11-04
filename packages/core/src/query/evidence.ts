@@ -17,7 +17,8 @@
 // (#439): the condition "has evidence" needs no version and reads none. While the metamodel is not
 // valid the records are not compared: every requirement is `open`, every need `open`, nothing has
 // evidence, and `ready` reads nothing.
-// "Has evidence" is `hasVerificationRecord` of the evidence block: a verification record in the
+// "Has evidence" is `hasVerificationRecord` of the evidence block, with the mark of the element's
+// repository from the shared status source (`independent`, SR-173): a verification record in the
 // view, any version and result (spec question #527); validation records never count (D-007).
 // The conditions are tested at core level with records given through `evidenceRecordsState` or a
 // provider given through `evidenceStatusState` (decision on #127, option 1).
@@ -57,7 +58,8 @@ const providerOf = (
 ): EvidenceStatuses => ({
   verification: (element, view) => status.evaluate(element, view)?.status,
   validation: (element) => status.validate(element)?.status,
-  hasEvidence: (element, view) => index !== undefined && hasVerificationRecord(index, element.id, view),
+  hasEvidence: (element, view) =>
+    index !== undefined && hasVerificationRecord(index, element.id, view, status.source.independent(element)),
   ready,
 });
 

@@ -6,10 +6,10 @@ import type { Metamodel } from "../metamodel/index.js";
 import type { ElementRecord } from "../model/index.js";
 import type { View } from "../variants/index.js";
 import { evidenceIndex } from "./by-element.js";
+import type { MatrixEvidenceInput } from "./matrix.js";
 import { matrixEvidence, matrixTestCases, showsEvidence, testCaseMark } from "./matrix.js";
 import type { EvidenceRecord, SkippedTestCase, TestCase } from "./record.js";
 import { recordStatusOf } from "./status.js";
-import type { WorkspaceStatus } from "./verification.js";
 
 const P = "5e126a7d-2b4f-4c61-9d08-0";
 const A = `${P}a0000000001`;
@@ -18,6 +18,8 @@ const COAST = `${P}c0000000001`;
 const CURRENT = "n1:1111111111111111";
 const OLDER = "n1:0000000000000000";
 const CORE: View = { kind: "core" };
+/** No repository marked `variant-independent` (SR-173). */
+const NOT_MARKED = { independent: () => false };
 const COAST_VIEW: View = { kind: "variant", variant: { id: COAST, repository: "system" } };
 
 const run = (date: string, more: Partial<EvidenceRecord> = {}): EvidenceRecord => ({
@@ -105,7 +107,7 @@ describe("testCaseMark (SR-126 AK2, spec questions #528 Q1/Q2, #593 Q2)", () => 
     const test = testCase(ofCurrent, newestOlder);
     expect(test.last).toEqual(newestOlder);
     expect(testCaseMark(test, CURRENT)).toBeUndefined();
-    expect(recordStatusOf([newestOlder, ofCurrent], "verification", CURRENT, CORE)).toBe("passed");
+    expect(recordStatusOf([newestOlder, ofCurrent], "verification", CURRENT, CORE, false)).toBe("passed");
     const failedCurrent = run("2026-01-01T10:00:00Z", { result: "failed" });
     expect(testCaseMark(testCase(failedCurrent, newestOlder), CURRENT)).toBe("failed");
   });
@@ -126,19 +128,31 @@ describe("matrixTestCases (SR-126 AK1)", () => {
     const inspection = markdown("2026-01-05T10:00:00Z");
     const index = evidenceIndex([newest, older, coast, manual, validation, inspection], [skipped]);
     // By class name, then name: a Markdown test case has none, so it comes first.
-    expect(matrixTestCases(index, A, CORE, CURRENT)).toEqual([
+    expect(matrixTestCases(index, A, CORE, false, CURRENT)).toEqual([
       { name: "wind tunnel check", executed: true, last: manual },
       { name: "test_gusts", className: "tests.Wind", executed: false, mark: "not-executed" },
       { name: "test_wind", className: "tests.Wind", executed: true, last: newest, mark: "failed" },
     ]);
-    expect(matrixTestCases(index, A, COAST_VIEW, CURRENT)).toEqual([
+    expect(matrixTestCases(index, A, COAST_VIEW, false, CURRENT)).toEqual([
       { name: "test_gusts", className: "tests.Wind", executed: false, mark: "not-executed" },
       { name: "test_wind", className: "tests.Wind", executed: true, last: coast },
     ]);
   });
 
+  it("shows the runs without variant in a variant for an element of a marked repository (SR-173)", () => {
+    const core = run("2026-01-02T10:00:00Z", { item: "build-2" });
+    const coast = run("2026-01-01T10:00:00Z", { variant: COAST, item: "coast-1" });
+    const index = evidenceIndex([core, coast]);
+    expect(matrixTestCases(index, A, COAST_VIEW, true, CURRENT)).toEqual([
+      { name: "test_wind", className: "tests.Wind", executed: true, last: core },
+    ]);
+    expect(matrixTestCases(index, A, COAST_VIEW, false, CURRENT)).toEqual([
+      { name: "test_wind", className: "tests.Wind", executed: true, last: coast },
+    ]);
+  });
+
   it("gives an empty cell to an element without test case", () => {
-    expect(matrixTestCases(evidenceIndex([], []), A, CORE, CURRENT)).toEqual([]);
+    expect(matrixTestCases(evidenceIndex([], []), A, CORE, false, CURRENT)).toEqual([]);
   });
 });
 
@@ -177,7 +191,8 @@ describe("matrixEvidence (SR-126 AK1, AK3)", () => {
 
   it("gives a requirement its test cases and one status entry for the view, measured against the version read", () => {
     const asked: unknown[] = [];
-    const status: Pick<WorkspaceStatus, "evaluate"> = {
+    const status: MatrixEvidenceInput["status"] = {
+      source: NOT_MARKED,
       evaluate: (element, view, shown) => {
         asked.push([element.id, view, shown]);
         return { status: "open", missingChildren: [CHILD] };
@@ -189,7 +204,11 @@ describe("matrixEvidence (SR-126 AK1, AK3)", () => {
       verification: [{ view: COAST, status: "open", missingChildren: [CHILD] }],
     });
     expect(asked).toEqual([[A, COAST_VIEW, { current: OLDER }]]);
-    const core = matrixEvidence({ status: { evaluate: () => ({ status: "indirect" }) }, index, view: CORE });
+    const core = matrixEvidence({
+      status: { source: NOT_MARKED, evaluate: () => ({ status: "indirect" }) },
+      index,
+      view: CORE,
+    });
     expect(core(record, CURRENT)).toEqual({
       testCases: [
         { name: "test_wind", className: "tests.Wind", executed: true, last: run("2026-01-01T10:00:00Z") },
@@ -199,10 +218,11 @@ describe("matrixEvidence (SR-126 AK1, AK3)", () => {
   });
 
   it("a requirement that does not apply in the view gets no verification field and no test cases", () => {
-    const fields = matrixEvidence({ status: { evaluate: () => undefined }, index, view: CORE })(
-      record,
-      CURRENT,
-    );
+    const fields = matrixEvidence({
+      status: { source: NOT_MARKED, evaluate: () => undefined },
+      index,
+      view: CORE,
+    })(record, CURRENT);
     expect(fields).toEqual({});
   });
 });

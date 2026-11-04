@@ -61,7 +61,12 @@
           "type": "string",
           "description": "Expected local location relative to the main repository, with `/` as separator. Default `../<name>`; always `.` for the main repository. Absolute paths and `\\` are warned about (an absolute path is ignored); there is no `~` expansion. A person can override it in the untracked file `.reqseq/local.yaml`."
         },
-        "main": { "type": "boolean", "default": false }
+        "main": { "type": "boolean", "default": false },
+        "variant-independent": {
+          "type": "boolean",
+          "default": false,
+          "description": "The repository does not know the variants of the workspace (SR-173): an evidence record without `variant` for one of its elements counts in the core and in every variant the element applies in (the view rule, SR-047 AK3). Without the mark such a record counts only in the core (D-026). Shared: `.reqseq/local.yaml` cannot change it. An older ReqSeq rejects a workspace file with it (`file.faulty`)."
+        }
       },
       "additionalProperties": false
     },

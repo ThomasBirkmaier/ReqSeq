@@ -5,7 +5,8 @@
 //
 // 1. A passed test execution of an element in a view is an evidence record with `kind: verification`,
 //    `method: test` and `result: passed` that holds in the view (`holdsIn`: in the core a record without
-//    variant, in a variant a record for it; SR-047). Of any version, and also when a later run failed
+//    variant, in a variant a record for it, and one without variant for an element of a repository
+//    marked `variant-independent`; SR-047, SR-173, #817 Q4). Of any version, and also when a later run failed
 //    (AK2: „mindestens einer bestandenen Testausführung“). Inspection, analysis and demonstration are no
 //    test execution, and validation records never count (D-007). A skipped JUnit test case gives no
 //    record (ADR-0012), so it is none.
@@ -25,26 +26,29 @@ import type { View } from "../variants/index.js";
 import { countedIn } from "./degree.js";
 import type { EvidenceRecord } from "./record.js";
 import type { StatusSource } from "./status.js";
-import { holdsIn } from "./status.js";
+import { holdsIn } from "./holds.js";
 
-/** Whether `record` is a passed test execution in `view` (rule 1). */
-export const isPassedTest = (record: EvidenceRecord, view: View): boolean =>
+/** Whether `record` is a passed test execution in `view` (rule 1); `independent` as `holdsIn` takes it. */
+export const isPassedTest = (record: EvidenceRecord, view: View, independent: boolean): boolean =>
   record.kind === "verification" &&
   record.method === "test" &&
   record.result === "passed" &&
-  holdsIn(record, view);
+  holdsIn(record, view, independent);
 
 /**
  * The requirements of `elements` without a passed test execution in `view` (rules 1 and 2) that
  * `includes` holds (the view's rule, `viewRuleOf`), in the order given. Pure and synchronous.
  */
 export const withoutPassedTest = (
-  source: Pick<StatusSource, "requirements" | "invalid" | "validity" | "recordsOf">,
+  source: Pick<StatusSource, "requirements" | "invalid" | "validity" | "recordsOf" | "independent">,
   elements: readonly ElementRecord[],
   view: View,
   includes: (element: ElementRecord) => boolean,
 ): ElementRecord[] =>
-  countedIn(source, elements).filter(
-    (element) =>
-      includes(element) && !source.recordsOf(element.id).some((record) => isPassedTest(record, view)),
-  );
+  countedIn(source, elements).filter((element) => {
+    if (!includes(element)) {
+      return false;
+    }
+    const independent = source.independent(element);
+    return !source.recordsOf(element.id).some((record) => isPassedTest(record, view, independent));
+  });

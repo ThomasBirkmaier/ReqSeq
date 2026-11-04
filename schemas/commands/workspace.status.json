@@ -1,10 +1,10 @@
 {
   "name": "workspace.status",
   "title": "Show workspace status",
-  "summary": "Repositories of the workspace, which are available, where the metamodel comes from, read-only state.",
+  "summary": "Repositories of the workspace, which are available and which are variant-independent, where the metamodel comes from, read-only state.",
   "effect": "read",
   "stage": 1,
-  "implements": ["SR-004", "SR-006", "SR-011", "SR-018"],
+  "implements": ["SR-004", "SR-006", "SR-011", "SR-018", "SR-173"],
   "arguments": [],
   "input": {
     "type": "object",
@@ -33,6 +33,10 @@
             },
             "commit": {
               "$ref": "../common.schema.json#/$defs/commit"
+            },
+            "variantIndependent": {
+              "const": true,
+              "description": "The workspace file marks the repository variant-independent (SR-173): a record without variant for one of its elements counts in every view the element applies in. Left out without the mark."
             },
             "readOnly": {
               "type": "boolean",

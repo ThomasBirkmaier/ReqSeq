@@ -43,6 +43,7 @@ const repository = (name: string, available: boolean): RepositoryLocation => ({
   name,
   url: "u",
   main: name === "system",
+  variantIndependent: false,
   path: name === "system" ? "." : `../${name}`,
   folder: `/work/${name}`,
   available,

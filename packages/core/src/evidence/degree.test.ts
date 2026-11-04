@@ -40,6 +40,7 @@ const SOURCE: StatusSource = {
   validity: undefined,
   recordsOf: () => [],
   emergent: () => false,
+  independent: () => false,
 };
 
 /**

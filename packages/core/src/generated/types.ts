@@ -716,7 +716,7 @@ export interface DataExportEvidenceRecord {
   readonly kind: "verification" | "validation";
   /** Required for verification (D-026). */
   readonly method?: "test" | "analysis" | "inspection" | "demonstration";
-  /** Variant the record holds for. Absent: the core (D-026, SR-047 AK2). */
+  /** Variant the record holds for. Absent: the core (D-026, SR-047 AK2), and also every variant the element applies in when the element's repository is marked `variant-independent` (SR-173). */
   readonly variant?: Uuid;
   /** Prüfling. Required for verification, optional for validation (D-007). */
   readonly item?: string;
@@ -845,7 +845,7 @@ export interface EvidenceRecordFile {
   readonly version: Version;
   /** Required for verification (D-026). */
   readonly method?: "test" | "analysis" | "inspection" | "demonstration";
-  /** Variant the record holds for. Absent: the core (D-026, SR-047 AK2). Verification only: a validation record with a variant is refused and counts for no status (D-007, SR-038 AK4). */
+  /** Variant the record holds for. Absent: the core (D-026, SR-047 AK2), and also every variant the element applies in when the element's repository is marked `variant-independent` in the workspace file (SR-173). Verification only: a validation record with a variant is refused and counts for no status (D-007, SR-038 AK4). */
   readonly variant?: Uuid;
   /** Prüfling: the concrete build or sample that was checked. Required for verification, optional for validation (D-007). */
   readonly item?: string;
@@ -975,7 +975,7 @@ export interface FilterRelationCondition {
     readonly kind?: Key;
     /** Every relation kind with this meaning. Neither `kind` nor `meaning`: every relation kind. */
     readonly meaning?: "derivation" | "replacement" | "succession" | "exclusion";
-    /** `up` = outgoing (to parents), `down` = incoming (from children), `evidence` = verification records pointing at the element in the view of the selection, else in the core (a record without variant holds for the core, one with a variant for that variant), of any version and result; validation records do not count (D-007); no `kind`, `meaning` or `to`. Absent: up or down. */
+    /** `up` = outgoing (to parents), `down` = incoming (from children), `evidence` = verification records pointing at the element in the view of the selection, else in the core (a record without variant holds for the core, and for every variant when the element's repository is marked `variant-independent`, SR-173; one with a variant for that variant), of any version and result; validation records do not count (D-007); no `kind`, `meaning` or `to`. Absent: up or down. */
     readonly direction?: "up" | "down" | "evidence";
     /** Condition the other end must meet. */
     readonly to?: FilterCondition;
@@ -1404,6 +1404,8 @@ export interface WorkspaceRepository {
   /** Expected local location relative to the main repository, with `/` as separator. Default `../<name>`; always `.` for the main repository. Absolute paths and `\` are warned about (an absolute path is ignored); there is no `~` expansion. A person can override it in the untracked file `.reqseq/local.yaml`. */
   readonly path?: string;
   readonly main?: boolean;
+  /** The repository does not know the variants of the workspace (SR-173): an evidence record without `variant` for one of its elements counts in the core and in every variant the element applies in (the view rule, SR-047 AK3). Without the mark such a record counts only in the core (D-026). Shared: `.reqseq/local.yaml` cannot change it. An older ReqSeq rejects a workspace file with it (`file.faulty`). */
+  readonly "variant-independent"?: boolean;
 }
 
 /** Schema: `schemas/workspace.schema.json#/$defs/mainRepository`. */
@@ -1514,13 +1516,13 @@ export interface WorkspaceInitOutput {
 }
 
 /**
- * Input of `workspace.status` as `run` gets it: validated, properties with a `default` filled in. Repositories of the workspace, which are available, where the metamodel comes from, read-only state.
+ * Input of `workspace.status` as `run` gets it: validated, properties with a `default` filled in. Repositories of the workspace, which are available and which are variant-independent, where the metamodel comes from, read-only state.
  * Schema: `schemas/commands/workspace.status.json input`.
  */
 export type WorkspaceStatusInput = Readonly<Record<string, never>>;
 
 /**
- * Output of `workspace.status`. Repositories of the workspace, which are available, where the metamodel comes from, read-only state.
+ * Output of `workspace.status`. Repositories of the workspace, which are available and which are variant-independent, where the metamodel comes from, read-only state.
  * Schema: `schemas/commands/workspace.status.json output`.
  */
 export interface WorkspaceStatusOutput {
@@ -1530,6 +1532,8 @@ export interface WorkspaceStatusOutput {
     readonly available: boolean;
     readonly path?: string;
     readonly commit?: Commit;
+    /** The workspace file marks the repository variant-independent (SR-173): a record without variant for one of its elements counts in every view the element applies in. Left out without the mark. */
+    readonly variantIndependent?: true;
     /** ReqSeq cannot write the repository folder itself (read-only file system or no write permission). Reading works as usual and the workspace stays writable; writes into this repository are refused with file.read-only (SR-018 AK2). Rights on the Git server are not visible here (D-016, D-024). Only for available repositories; left out where the operating system cannot tell (Windows). */
     readonly readOnly?: boolean;
   }[];
@@ -2099,7 +2103,7 @@ export interface TraceChainOutput {
     /** Only with `not-in-view`: the views that hold the element, `core` first, then the variants in store order; empty when none does (a validity that names no variant of the workspace). `names` names the variants. */
     readonly views?: readonly ViewId[];
   }[];
-  /** The evidence (Nachweise) of the downward chain (SR-022 AK1, SR-033 AK1 to AK3), in the order of `nodes`, only for the nodes of the page whose children were looked at (`expanded`), paged like `gaps`; one item per element that has any, none with `direction` `up`. Only verification records (D-007: the chain ends at the Nachweise; validation records are in `evidence.list`). With `view` only the records that hold in it (SR-047: the core the records without a variant, a variant those for it); without `view` every record, each with its `variant`, as `evidence.list`. A test case all of whose executions of the element hold in another view is left out; a test case that was only skipped shows in every view. The Beleg of a record is its `evidence`; a JUnit execution has none, its Beleg is its record file (`repository`, `file`, `line`; D-007: for automatic tests the record is the result file). Belege are text and never opened. */
+  /** The evidence (Nachweise) of the downward chain (SR-022 AK1, SR-033 AK1 to AK3), in the order of `nodes`, only for the nodes of the page whose children were looked at (`expanded`), paged like `gaps`; one item per element that has any, none with `direction` `up`. Only verification records (D-007: the chain ends at the Nachweise; validation records are in `evidence.list`). With `view` only the records that hold in it (SR-047: the core the records without a variant, a variant those for it and, for an element of a repository marked `variant-independent`, those without a variant, SR-173); without `view` every record, each with its `variant`, as `evidence.list`. A test case all of whose executions of the element hold in another view is left out; a test case that was only skipped shows in every view. The Beleg of a record is its `evidence`; a JUnit execution has none, its Beleg is its record file (`repository`, `file`, `line`; D-007: for automatic tests the record is the result file). Belege are text and never opened. */
   readonly evidence: readonly {
     /** The element of the chain the evidence belongs to. */
     readonly id: Uuid;
@@ -2611,7 +2615,7 @@ export interface FilterSaveOutput {
  */
 export interface EvidenceListInput {
   readonly ref: ElementRef;
-  /** `core`: only the records without a variant; a variant: only the records for that variant (SR-047 AK1, AK2); absent: every record of the element. */
+  /** `core`: only the records without a variant; a variant: only the records for that variant (SR-047 AK1, AK2), and also those without a variant when the element's repository is marked `variant-independent` (SR-173); absent: every record of the element. */
   readonly view?: View;
 }
 
@@ -2647,7 +2651,7 @@ export interface EvidenceRecordInput {
   readonly reason?: string;
   /** The item under test (Prüfling), for example the build or sample. Required for verification. No white space at either end and no control characters other than tab, line feed and carriage return. */
   readonly item?: Item;
-  /** A variant the element applies in (an element whose type has the meaning variant); the record holds for it. Absent: the core. Verification only: a variant with `kind` validation is `input.invalid` with `details.reason` `validation-with-variant` (SR-038 AK4, D-007). `core` names no variant and is `input.invalid` with `details.reason` `core-is-no-variant`; leave `variant` out for the core. A variant the element is not in is `input.invalid` with `details.reason` `not-valid-in-variant`, or `excluded-in-variant` or `replaced-in-variant` when the variant excludes or replaces the requirement (SR-047 AK4). */
+  /** A variant the element applies in (an element whose type has the meaning variant); the record holds for it. Absent: the core, and also every variant the element applies in when the element's repository is marked `variant-independent` in the workspace file (SR-173). Verification only: a variant with `kind` validation is `input.invalid` with `details.reason` `validation-with-variant` (SR-038 AK4, D-007). `core` names no variant and is `input.invalid` with `details.reason` `core-is-no-variant`; leave `variant` out for the core. A variant the element is not in is `input.invalid` with `details.reason` `not-valid-in-variant`, or `excluded-in-variant` or `replaced-in-variant` when the variant excludes or replaces the requirement (SR-047 AK4). */
   readonly variant?: ElementRef;
   /** When the check was done. Default: the time of the call, UTC, whole seconds. Its first ten characters (the day in its own offset) start the file name. */
   readonly date?: IsoDateTime;
@@ -2681,7 +2685,7 @@ export interface EvidenceEnrichJunitInput {
   readonly item: Item;
   /** The date of the test run. Default: an existing `reqseq:date` of the test case, else the `timestamp` of its test suite when that has a time zone, else the time of the call. */
   readonly date?: IsoDateTime;
-  /** The variant the test run was for (an element whose type has the meaning variant): each enriched test case gets its UUID as `reqseq:variant`. Absent: a test case keeps its own `reqseq:variant`, if any, whose short ID or identifier becomes the UUID; `core` is none, but is checked like a variant. A test case that names another variant, or names an element that does not count in its variant (not valid there, excluded or replaced, as at `evidence.record`), stays unchanged and gets `evidence.invalid-record`; so does an enriched test case (never changed, D-026) whose variant differs from the given one. */
+  /** The variant the test run was for (an element whose type has the meaning variant): each enriched test case gets its UUID as `reqseq:variant`. Absent: a test case keeps its own `reqseq:variant`, if any, whose short ID or identifier becomes the UUID; `core` is none, but is checked like a variant (a record without variant counts in the core, and in every view the element applies in when its repository is marked `variant-independent`, SR-173). A test case that names another variant, or names an element that does not count in its variant (not valid there, excluded or replaced, as at `evidence.record`), stays unchanged and gets `evidence.invalid-record`; so does an enriched test case (never changed, D-026) whose variant differs from the given one. */
   readonly variant?: ElementRef;
   /** A template that finds a short ID written in another form in test case names, for names that cannot hold brackets, e.g. `{prefix}_{id}_ak{ak}` for `sr_348143_ak1` (SR-348143). `{prefix}` is a type prefix of the metamodel, `{id}` 6 to 32 hex digits, `{ak}` 1 to 9 digits (ignored); `{prefix}` and `{id}` once each, `{ak}` once at most and not next to `{id}`. The rest is literal text; `{{` and `}}` are braces, square brackets are refused. All of it is ASCII case-insensitive. A match starts and ends at a word boundary (the start or end of the name, a character that is not a letter or digit, or the start of a camel case word) and is looked for in the name outside `[...]` only, not in the class name. It adds to the bracket form and the `reqseq:element` property; a short ID it finds that names no element, or several, is listed in `unknown`. */
   readonly namePattern?: string;
@@ -2799,7 +2803,7 @@ export interface EvidenceDegreeOutput {
  * Schema: `schemas/commands/evidence.withoutPassedTest.json input`.
  */
 export interface EvidenceWithoutPassedTestInput {
-  /** Default: the core. A variant: only records for it count, and only requirements its view holds (SR-047, SR-043). */
+  /** Default: the core. A variant: only records for it count, and those without a variant for an element of a repository marked `variant-independent` (SR-173); only requirements its view holds (SR-047, SR-043). */
   readonly view?: View;
   readonly limit: number;
   readonly offset: number;

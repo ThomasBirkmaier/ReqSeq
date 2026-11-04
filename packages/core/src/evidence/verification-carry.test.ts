@@ -53,6 +53,17 @@ const uuid = (n: number): string => `${PREFIX}${n.toString(16).padStart(12, "0")
 const STALE = "n1:0000000000000000";
 const VARIANTS = [uuid(0xa1), uuid(0xa2), uuid(0xa3)] as const;
 const NEED = uuid(0xe0);
+/** The workspace file of the SR-034 fixture with its repository marked variant-independent (SR-173). */
+const MARKED_WORKSPACE = [
+  "reqseq-workspace: 1",
+  "name: Weather station",
+  "repositories:",
+  '  - { name: system, url: "git@git.example.com:ws/system.git", main: true, variant-independent: true }',
+  "metamodel: { repository: system, path: metamodel }",
+  "evidence:",
+  "  - { repository: system, path: evidence }",
+  "",
+].join("\n");
 
 /** A small seeded random generator (mulberry32), so a failure can be run again. */
 const randomOf = (seed: number) => {
@@ -557,54 +568,67 @@ describe("verificationState carried over a change of the store (#698, ADR-0008)"
     await expectFresh(opened);
   });
 
-  it("equals a fresh build over seeded random changes, with only some elements evaluated in between", async () => {
-    for (const seed of [1, 2, 3]) {
-      const opened = await open(seed, { count: 50 });
-      const { random, generated } = opened;
-      await built(opened);
-      for (let round = 0; round < 12; round += 1) {
-        const file = random.pick(generated.requirements);
-        const spec = specOf(opened, file);
-        const other = specOf(opened, random.pick(generated.requirements)).id;
-        const kind = random.below(9);
-        const before = opened.workspace.peek(verificationState);
-        if (kind === 0) {
-          await edit(opened, file, (s) => (s.changed = !s.changed));
-        } else if (kind === 1) {
-          // May close a cycle (#526 Q5).
-          await edit(opened, file, (s) => s.parents.push(other));
-        } else if (kind === 2) {
-          await edit(opened, file, (s) => (s.parents = s.parents.slice(1)));
-        } else if (kind === 3) {
-          await edit(opened, file, (s) => (s.validity = random.next() < 0.5 ? [random.pick(VARIANTS)] : []));
-        } else if (kind === 4) {
-          await edit(opened, file, (s) => (s.status = s.status === "obsolete" ? "approved" : "obsolete"));
-        } else if (kind === 5) {
-          await edit(opened, file, (s) => (s.emergent = !s.emergent));
-        } else if (kind === 6) {
-          const twin = `gen/twin-${String(round)}.md`;
-          await external(opened, { [twin]: render({ ...spec, file: twin }) });
-        } else if (kind === 7) {
-          await edit(
-            opened,
-            file,
-            (s) => (s.type = s.type === "use-case" ? "system-requirement" : "use-case"),
-          );
-        } else {
-          // Two files in one batch.
-          const second = random.pick(generated.requirements);
-          specOf(opened, second).changed = !specOf(opened, second).changed;
-          spec.parents = [other];
-          await external(opened, { [file]: render(spec), [second]: render(specOf(opened, second)) });
+  it.each([
+    { mark: "", files: {} },
+    {
+      mark: " in a repository marked variant-independent (SR-173)",
+      files: { "reqseq-workspace.yaml": MARKED_WORKSPACE },
+    },
+  ])(
+    "equals a fresh build over seeded random changes, with only some elements evaluated in between$mark",
+    async ({ files }) => {
+      for (const seed of [1, 2, 3]) {
+        const opened = await open(seed, { count: 50, files });
+        const { random, generated } = opened;
+        await built(opened);
+        for (let round = 0; round < 12; round += 1) {
+          const file = random.pick(generated.requirements);
+          const spec = specOf(opened, file);
+          const other = specOf(opened, random.pick(generated.requirements)).id;
+          const kind = random.below(9);
+          const before = opened.workspace.peek(verificationState);
+          if (kind === 0) {
+            await edit(opened, file, (s) => (s.changed = !s.changed));
+          } else if (kind === 1) {
+            // May close a cycle (#526 Q5).
+            await edit(opened, file, (s) => s.parents.push(other));
+          } else if (kind === 2) {
+            await edit(opened, file, (s) => (s.parents = s.parents.slice(1)));
+          } else if (kind === 3) {
+            await edit(
+              opened,
+              file,
+              (s) => (s.validity = random.next() < 0.5 ? [random.pick(VARIANTS)] : []),
+            );
+          } else if (kind === 4) {
+            await edit(opened, file, (s) => (s.status = s.status === "obsolete" ? "approved" : "obsolete"));
+          } else if (kind === 5) {
+            await edit(opened, file, (s) => (s.emergent = !s.emergent));
+          } else if (kind === 6) {
+            const twin = `gen/twin-${String(round)}.md`;
+            await external(opened, { [twin]: render({ ...spec, file: twin }) });
+          } else if (kind === 7) {
+            await edit(
+              opened,
+              file,
+              (s) => (s.type = s.type === "use-case" ? "system-requirement" : "use-case"),
+            );
+          } else {
+            // Two files in one batch.
+            const second = random.pick(generated.requirements);
+            specOf(opened, second).changed = !specOf(opened, second).changed;
+            spec.parents = [other];
+            await external(opened, { [file]: render(spec), [second]: render(specOf(opened, second)) });
+          }
+          expectCarried(opened.workspace, before);
+          // Only some elements, so the next change finds caches that are partly filled.
+          const some = new Set(generated.requirements.filter(() => random.next() < 0.3));
+          await expectFresh(opened, some);
         }
-        expectCarried(opened.workspace, before);
-        // Only some elements, so the next change finds caches that are partly filled.
-        const some = new Set(generated.requirements.filter(() => random.next() < 0.3));
-        await expectFresh(opened, some);
+        await expectFresh(opened);
       }
-      await expectFresh(opened);
-    }
-  });
+    },
+  );
 
   it("reads again only the versions of the changed records (versionBatches grows by that batch)", async () => {
     const opened = await open(698, { image: false });
@@ -974,126 +998,140 @@ describe("verificationState carried over changes across two repositories (#698, 
   const inSystem = `{ id: ${NEED}, repository: system }`;
   const inProduct = (id: string): string => `{ id: ${id}, repository: product }`;
 
-  it("equals a fresh build after changes of parents in another repository, a UUID in both and a move", async () => {
-    const model = await fs.readFile(
-      new URL("../../../../fixtures/SR-034/indirect/metamodel/standard-model.yaml", import.meta.url),
-      "utf8",
-    );
-    const files: Record<string, string> = {
-      "system/reqseq-workspace.yaml": [
-        "reqseq-workspace: 1",
-        "name: Two repositories",
-        "repositories:",
-        '  - { name: system, url: "git@git.example.com:ws/system.git", main: true }',
-        '  - { name: product, url: "git@git.example.com:ws/product.git" }',
-        "metamodel: { repository: system, path: metamodel }",
-        "evidence:",
-        "  - { repository: system, path: evidence }",
-        "",
-      ].join("\n"),
-      "system/metamodel/standard-model.yaml": model,
-      "system/N-0.md": `---\nid: ${NEED}\ntype: need\nstatus: draft\ntitle: A need\n---\n\nText.\n`,
-      "system/VAR-0.md": `---\nid: ${V}\ntype: variant\nstatus: draft\ntitle: A variant\n---\n\nText.\n`,
-      "product/SR-P.md": requirement(P, [inSystem]),
-      "product/SR-Q.md": requirement(Q, [inSystem]),
-      "system/SR-C1.md": requirement(C1, [inProduct(P)]),
-      "system/SR-C2.md": requirement(C2, [inProduct(P)], `validity:\n  - { id: ${V} }`),
-      // One UUID in both repositories; E names the one of its own repository.
-      "system/SR-D.md": requirement(D, [inProduct(P)]),
-      "product/SR-D.md": requirement(D, [inProduct(Q)]),
-      "system/SR-E.md": requirement(E, [`{ id: ${D} }`]),
-    };
-    const fixture = await createFixtureWorkspace({ files });
-    onTestFinished(() => fixture.cleanup());
-    const root = fixture.path("system");
-    const versions = new Map<string, string>();
-    const first = new Workspace(root);
-    try {
-      const store = await first.get(elementStoreState);
-      for (const [element, entry] of await currentVersionsOf(first, store.elements)) {
-        if (entry.kind === "version") {
-          versions.set(element.id, entry.version);
-        }
-      }
-    } finally {
-      await first.close();
-    }
-    const records: Record<string, string> = {
-      "system/evidence/c1.md": record(C1, versions.get(C1) ?? STALE),
-      "system/evidence/c2.md": record(C2, versions.get(C2) ?? STALE, { variant: V }),
-      "system/evidence/e.md": record(E, versions.get(E) ?? STALE),
-    };
-    for (const [file, text] of Object.entries(records)) {
-      await fixture.write(file, text);
-    }
-    const workspace = new Workspace(root);
-    onTestFinished(() => workspace.close());
-    const all = async (on: Workspace): Promise<Record<string, unknown>> => {
-      const { status, store } = await stateOf(on);
-      return table(status, store);
-    };
-    const expectSame = async (): Promise<void> => {
-      const fresh = new Workspace(root);
-      try {
-        expect(await all(workspace)).toEqual(await all(fresh));
-      } finally {
-        await fresh.close();
-      }
-    };
-    /** Writes (undefined deletes) and applies the files of both repositories in one batch. */
-    const change = async (changed: Readonly<Record<string, string | undefined>>): Promise<void> => {
-      const paths = new Map<string, string[]>();
-      for (const [file, text] of Object.entries(changed)) {
-        if (text === undefined) {
-          await fs.rm(fixture.path(file));
-        } else {
-          await fixture.write(file, text);
-        }
-        const [repository = "", ...rest] = file.split("/");
-        paths.set(repository, [...(paths.get(repository) ?? []), rest.join("/")]);
-      }
-      const before = workspace.peek(verificationState);
-      const layout = await workspace.get(workspaceLayoutState);
-      const applied = await applyStoreChange(workspace, (store) =>
-        updateElements(store, layout, new Map([...paths].map(([name, list]) => [name, { paths: list }]))),
+  it.each([
+    { marked: "none", mark: "" },
+    { marked: "system", mark: ", the children's repository marked variant-independent (SR-173)" },
+    { marked: "product", mark: ", the parents' repository marked variant-independent (SR-173)" },
+  ])(
+    "equals a fresh build after changes of parents in another repository, a UUID in both and a move$mark",
+    async ({ marked }) => {
+      const markOf = (name: string): string => (name === marked ? ", variant-independent: true" : "");
+      const model = await fs.readFile(
+        new URL("../../../../fixtures/SR-034/indirect/metamodel/standard-model.yaml", import.meta.url),
+        "utf8",
       );
-      expect(applied).toBeDefined();
-      expectCarried(workspace, before);
-      await expectSame();
-    };
-    const loaded = await workspace.get(elementStoreState);
-    expect(
-      loaded.byId
-        .get(D)
-        ?.map((e) => e.repository)
-        .sort(),
-    ).toEqual(["product", "system"]);
-    await all(workspace);
-    // The child in system: its text, then its parent in product pointed elsewhere.
-    await change({ "system/SR-C1.md": requirement(C1, [inProduct(P)], "", "Changed text.") });
-    await change({ "system/SR-C1.md": requirement(C1, [inProduct(Q)], "", "Changed text.") });
-    // The parent in product changes; its children live in system.
-    await change({ "product/SR-P.md": requirement(P, [inSystem], 'emergent: "yes"') });
-    await change({ "product/SR-P.md": requirement(P, [inSystem]) });
-    // The UUID in both repositories goes from one of them.
-    await change({ "product/SR-D.md": undefined });
-    // A requirement moved from system to product in one batch.
-    await change({
-      "system/SR-C2.md": undefined,
-      "product/SR-C2.md": requirement(
-        C2,
-        [`{ id: ${P} }`],
-        `validity:\n  - { id: ${V}, repository: system }`,
-      ),
-    });
-  });
+      const files: Record<string, string> = {
+        "system/reqseq-workspace.yaml": [
+          "reqseq-workspace: 1",
+          "name: Two repositories",
+          "repositories:",
+          `  - { name: system, url: "git@git.example.com:ws/system.git", main: true${markOf("system")} }`,
+          `  - { name: product, url: "git@git.example.com:ws/product.git"${markOf("product")} }`,
+          "metamodel: { repository: system, path: metamodel }",
+          "evidence:",
+          "  - { repository: system, path: evidence }",
+          "",
+        ].join("\n"),
+        "system/metamodel/standard-model.yaml": model,
+        "system/N-0.md": `---\nid: ${NEED}\ntype: need\nstatus: draft\ntitle: A need\n---\n\nText.\n`,
+        "system/VAR-0.md": `---\nid: ${V}\ntype: variant\nstatus: draft\ntitle: A variant\n---\n\nText.\n`,
+        "product/SR-P.md": requirement(P, [inSystem]),
+        "product/SR-Q.md": requirement(Q, [inSystem]),
+        "system/SR-C1.md": requirement(C1, [inProduct(P)]),
+        "system/SR-C2.md": requirement(C2, [inProduct(P)], `validity:\n  - { id: ${V} }`),
+        // One UUID in both repositories; E names the one of its own repository.
+        "system/SR-D.md": requirement(D, [inProduct(P)]),
+        "product/SR-D.md": requirement(D, [inProduct(Q)]),
+        "system/SR-E.md": requirement(E, [`{ id: ${D} }`]),
+      };
+      const fixture = await createFixtureWorkspace({ files });
+      onTestFinished(() => fixture.cleanup());
+      const root = fixture.path("system");
+      const versions = new Map<string, string>();
+      const first = new Workspace(root);
+      try {
+        const store = await first.get(elementStoreState);
+        for (const [element, entry] of await currentVersionsOf(first, store.elements)) {
+          if (entry.kind === "version") {
+            versions.set(element.id, entry.version);
+          }
+        }
+      } finally {
+        await first.close();
+      }
+      const records: Record<string, string> = {
+        "system/evidence/c1.md": record(C1, versions.get(C1) ?? STALE),
+        "system/evidence/c2.md": record(C2, versions.get(C2) ?? STALE, { variant: V }),
+        "system/evidence/e.md": record(E, versions.get(E) ?? STALE),
+        // Without variant on a parent in product and on the UUID in both repositories (twins, SR-088).
+        "system/evidence/q.md": record(Q, versions.get(Q) ?? STALE),
+        "system/evidence/d.md": record(D, versions.get(D) ?? STALE),
+      };
+      for (const [file, text] of Object.entries(records)) {
+        await fixture.write(file, text);
+      }
+      const workspace = new Workspace(root);
+      onTestFinished(() => workspace.close());
+      const all = async (on: Workspace): Promise<Record<string, unknown>> => {
+        const { status, store } = await stateOf(on);
+        return table(status, store);
+      };
+      const expectSame = async (): Promise<void> => {
+        const fresh = new Workspace(root);
+        try {
+          expect(await all(workspace)).toEqual(await all(fresh));
+        } finally {
+          await fresh.close();
+        }
+      };
+      /** Writes (undefined deletes) and applies the files of both repositories in one batch. */
+      const change = async (changed: Readonly<Record<string, string | undefined>>): Promise<void> => {
+        const paths = new Map<string, string[]>();
+        for (const [file, text] of Object.entries(changed)) {
+          if (text === undefined) {
+            await fs.rm(fixture.path(file));
+          } else {
+            await fixture.write(file, text);
+          }
+          const [repository = "", ...rest] = file.split("/");
+          paths.set(repository, [...(paths.get(repository) ?? []), rest.join("/")]);
+        }
+        const before = workspace.peek(verificationState);
+        const layout = await workspace.get(workspaceLayoutState);
+        const applied = await applyStoreChange(workspace, (store) =>
+          updateElements(store, layout, new Map([...paths].map(([name, list]) => [name, { paths: list }]))),
+        );
+        expect(applied).toBeDefined();
+        expectCarried(workspace, before);
+        await expectSame();
+      };
+      const loaded = await workspace.get(elementStoreState);
+      expect(
+        loaded.byId
+          .get(D)
+          ?.map((e) => e.repository)
+          .sort(),
+      ).toEqual(["product", "system"]);
+      await all(workspace);
+      // The child in system: its text, then its parent in product pointed elsewhere.
+      await change({ "system/SR-C1.md": requirement(C1, [inProduct(P)], "", "Changed text.") });
+      await change({ "system/SR-C1.md": requirement(C1, [inProduct(Q)], "", "Changed text.") });
+      // The parent in product changes; its children live in system.
+      await change({ "product/SR-P.md": requirement(P, [inSystem], 'emergent: "yes"') });
+      await change({ "product/SR-P.md": requirement(P, [inSystem]) });
+      // The UUID in both repositories goes from one of them.
+      await change({ "product/SR-D.md": undefined });
+      // A twin of a recorded child appears in the other repository, and goes again.
+      await change({ "product/SR-C1.md": requirement(C1, [inProduct(Q)]) });
+      await change({ "product/SR-C1.md": undefined });
+      // A requirement moved from system to product in one batch.
+      await change({
+        "system/SR-C2.md": undefined,
+        "product/SR-C2.md": requirement(
+          C2,
+          [`{ id: ${P} }`],
+          `validity:\n  - { id: ${V}, repository: system }`,
+        ),
+      });
+    },
+  );
 });
 
 describe("carriedEvaluator (#698)", () => {
   it("builds a new evaluator when it is given a function that is no evaluator of this module", async () => {
     const opened = await open(698, { count: 5 });
     const store = await opened.workspace.get(elementStoreState);
-    const source = statusSource(await opened.workspace.get(metamodelState), undefined);
+    const source = statusSource(await opened.workspace.get(metamodelState), undefined, new Set());
     const scope = validityScope(source.validity);
     const fresh = verificationEvaluator(source, undefined, () => undefined, scope);
     const carried = carriedEvaluator(
@@ -1229,6 +1267,44 @@ describe("the evidence index and verificationState carried over evidence.record 
       throw new Error("no leaf");
     }
     expect(verificationOf(status, element)?.find((e) => e.view === VARIANTS[1])?.status).toBe("verified");
+  });
+
+  it("equals a fresh build after records without variant in a repository marked variant-independent (SR-173)", async () => {
+    const opened = await open(698, { files: { "reqseq-workspace.yaml": MARKED_WORKSPACE } });
+    await built(opened);
+    const leaf = await bareLeaf(opened);
+    for (const file of [leaf, opened.generated.requirements[1] ?? ""]) {
+      const before = peeked(opened.workspace);
+      await recorded(opened, file);
+      await expectCarriedFresh(opened, before);
+    }
+    const status = await opened.workspace.get(verificationState);
+    const store = await opened.workspace.get(elementStoreState);
+    const element = store.elements.find((e) => e.file === leaf);
+    if (element === undefined) {
+      throw new Error("no leaf");
+    }
+    // The record without variant holds in every view (SR-173 AK1).
+    expect(verificationOf(status, element)?.map((e) => e.status)).toEqual([
+      "verified",
+      "verified",
+      "verified",
+      "verified",
+    ]);
+  });
+
+  it("resets the status when the workspace file marks the repository variant-independent (SR-173)", async () => {
+    const opened = await open(698);
+    await built(opened);
+    const layout = opened.workspace.get(workspaceLayoutState);
+    await opened.fixture.write("reqseq-workspace.yaml", MARKED_WORKSPACE);
+    const marked = layout.then((l) => ({
+      ...l,
+      repositories: l.repositories.map((r) => ({ ...r, variantIndependent: true })),
+    }));
+    expect(await opened.workspace.replace(workspaceLayoutState, layout, marked)).toBe(true);
+    expect(opened.workspace.peek(verificationState)).toBeUndefined();
+    await expectFresh(opened);
   });
 
   it("carries each of two records written back to back with its own index (plan review B5)", async () => {

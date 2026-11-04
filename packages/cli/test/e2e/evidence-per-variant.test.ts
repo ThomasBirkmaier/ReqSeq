@@ -121,3 +121,20 @@ describe("reqseq evidence status and record per variant (SR-047)", () => {
     expect(await fs.readdir(ws.path("evidence"))).toEqual([".keep"]);
   });
 });
+
+describe("reqseq evidence status in a variant-independent repository (SR-173)", () => {
+  it("[SR-173/AK1] a record without variant counts for the core and every variant the requirement applies in", async () => {
+    const ws = await open();
+    await ws.write(
+      "reqseq-workspace.yaml",
+      WORKSPACE.replace("main: true }", "main: true, variant-independent: true }"),
+    );
+    await recorded(ws, "SR-0000a4", "passed");
+    await recorded(ws, "SR-0000a2", "passed");
+    expect([await statusLine(ws, "SR-0000a4"), await statusLine(ws, "SR-0000a2")]).toEqual([
+      "  SR-0000a4  draft  Show the temperature  [verification: core verified, VAR-0000c1 verified, VAR-0000c2 verified, VAR-0000c3 verified]",
+      // Excluded in A: no row there (SR-047 AK3).
+      "  SR-0000a2  draft  Measure the wind  [verification: core verified, VAR-0000c2 verified, VAR-0000c3 verified]",
+    ]);
+  });
+});

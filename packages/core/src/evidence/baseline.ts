@@ -20,6 +20,11 @@
 //   leaves the entry out, or the core under AK5) is not named.
 // - One pass over the entry's records groups the counting verification records by variant and the
 //   later ones by variant, so V views cost O(records + V).
+// - Variant-independent repositories (SR-173): for an entry whose repository the workspace file of
+//   now marks `variant-independent` (`StatusSource.independent`; spec question #817 Q9, assumption),
+//   a variant's row also counts the records without variant, and its `later` holds both groups,
+//   merged in index order (newest first), as `holdsIn` gives them; only a row with records of both
+//   groups costs one more pass over the entry's records.
 import type { BaselineGetOutput } from "../generated/types.js";
 import type { ElementRecord } from "../model/index.js";
 import type { EvidenceRecord } from "./record.js";
@@ -51,6 +56,29 @@ const push = (groups: Map<ViewKey, EvidenceRecord[]>, key: ViewKey, record: Evid
 
 const NONE: readonly EvidenceRecord[] = Object.freeze([]);
 
+/** Records grouped by the view they hold in. */
+type Groups = ReadonlyMap<ViewKey, readonly EvidenceRecord[]>;
+
+/**
+ * The records of `groups` that hold in the view `key` (`holdsIn`): its own group and, for a variant
+ * of an `independent` element, the core's too, in the order of `records` (newest first), which both
+ * groups keep. Undefined when none does.
+ */
+const heldIn = (
+  groups: Groups,
+  key: ViewKey,
+  independent: boolean,
+  records: readonly EvidenceRecord[],
+): readonly EvidenceRecord[] | undefined => {
+  const own = groups.get(key);
+  const core = key === undefined || !independent ? undefined : groups.get(undefined);
+  if (core === undefined || own === undefined) {
+    return own ?? core;
+  }
+  const both = new Set([...own, ...core]);
+  return records.filter((record) => both.has(record));
+};
+
 /** `validation` and `validationReason` of an entry from the counting validation records, or nothing. */
 const validationFields = (
   validating: readonly EvidenceRecord[] | undefined,
@@ -62,6 +90,31 @@ const validationFields = (
   const { status, reason } = validationOf(validating, version);
   return { validation: status, ...(reason === undefined ? {} : { validationReason: reason }) };
 };
+
+/** The verification rows of `element` at `version` in `views` from its grouped records (see the file comment). */
+const verificationRows = (
+  element: ElementRecord,
+  version: string,
+  views: readonly ViewHolder[],
+  groups: { readonly counting: Groups; readonly later: Groups },
+  independent: boolean,
+  records: readonly EvidenceRecord[],
+): NonNullable<BaselineEvidence["verification"]> =>
+  views.flatMap((holder) => {
+    if (!holder.includes(element)) {
+      return [];
+    }
+    const key = keyOf(holder);
+    const after = heldIn(groups.later, key, independent, records);
+    const counted = heldIn(groups.counting, key, independent, records) ?? NONE;
+    return [
+      {
+        view: key ?? "core",
+        status: verificationStatusOf(counted, version, holder.view, independent),
+        ...(after === undefined ? {} : { later: [...after] }),
+      },
+    ];
+  });
 
 /**
  * The evidence of an entry at its `version` in a baseline (see the file comment): `views` are the
@@ -104,20 +157,7 @@ export const baselineEvidence =
       }
     }
     const verification = requirement
-      ? views.flatMap((holder) => {
-          if (!holder.includes(element)) {
-            return [];
-          }
-          const key = keyOf(holder);
-          const after = later.get(key);
-          return [
-            {
-              view: key ?? "core",
-              status: verificationStatusOf(counting.get(key) ?? NONE, version, holder.view),
-              ...(after === undefined ? {} : { later: after }),
-            },
-          ];
-        })
+      ? verificationRows(element, version, views, { counting, later }, source.independent(element), records)
       : undefined;
     return {
       ...(verification === undefined ? {} : { verification }),

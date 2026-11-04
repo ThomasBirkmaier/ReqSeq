@@ -12,6 +12,8 @@
 // each expanded downward node of the page (`chainEvidenceOf`: verification records that hold in the
 // view, every one without a view; assumptions A2 and A5 of #528 Q4). An evidence location that is
 // not on this machine makes the chain `incomplete` (SR-006 AK2). The upward chain reads no records.
+// Both take the mark of each element's repository (`variant-independent`, SR-173): in a variant a
+// record without variant of a marked element holds too.
 // `names` names the variants of those records (#676), as evidence.status names its views (#588).
 //
 // Not in view (#674, product owner decision, 2026-11-02): a requirement without a child that the view
@@ -38,6 +40,7 @@ import {
   viewIncomplete,
   viewRuleOf,
 } from "../../variants/index.js";
+import { variantIndependentOf } from "../../workspace/index.js";
 
 const CORE: View = { kind: "core" };
 
@@ -76,6 +79,8 @@ export default defineCommand({
     const index = down ? await ctx.workspace.get(evidenceIndexState) : undefined;
     const read = down ? await ctx.workspace.get(evidenceReadState) : undefined;
     const gapView = view ?? CORE;
+    const marked = variantIndependentOf(graph.layout);
+    const independent = (element: ElementRecord): boolean => marked.has(element.repository);
     const ruleContext = { workspace: ctx.workspace, store, metamodel };
     const held = viewRuleOf(ruleContext, gapView).includes;
     const viewsOf = viewsHolding(() => [
@@ -92,7 +97,7 @@ export default defineCommand({
       ...(index === undefined
         ? {}
         : {
-            hasEvidence: (element) => hasVerificationRecord(index, element.id, gapView),
+            hasEvidence: (element) => hasVerificationRecord(index, element.id, gapView, independent(element)),
             outsideView: (element) => !held(element),
           }),
     });
@@ -102,7 +107,9 @@ export default defineCommand({
         metamodel,
         shortIds,
         viewsOf,
-        ...(index === undefined ? {} : { evidenceOf: (element) => chainEvidenceOf(index, element.id, view) }),
+        ...(index === undefined
+          ? {}
+          : { evidenceOf: (element) => chainEvidenceOf(index, element.id, view, independent(element)) }),
       },
       { limit: input.limit, offset: input.offset },
     );

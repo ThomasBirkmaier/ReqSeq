@@ -17,7 +17,8 @@
 //   (SR-041 AK5, SR-043 AK5; as the chain and the matrix narrow them).
 // - Evidence, only for a type with the meaning `requirement` (D-012: „Ein Nachweis verweist immer auf
 //   ein Requirement“): `hasVerificationRecord` of the index in the first view (as the filter
-//   condition `verification`). Any version and any result count (spec question #527 Q3), the same
+//   condition `verification`; a record without variant also in a variant for an element of a
+//   repository marked `variant-independent`, SR-173). Any version and any result count (spec question #527 Q3), the same
 //   rule as the filter's „ohne Nachweis“ and the chain's `no-evidence` gap.
 // Nothing here reads or writes a status beyond comparing it with the metamodel (D-030). Cost: one pass
 // over the selection, each element's incoming relations once (N-036).
@@ -29,6 +30,7 @@ import { invalidStatuses } from "../model/index.js";
 import type { DerivationGraph } from "../trace/index.js";
 import { childrenOf } from "../trace/index.js";
 import type { View } from "../variants/index.js";
+import { variantIndependentOf } from "../workspace/index.js";
 import type { EvidenceIndex } from "./by-element.js";
 import { hasVerificationRecord } from "./by-element.js";
 
@@ -71,13 +73,15 @@ export const coverageRules = (
 ): CoverageRules => {
   const { metamodel } = graph;
   const invalid = invalidStatuses(metamodel);
+  const independent = variantIndependentOf(graph.layout);
   const counts = (element: ElementRecord): boolean =>
     !invalid.has(String(element.data["status"])) && includes(element);
   return {
     levels: levelTypes(metamodel),
     counts,
     hasChild: (element) => childrenOf(graph, element).steps.some(({ to }) => counts(to)),
-    hasEvidence: (element) => hasVerificationRecord(index, element.id, views[0]),
+    hasEvidence: (element) =>
+      hasVerificationRecord(index, element.id, views[0], independent.has(element.repository)),
   };
 };
 
