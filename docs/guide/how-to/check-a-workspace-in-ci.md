@@ -23,7 +23,7 @@ reqseq element create need "See the wind speed" --text "As a sailor, I want to s
 ```
 
 ```text title="Output"
-N-7fe707  draft  See the wind speed
+N-7fe707  draft  See the wind speed  [validation: open]
 files:
   need/N-d0e44b7fe707.md
 No problems.
