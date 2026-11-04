@@ -126,6 +126,20 @@ describe("renderProblem", () => {
     );
   });
 
+  it("names the target alone when the problem names no element (evidence.kind-mismatch)", () => {
+    expect(
+      renderProblem({
+        severity: "warning",
+        code: "evidence.kind-mismatch",
+        message: "m",
+        targetId: "u2",
+        targetShortId: "SR-a1b2c3",
+        targetIdentifier: "SR-036",
+        file: "test/a.test.ts",
+      }),
+    ).toBe("warning  evidence.kind-mismatch  → SR-036  m  test/a.test.ts\n");
+  });
+
   it("names the repository of the file when the problem has one", () => {
     expect(
       renderProblem({

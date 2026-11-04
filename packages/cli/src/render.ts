@@ -43,7 +43,7 @@ export const renderProblem = (problem: unknown): string => {
   const location = file !== "" && line !== "" ? `${file}:${line}` : file;
   const element = text(p["elementIdentifier"]) || text(p["elementShortId"]) || text(p["elementId"]);
   const target = text(p["targetIdentifier"]) || text(p["targetShortId"]);
-  const who = element !== "" && target !== "" ? `${element} → ${target}` : element;
+  const who = target === "" ? element : element === "" ? `→ ${target}` : `${element} → ${target}`;
   return `${[text(p["severity"]), text(p["code"]), who, text(p["message"]), location]
     .filter((part) => part !== "")
     .join("  ")}\n`;
