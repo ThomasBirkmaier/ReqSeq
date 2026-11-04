@@ -1,13 +1,7 @@
 import type { DataExportEvidenceRecord, ElementName } from "@reqseq/core";
 import { describe, expect, it } from "vitest";
 import { elementBufferOf } from "./buffers.js";
-import {
-  INCOMPLETE_NOTE,
-  belegOf,
-  evidenceLines,
-  evidenceNotes,
-  evidenceWholeReasons,
-} from "./evidence-lines.js";
+import { INCOMPLETE_NOTE, belegOf, evidenceLines, evidenceNotes, evidenceRows } from "./evidence-lines.js";
 import type { LinePart } from "./variant-lines.js";
 
 const COAST: ElementName = { id: "uuid-v", repository: "system", shortId: "VAR-0000c1", title: "Coast" };
@@ -75,11 +69,16 @@ describe("the lines of an element's evidence records", () => {
 
   it("gives the whole reason of each record whose line cuts it, else none (#862)", () => {
     const long = `First\n${"x".repeat(300)}`;
-    expect(
-      evidenceWholeReasons({
-        records: [record({ reason: long }), record({ reason: "short" }), record({})],
-      }),
-    ).toEqual([long, undefined, undefined]);
+    const rows = evidenceRows(
+      { records: [record({ reason: long }), record({ reason: "short" }), record({ file: "a.md" })] },
+      undefined,
+    );
+    expect(rows.map((row) => row.whole)).toEqual([long, undefined, undefined]);
+    expect(rows.map((row) => text(row.parts))[1]).toBe(
+      "2026-10-21T09:00:00Z · passed: short · version n1:1111111111111111",
+    );
+    // Each record keys its row, so an open reason stays at its record when the list is read again.
+    expect(new Set(rows.map((row) => row.key)).size).toBe(3);
   });
 
   it("names a variant that `names` lacks by its UUID", () => {

@@ -122,8 +122,13 @@ test("a line that cuts a long reason gives the whole reason on hover, click and 
     await expect(whole).toHaveText(reason, { useInnerText: true });
     await line(window, "Validation").press("Enter");
     await expect(whole).toHaveCount(0);
+    // With a modifier the key stays the app's: Shift+Enter does not open it.
+    await line(window, "Validation").press("Shift+Enter");
+    await expect(line(window, "Validation")).toHaveAttribute("aria-expanded", "false");
     await line(window, "Validation").press(" ");
     await expect(line(window, "Validation")).toHaveAttribute("aria-expanded", "true");
+    // Open, the reason has no tooltip over it.
+    await expect(line(window, "Validation")).not.toHaveAttribute("title", /./);
     // The evidence record of the same validation cuts its reason as well and opens the same way.
     const record = window
       .locator("article")

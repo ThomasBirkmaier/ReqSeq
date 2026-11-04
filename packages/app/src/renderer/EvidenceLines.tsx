@@ -11,7 +11,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { ElementGetOutput, EvidenceListOutput } from "@reqseq/core";
 import type { ElementBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
-import { evidenceLines, evidenceNotes, evidenceWholeReasons } from "./evidence-lines.js";
+import { evidenceNotes, evidenceRows } from "./evidence-lines.js";
 import { hasStatus } from "./variant-lines.js";
 import { CutLine } from "./VariantLines.js";
 
@@ -80,8 +80,7 @@ export const EvidenceLines = ({
       current = false;
     };
   }, [call, buffer.id, asks, asked]);
-  const lines = useMemo(() => (listed === undefined ? [] : evidenceLines(listed, names)), [listed, names]);
-  const wholes = useMemo(() => (listed === undefined ? [] : evidenceWholeReasons(listed)), [listed]);
+  const lines = useMemo(() => (listed === undefined ? [] : evidenceRows(listed, names)), [listed, names]);
   const notes = useMemo(() => (listed === undefined ? [] : evidenceNotes(listed)), [listed]);
   if (lines.length === 0 && notes.length === 0) {
     return null;
@@ -89,13 +88,13 @@ export const EvidenceLines = ({
   return (
     <div className="evidence-lines" role="group" aria-label="Evidence">
       <p className="variant-line">Evidence</p>
-      {lines.map((parts, at) => (
+      {lines.map((row) => (
         <CutLine
-          key={at}
+          key={row.key}
           className="variant-line evidence-record"
-          parts={parts}
+          parts={row.parts}
           label="Evidence record"
-          whole={wholes[at]}
+          whole={row.whole}
           onOpen={onOpenRelation}
         />
       ))}

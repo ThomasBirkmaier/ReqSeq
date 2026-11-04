@@ -4,7 +4,7 @@
 // variant, its hints since its newest baseline (SR-103 AK1, AK7), one line each. Layout only:
 // `variant-lines.ts` builds them from the element buffer's last answer of `element.get`, so they ask
 // nothing of their own and follow the element's reads. A variant or replacement is a link to its element.
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import type { ElementGetOutput } from "@reqseq/core";
 import type { ElementBuffer } from "./buffers.js";
 import type { LinePart } from "./variant-lines.js";
@@ -70,20 +70,33 @@ export const CutLine = ({
   readonly onOpen: (target: ElementBuffer) => void;
 }): React.JSX.Element => {
   const [open, setOpen] = useState(false);
+  const id = useId();
   const toggle =
     whole === undefined
       ? {}
       : {
           tabIndex: 0,
-          title: whole,
+          // The title only while the reason is closed: open, a tooltip would cover it.
+          ...(open ? {} : { title: whole }),
           "aria-expanded": open,
+          "aria-controls": id,
           onClick: (event: React.MouseEvent<HTMLElement>) => {
-            if (!(event.target instanceof Element) || event.target.closest('[role="link"]') === null) {
+            // A link opens its element; a click in the open reason or a selection of text keeps it open.
+            const inside =
+              event.target instanceof Element &&
+              event.target.closest('[role="link"], .whole-reason') !== null;
+            if (!inside && (window.getSelection()?.toString() ?? "") === "") {
               setOpen((before) => !before);
             }
           },
           onKeyDown: (event: React.KeyboardEvent<HTMLElement>) => {
-            if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) {
+            // Enter or Space alone: with a modifier the key stays the app's (Ctrl+Space, Ctrl/Cmd+Enter).
+            const plain = !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey;
+            if (
+              plain &&
+              event.target === event.currentTarget &&
+              (event.key === "Enter" || event.key === " ")
+            ) {
               event.preventDefault();
               setOpen((before) => !before);
             }
@@ -94,36 +107,33 @@ export const CutLine = ({
       {parts.map((part, at) => (
         <Part key={at} part={part} onOpen={onOpen} />
       ))}
-      {open && whole !== undefined ? <span className="whole-reason">{whole}</span> : null}
+      {open && whole !== undefined ? (
+        <span id={id} className="whole-reason">
+          {whole}
+        </span>
+      ) : null}
     </p>
   );
 };
-
-const Line = ({
-  parts,
-  label,
-  whole,
-  onOpen,
-}: {
-  readonly parts: readonly LinePart[] | undefined;
-  readonly label: string;
-  readonly whole?: string | undefined;
-  readonly onOpen: (target: ElementBuffer) => void;
-}): React.JSX.Element | null =>
-  parts === undefined ? null : <CutLine parts={parts} label={label} whole={whole} onOpen={onOpen} />;
 
 export const VariantLines = ({ output, onOpenRelation }: VariantLinesProps): React.JSX.Element => {
   const lines = useMemo(() => variantLines(output), [output]);
   return (
     <>
-      <Line parts={lines.use} label="Replaced or excluded" onOpen={onOpenRelation} />
-      <Line parts={lines.verification} label="Verification" onOpen={onOpenRelation} />
-      <Line
-        parts={lines.validation}
-        label="Validation"
-        whole={lines.validationTitle}
-        onOpen={onOpenRelation}
-      />
+      {lines.use === undefined ? null : (
+        <CutLine parts={lines.use} label="Replaced or excluded" onOpen={onOpenRelation} />
+      )}
+      {lines.verification === undefined ? null : (
+        <CutLine parts={lines.verification} label="Verification" onOpen={onOpenRelation} />
+      )}
+      {lines.validation === undefined ? null : (
+        <CutLine
+          parts={lines.validation}
+          label="Validation"
+          whole={lines.validationTitle}
+          onOpen={onOpenRelation}
+        />
+      )}
       {lines.sinceBaseline.map((hint) => (
         <p
           key={hint.message}
