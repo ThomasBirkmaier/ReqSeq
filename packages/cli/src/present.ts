@@ -9,9 +9,12 @@
 //   status (`[verification: core verified]`, SR-031, D-030; the children missing for SR-034 as
 //   `core open (missing SR-0000b2)`), then its validation status (`[validation: validated]`, SR-038;
 //   an inconclusive one with its reason on one line, `[validation: inconclusive — <reason>]`, SR-172);
-//   a list of them one such line per element. A read command (element.get) shows the element's details
-//   below its line, a write command only the line; there, a property whose value is a list of texts
-//   numbers its items from 1 (`1: ...`), as tests name acceptance criteria (#401).
+//   a list of them one such line per element; a list whose elements carry their text (element.list
+//   `withText`) shows below each line its properties without relation targets, its relations one line
+//   each and its text, with a blank line between elements (#397). A read command (element.get) shows
+//   the element's details below its line, a write command only the line; there, a property whose
+//   value is a list of texts numbers its items from 1 (`1: ...`), as tests name acceptance criteria
+//   (#401).
 // - A chain (`nodes` with `depth`, and `edges`) is an indented tree per direction with the depth in
 //   front, its gaps, cycles and the edges to an element listed elsewhere marked. Its `evidence` is
 //   indented below the element it belongs to (`evidenceLines`). An element reached by a relation
@@ -341,6 +344,28 @@ const elementDetails = (element: Rec, names: Names): string[] => {
 };
 
 /**
+ * An element of a list that carries its text (element.list `withText`, #397), below its line: its
+ * properties with lists of texts numbered from 1 (`1: ...`, the acceptance criteria), without those
+ * that hold relation targets, which the relations show; the relations one line each; the text last.
+ * Compact for review, smaller than the files (`--json` and `--yaml` keep everything).
+ */
+const listedElementDetails = (element: Rec): string[] => {
+  const relations = listOf(element["relations"]).filter(isRecord);
+  const targetKeys = new Set(relations.filter((r) => r["property"] === true).map((r) => text(r["kind"])));
+  const properties = Object.fromEntries(
+    Object.entries(isRecord(element["properties"]) ? element["properties"] : {}).filter(
+      ([key]) => !targetKeys.has(key),
+    ),
+  );
+  const details: Record<string, unknown> = {
+    ...(Object.keys(properties).length > 0 ? { properties: numberedProperties(properties) } : {}),
+    ...(relations.length > 0 ? { relations: relations.map(relationLine) } : {}),
+    text: element["text"],
+  };
+  return indent(yamlLines(details));
+};
+
+/**
  * A hint of a list: the element's short ID with its identifier (else its file), the kind, the
  * message, the target's short ID with its identifier (#172) and the hint ID.
  */
@@ -387,6 +412,17 @@ const valueLines = (
     if (value.every(isElement)) {
       const name = namerOf(value);
       const view = viewNamerOf(value, names);
+      // With their texts (element.list `withText`), each element with its details and a blank line
+      // between them (#397); else one line each.
+      if (value.some((element) => typeof element["text"] === "string")) {
+        return [
+          `${key}:`,
+          ...value.flatMap((element, i) => [
+            ...(i === 0 ? [] : [""]),
+            ...indent([elementLine(element, name, view), ...listedElementDetails(element)]),
+          ]),
+        ];
+      }
       return [`${key}:`, ...indent(value.map((element) => elementLine(element, name, view)))];
     }
     if (value.every(isProblem)) {
@@ -520,11 +556,20 @@ const treeListLines = (placed: readonly Placed[]): string[] => {
   const keyOf = (repository: unknown, id: unknown): string => JSON.stringify([text(repository), text(id)]);
   const before = new Set<string>();
   const lines = ["elements:"];
+  // With their texts (`withText`), each element with its details at its depth, as in a plain list (#397).
+  const withText = placed.some(([element]) => typeof element["text"] === "string");
   for (const [element, place] of placed) {
     const parent = place["parent"];
     const away = isRecord(parent) && !before.has(keyOf(parent["repository"], parent["id"]));
     const under = away ? `[under ${name(text(parent["repository"]), text(parent["id"]))}]` : "";
-    lines.push(`  ${"  ".repeat(place.depth)}${join(elementLine(element, name), under)}`);
+    const at = `  ${"  ".repeat(place.depth)}`;
+    if (withText && lines.length > 1) {
+      lines.push("");
+    }
+    lines.push(`${at}${join(elementLine(element, name), under)}`);
+    if (withText) {
+      lines.push(...indent(listedElementDetails(element), at));
+    }
     before.add(keyOf(element["repository"], element["id"]));
   }
   return lines;

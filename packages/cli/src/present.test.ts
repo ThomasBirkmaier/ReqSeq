@@ -153,6 +153,63 @@ describe("renderHuman: values", () => {
     expect(renderHuman({ total: 4 })).toBe(lines("total: 4"));
   });
 
+  it("shows a list with texts compactly: numbered criteria, relations one line each, no relation targets twice (#397)", () => {
+    const pkg = {
+      kind: "packages",
+      property: true,
+      direction: "out",
+      shortId: "PKG-1",
+      identifier: "Stufe-1",
+      title: "Stage 1",
+    };
+    const elements = [
+      {
+        shortId: "SR-1",
+        identifier: "SR-001",
+        status: "approved",
+        title: "One",
+        id: "u1",
+        file: "sr/SR-1.md",
+        properties: {
+          "acceptance-criteria": ["Given a, then b.", "Given c, then d."],
+          packages: [{ id: "p" }],
+        },
+        relations: [
+          {
+            kind: "based-on",
+            direction: "out",
+            shortId: "D-1",
+            identifier: "D-017",
+            title: "Decision",
+            storedVersion: "n1:x",
+          },
+          pkg,
+        ],
+        text: "The tool must work.\n",
+      },
+      { shortId: "SR-2", title: "Two", properties: {}, relations: [], text: "" },
+    ];
+    expect(renderHuman({ elements, total: 2 })).toBe(
+      lines(
+        "elements:",
+        "  SR-1 (SR-001)  approved  One",
+        "    properties:",
+        "      acceptance-criteria:",
+        "        1: Given a, then b.",
+        "        2: Given c, then d.",
+        "    relations:",
+        "      - -> based-on  D-1 (D-017)  Decision",
+        "      - -> packages  PKG-1 (Stufe-1)  Stage 1",
+        "    text: |",
+        "      The tool must work.",
+        "",
+        "  SR-2  Two",
+        '    text: ""',
+        "total: 2",
+      ),
+    );
+  });
+
   it("[SR-075/AK2] shows a tree list indented by depth, naming a parent that is not shown before", () => {
     const element = (id: string, title: string): Record<string, unknown> => ({
       id,
@@ -186,6 +243,43 @@ describe("renderHuman: values", () => {
       ),
     );
     expect(renderHuman({ elements: [], tree: [], total: 0 })).toBe(lines("elements: none", "total: 0"));
+  });
+
+  it("shows the texts of a tree list at each element's depth (#397)", () => {
+    const element = (id: string, body: string | undefined): Record<string, unknown> => ({
+      id,
+      repository: "system",
+      shortId: `SR-${id}`,
+      title: id,
+      properties: { "acceptance-criteria": ["Given x, then y."] },
+      ...(body === undefined ? {} : { text: body }),
+    });
+    expect(
+      renderHuman({
+        elements: [element("a", "A.\n"), element("b", undefined)],
+        tree: [
+          { id: "a", repository: "system", depth: 0 },
+          { id: "b", repository: "system", depth: 1, parent: { id: "a", repository: "system" } },
+        ],
+        total: 2,
+      }),
+    ).toBe(
+      lines(
+        "elements:",
+        "  SR-a  a",
+        "    properties:",
+        "      acceptance-criteria:",
+        "        1: Given x, then y.",
+        "    text: |",
+        "      A.",
+        "",
+        "    SR-b  b",
+        "      properties:",
+        "        acceptance-criteria:",
+        "          1: Given x, then y.",
+        "total: 2",
+      ),
+    );
   });
 
   it("shows a tree that does not fit the elements as it is", () => {
