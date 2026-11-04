@@ -12,6 +12,7 @@ interface UpdateFields {
   readonly repository?: unknown;
   readonly text?: unknown;
   readonly title?: unknown;
+  readonly setItems?: unknown;
   readonly expectedFileSha256?: unknown;
 }
 
@@ -23,8 +24,11 @@ export const readFirst = async <T extends object>(
   input: T,
   context: InvokeContext,
 ): Promise<ReadFirst<T>> => {
-  const { ref, repository, text, title, expectedFileSha256 } = input as UpdateFields;
-  if ((text === undefined && title === undefined) || expectedFileSha256 !== undefined) {
+  const { ref, repository, text, title, setItems, expectedFileSha256 } = input as UpdateFields;
+  if (
+    (text === undefined && title === undefined && setItems === undefined) ||
+    expectedFileSha256 !== undefined
+  ) {
     return input;
   }
   const shown = (await invoke(

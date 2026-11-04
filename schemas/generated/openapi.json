@@ -2681,6 +2681,29 @@
                       ]
                     }
                   },
+                  "setItems": {
+                    "type": "object",
+                    "minProperties": 1,
+                    "description": "List items by position from 1: 1..n replace, n+1.. append; other items keep their bytes. Needs expectedFileSha256.",
+                    "additionalProperties": {
+                      "type": "object",
+                      "propertyNames": {
+                        "pattern": "^[1-9][0-9]*$"
+                      },
+                      "additionalProperties": {
+                        "$ref": "#/components/schemas/element/$defs/scalar"
+                      }
+                    },
+                    "propertyNames": {
+                      "not": {
+                        "enum": [
+                          "id",
+                          "type",
+                          "status"
+                        ]
+                      }
+                    }
+                  },
                   "addRelations": {
                     "$ref": "#/components/schemas/common/$defs/relationRefs",
                     "description": "Relations to add by kind, as relation.add adds them, in the same file write (#175). A relation the element has with a valid version is kept."
@@ -2696,7 +2719,7 @@
                   },
                   "expectedFileSha256": {
                     "$ref": "#/components/schemas/common/$defs/fileSha256",
-                    "description": "Write precondition (SR-106): the fileSha256 the change was made on, from element.get. Required with title or text, else input.invalid (precondition-missing); optional for set, unset and relations alone. If the file has other bytes now, nothing is written: file.changed-on-disk, also when nothing would change."
+                    "description": "Write precondition (SR-106): the fileSha256 the change was made on, from element.get. Required with title, text or setItems, else input.invalid (precondition-missing); optional for set, unset and relations alone. If the file has other bytes now, nothing is written: file.changed-on-disk, also when nothing would change."
                   }
                 },
                 "additionalProperties": false,

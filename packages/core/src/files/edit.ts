@@ -110,7 +110,14 @@ interface Original {
 }
 
 /** An original item, or a new one; `replaces` is the original item whose content a new one replaces. */
-type Slot = { readonly orig: number } | { readonly value: ItemValue; readonly replaces?: number | undefined };
+/**
+ * One item of a list after the edits: an original item kept as it is, or a new value, which replaces
+ * an original item (`replace-item`) or is appended (`append-item`; a text takes the quoting of the
+ * list's last text, #177).
+ */
+type Slot =
+  | { readonly orig: number }
+  | { readonly value: ItemValue; readonly replaces?: number | undefined; readonly appended?: true };
 
 type KeyState =
   | { readonly kind: "absent" }
@@ -243,7 +250,10 @@ const applyEdit = (state: KeyState, edit: KeyEdit, original: Original | undefine
     case "remove":
       return { kind: "absent" };
     case "append-item":
-      return { kind: "list", slots: [...listSlots(state, edit.key, true), { value: edit.value }] };
+      return {
+        kind: "list",
+        slots: [...listSlots(state, edit.key, true), { value: edit.value, appended: true }],
+      };
     case "remove-item": {
       const slots = listSlots(state, edit.key, false);
       checkIndex(slots, edit.key, edit.index);
@@ -401,12 +411,15 @@ const blockSequenceSplice = (text: string, seq: YAMLSeq, slots: readonly Slot[],
   const indent = " ".repeat(Math.min(...items.map((item) => item.dash - item.start)));
   // Each item with the text of its lines and the offsets of its content inside that text.
   const parts = zip(items, chunks).map(([item, c]) => ({
+    node: item.node,
     text: text.slice(c.start, c.end),
     content:
       item.content === undefined
         ? undefined
         : [rangeOf(item.node)[0] - c.start, contentEnd(text, item.node) - c.start],
   }));
+  // An appended text takes the quoting of the last text item of the list (#177).
+  const last = items.findLast((item) => isOneLineText(item.node))?.node;
   const out = slots.map((slot) => {
     if ("orig" in slot) {
       return parts
@@ -416,11 +429,18 @@ const blockSequenceSplice = (text: string, seq: YAMLSeq, slots: readonly Slot[],
     }
     const old = slot.replaces === undefined ? undefined : parts[slot.replaces];
     if (old?.content === undefined) {
-      return `${renderItemLines([slot.value], indent, eol)}${eol}`;
+      return slot.appended === true && typeof slot.value === "string" && isOneLineText(last)
+        ? `${indent}- ${requoted(last, slot.value, "item")}${eol}`
+        : `${renderItemLines([slot.value], indent, eol)}${eol}`;
     }
     // A replaced item changes only its content: the dash, its spacing and a trailing comment stay.
+    // A text that replaces a text on one line keeps its quoting (#177).
     const [from, to] = old.content as [number, number];
-    return `${old.text.slice(0, from)}${renderItem(slot.value)}${old.text.slice(to)}`;
+    const content =
+      typeof slot.value === "string" && isOneLineText(old.node)
+        ? requoted(old.node, slot.value, "item")
+        : renderItem(slot.value);
+    return `${old.text.slice(0, from)}${content}${old.text.slice(to)}`;
   });
   return {
     start: Math.min(...chunks.map((c) => c.start)),
@@ -459,14 +479,26 @@ const changedPairSplice = (
 
 // --- editing one scalar in place ---------------------------------------------------------------
 
-/** `value` in the quoting of `node`: single quotes stay where they can, plain where it reads back the same, else double quotes. */
-const requoted = (node: Scalar, value: string): string => {
+/**
+ * `value` in the quoting of `node`: single quotes stay where they can, plain where it reads back the
+ * same, else double quotes. Plain is checked for `context`: a scalar inside a value may sit in a flow
+ * collection, the strictest place, where a plain scalar reads back anywhere; an item of a block
+ * sequence is checked as an item, so a plain text with a comma stays plain there (#177).
+ */
+const requoted = (node: Scalar, value: string, context: "flow-value" | "item" = "flow-value"): string => {
   if (node.type === Scalar.QUOTE_SINGLE && !NEEDS_ESCAPE.test(value)) {
     return `'${value.replaceAll("'", "''")}'`;
   }
-  // A flow value is the strictest place for a plain scalar, so plain there reads back anywhere.
-  return node.type === Scalar.PLAIN ? renderScalar(value, "flow-value") : doubleQuoted(value);
+  return node.type === Scalar.PLAIN ? renderScalar(value, context) : doubleQuoted(value);
 };
+
+/** Whether `node` is a text on one line (plain or quoted, no block scalar, no anchor), whose quoting a new text can take. */
+const isOneLineText = (node: unknown): node is Scalar =>
+  isScalar(node) &&
+  typeof node.value === "string" &&
+  node.type !== Scalar.BLOCK_LITERAL &&
+  node.type !== Scalar.BLOCK_FOLDED &&
+  node.anchor === undefined;
 
 /** A copy of `data` with `value` at `path` (`scalarSplice` checked that `data` has the path). */
 const withValueAt = (data: unknown, path: readonly (string | number)[], value: string): unknown => {
