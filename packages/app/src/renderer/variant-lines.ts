@@ -56,9 +56,12 @@ const GRAPHEMES = new Intl.Segmenter(undefined, { granularity: "grapheme" });
 /** `text` with each run of white space and control characters one space, trimmed. */
 const oneLine = (text: string): string => text.replace(/[\s\p{Cc}]+/gu, " ").trim();
 
-/** The whole `reason` as written when `reasonLine` cuts it, else undefined. */
+/**
+ * The whole `reason` when `reasonLine` cuts it, else undefined: as written, its line breaks and tabs kept,
+ * other control characters (such as an escape from YAML) left out.
+ */
 const cutReason = (reason: string): string | undefined =>
-  reasonLine(reason) === oneLine(reason) ? undefined : reason;
+  reasonLine(reason) === oneLine(reason) ? undefined : reason.replace(/[^\P{Cc}\n\t]/gu, "");
 
 /**
  * A reason (SR-172) on one line: each run of white space and control characters one space, cut to

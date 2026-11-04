@@ -97,16 +97,17 @@ test.describe("an inconclusive validation", () => {
   });
 });
 
-test("a validation line that cuts a long reason gives the whole reason on hover (#846)", async () => {
+test("a validation line that cuts a long reason has the whole reason as its title (#846)", async () => {
   // The reason over two lines and longer than the line shows it; the record keeps it as written.
   const reason = `The frost sensor was replaced.\n${"The field test starts again. ".repeat(10).trim()}`;
   const running = await launchApp({
     fixture: "SR-172/inconclusive",
     files: {
-      "evidence/2026-11-01-N-00a003-validation.md":
+      // A later record of N3 than the fixture's: the newest validation decides.
+      "evidence/2026-11-03-N-00a003-validation.md":
         "---\nreqseq-record: 1\nkind: validation\nelement: 17201720-1720-4720-8720-00000000a003\n" +
         `version: n1:80a1df5694b73266\nresult: inconclusive\nreason: ${JSON.stringify(reason)}\n` +
-        "date: 2026-11-01T09:00:00Z\n---\n",
+        "date: 2026-11-03T09:00:00Z\n---\n",
     },
   });
   try {

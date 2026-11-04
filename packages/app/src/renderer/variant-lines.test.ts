@@ -124,6 +124,11 @@ describe("the lines of a requirement's variants", () => {
     expect(
       variantLines(output({ validation: "inconclusive", validationReason: whole })).validationTitle,
     ).toBe(whole);
+    // Control characters other than line breaks and tabs are left out of the title.
+    expect(
+      variantLines(output({ validation: "inconclusive", validationReason: `a\u001b\tb ${"x".repeat(300)}` }))
+        .validationTitle,
+    ).toBe(`a\tb ${"x".repeat(300)}`);
     const short = variantLines(output({ validation: "inconclusive", validationReason: "No frost\nyet" }));
     expect(short.validationTitle).toBeUndefined();
     expect(variantLines(output({ validation: "validated" })).validationTitle).toBeUndefined();
