@@ -23,6 +23,14 @@ const ID = {
 const REPOSITORY = "system";
 
 interface GraphOutput {
+  readonly evidence?: readonly {
+    readonly id: string;
+    readonly repository: string;
+    readonly level: number;
+    readonly testCases: number;
+    readonly records: number;
+    readonly results: Readonly<Record<string, number>>;
+  }[];
   readonly nodes: readonly {
     readonly id: string;
     readonly repository: string;
@@ -622,5 +630,90 @@ test.describe("the depth and relation kinds of a graph on a fixture workspace", 
     for (const output of [derivations, based, references]) {
       expect(output.edges.length).toBeLessThan(everything.edges.length);
     }
+  });
+  /** The evidence boxes the window shows: the node each sums up, and its text. */
+  const evidenceBoxes = (window: Page): Promise<[string, string][]> =>
+    window.evaluate(() =>
+      [...document.querySelectorAll<HTMLElement>(".graph-evidence")]
+        .map((box): [string, string] => [box.dataset["evidence"] ?? "", box.textContent])
+        .sort(),
+    );
+
+  /** The boxes the CLI's `evidence` gives: one per summary, with its counts in the CLI's words. */
+  const evidenceOf = (output: GraphOutput): [string, string][] => {
+    const counted = (n: number, thing: string): string[] =>
+      n === 0 ? [] : [`${String(n)} ${thing}${n === 1 ? "" : "s"}`];
+    return (output.evidence ?? [])
+      .map((summary): [string, string] => [
+        key(summary.repository, summary.id),
+        [
+          "evidence",
+          [...counted(summary.testCases, "test case"), ...counted(summary.records, "record")].join(", "),
+          Object.entries(summary.results)
+            .map(([result, n]) => `${String(n)} ${result}`)
+            .join(", "),
+        ].join(" · "),
+      ])
+      .sort();
+  };
+
+  test("[SR-111/AK3] Evidence in Also show and Show only draws a box below each node with the counts the CLI gives, which the keys skip", async () => {
+    const { window } = running;
+    await openElement(window, "SR-b0000000001", "Show wind speed");
+    const everything = await traced(running, { ref: ID.S1, maxDepth: 1 });
+    await showGraph(window, everything.nodes.length);
+    await expect(window.locator(".graph-evidence")).toHaveCount(0);
+    // Also show on every link adds the evidence: the links stay, a box comes below S1.
+    await choose(window, "Also show relation kind", "Evidence");
+    const one = await shows({ maxDepth: 1, withEvidence: true }, "with Evidence");
+    expect(one.edges.length).toBe(everything.edges.length);
+    await expect.poll(() => evidenceBoxes(window)).toEqual(evidenceOf(one));
+    expect(evidenceOf(one)).toEqual([
+      [key(REPOSITORY, ID.S1), "evidence · 2 test cases, 1 record · 2 passed, 1 failed"],
+    ]);
+    // One level more: the evidence of C1 is within the depth too (a skipped test case).
+    await window.keyboard.press("+");
+    const two = await shows({ maxDepth: 2, withEvidence: true }, "with Evidence");
+    await expect.poll(() => evidenceBoxes(window)).toEqual(evidenceOf(two));
+    expect(evidenceOf(two).map(([node]) => node)).toEqual(
+      [key(REPOSITORY, ID.S1), key(REPOSITORY, ID.CR1)].sort(),
+    );
+    // Each box stands below its node.
+    const { nodes } = await boxes(window);
+    for (const [node] of evidenceOf(two)) {
+      const box = await window.locator(`.graph-evidence[data-evidence="${node}"]`).boundingBox();
+      expect(box?.y ?? 0).toBeGreaterThan((nodes.get(node)?.y ?? 0) + (nodes.get(node)?.height ?? 0));
+    }
+    // The keys move between elements only, through every layer and below the nodes with a box.
+    await window.keyboard.press("Home");
+    const seen = new Set<string | null>();
+    for (const step of [
+      "ArrowDown",
+      "ArrowRight",
+      "ArrowRight",
+      "ArrowDown",
+      "ArrowDown",
+      "PageDown",
+      "PageDown",
+      "ArrowLeft",
+      "PageDown",
+    ]) {
+      await window.keyboard.press(step);
+      seen.add(await selectedNode(window));
+    }
+    expect(
+      [...seen].every((node) => node !== null && two.nodes.some((n) => key(n.repository, n.id) === node)),
+    ).toBe(true);
+    await expect(window.locator(".graph-evidence[role], .graph-evidence[aria-selected]")).toHaveCount(0);
+    await expect(window.locator('[role="option"]')).toHaveCount(two.nodes.length);
+    // Show only Evidence: no link is followed, the element with its evidence.
+    await choose(window, "Show only relation kind", "Evidence");
+    const only = await shows({ maxDepth: 2, kinds: [], withEvidence: true }, "only Evidence");
+    expect(only.edges).toEqual([]);
+    await expect.poll(() => evidenceBoxes(window)).toEqual(evidenceOf(only));
+    // Everything: every link, and the evidence is gone.
+    await choose(window, "Show only relation kind", "Everything");
+    await shows({ maxDepth: 2 }, "2 levels");
+    await expect(window.locator(".graph-evidence")).toHaveCount(0);
   });
 });

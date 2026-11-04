@@ -60,6 +60,7 @@ export type StoredBuffer =
       readonly depth: GraphDepth;
       readonly kinds?: TraceGraphInput["kinds"];
       readonly meanings?: TraceGraphInput["meanings"];
+      readonly withEvidence?: true;
       readonly view?: TraceGraphInput["view"];
     })
   | { readonly kind: "metamodel"; readonly mode: "graph" | "text" }
@@ -139,6 +140,7 @@ const storedOf = (buffer: Buffer): StoredBuffer => {
         depth: buffer.depth,
         ...(buffer.kinds === undefined ? {} : { kinds: buffer.kinds }),
         ...(buffer.meanings === undefined ? {} : { meanings: buffer.meanings }),
+        ...(buffer.withEvidence === true ? { withEvidence: true as const } : {}),
         ...(buffer.view === undefined ? {} : { view: buffer.view }),
       };
     case "metamodel":
@@ -256,7 +258,15 @@ const parseGraph = (value: Fields): StoredBuffer | undefined => {
     meanings === undefined ||
     view === undefined
     ? undefined
-    : { kind: "graph", ...named, depth, ...kinds, ...meanings, ...view };
+    : {
+        kind: "graph",
+        ...named,
+        depth,
+        ...kinds,
+        ...meanings,
+        ...(value["withEvidence"] === true ? { withEvidence: true as const } : {}),
+        ...view,
+      };
 };
 
 /** How each kind of stored buffer is checked. */

@@ -11,7 +11,7 @@ import {
   overviewBuffer,
   reduceBuffers,
 } from "./buffers.js";
-import { EVERYTHING } from "./graph-choices.js";
+import { EVERYTHING, EVIDENCE } from "./graph-choices.js";
 import type { GraphFilterChoice } from "./graph-choices.js";
 import { matches } from "./keys.js";
 import { INCOMPLETE, bufferView } from "./modeline.js";
@@ -210,6 +210,33 @@ describe("the depth and relation kind prompts of a graph", () => {
       const other = ran(id, [element], CHOICES);
       expect([other.asked, other.echoed, other.dispatched]).toEqual([[], [], []]);
     }
+  });
+});
+
+describe("Evidence in the relation kind prompts", () => {
+  const WITH_EVIDENCE = [...CHOICES.slice(0, 3), EVIDENCE, ...CHOICES.slice(3)];
+  const offered = (buffers: Buffers): string[] =>
+    commandPrompt({ ...context(buffers).full, graphChoices: WITH_EVIDENCE }).items.map((item) => item.name);
+
+  it("[SR-111/AK3] offers Also show relation kind on every link for the evidence, until it is shown", () => {
+    expect(offered([graph])).toContain("Also show relation kind");
+    expect(offered([{ ...graph, withEvidence: true }])).not.toContain("Also show relation kind");
+    const also = ran("graph-also", [graph], WITH_EVIDENCE);
+    const items = also.asked[0]?.items ?? [];
+    expect(items.map((item) => item.name)).toEqual(["Evidence"]);
+    items[0]?.run();
+    expect(also.dispatched).toEqual([{ type: "open", buffer: { ...graph, withEvidence: true } }]);
+    // Show only Evidence: no link, only the evidence; the modeline says so.
+    const only = ran("graph-only", [graph], WITH_EVIDENCE);
+    only.asked[0]?.items.find((item) => item.name === "Evidence")?.run();
+    expect(only.dispatched).toEqual([{ type: "open", buffer: { ...graph, kinds: [], withEvidence: true } }]);
+    const data = { kind: "graph", nodes: 4, truncated: false, incomplete: false } as const;
+    expect(bufferView({ ...graph, kinds: [], withEvidence: true }, data, new Map(), WITH_EVIDENCE)).toContain(
+      "only Evidence",
+    );
+    expect(bufferView({ ...graph, withEvidence: true }, data, new Map(), WITH_EVIDENCE)).toContain(
+      "with Evidence",
+    );
   });
 });
 

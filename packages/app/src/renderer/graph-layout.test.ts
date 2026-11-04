@@ -4,12 +4,14 @@ import type { GraphEdge } from "./graph.js";
 import type { EdgePath, GraphLayout, PlacedNode } from "./graph-layout.js";
 import {
   CROSSED_LAYERS_ABOVE,
+  EVIDENCE_HEIGHT,
   LEVEL_LAYERS_ABOVE,
   NODE_HEIGHT,
   NODE_WIDTH,
   RANK_SEP,
   crossedLayers,
   edgePath,
+  evidenceKey,
   layoutGraph,
   viewStart,
 } from "./graph-layout.js";
@@ -651,5 +653,79 @@ describe("viewStart", () => {
   it("[SR-111/AK1] centres a drawing that fits the view with its margins", () => {
     expect(viewStart(1100, 1000, 300, 400, 50)).toBe(950);
     expect(viewStart(1100, 1000, 200, 400, 50)).toBe(900);
+  });
+});
+
+describe("evidence boxes", () => {
+  const summary = (name: string, testCases = 1): NonNullable<TraceGraphOutput["evidence"]>[number] => ({
+    id: `uuid-${name}`,
+    repository: "spec",
+    level: 1,
+    testCases,
+    records: 0,
+    results: { passed: testCases },
+  });
+
+  it("[SR-111/AK3] puts one box below each node with evidence, joined by a line from the node's bottom edge", () => {
+    const plain = layoutGraph(S1_GRAPH);
+    const output = { ...S1_GRAPH, evidence: [summary("S1", 2), summary("C1"), summary("GONE")] };
+    const layout = layoutGraph(output);
+    // A summary of a node that is not shown has no box; the boxes follow the order of the nodes.
+    expect(layout.evidence.map((box) => [box.key, box.node])).toEqual([
+      [evidenceKey(key("S1")), key("S1")],
+      [evidenceKey(key("C1")), key("C1")],
+    ]);
+    expect(evidenceKey(key("S1"))).toBe("evidence:spec:uuid-S1");
+    for (const box of layout.evidence) {
+      const node = at(layout, box.node === key("S1") ? "S1" : "C1");
+      expect(box.evidence.id).toBe(node.node.id);
+      // Below its node, and the line runs from the node's bottom edge to the box's top edge.
+      expect(box.y).toBeGreaterThanOrEqual(node.y + NODE_HEIGHT + RANK_SEP - 1);
+      const [start = "", end = ""] = [
+        /^M([\d.-]+),([\d.-]+)/.exec(box.d)?.[2],
+        /([\d.-]+)$/.exec(box.d)?.[1],
+      ];
+      expect(Number(start)).toBeCloseTo(node.y + NODE_HEIGHT, 0);
+      expect(Number(end)).toBeCloseTo(box.y, 0);
+      // No box overlaps a node.
+      for (const other of layout.nodes) {
+        const apart =
+          box.x + NODE_WIDTH <= other.x ||
+          other.x + NODE_WIDTH <= box.x ||
+          box.y + EVIDENCE_HEIGHT <= other.y ||
+          other.y + NODE_HEIGHT <= box.y;
+        expect(apart, `${box.key} and ${other.key}`).toBe(true);
+      }
+    }
+    // The boxes are no nodes: the keys see the same nodes, layers and links as without evidence.
+    expect(layout.nodes.map((node) => node.key)).toEqual(plain.nodes.map((node) => node.key));
+    expect([...layout.byKey.keys()]).toEqual([...plain.byKey.keys()]);
+    expect(layout.layers.map((layer) => layer.map((node) => node.key).sort())).toEqual(
+      plain.layers.map((layer) => layer.map((node) => node.key).sort()),
+    );
+    expect(layout.paths.map((path) => `${path.source}>${path.target}`)).toEqual(
+      plain.paths.map((path) => `${path.source}>${path.target}`),
+    );
+    expect(plain.evidence).toEqual([]);
+  });
+
+  it("[SR-111/AK3] spreads an evidence line among the node's links on its bottom edge", () => {
+    const layout = layoutGraph({
+      ...graphOutput(
+        [graphNode("S1", 0), graphNode("A", 1), graphNode("B", 1)],
+        [graphEdge("A", "S1"), graphEdge("B", "S1")],
+      ),
+      evidence: [summary("S1")],
+    });
+    const root = at(layout, "S1");
+    const startX = (d: string): number => Number(/^M([\d.-]+),/.exec(d)?.[1]);
+    const starts = [...layout.paths.map((path) => path.d), ...layout.evidence.map((box) => box.d)].map(
+      startX,
+    );
+    expect(new Set(starts).size).toBe(3);
+    for (const x of starts) {
+      expect(x).toBeGreaterThan(root.x);
+      expect(x).toBeLessThan(root.x + NODE_WIDTH);
+    }
   });
 });

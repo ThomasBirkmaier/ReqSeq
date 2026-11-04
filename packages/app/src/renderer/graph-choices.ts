@@ -4,7 +4,8 @@
 // (`graphInput`). The kinds come from the catalog and the metamodel as they are, by their names: the
 // meanings of `trace.graph`'s input and every relation kind and property of kind `relation` (ADR-0002).
 // The app decides nothing about them: core follows a link whose key is in `kinds` or whose meaning is in
-// `meanings`. No React here.
+// `meanings`. "Evidence" (AK3 „Nachweise“, #217) is no link but the input `withEvidence`, offered when
+// `trace.graph`'s input has it: core gives the summaries of the evidence below the nodes. No React here.
 import type { MetamodelGetOutput, TraceGraphInput } from "@reqseq/core";
 import type { CommandListing } from "../shared/protocol.js";
 import type { GraphBuffer, GraphDepth } from "./buffers.js";
@@ -12,10 +13,14 @@ import { MAX_DEPTH } from "./graph.js";
 
 type Meaning = NonNullable<TraceGraphInput["meanings"]>[number];
 
-/** The links a graph follows: the input of `trace.graph` without both lists means every link. */
+/**
+ * The links a graph follows: the input of `trace.graph` without both lists means every link. With
+ * `withEvidence` it also shows the evidence below its nodes.
+ */
 export interface GraphFilter {
   readonly kinds?: TraceGraphInput["kinds"];
   readonly meanings?: TraceGraphInput["meanings"];
+  readonly withEvidence?: true;
 }
 
 /**
@@ -53,30 +58,42 @@ const MEANING_NAMES: Readonly<Record<string, string>> = {
   reference: "Inline references",
 };
 
-/** "Everything": no filter, every relation and inline reference is followed. */
+/** "Everything": no filter, every relation and inline reference is followed, and no evidence shown. */
 export const EVERYTHING: GraphFilterChoice = { name: "Everything", filter: {} };
 
+/**
+ * "Evidence" (AK3 „Nachweise“): the summaries of the evidence below the nodes (`withEvidence`). "Show only"
+ * takes it with no link (`kinds: []`), "Also show" adds it to what the graph follows.
+ */
+export const EVIDENCE: GraphFilterChoice = { name: "Evidence", filter: { withEvidence: true } };
+
+/** The input schema of `trace.graph` in the catalog, as far as the prompts read it. */
+interface GraphInputSchema {
+  readonly properties?: Readonly<
+    Record<string, { readonly items?: { readonly enum?: readonly unknown[] } } | undefined>
+  >;
+}
+
+const graphInputSchema = (catalog: readonly CommandListing[]): GraphInputSchema | undefined =>
+  catalog.find((command) => command.name === "trace.graph")?.input;
+
 /** The meanings that `trace.graph` takes, from its input schema in the catalog; none when it is not listed. */
-export const graphMeanings = (catalog: readonly CommandListing[]): readonly string[] => {
-  const graph = catalog.find((command) => command.name === "trace.graph");
-  const input = graph?.input as
-    | {
-        readonly properties?: Readonly<
-          Record<string, { readonly items?: { readonly enum?: readonly unknown[] } } | undefined>
-        >;
-      }
-    | undefined;
-  return (input?.properties?.["meanings"]?.items?.enum ?? []).map(String);
-};
+export const graphMeanings = (catalog: readonly CommandListing[]): readonly string[] =>
+  (graphInputSchema(catalog)?.properties?.["meanings"]?.items?.enum ?? []).map(String);
+
+/** Whether `trace.graph` takes `withEvidence`, from its input schema in the catalog. */
+export const graphTakesEvidence = (catalog: readonly CommandListing[]): boolean =>
+  graphInputSchema(catalog)?.properties?.["withEvidence"] !== undefined;
 
 /**
  * The entries of "Show only relation kind": "Everything", the meanings of `trace.graph` by their names,
- * then every relation kind and every property of kind `relation` by its name in the metamodel, with its
- * key as hint.
+ * "Evidence" when `trace.graph` takes it (`evidence`), then every relation kind and every property of
+ * kind `relation` by its name in the metamodel, with its key as hint.
  */
 export const graphFilterChoices = (
   meanings: readonly string[],
   metamodel: Pick<MetamodelGetOutput, "relations" | "properties">,
+  evidence = false,
 ): readonly GraphFilterChoice[] => [
   EVERYTHING,
   // The values are the enum of the input schema; core checks them like any input.
@@ -84,6 +101,7 @@ export const graphFilterChoices = (
     name: MEANING_NAMES[meaning] ?? meaning,
     filter: { meanings: [meaning as Meaning] },
   })),
+  ...(evidence ? [EVIDENCE] : []),
   ...metamodel.relations.map((kind) => ({
     name: kind.name,
     hint: kind.key,
@@ -99,10 +117,15 @@ export const graphFilterChoices = (
 export const hasFilter = (buffer: GraphBuffer): boolean =>
   buffer.kinds !== undefined || buffer.meanings !== undefined;
 
-/** The buffer with `filter` in place of its own; the depth, view and selection stay. */
+/**
+ * The buffer with `filter` in place of its own; the depth, view and selection stay. A filter of evidence
+ * alone follows no link (`kinds: []`, which `trace.graph` takes as "nothing followed").
+ */
 const withFilter = (buffer: GraphBuffer, filter: GraphFilter): GraphBuffer => {
-  const { kinds: _kinds, meanings: _meanings, ...rest } = buffer;
-  return { ...rest, ...filter };
+  const { kinds: _kinds, meanings: _meanings, withEvidence: _withEvidence, ...rest } = buffer;
+  const evidenceOnly =
+    filter.withEvidence === true && filter.kinds === undefined && filter.meanings === undefined;
+  return { ...rest, ...(evidenceOnly ? { kinds: [] } : {}), ...filter };
 };
 
 const union = <T>(
@@ -111,31 +134,45 @@ const union = <T>(
 ): readonly T[] | undefined =>
   held === undefined && added === undefined ? undefined : [...new Set([...(held ?? []), ...(added ?? [])])];
 
-/** The buffer that also follows what `filter` follows: core follows the union of kinds and meanings. */
+/**
+ * The buffer that also follows what `filter` follows: core follows the union of kinds and meanings; the
+ * evidence is shown when either shows it. Without a filter every link is followed already, so then only
+ * the evidence is added.
+ */
 const withAlso = (buffer: GraphBuffer, filter: GraphFilter): GraphBuffer => {
+  const evidence =
+    buffer.withEvidence === true || filter.withEvidence === true ? { withEvidence: true as const } : {};
+  if (!hasFilter(buffer)) {
+    return { ...buffer, ...evidence };
+  }
   const kinds = union(buffer.kinds, filter.kinds);
   const meanings = union(buffer.meanings, filter.meanings);
   return withFilter(buffer, {
     ...(kinds === undefined ? {} : { kinds }),
     ...(meanings === undefined ? {} : { meanings }),
+    ...evidence,
   });
 };
 
 /**
- * Whether everything the entry follows is followed already: its kinds and meanings are in the filter, or
- * it is a relation kind whose meaning the filter holds (core follows a link whose key is in `kinds` or
- * whose meaning is in `meanings`).
+ * Whether everything the entry follows is followed already: the evidence is shown when it is evidence,
+ * else the graph has no filter, its kinds and meanings are in the filter, or it is a relation kind whose
+ * meaning the filter holds (core follows a link whose key is in `kinds` or whose meaning is in `meanings`).
  */
 const followed = (buffer: GraphBuffer, choice: GraphFilterChoice): boolean =>
-  (buffer.meanings ?? []).some((meaning) => meaning === choice.meaning) ||
-  ((choice.filter.kinds ?? []).every((kind) => buffer.kinds?.includes(kind) === true) &&
-    (choice.filter.meanings ?? []).every((meaning) => buffer.meanings?.includes(meaning) === true));
+  choice.filter.withEvidence === true
+    ? buffer.withEvidence === true
+    : !hasFilter(buffer) ||
+      (buffer.meanings ?? []).some((meaning) => meaning === choice.meaning) ||
+      ((choice.filter.kinds ?? []).every((kind) => buffer.kinds?.includes(kind) === true) &&
+        (choice.filter.meanings ?? []).every((meaning) => buffer.meanings?.includes(meaning) === true));
 
 /** The ID of an entry: what it follows ("everything" for nothing in particular). */
 const idOf = (choice: GraphFilterChoice): string => {
   const keys = [
     ...(choice.filter.meanings ?? []).map((meaning) => `meaning:${meaning}`),
     ...(choice.filter.kinds ?? []).map((kind) => `kind:${kind}`),
+    ...(choice.filter.withEvidence === true ? ["evidence"] : []),
   ];
   return keys.length === 0 ? "everything" : keys.join(" ");
 };
@@ -165,23 +202,24 @@ export const depthChoices = (buffer: GraphBuffer): readonly GraphChoice[] =>
     }),
   );
 
-/** "Show only relation kind" (AK3): every entry; taking one replaces the filter. */
+/**
+ * "Show only relation kind" (AK3): every entry; taking one replaces the filter, and the evidence too, so
+ * any entry but "Evidence" turns the evidence off ("Everything": every link, no evidence).
+ */
 export const onlyChoices = (
   buffer: GraphBuffer,
   choices: readonly GraphFilterChoice[],
 ): readonly GraphChoice[] => choices.map((choice) => entry(choice, withFilter(buffer, choice.filter)));
 
 /**
- * "Also show relation kind" (AK3): the entries without "Everything" and without those the filter follows
- * already (a relation kind whose meaning it holds too); taking one adds it to the filter. None without a
- * filter: then everything is followed.
+ * "Also show relation kind" (AK3): the entries without "Everything" and without those the graph follows
+ * or shows already (a relation kind whose meaning it holds too); taking one adds it to the filter.
+ * Without a filter every link is followed, so then only "Evidence" while it is not shown.
  */
 export const alsoChoices = (
   buffer: GraphBuffer,
   choices: readonly GraphFilterChoice[],
 ): readonly GraphChoice[] =>
-  hasFilter(buffer)
-    ? choices
-        .filter((choice) => choice !== EVERYTHING && !followed(buffer, choice))
-        .map((choice) => entry(choice, withAlso(buffer, choice.filter)))
-    : [];
+  choices
+    .filter((choice) => choice !== EVERYTHING && !followed(buffer, choice))
+    .map((choice) => entry(choice, withAlso(buffer, choice.filter)));

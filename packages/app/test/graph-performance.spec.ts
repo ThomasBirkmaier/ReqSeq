@@ -4,6 +4,9 @@
 //   depth 1 (24 decisions above, 475 members below, about 790 links). The time runs from the keydown of
 //   Ctrl/Cmd+Shift+G on the package. No warm-up: the first graph of the app run counts, and so does the
 //   median of three opens (that first one and two more), each a new graph buffer on another root.
+//   Every member has a test case, so the same graphs at depth 2 (the same 500 nodes) with "Also show
+//   relation kind" > "Evidence" (SR-111 AK3) have 475 evidence boxes besides the nodes; that is timed
+//   from the keydown of Enter in the prompt, on each root.
 // - deep (`support/graph-deep-fixture.ts`): three needs, each the root of a whole chain of exactly 500
 //   nodes with the link profile of the N-036 whole chain (#500: 263 links within a level, 45 against the
 //   levels, 886 in all). The graph opens at depth 1 (53 nodes), and `+` gives the 500 nodes (#500).
@@ -24,6 +27,8 @@ import { writeGraphFixture } from "./support/graph-fixture.js";
 /** SR-111 AK6. */
 const LAID_OUT_MS = 1000;
 const NODES = 500;
+/** The members of each package of the wide fixture, each with one test case. */
+const MEMBERS = 475;
 
 interface Timing {
   /** From the keydown to the frame after the paint. */
@@ -65,13 +70,21 @@ interface Opener {
 const SHOW_GRAPH: Opener = { press: "ControlOrMeta+Shift+G", key: "g" };
 const ONE_LEVEL_MORE: Opener = { press: "+", key: "+" };
 
+const TAKE_ENTRY: Opener = { press: "Enter", key: "enter" };
+
 /**
- * Presses `opener` and times it until the graph of `nodes` boxes, `root` among them, is laid out and
- * painted.
+ * Presses `opener` and times it until the graph of `nodes` boxes, `root` among them, and `evidence`
+ * evidence boxes is laid out and painted.
  */
-const timeOpen = async (window: Page, opener: Opener, root: string, nodes: number): Promise<Timing> => {
+const timeOpen = async (
+  window: Page,
+  opener: Opener,
+  root: string,
+  nodes: number,
+  evidence = 0,
+): Promise<Timing> => {
   await window.evaluate(
-    ({ root, nodes, key }) => {
+    ({ root, nodes, evidence, key }) => {
       const w = globalThis as unknown as { __graph?: Promise<Timing> };
       let start: number | undefined;
       addEventListener(
@@ -90,7 +103,8 @@ const timeOpen = async (window: Page, opener: Opener, root: string, nodes: numbe
           const placed =
             view !== null &&
             view.querySelector(`.graph-node.root[data-node="${root}"]`) !== null &&
-            view.querySelectorAll(".graph-node").length === nodes;
+            view.querySelectorAll(".graph-node").length === nodes &&
+            view.querySelectorAll(".graph-evidence").length === evidence;
           if (placed && start !== undefined) {
             observer.disconnect();
             const from = start;
@@ -117,10 +131,26 @@ const timeOpen = async (window: Page, opener: Opener, root: string, nodes: numbe
         observer.observe(document.body, { childList: true, subtree: true, attributes: true });
       });
     },
-    { root, nodes, key: opener.key },
+    { root, nodes, evidence, key: opener.key },
   );
   await window.keyboard.press(opener.press);
   return window.evaluate(() => (globalThis as unknown as { __graph: Promise<Timing> }).__graph);
+};
+
+/** Runs `title` from the command prompt and types `entry` in the prompt it opens, until it is the first hit. */
+const prompt = async (window: Page, title: string, entry: string): Promise<void> => {
+  await window.keyboard.press("ControlOrMeta+Shift+P");
+  await window.keyboard.type(title);
+  await expect(window.locator('.candidates [role="option"]').first()).toContainText(title);
+  await window.keyboard.press("Enter");
+  await window.keyboard.type(entry);
+  await expect(window.locator('.candidates [role="option"]').first()).toContainText(entry);
+};
+
+/** `prompt`, then takes the entry. */
+const choose = async (window: Page, title: string, entry: string): Promise<void> => {
+  await prompt(window, title, entry);
+  await window.keyboard.press("Enter");
 };
 
 const median = (values: readonly number[]): number =>
@@ -165,14 +195,52 @@ test.describe("a graph of 500 nodes", () => {
       timings.push(await timeOpen(window, SHOW_GRAPH, `system:${root.id}`, NODES));
       await expect(window.getByLabel("Modeline")).toContainText(`${String(NODES)} nodes`);
     }
+    // The same graphs at depth 2 with the evidence of every member (AK3): 500 nodes and 475 boxes.
+    for (const root of fixture.roots) {
+      const answer = await running.cli([
+        "trace",
+        "graph",
+        "--input",
+        JSON.stringify({ ref: root.id, maxDepth: 2, withEvidence: true, limit: NODES }),
+      ]);
+      const output = JSON.parse(answer.stdout) as {
+        nodes: unknown[];
+        evidence: unknown[];
+        truncated: boolean;
+      };
+      expect([output.nodes.length, output.evidence.length, output.truncated]).toEqual([
+        NODES,
+        MEMBERS,
+        false,
+      ]);
+    }
+    const withEvidence: Timing[] = [];
+    for (const root of fixture.roots) {
+      await openElement(window, root.title);
+      await window.keyboard.press(SHOW_GRAPH.press);
+      await expect(window.locator(".graph")).toBeFocused();
+      await choose(window, "Graph depth", "2 levels");
+      await expect(window.getByLabel("Modeline")).toContainText("2 levels");
+      await expect(window.locator(".graph")).toHaveAttribute("data-laid-out", String(NODES));
+      await prompt(window, "Also show relation kind", "Evidence");
+      withEvidence.push(await timeOpen(window, TAKE_ENTRY, `system:${root.id}`, NODES, MEMBERS));
+      await expect(window.getByLabel("Modeline")).toContainText("with Evidence");
+    }
     const totals = timings.map((timing) => timing.total);
-    const record = { timings, first: totals[0], median: median(totals) };
+    const evidenceTotals = withEvidence.map((timing) => timing.total);
+    const record = {
+      timings,
+      first: totals[0],
+      median: median(totals),
+      withEvidence,
+      evidenceMedian: median(evidenceTotals),
+    };
     // eslint-disable-next-line no-console -- the numbers are the result of this test, the PR quotes them.
     console.log(`PERF graph ${JSON.stringify(record)}`);
     test.info().annotations.push({ type: "SR-111 AK6", description: JSON.stringify(record) });
     expect(totals[0], "the first graph of the app run").toBeLessThanOrEqual(LAID_OUT_MS);
     expect(median(totals), "the median of three opens").toBeLessThanOrEqual(LAID_OUT_MS);
-    for (const total of totals) {
+    for (const total of [...totals, ...evidenceTotals]) {
       expect(total).toBeLessThanOrEqual(LAID_OUT_MS);
     }
   });

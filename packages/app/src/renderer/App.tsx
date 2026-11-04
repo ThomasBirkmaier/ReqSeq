@@ -33,7 +33,7 @@ import { inView, variantTypesOf, viewMark } from "./views.js";
 import type { PropertyModel } from "./element-view.js";
 import { propertyModel } from "./element-view.js";
 import type { GraphFilterChoice } from "./graph-choices.js";
-import { graphFilterChoices, graphMeanings } from "./graph-choices.js";
+import { graphFilterChoices, graphMeanings, graphTakesEvidence } from "./graph-choices.js";
 import { PREFIX } from "./bindings.js";
 import { isMac, matches } from "./keys.js";
 import { Minibuffer } from "./Minibuffer.js";
@@ -205,7 +205,12 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   // catalog): the entries of a graph's relation kind prompts and the names of its modeline (SR-111 AK3).
   const [relationModel, setRelationModel] = useState(NO_RELATIONS);
   const [meanings, setMeanings] = useState<readonly string[]>([]);
-  const graphChoices = useMemo(() => graphFilterChoices(meanings, relationModel), [meanings, relationModel]);
+  // Whether `trace.graph` takes `withEvidence`: then the kind prompts offer "Evidence" (SR-111 AK3).
+  const [evidence, setEvidence] = useState(false);
+  const graphChoices = useMemo(
+    () => graphFilterChoices(meanings, relationModel, evidence),
+    [meanings, relationModel, evidence],
+  );
   const [elementControls, setElementControls] = useState<ElementControls | undefined>(undefined);
   // The elements opened last in this workspace (SR-118): kept in the app's storage under `scope`, not in the workspace.
   const [recent, setRecent] = useState<readonly RecentEntry[]>([]);
@@ -703,6 +708,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
         (commands) => {
           catalog.current = commands;
           setMeanings(graphMeanings(commands));
+          setEvidence(graphTakesEvidence(commands));
         },
         (error: unknown) => {
           // Without the catalog the command prompt has the app's actions only; say why.

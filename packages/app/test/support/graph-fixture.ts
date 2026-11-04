@@ -7,6 +7,8 @@
 //   from one of the 100 and from one of the 300 (a diamond), 25 derive from one of the 50; every tenth
 //   is also based on one of the decisions, a long link past the package. So the graph has eight drawn
 //   layers and about 790 links, not easier than real data.
+// Every member has one passed JUnit test case (`evidence/ci/run.xml`, the evidence location of the
+// workspace file), so with the evidence (SR-111 AK3) its graph has 475 evidence boxes besides its nodes.
 // Every link stores the current version of its target, as in a real workspace: the files are written
 // with an old version, and `reqseq hint confirm` writes the current ones (SR-027), so `trace.graph`
 // computes the versions of the targets for its `outdated` mark as it does on real data.
@@ -121,6 +123,44 @@ export const cli = async (folder: string, argv: readonly string[]): Promise<stri
     })
   ).stdout;
 
+/**
+ * Writes `evidence/ci/run.xml` into the workspace `folder`: one passed JUnit test case per element of
+ * `ids` (UUIDs), named by its `reqseq:element` property with its current version (a test case without
+ * one gives no record), in the evidence location of fixtures/SR-111/graph. Call it once the links hold
+ * their current versions: confirming them changes the versions of the elements that store them.
+ */
+export const writeEvidence = async (folder: string, ids: readonly string[]): Promise<void> => {
+  const listed = JSON.parse(await cli(folder, ["element", "list", "--limit", "5000", "--no-with-text"])) as {
+    readonly elements: readonly { readonly id: string; readonly version?: string }[];
+  };
+  const versions = new Map(listed.elements.map((element) => [element.id, element.version ?? ""]));
+  const cases = ids.map((id, index) =>
+    [
+      `    <testcase classname="tests.generated" name="test_${String(index)}" time="0.001">`,
+      "      <properties>",
+      `        <property name="reqseq:element" value="${id}"/>`,
+      `        <property name="reqseq:version" value="${versions.get(id) ?? ""}"/>`,
+      '        <property name="reqseq:item" value="build-1"/>',
+      '        <property name="reqseq:date" value="2026-10-21T09:00:00Z"/>',
+      "      </properties>",
+      "    </testcase>",
+    ].join("\n"),
+  );
+  await fs.mkdir(path.join(folder, "evidence", "ci"), { recursive: true });
+  await fs.writeFile(
+    path.join(folder, "evidence", "ci", "run.xml"),
+    [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      "<testsuites>",
+      `  <testsuite name="generated" tests="${String(ids.length)}" failures="0" errors="0" skipped="0">`,
+      ...cases,
+      "  </testsuite>",
+      "</testsuites>",
+      "",
+    ].join("\n"),
+  );
+};
+
 /** Writes the workspace and stores the current versions in its links. */
 export const writeGraphFixture = async (): Promise<GraphFixture> => {
   const top = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-graph-fixture-")));
@@ -164,5 +204,9 @@ export const writeGraphFixture = async (): Promise<GraphFixture> => {
   const input = path.join(top, "confirm.json");
   await fs.writeFile(input, JSON.stringify({ hintIds }));
   await cli(folder, ["hint", "confirm", "--input", `@${input}`]);
+  await writeEvidence(
+    folder,
+    roots.flatMap((_, at) => Array.from({ length: MEMBERS }, (_unused, index) => uuid(at + 1, 2, index))),
+  );
   return { folder, roots, cleanup: () => fs.rm(top, { recursive: true, force: true, maxRetries: 3 }) };
 };
