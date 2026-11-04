@@ -375,8 +375,8 @@ export function inputViolations(
     if (error.keyword === "required") {
       field = fieldOf([...segments, String(p["missingProperty"])]);
       message = `${field} is required`;
-    } else if (error.keyword === "additionalProperties") {
-      field = fieldOf([...segments, String(p["additionalProperty"])]);
+    } else if (error.keyword === "additionalProperties" || error.keyword === "unevaluatedProperties") {
+      field = fieldOf([...segments, String(p["additionalProperty"] ?? p["unevaluatedProperty"])]);
       const names = knownNames(error.parentSchema);
       const where = segments.length === 0 ? "an input of this command" : `a field of ${fieldOf(segments)}`;
       message = `${field} is not ${where}${names}`;

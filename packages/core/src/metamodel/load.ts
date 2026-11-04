@@ -17,8 +17,9 @@ import { isNode } from "yaml";
 import type { Problem } from "../catalog.js";
 import type { YamlFile } from "../files/index.js";
 import { readYamlFile } from "../files/index.js";
-import type { SchemaViolation } from "../runtime/contracts.js";
-import { describeViolations, fileSchemaValidator, schemaViolations } from "../runtime/contracts.js";
+import { contractsBundle, fileSchemaErrors, fileSchemaValidator } from "../runtime/contracts.js";
+import type { InputViolation } from "../runtime/input-errors.js";
+import { fileMessage, inputViolations } from "../runtime/input-errors.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import { WORKSPACE_FILE } from "../workspace/index.js";
 import type {
@@ -104,14 +105,34 @@ const lineAt = (yaml: YamlFile, segments: readonly string[]): number | undefined
   return undefined;
 };
 
-/** The name of the property a violation is about when the schema does not know it. */
-const unknownProperty = (violation: SchemaViolation): string | undefined => {
-  const name = violation.params["additionalProperty"] ?? violation.params["unevaluatedProperty"];
-  return typeof name === "string" ? name : undefined;
+/**
+ * The message of a violation with the definition it is in named by its key (#151): `types[0].prefix is
+ * required` is `Type variant: prefix is required`, as other metamodel problems name definitions. A
+ * definition without a key keeps its place in the list.
+ */
+const namedMessage = (data: unknown, violation: InputViolation): string => {
+  const message = fileMessage(violation);
+  // A field below an entry of a list: the file holds that list, and the entry is an object.
+  const place = /^(types|properties|relations|statuses)\[(\d+)\]\./.exec(violation.field);
+  if (place === null) {
+    return message;
+  }
+  const [, list, index] = place as unknown as [string, ListName, string];
+  const lists = data as Readonly<Record<ListName, readonly { readonly key?: unknown }[]>>;
+  const key = lists[list][Number(index)]?.key;
+  if (typeof key !== "string") {
+    return message;
+  }
+  const at = `${list}[${index}]`;
+  const label = `${LABELS[list]} ${key}`;
+  // An unknown key of the definition itself: the label already says where.
+  return `${label}: ${message.slice(at.length + 1)}`
+    .replace(` is not a field of ${at} `, " is not a field ")
+    .replaceAll(at, label);
 };
 
-/** JSON Pointer segments of a violation; an unknown property points at that property. */
-const violationSegments = (violation: SchemaViolation): readonly string[] => {
+/** JSON Pointer segments of a violation; an unknown key points at that key. */
+const violationSegments = (violation: InputViolation): readonly string[] => {
   const segments =
     violation.path === ""
       ? []
@@ -119,14 +140,8 @@ const violationSegments = (violation: SchemaViolation): readonly string[] => {
           .slice(1)
           .split("/")
           .map((s) => s.replaceAll("~1", "/").replaceAll("~0", "~"));
-  const unknown = unknownProperty(violation);
-  return unknown === undefined ? segments : [...segments, unknown];
-};
-
-/** `Invalid model/types.yaml: /types/0 must NOT have unevaluated properties: colour`. */
-const violationMessage = (file: string, violation: SchemaViolation): string => {
-  const unknown = unknownProperty(violation);
-  return `Invalid ${file}: ${describeViolations([violation])}${unknown === undefined ? "" : `: ${unknown}`}`;
+  const unknown = violation.params["additionalProperty"] ?? violation.params["unevaluatedProperty"];
+  return typeof unknown === "string" ? [...segments, unknown] : segments;
 };
 
 /** A metamodel file that is valid YAML and matches the schema. */
@@ -155,8 +170,17 @@ const checkFile = async (root: string, file: string): Promise<CheckedFile> => {
       problems: yaml.warnings,
     };
   }
-  const violations = schemaViolations(validate.errors).map((v) =>
-    problem("error", violationMessage(file, v), file, lineAt(yaml, violationSegments(v))),
+  // Readable as input errors are (#309, #151), each definition named by its key.
+  const violations = inputViolations(fileSchemaErrors("metamodel.schema.json", yaml.data), {
+    input: yaml.data,
+    schemas: contractsBundle.schemas,
+  }).map((v) =>
+    problem(
+      "error",
+      `Invalid ${file}: ${namedMessage(yaml.data, v)}`,
+      file,
+      lineAt(yaml, violationSegments(v)),
+    ),
   );
   return { kind: "faulty", problems: [...yaml.warnings, ...violations] };
 };

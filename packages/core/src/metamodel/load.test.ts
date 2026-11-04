@@ -205,7 +205,7 @@ describe("loadMetamodel", () => {
         repository: "system",
         file: "model/variant-types.yaml",
         line: 3,
-        message: "Invalid model/variant-types.yaml: /types/0 must have required property 'prefix'",
+        message: "Invalid model/variant-types.yaml: Type variant: prefix is required",
       },
       {
         code: "metamodel.invalid",
@@ -213,7 +213,8 @@ describe("loadMetamodel", () => {
         repository: "system",
         file: "model/variant-types.yaml",
         line: 5,
-        message: "Invalid model/variant-types.yaml: /types/0 must NOT have unevaluated properties: colour",
+        message:
+          "Invalid model/variant-types.yaml: Type variant: colour is not a field (known: key, name, description, prefix, extends, abstract, meaning, properties, required, statuses)",
       },
       {
         code: "metamodel.invalid",
@@ -221,7 +222,7 @@ describe("loadMetamodel", () => {
         repository: "system",
         file: "model/variant-types.yaml",
         line: 6,
-        message: "Invalid model/variant-types.yaml: /types/1 must have required property 'prefix'",
+        message: "Invalid model/variant-types.yaml: Type package: prefix is required",
       },
     ]);
     expect(keys(metamodel).types).toEqual(["need", "system-requirement"]);
@@ -251,14 +252,36 @@ describe("loadMetamodel", () => {
     expect(markdownKeysOf(metamodel)).toEqual(new Set());
   });
 
+  it("names the definition of a schema violation by its key, and by its place without one (#151)", async () => {
+    const ws = await fixture({
+      files: {
+        "model/spec.yaml":
+          "reqseq-metamodel: 1\nproperties:\n  - key: spec-id\n    name: Spec ID\n    kind: integer\n  - name: No key\n    kind: text\n",
+      },
+    });
+    const metamodel = await load(ws.root);
+    expect(
+      metamodel.problems.filter((p) => p.file === "model/spec.yaml").map((p) => [p.line, p.message]),
+    ).toEqual([
+      [
+        5,
+        'Invalid model/spec.yaml: Property spec-id: kind "integer" is not one of: text, number, date, choice, relation',
+      ],
+      [6, "Invalid model/spec.yaml: properties[1].key is required"],
+    ]);
+  });
+
   it("reports an unknown list on the line of its key and a missing format version on the first line", async () => {
     const ws = await fixture({ files: { "model/statuses.yaml": "# comment\nstates: []\n" } });
     const metamodel = await load(ws.root);
     expect(
       metamodel.problems.filter((p) => p.file === "model/statuses.yaml").map((p) => [p.line, p.message]),
     ).toEqual([
-      [2, "Invalid model/statuses.yaml: (root) must have required property 'reqseq-metamodel'"],
-      [2, "Invalid model/statuses.yaml: (root) must NOT have additional properties: states"],
+      [2, "Invalid model/statuses.yaml: reqseq-metamodel is required"],
+      [
+        2,
+        "Invalid model/statuses.yaml: states is not a field of the file (known: reqseq-metamodel, types, properties, relations, statuses)",
+      ],
     ]);
   });
 
@@ -271,7 +294,7 @@ describe("loadMetamodel", () => {
         severity: "error",
         repository: "system",
         file: "model/statuses.yaml",
-        message: "Invalid model/statuses.yaml: (root) must be object",
+        message: "Invalid model/statuses.yaml: the file must be an object, not empty",
       },
     ]);
   });
