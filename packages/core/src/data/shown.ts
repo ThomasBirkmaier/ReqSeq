@@ -5,7 +5,9 @@
 // variants of its validity, `replacedBy` and `excludedBy`, then the replacements, then the views and
 // missing children of `verification` (`verificationNameIds`), each once, so the app and the CLI show
 // titles (SR-046 AK1/AK2, #588). `incomplete`: a repository of the workspace is not here, so
-// replacements, exclusions and records stored there are missing (SR-006 AK2).
+// replacements, exclusions and records stored there are missing (SR-006 AK2). `writtenWithStatus` gives
+// the element a write returns (element.create, element.update) the same verification and validation
+// status, so the answer of a save equals element.get again (#214).
 import { exportedProperties, targetIds, withReplacedExcluded } from "./export.js";
 import { verificationNameIds, withEvidenceStatus, workspaceStatus } from "../evidence/index.js";
 import { metamodelState } from "../metamodel/index.js";
@@ -50,4 +52,20 @@ export const shownWithNames = async (workspace: Workspace, shown: ShownElement):
     ...namesField(namesOf({ metamodel, store, shortIds }, named)),
     ...(layout.repositories.some((r) => !r.available) ? { incomplete: true as const } : {}),
   };
+};
+
+/**
+ * The element a write returned (`written`, its file as written) with its verification and validation status
+ * as `shownWithNames` gives it, from the record of the store after the write; unchanged when the store holds
+ * no record of it in that repository.
+ */
+export const writtenWithStatus = async (
+  workspace: Workspace,
+  written: DataExportElement,
+): Promise<DataExportElement> => {
+  const store = await workspace.get(elementStoreState);
+  const record = store.byId.get(written.id)?.find((r) => r.repository === written.repository);
+  return record === undefined
+    ? written
+    : withEvidenceStatus(await workspaceStatus(workspace, [record]), record, written);
 };

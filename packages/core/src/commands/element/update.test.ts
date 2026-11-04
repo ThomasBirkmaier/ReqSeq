@@ -6,6 +6,7 @@ import type { FixtureOptions, FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
+import { writtenWithStatus } from "../../data/index.js";
 import { editElementFile, parseFileBytes } from "../../files/index.js";
 import { STANDARD_MODEL_TEXT as STANDARD } from "../../metamodel/standard-model.js";
 import type { ElementRecord, ElementStore } from "../../model/index.js";
@@ -1079,5 +1080,45 @@ describe("element.update text layout (#308)", () => {
     const out = await update(opened, { ref: WIND.id, text: "\nText.\n" });
     expect(out.files).toEqual([WIND.file]);
     expect(out.element.version).toBe(before.element.version);
+  });
+});
+
+describe("the status in the answer of a write (#214)", () => {
+  const S1 = "38383838-3838-4838-8838-00000000b001";
+  const get = async (opened: Opened, ref: string): Promise<CommandOutput<"element.get">["element"]> =>
+    ((await invoke("element.get", { ref }, { workspace: opened.workspace })) as CommandOutput<"element.get">)
+      .element;
+
+  it("element.update and element.create give the verification and validation status as element.get does", async () => {
+    const opened = await open({ fixture: "SR-038/validation" });
+    // A title, which leaves the version: the records still hold.
+    const titled = await update(opened, { ref: S1, title: "Show the wind speed" });
+    expect(titled.element.verification).toEqual([{ view: "core", status: "failed" }]);
+    expect(titled.element.validation).toBe("validated");
+    const shown = await get(opened, S1);
+    expect({ ...titled.element, readOnly: shown.readOnly }).toEqual(shown);
+    // A text, which changes the version: the answer is measured against the new one, as element.get is.
+    const texted = await update(opened, { ref: S1, text: "The station shows the wind speed every second." });
+    const again = await get(opened, S1);
+    expect(texted.element.verification).toEqual(again.verification);
+    expect(texted.element.validation).toBe(again.validation);
+    // A new need has no record: its validation is open.
+    const created = (
+      (await invoke(
+        "element.create",
+        { type: "need", title: "Know the wind", repository: "system" },
+        { workspace: opened.workspace },
+      )) as CommandOutput<"element.create">
+    ).element;
+    expect(created.validation).toBe("open");
+    const fresh = await get(opened, created.id);
+    expect({ ...created, readOnly: fresh.readOnly }).toEqual(fresh);
+    // An element the store does not hold, by UUID or in that repository, is given back as it is.
+    for (const other of [
+      { ...created, repository: "nowhere" },
+      { ...created, id: "no-such-uuid" },
+    ]) {
+      expect(await writtenWithStatus(opened.workspace, other)).toBe(other);
+    }
   });
 });
