@@ -35,6 +35,18 @@ const PATTERN_JUNIT: FixtureOptions = {
   },
 };
 
+/** The #535 workspace with a need and a JUnit file whose test case names it (#843). */
+const NEED_JUNIT: FixtureOptions = {
+  ...EVIDENCE,
+  files: {
+    "needs/N-0000000e0843.md":
+      "---\nid: 84300000-0000-4000-8000-0000000e0843\ntype: need\nstatus: draft\ntitle: See the need\n---\n",
+    "results/need.xml":
+      '<?xml version="1.0" encoding="UTF-8"?>\n<testsuite name="station">\n' +
+      '  <testcase classname="station" name="[N-0e0843] shows the need"/>\n</testsuite>\n',
+  },
+};
+
 /** The output of evidence.enrichJunit through core. */
 const enrichOutput = (results: Readonly<Record<string, Result>>): Record<string, unknown> | undefined =>
   (results["core"]?.outcome as { output?: Record<string, unknown> }).output;
@@ -94,6 +106,18 @@ scenariosOf("evidence.enrichJunit", [
     fixture: EVIDENCE,
     input: { file: "evidence/ci/results.xml", item: "build-513", date: "2026-10-27T10:00:00Z" },
     expect: "output",
+  },
+  {
+    name: "a test case that names a need is enriched, with a warning (#843)",
+    fixture: NEED_JUNIT,
+    input: { file: "results/need.xml", item: "build-843", date: "2026-11-04T10:00:00Z" },
+    expect: "output",
+    check: (results) => {
+      expect(enrichOutput(results)).toMatchObject({
+        testCases: 1,
+        problems: [{ code: "evidence.kind-mismatch", severity: "warning", line: 3 }],
+      });
+    },
   },
   {
     name: "a file that is not there",

@@ -649,6 +649,32 @@ describe("relation.add saves a relation over a limit and shows the hint of the c
     ]);
   });
 
+  it("returns the hint on a repeat call that writes nothing, while the source is over the limit (#845)", async () => {
+    const opened = await open(LIMITS);
+    const OVER = { id: `${L}c00001`, file: "requirements/SR-000000c00001.md" };
+    const before = await read(opened, OVER.file);
+    // SR-c00001 derives from two use cases already, one more than the limit.
+    expect(await add(opened, { source: OVER.id, kind: "derives-from", target: `${L}b00001` })).toEqual({
+      files: [],
+      problems: [
+        expect.objectContaining({
+          code: "relation.too-many",
+          elementId: OVER.id,
+          targetType: "use-case",
+          count: 2,
+          limit: 1,
+          line: 6,
+        }),
+      ],
+    });
+    // The need it has already counts toward no maximum: no hint.
+    expect(await add(opened, { source: OVER.id, kind: "derives-from", target: `${L}a00001` })).toEqual({
+      files: [],
+      problems: [],
+    });
+    expect(await read(opened, OVER.file)).toBe(before);
+  });
+
   it("gives no count hint for a relation within its limits, nor the hint on another target type again", async () => {
     const opened = await open({
       ...LIMITS,
