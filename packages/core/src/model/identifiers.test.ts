@@ -113,7 +113,7 @@ describe("identifiers as element references (#305)", () => {
       "metamodel/model.yaml": model.replace("meaning: identifier", "meaning: bogus"),
     });
     const cause =
-      "; the metamodel is not valid, so short IDs and identifiers from its faulty files are not known (workspace.check lists its problems)";
+      "; the metamodel is not valid, so types or the identifier property of a faulty metamodel file may be missing (workspace.check lists its problems)";
     expect((await failure(opened, "element.get", { ref: "SR-036" })).toJSON()).toEqual({
       code: "ref.unknown",
       message: `No element has the identifier "SR-036"${cause}`,
@@ -121,6 +121,10 @@ describe("identifiers as element references (#305)", () => {
     });
     expect((await failure(opened, "element.get", { ref: "SR-ffffff" })).message).toBe(
       `No element has the short ID or identifier "SR-ffffff"${cause}`,
+    );
+    // A type left out with its file gives no "prefix may be outdated" (#853 review).
+    expect((await failure(opened, "element.resolve", { ref: "SR-0b0036" })).message).toBe(
+      `No element has the short ID or identifier "SR-0b0036"${cause}`,
     );
     // A UUID does not depend on the metamodel.
     const uuid = await failure(opened, "element.get", { ref: "30500000-0000-4000-8000-0000000f0000" });

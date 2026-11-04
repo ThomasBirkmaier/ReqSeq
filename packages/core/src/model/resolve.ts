@@ -89,13 +89,14 @@ const named = (shortIds: ShortIds, ref: string): Named => {
 
 /**
  * Why a short ID or identifier may name no element though one has it (#399): the metamodel is not
- * valid, and a faulty file is left out with its types and identifier property. "" for a UUID, which
- * does not depend on the metamodel, or a valid metamodel.
+ * valid, and a faulty file is left out with its types and identifier property. "May": an error across
+ * files leaves none out (#853 review). "" for a UUID, which does not depend on the metamodel, or a valid
+ * metamodel.
  */
 const faultyMetamodel = (shortIds: ShortIds, canonical: string): string =>
   shortIds.metamodelValid || isUuid(canonical)
     ? ""
-    : "; the metamodel is not valid, so short IDs and identifiers from its faulty files are not known (workspace.check lists its problems)";
+    : "; the metamodel is not valid, so types or the identifier property of a faulty metamodel file may be missing (workspace.check lists its problems)";
 
 /** What `ref` was taken as, for the message of `ref.unknown`. */
 const formOf = (canonical: string): string =>
