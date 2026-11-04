@@ -13,7 +13,7 @@ The state is in the milestone and its epics, the issue labels and `deps` blocks,
 
 The GitHub project "ReqSeq" is filled by the `project-sync` workflow from the labels and state (milestone and parent epic show as built-in fields), so change those and sub-issues, never project fields. The model (product owner decision, 2026-11-01, #595):
 
-- **Milestones are the roadmap gates**: `v0.7 Pilot ready`, `v0.8 Consolidation`, `v0.9 Own use and simplicity`, `v1.0 Trust and distribution`. They say when. Stages 1–6 ended with v0.6; from v0.7 on a milestone takes the place of a stage, and „Stage done“ below applies to it, with its version.
+- **Milestones are the roadmap gates**: `v0.7 Pilot ready`, `v0.8 Consolidation`, `v0.9 Own use and simplicity`, `v1.0 Trust and distribution`. They say when. From v0.7 on a milestone takes the place of a stage; „Milestone done“ below says when it ends.
 - **Epics are lanes across the milestones** (label `epic`, the issues as sub-issues): data, CLI/MCP, app, performance, cross-cutting SRs (#7), development, docs and security. They say what.
 - **Every open issue** except the epics has exactly one of `sr`, `enabler`, `bug` and `spec-frage`, one milestone, one of `P1` (must for the milestone), `P2` (should), `P3` (could), and hangs under one epic. The `default-assignee` workflow assigns the owner to every issue and PR opened without an assignee (not to ones a workflow opens with `github.token`). SR issues stay under the epic of their spec package (the stage epics, and the Querschnitt epic #7 as the lane for cross-cutting SRs); SRs in a milestone package (`v0.9`) hang under the lane epic of their topic (`spec-change`). `spec-change` gives new SR issues their priority, and their milestone unless the script set it from a milestone package. `querschnitt` marks cross-cutting SRs; `stage:<n>` remains only on SR issues the spec puts in a stage package. Findings from a pilot run also get `pilot`.
 - **A new issue meets the issue threshold in CLAUDE.md and is classified when it is opened.** A wish for after 1.0 becomes an element in package „Später“ (`spec-change`) and the issue is closed with a link to it. At 1.0 no issue is open (product owner decision, 2026-10-31).
@@ -32,6 +32,10 @@ Before agents take the first issues of a stage, one agent at effort high checks 
 
 Run at most three agents at once, reviewers included (budget rule, product owner decision, 2026-10-28). Each takes one unblocked issue without `agent:working` to a PR. Review and merge follow `merge.md` in this folder. All agents are Opus at effort medium. Keep two agents off the same package when their changes overlap. Keep working while agents run, and keep their reports short (PR, state, findings, follow-ups). For an AK with visible behaviour, the PR shows the evidence: the CLI output, or a light-theme screenshot from the PR's Electron test. A PR writes no demo file. When a sequence (a group of issues worked one after another, named in the epic's order table) is merged, show the product owner its visible behaviour in one short demo from that evidence. Side questions that do not belong to the stage go to the coordinator, and agents that stopped with `blocked` or `needs-human` are listed for the product owner. There is no fixed CI round. Look at CI only when a PR waits unusually long for it (about 30 minutes) or turns red again and again, and then report the cause to the coordinator with a fix (product owner decision, 2026-10-28).
 
+## Ending a turn
+
+A turn that ends while items of the stage are open and nothing blocks them is not the end of the work. Do not end a turn with a summary that only announces the next step, an offer to continue, or a list of decisions none of which blocks the rest; put status notes and recommendations in the same message as the next step. Stop only when nothing can move without the product owner, or before an irreversible step. The work is done only by „Milestone done“ below.
+
 ## Checks against the spec
 
 After each merged sequence and once before the acceptance, a fresh agent compares the closed SR issues of the stage with their AKs and the spec text, and runs `pnpm trace-check --stage <n>`. Gaps become issues. The report marks what the agent could not confirm and says where it looked. Collect the open `spec-frage` issues into one message for the product owner at most once a day, and enter the answers with `spec-change`.
@@ -40,14 +44,14 @@ After each merged sequence and once before the acceptance, a fresh agent compare
 
 Hand over to a fresh lead thread at natural breaks (the end of a stage, after a quality gate, before the work moves to another thread or container), in the evening before the night's work, and once a day as a safety net. Save the state to the handover file and to project memory (`reqseq-stufe<n>`), then ask the coordinator for the new thread. A long context alone is no reason to stop, because the session summarizes it.
 
-## Stage done
+## Milestone done
 
-A stage is done when all its SR issues are closed and `pnpm trace-check --stage <n> --report trace-stage-<n>.md` passes; post the report in the stage epic. Then:
+A milestone is done when all its issues are closed and `pnpm trace-check --stage <package> --report trace-<package>.md` passes for the SRs it closes (`querschnitt` for v0.8, the milestone identifier from v0.9 on); post the report in the epic. Then:
 
-1. A PR adds `<n>` to `COMPLETED_STAGES` in `packages/core/src/commands/registry.test.ts`.
-2. Prepare the acceptance: what to try in the app or CLI, the `verification/` records with method Inspektion or Demonstration, and the known limitations.
-3. Stage 3 also passes gate G2a (N-032): the product owner accepts the look and feel of the app personally (simple, minimalist, aesthetic, Logseq as the benchmark; there is no SR for it). Prepare screenshots and a short demo, and label the epic `needs-human`. Never mark it accepted yourself.
-4. A PR bumps the root `version` to `0.<n>.0` (and runs `pnpm contracts:generate`). Then start the `Release` workflow by hand (ADR-0014).
-5. After the product owner accepts, tag `v0.<n>` through the REST API with the session's token, because a tag made with a workflow's `GITHUB_TOKEN` starts no workflow. Then start the next stage.
+1. Prepare the acceptance: what to try in the app or CLI, the `verification/` records with method Inspektion or Demonstration, and the known limitations.
+2. A PR bumps the root `version` (and runs `pnpm contracts:generate`). Then start the `Release` workflow by hand once; it publishes nothing and finds packaging regressions before the acceptance (ADR-0014).
+3. After the product owner accepts, the product owner sets the release tag ADR-0014 names on the checked commit; agents cannot create tags. The tag starts the `Release` workflow, which writes the release notes. Never mark a milestone accepted yourself.
 
-Stage 1 needs stage 0 merged. Every later stage needs the release tag `v0.<n-1>` of the stage before.
+## Old pattern: stages 1–6
+
+Stages 1–6 ended with v0.6. Their „Stage done“ also added the stage to `COMPLETED_STAGES` in `packages/core/src/commands/registry.test.ts`; milestones add nothing there.
