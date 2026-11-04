@@ -21,6 +21,15 @@
 //   as all store data is, and a file changed outside ReqSeq to another size or time is read again
 //   even before the watcher's batch (S4 of the plan review); a same-size change within the time
 //   resolution waits for that batch. Elements that embed images have none (they are checked on use).
+// - After a metamodel change the cached versions keep the old fingerprint (#755). The first build
+//   reads those files as above and collects each version it computed from the bytes of the
+//   snapshot for an element a read would give one (no image link) whose loaded version is missing
+//   or of another fingerprint; when there is one, the model cache is written again with them
+//   (`saveVersionsAgain`, in the background), so the next start takes them without a read. Any
+//   number is enough: unlike changed files, these never become fresh on their own. No other file
+//   is read for it. It fires whenever cached versions are missing or of another fingerprint (in
+//   practice once after a metamodel change), not when the metamodel changed again during the
+//   build; closing the workspace (the end of a CLI command) waits for the write.
 // - Images are no Markdown files, and the watcher drops their events (ADR-0008). Each version keeps
 //   what the lookup of its images found (`ImageSeen`); `currentVersions` checks it on use and
 //   computes the versions of elements whose images changed again.
@@ -42,6 +51,7 @@ import type { ImageMemo, ImageSeen, ImageSource, LookedUpImages } from "./images
 import { imageLinks, imageMemo, imagesUnchanged, lookUpImages, mapBounded } from "./images.js";
 import type { LoadedVersion, Versioning } from "./loaded-version.js";
 import { typeVersioningOf, versioningOf } from "./loaded-version.js";
+import { saveVersionsAgain } from "./model-cache.js";
 import type { ElementStore } from "./store.js";
 import { carryStoreUpdate, elementStoreState, ignoredBy, loadedVersionsOf } from "./store.js";
 import { NORMAL_FORM } from "../version/version.js";
@@ -108,6 +118,12 @@ interface Run {
   readonly loaded: ReadonlyMap<ElementRecord, LoadedVersion>;
   /** What counts for a version now, to compare with a loaded one; undefined: none is taken. */
   readonly versioning: Versioning | undefined;
+  /**
+   * When given, collects the versions for the model cache (#755): of each record whose file was read
+   * with the bytes of its snapshot and whose loaded version is missing or has another fingerprint,
+   * where a read now would give one (`loadedVersion`: no image link).
+   */
+  readonly relearned?: Map<ElementRecord, LoadedVersion>;
 }
 
 /** `versioningOf` of each metamodel, so a page does not hash the types again. */
@@ -211,13 +227,28 @@ const versionNow = async (run: Run, record: ElementRecord): Promise<CurrentVersi
   }
   // A number that counts and is not finite (`.inf`, `.nan`) has no canonical form; anything else is a bug.
   const version = versionOrRangeError(() => elementVersion(element, body, run.metamodel, found.images));
-  return version instanceof RangeError
-    ? {
-        kind: "unknown",
-        reason: "not-computable",
-        message: notComputableMessage(record, version),
-      }
-    : { kind: "version", version, images: found.seen, ...(element === record ? {} : { element }) };
+  if (version instanceof RangeError) {
+    return { kind: "unknown", reason: "not-computable", message: notComputableMessage(record, version) };
+  }
+  if (read.kind === "same" && links.length === 0) {
+    relearn(run, record, body, version);
+  }
+  return { kind: "version", version, images: found.seen, ...(element === record ? {} : { element }) };
+};
+
+/**
+ * Keeps `version`, computed from the bytes of `record`'s snapshot (its text `body`), in `run.relearned`
+ * when the record's loaded version is missing or has another fingerprint than its type has now, and a
+ * read would give one: no image link even to an ignored path, as `loadedVersion` tests it.
+ */
+const relearn = (run: Run, record: ElementRecord, body: string, version: string): void => {
+  if (run.relearned === undefined || run.versioning === undefined) {
+    return;
+  }
+  const { fingerprint } = typeVersioningOf(run.versioning, record.type);
+  if (run.loaded.get(record)?.fingerprint !== fingerprint && imageLinks(record.file, body).length === 0) {
+    run.relearned.set(record, { byForm: { [NORMAL_FORM]: version }, fingerprint });
+  }
 };
 
 /**
@@ -251,16 +282,23 @@ const entriesOf = async (
   return byRecord;
 };
 
-/** The current version of every element of `store` (`CurrentVersions`). */
+/**
+ * The current version of every element of `store` (`CurrentVersions`). With `relearned`, it also
+ * collects the versions the model cache should hold again (`Run.relearned`, #755).
+ */
 export const buildCurrentVersions = async (
   store: ElementStore,
   layout: WorkspaceLayout,
   metamodel: Metamodel,
+  relearned?: Map<ElementRecord, LoadedVersion>,
 ): Promise<CurrentVersions> => ({
   store,
   layout,
   metamodel,
-  byRecord: await entriesOf(runOf({ store, layout, metamodel }), store.elements),
+  byRecord: await entriesOf(
+    { ...runOf({ store, layout, metamodel }), ...(relearned === undefined ? {} : { relearned }) },
+    store.elements,
+  ),
 });
 
 /**
@@ -284,12 +322,20 @@ export const carryCurrentVersions = async (
 export const currentVersionsState = defineWorkspaceState(
   "current-versions",
   async (workspace): Promise<CurrentVersions> => {
+    const metamodelValue = workspace.get(metamodelState);
     const [store, layout, metamodel] = await Promise.all([
       workspace.get(elementStoreState),
       workspace.get(workspaceLayoutState),
-      workspace.get(metamodelState),
+      metamodelValue,
     ]);
-    return buildCurrentVersions(store, layout, metamodel);
+    const relearned = new Map<ElementRecord, LoadedVersion>();
+    const versions = await buildCurrentVersions(store, layout, metamodel, relearned);
+    // Read files whose cached versions are of another metamodel: the cache keeps their new ones
+    // (#755), unless the metamodel changed meanwhile: a newer build writes the versions of that one.
+    if (workspace.peek(metamodelState) === metamodelValue) {
+      saveVersionsAgain(workspace, store, relearned);
+    }
+    return versions;
   },
   {
     dependsOn: [elementStoreState, metamodelState],
