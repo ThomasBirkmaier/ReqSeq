@@ -446,18 +446,9 @@ describe("the versions of the model cache after a metamodel change (#755)", () =
       versions.store.elements.map((r) => [`${r.repository}/${r.file}`, currentVersionOf(versions, r)]),
     );
 
-  it("are written again with the versions for the new metamodel, so the next start reads no file for them", async () => {
-    const fixture = await createFixtureWorkspace({ fixture: "SR-019/findings", files: PICTURES });
-    onTestFinished(() => fixture.cleanup());
-    const cacheFolder = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-relearn-"));
-    onTestFinished(() => fs.rm(cacheFolder, { recursive: true, force: true }));
+  /** Makes the title count for the version of every type: each version as read is of another fingerprint then. */
+  const countTitle = async (fixture: FixtureWorkspace): Promise<void> => {
     const model = await fs.readFile(fixture.path("metamodel/model.yaml"), "utf8");
-    await settle(fixture.root);
-    // The first start writes the cache; the second takes every file from it.
-    await start(fixture.root, cacheFolder);
-    const cached = await start(fixture.root, cacheFolder);
-    expect(cached.read).toEqual(["pictures/N-c00000000001.md"]);
-    // The title counts now: every cached version is of the old metamodel and is read again once.
     await fixture.write(
       "metamodel/model.yaml",
       model.replace(
@@ -465,6 +456,30 @@ describe("the versions of the model cache after a metamodel change (#755)", () =
         "{ key: title, name: Title, kind: text, meaning: title, content: true }",
       ),
     );
+  };
+
+  /** A workspace whose files have settled, with a model cache a first start wrote; then the title counts. */
+  const cachedThenChanged = async (): Promise<{
+    fixture: FixtureWorkspace;
+    cacheFolder: string;
+    cached: { versions: CurrentVersions; read: string[] };
+  }> => {
+    const fixture = await createFixtureWorkspace({ fixture: "SR-019/findings", files: PICTURES });
+    onTestFinished(() => fixture.cleanup());
+    const cacheFolder = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-relearn-"));
+    onTestFinished(() => fs.rm(cacheFolder, { recursive: true, force: true }));
+    await settle(fixture.root);
+    // The first start writes the cache; the second takes every file from it.
+    await start(fixture.root, cacheFolder);
+    const cached = await start(fixture.root, cacheFolder);
+    expect(cached.read).toEqual(["pictures/N-c00000000001.md"]);
+    await countTitle(fixture);
+    return { fixture, cacheFolder, cached };
+  };
+
+  it("are written again with the versions for the new metamodel, so the next start reads no file for them", async () => {
+    const { fixture, cacheFolder, cached } = await cachedThenChanged();
+    // Every cached version is of the old metamodel and is read again once.
     const changed = await start(fixture.root, cacheFolder);
     expect(changed.read.length).toBe(changed.versions.store.elements.length);
     expect(byFile(changed.versions)).not.toEqual(byFile(cached.versions));
@@ -472,6 +487,51 @@ describe("the versions of the model cache after a metamodel change (#755)", () =
     const again = await start(fixture.root, cacheFolder);
     expect(again.read).toEqual(["pictures/N-c00000000001.md"]);
     expect(byFile(again.versions)).toEqual(byFile(changed.versions));
+  });
+
+  it("are not written by a build after which the metamodel state changed", async () => {
+    const { fixture, cacheFolder } = await cachedThenChanged();
+    const workspace = new Workspace(fixture.root, { cacheFolder });
+    try {
+      const building = currentVersions(workspace);
+      // The metamodel state is reset while the build runs (a change the watcher reports).
+      await workspace.reset(metamodelState);
+      expect(workspace.peek(metamodelState)).toBeUndefined();
+      await building;
+    } finally {
+      await workspace.close();
+    }
+    // Nothing was written: the next start still reads every file.
+    const next = await start(fixture.root, cacheFolder);
+    expect(next.read.length).toBe(next.versions.store.elements.length);
+  });
+
+  it("collects no version of a file changed since the snapshot or of an element that links only ignored images", async () => {
+    const { fixture, workspace } = await open({
+      "reqseq-workspace.yaml":
+        'reqseq-workspace: 1\nname: Weather station\nrepositories:\n  - { name: system, url: x, main: true }\nmetamodel: { repository: system, path: metamodel }\nignore: ["shy/*.png"]\n',
+      "shy/N-e00000000001.md": need("6e6e6e6e-6666-4666-8666-e00000000001", "Hidden: ![h](hidden.png)"),
+      "shy/hidden.png": "H",
+    });
+    const store = await workspace.get(elementStoreState);
+    await countTitle(fixture);
+    await workspace.reset(metamodelState);
+    const changed = await recordOf(workspace, "needs/N-a00000000001.md");
+    await fixture.write(changed.file, need(changed.id, "Other bytes."));
+    const shy = await recordOf(workspace, "shy/N-e00000000001.md");
+    const relearned = new Map<ElementRecord, LoadedVersion>();
+    const versions = await buildCurrentVersions(
+      store,
+      await workspace.get(workspaceLayoutState),
+      await workspace.get(metamodelState),
+      relearned,
+    );
+    // Both have a version now, and neither is kept for the cache; an unchanged plain one is.
+    expect(versions.byRecord.get(changed)).toMatchObject({ kind: "version" });
+    expect(versions.byRecord.get(shy)).toMatchObject({ kind: "version", images: [] });
+    expect(relearned.has(changed)).toBe(false);
+    expect(relearned.has(shy)).toBe(false);
+    expect(relearned.has(await recordOf(workspace, "needs/N-a00000000002.md"))).toBe(true);
   });
 
   it("collects no version for a file read again whose loaded version has the current fingerprint", async () => {

@@ -27,7 +27,9 @@
 //   or of another fingerprint; when there is one, the model cache is written again with them
 //   (`saveVersionsAgain`, in the background), so the next start takes them without a read. Any
 //   number is enough: unlike changed files, these never become fresh on their own. No other file
-//   is read for it.
+//   is read for it. It fires whenever cached versions are missing or of another fingerprint (in
+//   practice once after a metamodel change), not when the metamodel changed again during the
+//   build; closing the workspace (the end of a CLI command) waits for the write.
 // - Images are no Markdown files, and the watcher drops their events (ADR-0008). Each version keeps
 //   what the lookup of its images found (`ImageSeen`); `currentVersions` checks it on use and
 //   computes the versions of elements whose images changed again.
@@ -320,15 +322,19 @@ export const carryCurrentVersions = async (
 export const currentVersionsState = defineWorkspaceState(
   "current-versions",
   async (workspace): Promise<CurrentVersions> => {
+    const metamodelValue = workspace.get(metamodelState);
     const [store, layout, metamodel] = await Promise.all([
       workspace.get(elementStoreState),
       workspace.get(workspaceLayoutState),
-      workspace.get(metamodelState),
+      metamodelValue,
     ]);
     const relearned = new Map<ElementRecord, LoadedVersion>();
     const versions = await buildCurrentVersions(store, layout, metamodel, relearned);
-    // Read files whose cached versions are of another metamodel: the cache keeps their new ones (#755).
-    saveVersionsAgain(workspace, store, relearned);
+    // Read files whose cached versions are of another metamodel: the cache keeps their new ones
+    // (#755), unless the metamodel changed meanwhile: a newer build writes the versions of that one.
+    if (workspace.peek(metamodelState) === metamodelValue) {
+      saveVersionsAgain(workspace, store, relearned);
+    }
     return versions;
   },
   {

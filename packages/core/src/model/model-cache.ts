@@ -795,9 +795,10 @@ const origins = new WeakMap<ElementStore, CacheOrigin>();
 
 /**
  * Writes the model cache of `store` again with `versions` as the versions as read of its elements
- * (#755). After a metamodel change, the cached versions keep the fingerprint of the old one, so
- * `current-versions.ts` reads those files again and computes their versions for the new metamodel;
- * this save keeps them, so the next start takes them without a read. Only for a store that
+ * (#755). When cached versions are missing or of another fingerprint (after a metamodel change),
+ * `current-versions.ts` reads those files again and computes their versions for the metamodel now;
+ * this save keeps them, so the next start takes them without a read. Like every save, it runs in
+ * the background and closing the workspace (the end of a CLI command) waits for it. Only for a store that
  * `loadThroughCache` gave, and only when one of `versions` belongs to one of its elements; nothing
  * is read here. It is the save of that load (its `startedAt` and the checks of
  * `serializeModelCache`), so a file changed since the load stays out of the cache as it would then.
