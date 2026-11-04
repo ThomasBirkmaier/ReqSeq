@@ -217,7 +217,9 @@ describe("lazyCommand", () => {
       .mockRejectedValueOnce(new Error("not there"))
       .mockResolvedValue({ default: status });
     const command = lazyCommand("workspace.status", importModule);
-    await expect(command.load()).rejects.toThrow("not there");
+    // Two calls at the same time share the failed import; the next call imports again.
+    const failed = await Promise.allSettled([command.load(), command.load()]);
+    expect(failed.map((r) => r.status)).toEqual(["rejected", "rejected"]);
     expect(await command.load()).toBe(status);
     expect(importModule).toHaveBeenCalledTimes(2);
   });

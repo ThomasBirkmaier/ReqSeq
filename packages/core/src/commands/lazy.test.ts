@@ -1,16 +1,31 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+// The ReqIF converter and the Markdown packages only it uses (#178).
+const MARKDOWN = [
+  "../reqif/xhtml-markdown.js",
+  "hast-util-to-mdast",
+  "mdast-util-from-markdown",
+  "mdast-util-gfm",
+  "mdast-util-to-hast",
+  "mdast-util-to-markdown",
+  "micromark-extension-gfm",
+];
+
 afterEach(() => {
-  vi.doUnmock("../reqif/xhtml-markdown.js");
+  for (const name of MARKDOWN) {
+    vi.doUnmock(name);
+  }
   vi.resetModules();
 });
 
 describe("command list", () => {
-  it("does not import the ReqIF Markdown converter until a ReqIF command runs (#178)", async () => {
+  it("does not import the Markdown stack of ReqIF until a ReqIF command runs (#178)", async () => {
     vi.resetModules();
-    vi.doMock("../reqif/xhtml-markdown.js", () => {
-      throw new Error("reqif/xhtml-markdown.js was imported");
-    });
+    for (const name of MARKDOWN) {
+      vi.doMock(name, () => {
+        throw new Error(`${name} was imported`);
+      });
+    }
     const { commands } = await import("./index.js");
     expect(commands.map((c) => c.name)).toContain("reqif.import");
   });

@@ -183,8 +183,9 @@ export interface LazyCommand<N extends CommandName> extends CatalogCommand<N> {
 /**
  * Register a command whose module is imported on its first call, for commands whose dependencies
  * would slow down every start (#178): `lazyCommand("reqif.import", () => import("./reqif/import.js"))`.
- * The module's default export must be the command `N`, which the types check. A failed import is
- * not kept, so the next call tries again.
+ * The module's default export must be the command `N`, which the types check. An import that could
+ * not find or read the module is not kept, so the next call tries again; Node itself keeps a module
+ * whose evaluation threw and rethrows that error.
  */
 export const lazyCommand = <N extends CommandName>(
   name: N,
