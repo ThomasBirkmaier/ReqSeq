@@ -463,15 +463,23 @@ const OFFERS: Readonly<Record<Source, (asked: Asked) => Promise<Offer | Failed>>
         .map((kind) => ({ value: kind.key, name: kind.name })),
     );
   },
-  // The hints of the element that can be confirmed (those with a `hintId`), by their message.
+  // The hints of the element that can be confirmed (those with a `hintId`), by their message. Only
+  // the confirmable codes are asked for, on the largest page, so other hints of the element (since a
+  // baseline, states) cannot fill the page before them (#146).
   hint: async ({ context, of, taken }) =>
     typeof of === "string"
-      ? listOf(await context.call("hint.list", { ref: of }), (output) =>
-          output.hints.flatMap((hint) =>
-            hint.hintId === undefined || taken.includes(hint.hintId)
-              ? []
-              : [{ value: hint.hintId, name: hint.message }],
-          ),
+      ? listOf(
+          await context.call("hint.list", {
+            ref: of,
+            kind: ["relation.outdated", "variant.core-changed"],
+            limit: 5000,
+          }),
+          (output) =>
+            output.hints.flatMap((hint) =>
+              hint.hintId === undefined || taken.includes(hint.hintId)
+                ? []
+                : [{ value: hint.hintId, name: hint.message }],
+            ),
         )
       : await asText(),
   // No command asks a saved filter by name yet; typed text.

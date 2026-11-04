@@ -44,6 +44,12 @@ scenariosOf("hint.list", [
     expect: "output",
   },
   {
+    name: "one page of hints, total counts all (#146)",
+    fixture: HINTS,
+    input: { offset: 5, limit: 2 },
+    expect: "output",
+  },
+  {
     name: "hints of one element in the order of the check, by the single-element path (#145)",
     fixture: HINTS,
     input: { ref: "SAF-0000b4" },

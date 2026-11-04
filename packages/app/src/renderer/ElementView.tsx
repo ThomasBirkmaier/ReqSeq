@@ -26,7 +26,8 @@
 // file in `disk-state.ts`, the input and the file's values per field in `field-state.ts`, what a save sends
 // and says in `save-flow.ts`, the keys of the fields in `element-keys.ts`. It renders the parts without state:
 // the title and the text (`ElementText.tsx`), a property box (`PropertyField.tsx`), the relation groups
-// (`RelationLink.tsx`), the lines of its variants and verification status (`VariantLines.tsx`), the line
+// (`RelationLink.tsx`), the lines of its variants and verification status (`VariantLines.tsx`), its
+// evidence records (`EvidenceLines.tsx`), the line
 // and the elements of a package page (`PackageSummary.tsx`, `PackageMembers.tsx`) and a block "On disk"
 // (`OnDisk.tsx`).
 import { Prec } from "@codemirror/state";
@@ -115,6 +116,8 @@ import { PackageSummaryLine } from "./PackageSummary.js";
 import { PropertyField } from "./PropertyField.js";
 import { RelationGroups } from "./RelationLink.js";
 import { VariantLines } from "./VariantLines.js";
+import { hasStatus } from "./variant-lines.js";
+import { EvidenceLines } from "./EvidenceLines.js";
 import type { ConflictField, OutsideChange } from "./outside-change.js";
 import {
   TEXT_FIELD,
@@ -331,7 +334,7 @@ const useLinesAgain = (
   got: Pick<ElementGetOutput, "element" | "names"> | undefined,
   setGot: (output: Pick<ElementGetOutput, "element" | "names">) => void,
 ): void => {
-  const asked = got?.element.verification !== undefined || got?.element.validation !== undefined;
+  const asked = got !== undefined && hasStatus(got.element);
   useEffect(() => {
     if (elsewhere === 0 || !asked) {
       return;
@@ -1955,7 +1958,20 @@ export const ElementView = ({
                 />
               );
             })}
-            {got === undefined ? null : <VariantLines output={got} onOpenRelation={onOpenRelation} />}
+            {got === undefined ? null : (
+              <>
+                <VariantLines output={got} onOpenRelation={onOpenRelation} />
+                <EvidenceLines
+                  call={call}
+                  buffer={buffer}
+                  revision={revision}
+                  outside={outside.seq}
+                  ownSaves={() => settled.current}
+                  output={got}
+                  onOpenRelation={onOpenRelation}
+                />
+              </>
+            )}
             <RelationGroups
               element={dated(view.element)}
               onCopy={copy}

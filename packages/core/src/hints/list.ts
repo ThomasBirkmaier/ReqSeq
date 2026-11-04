@@ -26,13 +26,16 @@
 //   variant, glossary "Gültigkeit", unless the variant excludes or replaces it); `ref` the hints of
 //   one element. A hint whose element is not in the store (none: every state reports elements of
 //   the store) matches no element filter.
-// - The dates of outdated relations are asked of Git only for the hints that pass the filters.
+// - Pages (#146, as `trace.chain`): every hint that passes the filters is found and counted (`total`);
+//   the output holds `limit` hints from `offset`, in the order above.
+// - The dates of outdated relations are asked of Git only for the hints of the page.
 // - `ref` takes the single-element path of `element.get` (#145, ADR-0008): the hints at the element
 //   as `showElement` gives them with `elementHints` (dated), not the whole-workspace states, so it
 //   builds neither the incoming index nor the cycles of the store. They are put into the order of
 //   the check by code (`CHECK_ORDER`, a stable sort keeps the element's order within one state), the
 //   other filters apply as above, and since-baseline hints are computed only where
-//   `sinceBaselineVariants` admits the element. The image check of `currentVersions` is left out, as at `element.get`.
+//   `sinceBaselineVariants` admits the element; the page applies as above. The image check of
+//   `currentVersions` is left out, as at `element.get`.
 // - `incomplete` (SR-006 AK2): a repository of the workspace file is not on this machine, so the
 //   hints of its elements are not listed.
 import type { CommandName, Problem } from "../catalog.js";
@@ -50,6 +53,7 @@ import {
   currentVersions,
   duplicateIdentifierProblemsState,
   elementStoreState,
+  itemLimitProblemsState,
   problemElement,
   relationKey,
   relationLimitProblemsState,
@@ -103,6 +107,7 @@ export const HINT_STATES = [
   nestedVariantsState, // SR-039
   targetNotCoreProblemsState, // SR-041 AK8
   valueKindProblemsState, // SR-085
+  itemLimitProblemsState, // SR-171
   relationTypeProblemsState, // SR-086
   relationLimitProblemsState, // SR-152
   duplicateIdentifierProblemsState, // #305
@@ -126,6 +131,7 @@ const CHECK_ORDER: readonly (readonly string[])[] = [
   ["variant.nested"],
   ["variant.target-not-core"],
   ["element.wrong-value-kind"],
+  ["element.too-many-items"],
   ["relation.not-allowed"],
   ["relation.too-few", "relation.too-many"],
   ["element.duplicate-identifier"],
@@ -184,7 +190,17 @@ interface HintListInput {
   readonly package?: string;
   readonly variant?: string;
   readonly ref?: string;
+  readonly limit: number;
+  readonly offset: number;
 }
+
+/** A page of hints: `limit` hints from `offset`. */
+export interface HintPage {
+  readonly limit: number;
+  readonly offset: number;
+}
+
+const EVERY_HINT: HintPage = { limit: Number.POSITIVE_INFINITY, offset: 0 };
 
 /** `key` with whether it holds a list, when it holds relations (`relationKey`); else undefined. */
 const relationEntry = (metamodel: Metamodel, key: string): PackagesKey | undefined => {
@@ -288,8 +304,9 @@ const filtersElements = (filter: HintFilter): boolean =>
   filter.ref !== undefined;
 
 /**
- * The hints of `problems` and `outdated` (in this order) that pass `filter`, the outdated ones with
- * the dates of both versions (`datedProblems`, asked only for these). The short ID of each hint's
+ * The hints of `problems` and `outdated` (in this order) that pass `filter`: the page `page` (every
+ * hint by default) and `total`, the number of all that pass. The outdated ones of the page carry the
+ * dates of both versions (`datedProblems`, asked only for these). The short ID of each hint's
  * element (`elementShortId`) is added where every problem leaves the runtime (`invoke`, #315).
  */
 export const hintsOf = async (
@@ -298,7 +315,8 @@ export const hintsOf = async (
   filter: HintFilter,
   problems: Iterable<Problem>,
   outdated: readonly OutdatedFinding[],
-): Promise<Problem[]> => {
+  page: HintPage = EVERY_HINT,
+): Promise<{ readonly hints: Problem[]; readonly total: number }> => {
   const byElement = filtersElements(filter);
   const view =
     filter.variant === undefined ? undefined : viewRuleOf({ workspace, ...context }, filter.variant);
@@ -306,29 +324,28 @@ export const hintsOf = async (
     isHint(problem) &&
     (filter.kinds === undefined || filter.kinds.has(problem.code)) &&
     (!byElement || elementMatches(problemElement(context.store, problem), filter, context, view));
-  const hints: Problem[] = [];
+  const found: Problem[] = [];
   for (const problem of problems) {
     if (passes(problem)) {
-      hints.push(problem);
+      found.push(problem);
     }
   }
-  for (const problem of await datedProblems(
-    workspace,
-    outdated.filter((f) => passes(f.problem)),
-  )) {
-    hints.push(problem);
-  }
-  return hints;
+  const late = outdated.filter((f) => passes(f.problem));
+  const end = page.offset + page.limit;
+  const from = Math.max(0, page.offset - found.length);
+  const dated = await datedProblems(workspace, late.slice(from, Math.max(from, end - found.length)));
+  return { hints: [...found.slice(page.offset, end), ...dated], total: found.length + late.length };
 };
 
 /**
- * The hints of `filter.ref` that pass `filter`, by the single-element path (see the file comment):
- * no whole-workspace state of the hints is built.
+ * The page `page` of the hints of `filter.ref` that pass `filter`, with `total`, by the
+ * single-element path (see the file comment): no whole-workspace state of the hints is built.
  */
 const hintsOfElement = async (
   context: ShowContext,
   filter: HintFilter & { readonly ref: ElementRecord },
-): Promise<Problem[]> => {
+  page: HintPage,
+): Promise<{ readonly hints: Problem[]; readonly total: number }> => {
   const { ref } = filter;
   const since = sinceBaselineVariants(context, filter).includes(ref);
   const shown = await showElement(
@@ -338,14 +355,14 @@ const hintsOfElement = async (
     false,
     { repository: ref.repository, file: ref.file },
   );
-  return hintsOf(context.workspace, context, filter, inCheckOrder(shown.element.problems), []);
+  return hintsOf(context.workspace, context, filter, inCheckOrder(shown.element.problems), [], page);
 };
 
 /** `hint.list`: the open hints of `workspace` that pass the filters of `input` (see the file comment). */
 export const listHints = async (
   workspace: Workspace,
   input: HintListInput,
-): Promise<{ readonly hints: Problem[]; readonly incomplete: boolean }> => {
+): Promise<{ readonly hints: Problem[]; readonly total: number; readonly incomplete: boolean }> => {
   const [layout, metamodel, store, shortIds] = await Promise.all([
     workspace.get(workspaceLayoutState),
     workspace.get(metamodelState),
@@ -356,11 +373,12 @@ export const listHints = async (
   const incomplete = availableRepositories(layout).length < layout.repositories.length;
   if (!metamodel.valid) {
     // No hints against a metamodel that is not valid: its errors are the findings (#208, #220).
-    return { hints: [], incomplete };
+    return { hints: [], total: 0, incomplete };
   }
+  const page = { limit: input.limit, offset: input.offset };
   if (filter.ref !== undefined) {
     const context = { workspace, layout, metamodel, store, shortIds };
-    return { hints: await hintsOfElement(context, { ...filter, ref: filter.ref }), incomplete };
+    return { ...(await hintsOfElement(context, { ...filter, ref: filter.ref }, page)), incomplete };
   }
   // The images the watcher does not report are checked first, as the check does (ADR-0008).
   await currentVersions(workspace);
@@ -381,7 +399,7 @@ export const listHints = async (
   }
   const outdated = await workspace.get(outdatedRelationsState);
   return {
-    hints: await hintsOf(workspace, { metamodel, store }, filter, problems, outdated),
+    ...(await hintsOf(workspace, { metamodel, store }, filter, problems, outdated, page)),
     incomplete,
   };
 };

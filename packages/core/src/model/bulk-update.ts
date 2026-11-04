@@ -51,6 +51,7 @@ import type { ElementStore } from "./store.js";
 import type { TargetContext } from "./targets.js";
 import { numberInput } from "./number-input.js";
 import { currentTarget, relationTargetRefs, setMarkdownReferences, setRelationTargets } from "./targets.js";
+import { itemLimitFindings } from "./item-limits.js";
 import { valueFindings } from "./values.js";
 import { titleKeyOf } from "./view.js";
 import type { ElementFileWrite, ReadElement, WriteCheck } from "./write.js";
@@ -103,8 +104,8 @@ export interface BulkUpdateResult {
   /** Written files relative to the workspace root, `/` as separator; empty in a preview. */
   readonly files: readonly string[];
   /**
-   * The value-kind (SR-085) and relation-type (SR-086) hints at the property in the affected elements
-   * after the change; in a preview also the findings of the write check that a confirmation refuses.
+   * The value-kind (SR-085), item-limit (SR-171) and relation-type (SR-086) hints at the property
+   * in the affected elements after the change; in a preview also the findings of the write check that a confirmation refuses.
    */
   readonly problems: readonly Problem[];
 }
@@ -359,16 +360,18 @@ const editsFor = async (plan: Plan, record: ElementRecord): Promise<FrontmatterE
 };
 
 /**
- * The value-kind (SR-085) and relation-type (SR-086) hints at `key` in `elements` (as written, or as
- * they would be), each with its line in that file.
+ * The value-kind (SR-085), item-limit (SR-171) and relation-type (SR-086) hints at `key` in
+ * `elements` (as written, or as they would be), each with its line in that file.
  */
 const hintsAt = (key: string, elements: readonly ReadElement[], selection: BulkSelection): Problem[] =>
   elements.flatMap(({ file, record }) =>
     locateIn(
       file,
-      [...valueFindings(record, selection.metamodel), ...relationTypeFindings(record, selection)].filter(
-        (finding) => finding.path[0] === key,
-      ),
+      [
+        ...valueFindings(record, selection.metamodel),
+        ...itemLimitFindings(record, selection.metamodel),
+        ...relationTypeFindings(record, selection),
+      ].filter((finding) => finding.path[0] === key),
     ),
   );
 

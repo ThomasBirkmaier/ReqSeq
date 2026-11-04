@@ -125,6 +125,7 @@ describe("hint.list with ref takes the single-element path (#145)", () => {
       ...(await sameByRef({ fixture: "SR-040/validity" })),
       ...(await sameByRef({ fixture: "SR-039/nested" })),
       ...(await sameByRef({ fixture: "SR-152/limits" })),
+      ...(await sameByRef({ fixture: "SR-171/max-items" })),
       ...(await sameByRef(CORE_CHANGED)),
       ...(await sameByRef(MORE_HINTS)),
       ...(await sameByRef(DUPLICATE_IDENTIFIER)),
@@ -137,6 +138,7 @@ describe("hint.list with ref takes the single-element path (#145)", () => {
       "element.missing-status",
       "element.statement-without-text",
       "element.status-not-allowed",
+      "element.too-many-items",
       "element.unknown-property",
       "element.unknown-type",
       "element.wrong-value-kind",
@@ -164,6 +166,25 @@ describe("hint.list with ref takes the single-element path (#145)", () => {
     expect(await sameByRef({ fixture: "SR-026/hints" }, "", { type: ["system-requirement"] })).toContain(
       "element.missing-required",
     );
+  });
+
+  it("pages the hints of one element as the whole list does: limit from offset, total counts all", async () => {
+    const workspace = await open({ fixture: "SR-026/hints", git: true });
+    const all = await list(workspace, { ref: "SR-0000b1" });
+    expect(all.total).toBe(2);
+    expect(all.hints).toHaveLength(2);
+    for (const [offset, limit] of [
+      [1, 1],
+      [0, 1],
+      [2, 5],
+    ] as const) {
+      expect(await list(workspace, { ref: "SR-0000b1", offset, limit })).toEqual({
+        hints: all.hints.slice(offset, offset + limit),
+        total: 2,
+        incomplete: false,
+      });
+    }
+    expect(workspace.peek(derivationCycleProblemsState)).toBeUndefined();
   });
 
   it("orders the hints of one element by the states of the check, a code it does not name last", () => {

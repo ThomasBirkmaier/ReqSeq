@@ -21,7 +21,8 @@ import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js"
 import { availableRepositories, canonicalRoot, readCacheFile, writeCacheFile } from "../workspace/index.js";
 import type { Contribution } from "./contribution.js";
 import type { LoadedVersion } from "./loaded-version.js";
-import type { LoadedStore } from "./store.js";
+import type { ElementRecord } from "./elements.js";
+import type { ElementStore, LoadedStore } from "./store.js";
 import { isUuid } from "./uuid.js";
 
 /** A contribution the cache can hold: one of a file that parsed, so it has the snapshot of its bytes. */
@@ -775,8 +776,58 @@ export const loadThroughCache = async (
   const root = canonicalRoot(workspace.root);
   const use = new CacheUse(await readModelCache(folder, root));
   const store = await load(use.split);
+  origins.set(store, { folder, root, startedAt, store });
   if (use.outOfDate(store)) {
     queueCacheSave(workspace, () => save(folder, root, store, startedAt));
   }
   return store;
+};
+
+/** Where a store `loadThroughCache` gave came from, to write its cache again (`saveVersionsAgain`). */
+interface CacheOrigin {
+  readonly folder: string;
+  readonly root: string;
+  readonly startedAt: number;
+  readonly store: LoadedStore;
+}
+
+const origins = new WeakMap<ElementStore, CacheOrigin>();
+
+/**
+ * Writes the model cache of `store` again with `versions` as the versions as read of its elements
+ * (#755). When cached versions are missing or of another fingerprint (after a metamodel change),
+ * `current-versions.ts` reads those files again and computes their versions for the metamodel now;
+ * this save keeps them, so the next start takes them without a read. Like every save, it runs in
+ * the background and closing the workspace (the end of a CLI command) waits for it. Only for a store that
+ * `loadThroughCache` gave, and only when one of `versions` belongs to one of its elements; nothing
+ * is read here. It is the save of that load (its `startedAt` and the checks of
+ * `serializeModelCache`), so a file changed since the load stays out of the cache as it would then.
+ */
+export const saveVersionsAgain = (
+  workspace: Workspace,
+  store: ElementStore,
+  versions: ReadonlyMap<ElementRecord, LoadedVersion>,
+): void => {
+  const origin = origins.get(store);
+  if (origin === undefined) {
+    return;
+  }
+  let replaced = 0;
+  const repositories = origin.store.repositories.map((contents) => ({
+    ...contents,
+    files: new Map(
+      [...contents.files].map(([file, contribution]): [string, Contribution] => {
+        const version = contribution.kind === "element" ? versions.get(contribution.element) : undefined;
+        if (contribution.kind !== "element" || version === undefined) {
+          return [file, contribution];
+        }
+        replaced += 1;
+        return [file, { ...contribution, version }];
+      }),
+    ),
+  }));
+  if (replaced > 0) {
+    const { folder, root, startedAt } = origin;
+    queueCacheSave(workspace, () => save(folder, root, { ...origin.store, repositories }, startedAt));
+  }
 };

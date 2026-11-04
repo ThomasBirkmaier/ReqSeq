@@ -283,13 +283,13 @@ export interface Problem {
   readonly currentDate?: string | null;
   /** Stable ID of a confirmable hint (D-042); on the hint.* problems of hint.confirm, the ID as given. */
   readonly hintId?: string;
-  /** The relation kind a count hint is about (`relation.too-many`, `relation.too-few`, SR-152). */
+  /** The relation kind (`relation.too-many`, `relation.too-few`, SR-152) or the property (`element.too-many-items`, SR-171) a count hint is about. */
   readonly key?: Key;
   /** The target type of the limit a count hint is about (SR-152). */
   readonly targetType?: Key;
-  /** How many relations the element has that the limit counts (SR-152). */
+  /** How many relations the element has that the limit counts (SR-152), or how many entries its list property has (SR-171). */
   readonly count?: number;
-  /** The maximum (`relation.too-many`) or minimum (`relation.too-few`) the metamodel sets (SR-152). */
+  /** The maximum (`relation.too-many`, `element.too-many-items`) or minimum (`relation.too-few`) the metamodel sets (SR-152, SR-171). */
   readonly limit?: number;
 }
 
@@ -316,6 +316,7 @@ export type ProblemCode =
   | "element.status-not-allowed"
   | "element.missing-status"
   | "element.statement-without-text"
+  | "element.too-many-items"
   | "element.text-emptied"
   | "relation.missing-target"
   | "relation.unresolved-link"
@@ -1102,6 +1103,8 @@ export interface MetamodelProperty {
   readonly content?: boolean;
   /** Values are Markdown like the text: emphasis, code and inline references `[label](reqseq:<uuid>?version=...)`, which are followed, checked and confirmed like those in the text (SR-127). Only for kind `text`, and never with the meaning `title` or `identifier`. It does not change the version of an element (ADR-0005); images in such a value are no embedded images. */
   readonly markdown?: boolean;
+  /** At most this many entries in the list (SR-171): an element with more is the hint `element.too-many-items` when the workspace is checked, never a refusal. Only with `many: true` and not for kind `relation`. Absent: any number. */
+  readonly "max-items"?: number;
   readonly meaning?: MetamodelPropertyMeaning;
 }
 
@@ -1540,7 +1543,7 @@ export interface WorkspaceStatusOutput {
 }
 
 /**
- * Input of `workspace.check` as `run` gets it: validated, properties with a `default` filled in. Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, requirements with a statement but no text (a warning), missing targets, cycles, requirements without a parent (a warning, SR-022 AK6), elements with more or fewer relations of a kind than its limits allow (a hint), duplicate IDs, outdated relations, evidence records that cannot be read or name an unknown element, a repository that is a workspace of its own whose metamodel counts other properties to the version. ok is false, and the CLI exits 1, on findings at or above failOn (default error).
+ * Input of `workspace.check` as `run` gets it: validated, properties with a `default` filled in. Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, requirements with a statement but no text (a warning), missing targets, cycles, requirements without a parent (a warning, SR-022 AK6), elements with more or fewer relations of a kind than its limits allow (a hint), lists with more entries than the property's max-items (a hint), duplicate IDs, outdated relations, evidence records that cannot be read or name an unknown element, a repository that is a workspace of its own whose metamodel counts other properties to the version. ok is false, and the CLI exits 1, on findings at or above failOn (default error).
  * Schema: `schemas/commands/workspace.check.json input`.
  */
 export interface WorkspaceCheckInput {
@@ -1555,7 +1558,7 @@ export interface WorkspaceCheckInput {
 }
 
 /**
- * Output of `workspace.check`. Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, requirements with a statement but no text (a warning), missing targets, cycles, requirements without a parent (a warning, SR-022 AK6), elements with more or fewer relations of a kind than its limits allow (a hint), duplicate IDs, outdated relations, evidence records that cannot be read or name an unknown element, a repository that is a workspace of its own whose metamodel counts other properties to the version. ok is false, and the CLI exits 1, on findings at or above failOn (default error).
+ * Output of `workspace.check`. Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, requirements with a statement but no text (a warning), missing targets, cycles, requirements without a parent (a warning, SR-022 AK6), elements with more or fewer relations of a kind than its limits allow (a hint), lists with more entries than the property's max-items (a hint), duplicate IDs, outdated relations, evidence records that cannot be read or name an unknown element, a repository that is a workspace of its own whose metamodel counts other properties to the version. ok is false, and the CLI exits 1, on findings at or above failOn (default error).
  * Schema: `schemas/commands/workspace.check.json output`.
  */
 export interface WorkspaceCheckOutput {
@@ -1939,7 +1942,7 @@ export interface ElementBulkUpdateOutput {
   }[];
   /** Written files relative to the workspace root; empty in a preview. */
   readonly files: readonly string[];
-  /** Hints at the property in the affected elements after the change: value kind (SR-085), target types (SR-086). */
+  /** Hints at the property in the affected elements after the change: value kind (SR-085), more entries than `max-items` (SR-171), target types (SR-086). */
   readonly problems: readonly Problem[];
   readonly incomplete?: Incomplete;
 }
@@ -2452,7 +2455,7 @@ export interface TraceGraphOutput {
 }
 
 /**
- * Input of `hint.list` as `run` gets it: validated, properties with a `default` filled in. Open hints of the workspace, filterable by kind, type, package or variant.
+ * Input of `hint.list` as `run` gets it: validated, properties with a `default` filled in. Open hints of the workspace, filterable by kind, type, package or variant; one page of hints at a time, total counts all.
  * Schema: `schemas/commands/hint.list.json input`.
  */
 export interface HintListInput {
@@ -2466,15 +2469,21 @@ export interface HintListInput {
   readonly variant?: ElementRef;
   /** Only the hints about this element. */
   readonly ref?: ElementRef;
+  /** Hints of the page; total counts all. Every page finds every hint again; only the dates of outdated relations (D-013) are asked for the hints of the page alone. */
+  readonly limit: number;
+  /** Hints skipped before the page, in the order of `hints`. */
+  readonly offset: number;
 }
 
 /**
- * Output of `hint.list`. Open hints of the workspace, filterable by kind, type, package or variant.
+ * Output of `hint.list`. Open hints of the workspace, filterable by kind, type, package or variant; one page of hints at a time, total counts all.
  * Schema: `schemas/commands/hint.list.json output`.
  */
 export interface HintListOutput {
-  /** The open hints: findings of severity warning about one element (glossary "Hinweis": the element should be checked; it blocks nothing and changes no status), from the same whole-workspace findings as workspace.check; errors, info and warnings about no element are not hints. Filters combine with AND. Each hint with its kind (code), the element it is about (elementId, repository, file, line), its target where it has one (targetId; with targetRepository, targetShortId and targetIdentifier when it was resolved to one element, #172) and its reason (message; for an outdated relation with both versions and their dates, D-013). In the order of workspace.check. */
+  /** The open hints: findings of severity warning about one element (glossary "Hinweis": the element should be checked; it blocks nothing and changes no status), from the same whole-workspace findings as workspace.check; errors, info and warnings about no element are not hints. Filters combine with AND. Each hint with its kind (code), the element it is about (elementId, repository, file, line), its target where it has one (targetId; with targetRepository, targetShortId and targetIdentifier when it was resolved to one element, #172) and its reason (message; for an outdated relation with both versions and their dates, D-013). In the order of workspace.check. Only the page of `limit` hints from `offset` (in this order) is listed; `total` counts every hint that passes the filters. */
   readonly hints: readonly Problem[];
+  /** The number of all hints that pass the filters; `hints` holds the page of `limit` from `offset`. */
+  readonly total: number;
   /** True while a repository of the workspace file is not on this machine: the hints of its elements are not listed (SR-006 AK2). */
   readonly incomplete: Incomplete;
 }

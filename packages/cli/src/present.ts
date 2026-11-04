@@ -864,14 +864,17 @@ const matrixRowLines = (output: Rec, names: Names): string[] => {
 };
 
 /**
- * The note on a page shorter than `total`. The page is the list of elements: the nodes of a chain, the
- * elements of a list (never `names`).
+ * The note on a page shorter than `total`. The page is the list of elements or findings: the nodes of a
+ * chain, the elements of a list (never `names`), the hints of a list of hints (never `problems`).
  */
 const pageNote = (output: Rec): string[] => {
   const total = output["total"];
   const page = Object.entries(output).find(
     (entry): entry is [string, unknown[]] =>
-      entry[0] !== "names" && Array.isArray(entry[1]) && entry[1].length > 0 && entry[1].every(isElement),
+      entry[0] !== "names" &&
+      Array.isArray(entry[1]) &&
+      entry[1].length > 0 &&
+      (entry[1].every(isElement) || entry[1].every(isProblem)),
   )?.[1];
   return typeof total === "number" && page !== undefined && page.length < total
     ? [`Showing ${String(page.length)} of ${String(total)}; ask for more with --offset and --limit.`]

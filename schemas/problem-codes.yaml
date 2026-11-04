@@ -57,6 +57,9 @@ problems:
   element.statement-without-text:
     cause: A requirement has no text, but a value in the property with the meaning `statement`, which holds the supplier's statement on an imported requirement and does not count to the version. So a change of the requirement written there gives no new version and outdates no evidence or relation.
     remedy: Put the requirement into the element text with element.update, and keep the statement property for the supplier's statement.
+  element.too-many-items:
+    cause: An element has more entries in a list property than the `max-items` of the property in the metamodel allows (SR-171). The entries are kept; the hint only shows it.
+    remedy: Remove the entries that are too many, or raise or remove `max-items` in the metamodel.
   element.text-emptied:
     cause: An element.update gave an empty text to an element whose text was not empty, so the whole text was removed (#677). The save is done; the warning only shows it, since an empty text is mostly a broken shell substitution.
     remedy: If the text was removed by mistake, restore it from Git or give it again with element.update.

@@ -2,8 +2,8 @@ import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import { Workspace } from "../runtime/workspace.js";
 import type { Metamodel } from "./index.js";
-import { limitsOf, metamodelState } from "./index.js";
-import { limitProblems } from "./limits.js";
+import { limitsOf, maxItemsOf, metamodelState } from "./index.js";
+import { limitProblems, maxItemsProblems } from "./limits.js";
 
 /** The SR-152 fixture with `files` on top, its metamodel loaded. */
 const load = async (files: Readonly<Record<string, string>> = {}): Promise<Metamodel> => {
@@ -142,5 +142,52 @@ relations:
       // refines allows only safety requirements as sources, so its limit skips the parent type.
       "safety-requirement": [useCase, need, decision, refines],
     });
+  });
+});
+
+describe("max-items in the metamodel (SR-171)", () => {
+  it("reports max-items on a single value and on kind relation, and gives the others by key", async () => {
+    const metamodel = await load({
+      "metamodel/z-more.yaml": `reqseq-metamodel: 1
+properties:
+  - { key: criteria, name: Criteria, kind: text, many: true, max-items: 3 }
+  - { key: note, name: Note, kind: text, max-items: 1 }
+  - { key: holds, name: Holds, kind: relation, many: true, max-items: 2 }
+`,
+    });
+    expect(metamodel.problems).toEqual([
+      problem(
+        "error",
+        4,
+        "Property note has max-items, which needs a list (many: true) that holds no relations, not a single value",
+      ),
+      problem(
+        "error",
+        5,
+        "Property holds has max-items, which needs a list (many: true) that holds no relations, not kind relation",
+      ),
+    ]);
+    // A metamodel that is not valid has no item limits.
+    expect(maxItemsOf(metamodel).size).toBe(0);
+    const valid = await load({
+      "metamodel/z-more.yaml":
+        "reqseq-metamodel: 1\nproperties:\n  - { key: criteria, name: Criteria, kind: text, many: true, max-items: 3 }\n",
+    });
+    const limits = maxItemsOf(valid);
+    expect(maxItemsOf(valid)).toBe(limits);
+    expect(Object.fromEntries(limits)).toEqual({ criteria: { max: 3, label: "Criteria (criteria)" } });
+  });
+
+  it("reports max-items without a line when the definition has none", () => {
+    const property = { key: "note", name: "Note", kind: "text", "max-items": 1 } as const;
+    expect(maxItemsProblems([{ definition: property, file: "m.yaml", lineOf: () => undefined }])).toEqual([
+      {
+        code: "metamodel.invalid",
+        severity: "error",
+        file: "m.yaml",
+        message:
+          "Property note has max-items, which needs a list (many: true) that holds no relations, not a single value",
+      },
+    ]);
   });
 });
