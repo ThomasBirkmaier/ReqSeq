@@ -95,7 +95,8 @@ const valueOf = (
   if (property.kind === "relation") {
     return `${kind} → ${sideOf(property["target-types"], names)}`;
   }
-  const most = property["max-items"];
+  // A list limit only for a list: an invalid single value with `max-items` shows none.
+  const most = property.many === true ? property["max-items"] : undefined;
   return most === undefined ? kind : `${kind} · at most ${String(most)}`;
 };
 

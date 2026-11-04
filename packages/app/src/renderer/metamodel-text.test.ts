@@ -93,11 +93,13 @@ describe("metamodelText", () => {
     const text = metamodelText(
       metamodelOutput({
         types: [
-          effectiveType("need", ["criteria"]),
+          effectiveType("need", ["criteria", "single"]),
           { ...effectiveType("system-requirement", []), name: "System Requirement" },
         ],
         properties: [
           { key: "criteria", name: "Criteria", kind: "text", many: true, "max-items": 3, content: true },
+          // Invalid (returned with problems): a single value with a list limit shows none.
+          { key: "single", name: "Single", kind: "text", "max-items": 2, content: false },
         ],
         relations: [
           {
@@ -114,7 +116,7 @@ describe("metamodelText", () => {
       }),
     );
     expect(text.rows.map(words)).toEqual([
-      "type:need | NEED NEED need | extends - | Criteria criteria list of text · at most 3 counts to version | statuses ",
+      "type:need | NEED NEED need | extends - | Criteria criteria list of text · at most 3 counts to version | Single single text | statuses ",
       "type:system-requirement | System Requirement SYSTEMREQUIREMENT system-requirement | extends - | statuses ",
       "relation:derives-from | Derives from derives-from | any type → any type | → use-case: at most 1 | System Requirement → NEED: at least 1 | → NEED: 1 to 3 | → NEED: exactly 2",
     ]);

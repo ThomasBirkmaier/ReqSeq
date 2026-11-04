@@ -67,8 +67,9 @@ const RelationLine = ({ row }: { readonly row: RelationRow }): React.JSX.Element
         <span data-source="">{row.source}</span> → <span data-target="">{row.target}</span>
       </span>
     </div>
-    {row.limits.map((limit) => (
-      <div key={limit} className="mm-fact" data-limit="">
+    {row.limits.map((limit, at) => (
+      // Two limits can read the same (type names are not unique), so the place keys the line.
+      <div key={at} className="mm-fact" data-limit="">
         <span className="mm-fact-name">limit</span> <span className="mm-fact-value">{limit}</span>
       </div>
     ))}
