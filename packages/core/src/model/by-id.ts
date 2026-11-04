@@ -12,7 +12,7 @@ type ById = ReadonlyMap<string, readonly ElementRecord[]>;
 /** How often `recordsById` looked a `PatchedMap` up before its plain view was built. */
 const asks = new WeakMap<ById, number>();
 /** The plain view of each `PatchedMap` that has one: built once, kept while the map lives. */
-const views = new WeakMap<ById, ById>();
+const views = new WeakMap<ById, Map<string, readonly ElementRecord[]>>();
 /** The map `recordsById` read last and the plain map it reads for it; kept until another one is read. */
 let lastMap: ById | undefined;
 let lastView: ById = new Map();
@@ -41,7 +41,36 @@ const viewOf = (byId: PatchedMap<string, readonly ElementRecord[]>): ById | unde
 };
 
 /**
- * `byId.get(id)` for a hot read loop (`resolveTarget`, `resolveId`, the identifier index): the same
+ * Hands the plain view of `from` over to `to`, the patch of `from` with `changes` (`patchStore`):
+ * the view is changed in place, O(changed), so a store patched from one whose view was built gets
+ * its view without a copy. `from` has none afterwards; read hot again, it builds a new one.
+ */
+export const handOverView = (
+  from: ById,
+  to: ById,
+  changes: readonly (readonly [string, readonly ElementRecord[] | undefined])[],
+): void => {
+  const view = views.get(from);
+  if (view === undefined) {
+    return;
+  }
+  views.delete(from);
+  if (lastMap === from) {
+    lastMap = undefined;
+  }
+  for (const [id, records] of changes) {
+    if (records === undefined) {
+      view.delete(id);
+    } else {
+      view.set(id, records);
+    }
+  }
+  views.set(to, view);
+};
+
+/**
+ * `byId.get(id)` for a hot read loop (`resolveTarget`, `resolveId`, the identifier index, the
+ * derivation edges and walks, the neighbourhood and the matrix): the same
  * records (a list equal to the store's, not always the same array), read from a plain `Map`: the
  * store's own, or a plain view of a patched one once it was looked up `plainAt` times.
  */

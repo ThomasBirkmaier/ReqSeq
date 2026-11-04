@@ -22,6 +22,7 @@ import type { Reuse } from "./model-cache.js";
 import { loadThroughCache } from "./model-cache.js";
 import type { LoadedVersion, Versioning } from "./loaded-version.js";
 import { versioningOf } from "./loaded-version.js";
+import { handOverView } from "./by-id.js";
 import { byPath, inPathOrder } from "./path-order.js";
 import { PATCH_LIMIT } from "./patch-limits.js";
 import { PatchedMap } from "./patched-map.js";
@@ -387,16 +388,15 @@ const patched = (
     elements.push(kept);
   }
   const ids = new Set([...gone, ...came].map((record) => record.id));
-  const byId = PatchedMap.patch(
-    before.byId,
-    [...ids].map((id): [string, ElementRecord[] | undefined] => {
-      const list = [
-        ...(before.byId.get(id) ?? []).filter((record) => !gone.has(record)),
-        ...came.filter((record) => record.id === id),
-      ].sort(compare);
-      return [id, list.length === 0 ? undefined : list];
-    }),
-  );
+  const changes = [...ids].map((id): [string, ElementRecord[] | undefined] => {
+    const list = [
+      ...(before.byId.get(id) ?? []).filter((record) => !gone.has(record)),
+      ...came.filter((record) => record.id === id),
+    ].sort(compare);
+    return [id, list.length === 0 ? undefined : list];
+  });
+  const byId = PatchedMap.patch(before.byId, changes);
+  handOverView(before.byId, byId, changes);
   const { problems, nonElements } = keep ? before : collect(repositories);
   return {
     elements,
