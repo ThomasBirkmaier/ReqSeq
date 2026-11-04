@@ -1100,6 +1100,9 @@ describe("the status in the answer of a write (#214)", () => {
     // A text, which changes the version: the answer is measured against the new one, as element.get is.
     const texted = await update(opened, { ref: S1, text: "The station shows the wind speed every second." });
     const again = await get(opened, S1);
+    // The records are of the old version now: neither is current (SR-025 AK4).
+    expect(texted.element.verification).toEqual([{ view: "core", status: "outdated" }]);
+    expect(texted.element.validation).toBe("outdated");
     expect(texted.element.verification).toEqual(again.verification);
     expect(texted.element.validation).toBe(again.validation);
     // A new need has no record: its validation is open.
@@ -1113,10 +1116,11 @@ describe("the status in the answer of a write (#214)", () => {
     expect(created.validation).toBe("open");
     const fresh = await get(opened, created.id);
     expect({ ...created, readOnly: fresh.readOnly }).toEqual(fresh);
-    // An element the store does not hold, by UUID or in that repository, is given back as it is.
+    // An element the store does not hold, by UUID, in that repository or in that file, is given back as it is.
     for (const other of [
       { ...created, repository: "nowhere" },
       { ...created, id: "no-such-uuid" },
+      { ...created, file: "needs/elsewhere.md" },
     ]) {
       expect(await writtenWithStatus(opened.workspace, other)).toBe(other);
     }
