@@ -40,10 +40,11 @@ export const saveStep = <E>(o: {
   readonly note: string | undefined;
   readonly mode: SaveMode;
   /**
-   * The name to say when "Save element" was asked while a write ran and that write left no input (#563): the
-   * input is saved, so it says `Saved <name>`, not that there was nothing to save.
+   * "Save element" was asked while a save ran (#563): when that save left no input, the input is saved, so
+   * it says `Saved <name>` with core's hint, as a save it wrote says it (`savedSpeech`), not that there was
+   * nothing to save.
    */
-  readonly afterWrite?: string | undefined;
+  readonly afterWrite?: { readonly name: string; readonly hint: string | undefined } | undefined;
 }): SaveDecision<E> => {
   if (o.editor === undefined) {
     return { kind: "done", result: true };
@@ -53,7 +54,13 @@ export const saveStep = <E>(o: {
     return { kind: "done", result: !o.input, ...(asked ? { echo: o.note } : {}) };
   }
   if (!o.input) {
-    const echo = o.afterWrite === undefined ? "No changes to save" : `Saved ${o.afterWrite}`;
+    const after = o.afterWrite;
+    const echo =
+      after === undefined
+        ? "No changes to save"
+        : after.hint === undefined
+          ? `Saved ${after.name}`
+          : `Saved ${after.name}. ${after.hint}`;
     return { kind: "done", result: true, ...(asked ? { echo } : {}) };
   }
   return { kind: "write", editor: o.editor };
