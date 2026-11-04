@@ -234,11 +234,11 @@ async function serveUntilStopped(
       const watching = watchWorkspace(workspace).ready;
       if (request.server === "mcp") {
         await watching;
+        // Loaded only for the server (#178): every other call starts without the MCP SDK.
+        const { serveMcp } = await import("@reqseq/mcp");
         // The workspace loads while the client connects: a cold load (up to 30 s at 50,000 elements,
         // SR-082 AK2) must not hold up the handshake. The first tool call waits for it.
         void warmWorkspace(workspace);
-        // Loaded only for the server (#178): every other call starts without the MCP SDK.
-        const { serveMcp } = await import("@reqseq/mcp");
         // Standard output carries the protocol: nothing else is written there.
         await serveMcp({ runtime, workspace, input: options.stdin, output: options.stdout, signal });
         return;
