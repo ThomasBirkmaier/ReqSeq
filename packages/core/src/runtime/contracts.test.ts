@@ -113,12 +113,18 @@ describe("loadContracts", () => {
     const checked = loadContracts({ catalog: contractsBundle.catalog });
     const started = loadContracts();
     expect(started.commands.map((c) => c.name)).toEqual(checked.commands.map((c) => c.name));
-    // Both validate alike, also with the meta-schema check off for the bundled schemas.
-    const name = checked.commands[0]?.name ?? "";
-    expect(started.validator(name, "input")({ bogus: 1 })).toBe(
-      checked.validator(name, "input")({ bogus: 1 }),
-    );
-    expect(started.validator(name, "output")({})).toBe(checked.validator(name, "output")({}));
+  });
+
+  it("keeps the output schemas of a catalog passed in apart from the bundled ones, in either order", () => {
+    // A product name with another output: the shared validators of a start must not answer for it.
+    const other = (): ReturnType<typeof loadContracts> =>
+      loadContracts({ catalog: catalogOf(entry("element.get", { type: "object" }, { type: "object" })) });
+    const value = { zzz: "x" };
+    const before = other();
+    expect(loadContracts().validator("element.get", "output")(value)).toBe(false);
+    expect(before.validator("element.get", "output")(value)).toBe(true);
+    expect(other().validator("element.get", "output")(value)).toBe(true);
+    expect(loadContracts().validator("element.get", "output")(value)).toBe(false);
   });
 
   it("rejects a catalog that lists a command twice", () => {
