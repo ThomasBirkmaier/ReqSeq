@@ -241,6 +241,14 @@ describe("renderHuman: values", () => {
       ),
     );
   });
+
+  it("notes a page of hints shorter than total (#146)", () => {
+    const hint = { code: "element.unknown-property", severity: "warning", message: "Unknown", file: "b.md" };
+    expect(renderHuman({ hints: [hint], total: 3, incomplete: false })).toContain(
+      "Showing 1 of 3; ask for more with --offset and --limit.",
+    );
+    expect(renderHuman({ hints: [hint], total: 1, incomplete: false })).not.toContain("Showing");
+  });
 });
 
 describe("renderHuman: one element", () => {

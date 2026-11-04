@@ -43,6 +43,12 @@ scenariosOf("hint.list", [
     input: { ref: "SR-0000b1" },
     expect: "output",
   },
+  {
+    name: "one page of hints, total counts all (#146)",
+    fixture: HINTS,
+    input: { offset: 5, limit: 2 },
+    expect: "output",
+  },
   { name: "no package", fixture: HINTS, input: { package: "VAR-0000c1" }, expect: "error" },
   {
     tag: "[SR-045/AK1]",
