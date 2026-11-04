@@ -4696,7 +4696,7 @@
       {
         "name": "element.bulkUpdate",
         "title": "Bulk update elements",
-        "summary": "Set, add to or remove one property for all elements of a selection. Without `confirm` only previews: the number of affected elements and the skipped ones, whose type does not have the property. With `confirm` writes only that property's lines (SR-102). Never id, type or status (element.setStatus takes several refs). A failed write is rolled back, but a crash can leave part of the selection written: repeat the same call without `expected`, which writes only the remaining elements.",
+        "summary": "Set, add to or remove one property for all elements of a selection. Without `confirm` only previews: the number of affected elements and the skipped ones, whose type does not have the property. With `confirm` writes only that property's lines (SR-102). Never id, type or status (element.setStatus takes several refs). A failed write is rolled back, but a crash can leave part of the selection written: repeat the same call without `expected` and `plan`, which writes only the remaining elements.",
         "effect": "write-files",
         "whileReadOnly": "refuse",
         "whileReadOnlyReason": "Changes element files, and no change can be checked against a missing or faulty metamodel.",
@@ -4732,6 +4732,10 @@
           {
             "field": "expected",
             "complete": "number"
+          },
+          {
+            "field": "plan",
+            "complete": "text"
           }
         ],
         "input": {
@@ -4777,7 +4781,12 @@
             "expected": {
               "type": "integer",
               "minimum": 0,
-              "description": "The count of the preview: with confirm, refused (nothing written) when the change now affects another number of elements."
+              "description": "The count of the preview: with confirm, refused (nothing written) when the change now affects another number of elements. Prefer plan."
+            },
+            "plan": {
+              "type": "string",
+              "pattern": "^p1:[0-9a-f]{64}$",
+              "description": "The preview's plan: with confirm, refused (nothing written) unless the same files get the same bytes."
             }
           },
           "additionalProperties": false,
@@ -4871,6 +4880,11 @@
             },
             "incomplete": {
               "$ref": "../common.schema.json#/$defs/incomplete"
+            },
+            "plan": {
+              "type": "string",
+              "pattern": "^p1:[0-9a-f]{64}$",
+              "description": "Fingerprint of the files the change writes and their new bytes; pass it with confirm."
             }
           },
           "additionalProperties": false,
@@ -4881,7 +4895,8 @@
             "unchanged",
             "skipped",
             "files",
-            "problems"
+            "problems",
+            "plan"
           ]
         }
       },

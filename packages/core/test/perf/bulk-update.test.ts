@@ -2,8 +2,10 @@
 // workspace of N-036 with 50,000 elements and 200,000 relations, the store warmed as at a start
 // (`warmWorkspace`). 1,000 system requirements are selected by UUID; the preview and the confirmed
 // change of a text property and of a relation-valued property (`packages`, a new target gets its
-// current version) are recorded with `measure`. SR-071 names no time, so nothing is asserted against
-// a threshold (N-036 is the basis); correctness is asserted as usual.
+// current version) are recorded with `measure`, each confirmation with the plan of its preview (#158).
+// A preview of a property most types have (`rationale`) runs over all 50,000 elements. SR-071 names
+// no time, so nothing is asserted against a threshold (N-036 is the basis); correctness is asserted
+// as usual.
 import type { GeneratedWorkspace, LargeFixtureWorkspace } from "@reqseq/testkit";
 import { generateLargeWorkspace, measure, writeLargeWorkspace } from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -69,9 +71,9 @@ describe("element.bulkUpdate with 50,000 elements and 200,000 relations (SR-071,
     const done = await run("element.bulkUpdate: confirm, set a text property on 1,000 elements", {
       ...text,
       confirm: true,
-      expected: preview.count,
+      plan: preview.plan,
     });
-    expect(done).toMatchObject({ applied: true, count: SELECTED });
+    expect(done).toMatchObject({ applied: true, count: SELECTED, plan: preview.plan });
     expect(done.files).toHaveLength(SELECTED);
 
     const target = tree.elements.find((e) => e.type === "package");
@@ -89,8 +91,24 @@ describe("element.bulkUpdate with 50,000 elements and 200,000 relations (SR-071,
     const written = await run("element.bulkUpdate: confirm, add a relation target on 1,000 elements", {
       ...relation,
       confirm: true,
+      plan: added.plan,
     });
+    expect(written.plan).toBe(added.plan);
     expect(written.count).toBe(added.count);
     expect(written.count + written.unchanged + written.skipped.length).toBe(SELECTED);
+  });
+
+  it("previews one property of all 50,000 elements", async () => {
+    const preview = await run("element.bulkUpdate: preview, set a text property on all 50,000 elements", {
+      selection: {},
+      property: "rationale",
+      operation: "set",
+      value: "Previewed for all",
+    });
+    expect(preview.applied).toBe(false);
+    expect(preview.plan).toMatch(/^p1:[0-9a-f]{64}$/);
+    // Packages and variants have no rationale: they are skipped.
+    expect(preview.count).toBeGreaterThan(ELEMENTS * 0.9);
+    expect(preview.count + preview.unchanged + preview.skipped.length).toBe(ELEMENTS);
   });
 });

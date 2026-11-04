@@ -20,8 +20,12 @@
 //   time, then per file the lossless writer (about 1 to 3 ms) and, with `confirm`, an atomic write
 //   that syncs to disk.
 // - Without `confirm` nothing is written (AK2): the result is the same plan, so a preview and its
-//   confirmation give the same elements while no file changes in between. `expected`, the count the
-//   preview showed, makes a confirmation refused when the change now affects another number.
+//   confirmation give the same elements while no file changes in between. `plan`, the fingerprint
+//   the preview returned (`bulk-plan.ts`, #158), makes a confirmation refused when the change now
+//   writes other files or other bytes; `expected`, the count the preview showed, when it now affects
+//   another number. Both are checked after planning and before any write; the write still checks
+//   each file against the bytes it read. After a crash, the same call without `expected` and `plan`
+//   writes only the remaining elements.
 // - `id`, `type` and `status` are refused by the input schema (ADR-0002 rule 6, D-030); nothing is
 //   deleted (D-045): a removed key or item is a change of the element's file only.
 import { isDeepStrictEqual } from "node:util";
@@ -54,6 +58,7 @@ import { currentTarget, relationTargetRefs, setMarkdownReferences, setRelationTa
 import { itemLimitFindings } from "./item-limits.js";
 import { valueFindings } from "./values.js";
 import { titleKeyOf } from "./view.js";
+import { planFingerprint } from "./bulk-plan.js";
 import type { ElementFileWrite, ReadElement, WriteCheck } from "./write.js";
 import {
   checkedBefore,
@@ -71,6 +76,8 @@ export interface BulkUpdateInput {
   readonly value?: ElementInputValue;
   readonly confirm: boolean;
   readonly expected?: number;
+  /** The fingerprint of the preview (`planFingerprint`); checked only with `confirm`. */
+  readonly plan?: string;
 }
 
 /** The selected elements (in store order) and the states they were selected from. */
@@ -108,6 +115,8 @@ export interface BulkUpdateResult {
    * in the affected elements after the change; in a preview also the findings of the write check that a confirmation refuses.
    */
   readonly problems: readonly Problem[];
+  /** The fingerprint of the planned writes (`planFingerprint`), the same in a preview and its confirmation. */
+  readonly plan: string;
 }
 
 /**
@@ -376,6 +385,26 @@ const hintsAt = (key: string, elements: readonly ReadElement[], selection: BulkS
   );
 
 /**
+ * Refuses a confirmation (nothing is written) whose plan is not the preview's `plan` (#158), or whose
+ * count is not the preview's `expected`. The current fingerprint is not in the error: a caller has to
+ * preview again to get it.
+ */
+const confirmable = (input: BulkUpdateInput, fingerprint: string, count: number): void => {
+  if (input.plan !== undefined && input.plan !== fingerprint) {
+    throw invalid(
+      "plan: the change now writes other elements or other content than the preview showed; nothing was written. Preview it again",
+      { count, reason: "plan-changed" },
+    );
+  }
+  if (input.expected !== undefined && input.expected !== count) {
+    throw invalid(
+      `expected: the change now affects ${String(count)} elements, not ${String(input.expected)}; nothing was written. Preview it again`,
+      { expected: input.expected, count, reason: "count-changed" },
+    );
+  }
+};
+
+/**
  * `element.bulkUpdate` (SR-071) on the elements of `selection` (see the file comment). Every check
  * of the input comes before a file is read; every file is read and checked before the first write.
  */
@@ -428,11 +457,17 @@ export const bulkUpdateElements = async (
       unchanged += 1;
     }
   }
-  if (input.confirm && input.expected !== undefined && input.expected !== planned.length) {
-    throw invalid(
-      `expected: the change now affects ${String(planned.length)} elements, not ${String(input.expected)}; nothing was written. Preview it again`,
-      { expected: input.expected, count: planned.length, reason: "count-changed" },
-    );
+  const fingerprint = planFingerprint(
+    planned.map((p) => ({
+      repository: p.repository.name,
+      file: p.current.record.file,
+      id: p.current.record.id,
+      sha256: p.current.file.snapshot.sha256,
+      bytes: p.bytes,
+    })),
+  );
+  if (input.confirm) {
+    confirmable(input, fingerprint, planned.length);
   }
   // The write check sees each element as it would be written: a confirmation is refused as a whole.
   const found = await Promise.all(
@@ -465,5 +500,6 @@ export const bulkUpdateElements = async (
       ...hintsAt(property.key, results, selection),
       ...checked.flatMap(({ element, findings }) => locateIn(element.file, findings)),
     ],
+    plan: fingerprint,
   };
 };

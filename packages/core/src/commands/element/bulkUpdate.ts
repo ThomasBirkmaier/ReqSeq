@@ -30,6 +30,7 @@ export default defineCommand({
       files: [...result.files],
       problems: [...result.problems],
       incomplete: selected.incomplete,
+      plan: result.plan,
     };
   },
 });

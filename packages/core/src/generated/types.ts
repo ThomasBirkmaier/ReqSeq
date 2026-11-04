@@ -1906,7 +1906,7 @@ export interface ElementSupersedeOutput {
 }
 
 /**
- * Input of `element.bulkUpdate` as `run` gets it: validated, properties with a `default` filled in. Set, add to or remove one property for all elements of a selection. Without `confirm` only previews: the number of affected elements and the skipped ones, whose type does not have the property. With `confirm` writes only that property's lines (SR-102). Never id, type or status (element.setStatus takes several refs). A failed write is rolled back, but a crash can leave part of the selection written: repeat the same call without `expected`, which writes only the remaining elements.
+ * Input of `element.bulkUpdate` as `run` gets it: validated, properties with a `default` filled in. Set, add to or remove one property for all elements of a selection. Without `confirm` only previews: the number of affected elements and the skipped ones, whose type does not have the property. With `confirm` writes only that property's lines (SR-102). Never id, type or status (element.setStatus takes several refs). A failed write is rolled back, but a crash can leave part of the selection written: repeat the same call without `expected` and `plan`, which writes only the remaining elements.
  * Schema: `schemas/commands/element.bulkUpdate.json input`.
  */
 export interface ElementBulkUpdateInput {
@@ -1919,12 +1919,14 @@ export interface ElementBulkUpdateInput {
   readonly value?: ElementInputValue;
   /** Write the change; without it nothing is written. A written file also gets the current titles of its same-repository relation targets (decision on #307), which the preview does not show. */
   readonly confirm: boolean;
-  /** The count of the preview: with confirm, refused (nothing written) when the change now affects another number of elements. */
+  /** The count of the preview: with confirm, refused (nothing written) when the change now affects another number of elements. Prefer plan. */
   readonly expected?: number;
+  /** The preview's plan: with confirm, refused (nothing written) unless the same files get the same bytes. */
+  readonly plan?: string;
 }
 
 /**
- * Output of `element.bulkUpdate`. Set, add to or remove one property for all elements of a selection. Without `confirm` only previews: the number of affected elements and the skipped ones, whose type does not have the property. With `confirm` writes only that property's lines (SR-102). Never id, type or status (element.setStatus takes several refs). A failed write is rolled back, but a crash can leave part of the selection written: repeat the same call without `expected`, which writes only the remaining elements.
+ * Output of `element.bulkUpdate`. Set, add to or remove one property for all elements of a selection. Without `confirm` only previews: the number of affected elements and the skipped ones, whose type does not have the property. With `confirm` writes only that property's lines (SR-102). Never id, type or status (element.setStatus takes several refs). A failed write is rolled back, but a crash can leave part of the selection written: repeat the same call without `expected` and `plan`, which writes only the remaining elements.
  * Schema: `schemas/commands/element.bulkUpdate.json output`.
  */
 export interface ElementBulkUpdateOutput {
@@ -1951,6 +1953,8 @@ export interface ElementBulkUpdateOutput {
   /** Hints at the property in the affected elements after the change: value kind (SR-085), more entries than `max-items` (SR-171), target types (SR-086). */
   readonly problems: readonly Problem[];
   readonly incomplete?: Incomplete;
+  /** Fingerprint of the files the change writes and their new bytes; pass it with confirm. */
+  readonly plan: string;
 }
 
 /**
