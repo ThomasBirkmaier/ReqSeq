@@ -56,8 +56,19 @@ const GRAPHEMES = new Intl.Segmenter(undefined, { granularity: "grapheme" });
  */
 export const reasonLine = (reason: string): string => {
   const line = reason.replace(/[\s\p{Cc}]+/gu, " ").trim();
-  const characters = Array.from(GRAPHEMES.segment(line), ({ segment }) => segment);
-  return characters.length > REASON_LENGTH ? `${characters.slice(0, REASON_LENGTH - 1).join("")}…` : line;
+  // A string never has more graphemes than UTF-16 units, so a short one needs no segmenting, and
+  // a long one is segmented only up to the cut.
+  if (line.length <= REASON_LENGTH) {
+    return line;
+  }
+  const kept: string[] = [];
+  for (const { segment } of GRAPHEMES.segment(line)) {
+    if (kept.length === REASON_LENGTH) {
+      return `${kept.slice(0, REASON_LENGTH - 1).join("")}…`;
+    }
+    kept.push(segment);
+  }
+  return line;
 };
 
 /** The validation line: "Validation — <status>", with ": <reason>" for an inconclusive one (SR-172 AK2). */

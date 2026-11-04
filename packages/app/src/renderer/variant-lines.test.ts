@@ -112,6 +112,11 @@ describe("the lines of a requirement's variants", () => {
     // Cut by graphemes: an emoji, also one of several code points, is never split.
     const emoji = variantLines(output({ validation: "inconclusive", validationReason: "👍🏽".repeat(300) }));
     expect(text(emoji.validation)).toBe(`Validation — inconclusive: ${"👍🏽".repeat(REASON_LENGTH - 1)}…`);
+    // Longer than the limit in code units, but not in graphemes: not cut.
+    const fits = variantLines(
+      output({ validation: "inconclusive", validationReason: "👍🏽".repeat(REASON_LENGTH) }),
+    );
+    expect(text(fits.validation)).toBe(`Validation — inconclusive: ${"👍🏽".repeat(REASON_LENGTH)}`);
   });
 
   it("names an element that names lacks by its UUID, without a link", () => {

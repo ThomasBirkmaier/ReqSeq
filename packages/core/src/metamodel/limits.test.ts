@@ -65,7 +65,7 @@ describe("relation limits in the metamodel (SR-152)", () => {
     expect(limitsOf(metamodel).size).toBe(0);
   });
 
-  it("counts a limit without source-type as one for the kind's only source type", () => {
+  it("warns when a limit without source-type names the same pair as one with it", () => {
     const relation = {
       key: "refines",
       name: "Refines",
@@ -80,10 +80,10 @@ describe("relation limits in the metamodel (SR-152)", () => {
     ).toEqual([
       {
         code: "metamodel.invalid",
-        severity: "error",
+        severity: "warning",
         file: "m.yaml",
         message:
-          "Relation kind refines has a second limit for the same source and target type; one limit per pair",
+          "Relation kind refines has two limits that apply to the same source and target type; both are checked",
       },
     ]);
     // With two source types, a limit without source-type covers both: no second limit for a pair.
