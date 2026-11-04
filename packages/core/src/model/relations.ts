@@ -6,6 +6,7 @@ import type { RelationTarget } from "../generated/types.js";
 import { fileSchemaValidator } from "../runtime/contracts.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import type { ElementMatch, ElementRecord } from "./elements.js";
+import { recordsById } from "./by-id.js";
 import type { ElementStore } from "./store.js";
 
 /** Whether a value has the format of a relation target (`common.schema.json#/$defs/relationTarget`). */
@@ -26,7 +27,8 @@ export const resolveTarget = (
   target: Pick<RelationTarget, "id"> & Partial<RelationTarget>,
 ): ElementMatch => {
   const repository = target.repository ?? sourceRepository;
-  const records = store.byId.get(target.id);
+  // Once per relation of a check: a plain map (#215).
+  const records = recordsById(store.byId, target.id);
   // The common case, one file with the UUID, without a new array (N-036: the matrix resolves every
   // relation under a minimum, SR-153).
   if (records?.length === 1 && records[0]?.repository === repository) {

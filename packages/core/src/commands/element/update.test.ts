@@ -962,7 +962,10 @@ describe("element.update in a workspace of 50,000 elements (#166, N-036)", () =>
     for (const record of records) {
       files.set(record.file, { kind: "element", element: record, warnings: [], snapshot: record.snapshot });
     }
-    const elements = [...small.elements, ...records];
+    // In store order, as a read gives it: a write patches `elements` at the file's place (#215).
+    const elements = [...small.elements, ...records].sort(
+      (a, b) => Number(a.file > b.file) - Number(a.file < b.file),
+    );
     const big: ElementStore = {
       ...small,
       elements,

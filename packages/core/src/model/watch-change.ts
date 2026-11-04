@@ -50,8 +50,9 @@ export const NO_ELEMENTS: ChangedElements = Object.freeze({
 
 /**
  * The elements whose records differ between two stores: the UUIDs of the records that are other
- * objects (`storeUpdate`, #184), each looked up before and after: one pass over the files of each
- * changed repository, as for the carry of the states built on the store, and one lookup per UUID.
+ * objects (`storeUpdate`, #184), each looked up before and after: from the touched files of a
+ * patched store (#215), else one pass over the files of each changed repository, as for the carry
+ * of the states built on the store; and one lookup per UUID.
  * Undefined when nothing tells which records are the same (a store without `repositories`, other
  * repositories): then every element may have changed.
  */

@@ -25,7 +25,11 @@ export default defineConfig({
       "packages/*/test/perf/**",
       "packages/*/test/delivery/**",
     ],
-    setupFiles: ["./scripts/test-support/block-network.mjs", "./scripts/test-support/dom-selection.mjs"],
+    setupFiles: [
+      "./scripts/test-support/block-network.mjs",
+      "./scripts/test-support/dom-selection.mjs",
+      "./scripts/test-support/readonly-maps.mjs",
+    ],
     // Worker threads that core starts (ADR-0008) load the TypeScript sources: scripts/test-support/worker-preload.mjs.
     // `--import` takes a URL (a Windows path, C:\..., is no valid specifier). Node strips the types
     // by default only from 22.18; the flag does it on every Node 22 that `engines` allows.

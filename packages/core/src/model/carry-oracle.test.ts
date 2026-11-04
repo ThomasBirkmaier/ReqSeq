@@ -8,7 +8,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { createFixtureWorkspace, untilWatching } from "@reqseq/testkit";
 import type { FixtureWorkspace } from "@reqseq/testkit";
-import { describe, expect, it, onTestFinished } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { metamodelState } from "../metamodel/index.js";
 import { searchElements } from "../query/search-index.js";
 import { searchIndex } from "../query/search-state.js";
@@ -20,6 +20,7 @@ import type { CurrentVersions } from "./current-versions.js";
 import { currentVersions } from "./current-versions.js";
 import type { ElementRecord } from "./elements.js";
 import type { IncomingIndex } from "./incoming.js";
+import type * as PatchLimits from "./patch-limits.js";
 import { incomingFor } from "./incoming.js";
 import type { ShortIds } from "./short-id.js";
 import { shortIdState } from "./short-id.js";
@@ -33,6 +34,23 @@ import {
 } from "./store.js";
 import { counts, gitEntryFolder, mayHoldElements, watchWorkspace } from "./watch.js";
 import { updateElement } from "./write.js";
+
+/**
+ * Whether the seed runs with small patch limits: the store is assembled anew from 2 touched files,
+ * maps compact from 4 entries, and a patched `byId` gets its plain view after 2 lookups (`recordsById`).
+ */
+let small = false;
+
+vi.mock("./patch-limits.js", async (importOriginal) => {
+  const original = await importOriginal<typeof PatchLimits>();
+  return {
+    get PATCH_LIMIT(): number {
+      return small ? 2 : original.PATCH_LIMIT;
+    },
+    compactAt: (size: number): number => (small ? 4 : original.compactAt(size)),
+    plainAt: (size: number): number => (small ? 2 : original.plainAt(size)),
+  };
+});
 
 /** Links need a privilege on Windows, and modes do not keep a file from being read there. */
 const POSIX = process.platform !== "win32";
@@ -742,22 +760,28 @@ const apply = async (
 };
 
 /**
- * The seeds of a run: three fixed ones, or a range `from-to` from `REQSEQ_ORACLE_SEEDS` for a longer
- * local run (each with versions as read).
+ * The seeds of a run: four fixed ones, or a range `from-to` from `REQSEQ_ORACLE_SEEDS` for a longer
+ * local run (each with versions as read, every odd one with small patch limits).
  */
-const SEEDS = ((): readonly { readonly seed: number; readonly versioning: boolean }[] => {
+const SEEDS = ((): readonly {
+  readonly seed: number;
+  readonly versioning: boolean;
+  readonly small: boolean;
+}[] => {
   const range = /^(\d+)-(\d+)$/u.exec(process.env["REQSEQ_ORACLE_SEEDS"] ?? "");
   if (range === null) {
     return [
-      { seed: 215, versioning: true },
-      { seed: 4711, versioning: true },
-      { seed: 36, versioning: false },
+      { seed: 215, versioning: true, small: false },
+      { seed: 4711, versioning: true, small: false },
+      { seed: 36, versioning: false, small: false },
+      { seed: 831, versioning: true, small: true },
     ];
   }
   const from = Number(range[1]);
   return Array.from({ length: Number(range[2]) - from + 1 }, (_, i) => ({
     seed: from + i,
     versioning: true,
+    small: (from + i) % 2 === 1,
   }));
 })();
 
@@ -766,8 +790,12 @@ const STEPS = 30;
 
 describe("the carry over a change of the store equals a fresh build (#215 oracle)", () => {
   it.each(SEEDS)(
-    "seed $seed, versions as read: $versioning",
-    async ({ seed, versioning }) => {
+    "seed $seed, versions as read: $versioning, small patch limits: $small",
+    async ({ seed, versioning, small: lowered }) => {
+      small = lowered;
+      onTestFinished(() => {
+        small = false;
+      });
       const { oracle, root, workspace } = await open(seed);
       const layout = await workspace.get(workspaceLayoutState);
       if (!versioning) {
