@@ -136,7 +136,7 @@ reqseq workspace check
 ```text title="Output"
 ok: true
 ...
-warning  trace.no-parent  ...  System Requirement SR-62fb87 has no parent: no relation with the meaning derivation names one  (element SR-62fb87)
+warning  trace.no-parent  SR-62fb87  System Requirement SR-62fb87 has no parent: no relation with the meaning derivation names one  ...
 ```
 
 Which relation kinds lead to a parent is up to the metamodel: every kind with the meaning `derivation`, in the standard model `derives-from` and `refines`. `based-on` has no meaning, so a decision is no parent; [Extend the metamodel](/how-to/extend-the-metamodel/) shows how a project makes it one.

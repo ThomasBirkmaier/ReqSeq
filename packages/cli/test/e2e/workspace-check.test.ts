@@ -120,12 +120,12 @@ describe("reqseq workspace check (SR-019)", () => {
     expect(lines.slice(0, 2)).toEqual(["ok: false", "checkedElements: 13"]);
     expect(lines).toContainEqual(
       expect.stringMatching(
-        /^warning {2}element\.wrong-value-kind {2}system:requirements\/SR-b00000000004\.md:7 {2}.* {2}\(element SR-b00000000004\)$/,
+        /^warning {2}element\.wrong-value-kind {2}SR-b00000000004 {2}.* {2}system:requirements\/SR-b00000000004\.md:7$/,
       ),
     );
     expect(lines).toContainEqual(
       expect.stringMatching(
-        /^error {2}file\.conflict-markers {2}system:requirements\/SR-b00000000007\.md:5 {2}/,
+        /^error {2}file\.conflict-markers {2}.* {2}system:requirements\/SR-b00000000007\.md:5$/,
       ),
     );
     expect(lines.filter((line) => /^(error|warning) {2}/.test(line))).toHaveLength(output.problems.length);
@@ -144,7 +144,9 @@ describe("reqseq workspace check (SR-019)", () => {
     expect(new Set(missing.map((p) => `${p.repository ?? ""}:${p.file ?? ""}`))).toEqual(
       new Set(["system:requirements/SR-c4d5e6f7a8b9.md", "sensor:anemometer/SR-1e0f9a8b7c6d.md"]),
     );
-    expect(human.stdout).toContain("error  relation.missing-target  system:requirements/SR-c4d5e6f7a8b9.md:");
+    expect(human.stdout).toContain(
+      "which is not in repository system  system:requirements/SR-c4d5e6f7a8b9.md:",
+    );
   });
 
   it("[SR-019/AK2] reports every element of a cycle in the derivations with kind, file and element and ends with exit code 1 with --fail-on warning (SR-090)", async () => {
@@ -159,7 +161,10 @@ describe("reqseq workspace check (SR-019)", () => {
     const lines = human.stdout.split("\n");
     expect(lines.slice(0, 2)).toEqual(["ok: false", "checkedElements: 5"]);
     expect(
-      lines.filter((line) => line.startsWith("warning  trace.cycle  system:requirements/SR-0b000000000")),
+      lines.filter(
+        (line) =>
+          line.startsWith("warning  trace.cycle  ") && line.includes("  system:requirements/SR-0b000000000"),
+      ),
     ).toHaveLength(3);
   });
 
@@ -209,7 +214,7 @@ describe("findings handed over to workspace check", () => {
       ["element.wrong-value-kind", "anemometer/SR-b69e094ad34c.md", "c0dcc639-0097-42b7-b926-b69e094ad34c"],
     ]);
     expect(human.stdout).toContain(
-      'warning  element.wrong-value-kind  system:requirements/SR-9b0f1826503d.md:6  Property Weight (weight) expects a number; the value is the text "heavy"  (element SR-26503d)\n',
+      'warning  element.wrong-value-kind  SR-26503d  Property Weight (weight) expects a number; the value is the text "heavy"  system:requirements/SR-9b0f1826503d.md:6\n',
     );
   });
 
@@ -262,7 +267,7 @@ describe("findings handed over to workspace check", () => {
     // D only derives from A: it is no element of the cycle.
     expect(output.problems.map((p) => p.elementId)).not.toContain(`${CYCLE}4`);
     expect(human.stdout).toContain(
-      "warning  trace.cycle  system:requirements/SR-0b0000000002.md:10  System Requirement SR-000002 is in a cycle of derivations with 3 elements (System Requirement SR-b0000000001, System Requirement SR-000002, System Requirement SR-000003): its relation Derives from to System Requirement SR-000003 leads back to it  (element SR-000002)  (target SR-000003)\n",
+      "warning  trace.cycle  SR-000002 → SR-000003  System Requirement SR-000002 is in a cycle of derivations with 3 elements (System Requirement SR-b0000000001, System Requirement SR-000002, System Requirement SR-000003): its relation Derives from to System Requirement SR-000003 leads back to it  system:requirements/SR-0b0000000002.md:10\n",
     );
   });
 
@@ -357,7 +362,7 @@ describe("outdated relations in workspace check (SR-025)", () => {
       ),
     ]);
     expect(human.stdout).toContain(
-      `warning  relation.outdated  system:requirements/SR-0b0000000001.md:12  Relation Derives from (derives-from) of System Requirement SR-b0000000001 points to an older version of Need N-a0000000001: stored version from ${stored}, current version from ${current}  (element SR-b0000000001)  (target N-a0000000001)\n`,
+      `warning  relation.outdated  SR-b0000000001 → N-a0000000001  Relation Derives from (derives-from) of System Requirement SR-b0000000001 points to an older version of Need N-a0000000001: stored version from ${stored}, current version from ${current}  system:requirements/SR-0b0000000001.md:12\n`,
     );
   });
 

@@ -66,7 +66,7 @@ describe("jsonOutput and yamlPieces: the whole text in pieces (#277)", () => {
 });
 
 describe("renderProblem", () => {
-  it("shows severity, code, file:line, message and element", () => {
+  it("shows severity, code, element, message and file:line (#252)", () => {
     expect(
       renderProblem({
         severity: "error",
@@ -76,7 +76,7 @@ describe("renderProblem", () => {
         message: "Unknown type foo",
         elementId: uuid,
       }),
-    ).toBe(`error  element.unknown-type  product/SR-1.md:3  Unknown type foo  (element ${uuid})\n`);
+    ).toBe(`error  element.unknown-type  ${uuid}  Unknown type foo  product/SR-1.md:3\n`);
   });
 
   it("names the element by its short ID when the problem has one (#315)", () => {
@@ -89,10 +89,10 @@ describe("renderProblem", () => {
         elementId: uuid,
         elementShortId: "SR-46fb54",
       }),
-    ).toBe("warning  element.unknown-property  requirements/SR-825b7146fb54.md  m  (element SR-46fb54)\n");
+    ).toBe("warning  element.unknown-property  SR-46fb54  m  requirements/SR-825b7146fb54.md\n");
   });
 
-  it("names the identifier of the element next to its short ID (#305)", () => {
+  it("names the element by its identifier in place of its short ID (#305, #252)", () => {
     expect(
       renderProblem({
         severity: "warning",
@@ -102,7 +102,7 @@ describe("renderProblem", () => {
         elementShortId: "SR-0b0036",
         elementIdentifier: "SR-036",
       }),
-    ).toBe("warning  relation.outdated  m  (element SR-0b0036, identifier SR-036)\n");
+    ).toBe("warning  relation.outdated  SR-036  m\n");
   });
 
   it("names the target by its short ID and identifier when the problem gives them (#172)", () => {
@@ -117,15 +117,27 @@ describe("renderProblem", () => {
       targetShortId: "D-fd8f46",
     };
     expect(renderProblem({ ...problem, targetIdentifier: "D-011" })).toBe(
-      "warning  relation.target-superseded  m  (element D-589cf2, identifier D-017)  (target D-fd8f46, identifier D-011)\n",
+      "warning  relation.target-superseded  D-017 → D-011  m\n",
     );
-    expect(renderProblem(problem)).toBe(
-      "warning  relation.target-superseded  m  (element D-589cf2, identifier D-017)  (target D-fd8f46)\n",
-    );
+    expect(renderProblem(problem)).toBe("warning  relation.target-superseded  D-017 → D-fd8f46  m\n");
     // A target without a short ID (not in the workspace) stays in the message only.
     expect(renderProblem({ ...problem, targetShortId: undefined })).toBe(
-      "warning  relation.target-superseded  m  (element D-589cf2, identifier D-017)\n",
+      "warning  relation.target-superseded  D-017  m\n",
     );
+  });
+
+  it("names the target alone when the problem names no element (evidence.kind-mismatch)", () => {
+    expect(
+      renderProblem({
+        severity: "warning",
+        code: "evidence.kind-mismatch",
+        message: "m",
+        targetId: "u2",
+        targetShortId: "SR-a1b2c3",
+        targetIdentifier: "SR-036",
+        file: "test/a.test.ts",
+      }),
+    ).toBe("warning  evidence.kind-mismatch  → SR-036  m  test/a.test.ts\n");
   });
 
   it("names the repository of the file when the problem has one", () => {
@@ -138,7 +150,7 @@ describe("renderProblem", () => {
         line: 2,
         message: "m",
       }),
-    ).toBe("error  file.invalid-yaml  sensor:anemometer/SR-1.md:2  m\n");
+    ).toBe("error  file.invalid-yaml  m  sensor:anemometer/SR-1.md:2\n");
     expect(renderProblem({ severity: "info", code: "x.y", repository: "sensor", message: "m" })).toBe(
       "info  x.y  m\n",
     );
@@ -147,7 +159,7 @@ describe("renderProblem", () => {
   it("leaves out what a problem does not have", () => {
     expect(
       renderProblem({ severity: "warning", code: "file.yaml-warning", file: "a.md", message: "m" }),
-    ).toBe("warning  file.yaml-warning  a.md  m\n");
+    ).toBe("warning  file.yaml-warning  m  a.md\n");
     expect(renderProblem({ severity: "info", code: "x.y", line: 2, message: "m" })).toBe("info  x.y  m\n");
   });
 

@@ -118,10 +118,10 @@ describe("variant exclude (SR-042)", () => {
     ]);
     const result = await run(["workspace", "check"], { cwd: ws.root });
     expect(result.stdout).toContain(
-      `warning  variant.target-not-core  system:${A_FILE}:7  Variant VAR-0000c1 excludes System Requirement SR-0000b2`,
+      `warning  variant.target-not-core  VAR-0000c1 → SR-0000b2  Variant VAR-0000c1 excludes System Requirement SR-0000b2, which is no core requirement (it has a validity or its type has no validity property); this changes no view  system:${A_FILE}:7\n`,
     );
     expect(result.stdout).toContain(
-      `warning  variant.target-not-core  system:${A_FILE}:8  Variant VAR-0000c1 excludes Package`,
+      `warning  variant.target-not-core  VAR-0000c1 → PKG-0000f1  Variant VAR-0000c1 excludes Package PKG-0000f1, which is no core requirement (it has a validity or its type has no validity property); this changes no view  system:${A_FILE}:8\n`,
     );
   });
 });

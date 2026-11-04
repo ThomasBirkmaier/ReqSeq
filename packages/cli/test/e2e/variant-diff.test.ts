@@ -61,8 +61,9 @@ describe("variant diff (SR-044)", () => {
       "added:\n  SR-0000b2  Warn of storms\n  SR-0000b3  Report gusts\nreplaced:",
     );
     expect(result.stdout).toContain(
-      "warning  variant.target-not-core  system:requirements/SR-0000000000b3.md:7  System Requirement SR-0000b3 replaces Need N-0000d1",
+      "warning  variant.target-not-core  SR-0000b3 → N-0000d1  System Requirement SR-0000b3 replaces Need N-0000d1",
     );
+    expect(result.stdout).toContain("this changes no view  system:requirements/SR-0000000000b3.md:7\n");
   });
 
   it("refuses an element that is no variant", async () => {

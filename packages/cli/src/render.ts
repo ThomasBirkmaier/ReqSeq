@@ -27,12 +27,12 @@ export function* jsonOutput(output: unknown): Generator<string, void, undefined>
 export const renderJson = (output: unknown): string => [...jsonOutput(output)].join("");
 
 /**
- * `severity  code  repository:file:line  message  (element SR-46fb54)`, parts that are missing left
- * out; the repository only when the problem names one and has a file (e.g. element files of
- * several repositories, metamodel files); the element by its short ID (`elementShortId`, #315), by
- * its UUID when the problem has no short ID, and its identifier when it has one
- * (`(element SR-3c90b0, identifier SR-036)`, `elementIdentifier`, #305); then the target the same way
- * when the problem names it by short ID (`(target D-fd8f46, identifier D-011)`, #172).
+ * `severity  code  SR-036 → D-011  message  repository:file:line` (#252): who first, by the name a
+ * person knows, then what, then where; parts that are missing left out. The element by its identifier
+ * (`elementIdentifier`, #305), else its short ID (`elementShortId`, #315), else its UUID; the target
+ * the same way when the problem names it (`targetIdentifier`, `targetShortId`, #172). The repository
+ * only when the problem names one and has a file (e.g. element files of several repositories,
+ * metamodel files).
  */
 export const renderProblem = (problem: unknown): string => {
   const p = isRecord(problem) ? problem : { message: JSON.stringify(problem) };
@@ -41,26 +41,10 @@ export const renderProblem = (problem: unknown): string => {
     repository !== "" && text(p["file"]) !== "" ? `${repository}:${text(p["file"])}` : text(p["file"]);
   const line = text(p["line"]);
   const location = file !== "" && line !== "" ? `${file}:${line}` : file;
-  const shortId = text(p["elementShortId"]);
-  const identifier = text(p["elementIdentifier"]);
-  const element =
-    shortId === ""
-      ? text(p["elementId"])
-      : identifier === ""
-        ? shortId
-        : `${shortId}, identifier ${identifier}`;
-  // The target by its short ID and identifier, when the problem gives them (#172).
-  const targetShortId = text(p["targetShortId"]);
-  const targetIdentifier = text(p["targetIdentifier"]);
-  const target = targetIdentifier === "" ? targetShortId : `${targetShortId}, identifier ${targetIdentifier}`;
-  return `${[
-    text(p["severity"]),
-    text(p["code"]),
-    location,
-    text(p["message"]),
-    element === "" ? "" : `(element ${element})`,
-    targetShortId === "" ? "" : `(target ${target})`,
-  ]
+  const element = text(p["elementIdentifier"]) || text(p["elementShortId"]) || text(p["elementId"]);
+  const target = text(p["targetIdentifier"]) || text(p["targetShortId"]);
+  const who = target === "" ? element : element === "" ? `→ ${target}` : `${element} → ${target}`;
+  return `${[text(p["severity"]), text(p["code"]), who, text(p["message"]), location]
     .filter((part) => part !== "")
     .join("  ")}\n`;
 };

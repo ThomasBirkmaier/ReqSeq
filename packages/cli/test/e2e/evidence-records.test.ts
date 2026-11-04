@@ -99,7 +99,7 @@ describe("reqseq workspace check with evidence records (SR-028)", () => {
     ]);
     expect(human.code).toBe(0);
     expect(human.stdout).toContain(
-      `warning  evidence.unknown-element  ci-results:evidence/2026-10-23-unknown-test.md:1  ${message}`,
+      `warning  evidence.unknown-element  ${message}  ci-results:evidence/2026-10-23-unknown-test.md:1`,
     );
   });
 });
