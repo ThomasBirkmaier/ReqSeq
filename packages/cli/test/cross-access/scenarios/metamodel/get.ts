@@ -82,7 +82,7 @@ scenariosOf("metamodel.get", [
     },
   },
   {
-    name: "a relation kind whose types do not fit its meaning: a warning, the metamodel stays valid (#842)",
+    name: "a relation kind whose types do not fit its meaning: warnings, no error (#842)",
     fixture: {
       ...METAMODEL,
       files: {
@@ -95,13 +95,19 @@ scenariosOf("metamodel.get", [
     check: (results) => {
       for (const [access, { outcome }] of Object.entries(results)) {
         const output = (outcome as { output: MetamodelOutput }).output;
-        // A warning only: no error, so the workspace stays writable.
+        // The source is no variant; the fixture has no validity property, so no target fits either.
         expect(output.problems, access).toMatchObject([
           {
             code: "metamodel.meaning-type-mismatch",
             severity: "warning",
             file: "model/excludes.yaml",
             line: 5,
+          },
+          {
+            code: "metamodel.meaning-type-mismatch",
+            severity: "warning",
+            file: "model/excludes.yaml",
+            line: 6,
           },
         ]);
       }

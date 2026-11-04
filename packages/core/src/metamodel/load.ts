@@ -524,7 +524,7 @@ const readMetamodel = async (layout: WorkspaceLayout): Promise<Metamodel> => {
       ),
       typeOf,
     ),
-    ...relationMeaningProblems(relations, typeOf),
+    ...relationMeaningProblems(relations, typeOf, assigned.meanings.validity[0]),
     ...markdownProblems(properties),
     ...maxItemsProblems(properties),
     // A type or the initial status that seems missing may be in a faulty file, which is reported
