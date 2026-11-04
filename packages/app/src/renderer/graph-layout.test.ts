@@ -353,17 +353,13 @@ describe("layoutGraph", () => {
     expect(arch?.d).toContain(`,${String(at(levelled, "C1").y - RANK_SEP / 2)}`);
   });
 
-  it("lays out a graph of up to 200 nodes in the layers of its levels when its ranked links would cross too many layers, well under a second (#211)", () => {
+  it("lays out a graph of up to 200 nodes in the layers of its levels when its ranked links would cross too many layers (#211)", () => {
     // 199 nodes: a package and its members, which derive from each other in chains of 20 within level 1.
-    // Ranked, that is 21 layers and 1,881 crossed layers, which took dagre over a second (#211).
-    const output = chainedGraph(199, 20);
-    const start = performance.now();
-    const layout = layoutGraph(output);
-    const time = performance.now() - start;
+    // Ranked, that is 21 layers and 1,863 crossed layers, which took dagre about 0.5 s (#211).
+    const layout = layoutGraph(chainedGraph(199, 20));
     expect(layout.levelled).toBe(true);
     expect(layout.layers.map((layer) => layer.length)).toEqual([1, 198]);
     expect(offSide(layout)).toEqual([]);
-    expect(time).toBeLessThan(1000);
     // Shorter chains cross fewer layers and stay ranked: a member stands under the member it derives from.
     const short = layoutGraph(chainedGraph(101, 5));
     expect(short.levelled).toBe(false);

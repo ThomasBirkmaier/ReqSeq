@@ -41,10 +41,10 @@ export const RANK_SEP = 56;
 export const LEVEL_LAYERS_ABOVE = 200;
 /**
  * A graph of up to `LEVEL_LAYERS_ABOVE` nodes is levelled too when the links of its ranked layout would
- * cross more than this many layers in all (`crossedLayers`, #211). dagre lays out each crossing as a
- * node of its own, so its time grows with layers times links, not with the nodes: 199 nodes whose
- * members derive from each other in chains of 20 within one level cross 1,881 layers and took over a
- * second. At the bound a ranked graph of 200 nodes takes under half a second (chains of 5 whose members
+ * cross more than this many layers in all (`crossedLayers`, #211). dagre lays out each crossed layer
+ * with dummy nodes, so its time grows with the crossed layers, not with the nodes: 199 nodes whose
+ * members derive from each other in chains of 20 within one level cross 1,863 layers and took about
+ * 0.5 s ranked, chains of 40 about 1 s. At the bound a ranked graph of 200 nodes takes under half a second (chains of 5 whose members
  * derive from every member before them, 790). The most of any graph of `spec/` is 462 (the whole chain
  * of D-038, 196 nodes, on 2026-11-04), so those keep their ranked layout.
  */
@@ -417,11 +417,13 @@ const acyclic = (
 };
 
 /**
- * How many dummy nodes a ranked layout of the layout links `links` between `keys` needs, counted in
- * O(V + E) before dagre runs (#211): a link from rank r to rank r + n crosses n - 1 layers, and dagre
- * lays out each crossing as a node of its own. Cycles are broken as dagre does (`acyclic`). Each node
- * takes the longest chain of links above it as its rank; a node that no link enters then moves down to
- * just above the highest node it links to, as dagre's ranker tightens it.
+ * The crossed-layer count of a ranked layout of the layout links `links` between `keys`, counted in
+ * O(V + E) before dagre runs (#211): a link from rank r to rank r + n crosses n - 1 layers. It estimates
+ * the size of dagre's ranking, which places dummy nodes on each crossed layer (twice as many as this
+ * count plus one per link, since dagre doubles `minlen`). Cycles are broken as dagre does (`acyclic`).
+ * Each node takes the longest chain of links above it as its rank; a node that no link enters then moves
+ * down to just above the highest node it links to. dagre's `tight-tree` ranker ranks differently, so the
+ * estimate can err both ways (on random graphs up to about 2.2 times under).
  */
 export const crossedLayers = (keys: readonly string[], links: readonly Link[]): number => {
   const { order, forward, back } = acyclic(keys, links);
