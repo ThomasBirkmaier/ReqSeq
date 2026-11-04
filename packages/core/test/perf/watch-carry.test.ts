@@ -47,7 +47,7 @@ const ELEMENTS = 50_000;
 const RELATIONS = 200_000;
 const basis = "SR-117 AK1, SR-007, N-036 (#215; recorded, baseline)";
 /** Changes of each kind; the first `WARM_UP` edits are not counted (JIT). */
-const RUNS = 8;
+const RUNS = 20;
 const WARM_UP = 2;
 
 /** The states with a `carry` hook over a change of the store that a server or the app keeps. */
@@ -129,7 +129,7 @@ const stats = (values: readonly number[]): { median: number; p90: number; max: n
 /** Records median, p90 and maximum of `values` as three rows. */
 const recordStats = async (name: string, values: readonly number[]): Promise<void> => {
   const { median, p90, max } = stats(values);
-  await recordValue(`${name} (median of ${String(values.length)})`, median, { basis });
+  await recordValue(`${name} (median)`, median, { basis });
   await recordValue(`${name} (p90)`, p90, { basis });
   await recordValue(`${name} (max)`, max, { basis });
 };
@@ -270,10 +270,10 @@ describe("the carry of one changed file in a server (N-036, #215)", () => {
         hooks.push(times);
       }
     }
-    await recordStats(`watcher, ${label}: file write → onChange`, onChange);
-    await recordStats(`watcher, ${label}: file write → onChange → element.get answered`, read);
-    await recordStats(`watcher, ${label}: file write → every carried state settled`, settled);
-    await recordStats(`watcher, ${label}: CPU of the process from the write until settled`, cpu);
+    await recordStats(`watcher: file write → onChange, ${label} (N-036)`, onChange);
+    await recordStats(`watcher: file write → onChange → element.get, ${label} (N-036)`, read);
+    await recordStats(`watcher: file write → every carried state settled, ${label} (N-036)`, settled);
+    await recordStats(`watcher: CPU of the process from the write until settled, ${label} (N-036)`, cpu);
     return hooks;
   };
 
@@ -382,8 +382,17 @@ describe("the carry of one changed file in a server (N-036, #215)", () => {
     for (let run = 0; run < RUNS; run++) {
       const { repository, file } = fresh();
       const store = await workspace.get(elementStoreState);
-      // Not installed: the watcher does not see this file until the next step's change of it.
+      // The watcher applies the edit first, so that it does not run alongside the timed steps; they
+      // then compute the same update again from the store before it, which is not installed.
+      const heard = new Promise<void>((resolve) => {
+        const off = watcher.onChange(() => {
+          off();
+          resolve();
+        });
+      });
       await fs.writeFile(absolute(repository, file), await edited(repository, file));
+      await heard;
+      await watcher.settled();
       const changes = new Map<string, RepositoryChanges>([[repository, { paths: [file] }]]);
       let started = performance.now();
       const after = await updateElements(store, layout, changes);
@@ -394,9 +403,8 @@ describe("the carry of one changed file in a server (N-036, #215)", () => {
       started = performance.now();
       expect(storeUpdate(store, after)?.files.get(repository)?.has(file)).toBe(true);
       diff.push(performance.now() - started);
-      await watcher.settled();
     }
-    await recordStats("one element file edited: updateElements", update);
-    await recordStats("one element file edited: storeUpdate", diff);
+    await recordStats("one element file edited, on its own: updateElements (N-036)", update);
+    await recordStats("one element file edited, on its own: storeUpdate (N-036)", diff);
   });
 });

@@ -87,13 +87,28 @@ interface Known {
   repository: string;
   file: string;
   id: string;
+  /** Its mode was taken away (`chmod 000`); moves and renames keep it. */
+  unreadable?: boolean;
 }
 
 /** What a step changed, as the watcher would name it per repository, or a write of ReqSeq itself. */
 type Step =
   | { readonly kind: "watcher"; readonly label: string; readonly changes: Map<string, RepositoryChanges> }
   | { readonly kind: "write"; readonly label: string; readonly pick: number; readonly value: string }
-  | { readonly kind: "retry"; readonly label: string; readonly changes: Map<string, RepositoryChanges> };
+  | {
+      readonly kind: "retry";
+      readonly label: string;
+      /** The change another batch installs first, while this one runs. */
+      readonly first: Map<string, RepositoryChanges>;
+      readonly changes: Map<string, RepositoryChanges>;
+    }
+  | {
+      readonly kind: "interleave";
+      readonly label: string;
+      readonly changes: Map<string, RepositoryChanges>;
+      readonly pick: number;
+      readonly value: string;
+    };
 
 class Oracle {
   readonly #next: () => number;
@@ -101,8 +116,6 @@ class Oracle {
   /** Files below `outside/`, link targets that no repository holds. */
   #links = 0;
   #count = 0;
-  /** Files whose mode was taken away (`chmod 000`), by place. */
-  readonly #unreadable = new Set<string>();
 
   readonly fixture: FixtureWorkspace;
 
@@ -176,16 +189,19 @@ class Oracle {
     this.files.splice(0, this.files.length, ...this.files.filter((k) => !below(k)));
   }
 
-  /** One random step: the files are changed, and the step says what the watcher would name. */
-  async step(): Promise<Step> {
-    const named = new Map<string, Set<string>>();
+  /**
+   * One random step: the files are changed, and the step says what the watcher would name. `named`
+   * carries what an earlier draw named already (a mode given back) into the next draw.
+   */
+  async step(named = new Map<string, Set<string>>()): Promise<Step> {
     const name = (repository: string, ...paths: string[]): void => {
       named.set(repository, new Set([...(named.get(repository) ?? []), ...paths]));
     };
     const changesOf = (all: boolean): Map<string, RepositoryChanges> =>
       new Map([...named].map(([r, paths]) => [r, all ? { paths: [], all: true } : { paths: [...paths] }]));
     const target = this.pick(this.files);
-    if (this.#unreadable.delete(`${target.repository}/${target.file}`)) {
+    if (target.unreadable === true) {
+      target.unreadable = false;
       // The mode given back is a change the watcher names too (an attribute event).
       await fs.chmod(this.abs(target.repository, target.file), 0o644);
       name(target.repository, target.file);
@@ -193,7 +209,7 @@ class Oracle {
     const op = this.pick(OPS);
     const result = await op(this, { target, name });
     if (result === undefined) {
-      return this.step();
+      return this.step(named);
     }
     if (typeof result === "string") {
       return { kind: "watcher", label: result, changes: changesOf(false) };
@@ -201,7 +217,12 @@ class Oracle {
     if (result.kind === "all") {
       return { kind: "watcher", label: result.label, changes: changesOf(true) };
     }
-    return result.kind === "retry" ? { ...result, changes: changesOf(false) } : result;
+    if (result.kind === "write") {
+      return result;
+    }
+    return result.kind === "retry"
+      ? { ...result, changes: changesOf(false) }
+      : { ...result, label: `${result.label} with a write of ReqSeq`, changes: changesOf(false) };
   }
 
   /** Counts up, for names no file had before. */
@@ -213,8 +234,9 @@ class Oracle {
     return ++this.#links;
   }
 
-  unreadable(place: string): void {
-    this.#unreadable.add(place);
+  /** Whether the file at `place` (`repository/file`) has its mode taken away: ReqSeq cannot write it. */
+  isUnreadable(place: string): boolean {
+    return this.files.some((k) => k.unreadable === true && `${k.repository}/${k.file}` === place);
   }
 }
 
@@ -236,7 +258,8 @@ type Op = (
   | string
   | { readonly kind: "all"; readonly label: string }
   | Extract<Step, { kind: "write" }>
-  | { readonly kind: "retry"; readonly label: string }
+  | { readonly kind: "retry"; readonly label: string; readonly first: Map<string, RepositoryChanges> }
+  | { readonly kind: "interleave"; readonly label: string; readonly pick: number; readonly value: string }
   | undefined
 >;
 
@@ -403,7 +426,7 @@ const OPS: readonly Op[] = [
     // A file nobody may read; a later step gives the mode back.
     await o.write(t.repository, t.file, o.element(t.id));
     await fs.chmod(o.abs(t.repository, t.file), 0o000);
-    o.unreadable(`${t.repository}/${t.file}`);
+    t.unreadable = true;
     name(t.repository, t.file);
     return `unreadable ${t.repository}/${t.file}`;
   },
@@ -425,12 +448,28 @@ const OPS: readonly Op[] = [
   },
   async (o, { target: t, name }) => {
     // Two edits; the store is replaced by the first while the second runs (`applyNow` retries).
-    const other = o.pick(o.files);
+    // The target is readable again (`step`), so the list is never empty.
+    const other = o.pick(o.files.filter((k) => k.unreadable !== true));
     await o.write(t.repository, t.file, o.element(t.id));
     await o.write(other.repository, other.file, o.element(other.id));
     name(t.repository, t.file);
     name(other.repository, other.file);
-    return { kind: "retry", label: `retry over ${t.repository}/${t.file}` };
+    return {
+      kind: "retry",
+      label: `retry over ${t.repository}/${t.file}`,
+      first: new Map([[t.repository, { paths: [t.file] }]]),
+    };
+  },
+  async (o, { target: t, name }) => {
+    // A watcher batch and a save of ReqSeq of another element, queued one behind the other.
+    await o.write(t.repository, t.file, o.element(t.id));
+    name(t.repository, t.file);
+    return {
+      kind: "interleave",
+      label: `edit ${t.repository}/${t.file}`,
+      pick: o.int(1_000),
+      value: `REQ-${String(o.int(9))}`,
+    };
   },
 ];
 
@@ -578,13 +617,23 @@ const warm = async (workspace: Workspace, queries: readonly string[]): Promise<v
   await commandsData(workspace, queries);
 };
 
-/** An element the store holds once, so that its UUID names it, or undefined when there is none. */
-const unique = (store: ElementStore, pick: number): ElementRecord | undefined => {
-  const once = store.elements.filter((e) => store.byId.get(e.id)?.length === 1);
+/**
+ * An element the store holds once, so that its UUID names it, and that ReqSeq may write (`skip`
+ * leaves out unreadable files and those a batch names), or undefined when there is none.
+ */
+const unique = (
+  store: ElementStore,
+  pick: number,
+  skip: (place: string) => boolean,
+): ElementRecord | undefined => {
+  const once = store.elements.filter((e) => store.byId.get(e.id)?.length === 1 && !skip(place(e)));
   return once[pick % once.length];
 };
 
-/** Every file a watcher batch did not name is the same object as before (`StoreUpdate`). */
+/**
+ * Every file a watcher batch did not name is the same object as before (`StoreUpdate`), also in the
+ * repositories it named nothing in.
+ */
 const expectKept = (
   before: ElementStore,
   after: ElementStore,
@@ -595,7 +644,7 @@ const expectKept = (
     const paths = changes.get(contents.repository);
     const old = before.repositories?.[i]?.files ?? new Map<string, Contribution>();
     const untouched = [...contents.files].filter(
-      ([file]) => paths !== undefined && paths.all !== true && !named(file, paths.paths) && old.has(file),
+      ([file]) => (paths === undefined || (paths.all !== true && !named(file, paths.paths))) && old.has(file),
     );
     for (const [file, now] of untouched) {
       expect(now, `${context}: ${contents.repository}/${file} kept`).toBe(old.get(file));
@@ -603,29 +652,54 @@ const expectKept = (
   }
 };
 
-/** Applies a step as the watcher or a write of ReqSeq does; a retry has the store replaced meanwhile. */
+/** Saves an element through `element.update` (`recordWrites`), one `skip` does not leave out. */
+const save = async (
+  workspace: Workspace,
+  store: ElementStore,
+  step: { readonly pick: number; readonly value: string },
+  skip: (place: string) => boolean,
+): Promise<void> => {
+  const element = unique(store, step.pick, skip);
+  if (element !== undefined) {
+    await updateElement(workspace, { ref: element.id, set: { "spec-id": step.value } });
+  }
+};
+
+/**
+ * Applies a step as the watcher or a write of ReqSeq does: a retry has another batch installed while
+ * it runs, so `applyNow` runs it again on the newer store; an interleave queues a save behind the batch.
+ */
 const apply = async (
   workspace: Workspace,
   layout: WorkspaceLayout,
   before: ElementStore,
   step: Step,
+  oracle: Oracle,
   context: string,
 ): Promise<void> => {
+  const unwritable = (p: string): boolean => oracle.isUnreadable(p);
   if (step.kind === "write") {
-    const element = unique(before, step.pick);
-    if (element !== undefined) {
-      await updateElement(workspace, { ref: element.id, set: { "spec-id": step.value } });
-    }
+    await save(workspace, before, step, unwritable);
     return;
   }
   const changes = await filtered(layout, step.changes);
-  let replaced = step.kind !== "retry";
+  if (step.kind === "interleave") {
+    const inBatch = (p: string): boolean =>
+      unwritable(p) ||
+      [...changes].some(([r, c]) => p.startsWith(`${r}/`) && named(p.slice(r.length + 1), c.paths));
+    await Promise.all([
+      applyStoreChange(workspace, (store) => updateElements(store, layout, changes)),
+      save(workspace, before, step, inBatch),
+    ]);
+    return;
+  }
+  const first = step.kind === "retry" ? await filtered(layout, step.first) : undefined;
+  let installed = first === undefined;
   await applyStoreChange(workspace, async (store) => {
-    if (!replaced) {
-      // Another change installs a store first, so `applyNow` runs this change again on it.
-      replaced = true;
-      const first = (await updateElements(store, layout, changes)) ?? store;
-      await workspace.replace(elementStoreState, workspace.peek(elementStoreState), Promise.resolve(first));
+    if (!installed && first !== undefined) {
+      installed = true;
+      const newer = (await updateElements(store, layout, first)) ?? store;
+      await workspace.replace(elementStoreState, workspace.peek(elementStoreState), Promise.resolve(newer));
     }
     return updateElements(store, layout, changes);
   });
@@ -634,15 +708,31 @@ const apply = async (
   }
 };
 
+/**
+ * The seeds of a run: three fixed ones, or a range `from-to` from `REQSEQ_ORACLE_SEEDS` for a longer
+ * local run (each with versions as read).
+ */
+const SEEDS = ((): readonly { readonly seed: number; readonly versioning: boolean }[] => {
+  const range = /^(\d+)-(\d+)$/u.exec(process.env["REQSEQ_ORACLE_SEEDS"] ?? "");
+  if (range === null) {
+    return [
+      { seed: 215, versioning: true },
+      { seed: 4711, versioning: true },
+      { seed: 36, versioning: false },
+    ];
+  }
+  const from = Number(range[1]);
+  return Array.from({ length: Number(range[2]) - from + 1 }, (_, i) => ({
+    seed: from + i,
+    versioning: true,
+  }));
+})();
+
 const QUERIES = ["gust wind", "storm", "REQ-1", "sensor coast alarm"];
 const STEPS = 30;
 
 describe("the carry over a change of the store equals a fresh build (#215 oracle)", () => {
-  it.each([
-    { seed: 215, versioning: true },
-    { seed: 4711, versioning: true },
-    { seed: 36, versioning: false },
-  ])(
+  it.each(SEEDS)(
     "seed $seed, versions as read: $versioning",
     async ({ seed, versioning }) => {
       const { oracle, root, workspace } = await open(seed);
@@ -659,7 +749,7 @@ describe("the carry over a change of the store equals a fresh build (#215 oracle
         const before = await workspace.get(elementStoreState);
         const step = await oracle.step();
         const context = `seed ${String(seed)}, step ${String(at)}: ${step.label}`;
-        await apply(workspace, layout, before, step, context);
+        await apply(workspace, layout, before, step, oracle, context);
         const store = await workspace.get(elementStoreState);
         const states = await statesOf(workspace, store);
         const carried = {
