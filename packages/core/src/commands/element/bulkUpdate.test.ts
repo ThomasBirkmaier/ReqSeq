@@ -824,8 +824,13 @@ describe("element.bulkUpdate blank values and hints (#836)", () => {
         key: "packages",
       },
     ];
-    // b2 keeps P2.
-    expect(emptied(await bulk(workspace, input))).toEqual(expected);
+    // b2 keeps P2; a preview says what the confirmation would do.
+    expect(emptied(await bulk(workspace, input))).toEqual([
+      {
+        ...expected[0],
+        message: `Property Package (packages) of element ${B1} is not empty and would be empty after this change`,
+      },
+    ]);
     expect(emptied(await bulk(workspace, { ...input, confirm: true }))).toEqual(expected);
     // A plain text property is not covered.
     const topic = await bulk(workspace, {

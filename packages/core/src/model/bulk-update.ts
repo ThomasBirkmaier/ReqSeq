@@ -581,7 +581,7 @@ export const bulkUpdateElements = async (
     problems: [
       ...hintsAt(property.key, results, selection),
       ...zip(planned, results).flatMap(([p, result]) =>
-        propertiesEmptied(p.repository.name, p.current.record, result.record, [property]),
+        propertiesEmptied(p.repository.name, p.current.record, result.record, [property], input.confirm),
       ),
       ...checked.flatMap(({ element, findings }) => locateIn(element.file, findings)),
       ...readOnly.map(readOnlyProblem),

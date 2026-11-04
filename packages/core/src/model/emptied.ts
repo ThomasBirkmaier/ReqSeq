@@ -8,6 +8,8 @@ import type { ElementRecord } from "./elements.js";
 import { isEmptyValue } from "./required.js";
 
 const RESTORE = "was not empty and is now empty; restore it from Git if this was not intended";
+// A preview writes nothing, so its warning says what the confirmation would do.
+const PREVIEW = "is not empty and would be empty after this change";
 
 /** The warning for the element text of `record` that the update emptied. */
 export const textEmptied = (repository: string, record: ElementRecord): Problem => ({
@@ -23,13 +25,15 @@ export const textEmptied = (repository: string, record: ElementRecord): Problem 
  * The warning, with `key`, for each of `properties` that is a Markdown property or has `many` (a
  * list) and that held a value in `before` and holds none in `after` (`isEmptyValue`: absent, `null`,
  * a blank string or `[]`), in the order of `properties`. Other properties, such as a plain text or a
- * single choice, are not covered.
+ * single choice, are not covered. With `applied` false (a preview), the message says the change would
+ * empty it.
  */
 export const propertiesEmptied = (
   repository: string,
   before: ElementRecord,
   after: ElementRecord,
   properties: readonly MetamodelProperty[],
+  applied = true,
 ): Problem[] =>
   properties.flatMap(({ key, name, markdown, many }) => {
     const covered = markdown === true || many === true;
@@ -40,7 +44,7 @@ export const propertiesEmptied = (
       {
         code: "element.text-emptied",
         severity: "warning",
-        message: `Property ${name} (${key}) of element ${before.id} ${RESTORE}`,
+        message: `Property ${name} (${key}) of element ${before.id} ${applied ? RESTORE : PREVIEW}`,
         repository,
         file: after.file,
         elementId: before.id,
