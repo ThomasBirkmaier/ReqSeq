@@ -396,6 +396,15 @@ export function inputViolations(
   return out;
 }
 
+/**
+ * The message of a violation in a hand-written file rather than a command input (#835): the input as a
+ * whole is "the file", and a key it does not take is "not a field of the file".
+ */
+export const fileMessage = (violation: InputViolation): string =>
+  violation.message
+    .replace(/^The input /, "the file ")
+    .replace(/ is not an input of this command\b/, " is not a field of the file");
+
 /** The violations for the message of `input.invalid`, joined with `; `. */
 export const describeInputViolations = (violations: readonly InputViolation[]): string =>
   violations.map((v) => v.message).join("; ");

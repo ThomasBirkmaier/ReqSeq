@@ -29,7 +29,7 @@ import type {
 } from "../generated/types.js";
 import { contractsBundle, fileSchemaErrors, fileSchemaValidator } from "../runtime/contracts.js";
 import { workspacePath } from "../model/index.js";
-import { inputViolations } from "../runtime/input-errors.js";
+import { fileMessage, inputViolations } from "../runtime/input-errors.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
 import { WORKSPACE_FILE, locate, settingLocation } from "../workspace/index.js";
 import { fold } from "./context.js";
@@ -115,8 +115,7 @@ const checkFilterFile = async (repository: RepositoryLocation, file: string): Pr
     schemas: contractsBundle.schemas,
   });
   for (const violation of violations) {
-    const message =
-      violation.field === "" ? violation.message.replace(/^The input /, "the file ") : violation.message;
+    const message = fileMessage(violation);
     problems.push(
       filterProblem(
         "filter.invalid",

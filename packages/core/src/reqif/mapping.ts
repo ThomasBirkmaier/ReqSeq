@@ -25,7 +25,7 @@ import type { EffectiveType, Metamodel } from "../metamodel/index.js";
 import { findType, keyDefinition } from "../metamodel/index.js";
 import { portableName, refuseUnlisted } from "../model/index.js";
 import { contractsBundle, fileSchemaErrors, fileSchemaValidator } from "../runtime/contracts.js";
-import { inputViolations } from "../runtime/input-errors.js";
+import { fileMessage, inputViolations } from "../runtime/input-errors.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
 import { locate, settingLocation } from "../workspace/index.js";
 
@@ -311,7 +311,7 @@ export const readMappingFile = async (
     });
     throw new CommandError(
       "file.faulty",
-      `mapping: ${path.basename(absolute)} is no mapping file: ${violations.map((v) => v.message).join("; ")}`,
+      `mapping: ${path.basename(absolute)} is no mapping file: ${violations.map(fileMessage).join("; ")}`,
       { command, fields: ["mapping"] },
     );
   }
