@@ -54,6 +54,7 @@ import type { Workspace } from "../runtime/workspace.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import { directlyAffectedCount } from "./affected.js";
+import { propertiesEmptied, textEmptied } from "./emptied.js";
 import type { NewFileRule } from "./discover.js";
 import { newFileTarget } from "./discover.js";
 import type { ElementRecord } from "./elements.js";
@@ -1182,20 +1183,6 @@ export const writeElementFiles = async (
 };
 
 /**
- * `element.text-emptied` (warning, #677; product owner decision, 2026-11-02: a warning in the result,
- * not a refusal): the update gave an empty text to an element whose text was not empty. The save is
- * done; an empty text is mostly a broken shell substitution, so the result says so.
- */
-const textEmptied = (repository: string, record: ElementRecord): Problem => ({
-  code: "element.text-emptied",
-  severity: "warning",
-  message: `The text of element ${record.id} was not empty and is now empty; restore it from Git if this was not intended`,
-  repository,
-  file: record.file,
-  elementId: record.id,
-});
-
-/**
  * `element.update` (SR-001, SR-102): changes title, text and properties of one element. Only the
  * lines of changed keys and the text are rewritten; unknown keys, comments, quoting, key order,
  * line endings and the file name stay (SR-001 AK2, SR-016 AK2). The UUID, the type and the status
@@ -1209,7 +1196,8 @@ const textEmptied = (repository: string, record: ElementRecord): Problem => ({
  * that writes the file also sets the stored titles of its same-repository relation targets to their
  * current titles (`withCurrentTitles`, decision on #307); a save that changes nothing writes nothing.
  * `affected`: the number of directly affected elements when the version changed (SR-024 AK2, AK3).
- * A text emptied by the save gives `element.text-emptied` (`textEmptied`).
+ * A text, a Markdown property or a list property emptied by the save gives `element.text-emptied`
+ * (`textEmptied`, `propertiesEmptied`, #677, #841).
  */
 export const updateElement = async (
   workspace: Workspace,
@@ -1257,6 +1245,7 @@ export const updateElement = async (
   let result: ElementWriteResult & { readonly affected?: number };
   let fileSha256 = current.file.snapshot.sha256;
   let versionsAdded: readonly Problem[] = [];
+  let emptied: readonly Problem[] = [];
   if (edited.changed) {
     // The stored titles of same-repository targets follow their targets (decision on #307).
     let { bytes } = edited;
@@ -1275,6 +1264,17 @@ export const updateElement = async (
       await writeFileAtomic(repository.folder, record.file, decode(bytes), record.snapshot),
     );
     fileSha256 = written.file.snapshot.sha256;
+    emptied = [
+      ...(text?.trim() === "" && current.record.blankText !== true
+        ? [textEmptied(repository.name, record)]
+        : []),
+      ...propertiesEmptied(
+        repository.name,
+        current.record,
+        written.record,
+        metamodel.properties.filter((p) => setKeys.includes(p.key) || unsetKeys.includes(p.key)),
+      ),
+    ];
     versionsAdded = locateIn(
       written.file,
       relations.versionsAdded.map(({ path, problem }) => ({ element: written.record, path, problem })),
@@ -1291,11 +1291,7 @@ export const updateElement = async (
     result = await finish(workspace, current, context, { shortIds, titleKey, files: [], extraFindings });
   }
   // Nothing written: nothing affected (AK3). Removals that found nothing and relations given their
-  // version come first (#175), then a text that was emptied (#677).
-  const emptied =
-    edited.changed && text?.trim() === "" && current.record.blankText !== true
-      ? [textEmptied(repository.name, record)]
-      : [];
+  // version come first (#175), then a text and properties that were emptied (#677, #841).
   return {
     ...result,
     problems: [...relations.problems, ...versionsAdded, ...emptied, ...result.problems],

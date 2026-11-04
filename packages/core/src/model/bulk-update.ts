@@ -21,7 +21,8 @@
 //   lossless writer (about 1 ms: its parse and the parse of its check, which the preview and the
 //   write check take as the read-back, `FileEditResult.parsed`) and, with `confirm`, an atomic write
 //   that syncs to disk. A not writable folder is asked once (`readOnlyFolders`).
-// - Hints at the property include `element.missing-required` (a `remove` of a required property);
+// - Hints at the property include `element.missing-required` (a `remove` of a required property) and
+//   `element.text-emptied` (a Markdown or list property that held a value and holds none, #841);
 //   a preview names a not writable folder with `file.read-only`, which a confirmation refuses before
 //   its first write (#836).
 // - Without `confirm` nothing is written (AK2): the result is the same plan, so a preview and its
@@ -38,7 +39,7 @@ import { isDeepStrictEqual } from "node:util";
 import type { Problem } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import type { FrontmatterEdit, ItemValue, ParsedContent, PropertyValue } from "../files/index.js";
-import { editElementFile } from "../files/index.js";
+import { editElementFile, zip } from "../files/index.js";
 import type {
   ElementInputValue,
   MetamodelEffectiveType,
@@ -52,6 +53,7 @@ import type { RepositoryLocation } from "../workspace/index.js";
 import { isWritableFolder, workspaceLayoutState } from "../workspace/index.js";
 import type { ElementRecord } from "./elements.js";
 import { imageMemo } from "./images.js";
+import { propertiesEmptied } from "./emptied.js";
 import { locateIn } from "./locate.js";
 import { relationTypeFindings } from "./relation-types.js";
 import { isEmptyValue, requiredFindings } from "./required.js";
@@ -578,6 +580,9 @@ export const bulkUpdateElements = async (
     files: written.map((w) => w.file),
     problems: [
       ...hintsAt(property.key, results, selection),
+      ...zip(planned, results).flatMap(([p, result]) =>
+        propertiesEmptied(p.repository.name, p.current.record, result.record, [property]),
+      ),
       ...checked.flatMap(({ element, findings }) => locateIn(element.file, findings)),
       ...readOnly.map(readOnlyProblem),
     ],

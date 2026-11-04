@@ -803,6 +803,41 @@ describe("element.bulkUpdate blank values and hints (#836)", () => {
     );
   });
 
+  it("warns for each element whose list property the change empties, in a preview too (#841)", async () => {
+    const { workspace } = await open();
+    const input = {
+      selection: { ids: [B1, B2] },
+      property: "packages",
+      operation: "remove",
+      value: [P1],
+    };
+    const emptied = (out: Output): unknown[] => out.problems.filter((p) => p.code === "element.text-emptied");
+    const expected = [
+      {
+        code: "element.text-emptied",
+        severity: "warning",
+        message: `Property Package (packages) of element ${B1} was not empty and is now empty; restore it from Git if this was not intended`,
+        repository: "system",
+        file: FILES[B1],
+        elementId: B1,
+        elementShortId: "SR-0000b1",
+        key: "packages",
+      },
+    ];
+    // b2 keeps P2.
+    expect(emptied(await bulk(workspace, input))).toEqual(expected);
+    expect(emptied(await bulk(workspace, { ...input, confirm: true }))).toEqual(expected);
+    // A plain text property is not covered.
+    const topic = await bulk(workspace, {
+      selection: { ids: [B1] },
+      property: "topic",
+      operation: "set",
+      value: "",
+    });
+    expect(topic.count).toBe(1);
+    expect(emptied(topic)).toEqual([]);
+  });
+
   it("names a required property that the change leaves without a value (element.missing-required)", async () => {
     const { workspace } = await open();
     const out = await bulk(workspace, {
@@ -819,6 +854,8 @@ describe("element.bulkUpdate blank values and hints (#836)", () => {
         elementId: B1,
         elementShortId: "SR-0000b1",
       }),
+      // The criteria held a value (#841).
+      expect.objectContaining({ code: "element.text-emptied", elementId: B1, key: "acceptance-criteria" }),
     ]);
   });
 });
