@@ -49,9 +49,19 @@ import { UNKNOWN_TYPE_PREFIX, findType, keyDefinition } from "../metamodel/index
 import type { ElementRecord, ElementStore, RepositoryContents } from "../model/index.js";
 import { classifyFile, markdownLinks, relationKey, titleKeyOf } from "../model/index.js";
 import { identifierKeyOf, identifierMatch, identifierValue } from "../model/identifier-index.js";
+import { PatchedMap } from "../model/patched-map.js";
 import type { StoreUpdate } from "../model/store.js";
+import { byPath } from "../model/store.js";
 import type { Scored, ScoringOptions } from "./search-scoring.js";
-import { documentKeys, lengthsOf, nextShortId, scoreWords, searchOptionsOf } from "./search-scoring.js";
+import {
+  carryLengths,
+  documentKeys,
+  lengthsOf,
+  nextShortId,
+  scoreWords,
+  searchOptionsOf,
+  shortIdOfDocument,
+} from "./search-scoring.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 
 /** What a hit was found in. */
@@ -410,21 +420,22 @@ export const carrySearchIndex = async (
   control: BuildControl = {},
 ): Promise<SearchIndex> => {
   const repositories = new Map(update.repositories.map((contents) => [contents.repository, contents]));
-  const records = new Map(index.records);
+  const changes = new Map<string, ElementRecord | undefined>();
   const gone: string[] = [];
   const now: ElementRecord[] = [];
   for (const [repository, files] of update.files) {
     for (const file of files) {
       const key = docKey(repository, file);
       gone.push(key);
-      records.delete(key);
       const record = recordIn(repositories, repository, file);
+      changes.set(key, record);
       if (record !== undefined) {
         now.push(record);
-        records.set(key, record);
       }
     }
   }
+  // A patch of the records before (`PatchedMap`, #215), not a copy of 50,000 keys.
+  const records = PatchedMap.patch(index.records, changes);
   const documents: SearchDocument[] = [];
   await readDocuments(
     index.layout,
@@ -437,8 +448,14 @@ export const carrySearchIndex = async (
   );
   const { engine } = index;
   const { mini, documents: kept } = engine;
+  // MiniSearch's short IDs of the documents removed and added, for the arrays (`carryArrays`).
+  const removed: number[] = [];
   try {
     for (const key of gone) {
+      const doc = shortIdOfDocument(mini, key);
+      if (doc !== undefined) {
+        removed.push(doc);
+      }
       const old = kept?.get(key);
       if (old !== undefined) {
         mini.remove(old);
@@ -456,7 +473,11 @@ export const carrySearchIndex = async (
     // be taken for the object as it now is.
     engine.generation += 1;
   }
-  return prepareSearchIndex({ ...index, store: update.to, records });
+  const carried: SearchIndex = { ...index, store: update.to, records };
+  const added = documents.map((document) => Number(shortIdOfDocument(mini, document.key)));
+  carryArrays(index, carried, removed, added);
+  carryIdentified(index, carried, gone, now);
+  return prepareSearchIndex(carried);
 };
 
 /** How to search (`searchElements`). */
@@ -577,6 +598,52 @@ const identifiedIn = (index: SearchIndex): ReadonlyMap<string, ReadonlySet<Eleme
   return known;
 };
 
+/**
+ * The records by identifier of `carried`, from those of `index` when they were built (#215): only
+ * the identifiers of the records of the changed files (the documents `gone` before, the records
+ * `now` after) are looked at; a patch of the map, whose sets of other identifiers stay the same
+ * objects. Otherwise the first search builds them.
+ */
+const carryIdentified = (
+  index: SearchIndex,
+  carried: SearchIndex,
+  gone: readonly string[],
+  now: readonly ElementRecord[],
+): void => {
+  const known = identified.get(index);
+  const key = identifierKeyOf(index.metamodel);
+  if (known === undefined || key === undefined) {
+    return;
+  }
+  const changes = new Map<string, Set<ElementRecord> | undefined>();
+  const setOf = (match: string): Set<ElementRecord> => {
+    let set = changes.get(match);
+    if (set === undefined) {
+      set = new Set(known.get(match));
+      changes.set(match, set);
+    }
+    return set;
+  };
+  for (const record of gone.flatMap((at) => index.records.get(at) ?? [])) {
+    const value = identifierValue(record, key);
+    if (value !== undefined) {
+      setOf(identifierMatch(value)).delete(record);
+    }
+  }
+  for (const record of now) {
+    const value = identifierValue(record, key);
+    if (value !== undefined) {
+      setOf(identifierMatch(value)).add(record);
+    }
+  }
+  for (const [match, set] of changes) {
+    if (set?.size === 0) {
+      changes.set(match, undefined);
+    }
+  }
+  identified.set(carried, PatchedMap.patch(known, changes));
+};
+
 /** How one word of a query matches IDs (`idMatcher`). */
 interface IdMatch {
   /** Whether it matches a record of the index's store. */
@@ -602,16 +669,21 @@ const idMatcher = (word: string, index: SearchIndex): IdMatch | undefined => {
     : { test: (record) => named.has(record) || short(record), among: undefined };
 };
 
-/** The position of every record of a store in store order, built once per store. */
-const ranks = new WeakMap<ElementStore, ReadonlyMap<ElementRecord, number>>();
+/**
+ * The place of each repository of the workspace file in store order (the store is ordered by
+ * repository in that order, then by file path), per layout: hits of equal score are ordered by
+ * repository and path (`before`), which needs no position of every record, so a carry builds none
+ * (#215).
+ */
+const repositoryPlaces = new WeakMap<WorkspaceLayout, ReadonlyMap<string, number>>();
 
-const rankOf = (store: ElementStore): ReadonlyMap<ElementRecord, number> => {
-  let rank = ranks.get(store);
-  if (rank === undefined) {
-    rank = new Map(store.elements.map((record, at) => [record, at]));
-    ranks.set(store, rank);
+const placesOf = (layout: WorkspaceLayout): ReadonlyMap<string, number> => {
+  let places = repositoryPlaces.get(layout);
+  if (places === undefined) {
+    places = new Map(layout.repositories.map((repository, at) => [repository.name, at]));
+    repositoryPlaces.set(layout, places);
   }
-  return rank;
+  return places;
 };
 
 /** What found the words of a document: a result of MiniSearch, or a document of a scoring (`scoreWords`). */
@@ -622,8 +694,8 @@ interface Found {
   /** Its `recordKey`. */
   readonly key: string;
   readonly element: ElementRecord;
-  /** The position of its record in the index's store (`rankOf`). */
-  readonly rank: number;
+  /** The place of its record's repository in the store (`placesOf`); then its path orders it. */
+  readonly place: number;
   score: number;
   /** What found its words; none for an ID only. Described for the page only (`hitOf`). */
   readonly matches: readonly WordsMatch[];
@@ -638,6 +710,8 @@ interface Search {
   readonly admit: (record: ElementRecord | undefined, key: string) => record is ElementRecord;
   readonly scoring: ScoringOptions;
   readonly options: SearchOptions;
+  /** The place of the repository of a record (`Found.place`). */
+  readonly placeOf: (record: ElementRecord) => number;
 }
 
 /** The scoring options of a search of `searched` (the fields of words), as `SearchElementsOptions.fuzzy` and `prefix` say. */
@@ -662,15 +736,16 @@ const searchOf = (
   const admit = (record: ElementRecord | undefined, key: string): record is ElementRecord =>
     record !== undefined && (within === undefined || within.has(key));
   const scoring = scoringOf(searched, options.fuzzy ?? 0.2, options.prefix ?? true);
-  return { index, admit, scoring, options: searchOptionsOf(scoring) };
+  const places = placesOf(index.layout);
+  const placeOf = (record: ElementRecord): number => places.get(record.repository) ?? places.size;
+  return { index, admit, scoring, options: searchOptionsOf(scoring), placeOf };
 };
 
-/** The records, keys and store positions of the documents of an index, by MiniSearch's short ID. */
+/** The records and keys of the documents of an index, by MiniSearch's short ID. */
 interface Documents {
   readonly generation: number;
   readonly records: readonly (ElementRecord | undefined)[];
   readonly keys: readonly (string | undefined)[];
-  readonly ranks: Int32Array;
 }
 
 const documentsCache = new WeakMap<SearchIndex, Documents>();
@@ -686,21 +761,56 @@ const documentsOf = (index: SearchIndex): Documents => {
   if (known?.generation === generation) {
     return known;
   }
-  const rank = rankOf(index.store);
-  const records: (ElementRecord | undefined)[] = [];
-  const keys: (string | undefined)[] = [];
-  const ranks = new Int32Array(nextShortId(mini));
+  const records: (ElementRecord | undefined)[] = new Array<ElementRecord | undefined>(nextShortId(mini));
+  const keys: (string | undefined)[] = new Array<string | undefined>(nextShortId(mini));
   for (const [doc, key] of documentKeys(mini)) {
     const record = index.records.get(String(key));
     if (record !== undefined) {
       records[doc] = record;
       keys[doc] = String(key);
-      ranks[doc] = Number(rank.get(record));
     }
   }
-  const built = { generation, records, keys, ranks };
+  const built = { generation, records, keys };
   documentsCache.set(index, built);
   return built;
+};
+
+/**
+ * The arrays of `carried` (its `Documents` and the field lengths of its MiniSearch object) after a
+ * carry from `index` that removed the documents `removed` and added `added` (MiniSearch's short
+ * IDs), derived from those of `index` when they were built for the change before (#215): copies
+ * with only these documents changed. Otherwise the first search builds them.
+ */
+const carryArrays = (
+  index: SearchIndex,
+  carried: SearchIndex,
+  removed: readonly number[],
+  added: readonly number[],
+): void => {
+  const { mini, generation } = carried.engine;
+  carryLengths(mini, generation, removed, added);
+  const known = documentsCache.get(index);
+  if (known?.generation !== generation - 1) {
+    return;
+  }
+  const records = [...known.records];
+  const keys = [...known.keys];
+  records.length = nextShortId(mini);
+  keys.length = nextShortId(mini);
+  // No search reads a removed short ID (MiniSearch's words no longer name it); cleared anyway, so
+  // the arrays hold no record that left the store. They grow by one slot per added document, as
+  // MiniSearch's short IDs do (`nextShortId`), and so did a fresh `documentsOf`.
+  for (const doc of removed) {
+    records[doc] = undefined;
+    keys[doc] = undefined;
+  }
+  for (const doc of added) {
+    // An added document holds the record of its key (`carrySearchIndex`).
+    const key = String(documentKeys(mini).get(doc));
+    records[doc] = carried.records.get(key);
+    keys[doc] = key;
+  }
+  documentsCache.set(carried, { generation, records, keys });
 };
 
 /**
@@ -738,11 +848,10 @@ const wordsFound = (search: Search, queries: readonly string[], and: boolean): F
       const element = documents.records[doc];
       const key = String(documents.keys[doc]);
       if (search.admit(element, key)) {
-        const rank = Number(documents.ranks[doc]);
         found.push({
           key,
           element,
-          rank,
+          place: search.placeOf(element),
           score: Number(scored.scores[at]),
           matches: [{ scored, doc }],
           ids: 0,
@@ -755,7 +864,6 @@ const wordsFound = (search: Search, queries: readonly string[], and: boolean): F
     queries: queries.map((word) => ({ queries: [word], combineWith: "AND" })),
     combineWith: and ? "AND" : "OR",
   };
-  const rank = rankOf(index.store);
   for (const result of index.engine.mini.search(query, search.options)) {
     const key = String(result.id);
     const element = index.records.get(key);
@@ -763,7 +871,7 @@ const wordsFound = (search: Search, queries: readonly string[], and: boolean): F
       found.push({
         key,
         element,
-        rank: Number(rank.get(element)),
+        place: search.placeOf(element),
         score: result.score,
         matches: [result],
         ids: 0,
@@ -786,7 +894,7 @@ const idsFound = (search: Search, ids: IdMatch, found: Map<string, Found>): void
         found.set(key, {
           key,
           element: record,
-          rank: Number(rankOf(search.index.store).get(record)),
+          place: search.placeOf(record),
           score: 0,
           matches: [],
           ids: 1,
@@ -807,7 +915,7 @@ const combine = (a: Map<string, Found>, b: ReadonlyMap<string, Found>, and: bool
       out.set(key, {
         key,
         element: found.element,
-        rank: found.rank,
+        place: found.place,
         score: found.score + other.score,
         matches: [...found.matches, ...other.matches],
         ids: found.ids + other.ids,
@@ -854,11 +962,18 @@ const SCORE_DIGITS = 6;
 
 /**
  * Whether `a` comes before `b` on the pages: more words matched its ID, else a higher score, else
- * it comes first in the store. A strict total order (no two hits share a position in the store), so
- * any way of finding the first hits gives the same page.
+ * it comes first in the store (by repository, then path: no position of every record is needed,
+ * #215). A strict total order (no two hits share a repository and file), so any way of finding the
+ * first hits gives the same page.
  */
 const before = (a: Found, b: Found): boolean =>
-  a.ids !== b.ids ? a.ids > b.ids : a.score !== b.score ? a.score > b.score : a.rank < b.rank;
+  a.ids !== b.ids
+    ? a.ids > b.ids
+    : a.score !== b.score
+      ? a.score > b.score
+      : a.place !== b.place
+        ? a.place < b.place
+        : byPath(a.element.file, b.element.file) < 0;
 
 const order = (a: Found, b: Found): number => (before(a, b) ? -1 : 1);
 
