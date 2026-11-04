@@ -41,7 +41,7 @@ import type { Problem, WorkspaceLocation } from "../generated/types.js";
 import type { YamlFile } from "../files/index.js";
 import { listFolderFiles, readYamlFile, readYamlFileFast, yamlPointerLine } from "../files/index.js";
 import { changeStamp, workspacePath } from "../model/index.js";
-import { contractsBundle, fileSchemaValidator } from "../runtime/contracts.js";
+import { contractsBundle, fileSchemaErrors, fileSchemaValidator } from "../runtime/contracts.js";
 import { inputViolations } from "../runtime/input-errors.js";
 import type { Workspace } from "../runtime/workspace.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
@@ -177,7 +177,10 @@ const violationsOf = (yaml: YamlFile, repository: string, file: string): Problem
   if (validate(yaml.data)) {
     return [];
   }
-  const violations = inputViolations(validate.errors, { input: yaml.data, schemas: contractsBundle.schemas });
+  const violations = inputViolations(fileSchemaErrors("baseline.schema.json", yaml.data), {
+    input: yaml.data,
+    schemas: contractsBundle.schemas,
+  });
   const shown = violations.slice(0, MAX_VIOLATIONS).map((violation) => {
     const message =
       violation.field === "" ? violation.message.replace(/^The input /, "the file ") : violation.message;
