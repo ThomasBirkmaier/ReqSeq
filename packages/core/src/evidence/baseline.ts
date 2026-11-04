@@ -12,8 +12,9 @@
 //   entry applies in now, so a variant that excludes or replaces it has no row (SR-047 AK3). Whether
 //   it applies is judged by the view rule and the variants of now, not by the content of the
 //   baseline version, which is never read (D-033, N-036; assumption of spec question #657).
-// - Validation (AK7): for a need and any other element with a validation record of any date
-//   (`hasValidationStatus`, SR-038 as `WorkspaceStatus.validate`), without view.
+// - Validation (AK7): for a need and any other element with a validation record of the core of any
+//   date (the rule of `hasValidationStatus`, SR-038 as `WorkspaceStatus.validate`, found in the
+//   same pass), without view.
 // - Later (AK2): the records of the baseline version that hold in a row's view (validation: the
 //   core) and are dated after the baseline, newest first (the index order). Records of other versions
 //   dated after it are neither counted nor named. A later record of a view without a row (one that
@@ -23,12 +24,12 @@
 // - Variant-independent repositories (SR-173): for an entry whose repository the workspace file of
 //   now marks `variant-independent` (`StatusSource.independent`; spec question #817 Q9, assumption),
 //   a variant's row also counts the records without variant, and its `later` holds both groups,
-//   merged in index order (newest first), as `holdsIn` gives them; only a row with records of both
-//   groups costs one more pass over the entry's records.
+//   merged in index order (newest first), as `holdsIn` gives them; only the `later` of a row with
+//   records of both groups costs one more pass over the entry's records (the status needs no order).
 import type { BaselineGetOutput } from "../generated/types.js";
 import type { ElementRecord } from "../model/index.js";
 import type { EvidenceRecord } from "./record.js";
-import { hasValidationStatus, validationOf, verificationStatusOf } from "./status.js";
+import { validationOf, verificationStatusOf } from "./status.js";
 import type { ViewHolder, WorkspaceStatus } from "./verification.js";
 
 type Entry = BaselineGetOutput["elements"][number];
@@ -61,22 +62,25 @@ type Groups = ReadonlyMap<ViewKey, readonly EvidenceRecord[]>;
 
 /**
  * The records of `groups` that hold in the view `key` (`holdsIn`): its own group and, for a variant
- * of an `independent` element, the core's too, in the order of `records` (newest first), which both
- * groups keep. Undefined when none does.
+ * of an `independent` element, the core's too; with `order`, in the order of `records` (newest
+ * first), which both groups keep. Undefined when none does.
  */
 const heldIn = (
   groups: Groups,
   key: ViewKey,
   independent: boolean,
-  records: readonly EvidenceRecord[],
+  order?: readonly EvidenceRecord[],
 ): readonly EvidenceRecord[] | undefined => {
   const own = groups.get(key);
   const core = key === undefined || !independent ? undefined : groups.get(undefined);
   if (core === undefined || own === undefined) {
     return own ?? core;
   }
+  if (order === undefined) {
+    return [...own, ...core];
+  }
   const both = new Set([...own, ...core]);
-  return records.filter((record) => both.has(record));
+  return order.filter((record) => both.has(record));
 };
 
 /** `validation` and `validationReason` of an entry from the counting validation records, or nothing. */
@@ -106,7 +110,7 @@ const verificationRows = (
     }
     const key = keyOf(holder);
     const after = heldIn(groups.later, key, independent, records);
-    const counted = heldIn(groups.counting, key, independent, records) ?? NONE;
+    const counted = heldIn(groups.counting, key, independent) ?? NONE;
     return [
       {
         view: key ?? "core",
@@ -115,6 +119,54 @@ const verificationRows = (
       },
     ];
   });
+
+/** The records of an entry grouped in one pass (see the file comment). */
+interface Grouped {
+  /** The counting and the later verification records by variant; empty unless `requirement`. */
+  readonly counting: Groups;
+  readonly later: Groups;
+  /** The counting and the later validation records of the core. */
+  readonly validating: readonly EvidenceRecord[];
+  readonly validationLater: readonly EvidenceRecord[];
+  /** Whether a validation record of the core of any date is among them (`hasValidationRecord`). */
+  readonly validated: boolean;
+}
+
+/** Groups the `records` of an entry at its `version` in one pass (see the file comment). */
+const grouped = (
+  records: readonly EvidenceRecord[],
+  version: string,
+  counts: (date: string) => boolean,
+  requirement: boolean,
+): Grouped => {
+  const counting = new Map<ViewKey, EvidenceRecord[]>();
+  const later = new Map<ViewKey, EvidenceRecord[]>();
+  const validating: EvidenceRecord[] = [];
+  const validationLater: EvidenceRecord[] = [];
+  let validated = false;
+  for (const record of records) {
+    const counted = counts(record.date);
+    if (record.kind === "validation") {
+      // Only the records of the core count (D-026, `validationOf`); so are the later ones.
+      if (record.variant !== undefined) {
+        continue;
+      }
+      validated = true;
+      if (counted) {
+        validating.push(record);
+      } else if (record.version === version) {
+        validationLater.push(record);
+      }
+    } else if (requirement) {
+      if (counted) {
+        push(counting, record.variant, record);
+      } else if (record.version === version) {
+        push(later, record.variant, record);
+      }
+    }
+  }
+  return { counting, later, validating, validationLater, validated };
+};
 
 /**
  * The evidence of an entry at its `version` in a baseline (see the file comment): `views` are the
@@ -131,31 +183,14 @@ export const baselineEvidence =
     const { source } = status;
     const records = source.recordsOf(element.id);
     const requirement = views !== undefined && source.requirements.has(element.type);
-    const validation = hasValidationStatus(source, element, records);
-    const counting = new Map<ViewKey, EvidenceRecord[]>();
-    const later = new Map<ViewKey, EvidenceRecord[]>();
-    const validating: EvidenceRecord[] = [];
-    const validationLater: EvidenceRecord[] = [];
-    for (const record of records) {
-      const counted = counts(record.date);
-      if (record.kind === "validation") {
-        // Only the records of the core count (D-026, `validationOf`); so are the later ones.
-        if (record.variant !== undefined) {
-          continue;
-        }
-        if (counted) {
-          validating.push(record);
-        } else if (record.version === version) {
-          validationLater.push(record);
-        }
-      } else if (requirement) {
-        if (counted) {
-          push(counting, record.variant, record);
-        } else if (record.version === version) {
-          push(later, record.variant, record);
-        }
-      }
-    }
+    const { counting, later, validating, validationLater, validated } = grouped(
+      records,
+      version,
+      counts,
+      requirement,
+    );
+    // SR-038 as `hasValidationStatus`: a need, and any other element with a validation record.
+    const validation = validated || source.needs.has(element.type);
     const verification = requirement
       ? verificationRows(element, version, views, { counting, later }, source.independent(element), records)
       : undefined;

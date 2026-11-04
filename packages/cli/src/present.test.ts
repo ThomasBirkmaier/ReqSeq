@@ -609,6 +609,12 @@ describe("renderHuman: validation status (SR-038)", () => {
     expect(out).not.toContain("validationReason");
     const long = renderHuman({ elements: [{ ...element, validationReason: "x".repeat(200) }] });
     expect(long).toContain(`[validation: inconclusive — ${"x".repeat(119)}…]`);
+    // Cut by graphemes: an emoji, also one of several code points, is never split.
+    const emoji = renderHuman({ elements: [{ ...element, validationReason: "👍🏽".repeat(200) }] });
+    expect(emoji).toContain(`[validation: inconclusive — ${"👍🏽".repeat(119)}…]`);
+    // Longer than the limit in code units, but not in graphemes: not cut.
+    const fits = renderHuman({ elements: [{ ...element, validationReason: "👍🏽".repeat(120) }] });
+    expect(fits).toContain(`[validation: inconclusive — ${"👍🏽".repeat(120)}]`);
   });
 
   it("shows the reason of an inconclusive record in a list of records", () => {

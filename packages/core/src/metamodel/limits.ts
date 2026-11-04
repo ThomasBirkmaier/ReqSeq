@@ -43,7 +43,9 @@ type Side = "source-type" | "target-type";
 
 /**
  * The problems of the limits of every relation kind, in metamodel order: `min` above `max`, a
- * second limit for the same pair of source and target type (errors), a type that is not defined
+ * second limit written for the same pair of source and target type (errors), a limit without
+ * `source-type` that names the same pair as one with it because the kind has one source type (a
+ * warning, so the workspace stays writable), a type that is not defined
  * (an error, only when every file was read, `complete`, as #157), and a type that does not overlap
  * the kind's `source-types`/`target-types` (a warning: a type overlaps a list when it or one of
  * its subtypes is allowed, so an abstract parent of an allowed type counts).
@@ -57,7 +59,11 @@ export const limitProblems = (
   const within = (type: MetamodelKey, parent: MetamodelKey): boolean =>
     type === parent || ancestors.get(type)?.includes(parent) === true;
   return relations.flatMap((located) => {
-    const { key, limits = [] } = located.definition;
+    const { key, limits = [], "source-types": sources } = located.definition;
+    // A limit without `source-type` applies to the kind's source types, so with only one it names
+    // the same pair as a limit with that `source-type`.
+    const only = sources?.length === 1 ? sources[0] : undefined;
+    const written = new Set<string>();
     const pairs = new Set<string>();
     return limits.flatMap((limit, index): Problem[] => {
       const at = ["limits", String(index)];
@@ -66,11 +72,16 @@ export const limitProblems = (
         const message = `Relation kind ${key} has a limit with min ${String(limit.min)} above max ${String(limit.max)}`;
         found.push(problem(located, "error", [...at, "min"], message));
       }
-      const pair = `${limit["source-type"] ?? ""} ${limit["target-type"]}`;
-      if (pairs.has(pair)) {
+      const exact = `${limit["source-type"] ?? "*"} ${limit["target-type"]}`;
+      const pair = `${limit["source-type"] ?? only ?? "*"} ${limit["target-type"]}`;
+      if (written.has(exact)) {
         const message = `Relation kind ${key} has a second limit for the same source and target type; one limit per pair`;
         found.push(problem(located, "error", at, message));
+      } else if (pairs.has(pair)) {
+        const message = `Relation kind ${key} has two limits that apply to the same source and target type; both are checked`;
+        found.push(problem(located, "warning", at, message));
       }
+      written.add(exact);
       pairs.add(pair);
       for (const side of ["source-type", "target-type"] as const satisfies readonly Side[]) {
         const type = limit[side];

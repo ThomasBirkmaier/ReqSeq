@@ -48,10 +48,27 @@ export const SEPARATOR: LinePart = { text: " · " };
 /** The longest reason the validation line shows; a longer one ends in `…` (the file keeps it whole). */
 export const REASON_LENGTH = 200;
 
-/** A reason (SR-172) on one line: each run of white space and control characters one space, cut to `REASON_LENGTH`. */
+const GRAPHEMES = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+
+/**
+ * A reason (SR-172) on one line: each run of white space and control characters one space, cut to
+ * `REASON_LENGTH` characters as the reader sees them (graphemes), so an emoji is never split.
+ */
 export const reasonLine = (reason: string): string => {
   const line = reason.replace(/[\s\p{Cc}]+/gu, " ").trim();
-  return line.length > REASON_LENGTH ? `${line.slice(0, REASON_LENGTH - 1)}…` : line;
+  // A string never has more graphemes than UTF-16 units, so a short one needs no segmenting, and
+  // a long one is segmented only up to the cut.
+  if (line.length <= REASON_LENGTH) {
+    return line;
+  }
+  const kept: string[] = [];
+  for (const { segment } of GRAPHEMES.segment(line)) {
+    if (kept.length === REASON_LENGTH) {
+      return `${kept.slice(0, REASON_LENGTH - 1).join("")}…`;
+    }
+    kept.push(segment);
+  }
+  return line;
 };
 
 /** The validation line: "Validation — <status>", with ": <reason>" for an inconclusive one (SR-172 AK2). */

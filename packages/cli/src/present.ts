@@ -53,15 +53,29 @@ const text = (value: unknown): string => (typeof value === "string" ? value : ""
 /** The longest reason a line shows; a longer one ends in `…` (`--json` and `--yaml` keep it whole). */
 const REASON_LENGTH = 120;
 
+const GRAPHEMES = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+
 /**
  * A reason (SR-172) on one line: each run of white space and control characters one space, cut to
- * `REASON_LENGTH` characters.
+ * `REASON_LENGTH` characters as the reader sees them (graphemes), so an emoji is never split.
  */
 const reasonText = (value: unknown): string => {
   const line = text(value)
     .replace(/[\s\p{Cc}]+/gu, " ")
     .trim();
-  return line.length > REASON_LENGTH ? `${line.slice(0, REASON_LENGTH - 1)}…` : line;
+  // A string never has more graphemes than UTF-16 units, so a short one needs no segmenting, and
+  // a long one is segmented only up to the cut.
+  if (line.length <= REASON_LENGTH) {
+    return line;
+  }
+  const kept: string[] = [];
+  for (const { segment } of GRAPHEMES.segment(line)) {
+    if (kept.length === REASON_LENGTH) {
+      return `${kept.slice(0, REASON_LENGTH - 1).join("")}…`;
+    }
+    kept.push(segment);
+  }
+  return line;
 };
 
 /** The parts that are not empty, two spaces apart. */
