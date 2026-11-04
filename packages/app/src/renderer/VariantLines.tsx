@@ -54,14 +54,17 @@ export const Part = ({
 const Line = ({
   parts,
   label,
+  title,
   onOpen,
 }: {
   readonly parts: readonly LinePart[] | undefined;
   readonly label: string;
+  /** The text shown on demand (hover), such as a whole reason the line cuts. */
+  readonly title?: string | undefined;
   readonly onOpen: (target: ElementBuffer) => void;
 }): React.JSX.Element | null =>
   parts === undefined ? null : (
-    <p className="variant-line" role="group" aria-label={label}>
+    <p className="variant-line" role="group" aria-label={label} title={title}>
       {parts.map((part, at) => (
         <Part key={at} part={part} onOpen={onOpen} />
       ))}
@@ -74,7 +77,12 @@ export const VariantLines = ({ output, onOpenRelation }: VariantLinesProps): Rea
     <>
       <Line parts={lines.use} label="Replaced or excluded" onOpen={onOpenRelation} />
       <Line parts={lines.verification} label="Verification" onOpen={onOpenRelation} />
-      <Line parts={lines.validation} label="Validation" onOpen={onOpenRelation} />
+      <Line
+        parts={lines.validation}
+        label="Validation"
+        title={lines.validationTitle}
+        onOpen={onOpenRelation}
+      />
       {lines.sinceBaseline.map((hint) => (
         <p
           key={hint.message}
