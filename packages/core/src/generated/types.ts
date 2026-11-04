@@ -2417,7 +2417,7 @@ export interface TraceMatrixOutput {
 }
 
 /**
- * Input of `trace.graph` as `run` gets it: validated, properties with a `default` filled in. The graph of one element: what its links lead to above it and what links to it below, to a depth, over the chosen kinds. Each element is one node with its level and marks, and each link between two nodes is one edge. At most `limit` nodes, nearest levels first.
+ * Input of `trace.graph` as `run` gets it: validated, properties with a `default` filled in. The graph of one element: what its links lead to above it and what links to it below, to a depth, over the chosen kinds. Each element is one node with its level and marks, and each link between two nodes is one edge. At most `limit` nodes, nearest levels first. With `withEvidence` also a summary of the evidence below each element.
  * Schema: `schemas/commands/trace.graph.json input`.
  */
 export interface TraceGraphInput {
@@ -2433,12 +2433,14 @@ export interface TraceGraphInput {
   /** Relation kinds with these meanings are followed; `reference` stands for inline references. Without `kinds` and `meanings` every relation and reference is followed. Otherwise a link is followed when its key is in `kinds` or its meaning is in `meanings`; an empty list follows nothing. */
   readonly meanings?: readonly ("derivation" | "replacement" | "succession" | "exclusion" | "reference")[];
   readonly view?: View;
+  /** Also give `evidence`, a summary of the Nachweise (verification records and test cases) of each element shown below the element (SR-111 AK3). Evidence is no link between elements, so `kinds` and `meanings` do not choose it, and it is no node: `limit` counts the elements only. */
+  readonly withEvidence: boolean;
   /** The most nodes, the element included; the nearest levels first (`truncated` says when more exist). */
   readonly limit: number;
 }
 
 /**
- * Output of `trace.graph`. The graph of one element: what its links lead to above it and what links to it below, to a depth, over the chosen kinds. Each element is one node with its level and marks, and each link between two nodes is one edge. At most `limit` nodes, nearest levels first.
+ * Output of `trace.graph`. The graph of one element: what its links lead to above it and what links to it below, to a depth, over the chosen kinds. Each element is one node with its level and marks, and each link between two nodes is one edge. At most `limit` nodes, nearest levels first. With `withEvidence` also a summary of the evidence below each element.
  * Schema: `schemas/commands/trace.graph.json output`.
  */
 export interface TraceGraphOutput {
@@ -2482,6 +2484,26 @@ export interface TraceGraphOutput {
     readonly meaning?: "derivation" | "replacement" | "succession" | "exclusion" | "reference";
     /** The link stores a version of normal form 1, its target has a current version, and the two differ (SR-025). */
     readonly outdated: boolean;
+  }[];
+  /** Only with `withEvidence`: one summary of the Nachweise below each node that has any (SR-111 AK3), in the order of `nodes`; `[]` when none has. Only nodes at level 0 or below whose evidence level (`level`) is within the depth asked (`maxDepth`, every level with `allLevels`), whether `expanded` or not; none above the element. The counts are those of trace.chain's `evidence` (`chainEvidenceOf`) in the view, the core without one, as the `no-evidence` mark reads them (SR-047, SR-173): only verification records (D-007). The details are in trace.chain and evidence.list. */
+  readonly evidence?: readonly {
+    /** The node the evidence belongs to. */
+    readonly id: Uuid;
+    /** Workspace name of the repository of that node. */
+    readonly repository: string;
+    /** The node's level plus one: the evidence is one level below it. */
+    readonly level: number;
+    /** The test cases that name the node and hold in the view, a test case that was only skipped included (SR-033 AK3). */
+    readonly testCases: number;
+    /** The node's verification records without a test case that hold in the view (inspection, analysis, demonstration, manual records without `test-case`). */
+    readonly records: number;
+    /** The newest result of each test case (`skipped` for one that was only skipped) and of each record, counted; a result none has is left out. */
+    readonly results: {
+      readonly passed?: number;
+      readonly failed?: number;
+      readonly inconclusive?: number;
+      readonly skipped?: number;
+    };
   }[];
   /** More elements are reachable than shown: `limit` stopped a walk or left out a node. The nodes kept are the nearest ones. */
   readonly truncated: boolean;
