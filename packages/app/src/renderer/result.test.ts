@@ -187,6 +187,12 @@ describe("result lines", () => {
     };
     expect(resultSummary(output)).toEqual({ total: 1, view: "Title 2", incomplete: false });
     expect(resultLines(output).map((line) => line.label)).toEqual(["elements", "SR-000001"]);
+    // An element row has its status, as a list row shows it; a record without one has none.
+    expect(resultLines(output)[1]?.status).toBe("draft");
+    expect(resultLines([element(3), { ...element(4), status: 7 }]).map((line) => line.status)).toEqual([
+      undefined,
+      undefined,
+    ]);
     expect(resultSummary({ view: "core", incomplete: true })).toEqual({
       total: undefined,
       view: "Core",
@@ -297,15 +303,16 @@ describe("result view", () => {
 
   it("shows the output it was opened with, selects lines with the keys and opens an element row with Enter", async () => {
     const call = vi.fn<Call>();
-    const output = { count: 2, total: 2, elements: [element(1), element(2)] };
+    const output = { count: 2, total: 2, elements: [element(1), element(2, { status: "approved" })] };
     const { actions, data } = await mount(call, resultBuffer("trace.affected", {}, "Affected", output, 4), 4);
     expect(call).not.toHaveBeenCalled();
-    expect(texts()).toEqual(["count2", "elements2", "SR-000001Title 1", "SR-000002Title 2"]);
+    expect(texts()).toEqual(["count2", "elements2", "SR-000001Title 1", "SR-000002Title 2approved"]);
+    expect(container.querySelector(".line.element .status")?.textContent).toBe("approved");
     expect(data.at(-1)).toEqual({ kind: "result", total: 2, view: undefined, incomplete: false });
     // Only the element rows are options; the cursor on a text line names no active option.
     expect([...container.querySelectorAll('[role="option"]')].map((line) => line.textContent)).toEqual([
       "SR-000001Title 1",
-      "SR-000002Title 2",
+      "SR-000002Title 2approved",
     ]);
     const listbox = container.querySelector('[role="listbox"]');
     expect(listbox?.getAttribute("aria-activedescendant")).toBeNull();

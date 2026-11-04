@@ -298,7 +298,8 @@ body,
   background: var(--select);
 }
 
-.result .label {
+.result .label,
+.result .status {
   color: var(--muted);
   font-size: 12px;
   font-variant-numeric: tabular-nums;
