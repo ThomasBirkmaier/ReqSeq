@@ -21,7 +21,7 @@ import { workspaceLayoutState } from "../workspace/index.js";
 import type * as Images from "./images.js";
 import { inNestedRepository } from "./images.js";
 import type { VersionDateContext, VersionDateRequest } from "./version-date.js";
-import { prepareVersionDates, versionDates } from "./version-date.js";
+import { prepareVersionDates, undatedCause, versionDates } from "./version-date.js";
 import { elementVersion } from "./view.js";
 
 // The real reader and nested check, wrapped so that tests count git calls and make one fail.
@@ -775,6 +775,22 @@ describe("version date", () => {
     onTestFinished(() => clone.close());
     expect((await get(deep, "SR-e88fb3")).versionDate).toEqual(expect.any(String));
     expect((await get(clone, "SR-e88fb3")).versionDate).toBeNull();
+
+    // Why there is no date, as a message names it once (#252).
+    const cause = async (on: Workspace, name = "system"): Promise<string> =>
+      undatedCause(await context(on), name);
+    expect(await cause(workspace)).toBe("no-git");
+    expect(await cause(workspace, "nope")).toBe("no-git");
+    expect(await cause(empty.workspace)).toBe("no-git");
+    expect(await cause(clone)).toBe("shallow");
+    expect(await cause(deep)).toBe("unknown");
+    // Without what HEAD files say, `rev-parse` tells.
+    vi.mocked(headFiles).mockResolvedValueOnce(undefined);
+    expect(await cause(clone)).toBe("shallow");
+    // A git call that timed out tells nothing: no cause is claimed.
+    vi.mocked(headFiles).mockResolvedValueOnce(undefined);
+    vi.mocked(headCommit).mockResolvedValueOnce(TIMEOUT);
+    expect(await cause(clone)).toBe("unknown");
   });
 
   it("is null for a repository that is not on this machine", async () => {
@@ -798,6 +814,7 @@ describe("version date", () => {
     expect(await dates(workspace, [{ repository: "sensor", version: "n1:0123456789abcdef" }])).toEqual([
       null,
     ]);
+    expect(await undatedCause(await context(workspace), "sensor")).toBe("no-git");
   });
 
   it("is null when git times out or is missing during a walk, and walks again next time", async () => {

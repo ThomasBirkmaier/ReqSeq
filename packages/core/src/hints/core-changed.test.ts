@@ -65,7 +65,7 @@ describe("a changed core requirement at its replacement (SR-045)", () => {
     });
     expect(hint?.currentVersion).not.toBe(K_VERSION);
     expect(hint?.message).toMatch(
-      /^Core requirement System Requirement SR-0000a1, which System Requirement SR-0000b1 replaces, has changed since the replacement stored its version: stored version from no date/,
+      /^Core requirement System Requirement SR-0000a1, which System Requirement SR-0000b1 replaces, has changed since the replacement stored its version: neither version has a date \(Git cannot read the repository\)$/,
     );
     const coast = await listed(workspace, { variant: "VAR-0000c1", kind: ["variant.core-changed"] });
     expect(coast.map((h) => h.hintId)).toEqual([hint?.hintId]);

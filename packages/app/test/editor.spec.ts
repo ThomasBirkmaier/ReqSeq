@@ -323,7 +323,9 @@ test.describe("the Markdown editor in the element buffer", () => {
       `link outdated · version of ${hint.storedDate === undefined || hint.storedDate === null ? "unknown date" : hint.storedDate.slice(0, 10)}`;
     // An inline reference in the text.
     const [reference] = await datedHints(REFERENCE_SOURCE_ID);
-    expect(reference?.message).toMatch(/: stored version from .+, current version from .+$/);
+    expect(reference?.message).toMatch(
+      /: (stored version from .+, current version from .+|neither version has a date \(.+\))$/,
+    );
     await opened(window, REFERENCE_SOURCE_TITLE);
     await expect(window.locator(".cm-lr-outdated-word")).toHaveText(` ${word(reference ?? {})}`);
     await expect(window.locator(".cm-lr-outdated")).toHaveAttribute("title", reference?.message ?? "");

@@ -75,8 +75,8 @@ import { frontmatterLines, textLineOf } from "../model/item-lines.js";
 import { findingLocator } from "../model/locate.js";
 import type { StoreUpdate } from "../model/store.js";
 import { carryStoreUpdate } from "../model/store.js";
-import type { VersionDateRequest } from "../model/version-date.js";
-import { prepareVersionDates, versionDates } from "../model/version-date.js";
+import type { UndatedCause, VersionDateRequest } from "../model/version-date.js";
+import { prepareVersionDates, undatedCause, versionDates } from "../model/version-date.js";
 import type { Workspace } from "../runtime/workspace.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
@@ -587,8 +587,24 @@ export const outdatedRelationsState = defineWorkspaceState(
   },
 );
 
-/** How a message shows the date of a version (D-013): the date, or why there is none (ADR-0005). */
-const shown = (date: string | null): string => date ?? "no date (not committed, or Git cannot tell)";
+/** Why a version has no date, once per message (#252, ADR-0005 "No date"). */
+const CAUSES: Readonly<Record<UndatedCause, string>> = {
+  "no-git": "Git cannot read the repository",
+  shallow: "the repository is a shallow clone",
+  unknown: "not committed, or Git cannot tell",
+};
+
+/**
+ * The dates of the stored and the current version as a message shows them (D-013): each date, and
+ * `why` there is none, said once; `why` is empty when both have one.
+ */
+const datesText = (stored: string | null, current: string | null, why: string): string => {
+  if (stored === null && current === null) {
+    return `: neither version has a date (${why})`;
+  }
+  const missing = why === "" ? "" : ` (${why})`;
+  return `: stored version from ${stored ?? "no date"}, current version from ${current ?? "no date"}${missing}`;
+};
 
 /**
  * The problems of `findings` with the dates of the stored and the current version (D-013, ADR-0005
@@ -618,6 +634,7 @@ export const datedProblems = async (
   };
   const pending = findings.map(({ problem, target, stored, current }) => ({
     problem,
+    target,
     stored: request(target, stored),
     current: request(target, current),
   }));
@@ -625,14 +642,27 @@ export const datedProblems = async (
   await prepareVersionDates(context, asked);
   const answers = await versionDates(context, asked);
   const dates = new Map([...requests.keys()].map((key, i) => [key, answers[i] ?? null]));
-  return pending.map(({ problem, stored, current }) => {
-    const storedDate = dates.get(stored) ?? null;
-    const currentDate = dates.get(current) ?? null;
-    return {
-      ...problem,
-      message: `${problem.message}: stored version from ${shown(storedDate)}, current version from ${shown(currentDate)}`,
-      storedDate,
-      currentDate,
-    };
-  });
+  // The cause of a missing date, asked once per repository that has one.
+  const causes = new Map<string, Promise<UndatedCause>>();
+  const causeOf = (name: string): Promise<UndatedCause> => {
+    let cause = causes.get(name);
+    if (cause === undefined) {
+      cause = undatedCause(context, name);
+      causes.set(name, cause);
+    }
+    return cause;
+  };
+  return Promise.all(
+    pending.map(async ({ problem, target, stored, current }) => {
+      const storedDate = dates.get(stored) ?? null;
+      const currentDate = dates.get(current) ?? null;
+      const why = storedDate === null || currentDate === null ? CAUSES[await causeOf(target.repository)] : "";
+      return {
+        ...problem,
+        message: `${problem.message}${datesText(storedDate, currentDate, why)}`,
+        storedDate,
+        currentDate,
+      };
+    }),
+  );
 };

@@ -35,7 +35,7 @@ const undated = (hints: readonly Problem[]): Problem[] =>
   hints
     .map(({ storedDate: _stored, currentDate: _current, ...hint }) => ({
       ...hint,
-      message: hint.message.replace(/: stored version from .*$/, ""),
+      message: hint.message.replace(/: (stored version from|neither version has a date) .*$/, ""),
     }))
     .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
 
