@@ -39,6 +39,11 @@ export const saveStep = <E>(o: {
   readonly input: boolean;
   readonly note: string | undefined;
   readonly mode: SaveMode;
+  /**
+   * The name to say when "Save element" was asked while a write ran and that write left no input (#563): the
+   * input is saved, so it says `Saved <name>`, not that there was nothing to save.
+   */
+  readonly afterWrite?: string | undefined;
 }): SaveDecision<E> => {
   if (o.editor === undefined) {
     return { kind: "done", result: true };
@@ -48,7 +53,8 @@ export const saveStep = <E>(o: {
     return { kind: "done", result: !o.input, ...(asked ? { echo: o.note } : {}) };
   }
   if (!o.input) {
-    return { kind: "done", result: true, ...(asked ? { echo: "No changes to save" } : {}) };
+    const echo = o.afterWrite === undefined ? "No changes to save" : `Saved ${o.afterWrite}`;
+    return { kind: "done", result: true, ...(asked ? { echo } : {}) };
   }
   return { kind: "write", editor: o.editor };
 };
