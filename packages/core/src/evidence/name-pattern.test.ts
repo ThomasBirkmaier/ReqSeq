@@ -84,6 +84,11 @@ describe("nameMatcher (SR-029 AK5)", () => {
     expect(matches("{prefix}{id}", "de123456")).toEqual(["DE-123456"]);
     expect(matches("{prefix}_{id}", "test_123456 x_123456")).toEqual([]);
     expect(matches("{prefix}_{id}", "sr_123456", [])).toEqual([]);
+    // The name is read in upper case, so a prefix with a lower case letter never fits; a repeated one is one.
+    expect(matches("{prefix}_{id}", "Sr_123456 sr_123456", ["Sr", "SR", "SR"])).toEqual([
+      "SR-123456",
+      "SR-123456",
+    ]);
   });
 
   it("matches 6 to 32 hex digits and nothing shorter or longer", () => {
