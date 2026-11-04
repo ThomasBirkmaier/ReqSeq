@@ -7,7 +7,7 @@ import { FIXTURE_METAMODEL, effectiveType, metamodelOutput } from "./metamodel-t
 /** A row as one line of words, a property as "name key value [required] [counts to version] [(inherited)]". */
 const words = (row: TextRow): string =>
   row.kind === "relation"
-    ? `${row.key} | ${row.name} ${row.relation} | ${row.source} → ${row.target}`
+    ? [`${row.key} | ${row.name} ${row.relation} | ${row.source} → ${row.target}`, ...row.limits].join(" | ")
     : [
         `${row.key} | ${row.name} ${row.prefix} ${row.type}${row.abstract ? " abstract" : ""}`,
         `extends ${row.parent ?? "-"}`,
@@ -86,6 +86,37 @@ describe("metamodelText", () => {
       "error  metamodel.invalid  not a metamodel file  model/broken.yaml:3",
       "warning  metamodel.invalid  no line  model/types.yaml",
       "info  metamodel.invalid  nowhere",
+    ]);
+  });
+
+  it("names the most entries of a list property and each limit of a relation kind (SR-171, SR-152)", () => {
+    const text = metamodelText(
+      metamodelOutput({
+        types: [
+          effectiveType("need", ["criteria"]),
+          { ...effectiveType("system-requirement", []), name: "System Requirement" },
+        ],
+        properties: [
+          { key: "criteria", name: "Criteria", kind: "text", many: true, "max-items": 3, content: true },
+        ],
+        relations: [
+          {
+            key: "derives-from",
+            name: "Derives from",
+            limits: [
+              { "target-type": "use-case", max: 1 },
+              { "source-type": "system-requirement", "target-type": "need", min: 1 },
+              { "target-type": "need", min: 1, max: 3 },
+              { "target-type": "need", min: 2, max: 2 },
+            ],
+          },
+        ],
+      }),
+    );
+    expect(text.rows.map(words)).toEqual([
+      "type:need | NEED NEED need | extends - | Criteria criteria list of text · at most 3 counts to version | statuses ",
+      "type:system-requirement | System Requirement SYSTEMREQUIREMENT system-requirement | extends - | statuses ",
+      "relation:derives-from | Derives from derives-from | any type → any type | → use-case: at most 1 | System Requirement → NEED: at least 1 | → NEED: 1 to 3 | → NEED: exactly 2",
     ]);
   });
 });
