@@ -21,13 +21,18 @@ Build once (`pnpm install && pnpm build`), then from the repository root:
 ```sh
 node packages/cli/dist/bin.js element get SR-036 --workspace spec
 node packages/cli/dist/bin.js element list --workspace spec --input '{"selection":{"package":"Stufe-3"},"sort":[{"by":"spec-id"}]}'
-node packages/cli/dist/bin.js element list --with-text --limit 1000 --workspace spec --input '{"selection":{"package":"Stufe-3","where":{"type":["system-requirement"]}},"sort":[{"by":"spec-id"}]}'
 node packages/cli/dist/bin.js element search "Abdeckung Auswahl" --workspace spec
 node packages/cli/dist/bin.js trace chain SR-036 --workspace spec
 node packages/cli/dist/bin.js workspace check --workspace spec
 ```
 
-The second `element list` gives all system requirements of a stage with their text, numbered acceptance criteria (`1:` is AK1) and relations, for a review in one call and smaller than the files (#397). `pnpm reqseq <command> ... --workspace spec` is the same; `pnpm spec:check` runs the check. The MCP server is `node packages/cli/dist/bin.js mcp --workspace spec`.
+All system requirements of a stage with their text, numbered acceptance criteria (`1:` is AK1) and relations, in one call instead of reading each file:
+
+```sh
+node packages/cli/dist/bin.js element list --with-text --package Stufe-3 --where-type system-requirement --sort spec-id --limit 1000 --workspace spec
+```
+
+`pnpm reqseq <command> ... --workspace spec` is the same; `pnpm spec:check` runs the check. The MCP server is `node packages/cli/dist/bin.js mcp --workspace spec`.
 
 New elements: `element create` with `properties: {"spec-id": "<next free ID>"}` (an ID reserved for an approved draft is not free). The stage or milestone of a system requirement is its package: `element update` with `set: {"packages": [{"id": "<UUID of the package>"}]}` (`element get Stufe-3` gives the UUID).
 
