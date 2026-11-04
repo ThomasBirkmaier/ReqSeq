@@ -297,6 +297,39 @@ test.describe("the command prompt", () => {
       await expect(label(window)).toHaveCount(0);
     });
 
+    test("Bulk update on the list of all elements takes every element (#856)", async () => {
+      running = await launchApp(FIXTURE);
+      const { window } = running;
+      // The plain list of all elements, no view chosen: it has no selection of its own.
+      await listAll(window);
+      await command(window, "Bulk update elements");
+      await window.keyboard.type("Rationale");
+      await expect(names(window).first()).toHaveText("Rationale");
+      await window.keyboard.press("Enter");
+      await window.keyboard.type("set");
+      await expect(names(window).first()).toHaveText("set");
+      await window.keyboard.press("Enter");
+      await window.keyboard.type("Every element");
+      await window.keyboard.press("Enter");
+      // The preview (no confirm) of every element, as the CLI gives it for the empty selection.
+      await expect(window.locator(".result")).toBeVisible();
+      await expect(window.locator(".minibuffer .echo")).not.toContainText("selection is required");
+      const cli = await running.cli([
+        "element",
+        "bulk-update",
+        "--input",
+        JSON.stringify({ selection: {}, property: "rationale", operation: "set", value: "Every element" }),
+      ]);
+      const preview = JSON.parse(cli.stdout) as {
+        readonly count: number;
+        readonly affected: readonly { readonly shortId: string }[];
+      };
+      expect(preview.count).toBeGreaterThan(1);
+      for (const { shortId } of preview.affected) {
+        await expect(window.locator(".result")).toContainText(shortId);
+      }
+    });
+
     test("Bulk update with confirm yes writes only after its preview was shown, with its plan (#836)", async () => {
       running = await launchApp(FIXTURE);
       const { window } = running;

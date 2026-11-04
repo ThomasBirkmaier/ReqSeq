@@ -1664,6 +1664,39 @@ describe("the arguments a command expects, completed with the values of the meta
     expect(call).toHaveBeenLastCalledWith("element.bulkUpdate", expect.objectContaining({ value: 3 }));
   });
 
+  it("gives a bulk update on the list of all elements outside a view every element, the empty selection (#856)", async () => {
+    const all = setup([listBuffer("All elements")], {
+      "metamodel.get": () => FIXTURE_METAMODEL,
+      "element.bulkUpdate": () => ({ total: 0, changes: [] }),
+      "baseline.create": () => ({ files: [] }),
+      "element.facets": () => ({ total: 0 }),
+    });
+    start(all.context, "element.bulkUpdate");
+    item((await last(all.asked)).items, "Severity").run();
+    item((await last(all.asked)).items, "set").run();
+    (await last(all.asked)).text?.("3");
+    await flush();
+    expect(all.call).toHaveBeenLastCalledWith("element.bulkUpdate", {
+      selection: {},
+      property: "severity",
+      operation: "set",
+      value: 3,
+    });
+    // Create baseline requires a selection too: there it is every element, and only the name is asked.
+    start(all.context, "baseline.create");
+    (await last(all.asked)).text?.("Release 1");
+    await flush();
+    expect(all.call).toHaveBeenLastCalledWith("baseline.create", { name: "Release 1", selection: {} });
+    // A command whose selection is optional reads every element without one.
+    const facets = {
+      ...command("element.facets"),
+      arguments: [{ field: "selection", complete: "selection" as const }],
+    };
+    catalogItems(all.context, [facets], [])[0]?.run();
+    await flush();
+    expect(all.call).toHaveBeenLastCalledWith("element.facets", {});
+  });
+
   it("offers the properties of the element's type for a property of an element, and says why the metamodel cannot be read", async () => {
     // As a read command: the prompt lists no write command that the element buffer covers.
     const unset = {
