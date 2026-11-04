@@ -1903,7 +1903,11 @@ describe("the arguments a command expects, completed with the values of the meta
     start(context, "hint.confirm");
     (await last(asked)).items[0]?.run();
     const hints = await last(asked);
-    expect(call).toHaveBeenLastCalledWith("hint.list", { ref: "uuid-1" });
+    expect(call).toHaveBeenLastCalledWith("hint.list", {
+      ref: "uuid-1",
+      kind: ["relation.outdated", "variant.core-changed"],
+      limit: 5000,
+    });
     expect(hints.items.map((i) => i.name)).toEqual(["Relation Refines is outdated"]);
     // Without an element the hint IDs are typed; a source that cannot be read says why.
     const hintOf = {

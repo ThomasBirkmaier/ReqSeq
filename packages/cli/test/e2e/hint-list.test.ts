@@ -83,7 +83,9 @@ describe("reqseq hint list (SR-026)", () => {
       expect.stringMatching(/ {2}hint: relation\.outdated\/system\/.*\/derives-from\/.*\?version=n1:0{16}$/),
       expect.stringMatching(/ {2}hint: relation\.outdated\/system\/.*\/@text\/.*&n=1$/),
     ]);
-    expect(lines).toHaveLength(10);
+    // The hints, then their total (#146): all of them on one page, so no page note.
+    expect(lines.at(-2)).toBe(`total: ${String(output.hints.length)}`);
+    expect(lines).toHaveLength(11);
   });
 
   it("[SR-026/AK2] prints only the hints that pass the filters", async () => {
