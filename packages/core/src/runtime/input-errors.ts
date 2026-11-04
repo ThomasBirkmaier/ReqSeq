@@ -139,10 +139,15 @@ type KeywordText = (value: unknown, params: Readonly<Record<string, unknown>>, e
 const bound: KeywordText = (value, p) =>
   `must be ${String(p["comparison"])} ${String(p["limit"])}, not ${quote(value)}`;
 
-/** A value that has not the form its schema describes; the description is added when there is one. */
-const notTheForm: KeywordText = (value, _p, error) => {
+/**
+ * A value that has not the form its schema describes; the description is added when there is one, and
+ * the keys that tell the branches of a `oneOf` or `anyOf` apart when no key or several of them are there
+ * (#150).
+ */
+const notTheForm: KeywordText = (value, p, error) => {
   const description = (error.parentSchema as JsonSchema | undefined)?.["description"];
-  return `${subject(value)} does not have the expected form${typeof description === "string" ? `: ${description}` : ""}`;
+  const keys = p["keys"] as readonly string[] | undefined;
+  return `${subject(value)} does not have the expected form${typeof description === "string" ? `: ${description}` : ""}${keys === undefined ? "" : ` (exactly one of: ${keys.join(", ")})`}`;
 };
 
 /** What a field must be, by keyword, when no def message applies; after the field name. */
@@ -202,6 +207,118 @@ export const knownNames = (schema: unknown): string => {
 
 const known = new WeakMap<readonly JsonSchema[], WeakMap<object, string>>();
 
+/** The schema file of every def, by the def object, to resolve a `#/$defs/...` reference in a branch. */
+const rootsOf = (schemas: readonly JsonSchema[]): WeakMap<object, JsonSchema> => {
+  const byDef = new WeakMap<object, JsonSchema>();
+  for (const schema of schemas) {
+    for (const def of Object.values((schema["$defs"] ?? {}) as Readonly<Record<string, JsonSchema>>)) {
+      byDef.set(def, schema);
+    }
+  }
+  return byDef;
+};
+
+const rootsKnown = new WeakMap<readonly JsonSchema[], WeakMap<object, JsonSchema>>();
+
+/** An object branch that names its keys: what `branchesOf` needs of each branch. */
+interface ObjectBranch {
+  readonly required: readonly string[];
+  readonly properties: Readonly<Record<string, unknown>>;
+  readonly closed: boolean;
+}
+
+/**
+ * The branches of a `oneOf` or `anyOf`, when every one is an object schema with required keys (inline or
+ * a `#/$defs/...` reference of the same file); else `undefined`, and the branches cannot be told apart.
+ */
+const branchesOf = (error: ErrorObject, roots: WeakMap<object, JsonSchema>): ObjectBranch[] | undefined => {
+  // Without `verbose` (the file validators, #160), an error holds no schema to tell branches apart by.
+  if (!Array.isArray(error.schema)) {
+    return undefined;
+  }
+  const root = roots.get(error.parentSchema as object);
+  const branches: ObjectBranch[] = [];
+  for (const raw of error.schema as readonly JsonSchema[]) {
+    const ref = raw["$ref"];
+    const local =
+      typeof ref === "string" && ref.startsWith("#/$defs/") ? ref.slice("#/$defs/".length) : undefined;
+    const branch =
+      ref === undefined
+        ? raw
+        : local === undefined
+          ? undefined
+          : (root?.["$defs"] as Readonly<Record<string, JsonSchema>> | undefined)?.[local];
+    const required = branch?.["required"];
+    if (branch?.["type"] !== "object" || !Array.isArray(required) || required.length === 0) {
+      return undefined;
+    }
+    branches.push({
+      required: required as string[],
+      properties: (branch["properties"] ?? {}) as Readonly<Record<string, unknown>>,
+      closed: branch["additionalProperties"] === false,
+    });
+  }
+  return branches;
+};
+
+/**
+ * The errors with each `oneOf` or `anyOf` of object branches narrowed to the branch the value means
+ * (#150): the one whose required keys are all there, as `{"property": ..., "op": ...}` means the property
+ * branch. Its errors stay (below the value, those under a key of the branch; a key it does not have) and
+ * the errors of the other branches and the `oneOf` go. When no branch or several fit, the `oneOf` stays
+ * and names the keys that tell the branches apart.
+ */
+const narrowed = (
+  all: readonly ErrorObject[],
+  input: unknown,
+  roots: WeakMap<object, JsonSchema>,
+): ErrorObject[] => {
+  let errors = [...all];
+  for (const either of all.filter((e) => e.keyword === "anyOf" || e.keyword === "oneOf")) {
+    const value = valueAt(input, segmentsOf(either.instancePath));
+    const branches = branchesOf(either, roots);
+    if (branches === undefined || typeof value !== "object" || value === null || Array.isArray(value)) {
+      continue;
+    }
+    const fitting = branches.filter((b) => b.required.every((key) => key in value));
+    const [branch] = fitting;
+    const at = errors.indexOf(either);
+    const path = either.instancePath;
+    const chosen = branch === undefined ? -1 : branches.indexOf(branch);
+    // At the value itself, the required keys and unknown keys of the branch are told anew below, and an
+    // inline branch's errors carry its index; deeper, an error belongs to the branch when its key does.
+    const ofBranch = (error: ErrorObject): boolean =>
+      branch !== undefined &&
+      (error.instancePath === path
+        ? error.keyword !== "required" &&
+          error.keyword !== "additionalProperties" &&
+          (!error.schemaPath.startsWith(`${either.schemaPath}/`) ||
+            error.schemaPath.startsWith(`${either.schemaPath}/${String(chosen)}/`))
+        : String(segmentsOf(error.instancePath.slice(path.length))[0]) in branch.properties);
+    const inside = errors.slice(0, at).filter((e) => isUnder(e.instancePath, path));
+    const kept = inside.filter(ofBranch);
+    const unknown =
+      branch?.closed === true ? Object.keys(value).filter((key) => !(key in branch.properties)) : [];
+    const own = unknown.map((key) => ({
+      ...either,
+      keyword: "additionalProperties",
+      params: { additionalProperty: key },
+      parentSchema: { properties: branch?.properties },
+    }));
+    if (fitting.length !== 1 || kept.length + own.length === 0) {
+      const keys = [...new Set(branches.map((b) => String(b.required[0])))];
+      errors[at] = { ...either, params: { ...either.params, keys } };
+      continue;
+    }
+    errors = [
+      ...errors.slice(0, at).filter((e) => !inside.includes(e) || kept.includes(e)),
+      ...own,
+      ...errors.slice(at + 1),
+    ];
+  }
+  return errors;
+};
+
 /**
  * The readable violations of an input that failed its schema, in Ajv's order, each once. Errors
  * inside a branch of an `anyOf` (or `oneOf`) at the same place are left out: the `anyOf` gives one
@@ -216,7 +333,12 @@ export function inputViolations(
     defs = defsOf(context.schemas);
     known.set(context.schemas, defs);
   }
-  const all = errors ?? [];
+  let roots = rootsKnown.get(context.schemas);
+  if (roots === undefined) {
+    roots = rootsOf(context.schemas);
+    rootsKnown.set(context.schemas, roots);
+  }
+  const all = narrowed(errors ?? [], context.input, roots);
   const either = all.filter((e) => e.keyword === "anyOf" || e.keyword === "oneOf");
   const propertyNames = all.filter((e) => e.keyword === "propertyNames");
   const out: InputViolation[] = [];
