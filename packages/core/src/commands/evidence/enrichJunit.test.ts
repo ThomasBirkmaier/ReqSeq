@@ -412,6 +412,40 @@ describe("evidence.enrichJunit (SR-029)", () => {
     expect((await fs.stat(fixture.path("results/vitest.xml"))).mtimeMs).toBe(mtimeMs);
   });
 
+  it("warns about a test case that names a need, as workspace.check does for its record, and still enriches it (#843)", async () => {
+    const need = "84300000-0000-4000-8000-0000000e0843";
+    const { fixture, workspace } = await open({
+      "needs/N-0000000e0843.md": `---\nid: ${need}\ntype: need\nstatus: draft\ntitle: See the need\n---\n`,
+      "results/need.xml":
+        '<?xml version="1.0" encoding="UTF-8"?>\n<testsuite name="station">\n' +
+        '  <testcase classname="station" name="[N-0e0843] [SR-0b0036] shows the need"/>\n' +
+        '  <testcase classname="station" name="[SR-0c0037] logs"/>\n</testsuite>\n',
+    });
+    const warning = {
+      code: "evidence.kind-mismatch",
+      severity: "warning",
+      file: "results/need.xml",
+      line: 3,
+      targetId: need,
+      targetRepository: "system",
+      message: `Test case "[N-0e0843] [SR-0b0036] shows the need" (line 3) names element ${need} of type need, so its record counts for no status: a verification record names a requirement (D-012)`,
+    };
+    const first = await enrich(workspace, { file: "results/need.xml" });
+    expect(first).toMatchObject({ testCases: 2, files: ["results/need.xml"], problems: [warning] });
+    expect(recordsOf(await bytesOf(fixture, "results/need.xml"))).toEqual([
+      ["[N-0e0843] [SR-0b0036] shows the need", need],
+      ["[N-0e0843] [SR-0b0036] shows the need", REPORT],
+      ["[SR-0c0037] logs", LOG],
+    ]);
+    // Kept on a repeat call (D-026), with the same warning; workspace.check gives it for the record.
+    const again = await enrich(workspace, { file: "results/need.xml", output: "evidence/need.xml" });
+    expect(again).toMatchObject({ testCases: 2, files: ["evidence/need.xml"], problems: [warning] });
+    const check = (await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">;
+    expect(
+      check.problems.filter((p) => p.code === "evidence.kind-mismatch").map((p) => [p.targetId, p.severity]),
+    ).toEqual([[need, "warning"]]);
+  });
+
   it("writes the input unchanged to a new output when nothing changes: an enriched input and one that names nothing", async () => {
     const { fixture, workspace } = await open({
       "results/plain.xml":

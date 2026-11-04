@@ -62,4 +62,19 @@ scenariosOf("relation.add", [
       ]);
     },
   },
+  {
+    name: "a relation that is there already, on a source over the maximum, writes nothing and gives the hint (#845)",
+    fixture: { fixture: "SR-152/limits", git: true },
+    input: { source: "SR-c00001", kind: "derives-from", target: "15200000-0000-4000-8000-000000b00001" },
+    expect: "output",
+    check: (results) => {
+      const { files, problems } = (
+        results["core"]?.outcome as { output: { files: string[]; problems: Record<string, unknown>[] } }
+      ).output;
+      expect(files).toEqual([]);
+      expect(problems.map((p) => [p["code"], p["targetType"], p["count"], p["limit"], p["line"]])).toEqual([
+        ["relation.too-many", "use-case", 2, 1, 6],
+      ]);
+    },
+  },
 ]);

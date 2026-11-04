@@ -4,7 +4,8 @@
 // hints, one per element with its line (SR-067 AK3: "zeigt das Tool einen Hinweis"; SR-090). A
 // stored entry without a valid version gets its current version, said by `relation.version-added`
 // before the cycle hints (#302). A relation over a maximum of SR-152 is written too, and its
-// `relation.too-many` hint comes after `relation.version-added` and before the cycle hints (AK3).
+// `relation.too-many` hint comes after `relation.version-added` and before the cycle hints (AK3), on
+// a repeat call that writes nothing too (#845).
 import type { CommandOutput, Problem } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import type { AddedRelation } from "../../model/index.js";

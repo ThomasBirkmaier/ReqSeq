@@ -13,6 +13,10 @@
 //   `withoutReference` (AK4); kept, reported and refused test cases do not.
 // - A test case with a reported reference stays unchanged and is listed (AK2, spec question #529 Q1);
 //   the others are enriched and the file is written.
+// - A test case enriched by this call or kept that names an element of a type without the meaning
+//   `requirement` (a need, say) gives `evidence.kind-mismatch` (warning), as `workspace.check` reports
+//   its record afterwards (D-012, #628): the record counts for no status (#843). It is enriched all the
+//   same: the file says what the test names, and a validation may still be recorded by hand.
 // - A test case that already has a `reqseq:version` is never changed: its version is the one it was
 //   tested against (D-026, spec question #529 Q5, assumption "keep"). A kept version that is no longer
 //   current gives `evidence.outdated` (warning); one the reader rejects `evidence.invalid-record`.
@@ -28,7 +32,7 @@ import { CommandError } from "../catalog.js";
 import { readFileSnapshot, shown, writeFileAtomic, zip } from "../files/index.js";
 import type { FileSnapshot } from "../files/index.js";
 import type { EvidenceEnrichJunitInput, EvidenceEnrichJunitOutput } from "../generated/types.js";
-import { metamodelState } from "../metamodel/index.js";
+import { metamodelState, typesWithMeaning } from "../metamodel/index.js";
 import type { ElementRecord } from "../model/index.js";
 import {
   currentVersionsOf,
@@ -117,8 +121,19 @@ export interface EnrichOptions {
    * counts (AK9).
    */
   readonly outOfVariant: (id: string, view: string) => string | undefined;
+  /**
+   * The type and repository of the element `id` when a verification record cannot name it (its type
+   * has no meaning `requirement`, D-012), else undefined (#843); absent: no element is checked.
+   */
+  readonly notRequirement?: ((id: string) => NotRequirement | undefined) | undefined;
   /** The compiled name pattern (AK5, `nameMatcher`); absent: brackets and properties only. */
   readonly namePattern?: ((name: string) => readonly NameMatch[]) | undefined;
+}
+
+/** An element a verification record cannot name (`notRequirement`). */
+export interface NotRequirement {
+  readonly type: string;
+  readonly repository: string;
 }
 
 export interface EnrichResult {
@@ -681,6 +696,28 @@ interface Context {
 const idsOf = (plan: Extract<Plan, { kind: "enrich" | "kept" }>): readonly string[] =>
   plan.kind === "enrich" ? [...plan.named.map((n) => n.id), ...plan.added] : [...plan.pairs.keys()];
 
+/**
+ * `evidence.kind-mismatch` (warning) for each of the elements `ids` of `testCase` that a verification
+ * record cannot name, as `workspace.check` gives it for the record (`recordKindProblems`, #843).
+ */
+const kindProblems = (testCase: JunitTestCase, ids: readonly string[], context: Context): LinedProblem[] =>
+  ids.flatMap((id): LinedProblem[] => {
+    const other = context.options.notRequirement?.(id);
+    return other === undefined
+      ? []
+      : [
+          {
+            code: "evidence.kind-mismatch",
+            severity: "warning",
+            ...context.where,
+            line: testCase.line,
+            targetId: id,
+            targetRepository: other.repository,
+            message: `${testCaseText(testCase)} names element ${id} of type ${other.type}, so its record counts for no status: a verification record names a requirement (D-012)`,
+          },
+        ];
+  });
+
 /** Adds what enriching one planned test case gives to `outcome`. */
 const addEnriched = (outcome: Outcome, plan: Extract<Plan, { kind: "enrich" }>, context: Context): void => {
   const ids = idsOf(plan);
@@ -719,6 +756,7 @@ const addEnriched = (outcome: Outcome, plan: Extract<Plan, { kind: "enrich" }>, 
     variant: plan.variant.id,
   });
   outcome.count += 1;
+  outcome.problems.push(...kindProblems(plan.testCase, ids, context));
 };
 
 /** Adds what one planned test case gives to `outcome`. */
@@ -769,7 +807,7 @@ const addPlan = (outcome: Outcome, plan: Plan, context: Context): void => {
         return;
       }
       outcome.count += 1;
-      outcome.problems.push(...keptProblems(plan, context));
+      outcome.problems.push(...keptProblems(plan, context), ...kindProblems(plan.testCase, ids, context));
       return;
     }
     case "enrich":
@@ -1127,6 +1165,8 @@ export const enrichJunitFile = async (
   const views: ViewContext = { workspace, metamodel, store, shortIds };
   const variants = new Map<string, ElementRecord>();
   const variant = givenVariant(views, input.variant, variants);
+  // The metamodel is valid here: a write is refused while it is not (`workspace.read-only`).
+  const requirements = new Set(typesWithMeaning(metamodel, "requirement").map((t) => t.key));
   const result = await enrichJunitBytes(bytes, {
     resolve: resolverOf((ref) => resolveRef(store, shortIds, ref), found),
     versionsOf: async (ids) => {
@@ -1149,6 +1189,12 @@ export const enrichJunitFile = async (
     variant,
     resolveVariant: variantResolverOf(views, variants, incompleteNote(layout)),
     outOfVariant: outOfVariantOf(views, found, variants),
+    notRequirement: (id) => {
+      const record = found.get(id);
+      return record === undefined || requirements.has(record.type)
+        ? undefined
+        : { type: record.type, repository: record.repository };
+    },
     namePattern:
       pattern === undefined
         ? undefined
