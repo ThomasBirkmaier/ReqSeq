@@ -1,6 +1,7 @@
 // The lines of the result buffer (SR-073 AK2): the output of a catalog command that no other buffer
-// shows, laid out by its shape alone, like the CLI's text output. Elements are rows that open, problems and
-// hints are one line each with their element (a row with its status, as a list row shows it, #276), everything else is a quiet indented outline. The share of a
+// shows, laid out by its shape alone, like the CLI's text output. Elements are rows that open, with the
+// status their record gives at the end, as a list row shows it (#276; the rows of `trace.chain` too), problems
+// and hints are one line each with their element, everything else is a quiet indented outline. The share of a
 // verification degree (`share` next to `counts`, SR-037) is a percentage by core's rule of every access
 // (`degreePercent`, one decimal rounded down, #592 Q3). A UUID the output names in `names` (#588) is the row
 // of its element, and `names` itself is not shown. A record of exactly two named UUIDs, such as a replaced

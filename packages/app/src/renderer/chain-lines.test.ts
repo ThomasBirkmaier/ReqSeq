@@ -135,6 +135,10 @@ describe("the lines of a trace chain", () => {
     const output = { root: "uuid-1", nodes: [node("uuid-1", "SR-1", "Show wind speed")], evidence: "none" };
     expect(chainLines(output)).toEqual(resultLines(output));
     expect(chainLines(undefined)).toEqual([]);
+    // A row of the chain ends with the element's status, as every element row does (#276).
+    expect(chainLines({ ...output, evidence: [] }).find((line) => line.kind === "element")?.status).toBe(
+      "draft",
+    );
   });
 
   it("puts evidence only under a row of the nodes, not under the same element elsewhere", () => {

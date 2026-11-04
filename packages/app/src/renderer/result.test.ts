@@ -187,12 +187,6 @@ describe("result lines", () => {
     };
     expect(resultSummary(output)).toEqual({ total: 1, view: "Title 2", incomplete: false });
     expect(resultLines(output).map((line) => line.label)).toEqual(["elements", "SR-000001"]);
-    // An element row has its status, as a list row shows it; a record without one has none.
-    expect(resultLines(output)[1]?.status).toBe("draft");
-    expect(resultLines([element(3), { ...element(4), status: 7 }]).map((line) => line.status)).toEqual([
-      undefined,
-      undefined,
-    ]);
     expect(resultSummary({ view: "core", incomplete: true })).toEqual({
       total: undefined,
       view: "Core",
@@ -204,6 +198,15 @@ describe("result lines", () => {
     expect(
       resultLines({ view: { kind: "core" }, total: "many", constructor: 1 }).map((line) => line.label),
     ).toEqual(["view", "kind", "total", "constructor"]);
+  });
+
+  it("ends an element row with the status its record gives, as a list row shows it (#276)", () => {
+    expect(resultLines({ elements: [{ ...element(1), status: "draft" }] })[1]?.status).toBe("draft");
+    // A record without a status, or with one that is no text, has none.
+    expect(resultLines([element(3), { ...element(4), status: 7 }]).map((line) => line.status)).toEqual([
+      undefined,
+      undefined,
+    ]);
   });
 
   it("names the buffer by the command prompt's line and gives one buffer per command and input", () => {
