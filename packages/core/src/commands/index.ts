@@ -3,9 +3,11 @@
 // To add a command: write `commands/<group>/<action>.ts` that default-exports
 // `defineCommand({ name: "<group>.<action>", run })` for the catalog entry schemas/commands/<group>.<action>.json
 // (input and output are typed from the catalog, generated/types.ts), import it here and add it to
-// the list (keep both sorted by name).
+// the list (keep both sorted by name). A command whose dependencies would slow down every start is
+// listed as `lazyCommand(name, () => import(...))` instead, which imports it on its first call (#178).
 // commands/registry.test.ts checks that files, this list and the catalog agree.
 import type { AnyCommand } from "../catalog.js";
+import { lazyCommand } from "../catalog.js";
 import baselineCompare from "./baseline/compare.js";
 import baselineCreate from "./baseline/create.js";
 import baselineGet from "./baseline/get.js";
@@ -38,10 +40,6 @@ import metamodelGet from "./metamodel/get.js";
 import relationAdd from "./relation/add.js";
 import relationOptions from "./relation/options.js";
 import relationRemove from "./relation/remove.js";
-import reqifAnalyze from "./reqif/analyze.js";
-import reqifExport from "./reqif/export.js";
-import reqifImport from "./reqif/import.js";
-import reqifSaveMapping from "./reqif/saveMapping.js";
 import traceAffected from "./trace/affected.js";
 import traceChain from "./trace/chain.js";
 import traceGraph from "./trace/graph.js";
@@ -89,10 +87,10 @@ export const commands: readonly AnyCommand[] = [
   relationAdd,
   relationOptions,
   relationRemove,
-  reqifAnalyze,
-  reqifExport,
-  reqifImport,
-  reqifSaveMapping,
+  lazyCommand("reqif.analyze", () => import("./reqif/analyze.js")),
+  lazyCommand("reqif.export", () => import("./reqif/export.js")),
+  lazyCommand("reqif.import", () => import("./reqif/import.js")),
+  lazyCommand("reqif.saveMapping", () => import("./reqif/saveMapping.js")),
   traceAffected,
   traceChain,
   traceGraph,

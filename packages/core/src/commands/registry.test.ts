@@ -33,6 +33,8 @@ const commandFiles = (): string[] =>
     .sort();
 
 const contracts = loadContracts();
+const isLazy = (command: AnyCommand): command is AnyCommand & { readonly load: () => Promise<unknown> } =>
+  "load" in command;
 const registered = commands.map((c) => c.name);
 
 describe("command registry", () => {
@@ -45,7 +47,10 @@ describe("command registry", () => {
       const url = pathToFileURL(path.join(commandsDir, group, `${action}.ts`)).href;
       const mod = (await import(url)) as { readonly default?: AnyCommand };
       expect(mod.default?.name, `commands/${group}/${action}.ts`).toBe(name);
-      expect(commands).toContain(mod.default);
+      const listed = commands.find((c) => c.name === name);
+      // A lazy entry (`lazyCommand`) stands for the module it imports on its first call.
+      const command = listed !== undefined && isLazy(listed) ? await listed.load() : listed;
+      expect(command).toBe(mod.default);
     }
   });
 
