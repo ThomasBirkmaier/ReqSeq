@@ -255,7 +255,7 @@
         },
         "key": {
           "$ref": "#/$defs/key",
-          "description": "The relation kind (`relation.too-many`, `relation.too-few`, SR-152) or the property (`element.too-many-items`, SR-171) a count hint is about."
+          "description": "The relation kind (`relation.too-many`, `relation.too-few`, SR-152) or the property (`element.too-many-items`, SR-171) a count hint is about, or the property an `element.text-emptied` warning names (#841)."
         },
         "targetType": {
           "$ref": "#/$defs/key",

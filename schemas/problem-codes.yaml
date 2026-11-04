@@ -64,8 +64,8 @@ problems:
     cause: An element has more entries in a list property than the `max-items` of the property in the metamodel allows (SR-171). The entries are kept; the hint only shows it.
     remedy: Remove the entries that are too many, or raise or remove `max-items` in the metamodel.
   element.text-emptied:
-    cause: An element.update gave an empty text to an element whose text was not empty, so the whole text was removed (#677). The save is done; the warning only shows it, since an empty text is mostly a broken shell substitution.
-    remedy: If the text was removed by mistake, restore it from Git or give it again with element.update.
+    cause: An element.update gave an empty text to an element whose text was not empty, so the whole text was removed (#677), or an element.update or element.bulkUpdate left a Markdown property or a list property (such as the acceptance criteria) without a value that had one; `key` names that property (#841). The save is done (a preview of element.bulkUpdate writes nothing and says the change would empty it); the warning only shows it, since an empty value is mostly a broken shell substitution. A required property emptied this way also gets `element.missing-required`. Multi-choice and relation lists (such as `packages`) count as lists.
+    remedy: If the text or the property was emptied by mistake, restore it from Git or give it again with element.update.
   relation.missing-target:
     cause: A relation or an inline reference points to an ID that no element in the named repository has, for example because the target file was removed or its file cannot be read.
     remedy: Point the relation to an existing element, remove it, or fix the target's file if the message names one.

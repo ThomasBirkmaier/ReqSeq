@@ -283,7 +283,7 @@ export interface Problem {
   readonly currentDate?: string | null;
   /** Stable ID of a confirmable hint (D-042); on the hint.* problems of hint.confirm, the ID as given. */
   readonly hintId?: string;
-  /** The relation kind (`relation.too-many`, `relation.too-few`, SR-152) or the property (`element.too-many-items`, SR-171) a count hint is about. */
+  /** The relation kind (`relation.too-many`, `relation.too-few`, SR-152) or the property (`element.too-many-items`, SR-171) a count hint is about, or the property an `element.text-emptied` warning names (#841). */
   readonly key?: Key;
   /** The target type of the limit a count hint is about (SR-152). */
   readonly targetType?: Key;
