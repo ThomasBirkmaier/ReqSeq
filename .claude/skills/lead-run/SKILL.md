@@ -50,4 +50,8 @@ A milestone is done when all its issues are closed and `pnpm trace-check --stage
 
 1. Prepare the acceptance: what to try in the app or CLI, the `verification/` records with method Inspektion or Demonstration, and the known limitations.
 2. A PR bumps the root `version` (and runs `pnpm contracts:generate`). Then start the `Release` workflow by hand once; it publishes nothing and finds packaging regressions before the acceptance (ADR-0014).
-3. After the product owner accepts, the product owner sets the release tag `v<version>` (ADR-0014) on the checked commit; agents cannot create tags. The tag starts the `Release` workflow, which writes the release notes. Never mark a milestone accepted yourself.
+3. After the product owner accepts, the product owner sets the release tag ADR-0014 names on the checked commit; agents cannot create tags. The tag starts the `Release` workflow, which writes the release notes. Never mark a milestone accepted yourself.
+
+## Old pattern: stages 1–6
+
+Stages 1–6 ended with v0.6. Their „Stage done“ also added the stage to `COMPLETED_STAGES` in `packages/core/src/commands/registry.test.ts`; milestones add nothing there.
