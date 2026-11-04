@@ -131,6 +131,8 @@ type Step =
 class Oracle {
   readonly #next: () => number;
   readonly files: Known[] = [];
+  /** Every UUID it made, also of files that are gone, for the tails of the short IDs (#215). */
+  readonly uuids: string[] = [];
   /** Files below `outside/`, link targets that no repository holds. */
   #links = 0;
   #count = 0;
@@ -155,7 +157,9 @@ class Oracle {
     const hex = (n: number): string =>
       Array.from({ length: n }, () => "0123456789abcdef".charAt(this.int(16))).join("");
     const tail = this.files.length > 0 && this.int(4) === 0 ? this.pick(this.files).id.slice(-6) : hex(6);
-    return `${hex(8)}-${hex(4)}-4${hex(3)}-8${hex(3)}-${hex(6)}${tail}`;
+    const id = `${hex(8)}-${hex(4)}-4${hex(3)}-8${hex(3)}-${hex(6)}${tail}`;
+    this.uuids.push(id);
+    return id;
   }
 
   words(n: number): string {
@@ -581,8 +585,18 @@ const statesOf = async (workspace: Workspace, store: ElementStore): Promise<Stat
   versions: await currentVersions(workspace),
 });
 
-/** The states of a store as plain data: short IDs, incoming index, current versions. */
-const statesData = (store: ElementStore, { shortIds, index, versions }: States): unknown => {
+/** Identifiers the steps write (`spec-id`), in another case too. */
+const IDENTIFIERS = [...Array.from({ length: 10 }, (_, n) => `REQ-${String(n)}`), "req-1"];
+
+/**
+ * The states of a store as plain data: short IDs (also the tails of `uuids`, UUIDs of files that may
+ * be gone, and the elements of each identifier), incoming index, current versions.
+ */
+const statesData = (
+  store: ElementStore,
+  { shortIds, index, versions }: States,
+  uuids: readonly string[] = [],
+): unknown => {
   const byId = <T>(map: ReadonlyMap<string, readonly T[]>, of: (link: T) => unknown): unknown =>
     [...map].sort(([a], [b]) => (a < b ? -1 : 1)).map(([id, links]) => [id, links.map(of)]);
   return {
@@ -590,6 +604,8 @@ const statesData = (store: ElementStore, { shortIds, index, versions }: States):
       const found = shortIds.find(shortIds.of(e));
       return [place(e), shortIds.of(e), found.kind === "found" ? place(found.element) : found.kind];
     }),
+    tails: uuids.map((id) => shortIds.tail(id)),
+    identifiers: IDENTIFIERS.map((value) => shortIds.withIdentifier(value).map(place)),
     relations: byId(index.relationsById, (l) => [place(l.source), l.key, l.index, l.repository]),
     references: byId(index.referencesById, (l) => [place(l.source), l.reference.line]),
     versions: store.elements.map((e) => {
@@ -625,7 +641,12 @@ const commandsData = async (workspace: Workspace, queries: readonly string[]): P
 };
 
 /** Everything a fresh workspace on the same files gives. */
-const freshOf = async (root: string, versioning: boolean, queries: readonly string[]): Promise<unknown> => {
+const freshOf = async (
+  root: string,
+  versioning: boolean,
+  queries: readonly string[],
+  uuids: readonly string[] = [],
+): Promise<unknown> => {
   const fresh = new Workspace(root);
   try {
     const layout = await fresh.get(workspaceLayoutState);
@@ -637,7 +658,7 @@ const freshOf = async (root: string, versioning: boolean, queries: readonly stri
     const store = await fresh.get(elementStoreState);
     return {
       store: storeData(loaded, versioning),
-      states: statesData(store, await statesOf(fresh, store)),
+      states: statesData(store, await statesOf(fresh, store), uuids),
       commands: await commandsData(fresh, queries),
     };
   } finally {
@@ -805,7 +826,7 @@ describe("the carry over a change of the store equals a fresh build (#215 oracle
       }
       await warm(workspace, QUERIES);
       /** Stores and their states kept as by commands that still run, with what they held then. */
-      const kept: { store: ElementStore; states: States; data: string }[] = [];
+      const kept: { store: ElementStore; states: States; uuids: readonly string[]; data: string }[] = [];
       for (let at = 0; at < STEPS; at++) {
         const before = await workspace.get(elementStoreState);
         const step = await oracle.step();
@@ -815,18 +836,25 @@ describe("the carry over a change of the store equals a fresh build (#215 oracle
         const states = await statesOf(workspace, store);
         const carried = {
           store: storeData(store, versioning),
-          states: statesData(store, states),
+          states: statesData(store, states, oracle.uuids),
           commands: await commandsData(workspace, QUERIES),
         };
-        expect(carried, context).toEqual(await freshOf(root, versioning, QUERIES));
+        expect(carried, context).toEqual(await freshOf(root, versioning, QUERIES, oracle.uuids));
         if (oracle.int(4) === 0) {
-          kept.push({ store, states, data: JSON.stringify(carried.store) + JSON.stringify(carried.states) });
+          const uuids = [...oracle.uuids];
+          kept.push({
+            store,
+            states,
+            uuids,
+            data: JSON.stringify(carried.store) + JSON.stringify(carried.states),
+          });
         }
       }
       // A store and the states a command still holds never change under it (the search index is
       // shared by design, ADR-0008).
-      for (const { store, states, data } of kept) {
-        const now = JSON.stringify(storeData(store, versioning)) + JSON.stringify(statesData(store, states));
+      for (const { store, states, uuids, data } of kept) {
+        const now =
+          JSON.stringify(storeData(store, versioning)) + JSON.stringify(statesData(store, states, uuids));
         expect(now, `seed ${String(seed)}: a kept store and its states`).toBe(data);
       }
     },

@@ -260,7 +260,7 @@ export const parentPositions = (graph: Pick<DerivationGraph, "kinds" | "store">)
  * parent (`to`) whose target is `available`: the one record of its UUID in the repository it points
  * into (as `targetState` finds it; a repository that is not here holds no record). In the order of
  * `IncomingIndex.relationsById`: by its UUIDs (in no defined order: a fresh index has them in the
- * order first named, an index carried over a save adds new ones last, #267), then each list in
+ * order first named, the order is not defined after a carry, #267, #215), then each list in
  * index order. For the cycles of the whole store (SR-090): `cyclesOf(store.elements,
  * derivationEdges(graph))`, whose cycles and their elements come in store order whatever the edge
  * order (only each cycle's `edges` follow it).

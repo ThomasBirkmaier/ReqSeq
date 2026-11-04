@@ -11,6 +11,7 @@ import type { Metamodel } from "../metamodel/index.js";
 import { propertyWithMeaning } from "../metamodel/index.js";
 import type { ElementRecord } from "./elements.js";
 import { recordsById } from "./by-id.js";
+import { PatchedMap } from "./patched-map.js";
 
 /** The elements of a workspace by identifier, as `ShortIds` keeps them. */
 export interface IdentifierIndex {
@@ -143,19 +144,18 @@ export const updateIdentifierIndex = (
   if (added.size === 0 && removed.size === 0) {
     return { key, byValue: old.byValue, byId };
   }
-  const byValue = new Map(old.byValue);
-  for (const match of new Set([...added.keys(), ...removed.keys()])) {
-    const gone = removed.get(match);
-    const list = [
-      ...(old.byValue.get(match) ?? []).filter((id) => gone?.has(id) !== true),
-      ...(added.get(match) ?? []),
-    ].sort();
-    if (list.length === 0) {
-      byValue.delete(match);
-    } else {
-      byValue.set(match, list);
-    }
-  }
+  // A patch of the map (`PatchedMap`, #215), not a copy.
+  const byValue = PatchedMap.patch(
+    old.byValue,
+    [...new Set([...added.keys(), ...removed.keys()])].map((match): [string, string[] | undefined] => {
+      const gone = removed.get(match);
+      const list = [
+        ...(old.byValue.get(match) ?? []).filter((id) => gone?.has(id) !== true),
+        ...(added.get(match) ?? []),
+      ].sort();
+      return [match, list.length === 0 ? undefined : list];
+    }),
+  );
   return { key, byValue, byId };
 };
 

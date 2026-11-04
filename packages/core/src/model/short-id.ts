@@ -17,6 +17,7 @@ import {
   identifierValue,
   updateIdentifierIndex,
 } from "./identifier-index.js";
+import { PatchedMap } from "./patched-map.js";
 import type { ElementStore } from "./store.js";
 import { carryStoreUpdate, elementStoreState } from "./store.js";
 import { normalizeRef } from "./uuid.js";
@@ -292,12 +293,14 @@ export const updateShortIds = (
     const key = groupKey(id);
     changed.set(key, (changed.get(key) ?? new Set()).add(id));
   }
-  const groups = new Map(index.groups);
-  const shared = new Map(index.shared);
+  // Patches of both maps (`PatchedMap`, #215): O(changed groups), not a copy of 50,000 entries. A
+  // UUID's digits lie in its group only, so `link` of a changed group sets them from nothing.
+  const groupChanges = new Map<string, readonly Entry[] | undefined>();
+  const sharedChanges = new Map<string, number | undefined>();
   for (const [key, idsOfGroup] of changed) {
-    const before = groups.get(key) ?? [];
+    const before = index.groups.get(key) ?? [];
     for (const { digits } of before) {
-      shared.delete(digits);
+      sharedChanges.set(digits, undefined);
     }
     const group = before.filter((entry) => !idsOfGroup.has(entry.id));
     for (const id of idsOfGroup) {
@@ -306,16 +309,16 @@ export const updateShortIds = (
         group.push({ id, digits: reversedDigits(id), elements });
       }
     }
-    if (group.length === 0) {
-      groups.delete(key);
-    } else {
-      link(group, shared);
-      groups.set(key, group);
+    const linked = new Map<string, number>();
+    link(group, linked);
+    for (const [digits, n] of linked) {
+      sharedChanges.set(digits, n);
     }
+    groupChanges.set(key, group.length === 0 ? undefined : group);
   }
   return shortIdsOf({
-    groups,
-    shared,
+    groups: PatchedMap.patch(index.groups, groupChanges),
+    shared: PatchedMap.patch(index.shared, sharedChanges),
     byId,
     metamodel: index.metamodel,
     identifiers: updateIdentifierIndex(index.identifiers, byId, changedIds, recordsBefore),
