@@ -49,7 +49,7 @@ const SEPARATOR: LinePart = { text: " · " };
 export const REASON_LENGTH = 200;
 
 /** A reason (SR-172) on one line: each run of white space and control characters one space, cut to `REASON_LENGTH`. */
-const reasonLine = (reason: string): string => {
+export const reasonLine = (reason: string): string => {
   const line = reason.replace(/[\s\p{Cc}]+/gu, " ").trim();
   return line.length > REASON_LENGTH ? `${line.slice(0, REASON_LENGTH - 1)}…` : line;
 };

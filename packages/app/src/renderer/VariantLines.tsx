@@ -16,7 +16,8 @@ export interface VariantLinesProps {
   readonly onOpenRelation: (target: ElementBuffer) => void;
 }
 
-const Part = ({
+/** A part of a line: its text, or a link that opens its element (Enter or a click). */
+export const Part = ({
   part,
   onOpen,
 }: {

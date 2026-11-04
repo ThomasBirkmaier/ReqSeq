@@ -354,6 +354,16 @@ mark {
   line-height: 1.5;
 }
 
+/* The evidence records (SR-032): one muted line each under the label "Evidence", indented under it and
+   closer together than the status lines. */
+.element .evidence-lines .variant-line {
+  margin-bottom: 0.25rem;
+}
+
+.element .evidence-lines .evidence-record {
+  padding-left: 1rem;
+}
+
 /* The title is edited in its heading (#621): its editor looks like the heading and moves nothing when it
    comes (no margin of the text editor, the heading's line height). An empty title shows the ID, muted. */
 .element h1 .editor {
