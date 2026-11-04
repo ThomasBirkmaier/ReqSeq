@@ -6,7 +6,7 @@
 // columns (SR-126): the test cases of each requirement with the result and date of their last execution,
 // and its verification status, with the degree of the selection above it (`degreeLine`, `testCaseLine`,
 // `statusLine`).
-import { degreePercent } from "@reqseq/core/verification-degree";
+import { degreePercent, minimumHeadText } from "@reqseq/core/verification-degree";
 import type {
   DataExportRelation,
   DataExportVerificationDegree,
@@ -94,13 +94,13 @@ export const columnName = (column: MatrixColumn, columns: readonly MatrixColumn[
 
 /**
  * The head of a column. With minima (SR-153 AK1): how many rows meet them, of how many they apply to, and
- * their share as core's percentage (`degreePercent`, one decimal rounded down, as the CLI), e.g.
+ * their share as core's percentage (`minimumHeadText`, one decimal rounded down, as the CLI), e.g.
  * "2 of 5 · 40 %". Without (AK2): how many rows have a relation in the column, e.g. "4".
  */
 export const columnCount = (column: MatrixColumn): string =>
   column.share === undefined || column.expected === undefined || column.met === undefined
     ? String(column.count)
-    : `${String(column.met)} of ${String(column.expected)} · ${degreePercent(column.share)}`;
+    : minimumHeadText(column.met, column.expected, column.share);
 
 /** The gaps of a row in the column at `index`: one per minimum its cell undershoots. */
 export const cellGaps = (row: MatrixRow, index: number): readonly MatrixGap[] =>

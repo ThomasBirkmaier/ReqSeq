@@ -4,7 +4,8 @@
 // assumption of spec question #592 Q3). One rule on every access: the CLI's readable output imports it
 // from `@reqseq/core`, the app's result buffer from `@reqseq/core/verification-degree`. This module
 // imports nothing, so the renderer bundle loads no other part of core with it. The line of a package page
-// (SR-112 AK3) is built here too, so the app and every test that compares with it use one rule.
+// (SR-112 AK3) and the head of a matrix column with minima (SR-153 AK1) are built here too, so the app,
+// the CLI and every test that compares with them use one rule.
 
 /**
  * `share` (0 to 1) as a percentage rounded down to one decimal, with a space before `%`. The `1e-9`
@@ -12,6 +13,13 @@
  * `1000 k/n` is at least `1/n` away from the next integer above it.
  */
 export const degreePercent = (share: number): string => `${String(Math.floor(share * 1000 + 1e-9) / 10)} %`;
+
+/**
+ * The head of a matrix column with minima (SR-153 AK1): how many rows meet them, of how many they apply to,
+ * and their share as `degreePercent`, e.g. "2 of 5 · 40 %".
+ */
+export const minimumHeadText = (met: number, expected: number, share: number): string =>
+  `${String(met)} of ${String(expected)} · ${degreePercent(share)}`;
 
 /**
  * The share of `value` when it has the shape of a verification degree (a number `share` next to an

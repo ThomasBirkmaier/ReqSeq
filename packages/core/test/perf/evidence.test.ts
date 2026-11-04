@@ -649,6 +649,13 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 #5
         { basis: `SR-173, SR-082 AK4 (warm; ${COMPARE_AK4})`, ...COMPARED },
       );
       expect(warm).toEqual(cold);
+      // The path the mark changes: in a variant's view the records without variant hold too.
+      const { result: inVariant } = await measure(
+        "variant-independent repository (SR-173): filter verification [verified] in the view of a variant, first page",
+        () => run("element.list", { selection: { view: byType("variant")[0] ?? "", where } }),
+        { basis: `SR-173, SR-043 AK3, SR-082 AK4 (${COMPARE_AK4})`, ...COMPARED },
+      );
+      expect(inVariant.elements.length).toBeGreaterThan(0);
       const requirements = { selection: { where: { type: ["system-requirement"] } }, limit: 200 };
       const { result: page } = await measure(
         "variant-independent repository (SR-173): evidence.status, first page (200) of the system requirements",
