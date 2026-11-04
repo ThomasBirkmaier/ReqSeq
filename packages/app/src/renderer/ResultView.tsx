@@ -129,6 +129,7 @@ export const ResultView = ({
         >
           {line.label === "" ? null : <span className="label">{line.label}</span>}
           <span className="text">{line.text}</span>
+          {line.status === undefined ? null : <span className="status">{line.status}</span>}
         </div>
       ))}
     </div>

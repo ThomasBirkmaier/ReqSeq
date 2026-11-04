@@ -1,6 +1,7 @@
 // The lines of the result buffer (SR-073 AK2): the output of a catalog command that no other buffer
-// shows, laid out by its shape alone, like the CLI's text output. Elements are rows that open, problems and
-// hints are one line each with their element, everything else is a quiet indented outline. The share of a
+// shows, laid out by its shape alone, like the CLI's text output. Elements are rows that open, with the
+// status their record gives at the end, as a list row shows it (#276; the rows of `trace.chain` too), problems
+// and hints are one line each with their element, everything else is a quiet indented outline. The share of a
 // verification degree (`share` next to `counts`, SR-037) is a percentage by core's rule of every access
 // (`degreePercent`, one decimal rounded down, #592 Q3). A UUID the output names in `names` (#588) is the row
 // of its element, and `names` itself is not shown. A record of exactly two named UUIDs, such as a replaced
@@ -29,6 +30,8 @@ export interface ResultLine {
   readonly beside?: ElementBuffer;
   /** Shown on hover: the whole text the line cuts, such as a long reason (#862). */
   readonly title?: string;
+  /** The status of an element row whose record gives one, as a list row shows it (#276). */
+  readonly status?: string;
 }
 
 /** The most lines shown; an output beyond it ends with a line that says how many more there are. */
@@ -105,6 +108,12 @@ const emit = (sink: Sink, line: () => ResultLine): void => {
   } else {
     sink.rest += 1;
   }
+};
+
+/** The row with the `status` its record gives, if any: the only field of an element record a row shows. */
+const withStatus = (line: ResultLine, record: Rec): ResultLine => {
+  const status = str(record["status"]);
+  return status === undefined ? line : { ...line, status };
 };
 
 const elementLine = (element: Element, depth: number): ResultLine => ({
@@ -191,7 +200,7 @@ const linesOf = (
   }
   const element = asElement(value);
   if (element !== undefined) {
-    emit(sink, () => elementLine(element, depth));
+    emit(sink, () => withStatus(elementLine(element, depth), value));
     return;
   }
   const pair = pairOf(value, names);

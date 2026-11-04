@@ -32,7 +32,11 @@ test.describe("the requirements without a passed test in the app", () => {
     await expect(names(window).first()).toHaveText(TITLE);
     await window.keyboard.press("Enter");
     const listed = JSON.parse((await running.cli(["evidence", "without-passed-test", "--json"])).stdout) as {
-      readonly elements: readonly { readonly shortId: string; readonly title: string }[];
+      readonly elements: readonly {
+        readonly shortId: string;
+        readonly title: string;
+        readonly status: string;
+      }[];
     };
     expect(listed.elements.map((e) => e.shortId)).toEqual([
       "SR-126b02",
@@ -47,6 +51,10 @@ test.describe("the requirements without a passed test in the app", () => {
     );
     expect(await rows(window).locator(".text").allTextContents()).toEqual(
       listed.elements.map((e) => e.title),
+    );
+    // Each row has its status, as a list row shows it (#276).
+    expect(await rows(window).locator(".status").allTextContents()).toEqual(
+      listed.elements.map((e) => e.status),
     );
     // The total is in the modeline, not among the lines (#276).
     await expect(window.getByLabel("Modeline")).toContainText("5 in all");

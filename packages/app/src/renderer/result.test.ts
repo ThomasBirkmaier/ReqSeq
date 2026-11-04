@@ -200,6 +200,15 @@ describe("result lines", () => {
     ).toEqual(["view", "kind", "total", "constructor"]);
   });
 
+  it("ends an element row with the status its record gives, as a list row shows it (#276)", () => {
+    expect(resultLines({ elements: [{ ...element(1), status: "draft" }] })[1]?.status).toBe("draft");
+    // A record without a status, or with one that is no text, has none.
+    expect(resultLines([element(3), { ...element(4), status: 7 }]).map((line) => line.status)).toEqual([
+      undefined,
+      undefined,
+    ]);
+  });
+
   it("names the buffer by the command prompt's line and gives one buffer per command and input", () => {
     const buffer = resultBuffer("hint.list", { ref: "uuid-1" }, "List hints SR-1", {}, 0);
     expect(buffer.key).toBe('result:hint.list:{"ref":"uuid-1"}');
@@ -297,15 +306,16 @@ describe("result view", () => {
 
   it("shows the output it was opened with, selects lines with the keys and opens an element row with Enter", async () => {
     const call = vi.fn<Call>();
-    const output = { count: 2, total: 2, elements: [element(1), element(2)] };
+    const output = { count: 2, total: 2, elements: [element(1), element(2, { status: "approved" })] };
     const { actions, data } = await mount(call, resultBuffer("trace.affected", {}, "Affected", output, 4), 4);
     expect(call).not.toHaveBeenCalled();
-    expect(texts()).toEqual(["count2", "elements2", "SR-000001Title 1", "SR-000002Title 2"]);
+    expect(texts()).toEqual(["count2", "elements2", "SR-000001Title 1", "SR-000002Title 2approved"]);
+    expect(container.querySelector(".line.element .status")?.textContent).toBe("approved");
     expect(data.at(-1)).toEqual({ kind: "result", total: 2, view: undefined, incomplete: false });
     // Only the element rows are options; the cursor on a text line names no active option.
     expect([...container.querySelectorAll('[role="option"]')].map((line) => line.textContent)).toEqual([
       "SR-000001Title 1",
-      "SR-000002Title 2",
+      "SR-000002Title 2approved",
     ]);
     const listbox = container.querySelector('[role="listbox"]');
     expect(listbox?.getAttribute("aria-activedescendant")).toBeNull();

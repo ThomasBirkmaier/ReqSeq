@@ -298,10 +298,16 @@ body,
   background: var(--select);
 }
 
-.result .label {
+.result .label,
+.result .status {
   color: var(--muted);
   font-size: 12px;
   font-variant-numeric: tabular-nums;
+}
+
+/* At the right edge, so the statuses of the rows line up as in a list. */
+.result .status {
+  margin-left: auto;
 }
 
 .result .text {
