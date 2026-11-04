@@ -812,9 +812,10 @@ const repositoryWalks = async (
 
 /**
  * Why the versions of a repository can have no date, as a message names it once (#252): `no-git` when
- * Git cannot read it (not on this machine, no `.git` entry, git missing, no commit), `shallow` for a
- * shallow clone (it never gives dates), else `unknown` (the content is not committed, or a git call
- * failed: the dates do not tell which). Only asked for a repository that has a version without date.
+ * Git cannot read it (not on this machine, no `.git` entry, no commit, or git missing or refusing where
+ * HEAD must be asked of git), `shallow` for a shallow clone (it never gives dates), else `unknown` (the
+ * content is not committed, or a git call failed or timed out: the dates do not tell which). Only asked
+ * for a repository that has a version without date.
  */
 export type UndatedCause = "no-git" | "shallow" | "unknown";
 
@@ -834,9 +835,10 @@ export const undatedCause = async (
   const head =
     files?.commit === undefined
       ? await headCommit(repository.folder)
-      : { known: true, shallow: files.shallow };
+      : ({ known: true, shallow: files.shallow } as const);
   if (!head.known) {
-    return "no-git";
+    // A git call that timed out or was stopped tells nothing about the repository.
+    return head.reason === "timeout" ? "unknown" : "no-git";
   }
   return head.shallow ? "shallow" : "unknown";
 };

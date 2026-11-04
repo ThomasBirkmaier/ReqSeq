@@ -602,7 +602,7 @@ const datesText = (stored: string | null, current: string | null, why: string): 
   if (stored === null && current === null) {
     return `: neither version has a date (${why})`;
   }
-  const missing = why === "" ? "" : ` (no date: ${why})`;
+  const missing = why === "" ? "" : ` (${why})`;
   return `: stored version from ${stored ?? "no date"}, current version from ${current ?? "no date"}${missing}`;
 };
 

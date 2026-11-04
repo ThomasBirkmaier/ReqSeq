@@ -787,6 +787,10 @@ describe("version date", () => {
     // Without what HEAD files say, `rev-parse` tells.
     vi.mocked(headFiles).mockResolvedValueOnce(undefined);
     expect(await cause(clone)).toBe("shallow");
+    // A git call that timed out tells nothing: no cause is claimed.
+    vi.mocked(headFiles).mockResolvedValueOnce(undefined);
+    vi.mocked(headCommit).mockResolvedValueOnce(TIMEOUT);
+    expect(await cause(clone)).toBe("unknown");
   });
 
   it("is null for a repository that is not on this machine", async () => {
