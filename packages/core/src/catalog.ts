@@ -174,6 +174,36 @@ export const commandErrorOrThrow = (error: unknown): CommandError => {
  */
 export const defineCommand = <N extends CommandName>(def: CatalogCommand<N>): CatalogCommand<N> => def;
 
+/** A catalog command whose module is imported on its first call (`lazyCommand`). */
+export interface LazyCommand<N extends CommandName> extends CatalogCommand<N> {
+  /** Imports the module once and gives its command; the registry test checks it against the file. */
+  readonly load: () => Promise<CatalogCommand<N>>;
+}
+
+/**
+ * Register a command whose module is imported on its first call, for commands whose dependencies
+ * would slow down every start (#178): `lazyCommand("reqif.import", () => import("./reqif/import.js"))`.
+ * The module's default export must be the command `N`, which the types check. A failed import is
+ * not kept, so the next call tries again.
+ */
+export const lazyCommand = <N extends CommandName>(
+  name: N,
+  importModule: () => Promise<{ readonly default: CatalogCommand<N> }>,
+): LazyCommand<N> => {
+  let loading: Promise<CatalogCommand<N>> | undefined;
+  const load = (): Promise<CatalogCommand<N>> => {
+    loading ??= importModule().then(
+      (module) => module.default,
+      (error: unknown) => {
+        loading = undefined;
+        throw error;
+      },
+    );
+    return loading;
+  };
+  return { name, load, run: async (ctx, input) => (await load()).run(ctx, input) };
+};
+
 /**
  * Define a command for a test-only catalog (`loadContracts({ catalog })`), whose names are not in the
  * generated `CommandTypes`: input and output types are given, `ctx` is typed as for `defineCommand`.

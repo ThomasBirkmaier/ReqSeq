@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { describe, expect, expectTypeOf, it } from "vitest";
+import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import type {
   CatalogCommand,
   CommandContext,
@@ -19,6 +19,7 @@ import {
   defineCommand,
   defineTestCommand,
   errorClass,
+  lazyCommand,
 } from "./catalog.js";
 import type { CommandTypes, ElementListInput, WorkspaceStatusOutput } from "./generated/types.js";
 import { loadContracts } from "./runtime/contracts.js";
@@ -186,5 +187,38 @@ describe("error classes", () => {
     expect(byClass("unavailable")).toEqual(["git.unavailable"]);
     expect(byClass("not-implemented")).toEqual(["command.not-implemented"]);
     expect(byClass("internal")).toEqual(["internal"]);
+  });
+});
+
+describe("lazyCommand", () => {
+  const status = defineCommand({
+    name: "workspace.status",
+    run: (_ctx, input) => Promise.resolve({ input } as never),
+  });
+  // `run` only passes the context on, so any object stands for it here.
+  const ctx = {} as CommandContext;
+
+  it("imports the module once, on the first call, also for calls at the same time (#178)", async () => {
+    const importModule = vi.fn(() => Promise.resolve({ default: status }));
+    const command = lazyCommand("workspace.status", importModule);
+    expect(command.name).toBe("workspace.status");
+    expect(importModule).not.toHaveBeenCalled();
+    const input = {} as CommandInput<"workspace.status">;
+    const [first, second] = await Promise.all([command.run(ctx, input), command.run(ctx, input)]);
+    expect(first).toEqual({ input });
+    expect(second).toEqual({ input });
+    expect(await command.load()).toBe(status);
+    expect(importModule).toHaveBeenCalledTimes(1);
+  });
+
+  it("tries the import again after it failed", async () => {
+    const importModule = vi
+      .fn<() => Promise<{ readonly default: typeof status }>>()
+      .mockRejectedValueOnce(new Error("not there"))
+      .mockResolvedValue({ default: status });
+    const command = lazyCommand("workspace.status", importModule);
+    await expect(command.load()).rejects.toThrow("not there");
+    expect(await command.load()).toBe(status);
+    expect(importModule).toHaveBeenCalledTimes(2);
   });
 });
