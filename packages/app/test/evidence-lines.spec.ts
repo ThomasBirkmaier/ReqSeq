@@ -2,7 +2,7 @@
 // of `evidence.list` as it is, with version, item, date, result and Beleg (AK1) and the baselines that hold
 // the record's version (AK2). The fixture has a JUnit record (its Beleg is the place of its test case) and
 // a Markdown record with a Beleg of its own; one baseline file lists the requirement with the version of
-// both, another with an older version.
+// both, another with an older version, and a third cannot be read.
 // Keys use ControlOrMeta, so the same tests run on Linux and macOS.
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
@@ -37,6 +37,8 @@ test.describe("the evidence records of a requirement", () => {
       files: {
         "baselines/release-1.0.yaml": BASELINE,
         // A baseline that holds another version of the requirement is named at no record.
+        // A baseline file that cannot be read names no baseline, and the page says so.
+        "baselines/broken.yaml": "reqseq-baseline: 1\nname: Broken\n",
         "baselines/beta.yaml": BASELINE.replace("Release 1.0", "Beta").replace(
           VERSION,
           "n1:2222222222222222",
@@ -73,5 +75,12 @@ test.describe("the evidence records of a requirement", () => {
       await expect(line).toContainText(" · baselines Release 1.0");
       await expect(line).not.toContainText("Beta");
     }
+    await expect(
+      window
+        .locator("article")
+        .getByRole("group", { name: "Evidence", exact: true })
+        .getByRole("note")
+        .first(),
+    ).toHaveText("error · baseline.invalid · Invalid baseline baselines/broken.yaml: date is required");
   });
 });

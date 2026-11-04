@@ -1,7 +1,7 @@
 import type { DataExportEvidenceRecord, ElementName } from "@reqseq/core";
 import { describe, expect, it } from "vitest";
 import { elementBufferOf } from "./buffers.js";
-import { belegOf, evidenceLines } from "./evidence-lines.js";
+import { INCOMPLETE_NOTE, belegOf, evidenceLines, evidenceNotes } from "./evidence-lines.js";
 import type { LinePart } from "./variant-lines.js";
 
 const COAST: ElementName = { id: "uuid-v", repository: "system", shortId: "VAR-0000c1", title: "Coast" };
@@ -75,6 +75,28 @@ describe("the lines of an element's evidence records", () => {
   it("finds the Beleg in the evidence, else in the record file, else nowhere", () => {
     expect(belegOf(record({ evidence: "https://ci/build/512" }))).toBe("https://ci/build/512");
     expect(belegOf(record({ file: "evidence/a.md" }))).toBe("evidence/a.md");
+    expect(belegOf(record({ evidence: "", repository: "system", file: "evidence/a.md", line: 1 }))).toBe(
+      "system/evidence/a.md:1",
+    );
     expect(belegOf(record({}))).toBeUndefined();
+  });
+
+  it("notes each problem of the answer and an incomplete answer", () => {
+    expect(
+      evidenceNotes({
+        problems: [
+          {
+            code: "baseline.invalid",
+            severity: "error",
+            message: "Invalid baseline baselines/broken.yaml: date is required",
+          },
+        ],
+        incomplete: true,
+      }),
+    ).toEqual([
+      "error · baseline.invalid · Invalid baseline baselines/broken.yaml: date is required",
+      INCOMPLETE_NOTE,
+    ]);
+    expect(evidenceNotes({ problems: [], incomplete: false })).toEqual([]);
   });
 });

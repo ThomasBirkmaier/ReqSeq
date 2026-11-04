@@ -43,7 +43,7 @@ export const SINCE_BASELINE_CODES: ReadonlySet<ProblemCode> = new Set<ProblemCod
   "variant.core-new-since-baseline",
 ]);
 
-const SEPARATOR: LinePart = { text: " · " };
+export const SEPARATOR: LinePart = { text: " · " };
 
 /** The longest reason the validation line shows; a longer one ends in `…` (the file keeps it whole). */
 export const REASON_LENGTH = 200;
@@ -74,7 +74,7 @@ const titleOf = (name: ElementName): string => name.title;
 const idTitleOf = (name: ElementName): string => idTitle(name.identifier ?? name.shortId, name.title);
 
 /** `groups` joined by " · ". */
-const joined = (groups: readonly (readonly LinePart[])[]): LinePart[] =>
+export const joined = (groups: readonly (readonly LinePart[])[]): LinePart[] =>
   groups.flatMap((group, at) => (at === 0 ? group : [SEPARATOR, ...group]));
 
 /** " (missing <child>, <child>)", each child a link by ID and title; nothing without missing children. */
@@ -89,6 +89,11 @@ const missing = (byId: ReadonlyMap<string, ElementName>, children: readonly stri
         ]),
         { text: ")" },
       ];
+
+/** Whether the element has a verification or validation status: a requirement or need, or one with a validation record. */
+export const hasStatus = (
+  element: Pick<ElementGetOutput["element"], "verification" | "validation">,
+): boolean => element.verification !== undefined || element.validation !== undefined;
 
 /** The lines of the element `output` gives. */
 export const variantLines = (output: Pick<ElementGetOutput, "element" | "names">): VariantLines => {

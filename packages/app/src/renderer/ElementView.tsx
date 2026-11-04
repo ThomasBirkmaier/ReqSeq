@@ -116,6 +116,7 @@ import { PackageSummaryLine } from "./PackageSummary.js";
 import { PropertyField } from "./PropertyField.js";
 import { RelationGroups } from "./RelationLink.js";
 import { VariantLines } from "./VariantLines.js";
+import { hasStatus } from "./variant-lines.js";
 import { EvidenceLines } from "./EvidenceLines.js";
 import type { ConflictField, OutsideChange } from "./outside-change.js";
 import {
@@ -333,7 +334,7 @@ const useLinesAgain = (
   got: Pick<ElementGetOutput, "element" | "names"> | undefined,
   setGot: (output: Pick<ElementGetOutput, "element" | "names">) => void,
 ): void => {
-  const asked = got?.element.verification !== undefined || got?.element.validation !== undefined;
+  const asked = got !== undefined && hasStatus(got.element);
   useEffect(() => {
     if (elsewhere === 0 || !asked) {
       return;
@@ -1963,7 +1964,9 @@ export const ElementView = ({
                 <EvidenceLines
                   call={call}
                   buffer={buffer}
-                  seen={revision + outside.seq}
+                  revision={revision}
+                  outside={outside.seq}
+                  ownSaves={() => settled.current}
                   output={got}
                   onOpenRelation={onOpenRelation}
                 />
