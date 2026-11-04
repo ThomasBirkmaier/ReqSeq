@@ -107,6 +107,7 @@ const referenceDefinitionProblems = (
       file: element.file,
       line: definition.line,
       elementId: element.id,
+      ...(definition.key === undefined ? {} : { key: definition.key }),
     }));
 
 /**
@@ -130,6 +131,7 @@ export const unresolvedLinkProblems = (
       file: element.file,
       line: link.line,
       elementId: element.id,
+      ...(link.key === undefined ? {} : { key: link.key }),
     }));
   for (const problem of bareReferenceProblems(element, context)) {
     problems.push(problem);

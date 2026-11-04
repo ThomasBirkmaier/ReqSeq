@@ -265,6 +265,7 @@ const candidateOf = (
   const versions = { stored, current };
   if (link.kind === "relation") {
     const { key, named } = link;
+    const repository = typeof named === "string" ? { repository: named } : {};
     // A replacement in a variant onto a changed core requirement is one hint of its own (SR-045 AK1).
     const code = isCoreChange(context.metamodel, element, key, target) ? CORE_CHANGED_CODE : OUTDATED_CODE;
     const hintId = hintIdOf({
@@ -273,7 +274,7 @@ const candidateOf = (
       ...place,
       key,
       target: target.id,
-      ...(typeof named === "string" ? { repository: named } : {}),
+      ...repository,
       version: stored,
     });
     const message =
@@ -283,7 +284,7 @@ const candidateOf = (
     const problem = {
       ...problemOf(element, target, message, versions, hintId, code),
       key,
-      place: { in: "relation" as const, ...(typeof named === "string" ? { repository: named } : {}) },
+      place: { in: "relation" as const, ...repository },
     };
     return { path: link.path, finding: { element, target, stored, current, hintId, problem } };
   }

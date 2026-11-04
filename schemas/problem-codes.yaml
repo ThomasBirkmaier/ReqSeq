@@ -43,7 +43,7 @@ problems:
     cause: The element's `type` is not in the metamodel. ReqSeq shows the element but only reads it.
     remedy: Use a type of the metamodel, or add the type to the metamodel.
   element.unknown-property:
-    cause: The element has a property that its type in the metamodel does not define.
+    cause: The element has a property that its type in the metamodel does not define. `key` names it when it has the form of a metamodel key (#222).
     remedy: Remove or rename the property, or add it to the type in the metamodel.
   element.missing-required:
     cause: A property that the element's type requires has no value.

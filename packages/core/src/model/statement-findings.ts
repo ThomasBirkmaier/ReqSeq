@@ -61,6 +61,7 @@ export const statementFindings = (
         repository: element.repository,
         file: element.file,
         elementId: element.id,
+        key: property.key,
       },
     },
   ];

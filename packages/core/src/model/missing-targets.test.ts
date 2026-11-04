@@ -40,16 +40,21 @@ const problem = (
   line: number,
   elementId: string,
   message: string,
-): Problem => ({
-  code: "relation.missing-target",
-  severity: "error",
-  message,
-  repository,
-  file,
-  line,
-  elementId,
-  targetId: REMOVED,
-});
+): Problem => {
+  // A relation item names its key in the message, "<Relation|Property> <name> (<key>) of ..." (#222).
+  const key = /^(?:Relation|Property) [^(]+\(([a-z0-9-]+)\)/.exec(message)?.[1];
+  return {
+    code: "relation.missing-target",
+    severity: "error",
+    message,
+    repository,
+    file,
+    line,
+    elementId,
+    targetId: REMOVED,
+    ...(key === undefined ? {} : { key }),
+  };
+};
 
 const gone = (relation: string, source: string): string =>
   `${relation} of ${source} points to ${REMOVED}, which is not in repository system`;
