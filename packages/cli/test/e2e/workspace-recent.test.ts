@@ -85,8 +85,10 @@ describe("reqseq workspace recent (SR-131)", () => {
     });
     expect(await fs.readFile(list, "utf8")).toBe(text);
     expect(await fs.readdir(elsewhere)).toEqual([]);
-    // No cache folder of a copy (model cache, api.json) for the folder it ran in: only the list is there.
-    expect(await fs.readdir(recentWorkspacesFolder(environment()))).toEqual([RECENT_WORKSPACES_FILE]);
+    // No cache folder of a copy (model cache, api.json) for the folder it ran in: only the list is there,
+    // and Node's compile cache of the CLI, which belongs to no copy (#178).
+    const names = await fs.readdir(recentWorkspacesFolder(environment()));
+    expect(names.filter((name) => name !== "node-compile-cache")).toEqual([RECENT_WORKSPACES_FILE]);
   });
 
   it("prints an empty list when the app recorded none", async () => {

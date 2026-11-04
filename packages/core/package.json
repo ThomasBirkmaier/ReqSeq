@@ -15,6 +15,10 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./os-cache": {
+      "types": "./dist/workspace/os-cache.d.ts",
+      "default": "./dist/workspace/os-cache.js"
+    },
     "./recent-workspaces": {
       "types": "./dist/workspace/recent.d.ts",
       "default": "./dist/workspace/recent.js"
