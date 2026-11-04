@@ -355,6 +355,7 @@ export type ProblemCode =
   | "metamodel.invalid"
   | "metamodel.optional-status"
   | "metamodel.meaning-unassigned"
+  | "metamodel.meaning-type-mismatch"
   | "workspace.repository-missing"
   | "workspace.metamodel-mismatch"
   | "workspace.invalid"
