@@ -24,8 +24,7 @@ export const recordHoldsIn = (
   record: EvidenceRecord,
   view: View | undefined,
   independent: boolean,
-): boolean =>
-  view === undefined || holdsIn(record, view, independent && record.kind === "verification");
+): boolean => view === undefined || holdsIn(record, view, independent && record.kind === "verification");
 
 /**
  * `records` (newest first, as the index keeps them) that hold for `view`, each with the names of the
