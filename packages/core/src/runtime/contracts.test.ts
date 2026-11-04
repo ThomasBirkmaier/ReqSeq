@@ -108,6 +108,19 @@ describe("loadContracts", () => {
     );
   });
 
+  it("checks the bundled catalog as a catalog passed in, which a start skips (#178)", () => {
+    // pnpm schemas:check does it on every pull request; this keeps the guarantee in core's own suite.
+    const checked = loadContracts({ catalog: contractsBundle.catalog });
+    const started = loadContracts();
+    expect(started.commands.map((c) => c.name)).toEqual(checked.commands.map((c) => c.name));
+    // Both validate alike, also with the meta-schema check off for the bundled schemas.
+    const name = checked.commands[0]?.name ?? "";
+    expect(started.validator(name, "input")({ bogus: 1 })).toBe(
+      checked.validator(name, "input")({ bogus: 1 }),
+    );
+    expect(started.validator(name, "output")({})).toBe(checked.validator(name, "output")({}));
+  });
+
   it("rejects a catalog that lists a command twice", () => {
     expect(() => loadContracts({ catalog: catalogOf(entry("test.twice"), entry("test.twice")) })).toThrow(
       "invalid command catalog: test.twice is listed twice",

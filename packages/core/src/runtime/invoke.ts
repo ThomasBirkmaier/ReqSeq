@@ -268,7 +268,8 @@ export function getCommandRuntime(): CommandRuntime {
 
 /**
  * Run a catalog command with the runtime of this process. Resolves with the command output or
- * rejects with a `CommandError` (never anything else once the catalog has loaded).
+ * rejects with a `CommandError`; a plain `Error` only for a programming error, such as a schema that
+ * does not compile when its validator is built on the first call of the command (#178).
  */
 export async function invoke(name: string, input: unknown, ctx: InvokeContext): Promise<unknown> {
   return getCommandRuntime().invoke(name, input, ctx);
