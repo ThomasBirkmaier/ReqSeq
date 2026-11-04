@@ -46,6 +46,7 @@ import {
   currentVersions,
   duplicateIdentifierProblemsState,
   elementStoreState,
+  itemLimitProblemsState,
   problemElement,
   relationKey,
   relationLimitProblemsState,
@@ -97,6 +98,7 @@ export const HINT_STATES = [
   nestedVariantsState, // SR-039
   targetNotCoreProblemsState, // SR-041 AK8
   valueKindProblemsState, // SR-085
+  itemLimitProblemsState, // SR-171
   relationTypeProblemsState, // SR-086
   relationLimitProblemsState, // SR-152
   duplicateIdentifierProblemsState, // #305

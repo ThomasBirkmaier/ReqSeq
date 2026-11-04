@@ -53,6 +53,7 @@ export { allStatusFindings, statusFindings, statusProblemsState } from "./status
 export type { StatusFinding } from "./status-findings.js";
 export { allStatementFindings, statementFindings, statementProblemsState } from "./statement-findings.js";
 export { valueFindings, valueKindFindings, valueKindProblemsState } from "./values.js";
+export { allItemLimitFindings, itemLimitFindings, itemLimitProblemsState } from "./item-limits.js";
 export type { ValueFinding, ValueKind, ValuePath } from "./values.js";
 export {
   allRelationTypeFindings,
