@@ -94,7 +94,7 @@ export type ElementHints = (
 
 /** An element as `showElement` read it, with the SHA-256 of its file (SR-106). */
 export interface ShownElement {
-  readonly element: DataExportElement;
+  readonly element: DataExportElement & { readonly problems: readonly Problem[] };
   /** The element as its file holds it now, which `element` shows (for the views of other blocks, SR-031). */
   readonly record: ElementRecord;
   /** The SHA-256 of the bytes of the file the element was read from, lower-case hex. */

@@ -29,6 +29,14 @@
 // - Pages (#146, as `trace.chain`): every hint that passes the filters is found and counted (`total`);
 //   the output holds `limit` hints from `offset`, in the order above.
 // - The dates of outdated relations are asked of Git only for the hints of the page.
+// - `ref` takes the single-element path of `element.get` (#145, ADR-0008): the hints at the element
+//   as `showElement` gives them with `elementHints` (dated), not the whole-workspace states, so it
+//   builds neither the incoming index nor the cycles of the store. They are put into the order of
+//   the check by code (`CHECK_ORDER`, a stable sort keeps the element's order within one state; a code
+//   the check gives no hint with, such as `element.get`'s `file.faulty` of #276, is left out), the
+//   other filters apply as above, and since-baseline hints are computed only where
+//   `sinceBaselineVariants` admits the element; the page applies as above. The image check of
+//   `currentVersions` is left out, as at `element.get`.
 // - `incomplete` (SR-006 AK2): a repository of the workspace file is not on this machine, so the
 //   hints of its elements are not listed.
 import type { CommandName, Problem } from "../catalog.js";
@@ -41,7 +49,7 @@ import {
   requireMeaning,
   typesWithMeaning,
 } from "../metamodel/index.js";
-import type { ElementRecord, ElementStore, ShortIds } from "../model/index.js";
+import type { ElementRecord, ElementStore, ShortIds, ShowContext } from "../model/index.js";
 import {
   currentVersions,
   duplicateIdentifierProblemsState,
@@ -54,6 +62,7 @@ import {
   requiredProblemsState,
   resolveRef,
   shortIdState,
+  showElement,
   statementProblemsState,
   statusProblemsState,
   supersededTargetProblemsState,
@@ -75,6 +84,7 @@ import {
   viewRuleOf,
 } from "../variants/index.js";
 import { availableRepositories, workspaceLayoutState } from "../workspace/index.js";
+import { elementHints } from "./element.js";
 import { outdatedEvidenceProblemsState } from "./evidence.js";
 import { SINCE_BASELINE_CODES, sinceBaselineProblems } from "./since-baseline.js";
 import type { OutdatedFinding } from "./outdated.js";
@@ -107,6 +117,52 @@ export const HINT_STATES = [
   noParentProblemsState, // SR-022 AK6
   outdatedEvidenceProblemsState, // SR-025 AK4
 ] as const;
+
+/**
+ * The codes of the hints of each state of `HINT_STATES`, in that order, then the since-baseline
+ * hints and the outdated relations: the order of `workspace.check` for the hints of one element.
+ */
+const CHECK_ORDER: readonly (readonly string[])[] = [
+  ["element.missing-required"],
+  ["element.unknown-property", "element.unknown-type"],
+  ["element.missing-status", "element.status-not-allowed"],
+  ["element.statement-without-text"],
+  ["relation.target-superseded"],
+  ["variant.superseded-in-validity"],
+  ["variant.nested"],
+  ["variant.target-not-core"],
+  ["element.wrong-value-kind"],
+  ["element.too-many-items"],
+  ["relation.not-allowed"],
+  ["relation.too-few", "relation.too-many"],
+  ["element.duplicate-identifier"],
+  ["relation.not-a-link", "relation.unresolved-link"],
+  ["trace.cycle"],
+  ["trace.no-parent"],
+  ["evidence.outdated"],
+  [...SINCE_BASELINE_CODES],
+  ["relation.outdated", "variant.core-changed"],
+];
+
+const RANK: ReadonlyMap<string, number> = new Map(
+  CHECK_ORDER.flatMap((codes, rank) => codes.map((code) => [code, rank] as const)),
+);
+
+/** The codes of the hints the whole-workspace path of `hint.list` can give (`CHECK_ORDER`). */
+export const CHECK_HINT_CODES: ReadonlySet<string> = new Set(RANK.keys());
+
+/**
+ * The problems of one element whose code the check gives as a hint (`CHECK_ORDER`), in the order of
+ * `workspace.check`; any other (such as the `file.faulty` warning of an element without a version
+ * that `element.get` adds, #276) is left out. Stable: within one state the element's own order stays.
+ */
+export const inCheckOrder = (problems: readonly Problem[]): Problem[] => {
+  const ranked = problems.flatMap((problem) => {
+    const rank = RANK.get(problem.code);
+    return rank === undefined ? [] : [{ problem, rank }];
+  });
+  return ranked.sort((a, b) => a.rank - b.rank).map((entry) => entry.problem);
+};
 
 /** Whether `problem` is a hint: a warning about an element (glossary "Hinweis"). */
 export const isHint = (problem: Problem): problem is Problem & { readonly elementId: string } =>
@@ -289,6 +345,27 @@ export const hintsOf = async (
   return { hints: [...found.slice(page.offset, end), ...dated], total: found.length + late.length };
 };
 
+/**
+ * The page `page` of the hints of `filter.ref` that pass `filter`, with `total`, by the
+ * single-element path (see the file comment): no whole-workspace state of the hints is built.
+ */
+const hintsOfElement = async (
+  context: ShowContext,
+  filter: HintFilter & { readonly ref: ElementRecord },
+  page: HintPage,
+): Promise<{ readonly hints: Problem[]; readonly total: number }> => {
+  const { ref } = filter;
+  const since = sinceBaselineVariants(context, filter).includes(ref);
+  const shown = await showElement(
+    context,
+    ref.id,
+    (inner, record) => elementHints(inner, record, true, since),
+    false,
+    { repository: ref.repository, file: ref.file },
+  );
+  return hintsOf(context.workspace, context, filter, inCheckOrder(shown.element.problems), [], page);
+};
+
 /** `hint.list`: the open hints of `workspace` that pass the filters of `input` (see the file comment). */
 export const listHints = async (
   workspace: Workspace,
@@ -305,6 +382,11 @@ export const listHints = async (
   if (!metamodel.valid) {
     // No hints against a metamodel that is not valid: its errors are the findings (#208, #220).
     return { hints: [], total: 0, incomplete };
+  }
+  const page = { limit: input.limit, offset: input.offset };
+  if (filter.ref !== undefined) {
+    const context = { workspace, layout, metamodel, store, shortIds };
+    return { ...(await hintsOfElement(context, { ...filter, ref: filter.ref }, page)), incomplete };
   }
   // The images the watcher does not report are checked first, as the check does (ADR-0008).
   await currentVersions(workspace);
@@ -324,7 +406,6 @@ export const listHints = async (
     }
   }
   const outdated = await workspace.get(outdatedRelationsState);
-  const page = { limit: input.limit, offset: input.offset };
   return {
     ...(await hintsOf(workspace, { metamodel, store }, filter, problems, outdated, page)),
     incomplete,

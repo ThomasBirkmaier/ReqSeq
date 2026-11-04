@@ -34,13 +34,22 @@ import { elementEvidenceFindings } from "./evidence.js";
 import { datedProblems, outdatedOfShown } from "./outdated.js";
 import { sinceBaselineFindingsOf } from "./since-baseline.js";
 
-/** The hints of `record` from the variants, trace and hints blocks, before their lines are known (`ElementHints`). */
-export const elementHints: ElementHints = async (context, record, withDate) => {
+/**
+ * The hints of `record` from the variants, trace and hints blocks, before their lines are known
+ * (`ElementHints`); `withSinceBaseline` false leaves out those since the newest baseline of a variant,
+ * so no baseline is read (`hint.list` with filters that admit none, #145).
+ */
+export const elementHints = async (
+  context: Parameters<ElementHints>[0],
+  record: Parameters<ElementHints>[1],
+  withDate: boolean,
+  withSinceBaseline = true,
+): ReturnType<ElementHints> => {
   const [cycles, evidence, outdated, sinceBaseline] = await Promise.all([
     elementCycleFindings(context, record),
     elementEvidenceFindings(context, record),
     outdatedOfShown(context, record),
-    sinceBaselineFindingsOf(context, record),
+    withSinceBaseline ? sinceBaselineFindingsOf(context, record) : [],
   ]);
   const dated = withDate
     ? await datedProblems(
