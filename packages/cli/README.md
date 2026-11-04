@@ -23,7 +23,7 @@ node packages/cli/dist/bin.js element get SR-036 --workspace spec
 
 ## Code
 
-- `src/bin.ts`: the binary; connects the process (`src/process.ts`: closed pipes, Ctrl-C) and calls `runCli`.
+- `src/bin.ts`: the binary; enables Node's compile cache in `<OS cache>/reqseq/node-compile-cache` before it loads the rest (#178, ADR-0008 cache), connects the process (`src/process.ts`: closed pipes, Ctrl-C) and calls `runCli`.
 - `src/main.ts`: `runCli(options)`: parse, invoke, print, exit code (`EXIT`, `exitCodeFor`); also starts the servers. Exported for in-process callers.
 - `src/program.ts`: the commander tree generated from `runtime.contracts.commands`.
 - `src/fields.ts`, `src/input.ts`: positional, flag or `--input` only, from the JSON Schema of each input field.

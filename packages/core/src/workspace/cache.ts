@@ -4,50 +4,19 @@
 import { createHash } from "node:crypto";
 import { realpathSync } from "node:fs";
 import fs from "node:fs/promises";
-import os from "node:os";
 import path from "node:path";
 // The private-file modules of the files block, not its index: the app's main process loads
 // `recent.ts`, and with it this module, without the parsers and writers of element files.
 import type { PrivateLock } from "../files/lock.js";
 import { lockPrivateFile } from "../files/lock.js";
 import { removePrivateFile, writePrivateFile } from "../files/private.js";
+import { osCacheFolder, processEnvironment } from "./os-cache.js";
+import type { CacheEnvironment } from "./os-cache.js";
 
 export { LOCK_STALE_MS, processRuns } from "../files/lock.js";
 export type { PrivateLock } from "../files/lock.js";
-
-/** Where the OS keeps caches; tests pass their own values. */
-export interface CacheEnvironment {
-  readonly platform: NodeJS.Platform;
-  readonly env: Readonly<Record<string, string | undefined>>;
-  readonly home: string;
-}
-
-const processEnvironment = (): CacheEnvironment => ({
-  platform: process.platform,
-  env: process.env,
-  home: os.homedir(),
-});
-
-/** An environment variable that names an absolute folder, else `undefined`. */
-const absoluteVariable = (value: string | undefined, platform: NodeJS.Platform): string | undefined =>
-  value !== undefined && (platform === "win32" ? path.win32 : path.posix).isAbsolute(value)
-    ? value
-    : undefined;
-
-/**
- * The cache folder of the OS user: `%LOCALAPPDATA%` on Windows, `~/Library/Caches` on macOS, else
- * `$XDG_CACHE_HOME` or `~/.cache` (XDG Base Directory). A variable that is not an absolute path is ignored.
- */
-export function osCacheFolder(environment: CacheEnvironment = processEnvironment()): string {
-  const { platform, env, home } = environment;
-  const paths = platform === "win32" ? path.win32 : path.posix;
-  if (platform === "win32") {
-    return absoluteVariable(env["LOCALAPPDATA"], platform) ?? paths.join(home, "AppData", "Local");
-  }
-  return platform === "darwin"
-    ? paths.join(home, "Library", "Caches")
-    : (absoluteVariable(env["XDG_CACHE_HOME"], platform) ?? paths.join(home, ".cache"));
-}
+export { osCacheFolder } from "./os-cache.js";
+export type { CacheEnvironment } from "./os-cache.js";
 
 /**
  * The root as one name per folder: absolute, with symbolic links resolved (`realpath`), and in lower case on

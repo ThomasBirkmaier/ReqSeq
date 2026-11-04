@@ -8,17 +8,26 @@ const mocks = vi.hoisted(() => {
     signal: new AbortController().signal,
     writeFailed: false,
   };
+  const order: string[] = [];
   return {
     io,
+    order,
+    enableCompileCache: vi.fn((folder: string) => {
+      order.push(`cache ${folder}`);
+      return { status: 1 };
+    }),
     runCli: vi.fn<(options: RunCliOptions) => Promise<number>>(() => Promise.resolve(1)),
     connectProcess: vi.fn(() => io),
   };
 });
+vi.mock("node:module", () => ({ enableCompileCache: mocks.enableCompileCache }));
+vi.mock("@reqseq/core/os-cache", () => ({ compileCacheFolder: () => "/cache/reqseq/node-compile-cache" }));
 vi.mock("./main.js", () => ({ EXIT: { internal: 3 }, runCli: mocks.runCli }));
 vi.mock("./process.js", () => ({ connectProcess: mocks.connectProcess }));
 
 afterEach(() => {
   process.exitCode = undefined;
+  mocks.order.length = 0;
   vi.resetModules();
 });
 
@@ -36,6 +45,20 @@ describe("bin", () => {
       stderr: mocks.io.stderr,
       signal: mocks.io.signal,
     });
+  });
+
+  it("enables Node's compile cache in the per-user folder before it loads the rest of the CLI (#178)", async () => {
+    // Fresh factories, so that they run when bin.js loads the modules.
+    vi.doMock("./main.js", () => {
+      mocks.order.push("main.js");
+      return { EXIT: { internal: 3 }, runCli: mocks.runCli };
+    });
+    vi.doMock("./process.js", () => {
+      mocks.order.push("process.js");
+      return { connectProcess: mocks.connectProcess };
+    });
+    await import("./bin.js");
+    expect(mocks.order).toEqual(["cache /cache/reqseq/node-compile-cache", "main.js", "process.js"]);
   });
 
   it("exits 3 when a write failed", async () => {
