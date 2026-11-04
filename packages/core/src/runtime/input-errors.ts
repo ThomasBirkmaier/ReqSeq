@@ -232,7 +232,8 @@ interface ObjectBranch {
  * a `#/$defs/...` reference of the same file); else `undefined`, and the branches cannot be told apart.
  */
 const branchesOf = (error: ErrorObject, roots: WeakMap<object, JsonSchema>): ObjectBranch[] | undefined => {
-  // Without `verbose` (the file validators, #160), an error holds no schema to tell branches apart by.
+  // An error of a validator without `verbose` holds no schema to tell branches apart by (defensive:
+  // inputs and refused files are checked with `verbose`, #160).
   if (!Array.isArray(error.schema)) {
     return undefined;
   }
