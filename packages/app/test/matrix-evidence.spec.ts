@@ -86,3 +86,50 @@ test.describe("the evidence columns of the traceability matrix", () => {
     );
   });
 });
+
+/** A variant Coast, and a passed test of SR-126b06 (its current version) that holds in Coast only. */
+const COAST = {
+  "variants/VAR-000000126c01.md":
+    "---\nid: 5c0e1d2a-0126-4126-8126-000000126c01\ntype: variant\nstatus: draft\ntitle: Coast\n---\n\nA station at the coast.\n",
+  "evidence/2026-10-23-SR-126b06-coast.md":
+    "---\nreqseq-record: 1\nkind: verification\nelement: 5c0e1d2a-0126-4126-8126-000000126b06\n" +
+    "version: n1:2e6c576ee02603e7\nvariant: 5c0e1d2a-0126-4126-8126-000000126c01\nmethod: test\n" +
+    "item: build-603\nresult: passed\ndate: 2026-10-23T09:00:00Z\ntest-case: test_warn[SR-126b06]\n---\n\nRun at the coast.\n",
+};
+
+test.describe("the evidence columns without a chosen view", () => {
+  let running: RunningApp;
+  test.beforeEach(async () => {
+    running = await launchApp({ fixture: "SR-126/matrix", files: COAST });
+  });
+  test.afterEach(async () => {
+    await running.close();
+  });
+
+  test("[SR-126/AK5] without a chosen variant the test cases, the status and the degree are those of the core", async () => {
+    const { window } = running;
+    // The record names the version the file has now; another would make it outdated, not a variant's.
+    const got = JSON.parse((await running.cli(["element", "get", "SR-126b06"])).stdout) as {
+      readonly element: { readonly version: string };
+    };
+    expect(got.element.version).toBe("n1:2e6c576ee02603e7");
+    await listAll(window);
+    await window.keyboard.press("ControlOrMeta+T");
+    await expect(window.locator("tbody tr")).toHaveCount(12);
+    await expect(testCases(window, "SR-126b06")).toHaveText("—");
+    await expect(status(window, "SR-126b06")).toHaveText("open");
+    await expect(window.locator("thead th.verification .count")).toHaveText(
+      "55.5 % · 4 verified · 1 indirect · 1 failed · 1 outdated · 2 open",
+    );
+    // In the view of Coast, the record of Coast counts.
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await window.keyboard.type("Choose view");
+    await expect(window.locator('.candidates [role="option"] .name').first()).toHaveText("Choose view");
+    await window.keyboard.press("Enter");
+    await window.keyboard.type("Coast");
+    await expect(window.locator('.candidates [role="option"]').first()).toContainText("Coast");
+    await window.keyboard.press("Enter");
+    await expect(testCases(window, "SR-126b06")).toHaveText("test_warn[SR-126b06] · passed · 2026-10-23");
+    await expect(status(window, "SR-126b06")).toHaveText("verified");
+  });
+});
