@@ -90,18 +90,17 @@ export class PatchedMap<K, V> implements ReadonlyMap<K, V> {
   }
 
   get(key: K): V | undefined {
-    if (this.#overlay.size > 0 && this.#overlay.has(key)) {
-      const value = this.#overlay.get(key);
-      return value === DELETED ? undefined : value;
+    // One lookup in the overlay: its values are never undefined (undefined deletes).
+    const value = this.#overlay.get(key);
+    if (value === undefined) {
+      return this.#base.get(key);
     }
-    return this.#base.get(key);
+    return value === DELETED ? undefined : value;
   }
 
   has(key: K): boolean {
-    if (this.#overlay.size > 0 && this.#overlay.has(key)) {
-      return this.#overlay.get(key) !== DELETED;
-    }
-    return this.#base.has(key);
+    const value = this.#overlay.get(key);
+    return value === undefined ? this.#base.has(key) : value !== DELETED;
   }
 
   forEach(callback: (value: V, key: K, map: ReadonlyMap<K, V>) => void, thisArg?: unknown): void {

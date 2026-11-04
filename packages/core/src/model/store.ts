@@ -274,10 +274,14 @@ interface Touched {
   readonly files: ReadonlySet<string>;
 }
 
-/** What `patchStore` made each store from: the store before and its touched files (`storeUpdate`). */
+/**
+ * What `patchStore` made each store from: the store before and its touched files (`storeUpdate`).
+ * The store before is held weakly, so that a chain of patched stores does not keep every earlier
+ * store alive.
+ */
 const patchedFrom = new WeakMap<
   ElementStore,
-  { readonly from: ElementStore; readonly touched: readonly Touched[] }
+  { readonly from: WeakRef<ElementStore>; readonly touched: readonly Touched[] }
 >();
 
 /** Whether a contribution adds nothing to `problems` or `nonElements`: none, or an element without warnings. */
@@ -329,7 +333,7 @@ const patchStore = (
     count >= PATCH_LIMIT
       ? assemble(repositories, versioning)
       : patched(before, repositories, touched, versioning);
-  patchedFrom.set(store, { from: before, touched });
+  patchedFrom.set(store, { from: new WeakRef(before), touched });
   return store;
 };
 
@@ -942,7 +946,7 @@ const changedContributions = (
     }
   };
   const patch = patchedFrom.get(to);
-  if (patch?.from === from) {
+  if (patch?.from.deref() === from) {
     for (const { before, after, files } of patch.touched) {
       compare(before, after, files);
     }
