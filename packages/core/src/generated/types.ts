@@ -450,7 +450,7 @@ export type View = ElementRef;
 export type VerificationStatus = "open" | "verified" | "indirect" | "failed" | "outdated";
 
 /**
- * offen, erfolgreich, nicht erfolgreich, veraltet, nicht beurteilbar (SR-172).
+ * The validation status (SR-172). `inconclusive` = the validation could not decide.
  * Schema: `schemas/common.schema.json#/$defs/validationStatus`.
  */
 export type ValidationStatus = "open" | "validated" | "failed" | "outdated" | "inconclusive";

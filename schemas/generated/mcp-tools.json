@@ -809,7 +809,7 @@
           ]
         },
         "validationStatus": {
-          "description": "offen, erfolgreich, nicht erfolgreich, veraltet, nicht beurteilbar.",
+          "description": "The validation status. `inconclusive` = the validation could not decide.",
           "enum": [
             "open",
             "validated",
