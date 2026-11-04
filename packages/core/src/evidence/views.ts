@@ -16,14 +16,16 @@ import { holdsIn } from "./holds.js";
 
 /**
  * Whether `record` holds for `view`: in the core a record without a variant, in a variant a record
- * for that variant and, when `independent`, one without a variant (SR-047 AK1, AK2, SR-173;
- * `holdsIn`), as `hasVerificationRecord` counts; without a view every record.
+ * for that variant and, when `independent`, a verification record without a variant (SR-047 AK1,
+ * AK2, SR-173; `holdsIn`; validation counts only in the core, D-007, SR-038), as
+ * `hasVerificationRecord` counts; without a view every record.
  */
 export const recordHoldsIn = (
   record: EvidenceRecord,
   view: View | undefined,
   independent: boolean,
-): boolean => view === undefined || holdsIn(record, view, independent);
+): boolean =>
+  view === undefined || holdsIn(record, view, independent && record.kind === "verification");
 
 /**
  * `records` (newest first, as the index keeps them) that hold for `view`, each with the names of the

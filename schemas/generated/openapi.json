@@ -7500,7 +7500,7 @@
                   },
                   "variant": {
                     "$ref": "#/components/schemas/common/$defs/elementRef",
-                    "description": "A variant the element applies in (an element whose type has the meaning variant); the record holds for it. Absent: the core. Verification only: a variant with `kind` validation is `input.invalid` with `details.reason` `validation-with-variant` (SR-038 AK4, D-007). `core` names no variant and is `input.invalid` with `details.reason` `core-is-no-variant`; leave `variant` out for the core. A variant the element is not in is `input.invalid` with `details.reason` `not-valid-in-variant`, or `excluded-in-variant` or `replaced-in-variant` when the variant excludes or replaces the requirement (SR-047 AK4)."
+                    "description": "A variant the element applies in (an element whose type has the meaning variant); the record holds for it. Absent: the core, and also every variant the element applies in when the element's repository is marked `variant-independent` in the workspace file (SR-173). Verification only: a variant with `kind` validation is `input.invalid` with `details.reason` `validation-with-variant` (SR-038 AK4, D-007). `core` names no variant and is `input.invalid` with `details.reason` `core-is-no-variant`; leave `variant` out for the core. A variant the element is not in is `input.invalid` with `details.reason` `not-valid-in-variant`, or `excluded-in-variant` or `replaced-in-variant` when the variant excludes or replaces the requirement (SR-047 AK4)."
                   },
                   "date": {
                     "$ref": "#/components/schemas/common/$defs/dateTime",

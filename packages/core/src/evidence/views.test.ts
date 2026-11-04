@@ -44,6 +44,11 @@ describe("recordHoldsIn", () => {
     expect([core, coast].map((r) => recordHoldsIn(r, undefined, false))).toEqual([true, true]);
     expect([core, coast].map((r) => recordHoldsIn(r, CORE, false))).toEqual([true, false]);
     expect([core, coast].map((r) => recordHoldsIn(r, COAST_VIEW, false))).toEqual([false, true]);
+    // A marked repository (SR-173) lets a verification record without a variant hold in a variant,
+    // never a validation record, which counts only in the core (D-007, SR-038).
+    const validation = record("2026-01-01T10:00:00Z", { kind: "validation" });
+    expect([core, validation].map((r) => recordHoldsIn(r, COAST_VIEW, true))).toEqual([true, false]);
+    expect(recordHoldsIn(validation, CORE, true)).toBe(true);
   });
 });
 
