@@ -166,7 +166,7 @@ describe("reqseq trace chain (SR-022)", () => {
     const human = await reqseq(["trace", "chain", "SR-00b001", "--direction", "down"], ws.root);
     expect(human.code).toBe(0);
     expect(human.stdout).toContain(
-      "warning  trace.cycle  system:components/CR-00000000c001.md  The chain stops at a cycle of derivations with 2 elements: Component Requirement CR-00c001, Component Requirement CR-00c002  (element CR-00c001)\n",
+      "warning  trace.cycle  CR-00c001  The chain stops at a cycle of derivations with 2 elements: Component Requirement CR-00c001, Component Requirement CR-00c002  system:components/CR-00000000c001.md\n",
     );
   });
 });

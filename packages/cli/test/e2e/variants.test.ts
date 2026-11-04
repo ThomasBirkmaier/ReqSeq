@@ -102,7 +102,7 @@ describe("reqseq variants (SR-039)", () => {
     const check = await reqseq(["workspace", "check"], { cwd: ws.root });
     expect([check.code, check.stderr]).toEqual([0, ""]);
     expect(check.stdout).toContain(
-      `warning  variant.nested  system:${FILE_B}:7  ${NESTED_B}  (element VAR-0000b2)  (target VAR-0000a1)\n`,
+      `warning  variant.nested  VAR-0000b2 → VAR-0000a1  ${NESTED_B}  system:${FILE_B}:7\n`,
     );
     const hints = await reqseq(["hint", "list", "--json"], { cwd: ws.root });
     expect([hints.code, hints.stderr]).toEqual([0, ""]);

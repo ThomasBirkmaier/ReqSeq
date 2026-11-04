@@ -409,8 +409,8 @@ describe("reqseq with test commands", () => {
       [
         "ok: false",
         "checkedElements: 0",
-        "error  file.invalid-yaml  product/a.md:3  Größe – 測試 is not YAML",
-        "warning  file.yaml-warning  product/b.md  duplicate key",
+        "error  file.invalid-yaml  Größe – 測試 is not YAML  product/a.md:3",
+        "warning  file.yaml-warning  duplicate key  product/b.md",
         "",
       ].join("\n"),
     );

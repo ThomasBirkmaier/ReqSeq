@@ -75,8 +75,9 @@ describe("variant views (SR-041, SR-043)", () => {
     });
     const result = await run(["workspace", "check"], { cwd: ws.root });
     expect(result.stdout).toContain(
-      "warning  variant.target-not-core  system:requirements/SR-0000000000b3.md:7  System Requirement SR-0000b3 replaces Need N-0000d1",
+      "warning  variant.target-not-core  SR-0000b3 → N-0000d1  System Requirement SR-0000b3 replaces Need N-0000d1",
     );
+    expect(result.stdout).toContain("this changes no view  system:requirements/SR-0000000000b3.md:7\n");
   });
 
   it("[SR-046/AK3] element get names A as replacing and B as excluding variant", async () => {

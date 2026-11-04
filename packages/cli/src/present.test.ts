@@ -393,7 +393,7 @@ describe("renderHuman: one element", () => {
         "    - -> derives-from  u4  [missing]",
         "  text: |",
         "    Text.",
-        "warning  relation.outdated  SR-1.md:3  Older",
+        "warning  relation.outdated  Older  SR-1.md:3",
       ),
     );
   });
@@ -430,7 +430,7 @@ describe("renderHuman: one element", () => {
 
   it("shows a written element as its line only, with the files and its problems once", () => {
     expect(renderHuman({ element, files: ["SR-1.md"], problems: element.problems }, false)).toBe(
-      lines("SR-1  draft  Show wind", "files:", "  SR-1.md", "warning  relation.outdated  SR-1.md:3  Older"),
+      lines("SR-1  draft  Show wind", "files:", "  SR-1.md", "warning  relation.outdated  Older  SR-1.md:3"),
     );
     const { problems: _none, relations: _relations, ...plain } = element;
     expect(renderHuman({ element: plain, problems: [] }, false)).toBe(

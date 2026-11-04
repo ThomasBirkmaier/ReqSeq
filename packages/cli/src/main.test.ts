@@ -448,7 +448,7 @@ describe("reqseq <group> <action>", () => {
     const yaml = await run(["test", "findings", "--mode", "warning", "--yaml"]);
     expect(yaml).toEqual({
       code: EXIT.ok,
-      stdout: "ok: true\nwarning  file.yaml-warning  a.md  Größe\n",
+      stdout: "ok: true\nwarning  file.yaml-warning  Größe  a.md\n",
       stderr: "",
     });
     const both = await run(["test", "findings", "--yaml", "--json"]);
@@ -497,13 +497,13 @@ describe("reqseq <group> <action>", () => {
     const warning = await run(["test", "findings", "--mode", "warning"]);
     expect(warning).toEqual({
       code: EXIT.ok,
-      stdout: "ok: true\nwarning  file.yaml-warning  a.md  Größe\n",
+      stdout: "ok: true\nwarning  file.yaml-warning  Größe  a.md\n",
       stderr: "",
     });
     const error = await run(["test", "findings", "--mode", "error"]);
     expect(error).toEqual({
       code: EXIT.findings,
-      stdout: "ok: false\nerror  file.invalid-yaml  b.md:2  bad\n",
+      stdout: "ok: false\nerror  file.invalid-yaml  bad  b.md:2\n",
       stderr: "",
     });
     const failed = await run(["test", "findings", "--mode", "failed", "--json"]);
