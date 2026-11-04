@@ -544,6 +544,7 @@ describe("updateShortIds (#184)", () => {
       withTail: () => [],
       identifierOf: () => undefined,
       withIdentifier: () => [],
+      metamodelValid: true,
     };
     expect(() => updateShortIds(foreign, new Map(), [])).toThrow("needs short IDs from buildShortIds");
   });

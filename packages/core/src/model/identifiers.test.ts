@@ -103,6 +103,30 @@ describe("identifiers as element references (#305)", () => {
     expect(uuid.message).toBe('No element has the UUID "30500000-0000-4000-8000-0000000f0000"');
   });
 
+  it("names a faulty metamodel as a cause when no element has a short ID or identifier (#399)", async () => {
+    const model = await readFile(
+      new URL("../../../../fixtures/enabler-305/identifiers/metamodel/model.yaml", import.meta.url),
+      "utf8",
+    );
+    // An unknown meaning leaves the file out, with the property that holds the identifiers.
+    const opened = await open({
+      "metamodel/model.yaml": model.replace("meaning: identifier", "meaning: bogus"),
+    });
+    const cause =
+      "; the metamodel is not valid, so short IDs and identifiers from its faulty files are not known (workspace.check lists its problems)";
+    expect((await failure(opened, "element.get", { ref: "SR-036" })).toJSON()).toEqual({
+      code: "ref.unknown",
+      message: `No element has the identifier "SR-036"${cause}`,
+      details: { ref: "SR-036" },
+    });
+    expect((await failure(opened, "element.get", { ref: "SR-ffffff" })).message).toBe(
+      `No element has the short ID or identifier "SR-ffffff"${cause}`,
+    );
+    // A UUID does not depend on the metamodel.
+    const uuid = await failure(opened, "element.get", { ref: "30500000-0000-4000-8000-0000000f0000" });
+    expect(uuid.message).toBe('No element has the UUID "30500000-0000-4000-8000-0000000f0000"');
+  });
+
   it("refuses a reference that is the short ID of one element and the identifier of another as ambiguous", async () => {
     const other = "30500000-0000-4000-8000-0000000c0048";
     const opened = await open({ "decisions/D-0000000c0048.md": decision(other, "SR-0b0037") });

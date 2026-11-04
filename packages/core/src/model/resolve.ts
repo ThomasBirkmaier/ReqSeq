@@ -87,6 +87,16 @@ const named = (shortIds: ShortIds, ref: string): Named => {
   };
 };
 
+/**
+ * Why a short ID or identifier may name no element though one has it (#399): the metamodel is not
+ * valid, and a faulty file is left out with its types and identifier property. "" for a UUID, which
+ * does not depend on the metamodel, or a valid metamodel.
+ */
+const faultyMetamodel = (shortIds: ShortIds, canonical: string): string =>
+  shortIds.metamodelValid || isUuid(canonical)
+    ? ""
+    : "; the metamodel is not valid, so short IDs and identifiers from its faulty files are not known (workspace.check lists its problems)";
+
 /** What `ref` was taken as, for the message of `ref.unknown`. */
 const formOf = (canonical: string): string =>
   isUuid(canonical) ? "UUID" : isShortIdForm(canonical) ? "short ID or identifier" : "identifier";
@@ -157,7 +167,7 @@ export const resolveRef = (
     case "unknown":
       throw new CommandError(
         "ref.unknown",
-        `No element has the ${formOf(canonical)} ${JSON.stringify(ref)}`,
+        `No element has the ${formOf(canonical)} ${JSON.stringify(ref)}${faultyMetamodel(shortIds, canonical)}`,
         {
           ref,
         },
