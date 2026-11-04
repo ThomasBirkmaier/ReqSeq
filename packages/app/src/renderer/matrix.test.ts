@@ -2,7 +2,18 @@
 import type { DataExportRelation, TraceMatrixOutput } from "@reqseq/core";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_SORT, filteredList, listBuffer } from "./buffers.js";
-import { columnCount, columnName, matrixInput, matrixRows, opening, targetsOf } from "./matrix.js";
+import {
+  columnCount,
+  columnName,
+  degreeLine,
+  matrixInput,
+  matrixRows,
+  noTestCaseAccent,
+  opening,
+  statusLine,
+  targetsOf,
+  testCaseLine,
+} from "./matrix.js";
 import type { MatrixColumn } from "./matrix.js";
 import { savedStep, typeStep } from "./list-filters.js";
 import { nth } from "./lists.js";
@@ -165,5 +176,115 @@ describe("column heads", () => {
       "Distinct from",
       "← Distinct from",
     ]);
+  });
+});
+
+describe("the evidence columns (SR-126)", () => {
+  const last = {
+    element: "uuid-s1",
+    version: "n1:4b6860725d822fd9",
+    kind: "verification",
+    method: "test",
+    item: "build-602",
+    result: "passed",
+    date: "2026-10-22T09:00:00Z",
+  } as const;
+
+  it("keeps a requirement's test cases and status on its row, and none on another row", () => {
+    const testCases = [{ name: "test_speed", executed: true, last }];
+    const output = {
+      columns: [],
+      rows: [
+        {
+          id: "uuid-s1",
+          repository: "spec",
+          shortId: "SR-1",
+          type: "system-requirement",
+          title: "Show wind speed",
+          file: "a.md",
+          cells: [],
+          testCases,
+          verification: [{ view: "core", status: "verified" }],
+        },
+        {
+          id: "uuid-n1",
+          repository: "spec",
+          shortId: "N-1",
+          type: "need",
+          title: "See",
+          file: "n.md",
+          cells: [],
+        },
+      ],
+      total: 2,
+      incomplete: false,
+    } as unknown as TraceMatrixOutput;
+    const [requirement, need] = matrixRows(output);
+    expect(requirement?.testCases).toBe(testCases);
+    expect(requirement?.verification).toEqual({ view: "core", status: "verified" });
+    expect(need).not.toHaveProperty("testCases");
+    expect(need).not.toHaveProperty("verification");
+  });
+
+  it("gives the degree as core's percentage and the count of each status that occurs, in status order", () => {
+    expect(
+      degreeLine({
+        share: 5 / 9,
+        total: 9,
+        counts: { open: 2, verified: 4, indirect: 1, failed: 1, outdated: 1 },
+      }),
+    ).toBe("55.5 % · 4 verified · 1 indirect · 1 failed · 1 outdated · 2 open");
+    expect(
+      degreeLine({ total: 0, counts: { open: 0, verified: 0, indirect: 0, failed: 0, outdated: 0 } }),
+    ).toBe("");
+  });
+
+  it("shows a test case by name, result and date of its last execution, a mark in place of the result", () => {
+    expect(testCaseLine({ name: "test_speed", className: "tests.test_wind", executed: true, last })).toEqual({
+      text: "test_speed · passed · 2026-10-22",
+      accent: false,
+      title: "tests.test_wind › test_speed\nitem build-602\nversion n1:4b6860725d822fd9",
+    });
+    expect(
+      testCaseLine({
+        name: "test_log",
+        executed: true,
+        last: (({ item: _item, ...rest }) => rest)(last),
+        mark: "failed",
+      }),
+    ).toEqual({
+      text: "test_log · failed · 2026-10-22",
+      accent: true,
+      title: "test_log\nitem —\nversion n1:4b6860725d822fd9",
+    });
+    expect(testCaseLine({ name: "test_gusts", executed: false, mark: "not-executed" })).toEqual({
+      text: "test_gusts · not executed",
+      accent: true,
+      title: "test_gusts",
+    });
+  });
+
+  it("shows the status, failed and outdated in the accent colour, an open one with its missing children on demand", () => {
+    expect(statusLine({ view: "core", status: "outdated" })).toEqual({
+      text: "outdated",
+      accent: true,
+      title: "",
+    });
+    expect(statusLine({ view: "core", status: "indirect" })).toEqual({
+      text: "indirect",
+      accent: false,
+      title: "",
+    });
+    expect(statusLine({ view: "core", status: "open", missingChildren: ["a"] }).title).toBe(
+      "1 missing child",
+    );
+    expect(statusLine({ view: "core", status: "open", missingChildren: ["a", "b"] }).title).toBe(
+      "2 missing children",
+    );
+  });
+
+  it("marks a requirement without test case in the accent colour unless it is open already", () => {
+    expect(noTestCaseAccent({ view: "core", status: "verified" })).toBe(true);
+    expect(noTestCaseAccent({ view: "core", status: "open" })).toBe(false);
   });
 });
