@@ -64,6 +64,7 @@ describe("mapping files (SR-054)", () => {
   it("is file.faulty for a missing file or one that is no mapping file, input.invalid for one that does not fit", async () => {
     const { workspace } = await open({
       "reqif/wrong.yaml": "reqseq-reqif-mapping: 2\n",
+      "reqif/extra.yaml": "reqseq-reqif-mapping: 1\nsource: { name: X }\ntypes: []\nbogus: 1\n",
       "reqif/unknown.yaml":
         "reqseq-reqif-mapping: 1\nsource: { name: X }\ntypes: [{ source: A, type: nothing }]\n",
     });
@@ -75,6 +76,11 @@ describe("mapping files (SR-054)", () => {
     const wrong = await failure(() => readFrom(workspace, "reqif/wrong.yaml"));
     expect(wrong.code).toBe("file.faulty");
     expect(wrong.message).toMatch(/^mapping: wrong\.yaml is no mapping file: /);
+    // A key the file does not take is named as a field of the file, not an input (#835).
+    const extra = await failure(() => readFrom(workspace, "reqif/extra.yaml"));
+    expect(extra.message).toMatch(
+      /^mapping: extra\.yaml is no mapping file: bogus is not a field of the file \(known: /,
+    );
     const unknown = await failure(() => readFrom(workspace, "reqif/unknown.yaml"));
     expect([unknown.code, unknown.details?.["fields"]]).toEqual(["input.invalid", ["mapping.types[0].type"]]);
   });

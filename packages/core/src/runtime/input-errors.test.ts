@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Contracts } from "./contracts.js";
 import { contractsBundle, loadContracts } from "./contracts.js";
 import type { InputViolation } from "./input-errors.js";
-import { describeInputViolations, inputViolations, knownNames } from "./input-errors.js";
+import { describeInputViolations, fileMessage, inputViolations, knownNames } from "./input-errors.js";
 
 const product = loadContracts();
 
@@ -328,6 +328,28 @@ describe("readable messages of an input that fails its schema (#309)", () => {
     expect(
       describeInputViolations(inputViolations([plain], { input: { a: 1 }, schemas: product.schemas })),
     ).toBe("The input (an object) does not have the expected form");
+  });
+
+  it("speaks of a file instead of a command input (#835)", () => {
+    const [unknown, whole] = [
+      violations(product, "element.get", { ref: "SR-1", bogus: 1 }),
+      violations(keywords, "test.fields", 5),
+    ];
+    expect([...unknown, ...whole].map(fileMessage)).toEqual([
+      "bogus is not a field of the file (known: ref, view, versionDate, hintDates, repository, file)",
+      "the file must be an object, not 5",
+    ]);
+    // A key or a value with the same words stays as it is.
+    const [odd] = violations(product, "element.get", { ref: "SR-1", "The input": 1 });
+    expect(odd && fileMessage(odd)).toBe(
+      "The input is not a field of the file (known: ref, view, versionDate, hintDates, repository, file)",
+    );
+    const [quoted] = violations(keywords, "test.fields", {
+      mode: "The input is not an input of this command",
+    });
+    expect(quoted && fileMessage(quoted)).toBe(
+      'mode "The input is not an input of this command" is not one of: fast, slow',
+    );
   });
 
   it("gives no violation for no errors", () => {
