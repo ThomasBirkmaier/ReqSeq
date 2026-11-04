@@ -59,8 +59,10 @@ describe("recordsById (#215)", () => {
     expect(recordsById(second, "id-4")).toBeUndefined();
     expect(recordsById(second, "id-0")).toEqual(first.get("id-0"));
     expect(recordsById(second, "id-0")).not.toBe(first.get("id-0"));
-    // `first` keeps its own records: its next hot read builds a new view.
+    // `first` keeps its own records and counts its lookups again: a later read takes its own lists
+    // and builds no view, only a hot one does.
     expect(recordsById(first, "id-3")).toEqual(plain.get("id-3"));
+    expect(recordsById(first, "id-3")).toBe(first.get("id-3"));
     expect(recordsById(first, "id-4")).toEqual(plain.get("id-4"));
     expect(recordsById(second, "id-4")).toBeUndefined();
   });

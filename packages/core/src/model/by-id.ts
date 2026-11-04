@@ -55,6 +55,8 @@ export const handOverView = (
     return;
   }
   views.delete(from);
+  // `from` starts counting again, so a few later lookups on it do not rebuild its view.
+  asks.delete(from);
   if (lastMap === from) {
     lastMap = undefined;
   }

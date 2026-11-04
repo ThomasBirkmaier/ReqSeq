@@ -15,7 +15,7 @@ export const PATCH_LIMIT = 1_000;
 export const compactAt = (size: number): number => Math.max(1_024, Math.floor(size / 16));
 
 /**
- * From this many lookups through `recordsOf` a patched `byId` of `size` UUIDs gets its plain view
+ * From this many lookups through `recordsById` a patched `byId` of `size` UUIDs gets its plain view
  * (`max(1,024, size / 8)`): a check looks a UUID up once per relation (200,000 at N-036), a carry
  * over one changed file a few times.
  */
