@@ -1,25 +1,24 @@
-// How often `withWrittenFiles` sorts a repository's files (#729): once per repository that got a
-// new file, however many new files the write has. A module mock counts the sorts, so it needs a
-// file of its own.
+// How often `withWrittenFiles` puts a repository's files in path order (#729): one patch of its
+// files per repository that the write changed (`PatchedMap` in path order sorts the new files once,
+// #215), however many files the write has. A spy counts the patches, so it needs a file of its own.
 import fs from "node:fs/promises";
 import path from "node:path";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureWorkspace } from "@reqseq/testkit";
-import { describe, expect, it, onTestFinished, vi } from "vitest";
+import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import type { FileSnapshot } from "../files/index.js";
 import { writeFileAtomic } from "../files/index.js";
 import { Workspace } from "../runtime/workspace.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
-import type * as PathOrder from "./path-order.js";
-import { inPathOrder } from "./path-order.js";
+import { PatchedMap } from "./patched-map.js";
+import { byPath } from "./path-order.js";
 import type { ElementStore, WrittenFile } from "./store.js";
 import { elementStoreState, loadElements, withWrittenFiles } from "./store.js";
 import { writtenElement } from "./write.js";
 
-vi.mock("./path-order.js", async (importOriginal) => {
-  const original = await importOriginal<typeof PathOrder>();
-  return { ...original, inPathOrder: vi.fn(original.inPathOrder) };
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 const element = (id: string): string =>
@@ -57,19 +56,21 @@ const opened = async (): Promise<{
   return { before, layout, write };
 };
 
-/** The sorts while `withWrittenFiles` takes `written`, and its result. */
+/** The patches of files in path order while `withWrittenFiles` takes `written`, and its result. */
 const sorts = async (
   before: ElementStore,
   layout: WorkspaceLayout,
   written: readonly WrittenFile[],
 ): Promise<{ count: number; after: ElementStore | undefined }> => {
-  vi.mocked(inPathOrder).mockClear();
+  const patch = vi.spyOn(PatchedMap, "patch");
   const after = await withWrittenFiles(before, layout, written);
-  return { count: vi.mocked(inPathOrder).mock.calls.length, after };
+  const count = patch.mock.calls.filter(([, , options]) => options?.order === byPath).length;
+  patch.mockRestore();
+  return { count, after };
 };
 
 describe("sorting the files of a write (#729)", () => {
-  it("sorts a repository once, however many new files the write has", async () => {
+  it("patches a repository once, however many new files the write has", async () => {
     const { before, layout, write } = await opened();
     const created: WrittenFile[] = [];
     for (let i = 40; i > 0; i--) {
@@ -82,7 +83,7 @@ describe("sorting the files of a write (#729)", () => {
     expect(after).toEqual(await loadElements(layout, undefined, { versioning: before.versioning }));
   });
 
-  it("sorts each repository with a new file once, and none that only has changed files", async () => {
+  it("patches each repository the write changed once", async () => {
     const { before, layout, write } = await opened();
     const changed = before.elements.find((e) => e.repository === "system");
     if (changed === undefined) {
@@ -96,7 +97,7 @@ describe("sorting the files of a write (#729)", () => {
       await write("product", nth(1, "a").file, element(nth(1, "a").id)),
     ];
     const { count, after } = await sorts(before, layout, written);
-    expect(count).toBe(2);
+    expect(count).toBe(3);
     expect(after).toEqual(await loadElements(layout, undefined, { versioning: before.versioning }));
     expect(after?.elements.map((e) => [e.repository, e.file])).toEqual([
       ["system", changed.file],
@@ -106,6 +107,6 @@ describe("sorting the files of a write (#729)", () => {
       ["sensor", "anemometer/SR-481f080784bf.md"],
       ["sensor", nth(3, "c").file],
     ]);
-    expect((await sorts(before, layout, [update])).count).toBe(0);
+    expect((await sorts(before, layout, [update])).count).toBe(1);
   });
 });
