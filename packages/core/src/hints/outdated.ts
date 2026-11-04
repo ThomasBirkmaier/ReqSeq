@@ -265,6 +265,7 @@ const candidateOf = (
   const versions = { stored, current };
   if (link.kind === "relation") {
     const { key, named } = link;
+    const repository = typeof named === "string" ? { repository: named } : {};
     // A replacement in a variant onto a changed core requirement is one hint of its own (SR-045 AK1).
     const code = isCoreChange(context.metamodel, element, key, target) ? CORE_CHANGED_CODE : OUTDATED_CODE;
     const hintId = hintIdOf({
@@ -273,14 +274,18 @@ const candidateOf = (
       ...place,
       key,
       target: target.id,
-      ...(typeof named === "string" ? { repository: named } : {}),
+      ...repository,
       version: stored,
     });
     const message =
       code === CORE_CHANGED_CODE
         ? `Core requirement ${elementLabel(context, target)}, which ${elementLabel(context, element)} replaces, has changed since the replacement stored its version`
         : `${link.label} of ${elementLabel(context, element)} points to an older version of ${elementLabel(context, target)}`;
-    const problem = problemOf(element, target, message, versions, hintId, code);
+    const problem = {
+      ...problemOf(element, target, message, versions, hintId, code),
+      key,
+      place: { in: "relation" as const, ...repository },
+    };
     return { path: link.path, finding: { element, target, stored, current, hintId, problem } };
   }
   const { repository, occurrence, key } = link;
@@ -295,7 +300,12 @@ const candidateOf = (
     ...(key === undefined ? {} : { property: key }),
   });
   const message = `Reference in ${placeOfReference(link)} of ${elementLabel(context, element)} points to an older version of ${elementLabel(context, target)}`;
-  const problem = { ...problemOf(element, target, message, versions, hintId), line: link.line };
+  const problem = {
+    ...problemOf(element, target, message, versions, hintId),
+    ...(key === undefined ? {} : { key }),
+    place: { in: "text" as const, ...(repository === undefined ? {} : { repository }), occurrence },
+    line: link.line,
+  };
   return { finding: { element, target, stored, current, hintId, problem } };
 };
 

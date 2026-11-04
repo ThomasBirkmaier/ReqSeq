@@ -63,6 +63,7 @@ const unknownProperty = (file: string, elementId: string, key: string, line?: nu
   file,
   ...(line === undefined ? {} : { line }),
   elementId,
+  key,
 });
 
 const UNKNOWN_TYPE: Problem = {
@@ -166,6 +167,16 @@ describe("unknown properties and types (SR-016)", () => {
     // `weight` is a property of the metamodel that the type does not list: reported too (D-012).
     const keys = unknownFindings(recordOf(store, GUSTS), metamodel).map((f) => f.path);
     expect(keys).toEqual([["customer-id"], ["legacy"], ["weight"], ["tags"]]);
+  });
+
+  it("names the property in `key` only when it has the form of a metamodel key (#222)", async () => {
+    const { workspace } = await open();
+    const { store, metamodel } = await loaded(workspace);
+    const element = recordOf(store, GUSTS);
+    const odd = { ...element, data: { ...element.data, "Customer ID": 7 } };
+    const found = unknownFindings(odd, metamodel).map((f) => [f.path[0], f.problem.key]);
+    expect(found).toContainEqual(["customer-id", "customer-id"]);
+    expect(found).toContainEqual(["Customer ID", undefined]);
   });
 
   it("[SR-016/AK1] gives the findings of one element without lines, for a command about that element", async () => {

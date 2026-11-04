@@ -185,6 +185,7 @@ const missingRequired = (file: string, elementId: string, type: string, line?: n
   file,
   ...(line === undefined ? {} : { line }),
   elementId,
+  key: "verification-method",
 });
 
 describe("metamodel changes without rewriting element files (SR-015)", () => {

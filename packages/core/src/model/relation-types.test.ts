@@ -44,6 +44,7 @@ const NEED_PROBLEM: Problem = {
   elementId: NEED,
   targetId: SR,
   targetRepository: "system",
+  key: "derives-from",
 };
 
 const SAFETY_PROBLEM: Problem = {
@@ -57,6 +58,7 @@ const SAFETY_PROBLEM: Problem = {
   elementId: SAFETY,
   targetId: SR,
   targetRepository: "system",
+  key: "derives-from",
 };
 
 const open = async (files: Readonly<Record<string, string>> = {}): Promise<Workspace> => {

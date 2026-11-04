@@ -587,10 +587,14 @@ describe("updateInput for choices and relations (SR-104)", () => {
 });
 
 describe("savedHint", () => {
-  it("is the first hint that names a saved key", () => {
-    const problems = [{ message: "topic is odd" }, { message: "effort expects a number" }];
+  it("is the first hint whose key is a saved key, never by its message (#222)", () => {
+    const problems = [
+      { message: "effort is named here", key: "topic" },
+      { message: "effort expects a number", key: "effort" },
+      { message: "about effort, but no key" },
+    ];
     expect(savedHint(problems, ["effort"])).toBe("effort expects a number");
-    expect(savedHint(problems, ["topic", "effort"])).toBe("topic is odd");
+    expect(savedHint(problems, ["topic", "effort"])).toBe("effort is named here");
     expect(savedHint(problems, ["criteria"])).toBeUndefined();
     expect(savedHint(undefined, ["effort"])).toBeUndefined();
   });
@@ -683,7 +687,9 @@ describe("the title field (#621)", () => {
     expect(hintKeys(edits, titled(""), model)).toEqual(["title", "topic"]);
     expect(hintKeys(edits, titled("", "other"), model)).toEqual([TITLE_FIELD, "topic"]);
     const message = "Required property Title (title) of type Need (need) has no value";
-    expect(savedHint([{ message }], hintKeys([titleEdit("Old", "")], titled(""), model))).toBe(message);
+    expect(savedHint([{ message, key: "title" }], hintKeys([titleEdit("Old", "")], titled(""), model))).toBe(
+      message,
+    );
   });
 });
 

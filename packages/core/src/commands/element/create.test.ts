@@ -380,6 +380,7 @@ describe("element.create", () => {
       file: out.element.file,
       elementId: out.element.id,
       elementShortId: out.element.shortId,
+      key,
       ...(line === undefined ? {} : { line }),
     });
     const head = (out: Output): string[] => [

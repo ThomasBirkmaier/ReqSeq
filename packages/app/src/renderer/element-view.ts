@@ -167,31 +167,26 @@ export const withHintDates = (element: DataExportElement, dated: readonly Hint[]
       };
 };
 
-// The hint of a relation item has the place `.../<key>/<target>?version=<stored>[&repository=<name>]` in its
-// ID (`hintIdOf` in core): a metamodel key, where an inline reference has `@text`.
-const RELATION_HINT = /\/([a-z][a-z0-9-]*)\/([^/?]+)\?version=([^&]+)(?:&repository=([^&]*))?$/;
-
 /**
  * The mark of an outgoing relation of `element` when a hint of `OUTDATED_CODES` of the element names its
- * item (`variant.core-changed` for a `replaces` item, SR-045): its key, target, stored version and repository (#665: `element.get` gives no `relations[].outdated`).
+ * item (`variant.core-changed` for a `replaces` item, SR-045): by its key, target, stored version and the
+ * repository the item names, which core gives as fields (#222; #665: `element.get` gives no
+ * `relations[].outdated`).
  */
 export const outdatedRelation = (
   element: Pick<DataExportElement, "problems" | "repository">,
   relation: DataExportRelation,
 ): OutdatedMark | undefined => {
-  const own = (named: string | undefined): string =>
-    named === undefined ? element.repository : decodeURIComponent(named);
-  const hint = (element.problems ?? []).find((candidate) => {
-    const place = isOutdatedCode(candidate.code) ? RELATION_HINT.exec(candidate.hintId ?? "") : null;
-    return (
-      place !== null &&
+  const hint = (element.problems ?? []).find(
+    (candidate) =>
+      isOutdatedCode(candidate.code) &&
+      candidate.place?.in === "relation" &&
       relation.direction === "out" &&
-      place[1] === relation.kind &&
-      place[2] === relation.id &&
-      place[3] === relation.storedVersion &&
-      own(place[4]) === (relation.repository ?? element.repository)
-    );
-  });
+      candidate.key === relation.kind &&
+      candidate.targetId === relation.id &&
+      candidate.storedVersion === relation.storedVersion &&
+      (candidate.place.repository ?? element.repository) === (relation.repository ?? element.repository),
+  );
   return hint === undefined ? undefined : markOf(hint);
 };
 
@@ -256,17 +251,13 @@ export const relationGroups = (relations: readonly DataExportRelation[]): Relati
   return [...groups].map(([heading, grouped]) => ({ heading, relations: grouped }));
 };
 
-// The hint of an inline reference has the place `.../@text/<target>?version=<v>[&repository=<name>]&n=<k>`
-// in its ID (`hintId`), and `.../@text:<key>/<target>?...` when the link is in a property marked
-// `markdown` (SR-127); a hint on a relation item has a metamodel key instead of `@text`.
-const TEXT_HINT = /\/@text(?::([^/?]+))?\/[^/?]+\?(.*)$/;
-
 /**
  * The outdated inline references of an element for the editor: `outdatedKey` of the target, the stored
  * version and the repository the link names, to the message of the hint and the word after the link
- * (`outdatedWord`, with the date of the stored version once it is there). The hints come from core; the
- * first one of a reference wins. Without `property` those of the text, else those in the values of that
- * property (SR-127): every occurrence of a reference has the same state, so the key tells enough.
+ * (`outdatedWord`, with the date of the stored version once it is there). The hints come from core, with
+ * their place as fields (#222); the first one of a reference wins. Without `property` those of the text,
+ * else those in the values of that property (SR-127): every occurrence of a reference has the same state,
+ * so the key tells enough.
  */
 export const outdatedReferences = (
   element: DataExportElement,
@@ -274,20 +265,14 @@ export const outdatedReferences = (
 ): ReadonlyMap<string, OutdatedMark> => {
   const found = new Map<string, OutdatedMark>();
   for (const problem of element.problems ?? []) {
-    const place = TEXT_HINT.exec(problem.hintId ?? "");
-    const query = place?.[2];
     if (
       problem.code === "relation.outdated" &&
-      place?.[1] === property &&
-      query !== undefined &&
+      problem.place?.in === "text" &&
+      problem.key === property &&
       problem.targetId !== undefined &&
       problem.storedVersion !== undefined
     ) {
-      const named = query
-        .split("&")
-        .find((entry) => entry.startsWith("repository="))
-        ?.slice("repository=".length);
-      const key = outdatedKey(problem.targetId, problem.storedVersion, named);
+      const key = outdatedKey(problem.targetId, problem.storedVersion, problem.place.repository);
       if (!found.has(key)) {
         found.set(key, markOf(problem));
       }

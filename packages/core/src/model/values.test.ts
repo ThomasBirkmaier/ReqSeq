@@ -78,6 +78,8 @@ const wrong = (line: number, message: string): Problem => ({
   file: WRONG_FILE,
   line,
   elementId: WRONG,
+  // The key the message names: "Property <name> (<key>) expects ...".
+  key: /\(([a-z0-9-]+)\) expects/.exec(message)?.[1] ?? "",
 });
 
 const SENSOR_PROBLEM: Problem = {
@@ -88,6 +90,7 @@ const SENSOR_PROBLEM: Problem = {
   file: SENSOR_FILE,
   line: 6,
   elementId: SENSOR,
+  key: "priority",
 };
 
 const FIXTURE_PROBLEMS: readonly Problem[] = [
@@ -190,6 +193,7 @@ describe("value kinds (SR-085)", () => {
         file: "requirements/N-ea6fe2e123a9.md",
         line: 6,
         elementId: NEED,
+        key: "weight",
       },
     ]);
   });
@@ -376,6 +380,7 @@ describe("value kinds (SR-085)", () => {
       {
         ...SENSOR_PROBLEM,
         line: 9,
+        key: "platforms",
         message:
           'Property Platforms (platforms) expects each item to be one of linux (Linux), windows (Windows); item 2 is the text "macos"',
       },
@@ -416,6 +421,7 @@ describe("value kinds (SR-085)", () => {
         repository: "system",
         file: WRONG_FILE,
         elementId: WRONG,
+        key: "weight",
       },
     ]);
     const { store, metamodel } = await loaded(workspace);

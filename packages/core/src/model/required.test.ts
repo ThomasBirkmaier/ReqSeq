@@ -90,6 +90,7 @@ describe("requiredFindings", () => {
           repository: "system",
           file: "x.md",
           elementId: "0b7c6e1a-1111-4222-8333-444455556666",
+          key: "weight",
         },
       }),
     ]);

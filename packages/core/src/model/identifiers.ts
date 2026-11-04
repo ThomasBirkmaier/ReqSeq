@@ -62,6 +62,7 @@ export const duplicateIdentifierFindings = (
         repository: element.repository,
         file: element.file,
         elementId: element.id,
+        key,
       },
     },
   ];

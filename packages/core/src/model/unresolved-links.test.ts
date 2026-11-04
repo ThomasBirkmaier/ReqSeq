@@ -50,6 +50,7 @@ describe("reqseq: links whose target is no UUID (#176)", () => {
         message:
           "The link reqseq:N-1f2a4c in rationale of System Requirement SR-6e1f05 does not name its target by a UUID in lower case, so it counts for nothing: it names Need N-1f2a4c; give the property rationale again with element update, which writes reqseq:<uuid>?version=…",
         line: 6,
+        key: "rationale",
         ...at,
       },
       {
@@ -58,6 +59,7 @@ describe("reqseq: links whose target is no UUID (#176)", () => {
         message:
           "The link reqseq:VAR-f4b9a3 in acceptance-criteria (item 1) of System Requirement SR-6e1f05 does not name its target by a UUID in lower case, so it counts for nothing: it names more than one element; write the UUID of the one it means",
         line: 8,
+        key: "acceptance-criteria",
         ...at,
       },
       {
@@ -298,6 +300,7 @@ describe("reference-style reqseq: links (#844)", () => {
         message:
           "The reference-style link [n]: reqseq:N-1f2a4c in rationale of System Requirement SR-6e1f05 counts for nothing (no relation, no outdated check, no trace), since only an inline link is a reference: write the link inline, [Title](reqseq:N-1f2a4c)",
         line: 9,
+        key: "rationale",
         ...at,
       },
       {

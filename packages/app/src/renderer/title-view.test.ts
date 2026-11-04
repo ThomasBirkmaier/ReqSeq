@@ -83,7 +83,9 @@ const disk = (options: { readonly readOnly?: boolean; readonly type?: string; re
       file: "a.md",
       properties: file.properties,
       relations: [],
-      ...(file.title === "" ? { problems: [{ code: "element.missing-required", message: MISSING }] } : {}),
+      ...(file.title === ""
+        ? { problems: [{ code: "element.missing-required", message: MISSING, key: "title" }] }
+        : {}),
       ...(options.readOnly === true ? { readOnly: true } : {}),
     }) as unknown as DataExportElement;
   const handlers: Record<string, (input: Record<string, unknown>) => unknown> = {

@@ -203,6 +203,8 @@ describe("outdated relations and references (SR-025)", () => {
         storedDate: stored,
         currentDate: null,
         hintId: `relation.outdated/${AT_A}/validity/${V}?version=${V_VERSION}`,
+        key: "validity",
+        place: { in: "relation" },
       },
       {
         code: "relation.outdated",
@@ -221,6 +223,8 @@ describe("outdated relations and references (SR-025)", () => {
         storedDate: stored,
         currentDate: null,
         hintId: `relation.outdated/${AT_A}/derives-from/${N}?version=${N_VERSION}`,
+        key: "derives-from",
+        place: { in: "relation" },
       },
       {
         code: "relation.outdated",
@@ -239,6 +243,8 @@ describe("outdated relations and references (SR-025)", () => {
         storedDate: stored,
         currentDate: null,
         hintId: `relation.outdated/${AT_A}/@text/${N}?version=${N_VERSION}&n=1`,
+        // An inline reference in the text: no key (#222).
+        place: { in: "text", occurrence: 1 },
       },
     ]);
     // Both relations to N name its one current version; it is not V's.

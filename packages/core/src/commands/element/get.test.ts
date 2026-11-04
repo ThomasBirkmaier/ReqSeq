@@ -543,6 +543,7 @@ describe("element.get, more of what stage 1 shows", () => {
         elementShortId: "SR-000ab2",
         targetId: "40a0e000-0000-4000-8000-b2b2b2b2b2b2",
         targetRepository: "system",
+        key: "validity",
         targetShortId: "VAR-b2b2b2",
       },
     ]);

@@ -255,7 +255,28 @@
         },
         "key": {
           "$ref": "#/$defs/key",
-          "description": "The relation kind (`relation.too-many`, `relation.too-few`, SR-152) or the property (`element.too-many-items`, SR-171) a count hint is about, or the property an `element.text-emptied` warning names (#841)."
+          "description": "The key (property or relation kind) a problem about one key is about, so that an access can tell it without reading the message (#222): the relation kind or property of a count hint (`relation.too-many`, `relation.too-few`, SR-152; `element.too-many-items`, SR-171), the property of `element.text-emptied` (#841), `element.wrong-value-kind`, `element.missing-required`, `element.duplicate-identifier` and `element.statement-without-text`, the property of `element.unknown-property` when its key has the form of a metamodel key (a frontmatter key can be any text), the key of the relation item of `relation.outdated`, `variant.core-changed`, `relation.missing-target`, `relation.not-allowed`, `relation.target-superseded`, `variant.superseded-in-validity` and `variant.nested`, and the property marked `markdown` that holds a link of `relation.outdated`, `relation.missing-target`, `relation.unresolved-link` or `relation.reference-style` (SR-127). A link in the text has none."
+        },
+        "place": {
+          "type": "object",
+          "description": "Where a confirmable hint (`relation.outdated`, `variant.core-changed`) is, as data next to its `hintId` (#222): with `key`, `targetId` and `storedVersion` it names what the ID names.",
+          "required": ["in"],
+          "properties": {
+            "in": {
+              "enum": ["relation", "text"],
+              "description": "`relation`: an item of the relation kind or relation-valued property `key`. `text`: an inline reference in the text, or with `key` in a value of that property marked `markdown` (SR-127)."
+            },
+            "repository": {
+              "type": "string",
+              "description": "The repository the item or link names (D-058), as it writes it; absent when it names none."
+            },
+            "occurrence": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "`text` only: the link is the n-th (from 1) of that text with the same target, repository and stored version (`&n=` of the hint ID)."
+            }
+          },
+          "additionalProperties": false
         },
         "targetType": {
           "$ref": "#/$defs/key",

@@ -123,6 +123,8 @@ const hint = (
   targetId: target.id,
   targetRepository: "system",
   targetShortId: shortIdOf(target),
+  // Every relation of these hints is a derivation.
+  key: "derives-from",
   line,
 });
 

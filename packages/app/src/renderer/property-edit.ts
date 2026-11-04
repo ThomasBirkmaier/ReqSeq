@@ -398,18 +398,18 @@ export const updateInput = (
 };
 
 /**
- * The first hint of an answer about one of the keys that were saved: core names the property in its
- * message (SR-085), the app appends it to "Saved ..." and colours nothing (D-062).
+ * The first hint of an answer about one of the keys that were saved: core names the key a problem is
+ * about in its `key` (#222), the app appends its message to "Saved ..." and colours nothing (D-062).
  */
 export const savedHint = (
-  problems: readonly { readonly message: string }[] | undefined,
+  problems: readonly { readonly message: string; readonly key?: string }[] | undefined,
   keys: readonly string[],
 ): string | undefined =>
-  problems?.find((problem) => keys.some((key) => problem.message.includes(key)))?.message;
+  problems?.find((problem) => problem.key !== undefined && keys.includes(problem.key))?.message;
 
 /**
  * The keys a hint of core about a save is looked for by (`savedHint`): the keys of the boxes that went, and
- * for the title its property key, which core names in its message.
+ * for the title its property key, which core gives as the `key` of its problem.
  */
 export const hintKeys = (
   edits: readonly BoxEdit[],

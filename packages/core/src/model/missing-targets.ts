@@ -160,6 +160,7 @@ const collect = (
           file: element.file,
           elementId: element.id,
           targetId: item.id,
+          key,
         },
       });
     }
@@ -195,6 +196,7 @@ const collectReferences = (
         line: reference.line,
         elementId: element.id,
         targetId: reference.id,
+        ...(reference.key === undefined ? {} : { key: reference.key }),
       },
     });
   }

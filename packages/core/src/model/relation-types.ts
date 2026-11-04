@@ -167,6 +167,7 @@ const collect = (
           elementId: element.id,
           targetId: item.id,
           ...(resolved === undefined ? {} : { targetRepository: resolved.repository }),
+          key,
         },
       });
     }

@@ -115,6 +115,10 @@ const lineAt = (yaml: YamlFile, segments: readonly string[]): number | undefined
 const NAMING_KEY = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 const MAX_KEY_LENGTH = 64;
 
+/** Whether `key` has the form of a metamodel key (`common.schema.json#/$defs/key`). */
+export const isKeyForm = (key: unknown): key is string =>
+  typeof key === "string" && key.length <= MAX_KEY_LENGTH && NAMING_KEY.test(key);
+
 /**
  * The message of a violation with the definition it is in named by its key (#151): `types[0].prefix is
  * required` is `Type variant: prefix is required`, as other metamodel problems name definitions. A
@@ -131,7 +135,7 @@ const namedMessage = (yaml: YamlFile, violation: InputViolation): string => {
     return message;
   }
   const key: unknown = yaml.document.getIn([list, Number(index), "key"]);
-  if (typeof key !== "string" || key.length > MAX_KEY_LENGTH || !NAMING_KEY.test(key)) {
+  if (!isKeyForm(key)) {
     return message;
   }
   const at = `${list}[${index}]`;
