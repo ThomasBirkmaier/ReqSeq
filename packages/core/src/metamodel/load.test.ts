@@ -321,6 +321,39 @@ describe("loadMetamodel", () => {
     ]);
   });
 
+  it("says what a prefix and a relation limit need (#851)", async () => {
+    const ws = await fixture({
+      files: {
+        "model/odd.yaml": [
+          "reqseq-metamodel: 1",
+          "types:",
+          "  - key: part",
+          "    name: Part",
+          "    prefix: pt",
+          "relations:",
+          "  - key: r",
+          "    name: R",
+          "    limits:",
+          "      - target-type: part",
+          "",
+        ].join("\n"),
+      },
+    });
+    const metamodel = await load(ws.root);
+    expect(
+      metamodel.problems.filter((p) => p.file === "model/odd.yaml").map((p) => [p.line, p.message]),
+    ).toEqual([
+      [
+        5,
+        'Invalid model/odd.yaml: Type part: prefix "pt" is not a prefix (upper case letters and digits, starting with a letter, for example SR)',
+      ],
+      [
+        10,
+        "Invalid model/odd.yaml: Relation kind r: limits[0] (an object) has neither min nor max (a limit needs one of them or both)",
+      ],
+    ]);
+  });
+
   it("reports an unknown list on the line of its key and a missing format version on the first line", async () => {
     const ws = await fixture({ files: { "model/statuses.yaml": "# comment\nstates: []\n" } });
     const metamodel = await load(ws.root);

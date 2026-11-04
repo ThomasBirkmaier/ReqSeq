@@ -6,7 +6,8 @@ import type { Problem } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import { readYamlFile } from "../files/index.js";
 import type { WorkspaceFile, WorkspaceLocalFile, WorkspaceRepository } from "../generated/types.js";
-import { describeViolations, fileSchemaValidator, schemaViolations } from "../runtime/contracts.js";
+import { contractsBundle, fileSchemaErrors, fileSchemaValidator } from "../runtime/contracts.js";
+import { fileMessage, inputViolations } from "../runtime/input-errors.js";
 import { WORKSPACE_FILE } from "./workspace-file.js";
 
 export { WORKSPACE_FILE };
@@ -68,15 +69,18 @@ const notFound = async (root: string): Promise<CommandError> => {
 
 /** Schema violations as `workspace.invalid` problems of `file`. */
 const violations = (schema: string, file: string, data: unknown): readonly Problem[] => {
-  const validate = fileSchemaValidator(schema);
-  if (validate(data)) {
+  if (fileSchemaValidator(schema)(data)) {
     return [];
   }
-  return schemaViolations(validate.errors).map((v) => ({
+  // Readable as input errors are (#309, #851).
+  return inputViolations(fileSchemaErrors(schema, data), {
+    input: data,
+    schemas: contractsBundle.schemas,
+  }).map((v) => ({
     code: "workspace.invalid",
     severity: "error",
     file,
-    message: `Invalid ${file}: ${describeViolations([v])}`,
+    message: `Invalid ${file}: ${fileMessage(v)}`,
   }));
 };
 

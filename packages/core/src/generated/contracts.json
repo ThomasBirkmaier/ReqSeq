@@ -2168,6 +2168,11 @@
         "key": {
           "$ref": "common.schema.json#/$defs/key"
         },
+        "prefix": {
+          "description": "Prefix of a short ID: upper case letters and digits, starting with a letter (D-017).",
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9]*$"
+        },
         "named": {
           "type": "object",
           "required": [
@@ -2203,8 +2208,7 @@
             "name": true,
             "description": true,
             "prefix": {
-              "type": "string",
-              "pattern": "^[A-Z][A-Z0-9]*$",
+              "$ref": "#/$defs/prefix",
               "description": "Prefix of the short ID, e.g. SR (D-017). UNKNOWN is reserved for elements of an unknown type and is a metamodel error (#154)."
             },
             "extends": {
@@ -2277,8 +2281,7 @@
               "type": "string"
             },
             "prefix": {
-              "type": "string",
-              "pattern": "^[A-Z][A-Z0-9]*$"
+              "$ref": "#/$defs/prefix"
             },
             "extends": {
               "$ref": "#/$defs/key"
@@ -2866,7 +2869,8 @@
             "$ref": "#/$defs/repository"
           },
           "contains": {
-            "$ref": "#/$defs/mainRepository"
+            "$ref": "#/$defs/mainRepository",
+            "description": "with main: true"
           },
           "minContains": 0,
           "maxContains": 1,
@@ -2875,7 +2879,8 @@
           },
           "then": {
             "contains": {
-              "$ref": "#/$defs/mainRepository"
+              "$ref": "#/$defs/mainRepository",
+              "description": "with main: true"
             },
             "minContains": 1
           },
