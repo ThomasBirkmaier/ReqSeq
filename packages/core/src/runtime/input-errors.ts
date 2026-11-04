@@ -147,7 +147,7 @@ const bound: KeywordText = (value, p) =>
 const notTheForm: KeywordText = (value, p, error) => {
   const description = (error.parentSchema as JsonSchema | undefined)?.["description"];
   const keys = p["keys"] as readonly string[] | undefined;
-  return `${subject(value)} does not have the expected form${typeof description === "string" ? `: ${description}` : ""}${keys === undefined ? "" : ` (exactly one of: ${keys.join(", ")})`}`;
+  return `${subject(value)} does not have the expected form${typeof description === "string" ? `: ${description}` : ""}${keys === undefined ? "" : ` (one of: ${keys.join(", ")})`}`;
 };
 
 /** What a field must be, by keyword, when no def message applies; after the field name. */
@@ -264,9 +264,11 @@ const branchesOf = (error: ErrorObject, roots: WeakMap<object, JsonSchema>): Obj
 /**
  * The errors with each `oneOf` or `anyOf` of object branches narrowed to the branch the value means
  * (#150): the one whose required keys are all there, as `{"property": ..., "op": ...}` means the property
- * branch. Its errors stay (below the value, those under a key of the branch; a key it does not have) and
- * the errors of the other branches and the `oneOf` go. When no branch or several fit, the `oneOf` stays
- * and names the keys that tell the branches apart.
+ * branch, else the one whose first required key is there. Its errors stay (below the value, those under
+ * a key of the branch; a key it misses or does not have) and the errors of the other branches and the
+ * `oneOf` go. When no branch or several fit, the `oneOf` stays and names the keys that tell the branches
+ * apart. Meant for a schema that is the `oneOf` alone, as the filter condition: errors below the value
+ * under a key no branch has, such as those of a sibling `properties`, would go too.
  */
 const narrowed = (
   all: readonly ErrorObject[],
@@ -280,8 +282,13 @@ const narrowed = (
     if (branches === undefined || typeof value !== "object" || value === null || Array.isArray(value)) {
       continue;
     }
-    const fitting = branches.filter((b) => b.required.every((key) => key in value));
-    const [branch] = fitting;
+    // Own keys only: `toString` in a value is an unknown key, not an inherited name (#820 review).
+    const has = (object: object, key: string): boolean => Object.hasOwn(object, key);
+    const fitting = branches.filter((b) => b.required.every((key) => has(value, key)));
+    // No branch with all its keys: the one whose first key is there (`{"property": "topic"}` lacks `op`).
+    const leading = branches.filter((b) => has(value, String(b.required[0])));
+    const candidates = fitting.length > 0 ? fitting : leading;
+    const [branch] = candidates;
     const at = errors.indexOf(either);
     const path = either.instancePath;
     const chosen = branch === undefined ? -1 : branches.indexOf(branch);
@@ -294,18 +301,22 @@ const narrowed = (
           error.keyword !== "additionalProperties" &&
           (!error.schemaPath.startsWith(`${either.schemaPath}/`) ||
             error.schemaPath.startsWith(`${either.schemaPath}/${String(chosen)}/`))
-        : String(segmentsOf(error.instancePath.slice(path.length))[0]) in branch.properties);
+        : has(branch.properties, String(segmentsOf(error.instancePath.slice(path.length))[0])));
     const inside = errors.slice(0, at).filter((e) => isUnder(e.instancePath, path));
     const kept = inside.filter(ofBranch);
+    const missing = branch === undefined ? [] : branch.required.filter((key) => !has(value, key));
     const unknown =
-      branch?.closed === true ? Object.keys(value).filter((key) => !(key in branch.properties)) : [];
-    const own = unknown.map((key) => ({
-      ...either,
-      keyword: "additionalProperties",
-      params: { additionalProperty: key },
-      parentSchema: { properties: branch?.properties },
-    }));
-    if (fitting.length !== 1 || kept.length + own.length === 0) {
+      branch?.closed === true ? Object.keys(value).filter((key) => !has(branch.properties, key)) : [];
+    const own = [
+      ...missing.map((key) => ({ ...either, keyword: "required", params: { missingProperty: key } })),
+      ...unknown.map((key) => ({
+        ...either,
+        keyword: "additionalProperties",
+        params: { additionalProperty: key },
+        parentSchema: { properties: branch?.properties },
+      })),
+    ];
+    if (candidates.length !== 1 || kept.length + own.length === 0) {
       const keys = [...new Set(branches.map((b) => String(b.required[0])))];
       errors[at] = { ...either, params: { ...either.params, keys } };
       continue;

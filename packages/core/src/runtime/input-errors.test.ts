@@ -282,8 +282,13 @@ describe("readable messages of an input that fails its schema (#309)", () => {
     expect(where({ status: ["draft"], extra: 1 })).toEqual([
       "selection.where.extra is not a field of selection.where (known: status)",
     ]);
+    expect(where({ status: ["draft"], toString: 1 })).toEqual([
+      "selection.where.toString is not a field of selection.where (known: status)",
+    ]);
+    expect(where({ property: "topic" })).toEqual(["selection.where.op is required"]);
+    expect(where({ relation: { direction: "up" } })).toEqual(["selection.where.exists is required"]);
     const operators =
-      " (exactly one of: all, any, not, type, status, invalid, package, validFor, verification, validation, emergent, source, text, property, relation)";
+      " (one of: all, any, not, type, status, invalid, package, validFor, verification, validation, emergent, source, text, property, relation)";
     for (const condition of [{ typ: ["need"] }, { status: ["draft"], type: ["need"] }]) {
       const [message, ...rest] = where(condition);
       expect(rest).toEqual([]);
@@ -303,7 +308,7 @@ describe("readable messages of an input that fails its schema (#309)", () => {
     expect(field({ shape: { b: 1, z: true } })).toEqual(["shape must NOT have fewer than 3 properties"]);
     expect(field({ shape: [] })).toEqual(["shape (a list) does not have the expected form"]);
     expect(field({ shape: {} })).toEqual([
-      "shape (an object) does not have the expected form (exactly one of: a, b)",
+      "shape (an object) does not have the expected form (one of: a, b)",
     ]);
     expect(field({ foreign: {} })).toEqual(["foreign (an object) does not have the expected form"]);
     // A local reference without the file of its def cannot be resolved: the branches stay one message.
