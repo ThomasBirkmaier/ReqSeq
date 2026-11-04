@@ -3,16 +3,30 @@
 // "—" where the row has none; above each column how many rows have a relation and their share. Everything
 // is what `trace.matrix` gives (ADR-0002); the rows come in pages like the list's. Right and Left walk
 // through the row element and its relations, Enter or a click opens the element. The row element of an
-// element that changed outside the app is highlighted briefly (SR-116).
+// element that changed outside the app is highlighted briefly (SR-116). With evidence locations, two columns
+// at the right (SR-126): "Test cases", one line per test case with the result and date of its last
+// execution or its mark, and "Verification", the status, with the degree of the selection above it; a
+// requirement without a test case has the accent "—", a row that is no requirement in the view leaves both
+// blank. They hold no cursor target.
 import { useEffect, useRef, useState } from "react";
-import type { DataExportRelation } from "@reqseq/core";
+import type { DataExportRelation, TraceMatrixOutput } from "@reqseq/core";
 import { useIdScope } from "./area-scope.js";
 import type { BufferAction, ListBuffer } from "./buffers.js";
 import { bufferName, listSort } from "./buffers.js";
 import type { Call } from "./call.js";
 import { relationLabel } from "./element-view.js";
-import { columnCount, columnName, matrixInput, matrixRows, opening, targetsOf } from "./matrix.js";
-import type { MatrixColumn, MatrixRow } from "./matrix.js";
+import {
+  columnCount,
+  columnName,
+  degreeLine,
+  matrixInput,
+  matrixRows,
+  opening,
+  statusLine,
+  targetsOf,
+  testCaseLine,
+} from "./matrix.js";
+import type { CellLine, MatrixColumn, MatrixRow } from "./matrix.js";
 import { rowTarget } from "./keys.js";
 import { OUTDATED_WORD } from "./outdated-codes.js";
 import type { BufferData } from "./modeline.js";
@@ -43,6 +57,8 @@ type View =
       readonly rows: readonly MatrixRow[];
       readonly total: number;
       readonly incomplete: boolean;
+      /** The header of the evidence columns (SR-126); undefined without them. */
+      readonly evidence: TraceMatrixOutput["evidence"];
     };
 
 /** Rows moved by Page Up and Page Down. */
@@ -70,6 +86,36 @@ const Link = ({
     {relation.targetState === "available" ? null : <span className="state"> {relation.targetState}</span>}
     {relation.outdated === true ? <span className="outdated"> {OUTDATED_WORD}</span> : null}
   </div>
+);
+
+/** A line of an evidence cell, in the accent colour when it is marked. */
+const Line = ({ line }: { readonly line: CellLine }): React.JSX.Element => (
+  <div
+    className={line.accent ? "evidence marked" : "evidence"}
+    title={line.title === "" ? undefined : line.title}
+  >
+    {line.text}
+  </div>
+);
+
+/** The two evidence cells of a row (SR-126): blank on a row without the fields (no requirement in the view). */
+const EvidenceCells = ({ row }: { readonly row: MatrixRow }): React.JSX.Element => (
+  <>
+    <td role="gridcell" className="cell test-cases">
+      {row.testCases === undefined ? null : row.testCases.length === 0 ? (
+        <span className="gap" title="No test case">
+          —
+        </span>
+      ) : (
+        row.testCases.map((test) => (
+          <Line key={`${test.className ?? ""}:${test.name}`} line={testCaseLine(test)} />
+        ))
+      )}
+    </td>
+    <td role="gridcell" className="cell verification">
+      {row.verification === undefined ? null : <Line line={statusLine(row.verification)} />}
+    </td>
+  </>
 );
 
 export const MatrixView = ({
@@ -116,6 +162,7 @@ export const MatrixView = ({
           rows,
           total: answer.output.total,
           incomplete,
+          evidence: answer.output.evidence,
         });
         if (outside !== undefined) {
           mark(rows.map((row) => row.element.open.id).filter(outside.fresh));
@@ -157,7 +204,12 @@ export const MatrixView = ({
       }
       if (answer.ok) {
         const { incomplete } = answer.output;
-        setView({ ...view, rows: [...view.rows, ...matrixRows(answer.output)], total: answer.output.total });
+        setView({
+          ...view,
+          rows: [...view.rows, ...matrixRows(answer.output)],
+          total: answer.output.total,
+          evidence: answer.output.evidence,
+        });
         onData(buffer.key, { kind: "list", total: answer.output.total, incomplete });
       } else {
         onEcho(answer.message);
@@ -216,6 +268,7 @@ export const MatrixView = ({
   };
 
   const columns = view.status === "ok" ? view.columns : [];
+  const evidence = view.status === "ok" ? view.evidence : undefined;
   return (
     <div
       ref={root}
@@ -244,6 +297,17 @@ export const MatrixView = ({
                   <span className="count">{columnCount(column)}</span>
                 </th>
               ))}
+              {evidence === undefined ? null : (
+                <>
+                  <th scope="col" className="test-cases">
+                    <span className="name">Test cases</span>
+                  </th>
+                  <th scope="col" className="verification">
+                    <span className="name">Verification</span>
+                    <span className="count">{degreeLine(evidence.degree)}</span>
+                  </th>
+                </>
+              )}
             </tr>
           </thead>
         )}
@@ -296,6 +360,7 @@ export const MatrixView = ({
                     </td>
                   );
                 })}
+                {evidence === undefined ? null : <EvidenceCells row={row} />}
               </tr>
             );
           })}

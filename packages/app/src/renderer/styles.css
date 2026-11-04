@@ -756,6 +756,16 @@ mark {
   color: var(--accent-gap);
 }
 
+/* The evidence columns (SR-126): the test cases and the status in grey, a mark ("not executed", "failed",
+   "outdated") and the "—" of a requirement without test case in the accent colour. */
+.matrix .evidence {
+  color: var(--muted);
+}
+
+.matrix .evidence.marked {
+  color: var(--accent-gap);
+}
+
 /* The graph (SR-111, D-063): boxes in layers over soft curves on the white sheet, no grid, no legend, no
    controls. A box has the size `graph-layout.ts` places it with (224 × 86 px): a line with the ID and the
    type, the title on at most two lines, and a line with the marks at the bottom, so neither the ID nor
