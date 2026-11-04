@@ -1,8 +1,6 @@
-# Standard model (D-037, extended by D-059, D-060 and D-071), shipped with ReqSeq and written by workspace.init (SR-014).
-# Keys never change (D-043); names are English (D-019). Every built-in meaning has a key (SR-014 AK3):
-# each type and property meaning exactly one, derivation two relation kinds
-# (open question #150).
-# Marked "assumption": not yet covered by a decision.
+# Standard model, shipped with ReqSeq and written by `reqseq workspace init`.
+# Keys never change. Every built-in meaning has a key: each type and property meaning
+# exactly one, derivation two relation kinds (Refines, Derives from).
 reqseq-metamodel: 1
 
 types:
@@ -98,9 +96,8 @@ properties:
       - { key: performance, name: Performance }
       - { key: interface, name: Interface }
       - { key: constraint, name: Constraint }
-  # D-071 names only the two properties of need. Marked "assumption" (#769): priority a choice of
-  # high, medium and low that does not count, validation criteria a list that counts to the version
-  # like the acceptance criteria, no Markdown.
+  # Priority is a choice of high, medium and low that does not count to the version; validation
+  # criteria are a list that counts to the version like the acceptance criteria, without Markdown.
   - key: priority
     name: Priority
     description: "How important the need is to its stakeholders."
@@ -190,9 +187,9 @@ properties:
       meaning: delivery,
       description: "The name of the delivery the element was imported from.",
     }
-  # D-059: Import Version has the meaning import-version (Importfassung), written only by the
-  # import and never counted to the version. Every type carries the origin, so that a ReqIF
-  # export of any selection can be imported again (assumption, #511).
+  # Import Version has the meaning import-version, written only by the import and never counted
+  # to the version. Every type carries the origin, so that a ReqIF export of any selection can be
+  # imported again.
   - {
       key: import-version,
       name: Import Version,
@@ -200,9 +197,8 @@ properties:
       meaning: import-version,
       description: "The import version: the version of what the import wrote, right after the last import.",
     }
-  # D-060 names only the property. Marked "assumption": kind text (the topics belong to the
-  # project, D-019), on need and system-requirement as this spec uses "thema", not content
-  # (like rationale and packages, D-057), not required.
+  # Topic is free text (the topics belong to the project), on need and system requirement, does
+  # not count to the version (like rationale and packages), and is not required.
   - {
       key: topic,
       name: Topic,
@@ -228,7 +224,7 @@ relations:
     description: "The source is based on a decision."
     inverse-name: Basis for
     target-types: [decision]
-  - key: supersedes # a successor supersedes the target, D-045 / SR-072
+  - key: supersedes # a successor supersedes the target
     name: Supersedes
     description: "The source says that it supersedes the target. Superseding an element (element.supersede) also sets the target to an invalid status; the relation alone does not."
     inverse-name: Superseded by
@@ -240,7 +236,7 @@ relations:
     source-types: [system-requirement]
     target-types: [system-requirement]
     meaning: replacement
-  - key: excludes # D-059, SR-042
+  - key: excludes
     name: Excludes
     description: "A variant excludes a system requirement of the core: it does not apply in that variant."
     inverse-name: Excluded by

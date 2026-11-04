@@ -218,7 +218,7 @@ describe("withEvidenceRecords", () => {
     expect(Math.max(...folders.values())).toBeLessThanOrEqual(1000);
     // Pinned: a change of the generator shifts every perf baseline, so it shows here.
     expect(evidence.workspace.digest).toBe(
-      "3e729906024a8b6cf4f675567339e2d2a33aefa0615940afcaa22850ec2513c0",
+      "5efd2087712674cb1c57937cc4f587c80ecf58f6a80d5634c95e0cb59b01c07f",
     );
   });
 

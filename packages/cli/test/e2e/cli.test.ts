@@ -108,7 +108,9 @@ describe("reqseq binary", () => {
     expect(group.stdout).toMatch(/set-status <status> \[options\]/);
     // status: null removes the status line (#343); the command line gives null with --input.
     const setStatus = await reqseq(["element", "set-status", "--help"], { cwd: ws.root });
-    expect(setStatus.stdout).toMatch(/null only via\s+--input/);
+    expect(setStatus.stdout).toMatch(/null only\s+via\s+--input/);
+    // The help names no issue, decision or requirement of ReqSeq's own spec (#642).
+    expect(setStatus.stdout).not.toMatch(/#\d|\b(?:D|SR)-\d{3}\b|ADR-\d{4}/);
   });
 
   // Every command of the product catalog is implemented (SR-052 was the last); command.not-implemented
