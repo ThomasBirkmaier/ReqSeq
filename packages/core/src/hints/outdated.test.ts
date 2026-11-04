@@ -189,7 +189,7 @@ describe("outdated relations and references (SR-025)", () => {
       {
         code: "relation.outdated",
         severity: "warning",
-        message: `Property Validity (validity) of System Requirement SR-b0000000001 points to an older version of Variant VAR-c0000000001: stored version from ${stored}, current version from no date (not committed, or Git cannot tell)`,
+        message: `Property Validity (validity) of System Requirement SR-b0000000001 points to an older version of Variant VAR-c0000000001: stored version from ${stored}, current version from no date (no date: not committed, or Git cannot tell)`,
         repository: "system",
         file: A_FILE,
         line: 10,
@@ -207,7 +207,7 @@ describe("outdated relations and references (SR-025)", () => {
       {
         code: "relation.outdated",
         severity: "warning",
-        message: `Relation Derives from (derives-from) of System Requirement SR-b0000000001 points to an older version of Need N-a0000000001: stored version from ${stored}, current version from no date (not committed, or Git cannot tell)`,
+        message: `Relation Derives from (derives-from) of System Requirement SR-b0000000001 points to an older version of Need N-a0000000001: stored version from ${stored}, current version from no date (no date: not committed, or Git cannot tell)`,
         repository: "system",
         file: A_FILE,
         line: 12,
@@ -225,7 +225,7 @@ describe("outdated relations and references (SR-025)", () => {
       {
         code: "relation.outdated",
         severity: "warning",
-        message: `Reference in the text of System Requirement SR-b0000000001 points to an older version of Need N-a0000000001: stored version from ${stored}, current version from no date (not committed, or Git cannot tell)`,
+        message: `Reference in the text of System Requirement SR-b0000000001 points to an older version of Need N-a0000000001: stored version from ${stored}, current version from no date (no date: not committed, or Git cannot tell)`,
         repository: "system",
         file: A_FILE,
         line: 15,

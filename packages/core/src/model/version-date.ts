@@ -810,6 +810,37 @@ const repositoryWalks = async (
     : { source: { repository, ignored: ignoredBy(context.layout) }, walks };
 };
 
+/**
+ * Why the versions of a repository can have no date, as a message names it once (#252): `no-git` when
+ * Git cannot read it (not on this machine, no `.git` entry, git missing, no commit), `shallow` for a
+ * shallow clone (it never gives dates), else `unknown` (the content is not committed, or a git call
+ * failed: the dates do not tell which). Only asked for a repository that has a version without date.
+ */
+export type UndatedCause = "no-git" | "shallow" | "unknown";
+
+export const undatedCause = async (
+  context: Pick<VersionDateContext, "layout">,
+  name: string,
+): Promise<UndatedCause> => {
+  const repository = context.layout.repositories.find((r) => r.name === name);
+  if (
+    repository === undefined ||
+    !repository.available ||
+    (await workTreeOf(repository.folder)) === undefined
+  ) {
+    return "no-git";
+  }
+  const files = await headFiles(repository.folder);
+  const head =
+    files?.commit === undefined
+      ? await headCommit(repository.folder)
+      : { known: true, shallow: files.shallow };
+  if (!head.known) {
+    return "no-git";
+  }
+  return head.shallow ? "shallow" : "unknown";
+};
+
 /** What a walk is started for: a request without the version, which only the answers need. */
 export type VersionDateWalk = Omit<VersionDateRequest, "version">;
 

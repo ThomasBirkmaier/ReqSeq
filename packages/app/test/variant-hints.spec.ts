@@ -111,7 +111,9 @@ test.describe("the hint at a replacement when its core requirement changed (SR-0
       expect.stringMatching(/^n1:/),
       expect.stringMatching(/^n1:/),
     ]);
-    expect(hint?.message).toMatch(/stored version from .+, current version from .+$/);
+    expect(hint?.message).toMatch(
+      /(stored version from .+, current version from .+|neither version has a date \(.+\))$/,
+    );
     await open(window, "Response time at most 20 ms");
     const mark = window.locator("article .relation .outdated");
     await expect(mark).toHaveCount(1);

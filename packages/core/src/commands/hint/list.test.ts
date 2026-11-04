@@ -118,7 +118,7 @@ describe("hint.list (SR-026)", () => {
     expect(outdatedItem).toEqual({
       code: "relation.outdated",
       severity: "warning",
-      message: `Relation Derives from (derives-from) of System Requirement SR-0000b1 points to an older version of Need N-0000a1: stored version from no date (not committed, or Git cannot tell), current version from ${date}`,
+      message: `Relation Derives from (derives-from) of System Requirement SR-0000b1 points to an older version of Need N-0000a1: stored version from no date, current version from ${date} (no date: not committed, or Git cannot tell)`,
       repository: "system",
       file: R1_FILE,
       line: 14,
@@ -437,7 +437,7 @@ describe("hints at the element (SR-026 AK3)", () => {
     const listed = (await list(workspace, { ref: R1 })).hints;
     const undated = listed.map(({ storedDate: _s, currentDate: _c, ...p }) => ({
       ...p,
-      message: p.message.replace(/: stored version from .*$/, ""),
+      message: p.message.replace(/: (stored version from|neither version has a date) .*$/, ""),
     }));
     expect(outdated).toEqual(undated);
   });

@@ -67,7 +67,7 @@ describe("reqseq hint list (SR-026)", () => {
     ]);
     const outdated = output.hints.at(-2);
     expect(outdated?.message).toMatch(
-      /^Relation Derives from \(derives-from\) of System Requirement SR-0000b1 points to an older version of Need N-0000a1: stored version from no date .*, current version from \d{4}-/,
+      /^Relation Derives from \(derives-from\) of System Requirement SR-0000b1 points to an older version of Need N-0000a1: stored version from no date, current version from \d{4}-.* \(no date: not committed, or Git cannot tell\)$/,
     );
     expect(outdated?.currentDate).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     const human = await reqseq(["hint", "list"], ws.root);
