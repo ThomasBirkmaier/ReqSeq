@@ -103,7 +103,7 @@ const typeName = (type: unknown): string =>
   (Array.isArray(type) ? type : [type]).map((t) => String(TYPE_NAMES[String(t)])).join(" or ");
 
 /** JSON Pointer segments of an Ajv `instancePath`. */
-const segmentsOf = (pointer: string): string[] =>
+export const segmentsOf = (pointer: string): string[] =>
   pointer === ""
     ? []
     : pointer
@@ -112,7 +112,7 @@ const segmentsOf = (pointer: string): string[] =>
         .map((s) => s.replaceAll("~1", "/").replaceAll("~0", "~"));
 
 /** `["refs", "0"]` -> `refs[0]`, `["properties", "type"]` -> `properties.type`. */
-const fieldOf = (segments: readonly string[]): string =>
+export const fieldOf = (segments: readonly string[]): string =>
   segments.reduce(
     (name, segment) =>
       /^\d+$/.test(segment) ? `${name}[${segment}]` : name === "" ? segment : `${name}.${segment}`,
@@ -396,13 +396,16 @@ export function inputViolations(
   return out;
 }
 
+/** The keywords of a key the object does not take. */
+export const UNKNOWN_KEY: ReadonlySet<string> = new Set(["additionalProperties", "unevaluatedProperties"]);
+
 /**
  * The message of a violation in a hand-written file rather than a command input (#835): the input as a
  * whole is "the file", and a key it does not take is "not a field of the file".
  */
 export const fileMessage = (violation: InputViolation): string => {
   // By the violation's form, never by its text: a key or value may hold the same words (#837 review).
-  if (violation.keyword === "additionalProperties" && violation.path === "") {
+  if (UNKNOWN_KEY.has(violation.keyword) && violation.path === "") {
     return violation.message.replace(
       `${violation.field} is not an input of this command`,
       `${violation.field} is not a field of the file`,

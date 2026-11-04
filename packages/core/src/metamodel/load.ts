@@ -19,7 +19,7 @@ import type { YamlFile } from "../files/index.js";
 import { readYamlFile } from "../files/index.js";
 import { contractsBundle, fileSchemaErrors, fileSchemaValidator } from "../runtime/contracts.js";
 import type { InputViolation } from "../runtime/input-errors.js";
-import { fileMessage, inputViolations } from "../runtime/input-errors.js";
+import { fieldOf, fileMessage, inputViolations, segmentsOf, UNKNOWN_KEY } from "../runtime/input-errors.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import { WORKSPACE_FILE } from "../workspace/index.js";
 import type {
@@ -105,41 +105,45 @@ const lineAt = (yaml: YamlFile, segments: readonly string[]): number | undefined
   return undefined;
 };
 
+/** A key as the schema takes it: only such a key names its definition in a message (#840 review). */
+const NAMING_KEY = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
+const MAX_KEY_LENGTH = 64;
+
 /**
  * The message of a violation with the definition it is in named by its key (#151): `types[0].prefix is
  * required` is `Type variant: prefix is required`, as other metamodel problems name definitions. A
- * definition without a key keeps its place in the list.
+ * definition without a valid key keeps its place in the list. Built from the violation's form, never by
+ * replacing text in its message, which quotes values and keys of the file (#840 review).
  */
-const namedMessage = (data: unknown, violation: InputViolation): string => {
+const namedMessage = (yaml: YamlFile, violation: InputViolation): string => {
   const message = fileMessage(violation);
-  // A field below an entry of a list: the file holds that list, and the entry is an object.
-  const place = /^(types|properties|relations|statuses)\[(\d+)\]\./.exec(violation.field);
-  if (place === null) {
+  // A field below an entry of a list; its message starts with that field.
+  const place = /^([a-z]+)\[(\d+)\]\./.exec(violation.field);
+  const list = place?.[1];
+  const index = place?.[2];
+  if (list === undefined || index === undefined || !isListName(list)) {
     return message;
   }
-  const [, list, index] = place as unknown as [string, ListName, string];
-  const lists = data as Readonly<Record<ListName, readonly { readonly key?: unknown }[]>>;
-  const key = lists[list][Number(index)]?.key;
-  if (typeof key !== "string") {
+  const key: unknown = yaml.document.getIn([list, Number(index), "key"]);
+  if (typeof key !== "string" || key.length > MAX_KEY_LENGTH || !NAMING_KEY.test(key)) {
     return message;
   }
   const at = `${list}[${index}]`;
   const label = `${LABELS[list]} ${key}`;
-  // An unknown key of the definition itself: the label already says where.
-  return `${label}: ${message.slice(at.length + 1)}`
-    .replace(` is not a field of ${at} `, " is not a field ")
-    .replaceAll(at, label);
+  const inEntry = (field: string): string => field.slice(at.length + 1);
+  if (!UNKNOWN_KEY.has(violation.keyword)) {
+    return `${label}: ${inEntry(message)}`;
+  }
+  // `<field> is not a field of <parent><known names>`: the label says where when the parent is the entry.
+  const parent = fieldOf(segmentsOf(violation.path));
+  const names = message.slice(`${violation.field} is not a field of ${parent}`.length);
+  const of = parent === at ? "" : ` of ${inEntry(parent)}`;
+  return `${label}: ${inEntry(violation.field)} is not a field${of}${names}`;
 };
 
 /** JSON Pointer segments of a violation; an unknown key points at that key. */
 const violationSegments = (violation: InputViolation): readonly string[] => {
-  const segments =
-    violation.path === ""
-      ? []
-      : violation.path
-          .slice(1)
-          .split("/")
-          .map((s) => s.replaceAll("~1", "/").replaceAll("~0", "~"));
+  const segments = segmentsOf(violation.path);
   const unknown = violation.params["additionalProperty"] ?? violation.params["unevaluatedProperty"];
   return typeof unknown === "string" ? [...segments, unknown] : segments;
 };
@@ -175,12 +179,7 @@ const checkFile = async (root: string, file: string): Promise<CheckedFile> => {
     input: yaml.data,
     schemas: contractsBundle.schemas,
   }).map((v) =>
-    problem(
-      "error",
-      `Invalid ${file}: ${namedMessage(yaml.data, v)}`,
-      file,
-      lineAt(yaml, violationSegments(v)),
-    ),
+    problem("error", `Invalid ${file}: ${namedMessage(yaml, v)}`, file, lineAt(yaml, violationSegments(v))),
   );
   return { kind: "faulty", problems: [...yaml.warnings, ...violations] };
 };

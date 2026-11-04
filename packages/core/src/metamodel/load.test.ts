@@ -271,6 +271,56 @@ describe("loadMetamodel", () => {
     ]);
   });
 
+  it("builds the named message from the violation's form, not from its text (#840 review)", async () => {
+    const ws = await fixture({
+      files: {
+        "model/odd.yaml": [
+          "reqseq-metamodel: 1",
+          "properties:",
+          "  - key: x",
+          "    name: X",
+          '    kind: "properties[0]"',
+          "  - key: Bad Key",
+          "    name: Bad",
+          "    kind: number",
+          "    weight: 1",
+          "relations:",
+          "  - key: r",
+          "    name: R",
+          "    limits:",
+          "      - target-type: t",
+          "        max: 1",
+          "        foo: 1",
+          "",
+        ].join("\n"),
+      },
+    });
+    const metamodel = await load(ws.root);
+    expect(
+      metamodel.problems.filter((p) => p.file === "model/odd.yaml").map((p) => [p.line, p.message]),
+    ).toEqual([
+      // A quoted value with the words of a place stays as written.
+      [
+        5,
+        'Invalid model/odd.yaml: Property x: kind "properties[0]" is not one of: text, number, date, choice, relation',
+      ],
+      // A key the schema does not take names nothing: the definition keeps its place.
+      [
+        6,
+        'Invalid model/odd.yaml: properties[1].key "Bad Key" is not a key (lower case letters and digits, words joined by single dashes, for example system-requirement)',
+      ],
+      [
+        9,
+        "Invalid model/odd.yaml: properties[1].weight is not a field of properties[1] (known: key, name, description, kind, many, choices, target-types, content, markdown, max-items, meaning)",
+      ],
+      // Below the definition, the place is told within it.
+      [
+        16,
+        "Invalid model/odd.yaml: Relation kind r: limits[0].foo is not a field of limits[0] (known: source-type, target-type, min, max)",
+      ],
+    ]);
+  });
+
   it("reports an unknown list on the line of its key and a missing format version on the first line", async () => {
     const ws = await fixture({ files: { "model/statuses.yaml": "# comment\nstates: []\n" } });
     const metamodel = await load(ws.root);
