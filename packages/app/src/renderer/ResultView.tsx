@@ -117,6 +117,7 @@ export const ResultView = ({
           key={at}
           id={`${scope}result-${String(at)}`}
           className={`line ${line.kind}`}
+          title={line.title}
           // Only a line that opens an element is an option; a text line is shown, not chosen.
           {...(line.open === undefined ? {} : { role: "option", "aria-selected": at === cursor })}
           data-cursor={at === cursor ? "" : undefined}

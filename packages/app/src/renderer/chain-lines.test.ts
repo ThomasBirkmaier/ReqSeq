@@ -109,6 +109,28 @@ describe("the lines of a trace chain", () => {
     ]);
   });
 
+  it("gives a record line that cuts its reason the whole reason as its title (#862)", () => {
+    const long = `First\n${"x".repeat(300)}`;
+    const lines = chainLines({
+      nodes: [{ id: "uuid-1", repository: "system", shortId: "SR-1", title: "Show wind speed", depth: 0 }],
+      evidence: [
+        {
+          id: "uuid-1",
+          repository: "system",
+          testCases: [
+            {
+              name: "test_speed",
+              executed: true,
+              executions: [execution({ result: "inconclusive", reason: long })],
+            },
+          ],
+          records: [execution({ result: "inconclusive", reason: long }), execution({ reason: "short" })],
+        },
+      ],
+    });
+    expect(lines.filter((line) => line.title !== undefined).map((line) => line.title)).toEqual([long, long]);
+  });
+
   it("lays out an output without a list of evidence by shape alone", () => {
     const output = { root: "uuid-1", nodes: [node("uuid-1", "SR-1", "Show wind speed")], evidence: "none" };
     expect(chainLines(output)).toEqual(resultLines(output));

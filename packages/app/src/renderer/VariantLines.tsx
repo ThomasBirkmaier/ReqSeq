@@ -4,7 +4,7 @@
 // variant, its hints since its newest baseline (SR-103 AK1, AK7), one line each. Layout only:
 // `variant-lines.ts` builds them from the element buffer's last answer of `element.get`, so they ask
 // nothing of their own and follow the element's reads. A variant or replacement is a link to its element.
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { ElementGetOutput } from "@reqseq/core";
 import type { ElementBuffer } from "./buffers.js";
 import type { LinePart } from "./variant-lines.js";
@@ -51,25 +51,66 @@ export const Part = ({
   );
 };
 
+/**
+ * A muted line of `parts`. With `whole` (the whole reason the line cuts, #862) it is shown on demand
+ * (D-062): on hover as its title, and by a click, Enter or Space, which open and close the whole reason
+ * under the line; a link in the line opens its element as before.
+ */
+export const CutLine = ({
+  parts,
+  label,
+  whole,
+  className = "variant-line",
+  onOpen,
+}: {
+  readonly parts: readonly LinePart[];
+  readonly label: string;
+  readonly whole?: string | undefined;
+  readonly className?: string;
+  readonly onOpen: (target: ElementBuffer) => void;
+}): React.JSX.Element => {
+  const [open, setOpen] = useState(false);
+  const toggle =
+    whole === undefined
+      ? {}
+      : {
+          tabIndex: 0,
+          title: whole,
+          "aria-expanded": open,
+          onClick: (event: React.MouseEvent<HTMLElement>) => {
+            if (!(event.target instanceof Element) || event.target.closest('[role="link"]') === null) {
+              setOpen((before) => !before);
+            }
+          },
+          onKeyDown: (event: React.KeyboardEvent<HTMLElement>) => {
+            if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) {
+              event.preventDefault();
+              setOpen((before) => !before);
+            }
+          },
+        };
+  return (
+    <p className={className} role="group" aria-label={label} {...toggle}>
+      {parts.map((part, at) => (
+        <Part key={at} part={part} onOpen={onOpen} />
+      ))}
+      {open && whole !== undefined ? <span className="whole-reason">{whole}</span> : null}
+    </p>
+  );
+};
+
 const Line = ({
   parts,
   label,
-  title,
+  whole,
   onOpen,
 }: {
   readonly parts: readonly LinePart[] | undefined;
   readonly label: string;
-  /** The text shown on demand (hover), such as a whole reason the line cuts. */
-  readonly title?: string | undefined;
+  readonly whole?: string | undefined;
   readonly onOpen: (target: ElementBuffer) => void;
 }): React.JSX.Element | null =>
-  parts === undefined ? null : (
-    <p className="variant-line" role="group" aria-label={label} title={title}>
-      {parts.map((part, at) => (
-        <Part key={at} part={part} onOpen={onOpen} />
-      ))}
-    </p>
-  );
+  parts === undefined ? null : <CutLine parts={parts} label={label} whole={whole} onOpen={onOpen} />;
 
 export const VariantLines = ({ output, onOpenRelation }: VariantLinesProps): React.JSX.Element => {
   const lines = useMemo(() => variantLines(output), [output]);
@@ -80,7 +121,7 @@ export const VariantLines = ({ output, onOpenRelation }: VariantLinesProps): Rea
       <Line
         parts={lines.validation}
         label="Validation"
-        title={lines.validationTitle}
+        whole={lines.validationTitle}
         onOpen={onOpenRelation}
       />
       {lines.sinceBaseline.map((hint) => (

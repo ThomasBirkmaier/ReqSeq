@@ -14,7 +14,7 @@ import type { DataExportEvidenceRecord, DataExportTestCase } from "@reqseq/core"
 import { belegOf } from "./evidence-lines.js";
 import type { ResultLine } from "./result.js";
 import { resultLines } from "./result.js";
-import { reasonLine } from "./variant-lines.js";
+import { reasonLine, wholeReason } from "./variant-lines.js";
 
 /** An item of `evidence` of `trace.chain`: the test cases and the records without test case of one element. */
 interface ChainEvidence {
@@ -46,12 +46,17 @@ const resultOf = (record: DataExportEvidenceRecord): string =>
 const variantOf = (record: DataExportEvidenceRecord): string | undefined =>
   record.variant === undefined ? undefined : `variant ${record.variant}`;
 
-const text = (depth: number, label: string, line: string): ResultLine => ({
+const text = (depth: number, label: string, line: string, title?: string): ResultLine => ({
   kind: "text",
   depth,
   label,
   text: line,
+  ...(title === undefined ? {} : { title }),
 });
+
+/** The whole reason of `record` when its line cuts it (#862). */
+const titleOf = (record: DataExportEvidenceRecord): string | undefined =>
+  record.reason === undefined ? undefined : wholeReason(record.reason);
 
 /** The lines of one element's evidence, at `depth`. */
 const evidenceLines = (evidence: ChainEvidence, depth: number): ResultLine[] => [
@@ -75,6 +80,7 @@ const evidenceLines = (evidence: ChainEvidence, depth: number): ResultLine[] => 
           belegOf(execution),
           variantOf(execution),
         ]),
+        titleOf(execution),
       ),
     ),
   ]),
@@ -83,6 +89,7 @@ const evidenceLines = (evidence: ChainEvidence, depth: number): ResultLine[] => 
       depth,
       "record",
       joined([record.date, record.method, resultOf(record), record.item, belegOf(record), variantOf(record)]),
+      titleOf(record),
     ),
   ),
 ];

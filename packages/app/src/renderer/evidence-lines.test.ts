@@ -1,7 +1,13 @@
 import type { DataExportEvidenceRecord, ElementName } from "@reqseq/core";
 import { describe, expect, it } from "vitest";
 import { elementBufferOf } from "./buffers.js";
-import { INCOMPLETE_NOTE, belegOf, evidenceLines, evidenceNotes } from "./evidence-lines.js";
+import {
+  INCOMPLETE_NOTE,
+  belegOf,
+  evidenceLines,
+  evidenceNotes,
+  evidenceWholeReasons,
+} from "./evidence-lines.js";
 import type { LinePart } from "./variant-lines.js";
 
 const COAST: ElementName = { id: "uuid-v", repository: "system", shortId: "VAR-0000c1", title: "Coast" };
@@ -65,6 +71,15 @@ describe("the lines of an element's evidence records", () => {
       id: "uuid-v",
       open: elementBufferOf(COAST),
     });
+  });
+
+  it("gives the whole reason of each record whose line cuts it, else none (#862)", () => {
+    const long = `First\n${"x".repeat(300)}`;
+    expect(
+      evidenceWholeReasons({
+        records: [record({ reason: long }), record({ reason: "short" }), record({})],
+      }),
+    ).toEqual([long, undefined, undefined]);
   });
 
   it("names a variant that `names` lacks by its UUID", () => {

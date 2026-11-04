@@ -12,7 +12,7 @@
 import type { DataExportEvidenceRecord, ElementName, EvidenceListOutput } from "@reqseq/core";
 import { elementBufferOf } from "./buffers.js";
 import type { LinePart } from "./variant-lines.js";
-import { joined, reasonLine } from "./variant-lines.js";
+import { joined, reasonLine, wholeReason } from "./variant-lines.js";
 
 /** The note of an incomplete answer (SR-006 AK2). */
 export const INCOMPLETE_NOTE =
@@ -63,6 +63,10 @@ export const evidenceLines = (
   const byId = new Map((names ?? []).map((name) => [name.id, name]));
   return output.records.map((record) => recordLine(record, byId));
 };
+
+/** Per record of `output`, in its order: its whole reason when its line cuts it (#862), else undefined. */
+export const evidenceWholeReasons = (output: Pick<EvidenceListOutput, "records">): (string | undefined)[] =>
+  output.records.map((record) => (record.reason === undefined ? undefined : wholeReason(record.reason)));
 
 /** The notes under the records: each problem as "<severity> · <code> · <message>", then the incomplete note. */
 export const evidenceNotes = (output: Pick<EvidenceListOutput, "problems" | "incomplete">): string[] => [

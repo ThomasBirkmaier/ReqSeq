@@ -354,6 +354,20 @@ mark {
   line-height: 1.5;
 }
 
+/* A line that cuts a reason opens it under itself on demand (#862): as written, line breaks kept. */
+.element .variant-line[aria-expanded] {
+  cursor: pointer;
+}
+.element .variant-line[aria-expanded]:focus-visible {
+  outline: none;
+  background: var(--select);
+}
+.element .variant-line .whole-reason {
+  display: block;
+  margin-top: 0.25rem;
+  white-space: pre-wrap;
+}
+
 /* The evidence records (SR-032): one muted line each under the label "Evidence", indented under it and
    closer together than the status lines. */
 .element .evidence-lines .variant-line {
