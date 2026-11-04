@@ -175,16 +175,19 @@ const atOrBelow = (relative: string, folder: string): boolean =>
 
 const hasSkippedName = (relative: string): boolean => relative.split("/").some((n) => SKIPPED_NAMES.has(n));
 
-/** Whether a changed repository path can change the store: not in `.git` or `node_modules`, not a temp file. */
-const counts = (relative: string): boolean =>
+/**
+ * Whether a changed repository path can change the store: not in `.git` or `node_modules`, not a temp
+ * file. Exported for the carry oracle (#215), which names paths as the watcher does.
+ */
+export const counts = (relative: string): boolean =>
   !hasSkippedName(relative) && !isTempFile(path.posix.basename(relative));
 
 /**
  * Whether a path that does not end in `.md` can change the store: a folder (created, moved) or a
  * path that is gone (a deleted folder). Other files (build output, images) are left out, so they
- * cost no walk.
+ * cost no walk. Exported for the carry oracle (#215).
  */
-const mayHoldElements = async (folder: string, relative: string): Promise<boolean> => {
+export const mayHoldElements = async (folder: string, relative: string): Promise<boolean> => {
   if (relative.toLowerCase().endsWith(ELEMENT_FILE_EXTENSION)) {
     return true;
   }
