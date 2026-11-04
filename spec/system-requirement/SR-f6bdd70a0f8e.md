@@ -15,7 +15,7 @@ packages:
 verification-method: test
 topic: Traceability und Ketten
 refines:
-  - { id: fc803465-d4c0-477c-9907-fd8f4bce5508, version: n1:17ea3a0c515f9f15, title: Traceability-Matrix einer Auswahl zeigen }
+  - { id: fc803465-d4c0-477c-9907-fd8f4bce5508, version: n1:f3bbcb41b6193944, title: Traceability-Matrix einer Auswahl zeigen }
   - { id: 6f3fa565-e6b7-4799-99b4-e8d0c814f71b, version: n1:1c52957809bfed5b, title: Anzahl der Beziehungen im Metamodell begrenzen }
 derives-from:
   - { id: ccf3998d-7bf6-45de-b74b-f45fb7862a92, version: n1:5fe1dc017ff6e9a9, title: Traceability-Matrix einer Auswahl }
