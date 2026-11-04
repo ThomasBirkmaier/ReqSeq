@@ -6,7 +6,7 @@ import { mkdtemp, readdir, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { compileCacheFolder } from "@reqseq/core/os-cache";
-import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { reqseq as run, requireBuiltCli } from "../support/reqseq.js";
 
 const homes: string[] = [];
@@ -14,8 +14,17 @@ afterEach(async () => {
   await Promise.all(homes.splice(0).map((home) => rm(home, { recursive: true, force: true })));
 });
 
+// Node reads NODE_DISABLE_COMPILE_CACHE even when it is empty, so one of the outer environment is
+// removed for the spawned CLIs of this file (they get this process's environment) and put back after.
+const disabled = process.env["NODE_DISABLE_COMPILE_CACHE"];
 beforeAll(() => {
   requireBuiltCli("pnpm test:e2e");
+  delete process.env["NODE_DISABLE_COMPILE_CACHE"];
+});
+afterAll(() => {
+  if (disabled !== undefined) {
+    process.env["NODE_DISABLE_COMPILE_CACHE"] = disabled;
+  }
 });
 
 /** `reqseq --version` in a fresh home, and the compile cache folder of that home. */
@@ -23,7 +32,8 @@ const versionIn = async (env: Readonly<Record<string, string>> = {}) => {
   const home = await mkdtemp(path.join(os.tmpdir(), "reqseq-compile-cache-"));
   homes.push(home);
   const homeEnv = { HOME: home, USERPROFILE: home, XDG_CACHE_HOME: home, LOCALAPPDATA: home };
-  const out = await run(["--version"], { cwd: home, env: { ...homeEnv, ...env } });
+  // An empty NODE_COMPILE_CACHE counts as unset, so a folder of the outer environment does not win.
+  const out = await run(["--version"], { cwd: home, env: { ...homeEnv, NODE_COMPILE_CACHE: "", ...env } });
   const folder = compileCacheFolder({ platform: process.platform, env: homeEnv, home });
   const entries = await readdir(folder, { recursive: true }).catch(() => []);
   return { out, entries };

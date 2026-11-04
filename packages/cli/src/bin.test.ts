@@ -28,6 +28,7 @@ vi.mock("./process.js", () => ({ connectProcess: mocks.connectProcess }));
 afterEach(() => {
   process.exitCode = undefined;
   mocks.order.length = 0;
+  mocks.enableCompileCache.mockClear();
   vi.resetModules();
 });
 
@@ -59,6 +60,17 @@ describe("bin", () => {
     });
     await import("./bin.js");
     expect(mocks.order).toEqual(["cache /cache/reqseq/node-compile-cache", "main.js", "process.js"]);
+  });
+
+  it("runs without the cache when its folder cannot be found (#178)", async () => {
+    vi.doMock("@reqseq/core/os-cache", () => ({
+      compileCacheFolder: () => {
+        throw new Error("uv_os_homedir returned ENOENT");
+      },
+    }));
+    await import("./bin.js");
+    expect(mocks.enableCompileCache).not.toHaveBeenCalled();
+    expect(process.exitCode).toBe(1);
   });
 
   it("exits 3 when a write failed", async () => {
