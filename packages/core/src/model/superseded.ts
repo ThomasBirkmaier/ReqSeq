@@ -181,6 +181,7 @@ const findingsOf = (
         elementId: source.id,
         targetId: target.id,
         targetRepository: target.repository,
+        key: kind.key,
       };
       return { element: source, path: [kind.key, index], problem };
     });

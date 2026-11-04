@@ -204,6 +204,7 @@ const finding = (element: ElementRecord, path: ValuePath, message: string): Valu
     repository: element.repository,
     file: element.file,
     elementId: element.id,
+    key: path[0],
   },
 });
 

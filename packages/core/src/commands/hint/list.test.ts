@@ -132,6 +132,8 @@ describe("hint.list (SR-026)", () => {
       storedDate: null,
       currentDate: date,
       hintId: `relation.outdated/system/${encodeURIComponent(R1_FILE)}/${R1}/derives-from/${N1}?version=n1:0000000000000000`,
+      key: "derives-from",
+      place: { in: "relation" },
     });
     expect(outdatedLink?.line).toBe(17);
     expect(outdatedLink?.message).toMatch(/^Reference in the text of/);

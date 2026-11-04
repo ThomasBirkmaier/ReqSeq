@@ -9,7 +9,7 @@ export { resolveTypes } from "./inheritance.js";
 export type { DefinedKeys, EffectiveType, Located, LocatedType, ResolvedTypes } from "./inheritance.js";
 export { limitsOf, maxItemsOf, minimaOf } from "./limits.js";
 export type { ItemLimit, Minima, RelationLimit, RelationMinimum } from "./limits.js";
-export { METAMODEL_FILE_EXTENSION, UNKNOWN_TYPE_PREFIX, loadMetamodel } from "./load.js";
+export { METAMODEL_FILE_EXTENSION, UNKNOWN_TYPE_PREFIX, isKeyForm, loadMetamodel } from "./load.js";
 export type { Metamodel } from "./load.js";
 export {
   allowsType,

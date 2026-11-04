@@ -108,11 +108,11 @@ export interface OutdatedMark {
 }
 
 /**
- * The key of an outdated reference: its target, the version it stores and the repository it names,
- * percent-encoded as in the ID of the hint (`hintId`), where core writes it that way ("" for none).
+ * The key of an outdated reference: its target, the version it stores and the repository it names as the
+ * link writes it, which is the `place.repository` of its hint (#222) ("" for none).
  */
-export const outdatedKey = (id: string, version: string, encodedRepository = ""): string =>
-  `${id} ${version} ${encodedRepository}`;
+export const outdatedKey = (id: string, version: string, repository = ""): string =>
+  `${id} ${version} ${repository}`;
 
 /** The key of the title of a target in another repository: its UUID and the repository as written. */
 export const titleKey = (id: string, repository: string): string => `${id} ${repository}`;
@@ -167,13 +167,7 @@ const rule = (outdated: ReadonlyMap<string, OutdatedMark>): PreviewRule => ({
     const mark =
       reference.version === undefined
         ? undefined
-        : outdated.get(
-            outdatedKey(
-              reference.id,
-              reference.version,
-              reference.repository === undefined ? "" : encodeURIComponent(reference.repository),
-            ),
-          );
+        : outdated.get(outdatedKey(reference.id, reference.version, reference.repository));
     const message = mark?.message;
     const classes = message === undefined ? "cm-lr-ref" : "cm-lr-ref cm-lr-outdated";
     const title = sourceLine(open.to) ? undefined : titleOf(state, reference);

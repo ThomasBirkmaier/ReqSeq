@@ -3694,6 +3694,7 @@ describe("ElementView", () => {
       targetId: TARGET,
       storedVersion: "n1:1aac78aad3b5e6a8",
       hintId: `relation.outdated/spec/a.md/uuid-1/@text/${TARGET}?version=n1:1aac78aad3b5e6a8&n=1`,
+      place: { in: "text", occurrence: 1 },
     });
     const withReference = (problems: object[] = [outdatedHint()]) =>
       fakeCall({
@@ -3802,6 +3803,8 @@ describe("ElementView", () => {
       targetId: TARGET,
       storedVersion: VERSION,
       hintId: `relation.outdated/spec/a.md/uuid-1/${place}/${TARGET}?version=${VERSION}&n=1`,
+      ...(place.startsWith("@text:") ? { key: place.slice("@text:".length) } : {}),
+      place: { in: "text", occurrence: 1 },
     });
     const element = (criteria: string[], problems: object[] = [], more: Partial<DataExportElement> = {}) =>
       read({
@@ -4340,8 +4343,13 @@ describe("ElementView", () => {
       const { controls, echoed } = await mountBoxes({ effort: "1", topic: "t" }, {}, undefined, () => ({
         ...savedWith({ effort: "1", topic: "" }),
         problems: [
-          { code: "element.missing-required", severity: "warning", message: "effort is odd" },
-          { code: "element.missing-required", severity: "warning", message: "topic has no value" },
+          { code: "element.missing-required", severity: "warning", message: "effort is odd", key: "effort" },
+          {
+            code: "element.missing-required",
+            severity: "warning",
+            message: "topic has no value",
+            key: "topic",
+          },
         ],
       }));
       await replaceIn("topic", " ");
@@ -5812,6 +5820,8 @@ describe("ElementView", () => {
       storedVersion: "n1:aa",
       currentVersion: "n1:bb",
       hintId: "relation.outdated/spec/a.md/uuid-1/derives-from/n1?version=n1:aa",
+      key: "derives-from",
+      place: { in: "relation" },
     };
     const dated = {
       ...hint,

@@ -338,6 +338,7 @@ describe("duplicate identifiers (#305)", () => {
         elementId: SR036.id,
         elementShortId: "SR-0b0036",
         elementIdentifier: "SR-036",
+        key: "spec-id",
       },
       {
         code: "element.duplicate-identifier",
@@ -349,6 +350,7 @@ describe("duplicate identifiers (#305)", () => {
         elementId: "30500000-0000-4000-8000-0000000b0038",
         elementShortId: "SR-0b0038",
         elementIdentifier: "sr-036",
+        key: "spec-id",
       },
     ]);
     // A hint (a warning about an element): at the element and in hint.list.

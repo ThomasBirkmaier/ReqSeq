@@ -191,13 +191,11 @@ describe("the preview of references", () => {
 
   it("takes the repository of the link into account, and a reference without a version is never outdated", () => {
     const withRepository = `[x](reqseq:${ID}?version=n1:aa&repository=other repo)`;
-    const outdated = new Map([[outdatedKey(ID, "n1:aa", "other%20repo"), mark("old")]]);
-    // A space ends a Markdown destination, so the repository is written with %20.
+    // A space ends a Markdown destination, so the repository is written with %20; the key has it as written.
     const encoded = `[x](reqseq:${ID}?version=n1:aa&repository=other%20repo)`;
+    const outdated = new Map([[outdatedKey(ID, "n1:aa", "other%20repo"), mark("old")]]);
     expect(decorate(withRepository, outdated).some((entry) => entry.title === "old")).toBe(false);
-    expect(
-      decorate(encoded, new Map([[outdatedKey(ID, "n1:aa", "other%2520repo"), mark("old")]])).length,
-    ).toBeGreaterThan(0);
+    expect(decorate(encoded, outdated).some((entry) => entry.title === "old")).toBe(true);
     expect(
       decorate(encoded, new Map([[outdatedKey(ID, "n1:aa"), mark("old")]])).some(
         (entry) => entry.title !== undefined,

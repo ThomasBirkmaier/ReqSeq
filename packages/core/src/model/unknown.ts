@@ -10,7 +10,7 @@
 // here: which types a relation may join is SR-086.
 import type { Problem } from "../catalog.js";
 import type { EffectiveType, Metamodel } from "../metamodel/index.js";
-import { findType, keyDefinition, metamodelState } from "../metamodel/index.js";
+import { findType, isKeyForm, keyDefinition, metamodelState } from "../metamodel/index.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import { carryProblems } from "./carry.js";
@@ -44,6 +44,8 @@ const finding = (
     repository: element.repository,
     file: element.file,
     elementId: element.id,
+    // The property, when its key has the form of a metamodel key (#222); a frontmatter key can be any text.
+    ...(code === "element.unknown-property" && isKeyForm(key) ? { key } : {}),
   },
 });
 

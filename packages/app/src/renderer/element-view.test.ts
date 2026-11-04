@@ -111,6 +111,17 @@ describe("relationGroups", () => {
   });
 });
 
+/** The `key` and `place` core gives a hint at the place `@text`, `@text:<key>` or `<key>` of its ID (#222). */
+const placed = (place: string, repository?: string, occurrence = 1): object => {
+  const named = repository === undefined ? {} : { repository };
+  if (place === "@text") {
+    return { place: { in: "text", ...named, occurrence } };
+  }
+  return place.startsWith("@text:")
+    ? { key: place.slice("@text:".length), place: { in: "text", ...named, occurrence } }
+    : { key: place, place: { in: "relation", ...named } };
+};
+
 describe("outdatedReferences", () => {
   const TARGET = "6adc4fbb-fe6a-4dfa-b9b6-8ccf0e589cf2";
   const hint = (extra: object) => ({
@@ -120,6 +131,7 @@ describe("outdatedReferences", () => {
     targetId: TARGET,
     storedVersion: "n1:aa",
     hintId: `relation.outdated/spec/f.md/src/@text/${TARGET}?version=n1:aa&n=1`,
+    ...placed("@text"),
     ...extra,
   });
   const of = (problems: object[] | undefined) =>
@@ -131,6 +143,7 @@ describe("outdatedReferences", () => {
         hint({}),
         hint({
           hintId: `relation.outdated/spec/f.md/src/@text/${TARGET}?version=n1:aa&repository=other%20repo&n=1`,
+          ...placed("@text", "other%20repo"),
           message: "other",
         }),
       ]),
@@ -149,6 +162,7 @@ describe("outdatedReferences", () => {
         hint({
           message: "second",
           hintId: `relation.outdated/spec/f.md/src/@text/${TARGET}?version=n1:aa&n=2`,
+          ...placed("@text", undefined, 2),
         }),
       ]),
     ).toEqual(new Map([[`${TARGET} n1:aa `, undatedMark("points to an older version")]]));
@@ -158,8 +172,11 @@ describe("outdatedReferences", () => {
     expect(
       of([
         hint({ code: "relation.missing" }),
-        hint({ hintId: `relation.outdated/spec/f.md/src/derives-from/${TARGET}?version=n1:aa` }),
-        hint({ hintId: undefined }),
+        hint({
+          hintId: `relation.outdated/spec/f.md/src/derives-from/${TARGET}?version=n1:aa`,
+          ...placed("derives-from"),
+        }),
+        hint({ hintId: undefined, place: undefined }),
         hint({ targetId: undefined }),
         hint({ storedVersion: undefined }),
       ]).size,
@@ -301,6 +318,7 @@ describe("outdatedReferences in a property (SR-127)", () => {
     targetId: TARGET,
     storedVersion: "n1:aa",
     hintId: `relation.outdated/spec/f.md/src/${place}/${TARGET}?version=n1:aa&n=1`,
+    ...placed(place),
   });
   const element = {
     problems: [
@@ -335,6 +353,7 @@ describe("the version at an outdated reference (#702, #665)", () => {
     storedVersion: "n1:aa",
     currentVersion: "n1:bb",
     hintId: `${SOURCE}/${place}/${TARGET}?version=n1:aa`,
+    ...placed(place),
     ...extra,
   });
   const dated = (
@@ -440,7 +459,7 @@ describe("the version at an outdated reference (#702, #665)", () => {
     const element = elementOf([
       hint("derives-from"),
       hint("@text", { hintId: `${SOURCE}/@text/${TARGET}?version=n1:aa&n=1` }),
-      hint("derives-from", { hintId: undefined }),
+      hint("derives-from", { hintId: undefined, key: undefined, place: undefined }),
       { code: "relation.missing", severity: "warning", message: "missing" },
     ]);
     expect(outdatedRelation(element, stored)?.word).toBe("link outdated");
@@ -454,6 +473,7 @@ describe("the version at an outdated reference (#702, #665)", () => {
     const across = elementOf([
       hint("derives-from", {
         hintId: `${SOURCE}/derives-from/${TARGET}?version=n1:aa&repository=sensor%20one`,
+        ...placed("derives-from", "sensor one"),
       }),
     ]);
     expect(outdatedRelation(across, { ...stored, repository: "sensor one" })?.word).toBe("link outdated");

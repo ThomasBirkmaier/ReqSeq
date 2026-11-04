@@ -80,7 +80,7 @@ const disk = (readOnly = false, text = "first") => {
     /** The next write fails with this error. */
     refuse: undefined as Error | undefined,
     /** Problems the next answers give. */
-    problems: undefined as { message: string }[] | undefined,
+    problems: undefined as { message: string; key?: string }[] | undefined,
   };
   const element = (): DataExportElement =>
     ({
@@ -397,7 +397,7 @@ describe("autosave in the element buffer (SR-105)", () => {
 
   it("says a hint of core once, not after every pause", async () => {
     const { echoed, file } = await mountView();
-    file.problems = [{ message: "topic: the value is unusual" }];
+    file.problems = [{ message: "topic: the value is unusual", key: "topic" }];
     await typeAt(viewIn('[data-field="topic"]'), "y");
     await settle(AUTOSAVE_MS);
     await typeAt(viewIn('[data-field="topic"]'), "y");

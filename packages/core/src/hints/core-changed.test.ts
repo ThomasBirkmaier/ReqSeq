@@ -62,6 +62,9 @@ describe("a changed core requirement at its replacement (SR-045)", () => {
       line: 12,
       storedVersion: K_VERSION,
       hintId: `variant.core-changed/system/${encodeURIComponent(A1_FILE)}/${A1}/replaces/${K}?version=${K_VERSION}`,
+      // The place as data next to the ID (#222).
+      key: "replaces",
+      place: { in: "relation" },
     });
     expect(hint?.currentVersion).not.toBe(K_VERSION);
     expect(hint?.message).toMatch(

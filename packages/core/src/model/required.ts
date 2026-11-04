@@ -71,6 +71,7 @@ const collect = (element: ElementRecord, metamodel: Metamodel, out: RequiredFind
         repository: element.repository,
         file: element.file,
         elementId: element.id,
+        key,
       },
     });
   }

@@ -251,6 +251,11 @@ describe("references in properties marked markdown (SR-127)", () => {
       const workspace = open(ws.root);
       const [found] = await criteriaHints(workspace);
       expect(found?.hintId).toContain("&repository=system");
+      // The place as data next to the ID (#222): the property, the repository the link names, its occurrence.
+      expect([found?.key, found?.place]).toEqual([
+        "acceptance-criteria",
+        { in: "text", repository: "system", occurrence: 1 },
+      ]);
       expect((await confirm(workspace, [found?.hintId ?? ""])).problems ?? []).toEqual([]);
       expect(frontmatterOf(read(ws, A_FILE))["acceptance-criteria"]).toEqual([
         `Then [a](reqseq:${N}?version=${found?.currentVersion ?? ""}&repository=system)`,
