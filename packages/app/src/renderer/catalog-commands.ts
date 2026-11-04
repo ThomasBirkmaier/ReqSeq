@@ -559,6 +559,13 @@ const answersOf = (entry: Entry): { readonly key: string; readonly value: Proper
   );
 
 /**
+ * The list of all elements outside a view shows every element: a command that requires a selection takes
+ * all of them, the empty selection (#856: "Bulk update elements" was refused there); else none.
+ */
+const everyElement = (context: ActionContext, command: CommandListing, field: string): object | undefined =>
+  context.buffers[0]?.kind === "list" && requiredOf(command).includes(field) ? {} : undefined;
+
+/**
  * The input the given values make, with the shown list's selection for a `selection` argument, in the view
  * the window shows (`selectionInView`): a write on the list acts on the set the list shows.
  */
@@ -567,7 +574,7 @@ const inputOf = (context: ActionContext, entry: Entry): Record<string, unknown> 
   const listed = shownSelection(context);
   const shown = context.views?.shown;
   // The list of all elements has no selection: in a view it is the view's (`baseline.create` of a variant's
-  // view, SR-103), elsewhere none.
+  // view, SR-103), elsewhere none, or every element for a command that requires one (below).
   const selection =
     shown === undefined || (listed === undefined && context.buffers[0]?.kind !== "list")
       ? listed
@@ -577,8 +584,9 @@ const inputOf = (context: ActionContext, entry: Entry): Record<string, unknown> 
       .filter((given) => given.field === arg.field && given.skipped !== true)
       .map((given) => given.value);
     if (arg.complete === "selection") {
-      if (selection !== undefined) {
-        input[arg.field] = selection;
+      const taken = selection ?? everyElement(context, entry.command, arg.field);
+      if (taken !== undefined) {
+        input[arg.field] = taken;
       }
     } else if (entry.given.some((given) => given.field === arg.field && given.property !== undefined)) {
       const properties = propertiesInput(asksOf(entry), answersOf(entry));
