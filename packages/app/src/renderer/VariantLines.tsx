@@ -4,7 +4,7 @@
 // variant, its hints since its newest baseline (SR-103 AK1, AK7), one line each. Layout only:
 // `variant-lines.ts` builds them from the element buffer's last answer of `element.get`, so they ask
 // nothing of their own and follow the element's reads. A variant or replacement is a link to its element.
-import { useMemo } from "react";
+import { useId, useMemo, useState } from "react";
 import type { ElementGetOutput } from "@reqseq/core";
 import type { ElementBuffer } from "./buffers.js";
 import type { LinePart } from "./variant-lines.js";
@@ -51,38 +51,89 @@ export const Part = ({
   );
 };
 
-const Line = ({
+/**
+ * A muted line of `parts`. With `whole` (the whole reason the line cuts, #862) it is shown on demand
+ * (D-062): on hover as its title, and by a click, Enter or Space, which open and close the whole reason
+ * under the line; a link in the line opens its element as before.
+ */
+export const CutLine = ({
   parts,
   label,
-  title,
+  whole,
+  className = "variant-line",
   onOpen,
 }: {
-  readonly parts: readonly LinePart[] | undefined;
+  readonly parts: readonly LinePart[];
   readonly label: string;
-  /** The text shown on demand (hover), such as a whole reason the line cuts. */
-  readonly title?: string | undefined;
+  readonly whole?: string | undefined;
+  readonly className?: string;
   readonly onOpen: (target: ElementBuffer) => void;
-}): React.JSX.Element | null =>
-  parts === undefined ? null : (
-    <p className="variant-line" role="group" aria-label={label} title={title}>
+}): React.JSX.Element => {
+  const [open, setOpen] = useState(false);
+  const id = useId();
+  const toggle =
+    whole === undefined
+      ? {}
+      : {
+          tabIndex: 0,
+          // The title only while the reason is closed: open, a tooltip would cover it.
+          ...(open ? {} : { title: whole }),
+          "aria-expanded": open,
+          "aria-controls": id,
+          onClick: (event: React.MouseEvent<HTMLElement>) => {
+            // A link opens its element; a click in the open reason or a selection of text keeps it open.
+            const inside =
+              event.target instanceof Element &&
+              event.target.closest('[role="link"], .whole-reason') !== null;
+            if (!inside && (window.getSelection()?.toString() ?? "") === "") {
+              setOpen((before) => !before);
+            }
+          },
+          onKeyDown: (event: React.KeyboardEvent<HTMLElement>) => {
+            // Enter or Space alone: with a modifier the key stays the app's (Ctrl+Space, Ctrl/Cmd+Enter).
+            const plain = !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey;
+            if (
+              plain &&
+              event.target === event.currentTarget &&
+              (event.key === "Enter" || event.key === " ")
+            ) {
+              event.preventDefault();
+              setOpen((before) => !before);
+            }
+          },
+        };
+  return (
+    <p className={className} role="group" aria-label={label} {...toggle}>
       {parts.map((part, at) => (
         <Part key={at} part={part} onOpen={onOpen} />
       ))}
+      {open && whole !== undefined ? (
+        <span id={id} className="whole-reason">
+          {whole}
+        </span>
+      ) : null}
     </p>
   );
+};
 
 export const VariantLines = ({ output, onOpenRelation }: VariantLinesProps): React.JSX.Element => {
   const lines = useMemo(() => variantLines(output), [output]);
   return (
     <>
-      <Line parts={lines.use} label="Replaced or excluded" onOpen={onOpenRelation} />
-      <Line parts={lines.verification} label="Verification" onOpen={onOpenRelation} />
-      <Line
-        parts={lines.validation}
-        label="Validation"
-        title={lines.validationTitle}
-        onOpen={onOpenRelation}
-      />
+      {lines.use === undefined ? null : (
+        <CutLine parts={lines.use} label="Replaced or excluded" onOpen={onOpenRelation} />
+      )}
+      {lines.verification === undefined ? null : (
+        <CutLine parts={lines.verification} label="Verification" onOpen={onOpenRelation} />
+      )}
+      {lines.validation === undefined ? null : (
+        <CutLine
+          parts={lines.validation}
+          label="Validation"
+          whole={lines.validationTitle}
+          onOpen={onOpenRelation}
+        />
+      )}
       {lines.sinceBaseline.map((hint) => (
         <p
           key={hint.message}

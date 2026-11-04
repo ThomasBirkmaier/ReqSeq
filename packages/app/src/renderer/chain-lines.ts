@@ -11,7 +11,7 @@
 // whose element has no row (cut by the line limit) is not shown. Layout only: core gives the test cases, their executions and
 // the records (ADR-0002).
 import type { DataExportEvidenceRecord, DataExportTestCase } from "@reqseq/core";
-import { belegOf } from "./evidence-lines.js";
+import { belegOf, wholeReasonOf } from "./evidence-lines.js";
 import type { ResultLine } from "./result.js";
 import { resultLines } from "./result.js";
 import { reasonLine } from "./variant-lines.js";
@@ -46,11 +46,12 @@ const resultOf = (record: DataExportEvidenceRecord): string =>
 const variantOf = (record: DataExportEvidenceRecord): string | undefined =>
   record.variant === undefined ? undefined : `variant ${record.variant}`;
 
-const text = (depth: number, label: string, line: string): ResultLine => ({
+const text = (depth: number, label: string, line: string, title?: string): ResultLine => ({
   kind: "text",
   depth,
   label,
   text: line,
+  ...(title === undefined ? {} : { title }),
 });
 
 /** The lines of one element's evidence, at `depth`. */
@@ -75,6 +76,7 @@ const evidenceLines = (evidence: ChainEvidence, depth: number): ResultLine[] => 
           belegOf(execution),
           variantOf(execution),
         ]),
+        wholeReasonOf(execution),
       ),
     ),
   ]),
@@ -83,6 +85,7 @@ const evidenceLines = (evidence: ChainEvidence, depth: number): ResultLine[] => 
       depth,
       "record",
       joined([record.date, record.method, resultOf(record), record.item, belegOf(record), variantOf(record)]),
+      wholeReasonOf(record),
     ),
   ),
 ];

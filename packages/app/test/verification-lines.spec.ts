@@ -97,7 +97,7 @@ test.describe("an inconclusive validation", () => {
   });
 });
 
-test("a validation line that cuts a long reason has the whole reason as its title (#846)", async () => {
+test("a line that cuts a long reason gives the whole reason on hover, click and keys (#846, #862)", async () => {
   // The reason over two lines and longer than the line shows it; the record keeps it as written.
   const reason = `The frost sensor was replaced.\n${"The field test starts again. ".repeat(10).trim()}`;
   const running = await launchApp({
@@ -115,6 +115,29 @@ test("a validation line that cuts a long reason has the whole reason as its titl
     await openEditor(window, "Know the frost");
     await expect(line(window, "Validation")).toContainText("…");
     await expect(line(window, "Validation")).toHaveAttribute("title", reason);
+    // On demand by click or by keys too (#862, D-062): the whole reason opens under the line, as written.
+    const whole = line(window, "Validation").locator(".whole-reason");
+    await expect(whole).toHaveCount(0);
+    await line(window, "Validation").click();
+    await expect(whole).toHaveText(reason, { useInnerText: true });
+    await line(window, "Validation").press("Enter");
+    await expect(whole).toHaveCount(0);
+    // With a modifier the key stays the app's: Shift+Enter does not open it.
+    await line(window, "Validation").press("Shift+Enter");
+    await expect(line(window, "Validation")).toHaveAttribute("aria-expanded", "false");
+    await line(window, "Validation").press(" ");
+    await expect(line(window, "Validation")).toHaveAttribute("aria-expanded", "true");
+    // Open, the reason has no tooltip over it.
+    await expect(line(window, "Validation")).not.toHaveAttribute("title", /./);
+    // The evidence record of the same validation cuts its reason as well and opens the same way.
+    const record = window
+      .locator("article")
+      .getByRole("group", { name: "Evidence", exact: true })
+      .getByRole("group", { name: "Evidence record" })
+      .first();
+    await expect(record).toHaveAttribute("title", reason);
+    await record.press("Enter");
+    await expect(record.locator(".whole-reason")).toHaveText(reason, { useInnerText: true });
   } finally {
     await running.close();
   }

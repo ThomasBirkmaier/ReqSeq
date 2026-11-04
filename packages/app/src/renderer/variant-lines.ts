@@ -60,7 +60,7 @@ const oneLine = (text: string): string => text.replace(/[\s\p{Cc}]+/gu, " ").tri
  * The whole `reason` when `reasonLine` cuts it, else undefined: as written, its line breaks and tabs kept,
  * other control characters (such as an escape from YAML) left out.
  */
-const cutReason = (reason: string): string | undefined =>
+export const wholeReason = (reason: string): string | undefined =>
   reasonLine(reason) === oneLine(reason) ? undefined : reason.replace(/[^\P{Cc}\n\t]/gu, "");
 
 /**
@@ -164,7 +164,7 @@ export const variantLines = (output: Pick<ElementGetOutput, "element" | "names">
     validationTitle:
       element.validation === undefined || element.validationReason === undefined
         ? undefined
-        : cutReason(element.validationReason),
+        : wholeReason(element.validationReason),
     sinceBaseline: (element.problems ?? [])
       .filter((problem) => SINCE_BASELINE_CODES.has(problem.code))
       .map((problem) => ({
