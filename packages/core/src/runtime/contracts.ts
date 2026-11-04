@@ -1,5 +1,6 @@
 // Loads the JSON Schemas of schemas/ and the command catalog for runtime validation (ADR-0003).
-// Same Ajv options as scripts/contracts/load.mjs, so `pnpm schemas:check` and the runtime agree.
+// Same Ajv options as scripts/contracts/load.mjs, so `pnpm schemas:check` and the runtime agree, except
+// that the bundled schemas are not checked against the meta-schema again at run time (#178, `createAjv`).
 // The schemas come from generated/contracts.json (pnpm contracts:generate; contracts:check keeps it
 // equal to schemas/), so the package needs no schemas folder at run time (ADR-0014).
 import { Ajv2020 } from "ajv/dist/2020.js";
@@ -55,7 +56,11 @@ export interface ContractsBundle {
 export const contractsBundle = bundle as unknown as ContractsBundle;
 
 // `verbose` (input, and files that failed) gives each error its schema, which `inputViolations` reads for readable messages.
-const createAjv = (useDefaults: boolean, schemas: readonly JsonSchema[], verbose = false): Ajv2020 => {
+// `validateSchema` checks each schema against the JSON Schema meta-schema when it is added or compiled: off
+// for the bundled schemas and catalog, which `pnpm schemas:check` compiles and checks on every pull
+// request with the options of load.mjs (contracts:check keeps the bundle equal to schemas/), so a start
+// does not pay for it on each Ajv instance (#178); on for a catalog passed in (tests).
+const createAjv = (useDefaults: boolean, verbose = false, validateSchema = false): Ajv2020 => {
   const ajv = new Ajv2020({
     allErrors: true,
     strict: true,
@@ -64,9 +69,10 @@ const createAjv = (useDefaults: boolean, schemas: readonly JsonSchema[], verbose
     allowUnionTypes: true,
     useDefaults,
     verbose,
+    validateSchema,
   });
   addFormats.default(ajv);
-  for (const schema of schemas) {
+  for (const schema of contractsBundle.schemas) {
     ajv.addSchema(schema);
   }
   return ajv;
@@ -89,14 +95,16 @@ export const describeViolations = (violations: readonly SchemaViolation[]): stri
 // instance per process is not a global in the sense of ADR-0002 rule 7 (like the command runtime).
 let fileSchemas: Ajv2020 | undefined;
 
+/** The bundled schemas without defaults and `verbose`: file formats and command outputs share it. */
+const plainSchemas = (): Ajv2020 => (fileSchemas ??= createAjv(false));
+
 /**
  * Validator of a file format schema of `schemas/`, e.g. `workspace.schema.json` (ADR-0003), with
  * the Ajv options of `loadContracts`. Changes nothing (no defaults filled in). Throws a plain
  * `Error` for a name that is not a schema (a programming error).
  */
 export function fileSchemaValidator(file: string): ValidateFunction {
-  fileSchemas ??= createAjv(false, contractsBundle.schemas);
-  const validate = fileSchemas.getSchema(`${SCHEMA_BASE}${file}`);
+  const validate = plainSchemas().getSchema(`${SCHEMA_BASE}${file}`);
   if (validate === undefined) {
     throw new Error(`no schema ${file} in schemas/`);
   }
@@ -112,7 +120,7 @@ let verboseFileSchemas: Ajv2020 | undefined;
  * `inputViolations` after `fileSchemaValidator(file)` refused `data` (#160). Empty when `data` is valid.
  */
 export function fileSchemaErrors(file: string, data: unknown): readonly ErrorObject[] {
-  verboseFileSchemas ??= createAjv(false, contractsBundle.schemas, true);
+  verboseFileSchemas ??= createAjv(false, true);
   const validate = verboseFileSchemas.getSchema(`${SCHEMA_BASE}${file}`);
   if (validate === undefined) {
     throw new Error(`no schema ${file} in schemas/`);
@@ -122,17 +130,28 @@ export function fileSchemaErrors(file: string, data: unknown): readonly ErrorObj
 }
 
 /**
- * Prepare validation for all schemas and the catalog. Throws a plain `Error` when the catalog does not match
- * `catalog.meta.schema.json` or names a command twice: that is a programming error, not a user error.
+ * Prepare validation for all schemas and the catalog. A catalog passed in (tests) is checked against
+ * `catalog.meta.schema.json` here, and throws a plain `Error` when it does not match; the bundled one is
+ * checked by `pnpm schemas:check` on every pull request, so a start does not check it again (#178).
+ * Throws a plain `Error` when the catalog names a command twice. Both are programming errors, not user
+ * errors. The validators are built on the first call of `validator` (#178): `--version` builds none.
  */
 export function loadContracts(options: LoadContractsOptions = {}): Contracts {
+  const given = options.catalog !== undefined;
   const catalog = options.catalog ?? contractsBundle.catalog;
-  const inputAjv = createAjv(true, contractsBundle.schemas, true);
-  const outputAjv = createAjv(false, contractsBundle.schemas);
-  const checkCatalog = outputAjv.compile(contractsBundle.catalogMeta);
-  if (!checkCatalog(catalog)) {
-    throw new Error(`invalid command catalog: ${describeViolations(schemaViolations(checkCatalog.errors))}`);
+  let inputAjv: Ajv2020 | undefined;
+  let outputAjv: Ajv2020 | undefined;
+  if (given) {
+    outputAjv = createAjv(false, false, true);
+    const checkCatalog = outputAjv.compile(contractsBundle.catalogMeta);
+    if (!checkCatalog(catalog)) {
+      throw new Error(
+        `invalid command catalog: ${describeViolations(schemaViolations(checkCatalog.errors))}`,
+      );
+    }
   }
+  const ajvOf = (part: SchemaPart): Ajv2020 =>
+    part === "input" ? (inputAjv ??= createAjv(true, true, given)) : (outputAjv ??= plainSchemas());
   const commands = (catalog as CommandCatalog).commands;
   const byName = new Map<string, CatalogEntry>();
   for (const entry of commands) {
@@ -159,7 +178,10 @@ export function loadContracts(options: LoadContractsOptions = {}): Contracts {
       }
       // Command schemas use refs relative to schemas/commands/, e.g. ../common.schema.json#/$defs/uuid.
       const schema = { ...entry[part], $id: `${SCHEMA_BASE}commands/${key}.json` };
-      const validate = (part === "input" ? inputAjv : outputAjv).compile(schema);
+      // The output instance of the bundled catalog is shared by every `loadContracts()` of the process
+      // (`plainSchemas`): a schema another one compiled already is taken as it is.
+      const ajv = ajvOf(part);
+      const validate = ajv.getSchema(schema.$id) ?? ajv.compile(schema);
       compiled.set(key, validate);
       return validate;
     },
