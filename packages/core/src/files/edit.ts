@@ -109,10 +109,9 @@ interface Original {
   readonly items: readonly unknown[] | undefined;
 }
 
-/** An original item, or a new one; `replaces` is the original item whose content a new one replaces. */
 /**
  * One item of a list after the edits: an original item kept as it is, or a new value, which replaces
- * an original item (`replace-item`) or is appended (`append-item`; a text takes the quoting of the
+ * an original item (`replace-item`, `replaces` is its index) or is appended (`append-item`; a text takes the quoting of the
  * list's last text, #177).
  */
 type Slot =

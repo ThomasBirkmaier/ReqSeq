@@ -216,6 +216,23 @@ describe("element.update setItems (#177)", () => {
     expect(error.message).toMatch(/^scores item 1: /u);
   });
 
+  it("refuses a blank item of a choice or number list, as set does, and warns of a blank text item (#841)", async () => {
+    const opened = await open();
+    for (const setItems of [{ methods: { "1": "" } }, { scores: { "1": "" } }]) {
+      const error = await refusal(opened, { setItems });
+      expect(error.code).toBe("input.invalid");
+    }
+    expect(await fileOf(opened)).toBe(ITEMS_FILE);
+    const out = await update(opened, { setItems: { "acceptance-criteria": { "2": " " } } });
+    expect((out.problems ?? []).filter((p) => p.code === "element.text-emptied")).toEqual([
+      expect.objectContaining({
+        severity: "warning",
+        key: "acceptance-criteria",
+        message: expect.stringContaining("Item 2 of property") as unknown,
+      }),
+    ]);
+  });
+
   it("stores a reference in a criterion as set does, and writes nothing for the same value (SR-127)", async () => {
     const opened = await open();
     await update(opened, {

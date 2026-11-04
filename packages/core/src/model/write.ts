@@ -56,7 +56,7 @@ import type { Workspace } from "../runtime/workspace.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import { directlyAffectedCount } from "./affected.js";
-import { propertiesEmptied, textEmptied } from "./emptied.js";
+import { itemsEmptied, propertiesEmptied, textEmptied } from "./emptied.js";
 import type { NewFileRule } from "./discover.js";
 import { newFileTarget } from "./discover.js";
 import type { ElementRecord } from "./elements.js";
@@ -853,7 +853,6 @@ export const createElement = async (
   });
 };
 
-/** The edits of `element.update`; `set` holds the values of `input.set` as they are stored. */
 /** The items `setItems` gives for one list property, by position from 1 in ascending order. */
 interface ItemChange {
   readonly key: string;
@@ -897,30 +896,37 @@ const checkedSetItems = (
         reason: "not-a-list",
       });
     }
-    const items = Object.entries(byPosition)
-      .map(([position, value]): [number, ElementInputValue] => {
-        const [[, keyed] = [key, value]] = withChoiceKeys(metamodel, [[key, value]], "setItems");
-        return [
-          Number(position),
-          isNumberProperty(metamodel, key) ? itemNumber(key, Number(position), keyed) : keyed,
-        ];
-      })
-      .sort(([a], [b]) => a - b);
+    // Positions and values in the same order; integer keys come out ascending.
+    const positions = Object.keys(byPosition);
+    const values = Object.values(byPosition);
+    // As a list, so a blank item is checked as set checks the items of a list.
+    const [[, checked] = [key, values]] = withChoiceKeys(metamodel, [[key, values]], "setItems");
+    if (isNumberProperty(metamodel, key)) {
+      itemNumbers(key, positions, checked);
+    }
+    const items = [checked]
+      .flat()
+      .map((item, index): [number, ElementInputValue] => [Number(positions[index]), item]);
     return { key, items };
   });
 };
 
-/** `numberInput` for one item, with its position from 1 in the message and the details. */
-const itemNumber = (key: string, position: number, value: ElementInputValue): ElementInputValue => {
+/**
+ * `numberInput` for the items `checked` given at `positions`, with the position from 1 of an item
+ * that is no number in the message and the details, in place of its index.
+ */
+const itemNumbers = (key: string, positions: readonly string[], checked: ElementInputValue): void => {
   try {
-    return numberInput(key, value);
+    numberInput(key, checked);
   } catch (error) {
-    const failed = commandErrorOrThrow(error);
+    const refused = commandErrorOrThrow(error);
+    const { index, ...details } = { ...refused.details };
+    const position = Number(positions[Number(index)]);
     throw new CommandError(
-      failed.code,
-      failed.message.replace(`${key}:`, `${key} item ${String(position)}:`),
+      "input.invalid",
+      refused.message.replace(/ item \d+:/u, ` item ${String(position)}:`),
       {
-        ...failed.details,
+        ...details,
         position,
       },
     );
@@ -982,6 +988,7 @@ const setItemEdits = async (
   return edits;
 };
 
+/** The edits of `element.update`; `set` holds the values of `input.set` as they are stored. */
 const updateEdits = (
   input: UpdateElementInput,
   set: readonly (readonly [string, ElementValue])[],
@@ -1414,6 +1421,7 @@ export const updateElement = async (
         written.record,
         metamodel.properties.filter((p) => setKeys.includes(p.key) || unsetKeys.includes(p.key)),
       ),
+      ...itemsEmptied(repository.name, written.record, metamodel.properties, itemChanges),
     ];
     versionsAdded = locateIn(
       written.file,
