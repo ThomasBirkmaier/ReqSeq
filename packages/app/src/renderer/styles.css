@@ -747,18 +747,13 @@ mark {
 }
 
 /* The evidence columns (SR-126): the test cases and the status in grey, a mark ("not executed", "failed",
-   "outdated") in the accent colour; the "—" of a requirement without test case is grey when its status is
-   open already, so the row is not marked twice. */
+   "outdated") and the "—" of a requirement without test case in the accent colour. */
 .matrix .evidence {
   color: var(--muted);
 }
 
 .matrix .evidence.marked {
   color: var(--accent-gap);
-}
-
-.matrix .gap.settled {
-  color: var(--muted);
 }
 
 /* The graph (SR-111, D-063): boxes in layers over soft curves on the white sheet, no grid, no legend, no

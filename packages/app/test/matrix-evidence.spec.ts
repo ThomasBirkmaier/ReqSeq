@@ -53,17 +53,15 @@ test.describe("the evidence columns of the traceability matrix", () => {
     await expect(marked("SR-126b02")).toHaveText("test_log[SR-126b02] · failed · 2026-10-22");
     await expect(marked("SR-126b03")).toHaveText("test_trend[SR-126b03] · outdated · 2026-10-21");
     await expect(marked("SR-126b04")).toHaveText("test_gusts[SR-126b04] · not executed");
-    // No test case: the accent "—"; grey when the status says open already (b06), accent when not (b05).
-    const accentGap = testCases(window, "SR-126b05").locator(".gap:not(.settled)");
-    const greyGap = testCases(window, "SR-126b06").locator(".gap.settled");
-    await expect(accentGap).toHaveText("—");
-    await expect(greyGap).toHaveText("—");
+    // No test case: the "—" in the accent colour of a gap, also when the status is open (b06).
     const colour = (locator: Locator): Promise<string> =>
       locator.evaluate((node) => getComputedStyle(node).color);
-    // The accent of a gap is the one of the relation columns ("Derives from" of the need); the grey one differs.
     const relationGap = row(window, "N-126a01").locator("td.cell .gap").first();
-    expect(await colour(accentGap)).toBe(await colour(relationGap));
-    expect(await colour(greyGap)).not.toBe(await colour(relationGap));
+    for (const shortId of ["SR-126b05", "SR-126b06"]) {
+      const gap = testCases(window, shortId).locator(".gap");
+      await expect(gap).toHaveText("—");
+      expect(await colour(gap)).toBe(await colour(relationGap));
+    }
     await expect(status(window, "SR-126b02").locator(".marked")).toHaveText("failed");
     await expect(status(window, "SR-126b03").locator(".marked")).toHaveText("outdated");
   });
@@ -77,10 +75,25 @@ test.describe("the evidence columns of the traceability matrix", () => {
   test("[SR-126/AK4] above the status column stands the degree of the selection with the count per status", async () => {
     const { window } = running;
     const cli = await running.cli(["trace", "matrix"]);
-    const matrix = JSON.parse(cli.stdout) as {
-      readonly evidence: { readonly degree: { readonly share: number; readonly total: number } };
-    };
-    expect(matrix.evidence.degree.total).toBe(9);
+    const { degree } = (
+      JSON.parse(cli.stdout) as {
+        readonly evidence: {
+          readonly degree: {
+            readonly share: number;
+            readonly total: number;
+            readonly counts: Record<string, number>;
+          };
+        };
+      }
+    ).evidence;
+    expect(degree.total).toBe(9);
+    // The share as core rounds it (one decimal, down) and each count of the CLI's answer.
+    const counts = ["verified", "indirect", "failed", "outdated", "open"]
+      .filter((key) => (degree.counts[key] ?? 0) > 0)
+      .map((key) => `${String(degree.counts[key])} ${key}`);
+    await expect(window.locator("thead th.verification .count")).toHaveText(
+      [`${String(Math.floor(degree.share * 1000) / 10)} %`, ...counts].join(" · "),
+    );
     await expect(window.locator("thead th.verification .count")).toHaveText(
       "55.5 % · 4 verified · 1 indirect · 1 failed · 1 outdated · 2 open",
     );

@@ -8,7 +8,6 @@ import {
   degreeLine,
   matrixInput,
   matrixRows,
-  noTestCaseAccent,
   opening,
   statusLine,
   targetsOf,
@@ -281,10 +280,5 @@ describe("the evidence columns (SR-126)", () => {
     expect(statusLine({ view: "core", status: "open", missingChildren: ["a", "b"] }).title).toBe(
       "2 missing children",
     );
-  });
-
-  it("marks a requirement without test case in the accent colour unless it is open already", () => {
-    expect(noTestCaseAccent({ view: "core", status: "verified" })).toBe(true);
-    expect(noTestCaseAccent({ view: "core", status: "open" })).toBe(false);
   });
 });

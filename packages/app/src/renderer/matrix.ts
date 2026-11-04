@@ -157,7 +157,3 @@ export const statusLine = (entry: DataExportVerificationEntry): CellLine => ({
       ? ""
       : `${String(entry.missingChildren.length)} missing child${entry.missingChildren.length === 1 ? "" : "ren"}`,
 });
-
-/** The "—" of a requirement without a test case (AK2) is an accent gap, but grey when its status is open already. */
-export const noTestCaseAccent = (entry: DataExportVerificationEntry | undefined): boolean =>
-  entry?.status !== "open";

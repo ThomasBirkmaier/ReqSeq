@@ -5,8 +5,9 @@
 // through the row element and its relations, Enter or a click opens the element. The row element of an
 // element that changed outside the app is highlighted briefly (SR-116). With evidence locations, two columns
 // at the right (SR-126): "Test cases", one line per test case with the result and date of its last
-// execution or its mark, and "Verification", the status, with the degree of the selection above it; a row
-// that is no requirement in the view leaves both blank. They hold no cursor target.
+// execution or its mark, and "Verification", the status, with the degree of the selection above it; a
+// requirement without a test case has the accent "—", a row that is no requirement in the view leaves both
+// blank. They hold no cursor target.
 import { useEffect, useRef, useState } from "react";
 import type { DataExportRelation, TraceMatrixOutput } from "@reqseq/core";
 import { useIdScope } from "./area-scope.js";
@@ -20,7 +21,6 @@ import {
   degreeLine,
   matrixInput,
   matrixRows,
-  noTestCaseAccent,
   opening,
   statusLine,
   targetsOf,
@@ -103,7 +103,7 @@ const EvidenceCells = ({ row }: { readonly row: MatrixRow }): React.JSX.Element 
   <>
     <td role="gridcell" className="cell test-cases">
       {row.testCases === undefined ? null : row.testCases.length === 0 ? (
-        <span className={noTestCaseAccent(row.verification) ? "gap" : "gap settled"} title="No test case">
+        <span className="gap" title="No test case">
           —
         </span>
       ) : (
@@ -204,7 +204,12 @@ export const MatrixView = ({
       }
       if (answer.ok) {
         const { incomplete } = answer.output;
-        setView({ ...view, rows: [...view.rows, ...matrixRows(answer.output)], total: answer.output.total });
+        setView({
+          ...view,
+          rows: [...view.rows, ...matrixRows(answer.output)],
+          total: answer.output.total,
+          evidence: answer.output.evidence,
+        });
         onData(buffer.key, { kind: "list", total: answer.output.total, incomplete });
       } else {
         onEcho(answer.message);
@@ -362,7 +367,7 @@ export const MatrixView = ({
         </tbody>
       </table>
       {view.status === "ok" && rows.length === 0 ? <p className="quiet">No elements</p> : null}
-      {view.status === "ok" && rows.length > 0 && columns.length === 0 && evidence === undefined ? (
+      {view.status === "ok" && rows.length > 0 && columns.length === 0 ? (
         <p className="quiet">No element of this list has a relation</p>
       ) : null}
       {view.status === "error" ? <p className="quiet">{view.message}</p> : null}
