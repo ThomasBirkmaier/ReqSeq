@@ -17,7 +17,7 @@ const WORKSPACE_FILE =
   '  - { name: system, url: "git@git.example.com:ws/system.git", main: true }\n' +
   '  - { name: supplier, url: "git@git.example.com:ws/supplier.git", path: supplier, variant-independent: MARK }\n' +
   "metamodel: { repository: system, path: metamodel }\n" +
-  "evidence:\n  - { repository: system, path: evidence }\n  - { repository: supplier, path: test-results }\n";
+  "evidence:\n  - { repository: system, path: evidence }\n  - { repository: supplier, path: evidence }\n";
 
 /** The fixture, with `supplier` marked as given (the fixture marks it). */
 const open = async (marked = true): Promise<Workspace> => {

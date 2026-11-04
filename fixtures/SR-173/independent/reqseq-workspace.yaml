@@ -6,4 +6,4 @@ repositories:
 metamodel: { repository: system, path: metamodel }
 evidence:
   - { repository: system, path: evidence }
-  - { repository: supplier, path: test-results }
+  - { repository: supplier, path: evidence }
