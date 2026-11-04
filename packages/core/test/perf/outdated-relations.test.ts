@@ -124,14 +124,16 @@ describe("outdated relations in workspace.check with 50,000 elements and 200,000
 
   it("lists the hints (SR-026) and shows them at one element", async () => {
     const check = (await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">;
+    // The largest page (#146): every hint is found again, only the page's dates are asked for.
     const { result: all } = await measure(
-      "hint.list, every hint (states kept, dates from Git)",
-      async () => (await invoke("hint.list", {}, { workspace })) as CommandOutput<"hint.list">,
+      "hint.list, every hint, page of 5,000 (states kept, dates from Git)",
+      async () => (await invoke("hint.list", { limit: 5000 }, { workspace })) as CommandOutput<"hint.list">,
       { basis: "SR-026, SR-020 (60 s)", thresholdMs: 60_000 },
     );
-    expect(all.hints).toEqual(check.problems);
+    expect(all.total).toBe(check.problems.length);
+    expect(all.hints).toEqual(check.problems.slice(0, 5000));
     // An element with outdated relations, not one that is only a hint without a parent.
-    const source = all.hints.find((h) => h.code === "relation.outdated");
+    const source = check.problems.find((h) => h.code === "relation.outdated");
     expect(source).toBeDefined();
     const type = tree.elements.find((e) => e.id === source?.elementId)?.type ?? "";
     const { result: typed } = await measure(
@@ -141,7 +143,7 @@ describe("outdated relations in workspace.check with 50,000 elements and 200,000
     );
     const typedOutdated = withoutNoParent(typed.hints);
     expect(typedOutdated.length).toBeGreaterThan(0);
-    expect(typedOutdated.length).toBeLessThanOrEqual(withoutNoParent(all.hints).length);
+    expect(typedOutdated.length).toBeLessThanOrEqual(withoutNoParent(check.problems).length);
     const { result: own } = await measure(
       "hint.list of one element (states kept)",
       async () =>
