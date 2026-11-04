@@ -261,6 +261,9 @@ describe("pathState: what the walk says about one changed path, without a walk (
       ["docs/gone.md", "unclear"],
       // A path below a file: `ENOTDIR`.
       ["a.md/x.md", "unclear"],
+      // Gone under a name Windows abbreviates or changes: it may name a held folder.
+      ["DEEP~1", "unclear"],
+      ["deep/gone.md.", "unclear"],
     ];
     if (process.platform !== "win32") {
       // Below a linked folder: the walk does not go into it, the realpath spells it elsewhere.

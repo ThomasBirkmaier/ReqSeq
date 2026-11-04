@@ -352,7 +352,8 @@ const walksInto = async (
  * its path only (#215): `listed` when it lists the path as a file (`listsFile`); `gone` when nothing
  * is there and the walk goes into its folder, spelled as on disk, so that no other path changed with
  * it; `unclear` otherwise (a folder, a link, a file the walk reports or leaves out, another spelling,
- * any error such as `ENOTDIR` or `EACCES`), and then only a walk tells.
+ * a gone path with a name Windows changes or abbreviates, any error such as `ENOTDIR` or `EACCES`),
+ * and then only a walk tells.
  */
 export const pathState = async (
   repository: RepositoryLocation,
@@ -364,6 +365,11 @@ export const pathState = async (
       return "listed";
     }
     if ((await lstatIfThere(path.join(repository.folder, relative))) !== undefined) {
+      return "unclear";
+    }
+    // A name Windows changes (a short name such as `REQUIR~1`, a trailing dot): the path may be a
+    // spelling of a held folder that folding case and normal form does not find.
+    if (relative.split("/").some((name) => portableRule(name) !== undefined)) {
       return "unclear";
     }
     const folders = relative.split("/").slice(0, -1);

@@ -365,16 +365,24 @@ export const WALK_SKIP_LIMIT = 64;
 /** `relative` folded as a file system that ignores case and normal form compares it. */
 const folded = (relative: string): string => relative.normalize("NFC").toLowerCase();
 
-/** Whether the store holds a file at or below `relative`, compared ignoring case and normal form. */
-const holdsBelow = (before: RepositoryContents, relative: string): boolean => {
-  const key = folded(relative);
-  for (const file of before.files.keys()) {
-    const other = folded(file);
-    if (other === key || other.startsWith(`${key}/`)) {
-      return true;
+/**
+ * A test whether the store holds a file at or below a path, compared ignoring case and normal form:
+ * the folded files and every folder above one are put in a set once, on the first question.
+ */
+const holdsBelow = (before: RepositoryContents): ((relative: string) => boolean) => {
+  let held: Set<string> | undefined;
+  return (relative) => {
+    if (held === undefined) {
+      held = new Set();
+      for (const file of before.files.keys()) {
+        const key = folded(file);
+        for (let end = key.length; end > 0; end = key.lastIndexOf("/", end - 1)) {
+          held.add(key.slice(0, end));
+        }
+      }
     }
-  }
-  return false;
+    return held.has(folded(relative));
+  };
 };
 
 /**
@@ -384,9 +392,11 @@ const holdsBelow = (before: RepositoryContents, relative: string): boolean => {
  * folder, a link or `.MD` file, a stale temp file: a walk keeps those current), and each path is
  * one of: a file the store holds that the walk still lists (`listsFile`: every folder above it a
  * real folder without a `.git` entry, the spelling as on disk), a file it holds that is gone from a
- * folder the walk goes into, a new `*.md` file the walk lists, or a path that is gone and is no file
- * of the store and no folder above one (a temporary file of an editor, compared ignoring case and
- * normal form). Anything else (a folder, a link, another spelling, an error) walks.
+ * folder the walk goes into, a new `*.md` file the walk lists that is no folder above a file of the
+ * store (one moved away and replaced by the file), or a path that is gone and is no file of the store
+ * and no folder above one (a temporary file of an editor; both compared ignoring case and normal
+ * form). Anything else (a folder, a link, another spelling, a name Windows abbreviates, an error)
+ * walks.
  */
 const listedWithoutWalk = async (
   before: RepositoryContents,
@@ -398,16 +408,19 @@ const listedWithoutWalk = async (
   }
   const gone = new Set<string>();
   const added: string[] = [];
+  const below = holdsBelow(before);
   for (const relative of changes.paths) {
     const state = await pathState(before.location, ignored, relative);
     const held = before.files.has(relative);
-    if (state === "listed" && (held || relative.endsWith(ELEMENT_FILE_EXTENSION))) {
-      if (!held) {
-        added.push(relative);
-      }
-    } else if (state === "gone" && held) {
+    if (state === "listed" && held) {
+      continue;
+    }
+    if (state === "gone" && held) {
       gone.add(relative);
-    } else if (state !== "gone" || holdsBelow(before, relative)) {
+    } else if (state === "listed" && relative.endsWith(ELEMENT_FILE_EXTENSION) && !below(relative)) {
+      // New, and no folder of that name held files (it was moved away, the file took its place).
+      added.push(relative);
+    } else if (state !== "gone" || below(relative)) {
       return undefined;
     }
   }
@@ -495,7 +508,8 @@ export const readsInFull = (store: ElementStore, layout: WorkspaceLayout): boole
 
 /**
  * The store after files changed outside the tool (SR-007): for each repository with changes its
- * Markdown files are listed again (one walk, no reads), files that are gone are dropped, new files
+ * Markdown files are listed again (one walk, no reads, skipped when the changed paths alone tell
+ * what it would list: `listedWithoutWalk`), files that are gone are dropped, new files
  * are read and the changed ones read again; a file whose snapshot (SHA-256, size, time) is
  * unchanged keeps its record, and a file deleted while it is read counts as gone. The result
  * equals `loadElements` on the working tree now. Undefined when nothing changed, so dependent

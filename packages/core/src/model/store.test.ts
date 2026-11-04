@@ -686,6 +686,16 @@ describe("updating the element store file by file (SR-007)", () => {
     expect(only(next, ID_A)).toBe(only(before, ID_A));
   });
 
+  it("walks for a new file where a folder of that name held files of the store (#215 review B1)", async () => {
+    const { ws, layout, before } = await opened({ "x.md/inner.md": element(ID_B) });
+    await fs.rename(ws.path("x.md"), ws.path("away"));
+    await ws.write("x.md", "# Now a file\n");
+    const { result: next, folders } = await walked(() => updated(before, layout, changes(["x.md"])));
+    expect(folders).toBeGreaterThan(0);
+    expect(next).toEqual(await loadElements(layout, undefined, { versioning: before.versioning }));
+    expect(only(next, ID_B).file).toBe("away/inner.md");
+  });
+
   it("walks when the paths alone cannot tell (#215)", async () => {
     const { ws, layout, before } = await opened();
     await ws.write("notes.txt", "Not an element file.\n");
