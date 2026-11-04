@@ -3,15 +3,26 @@ import type { TraceGraphOutput } from "@reqseq/core";
 import type { GraphEdge } from "./graph.js";
 import type { EdgePath, GraphLayout, PlacedNode } from "./graph-layout.js";
 import {
+  CROSSED_LAYERS_ABOVE,
   LEVEL_LAYERS_ABOVE,
   NODE_HEIGHT,
   NODE_WIDTH,
   RANK_SEP,
+  crossedLayers,
   edgePath,
   layoutGraph,
   viewStart,
 } from "./graph-layout.js";
-import { BASED_ON, REFERENCE, S1_GRAPH, graphEdge, graphNode, graphOutput, key } from "./graph-test-data.js";
+import {
+  BASED_ON,
+  REFERENCE,
+  S1_GRAPH,
+  chainedGraph,
+  graphEdge,
+  graphNode,
+  graphOutput,
+  key,
+} from "./graph-test-data.js";
 
 const at = (layout: GraphLayout, name: string): PlacedNode => {
   const placed = layout.byKey.get(key(name));
@@ -342,6 +353,20 @@ describe("layoutGraph", () => {
     expect(arch?.d).toContain(`,${String(at(levelled, "C1").y - RANK_SEP / 2)}`);
   });
 
+  it("lays out a graph of up to 200 nodes in the layers of its levels when its ranked links would cross too many layers (#211)", () => {
+    // 199 nodes: a package and its members, which derive from each other in chains of 20 within level 1.
+    // Ranked, that is 21 layers and 1,863 crossed layers, which took dagre about 0.5 s (#211).
+    const layout = layoutGraph(chainedGraph(199, 20));
+    expect(layout.levelled).toBe(true);
+    expect(layout.layers.map((layer) => layer.length)).toEqual([1, 198]);
+    expect(offSide(layout)).toEqual([]);
+    // Shorter chains cross fewer layers and stay ranked: a member stands under the member it derives from.
+    const short = layoutGraph(chainedGraph(101, 5));
+    expect(short.levelled).toBe(false);
+    expect(short.layers).toHaveLength(6);
+    expect(at(short, "M1").layer).toBe(at(short, "M0").layer + 1);
+  });
+
   it("[SR-111/AK1] lays out a graph of more than 200 nodes in the layers of its levels: parents above, children below, a link within a level drawn between its two nodes", () => {
     // Generated outputs of 240 nodes on levels -2 to 2, with links within a level, against the levels,
     // long ones and cycles through the element (some nodes then take their level from the other walk).
@@ -545,6 +570,44 @@ describe("layoutGraph", () => {
     expect(layout.paths).toEqual([]);
     const empty = layoutGraph(graphOutput([], []));
     expect([empty.nodes, empty.layers, empty.paths]).toEqual([[], [], []]);
+  });
+});
+
+describe("crossedLayers", () => {
+  const link = (from: string, to: string): { from: string; to: string } => ({ from, to });
+
+  it("counts the layers each link crosses between the longest-chain ranks of its nodes (#211)", () => {
+    // A over B over C, and A to C directly: that link crosses B's layer.
+    expect(crossedLayers(["A", "B", "C"], [link("A", "B"), link("B", "C"), link("A", "C")])).toBe(1);
+    expect(crossedLayers(["A", "B"], [link("A", "B")])).toBe(0);
+    expect(crossedLayers([], [])).toBe(0);
+  });
+
+  it("moves a node that no link enters down to just above the highest node it links to", () => {
+    // R over S over T; P links only to T, so it stands in S's layer and its link crosses none.
+    expect(crossedLayers(["R", "S", "T", "P"], [link("R", "S"), link("S", "T"), link("P", "T")])).toBe(0);
+    // Q links to S and T: it stands in R's layer, and its link to T crosses S's layer.
+    expect(
+      crossedLayers(["R", "S", "T", "Q"], [link("R", "S"), link("S", "T"), link("Q", "S"), link("Q", "T")]),
+    ).toBe(1);
+  });
+
+  it("breaks a cycle by reversing the link back to a node on the walk's path, and ignores a link from no node", () => {
+    // A, B, C in a cycle: C to A is reversed and crosses B's layer.
+    expect(
+      crossedLayers(["A", "B", "C"], [link("A", "B"), link("B", "C"), link("C", "A"), link("X", "A")]),
+    ).toBe(1);
+  });
+
+  it("puts the bound between the chains that stay ranked and those of #211", () => {
+    const crossed = (output: TraceGraphOutput): number =>
+      crossedLayers(
+        output.nodes.map((node) => `spec:${node.id}`),
+        output.edges.map((edge) => link(`spec:${edge.target}`, `spec:${edge.source}`)),
+      );
+    expect(crossed(chainedGraph(199, 20))).toBeGreaterThan(CROSSED_LAYERS_ABOVE);
+    expect(crossed(chainedGraph(200, 10))).toBeGreaterThan(CROSSED_LAYERS_ABOVE);
+    expect(crossed(chainedGraph(200, 9))).toBeLessThanOrEqual(CROSSED_LAYERS_ABOVE);
   });
 });
 

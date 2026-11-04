@@ -2,7 +2,8 @@
 // with 50,000 elements and 200,000 relations: the app's layout (`graph-layout.ts`, dagre) of the graph
 // of 500 nodes that "Whole chain" over every kind gives for the first need (its layers are the levels,
 // #500), its first run in this process and the median of 5 runs; and of the 200 nearest nodes of the
-// same chain, the largest graph whose links within a level are ranked. It is recorded, not asserted:
+// same chain, the largest graph whose links within a level can be ranked; and of a graph of 199 nodes whose
+// links within a level form chains of 20, levelled by the crossed layers (#211). It is recorded, not asserted:
 // SR-111 AK6 is asserted end to end in the app (test/graph-performance.spec.ts), and
 // `packages/core/test/perf/trace-graph.test.ts` records the core part of the same call.
 import type { TraceGraphOutput } from "@reqseq/core";
@@ -11,6 +12,7 @@ import type { GeneratedWorkspace, LargeFixtureWorkspace } from "@reqseq/testkit"
 import { generateLargeWorkspace, measureMedian, recordValue, writeLargeWorkspace } from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { LEVEL_LAYERS_ABOVE, layoutGraph } from "../../src/renderer/graph-layout.js";
+import { chainedGraph } from "../../src/renderer/graph-test-data.js";
 
 const ELEMENTS = 50_000;
 const RELATIONS = 200_000;
@@ -67,14 +69,26 @@ describe("the layout of a graph of 500 nodes (SR-111 AK6, N-036)", () => {
     expect(result.nodes).toHaveLength(NODES);
   });
 
-  it("records the layout of the 200 nearest nodes of the same chain, the largest graph whose links within a level are ranked", async () => {
+  it("records the layout of the 200 nearest nodes of the same chain, the largest graph whose links within a level can be ranked", async () => {
     const output = await wholeChain(LEVEL_LAYERS_ABOVE);
     expect(output.nodes).toHaveLength(LEVEL_LAYERS_ABOVE);
+    // Ranked unless its links would cross too many layers (#211).
+    const drawing = layoutGraph(output).levelled ? "levelled" : "ranked";
     const { result } = await measureMedian(
-      `graph: app layout of the ${String(LEVEL_LAYERS_ABOVE)} nearest nodes, ${String(output.edges.length)} links (whole chain of the first need, every kind, ranked), median of 5`,
+      `graph: app layout of the ${String(LEVEL_LAYERS_ABOVE)} nearest nodes, ${String(output.edges.length)} links (whole chain of the first need, every kind, ${drawing}), median of 5`,
       () => layoutGraph(output),
       { basis: "SR-111 AK6 (recorded; #500)", runs: 5 },
     );
     expect(result.nodes).toHaveLength(LEVEL_LAYERS_ABOVE);
+  });
+
+  it("records the layout of 199 nodes whose links within a level form chains of 20 (#211)", async () => {
+    const output = chainedGraph(199, 20);
+    const { result } = await measureMedian(
+      "graph: app layout of 199 nodes, a package and its members in chains of 20 within one level (levelled, #211), median of 5",
+      () => layoutGraph(output),
+      { basis: "SR-111 AK6 (recorded; #211)", runs: 5 },
+    );
+    expect(result.levelled).toBe(true);
   });
 });

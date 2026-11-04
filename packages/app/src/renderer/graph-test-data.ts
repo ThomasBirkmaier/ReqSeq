@@ -54,6 +54,23 @@ export const graphOutput = (
 export const key = (name: string): string => `spec:uuid-${name}`;
 
 /**
+ * A package S1 at depth 1 (#211): its `size - 1` members M0, M1, … on level 1 are in it and each
+ * derives from the member before it, in chains of `chain` members.
+ */
+export const chainedGraph = (size: number, chain: number): TraceGraphOutput => {
+  const members = Array.from({ length: size - 1 }, (_, index) => `M${String(index)}`);
+  return graphOutput(
+    [graphNode("S1", 0, { type: "package" }), ...members.map((name) => graphNode(name, 1))],
+    [
+      ...members.map((name) => graphEdge(name, "S1", { kind: "in-package" })),
+      ...members.flatMap((name, index) =>
+        index % chain === 0 ? [] : [graphEdge(name, `M${String(index - 1)}`)],
+      ),
+    ],
+  );
+};
+
+/**
  * The graph of S1 at depth 1 in fixtures/SR-111/graph as `trace.graph` gives it: S1 derives from N1, is
  * based on D1, is in package PKG, supersedes O1 and references D2; C1, C2 and C3 derive from S1 (C3 also
  * from C1), C1 is based on D1, and E references S1. D1 references S1 and D2 references C1: links that run

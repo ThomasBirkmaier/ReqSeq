@@ -35,6 +35,7 @@ const layout: GraphLayout = {
   nodes,
   byKey,
   layers: [layer("P1", "P2"), layer("R"), layer("C1", "C2", "C3")],
+  levelled: false,
   paths: [
     path("R", "P1"),
     path("R", "P2"),
