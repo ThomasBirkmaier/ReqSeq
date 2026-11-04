@@ -27,7 +27,7 @@ import type {
   Problem,
   WorkspaceLocation,
 } from "../generated/types.js";
-import { contractsBundle, fileSchemaValidator } from "../runtime/contracts.js";
+import { contractsBundle, fileSchemaErrors, fileSchemaValidator } from "../runtime/contracts.js";
 import { workspacePath } from "../model/index.js";
 import { inputViolations } from "../runtime/input-errors.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
@@ -110,7 +110,10 @@ const checkFilterFile = async (repository: RepositoryLocation, file: string): Pr
     return { kind: "valid", yaml, data: yaml.data as FilterFile, problems };
   }
   // Readable as input errors are (#309): one message for the branches of a condition.
-  const violations = inputViolations(validate.errors, { input: yaml.data, schemas: contractsBundle.schemas });
+  const violations = inputViolations(fileSchemaErrors("filter.schema.json", yaml.data), {
+    input: yaml.data,
+    schemas: contractsBundle.schemas,
+  });
   for (const violation of violations) {
     const message =
       violation.field === "" ? violation.message.replace(/^The input /, "the file ") : violation.message;

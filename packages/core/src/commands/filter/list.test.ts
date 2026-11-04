@@ -118,6 +118,7 @@ describe("filter.list (SR-070)", () => {
       files: {
         "filters/sensor-drafts.yaml": HAND_WRITTEN,
         "filters/a-broken.yaml": "reqseq-filter: 1\nname: Broken\nwhere:\n  nope: 1\n",
+        "filters/a-op.yaml": "reqseq-filter: 1\nname: Op\nwhere:\n  property: topic\n  op: nope\n",
         "filters/b-not-yaml.yaml": "name: [unclosed\n",
         "filters/z-same-name.yaml": "reqseq-filter: 1\nname: SENSOR DRAFTS\nwhere: { all: [] }\n",
         "filters/d-old.yml": "reqseq-filter: 1\nname: Old\nwhere: { all: [] }\n",
@@ -147,10 +148,20 @@ describe("filter.list (SR-070)", () => {
         code: "filter.invalid",
         severity: "error",
         message:
-          "Invalid saved filter filters/a-broken.yaml: where (an object) does not have the expected form",
+          "Invalid saved filter filters/a-broken.yaml: where (an object) does not have the expected form: Combinable condition (SR-069). Exactly one operator per object. `all`: every condition holds (`[]` holds), `any`: some holds (`[]` does not), `not`: it does not hold. (one of: all, any, not, type, status, invalid, package, validFor, verification, validation, emergent, source, text, property, relation)",
         repository: "system",
         file: "filters/a-broken.yaml",
         line: 4,
+      },
+      // The faulty field of the operator the condition means, at its line (#160).
+      {
+        code: "filter.invalid",
+        severity: "error",
+        message:
+          'Invalid saved filter filters/a-op.yaml: where.op "nope" is not one of: eq, ne, in, contains, lt, le, gt, ge, exists, missing, matches',
+        repository: "system",
+        file: "filters/a-op.yaml",
+        line: 5,
       },
       expect.objectContaining({
         code: "file.invalid-yaml",

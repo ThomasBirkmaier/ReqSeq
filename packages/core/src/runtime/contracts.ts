@@ -54,7 +54,7 @@ export interface ContractsBundle {
 /** The schemas and the catalog of this version of ReqSeq. */
 export const contractsBundle = bundle as unknown as ContractsBundle;
 
-// `verbose` (input only) gives each error its schema, which `inputViolations` reads for readable messages.
+// `verbose` (input, and files that failed) gives each error its schema, which `inputViolations` reads for readable messages.
 const createAjv = (useDefaults: boolean, schemas: readonly JsonSchema[], verbose = false): Ajv2020 => {
   const ajv = new Ajv2020({
     allErrors: true,
@@ -101,6 +101,24 @@ export function fileSchemaValidator(file: string): ValidateFunction {
     throw new Error(`no schema ${file} in schemas/`);
   }
   return validate;
+}
+
+// The same schemas with `verbose`, built only when a file failed (#160): `verbose` keeps each error's
+// schema for `inputViolations`, and the plain validator stays on the hot paths (UUID checks).
+let verboseFileSchemas: Ajv2020 | undefined;
+
+/**
+ * The errors of `data` against a file format schema, with each error's schema (Ajv `verbose`), for
+ * `inputViolations` after `fileSchemaValidator(file)` refused `data` (#160). Empty when `data` is valid.
+ */
+export function fileSchemaErrors(file: string, data: unknown): readonly ErrorObject[] {
+  verboseFileSchemas ??= createAjv(false, contractsBundle.schemas, true);
+  const validate = verboseFileSchemas.getSchema(`${SCHEMA_BASE}${file}`);
+  if (validate === undefined) {
+    throw new Error(`no schema ${file} in schemas/`);
+  }
+  // A refused value always has errors.
+  return validate(data) === true ? [] : (validate.errors as readonly ErrorObject[]);
 }
 
 /**

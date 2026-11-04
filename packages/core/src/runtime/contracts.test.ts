@@ -5,6 +5,7 @@ import {
   SCHEMA_BASE,
   contractsBundle,
   describeViolations,
+  fileSchemaErrors,
   fileSchemaValidator,
   loadContracts,
   schemaViolations,
@@ -181,5 +182,14 @@ describe("fileSchemaValidator", () => {
 
   it("throws for a name that is not a schema", () => {
     expect(() => fileSchemaValidator("nope.schema.json")).toThrow("no schema nope.schema.json in schemas/");
+    expect(() => fileSchemaErrors("nope.schema.json", {})).toThrow("no schema nope.schema.json in schemas/");
+  });
+
+  it("gives the errors of a refused file with their schemas, none for a valid one (#160)", () => {
+    const file = { "reqseq-filter": 1, name: "F", where: { status: ["draft"] } };
+    expect(fileSchemaErrors("filter.schema.json", file)).toEqual([]);
+    const [error] = fileSchemaErrors("filter.schema.json", { ...file, name: 5 });
+    expect(error?.instancePath).toBe("/name");
+    expect(error?.parentSchema).toBeDefined();
   });
 });
