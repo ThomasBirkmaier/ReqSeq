@@ -40,6 +40,7 @@ describe("createAutosave", () => {
     await vi.advanceTimersByTimeAsync(5000);
     expect(save).toHaveBeenCalledTimes(1);
     expect(autosave.busy()).toBe(false);
+    expect(autosave.running()).toBe(false);
   });
 
   it("runs one save at a time: input during a save waits for its answer, then for the rest of its second", async () => {
@@ -49,6 +50,7 @@ describe("createAutosave", () => {
     await vi.advanceTimersByTimeAsync(AUTOSAVE_MS);
     expect(save).toHaveBeenCalledTimes(1);
     await vi.advanceTimersByTimeAsync(200);
+    expect(autosave.running()).toBe(true);
     autosave.input();
     expect(autosave.busy()).toBe(true);
     // The second has passed while the first save runs: nothing goes out before its answer.

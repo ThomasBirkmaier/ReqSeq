@@ -1145,9 +1145,10 @@ export const ElementView = ({
     saveNoteOf(diskState.current, now.current.readOnly, now.current.buffer.name);
   // Writes the input that differs from the file, in order with the other saves of the buffer. True when no
   // input is left unsaved. "Save element" (`asked`) says what happened; the other saves only what went wrong.
-  const saveInput = async (mode: SaveMode): Promise<boolean> => {
-    const { handle: editor, onEcho: echo } = now.current;
-    const step = saveStep({ editor, input: inputDocs().size > 0, note: saveNote(), mode });
+  const saveInput = async (mode: SaveMode, afterSave = false): Promise<boolean> => {
+    const { handle: editor, onEcho: echo, buffer: shown } = now.current;
+    const afterWrite = afterSave ? { name: shown.name, hint: said.current.hint } : undefined;
+    const step = saveStep({ editor, input: inputDocs().size > 0, note: saveNote(), mode, afterWrite });
     if (step.kind === "done") {
       if (step.echo !== undefined) {
         echo(step.echo);
@@ -1157,11 +1158,11 @@ export const ElementView = ({
     const job = (): Promise<boolean> => write(step.editor, mode);
     return now.current.keep?.save(job) ?? job();
   };
-  // "Save element" (Ctrl/Cmd+S): at once, after a save that runs.
+  // "Save element" (Ctrl/Cmd+S): at once, after a save that runs. Asked while a save runs, it waits for that
+  // save and says "Saved" when it left no input (#563: it was dropped then, and said nothing).
   const save = (): void => {
-    if (!saving.current) {
-      void autosave.current?.now(() => saveInput("asked"));
-    }
+    const afterSave = autosave.current?.running() === true || saving.current;
+    void autosave.current?.now(() => saveInput("asked", afterSave));
   };
   // A save that went wrong: the modeline says `not saved`, and the minibuffer the reason, once while it
   // stays the same (autosave tries again on the next input, never in a loop).
