@@ -1009,7 +1009,11 @@ export const resolverOf =
     }
   };
 
-/** The given variant (AK6) through `resolveView`, as `evidence.record` takes it; `core` is none. */
+/**
+ * The given variant (AK6) through `resolveView`, as `evidence.record` takes it; `core` is none: the
+ * records count in the core, and in every view of an element of a `variant-independent` repository
+ * (SR-173).
+ */
 const givenVariant = (
   views: ViewContext,
   ref: string | undefined,

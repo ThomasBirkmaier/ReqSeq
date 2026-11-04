@@ -4,6 +4,7 @@
 // coverage, list, chain, matrix).
 import type { View } from "../variants/index.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
+import { holdsIn } from "./holds.js";
 import type { EvidenceRecord, SkippedTestCase, TestCase } from "./record.js";
 import { testCaseKey, testCaseKeyOf } from "./record.js";
 import type { EvidenceRead } from "./state.js";
@@ -282,14 +283,18 @@ export const evidenceIndexWith = (
 
 /**
  * Whether the element `id` has at least one verification record in `view` (SR-069 AK3 "ohne
- * Nachweis", SR-022 AK3 `no-evidence`, SR-036 coverage; D-007 keeps validation apart): in the core
- * a record without a variant, in a variant a record for that variant (SR-047 AK1, AK2). Version and
- * result do not count here (spec question #527).
+ * Nachweis", SR-022 AK3 `no-evidence`, SR-036 coverage; D-007 keeps validation apart): a record that
+ * holds in the view (`holdsIn`: in the core one without a variant, in a variant one for that variant,
+ * SR-047 AK1, AK2, and one without a variant when `independent`, the element's repository is marked
+ * `variant-independent`, SR-173). Version and result do not count here (spec question #527).
  */
-export const hasVerificationRecord = (index: EvidenceIndex, id: string, view: View): boolean =>
-  (index.byElement.get(id) ?? []).some(
-    (r) => r.kind === "verification" && r.variant === (view.kind === "core" ? undefined : view.variant.id),
-  );
+export const hasVerificationRecord = (
+  index: EvidenceIndex,
+  id: string,
+  view: View,
+  independent: boolean,
+): boolean =>
+  (index.byElement.get(id) ?? []).some((r) => r.kind === "verification" && holdsIn(r, view, independent));
 
 /**
  * The index of the workspace's records (`evidenceRecordsState`) and skipped test cases

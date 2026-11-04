@@ -157,7 +157,7 @@ describe("trace.matrix test cases and verification status (SR-126 AK1)", () => {
     const workspace = await open({ ...MATRIX, files: COAST_FILES });
     const index = await workspace.get(evidenceIndexState);
     const names = (view: View, id: string): string[] =>
-      (chainEvidenceOf(index, id, view)?.testCases ?? []).map((t) => t.name);
+      (chainEvidenceOf(index, id, view, false)?.testCases ?? []).map((t) => t.name);
     for (const [selection, view] of [
       [SR, { kind: "core" }],
       [{ ...SR, view: "VAR-126c01" }, COAST_VIEW],

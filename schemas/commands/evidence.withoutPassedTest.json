@@ -15,7 +15,7 @@
     "properties": {
       "view": {
         "$ref": "../common.schema.json#/$defs/view",
-        "description": "Default: the core. A variant: only records for it count, and only requirements its view holds (SR-047, SR-043)."
+        "description": "Default: the core. A variant: only records for it count, and those without a variant for an element of a repository marked `variant-independent` (SR-173); only requirements its view holds (SR-047, SR-043)."
       },
       "limit": {
         "type": "integer",

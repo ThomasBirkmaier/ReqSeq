@@ -78,6 +78,7 @@ describe("target states (D-058, SR-006)", () => {
     name,
     url: `git@git.example.com:ws/${name}.git`,
     main: name === "system",
+    variantIndependent: false,
     path: `../${name}`,
     folder: `/ws/${name}`,
     available,

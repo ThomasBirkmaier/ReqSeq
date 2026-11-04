@@ -103,6 +103,14 @@ Some forms stay ambiguous: write a separator or literal text between the parts w
 
 For the test run of a variant build, add `--variant` with the variant's short ID, UUID or identifier, for example `--variant VAR-f23826`: each enriched test case then counts for that variant. A test case may also name its variant itself with the property `reqseq:variant`, by short ID or identifier; ReqSeq writes the UUID in its place. The command exits with 1 and leaves a test case unchanged when it names another variant than `--variant`, or a requirement that does not count in its variant (excluded, replaced or not valid there).
 
+A result without variant counts only for the core. Some repositories do not know your variants, for example one a supplier keeps for its component. Mark such a repository in `reqseq-workspace.yaml` with `variant-independent: true`; then a result without variant for one of its requirements counts for the core and for every variant the requirement applies in. A result with a variant still counts only there, and together with the results without variant the newest decides. `reqseq workspace status` shows the mark.
+
+```yaml
+repositories:
+  - { name: system, url: "git@git.example.com:ws/system.git", path: ".", main: true }
+  - { name: supplier, url: "git@git.example.com:ws/supplier.git", variant-independent: true }
+```
+
 ```sh
 reqseq evidence status
 ```

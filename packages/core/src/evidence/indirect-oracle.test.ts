@@ -20,15 +20,19 @@ import { evidenceIndex, evidenceIndexState } from "./by-element.js";
 import type { ChildRules, VerificationEvaluator, VerificationResult, ViewScope } from "./indirect.js";
 import { childRulesOf, ruleScope, validityScope, verificationEvaluator } from "./indirect.js";
 import type { EvidenceRecord } from "./record.js";
+import { holdsIn } from "./holds.js";
 import type { StatusSource } from "./status.js";
-import { holdsIn, statusSource, verificationStatusOf } from "./status.js";
+import { statusSource, verificationStatusOf } from "./status.js";
 import { workspaceStatusOf } from "./verification.js";
 
-// ---- The reference: evidence/indirect.ts before #698, verbatim from here to the end marker. ----
+// ---- The reference: evidence/indirect.ts before #698, verbatim from here to the end marker, but for
+// the mark of the element's repository (SR-173), which `holdsIn` and the status take. ----
 
 /** Whether `element` has a verification record that holds in `view` (rule 1). */
 const referenceHasOwn = (source: StatusSource, element: ElementRecord, view: View): boolean =>
-  source.recordsOf(element.id).some((r) => r.kind === "verification" && holdsIn(r, view));
+  source
+    .recordsOf(element.id)
+    .some((r) => r.kind === "verification" && holdsIn(r, view, source.independent(element)));
 
 const OPEN: VerificationResult = Object.freeze({ status: "open" });
 const INDIRECT: VerificationResult = Object.freeze({ status: "indirect" });
@@ -86,7 +90,7 @@ const referenceEvaluator = (
   /** The status of a counted child, once its walk is done; one being computed counts as open (rule 6). */
   const childStatus = (child: ElementRecord, view: View, memo: ReadonlyMap<string, VerificationResult>) =>
     referenceHasOwn(source, child, view)
-      ? verificationStatusOf(source.recordsOf(child.id), currentOf(child), view)
+      ? verificationStatusOf(source.recordsOf(child.id), currentOf(child), view, source.independent(child))
       : (memo.get(nodeKey(child))?.status ?? "open");
 
   const fromChildren = (
@@ -147,7 +151,14 @@ const referenceEvaluator = (
     }
     if (referenceHasOwn(source, element, view)) {
       const current = shown === undefined ? currentOf(element) : shown.current;
-      return { status: verificationStatusOf(source.recordsOf(element.id), current, view) };
+      return {
+        status: verificationStatusOf(
+          source.recordsOf(element.id),
+          current,
+          view,
+          source.independent(element),
+        ),
+      };
     }
     return derived(element, view);
   };
@@ -312,6 +323,9 @@ const generate = (seed: number): Generated => {
     validity: { key: "validity", many: true, label: "property Validity (validity)" },
     recordsOf: (id) => index.byElement.get(id) ?? [],
     emergent: (e) => isEmergent(e, "emergent"),
+    // Variant-independent repositories (SR-173) by seed: none, `other`, `system` or both, so twins
+    // in two repositories may differ.
+    independent: (e) => (e.repository === "other" ? seed % 2 === 0 : seed % 3 === 0),
   };
   const views: View[] = [
     CORE,
@@ -479,7 +493,8 @@ describe("the shared views give the results of the evaluator before #698", () =>
       random.chance(0.8) ? { ...r, version: currentOf(byId.get(r.element)) ?? r.version } : r,
     );
     const index = evidenceIndex(records);
-    const source = statusSource(metamodel, index);
+    // One repository marked variant-independent (SR-173).
+    const source = statusSource(metamodel, index, new Set(store.elements.slice(-1).map((e) => e.repository)));
     const children = childRulesOf(await traceContext(workspace));
     const views: View[] = [CORE, ...variants.map((variant): View => ({ kind: "variant", variant }))];
     const scope = ruleScope(viewRuleIndexOf(workspace, store, metamodel));
@@ -550,6 +565,7 @@ describe("the work the shared views save (#698)", () => {
       validity: { key: "validity", many: true, label: "property Validity (validity)" },
       recordsOf: (id) => index.byElement.get(id) ?? [],
       emergent: () => false,
+      independent: () => false,
     };
     const rules: ChildRules = { childrenOf: (e) => children.get(e) ?? [], counts: () => true };
     const views: View[] = [CORE, ...variants.map((variant): View => ({ kind: "variant", variant }))];

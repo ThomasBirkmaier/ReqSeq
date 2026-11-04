@@ -7,7 +7,8 @@ import type { View } from "../variants/index.js";
 import { evidenceIndex } from "./by-element.js";
 import type { EvidenceRecord } from "./record.js";
 import type { Validation } from "./status.js";
-import { holdsIn, recordStatusOf, validationOf, verificationStatusOf } from "./status.js";
+import { holdsIn } from "./holds.js";
+import { recordStatusOf, validationOf, verificationStatusOf } from "./status.js";
 
 const P = "5e031a7d-2b4f-4c61-9d08-0";
 const A = `${P}b0000000001`;
@@ -36,18 +37,18 @@ const record = (
  * The status of `records` of A in the core against CURRENT, the records in the order of the index and
  * reversed.
  */
-const statusOf = (records: readonly EvidenceRecord[], view: View = CORE): string[] => {
+const statusOf = (records: readonly EvidenceRecord[], view: View = CORE, independent = false): string[] => {
   const ordered = evidenceIndex(records).byElement.get(A) ?? [];
   return [
-    verificationStatusOf(ordered, CURRENT, view),
-    verificationStatusOf([...ordered].reverse(), CURRENT, view),
+    verificationStatusOf(ordered, CURRENT, view, independent),
+    verificationStatusOf([...ordered].reverse(), CURRENT, view, independent),
   ];
 };
 
 describe("verificationStatusOf (SR-031)", () => {
   it("[SR-031/AK1] a requirement without records is open", () => {
-    expect(verificationStatusOf([], CURRENT, CORE)).toBe("open");
-    expect(verificationStatusOf([], undefined, IN_V)).toBe("open");
+    expect(verificationStatusOf([], CURRENT, CORE, false)).toBe("open");
+    expect(verificationStatusOf([], undefined, IN_V, false)).toBe("open");
   });
 
   it("[SR-031/AK2] the newest record of the current version passed gives verified", () => {
@@ -99,7 +100,7 @@ describe("verificationStatusOf (SR-031)", () => {
   });
 
   it("an element whose current version is unknown has no record of it: outdated with records", () => {
-    expect(verificationStatusOf([record("2026-01-01T10:00:00Z", "passed")], undefined, CORE)).toBe(
+    expect(verificationStatusOf([record("2026-01-01T10:00:00Z", "passed")], undefined, CORE, false)).toBe(
       "outdated",
     );
   });
@@ -137,12 +138,52 @@ describe("verificationStatusOf (SR-031)", () => {
     expect(statusOf([forV, core], IN_V)).toEqual(["failed", "failed"]);
     expect(statusOf([forV])).toEqual(["open", "open"]);
     expect(statusOf([core], IN_V)).toEqual(["open", "open"]);
-    expect([holdsIn(forV, IN_V), holdsIn(forV, CORE), holdsIn(core, CORE), holdsIn(core, IN_V)]).toEqual([
+    expect([
+      holdsIn(forV, IN_V, false),
+      holdsIn(forV, CORE, false),
+      holdsIn(core, CORE, false),
+      holdsIn(core, IN_V, false),
+    ]).toEqual([true, false, true, false]);
+  });
+
+  it("holdsIn: a record without variant holds in every variant only for an element of a marked repository (SR-173)", () => {
+    const forV = record("2026-01-02T10:00:00Z", "failed", { variant: V });
+    const forW = record("2026-01-02T10:00:00Z", "failed", { variant: `${P}c0000000002` });
+    const core = record("2026-01-01T10:00:00Z", "passed");
+    // record × view × mark: the mark only adds the variant-less record in a variant.
+    const table = [forV, forW, core].flatMap((r) =>
+      [CORE, IN_V].flatMap((view) => [false, true].map((independent) => holdsIn(r, view, independent))),
+    );
+    expect(table).toEqual([
+      // forV: core, core marked, V, V marked
+      false,
+      false,
+      true,
+      true,
+      // forW
+      false,
+      false,
+      false,
+      false,
+      // core record
+      true,
       true,
       false,
       true,
-      false,
     ]);
+  });
+
+  it("pools the records without variant and those of the variant of a marked element: the newest decides, failed wins a tie (SR-173)", () => {
+    const core = record("2026-01-01T10:00:00Z", "passed");
+    const newerFailedV = record("2026-01-02T10:00:00Z", "failed", { variant: V });
+    expect(statusOf([core, newerFailedV], IN_V, true)).toEqual(["failed", "failed"]);
+    const olderFailedV = record("2025-12-31T10:00:00Z", "failed", { variant: V });
+    expect(statusOf([core, olderFailedV], IN_V, true)).toEqual(["verified", "verified"]);
+    const tieFailedV = record("2026-01-01T10:00:00Z", "failed", { variant: V });
+    expect(statusOf([core, tieFailedV], IN_V, true)).toEqual(["failed", "failed"]);
+    expect(statusOf([core], IN_V, true)).toEqual(["verified", "verified"]);
+    // The core still counts only the records without variant.
+    expect(statusOf([core, newerFailedV], CORE, true)).toEqual(["verified", "verified"]);
   });
 
   it("validation records do not count for the verification status (D-007)", () => {
@@ -153,8 +194,8 @@ describe("verificationStatusOf (SR-031)", () => {
       "verified",
     ]);
     // The same rule with the kind validation (SR-038 reuses it).
-    expect(recordStatusOf([validation], "validation", CURRENT, CORE)).toBe("failed");
-    expect(recordStatusOf([validation], "validation", OLDER, CORE)).toBe("outdated");
+    expect(recordStatusOf([validation], "validation", CURRENT, CORE, false)).toBe("failed");
+    expect(recordStatusOf([validation], "validation", OLDER, CORE, false)).toBe("outdated");
   });
 });
 

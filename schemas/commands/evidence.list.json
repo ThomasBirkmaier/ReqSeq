@@ -17,7 +17,7 @@
       },
       "view": {
         "$ref": "../common.schema.json#/$defs/view",
-        "description": "`core`: only the records without a variant; a variant: only the records for that variant (SR-047 AK1, AK2); absent: every record of the element."
+        "description": "`core`: only the records without a variant; a variant: only the records for that variant (SR-047 AK1, AK2), and also those without a variant when the element's repository is marked `variant-independent` (SR-173); absent: every record of the element."
       }
     },
     "additionalProperties": false,

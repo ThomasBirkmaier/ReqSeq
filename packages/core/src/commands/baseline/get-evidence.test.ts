@@ -1,6 +1,7 @@
 // baseline.get with withEvidence (SR-094) on fixtures/SR-094/baseline; its README lists the
 // elements, the baselines „Release 1“ (core) and „Alpine 1“ (view Alpine), both dated
 // 2026-11-02T14:00:00Z, and the records. CLI end to end: packages/cli/test/e2e/baseline-get.test.ts.
+import fs from "node:fs/promises";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
@@ -90,6 +91,34 @@ const recordsAre = async (workspace: Workspace, records: readonly EvidenceRecord
     Promise.resolve(records),
   );
 };
+
+describe("baseline.get withEvidence in a repository marked variant-independent (SR-173)", () => {
+  it("counts the records without variant in every variant row, and merges the later ones newest first", async () => {
+    const { fixture, workspace } = await opened();
+    const file = await fs.readFile(fixture.path("reqseq-workspace.yaml"), "utf8");
+    await fixture.write(
+      "reqseq-workspace.yaml",
+      file.replace("main: true", "main: true, variant-independent: true"),
+    );
+    const out = await get(workspace, "Release 1");
+    expect(rowsOf(out)).toEqual({
+      a1: undefined,
+      a2: undefined,
+      b1: ["core verified +1", "alpine verified +2", "coastal verified +1"],
+      b2: ["core outdated +1", "alpine outdated +1"],
+      b3: ["core open", "alpine open"],
+      b5: ["core open", "alpine open", "coastal open"],
+      b6: ["core verified", "alpine verified", "coastal verified"],
+      b7: ["coastal verified"],
+    });
+    // Alpine's failed record at 16:00 before the core's at 15:00 (index order, newest first).
+    const later = entry(out, "b1").verification?.find((r) => r.view === ALPINE)?.later;
+    expect(later?.map((r) => [r.variant, r.date])).toEqual([
+      [ALPINE, "2026-11-02T16:00:00Z"],
+      [undefined, "2026-11-02T15:00:00Z"],
+    ]);
+  });
+});
 
 describe("baseline.get withEvidence", () => {
   it("[SR-094/AK1] baseline.get withEvidence gives each requirement's status for its baseline version", async () => {

@@ -205,14 +205,14 @@ describe("hasVerificationRecord", () => {
       record(B, "2026-01-01T00:00:00Z", { variant: V, result: "failed" }),
       record(C, "2026-01-01T00:00:00Z", { kind: "validation" }),
     ]);
-    expect(hasVerificationRecord(index, A, core)).toBe(true);
-    expect(hasVerificationRecord(index, A, variant(V))).toBe(false);
+    expect(hasVerificationRecord(index, A, core, false)).toBe(true);
+    expect(hasVerificationRecord(index, A, variant(V), false)).toBe(false);
     // Result and version do not count (spec question #527); a record for one variant counts only there (SR-047 AK1).
-    expect(hasVerificationRecord(index, B, variant(V))).toBe(true);
-    expect(hasVerificationRecord(index, B, variant(W))).toBe(false);
-    expect(hasVerificationRecord(index, B, core)).toBe(false);
+    expect(hasVerificationRecord(index, B, variant(V), false)).toBe(true);
+    expect(hasVerificationRecord(index, B, variant(W), false)).toBe(false);
+    expect(hasVerificationRecord(index, B, core, false)).toBe(false);
     // Validation is not Nachweis (D-007).
-    expect(hasVerificationRecord(index, C, core)).toBe(false);
-    expect(hasVerificationRecord(index, `${P}a0000000099`, core)).toBe(false);
+    expect(hasVerificationRecord(index, C, core, false)).toBe(false);
+    expect(hasVerificationRecord(index, `${P}a0000000099`, core, false)).toBe(false);
   });
 });

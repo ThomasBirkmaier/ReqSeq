@@ -3,8 +3,13 @@
 // element's `status`, which only people set (D-030, ADR-0002 rule 6).
 //
 // - Per element and view, the records of the kind asked for (`verification`; SR-038 reuses the rule
-//   with `validation`) that hold in the view: in the core a record without `variant`, in a variant a
-//   record for that variant (SR-047; the same rule as `hasVerificationRecord`).
+//   with `validation`) that hold in the view (`holdsIn`): in the core a record without `variant`, in
+//   a variant a record for that variant (SR-047; the same rule as `hasVerificationRecord`) and, for
+//   an element whose repository the workspace file marks `variant-independent`
+//   (`StatusSource.independent`), also a record without `variant` (SR-173 AK1). There both are pooled:
+//   the newest decides, and a failed one wins a tie. Without the mark a record without `variant`
+//   counts only in the core (SR-173 AK2). The element's repository decides, not the record's
+//   folder (spec question #817 Q1, assumption); twins of one UUID each follow their own (#817 Q8).
 // - Of these, the newest records of the current version decide (`date` as an instant): passed gives
 //   `verified` (AK2), failed gives `failed` (AK3). When several have that newest date and one of them
 //   failed, the status is `failed` (spec question #525 Q2, assumption).
@@ -32,6 +37,7 @@ import type { Validity, View } from "../variants/index.js";
 import { validityOf } from "../variants/index.js";
 import type { EvidenceIndex } from "./by-element.js";
 import { instantOf } from "./by-element.js";
+import { holdsIn } from "./holds.js";
 import type { EvidenceRecord } from "./record.js";
 
 /** What the records of one kind say about an element in a view, before it is named for its kind. */
@@ -45,10 +51,6 @@ export type RecordVerificationStatus = Exclude<VerificationStatus, "indirect">;
 
 /** The verification entries of an element (`data-export.schema.json#/$defs/element` `verification`). */
 export type VerificationEntries = NonNullable<DataExportElement["verification"]>;
-
-/** Whether `record` holds in `view`: the core without variant, a variant for that variant (SR-047). */
-export const holdsIn = (record: Pick<EvidenceRecord, "variant">, view: View): boolean =>
-  record.variant === (view.kind === "core" ? undefined : view.variant.id);
 
 /**
  * Whether `record` (of `kind`) is a record of the `current` version that decides: an inconclusive one
@@ -66,13 +68,15 @@ const ofVersion = (
 /**
  * What the records of `kind` of one element say in `view`, measured against its `current` version
  * (see the file comment). `records` may come in any order and may hold records of other elements'
- * kinds and views; only those of `kind` that hold in `view` count. One pass over the records.
+ * kinds and views; only those of `kind` that hold in `view` count (`holdsIn` with `independent`, the
+ * mark of the element's repository, SR-173). One pass over the records.
  */
 export const recordStatusOf = (
   records: readonly EvidenceRecord[],
   kind: EvidenceRecord["kind"],
   current: string | undefined,
   view: View,
+  independent: boolean,
 ): RecordStatus => {
   let counted = false;
   let newest = Number.NEGATIVE_INFINITY;
@@ -80,7 +84,7 @@ export const recordStatusOf = (
   let failed = false;
   let inconclusive = false;
   for (const record of records) {
-    if (record.kind !== kind || !holdsIn(record, view)) {
+    if (record.kind !== kind || !holdsIn(record, view, independent)) {
       continue;
     }
     counted = true;
@@ -106,13 +110,17 @@ export const recordStatusOf = (
   return counted ? "outdated" : "open";
 };
 
-/** The verification status of an element in `view` from its records (SR-031, see the file comment). */
+/**
+ * The verification status of an element in `view` from its records (SR-031, see the file comment);
+ * `independent`: its repository is marked `variant-independent` (SR-173).
+ */
 export const verificationStatusOf = (
   records: readonly EvidenceRecord[],
   current: string | undefined,
   view: View,
+  independent: boolean,
 ): RecordVerificationStatus => {
-  const status = recordStatusOf(records, "verification", current, view);
+  const status = recordStatusOf(records, "verification", current, view, independent);
   // `recordStatusOf` gives `inconclusive` for validation records only (see the file comment).
   return status === "passed" ? "verified" : (status as RecordVerificationStatus);
 };
@@ -127,7 +135,7 @@ export interface Validation {
 
 /** Whether `record` is a validation record of the core for `current` (`validationOf`). */
 const validatesCurrent = (record: EvidenceRecord, current: string | undefined): boolean =>
-  record.kind === "validation" && holdsIn(record, CORE) && record.version === current;
+  record.kind === "validation" && holdsIn(record, CORE, false) && record.version === current;
 
 /**
  * The reason of an `inconclusive` validation (SR-172 AK2): the first inconclusive record, in the
@@ -162,7 +170,7 @@ const reasonOf = (records: readonly EvidenceRecord[], current: string | undefine
  * `inconclusive` comes with the reason of the deciding record (SR-172 AK2).
  */
 export const validationOf = (records: readonly EvidenceRecord[], current: string | undefined): Validation => {
-  const status = recordStatusOf(records, "validation", current, CORE);
+  const status = recordStatusOf(records, "validation", current, CORE, false);
   if (status === "inconclusive") {
     const reason = reasonOf(records, current);
     return reason === undefined ? { status } : { status, reason };
@@ -172,7 +180,7 @@ export const validationOf = (records: readonly EvidenceRecord[], current: string
 
 /** Whether `records` hold a validation record that counts (`validationOf`: the core's). */
 export const hasValidationRecord = (records: readonly EvidenceRecord[]): boolean =>
-  records.some((r) => r.kind === "validation" && holdsIn(r, CORE));
+  records.some((r) => r.kind === "validation" && holdsIn(r, CORE, false));
 
 /**
  * Whether `element` has a validation status (SR-038): a need, and any other element with a counted
@@ -200,15 +208,26 @@ export interface StatusSource {
   readonly recordsOf: (id: string) => readonly EvidenceRecord[];
   /** Whether an element is marked emergent (`isEmergent`, SR-035): it needs an own record, never `indirect`. */
   readonly emergent: (element: ElementRecord) => boolean;
+  /**
+   * Whether the workspace file marks the element's repository `variant-independent` (SR-173): its
+   * records without variant hold in every view it applies in (`holdsIn`). Per element, not per UUID:
+   * twins in two repositories may differ (SR-088).
+   */
+  readonly independent: (element: Pick<ElementRecord, "repository">) => boolean;
 }
 
 const NO_RECORDS: readonly EvidenceRecord[] = Object.freeze([]);
 
 /**
  * The status source of `metamodel` with the records of `index`; without `index` (the metamodel is
- * not valid) no element has records.
+ * not valid) no element has records. `independent` names the repositories the workspace file marks
+ * `variant-independent` (`variantIndependentOf` of the layout, SR-173).
  */
-export const statusSource = (metamodel: Metamodel, index: EvidenceIndex | undefined): StatusSource => {
+export const statusSource = (
+  metamodel: Metamodel,
+  index: EvidenceIndex | undefined,
+  independent: ReadonlySet<string>,
+): StatusSource => {
   const emergentKey = emergentKeyOf(metamodel);
   return {
     requirements: new Set(typesWithMeaning(metamodel, "requirement").map((t) => t.key)),
@@ -217,5 +236,6 @@ export const statusSource = (metamodel: Metamodel, index: EvidenceIndex | undefi
     validity: validityOf(metamodel),
     recordsOf: (id) => index?.byElement.get(id) ?? NO_RECORDS,
     emergent: (element) => isEmergent(element, emergentKey),
+    independent: (element) => independent.has(element.repository),
   };
 };

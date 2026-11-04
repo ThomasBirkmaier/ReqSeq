@@ -453,7 +453,7 @@
     "/v1/commands/workspace.status": {
       "post": {
         "operationId": "workspace_status",
-        "summary": "Repositories of the workspace, which are available, where the metamodel comes from, read-only state.",
+        "summary": "Repositories of the workspace, which are available and which are variant-independent, where the metamodel comes from, read-only state.",
         "tags": [
           "workspace"
         ],
@@ -463,7 +463,8 @@
           "SR-004",
           "SR-006",
           "SR-011",
-          "SR-018"
+          "SR-018",
+          "SR-173"
         ],
         "requestBody": {
           "required": true,
@@ -504,6 +505,10 @@
                           },
                           "commit": {
                             "$ref": "#/components/schemas/common/$defs/commit"
+                          },
+                          "variantIndependent": {
+                            "const": true,
+                            "description": "The workspace file marks the repository variant-independent (SR-173): a record without variant for one of its elements counts in every view the element applies in. Left out without the mark."
                           },
                           "readOnly": {
                             "type": "boolean",
@@ -4405,7 +4410,7 @@
                     },
                     "evidence": {
                       "type": "array",
-                      "description": "The evidence (Nachweise) of the downward chain (SR-022 AK1, SR-033 AK1 to AK3), in the order of `nodes`, only for the nodes of the page whose children were looked at (`expanded`), paged like `gaps`; one item per element that has any, none with `direction` `up`. Only verification records (D-007: the chain ends at the Nachweise; validation records are in `evidence.list`). With `view` only the records that hold in it (SR-047: the core the records without a variant, a variant those for it); without `view` every record, each with its `variant`, as `evidence.list`. A test case all of whose executions of the element hold in another view is left out; a test case that was only skipped shows in every view. The Beleg of a record is its `evidence`; a JUnit execution has none, its Beleg is its record file (`repository`, `file`, `line`; D-007: for automatic tests the record is the result file). Belege are text and never opened.",
+                      "description": "The evidence (Nachweise) of the downward chain (SR-022 AK1, SR-033 AK1 to AK3), in the order of `nodes`, only for the nodes of the page whose children were looked at (`expanded`), paged like `gaps`; one item per element that has any, none with `direction` `up`. Only verification records (D-007: the chain ends at the Nachweise; validation records are in `evidence.list`). With `view` only the records that hold in it (SR-047: the core the records without a variant, a variant those for it and, for an element of a repository marked `variant-independent`, those without a variant, SR-173); without `view` every record, each with its `variant`, as `evidence.list`. A test case all of whose executions of the element hold in another view is left out; a test case that was only skipped shows in every view. The Beleg of a record is its `evidence`; a JUnit execution has none, its Beleg is its record file (`repository`, `file`, `line`; D-007: for automatic tests the record is the result file). Belege are text and never opened.",
                       "items": {
                         "type": "object",
                         "properties": {
@@ -7276,7 +7281,7 @@
                   },
                   "view": {
                     "$ref": "#/components/schemas/common/$defs/view",
-                    "description": "`core`: only the records without a variant; a variant: only the records for that variant (SR-047 AK1, AK2); absent: every record of the element."
+                    "description": "`core`: only the records without a variant; a variant: only the records for that variant (SR-047 AK1, AK2), and also those without a variant when the element's repository is marked `variant-independent` (SR-173); absent: every record of the element."
                   }
                 },
                 "additionalProperties": false,
@@ -7696,7 +7701,7 @@
                   },
                   "variant": {
                     "$ref": "#/components/schemas/common/$defs/elementRef",
-                    "description": "The variant the test run was for (an element whose type has the meaning variant): each enriched test case gets its UUID as `reqseq:variant`. Absent: a test case keeps its own `reqseq:variant`, if any, whose short ID or identifier becomes the UUID; `core` is none, but is checked like a variant. A test case that names another variant, or names an element that does not count in its variant (not valid there, excluded or replaced, as at `evidence.record`), stays unchanged and gets `evidence.invalid-record`; so does an enriched test case (never changed, D-026) whose variant differs from the given one."
+                    "description": "The variant the test run was for (an element whose type has the meaning variant): each enriched test case gets its UUID as `reqseq:variant`. Absent: a test case keeps its own `reqseq:variant`, if any, whose short ID or identifier becomes the UUID; `core` is none, but is checked like a variant (a record without variant counts in the core, and in every view the element applies in when its repository is marked `variant-independent`, SR-173). A test case that names another variant, or names an element that does not count in its variant (not valid there, excluded or replaced, as at `evidence.record`), stays unchanged and gets `evidence.invalid-record`; so does an enriched test case (never changed, D-026) whose variant differs from the given one."
                   },
                   "namePattern": {
                     "type": "string",
@@ -7910,7 +7915,8 @@
           "SR-035",
           "SR-038",
           "SR-047",
-          "SR-093"
+          "SR-093",
+          "SR-173"
         ],
         "requestBody": {
           "required": true,
@@ -8503,7 +8509,7 @@
                 "properties": {
                   "view": {
                     "$ref": "#/components/schemas/common/$defs/view",
-                    "description": "Default: the core. A variant: only records for it count, and only requirements its view holds (SR-047, SR-043)."
+                    "description": "Default: the core. A variant: only records for it count, and those without a variant for an element of a repository marked `variant-independent` (SR-173); only requirements its view holds (SR-047, SR-043)."
                   },
                   "limit": {
                     "type": "integer",
@@ -12416,7 +12422,7 @@
               },
               "variant": {
                 "$ref": "#/components/schemas/common/$defs/uuid",
-                "description": "Variant the record holds for. Absent: the core (D-026, SR-047 AK2)."
+                "description": "Variant the record holds for. Absent: the core (D-026, SR-047 AK2), and also every variant the element applies in when the element's repository is marked `variant-independent` (SR-173)."
               },
               "item": {
                 "type": "string",
@@ -12813,7 +12819,7 @@
           },
           "variant": {
             "$ref": "#/components/schemas/common/$defs/uuid",
-            "description": "Variant the record holds for. Absent: the core (D-026, SR-047 AK2). Verification only: a validation record with a variant is refused and counts for no status (D-007, SR-038 AK4)."
+            "description": "Variant the record holds for. Absent: the core (D-026, SR-047 AK2), and also every variant the element applies in when the element's repository is marked `variant-independent` in the workspace file (SR-173). Verification only: a validation record with a variant is refused and counts for no status (D-007, SR-038 AK4)."
           },
           "item": {
             "type": "string",
@@ -13217,7 +13223,7 @@
                       "down",
                       "evidence"
                     ],
-                    "description": "`up` = outgoing (to parents), `down` = incoming (from children), `evidence` = verification records pointing at the element in the view of the selection, else in the core (a record without variant holds for the core, one with a variant for that variant), of any version and result; validation records do not count (D-007); no `kind`, `meaning` or `to`. Absent: up or down."
+                    "description": "`up` = outgoing (to parents), `down` = incoming (from children), `evidence` = verification records pointing at the element in the view of the selection, else in the core (a record without variant holds for the core, and for every variant when the element's repository is marked `variant-independent`, SR-173; one with a variant for that variant), of any version and result; validation records do not count (D-007); no `kind`, `meaning` or `to`. Absent: up or down."
                   },
                   "to": {
                     "$ref": "#/components/schemas/filter/$defs/condition",
@@ -14068,6 +14074,11 @@
               "main": {
                 "type": "boolean",
                 "default": false
+              },
+              "variant-independent": {
+                "type": "boolean",
+                "default": false,
+                "description": "The repository does not know the variants of the workspace (SR-173): an evidence record without `variant` for one of its elements counts in the core and in every variant the element applies in (the view rule, SR-047 AK3). Without the mark such a record counts only in the core (D-026). Shared: `.reqseq/local.yaml` cannot change it. An older ReqSeq rejects a workspace file with it (`file.faulty`)."
               }
             },
             "additionalProperties": false

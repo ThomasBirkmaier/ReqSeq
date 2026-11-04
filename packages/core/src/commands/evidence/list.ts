@@ -1,7 +1,8 @@
 // evidence.list (SR-032): the evidence records of one element, newest first, each with its version,
 // item (Prüfling), date, result and evidence (Beleg) (AK1) and the names of the baselines that
 // contain its version (AK2, read-only baseline reader, spec question #530). `view` keeps the records
-// of the core or of one variant (SR-047). `problems` are those of the baseline files; `incomplete`
+// of the core or of one variant (SR-047), in a variant with those without variant when the element's
+// repository is marked `variant-independent` (SR-173). `problems` are those of the baseline files; `incomplete`
 // says that an evidence location or the baselines folder is not on this machine (SR-006 AK2).
 // `testCases` are the test cases that name the element, each with the element's executions that hold
 // in the view (SR-033, `testCasesIn`; every kind of record, as `records`). Nothing is written.
@@ -12,6 +13,7 @@ import { evidenceIndexState, evidenceReadState, listedRecords, testCasesIn } fro
 import { metamodelState } from "../../metamodel/index.js";
 import { elementStoreState, resolveRef, shortIdState } from "../../model/index.js";
 import { resolveView } from "../../variants/index.js";
+import { variantIndependentOf, workspaceLayoutState } from "../../workspace/index.js";
 
 export default defineCommand({
   name: "evidence.list",
@@ -30,11 +32,13 @@ export default defineCommand({
     const index = await ctx.workspace.get(evidenceIndexState);
     const read = await ctx.workspace.get(evidenceReadState);
     const baselines = await workspaceBaselines(ctx.workspace);
+    const layout = await ctx.workspace.get(workspaceLayoutState);
+    const independent = variantIndependentOf(layout).has(element.repository);
     return {
-      records: listedRecords(index.byElement.get(element.id) ?? [], view, (id, version) =>
+      records: listedRecords(index.byElement.get(element.id) ?? [], view, independent, (id, version) =>
         baselinesContaining(baselines, id, version),
       ),
-      testCases: testCasesIn(index, element.id, view),
+      testCases: testCasesIn(index, element.id, view, independent),
       problems: [...baselines.problems],
       incomplete: read.incomplete || baselines.incomplete,
     };

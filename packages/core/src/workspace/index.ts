@@ -55,6 +55,7 @@ export {
   loadWorkspaceLayout,
   locate,
   settingLocation,
+  variantIndependentOf,
   workspaceLayoutState,
 } from "./layout.js";
 export type { LocatedFolder, MetamodelLocation, RepositoryLocation, WorkspaceLayout } from "./layout.js";

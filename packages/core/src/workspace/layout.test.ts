@@ -6,7 +6,13 @@ import { describe, expect, it, onTestFinished } from "vitest";
 import { CommandError } from "../catalog.js";
 import { Workspace } from "../runtime/workspace.js";
 import { LOCAL_FILE, WORKSPACE_FILE } from "./config.js";
-import { loadWorkspaceLayout, locate, settingLocation, workspaceLayoutState } from "./layout.js";
+import {
+  loadWorkspaceLayout,
+  locate,
+  settingLocation,
+  variantIndependentOf,
+  workspaceLayoutState,
+} from "./layout.js";
 
 /** A main repository `main/` with the given workspace and local files, plus sibling folders. */
 const setup = async (
@@ -45,7 +51,9 @@ const failure = async (promise: Promise<unknown>): Promise<CommandError> => {
 describe("loadWorkspaceLayout", () => {
   it("locates repositories by path, by the default ../<name> and the main one at the root", async () => {
     const ws = await setup(
-      yaml(`${MAIN}  - { name: a, url: u }\n  - { name: b, url: u, path: ../elsewhere/b }\n`),
+      yaml(
+        `${MAIN}  - { name: a, url: u, variant-independent: false }\n  - { name: b, url: u, path: ../elsewhere/b, variant-independent: true }\n`,
+      ),
       {
         folders: ["a", "elsewhere/b"],
       },
@@ -60,16 +68,27 @@ describe("loadWorkspaceLayout", () => {
         name: "main",
         url: "u",
         main: true,
+        variantIndependent: false,
         path: ".",
         folder: ws.path("main"),
         available: true,
         excludes: [],
       },
-      { name: "a", url: "u", main: false, path: "../a", folder: ws.path("a"), available: true, excludes: [] },
+      {
+        name: "a",
+        url: "u",
+        main: false,
+        variantIndependent: false,
+        path: "../a",
+        folder: ws.path("a"),
+        available: true,
+        excludes: [],
+      },
       {
         name: "b",
         url: "u",
         main: false,
+        variantIndependent: true,
         path: "../elsewhere/b",
         folder: ws.path("elsewhere/b"),
         available: true,
@@ -83,6 +102,24 @@ describe("loadWorkspaceLayout", () => {
       exists: true,
     });
     expect(layout.problems).toEqual([]);
+    // The marked repositories (SR-173), built once per layout.
+    expect([...variantIndependentOf(layout)]).toEqual(["b"]);
+    expect(variantIndependentOf(layout)).toBe(variantIndependentOf(layout));
+  });
+
+  it("refuses a mark variant-independent that is no boolean, and .reqseq/local.yaml cannot set it (SR-173)", async () => {
+    const ws = await setup(yaml(`${MAIN}  - { name: a, url: u, variant-independent: "yes" }\n`), {
+      folders: ["a"],
+    });
+    expect((await failure(loadWorkspaceLayout(ws.path("main")))).code).toBe("file.faulty");
+    const local = await setup(yaml(`${MAIN}  - { name: a, url: u }\n`), { folders: ["a"] });
+    await local.write(
+      `main/${LOCAL_FILE}`,
+      "reqseq-local: 1\nrepositories:\n  a: { path: ../a, variant-independent: true }\n",
+    );
+    const layout = await loadWorkspaceLayout(local.path("main"));
+    expect(layout.repositories.map((r) => r.variantIndependent)).toEqual([false, false]);
+    expect(layout.problems.map((p) => p.severity)).toEqual(["warning"]);
   });
 
   it("applies relative and absolute paths of .reqseq/local.yaml", async () => {

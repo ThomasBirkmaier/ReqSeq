@@ -7,6 +7,9 @@ import { EMERGENT, EVIDENCE, FILTER, VARIANT_EVIDENCE } from "../../fixtures.js"
 /** Parents verified indirectly through Markdown records of their children, missing children (SR-034). */
 const INDIRECT: FixtureOptions = { fixture: "SR-034/indirect", git: true };
 
+/** A repository marked variant-independent next to an unmarked one, with records with and without variant (SR-173). */
+const INDEPENDENT: FixtureOptions = { fixture: "SR-173/independent", git: true };
+
 /** Needs, requirements and a use case with validation and verification records (SR-038). */
 const VALIDATION: FixtureOptions = { fixture: "SR-038/validation", git: true };
 
@@ -19,6 +22,20 @@ scenariosOf("evidence.status", [
     fixture: VARIANT_EVIDENCE,
     input: { selection: { ids: ["SR-0000a1", "SR-0000a2", "SR-0000b1"] } },
     tag: "[SR-047/AK3]",
+    expect: "output",
+  },
+  {
+    name: "records without variant count in every view in a variant-independent repository (SR-173 AK1)",
+    fixture: INDEPENDENT,
+    input: {},
+    tag: "[SR-173/AK1]",
+    expect: "output",
+  },
+  {
+    name: "records without variant count only in the core outside a variant-independent repository (SR-173 AK2)",
+    fixture: INDEPENDENT,
+    input: { selection: { ids: ["SR-0000a4"] } },
+    tag: "[SR-173/AK2]",
     expect: "output",
   },
   {

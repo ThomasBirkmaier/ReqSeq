@@ -126,22 +126,37 @@ describe("outdated evidence (SR-025 AK4)", () => {
   it("leaves out records of elements that are not in the store or have no current version", () => {
     const element = { id: B } as Parameters<typeof outdatedEvidenceFindings>[0][number];
     const label = (): string => "B";
+    const unmarked = (): boolean => false;
     expect(
-      outdatedEvidenceFindings([], [record(A, OLD, "2026-01-01T00:00:00Z")], () => A_VERSION, label),
+      outdatedEvidenceFindings(
+        [],
+        [record(A, OLD, "2026-01-01T00:00:00Z")],
+        () => A_VERSION,
+        label,
+        unmarked,
+      ),
     ).toEqual([]);
     expect(
-      outdatedEvidenceFindings([element], [record(B, OLD, "2026-01-01T00:00:00Z")], () => undefined, label),
+      outdatedEvidenceFindings(
+        [element],
+        [record(B, OLD, "2026-01-01T00:00:00Z")],
+        () => undefined,
+        label,
+        unmarked,
+      ),
     ).toEqual([]);
     // A tie on the newest date: the record of the current version counts, in either order.
     const tie = [record(B, A_VERSION, "2026-01-01T00:00:00Z"), record(B, OLD, "2026-01-01T00:00:00Z")];
-    expect(outdatedEvidenceFindings([element], tie, () => A_VERSION, label)).toEqual([]);
-    expect(outdatedEvidenceFindings([element], [...tie].reverse(), () => A_VERSION, label)).toEqual([]);
-    // A date that cannot be read counts as the oldest, in either order.
-    const unreadable = [record(B, OLD, "not a date"), record(B, A_VERSION, "2026-01-01T00:00:00Z")];
-    expect(outdatedEvidenceFindings([element], unreadable, () => A_VERSION, label)).toEqual([]);
-    expect(outdatedEvidenceFindings([element], [...unreadable].reverse(), () => A_VERSION, label)).toEqual(
+    expect(outdatedEvidenceFindings([element], tie, () => A_VERSION, label, unmarked)).toEqual([]);
+    expect(outdatedEvidenceFindings([element], [...tie].reverse(), () => A_VERSION, label, unmarked)).toEqual(
       [],
     );
+    // A date that cannot be read counts as the oldest, in either order.
+    const unreadable = [record(B, OLD, "not a date"), record(B, A_VERSION, "2026-01-01T00:00:00Z")];
+    expect(outdatedEvidenceFindings([element], unreadable, () => A_VERSION, label, unmarked)).toEqual([]);
+    expect(
+      outdatedEvidenceFindings([element], [...unreadable].reverse(), () => A_VERSION, label, unmarked),
+    ).toEqual([]);
     // A tie of records of an element that is not in the store decides nothing.
     expect(
       outdatedEvidenceFindings(
@@ -149,6 +164,7 @@ describe("outdated evidence (SR-025 AK4)", () => {
         [...tie, record(A, OLD, "2026-01-01T00:00:00Z"), record(A, A_VERSION, "2026-01-01T00:00:00Z")],
         () => A_VERSION,
         label,
+        unmarked,
       ),
     ).toEqual([]);
     // The newest record of a variant names the variant.
@@ -158,10 +174,46 @@ describe("outdated evidence (SR-025 AK4)", () => {
         [record(B, OLD, "2026-01-01T00:00:00Z", { variant: V })],
         () => A_VERSION,
         label,
+        unmarked,
       ).map((p) => p.message),
     ).toEqual([
       `The newest verification record of B for variant ${V}, from 2026-01-01T00:00:00Z, is for an older version`,
     ]);
+  });
+
+  it("follows the pooled status of an element of a marked repository: a current record without variant settles a variant (SR-173, #817 Q10)", () => {
+    const element = { id: B, repository: "supplier" } as Parameters<
+      typeof outdatedEvidenceFindings
+    >[0][number];
+    const marked = (e: { readonly repository: string }): boolean => e.repository === "supplier";
+    const label = (): string => "B";
+    const forV = record(B, OLD, "2026-01-02T00:00:00Z", { variant: V });
+    const coreCurrent = record(B, A_VERSION, "2026-01-01T00:00:00Z");
+    const findings = (records: readonly EvidenceRecord[], independent: typeof marked) =>
+      outdatedEvidenceFindings([element], records, () => A_VERSION, label, independent).map((p) => p.message);
+    expect(findings([forV, coreCurrent], marked)).toEqual([]);
+    // Without the mark the variant's group stands alone (SR-173 AK2).
+    expect(findings([forV, coreCurrent], () => false)).toHaveLength(1);
+    // A record without variant of an older version does not settle it, nor does a validation record.
+    expect(findings([forV, record(B, OLD, "2026-01-01T00:00:00Z")], marked)).toHaveLength(2);
+    expect(
+      findings([forV, record(B, A_VERSION, "2026-01-01T00:00:00Z", { kind: "validation" })], marked),
+    ).toHaveLength(1);
+  });
+
+  it("is computed again when the workspace file marks the repository (SR-173)", async () => {
+    const workspace = await withRecords([
+      record(A, OLD, "2026-01-02T00:00:00Z", { variant: V }),
+      record(A, A_VERSION, "2026-01-01T00:00:00Z"),
+    ]);
+    expect(await workspace.get(outdatedEvidenceProblemsState)).toHaveLength(1);
+    const layout = workspace.get(workspaceLayoutState);
+    const marked = layout.then((l) => ({
+      ...l,
+      repositories: l.repositories.map((r) => ({ ...r, variantIndependent: true })),
+    }));
+    await workspace.replace(workspaceLayoutState, layout, marked);
+    expect(await workspace.get(outdatedEvidenceProblemsState)).toEqual([]);
   });
 
   it("reports nothing against a metamodel that is not valid (#208, #220)", async () => {

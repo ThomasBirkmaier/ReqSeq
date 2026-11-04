@@ -41,9 +41,9 @@ describe("recordHoldsIn", () => {
   it("takes every record without a view, those without a variant in the core and a variant's own in it", () => {
     const core = record("2026-01-01T10:00:00Z");
     const coast = record("2026-01-01T10:00:00Z", { variant: COAST });
-    expect([core, coast].map((r) => recordHoldsIn(r, undefined))).toEqual([true, true]);
-    expect([core, coast].map((r) => recordHoldsIn(r, CORE))).toEqual([true, false]);
-    expect([core, coast].map((r) => recordHoldsIn(r, COAST_VIEW))).toEqual([false, true]);
+    expect([core, coast].map((r) => recordHoldsIn(r, undefined, false))).toEqual([true, true]);
+    expect([core, coast].map((r) => recordHoldsIn(r, CORE, false))).toEqual([true, false]);
+    expect([core, coast].map((r) => recordHoldsIn(r, COAST_VIEW, false))).toEqual([false, true]);
   });
 });
 
@@ -51,8 +51,8 @@ describe("testCasesIn", () => {
   it("gives the index's own array when nothing is filtered out", () => {
     const index = evidenceIndex([run("2026-01-02T10:00:00Z"), run("2026-01-01T10:00:00Z")], [skipped]);
     const all = index.testCasesOf(A);
-    expect(testCasesIn(index, A, undefined)).toBe(all);
-    expect(testCasesIn(index, A, CORE, ["verification"])).toBe(all);
+    expect(testCasesIn(index, A, undefined, false)).toBe(all);
+    expect(testCasesIn(index, A, CORE, false, ["verification"])).toBe(all);
     expect(all.map((t) => [t.name, t.executed, t.executions.length])).toEqual([
       ["test_gusts", false, 0],
       ["test_wind", true, 2],
@@ -64,13 +64,13 @@ describe("testCasesIn", () => {
     const older = run("2026-01-02T10:00:00Z", { item: "core-1" });
     const coastOnly = run("2026-01-01T10:00:00Z", { testCase: "test_coast", variant: COAST });
     const index = evidenceIndex([newer, older, coastOnly], [skipped]);
-    const inCore = testCasesIn(index, A, CORE);
+    const inCore = testCasesIn(index, A, CORE, false);
     expect(inCore.map((t) => [t.name, t.executed, t.executions, t.last])).toEqual([
       // Only skipped: shown in every view (a skipped test case carries no variant).
       ["test_gusts", false, [], undefined],
       ["test_wind", true, [older], older],
     ]);
-    expect(testCasesIn(index, A, COAST_VIEW).map((t) => [t.name, t.executions])).toEqual([
+    expect(testCasesIn(index, A, COAST_VIEW, false).map((t) => [t.name, t.executions])).toEqual([
       ["test_coast", [coastOnly]],
       ["test_gusts", []],
       ["test_wind", [newer]],
@@ -81,12 +81,14 @@ describe("testCasesIn", () => {
     const validation = run("2026-01-02T10:00:00Z", { kind: "validation", testCase: "pilot survey" });
     const verification = run("2026-01-01T10:00:00Z");
     const index = evidenceIndex([validation, verification]);
-    expect(testCasesIn(index, A, undefined).map((t) => t.name)).toEqual(["pilot survey", "test_wind"]);
-    expect(testCasesIn(index, A, undefined, ["verification"]).map((t) => t.name)).toEqual(["test_wind"]);
+    expect(testCasesIn(index, A, undefined, false).map((t) => t.name)).toEqual(["pilot survey", "test_wind"]);
+    expect(testCasesIn(index, A, undefined, false, ["verification"]).map((t) => t.name)).toEqual([
+      "test_wind",
+    ]);
   });
 
   it("gives none for an element no test case names", () => {
-    expect(testCasesIn(evidenceIndex([run("2026-01-01T10:00:00Z")]), B, CORE)).toEqual([]);
+    expect(testCasesIn(evidenceIndex([run("2026-01-01T10:00:00Z")]), B, CORE, false)).toEqual([]);
   });
 });
 
@@ -97,16 +99,23 @@ describe("chainEvidenceOf", () => {
     const coast = record("2026-01-01T10:00:00Z", { method: "inspection", variant: COAST });
     const validation = record("2026-01-04T10:00:00Z", { kind: "validation" });
     const index = evidenceIndex([tested, inspection, coast, validation]);
-    const all = chainEvidenceOf(index, A, undefined);
+    const all = chainEvidenceOf(index, A, undefined, false);
     expect(all?.testCases.map((t) => t.executions)).toEqual([[tested]]);
     expect(all?.records).toEqual([inspection, coast]);
-    expect(chainEvidenceOf(index, A, CORE)?.records).toEqual([inspection]);
-    expect(chainEvidenceOf(index, A, COAST_VIEW)).toEqual({ testCases: [], records: [coast] });
+    expect(chainEvidenceOf(index, A, CORE, false)?.records).toEqual([inspection]);
+    expect(chainEvidenceOf(index, A, COAST_VIEW, false)).toEqual({ testCases: [], records: [coast] });
+    // A marked repository (SR-173): the records without a variant hold in the variant too.
+    expect(chainEvidenceOf(index, A, COAST_VIEW, true)).toEqual({
+      testCases: [{ ...all?.testCases[0], executions: [tested], last: tested }],
+      records: [inspection, coast],
+    });
+    expect(chainEvidenceOf(index, A, CORE, true)?.records).toEqual([inspection]);
+    expect(recordHoldsIn(inspection, COAST_VIEW, true)).toBe(true);
   });
 
   it("gives undefined for an element without evidence, or with validation records only", () => {
     const index = evidenceIndex([record("2026-01-01T10:00:00Z", { element: B, kind: "validation" })]);
-    expect(chainEvidenceOf(index, A, undefined)).toBeUndefined();
-    expect(chainEvidenceOf(index, B, undefined)).toBeUndefined();
+    expect(chainEvidenceOf(index, A, undefined, false)).toBeUndefined();
+    expect(chainEvidenceOf(index, B, undefined, false)).toBeUndefined();
   });
 });

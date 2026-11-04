@@ -68,6 +68,8 @@ interface Setup {
   readonly noRules?: boolean;
   /** The key of the property with the meaning `emergent`; `emergent` unless given, null: none (SR-035). */
   readonly emergentKey?: string | null;
+  /** The repositories marked `variant-independent` (SR-173). */
+  readonly independent?: ReadonlySet<string>;
 }
 
 const evaluator = (setup: Setup) => {
@@ -80,6 +82,7 @@ const evaluator = (setup: Setup) => {
     recordsOf: (id) => index.byElement.get(id) ?? [],
     emergent: (e) =>
       isEmergent(e, setup.emergentKey === null ? undefined : (setup.emergentKey ?? "emergent")),
+    independent: (e) => setup.independent?.has(e.repository) === true,
   };
   const versions = setup.versions ?? new Map<ElementRecord, string | undefined>();
   return verificationEvaluator(

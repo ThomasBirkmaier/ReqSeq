@@ -22,7 +22,7 @@
     },
     "variant": {
       "$ref": "common.schema.json#/$defs/uuid",
-      "description": "Variant the record holds for. Absent: the core (D-026, SR-047 AK2). Verification only: a validation record with a variant is refused and counts for no status (D-007, SR-038 AK4)."
+      "description": "Variant the record holds for. Absent: the core (D-026, SR-047 AK2), and also every variant the element applies in when the element's repository is marked `variant-independent` in the workspace file (SR-173). Verification only: a validation record with a variant is refused and counts for no status (D-007, SR-038 AK4)."
     },
     "item": {
       "type": "string",

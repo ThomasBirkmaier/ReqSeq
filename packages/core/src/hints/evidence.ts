@@ -10,6 +10,10 @@
 //   A newer record of an older version next to one of the current version gives no hint, as the
 //   status (SR-031, evidence/status.ts) then follows the current one (#201, product owner decision,
 //   2026-10-29: the hint follows the status).
+// - For an element whose repository the workspace file marks `variant-independent` (SR-173) the
+//   records without variant hold in every variant too, so a variant's group is outdated only when
+//   neither its own records nor those without variant (of the same kind) have the current version
+//   (spec question #817 Q10, assumption; the hint follows the status, #201).
 // - Problem `evidence.outdated`, severity `warning` (as `relation.outdated`: SR-019 AK2 ends the
 //   check with exit code 1 for it), with the record's repository, file and line when it has them,
 //   `elementId` with the element's own repository and file (`elementRepository`, `elementFile`:
@@ -36,6 +40,7 @@ import { settledValue } from "../runtime/settled.js";
 import type { Workspace } from "../runtime/workspace.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
+import { variantIndependentOf, workspaceLayoutState } from "../workspace/index.js";
 
 /** One evidence record as far as the check needs it (ADR-0012), and where it lies when it says so. */
 export type EvidenceVersion = Pick<
@@ -75,20 +80,34 @@ const recordGroups = (records: readonly EvidenceVersion[]): Map<string, RecordGr
 /**
  * The outdated evidence of `elements` (SR-025 AK4): for each element in the given order, per kind
  * and variant with no record of the version `currentOf` gives for that element (each copy of a UUID
- * against its own, SR-088), the newest record.
+ * against its own, SR-088), the newest record. For an element `independent` names (its repository is
+ * marked `variant-independent`, SR-173) a variant's group counts the versions of the group without
+ * variant of the same kind too.
  */
 export const outdatedEvidenceFindings = (
   elements: readonly ElementRecord[],
   records: readonly EvidenceVersion[],
   currentOf: (element: ElementRecord) => string | undefined,
   label: (element: ElementRecord) => string,
+  independent: (element: ElementRecord) => boolean,
 ): Problem[] => {
   const groups = recordGroups(records);
   const problems: Problem[] = [];
   for (const element of elements) {
     const version = currentOf(element);
-    for (const { newest: record, versions } of groups.get(element.id) ?? []) {
+    const own = groups.get(element.id) ?? [];
+    const pooled = independent(element);
+    for (const { newest: record, versions } of own) {
       if (version === undefined || versions.has(version)) {
+        continue;
+      }
+      if (
+        pooled &&
+        record.variant !== undefined &&
+        own.some(
+          (g) => g.newest.variant === undefined && g.newest.kind === record.kind && g.versions.has(version),
+        )
+      ) {
         continue;
       }
       const variant = record.variant === undefined ? "" : ` for variant ${record.variant}`;
@@ -122,14 +141,24 @@ export const outdatedEvidenceProblemsState = defineWorkspaceState(
     }
     const versions = await workspace.get(currentVersionsState);
     const shortIds: ShortIds = await workspace.get(shortIdState);
+    const marked = variantIndependentOf(await workspace.get(workspaceLayoutState));
     return outdatedEvidenceFindings(
       versions.store.elements,
       records,
       (element) => currentVersionOf(versions, element),
       (element) => elementLabel({ metamodel, shortIds }, element),
+      (element) => marked.has(element.repository),
     );
   },
-  { dependsOn: [evidenceRecordsState, metamodelState, shortIdState, currentVersionsState] },
+  {
+    dependsOn: [
+      evidenceRecordsState,
+      metamodelState,
+      shortIdState,
+      currentVersionsState,
+      workspaceLayoutState,
+    ],
+  },
 );
 
 /** What the outdated evidence of one element reads: the states `element.get` works on. */
@@ -190,5 +219,6 @@ export const elementEvidenceFindings = async (
     records,
     (r) => currentVersionOf(versions, r),
     (r) => elementLabel({ metamodel, shortIds }, r),
+    (r) => variantIndependentOf(layout).has(r.repository),
   ).map(toFinding);
 };

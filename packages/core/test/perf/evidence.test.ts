@@ -627,4 +627,42 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 #5
     );
     expect(out.problems.filter((p) => p.severity === "error")).toEqual([]);
   });
+
+  it("records the filter and evidence.status with the repository of the system requirements marked variant-independent (SR-173)", async () => {
+    const file = path.join(fixture?.workspaceRoot ?? "", "reqseq-workspace.yaml");
+    const unmarked = await fs.readFile(file, "utf8");
+    const marked = unmarked.replace("main: true }", "main: true, variant-independent: true }");
+    expect(marked).not.toBe(unmarked);
+    await fs.writeFile(file, marked);
+    try {
+      await reopen();
+      await readEvidence(ws());
+      const where = { verification: ["verified"] };
+      const { result: cold } = await measure(
+        "variant-independent repository (SR-173): filter verification [verified], first page, first after the start",
+        () => run("element.list", { selection: { where } }),
+        { basis: `SR-173, SR-082 AK4 (cold; ${COMPARE_AK4})`, ...COMPARED },
+      );
+      const { result: warm } = await measure(
+        "variant-independent repository (SR-173): filter verification [verified], first page, again",
+        () => run("element.list", { selection: { where } }),
+        { basis: `SR-173, SR-082 AK4 (warm; ${COMPARE_AK4})`, ...COMPARED },
+      );
+      expect(warm).toEqual(cold);
+      const requirements = { selection: { where: { type: ["system-requirement"] } }, limit: 200 };
+      const { result: page } = await measure(
+        "variant-independent repository (SR-173): evidence.status, first page (200) of the system requirements",
+        () => run("evidence.status", requirements),
+        { basis: `SR-173, SR-031 (${COMPARE_AK4})`, ...COMPARED },
+      );
+      // The records without variant now hold in the variants too.
+      expect(
+        page.elements.some((e) =>
+          (e.verification ?? []).some((v) => v.view !== "core" && v.status === "verified"),
+        ),
+      ).toBe(true);
+    } finally {
+      await fs.writeFile(file, unmarked);
+    }
+  });
 });

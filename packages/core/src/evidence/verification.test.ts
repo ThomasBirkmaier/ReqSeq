@@ -58,6 +58,7 @@ const sourceOf = (records: readonly EvidenceRecord[]): StatusSource => {
     validity: { key: "validity", many: true, label: "property Validity (validity)" },
     recordsOf: (id) => index.byElement.get(id) ?? [],
     emergent: (e) => isEmergent(e, "emergent"),
+    independent: () => false,
   };
 };
 

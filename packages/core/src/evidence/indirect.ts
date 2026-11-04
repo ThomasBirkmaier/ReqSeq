@@ -4,8 +4,11 @@
 // reads the element's `status` beyond the invalid flag and never changes it (D-030).
 //
 // 1. Own record decides: a requirement with at least one verification record that holds in the view
-//    (any version, any result; `holdsIn`, SR-047) has its SR-031 status there and names no children
-//    (spec question #526 Q1, Q4 assumptions). Validation records do not count (D-007).
+//    (any version, any result; `holdsIn`, SR-047; in a variant also one without variant when the
+//    element's repository is marked `variant-independent`, SR-173) has its SR-031 status there and
+//    names no children (spec question #526 Q1, Q4 assumptions). Validation records do not count
+//    (D-007). Each child counts by its own repository's mark, so a parent elsewhere is `indirect` in
+//    a variant through the variant-less records of children in a marked repository (#817 Q3).
 // 2. Counted children: the derivation children (`ChildRules.childrenOf`: the trace block's
 //    `childrenOf`, so a child named only by an ambiguous relation is none), each once, whose type has
 //    the meaning `requirement` (#526 Q2), whose status the metamodel does not mark invalid (AK3,
@@ -28,13 +31,16 @@
 //    children are not walked (#591 Q2, Q3). As a child it is then open, so its parent names it (rule 5).
 //
 // Cost (#698): the views share their work. Besides the core and the variants the evaluator keeps one
-// internal neutral view: the view of the core (no validity) and no record that holds. In a variant
+// internal neutral view: the view of the core (no validity) in which only a record without variant
+// of an element of a `variant-independent` repository holds (SR-173: it holds in every variant, so
+// it is no seed). In a variant
 // `v` the result of an element whose subtree (the element and its candidate children, recursively:
 // requirements that count, whatever their validity; none below an emergent element) holds no seed
 // of `v` is the neutral result: a seed of `v` is a requirement whose validity names `v` (repository
 // and UUID, as `appliesIn`), an element with a verification record for `v` (its UUID, as `holdsIn`)
 // or a core requirement the rule of `v` may remove (`removersOf`). Below such an element the view
-// and `holdsIn` give in `v` what they give in the neutral view, and no rule reads anything else per view, so every variant reuses
+// and `holdsIn` give in `v` what they give in the neutral view (the records that hold in `v` are then
+// the variant-less ones of a marked element), and no rule reads anything else per view, so every variant reuses
 // the one neutral walk and walks itself only through the elements above its seeds. The seeds below
 // each element (`seedsBelow`) are found by one walk over its subtree, exact also on cycles (a
 // fixpoint over the elements of the walk). At N-036 with 100 variants this replaces 101 walks below
@@ -162,10 +168,15 @@ const ownViewsOf = (source: StatusSource, id: string): OwnViews => {
   return own;
 };
 
-/** Whether `element` has a verification record that holds in `view` (rule 1; `holdsIn`, SR-047). */
+/**
+ * Whether `element` has a verification record that holds in `view` (rule 1; `holdsIn`, SR-047,
+ * SR-173). The mark of the repository is looked up only when a record without variant exists.
+ */
 export const hasOwnRecordIn = (source: StatusSource, element: ElementRecord, view: View): boolean => {
   const own = ownViewsOf(source, element.id);
-  return view.kind === "core" ? own.core : own.variants.has(view.variant.id);
+  return view.kind === "core"
+    ? own.core
+    : own.variants.has(view.variant.id) || (own.core && source.independent(element));
 };
 
 const OPEN: VerificationResult = Object.freeze({ status: "open" });
@@ -440,7 +451,7 @@ const evaluatorWith = (
     view: CORE,
     memo: caches.neutral,
     applies: coreRules.applies,
-    holds: () => false,
+    holds: (element) => ownViewsOf(source, element.id).core && source.independent(element),
     clean: () => false,
   };
   const variantRules = new Map<string, ViewRules>();
@@ -464,7 +475,7 @@ const evaluatorWith = (
         view,
         memo,
         applies: scope.includesIn(view),
-        holds: (element) => ownViewsOf(source, element.id).variants.has(variant.id),
+        holds: (element) => hasOwnRecordIn(source, element, view),
         clean: (element) => {
           const below = seedsBelow(element);
           return !below.has(byValidity) && !below.has(byRecord) && !below.has(byRule);
@@ -484,7 +495,12 @@ const evaluatorWith = (
   /** The status of a counted child, once its walk is done; one being computed counts as open (rule 6). */
   const childStatus = (child: ElementRecord, rules: ViewRules) => {
     if (rules.holds(child)) {
-      return verificationStatusOf(source.recordsOf(child.id), currentOf(child), rules.view);
+      return verificationStatusOf(
+        source.recordsOf(child.id),
+        currentOf(child),
+        rules.view,
+        source.independent(child),
+      );
     }
     if (rules.clean(child)) {
       return derived(child, neutral).status;
@@ -547,7 +563,14 @@ const evaluatorWith = (
     }
     if (rules.holds(element)) {
       const current = shown === undefined ? currentOf(element) : shown.current;
-      return { status: verificationStatusOf(source.recordsOf(element.id), current, view) };
+      return {
+        status: verificationStatusOf(
+          source.recordsOf(element.id),
+          current,
+          view,
+          source.independent(element),
+        ),
+      };
     }
     return derived(element, rules.clean(element) ? neutral : rules);
   };

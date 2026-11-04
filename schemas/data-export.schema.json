@@ -285,7 +285,7 @@
         },
         "variant": {
           "$ref": "common.schema.json#/$defs/uuid",
-          "description": "Variant the record holds for. Absent: the core (D-026, SR-047 AK2)."
+          "description": "Variant the record holds for. Absent: the core (D-026, SR-047 AK2), and also every variant the element applies in when the element's repository is marked `variant-independent` (SR-173)."
         },
         "item": {
           "type": "string",

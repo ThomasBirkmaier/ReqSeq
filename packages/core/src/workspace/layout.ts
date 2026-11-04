@@ -16,6 +16,11 @@ export interface RepositoryLocation {
   /** The repository that holds the workspace file; it is always `Workspace.root`. */
   readonly main: boolean;
   /**
+   * The workspace file marks it `variant-independent` (SR-173): a record without variant for one of
+   * its elements counts in every view the element applies in. `.reqseq/local.yaml` cannot change it.
+   */
+  readonly variantIndependent: boolean;
+  /**
    * Where it is looked for, as configured: from `.reqseq/local.yaml`, else `path` of the workspace
    * file (with `/`), else `.` for the main repository and `../<name>` for the others. Relative
    * paths are relative to the main repository. No `~` expansion.
@@ -182,6 +187,7 @@ const locateRepository = async (
     name: entry.name,
     url: entry.url,
     main: isMain,
+    variantIndependent: entry["variant-independent"] === true,
     path: configured,
     folder: real ?? resolved,
     available: real !== undefined,
@@ -320,6 +326,21 @@ export const loadWorkspaceLayout = async (root: string): Promise<WorkspaceLayout
   problems.push(...repositories.filter((r) => !r.available).map(missingRepository));
   const metamodel = await locateMetamodel(file.metamodel, repositories, problems);
   return { root, name: file.name, main: main.name, file, repositories, metamodel, problems };
+};
+
+const independentByLayout = new WeakMap<Pick<WorkspaceLayout, "repositories">, ReadonlySet<string>>();
+
+/**
+ * The names of the repositories the workspace file marks `variant-independent` (SR-173), built once
+ * per layout. A change of the workspace file builds a new layout, so it never goes stale.
+ */
+export const variantIndependentOf = (layout: Pick<WorkspaceLayout, "repositories">): ReadonlySet<string> => {
+  let names = independentByLayout.get(layout);
+  if (names === undefined) {
+    names = new Set(layout.repositories.filter((r) => r.variantIndependent).map((r) => r.name));
+    independentByLayout.set(layout, names);
+  }
+  return names;
 };
 
 /** The repositories whose folders exist: the roots in which elements are discovered (SR-003, SR-004 AK1). */

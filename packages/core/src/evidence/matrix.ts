@@ -25,6 +25,7 @@ import type { View } from "../variants/index.js";
 import type { EvidenceIndex } from "./by-element.js";
 import { viewIdOf } from "./degree.js";
 import type { TestCase } from "./record.js";
+import type { StatusSource } from "./status.js";
 import type { WorkspaceStatus } from "./verification.js";
 import { verificationTestCasesIn } from "./views.js";
 
@@ -63,15 +64,17 @@ export const testCaseMark = (test: TestCase, current: string | undefined): Matri
 /**
  * The test case cell of the element `id` in `view` (see the file comment): its test cases with their
  * verification executions in the view, by class name then name, each with its last execution and
- * mark; an empty array when it has none (a gap, AK2).
+ * mark; an empty array when it has none (a gap, AK2). `independent`: the element's repository is
+ * marked `variant-independent` (SR-173).
  */
 export const matrixTestCases = (
   index: EvidenceIndex,
   id: string,
   view: View,
+  independent: boolean,
   current: string | undefined,
 ): MatrixTestCase[] =>
-  verificationTestCasesIn(index, id, view).map((test): MatrixTestCase => {
+  verificationTestCasesIn(index, id, view, independent).map((test): MatrixTestCase => {
     const mark = testCaseMark(test, current);
     return {
       name: test.name,
@@ -101,7 +104,7 @@ export const showsEvidence = (
 
 /** What the evidence columns read: the shared status (prepared for the rows), the evidence index and the view. */
 export interface MatrixEvidenceInput {
-  readonly status: Pick<WorkspaceStatus, "evaluate">;
+  readonly status: Pick<WorkspaceStatus, "evaluate"> & { readonly source: Pick<StatusSource, "independent"> };
   readonly index: EvidenceIndex;
   readonly view: View;
 }
@@ -123,7 +126,7 @@ export const matrixEvidence =
     }
     const { missingChildren } = result;
     return {
-      testCases: matrixTestCases(index, element.id, view, current),
+      testCases: matrixTestCases(index, element.id, view, status.source.independent(element), current),
       verification: [
         {
           view: viewIdOf(view),

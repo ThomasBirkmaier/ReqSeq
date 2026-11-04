@@ -1,0 +1,9 @@
+reqseq-workspace: 1
+name: Weather station
+repositories:
+  - { name: system, url: "git@git.example.com:ws/system.git", main: true }
+  - { name: supplier, url: "git@git.example.com:ws/supplier.git", path: supplier, variant-independent: true }
+metamodel: { repository: system, path: metamodel }
+evidence:
+  - { repository: system, path: evidence }
+  - { repository: supplier, path: test-results }
