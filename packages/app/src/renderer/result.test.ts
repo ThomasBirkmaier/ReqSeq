@@ -140,7 +140,12 @@ describe("result lines", () => {
   it("shows an item whose id `names` names as its element row with its other fields under it, in its own repository", () => {
     const lines = resultLines({
       elements: [
-        { id: "uuid-1", repository: "sensor", state: "removed", verification: { status: "open" } },
+        {
+          id: "uuid-1",
+          repository: "sensor",
+          state: "removed",
+          verification: [{ view: "core", status: "open" }],
+        },
         { id: "uuid-2", state: "added" },
         { id: "uuid-9", state: "missing" },
       ],
@@ -152,7 +157,8 @@ describe("result lines", () => {
       ["element", 1, "SR-000001", "Title 1"],
       ["text", 2, "repository", "sensor"],
       ["text", 2, "state", "removed"],
-      ["text", 2, "verification", ""],
+      ["text", 2, "verification", "1"],
+      ["text", 3, "view", "core"],
       ["text", 3, "status", "open"],
       ["element", 1, "SR-000002", "Title 2"],
       ["text", 2, "state", "added"],
@@ -164,7 +170,7 @@ describe("result lines", () => {
       ["text", 1, "state", "changed"],
     ]);
     expect(lines[1]?.open).toEqual(elementBuffer("uuid-1", "sensor", "SR-000001 Title 1"));
-    expect(lines[6]?.open).toEqual(elementBuffer("uuid-2", "spec", "SR-000002 Title 2"));
+    expect(lines[7]?.open).toEqual(elementBuffer("uuid-2", "spec", "SR-000002 Title 2"));
     // A top-level output with an `id` is no list item: an outline.
     expect(
       resultLines({ id: "uuid-1", state: "changed", names: [element(1)] }).map((line) => line.label),

@@ -1099,7 +1099,7 @@ mark {
 
 .mm-text-property {
   display: grid;
-  grid-template-columns: minmax(0, 14rem) minmax(0, 12rem) minmax(0, 18rem) minmax(0, 5rem) auto;
+  grid-template-columns: minmax(0, 14rem) minmax(0, 12rem) minmax(0, 18rem) max-content auto;
   justify-content: start;
   gap: 1rem;
   align-items: baseline;

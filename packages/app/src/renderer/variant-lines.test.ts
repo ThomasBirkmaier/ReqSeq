@@ -109,6 +109,9 @@ describe("the lines of a requirement's variants", () => {
     expect(text(lines.validation)).toBe("Validation — inconclusive: No frost yet, see notes");
     const long = variantLines(output({ validation: "inconclusive", validationReason: "x".repeat(300) }));
     expect(text(long.validation)).toBe(`Validation — inconclusive: ${"x".repeat(REASON_LENGTH - 1)}…`);
+    // Cut by graphemes: an emoji, also one of several code points, is never split.
+    const emoji = variantLines(output({ validation: "inconclusive", validationReason: "👍🏽".repeat(300) }));
+    expect(text(emoji.validation)).toBe(`Validation — inconclusive: ${"👍🏽".repeat(REASON_LENGTH - 1)}…`);
   });
 
   it("names an element that names lacks by its UUID, without a link", () => {

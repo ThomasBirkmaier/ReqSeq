@@ -123,7 +123,7 @@ export const metamodelText = (output: MetamodelGetOutput): MetamodelText => {
         name: properties.get(key)?.name ?? key,
         value: valueOf(properties.get(key), typeNames),
         required: type.required.includes(key),
-        content: properties.get(key)?.content === true,
+        content: properties.get(key)?.content ?? false,
         inherited: fromParent.has(key),
       })),
       statuses: type.statuses.map((key) => statusNames.get(key) ?? key),

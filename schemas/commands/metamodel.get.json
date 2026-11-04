@@ -24,7 +24,14 @@
       "properties": {
         "type": "array",
         "items": {
-          "$ref": "../metamodel.schema.json#/$defs/property"
+          "allOf": [
+            {
+              "$ref": "../metamodel.schema.json#/$defs/property"
+            },
+            {
+              "required": ["content"]
+            }
+          ]
         },
         "description": "The property definitions as written, except that each carries `content`, false when not written: whether a change of its value gives a new version and makes evidence and relations outdated (D-057, #624)."
       },

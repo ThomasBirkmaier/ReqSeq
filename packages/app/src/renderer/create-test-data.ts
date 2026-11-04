@@ -31,7 +31,7 @@ export const CREATE_METAMODEL: MetamodelGetOutput = {
   ],
   properties: [
     ...FIXTURE_METAMODEL.properties,
-    { key: "related", name: "Related", kind: "relation" },
-    { key: "scope", name: "Scope", kind: "relation", "target-types": [] },
+    { key: "related", name: "Related", kind: "relation", content: false },
+    { key: "scope", name: "Scope", kind: "relation", "target-types": [], content: false },
   ],
 };

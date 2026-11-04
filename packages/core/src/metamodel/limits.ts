@@ -57,7 +57,10 @@ export const limitProblems = (
   const within = (type: MetamodelKey, parent: MetamodelKey): boolean =>
     type === parent || ancestors.get(type)?.includes(parent) === true;
   return relations.flatMap((located) => {
-    const { key, limits = [] } = located.definition;
+    const { key, limits = [], "source-types": sources } = located.definition;
+    // A limit without `source-type` applies to the kind's source types, so with only one it names
+    // the same pair as a limit with that `source-type`.
+    const only = sources?.length === 1 ? sources[0] : undefined;
     const pairs = new Set<string>();
     return limits.flatMap((limit, index): Problem[] => {
       const at = ["limits", String(index)];
@@ -66,7 +69,7 @@ export const limitProblems = (
         const message = `Relation kind ${key} has a limit with min ${String(limit.min)} above max ${String(limit.max)}`;
         found.push(problem(located, "error", [...at, "min"], message));
       }
-      const pair = `${limit["source-type"] ?? ""} ${limit["target-type"]}`;
+      const pair = `${limit["source-type"] ?? only ?? ""} ${limit["target-type"]}`;
       if (pairs.has(pair)) {
         const message = `Relation kind ${key} has a second limit for the same source and target type; one limit per pair`;
         found.push(problem(located, "error", at, message));

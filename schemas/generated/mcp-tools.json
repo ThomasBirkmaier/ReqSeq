@@ -3324,7 +3324,16 @@
           "properties": {
             "type": "array",
             "items": {
-              "$ref": "#/$defs/metamodel/$defs/property"
+              "allOf": [
+                {
+                  "$ref": "#/$defs/metamodel/$defs/property"
+                },
+                {
+                  "required": [
+                    "content"
+                  ]
+                }
+              ]
             },
             "description": "The property definitions as written, except that each carries `content`, false when not written: whether a change of its value gives a new version and makes evidence and relations outdated (D-057, #624)."
           },
@@ -6373,12 +6382,12 @@
               "failed",
               "inconclusive"
             ],
-            "description": "`inconclusive` (nicht beurteilbar) for a validation only, with `reason` (SR-172 AK1): without `reason` it is `input.invalid` naming `reason`, for a verification `input.invalid` naming `result`."
+            "description": "The result of the check. `inconclusive` (nicht beurteilbar) is allowed for a validation only and needs a `reason` (SR-172 AK1)."
           },
           "reason": {
             "type": "string",
             "pattern": "^(?![\\s\\S]*[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F])[\\s\\S]*\\S[\\s\\S]*$",
-            "description": "Why the validation is inconclusive (Begründung, SR-172): required with the result `inconclusive` and refused with any other (`input.invalid` naming `reason`). At least one character that is not white space, no control characters other than tab, line feed and carriage return."
+            "description": "Why the validation is inconclusive (Begründung, SR-172): required with the result `inconclusive`, not allowed with any other result. At least one character that is not white space, no control characters other than tab, line feed and carriage return."
           },
           "item": {
             "$ref": "#/$defs/common/$defs/item",

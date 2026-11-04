@@ -164,7 +164,7 @@ describe("metamodelGraph", () => {
   it("skips a type key that names no type, an empty list, and a parent that is not defined", () => {
     const output = metamodelOutput({
       types: [effectiveType("a", ["p"], "gone"), effectiveType("b")],
-      properties: [{ key: "q", name: "Q", kind: "relation", "target-types": ["gone", "b"] }],
+      properties: [{ key: "q", name: "Q", kind: "relation", "target-types": ["gone", "b"], content: false }],
       relations: [
         relation("r", { "source-types": ["gone", "a"], "target-types": ["b", "gone"] }),
         relation("empty", { "source-types": [], "target-types": ["a"] }),
@@ -179,9 +179,16 @@ describe("metamodelGraph", () => {
     const output = metamodelOutput({
       types: [effectiveType("base", ["see", "kind"]), effectiveType("sub", ["see", "kind", "more"], "base")],
       properties: [
-        { key: "see", name: "See", kind: "relation" },
-        { key: "kind", name: "Kind", kind: "text" },
-        { key: "more", name: "More", kind: "relation", many: true, "target-types": ["base", "sub"] },
+        { key: "see", name: "See", kind: "relation", content: false },
+        { key: "kind", name: "Kind", kind: "text", content: false },
+        {
+          key: "more",
+          name: "More",
+          kind: "relation",
+          many: true,
+          "target-types": ["base", "sub"],
+          content: false,
+        },
       ],
     });
     expect(edgeLines(output)).toEqual([

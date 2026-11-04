@@ -1633,7 +1633,9 @@ export interface MetamodelGetOutput {
   /** The types with inheritance resolved (SR-012), in metamodel order; `statuses` are the statuses each type offers (#306). */
   readonly types: readonly MetamodelEffectiveType[];
   /** The property definitions as written, except that each carries `content`, false when not written: whether a change of its value gives a new version and makes evidence and relations outdated (D-057, #624). */
-  readonly properties: readonly MetamodelProperty[];
+  readonly properties: readonly (MetamodelProperty & {
+    readonly content: unknown;
+  })[];
   readonly relations: readonly MetamodelRelationKind[];
   readonly statuses: readonly MetamodelStatus[];
   /** Every built-in meaning of metamodel.schema.json (`meaning` of types, properties and relation kinds) -> the keys whose own definition declares it, in metamodel order; empty if unassigned (SR-013 AK3). In a valid metamodel a type or property meaning has at most one key, a relation meaning any number. Types that inherit a meaning, or repeat the one they inherit, are not listed; `types` shows their effective `meaning`. */
@@ -2645,9 +2647,9 @@ export interface EvidenceRecordInput {
   readonly kind: "verification" | "validation";
   /** Required for verification. */
   readonly method?: "test" | "analysis" | "inspection" | "demonstration";
-  /** `inconclusive` (nicht beurteilbar) for a validation only, with `reason` (SR-172 AK1): without `reason` it is `input.invalid` naming `reason`, for a verification `input.invalid` naming `result`. */
+  /** The result of the check. `inconclusive` (nicht beurteilbar) is allowed for a validation only and needs a `reason` (SR-172 AK1). */
   readonly result: "passed" | "failed" | "inconclusive";
-  /** Why the validation is inconclusive (Begründung, SR-172): required with the result `inconclusive` and refused with any other (`input.invalid` naming `reason`). At least one character that is not white space, no control characters other than tab, line feed and carriage return. */
+  /** Why the validation is inconclusive (Begründung, SR-172): required with the result `inconclusive`, not allowed with any other result. At least one character that is not white space, no control characters other than tab, line feed and carriage return. */
   readonly reason?: string;
   /** The item under test (Prüfling), for example the build or sample. Required for verification. No white space at either end and no control characters other than tab, line feed and carriage return. */
   readonly item?: Item;

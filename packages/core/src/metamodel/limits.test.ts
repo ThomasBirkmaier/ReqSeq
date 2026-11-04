@@ -65,6 +65,34 @@ describe("relation limits in the metamodel (SR-152)", () => {
     expect(limitsOf(metamodel).size).toBe(0);
   });
 
+  it("counts a limit without source-type as one for the kind's only source type", () => {
+    const relation = {
+      key: "refines",
+      name: "Refines",
+      "source-types": ["a"],
+      limits: [
+        { "target-type": "b", max: 1 },
+        { "source-type": "a", "target-type": "b", min: 1 },
+      ],
+    };
+    expect(
+      limitProblems([{ definition: relation, file: "m.yaml", lineOf: () => undefined }], [], false),
+    ).toEqual([
+      {
+        code: "metamodel.invalid",
+        severity: "error",
+        file: "m.yaml",
+        message:
+          "Relation kind refines has a second limit for the same source and target type; one limit per pair",
+      },
+    ]);
+    // With two source types, a limit without source-type covers both: no second limit for a pair.
+    const two = { ...relation, "source-types": ["a", "c"] };
+    expect(limitProblems([{ definition: two, file: "m.yaml", lineOf: () => undefined }], [], false)).toEqual(
+      [],
+    );
+  });
+
   it("reports a limit problem without a line when the definition has none", () => {
     const relation = { key: "refines", name: "Refines", limits: [{ "target-type": "nede", max: 1 }] };
     expect(

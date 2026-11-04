@@ -25,10 +25,10 @@ scenariosOf("workspace.status", [
     expect: "output",
   },
   {
+    // The mark only; the status AK1 asks for is the evidence.status scenario of SR-173 AK1.
     name: "a repository marked variant-independent (SR-173)",
     fixture: { fixture: "SR-173/independent", git: true },
     input: {},
-    tag: "[SR-173/AK1]",
     expect: "output",
   },
   { name: "unknown input field", input: { extra: 1 }, expect: "error" },
