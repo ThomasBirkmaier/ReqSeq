@@ -2,7 +2,7 @@
 // white sheet (`metamodel-text.ts` says which words stand for which field). One section per type: its
 // name, prefix and key, "abstract", its parent, its properties with value kind, "required" and "counts to
 // version" (the inherited ones muted, as in the graph) and its statuses; then one line per relation kind with its
-// source and target types; then the problems of the output. Greys only (D-062).
+// source and target types, and a line per limit under it (SR-152); then the problems of the output. Greys only (D-062).
 // Keys as in every list of the main window (SR-122 AK4, AK5; `rowTarget`): Down and Ctrl+N, Up and
 // Ctrl+P, Page Up and Page Down, Home and End move the selection. The selected type is the graph's
 // (Ctrl/Cmd+T, AK4): the text opens on it, and a type selected here is selected in the graph.
@@ -59,13 +59,21 @@ const TypeSection = ({ row }: { readonly row: TypeRow }): React.JSX.Element => (
 );
 
 const RelationLine = ({ row }: { readonly row: RelationRow }): React.JSX.Element => (
-  <div className="mm-text-head">
-    <span className="mm-text-name">{row.name}</span>
-    <span className="mm-key">{row.relation}</span>
-    <span className="mm-sides">
-      <span data-source="">{row.source}</span> → <span data-target="">{row.target}</span>
-    </span>
-  </div>
+  <>
+    <div className="mm-text-head">
+      <span className="mm-text-name">{row.name}</span>
+      <span className="mm-key">{row.relation}</span>
+      <span className="mm-sides">
+        <span data-source="">{row.source}</span> → <span data-target="">{row.target}</span>
+      </span>
+    </div>
+    {row.limits.map((limit, at) => (
+      // Two limits can read the same (type names are not unique), so the place keys the line.
+      <div key={at} className="mm-fact" data-limit="">
+        <span className="mm-fact-name">limit</span> <span className="mm-fact-value">{limit}</span>
+      </div>
+    ))}
+  </>
 );
 
 export const MetamodelTextView = ({
