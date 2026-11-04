@@ -664,7 +664,7 @@
     "/v1/commands/workspace.check": {
       "post": {
         "operationId": "workspace_check",
-        "summary": "Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, requirements with a statement but no text (a warning), missing targets, cycles, requirements without a parent (a warning, SR-022 AK6), elements with more or fewer relations of a kind than its limits allow (a hint), duplicate IDs, outdated relations, evidence records that cannot be read or name an unknown element, a repository that is a workspace of its own whose metamodel counts other properties to the version. ok is false, and the CLI exits 1, on findings at or above failOn (default error).",
+        "summary": "Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, requirements with a statement but no text (a warning), missing targets, cycles, requirements without a parent (a warning, SR-022 AK6), elements with more or fewer relations of a kind than its limits allow (a hint), lists with more entries than the property's max-items (a hint), duplicate IDs, outdated relations, evidence records that cannot be read or name an unknown element, a repository that is a workspace of its own whose metamodel counts other properties to the version. ok is false, and the CLI exits 1, on findings at or above failOn (default error).",
         "tags": [
           "workspace"
         ],
@@ -685,7 +685,8 @@
           "SR-089",
           "SR-090",
           "SR-092",
-          "SR-152"
+          "SR-152",
+          "SR-171"
         ],
         "requestBody": {
           "required": true,
@@ -3356,7 +3357,7 @@
                       "items": {
                         "$ref": "#/components/schemas/common/$defs/problem"
                       },
-                      "description": "Hints at the property in the affected elements after the change: value kind (SR-085), target types (SR-086)."
+                      "description": "Hints at the property in the affected elements after the change: value kind (SR-085), more entries than `max-items` (SR-171), target types (SR-086)."
                     },
                     "incomplete": {
                       "$ref": "#/components/schemas/common/$defs/incomplete"
@@ -11755,7 +11756,7 @@
               },
               "key": {
                 "$ref": "#/components/schemas/common/$defs/key",
-                "description": "The relation kind a count hint is about (`relation.too-many`, `relation.too-few`, SR-152)."
+                "description": "The relation kind (`relation.too-many`, `relation.too-few`, SR-152) or the property (`element.too-many-items`, SR-171) a count hint is about."
               },
               "targetType": {
                 "$ref": "#/components/schemas/common/$defs/key",
@@ -11764,12 +11765,12 @@
               "count": {
                 "type": "integer",
                 "minimum": 0,
-                "description": "How many relations the element has that the limit counts (SR-152)."
+                "description": "How many relations the element has that the limit counts (SR-152), or how many entries its list property has (SR-171)."
               },
               "limit": {
                 "type": "integer",
                 "minimum": 0,
-                "description": "The maximum (`relation.too-many`) or minimum (`relation.too-few`) the metamodel sets (SR-152)."
+                "description": "The maximum (`relation.too-many`, `element.too-many-items`) or minimum (`relation.too-few`) the metamodel sets (SR-152, SR-171)."
               }
             },
             "additionalProperties": false
@@ -11795,6 +11796,7 @@
               "element.status-not-allowed",
               "element.missing-status",
               "element.statement-without-text",
+              "element.too-many-items",
               "element.text-emptied",
               "relation.missing-target",
               "relation.unresolved-link",
@@ -13531,6 +13533,11 @@
                 "type": "boolean",
                 "default": false,
                 "description": "Values are Markdown like the text: emphasis, code and inline references `[label](reqseq:<uuid>?version=...)`, which are followed, checked and confirmed like those in the text (SR-127). Only for kind `text`, and never with the meaning `title` or `identifier`. It does not change the version of an element (ADR-0005); images in such a value are no embedded images."
+              },
+              "max-items": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "At most this many entries in the list (SR-171): an element with more is the hint `element.too-many-items` when the workspace is checked, never a refusal. Only with `many: true` and not for kind `relation`. Absent: any number."
               },
               "meaning": {
                 "$ref": "#/components/schemas/metamodel/$defs/propertyMeaning"

@@ -76,6 +76,23 @@ scenariosOf("workspace.check", [
     },
   },
   {
+    name: "a list property with more entries than its max-items, with count and limit",
+    fixture: { fixture: "SR-171/max-items" },
+    input: {},
+    tag: "[SR-171/AK1]",
+    expect: "output",
+    check: (results) => {
+      const { problems } = (results["core"]?.outcome as { output: { problems: Record<string, unknown>[] } })
+        .output;
+      // SR-c00002 holds the most allowed and seven keywords, which have no max-items (AK2).
+      expect(
+        problems
+          .filter((p) => p["key"] !== undefined)
+          .map((p) => [p["code"], p["elementShortId"], p["key"], p["count"], p["limit"], p["line"]]),
+      ).toEqual([["element.too-many-items", "SR-c00001", "acceptance-criteria", 4, 3, 6]]);
+    },
+  },
+  {
     name: "a workspace with an evidence location (#535)",
     fixture: EVIDENCE,
     input: {},
