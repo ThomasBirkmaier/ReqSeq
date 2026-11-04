@@ -1,11 +1,14 @@
-// The model of the traceability matrix (SR-125): the input for a list, the rows, the targets of the cursor.
+// The model of the traceability matrix (SR-125, SR-153): the input for a list, the rows, the targets of the
+// cursor, the column heads and the gaps.
 import type { DataExportRelation, TraceMatrixOutput } from "@reqseq/core";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_SORT, filteredList, listBuffer } from "./buffers.js";
 import {
+  cellGaps,
   columnCount,
   columnName,
   degreeLine,
+  gapTitle,
   matrixInput,
   matrixRows,
   opening,
@@ -37,7 +40,6 @@ const column = (extra: Partial<MatrixColumn> = {}): MatrixColumn => ({
   direction: "out",
   name: "Derives from",
   count: 4,
-  share: 0.8,
   ...extra,
 });
 
@@ -73,6 +75,7 @@ describe("matrixInput", () => {
 });
 
 describe("rows and targets", () => {
+  const GAP = { column: 0, targetType: "need", targetName: "Need", count: 0, min: 1 };
   const output = {
     columns: [column(), column({ direction: "in", name: "Derived by" })],
     rows: [
@@ -96,6 +99,7 @@ describe("rows and targets", () => {
         title: "Show rain",
         file: "b.md",
         cells: [[], []],
+        gaps: [GAP],
       },
     ],
     total: 2,
@@ -110,6 +114,15 @@ describe("rows and targets", () => {
     ]);
     expect(rows[0]?.element.open.key).toBe("element:spec:uuid-s1");
     expect(rows[0]?.cells).toBe(output.rows[0]?.cells);
+    expect(rows.map((row) => row.gaps)).toEqual([[], [GAP]]);
+  });
+
+  it("[SR-153/AK1] gives a cell the gaps core names for its column, and says each minimum on demand", () => {
+    const [, row] = matrixRows(output);
+    expect(row === undefined ? [] : [cellGaps(row, 0), cellGaps(row, 1)]).toEqual([[GAP], []]);
+    expect(gapTitle([GAP, { ...GAP, targetName: "Use Case", count: 1, min: 2 }])).toBe(
+      "at least 1 to Need, has 0\nat least 2 to Use Case, has 1",
+    );
   });
 
   it("[SR-125/AK5] walks the row element first, then every relation of every cell in column order", () => {
@@ -152,14 +165,21 @@ describe("opening a relation (AK5)", () => {
 });
 
 describe("column heads", () => {
-  it("[SR-125/AK3] writes the count and the share of the whole selection", () => {
-    expect(columnCount(column())).toBe("4 · 80 %");
-    expect(columnCount(column({ count: 1, share: 1 / 3 }))).toBe("1 · 33 %");
-    expect(columnCount(column({ count: 2, share: 2 / 3 }))).toBe("2 · 66 %");
-    // Never "100 %" while a row has a gap, and no float error below a whole percent.
-    expect(columnCount(column({ count: 999, share: 0.999 }))).toBe("999 · 99 %");
-    expect(columnCount(column({ count: 29, share: 0.29 }))).toBe("29 · 29 %");
-    expect(columnCount(column({ count: 5, share: 1 }))).toBe("5 · 100 %");
+  it("[SR-153/AK1] writes, with minima, the rows that meet them of those they apply to and core's share", () => {
+    const minima = (met: number, expected: number): MatrixColumn =>
+      column({ expected, met, share: met / expected });
+    expect(columnCount(minima(2, 5))).toBe("2 of 5 · 40 %");
+    // Core's percentage, as the CLI: one decimal, rounded down, never "100 %" while a row is a gap.
+    expect(columnCount(minima(2, 3))).toBe("2 of 3 · 66.6 %");
+    expect(columnCount(minima(999, 1000))).toBe("999 of 1000 · 99.9 %");
+    expect(columnCount(minima(29, 100))).toBe("29 of 100 · 29 %");
+    expect(columnCount(minima(5, 5))).toBe("5 of 5 · 100 %");
+    expect(columnCount(minima(0, 3))).toBe("0 of 3 · 0 %");
+  });
+
+  it("[SR-125/AK3] [SR-153/AK2] writes only the count of a column without a minimum", () => {
+    expect(columnCount(column())).toBe("4");
+    expect(columnCount(column({ direction: "in", count: 1 }))).toBe("1");
   });
 
   it("[SR-125/AK2] marks an incoming column with an arrow only when another column has its name", () => {

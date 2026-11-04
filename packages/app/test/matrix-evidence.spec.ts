@@ -56,11 +56,24 @@ test.describe("the evidence columns of the traceability matrix", () => {
     // No test case: the "—" in the accent colour of a gap, also when the status is open (b06).
     const colour = (locator: Locator): Promise<string> =>
       locator.evaluate((node) => getComputedStyle(node).color);
-    const relationGap = row(window, "N-126a01").locator("td.cell .gap").first();
+    // The fixture sets no relation minimum (SR-153), so no relation cell is a gap; the reference is
+    // the gap token itself.
+    const accent = await window.evaluate(() => {
+      const probe = document.createElement("span");
+      probe.style.color = "var(--accent-gap)";
+      document.body.append(probe);
+      const value = getComputedStyle(probe).color;
+      probe.remove();
+      return value;
+    });
+    const text = await row(window, "SR-126b05")
+      .locator("td.element")
+      .evaluate((node) => getComputedStyle(node).color);
+    expect(accent).not.toBe(text);
     for (const shortId of ["SR-126b05", "SR-126b06"]) {
       const gap = testCases(window, shortId).locator(".gap");
       await expect(gap).toHaveText("—");
-      expect(await colour(gap)).toBe(await colour(relationGap));
+      expect(await colour(gap)).toBe(accent);
     }
     await expect(status(window, "SR-126b02").locator(".marked")).toHaveText("failed");
     await expect(status(window, "SR-126b03").locator(".marked")).toHaveText("outdated");

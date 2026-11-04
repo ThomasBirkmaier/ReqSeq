@@ -14,10 +14,17 @@
 //   its UUID (SR-088), as `incomingOf` of the neighbourhood. In a view (SR-040) a link whose other end
 //   is available and does not apply in it is left out of both; a missing or unreachable end cannot
 //   be judged and stays.
-// - Counts (AK3): a row counts for a column when it has at least one such link, whatever state its
-//   other end is in (AK4: a relation to a missing target is in the cell, marked, so the cell is no
-//   gap). `share` is `count / total` over the whole selection. The pass reads the records and the
-//   index only: no file, no version, a target lookup only in a view.
+// - Counts (SR-125 AK3, SR-153): `count` is the rows with at least one such link, whatever state its
+//   other end is in. A gap is only what the metamodel requires (SR-153): the `out` column of a
+//   relation kind with a minimum (`minimaOf`, `min` of 1 or more) for the row's type marks the row a
+//   gap (`gaps`) when it undershoots one of them, counted as SR-152 counts (`limitCount`, one rule
+//   with the hints; spec question #838); a minimum whose count an unreachable target leaves open is
+//   neither gap nor met (Q5). In a view only the targets that apply count (Q3). Such a column has
+//   `expected`, the rows of the whole selection with a minimum of its kind, `met`, those that meet
+//   all of them, and `share`, `met / expected` (Q2); it is there even when no row has a link (Q1).
+//   Every other column has `count` only, and an empty cell there is no gap. The pass reads the
+//   records and the index only: no file, no version, a target lookup only in a view or under a
+//   minimum.
 // - Cells (AK2, AK4): of the page only, built by `relationLink` and `sourceLink`, the builders of
 //   `element.get`, so a cell names short ID and title as the element view does. The current
 //   versions are read for the page's rows and their available targets (`currentVersionsOf`), so a
@@ -29,14 +36,16 @@
 //   evidence (`evidence/coverage.ts` imports trace), so the fields come from `evidence/matrix.ts`
 //   through the command.
 import type { DataExportRelation, MetamodelRelationKind, TraceMatrixOutput } from "../generated/types.js";
-import type { Metamodel } from "../metamodel/index.js";
-import { keyDefinition } from "../metamodel/index.js";
+import type { Metamodel, Minima, RelationMinimum } from "../metamodel/index.js";
+import { keyDefinition, minimaOf } from "../metamodel/index.js";
 import type { ElementRecord, IncomingRelation, RelationKey, ShortIds, TargetItem } from "../model/index.js";
 import {
   hasId,
   identifierField,
   isOutdatedVersion,
   isUuid,
+  limitCount,
+  limitedType,
   relationKey,
   relationLink,
   sourceLink,
@@ -111,6 +120,8 @@ export interface MatrixContext extends TraceContext {
   readonly followed: ReadonlySet<string>;
   /** Whether an element applies in the view of the selection (SR-040); undefined without a view. */
   readonly includes?: (element: ElementRecord) => boolean;
+  /** The minima per type and relation kind (`minimaOf`, SR-153). */
+  readonly minima: Minima;
 }
 
 /** The context of a matrix: `base` with the keys `matrixKeys` gives and, in a view, `includes`. */
@@ -128,6 +139,7 @@ export const matrixContext = (
     shortIds: options.shortIds,
     keys,
     followed: new Set(keys.map((k) => k.key)),
+    minima: minimaOf(base.metamodel),
     ...(options.includes === undefined ? {} : { includes: options.includes }),
   };
 };
@@ -197,18 +209,66 @@ const outgoingItems = (
 ): readonly TargetItem[] =>
   itemsOf(record, key).filter((item): item is TargetItem => showsOutgoing(context, record, item));
 
+/** The minima of `record` by relation kind key (SR-153), undefined when it has none. */
+const minimaOfRow = (
+  context: MatrixContext,
+  record: ElementRecord,
+): ReadonlyMap<string, readonly RelationMinimum[]> | undefined => {
+  if (context.minima.size === 0) {
+    return undefined;
+  }
+  const type = limitedType(record, context.metamodel);
+  return type === undefined ? undefined : context.minima.get(type.key);
+};
+
+/** A minimum of a row that its cell undershoots (SR-153 AK1). */
+interface MinimumGap {
+  readonly limit: RelationMinimum;
+  readonly count: number;
+}
+
+/**
+ * The minima of one kind that `record` undershoots (`gaps`) and whether it meets all of them
+ * (`met`), counted as SR-152 counts (see the file comment). An undershot minimum with an
+ * unreachable target is neither.
+ */
+const minimumGaps = (
+  context: MatrixContext,
+  record: ElementRecord,
+  limits: readonly RelationMinimum[],
+): { readonly gaps: readonly MinimumGap[]; readonly met: boolean } => {
+  const gaps: MinimumGap[] = [];
+  let met = true;
+  for (const limit of limits) {
+    const { count, unreachable } = limitCount(record, limit, context, context.includes);
+    if (count < limit.min) {
+      met = false;
+      if (!unreachable) {
+        gaps.push({ limit, count });
+      }
+    }
+  }
+  return { gaps, met };
+};
+
 /** A column of the matrix: a key in one direction and how many rows of the selection have a link in it. */
 export interface MatrixColumn {
   readonly key: MatrixKey;
   readonly direction: "out" | "in";
   readonly count: number;
+  /** The rows with a minimum of the kind (SR-153); 0 for a column without one. */
+  readonly expected: number;
+  /** The rows of `expected` that meet all of them. */
+  readonly met: number;
 }
 
-/** The rows of the selection that have a link under a key, per direction. */
+/** The rows of the selection that have a link under a key, per direction, and its minima (SR-153). */
 interface Tally {
   readonly key: MatrixKey;
   out: number;
   in: number;
+  expected: number;
+  met: number;
 }
 
 /** Whether `record` has a link under `key` that the matrix shows: `outgoingItems` without building them. */
@@ -246,17 +306,26 @@ const countIncoming = (
 };
 
 /**
- * The columns the selection `records` has (every key and direction with at least one row), with the
- * rows that have a link in each, over the whole selection. One pass over the records and the
- * incoming index (see the file comment).
+ * The columns the selection `records` has (every key and direction with at least one row, and the
+ * `out` column of a kind with a minimum for a row), with the rows that have a link in each and the
+ * rows that meet its minima, over the whole selection. One pass over the records and the incoming
+ * index (see the file comment).
  */
 export const matrixColumns = (context: MatrixContext, records: readonly ElementRecord[]): MatrixColumn[] => {
-  const tallies: Tally[] = context.keys.map((key) => ({ key, out: 0, in: 0 }));
+  const tallies: Tally[] = context.keys.map((key) => ({ key, out: 0, in: 0, expected: 0, met: 0 }));
   const byKey = new Map(tallies.map((tally) => [tally.key.key, tally]));
   for (const record of records) {
+    const minima = minimaOfRow(context, record);
     for (const tally of tallies) {
       if (hasOutgoing(context, record, tally.key)) {
         tally.out += 1;
+      }
+      const limits = tally.key.property ? undefined : minima?.get(tally.key.key);
+      if (limits !== undefined) {
+        tally.expected += 1;
+        if (minimumGaps(context, record, limits).met) {
+          tally.met += 1;
+        }
       }
     }
     const links = context.incoming.relationsById.get(record.id);
@@ -264,11 +333,11 @@ export const matrixColumns = (context: MatrixContext, records: readonly ElementR
       countIncoming(context, record, links, byKey);
     }
   }
-  return tallies.flatMap(({ key, out, in: into }) =>
+  return tallies.flatMap(({ key, out, in: into, expected, met }) =>
     [
-      { key, direction: "out" as const, count: out },
-      { key, direction: "in" as const, count: into },
-    ].filter((column) => column.count > 0),
+      { key, direction: "out" as const, count: out, expected, met },
+      { key, direction: "in" as const, count: into, expected: 0, met: 0 },
+    ].filter((column) => column.count > 0 || column.expected > 0),
   );
 };
 
@@ -277,8 +346,8 @@ type MatrixOutputRow = TraceMatrixOutput["rows"][number];
 
 const text = (value: unknown): string => (typeof value === "string" ? value : "");
 
-/** The column as the output gives it; `total` (more than 0 when a column has a row) gives the share. */
-export const columnOutput = ({ key, direction, count }: MatrixColumn, total: number): MatrixOutputColumn => ({
+/** The column as the output gives it: `expected`, `met` and `share` only for a column with minima (SR-153). */
+export const columnOutput = ({ key, direction, count, expected, met }: MatrixColumn): MatrixOutputColumn => ({
   type: "relation",
   kind: key.key,
   ...(key.property ? { property: true as const } : {}),
@@ -286,8 +355,32 @@ export const columnOutput = ({ key, direction, count }: MatrixColumn, total: num
   direction,
   name: direction === "out" ? key.name : key.inverseName,
   count,
-  share: count / total,
+  ...(expected === 0 ? {} : { expected, met, share: met / expected }),
 });
+
+/** The gaps of a row (SR-153 AK1): one per minimum of an `out` column that its cell undershoots. */
+const rowGaps = (
+  context: MatrixContext,
+  record: ElementRecord,
+  columns: readonly MatrixColumn[],
+): NonNullable<MatrixOutputRow["gaps"]> => {
+  const minima = minimaOfRow(context, record);
+  if (minima === undefined) {
+    return [];
+  }
+  return columns.flatMap(({ key, direction }, column) => {
+    const limits = direction === "out" && !key.property ? minima.get(key.key) : undefined;
+    return limits === undefined
+      ? []
+      : minimumGaps(context, record, limits).gaps.map(({ limit, count }) => ({
+          column,
+          targetType: limit.targetType,
+          targetName: limit.targetName,
+          count,
+          min: limit.min,
+        }));
+  });
+};
 
 /** What a cell holds before the current versions are known. */
 interface Pending {
@@ -366,6 +459,7 @@ export const matrixRows = async (
   const versionOf = await versionsOf([...needed]);
   return built.map(({ record, depth, cells }): MatrixOutputRow => {
     const status = text(record.data["status"]);
+    const gaps = rowGaps(context, record, columns);
     return {
       id: record.id,
       repository: record.repository,
@@ -387,6 +481,7 @@ export const matrixRows = async (
           };
         }),
       ),
+      ...(gaps.length === 0 ? {} : { gaps }),
     };
   });
 };

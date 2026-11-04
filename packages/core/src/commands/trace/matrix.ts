@@ -1,7 +1,8 @@
-// trace.matrix (SR-125, SR-126, N-076, D-062): the traceability matrix of a selection. The rows are the
+// trace.matrix (SR-125, SR-126, SR-153, N-076, D-062): the traceability matrix of a selection. The rows are the
 // elements of the selection in the order `element.list` gives (query/ordered.ts), one page at a time;
 // the columns are the relation kinds and directions that occur in the whole selection, each with the
-// rows that have a link and their share; the cells hold the elements at the other end, outdated or
+// rows that have a link, and where the metamodel sets a minimum the rows that meet it and their share,
+// with the rows that undershoot it marked as gaps (SR-153); the cells hold the elements at the other end, outdated or
 // missing marked (trace/matrix.ts). With an evidence location (SR-126, `showsEvidence`) each
 // requirement row of the page also has its test cases and its verification status, and `evidence`
 // heads them with the view and the verification degree of the whole selection (evidence/matrix.ts,
@@ -110,7 +111,7 @@ export default defineCommand({
       ...verificationNameIds(rows.flatMap((row) => row.verification ?? [])),
     ];
     return {
-      columns: columns.map((column) => columnOutput(column, total)),
+      columns: columns.map((column) => columnOutput(column)),
       ...(evidence === undefined ? {} : { evidence: evidence.header }),
       rows,
       total,

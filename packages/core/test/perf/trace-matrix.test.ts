@@ -1,11 +1,14 @@
-// `trace.matrix` (SR-125) in the performance suite (ADR-0011) on the generated workspace of N-036
+// `trace.matrix` (SR-125, SR-153) in the performance suite (ADR-0011) on the generated workspace of N-036
 // with 50,000 elements and 200,000 relations. The columns and their counts take the whole selection
 // (one pass over the records and the incoming index, no file); only the page (`limit`, default 200)
 // gets its cells, and only its rows and their available targets get their versions. The first page
 // of all elements in the sort of the app's list, and of all system requirements, assert SR-082
 // AK4's 500 ms (tagged, ADR-0011) after a warm-up call (the incoming index is built on the first
 // call); the derivation tree of all elements and a page of hubs (decisions, whose cells hold many
-// relations) are recorded only.
+// relations) are recorded only. Last, the same metamodel with a minimum (a system requirement derives
+// from at least one need, SR-153): the first page of all system requirements, whose column pass now
+// counts each row against it, asserts the same 500 ms.
+import fs from "node:fs/promises";
 import type { GeneratedWorkspace, LargeFixtureWorkspace, VersionFunction } from "@reqseq/testkit";
 import {
   generateLargeWorkspace,
@@ -80,7 +83,8 @@ describe("trace.matrix with 50,000 elements and 200,000 relations (SR-125, N-036
     expect(result.total).toBe(ELEMENTS);
     expect(result.rows).toHaveLength(200);
     expect(result.columns.length).toBeGreaterThan(2);
-    expect(result.columns.every((c) => c.count > 0 && c.share === c.count / ELEMENTS)).toBe(true);
+    // The standard model sets no minimum: counts only, no share (SR-153 AK2).
+    expect(result.columns.every((c) => c.count > 0 && c.share === undefined)).toBe(true);
     expect(result.incomplete).toBe(false);
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
   });
@@ -120,5 +124,45 @@ describe("trace.matrix with 50,000 elements and 200,000 relations (SR-125, N-036
     );
     expect(result.rows.length).toBeGreaterThan(0);
     expect(result.rows.flatMap((r) => r.cells.flat()).some((l) => l.outdated === true)).toBe(true);
+  });
+
+  // Last: it changes the metamodel of the generated workspace and puts it back afterwards.
+  it("[SR-082/AK4] gives the first page of all system requirements with a minimum within 500 ms (SR-153)", async () => {
+    const file = fixture?.path("system/metamodel/standard-model.yaml") ?? "";
+    const model = await fs.readFile(file, "utf8");
+    const kind = "    target-types: [need, use-case, system-requirement]\n    meaning: derivation\n";
+    expect(model).toContain(kind);
+    await fs.writeFile(
+      file,
+      model.replace(
+        kind,
+        `${kind}    limits:\n      - { source-type: system-requirement, target-type: need, min: 1 }\n`,
+      ),
+    );
+    const limited = new Workspace(fixture?.workspaceRoot ?? "");
+    try {
+      await warmWorkspace(limited);
+      const input = { selection: { where: { type: ["system-requirement"] } }, sort: APP_SORT };
+      const run = async (): Promise<Output> =>
+        (await invoke("trace.matrix", input, { workspace: limited })) as Output;
+      await run();
+      const { result, measurement } = await measureMedian(
+        "matrix: first page (200) of all system requirements, each counted against a minimum (SR-153)",
+        run,
+        {
+          basis: "SR-082 AK4 (trace.matrix, columns and minima over the selection, one page built)",
+          thresholdMs: RESULT_MS,
+          runs: RUNS,
+        },
+      );
+      const column = result.columns.find((c) => c.kind === "derives-from" && c.direction === "out");
+      expect(column?.expected).toBe(result.total);
+      expect(column?.share).toBeDefined();
+      expect(result.rows).toHaveLength(200);
+      expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
+    } finally {
+      await limited.close();
+      await fs.writeFile(file, model);
+    }
   });
 });

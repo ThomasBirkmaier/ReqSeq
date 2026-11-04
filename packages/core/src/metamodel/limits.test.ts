@@ -2,7 +2,7 @@ import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import { Workspace } from "../runtime/workspace.js";
 import type { Metamodel } from "./index.js";
-import { limitsOf, maxItemsOf, metamodelState } from "./index.js";
+import { limitsOf, maxItemsOf, metamodelState, minimaOf } from "./index.js";
 import { limitProblems, maxItemsProblems } from "./limits.js";
 
 /** The SR-152 fixture with `files` on top, its metamodel loaded. */
@@ -170,6 +170,43 @@ relations:
       // refines allows only safety requirements as sources, so its limit skips the parent type.
       "safety-requirement": [useCase, need, decision, refines],
     });
+  });
+
+  it("[SR-153/AK1] gives the minima per type and relation kind: limits with min 1 or more only", async () => {
+    const metamodel = await load({
+      "metamodel/z-more.yaml": `reqseq-metamodel: 1
+relations:
+  - key: refers-to
+    name: Refers to
+    limits: [{ target-type: decision, min: 0, max: 2 }, { target-type: need, min: 2 }]
+`,
+    });
+    expect(metamodel.problems).toEqual([]);
+    const minima = minimaOf(metamodel);
+    expect(minimaOf(metamodel)).toBe(minima);
+    const need = {
+      key: "derives-from",
+      label: "Derives from (derives-from)",
+      targetType: "need",
+      targetName: "Need",
+      min: 1,
+    };
+    const refersTo = {
+      key: "refers-to",
+      label: "Refers to (refers-to)",
+      targetType: "need",
+      targetName: "Need",
+      min: 2,
+    };
+    // `max` only (use-case) and `min: 0` (decision) are no minimum.
+    expect(Object.fromEntries([...minima].map(([type, byKey]) => [type, Object.fromEntries(byKey)]))).toEqual(
+      {
+        need: { "refers-to": [refersTo] },
+        "use-case": { "refers-to": [refersTo] },
+        "system-requirement": { "derives-from": [need], "refers-to": [refersTo] },
+        decision: { "refers-to": [refersTo] },
+      },
+    );
   });
 });
 

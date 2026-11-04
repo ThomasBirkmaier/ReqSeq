@@ -752,8 +752,14 @@ mark {
   color: var(--accent-outdated);
 }
 
+/* A gap (SR-153): a cell below a minimum of the metamodel, in the accent. An empty cell that is no gap: a
+   grey "—". */
 .matrix .gap {
   color: var(--accent-gap);
+}
+
+.matrix .none {
+  color: var(--muted);
 }
 
 /* The evidence columns (SR-126): the test cases and the status in grey, a mark ("not executed", "failed",

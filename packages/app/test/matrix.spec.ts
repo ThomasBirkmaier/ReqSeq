@@ -1,8 +1,9 @@
-// The traceability matrix (SR-125, #442) on the built app and the fixture fixtures/SR-125/matrix: Ctrl+T on a
-// list, on a package page and on a list with a saved filter shows the matrix that `reqseq trace matrix`
-// gives for the same selection and sort (SR-080 AK2, SR-125 AK6). Keys use ControlOrMeta, so the same
+// The traceability matrix (SR-125, SR-153, #442) on the built app and the fixture fixtures/SR-125/matrix: Ctrl+T
+// on a list, on a package page and on a list with a saved filter shows the matrix that `reqseq trace matrix`
+// gives for the same selection and sort (SR-080 AK2, SR-125 AK6), with its gaps and heads (SR-153 AK3). Keys use ControlOrMeta, so the same
 // tests run on Linux and macOS.
 import { expect, test } from "@playwright/test";
+import { degreePercent } from "@reqseq/core/verification-degree";
 import type { Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
 import { DEFAULT_SORT, fileSha256, launchApp, listAll } from "./support/app.js";
@@ -21,21 +22,31 @@ interface Matrix {
     readonly name: string;
     readonly direction: string;
     readonly count: number;
-    readonly share: number;
+    readonly expected?: number;
+    readonly met?: number;
+    readonly share?: number;
   }[];
   readonly rows: readonly {
     readonly shortId: string;
     readonly identifier?: string;
     readonly title: string;
     readonly cells: readonly (readonly Relation[])[];
+    readonly gaps?: readonly { readonly column: number }[];
   }[];
   readonly total: number;
 }
 
-/** What the matrix of the window shows: the heads, and per row its element and the text of each link of each cell. */
+/**
+ * What the matrix of the window shows: the heads, and per row its element, the text of each link of each
+ * cell and the indexes of the cells marked as gaps.
+ */
 interface Shown {
   readonly heads: readonly { readonly name: string; readonly count: string }[];
-  readonly rows: readonly { readonly element: string; readonly cells: readonly (readonly string[])[] }[];
+  readonly rows: readonly {
+    readonly element: string;
+    readonly cells: readonly (readonly string[])[];
+    readonly gaps: readonly number[];
+  }[];
 }
 
 const shown = (window: Page): Promise<Shown> =>
@@ -51,6 +62,9 @@ const shown = (window: Page): Promise<Shown> =>
         element: text(row.querySelector("td.element")),
         cells: [...row.querySelectorAll("td.cell")].map((cell) =>
           [...cell.querySelectorAll(".relation")].map((relation) => text(relation)),
+        ),
+        gaps: [...row.querySelectorAll("td.cell")].flatMap((cell, index) =>
+          cell.querySelector(".gap") === null ? [] : [index],
         ),
       })),
     };
@@ -68,7 +82,10 @@ const labelOf = (item: {
 const expected = (matrix: Matrix): Shown => ({
   heads: matrix.columns.map((column) => ({
     name: column.name,
-    count: `${String(column.count)} · ${String(Math.floor(column.share * 100 + 1e-9))} %`,
+    count:
+      column.share === undefined
+        ? String(column.count)
+        : `${String(column.met)} of ${String(column.expected)} · ${degreePercent(column.share)}`,
   })),
   rows: matrix.rows.map((row) => ({
     element: labelOf(row),
@@ -78,6 +95,7 @@ const expected = (matrix: Matrix): Shown => ({
           `${labelOf(relation)}${relation.targetState === "available" ? "" : ` ${relation.targetState}`}${relation.outdated === true ? " link outdated" : ""}`,
       ),
     ),
+    gaps: [...new Set((row.gaps ?? []).map((gap) => gap.column))],
   })),
 });
 
@@ -163,13 +181,14 @@ test.describe("the traceability matrix on a fixture workspace", () => {
     expect(await shown(window)).toEqual(expected(cli));
   });
 
-  test("[SR-125/AK3] a row without a relation of a column has a gap in the accent colour, and each head says how many rows have one", async () => {
+  test("[SR-153/AK1] [SR-153/AK3] the window marks the gaps of trace matrix in the accent colour, and its heads are the CLI's", async () => {
     const { window } = running;
     await requirements(window);
     await matrixOpen(window, 6);
     const cli = await matrixBy(running, ALL_SRS);
-    const gaps = cli.rows.flatMap((row) => row.cells).filter((cell) => cell.length === 0).length;
-    expect(gaps).toBeGreaterThan(0);
+    const gaps = cli.rows.filter((row) => row.gaps !== undefined).length;
+    // S3, S4 and S5 derive from no need; S4 holds relations all the same.
+    expect(gaps).toBe(3);
     await expect(window.locator("td.cell .gap")).toHaveCount(gaps);
     await expect(window.locator("td.cell .gap").first()).toHaveText("—");
     const colours = await window.evaluate(() => ({
@@ -179,9 +198,31 @@ test.describe("the traceability matrix on a fixture workspace", () => {
     }));
     expect(colours.gap).not.toBe(colours.text);
     expect(colours.accent).not.toBe("");
-    expect((await shown(window)).heads).toEqual(expected(cli).heads);
-    // The selection is every system requirement, so the heads count over six rows.
-    expect(cli.total).toBe(6);
+    expect(await shown(window)).toEqual(expected(cli));
+    // The selection is every system requirement: three of six meet the minimum.
+    expect((await shown(window)).heads.find((head) => head.name === "Derives from")?.count).toBe(
+      "3 of 6 · 50 %",
+    );
+  });
+
+  test("[SR-125/AK3] [SR-153/AK2] an empty cell of a column without a minimum is a grey dash, no gap, and its head is the count", async () => {
+    const { window } = running;
+    await requirements(window);
+    await matrixOpen(window, 6);
+    const cli = await matrixBy(running, ALL_SRS);
+    const empty = cli.rows.flatMap((row) =>
+      row.cells.filter(
+        (cell, index) => cell.length === 0 && !(row.gaps ?? []).some((gap) => gap.column === index),
+      ),
+    ).length;
+    expect(empty).toBeGreaterThan(0);
+    await expect(window.locator("td.cell .none")).toHaveCount(empty);
+    const colours = await window.evaluate(() => ({
+      none: getComputedStyle(document.querySelector("td.cell .none") ?? document.body).color,
+      gap: getComputedStyle(document.querySelector("td.cell .gap") ?? document.body).color,
+    }));
+    expect(colours.none).not.toBe(colours.gap);
+    expect((await shown(window)).heads.find((head) => head.name === "Refines")?.count).toBe("1");
   });
 
   test("[SR-125/AK4] an outdated relation is marked outdated and one to a missing target missing, in its cell", async () => {
