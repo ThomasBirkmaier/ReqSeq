@@ -39,6 +39,9 @@ const DEF_MESSAGES: Readonly<Record<string, string>> = {
   "common.schema.json#/$defs/dateTime": "is not a date and time (for example 2026-10-26T09:30:00Z)",
   "filter.schema.json#/$defs/name":
     "is not a filter name (at most 200 characters, without control characters or spaces at either end)",
+  "metamodel.schema.json#/$defs/prefix":
+    "is not a prefix (upper case letters and digits, starting with a letter, for example SR)",
+  "metamodel.schema.json#/$defs/relationLimit": "has neither min nor max (a limit needs one of them or both)",
   "element.schema.json#/$defs/inputValue":
     "is not a property value (text, a number, true or false, a list of these, a relation target { id } with an element reference, or a list of them)",
 };
@@ -168,6 +171,22 @@ const KEYWORD_TEXTS: Readonly<Record<string, KeywordText>> = {
   exclusiveMaximum: bound,
   format: (value, p) => `${subject(value)} is not a valid ${String(p["format"])}`,
   not: (value) => `${subject(value)} is not allowed here`,
+  contains: (_v, p, error) => {
+    // Ajv gives minContains always (1 when the schema has none) and maxContains only when there is one.
+    const min = Number(p["minContains"]);
+    const max = p["maxContains"] === undefined ? undefined : Number(p["maxContains"]);
+    const range =
+      max === undefined
+        ? `at least ${String(min)}`
+        : min === 0
+          ? `at most ${String(max)}`
+          : min === max
+            ? `exactly ${String(min)}`
+            : `${String(min)} to ${String(max)}`;
+    // The description of the `contains` schema says which items count (#851); without one, its form.
+    const description = (error.schema as JsonSchema | undefined)?.["description"];
+    return `must have ${range} ${(max ?? min) === 1 ? "item" : "items"} ${typeof description === "string" ? description : "of the expected form"}`;
+  },
   pattern: notTheForm,
   anyOf: notTheForm,
   oneOf: notTheForm,
@@ -332,6 +351,41 @@ const narrowed = (
 };
 
 /**
+ * Whether an error is told by another one, so left out: errors inside a branch of an `anyOf` (or
+ * `oneOf`) at the same place, under a `propertyNames`, of the items a `contains` tried (#851: its
+ * schema, inline or the def it refers to, below its place), and an `if`, which only says that its
+ * `then` or `else` failed, whose errors are told.
+ */
+const swallowedOf = (all: readonly ErrorObject[]): ((error: ErrorObject, index: number) => boolean) => {
+  const either = all.filter((e) => e.keyword === "anyOf" || e.keyword === "oneOf");
+  const propertyNames = all.filter((e) => e.keyword === "propertyNames");
+  const contains = all.flatMap((e) => {
+    if (e.keyword !== "contains") {
+      return [];
+    }
+    const ref = (e.schema as JsonSchema | undefined)?.["$ref"];
+    return [
+      { path: e.instancePath, schemas: typeof ref === "string" ? [e.schemaPath, ref] : [e.schemaPath] },
+    ];
+  });
+  return (error, index) =>
+    error.keyword === "if" ||
+    either.some(
+      (e) => e !== error && all.indexOf(e) > index && isUnder(error.instancePath, e.instancePath),
+    ) ||
+    propertyNames.some(
+      (e) =>
+        e !== error && e.instancePath === error.instancePath && error.schemaPath.includes("/propertyNames/"),
+    ) ||
+    contains.some(
+      (c) =>
+        error.instancePath !== c.path &&
+        isUnder(error.instancePath, c.path) &&
+        c.schemas.some((schema) => error.schemaPath.startsWith(`${schema}/`)),
+    );
+};
+
+/**
  * The readable violations of an input that failed its schema, in Ajv's order, each once. Errors
  * inside a branch of an `anyOf` (or `oneOf`) at the same place are left out: the `anyOf` gives one
  * message for them. Requires errors of an Ajv instance with `verbose: true`.
@@ -351,21 +405,10 @@ export function inputViolations(
     rootsKnown.set(context.schemas, roots);
   }
   const all = narrowed(errors ?? [], context.input, roots);
-  const either = all.filter((e) => e.keyword === "anyOf" || e.keyword === "oneOf");
-  const propertyNames = all.filter((e) => e.keyword === "propertyNames");
+  const swallowed = swallowedOf(all);
   const out: InputViolation[] = [];
   all.forEach((error, index) => {
-    const swallowed =
-      either.some(
-        (e) => e !== error && all.indexOf(e) > index && isUnder(error.instancePath, e.instancePath),
-      ) ||
-      propertyNames.some(
-        (e) =>
-          e !== error &&
-          e.instancePath === error.instancePath &&
-          error.schemaPath.includes("/propertyNames/"),
-      );
-    if (swallowed) {
+    if (swallowed(error, index)) {
       return;
     }
     const segments = segmentsOf(error.instancePath);

@@ -1019,6 +1019,12 @@ export interface MetamodelFile {
 /** Schema: `schemas/metamodel.schema.json#/$defs/key`. */
 export type MetamodelKey = Key;
 
+/**
+ * Prefix of a short ID: upper case letters and digits, starting with a letter (D-017).
+ * Schema: `schemas/metamodel.schema.json#/$defs/prefix`.
+ */
+export type MetamodelPrefix = string;
+
 /** Schema: `schemas/metamodel.schema.json#/$defs/named`. */
 export interface MetamodelNamed {
   readonly key: MetamodelKey;
@@ -1038,7 +1044,7 @@ export interface MetamodelType {
   readonly name: string;
   readonly description?: string;
   /** Prefix of the short ID, e.g. SR (D-017). UNKNOWN is reserved for elements of an unknown type and is a metamodel error (#154). */
-  readonly prefix: string;
+  readonly prefix: MetamodelPrefix;
   /** Parent type; its properties and required properties are inherited, over any number of levels (SR-012 AK2). A parent that is not defined, or a cycle, is a metamodel error. */
   readonly extends?: MetamodelKey;
   /** No elements of this type can be created; only for inheritance. */
@@ -1066,7 +1072,7 @@ export interface MetamodelEffectiveType {
   readonly key: MetamodelKey;
   readonly name: string;
   readonly description?: string;
-  readonly prefix: string;
+  readonly prefix: MetamodelPrefix;
   readonly extends?: MetamodelKey;
   /** Not inherited: a type is abstract only when its own definition says so. */
   readonly abstract: boolean;

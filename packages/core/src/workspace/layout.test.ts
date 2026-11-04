@@ -230,14 +230,22 @@ describe("loadWorkspaceLayout", () => {
 
   it("refuses a workspace file with several repositories marked main", async () => {
     const ws = await setup(yaml(`${MAIN}  - { name: a, url: u, main: true }\n`));
-    expect((await failure(loadWorkspaceLayout(ws.path("main")))).code).toBe("file.faulty");
+    const error = await failure(loadWorkspaceLayout(ws.path("main")));
+    expect(error.code).toBe("file.faulty");
+    // Readable (#851): what counts, not the schema's words.
+    expect(error.message).toContain(
+      "Invalid reqseq-workspace.yaml: repositories must have at most 1 item with main: true",
+    );
   });
 
   it("refuses a workspace file with several repositories and none marked main", async () => {
     const ws = await setup(yaml("  - { name: main, url: u }\n  - { name: a, url: u }\n"));
     const error = await failure(loadWorkspaceLayout(ws.path("main")));
     expect(error.code).toBe("file.faulty");
-    expect(error.message).toContain("/repositories must contain at least 1 valid item(s)");
+    // The items the check tried and the `if` around it add nothing (#851).
+    expect((error.details?.["problems"] as readonly { message: string }[]).map((p) => p.message)).toEqual([
+      "Invalid reqseq-workspace.yaml: repositories must have at least 1 item with main: true",
+    ]);
   });
 
   it("keeps the main repository at the root whatever path the files give it", async () => {
@@ -477,9 +485,7 @@ describe("loadWorkspaceLayout", () => {
     expect(new Set(problems.map((p) => `${p.code} ${p.severity} ${p.file}`))).toEqual(
       new Set([`workspace.invalid error ${WORKSPACE_FILE}`]),
     );
-    expect(error.message).toContain(
-      "Invalid reqseq-workspace.yaml: /reqseq-workspace must be equal to constant",
-    );
+    expect(error.message).toContain("Invalid reqseq-workspace.yaml: reqseq-workspace 2 is not 1");
   });
 });
 

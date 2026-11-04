@@ -74,6 +74,14 @@ const keywordCatalog = {
             additionalProperties: false,
           },
           map: { type: "object", propertyNames: { not: { enum: ["id"] } } },
+          // Items that count (#851): a range of them, with and without a description of which.
+          ones: { type: "array", contains: { const: 1 } },
+          pairs: { type: "array", contains: { const: 1 }, minContains: 2 },
+          single: { type: "array", contains: { const: 1, description: "equal to 1" }, maxContains: 1 },
+          few: { type: "array", contains: { const: 1 }, minContains: 0, maxContains: 2 },
+          some: { type: "array", contains: { const: 1 }, minContains: 2, maxContains: 3 },
+          rows: { type: "array", contains: { type: "object", required: ["k"] } },
+          cond: { type: "object", if: { required: ["a"] }, then: { required: ["b"] } },
         },
         additionalProperties: false,
       },
@@ -328,6 +336,28 @@ describe("readable messages of an input that fails its schema (#309)", () => {
     expect(
       describeInputViolations(inputViolations([plain], { input: { a: 1 }, schemas: product.schemas })),
     ).toBe("The input (an object) does not have the expected form");
+  });
+
+  it("says how many items of which form a list must have, without the items it tried (#851)", () => {
+    expect(
+      field({
+        ones: [2],
+        pairs: [1],
+        single: [1, 1],
+        few: [1, 1, 1],
+        some: [1],
+        rows: [{}],
+        cond: { a: 1 },
+      }),
+    ).toEqual([
+      "ones must have at least 1 item of the expected form",
+      "pairs must have at least 2 items of the expected form",
+      "single must have exactly 1 item equal to 1",
+      "few must have at most 2 items of the expected form",
+      "some must have 2 to 3 items of the expected form",
+      "rows must have at least 1 item of the expected form",
+      "cond.b is required",
+    ]);
   });
 
   it("speaks of a file instead of a command input (#835)", () => {
