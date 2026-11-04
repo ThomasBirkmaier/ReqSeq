@@ -35,7 +35,7 @@
 // the new store from the old one (`carryIncomingIndex`, through the `carry` hook of `incomingState`)
 // instead of building it again, so the first chain after a save does not pay the build (SR-082 AK4).
 // Each list stays in the order a fresh build gives it; the order of the UUIDs in the maps is not
-// defined (a carried index adds new ones last).
+// defined after a carry (both maps are patches, `PatchedMap`, #215).
 import type { Metamodel } from "../metamodel/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
@@ -89,7 +89,7 @@ export type IncomingLink = IncomingRelation | IncomingReference;
 
 /**
  * The relations and inline references of one element store, by the UUID they name. The order of
- * the UUIDs in the maps is not defined (a carried index adds new ones last); the order of each list
+ * the UUIDs in the maps is not defined after a carry (`PatchedMap`, #215); the order of each list
  * is.
  */
 export interface IncomingIndex {
@@ -305,8 +305,8 @@ const carriedMap = <T extends IncomingLink>(
  * (a save or a watcher batch; #184, #267): the links whose source lies in a changed file
  * (`StoreUpdate.files`) are dropped, the links of the records in those files now are added, and
  * every other list and link is kept as the same object. `index` itself is not changed. Each list is
- * in the order a fresh build gives it; the maps themselves may name their UUIDs in another order (a
- * UUID that was not in `index` comes last). The records of the changed files, before and after, are
+ * in the order a fresh build gives it; the order of the UUIDs in the maps is not defined after
+ * a carry. The records of the changed files, before and after, are
  * those of `StoreUpdate.ids` that lie in them (`storeUpdate` names the UUIDs of both). Costs the lists
  * of the UUIDs that these records point at; both maps are patches of those of `index` (#215).
  */
