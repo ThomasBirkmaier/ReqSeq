@@ -350,6 +350,16 @@ describe("readable messages of an input that fails its schema (#309)", () => {
     expect(quoted && fileMessage(quoted)).toBe(
       'mode "The input is not an input of this command" is not one of: fast, slow',
     );
+    // An unknown key under unevaluatedProperties is told the same way.
+    expect(
+      fileMessage({
+        path: "",
+        field: "extra",
+        keyword: "unevaluatedProperties",
+        message: "extra is not an input of this command",
+        params: { unevaluatedProperty: "extra" },
+      }),
+    ).toBe("extra is not a field of the file");
   });
 
   it("gives no violation for no errors", () => {
