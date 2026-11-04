@@ -7,10 +7,13 @@
 //   separator, so independent of `.reqseq/local.yaml`) and `sha256` is that of the file as read.
 //   The planned bytes bind the operation, the value, choice keys and target versions.
 // - The entries are hashed in path order (`byPath`, by code units, never `localeCompare`), so the
-//   value is the same for the same file bytes, whatever the path of the workspace, the machine or
-//   the access. A CRLF checkout has other bytes and so another plan.
-// - Not bound: skipped and unchanged elements, problems and hints, and the titles of relation
-//   targets that the write refreshes (decision on #307).
+//   value is the same for the same file names and bytes, whatever the path of the workspace, the
+//   machine or the access. A CRLF checkout has other bytes and so another plan; a checkout whose
+//   file names have another Unicode normalization (NFD on macOS) has other names and so another plan.
+// - Not bound: skipped and unchanged elements, problems and hints. The planned bytes never hold the
+//   titles of relation targets that the write refreshes (decision on #307): `withCurrentTitles`
+//   runs in `writeElementFiles`, after the plan, so a confirmation may write a refreshed title that
+//   its plan does not show, and the plan is the same.
 import { createHash } from "node:crypto";
 import { byPath } from "./path-order.js";
 

@@ -284,6 +284,7 @@
         "file.yaml-warning",
         "file.skipped",
         "file.stale-temp",
+        "file.read-only",
         "element.invalid",
         "element.duplicate-id",
         "element.duplicate-identifier",

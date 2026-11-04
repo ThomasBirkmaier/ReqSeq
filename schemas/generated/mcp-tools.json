@@ -608,6 +608,7 @@
             "file.yaml-warning",
             "file.skipped",
             "file.stale-temp",
+            "file.read-only",
             "element.invalid",
             "element.duplicate-id",
             "element.duplicate-identifier",
@@ -4296,7 +4297,7 @@
             "items": {
               "$ref": "#/$defs/common/$defs/problem"
             },
-            "description": "Hints at the property in the affected elements after the change: value kind (SR-085), more entries than `max-items` (SR-171), target types (SR-086)."
+            "description": "Hints at the property in the affected elements after the change: missing required value, value kind (SR-085), more entries than `max-items` (SR-171), target types (SR-086). A preview also names what a confirmation refuses: a not writable folder (file.read-only)."
           },
           "incomplete": {
             "$ref": "#/$defs/common/$defs/incomplete"

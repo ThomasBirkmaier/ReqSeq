@@ -1992,3 +1992,99 @@ describe("a view the window shows (SR-043 AK1)", () => {
     expect(all.shownCall).toHaveBeenLastCalledWith("baseline.create", { selection: { view: "u-coast" } });
   });
 });
+
+// Product owner decision, 2026-11-04 (#836): a confirmation of a bulk update writes only the plan of the
+// preview the window shows.
+describe("a bulk update confirms the plan of the preview shown (#836)", () => {
+  const list = listBuffer("type: need", { where: { type: ["need"] } });
+  const PLAN = `p1:${"a".repeat(64)}`;
+  const PREVIEW = {
+    selection: { where: { type: ["need"] } },
+    property: "rationale",
+    operation: "set",
+    value: "Why",
+  };
+  const preview = {
+    applied: false,
+    count: 2,
+    affected: [],
+    unchanged: 0,
+    skipped: [],
+    files: [],
+    problems: [],
+    plan: PLAN,
+  };
+
+  /** Runs "Bulk update elements" rationale set "Why" with confirm yes. */
+  const confirm = async (
+    context: ActionContext & CatalogContext,
+    asked: readonly Prompt[],
+  ): Promise<void> => {
+    start(context, "element.bulkUpdate");
+    item((await last(asked)).items, "Rationale").run();
+    item((await last(asked)).items, "set").run();
+    (await last(asked)).more?.("Why");
+    item((await last(asked)).items, "confirm").run();
+    item((await last(asked)).items, "yes").more?.();
+    item((await last(asked)).items, "Run").run();
+    await flush();
+  };
+
+  it("shows the preview first and writes nothing when no preview of the change is shown", async () => {
+    const { context, asked, call, dispatched, echoed } = setup([list], {
+      "metamodel.get": () => FIXTURE_METAMODEL,
+      "element.bulkUpdate": () => preview,
+    });
+    await confirm(context, asked);
+    expect(call).toHaveBeenLastCalledWith("element.bulkUpdate", PREVIEW);
+    expect(call.mock.calls.filter(([name]) => name === "element.bulkUpdate")).toHaveLength(1);
+    expect(dispatched.at(-1)).toMatchObject({
+      type: "open",
+      buffer: { command: "element.bulkUpdate", input: PREVIEW, output: preview, written: true },
+    });
+    expect(echoed.at(-1)).toBe(
+      "Bulk update elements: nothing was written; confirm again to write what the preview shows",
+    );
+  });
+
+  it("passes the plan of the preview shown, and shows the new preview when core refuses it", async () => {
+    const shownPreview = resultBuffer(
+      "element.bulkUpdate",
+      PREVIEW,
+      "Bulk update elements",
+      preview,
+      3,
+      true,
+    );
+    const written = { ...preview, applied: true };
+    const { context, asked, call, dispatched } = setup([list, shownPreview], {
+      "metamodel.get": () => FIXTURE_METAMODEL,
+      "element.bulkUpdate": (input) => (input["confirm"] === true ? written : preview),
+    });
+    await confirm(context, asked);
+    expect(call).toHaveBeenLastCalledWith("element.bulkUpdate", { ...PREVIEW, confirm: true, plan: PLAN });
+    expect(dispatched.at(-1)).toMatchObject({ buffer: { output: written } });
+    const changed = { ...preview, count: 3, plan: `p1:${"b".repeat(64)}` };
+    const refused = setup([list, shownPreview], {
+      "metamodel.get": () => FIXTURE_METAMODEL,
+      "element.bulkUpdate": (input) =>
+        input["confirm"] === true
+          ? refusedWith("plan: the change now writes other elements", { count: 3, reason: "plan-changed" })
+          : changed,
+    });
+    await confirm(refused.context, refused.asked);
+    expect(refused.call).toHaveBeenLastCalledWith("element.bulkUpdate", PREVIEW);
+    expect(refused.dispatched.at(-1)).toMatchObject({ buffer: { input: PREVIEW, output: changed } });
+    expect(refused.echoed.at(-1)).toBe(
+      "Bulk update elements: something changed since the preview, so nothing was written; the new preview is shown",
+    );
+    // Another refusal of the confirmation is asked again as before; a failing preview says why.
+    const other = setup([list], {
+      "metamodel.get": () => FIXTURE_METAMODEL,
+      "element.bulkUpdate": () =>
+        Object.assign(new Error("Workspace is read-only"), { name: "workspace.read-only" }),
+    });
+    await confirm(other.context, other.asked);
+    expect(other.echoed.at(-1)).toBe("Workspace is read-only");
+  });
+});

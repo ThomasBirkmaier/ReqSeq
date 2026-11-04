@@ -8,6 +8,7 @@ import { Alias, Document, parseDocument } from "yaml";
 import { findUnresolvedAlias } from "./parse.js";
 import {
   linkText,
+  readEditableFile,
   readElementBodySync,
   readElementFile,
   readElementFileSync,
@@ -703,6 +704,45 @@ describe("readElementBodySync (the text of a file read again, ADR-0008)", () => 
         kind: "changed",
         read: readElementFileSync(root, "a.md"),
       });
+    }
+  });
+});
+
+describe("readEditableFile (a file read again for a write, #836)", () => {
+  const ELEMENT = "﻿---\r\nid: x\r\ntitle: X\r\n---\r\n\r\nText\r\n";
+  const hashOf = (bytes: string | Uint8Array): { sha256: string } => ({
+    sha256: createHash("sha256").update(bytes).digest("hex"),
+  });
+
+  it("gives the texts and the snapshot of readElementFile, without the parsed YAML, for the bytes of the snapshot", async () => {
+    await put("req/a.md", ELEMENT);
+    const read = await readElementFile(root, "req/a.md");
+    if (read.kind !== "parsed") {
+      throw new Error("expected a parsed file");
+    }
+    const { frontmatter, body, eol, closingEol, bom, path: file, snapshot } = read.file;
+    expect(await readEditableFile(root, "req/a.md", snapshot)).toEqual({
+      frontmatter,
+      body,
+      eol,
+      closingEol,
+      bom,
+      path: file,
+      snapshot,
+    });
+  });
+
+  it("gives nothing for a file that changed, is gone, or whose bytes give no frontmatter", async () => {
+    await put("a.md", ELEMENT);
+    const before = hashOf(ELEMENT);
+    await put("a.md", "---\nid: y\n---\n");
+    expect(await readEditableFile(root, "a.md", before)).toBeUndefined();
+    await fs.rm(path.join(root, "a.md"));
+    expect(await readEditableFile(root, "a.md", before)).toBeUndefined();
+    const invalid = Uint8Array.of(0x2d, 0x2d, 0x2d, 0x0a, 0xff, 0x0a, 0x2d, 0x2d, 0x2d, 0x0a);
+    for (const bytes of ["No frontmatter.\n", "<<<<<<< HEAD\n", invalid]) {
+      await put("a.md", bytes);
+      expect(await readEditableFile(root, "a.md", hashOf(bytes))).toBeUndefined();
     }
   });
 });

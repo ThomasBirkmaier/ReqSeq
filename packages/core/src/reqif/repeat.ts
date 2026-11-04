@@ -20,15 +20,18 @@ import type { Problem, ReqifObject } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
 import type { ElementRecord, ElementStore } from "../model/index.js";
 import { assertElementWritable, currentVersionsOf, elementStoreState, hasId } from "../model/index.js";
-import type { UnchangedElement } from "../model/write.js";
+import type { WriteSource } from "../model/write.js";
 import { readAllUnchanged } from "../model/write.js";
 import type { Workspace } from "../runtime/workspace.js";
-import type { WorkspaceLayout } from "../workspace/index.js";
+import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
 import type { ReqifFile } from "./model.js";
 import type { OriginKeys } from "./origin.js";
 
 /** An element of an earlier delivery whose SPEC-OBJECT the file has again. */
-export interface ExistingElement extends UnchangedElement {
+export interface ExistingElement {
+  readonly repository: RepositoryLocation;
+  /** The file as read again for the write (`readAllUnchanged`). */
+  readonly current: WriteSource;
   readonly record: ElementRecord;
   /** Its current version (C), or undefined with `unknown` saying why it has none. */
   readonly version: string | undefined;

@@ -305,6 +305,7 @@ export type ProblemCode =
   | "file.yaml-warning"
   | "file.skipped"
   | "file.stale-temp"
+  | "file.read-only"
   | "element.invalid"
   | "element.duplicate-id"
   | "element.duplicate-identifier"
@@ -1950,7 +1951,7 @@ export interface ElementBulkUpdateOutput {
   }[];
   /** Written files relative to the workspace root; empty in a preview. */
   readonly files: readonly string[];
-  /** Hints at the property in the affected elements after the change: value kind (SR-085), more entries than `max-items` (SR-171), target types (SR-086). */
+  /** Hints at the property in the affected elements after the change: missing required value, value kind (SR-085), more entries than `max-items` (SR-171), target types (SR-086). A preview also names what a confirmation refuses: a not writable folder (file.read-only). */
   readonly problems: readonly Problem[];
   readonly incomplete?: Incomplete;
   /** Fingerprint of the files the change writes and their new bytes; pass it with confirm. */

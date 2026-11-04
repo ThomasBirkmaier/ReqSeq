@@ -11,9 +11,11 @@ import path from "node:path";
 import type { CommandName, Problem } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import type {
+  EditableElementFile,
   EditableFile,
   FileSnapshot,
   FrontmatterEdit,
+  ParsedContent,
   ParsedFile,
   PropertyValue,
 } from "../files/index.js";
@@ -23,8 +25,8 @@ import {
   editElementFile,
   elementText,
   parseFileBytes,
+  readEditableFile,
   readElementFile,
-  readElementFiles,
   resolveInRoot,
   sha256,
   writeFileAtomic,
@@ -358,20 +360,25 @@ const asElement = (repository: string, file: ParsedFile): ReadElement | undefine
 /**
  * The element of bytes ReqSeq has just written, with the snapshot of the write, so the result shows
  * what was written without reading the file again. The writer checked the bytes, so anything but an
- * element is a bug (`internal`).
+ * element is a bug (`internal`). `parsed` is what `editElementFile` read these very bytes back as
+ * (`FileEditResult.parsed`, of a file with the snapshot's path), so they are not parsed again (N-036).
  */
 export const writtenElement = (
   repository: string,
   bytes: Uint8Array,
   snapshot: FileSnapshot,
+  parsed?: ParsedContent,
 ): ReadElement => {
   const notAnElement = (): CommandError =>
     new CommandError("internal", `${snapshot.path} was written, but it does not read back as an element`);
-  const parsed = parseFileBytes(snapshot.path, bytes);
-  if (parsed.kind !== "parsed") {
+  const outcome =
+    parsed === undefined
+      ? parseFileBytes(snapshot.path, bytes)
+      : { kind: "parsed" as const, content: parsed };
+  if (outcome.kind !== "parsed") {
     throw notAnElement();
   }
-  const file: ParsedFile = { ...parsed.content, path: snapshot.path, snapshot };
+  const file: ParsedFile = { ...outcome.content, path: snapshot.path, snapshot };
   const classified = classifyFile(repository, file);
   if (classified.kind !== "element") {
     throw notAnElement();
@@ -402,12 +409,13 @@ export const checkedBefore = async (
   bytes: Uint8Array,
   snapshot: FileSnapshot,
   type: string,
+  parsed?: ParsedContent,
 ): Promise<{ readonly element: ReadElement; readonly findings: readonly LocatableFinding[] } | undefined> => {
   // Only the types the check asks for are parsed (N-036).
   if (check?.types.has(type) !== true) {
     return undefined;
   }
-  const element = writtenElement(repository, bytes, snapshot);
+  const element = writtenElement(repository, bytes, snapshot, parsed);
   return { element, findings: await check.findings(element.record) };
 };
 
@@ -949,44 +957,62 @@ const requirePrecondition = (input: UpdateElementInput): void => {
   }
 };
 
+/** Files `readAllUnchanged` reads at the same time; bounded so 50,000 files do not exhaust file handles. */
+const READ_CONCURRENCY = 32;
+
+/**
+ * An element file read again for a write that the writer can edit: its texts and the snapshot of the
+ * read (`EditableElementFile`; a `ParsedFile` fits), and the element it is.
+ */
+export interface WriteSource {
+  readonly file: EditableElementFile;
+  readonly record: ElementRecord;
+}
+
 /**
  * `readUnchanged` for the records of many items at once, in their order, for a command that changes many
- * elements (`element.bulkUpdate`): the files of each repository are read `readElementFiles` style,
- * several at a time, and then checked one by one, so the first file that changed on disk throws
- * `file.changed-on-disk` (and resets the element store) as `readUnchanged` does.
+ * elements (`element.bulkUpdate`): the files are read several at a time and then checked one by one,
+ * so the first file that changed on disk (gone, unreadable, or another SHA-256 than the store read)
+ * throws `file.changed-on-disk` (and resets the element store) as `readUnchanged` does. A file that
+ * still has the store's bytes is the element the store read from them, so its YAML is not parsed
+ * again (`readEditableFile`, N-036): `current` is the record of the store and the texts the writer needs.
  */
 export const readAllUnchanged = async <T extends { readonly record: ElementRecord }>(
   workspace: Workspace,
   layout: WorkspaceLayout,
   items: readonly T[],
-): Promise<(T & UnchangedElement)[]> => {
-  const records = items.map((item) => item.record);
-  const placeOf = (repository: string, file: string): string => JSON.stringify([repository, file]);
-  const read = new Map<string, ParsedFile>();
-  for (const name of new Set(records.map((r) => r.repository))) {
-    const repository = targetRepository(layout, name);
-    const files = await readElementFiles(
-      repository.folder,
-      records.filter((r) => r.repository === name).map((r) => r.file),
-    );
-    for (const file of files.files) {
-      read.set(placeOf(name, file.path), file);
+): Promise<(T & { readonly repository: RepositoryLocation; readonly current: WriteSource })[]> => {
+  const located = items.map((item) => ({
+    item,
+    repository: targetRepository(layout, item.record.repository),
+  }));
+  const files: (EditableElementFile | undefined)[] = [];
+  const queue = located.entries();
+  const worker = async (): Promise<void> => {
+    for (const [index, { item, repository }] of queue) {
+      files[index] = await readEditableFile(repository.folder, item.record.file, item.record.snapshot);
     }
-  }
-  const out: (T & UnchangedElement)[] = [];
-  for (const item of items) {
-    const { record } = item;
-    const repository = targetRepository(layout, record.repository);
-    // Gone, faulty or no longer an element: changed on disk.
-    const file = read.get(placeOf(record.repository, record.file));
-    const current = file === undefined ? undefined : asElement(record.repository, file);
-    out.push({ ...item, ...(await unchanged(workspace, record, repository, current)) });
+  };
+  await Promise.all(Array.from({ length: Math.min(READ_CONCURRENCY, located.length) }, worker));
+  const out: (T & { readonly repository: RepositoryLocation; readonly current: WriteSource })[] = [];
+  for (const [index, { item, repository }] of located.entries()) {
+    const file = files[index];
+    if (file === undefined) {
+      await workspace.reset(elementStoreState);
+      throw changedOnDisk(item.record);
+    }
+    out.push({ ...item, repository, current: { file, record: item.record } });
   }
   return out;
 };
 
-/** One planned change of an existing element file: the file as read with `readUnchanged`, and its new bytes. */
-export interface ElementFileWrite extends UnchangedElement {
+/**
+ * One planned change of an existing element file: the file as read with `readUnchanged` (or
+ * `readAllUnchanged`), and its new bytes.
+ */
+export interface ElementFileWrite {
+  readonly repository: RepositoryLocation;
+  readonly current: WriteSource;
   readonly bytes: Uint8Array;
 }
 
@@ -1053,7 +1079,8 @@ export interface WriteFilesOptions {
   /**
    * Files written at the same time; default 1, one after the other. Each write syncs the file and
    * its folder to disk (`writeFileAtomic`), so a command that writes many files (`element.bulkUpdate`)
-   * writes several at once; the rollback is the same.
+   * writes several at once; the rollback is the same. A positive integer, else `input.invalid`
+   * before anything is written.
    */
   readonly concurrency?: number;
 }
@@ -1062,7 +1089,8 @@ export interface WriteFilesOptions {
  * Writes several existing element files, for commands that change more than one element
  * (`element.setStatus`, `element.supersede`, `element.bulkUpdate`), one at a time or, with
  * `options.concurrency`, several at a time; after the first failure no further write starts and
- * the writes in flight end before the rollback. Every check must be done before. Each planned
+ * the writes in flight end before the rollback, which also restores those of them that succeeded.
+ * Of several failures, the one of the earliest write in `writes` is thrown. Every check must be done before. Each planned
  * file that changes also gets the current titles of its same-repository relation targets
  * (`withCurrentTitles`, decision on #307): only those title values change. A write can still be
  * refused (`file.read-only`, a file changed in the meantime, a disk error), or written bytes may
@@ -1079,16 +1107,24 @@ export const writeElementFiles = async (
   writes: readonly ElementFileWrite[],
   options: WriteFilesOptions,
 ): Promise<WrittenElementFile[]> => {
+  const concurrency = options.concurrency ?? 1;
+  if (!Number.isInteger(concurrency) || concurrency < 1) {
+    // Zero workers would write nothing and report success.
+    throw new CommandError(
+      "input.invalid",
+      `concurrency must be a positive integer, got ${String(concurrency)}`,
+    );
+  }
   const done: DoneWrite[] = [];
   const results: WrittenElementFile[] = [];
-  // The first failure; once there is one, no further write starts.
-  let failure: { readonly error: unknown } | undefined;
+  // The failures by the index of their write; once there is one, no further write starts.
+  const failures = new Map<number, unknown>();
   // The stored titles of same-repository targets follow their targets (decision on #307).
   const titled = withCurrentTitles(options.titles, writes);
   const queue = titled.entries();
   const worker = async (): Promise<void> => {
     for (const [index, write] of queue) {
-      if (failure !== undefined) {
+      if (failures.size > 0) {
         return;
       }
       try {
@@ -1108,14 +1144,15 @@ export const writeElementFiles = async (
           file,
         };
       } catch (error) {
-        // Several writes can fail at once; the first is reported.
-        failure ??= { error };
+        failures.set(index, error);
       }
     }
   };
-  await Promise.all(Array.from({ length: Math.min(options.concurrency ?? 1, titled.length) }, worker));
-  if (failure !== undefined) {
-    const { error } = failure;
+  await Promise.all(Array.from({ length: Math.min(concurrency, titled.length) }, worker));
+  if (failures.size > 0) {
+    // Several writes in flight can fail: the one of the earliest write in `writes` is reported, not
+    // the one that ended first.
+    const error = failures.get(Math.min(...failures.keys()));
     const kept: string[] = [];
     for (const written of done.reverse()) {
       if (!(await restore(written))) {

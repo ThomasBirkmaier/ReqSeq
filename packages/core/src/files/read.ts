@@ -7,8 +7,10 @@ import fs from "node:fs/promises";
 import type { Problem } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import type { ParsedContent, ParsedYaml } from "./parse.js";
+import type { EditableFile } from "./edit.js";
 import {
   elementBody,
+  elementEditable,
   elementFrontmatter,
   fileProblem,
   parseFileBytes,
@@ -190,6 +192,38 @@ export const readElementText = async (
   relativePath: string,
   snapshot: Pick<FileSnapshot, "sha256">,
 ): Promise<string | undefined> => textOf(await readBytes(root, relativePath), snapshot);
+
+/** An element file read again for a write: the texts the writer needs, its path and the snapshot of this read. */
+export interface EditableElementFile extends EditableFile {
+  /** Relative to the root, `/` as separator. */
+  readonly path: string;
+  /** Pass to `writeFileAtomic`. */
+  readonly snapshot: FileSnapshot;
+}
+
+/**
+ * An element file below `root` read again for a write when its bytes still have the SHA-256 of
+ * `snapshot` (the bytes the element store parsed): the texts `editElementFile` needs, as
+ * `readElementFile` gives them, and the snapshot of this read, without parsing the YAML again
+ * (N-036, `element.bulkUpdate`); undefined when the file changed since, or cannot be read. The same
+ * checks as `readElementFile` (no links, no folder linked out of the root).
+ */
+export const readEditableFile = async (
+  root: string,
+  relativePath: string,
+  snapshot: Pick<FileSnapshot, "sha256">,
+): Promise<EditableElementFile | undefined> => {
+  const raw = await readBytes(root, relativePath);
+  if (raw.kind !== "bytes") {
+    return undefined;
+  }
+  const { file, bytes, mtimeMs } = raw;
+  const hash = sha256(bytes);
+  const editable = hash === snapshot.sha256 ? elementEditable(file, bytes) : undefined;
+  return editable === undefined
+    ? undefined
+    : { ...editable, path: file, snapshot: makeSnapshot(file, bytes.byteLength, mtimeMs, hash) };
+};
 
 /** The text of the element file `raw` when its bytes have the SHA-256 of `snapshot`. */
 const textOf = (raw: RawFile, snapshot: Pick<FileSnapshot, "sha256">): string | undefined => {

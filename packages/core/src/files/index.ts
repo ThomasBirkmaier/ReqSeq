@@ -11,6 +11,7 @@ export type { FrontmatterSplit, LineEnding } from "./frontmatter.js";
 export { FRONTMATTER_FIRST_LINE, parseFileBytes, parseYamlFileBytes } from "./parse.js";
 export type { ParsedContent, ParsedYaml, ParseOutcome, YamlParseOutcome } from "./parse.js";
 export {
+  readEditableFile,
   readElementBodySync,
   readElementFile,
   readElementFrontmatterSync,
@@ -27,6 +28,7 @@ export {
 } from "./read.js";
 export type {
   BodyReadResult,
+  EditableElementFile,
   FileHash,
   FileReadResult,
   FileStat,

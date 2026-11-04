@@ -16,8 +16,8 @@ import type { ElementFileWrite } from "./write.js";
 import { readUnchanged, writeElementFiles } from "./write.js";
 
 interface Control {
-  /** Called before each write with its 1-based number; may throw to make that write fail. */
-  before: (call: number) => void;
+  /** Called before each write with its 1-based number; may throw (or reject) to make that write fail. */
+  before: (call: number) => void | Promise<void>;
   /** Called with what each write gives, by its 1-based number; may give something else. */
   after: (call: number, snapshot: files.FileSnapshot) => files.FileSnapshot;
   calls: number;
@@ -39,7 +39,7 @@ vi.mock("../files/index.js", async (importOriginal) => {
     writeFileAtomic: async (...args: Parameters<typeof files.writeFileAtomic>) => {
       control.calls += 1;
       const call = control.calls;
-      control.before(call);
+      await control.before(call);
       return control.after(call, await actual.writeFileAtomic(...args));
     },
     parseFileBytes: (...args: Parameters<typeof files.parseFileBytes>) =>
@@ -160,9 +160,8 @@ describe("writeElementFiles rolls back the files it wrote", () => {
     expect(await Promise.all([WIND.file, GUSTS.file, BARE.file].map(read))).toEqual(before);
   });
 
-  it("writes several files at a time on request, and reports the first of several failures", async () => {
-    const { workspace, read } = await open();
-    const before = await Promise.all([WIND.file, GUSTS.file, BARE.file].map(read));
+  /** The planned writes of WIND, GUSTS and BARE (in that order) with a new text, on the store as it is now. */
+  const planned = async (workspace: Workspace) => {
     const layout = await workspace.get(workspaceLayoutState);
     const store = await workspace.get(elementStoreState);
     const metamodel = await workspace.get(metamodelState);
@@ -175,19 +174,73 @@ describe("writeElementFiles rolls back the files it wrote", () => {
       const read = await readUnchanged(workspace, layout, record);
       writes.push({ ...read, bytes: editElementFile(read.current.file, { body: "Changed.\n" }).bytes });
     }
-    // Writes 1 WIND and 2 GUSTS start together and both fail; BARE is never written.
-    control.before = (call) => {
+    return { layout, writes, titles: { metamodel, store } };
+  };
+
+  it("refuses a concurrency that is no positive integer before writing anything", async () => {
+    const { workspace } = await open();
+    const { layout, writes, titles } = await planned(workspace);
+    for (const concurrency of [0, -1, 1.5]) {
+      await expect(
+        writeElementFiles(workspace, layout, writes, { concurrency, titles }),
+      ).rejects.toMatchObject({
+        code: "input.invalid",
+        message: `concurrency must be a positive integer, got ${String(concurrency)}`,
+      });
+    }
+    expect(control.calls).toBe(0);
+  });
+
+  it("restores a write in flight that succeeds after another one failed", async () => {
+    const { workspace, read } = await open();
+    const before = await Promise.all([WIND.file, GUSTS.file, BARE.file].map(read));
+    const { layout, writes, titles } = await planned(workspace);
+    // Write 1 (WIND) fails at once; write 2 (GUSTS), in flight, succeeds afterwards and is restored
+    // (call 3); BARE is never written.
+    let failed: () => void = () => undefined;
+    const first = new Promise<void>((resolve) => (failed = resolve));
+    control.before = async (call) => {
       if (call === 1) {
+        failed();
         throw new CommandError("file.read-only", "Not written: first");
       }
       if (call === 2) {
+        await first;
+      }
+    };
+    const error = await writeElementFiles(workspace, layout, writes, { concurrency: 2, titles }).catch(
+      (e: unknown) => e,
+    );
+    expect(error).toMatchObject({
+      code: "file.read-only",
+      message: "Not written: first",
+      details: undefined,
+    });
+    expect(control.calls).toBe(3);
+    expect(await Promise.all([WIND.file, GUSTS.file, BARE.file].map(read))).toEqual(before);
+  });
+
+  it("writes several files at a time on request, and reports the earliest of several failures", async () => {
+    const { workspace, read } = await open();
+    const before = await Promise.all([WIND.file, GUSTS.file, BARE.file].map(read));
+    const { layout, writes, titles } = await planned(workspace);
+    const { metamodel } = titles;
+    // Writes 1 WIND and 2 GUSTS start together and both fail, 2 before 1; BARE is never written.
+    let second: () => void = () => undefined;
+    const secondFailed = new Promise<void>((resolve) => (second = resolve));
+    control.before = async (call) => {
+      if (call === 1) {
+        await secondFailed;
+        throw new CommandError("file.read-only", "Not written: first");
+      }
+      if (call === 2) {
+        second();
         throw new CommandError("file.read-only", "Not written: second");
       }
     };
-    const error = await writeElementFiles(workspace, layout, writes, {
-      concurrency: 2,
-      titles: { metamodel, store },
-    }).catch((e: unknown) => e);
+    const error = await writeElementFiles(workspace, layout, writes, { concurrency: 2, titles }).catch(
+      (e: unknown) => e,
+    );
     expect(error).toBeInstanceOf(CommandError);
     expect((error as CommandError).message).toBe("Not written: first");
     expect(control.calls).toBe(2);

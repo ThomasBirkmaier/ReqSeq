@@ -776,3 +776,99 @@ describe("element.bulkUpdate plan (#158)", () => {
     expect(await texts(fixture.root)).toEqual(before);
   });
 });
+
+// Follow-ups of #158 (#836): hand-written values and the hint of a removed required property.
+describe("element.bulkUpdate hand-written values and hints (#836)", () => {
+  const B8 = id("b8");
+  const T1 = id("71");
+  /** A blank criterion, and a type with a choice list that holds a hand-written value (`Storm`). */
+  const HAND: FixtureOptions = {
+    fixture: "SR-069/filter",
+    files: {
+      "requirements/SR-0000000000b8.md": `---\nid: ${B8}\ntype: system-requirement\nstatus: draft\ntitle: Blank criterion\nrequirement-type: functional\nacceptance-criteria: "  "\n---\n`,
+      "metamodel/tags.yaml": [
+        "reqseq-metamodel: 1",
+        "types:",
+        "  - { key: tagged-requirement, name: Tagged Requirement, prefix: TR, extends: system-requirement, properties: [tags] }",
+        "properties:",
+        "  - key: tags",
+        "    name: Tags",
+        "    kind: choice",
+        "    many: true",
+        "    choices:",
+        "      - { key: ice, name: Frost }",
+        "      - { key: frost, name: Ice }",
+        "      - { key: wind, name: Wind }",
+        "",
+      ].join("\n"),
+      "requirements/TR-000000000071.md": `---\nid: ${T1}\ntype: tagged-requirement\nstatus: draft\ntitle: Tagged\nrequirement-type: functional\nacceptance-criteria: [Given tags, then it holds.]\ntags:\n  - wind\n  - Storm\n  - ice\n---\n`,
+    },
+  };
+
+  it("adds to a blank value as to no value: the item is the only one", async () => {
+    const { fixture, workspace } = await open(HAND);
+    const out = await bulk(workspace, {
+      selection: { ids: [B8] },
+      property: "acceptance-criteria",
+      operation: "add",
+      value: ["Given two, then it holds."],
+      confirm: true,
+    });
+    expect(out.count).toBe(1);
+    expect((await texts(fixture.root))["requirements/SR-0000000000b8.md"]).toContain(
+      "\nacceptance-criteria:\n  - Given two, then it holds.\n---\n",
+    );
+  });
+
+  it("removes a hand-written value that is no choice as given, and a choice by its name; an ambiguous name is refused", async () => {
+    const { fixture, workspace } = await open(HAND);
+    const file = "requirements/TR-000000000071.md";
+    const out = await bulk(workspace, {
+      selection: { ids: [T1] },
+      property: "tags",
+      operation: "remove",
+      value: ["Storm", "WIND"],
+      confirm: true,
+    });
+    expect(out.count).toBe(1);
+    expect((await texts(fixture.root))[file]).toContain("\ntags:\n  - ice\n---\n");
+    const before = await texts(fixture.root);
+    // `ICE` is the key of one choice and the name of another.
+    const error = await failure(workspace, {
+      selection: { ids: [T1] },
+      property: "tags",
+      operation: "remove",
+      value: "ICE",
+      confirm: true,
+    });
+    expect([error.code, error.details?.["reason"]]).toEqual(["input.invalid", "ambiguous-choice"]);
+    expect(await texts(fixture.root)).toEqual(before);
+    // set and add still take only a choice.
+    const unknown = await failure(workspace, {
+      selection: { ids: [T1] },
+      property: "tags",
+      operation: "add",
+      value: "Storm",
+    });
+    expect(unknown.details?.["reason"]).toBe("unknown-choice");
+  });
+
+  it("names a required property that the change leaves without a value (element.missing-required)", async () => {
+    const { workspace } = await open();
+    const out = await bulk(workspace, {
+      selection: { ids: [B1, N1] },
+      property: "acceptance-criteria",
+      operation: "remove",
+    });
+    expect(ids(out.affected)).toEqual([B1]);
+    expect(out.problems).toEqual([
+      expect.objectContaining({
+        code: "element.missing-required",
+        severity: "warning",
+        file: FILES[B1],
+        elementId: B1,
+        elementShortId: "SR-0000b1",
+      }),
+    ]);
+  });
+});
