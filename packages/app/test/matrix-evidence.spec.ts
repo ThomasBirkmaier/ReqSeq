@@ -66,6 +66,10 @@ test.describe("the evidence columns of the traceability matrix", () => {
       probe.remove();
       return value;
     });
+    const text = await row(window, "SR-126b05")
+      .locator("td.element")
+      .evaluate((node) => getComputedStyle(node).color);
+    expect(accent).not.toBe(text);
     for (const shortId of ["SR-126b05", "SR-126b06"]) {
       const gap = testCases(window, shortId).locator(".gap");
       await expect(gap).toHaveText("—");
