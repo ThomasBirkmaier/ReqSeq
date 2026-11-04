@@ -101,7 +101,7 @@ describe("what a node shows", () => {
     );
   });
 
-  it("[SR-111/AK3] sums up the evidence below a node in the words of the CLI, and the node's name says it", () => {
+  it("[SR-111/AK3] sums up the evidence below a node with the counts of the CLI, and the node's name says it", () => {
     const summary = {
       id: "uuid-S1",
       repository: "spec",

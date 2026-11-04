@@ -62,10 +62,10 @@ export const filterLabel = (
 ): string | undefined => {
   const evidence =
     buffer.withEvidence === true
-      ? [choices.find((choice) => choice.filter.withEvidence === true)?.name ?? "Evidence"]
-      : [];
+      ? (choices.find((choice) => choice.filter.withEvidence === true)?.name ?? "Evidence")
+      : undefined;
   if (buffer.kinds === undefined && buffer.meanings === undefined) {
-    return evidence.length === 0 ? undefined : `with ${evidence.join("")}`;
+    return evidence === undefined ? undefined : `with ${evidence}`;
   }
   const named = (field: "kinds" | "meanings", key: string): string =>
     choices.find((choice) => {
@@ -75,7 +75,7 @@ export const filterLabel = (
   const followed = [
     ...(buffer.meanings ?? []).map((meaning) => named("meanings", meaning)),
     ...(buffer.kinds ?? []).map((kind) => named("kinds", kind)),
-    ...evidence,
+    ...(evidence === undefined ? [] : [evidence]),
   ];
   return followed.length === 0 ? "nothing followed" : `only ${followed.join(", ")}`;
 };
@@ -94,7 +94,7 @@ export const nodeId = (node: GraphNode): string => node.identifier ?? node.short
 const counted = (n: number, thing: string): string => `${String(n)} ${thing}${n === 1 ? "" : "s"}`;
 
 /**
- * The text of an evidence box, in the words of the CLI's line (`present.ts`):
+ * The text of an evidence box, with the counts of the CLI's line (`present.ts`):
  * "evidence · 2 test cases, 1 record · 2 passed, 1 failed", a count of 0 left out, the results in the
  * order of the output.
  */

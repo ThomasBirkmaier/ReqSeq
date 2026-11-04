@@ -639,7 +639,7 @@ test.describe("the depth and relation kinds of a graph on a fixture workspace", 
         .sort(),
     );
 
-  /** The boxes the CLI's `evidence` gives: one per summary, with its counts in the CLI's words. */
+  /** The boxes the CLI's `evidence` gives: one per summary, with the CLI's counts. */
   const evidenceOf = (output: GraphOutput): [string, string][] => {
     const counted = (n: number, thing: string): string[] =>
       n === 0 ? [] : [`${String(n)} ${thing}${n === 1 ? "" : "s"}`];
@@ -710,6 +710,7 @@ test.describe("the depth and relation kinds of a graph on a fixture workspace", 
     await choose(window, "Show only relation kind", "Evidence");
     const only = await shows({ maxDepth: 2, kinds: [], withEvidence: true }, "only Evidence");
     expect(only.edges).toEqual([]);
+    expect(evidenceOf(only)).not.toEqual([]);
     await expect.poll(() => evidenceBoxes(window)).toEqual(evidenceOf(only));
     // Everything: every link, and the evidence is gone.
     await choose(window, "Show only relation kind", "Everything");

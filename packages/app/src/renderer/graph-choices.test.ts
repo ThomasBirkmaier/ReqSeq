@@ -162,7 +162,7 @@ describe("Show only relation kind", () => {
 });
 
 describe("Also show relation kind", () => {
-  it("[SR-111/AK3] Also show relation kind adds a kind to the filter, without the ones it has, and offers no kind without a filter", () => {
+  it("[SR-111/AK3] Also show relation kind adds a kind to the filter, without the ones it has, and offers no relation kind without a filter", () => {
     // No filter: everything is followed, so there is nothing to add.
     expect(alsoChoices(graph, CHOICES)).toEqual([]);
     const derivations = { ...graph, meanings: ["derivation" as const] };
