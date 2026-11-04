@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PatchedMap } from "./patched-map.js";
+import { PatchedMap, plainOf } from "./patched-map.js";
 import { byPath } from "./path-order.js";
 
 const entries = <K, V>(map: ReadonlyMap<K, V>): [K, V][] => [...map];
@@ -180,5 +180,51 @@ describe("PatchedMap (#215)", () => {
         expect(order === undefined ? [...map].sort(([a], [b]) => byPath(a, b)) : [...map]).toEqual(sorted);
       }
     }
+  });
+
+  it("gives hot read loops its entries as a plain map from `plainAt` asks on, built once and kept", () => {
+    const base = new Map(Array.from({ length: 10 }, (_, i): [string, number] => [`k${String(i)}`, i]));
+    expect(plainOf(base)).toBe(base);
+    const patched = PatchedMap.patch(base, [
+      ["k1", 10],
+      ["k2", undefined],
+      ["x", 11],
+    ]);
+    // Below 1,024 asks: the map itself.
+    for (let i = 1; i < 1_024; i++) {
+      expect(plainOf(patched)).toBe(patched);
+    }
+    const plain = plainOf(patched);
+    expect(plain).not.toBe(patched);
+    expect(Object.getPrototypeOf(plain)).toBe(Map.prototype);
+    expect([...plain]).toEqual([...patched]);
+    expect(plainOf(patched)).toBe(plain);
+    expect(patched.plain()).toBe(plain);
+    // Read through the plain entries from now on.
+    expect([patched.get("k1"), patched.get("k2"), patched.has("x"), patched.has("k2")]).toEqual([
+      10,
+      undefined,
+      true,
+      false,
+    ]);
+    expect([...patched.keys()]).toEqual([...plain.keys()]);
+    // A patch takes the plain entries as its base, unchanged.
+    const next = PatchedMap.patch(patched, [["k3", 30]]);
+    expect(next.get("k3")).toBe(30);
+    expect(plain.get("k3")).toBe(3);
+    expect(next.size).toBe(10);
+  });
+
+  it("gives a plain base without changes as it is, and a map over another kind of base as a copy", () => {
+    const base = new Map([["a", 1]]);
+    const same = PatchedMap.patch(base, []);
+    expect(same.plain()).toBe(base);
+    const ordered = PatchedMap.patch(base, [["b", 2]], { order: byPath });
+    const over = PatchedMap.patch(ordered, []);
+    expect(over.plain()).not.toBe(ordered);
+    expect([...over.plain()]).toEqual([
+      ["a", 1],
+      ["b", 2],
+    ]);
   });
 });

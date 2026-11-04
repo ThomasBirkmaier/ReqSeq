@@ -6,6 +6,7 @@ import type { RelationTarget } from "../generated/types.js";
 import { fileSchemaValidator } from "../runtime/contracts.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import type { ElementMatch, ElementRecord } from "./elements.js";
+import { plainOf } from "./patched-map.js";
 import type { ElementStore } from "./store.js";
 
 /** Whether a value has the format of a relation target (`common.schema.json#/$defs/relationTarget`). */
@@ -26,7 +27,8 @@ export const resolveTarget = (
   target: Pick<RelationTarget, "id"> & Partial<RelationTarget>,
 ): ElementMatch => {
   const repository = target.repository ?? sourceRepository;
-  const elements = (store.byId.get(target.id) ?? []).filter((r) => r.repository === repository);
+  // A plain map: this runs once per relation of a check (#215, `plainOf`).
+  const elements = (plainOf(store.byId).get(target.id) ?? []).filter((r) => r.repository === repository);
   const [first] = elements;
   if (first === undefined) {
     return { kind: "unknown" };

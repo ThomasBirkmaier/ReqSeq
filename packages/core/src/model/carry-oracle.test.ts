@@ -35,7 +35,10 @@ import {
 import { counts, gitEntryFolder, mayHoldElements, watchWorkspace } from "./watch.js";
 import { updateElement } from "./write.js";
 
-/** Whether the seed runs with small patch limits: the store is assembled anew from 2 touched files, maps compact from 4 entries. */
+/**
+ * Whether the seed runs with small patch limits: the store is assembled anew from 2 touched files,
+ * maps compact from 4 entries and give their plain entries from 2 lookups (`plainOf`).
+ */
 let small = false;
 
 vi.mock("./patch-limits.js", async (importOriginal) => {
@@ -45,6 +48,7 @@ vi.mock("./patch-limits.js", async (importOriginal) => {
       return small ? 2 : original.PATCH_LIMIT;
     },
     compactAt: (size: number): number => (small ? 4 : original.compactAt(size)),
+    plainAt: (size: number): number => (small ? 2 : original.plainAt(size)),
   };
 });
 

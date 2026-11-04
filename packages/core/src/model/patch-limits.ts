@@ -13,3 +13,10 @@ export const PATCH_LIMIT = 1_000;
  * bound nor copies a large map often.
  */
 export const compactAt = (size: number): number => Math.max(1_024, Math.floor(size / 16));
+
+/**
+ * From this many lookups through `plainOf` a `PatchedMap` of `size` entries builds a plain `Map` of
+ * its entries and gives that (`max(1,024, size / 8)`): a check looks up the store's `byId` once per
+ * relation (200,000 at N-036), a carry over one changed file a few times.
+ */
+export const plainAt = (size: number): number => Math.max(1_024, Math.floor(size / 8));

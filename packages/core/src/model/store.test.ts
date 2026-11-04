@@ -19,6 +19,7 @@ import {
   updateElements,
   recordWrites,
   StoreFallback,
+  storeUpdate,
   WALK_SKIP_LIMIT,
   withWrittenFiles,
 } from "./store.js";
@@ -647,6 +648,28 @@ describe("updating the element store file by file (SR-007)", () => {
     expect(next).toEqual(await loadElements(layout, undefined, { versioning: before.versioning }));
     expect(next.repositories?.[0]).toBe(before.repositories?.[0]);
     expect(next.repositories?.[1]).not.toBe(before.repositories?.[1]);
+  });
+
+  it("finds the update of a patched store from its touched files, and of any other pair by a diff (#215)", async () => {
+    const three = await fixture({ fixture: "SR-004/three-repositories" });
+    const workspace = open(three.path("system"));
+    const layout = await workspace.get(workspaceLayoutState);
+    const first = await workspace.get(elementStoreState);
+    await three.write("product/SR-0c1d2e3f4a5b.md", element(ID_A));
+    const second = await updated(first, layout, new Map([["product", { paths: ["SR-0c1d2e3f4a5b.md"] }]]));
+    await three.write("sensor/SR-1d2e3f4a5b6c.md", element(ID_B));
+    const third = await updated(second, layout, new Map([["sensor", { paths: ["SR-1d2e3f4a5b6c.md"] }]]));
+    // Patched from `second`: its touched files only.
+    expect(storeUpdate(second, third)?.files).toEqual(new Map([["sensor", new Set(["SR-1d2e3f4a5b6c.md"])]]));
+    // `third` was not patched from `first` (nor would it be once `second` is collected, which only
+    // happens when nobody can pass it in): every changed repository is compared.
+    expect(storeUpdate(first, third)?.files).toEqual(
+      new Map([
+        ["product", new Set(["SR-0c1d2e3f4a5b.md"])],
+        ["sensor", new Set(["SR-1d2e3f4a5b6c.md"])],
+      ]),
+    );
+    expect([...(storeUpdate(first, third)?.ids ?? [])].sort()).toEqual([ID_A, ID_B]);
   });
 
   /** Counts the folders listed (`readdir`) while `run` runs. */
