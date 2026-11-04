@@ -138,6 +138,19 @@ scenariosOf("workspace.check", [
     expect: "output",
   },
   {
+    name: "a reference-style reqseq: link, warned once per definition with file and line (#844)",
+    fixture: {
+      fixture: "SR-004/one-repository",
+      git: true,
+      files: {
+        "requirements/SR-0000000b0844.md":
+          "---\nid: 84400000-0000-4000-8000-0000000b0844\ntype: system-requirement\nstatus: draft\ntitle: Confirms\n---\n\nSee [wind][w] and [w].\n\n[w]: reqseq:SR-e88fb3\n\n`[c]: reqseq:SR-e88fb3`\n",
+      },
+    },
+    input: {},
+    expect: "output",
+  },
+  {
     name: "a requirement with a statement but no text, with file and line (#667)",
     fixture: {
       fixture: "SR-004/one-repository",

@@ -322,6 +322,7 @@ export type ProblemCode =
   | "relation.missing-target"
   | "relation.unresolved-link"
   | "relation.not-a-link"
+  | "relation.reference-style"
   | "relation.inaccessible-target"
   | "relation.not-allowed"
   | "relation.too-many"

@@ -136,7 +136,7 @@ const CHECK_ORDER: readonly (readonly string[])[] = [
   ["relation.not-allowed"],
   ["relation.too-few", "relation.too-many"],
   ["element.duplicate-identifier"],
-  ["relation.not-a-link", "relation.unresolved-link"],
+  ["relation.not-a-link", "relation.reference-style", "relation.unresolved-link"],
   ["trace.cycle"],
   ["trace.no-parent"],
   ["evidence.outdated"],
