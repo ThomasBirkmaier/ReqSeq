@@ -149,6 +149,9 @@ describe("the lines of a trace chain", () => {
     expect(shown({ ...output, validationRecords: "none" }).some((line) => line.includes("validation|"))).toBe(
       false,
     );
+    // Not on the page, the root has no row: its records show nowhere.
+    const later = { ...output, nodes: [node("uuid-2", "SR-2", "Show wind speed")] };
+    expect(shown(later).some((line) => line.includes("validation|"))).toBe(false);
   });
 
   it("lays out an output without a list of evidence by shape alone", () => {

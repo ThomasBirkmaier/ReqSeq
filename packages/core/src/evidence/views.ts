@@ -100,8 +100,8 @@ export const verificationTestCasesIn = (
 /**
  * The validation records of the element `id` (SR-038 AK1, #646): every one, newest first as the index
  * keeps them, those with a test case too. No view narrows them: a validation record names no variant
- * (SR-038 AK4) and holds for its element, as `validationOf` counts it. `trace.chain` gives those of
- * its root.
+ * (SR-038 AK4: the reader refuses one that does) and holds for its element. `trace.chain` gives
+ * those of its root.
  */
 export const validationRecordsOf = (index: EvidenceIndex, id: string): readonly EvidenceRecord[] =>
   (index.byElement.get(id) ?? []).filter((record) => record.kind === "validation");

@@ -8,7 +8,9 @@
 // `evidence`, or else the place of its record file (`belegOf`). An evidence item names its element by UUID
 // and repository and belongs to a child (core gives none for a parent): it goes under the last row of that
 // element among the nodes, since the parents come before the children (an element of a cycle is both); one
-// whose element has no row (cut by the line limit) is not shown. Layout only: core gives the test cases, their executions and
+// whose element has no row (cut by the line limit) is not shown. The root's `validationRecords` (#646) are lines
+// "validation <date> · <result> · <item> · <Beleg> · version <version>" under the root row, none when the
+// root is not on the page. Layout only: core gives the test cases, their executions and
 // the records (ADR-0002).
 import type { DataExportEvidenceRecord, DataExportTestCase } from "@reqseq/core";
 import { belegOf, wholeReasonOf } from "./evidence-lines.js";
