@@ -1,9 +1,8 @@
-# What data.export gives for a need and three requirements of a weather station (SR-061): the core
-# view, with the verification status per view (SR-031, SR-047 AK3); the parent without own record is
-# verified indirectly in the core and names its missing child in the variant (SR-034); the need and
-# one requirement have a validation status (SR-038). The emergent requirement (SR-035) has no own record,
-# so it is open in each view, never indirect. Records and test cases are checked by
-# packages/core/src/evidence/record.test.ts: a data-export file has no place for them.
+# What data.export gives for a need and three requirements of a weather station: the core view, with
+# the verification status per view; the parent without own record is verified indirectly in the core
+# and names its missing child in the variant; the need and one requirement have a validation status.
+# The emergent requirement has no own record, so it is open in each view, never indirect. A data-export
+# file has no place for records and test cases.
 reqseq-data: 3
 commit: 0123456789abcdef0123456789abcdef01234567
 dirty: false

@@ -72,14 +72,14 @@ describe("reqseq hint list (SR-026)", () => {
     expect(outdated?.currentDate).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     const human = await reqseq(["hint", "list"], ws.root);
     expect([human.code, human.stderr]).toEqual([0, ""]);
-    // One line per hint: element, kind, reason, its target (#172), and the hint ID of a hint that can be
+    // One line per hint: element → target (#172, #252), kind, reason, and the hint ID of a hint that can be
     // confirmed (#310).
     const lines = human.stdout.split("\n");
     expect(lines[0]).toBe("hints:");
     expect(lines).toContain(
-      "  SR-0000b3  variant.superseded-in-validity  Property Validity (validity) of System Requirement SR-0000b3 lists Variant VAR-0000c3, which is superseded (status Obsolete)  target: VAR-0000c3",
+      "  SR-0000b3 → VAR-0000c3  variant.superseded-in-validity  Property Validity (validity) of System Requirement SR-0000b3 lists Variant VAR-0000c3, which is superseded (status Obsolete)",
     );
-    expect(lines.filter((l) => l.startsWith("  SR-0000b1  relation.outdated  "))).toEqual([
+    expect(lines.filter((l) => l.startsWith("  SR-0000b1 → N-0000a1  relation.outdated  "))).toEqual([
       expect.stringMatching(/ {2}hint: relation\.outdated\/system\/.*\/derives-from\/.*\?version=n1:0{16}$/),
       expect.stringMatching(/ {2}hint: relation\.outdated\/system\/.*\/@text\/.*&n=1$/),
     ]);
@@ -154,7 +154,7 @@ describe("reqseq hint list with a changed core requirement (SR-045)", () => {
     expect(changed[0]?.currentDate).toMatch(/^\d{4}-/);
     const human = await reqseq(["hint", "list", "--variant", "VAR-0000c1"], ws.root);
     expect(human.stdout).toMatch(
-      /\n {2}SR-0000b1 {2}variant\.core-changed {2}Core requirement System Requirement SR-0000a1, which System Requirement SR-0000b1 replaces, has changed .* {2}hint: variant\.core-changed\/system\/.*\/replaces\/.*\?version=n1:0b18d8dadbb9f1a5\n/,
+      /\n {2}SR-0000b1 → SR-0000a1 {2}variant\.core-changed {2}Core requirement System Requirement SR-0000a1, which System Requirement SR-0000b1 replaces, has changed .* {2}hint: variant\.core-changed\/system\/.*\/replaces\/.*\?version=n1:0b18d8dadbb9f1a5\n/,
     );
     const mountain = await reqseq(
       ["hint", "list", "--variant", "VAR-0000c2", "--kind", "variant.core-changed", "--json"],

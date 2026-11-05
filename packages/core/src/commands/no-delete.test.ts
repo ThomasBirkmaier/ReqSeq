@@ -187,7 +187,7 @@ describe("no delete of an element (SR-099, D-045)", () => {
     expect(Object.keys(NOT_AN_ELEMENT_DELETE).filter((name) => !names.includes(name))).toEqual([]);
     // No command group of elements has a delete-like action at all; supersede takes its place.
     expect(names.filter((name) => name.startsWith("element.") && deleteLike.includes(name))).toEqual([]);
-    expect(contracts.entry("element.supersede")?.summary).toContain("There is no delete (D-045)");
+    expect(contracts.entry("element.supersede")?.summary).toContain("There is no delete.");
   });
 
   it("[SR-099/AK1] has a scenario for every implemented write command", () => {

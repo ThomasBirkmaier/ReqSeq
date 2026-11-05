@@ -61,7 +61,7 @@
           "properties": {
             "type": {
               "enum": ["relation"],
-              "description": "The column holds relations: its cell in each row is an array of relations (`data-export#/$defs/relation`) of `kind` and `direction`. The evidence columns of SR-126 are `evidence`, `rows[].testCases` and `rows[].verification`, not a column type."
+              "description": "The column holds relations: its cell in each row is an array of relations (`data-export#/$defs/relation`) of `kind` and `direction`. The evidence columns are `evidence`, `rows[].testCases` and `rows[].verification`, not a column type."
             },
             "kind": {
               "$ref": "../common.schema.json#/$defs/key",
@@ -263,7 +263,7 @@
       },
       "evidence": {
         "type": "object",
-        "description": "The header of the evidence columns (SR-126): given when the workspace file names an evidence location, the metamodel is valid and the selection holds an element whose type has the meaning `requirement` (spec question #593 Q1); then every requirement row of the page that applies in `view` has `testCases` and `verification`. Other rows have neither (a requirement valid only in variants, without a view): not applicable, no gap. Left out otherwise, and the output is the one of SR-125.",
+        "description": "The header of the evidence columns (SR-126): given when the workspace file names an evidence location, the metamodel is valid and the selection holds an element whose type has the meaning `requirement` (spec question #593 Q1); then every requirement row of the page that applies in `view` has `testCases` and `verification`. Other rows have neither (a requirement valid only in variants, without a view): not applicable, no gap. Left out otherwise, and the output is the one without evidence (SR-125).",
         "properties": {
           "view": {
             "$ref": "../common.schema.json#/$defs/viewId",

@@ -32,6 +32,7 @@ const status = defineCommand({
       name: path.basename(ctx.workspace.root),
       repositories: [{ name: "main", available: true, path: ctx.workspace.root }],
       metamodel: { repository: "main", path: "model", valid: true },
+      evidence: [],
       readOnly: false,
     }),
 });

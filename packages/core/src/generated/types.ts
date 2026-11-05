@@ -81,7 +81,7 @@ export interface BaselineFile {
 export type BaselineName = string;
 
 /**
- * The selection the baseline was created with, which SR-051, SR-094 and SR-103 read. ReqSeq writes it canonical: `where` as filter.save writes it, a saved filter as its `where` and `view`, `package` and `view` as `{ id, title }` in the repository of the file and `{ id, repository }` elsewhere (D-058), the title at baseline time; `ids` items without title.
+ * The selection the baseline was created with, which is read again when the baseline, its evidence and validation status or the changes of a variant since it are shown or compared (SR-051, SR-094, SR-103). ReqSeq writes it canonical: `where` as filter.save writes it, a saved filter as its `where` and `view`, `package` and `view` as `{ id, title }` in the repository of the file and `{ id, repository }` elsewhere (D-058), the title at baseline time; `ids` items without title.
  * Schema: `schemas/baseline.schema.json#/$defs/storedSelection`.
  */
 export interface BaselineStoredSelection {
@@ -448,13 +448,13 @@ export type ViewId = ElementId;
 export type View = ElementRef;
 
 /**
- * SR-031, SR-034. `indirect` = indirectly verified via children.
+ * The verification status (SR-031, SR-034). `indirect` = indirectly verified via children.
  * Schema: `schemas/common.schema.json#/$defs/verificationStatus`.
  */
 export type VerificationStatus = "open" | "verified" | "indirect" | "failed" | "outdated";
 
 /**
- * offen, erfolgreich, nicht erfolgreich, veraltet, nicht beurteilbar (SR-172).
+ * The validation status (SR-172). `inconclusive` = the validation could not decide.
  * Schema: `schemas/common.schema.json#/$defs/validationStatus`.
  */
 export type ValidationStatus = "open" | "validated" | "failed" | "outdated" | "inconclusive";
@@ -1302,7 +1302,7 @@ export interface ReqifMappingFile {
   readonly "export-profiles"?: readonly {
     readonly name: string;
     readonly selection: ElementSelection;
-    /** SR-059 AK1. */
+    /** Properties left out of every export with this profile (SR-059 AK1). */
     readonly "omit-properties"?: readonly Key[];
   }[];
 }
@@ -1377,7 +1377,7 @@ export interface ReqifMappingFileWithDefaults {
   readonly "export-profiles"?: readonly {
     readonly name: string;
     readonly selection: ElementSelection;
-    /** SR-059 AK1. */
+    /** Properties left out of every export with this profile (SR-059 AK1). */
     readonly "omit-properties"?: readonly Key[];
   }[];
 }
@@ -1462,7 +1462,7 @@ export interface CommandCatalog {
     readonly whileReadOnly?: "refuse" | "allow";
     /** Why the command has its `whileReadOnly` value, in one line for the people who change it. Required with `whileReadOnly`. */
     readonly whileReadOnlyReason?: string;
-    /** Stage of D-035 in which the command is built. */
+    /** The stage of the delivery plan in which the command is built (D-035). */
     readonly stage: number;
     readonly implements: readonly string[];
     /** How a command prompt asks for the input (SR-108 AK4): every top-level property of `input` exactly once, the required ones first, in the order they are asked. `complete` says where the values to offer come from (a closed list; the app maps each source to one read command of core and decides nothing about what is allowed). `of` names an earlier field the source depends on. Without it, the nearest earlier field of the fitting source: an `element` or `relationTarget` field for status, invalidStatus, relationKind, hint, property and relation (relation also a `relation` field); a `relationKind` field for relationTarget; a `property` field for value. With no such field, status, invalidStatus, relationKind, hint and property give every value of the metamodel or the workspace; relationTarget, relation and value need one. `validate-schemas.mjs` checks the coverage, the order and `of` (`catalog-checks.mjs`). */
@@ -1538,13 +1538,13 @@ export interface WorkspaceInitOutput {
 }
 
 /**
- * Input of `workspace.status` as `run` gets it: validated, properties with a `default` filled in. Repositories of the workspace, which are available and which are variant-independent, where the metamodel comes from, read-only state.
+ * Input of `workspace.status` as `run` gets it: validated, properties with a `default` filled in. Repositories of the workspace, which are available and which are variant-independent, where the metamodel comes from, the evidence locations and which are read, read-only state.
  * Schema: `schemas/commands/workspace.status.json input`.
  */
 export type WorkspaceStatusInput = Readonly<Record<string, never>>;
 
 /**
- * Output of `workspace.status`. Repositories of the workspace, which are available and which are variant-independent, where the metamodel comes from, read-only state.
+ * Output of `workspace.status`. Repositories of the workspace, which are available and which are variant-independent, where the metamodel comes from, the evidence locations and which are read, read-only state.
  * Schema: `schemas/commands/workspace.status.json output`.
  */
 export interface WorkspaceStatusOutput {
@@ -1564,6 +1564,13 @@ export interface WorkspaceStatusOutput {
     readonly path: string;
     readonly valid: boolean;
   };
+  /** The `evidence` locations of the workspace file, in its order, as written (#625). Empty without the key. */
+  readonly evidence: readonly {
+    readonly repository: string;
+    readonly path: RelativePath;
+    /** ReqSeq reads the folder for evidence: its repository is available, it exists and the reading rules do not skip it (a link, `.git`, `node_modules`, an `ignore` glob, another or a nested repository). `workspace check` says why not. */
+    readonly available: boolean;
+  }[];
   readonly readOnly: boolean;
   readonly problems?: readonly Problem[];
 }
@@ -1642,13 +1649,13 @@ export interface WorkspaceRecentOutput {
 }
 
 /**
- * Input of `metamodel.get` as `run` gets it: validated, properties with a `default` filled in. The effective metamodel: types with inherited properties and statuses, properties with whether they count to the version, relation kinds, statuses, meanings.
+ * Input of `metamodel.get` as `run` gets it: validated, properties with a `default` filled in. The effective metamodel: types with inherited properties and statuses, properties with whether they count to the version, relation kinds, statuses, meanings, the files read.
  * Schema: `schemas/commands/metamodel.get.json input`.
  */
 export type MetamodelGetInput = Readonly<Record<string, never>>;
 
 /**
- * Output of `metamodel.get`. The effective metamodel: types with inherited properties and statuses, properties with whether they count to the version, relation kinds, statuses, meanings.
+ * Output of `metamodel.get`. The effective metamodel: types with inherited properties and statuses, properties with whether they count to the version, relation kinds, statuses, meanings, the files read.
  * Schema: `schemas/commands/metamodel.get.json output`.
  */
 export interface MetamodelGetOutput {
@@ -1662,6 +1669,8 @@ export interface MetamodelGetOutput {
   readonly statuses: readonly MetamodelStatus[];
   /** Every built-in meaning of metamodel.schema.json (`meaning` of types, properties and relation kinds) -> the keys whose own definition declares it, in metamodel order; empty if unassigned (SR-013 AK3). In a valid metamodel a type or property meaning has at most one key, a relation meaning any number. Types that inherit a meaning, or repeat the one they inherit, are not listed; `types` shows their effective `meaning`. */
   readonly meanings: Readonly<Record<string, readonly Key[]>>;
+  /** The metamodel files that were read, in the order they were merged, faulty ones included: the repository of the metamodel and the path relative to it (#625). Empty when the folder is missing or has no metamodel files. */
+  readonly files: readonly WorkspaceLocation[];
   readonly problems?: readonly Problem[];
 }
 
@@ -2349,7 +2358,7 @@ export interface TraceMatrixInput {
 export interface TraceMatrixOutput {
   /** One column per relation kind and direction that occurs in the whole selection (SR-125 AK2), not only on the page: a kind or direction no row has makes no column, except the `out` column of a relation kind whose limits set a minimum (`min` of 1 or more) for the type of a row, which is there even when no row has such a relation (SR-153, spec question #838 Q1). Order: relation kinds in the order of the metamodel, then properties of kind `relation` in property order; per key `out` before `in`. `type` says what a column holds and so the shape of its cells; every column is `relation`. The evidence columns (SR-126) are no column type: their header is `evidence` and their cells are `rows[].testCases` and `rows[].verification`, so a reader of `columns` and `cells` needs no other shape. */
   readonly columns: readonly {
-    /** The column holds relations: its cell in each row is an array of relations (`data-export#/$defs/relation`) of `kind` and `direction`. The evidence columns of SR-126 are `evidence`, `rows[].testCases` and `rows[].verification`, not a column type. */
+    /** The column holds relations: its cell in each row is an array of relations (`data-export#/$defs/relation`) of `kind` and `direction`. The evidence columns are `evidence`, `rows[].testCases` and `rows[].verification`, not a column type. */
     readonly type: "relation";
     /** Key of the relation kind, or of the property of kind `relation`. */
     readonly kind: Key;
@@ -2420,7 +2429,7 @@ export interface TraceMatrixOutput {
   readonly total: number;
   /** The selection is incomplete (SR-006 AK2), or the workspace file lists a repository that is not on this machine: relations of elements there that point at a row cannot be seen, and its elements may belong to the selection. With `evidence`, also when an evidence location lies in such a repository: its records are not seen (SR-006 AK2). */
   readonly incomplete: Incomplete;
-  /** The header of the evidence columns (SR-126): given when the workspace file names an evidence location, the metamodel is valid and the selection holds an element whose type has the meaning `requirement` (spec question #593 Q1); then every requirement row of the page that applies in `view` has `testCases` and `verification`. Other rows have neither (a requirement valid only in variants, without a view): not applicable, no gap. Left out otherwise, and the output is the one of SR-125. */
+  /** The header of the evidence columns (SR-126): given when the workspace file names an evidence location, the metamodel is valid and the selection holds an element whose type has the meaning `requirement` (spec question #593 Q1); then every requirement row of the page that applies in `view` has `testCases` and `verification`. Other rows have neither (a requirement valid only in variants, without a view): not applicable, no gap. Left out otherwise, and the output is the one without evidence (SR-125). */
   readonly evidence?: {
     /** The one view of the test cases, the status and the degree: the selection's view, else its saved filter's, else the core (as `evidence.degree`; spec questions #593, #592 Q1). `element.get` and `evidence.status` give every view. */
     readonly view: ViewId;

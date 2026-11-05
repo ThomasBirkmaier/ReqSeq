@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+// The texts users read are bundled without internal references (#642).
+import { userTexts } from "../../../../scripts/contracts/user-text.mjs";
 import {
   SCHEMA_BASE,
   contractsBundle,
@@ -12,7 +14,8 @@ import {
 } from "./contracts.js";
 
 const schemasDir = path.join(import.meta.dirname, "..", "..", "..", "..", "schemas");
-const readJson = (file: string): unknown => JSON.parse(fs.readFileSync(path.join(schemasDir, file), "utf8"));
+const readJson = (file: string): unknown =>
+  userTexts(JSON.parse(fs.readFileSync(path.join(schemasDir, file), "utf8")) as unknown);
 
 const entry = (
   name: string,
