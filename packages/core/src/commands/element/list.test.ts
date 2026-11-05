@@ -19,6 +19,8 @@ import type { FixtureOptions } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
+import type { EvidenceRecord } from "../../evidence/index.js";
+import { evidenceRecordsState } from "../../evidence/index.js";
 import type { EvidenceStatuses } from "../../query/index.js";
 import { evidenceStatusState } from "../../query/index.js";
 import { invoke } from "../../runtime/invoke.js";
@@ -696,5 +698,68 @@ describe("the condition emergent (SR-035)", () => {
     expect(await where(ws, { all: [{ emergent: false }, { verification: ["indirect"] }] })).toEqual([
       `${E}b120`,
     ]);
+  });
+});
+
+describe("element.list, evidence conditions without a chosen variant (SR-069 AK4)", () => {
+  // fixtures/SR-037/degree (its README lists the records) with the variant Pro, RV valid only in Pro,
+  // and a passed record of R09 for Pro only, given through `evidenceRecordsState` on top of the files.
+  const U = (tail: string): string => `37373737-3737-4737-8737-00000000${tail}`;
+  const [R01, R09, RV, PRO] = [U("b001"), U("b009"), U("b301"), U("c001")];
+  const THREE = [R01, R09, RV];
+
+  const withProRecord = async (): Promise<Workspace> => {
+    const files = {
+      "variants/VAR-00000000c001.md": `---\nid: ${PRO}\ntype: variant\nstatus: draft\ntitle: Pro\n---\n\nPro.\n`,
+      "requirements/SR-00000000b301.md": [
+        "---",
+        `id: ${RV}`,
+        "type: system-requirement",
+        "status: draft",
+        "title: Show gusts",
+        "validity:",
+        `  - { id: ${PRO}, title: Pro }`,
+        "---",
+        "",
+        "Valid only in Pro.",
+        "",
+      ].join("\n"),
+    };
+    const ws = await open({ fixture: "SR-037/degree", files });
+    const r09 = (await invoke(
+      "element.get",
+      { ref: R09 },
+      { workspace: ws },
+    )) as CommandOutput<"element.get">;
+    const record: EvidenceRecord = {
+      element: R09,
+      version: String(r09.element.version),
+      kind: "verification",
+      method: "test",
+      item: "build-38",
+      result: "passed",
+      date: "2026-10-28T10:00:00Z",
+      variant: PRO,
+    };
+    const current = ws.get(evidenceRecordsState);
+    const records = await current;
+    expect(await ws.replace(evidenceRecordsState, current, Promise.resolve([...records, record]))).toBe(true);
+    return ws;
+  };
+
+  /** The elements of R01, R09 and RV that `condition` selects in `view` (none: no variant chosen). */
+  const among = async (ws: Workspace, condition: unknown, view?: string): Promise<string[]> =>
+    (await where(ws, condition, view === undefined ? {} : { view })).filter((e) => THREE.includes(e));
+
+  it("[SR-069/AK4] a filter on the verification status, or without evidence, and no chosen variant apply the status in the core", async () => {
+    const ws = await withProRecord();
+    const noEvidence = { relation: { direction: "evidence" }, exists: false };
+    // No variant: R09's record for Pro does not count, RV has no status in the core.
+    expect(await among(ws, { verification: ["verified"] })).toEqual([R01]);
+    expect(await among(ws, { verification: ["open"] })).toEqual([R09]);
+    expect(await among(ws, noEvidence)).toEqual([R09, RV]);
+    // In Pro, for contrast: R09 is verified and has evidence there; R01's record holds only in the core.
+    expect(await among(ws, { verification: ["verified"] }, "VAR-00c001")).toEqual([R09]);
+    expect(await among(ws, noEvidence, "VAR-00c001")).toEqual([R01, RV]);
   });
 });
