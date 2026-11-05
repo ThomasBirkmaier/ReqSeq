@@ -17,7 +17,7 @@ export type { CoverageLevel, CoverageRules } from "./coverage.js";
 export { countedIn, degreeOf, selectionDegree, viewIdOf } from "./degree.js";
 export { isPassedTest, withoutPassedTest } from "./without-passed-test.js";
 export type { VerificationDegree } from "./degree.js";
-export { EVIDENCE_FILES, evidenceFiles } from "./folders.js";
+export { EVIDENCE_FILES, evidenceFiles, isReadEvidenceLocation } from "./folders.js";
 export type { EvidenceExtension, EvidenceFile, EvidenceFiles } from "./folders.js";
 export { JUNIT_READER, readJunitRecords } from "./junit.js";
 export type { JunitLocation } from "./junit.js";
