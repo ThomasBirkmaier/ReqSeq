@@ -300,51 +300,89 @@ const spelledOnDisk = async (repository: RepositoryLocation, relative: string): 
  * (Windows, macOS), `Requirements/a.md` names `requirements/a.md`, which the walk lists under its
  * own spelling. A path that is gone is not listed; other errors reject.
  */
-export const listsFile = async (
+export const listsFile = (
   repository: RepositoryLocation,
   ignored: (relativePath: string) => boolean,
   file: string,
-): Promise<boolean> => {
-  if (!(await walksInto(repository, ignored, file.split("/").slice(0, -1)))) {
-    return false;
-  }
-  const absolute = path.join(repository.folder, file);
-  if (
-    nameRule(repository, ignored, file) !== undefined ||
-    (await lstatIfThere(absolute))?.isFile() !== true
-  ) {
-    return false;
-  }
-  return (await spelledOnDisk(repository, file)) === file;
+): Promise<boolean> => fileLister(repository, ignored)(file);
+
+/**
+ * `listsFile` for the new files of one write (#741): the repository folder and each folder above the
+ * files are checked once, and the repository folder is spelled once, however many files share them.
+ * The answers hold for the folders as the first look found them, so a write makes a new lister.
+ */
+export const fileLister = (
+  repository: RepositoryLocation,
+  ignored: (relativePath: string) => boolean,
+): ((file: string) => Promise<boolean>) => {
+  const walksInto = folderWalker(repository, ignored);
+  const realRoot = once(() => fs.realpath(repository.folder));
+  return async (file) => {
+    if (!(await walksInto(file.slice(0, Math.max(file.lastIndexOf("/"), 0))))) {
+      return false;
+    }
+    const absolute = path.join(repository.folder, file);
+    if (
+      nameRule(repository, ignored, file) !== undefined ||
+      (await lstatIfThere(absolute))?.isFile() !== true
+    ) {
+      return false;
+    }
+    // The native `realpath` gives the names as stored (and resolves links above the repository).
+    const [base, real] = await Promise.all([realRoot(), fs.realpath(absolute)]);
+    return path.relative(base, real).split(path.sep).join("/") === file;
+  };
 };
 
 /**
- * Whether the walk opens the repository folder and goes into every folder of `names` (the folders
- * from the repository down, one name each): each one exists, is a real folder (no link) without a
- * `.git` entry, is not left out by its name, an `ignore` glob or a nested repository, and can be
- * opened. Errors other than "nothing there" reject.
+ * Whether the walk opens the repository folder and goes into `folder` (relative to the repository,
+ * `/`; "" is the repository folder) and every folder above it, each as `entersFolder` checks it.
+ * Each folder is checked once per walker. Errors other than "nothing there" reject.
  */
-const walksInto = async (
+const folderWalker = (
   repository: RepositoryLocation,
   ignored: (relativePath: string) => boolean,
-  names: readonly string[],
+): ((folder: string) => Promise<boolean>) => {
+  const folders = new Map<string, Promise<boolean>>();
+  const walksInto = (folder: string): Promise<boolean> => {
+    let known = folders.get(folder);
+    if (known === undefined) {
+      const slash = folder.lastIndexOf("/");
+      known =
+        folder === ""
+          ? canList(repository.folder)
+          : walksInto(slash < 0 ? "" : folder.slice(0, slash)).then(
+              async (open) => open && (await entersFolder(repository, ignored, folder)),
+            );
+      folders.set(folder, known);
+    }
+    return known;
+  };
+  return walksInto;
+};
+
+/** `make()` on the first call, and the same promise on every later one. */
+const once = <T>(make: () => Promise<T>): (() => Promise<T>) => {
+  let made: Promise<T> | undefined;
+  return () => (made ??= make());
+};
+
+/**
+ * Whether the walk goes into `folder` (relative to the repository, `/`) from the folder above it: it
+ * exists, is a real folder (no link) without a `.git` entry, is not left out by its name, an `ignore`
+ * glob or a nested repository, and can be opened. Errors other than "nothing there" reject.
+ */
+const entersFolder = async (
+  repository: RepositoryLocation,
+  ignored: (relativePath: string) => boolean,
+  folder: string,
 ): Promise<boolean> => {
-  if (!(await canList(repository.folder))) {
+  if (nameRule(repository, ignored, folder) !== undefined) {
     return false;
   }
-  let folder = "";
-  for (const name of names) {
-    folder = folder === "" ? name : `${folder}/${name}`;
-    const absolute = path.join(repository.folder, folder);
-    if (nameRule(repository, ignored, folder) !== undefined) {
-      return false;
-    }
-    const stat = await lstatIfThere(absolute);
-    if (stat === undefined || (await folderRule(absolute, stat)) !== undefined) {
-      return false;
-    }
-  }
-  return true;
+  const absolute = path.join(repository.folder, folder);
+  const stat = await lstatIfThere(absolute);
+  return stat !== undefined && (await folderRule(absolute, stat)) === undefined;
 };
 
 /**
@@ -375,7 +413,7 @@ export const pathState = async (
     const folders = relative.split("/").slice(0, -1);
     const spelled =
       folders.length === 0 || (await spelledOnDisk(repository, folders.join("/"))) === folders.join("/");
-    return spelled && (await walksInto(repository, ignored, folders)) ? "gone" : "unclear";
+    return spelled && (await folderWalker(repository, ignored)(folders.join("/"))) ? "gone" : "unclear";
   } catch {
     return "unclear";
   }

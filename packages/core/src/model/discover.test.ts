@@ -8,6 +8,7 @@ import type { RepositoryLocation } from "../workspace/index.js";
 import type { NewFileProblem } from "./discover.js";
 import {
   STALE_TEMP_AGE_MS,
+  fileLister,
   listFiles,
   listMarkdownFiles,
   listsFile,
@@ -429,6 +430,33 @@ describe("listsFile (#166)", () => {
     expect(await listsFile(repo, nothing, "open/b.md")).toBe(true);
     locked = [path.basename(ws.root)];
     expect(await listsFile(repo, nothing, "open/b.md")).toBe(false);
+  });
+
+  it("fileLister answers as listsFile and opens each folder once for the files of one write (#741)", async () => {
+    const files: Record<string, string> = { "skip/x.md": "", "nested/y.md": "" };
+    for (let i = 0; i < 20; i++) {
+      files[`deep/er/n${String(i)}.md`] = "";
+    }
+    const ws = await fixture(files);
+    const repo = repository(ws.root, [ws.path("nested")]);
+    const ignored = ignoreMatcher(["skip/**"]);
+    const candidates = [...Object.keys(files), "deep/gone.md", "gone/x.md", "deep/er/Gone.md", "top.md"];
+    const opendir = vi.spyOn(fs, "opendir");
+    onTestFinished(() => {
+      opendir.mockRestore();
+    });
+    const list = fileLister(repo, ignored);
+    const answers = await Promise.all(candidates.map((file) => list(file)));
+    // The repository folder, deep and deep/er: once each, for 20 files below them.
+    expect(opendir).toHaveBeenCalledTimes(3);
+    opendir.mockClear();
+    for (const [i, file] of candidates.entries()) {
+      expect([file, answers[i]]).toEqual([file, await listsFile(repo, ignored, file)]);
+    }
+    expect(opendir.mock.calls.length).toBeGreaterThan(3);
+    expect(candidates.filter((_, i) => answers[i] === true)).toEqual(
+      Array.from({ length: 20 }, (_, i) => `deep/er/n${String(i)}.md`),
+    );
   });
 
   it("rejects when a path cannot be looked at", async () => {
