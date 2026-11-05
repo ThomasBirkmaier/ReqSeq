@@ -8,7 +8,8 @@ import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandOutput, Problem } from "../catalog.js";
 import { baselineHeadersState, HEADER_BYTES } from "../baselines/index.js";
-import { currentFormsOf, currentVersionsState } from "../model/index.js";
+import { currentFormsOf, currentVersionsState, NORMAL_FORM } from "../model/index.js";
+import { WRITTEN_VERSION } from "../model/version-forms.test-helper.js";
 import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
 import { readStored } from "../runtime/read-first.test-helper.js";
@@ -94,6 +95,13 @@ const listed = async (
 const rows = (problems: readonly Problem[]): unknown[] =>
   problems.filter((p) => CODES.has(p.code)).map((p) => [p.code, p.elementId, p.targetId]);
 
+/** The current version of `id` in the form the tool writes. */
+const currentOf = async (workspace: Workspace, id: string): Promise<string> => {
+  const versions = await workspace.get(currentVersionsState);
+  const record = versions.store.byId.get(id)?.[0];
+  return (record === undefined ? undefined : currentFormsOf(versions, record))?.[NORMAL_FORM] ?? "";
+};
+
 const changedK1 = async (): Promise<string> => edited(String(K1), "every minute.\n", "every 30 seconds.\n");
 
 describe("core requirements changed since a variant's newest baseline (SR-103)", () => {
@@ -113,7 +121,7 @@ describe("core requirements changed since a variant's newest baseline (SR-103)",
       line: 2,
       storedVersion: String(VERSIONS[String(K1)]),
     });
-    expect(hint?.currentVersion).toMatch(/^n1:/);
+    expect(hint?.currentVersion).toMatch(WRITTEN_VERSION);
     expect(hint?.currentVersion).not.toBe(String(VERSIONS[String(K1)]));
     expect(hint?.message).toBe(
       `Core requirement System Requirement SR-0000a1, which Variant VAR-0000c1 adopts, has changed since its newest baseline R1: version ${String(VERSIONS[String(K1)])} there, version ${String(hint?.currentVersion)} now; a new baseline of Variant VAR-0000c1 settles it (D-042)`,
@@ -328,9 +336,10 @@ describe("core requirements changed since a variant's newest baseline (SR-103)",
       [added, COAST, K5],
     ]);
     expect(hints[0]?.storedVersion).toBeUndefined();
-    expect(hints[0]?.currentVersion).toBe(K3_VERSION);
+    const k3 = await currentOf(workspace, String(K3));
+    expect(hints[0]?.currentVersion).toBe(k3);
     expect(hints[0]?.message).toBe(
-      `Core requirement System Requirement SR-0000a3 has come into the view of Variant VAR-0000c1 since its newest baseline R1, which does not list it: version ${K3_VERSION} now; a new baseline of Variant VAR-0000c1 settles it (D-042)`,
+      `Core requirement System Requirement SR-0000a3 has come into the view of Variant VAR-0000c1 since its newest baseline R1, which does not list it: version ${k3} now; a new baseline of Variant VAR-0000c1 settles it (D-042)`,
     );
     // Its replacement removed.
     const b1 = await fs.readFile(path.join(FIXTURE, fileOf(String(B1))), "utf8");
@@ -488,7 +497,7 @@ describe("copies of a core requirement in two repositories (SR-088)", () => {
     expect(hints.map((h) => [h.code, h.targetId, h.storedVersion])).toEqual([
       ["variant.core-changed-since-baseline", K1, n2[String(K1)]],
     ]);
-    expect(hints[0]?.currentVersion).toMatch(/^n1:/);
+    expect(hints[0]?.currentVersion).toMatch(WRITTEN_VERSION);
   });
 
   it("names the copy the baseline does not list, though another copy has its version", async () => {
@@ -504,7 +513,7 @@ describe("copies of a core requirement in two repositories (SR-088)", () => {
     });
     const hints = await listed(workspace);
     expect(hints.map((h) => [h.code, h.targetId, h.currentVersion])).toEqual([
-      ["variant.core-new-since-baseline", K1, VERSIONS[String(K1)]],
+      ["variant.core-new-since-baseline", K1, await currentOf(workspace, String(K1))],
     ]);
   });
 });

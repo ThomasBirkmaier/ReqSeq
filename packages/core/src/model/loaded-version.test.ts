@@ -12,6 +12,7 @@ import type { Metamodel } from "../metamodel/index.js";
 import { metamodelState } from "../metamodel/index.js";
 import { Workspace } from "../runtime/workspace.js";
 import { NORMAL_FORM } from "../version/version.js";
+import { WRITTEN_VERSION } from "./version-forms.test-helper.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import { currentFormsOf, currentVersionOf, currentVersions } from "./current-versions.js";
 import type { ElementRecord } from "./elements.js";
@@ -364,7 +365,7 @@ describe("loadedVersion and internedVersion", () => {
       { key: "weight", kind: "number", content: true },
     ]);
     expect(loadedVersion(thing({ weight: 1 }), "Text.", versioning)?.byForm[NORMAL_FORM]).toMatch(
-      /^n1:[0-9a-f]{16}$/,
+      WRITTEN_VERSION,
     );
     expect(loadedVersion(thing({ weight: Number.POSITIVE_INFINITY }), "Text.", versioning)).toBeUndefined();
     expect(loadedVersion(thing({ weight: Number.NaN }), "Text.", versioning)).toBeUndefined();

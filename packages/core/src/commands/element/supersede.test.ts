@@ -15,6 +15,7 @@ import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
 import { readFirst } from "../../runtime/read-first.test-helper.js";
+import { WRITTEN_VERSION, WRITTEN_VERSION_SOURCE } from "../../model/version-forms.test-helper.js";
 
 type Output = CommandOutput<"element.supersede">;
 
@@ -147,7 +148,7 @@ describe("element.supersede sets the chosen invalid status and on request a rela
     const target = await targetNow(opened, "system", { id: N_OLD.id });
     expect(Object.keys(target)).toEqual(["id", "version", "title"]);
     expect([target["id"], target["title"]]).toEqual([N_OLD.id, "See the wind"]);
-    expect(target["version"]).toMatch(/^n1:[0-9a-f]{16}$/);
+    expect(target["version"]).toMatch(WRITTEN_VERSION);
     // `supersedes` is the only relation kind with the meaning succession in the standard model.
     const out = await supersede(opened, { ref: N_OLD.id, status: "obsolete", successor: "N-e5f6a7" });
     expect(out.files).toEqual([N_OLD.file, N_NEW.file]);
@@ -188,7 +189,7 @@ describe("element.supersede sets the chosen invalid status and on request a rela
     expect(out.files).toEqual([SR_OLD.file, SR_NEW.file]);
     expect(await read(opened, SR_NEW.file)).toMatch(
       new RegExp(
-        `\\nobsoletes:\\n {2}- \\{ id: ${SR_OLD.id}, version: n1:[0-9a-f]{16}, title: Show wind speed \\}\\n---\\n`,
+        `\\nobsoletes:\\n {2}- \\{ id: ${SR_OLD.id}, version: ${WRITTEN_VERSION_SOURCE}, title: Show wind speed \\}\\n---\\n`,
       ),
     );
   });
@@ -611,7 +612,7 @@ describe("a superseded element names its successor without a relation of its own
     ...(title === undefined ? {} : { title }),
     accessible: true,
     targetState: "available",
-    storedVersion: expect.stringMatching(/^n1:[0-9a-f]{16}$/) as string,
+    storedVersion: expect.stringMatching(WRITTEN_VERSION) as string,
   });
 
   it("[SR-072/AK3] names the successor as an incoming relation Supersedes; the superseded file has no relation to it", async () => {
@@ -652,7 +653,10 @@ describe("a superseded element names its successor without a relation of its own
       { workspace: valid.workspace },
     );
     expect((await shown(valid, N_OLD.id)).relations).toEqual([
-      successor(N_NEW, "supersedes", "N-e5f6a7", "See wind and gusts"),
+      {
+        ...successor(N_NEW, "supersedes", "N-e5f6a7", "See wind and gusts"),
+        storedVersion: "n1:1111111111111111",
+      },
     ]);
   });
 
@@ -692,8 +696,14 @@ describe("a superseded element names its successor without a relation of its own
         accessible: true,
         targetState: "available",
       },
-      successor(SR_NEW, "supersedes", "SR-a7b8c9", "Show wind speed and gusts"),
-      successor(SR_NEW, "obsoletes", "SR-a7b8c9", "Show wind speed and gusts"),
+      {
+        ...successor(SR_NEW, "supersedes", "SR-a7b8c9", "Show wind speed and gusts"),
+        storedVersion: "n1:2222222222222222",
+      },
+      {
+        ...successor(SR_NEW, "obsoletes", "SR-a7b8c9", "Show wind speed and gusts"),
+        storedVersion: "n1:2222222222222222",
+      },
     ]);
   });
 

@@ -105,13 +105,13 @@ const sha256 = (content: string | Uint8Array): string => createHash("sha256").up
 
 /**
  * The version of the element in `text` (ADR-0005) with the images by their path in the text:
- * content, or null for missing.
+ * content, or null for missing. In `form`, or by default in the form the tool writes.
  */
 const versionOf = async (
   workspace: Workspace,
   text: string,
   images: Readonly<Record<string, string | null>> = {},
-  form: "n1" | "n2" = "n1",
+  form?: "n1" | "n2",
 ): Promise<string> => {
   const parsed = parseFileBytes(FILE, Buffer.from(text));
   if (parsed.kind !== "parsed") {
@@ -124,9 +124,9 @@ const versionOf = async (
     path,
     sha256: content === null ? null : sha256(content),
   }));
-  return form === "n1"
+  return form === undefined
     ? elementVersion(record, parsed.content.body, metamodel, files)
-    : elementVersions(record, parsed.content.body, metamodel, files).n2;
+    : elementVersions(record, parsed.content.body, metamodel, files)[form];
 };
 
 type Shown = CommandOutput<"element.get">["element"];
@@ -192,7 +192,7 @@ describe("version date", () => {
     expect(
       await dates(repo.workspace, [
         { version: n2 },
-        { version: await versionOf(repo.workspace, link("n1:0000000000000002")) },
+        { version: await versionOf(repo.workspace, link("n1:0000000000000002"), {}, "n1") },
       ]),
     ).toEqual([at(repo, "one"), at(repo, "two")]);
   });

@@ -9,6 +9,7 @@ import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
+import { WRITTEN_VERSION_SOURCE } from "../../model/version-forms.test-helper.js";
 
 type Imported = CommandOutput<"reqif.import">;
 
@@ -87,7 +88,7 @@ describe("reqif.import (SR-053)", () => {
       "source-identifier: REQ-1",
       expect.stringMatching(/^import-date: "\d{4}-\d{2}-\d{2}"$/),
       "delivery: Lastenheft 2026-11",
-      expect.stringMatching(/^import-version: n1:[0-9a-f]{16}$/),
+      expect.stringMatching(new RegExp(`^import-version: ${WRITTEN_VERSION_SOURCE}$`, "u")),
       "---",
       "",
       "The station **shall** measure the wind speed.",

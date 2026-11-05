@@ -6,8 +6,8 @@ import type { FileSnapshot } from "../files/index.js";
 import { readElementFile, writeFileAtomic } from "../files/index.js";
 import { metamodelState } from "../metamodel/index.js";
 import { Workspace } from "../runtime/workspace.js";
-import { computeVersion } from "../version/version.js";
-import type { VersionPropertyDefinition, VersionValue } from "../version/version.js";
+import { computeVersion, formOf } from "../version/version.js";
+import type { NormalForm, VersionPropertyDefinition, VersionValue } from "../version/version.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import type { ElementRecord } from "./elements.js";
@@ -61,19 +61,26 @@ const textOf = async (workspace: Workspace, element: ElementRecord): Promise<str
   return read.file.body;
 };
 
-/** The version of an element with the property definitions of its type (ADR-0005). */
-const versionOf = async (workspace: Workspace, element: ElementRecord): Promise<string> => {
+/** The version of an element in `form` (default: the one the tool writes) with the property definitions of its type (ADR-0005). */
+const versionOf = async (
+  workspace: Workspace,
+  element: ElementRecord,
+  form?: NormalForm,
+): Promise<string> => {
   const metamodel = await workspace.get(metamodelState);
   const keys = metamodel.types.find((t) => t.key === element.type)?.properties ?? [];
   const definitions: VersionPropertyDefinition[] = metamodel.properties
     .filter((p) => keys.includes(p.key))
     .map((p) => ({ key: p.key, kind: p.kind, content: p.content === true }));
-  return computeVersion({
-    text: await textOf(workspace, element),
-    properties: element.data as Readonly<Record<string, VersionValue>>,
-    definitions,
-    files: [],
-  });
+  return computeVersion(
+    {
+      text: await textOf(workspace, element),
+      properties: element.data as Readonly<Record<string, VersionValue>>,
+      definitions,
+      files: [],
+    },
+    form,
+  );
 };
 
 /** Bytes and modification time of every file below `folder`. */
@@ -195,7 +202,7 @@ describe("element store", () => {
 
     const before = await relation();
     expect(before.target.file).toBe("needs/N-8beffcbd8c26.md");
-    expect(await versionOf(workspace, before.target)).toBe(before.stored);
+    expect(await versionOf(workspace, before.target, formOf(before.stored))).toBe(before.stored);
 
     await fs.mkdir(ws.path("archive/2026/needs"), { recursive: true });
     await fs.rename(ws.path("needs/N-8beffcbd8c26.md"), ws.path("archive/2026/needs/N-8beffcbd8c26.md"));
@@ -204,7 +211,7 @@ describe("element store", () => {
     const after = await relation();
     expect(after.target.file).toBe("archive/2026/needs/N-8beffcbd8c26.md");
     // Same element, same content, so the same version: the relation is neither missing nor outdated.
-    expect(await versionOf(workspace, after.target)).toBe(after.stored);
+    expect(await versionOf(workspace, after.target, formOf(after.stored))).toBe(after.stored);
     expect(await textOf(workspace, after.target)).toBe(
       "\nAs a sailor I need to see the wind speed at a glance.\n",
     );
@@ -227,7 +234,7 @@ describe("element store", () => {
     const [stored] = only(s, "5cb1e198-1130-4a13-9d25-88cc6ebc472a").data["derives-from"] as readonly {
       readonly version: string;
     }[];
-    expect(await versionOf(workspace, target)).toBe(stored?.version);
+    expect(await versionOf(workspace, target, formOf(stored?.version ?? ""))).toBe(stored?.version);
   });
 
   it("[SR-004/AK1] shows the elements of all three repositories of the workspace file together", async () => {

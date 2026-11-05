@@ -55,6 +55,10 @@ const run = async <C extends CommandName>(
 
 const read = ({ ws }: Opened, file: string): string => fs.readFileSync(ws.path(file), "utf8");
 
+/** The current version of `ref` as `element.get` shows it. */
+const versionOf = async (opened: Opened, ref: string): Promise<string> =>
+  (await run(opened, "element.get", { ref })).element.version ?? "";
+
 /** An element file of the fixture with another title and the same text, so its version stays. */
 const renamed = (text: string, title: string): string => text.replace(/^title: .*$/m, `title: ${title}`);
 
@@ -138,9 +142,10 @@ describe("stored titles of relation targets (decision on #307)", () => {
     // B refines A; A is renamed, then B gets a new relation: its stored title of A follows too.
     await run(opened, "element.update", { ref: A, title: "Show the wind speed" });
     const b = read(opened, B_FILE);
+    const nVersion = await versionOf(opened, N);
     const added = await run(opened, "relation.add", { source: B, kind: "derives-from", target: N });
     expect(added.files).toEqual([B_FILE]);
-    const newLine = `derives-from:\n  - { id: ${N}, version: ${N_VERSION}, title: See the gusts }\n`;
+    const newLine = `derives-from:\n  - { id: ${N}, version: ${nVersion}, title: See the gusts }\n`;
     const afterAdd = b
       .replace(A_LINE, A_LINE.replace("Show wind speed }", "Show the wind speed }"))
       .replace("---\n\nRefines", `${newLine}---\n\nRefines`);
@@ -185,6 +190,7 @@ describe("stored titles of relation targets (decision on #307)", () => {
     const opened = await open(renamedTargets("See the gusts", undefined, "Wind speed"));
     const a = read(opened, A_FILE);
     const b = read(opened, B_FILE);
+    const aVersion = await versionOf(opened, A);
     const result = await run(opened, "element.supersede", {
       ref: A,
       status: "obsolete",
@@ -202,7 +208,7 @@ describe("stored titles of relation targets (decision on #307)", () => {
         .replace(A_LINE, A_LINE.replace("Show wind speed }", "Wind speed }"))
         .replace(
           "---\n\nRefines",
-          `supersedes:\n  - { id: ${A}, version: ${A_VERSION}, title: Wind speed }\n---\n\nRefines`,
+          `supersedes:\n  - { id: ${A}, version: ${aVersion}, title: Wind speed }\n---\n\nRefines`,
         ),
     );
   });
@@ -242,7 +248,7 @@ describe("stored titles of relation targets (decision on #307)", () => {
       files: [B_FILE],
     });
     expect(read(opened, B_FILE)).toContain(
-      `origin: { id: ${N}, version: ${N_VERSION}, title: See the gusts }\n`,
+      `origin: { id: ${N}, version: ${await versionOf(opened, N)}, title: See the gusts }\n`,
     );
   });
 
@@ -250,13 +256,14 @@ describe("stored titles of relation targets (decision on #307)", () => {
     const opened = await open();
     // The store is read; then N is renamed by hand, so the store still holds its old title.
     expect(await outdated(opened)).toEqual([]);
+    const nVersion = await versionOf(opened, N);
     await opened.ws.write(N_FILE, renamed(read(opened, N_FILE), "See the storm"));
     const b = read(opened, B_FILE);
     await run(opened, "relation.add", { source: B, kind: "derives-from", target: N });
     expect(read(opened, B_FILE)).toBe(
       b.replace(
         "---\n\nRefines",
-        `derives-from:\n  - { id: ${N}, version: ${N_VERSION}, title: See the storm }\n---\n\nRefines`,
+        `derives-from:\n  - { id: ${N}, version: ${nVersion}, title: See the storm }\n---\n\nRefines`,
       ),
     );
   });

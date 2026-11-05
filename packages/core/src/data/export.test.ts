@@ -8,7 +8,7 @@ import type { DataExportElement, DataExportRelation } from "../generated/types.j
 import type { Metamodel } from "../metamodel/index.js";
 import { metamodelState } from "../metamodel/index.js";
 import type { CurrentVersion, ElementRecord, ElementStore } from "../model/index.js";
-import { elementStoreState } from "../model/index.js";
+import { elementStoreState, NORMAL_FORM } from "../model/index.js";
 import { Workspace } from "../runtime/workspace.js";
 import {
   exportHeader,
@@ -109,14 +109,16 @@ describe("current versions of relation ends (second pass)", () => {
   it("reads the versions of available targets outside the listed elements once, in every normal form, and none without such targets", async () => {
     const { store } = await opened();
     const [a1, b1] = [recordIn(store, `${P}a1`), recordIn(store, B1)];
-    const formsOf = (v: string) => ({ n1: v, n2: "n2:0000000000000000" });
+    // Each version gets its own value in the other form, so a mix-up of two ends shows.
+    const formsOf = (v: string) => ({ n1: v, n2: `n2:${v.slice(3)}` });
+    const other = NORMAL_FORM === "n1" ? "n2" : "n1";
     const read = vi.fn(
       (records: readonly ElementRecord[]): Promise<ReadonlyMap<ElementRecord, CurrentVersion>> =>
         Promise.resolve(
           new Map(
             records.map((r): [ElementRecord, CurrentVersion] =>
               r === a1
-                ? [r, { kind: "version", version: V, forms: formsOf(V), images: [] }]
+                ? [r, { kind: "version", version: formsOf(V)[NORMAL_FORM], forms: formsOf(V), images: [] }]
                 : [r, { kind: "unknown", reason: "not-in-file", message: "gone" }],
             ),
           ),
@@ -144,13 +146,13 @@ describe("current versions of relation ends (second pass)", () => {
     expect(read).toHaveBeenCalledTimes(1);
     expect(read.mock.calls[0]?.[0]).toEqual([a1, recordIn(store, C1)]);
     expect(elements[0]?.relations.map((r) => [r.id.slice(-2), r.currentVersion, r.outdated])).toEqual([
-      ["a1", V, false],
+      ["a1", formsOf(V)[NORMAL_FORM], false],
       // The variant has no version now: nothing to compare with.
       ["c1", undefined, false],
       ["ff", undefined, false],
       ["ee", undefined, false],
       // An incoming relation is measured against the element itself.
-      ["b2", W, true],
+      ["b2", formsOf(W)[NORMAL_FORM], true],
     ]);
     // Among the listed elements: their versions as listed; a stored version of the other normal
     // form is compared in its own form (ADR-0005).
@@ -158,8 +160,8 @@ describe("current versions of relation ends (second pass)", () => {
     const both = await withRelationVersions(
       store,
       [
-        listed(b1, [out(a1.id, { storedVersion: "n2:0000000000000000" })]),
-        listed(a1, [{ ...out(B1), direction: "in", storedVersion: "n2:1111111111111111" }]),
+        listed(b1, [out(a1.id, { storedVersion: formsOf(V)[other] })]),
+        listed(a1, [{ ...out(B1), direction: "in", storedVersion: `${other}:3333333333333333` }]),
       ],
       read,
       new Map([
@@ -169,8 +171,8 @@ describe("current versions of relation ends (second pass)", () => {
     );
     expect(read).not.toHaveBeenCalled();
     expect(both.map((e) => e.relations.map((r) => [r.currentVersion, r.outdated]))).toEqual([
-      [[V, false]],
-      [[V, true]],
+      [[formsOf(V)[NORMAL_FORM], false]],
+      [[formsOf(V)[NORMAL_FORM], true]],
     ]);
     // Without an available end nothing is read.
     read.mockClear();

@@ -12,6 +12,7 @@ import * as files from "../files/index.js";
 import { readElementFile } from "../files/index.js";
 import { metamodelState } from "../metamodel/index.js";
 import { Workspace } from "../runtime/workspace.js";
+import { NORMAL_FORM } from "../version/version.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import type { CurrentVersions } from "./current-versions.js";
 import {
@@ -29,6 +30,7 @@ import { classifyFile } from "./elements.js";
 import { embeddedImages } from "./images.js";
 import { RACY_MS } from "./model-cache.js";
 import { loadedVersionsOf } from "./loaded-versions.test-helper.js";
+import { WRITTEN_VERSION } from "./version-forms.test-helper.js";
 import { applyStoreChange, elementStoreState, ignoredBy, updateElements } from "./store.js";
 import { elementVersion } from "./view.js";
 import { createElement, updateElement } from "./write.js";
@@ -175,7 +177,7 @@ describe("the current version of every element (#259)", () => {
     };
     vi.mocked(files.readElementBodySync).mockClear();
     const before = await read();
-    expect(before).toMatch(/^n1:/);
+    expect(before).toMatch(WRITTEN_VERSION);
     expect(files.readElementBodySync).not.toHaveBeenCalled();
     // Another time: the file is read as it is now, with the same version for the same bytes.
     const later = new Date(record.snapshot.mtimeMs + 2000);
@@ -581,7 +583,7 @@ describe("the versions of the model cache after a metamodel change (#755)", () =
       relearned,
     );
     expect(vi.mocked(files.readElementBodySync).mock.calls.map(([, file]) => file)).toContain(record.file);
-    expect(currentVersionOf(versions, record)).toBe(loadedVersionsOf(store).get(record)?.byForm["n1"]);
+    expect(currentVersionOf(versions, record)).toBe(loadedVersionsOf(store).get(record)?.byForm[NORMAL_FORM]);
     expect(relearned.size).toBe(0);
   });
 });

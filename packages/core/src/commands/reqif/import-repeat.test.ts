@@ -9,7 +9,7 @@ import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandName, CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
-import { currentVersionsOf, elementStoreState } from "../../model/index.js";
+import { currentVersionsOf, elementStoreState, NORMAL_FORM } from "../../model/index.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 import { readFirstFor } from "../../runtime/read-first.test-helper.js";
@@ -190,15 +190,16 @@ describe("repeated ReqIF import (SR-056)", () => {
     const store = await workspace.get(elementStoreState);
     const records = Object.values(ids).flatMap((id) => store.byId.get(id) ?? []);
     const versions = [...(await currentVersionsOf(workspace, records)).values()];
-    // Each import version written in normal form 2, as a later version of the tool writes it.
+    // Each import version written in the other normal form, as another version of the tool writes it.
+    const other = NORMAL_FORM === "n1" ? "n2" : "n1";
     for (const [i, record] of records.entries()) {
       const current = versions[i];
       const file = path.join(root, record.file);
       const text = await fs.readFile(file, "utf8");
-      const n1 = current?.kind === "version" ? current.forms.n1 : "";
-      const n2 = current?.kind === "version" ? current.forms.n2 : "";
-      expect(text).toContain(`import-version: ${n1}\n`);
-      await fs.writeFile(file, text.replace(`import-version: ${n1}\n`, `import-version: ${n2}\n`));
+      const written = current?.kind === "version" ? current.forms[NORMAL_FORM] : "";
+      const changed = current?.kind === "version" ? current.forms[other] : "";
+      expect(text).toContain(`import-version: ${written}\n`);
+      await fs.writeFile(file, text.replace(`import-version: ${written}\n`, `import-version: ${changed}\n`));
     }
     const again = new Workspace(root);
     onTestFinished(() => again.close());

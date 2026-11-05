@@ -11,6 +11,7 @@ import { CommandError } from "../catalog.js";
 import { metamodelState } from "../metamodel/index.js";
 import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
+import { NORMAL_FORM } from "../version/version.js";
 import type { RepositoryLocation } from "../workspace/index.js";
 import { locate, workspaceLayoutState } from "../workspace/index.js";
 import type { NewElementFile } from "./new-files.js";
@@ -83,7 +84,7 @@ describe("createElementFiles", () => {
           repository,
           files[0] ?? { file: "", bytes: new Uint8Array() },
         )
-      ).n1,
+      )[NORMAL_FORM],
     );
   });
 
@@ -98,7 +99,7 @@ describe("createElementFiles", () => {
       file: "N-0.md",
       bytes: newElementBytes(base, ID_A, "Need", "![a](N-0/a.png)![b](logo.png)", []),
     };
-    const { n1: version } = await plannedVersions(
+    const { [NORMAL_FORM]: version } = await plannedVersions(
       metamodel,
       layout,
       repository,
@@ -119,7 +120,9 @@ describe("createElementFiles", () => {
     expect(version).not.toBe(got.element.version);
     const copy = createHash("sha256").update("copy").digest("hex");
     expect(
-      (await plannedVersions(metamodel, layout, repository, planned, new Map([["N-0/a.png", copy]]))).n1,
+      (await plannedVersions(metamodel, layout, repository, planned, new Map([["N-0/a.png", copy]])))[
+        NORMAL_FORM
+      ],
     ).toBe(got.element.version);
   });
 

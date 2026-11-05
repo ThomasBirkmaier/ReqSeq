@@ -25,6 +25,7 @@ import type { EvidenceStatuses } from "../../query/index.js";
 import { evidenceStatusState } from "../../query/index.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
+import { WRITTEN_VERSION } from "../../model/version-forms.test-helper.js";
 
 type Output = CommandOutput<"element.list">;
 
@@ -405,7 +406,7 @@ describe("element.list (SR-069)", () => {
       title: "Use ultrasound",
     });
     expect(first?.text).toBeUndefined();
-    expect(first?.version).toMatch(/^n1:/);
+    expect(first?.version).toMatch(WRITTEN_VERSION);
     const page = await list(ws, {
       selection: { where: { type: ["system-requirement"] } },
       offset: 2,

@@ -8,6 +8,7 @@ import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
+import { WRITTEN_VERSION_SOURCE } from "../../model/version-forms.test-helper.js";
 
 type Output = CommandOutput<"element.update">;
 
@@ -243,7 +244,10 @@ describe("element.update setItems (#177)", () => {
       },
     });
     expect(criteria(await fileOf(opened))[0]).toMatch(
-      /^ {2}- "Given \[the wind\]\(reqseq:e8df96ea-a168-4d90-8d65-6328cee88fb3\?version=n1:[0-9a-f]{16}\), then it is shown\."$/u,
+      new RegExp(
+        `^ {2}- "Given \\[the wind\\]\\(reqseq:e8df96ea-a168-4d90-8d65-6328cee88fb3\\?version=${WRITTEN_VERSION_SOURCE}\\), then it is shown\\."$`,
+        "u",
+      ),
     );
     const before = await fileOf(opened);
     const same = await update(opened, {

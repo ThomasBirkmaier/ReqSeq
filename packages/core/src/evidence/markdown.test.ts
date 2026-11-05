@@ -7,7 +7,7 @@ import type { FixtureWorkspace } from "@reqseq/testkit";
 import type { MockInstance } from "vitest";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { outdatedEvidenceProblemsState } from "../hints/index.js";
-import { keyLinesOf } from "../model/index.js";
+import { currentVersionOf, currentVersionsState, keyLinesOf } from "../model/index.js";
 import { Workspace } from "../runtime/workspace.js";
 import { evidenceIndexState } from "./by-element.js";
 import type { EvidenceFile } from "./folders.js";
@@ -19,7 +19,6 @@ import { EVIDENCE_READERS, evidenceReadState, evidenceRecordsState } from "./sta
 const A = "3c3c3c3c-3333-4333-8333-0d0000000001";
 const B = "3c3c3c3c-3333-4333-8333-0d0000000002";
 const A_VERSION = "n1:de6d3ed288b0f3de";
-const B_VERSION = "n1:7db6e9d75d39b846";
 
 const WORKSPACE_FILE =
   "reqseq-workspace: 1\nname: Weather station\nrepositories:\n" +
@@ -39,6 +38,13 @@ const open = async (
     await ws.cleanup();
   });
   return { ws, workspace };
+};
+
+/** The current version of `id` in the form the tool writes. */
+const currentOf = async (workspace: Workspace, id: string): Promise<string | undefined> => {
+  const versions = await workspace.get(currentVersionsState);
+  const record = versions.store.byId.get(id)?.[0];
+  return record === undefined ? undefined : currentVersionOf(versions, record);
 };
 
 /** The record of requirement A in the fixture, as the reader gives it. */
@@ -215,7 +221,7 @@ describe("SR-028 reading Markdown records", () => {
     // By version: A's record is of its current version, B's of an older one (SR-025 AK4 reads it so).
     const outdated = await workspace.get(outdatedEvidenceProblemsState);
     expect(outdated.map((p) => [p.code, p.elementId, p.file, p.storedVersion, p.currentVersion])).toEqual([
-      ["evidence.outdated", B, RECORD_B.file, "n1:00000000000000b2", B_VERSION],
+      ["evidence.outdated", B, RECORD_B.file, "n1:00000000000000b2", await currentOf(workspace, B)],
     ]);
   });
 

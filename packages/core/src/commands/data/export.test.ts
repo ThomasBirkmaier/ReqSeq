@@ -33,7 +33,7 @@ const ID = {
 } as const;
 type Name = keyof typeof ID;
 const NAME = new Map<string, Name>((Object.entries(ID) as [Name, string][]).map(([name, id]) => [id, name]));
-/** The current versions (the fixture's README). */
+/** The versions the fixture stores, its current versions in normal form 1 (the fixture's README). */
 const VERSION = {
   a1: "n1:9d97d0ccf9b75591",
   b1: "n1:697a2ad17ed49170",
@@ -62,6 +62,11 @@ const exportOf = async (
 ): Promise<Output> => (await invoke("data.export", input, { workspace })) as Output;
 
 const names = (out: Output): (string | undefined)[] => out.elements.map((e) => NAME.get(e.id) ?? e.id);
+
+/** The current version of `name` as element.get shows it. */
+const currentOf = async (workspace: Workspace, name: Name): Promise<string> =>
+  ((await invoke("element.get", { ref: ID[name] }, { workspace })) as CommandOutput<"element.get">).element
+    .version ?? "";
 
 const element = (out: Output, name: Name): Element => {
   const found = out.elements.find((e) => e.id === ID[name]);
@@ -93,7 +98,7 @@ describe("data.export: every element of a workspace (SR-061 AK1)", () => {
       type: "system-requirement",
       status: "draft",
       title: "Show the wind speed",
-      version: VERSION.b1,
+      version: await currentOf(workspace, "b1"),
       repository: "system",
       file: "requirements/SR-0000000000b1.md",
       validity: [ID.c1],
@@ -113,7 +118,7 @@ describe("data.export: every element of a workspace (SR-061 AK1)", () => {
       accessible: true,
       targetState: "available",
       storedVersion: VERSION.a1,
-      currentVersion: VERSION.a1,
+      currentVersion: await currentOf(workspace, "a1"),
       outdated: false,
     });
     // The version is that of element.get.
@@ -142,7 +147,7 @@ describe("data.export: every element of a workspace (SR-061 AK1)", () => {
           id: ID.b1,
           repository: "system",
           targetState: "available",
-          currentVersion: VERSION.b1,
+          currentVersion: await currentOf(workspace, "b1"),
           outdated: false,
         },
       ],
@@ -172,7 +177,7 @@ describe("data.export: every element of a workspace (SR-061 AK1)", () => {
       kind: "derives-from",
       id: ID.a1,
       storedVersion: OLD,
-      currentVersion: VERSION.a1,
+      currentVersion: await currentOf(workspace, "a1"),
       outdated: true,
     };
     expect(element(await exportOf(workspace), "b2").relations).toContainEqual(
@@ -189,7 +194,7 @@ describe("data.export: every element of a workspace (SR-061 AK1)", () => {
         direction: "in",
         id: ID.b2,
         storedVersion: VERSION.b4,
-        currentVersion: VERSION.b4,
+        currentVersion: await currentOf(workspace, "b4"),
         outdated: false,
       }),
     ]);

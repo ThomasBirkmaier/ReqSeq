@@ -8,6 +8,7 @@ import { STANDARD_MODEL_TEXT } from "../../metamodel/index.js";
 import { elementStoreState } from "../../model/index.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
+import { WRITTEN_VERSION_SOURCE } from "../../model/version-forms.test-helper.js";
 
 type Output = CommandOutput<"relation.add">;
 type Shown = CommandOutput<"element.get">;
@@ -595,7 +596,11 @@ describe("relation.add shows a hint when a derivation closes a cycle (SR-067 AK3
     // Stored across repositories with the repository name (D-058).
     expect(
       await fs.readFile(opened.fixture.path("platform/requirements/SR-000000000002.md"), "utf8"),
-    ).toMatch(new RegExp(`\\n {2}- \\{ id: ${X}, version: n1:[0-9a-f]{16}, repository: system \\}\\n---\\n`));
+    ).toMatch(
+      new RegExp(
+        `\\n {2}- \\{ id: ${X}, version: ${WRITTEN_VERSION_SOURCE}, repository: system \\}\\n---\\n`,
+      ),
+    );
   });
 
   it("[SR-067/AK3] gives no hint for a derivation that closes no cycle, or a relation of another meaning", async () => {
@@ -644,7 +649,9 @@ describe("relation.add saves a relation over a limit and shows the hint of the c
     });
     expect(lineDiff(before, await read(opened, LOGGED.file)).added).toEqual([
       expect.stringMatching(
-        new RegExp(`^ {2}- \\{ id: ${L}b00001, version: n1:[0-9a-f]{16}, title: Read the wind \\}$`),
+        new RegExp(
+          `^ {2}- \\{ id: ${L}b00001, version: ${WRITTEN_VERSION_SOURCE}, title: Read the wind \\}$`,
+        ),
       ),
     ]);
   });

@@ -114,7 +114,8 @@ const headCommit = async (ws: FixtureWorkspace): Promise<string> =>
 describe("hint.list (SR-026)", () => {
   it("[SR-026/AK1] lists every open hint with its kind, the element it is about, its target and its reason", async () => {
     const ws = await fixture({ ...HINTS, git: true });
-    const output = await list(open(ws.root));
+    const workspace = open(ws.root);
+    const output = await list(workspace);
     expect(output.incomplete).toBe(false);
     expect(rows(output.hints)).toEqual(ALL);
     const date = await headDate(ws);
@@ -133,7 +134,9 @@ describe("hint.list (SR-026)", () => {
       targetRepository: "system",
       targetShortId: "N-0000a1",
       storedVersion: "n1:0000000000000000",
-      currentVersion: "n1:d809de2e934d94f3",
+      currentVersion: (
+        (await invoke("element.get", { ref: N1 }, { workspace })) as CommandOutput<"element.get">
+      ).element.version,
       storedDate: null,
       currentDate: date,
       storedCommit: null,

@@ -8,7 +8,7 @@ import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import type { EvidenceRecord } from "../../evidence/index.js";
 import { evidenceRecordsState } from "../../evidence/index.js";
-import { currentFormsOf, currentVersionsState } from "../../model/index.js";
+import { currentFormsOf, currentVersionsState, NORMAL_FORM } from "../../model/index.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 import * as variants from "../../variants/index.js";
@@ -156,7 +156,8 @@ describe("baseline.get withEvidence", () => {
     const { fixture, workspace } = await opened();
     const versions = await workspace.get(currentVersionsState);
     const b1 = versions.store.byId.get(`${P}b1`)?.[0];
-    const n2 = b1 === undefined ? undefined : currentFormsOf(versions, b1)?.n2;
+    const forms = b1 === undefined ? undefined : currentFormsOf(versions, b1);
+    const n2 = forms?.n2;
     expect(n2).toMatch(/^n2:/);
     const at = (version: string) =>
       baselineText("N2", [], []).replace(
@@ -172,7 +173,7 @@ describe("baseline.get withEvidence", () => {
     // Another n2: no record is of it.
     await fixture.write("baselines/n2.yaml", at("n2:0000000000000000"));
     const other = await get(workspace, "N2");
-    expect(other.elements[0]).toMatchObject({ state: "changed", current: V.b1 });
+    expect(other.elements[0]).toMatchObject({ state: "changed", current: forms?.[NORMAL_FORM] });
     expect(coreStatus(other, "b1")).toBe("outdated");
   });
 

@@ -18,8 +18,11 @@ import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
 import { STANDARD_MODEL_TEXT } from "../../metamodel/index.js";
+import { currentFormsOf, currentVersionsState } from "../../model/index.js";
+import type { VersionForms } from "../../version/version.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
+import { WRITTEN_VERSION } from "../../model/version-forms.test-helper.js";
 
 type Output = CommandOutput<"trace.matrix">;
 type ListOutput = CommandOutput<"element.list">;
@@ -71,6 +74,13 @@ const matrix = async (workspace: Workspace, input: Record<string, unknown>): Pro
 
 const list = async (workspace: Workspace, input: Record<string, unknown>): Promise<ListOutput> =>
   (await invoke("element.list", input, { workspace })) as ListOutput;
+
+/** The current versions of `id` in every normal form; the fixture stores those of normal form 1. */
+const formsOf = async (workspace: Workspace, id: string): Promise<VersionForms | undefined> => {
+  const versions = await workspace.get(currentVersionsState);
+  const record = versions.store.byId.get(id)?.[0];
+  return record === undefined ? undefined : currentFormsOf(versions, record);
+};
 
 const failure = async (workspace: Workspace, input: Record<string, unknown>): Promise<CommandError> => {
   try {
@@ -653,9 +663,14 @@ describe("trace.matrix outdated and missing relations", () => {
     const output = await matrix(workspace, { selection: STAGE_3, kinds: ["derives-from"] });
     const [s1, s2] = [output.rows.find((r) => r.id === ID.S1), output.rows.find((r) => r.id === ID.S2)];
     const current = (await list(workspace, { selection: { ids: [ID.N1] } })).elements[0]?.version;
-    expect(current).toMatch(/^n1:/);
+    expect(current).toMatch(WRITTEN_VERSION);
     expect(s1?.cells[0]).toMatchObject([
-      { id: ID.N1, storedVersion: current, currentVersion: current, outdated: false },
+      {
+        id: ID.N1,
+        storedVersion: (await formsOf(workspace, ID.N1))?.n1,
+        currentVersion: current,
+        outdated: false,
+      },
     ]);
     expect(s2?.cells[0]).toMatchObject([
       { id: ID.N1, storedVersion: "n1:0000000000000000", currentVersion: current, outdated: true },
@@ -670,7 +685,7 @@ describe("trace.matrix outdated and missing relations", () => {
     expect(
       output.rows[0]?.cells[1]?.map((l) => [nameOf(l.id), l.outdated, l.storedVersion, l.currentVersion]),
     ).toEqual([
-      ["S4", false, current, current],
+      ["S4", false, (await formsOf(workspace, ID.S1))?.n1, current],
       ["S5", true, "n1:0000000000000000", current],
     ]);
   });
