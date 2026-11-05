@@ -381,8 +381,10 @@ test.describe("diagrams in the editor", () => {
         await window.waitForTimeout(600);
         await window.keyboard.type(" ");
         const after = await window.evaluate(() => performance.now());
+        // A drawing blocks for about as long as the one just measured; a block of a tenth of that or less
+        // is the keystroke itself or a pause of a busy runner (a 60 ms block on macOS CI, #753).
         const between = (await longTasks(window)).filter(
-          (task) => task.start + task.duration > before && task.start < after,
+          (task) => task.start + task.duration > before && task.start < after && task.duration > longest / 10,
         );
         expect(between).toEqual([]);
         // Leaving the diagram draws it at once, not after three times the last drawing.

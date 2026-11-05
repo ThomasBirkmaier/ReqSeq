@@ -261,7 +261,8 @@ test("[SR-117/AK5] with unsaved text an MCP read of another element does not swi
   try {
     await window.keyboard.press("ControlOrMeta+Shift+O");
     await expect(modeline(window)).toContainText("following agent");
-    await shownWithin(window, agent, "element_get", { ref: SEE.id }, SEE.title, SEE.id);
+    // AK1's 1 s is the AK1 test's to check; here the view only has to follow before the input starts.
+    await shownAfter(window, agent, "element_get", { ref: SEE.id }, SEE.title, SEE.id);
     await window.keyboard.press("Enter");
     await window.keyboard.type(" More");
     await agent.call("element_get", { ref: MEASURE.id });
@@ -290,8 +291,9 @@ test("[SR-117/AK6] following makes no request", async () => {
   try {
     await window.keyboard.press("ControlOrMeta+Shift+O");
     await expect(modeline(window)).toContainText("following agent");
-    await shownWithin(window, agent, "element_get", { ref: SEE.id }, SEE.title, SEE.id);
-    await shownWithin(window, agent, "element_get", { ref: MEASURE.id }, MEASURE.title, MEASURE.id);
+    // AK6 is about requests, not about AK1's 1 s, which the AK1 test checks.
+    await shownAfter(window, agent, "element_get", { ref: SEE.id }, SEE.title, SEE.id);
+    await shownAfter(window, agent, "element_get", { ref: MEASURE.id }, MEASURE.title, MEASURE.id);
     expect(running.stderr()).not.toContain("Blocked a request");
     expect(running.stderr()).not.toContain("Agents cannot be followed");
     // The agent runs with the network blocked: it would fail on a connection.
