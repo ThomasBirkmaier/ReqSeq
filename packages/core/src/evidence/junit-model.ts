@@ -224,6 +224,11 @@ export interface ElementRefToken {
   readonly source: ElementRefSource;
   /** For a token the name pattern found (SR-029 AK5): the text it matched; `text` is the short ID built. */
   readonly matched?: string;
+  /**
+   * For a name token whose `[` follows a letter, digit or underscore, as pytest writes a parameter
+   * (`test_get[<UUID>]`, #358): it counts only when it names exactly one element, whatever its kind.
+   */
+  readonly glued?: true;
 }
 
 const SHORT_ID = /^[A-Z][A-Z0-9]*-[0-9a-f]{6,32}$/;
@@ -231,15 +236,29 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{1
 /** The `<ref>` of `[<ref>]` or `[<ref>/<anything>]` in a test case name (ADR-0012). */
 const NAME_TOKEN = /(?<=\[)[^[\]/]*(?=(?:\/[^[\]]*)?\])/g;
 
+/** A letter, digit or underscore: a bracket right after one is glued to a word, as pytest writes its parameters. */
+const WORD = /^[\p{L}\p{N}_]$/u;
+
 const kindOf = (text: string): ElementRefKind =>
   SHORT_ID.test(text) ? "shortId" : UUID.test(text) ? "uuid" : "other";
 
-const tokens = (texts: readonly string[], source: ElementRefSource): readonly ElementRefToken[] =>
-  [...new Set(texts.map((text) => text.trim()).filter((text) => text !== ""))].map((text) => ({
-    text,
-    kind: kindOf(text),
-    source,
-  }));
+/** One text as written: `glued` for a name token right after a word (`test_get[<UUID>]`, #358). */
+interface Written {
+  readonly text: string;
+  readonly glued: boolean;
+}
+
+/** Each text once, trimmed; written both ways, it counts as not glued. */
+const tokens = (texts: readonly Written[], source: ElementRefSource): readonly ElementRefToken[] => {
+  const glued = new Map<string, boolean>();
+  for (const { text, glued: g } of texts) {
+    const trimmed = text.trim();
+    if (trimmed !== "") {
+      glued.set(trimmed, (glued.get(trimmed) ?? true) && g);
+    }
+  }
+  return [...glued].map(([text, g]) => ({ text, kind: kindOf(text), source, ...(g ? { glued: true } : {}) }));
+};
 
 /**
  * The element references of a test case, each text once per source, in this order: the values of
@@ -252,7 +271,9 @@ const tokens = (texts: readonly string[], source: ElementRefSource): readonly El
  *   reported, whatever its kind;
  * - a name token of kind `shortId` or `uuid` that names no element is unknown; a name token of kind
  *   `other` counts only when it names exactly one element and is otherwise ignored silently, so a
- *   pytest parameter list (`test_add[1-2]`) is never reported.
+ *   pytest parameter list (`test_add[1-2]`) is never reported. A token glued to a word (`glued`: its
+ *   `[` right after a letter, digit or underscore, as pytest writes `test_get[<UUID>]`) is treated
+ *   like `other` whatever its kind (#358), so a parametrised test never makes enrich fail.
  *
  * With `pattern` (`evidence.enrichJunit` only, SR-029 AK5) the short IDs it finds in the name follow,
  * each once, as name tokens of kind `shortId` with the `matched` text; a short ID the brackets give
@@ -269,11 +290,15 @@ export const elementRefsOf = (
     ...tokens(
       testCase.properties
         .filter((property) => property.name === "reqseq:element")
-        .map((property) => property.value),
+        .map((property) => ({ text: property.value, glued: false })),
       "property",
     ),
     ...tokens(
-      Array.from(testCase.name.matchAll(NAME_TOKEN), ([token]) => token),
+      Array.from(testCase.name.matchAll(NAME_TOKEN), (match) => ({
+        text: match[0],
+        // The character before the `[` (the match starts after it).
+        glued: WORD.test(testCase.name.charAt(match.index - 2)),
+      })),
       "name",
     ),
   ];

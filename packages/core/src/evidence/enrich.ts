@@ -4,9 +4,10 @@
 //
 // - References: every `reqseq:element` property in file order, then the name tokens of the test case
 //   (`elementRefsOf`). A property is an explicit statement: one that names no element or more than
-//   one is reported. A name token of the form of a short ID or UUID is reported the same way; any
-//   other name token (an identifier such as `[SR-036]`, a pytest parameter list) counts only when it
-//   names exactly one element. Elements named twice count once.
+//   one is reported. A name token of the form of a short ID or UUID is reported the same way, unless
+//   it is glued to a word as a pytest parameter (`test_get[<UUID>]`, #358); any other name token (an
+//   identifier such as `[SR-036]`, a pytest parameter list) counts only when it names exactly one
+//   element. Elements named twice count once.
 // - With a name pattern (`namePattern`, AK5, `name-pattern.ts`) the short IDs it finds in the name are
 //   name tokens of the form of a short ID too, so one that names no element or several is reported.
 // - A test case that names no element (no property, no token that names one) counts in
@@ -339,7 +340,8 @@ interface Reported {
 /**
  * The elements only the name of `testCase` names, each once and none a property names already
  * (`named`). A short ID or UUID token that names no element or several is added to `reported`,
- * unless a property reported it already; any other token counts only when it names exactly one.
+ * unless a property reported it already or it is glued to a word (#358); any other token counts
+ * only when it names exactly one.
  */
 const nameElements = (
   testCase: JunitTestCase,
@@ -355,7 +357,11 @@ const nameElements = (
       if (!named.includes(resolution.id) && !added.includes(resolution.id)) {
         added.push(resolution.id);
       }
-    } else if (token.kind !== "other" && !reported.some((r) => r.ref === token.text)) {
+    } else if (
+      token.kind !== "other" &&
+      token.glued !== true &&
+      !reported.some((r) => r.ref === token.text)
+    ) {
       reported.push({ ref: token.text, resolution, matched: token.matched });
     }
   }

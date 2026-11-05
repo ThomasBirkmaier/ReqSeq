@@ -524,6 +524,19 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
     expect(properties(result.bytes)["[SR-036] by identifier"]).toContain(`reqseq:element=${SPEC}`);
   });
 
+  it("stays silent on a pytest parameter that looks like a UUID or short ID and names no element, and counts one that names one (#358)", async () => {
+    const xml = suite(
+      '<testcase name="test_get[0b9e7a3c-1d2f-4a5b-8c6d-000000000000]"/><testcase name="test_id[SR-ffffff]"/>' +
+        `<testcase name="test_login[${LOGIN}]"/><testcase name="test_named[SR-46fb54]"/>`,
+    );
+    const result = await enrich(xml);
+    expect(result).toMatchObject({ testCases: 2, unknown: [], problems: [] });
+    expect(enrichedNames(result.bytes)).toEqual([`test_login[${LOGIN}]`, "test_named[SR-46fb54]"]);
+    // The same tokens with a space before the bracket are references and reported.
+    const spaced = await enrich(suite('<testcase name="test_id [SR-ffffff]"/>'));
+    expect(spaced.unknown).toEqual([{ testCase: "test_id [SR-ffffff]", line: 1, ref: "SR-ffffff" }]);
+  });
+
   it("reports a property that names no element or several, an empty one, and an ambiguous short ID in the name", async () => {
     const xml = suite(
       `<testcase classname="k" name="typo"><properties>${prop("reqseq:element", "SR-0366")}</properties></testcase>` +
