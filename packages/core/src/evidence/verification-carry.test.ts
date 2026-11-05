@@ -26,7 +26,7 @@ import type * as CurrentVersionsModule from "../model/current-versions.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import type { EvidenceIndex } from "./by-element.js";
 import { evidenceIndexState } from "./by-element.js";
-import { carriedEvaluator, validityScope, verificationEvaluator } from "./indirect.js";
+import { carriedEvaluator, evaluatorRecords, validityScope, verificationEvaluator } from "./indirect.js";
 import type { EvidenceRecord } from "./record.js";
 import { evidenceReadState, evidenceRecordsState, readEvidence, registerInsertion } from "./state.js";
 import { withRecord } from "./write-record.js";
@@ -701,6 +701,12 @@ describe("verificationState carried over a change of the store (#698, ADR-0008)"
       // What a fork shows; the records it dropped stay in its base until it compacts (`LayeredMap`).
       expect([...carried.caches.versions.entries()].every(([record]) => records.has(record))).toBe(true);
       expect([...carried.caches.volatile].every((record) => records.has(record))).toBe(true);
+      // The memos of the evaluator by record too (review B1): candidates, their children, seeds.
+      const held = evaluatorRecords(carried.evaluate);
+      expect(held.length).toBeGreaterThan(0);
+      expect(held.filter((record) => !records.has(record))).toEqual([]);
+      // An evaluator the module did not make holds none.
+      expect(evaluatorRecords(() => undefined)).toEqual([]);
       expect(carried.inputs.store).toBe(await opened.workspace.get(elementStoreState));
     }
   });

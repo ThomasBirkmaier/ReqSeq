@@ -63,10 +63,27 @@ describe("LayeredMap (#215)", () => {
     ]);
   });
 
+  it("marks only the dropped keys its base holds, so keys never set do not bring the compaction closer", () => {
+    const map = new LayeredMap<number, number>();
+    map.set(0, 0).set(1, 1);
+    const limit = compactAt(0);
+    let fork = map.fork([5]);
+    fork.set(7, 7);
+    // Many keys neither the base nor the top holds, and one the top holds: no marker, no compaction.
+    fork = fork.fork([7, ...Array.from({ length: limit * 2 }, (_, i) => 100 + i)]);
+    expect(entries(fork)).toEqual([
+      [0, 0],
+      [1, 1],
+    ]);
+    fork.set(5, 50);
+    expect([fork.get(5), fork.has(7), map.has(5)]).toEqual([50, false, false]);
+  });
+
   it("gets a base of its own once the own entries and dropped keys reach compactAt", () => {
     let map = new LayeredMap<number, number>();
     const limit = compactAt(0);
-    for (let key = 0; key < limit; key++) {
+    // One key more than the steps below drop: the compacted base keeps it.
+    for (let key = 0; key <= limit; key++) {
       map.set(key, key);
     }
     const fork = map.fork([0]);
@@ -77,9 +94,10 @@ describe("LayeredMap (#215)", () => {
       map.set(step, -step);
     }
     expect(entries(map)).toEqual(
-      Array.from({ length: limit - 1 }, (_, i) => [i + 1, -(i + 1)] as [number, number]).sort(([a], [b]) =>
-        String(a) < String(b) ? -1 : 1,
-      ),
+      [
+        ...Array.from({ length: limit - 1 }, (_, i) => [i + 1, -(i + 1)] as [number, number]),
+        [limit, limit],
+      ].sort(([a], [b]) => (String(a) < String(b) ? -1 : 1)),
     );
     expect(map.get(0)).toBeUndefined();
     expect(fork.get(5)).toBe(5);

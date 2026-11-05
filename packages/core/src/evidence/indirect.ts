@@ -237,6 +237,17 @@ interface EvaluatorCaches {
 
 const cachesOf = new WeakMap<VerificationEvaluator, EvaluatorCaches>();
 
+/** The records the memos by record of `evaluator` hold, as keys and as candidate children (for tests). */
+export const evaluatorRecords = (evaluator: VerificationEvaluator): ElementRecord[] => {
+  const caches = cachesOf.get(evaluator);
+  return caches === undefined
+    ? []
+    : [
+        ...[...caches.candidatesOf.entries()].flatMap(([record, children]) => [record, ...children]),
+        ...[...caches.seeds.entries()].map(([record]) => record),
+      ];
+};
+
 /**
  * The evaluator of `source` with `children` (undefined: no element has children) and the current
  * version of each element (`currentOf`; only asked for requirements with records). Results computed
@@ -260,7 +271,7 @@ export const verificationEvaluator = (
  * whose repository and UUID (`nodeKey`) `affected` does not name. `affected` must name every element
  * whose candidate children, seeds below or results may differ in the new store: the changed ones and
  * their ancestors before and after the change, and the core requirements a changed rule item names
- * (`carriedStatus` in `verification.ts`); `records` are the records of the new store it names. The
+ * (`carriedStatus` in `verification.ts`); `records` are the records of both stores it names. The
  * memos are forks of those of `old` (`LayeredMap`, #215: O(changed)); `old` keeps what it found, and
  * a command that still holds it keeps a consistent view. `scope` gives the views of the new store.
  */

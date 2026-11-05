@@ -482,10 +482,14 @@ const keptOver = (old: StateStatus, reach: Reach, next: Next, read: VersionReade
   // Forks, not copies (#215): what `old` read and walked stays shared, and `old` goes on with its own.
   const keptVersions = versions.fork(next.versionsOfChanged ? volatile : before);
   const keptWalked = walked.fork(affected);
-  // The records of the new store that `affected` names, for the memos by record.
-  const records = [...affected].flatMap((key) =>
-    (reach.to.byId.get(key.slice(key.indexOf("\0") + 1)) ?? []).filter((record) => nodeKey(record) === key),
-  );
+  // The records of both stores that `affected` names, for the memos by record: the old ones go,
+  // so a memo keeps no record of an earlier store (review B1), the new ones are computed again.
+  const records = [...affected].flatMap((key) => {
+    const id = key.slice(key.indexOf("\0") + 1);
+    const of = (store: ElementStore): ElementRecord[] =>
+      (store.byId.get(id) ?? []).filter((record) => nodeKey(record) === key);
+    return reach.to === reach.from ? of(reach.to) : [...of(reach.from), ...of(reach.to)];
+  });
   const evaluate = old.evaluate;
   const { source, children } = next;
   const scope = ruleScope(next.inputs.rules);
