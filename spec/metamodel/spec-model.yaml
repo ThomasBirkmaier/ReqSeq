@@ -9,6 +9,8 @@
 #   spec itself traces requirement -> issue (dogfooding, product owner decision, 2026-10-26). Not content, so
 #   setting it changes no version; filled by scripts/sr-issues.
 # - limit derives-from min 1 from system requirement to need (#838).
+# - decisions can be obsolete: withdrawn without successor, e.g. the development-process decisions
+#   (product owner decision, 2026-11-05: decisions record only what holds for the system ReqSeq).
 # rationale and acceptance-criteria carry markdown: true as in the standard model (SR-127, #444).
 # ReqSeq has no command that changes a metamodel: this file is changed by hand in a pull request.
 reqseq-metamodel: 1
@@ -58,7 +60,7 @@ types:
     prefix: D
     properties: [title, spec-id, rationale]
     required: [title]
-    statuses: [draft, accepted, superseded]
+    statuses: [draft, accepted, superseded, obsolete]
   - key: variant
     name: Variant
     prefix: VAR

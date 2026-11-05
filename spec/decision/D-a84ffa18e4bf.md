@@ -1,7 +1,7 @@
 ---
 id: 6adc723c-e194-4aa0-885a-a84ffa18e4bf
 type: decision
-status: accepted
+status: obsolete
 title: "SR-ID in Commit, Pull Request und Test"
 spec-id: "D-050"
 ---
