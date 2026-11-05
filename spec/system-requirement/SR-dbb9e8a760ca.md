@@ -12,12 +12,12 @@ acceptance-criteria:
 verification-method: test
 topic: "Import und Export"
 packages:
-  - { id: 7755a224-01c9-4710-869a-7b1477fbd624, version: n1:cd51c9fc3d83c915, title: "Stufe 6: Austausch per ReqIF und Schutz" }
+  - { id: 7755a224-01c9-4710-869a-7b1477fbd624, version: n2:71855e1416b80d53, title: "Stufe 6: Austausch per ReqIF und Schutz" }
 derives-from:
   - { id: 6adc5040-2819-4ec5-a9e9-ad790fd35904, version: n1:3a3f6b6e64b1edc5, title: Zuordnung zum Metamodell }
 based-on:
-  - { id: 6adc5318-7e31-4925-b180-ff19c4c61c5f, version: n1:ed13abb3520fa053, title: Kein Austausch von Metamodellen }
-  - { id: 6adc78cf-bdda-461d-9245-ee53800698fb, version: n1:ba7790f52ef9c397, title: Aufbau der Dateien mit fester Länge des Dateinamens }
+  - { id: 6adc5318-7e31-4925-b180-ff19c4c61c5f, version: n2:05581a0e4c20cadf, title: Kein Austausch von Metamodellen }
+  - { id: 6adc78cf-bdda-461d-9245-ee53800698fb, version: n2:cd7f259e8803f8f3, title: Aufbau der Dateien mit fester Länge des Dateinamens }
 issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/61
 ---
 

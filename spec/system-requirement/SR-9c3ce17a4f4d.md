@@ -21,7 +21,7 @@ refines:
 derives-from:
   - { id: 6adc6159-80e0-4421-84c4-4055e6912b63, version: n1:5e594bd18b6129c8, title: Stellungnahme per ReqIF zurückgeben }
 based-on:
-  - { id: 6adc5318-7e31-4925-b180-ff19c4c61c5f, version: n1:ed13abb3520fa053, title: Kein Austausch von Metamodellen }
+  - { id: 6adc5318-7e31-4925-b180-ff19c4c61c5f, version: n2:05581a0e4c20cadf, title: Kein Austausch von Metamodellen }
 ---
 
 Das Tool muss den Export an eine Quelle wahlweise im Modell der Quelle schreiben können, mit deren Typen, Attributen, Datentypen und Aufzählungswerten, damit Werkzeuge wie DOORS Next oder Polarion Werte wie die Stellungnahme in ihre vorhandenen Objekte übernehmen.

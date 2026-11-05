@@ -11,12 +11,12 @@ acceptance-criteria:
 verification-method: test
 topic: "Bearbeiten und Finden"
 packages:
-  - { id: cf800f25-d03d-4092-8783-334263089f89, version: n1:06520a1e692d8288, title: "Stufe 3: Oberfläche" }
+  - { id: cf800f25-d03d-4092-8783-334263089f89, version: n2:92f3a59a9af7becd, title: "Stufe 3: Oberfläche" }
 derives-from:
   - { id: 6adc5a7a-c3a4-4a8a-8a2e-49131b717bb0, version: n1:cdd9943614927853, title: Schreiben wie in modernen Markdown-Editoren }
 based-on:
-  - { id: 6adc4946-b44c-4ae1-8dbf-fb9e88b8c607, version: n1:0c3f2da31ca1ae9a, title: Fassung als Prüfwert über den Inhalt }
-  - { id: 6adc4ee9-4ac6-485f-a1c3-43352a58580f, version: n1:d6c378367fbf9eab, title: Jedes Element ist eine eigene Markdown-Datei }
+  - { id: 6adc4946-b44c-4ae1-8dbf-fb9e88b8c607, version: n2:fa0fbf62535d1e3c, title: Fassung als Prüfwert über den Inhalt }
+  - { id: 6adc4ee9-4ac6-485f-a1c3-43352a58580f, version: n2:47d7dc2726d0c379, title: Jedes Element ist eine eigene Markdown-Datei }
 issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/104
 ---
 

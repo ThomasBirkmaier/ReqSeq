@@ -10,4 +10,4 @@ see-also:
   - { id: 6ad4ffa8-4a24-45f1-b9ca-cca96423fea0, version: n1:8d0ad9e3f36965a2, title: Validierung }
 ---
 
-Maschinenlesbarer Eintrag in einem offenen, dokumentierten Format, der einen Nachweis oder eine Validierung festhält ([D-026](reqseq:6adc58f5-a349-4870-af2f-971ec1cee679?version=n1:adee5264c0b69be1)). Bei automatischen Tests kann eine Ergebnisdatei im Standardformat, zum Beispiel JUnit XML, der Datensatz sein. Der Beleg ist davon getrennt.
+Maschinenlesbarer Eintrag in einem offenen, dokumentierten Format, der einen Nachweis oder eine Validierung festhält ([D-026](reqseq:6adc58f5-a349-4870-af2f-971ec1cee679?version=n2:f99d3d6f08b13a10)). Bei automatischen Tests kann eine Ergebnisdatei im Standardformat, zum Beispiel JUnit XML, der Datensatz sein. Der Beleg ist davon getrennt.

@@ -16,13 +16,13 @@ acceptance-criteria:
 verification-method: test
 topic: Traceability und Ketten
 packages:
-  - { id: cf800f25-d03d-4092-8783-334263089f89, version: n1:06520a1e692d8288, title: "Stufe 3: Oberfläche" }
+  - { id: cf800f25-d03d-4092-8783-334263089f89, version: n2:92f3a59a9af7becd, title: "Stufe 3: Oberfläche" }
 derives-from:
   - { id: ccf3998d-7bf6-45de-b74b-f45fb7862a92, version: n1:5fe1dc017ff6e9a9, title: Traceability-Matrix einer Auswahl }
   - { id: 6ad3a132-19a2-4a9c-83c7-2470c9c71be1, version: n1:ab23c3ad252d23f2, title: Vollständige Kette vom Parent bis zum Child }
 based-on:
-  - { id: 6ad4ffaa-f5ad-494e-97eb-a4c77c54dccc, version: n1:24d0db5bd6fe4be0, title: Fest eingebaute Bedeutungen des Metamodells }
-  - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n1:fdb39689e8cfdeb5, title: Oberfläche als weißes Blatt }
+  - { id: 6ad4ffaa-f5ad-494e-97eb-a4c77c54dccc, version: n2:73aeea72beca267c, title: Fest eingebaute Bedeutungen des Metamodells }
+  - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:bce0e07df5d43c53, title: Oberfläche als weißes Blatt }
 refines:
   - { id: 6adc6bd6-5f7d-44f8-bc1d-be89db7ba23f, version: n1:833647641a3f903c, title: Kette aufwärts und abwärts zeigen }
 issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/132

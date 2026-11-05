@@ -12,12 +12,12 @@ acceptance-criteria:
 verification-method: test
 topic: "Betrieb und Leistung"
 packages:
-  - { id: 46610a27-2866-47fb-bb8f-293faae4885f, version: n1:7315eea66e551d94, title: "Stufe 1: Fundament" }
+  - { id: 46610a27-2866-47fb-bb8f-293faae4885f, version: n2:fe4e82907ae44795, title: "Stufe 1: Fundament" }
 derives-from:
-  - { id: 6adc676b-fe66-4306-a6f2-3689d63c8400, version: n1:3600eec6a5b21089, title: Mehrere Agenten parallel }
+  - { id: 6adc676b-fe66-4306-a6f2-3689d63c8400, version: n2:20d807fdfaa9cb3b, title: Mehrere Agenten parallel }
 based-on:
   - { id: 6ad39064-0c17-44eb-b1b3-069ebda57ac6, version: n1:9c540adec22e0e1f, title: Jeder arbeitet auf einer lokalen Kopie }
-  - { id: 6adc4eb0-23e6-4e81-9ae8-e964fba47a8d, version: n1:ccbefd504788a8ce, title: Zusammenarbeit liegt außerhalb des Tools }
+  - { id: 6adc4eb0-23e6-4e81-9ae8-e964fba47a8d, version: n2:882381883f0fb18e, title: Zusammenarbeit liegt außerhalb des Tools }
 issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/88
 ---
 

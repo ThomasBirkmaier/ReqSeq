@@ -11,12 +11,12 @@ acceptance-criteria:
 verification-method: test
 topic: "Traceability und Ketten"
 packages:
-  - { id: 76455508-8047-4fdc-ba94-495751bd880b, version: n1:fc6046c245ac6717, title: "Stufe 2: Traceability" }
+  - { id: 76455508-8047-4fdc-ba94-495751bd880b, version: n2:73be154bf79845ec, title: "Stufe 2: Traceability" }
 derives-from:
-  - { id: 6adc6159-6d45-4ace-9173-5eb99508383c, version: n1:8a701d4e7ef2fb10, title: Prüfung auf veraltete Verweise im Merge Request }
+  - { id: 6adc6159-6d45-4ace-9173-5eb99508383c, version: n2:1f7ff4ed17406ff7, title: Prüfung auf veraltete Verweise im Merge Request }
 based-on:
-  - { id: 6adc58f4-fbf7-4c3d-84da-de15d00286a2, version: n1:ddba1713410acb43, title: Kommandozeile neben der App }
-  - { id: 6adc691d-c3f6-4d51-a053-72a341032941, version: n1:d9ab6ac4aab20571, title: Das Tool liest Git nur }
+  - { id: 6adc58f4-fbf7-4c3d-84da-de15d00286a2, version: n2:d8bcd2a465d55357, title: Kommandozeile neben der App }
+  - { id: 6adc691d-c3f6-4d51-a053-72a341032941, version: n2:c433f023b7b96248, title: Das Tool liest Git nur }
 issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/99
 ---
 

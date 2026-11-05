@@ -12,11 +12,11 @@ acceptance-criteria:
 verification-method: test
 topic: "Bearbeiten und Finden"
 packages:
-  - { id: cf800f25-d03d-4092-8783-334263089f89, version: n1:06520a1e692d8288, title: "Stufe 3: Oberfläche" }
+  - { id: cf800f25-d03d-4092-8783-334263089f89, version: n2:92f3a59a9af7becd, title: "Stufe 3: Oberfläche" }
 derives-from:
   - { id: 6adc693a-e1d7-42a9-aeca-7ab5bfacefec, version: n1:b86cbcab02241a36, title: Mehrere Elemente auf einmal ändern }
 based-on:
-  - { id: 6adc615b-272a-4377-82e5-9ae991d75bb2, version: n1:bbc1feca6a7d2220, title: Statuswerte kommen aus dem Metamodell }
+  - { id: 6adc615b-272a-4377-82e5-9ae991d75bb2, version: n2:a63440db8f6c0cff, title: Statuswerte kommen aus dem Metamodell }
 issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/78
 ---
 
