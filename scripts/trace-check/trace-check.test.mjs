@@ -139,6 +139,10 @@ describe("trace-check on the ReqSeq workspace in spec/", () => {
     expect(traceCheck(root, ["--stage", "9"]).errors).toContain(
       "no package for stage 9 in spec/ (identifier Stufe-9 or 9)",
     );
+    const empty = repo({
+      "spec/package/PKG-000000000009.md": `---\nid: 00000000-0000-4000-8000-000000000009\ntype: package\nstatus: obsolete\ntitle: Alt\nspec-id: Alt\n---\n`,
+    });
+    expect(traceCheck(empty, ["--stage", "Alt"]).errors).toEqual(["package Alt has no system requirements"]);
   });
 
   it("checks that a PR body names known SRs unless it is an enabler", () => {

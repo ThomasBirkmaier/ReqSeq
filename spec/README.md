@@ -26,7 +26,7 @@ node packages/cli/dist/bin.js trace chain SR-036 --workspace spec
 node packages/cli/dist/bin.js workspace check --workspace spec
 ```
 
-All system requirements of a stage with their text, numbered acceptance criteria (`1:` is AK1) and relations, in one call instead of reading each file:
+All system requirements of a package with their text, numbered acceptance criteria (`1:` is AK1) and relations, in one call instead of reading each file:
 
 ```sh
 node packages/cli/dist/bin.js element list --with-text --package Editor --where-type system-requirement --sort spec-id --limit 1000 --workspace spec
