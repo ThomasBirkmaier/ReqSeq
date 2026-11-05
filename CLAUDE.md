@@ -4,7 +4,7 @@ ReqSeq is an offline requirements tool (core, CLI, API, MCP server, Electron app
 
 ## Sources of truth
 
-- `spec/` is the specification, a ReqSeq workspace (D-064). It is German, so quote it verbatim. Read it with `node packages/cli/dist/bin.js element get SR-036 --workspace spec` after `pnpm build`. Change it only with ReqSeq, in a PR of its own: see the `spec-change` skill.
+- `spec/` is the specification, a ReqSeq workspace. It is German, so quote it verbatim. Read it with `node packages/cli/dist/bin.js element get SR-036 --workspace spec` after `pnpm build`. Change it only with ReqSeq, in a PR of its own: see the `spec-change` skill.
 - Decisions in `spec/decision/` say what to build, and ADRs in `docs/adr/` say how. An ADR never contradicts a decision. Before architecture work, read `docs/architecture/README.md` and the ADRs of your area.
 - If a system requirement is unclear, incomplete or contradicts another one, open a `spec-frage` issue with the question and your assumption, and carry the assumption in the PR. Never resolve a spec question silently in code. Do not create component requirements.
 
@@ -24,11 +24,11 @@ ReqSeq is an offline requirements tool (core, CLI, API, MCP server, Electron app
 - Code, identifiers, comments, commits, PR titles, ADRs and UI texts are English (D-019). Issues quote the German spec verbatim.
 - Keep PR texts, issues, plans and docs short: the substance, no filler, no repeated summary.
 
-## Traceability (D-049, D-050)
+## Traceability
 
-- One issue per system requirement. Work without its own SR is labelled `enabler`, on the issue and on the PR, the PR from the moment it is opened (`merge.md`).
+- Issues are tasks, not copies of SRs. When the product owner plans an SR, a pre-study names the steps its implementation needs, and the product owner decides which become issues: one issue per task, so an SR can have several. An issue names only the SRs whose AKs it implements, and quotes no AK. Nothing creates issues for SRs in bulk (product owner decision, 2026-11-05). Work without its own SR is labelled `enabler`, on the issue and on the PR, the PR from the moment it is opened (`merge.md`).
 - Branch `sr-036-short-slug` or `enabler-<issue>-short-slug`. Commits follow Conventional Commits; the body ends with `Implements: SR-036` (one line per SR) and `Refs #<issue>`. The PR title starts with the SR ID, and the body has `Closes #<issue>` and a "Verification" section.
-- Each acceptance criterion with method Test has a test named `[SR-036/AK2] ...` (AK counted from 1 in the order of the spec file). Other methods get a record in `verification/SR-036.md`, which a person confirms at stage acceptance.
+- Each acceptance criterion with method Test has a test named `[SR-036/AK2] ...` (AK counted from 1 in the order of the spec file). Other methods get a record in `verification/SR-036.md`, which a person confirms at milestone acceptance.
 - `pnpm trace-check` must pass. A PR text must not name an SR ID that is not in `spec/` yet.
 
 ## Quality gates (ADR-0016)
@@ -46,7 +46,7 @@ Strict typecheck, lint with zero warnings, format, and unit test coverage of 100
 
 ## How we work
 
-- Skills, in `.claude/skills/<name>/SKILL.md` (a session that does not start in this checkout does not list them, so read the file): `verify` (check commands, Electron in the container), `spec-change` (spec, status, SR issues), `lead-run` (a stage over a long run, including the merge criteria). The review is the built-in `/code-review`, plus `/security-review` for file access, the app's process bridge or dependencies.
+- Skills, in `.claude/skills/<name>/SKILL.md` (a session that does not start in this checkout does not list them, so read the file): `verify` (check commands, Electron in the container), `spec-change` (spec, status, packages), `lead-run` (a milestone over a long run, including the merge criteria). The review is the built-in `/code-review`, plus `/security-review` for file access, the app's process bridge or dependencies.
 - For an SR issue, the SR in `spec/` wins over the issue text, and the PR says where they differ. Issues labelled `blocked`, `spec-frage` or `needs-human` wait. While an agent works on an issue, it carries `agent:working`, which the board reads.
 - Plan only risky changes: an ADR or the architecture, a schema or file format, catalog design shared by several SRs, performance, security. Post a plan of about a page on the issue and have it reviewed once at effort high before building. Other issues need no plan.
 - About one focused test per acceptance criterion, plus what the coverage threshold needs. Update the docs the change makes outdated (package README, block file under `packages/core/docs/`, CLI help). Implementation PRs never change `spec/`.
@@ -55,5 +55,5 @@ Strict typecheck, lint with zero warnings, format, and unit test coverage of 100
 - Do what the issue asks. If ReqSeq behaves badly while you use it and you can reproduce it, open a `dogfooding` issue with the reproduction.
 - Issue threshold (product owner decision, 2026-11-04): open a new issue only for a bug on `main` shown by a reproduction or a failing test, for an AK of an SR that is not met (name the SR and the AK), for a pilot finding, a `spec-frage` or `needs-human` question, or a task the product owner asks for. Anything below it is fixed in the same PR when small, otherwise noted in the PR description. Product and spec ideas become SRs in package „Später“ (`spec-change`). One problem per issue; existing collective issues stay, and open nice-to-have issues stay until the product owner decides on them.
 - Every new issue opens with one sentence in plain language, in the issue's language, on what a user notices and why it matters. It is understandable without knowledge of other issues or threads: links to them only add to the description, never replace it (product owner decision, 2026-11-04, a trial).
-- Agents commit and merge on their own, also for `.claude/`, `.github/`, `schemas/`, `docs/` and this file (D-051). `main` requires checks, so every change, a trivial one too, goes through a pull request. Merge only on green CI, after one review by a second agent whose blocking findings are fixed (`lead-run`, `merge.md`, which also has the rules for CI changes). Tell the product owner in the stage epic about PRs that change the spec, schemas, ADRs, agent rules, skills or CI, without waiting for an answer.
+- Agents commit and merge on their own, also for `.claude/`, `.github/`, `schemas/`, `docs/` and this file. `main` requires checks, so every change, a trivial one too, goes through a pull request. Merge only on green CI, after one review by a second agent whose blocking findings are fixed (`lead-run`, `merge.md`, which also has the rules for CI changes). Tell the product owner in the stage epic about PRs that change the spec, schemas, ADRs, agent rules, skills or CI, without waiting for an answer.
 - Small PRs, one SR each unless SRs are inseparable, each branched from `main` (`merge.md`). Rule, skill and doc changes that belong to no SR or code PR are bundled into one PR per half day (product owner decision, 2026-10-28, #722).

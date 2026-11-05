@@ -65,7 +65,7 @@ export const STAGES = [
   { key: "querschnitt", id: "7a12a8c7-43e7-4349-9453-0ac2b6d5157d", title: "Querschnitt" },
 ];
 
-/** The identifier of a stage package: `Stufe-3`, `Querschnitt` (trace-check and sr-issues use it). */
+/** The identifier of a stage package: `Stufe-3`, `Querschnitt` (trace-check uses it). */
 export const stageIdentifier = (key) =>
   /^\d+$/.test(key) ? `Stufe-${key}` : key[0].toUpperCase() + key.slice(1);
 

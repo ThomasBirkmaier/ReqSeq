@@ -99,16 +99,6 @@ jobs:
       - name: Licenses
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: pnpm licenses:check
-      # scripts/sr-issues (Python, run by the spec-change skill); the label and reopen rules are unit-tested.
-      # setup-python pins the version (it has builds for Ubuntu 24.04 on x64).
-      - uses: actions/setup-python@v6
-        id: python
-        if: ${{ !cancelled() }}
-        with:
-          python-version: "3.14.8"
-      - name: Python unit tests (scripts/sr-issues)
-        if: ${{ !cancelled() && steps.python.outcome == 'success' }}
-        run: python3 -m unittest discover -s scripts/sr-issues
       - name: Audit
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: pnpm audit --prod --audit-level high
