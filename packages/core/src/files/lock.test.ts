@@ -344,6 +344,11 @@ describe("lockPrivateFile", () => {
     expect(lock).toBeDefined();
     expect(spy).toHaveBeenCalledTimes(8);
     await lock?.release();
+    // A refusal that lasts: the Node error after the 10th attempt.
+    spy.mockRejectedValue(failure("EPERM"));
+    spy.mockClear();
+    await expect(lockPrivateFile(file)).rejects.toThrow("EPERM");
+    expect(spy).toHaveBeenCalledTimes(10);
   });
 
   it("rejects with the Node error when the lock cannot be created, read or removed", async () => {
