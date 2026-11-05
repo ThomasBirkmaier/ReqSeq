@@ -107,6 +107,10 @@ const headDate = async (ws: FixtureWorkspace): Promise<string> =>
     .toISOString()
     .replace(".000Z", "Z");
 
+/** The object name of HEAD, which started the versions of its commit (#252). */
+const headCommit = async (ws: FixtureWorkspace): Promise<string> =>
+  (await ws.git(["rev-parse", "HEAD"])).trim();
+
 describe("hint.list (SR-026)", () => {
   it("[SR-026/AK1] lists every open hint with its kind, the element it is about, its target and its reason", async () => {
     const ws = await fixture({ ...HINTS, git: true });
@@ -114,11 +118,12 @@ describe("hint.list (SR-026)", () => {
     expect(output.incomplete).toBe(false);
     expect(rows(output.hints)).toEqual(ALL);
     const date = await headDate(ws);
+    const commit = await headCommit(ws);
     const [outdatedItem, outdatedLink] = output.hints.slice(-2);
     expect(outdatedItem).toEqual({
       code: "relation.outdated",
       severity: "warning",
-      message: `Relation Derives from (derives-from) of System Requirement SR-0000b1 points to an older version of Need N-0000a1: stored version from no date, current version from ${date} (not committed, or Git cannot tell)`,
+      message: `Relation Derives from (derives-from) of System Requirement SR-0000b1 points to an older version of Need N-0000a1: stored version from no date, current version from ${date} (${commit.slice(0, 12)}) (not committed, or Git cannot tell)`,
       repository: "system",
       file: R1_FILE,
       line: 14,
@@ -131,6 +136,8 @@ describe("hint.list (SR-026)", () => {
       currentVersion: "n1:d809de2e934d94f3",
       storedDate: null,
       currentDate: date,
+      storedCommit: null,
+      currentCommit: commit,
       hintId: `relation.outdated/system/${encodeURIComponent(R1_FILE)}/${R1}/derives-from/${N1}?version=n1:0000000000000000`,
       key: "derives-from",
       place: { in: "relation" },
@@ -437,10 +444,12 @@ describe("hints at the element (SR-026 AK3)", () => {
     expect(workspace.peek(currentVersionsState)).toBeUndefined();
     // The same hints as the list, apart from the dates.
     const listed = (await list(workspace, { ref: R1 })).hints;
-    const undated = listed.map(({ storedDate: _s, currentDate: _c, ...p }) => ({
-      ...p,
-      message: p.message.replace(/: (stored version from|neither version has a date) .*$/, ""),
-    }));
+    const undated = listed.map(
+      ({ storedDate: _s, currentDate: _c, storedCommit: _sc, currentCommit: _cc, ...p }) => ({
+        ...p,
+        message: p.message.replace(/: (stored version from|neither version has a date) .*$/, ""),
+      }),
+    );
     expect(outdated).toEqual(undated);
   });
 

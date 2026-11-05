@@ -49,6 +49,15 @@
 //   or `target`, or `kind` without `ref` or `target`, is `input.invalid`: a call never confirms
 //   every hint of the workspace by accident. (This rule is not in the input schema: an `anyOf` at
 //   the root of a tool input schema is refused by some MCP clients.)
+// - All hints of some codes (#644): `all` selects the findings of `outdatedRelationsState` (the state
+//   hint.list reads, so its current versions are built once, N-036) with a code of `kind` and a hint
+//   ID, after a person reviewed them with hint.list. It needs `kind` and `expected` and goes with
+//   neither `ref` nor `target`; its `kind` names only confirmable codes (a since-baseline code is
+//   refused with its reason before the count and nothing is written, SR-103 AK5; any other code is
+//   `input.invalid`, as hint.list would count it and `all` never confirms it). `expected` (any
+//   selection) is the number of hints the call confirms, as hint.list counts them;
+//   another number refuses the call before anything is written, so hints that came with a pull
+//   after the review are never confirmed unseen (D-042).
 //   A selected ID that a given ID names in another spelling is listed once, as given.
 // - Only element files are written: never Git (D-036), never a status (SR-087 AK2), nothing is
 //   deleted (D-045). The command is refused while the workspace is read-only (ADR-0002 rule 5).
@@ -73,6 +82,7 @@ import {
   shortIdState,
   writtenElement,
 } from "../model/index.js";
+import { currentVersions } from "../model/current-versions.js";
 import { inlineReferences } from "../model/references.js";
 import type { ElementFileWrite, UnchangedElement } from "../model/write.js";
 import { readUnchanged, writeElementFiles } from "../model/write.js";
@@ -80,9 +90,9 @@ import type { Workspace } from "../runtime/workspace.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import type { HintTarget } from "./hint-id.js";
-import { hintIdOf, parseHintId } from "./hint-id.js";
+import { CONFIRMABLE_CODES, hintIdOf, parseHintId } from "./hint-id.js";
 import type { Candidate, ShownContext } from "./outdated.js";
-import { outdatedOfShown } from "./outdated.js";
+import { outdatedOfShown, outdatedRelationsState } from "./outdated.js";
 import { SINCE_BASELINE_CODES, sinceBaselineProblems } from "./since-baseline.js";
 
 const COMMAND: CommandName = "hint.confirm";
@@ -93,6 +103,8 @@ export interface ConfirmInput {
   readonly ref?: string;
   readonly target?: string;
   readonly kind?: readonly string[];
+  readonly all?: boolean;
+  readonly expected?: number;
 }
 
 /** What `hint.confirm` did. */
@@ -466,20 +478,57 @@ const plan = async (
 };
 
 /** `input.invalid` for an input that selects no hint: no IDs, no `ref`, no `target`, or `kind` alone. */
+const invalidInput = (message: string, fields: string[]): CommandError =>
+  new CommandError("input.invalid", message, { command: COMMAND, fields });
+
 const assertSelects = (input: ConfirmInput): void => {
   const byElement = input.ref !== undefined || input.target !== undefined;
+  if (input.all === true) {
+    if (byElement) {
+      throw invalidInput("all selects the hints of the whole workspace: give it without ref and target", [
+        "all",
+      ]);
+    }
+    if (input.kind === undefined) {
+      throw invalidInput("all needs kind: the codes of the hints a person reviewed (hint.list --kind)", [
+        "kind",
+      ]);
+    }
+    const other = input.kind.filter(
+      (code) => !(CONFIRMABLE_CODES as readonly string[]).includes(code) && !SINCE_BASELINE_CODES.has(code),
+    );
+    if (other.length > 0) {
+      throw invalidInput(
+        `all confirms only ${CONFIRMABLE_CODES.join(" and ")}, not ${other.join(", ")}: give kind with those codes only`,
+        ["kind"],
+      );
+    }
+    if (input.expected === undefined) {
+      throw invalidInput("all needs expected: the total of hint.list with the same kind, as reviewed", [
+        "expected",
+      ]);
+    }
+    return;
+  }
   if (!byElement && input.hintIds === undefined) {
-    throw new CommandError(
-      "input.invalid",
+    throw invalidInput(
       "Give hintIds, ref or target: which hints to confirm (hint.list gives the open ones)",
-      { command: COMMAND, fields: ["hintIds", "ref", "target"] },
+      ["hintIds", "ref", "target"],
     );
   }
   if (!byElement && input.kind !== undefined) {
-    throw new CommandError("input.invalid", "kind narrows the hints of ref or target: give one of them", {
-      command: COMMAND,
-      fields: ["kind"],
-    });
+    throw invalidInput("kind narrows the hints of ref, target or all: give one of them", ["kind"]);
+  }
+};
+
+/** The number of hints to confirm, as hint.list counts them, against `expected`: refused, nothing written, when they differ. */
+const assertExpected = (input: ConfirmInput, count: number): void => {
+  if (input.expected !== undefined && input.expected !== count) {
+    throw new CommandError(
+      "input.invalid",
+      `expected: the call now confirms ${String(count)} hints, not ${String(input.expected)}; nothing was written. List them again with hint.list`,
+      { command: COMMAND, fields: ["expected"], expected: input.expected, count, reason: "count-changed" },
+    );
   }
 };
 
@@ -491,7 +540,7 @@ const sourcesOf = (context: ShownContext, target: ElementRecord): ElementRecord[
 
 /**
  * The IDs of the open hints `ref` and `target` select, narrowed by `kind` (see the file comment);
- * undefined when the input selects by neither. A ref that names no element, or several, fails as
+ * `all` takes them from the whole workspace; undefined when the input selects by none of the three. A ref that names no element, or several, fails as
  * everywhere (`ref.unknown`, `ref.ambiguous`).
  */
 const selectedIds = async (
@@ -500,6 +549,14 @@ const selectedIds = async (
   openOf: (record: ElementRecord) => Promise<Candidate[]>,
 ): Promise<string[] | undefined> => {
   const { store, shortIds } = context;
+  if (input.all === true) {
+    const kinds = new Set(input.kind);
+    // As hint.list: an image the watcher did not report is looked at first.
+    await currentVersions(context.workspace);
+    return (await context.workspace.get(outdatedRelationsState))
+      .filter((finding) => kinds.has(finding.problem.code))
+      .map((finding) => finding.hintId);
+  }
   const source = input.ref === undefined ? undefined : resolveRef(store, shortIds, input.ref);
   const target = input.target === undefined ? undefined : resolveRef(store, shortIds, input.target);
   const sources =
@@ -528,6 +585,7 @@ const nothingSelected = (input: ConfirmInput): Problem => {
     input.ref === undefined ? undefined : `about ${input.ref}`,
     input.target === undefined ? undefined : `pointing at ${input.target}`,
     input.kind === undefined ? undefined : `of kind ${input.kind.join(", ")}`,
+    input.all === true ? "in the workspace" : undefined,
   ].filter((part) => part !== undefined);
   return {
     code: "hint.not-found",
@@ -554,13 +612,16 @@ const idsToConfirm = async (
   context: ShownContext,
   input: ConfirmInput,
   openOf: (record: ElementRecord) => Promise<Candidate[]>,
-): Promise<{ readonly ids: string[]; readonly problems: Problem[] }> => {
+): Promise<{ readonly ids: string[]; readonly hints: number; readonly problems: Problem[] }> => {
   const given = [...new Set(input.hintIds)];
   const selected = await selectedIds(context, input, openOf);
   const named = new Set(given.map(canonicalOf));
   const empty = selected === undefined ? given.length === 0 : selected.length === 0;
+  const added = (selected ?? []).filter((id) => !named.has(id));
   return {
-    ids: [...given, ...[...new Set(selected)].filter((id) => !named.has(id))],
+    ids: [...given, ...new Set(added)],
+    // As hint.list counts: a relation written twice is two hints with one ID.
+    hints: given.length + added.length,
     problems: empty ? [nothingSelected(input)] : [],
   };
 };
@@ -568,6 +629,16 @@ const idsToConfirm = async (
 /** `hint.confirm`: confirms the hints `hintIds` names and those `ref` and `target` select (see the file comment). */
 export const confirmHints = async (workspace: Workspace, input: ConfirmInput): Promise<ConfirmedHints> => {
   assertSelects(input);
+  // A since-baseline code in kind with all is refused with its reason (SR-103 AK5) before the count,
+  // which it never matches, and nothing of the workspace is written.
+  const refusedKinds = input.all === true ? kindRefusals(input.kind) : [];
+  return refusedKinds.length > 0
+    ? { confirmed: [], files: [], problems: refusedKinds }
+    : confirmSelected(workspace, input);
+};
+
+/** `confirmHints` after the checks of the input alone. */
+const confirmSelected = async (workspace: Workspace, input: ConfirmInput): Promise<ConfirmedHints> => {
   const [layout, metamodel, store, shortIds] = await Promise.all([
     workspace.get(workspaceLayoutState),
     workspace.get(metamodelState),
@@ -586,6 +657,7 @@ export const confirmHints = async (workspace: Workspace, input: ConfirmInput): P
   };
   const selection = await idsToConfirm(context, input, openOf);
   const { ids } = selection;
+  assertExpected(input, selection.hints);
   const problems = await firstProblems(context, input, selection.problems);
   for (const id of ids) {
     const target = parseHintId(id);

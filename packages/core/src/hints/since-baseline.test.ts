@@ -237,6 +237,32 @@ describe("core requirements changed since a variant's newest baseline (SR-103)",
     expect(rows(await listed(workspace))).toHaveLength(1);
   });
 
+  it("[SR-103/AK5] hint.confirm all of the kind is refused with the reason, whatever expected says (#644)", async () => {
+    const { workspace } = await open({
+      "baselines/R1.yaml": baseline("R1", "2026-11-02T10:00:00Z", OF_COAST),
+      [fileOf(String(K1))]: await changedK1(),
+    });
+    const total = rows(await listed(workspace)).length;
+    expect(total).toBe(1);
+    const confirmed = (await invoke(
+      "hint.confirm",
+      { all: true, kind: ["variant.core-changed-since-baseline", "relation.outdated"], expected: total },
+      { workspace },
+    )) as CommandOutput<"hint.confirm">;
+    expect(confirmed).toEqual({
+      confirmed: [],
+      files: [],
+      problems: [
+        {
+          code: "hint.not-confirmable",
+          severity: "error",
+          message:
+            "kind variant.core-changed-since-baseline is not confirmed: a variant.core-changed-since-baseline hint is settled only by a new baseline of its variant (baseline.create with the view of the variant), not by confirming it (D-042)",
+        },
+      ],
+    });
+  });
+
   it("[SR-103/AK5] hint.confirm of the hints of A is refused with the reason, and confirms nothing else", async () => {
     const { workspace } = await open({
       "baselines/R1.yaml": baseline("R1", "2026-11-02T10:00:00Z", OF_COAST),

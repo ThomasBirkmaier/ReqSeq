@@ -100,7 +100,7 @@
                   "type": "array",
                   "minItems": 1,
                   "items": { "type": "string" },
-                  "description": "Earlier optional fields a value of this field takes the place of: the prompt leaves them out of the input when this field has a value, so they only said what it offers. `hint.confirm`: hints chosen at `hintIds` confirm only those, not every hint `ref`, `target` and `kind` select (#291). `catalog-checks.mjs` checks the fields."
+                  "description": "Earlier optional fields a value of this field takes the place of: the prompt leaves them out of the input when this field has a value other than `false`, so they only said what it offers. `hint.confirm`: hints chosen at `hintIds` confirm only those, not every hint `ref`, `target` and `kind` select (#291); `all` yes confirms those of the workspace, not those of the shown element as `ref` (#644). `catalog-checks.mjs` checks the fields."
                 },
                 "flag": {
                   "type": "string",

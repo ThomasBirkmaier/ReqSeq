@@ -30,13 +30,15 @@ const open = async (options: FixtureOptions, root = ""): Promise<Workspace> => {
   return workspace;
 };
 
-/** A hint without its dates, which `element.get` gives only with `versionDate`, in a stable order. */
+/** A hint without its dates and commits, which `element.get` gives only with `versionDate`, in a stable order. */
 const undated = (hints: readonly Problem[]): Problem[] =>
   hints
-    .map(({ storedDate: _stored, currentDate: _current, ...hint }) => ({
-      ...hint,
-      message: hint.message.replace(/: (stored version from|neither version has a date) .*$/, ""),
-    }))
+    .map(
+      ({ storedDate: _stored, currentDate: _current, storedCommit: _sc, currentCommit: _cc, ...hint }) => ({
+        ...hint,
+        message: hint.message.replace(/: (stored version from|neither version has a date) .*$/, ""),
+      }),
+    )
     .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
 
 const listed = async (workspace: Workspace, ref: string): Promise<Problem[]> =>

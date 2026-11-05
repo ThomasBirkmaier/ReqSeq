@@ -281,6 +281,10 @@ export interface Problem {
   readonly currentVersion?: Version;
   readonly storedDate?: string | null;
   readonly currentDate?: string | null;
+  /** Object name of the commit that started the stored version (ADR-0005 "Version date", #252), given with `storedDate` and null exactly when it is: with `currentCommit`, `git diff <storedCommit> <currentCommit> -- <file>` shows what changed. A pointer valid at the current HEAD, never stored (D-013). */
+  readonly storedCommit?: string | null;
+  /** Object name of the commit that started the current version, given with `currentDate` and null exactly when it is (as `storedCommit`). */
+  readonly currentCommit?: string | null;
   /** Stable ID of a confirmable hint (D-042); on the hint.* problems of hint.confirm, the ID as given. */
   readonly hintId?: string;
   /** The key (property or relation kind) a problem about one key is about, so that an access can tell it without reading the message (#222): the relation kind or property of a count hint (`relation.too-many`, `relation.too-few`, SR-152; `element.too-many-items`, SR-171), the property of `element.text-emptied` (#841), `element.wrong-value-kind`, `element.missing-required`, `element.duplicate-identifier` and `element.statement-without-text`, the property of `element.unknown-property` when its key has the form of a metamodel key (a frontmatter key can be any text), the key of the relation item of `relation.outdated`, `variant.core-changed`, `relation.missing-target`, `relation.not-allowed`, `relation.target-superseded`, `variant.superseded-in-validity` and `variant.nested`, and the property marked `markdown` that holds a link of `relation.outdated`, `relation.missing-target`, `relation.unresolved-link` or `relation.reference-style` (SR-127). A link in the text has none. */
@@ -1489,7 +1493,7 @@ export interface CommandCatalog {
         | "json";
       /** An earlier field of `arguments`. */
       readonly of?: string;
-      /** Earlier optional fields a value of this field takes the place of: the prompt leaves them out of the input when this field has a value, so they only said what it offers. `hint.confirm`: hints chosen at `hintIds` confirm only those, not every hint `ref`, `target` and `kind` select (#291). `catalog-checks.mjs` checks the fields. */
+      /** Earlier optional fields a value of this field takes the place of: the prompt leaves them out of the input when this field has a value other than `false`, so they only said what it offers. `hint.confirm`: hints chosen at `hintIds` confirm only those, not every hint `ref`, `target` and `kind` select (#291); `all` yes confirms those of the workspace, not those of the shown element as `ref` (#644). `catalog-checks.mjs` checks the fields. */
       readonly replaces?: readonly string[];
       /** Name of the CLI flag, without `--`, when it is not the field name in kebab-case (ADR-0009): `element.create` takes its `properties` as `--set key=value`, as `element.update` takes `set`. Not the name of another field's flag, nor of a common option (`validate-schemas.mjs`, `catalog-checks.mjs`). */
       readonly flag?: string;
@@ -1706,7 +1710,7 @@ export interface ElementGetInput {
   readonly view?: View;
   /** Also give the date of the version (`versionDate`, D-013, ADR-0005), read from the Git history. Without it no git runs and `versionDate` is left out, so opening an element stays fast (SR-082 AK3); the app asks for the date in a second call. */
   readonly versionDate: boolean;
-  /** Date only the outdated relations and inline references and the changed core requirements of replacements among the hints (`relation.outdated`, `variant.core-changed`: `storedDate`, `currentDate` and both dates in the message, D-013, ADR-0005), not the version of the element itself. Git reads only the histories of their targets, and none when the element has no outdated relation; the app asks for it in a second call after the element is shown, only for an element with such hints (SR-110 AK2, SR-082 AK3). `versionDate` dates these hints too. */
+  /** Date only the outdated relations and inline references and the changed core requirements of replacements among the hints (`relation.outdated`, `variant.core-changed`: `storedDate`, `currentDate`, `storedCommit`, `currentCommit` and both dates with their commits in the message, D-013, ADR-0005, #252), not the version of the element itself. Git reads only the histories of their targets, and none when the element has no outdated relation; the app asks for it in a second call after the element is shown, only for an element with such hints (SR-110 AK2, SR-082 AK3). `versionDate` dates these hints too. */
   readonly hintDates: boolean;
   /** Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it (for example one copy of a file whose UUID another file shares, SR-088; #255). Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates. */
   readonly repository?: string;
@@ -2567,7 +2571,7 @@ export interface HintListOutput {
 }
 
 /**
- * Input of `hint.confirm` as `run` gets it: validated, properties with a `default` filled in. Confirm hints, by ID (hintIds) or all of one element (ref, target): writes the current target version into the relation or inline reference (in the text or in a property marked `markdown`, SR-127; `relation.outdated`) or into the `replaces` item (`variant.core-changed`, SR-045), and nothing else but the current titles of the file's same-repository targets (D-042); an ID no open hint has gives a warning, for example one confirmed already.
+ * Input of `hint.confirm` as `run` gets it: validated, properties with a `default` filled in. Confirm hints after a person reviewed them, by ID (hintIds), all of one element (ref, target) or all of some codes in the workspace (all with kind and expected, the total of hint.list with that kind): writes the current target version into the relation or inline reference (in the text or in a property marked `markdown`, SR-127; `relation.outdated`) or into the `replaces` item (`variant.core-changed`, SR-045), and nothing else but the current titles of the file's same-repository targets (D-042); an ID no open hint has gives a warning, for example one confirmed already.
  * Schema: `schemas/commands/hint.confirm.json input`.
  */
 export interface HintConfirmInput {
@@ -2577,12 +2581,16 @@ export interface HintConfirmInput {
   readonly ref?: ElementRef;
   /** Confirm the open confirmable hints on relations and inline references that point at this element, for example after it changed. */
   readonly target?: ElementRef;
-  /** Only selected hints with one of these codes (with `ref` or `target`); the confirmable codes are `relation.outdated` and `variant.core-changed`; `variant.core-changed-since-baseline` and `variant.core-new-since-baseline` give `hint.not-confirmable`, since a new baseline of the variant settles them (SR-103 AK5). */
+  /** Select the open confirmable hints of the whole workspace with one of the codes of `kind`: those hint.list gives with a hintId for that `kind` and no other filter (#644). Needs `kind` with confirmable codes only (`relation.outdated`, `variant.core-changed`; a since-baseline code is refused with its reason, other codes are `input.invalid`) and `expected`; not with `ref` or `target`. */
+  readonly all: boolean;
+  /** Only selected hints with one of these codes (with `ref`, `target` or `all`); the confirmable codes are `relation.outdated` and `variant.core-changed`; `variant.core-changed-since-baseline` and `variant.core-new-since-baseline` give `hint.not-confirmable`, since a new baseline of the variant settles them (SR-103 AK5). */
   readonly kind?: readonly ProblemCode[];
+  /** The number of hints the call confirms as the person reviewed them: the hints the selection holds, counted as hint.list counts them (a relation written twice is two hints with one ID), plus one per given hint ID that the selection does not hold (with `all`: `total` of hint.list with the same `kind` and no other filter). When the call would confirm another number, it is refused and nothing is written (`input.invalid`, details `count`), for example after a pull brought new hints. Required with `all`. */
+  readonly expected?: number;
 }
 
 /**
- * Output of `hint.confirm`. Confirm hints, by ID (hintIds) or all of one element (ref, target): writes the current target version into the relation or inline reference (in the text or in a property marked `markdown`, SR-127; `relation.outdated`) or into the `replaces` item (`variant.core-changed`, SR-045), and nothing else but the current titles of the file's same-repository targets (D-042); an ID no open hint has gives a warning, for example one confirmed already.
+ * Output of `hint.confirm`. Confirm hints after a person reviewed them, by ID (hintIds), all of one element (ref, target) or all of some codes in the workspace (all with kind and expected, the total of hint.list with that kind): writes the current target version into the relation or inline reference (in the text or in a property marked `markdown`, SR-127; `relation.outdated`) or into the `replaces` item (`variant.core-changed`, SR-045), and nothing else but the current titles of the file's same-repository targets (D-042); an ID no open hint has gives a warning, for example one confirmed already.
  * Schema: `schemas/commands/hint.confirm.json output`.
  */
 export interface HintConfirmOutput {
