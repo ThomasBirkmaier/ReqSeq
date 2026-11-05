@@ -1,0 +1,476 @@
+<testsuites id="" name="" tests="187" failures="0" skipped="0" errors="0" time="422.088707">
+<testsuite name="active-field.spec.ts" timestamp="2026-11-05T21:44:10.234Z" hostname="" tests="3" failures="0" skipped="0" time="6.277" errors="0">
+<testcase name="the field the focus is in › [SR-155/AK1] has the background of the selected row of a list, and no other field has it" classname="active-field.spec.ts" time="3.146"><properties><property name="reqseq:element" value="bd19f379-6b5b-4eca-a60a-66b31b5c1ec2"/><property name="reqseq:version" value="n2:313b118f22eeacf3"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the field the focus is in › [SR-155/AK2] the tint and the copy symbol move with the arrow keys, the pointer elsewhere" classname="active-field.spec.ts" time="1.689"><properties><property name="reqseq:element" value="bd19f379-6b5b-4eca-a60a-66b31b5c1ec2"/><property name="reqseq:version" value="n2:313b118f22eeacf3"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the field the focus is in › [SR-155/AK3] no field is tinted while the focus is on the buffer or in the prompt" classname="active-field.spec.ts" time="1.442"><properties><property name="reqseq:element" value="bd19f379-6b5b-4eca-a60a-66b31b5c1ec2"/><property name="reqseq:version" value="n2:313b118f22eeacf3"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+</testsuite>
+<testsuite name="autosave.spec.ts" timestamp="2026-11-05T21:44:10.234Z" hostname="" tests="10" failures="0" skipped="0" time="27.781" errors="0">
+<testcase name="saving without a save command › [SR-105/AK1] a change is in the file a second after the last key, without a save command and without a message" classname="autosave.spec.ts" time="2.685">
+<properties>
+<property name="autosave after the last key (ms)" value="1019">
+</property>
+<property name="reqseq:element" value="ab251d06-279e-45aa-9a55-55f270f52d3f"/>
+<property name="reqseq:version" value="n2:2643c5784f643226"/>
+<property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/>
+<property name="reqseq:date" value="2026-11-05T21:43:08Z"/>
+</properties>
+</testcase>
+<testcase name="saving without a save command › [SR-105/AK1] leaving the element writes the change at once: another buffer, Go to, Close buffer and Close all buffers" classname="autosave.spec.ts" time="1.58"><properties><property name="reqseq:element" value="ab251d06-279e-45aa-9a55-55f270f52d3f"/><property name="reqseq:version" value="n2:2643c5784f643226"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="saving without a save command › [SR-105/AK2] undo and redo of the text step through its states since opening, also after it was saved and after another buffer was shown" classname="autosave.spec.ts" time="5.229"><properties><property name="reqseq:element" value="ab251d06-279e-45aa-9a55-55f270f52d3f"/><property name="reqseq:version" value="n2:2643c5784f643226"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="saving without a save command › [SR-105/AK2] undo and redo of a text box and of a choice after they were saved" classname="autosave.spec.ts" time="6.263"><properties><property name="reqseq:element" value="ab251d06-279e-45aa-9a55-55f270f52d3f"/><property name="reqseq:version" value="n2:2643c5784f643226"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="saving without a save command › [SR-105/AK1] quitting the app within a second of the last key writes the change before the window closes" classname="autosave.spec.ts" time="1.221"><properties><property name="reqseq:element" value="ab251d06-279e-45aa-9a55-55f270f52d3f"/><property name="reqseq:version" value="n2:2643c5784f643226"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="saving without a save command › [SR-105/AK1] quitting the app with nothing typed ends it within a few seconds, and writes nothing (#611 review S2)" classname="autosave.spec.ts" time="1.051"><properties><property name="reqseq:element" value="ab251d06-279e-45aa-9a55-55f270f52d3f"/><property name="reqseq:version" value="n2:2643c5784f643226"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="saving without a save command › [SR-105/AK1] closing the window with input that cannot be saved keeps it open once and says why; closing again discards it" classname="autosave.spec.ts" time="1.357"><properties><property name="reqseq:element" value="ab251d06-279e-45aa-9a55-55f270f52d3f"/><property name="reqseq:version" value="n2:2643c5784f643226"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="saving without a save command › [SR-105/AK3] there is no button and no dialog to save, when typing, leaving or closing" classname="autosave.spec.ts" time="1.367"><properties><property name="reqseq:element" value="ab251d06-279e-45aa-9a55-55f270f52d3f"/><property name="reqseq:version" value="n2:2643c5784f643226"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="screenshot of a save that failed in light" classname="autosave.spec.ts" time="3.488">
+</testcase>
+<testcase name="screenshot of a save that failed in dark" classname="autosave.spec.ts" time="3.54">
+</testcase>
+</testsuite>
+<testsuite name="buffers.spec.ts" timestamp="2026-11-05T21:44:10.234Z" hostname="" tests="9" failures="0" skipped="0" time="17.631" errors="0">
+<testcase name="Alt+N and Alt+P switch buffers › [SR-115/AK5] Alt+P goes back through the buffers in the order they were shown, Alt+N forward again, both wrap" classname="buffers.spec.ts" time="1.25"><properties><property name="reqseq:element" value="0f759f3b-b03d-42f5-a38a-b0ca831ca864"/><property name="reqseq:version" value="n2:4a15a0c724a0ab59"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="Alt+N and Alt+P switch buffers › [SR-115/AK5] Alt+N and Alt+P while typing in the editor switch buffers and insert no character" classname="buffers.spec.ts" time="1.859"><properties><property name="reqseq:element" value="0f759f3b-b03d-42f5-a38a-b0ca831ca864"/><property name="reqseq:version" value="n2:4a15a0c724a0ab59"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="Alt+N and Alt+P switch buffers › [SR-145/AK2] Option+N as macOS sends it (a dead key, the physical key N) is taken in the editor and leaves it" classname="buffers.spec.ts" time="1.333"><properties><property name="reqseq:element" value="7b381ff6-e5f5-4084-b33b-2903897226df"/><property name="reqseq:version" value="n2:d5c4d9bca38c1cc6"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="Alt+N and Alt+P switch buffers › [SR-115/AK5] &quot;Next buffer&quot; and &quot;Previous buffer&quot; are commands of the prompt, with their keys" classname="buffers.spec.ts" time="1.208"><properties><property name="reqseq:element" value="0f759f3b-b03d-42f5-a38a-b0ca831ca864"/><property name="reqseq:version" value="n2:4a15a0c724a0ab59"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="Alt+N and Alt+P switch buffers › [SR-115/AK5] in an open prompt Alt+N switches no buffer" classname="buffers.spec.ts" time="1.08"><properties><property name="reqseq:element" value="0f759f3b-b03d-42f5-a38a-b0ca831ca864"/><property name="reqseq:version" value="n2:4a15a0c724a0ab59"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="Go to and no tab bar › [SR-115/AK1] Ctrl+P offers the open buffers, the one used last first, then the elements used before, and finds any element by a word of its title with a typo" classname="buffers.spec.ts" time="2.018"><properties><property name="reqseq:element" value="0f759f3b-b03d-42f5-a38a-b0ca831ca864"/><property name="reqseq:version" value="n2:4a15a0c724a0ab59"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="Go to and no tab bar › [SR-115/AK2] with several buffers open the window has no tab bar" classname="buffers.spec.ts" time="1.254"><properties><property name="reqseq:element" value="0f759f3b-b03d-42f5-a38a-b0ca831ca864"/><property name="reqseq:version" value="n2:4a15a0c724a0ab59"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the open buffers after a restart › [SR-115/AK4] after closing and starting the app again the buffers open before are back" classname="buffers.spec.ts" time="3.326"><properties><property name="reqseq:element" value="0f759f3b-b03d-42f5-a38a-b0ca831ca864"/><property name="reqseq:version" value="n2:4a15a0c724a0ab59"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="Split window › [SR-115/AK3] Split window shows an element and its graph side by side" classname="buffers.spec.ts" time="4.303"><properties><property name="reqseq:element" value="0f759f3b-b03d-42f5-a38a-b0ca831ca864"/><property name="reqseq:version" value="n2:4a15a0c724a0ab59"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+</testsuite>
+<testsuite name="command-line.spec.ts" timestamp="2026-11-05T21:44:10.234Z" hostname="" tests="14" failures="0" skipped="0" time="24.888" errors="0">
+<testcase name="the command prompt › [SR-121/AK2] a text typed for a command puts that command first the next time, also after a restart" classname="command-line.spec.ts" time="2.062"><properties><property name="reqseq:element" value="424ad0c2-a962-4404-9b9b-6cd27e0f657a"/><property name="reqseq:version" value="n2:a92316b01536f45c"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the command prompt › a catalog read command asks its arguments in the minibuffer, with the kinds core allows, and shows its output" classname="command-line.spec.ts" time="1.655">
+</testcase>
+<testcase name="the command prompt › [SR-133/AK1] in an element, the commands with an element argument come before the others when nothing is typed" classname="command-line.spec.ts" time="1.101"><properties><property name="reqseq:element" value="00948f9c-6582-4484-8113-1f60f96fb7d8"/><property name="reqseq:version" value="n2:1b3feaed6499c719"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the command prompt › Confirm hints: Enter, Enter, Enter on an element with one outdated relation confirms it" classname="command-line.spec.ts" time="1.963">
+</testcase>
+<testcase name="the command prompt › arguments completed with the values of the metamodel (SR-108 AK4) › [SR-108/AK4] Set status offers only the statuses of the element&apos;s type, and a typed fragment finds one first" classname="command-line.spec.ts" time="2.147"><properties><property name="reqseq:element" value="057c4227-e821-4307-8ae2-c644cd6302ef"/><property name="reqseq:version" value="n2:b28e2aa94d82df5b"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the command prompt › arguments completed with the values of the metamodel (SR-108 AK4) › [SR-108/AK4] Create relation offers the kinds relation options gives and only targets of their types, also for a target typed with a typo" classname="command-line.spec.ts" time="2.226"><properties><property name="reqseq:element" value="057c4227-e821-4307-8ae2-c644cd6302ef"/><property name="reqseq:version" value="n2:b28e2aa94d82df5b"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the command prompt › arguments completed with the values of the metamodel (SR-108 AK4) › [SR-108/AK4] Bulk update offers the metamodel&apos;s properties and that property&apos;s values" classname="command-line.spec.ts" time="1.731"><properties><property name="reqseq:element" value="057c4227-e821-4307-8ae2-c644cd6302ef"/><property name="reqseq:version" value="n2:b28e2aa94d82df5b"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the command prompt › arguments completed with the values of the metamodel (SR-108 AK4) › Bulk update on the list of all elements takes every element (#856)" classname="command-line.spec.ts" time="1.757">
+</testcase>
+<testcase name="the command prompt › arguments completed with the values of the metamodel (SR-108 AK4) › Bulk update with confirm yes writes only after its preview was shown, with its plan (#836)" classname="command-line.spec.ts" time="2.822">
+</testcase>
+<testcase name="the prefix key Ctrl/Cmd+K and the shortcuts in the prompt › [SR-109/AK3] Ctrl/Cmd+K and a pause show the next keys, and L lists all elements" classname="command-line.spec.ts" time="1.785"><properties><property name="reqseq:element" value="acbbb063-9338-409c-9169-1e2ba4710829"/><property name="reqseq:version" value="n2:5cee9a687fca1d2a"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the prefix key Ctrl/Cmd+K and the shortcuts in the prompt › [SR-109/AK3] the letter after Ctrl/Cmd+K is never typed into the text" classname="command-line.spec.ts" time="2.166"><properties><property name="reqseq:element" value="acbbb063-9338-409c-9169-1e2ba4710829"/><property name="reqseq:version" value="n2:5cee9a687fca1d2a"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the prefix key Ctrl/Cmd+K and the shortcuts in the prompt › Ctrl/Cmd+K, Ctrl/Cmd+O shows the overview and never opens the folder dialog of the menu&apos;s Ctrl/Cmd+O" classname="command-line.spec.ts" time="1.591">
+</testcase>
+<testcase name="the prefix key Ctrl/Cmd+K and the shortcuts in the prompt › [SR-121/AK3] the command prompt shows Ctrl+K L next to List all elements" classname="command-line.spec.ts" time="0.924"><properties><property name="reqseq:element" value="424ad0c2-a962-4404-9b9b-6cd27e0f657a"/><property name="reqseq:version" value="n2:a92316b01536f45c"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the prefix key Ctrl/Cmd+K and the shortcuts in the prompt › [SR-109/AK1] the shortcut stands at the right of its hit, quieter than the name" classname="command-line.spec.ts" time="0.958"><properties><property name="reqseq:element" value="acbbb063-9338-409c-9169-1e2ba4710829"/><property name="reqseq:version" value="n2:5cee9a687fca1d2a"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+</testsuite>
+<testsuite name="create-element.spec.ts" timestamp="2026-11-05T21:44:10.234Z" hostname="" tests="3" failures="0" skipped="0" time="9.424" errors="0">
+<testcase name="Create element › [SR-064/AK1] asks after the type and the title only the required properties of the type, and shows the new element with its title, its text and the properties given" classname="create-element.spec.ts" time="2.588"><properties><property name="reqseq:element" value="6adc6d84-e8f4-48bc-adcc-71a839d13a4d"/><property name="reqseq:version" value="n2:3d5a3cca3889da3d"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="Create element › [SR-064/AK2] with the required properties left empty the element is saved anyway, and the minibuffer and the modeline show the hints" classname="create-element.spec.ts" time="3.235"><properties><property name="reqseq:element" value="6adc6d84-e8f4-48bc-adcc-71a839d13a4d"/><property name="reqseq:version" value="n2:3d5a3cca3889da3d"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="Create element › [SR-064/AK3] after reopening, Add property offers every other property of the type, and a value added is saved to the file" classname="create-element.spec.ts" time="3.601"><properties><property name="reqseq:element" value="6adc6d84-e8f4-48bc-adcc-71a839d13a4d"/><property name="reqseq:version" value="n2:3d5a3cca3889da3d"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+</testsuite>
+<testsuite name="edit-title.spec.ts" timestamp="2026-11-05T21:44:10.234Z" hostname="" tests="7" failures="0" skipped="0" time="21.52" errors="0">
+<testcase name="the title of an element, edited in its heading (#621) › [SR-105/AK1] keyboard only: Tab to the title, Enter, a new title, Enter, and a second later the file has it; only its line changed" classname="edit-title.spec.ts" time="3.755"><properties><property name="reqseq:element" value="ab251d06-279e-45aa-9a55-55f270f52d3f"/><property name="reqseq:version" value="n2:2643c5784f643226"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the title of an element, edited in its heading (#621) › Up at the first line of the text goes into the title, Down back into the text, Escape leaves the title for its field" classname="edit-title.spec.ts" time="3.118">
+</testcase>
+<testcase name="the title of an element, edited in its heading (#621) › [SR-064/AK2] an emptied title is saved as title: &quot;&quot; with the hint: Saved names it, the modeline counts one hint more, the heading shows the short ID" classname="edit-title.spec.ts" time="1.901"><properties><property name="reqseq:element" value="6adc6d84-e8f4-48bc-adcc-71a839d13a4d"/><property name="reqseq:version" value="n2:3d5a3cca3889da3d"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the title of an element, edited in its heading (#621) › [SR-106/AK2] input in the title and the file changed outside: nothing is saved, &quot;On disk&quot; shows the file&apos;s title, and &quot;Keep my input&quot; writes the typed title while the outside change of the text stays" classname="edit-title.spec.ts" time="1.629"><properties><property name="reqseq:element" value="d73c0dec-5494-4241-b824-dd6bc82e4406"/><property name="reqseq:version" value="n2:747845cac6fad9c2"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the title of an element, edited in its heading (#621) › [SR-105/AK2] after the title was saved, Ctrl/Cmd+Z brings the old title back and it is saved again" classname="edit-title.spec.ts" time="5.544"><properties><property name="reqseq:element" value="ab251d06-279e-45aa-9a55-55f270f52d3f"/><property name="reqseq:version" value="n2:2643c5784f643226"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the title of an element, edited in its heading (#621) › a click on the heading puts the caret where it was clicked, and a pasted paragraph becomes one line (#621)" classname="edit-title.spec.ts" time="3.129">
+</testcase>
+<testcase name="the title of an element, edited in its heading (#621) › the heading and the text do not move when the title editor comes, for a one-line and a wrapping title (D-062, #542)" classname="edit-title.spec.ts" time="2.444">
+</testcase>
+</testsuite>
+<testsuite name="editor.spec.ts" timestamp="2026-11-05T21:44:10.234Z" hostname="" tests="10" failures="0" skipped="0" time="16.891" errors="0">
+<testcase name="the Markdown editor in the element buffer › [SR-065/AK1] the editor shows headings, emphasis, lists, tables and code blocks set, and the source only on the cursor line" classname="editor.spec.ts" time="1.386"><properties><property name="reqseq:element" value="6adc6d85-cded-4752-ab42-11c28403f982"/><property name="reqseq:version" value="n2:6c2ae43e08e1817f"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the Markdown editor in the element buffer › Escape right after typing leaves the text, also before the slash menu&apos;s source has answered (#574)" classname="editor.spec.ts" time="1.775">
+</testcase>
+<testcase name="the Markdown editor in the element buffer › Escape leaves the text: the buffer has the focus and no source line is shown; Enter edits again" classname="editor.spec.ts" time="1.279">
+</testcase>
+<testcase name="the Markdown editor in the element buffer › [SR-065/AK2] a text typed in the app is saved with Ctrl/Cmd+S and the file is CommonMark with GitHub extensions" classname="editor.spec.ts" time="2.06"><properties><property name="reqseq:element" value="6adc6d85-cded-4752-ab42-11c28403f982"/><property name="reqseq:version" value="n2:6c2ae43e08e1817f"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the Markdown editor in the element buffer › Ctrl/Cmd+Z undoes one step and Ctrl/Cmd+Shift+Z redoes it; the Undo item of the Edit menu also goes back one step" classname="editor.spec.ts" time="2.679">
+</testcase>
+<testcase name="the Markdown editor in the element buffer › [SR-105/AK1] a typed text is saved when another buffer is shown, and Close buffer closes without asking" classname="editor.spec.ts" time="1.418"><properties><property name="reqseq:element" value="ab251d06-279e-45aa-9a55-55f270f52d3f"/><property name="reqseq:version" value="n2:2643c5784f643226"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the Markdown editor in the element buffer › saving without a change says so; Save element is in the command prompt with its key" classname="editor.spec.ts" time="1.293">
+</testcase>
+<testcase name="the Markdown editor in the element buffer › [SR-110/AK2] an outdated inline reference and an outdated relation show the date of the version they store, as element get with hintDates gives it" classname="editor.spec.ts" time="2.379"><properties><property name="reqseq:element" value="e5c9970b-7ba2-4cc6-b6ac-edaf4e56bb07"/><property name="reqseq:version" value="n2:083c41cd24f49c7d"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the Markdown editor in the element buffer › an inline reference reads as its label, is marked outdated and opens its element on a click and with Ctrl/Cmd+Enter" classname="editor.spec.ts" time="1.275">
+</testcase>
+<testcase name="the Markdown editor in the element buffer › the editor makes no request outside the app&apos;s own protocols" classname="editor.spec.ts" time="1.347">
+</testcase>
+</testsuite>
+<testsuite name="emergent.spec.ts" timestamp="2026-11-05T21:44:10.234Z" hostname="" tests="2" failures="0" skipped="0" time="3.277" errors="0">
+<testcase name="the mark emergent in the app › [SR-035/AK2] the element view shows the box Emergent of an emergent requirement, as the CLI gives the property" classname="emergent.spec.ts" time="1.439"><properties><property name="reqseq:element" value="6adc6c47-3afd-44a5-b99c-7d469ff74c5e"/><property name="reqseq:version" value="n2:3d31846f2de9b5c5"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the mark emergent in the app › [SR-035/AK2] a saved filter with the condition emergent true shows in the app the elements the CLI lists for it" classname="emergent.spec.ts" time="1.838"><properties><property name="reqseq:element" value="6adc6c47-3afd-44a5-b99c-7d469ff74c5e"/><property name="reqseq:version" value="n2:3d31846f2de9b5c5"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+</testsuite>
+<testsuite name="follow-agent.spec.ts" timestamp="2026-11-05T21:44:10.234Z" hostname="" tests="6" failures="0" skipped="0" time="20.672" errors="0">
+<testcase name="[SR-117/AK1] following, an MCP element_get, element_update and element_create each show their element within 1 s" classname="follow-agent.spec.ts" time="3.092"><properties><property name="reqseq:element" value="589ca6a5-8bda-42d7-a3b7-b3062489ed27"/><property name="reqseq:version" value="n2:d1965332af3c6afd"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+<system-out>
+<![CDATA[PERF follow-agent {"read":{"answer":5,"fromAccess":19.60009765625},"update":{"answer":46,"fromAccess":105.5},"create":{"answer":25,"fromAccess":111.900146484375}} (answer: call to the agent's answer; fromAccess: the access to the painted title, AK1)
+]]>
+</system-out>
+</testcase>
+<testcase name="[SR-117/AK2] not following, MCP reads leave the shown buffer as it was; after a restart of the app the mode is off" classname="follow-agent.spec.ts" time="6.965"><properties><property name="reqseq:element" value="589ca6a5-8bda-42d7-a3b7-b3062489ed27"/><property name="reqseq:version" value="n2:d1965332af3c6afd"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="[SR-117/AK3] the modeline shows &quot;following agent&quot; while the mode is on" classname="follow-agent.spec.ts" time="1.684"><properties><property name="reqseq:element" value="589ca6a5-8bda-42d7-a3b7-b3062489ed27"/><property name="reqseq:version" value="n2:d1965332af3c6afd"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="[SR-117/AK4] the mode switches by the command prompt and by the key, and the MCP tool list offers nothing for it" classname="follow-agent.spec.ts" time="1.763"><properties><property name="reqseq:element" value="589ca6a5-8bda-42d7-a3b7-b3062489ed27"/><property name="reqseq:version" value="n2:d1965332af3c6afd"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="[SR-117/AK5] with unsaved text an MCP read of another element does not switch the view until the input is saved" classname="follow-agent.spec.ts" time="5.005"><properties><property name="reqseq:element" value="589ca6a5-8bda-42d7-a3b7-b3062489ed27"/><property name="reqseq:version" value="n2:d1965332af3c6afd"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="[SR-117/AK6] following makes no request" classname="follow-agent.spec.ts" time="2.163"><properties><property name="reqseq:element" value="589ca6a5-8bda-42d7-a3b7-b3062489ed27"/><property name="reqseq:version" value="n2:d1965332af3c6afd"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+</testsuite>
+<testsuite name="graph-performance.spec.ts" timestamp="2026-11-05T21:44:10.234Z" hostname="" tests="2" failures="0" skipped="0" time="23.246" errors="0">
+<testcase name="a graph of 500 nodes › [SR-111/AK6] a graph of 500 nodes is laid out within 1 s" classname="graph-performance.spec.ts" time="11.346">
+<properties>
+<property name="SR-111 AK6" value="{&quot;timings&quot;:[{&quot;total&quot;:300.6000000000349,&quot;request&quot;:4.900000000023283,&quot;core&quot;:34.09999999997672,&quot;layout&quot;:208.10000000003492,&quot;paint&quot;:53.5},{&quot;total&quot;:239.70000000001164,&quot;request&quot;:2.400000000023283,&quot;core&quot;:17.400000000023283,&quot;layout&quot;:169.79999999998836,&quot;paint&quot;:50.09999999997672},{&quot;total&quot;:260.5999999999767,&quot;request&quot;:2.599999999976717,&quot;core&quot;:16.5,&quot;layout&quot;:195.79999999998836,&quot;paint&quot;:45.70000000001164}],&quot;first&quot;:300.6000000000349,&quot;median&quot;:260.5999999999767,&quot;withEvidence&quot;:[{&quot;total&quot;:343.30000000004657,&quot;request&quot;:5.300000000046566,&quot;core&quot;:17.699999999953434,&quot;layout&quot;:290.1000000000349,&quot;paint&quot;:30.20000000001164},{&quot;total&quot;:340.9000000000233,&quot;request&quot;:4.900000000023283,&quot;core&quot;:15,&quot;layout&quot;:289.8999999999651,&quot;paint&quot;:31.100000000034925},{&quot;total&quot;:361.5,&quot;request&quot;:5.100000000034925,&quot;core&quot;:14.799999999988358,&quot;layout&quot;:313.70000000001164,&quot;paint&quot;:27.899999999965075}],&quot;evidenceMedian&quot;:343.30000000004657}">
+</property>
+<property name="reqseq:element" value="50824eaa-f59b-4bfc-b99e-bbb156836ef0"/>
+<property name="reqseq:version" value="n2:c39b292ad6f91c18"/>
+<property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/>
+<property name="reqseq:date" value="2026-11-05T21:43:08Z"/>
+</properties>
+<system-out>
+<![CDATA[PERF graph {"timings":[{"total":300.6000000000349,"request":4.900000000023283,"core":34.09999999997672,"layout":208.10000000003492,"paint":53.5},{"total":239.70000000001164,"request":2.400000000023283,"core":17.400000000023283,"layout":169.79999999998836,"paint":50.09999999997672},{"total":260.5999999999767,"request":2.599999999976717,"core":16.5,"layout":195.79999999998836,"paint":45.70000000001164}],"first":300.6000000000349,"median":260.5999999999767,"withEvidence":[{"total":343.30000000004657,"request":5.300000000046566,"core":17.699999999953434,"layout":290.1000000000349,"paint":30.20000000001164},{"total":340.9000000000233,"request":4.900000000023283,"core":15,"layout":289.8999999999651,"paint":31.100000000034925},{"total":361.5,"request":5.100000000034925,"core":14.799999999988358,"layout":313.70000000001164,"paint":27.899999999965075}],"evidenceMedian":343.30000000004657}
+]]>
+</system-out>
+</testcase>
+<testcase name="the whole chain of 500 nodes › [SR-111/AK6] the whole chain of 500 nodes is laid out within 1 s" classname="graph-performance.spec.ts" time="11.9">
+<properties>
+<property name="SR-111 AK6 (deep)" value="{&quot;depthOne&quot;:[{&quot;total&quot;:124,&quot;request&quot;:2.7000000000116415,&quot;core&quot;:27,&quot;layout&quot;:82.89999999996508,&quot;paint&quot;:11.400000000023283},{&quot;total&quot;:68,&quot;request&quot;:1.099999999976717,&quot;core&quot;:4.900000000023283,&quot;layout&quot;:47.09999999997672,&quot;paint&quot;:14.900000000023283},{&quot;total&quot;:73.60000000003492,&quot;request&quot;:1.1000000000349246,&quot;core&quot;:4.2999999999883585,&quot;layout&quot;:54.5,&quot;paint&quot;:13.700000000011642}],&quot;timings&quot;:[{&quot;total&quot;:362.9000000000233,&quot;request&quot;:2.1000000000349246,&quot;core&quot;:28.699999999953434,&quot;layout&quot;:274.30000000004657,&quot;paint&quot;:57.79999999998836},{&quot;total&quot;:323,&quot;request&quot;:1.3999999999650754,&quot;core&quot;:22.70000000001164,&quot;layout&quot;:245.70000000001164,&quot;paint&quot;:53.20000000001164},{&quot;total&quot;:303.5,&quot;request&quot;:2.2000000000116415,&quot;core&quot;:18.29999999998836,&quot;layout&quot;:235.29999999998836,&quot;paint&quot;:47.70000000001164}],&quot;first&quot;:362.9000000000233,&quot;median&quot;:323}">
+</property>
+<property name="reqseq:element" value="50824eaa-f59b-4bfc-b99e-bbb156836ef0"/>
+<property name="reqseq:version" value="n2:c39b292ad6f91c18"/>
+<property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/>
+<property name="reqseq:date" value="2026-11-05T21:43:08Z"/>
+</properties>
+<system-out>
+<![CDATA[PERF graph deep {"depthOne":[{"total":124,"request":2.7000000000116415,"core":27,"layout":82.89999999996508,"paint":11.400000000023283},{"total":68,"request":1.099999999976717,"core":4.900000000023283,"layout":47.09999999997672,"paint":14.900000000023283},{"total":73.60000000003492,"request":1.1000000000349246,"core":4.2999999999883585,"layout":54.5,"paint":13.700000000011642}],"timings":[{"total":362.9000000000233,"request":2.1000000000349246,"core":28.699999999953434,"layout":274.30000000004657,"paint":57.79999999998836},{"total":323,"request":1.3999999999650754,"core":22.70000000001164,"layout":245.70000000001164,"paint":53.20000000001164},{"total":303.5,"request":2.2000000000116415,"core":18.29999999998836,"layout":235.29999999998836,"paint":47.70000000001164}],"first":362.9000000000233,"median":323}
+]]>
+</system-out>
+</testcase>
+</testsuite>
+<testsuite name="graph.spec.ts" timestamp="2026-11-05T21:44:10.234Z" hostname="" tests="12" failures="0" skipped="0" time="31.008" errors="0">
+<testcase name="the graph of an element on a fixture workspace › [SR-111/AK1] the root is marked, between its parents and children, and centred where its graph reaches around it" classname="graph.spec.ts" time="1.759"><properties><property name="reqseq:element" value="50824eaa-f59b-4bfc-b99e-bbb156836ef0"/><property name="reqseq:version" value="n2:c39b292ad6f91c18"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the graph of an element on a fixture workspace › [SR-111/AK1] a root without parents stands on top of its children, the drawing&apos;s top a margin into the view" classname="graph.spec.ts" time="2.186"><properties><property name="reqseq:element" value="50824eaa-f59b-4bfc-b99e-bbb156836ef0"/><property name="reqseq:version" value="n2:c39b292ad6f91c18"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the graph of an element on a fixture workspace › [SR-111/AK1] a root without children stands under its parents, the drawing&apos;s bottom a margin into the view" classname="graph.spec.ts" time="2.173"><properties><property name="reqseq:element" value="50824eaa-f59b-4bfc-b99e-bbb156836ef0"/><property name="reqseq:version" value="n2:c39b292ad6f91c18"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the graph of an element on a fixture workspace › [SR-111/AK1] a drawing smaller than the view stands in its middle, the root between parents and children" classname="graph.spec.ts" time="1.653"><properties><property name="reqseq:element" value="50824eaa-f59b-4bfc-b99e-bbb156836ef0"/><property name="reqseq:version" value="n2:c39b292ad6f91c18"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the graph of an element on a fixture workspace › [SR-111/AK4] an outdated link keeps the accent colour, also as a link of the selected element" classname="graph.spec.ts" time="1.697"><properties><property name="reqseq:element" value="50824eaa-f59b-4bfc-b99e-bbb156836ef0"/><property name="reqseq:version" value="n2:c39b292ad6f91c18"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the graph of an element on a fixture workspace › [SR-111/AK4] each node shows title and type name, and the mark words only on marked nodes" classname="graph.spec.ts" time="2.06"><properties><property name="reqseq:element" value="50824eaa-f59b-4bfc-b99e-bbb156836ef0"/><property name="reqseq:version" value="n2:c39b292ad6f91c18"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the graph of an element on a fixture workspace › [SR-111/AK5] arrows move along edges and layers, Enter opens the node as current element" classname="graph.spec.ts" time="2.286"><properties><property name="reqseq:element" value="50824eaa-f59b-4bfc-b99e-bbb156836ef0"/><property name="reqseq:version" value="n2:c39b292ad6f91c18"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the graph of an element on a fixture workspace › [SR-111/AK2] + and - show the nodes the CLI gives for one level more or less" classname="graph.spec.ts" time="2.214"><properties><property name="reqseq:element" value="50824eaa-f59b-4bfc-b99e-bbb156836ef0"/><property name="reqseq:version" value="n2:c39b292ad6f91c18"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the graph on the specification workspace › [SR-111/AK4] never cuts an ID, a type or a mark, on the long IDs and types of spec/" classname="graph.spec.ts" time="4.059"><properties><property name="reqseq:element" value="50824eaa-f59b-4bfc-b99e-bbb156836ef0"/><property name="reqseq:version" value="n2:c39b292ad6f91c18"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the depth and relation kinds of a graph on a fixture workspace › [SR-111/AK2] Graph depth shows the direct neighbours, a chosen number of levels or the whole chain, as the CLI gives them" classname="graph.spec.ts" time="3.237"><properties><property name="reqseq:element" value="50824eaa-f59b-4bfc-b99e-bbb156836ef0"/><property name="reqseq:version" value="n2:c39b292ad6f91c18"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the depth and relation kinds of a graph on a fixture workspace › [SR-111/AK3] Show only and Also show relation kind draw only those links, as the CLI gives them" classname="graph.spec.ts" time="3.828"><properties><property name="reqseq:element" value="50824eaa-f59b-4bfc-b99e-bbb156836ef0"/><property name="reqseq:version" value="n2:c39b292ad6f91c18"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the depth and relation kinds of a graph on a fixture workspace › [SR-111/AK3] Evidence in Also show and Show only draws a box below each node with the counts the CLI gives, which the keys skip" classname="graph.spec.ts" time="3.856"><properties><property name="reqseq:element" value="50824eaa-f59b-4bfc-b99e-bbb156836ef0"/><property name="reqseq:version" value="n2:c39b292ad6f91c18"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+</testsuite>
+<testsuite name="guide-screenshots.spec.ts" timestamp="2026-11-05T21:44:10.234Z" hostname="" tests="1" failures="0" skipped="0" time="1.786" errors="0">
+<testcase name="screenshots of the app for the user guide" classname="guide-screenshots.spec.ts" time="1.786">
+</testcase>
+</testsuite>
+<testsuite name="list-filters.spec.ts" timestamp="2026-11-05T21:44:10.234Z" hostname="" tests="4" failures="0" skipped="0" time="7.198" errors="0">
+<testcase name="cascading list filters on a fixture workspace › [SR-124/AK1] package, type, status and property by keyboard give the list of the CLI for all four conditions" classname="list-filters.spec.ts" time="1.961"><properties><property name="reqseq:element" value="e7cf9901-8fe7-4e5e-8e17-6d572959f18c"/><property name="reqseq:version" value="n2:7a76889da9c90a77"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="cascading list filters on a fixture workspace › [SR-124/AK1] clear list filter removes only the last step" classname="list-filters.spec.ts" time="2.163"><properties><property name="reqseq:element" value="e7cf9901-8fe7-4e5e-8e17-6d572959f18c"/><property name="reqseq:version" value="n2:7a76889da9c90a77"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="cascading list filters on a fixture workspace › [SR-124/AK2] the property prompt offers topic, not the acceptance criteria" classname="list-filters.spec.ts" time="1.247"><properties><property name="reqseq:element" value="e7cf9901-8fe7-4e5e-8e17-6d572959f18c"/><property name="reqseq:version" value="n2:7a76889da9c90a77"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="cascading list filters on a fixture workspace › [SR-124/AK3] filter list by text search narrows the current list" classname="list-filters.spec.ts" time="1.827"><properties><property name="reqseq:element" value="e7cf9901-8fe7-4e5e-8e17-6d572959f18c"/><property name="reqseq:version" value="n2:7a76889da9c90a77"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+</testsuite>
+<testsuite name="look-screenshots.spec.ts" timestamp="2026-11-05T21:44:10.234Z" hostname="" tests="4" failures="0" skipped="0" time="7.349" errors="0">
+<testcase name="screenshots of the element view and the command prompt in light" classname="look-screenshots.spec.ts" time="1.88">
+</testcase>
+<testcase name="screenshots of the element view and the command prompt in dark" classname="look-screenshots.spec.ts" time="1.789">
+</testcase>
+<testcase name="screenshots of the element view and the command prompt in light (macOS)" classname="look-screenshots.spec.ts" time="1.864">
+</testcase>
+<testcase name="screenshots of the element view and the command prompt in dark (macOS)" classname="look-screenshots.spec.ts" time="1.816">
+</testcase>
+</testsuite>
+<testsuite name="main-view.spec.ts" timestamp="2026-11-05T21:44:10.234Z" hostname="" tests="13" failures="0" skipped="0" time="21.425" errors="0">
+<testcase name="the main view on a fixture workspace › [SR-100/AK1] the main view shows only the list, the element and the search line" classname="main-view.spec.ts" time="1.366"><properties><property name="reqseq:element" value="6adc7b10-8036-48be-940f-79937a384456"/><property name="reqseq:version" value="n2:c4a73976352dd70d"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the main view on a fixture workspace › the list shows what `element list` gives for the default sort (type, then ID): titles in order and the total in the modeline" classname="main-view.spec.ts" time="2.222">
+</testcase>
+<testcase name="the main view on a fixture workspace › &quot;Workspace order&quot; shows the order of the store that `element list` gives without a sort, and says so" classname="main-view.spec.ts" time="2.355">
+</testcase>
+<testcase name="the main view on a fixture workspace › sorted by hierarchy it shows the derivation tree with the depths that `tree` gives" classname="main-view.spec.ts" time="1.758">
+</testcase>
+<testcase name="the main view on a fixture workspace › filtering by type through the command prompt gives the list of the CLI for the same condition" classname="main-view.spec.ts" time="1.74">
+</testcase>
+<testcase name="the main view on a fixture workspace › the command prompt finds an action by an abbreviation with a typo, and shows its shortcut and what matched" classname="main-view.spec.ts" time="1.09">
+</testcase>
+<testcase name="the main view on a fixture workspace › Ctrl+P finds an element by a word of its title and opens it, with what `element get` gives" classname="main-view.spec.ts" time="3.06">
+</testcase>
+<testcase name="the main view on a fixture workspace › [SR-122/AK1] Ctrl+N and Ctrl+P move through the command prompt and the go-to prompt" classname="main-view.spec.ts" time="1.168"><properties><property name="reqseq:element" value="0ca598f7-920b-4286-85b9-7bd7198ca077"/><property name="reqseq:version" value="n2:a63cec4fb0cc8f2e"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the main view on a fixture workspace › [SR-123/AK2] [SR-123/AK3] cab runs Close all buffers; it asks in the minibuffer, and Enter keeps the buffer with unsaved text" classname="main-view.spec.ts" time="1.533"><properties><property name="reqseq:element" value="24249b73-ffbe-4332-bec2-74aacfb3e15b"/><property name="reqseq:version" value="n2:20a56b4c93b05786"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the main view on a fixture workspace › a relation of an element opens the element it points to" classname="main-view.spec.ts" time="1.194">
+</testcase>
+<testcase name="the main view on a fixture workspace › the search buffer shows the hits of `element search` in the same order" classname="main-view.spec.ts" time="1.637">
+</testcase>
+<testcase name="the main view on a fixture workspace › Show element ID and version says the UUID and the date of the version, not the check value (D-013)" classname="main-view.spec.ts" time="1.235">
+</testcase>
+<testcase name="the main view on a fixture workspace › [SR-078/AK1] the app makes no request outside its own protocols while it is used" classname="main-view.spec.ts" time="1.067"><properties><property name="reqseq:element" value="6adc6d93-4684-4379-941d-21bd583ceb09"/><property name="reqseq:version" value="n2:933af447a218dddb"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+</testsuite>
+<testsuite name="matrix-evidence.spec.ts" timestamp="2026-11-05T21:44:10.234Z" hostname="" tests="5" failures="0" skipped="0" time="6.972" errors="0">
+<testcase name="the evidence columns of the traceability matrix › [SR-126/AK1] the matrix has a column of test cases with result and date of the last execution and a column of the verification status" classname="matrix-evidence.spec.ts" time="1.18"><properties><property name="reqseq:element" value="7227139a-341f-40d5-ba1c-2c1d7ff7e319"/><property name="reqseq:version" value="n2:d398603d81f1c7d7"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the evidence columns of the traceability matrix › [SR-126/AK2] a requirement without test case, with a test case without execution, or with a failed or outdated execution is marked" classname="matrix-evidence.spec.ts" time="1.274"><properties><property name="reqseq:element" value="7227139a-341f-40d5-ba1c-2c1d7ff7e319"/><property name="reqseq:version" value="n2:d398603d81f1c7d7"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the evidence columns of the traceability matrix › [SR-126/AK3] an indirectly verified requirement has the status indirect" classname="matrix-evidence.spec.ts" time="1.115"><properties><property name="reqseq:element" value="7227139a-341f-40d5-ba1c-2c1d7ff7e319"/><property name="reqseq:version" value="n2:d398603d81f1c7d7"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the evidence columns of the traceability matrix › [SR-126/AK4] above the status column stands the degree of the selection with the count per status" classname="matrix-evidence.spec.ts" time="1.791"><properties><property name="reqseq:element" value="7227139a-341f-40d5-ba1c-2c1d7ff7e319"/><property name="reqseq:version" value="n2:d398603d81f1c7d7"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the evidence columns without a chosen view › [SR-126/AK5] without a chosen variant the test cases, the status and the degree are those of the core" classname="matrix-evidence.spec.ts" time="1.612"><properties><property name="reqseq:element" value="7227139a-341f-40d5-ba1c-2c1d7ff7e319"/><property name="reqseq:version" value="n2:d398603d81f1c7d7"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+</testsuite>
+<testsuite name="matrix.spec.ts" timestamp="2026-11-05T21:44:10.234Z" hostname="" tests="11" failures="0" skipped="0" time="23.904" errors="0">
+<testcase name="the traceability matrix on a fixture workspace › [SR-125/AK1] Ctrl+T on a filtered list shows one row per list element in the order of the list, and Ctrl+T shows the list again" classname="matrix.spec.ts" time="1.973"><properties><property name="reqseq:element" value="fc803465-d4c0-477c-9907-fd8f4bce5508"/><property name="reqseq:version" value="n2:9afcd281aefdbdd9"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the traceability matrix on a fixture workspace › [SR-125/AK2] the columns and cells of the window are those of trace matrix (SR-080/AK2)" classname="matrix.spec.ts" time="1.901"><properties><property name="reqseq:element" value="fc803465-d4c0-477c-9907-fd8f4bce5508"/><property name="reqseq:version" value="n2:9afcd281aefdbdd9"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the traceability matrix on a fixture workspace › [SR-153/AK1] [SR-153/AK3] the window marks the gaps of trace matrix in the accent colour, and its heads are the CLI&apos;s" classname="matrix.spec.ts" time="1.915"><properties><property name="reqseq:element" value="314d1458-93cd-4df7-8ee0-f6bdd70a0f8e"/><property name="reqseq:version" value="n2:d530ef62d6448ea0"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the traceability matrix on a fixture workspace › [SR-125/AK3] [SR-153/AK2] an empty cell of a column without a minimum is a grey dash, no gap, and its head is the count" classname="matrix.spec.ts" time="1.946"><properties><property name="reqseq:element" value="fc803465-d4c0-477c-9907-fd8f4bce5508"/><property name="reqseq:element" value="314d1458-93cd-4df7-8ee0-f6bdd70a0f8e"/><property name="reqseq:version" value="n2:9afcd281aefdbdd9"/><property name="reqseq:version" value="n2:d530ef62d6448ea0"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the traceability matrix on a fixture workspace › [SR-125/AK4] an outdated relation is marked outdated and one to a missing target missing, in its cell" classname="matrix.spec.ts" time="1.885"><properties><property name="reqseq:element" value="fc803465-d4c0-477c-9907-fd8f4bce5508"/><property name="reqseq:version" value="n2:9afcd281aefdbdd9"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the traceability matrix on a fixture workspace › [SR-125/AK5] Enter on a row opens its element; Right then Enter opens a link; a click opens a link; a missing link opens nothing" classname="matrix.spec.ts" time="2.253"><properties><property name="reqseq:element" value="fc803465-d4c0-477c-9907-fd8f4bce5508"/><property name="reqseq:version" value="n2:9afcd281aefdbdd9"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the traceability matrix on a fixture workspace › [SR-125/AK6] the matrix of a package page and of a saved filter is what the CLI gives for the same selection" classname="matrix.spec.ts" time="3.239"><properties><property name="reqseq:element" value="fc803465-d4c0-477c-9907-fd8f4bce5508"/><property name="reqseq:version" value="n2:9afcd281aefdbdd9"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the traceability matrix on a fixture workspace › [SR-125/AK1] a filter and a sort on the matrix keep the matrix and change its rows as they change the list" classname="matrix.spec.ts" time="2.752"><properties><property name="reqseq:element" value="fc803465-d4c0-477c-9907-fd8f4bce5508"/><property name="reqseq:version" value="n2:9afcd281aefdbdd9"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the traceability matrix on a fixture workspace › the command prompt offers the matrix and the way back to the list, each with Ctrl+T" classname="matrix.spec.ts" time="1.272">
+</testcase>
+<testcase name="the traceability matrix on a fixture workspace › the command prompt&apos;s candidates lie above the fixed first column of the matrix (#483)" classname="matrix.spec.ts" time="1.344">
+</testcase>
+<testcase name="the traceability matrix on a fixture workspace › a title too long for its column leaves its row and its link beginning in line with the others (#649)" classname="matrix.spec.ts" time="3.424">
+</testcase>
+</testsuite>
+<testsuite name="metamodel-screenshots.spec.ts" timestamp="2026-11-05T21:44:10.234Z" hostname="" tests="2" failures="0" skipped="0" time="8.033" errors="0">
+<testcase name="screenshots of the metamodel graph (light)" classname="metamodel-screenshots.spec.ts" time="4.038">
+</testcase>
+<testcase name="screenshots of the metamodel graph (dark)" classname="metamodel-screenshots.spec.ts" time="3.995">
+</testcase>
+</testsuite>
+<testsuite name="modeline.spec.ts" timestamp="2026-11-05T21:44:10.234Z" hostname="" tests="2" failures="0" skipped="0" time="6.665" errors="0">
+<testcase name="the counts of the modeline › [SR-114/AK2] the modeline names the outdated references and the open hints of an element as element get counts them, and nothing for an element without" classname="modeline.spec.ts" time="2.926"><properties><property name="reqseq:element" value="784dfd2a-c6c6-4e7a-8e3a-b46a977e700e"/><property name="reqseq:version" value="n2:fac0c18a41ddd2e4"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the counts of the modeline › [SR-114/AK3] the modeline names kind and count of a list, a graph and a package page as the CLI gives them" classname="modeline.spec.ts" time="3.739"><properties><property name="reqseq:element" value="784dfd2a-c6c6-4e7a-8e3a-b46a977e700e"/><property name="reqseq:version" value="n2:fac0c18a41ddd2e4"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+</testsuite>
+<testsuite name="neighbourhood.spec.ts" timestamp="2026-11-05T21:44:10.234Z" hostname="" tests="5" failures="0" skipped="0" time="9.627" errors="0">
+<testcase name="the neighbourhood of an element on a fixture workspace › [SR-107/AK1] the parents of C1 stand above its title up to the needs, and a click opens one" classname="neighbourhood.spec.ts" time="1.661"><properties><property name="reqseq:element" value="f8acacac-a4bb-43f2-9125-837b4e91a260"/><property name="reqseq:version" value="n2:16592d70a2eb8a31"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the neighbourhood of an element on a fixture workspace › [SR-107/AK2] Ctrl+J shows the children of N1 as a tree that opens level by level, and S1&apos;s incoming links by kind" classname="neighbourhood.spec.ts" time="2.569"><properties><property name="reqseq:element" value="f8acacac-a4bb-43f2-9125-837b4e91a260"/><property name="reqseq:version" value="n2:16592d70a2eb8a31"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the neighbourhood of an element on a fixture workspace › [SR-107/AK3] C1 appears under S1 and under S2 of N1, the second time marked repeated" classname="neighbourhood.spec.ts" time="1.643"><properties><property name="reqseq:element" value="f8acacac-a4bb-43f2-9125-837b4e91a260"/><property name="reqseq:version" value="n2:16592d70a2eb8a31"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the neighbourhood of an element on a fixture workspace › [SR-107/AK4] S1&apos;s based-on to D1 and E&apos;s reference to D2 are marked outdated" classname="neighbourhood.spec.ts" time="2.129"><properties><property name="reqseq:element" value="f8acacac-a4bb-43f2-9125-837b4e91a260"/><property name="reqseq:version" value="n2:16592d70a2eb8a31"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the neighbourhood of an element on a fixture workspace › [SR-119/AK2] Ctrl+P, N1&apos;s short ID, Enter and Ctrl+J show its requirements" classname="neighbourhood.spec.ts" time="1.625"><properties><property name="reqseq:element" value="7bdef2ad-06d9-4f28-b7cf-6e6f7f2bdd8c"/><property name="reqseq:version" value="n2:4dce689373aa204c"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+</testsuite>
+<testsuite name="outside-conflict.spec.ts" timestamp="2026-11-05T21:44:10.234Z" hostname="" tests="6" failures="0" skipped="0" time="15.52" errors="0">
+<testcase name="an open element changed or deleted outside the app › [SR-106/AK2] with unsaved input an outside change is not saved over: both versions are shown, and &quot;Keep my input&quot; writes only the input" classname="outside-conflict.spec.ts" time="1.649"><properties><property name="reqseq:element" value="d73c0dec-5494-4241-b824-dd6bc82e4406"/><property name="reqseq:version" value="n2:747845cac6fad9c2"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="an open element changed or deleted outside the app › [SR-106/AK2] &quot;Take the file&quot; leaves the file as it is, and Ctrl+Z brings the input back" classname="outside-conflict.spec.ts" time="3.492"><properties><property name="reqseq:element" value="d73c0dec-5494-4241-b824-dd6bc82e4406"/><property name="reqseq:version" value="n2:747845cac6fad9c2"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="an open element changed or deleted outside the app › [SR-106/AK3] a deleted file leaves the content in the editor and a hint names the deletion" classname="outside-conflict.spec.ts" time="5.018"><properties><property name="reqseq:element" value="d73c0dec-5494-4241-b824-dd6bc82e4406"/><property name="reqseq:version" value="n2:747845cac6fad9c2"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="an open element changed or deleted outside the app › [SR-116/AK3] with unsaved changes an outside change through MCP follows the conflict rule and no input is lost" classname="outside-conflict.spec.ts" time="2.28"><properties><property name="reqseq:element" value="2c1fc38d-f53e-40ee-a0e1-7ae3585c33fa"/><property name="reqseq:version" value="n2:066ad1365692b606"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="screenshot of a change on disk under the input in light" classname="outside-conflict.spec.ts" time="1.556">
+</testcase>
+<testcase name="screenshot of a change on disk under the input in dark" classname="outside-conflict.spec.ts" time="1.525">
+</testcase>
+</testsuite>
+<testsuite name="package-page.spec.ts" timestamp="2026-11-05T21:44:10.234Z" hostname="" tests="7" failures="0" skipped="0" time="14.529" errors="0">
+<testcase name="the package page on a fixture workspace › [SR-112/AK1] the package page shows below title and text every element that names the package, as the CLI lists them" classname="package-page.spec.ts" time="1.723"><properties><property name="reqseq:element" value="ae5e6666-8514-421e-9f45-3f7ab14b0702"/><property name="reqseq:version" value="n2:06bc72f22a5d16a8"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the package page on a fixture workspace › Down and Enter open an element of the package, and Ctrl+P Enter comes back to the same row" classname="package-page.spec.ts" time="1.732">
+</testcase>
+<testcase name="the package page on a fixture workspace › [SR-112/AK2] the elements of the package sort by title descending, as the CLI sorts them" classname="package-page.spec.ts" time="1.841"><properties><property name="reqseq:element" value="ae5e6666-8514-421e-9f45-3f7ab14b0702"/><property name="reqseq:version" value="n2:06bc72f22a5d16a8"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the package page on a fixture workspace › [SR-112/AK2] the elements of the package show as the derivation tree, as the CLI gives it" classname="package-page.spec.ts" time="1.813"><properties><property name="reqseq:element" value="ae5e6666-8514-421e-9f45-3f7ab14b0702"/><property name="reqseq:version" value="n2:06bc72f22a5d16a8"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the line under the title of a package page › [SR-112/AK3] a package page shows „Coverage 8 of 10 with evidence · Degree 60 % (6 verified, 1 failed, 1 outdated, 2 open)“ equal to evidence.coverage and evidence.degree" classname="package-page.spec.ts" time="2.351"><properties><property name="reqseq:element" value="ae5e6666-8514-421e-9f45-3f7ab14b0702"/><property name="reqseq:version" value="n2:06bc72f22a5d16a8"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the line under the title of a package page › [SR-112/AK4] 10 requirements without records give the line with zeros; a package without requirements has none" classname="package-page.spec.ts" time="3.249"><properties><property name="reqseq:element" value="ae5e6666-8514-421e-9f45-3f7ab14b0702"/><property name="reqseq:version" value="n2:06bc72f22a5d16a8"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the line under the title of a package page › [SR-036/AK2] a click on a coverage number lists its requirements, those without coverage included" classname="package-page.spec.ts" time="1.82"><properties><property name="reqseq:element" value="6adc6c48-4fce-40e6-aca6-5a8b253c90b0"/><property name="reqseq:version" value="n2:d5dacf465461690d"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+</testsuite>
+<testsuite name="property-boxes.spec.ts" timestamp="2026-11-05T21:44:10.234Z" hostname="" tests="19" failures="0" skipped="0" time="31.051" errors="0">
+<testcase name="property boxes of an element › [SR-104/AK1] shows every filled property as a box below the text and none for an empty one, as the CLI gives them" classname="property-boxes.spec.ts" time="1.795"><properties><property name="reqseq:element" value="2c4b0595-c212-42b7-81be-b18556f3b2fe"/><property name="reqseq:version" value="n2:073252a732d6f60c"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="property boxes of an element › saves the text and the boxes that changed with one Ctrl/Cmd+S, and leaves the bytes of everything else" classname="property-boxes.spec.ts" time="1.902">
+</testcase>
+<testcase name="property boxes of an element › [SR-104/AK4] emptying a box and saving removes the property from the file, and the box is gone" classname="property-boxes.spec.ts" time="1.837"><properties><property name="reqseq:element" value="2c4b0595-c212-42b7-81be-b18556f3b2fe"/><property name="reqseq:version" value="n2:073252a732d6f60c"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="property boxes of an element › a single value is cleared the same way" classname="property-boxes.spec.ts" time="1.775">
+</testcase>
+<testcase name="property boxes of an element › [SR-104/AK2] Ctrl/Cmd+Alt+A adds a text property: an empty box with the caret in it at the place of the type, the file unchanged until it is saved" classname="property-boxes.spec.ts" time="1.915"><properties><property name="reqseq:element" value="2c4b0595-c212-42b7-81be-b18556f3b2fe"/><property name="reqseq:version" value="n2:073252a732d6f60c"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="property boxes of an element › [SR-104/AK2] adding a choice puts the empty box in the page and opens the prompt with the choices at once; Escape leaves the focus on the box" classname="property-boxes.spec.ts" time="1.834"><properties><property name="reqseq:element" value="2c4b0595-c212-42b7-81be-b18556f3b2fe"/><property name="reqseq:version" value="n2:073252a732d6f60c"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="property boxes of an element › [SR-104/AK2] Add property is also in the command prompt, by its name" classname="property-boxes.spec.ts" time="1.106"><properties><property name="reqseq:element" value="2c4b0595-c212-42b7-81be-b18556f3b2fe"/><property name="reqseq:version" value="n2:073252a732d6f60c"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="property boxes of an element › [SR-104/AK3] the prompt of a choice offers only the values of the metamodel, with the one that is set first, and takes no free text" classname="property-boxes.spec.ts" time="1.906"><properties><property name="reqseq:element" value="2c4b0595-c212-42b7-81be-b18556f3b2fe"/><property name="reqseq:version" value="n2:073252a732d6f60c"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="property boxes of an element › a relation box shows its targets as links; its prompt finds only elements of the allowed types, and a target is added, then taken out" classname="property-boxes.spec.ts" time="2.351">
+</testcase>
+<testcase name="property boxes of an element › [SR-104/AK4] Clear property empties a choice and a relation box, Ctrl/Cmd+S removes both from the file, and the boxes are gone" classname="property-boxes.spec.ts" time="1.901"><properties><property name="reqseq:element" value="2c4b0595-c212-42b7-81be-b18556f3b2fe"/><property name="reqseq:version" value="n2:073252a732d6f60c"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="property boxes of an element › Backspace on a box that has the focus clears nothing: the action does" classname="property-boxes.spec.ts" time="1.09">
+</testcase>
+<testcase name="property boxes of an element › a property the type does not know is a read-only box: Enter on it and Clear property say so or edit the text" classname="property-boxes.spec.ts" time="1.215">
+</testcase>
+<testcase name="property boxes of an element › [SR-104/AK3] the prompt of a choice over the page, next to a relation box (screenshot, light)" classname="property-boxes.spec.ts" time="1.181"><properties><property name="reqseq:element" value="2c4b0595-c212-42b7-81be-b18556f3b2fe"/><property name="reqseq:version" value="n2:073252a732d6f60c"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="property boxes of an element › gives each box one Tab stop: the box itself, then the next box" classname="property-boxes.spec.ts" time="1.169">
+</testcase>
+<testcase name="property boxes of an element › Enter on a box puts the caret in it, Enter in a single value and Escape leave it, Escape on the box leaves for the element" classname="property-boxes.spec.ts" time="1.209">
+</testcase>
+<testcase name="property boxes of an element › Down on the last line of the text goes to the next box, Up on the first line comes back; on a box the keys move to the next field" classname="property-boxes.spec.ts" time="1.161">
+</testcase>
+<testcase name="property boxes of an element › [SR-127/AK1] the source of a criterion shows on the line with the caret only (screenshot)" classname="property-boxes.spec.ts" time="1.254"><properties><property name="reqseq:element" value="40ba988e-5199-44e9-a141-2804ea8ab350"/><property name="reqseq:version" value="n2:81bc991c71c9d81c"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="property boxes with a long value › Down and Up move by visual lines in a wrapped last value before they leave the box" classname="property-boxes.spec.ts" time="1.303">
+</testcase>
+<testcase name="property boxes of an element with many values › records the time to open the element and the time from a key to the paint in a box (numbers, no limit but a guard)" classname="property-boxes.spec.ts" time="3.147">
+<system-out>
+<![CDATA[PERF property boxes {"values":50,"editors":5,"openMs":163,"keyToPaintMedianMs":13.8,"keyToPaintWorstMs":32}
+]]>
+</system-out>
+</testcase>
+</testsuite>
+<testsuite name="renderer-bundle.spec.ts" timestamp="2026-11-05T21:44:10.234Z" hostname="" tests="3" failures="0" skipped="0" time="0.126" errors="0">
+<testcase name="the renderer bundle › has only files the app serves: no woff or ttf font of KaTeX (SR-096)" classname="renderer-bundle.spec.ts" time="0.002">
+</testcase>
+<testcase name="the renderer bundle › inlines nothing into its style sheets: a data: URL font is blocked by the CSP (SR-096)" classname="renderer-bundle.spec.ts" time="0.002">
+</testcase>
+<testcase name="the renderer bundle › has no network, worker or eval in its scripts (SR-078)" classname="renderer-bundle.spec.ts" time="0.122">
+</testcase>
+</testsuite>
+<testsuite name="slash-menu.spec.ts" timestamp="2026-11-05T21:44:10.234Z" hostname="" tests="10" failures="0" skipped="0" time="13.795" errors="0">
+<testcase name="the slash menu in the element buffer › [SR-129/AK1] / opens a menu next to the caret with the Markdown elements of the criterion" classname="slash-menu.spec.ts" time="1.355"><properties><property name="reqseq:element" value="ed8305f0-47b2-4a9a-82f6-4efa997c54b2"/><property name="reqseq:version" value="n2:fdf12d3d921ebc05"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the slash menu in the element buffer › [SR-129/AK1] / in the middle of a word does not open the menu" classname="slash-menu.spec.ts" time="1.368"><properties><property name="reqseq:element" value="ed8305f0-47b2-4a9a-82f6-4efa997c54b2"/><property name="reqseq:version" value="n2:fdf12d3d921ebc05"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the slash menu in the element buffer › [SR-129/AK2] letters narrow the entries as in the command line; Ctrl+N, Ctrl+P and the arrows choose, Enter takes" classname="slash-menu.spec.ts" time="1.271"><properties><property name="reqseq:element" value="ed8305f0-47b2-4a9a-82f6-4efa997c54b2"/><property name="reqseq:version" value="n2:fdf12d3d921ebc05"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the slash menu in the element buffer › [SR-129/AK2] a fast /h2 and Enter takes Heading 2" classname="slash-menu.spec.ts" time="1.351"><properties><property name="reqseq:element" value="ed8305f0-47b2-4a9a-82f6-4efa997c54b2"/><property name="reqseq:version" value="n2:fdf12d3d921ebc05"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the slash menu in the element buffer › [SR-129/AK3] Escape closes the menu; the / and the query stay, and the editor keeps the focus" classname="slash-menu.spec.ts" time="1.367"><properties><property name="reqseq:element" value="ed8305f0-47b2-4a9a-82f6-4efa997c54b2"/><property name="reqseq:version" value="n2:fdf12d3d921ebc05"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the slash menu in the element buffer › [SR-129/AK4] a heading, a table and a reference are in the saved file as CommonMark with GitHub extensions" classname="slash-menu.spec.ts" time="1.537"><properties><property name="reqseq:element" value="ed8305f0-47b2-4a9a-82f6-4efa997c54b2"/><property name="reqseq:version" value="n2:fdf12d3d921ebc05"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the slash menu in the element buffer › [SR-129/AK3] Escape in Insert reference leaves the / and the query, and the focus in the editor" classname="slash-menu.spec.ts" time="1.386"><properties><property name="reqseq:element" value="ed8305f0-47b2-4a9a-82f6-4efa997c54b2"/><property name="reqseq:version" value="n2:fdf12d3d921ebc05"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the slash menu in the element buffer › [SR-129/AK4] one Ctrl/Cmd+Z undoes a taken entry and brings back the / with its query" classname="slash-menu.spec.ts" time="1.351"><properties><property name="reqseq:element" value="ed8305f0-47b2-4a9a-82f6-4efa997c54b2"/><property name="reqseq:version" value="n2:fdf12d3d921ebc05"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="[SR-129/AK1] the menu uses the colours of the sheet in light mode" classname="slash-menu.spec.ts" time="1.416"><properties><property name="reqseq:element" value="ed8305f0-47b2-4a9a-82f6-4efa997c54b2"/><property name="reqseq:version" value="n2:fdf12d3d921ebc05"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="[SR-129/AK1] the menu uses the colours of the sheet in dark mode" classname="slash-menu.spec.ts" time="1.393"><properties><property name="reqseq:element" value="ed8305f0-47b2-4a9a-82f6-4efa997c54b2"/><property name="reqseq:version" value="n2:fdf12d3d921ebc05"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+</testsuite>
+<testsuite name="theme.spec.ts" timestamp="2026-11-05T21:44:10.234Z" hostname="" tests="4" failures="0" skipped="0" time="4.936" errors="0">
+<testcase name="[SR-113/AK1] the app starts light as the system says" classname="theme.spec.ts" time="1.16"><properties><property name="reqseq:element" value="4a6851b2-8c80-43c1-ac81-aaad566ecc6a"/><property name="reqseq:version" value="n2:638572c016b290fb"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="[SR-113/AK1] the app starts dark as the system says" classname="theme.spec.ts" time="1.211"><properties><property name="reqseq:element" value="4a6851b2-8c80-43c1-ac81-aaad566ecc6a"/><property name="reqseq:version" value="n2:638572c016b290fb"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="[SR-113/AK1] without a choice the app follows a change of the system setting" classname="theme.spec.ts" time="1.087"><properties><property name="reqseq:element" value="4a6851b2-8c80-43c1-ac81-aaad566ecc6a"/><property name="reqseq:version" value="n2:638572c016b290fb"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="[SR-113/AK2] the command switches light and dark without a restart" classname="theme.spec.ts" time="1.478"><properties><property name="reqseq:element" value="4a6851b2-8c80-43c1-ac81-aaad566ecc6a"/><property name="reqseq:version" value="n2:638572c016b290fb"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+</testsuite>
+<testsuite name="variant-diff.spec.ts" timestamp="2026-11-05T21:44:10.234Z" hostname="" tests="2" failures="0" skipped="0" time="2.949" errors="0">
+<testcase name="the difference of a variant in the app › [SR-044/AK1] variant.diff of A lists added A2, replaced K1 by A1 and excluded K2 in the app" classname="variant-diff.spec.ts" time="1.598"><properties><property name="reqseq:element" value="6adc6c93-699d-4e53-a117-72ad9d26b2cf"/><property name="reqseq:version" value="n2:a4764ed80e2826cf"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the difference of a variant in the app › [SR-044/AK2] Enter on a replaced row shows K1 and A1 read-only side by side in the split window" classname="variant-diff.spec.ts" time="1.351"><properties><property name="reqseq:element" value="6adc6c93-699d-4e53-a117-72ad9d26b2cf"/><property name="reqseq:version" value="n2:a4764ed80e2826cf"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+</testsuite>
+<testsuite name="variant-hints.spec.ts" timestamp="2026-11-05T21:44:10.234Z" hostname="" tests="7" failures="0" skipped="0" time="24.181" errors="0">
+<testcase name="the hint at a replacement when its core requirement changed (SR-045) › [SR-045/AK1] the page of SR-A marks its replaces row with the one hint, and List hints of A lists it" classname="variant-hints.spec.ts" time="2.321"><properties><property name="reqseq:element" value="6adc6c94-23b3-4151-b702-ab8e8d17dc02"/><property name="reqseq:version" value="n2:2b493a67994ebfb8"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the hint at a replacement when its core requirement changed (SR-045) › [SR-045/AK2] Confirm hints on SR-A writes the current version of K and the hint is gone" classname="variant-hints.spec.ts" time="2.875"><properties><property name="reqseq:element" value="6adc6c94-23b3-4151-b702-ab8e8d17dc02"/><property name="reqseq:version" value="n2:2b493a67994ebfb8"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the hints at a variant since its newest baseline (SR-103) › [SR-103/AK1] the page of A names the adopted core requirement changed since its newest baseline with both versions" classname="variant-hints.spec.ts" time="3.863"><properties><property name="reqseq:element" value="6adc7b15-79d2-4271-82c8-bc6b138c3884"/><property name="reqseq:version" value="n2:b14fac75ca86598e"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the hints at a variant since its newest baseline (SR-103) › [SR-103/AK7] the page of A names a core requirement new in its view since the baseline, with its current version only" classname="variant-hints.spec.ts" time="3.814"><properties><property name="reqseq:element" value="6adc7b15-79d2-4271-82c8-bc6b138c3884"/><property name="reqseq:version" value="n2:b14fac75ca86598e"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the hints at a variant since its newest baseline (SR-103) › [SR-103/AK3] the page of a variant without baseline shows no such hint" classname="variant-hints.spec.ts" time="3.415"><properties><property name="reqseq:element" value="6adc7b15-79d2-4271-82c8-bc6b138c3884"/><property name="reqseq:version" value="n2:b14fac75ca86598e"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the hints at a variant since its newest baseline (SR-103) › [SR-103/AK2] after a new baseline of A the open page of A shows the hints no more" classname="variant-hints.spec.ts" time="4.297"><properties><property name="reqseq:element" value="6adc7b15-79d2-4271-82c8-bc6b138c3884"/><property name="reqseq:version" value="n2:b14fac75ca86598e"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the hints at a variant since its newest baseline (SR-103) › [SR-103/AK5] Confirm hints on A offers none of them and shows core&apos;s refusal with its reason" classname="variant-hints.spec.ts" time="3.596"><properties><property name="reqseq:element" value="6adc7b15-79d2-4271-82c8-bc6b138c3884"/><property name="reqseq:version" value="n2:b14fac75ca86598e"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+</testsuite>
+<testsuite name="variants.spec.ts" timestamp="2026-11-05T21:44:10.234Z" hostname="" tests="2" failures="0" skipped="0" time="4.173" errors="0">
+<testcase name="variants on a fixture workspace › [SR-039/AK1] element.create of type variant writes a variant file in the workspace of the core" classname="variants.spec.ts" time="2.66"><properties><property name="reqseq:element" value="6adc6c8d-c257-450f-8876-2bf787000e2b"/><property name="reqseq:version" value="n2:46d39ffa61f5a3ef"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="records per variant in the app › [SR-047/AK4] evidence.record for C refuses a core requirement excluded or replaced in C, naming the exclusion or the replacement" classname="variants.spec.ts" time="1.513"><properties><property name="reqseq:element" value="6adc6c96-e67e-4b89-b89d-9b7a06c41d9d"/><property name="reqseq:version" value="n2:fe5619eb084a19ff"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+</testsuite>
+<testsuite name="without-passed-test.spec.ts" timestamp="2026-11-05T21:44:10.234Z" hostname="" tests="2" failures="0" skipped="0" time="2.596" errors="0">
+<testcase name="the requirements without a passed test in the app › [SR-120/AK1] Ctrl+Shift+P, the text and Enter show the requirements without a passed test, as the CLI lists them" classname="without-passed-test.spec.ts" time="1.633"><properties><property name="reqseq:element" value="ad9557d1-874f-49d4-9973-4ce9f96ef998"/><property name="reqseq:version" value="n2:6d5b6a9f94683074"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+<testcase name="the requirements without a passed test in the app › [SR-120/AK1] the prompt finds the command for the texts passed test and without test as well" classname="without-passed-test.spec.ts" time="0.963"><properties><property name="reqseq:element" value="ad9557d1-874f-49d4-9973-4ce9f96ef998"/><property name="reqseq:version" value="n2:6d5b6a9f94683074"/><property name="reqseq:item" value="main@3b7aa92e93734791f78f1e81b203eff978b79261 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-05T21:43:08Z"/></properties>
+</testcase>
+</testsuite>
+</testsuites>
