@@ -1,7 +1,7 @@
 ---
 id: 6adc723b-436b-4b39-8388-bdbcde3fe762
 type: decision
-status: accepted
+status: obsolete
 title: "Ein Issue je System Requirement"
 spec-id: "D-049"
 ---
