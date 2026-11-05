@@ -51,10 +51,10 @@ describe("version test vectors (ADR-0005)", () => {
     "[SR-091/AK1] $element gives the published canonical bytes and version",
     (vector) => {
       const input = inputFor(vector.element, vector.files, vector.missing);
-      expect(Buffer.from(canonicalContent(input), "utf8")).toEqual(
+      expect(Buffer.from(canonicalContent(input, "n1"), "utf8")).toEqual(
         fs.readFileSync(path.join(dir, vector.canonical)),
       );
-      expect(computeVersion(input)).toBe(vector.version);
+      expect(computeVersion(input, "n1")).toBe(vector.version);
     },
   );
 
@@ -63,7 +63,7 @@ describe("version test vectors (ADR-0005)", () => {
     expect(vector).toBeDefined();
     const crlf = inputFor("N-42cdd0f51ca7.md", [], []);
     expect(crlf.text).toContain("\r\n");
-    expect(computeVersion({ ...crlf, text: crlf.text.replace(/\r\n/g, "\n") })).toBe(vector?.version);
+    expect(computeVersion({ ...crlf, text: crlf.text.replace(/\r\n/g, "\n") }, "n1")).toBe(vector?.version);
   });
 
   it("[SR-091/AK1] the CR-only vector has the same version as its LF form", () => {
@@ -72,6 +72,6 @@ describe("version test vectors (ADR-0005)", () => {
     const cr = inputFor("SR-9f0a1b2c3d4e.md", vector?.files ?? [], vector?.missing ?? []);
     expect(cr.text).toMatch(/\r(?!\n)/);
     expect(cr.text).not.toContain("\n");
-    expect(computeVersion({ ...cr, text: cr.text.replace(/\r/g, "\n") })).toBe(vector?.version);
+    expect(computeVersion({ ...cr, text: cr.text.replace(/\r/g, "\n") }, "n1")).toBe(vector?.version);
   });
 });

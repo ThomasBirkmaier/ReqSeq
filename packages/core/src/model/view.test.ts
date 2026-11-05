@@ -7,7 +7,8 @@ import { metamodelState } from "../metamodel/index.js";
 import { Workspace } from "../runtime/workspace.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
-import { computeVersion } from "../version/version.js";
+import { NORMAL_FORM } from "../version/version.js";
+import { versionIn } from "./version-input.js";
 import { classifyFile } from "./elements.js";
 import type { ElementRecord } from "./elements.js";
 import { buildShortIds } from "./short-id.js";
@@ -242,7 +243,7 @@ describe("elementView", () => {
       title: "",
       text: "Body\n",
       properties: { weight: 2 },
-      version: computeVersion({ text: "Body\n", properties: {}, definitions: [], files: [] }),
+      version: versionIn({ text: "Body\n", properties: {}, definitions: [], files: [] }, NORMAL_FORM),
     });
     // A status that is not text is no key; the element is listed as one without status (#306).
     expect(view).not.toHaveProperty("status");

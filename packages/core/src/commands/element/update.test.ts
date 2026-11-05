@@ -865,6 +865,24 @@ describe("element.update: directly affected elements (SR-024)", () => {
     expect((await update(opened, { ref: SPEED, text: "Speed.\n" })).affected).toBe(2);
   });
 
+  it("[SR-024/AK2] counts a save that changes only the stored version of a reference: links that store normal form 1 become outdated, though n2 stays (#166)", async () => {
+    const opened = await open(AFFECTED);
+    const file = "requirements/SR-00000000b002.md";
+    const link = (version: string): string =>
+      `Gusts beside [Show wind speed](reqseq:5c0e1d2a-0024-4024-8024-00000000b001?version=${version}).\n`;
+    await fs.writeFile(
+      opened.fixture.path(file),
+      (await read(opened, file)).replace("The station shows gusts.\n", link("n1:0000000000000000")),
+    );
+    const before = (await invoke("element.get", { ref: "SR-00b002" }, { workspace: opened.workspace })) as {
+      element: { version: string };
+    };
+    // The update stores the current version of the target in place of the other one sent.
+    const out = await update(opened, { ref: "SR-00b002", text: link("n1:1111111111111111") });
+    expect(out.element.text).not.toContain("version=n1:");
+    expect([out.element.version, out.affected]).toEqual([before.element.version, 2]);
+  });
+
   it("[SR-024/AK2] counts a save of an element whose old version had no normal form as a change", async () => {
     const model = STANDARD.replace(
       "\nrelations:",

@@ -121,7 +121,7 @@ describe("reqseq baseline get", () => {
     const { ws } = await fixture();
     const a1 = state(await get(ws, "Release 2"), "a1");
     expect(a1).toMatchObject({ state: "removed", version: "n1:9d97d0ccf9b75591" });
-    expect(a1?.current).toMatch(/^n1:/);
+    expect(a1?.current).toMatch(/^n2:/);
     expect((await get(ws, "release-1")).counts["removed"]).toBe(0);
   });
 });

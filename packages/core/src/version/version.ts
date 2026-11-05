@@ -5,8 +5,8 @@ import { createHash } from "node:crypto";
 /** A normal form this module computes. A new normal form gets a new prefix (D-027). */
 export type NormalForm = "n1" | "n2";
 
-/** The normal form of every version the tool writes (n1 until the switch of #166). */
-export const NORMAL_FORM: NormalForm = "n1";
+/** The normal form of every version the tool writes (n2 since #166). */
+export const NORMAL_FORM: NormalForm = "n2";
 
 /** Value kind of a property (metamodel.schema.json, `kind`). */
 export type VersionPropertyKind = "text" | "number" | "date" | "choice" | "relation";
@@ -138,7 +138,7 @@ const isAbsent = (value: VersionValue | undefined): value is undefined | null | 
  * passes the text and string values with the `version=` parameters of their inline references
  * removed (`withoutReferenceVersions` in `model/version-input.ts`); this block only writes them.
  */
-export const canonicalContent = (input: VersionInput, form: NormalForm = NORMAL_FORM): string =>
+export const canonicalContent = (input: VersionInput, form: NormalForm): string =>
   contentOf(input, "throw", form);
 
 /**
@@ -147,7 +147,7 @@ export const canonicalContent = (input: VersionInput, form: NormalForm = NORMAL_
  * hashed and never a version; for telling whether a save changed the content of an element whose
  * version cannot be computed (SR-024 AK2, AK3; #276).
  */
-export const comparableContent = (input: VersionInput, form: NormalForm = NORMAL_FORM): string =>
+export const comparableContent = (input: VersionInput, form: NormalForm): string =>
   contentOf(input, "write", form);
 
 /** The sections of a canonical content after its header, with the values each was written from. */
@@ -211,7 +211,7 @@ function contentOf(input: VersionInput, nonFinite: NonFinite, form: NormalForm):
  * The version of an element in a normal form: the prefix (`n1:`, `n2:`) and the first 64 bits of
  * SHA-256 over the canonical content, as hex.
  */
-export const computeVersion = (input: VersionInput, form: NormalForm = NORMAL_FORM): string =>
+export const computeVersion = (input: VersionInput, form: NormalForm): string =>
   `${form}:${sha256Hex(canonicalContent(input, form)).slice(0, 16)}`;
 
 /** The version of an element in each normal form the tool computes (D-027: every published form stays computable). */

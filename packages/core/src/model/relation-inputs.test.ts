@@ -8,7 +8,8 @@ import type { CommandName, Problem } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
-import { computeVersion } from "../version/version.js";
+import { NORMAL_FORM } from "../version/version.js";
+import { versionIn } from "./version-input.js";
 import { elementStoreState } from "./store.js";
 import { readFirstFor } from "../runtime/read-first.test-helper.js";
 
@@ -19,7 +20,7 @@ const PKG = { id: "5b0c2f9e-7a41-4c3d-9e2b-1f6a8d3c7e10", short: "PKG-3c7e10" };
 const SOURCE = { id: "6e2f8a4c-1b3d-4c5e-9f7a-3d8b2c6e1f05", file: "requirements/SR-3d8b2c6e1f05.md" };
 
 const version = (text: string): string =>
-  computeVersion({ text, properties: {}, definitions: [], files: [] });
+  versionIn({ text, properties: {}, definitions: [], files: [] }, NORMAL_FORM);
 const NEED_ENTRY = `  - { id: ${NEED.id}, version: ${version("The wind speed can be read from three metres.")}, title: Wind speed visible at a glance }`;
 const SENSOR_ENTRY = `  - { id: ${SENSOR_NEED.id}, version: ${version("The sensor measures gusts.")}, repository: sensor }`;
 

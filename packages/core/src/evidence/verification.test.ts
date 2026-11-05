@@ -81,7 +81,6 @@ const reader = (unknown: ReadonlySet<ElementRecord> = new Set()) => {
             ? { kind: "unknown", reason: "not-computable", message: "no normal form" }
             : {
                 kind: "version",
-                version: CURRENT,
                 forms: { n1: CURRENT, n2: "n2:0000000000000000" },
                 images: [],
               },

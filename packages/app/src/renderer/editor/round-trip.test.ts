@@ -96,7 +96,7 @@ describe("SR-065 AK2, the file of a text written in the editor", () => {
       expect(file.startsWith(FRONT_MATTER)).toBe(true);
       const body = file.slice(FRONT_MATTER.length);
       // Core adds the version of the target to an inline reference (ADR-0004); nothing else changes.
-      const reference = new RegExp(`\\[SR-001\\]\\(reqseq:${TARGET}\\?version=(n1:[0-9a-f]+)\\)`);
+      const reference = new RegExp(`\\[SR-001\\]\\(reqseq:${TARGET}\\?version=(n2:[0-9a-f]+)\\)`);
       const version = reference.exec(body)?.[1];
       expect(version).toBeDefined();
       expect(body).toBe(

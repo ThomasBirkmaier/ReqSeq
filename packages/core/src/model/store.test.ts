@@ -6,7 +6,8 @@ import type { FileSnapshot } from "../files/index.js";
 import { readElementFile, writeFileAtomic } from "../files/index.js";
 import { metamodelState } from "../metamodel/index.js";
 import { Workspace } from "../runtime/workspace.js";
-import { computeVersion, formOf } from "../version/version.js";
+import { NORMAL_FORM, formOf } from "../version/version.js";
+import { versionIn } from "./version-input.js";
 import type { NormalForm, VersionPropertyDefinition, VersionValue } from "../version/version.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
@@ -72,14 +73,14 @@ const versionOf = async (
   const definitions: VersionPropertyDefinition[] = metamodel.properties
     .filter((p) => keys.includes(p.key))
     .map((p) => ({ key: p.key, kind: p.kind, content: p.content === true }));
-  return computeVersion(
+  return versionIn(
     {
       text: await textOf(workspace, element),
       properties: element.data as Readonly<Record<string, VersionValue>>,
       definitions,
       files: [],
     },
-    form,
+    form ?? NORMAL_FORM,
   );
 };
 

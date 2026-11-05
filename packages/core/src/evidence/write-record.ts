@@ -46,6 +46,7 @@ import {
   clashKey,
   currentVersionsOf,
   elementStoreState,
+  NORMAL_FORM,
   ownEvidenceWrite,
   refuseUnlisted,
   resolveRef,
@@ -510,7 +511,7 @@ const prepare = async (
   const fields: RecordFields = {
     kind: input.kind,
     element: element.id,
-    version: entry.version,
+    version: entry.forms[NORMAL_FORM],
     ...(input.method === undefined ? {} : { method: input.method }),
     ...(variant === undefined ? {} : { variant: variant.id }),
     ...(input.item === undefined ? {} : { item: input.item }),

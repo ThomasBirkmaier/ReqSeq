@@ -19,7 +19,14 @@ import { sha256, zip } from "../files/index.js";
 import type { Problem, ReqifObject } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
 import type { ElementRecord, ElementStore, VersionForms } from "../model/index.js";
-import { assertElementWritable, currentVersionsOf, elementStoreState, hasId } from "../model/index.js";
+import {
+  assertElementWritable,
+  currentVersionsOf,
+  elementStoreState,
+  hasId,
+  NORMAL_FORM,
+  sameVersion,
+} from "../model/index.js";
 import type { WriteSource } from "../model/write.js";
 import { readAllUnchanged } from "../model/write.js";
 import type { Workspace } from "../runtime/workspace.js";
@@ -131,7 +138,7 @@ export const existingElements = async (
     const imported = record.data[keys["import-version"]];
     matched.set(String(record.data[keys["source-identifier"]]), {
       ...item,
-      version: current.kind === "version" ? current.version : undefined,
+      version: current.kind === "version" ? current.forms[NORMAL_FORM] : undefined,
       forms: current.kind === "version" ? current.forms : undefined,
       ...(current.kind === "unknown" ? { unknown: current.message } : {}),
       imported: typeof imported === "string" ? imported : undefined,
@@ -207,29 +214,63 @@ export const propertyTargetsDiffer = (stored: unknown, planned: unknown): boolea
   return before.size !== after.size || [...before].some((k) => !after.has(k));
 };
 
-/** The parts of an item the import compares: target, version and repository. */
-const comparable = (item: Readonly<Record<string, unknown>>): Record<string, unknown> => ({
-  id: item["id"],
-  version: item["version"],
-  ...(item["repository"] === undefined ? {} : { repository: item["repository"] }),
-});
+/**
+ * The versions in every normal form of the version the delivery writes into a relation item to
+ * the element with a UUID, when the call plans that element (ADR-0005 "Normal form 2").
+ */
+export type TargetForms = (id: unknown) => VersionForms | undefined;
+
+/**
+ * The parts of an item the import compares: target, version and repository. A version that names
+ * the content `forms` of its target give, in its own form, is compared as the one the delivery
+ * writes (`sameVersion`): a stored version of the other normal form is no change.
+ */
+const comparable =
+  (forms: TargetForms) =>
+  (item: Readonly<Record<string, unknown>>): Record<string, unknown> => {
+    const version = item["version"];
+    const target = forms(item["id"]);
+    return {
+      id: item["id"],
+      version:
+        typeof version === "string" && target !== undefined && sameVersion(version, target)
+          ? target[NORMAL_FORM]
+          : version,
+      ...(item["repository"] === undefined ? {} : { repository: item["repository"] }),
+    };
+  };
+
+/**
+ * Whether the stored and the planned value of a relation-valued property are the same but for the
+ * normal form of a version that names the same content of its target (`comparable`): no change
+ * for the comparison of a repeated delivery (ADR-0005 "Normal form 2").
+ */
+export const sameUpToForm = (stored: unknown, planned: unknown, forms: TargetForms): boolean => {
+  const compared = comparable(forms);
+  const of = (value: unknown): unknown =>
+    Array.isArray(value) ? value.map(of) : hasId(value) ? { ...value, ...compared(value) } : value;
+  return isDeepStrictEqual(of(stored), of(planned));
+};
 
 /**
  * The edits that give relation kind `kind` of an element with frontmatter `data` the delivery's
  * `items` in place of the items it decides (`decided`), keeping every other item; none when they
- * are equal apart from other fields of an item (such as `title`).
+ * are equal apart from other fields of an item (such as `title`) and from the normal form of a
+ * version that names the same content of its target (`forms`, `comparable`).
  */
 export const relationEdits = (
   data: Readonly<Record<string, unknown>>,
   kind: string,
   items: readonly RelationItem[],
   ids: ReadonlySet<string>,
+  forms: TargetForms = () => undefined,
 ): FrontmatterEdit[] => {
   const value = data[kind];
   const stored = storedItems(data, kind);
   const own = decided(stored, items, ids);
-  const ownItems = own.map((index) => comparable(stored[index] as Readonly<Record<string, unknown>>));
-  if (isDeepStrictEqual(ownItems, items.map(comparable))) {
+  const compared = comparable(forms);
+  const ownItems = own.map((index) => compared(stored[index] as Readonly<Record<string, unknown>>));
+  if (isDeepStrictEqual(ownItems, items.map(compared))) {
     return [];
   }
   if (!Array.isArray(value)) {

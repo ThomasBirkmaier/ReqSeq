@@ -218,17 +218,20 @@ const versionInput = (
 ): VersionInput => versionInputOf(record, body, versionDefinitions(record, metamodel), images);
 
 /**
- * What the version of an element is computed from, as `comparableContent` writes it: equal for two
- * states of an element exactly when their versions are equal, also when a value that counts has
- * no normal form and there is no version (`.inf`, `.nan`, ADR-0005). For telling whether a save
- * changed the content (SR-024 AK2, AK3; #276); never shown.
+ * What the version of an element is computed from, as `comparableContent` writes it in normal form
+ * n1: equal for two states of an element exactly when their n1 versions are equal, also when a
+ * value that counts has no normal form and there is no version (`.inf`, `.nan`, ADR-0005). For
+ * telling whether a save changed the content (SR-024 AK2, AK3; #276); never shown. A save counts
+ * when its n1 or its n2 content changed, as links store either (assumption of #166): n2 leaves
+ * out only parts of n1 (the `version=` values, the order of relation targets), so it changes only
+ * with n1, and n1 tells both.
  */
 export const elementContent = (
   record: Pick<ElementRecord, "type" | "data">,
   body: string,
   metamodel: Metamodel,
   images: readonly VersionFile[],
-): string => comparableContent(versionInput(record, body, metamodel, images));
+): string => comparableContent(versionInput(record, body, metamodel, images), "n1");
 
 /** Why `record` has no version, for the RangeError `versionOrRangeError` gave: its file, repository and reason. */
 export const notComputableMessage = (

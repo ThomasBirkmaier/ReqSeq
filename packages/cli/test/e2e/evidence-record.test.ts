@@ -102,7 +102,7 @@ describe("reqseq evidence record (SR-030)", () => {
     expect([result.code, result.stderr]).toEqual([0, ""]);
     expect(result.stdout).toContain("evidence/2026-10-27-SR-00c002-inspection.md");
     expect(result.stdout).toContain(`element: ${S2}`);
-    expect(result.stdout).toMatch(/version: n1:[0-9a-f]{16}/);
+    expect(result.stdout).toMatch(/version: n2:[0-9a-f]{16}/);
   });
 
   it("exits with the error of an unknown element and of a verification without --item, writing nothing", async () => {

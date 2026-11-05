@@ -26,7 +26,7 @@ const EXPECTED = {
   title: "Show wind speed",
   text: "The station shows the current wind speed.\n",
   status: "draft",
-  version: expect.stringMatching(/^n1:[0-9a-f]{16}$/) as string,
+  version: expect.stringMatching(/^n2:[0-9a-f]{16}$/) as string,
 };
 
 interface Resolved {

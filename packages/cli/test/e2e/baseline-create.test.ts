@@ -53,7 +53,7 @@ describe("reqseq baseline create", () => {
       `name: Release 2\ndate: ${out.baseline.date}\nselection:\n  package: { id: ${ID}d1, title: Display }\n`,
     );
     expect(text).toContain(
-      `repositories:\n  - { name: system, commit: ${head} }\nelements:\n  - { id: ${ID}b1, version: n1:697a2ad17ed49170 }\n`,
+      `repositories:\n  - { name: system, commit: ${head} }\nelements:\n  - { id: ${ID}b1, version: n2:c9c7346fbb131ec9 }\n`,
     );
     // Never committed: HEAD and the index stay, the file is new (SR-083).
     expect(await ws.head("system")).toBe(head);

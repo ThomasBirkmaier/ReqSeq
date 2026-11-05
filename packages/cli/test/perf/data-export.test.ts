@@ -23,12 +23,13 @@ import { MAX_TEXT_BYTES, largeOutputNote } from "@reqseq/mcp";
 import type { CommandOutput, VersionValue } from "@reqseq/core";
 import {
   Workspace,
-  computeVersion,
   invoke,
   jsonByteLength,
   jsonChunks,
   jsonLines,
   loadContracts,
+  NORMAL_FORM,
+  versionIn,
 } from "@reqseq/core";
 import type { VersionFunction } from "@reqseq/testkit";
 import {
@@ -72,18 +73,21 @@ const versionOf =
   (metamodel: Metamodel): VersionFunction =>
   ({ type, text, properties }) => {
     const keys = new Set(metamodel.types.find((t) => t.key === type)?.properties ?? []);
-    return computeVersion({
-      text,
-      properties: properties as Readonly<Record<string, VersionValue>>,
-      definitions: metamodel.properties
-        .filter((p) => keys.has(p.key))
-        .map((p) => ({
-          key: p.key,
-          kind: p.kind,
-          ...(p.content === undefined ? {} : { content: p.content }),
-        })),
-      files: [],
-    });
+    return versionIn(
+      {
+        text,
+        properties: properties as Readonly<Record<string, VersionValue>>,
+        definitions: metamodel.properties
+          .filter((p) => keys.has(p.key))
+          .map((p) => ({
+            key: p.key,
+            kind: p.kind,
+            ...(p.content === undefined ? {} : { content: p.content }),
+          })),
+        files: [],
+      },
+      NORMAL_FORM,
+    );
   };
 
 /** The peaks `support/peak-memory.mjs` wrote. */

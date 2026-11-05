@@ -449,7 +449,7 @@ const maskNewElement = (result: Result): Result => {
         .split(tail.slice(-6))
         .join(`<tail6-${String(index)}>`);
     }
-    return JSON.parse(text.replace(/n1:[0-9a-f]{16}/g, "<version>")) as Result;
+    return JSON.parse(text.replace(/n[12]:[0-9a-f]{16}/g, "<version>")) as Result;
   }
   const element = output?.element;
   if (element?.id === undefined || element.version === undefined) {

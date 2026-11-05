@@ -176,7 +176,7 @@ test.describe("Markdown properties in the element buffer", () => {
     // The last criterion holds the reference with ID and version, as one YAML value; the rest stays.
     expect(file).toMatch(
       new RegExp(
-        `\\n  - ["']?!\\[Skizze\\]\\(skizze\\.png\\) steht im Quelltext, nicht als Bild\\. Siehe \\[${REFERENCE_TARGET_TITLE}\\]\\(reqseq:${REFERENCE_TARGET_ID}\\?version=n1:[0-9a-f]+\\)["']?\\ntopic:`,
+        `\\n  - ["']?!\\[Skizze\\]\\(skizze\\.png\\) steht im Quelltext, nicht als Bild\\. Siehe \\[${REFERENCE_TARGET_TITLE}\\]\\(reqseq:${REFERENCE_TARGET_ID}\\?version=n2:[0-9a-f]+\\)["']?\\ntopic:`,
         "u",
       ),
     );

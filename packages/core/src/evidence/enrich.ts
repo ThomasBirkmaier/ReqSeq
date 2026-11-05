@@ -39,6 +39,7 @@ import type { ElementRecord, VersionForms } from "../model/index.js";
 import {
   currentVersionsOf,
   elementStoreState,
+  NORMAL_FORM,
   ownEvidenceWrite,
   resolveRef,
   sameVersion,
@@ -1204,7 +1205,9 @@ export const enrichJunitFile = async (
       return new Map(
         [...entries].map(([record, entry]): [string, VersionLookup] => [
           record.id,
-          entry.kind === "version" ? { kind: "version", version: entry.version, forms: entry.forms } : entry,
+          entry.kind === "version"
+            ? { kind: "version", version: entry.forms[NORMAL_FORM], forms: entry.forms }
+            : entry,
         ]),
       );
     },

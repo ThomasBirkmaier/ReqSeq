@@ -19,10 +19,10 @@
 // - Several hints (AK2), each as if confirmed on its own: a write can change the version of its
 //   source (ADR-0005: the text counts), so a hint of the same call whose target is such a source
 //   gets the version the target has after this call, not the one before: the edits are planned,
-//   the new versions of the planned sources computed from their bytes, and the sources whose
-//   targets changed planned again until no version changes (at most one round per planned target
-//   and one more). Inline references that point at each other in a ring never settle (#281): the
-//   last plan is written. One write per file. Every check comes before the first write
+//   the new versions of the planned sources computed from their bytes, and the sources with a hint
+//   on a planned source planned once more with them. A version written by a confirmation is no part
+//   of the n2 version of its source (ADR-0005 "Normal form 2"), so that one round settles chains and
+//   rings of references alike (#166). One write per file. Every check comes before the first write
 //   (`assertElementWritable`, `readUnchanged`); `writeElementFiles` writes, restores on a failure and
 //   records the writes in the element store.
 // - IDs that confirm nothing are problems, not a failure of the call, so the other IDs still count:
@@ -415,13 +415,13 @@ interface Failed {
 }
 
 /**
- * The bytes of every source, planned until the versions of the written sources that are targets of
- * a hint of this call no longer change (see the file comment). The first plan writes the versions
- * the hints found; after it, only the sources with a hint on a target whose version changed in the
- * round before are planned again, so a ring costs its own files per round, not every file of the
- * call. At most one round per planned source that is a target of a hint, and one more. A source
- * the writer cannot change in place is left out, with the error (`CommandError`) of the writer:
- * that does not depend on the versions written.
+ * The bytes of every source (see the file comment): the first plan writes the versions the hints
+ * found; then the versions of the planned sources that are targets of a hint of this call are
+ * computed from their planned bytes, and the sources with a hint on one of them planned again with
+ * those. The second round changes only `version` values, which do not count for the n2 version of a
+ * source (ADR-0005), so it changes no version computed before: no further round. A source the
+ * writer cannot change in place is left out, with the error (`CommandError`) of the writer: that
+ * does not depend on the versions written.
  */
 const plan = async (
   layout: WorkspaceLayout,
@@ -437,42 +437,25 @@ const plan = async (
       failed.set(record, { source, error: commandErrorOrThrow(error) });
     }
   }
-  // The planned sources with a hint on each planned source.
-  const dependents = new Map<ElementRecord, Map<ElementRecord, Source>>();
+  // The planned sources with a hint on a planned source, and the versions of those targets.
+  const again = new Map<ElementRecord, Source>();
+  const targets = new Set<ElementRecord>();
   for (const [record, { source }] of bytes) {
     for (const { finding } of source.found.flatMap((f) => f.candidates)) {
       if (bytes.has(finding.target)) {
-        dependents.set(
-          finding.target,
-          (dependents.get(finding.target) ?? new Map<ElementRecord, Source>()).set(record, source),
-        );
+        again.set(record, source);
+        targets.add(finding.target);
       }
     }
   }
   const versions = new Map<ElementRecord, string>();
-  let changed = new Set<ElementRecord>();
   for (const [record, entry] of bytes) {
-    if (dependents.has(record)) {
+    if (targets.has(record)) {
       versions.set(record, await versionOf(layout, metamodel, entry.source, entry.bytes));
-      changed.add(record);
     }
   }
-  for (let round = 0; round <= dependents.size && changed.size > 0; round++) {
-    const again = new Map(
-      [...dependents].filter(([target]) => changed.has(target)).flatMap(([, of]) => [...of]),
-    );
-    changed = new Set();
-    for (const [record, source] of again) {
-      const entry = { source, bytes: planned(source, versions) };
-      bytes.set(record, entry);
-      if (dependents.has(record)) {
-        const version = await versionOf(layout, metamodel, source, entry.bytes);
-        if (versions.get(record) !== version) {
-          versions.set(record, version);
-          changed.add(record);
-        }
-      }
-    }
+  for (const [record, source] of again) {
+    bytes.set(record, { source, bytes: planned(source, versions) });
   }
   return { bytes, failed };
 };

@@ -190,16 +190,23 @@ describe("repeated ReqIF import (SR-056)", () => {
     const store = await workspace.get(elementStoreState);
     const records = Object.values(ids).flatMap((id) => store.byId.get(id) ?? []);
     const versions = [...(await currentVersionsOf(workspace, records)).values()];
-    // Each import version written in the other normal form, as another version of the tool writes it.
+    // Each import version and each relation item's version written in the other normal form, as
+    // another version of the tool writes them (REQ-2 derives from REQ-1).
     const other = NORMAL_FORM === "n1" ? "n2" : "n1";
-    for (const [i, record] of records.entries()) {
-      const current = versions[i];
+    const inOther = new Map(
+      versions.map((current) =>
+        current.kind === "version" ? [current.forms[NORMAL_FORM], current.forms[other]] : ["", ""],
+      ),
+    );
+    for (const record of records) {
       const file = path.join(root, record.file);
-      const text = await fs.readFile(file, "utf8");
-      const written = current?.kind === "version" ? current.forms[NORMAL_FORM] : "";
-      const changed = current?.kind === "version" ? current.forms[other] : "";
-      expect(text).toContain(`import-version: ${written}\n`);
-      await fs.writeFile(file, text.replace(`import-version: ${written}\n`, `import-version: ${changed}\n`));
+      let text = await fs.readFile(file, "utf8");
+      expect(text).toMatch(/import-version: /u);
+      for (const [written, changed] of inOther) {
+        text = text.replaceAll(written, changed);
+      }
+      expect(text).not.toContain(`${NORMAL_FORM}:`);
+      await fs.writeFile(file, text);
     }
     const again = new Workspace(root);
     onTestFinished(() => again.close());

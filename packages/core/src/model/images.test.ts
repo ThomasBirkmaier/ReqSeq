@@ -11,7 +11,8 @@ import { parseFileBytes } from "../files/index.js";
 import { metamodelState } from "../metamodel/index.js";
 import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
-import { computeVersion, sha256Hex } from "../version/version.js";
+import { NORMAL_FORM, sha256Hex } from "../version/version.js";
+import { versionIn } from "./version-input.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import type { ImageSeen, ImageSource } from "./images.js";
 import { embeddedImages, imageLinks, imageMemo, imagesUnchanged, lookUpImages } from "./images.js";
@@ -442,12 +443,15 @@ describe("the version counts embedded images (SR-091 AK4, ADR-0005)", () => {
     });
     const first = await storedVersion(workspace);
     expect(first).toBe(
-      computeVersion({
-        text: `\n${text}\n`,
-        properties: {},
-        definitions: [],
-        files: [{ path: "N-7b3d5e1f2a4c/layout.png", sha256: sha256Hex("first") }],
-      }),
+      versionIn(
+        {
+          text: `\n${text}\n`,
+          properties: {},
+          definitions: [],
+          files: [{ path: "N-7b3d5e1f2a4c/layout.png", sha256: sha256Hex("first") }],
+        },
+        NORMAL_FORM,
+      ),
     );
     await fixture.write("system/needs/N-7b3d5e1f2a4c/layout.png", "second");
     const second = await storedVersion(workspace);
@@ -484,7 +488,9 @@ describe("the version counts embedded images (SR-091 AK4, ADR-0005)", () => {
       "system/needs/N-7b3d5e1f2a4c/layout.png": "first",
     });
     const before = await storedVersion(workspace);
-    expect(before).toBe(computeVersion({ text: `\n${plain}\n`, properties: {}, definitions: [], files: [] }));
+    expect(before).toBe(
+      versionIn({ text: `\n${plain}\n`, properties: {}, definitions: [], files: [] }, NORMAL_FORM),
+    );
     await fixture.write("system/needs/N-7b3d5e1f2a4c/layout.png", "second");
     expect(await storedVersion(workspace)).toBe(before);
   });

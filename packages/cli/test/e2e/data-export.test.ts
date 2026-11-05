@@ -91,7 +91,7 @@ describe("reqseq data export (SR-061)", () => {
     ]);
     const byId = new Map(out.elements.map((e) => [e.id.slice(-2), e]));
     expect(byId.get("b1")).toMatchObject({
-      version: "n1:697a2ad17ed49170",
+      version: "n2:c9c7346fbb131ec9",
       properties: { "x-supplier": "Anemo Ltd" },
       validity: [`${P}c1`],
       packages: [`${P}d1`],

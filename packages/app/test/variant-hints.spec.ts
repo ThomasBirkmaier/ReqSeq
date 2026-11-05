@@ -108,8 +108,8 @@ test.describe("the hint at a replacement when its core requirement changed (SR-0
     expect(hint?.code).toBe(CORE_CHANGED);
     // Both versions of K, the message names them by their dates (D-013).
     expect([hint?.storedVersion, hint?.currentVersion]).toEqual([
-      expect.stringMatching(/^n1:/),
-      expect.stringMatching(/^n1:/),
+      expect.stringMatching(/^n[12]:/),
+      expect.stringMatching(/^n2:/),
     ]);
     expect(hint?.message).toMatch(
       /(stored version from .+, current version from .+|neither version has a date \(.+\))$/,

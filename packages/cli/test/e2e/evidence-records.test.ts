@@ -123,7 +123,7 @@ describe("outdated evidence in workspace check (SR-025)", () => {
         elementRepository: "system",
         elementFile: "requirements/SR-0d0000000002.md",
         storedVersion: "n1:00000000000000b2",
-        currentVersion: "n1:7db6e9d75d39b846",
+        currentVersion: "n2:9feac07a27cdc0b3",
       },
     ]);
   });

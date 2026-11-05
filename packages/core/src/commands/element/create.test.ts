@@ -9,7 +9,8 @@ import { createElement, elementStoreState, loadElements, shortIdState } from "..
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
-import { computeVersion } from "../../version/version.js";
+import { NORMAL_FORM } from "../../version/version.js";
+import { versionIn } from "../../model/version-input.js";
 import { readFirst } from "../../runtime/read-first.test-helper.js";
 
 type Output = CommandOutput<"element.create">;
@@ -167,18 +168,21 @@ describe("element.create", () => {
       status: "draft",
       title: "Show rain",
       text: "The station shows rain.\n",
-      version: computeVersion({
-        text: "The station shows rain.\n",
-        properties: {
-          "requirement-type": "functional",
-          "acceptance-criteria": ["Given rain, when it falls, then the station shows it."],
+      version: versionIn(
+        {
+          text: "The station shows rain.\n",
+          properties: {
+            "requirement-type": "functional",
+            "acceptance-criteria": ["Given rain, when it falls, then the station shows it."],
+          },
+          definitions: [
+            { key: "requirement-type", kind: "choice", content: true },
+            { key: "acceptance-criteria", kind: "text", content: true },
+          ],
+          files: [],
         },
-        definitions: [
-          { key: "requirement-type", kind: "choice", content: true },
-          { key: "acceptance-criteria", kind: "text", content: true },
-        ],
-        files: [],
-      }),
+        NORMAL_FORM,
+      ),
       repository: "system",
       file,
       properties: {

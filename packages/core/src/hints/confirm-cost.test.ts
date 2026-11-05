@@ -1,6 +1,7 @@
-// The cost of confirming many hints in one call (SR-027 AK2, N-036): a ring of inline references
-// (spec question #281) is planned again round after round, and only its own files are; the other
-// files of the call are planned once. Counted as calls of the file writer (`editElementFile`), so
+// The cost of confirming many hints in one call (SR-027 AK2, N-036): the files of a ring of inline
+// references are planned once more, and only they are; the other files of the call are planned
+// once. A confirmed version is no part of the n2 version of its source (ADR-0005), so one more
+// round settles the ring (#166). Counted as calls of the file writer (`editElementFile`), so
 // the check does not depend on the load of the machine.
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
@@ -62,9 +63,16 @@ describe("hint.confirm cost (SR-027 AK2, N-036)", () => {
       { workspace },
     )) as CommandOutput<"hint.confirm">;
     expect(out.files).toHaveLength(OTHERS + 2);
-    // Once per file, then the two files of the ring once per round: at most one round per planned
-    // target (A and B) and one more.
-    expect(writer.mock.calls.length).toBeGreaterThanOrEqual(OTHERS + 2);
-    expect(writer.mock.calls.length).toBeLessThanOrEqual(OTHERS + 2 + 2 * 3);
+    // Once per file, then the two files of the ring once more.
+    expect(writer.mock.calls.length).toBe(OTHERS + 2 + 2);
+    expect(
+      (
+        (await invoke(
+          "hint.list",
+          { kind: ["relation.outdated"] },
+          { workspace },
+        )) as CommandOutput<"hint.list">
+      ).hints,
+    ).toEqual([]);
   });
 });

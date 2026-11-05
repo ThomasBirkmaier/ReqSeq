@@ -17,7 +17,8 @@ import { changedFiles, currentVersions, elementStoreState, restrictTo } from "..
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 import type { VersionValue } from "../../version/version.js";
-import { computeVersion } from "../../version/version.js";
+import { NORMAL_FORM } from "../../version/version.js";
+import { versionIn } from "../../model/version-input.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
 
 // The real reader, except where a test makes git fail in a way a fixture cannot.
@@ -586,18 +587,21 @@ const versionOf =
     readonly properties: Readonly<Record<string, unknown>>;
   }): string => {
     const keys = new Set(findType(metamodel, type)?.properties ?? []);
-    return computeVersion({
-      text,
-      properties: properties as Readonly<Record<string, VersionValue>>,
-      definitions: metamodel.properties
-        .filter((p) => keys.has(p.key))
-        .map((p) => ({
-          key: p.key,
-          kind: p.kind,
-          ...(p.content === undefined ? {} : { content: p.content }),
-        })),
-      files: [],
-    });
+    return versionIn(
+      {
+        text,
+        properties: properties as Readonly<Record<string, VersionValue>>,
+        definitions: metamodel.properties
+          .filter((p) => keys.has(p.key))
+          .map((p) => ({
+            key: p.key,
+            kind: p.kind,
+            ...(p.content === undefined ? {} : { content: p.content }),
+          })),
+        files: [],
+      },
+      NORMAL_FORM,
+    );
   };
 
 /** The standard model as a workspace reads it. */

@@ -8,7 +8,7 @@ import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
 import { metamodelState } from "../../metamodel/index.js";
-import { currentVersions, currentVersionsState, elementStoreState } from "../../model/index.js";
+import { currentVersions, currentVersionsState, elementStoreState, NORMAL_FORM } from "../../model/index.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 
@@ -240,7 +240,7 @@ describe("trace.related (SR-023)", () => {
       all.elements.map((e) => {
         const record = versions.store.elements.find((r) => r.id === e.id);
         const entry = record === undefined ? undefined : versions.byRecord.get(record);
-        return entry?.kind === "version" ? entry.version : undefined;
+        return entry?.kind === "version" ? entry.forms[NORMAL_FORM] : undefined;
       }),
     );
     // Kept versions serve a small page too.

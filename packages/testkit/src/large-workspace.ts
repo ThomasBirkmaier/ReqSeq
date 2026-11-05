@@ -55,7 +55,7 @@ export interface VersionSubject {
   readonly properties: Readonly<Record<string, unknown>>;
 }
 
-/** The version (ADR-0005) of an element; core's tests pass `computeVersion` with the metamodel. */
+/** The version (ADR-0005) of an element; core's tests pass `versionIn(input, NORMAL_FORM)` with the metamodel. */
 export type VersionFunction = (element: VersionSubject) => string;
 
 export interface LargeWorkspaceOptions {

@@ -1,6 +1,6 @@
 # ADR-0005: Version (Fassung) as content hash
 
-Status: Accepted · Based on: D-013, D-027, D-036, D-042, D-057, D-060 · SRs: SR-021, SR-025, SR-031, SR-065, SR-091, SR-097 · Schema: `common.schema.json#/$defs/version`
+Status: Accepted; the tool writes normal form n2 since #166 · Based on: D-013, D-027, D-036, D-042, D-057, D-060 · SRs: SR-021, SR-025, SR-027, SR-031, SR-065, SR-091, SR-097 · Schema: `common.schema.json#/$defs/version`
 
 ## Context
 
@@ -75,10 +75,11 @@ Everything else (the sections, the canonical JSON, the embedded images and their
 
 - *Stored against current:* a stored version is compared with the current content in the stored version's own form (a stored n1 with n1 of the current content, an n2 with n2), so nothing becomes outdated silently (D-027). A form the tool does not know is not compared (follow-up of #166: report it instead of skipping it).
 - *Stored against stored* (an evidence record and a baseline entry, SR-094, SR-032 AK2): two versions of different forms are matched through the current element. When the baseline entry equals the current version in its form, the record is compared with the current version in the record's form; otherwise the record counts as another version. This is exact while the element is unchanged since the baseline. Its limit: a record in the other form than the baseline entry, of an element changed since the baseline, counts as another version although it may be of the baseline content. Storing both forms per baseline entry would make it exact; the format change is not worth it.
-- *Writes and shown versions:* once the tool switches to n2, every new stored version is n2 (relations, references, `hint confirm`, baselines, evidence records, JUnit enrichment, ReqIF), and every current version the tool shows is n2 (`element.get`, `element.resolve`, the hints' and the data export's `currentVersion`), as confirming writes it. A version date is computed in the form asked.
+- *Writes and shown versions:* since the switch (#166), every new stored version is n2 (relations, references, `hint confirm`, baselines, evidence records, JUnit enrichment, ReqIF), and every current version the tool shows is n2 (`element.get`, `element.resolve`, the hints' and the data export's `currentVersion`), as confirming writes it. A version date is computed in the form asked.
 - *Rings:* references that name each other settle after each outdated hint is confirmed once: confirming writes n2, and a changed `version=` value leaves the n2 of its source as it is. Links that still store n1 of a confirmed source become outdated once, as today any `version=` write does.
+- *Changed content* (`element.update` `affected`, SR-024 AK2): a save counts when its n1 or its n2 content changed, as links store either (assumption of #166). n2 leaves out only parts of n1, so it changes only with n1, and the n1 content is compared: a save that changes only a `version=` value counts, since a link that stores n1 becomes outdated by it.
 
-Until the switch (#166) every write stays n1; the PRs of #166 add the n2 computation, the comparisons in both forms and then the switch. The examples in ADR-0004 and ADR-0018 keep n1, which stays valid.
+Since #166 every write is n2 (`NORMAL_FORM`); a workspace written by an earlier version of the tool keeps its n1 versions until a person confirms them. Version 0.7 and earlier do not compare n2 versions (they skip a form they do not know), so the users of one workspace and its CI upgrade together. The examples in ADR-0004 and ADR-0018 keep n1, which stays valid.
 
 **Changing the normal form again** means a new prefix (`n3`), with the same rules: stored versions are compared in their own form, and every published form stays computable.
 

@@ -137,7 +137,8 @@ scenariosOf("reqif.import", [
       ]);
       for (const result of Object.values(results)) {
         // Versions are placeholders here (newElement); the rest of the file is as it was.
-        const placeholder = (text: unknown): string => String(text).replace(/n1:[0-9a-f]{16}/g, "<version>");
+        const placeholder = (text: unknown): string =>
+          String(text).replace(/n[12]:[0-9a-f]{16}/g, "<version>");
         expect(result.files["Kunde-A/SR-000000000004.md"]).toBe(
           placeholder(REPEATED.files?.["Kunde-A/SR-000000000004.md"]),
         );

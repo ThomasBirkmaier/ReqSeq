@@ -36,6 +36,7 @@ export type { JsonChunkOptions, JsonLinesSpec } from "./files/index.js";
 export { degreePercent, degreeShareOf, minimumHeadText, packageSummaryText } from "./evidence/degree-text.js";
 export type { SummaryDegree, SummaryLevel } from "./evidence/degree-text.js";
 export * from "./version/version.js";
+export { versionIn } from "./model/version-input.js";
 export { watchWorkspace } from "./model/watch.js";
 export { ACTIVITY_FILE, FOLLOWED_ACCESSES, watchActivity } from "./model/activity.js";
 export type { AccessName, ActivityWatch, ActivityWatchOptions } from "./model/activity.js";

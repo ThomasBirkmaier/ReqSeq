@@ -249,8 +249,8 @@ test.describe("baselines in the app", () => {
     expect(file).toMatch(/\ndate: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z\n/u);
     expect(file).toContain(`selection:\n  package: { id: ${ID}d1, title: Display }\n`);
     expect(file).toContain(`  - { name: system, commit: ${head} }\n`);
-    expect(file).toContain(`  - { id: ${ID}b1, version: n1:697a2ad17ed49170 }\n`);
-    expect(file).toContain(`  - { id: ${ID}b2, version: n1:077d46fbf1a6a93d }\n`);
+    expect(file).toContain(`  - { id: ${ID}b1, version: n2:c9c7346fbb131ec9 }\n`);
+    expect(file).toContain(`  - { id: ${ID}b2, version: n2:5fc184093a86c18e }\n`);
     // The CLI writes the same file for the same selection, apart from name and date (SR-080).
     const cli = await running.cli([
       "baseline",

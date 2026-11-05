@@ -18,6 +18,7 @@ import {
   elementStoreState,
   incomingFor,
   incomingState,
+  NORMAL_FORM,
   updateElements,
 } from "../model/index.js";
 import { invoke } from "../runtime/invoke.js";
@@ -344,7 +345,7 @@ const open = async (
     const store = await first.get(elementStoreState);
     for (const [element, entry] of await currentVersionsOf(first, store.elements)) {
       if (entry.kind === "version") {
-        versions.set(element.file, entry.version);
+        versions.set(element.file, entry.forms[NORMAL_FORM]);
       }
     }
   } finally {
@@ -1050,7 +1051,7 @@ describe("verificationState carried over changes across two repositories (#698, 
         const store = await first.get(elementStoreState);
         for (const [element, entry] of await currentVersionsOf(first, store.elements)) {
           if (entry.kind === "version") {
-            versions.set(element.id, entry.version);
+            versions.set(element.id, entry.forms[NORMAL_FORM]);
           }
         }
       } finally {
