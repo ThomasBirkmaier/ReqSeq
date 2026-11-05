@@ -3143,7 +3143,7 @@
                 "available"
               ]
             },
-            "description": "The `evidence` locations of the workspace file, in its order, as written (#625). Empty without the key."
+            "description": "The `evidence` locations of the workspace file, in its order, as written. Empty without the key."
           },
           "readOnly": {
             "type": "boolean"
@@ -3437,7 +3437,7 @@
             "items": {
               "$ref": "#/$defs/workspace/$defs/location"
             },
-            "description": "The metamodel files that were read, in the order they were merged, faulty ones included: the repository of the metamodel and the path relative to it (#625). Empty when the folder is missing or has no metamodel files."
+            "description": "The metamodel files that were read, in the order they were merged, faulty ones included: the repository of the metamodel and the path relative to it. Empty when the folder is missing or has no metamodel files."
           },
           "problems": {
             "type": "array",
