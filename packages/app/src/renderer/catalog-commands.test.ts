@@ -1441,10 +1441,33 @@ describe("write commands in the command prompt (SR-073 AK2, #85)", () => {
     (await last(again.asked)).items[0]?.run();
     (await last(again.asked)).empty?.(true);
     const more = await last(again.asked);
-    expect(more.items.map((i) => i.name)).toEqual(["Run", "target", "kind", "hintIds"]);
+    expect(more.items.map((i) => i.name)).toEqual(["Run", "target", "all", "kind", "expected", "hintIds"]);
     // Backspace on it asks the skipped one again.
     more.back?.();
     expect((await last(again.asked)).label).toBe("Confirm hints SR-1 · hintIds:");
+  });
+
+  it("confirms the hints of a kind in the whole workspace with all yes, not those of the shown element (#644)", async () => {
+    const { context, asked, call } = setup([shown], {
+      "hint.confirm": () => ({ confirmed: ["h1"], files: ["f1.md"], problems: [] }),
+      "hint.list": () => HINTS,
+    });
+    start(context, "hint.confirm");
+    (await last(asked)).items[0]?.run();
+    (await last(asked)).empty?.(true);
+    item((await last(asked)).items, "all").run();
+    item((await last(asked)).items, "yes").more?.();
+    item((await last(asked)).items, "kind").run();
+    (await last(asked)).more?.("relation.outdated");
+    item((await last(asked)).items, "expected").run();
+    (await last(asked)).more?.("3");
+    item((await last(asked)).items, "Run").run();
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("hint.confirm", {
+      all: true,
+      kind: ["relation.outdated"],
+      expected: 3,
+    });
   });
 
   it("leaves every field hintIds replaces out of the input, target and kind too (#291)", async () => {

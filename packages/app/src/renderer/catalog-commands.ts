@@ -598,9 +598,12 @@ const inputOf = (context: ActionContext, entry: Entry): Record<string, unknown> 
     }
   }
   // A field given a value takes the place of the fields it `replaces` (`hint.confirm`: the chosen `hintIds`,
-  // not every hint of `ref`, `target` and `kind`).
+  // not every hint of `ref`, `target` and `kind`; `all` yes, not the shown element as `ref`, #644). `no`
+  // takes no place: it chooses nothing.
   const replaced = new Set(
-    entry.command.arguments.flatMap((arg) => (input[arg.field] === undefined ? [] : (arg.replaces ?? []))),
+    entry.command.arguments.flatMap((arg) =>
+      input[arg.field] === undefined || input[arg.field] === false ? [] : (arg.replaces ?? []),
+    ),
   );
   return Object.fromEntries(Object.entries(input).filter(([field]) => !replaced.has(field)));
 };

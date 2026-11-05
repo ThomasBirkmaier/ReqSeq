@@ -550,6 +550,23 @@ describe("hint.confirm of one element (#310)", () => {
     expect(read(ws, A_FILE)).not.toContain(N_VERSION);
   });
 
+  it("counts a relation written twice as two hints for expected, as hint.list does (#644)", async () => {
+    const item = `  - { id: ${N}, version: ${N_VERSION}, title: See the wind }`;
+    const ws = await fixture({ files: { [A_FILE]: fromFixture(A_FILE).replace(item, `${item}\n${item}`) } });
+    await changeTargets(ws);
+    const workspace = open(ws.root);
+    const listed = (await invoke(
+      "hint.list",
+      { kind: ["relation.outdated"] },
+      { workspace },
+    )) as CommandOutput<"hint.list">;
+    expect(listed.total).toBe(4);
+    expect(
+      await confirmBy(workspace, { all: true, kind: ["relation.outdated"], expected: listed.total }),
+    ).toMatchObject({ files: [A_FILE], problems: [] });
+    expect(read(ws, A_FILE)).not.toContain(N_VERSION);
+  });
+
   it("[SR-027/AK2] lists a selected hint once when a given ID names it in another spelling", async () => {
     const ws = await fixture();
     await changeTargets(ws);
@@ -575,6 +592,77 @@ describe("hint.confirm of one element (#310)", () => {
     expect((await confirmBy(workspace, { target: N })).problems?.map((p) => p.message)).toEqual([
       `No open hint pointing at ${N} can be confirmed, so nothing was written for it (a warning, exit code 0); hint.list gives the open hints`,
     ]);
+  });
+
+  it("[SR-027/AK2] confirms every open hint of kind in the workspace with all, the hints hint.list gives for it (#644)", async () => {
+    const ws = await fixture();
+    await changeTargets(ws);
+    const workspace = open(ws.root);
+    const listed = (await outdated(workspace)).map((h) => h.hintId);
+    expect(listed).toHaveLength(3);
+    const out = await confirmBy(workspace, { all: true, kind: ["relation.outdated"], expected: 3 });
+    expect([...out.confirmed].sort()).toEqual([...listed].sort());
+    expect(out).toMatchObject({ files: [A_FILE], problems: [] });
+    // A changed, so B's relation to A is open now: a new hint nobody reviewed, not confirmed.
+    expect((await outdated(workspace)).map((h) => h.hintId)).toEqual([expect.stringContaining(AT_B)]);
+    // With hintIds: one set, each ID once.
+    expect(
+      await confirmBy(workspace, {
+        hintIds: [DERIVES],
+        all: true,
+        kind: ["variant.core-changed"],
+        expected: 1,
+      }),
+    ).toMatchObject({ confirmed: [], problems: [{ code: "hint.not-found" }, { code: "hint.not-found" }] });
+  });
+
+  it("refuses all when expected is not the number of hints it would confirm, and writes nothing (#644)", async () => {
+    const ws = await fixture();
+    await changeTargets(ws);
+    const workspace = open(ws.root);
+    const before = read(ws, A_FILE);
+    expect(await failure(workspace, { all: true, kind: ["relation.outdated"], expected: 2 })).toMatchObject({
+      code: "input.invalid",
+      details: { fields: ["expected"], expected: 2, count: 3, reason: "count-changed" },
+    });
+    expect(read(ws, A_FILE)).toBe(before);
+    expect(await failure(workspace, { ref: A, expected: 1 })).toMatchObject({ details: { count: 3 } });
+    expect(await confirmBy(workspace, { all: true, kind: [], expected: 0 })).toMatchObject({
+      confirmed: [],
+      files: [],
+      problems: [{ code: "hint.not-found", severity: "warning" }],
+    });
+    // A code that is no version hint: hint.list would count it, all never confirms it.
+    expect(
+      await failure(workspace, {
+        all: true,
+        kind: ["relation.outdated", "element.unknown-property"],
+        expected: 3,
+      }),
+    ).toMatchObject({ code: "input.invalid", details: { fields: ["kind"] } });
+  });
+
+  it("refuses all without kind or expected, and all with ref or target (#644)", async () => {
+    const workspace = open((await fixture()).root);
+    expect(await failure(workspace, { all: true, expected: 0 })).toMatchObject({
+      code: "input.invalid",
+      details: { fields: ["kind"] },
+    });
+    expect(await failure(workspace, { all: true, kind: ["relation.outdated"] })).toMatchObject({
+      details: { fields: ["expected"] },
+    });
+    expect(
+      await failure(workspace, { all: true, ref: A, kind: ["relation.outdated"], expected: 0 }),
+    ).toMatchObject({
+      details: { fields: ["all"] },
+    });
+    expect(
+      await failure(workspace, { all: true, target: N, kind: ["relation.outdated"], expected: 0 }),
+    ).toMatchObject({ details: { fields: ["all"] } });
+    // all: false is no selection, so kind has nothing to narrow.
+    expect(await failure(workspace, { all: false, kind: ["relation.outdated"], hintIds: [] })).toMatchObject({
+      details: { fields: ["kind"] },
+    });
   });
 
   it("refuses an input that selects no hint, and a ref that names no element", async () => {
