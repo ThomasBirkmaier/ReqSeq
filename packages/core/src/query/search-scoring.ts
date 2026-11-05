@@ -41,15 +41,20 @@ interface WordTree {
   fuzzyGet(term: string, maxEditDistance: number): Map<string, [TermData, number]>;
 }
 
+/** MiniSearch's words per field of each document (a `Map` by short ID). */
+type FieldLengths = ReadonlyMap<number, readonly number[]>;
+
 /** What scoring reads of a MiniSearch 7.2.0 object (protected members, see the file comment). */
 interface Internals {
   readonly _index: WordTree;
   readonly _documentCount: number;
   /** Document IDs by the short IDs MiniSearch numbers the documents with. */
   readonly _documentIds: ReadonlyMap<number, unknown>;
+  /** Short IDs by document ID. */
+  readonly _idToShortId: ReadonlyMap<unknown, number>;
   readonly _fieldIds: Readonly<Record<string, number>>;
   /** Words per field of each document, by short ID and field ID. */
-  readonly _fieldLength: ReadonlyMap<number, readonly number[]>;
+  readonly _fieldLength: FieldLengths;
   readonly _avgFieldLength: readonly number[];
   readonly _nextId: number;
   readonly _dirtCount: number;
@@ -162,6 +167,47 @@ export const lengthsOf = (mini: MiniSearch, generation: number): Lengths => {
   const built = { generation, fields, lengths, live };
   lengthsCache.set(mini, built);
   return built;
+};
+
+/**
+ * The `Lengths` of `mini` after its change `generation`, derived from those of `generation - 1`
+ * when they were built (#215): only the documents `removed` (their short IDs before the change)
+ * and `added` (after it) are looked at, the arrays are copied. Otherwise nothing is kept, and they
+ * are built in full at the end of the carry (`prepareSearchIndex`, `lengthsOf`). The lengths of a document that is not live are never read.
+ */
+export const carryLengths = (
+  mini: MiniSearch,
+  generation: number,
+  removed: readonly number[],
+  added: readonly number[],
+): void => {
+  const known = lengthsCache.get(mini);
+  if (known?.generation !== generation - 1) {
+    return;
+  }
+  const inner = internals(mini);
+  const { fields } = known;
+  const lengths = new Float64Array(inner._nextId * fields);
+  lengths.set(known.lengths);
+  const live = new Uint8Array(inner._nextId);
+  live.set(known.live);
+  // No search reads a removed document (MiniSearch's words no longer name it, and an index with
+  // discarded ones is left to MiniSearch, `scoreWords`); marked dead anyway, as a fresh build has it.
+  for (const doc of removed) {
+    live[doc] = 0;
+    lengths.fill(0, doc * fields, (doc + 1) * fields);
+  }
+  for (const doc of added) {
+    live[doc] = 1;
+    const of = inner._fieldLength.get(doc);
+    /* v8 ignore else -- every document MiniSearch holds has its lengths, an added one too. */
+    if (of !== undefined) {
+      for (const [field, length] of of.entries()) {
+        lengths[doc * fields + field] = length;
+      }
+    }
+  }
+  lengthsCache.set(mini, { generation, fields, lengths, live });
 };
 
 /** The documents a query found, with their scores, and what matched in one of them. */
@@ -346,3 +392,7 @@ export const documentKeys = (mini: MiniSearch): ReadonlyMap<number, unknown> => 
 
 /** The short ID MiniSearch gives the next document: every short ID is below it. */
 export const nextShortId = (mini: MiniSearch): number => internals(mini)._nextId;
+
+/** MiniSearch's short ID of the document `key`; undefined when `mini` holds none. */
+export const shortIdOfDocument = (mini: MiniSearch, key: string): number | undefined =>
+  internals(mini)._idToShortId.get(key);

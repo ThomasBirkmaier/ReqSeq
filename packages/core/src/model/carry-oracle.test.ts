@@ -633,7 +633,15 @@ const commandsData = async (workspace: Workspace, queries: readonly string[]): P
     hints: await run("hint.list"),
     status: await run("evidence.status"),
     search: queries.flatMap((query) =>
-      [{}, { within }, { combineWith: "or" as const }].map((options) =>
+      // Paged too: the first page orders ties by the carried places of the documents (`firstOf`).
+      [
+        {},
+        { within },
+        { combineWith: "or" as const },
+        { limit: 2 },
+        { offset: 1, limit: 3 },
+        { within, limit: 2 },
+      ].map((options) =>
         searchElements(index, query, options).hits.map((h) => [place(h.element), h.score, h.fields, h.terms]),
       ),
     ),
