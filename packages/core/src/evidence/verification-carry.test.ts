@@ -26,7 +26,7 @@ import type * as CurrentVersionsModule from "../model/current-versions.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import type { EvidenceIndex } from "./by-element.js";
 import { evidenceIndexState } from "./by-element.js";
-import { carriedEvaluator, validityScope, verificationEvaluator } from "./indirect.js";
+import { carriedEvaluator, evaluatorRecords, validityScope, verificationEvaluator } from "./indirect.js";
 import type { EvidenceRecord } from "./record.js";
 import { evidenceReadState, evidenceRecordsState, readEvidence, registerInsertion } from "./state.js";
 import { withRecord } from "./write-record.js";
@@ -668,7 +668,7 @@ describe("verificationState carried over a change of the store (#698, ADR-0008)"
     const { store } = await stateOf(opened.workspace);
     const before = await table(old, store);
     const { versions, walked } = old.caches;
-    const sizes = [versions.size, walked.size];
+    const sizes = [[...versions.entries()].length, [...walked.entries()].length];
     await edit(opened, opened.generated.deep, (s) => {
       s.changed = true;
       s.validity = [];
@@ -676,14 +676,14 @@ describe("verificationState carried over a change of the store (#698, ADR-0008)"
     const carried = await opened.workspace.get(verificationState);
     expect(carried).not.toBe(old);
     await expectFresh(opened);
-    // The old caches are the same objects with the same entries; the new ones are copies.
+    // The old caches are the same objects with the same entries; the new ones are forks (#215).
     expect(old.caches.versions).toBe(versions);
     expect(old.caches.walked).toBe(walked);
-    expect([versions.size, walked.size]).toEqual(sizes);
+    expect([[...versions.entries()].length, [...walked.entries()].length]).toEqual(sizes);
     expect(carried.caches.versions).not.toBe(versions);
     expect(carried.caches.walked).not.toBe(walked);
     expect(await table(old, store)).toEqual(before);
-    expect([versions.size, walked.size]).toEqual(sizes);
+    expect([[...versions.entries()].length, [...walked.entries()].length]).toEqual(sizes);
     expect(old.inputs.store).toBe(store);
   });
 
@@ -698,8 +698,15 @@ describe("verificationState carried over a change of the store (#698, ADR-0008)"
       await edit(opened, file, (s) => (s.changed = !s.changed));
       const carried = await built(opened);
       const records = new Set(carried.inputs.store.elements);
-      expect([...carried.caches.versions.keys()].every((record) => records.has(record))).toBe(true);
+      // What a fork shows; the records it dropped stay in its base until it compacts (`LayeredMap`).
+      expect([...carried.caches.versions.entries()].every(([record]) => records.has(record))).toBe(true);
       expect([...carried.caches.volatile].every((record) => records.has(record))).toBe(true);
+      // The memos of the evaluator by record too (review B1): candidates, their children, seeds.
+      const held = evaluatorRecords(carried.evaluate);
+      expect(held.length).toBeGreaterThan(0);
+      expect(held.filter((record) => !records.has(record))).toEqual([]);
+      // An evaluator the module did not make holds none.
+      expect(evaluatorRecords(() => undefined)).toEqual([]);
       expect(carried.inputs.store).toBe(await opened.workspace.get(elementStoreState));
     }
   });
@@ -802,7 +809,7 @@ describe("verificationState carried over a change of the store (#698, ADR-0008)"
     // Carried once, so the state's versions and walks are partly filled: the deep one is read again.
     await edit(opened, opened.generated.requirements[3] ?? "", (s) => (s.changed = true));
     const old = await opened.workspace.get(verificationState);
-    expect(old.caches.versions.size).toBeGreaterThan(0);
+    expect([...old.caches.versions.entries()].length).toBeGreaterThan(0);
     const { store } = await stateOf(opened.workspace);
     let release: () => void = () => undefined;
     gate.hold = new Promise<void>((resolve) => {
@@ -1140,6 +1147,7 @@ describe("carriedEvaluator (#698)", () => {
       undefined,
       () => undefined,
       new Set(),
+      [],
       scope,
     );
     for (const element of store.elements) {

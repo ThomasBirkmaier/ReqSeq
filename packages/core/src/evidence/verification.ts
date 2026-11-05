@@ -37,6 +37,7 @@ import type {
 } from "../model/index.js";
 import {
   CARRY_LIMIT,
+  LayeredMap,
   carryStoreUpdate,
   currentVersionsOf,
   elementStoreState,
@@ -166,8 +167,8 @@ export const workspaceStatusOf = (
 
 /** The caches of a status that has read and walked nothing yet. */
 const freshCaches = (): StatusCaches => ({
-  versions: new Map(),
-  walked: new Set(),
+  versions: new LayeredMap(),
+  walked: new LayeredMap(),
   volatile: new Set(),
   batches: 0,
 });
@@ -183,10 +184,13 @@ const freshEvaluator =
 
 /** What a status has read and walked (`workspaceStatusOf`), to start a status carried over a store change. */
 interface StatusCaches {
-  /** The current versions read, by record (none for a record whose read gave none). */
-  readonly versions: Map<ElementRecord, string | undefined>;
+  /**
+   * The current versions read, by record (none for a record whose read gave none); forked over a
+   * store change (`LayeredMap`, #215).
+   */
+  readonly versions: LayeredMap<ElementRecord, string | undefined>;
   /** Elements whose children were walked by an earlier `prepare`, by repository and UUID (`nodeKey`). */
-  readonly walked: Set<string>;
+  readonly walked: LayeredMap<string, true>;
   /**
    * The records read whose version may change while their file does not: one that embeds images
    * (the watcher does not report images, ADR-0008) or one whose read gave no version.
@@ -286,7 +290,7 @@ const statusWith = (
     }
     // Only once the versions are in: a failed read walks again next time.
     for (const key of done) {
-      walked.add(key);
+      walked.set(key, true);
     }
   };
 
@@ -475,19 +479,17 @@ const keptOver = (old: StateStatus, reach: Reach, next: Next, read: VersionReade
       affected,
     );
   }
-  const dropped = new Set(next.versionsOfChanged ? volatile : before);
-  const keptVersions = new Map<ElementRecord, string | undefined>();
-  for (const [record, version] of versions) {
-    if (!dropped.has(record)) {
-      keptVersions.set(record, version);
-    }
-  }
-  const keptWalked = new Set<string>();
-  for (const key of walked) {
-    if (!affected.has(key)) {
-      keptWalked.add(key);
-    }
-  }
+  // Forks, not copies (#215): what `old` read and walked stays shared, and `old` goes on with its own.
+  const keptVersions = versions.fork(next.versionsOfChanged ? volatile : before);
+  const keptWalked = walked.fork(affected);
+  // The records of both stores that `affected` names, for the memos by record: the old ones go,
+  // so a memo keeps no record of an earlier store (review B1), the new ones are computed again.
+  const records = [...affected].flatMap((key) => {
+    const id = key.slice(key.indexOf("\0") + 1);
+    const of = (store: ElementStore): ElementRecord[] =>
+      (store.byId.get(id) ?? []).filter((record) => nodeKey(record) === key);
+    return reach.to === reach.from ? of(reach.to) : [...of(reach.from), ...of(reach.to)];
+  });
   const evaluate = old.evaluate;
   const { source, children } = next;
   const scope = ruleScope(next.inputs.rules);
@@ -498,7 +500,7 @@ const keptOver = (old: StateStatus, reach: Reach, next: Next, read: VersionReade
     read,
     scope,
     { versions: keptVersions, walked: keptWalked, volatile: new Set(), batches: old.caches.batches },
-    (currentOf) => carriedEvaluator(evaluate, source, children, currentOf, affected, scope),
+    (currentOf) => carriedEvaluator(evaluate, source, children, currentOf, affected, records, scope),
   );
   return { ...status, inputs: next.inputs };
 };
