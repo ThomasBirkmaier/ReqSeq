@@ -366,22 +366,23 @@ const listedElementDetails = (element: Rec): string[] => {
 };
 
 /**
- * A hint of a list: the element's short ID with its identifier (else its file), the kind, the
- * message, the target's short ID with its identifier (#172) and the hint ID.
+ * A hint of a list: who, in the form of a problem line (`element → target`, #252; the element by
+ * short ID with identifier, else its file, the target the same way when core names it, #172), the
+ * kind, the message and the hint ID.
  */
 const findingLine = (finding: Rec): string => {
-  const shortId = text(finding["elementShortId"]);
-  const element = shortId === "" ? "" : withIdentifier(shortId, finding["elementIdentifier"]);
-  const hintId = text(finding["hintId"]);
-  // The target by its short ID and identifier, when core named it (#172).
+  // By short ID with identifier, as the other list lines of the CLI name elements: an identifier is
+  // unique per type only, so alone it could name the wrong element (`--ref`).
+  const elementShortId = text(finding["elementShortId"]);
+  const element =
+    elementShortId === ""
+      ? text(finding["file"])
+      : withIdentifier(elementShortId, finding["elementIdentifier"]);
   const targetShortId = text(finding["targetShortId"]);
-  return join(
-    element === "" ? text(finding["file"]) : element,
-    text(finding["code"]),
-    text(finding["message"]),
-    targetShortId === "" ? "" : `target: ${withIdentifier(targetShortId, finding["targetIdentifier"])}`,
-    hintId === "" ? "" : `hint: ${hintId}`,
-  );
+  const target = targetShortId === "" ? "" : withIdentifier(targetShortId, finding["targetIdentifier"]);
+  const who = target === "" ? element : element === "" ? `→ ${target}` : `${element} → ${target}`;
+  const hintId = text(finding["hintId"]);
+  return join(who, text(finding["code"]), text(finding["message"]), hintId === "" ? "" : `hint: ${hintId}`);
 };
 
 /**

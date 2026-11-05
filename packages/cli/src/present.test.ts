@@ -299,7 +299,7 @@ describe("renderHuman: values", () => {
     );
   });
 
-  it("renders hints one line each: element short ID or file, kind, message, hint ID", () => {
+  it("renders hints one line each: element → target or file, kind, message, hint ID (#252)", () => {
     expect(
       renderHuman({
         hints: [
@@ -323,6 +323,20 @@ describe("renderHuman: values", () => {
             targetShortId: "D-fd8f46",
             targetIdentifier: "D-011",
           },
+          // A hint whose element is not in the store names its file, else only its target (#252).
+          {
+            code: "evidence.kind-mismatch",
+            severity: "warning",
+            message: "Wrong kind",
+            file: "d.md",
+            targetShortId: "SR-2",
+          },
+          {
+            code: "evidence.kind-mismatch",
+            severity: "warning",
+            message: "Wrong kind",
+            targetShortId: "SR-2",
+          },
         ],
         incomplete: false,
       }),
@@ -331,7 +345,9 @@ describe("renderHuman: values", () => {
         "hints:",
         "  SR-1  relation.outdated  Points to an older version  hint: relation.outdated/x",
         "  b.md  element.unknown-property  Unknown",
-        "  D-589cf2 (D-017)  relation.target-superseded  Points to a superseded decision  target: D-fd8f46 (D-011)",
+        "  D-589cf2 (D-017) → D-fd8f46 (D-011)  relation.target-superseded  Points to a superseded decision",
+        "  d.md → SR-2  evidence.kind-mismatch  Wrong kind",
+        "  → SR-2  evidence.kind-mismatch  Wrong kind",
       ),
     );
   });
