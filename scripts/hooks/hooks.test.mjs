@@ -16,11 +16,15 @@ describe("guard-gh hook", () => {
   it("blocks gh issue and gh pr in a cloud session", () => {
     expect(bash("gh issue view 12").code).toBe(2);
     expect(bash("cd x && gh pr list").message).toMatch(/gh api/);
+    expect(bash("echo $(gh issue list)").code).toBe(2);
   });
 
   it("allows gh api, other commands and every command on a local machine", () => {
     expect(bash("gh api repos/ThomasBirkmaier/ReqSeq/issues/12")).toEqual({ code: 0 });
     expect(bash("echo nogh issue")).toEqual({ code: 0 });
+    expect(bash('git commit -m "so gh pr fails" && gh api x -f body="see gh issue view"')).toEqual({
+      code: 0,
+    });
     expect(bash("gh pr list", {})).toEqual({ code: 0 });
     expect(guardGh({ tool_input: {} }, remote)).toEqual({ code: 0 });
   });
@@ -31,7 +35,13 @@ describe("format-file hook", () => {
     expect(prettierArgs({ cwd: root, tool_input: { file_path: "package.json" } })).toContain(
       path.join(root, "package.json"),
     );
-    expect(prettierArgs({ tool_input: { file_path: path.join(os.tmpdir(), "x.ts") } })).toBeUndefined();
+    const outside = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "format-")), "x.ts");
+    fs.writeFileSync(outside, "");
+    try {
+      expect(prettierArgs({ tool_input: { file_path: outside } })).toBeUndefined();
+    } finally {
+      fs.rmSync(path.dirname(outside), { recursive: true, force: true });
+    }
     expect(prettierArgs({ cwd: root, tool_input: { file_path: "does-not-exist.ts" } })).toBeUndefined();
     expect(prettierArgs({ tool_input: {} })).toBeUndefined();
   });

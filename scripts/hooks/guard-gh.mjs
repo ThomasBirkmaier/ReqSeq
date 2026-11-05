@@ -4,7 +4,8 @@
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 
-const GH_GRAPHQL = /(?:^|[\s;&|(`])gh\s+(?:issue|pr)\b/;
+// Only at a command position, so `gh pr` inside a commit message or a quoted body does not count.
+const GH_GRAPHQL = /(?:^|[;&|\n]|\$\()\s*gh\s+(?:issue|pr)\b/;
 
 /** Exit code and message for one hook input: 2 blocks the tool call, only in a cloud session. */
 export function check(input, env = process.env) {

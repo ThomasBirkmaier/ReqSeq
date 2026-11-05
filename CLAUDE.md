@@ -38,7 +38,7 @@ Strict typecheck, lint with zero warnings, format, and unit test coverage of 100
 ## Traps
 
 - GitHub has no GraphQL from cloud sessions, so `gh issue ...` and `gh pr ...` fail with 403, and a hook stops them there. Use the GitHub MCP tools or `gh api repos/ThomasBirkmaier/ReqSeq/...` (REST). Sub-issues: `POST /repos/{owner}/{repo}/issues/{n}/sub_issues`.
-- Hooks in `.claude/settings.json` (`scripts/hooks/`) block hand edits of tool-written files and run Prettier on each edited file. `.mcp.json` starts the ReqSeq MCP from `packages/cli/dist` (needs `pnpm build`) and context7 for library docs.
+- Hooks in `.claude/settings.json` (`scripts/hooks/`) block hand edits of tool-written files and run Prettier on each edited file. `.mcp.json` starts the ReqSeq MCP from `packages/cli/dist` of the checkout the session starts in (needs `pnpm build` there) and context7 for library docs.
 - Do not read `schemas/generated/` or `packages/core/src/generated/` unless you debug the generator. Regenerate them with `pnpm contracts:generate`. Merge `main` into a branch with `pnpm merge:main` (`merge.md`).
 - In `packages/core` and `packages/app`, read the README and only the parts under their `docs/` you work on; ADR-0008 and ADR-0010 are split the same way under `docs/adr/0008/` and `docs/adr/0010/`.
 - The GitHub project "ReqSeq" is filled from the labels by `project-sync`. Change labels, never project fields.
