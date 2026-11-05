@@ -82,7 +82,7 @@ export interface ElementStore {
    */
   readonly repositories?: readonly RepositoryContents[];
   /**
-   * What the files were read with to give each element its version as read (`loadedVersionsOf`,
+   * What the files were read with to give each element its version as read (`loadedVersionOf`,
    * #439); the store's later reads (watcher batches, writes) use it too. Undefined: none were computed.
    */
   readonly versioning?: Versioning;
@@ -1096,28 +1096,4 @@ export const contributionIn = (
 export const loadedVersionOf = (store: ElementStore, record: ElementRecord): LoadedVersion | undefined => {
   const result = contributionIn(store, record.repository, record.file);
   return result?.kind === "element" && result.element === record ? result.version : undefined;
-};
-
-/** The versions as read of each store (`loadedVersionsOf`), built on first use. */
-const loadedByStore = new WeakMap<ElementStore, ReadonlyMap<ElementRecord, LoadedVersion>>();
-
-/**
- * The version of each element of `store` as its file was read (#439, `loaded-version.ts`), by
- * record: only those that have one. Empty for a store without `repositories`.
- */
-export const loadedVersionsOf = (store: ElementStore): ReadonlyMap<ElementRecord, LoadedVersion> => {
-  let loaded = loadedByStore.get(store);
-  if (loaded === undefined) {
-    const byRecord = new Map<ElementRecord, LoadedVersion>();
-    for (const { files } of store.repositories ?? []) {
-      for (const result of files.values()) {
-        if (result.kind === "element" && result.version !== undefined) {
-          byRecord.set(result.element, result.version);
-        }
-      }
-    }
-    loaded = byRecord;
-    loadedByStore.set(store, loaded);
-  }
-  return loaded;
 };

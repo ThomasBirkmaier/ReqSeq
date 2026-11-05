@@ -17,7 +17,7 @@ import { Workspace } from "../runtime/workspace.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import { availableRepositories, workspaceLayoutState } from "../workspace/index.js";
 import type { CurrentVersions } from "./current-versions.js";
-import { currentVersions } from "./current-versions.js";
+import { currentVersions, currentVersionsState } from "./current-versions.js";
 import type { ElementRecord } from "./elements.js";
 import type { IncomingIndex } from "./incoming.js";
 import type * as PatchLimits from "./patch-limits.js";
@@ -57,11 +57,12 @@ const POSIX = process.platform !== "win32";
 
 const MODEL = `reqseq-metamodel: 1
 types:
-  - { key: need, name: Need, prefix: N, meaning: need, properties: [title, spec-id], required: [title] }
-  - { key: system-requirement, name: System Requirement, prefix: SR, meaning: requirement, properties: [title, spec-id], required: [title] }
+  - { key: need, name: Need, prefix: N, meaning: need, properties: [title, spec-id, weight], required: [title] }
+  - { key: system-requirement, name: System Requirement, prefix: SR, meaning: requirement, properties: [title, spec-id, weight], required: [title] }
 properties:
   - { key: title, name: Title, kind: text, meaning: title }
   - { key: spec-id, name: Spec ID, kind: text, meaning: identifier }
+  - { key: weight, name: Weight, kind: number, content: true }
 relations:
   - { key: derives-from, name: Derives from, inverse-name: Derived by, meaning: derivation }
 statuses:
@@ -360,6 +361,23 @@ const OPS: readonly Op[] = [
     return `YAML warning in ${t.repository}/${t.file}`;
   },
   async (o, { target: t, name }) => {
+    // A counted number without a normal form: the element has no current version (`not-computable`).
+    await o.write(t.repository, t.file, o.element(t.id, "weight: .inf\n"));
+    name(t.repository, t.file);
+    return `no version in ${t.repository}/${t.file}`;
+  },
+  async (o, { target: t, name }) => {
+    // An embedded image, there or not. A new name each time: the watcher does not name images, so
+    // an image another element embeds would be checked only on use (`checkImages`), not carried.
+    const picture = `pic${String(o.count())}.png`;
+    if (o.int(2) === 0) {
+      await o.write(t.repository, path.posix.join(path.posix.dirname(t.file), picture), "PNG");
+    }
+    await o.write(t.repository, t.file, `${o.element(t.id)}\n![a picture](${picture})\n`);
+    name(t.repository, t.file);
+    return `image in ${t.repository}/${t.file}`;
+  },
+  async (o, { target: t, name }) => {
     // A Markdown file the walk does not read (`.MD`), and one with a decomposed (NFD) name.
     const upper = o.newFile(`UPPER${String(o.count())}.MD`);
     const nfd = o.newFile(`U\u0308ber${String(o.count())}.md`);
@@ -577,12 +595,31 @@ interface States {
   readonly shortIds: ShortIds;
   readonly index: IncomingIndex;
   readonly versions: CurrentVersions;
+  /**
+   * The current versions as the carry left them, before `currentVersions` checks the images (which
+   * may build them again); those of `versions` when none were kept.
+   */
+  readonly carried: CurrentVersions;
 }
 
-const statesOf = async (workspace: Workspace, store: ElementStore): Promise<States> => ({
-  shortIds: await workspace.get(shortIdState),
-  index: incomingFor(workspace, store, await workspace.get(metamodelState)),
-  versions: await currentVersions(workspace),
+const statesOf = async (workspace: Workspace, store: ElementStore): Promise<States> => {
+  const carried = await workspace.peek(currentVersionsState);
+  const versions = await currentVersions(workspace);
+  return {
+    shortIds: await workspace.get(shortIdState),
+    index: incomingFor(workspace, store, await workspace.get(metamodelState)),
+    versions,
+    carried: carried ?? versions,
+  };
+};
+
+/** The entries of `versions` by the records of `store`, and how many there are (a carry that keeps the entry of a gone record has more). */
+const versionsData = (store: ElementStore, versions: CurrentVersions): unknown => ({
+  count: versions.byRecord.size,
+  entries: store.elements.map((e) => {
+    const entry = versions.byRecord.get(e);
+    return [place(e), entry === undefined ? undefined : { ...entry, element: undefined }];
+  }),
 });
 
 /** Identifiers the steps write (`spec-id`), in another case too. */
@@ -594,7 +631,7 @@ const IDENTIFIERS = [...Array.from({ length: 10 }, (_, n) => `REQ-${String(n)}`)
  */
 const statesData = (
   store: ElementStore,
-  { shortIds, index, versions }: States,
+  { shortIds, index, versions, carried }: States,
   uuids: readonly string[] = [],
 ): unknown => {
   const byId = <T>(map: ReadonlyMap<string, readonly T[]>, of: (link: T) => unknown): unknown =>
@@ -608,12 +645,8 @@ const statesData = (
     identifiers: IDENTIFIERS.map((value) => shortIds.withIdentifier(value).map(place)),
     relations: byId(index.relationsById, (l) => [place(l.source), l.key, l.index, l.repository]),
     references: byId(index.referencesById, (l) => [place(l.source), l.reference.line]),
-    // A carry that keeps the entry of a record gone from the store gives more entries.
-    versionsCount: versions.byRecord.size,
-    versions: store.elements.map((e) => {
-      const entry = versions.byRecord.get(e);
-      return [place(e), entry === undefined ? undefined : { ...entry, element: undefined }];
-    }),
+    versions: versionsData(store, versions),
+    carried: versionsData(store, carried),
   };
 };
 

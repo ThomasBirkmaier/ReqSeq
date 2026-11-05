@@ -24,12 +24,12 @@ import {
   versioningOf,
 } from "./loaded-version.js";
 import { MODEL_CACHE_FILE, RACY_MS, loadThroughCache } from "./model-cache.js";
+import { loadedVersionsOf } from "./loaded-versions.test-helper.js";
 import type { ElementStore } from "./store.js";
 import {
   elementStoreState,
   loadElements,
   loadedVersionOf,
-  loadedVersionsOf,
   updateElements,
   withWrittenFiles,
   workspaceVersioning,
@@ -108,8 +108,6 @@ describe("versions as read (#439)", () => {
     expect(files).toEqual(
       expect.arrayContaining(["loaded/N-2.md", "loaded/N-3.md", "loaded/N-6.md", "loaded/X-7.md"]),
     );
-    // The same map on every call for one store.
-    expect(loadedVersionsOf(store)).toBe(loadedVersionsOf(store));
   });
 
   it("gives the same versions in the read workers as in this thread", async () => {
@@ -143,11 +141,8 @@ describe("versions as read (#439)", () => {
     const { repositories: _repositories, ...plain } = store;
     expect(loadedVersionsOf(plain).size).toBe(0);
     expect(plain.elements.filter((record) => loadedVersionOf(plain, record) !== undefined)).toEqual([]);
-    // The lookup of one record (#215) gives what the map of the store gives, only for its own records.
+    // The lookup of one record (#215) gives a version only for the store's own record.
     const loaded = loadedVersionsOf(store);
-    expect(store.elements.map((record) => loadedVersionOf(store, record))).toEqual(
-      store.elements.map((record) => loaded.get(record)),
-    );
     const record = store.elements.find((r) => loaded.has(r));
     expect(record).toBeDefined();
     expect(record === undefined ? undefined : loadedVersionOf(store, { ...record })).toBeUndefined();

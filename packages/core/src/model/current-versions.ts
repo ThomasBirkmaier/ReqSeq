@@ -15,7 +15,7 @@
 //   carried: the records it changed get their version again, every other entry is kept; from the
 //   files of the `StoreUpdate` alone, as a patch of the entries before (#215, O(changed)). A change of
 //   the metamodel (which properties count) or of the layout (the `ignore` globs) resets it.
-// - The version the store computed while reading a file (`loadedVersionsOf`, #439) is taken
+// - The version the store computed while reading a file (`loadedVersionOf`, #439) is taken
 //   without reading the file again when its type counts the same properties now (the fingerprint of
 //   `typeVersioningOf`) and an `lstat` of the file still gives the size and time of the store's
 //   snapshot; otherwise the file is read as above. So a version is that of the bytes the store read,
@@ -53,8 +53,7 @@ import { imageLinks, imageMemo, imagesUnchanged, lookUpImages, mapBounded } from
 import type { LoadedVersion, Versioning } from "./loaded-version.js";
 import { typeVersioningOf, versioningOf } from "./loaded-version.js";
 import { saveVersionsAgain } from "./model-cache.js";
-import type { ElementStore } from "./store.js";
-import type { StoreUpdate } from "./store.js";
+import type { ElementStore, StoreUpdate } from "./store.js";
 import { carryStoreUpdate, contributionIn, elementStoreState, ignoredBy, loadedVersionOf } from "./store.js";
 import { PatchedMap } from "./patched-map.js";
 import { NORMAL_FORM } from "../version/version.js";
