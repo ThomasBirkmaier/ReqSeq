@@ -76,7 +76,8 @@ import { findingLocator } from "../model/locate.js";
 import type { StoreUpdate } from "../model/store.js";
 import { carryStoreUpdate } from "../model/store.js";
 import type { UndatedCause, VersionDateRequest } from "../model/version-date.js";
-import { prepareVersionDates, undatedCause, versionDates } from "../model/version-date.js";
+import type { VersionStart } from "../model/version-date.js";
+import { prepareVersionDates, undatedCause, versionStarts } from "../model/version-date.js";
 import type { Workspace } from "../runtime/workspace.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
@@ -604,16 +605,23 @@ const CAUSES: Readonly<Record<UndatedCause, string>> = {
   unknown: "not committed, or Git cannot tell",
 };
 
+/** Characters of a commit's object name a message shows (#252): enough in any repository, SHA-1 or SHA-256. */
+const SHORT_COMMIT = 12;
+
+/** A start as a message shows it: its date, then its commit abbreviated; `no date` without one. */
+const startText = (start: VersionStart | null): string =>
+  start === null ? "no date" : `${start.date} (${start.commit.slice(0, SHORT_COMMIT)})`;
+
 /**
- * The dates of the stored and the current version as a message shows them (D-013): each date, and
- * `why` there is none, said once; `why` is empty when both have one.
+ * The starts of the stored and the current version as a message shows them (D-013, #252): each
+ * date with its commit, and `why` there is none, said once; `why` is empty when both have one.
  */
-const datesText = (stored: string | null, current: string | null, why: string): string => {
+const datesText = (stored: VersionStart | null, current: VersionStart | null, why: string): string => {
   if (stored === null && current === null) {
     return `: neither version has a date (${why})`;
   }
   const missing = why === "" ? "" : ` (${why})`;
-  return `: stored version from ${stored ?? "no date"}, current version from ${current ?? "no date"}${missing}`;
+  return `: stored version from ${startText(stored)}, current version from ${startText(current)}${missing}`;
 };
 
 /**
@@ -650,7 +658,7 @@ export const datedProblems = async (
   }));
   const asked = [...requests.values()];
   await prepareVersionDates(context, asked);
-  const answers = await versionDates(context, asked);
+  const answers = await versionStarts(context, asked);
   const dates = new Map([...requests.keys()].map((key, i) => [key, answers[i] ?? null]));
   // The cause of a missing date, asked once per repository that has one.
   const causes = new Map<string, Promise<UndatedCause>>();
@@ -664,14 +672,17 @@ export const datedProblems = async (
   };
   return Promise.all(
     pending.map(async ({ problem, target, stored, current }) => {
-      const storedDate = dates.get(stored) ?? null;
-      const currentDate = dates.get(current) ?? null;
-      const why = storedDate === null || currentDate === null ? CAUSES[await causeOf(target.repository)] : "";
+      const storedStart = dates.get(stored) ?? null;
+      const currentStart = dates.get(current) ?? null;
+      const why =
+        storedStart === null || currentStart === null ? CAUSES[await causeOf(target.repository)] : "";
       return {
         ...problem,
-        message: `${problem.message}${datesText(storedDate, currentDate, why)}`,
-        storedDate,
-        currentDate,
+        message: `${problem.message}${datesText(storedStart, currentStart, why)}`,
+        storedDate: storedStart?.date ?? null,
+        currentDate: currentStart?.date ?? null,
+        storedCommit: storedStart?.commit ?? null,
+        currentCommit: currentStart?.commit ?? null,
       };
     }),
   );

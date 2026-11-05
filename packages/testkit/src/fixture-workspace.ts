@@ -94,6 +94,8 @@ export interface HistoryCommitSpec {
   /** Files removed. */
   readonly deleted?: readonly string[];
   readonly message?: string;
+  /** Gives it the date of the commit made before it, as a rebase within one second does (#252). */
+  readonly sameSecond?: boolean;
 }
 
 export interface MadeCommit {
@@ -243,7 +245,9 @@ export async function createFixtureWorkspace(options: FixtureOptions = {}): Prom
           return mark === undefined ? parent : `:${String(mark)}`;
         };
         marks.set(commit.name, i + 1);
-        commitCount++;
+        if (commit.sameSecond !== true) {
+          commitCount++;
+        }
         const seconds = (BASE_DATE + commitCount * 1000) / 1000;
         made.push({ name: commit.name, mark: i + 1, date: new Date(seconds * 1000) });
         const [first, ...merged] = parents;

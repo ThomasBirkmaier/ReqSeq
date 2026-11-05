@@ -21,7 +21,7 @@ import { workspaceLayoutState } from "../workspace/index.js";
 import type * as Images from "./images.js";
 import { inNestedRepository } from "./images.js";
 import type { VersionDateContext, VersionDateRequest } from "./version-date.js";
-import { prepareVersionDates, undatedCause, versionDates } from "./version-date.js";
+import { prepareVersionDates, undatedCause, versionDates, versionStarts } from "./version-date.js";
 import { elementVersion } from "./view.js";
 
 // The real reader and nested check, wrapped so that tests count git calls and make one fail.
@@ -200,6 +200,36 @@ describe("version date", () => {
         { version: await versionOf(repo.workspace, element("Two.")) },
       ]),
     ).toEqual([at(repo, "back"), at(repo, "two")]);
+  });
+
+  it("gives the start with the greatest object name among commits of one second, whatever else the call walks (#252, D-029)", async () => {
+    // A rebase within one second: the version comes back in the same second it was first made.
+    const repo = await repository([
+      { name: "one", files: { [FILE]: element("One.") } },
+      { name: "two", files: { [FILE]: element("Two.") }, sameSecond: true },
+      {
+        name: "back",
+        files: { [FILE]: element("One."), [FILE2]: element("Second.", "", OTHER) },
+        sameSecond: true,
+      },
+    ]);
+    const one = await versionOf(repo.workspace, element("One."));
+    const second = { file: FILE2, id: OTHER, version: await versionOf(repo.workspace, element("Second.")) };
+    const newest = [String(repo.made["one"]?.id), String(repo.made["back"]?.id)].sort()[1];
+    const starts = async (workspace: Workspace, requests: readonly Partial<VersionDateRequest>[]) =>
+      versionStarts(
+        await context(workspace),
+        requests.map((r) => ({ repository: "system", file: FILE, id: ID, version: "", ...r })),
+      );
+    expect(await starts(repo.workspace, [{ version: one }])).toEqual([
+      { date: at(repo, "one"), commit: newest },
+    ]);
+    const other = new Workspace(repo.fixture.root);
+    onTestFinished(() => other.close());
+    expect(await starts(other, [second, { version: one }])).toEqual([
+      { date: at(repo, "back"), commit: String(repo.made["back"]?.id) },
+      { date: at(repo, "one"), commit: newest },
+    ]);
   });
 
   it("keeps the date over commits that changed only the status or the title", async () => {

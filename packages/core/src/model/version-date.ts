@@ -61,6 +61,14 @@ export interface VersionDateRequest {
   readonly text?: string;
 }
 
+/** The commit that started a version (ADR-0005 "Version date"): its committer date and its object name. */
+export interface VersionStart {
+  /** Committer date in UTC, `YYYY-MM-DDTHH:MM:SSZ`. */
+  readonly date: string;
+  /** The full object name of the commit. */
+  readonly commit: string;
+}
+
 /** The workspace states a lookup works on. */
 export interface VersionDateContext {
   readonly workspace: Workspace;
@@ -97,7 +105,7 @@ interface FileWalk {
   /** The version at each evaluated commit computed so far; undefined where it held no element or has none. */
   readonly versions: Map<string, string | undefined>;
   /** The answers so far, by version; null where no commit started it. */
-  readonly dates: Map<string, string | null>;
+  readonly dates: Map<string, VersionStart | null>;
   /** Set when Git failed for a reason that does not pass: no more answers at this HEAD. */
   failed: boolean;
 }
@@ -278,7 +286,11 @@ const evaluatedList = (
       source.set(commit.commit, first);
     }
   }
-  return list.sort((a, b) => Number(a.commit.date < b.commit.date) - Number(a.commit.date > b.commit.date));
+  // Commits of one second are ordered by their ID, so the start found never depends on the order
+  // git listed them in, which follows the other paths of a call (D-029).
+  const before = (a: HistoryCommit, b: HistoryCommit): boolean =>
+    a.date === b.date ? a.commit < b.commit : a.date < b.date;
+  return list.sort((a, b) => Number(before(a.commit, b.commit)) - Number(before(b.commit, a.commit)));
 };
 
 /**
@@ -398,7 +410,7 @@ const readHistory = async (
 };
 
 /**
- * The answer for `version` from the versions computed so far: the date of the newest evaluated
+ * The answer for `version` from the versions computed so far: the start of the newest evaluated
  * commit that has it while none of its parents has, null when no commit has it; or, while that is
  * not certain, the commits whose versions it needs (newest first, about `chunk` of them).
  */
@@ -406,7 +418,7 @@ const decide = (
   walk: FileWalk,
   version: string,
   chunk: number,
-): { readonly date: string | null } | { readonly need: readonly string[] } => {
+): { readonly start: VersionStart | null } | { readonly need: readonly string[] } => {
   const need: string[] = [];
   for (const { commit, parents } of walk.evaluated) {
     if (need.length >= chunk) {
@@ -423,10 +435,10 @@ const decide = (
     need.push(...unknown.map((p) => p.commit));
     // A start only counts when no newer commit is still open.
     if (need.length === 0 && !parents.some((p) => p !== null && walk.versions.get(p.commit) === version)) {
-      return { date: commit.date };
+      return { start: { date: commit.date, commit: commit.commit } };
     }
   }
-  return need.length === 0 ? { date: null } : { need };
+  return need.length === 0 ? { start: null } : { need };
 };
 
 /** One open question of a call. */
@@ -701,8 +713,8 @@ const answer = async (round: Round, queries: readonly Query[]): Promise<void> =>
     const needs = new Map<FileWalk, Set<string>>();
     for (const { walk, version } of queries.filter((q) => !q.walk.dates.has(q.version))) {
       const decision = decide(walk, version, chunk);
-      if ("date" in decision) {
-        walk.dates.set(version, decision.date);
+      if ("start" in decision) {
+        walk.dates.set(version, decision.start);
       } else {
         needs.set(walk, new Set([...(needs.get(walk) ?? []), ...decision.need]));
       }
@@ -927,7 +939,7 @@ const repositoryDates = async (
   cache: VersionDateCache,
   name: string,
   requests: readonly VersionDateRequest[],
-): Promise<Map<VersionDateRequest, string | null>> => {
+): Promise<Map<VersionDateRequest, VersionStart | null>> => {
   const found = await repositoryWalks(context, cache, name);
   if (found === undefined) {
     return new Map();
@@ -974,8 +986,9 @@ const repositoryDates = async (
 };
 
 /**
- * The date of each requested version (ADR-0005 "Version date"), in the order of `requests`: the
- * committer date in UTC (`YYYY-MM-DDTHH:MM:SSZ`) of the newest commit that started that version of
+ * The start of each requested version (ADR-0005 "Version date"), in the order of `requests`: the
+ * committer date in UTC (`YYYY-MM-DDTHH:MM:SSZ`) and the object name of the newest commit (of one
+ * second, the one with the greatest object name) that started that version of
  * the element (the file held the element with that version there, its images as that commit had
  * them, and no parent of the commit had that version). `null` when no commit has that version
  * (uncommitted content, or a version Git never saw), when it is not of normal form 1, or when Git
@@ -983,10 +996,10 @@ const repositoryDates = async (
  * refuses it, it has no commit, it is a shallow clone, or a git call failed or timed out (ADR-0006).
  * The answer waits for the walks; the same request gives the same answer at the same HEAD (D-029).
  */
-export const versionDates = async (
+export const versionStarts = async (
   context: VersionDateContext,
   requests: readonly VersionDateRequest[],
-): Promise<(string | null)[]> => {
+): Promise<(VersionStart | null)[]> => {
   const cache = context.workspace.get(versionDateState);
   const dates = new Map(
     await Promise.all(
@@ -997,3 +1010,9 @@ export const versionDates = async (
   );
   return requests.map((r) => dates.get(r.repository)?.get(r) ?? null);
 };
+
+/** The date of each requested version: the date of its start (`versionStarts`), or `null`. */
+export const versionDates = async (
+  context: VersionDateContext,
+  requests: readonly VersionDateRequest[],
+): Promise<(string | null)[]> => (await versionStarts(context, requests)).map((start) => start?.date ?? null);

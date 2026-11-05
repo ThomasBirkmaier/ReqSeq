@@ -82,6 +82,10 @@ const headDate = async (ws: FixtureWorkspace): Promise<string> =>
     .toISOString()
     .replace(".000Z", "Z");
 
+/** The object name of HEAD, which started the versions of its commit (#252). */
+const headCommit = async (ws: FixtureWorkspace): Promise<string> =>
+  (await ws.git(["rev-parse", "HEAD"])).trim();
+
 const need = (text: string): string =>
   `---\nid: ${N}\ntype: need\nstatus: approved\ntitle: See the wind\n---\n\n${text}\n`;
 const variant = (text: string): string =>
@@ -177,6 +181,7 @@ describe("outdated relations and references (SR-025)", () => {
   it("[SR-025/AK2] names source, target and the dates of the stored and the current version, and is not ok", async () => {
     const ws = await fixture({ git: true });
     const stored = await headDate(ws);
+    const storedCommit = await headCommit(ws);
     await changeTargets(ws);
     const workspace = open(ws.root);
     // "Exit-Code ungleich 0" for an outdated relation, a warning: with failOn warning (#304, option 1;
@@ -189,7 +194,7 @@ describe("outdated relations and references (SR-025)", () => {
       {
         code: "relation.outdated",
         severity: "warning",
-        message: `Property Validity (validity) of System Requirement SR-b0000000001 points to an older version of Variant VAR-c0000000001: stored version from ${stored}, current version from no date (not committed, or Git cannot tell)`,
+        message: `Property Validity (validity) of System Requirement SR-b0000000001 points to an older version of Variant VAR-c0000000001: stored version from ${stored} (${storedCommit.slice(0, 12)}), current version from no date (not committed, or Git cannot tell)`,
         repository: "system",
         file: A_FILE,
         line: 10,
@@ -202,6 +207,8 @@ describe("outdated relations and references (SR-025)", () => {
         currentVersion: NEW_VERSION,
         storedDate: stored,
         currentDate: null,
+        storedCommit,
+        currentCommit: null,
         hintId: `relation.outdated/${AT_A}/validity/${V}?version=${V_VERSION}`,
         key: "validity",
         place: { in: "relation" },
@@ -209,7 +216,7 @@ describe("outdated relations and references (SR-025)", () => {
       {
         code: "relation.outdated",
         severity: "warning",
-        message: `Relation Derives from (derives-from) of System Requirement SR-b0000000001 points to an older version of Need N-a0000000001: stored version from ${stored}, current version from no date (not committed, or Git cannot tell)`,
+        message: `Relation Derives from (derives-from) of System Requirement SR-b0000000001 points to an older version of Need N-a0000000001: stored version from ${stored} (${storedCommit.slice(0, 12)}), current version from no date (not committed, or Git cannot tell)`,
         repository: "system",
         file: A_FILE,
         line: 12,
@@ -222,6 +229,8 @@ describe("outdated relations and references (SR-025)", () => {
         currentVersion: NEW_VERSION,
         storedDate: stored,
         currentDate: null,
+        storedCommit,
+        currentCommit: null,
         hintId: `relation.outdated/${AT_A}/derives-from/${N}?version=${N_VERSION}`,
         key: "derives-from",
         place: { in: "relation" },
@@ -229,7 +238,7 @@ describe("outdated relations and references (SR-025)", () => {
       {
         code: "relation.outdated",
         severity: "warning",
-        message: `Reference in the text of System Requirement SR-b0000000001 points to an older version of Need N-a0000000001: stored version from ${stored}, current version from no date (not committed, or Git cannot tell)`,
+        message: `Reference in the text of System Requirement SR-b0000000001 points to an older version of Need N-a0000000001: stored version from ${stored} (${storedCommit.slice(0, 12)}), current version from no date (not committed, or Git cannot tell)`,
         repository: "system",
         file: A_FILE,
         line: 15,
@@ -242,6 +251,8 @@ describe("outdated relations and references (SR-025)", () => {
         currentVersion: NEW_VERSION,
         storedDate: stored,
         currentDate: null,
+        storedCommit,
+        currentCommit: null,
         hintId: `relation.outdated/${AT_A}/@text/${N}?version=${N_VERSION}&n=1`,
         // An inline reference in the text: no key (#222).
         place: { in: "text", occurrence: 1 },
@@ -257,9 +268,11 @@ describe("outdated relations and references (SR-025)", () => {
   it("[SR-025/AK2] gives the date of the commit of the current version once it is committed", async () => {
     const ws = await fixture({ git: true });
     const stored = await headDate(ws);
+    const storedCommit = await headCommit(ws);
     await changeTargets(ws);
     await ws.commit();
     const current = await headDate(ws);
+    const currentCommit = await headCommit(ws);
     expect(current).not.toBe(stored);
     const problems = outdated(await check(open(ws.root)));
     expect(problems.map((p) => [p.targetId, p.storedDate, p.currentDate])).toEqual([
@@ -267,17 +280,25 @@ describe("outdated relations and references (SR-025)", () => {
       [N, stored, current],
       [N, stored, current],
     ]);
-    expect(problems[0]?.message).toContain(`stored version from ${stored}, current version from ${current}`);
+    // The commits that started both versions, for `git diff` (#252).
+    expect(problems.map((p) => [p.storedCommit, p.currentCommit])).toEqual([
+      [storedCommit, currentCommit],
+      [storedCommit, currentCommit],
+      [storedCommit, currentCommit],
+    ]);
+    expect(problems[0]?.message).toContain(
+      `stored version from ${stored} (${storedCommit.slice(0, 12)}), current version from ${current} (${currentCommit.slice(0, 12)})`,
+    );
   });
 
   it("[SR-025/AK2] gives no dates without Git", async () => {
     const ws = await fixture();
     await changeTargets(ws);
     const problems = outdated(await check(open(ws.root)));
-    expect(problems.map((p) => [p.storedDate, p.currentDate])).toEqual([
-      [null, null],
-      [null, null],
-      [null, null],
+    expect(problems.map((p) => [p.storedDate, p.currentDate, p.storedCommit, p.currentCommit])).toEqual([
+      [null, null, null, null],
+      [null, null, null, null],
+      [null, null, null, null],
     ]);
   });
 

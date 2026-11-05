@@ -249,6 +249,16 @@
           "type": ["string", "null"],
           "format": "date-time"
         },
+        "storedCommit": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+          "description": "Object name of the commit that started the stored version (ADR-0005 \"Version date\", #252), given with `storedDate` and null exactly when it is: with `currentCommit`, `git diff <storedCommit> <currentCommit> -- <file>` shows what changed. A pointer valid at the current HEAD, never stored (D-013)."
+        },
+        "currentCommit": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+          "description": "Object name of the commit that started the current version, given with `currentDate` and null exactly when it is (as `storedCommit`)."
+        },
         "hintId": {
           "type": "string",
           "description": "Stable ID of a confirmable hint (D-042); on the hint.* problems of hint.confirm, the ID as given."
