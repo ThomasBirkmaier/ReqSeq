@@ -2641,7 +2641,7 @@
     "/v1/commands/element.update": {
       "post": {
         "operationId": "element_update",
-        "summary": "Change title, text or properties of one element. Unknown properties are kept; status changes only via element.setStatus, and the origin of an imported element only via reqif.import.",
+        "summary": "Change title, text or properties of one element. Unknown properties are kept, and unset removes one; status changes only via element.setStatus, and the origin of an imported element only via reqif.import.",
         "tags": [
           "element"
         ],

@@ -527,7 +527,6 @@ describe("element.update", () => {
     const before = await read(opened, GUSTS.file);
     const cases: [Record<string, unknown>, string, string | undefined][] = [
       [{ set: { "customer-id": "WS-1" } }, "input.invalid", "not-a-property"],
-      [{ unset: ["customer-id"] }, "input.invalid", "not-a-property"],
       [{ set: { "derives-from": [] } }, "input.invalid", "relation"],
       [{ set: { title: "x" } }, "input.invalid", "title"],
       [{ unset: ["title"] }, "input.invalid", "title"],
@@ -540,6 +539,28 @@ describe("element.update", () => {
       expect([error.code, error.details?.["reason"]]).toEqual([code, reason]);
     }
     expect(await read(opened, GUSTS.file)).toBe(before);
+  });
+
+  it("removes a property the type does not know with unset, and nothing else, but refuses to set it (#189)", async () => {
+    const opened = await open();
+    const before = await read(opened, GUSTS.file);
+    expect((await updateError(opened, { ref: GUSTS.id, set: { "customer-id": "1" } })).details).toMatchObject(
+      {
+        reason: "not-a-property",
+      },
+    );
+    const out = await update(opened, { ref: GUSTS.id, unset: ["customer-id"] });
+    const after = await read(opened, GUSTS.file);
+    expect(changedLines(before, after)).toEqual({
+      removed: ["customer-id: 00815              # unknown to the metamodel (SR-016)"],
+      added: [],
+    });
+    expect(out.files).toEqual([GUSTS.file]);
+    // Unset of a key the file does not hold changes nothing.
+    expect((await update(opened, { ref: GUSTS.id, unset: ["customer-id", "no-such-key"] })).files).toEqual(
+      [],
+    );
+    expect(await read(opened, GUSTS.file)).toBe(after);
   });
 
   it("[SR-012/AK3] writes the key of a choice value given by its display name, in any case (#309)", async () => {

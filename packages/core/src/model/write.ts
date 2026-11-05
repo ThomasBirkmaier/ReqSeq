@@ -223,7 +223,12 @@ export const propertyKeyRefusal = (
       };
 };
 
-/** Refuses the first of `keys` that `propertyKeyRefusal` refuses, with `input.invalid`. */
+/**
+ * Refuses the first of `keys` that `propertyKeyRefusal` refuses, with `input.invalid`. `unset` of a
+ * key the type does not know is no refusal: it removes the key from the file, so a property a changed
+ * metamodel left behind can be emptied without editing the file (D-012, product owner decision,
+ * 2026-10-29, #189); `set` of such a key stays refused.
+ */
 const checkPropertyKeys = (
   keys: readonly string[],
   metamodel: Metamodel,
@@ -233,7 +238,7 @@ const checkPropertyKeys = (
 ): void => {
   for (const key of keys) {
     const refusal = propertyKeyRefusal(key, metamodel, type, titleKey, field);
-    if (refusal !== undefined) {
+    if (refusal !== undefined && !(field === "unset" && refusal.details["reason"] === "not-a-property")) {
       throw invalid(refusal.message, refusal.details);
     }
   }

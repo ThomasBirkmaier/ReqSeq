@@ -4004,7 +4004,7 @@
     {
       "name": "element_update",
       "title": "Update element",
-      "description": "Change title, text or properties of one element. Unknown properties are kept; status changes only via element.setStatus, and the origin of an imported element only via reqif.import.",
+      "description": "Change title, text or properties of one element. Unknown properties are kept, and unset removes one; status changes only via element.setStatus, and the origin of an imported element only via reqif.import.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,

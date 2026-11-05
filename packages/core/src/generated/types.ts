@@ -1861,7 +1861,7 @@ export interface ElementFacetsOutput {
 }
 
 /**
- * Input of `element.update` as `run` gets it: validated, properties with a `default` filled in. Change title, text or properties of one element. Unknown properties are kept; status changes only via element.setStatus, and the origin of an imported element only via reqif.import (SR-057).
+ * Input of `element.update` as `run` gets it: validated, properties with a `default` filled in. Change title, text or properties of one element. Unknown properties are kept, and unset removes one (#189); status changes only via element.setStatus, and the origin of an imported element only via reqif.import (SR-057).
  * Schema: `schemas/commands/element.update.json input`.
  */
 export interface ElementUpdateInput {
@@ -1884,7 +1884,7 @@ export interface ElementUpdateInput {
 }
 
 /**
- * Output of `element.update`. Change title, text or properties of one element. Unknown properties are kept; status changes only via element.setStatus, and the origin of an imported element only via reqif.import (SR-057).
+ * Output of `element.update`. Change title, text or properties of one element. Unknown properties are kept, and unset removes one (#189); status changes only via element.setStatus, and the origin of an imported element only via reqif.import (SR-057).
  * Schema: `schemas/commands/element.update.json output`.
  */
 export interface ElementUpdateOutput {
