@@ -40,7 +40,6 @@ const open = async (
   return { ws, workspace };
 };
 
-/** The record of requirement A in the fixture, as the reader gives it. */
 /** The current version of `id` in the form the tool writes. */
 const currentOf = async (workspace: Workspace, id: string): Promise<string | undefined> => {
   const versions = await workspace.get(currentVersionsState);
@@ -48,6 +47,7 @@ const currentOf = async (workspace: Workspace, id: string): Promise<string | und
   return record === undefined ? undefined : currentVersionOf(versions, record);
 };
 
+/** The record of requirement A in the fixture, as the reader gives it. */
 const RECORD_A: EvidenceRecord = {
   element: A,
   version: A_VERSION,

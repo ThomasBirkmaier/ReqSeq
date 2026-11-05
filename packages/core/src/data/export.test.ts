@@ -109,7 +109,9 @@ describe("current versions of relation ends (second pass)", () => {
   it("reads the versions of available targets outside the listed elements once, in every normal form, and none without such targets", async () => {
     const { store } = await opened();
     const [a1, b1] = [recordIn(store, `${P}a1`), recordIn(store, B1)];
-    const formsOf = (v: string) => ({ n1: v, n2: "n2:0000000000000000" });
+    // Each version gets its own value in the other form, so a mix-up of two ends shows.
+    const formsOf = (v: string) => ({ n1: v, n2: `n2:${v.slice(3)}` });
+    const other = NORMAL_FORM === "n1" ? "n2" : "n1";
     const read = vi.fn(
       (records: readonly ElementRecord[]): Promise<ReadonlyMap<ElementRecord, CurrentVersion>> =>
         Promise.resolve(
@@ -158,8 +160,8 @@ describe("current versions of relation ends (second pass)", () => {
     const both = await withRelationVersions(
       store,
       [
-        listed(b1, [out(a1.id, { storedVersion: "n2:0000000000000000" })]),
-        listed(a1, [{ ...out(B1), direction: "in", storedVersion: "n2:1111111111111111" }]),
+        listed(b1, [out(a1.id, { storedVersion: formsOf(V)[other] })]),
+        listed(a1, [{ ...out(B1), direction: "in", storedVersion: `${other}:3333333333333333` }]),
       ],
       read,
       new Map([
