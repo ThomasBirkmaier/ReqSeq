@@ -83,7 +83,7 @@
       },
       "elements": {
         "type": "array",
-        "description": "One page: the file's entries in file order, then the added elements in store order. State precedence: missing, superseded, removed, changed, unchanged; added only for elements not in the file.",
+        "description": "One page: the file's entries in file order, then the added elements in store order. State precedence: missing or inaccessible, superseded, removed, changed, unchanged; added only for elements not in the file.",
         "items": {
           "type": "object",
           "properties": {
@@ -95,8 +95,8 @@
               "description": "The repository of the copy, whenever it is known."
             },
             "state": {
-              "enum": ["unchanged", "changed", "superseded", "removed", "added", "missing"],
-              "description": "missing: not in the store, or in a repository that is not here (incomplete). removed: not superseded and no longer in the stored selection (SR-051 AK3). added: in the stored selection and not in the file."
+              "enum": ["unchanged", "changed", "superseded", "removed", "added", "missing", "inaccessible"],
+              "description": "missing: not in the store, or without repository or with one the workspace does not name and not found. inaccessible: its repository is in the workspace file but not here (D-058, SR-006, incomplete). removed: not superseded and no longer in the stored selection (SR-051 AK3). added: in the stored selection and not in the file."
             },
             "version": {
               "$ref": "../common.schema.json#/$defs/version",
@@ -113,7 +113,7 @@
             },
             "verification": {
               "type": "array",
-              "description": "With withEvidence, for entries of the file (not added or missing) whose type has the meaning requirement: one row per view it applies in now, the core first, then the variants in store order (SR-094 AK4, SR-047 AK3); with a variant in the stored selection only that variant's row (AK5). Empty when it applies in no view shown. Own records only, never indirect (AK6). Left out when the stored view cannot be resolved.",
+              "description": "With withEvidence, for entries of the file (not added, missing or inaccessible) whose type has the meaning requirement: one row per view it applies in now, the core first, then the variants in store order (SR-094 AK4, SR-047 AK3); with a variant in the stored selection only that variant's row (AK5). Empty when it applies in no view shown. Own records only, never indirect (AK6). Left out when the stored view cannot be resolved.",
               "items": {
                 "type": "object",
                 "properties": {
@@ -138,7 +138,7 @@
             },
             "validation": {
               "$ref": "../common.schema.json#/$defs/validationStatus",
-              "description": "With withEvidence, for entries of the file (not added or missing) of a type with the meaning need and for any other with a validation record (SR-038, SR-094 AK7): the status at the baseline version from the validation records that count for the baseline, without view. Open without such records."
+              "description": "With withEvidence, for entries of the file (not added, missing or inaccessible) of a type with the meaning need and for any other with a validation record (SR-038, SR-094 AK7): the status at the baseline version from the validation records that count for the baseline, without view. Open without such records."
             },
             "validationReason": {
               "type": "string",
@@ -165,10 +165,11 @@
           "superseded": { "type": "integer", "minimum": 0 },
           "removed": { "type": "integer", "minimum": 0 },
           "added": { "type": "integer", "minimum": 0 },
-          "missing": { "type": "integer", "minimum": 0 }
+          "missing": { "type": "integer", "minimum": 0 },
+          "inaccessible": { "type": "integer", "minimum": 0 }
         },
         "additionalProperties": false,
-        "required": ["unchanged", "changed", "superseded", "removed", "added", "missing"]
+        "required": ["unchanged", "changed", "superseded", "removed", "added", "missing", "inaccessible"]
       },
       "total": {
         "type": "integer",

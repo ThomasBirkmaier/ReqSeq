@@ -6,9 +6,11 @@
 // - The copy of an entry: the one its `repository` names, else the copy in the repository of the
 //   file, else the only copy (ADR-0018 "elements"); none: `missing`; several elsewhere: `missing` with
 //   a `baseline.invalid` warning; a second entry of the same copy: no row, a warning. The answer is `incomplete` while a repository is not on
-//   this machine (SR-006): its entries are `missing` and its elements are not seen.
+//   this machine (SR-006): its elements are not seen, and an entry whose `repository` names it is
+//   `inaccessible` (D-058, #675); one without `repository` cannot be told apart from a deleted one
+//   and stays `missing`, as one naming no repository of the workspace does.
 // - State, first that holds (AK2, AK3):
-//   `missing`; `superseded` when its status is invalid now (D-044), also when it changed;
+//   `missing` or `inaccessible`; `superseded` when its status is invalid now (D-044), also when it changed;
 //   `removed` when the file stores a selection that no longer selects it, also when it changed;
 //   `changed` when its current version differs or cannot be computed (a `file.faulty` warning says
 //   so); else `unchanged`. `current` is the current version
@@ -25,7 +27,13 @@
 import type { CommandOutput } from "../catalog.js";
 import type { Problem } from "../generated/types.js";
 import type { ElementRecord, ElementStore } from "../model/index.js";
-import { currentVersionsOf, invalidStatuses, namesOfRecords, shortIdState } from "../model/index.js";
+import {
+  currentVersionsOf,
+  invalidStatuses,
+  isUnavailableRepository,
+  namesOfRecords,
+  shortIdState,
+} from "../model/index.js";
 import { versionDates } from "../model/version-date.js";
 import type { Workspace } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "../workspace/index.js";
@@ -145,7 +153,8 @@ export const showBaseline = async (workspace: Workspace, request: ShowRequest): 
   const rows: { row: Row; record: ElementRecord | undefined }[] = entries.map((entry, index) => {
     const record = copies[index];
     if (record === undefined) {
-      const missing = { id: entry.id, state: "missing" as const, version: entry.version };
+      const state = isUnavailableRepository(layout, entry.repository) ? "inaccessible" : "missing";
+      const missing = { id: entry.id, state, version: entry.version } as const;
       return {
         row: entry.repository === undefined ? missing : { ...missing, repository: entry.repository },
         record,
@@ -177,7 +186,15 @@ export const showBaseline = async (workspace: Workspace, request: ShowRequest): 
     };
     rows.push({ row, record });
   }
-  const counts = { unchanged: 0, changed: 0, superseded: 0, removed: 0, added: 0, missing: 0 };
+  const counts = {
+    unchanged: 0,
+    changed: 0,
+    superseded: 0,
+    removed: 0,
+    added: 0,
+    missing: 0,
+    inaccessible: 0,
+  };
   for (const { row } of rows) {
     counts[row.state] += 1;
   }
@@ -191,7 +208,7 @@ export const showBaseline = async (workspace: Workspace, request: ShowRequest): 
   const dateOf = new Map(
     asked.map((request, index) => [`${request.id}\n${request.repository}`, dates[index]]),
   );
-  // An added element has no version in the baseline; a missing one no date and no evidence.
+  // An added element has no version in the baseline; a missing or inaccessible one no date and no evidence.
   const evidenceOf = request.evidence;
   const elements = page.map(({ row, record }): Row => {
     if (row.version === undefined) {
