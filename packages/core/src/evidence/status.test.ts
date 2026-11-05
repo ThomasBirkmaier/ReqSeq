@@ -3,6 +3,7 @@
 // commands that show it (evidence.status, element.get) and the filter are tested in
 // commands/evidence/status.test.ts.
 import { describe, expect, it } from "vitest";
+import { forms } from "../model/version-forms.test-helper.js";
 import type { View } from "../variants/index.js";
 import { evidenceIndex } from "./by-element.js";
 import type { EvidenceRecord } from "./record.js";
@@ -40,15 +41,35 @@ const record = (
 const statusOf = (records: readonly EvidenceRecord[], view: View = CORE, independent = false): string[] => {
   const ordered = evidenceIndex(records).byElement.get(A) ?? [];
   return [
-    verificationStatusOf(ordered, CURRENT, view, independent),
-    verificationStatusOf([...ordered].reverse(), CURRENT, view, independent),
+    verificationStatusOf(ordered, forms(CURRENT), view, independent),
+    verificationStatusOf([...ordered].reverse(), forms(CURRENT), view, independent),
   ];
 };
 
 describe("verificationStatusOf (SR-031)", () => {
   it("[SR-031/AK1] a requirement without records is open", () => {
-    expect(verificationStatusOf([], CURRENT, CORE, false)).toBe("open");
+    expect(verificationStatusOf([], forms(CURRENT), CORE, false)).toBe("open");
     expect(verificationStatusOf([], undefined, IN_V, false)).toBe("open");
+  });
+
+  it("[SR-031/AK2] a record of either normal form of the current version counts (ADR-0005)", () => {
+    const both = { n1: CURRENT, n2: "n2:1111111111111111" };
+    const ofN2 = [record("2026-01-01T10:00:00Z", "passed", { version: both.n2 })];
+    expect(verificationStatusOf(ofN2, both, CORE, false)).toBe("verified");
+    // Mixed forms: the newest record of the current version decides, whatever its form.
+    const mixed = [...ofN2, record("2026-01-02T10:00:00Z", "failed")];
+    expect(verificationStatusOf(mixed, both, CORE, false)).toBe("failed");
+    expect(verificationStatusOf(ofN2, { n1: CURRENT, n2: "n2:2222222222222222" }, CORE, false)).toBe(
+      "outdated",
+    );
+    expect(
+      validationOf(
+        [record("2026-01-01T10:00:00Z", "passed", { kind: "validation", version: both.n2 })],
+        both,
+      ),
+    ).toEqual({
+      status: "validated",
+    });
   });
 
   it("[SR-031/AK2] the newest record of the current version passed gives verified", () => {
@@ -194,8 +215,8 @@ describe("verificationStatusOf (SR-031)", () => {
       "verified",
     ]);
     // The same rule with the kind validation (SR-038 reuses it).
-    expect(recordStatusOf([validation], "validation", CURRENT, CORE, false)).toBe("failed");
-    expect(recordStatusOf([validation], "validation", OLDER, CORE, false)).toBe("outdated");
+    expect(recordStatusOf([validation], "validation", forms(CURRENT), CORE, false)).toBe("failed");
+    expect(recordStatusOf([validation], "validation", forms(OLDER), CORE, false)).toBe("outdated");
   });
 });
 
@@ -219,7 +240,7 @@ const validationsOf = (
   current: string | undefined = CURRENT,
 ): Validation[] => {
   const ordered = evidenceIndex(records).byElement.get(A) ?? [];
-  return [validationOf(ordered, current), validationOf([...ordered].reverse(), current)];
+  return [validationOf(ordered, forms(current)), validationOf([...ordered].reverse(), forms(current))];
 };
 
 /** The validation status of `records` of A against `current`, in the order of the index and reversed. */
@@ -351,11 +372,11 @@ describe("inconclusive validation (SR-172)", () => {
       tie("inconclusive", "a.md", "first"),
       tie("inconclusive", "b.md", "second"),
     ]).byElement.get(A);
-    expect(validationOf(ordered ?? [], CURRENT)).toEqual({ status: "inconclusive", reason: "first" });
+    expect(validationOf(ordered ?? [], forms(CURRENT))).toEqual({ status: "inconclusive", reason: "first" });
   });
 
   it("an inconclusive record without reason given through the state is inconclusive without reason", () => {
-    expect(validationOf([validation("2026-01-01T10:00:00Z", "inconclusive")], CURRENT)).toEqual({
+    expect(validationOf([validation("2026-01-01T10:00:00Z", "inconclusive")], forms(CURRENT))).toEqual({
       status: "inconclusive",
     });
   });

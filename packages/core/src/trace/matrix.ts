@@ -54,6 +54,7 @@ import {
 } from "../model/index.js";
 import type { TraceContext } from "./graph.js";
 import type { VersionsOf } from "./neighbourhood.js";
+import type { VersionForms } from "../model/index.js";
 import { NORMAL_FORM } from "../model/index.js";
 
 /** A key that makes columns of the matrix, with how the output names it. */
@@ -396,7 +397,7 @@ interface Pending {
  */
 export type MatrixRowFields = (
   element: ElementRecord,
-  current: string | undefined,
+  current: VersionForms | undefined,
 ) => Pick<MatrixOutputRow, "testCases" | "verification">;
 
 /** One row to build: its element, and with a derivation tree (`hierarchy`) its depth in it. */
@@ -471,7 +472,7 @@ export const matrixRows = async (
       title: text(record.data[titleKey]),
       file: record.file,
       ...(depth === undefined ? {} : { depth }),
-      ...rowFields?.(record, versionOf(record)?.[NORMAL_FORM]),
+      ...rowFields?.(record, versionOf(record)),
       cells: cells.map((cell) =>
         cell.map(({ link, other }): DataExportRelation => {
           const current = other === undefined ? undefined : versionOf(other);

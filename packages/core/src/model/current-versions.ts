@@ -120,6 +120,17 @@ export const currentFormsOf = (versions: CurrentVersions, record: ElementRecord)
 export const formsOfEntry = (entry: CurrentVersion | undefined): VersionForms | undefined =>
   entry?.kind === "version" ? entry.forms : undefined;
 
+/**
+ * The versions of `record` in every normal form as the store computed them while reading its file
+ * (`loadedVersionOf`), or undefined when it has none (an element with images, or a value without a
+ * normal form). For the element a write just returned, whose file the store read as written.
+ */
+export const formsAsRead = (store: ElementStore, record: ElementRecord): VersionForms | undefined => {
+  const byForm = loadedVersionOf(store, record)?.byForm;
+  const [n1, n2] = [byForm?.["n1"], byForm?.["n2"]];
+  return n1 === undefined || n2 === undefined ? undefined : { n1, n2 };
+};
+
 /** An entry with a version from its versions in every normal form. */
 const versionEntry = (
   forms: VersionForms,

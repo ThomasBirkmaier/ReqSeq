@@ -248,3 +248,15 @@ export const sameVersion = (stored: string, current: VersionForms): boolean => {
   const form = formOf(stored);
   return form !== undefined && current[form] === stored;
 };
+
+/**
+ * What another stored version is compared with to tell whether it names the same content as the
+ * stored `version` (an evidence record and a baseline entry, ADR-0005 "Normal form 2"): the
+ * current versions when `version` is the current one in its form, else `version` alone in its
+ * form (a version of the other form never matches it). Exact while the element is unchanged
+ * since `version`; otherwise a stored version of the other form counts as another version.
+ */
+export const storedForms = (version: string, current: VersionForms | undefined): VersionForms =>
+  current !== undefined && sameVersion(version, current)
+    ? current
+    : { n1: formOf(version) === "n1" ? version : "", n2: formOf(version) === "n2" ? version : "" };

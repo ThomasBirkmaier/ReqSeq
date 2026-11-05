@@ -347,7 +347,7 @@ export const exportDataWithProblems = async (
       own.set(record, forms);
       return withReplacedExcluded(
         replacedExcludedOf(rule, record),
-        exportedElement(properties, record, withEvidenceStatus(status, record, element)),
+        exportedElement(properties, record, withEvidenceStatus(status, record, element, forms)),
       );
     },
   });

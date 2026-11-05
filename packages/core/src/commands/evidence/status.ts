@@ -22,7 +22,7 @@ export default defineCommand({
     const page = selected.elements.slice(input.offset, input.offset + input.limit);
     const status = await workspaceStatus(ctx.workspace, page);
     const elements = await listElements(ctx.workspace, selected, page, {
-      extend: (record, element) => withEvidenceStatus(status, record, element),
+      extend: (record, element, forms) => withEvidenceStatus(status, record, element, forms),
     });
     return {
       elements,

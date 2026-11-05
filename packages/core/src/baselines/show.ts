@@ -26,9 +26,12 @@
 //   view and its validation status (with the reason of an inconclusive one, SR-172), asked for the page only. `names` names the variants of the rows.
 import type { CommandOutput } from "../catalog.js";
 import type { Problem } from "../generated/types.js";
-import type { ElementRecord, ElementStore } from "../model/index.js";
+import type { ElementRecord, ElementStore, VersionForms } from "../model/index.js";
 import {
   currentVersionsOf,
+  formsOfEntry,
+  NORMAL_FORM,
+  sameVersion,
   invalidStatuses,
   isUnavailableRepository,
   namesOfRecords,
@@ -66,6 +69,7 @@ export interface ShowRequest {
   readonly evidence?: (
     record: ElementRecord,
     version: string,
+    current: VersionForms | undefined,
   ) => Pick<Row, "verification" | "validation" | "validationReason" | "validationLater">;
 }
 
@@ -78,9 +82,14 @@ const warningIn = (baseline: Baseline, message: string): Problem => ({
   message: `${baseline.file}: ${message}`,
 });
 
-/** `current` of a row: the current version when it differs from the one in the baseline. */
-const currentField = (current: string | undefined, version?: string): { readonly current?: string } =>
-  current === undefined || current === version ? {} : { current };
+/**
+ * `current` of a row: the current version (in the form the tool writes) when it differs from the
+ * one in the baseline, compared in that one's form (ADR-0005 "Normal form 2").
+ */
+const currentField = (current: VersionForms | undefined, version?: string): { readonly current?: string } =>
+  current === undefined || (version !== undefined && sameVersion(version, current))
+    ? {}
+    : { current: current[NORMAL_FORM] };
 
 /** The entries of `baseline` with their copies, one per copy; the warnings go into `problems`. */
 const entriesOf = (
@@ -136,7 +145,7 @@ export const showBaseline = async (workspace: Workspace, request: ShowRequest): 
     ...copies.filter((c): c is ElementRecord => c !== undefined),
     ...added,
   ]);
-  const currentOf = (record: ElementRecord): string | undefined => {
+  const currentOf = (record: ElementRecord): VersionForms | undefined => {
     const entry = versions.get(record);
     if (entry?.kind === "unknown") {
       problems.push({
@@ -147,36 +156,37 @@ export const showBaseline = async (workspace: Workspace, request: ShowRequest): 
         message: `${shortIds.of(record)} has no current version (${entry.message}); it cannot be compared with the baseline, so it counts as changed unless superseded or removed`,
       });
     }
-    return entry?.kind === "version" ? entry.version : undefined;
+    return formsOfEntry(entry);
   };
   const invalid = invalidStatuses(metamodel);
-  const rows: { row: Row; record: ElementRecord | undefined }[] = entries.map((entry, index) => {
-    const record = copies[index];
-    if (record === undefined) {
-      const state = isUnavailableRepository(layout, entry.repository) ? "inaccessible" : "missing";
-      const missing = { id: entry.id, state, version: entry.version } as const;
-      return {
-        row: entry.repository === undefined ? missing : { ...missing, repository: entry.repository },
-        record,
+  const rows: { row: Row; record: ElementRecord | undefined; current?: VersionForms | undefined }[] =
+    entries.map((entry, index) => {
+      const record = copies[index];
+      if (record === undefined) {
+        const state = isUnavailableRepository(layout, entry.repository) ? "inaccessible" : "missing";
+        const missing = { id: entry.id, state, version: entry.version } as const;
+        return {
+          row: entry.repository === undefined ? missing : { ...missing, repository: entry.repository },
+          record,
+        };
+      }
+      const current = currentOf(record);
+      const state: State = invalid.has(String(record.data["status"]))
+        ? "superseded"
+        : now !== undefined && !now.has(record)
+          ? "removed"
+          : current !== undefined && sameVersion(entry.version, current)
+            ? "unchanged"
+            : "changed";
+      const row: Row = {
+        id: entry.id,
+        repository: record.repository,
+        state,
+        version: entry.version,
+        ...currentField(current, entry.version),
       };
-    }
-    const current = currentOf(record);
-    const state: State = invalid.has(String(record.data["status"]))
-      ? "superseded"
-      : now !== undefined && !now.has(record)
-        ? "removed"
-        : current === entry.version
-          ? "unchanged"
-          : "changed";
-    const row: Row = {
-      id: entry.id,
-      repository: record.repository,
-      state,
-      version: entry.version,
-      ...currentField(current, entry.version),
-    };
-    return { row, record };
-  });
+      return { row, record, current };
+    });
   for (const record of added) {
     const row: Row = {
       id: record.id,
@@ -210,14 +220,14 @@ export const showBaseline = async (workspace: Workspace, request: ShowRequest): 
   );
   // An added element has no version in the baseline; a missing or inaccessible one no date and no evidence.
   const evidenceOf = request.evidence;
-  const elements = page.map(({ row, record }): Row => {
+  const elements = page.map(({ row, record, current }): Row => {
     if (row.version === undefined) {
       return row;
     }
     return {
       ...row,
       versionDate: dateOf.get(`${row.id}\n${String(row.repository)}`) ?? null,
-      ...(record === undefined ? {} : evidenceOf?.(record, row.version)),
+      ...(record === undefined ? {} : evidenceOf?.(record, row.version, current)),
     };
   });
   const named = page.flatMap(({ record }) => (record === undefined ? [] : [record]));

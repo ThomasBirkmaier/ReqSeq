@@ -14,6 +14,7 @@ import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
 import type { EvidenceRead, EvidenceRecord } from "../../evidence/index.js";
 import { evidenceReadState, evidenceRecordsState } from "../../evidence/index.js";
+import { currentFormsOf, currentVersionsState } from "../../model/index.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 
@@ -177,6 +178,31 @@ describe("evidence.list (SR-032)", () => {
       ["build-511", V2, []],
       ["coast-7", V2, []],
       ["Display sample B2", V1, ["Release 1.0"]],
+    ]);
+  });
+
+  it("[SR-032/AK2] names a baseline of the other normal form when both are of the current version (ADR-0005)", async () => {
+    const ws = await fixture();
+    const probe = await open(ws, []);
+    const versions = await probe.get(currentVersionsState);
+    const a1 = versions.store.byId.get(A1)?.[0];
+    const current = a1 === undefined ? undefined : currentFormsOf(versions, a1);
+    expect(current?.n2).toMatch(/^n2:/);
+    await ws.write(
+      "baselines/release-2.yaml",
+      "reqseq-baseline: 1\nname: Release 2\ndate: 2026-10-25T09:00:00Z\nrepositories:\n" +
+        "  - { name: system, commit: 5abcdef05abcdef05abcdef05abcdef05abcdef0 }\nelements:\n" +
+        `  - { id: ${A1}, version: ${String(current?.n2)} }\n`,
+    );
+    const ofCurrent = record({
+      version: String(current?.n1),
+      item: "build-600",
+      date: "2026-10-26T08:00:00Z",
+    });
+    const workspace = await open(ws, [ofCurrent, PASSED]);
+    expect(named(await list(workspace, { ref: A1 }))).toEqual([
+      ["build-600", current?.n1, ["Release 2"]],
+      ["build-512", V3, []],
     ]);
   });
 

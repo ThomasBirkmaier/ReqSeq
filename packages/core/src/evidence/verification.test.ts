@@ -2,6 +2,7 @@
 // `prepare` reads, how often, and the entries `verificationOf` gives. The commands are tested in
 // commands/evidence/status.test.ts and commands/evidence/indirect.test.ts.
 import { describe, expect, it } from "vitest";
+import { forms } from "../model/version-forms.test-helper.js";
 import type { CurrentVersion, ElementRecord } from "../model/index.js";
 import { isEmergent } from "../model/index.js";
 import { evidenceIndex } from "./by-element.js";
@@ -314,7 +315,7 @@ describe("workspaceStatusOf: validation status (SR-038)", () => {
       reader().read,
     );
     expect([
-      status.validate(need, { current: CURRENT })?.status,
+      status.validate(need, { current: forms(CURRENT) })?.status,
       status.validate(requirement)?.status,
     ]).toEqual(["open", undefined]);
   });
@@ -354,7 +355,7 @@ describe("workspaceStatusOf: validation status (SR-038)", () => {
     await status.prepare([need], { own: true });
     expect(status.validate(need)?.status).toBe("validated");
     expect(status.validate(need, { current: undefined })?.status).toBe("outdated");
-    expect(status.validate(need, { current: "n1:2222222222222222" })?.status).toBe("outdated");
+    expect(status.validate(need, { current: forms("n1:2222222222222222") })?.status).toBe("outdated");
     expect(status.validate(need)?.status).toBe("validated");
     expect(status.versionBatches()).toBe(1);
   });

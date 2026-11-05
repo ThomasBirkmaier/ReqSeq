@@ -24,7 +24,7 @@ export default defineCommand({
     if (records.length > 0) {
       const current = (await currentVersionsOf(ctx.workspace, [element])).get(element);
       if (current?.kind === "version") {
-        options = { evidence: { version: current.version, records } };
+        options = { evidence: { version: current.forms, records } };
       }
     }
     return affectedOutput(

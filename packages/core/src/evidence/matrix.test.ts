@@ -2,6 +2,7 @@
 // the test case cell (`matrixTestCases`), when the columns show (`showsEvidence`) and the fields of a
 // row (`matrixEvidence`). The command on fixtures/SR-126/matrix: commands/trace/matrix-evidence.test.ts.
 import { describe, expect, it } from "vitest";
+import { forms } from "../model/version-forms.test-helper.js";
 import type { Metamodel } from "../metamodel/index.js";
 import type { ElementRecord } from "../model/index.js";
 import type { View } from "../variants/index.js";
@@ -83,21 +84,24 @@ const NOT_EXECUTED: TestCase = {
 
 describe("testCaseMark (SR-126 AK2, spec questions #528 Q1/Q2, #593 Q2)", () => {
   it("marks a test case without execution as not executed", () => {
-    expect(testCaseMark(NOT_EXECUTED, CURRENT)).toBe("not-executed");
+    expect(testCaseMark(NOT_EXECUTED, forms(CURRENT))).toBe("not-executed");
   });
 
   it("a passed last execution of the current version has no mark", () => {
-    expect(testCaseMark(testCase(run("2026-01-01T10:00:00Z")), CURRENT)).toBeUndefined();
+    expect(testCaseMark(testCase(run("2026-01-01T10:00:00Z")), forms(CURRENT))).toBeUndefined();
   });
 
   it("marks a failed last execution of the current version as failed, an older passed one does not matter", () => {
     const test = testCase(run("2026-01-02T10:00:00Z", { result: "failed" }), run("2026-01-01T10:00:00Z"));
-    expect(testCaseMark(test, CURRENT)).toBe("failed");
+    expect(testCaseMark(test, forms(CURRENT))).toBe("failed");
   });
 
   it("outdated wins over failed", () => {
     expect(
-      testCaseMark(testCase(run("2026-01-01T10:00:00Z", { result: "failed", version: OLDER })), CURRENT),
+      testCaseMark(
+        testCase(run("2026-01-01T10:00:00Z", { result: "failed", version: OLDER })),
+        forms(CURRENT),
+      ),
     ).toBe("outdated");
   });
 
@@ -106,10 +110,12 @@ describe("testCaseMark (SR-126 AK2, spec questions #528 Q1/Q2, #593 Q2)", () => 
     const newestOlder = run("2026-01-02T10:00:00Z", { version: OLDER, item: "build-old" });
     const test = testCase(ofCurrent, newestOlder);
     expect(test.last).toEqual(newestOlder);
-    expect(testCaseMark(test, CURRENT)).toBeUndefined();
-    expect(recordStatusOf([newestOlder, ofCurrent], "verification", CURRENT, CORE, false)).toBe("passed");
+    expect(testCaseMark(test, forms(CURRENT))).toBeUndefined();
+    expect(recordStatusOf([newestOlder, ofCurrent], "verification", forms(CURRENT), CORE, false)).toBe(
+      "passed",
+    );
     const failedCurrent = run("2026-01-01T10:00:00Z", { result: "failed" });
-    expect(testCaseMark(testCase(failedCurrent, newestOlder), CURRENT)).toBe("failed");
+    expect(testCaseMark(testCase(failedCurrent, newestOlder), forms(CURRENT))).toBe("failed");
   });
 
   it("an unknown current version marks every executed test case outdated", () => {
@@ -128,12 +134,12 @@ describe("matrixTestCases (SR-126 AK1)", () => {
     const inspection = markdown("2026-01-05T10:00:00Z");
     const index = evidenceIndex([newest, older, coast, manual, validation, inspection], [skipped]);
     // By class name, then name: a Markdown test case has none, so it comes first.
-    expect(matrixTestCases(index, A, CORE, false, CURRENT)).toEqual([
+    expect(matrixTestCases(index, A, CORE, false, forms(CURRENT))).toEqual([
       { name: "wind tunnel check", executed: true, last: manual },
       { name: "test_gusts", className: "tests.Wind", executed: false, mark: "not-executed" },
       { name: "test_wind", className: "tests.Wind", executed: true, last: newest, mark: "failed" },
     ]);
-    expect(matrixTestCases(index, A, COAST_VIEW, false, CURRENT)).toEqual([
+    expect(matrixTestCases(index, A, COAST_VIEW, false, forms(CURRENT))).toEqual([
       { name: "test_gusts", className: "tests.Wind", executed: false, mark: "not-executed" },
       { name: "test_wind", className: "tests.Wind", executed: true, last: coast },
     ]);
@@ -143,16 +149,16 @@ describe("matrixTestCases (SR-126 AK1)", () => {
     const core = run("2026-01-02T10:00:00Z", { item: "build-2" });
     const coast = run("2026-01-01T10:00:00Z", { variant: COAST, item: "coast-1" });
     const index = evidenceIndex([core, coast]);
-    expect(matrixTestCases(index, A, COAST_VIEW, true, CURRENT)).toEqual([
+    expect(matrixTestCases(index, A, COAST_VIEW, true, forms(CURRENT))).toEqual([
       { name: "test_wind", className: "tests.Wind", executed: true, last: core },
     ]);
-    expect(matrixTestCases(index, A, COAST_VIEW, false, CURRENT)).toEqual([
+    expect(matrixTestCases(index, A, COAST_VIEW, false, forms(CURRENT))).toEqual([
       { name: "test_wind", className: "tests.Wind", executed: true, last: coast },
     ]);
   });
 
   it("gives an empty cell to an element without test case", () => {
-    expect(matrixTestCases(evidenceIndex([], []), A, CORE, false, CURRENT)).toEqual([]);
+    expect(matrixTestCases(evidenceIndex([], []), A, CORE, false, forms(CURRENT))).toEqual([]);
   });
 });
 
@@ -198,18 +204,18 @@ describe("matrixEvidence (SR-126 AK1, AK3)", () => {
         return { status: "open", missingChildren: [CHILD] };
       },
     };
-    const fields = matrixEvidence({ status, index, view: COAST_VIEW })(record, OLDER);
+    const fields = matrixEvidence({ status, index, view: COAST_VIEW })(record, forms(OLDER));
     expect(fields).toEqual({
       testCases: [],
       verification: [{ view: COAST, status: "open", missingChildren: [CHILD] }],
     });
-    expect(asked).toEqual([[A, COAST_VIEW, { current: OLDER }]]);
+    expect(asked).toEqual([[A, COAST_VIEW, { current: forms(OLDER) }]]);
     const core = matrixEvidence({
       status: { source: NOT_MARKED, evaluate: () => ({ status: "indirect" }) },
       index,
       view: CORE,
     });
-    expect(core(record, CURRENT)).toEqual({
+    expect(core(record, forms(CURRENT))).toEqual({
       testCases: [
         { name: "test_wind", className: "tests.Wind", executed: true, last: run("2026-01-01T10:00:00Z") },
       ],
@@ -222,7 +228,7 @@ describe("matrixEvidence (SR-126 AK1, AK3)", () => {
       status: { source: NOT_MARKED, evaluate: () => undefined },
       index,
       view: CORE,
-    })(record, CURRENT);
+    })(record, forms(CURRENT));
     expect(fields).toEqual({});
   });
 });
