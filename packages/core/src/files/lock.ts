@@ -14,6 +14,14 @@ import { retry, TRANSIENT_CODES } from "./retry.js";
  */
 export const LOCK_STALE_MS = 30_000;
 
+/**
+ * The retries of the lock's own file operations. On Windows a lock file that was just given back can stay
+ * pending deletion while a scanner or indexer has it open, and creating or reading it fails with EPERM for
+ * longer than the default window of about 0.2 s (#720): 10 attempts wait about 0.9 s in total. Every
+ * create and read of the lock and every removal that has to succeed uses it.
+ */
+const LOCK_RETRY = { attempts: 10, delayMs: 20 } as const;
+
 /** How often a stale lock is broken and taken again before the lock counts as held. */
 const LOCK_ATTEMPTS = 3;
 
@@ -83,6 +91,7 @@ const readLock = async (file: string): Promise<FoundLock | undefined> => {
     const [text, stat] = await retry(
       () => Promise.all([fs.readFile(file, "utf8"), fs.stat(file)]),
       TRANSIENT_CODES,
+      LOCK_RETRY,
     );
     return { text, modified: stat.mtimeMs };
   } catch (error) {
@@ -108,7 +117,7 @@ const createExclusive = async (file: string, text: string): Promise<boolean> => 
   let handle: fs.FileHandle;
   try {
     // On Windows a file that is being removed while another process has it open refuses for a moment.
-    handle = await retry(() => fs.open(file, "wx", 0o600), TRANSIENT_CODES);
+    handle = await retry(() => fs.open(file, "wx", 0o600), TRANSIENT_CODES, LOCK_RETRY);
   } catch (error) {
     if (errorCode(error) === "EEXIST") {
       return false;
@@ -158,7 +167,7 @@ const breakStale = async (file: string, stale: FoundLock): Promise<boolean> => {
     if (!sameLock(now, stale)) {
       return false;
     }
-    await retry(() => fs.rm(file, { force: true }), TRANSIENT_CODES);
+    await retry(() => fs.rm(file, { force: true }), TRANSIENT_CODES, LOCK_RETRY);
     return true;
   } finally {
     await removeQuietly(breaker);
@@ -176,8 +185,8 @@ export async function lockPrivateFile(file: string): Promise<PrivateLock | undef
   const own = lockText();
   const release = async (): Promise<void> => {
     try {
-      if ((await fs.readFile(file, "utf8")) === own) {
-        await retry(() => fs.rm(file, { force: true }), TRANSIENT_CODES);
+      if ((await retry(() => fs.readFile(file, "utf8"), TRANSIENT_CODES, LOCK_RETRY)) === own) {
+        await retry(() => fs.rm(file, { force: true }), TRANSIENT_CODES, LOCK_RETRY);
       }
     } catch {
       // Gone already, or it cannot be removed: stale once this process ends.

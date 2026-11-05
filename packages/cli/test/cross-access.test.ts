@@ -336,9 +336,10 @@ const copy = async (scenario: Scenario): Promise<Copy> => {
  * A test runs one command through all four accesses. A write command gets four copies. Each access may
  * read Git through a child process. On Linux and macOS a test takes well under a second. Process starts on
  * Windows runners vary from 0.1 s to more than 1 s, so the default limit of 5 s is too tight there. This
- * limit only catches a hang.
+ * limit only catches a hang. On the Windows runner of CI it is 60 s, as for every other test there
+ * (vitest.config.ts, #701): a stall of 30 s timed out one test here in 158 Windows runs (#720).
  */
-const TEST_TIMEOUT = 30_000;
+const TEST_TIMEOUT = process.platform === "win32" && process.env["CI"] === "true" ? 60_000 : 30_000;
 
 const ACCESSES = ["core", "cli", "api", "mcp", "app"] as const;
 
