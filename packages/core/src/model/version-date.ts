@@ -38,13 +38,15 @@ import type { Metamodel } from "../metamodel/index.js";
 import { metamodelState } from "../metamodel/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
-import type { VersionFile } from "../version/version.js";
+import type { VersionFile, VersionForms } from "../version/version.js";
+import { sameVersion } from "../version/version.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import type { ImageLink, ImageSource } from "./images.js";
 import { imageLinks, imageMemo, inNestedRepository } from "./images.js";
 import { ignoredBy } from "./store.js";
-import { elementVersion } from "./view.js";
+import { isKnownVersion } from "./is-version.js";
+import { elementVersions } from "./view.js";
 
 /** One version whose date is asked for. */
 export interface VersionDateRequest {
@@ -106,8 +108,11 @@ interface FileWalk {
    * image path.
    */
   evaluated: readonly Evaluated[];
-  /** The version at each evaluated commit computed so far; undefined where it held no element or has none. */
-  readonly versions: Map<string, string | undefined>;
+  /**
+   * The version at each evaluated commit computed so far, in both normal forms; undefined where it
+   * held no element or has none.
+   */
+  readonly versions: Map<string, VersionForms | undefined>;
   /** The answers so far, by version; null where no commit started it. */
   readonly dates: Map<string, VersionStart | null>;
   /** Set when Git failed for a reason that does not pass: no more answers at this HEAD. */
@@ -129,8 +134,8 @@ interface Facts {
   readonly held: Map<string, Held | undefined>;
   /** SHA-256 by blob ID; null for a blob Git did not have. */
   readonly hashes: Map<string, string | null>;
-  /** Versions by the element text and images they were computed from. */
-  readonly versions: Map<string, string | undefined>;
+  /** Versions (both normal forms) by the element text and images they were computed from. */
+  readonly versions: Map<string, VersionForms | undefined>;
   /** The commits whose moves were looked up. */
   readonly movesAsked: Set<string>;
   /** The old paths of the files each of them moved, by NFC of the new path; where it moved any. */
@@ -168,9 +173,6 @@ const versionDateState = defineWorkspaceState(
 );
 
 const walkKey = (file: string, id: string): string => `${file}\n${id}`;
-
-/** Only normal form 1 can be recomputed (ADR-0005). */
-const N1 = /^n1:[0-9a-f]{16}$/;
 
 /** Adds `value` to the list of `key`. */
 const pushTo = <K, V>(map: Map<K, V[]>, key: K, value: V): void => {
@@ -413,6 +415,12 @@ const readHistory = async (
   }
 };
 
+/** Whether `walk` had `version` at `commit`, compared in the form of `version` (ADR-0005 "Normal form 2"). */
+const hasVersion = (walk: FileWalk, commit: string, version: string): boolean => {
+  const forms = walk.versions.get(commit);
+  return forms !== undefined && sameVersion(version, forms);
+};
+
 /**
  * The answer for `version` from the versions computed so far: the start of the newest evaluated
  * commit that has it while none of its parents has, null when no commit has it; or, while that is
@@ -432,13 +440,13 @@ const decide = (
       need.push(commit.commit);
       continue;
     }
-    if (walk.versions.get(commit.commit) !== version) {
+    if (!hasVersion(walk, commit.commit, version)) {
       continue;
     }
     const unknown = parents.filter((p): p is HistoryCommit => p !== null && !walk.versions.has(p.commit));
     need.push(...unknown.map((p) => p.commit));
     // A start only counts when no newer commit is still open.
-    if (need.length === 0 && !parents.some((p) => p !== null && walk.versions.get(p.commit) === version)) {
+    if (need.length === 0 && !parents.some((p) => p !== null && hasVersion(walk, p.commit, version))) {
       return { start: { date: commit.date, commit: commit.commit } };
     }
   }
@@ -675,7 +683,7 @@ const versionAt = (
   images: ReadonlyMap<string, ImageAt>,
   walk: FileWalk,
   commit: string,
-): string | undefined => {
+): VersionForms | undefined => {
   const { facts } = round.walks;
   const found = heldAt(facts, walk, commit);
   if (found === undefined) {
@@ -698,7 +706,7 @@ const versionAt = (
   const key = JSON.stringify([walk.walked.key, name, blob.id, files]);
   if (!facts.versions.has(key)) {
     try {
-      facts.versions.set(key, elementVersion(held.record, held.body, round.context.metamodel, files));
+      facts.versions.set(key, elementVersions(held.record, held.body, round.context.metamodel, files));
     } catch {
       // A value the version cannot take (`.inf`); the element check reports it.
       facts.versions.set(key, undefined);
@@ -998,7 +1006,7 @@ const repositoryDates = async (
     const files = await Promise.all(requests.map(async (r) => walks.files.get(walkKey(r.file, r.id))));
     const queries = requests.flatMap((r, i): Query[] => {
       const walk = files[i];
-      return walk === undefined || walk.failed || !N1.test(r.version) || walk.dates.has(r.version)
+      return walk === undefined || walk.failed || !isKnownVersion(r.version) || walk.dates.has(r.version)
         ? []
         : [{ walk, version: r.version }];
     });
@@ -1030,7 +1038,8 @@ const repositoryDates = async (
  * second, the one with the greatest object name) that started that version of
  * the element (the file held the element with that version there, its images as that commit had
  * them, and no parent of the commit had that version). `null` when no commit has that version
- * (uncommitted content, or a version Git never saw), when it is not of normal form 1, or when Git
+ * (uncommitted content, or a version Git never saw), when it is not of a normal form this tool
+ * computes (n1, n2), or when Git
  * cannot tell: the repository is not on this machine or not a repository, git is missing or
  * refuses it, it has no commit, it is a shallow clone, or a git call failed or timed out (ADR-0006).
  * The answer waits for the walks; the same request gives the same answer at the same HEAD (D-029).

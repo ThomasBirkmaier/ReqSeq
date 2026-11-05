@@ -13,7 +13,7 @@
 //   of `values`, and every datatype as text in `title`, `text` and a text property (enumeration
 //   values by name).
 // - Relations: one entry per SPEC-RELATION of a mapped type whose two ends are imported, on the
-//   element of its SOURCE, with the planned version of its TARGET (`plannedVersion`; relation kinds
+//   element of its SOURCE, with the planned version of its TARGET (`plannedVersions`; relation kinds
 //   do not count to a version, ADR-0005).
 // - Losses (SR-053 AK2), with the codes of `common.schema.json#/$defs/reqifLoss`: an object of an
 //   omitted type, a value of an omitted attribute or an omitted enumeration value, a number or date
@@ -83,16 +83,18 @@ import type {
 } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { allowsType, findType, keyDefinition } from "../metamodel/index.js";
-import type { NewElementBase, NewElementFile } from "../model/index.js";
+import type { NewElementBase, NewElementFile, VersionForms } from "../model/index.js";
 import {
+  NORMAL_FORM,
   fileNameFor,
+  formOf,
   hasId,
   imageLink,
   isUuid,
   markdownLinks,
   newElementBase,
   newElementBytes,
-  plannedVersion,
+  plannedVersions,
   portableName,
   propertyKeyRefusal,
   titleKeyOrEmpty,
@@ -469,8 +471,10 @@ interface Draft {
   ownRelations?: Map<string, PropertyValue>;
   /** A relation-valued property took a target from a SPEC-RELATION, so the version is planned again. */
   relationProperties?: true;
-  /** The planned version (`plannedVersion`), set once the values are planned. */
+  /** The planned version (`plannedVersions`) as written, set once the values are planned. */
   version: string;
+  /** The planned version in both normal forms (P), set with `version`. */
+  planned: VersionForms;
   /** The workspace name of its repository. */
   readonly repository: string;
   /** The element of an earlier delivery it updates (SR-056). */
@@ -1256,6 +1260,7 @@ const draftOf = (
     properties: new Map(),
     relations: new Map(),
     version: "",
+    planned: { n1: "", n2: "" },
     stem: file.slice(0, -".md".length),
     images,
     textImages: new Map(),
@@ -1270,7 +1275,7 @@ const draftOf = (
 };
 
 /**
- * The planned version of `draft` (`plannedVersion`): of its new file in `folder`, or of the file of
+ * The planned version of `draft` (`plannedVersions`): of its new file in `folder`, or of the file of
  * its existing element with the delivery's fields.
  */
 const versionOf = async (
@@ -1278,9 +1283,9 @@ const versionOf = async (
   draft: Draft,
   repository: RepositoryLocation,
   folder: string,
-): Promise<string> => {
+): Promise<VersionForms> => {
   const { existing } = draft;
-  return plannedVersion(
+  return plannedVersions(
     context.metamodel,
     context.layout,
     existing?.repository ?? repository,
@@ -1291,15 +1296,32 @@ const versionOf = async (
   );
 };
 
-/** What the delivery does with an existing element of planned version `planned` (P), by I and C. */
-const caseOf = (planned: string, existing: ExistingElement): Draft["case"] => {
+/**
+ * Sets the planned version of `draft` and its import version, the version as written (D-059; it
+ * never counts to it).
+ */
+const setPlanned = (draft: Draft, planned: VersionForms, key: string): void => {
+  draft.planned = planned;
+  draft.version = planned[NORMAL_FORM];
+  draft.properties.set(key, draft.version);
+};
+
+/**
+ * What the delivery does with an existing element of planned version `planned` (P), by I and C:
+ * P and C are compared in the normal form of I (ADR-0005 "Normal form 2"), so an import version
+ * written in another form than the tool writes now is still told apart.
+ */
+const caseOf = (planned: VersionForms, existing: ExistingElement): Draft["case"] => {
+  const { imported } = existing;
+  const form = (imported === undefined ? undefined : formOf(imported)) ?? NORMAL_FORM;
+  const p = planned[form];
   // matchedElement refused an element without current version.
-  const current = existing.version;
-  if (planned === existing.imported) {
-    return current === existing.imported ? "same" : "local";
+  const current = existing.forms?.[form];
+  if (p === imported) {
+    return current === imported ? "same" : "local";
   }
   // The same result on both sides is no conflict (#575/2).
-  return current !== existing.imported && current !== planned ? "conflict" : "update";
+  return current !== imported && current !== p ? "conflict" : "update";
 };
 
 /** The draft of `object`, or undefined when its type is omitted (a loss). */
@@ -1350,9 +1372,7 @@ const planObject = async (
   draft.properties.set(keys["source-identifier"], object.identifier);
   draft.properties.set(keys["import-date"], context.origin.date);
   draft.properties.set(keys.delivery, context.origin.delivery);
-  // The import version is the version of the element as written (D-059); it never counts to it.
-  draft.version = await versionOf(context, draft, repository, folder);
-  draft.properties.set(keys["import-version"], draft.version);
+  setPlanned(draft, await versionOf(context, draft, repository, folder), keys["import-version"]);
   return draft;
 };
 
@@ -1602,8 +1622,11 @@ const replanVersions = async (
 ): Promise<void> => {
   for (const draft of drafts.values()) {
     if (draft.relationProperties === true) {
-      draft.version = await versionOf(context, draft, repository, relative);
-      draft.properties.set(context.keys["import-version"], draft.version);
+      setPlanned(
+        draft,
+        await versionOf(context, draft, repository, relative),
+        context.keys["import-version"],
+      );
     }
   }
 };
@@ -1753,7 +1776,7 @@ const classify = (
       continue;
     }
     const object = { identifier: draft.identifier, id: draft.id };
-    draft.case = caseOf(draft.version, existing);
+    draft.case = caseOf(draft.planned, existing);
     if (draft.case === "update" || draft.case === "conflict") {
       changed.push(object);
     }

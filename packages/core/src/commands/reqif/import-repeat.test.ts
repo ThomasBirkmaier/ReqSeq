@@ -9,6 +9,7 @@ import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandName, CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
+import { currentVersionsOf, elementStoreState } from "../../model/index.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 import { readFirstFor } from "../../runtime/read-first.test-helper.js";
@@ -182,6 +183,32 @@ describe("repeated ReqIF import (SR-056)", () => {
     expect(two.element.relations).toEqual([
       expect.objectContaining({ id: one, storedVersion: after.element.version }) as unknown,
     ]);
+  });
+
+  it("[SR-056/AK2] compares a repeated delivery in the normal form of the stored import version (ADR-0005)", async () => {
+    const { workspace, ids, root } = await delivered();
+    const store = await workspace.get(elementStoreState);
+    const records = Object.values(ids).flatMap((id) => store.byId.get(id) ?? []);
+    const versions = [...(await currentVersionsOf(workspace, records)).values()];
+    // Each import version written in normal form 2, as a later version of the tool writes it.
+    for (const [i, record] of records.entries()) {
+      const current = versions[i];
+      const file = path.join(root, record.file);
+      const text = await fs.readFile(file, "utf8");
+      const n1 = current?.kind === "version" ? current.forms.n1 : "";
+      const n2 = current?.kind === "version" ? current.forms.n2 : "";
+      expect(text).toContain(`import-version: ${n1}\n`);
+      await fs.writeFile(file, text.replace(`import-version: ${n1}\n`, `import-version: ${n2}\n`));
+    }
+    const again = new Workspace(root);
+    onTestFinished(() => again.close());
+    // Delivery 1 again changes nothing; delivery 2 changes REQ-1 and REQ-3 without a conflict.
+    expect(pick((await analyzeOf(again, 1)).changed)).toEqual([]);
+    const second = await analyzeOf(again, 2);
+    expect([pick(second.changed), second.conflicts]).toEqual([["REQ-1", "REQ-3"], []]);
+    // A local edit is still told apart from the import version of the other form.
+    await run(again, "element.update", { ref: String(ids["REQ-3"]), text: "Stored locally for a year.\n" });
+    expect((await analyzeOf(again, 2)).conflicts).toEqual([{ identifier: "REQ-3", id: ids["REQ-3"] }]);
   });
 
   it("[SR-056/AK3] lists a dropped requirement only in the output and leaves its file, status and properties as they were", async () => {

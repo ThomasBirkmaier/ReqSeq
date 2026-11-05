@@ -10,7 +10,8 @@ import type { Workspace } from "../runtime/workspace.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
 import { elementStoreState, ignoredBy, recordWrites } from "./store.js";
 import { imageLinks, lookUpImages } from "./images.js";
-import { elementVersion } from "./view.js";
+import type { VersionForms } from "../version/version.js";
+import { elementVersions } from "./view.js";
 import { workspacePath, writtenElement } from "./write.js";
 
 /** One planned new file: relative to its repository, `/` as separator. */
@@ -24,15 +25,17 @@ export interface NewElementFile {
  * before it is written, computed as the store computes it (`imageLinks` with the `ignore` globs,
  * `lookUpImages`, `elementVersion`). Its values must have a normal form (no `.inf`, `.nan`). An
  * image its text embeds is the SHA-256 `images` gives for its path (relative to the folder of the
- * element file), a file the same call writes (SR-095 AK2); any other is looked up on disk.
+ * element file), a file the same call writes (SR-095 AK2); any other is looked up on disk. In both
+ * normal forms (ADR-0005 "Normal form 2"): `reqif.import` compares a repeated delivery in the form
+ * of the stored import version.
  */
-export const plannedVersion = async (
+export const plannedVersions = async (
   metamodel: Metamodel,
   layout: WorkspaceLayout,
   repository: RepositoryLocation,
   planned: NewElementFile,
   images: ReadonlyMap<string, string> = new Map(),
-): Promise<string> => {
+): Promise<VersionForms> => {
   const snapshot: FileSnapshot = {
     path: planned.file,
     size: planned.bytes.length,
@@ -52,7 +55,7 @@ export const plannedVersion = async (
     }
   }
   const onDisk = await lookUpImages({ repository, ignored }, others);
-  return elementVersion(record, file.body, metamodel, [...copies, ...onDisk.images]);
+  return elementVersions(record, file.body, metamodel, [...copies, ...onDisk.images]);
 };
 
 /** A file the same call writes besides the element files, such as the copy of an image or a saved mapping. */

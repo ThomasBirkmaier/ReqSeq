@@ -14,7 +14,7 @@ import { Workspace } from "../runtime/workspace.js";
 import type { RepositoryLocation } from "../workspace/index.js";
 import { locate, workspaceLayoutState } from "../workspace/index.js";
 import type { NewElementFile } from "./new-files.js";
-import { createElementFiles, plannedVersion } from "./new-files.js";
+import { createElementFiles, plannedVersions } from "./new-files.js";
 import { newElementBase, newElementBytes } from "./write.js";
 
 const ID_A = "0b4a6f7e-9c1d-4e2a-8f3b-5d6c7e8f9a01";
@@ -76,12 +76,14 @@ describe("createElementFiles", () => {
       element: { version: string };
     };
     expect(got.element.version).toBe(
-      await plannedVersion(
-        metamodel,
-        await workspace.get(workspaceLayoutState),
-        repository,
-        files[0] ?? { file: "", bytes: new Uint8Array() },
-      ),
+      (
+        await plannedVersions(
+          metamodel,
+          await workspace.get(workspaceLayoutState),
+          repository,
+          files[0] ?? { file: "", bytes: new Uint8Array() },
+        )
+      ).n1,
     );
   });
 
@@ -96,7 +98,7 @@ describe("createElementFiles", () => {
       file: "N-0.md",
       bytes: newElementBytes(base, ID_A, "Need", "![a](N-0/a.png)![b](logo.png)", []),
     };
-    const version = await plannedVersion(
+    const { n1: version } = await plannedVersions(
       metamodel,
       layout,
       repository,
@@ -116,9 +118,9 @@ describe("createElementFiles", () => {
     // The planned hash stands for the copy; with the copy's own hash both versions are the same.
     expect(version).not.toBe(got.element.version);
     const copy = createHash("sha256").update("copy").digest("hex");
-    expect(await plannedVersion(metamodel, layout, repository, planned, new Map([["N-0/a.png", copy]]))).toBe(
-      got.element.version,
-    );
+    expect(
+      (await plannedVersions(metamodel, layout, repository, planned, new Map([["N-0/a.png", copy]]))).n1,
+    ).toBe(got.element.version);
   });
 
   it("removes what it named when a name is taken meanwhile, and refuses with file.changed-on-disk", async () => {

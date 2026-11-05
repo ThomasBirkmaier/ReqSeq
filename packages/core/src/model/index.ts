@@ -238,7 +238,7 @@ export type {
   RemoveRelationInput,
 } from "./relation-write.js";
 export { addAttachment, attachmentStem, clashKey, IMAGE_EXTENSIONS, portableName } from "./attachment.js";
-export { createElementFiles, plannedVersion } from "./new-files.js";
+export { createElementFiles, plannedVersions } from "./new-files.js";
 export type { NewElementFile, NewImageFile } from "./new-files.js";
 export type { NewElementBase } from "./write.js";
 export {
@@ -271,7 +271,7 @@ export type {
 } from "./write.js";
 export { LayeredMap } from "./layered-map.js";
 export type { VersionForms } from "../version/version.js";
-export { NORMAL_FORM, sameVersion } from "../version/version.js";
+export { NORMAL_FORM, formOf, sameVersion } from "../version/version.js";
 export { PatchedMap } from "./patched-map.js";
 export { byPath } from "./path-order.js";
 export { recordsById } from "./by-id.js";
