@@ -331,7 +331,16 @@ describe("baseline.get", () => {
   });
 
   it("is incomplete while a repository is not here, and gives a programming error as it is", async () => {
-    const { ws } = await made();
+    const { ws } = await made({
+      // An entry naming a repository the workspace file does not list is missing, not inaccessible.
+      "Elsewhere.yaml": (first) =>
+        baselineText(
+          "Elsewhere",
+          [],
+          [`  - { name: system, commit: ${first} }`],
+          [`  - { id: ${ID}fe, version: n1:3333333333333333, repository: elsewhere }`],
+        ),
+    });
     vi.mocked(query.resolveSelection).mockRejectedValueOnce(new Error("bug"));
     await expect(call(ws, "baseline.get", { baseline: "Release 2" })).rejects.toThrow(
       "Internal error in baseline.get",
@@ -349,6 +358,8 @@ describe("baseline.get", () => {
       versionDate: null,
     });
     expect(out.counts).toMatchObject({ missing: 1, inaccessible: 1 });
+    const elsewhere = await call(ws, "baseline.get", { baseline: "Elsewhere" });
+    expect(elsewhere.elements[0]).toMatchObject({ repository: "elsewhere", state: "missing" });
   });
 });
 
