@@ -3,8 +3,10 @@
 // that count for the baseline (`countsFor` of the baselines block, which the command passes in: the
 // evidence block lies above it).
 //
-// - Own records only (AK6): no walk to children, so no current version is read; the version is the
-//   baseline's. The status rule is that of `evidence.status` (`verificationStatusOf`,
+// - Own records only (AK6): no walk to children; the version is the baseline's. A record of the
+//   other normal form (n1, n2) than the entry counts when the entry is the element's current
+//   version and the record is too (`storedForms`, with the current versions `baseline.get` reads
+//   anyway; ADR-0005 "Normal form 2"); otherwise it is of another version. The status rule is that of `evidence.status` (`verificationStatusOf`,
 //   `validationOf`, ADR-0012 "Status rules"): records of other versions only give `outdated`,
 //   none `open` (AK3); an `inconclusive` validation gives its `validationReason` (SR-172 AK2).
 // - Rows (AK4, AK5): the views the command passes, a subset of `WorkspaceStatus.holders` (the core,
@@ -27,7 +29,8 @@
 //   merged in index order (newest first), as `holdsIn` gives them; only the `later` of a row with
 //   records of both groups costs one more pass over the entry's records (the status needs no order).
 import type { BaselineGetOutput } from "../generated/types.js";
-import type { ElementRecord } from "../model/index.js";
+import type { ElementRecord, VersionForms } from "../model/index.js";
+import { sameVersion, storedForms } from "../model/index.js";
 import type { EvidenceRecord } from "./record.js";
 import { validationOf, verificationStatusOf } from "./status.js";
 import type { ViewHolder, WorkspaceStatus } from "./verification.js";
@@ -86,7 +89,7 @@ const heldIn = (
 /** `validation` and `validationReason` of an entry from the counting validation records, or nothing. */
 const validationFields = (
   validating: readonly EvidenceRecord[] | undefined,
-  version: string,
+  version: VersionForms,
 ): Pick<BaselineEvidence, "validation" | "validationReason"> => {
   if (validating === undefined) {
     return {};
@@ -98,7 +101,7 @@ const validationFields = (
 /** The verification rows of `element` at `version` in `views` from its grouped records (see the file comment). */
 const verificationRows = (
   element: ElementRecord,
-  version: string,
+  version: VersionForms,
   views: readonly ViewHolder[],
   groups: { readonly counting: Groups; readonly later: Groups },
   independent: boolean,
@@ -135,7 +138,7 @@ interface Grouped {
 /** Groups the `records` of an entry at its `version` in one pass (see the file comment). */
 const grouped = (
   records: readonly EvidenceRecord[],
-  version: string,
+  version: VersionForms,
   counts: (date: string) => boolean,
   requirement: boolean,
 ): Grouped => {
@@ -154,13 +157,13 @@ const grouped = (
       validated = true;
       if (counted) {
         validating.push(record);
-      } else if (record.version === version) {
+      } else if (sameVersion(record.version, version)) {
         validationLater.push(record);
       }
     } else if (requirement) {
       if (counted) {
         push(counting, record.variant, record);
-      } else if (record.version === version) {
+      } else if (sameVersion(record.version, version)) {
         push(later, record.variant, record);
       }
     }
@@ -178,9 +181,11 @@ export const baselineEvidence =
     status: Pick<WorkspaceStatus, "source">,
     views: readonly ViewHolder[] | undefined,
     counts: (date: string) => boolean,
-  ): ((element: ElementRecord, version: string) => BaselineEvidence) =>
-  (element, version) => {
+  ): ((element: ElementRecord, stored: string, current: VersionForms | undefined) => BaselineEvidence) =>
+  (element, stored, current) => {
     const { source } = status;
+    // A record of the other normal form counts through the current version (`storedForms`).
+    const version = storedForms(stored, current);
     const records = source.recordsOf(element.id);
     const requirement = views !== undefined && source.requirements.has(element.type);
     const { counting, later, validating, validationLater, validated } = grouped(

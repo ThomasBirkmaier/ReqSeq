@@ -20,7 +20,8 @@
 import type { TraceMatrixOutput } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { typesWithMeaning } from "../metamodel/index.js";
-import type { ElementRecord } from "../model/index.js";
+import type { ElementRecord, VersionForms } from "../model/index.js";
+import { sameVersion } from "../model/index.js";
 import type { View } from "../variants/index.js";
 import type { EvidenceIndex } from "./by-element.js";
 import { viewIdOf } from "./degree.js";
@@ -50,11 +51,15 @@ export type MatrixTestCaseMark = NonNullable<MatrixTestCase["mark"]>;
  * the mark follows the status). Records of one instant may tie: the first in index order is taken,
  * while the status counts a failed one among them (#525 Q2).
  */
-export const testCaseMark = (test: TestCase, current: string | undefined): MatrixTestCaseMark | undefined => {
+export const testCaseMark = (
+  test: TestCase,
+  current: VersionForms | undefined,
+): MatrixTestCaseMark | undefined => {
   if (test.last === undefined) {
     return "not-executed";
   }
-  const ofCurrent = current === undefined ? undefined : test.executions.find((e) => e.version === current);
+  const ofCurrent =
+    current === undefined ? undefined : test.executions.find((e) => sameVersion(e.version, current));
   if (ofCurrent === undefined) {
     return "outdated";
   }
@@ -72,7 +77,7 @@ export const matrixTestCases = (
   id: string,
   view: View,
   independent: boolean,
-  current: string | undefined,
+  current: VersionForms | undefined,
 ): MatrixTestCase[] =>
   verificationTestCasesIn(index, id, view, independent).map((test): MatrixTestCase => {
     const mark = testCaseMark(test, current);
@@ -119,7 +124,7 @@ const NONE: MatrixRowEvidence = Object.freeze({});
  */
 export const matrixEvidence =
   ({ status, index, view }: MatrixEvidenceInput) =>
-  (element: ElementRecord, current: string | undefined): MatrixRowEvidence => {
+  (element: ElementRecord, current: VersionForms | undefined): MatrixRowEvidence => {
     const result = status.evaluate(element, view, { current });
     if (result === undefined) {
       return NONE;

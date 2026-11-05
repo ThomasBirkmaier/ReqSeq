@@ -271,7 +271,7 @@ export type {
 } from "./write.js";
 export { LayeredMap } from "./layered-map.js";
 export type { VersionForms } from "../version/version.js";
-export { NORMAL_FORM, formOf, sameVersion } from "../version/version.js";
+export { NORMAL_FORM, formOf, sameVersion, storedForms } from "../version/version.js";
 export { PatchedMap } from "./patched-map.js";
 export { byPath } from "./path-order.js";
 export { recordsById } from "./by-id.js";

@@ -13,7 +13,14 @@ import { verificationNameIds, withEvidenceStatus, workspaceStatus } from "../evi
 import { metamodelState } from "../metamodel/index.js";
 import type { DataExportElement, ElementName } from "../generated/types.js";
 import type { ShownElement } from "../model/index.js";
-import { elementStoreState, namesField, namesOf, shortIdState } from "../model/index.js";
+import {
+  currentVersionsOf,
+  elementStoreState,
+  formsOfEntry,
+  namesField,
+  namesOf,
+  shortIdState,
+} from "../model/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import { replacedExcludedOf } from "../variants/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
@@ -37,7 +44,7 @@ export const shownWithNames = async (workspace: Workspace, shown: ShownElement):
   const uses = replacedExcludedOf({ workspace, store, metamodel }, record);
   const element = withReplacedExcluded(
     uses,
-    withEvidenceStatus(await workspaceStatus(workspace, [record]), record, shown.element),
+    withEvidenceStatus(await workspaceStatus(workspace, [record]), record, shown.element, shown.forms),
   );
   const validity = exportedProperties(metamodel).validity;
   const named = [
@@ -68,7 +75,10 @@ export const writtenWithStatus = async (
   const record = store.byId
     .get(written.id)
     ?.find((r) => r.repository === written.repository && r.file === written.file);
-  return record === undefined
-    ? written
-    : withEvidenceStatus(await workspaceStatus(workspace, [record]), record, written);
+  if (record === undefined) {
+    return written;
+  }
+  // Both normal forms of the file as written, as `element.get` measures it (also with images).
+  const forms = formsOfEntry((await currentVersionsOf(workspace, [record])).get(record));
+  return withEvidenceStatus(await workspaceStatus(workspace, [record]), record, written, forms);
 };

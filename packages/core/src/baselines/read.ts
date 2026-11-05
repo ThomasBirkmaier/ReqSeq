@@ -40,6 +40,7 @@ import { CommandError } from "../catalog.js";
 import type { Problem, WorkspaceLocation } from "../generated/types.js";
 import type { YamlFile } from "../files/index.js";
 import { listFolderFiles, readYamlFile, readYamlFileFast, yamlPointerLine } from "../files/index.js";
+import type { VersionForms } from "../model/index.js";
 import { changeStamp, workspacePath } from "../model/index.js";
 import { contractsBundle, fileSchemaErrors, fileSchemaValidator } from "../runtime/contracts.js";
 import { fileMessage, inputViolations } from "../runtime/input-errors.js";
@@ -367,9 +368,17 @@ export const readBaselines = async (
   return { location, baselines, problems, faulty, incomplete: false };
 };
 
-/** The `name` of every baseline that contains `version` of the element `id`, in file order, each once (SR-032 AK2). */
-export const baselinesContaining = (baselines: Baselines, id: string, version: string): string[] => [
-  ...new Set(baselines.baselines.filter((b) => b.contains(id, version)).map((b) => b.name)),
+/**
+ * The `name` of every baseline that contains the element `id` at `version` in either normal form, in
+ * file order, each once (SR-032 AK2; `storedForms` gives the forms of a stored version, ADR-0005
+ * "Normal form 2").
+ */
+export const baselinesContaining = (baselines: Baselines, id: string, version: VersionForms): string[] => [
+  ...new Set(
+    baselines.baselines
+      .filter((b) => b.contains(id, version.n1) || b.contains(id, version.n2))
+      .map((b) => b.name),
+  ),
 ];
 
 /** What `findBaseline` found for a text. */

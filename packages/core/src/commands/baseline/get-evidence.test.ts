@@ -8,6 +8,7 @@ import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import type { EvidenceRecord } from "../../evidence/index.js";
 import { evidenceRecordsState } from "../../evidence/index.js";
+import { currentFormsOf, currentVersionsState } from "../../model/index.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 import * as variants from "../../variants/index.js";
@@ -149,6 +150,30 @@ describe("baseline.get withEvidence", () => {
     const older = await get(workspace, "Older");
     expect(older.elements[0]).toMatchObject({ state: "changed", version: V.olderB2 });
     expect(coreStatus(older, "b2")).toBe("verified");
+  });
+
+  it("[SR-094/AK1] a record of the other normal form counts while the baseline version is the current one (ADR-0005)", async () => {
+    const { fixture, workspace } = await opened();
+    const versions = await workspace.get(currentVersionsState);
+    const b1 = versions.store.byId.get(`${P}b1`)?.[0];
+    const n2 = b1 === undefined ? undefined : currentFormsOf(versions, b1)?.n2;
+    expect(n2).toMatch(/^n2:/);
+    const at = (version: string) =>
+      baselineText("N2", [], []).replace(
+        "elements:\n",
+        `elements:\n  - { id: ${P}b1, version: ${version} }\n`,
+      );
+    // The baseline stores n2 of the current version; the records store n1: they count.
+    await fixture.write("baselines/n2.yaml", at(String(n2)));
+    const current = await get(workspace, "N2");
+    expect(current.elements[0]).toMatchObject({ state: "unchanged", version: n2 });
+    expect(current.elements[0]).not.toHaveProperty("current");
+    expect(coreStatus(current, "b1")).toBe("verified");
+    // Another n2: no record is of it.
+    await fixture.write("baselines/n2.yaml", at("n2:0000000000000000"));
+    const other = await get(workspace, "N2");
+    expect(other.elements[0]).toMatchObject({ state: "changed", current: V.b1 });
+    expect(coreStatus(other, "b1")).toBe("outdated");
   });
 
   it("[SR-094/AK2] records are compared to the baseline by date and time, by day when one has no time, later ones of its version named", async () => {

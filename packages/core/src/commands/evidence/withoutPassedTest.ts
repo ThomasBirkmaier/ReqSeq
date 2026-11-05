@@ -47,7 +47,7 @@ export default defineCommand({
     const page = sorted.slice(input.offset, input.offset + input.limit);
     const shown = await workspaceStatus(ctx.workspace, page);
     const elements = await listElements(ctx.workspace, selected, page, {
-      extend: (record, element) => withEvidenceStatus(shown, record, element),
+      extend: (record, element, forms) => withEvidenceStatus(shown, record, element, forms),
     });
     const read = await ctx.workspace.get(evidenceReadState);
     return {

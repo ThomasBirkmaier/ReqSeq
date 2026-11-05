@@ -38,6 +38,8 @@ import { validityOf } from "../variants/index.js";
 import type { EvidenceIndex } from "./by-element.js";
 import { instantOf } from "./by-element.js";
 import { holdsIn } from "./holds.js";
+import type { VersionForms } from "../model/index.js";
+import { sameVersion } from "../model/index.js";
 import type { EvidenceRecord } from "./record.js";
 
 /** What the records of one kind say about an element in a view, before it is named for its kind. */
@@ -59,10 +61,10 @@ export type VerificationEntries = NonNullable<DataExportElement["verification"]>
 const ofVersion = (
   record: EvidenceRecord,
   kind: EvidenceRecord["kind"],
-  current: string | undefined,
+  current: VersionForms | undefined,
 ): boolean =>
   current !== undefined &&
-  record.version === current &&
+  sameVersion(record.version, current) &&
   (kind === "validation" || record.result !== "inconclusive");
 
 /**
@@ -74,7 +76,7 @@ const ofVersion = (
 export const recordStatusOf = (
   records: readonly EvidenceRecord[],
   kind: EvidenceRecord["kind"],
-  current: string | undefined,
+  current: VersionForms | undefined,
   view: View,
   independent: boolean,
 ): RecordStatus => {
@@ -116,7 +118,7 @@ export const recordStatusOf = (
  */
 export const verificationStatusOf = (
   records: readonly EvidenceRecord[],
-  current: string | undefined,
+  current: VersionForms | undefined,
   view: View,
   independent: boolean,
 ): RecordVerificationStatus => {
@@ -134,15 +136,21 @@ export interface Validation {
 }
 
 /** Whether `record` is a validation record of the core for `current` (`validationOf`). */
-const validatesCurrent = (record: EvidenceRecord, current: string | undefined): boolean =>
-  record.kind === "validation" && holdsIn(record, CORE, false) && record.version === current;
+const validatesCurrent = (record: EvidenceRecord, current: VersionForms | undefined): boolean =>
+  record.kind === "validation" &&
+  holdsIn(record, CORE, false) &&
+  current !== undefined &&
+  sameVersion(record.version, current);
 
 /**
  * The reason of an `inconclusive` validation (SR-172 AK2): the first inconclusive record, in the
  * order of `records`, among the newest validation records of the core for `current`. Only asked
  * when `recordStatusOf` gave `inconclusive`, so such a record exists.
  */
-const reasonOf = (records: readonly EvidenceRecord[], current: string | undefined): string | undefined => {
+const reasonOf = (
+  records: readonly EvidenceRecord[],
+  current: VersionForms | undefined,
+): string | undefined => {
   let newest = Number.NEGATIVE_INFINITY;
   let reason: string | undefined;
   for (const record of records) {
@@ -169,7 +177,10 @@ const reasonOf = (records: readonly EvidenceRecord[], current: string | undefine
  * `outdated` (AK2, AK3), none gives `open` (AK3). Verification records never count (D-007, AK1).
  * `inconclusive` comes with the reason of the deciding record (SR-172 AK2).
  */
-export const validationOf = (records: readonly EvidenceRecord[], current: string | undefined): Validation => {
+export const validationOf = (
+  records: readonly EvidenceRecord[],
+  current: VersionForms | undefined,
+): Validation => {
   const status = recordStatusOf(records, "validation", current, CORE, false);
   if (status === "inconclusive") {
     const reason = reasonOf(records, current);

@@ -6,6 +6,7 @@ import path from "node:path";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureOptions } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
+import { forms } from "../model/version-forms.test-helper.js";
 import { parseYamlFileBytes } from "../files/index.js";
 import type { BaselineFile } from "../generated/types.js";
 import { contractsBundle, fileSchemaValidator } from "../runtime/contracts.js";
@@ -71,9 +72,9 @@ describe("baseline files, read-only (SR-032 AK2)", () => {
     });
     expect(read.location).toEqual({ repository: "system", path: "baselines" });
     expect(read.baselines.map((b) => b.repository)).toEqual(["system", "system", "system"]);
-    expect(baselinesContaining(read, A1, V1)).toEqual(["Beta", "Release 1.0"]);
-    expect(baselinesContaining(read, A2, V2)).toEqual(["Release 1.0", "Release 1.1"]);
-    expect(baselinesContaining(read, A2, V1)).toEqual([]);
+    expect(baselinesContaining(read, A1, forms(V1))).toEqual(["Beta", "Release 1.0"]);
+    expect(baselinesContaining(read, A2, forms(V2))).toEqual(["Release 1.0", "Release 1.1"]);
+    expect(baselinesContaining(read, A2, forms(V1))).toEqual([]);
   });
 
   it("[SR-032/AK2] reads the baselines folder the workspace file names, also at the root of a repository, never the workspace file", async () => {
@@ -87,14 +88,14 @@ describe("baseline files, read-only (SR-032 AK2)", () => {
       problems: [],
       incomplete: false,
     });
-    expect(baselinesContaining(read, A1, V1)).toEqual(["Root"]);
+    expect(baselinesContaining(read, A1, forms(V1))).toEqual(["Root"]);
   });
 
   it("names a baseline once when two files carry the same name", async () => {
     const { layout } = await open({
       "baselines/twin.yaml": baseline("Beta", `{ id: ${A1}, version: ${V1} }`),
     });
-    expect(baselinesContaining(await readBaselines(layout), A1, V1)).toEqual(["Beta", "Release 1.0"]);
+    expect(baselinesContaining(await readBaselines(layout), A1, forms(V1))).toEqual(["Beta", "Release 1.0"]);
   });
 
   it("reports faulty files, a .yml file and YAML warnings, and reads no baseline from a faulty file", async () => {
@@ -522,7 +523,7 @@ describe("baseline file format (ADR-0018): the line scanner and the YAML fallbac
       "baselines/edited.yaml": same.comment.replace("Release 1", "Release 1 edited"),
     });
     const read = await readBaselines(layout);
-    expect(baselinesContaining(read, U1, V2)).toEqual(["Release 1", "Release 1 edited"]);
+    expect(baselinesContaining(read, U1, forms(V2))).toEqual(["Release 1", "Release 1 edited"]);
     expect(read.problems).toEqual([]);
   });
 

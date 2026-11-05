@@ -3,6 +3,7 @@
 // (evidence.status, element.get) and the filter are tested in commands/evidence/indirect.test.ts; the
 // emergent rule (SR-035) in commands/evidence/emergent.test.ts.
 import { describe, expect, it } from "vitest";
+import { forms } from "../model/version-forms.test-helper.js";
 import type { ElementRecord } from "../model/index.js";
 import { isEmergent } from "../model/index.js";
 import type { View } from "../variants/index.js";
@@ -88,7 +89,7 @@ const evaluator = (setup: Setup) => {
   return verificationEvaluator(
     source,
     setup.noRules === true ? undefined : rules(setup.children ?? new Map()),
-    (e) => (versions.has(e) ? versions.get(e) : CURRENT),
+    (e) => forms(versions.has(e) ? versions.get(e) : CURRENT),
     validityScope(source.validity),
   );
 };
@@ -349,12 +350,12 @@ describe("indirect verification (SR-034)", () => {
       children: new Map([[parent, [child]]]),
       records: [record(child, "passed")],
     });
-    expect(evaluate(child, CORE, { current: "n1:2222222222222222" })).toEqual({ status: "outdated" });
+    expect(evaluate(child, CORE, { current: forms("n1:2222222222222222") })).toEqual({ status: "outdated" });
     expect(evaluate(child, CORE, { current: undefined })).toEqual({ status: "outdated" });
     expect(evaluate(parent, CORE)).toEqual(indirect);
     expect(evaluate(child, CORE)).toEqual({ status: "verified" });
     // A parent without own record does not depend on its own version.
-    expect(evaluate(parent, CORE, { current: "n1:2222222222222222" })).toEqual(indirect);
+    expect(evaluate(parent, CORE, { current: forms("n1:2222222222222222") })).toEqual(indirect);
   });
 
   it("gives nothing for an element that is no requirement or does not apply in the view", () => {

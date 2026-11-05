@@ -35,12 +35,13 @@ import { readFileSnapshot, shown, writeFileAtomic, zip } from "../files/index.js
 import type { FileSnapshot } from "../files/index.js";
 import type { EvidenceEnrichJunitInput, EvidenceEnrichJunitOutput } from "../generated/types.js";
 import { metamodelState, typesWithMeaning } from "../metamodel/index.js";
-import type { ElementRecord } from "../model/index.js";
+import type { ElementRecord, VersionForms } from "../model/index.js";
 import {
   currentVersionsOf,
   elementStoreState,
   ownEvidenceWrite,
   resolveRef,
+  sameVersion,
   shortIdState,
 } from "../model/index.js";
 import { fileSchemaValidator } from "../runtime/contracts.js";
@@ -74,7 +75,13 @@ export type RefResolution =
 
 /** The current version of an element, or why it has none (`CurrentVersion`). */
 export type VersionLookup =
-  | { readonly kind: "version"; readonly version: string }
+  | {
+      readonly kind: "version";
+      /** The version written into the test case (the form the tool writes). */
+      readonly version: string;
+      /** The version in every normal form, to compare a stored one in its form (ADR-0005). */
+      readonly forms: VersionForms;
+    }
   | { readonly kind: "unknown"; readonly message: string };
 
 /** What a `reqseq:variant` value names: a variant's UUID, or why it names none. */
@@ -946,7 +953,7 @@ const keptProblems = (
       ];
     }
     const current = versions.get(resolution.id);
-    return current?.kind === "version" && current.version !== stored
+    return current?.kind === "version" && !sameVersion(stored, current.forms)
       ? [
           {
             code: "evidence.outdated",
@@ -1197,7 +1204,7 @@ export const enrichJunitFile = async (
       return new Map(
         [...entries].map(([record, entry]): [string, VersionLookup] => [
           record.id,
-          entry.kind === "version" ? { kind: "version", version: entry.version } : entry,
+          entry.kind === "version" ? { kind: "version", version: entry.version, forms: entry.forms } : entry,
         ]),
       );
     },
