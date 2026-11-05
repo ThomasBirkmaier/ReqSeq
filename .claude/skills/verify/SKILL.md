@@ -9,7 +9,7 @@ CI runs on GitHub's hosted runners on three systems, and a red run costs about t
 
 ## First: pnpm 12
 
-The repository pins pnpm 12 (`packageManager`). Corepack 0.34, which Node 22 brings, cannot start it (`Cannot find module .../pnpm/12.x/bin/pnpm.cjs`). If `pnpm --version` fails, run once per container:
+The repository pins pnpm 12 (`packageManager`). Corepack 0.34, which Node 22 brings, cannot start it (`Cannot find module .../pnpm/12.x/bin/pnpm.cjs`). In a cloud session the SessionStart hook (`scripts/hooks/session-start.mjs`) does this. Otherwise, if `pnpm --version` fails, run once per container:
 
 ```sh
 npm install -g pnpm@12.14.0 --force

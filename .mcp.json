@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "reqseq": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["packages/cli/dist/bin.js", "mcp", "--workspace", "spec"]
+    },
+    "context7": {
+      "type": "http",
+      "url": "https://mcp.context7.com/mcp"
+    }
+  }
+}
