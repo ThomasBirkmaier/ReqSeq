@@ -1,6 +1,7 @@
 # Standard model, shipped with ReqSeq and written by `reqseq workspace init`.
-# Keys never change. Every built-in meaning has a key: each type and property meaning
-# exactly one, derivation two relation kinds (Refines, Derives from).
+# Keys never change. Each type and property meaning has exactly one key, except `identifier`,
+# which a workspace gives to a property of its own; derivation has two relation kinds (Refines,
+# Derives from).
 reqseq-metamodel: 1
 
 types:

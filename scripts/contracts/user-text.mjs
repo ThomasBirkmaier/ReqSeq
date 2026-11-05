@@ -11,13 +11,19 @@
 /** One reference, with the words that narrow it: `SR-034 AK2`, `#528 Q1`, `ADR-0002 rule 5`, `#141 c`. */
 const ONE = String.raw`(?:#\d+|\b(?:D|SR|N)-\d{3}\b|\bADR-\d{4}\b|\bAK\d+\b)(?:\s+(?:AK\d+|Q\d+|rule\s+\d+|[a-z]\b|\([a-z]\)|"[^"]*"))*`;
 /** The words that may introduce a reference. */
-const LEAD = String.raw`(?:(?:spec questions?|spec-frage|decisions? on|see|assumption(?: on)?|follow-up(?: of)?|from|per|as in|as)\s+)?`;
+const LEAD = String.raw`(?:(?:[Ss]pec questions?|[Ss]pec-frage|[Dd]ecisions? on|[Ss]ee|[Aa]ssumption(?: on)?|[Ff]ollow-up(?: of)?|[Ff]rom|[Pp]er|[Aa]s in|[Aa]s)\s+)?`;
 const REF = `${LEAD}${ONE}`;
 /** References joined by `,`, `/`, `and` or `to`, and further criteria or questions (`#528 Q1, Q2`). */
 const LIST = String.raw`${REF}(?:\s*(?:,|/|and|to)\s*${REF}|\s*,\s*(?:AK|Q)\d+)*`;
-const ONLY = new RegExp(String.raw`^\s*${LIST}\s*$`, "i");
-const PREFIX = new RegExp(String.raw`^\s*${LIST}\s*:\s*`, "i");
-const FOUND = /#\d+|\b(?:D|SR|N)-\d{3}\b|\bADR-\d{4}\b|\bAK\d+\b/;
+const ONLY = new RegExp(String.raw`^\s*${LIST}\s*$`);
+const PREFIX = new RegExp(String.raw`^\s*${LIST}\s*:\s*`);
+const FOUND = /#\d+|\b(?:D|SR|N)-\d{3}\b|\bADR-\d{4}\b|\bAK\d+\b|product owner decision/;
+/** The origin of a rule, `product owner decision, 2026-11-02`, which goes as a reference does. */
+const ORIGIN = /\bproduct owner decision,\s*\d{4}-\d{2}-\d{2}/g;
+/** The mark of an assumption, which says nothing once its spec question went: `(assumption, #591)`. */
+const ASSUMPTION = /^\s*assumption\s*$/;
+/** A code span, kept as it is: `--fields id,title` is no list, `x(#5)` no group. */
+const CODE = /`[^`]*`/g;
 const FOUND_ALL = new RegExp(FOUND.source, "g");
 
 /** `part` without a leading reference, its first letter upper case when one went. */
@@ -34,37 +40,46 @@ const withoutLead = (part) => {
 const kept = (inner, separator, inside) =>
   inner
     .split(separator)
-    .map((item) => (ONLY.test(item) ? "" : inside(item.replace(PREFIX, ""))))
+    .map((item) => (ONLY.test(item) || ASSUMPTION.test(item) ? "" : inside(item.replace(PREFIX, ""))))
     .filter((item) => item.trim() !== "");
 
 /**
  * One parenthesized group without its references; "" when nothing else was in it. Its parts at `;` go
  * first, so that `(AK2; spec questions #528 Q1, Q2)` goes whole, then the items of a part at `,`.
  */
-const group = (whole, space, inner) => {
-  if (!FOUND.test(inner)) {
+const group = (whole, space, written) => {
+  if (!FOUND.test(written)) {
     return whole;
   }
+  const inner = written.replace(ORIGIN, "#0");
   const parts = kept(inner, /;\s*/, (part) => kept(part, /,\s*/, (item) => item).join(", "));
   const joined = parts.join("; ").trim();
   if (joined === "") {
     return "";
   }
   // Only a group that lost a reference is written anew, so the spacing of every other one stays.
-  return internalReferences(joined).length === internalReferences(inner).length
+  return internalReferences(joined).length === internalReferences(written).length
     ? whole
     : `${space}(${joined})`;
 };
 
 /** `text` without the internal references that stand alone in parentheses or as its lead. */
 export const userText = (text) => {
-  let out = withoutLead(text);
+  // Code spans are set aside first, so that nothing in them is a group, a list or a reference.
+  const spans = [];
+  let out = text.replace(CODE, (span) => `\uE000${spans.push(span) - 1}\uE000`);
+  out = withoutLead(out);
   let before;
   do {
     before = out;
     out = out.replace(/(\s?)\(([^()]*)\)/g, group);
   } while (out !== before);
-  return out;
+  // A text that began with a group that went begins with its next word.
+  if (out !== text && /^\s/.test(out) && !/^\s/.test(text)) {
+    out = out.trimStart();
+    out = out.charAt(0).toUpperCase() + out.slice(1);
+  }
+  return out.replace(/\uE000(\d+)\uE000/g, (_, i) => spans[Number(i)]);
 };
 
 /** The internal references still in `text` (in running text), for checks of the texts users read. */

@@ -223,7 +223,7 @@
           "pattern": "^[^\\s\\u0000-\\u001f\\u007f-\\u009f](?:[^\\u0000-\\u001f\\u007f-\\u009f]*[^\\s\\u0000-\\u001f\\u007f-\\u009f])?$"
         },
         "storedSelection": {
-          "description": "The selection the baseline was created with, which showing and comparing the baseline, its evidence and validation status, and the changes of a variant since it read. ReqSeq writes it canonical: `where` as filter.save writes it, a saved filter as its `where` and `view`, `package` and `view` as `{ id, title }` in the repository of the file and `{ id, repository }` elsewhere, the title at baseline time; `ids` items without title.",
+          "description": "The selection the baseline was created with, which is read again when the baseline, its evidence and validation status or the changes of a variant since it are shown or compared. ReqSeq writes it canonical: `where` as filter.save writes it, a saved filter as its `where` and `view`, `package` and `view` as `{ id, title }` in the repository of the file and `{ id, repository }` elsewhere, the title at baseline time; `ids` items without title.",
           "type": "object",
           "properties": {
             "ids": {
@@ -1142,7 +1142,7 @@
             },
             "emergent": {
               "type": "boolean",
-              "description": "True when the element's property with the meaning `emergent` holds the choice `yes` (assumption); only true is given, left out otherwise. An emergent requirement is never `indirect`: without an own verification record in a view it is `open` there."
+              "description": "True when the element's property with the meaning `emergent` holds the choice `yes`; only true is given, left out otherwise. An emergent requirement is never `indirect`: without an own verification record in a view it is `open` there."
             },
             "properties": {
               "type": "object",
@@ -1165,7 +1165,7 @@
             },
             "validation": {
               "$ref": "common.schema.json#/$defs/validationStatus",
-              "description": "The Validierungsstatus from the validation records of the core (no `variant`) against the element's current version; the newest record of that version decides, only records of older versions give `outdated`. Given for every element whose type has the meaning `need` (`open` without record) and for every other element with a validation record; left out otherwise (assumption). Never inherited from children; never the element's `status`. `inconclusive` when that record is inconclusive; on a tie at the newest date `failed` before `inconclusive` before `validated` (assumption)."
+              "description": "The Validierungsstatus from the validation records of the core (no `variant`) against the element's current version; the newest record of that version decides, only records of older versions give `outdated`. Given for every element whose type has the meaning `need` (`open` without record) and for every other element with a validation record; left out otherwise. Never inherited from children; never the element's `status`. `inconclusive` when that record is inconclusive; on a tie at the newest date `failed` before `inconclusive` before `validated`."
             },
             "validationReason": {
               "type": "string",
@@ -5446,7 +5446,7 @@
             },
             "gaps": {
               "type": "array",
-              "description": "The gaps of the chain, in the order of `nodes` (the `no-parent` gaps of the upward chain first, the root's among them, then those of the downward chain), only those of the nodes of the page. Downward, only for elements whose children were looked at (`expanded`): `no-child` for a need without a child, `no-evidence` for a requirement without a child and without evidence. Upward, only for elements whose parents were looked at, so not with `direction: down`: `no-parent` for a requirement that names no parent through a relation kind with the meaning `derivation`, whatever the view and the state of the target (a parent in a repository that is not here is one); the metamodel says which kinds derive, so in the standard model a requirement based only on a decision (`based-on`) has the gap. `workspace.check` reports the same elements (`trace.no-parent`). `no-evidence`: the element has no verification record in `view`, in the core without `view` (as `evidence.coverage` and the filter condition `verification`; any version and result). A test case that was only skipped does not close the gap. `not-in-view` (product owner decision, 2026-11-02): a requirement without a child that `view` does not hold, without `view` the core (its validity names only variants), instead of `no-evidence`, whatever its records; `views` names the views that hold it. It is no evidence gap: a client that counts the gaps of a chain leaves it out. With `view` only the root can have it, as the chain reaches only elements the view holds.",
+              "description": "The gaps of the chain, in the order of `nodes` (the `no-parent` gaps of the upward chain first, the root's among them, then those of the downward chain), only those of the nodes of the page. Downward, only for elements whose children were looked at (`expanded`): `no-child` for a need without a child, `no-evidence` for a requirement without a child and without evidence. Upward, only for elements whose parents were looked at, so not with `direction: down`: `no-parent` for a requirement that names no parent through a relation kind with the meaning `derivation`, whatever the view and the state of the target (a parent in a repository that is not here is one); the metamodel says which kinds derive, so in the standard model a requirement based only on a decision (`based-on`) has the gap. `workspace.check` reports the same elements (`trace.no-parent`). `no-evidence`: the element has no verification record in `view`, in the core without `view` (as `evidence.coverage` and the filter condition `verification`; any version and result). A test case that was only skipped does not close the gap. `not-in-view`: a requirement without a child that `view` does not hold, without `view` the core (its validity names only variants), instead of `no-evidence`, whatever its records; `views` names the views that hold it. It is no evidence gap: a client that counts the gaps of a chain leaves it out. With `view` only the root can have it, as the chain reaches only elements the view holds.",
               "items": {
                 "type": "object",
                 "properties": {

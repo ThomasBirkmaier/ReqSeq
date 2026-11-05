@@ -45,6 +45,19 @@ describe("texts for users without internal references (#642)", () => {
     );
   });
 
+  it("drops the origin of a rule and the mark of an assumption whose question went", () => {
+    expect(userText("`not-in-view` (#674, product owner decision, 2026-11-02).")).toBe("`not-in-view`.");
+    expect(userText("Emergent (assumption, spec question #591).")).toBe("Emergent.");
+    expect(userText("(D-030) Run it")).toBe("Run it");
+  });
+
+  it("leaves code spans as they are", () => {
+    expect(userText("Pick (`--fields id,title`, SR-036)")).toBe("Pick (`--fields id,title`)");
+    expect(userText("Split (`a;b`, #3)")).toBe("Split (`a;b`)");
+    expect(userText("Call ( `x(#5)` )")).toBe("Call ( `x(#5)` )");
+    expect(userText("See (#3 A) here")).toBe("See (#3 A) here");
+  });
+
   it("keeps a reference in running text and a group without one, spacing and all", () => {
     expect(userText("an identifier (e.g. SR-036), any case")).toBe("an identifier (e.g. SR-036), any case");
     expect(userText("a pair (`a`,`b`) and SR-036")).toBe("a pair (`a`,`b`) and SR-036");

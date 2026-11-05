@@ -54,7 +54,7 @@
       "pattern": "^[^\\s\\u0000-\\u001f\\u007f-\\u009f](?:[^\\u0000-\\u001f\\u007f-\\u009f]*[^\\s\\u0000-\\u001f\\u007f-\\u009f])?$"
     },
     "storedSelection": {
-      "description": "The selection the baseline was created with, which showing and comparing the baseline, its evidence and validation status, and the changes of a variant since it read (SR-051, SR-094, SR-103). ReqSeq writes it canonical: `where` as filter.save writes it, a saved filter as its `where` and `view`, `package` and `view` as `{ id, title }` in the repository of the file and `{ id, repository }` elsewhere (D-058), the title at baseline time; `ids` items without title.",
+      "description": "The selection the baseline was created with, which is read again when the baseline, its evidence and validation status or the changes of a variant since it are shown or compared (SR-051, SR-094, SR-103). ReqSeq writes it canonical: `where` as filter.save writes it, a saved filter as its `where` and `view`, `package` and `view` as `{ id, title }` in the repository of the file and `{ id, repository }` elsewhere (D-058), the title at baseline time; `ids` items without title.",
       "type": "object",
       "properties": {
         "ids": {

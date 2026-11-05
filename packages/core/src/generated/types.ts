@@ -81,7 +81,7 @@ export interface BaselineFile {
 export type BaselineName = string;
 
 /**
- * The selection the baseline was created with, which showing and comparing the baseline, its evidence and validation status, and the changes of a variant since it read (SR-051, SR-094, SR-103). ReqSeq writes it canonical: `where` as filter.save writes it, a saved filter as its `where` and `view`, `package` and `view` as `{ id, title }` in the repository of the file and `{ id, repository }` elsewhere (D-058), the title at baseline time; `ids` items without title.
+ * The selection the baseline was created with, which is read again when the baseline, its evidence and validation status or the changes of a variant since it are shown or compared (SR-051, SR-094, SR-103). ReqSeq writes it canonical: `where` as filter.save writes it, a saved filter as its `where` and `view`, `package` and `view` as `{ id, title }` in the repository of the file and `{ id, repository }` elsewhere (D-058), the title at baseline time; `ids` items without title.
  * Schema: `schemas/baseline.schema.json#/$defs/storedSelection`.
  */
 export interface BaselineStoredSelection {
