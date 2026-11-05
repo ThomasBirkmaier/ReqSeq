@@ -1,7 +1,7 @@
 ---
 id: 46610a27-2866-47fb-bb8f-293faae4885f
 type: package
-status: draft
+status: approved
 title: "Stufe 1: Fundament"
 spec-id: "Stufe-1"
 ---
