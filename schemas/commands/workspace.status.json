@@ -63,6 +63,27 @@
         "additionalProperties": false,
         "required": ["repository", "path", "valid"]
       },
+      "evidence": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "repository": {
+              "type": "string"
+            },
+            "path": {
+              "$ref": "../common.schema.json#/$defs/relativePath"
+            },
+            "available": {
+              "type": "boolean",
+              "description": "The repository is available and the folder exists."
+            }
+          },
+          "additionalProperties": false,
+          "required": ["repository", "path", "available"]
+        },
+        "description": "The `evidence` locations of the workspace file, in its order, as written (#625). Empty without the key."
+      },
       "readOnly": {
         "type": "boolean"
       },
@@ -74,6 +95,6 @@
       }
     },
     "additionalProperties": false,
-    "required": ["name", "repositories", "metamodel", "readOnly"]
+    "required": ["name", "repositories", "metamodel", "evidence", "readOnly"]
   }
 }

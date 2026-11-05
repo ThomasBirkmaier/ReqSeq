@@ -542,6 +542,31 @@
                         "valid"
                       ]
                     },
+                    "evidence": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "repository": {
+                            "type": "string"
+                          },
+                          "path": {
+                            "$ref": "#/components/schemas/common/$defs/relativePath"
+                          },
+                          "available": {
+                            "type": "boolean",
+                            "description": "The repository is available and the folder exists."
+                          }
+                        },
+                        "additionalProperties": false,
+                        "required": [
+                          "repository",
+                          "path",
+                          "available"
+                        ]
+                      },
+                      "description": "The `evidence` locations of the workspace file, in its order, as written (#625). Empty without the key."
+                    },
                     "readOnly": {
                       "type": "boolean"
                     },
@@ -557,6 +582,7 @@
                     "name",
                     "repositories",
                     "metamodel",
+                    "evidence",
                     "readOnly"
                   ]
                 }
@@ -1324,6 +1350,13 @@
                       },
                       "description": "Every built-in meaning of metamodel.schema.json (`meaning` of types, properties and relation kinds) -> the keys whose own definition declares it, in metamodel order; empty if unassigned (SR-013 AK3). In a valid metamodel a type or property meaning has at most one key, a relation meaning any number. Types that inherit a meaning, or repeat the one they inherit, are not listed; `types` shows their effective `meaning`."
                     },
+                    "files": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/workspace/$defs/location"
+                      },
+                      "description": "The metamodel files that were read, in the order they were merged, faulty ones included: the repository of the metamodel and the path relative to it (#625). Empty when the folder is missing or has no metamodel files."
+                    },
                     "problems": {
                       "type": "array",
                       "items": {
@@ -1337,7 +1370,8 @@
                     "properties",
                     "relations",
                     "statuses",
-                    "meanings"
+                    "meanings",
+                    "files"
                   ]
                 }
               }

@@ -210,6 +210,7 @@ export const FIXTURE_METAMODEL: MetamodelGetOutput = {
     succession: [],
     exclusion: [],
   },
+  files: [{ repository: "system", path: "metamodel/standard-model.yaml" }],
 };
 
 /** A metamodel of `types` and `relations` only, the rest empty. */
@@ -221,6 +222,7 @@ export const metamodelOutput = (
   relations: [],
   statuses: [],
   meanings: {},
+  files: [],
   ...parts,
 });
 

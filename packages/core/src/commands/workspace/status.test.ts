@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import path from "node:path";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
@@ -80,6 +81,7 @@ describe("workspace.status", () => {
         },
       ],
       metamodel: { repository: "system", path: "metamodel", valid: true },
+      evidence: [],
       readOnly: false,
       problems: [],
     });
@@ -93,6 +95,7 @@ describe("workspace.status", () => {
       name: "Weather station",
       repositories: [{ name: "system", available: true, path: ".", commit: await ws.head(), ...writable }],
       metamodel: { repository: "system", path: "metamodel", valid: true },
+      evidence: [],
       readOnly: false,
       problems: [],
     });
@@ -261,6 +264,29 @@ describe("workspace.status", () => {
     expect(before.repositories[0]?.commit).not.toBe(after);
   });
 
+  it("lists the evidence locations as written, each with whether its folder is there (#625)", async () => {
+    const ws = await threeRepositories(["system", "sensor"]);
+    await fs.rm(ws.path("product"), { recursive: true });
+    await fs.mkdir(path.join(ws.path("sensor"), "tests/results"), { recursive: true });
+    await fs.writeFile(path.join(ws.path("system"), "notes.md"), "a file, not a folder\n");
+    const file = path.join(ws.path("system"), "reqseq-workspace.yaml");
+    await fs.appendFile(
+      file,
+      "evidence:\n" +
+        "  - { repository: sensor, path: tests/results }\n" +
+        "  - { repository: system, path: evidence }\n" +
+        "  - { repository: product, path: tests }\n" +
+        "  - { repository: system, path: notes.md }\n",
+    );
+    const out = await status(open(ws.path("system")));
+    expect(out.evidence).toEqual([
+      { repository: "sensor", path: "tests/results", available: true },
+      { repository: "system", path: "evidence", available: false },
+      { repository: "product", path: "tests", available: false },
+      { repository: "system", path: "notes.md", available: false },
+    ]);
+  });
+
   it("fails with workspace.not-found without a workspace file", async () => {
     const ws = await fixture({ files: { "README.md": "no workspace\n" } });
     await expect(status(open(ws.root))).rejects.toMatchObject({ code: "workspace.not-found" });
@@ -279,6 +305,7 @@ describe("workspace.status with the metamodel (SR-011)", () => {
       name: "Weather station",
       repositories: [{ name: "system", available: true, path: ".", commit: await ws.head(), ...writable }],
       metamodel: { repository: "system", path: "model", valid: true },
+      evidence: [],
       readOnly: false,
       problems: [
         {

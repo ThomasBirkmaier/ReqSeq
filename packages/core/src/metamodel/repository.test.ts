@@ -119,6 +119,7 @@ describe("metamodel in its own repository (SR-018)", () => {
         { name: "models", available: true, path: "../models", commit: await ws.head("models"), ...writable },
       ],
       metamodel: { repository: "models", path: "model", valid: true },
+      evidence: [],
       readOnly: false,
       problems: [],
     });

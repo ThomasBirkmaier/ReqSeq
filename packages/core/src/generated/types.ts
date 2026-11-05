@@ -1560,6 +1560,13 @@ export interface WorkspaceStatusOutput {
     readonly path: string;
     readonly valid: boolean;
   };
+  /** The `evidence` locations of the workspace file, in its order, as written (#625). Empty without the key. */
+  readonly evidence: readonly {
+    readonly repository: string;
+    readonly path: RelativePath;
+    /** The repository is available and the folder exists. */
+    readonly available: boolean;
+  }[];
   readonly readOnly: boolean;
   readonly problems?: readonly Problem[];
 }
@@ -1658,6 +1665,8 @@ export interface MetamodelGetOutput {
   readonly statuses: readonly MetamodelStatus[];
   /** Every built-in meaning of metamodel.schema.json (`meaning` of types, properties and relation kinds) -> the keys whose own definition declares it, in metamodel order; empty if unassigned (SR-013 AK3). In a valid metamodel a type or property meaning has at most one key, a relation meaning any number. Types that inherit a meaning, or repeat the one they inherit, are not listed; `types` shows their effective `meaning`. */
   readonly meanings: Readonly<Record<string, readonly Key[]>>;
+  /** The metamodel files that were read, in the order they were merged, faulty ones included: the repository of the metamodel and the path relative to it (#625). Empty when the folder is missing or has no metamodel files. */
+  readonly files: readonly WorkspaceLocation[];
   readonly problems?: readonly Problem[];
 }
 
