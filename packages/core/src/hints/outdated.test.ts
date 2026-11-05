@@ -11,6 +11,7 @@ import { metamodelState } from "../metamodel/index.js";
 import {
   applyStoreChange,
   buildIncomingIndex,
+  currentFormsOf,
   currentVersionsState,
   elementStoreState,
   incomingFor,
@@ -85,6 +86,11 @@ const headDate = async (ws: FixtureWorkspace): Promise<string> =>
 /** The object name of HEAD, which started the versions of its commit (#252). */
 const headCommit = async (ws: FixtureWorkspace): Promise<string> =>
   (await ws.git(["rev-parse", "HEAD"])).trim();
+
+const defined = <T>(value: T | undefined): T => {
+  expect(value).toBeDefined();
+  return value as T;
+};
 
 const need = (text: string): string =>
   `---\nid: ${N}\ntype: need\nstatus: approved\ntitle: See the wind\n---\n\n${text}\n`;
@@ -171,6 +177,23 @@ describe("outdated relations and references (SR-025)", () => {
   it("[SR-025/AK1] reports nothing and is ok when every relation and reference is current", async () => {
     const ws = await fixture({ git: true });
     expect(await check(open(ws.root))).toEqual({ ok: true, problems: [], checkedElements: 4 });
+  });
+
+  it("[SR-025/AK1] compares a stored version of normal form 2 in that form (ADR-0005)", async () => {
+    const ws = await fixture();
+    const workspace = open(ws.root);
+    const versions = await workspace.get(currentVersionsState);
+    const formsOf = (id: string) => currentFormsOf(versions, defined(versions.store.byId.get(id)?.[0]));
+    const [n, v] = [defined(formsOf(N)), defined(formsOf(V))];
+    await ws.write(A_FILE, requirementA({ validity: v.n2, derives: n.n2, link: n.n2 }));
+    // A's own version changed, so only B's relation to A is outdated.
+    expect(outdated(await check(open(ws.root))).map((p) => [p.elementId, p.targetId])).toEqual([[B, A]]);
+    // Another n2 is outdated; the hint shows the current version in the form confirm writes.
+    await ws.write(A_FILE, requirementA({ validity: v.n2, derives: "n2:0000000000000000", link: n.n2 }));
+    const fromA = outdated(await check(open(ws.root))).filter((p) => p.elementId === A);
+    expect(fromA.map((p) => [p.targetId, p.storedVersion, p.currentVersion])).toEqual([
+      [N, "n2:0000000000000000", N_VERSION],
+    ]);
   });
 
   it("[SR-025/AK1] reports nothing without Git either", async () => {

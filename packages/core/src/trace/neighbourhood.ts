@@ -45,6 +45,7 @@ import type {
 } from "../model/index.js";
 import {
   currentVersionsOf,
+  formsOfEntry,
   hasId,
   incomingTo,
   isOutdatedVersion,
@@ -53,6 +54,7 @@ import {
   relationKeysOf,
   targetState,
 } from "../model/index.js";
+import type { VersionForms } from "../model/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import type { ChainNode, ChainPage } from "./chain.js";
 import { chainNode, titles, within } from "./chain.js";
@@ -291,7 +293,7 @@ export interface NeighbourhoodOutputContext {
 }
 
 /** The current version of an element, undefined when it has none. */
-export type VersionLookup = (element: ElementRecord) => string | undefined;
+export type VersionLookup = (element: ElementRecord) => VersionForms | undefined;
 
 /**
  * Gives the current versions of the elements the edges of the page lead to, for `outdated`
@@ -308,10 +310,7 @@ export const currentVersionLookup =
   (workspace: Workspace): VersionsOf =>
   async (targets) => {
     const versions = await currentVersionsOf(workspace, targets);
-    return (element) => {
-      const entry = versions.get(element);
-      return entry?.kind === "version" ? entry.version : undefined;
-    };
+    return (element) => formsOfEntry(versions.get(element));
   };
 
 type NeighbourhoodEdge = TraceNeighbourhoodOutput["edges"][number];

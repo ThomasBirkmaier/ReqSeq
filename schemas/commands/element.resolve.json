@@ -20,7 +20,7 @@
       },
       "version": {
         "$ref": "../common.schema.json#/$defs/version",
-        "description": "The version the reference stores (D-013); optional. A version of another normal form than the one the tool computes (n1) is refused with input.invalid (ADR-0005)."
+        "description": "The version the reference stores (D-013); optional. A version of normal form n1 or n2 is compared with the current version in its own form; a version of another normal form is refused with input.invalid (ADR-0005)."
       },
       "versionDate": {
         "type": "boolean",

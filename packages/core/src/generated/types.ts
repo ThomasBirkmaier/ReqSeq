@@ -1739,7 +1739,7 @@ export interface ElementGetOutput {
  */
 export interface ElementResolveInput {
   readonly ref: ElementRef;
-  /** The version the reference stores (D-013); optional. A version of another normal form than the one the tool computes (n1) is refused with input.invalid (ADR-0005). */
+  /** The version the reference stores (D-013); optional. A version of normal form n1 or n2 is compared with the current version in its own form; a version of another normal form is refused with input.invalid (ADR-0005). */
   readonly version?: Version;
   /** Also give the date of the current version (`versionDate`, D-013, ADR-0005), read from the Git history, as element.get does with the same input. Without it no git runs and `versionDate` is left out. */
   readonly versionDate: boolean;
@@ -2330,7 +2330,7 @@ export interface TraceNeighbourhoodOutput {
     readonly cyclic: boolean;
     /** The edge leads, in its walk, to an element that this walk first reached through another edge, or to the root: a repetition (SR-107 AK3). It holds within one call (asking again from a child loses it; to open a tree level by level ask from the same root with a larger `maxDepth`) and within the followed kinds (the tree of derivations comes from `meanings: ["derivation"]`). First means first reached breadth first (spec question #421). */
     readonly repeated: boolean;
-    /** The link stores a version of normal form 1, its target is available and has a current version, and the two differ (SR-025). */
+    /** The link stores a version of normal form 1 or 2, its target is available and has a current version, and the two differ, compared in the stored version's form (SR-025, ADR-0005). */
     readonly outdated: boolean;
   }[];
   readonly incomplete: Incomplete;
@@ -2508,7 +2508,7 @@ export interface TraceGraphOutput {
     readonly property?: true;
     /** The meaning of the relation kind, `reference` for an inline reference; left out for a kind without a meaning and for a property. */
     readonly meaning?: "derivation" | "replacement" | "succession" | "exclusion" | "reference";
-    /** The link stores a version of normal form 1, its target has a current version, and the two differ (SR-025). */
+    /** The link stores a version of normal form 1 or 2, its target has a current version, and the two differ, compared in the stored version's form (SR-025, ADR-0005). */
     readonly outdated: boolean;
   }[];
   /** Only with `withEvidence`: one summary of the evidence below each node that has any (SR-111 AK3), in the order of `nodes`; `[]` when none has. Only nodes at level 0 or below whose evidence level (`level`) is within the depth asked (`maxDepth`, every level with `allLevels`), whether `expanded` or not; none above the element. The counts are those of trace.chain's `evidence` (`chainEvidenceOf`) in the view, the core without one, as the `no-evidence` mark reads them (SR-047, SR-173): only verification records (D-007). The details are in trace.chain and evidence.list. */

@@ -8,7 +8,7 @@ import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandOutput, Problem } from "../catalog.js";
 import { baselineHeadersState, HEADER_BYTES } from "../baselines/index.js";
-import { currentVersionsState } from "../model/index.js";
+import { currentFormsOf, currentVersionsState } from "../model/index.js";
 import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
 import { readStored } from "../runtime/read-first.test-helper.js";
@@ -465,6 +465,32 @@ describe("what hint.list computes (N-036)", () => {
 });
 
 describe("copies of a core requirement in two repositories (SR-088)", () => {
+  it("[SR-103/AK1] compares a baseline entry of normal form 2 in that form (ADR-0005)", async () => {
+    const { workspace: first } = await open();
+    const versions = await first.get(currentVersionsState);
+    const n2 = Object.fromEntries(
+      Object.keys(VERSIONS).map((id) => {
+        const record = versions.store.byId.get(id)?.[0];
+        const forms = record === undefined ? undefined : currentFormsOf(versions, record);
+        return [id, forms?.n2 ?? String(VERSIONS[id])];
+      }),
+    );
+    expect(n2[String(K1)]).toMatch(/^n2:/);
+    const unchanged = await open({
+      "baselines/R1.yaml": baseline("R1", "2026-11-02T10:00:00Z", OF_COAST, n2),
+    });
+    expect(rows(await check(unchanged.workspace))).toEqual([]);
+    const changed = await open({
+      "baselines/R1.yaml": baseline("R1", "2026-11-02T10:00:00Z", OF_COAST, n2),
+      [fileOf(String(K1))]: await changedK1(),
+    });
+    const hints = (await check(changed.workspace)).filter((p) => CODES.has(p.code));
+    expect(hints.map((h) => [h.code, h.targetId, h.storedVersion])).toEqual([
+      ["variant.core-changed-since-baseline", K1, n2[String(K1)]],
+    ]);
+    expect(hints[0]?.currentVersion).toMatch(/^n1:/);
+  });
+
   it("names the copy the baseline does not list, though another copy has its version", async () => {
     const workspaceFile = (await fs.readFile(path.join(FIXTURE, "reqseq-workspace.yaml"), "utf8")).replace(
       "metamodel:",

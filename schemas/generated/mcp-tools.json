@@ -3643,7 +3643,7 @@
           },
           "version": {
             "$ref": "#/$defs/common/$defs/version",
-            "description": "The version the reference stores; optional. A version of another normal form than the one the tool computes (n1) is refused with input.invalid."
+            "description": "The version the reference stores; optional. A version of normal form n1 or n2 is compared with the current version in its own form; a version of another normal form is refused with input.invalid."
           },
           "versionDate": {
             "type": "boolean",
@@ -5438,7 +5438,7 @@
                 },
                 "outdated": {
                   "type": "boolean",
-                  "description": "The link stores a version of normal form 1, its target is available and has a current version, and the two differ."
+                  "description": "The link stores a version of normal form 1 or 2, its target is available and has a current version, and the two differ, compared in the stored version's form."
                 }
               },
               "additionalProperties": false,
@@ -5999,7 +5999,7 @@
                 },
                 "outdated": {
                   "type": "boolean",
-                  "description": "The link stores a version of normal form 1, its target has a current version, and the two differ."
+                  "description": "The link stores a version of normal form 1 or 2, its target has a current version, and the two differ, compared in the stored version's form."
                 }
               },
               "additionalProperties": false,

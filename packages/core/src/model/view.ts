@@ -8,8 +8,9 @@ import type { DataExportElement, DataExportRelation } from "../generated/types.j
 import type { Metamodel } from "../metamodel/index.js";
 import { propertyWithMeaning } from "../metamodel/index.js";
 import { isVersion } from "./is-version.js";
-import { comparableContent, computeVersion } from "../version/version.js";
-import type { VersionFile, VersionInput } from "../version/version.js";
+import { comparableContent, computeVersions, NORMAL_FORM } from "../version/version.js";
+import type { VersionFile, VersionForms, VersionInput } from "../version/version.js";
+import { n2Input } from "./version-input.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import type { ElementRecord } from "./elements.js";
 import { versionDefinitions, versionInputOf } from "./loaded-version.js";
@@ -195,7 +196,18 @@ export const elementVersion = (
   body: string,
   metamodel: Metamodel,
   images: readonly VersionFile[],
-): string => computeVersion(versionInput(record, body, metamodel, images));
+): string => elementVersions(record, body, metamodel, images)[NORMAL_FORM];
+
+/** The versions of an element in both normal forms (`elementVersion`; ADR-0005 "Normal form 2"). */
+export const elementVersions = (
+  record: Pick<ElementRecord, "type" | "data">,
+  body: string,
+  metamodel: Metamodel,
+  images: readonly VersionFile[],
+): VersionForms => versionsOf(versionInput(record, body, metamodel, images));
+
+/** The versions of both normal forms of an n1 input (`n2Input`). */
+export const versionsOf = (input: VersionInput): VersionForms => computeVersions(input, n2Input(input));
 
 /** What the version of an element is computed from (`elementVersion`, `elementContent`; `versionInputOf`). */
 const versionInput = (
@@ -230,7 +242,7 @@ export const notComputableMessage = (
  * For the readers that need a version of every element (current versions, #259) or of the element
  * before a save (SR-024 AK2) without failing on such a value.
  */
-export const versionOrRangeError = (compute: () => string): string | RangeError => {
+export const versionOrRangeError = <T extends string | VersionForms>(compute: () => T): T | RangeError => {
   try {
     return compute();
   } catch (error) {

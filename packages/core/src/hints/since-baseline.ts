@@ -40,6 +40,8 @@
 import type { Problem } from "../catalog.js";
 import type { Baseline, BaselineCandidate } from "../baselines/index.js";
 import { copyOf, newestBaselines, versionKey } from "../baselines/index.js";
+import type { VersionForms } from "../model/index.js";
+import { NORMAL_FORM, sameVersion } from "../model/index.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { isDeepStrictEqual } from "node:util";
 import type {
@@ -51,6 +53,7 @@ import type {
 } from "../model/index.js";
 import {
   currentVersionsOf,
+  formsOfEntry,
   currentVersionsState,
   storeUpdate,
   elementLabel,
@@ -218,26 +221,31 @@ const placesIn = (cores: readonly ElementRecord[]): ReadonlyMap<string, number> 
   return places;
 };
 
-/** The current version of `entry`, or undefined. */
-const versionOf = (entry: CurrentVersion | undefined): string | undefined =>
-  entry?.kind === "version" ? entry.version : undefined;
+/** The current version of `entry` in every normal form, or undefined. */
+const versionOf = (entry: CurrentVersion | undefined): VersionForms | undefined => formsOfEntry(entry);
 
-/** The key of `containsKey` for `core` at `current`, or undefined without a current version. */
-const keyFor = (core: ElementRecord, current: string | undefined): string | undefined =>
-  current === undefined ? undefined : versionKey(core.id, current);
+/**
+ * The keys of `containsKey` for `core` at `current`, one per normal form (a baseline entry holds
+ * one form and is compared in it, ADR-0005), or undefined without a current version.
+ */
+const keyFor = (core: ElementRecord, current: VersionForms | undefined): readonly string[] | undefined =>
+  current === undefined ? undefined : [versionKey(core.id, current.n2), versionKey(core.id, current.n1)];
 
 /** Whether `core`, now at `current`, is unchanged in `baseline` (see the file comment). */
 const unchanged = (
   store: ElementStore,
   baseline: Baseline,
   core: ElementRecord,
-  current: string | undefined,
-  key: string | undefined,
-): boolean =>
-  // The usual case, one lookup; only for a UUID with one copy, as the entry may name another (SR-088).
-  key !== undefined && store.byId.get(core.id)?.length === 1
-    ? baseline.containsKey(key)
-    : current !== undefined && storedOf(store, baseline, core) === current;
+  current: VersionForms | undefined,
+  keys: readonly string[] | undefined,
+): boolean => {
+  // The usual case, a lookup per form; only for a UUID with one copy, as the entry may name another (SR-088).
+  if (keys !== undefined && store.byId.get(core.id)?.length === 1) {
+    return keys.some((key) => baseline.containsKey(key));
+  }
+  const stored = storedOf(store, baseline, core);
+  return current !== undefined && stored !== undefined && sameVersion(stored, current);
+};
 
 /**
  * The rule items of `record` as data, what a change of it may change in the views: with a
@@ -339,7 +347,12 @@ const carried = async (
       !removersOf(memo.index, core).includes(variantKey) &&
       !unchanged(context.store, memo.baseline, core, current, keyFor(core, current))
     ) {
-      hits.push({ core, at, stored: storedOf(context.store, memo.baseline, core), current });
+      hits.push({
+        core,
+        at,
+        stored: storedOf(context.store, memo.baseline, core),
+        current: current?.[NORMAL_FORM],
+      });
     }
   }
   return {
@@ -425,7 +438,12 @@ const fullPass = async (
     cores.forEach((core, i) => {
       const removedHere = removers.get(i)?.includes(key) === true;
       if (!removedHere && !unchanged(context.store, baseline, core, currents[i], keys[i])) {
-        hits.push({ core, at: i, stored: storedOf(context.store, baseline, core), current: currents[i] });
+        hits.push({
+          core,
+          at: i,
+          stored: storedOf(context.store, baseline, core),
+          current: currents[i]?.[NORMAL_FORM],
+        });
       }
     });
     memos.set(key, {

@@ -295,12 +295,18 @@ describe("neighbourhood (SR-107)", () => {
         page,
         (targets) => {
           asked.push([...targets]);
-          return Promise.resolve((e) => versions[e.id]);
+          return Promise.resolve((e) => {
+            const v = versions[e.id];
+            // P1's n2 is the one S1 stores for it (fixture), every other n2 differs from all stored ones.
+            return v === undefined
+              ? undefined
+              : { n1: v, n2: e.id === P1 ? "n2:1111111111111111" : "n2:ffffffffffffffff" };
+          });
         },
       );
     };
 
-    it("[SR-025] marks a link outdated when it stores a version of normal form 1 that is not the current one", async () => {
+    it("[SR-025] marks a link outdated when it stores a version that is not the current one in its form", async () => {
       const opened = await open();
       const asked: ElementRecord[][] = [];
       const output = await outputOf(
@@ -322,7 +328,7 @@ describe("neighbourhood (SR-107)", () => {
         ]),
       ).toEqual([
         ["S1", "N1", "relation", "derives-from", undefined, "derivation", false, true],
-        // Stored: a version of another normal form.
+        // Stored: the current version in normal form 2 (ADR-0005), compared in that form.
         ["S1", "P1", "relation", "derives-from", undefined, "derivation", false, false],
         // Stored: the current version.
         ["S1", "PKG1", "relation", "packages", true, undefined, false, false],

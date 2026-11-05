@@ -56,15 +56,21 @@ import { saveVersionsAgain } from "./model-cache.js";
 import type { ElementStore, StoreUpdate } from "./store.js";
 import { carryStoreUpdate, contributionIn, elementStoreState, ignoredBy, loadedVersionOf } from "./store.js";
 import { PatchedMap } from "./patched-map.js";
+import type { VersionForms } from "../version/version.js";
 import { NORMAL_FORM } from "../version/version.js";
-import { elementVersion, notComputableMessage, versionOrRangeError } from "./view.js";
+import { elementVersions, notComputableMessage, versionOrRangeError } from "./view.js";
 
 /** The current version of one element, or why it has none. */
 export type CurrentVersion =
   | {
       readonly kind: "version";
-      /** The version of its file as it is now (ADR-0005). */
+      /** The version of its file as it is now (ADR-0005), in the normal form the tool writes (`NORMAL_FORM`). */
       readonly version: string;
+      /**
+       * Its version in every normal form, to compare a stored version with in that version's own
+       * form (`sameVersion`, ADR-0005 "Normal form 2").
+       */
+      readonly forms: VersionForms;
       /** What the lookup of each image its text embeds found, for the check on use (`imagesUnchanged`). */
       readonly images: readonly ImageSeen[];
       /**
@@ -102,6 +108,30 @@ export const currentVersionOf = (versions: CurrentVersions, record: ElementRecor
   const entry = versions.byRecord.get(record);
   return entry?.kind === "version" ? entry.version : undefined;
 };
+
+/**
+ * The current version of `record` in every normal form, or undefined when it has none
+ * (`CurrentVersion`) or is not in the store: what a stored version is compared with (`sameVersion`).
+ */
+export const currentFormsOf = (versions: CurrentVersions, record: ElementRecord): VersionForms | undefined =>
+  formsOfEntry(versions.byRecord.get(record));
+
+/** The versions of an entry in every normal form, or undefined for one without a version. */
+export const formsOfEntry = (entry: CurrentVersion | undefined): VersionForms | undefined =>
+  entry?.kind === "version" ? entry.forms : undefined;
+
+/** An entry with a version from its versions in every normal form. */
+const versionEntry = (
+  forms: VersionForms,
+  images: readonly ImageSeen[],
+  element?: ElementRecord,
+): CurrentVersion => ({
+  kind: "version",
+  version: forms[NORMAL_FORM],
+  forms,
+  images,
+  ...(element === undefined ? {} : { element }),
+});
 
 /** Blocking work before the event loop gets a turn, in ms. */
 const SLICE_MS = 20;
@@ -160,11 +190,13 @@ const NO_SEEN: readonly ImageSeen[] = Object.freeze([]);
  */
 const loadedEntry = (run: Run, record: ElementRecord): CurrentVersion | undefined => {
   const loaded = run.loaded(record);
-  const version = loaded?.byForm[NORMAL_FORM];
+  const n1 = loaded?.byForm["n1"];
+  const n2 = loaded?.byForm["n2"];
   const repository = run.repositories.get(record.repository);
   if (
     loaded === undefined ||
-    version === undefined ||
+    n1 === undefined ||
+    n2 === undefined ||
     repository === undefined ||
     run.versioning === undefined ||
     typeVersioningOf(run.versioning, record.type).fingerprint !== loaded.fingerprint
@@ -183,7 +215,7 @@ const loadedEntry = (run: Run, record: ElementRecord): CurrentVersion | undefine
   return stats?.isFile() === true &&
     stats.size === record.snapshot.size &&
     stats.mtimeMs === record.snapshot.mtimeMs
-    ? { kind: "version", version, images: NO_SEEN }
+    ? versionEntry({ n1, n2 }, NO_SEEN)
     : undefined;
 };
 
@@ -231,28 +263,28 @@ const versionNow = async (run: Run, record: ElementRecord): Promise<CurrentVersi
     return { kind: "unknown", reason: "image-unreadable", message: error.message };
   }
   // A number that counts and is not finite (`.inf`, `.nan`) has no canonical form; anything else is a bug.
-  const version = versionOrRangeError(() => elementVersion(element, body, run.metamodel, found.images));
-  if (version instanceof RangeError) {
-    return { kind: "unknown", reason: "not-computable", message: notComputableMessage(record, version) };
+  const forms = versionOrRangeError(() => elementVersions(element, body, run.metamodel, found.images));
+  if (forms instanceof RangeError) {
+    return { kind: "unknown", reason: "not-computable", message: notComputableMessage(record, forms) };
   }
   if (read.kind === "same" && links.length === 0) {
-    relearn(run, record, body, version);
+    relearn(run, record, body, forms);
   }
-  return { kind: "version", version, images: found.seen, ...(element === record ? {} : { element }) };
+  return versionEntry(forms, found.seen, element === record ? undefined : element);
 };
 
 /**
- * Keeps `version`, computed from the bytes of `record`'s snapshot (its text `body`), in `run.relearned`
+ * Keeps `forms`, computed from the bytes of `record`'s snapshot (its text `body`), in `run.relearned`
  * when the record's loaded version is missing or has another fingerprint than its type has now, and a
  * read would give one: no image link even to an ignored path, as `loadedVersion` tests it.
  */
-const relearn = (run: Run, record: ElementRecord, body: string, version: string): void => {
+const relearn = (run: Run, record: ElementRecord, body: string, forms: VersionForms): void => {
   if (run.relearned === undefined || run.versioning === undefined) {
     return;
   }
   const { fingerprint } = typeVersioningOf(run.versioning, record.type);
   if (run.loaded(record)?.fingerprint !== fingerprint && imageLinks(record.file, body).length === 0) {
-    run.relearned.set(record, { byForm: { [NORMAL_FORM]: version }, fingerprint });
+    run.relearned.set(record, { byForm: { ...forms }, fingerprint });
   }
 };
 

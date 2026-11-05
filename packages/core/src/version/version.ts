@@ -150,23 +150,47 @@ export const canonicalContent = (input: VersionInput, form: NormalForm = NORMAL_
 export const comparableContent = (input: VersionInput, form: NormalForm = NORMAL_FORM): string =>
   contentOf(input, "write", form);
 
-function contentOf(input: VersionInput, nonFinite: NonFinite, form: NormalForm): string {
+/** The sections of a canonical content after its header, with the values each was written from. */
+interface Sections {
+  readonly text: string;
+  readonly textSection: string;
+  readonly props: readonly { readonly key: string; readonly value: VersionValue; readonly section: string }[];
+  readonly files: string;
+}
+
+/**
+ * The sections of `input` in `form`. With `like`, the sections of another form of the same element:
+ * a section whose value is the same (the same string, the same object) and that both forms write
+ * alike is taken from it instead of written again (n1 and n2 differ only in relation-valued
+ * properties and in text and values with a `version=` parameter).
+ */
+function sectionsOf(input: VersionInput, nonFinite: NonFinite, form: NormalForm, like?: Sections): Sections {
   // The text is one JSON string line, so no text can look like a `prop` or `file` section.
-  const parts = [`reqseq-version ${form}\n`, `text\n${JSON.stringify(normalizeText(input.text))}\n`];
+  const textSection =
+    like?.text === input.text ? like.textSection : `text\n${JSON.stringify(normalizeText(input.text))}\n`;
   const relation = form === "n1" ? relationIds : relationIdSet;
   const counted = input.definitions.filter((d) => d.content === true);
+  const props: { key: string; value: VersionValue; section: string }[] = [];
   for (const def of counted.sort((a, b) => byCodePoint(a.key, b.key))) {
     // Own keys only: a property key such as `constructor` must not read Object.prototype.
     const value = Object.hasOwn(input.properties, def.key) ? input.properties[def.key] : undefined;
     if (isAbsent(value)) {
       continue;
     }
-    parts.push(
-      `prop ${def.key}\n${canonicalJson(def.kind === "relation" ? relation(value) : value, nonFinite)}\n`,
-    );
+    const before = like?.props[props.length];
+    const section =
+      def.kind !== "relation" && before?.key === def.key && before.value === value
+        ? before.section
+        : `prop ${def.key}\n${canonicalJson(def.kind === "relation" ? relation(value) : value, nonFinite)}\n`;
+    props.push({ key: def.key, value, section });
   }
+  return { text: input.text, textSection, props, files: like?.files ?? filesSection(input.files) };
+}
+
+function filesSection(files: readonly VersionFile[]): string {
+  const parts: string[] = [];
   const seen = new Set<string>();
-  for (const file of [...input.files].sort((a, b) => byCodePoint(a.path, b.path))) {
+  for (const file of [...files].sort((a, b) => byCodePoint(a.path, b.path))) {
     if (seen.has(file.path)) {
       throw new Error(`version: file ${file.path} given twice`);
     }
@@ -176,9 +200,51 @@ function contentOf(input: VersionInput, nonFinite: NonFinite, form: NormalForm):
   return parts.join("");
 }
 
+const joined = (form: NormalForm, sections: Sections): string =>
+  `reqseq-version ${form}\n${sections.textSection}${sections.props.map((p) => p.section).join("")}${sections.files}`;
+
+function contentOf(input: VersionInput, nonFinite: NonFinite, form: NormalForm): string {
+  return joined(form, sectionsOf(input, nonFinite, form));
+}
+
 /**
  * The version of an element in a normal form: the prefix (`n1:`, `n2:`) and the first 64 bits of
  * SHA-256 over the canonical content, as hex.
  */
 export const computeVersion = (input: VersionInput, form: NormalForm = NORMAL_FORM): string =>
   `${form}:${sha256Hex(canonicalContent(input, form)).slice(0, 16)}`;
+
+/** The version of an element in each normal form the tool computes (D-027: every published form stays computable). */
+export interface VersionForms {
+  readonly n1: string;
+  readonly n2: string;
+}
+
+/**
+ * The versions of one element in both normal forms, from its n1 input and its n2 input
+ * (`n2Input` in `model/version-input.ts`: the same files and definitions, the text and values
+ * without the `version=` parameters of their inline references). The sections both forms write
+ * alike are written once.
+ */
+export const computeVersions = (n1: VersionInput, n2: VersionInput): VersionForms => {
+  const first = sectionsOf(n1, "throw", "n1");
+  const second = sectionsOf(n2, "throw", "n2", first);
+  return {
+    n1: `n1:${sha256Hex(joined("n1", first)).slice(0, 16)}`,
+    n2: `n2:${sha256Hex(joined("n2", second)).slice(0, 16)}`,
+  };
+};
+
+/** The normal form of a version by its prefix, or undefined for one of a form this tool does not know. */
+export const formOf = (version: string): NormalForm | undefined =>
+  version.startsWith("n1:") ? "n1" : version.startsWith("n2:") ? "n2" : undefined;
+
+/**
+ * Whether a stored version equals the current one, compared in the stored version's own form
+ * (ADR-0005 "Normal form 2"): a stored n1 with the current n1, a stored n2 with the current n2.
+ * False for a version of a form this tool does not know.
+ */
+export const sameVersion = (stored: string, current: VersionForms): boolean => {
+  const form = formOf(stored);
+  return form !== undefined && current[form] === stored;
+};

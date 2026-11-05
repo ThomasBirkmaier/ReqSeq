@@ -24,6 +24,10 @@ export function withoutVersionParam(destination: string): string {
 
 /** A Markdown text with the `version=` parameters of its inline references removed (`inlineReferences`). */
 export function withoutReferenceVersions(text: string): string {
+  // No `version=` anywhere: nothing to remove, and no scan (N-036).
+  if (!text.includes("version=")) {
+    return text;
+  }
   let out = text;
   // From the end, so the offsets of the earlier references stay valid.
   for (const ref of inlineReferences(text).reverse()) {
@@ -32,16 +36,23 @@ export function withoutReferenceVersions(text: string): string {
   return out;
 }
 
-/** Every string inside a value with the `version=` parameters of its inline references removed. */
+/**
+ * Every string inside a value with the `version=` parameters of its inline references removed; the
+ * value itself when nothing was removed, so `computeVersions` writes its section once.
+ */
 const stripped = (value: VersionValue): VersionValue => {
   if (typeof value === "string") {
     return withoutReferenceVersions(value);
   }
   if (Array.isArray(value)) {
-    return value.map(stripped);
+    const list = value as readonly VersionValue[];
+    const items = list.map(stripped);
+    return items.every((item, i) => item === list[i]) ? list : items;
   }
   if (typeof value === "object" && value !== null) {
-    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, stripped(v)]));
+    const record = value as Readonly<Record<string, VersionValue>>;
+    const entries = Object.entries(record).map(([k, v]) => [k, stripped(v)] as const);
+    return entries.every(([k, v]) => v === record[k]) ? value : Object.fromEntries(entries);
   }
   return value;
 };

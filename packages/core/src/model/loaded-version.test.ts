@@ -13,7 +13,7 @@ import { metamodelState } from "../metamodel/index.js";
 import { Workspace } from "../runtime/workspace.js";
 import { NORMAL_FORM } from "../version/version.js";
 import { workspaceLayoutState } from "../workspace/index.js";
-import { currentVersionOf, currentVersions } from "./current-versions.js";
+import { currentFormsOf, currentVersionOf, currentVersions } from "./current-versions.js";
 import type { ElementRecord } from "./elements.js";
 import type { Versioning } from "./loaded-version.js";
 import {
@@ -90,7 +90,8 @@ const expectAsRead = async (workspace: Workspace, store: ElementStore): Promise<
   for (const [record, version] of loaded) {
     expect(store.elements).toContain(record);
     expect(version.byForm[NORMAL_FORM], record.file).toBe(currentVersionOf(versions, record));
-    expect(Object.keys(version.byForm)).toEqual([NORMAL_FORM]);
+    // Both normal forms, as the lazy path computes them (ADR-0005 "Normal form 2").
+    expect(version.byForm, record.file).toEqual(currentFormsOf(versions, record));
     expect(version.fingerprint).toBe(typeVersioningOf(defined(versioning), record.type).fingerprint);
   }
   return [...loaded.keys()].map((r) => r.file);

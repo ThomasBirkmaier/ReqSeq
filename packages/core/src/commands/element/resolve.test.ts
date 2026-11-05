@@ -7,6 +7,7 @@ import { CommandError } from "../../catalog.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 import { readFirst } from "../../runtime/read-first.test-helper.js";
+import { currentFormsOf, currentVersions, elementStoreState } from "../../model/index.js";
 
 type Resolved = CommandOutput<"element.resolve">;
 
@@ -222,13 +223,27 @@ describe("element.resolve", () => {
     expect(await snapshot(opened.fixture.root)).toEqual(before);
   });
 
-  it("refuses a version of a normal form other than the one the tool computes (ADR-0005)", async () => {
+  it("refuses a version of a normal form the tool does not compute (ADR-0005)", async () => {
     const opened = await open(TWO);
-    const error = await resolveError(opened, { ref: WIND.id, version: "n2:0000000000000000" });
+    const error = await resolveError(opened, { ref: WIND.id, version: "n3:0000000000000000" });
     expect([error.code, error.details]).toEqual([
       "input.invalid",
       { command: "element.resolve", fields: ["version"] },
     ]);
+  });
+
+  it("[SR-060/AK2] compares a given version in its own normal form (ADR-0005 normal form 2)", async () => {
+    const opened = await open(TWO);
+    const store = await opened.workspace.get(elementStoreState);
+    const record = store.elements.find((e) => e.id === WIND.id);
+    expect(record).toBeDefined();
+    const forms = record && currentFormsOf(await currentVersions(opened.workspace), record);
+    expect(forms?.n2).toMatch(/^n2:/);
+    expect((await resolve(opened, { ref: WIND.id, version: forms?.n1 })).current).toBe("current");
+    expect((await resolve(opened, { ref: WIND.id, version: forms?.n2 })).current).toBe("current");
+    expect((await resolve(opened, { ref: WIND.id, version: "n2:0000000000000000" })).current).toBe(
+      "outdated",
+    );
   });
 
   it("[SR-060/AK2] reports whether the given version is still the current one", async () => {

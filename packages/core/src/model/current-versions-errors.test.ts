@@ -27,11 +27,11 @@ vi.mock("./view.js", async (original) => {
   const real = await original<typeof View>();
   return {
     ...real,
-    elementVersion: (...args: Parameters<typeof real.elementVersion>) => {
+    elementVersions: (...args: Parameters<typeof real.elementVersions>) => {
       if (failures.version !== undefined) {
         throw failures.version;
       }
-      return real.elementVersion(...args);
+      return real.elementVersions(...args);
     },
   };
 });

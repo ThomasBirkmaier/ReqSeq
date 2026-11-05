@@ -5,7 +5,9 @@ import {
   canonicalContent,
   comparableContent,
   computeVersion,
+  formOf,
   normalizeText,
+  sameVersion,
   sha256Hex,
   type VersionInput,
   type VersionPropertyDefinition,
@@ -331,5 +333,21 @@ describe("normal form n2 (ADR-0005, #166, #688)", () => {
       "n2",
     );
     expect(content).toContain(`prop validity\n["${lite}","${pro}",{"title":"x"},3]\n`);
+  });
+});
+
+describe("sameVersion (ADR-0005 normal form 2)", () => {
+  const forms = { n1: "n1:1111111111111111", n2: "n2:2222222222222222" };
+  it("compares a stored version in its own form and knows no other form", () => {
+    expect(formOf("n1:1111111111111111")).toBe("n1");
+    expect(formOf("n2:1111111111111111")).toBe("n2");
+    expect(formOf("n3:1111111111111111")).toBeUndefined();
+    expect(sameVersion("n1:1111111111111111", forms)).toBe(true);
+    expect(sameVersion("n2:2222222222222222", forms)).toBe(true);
+    expect(sameVersion("n2:1111111111111111", forms)).toBe(false);
+    expect(sameVersion("n1:2222222222222222", forms)).toBe(false);
+    expect(sameVersion("n3:1111111111111111", { ...forms, n3: "n3:1111111111111111" } as typeof forms)).toBe(
+      false,
+    );
   });
 });

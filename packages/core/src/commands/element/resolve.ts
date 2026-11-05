@@ -21,7 +21,8 @@ import { getElement, shortIdState, UNKNOWN_TYPE_PREFIX } from "../../model/index
 import { shownWithNames } from "../../data/index.js";
 import type { Workspace } from "../../runtime/workspace.js";
 import { elementHints } from "../../hints/index.js";
-import { NORMAL_FORM } from "../../version/version.js";
+import type { VersionForms } from "../../version/version.js";
+import { formOf, sameVersion } from "../../version/version.js";
 
 /**
  * `error` with the one element whose UUID ends with the tail of `ref` as candidate, if there is one
@@ -62,20 +63,21 @@ const withOutdatedPrefix = async (
 };
 
 /**
- * Whether `given` is the current version `computed` (AK2): `"current"` or `"outdated"`; `"unknown"`
- * when the element has no version to compare with (a value that counts has no normal form;
- * element.get leaves `version` out and says why, #276); null when no version was given. Strings, not
- * booleans, so a caller that tests `current` for truth never takes `"unknown"` for current.
+ * Whether `given` is the current version `computed` (AK2), compared in the form of `given`
+ * (`sameVersion`, ADR-0005 "Normal form 2"): `"current"` or `"outdated"`; `"unknown"` when the
+ * element has no version to compare with (a value that counts has no normal form; element.get
+ * leaves `version` out and says why, #276); null when no version was given. Strings, not booleans,
+ * so a caller that tests `current` for truth never takes `"unknown"` for current.
  */
 const currentOf = (
   given: string | undefined,
-  computed: string | undefined,
+  computed: VersionForms | undefined,
 ): CommandOutput<"element.resolve">["current"] =>
   given === undefined
     ? null
     : computed === undefined
       ? "unknown"
-      : given === computed
+      : sameVersion(given, computed)
         ? "current"
         : "outdated";
 
@@ -83,11 +85,11 @@ export default defineCommand({
   name: "element.resolve",
   run: async (ctx, input): Promise<CommandOutput<"element.resolve">> => {
     const { version } = input;
-    // Only versions of the normal form this tool computes can be compared (ADR-0005).
-    if (version !== undefined && !version.startsWith(`${NORMAL_FORM}:`)) {
+    // Only versions of the normal forms this tool computes can be compared (ADR-0005).
+    if (version !== undefined && formOf(version) === undefined) {
       throw new CommandError(
         "input.invalid",
-        `version ${version} has a normal form this tool does not know; it computes ${NORMAL_FORM}`,
+        `version ${version} has a normal form this tool does not know; it computes n1 and n2`,
         { command: "element.resolve", fields: ["version"] },
       );
     }
@@ -97,7 +99,7 @@ export default defineCommand({
       // With its verification and validation status, the variants that replace or exclude it, and
       // `names` and `incomplete`, as element.get shows it (SR-031, SR-034, SR-038, SR-046 AK3, #456).
       const { element, ...rest } = await shownWithNames(ctx.workspace, shown);
-      return { element, current: currentOf(version, element.version), ...rest };
+      return { element, current: currentOf(version, shown.forms), ...rest };
     } catch (error) {
       if (error instanceof CommandError && error.code === "ref.unknown") {
         throw await withOutdatedPrefix(ctx.workspace, input.ref, copy, error);

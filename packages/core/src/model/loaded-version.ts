@@ -14,18 +14,20 @@
 //   metamodel of the workspace now. A store keeps the `Versioning` it was read with for its later
 //   reads (watcher batches, writes); a changed metamodel does not reset the store.
 // - A loaded version holds one value per normal form, by its prefix (`n1` today, D-027), so that a
-//   later form can be added or computed lazily next to it.
+//   later form can be added or computed lazily next to it. Both n1 and n2 are computed (ADR-0005
+//   "Normal form 2": a stored version is compared in its own form).
 import type {
   VersionFile,
   VersionInput,
   VersionPropertyDefinition,
   VersionValue,
 } from "../version/version.js";
-import { computeVersion, NORMAL_FORM, sha256Hex } from "../version/version.js";
+import { computeVersions, sha256Hex } from "../version/version.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { findType } from "../metamodel/index.js";
 import type { ElementRecord } from "./elements.js";
 import { imageLinks } from "./images.js";
+import { n2Input } from "./version-input.js";
 
 /** The definitions of the properties an element's type has (`versionDefinitions`) and their fingerprint. */
 export interface TypeVersioning {
@@ -44,7 +46,7 @@ export interface Versioning {
 
 /** The version of an element as read, per normal form, and the fingerprint of the definitions it used. */
 export interface LoadedVersion {
-  /** By normal form prefix (`n1`): the version (`n1:<16 hex>`). */
+  /** By normal form prefix (`n1`, `n2`): the version (`n1:<16 hex>`, `n2:<16 hex>`). */
   readonly byForm: Readonly<Record<string, string>>;
   /** `TypeVersioning.fingerprint` of the element's type when it was computed. */
   readonly fingerprint: string;
@@ -115,8 +117,8 @@ export const loadedVersion = (
       return undefined;
     }
     const typed = typeVersioningOf(versioning, element.type);
-    const version = computeVersion(versionInputOf(element, body, typed.definitions, []));
-    return { byForm: { [NORMAL_FORM]: version }, fingerprint: typed.fingerprint };
+    const input = versionInputOf(element, body, typed.definitions, []);
+    return { byForm: { ...computeVersions(input, n2Input(input)) }, fingerprint: typed.fingerprint };
   } catch {
     return undefined;
   }
