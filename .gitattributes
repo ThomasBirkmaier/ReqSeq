@@ -11,3 +11,5 @@ fixtures/SR-029/enrich/results/** -text -whitespace
 # The JUnit file of the pytest example (SR-063) is a recording of the real pytest, kept byte for byte.
 toolchain/junit/pytest/results.xml -text -whitespace
 toolchain/reqif/samples/bom-crlf.reqif -text -whitespace
+# Evidence of the own spec, written by evidence.yml (#946): enriched JUnit files, replaced by each run.
+spec/evidence/** -text -whitespace linguist-generated=true -diff

@@ -507,7 +507,8 @@ test.describe("the graph on the specification workspace", () => {
   };
 
   test("[SR-111/AK4] never cuts an ID, a type or a mark, on the long IDs and types of spec/", async () => {
-    const running = await launchApp({ folder: SPEC });
+    // Without the evidence of spec/ (evidence.yml, #946), so that its requirements keep the mark "no evidence".
+    const running = await launchApp({ folder: SPEC, exclude: ["evidence"] });
     const { window } = running;
     try {
       await expect(window.getByLabel("Modeline")).toContainText("elements");

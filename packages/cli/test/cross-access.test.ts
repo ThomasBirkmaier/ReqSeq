@@ -438,7 +438,8 @@ const maskNewElement = (result: Result): Result => {
     }
   ).output;
   if (output?.created !== undefined) {
-    let text = JSON.stringify(result);
+    // Versions first: a random id tail can also occur inside a version hash.
+    let text = JSON.stringify(result).replace(/n[12]:[0-9a-f]{16}/g, "<version>");
     for (const [index, { id = "" }] of output.created.entries()) {
       const tail = id.replaceAll("-", "");
       text = text
@@ -449,7 +450,7 @@ const maskNewElement = (result: Result): Result => {
         .split(tail.slice(-6))
         .join(`<tail6-${String(index)}>`);
     }
-    return JSON.parse(text.replace(/n[12]:[0-9a-f]{16}/g, "<version>")) as Result;
+    return JSON.parse(text) as Result;
   }
   const element = output?.element;
   if (element?.id === undefined || element.version === undefined) {

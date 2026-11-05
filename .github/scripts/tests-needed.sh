@@ -11,6 +11,9 @@
 #                     docs/architecture/ with the README that embeds them (packages/docs/src/diagrams.test.ts).
 # - .claude/**       agent rules and skills.
 # - verification/**  records: read by trace-check only (the Electron screenshots go to test-results/).
+# - spec/evidence/** enriched JUnit files of evidence.yml, which runs `workspace check` on them before its pull
+#                     request (#946); the Electron tests that open spec/ read them but
+#                     assert nothing about them, and every code PR still runs those tests.
 # - toolchain/**/*.md, except anything below toolchain/junit/ (read by the e2e test
 #   packages/cli/test/e2e/toolchain-junit.test.ts: the guide and the element files of the example workspace,
 #   SR-063), and *.md at the root (README.md, CLAUDE.md).
@@ -35,6 +38,8 @@ while IFS= read -r path || [ -n "$path" ]; do
     # The architecture pictures: the drift test compares them with their sources.
     docs/architecture/*.svg | docs/architecture/README.md) needed=true ;;
     docs/* | .claude/* | verification/* | toolchain/*.md) ;;
+    # The evidence of the own spec, written by evidence.yml, which checks it with `workspace check` itself (#946).
+    spec/evidence/*) ;;
     */*) needed=true ;;
     *.md) ;;
     *) needed=true ;;

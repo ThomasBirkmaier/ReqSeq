@@ -1,0 +1,290 @@
+# Evidence of the own spec (#946): the JUnit files of a nightly or manual CI run on main become the evidence records
+# that ReqSeq reads from spec/evidence/ (spec/reqseq-workspace.yaml), the way toolchain/junit/README.md tells a user
+# to connect a test tool. Product owner decision, 2026-11-05: the evidence lives in this repository, written by CI and
+# brought onto main through a pull request that merges itself; local runs are no source.
+#
+# - `enrich` (read rights only) checks out the tested commit, builds the CLI and runs `reqseq evidence enrich-junit`
+#   on each JUnit file of the run, against the spec of that commit (D-026). One date for the whole run (its start), so
+#   that the records of one run tie and a failure in any file of it wins over a pass in another (#525 Q2).
+# - `publish` runs no code of the repository: it copies the enriched files onto a branch cut from the current main,
+#   with a GitHub App token, so that the pull request gets the normal CI and PR-text runs that the required checks
+#   and trace-check read (a pull request made with GITHUB_TOKEN starts none).
+#
+# Each suite and system keeps one file with a fixed name that the next run replaces; Git history keeps the older runs,
+# each named by its commit in `reqseq:item` (D-008).
+
+name: Evidence
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      run-id:
+        description: CI run on main to record (empty = the newest completed nightly or manual run). Never skipped.
+        required: false
+
+permissions: {}
+
+concurrency:
+  # One at a time, none cancelled: each run closes the evidence pull requests it supersedes.
+  group: evidence
+  cancel-in-progress: false
+
+jobs:
+  enrich:
+    name: enrich
+    # Only CI runs on main that check main as a whole (nightly, manual), never a pull request's run.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      contains(fromJSON('["schedule", "workflow_dispatch"]'), github.event.workflow_run.event) &&
+      github.event.workflow_run.conclusion != 'cancelled' && github.event.workflow_run.conclusion != 'skipped')
+    permissions:
+      actions: read # The run and its artifacts
+      contents: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    outputs:
+      publish: ${{ steps.files.outputs.publish }}
+      sha: ${{ steps.run.outputs.sha }}
+      run: ${{ steps.run.outputs.id }}
+    steps:
+      - name: The CI run
+        id: run
+        uses: actions/github-script@v7
+        env:
+          INPUT_RUN: ${{ inputs.run-id }}
+        with:
+          retries: 3
+          script: |
+            const { owner, repo } = context.repo;
+            let run;
+            if (context.eventName === "workflow_run") {
+              run = context.payload.workflow_run;
+            } else if (process.env.INPUT_RUN) {
+              run = (await github.rest.actions.getWorkflowRun({ owner, repo, run_id: Number(process.env.INPUT_RUN) })).data;
+            } else {
+              const runs = await github.rest.actions.listWorkflowRuns({
+                owner, repo, workflow_id: "ci.yml", branch: "main", status: "completed", per_page: 20,
+              });
+              run = runs.data.workflow_runs.find((r) => ["schedule", "workflow_dispatch"].includes(r.event) && r.conclusion !== "cancelled");
+            }
+            if (!run) core.setFailed("No completed nightly or manual CI run on main.");
+            const fromMain = run && run.head_branch === "main" && ["schedule", "workflow_dispatch"].includes(run.event)
+              && run.head_repository?.full_name === `${owner}/${repo}` && run.conclusion !== "cancelled";
+            if (run && !fromMain) core.setFailed(`Run ${run.id} is no completed nightly or manual run on main.`);
+            core.setOutput("id", String(run?.id ?? ""));
+            core.setOutput("sha", run?.head_sha ?? "");
+            core.setOutput("date", run?.run_started_at ?? "");
+            core.setOutput("conclusion", run?.conclusion ?? "");
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.run.outputs.sha }}
+          fetch-depth: 0 # The skip below compares with the commit of the last evidence on main.
+          persist-credentials: false
+
+      # Nothing but evidence changed since the commit the evidence on main was taken from: the run would record the
+      # same code again. A manual start always records.
+      - name: Anything new since the last evidence
+        id: skip
+        shell: bash
+        env:
+          SHA: ${{ steps.run.outputs.sha }}
+          MANUAL: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          git fetch --quiet origin main
+          # -a: .gitattributes marks the files -diff, which git grep would treat as binary.
+          last="$(git grep -a -h -o -E 'main@[0-9a-f]{40}' origin/main -- spec/evidence/ci 2>/dev/null | head -n 1 | cut -d@ -f2 || true)"
+          [[ "$last" =~ ^[0-9a-f]{40}$ ]] || last=""
+          skip=false
+          if [ "$MANUAL" != true ] && [ -n "$last" ] && git cat-file -e "$last^{commit}" 2>/dev/null &&
+            git diff --quiet "$last" "$SHA" -- . ':(exclude)spec/evidence'; then
+            skip=true
+          fi
+          echo "skip=$skip" >> "$GITHUB_OUTPUT"
+          echo "Last evidence on main: \`${last:-none}\`, this run: \`$SHA\`, skipped: $skip" >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: pnpm/action-setup@v6
+        if: steps.skip.outputs.skip == 'false'
+      - uses: actions/setup-node@v4
+        if: steps.skip.outputs.skip == 'false'
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: Build the CLI
+        if: steps.skip.outputs.skip == 'false'
+        run: pnpm install --frozen-lockfile && pnpm --filter "@reqseq/cli..." build
+
+      # One artifact per suite and system (ci.yml): junit-<os>/junit.xml, junit-e2e-<os>/junit-e2e.xml,
+      # junit-electron-<os>[-<shard>]/junit-electron.xml (the Electron artifacts also hold screenshots, never read).
+      - name: JUnit files of the run
+        if: steps.skip.outputs.skip == 'false'
+        uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ steps.run.outputs.id }}
+          github-token: ${{ github.token }}
+          pattern: junit-*
+          path: ${{ runner.temp }}/junit
+
+      - name: Enrich
+        id: files
+        if: steps.skip.outputs.skip == 'false'
+        shell: bash
+        env:
+          SHA: ${{ steps.run.outputs.sha }}
+          DATE: ${{ steps.run.outputs.date }}
+          RUN: ${{ steps.run.outputs.id }}
+          CONCLUSION: ${{ steps.run.outputs.conclusion }}
+          JUNIT: ${{ runner.temp }}/junit
+        run: |
+          out=spec/evidence/ci
+          rm -rf "$out" && mkdir -p "$out"
+          status=0
+          {
+            echo "CI run $RUN on \`$SHA\` ($CONCLUSION), started $DATE."
+            echo
+            echo "| File | Enriched test cases | Without a requirement | Unknown |"
+            echo "|---|---|---|---|"
+          } > "$RUNNER_TEMP/summary.md"
+          # The artifacts a full run uploads (ci.yml). CI uploads with `if-no-files-found: ignore`, so a suite
+          # that wrote no file has no artifact at all; it is listed, and main keeps its last file.
+          for artifact in junit-ubuntu-24.04 junit-macos-26 junit-windows-2025 junit-e2e-ubuntu-24.04 junit-e2e-macos-26 \
+            junit-e2e-windows-2025 junit-electron-ubuntu-24.04-1 junit-electron-ubuntu-24.04-2 junit-electron-macos-26 \
+            junit-electron-windows-2025-1 junit-electron-windows-2025-2; do
+            [ -d "$JUNIT/$artifact" ] || echo "| \`$artifact\` | no artifact | | |" >> "$RUNNER_TEMP/summary.md"
+          done
+          for dir in "$JUNIT"/junit-*/; do
+            artifact="$(basename "$dir")"
+            case "$artifact" in
+              junit-e2e-*) file="$dir/junit-e2e.xml"; name="e2e-${artifact#junit-e2e-}"; os="${artifact#junit-e2e-}" ;;
+              junit-electron-*) file="$dir/junit-electron.xml"; name="electron-${artifact#junit-electron-}"; os="${artifact#junit-electron-}"; os="${os%-[0-9]}" ;;
+              junit-delivery-*) continue ;;
+              *) file="$dir/junit.xml"; name="unit-${artifact#junit-}"; os="${artifact#junit-}" ;;
+            esac
+            if [ ! -f "$file" ]; then
+              echo "| \`$artifact\` | missing | | |" >> "$RUNNER_TEMP/summary.md"
+              continue
+            fi
+            set +e
+            node packages/cli/dist/bin.js evidence enrich-junit "$file" "main@$SHA ($os)" --date "$DATE" \
+              --workspace spec --output "$out/$name.xml" --json > "$RUNNER_TEMP/$name.json"
+            code=$?
+            set -e
+            [ "$code" -eq 0 ] || status=1
+            node -e '
+              const r = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
+              const unknown = (r.unknown ?? []).length;
+              console.log(`| \`${process.argv[2]}.xml\` | ${r.testCases ?? "?"} | ${r.withoutReference ?? "?"} | ${unknown} |`);
+            ' "$RUNNER_TEMP/$name.json" "$name" >> "$RUNNER_TEMP/summary.md" || echo "| \`$name.xml\` | error $code | | |" >> "$RUNNER_TEMP/summary.md"
+          done
+          # The records as ReqSeq reads them: the workspace check reads every evidence file (codes evidence.*).
+          node packages/cli/dist/bin.js workspace check --workspace spec > "$RUNNER_TEMP/check.txt" || status=1
+          {
+            echo
+            echo "Verification degree of the system requirements (core):"
+            echo '```'
+            node packages/cli/dist/bin.js evidence degree --workspace spec --where-type system-requirement || true
+            echo '```'
+          } >> "$RUNNER_TEMP/summary.md"
+          cat "$RUNNER_TEMP/summary.md" >> "$GITHUB_STEP_SUMMARY"
+          mkdir -p "$RUNNER_TEMP/out" && cp -R "$out" "$RUNNER_TEMP/out/ci" && cp "$RUNNER_TEMP/summary.md" "$RUNNER_TEMP/out/"
+          if compgen -G "$out/*.xml" > /dev/null; then echo "publish=true" >> "$GITHUB_OUTPUT"; else echo "publish=false" >> "$GITHUB_OUTPUT"; fi
+          # An unknown requirement (a typo in a test name) or a finding of the check fails the job after the files
+          # are written, so the other results are still published.
+          exit "$status"
+
+      - name: Keep the enriched files for publish
+        if: ${{ !cancelled() && steps.files.outputs.publish == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: evidence-${{ steps.run.outputs.id }}
+          path: ${{ runner.temp }}/out/
+          retention-days: 7
+
+  publish:
+    name: publish
+    needs: enrich
+    # A manual start runs the workflow file of the branch it names; only main's may use the App key.
+    if: ${{ !cancelled() && needs.enrich.outputs.publish == 'true' && github.ref == 'refs/heads/main' }}
+    permissions:
+      actions: read # The artifact of `enrich`
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: App token
+        id: token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.EVIDENCE_APP_ID }}
+          private-key: ${{ secrets.EVIDENCE_APP_KEY }}
+          # Only what the job needs, not every permission of the installation.
+          permission-contents: write
+          permission-pull-requests: write
+          permission-issues: write
+
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ steps.token.outputs.token }}
+
+      - name: Enriched files
+        uses: actions/download-artifact@v4
+        with:
+          name: evidence-${{ needs.enrich.outputs.run }}
+          path: ${{ runner.temp }}/evidence
+
+      - name: Pull request
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          APP_SLUG: ${{ steps.token.outputs.app-slug }}
+          SHA: ${{ needs.enrich.outputs.sha }}
+          RUN: ${{ needs.enrich.outputs.run }}
+          SOURCE: ${{ runner.temp }}/evidence
+        run: |
+          # Over main's files: a suite without an artifact in this run keeps its last file (listed in the summary).
+          mkdir -p spec/evidence/ci
+          cp "$SOURCE"/ci/*.xml spec/evidence/ci/
+          if git diff --quiet && [ -z "$(git status --porcelain spec/evidence)" ]; then
+            echo "Nothing changed." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          repo="$GITHUB_REPOSITORY"
+          # Older evidence pull requests edit the same files; this one replaces them.
+          bot="$APP_SLUG[bot]"
+          for n in $(gh api "repos/$repo/pulls?state=open&per_page=100" --jq ".[] | select(.head.repo.full_name == \"$repo\" and .user.login == \"$bot\" and (.head.ref | startswith(\"evidence/\"))) | .number"); do
+            gh api -X PATCH "repos/$repo/pulls/$n" -f state=closed > /dev/null
+            gh api -X POST "repos/$repo/issues/$n/comments" -f body="Replaced by the evidence of CI run $RUN." > /dev/null
+          done
+          branch="evidence/run-$RUN"
+          git config user.name "reqseq-evidence[bot]"
+          git config user.email "reqseq-evidence[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add spec/evidence/ci
+          git commit -q -m "chore(evidence): test results of main@${SHA:0:7}" -m "Enriched JUnit files of CI run $RUN on $SHA (evidence.yml)." -m "Refs #946"
+          git push -q origin "$branch"
+          {
+            echo "## Summary"
+            echo
+            echo "Evidence of the own spec: the JUnit files of CI run [$RUN](https://github.com/$repo/actions/runs/$RUN) on \`$SHA\`, enriched with \`reqseq evidence enrich-junit\` (evidence.yml). Merges itself on green checks; agents leave it alone (CLAUDE.md)."
+            echo
+            echo "Refs #946"
+            echo
+            echo "## System requirements"
+            echo
+            echo "enabler, #946"
+            echo
+            echo "## Verification"
+            echo
+            cat "$SOURCE/summary.md"
+          } > "$RUNNER_TEMP/body.md"
+          number="$(gh api "repos/$repo/pulls" -f title="enabler: evidence of main@${SHA:0:7}" -f head="$branch" -f base=main \
+            -F body=@"$RUNNER_TEMP/body.md" --jq .number)"
+          gh api -X POST "repos/$repo/issues/$number/labels" -f 'labels[]=enabler' > /dev/null
+          gh pr merge "$number" --repo "$repo" --auto --squash
+          echo "Pull request #$number" >> "$GITHUB_STEP_SUMMARY"

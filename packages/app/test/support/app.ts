@@ -50,11 +50,12 @@ const ELECTRON = createRequire(import.meta.url)("electron") as string;
 /**
  * A copy of a case folder of `fixtures/` (`fixture`) or of any workspace folder (`folder`, an absolute
  * path), plus `files` (relative path to content), in a temporary folder, as the folder `name` (default
- * `workspace`).
+ * `workspace`), without the folders of `exclude` (relative paths with `/`).
  */
 export type Fixture = ({ readonly fixture: string } | { readonly folder: string }) & {
   readonly files?: Readonly<Record<string, string | Uint8Array>>;
   readonly name?: string;
+  readonly exclude?: readonly string[];
 };
 
 /** The copied workspace: its root (links resolved) and how to remove it. */
@@ -65,11 +66,12 @@ export interface FixtureWorkspace {
 
 /** Copies a fixture workspace into a temporary folder (`launchApp` does it for the workspace it opens). */
 export const copyFixture = async (source: Fixture): Promise<FixtureWorkspace> => {
-  const { files = {} } = source;
+  const { files = {}, exclude = [] } = source;
   const from = "folder" in source ? source.folder : path.join(FIXTURES, ...source.fixture.split("/"));
   const top = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-app-fixture-")));
   const root = path.join(top, source.name ?? "workspace");
-  await fs.cp(from, root, { recursive: true });
+  const left = new Set(exclude.map((relative) => path.join(from, ...relative.split("/"))));
+  await fs.cp(from, root, { recursive: true, filter: (file) => !left.has(path.normalize(file)) });
   for (const [relative, content] of Object.entries(files)) {
     const file = path.join(root, ...relative.split("/"));
     await fs.mkdir(path.dirname(file), { recursive: true });
