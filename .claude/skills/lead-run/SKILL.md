@@ -1,9 +1,9 @@
 ---
 name: lead-run
-description: Drives one ReqSeq milestone to acceptance over a long autonomous run - orders the issues, runs up to three agents, checks progress against the spec, hands over to a fresh lead. Its merge.md has the review and merge rules for every ReqSeq PR. Use when asked to run, continue or check a stage, or to review or merge a PR.
+description: Drives one ReqSeq milestone to acceptance over a long autonomous run - orders the issues, runs up to three agents, checks progress against the spec, hands over to a fresh lead. Its merge.md has the review and merge rules for every ReqSeq PR. Use when asked to run, continue or check a milestone, or to review or merge a PR.
 ---
 
-# Running a stage
+# Running a milestone
 
 The lead runs a stage over hours or days and stays the one place that knows its state.
 
@@ -38,7 +38,7 @@ A turn that ends while items of the stage are open and nothing blocks them is no
 
 ## Checks against the spec
 
-After each merged sequence and once before the acceptance, a fresh agent compares the SRs the closed issues of the milestone implement with their AKs and the spec text, and runs `pnpm trace-check --require <those SRs>`. Gaps become issues. The report marks what the agent could not confirm and says where it looked. Collect the open `spec-frage` issues into one message for the product owner at most once a day, and enter the answers with `spec-change`.
+After each merged sequence and once before the acceptance, a fresh agent compares the SRs the closed issues of the milestone implement with their AKs and the spec text, and runs `pnpm trace-check --require <those SRs whose tasks are all closed>`. Gaps become issues. The report marks what the agent could not confirm and says where it looked. Collect the open `spec-frage` issues into one message for the product owner at most once a day, and enter the answers with `spec-change`.
 
 ## Handover
 
@@ -46,7 +46,7 @@ Hand over to a fresh lead thread at natural breaks (the end of a stage, after a 
 
 ## Milestone done
 
-A milestone is done when all its issues are closed and `pnpm trace-check --require <the SRs its issues implement> --report trace-<milestone>.md` passes; post the report in the epic. Then:
+A milestone is done when all its issues are closed and `pnpm trace-check --require <the SRs its issues complete> --report trace-<milestone>.md` passes; post the report in the epic. Then:
 
 1. Prepare the acceptance: what to try in the app or CLI, the `verification/` records with method Inspektion or Demonstration, and the known limitations. Count the keys three tasks take in the app and compare them with the last milestone: (1) open a given requirement, (2) all requirements of a need, (3) all requirements without a passed test; post the numbers in the epic (product owner decision, 2026-10-29, #362).
 2. A PR bumps the root `version` (and runs `pnpm contracts:generate`). Then start the `Release` workflow by hand once; it publishes nothing and finds packaging regressions before the acceptance (ADR-0014).
