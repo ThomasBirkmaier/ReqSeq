@@ -416,3 +416,23 @@ describe("createBridge", () => {
     expect(expired).not.toHaveBeenCalled();
   });
 });
+
+describe("what the renderer can reach", () => {
+  it("[SR-080/AK4] gets the values of the workspace only from catalog commands; the rest is the window's own state", () => {
+    const ipc = new FakeIpc();
+    const bridge = createBridge(ipc);
+    // `invoke` and `commands` go to the core process, which runs the catalog as CLI, API and MCP do.
+    // The others are the window's operation (clipboard, the workspaces opened last, opening one,
+    // saving before a switch) and the events that tell it to ask again; none carries a value of a file.
+    expect(Object.keys(bridge).sort()).toEqual([
+      "commands",
+      "copyText",
+      "invoke",
+      "on",
+      "onSave",
+      "openWorkspace",
+      "recentWorkspaces",
+    ]);
+    expect(ipc.channels.sort()).toEqual([SAVE_CHANNEL, WORKSPACE_CHANNEL].sort());
+  });
+});
