@@ -1,7 +1,8 @@
 // element.bulkUpdate (SR-071) on fixtures/SR-069/filter (see list.test.ts for its elements): one
 // repository `system` with the standard model and the subtype software-requirement (SWR) with the
 // number property `priority`. Needs have `topic` too; decisions, packages and variants have neither
-// `topic` nor `priority`. The selection is the one of element.list (SR-101), tested there.
+// `topic` nor `priority`. The selection is the one of element.list (SR-101), tested there; one test
+// here applies it to a package (SR-101 AK1).
 import fs from "node:fs/promises";
 import path from "node:path";
 import { createFixtureWorkspace } from "@reqseq/testkit";
@@ -177,6 +178,21 @@ describe("element.bulkUpdate (SR-071)", () => {
       confirm: true,
     });
     expect(again).toMatchObject({ applied: true, count: 0, affected: [], unchanged: 7, files: [] });
+  });
+
+  it("[SR-101/AK1] element.bulkUpdate on package P changes exactly the elements of P", async () => {
+    const { fixture, workspace } = await open();
+    const before = await texts(fixture.root);
+    const out = await bulk(workspace, {
+      selection: { package: "PKG-0000d1" },
+      property: "topic",
+      operation: "set",
+      value: "Sensors",
+      confirm: true,
+    });
+    expect(out).toMatchObject({ applied: true, count: 2, skipped: [], problems: [] });
+    expect(ids(out.affected)).toEqual([B1, B2]);
+    expectOnlyKeyChanged(before, await texts(fixture.root), "topic", filesOf([B1, B2]));
   });
 
   it("[SR-071/AK1] adds items to a list property: new lines only, items an element holds already are not added twice", async () => {
