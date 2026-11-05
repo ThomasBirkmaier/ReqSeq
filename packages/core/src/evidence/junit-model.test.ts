@@ -353,7 +353,7 @@ describe("elementRefsOf", () => {
   });
 
   it("elementRefsOf takes a UUID in any case", () => {
-    expect(elementRefsOf(testCase(`t[${UUID.toUpperCase()}]`))).toEqual([
+    expect(elementRefsOf(testCase(`t [${UUID.toUpperCase()}]`))).toEqual([
       { text: UUID.toUpperCase(), kind: "uuid", source: "name" },
     ]);
   });
@@ -375,13 +375,38 @@ describe("elementRefsOf", () => {
       ["test_x[SR-036]", "SR-036"],
       ["test_x[sr-a1b2c3]", "sr-a1b2c3"],
     ] as const) {
-      expect(elementRefsOf(testCase(name))).toEqual([{ text, kind: "other", source: "name" }]);
+      expect(elementRefsOf(testCase(name))).toEqual([{ text, kind: "other", source: "name", glued: true }]);
     }
+  });
+
+  it("elementRefsOf marks a token glued to a word as pytest writes a parameter (#358)", () => {
+    // Glued after a letter, digit or underscore, whatever its kind; not after a space, a bracket or
+    // at the start; written both ways, it is not glued.
+    expect(elementRefsOf(testCase(`test_get[${UUID}] t1[SR-a1b2c3] _[SR-b2c3d4]`))).toEqual([
+      { text: UUID, kind: "uuid", source: "name", glued: true },
+      { text: "SR-a1b2c3", kind: "shortId", source: "name", glued: true },
+      { text: "SR-b2c3d4", kind: "shortId", source: "name", glued: true },
+    ]);
+    expect(elementRefsOf(testCase("[SR-a1b2c3] a [SR-b2c3d4] ([SR-c3d4e5]) [x][SR-d4e5f6]"))).toEqual([
+      { text: "SR-a1b2c3", kind: "shortId", source: "name" },
+      { text: "SR-b2c3d4", kind: "shortId", source: "name" },
+      { text: "SR-c3d4e5", kind: "shortId", source: "name" },
+      { text: "x", kind: "other", source: "name" },
+      { text: "SR-d4e5f6", kind: "shortId", source: "name" },
+    ]);
+    // A letter outside the BMP and a combining mark count as the end of a word.
+    expect(elementRefsOf(testCase("\u{1D400}[SR-a1b2c3] e\u0301[SR-b2c3d4]"))).toEqual([
+      { text: "SR-a1b2c3", kind: "shortId", source: "name", glued: true },
+      { text: "SR-b2c3d4", kind: "shortId", source: "name", glued: true },
+    ]);
+    expect(elementRefsOf(testCase("t[SR-a1b2c3] [SR-a1b2c3]"))).toEqual([
+      { text: "SR-a1b2c3", kind: "shortId", source: "name" },
+    ]);
   });
 
   it("elementRefsOf skips empty tokens and nested brackets", () => {
     expect(elementRefsOf(testCase("t[] [ ] [/AK1] [a[SR-a1b2c3]] b]"))).toEqual([
-      { text: "SR-a1b2c3", kind: "shortId", source: "name" },
+      { text: "SR-a1b2c3", kind: "shortId", source: "name", glued: true },
     ]);
   });
 });

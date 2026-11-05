@@ -4,9 +4,11 @@
 //
 // - References: every `reqseq:element` property in file order, then the name tokens of the test case
 //   (`elementRefsOf`). A property is an explicit statement: one that names no element or more than
-//   one is reported. A name token of the form of a short ID or UUID is reported the same way; any
-//   other name token (an identifier such as `[SR-036]`, a pytest parameter list) counts only when it
-//   names exactly one element. Elements named twice count once.
+//   one is reported. A name token of the form of a short ID or UUID is reported the same way; one
+//   glued to a word as pytest writes a parameter (`test_get[<UUID>]`, #358) only when it is a short
+//   ID with a type prefix of the metamodel (a typo in a pytest ID); any other name token (an
+//   identifier such as `[SR-036]`, a pytest parameter list) counts only when it names exactly one
+//   element. Elements named twice count once.
 // - With a name pattern (`namePattern`, AK5, `name-pattern.ts`) the short IDs it finds in the name are
 //   name tokens of the form of a short ID too, so one that names no element or several is reported.
 // - A test case that names no element (no property, no token that names one) counts in
@@ -47,7 +49,7 @@ import type { WorkspaceLayout } from "../workspace/index.js";
 import { resolveView } from "../variants/index.js";
 import { refuseGit, shownPath, workspaceLayoutState } from "../workspace/index.js";
 import { enrichmentOf } from "./junit.js";
-import type { JunitProperty, JunitTestCase } from "./junit-model.js";
+import type { ElementRefToken, JunitProperty, JunitTestCase } from "./junit-model.js";
 import { elementRefsOf, junitTestCases } from "./junit-model.js";
 import type { NameMatch } from "./name-pattern.js";
 import { nameMatcher, parseNamePattern } from "./name-pattern.js";
@@ -98,6 +100,11 @@ export interface UnknownRef {
 export interface EnrichOptions {
   /** What a reference names (a short ID, a UUID, an identifier, any text). */
   readonly resolve: (ref: string) => RefResolution;
+  /**
+   * The type prefixes of the metamodel: a short ID glued to a word with one of them is still
+   * reported when it names no element (a typo in a pytest ID, SR-029 AK2; #358).
+   */
+  readonly typePrefixes: readonly string[];
   /** The current versions of the elements by UUID; called once, with each element once. */
   readonly versionsOf: (ids: readonly string[]) => Promise<ReadonlyMap<string, VersionLookup>>;
   readonly item: string;
@@ -337,9 +344,21 @@ interface Reported {
 }
 
 /**
+ * Whether a name token that names no element or several is reported: a short ID or UUID, but one
+ * glued to a word only when it is a short ID with a type prefix of the metamodel, so a pytest
+ * parameter such as `test_get[<UUID>]` or `test_id[A-123456]` stays silent while a typo in a pytest
+ * ID such as `test_x[SR-b2c0dd]` is still reported (SR-029 AK2, SR-063 AK1; #358).
+ */
+const reportable = (token: ElementRefToken, prefixes: readonly string[]): boolean =>
+  token.kind !== "other" &&
+  (token.glued !== true ||
+    (token.kind === "shortId" && prefixes.includes(token.text.slice(0, token.text.lastIndexOf("-")))));
+
+/**
  * The elements only the name of `testCase` names, each once and none a property names already
  * (`named`). A short ID or UUID token that names no element or several is added to `reported`,
- * unless a property reported it already; any other token counts only when it names exactly one.
+ * unless a property reported it already or `reportable` says no (#358); any other token counts
+ * only when it names exactly one.
  */
 const nameElements = (
   testCase: JunitTestCase,
@@ -355,7 +374,7 @@ const nameElements = (
       if (!named.includes(resolution.id) && !added.includes(resolution.id)) {
         added.push(resolution.id);
       }
-    } else if (token.kind !== "other" && !reported.some((r) => r.ref === token.text)) {
+    } else if (reportable(token, options.typePrefixes) && !reported.some((r) => r.ref === token.text)) {
       reported.push({ ref: token.text, resolution, matched: token.matched });
     }
   }
@@ -1167,7 +1186,9 @@ export const enrichJunitFile = async (
   const variant = givenVariant(views, input.variant, variants);
   // The metamodel is valid here: a write is refused while it is not (`workspace.read-only`).
   const requirements = new Set(typesWithMeaning(metamodel, "requirement").map((t) => t.key));
+  const typePrefixes = metamodel.effectiveTypes.map((t) => t.prefix);
   const result = await enrichJunitBytes(bytes, {
+    typePrefixes,
     resolve: resolverOf((ref) => resolveRef(store, shortIds, ref), found),
     versionsOf: async (ids) => {
       const wanted = new Set(ids);
@@ -1195,13 +1216,7 @@ export const enrichJunitFile = async (
         ? undefined
         : { type: record.type, repository: record.repository };
     },
-    namePattern:
-      pattern === undefined
-        ? undefined
-        : nameMatcher(
-            pattern,
-            metamodel.effectiveTypes.map((t) => t.prefix),
-          ),
+    namePattern: pattern === undefined ? undefined : nameMatcher(pattern, typePrefixes),
   });
   const output = {
     testCases: result.testCases,

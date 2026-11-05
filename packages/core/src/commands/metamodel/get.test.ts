@@ -109,7 +109,20 @@ describe("metamodel.get", () => {
       },
     });
     expect(out.types).toEqual([]);
+    expect(out.files).toEqual([]);
     expect(out.problems).toMatchObject([{ code: "metamodel.invalid", severity: "error" }]);
+  });
+
+  it("names the metamodel files it read in the order merged, a faulty one too (#625)", async () => {
+    const out = await get("SR-013/own-meanings", {
+      files: { "model/zz-faulty.yaml": "reqseq-metamodel: 1\nstatuses: [\n" },
+    });
+    expect(out.files).toEqual(
+      ["properties", "relations", "statuses", "types", "zz-faulty"].map((name) => ({
+        repository: "system",
+        path: `model/${name}.yaml`,
+      })),
+    );
   });
 
   // SR-130: the app draws and lists the metamodel from this output alone, so these are the values every

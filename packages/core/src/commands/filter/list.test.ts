@@ -148,7 +148,7 @@ describe("filter.list (SR-070)", () => {
         code: "filter.invalid",
         severity: "error",
         message:
-          "Invalid saved filter filters/a-broken.yaml: where (an object) does not have the expected form: Combinable condition (SR-069). Exactly one operator per object. `all`: every condition holds (`[]` holds), `any`: some holds (`[]` does not), `not`: it does not hold. (one of: all, any, not, type, status, invalid, package, validFor, verification, validation, emergent, source, text, property, relation)",
+          "Invalid saved filter filters/a-broken.yaml: where (an object) does not have the expected form: Combinable condition. Exactly one operator per object. `all`: every condition holds (`[]` holds), `any`: some holds (`[]` does not), `not`: it does not hold. (one of: all, any, not, type, status, invalid, package, validFor, verification, validation, emergent, source, text, property, relation)",
         repository: "system",
         file: "filters/a-broken.yaml",
         line: 4,

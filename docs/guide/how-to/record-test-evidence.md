@@ -20,6 +20,8 @@ evidence:
   - { repository: system, path: evidence }
 ```
 
+`reqseq workspace status` lists the evidence locations, each with `available: false` when ReqSeq does not read it; `reqseq workspace check` says why.
+
 ## App
 
 Run **Enrich JUnit file** in the command prompt (Ctrl+Shift+P, ⌘⇧P on macOS); it asks for the file and the build. **Show evidence status** then lists each requirement with its verification status, and **Show evidence coverage** counts per level how many have evidence. Reopen the workspace to see a file a pipeline wrote while the app was open.

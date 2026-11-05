@@ -55,7 +55,7 @@
             "type": "integer",
             "minimum": 1,
             "maximum": 6,
-            "description": "Stage of D-035 in which the command is built."
+            "description": "The stage of the delivery plan in which the command is built (D-035)."
           },
           "implements": {
             "type": "array",

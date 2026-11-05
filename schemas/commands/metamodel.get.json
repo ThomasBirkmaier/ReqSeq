@@ -1,7 +1,7 @@
 {
   "name": "metamodel.get",
   "title": "Show metamodel",
-  "summary": "The effective metamodel: types with inherited properties and statuses, properties with whether they count to the version, relation kinds, statuses, meanings.",
+  "summary": "The effective metamodel: types with inherited properties and statuses, properties with whether they count to the version, relation kinds, statuses, meanings, the files read.",
   "effect": "read",
   "stage": 1,
   "implements": ["SR-012", "SR-013"],
@@ -70,6 +70,13 @@
         },
         "description": "Every built-in meaning of metamodel.schema.json (`meaning` of types, properties and relation kinds) -> the keys whose own definition declares it, in metamodel order; empty if unassigned (SR-013 AK3). In a valid metamodel a type or property meaning has at most one key, a relation meaning any number. Types that inherit a meaning, or repeat the one they inherit, are not listed; `types` shows their effective `meaning`."
       },
+      "files": {
+        "type": "array",
+        "items": {
+          "$ref": "../workspace.schema.json#/$defs/location"
+        },
+        "description": "The metamodel files that were read, in the order they were merged, faulty ones included: the repository of the metamodel and the path relative to it (#625). Empty when the folder is missing or has no metamodel files."
+      },
       "problems": {
         "type": "array",
         "items": {
@@ -78,6 +85,6 @@
       }
     },
     "additionalProperties": false,
-    "required": ["types", "properties", "relations", "statuses", "meanings"]
+    "required": ["types", "properties", "relations", "statuses", "meanings", "files"]
   }
 }

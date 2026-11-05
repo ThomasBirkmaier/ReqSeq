@@ -1,9 +1,9 @@
-# What data.export gives for { selection: { package: PKG-0000d1 } } on fixtures/SR-061/export (SR-061
-# AK2), the time of the call and the commits replaced: the two requirements of the package with their
+# What data.export gives for { selection: { package: PKG-0000d1 } } on a small workspace, the time of
+# the call and the commits replaced: the two requirements of the package with their
 # properties as stored (the relation properties validity and packages too), every relation with the
 # current version of its target, including the targets of validity and packages (property: true),
 # validity and packages as UUIDs and the verification status per view. The derivation of SR-0000b2
-# stores an older version of the need, so it is outdated (SR-025).
+# stores an older version of the need, so it is outdated.
 reqseq-data: 3
 commit: 61aa061aa061aa061aa061aa061aa061aa061aa0
 dirty: false

@@ -59,6 +59,7 @@ describe("command definitions", () => {
           name: "w",
           repositories: [],
           metamodel: { repository: "w", path: "metamodel", valid: true },
+          evidence: [],
           readOnly: false,
           problems: [],
         });

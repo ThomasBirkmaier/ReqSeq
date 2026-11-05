@@ -7,6 +7,7 @@ import type { Stats } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { Problem } from "../catalog.js";
+import type { WorkspaceLocation } from "../generated/types.js";
 import type { ListedKind } from "../model/index.js";
 import { SKIPPED_NAMES, ignoredBy, listFiles } from "../model/index.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
@@ -136,6 +137,22 @@ const startProblem = async (
     }
   }
   return undefined;
+};
+
+/**
+ * Whether the evidence walk reads `location`: its repository is available and the folder passes
+ * `startProblem` (it exists, no link, no skipped name, ignore glob, other or nested repository).
+ * `workspace.status` shows it (#625), so status and walk never disagree.
+ */
+export const isReadEvidenceLocation = async (
+  layout: WorkspaceLayout,
+  location: WorkspaceLocation,
+): Promise<boolean> => {
+  const { repository } = locate(layout, location);
+  return (
+    repository?.available === true &&
+    (await startProblem(repository, ignoredBy(layout), startOf(location.path))) === undefined
+  );
 };
 
 /**
