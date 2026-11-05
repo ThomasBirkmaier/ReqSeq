@@ -1,7 +1,8 @@
 // SR-083 (D-036, ADR-0006): ReqSeq only reads Git. Every implemented command runs here, with the calls
 // of scenarios.test-helper.ts, on a Git repository; afterwards every file of its Git folder has the
 // bytes it had, and every process started was git with a read-only subcommand. A commit the local
-// repository does not have is not fetched (AK2), and no command of the catalog writes Git data (AK3).
+// repository does not have is not fetched (AK2); no command of the catalog writes Git data, and only
+// the git reader imports node:child_process (AK3).
 // The processes are recorded by wrapping `execFile` and `spawn` of node:child_process, which only the
 // git reader uses (ADR-0006); the fixture's own git calls happen before the recording starts.
 import { createHash } from "node:crypto";
@@ -160,6 +161,27 @@ describe("Git only read (SR-083, D-036)", () => {
     await expect(
       runtime.invoke("workspace.check", { changedSince: head }, { workspace }),
     ).resolves.toBeDefined();
+  });
+
+  it("[SR-083/AK3] starts processes only in the git reader: no other product module imports node:child_process", () => {
+    const packages = path.resolve(import.meta.dirname, "../../..");
+    const importers: string[] = [];
+    for (const name of fs.readdirSync(packages)) {
+      const src = path.join(packages, name, "src");
+      // The testkit is test tooling: it makes the fixtures' commits.
+      if (name === "testkit" || !fs.existsSync(src)) {
+        continue;
+      }
+      for (const entry of fs.readdirSync(src, { recursive: true, withFileTypes: true })) {
+        const file = path.join(entry.parentPath, entry.name);
+        const product =
+          entry.isFile() && /\.[cm]?tsx?$/.test(entry.name) && !/\.test(-helper)?\./.test(entry.name);
+        if (product && /["'](node:)?child_process["']/.test(fs.readFileSync(file, "utf8"))) {
+          importers.push(path.relative(packages, file).split(path.sep).join("/"));
+        }
+      }
+    }
+    expect(importers).toEqual(["core/src/git/reader.ts"]);
   });
 
   it("[SR-083/AK3] offers no command that writes Git data", () => {
