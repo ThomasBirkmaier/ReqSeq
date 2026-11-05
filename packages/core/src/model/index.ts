@@ -269,3 +269,4 @@ export type {
 export { LayeredMap } from "./layered-map.js";
 export { PatchedMap } from "./patched-map.js";
 export { byPath } from "./path-order.js";
+export { recordsById } from "./by-id.js";

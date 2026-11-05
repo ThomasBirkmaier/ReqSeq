@@ -23,6 +23,7 @@ import {
   viewRuleIndexState,
   viewRuleOf,
 } from "./view-rule.js";
+import type { ViewRuleIndex } from "./view-rule.js";
 
 const P = "43043043-0000-4000-8000-0000000000";
 const NAMES: Readonly<Record<string, string>> = {
@@ -408,5 +409,16 @@ describe("the view rule (SR-041, SR-043)", () => {
     expect(carried?.store).toBe(second);
     expect(carried?.items).not.toBe(index.items);
     expect(carried?.items).toEqual(buildViewRuleIndex(second, metamodel).items);
+    // An index of the new store built before it is installed stays.
+    await fs.writeFile(absolute, `${await fs.readFile(absolute, "utf8")}\nA third line.\n`);
+    let early: ViewRuleIndex | undefined;
+    await applyStoreChange(ws, async (store) => {
+      const next = await updateElements(store, layout, new Map([["system", { paths: [file] }]]));
+      early = next === undefined ? undefined : viewRuleIndexOf(ws, next, metamodel);
+      return next;
+    });
+    const third = await ws.get(elementStoreState);
+    expect(early?.store).toBe(third);
+    expect(memo.get(third)).toBe(early);
   });
 });

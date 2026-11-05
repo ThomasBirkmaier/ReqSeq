@@ -37,7 +37,14 @@
 import type { Metamodel } from "../metamodel/index.js";
 import { relationKindsWithMeaning } from "../metamodel/index.js";
 import type { ElementRecord, ElementStore, StoreUpdate } from "../model/index.js";
-import { byPath, carryStoreUpdate, elementStoreState, relationItems, resolveTarget } from "../model/index.js";
+import {
+  byPath,
+  carryStoreUpdate,
+  elementStoreState,
+  recordsById,
+  relationItems,
+  resolveTarget,
+} from "../model/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import { isCoreRequirement } from "./core.js";
@@ -197,7 +204,8 @@ export const viewRuleIndexState = defineWorkspaceState(
     dependsOn: [elementStoreState],
     carry: carryStoreUpdate((memo, update) => {
       const index = memo.get(update.from);
-      if (index !== undefined) {
+      // An index of the new store built before it was installed stays (with its caches).
+      if (index !== undefined && !memo.has(update.to)) {
         memo.set(update.to, carryViewRuleIndex(index, update));
       }
       return memo;
@@ -339,9 +347,9 @@ const membershipIn = (
 
 /**
  * Where each record of `index.store` is in the views of the variants (see `Membership`), found on
- * its first lookup and kept per index (undefined for a record that is not the store's), shared by the rules of all variants, so `includes` is one
- * lookup by record after the first (#463) and a new store (a carried index, #215) costs only the
- * records asked about, not a pass over the store.
+ * its first lookup and kept per index (undefined for a record that is not the store's), shared by
+ * the rules of all variants, so `includes` is one lookup by record after the first (#463) and a new
+ * store (a carried index, #215) costs only the records asked about, not a pass over the store.
  */
 const membershipOf = (index: ViewRuleIndex): ((e: ElementRecord) => Membership | undefined) => {
   let lookup = membershipByIndex.get(index);
@@ -352,7 +360,7 @@ const membershipOf = (index: ViewRuleIndex): ((e: ElementRecord) => Membership |
     lookup = (e) => {
       let member = found.get(e);
       // Only records of the store are kept: one read again from its file is not (undefined).
-      if (member === undefined && index.store.byId.get(e.id)?.includes(e) === true) {
+      if (member === undefined && recordsById(index.store.byId, e.id)?.includes(e) === true) {
         member = membershipIn(index, validity, removal, e);
         found.set(e, member);
       }
