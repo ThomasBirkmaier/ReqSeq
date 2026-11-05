@@ -9,7 +9,7 @@ import type { Metamodel } from "../metamodel/index.js";
 import { STANDARD_MODEL_TEXT, findType, metamodelState } from "../metamodel/index.js";
 import { Workspace } from "../runtime/workspace.js";
 import type { VersionValue } from "../version/version.js";
-import { computeVersion } from "../version/version.js";
+import { NORMAL_FORM } from "../version/version.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import { duplicateIdProblemsState } from "./duplicates.js";
 import { relationTypeProblemsState } from "./relation-types.js";
@@ -18,6 +18,7 @@ import { elementStoreState } from "./store.js";
 import { currentTarget } from "./targets.js";
 import { unknownProblemsState } from "./unknown.js";
 import { valueKindProblemsState } from "./values.js";
+import { versionIn } from "./version-input.js";
 
 const open = (root: string): Workspace => {
   const workspace = new Workspace(root);
@@ -42,18 +43,21 @@ const standardModel = async (): Promise<Metamodel> => {
 const versionOf = (metamodel: Metamodel): VersionFunction => {
   return ({ type, text, properties }) => {
     const keys = new Set(findType(metamodel, type)?.properties ?? []);
-    return computeVersion({
-      text,
-      properties: properties as Readonly<Record<string, VersionValue>>,
-      definitions: metamodel.properties
-        .filter((p) => keys.has(p.key))
-        .map((p) => ({
-          key: p.key,
-          kind: p.kind,
-          ...(p.content === undefined ? {} : { content: p.content }),
-        })),
-      files: [],
-    });
+    return versionIn(
+      {
+        text,
+        properties: properties as Readonly<Record<string, VersionValue>>,
+        definitions: metamodel.properties
+          .filter((p) => keys.has(p.key))
+          .map((p) => ({
+            key: p.key,
+            kind: p.kind,
+            ...(p.content === undefined ? {} : { content: p.content }),
+          })),
+        files: [],
+      },
+      NORMAL_FORM,
+    );
   };
 };
 

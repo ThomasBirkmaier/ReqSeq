@@ -10,6 +10,7 @@ import type { CommandInput, CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
+import { WRITTEN_VERSION_SOURCE } from "../../model/version-forms.test-helper.js";
 
 type Input = Omit<CommandInput<"variant.exclude">, "undo"> & { readonly undo?: boolean };
 
@@ -70,8 +71,8 @@ describe("variant.exclude (SR-042)", () => {
     expect(await read(fixture, A_FILE)).toMatch(
       new RegExp(
         `^excludes:\\n  - \\{ id: ${P}a2, version: n1:67ebd0624004c969, title: Measure the wind \\}\\n` +
-          `  - \\{ id: ${P}a3, version: n1:[0-9a-f]{16}, title: Measure the rain \\}\\n` +
-          `  - \\{ id: ${P}a4, version: n1:[0-9a-f]{16}, title: Show the temperature \\}\\n`,
+          `  - \\{ id: ${P}a3, version: ${WRITTEN_VERSION_SOURCE}, title: Measure the rain \\}\\n` +
+          `  - \\{ id: ${P}a4, version: ${WRITTEN_VERSION_SOURCE}, title: Show the temperature \\}\\n`,
         "m",
       ),
     );

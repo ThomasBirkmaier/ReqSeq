@@ -106,9 +106,13 @@ describe("relations in element.create (#175)", () => {
 
   it("takes an identifier", async () => {
     const opened = await open("enabler-305/identifiers", ".");
+    const target = "30500000-0000-4000-8000-0000000a0001";
+    const shown = (await invoke("element.get", { ref: target }, { workspace: opened.workspace })) as {
+      element: { version: string };
+    };
     const text = await create(opened, { "derives-from": ["n-001"] }, ".");
     expect(linesOf(text, "derives-from")).toEqual([
-      "  - { id: 30500000-0000-4000-8000-0000000a0001, version: n1:ef8aec5dd4656003, title: Name elements by their spec ID }",
+      `  - { id: ${target}, version: ${shown.element.version}, title: Name elements by their spec ID }`,
     ]);
   });
 

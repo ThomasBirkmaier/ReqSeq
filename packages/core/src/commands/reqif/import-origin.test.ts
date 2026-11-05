@@ -10,6 +10,7 @@ import type { CommandName, CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
+import { WRITTEN_VERSION } from "../../model/version-forms.test-helper.js";
 import { metamodelState } from "../../metamodel/index.js";
 import { originKeys } from "../../reqif/index.js";
 import { readFirstFor } from "../../runtime/read-first.test-helper.js";
@@ -92,7 +93,7 @@ describe("origin of imported elements (SR-057)", () => {
       "source-identifier": "REQ-1",
       "import-date": "2026-11-02",
       delivery: "Lastenheft 2026-11",
-      "import-version": expect.stringMatching(/^n1:[0-9a-f]{16}$/) as unknown,
+      "import-version": expect.stringMatching(WRITTEN_VERSION) as unknown,
     });
     expect(originOf(await got(out.created[1]?.id))).toMatchObject({
       "source-identifier": "REQ-2",

@@ -16,6 +16,7 @@ import {
   elementStoreState,
   incomingFor,
   incomingState,
+  NORMAL_FORM,
   shortIdState,
   updateElement,
   updateElements,
@@ -27,6 +28,7 @@ import { parseHintId } from "./hint-id.js";
 import type { OutdatedFinding } from "./outdated.js";
 import { datedProblems, outdatedFindingsOf, outdatedRelationsState } from "./outdated.js";
 import { readStored } from "../runtime/read-first.test-helper.js";
+import { WRITTEN_VERSION } from "../model/version-forms.test-helper.js";
 
 type Output = CommandOutput<"workspace.check">;
 
@@ -131,8 +133,8 @@ const changeTargets = async (ws: FixtureWorkspace): Promise<void> => {
   await ws.write(V_FILE, variant("The station for professional users."));
 };
 
-/** Any version of normal form 1: the new versions of the changed targets. */
-const NEW_VERSION: unknown = expect.stringMatching(/^n1:[0-9a-f]{16}$/);
+/** Any version of the form the tool writes: the new versions of the changed targets. */
+const NEW_VERSION: unknown = expect.stringMatching(WRITTEN_VERSION);
 
 const outdated = (out: Output): Problem[] => out.problems.filter((p) => p.code === "relation.outdated");
 
@@ -197,10 +199,11 @@ describe("outdated relations and references (SR-025)", () => {
     const ws = await fixture();
     const versions = await open(ws.root).get(currentVersionsState);
     const v = defined(currentFormsOf(versions, defined(versions.store.byId.get(V)?.[0])));
+    const n = defined(currentFormsOf(versions, defined(versions.store.byId.get(N)?.[0])));
     await ws.write(A_FILE, requirementA({ validity: v.n2, derives: "n2:0000000000000000" }));
     const fromA = outdated(await check(open(ws.root))).filter((p) => p.elementId === A);
     expect(fromA.map((p) => [p.targetId, p.storedVersion, p.currentVersion])).toEqual([
-      [N, "n2:0000000000000000", N_VERSION],
+      [N, "n2:0000000000000000", n[NORMAL_FORM]],
     ]);
   });
 

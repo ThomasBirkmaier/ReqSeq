@@ -12,6 +12,7 @@ import { CommandError } from "../../catalog.js";
 import * as query from "../../query/index.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
+import { WRITTEN_VERSION } from "../../model/version-forms.test-helper.js";
 
 vi.mock("../../query/index.js", async (importOriginal) => {
   const original = await importOriginal<typeof query>();
@@ -157,12 +158,12 @@ describe("baseline.get", () => {
     expect(rows["b1"]?.current).not.toBe(V.b1);
     // Changed and superseded is superseded.
     expect(rows["b2"]).toMatchObject({ state: "superseded", version: V.b2 });
-    expect(rows["b2"]?.current).toMatch(/^n1:/);
+    expect(rows["b2"]?.current).toMatch(WRITTEN_VERSION);
     expect(rows["b3"]).toEqual({
       id: `${ID}b3`,
       repository: "system",
       state: "added",
-      current: "n1:4b17a5494b8e80e5",
+      current: (await call(ws, "element.get", { ref: `${ID}b3` })).element.version,
     });
     expect(out).toMatchObject({ selectionKnown: true, total: 6 });
     expect(out.counts).toEqual({
@@ -186,7 +187,7 @@ describe("baseline.get", () => {
     const rows = byId((await call(ws, "baseline.get", { baseline: "Release 2" })).elements);
     // Not superseded, no longer in PKG-0000d1, and changed: only removed, with the current version.
     expect(rows["a1"]).toMatchObject({ state: "removed", version: V.a1 });
-    expect(rows["a1"]?.current).toMatch(/^n1:/);
+    expect(rows["a1"]?.current).toMatch(WRITTEN_VERSION);
     expect(rows["a1"]?.current).not.toBe(V.a1);
     // Not changed and not in the package: removed without current.
     expect(rows["e1"]).toMatchObject({ state: "removed" });

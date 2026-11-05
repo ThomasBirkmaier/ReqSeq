@@ -11,6 +11,7 @@ import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
 import { readFirst } from "../../runtime/read-first.test-helper.js";
+import { WRITTEN_VERSION } from "../../model/version-forms.test-helper.js";
 
 type Element = CommandOutput<"element.get">["element"];
 
@@ -81,7 +82,7 @@ describe("element.get", () => {
       "element.missing-required",
       "trace.no-parent",
     ]);
-    expect(byId.version).toMatch(/^n1:[0-9a-f]{16}$/);
+    expect(byId.version).toMatch(WRITTEN_VERSION);
     expect(byId.text).toBe((await fs.readFile(opened.fixture.path(WIND.file), "utf8")).split("---\n\n")[1]);
     // The date only on request (D-013, ADR-0005 "Version date"); not in a Git repository: none.
     expect(byId).not.toHaveProperty("versionDate");
@@ -509,7 +510,7 @@ describe("element.get, more of what stage 1 shows", () => {
       elementShortId: "SR-4a5b6c",
     });
     // Every other element keeps its version.
-    expect((await get(opened, { ref: WIND.id })).version).toMatch(/^n1:/);
+    expect((await get(opened, { ref: WIND.id })).version).toMatch(WRITTEN_VERSION);
   });
 
   it("gives file.faulty for a file that became faulty since it was read", async () => {
@@ -590,7 +591,7 @@ describe("a superseded element names its successor without a relation of its own
         title: "See wind and gusts",
         accessible: true,
         targetState: "available",
-        storedVersion: expect.stringMatching(/^n1:[0-9a-f]{16}$/) as string,
+        storedVersion: expect.stringMatching(WRITTEN_VERSION) as string,
       },
     ]);
     expect(before).not.toContain(successor);

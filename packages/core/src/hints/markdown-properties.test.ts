@@ -11,6 +11,7 @@ import { CommandError } from "../catalog.js";
 import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
 import { readFirst } from "../runtime/read-first.test-helper.js";
+import { WRITTEN_VERSION } from "../model/version-forms.test-helper.js";
 
 const P = "5e025a7d-2b4f-4c61-9d08-0";
 const N = `${P}a0000000001`;
@@ -77,6 +78,11 @@ const requirementWith = (id: string, lines: string): string =>
   `---\nid: ${id}\ntype: system-requirement\nstatus: draft\ntitle: Other\nrequirement-type: functional\n${lines}---\n\nText.\n`;
 
 const read = (ws: FixtureWorkspace, file: string): string => fs.readFileSync(ws.path(file), "utf8");
+
+/** The current version of `ref` as `element.get` shows it. */
+const versionOf = async (workspace: Workspace, ref: string): Promise<string> =>
+  ((await invoke("element.get", { ref }, { workspace })) as CommandOutput<"element.get">).element.version ??
+  "";
 
 /** The hints about the criteria of A. */
 const criteriaHints = async (workspace: Workspace): Promise<readonly Problem[]> =>
@@ -175,7 +181,7 @@ describe("references in properties marked markdown (SR-127)", () => {
       const workspace = open(ws.root);
       const before = read(ws, A_FILE);
       const current = (await criteriaHints(workspace)).find((h) => h.hintId === at(2))?.currentVersion;
-      expect(current).toMatch(/^n1:[0-9a-f]{16}$/u);
+      expect(current).toMatch(WRITTEN_VERSION);
       expect(await confirm(workspace, [at(2)])).toEqual({
         confirmed: [at(2)],
         files: [A_FILE],
@@ -286,17 +292,13 @@ describe("references in properties marked markdown (SR-127)", () => {
   });
 
   describe("version (ADR-0005)", () => {
-    const versionOf = async (workspace: Workspace, ref: string): Promise<string> =>
-      ((await invoke("element.get", { ref }, { workspace })) as CommandOutput<"element.get">).element
-        .version ?? "";
-
     it("[SR-127/AK5] the flag does not change the version of an element: the same file has the same version with and without markdown on its properties", async () => {
       const model = fs.readFileSync(MODEL, "utf8");
       const plain = model.replaceAll("    markdown: true\n", "");
       expect(plain).not.toBe(model);
       const marked = open((await fixture(requirement(CRITERIA), model)).root);
       const unmarked = open((await fixture(requirement(CRITERIA), plain)).root);
-      expect(await versionOf(marked, A)).toMatch(/^n1:[0-9a-f]{16}$/u);
+      expect(await versionOf(marked, A)).toMatch(WRITTEN_VERSION);
       expect(await versionOf(marked, A)).toBe(await versionOf(unmarked, A));
     });
 
@@ -336,7 +338,7 @@ describe("references in properties marked markdown (SR-127)", () => {
       });
       expect(frontmatterOf(read(ws, A_FILE))["acceptance-criteria"]).toEqual([
         `Then ${link("kept")}.`,
-        `**Then** ${link("new")}.`,
+        `**Then** ${link("new", await versionOf(workspace, N))}.`,
         "No link here.",
         "With a label only: [x](https://example.com)",
       ]);
@@ -353,7 +355,7 @@ describe("references in properties marked markdown (SR-127)", () => {
       await update(workspace, { set: { "acceptance-criteria": criteria } });
       const text = read(ws, A_FILE);
       const stored = [
-        criteria[0]?.replace(`reqseq:${N})`, `reqseq:${N}?version=${N_VERSION})`),
+        criteria[0]?.replace(`reqseq:${N})`, `reqseq:${N}?version=${await versionOf(workspace, N)})`),
         criteria[1],
         criteria[2],
       ];
@@ -388,7 +390,9 @@ describe("references in properties marked markdown (SR-127)", () => {
         { workspace },
       )) as CommandOutput<"element.create">;
       const [file] = out.files;
-      expect(frontmatterOf(read(ws, file ?? ""))["acceptance-criteria"]).toEqual([`Then ${link("wind")}.`]);
+      expect(frontmatterOf(read(ws, file ?? ""))["acceptance-criteria"]).toEqual([
+        `Then ${link("wind", await versionOf(workspace, N))}.`,
+      ]);
     });
 
     it("refuses a criterion whose reference names no element or several, naming the property (#444)", async () => {
@@ -417,12 +421,13 @@ describe("references in properties marked markdown (SR-127)", () => {
           { selection: { ids: [A] }, property: "acceptance-criteria", operation, value, confirm: true },
           { workspace },
         );
+      const stored = await versionOf(workspace, N);
       await bulk("set", [`Then [a](reqseq:${N}).`]);
-      expect(frontmatterOf(read(ws, A_FILE))["acceptance-criteria"]).toEqual([`Then ${link("a")}.`]);
+      expect(frontmatterOf(read(ws, A_FILE))["acceptance-criteria"]).toEqual([`Then ${link("a", stored)}.`]);
       await bulk("add", [`And [b](reqseq:${N}).`, "Plain."]);
       expect(frontmatterOf(read(ws, A_FILE))["acceptance-criteria"]).toEqual([
-        `Then ${link("a")}.`,
-        `And ${link("b")}.`,
+        `Then ${link("a", stored)}.`,
+        `And ${link("b", stored)}.`,
         "Plain.",
       ]);
     });

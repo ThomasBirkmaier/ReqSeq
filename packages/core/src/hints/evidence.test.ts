@@ -17,7 +17,13 @@ import {
 } from "../evidence/index.js";
 import { loadWorkspaceLayout, workspaceLayoutState } from "../workspace/index.js";
 import { metamodelState } from "../metamodel/index.js";
-import { currentVersionOf, currentVersionsState, elementStoreState, shortIdState } from "../model/index.js";
+import {
+  currentVersionOf,
+  currentVersionsState,
+  elementStoreState,
+  NORMAL_FORM,
+  shortIdState,
+} from "../model/index.js";
 import {
   elementEvidenceFindings,
   outdatedEvidenceFindings,
@@ -53,6 +59,13 @@ const withRecords = async (
 const check = async (workspace: Workspace, input: Readonly<Record<string, unknown>> = {}): Promise<Output> =>
   (await invoke("workspace.check", input, { workspace })) as Output;
 
+/** The current version of `id` in the form the tool writes. */
+const currentOf = async (workspace: Workspace, id: string): Promise<string | undefined> => {
+  const versions = await workspace.get(currentVersionsState);
+  const record = (await workspace.get(elementStoreState)).byId.get(id)?.[0];
+  return record === undefined ? undefined : currentVersionOf(versions, record);
+};
+
 const record = (
   element: string,
   version: string,
@@ -84,7 +97,7 @@ describe("outdated evidence (SR-025 AK4)", () => {
         elementRepository: "system",
         elementFile: "requirements/SR-0b0000000001.md",
         storedVersion: OLD,
-        currentVersion: A_VERSION,
+        currentVersion: await currentOf(workspace, A),
       },
     ]);
   });
@@ -146,7 +159,7 @@ describe("outdated evidence (SR-025 AK4)", () => {
       unmarked,
     );
     expect(outdated.map((p) => [p.storedVersion, p.currentVersion])).toEqual([
-      ["n2:2222222222222222", A_VERSION],
+      ["n2:2222222222222222", both[NORMAL_FORM]],
     ]);
   });
 

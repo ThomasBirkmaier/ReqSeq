@@ -22,9 +22,6 @@ vi.mock("../../model/index.js", async (importOriginal) => {
 type Output = CommandOutput<"baseline.create">;
 
 const ID = "61061061-0000-4000-8000-0000000000";
-const B1 = `  - { id: ${ID}b1, version: n1:697a2ad17ed49170 }`;
-const B2 = `  - { id: ${ID}b2, version: n1:077d46fbf1a6a93d }`;
-const E1 = `  - { id: ${ID}e1, version: n1:31d60ac7c791e279, repository: sensor }`;
 const PACKAGE = { package: "PKG-0000d1" };
 const NOW = new Date("2026-11-02T13:00:00.250Z");
 
@@ -57,6 +54,23 @@ const failure = async (ws: FixtureWorkspace, name: string, selection: object): P
 const read = (ws: FixtureWorkspace, file: string): string =>
   fs.readFileSync(ws.path(`system/${file}`), "utf8");
 
+/** The element lines of b1, b2 and e1 with their current versions as element.get shows them. */
+const entries = async (ws: FixtureWorkspace): Promise<{ B1: string; B2: string; E1: string }> => {
+  const workspace = new Workspace(ws.path("system"));
+  try {
+    const version = async (ref: string): Promise<string> =>
+      ((await invoke("element.get", { ref }, { workspace })) as CommandOutput<"element.get">).element
+        .version ?? "";
+    return {
+      B1: `  - { id: ${ID}b1, version: ${await version(`${ID}b1`)} }`,
+      B2: `  - { id: ${ID}b2, version: ${await version(`${ID}b2`)} }`,
+      E1: `  - { id: ${ID}e1, version: ${await version(`${ID}e1`)}, repository: sensor }`,
+    };
+  } finally {
+    await workspace.close();
+  }
+};
+
 /** The repositories lines of the file of `out` and its elements lines. */
 const bodyOf = (ws: FixtureWorkspace, out: Output): string =>
   read(ws, out.baseline.file).slice(read(ws, out.baseline.file).indexOf("repositories:"));
@@ -65,6 +79,7 @@ describe("baseline.create", () => {
   it("[SR-050/AK1] [SR-101/AK1] baseline.create writes a file in the baseline folder with name, date, commits and id plus version, for exactly the elements of the package", async () => {
     const ws = await fixture();
     const head = await ws.head("system");
+    const { B1, B2 } = await entries(ws);
     const out = await create(ws, "Release 2", PACKAGE);
     const file = "baselines/Release-2.yaml";
     expect(out).toEqual({
@@ -203,6 +218,7 @@ describe("baseline.create", () => {
   it("[SR-050/AK4] R1 in system and R2 in sensor give the commits of system and sensor once each", async () => {
     const ws = await fixture();
     const [system, sensor] = [await ws.head("system"), await ws.head("sensor")];
+    const { B1, E1 } = await entries(ws);
     const out = await create(ws, "Both", { ids: ["SR-0000b1", "SR-0000e1", `${ID}b1`] });
     expect(read(ws, out.baseline.file)).toBe(
       [

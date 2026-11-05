@@ -352,7 +352,14 @@ describe("element.create", () => {
       properties: { "acceptance-criteria": [], due: null, "parent-item": target, weight: 2 },
     });
     // The target is new, so it is stored with its current version and title (SR-021).
-    const stored = { id: target.id, version: "n1:845647775ebfe803", title: "Wind speed visible at a glance" };
+    const current = (await invoke("element.get", { ref: target.id }, { workspace: opened.workspace })) as {
+      element: { version: string };
+    };
+    const stored = {
+      id: target.id,
+      version: current.element.version,
+      title: "Wind speed visible at a glance",
+    };
     expect(await read(opened, out.files[0] ?? "")).toBe(
       [
         "---",

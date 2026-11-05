@@ -6,6 +6,7 @@ import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
+import { WRITTEN_VERSION } from "../../model/version-forms.test-helper.js";
 import { readFirst } from "../../runtime/read-first.test-helper.js";
 import { currentFormsOf, currentVersions, elementStoreState } from "../../model/index.js";
 
@@ -82,7 +83,7 @@ describe("element.resolve", () => {
       status: "draft",
       file: WIND.file,
     });
-    expect(byId.element.version).toMatch(/^n1:[0-9a-f]{16}$/);
+    expect(byId.element.version).toMatch(WRITTEN_VERSION);
     // The same element as element.get shows, by the displayed short ID and by the 12 digits of the file name.
     const shown = (await invoke("element.get", { ref: WIND.id }, { workspace: opened.workspace })) as {
       element: unknown;

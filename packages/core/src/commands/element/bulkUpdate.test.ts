@@ -12,6 +12,7 @@ import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
+import { WRITTEN_VERSION_SOURCE } from "../../model/version-forms.test-helper.js";
 
 type Output = CommandOutput<"element.bulkUpdate">;
 
@@ -648,7 +649,9 @@ describe("element.bulkUpdate (SR-071)", () => {
     const after = await texts(fixture.root);
     expect(after).toEqual(before);
     expect(after[FILES[B3] ?? ""]).toMatch(
-      new RegExp(`packages:\\n  - \\{ id: ${P2}, version: n1:[0-9a-f]{16}, title: Display \\}\\n(?!  - )`),
+      new RegExp(
+        `packages:\\n  - \\{ id: ${P2}, version: ${WRITTEN_VERSION_SOURCE}, title: Display \\}\\n(?!  - )`,
+      ),
     );
   });
 

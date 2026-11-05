@@ -9,6 +9,7 @@ import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput, Problem } from "../catalog.js";
 import { elementStoreState } from "../model/index.js";
+import { WRITTEN_VERSION } from "../model/version-forms.test-helper.js";
 import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
 
@@ -74,10 +75,14 @@ const fromFixture = (file: string): string => fs.readFileSync(path.join(FIXTURE_
 
 const read = (ws: FixtureWorkspace, file: string): string => fs.readFileSync(ws.path(file), "utf8");
 
+/** The current version of `ref` as `element.get` shows it. */
+const versionOf = async (workspace: Workspace, ref: string): Promise<string> =>
+  ((await invoke("element.get", { ref }, { workspace })) as { element: { version: string } }).element.version;
+
 /** The current version of `id` as `hint.list` reports it on a hint about it. */
 const currentOf = (hints: readonly Problem[], hintId: string): string => {
   const version = hints.find((h) => h.hintId === hintId)?.currentVersion;
-  expect(version).toMatch(/^n1:[0-9a-f]{16}$/);
+  expect(version).toMatch(WRITTEN_VERSION);
   return version ?? "";
 };
 
@@ -220,7 +225,7 @@ describe("hint.confirm (SR-027)", () => {
     const workspace = open(ws.root);
     const id = `relation.outdated/${AT_B}/origin/${N}?version=${OLD}`;
     expect(await confirm(workspace, [id])).toEqual({ confirmed: [id], files: [B_FILE], problems: [] });
-    expect(read(ws, B_FILE)).toContain(`origin: { id: ${N}, version: ${N_VERSION} }\n`);
+    expect(read(ws, B_FILE)).toContain(`origin: { id: ${N}, version: ${await versionOf(workspace, N)} }\n`);
   });
 
   it("[SR-027/AK2] confirms each of several hints on its own, with one write per file", async () => {
