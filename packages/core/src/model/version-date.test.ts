@@ -28,7 +28,7 @@ import {
   versionDates,
   versionStarts,
 } from "./version-date.js";
-import { elementVersion } from "./view.js";
+import { elementVersion, elementVersions } from "./view.js";
 
 // The real reader and nested check, wrapped so that tests count git calls and make one fail.
 vi.mock("../git/reader.js", async (importOriginal) => {
@@ -111,21 +111,22 @@ const versionOf = async (
   workspace: Workspace,
   text: string,
   images: Readonly<Record<string, string | null>> = {},
+  form: "n1" | "n2" = "n1",
 ): Promise<string> => {
   const parsed = parseFileBytes(FILE, Buffer.from(text));
   if (parsed.kind !== "parsed") {
     throw new Error("not an element file");
   }
   const data = parsed.content.data as Readonly<Record<string, unknown>>;
-  return elementVersion(
-    { type: String(data["type"]), data },
-    parsed.content.body,
-    await workspace.get(metamodelState),
-    Object.entries(images).map(([path, content]) => ({
-      path,
-      sha256: content === null ? null : sha256(content),
-    })),
-  );
+  const record = { type: String(data["type"]), data };
+  const metamodel = await workspace.get(metamodelState);
+  const files = Object.entries(images).map(([path, content]) => ({
+    path,
+    sha256: content === null ? null : sha256(content),
+  }));
+  return form === "n1"
+    ? elementVersion(record, parsed.content.body, metamodel, files)
+    : elementVersions(record, parsed.content.body, metamodel, files).n2;
 };
 
 type Shown = CommandOutput<"element.get">["element"];
@@ -170,13 +171,30 @@ describe("version date", () => {
       await dates(repo.workspace, [
         { version: await versionOf(repo.workspace, element("One.")) },
         { version: await versionOf(repo.workspace, element("Two.")) },
-        // A version no commit has, and one of another normal form.
+        // A version no commit has, in either normal form.
         { version: "n1:0123456789abcdef" },
         { version: "n2:0123456789abcdef" },
       ]),
     ).toEqual([at(repo, "one"), at(repo, "two"), null, null]);
     // HEAD came from the files of the Git folder.
     expect(headCommit).not.toHaveBeenCalled();
+  });
+
+  it("dates a version of normal form 2 by the commit that started it, over a change of an inline version only (ADR-0005)", async () => {
+    const link = (version: string): string =>
+      element(`See [it](reqseq:22222222-2222-4222-8222-222222222222?version=${version}).`);
+    const repo = await repository([
+      { name: "one", files: { [FILE]: link("n1:0000000000000001") } },
+      { name: "two", files: { [FILE]: link("n1:0000000000000002") } },
+    ]);
+    const n2 = await versionOf(repo.workspace, link("n1:0000000000000002"), {}, "n2");
+    expect(n2).toBe(await versionOf(repo.workspace, link("n1:0000000000000001"), {}, "n2"));
+    expect(
+      await dates(repo.workspace, [
+        { version: n2 },
+        { version: await versionOf(repo.workspace, link("n1:0000000000000002")) },
+      ]),
+    ).toEqual([at(repo, "one"), at(repo, "two")]);
   });
 
   it("is left out of element.get unless asked for, and then no git runs", async () => {

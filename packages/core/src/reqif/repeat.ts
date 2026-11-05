@@ -18,7 +18,7 @@ import type { FlowMappingValue, FrontmatterEdit, ItemValue } from "../files/inde
 import { sha256, zip } from "../files/index.js";
 import type { Problem, ReqifObject } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
-import type { ElementRecord, ElementStore } from "../model/index.js";
+import type { ElementRecord, ElementStore, VersionForms } from "../model/index.js";
 import { assertElementWritable, currentVersionsOf, elementStoreState, hasId } from "../model/index.js";
 import type { WriteSource } from "../model/write.js";
 import { readAllUnchanged } from "../model/write.js";
@@ -33,8 +33,10 @@ export interface ExistingElement {
   /** The file as read again for the write (`readAllUnchanged`). */
   readonly current: WriteSource;
   readonly record: ElementRecord;
-  /** Its current version (C), or undefined with `unknown` saying why it has none. */
+  /** Its current version (C) in the form the tool writes, or undefined with `unknown` saying why it has none. */
   readonly version: string | undefined;
+  /** C in both normal forms, with `version`. */
+  readonly forms: VersionForms | undefined;
   readonly unknown?: string;
   /** Its stored import version (I), undefined when it has none as text. */
   readonly imported: string | undefined;
@@ -130,6 +132,7 @@ export const existingElements = async (
     matched.set(String(record.data[keys["source-identifier"]]), {
       ...item,
       version: current.kind === "version" ? current.version : undefined,
+      forms: current.kind === "version" ? current.forms : undefined,
       ...(current.kind === "unknown" ? { unknown: current.message } : {}),
       imported: typeof imported === "string" ? imported : undefined,
       images: await folderImages(item.repository.folder, record.file),
