@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "ReqSeq local API",
-    "version": "0.7.2",
+    "version": "0.8.0",
     "description": "Generated from the command catalog, one file per command in schemas/commands/. Listens on 127.0.0.1 and ::1 only. Every request needs `Authorization: Bearer <token>` from api.json in the cache folder of the working copy (schemas/api-endpoint.schema.json). One endpoint per command; same input, output and errors as CLI and MCP."
   },
   "servers": [
