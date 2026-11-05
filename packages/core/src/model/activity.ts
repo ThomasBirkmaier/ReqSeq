@@ -60,12 +60,13 @@ export const ACTIVITY_WRITE_MS = 100;
 /**
  * How long after an access was recorded (`access.at`) a watch reports it at the latest, when its store
  * does not hold the state the access saw by then (`watchActivity`). SR-117 AK1 gives the app 1 s from
- * the access; the other 200 ms are the margin for what follows the hold: the timer firing late on a
- * busy machine, the read of the file once more at its end, and the report to the windows. The file
- * event and the write delay of the recorder (`ACTIVITY_WRITE_MS`) are inside the hold, since it counts
- * from `access.at`, not from when the watch saw the file (#304).
+ * the access; the other 300 ms are the margin for what follows the hold: the timer firing late on a
+ * busy machine (200 ms were not enough on a loaded Windows runner, #858), the read of the file once
+ * more at its end, and the report to the windows. The file event and the write delay of the recorder
+ * (`ACTIVITY_WRITE_MS`) are inside the hold, since it counts from `access.at`, not from when the
+ * watch saw the file (#304).
  */
-export const ACTIVITY_HOLD_MS = 800;
+export const ACTIVITY_HOLD_MS = 700;
 
 /**
  * Which element a call of a catalog command names (`accessSubject`):
