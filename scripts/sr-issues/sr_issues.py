@@ -4,6 +4,8 @@ import json, subprocess, hashlib, re, os, sys, time
 REPO = "repos/ThomasBirkmaier/ReqSeq"
 SPEC = sys.argv[1] if __name__ == "__main__" else "spec"
 DRY = "--dry" in sys.argv
+# Only writes the property `issue` of each SR from the issues found, nothing on GitHub (#183).
+FILL = "--fill-issue" in sys.argv
 
 def api(path, method="GET", data=None):
     cmd = ["gh", "api", "-X", method, f"{REPO}/{path}" if not path.startswith("/") else path]
@@ -145,6 +147,21 @@ SCOPE = {
  "5": "Pakete, Baselines und Varianten",
  "6": "Austausch per ReqIF und Schutz (Vertrauliches getrennt, Metamodell schützen)"}
 
+def issue_update(e, issue):
+    """The element.update input that writes the URL of the SR's issue into its property `issue` (D-049,
+    #183), or None when it holds that URL already. `issue` is no content, so this changes no version,
+    and content_hash leaves it out, so no issue body changes."""
+    url = issue["html_url"]
+    return None if e["properties"].get("issue") == url else {"set": {"issue": url}}
+
+def fill_issue(e, issue):
+    """Writes the property `issue` of the SR with ReqSeq when it is missing or different; True if it wrote."""
+    update = issue_update(e, issue)
+    if update is None:
+        return False
+    reqseq("element", "update", e["id"], "--input", json.dumps(update))
+    return True
+
 def main():
     srs = system_requirements()
     invalid = invalid_statuses()
@@ -168,7 +185,7 @@ def main():
     if missing:
         raise SystemExit("nothing written:\n  " + "\n  ".join(missing))
 
-    created = updated = 0
+    created = updated = filled = 0
     epics = {}
     for n in list(D035) + ["querschnitt"]:
         marker = f"<!-- epic:stage-{n} -->"
@@ -189,7 +206,7 @@ def main():
                          "There is no SR for this; agents prepare screenshots and a short demo and label the epic `needs-human`. Agents never mark it as accepted.")
         body = f"{marker}\n{text}\n\nSub-issues: the SR issues of this group."
         e = find(marker)
-        if DRY:
+        if DRY or FILL:
             epics[n] = {"number": 0, "id": 0}; continue
         if not e:
             e = api("issues", "POST", {"title": title, "body": body, "labels": labels, "assignees": ["ThomasBirkmaier"]}); created += 1; time.sleep(1)
@@ -224,6 +241,10 @@ def main():
         milestone = milestones.get(st)
         epic = lanes[LANE[thema]] if milestone else epics[st]
         i = find(f"<!-- sr:{sr} -->")
+        if FILL:
+            if i is not None and fill_issue(e, i):
+                filled += 1
+            continue
         if DRY:
             print(title, labels, *([f"milestone {st} (#{milestone})", f"epic #{epic['number']}"] if milestone else []))
             print(head + "<!-- deps:start --><!-- deps:end -->") if sr == "SR-036" else None
@@ -249,8 +270,10 @@ def main():
                 if reopen:
                     patch["state"] = "open"
                 api(f"issues/{i['number']}", "PATCH", patch); updated += 1; time.sleep(1)
+        if fill_issue(e, i):
+            filled += 1
         print(sr, i["number"], flush=True)
-    print(f"created {created}, updated {updated}")
+    print(f"created {created}, updated {updated}, issue property written {filled}")
 
 if __name__ == "__main__":
     main()
