@@ -1068,6 +1068,36 @@ export const recordWrites = async (
   }
 };
 
+/** The contents of each repository of a store by name (`contributionIn`), built on first use. */
+const contentsByStore = new WeakMap<ElementStore, ReadonlyMap<string, RepositoryContents>>();
+
+/**
+ * What `file` of `repository` contributes to `store`: one lookup, no walk of the store (#215).
+ * Undefined when the store has no such file or no `repositories`.
+ */
+export const contributionIn = (
+  store: ElementStore,
+  repository: string,
+  file: string,
+): Contribution | undefined => {
+  let byName = contentsByStore.get(store);
+  if (byName === undefined) {
+    byName = new Map((store.repositories ?? []).map((contents) => [contents.repository, contents]));
+    contentsByStore.set(store, byName);
+  }
+  return byName.get(repository)?.files.get(file);
+};
+
+/**
+ * The version of `record` as its file was read (#439, `loaded-version.ts`), when `record` is the
+ * element of its file in `store` and has one: a lookup of its contribution (`contributionIn`), so a
+ * carried store needs no map of every record (#215).
+ */
+export const loadedVersionOf = (store: ElementStore, record: ElementRecord): LoadedVersion | undefined => {
+  const result = contributionIn(store, record.repository, record.file);
+  return result?.kind === "element" && result.element === record ? result.version : undefined;
+};
+
 /** The versions as read of each store (`loadedVersionsOf`), built on first use. */
 const loadedByStore = new WeakMap<ElementStore, ReadonlyMap<ElementRecord, LoadedVersion>>();
 

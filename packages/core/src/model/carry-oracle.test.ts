@@ -608,6 +608,8 @@ const statesData = (
     identifiers: IDENTIFIERS.map((value) => shortIds.withIdentifier(value).map(place)),
     relations: byId(index.relationsById, (l) => [place(l.source), l.key, l.index, l.repository]),
     references: byId(index.referencesById, (l) => [place(l.source), l.reference.line]),
+    // A carry that keeps the entry of a record gone from the store gives more entries.
+    versionsCount: versions.byRecord.size,
     versions: store.elements.map((e) => {
       const entry = versions.byRecord.get(e);
       return [place(e), entry === undefined ? undefined : { ...entry, element: undefined }];

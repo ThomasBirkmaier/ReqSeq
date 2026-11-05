@@ -16,6 +16,7 @@ import { workspaceLayoutState } from "../workspace/index.js";
 import type { CurrentVersions } from "./current-versions.js";
 import {
   buildCurrentVersions,
+  carryCurrentVersions,
   checkImages,
   currentVersions,
   currentVersionsOf,
@@ -87,7 +88,9 @@ const readNow = async (workspace: Workspace, record: ElementRecord): Promise<str
 const expectNow = async (workspace: Workspace, versions: CurrentVersions): Promise<void> => {
   const store = await workspace.get(elementStoreState);
   expect(versions.store).toBe(store);
-  expect([...versions.byRecord.keys()]).toEqual(store.elements);
+  // Every record once; the key order is not defined after a carry (#215).
+  expect(versions.byRecord.size).toBe(store.elements.length);
+  expect(store.elements.every((record) => versions.byRecord.has(record))).toBe(true);
   for (const record of store.elements) {
     expect(currentVersionOf(versions, record), record.file).toBe(await readNow(workspace, record));
   }
@@ -293,6 +296,32 @@ describe("the current versions carried over a change of the store (ADR-0008, #18
     await createElement(workspace, { type: "need", title: "A new need" });
     expect(workspace.peek(currentVersionsState)).toBeDefined();
     await expectNow(workspace, await currentVersions(workspace));
+  });
+
+  it("carry every record of the new store when they are not of the store the update starts from (#215)", async () => {
+    const { fixture, workspace } = await open();
+    const before = await currentVersions(workspace);
+    await fixture.write("needs/N-a00000000002.md", need(`${NEED}2`, "Edited outside."));
+    const layout = await workspace.get(workspaceLayoutState);
+    const next = await updateElements(
+      before.store,
+      layout,
+      new Map([["system", { paths: ["needs/N-a00000000002.md"] }]]),
+    );
+    if (next === undefined) {
+      throw new Error("no store change");
+    }
+    const edited = next.elements.find((e) => e.file === "needs/N-a00000000002.md");
+    // An update that names no file and starts from another store: every record is looked at.
+    const carried = await carryCurrentVersions(before, { from: next, to: next, files: new Map() });
+    expect(carried.byRecord.size).toBe(next.elements.length);
+    for (const record of next.elements) {
+      if (record === edited) {
+        expect(currentVersionOf(carried, record)).toBe(await readNow(workspace, record));
+      } else {
+        expect(carried.byRecord.get(record)).toBe(before.byRecord.get(record));
+      }
+    }
   });
 
   it("follow a watcher batch", async () => {

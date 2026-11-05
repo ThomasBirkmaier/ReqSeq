@@ -28,6 +28,7 @@ import type { ElementStore } from "./store.js";
 import {
   elementStoreState,
   loadElements,
+  loadedVersionOf,
   loadedVersionsOf,
   updateElements,
   withWrittenFiles,
@@ -138,8 +139,18 @@ describe("versions as read (#439)", () => {
     const none = await loadElements(layout, undefined, { versioning: Promise.resolve(undefined) });
     expect(none.versioning).toBeUndefined();
     expect(loadedVersionsOf(none).size).toBe(0);
-    const { repositories: _repositories, ...plain } = await workspace.get(elementStoreState);
+    const store = await workspace.get(elementStoreState);
+    const { repositories: _repositories, ...plain } = store;
     expect(loadedVersionsOf(plain).size).toBe(0);
+    expect(plain.elements.filter((record) => loadedVersionOf(plain, record) !== undefined)).toEqual([]);
+    // The lookup of one record (#215) gives what the map of the store gives, only for its own records.
+    const loaded = loadedVersionsOf(store);
+    expect(store.elements.map((record) => loadedVersionOf(store, record))).toEqual(
+      store.elements.map((record) => loaded.get(record)),
+    );
+    const record = store.elements.find((r) => loaded.has(r));
+    expect(record).toBeDefined();
+    expect(record === undefined ? undefined : loadedVersionOf(store, { ...record })).toBeUndefined();
   });
 
   it("gives the changed element its new version after a watcher batch and a write, and keeps the others", async () => {

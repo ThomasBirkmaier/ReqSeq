@@ -12,7 +12,8 @@
 //   took about 11 s.
 // - Not kept in the model cache (ADR-0008): the cached start (SR-082) needs no version.
 // - A store change of the watcher or of ReqSeq's own writes (`applyStoreChange`, `recordWrites`) is
-//   carried: the records it changed get their version again, every other entry is kept. A change of
+//   carried: the records it changed get their version again, every other entry is kept; from the
+//   files of the `StoreUpdate` alone, as a patch of the entries before (#215, O(changed)). A change of
 //   the metamodel (which properties count) or of the layout (the `ignore` globs) resets it.
 // - The version the store computed while reading a file (`loadedVersionsOf`, #439) is taken
 //   without reading the file again when its type counts the same properties now (the fingerprint of
@@ -53,7 +54,9 @@ import type { LoadedVersion, Versioning } from "./loaded-version.js";
 import { typeVersioningOf, versioningOf } from "./loaded-version.js";
 import { saveVersionsAgain } from "./model-cache.js";
 import type { ElementStore } from "./store.js";
-import { carryStoreUpdate, elementStoreState, ignoredBy, loadedVersionsOf } from "./store.js";
+import type { StoreUpdate } from "./store.js";
+import { carryStoreUpdate, contributionIn, elementStoreState, ignoredBy, loadedVersionOf } from "./store.js";
+import { PatchedMap } from "./patched-map.js";
 import { NORMAL_FORM } from "../version/version.js";
 import { elementVersion, notComputableMessage, versionOrRangeError } from "./view.js";
 
@@ -88,7 +91,10 @@ export interface CurrentVersions {
   readonly store: ElementStore;
   readonly layout: WorkspaceLayout;
   readonly metamodel: Metamodel;
-  /** Every element record of `store`. */
+  /**
+   * Every element record of `store`; in store order when built, the order is not defined after a
+   * carry (a `PatchedMap`, #215: read it as a `ReadonlyMap` only).
+   */
   readonly byRecord: ReadonlyMap<ElementRecord, CurrentVersion>;
 }
 
@@ -114,8 +120,8 @@ interface Run {
   readonly ignored: (relativePath: string) => boolean;
   /** Folder listings and image hashes of this run. */
   readonly memo: ImageMemo;
-  /** The versions the store computed while reading (`loadedVersionsOf`). */
-  readonly loaded: ReadonlyMap<ElementRecord, LoadedVersion>;
+  /** The version the store computed while reading the file of a record (`loadedVersionOf`). */
+  readonly loaded: (record: ElementRecord) => LoadedVersion | undefined;
   /** What counts for a version now, to compare with a loaded one; undefined: none is taken. */
   readonly versioning: Versioning | undefined;
   /**
@@ -141,7 +147,7 @@ const runOf = (versions: Pick<CurrentVersions, "store" | "layout" | "metamodel">
   repositories: new Map(versions.layout.repositories.map((r) => [r.name, r])),
   ignored: ignoredBy(versions.layout),
   memo: imageMemo(),
-  loaded: loadedVersionsOf(versions.store),
+  loaded: (record) => loadedVersionOf(versions.store, record),
   versioning: versioningNow(versions.metamodel),
 });
 
@@ -154,7 +160,7 @@ const NO_SEEN: readonly ImageSeen[] = Object.freeze([]);
  * store's snapshot. Undefined otherwise: the file is read (`versionNow`).
  */
 const loadedEntry = (run: Run, record: ElementRecord): CurrentVersion | undefined => {
-  const loaded = run.loaded.get(record);
+  const loaded = run.loaded(record);
   const version = loaded?.byForm[NORMAL_FORM];
   const repository = run.repositories.get(record.repository);
   if (
@@ -246,7 +252,7 @@ const relearn = (run: Run, record: ElementRecord, body: string, version: string)
     return;
   }
   const { fingerprint } = typeVersioningOf(run.versioning, record.type);
-  if (run.loaded.get(record)?.fingerprint !== fingerprint && imageLinks(record.file, body).length === 0) {
+  if (run.loaded(record)?.fingerprint !== fingerprint && imageLinks(record.file, body).length === 0) {
     run.relearned.set(record, { byForm: { [NORMAL_FORM]: version }, fingerprint });
   }
 };
@@ -302,17 +308,40 @@ export const buildCurrentVersions = async (
 });
 
 /**
- * `versions` for the store `store` (a change of the watcher or a write, #184): every record that is
- * the same object in both keeps its entry, every other record of `store` gets its version again.
+ * `versions` for the store of `update` (a change of the watcher or a write, #184): every record that
+ * is the same object in both keeps its entry, every other record of the new store gets its version
+ * again. When `versions` is of the store the update starts from, only the records of its files are
+ * looked at, and the entries are a patch of those before (`PatchedMap`, #215: O(changed), the key
+ * order is not defined after it); otherwise every record of the new store is.
  */
 export const carryCurrentVersions = async (
   versions: CurrentVersions,
-  store: ElementStore,
-): Promise<CurrentVersions> => ({
-  ...versions,
-  store,
-  byRecord: await entriesOf(runOf({ ...versions, store }), store.elements, versions.byRecord),
-});
+  update: Pick<StoreUpdate, "from" | "to" | "files">,
+): Promise<CurrentVersions> => {
+  const store = update.to;
+  const run = runOf({ ...versions, store });
+  if (versions.store !== update.from) {
+    return { ...versions, store, byRecord: await entriesOf(run, store.elements, versions.byRecord) };
+  }
+  const changes = new Map<ElementRecord, CurrentVersion | undefined>();
+  const now: ElementRecord[] = [];
+  for (const [repository, files] of update.files) {
+    for (const file of files) {
+      const before = contributionIn(update.from, repository, file);
+      const after = contributionIn(store, repository, file);
+      if (before?.kind === "element") {
+        changes.set(before.element, undefined);
+      }
+      if (after?.kind === "element") {
+        now.push(after.element);
+      }
+    }
+  }
+  for (const [record, entry] of await entriesOf(run, now, versions.byRecord)) {
+    changes.set(record, entry);
+  }
+  return { ...versions, store, byRecord: PatchedMap.patch(versions.byRecord, changes) };
+};
 
 /**
  * The current versions of a workspace, built on first use and kept with its element store
@@ -339,7 +368,7 @@ export const currentVersionsState = defineWorkspaceState(
   },
   {
     dependsOn: [elementStoreState, metamodelState],
-    carry: carryStoreUpdate((value, update) => value.then((old) => carryCurrentVersions(old, update.to))),
+    carry: carryStoreUpdate((value, update) => value.then((old) => carryCurrentVersions(old, update))),
   },
 );
 
@@ -370,7 +399,15 @@ const sameEntry = (a: CurrentVersion, b: CurrentVersion): boolean =>
  */
 export const checkImages = async (versions: CurrentVersions): Promise<CurrentVersions> => {
   const run = runOf(versions);
-  const candidates = [...versions.byRecord].filter(([, e]) => e.kind !== "version" || e.images.length > 0);
+  // By the records of the store, a plain array: walking a carried `byRecord` (a `PatchedMap`) on
+  // every use cost several times as much (#215).
+  const candidates: (readonly [ElementRecord, CurrentVersion])[] = [];
+  for (const record of versions.store.elements) {
+    const entry = versions.byRecord.get(record);
+    if (entry !== undefined && (entry.kind !== "version" || entry.images.length > 0)) {
+      candidates.push([record, entry]);
+    }
+  }
   const checked = await mapBounded(candidates, async ([record, entry]) =>
     (await stale(run, record, entry)) ? [[record, entry] as const] : [],
   );
