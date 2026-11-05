@@ -78,7 +78,7 @@ import type { StoreUpdate } from "../model/store.js";
 import { carryStoreUpdate } from "../model/store.js";
 import type { UndatedCause, VersionDateRequest } from "../model/version-date.js";
 import type { VersionStart } from "../model/version-date.js";
-import { prepareVersionDates, undatedCause, versionStarts } from "../model/version-date.js";
+import { metamodelChange, prepareVersionDates, undatedCause, versionStarts } from "../model/version-date.js";
 import type { Workspace } from "../runtime/workspace.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
@@ -614,6 +614,14 @@ const startText = (start: VersionStart | null): string =>
   start === null ? "no date" : `${start.date} (${start.commit.slice(0, SHORT_COMMIT)})`;
 
 /**
+ * Why the stored version has no date when the metamodel changed after the start of the
+ * current one (#252, P-2-09): versions at older commits are computed with today's metamodel, so
+ * neither date may tell when the version changed.
+ */
+const metamodelText = (change: VersionStart): string =>
+  `the metamodel changed on ${startText(change)}, and older commits are read with today's metamodel`;
+
+/**
  * The starts of the stored and the current version as a message shows them (D-013, #252): each
  * date with its commit, and `why` there is none, said once; `why` is empty when both have one.
  */
@@ -671,12 +679,32 @@ export const datedProblems = async (
     }
     return cause;
   };
+  // The last change of the metamodel, asked once and only for a stored version without date.
+  let change: Promise<VersionStart | null> | undefined;
+  /** Why a date is missing, said once: the cause of the repository, and a later metamodel change where there is one. */
+  const whyOf = async (
+    repository: string,
+    stored: VersionStart | null,
+    current: VersionStart | null,
+  ): Promise<string> => {
+    if (stored !== null && current !== null) {
+      return "";
+    }
+    const cause = CAUSES[await causeOf(repository)];
+    if (stored === null && current !== null) {
+      change ??= metamodelChange(context);
+      const found = await change;
+      if (found !== null && found.date > current.date) {
+        return `${cause}; ${metamodelText(found)}`;
+      }
+    }
+    return cause;
+  };
   return Promise.all(
     pending.map(async ({ problem, target, stored, current }) => {
       const storedStart = dates.get(stored) ?? null;
       const currentStart = dates.get(current) ?? null;
-      const why =
-        storedStart === null || currentStart === null ? CAUSES[await causeOf(target.repository)] : "";
+      const why = await whyOf(target.repository, storedStart, currentStart);
       return {
         ...problem,
         message: `${problem.message}${datesText(storedStart, currentStart, why)}`,

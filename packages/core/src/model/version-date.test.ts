@@ -21,7 +21,13 @@ import { workspaceLayoutState } from "../workspace/index.js";
 import type * as Images from "./images.js";
 import { inNestedRepository } from "./images.js";
 import type { VersionDateContext, VersionDateRequest } from "./version-date.js";
-import { prepareVersionDates, undatedCause, versionDates, versionStarts } from "./version-date.js";
+import {
+  metamodelChange,
+  prepareVersionDates,
+  undatedCause,
+  versionDates,
+  versionStarts,
+} from "./version-date.js";
 import { elementVersion } from "./view.js";
 
 // The real reader and nested check, wrapped so that tests count git calls and make one fail.
@@ -823,6 +829,31 @@ describe("version date", () => {
     vi.mocked(headFiles).mockResolvedValueOnce(undefined);
     vi.mocked(headCommit).mockResolvedValueOnce(TIMEOUT);
     expect(await cause(clone)).toBe("unknown");
+
+    // The last change of the metamodel folder (#252, P-2-09): none where Git cannot tell.
+    const change = async (on: Workspace): Promise<string | null> => {
+      const found = await metamodelChange(await context(on));
+      return found === null ? null : `${found.commit} ${found.date}`;
+    };
+    const DATE = String.raw`\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ`;
+    expect(await change(workspace)).toBeNull();
+    expect(await change(empty.workspace)).toBeNull();
+    expect(await change(clone)).toBeNull();
+    const head = (await origin.git(["rev-parse", "HEAD"])).trim();
+    expect(await change(deep)).toMatch(new RegExp(`^${head} ${DATE}$`));
+    vi.mocked(headFiles).mockResolvedValueOnce(undefined);
+    expect(await change(deep)).toMatch(new RegExp(`^${head} ${DATE}$`));
+    vi.mocked(fileHistory).mockResolvedValueOnce(TIMEOUT);
+    expect(await change(deep)).toBeNull();
+    // A metamodel at the top of its repository, or in a repository not in the workspace, has none.
+    const layout = await deep.get(workspaceLayoutState);
+    const moved = (where: Partial<typeof layout.metamodel>) => ({
+      layout: { ...layout, metamodel: { ...layout.metamodel, ...where } },
+    });
+    expect(await metamodelChange(moved({ path: "./" }))).toBeNull();
+    expect(await metamodelChange(moved({ repository: "nope" }))).toBeNull();
+    // A folder no commit changed.
+    expect(await metamodelChange(moved({ path: "nothing/here" }))).toBeNull();
   });
 
   it("is null for a repository that is not on this machine", async () => {
