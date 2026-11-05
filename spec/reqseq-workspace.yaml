@@ -7,3 +7,6 @@ repositories:
 metamodel:
   repository: spec
   path: metamodel
+# Test results of the nightly CI run on main, enriched with `reqseq evidence enrich-junit` (#946).
+evidence:
+  - { repository: spec, path: evidence }
