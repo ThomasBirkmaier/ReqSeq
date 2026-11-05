@@ -11,9 +11,8 @@ acceptance-criteria:
   - Gegeben die per Klick geöffnete Werteauswahl, wenn ein Wert angeklickt wird, dann setzt das Tool ihn mit demselben Ergebnis wie die Auswahl dieses Werts per Tastatur.
   - Gegeben die per Klick geöffnete Werteauswahl, wenn Escape gedrückt oder außerhalb der Befehlszeile geklickt wird, dann schließt sie und der Wert der Property bleibt unverändert.
 packages:
-  - { id: c64ee86d-761a-4180-bfb1-cde819bfc27c, version: n1:fd3ed3f03b3d762f, title: Später }
+  - { id: e8a95bf4-c96c-4c8a-9fa0-7e9bc0dbd5bd, version: n2:f14e7f16f403237e, title: Element bearbeiten }
 verification-method: test
-topic: Bearbeiten und Finden
 refines:
   - { id: 2c4b0595-c212-42b7-81be-b18556f3b2fe, version: n1:ce7d8ec8e019b511, title: Properties als Boxen bearbeiten }
 derives-from:

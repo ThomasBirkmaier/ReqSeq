@@ -4,7 +4,6 @@ type: need
 status: obsolete
 title: "Alle Sichten für den Requirements Engineer"
 spec-id: "N-011"
-topic: "Traceability und Ketten"
 ---
 
 Als Requirements Engineer muss ich alle Sichten auf Traceability und Abdeckung selbst einsehen können, um Fragen des Auditors zu beantworten. Abgelöst durch [D-023](reqseq:6adc5318-eed2-4fa7-ac34-2df5d4882eb7?version=n2:0aaa90f4dd4b094d): Jede Sicht steht allen offen.

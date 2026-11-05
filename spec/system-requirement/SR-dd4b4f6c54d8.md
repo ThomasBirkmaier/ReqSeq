@@ -11,7 +11,6 @@ acceptance-criteria:
   - Gegeben die App, wenn die Hilfe aus dem Menü aufgerufen wird, dann öffnet sie die mitgelieferte Dokumentation.
   - Gegeben eine Funktion in der Befehlszeile der App, wenn ihre Hilfe aufgerufen wird, dann öffnet die App die Referenzseite dieser Funktion.
 verification-method: test
-topic: Betrieb und Leistung
 derives-from:
   - { id: 3826ab28-2019-458a-9170-f14f25591ce1, version: n1:26036afe5f131d21, title: Das Tool ohne fremde Hilfe benutzen lernen }
   - { id: 6adc50a3-2395-4867-bc28-4ac6a3af2b01, version: n1:530a8654e612e857, title: Offline arbeiten }
@@ -19,8 +18,7 @@ derives-from:
 based-on:
   - { id: cb583de8-288a-4d8a-82f0-b2be57da2cce, version: n1:44f219796afc9c64, title: Nutzerdokumentation aus den Quellen des Werkzeugs }
 packages:
-  - { id: 7a12a8c7-43e7-4349-9453-0ac2b6d5157d, version: n1:a36637ced6997ca7, title: Querschnitt }
-issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/351
+  - { id: ef531b57-0991-45bf-8a1b-0cce10050063, version: n2:3f74ba2fff156a2d, title: Dokumentation }
 ---
 
 Das Tool muss seine Dokumentation in der Fassung seiner Version mit jeder Auslieferung mitliefern, ohne Netzverbindung lesbar und durchsuchbar, und sie aus der App heraus öffnen, zu einer Funktion direkt auf deren Referenzseite.

@@ -1,7 +1,7 @@
 ---
 id: 5e69295a-2847-469f-9bd4-a11e20ceba9f
 type: package
-status: approved
+status: obsolete
 title: "Stufe 4: Nachweise"
 spec-id: "Stufe-4"
 ---

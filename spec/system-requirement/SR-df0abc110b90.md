@@ -10,12 +10,10 @@ acceptance-criteria:
   - Gegeben ein Prozess der API, des MCP-Servers oder der App erhält mehrere Schreibaufrufe gleichzeitig, auch auf dasselbe Element, wenn alle beendet sind, dann melden alle Aufrufe Erfolg, die nacheinander Erfolg gemeldet hätten, und die Dateien halten das Ergebnis, das diese Aufrufe nacheinander ausgeführt ergeben hätten.
   - Gegeben mehrere gleichzeitige Schreibaufrufe in einem Prozess, wenn ein Aufruf nacheinander ausgeführt abgelehnt worden wäre, zum Beispiel weil er einen älteren Stand der Datei erwartet, dann meldet er einen Fehler und ändert keine Datei.
 packages:
-  - { id: 7a12a8c7-43e7-4349-9453-0ac2b6d5157d, version: n1:a36637ced6997ca7, title: Querschnitt }
+  - { id: 3aaac15c-a3ae-44d6-a640-c0fa48ccd25e, version: n2:3431ccb8330c70d3, title: Ablage und Repositories }
 verification-method: test
-topic: Betrieb und Leistung
 derives-from:
   - { id: 6adc676b-fe66-4306-a6f2-3689d63c8400, version: n2:20d807fdfaa9cb3b, title: Mehrere Agenten parallel }
-issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/699
 ---
 
 Das Tool muss gleichzeitige Schreibaufrufe auf dieselbe lokale Kopie innerhalb eines Prozesses so ausführen, als liefen sie nacheinander, sodass keine Änderung eines Aufrufs verloren geht, der Erfolg meldet.

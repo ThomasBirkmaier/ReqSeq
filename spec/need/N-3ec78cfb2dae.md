@@ -4,7 +4,8 @@ type: need
 status: draft
 title: "Auswertungen über die Zeit"
 spec-id: "N-034"
-topic: "Anbindung und Auswertung"
+packages:
+  - { id: 17252361-b899-4483-ba2b-baf32da3193e, version: n2:b4ff22abebdae679, title: Zugänge und Anbindung }
 ---
 
 Erweiterung, nicht Basisumfang: Externe Werkzeuge sollen auch die Entwicklung über mehrere Stände auswerten können, zum Beispiel die Abdeckung über mehrere Baselines.

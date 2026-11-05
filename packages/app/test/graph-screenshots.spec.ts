@@ -1,9 +1,9 @@
 // Screenshots of the graph (SR-111), light and dark:
 // - on a copy of the repository's own specification (`spec/`): the graph of SR-111 at depth 1 and at all
 //   levels over every kind (the chain up to its need and down through the references of the decisions),
-//   that of the package Stufe-3 with its members in one wide layer, and the whole chain of the glossary
+//   that of the package Editor with its members in one wide layer, and the whole chain of the glossary
 //   term GL-f81ba9 (a node whose walk parent took its level from the other walk, #519), the decision
-//   D-062 at depth 1 (a fan of 30 links among 43) and the largest whole chain, that of D-035;
+//   D-062 at depth 1 (a fan of 30 links among 43) and the whole chain of the obsolete decision D-035;
 // - on fixtures/SR-111/graph: the graph of S1 at depth 1, with a fan on each edge of the element, and at
 //   depth 2 with "Also show relation kind" > "Evidence" (SR-111 AK3: the evidence boxes of S1 and C1);
 // - on the generated workspaces of SR-111 AK6: a package graph of 500 nodes at depth 1 and a whole chain
@@ -75,10 +75,10 @@ for (const scheme of ["light", "dark"] as const) {
       await expect(window.locator(".graph")).toHaveAttribute("data-laid-out", String(all));
       await shot("all-levels");
 
-      // The package Stufe-3: its members in one layer below it.
-      await open(window, "Stufe-3", "Stufe 3: Oberfläche");
+      // The package Editor: its members in one layer below it.
+      await open(window, "Editor", "Element bearbeiten");
       await window.keyboard.press("ControlOrMeta+Shift+G");
-      const members = await nodeCount(running, { ref: "Stufe-3", maxDepth: 1 });
+      const members = await nodeCount(running, { ref: "Editor", maxDepth: 1 });
       await expect(window.locator(".graph")).toHaveAttribute("data-laid-out", String(members));
       await shot("package");
 
@@ -100,7 +100,7 @@ for (const scheme of ["light", "dark"] as const) {
       await expect(window.locator(".graph")).toHaveAttribute("data-laid-out", String(fan));
       await shot("decision-depth-1");
 
-      // The largest whole chain of spec/, that of D-035.
+      // The whole chain of D-035, an obsolete decision.
       await open(window, "D-035", "Umsetzung in sechs Stufen");
       await window.keyboard.press("ControlOrMeta+Shift+G");
       for (let press = 0; press < 9; press += 1) {

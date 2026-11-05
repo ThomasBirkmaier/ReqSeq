@@ -512,9 +512,9 @@ test.describe("the graph on the specification workspace", () => {
     const { window } = running;
     try {
       await expect(window.getByLabel("Modeline")).toContainText("elements");
-      // The package Stufe-3: its members, nearly every one a System Requirement with "no evidence".
-      await openById(window, "Stufe-3", "Stufe 3: Oberfläche");
-      const members = await traced(running, { ref: "Stufe-3", maxDepth: 1 });
+      // The package Editor: its members, nearly every one a System Requirement with "no evidence".
+      await openById(window, "Editor", "Element bearbeiten");
+      const members = await traced(running, { ref: "Editor", maxDepth: 1 });
       await showGraph(window, members.nodes.length);
       expect(await cutLines(window)).toEqual([]);
       const marked = await window

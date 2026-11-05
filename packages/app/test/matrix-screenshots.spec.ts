@@ -1,5 +1,5 @@
 // The traceability matrix (SR-125) on a copy of the repository's own specification (`spec/`): the way to
-// "all system requirements of the package Stufe-3 as a matrix" by keyboard, with the keys counted, and a
+// "all system requirements of the package Editor as a matrix" by keyboard, with the keys counted, and a
 // screenshot of the matrix in light mode (1280×800). The PNG goes to `test-results/electron/screenshots/`
 // (or the folder in REQSEQ_SCREENSHOTS); keeping it is a deliberate step, not part of a test run.
 import fs from "node:fs/promises";
@@ -33,7 +33,7 @@ const keys = (window: Page) => {
 const titles = (window: Page): Promise<string[]> =>
   window.locator("tbody tr td.element .title").allTextContents();
 
-test("[SR-125/AK1] all system requirements of the package Stufe-3 as a matrix: from the overview and from the package page", async () => {
+test("[SR-125/AK1] all system requirements of the package Editor as a matrix: from the overview and from the package page", async () => {
   const running = await launchApp({ folder: SPEC }, { colorScheme: "light" });
   const { window } = running;
   try {
@@ -49,7 +49,7 @@ test("[SR-125/AK1] all system requirements of the package Stufe-3 as a matrix: f
           "matrix",
           "--input",
           JSON.stringify({
-            selection: { where: { all: [{ type: ["system-requirement"] }, { package: "Stufe-3" }] } },
+            selection: { where: { all: [{ type: ["system-requirement"] }, { package: "Editor" }] } },
             sort: DEFAULT_SORT,
             limit: 5000,
           }),
@@ -80,8 +80,8 @@ test("[SR-125/AK1] all system requirements of the package Stufe-3 as a matrix: f
     await expect(window.locator('.candidates [role="option"]').first()).toContainText("packages");
     await typed.press("Enter");
     await expect(window.getByLabel("Minibuffer").locator("label")).toHaveText("packages");
-    await typed.type("st3");
-    await expect(window.locator('.candidates [role="option"]').first()).toContainText("Stufe-3");
+    await typed.type("edi");
+    await expect(window.locator('.candidates [role="option"]').first()).toContainText("Editor");
     await typed.press("Enter");
     await typed.press("ControlOrMeta+T");
     await expect(window.locator("tbody tr")).toHaveCount(cli.total);
@@ -89,16 +89,16 @@ test("[SR-125/AK1] all system requirements of the package Stufe-3 as a matrix: f
     expect(await titles(window)).toEqual(cli.rows.map((row) => row.title));
     test.info().annotations.push({ type: "keys from the overview", description: String(fromOverview) });
     // Down ×(at+1) to the line "System Requirement" (none on the first line), Enter, Ctrl+Shift+P, flp,
-    // Enter, pa, Enter, st3, Enter, Ctrl+T.
+    // Enter, pa, Enter, edi, Enter, Ctrl+T.
     expect(fromOverview).toBe(downs + 14);
 
     // The package page: Ctrl+P, the title, Enter, Ctrl+T.
     const direct = keys(window);
     await direct.press("ControlOrMeta+P");
-    await direct.type("Stufe-3");
-    await expect(window.locator('.candidates [role="option"]').first()).toContainText("Stufe-3");
+    await direct.type("Editor");
+    await expect(window.locator('.candidates [role="option"]').first()).toContainText("Editor");
     await direct.press("Enter");
-    await expect(window.locator("article h1")).toContainText("Stufe 3");
+    await expect(window.locator("article h1")).toContainText("Element bearbeiten");
     await expect(window.locator(".members .row").first()).toBeVisible();
     await direct.press("ControlOrMeta+T");
     // Every member of the package, whatever its type: the CLI's matrix of the package.
@@ -108,14 +108,14 @@ test("[SR-125/AK1] all system requirements of the package Stufe-3 as a matrix: f
           "trace",
           "matrix",
           "--input",
-          JSON.stringify({ selection: { package: "Stufe-3" }, sort: DEFAULT_SORT, limit: 5000 }),
+          JSON.stringify({ selection: { package: "Editor" }, sort: DEFAULT_SORT, limit: 5000 }),
         ])
       ).stdout,
     ) as { total: number; rows: { title: string }[] };
     await expect(window.locator("tbody tr")).toHaveCount(members.total);
     expect(await titles(window)).toEqual(members.rows.map((row) => row.title));
-    // Ctrl+P, the seven characters of Stufe-3, Enter, Ctrl+T.
-    expect(direct.count()).toBe(10);
+    // Ctrl+P, the six characters of Editor, Enter, Ctrl+T.
+    expect(direct.count()).toBe(9);
     test.info().annotations.push({ type: "keys from the package page", description: String(direct.count()) });
 
     await window.locator("tbody tr").first().waitFor();

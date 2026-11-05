@@ -11,9 +11,8 @@ acceptance-criteria:
   - Gegeben die Plaketten eines Requirements, wenn sie angezeigt werden, dann ist die linke Hälfte in Graustufen und die rechte trägt Farbe nur bei den Status nicht bestanden und veraltet (D-062); offen und nachgewiesen bleiben in Graustufen und unterscheiden sich durch ihren Text. Text und Hintergrund jeder Hälfte haben im hellen und im dunklen Erscheinungsbild ein Kontrastverhältnis von mindestens 4,5:1.
   - Gegeben die Plakette einer Variante, wenn auf ihre linke Hälfte geklickt wird, dann öffnet die App die Variante, wie bisher ihr Name in der Textzeile.
 packages:
-  - { id: c64ee86d-761a-4180-bfb1-cde819bfc27c, version: n1:fd3ed3f03b3d762f, title: Später }
+  - { id: ed14d465-fd3f-4188-992b-3ff7af8595af, version: n2:1261455098bd8d6a, title: Nachweis und Abdeckung }
 verification-method: test
-topic: Nachweis und Abdeckung
 refines:
   - { id: 6adc6c96-e67e-4b89-b89d-9b7a06c41d9d, version: n2:fe5619eb084a19ff, title: Nachweis je Variante führen }
 derives-from:

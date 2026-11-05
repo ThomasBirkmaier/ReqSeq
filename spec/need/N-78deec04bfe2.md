@@ -4,7 +4,8 @@ type: need
 status: approved
 title: Nur Aussagekräftiges sehen
 spec-id: N-073
-topic: Bearbeiten und Finden
+packages:
+  - { id: 5c0075c7-0fad-483a-b35e-af77d1499468, version: n2:65dcf844650577fe, title: Bedienung der App }
 ---
 
 Ich will in der Oberfläche nur sehen, was gerade etwas aussagt. Alles andere muss ich gezielt abrufen können.

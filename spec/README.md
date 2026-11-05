@@ -9,7 +9,7 @@ The ReqSeq specification, a ReqSeq workspace (D-064, enabler #326). Until stage 
 - `reqseq-workspace.yaml`: the workspace, one repository `spec` (this folder).
 - `metamodel/spec-model.yaml`: the standard model (D-037) with the additions of this spec (D-060): property `spec-id` (meaning `identifier`), statuses per type, the glossary term.
 - One Markdown file per element (D-015), named by D-056 (`SR-5a8b253c90b0.md`), in a folder named like its type key, which is where `element create` puts new elements: `need/`, `system-requirement/`, `decision/`, `glossary-term/`, `package/`, `variant/`.
-- `package/`: one package per stage (D-035, D-040), identifiers `Stufe-1` to `Stufe-6` and `Querschnitt`, `Später` for parked wishes, and from v0.9 on one per milestone, identifier like the milestone (`v0.9`, product owner decision, 2026-11-02). A system requirement names its stage or milestone in `packages`.
+- `package/`: one package per topic (D-040), for example `Ablage`, `Metamodell`, `Traceability`, `Nachweis`, `Editor`, `App`. Every system requirement and need names its topic package in `packages`. Packages give the structure, not the schedule; the schedule is the milestone of the issues (product owner decision, 2026-11-05). The stage packages `Stufe-1` to `Stufe-6`, `Querschnitt`, `v0.9` and `Später` are obsolete.
 - `variant/`: the variants Windows, Linux and macOS (`VAR-001` to `VAR-003`, #361); a requirement that holds only on one system names it in `validity`.
 
 The spec IDs (`SR-036`, `D-047`, `N-001`) are the identifiers: every command takes them as references.
@@ -20,21 +20,21 @@ Build once (`pnpm install && pnpm build`), then from the repository root:
 
 ```sh
 node packages/cli/dist/bin.js element get SR-036 --workspace spec
-node packages/cli/dist/bin.js element list --workspace spec --input '{"selection":{"package":"Stufe-3"},"sort":[{"by":"spec-id"}]}'
+node packages/cli/dist/bin.js element list --workspace spec --input '{"selection":{"package":"Editor"},"sort":[{"by":"spec-id"}]}'
 node packages/cli/dist/bin.js element search "Abdeckung Auswahl" --workspace spec
 node packages/cli/dist/bin.js trace chain SR-036 --workspace spec
 node packages/cli/dist/bin.js workspace check --workspace spec
 ```
 
-All system requirements of a stage with their text, numbered acceptance criteria (`1:` is AK1) and relations, in one call instead of reading each file:
+All system requirements of a package with their text, numbered acceptance criteria (`1:` is AK1) and relations, in one call instead of reading each file:
 
 ```sh
-node packages/cli/dist/bin.js element list --with-text --package Stufe-3 --where-type system-requirement --sort spec-id --limit 1000 --workspace spec
+node packages/cli/dist/bin.js element list --with-text --package Editor --where-type system-requirement --sort spec-id --limit 1000 --workspace spec
 ```
 
 `pnpm reqseq <command> ... --workspace spec` is the same; `pnpm spec:check` runs the check. The MCP server is `node packages/cli/dist/bin.js mcp --workspace spec`.
 
-New elements: `element create` with `properties: {"spec-id": "<next free ID>"}` (an ID reserved for an approved draft is not free). The stage or milestone of a system requirement is its package: `element update` with `set: {"packages": [{"id": "<UUID of the package>"}]}` (`element get Stufe-3` gives the UUID).
+New elements: `element create` with `properties: {"spec-id": "<next free ID>"}` (an ID reserved for an approved draft is not free). A new system requirement or need goes into the package of its topic: `element update` with `set: {"packages": [{"id": "<UUID of the package>"}]}` (`element get Editor` gives the UUID).
 
 ## Known limits
 

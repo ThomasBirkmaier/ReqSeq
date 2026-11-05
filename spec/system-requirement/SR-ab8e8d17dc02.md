@@ -11,15 +11,13 @@ acceptance-criteria:
   - Gegeben an SR-K ändert sich nur der Titel, wenn die Hinweise abgefragt werden, dann gibt es keinen Hinweis; den gespeicherten Titel schreibt das Tool neu, wenn es die Datei von SR-A das nächste Mal schreibt (D-042).
   - Gegeben SR-K wird abgelöst, wenn die Hinweise abgefragt werden, dann zeigt das Tool am ersetzenden Requirement SR-A den üblichen Hinweis auf ein abgelöstes Ziel mit dem Nachfolger und keinen Hinweis nach AK1.
 verification-method: test
-topic: "Varianten"
 packages:
-  - { id: c44d8f37-ca09-4e36-8bcb-772f426a3e1a, version: n2:69251068a7c59616, title: "Stufe 5: Pakete, Baselines und Varianten" }
+  - { id: d033b1e9-39d8-4729-a08f-6285812ce348, version: n2:bab49f6690dc919b, title: Varianten }
 derives-from:
   - { id: 6ad3a4c6-cb89-4fc6-acdf-ff0c8aad33ed, version: n1:0d48a780647af98d, title: Hinweis bei Änderung im Kern }
 based-on:
   - { id: 6adc4946-b44c-4ae1-8dbf-fb9e88b8c607, version: n2:fa0fbf62535d1e3c, title: Fassung als Prüfwert über den Inhalt }
   - { id: 6adc6921-d1f2-4800-aa1b-0a39de119f56, version: n2:f957ea97a9846eca, title: Hinweise werden bestätigt }
-issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/52
 ---
 
 Wenn sich ein Kern-Requirement ändert, das eine Variante durch ein eigenes Requirement ersetzt hat, muss das Tool am ersetzenden Requirement einen Hinweis zeigen, den die Variante auflistet.

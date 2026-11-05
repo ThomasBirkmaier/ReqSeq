@@ -10,14 +10,12 @@ acceptance-criteria:
   - "Gegeben ein Testfall weist mehrere Requirements nach, wenn einer seiner Datensätze gelesen wird, dann zählt er für jedes dieser Requirements."
   - "Gegeben ein Testfall ohne Durchführung, wenn er angezeigt wird, dann ist er als nicht durchgeführt gekennzeichnet."
 verification-method: test
-topic: "Nachweis und Abdeckung"
 packages:
-  - { id: 5e69295a-2847-469f-9bd4-a11e20ceba9f, version: n2:9717bb428f1f51e8, title: "Stufe 4: Nachweise" }
+  - { id: ed14d465-fd3f-4188-992b-3ff7af8595af, version: n2:1261455098bd8d6a, title: Nachweis und Abdeckung }
 derives-from:
   - { id: 6adc4b47-50a8-4546-9007-f7cfdfa7b9cb, version: n1:d8500282bf5102a9, title: Traceability bis zu Testfall und Durchführung }
 based-on:
   - { id: 6adc58f5-a349-4870-af2f-971ec1cee679, version: n2:f99d3d6f08b13a10, title: Ein offenes Format für Nachweis-Datensätze }
-issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/40
 ---
 
 Das Tool muss Testfälle und ihre Durchführungen als Teil der Kette bis zum Nachweis zeigen.

@@ -454,6 +454,9 @@ export function traceCheck(root, args) {
     const members = stageMembers(spec, stage);
     if (members === undefined) {
       errors.push(`no package for stage ${stage} in spec/ (identifier Stufe-${stage} or ${stage})`);
+    } else if (members.length === 0) {
+      // An obsolete package has no members any more; checking it would pass without checking anything.
+      errors.push(`package ${stage} has no system requirements`);
     }
     required = required.concat(members ?? []);
   }

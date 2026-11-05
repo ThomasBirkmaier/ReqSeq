@@ -4,7 +4,8 @@ type: need
 status: approved
 title: "Abgeschottete Netze"
 spec-id: "N-047"
-topic: "Betrieb und Leistung"
+packages:
+  - { id: d3daa1a2-adb1-4941-8c51-1fc9cb0bfb1d, version: n2:7df5ce1577740687, title: Betrieb und Sicherheit }
 ---
 
 Das Tool muss sich ohne Internetzugang installieren und betreiben lassen und darf keine Daten nach außen senden.

@@ -16,15 +16,13 @@ acceptance-criteria:
   - Gegeben die Analyse schlägt einen Ausschnitt vor, wenn die Dateien danach geprüft werden, dann ist das Metamodell unverändert (SR-054); der Ausschnitt steht nur in der Ausgabe der Analyse.
   - Gegeben dieselbe Datei und dieselbe Zuordnung, wenn die Analyse über App, Kommandozeile, API oder MCP ausgeführt wird, dann liefert das Tool dasselbe Ergebnis.
 packages:
-  - { id: e1fe7f8d-f43e-4b7a-80cc-1a1b1c514172, version: n1:a5a4c54a355f0f25, title: "v0.9: Eigene Nutzung und Einfachheit" }
+  - { id: 0d3dc867-b3e5-401f-a6db-d95463166616, version: n2:4a83a04662882161, title: Austausch per ReqIF }
 verification-method: test
-topic: Import und Export
 derives-from:
   - { id: 6adc5040-2819-4ec5-a9e9-ad790fd35904, version: n1:3a3f6b6e64b1edc5, title: Zuordnung zum Metamodell }
   - { id: 6adc531a-5a09-476b-9253-7a620b9698d3, version: n1:212741657b151bd3, title: Unbekannte Typen beim Import }
 based-on:
   - { id: 6adc5318-7e31-4925-b180-ff19c4c61c5f, version: n2:05581a0e4c20cadf, title: Kein Austausch von Metamodellen }
-issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/790
 ---
 
 Das Tool muss beim Lesen einer ReqIF-Datei für ihre Attribute ohne Zuordnung einen Ausschnitt des Metamodells vorschlagen, ohne das Metamodell selbst zu ändern.

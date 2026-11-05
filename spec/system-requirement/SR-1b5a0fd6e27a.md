@@ -10,14 +10,12 @@ acceptance-criteria:
   - Gegeben eine Liste, wenn die Hierarchie gewählt wird, dann zeigt das Tool die Elemente als Baum nach ihren Ableitungen. Jedes Element erscheint einmal, unter einem Parent der Liste mit der kürzesten Tiefe; ein Parent außerhalb der Liste zählt nicht, und Kreise werden wie in der Kette abgeschnitten.
   - "Gegeben eine Sortierung, wenn Elemente angelegt werden, dann speichert das Tool keine feste Reihenfolge in den Dateien."
 verification-method: test
-topic: "Bearbeiten und Finden"
 packages:
-  - { id: cf800f25-d03d-4092-8783-334263089f89, version: n2:92f3a59a9af7becd, title: "Stufe 3: Oberfläche" }
+  - { id: ba811685-2a69-43cb-aea4-9c5cf9c4e9a3, version: n2:05f7041d485c484a, title: Finden und Listen }
 derives-from:
   - { id: 6adc50a5-05d9-4e59-adfc-ae0179b6e5bf, version: n1:7b0a5a4bd2ba1739, title: Filtern }
 based-on:
   - { id: 6adc615b-8a00-4ce4-9526-56bd3b72bfc9, version: n2:94db6c18414603e6, title: Keine feste Reihenfolge }
-issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/82
 ---
 
 Das Tool muss Listen nach Properties oder nach der Hierarchie der Ableitungen ordnen, ohne eine feste Reihenfolge zu speichern.

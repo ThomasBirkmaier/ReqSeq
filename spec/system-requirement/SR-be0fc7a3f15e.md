@@ -14,14 +14,12 @@ acceptance-criteria:
   - Gegeben das Metamodell als Text, wenn es angezeigt wird, dann nennt es zu jedem Typ Schlüssel, Anzeigename, Präfix, Eltern-Typ, Properties mit Wertart, Pflicht und der Angabe, ob sie zur Fassung zählen, und Statuswerte und zu jeder Beziehungsart die erlaubten Quell- und Zieltypen.
   - Gegeben dasselbe Metamodell, wenn es über App, Kommandozeile, API und MCP-Server abgefragt wird, dann liefern alle dieselben Typen, Vererbungen, Properties, Statuswerte und Beziehungsarten.
 verification-method: test
-topic: Metamodell und Typen
 derives-from:
   - { id: 0a18e65d-e41b-4ed7-8662-8bc7e547d5ab, version: n1:48629460c434fb03, title: Metamodell des Projekts sehen }
 based-on:
   - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:bce0e07df5d43c53, title: Oberfläche als weißes Blatt }
 packages:
-  - { id: cf800f25-d03d-4092-8783-334263089f89, version: n2:92f3a59a9af7becd, title: "Stufe 3: Oberfläche" }
-issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/137
+  - { id: dfdbf57e-059c-49ed-b9b2-21c51e291b3c, version: n2:cbcfa73eec53e04c, title: Metamodell und Prüfung }
 ---
 
 Das Tool muss das Metamodell des geöffneten Arbeitsbereichs auf Befehl als Graph und als Text zeigen.

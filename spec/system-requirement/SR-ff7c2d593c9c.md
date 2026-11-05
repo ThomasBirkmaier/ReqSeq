@@ -16,15 +16,13 @@ acceptance-criteria:
   - Gegeben SR-A mit Gültigkeit [A] hat die Beziehung ersetzt auf ein Requirement mit Gültigkeit oder auf ein Element ohne Property mit der Bedeutung Gültigkeit, zum Beispiel einen Need oder ein Paket, wenn eine Sicht berechnet wird oder `workspace.check` läuft, dann ändert sich keine Sicht, das Tool meldet einen Hinweis an der Zeile des Eintrags (wie SR-039 AK3), und im Unterschied von A zum Kern (SR-044) steht SR-A bei den ergänzten Requirements.
   - "Gegeben SR-A mit Gültigkeit [A] ersetzt SR-K, und der Status von SR-A wird auf einen ungültigen Wert gesetzt (zum Beispiel abgelöst), wenn die Sicht von A berechnet wird, dann ersetzt SR-A das Kern-Requirement SR-K weiter: Der Status ändert die Sicht nicht; sie ändert sich erst, wenn die Beziehung „ersetzt“ oder die Gültigkeit entfernt wird oder ein Nachfolger SR-K ersetzt (Entscheidung des Produktverantwortlichen, 2026-10-30)."
 verification-method: test
-topic: "Varianten"
 packages:
-  - { id: c44d8f37-ca09-4e36-8bcb-772f426a3e1a, version: n2:69251068a7c59616, title: "Stufe 5: Pakete, Baselines und Varianten" }
+  - { id: d033b1e9-39d8-4729-a08f-6285812ce348, version: n2:bab49f6690dc919b, title: Varianten }
 derives-from:
   - { id: 6ad3a420-474e-4443-82d6-56a362271467, version: n1:01158fe8c5032e68, title: Variante ersetzt Kern-Requirement }
 based-on:
   - { id: 6adc4946-b44c-4ae1-8dbf-fb9e88b8c607, version: n2:fa0fbf62535d1e3c, title: Fassung als Prüfwert über den Inhalt }
   - { id: 6adc5316-641d-4817-964e-8803a78ac710, version: n2:0cd25f27b89543f2, title: Varianten über eine Gültigkeitsliste }
-issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/48
 ---
 
 Das Tool muss ein Kern-Requirement für eine Variante durch ein eigenes Requirement ersetzen lassen und dabei die Fassung des ersetzten Requirements speichern.

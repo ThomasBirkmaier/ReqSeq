@@ -13,10 +13,8 @@ acceptance-criteria:
   - Gegeben die Kommandozeile, wenn die Varianten aufgelistet werden sollen, dann geht das mit einem Befehl ohne Auswahl in JSON.
   - Gegeben ein Befehl mit optionalen Argumenten in der Befehlszeile der App, wenn er angezeigt wird, dann zeigt die Befehlszeile, wie diese Argumente erreichbar sind.
 packages:
-  - { id: c64ee86d-761a-4180-bfb1-cde819bfc27c, version: n2:557548f91879f7e4, title: Später }
+  - { id: d033b1e9-39d8-4729-a08f-6285812ce348, version: n2:bab49f6690dc919b, title: Varianten }
 verification-method: test
-topic: Varianten
-issue: "#500"
 derives-from:
   - { id: 6adc531a-5adb-45d3-821a-11352a34c3b9, version: n2:bcef3dc092f1c8e8, title: Requirements einer Variante anzeigen }
   - { id: 61d4ffa4-bfc0-42c8-a7ef-d867c0ba286c, version: n2:675fa2767fc2398d, title: Befehle finden und Kürzel lernen }

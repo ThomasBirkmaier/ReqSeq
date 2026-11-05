@@ -305,7 +305,7 @@ test.describe("the key under macOS", () => {
 
 test.describe("screenshots of the list of the elements with a value", () => {
   for (const scheme of ["light", "dark"] as const) {
-    test(`screenshots of the prompt "Elements with" and the list of a topic on the spec in ${scheme}`, async () => {
+    test(`screenshots of the prompt "Elements with" and the list of a package on the spec in ${scheme}`, async () => {
       const running = await launchApp({ folder: SPEC }, { colorScheme: scheme });
       try {
         const { app, window } = running;
@@ -319,9 +319,9 @@ test.describe("screenshots of the list of the elements with a value", () => {
         await expect(promptLabel(window)).toHaveText("Elements with");
         await expect(window.locator('.candidates [role="option"]').first()).toBeVisible();
         await window.screenshot({ path: path.join(OUT, `sr-132-prompt-${scheme}.png`) });
-        await window.keyboard.type("topic");
+        await window.keyboard.type("packages");
         await window.keyboard.press("Enter");
-        await expect(window.getByLabel("Modeline")).toContainText("topic: Bearbeiten und Finden");
+        await expect(window.getByLabel("Modeline")).toContainText("packages: Finden");
         await expect(window.locator(".row").first()).toBeVisible();
         await window.screenshot({ path: path.join(OUT, `sr-132-list-${scheme}.png`) });
       } finally {

@@ -11,15 +11,13 @@ acceptance-criteria:
   - Gegeben eine Spalte, für die das Metamodell keine Mindestzahl ab 1 festlegt, zum Beispiel „Refines“ zwischen System Requirements oder eine Spalte der Gegenrichtung wie „Refined by“, wenn die Matrix angezeigt wird, dann ist eine leere Zelle nicht als Lücke gekennzeichnet, und über der Spalte steht nur die Anzahl der Zeilen mit einer Beziehung dieser Art, ohne Anteil.
   - Gegeben dieselbe Auswahl, wenn die Matrix über Kommandozeile, API oder MCP abgefragt wird, dann liefert das Tool dieselben Lücken, Anzahlen und Anteile wie die App.
 packages:
-  - { id: 76455508-8047-4fdc-ba94-495751bd880b, version: n2:73be154bf79845ec, title: "Stufe 2: Traceability" }
+  - { id: 546c26ea-a25f-4ccf-a9c7-ce63607961b3, version: n2:4585916724ff3a77, title: Traceability }
 verification-method: test
-topic: Traceability und Ketten
 refines:
   - { id: fc803465-d4c0-477c-9907-fd8f4bce5508, version: n1:f3bbcb41b6193944, title: Traceability-Matrix einer Auswahl zeigen }
   - { id: 6f3fa565-e6b7-4799-99b4-e8d0c814f71b, version: n1:1c52957809bfed5b, title: Anzahl der Beziehungen im Metamodell begrenzen }
 derives-from:
   - { id: ccf3998d-7bf6-45de-b74b-f45fb7862a92, version: n1:5fe1dc017ff6e9a9, title: Traceability-Matrix einer Auswahl }
-issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/704
 ---
 
 Das Tool muss in der Traceability-Matrix Lücken sowie Anzahl und Anteil über einer Spalte nur für Beziehungen ausweisen, für die das Metamodell eine Mindestzahl festlegt.

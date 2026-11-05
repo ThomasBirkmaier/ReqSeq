@@ -4,7 +4,8 @@ type: need
 status: approved
 title: "Wenig Aufwand für Werkzeuganbindung"
 spec-id: "N-003"
-topic: "Anbindung und Auswertung"
+packages:
+  - { id: 17252361-b899-4483-ba2b-baf32da3193e, version: n2:b4ff22abebdae679, title: Zugänge und Anbindung }
 ---
 
 Die Verbindung zu anderen Werkzeugen darf nur wenig Aufwand für Einrichtung und Pflege verursachen.
