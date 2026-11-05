@@ -1,7 +1,7 @@
 ---
 id: 6adc7b11-54f7-4313-85d8-efb6fded357a
 type: system-requirement
-status: draft
+status: approved
 title: "Auswahl einheitlich bilden"
 spec-id: "SR-101"
 requirement-type: functional

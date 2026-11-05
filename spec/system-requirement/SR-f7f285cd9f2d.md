@@ -15,7 +15,7 @@ packages:
 verification-method: test
 topic: Nachweis und Abdeckung
 refines:
-  - { id: 6adc6c96-e67e-4b89-b89d-9b7a06c41d9d, version: n1:83c4e0c7dc952286, title: Nachweis je Variante führen }
+  - { id: 6adc6c96-e67e-4b89-b89d-9b7a06c41d9d, version: n2:fe5619eb084a19ff, title: Nachweis je Variante führen }
 derives-from:
   - { id: 6ad50227-3476-4a97-8ec4-5d4f0543bb22, version: n1:b20a6c9601d52cfe, title: Status von Nachweis und Validierung }
 based-on:

@@ -19,7 +19,7 @@ derives-from:
 based-on:
   - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:bce0e07df5d43c53, title: Oberfläche als weißes Blatt }
 refines:
-  - { id: 0f759f3b-b03d-42f5-a38a-b0ca831ca864, version: n1:1880492bd23a8186, title: In Buffern arbeiten }
+  - { id: 0f759f3b-b03d-42f5-a38a-b0ca831ca864, version: n2:4a15a0c724a0ab59, title: In Buffern arbeiten }
 issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/130
 ---
 

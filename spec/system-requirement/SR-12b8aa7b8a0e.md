@@ -1,7 +1,7 @@
 ---
 id: 6adc6d8f-8576-4055-b12b-12b8aa7b8a0e
 type: system-requirement
-status: draft
+status: approved
 title: "Oberfläche auf Englisch anzeigen"
 spec-id: "SR-074"
 requirement-type: constraint
