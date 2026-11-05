@@ -107,8 +107,8 @@ export const choiceKeys = (doc: string): string[] => doc.split("\n").filter((key
  * The property boxes of the element that can be edited in place: the filled properties (SR-104 AK1) the
  * type of the element has, whose value is text (text, number, date, choice) or the targets of a relation
  * (read-only, `unmatched`, when the targets are not one for each stored item).
- * A property the type does not know stays as it is shown (D-012: core refuses to set or unset it, spec
- * question #469). Keyed by property.
+ * A property the type does not know stays as it is shown (D-012: core refuses to set it, spec question #469;
+ * core can unset it since #189, the app does not offer that yet). Keyed by property.
  */
 export const editableBoxes = (element: DataExportElement, model: PropertyModel): Map<string, EditableBox> => {
   const type = model.get(element.type);
