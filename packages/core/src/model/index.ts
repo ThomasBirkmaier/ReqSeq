@@ -265,3 +265,4 @@ export type {
   UpdateElementResult,
   WriteCheck,
 } from "./write.js";
+export { LayeredMap } from "./layered-map.js";

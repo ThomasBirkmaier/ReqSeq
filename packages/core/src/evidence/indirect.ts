@@ -46,7 +46,7 @@
 // fixpoint over the elements of the walk). At N-036 with 100 variants this replaces 101 walks below
 // the top of the tree by about two and the few hundred elements above each variant's seeds.
 import type { VerificationStatus } from "../generated/types.js";
-import { invalidStatuses } from "../model/index.js";
+import { LayeredMap, invalidStatuses } from "../model/index.js";
 import type { ElementRecord } from "../model/index.js";
 import type { TraceContext } from "../trace/index.js";
 import { childrenOf, derivationGraph } from "../trace/index.js";
@@ -208,7 +208,7 @@ interface ViewRules {
   /** The view (the core for the neutral view, which no record holds in). */
   readonly view: View;
   /** The memo of the view. */
-  readonly memo: Map<string, VerificationResult>;
+  readonly memo: LayeredMap<string, VerificationResult>;
   readonly applies: (element: ElementRecord) => boolean;
   readonly holds: (element: ElementRecord) => boolean;
   /** For a variant: whether the element's subtree holds no seed of it, so the neutral result is its result. */
@@ -227,12 +227,12 @@ const ruleSeed = (key: string): string => `x${key}`;
  * repository and UUID (results): what `carriedEvaluator` takes over.
  */
 interface EvaluatorCaches {
-  readonly candidatesOf: Map<ElementRecord, readonly ElementRecord[]>;
-  readonly seeds: Map<ElementRecord, ReadonlySet<string>>;
-  readonly core: Map<string, VerificationResult>;
-  readonly neutral: Map<string, VerificationResult>;
+  readonly candidatesOf: LayeredMap<ElementRecord, readonly ElementRecord[]>;
+  readonly seeds: LayeredMap<ElementRecord, ReadonlySet<string>>;
+  readonly core: LayeredMap<string, VerificationResult>;
+  readonly neutral: LayeredMap<string, VerificationResult>;
   /** The memo of each variant view, by the variant's repository and UUID. */
-  readonly variants: Map<string, Map<string, VerificationResult>>;
+  readonly variants: Map<string, LayeredMap<string, VerificationResult>>;
 }
 
 const cachesOf = new WeakMap<VerificationEvaluator, EvaluatorCaches>();
@@ -254,25 +254,15 @@ export const verificationEvaluator = (
   scope: ViewScope,
 ): VerificationEvaluator => evaluatorWith(source, children, currentOf, scope, undefined);
 
-/** A copy of `map` without the entries whose key `drop` names. */
-const without = <K, V>(map: ReadonlyMap<K, V>, drop: (key: K) => boolean): Map<K, V> => {
-  const copy = new Map<K, V>();
-  for (const [key, value] of map) {
-    if (!drop(key)) {
-      copy.set(key, value);
-    }
-  }
-  return copy;
-};
-
 /**
  * The evaluator of a store after a change, carried over from `old`, the evaluator of the store
  * before it with the same `source` (ADR-0008, #698): it keeps what `old` found for every element
  * whose repository and UUID (`nodeKey`) `affected` does not name. `affected` must name every element
  * whose candidate children, seeds below or results may differ in the new store: the changed ones and
  * their ancestors before and after the change, and the core requirements a changed rule item names
- * (`carriedStatus` in `verification.ts`). `old` is not changed; a command that still holds it keeps a
- * consistent view. `scope` gives the views of the new store.
+ * (`carriedStatus` in `verification.ts`); `records` are the records of the new store it names. The
+ * memos are forks of those of `old` (`LayeredMap`, #215: O(changed)); `old` keeps what it found, and
+ * a command that still holds it keeps a consistent view. `scope` gives the views of the new store.
  */
 export const carriedEvaluator = (
   old: VerificationEvaluator,
@@ -280,20 +270,19 @@ export const carriedEvaluator = (
   children: ChildRules | undefined,
   currentOf: (element: ElementRecord) => string | undefined,
   affected: ReadonlySet<string>,
+  records: readonly ElementRecord[],
   scope: ViewScope,
 ): VerificationEvaluator => {
   const caches = cachesOf.get(old);
   if (caches === undefined) {
     return verificationEvaluator(source, children, currentOf, scope);
   }
-  const dropKey = (key: string): boolean => affected.has(key);
-  const dropElement = (element: ElementRecord): boolean => affected.has(nodeKey(element));
   return evaluatorWith(source, children, currentOf, scope, {
-    candidatesOf: without(caches.candidatesOf, dropElement),
-    seeds: without(caches.seeds, dropElement),
-    core: without(caches.core, dropKey),
-    neutral: without(caches.neutral, dropKey),
-    variants: new Map([...caches.variants].map(([key, memo]) => [key, without(memo, dropKey)])),
+    candidatesOf: caches.candidatesOf.fork(records),
+    seeds: caches.seeds.fork(records),
+    core: caches.core.fork(affected),
+    neutral: caches.neutral.fork(affected),
+    variants: new Map([...caches.variants].map(([key, memo]) => [key, memo.fork(affected)])),
   });
 };
 
@@ -305,10 +294,10 @@ const evaluatorWith = (
   carried: EvaluatorCaches | undefined,
 ): VerificationEvaluator => {
   const caches: EvaluatorCaches = carried ?? {
-    candidatesOf: new Map(),
-    seeds: new Map(),
-    core: new Map(),
-    neutral: new Map(),
+    candidatesOf: new LayeredMap(),
+    seeds: new LayeredMap(),
+    core: new LayeredMap(),
+    neutral: new LayeredMap(),
     variants: new Map(),
   };
   /**
@@ -468,7 +457,7 @@ const evaluatorWith = (
       const byRule = ruleSeed(key);
       let memo = caches.variants.get(key);
       if (memo === undefined) {
-        memo = new Map();
+        memo = new LayeredMap();
         caches.variants.set(key, memo);
       }
       rules = {
