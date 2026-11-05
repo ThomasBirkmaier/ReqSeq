@@ -607,7 +607,14 @@ export const verificationState = defineWorkspaceState(
     return statusOfInputs({ metamodel, layout, store, index, incoming, rules }, readerOf(workspace));
   },
   {
-    dependsOn: [metamodelState, elementStoreState, evidenceIndexState, incomingState, workspaceLayoutState],
+    dependsOn: [
+      metamodelState,
+      elementStoreState,
+      evidenceIndexState,
+      incomingState,
+      viewRuleIndexState,
+      workspaceLayoutState,
+    ],
     carry: (value, change, workspace) =>
       change.key === elementStoreState
         ? carryStore(value, change, workspace)

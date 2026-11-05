@@ -36,8 +36,8 @@
 //   repositories and types (no short ID and no target resolution changes) and the incoming index of
 //   the store before the change is there (the state builds it and depends on `incomingState`, so the
 //   index is carried first, #273): only the changed files and the
-//   sources of relations and references to a changed UUID are looked at again. Otherwise it is
-//   built again.
+//   sources of relations and references to a changed UUID are looked at again, and merged in store
+//   order into the kept findings without a pass over the store (#215). Otherwise it is built again.
 // - Cost (N-036): the current versions (#259, built once per store), the incoming index, one pass
 //   over the relations of the store with a map lookup per target, in slices (SR-082); the files of
 //   sources with an outdated relation are read again as text for the lines.
@@ -54,6 +54,8 @@ import type {
   ValuePath,
 } from "../model/index.js";
 import {
+  byPath,
+  contributionIn,
   currentVersionOf,
   currentVersionsOf,
   currentVersionsState,
@@ -500,7 +502,9 @@ const filesAgain = (update: StoreUpdate, index: ReturnType<typeof incomingFor>):
 
 /**
  * The findings after `update` from `old`: the elements of `again` are looked at anew, every other
- * keeps its findings (with their lines), in store order as a build gives them.
+ * keeps its findings (with their lines), in store order as a build gives them (#215: O(findings +
+ * again), no pass over the store). The elements of `again` are found by file (`contributionIn`);
+ * the order is that of the store, by repository order of the workspace file, then file path.
  */
 const carried = async (
   old: readonly OutdatedFinding[],
@@ -509,27 +513,35 @@ const carried = async (
   layout: WorkspaceLayout,
   context: OutdatedContext,
 ): Promise<OutdatedFinding[]> => {
-  const kept = new Map<string, Map<string, OutdatedFinding[]>>();
-  for (const finding of old) {
-    const { repository, file } = finding.element;
-    const files = kept.get(repository) ?? new Map<string, OutdatedFinding[]>();
-    kept.set(repository, files);
-    files.set(file, [...(files.get(file) ?? []), finding]);
+  const order = new Map(update.repositories.map((contents, at) => [contents.repository, at]));
+  const compare = (a: ElementRecord, b: ElementRecord): number =>
+    Number(order.get(a.repository)) - Number(order.get(b.repository)) || byPath(a.file, b.file);
+  const records: ElementRecord[] = [];
+  for (const [repository, files] of again) {
+    for (const file of files) {
+      const result = contributionIn(update.to, repository, file);
+      if (result?.kind === "element") {
+        records.push(result.element);
+      }
+    }
   }
-  const fresh = await candidatesOfAll(
-    update.to.elements.filter((e) => again.get(e.repository)?.has(e.file) === true),
-    context,
-  );
-  const located = await locateOutdated(layout, fresh);
-  const byFile = new Map<ElementRecord, OutdatedFinding[]>();
-  for (const finding of located) {
-    byFile.set(finding.element, [...(byFile.get(finding.element) ?? []), finding]);
+  const located = await locateOutdated(layout, await candidatesOfAll(records.sort(compare), context));
+  const kept = old.filter(({ element }) => again.get(element.repository)?.has(element.file) !== true);
+  // Both lists are in store order; the findings of one element stay together.
+  const out: OutdatedFinding[] = [];
+  let next = 0;
+  for (const finding of kept) {
+    for (
+      let at = located[next];
+      at !== undefined && compare(at.element, finding.element) < 0;
+      at = located[++next]
+    ) {
+      out.push(at);
+    }
+    out.push(finding);
   }
-  return update.to.elements.flatMap((element) =>
-    again.get(element.repository)?.has(element.file) === true
-      ? (byFile.get(element) ?? [])
-      : (kept.get(element.repository)?.get(element.file) ?? []),
-  );
+  out.push(...located.slice(next));
+  return out;
 };
 
 /** The context of the outdated check on the states of `workspace` (read synchronously by a carry hook). */

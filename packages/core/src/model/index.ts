@@ -29,6 +29,7 @@ export type { LocatableFinding, LocateOptions } from "./locate.js";
 export {
   applyStoreChange,
   carryStoreUpdate,
+  contributionIn,
   storeUpdate,
   elementStoreState,
   ignoredBy,
@@ -266,3 +267,5 @@ export type {
   WriteCheck,
 } from "./write.js";
 export { LayeredMap } from "./layered-map.js";
+export { PatchedMap } from "./patched-map.js";
+export { byPath } from "./path-order.js";

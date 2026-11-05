@@ -4,15 +4,25 @@
 // every requirement), decision D1 and package P1. Store order: decisions, needs, packages,
 // requirements, variants. The cases of single AKs are written on top of it.
 import fs from "node:fs/promises";
+import path from "node:path";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../catalog.js";
 import { metamodelState } from "../metamodel/index.js";
-import { elementStoreState } from "../model/index.js";
+import type { ElementStore } from "../model/index.js";
+import { applyStoreChange, elementStoreState, updateElements } from "../model/index.js";
+import { workspaceLayoutState } from "../workspace/index.js";
 import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
 import { isCoreRequirement } from "./core.js";
-import { removersOf, ruleTargetsOf, viewRuleIndexOf, viewRuleOf } from "./view-rule.js";
+import {
+  buildViewRuleIndex,
+  removersOf,
+  ruleTargetsOf,
+  viewRuleIndexOf,
+  viewRuleIndexState,
+  viewRuleOf,
+} from "./view-rule.js";
 
 const P = "43043043-0000-4000-8000-0000000000";
 const NAMES: Readonly<Record<string, string>> = {
@@ -372,5 +382,31 @@ describe("the view rule (SR-041, SR-043)", () => {
     expect(problems.map((p) => p.message.split(",")[0])).toEqual([
       "Variant VAR-0000c1 excludes System Requirement SR-0000b2",
     ]);
+  });
+
+  it("carries the index over a watcher batch only when the store before it had one (#215)", async () => {
+    const ws = await open();
+    const memo = ws.get(viewRuleIndexState);
+    const layout = await ws.get(workspaceLayoutState);
+    const file = "requirements/SR-0000000000b1.md";
+    const absolute = path.join(ws.root, file);
+    // An edit of a file as the watcher applies it: the store is patched and its states carried.
+    const edit = async (line: string): Promise<ElementStore> => {
+      await fs.writeFile(absolute, `${await fs.readFile(absolute, "utf8")}\n${line}\n`);
+      const changes = new Map([["system", { paths: [file] }]]);
+      await applyStoreChange(ws, (store) => updateElements(store, layout, changes));
+      return ws.get(elementStoreState);
+    };
+    const before = await ws.get(elementStoreState);
+    const first = await edit("One more line.");
+    expect(first).not.toBe(before);
+    expect(memo.has(first)).toBe(false);
+    const metamodel = await ws.get(metamodelState);
+    const index = viewRuleIndexOf(ws, first, metamodel);
+    const second = await edit("Another line.");
+    const carried = memo.get(second);
+    expect(carried?.store).toBe(second);
+    expect(carried?.items).not.toBe(index.items);
+    expect(carried?.items).toEqual(buildViewRuleIndex(second, metamodel).items);
   });
 });
