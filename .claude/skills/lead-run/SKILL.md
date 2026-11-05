@@ -48,7 +48,7 @@ Hand over to a fresh lead thread at natural breaks (the end of a stage, after a 
 
 A milestone is done when all its issues are closed and `pnpm trace-check --stage <package> --report trace-<package>.md` passes for the SRs it closes (`querschnitt` for v0.8, the milestone identifier from v0.9 on); post the report in the epic. Then:
 
-1. Prepare the acceptance: what to try in the app or CLI, the `verification/` records with method Inspektion or Demonstration, and the known limitations.
+1. Prepare the acceptance: what to try in the app or CLI, the `verification/` records with method Inspektion or Demonstration, and the known limitations. Count the keys three tasks take in the app and compare them with the last milestone: (1) open a given requirement, (2) all requirements of a need, (3) all requirements without a passed test; post the numbers in the epic (product owner decision, 2026-10-29, #362).
 2. A PR bumps the root `version` (and runs `pnpm contracts:generate`). Then start the `Release` workflow by hand once; it publishes nothing and finds packaging regressions before the acceptance (ADR-0014).
 3. After the product owner accepts, the product owner sets the release tag ADR-0014 names on the checked commit; agents cannot create tags. The tag starts the `Release` workflow, which writes the release notes. Never mark a milestone accepted yourself.
 
