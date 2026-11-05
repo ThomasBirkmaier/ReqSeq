@@ -133,7 +133,17 @@ export const startShell = (electron: ShellElectron, options: ShellOptions): Prom
     app.quit();
   });
   const core = new CoreProcess({
-    fork: () => electron.utilityProcess.fork(options.paths.core, [], { serviceName: "ReqSeq core" }),
+    fork: () => {
+      // The core process writes its output through the app's own streams: an inherited stream does not reach
+      // a pipe the app was started with on Windows (#142, delivery test of the read workers).
+      const child = electron.utilityProcess.fork(options.paths.core, [], {
+        serviceName: "ReqSeq core",
+        stdio: "pipe",
+      });
+      child.stdout?.on("data", (chunk: Buffer) => process.stdout.write(chunk));
+      child.stderr?.on("data", (chunk: Buffer) => process.stderr.write(chunk));
+      return child;
+    },
     channel: () => new electron.MessageChannelMain(),
     log: options.log,
   });

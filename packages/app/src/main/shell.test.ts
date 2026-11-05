@@ -16,6 +16,8 @@ import { startShell } from "./shell.js";
 
 class FakeChild extends EventEmitter {
   readonly sent: CoreRequest[] = [];
+  readonly stdout = new EventEmitter();
+  readonly stderr = new EventEmitter();
 
   postMessage(message: CoreRequest): void {
     this.sent.push(message);
@@ -271,11 +273,27 @@ describe("startShell", () => {
     const { electron, windows, children } = await start(["electron", ".", "--workspace", "ws"]);
     expect(electron.utilityProcess.fork).toHaveBeenCalledWith("/out/main/core.js", [], {
       serviceName: "ReqSeq core",
+      stdio: "pipe",
     });
     expect(children[0]?.sent).toEqual([{ type: "open", folder: path.join(CWD, "ws") }]);
     windows[0]?.webContents.emit("did-finish-load");
     expect(children[0]?.sent.at(-1)).toEqual({ type: "connect" });
     expect(windows[0]?.webContents.posted).toEqual([{ channel: WORKSPACE_CHANNEL, message: { open: true } }]);
+  });
+
+  it("writes the output of the core process through the app's own stdout and stderr", async () => {
+    const out = vi.spyOn(process.stdout, "write").mockReturnValue(true);
+    const err = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+    try {
+      const { children } = await start(["electron", ".", "--workspace", "ws"]);
+      children[0]?.stdout.emit("data", Buffer.from("out"));
+      children[0]?.stderr.emit("data", Buffer.from("err"));
+      expect(out).toHaveBeenCalledWith(Buffer.from("out"));
+      expect(err).toHaveBeenCalledWith(Buffer.from("err"));
+    } finally {
+      out.mockRestore();
+      err.mockRestore();
+    }
   });
 
   it("opens the folder chosen in File > Open Workspace, and nothing when the dialog is cancelled", async () => {
