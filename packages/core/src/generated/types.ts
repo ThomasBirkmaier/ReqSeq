@@ -1675,7 +1675,7 @@ export interface MetamodelGetOutput {
 }
 
 /**
- * Input of `element.create` as `run` gets it: validated, properties with a `default` filled in. Create an element with a new random UUID. Only title, text and required properties are needed; empty required properties give a hint (SR-064). New elements always get the initial status of the metamodel (D-030); when their type lacks it or it is marked invalid, the first status of the type in metamodel order that is not marked invalid, and no status for a type without status or with only invalid statuses (#306, #344).
+ * Input of `element.create` as `run` gets it: validated, properties with a `default` filled in. Create an element with a new random UUID. Only title, text and required properties are needed; empty required properties give a hint (SR-064). New elements always get the initial status of the metamodel (D-030); when their type lacks it or it is marked invalid, the first status of the type in metamodel order that is not marked invalid, and no status for a type without status or with only invalid statuses (#306, #344). The file is named by the type prefix and the last 12 hex characters of the UUID (`SR-54538f4d6e55.md`); the short ID shows the last 6 or more (`SR-4d6e55`), so search the files for `4d6e55` (D-017, D-056, #639).
  * Schema: `schemas/commands/element.create.json input`.
  */
 export interface ElementCreateInput {
@@ -1692,7 +1692,7 @@ export interface ElementCreateInput {
 }
 
 /**
- * Output of `element.create`. Create an element with a new random UUID. Only title, text and required properties are needed; empty required properties give a hint (SR-064). New elements always get the initial status of the metamodel (D-030); when their type lacks it or it is marked invalid, the first status of the type in metamodel order that is not marked invalid, and no status for a type without status or with only invalid statuses (#306, #344).
+ * Output of `element.create`. Create an element with a new random UUID. Only title, text and required properties are needed; empty required properties give a hint (SR-064). New elements always get the initial status of the metamodel (D-030); when their type lacks it or it is marked invalid, the first status of the type in metamodel order that is not marked invalid, and no status for a type without status or with only invalid statuses (#306, #344). The file is named by the type prefix and the last 12 hex characters of the UUID (`SR-54538f4d6e55.md`); the short ID shows the last 6 or more (`SR-4d6e55`), so search the files for `4d6e55` (D-017, D-056, #639).
  * Schema: `schemas/commands/element.create.json output`.
  */
 export interface ElementCreateOutput {
