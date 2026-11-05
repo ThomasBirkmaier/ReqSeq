@@ -993,7 +993,9 @@ describe("watching the last access (SR-117)", () => {
       watchMock.mockImplementation(actual.watch);
     });
     const seen = accesses();
-    const holdMs = 2000;
+    // 4 s, so that a new full hold (8 s) stays apart from the remaining one even after a stall of 3 s
+    // of the loaded Windows runner, which took 5.2 s with 2 s here (#753).
+    const holdMs = 4000;
     await watching(opened, { ...seen.options, holdMs });
     const write = (file: ActivityFile): Promise<string> =>
       WorkspaceBlock.writeCacheFile(opened.cache, ACTIVITY_FILE, JSON.stringify(file));
