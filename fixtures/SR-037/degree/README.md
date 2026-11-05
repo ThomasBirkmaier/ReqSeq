@@ -32,3 +32,6 @@ Expected degree (core):
 Every relation names the current version of its target. The record versions are the current versions
 of the element files; regenerate the records when an element file changes
 (`node packages/cli/dist/bin.js element list --json --workspace fixtures/SR-037/degree` gives the versions).
+
+The variant tests of `degree.test.ts` (`withPro`) write on top: the variant Pro `VAR-00c001`, RV
+`00b301` valid only in Pro, and the saved filter `filters/pro.yaml`.
