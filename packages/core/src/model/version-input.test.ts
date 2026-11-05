@@ -6,12 +6,13 @@ import YAML from "yaml";
 import {
   canonicalContent,
   computeVersion,
+  computeVersions,
   sha256Hex,
   type VersionInput,
   type VersionPropertyKind,
   type VersionValue,
 } from "../version/version.js";
-import { n2Input, withoutReferenceVersions, withoutVersionParam } from "./version-input.js";
+import { n2Input, versionIn, withoutReferenceVersions, withoutVersionParam } from "./version-input.js";
 
 const U = "878e339e-1f73-4746-abab-42cdd0f51ca7";
 
@@ -88,6 +89,7 @@ interface Vectors {
     element: string;
     files: string[];
     missing: string[];
+    version: string;
     n2: { canonical: string; version: string };
   }[];
 }
@@ -132,4 +134,57 @@ describe("version test vectors, normal form n2 (ADR-0005)", () => {
       expect(computeVersion(input, "n2")).toBe(vector.n2.version);
     },
   );
+});
+
+describe("computeVersions", () => {
+  it.each(index.vectors)("gives for $element the versions each form computes alone", (vector) => {
+    const input = inputFor(vector.element, vector.files, vector.missing);
+    expect(computeVersions(input, n2Input(input))).toEqual({
+      n1: vector.version,
+      n2: vector.n2.version,
+    });
+  });
+
+  it("gives one form alone as versionIn", () => {
+    const input = inputFor(
+      index.vectors[0]?.element ?? "",
+      index.vectors[0]?.files ?? [],
+      index.vectors[0]?.missing ?? [],
+    );
+    expect(versionIn(input, "n1")).toBe(computeVersions(input, n2Input(input)).n1);
+    expect(versionIn(input, "n2")).toBe(computeVersions(input, n2Input(input)).n2);
+  });
+
+  it("writes a section again where the forms differ: a value with a reference, a relation, the text", () => {
+    const ref = `[a](reqseq:${U}?version=n1:0000000000000000)`;
+    const input: VersionInput = {
+      text: `See ${ref}.`,
+      properties: {
+        note: `Also ${ref}`,
+        list: [ref, "plain"],
+        map: { k: ref },
+        plain: "x",
+        rel: [{ id: "b" }, { id: "a" }],
+      },
+      definitions: [
+        { key: "note", kind: "text", content: true },
+        { key: "list", kind: "text", content: true },
+        { key: "map", kind: "text", content: true },
+        { key: "plain", kind: "text", content: true },
+        { key: "rel", kind: "relation", content: true },
+      ],
+      files: [{ path: "a.png", sha256: null }],
+    };
+    const n2 = n2Input(input);
+    expect(n2.properties["plain"]).toBe(input.properties["plain"]);
+    expect(computeVersions(input, n2)).toEqual({
+      n1: computeVersion(input, "n1"),
+      n2: computeVersion(n2, "n2"),
+    });
+    // Without any `version=` the n2 input keeps every value as it is.
+    const bare: VersionInput = { ...input, text: "t", properties: { list: ["p"], map: { k: "v" } } };
+    expect(n2Input(bare).properties["list"]).toBe(bare.properties["list"]);
+    expect(n2Input(bare).properties["map"]).toBe(bare.properties["map"]);
+    expect(n2Input(bare).text).toBe("t");
+  });
 });

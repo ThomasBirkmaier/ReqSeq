@@ -30,6 +30,7 @@ import type { DataExportElement } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { findType, meaningUnassignedMessage, metamodelState } from "../metamodel/index.js";
 import type { Workspace } from "../runtime/workspace.js";
+import type { VersionForms } from "../version/version.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import { isWritableFolder, workspaceLayoutState } from "../workspace/index.js";
 import type { ElementRecord } from "./elements.js";
@@ -45,7 +46,7 @@ import { elementStoreState, ignoredBy } from "./store.js";
 import { successionsFor } from "./successors.js";
 import type { VersionDateContext, VersionDateWalk } from "./version-date.js";
 import { prepareVersionDates, versionDates } from "./version-date.js";
-import { elementView, titleKeyOf } from "./view.js";
+import { elementVersions, elementView, titleKeyOf } from "./view.js";
 
 /**
  * The version date of `walk` when the caller asks for it (`withDate`): Git starts reading the
@@ -99,7 +100,19 @@ export interface ShownElement {
   readonly record: ElementRecord;
   /** The SHA-256 of the bytes of the file the element was read from, lower-case hex. */
   readonly fileSha256: string;
+  /**
+   * The version `element` shows in every normal form, to compare a given one in its own form
+   * (`sameVersion`, ADR-0005 "Normal form 2"); undefined when it has none.
+   */
+  readonly forms: VersionForms | undefined;
 }
+
+/**
+ * The versions of the element shown in every normal form, computed again from its input, so equal
+ * to its `version` in that form; none when it has no version.
+ */
+const formsShown = (version: string | undefined, compute: () => VersionForms): VersionForms | undefined =>
+  version === undefined ? undefined : compute();
 
 /**
  * The element `ref` names (`resolveRef`: `ref.unknown`, `ref.ambiguous`), in the repository and file
@@ -200,6 +213,7 @@ export const showElement = async (
     },
     record,
     fileSha256: read.file.snapshot.sha256,
+    forms: formsShown(element.version, () => elementVersions(record, read.file.body, metamodel, images)),
   };
 };
 

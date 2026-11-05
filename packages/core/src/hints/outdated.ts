@@ -8,7 +8,8 @@
 //   outdated too), and every inline reference of the text (`ElementRecord.references`, SR-066 AK3)
 //   and of the properties marked `markdown` (`referencesOf`, SR-127 AK3), of every element, whatever
 //   its type.
-// - Only a stored version of normal form 1 is compared (the only one there is, ADR-0005), and only
+// - Only a stored version of a normal form the tool computes (n1, n2) is compared, in its own form
+//   (`isOutdatedVersion`, ADR-0005 "Normal form 2"), and only
 //   with a target that is `available` (`targetState`, `referenceTargetState`). A target that is
 //   missing (SR-089), ambiguous (SR-088), in a repository that is not on this machine (SR-006) or in
 //   one the workspace file does not list (#193) is another finding, not an outdated one; so is an
@@ -56,7 +57,7 @@ import type {
 import {
   byPath,
   contributionIn,
-  currentVersionOf,
+  currentFormsOf,
   currentVersionsOf,
   currentVersionsState,
   elementLabel,
@@ -64,7 +65,7 @@ import {
   hasId,
   incomingFor,
   incomingState,
-  isN1Version,
+  isKnownVersion,
   isOutdatedVersion,
   placeOfReference,
   referenceTargetState,
@@ -89,6 +90,7 @@ import { isCoreChange } from "./core-changed.js";
 import type { ConfirmableCode } from "./hint-id.js";
 import { CORE_CHANGED_CODE, OUTDATED_CODE, hintIdOf } from "./hint-id.js";
 import { forEachSliced } from "./slices.js";
+import { NORMAL_FORM } from "../model/index.js";
 
 /** What the check needs: where targets are, their current versions, and short IDs for messages (SR-084). */
 export interface OutdatedContext {
@@ -125,8 +127,9 @@ const outdatedAgainst = (
   target: ElementRecord,
   stored: string,
 ): string | undefined => {
-  const current = currentVersionOf(versions, target);
-  return isOutdatedVersion(stored, current) ? current : undefined;
+  const current = currentFormsOf(versions, target);
+  // Shown as the form `hint confirm` writes (ADR-0005 "Normal form 2").
+  return isOutdatedVersion(stored, current) ? current?.[NORMAL_FORM] : undefined;
 };
 
 /** The problem of an outdated relation or link of `element` (without line and dates). */
@@ -158,7 +161,7 @@ interface LinkContext {
   readonly store: ElementStore;
 }
 
-/** A relation item or inline reference that stores a version of normal form 1 of an available target. */
+/** A relation item or inline reference that stores a version of a known normal form (n1, n2) of an available target. */
 type StoredLink = { readonly stored: string; readonly target: ElementRecord } & (
   | {
       readonly kind: "relation";
@@ -195,7 +198,7 @@ const eachStoredReference = (
     const place = JSON.stringify([key ?? null, id, repository ?? null, stored ?? null]);
     const occurrence = (seen.get(place) ?? 0) + 1;
     seen.set(place, occurrence);
-    if (!isN1Version(stored)) {
+    if (!isKnownVersion(stored)) {
       continue;
     }
     const state = referenceTargetState(layout, store, element.repository, reference);
@@ -217,7 +220,7 @@ const eachStoredReference = (
 
 /**
  * Each relation item of `element` (keys in file order, then items), then each inline reference (in
- * text order), that stores a version of normal form 1 of a target that is `available`: the links
+ * text order), that stores a version of a known normal form (n1, n2) of a target that is `available`: the links
  * the outdated check compares (see the file comment).
  */
 const eachStoredLink = (
@@ -236,7 +239,7 @@ const eachStoredLink = (
         continue;
       }
       const stored = item["version"];
-      if (!isN1Version(stored)) {
+      if (!isKnownVersion(stored)) {
         continue;
       }
       const state = targetState(layout, store, element.repository, item);

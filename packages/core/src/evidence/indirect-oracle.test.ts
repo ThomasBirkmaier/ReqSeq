@@ -428,7 +428,19 @@ describe("the shared views give the results of the evaluator before #698", () =>
             new Map(
               records.flatMap((r): [ElementRecord, CurrentVersion][] => {
                 const version = currentOf(r);
-                return version === undefined ? [] : [[r, { kind: "version", version, images: [] }]];
+                return version === undefined
+                  ? []
+                  : [
+                      [
+                        r,
+                        {
+                          kind: "version",
+                          version,
+                          forms: { n1: version, n2: "n2:0000000000000000" },
+                          images: [],
+                        },
+                      ],
+                    ];
               }),
             ),
           ),

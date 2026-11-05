@@ -106,7 +106,9 @@ export {
   currentVersionsIfBuilt,
   currentVersionsOf,
   currentVersionsState,
+  currentFormsOf,
   currentVersionOf,
+  formsOfEntry,
 } from "./current-versions.js";
 export type { CurrentVersion, CurrentVersions } from "./current-versions.js";
 export { markdownImages, markdownLinks } from "./markdown-links.js";
@@ -142,9 +144,10 @@ export {
 export type { ShortIdMatch, ShortIds } from "./short-id.js";
 export { resolveRef } from "./resolve.js";
 export type { ElementCopy } from "./resolve.js";
-export { isN1Version, isOutdatedVersion, isVersion } from "./is-version.js";
+export { isKnownVersion, isOutdatedVersion, isVersion } from "./is-version.js";
 export {
   elementVersion,
+  elementVersions,
   elementView,
   listedElement,
   relationLink,
@@ -267,6 +270,8 @@ export type {
   WriteCheck,
 } from "./write.js";
 export { LayeredMap } from "./layered-map.js";
+export type { VersionForms } from "../version/version.js";
+export { NORMAL_FORM, sameVersion } from "../version/version.js";
 export { PatchedMap } from "./patched-map.js";
 export { byPath } from "./path-order.js";
 export { recordsById } from "./by-id.js";

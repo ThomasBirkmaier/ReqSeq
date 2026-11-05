@@ -54,6 +54,7 @@ import {
 } from "../model/index.js";
 import type { TraceContext } from "./graph.js";
 import type { VersionsOf } from "./neighbourhood.js";
+import { NORMAL_FORM } from "../model/index.js";
 
 /** A key that makes columns of the matrix, with how the output names it. */
 export interface MatrixKey {
@@ -470,13 +471,13 @@ export const matrixRows = async (
       title: text(record.data[titleKey]),
       file: record.file,
       ...(depth === undefined ? {} : { depth }),
-      ...rowFields?.(record, versionOf(record)),
+      ...rowFields?.(record, versionOf(record)?.[NORMAL_FORM]),
       cells: cells.map((cell) =>
         cell.map(({ link, other }): DataExportRelation => {
           const current = other === undefined ? undefined : versionOf(other);
           return {
             ...link,
-            ...(current === undefined ? {} : { currentVersion: current }),
+            ...(current === undefined ? {} : { currentVersion: current[NORMAL_FORM] }),
             outdated: isOutdatedVersion(link.storedVersion, current),
           };
         }),

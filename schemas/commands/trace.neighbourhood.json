@@ -161,7 +161,7 @@
             },
             "outdated": {
               "type": "boolean",
-              "description": "The link stores a version of normal form 1, its target is available and has a current version, and the two differ (SR-025)."
+              "description": "The link stores a version of normal form 1 or 2, its target is available and has a current version, and the two differ, compared in the stored version's form (SR-025, ADR-0005)."
             }
           },
           "additionalProperties": false,

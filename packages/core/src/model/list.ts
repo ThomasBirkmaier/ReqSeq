@@ -22,6 +22,7 @@ import type { Metamodel } from "../metamodel/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import { currentVersionsOf } from "./current-versions.js";
+import type { VersionForms } from "../version/version.js";
 import type { ElementRecord } from "./elements.js";
 import type { ShortIds } from "./short-id.js";
 import type { ElementStore } from "./store.js";
@@ -45,7 +46,12 @@ export interface ListOptions {
    * `evidence.status`, SR-031), given the record the element was listed from (as its file holds it
    * now) and the element as listed. Default: none.
    */
-  readonly extend?: (record: ElementRecord, element: DataExportElement) => DataExportElement;
+  /** Adds to each element; `forms` is its current version in every normal form (none without one). */
+  readonly extend?: (
+    record: ElementRecord,
+    element: DataExportElement,
+    forms: VersionForms | undefined,
+  ) => DataExportElement;
 }
 
 /**
@@ -90,6 +96,7 @@ export const listElements = async (
               ...listedElement(input, undefined),
               problems: [noVersionProblem(stored, version.message)],
             },
+        version.kind === "version" ? version.forms : undefined,
       ),
     );
   }
