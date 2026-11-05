@@ -622,6 +622,39 @@ describe("carried search index (ADR-0008, #184)", () => {
       }).join("");
   };
 
+  it("keeps the identifier hits of the index before a carry that changed an identifier (#215)", async () => {
+    const model = [
+      "reqseq-metamodel: 1",
+      "types:",
+      "  - { key: need, name: Need, prefix: N, meaning: need, properties: [title, spec-id], required: [title] }",
+      "properties:",
+      "  - { key: title, name: Title, kind: text, meaning: title }",
+      "  - { key: spec-id, name: Spec ID, kind: text, meaning: identifier }",
+      "",
+    ].join("\n");
+    const named = (identifier: string): string =>
+      element(N1, "need", ["title: Named", `spec-id: ${identifier}`]);
+    const { fixture, workspace } = await open({
+      "system/reqseq-workspace.yaml": WORKSPACE,
+      "system/metamodel/model.yaml": model,
+      "system/needs/N-545b7b379da2.md": named("REQ-1"),
+      "system/needs/N-1b2c3d4e5f60.md": element(DUP, "need", ["title: Other", "spec-id: REQ-2"]),
+    });
+    const idHits = (index: SearchIndex, word: string): readonly ElementRecord[] =>
+      searchElements(index, word, { fields: ["id"] }).hits.map((hit) => hit.element);
+    const before = await searchIndex(workspace);
+    const old = recordOf(before.store, N1);
+    expect(idHits(before, "REQ-1")).toEqual([old]);
+    await external(fixture, workspace, { "system/needs/N-545b7b379da2.md": named("REQ-3") });
+    const after = await expectCarried(fixture, workspace, before);
+    expect(idHits(after, "REQ-1")).toEqual([]);
+    expect(idHits(after, "REQ-3")).toEqual([recordOf(after.store, N1)]);
+    // The index before shares the MiniSearch object, but its identifiers are its own.
+    expect(idHits(before, "REQ-1")).toEqual([old]);
+    expect(idHits(before, "REQ-3")).toEqual([]);
+    expect(idHits(before, "REQ-2")).toEqual(idHits(after, "REQ-2"));
+  });
+
   it("never vacuums, also when searches run while a carry reads the files (MiniSearch 7.2.0)", async () => {
     // MiniSearch's batched vacuum breaks when a search or an add changes the term tree in one of its
     // pauses; the index never starts one, and a carry removes the old documents exactly.

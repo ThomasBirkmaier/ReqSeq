@@ -41,13 +41,8 @@ interface WordTree {
   fuzzyGet(term: string, maxEditDistance: number): Map<string, [TermData, number]>;
 }
 
-/**
- * MiniSearch's words per field of each document (a `Map` by short ID): every document it holds has
- * them, so a lookup of one (`carryLengths`) gives an array.
- */
-interface FieldLengths extends Iterable<[number, readonly number[]]> {
-  get(doc: number): readonly number[];
-}
+/** MiniSearch's words per field of each document (a `Map` by short ID). */
+type FieldLengths = ReadonlyMap<number, readonly number[]>;
 
 /** What scoring reads of a MiniSearch 7.2.0 object (protected members, see the file comment). */
 interface Internals {
@@ -177,8 +172,8 @@ export const lengthsOf = (mini: MiniSearch, generation: number): Lengths => {
 /**
  * The `Lengths` of `mini` after its change `generation`, derived from those of `generation - 1`
  * when they were built (#215): only the documents `removed` (their short IDs before the change)
- * and `added` (after it) are looked at, the arrays are copied. Otherwise nothing is kept, and the
- * next search builds them (`lengthsOf`). The lengths of a document that is not live are never read.
+ * and `added` (after it) are looked at, the arrays are copied. Otherwise nothing is kept, and they
+ * are built in full at the end of the carry (`prepareSearchIndex`, `lengthsOf`). The lengths of a document that is not live are never read.
  */
 export const carryLengths = (
   mini: MiniSearch,
@@ -204,8 +199,12 @@ export const carryLengths = (
   }
   for (const doc of added) {
     live[doc] = 1;
-    for (const [field, length] of inner._fieldLength.get(doc).entries()) {
-      lengths[doc * fields + field] = length;
+    const of = inner._fieldLength.get(doc);
+    /* v8 ignore else -- every document MiniSearch holds has its lengths, an added one too. */
+    if (of !== undefined) {
+      for (const [field, length] of of.entries()) {
+        lengths[doc * fields + field] = length;
+      }
     }
   }
   lengthsCache.set(mini, { generation, fields, lengths, live });
