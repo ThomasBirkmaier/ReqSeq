@@ -160,7 +160,7 @@ export interface ElementName {
 }
 
 /**
- * Fassung: normal-form version, colon, first 16 hex characters of the SHA-256 over the canonical content (D-013, D-027, ADR-0005). Example: n1:9f86d081884c7d65.
+ * The version: its normal form (`n1`, `n2`, …), a colon, first 16 hex characters of the SHA-256 over the canonical content (D-013, D-027, ADR-0005). Example: n1:9f86d081884c7d65.
  * Schema: `schemas/common.schema.json#/$defs/version`.
  */
 export type Version = string;
@@ -220,7 +220,7 @@ export interface RelationTargetInput {
 export type IsoDate = string;
 
 /**
- * The item under test (Prüfling): the concrete build or sample that was checked. No white space at either end and no control characters other than tab, line feed and carriage return.
+ * The item under test: the concrete build or sample that was checked. No white space at either end and no control characters other than tab, line feed and carriage return.
  * Schema: `schemas/common.schema.json#/$defs/item`.
  */
 export type Item = string;
@@ -722,7 +722,7 @@ export interface DataExportRelation {
 }
 
 /**
- * An evidence record (Datensatz) as commands return it (SR-024 AK4, SR-028): the fields of `evidence-record.schema.json` with the same rules, from a Markdown record or a JUnit test case alike, without the format marker `reqseq-record`; `test-case` is `testCase`.
+ * An evidence record as commands return it (SR-024 AK4, SR-028): the fields of `evidence-record.schema.json` with the same rules, from a Markdown record or a JUnit test case alike, without the format marker `reqseq-record`; `test-case` is `testCase`.
  * Schema: `schemas/data-export.schema.json#/$defs/evidenceRecord`.
  */
 export interface DataExportEvidenceRecord {
@@ -734,14 +734,14 @@ export interface DataExportEvidenceRecord {
   readonly method?: "test" | "analysis" | "inspection" | "demonstration";
   /** Variant the record holds for. Absent: the core (D-026, SR-047 AK2), and also every variant the element applies in when the element's repository is marked `variant-independent` (SR-173). */
   readonly variant?: Uuid;
-  /** Prüfling. Required for verification, optional for validation (D-007). */
+  /** The item under test. Required for verification, optional for validation (D-007). */
   readonly item?: string;
-  /** `inconclusive` (nicht beurteilbar): validation only, with `reason` (SR-172). */
+  /** `inconclusive`: validation only, with `reason` (SR-172). */
   readonly result: "passed" | "failed" | "inconclusive";
-  /** Begründung of an `inconclusive` validation record (SR-172); given exactly with that result. */
+  /** The reason for an `inconclusive` validation record (SR-172); given exactly with that result. */
   readonly reason?: string;
   readonly date: IsoDateTime;
-  /** Where the Beleg is: relative path, file URL or any URI. */
+  /** Where the evidence is: relative path, file URL or any URI. */
   readonly evidence?: string;
   /** Optional test case name or ID (D-026, SR-033): the `test-case` of a Markdown record, the `name` of a JUnit test case. */
   readonly testCase?: string;
@@ -760,7 +760,7 @@ export interface DataExportEvidenceRecord {
 }
 
 /**
- * A test case (SR-033) seen from one element: the test case named by JUnit `classname` and `name`, or by the `test-case` of Markdown records (ADR-0012), with the records of that one element. Every `<testcase>` of a JUnit file and every Markdown record is one execution (Durchführung): a file that holds the test case twice (a rerun) gives two. A test case that names several elements (SR-033 AK2) is listed at each of them, each time with that element's records only, since the version and so whether a record is outdated belong to the element. A test case whose only appearances are skipped JUnit test cases (`<skipped>` gives no record) has `executed: false` and no executions (SR-033 AK3).
+ * A test case (SR-033) seen from one element: the test case named by JUnit `classname` and `name`, or by the `test-case` of Markdown records (ADR-0012), with the records of that one element. Every `<testcase>` of a JUnit file and every Markdown record is one execution: a file that holds the test case twice (a rerun) gives two. A test case that names several elements (SR-033 AK2) is listed at each of them, each time with that element's records only, since the version and so whether a record is outdated belong to the element. A test case whose only appearances are skipped JUnit test cases (`<skipped>` gives no record) has `executed: false` and no executions (SR-033 AK3).
  * Schema: `schemas/data-export.schema.json#/$defs/testCase`.
  */
 export interface DataExportTestCase {
@@ -790,7 +790,7 @@ export interface DataExportVerificationEntry {
 }
 
 /**
- * SR-037: the Nachweisgrad of a selection in one view. Counted are the requirements of the selection (type with the meaning `requirement`) whose status the metamodel does not mark invalid (AK3, D-044) and that have a verification status in the view (spec question #592).
+ * SR-037: the verification degree of a selection in one view. Counted are the requirements of the selection (type with the meaning `requirement`) whose status the metamodel does not mark invalid (AK3, D-044) and that have a verification status in the view (spec question #592).
  * Schema: `schemas/data-export.schema.json#/$defs/verificationDegree`.
  */
 export interface DataExportVerificationDegree {
@@ -849,12 +849,12 @@ export type ElementValue =
   | readonly RelationTarget[];
 
 /**
- * Open format for a verification or validation record (D-007, D-026, SR-028). A manual record is a Markdown file with this frontmatter; the text below may describe the check. Automatic test results stay JUnit XML; the same fields are JUnit properties, see docs/adr/0012-evidence-records.md. The evidence itself (Beleg) stays where it is; `evidence` only points to it. Records written by ReqSeq (SR-030) and by anyone else count the same.
+ * Open format for a verification or validation record (D-007, D-026, SR-028). A manual record is a Markdown file with this frontmatter; the text below may describe the check. Automatic test results stay JUnit XML; the same fields are JUnit properties, see docs/adr/0012-evidence-records.md. The evidence itself stays where it is; `evidence` only points to it. Records written by ReqSeq (SR-030) and by anyone else count the same.
  * Schema: `schemas/evidence-record.schema.json#`.
  */
 export interface EvidenceRecordFile {
   readonly "reqseq-record": 1;
-  /** Nachweis or Validierung (D-007). Validation counts only for the validation status (SR-030 AK3). */
+  /** Verification or validation (D-007). Validation counts only for the validation status (SR-030 AK3). */
   readonly kind: "verification" | "validation";
   /** Verification: a requirement. Validation: a need or a requirement (D-012). */
   readonly element: Uuid;
@@ -863,14 +863,14 @@ export interface EvidenceRecordFile {
   readonly method?: "test" | "analysis" | "inspection" | "demonstration";
   /** Variant the record holds for. Absent: the core (D-026, SR-047 AK2), and also every variant the element applies in when the element's repository is marked `variant-independent` in the workspace file (SR-173). Verification only: a validation record with a variant is refused and counts for no status (D-007, SR-038 AK4). */
   readonly variant?: Uuid;
-  /** Prüfling: the concrete build or sample that was checked. Required for verification, optional for validation (D-007). */
+  /** The item under test: the concrete build or sample that was checked. Required for verification, optional for validation (D-007). */
   readonly item?: string;
-  /** `inconclusive` (nicht beurteilbar): validation only, with `reason` (SR-172). */
+  /** `inconclusive`: validation only, with `reason` (SR-172). */
   readonly result: "passed" | "failed" | "inconclusive";
-  /** Begründung of an `inconclusive` validation, at least one character that is not white space; required with `inconclusive` and only there (SR-172 AK1). A reader warns about it on another result and reads the record without it (spec question #807). */
+  /** The reason for an `inconclusive` validation, at least one character that is not white space; required with `inconclusive` and only there (SR-172 AK1). A reader warns about it on another result and reads the record without it (spec question #807). */
   readonly reason?: string;
   readonly date: IsoDateTime;
-  /** Where the Beleg is: relative path, file URL or any URI. ReqSeq does not open or manage it. */
+  /** Where the evidence is: relative path, file URL or any URI. ReqSeq does not open or manage it. */
   readonly evidence?: string;
   /** Optional test case name or ID (D-026, SR-033). */
   readonly "test-case"?: string;
@@ -1068,7 +1068,7 @@ export interface MetamodelType {
   readonly meaning?: MetamodelTypeMeaning;
   /** Property keys this type has, in addition to inherited ones, which come first. Each should be a defined property; an undefined key is a metamodel warning and the type is treated as not having it (#141 c). */
   readonly properties?: readonly MetamodelKey[];
-  /** Mandatory property keys (Pflichtfelder), in addition to inherited ones; each is also a property of the type and should be a defined property; an undefined key is a metamodel warning and the type is treated as not having it (#141 c). Empty values are allowed but give a hint (SR-064). */
+  /** Mandatory property keys, in addition to inherited ones; each is also a property of the type and should be a defined property; an undefined key is a metamodel warning and the type is treated as not having it (#141 c). Empty values are allowed but give a hint (SR-064). */
   readonly required?: readonly MetamodelKey[];
   /** Status keys elements of this type may have, in addition to inherited ones (#306): the top-level `statuses` stay the vocabulary (names, `invalid`, `initial`), a type only restricts it. Left out on the type and on every ancestor: every status. Once the type or any ancestor has a list, only the listed statuses count: a type with a list below a parent without one has only its own statuses (an unrestricted parent does not add every status). An empty list on a type whose ancestors have none: the type has no status, and its element files have no `status`. Each should be a defined status; an undefined key is a metamodel warning and left out (when no key is left, the type has no status). A type whose statuses are all marked invalid (e.g. `[retired]`) has an optional status (#344): its elements without status are current, element.create gives them none, and element.supersede retires them. A status outside the list gives a hint on the element (`element.status-not-allowed`). */
   readonly statuses?: readonly MetamodelKey[];
@@ -1113,7 +1113,7 @@ export interface MetamodelProperty {
   /** Display name. English in the standard model (D-019). */
   readonly name: string;
   readonly description?: string;
-  /** Value kind (Wertart). */
+  /** Value kind. */
   readonly kind: "text" | "number" | "date" | "choice" | "relation";
   /** List of values. */
   readonly many?: boolean;
@@ -1131,7 +1131,7 @@ export interface MetamodelProperty {
 }
 
 /**
- * Built-in meaning (D-012, D-059): `title`; `validity` (list of variants, D-020); `packages` (D-040); `emergent` (emergent behaviour, N-010; a choice without `many` whose key `yes` is the mark, SR-035; otherwise a warning and nothing is marked); `verification-method`; `statement` (Stellungnahme for ReqIF, SR-058); `source`, `source-identifier`, `import-date`, `delivery`, `import-version` (origin of imported elements, written only by ReqIF import, SR-057; `import-version` is the Importfassung, D-059: the version of what the import wrote, right after the last import, kind `text` without `many` and never `content`); `identifier` (an ID from another source, such as the spec ID SR-036 or a customer ID, D-017; unique per type; element references accept it besides the UUID and short ID, and outputs show it next to the short ID, #305). A property with the meaning `identifier` is of kind `text` without `many`.
+ * Built-in meaning (D-012, D-059): `title`; `validity` (list of variants, D-020); `packages` (D-040); `emergent` (emergent behaviour, N-010; a choice without `many` whose key `yes` is the mark, SR-035; otherwise a warning and nothing is marked); `verification-method`; `statement` (the statement for ReqIF, SR-058); `source`, `source-identifier`, `import-date`, `delivery`, `import-version` (origin of imported elements, written only by ReqIF import, SR-057; `import-version` is the import version, D-059: the version of what the import wrote, right after the last import, kind `text` without `many` and never `content`); `identifier` (an ID from another source, such as the spec ID SR-036 or a customer ID, D-017; unique per type; element references accept it besides the UUID and short ID, and outputs show it next to the short ID, #305). A property with the meaning `identifier` is of kind `text` without `many`.
  * Schema: `schemas/metamodel.schema.json#/$defs/propertyMeaning`.
  */
 export type MetamodelPropertyMeaning =
@@ -1149,7 +1149,7 @@ export type MetamodelPropertyMeaning =
   | "identifier";
 
 /**
- * Relation kind (Beziehungsart). Stored under its key in the source file. `source-types`/`target-types` restrict where it may be set (SR-012 AK4, SR-067).
+ * Relation kind. Stored under its key in the source file. `source-types`/`target-types` restrict where it may be set (SR-012 AK4, SR-067).
  * Schema: `schemas/metamodel.schema.json#/$defs/relationKind`.
  */
 export interface MetamodelRelationKind {
@@ -1288,7 +1288,7 @@ export interface ReqifMappingFile {
     | {
       readonly omit: unknown;
     }))[];
-  /** Where the statement (Stellungnahme) goes when exporting back to the source (SR-058). */
+  /** Where the statement goes when exporting back to the source (SR-058). */
   readonly statement?: {
     /** Own property that holds the statement. */
     readonly property: Key;
@@ -1363,7 +1363,7 @@ export interface ReqifMappingFileWithDefaults {
     | {
       readonly omit: unknown;
     }))[];
-  /** Where the statement (Stellungnahme) goes when exporting back to the source (SR-058). */
+  /** Where the statement goes when exporting back to the source (SR-058). */
   readonly statement?: {
     /** Own property that holds the statement. */
     readonly property: Key;
@@ -2142,7 +2142,7 @@ export interface TraceChainOutput {
     /** Only with `not-in-view`: the views that hold the element, `core` first, then the variants in store order; empty when none does (a validity that names no variant of the workspace). `names` names the variants. */
     readonly views?: readonly ViewId[];
   }[];
-  /** The evidence (Nachweise) of the downward chain (SR-022 AK1, SR-033 AK1 to AK3), in the order of `nodes`, only for the nodes of the page whose children were looked at (`expanded`), paged like `gaps`; one item per element that has any, none with `direction` `up`. Only verification records (D-007); the validation records of the root are in `validationRecords`. With `view` only the records that hold in it (SR-047: the core the records without a variant, a variant those for it and, for an element of a repository marked `variant-independent`, those without a variant, SR-173); without `view` every record, each with its `variant`, as `evidence.list`. A test case all of whose executions of the element hold in another view is left out; a test case that was only skipped shows in every view. The Beleg of a record is its `evidence`; a JUnit execution has none, its Beleg is its record file (`repository`, `file`, `line`; D-007: for automatic tests the record is the result file). Belege are text and never opened. */
+  /** The evidence of the downward chain (SR-022 AK1, SR-033 AK1 to AK3), in the order of `nodes`, only for the nodes of the page whose children were looked at (`expanded`), paged like `gaps`; one item per element that has any, none with `direction` `up`. Only verification records (D-007); the validation records of the root are in `validationRecords`. With `view` only the records that hold in it (SR-047: the core the records without a variant, a variant those for it and, for an element of a repository marked `variant-independent`, those without a variant, SR-173); without `view` every record, each with its `variant`, as `evidence.list`. A test case all of whose executions of the element hold in another view is left out; a test case that was only skipped shows in every view. The evidence of a record is its `evidence`; a JUnit execution has none, its evidence is its record file (`repository`, `file`, `line`; D-007: for automatic tests the record is the result file). Evidence is text and never opened. */
   readonly evidence: readonly {
     /** The element of the chain the evidence belongs to. */
     readonly id: Uuid;
@@ -2404,7 +2404,7 @@ export interface TraceMatrixOutput {
       readonly className?: string;
       /** The test case has at least one execution of this requirement in the view (SR-033 AK3). */
       readonly executed: boolean;
-      /** The last execution (letzte Durchführung): the newest execution of this requirement in the view, of any version, with result, date, item and version; its record file (`repository`, `file`, `line`) is the Beleg of a JUnit execution. Left out when `executed` is false. */
+      /** The last execution: the newest execution of this requirement in the view, of any version, with result, date, item and version; its record file (`repository`, `file`, `line`) is the evidence of a JUnit execution. Left out when `executed` is false. */
       readonly last?: DataExportEvidenceRecord;
       /** How the cell is marked (AK2; spec questions #528 Q1, Q2 and #593 Q2), the first that holds: `not-executed` when `executed` is false; `outdated` when `last` is of another version than the requirement's current one, or its current version is not known; `failed` when `last` failed. Left out when the last execution passed for the current version. */
       readonly mark?: "not-executed" | "outdated" | "failed";
@@ -2459,7 +2459,7 @@ export interface TraceGraphInput {
   /** Relation kinds with these meanings are followed; `reference` stands for inline references. Without `kinds` and `meanings` every relation and reference is followed. Otherwise a link is followed when its key is in `kinds` or its meaning is in `meanings`; an empty list follows nothing. */
   readonly meanings?: readonly ("derivation" | "replacement" | "succession" | "exclusion" | "reference")[];
   readonly view?: View;
-  /** Also give `evidence`, a summary of the Nachweise (verification records and test cases) of each element shown below the element (SR-111 AK3). Evidence is no link between elements, so `kinds` and `meanings` do not choose it, and it is no node: `limit` counts the elements only. */
+  /** Also give `evidence`, a summary of the evidence (verification records and test cases) of each element shown below the element (SR-111 AK3). Evidence is no link between elements, so `kinds` and `meanings` do not choose it, and it is no node: `limit` counts the elements only. */
   readonly withEvidence: boolean;
   /** The most nodes, the element included; the nearest levels first (`truncated` says when more exist). */
   readonly limit: number;
@@ -2511,7 +2511,7 @@ export interface TraceGraphOutput {
     /** The link stores a version of normal form 1, its target has a current version, and the two differ (SR-025). */
     readonly outdated: boolean;
   }[];
-  /** Only with `withEvidence`: one summary of the Nachweise below each node that has any (SR-111 AK3), in the order of `nodes`; `[]` when none has. Only nodes at level 0 or below whose evidence level (`level`) is within the depth asked (`maxDepth`, every level with `allLevels`), whether `expanded` or not; none above the element. The counts are those of trace.chain's `evidence` (`chainEvidenceOf`) in the view, the core without one, as the `no-evidence` mark reads them (SR-047, SR-173): only verification records (D-007). The details are in trace.chain and evidence.list. */
+  /** Only with `withEvidence`: one summary of the evidence below each node that has any (SR-111 AK3), in the order of `nodes`; `[]` when none has. Only nodes at level 0 or below whose evidence level (`level`) is within the depth asked (`maxDepth`, every level with `allLevels`), whether `expanded` or not; none above the element. The counts are those of trace.chain's `evidence` (`chainEvidenceOf`) in the view, the core without one, as the `no-evidence` mark reads them (SR-047, SR-173): only verification records (D-007). The details are in trace.chain and evidence.list. */
   readonly evidence?: readonly {
     /** The node the evidence belongs to. */
     readonly id: Uuid;
@@ -2564,7 +2564,7 @@ export interface HintListInput {
  * Schema: `schemas/commands/hint.list.json output`.
  */
 export interface HintListOutput {
-  /** The open hints: findings of severity warning about one element (glossary "Hinweis": the element should be checked; it blocks nothing and changes no status), from the same whole-workspace findings as workspace.check; errors, info and warnings about no element are not hints. Filters combine with AND. Each hint with its kind (code), the element it is about (elementId, repository, file, line), its target where it has one (targetId; with targetRepository, targetShortId and targetIdentifier when it was resolved to one element, #172) and its reason (message; for an outdated relation with both versions and their dates, D-013). In the order of workspace.check. Only the page of `limit` hints from `offset` (in this order) is listed; `total` counts every hint that passes the filters. */
+  /** The open hints: findings of severity warning about one element (the element should be checked; a hint blocks nothing and changes no status), from the same whole-workspace findings as workspace.check; errors, info and warnings about no element are not hints. Filters combine with AND. Each hint with its kind (code), the element it is about (elementId, repository, file, line), its target where it has one (targetId; with targetRepository, targetShortId and targetIdentifier when it was resolved to one element, #172) and its reason (message; for an outdated relation with both versions and their dates, D-013). In the order of workspace.check. Only the page of `limit` hints from `offset` (in this order) is listed; `total` counts every hint that passes the filters. */
   readonly hints: readonly Problem[];
   /** The number of all hints that pass the filters; `hints` holds the page of `limit` from `offset`. */
   readonly total: number;
@@ -2725,21 +2725,21 @@ export interface EvidenceListOutput {
 export interface EvidenceRecordInput {
   /** The element the record is about. Its UUID and current version are written into the record; neither is an input (D-026). */
   readonly ref: ElementRef;
-  /** Verification (Nachweis) of a requirement, or validation of a need or a requirement (D-007, D-012). A validation record counts for the validation status only (SR-030 AK3). */
+  /** Verification of a requirement, or validation of a need or a requirement (D-007, D-012). A validation record counts for the validation status only (SR-030 AK3). */
   readonly kind: "verification" | "validation";
   /** Required for verification. */
   readonly method?: "test" | "analysis" | "inspection" | "demonstration";
-  /** The result of the check. `inconclusive` (nicht beurteilbar) is allowed for a validation only and needs a `reason` (SR-172 AK1). */
+  /** The result of the check. `inconclusive` is allowed for a validation only and needs a `reason` (SR-172 AK1). */
   readonly result: "passed" | "failed" | "inconclusive";
-  /** Why the validation is inconclusive (Begründung, SR-172): required with the result `inconclusive`, not allowed with any other result. At least one character that is not white space, no control characters other than tab, line feed and carriage return. */
+  /** Why the validation is inconclusive (SR-172): required with the result `inconclusive`, not allowed with any other result. At least one character that is not white space, no control characters other than tab, line feed and carriage return. */
   readonly reason?: string;
-  /** The item under test (Prüfling), for example the build or sample. Required for verification. No white space at either end and no control characters other than tab, line feed and carriage return. */
+  /** The item under test, for example the build or sample. Required for verification. No white space at either end and no control characters other than tab, line feed and carriage return. */
   readonly item?: Item;
   /** A variant the element applies in (an element whose type has the meaning variant); the record holds for it. Absent: the core, and also every variant the element applies in when the element's repository is marked `variant-independent` in the workspace file (SR-173). Verification only: a variant with `kind` validation is `input.invalid` with `details.reason` `validation-with-variant` (SR-038 AK4, D-007). `core` names no variant and is `input.invalid` with `details.reason` `core-is-no-variant`; leave `variant` out for the core. A variant the element is not in is `input.invalid` with `details.reason` `not-valid-in-variant`, or `excluded-in-variant` or `replaced-in-variant` when the variant excludes or replaces the requirement (SR-047 AK4). */
   readonly variant?: ElementRef;
   /** When the check was done. Default: the time of the call, UTC, whole seconds. Its first ten characters (the day in its own offset) start the file name. */
   readonly date?: IsoDateTime;
-  /** Where the Beleg is: a path relative to the record file, a file URL or any URI. Written as given; ReqSeq never opens it (D-007). */
+  /** Where the evidence is: a path relative to the record file, a file URL or any URI. Written as given; ReqSeq never opens it (D-007). */
   readonly evidence?: string;
   /** Optional test case name or ID (`test-case` in the file, SR-033). */
   readonly testCase?: string;
@@ -2765,7 +2765,7 @@ export interface EvidenceRecordOutput {
 export interface EvidenceEnrichJunitInput {
   /** The JUnit XML file to enrich. It is rewritten in place unless `output` is given. A test case that already has a `reqseq:version` is never changed (D-026). */
   readonly file: LocalPath;
-  /** The item under test (Prüfling), for example the build. No white space at either end and no control characters other than tab, line feed and carriage return. */
+  /** The item under test, for example the build. No white space at either end and no control characters other than tab, line feed and carriage return. */
   readonly item: Item;
   /** The date of the test run. Default: an existing `reqseq:date` of the test case, else the `timestamp` of its test suite when that has a time zone, else the time of the call. */
   readonly date?: IsoDateTime;

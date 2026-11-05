@@ -1,15 +1,15 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://reqseq.dev/schemas/evidence-record.schema.json",
-  "title": "Evidence record (Datensatz), Markdown frontmatter",
-  "description": "Open format for a verification or validation record (D-007, D-026, SR-028). A manual record is a Markdown file with this frontmatter; the text below may describe the check. Automatic test results stay JUnit XML; the same fields are JUnit properties, see docs/adr/0012-evidence-records.md. The evidence itself (Beleg) stays where it is; `evidence` only points to it. Records written by ReqSeq (SR-030) and by anyone else count the same.",
+  "title": "Evidence record, Markdown frontmatter",
+  "description": "Open format for a verification or validation record (D-007, D-026, SR-028). A manual record is a Markdown file with this frontmatter; the text below may describe the check. Automatic test results stay JUnit XML; the same fields are JUnit properties, see docs/adr/0012-evidence-records.md. The evidence itself stays where it is; `evidence` only points to it. Records written by ReqSeq (SR-030) and by anyone else count the same.",
   "type": "object",
   "required": ["reqseq-record", "kind", "element", "version", "result", "date"],
   "properties": {
     "reqseq-record": { "const": 1 },
     "kind": {
       "enum": ["verification", "validation"],
-      "description": "Nachweis or Validierung (D-007). Validation counts only for the validation status (SR-030 AK3)."
+      "description": "Verification or validation (D-007). Validation counts only for the validation status (SR-030 AK3)."
     },
     "element": {
       "$ref": "common.schema.json#/$defs/uuid",
@@ -26,21 +26,21 @@
     },
     "item": {
       "type": "string",
-      "description": "Prüfling: the concrete build or sample that was checked. Required for verification, optional for validation (D-007)."
+      "description": "The item under test: the concrete build or sample that was checked. Required for verification, optional for validation (D-007)."
     },
     "result": {
       "enum": ["passed", "failed", "inconclusive"],
-      "description": "`inconclusive` (nicht beurteilbar): validation only, with `reason` (SR-172)."
+      "description": "`inconclusive`: validation only, with `reason` (SR-172)."
     },
     "reason": {
       "type": "string",
       "pattern": "\\S",
-      "description": "Begründung of an `inconclusive` validation, at least one character that is not white space; required with `inconclusive` and only there (SR-172 AK1). A reader warns about it on another result and reads the record without it (spec question #807)."
+      "description": "The reason for an `inconclusive` validation, at least one character that is not white space; required with `inconclusive` and only there (SR-172 AK1). A reader warns about it on another result and reads the record without it (spec question #807)."
     },
     "date": { "$ref": "common.schema.json#/$defs/dateTime" },
     "evidence": {
       "type": "string",
-      "description": "Where the Beleg is: relative path, file URL or any URI. ReqSeq does not open or manage it."
+      "description": "Where the evidence is: relative path, file URL or any URI. ReqSeq does not open or manage it."
     },
     "test-case": { "type": "string", "description": "Optional test case name or ID (D-026, SR-033)." }
   },

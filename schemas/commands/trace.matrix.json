@@ -167,7 +167,7 @@
                   },
                   "last": {
                     "$ref": "../data-export.schema.json#/$defs/evidenceRecord",
-                    "description": "The last execution (letzte Durchführung): the newest execution of this requirement in the view, of any version, with result, date, item and version; its record file (`repository`, `file`, `line`) is the Beleg of a JUnit execution. Left out when `executed` is false."
+                    "description": "The last execution: the newest execution of this requirement in the view, of any version, with result, date, item and version; its record file (`repository`, `file`, `line`) is the evidence of a JUnit execution. Left out when `executed` is false."
                   },
                   "mark": {
                     "enum": ["not-executed", "outdated", "failed"],

@@ -106,3 +106,59 @@ describe("texts for users without internal references (#642)", () => {
     expect(found).toEqual([]);
   });
 });
+
+/**
+ * German in a text for users (SR-074 AK1, #81): a letter of German only, or a term of the German
+ * glossary of the spec that the English texts once named beside their own word.
+ */
+const GERMAN =
+  /[äöüÄÖÜß]|\b(?:Beleg\w*|Prüfling|Durchführung\w*|Begründung|Nachweis\w*|\w*[Ff]assung\w*|Datens[aä]tz\w*|Validierung|Gültigkeit|Anforderung\w*|Abdeckung|Stand|Hinweis\w*|Stellungnahme|Pflichtfeld\w*|Wertart|Beziehungsart|nicht|beurteilbar|und|oder)\b/u;
+
+/** The keys whose strings users read; `examples` and `default` hold user content, which may be German. */
+const TEXT_KEYS = ["description", "summary", "title", "whileReadOnlyReason"];
+
+/** The strings under `description`, `summary` or `title` in `node` that hold German. */
+const germanIn = (node, key = "") => {
+  if (typeof node === "string") {
+    return TEXT_KEYS.includes(key) && GERMAN.test(node) ? [node] : [];
+  }
+  if (Array.isArray(node)) {
+    return node.flatMap((item) => germanIn(item, key));
+  }
+  return node !== null && typeof node === "object"
+    ? Object.entries(node)
+        .filter(([k]) => k !== "examples" && k !== "default")
+        .flatMap(([k, value]) => germanIn(value, k))
+    : [];
+};
+
+describe("texts for users in English (SR-074 AK1, #81)", () => {
+  it("finds German letters and the German glossary terms, not English words", () => {
+    expect(germanIn({ description: "The item under test (Prüfling)" })).toHaveLength(1);
+    expect(germanIn({ summary: "Where the Beleg is" })).toHaveLength(1);
+    expect(germanIn({ description: "`inconclusive` (nicht beurteilbar)" })).toHaveLength(1);
+    expect(germanIn({ examples: [{ title: "Übersicht" }], default: { title: "Grüße" } })).toEqual([]);
+    expect(
+      germanIn({ title: "Evidence record", description: "Coverage of a selection", other: "Fassung" }),
+    ).toEqual([]);
+  });
+
+  it("leaves none in the generated contracts, the file formats and the causes and remedies of the problem codes", () => {
+    const formats = fs
+      .readdirSync(path.join(root, "schemas"))
+      .filter((name) => name.endsWith(".schema.json"))
+      .map((name) => `schemas/${name}`);
+    for (const file of [
+      "packages/core/src/generated/contracts.json",
+      "schemas/generated/openapi.json",
+      "schemas/generated/mcp-tools.json",
+      ...formats,
+    ]) {
+      expect([file, germanIn(JSON.parse(read(file)))]).toEqual([file, []]);
+    }
+    const codes = read("schemas/problem-codes.yaml")
+      .split("\n")
+      .filter((line) => /^\s+(?:cause|remedy): /.test(line) && GERMAN.test(line));
+    expect(codes).toEqual([]);
+  });
+});

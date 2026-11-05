@@ -24,7 +24,7 @@
       },
       "item": {
         "$ref": "../common.schema.json#/$defs/item",
-        "description": "The item under test (Prüfling), for example the build. No white space at either end and no control characters other than tab, line feed and carriage return."
+        "description": "The item under test, for example the build. No white space at either end and no control characters other than tab, line feed and carriage return."
       },
       "date": {
         "$ref": "../common.schema.json#/$defs/dateTime",
