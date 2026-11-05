@@ -59,6 +59,7 @@ export { matrixEvidence, matrixTestCases, showsEvidence, testCaseMark } from "./
 export type { MatrixRowEvidence, MatrixTestCase, MatrixTestCaseMark } from "./matrix.js";
 export {
   chainEvidenceOf,
+  validationRecordsOf,
   listedRecords,
   recordHoldsIn,
   testCasesIn,

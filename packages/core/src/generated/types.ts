@@ -2065,7 +2065,7 @@ export interface RelationRemoveOutput {
 }
 
 /**
- * Input of `trace.chain` as `run` gets it: validated, properties with a `default` filled in. Chain up to the top parents and down to evidence, with depth, gaps (also a requirement without a parent) and cycles; one page of nodes at a time, total counts all.
+ * Input of `trace.chain` as `run` gets it: validated, properties with a `default` filled in. Chain up to the top parents and down to evidence, with depth, gaps (also a requirement without a parent) and cycles; one page of nodes at a time, total counts all; the validation records of the root.
  * Schema: `schemas/commands/trace.chain.json input`.
  */
 export interface TraceChainInput {
@@ -2080,7 +2080,7 @@ export interface TraceChainInput {
 }
 
 /**
- * Output of `trace.chain`. Chain up to the top parents and down to evidence, with depth, gaps (also a requirement without a parent) and cycles; one page of nodes at a time, total counts all.
+ * Output of `trace.chain`. Chain up to the top parents and down to evidence, with depth, gaps (also a requirement without a parent) and cycles; one page of nodes at a time, total counts all; the validation records of the root.
  * Schema: `schemas/commands/trace.chain.json output`.
  */
 export interface TraceChainOutput {
@@ -2129,7 +2129,7 @@ export interface TraceChainOutput {
     /** Only with `not-in-view`: the views that hold the element, `core` first, then the variants in store order; empty when none does (a validity that names no variant of the workspace). `names` names the variants. */
     readonly views?: readonly ViewId[];
   }[];
-  /** The evidence (Nachweise) of the downward chain (SR-022 AK1, SR-033 AK1 to AK3), in the order of `nodes`, only for the nodes of the page whose children were looked at (`expanded`), paged like `gaps`; one item per element that has any, none with `direction` `up`. Only verification records (D-007: the chain ends at the Nachweise; validation records are in `evidence.list`). With `view` only the records that hold in it (SR-047: the core the records without a variant, a variant those for it and, for an element of a repository marked `variant-independent`, those without a variant, SR-173); without `view` every record, each with its `variant`, as `evidence.list`. A test case all of whose executions of the element hold in another view is left out; a test case that was only skipped shows in every view. The Beleg of a record is its `evidence`; a JUnit execution has none, its Beleg is its record file (`repository`, `file`, `line`; D-007: for automatic tests the record is the result file). Belege are text and never opened. */
+  /** The evidence (Nachweise) of the downward chain (SR-022 AK1, SR-033 AK1 to AK3), in the order of `nodes`, only for the nodes of the page whose children were looked at (`expanded`), paged like `gaps`; one item per element that has any, none with `direction` `up`. Only verification records (D-007); the validation records of the root are in `validationRecords`. With `view` only the records that hold in it (SR-047: the core the records without a variant, a variant those for it and, for an element of a repository marked `variant-independent`, those without a variant, SR-173); without `view` every record, each with its `variant`, as `evidence.list`. A test case all of whose executions of the element hold in another view is left out; a test case that was only skipped shows in every view. The Beleg of a record is its `evidence`; a JUnit execution has none, its Beleg is its record file (`repository`, `file`, `line`; D-007: for automatic tests the record is the result file). Belege are text and never opened. */
   readonly evidence: readonly {
     /** The element of the chain the evidence belongs to. */
     readonly id: Uuid;
@@ -2142,6 +2142,8 @@ export interface TraceChainOutput {
     /** Unlike `evidence.list` `records`: only the element's records without a test case (inspection, analysis, demonstration, manual records without `test-case`), newest first. */
     readonly records: readonly DataExportEvidenceRecord[];
   }[];
+  /** The validation records of the root (SR-038 AK1: the validation shown apart from the verification), newest first, those with a test case too, in either direction; on the page with the root only (`offset` 0), `[]` on the others. `view` does not narrow them: a validation record names no variant (SR-038 AK4) and holds for its element, as its validation status counts it (#646). */
+  readonly validationRecords: readonly DataExportEvidenceRecord[];
   /** Derivation relations the chain could not follow (SR-006 AK1, SR-088, SR-089): upwards a parent that is not available, downwards a child whose relation points at a UUID several files of the repository share. The other end is shown by its short ID only when it is not available (prefix `UNKNOWN` when its repository is not on this machine). A parent whose `id` is no UUID is not listed (the value-kind check reports it, SR-085); in a repository that is not here it still makes the chain `incomplete`. Only those of the nodes of the page (`from`). */
   readonly unresolved: readonly {
     readonly direction: "up" | "down";
@@ -2159,7 +2161,7 @@ export interface TraceChainOutput {
     /** As in `data-export.schema.json#/$defs/relation`; downwards always `ambiguous` (the element the child points at). */
     readonly targetState: "inaccessible" | "missing" | "ambiguous" | "unknown-repository";
   }[];
-  /** True when a part of the chain lies in a repository that is not on this machine (SR-006 AK2), in the view of a variant while a repository of the workspace is not on this machine (it may hold a replacement or an exclusion), or, when the chain goes down, an evidence location does: evidence there is not seen. */
+  /** True when a part of the chain lies in a repository that is not on this machine (SR-006 AK2), in the view of a variant while a repository of the workspace is not on this machine (it may hold a replacement or an exclusion), or an evidence location does: evidence and validation records there are not seen. */
   readonly incomplete: Incomplete;
   /** The variants that the records of `evidence` name by UUID only (`variant`), then those the `views` of `gaps` name, each once in the order first named, so a reader names them by short ID, identifier and title (#588, #676). Left out when it names none, and for a variant in a repository that is not here. */
   readonly names?: readonly ElementName[];

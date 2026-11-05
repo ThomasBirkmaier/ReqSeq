@@ -95,7 +95,11 @@ export const chainLines = (output: unknown): ResultLine[] => {
   if (!isRecord(output) || !Array.isArray(output["evidence"])) {
     return resultLines(output);
   }
-  const { evidence, ...rest } = output;
+  const { evidence, validationRecords, ...rest } = output;
+  // The root's validation records (#646), as records under the root row, labelled "validation".
+  const validation = (
+    Array.isArray(validationRecords) ? validationRecords : []
+  ) as DataExportEvidenceRecord[];
   const byElement = new Map<string, ChainEvidence>();
   for (const item of evidence as readonly unknown[]) {
     if (isChainEvidence(item)) {
@@ -105,12 +109,14 @@ export const chainLines = (output: unknown): ResultLine[] => {
   const lines = resultLines(rest);
   // The last row of each element among the nodes: the lines under the top-level key "nodes".
   const rowOf = new Map<string, number>();
+  let rootRow: number | undefined;
   let inNodes = false;
   lines.forEach((line, at) => {
     if (line.depth === 0) {
       inNodes = line.label === "nodes";
     } else if (inNodes && line.open !== undefined) {
       rowOf.set(keyOf(line.open.id, line.open.repository), at);
+      rootRow ??= line.open.id === output["root"] ? at : undefined;
     }
   });
   const under = new Map<number, ChainEvidence>();
@@ -122,6 +128,23 @@ export const chainLines = (output: unknown): ResultLine[] => {
   }
   return lines.flatMap((line, at) => {
     const item = under.get(at);
-    return item === undefined ? [line] : [line, ...evidenceLines(item, line.depth + 1)];
+    const validated =
+      at === rootRow
+        ? validation.map((record) =>
+            text(
+              line.depth + 1,
+              "validation",
+              joined([
+                record.date,
+                resultOf(record),
+                record.item,
+                belegOf(record),
+                `version ${record.version}`,
+              ]),
+              wholeReasonOf(record),
+            ),
+          )
+        : [];
+    return [line, ...(item === undefined ? [] : evidenceLines(item, line.depth + 1)), ...validated];
   });
 };

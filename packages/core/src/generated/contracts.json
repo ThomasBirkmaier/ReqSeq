@@ -5250,7 +5250,7 @@
       {
         "name": "trace.chain",
         "title": "Show trace chain",
-        "summary": "Chain up to the top parents and down to evidence, with depth, gaps (also a requirement without a parent) and cycles; one page of nodes at a time, total counts all.",
+        "summary": "Chain up to the top parents and down to evidence, with depth, gaps (also a requirement without a parent) and cycles; one page of nodes at a time, total counts all; the validation records of the root.",
         "effect": "read",
         "stage": 2,
         "implements": [
@@ -5483,7 +5483,7 @@
             },
             "evidence": {
               "type": "array",
-              "description": "The evidence (Nachweise) of the downward chain, in the order of `nodes`, only for the nodes of the page whose children were looked at (`expanded`), paged like `gaps`; one item per element that has any, none with `direction` `up`. Only verification records (the chain ends at the Nachweise; validation records are in `evidence.list`). With `view` only the records that hold in it (the core the records without a variant, a variant those for it and, for an element of a repository marked `variant-independent`, those without a variant); without `view` every record, each with its `variant`, as `evidence.list`. A test case all of whose executions of the element hold in another view is left out; a test case that was only skipped shows in every view. The Beleg of a record is its `evidence`; a JUnit execution has none, its Beleg is its record file (`repository`, `file`, `line`; for automatic tests the record is the result file). Belege are text and never opened.",
+              "description": "The evidence (Nachweise) of the downward chain, in the order of `nodes`, only for the nodes of the page whose children were looked at (`expanded`), paged like `gaps`; one item per element that has any, none with `direction` `up`. Only verification records; the validation records of the root are in `validationRecords`. With `view` only the records that hold in it (the core the records without a variant, a variant those for it and, for an element of a repository marked `variant-independent`, those without a variant); without `view` every record, each with its `variant`, as `evidence.list`. A test case all of whose executions of the element hold in another view is left out; a test case that was only skipped shows in every view. The Beleg of a record is its `evidence`; a JUnit execution has none, its Beleg is its record file (`repository`, `file`, `line`; for automatic tests the record is the result file). Belege are text and never opened.",
               "items": {
                 "type": "object",
                 "properties": {
@@ -5523,6 +5523,13 @@
                   "testCases",
                   "records"
                 ]
+              }
+            },
+            "validationRecords": {
+              "type": "array",
+              "description": "The validation records of the root (the validation shown apart from the verification), newest first, those with a test case too, in either direction; on the page with the root only (`offset` 0), `[]` on the others. `view` does not narrow them: a validation record names no variant and holds for its element, as its validation status counts it.",
+              "items": {
+                "$ref": "../data-export.schema.json#/$defs/evidenceRecord"
               }
             },
             "unresolved": {
@@ -5585,7 +5592,7 @@
             },
             "incomplete": {
               "$ref": "../common.schema.json#/$defs/incomplete",
-              "description": "True when a part of the chain lies in a repository that is not on this machine, in the view of a variant while a repository of the workspace is not on this machine (it may hold a replacement or an exclusion), or, when the chain goes down, an evidence location does: evidence there is not seen."
+              "description": "True when a part of the chain lies in a repository that is not on this machine, in the view of a variant while a repository of the workspace is not on this machine (it may hold a replacement or an exclusion), or an evidence location does: evidence and validation records there are not seen."
             },
             "names": {
               "type": "array",
@@ -5610,6 +5617,7 @@
             "edges",
             "gaps",
             "evidence",
+            "validationRecords",
             "unresolved",
             "incomplete",
             "problems"

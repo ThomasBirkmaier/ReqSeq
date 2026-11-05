@@ -930,10 +930,42 @@ describe("renderHuman: a chain", () => {
     edges: [],
     gaps: [],
     evidence: [],
+    validationRecords: [],
     unresolved: [],
     incomplete: false,
     problems: [],
     ...extra,
+  });
+
+  it("shows the validation records of the root below it, each with its version, and nothing without them (#646)", () => {
+    const record = (more: Record<string, unknown>) => ({
+      element: "r",
+      version: "n1:1111111111111111",
+      kind: "validation",
+      item: "Pilot test",
+      date: "2026-10-25T09:00:00Z",
+      ...more,
+    });
+    const shown = renderHuman(
+      chain({
+        nodes: [node("r", "N-r", 0)],
+        total: 1,
+        validationRecords: [
+          record({ result: "inconclusive", reason: "No wind on the test day" }),
+          record({ result: "passed", date: "2026-10-10T09:00:00Z", version: "n1:2222222222222222" }),
+        ],
+      }),
+    );
+    expect(shown.split("\n").slice(0, 3)).toEqual([
+      "N-r  draft  Title N-r",
+      expect.stringMatching(
+        /^ {2}1 {2}validation {2}2026-10-25T09:00:00Z {2}inconclusive .*No wind on the test day.*\[version n1:1111111111111111\]$/,
+      ),
+      expect.stringMatching(
+        /^ {2}1 {2}validation {2}2026-10-10T09:00:00Z {2}passed .*\[version n1:2222222222222222\]$/,
+      ),
+    ]);
+    expect(renderHuman(chain({ nodes: [node("r", "N-r", 0)], total: 1 }))).not.toContain("validation");
   });
 
   it("shows parents and children as indented trees with the depth in front, gaps and cut ends marked", () => {
