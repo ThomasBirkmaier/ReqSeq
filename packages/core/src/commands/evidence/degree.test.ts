@@ -84,6 +84,33 @@ const addRecords = async (workspace: Workspace, more: readonly EvidenceRecord[])
   await workspace.replace(evidenceRecordsState, current, Promise.resolve([...files, ...more]));
 };
 
+/** The fixture with the variant V "Pro", RV valid only in Pro, and the saved filter "Pro" on top. */
+const withPro = async (): Promise<Workspace> => {
+  const variant = ["---", `id: ${V}`, "type: variant", "status: draft", "title: Pro", "---", "", "Pro.", ""];
+  const rv = [
+    "---",
+    `id: ${RV}`,
+    "type: system-requirement",
+    "status: draft",
+    "title: Show gusts",
+    "validity:",
+    `  - { id: ${V}, title: Pro }`,
+    "---",
+    "",
+    "Valid only in Pro.",
+    "",
+  ];
+  return open({
+    ...DEGREE,
+    files: {
+      "variants/VAR-00000000c001.md": variant.join("\n"),
+      "requirements/SR-00000000b301.md": rv.join("\n"),
+      "filters/pro.yaml":
+        "reqseq-filter: 1\nname: Pro\nview: VAR-00c001\nwhere: { type: [system-requirement] }\n",
+    },
+  });
+};
+
 describe("evidence.degree (SR-037)", () => {
   it("[SR-037/AK1] [SR-101/AK1] evidence.degree of a package of 10 valid requirements gives 0.6 and the count per status, for exactly the elements of the package", async () => {
     expect(await degree(await open(), { selection: { package: "PKG-00d001" } })).toEqual(P1_DEGREE);
@@ -136,44 +163,31 @@ describe("evidence.degree (SR-037)", () => {
     ).toEqual({ share: 1, total: 1, counts: counts(0, 1, 0, 0, 0) });
   });
 
+  it("[SR-037/AK4] without a chosen variant, evidence.degree counts only the core requirements, each with its status in the core", async () => {
+    const workspace = await withPro();
+    // R09 has a passed record for Pro only; RV applies only in Pro; R01's record holds in the core.
+    await addRecords(workspace, [passed(R09, await versionOf(workspace, R09), { variant: V })]);
+    const selection = { ids: [R01, R09, RV] };
+    // No variant: RV is left out, R09 is open in the core although it is verified in Pro.
+    expect(await degree(workspace, { selection })).toEqual({
+      degree: { share: 0.5, total: 2, counts: counts(1, 1, 0, 0, 0) },
+      view: "core",
+      incomplete: false,
+    });
+    // The same selection in Pro, for contrast: all three count, only R09 verified.
+    expect((await degree(workspace, { selection: { ...selection, view: "VAR-00c001" } })).degree).toEqual({
+      share: 1 / 3,
+      total: 3,
+      counts: counts(2, 1, 0, 0, 0),
+    });
+  });
+
   it("gives 9 of 14 for the whole workspace", async () => {
     expect(await degree(await open())).toEqual({ degree: WHOLE, view: "core", incomplete: false });
   });
 
   it("counts in the view of the selection, else of its saved filter; without a view in the core (#592 Q1)", async () => {
-    const variant = [
-      "---",
-      `id: ${V}`,
-      "type: variant",
-      "status: draft",
-      "title: Pro",
-      "---",
-      "",
-      "Pro.",
-      "",
-    ];
-    const rv = [
-      "---",
-      `id: ${RV}`,
-      "type: system-requirement",
-      "status: draft",
-      "title: Show gusts",
-      "validity:",
-      `  - { id: ${V}, title: Pro }`,
-      "---",
-      "",
-      "Valid only in Pro.",
-      "",
-    ];
-    const workspace = await open({
-      ...DEGREE,
-      files: {
-        "variants/VAR-00000000c001.md": variant.join("\n"),
-        "requirements/SR-00000000b301.md": rv.join("\n"),
-        "filters/pro.yaml":
-          "reqseq-filter: 1\nname: Pro\nview: VAR-00c001\nwhere: { type: [system-requirement] }\n",
-      },
-    });
+    const workspace = await withPro();
     await addRecords(workspace, [passed(RV, await versionOf(workspace, RV), { variant: V })]);
     // In Pro: RV verified by its record for Pro; R01's record holds only in the core. `names` names
     // the variant of the view for readers (#588).
