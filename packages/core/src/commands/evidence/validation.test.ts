@@ -247,7 +247,7 @@ describe("an inconclusive validation (SR-172) on fixtures/SR-172/inconclusive", 
   const INCONCLUSIVE: FixtureOptions = { fixture: "SR-172/inconclusive" };
   const FROST = "The frost sensor was replaced; the field test starts again.";
 
-  it("[SR-172/AK2] element.get shows the status inconclusive and the reason of the newest record of the current version", async () => {
+  it("[SR-038/AK3] [SR-172/AK2] element.get shows the status inconclusive and the reason of the newest record of the current version", async () => {
     const ws = await open(INCONCLUSIVE);
     expect((await get(ws, "N-00a003")).element).toMatchObject({
       validation: "inconclusive",
