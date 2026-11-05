@@ -173,7 +173,7 @@ describe("the current version of every element (#259)", () => {
     // One record of the store: no state is built, each call reads what it needs.
     const read = async (): Promise<unknown> => {
       const entry = (await currentVersionsOf(workspace, [record])).get(record);
-      return entry?.kind === "version" ? entry.version : entry;
+      return entry?.kind === "version" ? entry.forms[NORMAL_FORM] : entry;
     };
     vi.mocked(files.readElementBodySync).mockClear();
     const before = await read();

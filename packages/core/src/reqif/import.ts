@@ -104,7 +104,7 @@ import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js"
 import { locate } from "../workspace/index.js";
 import type { AnyMapping } from "./mapping.js";
 import type { ExistingElement, ExistingElements, RelationItem } from "./repeat.js";
-import { NO_EXISTING, propertyTargetsDiffer, relationEdits, targetsDiffer } from "./repeat.js";
+import { NO_EXISTING, propertyTargetsDiffer, relationEdits, sameUpToForm, targetsDiffer } from "./repeat.js";
 import type {
   ReqifAttributeDefinition,
   ReqifDatatype,
@@ -1817,6 +1817,9 @@ const planUpdates = (
   const { keys } = context;
   // Relation kinds only: a relation-valued property (`validity`, `packages`) is a property of the draft.
   const properties = new Set(context.metamodel.properties.map((p) => p.key));
+  const relationProperties = context.metamodel.properties
+    .filter((p) => p.kind === "relation")
+    .map((p) => p.key);
   const uncountedTargets = context.metamodel.properties
     .filter((p) => p.kind === "relation" && p.content !== true)
     .map((p) => p.key);
@@ -1829,6 +1832,11 @@ const planUpdates = (
   ];
   const updates: PlannedUpdate[] = [];
   const updateImages: PlannedUpdateImage[] = [];
+  // The versions in every normal form of what a relation item to a draft gets (`targetVersion`).
+  const byId = new Map<unknown, VersionForms | undefined>(
+    [...drafts.values()].map((d) => [d.id, d.deliveryWins ? d.planned : d.existing?.forms]),
+  );
+  const targetForms = (id: unknown): VersionForms | undefined => byId.get(id);
   for (const draft of drafts.values()) {
     const { existing } = draft;
     if (existing === undefined) {
@@ -1865,16 +1873,24 @@ const planUpdates = (
           : (itemsOf(ownRelations.get(kind)).filter(hasId) as RelationItem[]);
       return {
         kind,
-        edits: relationEdits(data, kind, items, context.existing.ids),
+        edits: relationEdits(data, kind, items, context.existing.ids, targetForms),
         targets: targetsDiffer(data, kind, items, context.existing.ids),
       };
     });
     const extra = relations.flatMap((r) => r.edits);
+    // A relation-valued property that differs only in the normal form of its versions (ADR-0005).
+    const sameTargets = relationProperties.filter(
+      (key) => draft.properties.has(key) && sameUpToForm(data[key], draft.properties.get(key), targetForms),
+    );
     if (
       draft.case === "same" &&
       // The import version too: "same" may hold an I of another normal form than P is written in.
-      !updatedFile(draft, existing, extra, [keys.delivery, keys["import-date"], keys["import-version"]])
-        .changed
+      !updatedFile(draft, existing, extra, [
+        keys.delivery,
+        keys["import-date"],
+        keys["import-version"],
+        ...sameTargets,
+      ]).changed
     ) {
       continue;
     }

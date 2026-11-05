@@ -438,7 +438,6 @@ describe("the shared views give the results of the evaluator before #698", () =>
                         r,
                         {
                           kind: "version",
-                          version: version.n1,
                           forms: version,
                           images: [],
                         },

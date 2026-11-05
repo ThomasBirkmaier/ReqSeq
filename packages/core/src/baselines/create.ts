@@ -14,7 +14,7 @@ import { CommandError } from "../catalog.js";
 import type { CommandOutput } from "../catalog.js";
 import type { BaselineFile, BaselineStoredSelection } from "../generated/types.js";
 import type { ElementRecord } from "../model/index.js";
-import { currentVersionsOf, elementStoreState, workspacePath } from "../model/index.js";
+import { currentVersionsOf, elementStoreState, NORMAL_FORM, workspacePath } from "../model/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import type { RepositoryLocation } from "../workspace/index.js";
 import { locate, workspaceLayoutState } from "../workspace/index.js";
@@ -66,7 +66,7 @@ const entriesOf = async (
       store.byId.get(record.id)?.some((c) => c.repository !== record.repository) === true;
     entries.push({
       id: record.id,
-      version: entry.version,
+      version: entry.forms[NORMAL_FORM],
       ...(elsewhere ? { repository: record.repository } : {}),
     });
     const byFile = embeds.get(record.repository) ?? new Map<string, ElementRecord[]>();

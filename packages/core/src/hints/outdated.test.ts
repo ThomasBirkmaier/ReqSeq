@@ -160,6 +160,30 @@ describe("a reference written by the [[ search (SR-066)", () => {
     });
   });
 
+  it("[SR-066/AK3] a reference that stores normal form 2 stays current when its target changes only the stored version of its own reference, and is outdated after a real change (ADR-0005)", async () => {
+    const ws = await fixture();
+    const withLink = (version: string, text = "The operator sees the wind."): string =>
+      need(`${text} [Pro](reqseq:${V}?version=${version})`);
+    await ws.write(N_FILE, withLink("n1:0000000000000000"));
+    const formsOf = async (id: string) => {
+      const versions = await open(ws.root).get(currentVersionsState);
+      return defined(currentFormsOf(versions, defined(versions.store.byId.get(id)?.[0])));
+    };
+    const n = await formsOf(N);
+    await ws.write(A_FILE, requirementA({ validity: V_VERSION, derives: N_VERSION, link: n.n2 }));
+    const links = async (): Promise<unknown[]> =>
+      outdated(await check(open(ws.root)))
+        .filter((p) => p.elementId === A && p.place?.in === "text")
+        .map((p) => [p.targetId, p.storedVersion]);
+    expect(await links()).toEqual([]);
+    // N stores another version of V in its own reference, as confirming writes it: n2 of N stays.
+    await ws.write(N_FILE, withLink("n2:1111111111111111"));
+    expect((await formsOf(N)).n2).toBe(n.n2);
+    expect(await links()).toEqual([]);
+    await ws.write(N_FILE, withLink("n2:1111111111111111", "The operator sees the gusts."));
+    expect(await links()).toEqual([[N, n.n2]]);
+  });
+
   it("[SR-066/AK3] trace.affected of a target lists an element that references it only in its text", async () => {
     const ws = await fixture();
     // A without its relation to N: the reference in the text is all that ties A to N.
@@ -176,8 +200,11 @@ describe("a reference written by the [[ search (SR-066)", () => {
 });
 
 describe("outdated relations and references (SR-025)", () => {
-  it("[SR-025/AK1] reports nothing and is ok when every relation and reference is current", async () => {
+  it("[SR-025/AK1] reports nothing and is ok when every relation and reference is current, stored in normal form 1 as an earlier version of the tool wrote it", async () => {
     const ws = await fixture({ git: true });
+    // The fixture stores the n1 versions of the unchanged targets; the tool writes n2 (ADR-0005).
+    expect(await readFile(path.join(ws.root, A_FILE), "utf8")).toContain(`version: ${N_VERSION}`);
+    expect(NORMAL_FORM).toBe("n2");
     expect(await check(open(ws.root))).toEqual({ ok: true, problems: [], checkedElements: 4 });
   });
 
@@ -394,8 +421,9 @@ describe("outdated relations and references (SR-025)", () => {
     await ws.write(A_FILE, requirementA({ validity: V_VERSION, derives: derives ?? "", link: N_VERSION }));
     const after = outdated(await check(open(ws.root)));
     expect(after.map((p) => p.hintId)).toEqual([before[0]?.hintId, before[2]?.hintId]);
-    // And all of them: nothing of A is left. The confirmed link changed A's text, so A has a new
-    // version and B's refinement of A is outdated now (ADR-0004: a reference in the text counts).
+    // And all of them: nothing of A is left. The confirmed link changed A's text and so its n1
+    // version, which B's refinement of A stores: it is outdated now, once (ADR-0005 "Rings"); the
+    // n2 version of A, which confirming writes, stays.
     await ws.write(
       A_FILE,
       requirementA({ validity: validity ?? "", derives: derives ?? "", link: link ?? "" }),

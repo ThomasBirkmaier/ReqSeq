@@ -1,7 +1,7 @@
 // The relation edits of a repeated delivery (SR-056, ADR-0013 "Import"): the items to elements of
 // the source follow the delivery, every other item stays.
 import { describe, expect, it } from "vitest";
-import { propertyTargetsDiffer, relationEdits, targetsDiffer } from "./repeat.js";
+import { propertyTargetsDiffer, relationEdits, sameUpToForm, targetsDiffer } from "./repeat.js";
 
 const OWN = "6f1c2a3b-4d5e-4f60-9a7b-c0ffe0000001";
 const OTHER = "6f1c2a3b-4d5e-4f60-9a7b-c0ffe0000002";
@@ -61,5 +61,34 @@ describe("relationEdits (SR-056)", () => {
     expect(propertyTargetsDiffer(own, ["not an item", { id: OWN, version: "n1:2" }])).toBe(false);
     expect(propertyTargetsDiffer([own], [{ id: OTHER, version: "n1:1" }])).toBe(true);
     expect(propertyTargetsDiffer([], [own])).toBe(true);
+  });
+
+  it("takes a stored version of the other normal form that names the content the delivery writes as no change (ADR-0005)", () => {
+    const N1 = "n1:aaaaaaaaaaaaaaaa";
+    const N2 = "n2:bbbbbbbbbbbbbbbb";
+    const forms = (id: unknown) => (id === OWN ? { n1: N1, n2: N2 } : undefined);
+    expect(
+      relationEdits({ k: [{ id: OWN, version: N1 }] }, "k", [{ id: OWN, version: N2 }], ids, forms),
+    ).toEqual([]);
+    // Another content of the target, in either form, is a change.
+    expect(
+      relationEdits(
+        { k: [{ id: OWN, version: "n1:cccccccccccccccc" }] },
+        "k",
+        [{ id: OWN, version: N2 }],
+        ids,
+        forms,
+      ),
+    ).toHaveLength(2);
+    expect(
+      sameUpToForm([{ id: OWN, version: N1, title: "x" }], [{ id: OWN, version: N2, title: "x" }], forms),
+    ).toBe(true);
+    expect(sameUpToForm({ id: OWN, version: N1 }, { id: OWN, version: N2 }, forms)).toBe(true);
+    expect(
+      sameUpToForm(["no item", { id: OTHER, version: N1 }], ["no item", { id: OTHER, version: N2 }], forms),
+    ).toBe(false);
+    expect(sameUpToForm([{ id: OWN, version: N1 }], [{ id: OWN, version: N2, title: "x" }], forms)).toBe(
+      false,
+    );
   });
 });

@@ -63,7 +63,7 @@ describe("variant exclude (SR-042)", () => {
     expect(JSON.parse(result.stdout)).toEqual({ files: [A_FILE], problems: [] });
     expect(await read(ws, "requirements/SR-0000000000a3.md")).toBe(core);
     expect(await read(ws, A_FILE)).toContain(
-      "  - { id: 43043043-0000-4000-8000-0000000000a3, version: n1:67ebd0624004c969, title: Measure the rain }\n",
+      "  - { id: 43043043-0000-4000-8000-0000000000a3, version: n2:22b0303ec030d854, title: Measure the rain }\n",
     );
   });
 

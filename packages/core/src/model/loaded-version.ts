@@ -13,7 +13,7 @@
 //   of its type: SHA-256 of their JSON), so a user can tell whether it still holds for the
 //   metamodel of the workspace now. A store keeps the `Versioning` it was read with for its later
 //   reads (watcher batches, writes); a changed metamodel does not reset the store.
-// - A loaded version holds one value per normal form, by its prefix (`n1` today, D-027), so that a
+// - A loaded version holds one value per normal form, by its prefix (`n1`, `n2`, D-027), so that a
 //   later form can be added or computed lazily next to it. Both n1 and n2 are computed (ADR-0005
 //   "Normal form 2": a stored version is compared in its own form).
 import type {

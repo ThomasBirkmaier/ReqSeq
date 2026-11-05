@@ -134,11 +134,13 @@ test.describe("the evidence columns without a chosen view", () => {
 
   test("[SR-126/AK5] without a chosen variant the test cases, the status and the degree are those of the core", async () => {
     const { window } = running;
-    // The record names the version the file has now; another would make it outdated, not a variant's.
-    const got = JSON.parse((await running.cli(["element", "get", "SR-126b06"])).stdout) as {
-      readonly element: { readonly version: string };
-    };
-    expect(got.element.version).toBe("n1:2e6c576ee02603e7");
+    // The record names the version the file has now, in normal form n1 (the tool shows n2 and
+    // compares a stored n1 in its own form, ADR-0005); another would make it outdated, not a variant's.
+    const got = JSON.parse(
+      (await running.cli(["element", "resolve", "SR-126b06", "--version", "n1:2e6c576ee02603e7", "--json"]))
+        .stdout,
+    ) as { readonly current: string };
+    expect(got.current).toBe("current");
     await listAll(window);
     await window.keyboard.press("ControlOrMeta+T");
     await expect(window.locator("tbody tr")).toHaveCount(12);

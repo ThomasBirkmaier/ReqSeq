@@ -10,7 +10,8 @@ import type { CommandName } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
-import { computeVersion } from "../version/version.js";
+import { NORMAL_FORM } from "../version/version.js";
+import { versionIn } from "./version-input.js";
 import { elementStoreState } from "./store.js";
 import { relationTargetRefs } from "./targets.js";
 import { shortIdState } from "./short-id.js";
@@ -24,7 +25,7 @@ const SENSOR_NEED = { id: "a7f3c1e9-5b2d-4e8f-b6a4-0e9d7c5b3a21", short: "N-5b3a
 const STORED_VAR = "n1:0000000000000000";
 
 const version = (text: string): string =>
-  computeVersion({ text, properties: {}, definitions: [], files: [] });
+  versionIn({ text, properties: {}, definitions: [], files: [] }, NORMAL_FORM);
 const PKG_ENTRY = `{ id: ${PKG.id}, version: ${version("The first release.")}, title: ${PKG.title} }`;
 const SENSOR_ENTRY = `{ id: ${SENSOR_NEED.id}, version: ${version("The sensor measures gusts.")}, repository: sensor }`;
 

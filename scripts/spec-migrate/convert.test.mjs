@@ -121,7 +121,7 @@ describe("spec migration (Logseq export -> ReqSeq workspace, #326)", () => {
       });
       const stage3 = STAGES.find((s) => s.key === "3");
       expect(
-        sr.relations.map((rel) => [rel.kind, rel.identifier, /^n1:[0-9a-f]{16}$/.test(rel.storedVersion)]),
+        sr.relations.map((rel) => [rel.kind, rel.identifier, /^n2:[0-9a-f]{16}$/.test(rel.storedVersion)]),
       ).toEqual([
         ["derives-from", "N-001", true],
         ["based-on", "D-001", true],
@@ -151,7 +151,7 @@ describe("spec migration (Logseq export -> ReqSeq workspace, #326)", () => {
     // Links: everything but rings, self mentions, code and the test-name example.
     expect(read(ws, "system-requirement", U.sr1)).toMatch(
       new RegExp(
-        `\\(\\[D-001\\]\\(reqseq:${U.d1}\\?version=n1:[0-9a-f]{16}\\), \\[D-003\\]\\(reqseq:${U.d3}\\?version=n1:[0-9a-f]{16}\\)\\), siehe \`D-002\` und \\[N-001/AK2\\]\\.\\n\\n\`\`\`\\nD-002 im Code\\n\`\`\`\\n$`,
+        `\\(\\[D-001\\]\\(reqseq:${U.d1}\\?version=n2:[0-9a-f]{16}\\), \\[D-003\\]\\(reqseq:${U.d3}\\?version=n2:[0-9a-f]{16}\\)\\), siehe \`D-002\` und \\[N-001/AK2\\]\\.\\n\\n\`\`\`\\nD-002 im Code\\n\`\`\`\\n$`,
       ),
     );
     expect(read(ws, "decision", U.d2)).toContain("Ring mit D-001, Verweis auf [D-003](reqseq:");
@@ -161,7 +161,7 @@ describe("spec migration (Logseq export -> ReqSeq workspace, #326)", () => {
       `---\nid: ${U.d3}\ntype: decision\nstatus: accepted\ntitle: "Drei"\nspec-id: "D-003"\n---\n\nKein Verweis.\n`,
     );
     expect(read(ws, "glossary-term", U.g2)).toMatch(
-      /^---\nid: .*\ntype: glossary-term\ntitle: "Kern"\narea: tool-entwicklung\ndistinct-from:\n {2}- \{ id: 6ad4f981-8c70-4568-a77a-3da4cd2f98ac, version: n1:[0-9a-f]{16}, title: .*\}\nsee-also:\n/,
+      /^---\nid: .*\ntype: glossary-term\ntitle: "Kern"\narea: tool-entwicklung\ndistinct-from:\n {2}- \{ id: 6ad4f981-8c70-4568-a77a-3da4cd2f98ac, version: n2:[0-9a-f]{16}, title: .*\}\nsee-also:\n/,
     );
     expect(plan.stats).toMatchObject({
       self: 1,

@@ -237,9 +237,10 @@ export function mentionedIds(text, selfId, uuidOf) {
 /**
  * The strongly connected components of the mention graph (Tarjan), as a map from each ID in a ring
  * to the set of IDs of its ring. An inline reference stores the version of its target in the text,
- * and the text counts to the version (ADR-0005; the decision on #281 to leave it out is not
- * implemented yet, #378), so references that form a ring can never all be current: confirming one makes
- * the next one outdated. Mentions within a ring therefore stay text.
+ * and in normal form n1 the text counts to the version with it, so references that form a ring could
+ * never all be current: confirming one made the next one outdated. The conversion was made for n1, so
+ * mentions within a ring stay text (normal form n2 leaves the stored versions out, so rings settle
+ * since #166; ADR-0005).
  */
 export function ringPartners(graph) {
   const index = new Map();

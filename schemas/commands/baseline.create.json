@@ -1,7 +1,7 @@
 {
   "name": "baseline.create",
   "title": "Create baseline",
-  "summary": "Write a baseline file for a selection (SR-050, ADR-0018): name, date, the HEAD commit of every repository involved, ID and version of every element. Refused while files of the selection are not committed. Never commits, never replaces a baseline.",
+  "summary": "Write a baseline file for a selection (SR-050, ADR-0018): name, date, the HEAD commit of every repository involved, ID and version (in normal form n2, ADR-0005) of every element. Refused while files of the selection are not committed. Never commits, never replaces a baseline.",
   "effect": "write-files",
   "whileReadOnly": "refuse",
   "whileReadOnlyReason": "Stores the current versions of the selection, which depend on the metamodel (which properties count).",

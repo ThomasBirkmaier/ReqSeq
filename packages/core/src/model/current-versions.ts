@@ -64,18 +64,17 @@ import { elementVersions, notComputableMessage, versionOrRangeError } from "./vi
 export type CurrentVersion =
   | {
       readonly kind: "version";
-      /** The version of its file as it is now (ADR-0005), in the normal form the tool writes (`NORMAL_FORM`). */
-      readonly version: string;
       /**
-       * Its version in every normal form, to compare a stored version with in that version's own
-       * form (`sameVersion`, ADR-0005 "Normal form 2").
+       * The version of its file as it is now (ADR-0005) in every normal form: shown and written in
+       * `NORMAL_FORM`, and a stored version is compared with it in that version's own form
+       * (`sameVersion`, ADR-0005 "Normal form 2").
        */
       readonly forms: VersionForms;
       /** What the lookup of each image its text embeds found, for the check on use (`imagesUnchanged`). */
       readonly images: readonly ImageSeen[];
       /**
        * The element as its file holds it now, when the file changed since the store read it (same
-       * UUID): `version` is of this element, not of the record of the store.
+       * UUID): `forms` are of this element, not of the record of the store.
        */
       readonly element?: ElementRecord;
     }
@@ -106,7 +105,7 @@ export interface CurrentVersions {
 /** The current version of `record`, or undefined when it has none (`CurrentVersion`) or is not in the store. */
 export const currentVersionOf = (versions: CurrentVersions, record: ElementRecord): string | undefined => {
   const entry = versions.byRecord.get(record);
-  return entry?.kind === "version" ? entry.version : undefined;
+  return entry?.kind === "version" ? entry.forms[NORMAL_FORM] : undefined;
 };
 
 /**
@@ -127,7 +126,6 @@ const versionEntry = (
   element?: ElementRecord,
 ): CurrentVersion => ({
   kind: "version",
-  version: forms[NORMAL_FORM],
   forms,
   images,
   ...(element === undefined ? {} : { element }),

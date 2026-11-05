@@ -118,7 +118,7 @@ describe("current versions of relation ends (second pass)", () => {
           new Map(
             records.map((r): [ElementRecord, CurrentVersion] =>
               r === a1
-                ? [r, { kind: "version", version: formsOf(V)[NORMAL_FORM], forms: formsOf(V), images: [] }]
+                ? [r, { kind: "version", forms: formsOf(V), images: [] }]
                 : [r, { kind: "unknown", reason: "not-in-file", message: "gone" }],
             ),
           ),

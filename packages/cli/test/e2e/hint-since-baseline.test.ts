@@ -63,15 +63,15 @@ describe("reqseq hints since a variant's newest baseline (SR-103)", () => {
     const ws = await changedSinceR1();
     const hints = await hintsOf(ws, "--variant", "VAR-0000c1");
     expect(hints.map((h) => [h.code, h.elementId, h.targetId, h.storedVersion])).toEqual([
-      [CHANGED, `${P}c1`, `${P}a1`, "n1:c44c2a59a7eba159"],
+      [CHANGED, `${P}c1`, `${P}a1`, "n2:80121ca10e2f8487"],
     ]);
-    expect(hints[0]?.currentVersion).toMatch(/^n1:/);
+    expect(hints[0]?.currentVersion).toMatch(/^n2:/);
     // Mountain has no baseline (AK3), and Coast's hint is not Mountain's.
     expect(await hintsOf(ws, "--variant", "VAR-0000c2")).toEqual([]);
     const check = await reqseq(["workspace", "check"], ws.root);
     expect(check.code).toBe(0);
     expect(check.stdout).toContain(
-      "Core requirement System Requirement SR-0000a1, which Variant VAR-0000c1 adopts, has changed since its newest baseline R1: version n1:c44c2a59a7eba159 there",
+      "Core requirement System Requirement SR-0000a1, which Variant VAR-0000c1 adopts, has changed since its newest baseline R1: version n2:80121ca10e2f8487 there",
     );
   });
 

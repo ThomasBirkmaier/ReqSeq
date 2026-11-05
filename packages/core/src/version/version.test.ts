@@ -49,16 +49,15 @@ const base: VersionInput = {
   files: [{ path: "SR-825b7146fb54/layout.png", sha256: image }],
 };
 
-const v = (patch: Partial<VersionInput>): string => computeVersion({ ...base, ...patch });
+const v = (patch: Partial<VersionInput>): string => computeVersion({ ...base, ...patch }, "n1");
 const withProps = (props: VersionInput["properties"]): string =>
   v({ properties: { ...base.properties, ...props } });
 
 describe("version (ADR-0005, normal form n1)", () => {
   it("has the form n1:<16 hex> and is the SHA-256 prefix of the canonical bytes", () => {
-    const version = computeVersion(base);
-    expect(NORMAL_FORM).toBe("n1");
+    const version = computeVersion(base, "n1");
     expect(version).toMatch(/^n1:[0-9a-f]{16}$/);
-    expect(version).toBe(`n1:${sha256Hex(canonicalContent(base)).slice(0, 16)}`);
+    expect(version).toBe(`n1:${sha256Hex(canonicalContent(base, "n1")).slice(0, 16)}`);
   });
 
   it("writes the canonical form with sorted prop and file sections", () => {
@@ -75,14 +74,14 @@ describe("version (ADR-0005, normal form n1)", () => {
         { path: "E/a.png", sha256: "a".repeat(64) },
       ],
     };
-    expect(canonicalContent(input)).toBe(
+    expect(canonicalContent(input, "n1")).toBe(
       'reqseq-version n1\ntext\n"Text"\nprop a\n1\nprop b\n"two"\nprop c\ntrue\n' +
         `file E/a.png\n${"a".repeat(64)}\nfile E/z.png\n${"b".repeat(64)}\n`,
     );
   });
 
   it("writes an empty text section for an element without text", () => {
-    expect(canonicalContent({ text: "\n\n", properties: {}, definitions: [], files: [] })).toBe(
+    expect(canonicalContent({ text: "\n\n", properties: {}, definitions: [], files: [] }, "n1")).toBe(
       'reqseq-version n1\ntext\n""\n',
     );
   });
@@ -98,7 +97,7 @@ describe("version (ADR-0005, normal form n1)", () => {
         { path: "E/～.png", sha256: "2".repeat(64) },
       ],
     };
-    const c = canonicalContent(input);
+    const c = canonicalContent(input, "n1");
     expect(c.indexOf("～")).toBeLessThan(c.indexOf("\u{1F600}"));
   });
 
@@ -109,7 +108,7 @@ describe("version (ADR-0005, normal form n1)", () => {
       definitions: [{ key: "x", kind: "text", content: true }],
       files: [],
     };
-    expect(canonicalContent(input)).toBe(
+    expect(canonicalContent(input, "n1")).toBe(
       'reqseq-version n1\ntext\n""\nprop x\n[{"w":[1,false],"y":null,"z":"a\\n\\nb"}]\n',
     );
   });
@@ -118,7 +117,7 @@ describe("version (ADR-0005, normal form n1)", () => {
     const absent = withProps({ validity: undefined });
     expect(withProps({ validity: null })).toBe(absent);
     expect(withProps({ validity: [] })).toBe(absent);
-    expect(canonicalContent({ ...base, properties: { validity: [] } })).not.toContain("prop validity");
+    expect(canonicalContent({ ...base, properties: { validity: [] } }, "n1")).not.toContain("prop validity");
   });
 
   it("writes the text as one JSON string, so text cannot forge a prop or file section", () => {
@@ -129,13 +128,15 @@ describe("version (ADR-0005, normal form n1)", () => {
       definitions: [definition],
     };
     const real = { text: "A", properties: { "requirement-type": "functional" }, definitions: [definition] };
-    expect(computeVersion({ ...forged, files: [] })).not.toBe(computeVersion({ ...real, files: [] }));
-    expect(canonicalContent({ ...forged, files: [] })).toBe(
+    expect(computeVersion({ ...forged, files: [] }, "n1")).not.toBe(
+      computeVersion({ ...real, files: [] }, "n1"),
+    );
+    expect(canonicalContent({ ...forged, files: [] }, "n1")).toBe(
       'reqseq-version n1\ntext\n"A\\nprop requirement-type\\n\\"functional\\""\n',
     );
     const file = { path: "x.png", sha256: "a".repeat(64) };
-    expect(computeVersion({ ...real, text: `A\nfile x.png\n${file.sha256}`, files: [] })).not.toBe(
-      computeVersion({ ...real, files: [file] }),
+    expect(computeVersion({ ...real, text: `A\nfile x.png\n${file.sha256}`, files: [] }, "n1")).not.toBe(
+      computeVersion({ ...real, files: [file] }, "n1"),
     );
   });
 
@@ -147,9 +148,9 @@ describe("version (ADR-0005, normal form n1)", () => {
       files: [{ path: "a.png", sha256: null }],
     };
     expect(MISSING_FILE).toBe("missing");
-    expect(canonicalContent(input)).toBe('reqseq-version n1\ntext\n""\nfile a.png\nmissing\n');
-    expect(computeVersion({ ...input, files: [{ path: "a.png", sha256: image }] })).not.toBe(
-      computeVersion(input),
+    expect(canonicalContent(input, "n1")).toBe('reqseq-version n1\ntext\n""\nfile a.png\nmissing\n');
+    expect(computeVersion({ ...input, files: [{ path: "a.png", sha256: image }] }, "n1")).not.toBe(
+      computeVersion(input, "n1"),
     );
   });
 
@@ -158,7 +159,7 @@ describe("version (ADR-0005, normal form n1)", () => {
       { path: "a.png", sha256: image },
       { path: "a.png", sha256: image },
     ];
-    expect(() => computeVersion({ text: "", properties: {}, definitions: [], files })).toThrow(
+    expect(() => computeVersion({ text: "", properties: {}, definitions: [], files }, "n1")).toThrow(
       "version: file a.png given twice",
     );
   });
@@ -166,7 +167,7 @@ describe("version (ADR-0005, normal form n1)", () => {
   it("writes numbers like ECMAScript and rejects non-finite numbers", () => {
     const definition: VersionPropertyDefinition = { key: "n", kind: "number", content: true };
     const canon = (n: number): string =>
-      canonicalContent({ text: "", properties: { n: [n] }, definitions: [definition], files: [] });
+      canonicalContent({ text: "", properties: { n: [n] }, definitions: [definition], files: [] }, "n1");
     expect(canon(1.0)).toContain("prop n\n[1]\n");
     expect(canon(1e21)).toContain("prop n\n[1e+21]\n");
     expect(canon(0.1)).toContain("prop n\n[0.1]\n");
@@ -183,25 +184,30 @@ describe("version (ADR-0005, normal form n1)", () => {
       definitions: [definition],
       files: [],
     });
-    expect(comparableContent(input(Number.NEGATIVE_INFINITY))).toBe(
+    expect(comparableContent(input(Number.NEGATIVE_INFINITY), "n1")).toBe(
       'reqseq-version n1\ntext\n""\nprop n\n{"at":[-Infinity]}\n',
     );
-    expect(comparableContent(input(Number.NaN))).toContain("[NaN]");
-    expect(comparableContent(input(Number.NaN, "a"))).not.toBe(comparableContent(input(Number.NaN, "b")));
+    expect(comparableContent(input(Number.NaN), "n1")).toContain("[NaN]");
+    expect(comparableContent(input(Number.NaN, "a"), "n1")).not.toBe(
+      comparableContent(input(Number.NaN, "b"), "n1"),
+    );
     // A finite value gives the canonical content of the version.
-    expect(comparableContent(input(1))).toBe(canonicalContent(input(1)));
+    expect(comparableContent(input(1), "n1")).toBe(canonicalContent(input(1), "n1"));
   });
 
   it("reads only own property keys, also for keys like constructor", () => {
     const def: VersionPropertyDefinition = { key: "constructor", kind: "text", content: true };
-    const empty = canonicalContent({ text: "", properties: {}, definitions: [def], files: [] });
+    const empty = canonicalContent({ text: "", properties: {}, definitions: [def], files: [] }, "n1");
     expect(empty).toBe('reqseq-version n1\ntext\n""\n');
-    const set = canonicalContent({
-      text: "",
-      properties: { constructor: "x" },
-      definitions: [def],
-      files: [],
-    });
+    const set = canonicalContent(
+      {
+        text: "",
+        properties: { constructor: "x" },
+        definitions: [def],
+        files: [],
+      },
+      "n1",
+    );
     expect(set).toBe('reqseq-version n1\ntext\n""\nprop constructor\n"x"\n');
   });
 
@@ -215,7 +221,7 @@ describe("version (ADR-0005, normal form n1)", () => {
       ],
       files: [],
     };
-    expect(canonicalContent(input)).toBe(
+    expect(canonicalContent(input, "n1")).toBe(
       `reqseq-version n1\ntext\n""\nprop odd\n["plain",{"title":"x"}]\nprop one\n"${pro}"\n`,
     );
   });
@@ -231,63 +237,71 @@ describe("version (ADR-0005, normal form n1)", () => {
     });
   });
 
-  it("[SR-091/AK1] is equal for the same content with other line endings or trailing spaces", () => {
-    const lf = computeVersion(base);
-    const crlf = base.text.replace(/\n/g, "\r\n");
-    const cr = base.text.replace(/\n/g, "\r");
-    const spaced = base.text.replace(/\n/g, "  \t\n");
-    const blank = `\n\n${base.text.replace("\n\n", "\n\n\n \n")}\n\n\n`;
-    expect(v({ text: crlf })).toBe(lf);
-    expect(v({ text: cr })).toBe(lf);
-    expect(v({ text: spaced })).toBe(lf);
-    expect(v({ text: blank })).toBe(lf);
-    expect(
-      withProps({ "acceptance-criteria": ["Given A, when B, then C.  ", "Given D, when E, then F.\r\n"] }),
-    ).toBe(lf);
-  });
+  describe.each(["n1", "n2"] as const)("in normal form %s", (form) => {
+    const vIn = (patch: Partial<VersionInput>): string => computeVersion({ ...base, ...patch }, form);
+    const propsIn = (props: VersionInput["properties"]): string =>
+      vIn({ properties: { ...base.properties, ...props } });
 
-  it("[SR-091/AK2] stays equal when only properties that do not count change", () => {
-    const before = computeVersion(base);
-    expect(withProps({ status: "approved" })).toBe(before);
-    expect(withProps({ title: "Show wind speed in large digits" })).toBe(before);
-    expect(withProps({ rationale: "Other reason." })).toBe(before);
-    expect(withProps({ packages: [] })).toBe(before);
-    expect(withProps({ "derives-from": [] })).toBe(before);
-    expect(withProps({ "customer-id": "WS-0816" })).toBe(before);
-    expect(withProps({ statement: "Agreed." })).toBe(before);
-    // A content-flagged property the element's type does not have is not passed as definition.
-    expect(withProps({ "unknown-content": "x" })).toBe(before);
-    // Only the id of a validity target counts, not its version or title (no cascade).
-    expect(withProps({ validity: [{ id: pro, version: "n1:ffffffffffffffff", title: "Pro 2" }] })).toBe(
-      before,
-    );
-  });
+    it("[SR-091/AK1] is equal for the same content with other line endings or trailing spaces", () => {
+      const lf = computeVersion(base, form);
+      const crlf = base.text.replace(/\n/g, "\r\n");
+      const cr = base.text.replace(/\n/g, "\r");
+      const spaced = base.text.replace(/\n/g, "  \t\n");
+      const blank = `\n\n${base.text.replace("\n\n", "\n\n\n \n")}\n\n\n`;
+      expect(vIn({ text: crlf })).toBe(lf);
+      expect(vIn({ text: cr })).toBe(lf);
+      expect(vIn({ text: spaced })).toBe(lf);
+      expect(vIn({ text: blank })).toBe(lf);
+      expect(
+        propsIn({ "acceptance-criteria": ["Given A, when B, then C.  ", "Given D, when E, then F.\r\n"] }),
+      ).toBe(lf);
+    });
 
-  it("[SR-091/AK3] changes when text, an acceptance criterion or a content property changes", () => {
-    const before = computeVersion(base);
-    expect(v({ text: `${base.text}More.\n` })).not.toBe(before);
-    expect(v({ text: base.text.replace("|---|---|", "| --- | --- |") })).not.toBe(before);
-    expect(v({ text: base.text.replace("wind speed", "*wind speed*") })).not.toBe(before);
-    expect(
-      withProps({ "acceptance-criteria": ["Given A, when B, then C!", "Given D, when E, then F."] }),
-    ).not.toBe(before);
-    expect(
-      withProps({ "acceptance-criteria": ["Given D, when E, then F.", "Given A, when B, then C."] }),
-    ).not.toBe(before);
-    expect(withProps({ "requirement-type": "quality" })).not.toBe(before);
-    expect(withProps({ validity: [{ id: lite, version: "n1:2c26b46b68ffc68f", title: "Pro" }] })).not.toBe(
-      before,
-    );
-    expect(withProps({ emergent: "yes" })).not.toBe(before);
-  });
+    it("[SR-091/AK2] stays equal when only properties that do not count change", () => {
+      const before = computeVersion(base, form);
+      expect(propsIn({ status: "approved" })).toBe(before);
+      expect(propsIn({ title: "Show wind speed in large digits" })).toBe(before);
+      expect(propsIn({ rationale: "Other reason." })).toBe(before);
+      expect(propsIn({ packages: [] })).toBe(before);
+      expect(propsIn({ "derives-from": [] })).toBe(before);
+      expect(propsIn({ "customer-id": "WS-0816" })).toBe(before);
+      expect(propsIn({ statement: "Agreed." })).toBe(before);
+      // A content-flagged property the element's type does not have is not passed as definition.
+      expect(propsIn({ "unknown-content": "x" })).toBe(before);
+      // Only the id of a validity target counts, not its version or title (no cascade).
+      expect(propsIn({ validity: [{ id: pro, version: "n1:ffffffffffffffff", title: "Pro 2" }] })).toBe(
+        before,
+      );
+    });
 
-  it("[SR-091/AK4] changes when an embedded image changes", () => {
-    const before = computeVersion(base);
-    const changed = sha256Hex(new Uint8Array([1, 2, 4]));
-    expect(v({ files: [{ path: "SR-825b7146fb54/layout.png", sha256: changed }] })).not.toBe(before);
-    expect(v({ files: [...base.files, { path: "SR-825b7146fb54/b.png", sha256: image }] })).not.toBe(before);
-    expect(v({ files: [{ path: "SR-825b7146fb54/renamed.png", sha256: image }] })).not.toBe(before);
-    expect(v({ files: [] })).not.toBe(before);
+    it("[SR-091/AK3] changes when text, an acceptance criterion or a content property changes", () => {
+      const before = computeVersion(base, form);
+      expect(vIn({ text: `${base.text}More.\n` })).not.toBe(before);
+      expect(vIn({ text: base.text.replace("|---|---|", "| --- | --- |") })).not.toBe(before);
+      expect(vIn({ text: base.text.replace("wind speed", "*wind speed*") })).not.toBe(before);
+      expect(
+        propsIn({ "acceptance-criteria": ["Given A, when B, then C!", "Given D, when E, then F."] }),
+      ).not.toBe(before);
+      expect(
+        propsIn({ "acceptance-criteria": ["Given D, when E, then F.", "Given A, when B, then C."] }),
+      ).not.toBe(before);
+      expect(propsIn({ "requirement-type": "quality" })).not.toBe(before);
+      expect(propsIn({ validity: [{ id: lite, version: "n1:2c26b46b68ffc68f", title: "Pro" }] })).not.toBe(
+        before,
+      );
+      expect(propsIn({ emergent: "yes" })).not.toBe(before);
+    });
+
+    it("[SR-091/AK4] changes when an embedded image changes", () => {
+      const before = computeVersion(base, form);
+      const changed = sha256Hex(new Uint8Array([1, 2, 4]));
+      expect(vIn({ files: [{ path: "SR-825b7146fb54/layout.png", sha256: changed }] })).not.toBe(before);
+      expect(vIn({ files: [...base.files, { path: "SR-825b7146fb54/b.png", sha256: image }] })).not.toBe(
+        before,
+      );
+      expect(v({ files: [{ path: "SR-825b7146fb54/renamed.png", sha256: image }] })).not.toBe(before);
+      expect(v({ files: [] })).not.toBe(before);
+    });
   });
 
   it("hashes strings as UTF-8", () => {
@@ -297,11 +311,11 @@ describe("version (ADR-0005, normal form n1)", () => {
 });
 
 describe("normal form n2 (ADR-0005, #166, #688)", () => {
-  it("writes the header n2 and the prefix n2, and computes n1 by default while the tool writes n1", () => {
-    expect(NORMAL_FORM).toBe("n1");
+  it("writes the header n2 and the prefix n2, and computes n2 by default, the form the tool writes", () => {
+    expect(NORMAL_FORM).toBe("n2");
     expect(canonicalContent(base, "n2").startsWith("reqseq-version n2\n")).toBe(true);
     expect(computeVersion(base, "n2")).toMatch(/^n2:[0-9a-f]{16}$/);
-    expect(computeVersion(base)).toBe(computeVersion(base, "n1"));
+    expect(computeVersion(base, "n1")).toMatch(/^n1:[0-9a-f]{16}$/);
     expect(comparableContent(base, "n2")).toBe(canonicalContent(base, "n2"));
   });
 

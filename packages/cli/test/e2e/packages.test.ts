@@ -85,7 +85,7 @@ describe("reqseq packages (SR-048, SR-049)", () => {
       JSON.stringify({ set: { packages: [{ id: P1 }] } }),
     ]);
     expect(await fs.readFile(ws.path(FILE.R3), "utf8")).toMatch(
-      new RegExp(`packages:\\n  - \\{ id: ${P1}, version: n1:[0-9a-f]{16}, title: Release 1 \\}\\n`),
+      new RegExp(`packages:\\n  - \\{ id: ${P1}, version: n2:[0-9a-f]{16}, title: Release 1 \\}\\n`),
     );
     expect(await sha256(ws, FILE.P1)).toBe(before);
     expect(await ws.git(["status", "--porcelain"])).toBe(` M ${FILE.R3}\n`);

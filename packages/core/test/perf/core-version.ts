@@ -10,7 +10,8 @@ import type { Metamodel } from "../../src/metamodel/index.js";
 import { STANDARD_MODEL_TEXT, findType, metamodelState } from "../../src/metamodel/index.js";
 import { Workspace } from "../../src/runtime/workspace.js";
 import type { VersionValue } from "../../src/version/version.js";
-import { computeVersion } from "../../src/version/version.js";
+import { versionIn } from "../../src/model/version-input.js";
+import { NORMAL_FORM } from "../../src/version/version.js";
 
 /** What the generator passes for an element (the testkit's `VersionSubject`). */
 interface VersionSubject {
@@ -45,16 +46,19 @@ export const versionOf =
   (metamodel: Metamodel): ((element: VersionSubject) => string) =>
   ({ type, text, properties }) => {
     const keys = new Set(findType(metamodel, type)?.properties ?? []);
-    return computeVersion({
-      text,
-      properties: properties as Readonly<Record<string, VersionValue>>,
-      definitions: metamodel.properties
-        .filter((p) => keys.has(p.key))
-        .map((p) => ({
-          key: p.key,
-          kind: p.kind,
-          ...(p.content === undefined ? {} : { content: p.content }),
-        })),
-      files: [],
-    });
+    return versionIn(
+      {
+        text,
+        properties: properties as Readonly<Record<string, VersionValue>>,
+        definitions: metamodel.properties
+          .filter((p) => keys.has(p.key))
+          .map((p) => ({
+            key: p.key,
+            kind: p.kind,
+            ...(p.content === undefined ? {} : { content: p.content }),
+          })),
+        files: [],
+      },
+      NORMAL_FORM,
+    );
   };

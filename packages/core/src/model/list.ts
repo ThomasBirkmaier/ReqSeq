@@ -23,6 +23,7 @@ import type { Workspace } from "../runtime/workspace.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import { currentVersionsOf } from "./current-versions.js";
 import type { VersionForms } from "../version/version.js";
+import { NORMAL_FORM } from "../version/version.js";
 import type { ElementRecord } from "./elements.js";
 import type { ShortIds } from "./short-id.js";
 import type { ElementStore } from "./store.js";
@@ -91,7 +92,7 @@ export const listElements = async (
       extend(
         record,
         version.kind === "version"
-          ? { ...listedElement(input, version.version), ...text(record) }
+          ? { ...listedElement(input, version.forms[NORMAL_FORM]), ...text(record) }
           : {
               ...listedElement(input, undefined),
               problems: [noVersionProblem(stored, version.message)],

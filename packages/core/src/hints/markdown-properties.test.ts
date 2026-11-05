@@ -302,7 +302,7 @@ describe("references in properties marked markdown (SR-127)", () => {
       expect(await versionOf(marked, A)).toBe(await versionOf(unmarked, A));
     });
 
-    it("a reference confirmed in a property that counts changes the version of its element, in one that does not count it stays (#444)", async () => {
+    it("a reference confirmed in a property that counts or one that does not leaves the version of its element as it is (#444, n2: ADR-0005)", async () => {
       const decision = `---\nid: ${C}\ntype: decision\nstatus: draft\ntitle: Choose\nrationale: Because ${link("the wind")}.\n---\n\nText.\n`;
       const ws = await fixture();
       await ws.write(C_FILE, decision);
@@ -312,10 +312,13 @@ describe("references in properties marked markdown (SR-127)", () => {
         (h) => h.hintId?.includes("/@text:rationale/") === true,
       );
       const criteriaBefore = await versionOf(workspace, A);
+      const before = fs.readFileSync(path.join(ws.root, A_FILE), "utf8");
       const decisionBefore = await versionOf(workspace, C);
       await confirm(workspace, [at(1), rationale?.hintId ?? ""]);
-      expect(await versionOf(workspace, A)).not.toBe(criteriaBefore);
+      // The confirmed `version=` is no part of the n2 version, in a property that counts too.
+      expect(await versionOf(workspace, A)).toBe(criteriaBefore);
       expect(await versionOf(workspace, C)).toBe(decisionBefore);
+      expect(fs.readFileSync(path.join(ws.root, A_FILE), "utf8")).not.toBe(before);
     });
   });
 

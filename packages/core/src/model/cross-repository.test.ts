@@ -9,7 +9,8 @@ import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandName, CommandOutput } from "../catalog.js";
 import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
-import { computeVersion } from "../version/version.js";
+import { NORMAL_FORM } from "../version/version.js";
+import { versionIn } from "./version-input.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import type { FollowedTargets } from "./relations.js";
 import { followTargets } from "./relations.js";
@@ -41,7 +42,7 @@ const SYSTEM_ONLY = "e1f2a3b4-c5d6-4e7f-8a9b-0c1d2e3f4a5b";
 
 /** The current version of a fixture element, computed from its text alone (no property counts). */
 const versionOf = (element: { readonly text: string }): string =>
-  computeVersion({ text: element.text, properties: {}, definitions: [], files: [] });
+  versionIn({ text: element.text, properties: {}, definitions: [], files: [] }, NORMAL_FORM);
 
 interface Opened {
   readonly fixture: FixtureWorkspace;

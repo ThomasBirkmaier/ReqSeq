@@ -15,7 +15,7 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import type { CommandOutput, VersionValue } from "@reqseq/core";
-import { MODEL_CACHE_FILE, Workspace, computeVersion, invoke } from "@reqseq/core";
+import { MODEL_CACHE_FILE, Workspace, invoke, NORMAL_FORM, versionIn } from "@reqseq/core";
 import type { LargeFixtureWorkspace, VersionFunction } from "@reqseq/testkit";
 import {
   createFixtureWorkspace,
@@ -69,18 +69,21 @@ const versionOf =
   (metamodel: Metamodel): VersionFunction =>
   ({ type, text, properties }) => {
     const keys = new Set(metamodel.types.find((t) => t.key === type)?.properties ?? []);
-    return computeVersion({
-      text,
-      properties: properties as Readonly<Record<string, VersionValue>>,
-      definitions: metamodel.properties
-        .filter((p) => keys.has(p.key))
-        .map((p) => ({
-          key: p.key,
-          kind: p.kind,
-          ...(p.content === undefined ? {} : { content: p.content }),
-        })),
-      files: [],
-    });
+    return versionIn(
+      {
+        text,
+        properties: properties as Readonly<Record<string, VersionValue>>,
+        definitions: metamodel.properties
+          .filter((p) => keys.has(p.key))
+          .map((p) => ({
+            key: p.key,
+            kind: p.kind,
+            ...(p.content === undefined ? {} : { content: p.content }),
+          })),
+        files: [],
+      },
+      NORMAL_FORM,
+    );
   };
 
 interface Endpoint {

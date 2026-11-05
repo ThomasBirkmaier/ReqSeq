@@ -7,7 +7,8 @@ import { CommandError } from "../catalog.js";
 import { metamodelState } from "../metamodel/index.js";
 import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
-import { computeVersion } from "../version/version.js";
+import { NORMAL_FORM, computeVersion } from "../version/version.js";
+import { versionIn } from "./version-input.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import { shortIdState } from "./short-id.js";
 import { elementStoreState } from "./store.js";
@@ -52,7 +53,7 @@ const OTHER = "n1:2222222222222222";
  * targets has a property that counts to the version (ADR-0005), and the title does not count.
  */
 const versionOf = (element: { readonly text: string }): string =>
-  computeVersion({ text: element.text, properties: {}, definitions: [], files: [] });
+  versionIn({ text: element.text, properties: {}, definitions: [], files: [] }, NORMAL_FORM);
 
 interface Opened {
   readonly fixture: FixtureWorkspace;
@@ -149,6 +150,55 @@ describe("relation targets with ID and version (SR-021)", () => {
     expect(out.element.properties["packages"]).toEqual([
       { id: PKG.id, version: versionOf(PKG), title: PKG.title },
     ]);
+  });
+
+  it("[SR-021/AK1] [SR-021/AK2] stores the version of a new relation target and of a new reference in normal form 2 (ADR-0005)", async () => {
+    const opened = await open();
+    const out = await run(opened, "element.create", {
+      type: "system-requirement",
+      title: "Show gusts",
+      properties: { validity: [{ id: VAR.id }] },
+      text: `Like [the wind](${ref(NEED.id)}).\n`,
+    });
+    const file = await read(opened, out.element.file);
+    const n2Of = (element: { readonly text: string }): string =>
+      computeVersion({ text: element.text, properties: {}, definitions: [], files: [] }, "n2");
+    const [variant, need] = [n2Of(VAR), n2Of(NEED)];
+    expect([variant, need]).toEqual([expect.stringMatching(/^n2:/u), expect.stringMatching(/^n2:/u)]);
+    expect(file).toContain(`  - { id: ${VAR.id}, version: ${variant}, title: ${VAR.title} }\n`);
+    expect(file).toContain(`Like [the wind](${ref(NEED.id, need)}).\n`);
+  });
+
+  it("[SR-091/AK5] keeps the version element.get shows when an update changes only the stored version of a reference or the order of the validity targets", async () => {
+    const LITE = { id: "9d4e6a1b-3c2f-4b8a-a1d7-52e8c0f4b9a4", title: "Lite" };
+    const opened = await open({
+      "system/variants/VAR-52e8c0f4b9a4.md": `---\nid: ${LITE.id}\ntype: variant\nstatus: draft\ntitle: Lite\n---\n\nThe small one.\n`,
+    });
+    const versionNow = async (): Promise<string | undefined> =>
+      (await run(opened, "element.get", { ref: SOURCE.id })).element.version;
+    await run(opened, "element.update", {
+      ref: SOURCE.id,
+      set: { validity: [{ id: VAR.id }, { id: LITE.id }] },
+    });
+    const before = await versionNow();
+    expect(before).toMatch(/^n2:/u);
+    const file = await read(opened, SOURCE.file);
+    // The order of the targets of validity: the same set, so the same version (D-027).
+    await run(opened, "element.update", {
+      ref: SOURCE.id,
+      set: { validity: [{ id: LITE.id }, { id: VAR.id }] },
+    });
+    const reordered = await read(opened, SOURCE.file);
+    expect(reordered).not.toBe(file);
+    expect(reordered.indexOf(LITE.id)).toBeLessThan(reordered.indexOf(VAR.id));
+    expect(await versionNow()).toBe(before);
+    // Only the stored version of the reference: the update stores the current version of N in it.
+    const text = `The display follows [${NEED.title}](${ref(NEED.id, OTHER)}).\n`;
+    const out = await run(opened, "element.update", { ref: SOURCE.id, text });
+    expect(out.element.text).toBe(`The display follows [${NEED.title}](${ref(NEED.id, versionOf(NEED))}).\n`);
+    expect(reordered).toContain(ref(NEED.id, STORED_NEED));
+    expect(out.element.version).toBe(before);
+    expect(await versionNow()).toBe(before);
   });
 
   it("[SR-021/AK1] element.update stores the current version of new targets and keeps stored ones, whatever version is sent", async () => {

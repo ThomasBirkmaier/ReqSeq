@@ -102,7 +102,7 @@ describe("reqseq evidence enrich-junit (SR-029)", () => {
       "test_named[SR-036]",
     ]);
     for (const [, p] of enriched) {
-      expect(p["reqseq:version"]?.[0]).toMatch(/^n1:[0-9a-f]{16}$/);
+      expect(p["reqseq:version"]?.[0]).toMatch(/^n2:[0-9a-f]{16}$/);
       expect([p["reqseq:item"], p["reqseq:date"]]).toEqual([["build-512"], [DATE]]);
     }
     expect(enriched.map(([, p]) => p["reqseq:element"])).toEqual([[LOGIN], [LOGIN], [SPEC]]);
@@ -245,7 +245,7 @@ describe("reqseq evidence enrich-junit (SR-029)", () => {
     const props = properties(await fs.readFile(ws.path("results/nextest.xml"), "utf8"));
     const named = props["tests::sr_46fb54_ak1_accepts_a_valid_password"];
     expect(named?.["reqseq:element"]).toEqual([LOGIN]);
-    expect(named?.["reqseq:version"]?.[0]).toMatch(/^n1:[0-9a-f]{16}$/);
+    expect(named?.["reqseq:version"]?.[0]).toMatch(/^n2:[0-9a-f]{16}$/);
     expect([named?.["reqseq:item"], named?.["reqseq:date"]]).toEqual([["build-512"], [DATE]]);
     expect(props["tests::sr_0b0036_ak1_and_sr_0c0037_ak2_report_a_failure"]?.["reqseq:element"]).toHaveLength(
       2,

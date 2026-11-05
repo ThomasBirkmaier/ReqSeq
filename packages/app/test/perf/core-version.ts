@@ -6,7 +6,7 @@
 // not depend on core, which is why the generator takes the version function as an argument.
 import fs from "node:fs/promises";
 import type { CommandOutput, VersionValue } from "@reqseq/core";
-import { Workspace, computeVersion, invoke } from "@reqseq/core";
+import { NORMAL_FORM, Workspace, invoke, versionIn } from "@reqseq/core";
 import type { VersionFunction } from "@reqseq/testkit";
 import { createFixtureWorkspace, defaultStandardModelFile } from "@reqseq/testkit";
 
@@ -35,17 +35,20 @@ export const coreVersion = async (): Promise<VersionFunction> => {
   const metamodel = await standardModel();
   return ({ type, text, properties }) => {
     const keys = new Set(metamodel.types.find((t) => t.key === type)?.properties ?? []);
-    return computeVersion({
-      text,
-      properties: properties as Readonly<Record<string, VersionValue>>,
-      definitions: metamodel.properties
-        .filter((p) => keys.has(p.key))
-        .map((p) => ({
-          key: p.key,
-          kind: p.kind,
-          ...(p.content === undefined ? {} : { content: p.content }),
-        })),
-      files: [],
-    });
+    return versionIn(
+      {
+        text,
+        properties: properties as Readonly<Record<string, VersionValue>>,
+        definitions: metamodel.properties
+          .filter((p) => keys.has(p.key))
+          .map((p) => ({
+            key: p.key,
+            kind: p.kind,
+            ...(p.content === undefined ? {} : { content: p.content }),
+          })),
+        files: [],
+      },
+      NORMAL_FORM,
+    );
   };
 };

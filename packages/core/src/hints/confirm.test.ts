@@ -159,6 +159,19 @@ describe("hint.confirm (SR-027)", () => {
     ]);
   });
 
+  it("[SR-027/AK1] writes the current version in normal form 2 over a stored one of normal form 1 (ADR-0005)", async () => {
+    const ws = await fixture();
+    await changeTargets(ws);
+    const workspace = open(ws.root);
+    expect(read(ws, A_FILE)).toContain(`version: ${V_VERSION}`);
+    expect(V_VERSION).toMatch(/^n1:/u);
+    await confirm(workspace, [VALIDITY, LINK]);
+    const [v, n] = [await versionOf(workspace, V), await versionOf(workspace, N)];
+    expect([v, n]).toEqual([expect.stringMatching(/^n2:/u), expect.stringMatching(/^n2:/u)]);
+    expect(read(ws, A_FILE)).toContain(`  - { id: ${V}, version: ${v}, title: Pro }`);
+    expect(read(ws, A_FILE)).toContain(`[See the wind](reqseq:${N}?version=${n})`);
+  });
+
   it("[SR-027/AK1] keeps the quoting, comments and layout of the item and the other parameters of the link", async () => {
     const text = [
       "---",
@@ -260,7 +273,7 @@ describe("hint.confirm (SR-027)", () => {
     expect(await outdated(workspace)).toEqual([]);
   });
 
-  it("[SR-027/AK2] confirms one after the other along a chain of written sources, and writes a ring of references once (spec question #281)", async () => {
+  it("[SR-027/AK2] confirms one after the other along a chain of written sources, and a ring of references settles (#166)", async () => {
     const C = `${P}b0000000003`;
     const C_FILE = "requirements/SR-0b0000000003.md";
     const ws = await fixture({
@@ -280,19 +293,22 @@ describe("hint.confirm (SR-027)", () => {
     expect(chain).toHaveLength(4);
     expect((await confirm(workspace, chain.toReversed())).files).toEqual([C_FILE, B_FILE, A_FILE]);
     expect((await outdated(workspace)).map((h) => h.hintId)).toEqual([VALIDITY, DERIVES]);
-    // A ring: A's text points at B and B's text at A. Each write changes the other's target.
+    // A ring: A's text points at B and B's text at A. A confirmed version is no part of the n2
+    // version of its source (ADR-0005), so confirming A's link leaves B's links to A current.
     await ws.write(A_FILE, `${read(ws, A_FILE)}\n[B](reqseq:${B}?version=${OLD})\n`);
     await workspace.reset(elementStoreState);
     const ring = (await outdated(workspace)).filter(
       (h) => h.code === "relation.outdated" && h.storedVersion === OLD,
     );
     expect(ring.map((h) => [h.elementId, h.targetId])).toEqual([[A, B]]);
+    const before = await versionOf(workspace, A);
     const out = await confirm(
       workspace,
       ring.map((h) => h.hintId ?? ""),
     );
     expect(out).toMatchObject({ files: [A_FILE], problems: [] });
-    // B's links to A are outdated now; confirming them changes A again, and so on (#281).
+    expect(await versionOf(workspace, A)).toBe(before);
+    // B's links to A are outdated by the new link in A's text, not by the confirmation.
     expect((await outdated(workspace)).map((h) => [h.elementId, h.targetId])).toEqual([
       [A, V],
       [A, N],
@@ -301,16 +317,14 @@ describe("hint.confirm (SR-027)", () => {
     ]);
     const ofB = (await outdated(workspace)).filter((h) => h.elementId === B).map((h) => h.hintId ?? "");
     expect(await confirm(workspace, ofB)).toMatchObject({ confirmed: ofB, files: [B_FILE] });
-    // B changed, so A's link to B and C's refinement of B are outdated again: the ring never settles.
+    // B's version stays, so A's link to B and C's refinement of B stay current: the ring settled.
     expect((await outdated(workspace)).map((h) => [h.elementId, h.targetId])).toEqual([
       [A, V],
       [A, N],
-      [A, B],
-      [C, B],
     ]);
   });
 
-  it("[SR-027/AK2] ends a call that confirms both sides of a ring of references, writes both files, and leaves the ring outdated (spec question #281)", async () => {
+  it("[SR-027/AK2] [SR-025/AK3] confirms both sides of a ring of references in one call, keeps the n2 versions of both, and the ring settles (#166)", async () => {
     const ws = await fixture({
       files: {
         [A_FILE]: `${fromFixture(A_FILE)}\n[B](reqseq:${B}?version=${OLD})\n`,
@@ -323,20 +337,20 @@ describe("hint.confirm (SR-027)", () => {
       [A, B],
       [B, A],
     ]);
+    const before = [await versionOf(workspace, A), await versionOf(workspace, B)];
     const out = await confirm(
       workspace,
       ring.map((h) => h.hintId ?? ""),
     );
     expect(out).toMatchObject({ files: [A_FILE, B_FILE], problems: [] });
-    // Each write changes the other side's target, so the ring does not settle: the last round gave B
-    // A's final version, which B's new text makes outdated on A's side again; B's refinement of A,
-    // not confirmed here, is outdated since A's text changed.
-    const left = (await outdated(workspace)).map((h) => [h.elementId, h.targetId, h.storedVersion === OLD]);
-    expect(left).toEqual([
-      [A, B, false],
-      [B, A, false],
+    expect([await versionOf(workspace, A), await versionOf(workspace, B)]).toEqual(before);
+    // Each side stores the other's version, and no hint of the ring is left (SR-025 AK3); B's
+    // refinement of A, stored before A's text got its link and not confirmed here, is outdated.
+    expect(read(ws, A_FILE)).toContain(`[B](reqseq:${B}?version=${String(before[1])})`);
+    expect(read(ws, B_FILE)).toContain(`[A](reqseq:${A}?version=${String(before[0])})`);
+    expect((await outdated(workspace)).map((h) => [h.elementId, h.targetId, h.key])).toEqual([
+      [B, A, "refines"],
     ]);
-    expect((await outdated(workspace)).map((h) => h.hintId)).not.toContain(ring[1]?.hintId);
   });
 
   it("[SR-027/AK2] confirms an ID in another spelling once, and writes the others when a file holds a version by a YAML alias or anchor", async () => {
