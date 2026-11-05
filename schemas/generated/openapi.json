@@ -453,7 +453,7 @@
     "/v1/commands/workspace.status": {
       "post": {
         "operationId": "workspace_status",
-        "summary": "Repositories of the workspace, which are available and which are variant-independent, where the metamodel comes from, read-only state.",
+        "summary": "Repositories of the workspace, which are available and which are variant-independent, where the metamodel comes from, the evidence locations and which are read, read-only state.",
         "tags": [
           "workspace"
         ],
@@ -542,6 +542,31 @@
                         "valid"
                       ]
                     },
+                    "evidence": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "repository": {
+                            "type": "string"
+                          },
+                          "path": {
+                            "$ref": "#/components/schemas/common/$defs/relativePath"
+                          },
+                          "available": {
+                            "type": "boolean",
+                            "description": "ReqSeq reads the folder for evidence: its repository is available, it exists and the reading rules do not skip it (a link, `.git`, `node_modules`, an `ignore` glob, another or a nested repository). `workspace check` says why not."
+                          }
+                        },
+                        "additionalProperties": false,
+                        "required": [
+                          "repository",
+                          "path",
+                          "available"
+                        ]
+                      },
+                      "description": "The `evidence` locations of the workspace file, in its order, as written (#625). Empty without the key."
+                    },
                     "readOnly": {
                       "type": "boolean"
                     },
@@ -557,6 +582,7 @@
                     "name",
                     "repositories",
                     "metamodel",
+                    "evidence",
                     "readOnly"
                   ]
                 }
@@ -1236,7 +1262,7 @@
     "/v1/commands/metamodel.get": {
       "post": {
         "operationId": "metamodel_get",
-        "summary": "The effective metamodel: types with inherited properties and statuses, properties with whether they count to the version, relation kinds, statuses, meanings.",
+        "summary": "The effective metamodel: types with inherited properties and statuses, properties with whether they count to the version, relation kinds, statuses, meanings, the files read.",
         "tags": [
           "metamodel"
         ],
@@ -1324,6 +1350,13 @@
                       },
                       "description": "Every built-in meaning of metamodel.schema.json (`meaning` of types, properties and relation kinds) -> the keys whose own definition declares it, in metamodel order; empty if unassigned. In a valid metamodel a type or property meaning has at most one key, a relation meaning any number. Types that inherit a meaning, or repeat the one they inherit, are not listed; `types` shows their effective `meaning`."
                     },
+                    "files": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/workspace/$defs/location"
+                      },
+                      "description": "The metamodel files that were read, in the order they were merged, faulty ones included: the repository of the metamodel and the path relative to it (#625). Empty when the folder is missing or has no metamodel files."
+                    },
                     "problems": {
                       "type": "array",
                       "items": {
@@ -1337,7 +1370,8 @@
                     "properties",
                     "relations",
                     "statuses",
-                    "meanings"
+                    "meanings",
+                    "files"
                   ]
                 }
               }

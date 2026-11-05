@@ -3,7 +3,8 @@
 // built-in meaning (empty when none, SR-013 AK3) and the problems of the metamodel. Each property
 // carries `content`, false when not written, so every access says whether it counts to the version
 // (D-057, SR-130 AK5, #624). Also works on a read-only workspace (SR-011 AK3), with whatever the
-// valid files define.
+// valid files define. `files` names the files that were read, so a person sees which ones count
+// (#625).
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import { metamodelProblems, metamodelState } from "../../metamodel/index.js";
@@ -21,6 +22,7 @@ export default defineCommand({
       relations: metamodel.relations,
       statuses: metamodel.statuses,
       meanings: metamodel.meanings,
+      files: metamodel.files.map((file) => ({ repository: metamodel.repository, path: file })),
       problems: await metamodelProblems(ctx.workspace),
     };
   },
