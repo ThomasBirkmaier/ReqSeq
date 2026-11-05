@@ -165,7 +165,15 @@ describe("baseline.get", () => {
       current: "n1:4b17a5494b8e80e5",
     });
     expect(out).toMatchObject({ selectionKnown: true, total: 6 });
-    expect(out.counts).toEqual({ unchanged: 0, changed: 1, superseded: 1, removed: 2, added: 1, missing: 1 });
+    expect(out.counts).toEqual({
+      unchanged: 0,
+      changed: 1,
+      superseded: 1,
+      removed: 2,
+      added: 1,
+      missing: 1,
+      inaccessible: 0,
+    });
     // release-1.yaml stores no selection: nothing added, and selectionKnown says so.
     const without = await call(ws, "baseline.get", { baseline: "release-1" });
     expect(without.selectionKnown).toBe(false);
@@ -323,7 +331,16 @@ describe("baseline.get", () => {
   });
 
   it("is incomplete while a repository is not here, and gives a programming error as it is", async () => {
-    const { ws } = await made();
+    const { ws } = await made({
+      // An entry naming a repository the workspace file does not list is missing, not inaccessible.
+      "Elsewhere.yaml": (first) =>
+        baselineText(
+          "Elsewhere",
+          [],
+          [`  - { name: system, commit: ${first} }`],
+          [`  - { id: ${ID}fe, version: n1:3333333333333333, repository: elsewhere }`],
+        ),
+    });
     vi.mocked(query.resolveSelection).mockRejectedValueOnce(new Error("bug"));
     await expect(call(ws, "baseline.get", { baseline: "Release 2" })).rejects.toThrow(
       "Internal error in baseline.get",
@@ -331,7 +348,18 @@ describe("baseline.get", () => {
     await rm(ws.path("sensor"), { recursive: true });
     const out = await call(ws, "baseline.get", { baseline: "Release 2" });
     expect(out.incomplete).toBe(true);
+    // Without `repository` nothing tells it from a deleted element; with it, the entry is inaccessible (D-058, #675).
     expect(byId(out.elements)["e1"]).toMatchObject({ state: "missing" });
+    expect(byId(out.elements)["fe"]).toEqual({
+      id: `${ID}fe`,
+      repository: "sensor",
+      state: "inaccessible",
+      version: "n1:3333333333333333",
+      versionDate: null,
+    });
+    expect(out.counts).toMatchObject({ missing: 1, inaccessible: 1 });
+    const elsewhere = await call(ws, "baseline.get", { baseline: "Elsewhere" });
+    expect(elsewhere.elements[0]).toMatchObject({ repository: "elsewhere", state: "missing" });
   });
 });
 

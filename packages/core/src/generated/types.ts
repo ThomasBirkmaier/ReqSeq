@@ -3092,20 +3092,27 @@ export interface BaselineGetOutput {
     readonly name: string;
     readonly commit: Commit;
   }[];
-  /** One page: the file's entries in file order, then the added elements in store order. State precedence: missing, superseded, removed, changed, unchanged; added only for elements not in the file. */
+  /** One page: the file's entries in file order, then the added elements in store order. State precedence: missing or inaccessible, superseded, removed, changed, unchanged; added only for elements not in the file. */
   readonly elements: readonly {
     readonly id: Uuid;
     /** The repository of the copy, whenever it is known. */
     readonly repository?: string;
-    /** missing: not in the store, or in a repository that is not here (incomplete). removed: not superseded and no longer in the stored selection (SR-051 AK3). added: in the stored selection and not in the file. */
-    readonly state: "unchanged" | "changed" | "superseded" | "removed" | "added" | "missing";
+    /** missing: not in the store, or without repository or with one the workspace does not name and not found. inaccessible: its repository is in the workspace file but not here (D-058, SR-006, incomplete). removed: not superseded and no longer in the stored selection (SR-051 AK3). added: in the stored selection and not in the file. */
+    readonly state:
+      | "unchanged"
+      | "changed"
+      | "superseded"
+      | "removed"
+      | "added"
+      | "missing"
+      | "inaccessible";
     /** The version in the baseline; left out for added. */
     readonly version?: Version;
     /** Date of that version from the Git history (ADR-0005), read for the page only; null when unknown. */
     readonly versionDate?: string | null;
     /** The current version when it differs, also for removed and added. */
     readonly current?: Version;
-    /** With withEvidence, for entries of the file (not added or missing) whose type has the meaning requirement: one row per view it applies in now, the core first, then the variants in store order (SR-094 AK4, SR-047 AK3); with a variant in the stored selection only that variant's row (AK5). Empty when it applies in no view shown. Own records only, never indirect (AK6). Left out when the stored view cannot be resolved. */
+    /** With withEvidence, for entries of the file (not added, missing or inaccessible) whose type has the meaning requirement: one row per view it applies in now, the core first, then the variants in store order (SR-094 AK4, SR-047 AK3); with a variant in the stored selection only that variant's row (AK5). Empty when it applies in no view shown. Own records only, never indirect (AK6). Left out when the stored view cannot be resolved. */
     readonly verification?: readonly {
       readonly view: ViewId;
       /** From the records of the view that count for the baseline: dated at or before it (AK2); outdated with records of other versions only, open without (AK3). */
@@ -3113,7 +3120,7 @@ export interface BaselineGetOutput {
       /** The records of the baseline version in this view dated after the baseline, newest first: they do not count (AK2). Left out when there is none. */
       readonly later?: readonly DataExportEvidenceRecord[];
     }[];
-    /** With withEvidence, for entries of the file (not added or missing) of a type with the meaning need and for any other with a validation record (SR-038, SR-094 AK7): the status at the baseline version from the validation records that count for the baseline, without view. Open without such records. */
+    /** With withEvidence, for entries of the file (not added, missing or inaccessible) of a type with the meaning need and for any other with a validation record (SR-038, SR-094 AK7): the status at the baseline version from the validation records that count for the baseline, without view. Open without such records. */
     readonly validation?: ValidationStatus;
     /** With validation `inconclusive`: the `reason` of the record that decides it (SR-172 AK2). */
     readonly validationReason?: string;
@@ -3128,6 +3135,7 @@ export interface BaselineGetOutput {
     readonly removed: number;
     readonly added: number;
     readonly missing: number;
+    readonly inaccessible: number;
   };
   /** Entries of the file plus added elements. */
   readonly total: number;
