@@ -13,8 +13,9 @@ import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import type { EvidenceRecord } from "../../evidence/index.js";
 import { evidenceReadState, evidenceRecordsState, verificationState } from "../../evidence/index.js";
-import { elementStoreState } from "../../model/index.js";
+import { currentVersionsOf, elementStoreState } from "../../model/index.js";
 import { invoke } from "../../runtime/invoke.js";
+import { readFirstFor } from "../../runtime/read-first.test-helper.js";
 import { Workspace } from "../../runtime/workspace.js";
 
 type Output = CommandOutput<"evidence.status">;
@@ -133,6 +134,41 @@ describe("evidence.status (SR-031)", () => {
       { view: V1, status: "open" },
       { view: V2, status: "open" },
     ]);
+  });
+
+  it("[SR-031/AK2] a record of normal form 2 of the current version gives verified in evidence.status, element.get and a write (ADR-0005)", async () => {
+    const ws = await open();
+    // A text with an image: the store has no version as read for it, the write answer reads it.
+    const text = "Shows the wind speed. ![a](a.png)\n";
+    await invoke(
+      "element.update",
+      await readFirstFor("element.update", { ref: B1, text }, { workspace: ws }),
+      {
+        workspace: ws,
+      },
+    );
+    const n2Of = async (): Promise<string> => {
+      const store = await ws.get(elementStoreState);
+      const found = store.byId.get(B1)?.[0];
+      const entry = found === undefined ? undefined : (await currentVersionsOf(ws, [found])).get(found);
+      return entry?.kind === "version" ? entry.forms.n2 : "";
+    };
+    await withRecords(ws, [record(B1, await n2Of(), "2026-01-02T10:00:00Z", "passed")]);
+    const core = { view: "core", status: "verified" };
+    expect(byId(await status(ws, { selection: { ids: [B1] } }))[B1]?.[0]).toEqual(core);
+    const shown = (
+      (await invoke("element.get", { ref: B1 }, { workspace: ws })) as CommandOutput<"element.get">
+    ).element;
+    expect(shown.verification?.[0]).toEqual(core);
+    // A title leaves the version: the answer of the write measures it as element.get does.
+    const written = (
+      (await invoke(
+        "element.update",
+        await readFirstFor("element.update", { ref: B1, title: "Wind speed" }, { workspace: ws }),
+        { workspace: ws },
+      )) as CommandOutput<"element.update">
+    ).element;
+    expect(written.verification).toEqual(shown.verification);
   });
 
   it("[SR-031/AK3] evidence.status gives failed when the newest record of the current version failed", async () => {

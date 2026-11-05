@@ -43,9 +43,14 @@ export default defineCommand({
     const layout = await ctx.workspace.get(workspaceLayoutState);
     const independent = variantIndependentOf(layout).has(element.repository);
     // A baseline of the other normal form than a record contains it when both are of the current version.
-    const current = formsOfEntry((await currentVersionsOf(ctx.workspace, [element])).get(element));
+    // Read only for an element with records.
+    const records = index.byElement.get(element.id) ?? [];
+    const current =
+      records.length === 0
+        ? undefined
+        : formsOfEntry((await currentVersionsOf(ctx.workspace, [element])).get(element));
     return {
-      records: listedRecords(index.byElement.get(element.id) ?? [], view, independent, (id, version) =>
+      records: listedRecords(records, view, independent, (id, version) =>
         baselinesContaining(baselines, id, storedForms(version, current)),
       ),
       testCases: testCasesIn(index, element.id, view, independent),

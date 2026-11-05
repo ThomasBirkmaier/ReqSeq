@@ -15,7 +15,7 @@ The file format, the fast reader and the bounds are [ADR-0018](../../../docs/adr
 - `namedBaseline(workspace, text, command)` (`baseline.get`, `baseline.compare`): the baseline `findBaseline` finds, else `input.invalid` at `baseline` with `reason` `unknown-baseline` or `ambiguous-baseline`, or `file.faulty`.
 - `findBaseline(baselines, text)` → `found`, `ambiguous` (the files), `faulty` (the file) or `none`: by `name` first (ignoring case and Unicode normal form, as saved filters), then by file name in the folder with or without `.yaml` (the folder is configurable, so no folder part); a text that names only a faulty file by its file name is `faulty`.
 - `incomplete`: the repository of the folder is not on this machine (SR-006 AK2). A location in a repository the workspace file does not list gives nothing (the layout reports it).
-- `baselinesContaining(baselines, id, version)`: the names of the baselines that contain the version, in file order, each name once.
+- `baselinesContaining(baselines, id, version)`: the names of the baselines that contain the version (`VersionForms`: an entry of either normal form matches its own form, ADR-0005 "Normal form 2"), in file order, each name once. An entry of a form the tool does not know matches nothing (ADR-0005: such a form is not compared).
 
 ## The newest baseline of a group
 

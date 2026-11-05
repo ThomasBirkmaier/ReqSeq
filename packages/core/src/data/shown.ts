@@ -13,7 +13,14 @@ import { verificationNameIds, withEvidenceStatus, workspaceStatus } from "../evi
 import { metamodelState } from "../metamodel/index.js";
 import type { DataExportElement, ElementName } from "../generated/types.js";
 import type { ShownElement } from "../model/index.js";
-import { elementStoreState, formsAsRead, namesField, namesOf, shortIdState } from "../model/index.js";
+import {
+  currentVersionsOf,
+  elementStoreState,
+  formsOfEntry,
+  namesField,
+  namesOf,
+  shortIdState,
+} from "../model/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import { replacedExcludedOf } from "../variants/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
@@ -68,12 +75,10 @@ export const writtenWithStatus = async (
   const record = store.byId
     .get(written.id)
     ?.find((r) => r.repository === written.repository && r.file === written.file);
-  return record === undefined
-    ? written
-    : withEvidenceStatus(
-        await workspaceStatus(workspace, [record]),
-        record,
-        written,
-        formsAsRead(store, record),
-      );
+  if (record === undefined) {
+    return written;
+  }
+  // Both normal forms of the file as written, as `element.get` measures it (also with images).
+  const forms = formsOfEntry((await currentVersionsOf(workspace, [record])).get(record));
+  return withEvidenceStatus(await workspaceStatus(workspace, [record]), record, written, forms);
 };

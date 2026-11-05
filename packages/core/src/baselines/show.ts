@@ -12,9 +12,10 @@
 // - State, first that holds (AK2, AK3):
 //   `missing` or `inaccessible`; `superseded` when its status is invalid now (D-044), also when it changed;
 //   `removed` when the file stores a selection that no longer selects it, also when it changed;
-//   `changed` when its current version differs or cannot be computed (a `file.faulty` warning says
-//   so); else `unchanged`. `current` is the current version
-//   whenever it differs. Without stored selection there is no `removed` and no `added`
+//   `changed` when its current version differs, compared in the entry's own normal form
+//   (`sameVersion`, ADR-0005 "Normal form 2"), or cannot be computed (a `file.faulty` warning says
+//   so); else `unchanged`. `current` is the current version in the form the tool writes
+//   (`NORMAL_FORM`) whenever it differs. Without stored selection there is no `removed` and no `added`
 //   (`selectionKnown: false`).
 // - `added`: the elements selected now that the file does not list, in store order, after the
 //   entries in file order; they have no `version`.
