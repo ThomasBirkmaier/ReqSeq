@@ -47,6 +47,9 @@ const ID = "11111111-1111-4111-8111-111111111111";
 const OTHER = "22222222-2222-4222-8222-222222222222";
 const FILE = "requirements/SR-111111111111.md";
 const FILE2 = "requirements/SR-222222222222.md";
+const THIRD = "33333333-3333-4333-8333-333333333333";
+/** An element file in another folder than `FILE`: git is then asked with another path (#252). */
+const ELSEWHERE = "needs/N-333333333333.md";
 
 /** An element file of the standard model; `more` adds frontmatter lines. */
 const element = (text: string, more = "", id = ID, title = "Wind", status = "draft"): string =>
@@ -203,32 +206,31 @@ describe("version date", () => {
   });
 
   it("gives the start with the greatest object name among commits of one second, whatever else the call walks (#252, D-029)", async () => {
-    // A rebase within one second: the version comes back in the same second it was first made.
+    // Two branches set the same text within one second (a rebase restamps them), then a merge adds a
+    // file in another folder, so a call that dates both files asks git with other paths.
     const repo = await repository([
-      { name: "one", files: { [FILE]: element("One.") } },
-      { name: "two", files: { [FILE]: element("Two.") }, sameSecond: true },
-      {
-        name: "back",
-        files: { [FILE]: element("One."), [FILE2]: element("Second.", "", OTHER) },
-        sameSecond: true,
-      },
+      { name: "base", files: { [FILE]: element("One.") } },
+      { name: "left", files: { [FILE]: element("Two.") } },
+      { name: "right", parents: ["base"], files: { [FILE]: element("Two.") }, sameSecond: true },
+      { name: "merge", parents: ["left", "right"], files: { [ELSEWHERE]: element("Third.", "", THIRD) } },
     ]);
-    const one = await versionOf(repo.workspace, element("One."));
-    const second = { file: FILE2, id: OTHER, version: await versionOf(repo.workspace, element("Second.")) };
-    const newest = [String(repo.made["one"]?.id), String(repo.made["back"]?.id)].sort()[1];
+    const two = await versionOf(repo.workspace, element("Two."));
+    const third = { file: ELSEWHERE, id: THIRD, version: await versionOf(repo.workspace, element("Third.")) };
+    const newest = [String(repo.made["left"]?.id), String(repo.made["right"]?.id)].sort()[1];
     const starts = async (workspace: Workspace, requests: readonly Partial<VersionDateRequest>[]) =>
       versionStarts(
         await context(workspace),
         requests.map((r) => ({ repository: "system", file: FILE, id: ID, version: "", ...r })),
       );
-    expect(await starts(repo.workspace, [{ version: one }])).toEqual([
-      { date: at(repo, "one"), commit: newest },
+    expect(at(repo, "left")).toBe(at(repo, "right"));
+    expect(await starts(repo.workspace, [{ version: two }])).toEqual([
+      { date: at(repo, "left"), commit: newest },
     ]);
     const other = new Workspace(repo.fixture.root);
     onTestFinished(() => other.close());
-    expect(await starts(other, [second, { version: one }])).toEqual([
-      { date: at(repo, "back"), commit: String(repo.made["back"]?.id) },
-      { date: at(repo, "one"), commit: newest },
+    expect(await starts(other, [third, { version: two }])).toEqual([
+      { date: at(repo, "merge"), commit: String(repo.made["merge"]?.id) },
+      { date: at(repo, "left"), commit: newest },
     ]);
   });
 

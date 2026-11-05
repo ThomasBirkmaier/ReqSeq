@@ -22,9 +22,10 @@
 //   requirement, `core-changed.ts`, SR-045), severity `warning` (a "Hinweis", D-042; SR-019 AK2 ends
 //   the check with exit code 1 for it, ADR-0009), the source's repository and file, the line of the
 //   item or link, `elementId` (the source), `targetId`, `storedVersion`, `currentVersion` and `hintId`
-//   (`hint-id.ts`, which `hint.confirm` resolves). `datedProblems` adds the dates of both versions
-//   (`storedDate`, `currentDate`, D-013) per call; they are not kept in the state, since a new commit
-//   moves no file and a kept state would show old dates.
+//   (`hint-id.ts`, which `hint.confirm` resolves). `datedProblems` adds the dates and commits of
+//   both versions (`storedDate`, `currentDate`, `storedCommit`, `currentCommit`, D-013, #252) per
+//   call; they are not kept in the state, since a new commit moves no file and a kept state would
+//   show old dates.
 // - Lines: one rule for items and links: the line in the file as it is now when the file is
 //   unchanged since the store read it, none when it changed (`locateOutdated`). Item lines come from
 //   a scan of the frontmatter text (`textLineOf`), the YAML is parsed only where the text is written
@@ -626,7 +627,7 @@ const datesText = (stored: VersionStart | null, current: VersionStart | null, wh
 
 /**
  * The problems of `findings` with the dates of the stored and the current version (D-013, ADR-0005
- * "Version date"), both named in the message. One `versionDates` call for all of them: one walk
+ * "Version date"), both named in the message with their commits. One `versionStarts` call for all of them: one walk
  * per target file, whatever the number of relations to it. A date is `null` for content no commit
  * has, and when Git cannot tell (no repository, shallow clone, git missing).
  */

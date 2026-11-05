@@ -100,7 +100,7 @@ interface Evaluated {
 /** One element file walked at one HEAD: where it is evaluated, and what is known so far. */
 interface FileWalk {
   readonly walked: Walked;
-  /** Newest first (by committer date); replaced when the file's texts embed a new image path. */
+  /** Newest first (by committer date, then object name); replaced when the file's texts embed a new image path. */
   evaluated: readonly Evaluated[];
   /** The version at each evaluated commit computed so far; undefined where it held no element or has none. */
   readonly versions: Map<string, string | undefined>;
