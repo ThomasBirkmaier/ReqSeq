@@ -1,7 +1,8 @@
 // The input of normal form n2 (ADR-0005 "Normal form 2", D-027, #166): the text and the string values
 // of the properties that count, with the `version=` parameters of their inline references removed.
 // `version.ts` stays pure and below the model, so the reference scanner runs here.
-import type { VersionInput, VersionValue } from "../version/version.js";
+import type { NormalForm, VersionInput, VersionValue } from "../version/version.js";
+import { computeVersion } from "../version/version.js";
 import { inlineReferences } from "./references.js";
 
 /**
@@ -72,3 +73,7 @@ export function n2Input(input: VersionInput): VersionInput {
   }
   return { ...input, text: withoutReferenceVersions(input.text), properties };
 }
+
+/** The version of an n1 input in one normal form only (`elementVersion`: the form the tool writes). */
+export const versionIn = (input: VersionInput, form: NormalForm): string =>
+  computeVersion(form === "n1" ? input : n2Input(input), form);

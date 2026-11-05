@@ -10,7 +10,7 @@ import { propertyWithMeaning } from "../metamodel/index.js";
 import { isVersion } from "./is-version.js";
 import { comparableContent, computeVersions, NORMAL_FORM } from "../version/version.js";
 import type { VersionFile, VersionForms, VersionInput } from "../version/version.js";
-import { n2Input } from "./version-input.js";
+import { n2Input, versionIn } from "./version-input.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import type { ElementRecord } from "./elements.js";
 import { versionDefinitions, versionInputOf } from "./loaded-version.js";
@@ -196,7 +196,7 @@ export const elementVersion = (
   body: string,
   metamodel: Metamodel,
   images: readonly VersionFile[],
-): string => elementVersions(record, body, metamodel, images)[NORMAL_FORM];
+): string => versionIn(versionInput(record, body, metamodel, images), NORMAL_FORM);
 
 /** The versions of an element in both normal forms (`elementVersion`; ADR-0005 "Normal form 2"). */
 export const elementVersions = (

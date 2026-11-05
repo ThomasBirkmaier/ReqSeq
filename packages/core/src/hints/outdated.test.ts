@@ -179,17 +179,25 @@ describe("outdated relations and references (SR-025)", () => {
     expect(await check(open(ws.root))).toEqual({ ok: true, problems: [], checkedElements: 4 });
   });
 
-  it("[SR-025/AK1] compares a stored version of normal form 2 in that form (ADR-0005)", async () => {
+  it("[SR-025/AK1] reports nothing when every relation and reference stores the current version in normal form 2 (ADR-0005)", async () => {
     const ws = await fixture();
-    const workspace = open(ws.root);
-    const versions = await workspace.get(currentVersionsState);
-    const formsOf = (id: string) => currentFormsOf(versions, defined(versions.store.byId.get(id)?.[0]));
-    const [n, v] = [defined(formsOf(N)), defined(formsOf(V))];
+    const formsOf = async (id: string) => {
+      const versions = await open(ws.root).get(currentVersionsState);
+      return defined(currentFormsOf(versions, defined(versions.store.byId.get(id)?.[0])));
+    };
+    const [n, v] = [await formsOf(N), await formsOf(V)];
     await ws.write(A_FILE, requirementA({ validity: v.n2, derives: n.n2, link: n.n2 }));
-    // A's own version changed, so only B's relation to A is outdated.
-    expect(outdated(await check(open(ws.root))).map((p) => [p.elementId, p.targetId])).toEqual([[B, A]]);
-    // Another n2 is outdated; the hint shows the current version in the form confirm writes.
-    await ws.write(A_FILE, requirementA({ validity: v.n2, derives: "n2:0000000000000000", link: n.n2 }));
+    const a = await formsOf(A);
+    const b = await readFile(path.join(FIXTURE_FOLDER, B_FILE), "utf8");
+    await ws.write(B_FILE, b.replace(A_VERSION, a.n2));
+    expect(await check(open(ws.root))).toEqual({ ok: true, problems: [], checkedElements: 4 });
+  });
+
+  it("reports a stored version of normal form 2 that is not the current one, with the current version confirm writes (ADR-0005)", async () => {
+    const ws = await fixture();
+    const versions = await open(ws.root).get(currentVersionsState);
+    const v = defined(currentFormsOf(versions, defined(versions.store.byId.get(V)?.[0])));
+    await ws.write(A_FILE, requirementA({ validity: v.n2, derives: "n2:0000000000000000" }));
     const fromA = outdated(await check(open(ws.root))).filter((p) => p.elementId === A);
     expect(fromA.map((p) => [p.targetId, p.storedVersion, p.currentVersion])).toEqual([
       [N, "n2:0000000000000000", N_VERSION],

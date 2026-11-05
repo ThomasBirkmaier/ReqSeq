@@ -106,24 +106,17 @@ describe("validity and packages of an exported element", () => {
 });
 
 describe("current versions of relation ends (second pass)", () => {
-  it("reads the versions of every available end once, in every normal form, and none without such ends", async () => {
+  it("reads the versions of available targets outside the listed elements once, in every normal form, and none without such targets", async () => {
     const { store } = await opened();
     const [a1, b1] = [recordIn(store, `${P}a1`), recordIn(store, B1)];
+    const formsOf = (v: string) => ({ n1: v, n2: "n2:0000000000000000" });
     const read = vi.fn(
       (records: readonly ElementRecord[]): Promise<ReadonlyMap<ElementRecord, CurrentVersion>> =>
         Promise.resolve(
           new Map(
             records.map((r): [ElementRecord, CurrentVersion] =>
-              r === a1 || r === b1
-                ? [
-                    r,
-                    {
-                      kind: "version",
-                      version: r === a1 ? V : W,
-                      forms: { n1: r === a1 ? V : W, n2: "n2:0000000000000000" },
-                      images: [],
-                    },
-                  ]
+              r === a1
+                ? [r, { kind: "version", version: V, forms: formsOf(V), images: [] }]
                 : [r, { kind: "unknown", reason: "not-in-file", message: "gone" }],
             ),
           ),
@@ -146,9 +139,10 @@ describe("current versions of relation ends (second pass)", () => {
         ),
       ],
       read,
+      new Map([[b1, formsOf(W)]]),
     );
     expect(read).toHaveBeenCalledTimes(1);
-    expect(read.mock.calls[0]?.[0]).toEqual([a1, recordIn(store, C1), b1]);
+    expect(read.mock.calls[0]?.[0]).toEqual([a1, recordIn(store, C1)]);
     expect(elements[0]?.relations.map((r) => [r.id.slice(-2), r.currentVersion, r.outdated])).toEqual([
       ["a1", V, false],
       // The variant has no version now: nothing to compare with.
@@ -158,7 +152,8 @@ describe("current versions of relation ends (second pass)", () => {
       // An incoming relation is measured against the element itself.
       ["b2", W, true],
     ]);
-    // A stored version of the other normal form is compared in its own form (ADR-0005).
+    // Among the listed elements: their versions as listed; a stored version of the other normal
+    // form is compared in its own form (ADR-0005).
     read.mockClear();
     const both = await withRelationVersions(
       store,
@@ -167,8 +162,12 @@ describe("current versions of relation ends (second pass)", () => {
         listed(a1, [{ ...out(B1), direction: "in", storedVersion: "n2:1111111111111111" }]),
       ],
       read,
+      new Map([
+        [b1, formsOf(W)],
+        [a1, formsOf(V)],
+      ]),
     );
-    expect(read).toHaveBeenCalledTimes(1);
+    expect(read).not.toHaveBeenCalled();
     expect(both.map((e) => e.relations.map((r) => [r.currentVersion, r.outdated]))).toEqual([
       [[V, false]],
       [[V, true]],
@@ -179,6 +178,7 @@ describe("current versions of relation ends (second pass)", () => {
       store,
       [listed(b1, [out(`${P}ff`, { accessible: false, targetState: "missing" })])],
       read,
+      new Map(),
     );
     expect(read).not.toHaveBeenCalled();
   });

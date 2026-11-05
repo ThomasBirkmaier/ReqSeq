@@ -52,6 +52,7 @@ import type {
   ElementSelection,
 } from "../generated/types.js";
 import type { VersionReader } from "../evidence/index.js";
+import type { VersionForms } from "../model/index.js";
 import { NORMAL_FORM } from "../model/index.js";
 import { evidenceReadState, withEvidenceStatus, workspaceStatus } from "../evidence/index.js";
 import type { Metamodel } from "../metamodel/index.js";
@@ -138,15 +139,16 @@ export const withReplacedExcluded = (
 
 /**
  * `listed` (elements of `store`, as listed) with `currentVersion` and `outdated` on every relation
- * (see the file comment): the versions of the listed elements and of the available targets read
- * with `read` in one call (in every normal form, to compare each stored version in its own form,
- * ADR-0005), none when there is none. A second pass over the listed elements, since a target can
- * come later in store order than its source.
+ * (see the file comment), in every normal form to compare each stored version in its own form
+ * (ADR-0005): the versions of the listed elements as listed (`own`, by record), those of available
+ * targets outside them read with `read` in one call, none when there is none. A second pass over the
+ * listed elements, since a target can come later in store order than its source.
  */
 export const withRelationVersions = async (
   store: ElementStore,
   listed: readonly DataExportElement[],
   read: VersionReader,
+  own: ReadonlyMap<ElementRecord, VersionForms | undefined>,
 ): Promise<DataExportElement[]> => {
   const recordOf = (element: {
     readonly repository?: string;
@@ -167,20 +169,22 @@ export const withRelationVersions = async (
             : undefined,
     })),
   }));
-  const ends = new Set<ElementRecord>();
+  const outside = new Set<ElementRecord>();
   for (const { links } of linked) {
     for (const { end } of links) {
-      if (end !== undefined) {
-        ends.add(end);
+      if (end !== undefined && !own.has(end)) {
+        outside.add(end);
       }
     }
   }
   const found: ReadonlyMap<ElementRecord, CurrentVersion> =
-    ends.size === 0 ? new Map() : await read([...ends]);
+    outside.size === 0 ? new Map() : await read([...outside]);
+  const formsOf = (end: ElementRecord): VersionForms | undefined =>
+    own.has(end) ? own.get(end) : formsOfEntry(found.get(end));
   return linked.map(({ element, links }) => ({
     ...element,
     relations: links.map(({ relation, end }): DataExportRelation => {
-      const current = end === undefined ? undefined : formsOfEntry(found.get(end));
+      const current = end === undefined ? undefined : formsOf(end);
       return {
         ...relation,
         ...(current === undefined ? {} : { currentVersion: current[NORMAL_FORM] }),
@@ -336,16 +340,20 @@ export const exportDataWithProblems = async (
   const status = await workspaceStatus(workspace, selected.elements);
   const properties = exportedProperties(selected.metamodel);
   const rule = { workspace, store: selected.store, metamodel: selected.metamodel };
+  // The versions of the listed elements as the listing read them, for the second pass.
+  const own = new Map<ElementRecord, VersionForms | undefined>();
   const listed = await listElements(workspace, selected, selected.elements, {
-    extend: (record, element) =>
-      withReplacedExcluded(
+    extend: (record, element, forms) => {
+      own.set(record, forms);
+      return withReplacedExcluded(
         replacedExcludedOf(rule, record),
         exportedElement(properties, record, withEvidenceStatus(status, record, element)),
-      ),
+      );
+    },
   });
   const read = options.read ?? ((records) => currentVersionsOf(workspace, records));
   const [elements, stated, evidence] = await Promise.all([
-    withRelationVersions(selected.store, listed, read),
+    withRelationVersions(selected.store, listed, read, own),
     repositoryStates(workspace, selected, options.state),
     workspace.get(evidenceReadState),
   ]);

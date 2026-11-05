@@ -12,7 +12,7 @@ import {
   type VersionPropertyKind,
   type VersionValue,
 } from "../version/version.js";
-import { n2Input, withoutReferenceVersions, withoutVersionParam } from "./version-input.js";
+import { n2Input, versionIn, withoutReferenceVersions, withoutVersionParam } from "./version-input.js";
 
 const U = "878e339e-1f73-4746-abab-42cdd0f51ca7";
 
@@ -143,6 +143,16 @@ describe("computeVersions", () => {
       n1: vector.version,
       n2: vector.n2.version,
     });
+  });
+
+  it("gives one form alone as versionIn", () => {
+    const input = inputFor(
+      index.vectors[0]?.element ?? "",
+      index.vectors[0]?.files ?? [],
+      index.vectors[0]?.missing ?? [],
+    );
+    expect(versionIn(input, "n1")).toBe(computeVersions(input, n2Input(input)).n1);
+    expect(versionIn(input, "n2")).toBe(computeVersions(input, n2Input(input)).n2);
   });
 
   it("writes a section again where the forms differ: a value with a reference, a relation, the text", () => {

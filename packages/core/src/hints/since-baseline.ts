@@ -14,7 +14,8 @@
 //   (AK6; a replaced one is SR-045's `variant.core-changed`). A UUID with one copy whose version the
 //   baseline lists is unchanged (`containsKey`); for any other, the entry that names its copy by the
 //   copy rule (`copyOf`) decides (SR-088).
-//   - Listed with another version than the current one: `variant.core-changed-since-baseline` with the
+//   - Listed with another version than the current one (compared in the form of the baseline entry,
+//     ADR-0005 "Normal form 2"): `variant.core-changed-since-baseline` with the
 //     version in the baseline (`storedVersion`) and the current one (AK1). A version that cannot be
 //     computed now counts as changed, without `currentVersion` (a `file.faulty` finding says why).
 //   - Not listed (new, its exclusion undone, its replacement removed): `variant.core-new-since-baseline`
@@ -423,8 +424,8 @@ const fullPass = async (
   const cores = coreRequirementsOf(context);
   const versions = await currentVersionsOf(context.workspace, cores);
   const index = viewRuleIndexOf(context.workspace, context.store, context.metamodel);
-  // Per core requirement once: its current version, as a key of `containsKey` (one string for every
-  // baseline), and the variants whose rule removes it (`removersOf`: it has no validity, so it is in
+  // Per core requirement once: its current version, as keys of `containsKey` (one string per normal
+  // form for every baseline), and the variants whose rule removes it (`removersOf`: it has no validity, so it is in
   // every other variant's view).
   const currents = cores.map((core) => versionOf(versions.get(core)));
   const keys = cores.map((core, i) => keyFor(core, currents[i]));
