@@ -98,6 +98,15 @@ export const verificationTestCasesIn = (
 ): readonly TestCase[] => testCasesIn(index, id, view, independent, VERIFICATION);
 
 /**
+ * The validation records of the element `id` (SR-038 AK1, #646): every one, newest first as the index
+ * keeps them, those with a test case too. No view narrows them: a validation record names no variant
+ * (SR-038 AK4: the reader refuses one that does) and holds for its element. `trace.chain` gives
+ * those of its root.
+ */
+export const validationRecordsOf = (index: EvidenceIndex, id: string): readonly EvidenceRecord[] =>
+  (index.byElement.get(id) ?? []).filter((record) => record.kind === "validation");
+
+/**
  * The evidence below the element `id` in the chain (SR-022 AK1, SR-033 AK1 to AK3): its test cases
  * with their verification executions (`testCasesIn`), and its verification records without a test
  * case (inspection, analysis, demonstration, a manual record without `test-case`), newest first;

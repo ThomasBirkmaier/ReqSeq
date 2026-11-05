@@ -17,7 +17,8 @@
 //   (#401).
 // - A chain (`nodes` with `depth`, and `edges`) is an indented tree per direction with the depth in
 //   front, its gaps, cycles and the edges to an element listed elsewhere marked. Its `evidence` is
-//   indented below the element it belongs to (`evidenceLines`). An element reached by a relation
+//   indented below the element it belongs to (`evidenceLines`); the root's `validationRecords` below
+//   the root, `validation  DATE  RESULT  ITEM  BELEG  [version V]` (#646). An element reached by a relation
 //   whose meaning is not `derivation` names its kind (`[has-stakeholder]`), and a direction with such
 //   an element is headed `upward:` or `downward:` instead of `parents:` or `children:` (#643).
 // - A graph (`nodes` of elements with a `level`) with `evidence` summaries (trace.graph `withEvidence`,
@@ -799,6 +800,16 @@ const chainLines = (chain: Chain, names: Names): string[] => {
   };
   if (root !== undefined) {
     evidenceOf(root, 0);
+    // The root's validation records (#646), one level below it, each with its version (SR-038 AK2).
+    for (const record of listOf(chain["validationRecords"]).filter(isRecord)) {
+      lines.push(
+        `${prefix(1, 1)}${join(
+          "validation",
+          recordLine(record, true, names),
+          text(record["version"]) === "" ? "" : `[version ${text(record["version"])}]`,
+        )}`,
+      );
+    }
   }
   const walk = (key: string, depth: number, level: number): void => {
     for (const child of children.get(key) ?? []) {
@@ -1059,7 +1070,7 @@ export function renderHuman(output: unknown, details = true): string {
     lines.push(...chainLines(rest, namesIn(rest)));
   }
   const shown = chain
-    ? new Set(["root", "nodes", "edges", "gaps", "evidence", "unresolved"])
+    ? new Set(["root", "nodes", "edges", "gaps", "evidence", "validationRecords", "unresolved"])
     : new Set<string>();
   if (isMatrix(rest)) {
     // The evidence header (the degree, SR-126 AK4) stands above the rows that hold the status.

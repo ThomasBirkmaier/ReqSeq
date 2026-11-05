@@ -5,6 +5,12 @@ import { CHAIN, EVIDENCE, IDENTIFIERS, MISSING_TARGETS, ORPHANED_CHAIN, WITH_VAU
 
 scenariosOf("trace.chain", [
   {
+    name: "the validation records of the root need, an inconclusive one with its reason (#646)",
+    fixture: { fixture: "SR-172/inconclusive" },
+    input: { ref: "N-00a001", direction: "up" },
+    expect: "output",
+  },
+  {
     name: "the chain of a need named by its identifier, each node with its identifier (#305)",
     fixture: IDENTIFIERS,
     input: { ref: "N-001" },

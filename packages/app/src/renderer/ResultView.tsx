@@ -2,7 +2,8 @@
 // other buffer shows, as lines laid out by its shape (`result.ts`). Up and Down, Ctrl+N and Ctrl+P select
 // a line (none is selected at first, SR-122), Enter or a click opens the element of an element row or of
 // a problem, and the two elements of a pair line side by side, read-only (SR-044 AK2). The output of
-// `trace.chain` has its evidence under the elements it belongs to (`chain-lines.ts`, SR-033). When the
+// `trace.chain` has its evidence under the elements it belongs to and the validation records of its root
+// under the root row (`chain-lines.ts`, SR-033, #646). When the
 // workspace changed, it asks the command again with the same input (ADR-0002: the app runs commands and
 // shows what they give); the output of a write command stays as it came (#85).
 import { useEffect, useMemo } from "react";

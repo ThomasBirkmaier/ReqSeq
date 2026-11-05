@@ -1,7 +1,7 @@
 {
   "name": "trace.chain",
   "title": "Show trace chain",
-  "summary": "Chain up to the top parents and down to evidence, with depth, gaps (also a requirement without a parent) and cycles; one page of nodes at a time, total counts all.",
+  "summary": "Chain up to the top parents and down to evidence, with depth, gaps (also a requirement without a parent) and cycles; one page of nodes at a time, total counts all; the validation records of the root.",
   "effect": "read",
   "stage": 2,
   "implements": ["SR-006", "SR-022", "SR-033"],
@@ -180,7 +180,7 @@
       },
       "evidence": {
         "type": "array",
-        "description": "The evidence (Nachweise) of the downward chain (SR-022 AK1, SR-033 AK1 to AK3), in the order of `nodes`, only for the nodes of the page whose children were looked at (`expanded`), paged like `gaps`; one item per element that has any, none with `direction` `up`. Only verification records (D-007: the chain ends at the Nachweise; validation records are in `evidence.list`). With `view` only the records that hold in it (SR-047: the core the records without a variant, a variant those for it and, for an element of a repository marked `variant-independent`, those without a variant, SR-173); without `view` every record, each with its `variant`, as `evidence.list`. A test case all of whose executions of the element hold in another view is left out; a test case that was only skipped shows in every view. The Beleg of a record is its `evidence`; a JUnit execution has none, its Beleg is its record file (`repository`, `file`, `line`; D-007: for automatic tests the record is the result file). Belege are text and never opened.",
+        "description": "The evidence (Nachweise) of the downward chain (SR-022 AK1, SR-033 AK1 to AK3), in the order of `nodes`, only for the nodes of the page whose children were looked at (`expanded`), paged like `gaps`; one item per element that has any, none with `direction` `up`. Only verification records (D-007); the validation records of the root are in `validationRecords`. With `view` only the records that hold in it (SR-047: the core the records without a variant, a variant those for it and, for an element of a repository marked `variant-independent`, those without a variant, SR-173); without `view` every record, each with its `variant`, as `evidence.list`. A test case all of whose executions of the element hold in another view is left out; a test case that was only skipped shows in every view. The Beleg of a record is its `evidence`; a JUnit execution has none, its Beleg is its record file (`repository`, `file`, `line`; D-007: for automatic tests the record is the result file). Belege are text and never opened.",
         "items": {
           "type": "object",
           "properties": {
@@ -215,6 +215,11 @@
           "additionalProperties": false,
           "required": ["id", "repository", "depth", "testCases", "records"]
         }
+      },
+      "validationRecords": {
+        "type": "array",
+        "description": "The validation records of the root (SR-038 AK1: the validation shown apart from the verification), newest first, those with a test case too, in either direction; on the page with the root only (`offset` 0), `[]` on the others. `view` does not narrow them: a validation record names no variant (SR-038 AK4) and holds for its element, as its validation status counts it (#646).",
+        "items": { "$ref": "../data-export.schema.json#/$defs/evidenceRecord" }
       },
       "unresolved": {
         "type": "array",
@@ -261,7 +266,7 @@
       },
       "incomplete": {
         "$ref": "../common.schema.json#/$defs/incomplete",
-        "description": "True when a part of the chain lies in a repository that is not on this machine (SR-006 AK2), in the view of a variant while a repository of the workspace is not on this machine (it may hold a replacement or an exclusion), or, when the chain goes down, an evidence location does: evidence there is not seen."
+        "description": "True when a part of the chain lies in a repository that is not on this machine (SR-006 AK2), in the view of a variant while a repository of the workspace is not on this machine (it may hold a replacement or an exclusion), or an evidence location does: evidence and validation records there are not seen."
       },
       "names": {
         "type": "array",
@@ -284,6 +289,7 @@
       "edges",
       "gaps",
       "evidence",
+      "validationRecords",
       "unresolved",
       "incomplete",
       "problems"

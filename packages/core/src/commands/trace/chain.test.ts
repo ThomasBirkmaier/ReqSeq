@@ -9,7 +9,7 @@ import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
 import type { EvidenceRead, EvidenceRecord, SkippedTestCase } from "../../evidence/index.js";
-import { evidenceIndexState, evidenceReadState } from "../../evidence/index.js";
+import { evidenceReadState } from "../../evidence/index.js";
 import { STANDARD_MODEL_TEXT as STANDARD } from "../../metamodel/standard-model.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
@@ -704,21 +704,55 @@ describe("trace.chain: test cases and executions in the chain (SR-033)", () => {
     expect((await chain(workspace, { ref: SHOW, offset: 1 })).evidence).toEqual([]);
   });
 
-  it("shows no evidence and reads no records for the upward chain", async () => {
+  it("shows no evidence and no gaps for the upward chain, which reads the records only for the root's validation (#646)", async () => {
     const workspace = await open({ fixture: "SR-033/chain" });
     const output = await chain(workspace, { ref: SHOW, direction: "up" });
     expect([output.evidence, output.gaps, output.incomplete]).toEqual([[], [], false]);
-    expect([workspace.peek(evidenceReadState), workspace.peek(evidenceIndexState)]).toEqual([
-      undefined,
-      undefined,
-    ]);
+    expect(output.validationRecords).toEqual([]);
+  });
+
+  it("gives the validation records of the root, newest first, in either direction and in every view, on the page with the root (#646)", async () => {
+    const validation = (more: Partial<EvidenceRecord>): EvidenceRecord =>
+      markdown({
+        kind: "validation",
+        element: WIND,
+        version: "n1:1111111111111111",
+        item: "Pilot test",
+        ...more,
+      });
+    const older = validation({ date: "2026-10-10T09:00:00Z", result: "passed" });
+    const newer = validation({
+      date: "2026-10-25T09:00:00Z",
+      result: "inconclusive",
+      reason: "No wind on the test day",
+      testCase: "acceptance-1",
+    });
+    const verified = markdown({ element: WIND });
+    const workspace = await withEvidence([older, verified, newer], [], { files: COAST_FILE });
+    const items = (output: Output): unknown[] => output.validationRecords.map((r) => [r.date, r.result]);
+    const expected = [
+      ["2026-10-25T09:00:00Z", "inconclusive"],
+      ["2026-10-10T09:00:00Z", "passed"],
+    ];
+    const both = await chain(workspace, { ref: WIND });
+    expect(items(both)).toEqual(expected);
+    expect(both.validationRecords[0]).toMatchObject({
+      reason: "No wind on the test day",
+      testCase: "acceptance-1",
+    });
+    expect(items(await chain(workspace, { ref: WIND, direction: "up" }))).toEqual(expected);
+    expect(items(await chain(workspace, { ref: WIND, view: COAST }))).toEqual(expected);
+    // Another page: the root is not on it, nor are its records.
+    expect((await chain(workspace, { ref: WIND, offset: 1 })).validationRecords).toEqual([]);
+    // A requirement of the chain has none.
+    expect((await chain(workspace, { ref: SHOW })).validationRecords).toEqual([]);
   });
 
   it("[SR-006/AK2] marks the chain incomplete when an evidence location lies in a repository that is not on this machine", async () => {
     const workspace = await withEvidence([], [], { incomplete: true });
     expect((await chain(workspace, { ref: WIND })).incomplete).toBe(true);
     expect((await chain(workspace, { ref: WIND, direction: "down" })).incomplete).toBe(true);
-    // The upward chain reads no records, so they cannot make it incomplete.
-    expect((await chain(workspace, { ref: SHOW, direction: "up" })).incomplete).toBe(false);
+    // The upward chain reads the records for the root's validation, so they make it incomplete too (#646).
+    expect((await chain(workspace, { ref: SHOW, direction: "up" })).incomplete).toBe(true);
   });
 });
