@@ -1534,13 +1534,13 @@ export interface WorkspaceInitOutput {
 }
 
 /**
- * Input of `workspace.status` as `run` gets it: validated, properties with a `default` filled in. Repositories of the workspace, which are available and which are variant-independent, where the metamodel comes from, read-only state.
+ * Input of `workspace.status` as `run` gets it: validated, properties with a `default` filled in. Repositories of the workspace, which are available and which are variant-independent, where the metamodel comes from, the evidence locations and which are read, read-only state.
  * Schema: `schemas/commands/workspace.status.json input`.
  */
 export type WorkspaceStatusInput = Readonly<Record<string, never>>;
 
 /**
- * Output of `workspace.status`. Repositories of the workspace, which are available and which are variant-independent, where the metamodel comes from, read-only state.
+ * Output of `workspace.status`. Repositories of the workspace, which are available and which are variant-independent, where the metamodel comes from, the evidence locations and which are read, read-only state.
  * Schema: `schemas/commands/workspace.status.json output`.
  */
 export interface WorkspaceStatusOutput {
@@ -1564,7 +1564,7 @@ export interface WorkspaceStatusOutput {
   readonly evidence: readonly {
     readonly repository: string;
     readonly path: RelativePath;
-    /** The repository is available and the folder exists. */
+    /** ReqSeq reads the folder for evidence: its repository is available, it exists and the reading rules do not skip it (a link, `.git`, `node_modules`, an `ignore` glob, another or a nested repository). `workspace check` says why not. */
     readonly available: boolean;
   }[];
   readonly readOnly: boolean;
@@ -1645,13 +1645,13 @@ export interface WorkspaceRecentOutput {
 }
 
 /**
- * Input of `metamodel.get` as `run` gets it: validated, properties with a `default` filled in. The effective metamodel: types with inherited properties and statuses, properties with whether they count to the version, relation kinds, statuses, meanings.
+ * Input of `metamodel.get` as `run` gets it: validated, properties with a `default` filled in. The effective metamodel: types with inherited properties and statuses, properties with whether they count to the version, relation kinds, statuses, meanings, the files read.
  * Schema: `schemas/commands/metamodel.get.json input`.
  */
 export type MetamodelGetInput = Readonly<Record<string, never>>;
 
 /**
- * Output of `metamodel.get`. The effective metamodel: types with inherited properties and statuses, properties with whether they count to the version, relation kinds, statuses, meanings.
+ * Output of `metamodel.get`. The effective metamodel: types with inherited properties and statuses, properties with whether they count to the version, relation kinds, statuses, meanings, the files read.
  * Schema: `schemas/commands/metamodel.get.json output`.
  */
 export interface MetamodelGetOutput {

@@ -20,7 +20,7 @@ evidence:
   - { repository: system, path: evidence }
 ```
 
-`reqseq workspace status` lists the evidence locations, each with `available: false` when its repository or folder is not on this machine.
+`reqseq workspace status` lists the evidence locations, each with `available: false` when ReqSeq does not read it; `reqseq workspace check` says why.
 
 ## App
 

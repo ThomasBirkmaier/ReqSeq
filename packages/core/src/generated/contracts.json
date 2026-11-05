@@ -3317,7 +3317,7 @@
       {
         "name": "workspace.status",
         "title": "Show workspace status",
-        "summary": "Repositories of the workspace, which are available and which are variant-independent, where the metamodel comes from, read-only state.",
+        "summary": "Repositories of the workspace, which are available and which are variant-independent, where the metamodel comes from, the evidence locations and which are read, read-only state.",
         "effect": "read",
         "stage": 1,
         "implements": [
@@ -3405,7 +3405,7 @@
                   },
                   "available": {
                     "type": "boolean",
-                    "description": "The repository is available and the folder exists."
+                    "description": "ReqSeq reads the folder for evidence: its repository is available, it exists and the reading rules do not skip it (a link, `.git`, `node_modules`, an `ignore` glob, another or a nested repository). `workspace check` says why not."
                   }
                 },
                 "additionalProperties": false,
@@ -3667,7 +3667,7 @@
       {
         "name": "metamodel.get",
         "title": "Show metamodel",
-        "summary": "The effective metamodel: types with inherited properties and statuses, properties with whether they count to the version, relation kinds, statuses, meanings.",
+        "summary": "The effective metamodel: types with inherited properties and statuses, properties with whether they count to the version, relation kinds, statuses, meanings, the files read.",
         "effect": "read",
         "stage": 1,
         "implements": [

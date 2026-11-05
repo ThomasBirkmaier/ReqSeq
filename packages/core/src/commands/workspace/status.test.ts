@@ -264,7 +264,7 @@ describe("workspace.status", () => {
     expect(before.repositories[0]?.commit).not.toBe(after);
   });
 
-  it("lists the evidence locations as written, each with whether its folder is there (#625)", async () => {
+  it("lists the evidence locations as written, each with whether the evidence walk reads it (#625)", async () => {
     const ws = await threeRepositories(["system", "sensor"]);
     await fs.rm(ws.path("product"), { recursive: true });
     await fs.mkdir(path.join(ws.path("sensor"), "tests/results"), { recursive: true });
@@ -276,14 +276,25 @@ describe("workspace.status", () => {
         "  - { repository: sensor, path: tests/results }\n" +
         "  - { repository: system, path: evidence }\n" +
         "  - { repository: product, path: tests }\n" +
-        "  - { repository: system, path: notes.md }\n",
+        "  - { repository: system, path: notes.md }\n" +
+        "  - { repository: system, path: node_modules/ev }\n" +
+        "  - { repository: elsewhere, path: tests }\n" +
+        (process.platform === "win32" ? "" : "  - { repository: system, path: linked }\n"),
     );
+    await fs.mkdir(path.join(ws.path("system"), "node_modules/ev"), { recursive: true });
+    if (process.platform !== "win32") {
+      await fs.symlink(path.join(ws.path("sensor"), "tests/results"), path.join(ws.path("system"), "linked"));
+    }
     const out = await status(open(ws.path("system")));
+    // A folder the evidence walk skips (`node_modules`, a link) is not read, so not available.
     expect(out.evidence).toEqual([
       { repository: "sensor", path: "tests/results", available: true },
       { repository: "system", path: "evidence", available: false },
       { repository: "product", path: "tests", available: false },
       { repository: "system", path: "notes.md", available: false },
+      { repository: "system", path: "node_modules/ev", available: false },
+      { repository: "elsewhere", path: "tests", available: false },
+      ...(process.platform === "win32" ? [] : [{ repository: "system", path: "linked", available: false }]),
     ]);
   });
 
