@@ -1872,7 +1872,9 @@ const planUpdates = (
     const extra = relations.flatMap((r) => r.edits);
     if (
       draft.case === "same" &&
-      !updatedFile(draft, existing, extra, [keys.delivery, keys["import-date"]]).changed
+      // The import version too: "same" may hold an I of another normal form than P is written in.
+      !updatedFile(draft, existing, extra, [keys.delivery, keys["import-date"], keys["import-version"]])
+        .changed
     ) {
       continue;
     }

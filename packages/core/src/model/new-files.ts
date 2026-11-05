@@ -23,7 +23,7 @@ export interface NewElementFile {
 /**
  * The version a planned element file will have (ADR-0005), for the relations that point to it
  * before it is written, computed as the store computes it (`imageLinks` with the `ignore` globs,
- * `lookUpImages`, `elementVersion`). Its values must have a normal form (no `.inf`, `.nan`). An
+ * `lookUpImages`, `elementVersions`). Its values must have a normal form (no `.inf`, `.nan`). An
  * image its text embeds is the SHA-256 `images` gives for its path (relative to the folder of the
  * element file), a file the same call writes (SR-095 AK2); any other is looked up on disk. In both
  * normal forms (ADR-0005 "Normal form 2"): `reqif.import` compares a repeated delivery in the form

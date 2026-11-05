@@ -185,7 +185,7 @@ describe("repeated ReqIF import (SR-056)", () => {
     ]);
   });
 
-  it("[SR-056/AK2] compares a repeated delivery in the normal form of the stored import version (ADR-0005)", async () => {
+  it("[SR-056/AK1] compares a repeated delivery in the normal form of the stored import version (ADR-0005)", async () => {
     const { workspace, ids, root } = await delivered();
     const store = await workspace.get(elementStoreState);
     const records = Object.values(ids).flatMap((id) => store.byId.get(id) ?? []);
@@ -204,6 +204,10 @@ describe("repeated ReqIF import (SR-056)", () => {
     onTestFinished(() => again.close());
     // Delivery 1 again changes nothing; delivery 2 changes REQ-1 and REQ-3 without a conflict.
     expect(pick((await analyzeOf(again, 1)).changed)).toEqual([]);
+    // The import agrees with the analysis: it writes no file.
+    const files = await tree(root);
+    expect((await importOf(again, 1)).updated).toEqual([]);
+    expect(await tree(root)).toEqual(files);
     const second = await analyzeOf(again, 2);
     expect([pick(second.changed), second.conflicts]).toEqual([["REQ-1", "REQ-3"], []]);
     // A local edit is still told apart from the import version of the other form.
