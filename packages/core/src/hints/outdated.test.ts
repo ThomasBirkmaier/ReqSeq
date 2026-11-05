@@ -291,6 +291,39 @@ describe("outdated relations and references (SR-025)", () => {
     );
   });
 
+  it("names a later change of the metamodel when the stored version has no date (#252, P-2-09)", async () => {
+    // N has a rationale from the start; the stored versions are those without it counting.
+    const ws = await fixture({
+      git: true,
+      files: {
+        [N_FILE]: need("The operator sees the wind at a glance.").replace(
+          "---\n\n",
+          "rationale: Gusts.\n---\n\n",
+        ),
+      },
+    });
+    expect(outdated(await check(open(ws.root)))).toEqual([]);
+    const fileStart = await headCommit(ws);
+    const model = await readFile(path.join(FIXTURE_FOLDER, "metamodel/standard-model.yaml"), "utf8");
+    const marked = model.replace(
+      "  - key: rationale\n    name: Rationale\n    kind: text\n",
+      "$&    content: true\n",
+    );
+    expect(marked).not.toBe(model);
+    await ws.write("metamodel/standard-model.yaml", marked);
+    await ws.commit();
+    const change = await headCommit(ws);
+    const changeDate = await headDate(ws);
+    const problems = outdated(await check(open(ws.root))).filter((p) => p.targetId === N);
+    expect(problems.map((p) => [p.storedCommit, p.currentCommit, p.currentDate === null])).toEqual([
+      [null, fileStart, false],
+      [null, fileStart, false],
+    ]);
+    expect(problems[0]?.message).toContain(
+      `stored version from no date, current version from ${String(problems[0]?.currentDate)} (${fileStart.slice(0, 12)}) (the metamodel changed on ${changeDate} (${change.slice(0, 12)}), and older commits are read with today's metamodel)`,
+    );
+  });
+
   it("[SR-025/AK2] gives no dates without Git", async () => {
     const ws = await fixture();
     await changeTargets(ws);

@@ -21,6 +21,7 @@
 // may lie below the top level of its Git work tree (#377); every path stays relative to the
 // repository folder, the reader takes care of the prefix.
 import { createHash } from "node:crypto";
+import path from "node:path";
 import { CommandError } from "../catalog.js";
 import { parseFileBytes } from "../files/index.js";
 import type { GitUnknown, HeadFiles, HistoryCommit, ObjectInfo, ObjectReader } from "../git/reader.js";
@@ -856,6 +857,41 @@ export const undatedCause = async (
     return head.reason === "timeout" ? "unknown" : "no-git";
   }
   return head.shallow ? "shallow" : "unknown";
+};
+
+/**
+ * The newest commit reachable from HEAD of the metamodel's repository that changed a file in the
+ * metamodel folder, as `fileHistory` lists it (#252, P-2-09): a version at an older commit is
+ * computed with today's metamodel, so a change of it can leave a stored version without date and
+ * make the current one look older than it is. `null` when Git cannot tell (as `undatedCause`), the
+ * folder is the repository itself, or no commit changed it.
+ */
+export const metamodelChange = async (
+  context: Pick<VersionDateContext, "layout">,
+): Promise<VersionStart | null> => {
+  const { metamodel } = context.layout;
+  const repository = context.layout.repositories.find((r) => r.name === metamodel.repository);
+  const folder = path.posix.normalize(metamodel.path.replaceAll("\\", "/")).replace(/\/+$/, "");
+  if (
+    repository === undefined ||
+    !repository.available ||
+    folder === "." ||
+    !isGitPath(folder) ||
+    (await workTreeOf(repository.folder)) === undefined
+  ) {
+    return null;
+  }
+  const files = await headFiles(repository.folder);
+  const head =
+    files?.commit === undefined
+      ? await headCommit(repository.folder)
+      : ({ known: true, commit: files.commit, shallow: files.shallow } as const);
+  if (!head.known || head.shallow) {
+    return null;
+  }
+  const history = await fileHistory(repository.folder, head.commit, [`${folder}/`]);
+  const change = history.known ? history.commits.find((c) => c.paths.length > 0) : undefined;
+  return change === undefined ? null : { date: change.date, commit: change.commit };
 };
 
 /** What a walk is started for: a request without the version, which only the answers need. */
