@@ -15,7 +15,7 @@ import { availableRepositories, workspaceLayoutState } from "../workspace/index.
 import type { Contribution } from "./contribution.js";
 import { contribution, parsedContribution } from "./contribution.js";
 import type { DiscoveredFiles } from "./discover.js";
-import { ELEMENT_FILE_EXTENSION, listMarkdownFiles, listsFile, pathState } from "./discover.js";
+import { ELEMENT_FILE_EXTENSION, fileLister, listMarkdownFiles, pathState } from "./discover.js";
 import type { ElementRecord } from "./elements.js";
 import { ignoreMatcher } from "./ignore.js";
 import type { Reuse } from "./model-cache.js";
@@ -765,17 +765,20 @@ const sameSnapshot = (a: FileSnapshot | undefined, b: FileSnapshot | undefined):
     ? a === b
     : a.path === b.path && a.size === b.size && a.mtimeMs === b.mtimeMs && a.sha256 === b.sha256;
 
-/** Whether the walk lists a new file; an error while looking counts as "cannot tell". */
+/**
+ * Whether the walk lists a new file; an error while looking counts as "cannot tell". `lists` is
+ * the `fileLister` of the repository for this write, so its folders are checked once (#741).
+ */
 const listedNew = async (
   contents: RepositoryContents,
-  layout: WorkspaceLayout,
+  lists: (file: string) => Promise<boolean>,
   file: string,
 ): Promise<boolean> => {
   if (contents.listing.some((p) => p.severity === "error")) {
     return false;
   }
   try {
-    return await listsFile(contents.location, ignoredBy(layout), file);
+    return await lists(file);
   } catch {
     return false;
   }
@@ -809,6 +812,18 @@ export const withWrittenFiles = async (
     number,
     { readonly contents: RepositoryContents; readonly files: Map<string, Contribution> }
   >();
+  /** By index in `repositories`: one `fileLister` for all new files of this write (#741). */
+  const listers = new Map<number, (file: string) => Promise<boolean>>();
+  let ignored: ((relativePath: string) => boolean) | undefined;
+  const listerOf = (index: number, contents: RepositoryContents): ((file: string) => Promise<boolean>) => {
+    let lister = listers.get(index);
+    if (lister === undefined) {
+      ignored ??= ignoredBy(layout);
+      lister = fileLister(contents.location, ignored);
+      listers.set(index, lister);
+    }
+    return lister;
+  };
   for (const { repository, file: parsed, replaced } of written) {
     const index = repositories.findIndex((r) => r.repository === repository);
     const contents = repositories[index];
@@ -824,7 +839,7 @@ export const withWrittenFiles = async (
     if (!sameSnapshot(old?.snapshot, replaced)) {
       throw new StoreFallback(`the element store holds another state of ${file} than the write replaced`);
     }
-    if (old === undefined && !(await listedNew(contents, layout, file))) {
+    if (old === undefined && !(await listedNew(contents, listerOf(index, contents), file))) {
       throw new StoreFallback(`a full read may not list ${file} under repository ${repository}`);
     }
     files.set(file, parsedContribution(repository, parsed, versioning));

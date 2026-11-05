@@ -289,29 +289,6 @@ const spelledOnDisk = async (repository: RepositoryLocation, relative: string): 
 };
 
 /**
- * Whether the walk opens the repository folder and goes into every folder of `names` (the folders
- * from the repository down, one name each), each as `entersFolder` checks it. Errors other than
- * "nothing there" reject.
- */
-const walksInto = async (
-  repository: RepositoryLocation,
-  ignored: (relativePath: string) => boolean,
-  names: readonly string[],
-): Promise<boolean> => {
-  if (!(await canList(repository.folder))) {
-    return false;
-  }
-  let folder = "";
-  for (const name of names) {
-    folder = folder === "" ? name : `${folder}/${name}`;
-    if (!(await entersFolder(repository, ignored, folder))) {
-      return false;
-    }
-  }
-  return true;
-};
-
-/**
  * Whether `listMarkdownFiles` lists `file` (relative to the repository, `/` as separator, a name
  * ending in `.md`), checked along its path only: a few `lstat` and `opendir` calls and no walk, for
  * a file ReqSeq has just created (#166). The rules are those of the walk: no folder or file named
@@ -338,23 +315,10 @@ export const fileLister = (
   repository: RepositoryLocation,
   ignored: (relativePath: string) => boolean,
 ): ((file: string) => Promise<boolean>) => {
-  const root = once(() => canList(repository.folder));
+  const walksInto = folderWalker(repository, ignored);
   const realRoot = once(() => fs.realpath(repository.folder));
-  const folders = new Map<string, Promise<boolean>>();
-  /** Whether the walk opens the repository folder and goes into `folder` and every folder above it, once each. */
-  const entersAll = (folder: string): Promise<boolean> => {
-    let known = folders.get(folder);
-    if (known === undefined) {
-      const slash = folder.lastIndexOf("/");
-      const above = slash < 0 ? root() : entersAll(folder.slice(0, slash));
-      known = above.then(async (open) => open && (await entersFolder(repository, ignored, folder)));
-      folders.set(folder, known);
-    }
-    return known;
-  };
   return async (file) => {
-    const slash = file.lastIndexOf("/");
-    if (!(await (slash < 0 ? root() : entersAll(file.slice(0, slash))))) {
+    if (!(await walksInto(file.slice(0, Math.max(file.lastIndexOf("/"), 0))))) {
       return false;
     }
     const absolute = path.join(repository.folder, file);
@@ -368,6 +332,33 @@ export const fileLister = (
     const [base, real] = await Promise.all([realRoot(), fs.realpath(absolute)]);
     return path.relative(base, real).split(path.sep).join("/") === file;
   };
+};
+
+/**
+ * Whether the walk opens the repository folder and goes into `folder` (relative to the repository,
+ * `/`; "" is the repository folder) and every folder above it, each as `entersFolder` checks it.
+ * Each folder is checked once per walker. Errors other than "nothing there" reject.
+ */
+const folderWalker = (
+  repository: RepositoryLocation,
+  ignored: (relativePath: string) => boolean,
+): ((folder: string) => Promise<boolean>) => {
+  const folders = new Map<string, Promise<boolean>>();
+  const walksInto = (folder: string): Promise<boolean> => {
+    let known = folders.get(folder);
+    if (known === undefined) {
+      const slash = folder.lastIndexOf("/");
+      known =
+        folder === ""
+          ? canList(repository.folder)
+          : walksInto(slash < 0 ? "" : folder.slice(0, slash)).then(
+              async (open) => open && (await entersFolder(repository, ignored, folder)),
+            );
+      folders.set(folder, known);
+    }
+    return known;
+  };
+  return walksInto;
 };
 
 /** `make()` on the first call, and the same promise on every later one. */
@@ -422,7 +413,7 @@ export const pathState = async (
     const folders = relative.split("/").slice(0, -1);
     const spelled =
       folders.length === 0 || (await spelledOnDisk(repository, folders.join("/"))) === folders.join("/");
-    return spelled && (await walksInto(repository, ignored, folders)) ? "gone" : "unclear";
+    return spelled && (await folderWalker(repository, ignored)(folders.join("/"))) ? "gone" : "unclear";
   } catch {
     return "unclear";
   }
