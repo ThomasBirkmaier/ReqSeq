@@ -24,18 +24,27 @@
 //
 // Cost (N-036): the index is one pass over the store, without file reads and without any other
 // state, memoised per store and metamodel (`viewRuleIndexState`, a WeakMap like the succession
-// index). Which variants remove which core requirement is one map per index, built on first use
-// from the items, O(replacements + exclusions) (`removalOf`); `includes` of every view reads it, so
-// a new store costs one pass, not one per variant (N-036, SR-082 AK3). So does where each record of
-// the store is in the views of the variants (`membershipOf`), which makes a variant's `includes` one
-// lookup by record: a walk asks it once per step, about 110,000 times for the chain of the first need
-// at N-036 (#463). The lists of a variant's rule
+// index), and carried over a change of the store in O(items + changed) (`carryViewRuleIndex`, #215).
+// Which variants remove which core requirement is one map per index, built on first use from the
+// items, O(replacements + exclusions) (`removalOf`); `includes` of every view reads it, so a new
+// store costs one pass over the items, not one per variant (N-036, SR-082 AK3). Where a record of the
+// store is in the views of the variants (`membershipOf`) is found on its first lookup and kept per
+// index, so a variant's `includes` is one lookup by record after it: a walk asks it once per step,
+// about 110,000 times for the chain of the first need at N-036 (#463), and a new store pays only
+// for the records asked about. The lists of a variant's rule
 // (`replacedBy`, `addedOf`, ...) are built only when asked. An element is looked up by repository and
 // UUID, not by record, so a record read again from its file (element.get) gets the same answer.
 import type { Metamodel } from "../metamodel/index.js";
 import { relationKindsWithMeaning } from "../metamodel/index.js";
-import type { ElementRecord, ElementStore } from "../model/index.js";
-import { relationItems, resolveTarget } from "../model/index.js";
+import type { ElementRecord, ElementStore, StoreUpdate } from "../model/index.js";
+import {
+  byPath,
+  carryStoreUpdate,
+  elementStoreState,
+  recordsById,
+  relationItems,
+  resolveTarget,
+} from "../model/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import { isCoreRequirement } from "./core.js";
@@ -136,10 +145,72 @@ export const buildViewRuleIndex = (store: ElementStore, metamodel: Metamodel): V
   };
 };
 
-/** The view rule indexes of a workspace, by the store each was built from (dropped with the store). */
+/**
+ * The index of `update.to`, carried over from `index`, the index of `update.from` (#215): the items
+ * of the records in the changed files (`StoreUpdate.files`) are dropped, those of the records in them
+ * now are put at their place in store order, and the other items are kept as the same objects. Costs
+ * the items (a few hundred at N-036), not the store. The removal map is built again from the items on
+ * first use (a changed record may be the target of an item that did not change), and the
+ * membership of each record on its first lookup (`membershipOf`).
+ */
+export const carryViewRuleIndex = (index: ViewRuleIndex, update: StoreUpdate): ViewRuleIndex => {
+  const scope = scopeOf(index.metamodel);
+  const inChangedFile = (source: ElementRecord): boolean =>
+    update.files.get(source.repository)?.has(source.file) === true;
+  const recordsIn = (store: ElementStore): ElementRecord[] =>
+    [...update.ids].flatMap((id) => (store.byId.get(id) ?? []).filter(inChangedFile));
+  const gone = recordsIn(update.from);
+  const came = recordsIn(update.to);
+  const dropped = new Set(gone);
+  const order = new Map(update.repositories.map((contents, at) => [contents.repository, at]));
+  const compare = (a: ElementRecord, b: ElementRecord): number =>
+    Number(order.get(a.repository)) - Number(order.get(b.repository)) || byPath(a.file, b.file);
+  const added = came.sort(compare).flatMap((source) => itemsOf(scope, source));
+  const kept = index.items.some((item) => dropped.has(item.source))
+    ? index.items.filter((item) => !dropped.has(item.source))
+    : index.items;
+  // Both lists are in store order of the sources; one source's items stay together.
+  let items = kept;
+  if (added.length > 0) {
+    const merged: RuleItem[] = [];
+    let next = 0;
+    for (const item of kept) {
+      for (
+        let at = added[next];
+        at !== undefined && compare(at.source, item.source) < 0;
+        at = added[++next]
+      ) {
+        merged.push(at);
+      }
+      merged.push(item);
+    }
+    merged.push(...added.slice(next));
+    items = merged;
+  }
+  return { ...index, store: update.to, items, rules: new Map() };
+};
+
+/**
+ * The view rule indexes of a workspace, by the store each was built from (dropped with the store),
+ * each with the metamodel it was built with. Carried over a change of the store like the incoming
+ * relation index (`incomingState`): when a save or a watcher batch replaces a store that has an
+ * index, the index of the new store is derived from it (`carryViewRuleIndex`) and added to the same
+ * memo; any other change of the store drops the memo.
+ */
 export const viewRuleIndexState = defineWorkspaceState(
   "view-rule",
   (): WeakMap<ElementStore, ViewRuleIndex> => new WeakMap(),
+  {
+    dependsOn: [elementStoreState],
+    carry: carryStoreUpdate((memo, update) => {
+      const index = memo.get(update.from);
+      // An index of the new store built before it was installed stays (with its caches).
+      if (index !== undefined && !memo.has(update.to)) {
+        memo.set(update.to, carryViewRuleIndex(index, update));
+      }
+      return memo;
+    }),
+  },
 );
 
 /**
@@ -252,35 +323,52 @@ const ALWAYS = "always";
 
 const CORE: View = { kind: "core" };
 
-/** The membership of every record of each index, built once per index (`membershipOf`). */
-const membershipByIndex = new WeakMap<ViewRuleIndex, ReadonlyMap<ElementRecord, Membership>>();
+/** The membership lookup of each index (`membershipOf`). */
+const membershipByIndex = new WeakMap<ViewRuleIndex, (e: ElementRecord) => Membership | undefined>();
+
+/** The membership of `e` (see `Membership`) with the removal map `removal`. */
+const membershipIn = (
+  index: ViewRuleIndex,
+  validity: ReturnType<typeof validityOf>,
+  removal: Removal,
+  e: ElementRecord,
+): Membership => {
+  const removers = removersIn(removal, e);
+  // `appliesInView` in the core view: in every view by validity (no entry, or no validity property).
+  const validFor = appliesInView(index, validity, e, CORE)
+    ? undefined
+    : new Set(
+        validityEntries(validity, e)
+          .flatMap((entry) => validityTarget(entry.value, e) ?? [])
+          .map((t) => `${t.repository}\0${t.id}`),
+      );
+  return validFor === undefined && removers.length === 0 ? ALWAYS : { validFor, removers };
+};
 
 /**
- * The membership of every record of `index.store` (see `Membership`): one pass over the store per
- * index, shared by the rules of all variants, so `includes` is one lookup by record (#463).
+ * Where each record of `index.store` is in the views of the variants (see `Membership`), found on
+ * its first lookup and kept per index (undefined for a record that is not the store's), shared by
+ * the rules of all variants, so `includes` is one lookup by record after the first (#463) and a new
+ * store (a carried index, #215) costs only the records asked about, not a pass over the store.
  */
-const membershipOf = (index: ViewRuleIndex): ReadonlyMap<ElementRecord, Membership> => {
-  let members = membershipByIndex.get(index);
-  if (members === undefined) {
+const membershipOf = (index: ViewRuleIndex): ((e: ElementRecord) => Membership | undefined) => {
+  let lookup = membershipByIndex.get(index);
+  if (lookup === undefined) {
     const validity = validityOf(index.metamodel);
     const removal = removalOf(index);
     const found = new Map<ElementRecord, Membership>();
-    for (const e of index.store.elements) {
-      const removers = removersIn(removal, e);
-      // `appliesInView` in the core view: in every view by validity (no entry, or no validity property).
-      const validFor = appliesInView(index, validity, e, CORE)
-        ? undefined
-        : new Set(
-            validityEntries(validity, e)
-              .flatMap((entry) => validityTarget(entry.value, e) ?? [])
-              .map((t) => `${t.repository}\0${t.id}`),
-          );
-      found.set(e, validFor === undefined && removers.length === 0 ? ALWAYS : { validFor, removers });
-    }
-    members = found;
-    membershipByIndex.set(index, members);
+    lookup = (e) => {
+      let member = found.get(e);
+      // Only records of the store are kept: one read again from its file is not (undefined).
+      if (member === undefined && recordsById(index.store.byId, e.id)?.includes(e) === true) {
+        member = membershipIn(index, validity, removal, e);
+        found.set(e, member);
+      }
+      return member;
+    };
+    membershipByIndex.set(index, lookup);
   }
-  return members;
+  return lookup;
 };
 
 /** An element by repository and UUID (the key of the lists of a variant's rule). */
@@ -327,11 +415,11 @@ const variantRule = (index: ViewRuleIndex, view: View & { readonly kind: "varian
   let details: ReturnType<typeof variantDetails> | undefined;
   const detailsOf = () => (details ??= variantDetails(index, view));
   const replacedBy = (e: ElementRecord): readonly ElementRecord[] => detailsOf().replaced.get(keyOf(e)) ?? [];
-  let members: ReadonlyMap<ElementRecord, Membership> | undefined;
+  let members: ((e: ElementRecord) => Membership | undefined) | undefined;
   return {
     view,
     includes: (e) => {
-      const member = (members ??= membershipOf(index)).get(e);
+      const member = (members ??= membershipOf(index))(e);
       if (member === ALWAYS) {
         return true;
       }

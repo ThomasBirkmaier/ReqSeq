@@ -7,10 +7,17 @@
 // of the file until `onChange`, until `element.get` of the changed element has answered after it (the
 // path of SR-117 AK1), and until every carried state has settled, each as median, p90 and maximum, and
 // the CPU the process spent meanwhile. Per carry hook it records the part that blocks inside
-// `Workspace.replace` and the time until its value settled. Recorded only (baseline of #215); the
-// threshold of 150 ms on the `element.get` row follows with the last change of #215.
+// `Workspace.replace` and the time until its value settled. Recorded (baseline of #215), but the
+// median of the `element.get` row of an edit, which has a threshold (`EDIT_READ_MS`).
 import type { GeneratedWorkspace, LargeFixtureWorkspace } from "@reqseq/testkit";
-import { generateLargeWorkspace, recordValue, untilWatching, writeLargeWorkspace } from "@reqseq/testkit";
+import type { MeasureOptions, PerfMeasurement } from "@reqseq/testkit";
+import {
+  generateLargeWorkspace,
+  recordValue,
+  thresholdMessage,
+  untilWatching,
+  writeLargeWorkspace,
+} from "@reqseq/testkit";
 import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -32,6 +39,7 @@ import type { RepositoryChanges } from "../../src/model/store.js";
 import { elementStoreState, storeUpdate, updateElements } from "../../src/model/store.js";
 import { unknownProblemsState } from "../../src/model/unknown.js";
 import { valueKindProblemsState } from "../../src/model/values.js";
+import { viewRuleIndexState } from "../../src/variants/view-rule.js";
 import type { WorkspaceWatcher } from "../../src/model/watch.js";
 import { watchWorkspace } from "../../src/model/watch.js";
 import { searchIndexState, searchIndex } from "../../src/query/search-state.js";
@@ -46,6 +54,13 @@ import { standardModel, versionOf } from "./core-version.js";
 const ELEMENTS = 50_000;
 const RELATIONS = 200_000;
 const basis = "SR-117 AK1, SR-007, N-036 (#215; recorded, baseline)";
+/**
+ * The median of write → `onChange` → `element.get` for one edited element file (#215). The aim of
+ * #215 is 150 ms, which local runs meet (about 140 to 150 ms); 100 ms of it are the watcher's debounce,
+ * a timer that a slower runner does not stretch. The threshold is the debounce plus about 1.6 times
+ * the rest of a local run (about 50 ms), so that a runner 30 % slower holds it with a margin.
+ */
+const EDIT_READ_MS = 180;
 /** Changes of each kind; the first `WARM_UP` edits are not counted (JIT). */
 const RUNS = 20;
 const WARM_UP = 2;
@@ -56,6 +71,7 @@ const CARRIED: readonly WorkspaceState<unknown>[] = [
   shortIdState,
   searchIndexState,
   currentVersionsState,
+  viewRuleIndexState,
   verificationState,
   outdatedRelationsState,
   duplicateIdProblemsState,
@@ -126,12 +142,17 @@ const stats = (values: readonly number[]): { median: number; p90: number; max: n
   return { median: at(0.5), p90: at(0.9), max: Number(sorted[sorted.length - 1]) };
 };
 
-/** Records median, p90 and maximum of `values` as three rows. */
-const recordStats = async (name: string, values: readonly number[]): Promise<void> => {
-  const { median, p90, max } = stats(values);
-  await recordValue(`${name} (median)`, median, { basis });
+/** Records median, p90 and maximum of `values` as three rows; `median` gives the median row a threshold. */
+const recordStats = async (
+  name: string,
+  values: readonly number[],
+  median?: MeasureOptions,
+): Promise<PerfMeasurement> => {
+  const { median: middle, p90, max } = stats(values);
+  const measurement = await recordValue(`${name} (median)`, middle, median ?? { basis });
   await recordValue(`${name} (p90)`, p90, { basis });
   await recordValue(`${name} (max)`, max, { basis });
+  return measurement;
 };
 
 /** One change of files, as a scenario makes it: what to write, and which element to read after it. */
@@ -230,6 +251,7 @@ describe("the carry of one changed file in a server (N-036, #215)", () => {
     count: number,
     make: () => Change,
     warmUp = 0,
+    readMedian?: MeasureOptions,
   ): Promise<HookTimes[]> => {
     const onChange: number[] = [];
     const read: number[] = [];
@@ -271,9 +293,16 @@ describe("the carry of one changed file in a server (N-036, #215)", () => {
       }
     }
     await recordStats(`watcher: file write → onChange, ${label} (N-036)`, onChange);
-    await recordStats(`watcher: file write → onChange → element.get, ${label} (N-036)`, read);
+    const answer = await recordStats(
+      `watcher: file write → onChange → element.get, ${label} (N-036)`,
+      read,
+      readMedian,
+    );
     await recordStats(`watcher: file write → every carried state settled, ${label} (N-036)`, settled);
     await recordStats(`watcher: CPU of the process from the write until settled, ${label} (N-036)`, cpu);
+    if (answer.thresholdMs !== undefined) {
+      expect(answer.ms, thresholdMessage(answer)).toBeLessThanOrEqual(answer.thresholdMs);
+    }
     return hooks;
   };
 
@@ -281,7 +310,7 @@ describe("the carry of one changed file in a server (N-036, #215)", () => {
   const edited = async (repository: string, file: string): Promise<string> =>
     `${await fs.readFile(absolute(repository, file), "utf8")}\nOne more line.\n`;
 
-  it("records an edit of one element file, and what each carry hook costs", async () => {
+  it("answers element.get of an edited element file within its threshold after the write (#215), and records what each carry hook costs", async () => {
     const hooks = await scenario(
       "one element file edited",
       RUNS,
@@ -293,6 +322,7 @@ describe("the carry of one changed file in a server (N-036, #215)", () => {
         };
       },
       WARM_UP,
+      { basis: "SR-117 AK1, SR-007 (#215)", thresholdMs: EDIT_READ_MS },
     );
     for (const name of CARRIED.map((s) => s.name)) {
       await recordStats(

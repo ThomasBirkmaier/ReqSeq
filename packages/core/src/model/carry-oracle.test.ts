@@ -34,6 +34,8 @@ import {
 } from "./store.js";
 import { counts, gitEntryFolder, mayHoldElements, watchWorkspace } from "./watch.js";
 import { updateElement } from "./write.js";
+import type { ViewRuleIndex } from "../variants/index.js";
+import { removersOf, variantsOf, viewRuleIn, viewRuleIndexOf } from "../variants/index.js";
 
 /**
  * Whether the seed runs with small patch limits: the store is assembled anew from 2 touched files,
@@ -58,13 +60,17 @@ const POSIX = process.platform !== "win32";
 const MODEL = `reqseq-metamodel: 1
 types:
   - { key: need, name: Need, prefix: N, meaning: need, properties: [title, spec-id, weight], required: [title] }
-  - { key: system-requirement, name: System Requirement, prefix: SR, meaning: requirement, properties: [title, spec-id, weight], required: [title] }
+  - { key: system-requirement, name: System Requirement, prefix: SR, meaning: requirement, properties: [title, spec-id, weight, validity], required: [title] }
+  - { key: variant, name: Variant, prefix: VAR, meaning: variant, properties: [title, spec-id, weight], required: [title] }
 properties:
   - { key: title, name: Title, kind: text, meaning: title }
   - { key: spec-id, name: Spec ID, kind: text, meaning: identifier }
   - { key: weight, name: Weight, kind: number, content: true }
+  - { key: validity, name: Validity, kind: relation, many: true, target-types: [variant], meaning: validity }
 relations:
   - { key: derives-from, name: Derives from, inverse-name: Derived by, meaning: derivation }
+  - { key: replaces, name: Replaces, inverse-name: Replaced by, meaning: replacement }
+  - { key: excludes, name: Excludes, inverse-name: Excluded by, meaning: exclusion }
 statuses:
   - { key: draft, name: Draft, initial: true }
 `;
@@ -167,15 +173,28 @@ class Oracle {
     return Array.from({ length: n }, () => this.pick(WORDS)).join(" ");
   }
 
-  /** An element file: relations and inline references to known UUIDs, some in other repositories. */
+  /** Items of the relation `key` to `n` known UUIDs, some in other repositories, or nothing. */
+  items(key: string, n: number): string {
+    const targets = this.files.length === 0 ? [] : Array.from({ length: n }, () => this.pick(this.files));
+    return targets.length === 0
+      ? ""
+      : `${key}:\n${targets.map((t) => `  - { id: ${t.id}, version: "${STALE}", repository: ${t.repository} }`).join("\n")}\n`;
+  }
+
+  /**
+   * An element file: relations and inline references to known UUIDs, some in other repositories.
+   * Some are variants with exclusions, some requirements valid in variants that replace others
+   * (the view rule, SR-041); the targets are any known UUIDs, so some items do not act.
+   */
   element(id: string, extra = ""): string {
-    const type = this.int(2) === 0 ? "need" : "system-requirement";
-    const targets =
-      this.files.length === 0 ? [] : Array.from({ length: this.int(3) }, () => this.pick(this.files));
-    const relations =
-      targets.length === 0
-        ? ""
-        : `derives-from:\n${targets.map((t) => `  - { id: ${t.id}, version: "${STALE}", repository: ${t.repository} }`).join("\n")}\n`;
+    const type = this.pick(["need", "system-requirement", "system-requirement", "variant"]);
+    let rule = "";
+    if (type === "variant") {
+      rule = this.items("excludes", this.int(3));
+    } else if (type === "system-requirement" && this.int(2) === 0) {
+      rule = `${this.items("validity", 1 + this.int(2))}${this.items("replaces", this.int(2))}`;
+    }
+    const relations = `${this.items("derives-from", this.int(3))}${rule}`;
     const reference =
       this.files.length === 0 ? "" : ` See [it](reqseq:${this.pick(this.files).id}?version=${STALE}).`;
     const specId = this.int(3) === 0 ? `spec-id: REQ-${String(this.int(5))}\n` : "";
@@ -600,6 +619,7 @@ interface States {
    * may build them again); those of `versions` when none were kept.
    */
   readonly carried: CurrentVersions;
+  readonly rules: ViewRuleIndex;
 }
 
 const statesOf = async (workspace: Workspace, store: ElementStore): Promise<States> => {
@@ -610,8 +630,25 @@ const statesOf = async (workspace: Workspace, store: ElementStore): Promise<Stat
     index: incomingFor(workspace, store, await workspace.get(metamodelState)),
     versions,
     carried: carried ?? versions,
+    rules: viewRuleIndexOf(workspace, store, await workspace.get(metamodelState)),
   };
 };
+
+/** The view rule of `rules` as plain data: its items, the removers and every variant's rule of each record. */
+const viewsData = (store: ElementStore, rules: ViewRuleIndex): unknown => ({
+  items: rules.items.map((item) => [place(item.source), item.path, item.meaning, item.target]),
+  removers: store.elements.map((e) => removersOf(rules, e)),
+  views: variantsOf(store, rules.metamodel).map((variant) => {
+    const rule = viewRuleIn(rules, { kind: "variant", variant });
+    return {
+      variant: place(variant),
+      records: store.elements.map((e) => [rule.includes(e), rule.excludes(e), rule.replacedBy(e).map(place)]),
+      added: rule.addedOf().map(place),
+      replaced: rule.replacedOf().map(({ core, replacement }) => [place(core), place(replacement)]),
+      excluded: rule.excludedOf().map(place),
+    };
+  }),
+});
 
 /** The entries of `versions` by the records of `store`, and how many there are (a carry that keeps the entry of a gone record has more). */
 const versionsData = (store: ElementStore, versions: CurrentVersions): unknown => ({
@@ -631,7 +668,7 @@ const IDENTIFIERS = [...Array.from({ length: 10 }, (_, n) => `REQ-${String(n)}`)
  */
 const statesData = (
   store: ElementStore,
-  { shortIds, index, versions, carried }: States,
+  { shortIds, index, versions, carried, rules }: States,
   uuids: readonly string[] = [],
 ): unknown => {
   const byId = <T>(map: ReadonlyMap<string, readonly T[]>, of: (link: T) => unknown): unknown =>
@@ -647,6 +684,7 @@ const statesData = (
     references: byId(index.referencesById, (l) => [place(l.source), l.reference.line]),
     versions: versionsData(store, versions),
     carried: versionsData(store, carried),
+    views: viewsData(store, rules),
   };
 };
 
