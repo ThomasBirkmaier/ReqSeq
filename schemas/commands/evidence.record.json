@@ -29,7 +29,7 @@
       },
       "kind": {
         "enum": ["verification", "validation"],
-        "description": "Verification (Nachweis) of a requirement, or validation of a need or a requirement (D-007, D-012). A validation record counts for the validation status only (SR-030 AK3)."
+        "description": "Verification of a requirement, or validation of a need or a requirement (D-007, D-012). A validation record counts for the validation status only (SR-030 AK3)."
       },
       "method": {
         "enum": ["test", "analysis", "inspection", "demonstration"],
@@ -42,11 +42,11 @@
       "reason": {
         "type": "string",
         "pattern": "^(?![\\s\\S]*[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F])[\\s\\S]*\\S[\\s\\S]*$",
-        "description": "Why the validation is inconclusive (Begründung, SR-172): required with the result `inconclusive`, not allowed with any other result. At least one character that is not white space, no control characters other than tab, line feed and carriage return."
+        "description": "Why the validation is inconclusive (SR-172): required with the result `inconclusive`, not allowed with any other result. At least one character that is not white space, no control characters other than tab, line feed and carriage return."
       },
       "item": {
         "$ref": "../common.schema.json#/$defs/item",
-        "description": "The item under test (Prüfling), for example the build or sample. Required for verification. No white space at either end and no control characters other than tab, line feed and carriage return."
+        "description": "The item under test, for example the build or sample. Required for verification. No white space at either end and no control characters other than tab, line feed and carriage return."
       },
       "variant": {
         "$ref": "../common.schema.json#/$defs/elementRef",
@@ -58,7 +58,7 @@
       },
       "evidence": {
         "type": "string",
-        "description": "Where the Beleg is: a path relative to the record file, a file URL or any URI. Written as given; ReqSeq never opens it (D-007)."
+        "description": "Where the evidence is: a path relative to the record file, a file URL or any URI. Written as given; ReqSeq never opens it (D-007)."
       },
       "testCase": {
         "type": "string",

@@ -371,7 +371,7 @@
           "additionalProperties": false
         },
         "version": {
-          "description": "Fassung: normal-form version, colon, first 16 hex characters of the SHA-256 over the canonical content. Example: n1:9f86d081884c7d65.",
+          "description": "Version: normal form, colon, first 16 hex characters of the SHA-256 over the canonical content. Example: n1:9f86d081884c7d65.",
           "type": "string",
           "pattern": "^n[1-9][0-9]*:[0-9a-f]{16}$"
         },
@@ -470,7 +470,7 @@
           "format": "date"
         },
         "item": {
-          "description": "The item under test (Prüfling): the concrete build or sample that was checked. No white space at either end and no control characters other than tab, line feed and carriage return.",
+          "description": "The item under test: the concrete build or sample that was checked. No white space at either end and no control characters other than tab, line feed and carriage return.",
           "type": "string",
           "pattern": "^(?![\\s\\S]*[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F])\\S(?:[\\s\\S]*\\S)?$"
         },
@@ -1277,7 +1277,7 @@
         },
         "evidenceRecord": {
           "type": "object",
-          "description": "An evidence record (Datensatz) as commands return it: the fields of `evidence-record.schema.json` with the same rules, from a Markdown record or a JUnit test case alike, without the format marker `reqseq-record`; `test-case` is `testCase`.",
+          "description": "An evidence record as commands return it: the fields of `evidence-record.schema.json` with the same rules, from a Markdown record or a JUnit test case alike, without the format marker `reqseq-record`; `test-case` is `testCase`.",
           "required": [
             "element",
             "version",
@@ -1314,7 +1314,7 @@
             },
             "item": {
               "type": "string",
-              "description": "Prüfling. Required for verification, optional for validation."
+              "description": "The item under test. Required for verification, optional for validation."
             },
             "result": {
               "enum": [
@@ -1327,14 +1327,14 @@
             "reason": {
               "type": "string",
               "pattern": "\\S",
-              "description": "Begründung of an `inconclusive` validation record; given exactly with that result."
+              "description": "The reason of an `inconclusive` validation record; given exactly with that result."
             },
             "date": {
               "$ref": "common.schema.json#/$defs/dateTime"
             },
             "evidence": {
               "type": "string",
-              "description": "Where the Beleg is: relative path, file URL or any URI."
+              "description": "Where the evidence is: relative path, file URL or any URI."
             },
             "testCase": {
               "type": "string",
@@ -1422,7 +1422,7 @@
         },
         "testCase": {
           "type": "object",
-          "description": "A test case seen from one element: the test case named by JUnit `classname` and `name`, or by the `test-case` of Markdown records, with the records of that one element. Every `<testcase>` of a JUnit file and every Markdown record is one execution (Durchführung): a file that holds the test case twice (a rerun) gives two. A test case that names several elements is listed at each of them, each time with that element's records only, since the version and so whether a record is outdated belong to the element. A test case whose only appearances are skipped JUnit test cases (`<skipped>` gives no record) has `executed: false` and no executions.",
+          "description": "A test case seen from one element: the test case named by JUnit `classname` and `name`, or by the `test-case` of Markdown records, with the records of that one element. Every `<testcase>` of a JUnit file and every Markdown record is one execution: a file that holds the test case twice (a rerun) gives two. A test case that names several elements is listed at each of them, each time with that element's records only, since the version and so whether a record is outdated belong to the element. A test case whose only appearances are skipped JUnit test cases (`<skipped>` gives no record) has `executed: false` and no executions.",
           "required": [
             "name",
             "elements",
@@ -1519,7 +1519,7 @@
         },
         "verificationDegree": {
           "type": "object",
-          "description": "The Nachweisgrad of a selection in one view. Counted are the requirements of the selection (type with the meaning `requirement`) whose status the metamodel does not mark invalid and that have a verification status in the view.",
+          "description": "The verification degree of a selection in one view. Counted are the requirements of the selection (type with the meaning `requirement`) whose status the metamodel does not mark invalid and that have a verification status in the view.",
           "required": [
             "total",
             "counts"
@@ -1671,8 +1671,8 @@
     {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "$id": "https://reqseq.dev/schemas/evidence-record.schema.json",
-      "title": "Evidence record (Datensatz), Markdown frontmatter",
-      "description": "Open format for a verification or validation record. A manual record is a Markdown file with this frontmatter; the text below may describe the check. Automatic test results stay JUnit XML; the same fields are JUnit properties, see docs/adr/0012-evidence-records.md. The evidence itself (Beleg) stays where it is; `evidence` only points to it. Records written by ReqSeq and by anyone else count the same.",
+      "title": "Evidence record, Markdown frontmatter",
+      "description": "Open format for a verification or validation record. A manual record is a Markdown file with this frontmatter; the text below may describe the check. Automatic test results stay JUnit XML; the same fields are JUnit properties, see docs/adr/0012-evidence-records.md. The evidence itself stays where it is; `evidence` only points to it. Records written by ReqSeq and by anyone else count the same.",
       "type": "object",
       "required": [
         "reqseq-record",
@@ -1691,7 +1691,7 @@
             "verification",
             "validation"
           ],
-          "description": "Nachweis or Validierung. Validation counts only for the validation status."
+          "description": "Verification or validation. Validation counts only for the validation status."
         },
         "element": {
           "$ref": "common.schema.json#/$defs/uuid",
@@ -1715,7 +1715,7 @@
         },
         "item": {
           "type": "string",
-          "description": "Prüfling: the concrete build or sample that was checked. Required for verification, optional for validation."
+          "description": "The item under test: the concrete build or sample that was checked. Required for verification, optional for validation."
         },
         "result": {
           "enum": [
@@ -1728,14 +1728,14 @@
         "reason": {
           "type": "string",
           "pattern": "\\S",
-          "description": "Begründung of an `inconclusive` validation, at least one character that is not white space; required with `inconclusive` and only there. A reader warns about it on another result and reads the record without it."
+          "description": "The reason of an `inconclusive` validation, at least one character that is not white space; required with `inconclusive` and only there. A reader warns about it on another result and reads the record without it."
         },
         "date": {
           "$ref": "common.schema.json#/$defs/dateTime"
         },
         "evidence": {
           "type": "string",
-          "description": "Where the Beleg is: relative path, file URL or any URI. ReqSeq does not open or manage it."
+          "description": "Where the evidence is: relative path, file URL or any URI. ReqSeq does not open or manage it."
         },
         "test-case": {
           "type": "string",
@@ -5533,7 +5533,7 @@
             },
             "evidence": {
               "type": "array",
-              "description": "The evidence (Nachweise) of the downward chain, in the order of `nodes`, only for the nodes of the page whose children were looked at (`expanded`), paged like `gaps`; one item per element that has any, none with `direction` `up`. Only verification records; the validation records of the root are in `validationRecords`. With `view` only the records that hold in it (the core the records without a variant, a variant those for it and, for an element of a repository marked `variant-independent`, those without a variant); without `view` every record, each with its `variant`, as `evidence.list`. A test case all of whose executions of the element hold in another view is left out; a test case that was only skipped shows in every view. The Beleg of a record is its `evidence`; a JUnit execution has none, its Beleg is its record file (`repository`, `file`, `line`; for automatic tests the record is the result file). Belege are text and never opened.",
+              "description": "The evidence of the downward chain, in the order of `nodes`, only for the nodes of the page whose children were looked at (`expanded`), paged like `gaps`; one item per element that has any, none with `direction` `up`. Only verification records; the validation records of the root are in `validationRecords`. With `view` only the records that hold in it (the core the records without a variant, a variant those for it and, for an element of a repository marked `variant-independent`, those without a variant); without `view` every record, each with its `variant`, as `evidence.list`. A test case all of whose executions of the element hold in another view is left out; a test case that was only skipped shows in every view. The evidence of a record is its `evidence`; a JUnit execution has none, its evidence is its record file (`repository`, `file`, `line`; for automatic tests the record is the result file). Evidence is text and never opened.",
               "items": {
                 "type": "object",
                 "properties": {
@@ -6438,7 +6438,7 @@
                         },
                         "last": {
                           "$ref": "../data-export.schema.json#/$defs/evidenceRecord",
-                          "description": "The last execution (letzte Durchführung): the newest execution of this requirement in the view, of any version, with result, date, item and version; its record file (`repository`, `file`, `line`) is the Beleg of a JUnit execution. Left out when `executed` is false."
+                          "description": "The last execution: the newest execution of this requirement in the view, of any version, with result, date, item and version; its record file (`repository`, `file`, `line`) is the evidence of a JUnit execution. Left out when `executed` is false."
                         },
                         "mark": {
                           "enum": [
@@ -6689,7 +6689,7 @@
             "withEvidence": {
               "type": "boolean",
               "default": false,
-              "description": "Also give `evidence`, a summary of the Nachweise (verification records and test cases) of each element shown below the element. Evidence is no link between elements, so `kinds` and `meanings` do not choose it, and it is no node: `limit` counts the elements only."
+              "description": "Also give `evidence`, a summary of the evidence (verification records and test cases) of each element shown below the element. Evidence is no link between elements, so `kinds` and `meanings` do not choose it, and it is no node: `limit` counts the elements only."
             },
             "limit": {
               "type": "integer",
@@ -6842,7 +6842,7 @@
             },
             "evidence": {
               "type": "array",
-              "description": "Only with `withEvidence`: one summary of the Nachweise below each node that has any, in the order of `nodes`; `[]` when none has. Only nodes at level 0 or below whose evidence level (`level`) is within the depth asked (`maxDepth`, every level with `allLevels`), whether `expanded` or not; none above the element. The counts are those of trace.chain's `evidence` (`chainEvidenceOf`) in the view, the core without one, as the `no-evidence` mark reads them: only verification records. The details are in trace.chain and evidence.list.",
+              "description": "Only with `withEvidence`: one summary of the evidence below each node that has any, in the order of `nodes`; `[]` when none has. Only nodes at level 0 or below whose evidence level (`level`) is within the depth asked (`maxDepth`, every level with `allLevels`), whether `expanded` or not; none above the element. The counts are those of trace.chain's `evidence` (`chainEvidenceOf`) in the view, the core without one, as the `no-evidence` mark reads them: only verification records. The details are in trace.chain and evidence.list.",
               "items": {
                 "type": "object",
                 "properties": {
@@ -7635,7 +7635,7 @@
                 "verification",
                 "validation"
               ],
-              "description": "Verification (Nachweis) of a requirement, or validation of a need or a requirement. A validation record counts for the validation status only."
+              "description": "Verification of a requirement, or validation of a need or a requirement. A validation record counts for the validation status only."
             },
             "method": {
               "enum": [
@@ -7657,11 +7657,11 @@
             "reason": {
               "type": "string",
               "pattern": "^(?![\\s\\S]*[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F])[\\s\\S]*\\S[\\s\\S]*$",
-              "description": "Why the validation is inconclusive (Begründung): required with the result `inconclusive`, not allowed with any other result. At least one character that is not white space, no control characters other than tab, line feed and carriage return."
+              "description": "Why the validation is inconclusive: required with the result `inconclusive`, not allowed with any other result. At least one character that is not white space, no control characters other than tab, line feed and carriage return."
             },
             "item": {
               "$ref": "../common.schema.json#/$defs/item",
-              "description": "The item under test (Prüfling), for example the build or sample. Required for verification. No white space at either end and no control characters other than tab, line feed and carriage return."
+              "description": "The item under test, for example the build or sample. Required for verification. No white space at either end and no control characters other than tab, line feed and carriage return."
             },
             "variant": {
               "$ref": "../common.schema.json#/$defs/elementRef",
@@ -7673,7 +7673,7 @@
             },
             "evidence": {
               "type": "string",
-              "description": "Where the Beleg is: a path relative to the record file, a file URL or any URI. Written as given; ReqSeq never opens it."
+              "description": "Where the evidence is: a path relative to the record file, a file URL or any URI. Written as given; ReqSeq never opens it."
             },
             "testCase": {
               "type": "string",
@@ -7766,7 +7766,7 @@
             },
             "item": {
               "$ref": "../common.schema.json#/$defs/item",
-              "description": "The item under test (Prüfling), for example the build. No white space at either end and no control characters other than tab, line feed and carriage return."
+              "description": "The item under test, for example the build. No white space at either end and no control characters other than tab, line feed and carriage return."
             },
             "date": {
               "$ref": "../common.schema.json#/$defs/dateTime",

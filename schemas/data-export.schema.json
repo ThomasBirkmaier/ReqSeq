@@ -268,7 +268,7 @@
     },
     "evidenceRecord": {
       "type": "object",
-      "description": "An evidence record (Datensatz) as commands return it (SR-024 AK4, SR-028): the fields of `evidence-record.schema.json` with the same rules, from a Markdown record or a JUnit test case alike, without the format marker `reqseq-record`; `test-case` is `testCase`.",
+      "description": "An evidence record as commands return it (SR-024 AK4, SR-028): the fields of `evidence-record.schema.json` with the same rules, from a Markdown record or a JUnit test case alike, without the format marker `reqseq-record`; `test-case` is `testCase`.",
       "required": ["element", "version", "kind", "result", "date"],
       "properties": {
         "element": {
@@ -289,7 +289,7 @@
         },
         "item": {
           "type": "string",
-          "description": "Prüfling. Required for verification, optional for validation (D-007)."
+          "description": "The item under test. Required for verification, optional for validation (D-007)."
         },
         "result": {
           "enum": ["passed", "failed", "inconclusive"],
@@ -298,12 +298,12 @@
         "reason": {
           "type": "string",
           "pattern": "\\S",
-          "description": "Begründung of an `inconclusive` validation record (SR-172); given exactly with that result."
+          "description": "The reason of an `inconclusive` validation record (SR-172); given exactly with that result."
         },
         "date": { "$ref": "common.schema.json#/$defs/dateTime" },
         "evidence": {
           "type": "string",
-          "description": "Where the Beleg is: relative path, file URL or any URI."
+          "description": "Where the evidence is: relative path, file URL or any URI."
         },
         "testCase": {
           "type": "string",
@@ -354,7 +354,7 @@
     },
     "testCase": {
       "type": "object",
-      "description": "A test case (SR-033) seen from one element: the test case named by JUnit `classname` and `name`, or by the `test-case` of Markdown records (ADR-0012), with the records of that one element. Every `<testcase>` of a JUnit file and every Markdown record is one execution (Durchführung): a file that holds the test case twice (a rerun) gives two. A test case that names several elements (SR-033 AK2) is listed at each of them, each time with that element's records only, since the version and so whether a record is outdated belong to the element. A test case whose only appearances are skipped JUnit test cases (`<skipped>` gives no record) has `executed: false` and no executions (SR-033 AK3).",
+      "description": "A test case (SR-033) seen from one element: the test case named by JUnit `classname` and `name`, or by the `test-case` of Markdown records (ADR-0012), with the records of that one element. Every `<testcase>` of a JUnit file and every Markdown record is one execution: a file that holds the test case twice (a rerun) gives two. A test case that names several elements (SR-033 AK2) is listed at each of them, each time with that element's records only, since the version and so whether a record is outdated belong to the element. A test case whose only appearances are skipped JUnit test cases (`<skipped>` gives no record) has `executed: false` and no executions (SR-033 AK3).",
       "required": ["name", "elements", "executed", "executions"],
       "properties": {
         "name": {
@@ -413,7 +413,7 @@
     },
     "verificationDegree": {
       "type": "object",
-      "description": "SR-037: the Nachweisgrad of a selection in one view. Counted are the requirements of the selection (type with the meaning `requirement`) whose status the metamodel does not mark invalid (AK3, D-044) and that have a verification status in the view (spec question #592).",
+      "description": "SR-037: the verification degree of a selection in one view. Counted are the requirements of the selection (type with the meaning `requirement`) whose status the metamodel does not mark invalid (AK3, D-044) and that have a verification status in the view (spec question #592).",
       "required": ["total", "counts"],
       "properties": {
         "share": {

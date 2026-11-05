@@ -86,7 +86,7 @@
       "withEvidence": {
         "type": "boolean",
         "default": false,
-        "description": "Also give `evidence`, a summary of the Nachweise (verification records and test cases) of each element shown below the element (SR-111 AK3). Evidence is no link between elements, so `kinds` and `meanings` do not choose it, and it is no node: `limit` counts the elements only."
+        "description": "Also give `evidence`, a summary of the evidence (verification records and test cases) of each element shown below the element (SR-111 AK3). Evidence is no link between elements, so `kinds` and `meanings` do not choose it, and it is no node: `limit` counts the elements only."
       },
       "limit": {
         "type": "integer",
@@ -207,7 +207,7 @@
       },
       "evidence": {
         "type": "array",
-        "description": "Only with `withEvidence`: one summary of the Nachweise below each node that has any (SR-111 AK3), in the order of `nodes`; `[]` when none has. Only nodes at level 0 or below whose evidence level (`level`) is within the depth asked (`maxDepth`, every level with `allLevels`), whether `expanded` or not; none above the element. The counts are those of trace.chain's `evidence` (`chainEvidenceOf`) in the view, the core without one, as the `no-evidence` mark reads them (SR-047, SR-173): only verification records (D-007). The details are in trace.chain and evidence.list.",
+        "description": "Only with `withEvidence`: one summary of the evidence below each node that has any (SR-111 AK3), in the order of `nodes`; `[]` when none has. Only nodes at level 0 or below whose evidence level (`level`) is within the depth asked (`maxDepth`, every level with `allLevels`), whether `expanded` or not; none above the element. The counts are those of trace.chain's `evidence` (`chainEvidenceOf`) in the view, the core without one, as the `no-evidence` mark reads them (SR-047, SR-173): only verification records (D-007). The details are in trace.chain and evidence.list.",
         "items": {
           "type": "object",
           "properties": {

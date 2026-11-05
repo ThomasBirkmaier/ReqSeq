@@ -1,4 +1,4 @@
-# Test vectors for the version (Fassung), normal forms n1 and n2 (ADR-0005, D-013, D-027, D-057, SR-091).
+# Test vectors for the version, normal forms n1 and n2 (ADR-0005, D-013, D-027, D-057, SR-091).
 # Other tools can reimplement the version with them (N-048).
 #
 # For each vector:
