@@ -681,7 +681,7 @@ export const datedProblems = async (
   };
   // The last change of the metamodel, asked once and only for a stored version without date.
   let change: Promise<VersionStart | null> | undefined;
-  /** Why a date is missing, said once: a later metamodel change, else the cause of the repository. */
+  /** Why a date is missing, said once: the cause of the repository, and a later metamodel change where there is one. */
   const whyOf = async (
     repository: string,
     stored: VersionStart | null,
@@ -690,14 +690,15 @@ export const datedProblems = async (
     if (stored !== null && current !== null) {
       return "";
     }
+    const cause = CAUSES[await causeOf(repository)];
     if (stored === null && current !== null) {
       change ??= metamodelChange(context);
       const found = await change;
       if (found !== null && found.date > current.date) {
-        return metamodelText(found);
+        return `${cause}; ${metamodelText(found)}`;
       }
     }
-    return CAUSES[await causeOf(repository)];
+    return cause;
   };
   return Promise.all(
     pending.map(async ({ problem, target, stored, current }) => {

@@ -320,7 +320,7 @@ describe("outdated relations and references (SR-025)", () => {
       [null, fileStart, false],
     ]);
     expect(problems[0]?.message).toContain(
-      `stored version from no date, current version from ${String(problems[0]?.currentDate)} (${fileStart.slice(0, 12)}) (the metamodel changed on ${changeDate} (${change.slice(0, 12)}), and older commits are read with today's metamodel)`,
+      `stored version from no date, current version from ${String(problems[0]?.currentDate)} (${fileStart.slice(0, 12)}) (not committed, or Git cannot tell; the metamodel changed on ${changeDate} (${change.slice(0, 12)}), and older commits are read with today's metamodel)`,
     );
   });
 
