@@ -18,6 +18,7 @@ derives-from:
 based-on:
   - { id: 6adc5317-4e70-4297-942b-10bf39e10d85, version: n1:180d45183746b285, title: Das Metamodell gehört zum Stand }
   - { id: 6adc6921-ddaf-4756-954c-0072d0fc0739, version: n1:c4e82ee52111436d, title: Arbeitsbereich als Datei }
+issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/11
 ---
 
 Das Tool muss die Repositories eines Arbeitsbereichs aus der Arbeitsbereichs-Datei im Haupt-Repository lesen und alle lokal vorhandenen gemeinsam öffnen.

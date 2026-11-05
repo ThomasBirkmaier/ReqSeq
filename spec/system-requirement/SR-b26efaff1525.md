@@ -19,6 +19,7 @@ derives-from:
   - { id: 6adc6938-28fa-42f6-b018-5bbf010cc58c, version: n1:36dc84f63608e84c, title: Bestand prüfen }
 based-on:
   - { id: 6adc6922-7314-49bd-bfed-ff5f8a7211b4, version: n1:2afec40a822b7839, title: Feste Schlüssel im Metamodell }
+issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/92
 ---
 
 Wenn ein Property-Wert nicht der Wertart aus dem Metamodell entspricht, muss das Tool einen Hinweis zeigen.

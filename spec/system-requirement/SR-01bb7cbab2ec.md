@@ -17,6 +17,7 @@ derives-from:
 based-on:
   - { id: 6adc58f4-fbf7-4c3d-84da-de15d00286a2, version: n1:ddba1713410acb43, title: Kommandozeile neben der App }
   - { id: 6adc691d-c3f6-4d51-a053-72a341032941, version: n1:d9ab6ac4aab20571, title: Das Tool liest Git nur }
+issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/99
 ---
 
 Die Kommandozeile muss die Prüfung auf die Elemente beschränken können, die sich gegenüber einem angegebenen Commit geändert haben, samt deren Zielen.

@@ -19,6 +19,7 @@ derives-from:
 based-on:
   - { id: 6ad49d01-5018-4d89-9350-37989131ccc1, version: n1:d0a8fdffb57622b1, title: Nachweise und Validierungen als Datensätze }
   - { id: 6adc58f5-a349-4870-af2f-971ec1cee679, version: n1:adee5264c0b69be1, title: Ein offenes Format für Nachweis-Datensätze }
+issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/37
 ---
 
 Das Tool muss Datensätze für manuelle Tests, Inspektionen, Analysen, Demonstrationen und Validierungen erfassen lassen.

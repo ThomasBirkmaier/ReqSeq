@@ -19,6 +19,7 @@ derives-from:
 based-on:
   - { id: 6adc4946-b44c-4ae1-8dbf-fb9e88b8c607, version: n1:0c3f2da31ca1ae9a, title: Fassung als Prüfwert über den Inhalt }
   - { id: 6adc6921-d1f2-4800-aa1b-0a39de119f56, version: n1:eec226f317cdbcf7, title: Hinweise werden bestätigt }
+issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/52
 ---
 
 Wenn sich ein Kern-Requirement ändert, das eine Variante durch ein eigenes Requirement ersetzt hat, muss das Tool am ersetzenden Requirement einen Hinweis zeigen, den die Variante auflistet.

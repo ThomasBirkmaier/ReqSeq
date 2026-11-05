@@ -17,6 +17,7 @@ derives-from:
   - { id: 6adc50a5-05d9-4e59-adfc-ae0179b6e5bf, version: n1:7b0a5a4bd2ba1739, title: Filtern }
 based-on:
   - { id: 6adc615b-8a00-4ce4-9526-56bd3b72bfc9, version: n1:f2e6b92128858d5d, title: Keine feste Reihenfolge }
+issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/82
 ---
 
 Das Tool muss Listen nach Properties oder nach der Hierarchie der Ableitungen ordnen, ohne eine feste Reihenfolge zu speichern.

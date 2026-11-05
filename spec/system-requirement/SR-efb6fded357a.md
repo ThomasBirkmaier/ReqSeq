@@ -22,6 +22,7 @@ based-on:
   - { id: 6adc5316-641d-4817-964e-8803a78ac710, version: n1:98453db7e5f7bec6, title: Varianten über eine Gültigkeitsliste }
   - { id: 6adc691f-cfbf-4934-9504-21c1fc5849f7, version: n1:5b059ebfcd539c6b, title: Baseline als Datei }
   - { id: 6adc6920-0efc-478d-b91c-4ca42caaa8a8, version: n1:de2da62f92c63d52, title: Paket als Element }
+issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/108
 ---
 
 Das Tool muss für jede Funktion, die eine Auswahl verarbeitet, die Auswahl über Filter, gespeicherten Filter, Paket, Baseline, Variante oder eine Liste von IDs bilden lassen.

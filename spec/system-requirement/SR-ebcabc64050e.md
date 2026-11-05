@@ -17,6 +17,7 @@ derives-from:
   - { id: 6adc6938-28fa-42f6-b018-5bbf010cc58c, version: n1:36dc84f63608e84c, title: Bestand prüfen }
 based-on:
   - { id: 6ad4ffaa-f5ad-494e-97eb-a4c77c54dccc, version: n1:24d0db5bd6fe4be0, title: Fest eingebaute Bedeutungen des Metamodells }
+issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/93
 ---
 
 Wenn eine Beziehung Typen verbindet, die das Metamodell für ihre Beziehungsart nicht erlaubt, muss das Tool einen Hinweis zeigen.

@@ -18,6 +18,7 @@ derives-from:
   - { id: 6adc6938-6661-4f39-a0dd-ad97bb9e8f97, version: n1:398de7f02fc9e503, title: Von außen geänderte Dateien }
 based-on:
   - { id: 6adc78cf-bdda-461d-9245-ee53800698fb, version: n1:ba7790f52ef9c397, title: Aufbau der Dateien mit fester Länge des Dateinamens }
+issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/15
 ---
 
 Wenn eine Datei nicht gelesen werden kann, muss das Tool sie mit Grund melden und mit allen anderen Elementen weiterarbeiten.

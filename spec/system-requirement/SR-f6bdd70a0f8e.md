@@ -19,6 +19,7 @@ refines:
   - { id: 6f3fa565-e6b7-4799-99b4-e8d0c814f71b, version: n1:1c52957809bfed5b, title: Anzahl der Beziehungen im Metamodell begrenzen }
 derives-from:
   - { id: ccf3998d-7bf6-45de-b74b-f45fb7862a92, version: n1:5fe1dc017ff6e9a9, title: Traceability-Matrix einer Auswahl }
+issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/704
 ---
 
 Das Tool muss in der Traceability-Matrix Lücken sowie Anzahl und Anteil über einer Spalte nur für Beziehungen ausweisen, für die das Metamodell eine Mindestzahl festlegt.
