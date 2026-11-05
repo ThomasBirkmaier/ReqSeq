@@ -8,7 +8,7 @@ Part of the [`@reqseq/app` README](../README.md).
   - `invoke` gives what the CLI gives (`[SR-080/AK2]`);
   - the bridge offers the catalog commands, the events, `copyText` and the recent workspaces, and no delete (`[SR-099/AK1]`);
   - the renderer has no Node;
-  - the session cancels a non-local request, and the app makes none itself (SR-078);
+  - the session cancels a non-local request, and the app makes none itself (`[SR-078/AK1]`);
   - `reqseq-file:` does not leave the repository;
   - navigation and new windows are denied;
   - a stopped core process is started again;

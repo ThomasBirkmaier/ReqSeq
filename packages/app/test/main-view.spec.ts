@@ -397,7 +397,7 @@ test.describe("the main view on a fixture workspace", () => {
     await expect(echo).not.toContainText("n1:");
   });
 
-  test("the app makes no request outside its own protocols while it is used (SR-078)", async () => {
+  test("[SR-078/AK1] the app makes no request outside its own protocols while it is used", async () => {
     const { window } = running;
     await window.keyboard.press("ControlOrMeta+Shift+F");
     await window.keyboard.type("wind");

@@ -148,7 +148,7 @@ test.describe("on a fixture workspace", () => {
     expect(reach).toEqual({ require: "undefined", process: "undefined", module: "undefined" });
   });
 
-  test("the session cancels every request that is not local, and the app makes none (SR-078)", async () => {
+  test("[SR-078/AK1] the session cancels every request that is not local, and the app makes none", async () => {
     await expect(running.window.getByLabel("Modeline")).toContainText("Weather station");
     // The app itself asked for nothing outside its own protocols while it started and loaded the workspace.
     expect(running.stderr()).not.toContain("Blocked a request");
