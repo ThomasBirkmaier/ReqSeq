@@ -627,20 +627,19 @@ describe("hint.confirm of one element (#310)", () => {
     });
     expect(read(ws, A_FILE)).toBe(before);
     expect(await failure(workspace, { ref: A, expected: 1 })).toMatchObject({ details: { count: 3 } });
-    expect(
-      await confirmBy(workspace, { all: true, kind: ["element.unknown-property"], expected: 0 }),
-    ).toEqual({
+    expect(await confirmBy(workspace, { all: true, kind: [], expected: 0 })).toMatchObject({
       confirmed: [],
       files: [],
-      problems: [
-        {
-          code: "hint.not-found",
-          severity: "warning",
-          message:
-            "No open hint of kind element.unknown-property in the workspace can be confirmed, so nothing was written for it (a warning, exit code 0); hint.list gives the open hints",
-        },
-      ],
+      problems: [{ code: "hint.not-found", severity: "warning" }],
     });
+    // A code that is no version hint: hint.list would count it, all never confirms it.
+    expect(
+      await failure(workspace, {
+        all: true,
+        kind: ["relation.outdated", "element.unknown-property"],
+        expected: 3,
+      }),
+    ).toMatchObject({ code: "input.invalid", details: { fields: ["kind"] } });
   });
 
   it("refuses all without kind or expected, and all with ref or target (#644)", async () => {

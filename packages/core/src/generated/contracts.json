@@ -7034,6 +7034,7 @@
             "replaces": [
               "ref",
               "target",
+              "all",
               "kind"
             ]
           }
@@ -7060,7 +7061,7 @@
             "all": {
               "type": "boolean",
               "default": false,
-              "description": "Select the open confirmable hints of the whole workspace with one of the codes of `kind`: those hint.list gives with a hintId for that `kind` and no other filter (#644). Needs `kind` and `expected`; not with `ref` or `target`."
+              "description": "Select the open confirmable hints of the whole workspace with one of the codes of `kind`: those hint.list gives with a hintId for that `kind` and no other filter (#644). Needs `kind` with confirmable codes only (`relation.outdated`, `variant.core-changed`; a since-baseline code is refused with its reason, other codes are `input.invalid`) and `expected`; not with `ref` or `target`."
             },
             "kind": {
               "type": "array",
@@ -7072,7 +7073,7 @@
             "expected": {
               "type": "integer",
               "minimum": 0,
-              "description": "The number of hints the call confirms, `hintIds` and the selected ones together, counted as hint.list counts them (a relation written twice is two hints with one ID), as the person reviewed them (with `all`: `total` of hint.list with the same `kind` and no other filter). When the call would confirm another number, it is refused and nothing is written (`input.invalid`, details `count`), for example after a pull brought new hints. Required with `all`."
+              "description": "The number of hints the call confirms as the person reviewed them: the hints the selection holds, counted as hint.list counts them (a relation written twice is two hints with one ID), plus one per given hint ID that the selection does not hold (with `all`: `total` of hint.list with the same `kind` and no other filter). When the call would confirm another number, it is refused and nothing is written (`input.invalid`, details `count`), for example after a pull brought new hints. Required with `all`."
             }
           },
           "additionalProperties": false

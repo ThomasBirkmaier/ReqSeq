@@ -52,7 +52,10 @@
 // - All hints of some codes (#644): `all` selects the findings of `outdatedRelationsState` (the state
 //   hint.list reads, so its current versions are built once, N-036) with a code of `kind` and a hint
 //   ID, after a person reviewed them with hint.list. It needs `kind` and `expected` and goes with
-//   neither `ref` nor `target`. `expected` (any selection) is the number of IDs the call confirms;
+//   neither `ref` nor `target`; its `kind` names only confirmable codes (a since-baseline code is
+//   refused with its reason before the count and nothing is written, SR-103 AK5; any other code is
+//   `input.invalid`, as hint.list would count it and `all` never confirms it). `expected` (any
+//   selection) is the number of hints the call confirms, as hint.list counts them;
 //   another number refuses the call before anything is written, so hints that came with a pull
 //   after the review are never confirmed unseen (D-042).
 //   A selected ID that a given ID names in another spelling is listed once, as given.
@@ -79,6 +82,7 @@ import {
   shortIdState,
   writtenElement,
 } from "../model/index.js";
+import { currentVersions } from "../model/current-versions.js";
 import { inlineReferences } from "../model/references.js";
 import type { ElementFileWrite, UnchangedElement } from "../model/write.js";
 import { readUnchanged, writeElementFiles } from "../model/write.js";
@@ -86,7 +90,7 @@ import type { Workspace } from "../runtime/workspace.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import type { HintTarget } from "./hint-id.js";
-import { hintIdOf, parseHintId } from "./hint-id.js";
+import { CONFIRMABLE_CODES, hintIdOf, parseHintId } from "./hint-id.js";
 import type { Candidate, ShownContext } from "./outdated.js";
 import { outdatedOfShown, outdatedRelationsState } from "./outdated.js";
 import { SINCE_BASELINE_CODES, sinceBaselineProblems } from "./since-baseline.js";
@@ -490,6 +494,15 @@ const assertSelects = (input: ConfirmInput): void => {
         "kind",
       ]);
     }
+    const other = input.kind.filter(
+      (code) => !(CONFIRMABLE_CODES as readonly string[]).includes(code) && !SINCE_BASELINE_CODES.has(code),
+    );
+    if (other.length > 0) {
+      throw invalidInput(
+        `all confirms only ${CONFIRMABLE_CODES.join(" and ")}, not ${other.join(", ")}: give kind with those codes only`,
+        ["kind"],
+      );
+    }
     if (input.expected === undefined) {
       throw invalidInput("all needs expected: the total of hint.list with the same kind, as reviewed", [
         "expected",
@@ -538,6 +551,8 @@ const selectedIds = async (
   const { store, shortIds } = context;
   if (input.all === true) {
     const kinds = new Set(input.kind);
+    // As hint.list: an image the watcher did not report is looked at first.
+    await currentVersions(context.workspace);
     return (await context.workspace.get(outdatedRelationsState))
       .filter((finding) => kinds.has(finding.problem.code))
       .map((finding) => finding.hintId);
@@ -614,6 +629,16 @@ const idsToConfirm = async (
 /** `hint.confirm`: confirms the hints `hintIds` names and those `ref` and `target` select (see the file comment). */
 export const confirmHints = async (workspace: Workspace, input: ConfirmInput): Promise<ConfirmedHints> => {
   assertSelects(input);
+  // A since-baseline code in kind with all is refused with its reason (SR-103 AK5) before the count,
+  // which it never matches, and nothing of the workspace is written.
+  const refusedKinds = input.all === true ? kindRefusals(input.kind) : [];
+  return refusedKinds.length > 0
+    ? { confirmed: [], files: [], problems: refusedKinds }
+    : confirmSelected(workspace, input);
+};
+
+/** `confirmHints` after the checks of the input alone. */
+const confirmSelected = async (workspace: Workspace, input: ConfirmInput): Promise<ConfirmedHints> => {
   const [layout, metamodel, store, shortIds] = await Promise.all([
     workspace.get(workspaceLayoutState),
     workspace.get(metamodelState),

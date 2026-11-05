@@ -2568,11 +2568,11 @@ export interface HintConfirmInput {
   readonly ref?: ElementRef;
   /** Confirm the open confirmable hints on relations and inline references that point at this element, for example after it changed. */
   readonly target?: ElementRef;
-  /** Select the open confirmable hints of the whole workspace with one of the codes of `kind`: those hint.list gives with a hintId for that `kind` and no other filter (#644). Needs `kind` and `expected`; not with `ref` or `target`. */
+  /** Select the open confirmable hints of the whole workspace with one of the codes of `kind`: those hint.list gives with a hintId for that `kind` and no other filter (#644). Needs `kind` with confirmable codes only (`relation.outdated`, `variant.core-changed`; a since-baseline code is refused with its reason, other codes are `input.invalid`) and `expected`; not with `ref` or `target`. */
   readonly all: boolean;
   /** Only selected hints with one of these codes (with `ref`, `target` or `all`); the confirmable codes are `relation.outdated` and `variant.core-changed`; `variant.core-changed-since-baseline` and `variant.core-new-since-baseline` give `hint.not-confirmable`, since a new baseline of the variant settles them (SR-103 AK5). */
   readonly kind?: readonly ProblemCode[];
-  /** The number of hints the call confirms, `hintIds` and the selected ones together, counted as hint.list counts them (a relation written twice is two hints with one ID), as the person reviewed them (with `all`: `total` of hint.list with the same `kind` and no other filter). When the call would confirm another number, it is refused and nothing is written (`input.invalid`, details `count`), for example after a pull brought new hints. Required with `all`. */
+  /** The number of hints the call confirms as the person reviewed them: the hints the selection holds, counted as hint.list counts them (a relation written twice is two hints with one ID), plus one per given hint ID that the selection does not hold (with `all`: `total` of hint.list with the same `kind` and no other filter). When the call would confirm another number, it is refused and nothing is written (`input.invalid`, details `count`), for example after a pull brought new hints. Required with `all`. */
   readonly expected?: number;
 }
 
