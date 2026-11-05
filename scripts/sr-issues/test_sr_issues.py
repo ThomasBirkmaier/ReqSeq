@@ -98,5 +98,23 @@ class Reopen(unittest.TestCase):
         self.assertTrue(s.quoted_changed(old, "new head\n\nSpec: `spec/x.md`\n", "9"))
 
 
+class IssueProperty(unittest.TestCase):
+    URL = "https://github.com/ThomasBirkmaier/ReqSeq/issues/108"
+
+    def test_writes_the_url_of_the_issue_when_missing_or_different(self):
+        self.assertEqual(s.issue_update({"properties": {}}, {"html_url": self.URL}), {"set": {"issue": self.URL}})
+        other = {"properties": {"issue": "https://github.com/ThomasBirkmaier/ReqSeq-archive/issues/1"}}
+        self.assertEqual(s.issue_update(other, {"html_url": self.URL}), {"set": {"issue": self.URL}})
+
+    def test_writes_nothing_when_the_url_is_there(self):
+        self.assertIsNone(s.issue_update({"properties": {"issue": self.URL}}, {"html_url": self.URL}))
+
+    def test_the_property_is_not_quoted_so_writing_it_changes_no_issue_body(self):
+        e = {"properties": {"acceptance-criteria": ["a"], "verification-method": "test"}}
+        h = s.content_hash(e, "text")
+        e["properties"]["issue"] = self.URL
+        self.assertEqual(s.content_hash(e, "text"), h)
+
+
 if __name__ == "__main__":
     unittest.main()
