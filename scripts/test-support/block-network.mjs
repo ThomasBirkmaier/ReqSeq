@@ -1,11 +1,18 @@
 // Test setup: any connection that leaves the machine fails the test (SR-077, SR-078, ADR-0011).
 // Loopback stays allowed because API tests talk to 127.0.0.1.
+import { appendFileSync } from "node:fs";
 import net from "node:net";
 import dns from "node:dns";
 
 const isLoopback = (host) =>
   host === "localhost" || host === "::1" || /^127\./.test(host) || /^::ffff:127\./.test(host);
+// With REQSEQ_NETWORK_LOG set, each attempt is also written there, one line each, so that a test sees
+// an attempt that the code under test caught (SR-078 AK1: the traffic is recorded, not only refused).
 const fail = (target) => {
+  const log = process.env.REQSEQ_NETWORK_LOG;
+  if (log) {
+    appendFileSync(log, `${target}\n`);
+  }
   throw new Error(`network access blocked in tests: ${target}`);
 };
 

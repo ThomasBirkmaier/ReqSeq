@@ -1,11 +1,15 @@
 // Working without network (SR-077, SR-078 AK1): the built binary with Node's connections blocked for
 // every host but loopback (`block-network.mjs`, as for every spawned CLI of this suite), and on Linux CI
-// inside `unshare -rn`, where no network exists at all. An attempt to leave the machine would fail the
-// command; so the commands succeeding shows that they need no network and open no connection.
+// inside `unshare -rn`, where no network exists at all. Each attempt to leave the machine is also written
+// to a log (`REQSEQ_NETWORK_LOG`), so an attempt the command caught still shows: an empty log after the
+// commands shows that they opened no connection.
 // Run after `pnpm build` with `pnpm test:e2e`.
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
 import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { LineTransport } from "@reqseq/mcp";
 import type { FixtureWorkspace } from "@reqseq/testkit";
 import { createFixtureWorkspace } from "@reqseq/testkit";
@@ -26,6 +30,10 @@ beforeAll(() => {
   requireBuiltCli("pnpm test:e2e");
 });
 
+/** A fresh path for the network log of one test; nothing is there until an attempt is written. */
+const networkLog = async (): Promise<string> =>
+  path.join(await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-network-")), "attempts.log");
+
 const workspace = async (): Promise<FixtureWorkspace> => {
   const ws = await createFixtureWorkspace({ fixture: "SR-069/filter" });
   fixtures.push(ws);
@@ -33,12 +41,12 @@ const workspace = async (): Promise<FixtureWorkspace> => {
 };
 
 /** A Node process with the same block tries to reach a host of the documentation range (RFC 5737). */
-const outwardAttempt = (): Promise<{ code: number | null; stderr: string }> =>
+const outwardAttempt = (log: string): Promise<{ code: number | null; stderr: string }> =>
   new Promise((resolve, reject) => {
     const child = spawn(
       process.execPath,
       ["--import", blockNetwork, "-e", 'require("node:net").connect(80, "192.0.2.1")'],
-      { stdio: "pipe", env: cliEnv() },
+      { stdio: "pipe", env: { ...cliEnv(), REQSEQ_NETWORK_LOG: log } },
     );
     let stderr = "";
     child.stderr.on("data", (chunk: Buffer) => (stderr += chunk.toString("utf8")));
@@ -48,46 +56,52 @@ const outwardAttempt = (): Promise<{ code: number | null; stderr: string }> =>
     });
   });
 
+/** Reads, searches, writes, checks and exports a fixture with the CLI; each command must succeed. */
+const commandsWithout = async (log: string): Promise<void> => {
+  const ws = await workspace();
+  const options = { cwd: ws.root, env: { REQSEQ_NETWORK_LOG: log } };
+  for (const args of [
+    ["workspace", "status", "--json"],
+    ["element", "list", "--json"],
+    ["element", "search", "wind", "--json"],
+    ["trace", "chain", "SR-0000b1", "--json"],
+    ["workspace", "check", "--json"],
+    ["data", "export", "--json"],
+  ]) {
+    const result = await reqseq(args, options);
+    expect([args.join(" "), result.code, result.stderr]).toEqual([args.join(" "), 0, ""]);
+  }
+  const sha = await fileSha256("SR-0000b1", options);
+  const updated = await reqseq(
+    ["element", "update", "SR-0000b1", "--title", "Show the wind offline", "--expected-file-sha256", sha],
+    options,
+  );
+  expect([updated.code, updated.stderr]).toEqual([0, ""]);
+};
+
 describe("without network", () => {
-  it("[SR-078/AK1] fails a connection to another machine, so a command that tried one could not pass", async () => {
-    const attempt = await outwardAttempt();
+  it("[SR-078/AK1] records an attempt to reach another machine, and none while the commands run", async () => {
+    const tried = await networkLog();
+    const attempt = await outwardAttempt(tried);
     expect(attempt.code).not.toBe(0);
-    expect(attempt.stderr).toContain("network access blocked in tests: 192.0.2.1:80");
+    expect(await fs.readFile(tried, "utf8")).toBe("192.0.2.1:80\n");
+
+    const log = await networkLog();
+    await commandsWithout(log);
+    expect(existsSync(log)).toBe(false);
   });
 
   it("[SR-077/AK1] reads, searches, writes, checks and exports a workspace", async () => {
-    const ws = await workspace();
-    const run = (args: readonly string[]) => reqseq(args, { cwd: ws.root });
-    for (const args of [
-      ["workspace", "status", "--json"],
-      ["element", "list", "--json"],
-      ["element", "search", "wind", "--json"],
-      ["trace", "chain", "SR-0000b1", "--json"],
-      ["workspace", "check", "--json"],
-      ["data", "export", "--json"],
-    ]) {
-      const result = await run(args);
-      expect([args.join(" "), result.stderr]).toEqual([args.join(" "), ""]);
-    }
-    const sha = await fileSha256("SR-0000b1", { cwd: ws.root });
-    const updated = await run([
-      "element",
-      "update",
-      "SR-0000b1",
-      "--title",
-      "Show the wind offline",
-      "--expected-file-sha256",
-      sha,
-    ]);
-    expect([updated.code, updated.stderr]).toEqual([0, ""]);
+    await commandsWithout(await networkLog());
   });
 
   it("[SR-077/AK2] keeps an agent's session going with no error message and keeps every change", async () => {
     const ws = await workspace();
+    const log = await networkLog();
     const child = spawn(process.execPath, ["--import", blockNetwork, bin, "mcp"], {
       cwd: ws.root,
       stdio: "pipe",
-      env: cliEnv(),
+      env: { ...cliEnv(), REQSEQ_NETWORK_LOG: log },
     });
     children.push(child);
     let stderr = "";
@@ -112,6 +126,7 @@ describe("without network", () => {
     await client.close();
     child.stdin.end();
     expect(stderr).toBe("");
+    expect(existsSync(log)).toBe(false);
     expect(await fs.readFile(ws.path(file.replace(/^[^:]+:/, "")), "utf8")).toContain(
       "Show the wind on land",
     );
