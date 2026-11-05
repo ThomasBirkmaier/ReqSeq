@@ -289,40 +289,9 @@ const spelledOnDisk = async (repository: RepositoryLocation, relative: string): 
 };
 
 /**
- * Whether `listMarkdownFiles` lists `file` (relative to the repository, `/` as separator, a name
- * ending in `.md`), checked along its path only: a few `lstat` and `opendir` calls and no walk, for
- * a file ReqSeq has just created (#166). The rules are those of the walk: no folder or file named
- * `.git` or `node_modules` or matched by `ignored`; every folder above the file a real folder (not
- * a link) without a `.git` entry and not the folder of a nested repository (`repository.excludes`),
- * and the repository folder and every folder above the file one the walk can open (an unreadable
- * folder is a listing problem there, and nothing below it is listed); the file itself a regular
- * file. The path must also be spelled as the folders are: on a file system that ignores case
- * (Windows, macOS), `Requirements/a.md` names `requirements/a.md`, which the walk lists under its
- * own spelling. A path that is gone is not listed; other errors reject.
- */
-export const listsFile = async (
-  repository: RepositoryLocation,
-  ignored: (relativePath: string) => boolean,
-  file: string,
-): Promise<boolean> => {
-  if (!(await walksInto(repository, ignored, file.split("/").slice(0, -1)))) {
-    return false;
-  }
-  const absolute = path.join(repository.folder, file);
-  if (
-    nameRule(repository, ignored, file) !== undefined ||
-    (await lstatIfThere(absolute))?.isFile() !== true
-  ) {
-    return false;
-  }
-  return (await spelledOnDisk(repository, file)) === file;
-};
-
-/**
  * Whether the walk opens the repository folder and goes into every folder of `names` (the folders
- * from the repository down, one name each): each one exists, is a real folder (no link) without a
- * `.git` entry, is not left out by its name, an `ignore` glob or a nested repository, and can be
- * opened. Errors other than "nothing there" reject.
+ * from the repository down, one name each), each as `entersFolder` checks it. Errors other than
+ * "nothing there" reject.
  */
 const walksInto = async (
   repository: RepositoryLocation,
@@ -335,16 +304,94 @@ const walksInto = async (
   let folder = "";
   for (const name of names) {
     folder = folder === "" ? name : `${folder}/${name}`;
-    const absolute = path.join(repository.folder, folder);
-    if (nameRule(repository, ignored, folder) !== undefined) {
-      return false;
-    }
-    const stat = await lstatIfThere(absolute);
-    if (stat === undefined || (await folderRule(absolute, stat)) !== undefined) {
+    if (!(await entersFolder(repository, ignored, folder))) {
       return false;
     }
   }
   return true;
+};
+
+/**
+ * Whether `listMarkdownFiles` lists `file` (relative to the repository, `/` as separator, a name
+ * ending in `.md`), checked along its path only: a few `lstat` and `opendir` calls and no walk, for
+ * a file ReqSeq has just created (#166). The rules are those of the walk: no folder or file named
+ * `.git` or `node_modules` or matched by `ignored`; every folder above the file a real folder (not
+ * a link) without a `.git` entry and not the folder of a nested repository (`repository.excludes`),
+ * and the repository folder and every folder above the file one the walk can open (an unreadable
+ * folder is a listing problem there, and nothing below it is listed); the file itself a regular
+ * file. The path must also be spelled as the folders are: on a file system that ignores case
+ * (Windows, macOS), `Requirements/a.md` names `requirements/a.md`, which the walk lists under its
+ * own spelling. A path that is gone is not listed; other errors reject.
+ */
+export const listsFile = (
+  repository: RepositoryLocation,
+  ignored: (relativePath: string) => boolean,
+  file: string,
+): Promise<boolean> => fileLister(repository, ignored)(file);
+
+/**
+ * `listsFile` for the new files of one write (#741): the repository folder and each folder above the
+ * files are checked once, and the repository folder is spelled once, however many files share them.
+ * The answers hold for the folders as the first look found them, so a write makes a new lister.
+ */
+export const fileLister = (
+  repository: RepositoryLocation,
+  ignored: (relativePath: string) => boolean,
+): ((file: string) => Promise<boolean>) => {
+  const root = once(() => canList(repository.folder));
+  const realRoot = once(() => fs.realpath(repository.folder));
+  const folders = new Map<string, Promise<boolean>>();
+  /** Whether the walk opens the repository folder and goes into `folder` and every folder above it, once each. */
+  const entersAll = (folder: string): Promise<boolean> => {
+    let known = folders.get(folder);
+    if (known === undefined) {
+      const slash = folder.lastIndexOf("/");
+      const above = slash < 0 ? root() : entersAll(folder.slice(0, slash));
+      known = above.then(async (open) => open && (await entersFolder(repository, ignored, folder)));
+      folders.set(folder, known);
+    }
+    return known;
+  };
+  return async (file) => {
+    const slash = file.lastIndexOf("/");
+    if (!(await (slash < 0 ? root() : entersAll(file.slice(0, slash))))) {
+      return false;
+    }
+    const absolute = path.join(repository.folder, file);
+    if (
+      nameRule(repository, ignored, file) !== undefined ||
+      (await lstatIfThere(absolute))?.isFile() !== true
+    ) {
+      return false;
+    }
+    // The native `realpath` gives the names as stored (and resolves links above the repository).
+    const [base, real] = await Promise.all([realRoot(), fs.realpath(absolute)]);
+    return path.relative(base, real).split(path.sep).join("/") === file;
+  };
+};
+
+/** `make()` on the first call, and the same promise on every later one. */
+const once = <T>(make: () => Promise<T>): (() => Promise<T>) => {
+  let made: Promise<T> | undefined;
+  return () => (made ??= make());
+};
+
+/**
+ * Whether the walk goes into `folder` (relative to the repository, `/`) from the folder above it: it
+ * exists, is a real folder (no link) without a `.git` entry, is not left out by its name, an `ignore`
+ * glob or a nested repository, and can be opened. Errors other than "nothing there" reject.
+ */
+const entersFolder = async (
+  repository: RepositoryLocation,
+  ignored: (relativePath: string) => boolean,
+  folder: string,
+): Promise<boolean> => {
+  if (nameRule(repository, ignored, folder) !== undefined) {
+    return false;
+  }
+  const absolute = path.join(repository.folder, folder);
+  const stat = await lstatIfThere(absolute);
+  return stat !== undefined && (await folderRule(absolute, stat)) === undefined;
 };
 
 /**
