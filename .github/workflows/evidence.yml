@@ -19,6 +19,7 @@ on:
   workflow_run:
     workflows: [CI]
     types: [completed]
+    branches: [main]
   workflow_dispatch:
     inputs:
       run-id:
@@ -97,7 +98,9 @@ jobs:
           MANUAL: ${{ github.event_name == 'workflow_dispatch' }}
         run: |
           git fetch --quiet origin main
-          last="$(git grep -h -o -E 'main@[0-9a-f]{40}' origin/main -- spec/evidence/ci 2>/dev/null | head -n 1 | cut -d@ -f2 || true)"
+          # -a: .gitattributes marks the files -diff, which git grep would treat as binary.
+          last="$(git grep -a -h -o -E 'main@[0-9a-f]{40}' origin/main -- spec/evidence/ci 2>/dev/null | head -n 1 | cut -d@ -f2 || true)"
+          [[ "$last" =~ ^[0-9a-f]{40}$ ]] || last=""
           skip=false
           if [ "$MANUAL" != true ] && [ -n "$last" ] && git cat-file -e "$last^{commit}" 2>/dev/null &&
             git diff --quiet "$last" "$SHA" -- . ':(exclude)spec/evidence'; then
@@ -145,9 +148,16 @@ jobs:
           {
             echo "CI run $RUN on \`$SHA\` ($CONCLUSION), started $DATE."
             echo
-            echo "| File | Test cases with a requirement | Without | Unknown |"
+            echo "| File | Enriched test cases | Without a requirement | Unknown |"
             echo "|---|---|---|---|"
           } > "$RUNNER_TEMP/summary.md"
+          # The artifacts a full run uploads (ci.yml). CI uploads with `if-no-files-found: ignore`, so a suite
+          # that wrote no file has no artifact at all; it is listed, and main keeps its last file.
+          for artifact in junit-ubuntu-24.04 junit-macos-26 junit-windows-2025 junit-e2e-ubuntu-24.04 junit-e2e-macos-26 \
+            junit-e2e-windows-2025 junit-electron-ubuntu-24.04-1 junit-electron-ubuntu-24.04-2 junit-electron-macos-26 \
+            junit-electron-windows-2025-1 junit-electron-windows-2025-2; do
+            [ -d "$JUNIT/$artifact" ] || echo "| \`$artifact\` | no artifact | | |" >> "$RUNNER_TEMP/summary.md"
+          done
           for dir in "$JUNIT"/junit-*/; do
             artifact="$(basename "$dir")"
             case "$artifact" in
@@ -199,7 +209,8 @@ jobs:
   publish:
     name: publish
     needs: enrich
-    if: ${{ !cancelled() && needs.enrich.outputs.publish == 'true' }}
+    # A manual start runs the workflow file of the branch it names; only main's may use the App key.
+    if: ${{ !cancelled() && needs.enrich.outputs.publish == 'true' && github.ref == 'refs/heads/main' }}
     permissions:
       actions: read # The artifact of `enrich`
     runs-on: ubuntu-24.04
@@ -211,6 +222,10 @@ jobs:
         with:
           app-id: ${{ secrets.EVIDENCE_APP_ID }}
           private-key: ${{ secrets.EVIDENCE_APP_KEY }}
+          # Only what the job needs, not every permission of the installation.
+          permission-contents: write
+          permission-pull-requests: write
+          permission-issues: write
 
       - uses: actions/checkout@v4
         with:
@@ -227,19 +242,22 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ steps.token.outputs.token }}
+          APP_SLUG: ${{ steps.token.outputs.app-slug }}
           SHA: ${{ needs.enrich.outputs.sha }}
           RUN: ${{ needs.enrich.outputs.run }}
           SOURCE: ${{ runner.temp }}/evidence
         run: |
-          rm -rf spec/evidence/ci && mkdir -p spec/evidence
-          cp -R "$SOURCE/ci" spec/evidence/ci
+          # Over main's files: a suite without an artifact in this run keeps its last file (listed in the summary).
+          mkdir -p spec/evidence/ci
+          cp "$SOURCE"/ci/*.xml spec/evidence/ci/
           if git diff --quiet && [ -z "$(git status --porcelain spec/evidence)" ]; then
             echo "Nothing changed." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
           repo="$GITHUB_REPOSITORY"
           # Older evidence pull requests edit the same files; this one replaces them.
-          for n in $(gh api "repos/$repo/pulls?state=open&per_page=100" --jq '.[] | select(.head.ref | startswith("evidence/")) | .number'); do
+          bot="$APP_SLUG[bot]"
+          for n in $(gh api "repos/$repo/pulls?state=open&per_page=100" --jq ".[] | select(.head.repo.full_name == \"$repo\" and .user.login == \"$bot\" and (.head.ref | startswith(\"evidence/\"))) | .number"); do
             gh api -X PATCH "repos/$repo/pulls/$n" -f state=closed > /dev/null
             gh api -X POST "repos/$repo/issues/$n/comments" -f body="Replaced by the evidence of CI run $RUN." > /dev/null
           done
