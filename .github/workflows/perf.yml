@@ -5,7 +5,8 @@ name: Performance
 # labelled `perf` (once, when the label is added: a later push does not run it again, so a pull request does not
 # hold a runner for every push, product owner decision 2026-10-28; to measure again, remove the label and add it
 # again); it is not a required check. Every time goes into the record
-# verification/performance.md, and a time over a threshold that is not for comparison only opens or updates an issue labelled `perf`.
+# verification/performance.md, and a time over a threshold that is not for comparison only opens or updates
+# an issue labelled `perf`.
 # A test tagged `[SR-xxx/AKn]` asserts its threshold and fails the run (ADR-0011: a pass on a runner at
 # or below the reference machine of 4 cores and 16 GB is evidence); untagged measurements only record. Failing
 # correctness assertions (wrong counts, findings, versions) fail it too. On Linux the suite runs inside
@@ -204,16 +205,15 @@ jobs:
         if: always() && needs.perf.outputs.exceeded != '0' && github.ref == 'refs/heads/main'
         uses: actions/github-script@v7
         env:
-          EXCEEDED: ${{ needs.perf.outputs.exceeded }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         with:
           script: |
             const fs = require("node:fs");
             const record = fs.readFileSync("perf-results/verification/performance.md", "utf8");
             const lines = record.split("\n");
-            // Rows whose threshold is for comparison only, or an expectation that is not asserted, open no issue:
-            // only a threshold an acceptance criterion or a decision sets does (product owner decision, 2026-11-05,
-            // issue clean-up; typical workspaces hold 100 to 1,000 elements).
+            // Rows whose basis says "threshold for comparison only" or "not asserted" open no issue; every other
+            // exceeded row does (product owner decision, 2026-11-05, issue clean-up; typical workspaces hold 100 to
+            // 1,000 elements). With only such rows exceeded, an open issue is neither updated nor closed: close it by hand.
             const comparisonOnly = (line) => /threshold for comparison only|not asserted/.test(line.split("|")[2] ?? "");
             const exceeded = lines.filter((line) => line.includes("| **exceeded** |") && !comparisonOnly(line));
             if (exceeded.length === 0) {
