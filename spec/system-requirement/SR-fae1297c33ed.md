@@ -8,6 +8,7 @@ rationale: "Entscheidung des Produktverantwortlichen, 2026-11-05: in der Bereini
 requirement-type: functional
 acceptance-criteria:
   - Gegeben die App, wenn die Ansicht gewählt werden soll, dann geht das über ein Tastenkürzel oder einen Menüeintrag, und die Statuszeile zeigt die gewählte Ansicht.
+  - Gegeben ein Arbeitsbereich mit Varianten, wenn in der App Elemente aufgelistet werden, dann sind die Varianten dort ebenso auffindbar wie andere Elemente.
   - Gegeben ein geöffneter Ordner ohne Arbeitsbereich, in dessen Unterordner einer liegt, wenn er geöffnet wird, dann weist das Tool auf diesen Unterordner hin.
   - Gegeben die Kommandozeile, wenn die Varianten aufgelistet werden sollen, dann geht das mit einem Befehl ohne Auswahl in JSON.
   - Gegeben ein Befehl mit optionalen Argumenten in der Befehlszeile der App, wenn er angezeigt wird, dann zeigt die Befehlszeile, wie diese Argumente erreichbar sind.
