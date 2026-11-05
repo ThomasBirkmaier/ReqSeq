@@ -482,6 +482,21 @@ describe("evidence.record variants (SR-030, SR-040)", () => {
     expect((await record(workspace, { ref: "SR-000a11", ...TEST })).record).not.toHaveProperty("variant");
   });
 
+  it("names a variant's record by the element's and the variant's short ID, apart from the core's (#647)", async () => {
+    const { workspace } = await variants();
+    const files = async (variant?: string): Promise<readonly string[]> =>
+      (await record(workspace, { ref: "SR-000ab2", ...TEST, ...(variant === undefined ? {} : { variant }) }))
+        .files;
+    const day = DATE.slice(0, 10);
+    expect(await files()).toEqual([`evidence/${day}-SR-000ab2-test.md`]);
+    expect(await files("VAR-a1a1a1")).toEqual([`evidence/${day}-SR-000ab2-VAR-a1a1a1-test.md`]);
+    // Given by UUID, as the app gives it: the name has the short ID all the same.
+    expect(await files(COAST)).toEqual([`evidence/${day}-SR-000ab2-VAR-a1a1a1-test-2.md`]);
+    expect(recordFileName(day, "SR-000ab2", "test", 3, "VAR-a1a1a1")).toBe(
+      `${day}-SR-000ab2-VAR-a1a1a1-test-3.md`,
+    );
+  });
+
   it("refuses core, in any case and for either kind, since it names no variant, and writes nothing (#464)", async () => {
     const { fixture, workspace } = await variants();
     for (const input of [

@@ -20,8 +20,9 @@
 //    below one, relative to the workspace root; default the first location whose repository is on this
 //    machine. The full target passes the rules of every new ReqSeq file (`refuseUnlisted`) before and
 //    after a missing folder is created, so a refused folder leaves nothing behind (D-036, D-045).
-// 5. Name (ADR-0012): `<day>-<short id>-<method>.md` (`validation` for a validation record), `<day>` the
-//    first ten characters of `date`; a taken name (any case, NFC) gets `-2`, `-3`, ...; the file is only
+// 5. Name (ADR-0012): `<day>-<short id>-<method>.md` (`validation` for a validation record), with the
+//    variant's short ID after the element's for a record of a variant (#647), `<day>` the first ten
+//    characters of `date`; a taken name (any case, NFC) gets `-2`, `-3`, ...; the file is only
 //    ever created, never replaced (`writeFileAtomic` with no snapshot), and a name taken meanwhile is
 //    retried with the next one, at most `TRIES` times.
 // 6. Read back (ADR-0007 pattern): the bytes must give exactly the intended record through the Markdown
@@ -126,11 +127,18 @@ const DEFAULT_DEPS: RecordDeps = {
 };
 
 /**
- * The file name of a record (rule 5): `<day>-<short id>-<what>.md`, with `-<n>` before `.md` from the
- * second name on; `what` is `validation` for a validation record, else the method.
+ * The file name of a record (rule 5): `<day>-<short id>-<what>.md`, with `-<variant short id>` after the
+ * short ID for a record of a variant (#647) and `-<n>` before `.md` from the second name on; `what` is
+ * `validation` for a validation record, else the method.
  */
-export const recordFileName = (day: string, shortId: string, what: string, n: number): string =>
-  `${day}-${shortId}-${what}${n === 1 ? "" : `-${String(n)}`}.md`;
+export const recordFileName = (
+  day: string,
+  shortId: string,
+  what: string,
+  n: number,
+  variantShortId?: string,
+): string =>
+  `${day}-${shortId}${variantShortId === undefined ? "" : `-${variantShortId}`}-${what}${n === 1 ? "" : `-${String(n)}`}.md`;
 
 /** `date` as the record writes it when none is given: UTC, whole seconds (`2026-10-27T10:00:00Z`). */
 export const recordDate = (now: Date): string => `${now.toISOString().slice(0, 19)}Z`;
@@ -426,11 +434,13 @@ const updateEvidence = async (
 interface Prepared {
   readonly element: ElementRecord;
   readonly shortId: string;
+  /** The short ID of the record's variant, for the file name; undefined for the core. */
+  readonly variantShortId: string | undefined;
   readonly fields: RecordFields;
 }
 
 /**
- * The variant of rule 1: its UUID, undefined when none is given (the core); `input.invalid` for
+ * The variant of rule 1: its record, undefined when none is given (the core); `input.invalid` for
  * `core`, which names no variant (#464), for a validation record (SR-038 AK4), and when the variant's
  * view (`outOfView`: the view rule, as the views decide it) leaves the element out: it does not apply there
  * (SR-040), or the variant excludes or replaces it (SR-047 AK4).
@@ -441,7 +451,7 @@ const variantOf = (
   context: ViewContext,
   element: ElementRecord,
   input: EvidenceRecordInput,
-): string | undefined => {
+): ElementRecord | undefined => {
   if (input.variant === undefined) {
     return undefined;
   }
@@ -461,7 +471,7 @@ const variantOf = (
   }
   const out = outOfView(context, element, view);
   if (out === undefined) {
-    return view.variant.id;
+    return view.variant;
   }
   throw invalid(`${context.shortIds.of(element)} ${out.why}`, {
     fields: ["variant"],
@@ -502,7 +512,7 @@ const prepare = async (
     element: element.id,
     version: entry.version,
     ...(input.method === undefined ? {} : { method: input.method }),
-    ...(variant === undefined ? {} : { variant }),
+    ...(variant === undefined ? {} : { variant: variant.id }),
     ...(input.item === undefined ? {} : { item: input.item }),
     result: input.result,
     ...(input.reason === undefined ? {} : { reason: input.reason }),
@@ -518,7 +528,12 @@ const prepare = async (
       { command: COMMAND, errors },
     );
   }
-  return { element, shortId: shortIds.of(element), fields };
+  return {
+    element,
+    shortId: shortIds.of(element),
+    variantShortId: variant === undefined ? undefined : shortIds.of(variant),
+    fields,
+  };
 };
 
 /**
@@ -570,12 +585,13 @@ export const recordEvidence = async (
   deps: RecordDeps = DEFAULT_DEPS,
 ): Promise<EvidenceRecordOutput> => {
   const layout = await workspace.get(workspaceLayoutState);
-  const { shortId, fields } = await prepare(workspace, input, deps.now);
+  const { shortId, variantShortId, fields } = await prepare(workspace, input, deps.now);
   const { location, folder } = targetOf(layout, input.folder);
   const { repository } = location;
   const bytes = Buffer.from(deps.render(fields), "utf8");
   const what = fields.method === undefined || fields.kind === "validation" ? "validation" : fields.method;
-  const name = (n: number): string => recordFileName(fields.date.slice(0, 10), shortId, what, n);
+  const name = (n: number): string =>
+    recordFileName(fields.date.slice(0, 10), shortId, what, n, variantShortId);
   const read = readBack(fields, bytes, repository.name, inFolder(folder, name(1)));
   const file = await createRecordFile(layout, repository, folder, name, bytes, deps.write);
   // The watcher leaves the read alone for this file while it holds these bytes (#785).
