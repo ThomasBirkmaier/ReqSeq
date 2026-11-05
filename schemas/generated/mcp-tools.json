@@ -573,6 +573,22 @@
               ],
               "format": "date-time"
             },
+            "storedCommit": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+              "description": "Object name of the commit that started the stored version, given with `storedDate` and null exactly when it is: with `currentCommit`, `git diff <storedCommit> <currentCommit> -- <file>` shows what changed. A pointer valid at the current HEAD, never stored."
+            },
+            "currentCommit": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+              "description": "Object name of the commit that started the current version, given with `currentDate` and null exactly when it is (as `storedCommit`)."
+            },
             "hintId": {
               "type": "string",
               "description": "Stable ID of a confirmable hint; on the hint.* problems of hint.confirm, the ID as given."
@@ -3143,7 +3159,7 @@
                 "available"
               ]
             },
-            "description": "The `evidence` locations of the workspace file, in its order, as written (#625). Empty without the key."
+            "description": "The `evidence` locations of the workspace file, in its order, as written. Empty without the key."
           },
           "readOnly": {
             "type": "boolean"
@@ -3437,7 +3453,7 @@
             "items": {
               "$ref": "#/$defs/workspace/$defs/location"
             },
-            "description": "The metamodel files that were read, in the order they were merged, faulty ones included: the repository of the metamodel and the path relative to it (#625). Empty when the folder is missing or has no metamodel files."
+            "description": "The metamodel files that were read, in the order they were merged, faulty ones included: the repository of the metamodel and the path relative to it. Empty when the folder is missing or has no metamodel files."
           },
           "problems": {
             "type": "array",
@@ -3556,7 +3572,7 @@
           "hintDates": {
             "type": "boolean",
             "default": false,
-            "description": "Date only the outdated relations and inline references and the changed core requirements of replacements among the hints (`relation.outdated`, `variant.core-changed`: `storedDate`, `currentDate` and both dates in the message), not the version of the element itself. Git reads only the histories of their targets, and none when the element has no outdated relation; the app asks for it in a second call after the element is shown, only for an element with such hints. `versionDate` dates these hints too."
+            "description": "Date only the outdated relations and inline references and the changed core requirements of replacements among the hints (`relation.outdated`, `variant.core-changed`: `storedDate`, `currentDate`, `storedCommit`, `currentCommit` and both dates with their commits in the message), not the version of the element itself. Git reads only the histories of their targets, and none when the element has no outdated relation; the app asks for it in a second call after the element is shown, only for an element with such hints. `versionDate` dates these hints too."
           },
           "repository": {
             "type": "string",

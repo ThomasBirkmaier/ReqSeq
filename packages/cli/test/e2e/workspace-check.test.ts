@@ -318,12 +318,14 @@ describe("outdated relations in workspace check (SR-025)", () => {
   it("[SR-025/AK2] [SR-019/AK2] names source, target and the dates of both versions and ends with exit code 1", async () => {
     const ws = await fixture("SR-025/outdated", true);
     const stored = await headDate(ws);
+    const storedCommit = (await ws.head()).slice(0, 12);
     // The need and the variant get a new text after A's relations to them were set, and are committed.
     for (const file of ["needs/N-0a0000000001.md", "variants/V-0c0000000001.md"]) {
       await fs.writeFile(ws.path(file), `${await fs.readFile(ws.path(file), "utf8")}Changed.\n`);
     }
     await ws.commit();
     const current = await headDate(ws);
+    const currentCommit = (await ws.head()).slice(0, 12);
     // "der Exit-Code ist ungleich 0": the outdated relations are warnings, so with --fail-on warning.
     expect((await reqseq(["workspace", "check"], ws.root)).code).toBe(0);
     const { human, json, output } = await checkBoth(ws.root, FAIL_ON_WARNING);
@@ -362,7 +364,7 @@ describe("outdated relations in workspace check (SR-025)", () => {
       ),
     ]);
     expect(human.stdout).toContain(
-      `warning  relation.outdated  SR-b0000000001 → N-a0000000001  Relation Derives from (derives-from) of System Requirement SR-b0000000001 points to an older version of Need N-a0000000001: stored version from ${stored}, current version from ${current}  system:requirements/SR-0b0000000001.md:12\n`,
+      `warning  relation.outdated  SR-b0000000001 → N-a0000000001  Relation Derives from (derives-from) of System Requirement SR-b0000000001 points to an older version of Need N-a0000000001: stored version from ${stored} (${storedCommit}), current version from ${current} (${currentCommit})  system:requirements/SR-0b0000000001.md:12\n`,
     );
   });
 

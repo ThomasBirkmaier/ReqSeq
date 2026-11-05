@@ -180,8 +180,9 @@ describe("createFixtureWorkspace", () => {
       { name: "side", parents: ["one"], files: { "y.md": "y" } },
       { name: "merge", parents: ["two", "side"], files: { sub: { submodule: base } } },
       { name: "root", parents: [], files: { "r.md": "r" } },
+      { name: "again", parents: ["root"], files: { "r.md": "s" }, sameSecond: true },
     ]);
-    expect(Object.keys(made)).toEqual(["one", "two", "side", "merge", "root"]);
+    expect(Object.keys(made)).toEqual(["one", "two", "side", "merge", "root", "again"]);
     const id = (name: string): string => String(made[name]?.id);
     const seconds = (name: string): string => String(Number(made[name]?.date) / 1000);
     const show = async (name: string): Promise<string> =>
@@ -190,6 +191,8 @@ describe("createFixtureWorkspace", () => {
     expect(await show("two")).toBe(`${id("one")}|${seconds("two")}|second`);
     expect(await show("merge")).toBe(`${id("two")} ${id("side")}|${seconds("merge")}|merge`);
     expect(await show("root")).toBe(`|${seconds("root")}|root`);
+    expect(seconds("again")).toBe(seconds("root"));
+    expect(seconds("root")).not.toBe(seconds("merge"));
     expect((await ws.git(["ls-tree", id("one")])).split("\n")).toContain(
       `120000 blob ${(await ws.git(["hash-object", "--stdin"], ".", Buffer.from("x.md"))).trim()}\tl.md`,
     );
