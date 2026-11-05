@@ -12,11 +12,11 @@ acceptance-criteria:
 verification-method: test
 topic: "Nachweis und Abdeckung"
 packages:
-  - { id: 5e69295a-2847-469f-9bd4-a11e20ceba9f, version: n1:3b91c1fbe49a06cc, title: "Stufe 4: Nachweise" }
+  - { id: 5e69295a-2847-469f-9bd4-a11e20ceba9f, version: n2:9717bb428f1f51e8, title: "Stufe 4: Nachweise" }
 derives-from:
   - { id: 6adc4b47-50a8-4546-9007-f7cfdfa7b9cb, version: n1:d8500282bf5102a9, title: Traceability bis zu Testfall und Durchführung }
 based-on:
-  - { id: 6adc58f5-a349-4870-af2f-971ec1cee679, version: n1:adee5264c0b69be1, title: Ein offenes Format für Nachweis-Datensätze }
+  - { id: 6adc58f5-a349-4870-af2f-971ec1cee679, version: n2:f99d3d6f08b13a10, title: Ein offenes Format für Nachweis-Datensätze }
 issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/40
 ---
 

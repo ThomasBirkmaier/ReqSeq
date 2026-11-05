@@ -6,7 +6,7 @@ title: "Ein Issue je System Requirement"
 spec-id: "D-049"
 ---
 
-Für jedes System Requirement gibt es genau ein Issue auf GitHub, je Stufe ([D-035](reqseq:6adc6f46-bc08-4598-9b30-474383c78014?version=n1:53f2302a77f39023)) dazu ein Sammel-Issue. Das Issue enthält ID, UUID, Akzeptanzkriterien im Wortlaut und Nachweismethode.
+Für jedes System Requirement gibt es genau ein Issue auf GitHub, je Stufe ([D-035](reqseq:6adc6f46-bc08-4598-9b30-474383c78014?version=n2:6facaf59f99e82fc)) dazu ein Sammel-Issue. Das Issue enthält ID, UUID, Akzeptanzkriterien im Wortlaut und Nachweismethode.
 
 Arbeiten ohne eigenes System Requirement, zum Beispiel Gerüst oder Architektur, bekommen ein eigenes Issue mit dem Label enabler.
 

@@ -12,11 +12,11 @@ acceptance-criteria:
 verification-method: test
 topic: "Import und Export"
 packages:
-  - { id: 7755a224-01c9-4710-869a-7b1477fbd624, version: n1:cd51c9fc3d83c915, title: "Stufe 6: Austausch per ReqIF und Schutz" }
+  - { id: 7755a224-01c9-4710-869a-7b1477fbd624, version: n2:71855e1416b80d53, title: "Stufe 6: Austausch per ReqIF und Schutz" }
 derives-from:
   - { id: 6adc531a-5a09-476b-9253-7a620b9698d3, version: n1:212741657b151bd3, title: Unbekannte Typen beim Import }
 based-on:
-  - { id: 6adc5318-7e31-4925-b180-ff19c4c61c5f, version: n1:ed13abb3520fa053, title: Kein Austausch von Metamodellen }
+  - { id: 6adc5318-7e31-4925-b180-ff19c4c61c5f, version: n2:05581a0e4c20cadf, title: Kein Austausch von Metamodellen }
 issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/62
 ---
 

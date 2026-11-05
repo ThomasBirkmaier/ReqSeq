@@ -10,4 +10,4 @@ Requirements haben keine feste Reihenfolge. Sortiert wird nach Properties wie de
 
 Das Standardmodell hat keinen eigenen Typ für Überschriften oder Einleitungen. Wer sie braucht, legt sie im Metamodell an ([N-024](reqseq:6ad47d8b-773c-4d21-bf35-1b7deeb96561?version=n1:de3fc7e167c1c882)).
 
-Grund: Das ist die einfachste Lösung. Dokumente erzeugen externe Werkzeuge ([D-018](reqseq:6adc5041-c67d-4bae-832e-562f4f79bb1e?version=n1:132dceae0d5936d6)).
+Grund: Das ist die einfachste Lösung. Dokumente erzeugen externe Werkzeuge ([D-018](reqseq:6adc5041-c67d-4bae-832e-562f4f79bb1e?version=n2:bc7a78d5782a0371)).

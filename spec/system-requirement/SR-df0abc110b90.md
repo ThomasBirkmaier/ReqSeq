@@ -14,7 +14,7 @@ packages:
 verification-method: test
 topic: Betrieb und Leistung
 derives-from:
-  - { id: 6adc676b-fe66-4306-a6f2-3689d63c8400, version: n1:3600eec6a5b21089, title: Mehrere Agenten parallel }
+  - { id: 6adc676b-fe66-4306-a6f2-3689d63c8400, version: n2:20d807fdfaa9cb3b, title: Mehrere Agenten parallel }
 issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/699
 ---
 
