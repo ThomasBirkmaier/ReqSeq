@@ -18,6 +18,7 @@ derives-from:
 based-on:
   - { id: 6adc5318-7e31-4925-b180-ff19c4c61c5f, version: n1:ed13abb3520fa053, title: Kein Austausch von Metamodellen }
   - { id: 6adc78cf-bdda-461d-9245-ee53800698fb, version: n1:ba7790f52ef9c397, title: Aufbau der Dateien mit fester Länge des Dateinamens }
+issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/61
 ---
 
 Das Tool muss die Zuordnung der Typen und Attribute einer Quelle zum eigenen Metamodell als Datei speichern und wiederverwenden.

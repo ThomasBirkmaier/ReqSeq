@@ -16,6 +16,7 @@ derives-from:
   - { id: 6ad49f57-47f2-4570-a046-b1af59b51503, version: n1:7406bb900e631830, title: "Einfach, minimalistisch und ästhetisch" }
 based-on:
   - { id: 6adc50a6-2c26-4513-8a40-a2afbca60eec, version: n1:213303dcc0ab524e, title: Oberfläche nur auf Englisch }
+issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/81
 ---
 
 Das Tool muss alle Texte seiner Oberfläche, Meldungen und Dokumentation nur auf Englisch anbieten.

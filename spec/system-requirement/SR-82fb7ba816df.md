@@ -17,6 +17,7 @@ derives-from:
   - { id: 6adc693a-e1d7-42a9-aeca-7ab5bfacefec, version: n1:b86cbcab02241a36, title: Mehrere Elemente auf einmal ändern }
 based-on:
   - { id: 6adc615b-272a-4377-82e5-9ae991d75bb2, version: n1:bbc1feca6a7d2220, title: Statuswerte kommen aus dem Metamodell }
+issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/78
 ---
 
 Das Tool muss eine Property für eine Auswahl von Elementen in einem Schritt setzen, ergänzen oder entfernen lassen. Ergänzen fügt einer Property mit mehreren Werten die genannten Werte hinzu. Entfernen ohne Wert entfernt die Property, mit Werten nur diese Werte.

@@ -26,7 +26,8 @@ import { STANDARD_MODEL_TEXT, metamodelState } from "../../src/metamodel/index.j
 import { currentVersionOf, currentVersions } from "../../src/model/current-versions.js";
 import { allRelationLimitFindings, relationLimitProblemsState } from "../../src/model/relation-limits.js";
 import { shortIdState } from "../../src/model/short-id.js";
-import { elementStoreState, loadedVersionsOf } from "../../src/model/store.js";
+import { loadedVersionsOf } from "../../src/model/loaded-versions.test-helper.js";
+import { elementStoreState } from "../../src/model/store.js";
 import { buildSuccessionIndex, successionsOf } from "../../src/model/successors.js";
 import { supersededTargetFindings } from "../../src/model/superseded.js";
 import { currentTarget } from "../../src/model/targets.js";
