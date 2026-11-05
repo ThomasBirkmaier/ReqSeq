@@ -1,6 +1,6 @@
 # ReqSeq architecture (arc42, short)
 
-Status: written at stage 0 (D-052); §5 updated to the code on 2026-10-28 (#635). The specification is the ReqSeq workspace in `spec/` (German, maintained with ReqSeq since #326, D-064); decisions `D-xxx` say **what**, the ADRs in `docs/adr/` say **how**. This document connects them. It uses only the arc42 chapters ReqSeq needs.
+Status: written before the first implementation stage; §5 updated to the code on 2026-10-28 (#635). The specification is the ReqSeq workspace in `spec/` (German, maintained with ReqSeq since #326); decisions `D-xxx` say **what**, the ADRs in `docs/adr/` say **how**. This document connects them. It uses only the arc42 chapters ReqSeq needs.
 
 ## 1. Goals
 
@@ -22,7 +22,7 @@ ReqSeq is a local requirements tool on plain files in Git: one Markdown file per
 - Git is the storage; ReqSeq reads Git and writes only files (D-024, D-036, SR-083).
 - English UI and standard model (D-019); the spec stays German.
 - No user or rights management (D-016); no deletion of elements (D-045); status set only by people (D-030).
-- Built by agents in stages (D-035) with this architecture as fixed frame (D-052).
+- Built by agents with this architecture as fixed frame.
 
 ## 3. Context
 

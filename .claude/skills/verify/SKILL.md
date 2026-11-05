@@ -43,12 +43,12 @@ Run coverage, build, e2e and Electron only under `flock /home/user/wt/.gates.loc
 sudo -u ubuntu env -u NODE_EXTRA_CA_CERTS -u NODE_OPTIONS xvfb-run -a ./node_modules/.bin/playwright test --config test/playwright.config.ts <specs>
 ```
 
-## trace-check (D-050)
+## trace-check
 
 `pnpm trace-check` (`scripts/trace-check/trace-check.mjs`) reads `spec/` and checks the following: test names `[SR-xxx/AKn]` point to an existing SR and AK (only the names of active `it`/`test` calls and the `tag:` of cross-access scenarios count, not comments or `.skip`/`.todo`/`.fails`/`.only` tests or a skipped `describe`, #689), every AK with method Test of a required SR has a test, other methods have `verification/SR-xxx.md`, the PR names an SR, and no spec ID is used twice.
 
 - Before a PR: `pnpm trace-check --require SR-xxx --pr-body <file>` (add `--enabler` for enabler PRs). A PR text must not name an SR ID that is not in `spec/` yet.
 - With `--pr-body` it also requires the SRs at the start of the title (the first line) when the body has `Closes #` (#394): each AK with method Test needs its test, other methods their record. A PR of an SR that does not close its issue requires nothing. A local `--pr-body` file is the title, a blank line and the body, as CI writes it.
 - In CI it reads the current PR text. If only that step failed, fix the text or the label; once `trace-check (PR text)` passes, `pr-text-follow-up.yml` re-runs `static` (see `lead-run`, `merge.md`).
-- At the end of a milestone: `pnpm trace-check --stage <package> --report trace-<package>.md` (`querschnitt` for the cross-cutting SRs, the milestone identifier from v0.9 on; `--stage 3` means package `Stufe-3`). Errors mean the milestone is not ready for acceptance.
+- At the end of a milestone: `pnpm trace-check --require <the SRs its issues complete> --report trace-<milestone>.md`; `--stage <package>` checks all SRs of one package (`--stage Editor`). Errors mean the milestone is not ready for acceptance.
 - Also compare with ReqSeq itself (`reqseq evidence coverage --workspace spec` with the JUnit results of CI). A difference is a bug in ReqSeq or in the script and gets a `bug` issue.

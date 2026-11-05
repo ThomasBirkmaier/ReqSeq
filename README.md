@@ -94,7 +94,7 @@ Build and test with Node 22.12 or later and pnpm: `pnpm install`, `pnpm build`, 
 
 | Folder | Content |
 |---|---|
-| `spec/` | The specification, a ReqSeq workspace (D-064). Changed only with ReqSeq, see [spec/README.md](spec/README.md). |
+| `spec/` | The specification, a ReqSeq workspace. Changed only with ReqSeq, see [spec/README.md](spec/README.md). |
 | `docs/guide/` | The user documentation's hand-written pages, built into a site by `packages/docs` (`pnpm docs:build`, ADR-0017) |
 | `docs/architecture/`, `docs/adr/` | arc42 (short), architecture decision records |
 | `schemas/` | JSON Schemas for all file formats, OpenAPI, MCP tool list |
@@ -102,7 +102,7 @@ Build and test with Node 22.12 or later and pnpm: `pnpm install`, `pnpm build`, 
 | `verification/` | Records for analysis, inspection and demonstration |
 | `toolchain/` | `junit/` connects a test tool that writes JUnit XML (SR-063); `packaging/` builds the release archives |
 | `fixtures/` | Small test data per system requirement, generator for large data sets |
-| `scripts/` | `trace-check`, `sr-issues`, `spec-migrate` (the one-time migration from Logseq), `spec-export` (obsolete) |
+| `scripts/` | `trace-check`, `spec-migrate` (the one-time migration from Logseq), `spec-export` (obsolete) |
 
 Test data for realistic scenarios lives in the separate repository `ReqSeq-testdata`.
 
