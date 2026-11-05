@@ -30,12 +30,12 @@
     },
     "result": {
       "enum": ["passed", "failed", "inconclusive"],
-      "description": "`inconclusive` (nicht beurteilbar): validation only, with `reason` (SR-172)."
+      "description": "`inconclusive`: validation only, with `reason` (SR-172)."
     },
     "reason": {
       "type": "string",
       "pattern": "\\S",
-      "description": "The reason of an `inconclusive` validation, at least one character that is not white space; required with `inconclusive` and only there (SR-172 AK1). A reader warns about it on another result and reads the record without it (spec question #807)."
+      "description": "The reason for an `inconclusive` validation, at least one character that is not white space; required with `inconclusive` and only there (SR-172 AK1). A reader warns about it on another result and reads the record without it (spec question #807)."
     },
     "date": { "$ref": "common.schema.json#/$defs/dateTime" },
     "evidence": {

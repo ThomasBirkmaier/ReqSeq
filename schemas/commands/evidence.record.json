@@ -37,7 +37,7 @@
       },
       "result": {
         "enum": ["passed", "failed", "inconclusive"],
-        "description": "The result of the check. `inconclusive` (nicht beurteilbar) is allowed for a validation only and needs a `reason` (SR-172 AK1)."
+        "description": "The result of the check. `inconclusive` is allowed for a validation only and needs a `reason` (SR-172 AK1)."
       },
       "reason": {
         "type": "string",

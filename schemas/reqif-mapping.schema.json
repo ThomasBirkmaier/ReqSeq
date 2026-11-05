@@ -85,7 +85,7 @@
       }
     },
     "statement": {
-      "description": "Where the statement (Stellungnahme) goes when exporting back to the source (SR-058).",
+      "description": "Where the statement goes when exporting back to the source (SR-058).",
       "type": "object",
       "required": ["property", "attribute"],
       "properties": {

@@ -363,7 +363,7 @@
           "additionalProperties": false
         },
         "version": {
-          "description": "Version: normal form, colon, first 16 hex characters of the SHA-256 over the canonical content. Example: n1:9f86d081884c7d65.",
+          "description": "The version: its normal form (`n1`, `n2`, …), a colon, first 16 hex characters of the SHA-256 over the canonical content. Example: n1:9f86d081884c7d65.",
           "type": "string",
           "pattern": "^n[1-9][0-9]*:[0-9a-f]{16}$"
         },
@@ -931,7 +931,7 @@
       }
     },
     "data-export": {
-      "title": "Data of a state (Stand) as JSON",
+      "title": "Data of a state as JSON",
       "description": "Output of `data.export` for external evaluation tools such as Grafana or DuckDB. The JSON Lines form (`data export --jsonl`, the API with `Accept: application/x-ndjson`, and the file `<commit>.jsonl` or `<commit>-dirty.jsonl` that `data.store` writes) has one `#/$defs/line` per element instead: the state fields `reqseq-data`, `commit` and `dirty`, then the element. Also defines the element and relation shapes all commands return.",
       "type": "object",
       "required": [
@@ -1312,12 +1312,12 @@
                 "failed",
                 "inconclusive"
               ],
-              "description": "`inconclusive` (nicht beurteilbar): validation only, with `reason`."
+              "description": "`inconclusive`: validation only, with `reason`."
             },
             "reason": {
               "type": "string",
               "pattern": "\\S",
-              "description": "The reason of an `inconclusive` validation record; given exactly with that result."
+              "description": "The reason for an `inconclusive` validation record; given exactly with that result."
             },
             "date": {
               "$ref": "#/$defs/common/$defs/dateTime"
@@ -1709,12 +1709,12 @@
             "failed",
             "inconclusive"
           ],
-          "description": "`inconclusive` (nicht beurteilbar): validation only, with `reason`."
+          "description": "`inconclusive`: validation only, with `reason`."
         },
         "reason": {
           "type": "string",
           "pattern": "\\S",
-          "description": "The reason of an `inconclusive` validation, at least one character that is not white space; required with `inconclusive` and only there. A reader warns about it on another result and reads the record without it."
+          "description": "The reason for an `inconclusive` validation, at least one character that is not white space; required with `inconclusive` and only there. A reader warns about it on another result and reads the record without it."
         },
         "date": {
           "$ref": "#/$defs/common/$defs/dateTime"
@@ -2262,7 +2262,7 @@
               "items": {
                 "$ref": "#/$defs/metamodel/$defs/key"
               },
-              "description": "Mandatory property keys (Pflichtfelder), in addition to inherited ones; each is also a property of the type and should be a defined property; an undefined key is a metamodel warning and the type is treated as not having it. Empty values are allowed but give a hint."
+              "description": "Mandatory property keys, in addition to inherited ones; each is also a property of the type and should be a defined property; an undefined key is a metamodel warning and the type is treated as not having it. Empty values are allowed but give a hint."
             },
             "statuses": {
               "type": "array",
@@ -2374,7 +2374,7 @@
                 "choice",
                 "relation"
               ],
-              "description": "Value kind (Wertart)."
+              "description": "Value kind."
             },
             "many": {
               "type": "boolean",
@@ -2417,7 +2417,7 @@
           "unevaluatedProperties": false
         },
         "propertyMeaning": {
-          "description": "Built-in meaning: `title`; `validity` (list of variants); `packages`; `emergent` (emergent behaviour; a choice without `many` whose key `yes` is the mark; otherwise a warning and nothing is marked); `verification-method`; `statement` (Stellungnahme for ReqIF); `source`, `source-identifier`, `import-date`, `delivery`, `import-version` (origin of imported elements, written only by ReqIF import; `import-version` is the Importfassung, the version of what the import wrote, right after the last import, kind `text` without `many` and never `content`); `identifier` (an ID from another source, such as the spec ID SR-036 or a customer ID; unique per type; element references accept it besides the UUID and short ID, and outputs show it next to the short ID). A property with the meaning `identifier` is of kind `text` without `many`.",
+          "description": "Built-in meaning: `title`; `validity` (list of variants); `packages`; `emergent` (emergent behaviour; a choice without `many` whose key `yes` is the mark; otherwise a warning and nothing is marked); `verification-method`; `statement` (the statement for ReqIF); `source`, `source-identifier`, `import-date`, `delivery`, `import-version` (origin of imported elements, written only by ReqIF import; `import-version` is the import version, the version of what the import wrote, right after the last import, kind `text` without `many` and never `content`); `identifier` (an ID from another source, such as the spec ID SR-036 or a customer ID; unique per type; element references accept it besides the UUID and short ID, and outputs show it next to the short ID). A property with the meaning `identifier` is of kind `text` without `many`.",
           "enum": [
             "title",
             "validity",
@@ -2434,7 +2434,7 @@
           ]
         },
         "relationKind": {
-          "description": "Relation kind (Beziehungsart). Stored under its key in the source file. `source-types`/`target-types` restrict where it may be set.",
+          "description": "Relation kind. Stored under its key in the source file. `source-types`/`target-types` restrict where it may be set.",
           "allOf": [
             {
               "$ref": "#/$defs/metamodel/$defs/named"
@@ -2766,7 +2766,7 @@
           }
         },
         "statement": {
-          "description": "Where the statement (Stellungnahme) goes when exporting back to the source.",
+          "description": "Where the statement goes when exporting back to the source.",
           "type": "object",
           "required": [
             "property",
@@ -6162,7 +6162,7 @@
         "properties": {
           "hints": {
             "type": "array",
-            "description": "The open hints: findings of severity warning about one element (glossary \"Hinweis\": the element should be checked; it blocks nothing and changes no status), from the same whole-workspace findings as workspace.check; errors, info and warnings about no element are not hints. Filters combine with AND. Each hint with its kind (code), the element it is about (elementId, repository, file, line), its target where it has one (targetId; with targetRepository, targetShortId and targetIdentifier when it was resolved to one element) and its reason (message; for an outdated relation with both versions and their dates). In the order of workspace.check. Only the page of `limit` hints from `offset` (in this order) is listed; `total` counts every hint that passes the filters.",
+            "description": "The open hints: findings of severity warning about one element (the element should be checked; a hint blocks nothing and changes no status), from the same whole-workspace findings as workspace.check; errors, info and warnings about no element are not hints. Filters combine with AND. Each hint with its kind (code), the element it is about (elementId, repository, file, line), its target where it has one (targetId; with targetRepository, targetShortId and targetIdentifier when it was resolved to one element) and its reason (message; for an outdated relation with both versions and their dates). In the order of workspace.check. Only the page of `limit` hints from `offset` (in this order) is listed; `total` counts every hint that passes the filters.",
             "items": {
               "$ref": "#/$defs/common/$defs/problem"
             }
@@ -6637,7 +6637,7 @@
               "failed",
               "inconclusive"
             ],
-            "description": "The result of the check. `inconclusive` (nicht beurteilbar) is allowed for a validation only and needs a `reason`."
+            "description": "The result of the check. `inconclusive` is allowed for a validation only and needs a `reason`."
           },
           "reason": {
             "type": "string",

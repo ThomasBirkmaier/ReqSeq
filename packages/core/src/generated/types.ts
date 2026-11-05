@@ -160,7 +160,7 @@ export interface ElementName {
 }
 
 /**
- * Version: normal form, colon, first 16 hex characters of the SHA-256 over the canonical content (D-013, D-027, ADR-0005). Example: n1:9f86d081884c7d65.
+ * The version: its normal form (`n1`, `n2`, …), a colon, first 16 hex characters of the SHA-256 over the canonical content (D-013, D-027, ADR-0005). Example: n1:9f86d081884c7d65.
  * Schema: `schemas/common.schema.json#/$defs/version`.
  */
 export type Version = string;
@@ -736,9 +736,9 @@ export interface DataExportEvidenceRecord {
   readonly variant?: Uuid;
   /** The item under test. Required for verification, optional for validation (D-007). */
   readonly item?: string;
-  /** `inconclusive` (nicht beurteilbar): validation only, with `reason` (SR-172). */
+  /** `inconclusive`: validation only, with `reason` (SR-172). */
   readonly result: "passed" | "failed" | "inconclusive";
-  /** The reason of an `inconclusive` validation record (SR-172); given exactly with that result. */
+  /** The reason for an `inconclusive` validation record (SR-172); given exactly with that result. */
   readonly reason?: string;
   readonly date: IsoDateTime;
   /** Where the evidence is: relative path, file URL or any URI. */
@@ -865,9 +865,9 @@ export interface EvidenceRecordFile {
   readonly variant?: Uuid;
   /** The item under test: the concrete build or sample that was checked. Required for verification, optional for validation (D-007). */
   readonly item?: string;
-  /** `inconclusive` (nicht beurteilbar): validation only, with `reason` (SR-172). */
+  /** `inconclusive`: validation only, with `reason` (SR-172). */
   readonly result: "passed" | "failed" | "inconclusive";
-  /** The reason of an `inconclusive` validation, at least one character that is not white space; required with `inconclusive` and only there (SR-172 AK1). A reader warns about it on another result and reads the record without it (spec question #807). */
+  /** The reason for an `inconclusive` validation, at least one character that is not white space; required with `inconclusive` and only there (SR-172 AK1). A reader warns about it on another result and reads the record without it (spec question #807). */
   readonly reason?: string;
   readonly date: IsoDateTime;
   /** Where the evidence is: relative path, file URL or any URI. ReqSeq does not open or manage it. */
@@ -1068,7 +1068,7 @@ export interface MetamodelType {
   readonly meaning?: MetamodelTypeMeaning;
   /** Property keys this type has, in addition to inherited ones, which come first. Each should be a defined property; an undefined key is a metamodel warning and the type is treated as not having it (#141 c). */
   readonly properties?: readonly MetamodelKey[];
-  /** Mandatory property keys (Pflichtfelder), in addition to inherited ones; each is also a property of the type and should be a defined property; an undefined key is a metamodel warning and the type is treated as not having it (#141 c). Empty values are allowed but give a hint (SR-064). */
+  /** Mandatory property keys, in addition to inherited ones; each is also a property of the type and should be a defined property; an undefined key is a metamodel warning and the type is treated as not having it (#141 c). Empty values are allowed but give a hint (SR-064). */
   readonly required?: readonly MetamodelKey[];
   /** Status keys elements of this type may have, in addition to inherited ones (#306): the top-level `statuses` stay the vocabulary (names, `invalid`, `initial`), a type only restricts it. Left out on the type and on every ancestor: every status. Once the type or any ancestor has a list, only the listed statuses count: a type with a list below a parent without one has only its own statuses (an unrestricted parent does not add every status). An empty list on a type whose ancestors have none: the type has no status, and its element files have no `status`. Each should be a defined status; an undefined key is a metamodel warning and left out (when no key is left, the type has no status). A type whose statuses are all marked invalid (e.g. `[retired]`) has an optional status (#344): its elements without status are current, element.create gives them none, and element.supersede retires them. A status outside the list gives a hint on the element (`element.status-not-allowed`). */
   readonly statuses?: readonly MetamodelKey[];
@@ -1113,7 +1113,7 @@ export interface MetamodelProperty {
   /** Display name. English in the standard model (D-019). */
   readonly name: string;
   readonly description?: string;
-  /** Value kind (Wertart). */
+  /** Value kind. */
   readonly kind: "text" | "number" | "date" | "choice" | "relation";
   /** List of values. */
   readonly many?: boolean;
@@ -1131,7 +1131,7 @@ export interface MetamodelProperty {
 }
 
 /**
- * Built-in meaning (D-012, D-059): `title`; `validity` (list of variants, D-020); `packages` (D-040); `emergent` (emergent behaviour, N-010; a choice without `many` whose key `yes` is the mark, SR-035; otherwise a warning and nothing is marked); `verification-method`; `statement` (Stellungnahme for ReqIF, SR-058); `source`, `source-identifier`, `import-date`, `delivery`, `import-version` (origin of imported elements, written only by ReqIF import, SR-057; `import-version` is the Importfassung, D-059: the version of what the import wrote, right after the last import, kind `text` without `many` and never `content`); `identifier` (an ID from another source, such as the spec ID SR-036 or a customer ID, D-017; unique per type; element references accept it besides the UUID and short ID, and outputs show it next to the short ID, #305). A property with the meaning `identifier` is of kind `text` without `many`.
+ * Built-in meaning (D-012, D-059): `title`; `validity` (list of variants, D-020); `packages` (D-040); `emergent` (emergent behaviour, N-010; a choice without `many` whose key `yes` is the mark, SR-035; otherwise a warning and nothing is marked); `verification-method`; `statement` (the statement for ReqIF, SR-058); `source`, `source-identifier`, `import-date`, `delivery`, `import-version` (origin of imported elements, written only by ReqIF import, SR-057; `import-version` is the import version, D-059: the version of what the import wrote, right after the last import, kind `text` without `many` and never `content`); `identifier` (an ID from another source, such as the spec ID SR-036 or a customer ID, D-017; unique per type; element references accept it besides the UUID and short ID, and outputs show it next to the short ID, #305). A property with the meaning `identifier` is of kind `text` without `many`.
  * Schema: `schemas/metamodel.schema.json#/$defs/propertyMeaning`.
  */
 export type MetamodelPropertyMeaning =
@@ -1149,7 +1149,7 @@ export type MetamodelPropertyMeaning =
   | "identifier";
 
 /**
- * Relation kind (Beziehungsart). Stored under its key in the source file. `source-types`/`target-types` restrict where it may be set (SR-012 AK4, SR-067).
+ * Relation kind. Stored under its key in the source file. `source-types`/`target-types` restrict where it may be set (SR-012 AK4, SR-067).
  * Schema: `schemas/metamodel.schema.json#/$defs/relationKind`.
  */
 export interface MetamodelRelationKind {
@@ -1288,7 +1288,7 @@ export interface ReqifMappingFile {
     | {
       readonly omit: unknown;
     }))[];
-  /** Where the statement (Stellungnahme) goes when exporting back to the source (SR-058). */
+  /** Where the statement goes when exporting back to the source (SR-058). */
   readonly statement?: {
     /** Own property that holds the statement. */
     readonly property: Key;
@@ -1363,7 +1363,7 @@ export interface ReqifMappingFileWithDefaults {
     | {
       readonly omit: unknown;
     }))[];
-  /** Where the statement (Stellungnahme) goes when exporting back to the source (SR-058). */
+  /** Where the statement goes when exporting back to the source (SR-058). */
   readonly statement?: {
     /** Own property that holds the statement. */
     readonly property: Key;
@@ -2564,7 +2564,7 @@ export interface HintListInput {
  * Schema: `schemas/commands/hint.list.json output`.
  */
 export interface HintListOutput {
-  /** The open hints: findings of severity warning about one element (glossary "Hinweis": the element should be checked; it blocks nothing and changes no status), from the same whole-workspace findings as workspace.check; errors, info and warnings about no element are not hints. Filters combine with AND. Each hint with its kind (code), the element it is about (elementId, repository, file, line), its target where it has one (targetId; with targetRepository, targetShortId and targetIdentifier when it was resolved to one element, #172) and its reason (message; for an outdated relation with both versions and their dates, D-013). In the order of workspace.check. Only the page of `limit` hints from `offset` (in this order) is listed; `total` counts every hint that passes the filters. */
+  /** The open hints: findings of severity warning about one element (the element should be checked; a hint blocks nothing and changes no status), from the same whole-workspace findings as workspace.check; errors, info and warnings about no element are not hints. Filters combine with AND. Each hint with its kind (code), the element it is about (elementId, repository, file, line), its target where it has one (targetId; with targetRepository, targetShortId and targetIdentifier when it was resolved to one element, #172) and its reason (message; for an outdated relation with both versions and their dates, D-013). In the order of workspace.check. Only the page of `limit` hints from `offset` (in this order) is listed; `total` counts every hint that passes the filters. */
   readonly hints: readonly Problem[];
   /** The number of all hints that pass the filters; `hints` holds the page of `limit` from `offset`. */
   readonly total: number;
@@ -2729,7 +2729,7 @@ export interface EvidenceRecordInput {
   readonly kind: "verification" | "validation";
   /** Required for verification. */
   readonly method?: "test" | "analysis" | "inspection" | "demonstration";
-  /** The result of the check. `inconclusive` (nicht beurteilbar) is allowed for a validation only and needs a `reason` (SR-172 AK1). */
+  /** The result of the check. `inconclusive` is allowed for a validation only and needs a `reason` (SR-172 AK1). */
   readonly result: "passed" | "failed" | "inconclusive";
   /** Why the validation is inconclusive (SR-172): required with the result `inconclusive`, not allowed with any other result. At least one character that is not white space, no control characters other than tab, line feed and carriage return. */
   readonly reason?: string;
