@@ -323,7 +323,14 @@ describe("renderHuman: values", () => {
             targetShortId: "D-fd8f46",
             targetIdentifier: "D-011",
           },
-          // A hint that names only its target (#252).
+          // A hint whose element is not in the store names its file, else only its target (#252).
+          {
+            code: "evidence.kind-mismatch",
+            severity: "warning",
+            message: "Wrong kind",
+            file: "d.md",
+            targetShortId: "SR-2",
+          },
           {
             code: "evidence.kind-mismatch",
             severity: "warning",
@@ -339,6 +346,7 @@ describe("renderHuman: values", () => {
         "  SR-1  relation.outdated  Points to an older version  hint: relation.outdated/x",
         "  b.md  element.unknown-property  Unknown",
         "  D-589cf2 (D-017) → D-fd8f46 (D-011)  relation.target-superseded  Points to a superseded decision",
+        "  d.md → SR-2  evidence.kind-mismatch  Wrong kind",
         "  → SR-2  evidence.kind-mismatch  Wrong kind",
       ),
     );

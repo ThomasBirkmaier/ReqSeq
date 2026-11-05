@@ -366,24 +366,23 @@ const listedElementDetails = (element: Rec): string[] => {
 };
 
 /**
- * A hint of a list, as a problem line reads (#252): who (the element and, after `→`, the target
- * by short ID with identifier, #172; else the file), the kind, the message and the hint ID.
+ * A hint of a list: who, in the form of a problem line (`element → target`, #252; the element by
+ * short ID with identifier, else its file, the target the same way when core names it, #172), the
+ * kind, the message and the hint ID.
  */
 const findingLine = (finding: Rec): string => {
-  // Who first, as on a problem line (#252); by short ID with identifier, since a hint list is where
-  // a person picks hints to confirm and an identifier may be on two elements.
+  // By short ID with identifier, as the other list lines of the CLI name elements: an identifier is
+  // unique per type only, so alone it could name the wrong element (`--ref`).
   const elementShortId = text(finding["elementShortId"]);
-  const element = elementShortId === "" ? "" : withIdentifier(elementShortId, finding["elementIdentifier"]);
+  const element =
+    elementShortId === ""
+      ? text(finding["file"])
+      : withIdentifier(elementShortId, finding["elementIdentifier"]);
   const targetShortId = text(finding["targetShortId"]);
   const target = targetShortId === "" ? "" : withIdentifier(targetShortId, finding["targetIdentifier"]);
   const who = target === "" ? element : element === "" ? `→ ${target}` : `${element} → ${target}`;
   const hintId = text(finding["hintId"]);
-  return join(
-    who === "" ? text(finding["file"]) : who,
-    text(finding["code"]),
-    text(finding["message"]),
-    hintId === "" ? "" : `hint: ${hintId}`,
-  );
+  return join(who, text(finding["code"]), text(finding["message"]), hintId === "" ? "" : `hint: ${hintId}`);
 };
 
 /**
