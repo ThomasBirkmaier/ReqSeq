@@ -394,6 +394,11 @@ describe("elementRefsOf", () => {
       { text: "x", kind: "other", source: "name" },
       { text: "SR-d4e5f6", kind: "shortId", source: "name" },
     ]);
+    // A letter outside the BMP and a combining mark count as the end of a word.
+    expect(elementRefsOf(testCase("\u{1D400}[SR-a1b2c3] e\u0301[SR-b2c3d4]"))).toEqual([
+      { text: "SR-a1b2c3", kind: "shortId", source: "name", glued: true },
+      { text: "SR-b2c3d4", kind: "shortId", source: "name", glued: true },
+    ]);
     expect(elementRefsOf(testCase("t[SR-a1b2c3] [SR-a1b2c3]"))).toEqual([
       { text: "SR-a1b2c3", kind: "shortId", source: "name" },
     ]);

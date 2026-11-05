@@ -225,8 +225,9 @@ export interface ElementRefToken {
   /** For a token the name pattern found (SR-029 AK5): the text it matched; `text` is the short ID built. */
   readonly matched?: string;
   /**
-   * For a name token whose `[` follows a letter, digit or underscore, as pytest writes a parameter
-   * (`test_get[<UUID>]`, #358): it counts only when it names exactly one element, whatever its kind.
+   * For a name token whose `[` follows a letter, mark, digit or underscore, as pytest writes a
+   * parameter (`test_get[<UUID>]`, #358): enrich reports it, when it names no element, only as a
+   * short ID with a type prefix of the metamodel (a typo in a pytest ID).
    */
   readonly glued?: true;
 }
@@ -236,8 +237,11 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{1
 /** The `<ref>` of `[<ref>]` or `[<ref>/<anything>]` in a test case name (ADR-0012). */
 const NAME_TOKEN = /(?<=\[)[^[\]/]*(?=(?:\/[^[\]]*)?\])/g;
 
-/** A letter, digit or underscore: a bracket right after one is glued to a word, as pytest writes its parameters. */
-const WORD = /^[\p{L}\p{N}_]$/u;
+/**
+ * Ends in a letter, mark, digit or underscore: a bracket right after one is glued to a word, as
+ * pytest writes its parameters.
+ */
+const WORD = /[\p{L}\p{M}\p{N}_]$/u;
 
 const kindOf = (text: string): ElementRefKind =>
   SHORT_ID.test(text) ? "shortId" : UUID.test(text) ? "uuid" : "other";
@@ -272,8 +276,9 @@ const tokens = (texts: readonly Written[], source: ElementRefSource): readonly E
  * - a name token of kind `shortId` or `uuid` that names no element is unknown; a name token of kind
  *   `other` counts only when it names exactly one element and is otherwise ignored silently, so a
  *   pytest parameter list (`test_add[1-2]`) is never reported. A token glued to a word (`glued`: its
- *   `[` right after a letter, digit or underscore, as pytest writes `test_get[<UUID>]`) is treated
- *   like `other` whatever its kind (#358), so a parametrised test never makes enrich fail.
+ *   `[` right after a letter, mark, digit or underscore, as pytest writes `test_get[<UUID>]`) that
+ *   names no element is reported only as a short ID with a type prefix of the metamodel, so
+ *   pytest's data IDs do not make enrich fail (#358).
  *
  * With `pattern` (`evidence.enrichJunit` only, SR-029 AK5) the short IDs it finds in the name follow,
  * each once, as name tokens of kind `shortId` with the `matched` text; a short ID the brackets give
@@ -297,7 +302,7 @@ export const elementRefsOf = (
       Array.from(testCase.name.matchAll(NAME_TOKEN), (match) => ({
         text: match[0],
         // The character before the `[` (the match starts after it).
-        glued: WORD.test(testCase.name.charAt(match.index - 2)),
+        glued: WORD.test(testCase.name.slice(0, match.index - 1)),
       })),
       "name",
     ),

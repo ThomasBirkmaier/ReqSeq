@@ -100,6 +100,7 @@ const outOfVariant = (id: string, view: string): string | undefined => {
 
 const options = (more: Partial<EnrichOptions> = {}): EnrichOptions => ({
   resolve,
+  typePrefixes: ["SR", "N"],
   versionsOf,
   item: "build-1",
   date: DATE,
@@ -524,17 +525,23 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
     expect(properties(result.bytes)["[SR-036] by identifier"]).toContain(`reqseq:element=${SPEC}`);
   });
 
-  it("stays silent on a pytest parameter that looks like a UUID or short ID and names no element, and counts one that names one (#358)", async () => {
+  it("stays silent on a pytest parameter that looks like a UUID or a short ID of no type and names nothing, and counts one that names one (#358)", async () => {
     const xml = suite(
-      '<testcase name="test_get[0b9e7a3c-1d2f-4a5b-8c6d-000000000000]"/><testcase name="test_id[SR-ffffff]"/>' +
+      '<testcase name="test_get[0b9e7a3c-1d2f-4a5b-8c6d-000000000000]"/><testcase name="test_id[A-123456]"/>' +
         `<testcase name="test_login[${LOGIN}]"/><testcase name="test_named[SR-46fb54]"/>`,
     );
     const result = await enrich(xml);
-    expect(result).toMatchObject({ testCases: 2, unknown: [], problems: [] });
+    expect(result).toMatchObject({ testCases: 2, withoutReference: 2, unknown: [], problems: [] });
     expect(enrichedNames(result.bytes)).toEqual([`test_login[${LOGIN}]`, "test_named[SR-46fb54]"]);
-    // The same tokens with a space before the bracket are references and reported.
-    const spaced = await enrich(suite('<testcase name="test_id [SR-ffffff]"/>'));
-    expect(spaced.unknown).toEqual([{ testCase: "test_id [SR-ffffff]", line: 1, ref: "SR-ffffff" }]);
+    // A glued short ID with a type prefix is a typo in a pytest ID (SR-029 AK2): reported, as is any
+    // token with a space before its bracket.
+    const typo = await enrich(
+      suite('<testcase name="test_x[SR-ffffff]"/><testcase name="test_id [A-123456]"/>'),
+    );
+    expect(typo.unknown).toEqual([
+      { testCase: "test_x[SR-ffffff]", line: 1, ref: "SR-ffffff" },
+      { testCase: "test_id [A-123456]", line: 1, ref: "A-123456" },
+    ]);
   });
 
   it("reports a property that names no element or several, an empty one, and an ambiguous short ID in the name", async () => {

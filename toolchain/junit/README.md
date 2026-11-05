@@ -83,7 +83,7 @@ def test_locks_the_account(passwords):
     ...
 ```
 
-pytest writes properties into its JUnit file only with `junit_family = xunit1` in `pytest.ini` (see `pytest/pytest.ini`). pytest's own parameter lists such as `test_add[1-2]` are passed over; only a bracket that holds an ID counts.
+pytest writes properties into its JUnit file only with `junit_family = xunit1` in `pytest.ini` (see `pytest/pytest.ini`). pytest's own parameter lists such as `test_add[1-2]` are passed over. In a parameter ID right after the test name (`test_x[…]`), a short ID with a type prefix of your workspace that it does not have is reported as a typo; a UUID or any other text there that names no element is passed over, since pytest also writes data as parameter IDs.
 
 **Rust, Go, Java and other names without brackets.** Write the ID into the name in another form, for example `sr_b2c0de_ak1_locks_the_account` (Rust), `TestSRb2c0deAK1` (Go) or `srb2c0deAk1` (Java), and give the form in step 4 with `--name-pattern`: `"{prefix}_{id}_ak{ak}"`, `"Test{prefix}{id}AK{ak}"` or `"{prefix}{id}Ak{ak}"`. `{prefix}` is the type prefix (`SR`), `{id}` the six or more hex digits, `{ak}` the number of an acceptance criterion (ignored); the rest is literal text, and case does not matter. A match starts and ends at a word boundary (the start or end of the name, a character that is no letter or digit, or the start of a camel case word), and an ID it finds that the workspace does not have is reported like one in brackets. The guide page "Record test evidence from JUnit XML" lists the forms that stay ambiguous.
 
