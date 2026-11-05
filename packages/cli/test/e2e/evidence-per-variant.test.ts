@@ -123,7 +123,7 @@ describe("reqseq evidence status and record per variant (SR-047)", () => {
 });
 
 describe("reqseq evidence status in a variant-independent repository (SR-173)", () => {
-  it("[SR-173/AK1] a record without variant counts for the core and every variant the requirement applies in", async () => {
+  it("[SR-047/AK2] [SR-173/AK1] a record without variant counts for the core and every variant the requirement applies in", async () => {
     const ws = await open();
     await ws.write(
       "reqseq-workspace.yaml",

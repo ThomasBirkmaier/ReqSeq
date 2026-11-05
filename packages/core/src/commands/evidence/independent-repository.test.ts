@@ -50,7 +50,7 @@ const statusRows = async (workspace: Workspace): Promise<Record<string, Rows>> =
 const all = (status: string): Rows => ({ re: status, c1: status, c2: status, c3: status });
 
 describe("variant-independent repositories (SR-173)", () => {
-  it("[SR-173/AK1] a record without variant of an element of a marked repository counts for the core and every variant the element applies in", async () => {
+  it("[SR-047/AK2] [SR-173/AK1] a record without variant of an element of a marked repository counts for the core and every variant the element applies in", async () => {
     const workspace = await open();
     const rows = await statusRows(workspace);
     // `re` is the core (`core`.slice(-2)).

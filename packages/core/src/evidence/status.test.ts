@@ -321,7 +321,7 @@ describe("validationOf (SR-038)", () => {
 describe("inconclusive validation (SR-172)", () => {
   const WHY = "The field test needs frost";
 
-  it("[SR-172/AK2] the newest validation record of the current version is inconclusive: inconclusive with its reason", () => {
+  it("[SR-038/AK3] [SR-172/AK2] the newest validation record of the current version is inconclusive: inconclusive with its reason", () => {
     expect(
       validationsOf([
         validation("2026-01-01T10:00:00Z", "passed"),
