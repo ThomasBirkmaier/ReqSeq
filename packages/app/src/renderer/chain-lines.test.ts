@@ -131,6 +131,29 @@ describe("the lines of a trace chain", () => {
     expect(lines.filter((line) => line.title !== undefined).map((line) => line.title)).toEqual([long, long]);
   });
 
+  it("shows the root's validation records under its row, each with its version, and not under another row (#646)", () => {
+    const output = {
+      root: "uuid-1",
+      nodes: [node("uuid-1", "N-1", "See the wind"), node("uuid-2", "SR-2", "Show wind speed")],
+      evidence: [],
+      validationRecords: [
+        execution({ kind: "validation", item: "Pilot test", result: "inconclusive", reason: "No wind" }),
+      ],
+    };
+    const lines = shown(output);
+    const at = lines.findIndex((line) => line.includes("N-1"));
+    expect(lines[at + 1]).toMatch(
+      /validation\|2026-10-21T09:00:00Z · inconclusive: No wind · Pilot test · .*version n1:1111111111111111$/,
+    );
+    expect(lines.filter((line) => line.includes("validation|"))).toHaveLength(1);
+    expect(shown({ ...output, validationRecords: "none" }).some((line) => line.includes("validation|"))).toBe(
+      false,
+    );
+    // Not on the page, the root has no row: its records show nowhere.
+    const later = { ...output, nodes: [node("uuid-2", "SR-2", "Show wind speed")] };
+    expect(shown(later).some((line) => line.includes("validation|"))).toBe(false);
+  });
+
   it("lays out an output without a list of evidence by shape alone", () => {
     const output = { root: "uuid-1", nodes: [node("uuid-1", "SR-1", "Show wind speed")], evidence: "none" };
     expect(chainLines(output)).toEqual(resultLines(output));

@@ -11,7 +11,10 @@
 // version and result, spec questions #527 Q3 and Q4), and gives the test cases and records below
 // each expanded downward node of the page (`chainEvidenceOf`: verification records that hold in the
 // view, every one without a view; assumptions A2 and A5 of #528 Q4). An evidence location that is
-// not on this machine makes the chain `incomplete` (SR-006 AK2). The upward chain reads no records.
+// not on this machine makes the chain `incomplete` (SR-006 AK2), in either direction, since the
+// root's validation records (`validationRecords`, SR-038 AK1, #646) come in both: on the page with
+// the root, every one, no view narrowing them (`validationRecordsOf`). The upward chain reads the
+// index for them only; gaps and evidence stay those of the downward chain.
 // Both take the mark of each element's repository (`variant-independent`, SR-173): in a variant a
 // record without variant of a marked element holds too.
 // `names` names the variants of those records (#676), as evidence.status names its views (#588).
@@ -29,6 +32,7 @@ import {
   evidenceIndexState,
   evidenceReadState,
   hasVerificationRecord,
+  validationRecordsOf,
 } from "../../evidence/index.js";
 import { namesField, namesOf, resolveRef, shortIdState } from "../../model/index.js";
 import { chainOutput, derivationGraph, traceChain, traceContext } from "../../trace/index.js";
@@ -76,8 +80,9 @@ export default defineCommand({
         ? undefined
         : resolveView({ metamodel, store, shortIds }, input.view, "trace.chain");
     const down = input.direction !== "up";
-    const index = down ? await ctx.workspace.get(evidenceIndexState) : undefined;
-    const read = down ? await ctx.workspace.get(evidenceReadState) : undefined;
+    const all = await ctx.workspace.get(evidenceIndexState);
+    const read = await ctx.workspace.get(evidenceReadState);
+    const index = down ? all : undefined;
     const gapView = view ?? CORE;
     const marked = variantIndependentOf(graph.layout);
     const independent = (element: ElementRecord): boolean => marked.has(element.repository);
@@ -107,6 +112,7 @@ export default defineCommand({
         metamodel,
         shortIds,
         viewsOf,
+        validationOf: (element) => [...validationRecordsOf(all, element.id)],
         ...(index === undefined
           ? {}
           : { evidenceOf: (element) => chainEvidenceOf(index, element.id, view, independent(element)) }),
@@ -122,8 +128,6 @@ export default defineCommand({
         ]),
       ),
     };
-    return read?.incomplete === true || viewIncomplete(graph.layout, view)
-      ? { ...named, incomplete: true }
-      : named;
+    return read.incomplete || viewIncomplete(graph.layout, view) ? { ...named, incomplete: true } : named;
   },
 });

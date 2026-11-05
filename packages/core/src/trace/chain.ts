@@ -362,6 +362,8 @@ export interface ChainOutputContext {
    * gaps of the page (#674). Default: none.
    */
   readonly viewsOf?: (element: ElementRecord) => readonly string[];
+  /** The validation records of the root (#646), asked only on the page with the root. Default: none. */
+  readonly validationOf?: (element: ElementRecord) => TraceChainOutput["validationRecords"];
 }
 
 export type ChainNode = TraceChainOutput["nodes"][number];
@@ -532,6 +534,12 @@ const chainProblems = (chain: Chain<unknown>, context: ChainOutputContext): Prob
   return problems;
 };
 
+/** The validation records of the root (#646); none without `context.validationOf`. */
+const validationOfRoot = (
+  chain: Chain<unknown>,
+  context: ChainOutputContext,
+): TraceChainOutput["validationRecords"] => [...(context.validationOf?.(chain.root) ?? [])];
+
 /**
  * One page of the chain as `trace.chain` gives it (catalog output): UUIDs, short IDs and titles
  * (spec-frage #290, SR-082 AK4). The nodes are the root, then those of the upward walk, then those
@@ -602,6 +610,7 @@ export const chainOutput = (
       ...(kind === "not-in-view" ? { views: [...(context.viewsOf?.(element) ?? [])] } : {}),
     })),
     evidence,
+    validationRecords: rootOnPage ? validationOfRoot(chain, context) : [],
     unresolved,
     incomplete: chain.incomplete,
     problems: chainProblems(chain, context),
