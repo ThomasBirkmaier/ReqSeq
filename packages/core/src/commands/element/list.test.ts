@@ -12,7 +12,7 @@
 // Store order: decisions, needs, packages, requirements (SR, then SWR), variants.
 //
 // The evidence conditions (AK1 "Nachweisstatus", AK3 "ohne Nachweis") are tested through the
-// evidence provider (decision on #127, option 1); stage 4 adds end-to-end tests with records.
+// evidence provider (decision on #127, option 1); AK4 at the end runs on real records (SR-037/degree).
 import fs from "node:fs/promises";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureOptions } from "@reqseq/testkit";
