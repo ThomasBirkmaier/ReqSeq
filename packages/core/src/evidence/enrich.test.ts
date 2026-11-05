@@ -62,7 +62,8 @@ const versionsOf = (ids: readonly string[]): Promise<ReadonlyMap<string, Version
           id,
           version === undefined
             ? { kind: "unknown", message: "a value that counts has no normal form" }
-            : { kind: "version", version },
+            : // Its n2 here: the same hex with the prefix n2 (ADR-0005 "Normal form 2").
+              { kind: "version", version, forms: { n1: version, n2: `n2:${version.slice(3)}` } },
         ];
       }),
     ),
@@ -467,6 +468,14 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
           'Test case "[SR-0c0037] kept" (line 1) is enriched already with version n1:0000000000000000, which is no longer current; it is kept (D-026: the version it was tested against)',
       },
     ]);
+  });
+
+  it("keeps an enriched test case of the current version in normal form 2 without evidence.outdated (ADR-0005)", async () => {
+    const enriched = suite(
+      `<testcase name="n2"><properties>${four(REPORT, `n2:${V[REPORT].slice(3)}`)}</properties></testcase>`,
+    );
+    const result = await enrich(enriched, { item: "build-2", date: "2026-10-27T12:00:00Z" });
+    expect(result).toMatchObject({ changed: false, testCases: 1, problems: [] });
   });
 
   it("reports an enriched test case the reader rejects, and one whose UUID names no element or several, and changes neither", async () => {

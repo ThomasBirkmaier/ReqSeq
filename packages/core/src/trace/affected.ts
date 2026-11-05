@@ -26,8 +26,8 @@
 //   (#127 option 1). A record of another version than the current one is a record of an old version.
 import type { TraceAffectedOutput } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
-import type { ElementRecord, IncomingLink, ShortIds } from "../model/index.js";
-import { directLinks, identifierField, incomingTo, titleKeyOf } from "../model/index.js";
+import type { ElementRecord, IncomingLink, ShortIds, VersionForms } from "../model/index.js";
+import { directLinks, identifierField, incomingTo, sameVersion, titleKeyOf } from "../model/index.js";
 import type { DerivationGraph } from "./graph.js";
 
 /** An evidence record as `trace.affected` lists it (SR-024 AK4, `data-export.schema.json#/$defs/evidenceRecord`). */
@@ -38,7 +38,7 @@ export interface AffectedOptions {
    * The evidence seam: the current version of the element and its evidence records (the command
    * passes them, SR-032). Default: none.
    */
-  readonly evidence?: { readonly version: string; readonly records: readonly AffectedRecord[] };
+  readonly evidence?: { readonly version: VersionForms; readonly records: readonly AffectedRecord[] };
 }
 
 /** An element the walk reached. */
@@ -117,7 +117,10 @@ export const traceAffected = (
     element,
     reached,
     incomplete: graph.unavailable,
-    records: evidence === undefined ? NONE : evidence.records.filter((r) => r.version !== evidence.version),
+    records:
+      evidence === undefined
+        ? NONE
+        : evidence.records.filter((r) => !sameVersion(r.version, evidence.version)),
   };
 };
 

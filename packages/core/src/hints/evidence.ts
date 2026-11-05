@@ -28,13 +28,20 @@ import type { EvidenceRecord } from "../evidence/index.js";
 import { evidenceIndexState, evidenceRecordsState, instantOf } from "../evidence/index.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { metamodelState } from "../metamodel/index.js";
-import type { ElementRecord, ElementStore, LocatableFinding, ShortIds } from "../model/index.js";
+import type {
+  ElementRecord,
+  ElementStore,
+  LocatableFinding,
+  ShortIds,
+  VersionForms,
+} from "../model/index.js";
 import {
-  currentVersionOf,
+  currentFormsOf,
   currentVersionsOf,
   currentVersionsState,
   elementLabel,
   shortIdState,
+  NORMAL_FORM,
 } from "../model/index.js";
 import { settledValue } from "../runtime/settled.js";
 import type { Workspace } from "../runtime/workspace.js";
@@ -87,7 +94,7 @@ const recordGroups = (records: readonly EvidenceVersion[]): Map<string, RecordGr
 export const outdatedEvidenceFindings = (
   elements: readonly ElementRecord[],
   records: readonly EvidenceVersion[],
-  currentOf: (element: ElementRecord) => string | undefined,
+  currentOf: (element: ElementRecord) => VersionForms | undefined,
   label: (element: ElementRecord) => string,
   independent: (element: ElementRecord) => boolean,
 ): Problem[] => {
@@ -97,15 +104,18 @@ export const outdatedEvidenceFindings = (
     const version = currentOf(element);
     const own = groups.get(element.id) ?? [];
     const pooled = independent(element);
+    // A record of either normal form of the current version counts (ADR-0005 "Normal form 2").
+    const ofCurrent = (versions: ReadonlySet<string>): boolean =>
+      version !== undefined && (versions.has(version.n1) || versions.has(version.n2));
     for (const { newest: record, versions } of own) {
-      if (version === undefined || versions.has(version)) {
+      if (version === undefined || ofCurrent(versions)) {
         continue;
       }
       if (
         pooled &&
         record.variant !== undefined &&
         own.some(
-          (g) => g.newest.variant === undefined && g.newest.kind === record.kind && g.versions.has(version),
+          (g) => g.newest.variant === undefined && g.newest.kind === record.kind && ofCurrent(g.versions),
         )
       ) {
         continue;
@@ -122,7 +132,7 @@ export const outdatedEvidenceFindings = (
         elementRepository: element.repository,
         elementFile: element.file,
         storedVersion: record.version,
-        currentVersion: version,
+        currentVersion: version[NORMAL_FORM],
       });
     }
   }
@@ -145,7 +155,7 @@ export const outdatedEvidenceProblemsState = defineWorkspaceState(
     return outdatedEvidenceFindings(
       versions.store.elements,
       records,
-      (element) => currentVersionOf(versions, element),
+      (element) => currentFormsOf(versions, element),
       (element) => elementLabel({ metamodel, shortIds }, element),
       (element) => marked.has(element.repository),
     );
@@ -217,7 +227,7 @@ export const elementEvidenceFindings = async (
   return outdatedEvidenceFindings(
     [record],
     records,
-    (r) => currentVersionOf(versions, r),
+    (r) => currentFormsOf(versions, r),
     (r) => elementLabel({ metamodel, shortIds }, r),
     (r) => variantIndependentOf(layout).has(r.repository),
   ).map(toFinding);

@@ -47,7 +47,7 @@
 // the top of the tree by about two and the few hundred elements above each variant's seeds.
 import type { VerificationStatus } from "../generated/types.js";
 import { LayeredMap, invalidStatuses } from "../model/index.js";
-import type { ElementRecord } from "../model/index.js";
+import type { ElementRecord, VersionForms } from "../model/index.js";
 import type { TraceContext } from "../trace/index.js";
 import { childrenOf, derivationGraph } from "../trace/index.js";
 import type { View } from "../variants/index.js";
@@ -113,7 +113,7 @@ export interface VerificationResult {
 
 /** The version an element is shown with (element.get), in place of its current version. */
 export interface Shown {
-  readonly current: string | undefined;
+  readonly current: VersionForms | undefined;
 }
 
 /**
@@ -261,7 +261,7 @@ export const evaluatorRecords = (evaluator: VerificationEvaluator): ElementRecor
 export const verificationEvaluator = (
   source: StatusSource,
   children: ChildRules | undefined,
-  currentOf: (element: ElementRecord) => string | undefined,
+  currentOf: (element: ElementRecord) => VersionForms | undefined,
   scope: ViewScope,
 ): VerificationEvaluator => evaluatorWith(source, children, currentOf, scope, undefined);
 
@@ -279,7 +279,7 @@ export const carriedEvaluator = (
   old: VerificationEvaluator,
   source: StatusSource,
   children: ChildRules | undefined,
-  currentOf: (element: ElementRecord) => string | undefined,
+  currentOf: (element: ElementRecord) => VersionForms | undefined,
   affected: ReadonlySet<string>,
   records: readonly ElementRecord[],
   scope: ViewScope,
@@ -300,7 +300,7 @@ export const carriedEvaluator = (
 const evaluatorWith = (
   source: StatusSource,
   children: ChildRules | undefined,
-  currentOf: (element: ElementRecord) => string | undefined,
+  currentOf: (element: ElementRecord) => VersionForms | undefined,
   scope: ViewScope,
   carried: EvaluatorCaches | undefined,
 ): VerificationEvaluator => {

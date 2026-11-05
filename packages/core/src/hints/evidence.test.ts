@@ -4,6 +4,7 @@
 // The CLI test follows with the records in stage 4.
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
+import { forms } from "../model/version-forms.test-helper.js";
 import type { CommandOutput, Problem } from "../catalog.js";
 import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
@@ -123,6 +124,32 @@ describe("outdated evidence (SR-025 AK4)", () => {
     ]);
   });
 
+  it("[SR-025/AK4] counts a record of either normal form of the current version (ADR-0005)", () => {
+    const element = { id: B } as Parameters<typeof outdatedEvidenceFindings>[0][number];
+    const both = { n1: A_VERSION, n2: "n2:1111111111111111" };
+    const label = (): string => "B";
+    const unmarked = (): boolean => false;
+    expect(
+      outdatedEvidenceFindings(
+        [element],
+        [record(B, both.n2, "2026-01-01T00:00:00Z")],
+        () => both,
+        label,
+        unmarked,
+      ),
+    ).toEqual([]);
+    const outdated = outdatedEvidenceFindings(
+      [element],
+      [record(B, "n2:2222222222222222", "2026-01-01T00:00:00Z")],
+      () => both,
+      label,
+      unmarked,
+    );
+    expect(outdated.map((p) => [p.storedVersion, p.currentVersion])).toEqual([
+      ["n2:2222222222222222", A_VERSION],
+    ]);
+  });
+
   it("leaves out records of elements that are not in the store or have no current version", () => {
     const element = { id: B } as Parameters<typeof outdatedEvidenceFindings>[0][number];
     const label = (): string => "B";
@@ -131,7 +158,7 @@ describe("outdated evidence (SR-025 AK4)", () => {
       outdatedEvidenceFindings(
         [],
         [record(A, OLD, "2026-01-01T00:00:00Z")],
-        () => A_VERSION,
+        () => forms(A_VERSION),
         label,
         unmarked,
       ),
@@ -147,22 +174,24 @@ describe("outdated evidence (SR-025 AK4)", () => {
     ).toEqual([]);
     // A tie on the newest date: the record of the current version counts, in either order.
     const tie = [record(B, A_VERSION, "2026-01-01T00:00:00Z"), record(B, OLD, "2026-01-01T00:00:00Z")];
-    expect(outdatedEvidenceFindings([element], tie, () => A_VERSION, label, unmarked)).toEqual([]);
-    expect(outdatedEvidenceFindings([element], [...tie].reverse(), () => A_VERSION, label, unmarked)).toEqual(
-      [],
-    );
+    expect(outdatedEvidenceFindings([element], tie, () => forms(A_VERSION), label, unmarked)).toEqual([]);
+    expect(
+      outdatedEvidenceFindings([element], [...tie].reverse(), () => forms(A_VERSION), label, unmarked),
+    ).toEqual([]);
     // A date that cannot be read counts as the oldest, in either order.
     const unreadable = [record(B, OLD, "not a date"), record(B, A_VERSION, "2026-01-01T00:00:00Z")];
-    expect(outdatedEvidenceFindings([element], unreadable, () => A_VERSION, label, unmarked)).toEqual([]);
+    expect(outdatedEvidenceFindings([element], unreadable, () => forms(A_VERSION), label, unmarked)).toEqual(
+      [],
+    );
     expect(
-      outdatedEvidenceFindings([element], [...unreadable].reverse(), () => A_VERSION, label, unmarked),
+      outdatedEvidenceFindings([element], [...unreadable].reverse(), () => forms(A_VERSION), label, unmarked),
     ).toEqual([]);
     // A tie of records of an element that is not in the store decides nothing.
     expect(
       outdatedEvidenceFindings(
         [element],
         [...tie, record(A, OLD, "2026-01-01T00:00:00Z"), record(A, A_VERSION, "2026-01-01T00:00:00Z")],
-        () => A_VERSION,
+        () => forms(A_VERSION),
         label,
         unmarked,
       ),
@@ -172,7 +201,7 @@ describe("outdated evidence (SR-025 AK4)", () => {
       outdatedEvidenceFindings(
         [element],
         [record(B, OLD, "2026-01-01T00:00:00Z", { variant: V })],
-        () => A_VERSION,
+        () => forms(A_VERSION),
         label,
         unmarked,
       ).map((p) => p.message),
@@ -190,7 +219,9 @@ describe("outdated evidence (SR-025 AK4)", () => {
     const forV = record(B, OLD, "2026-01-02T00:00:00Z", { variant: V });
     const coreCurrent = record(B, A_VERSION, "2026-01-01T00:00:00Z");
     const findings = (records: readonly EvidenceRecord[], independent: typeof marked) =>
-      outdatedEvidenceFindings([element], records, () => A_VERSION, label, independent).map((p) => p.message);
+      outdatedEvidenceFindings([element], records, () => forms(A_VERSION), label, independent).map(
+        (p) => p.message,
+      );
     expect(findings([forV, coreCurrent], marked)).toEqual([]);
     // Without the mark the variant's group stands alone (SR-173 AK2).
     expect(findings([forV, coreCurrent], () => false)).toHaveLength(1);

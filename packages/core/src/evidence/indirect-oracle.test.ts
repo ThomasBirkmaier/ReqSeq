@@ -9,6 +9,9 @@
 import type { CurrentVersion } from "../model/index.js";
 import { generateLargeWorkspace, withEvidenceRecords, writeLargeWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
+import { forms } from "../model/version-forms.test-helper.js";
+import type { VersionForms } from "../model/index.js";
+import { NORMAL_FORM } from "../model/index.js";
 import { metamodelState } from "../metamodel/index.js";
 import type { ElementRecord } from "../model/index.js";
 import { currentVersionsOf, elementStoreState, isEmergent } from "../model/index.js";
@@ -57,7 +60,7 @@ const nodeKey = (element: ElementRecord): string => `${element.repository}\u0000
 const referenceEvaluator = (
   source: StatusSource,
   children: ChildRules | undefined,
-  currentOf: (element: ElementRecord) => string | undefined,
+  currentOf: (element: ElementRecord) => VersionForms | undefined,
   scope: ViewScope,
 ): VerificationEvaluator => {
   const memos = new Map<string, Map<string, VerificationResult>>();
@@ -216,7 +219,7 @@ interface Generated {
   readonly children: ChildRules;
   readonly elements: readonly ElementRecord[];
   readonly views: readonly View[];
-  readonly currentOf: (element: ElementRecord) => string | undefined;
+  readonly currentOf: (element: ElementRecord) => VersionForms | undefined;
   /** The validity with random removals per variant, as the view rule removes core requirements. */
   readonly scope: ViewScope;
 }
@@ -357,7 +360,7 @@ const generate = (seed: number): Generated => {
     },
     elements,
     views,
-    currentOf: (e) => versions.get(e),
+    currentOf: (e) => forms(versions.get(e)),
   };
 };
 
@@ -370,7 +373,7 @@ const resultsOf = (
   for (const [element, view] of pairs) {
     const name = `${element.repository}:${element.file}:${view.kind === "core" ? "core" : `${view.variant.repository}/${view.variant.id}`}`;
     results.set(name, evaluate(element, view));
-    results.set(`${name}:shown`, evaluate(element, view, { current: OLDER }));
+    results.set(`${name}:shown`, evaluate(element, view, { current: forms(OLDER) }));
   }
   return results;
 };
@@ -435,8 +438,8 @@ describe("the shared views give the results of the evaluator before #698", () =>
                         r,
                         {
                           kind: "version",
-                          version,
-                          forms: { n1: version, n2: "n2:0000000000000000" },
+                          version: version.n1,
+                          forms: version,
                           images: [],
                         },
                       ],
@@ -496,13 +499,13 @@ describe("the shared views give the results of the evaluator before #698", () =>
       }));
     const versions = await currentVersionsOf(workspace, store.elements);
     const byId = new Map(store.elements.map((e) => [e.id, e]));
-    const currentOf = (e: ElementRecord | undefined): string | undefined => {
+    const currentOf = (e: ElementRecord | undefined): VersionForms | undefined => {
       const entry = e === undefined ? undefined : versions.get(e);
-      return entry?.kind === "version" ? entry.version : undefined;
+      return entry?.kind === "version" ? entry.forms : undefined;
     };
     // The generator stores a placeholder version: most records get the element's current one.
     const records = [...[...read.byElement.values()].flat(), ...extra].map((r) =>
-      random.chance(0.8) ? { ...r, version: currentOf(byId.get(r.element)) ?? r.version } : r,
+      random.chance(0.8) ? { ...r, version: currentOf(byId.get(r.element))?.[NORMAL_FORM] ?? r.version } : r,
     );
     const index = evidenceIndex(records);
     // One repository marked variant-independent (SR-173).
@@ -584,12 +587,14 @@ describe("the work the shared views save (#698)", () => {
     const all = (evaluate: VerificationEvaluator): (VerificationResult | undefined)[] =>
       views.map((view) => evaluate(root, view));
     reads = 0;
-    const before = all(referenceEvaluator(source, rules, () => CURRENT, validityScope(source.validity)));
+    const before = all(
+      referenceEvaluator(source, rules, () => forms(CURRENT), validityScope(source.validity)),
+    );
     const referenceReads = reads;
     reads = 0;
-    expect(all(verificationEvaluator(source, rules, () => CURRENT, validityScope(source.validity)))).toEqual(
-      before,
-    );
+    expect(
+      all(verificationEvaluator(source, rules, () => forms(CURRENT), validityScope(source.validity))),
+    ).toEqual(before);
     // The reference walks the 340 elements in each of the 20 variants; the shared views about three
     // times (core, neutral, the seeds below each element) and the path above the one seed.
     expect(referenceReads).toBeGreaterThan(20 * 340);

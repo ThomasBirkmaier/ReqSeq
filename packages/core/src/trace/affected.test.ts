@@ -97,9 +97,16 @@ const open = async (files: Readonly<Record<string, string>> = FILES): Promise<Op
   return { workspace, graph, record };
 };
 
+/** The current version V in both forms: its n2 is `V2`. */
+const V2 = "n2:9999999999999999";
+
 const output = async (opened: Opened, start: ElementRecord, records?: readonly AffectedRecord[]) =>
   affectedOutput(
-    traceAffected(opened.graph, start, records === undefined ? {} : { evidence: { version: V, records } }),
+    traceAffected(
+      opened.graph,
+      start,
+      records === undefined ? {} : { evidence: { version: { n1: V, n2: V2 }, records } },
+    ),
     { metamodel: opened.graph.metamodel, shortIds: await opened.workspace.get(shortIdState) },
     { limit: 200, offset: 0 },
   );
@@ -195,8 +202,8 @@ describe("affected elements (SR-024)", () => {
     const failed = record(OLD, { kind: "validation", result: "failed", date: "2026-10-21T10:00:00Z" });
     const out = await output(opened, opened.record(S1), [record(V), old, failed]);
     expect(out.records).toEqual([old, failed]);
-    // Only records of the current version: none of an old one.
-    expect((await output(opened, opened.record(S1), [record(V)])).records).toEqual([]);
+    // Only records of the current version, in either normal form (ADR-0005): none of an old one.
+    expect((await output(opened, opened.record(S1), [record(V), record(V2)])).records).toEqual([]);
     // Without evidence (stage 2, the command): none.
     expect((await output(opened, opened.record(S1))).records).toEqual([]);
   });

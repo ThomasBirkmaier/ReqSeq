@@ -31,6 +31,7 @@ import { metamodelState } from "../metamodel/index.js";
 import type {
   CurrentVersion,
   ElementRecord,
+  VersionForms,
   ElementStore,
   IncomingIndex,
   StoreUpdate,
@@ -41,6 +42,8 @@ import {
   carryStoreUpdate,
   currentVersionsOf,
   elementStoreState,
+  formsOfEntry,
+  storedForms,
   hasId,
   incomingFor,
   incomingIn,
@@ -174,7 +177,7 @@ const freshCaches = (): StatusCaches => ({
 });
 
 /** Builds the evaluator of a status over its versions (`currentOf`). */
-type EvaluatorOf = (currentOf: (element: ElementRecord) => string | undefined) => VerificationEvaluator;
+type EvaluatorOf = (currentOf: (element: ElementRecord) => VersionForms | undefined) => VerificationEvaluator;
 
 /** A new evaluator of `source` with `children` and `scope`. */
 const freshEvaluator =
@@ -188,7 +191,7 @@ interface StatusCaches {
    * The current versions read, by record (none for a record whose read gave none); forked over a
    * store change (`LayeredMap`, #215).
    */
-  readonly versions: LayeredMap<ElementRecord, string | undefined>;
+  readonly versions: LayeredMap<ElementRecord, VersionForms | undefined>;
   /** Elements whose children were walked by an earlier `prepare`, by repository and UUID (`nodeKey`). */
   readonly walked: LayeredMap<string, true>;
   /**
@@ -282,7 +285,7 @@ const statusWith = (
       const found = await read([...wanted]);
       for (const element of wanted) {
         const entry = found.get(element);
-        versions.set(element, entry?.kind === "version" ? entry.version : undefined);
+        versions.set(element, formsOfEntry(entry));
         if (entry?.kind !== "version" || entry.images.length > 0) {
           volatile.add(element);
         }
@@ -637,15 +640,20 @@ export const workspaceStatus = async (
 
 /**
  * `element` with its verification entries (`verificationOf`, SR-031, SR-034) and its validation status
- * (`validate`, SR-038), each when it has one, both measured against the `version` it shows; an
+ * (`validate`, SR-038), each when it has one, both measured against the `version` it shows, in
+ * every normal form when `forms` are of that version (ADR-0005 "Normal form 2"); an
  * `inconclusive` validation with its `validationReason` (SR-172 AK2).
  */
 export const withEvidenceStatus = (
   status: WorkspaceStatus,
   record: ElementRecord,
   element: DataExportElement,
+  forms: VersionForms | undefined,
 ): DataExportElement => {
-  const shown: Shown = { current: element.version };
+  // A record of the other normal form counts when `forms` are of the version shown (`storedForms`).
+  const shown: Shown = {
+    current: element.version === undefined ? undefined : storedForms(element.version, forms),
+  };
   const verification = verificationOf(status, record, shown);
   const validation = status.validate(record, shown);
   return {

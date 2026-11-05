@@ -1,6 +1,7 @@
 // evidence.list (SR-032): the evidence records of one element, newest first, each with its version,
 // item (Prüfling), date, result and evidence (Beleg) (AK1) and the names of the baselines that
-// contain its version (AK2, read-only baseline reader, spec question #530). `view` keeps the records
+// contain its version (AK2, read-only baseline reader, spec question #530; a baseline entry of the
+// other normal form counts when both are of the current version, ADR-0005 "Normal form 2"). `view` keeps the records
 // of the core or of one variant (SR-047), in a variant with those without variant when the element's
 // repository is marked `variant-independent` (SR-173). `problems` are those of the baseline files; `incomplete`
 // says that an evidence location or the baselines folder is not on this machine (SR-006 AK2).
@@ -11,7 +12,14 @@ import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import { evidenceIndexState, evidenceReadState, listedRecords, testCasesIn } from "../../evidence/index.js";
 import { metamodelState } from "../../metamodel/index.js";
-import { elementStoreState, resolveRef, shortIdState } from "../../model/index.js";
+import {
+  currentVersionsOf,
+  elementStoreState,
+  formsOfEntry,
+  resolveRef,
+  shortIdState,
+  storedForms,
+} from "../../model/index.js";
 import { resolveView } from "../../variants/index.js";
 import { variantIndependentOf, workspaceLayoutState } from "../../workspace/index.js";
 
@@ -34,9 +42,16 @@ export default defineCommand({
     const baselines = await workspaceBaselines(ctx.workspace);
     const layout = await ctx.workspace.get(workspaceLayoutState);
     const independent = variantIndependentOf(layout).has(element.repository);
+    // A baseline of the other normal form than a record contains it when both are of the current version.
+    // Read only for an element with records.
+    const records = index.byElement.get(element.id) ?? [];
+    const current =
+      records.length === 0
+        ? undefined
+        : formsOfEntry((await currentVersionsOf(ctx.workspace, [element])).get(element));
     return {
-      records: listedRecords(index.byElement.get(element.id) ?? [], view, independent, (id, version) =>
-        baselinesContaining(baselines, id, version),
+      records: listedRecords(records, view, independent, (id, version) =>
+        baselinesContaining(baselines, id, storedForms(version, current)),
       ),
       testCases: testCasesIn(index, element.id, view, independent),
       problems: [...baselines.problems],
