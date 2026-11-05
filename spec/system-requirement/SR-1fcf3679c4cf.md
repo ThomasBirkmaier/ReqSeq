@@ -18,6 +18,7 @@ derives-from:
 based-on:
   - { id: 6ad39064-0c17-44eb-b1b3-069ebda57ac6, version: n1:9c540adec22e0e1f, title: Jeder arbeitet auf einer lokalen Kopie }
   - { id: 6adc4eb0-23e6-4e81-9ae8-e964fba47a8d, version: n1:ccbefd504788a8ce, title: Zusammenarbeit liegt außerhalb des Tools }
+issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/88
 ---
 
 Das Tool muss mehrere Instanzen auf getrennten lokalen Kopien gleichzeitig laufen lassen, ohne dass sie sich gegenseitig beeinflussen.

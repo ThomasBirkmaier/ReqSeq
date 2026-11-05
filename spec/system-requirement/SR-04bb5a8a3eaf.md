@@ -20,6 +20,7 @@ based-on:
   - { id: 6ad4a03f-d7cf-4b85-98da-3f4431f33fe7, version: n1:3b96003631ba204b, title: Auswertungen mit externen Werkzeugen }
   - { id: 6adc58f4-fbf7-4c3d-84da-de15d00286a2, version: n1:ddba1713410acb43, title: Kommandozeile neben der App }
   - { id: 6adc5c64-fe36-4191-85d8-c57756a89310, version: n1:6a8d5db3a8ae28c2, title: API und MCP-Server neben der App }
+issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/68
 ---
 
 Das Tool muss die Daten eines Stands als JSON nach einem dokumentierten Schema für externe Auswertungen liefern.

@@ -20,6 +20,7 @@ based-on:
   - { id: 6ad49d01-5018-4d89-9350-37989131ccc1, version: n1:d0a8fdffb57622b1, title: Nachweise und Validierungen als Datensätze }
   - { id: 6adc58f5-a349-4870-af2f-971ec1cee679, version: n1:adee5264c0b69be1, title: Ein offenes Format für Nachweis-Datensätze }
 rationale: "Entscheidung des Produktverantwortlichen, 2026-11-04: AK3 an SR-172 angeglichen, das den Validierungsstatus nicht beurteilbar einführt."
+issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/45
 ---
 
 Das Tool muss für jeden Need und jedes Element mit Validierungs-Datensätzen einen eigenen Validierungsstatus berechnen und zeigen.

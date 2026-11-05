@@ -17,6 +17,7 @@ derives-from:
   - { id: 6ad3a422-7a13-458e-87c5-cf0c3829c511, version: n1:674bb62923239dd9, title: Unterschied zum Kern erkennbar }
 based-on:
   - { id: 6adc615d-b1c4-489a-8843-ecc4593d0bf6, version: n1:b966e12f6fc9ba93, title: Unterschiede zeigt die Versionsverwaltung }
+issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/51
 ---
 
 Das Tool muss für jede Variante zeigen, welche Requirements sie gegenüber dem Kern ergänzt, ersetzt oder ausschließt.

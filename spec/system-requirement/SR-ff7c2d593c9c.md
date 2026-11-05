@@ -24,6 +24,7 @@ derives-from:
 based-on:
   - { id: 6adc4946-b44c-4ae1-8dbf-fb9e88b8c607, version: n1:0c3f2da31ca1ae9a, title: Fassung als Prüfwert über den Inhalt }
   - { id: 6adc5316-641d-4817-964e-8803a78ac710, version: n1:98453db7e5f7bec6, title: Varianten über eine Gültigkeitsliste }
+issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/48
 ---
 
 Das Tool muss ein Kern-Requirement für eine Variante durch ein eigenes Requirement ersetzen lassen und dabei die Fassung des ersetzten Requirements speichern.

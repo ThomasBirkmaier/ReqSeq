@@ -17,6 +17,7 @@ derives-from:
   - { id: 6adc4b47-50a8-4546-9007-f7cfdfa7b9cb, version: n1:d8500282bf5102a9, title: Traceability bis zu Testfall und Durchführung }
 based-on:
   - { id: 6adc58f5-a349-4870-af2f-971ec1cee679, version: n1:adee5264c0b69be1, title: Ein offenes Format für Nachweis-Datensätze }
+issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/40
 ---
 
 Das Tool muss Testfälle und ihre Durchführungen als Teil der Kette bis zum Nachweis zeigen.

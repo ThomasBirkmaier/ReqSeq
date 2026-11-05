@@ -24,6 +24,7 @@ derives-from:
   - { id: 6adc531a-5a09-476b-9253-7a620b9698d3, version: n1:212741657b151bd3, title: Unbekannte Typen beim Import }
 based-on:
   - { id: 6adc5318-7e31-4925-b180-ff19c4c61c5f, version: n1:ed13abb3520fa053, title: Kein Austausch von Metamodellen }
+issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/790
 ---
 
 Das Tool muss beim Lesen einer ReqIF-Datei für ihre Attribute ohne Zuordnung einen Ausschnitt des Metamodells vorschlagen, ohne das Metamodell selbst zu ändern.
