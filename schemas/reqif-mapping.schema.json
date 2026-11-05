@@ -118,7 +118,7 @@
           "omit-properties": {
             "type": "array",
             "items": { "$ref": "common.schema.json#/$defs/key" },
-            "description": "SR-059 AK1."
+            "description": "Properties left out of every export with this profile (SR-059 AK1)."
           }
         },
         "additionalProperties": false

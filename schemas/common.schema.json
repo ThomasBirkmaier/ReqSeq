@@ -467,11 +467,11 @@
       ]
     },
     "verificationStatus": {
-      "description": "SR-031, SR-034. `indirect` = indirectly verified via children.",
+      "description": "The verification status (SR-031, SR-034). `indirect` = indirectly verified via children.",
       "enum": ["open", "verified", "indirect", "failed", "outdated"]
     },
     "validationStatus": {
-      "description": "offen, erfolgreich, nicht erfolgreich, veraltet, nicht beurteilbar (SR-172).",
+      "description": "The validation status (SR-172). `inconclusive` = the validation could not decide.",
       "enum": ["open", "validated", "failed", "outdated", "inconclusive"]
     },
     "reqifObject": {

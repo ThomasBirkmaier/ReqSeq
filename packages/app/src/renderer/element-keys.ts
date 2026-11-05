@@ -35,7 +35,7 @@ export const FIELD_KEYS: readonly KeyRow[] = [
   },
   {
     keys: [{ press: press("ArrowDown") }],
-    does: "On the element: to its first field (SR-155), on a package page into its elements; on a field: to the next field; from the last field into the elements of a package page",
+    does: "On the element: to its first field, on a package page into its elements; on a field: to the next field; from the last field into the elements of a package page",
   },
   { keys: [{ press: press("ArrowUp") }], does: "On a field: to the field before" },
   {
