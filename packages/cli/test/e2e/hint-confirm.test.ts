@@ -124,6 +124,32 @@ describe("reqseq hint confirm (SR-027)", () => {
     ]);
   });
 
+  it("[SR-027/AK2] confirms every open hint of a kind in the workspace with --all, after the count of hint list (#644)", async () => {
+    const ws = await changed();
+    const listed = (await hints(ws)).map((h) => h.hintId);
+    const wrong = await reqseq(
+      ["hint", "confirm", "--all", "--kind", "relation.outdated", "--expected", String(listed.length + 1)],
+      ws.root,
+    );
+    expect(wrong.code).toBe(2);
+    expect(wrong.stderr).toContain(`the call now confirms ${String(listed.length)} hints`);
+    const all = await reqseq(
+      [
+        "hint",
+        "confirm",
+        "--all",
+        "--kind",
+        "relation.outdated",
+        "--expected",
+        String(listed.length),
+        "--json",
+      ],
+      ws.root,
+    );
+    expect(all.code).toBe(0);
+    expect([...(JSON.parse(all.stdout) as Confirmed).confirmed].sort()).toEqual([...listed].sort());
+  });
+
   it("[SR-027/AK3] shows the new version as a normal change in Git, only on the line of the relation", async () => {
     const ws = await changed();
     const derives = (await hints(ws))[1];

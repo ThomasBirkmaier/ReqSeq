@@ -52,6 +52,25 @@ scenariosOf("hint.confirm", [
   },
   { name: "kind without ref or target (#310)", fixture: HINTS, input: { kind: ["x"] }, expect: "error" },
   {
+    name: "every open hint of a kind in the workspace, as reviewed (#644)",
+    fixture: HINTS,
+    input: { all: true, kind: ["relation.outdated"], expected: 2 },
+    expect: "output",
+  },
+  {
+    name: "all with another number than expected: refused, nothing written (#644)",
+    fixture: HINTS,
+    input: { all: true, kind: ["relation.outdated"], expected: 99 },
+    expect: "error",
+  },
+  { name: "all without kind (#644)", fixture: HINTS, input: { all: true, expected: 0 }, expect: "error" },
+  {
+    name: "all with ref (#644)",
+    fixture: HINTS,
+    input: { all: true, ref: "SR-0000b1", kind: ["relation.outdated"], expected: 0 },
+    expect: "error",
+  },
+  {
     tag: "[SR-103/AK5]",
     name: "a since-baseline hint is refused: a new baseline settles it",
     fixture: SINCE_BASELINE,

@@ -190,6 +190,31 @@ describe("outdated relations in workspace.check with 50,000 elements and 200,000
       await fresh.close();
     }
   }, 900_000);
+
+  // Last of this block: it writes. Every relation and reference to a changed target is confirmed
+  // with one call after the count of hint.list (#644); the written sources are then targets of
+  // new outdated relations, which stay open.
+  it("confirms every outdated relation of the workspace with all, after the count of hint.list (#644)", async () => {
+    const listed = (await invoke(
+      "hint.list",
+      { kind: ["relation.outdated"], limit: 1 },
+      { workspace },
+    )) as CommandOutput<"hint.list">;
+    const expected = storedTargets(tree, changed);
+    expect(listed.total).toBe(expected);
+    const { result: out } = await measure(
+      `hint.confirm all relation.outdated, ${String(expected)} hints (states kept)`,
+      async () =>
+        (await invoke(
+          "hint.confirm",
+          { all: true, kind: ["relation.outdated"], expected },
+          { workspace },
+        )) as CommandOutput<"hint.confirm">,
+      { basis: "#644; SR-020 (60 s) for comparison", thresholdMs: 60_000 },
+    );
+    expect(out.confirmed).toHaveLength(expected);
+    expect(out.problems).toEqual([]);
+  }, 900_000);
 });
 
 describe("every relation outdated, with Git (SR-025 worst case, N-036)", () => {
