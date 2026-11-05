@@ -14,6 +14,13 @@ import { retry, TRANSIENT_CODES } from "./retry.js";
  */
 export const LOCK_STALE_MS = 30_000;
 
+/**
+ * The retries of the lock's own file operations. On Windows a lock file that was just given back can stay
+ * pending deletion while a scanner or indexer has it open, and creating or reading it fails with EPERM for
+ * longer than the default window of about 0.3 s (#720): 10 attempts wait about 0.9 s in total.
+ */
+const LOCK_RETRY = { attempts: 10, delayMs: 20 } as const;
+
 /** How often a stale lock is broken and taken again before the lock counts as held. */
 const LOCK_ATTEMPTS = 3;
 
@@ -83,6 +90,7 @@ const readLock = async (file: string): Promise<FoundLock | undefined> => {
     const [text, stat] = await retry(
       () => Promise.all([fs.readFile(file, "utf8"), fs.stat(file)]),
       TRANSIENT_CODES,
+      LOCK_RETRY,
     );
     return { text, modified: stat.mtimeMs };
   } catch (error) {
@@ -108,7 +116,7 @@ const createExclusive = async (file: string, text: string): Promise<boolean> => 
   let handle: fs.FileHandle;
   try {
     // On Windows a file that is being removed while another process has it open refuses for a moment.
-    handle = await retry(() => fs.open(file, "wx", 0o600), TRANSIENT_CODES);
+    handle = await retry(() => fs.open(file, "wx", 0o600), TRANSIENT_CODES, LOCK_RETRY);
   } catch (error) {
     if (errorCode(error) === "EEXIST") {
       return false;

@@ -332,6 +332,20 @@ describe("lockPrivateFile", () => {
     await lock?.release();
   });
 
+  it("waits up to about a second for a lock file that Windows still has pending deletion (#720)", async () => {
+    const open = fs.open.bind(fs);
+    const spy = vi.spyOn(fs, "open");
+    // Longer than the default retry window of 5 attempts.
+    for (let i = 0; i < 7; i++) {
+      spy.mockRejectedValueOnce(failure("EPERM"));
+    }
+    spy.mockImplementation(open);
+    const lock = await lockPrivateFile(file);
+    expect(lock).toBeDefined();
+    expect(spy).toHaveBeenCalledTimes(8);
+    await lock?.release();
+  });
+
   it("rejects with the Node error when the lock cannot be created, read or removed", async () => {
     await fs.writeFile(path.join(root, "file"), "");
     await expect(lockPrivateFile(path.join(root, "file", "api.json.lock"))).rejects.toMatchObject({
