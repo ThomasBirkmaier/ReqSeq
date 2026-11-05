@@ -10,14 +10,12 @@ acceptance-criteria:
   - Gegeben ein ersetztes Requirement in dieser Liste in der App, wenn es mit Enter ausgewählt wird, dann zeigt die App Kern-Requirement und Ersatz nebeneinander im geteilten Fenster (D-062), je in einem Buffer, nur lesend, mit Text und Akzeptanzkriterien beider.
   - Gegeben ein ersetztes Requirement, wenn `variant.diff` über CLI, API oder MCP abgefragt wird, dann nennt seine Zeile die IDs von Kern-Requirement und Ersatz.
 verification-method: test
-topic: "Varianten"
 packages:
-  - { id: c44d8f37-ca09-4e36-8bcb-772f426a3e1a, version: n2:69251068a7c59616, title: "Stufe 5: Pakete, Baselines und Varianten" }
+  - { id: d033b1e9-39d8-4729-a08f-6285812ce348, version: n2:bab49f6690dc919b, title: Varianten }
 derives-from:
   - { id: 6ad3a422-7a13-458e-87c5-cf0c3829c511, version: n1:674bb62923239dd9, title: Unterschied zum Kern erkennbar }
 based-on:
   - { id: 6adc615d-b1c4-489a-8843-ecc4593d0bf6, version: n2:283052be2cc95fc4, title: Unterschiede zeigt die Versionsverwaltung }
-issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/51
 ---
 
 Das Tool muss für jede Variante zeigen, welche Requirements sie gegenüber dem Kern ergänzt, ersetzt oder ausschließt.

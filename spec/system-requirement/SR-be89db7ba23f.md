@@ -13,16 +13,14 @@ acceptance-criteria:
   - "Gegeben ein Element eines Typs mit der Bedeutung Requirement, das über keine Beziehung mit der Bedeutung Ableitung einen Parent hat, wenn seine Kette angezeigt wird (App, CLI, API, MCP: `trace.chain`), dann ist der fehlende Parent als Lücke gekennzeichnet."
   - "Gegeben dasselbe Element, wenn der Bestand geprüft wird (CLI, API, MCP: `workspace.check`), dann meldet das Tool es als Hinweis mit seiner ID."
 verification-method: test
-topic: "Traceability und Ketten"
 packages:
-  - { id: 76455508-8047-4fdc-ba94-495751bd880b, version: n2:73be154bf79845ec, title: "Stufe 2: Traceability" }
+  - { id: 546c26ea-a25f-4ccf-a9c7-ce63607961b3, version: n2:4585916724ff3a77, title: Traceability }
 derives-from:
   - { id: 6ad3a132-19a2-4a9c-83c7-2470c9c71be1, version: n1:ab23c3ad252d23f2, title: Vollständige Kette vom Parent bis zum Child }
   - { id: 6ad49bf0-0608-4419-8ed7-17ae97059199, version: n1:a8503d8bd977adba, title: Traceability bis zum Nachweis }
 based-on:
   - { id: 6ad4ffaa-f5ad-494e-97eb-a4c77c54dccc, version: n2:73aeea72beca267c, title: Fest eingebaute Bedeutungen des Metamodells }
 rationale: "Entscheidung des Produktverantwortlichen, 2026-11-01: Ein Requirement ohne Parent soll mit einem Befehl auffindbar sein, ohne eigenes Metamodell. Eine Entscheidung wird dagegen kein Parent: Based on bleibt ohne Bedeutung für die Kette; ein Projekt, das Entscheidungen als Parent zeigen will, gibt seiner Beziehungsart im eigenen Metamodell die Bedeutung Ableitung. Anlass ist ein Befund aus dem ersten Pilotlauf (#626)."
-issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/29
 ---
 
 Das Tool muss zu jedem Element die vollständige Kette aufwärts bis zu den obersten Parents und abwärts bis zu den Nachweisen zeigen.

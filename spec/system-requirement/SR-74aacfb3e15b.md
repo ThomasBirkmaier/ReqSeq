@@ -11,16 +11,14 @@ acceptance-criteria:
   - Gegeben ein Buffer mit ungespeicherten Änderungen, wenn alle Buffer geschlossen werden, dann fragt die App in der Befehlszeile nach und öffnet keinen modalen Dialog.
   - Gegeben die Befehlszeile mit den Befehlen, wenn „cab“ getippt wird, dann steht „Close all buffers“ an erster Stelle.
 verification-method: test
-topic: Bearbeiten und Finden
 packages:
-  - { id: cf800f25-d03d-4092-8783-334263089f89, version: n2:92f3a59a9af7becd, title: "Stufe 3: Oberfläche" }
+  - { id: 5c0075c7-0fad-483a-b35e-af77d1499468, version: n2:65dcf844650577fe, title: Bedienung der App }
 derives-from:
   - { id: d546b567-fda6-410d-a379-78deec04bfe2, version: n1:ff4acfc7f0085726, title: Nur Aussagekräftiges sehen }
 based-on:
   - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:bce0e07df5d43c53, title: Oberfläche als weißes Blatt }
 refines:
   - { id: 0f759f3b-b03d-42f5-a38a-b0ca831ca864, version: n2:4a15a0c724a0ab59, title: In Buffern arbeiten }
-issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/130
 ---
 
 Die App muss alle offenen Buffer mit einem Befehl schließen lassen.

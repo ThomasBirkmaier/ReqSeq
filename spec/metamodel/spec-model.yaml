@@ -2,12 +2,12 @@
 # schemas/examples/metamodel/standard-model.yaml) with the spec's own additions (D-060: the glossary
 # term and the decision statuses are not part of the standard model):
 # - property spec-id with the meaning identifier (#305): SR-036, D-047, N-001, Stufe-3;
-# - statuses per type (#306): decisions draft, accepted, superseded; glossary terms only obsolete, so a
+# - statuses per type (#306): decisions draft, accepted, superseded, obsolete; glossary terms only obsolete, so a
 #   term without status is current and element.supersede retires it (#344);
 # - type glossary-term with its properties and relation kinds (from the Logseq graph ReqSeq);
-# - property issue on system requirements: the GitHub issue that implements the SR (D-049), so the
-#   spec itself traces requirement -> issue (dogfooding, product owner decision, 2026-10-26). Not content, so
-#   setting it changes no version; filled by scripts/sr-issues.
+# - packages on needs as well: packages give the structure of the spec by topic, not the schedule, and
+#   replace the former property topic; the property issue is gone, since issues are tasks that can
+#   implement several SRs (product owner decision, 2026-11-05).
 # - limit derives-from min 1 from system requirement to need (#838).
 # - decisions can be obsolete: withdrawn without successor, e.g. the development-process decisions
 #   (product owner decision, 2026-11-05: decisions record only what holds for the system ReqSeq).
@@ -20,7 +20,7 @@ types:
     name: Need
     prefix: N
     meaning: need
-    properties: [title, spec-id, rationale, topic]
+    properties: [title, spec-id, rationale, packages]
     required: [title]
     statuses: [draft, approved, obsolete]
   - key: use-case
@@ -50,8 +50,6 @@ types:
         import-date,
         delivery,
         import-version,
-        topic,
-        issue,
       ]
     required: [title, requirement-type, acceptance-criteria]
     statuses: [draft, approved, obsolete]
@@ -148,8 +146,6 @@ properties:
   - { key: import-date, name: Import Date, kind: date, meaning: import-date }
   - { key: delivery, name: Delivery, kind: text, meaning: delivery }
   - { key: import-version, name: Import Version, kind: text, meaning: import-version }
-  - { key: topic, name: Topic, kind: text }
-  - { key: issue, name: Issue, kind: text }
   - key: area
     name: Area
     kind: choice

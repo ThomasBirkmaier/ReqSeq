@@ -1,7 +1,7 @@
 ---
 id: 7a12a8c7-43e7-4349-9453-0ac2b6d5157d
 type: package
-status: approved
+status: obsolete
 title: "Querschnitt"
 spec-id: "Querschnitt"
 ---

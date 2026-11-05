@@ -100,10 +100,10 @@ test("screenshot of a package page on the specification workspace (SR-112)", asy
     });
     await expect(window.getByLabel("Modeline")).toContainText("elements");
     await window.keyboard.press("ControlOrMeta+P");
-    await window.keyboard.type("Stufe-3");
-    await expect(window.locator('.candidates [role="option"]').first()).toContainText("Stufe-3");
+    await window.keyboard.type("Editor");
+    await expect(window.locator('.candidates [role="option"]').first()).toContainText("Editor");
     await window.keyboard.press("Enter");
-    await expect(window.locator("article h1")).toHaveText("Stufe 3: Oberfläche");
+    await expect(window.locator("article h1")).toHaveText("Element bearbeiten");
     await expect(window.locator(".members .row").first()).toBeVisible();
     await window.screenshot({ path: path.join(OUT, "package-page.png") });
   } finally {

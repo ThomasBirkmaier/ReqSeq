@@ -13,9 +13,8 @@ acceptance-criteria:
   - Gegeben dieser Export, wenn er gegen das Schema von ReqIF 1.2 geprüft wird, dann ist er gültig.
   - Gegeben ein Export an die Quelle, bei dem das Modell der Quelle nicht gewählt ist, wenn er geschrieben wird, dann bleibt die Datei eine ReqSeq-Datei wie bisher (SR-058).
 verification-method: test
-topic: Import und Export
 packages:
-  - { id: c64ee86d-761a-4180-bfb1-cde819bfc27c, version: n1:fd3ed3f03b3d762f, title: Später }
+  - { id: 0d3dc867-b3e5-401f-a6db-d95463166616, version: n2:4a83a04662882161, title: Austausch per ReqIF }
 refines:
   - { id: 6adc6d25-0c38-4486-8849-02874ac41f76, version: n1:b316ca541885a2eb, title: Stellungnahme als ReqIF exportieren }
 derives-from:

@@ -10,15 +10,13 @@ acceptance-criteria:
   - "Gegeben das Tool, wenn es Zwischenspeicher anlegt, dann liegen sie getrennt je Kopie."
   - "Gegeben zwei Kopien legen je 100 Elemente an und werden mit Git zusammengeführt, wenn geprüft wird, dann gibt es keine doppelten IDs und keine Befunde aus Zwischenspeichern."
 verification-method: test
-topic: "Betrieb und Leistung"
 packages:
-  - { id: 46610a27-2866-47fb-bb8f-293faae4885f, version: n2:fe4e82907ae44795, title: "Stufe 1: Fundament" }
+  - { id: 3aaac15c-a3ae-44d6-a640-c0fa48ccd25e, version: n2:3431ccb8330c70d3, title: Ablage und Repositories }
 derives-from:
   - { id: 6adc676b-fe66-4306-a6f2-3689d63c8400, version: n2:20d807fdfaa9cb3b, title: Mehrere Agenten parallel }
 based-on:
   - { id: 6ad39064-0c17-44eb-b1b3-069ebda57ac6, version: n1:9c540adec22e0e1f, title: Jeder arbeitet auf einer lokalen Kopie }
   - { id: 6adc4eb0-23e6-4e81-9ae8-e964fba47a8d, version: n2:882381883f0fb18e, title: Zusammenarbeit liegt außerhalb des Tools }
-issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/88
 ---
 
 Das Tool muss mehrere Instanzen auf getrennten lokalen Kopien gleichzeitig laufen lassen, ohne dass sie sich gegenseitig beeinflussen.

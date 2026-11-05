@@ -10,7 +10,6 @@ acceptance-criteria:
   - "Gegeben ein Requirement als Knoten im Graphen (SR-111), wenn er angezeigt wird, dann trägt er seinen Nachweisstatus: offen, nachgewiesen, nicht bestanden oder veraltet (SR-031), indirekt nachgewiesen als solcher gekennzeichnet (SR-034)."
   - Gegeben ein Need als Knoten im Graphen, zum Beispiel mit 10 abgeleiteten Requirements, wenn er angezeigt wird, dann zeigt er innerhalb seines Blocks den Nachweisgrad dieser Requirements (SR-037) als kleine Prozentanzeige, einen Fortschrittskreis mit der Prozentzahl.
 verification-method: test
-topic: Nachweis und Abdeckung
 refines:
   - { id: 50824eaa-f59b-4bfc-b99e-bbb156836ef0, version: n1:80895fb29bfa5796, title: Graph des aktuellen Elements zeigen }
 derives-from:
@@ -20,7 +19,7 @@ based-on:
   - { id: a1bb397a-362f-4c60-86e4-0e030a92c8d2, version: n2:0a8ccbe90869ca1c, title: Graph vom aktuellen Element aus }
   - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:bce0e07df5d43c53, title: Oberfläche als weißes Blatt }
 packages:
-  - { id: c64ee86d-761a-4180-bfb1-cde819bfc27c, version: n1:fd3ed3f03b3d762f, title: Später }
+  - { id: ed14d465-fd3f-4188-992b-3ff7af8595af, version: n2:1261455098bd8d6a, title: Nachweis und Abdeckung }
 ---
 
 Das Tool muss im Graphen des aktuellen Elements bei jedem Requirement seinen Nachweisstatus und bei jedem Need den Nachweisgrad der von ihm abgeleiteten Requirements zeigen.

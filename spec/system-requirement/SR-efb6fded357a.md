@@ -10,9 +10,8 @@ acceptance-criteria:
   - "Gegeben ein Filter und eine Variante zugleich, wenn die Auswahl gebildet wird, dann enthält sie nur Elemente, die beide Bedingungen erfüllen."
   - "Gegeben eine Liste von Kurz-IDs über Kommandozeile oder API, wenn die Auswahl gebildet wird, dann enthält sie genau diese Elemente."
 verification-method: test
-topic: "Bearbeiten und Finden"
 packages:
-  - { id: 7a12a8c7-43e7-4349-9453-0ac2b6d5157d, version: n1:a36637ced6997ca7, title: Querschnitt }
+  - { id: ba811685-2a69-43cb-aea4-9c5cf9c4e9a3, version: n2:05f7041d485c484a, title: Finden und Listen }
 derives-from:
   - { id: 6ad3a133-c1a9-463e-86cd-23d0f277f785, version: n1:f863e5fdb90ec21b, title: Abdeckung einer Auswahl von Requirements }
   - { id: 6adc50a5-05d9-4e59-adfc-ae0179b6e5bf, version: n1:7b0a5a4bd2ba1739, title: Filtern }
@@ -22,7 +21,6 @@ based-on:
   - { id: 6adc5316-641d-4817-964e-8803a78ac710, version: n2:0cd25f27b89543f2, title: Varianten über eine Gültigkeitsliste }
   - { id: 6adc691f-cfbf-4934-9504-21c1fc5849f7, version: n2:066c16db6a4c7f66, title: Baseline als Datei }
   - { id: 6adc6920-0efc-478d-b91c-4ca42caaa8a8, version: n2:e84656cd8b820df6, title: Paket als Element }
-issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/108
 ---
 
 Das Tool muss für jede Funktion, die eine Auswahl verarbeitet, die Auswahl über Filter, gespeicherten Filter, Paket, Baseline, Variante oder eine Liste von IDs bilden lassen.

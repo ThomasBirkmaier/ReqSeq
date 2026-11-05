@@ -4,7 +4,8 @@ type: need
 status: approved
 title: "Beim Schreiben verlinken"
 spec-id: "N-056"
-topic: "Bearbeiten und Finden"
+packages:
+  - { id: e8a95bf4-c96c-4c8a-9fa0-7e9bc0dbd5bd, version: n2:f14e7f16f403237e, title: Element bearbeiten }
 ---
 
 Beim Schreiben muss ich andere Elemente per Suche finden und verlinken können.

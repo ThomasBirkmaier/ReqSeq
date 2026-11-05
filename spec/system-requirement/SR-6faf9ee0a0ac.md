@@ -10,9 +10,8 @@ acceptance-criteria:
   - "Gegeben das Standardmodell, wenn es geprüft wird, dann enthält es die Typen, Properties, Beziehungsarten und Statuswerte dieser Spec mit englischen Namen und Schlüsseln."
   - "Gegeben das Standardmodell, wenn es geprüft wird, dann ist jede Bedeutung aus D-012 mindestens einem Schlüssel zugeordnet, eine Bedeutung von Typen und Properties genau einem."
 verification-method: test
-topic: "Metamodell und Typen"
 packages:
-  - { id: 46610a27-2866-47fb-bb8f-293faae4885f, version: n2:fe4e82907ae44795, title: "Stufe 1: Fundament" }
+  - { id: dfdbf57e-059c-49ed-b9b2-21c51e291b3c, version: n2:cbcfa73eec53e04c, title: Metamodell und Prüfung }
 derives-from:
   - { id: 6ad47d8b-773c-4d21-bf35-1b7deeb96561, version: n1:de3fc7e167c1c882, title: Anpassbares Metamodell }
 based-on:
@@ -22,7 +21,6 @@ based-on:
   - { id: 6adc691e-6394-45b3-a796-31e830aa3392, version: n2:3e0c480389b79547, title: Das Standardmodell entspricht dem Modell dieser Spec }
   - { id: 6adc78d3-0812-43dc-94fe-7af63b9acd96, version: n2:736d88e180c1f4d2, title: Bedeutungen und Standardmodell vervollständigt }
   - { id: dc1e4965-0c68-474e-9ab6-2233c6ec2ad3, version: n2:dfe40087504a49ac, title: Priorität und Validierungskriterien am Need }
-issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/21
 ---
 
 Das Tool muss das Standardmodell mitliefern und es beim Anlegen eines neuen Arbeitsbereichs als Metamodell anlegen.

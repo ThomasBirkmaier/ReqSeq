@@ -10,15 +10,13 @@ acceptance-criteria:
   - "Gegeben ein Arbeitsbereich mit nur einem Repository, wenn er geöffnet wird, dann stehen alle Funktionen genauso zur Verfügung wie bei mehreren Repositories."
   - "Gegeben ein genanntes Repository fehlt lokal, wenn der Arbeitsbereich geöffnet wird, dann zeigt das Tool es als nicht vorhanden und arbeitet mit den übrigen normal."
 verification-method: test
-topic: "Ablage und Repositories"
 packages:
-  - { id: 46610a27-2866-47fb-bb8f-293faae4885f, version: n2:fe4e82907ae44795, title: "Stufe 1: Fundament" }
+  - { id: 3aaac15c-a3ae-44d6-a640-c0fa48ccd25e, version: n2:3431ccb8330c70d3, title: Ablage und Repositories }
 derives-from:
   - { id: 6ad4f636-3b68-4ace-a3be-12ebdcba9b2a, version: n1:fb6a0af7414140ba, title: Ein oder viele Repositories }
 based-on:
   - { id: 6adc5317-4e70-4297-942b-10bf39e10d85, version: n2:5fa2f004bf0408a2, title: Das Metamodell gehört zum Stand }
   - { id: 6adc6921-ddaf-4756-954c-0072d0fc0739, version: n2:ab35a04348d6fa8b, title: Arbeitsbereich als Datei }
-issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/11
 ---
 
 Das Tool muss die Repositories eines Arbeitsbereichs aus der Arbeitsbereichs-Datei im Haupt-Repository lesen und alle lokal vorhandenen gemeinsam öffnen.

@@ -10,14 +10,12 @@ acceptance-criteria:
   - "Gegeben diese Liste, wenn für jeden Eintrag in der Zuordnung ein Typ oder eine Property, bei einer Auswahl-Property auch ihre Werte, gewählt oder Weglassen (`omit: true`) eingetragen wird, über `reqseq reqif save-mapping` oder in der YAML-Datei, dann läuft der erneut gestartete Import durch."
   - Gegeben der Import lehnt ab (fehlende Zuordnung, ungültige Datei oder Konflikt ohne Wahl nach SR-056), wenn die Dateien geprüft werden, dann ist keine Datei geändert.
 verification-method: test
-topic: "Import und Export"
 packages:
-  - { id: 7755a224-01c9-4710-869a-7b1477fbd624, version: n2:71855e1416b80d53, title: "Stufe 6: Austausch per ReqIF und Schutz" }
+  - { id: 0d3dc867-b3e5-401f-a6db-d95463166616, version: n2:4a83a04662882161, title: Austausch per ReqIF }
 derives-from:
   - { id: 6adc531a-5a09-476b-9253-7a620b9698d3, version: n1:212741657b151bd3, title: Unbekannte Typen beim Import }
 based-on:
   - { id: 6adc5318-7e31-4925-b180-ff19c4c61c5f, version: n2:05581a0e4c20cadf, title: Kein Austausch von Metamodellen }
-issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/62
 ---
 
 Wenn eine Import-Datei Typen oder Attribute ohne Zuordnung enthält, muss das Tool sie vor dem Import zeigen und eine Zuordnung verlangen.

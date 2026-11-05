@@ -10,15 +10,13 @@ acceptance-criteria:
   - Gegeben eine gespeicherte Zuordnung, wenn dieselbe Quelle erneut importiert oder dorthin exportiert wird und der Befehl die Zuordnungsdatei nennt, dann verwendet das Tool sie und fragt nichts zu Typen und Attributen.
   - "Gegeben eine Zuordnung, wenn das Metamodell der Quelle gelesen wird, dann ändert das Tool das eigene Metamodell nicht."
 verification-method: test
-topic: "Import und Export"
 packages:
-  - { id: 7755a224-01c9-4710-869a-7b1477fbd624, version: n2:71855e1416b80d53, title: "Stufe 6: Austausch per ReqIF und Schutz" }
+  - { id: 0d3dc867-b3e5-401f-a6db-d95463166616, version: n2:4a83a04662882161, title: Austausch per ReqIF }
 derives-from:
   - { id: 6adc5040-2819-4ec5-a9e9-ad790fd35904, version: n1:3a3f6b6e64b1edc5, title: Zuordnung zum Metamodell }
 based-on:
   - { id: 6adc5318-7e31-4925-b180-ff19c4c61c5f, version: n2:05581a0e4c20cadf, title: Kein Austausch von Metamodellen }
   - { id: 6adc78cf-bdda-461d-9245-ee53800698fb, version: n2:cd7f259e8803f8f3, title: Aufbau der Dateien mit fester Länge des Dateinamens }
-issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/61
 ---
 
 Das Tool muss die Zuordnung der Typen und Attribute einer Quelle zum eigenen Metamodell als Datei speichern und wiederverwenden.

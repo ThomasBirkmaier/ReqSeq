@@ -5,7 +5,8 @@ status: approved
 title: Nachweise für die Werkzeugqualifizierung exportieren
 spec-id: N-080
 rationale: "Entscheidung des Produktverantwortlichen, 2026-10-28: Wunsch, die Nachweise für die Werkzeugqualifizierung je Release zu exportieren. Geparkt für Später nach der Entscheidung des Produktverantwortlichen vom 2026-10-27, neue Ideen weiter aufzunehmen und zu parken; ein Need trägt kein Paket, das Paket Später trägt SR-138."
-topic: Nachweis und Abdeckung
+packages:
+  - { id: ed14d465-fd3f-4188-992b-3ff7af8595af, version: n2:1261455098bd8d6a, title: Nachweis und Abdeckung }
 ---
 
 Wenn ich ReqSeq als Werkzeug nach DO-330, ISO 26262 Teil 8 oder IEC 62304 qualifiziere, muss ich je Release die Nachweise für die Werkzeugqualifizierung exportieren können: Werkzeuganforderungen, Testnachweise, bekannte Fehler und Einsatzgrenzen.

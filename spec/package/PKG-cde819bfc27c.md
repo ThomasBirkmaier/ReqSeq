@@ -1,7 +1,7 @@
 ---
 id: c64ee86d-761a-4180-bfb1-cde819bfc27c
 type: package
-status: draft
+status: obsolete
 title: Später
 spec-id: Später
 ---

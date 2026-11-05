@@ -10,14 +10,12 @@ acceptance-criteria:
   - "Gegeben die Änderung, bevor sie ausgeführt wird, dann zeigt das Tool die Zahl der betroffenen Elemente und verlangt eine Bestätigung."
   - "Gegeben ein Element der Auswahl lässt die Property nach dem Metamodell nicht zu, wenn geändert wird, dann lässt das Tool es aus und nennt es."
 verification-method: test
-topic: "Bearbeiten und Finden"
 packages:
-  - { id: cf800f25-d03d-4092-8783-334263089f89, version: n2:92f3a59a9af7becd, title: "Stufe 3: Oberfläche" }
+  - { id: e8a95bf4-c96c-4c8a-9fa0-7e9bc0dbd5bd, version: n2:f14e7f16f403237e, title: Element bearbeiten }
 derives-from:
   - { id: 6adc693a-e1d7-42a9-aeca-7ab5bfacefec, version: n1:b86cbcab02241a36, title: Mehrere Elemente auf einmal ändern }
 based-on:
   - { id: 6adc615b-272a-4377-82e5-9ae991d75bb2, version: n2:a63440db8f6c0cff, title: Statuswerte kommen aus dem Metamodell }
-issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/78
 ---
 
 Das Tool muss eine Property für eine Auswahl von Elementen in einem Schritt setzen, ergänzen oder entfernen lassen. Ergänzen fügt einer Property mit mehreren Werten die genannten Werte hinzu. Entfernen ohne Wert entfernt die Property, mit Werten nur diese Werte.

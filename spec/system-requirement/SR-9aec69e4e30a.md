@@ -13,12 +13,10 @@ acceptance-criteria:
   - Gegeben derselbe Arbeitsbereich, wenn ein Filter angewendet oder eine Kette berechnet wird, dann erscheint das Ergebnis nach höchstens 500 ms.
   - Gegeben derselbe Arbeitsbereich, wenn nach dem Start das erste Element geöffnet wird, dann ist es nach höchstens 1 Sekunde sichtbar.
 verification-method: test
-topic: "Betrieb und Leistung"
 packages:
-  - { id: 46610a27-2866-47fb-bb8f-293faae4885f, version: n2:fe4e82907ae44795, title: "Stufe 1: Fundament" }
+  - { id: d3daa1a2-adb1-4941-8c51-1fc9cb0bfb1d, version: n2:7df5ce1577740687, title: Betrieb und Sicherheit }
 derives-from:
   - { id: 6ad4f636-daf5-4ccf-86d9-ddb4a7ec1b28, version: n1:dfb6208ba57988f0, title: Große Datenmengen }
-issue: https://github.com/ThomasBirkmaier/ReqSeq/issues/89
 ---
 
 Das Tool muss Arbeitsbereiche mit 50.000 Elementen ohne spürbare Wartezeit bearbeiten lassen.
