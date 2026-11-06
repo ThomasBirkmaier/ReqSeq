@@ -392,7 +392,10 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 Th
     await measure(
       "status state after one changed element file: carried over the store change (copy of its caches)",
       () => ws().get(verificationState),
-      { basis: "#698 plan §3.3 (recorded; the carry of the status state, after the store update)" },
+      {
+        basis:
+          "ThomasBirkmaier/ReqSeq-archive#698 plan §3.3 (recorded; the carry of the status state, after the store update)",
+      },
     );
     const { result: after, measurement: afterChange } = await measure(
       "element.get of the top system requirement with its parents line: right after one changed file",
@@ -461,7 +464,10 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 Th
     await measure(
       `status state after one changed element file deep below the top (${String(most)} ancestors): carried over the store change`,
       () => ws().get(verificationState),
-      { basis: "#698 plan §3.3 (recorded; the carry of the status state, after the store update)" },
+      {
+        basis:
+          "ThomasBirkmaier/ReqSeq-archive#698 plan §3.3 (recorded; the carry of the status state, after the store update)",
+      },
     );
     const { result: afterDeep } = await measure(
       `element.get of the top system requirement with its parents line: right after one changed file deep below it (${String(most)} ancestors)`,
