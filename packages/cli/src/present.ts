@@ -52,14 +52,16 @@
 // - Every other value stays YAML. Problems come last, each once: those of the output and the hints
 //   at an element it shows; then `No problems.`, or how many findings the output left out (`hidden`).
 //
-// On a terminal (`renderHuman`'s `terminal`, from bin.ts; stdout a TTY, `NO_COLOR` not set, #988) the
-// shapes most commands share take a terminal layout, styled by `style.ts`; everything above is the
-// plain text that pipes, files and tests get, unchanged:
+// On a terminal (`renderHuman`'s `terminal`, from bin.ts; stdout a TTY, `NO_COLOR` not set, `TERM` not
+// `dumb`, #988) the shapes most commands share take a terminal layout, styled by `style.ts` when the
+// terminal has colours; everything above is the plain text that pipes, files and tests get, unchanged:
 // - an element line (one element, a plain, tree or grouped list): the identifier first, strong, the
 //   short ID faint after it (`SR-036 SR-3c90b0`), the status in a column as wide as the list needs,
-//   the title cut with `…` to the terminal width (never below `MIN_TITLE` characters), the marks after
-//   it faint;
-// - a tree list draws its tree with `├ └ │`;
+//   the title cut with `…` to the terminal width, the marks after it faint. The title stays whole when
+//   details follow (element.get, `withText`), which do not repeat it, and when less than `MIN_TITLE`
+//   characters would be left (the line wraps anyway);
+// - a tree list draws its tree with `├ └ │` from the parent of each element; an element whose parent
+//   is not shown before it (`[under X]`) starts a tree of its own; the line goes on beside details;
 // - a grouped list heads each group at the left, with a blank line before it: its title (else name,
 //   else value) strong, then faint what names it besides and the count, `Wind  R1 PKG-0000d1 · 2`;
 //   the columns are as wide as the whole page needs;
@@ -291,6 +293,17 @@ const validationText = (element: Rec): string => {
 const emergentText = (element: Rec): string => (element["emergent"] === true ? "[emergent]" : "");
 
 /**
+ * What an element line shows after the title: how it points, its mark emergent, its verification
+ * status per view and its validation status (the plain and the terminal line alike).
+ */
+const marksOf = (element: Rec, name: Namer, view: ViewNamer): string[] => [
+  viaText(element, name),
+  emergentText(element),
+  verificationText(element, view),
+  validationText(element),
+];
+
+/**
  * `SHORT-ID  status  title`; an element with a distance has it in front, how it points behind, its
  * mark emergent and its verification status per view last.
  */
@@ -305,10 +318,7 @@ const elementLine = (
     withIdentifier(element.shortId, element["identifier"]),
     text(element["status"]),
     element.title,
-    viaText(element, name),
-    emergentText(element),
-    verificationText(element, view),
-    validationText(element),
+    ...marksOf(element, name, view),
   );
 };
 
@@ -479,7 +489,9 @@ const valueLines = (
     lifted.push(...listOf(value["problems"]));
     const view = viewNamerOf([], names);
     return [
-      style === undefined ? elementLine(value, namerOf([]), view) : terminalElementLine(value, style, view),
+      style === undefined
+        ? elementLine(value, namerOf([]), view)
+        : terminalElementLine(value, style, view, details),
       ...(details ? elementDetails(value, names) : []),
     ];
   }
@@ -647,45 +659,76 @@ interface Row {
   readonly element: Rec & { readonly shortId: string; readonly title: string };
   /** The tree lines in front of it (`├ `, `└ `, `│ `), already styled. */
   readonly lead: string;
+  /** The tree lines in front of its details: `│ ` where a line goes on past them. */
+  readonly below: string;
   /** `[under X]` when its parent is not shown before it. */
   readonly under: string;
 }
 
 /**
- * The tree lines in front of each element of a run (#988), from the depths alone: `├ ` or `└ ` at its
- * own level, whether another element of that level follows before a shallower one; `│ ` or two spaces
- * at each level above. One pass from the end keeps, per level, whether such an element follows.
+ * The tree lines of a run (#988), from the parent of each element (its index in the run, -1 for a
+ * root: an element at depth 0, or one whose parent is not shown before it, `[under X]`, which starts
+ * a tree of its own). An element is `├ ` when a later one has the same parent, else `└ `; each
+ * ancestor below the root adds `│ ` when a later one has its parent, else two spaces.
  */
-const treeLeads = (depths: readonly number[]): string[] => {
-  const follows: boolean[] = [];
-  const leads: string[] = [];
-  for (let i = depths.length - 1; i >= 0; i -= 1) {
-    const depth = depths[i] ?? 0;
-    let lead = "";
-    for (let level = 1; level <= depth; level += 1) {
-      const more = follows[level] === true;
-      lead += level === depth ? (more ? "├ " : "└ ") : more ? "│ " : "  ";
-    }
-    leads[i] = lead;
-    follows[depth] = true;
-    follows.length = depth + 1;
+const treeLeads = (parents: readonly number[]): { lead: string; below: string }[] => {
+  const later = new Set<number>();
+  const more = parents.map(() => false);
+  for (let i = parents.length - 1; i >= 0; i -= 1) {
+    const parent = parents[i] ?? -1;
+    more[i] = parent !== -1 && later.has(parent);
+    later.add(parent);
   }
-  return leads;
+  // The lines in front of each element's children and details.
+  const inner: string[] = [];
+  return parents.map((parent, i) => {
+    const outer = parent === -1 ? "" : (inner[parent] ?? "");
+    const lead = parent === -1 ? "" : `${outer}${more[i] === true ? "├ " : "└ "}`;
+    inner[i] = parent === -1 ? "" : `${outer}${more[i] === true ? "│ " : "  "}`;
+    return { lead, below: inner[i] ?? "" };
+  });
+};
+
+/**
+ * The parent of each element of a run by its index, -1 for a root (see `treeLeads`): the nearest
+ * element before it that its place names; without a named parent, the nearest one a level above it.
+ */
+const parentsOf = (listed: readonly Listed[]): { readonly parents: number[]; readonly away: boolean[] } => {
+  const keyOf = (repository: unknown, id: unknown): string => JSON.stringify([text(repository), text(id)]);
+  const shown = new Map<string, number>();
+  const depths: number[] = [];
+  const parents: number[] = [];
+  const away: boolean[] = [];
+  for (const [i, [element, place]] of listed.entries()) {
+    const depth = place?.depth ?? 0;
+    const parent = place?.["parent"];
+    const index = isRecord(parent)
+      ? (shown.get(keyOf(parent["repository"], parent["id"])) ?? -1)
+      : depth > 0
+        ? depths.lastIndexOf(depth - 1)
+        : -1;
+    away.push(isRecord(parent) && index === -1);
+    parents.push(index);
+    depths.push(depth);
+    shown.set(keyOf(element["repository"], element["id"]), i);
+  }
+  return { parents, away };
 };
 
 /** The rows of a run of listed elements (#988): tree lines when it is a tree, `[under X]` as `listedLines`. */
 const rowsOf = (listed: readonly Listed[], name: Namer, style: Style): Row[] => {
-  const keyOf = (repository: unknown, id: unknown): string => JSON.stringify([text(repository), text(id)]);
-  const before = new Set<string>();
-  const leads = treeLeads(listed.map(([, place]) => place?.depth ?? 0));
+  const { parents, away } = parentsOf(listed);
+  const leads = treeLeads(parents);
   return listed.map(([element, place], i) => {
     const parent = place?.["parent"];
-    const away = isRecord(parent) && !before.has(keyOf(parent["repository"], parent["id"]));
-    before.add(keyOf(element["repository"], element["id"]));
     return {
       element,
-      lead: style.faint(leads[i] ?? ""),
-      under: away ? `[under ${name(text(parent["repository"]), text(parent["id"]))}]` : "",
+      lead: style.faint(leads[i]?.lead ?? ""),
+      below: style.faint(leads[i]?.below ?? ""),
+      under:
+        away[i] === true && isRecord(parent)
+          ? `[under ${name(text(parent["repository"]), text(parent["id"]))}]`
+          : "",
     };
   });
 };
@@ -714,42 +757,35 @@ const columnsOf = (rows: readonly Row[], style: Style): Columns => ({
   status: Math.max(0, ...rows.map((row) => widthOf(text(row.element["status"])))),
 });
 
+/** The fewest characters of a title worth cutting it to; with less room it stays whole and the line wraps. */
+const MIN_TITLE = 12;
+
 /**
  * An element line on a terminal (#988): the name and the status each in a column of the list's width,
- * the title cut with `…` so the line fits the terminal, then what `elementLine` shows after the title,
- * faint.
+ * the title cut with `…` so the line fits the terminal, then the marks of `elementLine`, faint. The
+ * title stays whole when details follow (`whole`: they do not repeat it) and when even a cut title
+ * would not fit (less room than `MIN_TITLE`).
  */
 const terminalLine = (
   row: Row,
   columns: Columns,
   at: string,
   style: Style,
-  name: Namer,
-  view: ViewNamer,
+  marks: { readonly name: Namer; readonly view: ViewNamer; readonly whole: boolean },
 ): string => {
   const { element } = row;
   const head = `${at}${padTo(terminalName(row, style), columns.name)}  ${
     columns.status === 0 ? "" : `${padTo(text(element["status"]), columns.status)}  `
   }`;
-  const tail = join(
-    viaText(element, name),
-    emergentText(element),
-    verificationText(element, view),
-    validationText(element),
-    row.under,
-  );
+  const tail = join(...marksOf(element, marks.name, marks.view), row.under);
   const room = style.width - widthOf(head) - (tail === "" ? 0 : widthOf(tail) + 2);
-  // A title keeps a few characters even when what follows it is long; that line wraps.
-  const title = cut(element.title, Math.max(room, MIN_TITLE));
+  const title = marks.whole || room < MIN_TITLE ? element.title : cut(element.title, room);
   return `${head}${join(title, style.faint(tail))}`;
 };
 
-/** The fewest characters of a title a terminal line keeps. */
-const MIN_TITLE = 12;
-
 /**
  * The lines of rows on a terminal, at `at`: each its line, with its texts (`withText`) its details
- * below and a blank line between elements, as `listedLines`.
+ * below, past the tree lines, and a blank line between elements, as `listedLines`.
  */
 const terminalLines = (
   rows: readonly Row[],
@@ -762,9 +798,8 @@ const terminalLines = (
   const withText = rows.some((row) => typeof row.element["text"] === "string");
   return rows.flatMap((row, i) => [
     ...(withText && i > 0 ? [""] : []),
-    terminalLine(row, columns, at, style, name, view),
-    // The details below the name, past the tree lines.
-    ...(withText ? indent(listedElementDetails(row.element), `${at}${" ".repeat(widthOf(row.lead))}`) : []),
+    terminalLine(row, columns, at, style, { name, view, whole: withText }),
+    ...(withText ? indent(listedElementDetails(row.element), `${at}${row.below}`) : []),
   ]);
 };
 
@@ -780,14 +815,15 @@ const terminalListLines = (
   return terminalLines(rows, columnsOf(rows, style), at, style, name, view);
 };
 
-/** One element on a terminal, its line alone (its details follow as in plain text). */
+/** One element on a terminal, its line alone; with its details below (`whole`) its title is never cut. */
 const terminalElementLine = (
   element: Rec & { readonly shortId: string; readonly title: string },
   style: Style,
   view: ViewNamer,
+  whole: boolean,
 ): string => {
-  const row: Row = { element, lead: "", under: "" };
-  return terminalLine(row, columnsOf([row], style), "", style, namerOf([]), view);
+  const row: Row = { element, lead: "", below: "", under: "" };
+  return terminalLine(row, columnsOf([row], style), "", style, { name: namerOf([]), view, whole });
 };
 
 /** A tree list (see the file comment). */

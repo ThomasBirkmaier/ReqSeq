@@ -4,14 +4,45 @@ import { DEFAULT_COLUMNS, PLAIN, cut, padTo, styleOf, terminalOf, widthOf } from
 
 describe("style of the output for people (#988)", () => {
   it("styles for a terminal only, not for a pipe or with NO_COLOR", () => {
-    expect(terminalOf({ isTTY: true, columns: 120 }, {})).toEqual({ columns: 120 });
-    expect(terminalOf({ isTTY: true }, {})).toEqual({ columns: DEFAULT_COLUMNS });
-    expect(terminalOf({ isTTY: true, columns: 0 }, {})).toEqual({ columns: DEFAULT_COLUMNS });
+    const hasColors = (): boolean => true;
+    expect(terminalOf({ isTTY: true, columns: 120, hasColors }, {})).toEqual({ columns: 120, colors: true });
+    expect(terminalOf({ isTTY: true }, {})).toEqual({ columns: DEFAULT_COLUMNS, colors: false });
+    expect(terminalOf({ isTTY: true, columns: 0 }, {})).toEqual({ columns: DEFAULT_COLUMNS, colors: false });
     // An empty NO_COLOR counts as not set (no-color.org).
-    expect(terminalOf({ isTTY: true, columns: 120 }, { NO_COLOR: "" })).toEqual({ columns: 120 });
-    expect(terminalOf({ isTTY: true, columns: 120 }, { NO_COLOR: "1" })).toBeUndefined();
-    expect(terminalOf({ isTTY: false, columns: 120 }, {})).toBeUndefined();
+    expect(terminalOf({ isTTY: true, columns: 120, hasColors }, { NO_COLOR: "" })).toEqual({
+      columns: 120,
+      colors: true,
+    });
+    expect(terminalOf({ isTTY: true, columns: 120, hasColors }, { NO_COLOR: "1" })).toBeUndefined();
+    expect(terminalOf({ isTTY: true, columns: 120, hasColors }, { TERM: "dumb" })).toBeUndefined();
+    expect(terminalOf({ isTTY: false, columns: 120, hasColors }, {})).toBeUndefined();
     expect(terminalOf({}, {})).toBeUndefined();
+  });
+
+  it("decides the colours apart from the layout, by what the terminal has for the environment", () => {
+    // Node's hasColors reads FORCE_COLOR, NODE_DISABLE_COLORS and TERM from the env it is given.
+    const seen: unknown[] = [];
+    const none = (env: unknown): boolean => {
+      seen.push(env);
+      return false;
+    };
+    const env = { FORCE_COLOR: "0" };
+    expect(terminalOf({ isTTY: true, columns: 50, hasColors: none }, env)).toEqual({
+      columns: 50,
+      colors: false,
+    });
+    expect(seen).toEqual([env]);
+    // The switch for NO_COLOR: the layout without colours.
+    expect(terminalOf({ isTTY: true, columns: 50, hasColors: () => true }, { NO_COLOR: "1" }, true)).toEqual({
+      columns: 50,
+      colors: false,
+    });
+    // Without colours the style lays out only.
+    const plain = styleOf({ columns: 50, colors: false });
+    expect(plain.width).toBe(50);
+    expect(plain.strong("a")).toBe("a");
+    expect(plain.faint("a")).toBe("a");
+    expect(plain.severity("error", "e")).toBe("e");
   });
 
   it("leaves plain text as it is and never cuts it", () => {
@@ -23,7 +54,7 @@ describe("style of the output for people (#988)", () => {
   });
 
   it("styles with util.styleText on a terminal, whatever the stream of this process is", () => {
-    const style = styleOf({ columns: 40 });
+    const style = styleOf({ columns: 40, colors: true });
     const styled = (format: Parameters<typeof styleText>[0], text: string): string =>
       styleText(format, text, { validateStream: false });
     expect(style.width).toBe(40);

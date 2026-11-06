@@ -446,7 +446,7 @@ describe("reqseq <group> <action>", () => {
   });
 
   it("styles the lines for people on a terminal only, never --json or --yaml (#988)", async () => {
-    const terminal = { columns: 80 };
+    const terminal = { columns: 80, colors: true };
     const styled = await run(["test", "findings", "--mode", "warning"], { terminal });
     expect(styled.stdout).toContain(styleText("yellow", "warning", { validateStream: false }));
     expect(stripVTControlCharacters(styled.stdout)).toBe(

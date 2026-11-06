@@ -1547,7 +1547,7 @@ describe("renderHuman: a graph with evidence (SR-111 AK3)", () => {
 });
 
 describe("renderHuman: on a terminal (#988)", () => {
-  const terminal = { columns: 60 };
+  const terminal = { columns: 60, colors: true };
   const style = (format: Parameters<typeof styleText>[0], text: string): string =>
     styleText(format, text, { validateStream: false });
   /** The text as a terminal shows it, without the styles. */
@@ -1606,11 +1606,31 @@ describe("renderHuman: on a terminal (#988)", () => {
     );
   });
 
-  it("keeps a few characters of a title when the marks after it fill the line", () => {
+  it("keeps the title whole when even a cut one would not fit beside the marks", () => {
     const marks = { emergent: true, validation: "x".repeat(60) };
     expect(
       seen(renderHuman({ elements: [element("a1", "A long title of the element", marks)] }, true, terminal)),
-    ).toBe(lines("elements:", `  SR-a1  draft  A long titl…  [emergent]  [validation: ${"x".repeat(60)}]`));
+    ).toBe(
+      lines(
+        "elements:",
+        `  SR-a1  draft  A long title of the element  [emergent]  [validation: ${"x".repeat(60)}]`,
+      ),
+    );
+  });
+
+  it("never cuts the title of an element whose details follow, which do not repeat it", () => {
+    const title = "A title much longer than the terminal is wide, so it would be cut";
+    const one = { ...element("a1", title), file: "SR-1.md", text: "T.\n" };
+    // element get: one element with its details.
+    expect(seen(renderHuman({ element: one }, true, terminal)).split("\n")[0]).toBe(`SR-a1  draft  ${title}`);
+    // A write command shows the line only: cut.
+    expect(seen(renderHuman({ element: one }, false, terminal))).toBe(
+      lines("SR-a1  draft  A title much longer than the terminal is wide…"),
+    );
+    // A list with texts (--with-text).
+    expect(seen(renderHuman({ elements: [one] }, true, terminal)).split("\n")[1]).toBe(
+      `  SR-a1  draft  ${title}`,
+    );
   });
 
   it("shows one element on its line with its details below, as in plain text", () => {
@@ -1644,10 +1664,60 @@ describe("renderHuman: on a terminal (#988)", () => {
         "  SR-a      draft  A",
         "  ├ SR-b    draft  B",
         "  │ └ SR-c  draft  C",
-        "  ├ SR-d    draft  D",
-        "  └ SR-e    draft  E  [under x]",
+        // A parent that is not shown starts a tree of its own: no line from the rows above.
+        "  └ SR-d    draft  D",
+        "  SR-e      draft  E  [under x]",
       ),
     );
+  });
+
+  it("draws an element whose parent is shown earlier under that parent, and the tree line beside details", () => {
+    expect(
+      seen(
+        renderHuman(
+          {
+            elements: [
+              element("a", "A", { text: "" }),
+              element("b", "B", { text: "T.\n" }),
+              element("x", "X", { text: "" }),
+              element("d", "D", { text: "" }),
+            ],
+            tree: [at("a", 0), at("b", 1, "a"), at("x", 1, "y"), at("d", 1, "a")],
+          },
+          true,
+          terminal,
+        ),
+      ),
+    ).toBe(
+      lines(
+        "elements:",
+        "  SR-a    draft  A",
+        '    text: ""',
+        "",
+        "  ├ SR-b  draft  B",
+        "  │   text: |",
+        "  │     T.",
+        "",
+        "  SR-x    draft  X  [under y]",
+        '    text: ""',
+        "",
+        "  └ SR-d  draft  D",
+        '      text: ""',
+      ),
+    );
+    // Places with a depth only: the parent is the nearest element a level above.
+    expect(
+      seen(
+        renderHuman(
+          {
+            elements: [element("a", "A"), element("b", "B"), element("c", "C")],
+            tree: [{ depth: 0 }, { depth: 1 }, { depth: 1 }],
+          },
+          true,
+          terminal,
+        ),
+      ),
+    ).toBe(lines("elements:", "  SR-a    draft  A", "  ├ SR-b  draft  B", "  └ SR-c  draft  C"));
   });
 
   it("heads each group at the left with a blank line before it, the columns as wide as the page", () => {
@@ -1684,7 +1754,8 @@ describe("renderHuman: on a terminal (#988)", () => {
         "      T.",
         "",
         "x  3",
-        "  └ SR-n2       draft     Four  [under SR-n1]",
+        // Its parent is in another group: it starts a tree of its own.
+        "  SR-n2         draft     Four  [under SR-n1]",
         "Showing 4 of 7; ask for more with --offset and --limit.",
       ),
     );
