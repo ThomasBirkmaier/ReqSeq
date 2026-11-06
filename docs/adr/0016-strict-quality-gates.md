@@ -1,6 +1,6 @@
 # ADR-0016: Strictest compiler settings, strict lint and coverage thresholds
 
-Status: Accepted · Based on: D-050, D-051, D-054 · Requested by the product owner on 2026-10-24, before coding starts · Amended 2026-10-27 (#537): React components (`.tsx`) are out of the coverage threshold · Amended 2026-10-28 (#752): 80 % per adapter package, core stays 100 %
+Status: Accepted · Based on: D-051 · Requested by the product owner on 2026-10-24, before coding starts · Amended 2026-10-27 (#537): React components (`.tsx`) are out of the coverage threshold · Amended 2026-10-28 (#752): 80 % per adapter package, core stays 100 %
 
 ## Context
 
