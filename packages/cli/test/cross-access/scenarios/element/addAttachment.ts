@@ -29,4 +29,20 @@ scenariosOf("element.addAttachment", [
     input: { ref: "SR-e88fb3", sourcePath: "incoming/gone.png" },
     expect: "error",
   },
+  {
+    name: "an image next to one copy of a UUID two files share, by repository and file (SR-088, #821)",
+    fixture: {
+      fixture: "SR-088/copied-file",
+      files: { "system/incoming/layout.png": "an image" },
+      git: true,
+    },
+    root: "system",
+    input: {
+      ref: "948a10f1-05c3-4212-bd19-00606ccf2661",
+      repository: "system",
+      file: "copies/N-00606ccf2661.md",
+      sourcePath: "incoming/layout.png",
+    },
+    expect: "output",
+  },
 ]);
