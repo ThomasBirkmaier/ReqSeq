@@ -1,7 +1,7 @@
 ---
 id: 17252361-b899-4483-ba2b-baf32da3193e
 type: package
-status: draft
+status: approved
 title: Zugänge und Anbindung
 spec-id: Zugänge
 ---

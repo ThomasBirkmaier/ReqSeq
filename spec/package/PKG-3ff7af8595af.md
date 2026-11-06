@@ -1,7 +1,7 @@
 ---
 id: ed14d465-fd3f-4188-992b-3ff7af8595af
 type: package
-status: draft
+status: approved
 title: Nachweis und Abdeckung
 spec-id: Nachweis
 ---
