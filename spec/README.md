@@ -1,6 +1,6 @@
 # spec/
 
-The ReqSeq specification, a ReqSeq workspace (D-064, enabler #326). Until stage 3 it was exported from the former Logseq graph (also named ReqSeq) (D-047, superseded); the migration kept every German text, title and acceptance criterion byte for byte and every Logseq UUID as element ID.
+The ReqSeq specification, a ReqSeq workspace (D-064, enabler ThomasBirkmaier/ReqSeq-archive#326). Until stage 3 it was exported from the former Logseq graph (also named ReqSeq) (D-047, superseded); the migration kept every German text, title and acceptance criterion byte for byte and every Logseq UUID as element ID.
 
 **Change it only with ReqSeq** (CLI or MCP), in a pull request, German texts carrying exactly the decided content as requirement text, never as a chat quote (CLAUDE.md, "Repository text"). Status is set only by a person. See CLAUDE.md, "Sources of truth".
 
@@ -38,6 +38,6 @@ New elements: `element create` with `properties: {"spec-id": "<next free ID>"}` 
 
 ## Known limits
 
-- The workspace lies in a subfolder of the Git repository, so ReqSeq sees no Git here: versions have no date and `workspace check --changed-since` is refused (`git.unavailable`, #377).
-- Mentions of spec IDs in acceptance criteria are plain text (properties are not Markdown text, #379).
-- The successor's own `supersedes` relation to a superseded decision is reported as `relation.target-superseded` (warning, exit code 0, #304, #382).
+- The workspace lies in a subfolder of the Git repository, so ReqSeq sees no Git here: versions have no date and `workspace check --changed-since` is refused (`git.unavailable`, ThomasBirkmaier/ReqSeq-archive#377).
+- Mentions of spec IDs in acceptance criteria are plain text (properties are not Markdown text, ThomasBirkmaier/ReqSeq-archive#379).
+- The successor's own `supersedes` relation to a superseded decision is reported as `relation.target-superseded` (warning, exit code 0, ThomasBirkmaier/ReqSeq-archive#304, ThomasBirkmaier/ReqSeq-archive#382).
