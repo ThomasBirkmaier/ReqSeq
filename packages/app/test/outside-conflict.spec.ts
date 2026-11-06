@@ -105,7 +105,8 @@ test.describe("an open element changed or deleted outside the app", () => {
     expect(theirs).toContain(THEIRS);
     expect(theirs).not.toContain(MINE);
     await resolve(window, "Keep my input");
-    await expect(window.getByLabel("Minibuffer")).toHaveText(`Saved ${NAME}`);
+    // The buffer is named by the title the file has now (#273).
+    await expect(window.getByLabel("Minibuffer")).toHaveText(`Saved ${ELEMENT} Measure the wind`);
     await expect(block).toHaveCount(0);
     await expect(window.getByLabel("Modeline")).not.toContainText("on disk");
     // The input is written; the change of the title, a field without input, stays.
