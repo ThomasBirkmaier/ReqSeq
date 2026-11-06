@@ -4,7 +4,8 @@
 // app is highlighted briefly (SR-116), and a change keeps the rows, the selection and the scroll. As a
 // buffer of its own, the list stands like the elements of a package page: in the centred column, under a
 // heading that says what it shows and how many (SR-148, D-062), and under it the line of coverage and
-// verification degree of its elements, as a package page has it (`SummaryLine`).
+// verification degree of its elements, as a package page has it (`SummaryLine`, product owner decision,
+// 2026-11-06).
 import { useEffect, useRef, useState } from "react";
 import { useIdScope } from "./area-scope.js";
 import type { BufferAction, ListBuffer, SearchBuffer } from "./buffers.js";
@@ -153,7 +154,13 @@ const ListHeading = ({
   </h1>
 );
 
-/** The top of a list of its own (SR-148): the heading and, for a list, the line of coverage of its elements. */
+/**
+ * The top of a list of its own: the heading (SR-148) and, for a list, the line of coverage of its elements
+ * (product owner decision, 2026-11-06: a list shows the line a package page has). The line is asked only once
+ * the first page stands, so the rows come first in a large workspace; keyed by the selection, so a line from
+ * the list before never stands over another one. It follows `revision` only: a list reads again on a change
+ * of the workspace, not on an outside change of one element.
+ */
 const ListTop = ({
   buffer,
   view,
@@ -171,8 +178,9 @@ const ListTop = ({
 }): React.JSX.Element => (
   <>
     <ListHeading buffer={buffer} view={view} />
-    {buffer.kind === "list" ? (
+    {buffer.kind === "list" && view.status === "ok" ? (
       <SummaryLine
+        key={JSON.stringify(buffer.selection ?? {})}
         call={call}
         selection={buffer.selection ?? {}}
         name={bufferName(buffer)}

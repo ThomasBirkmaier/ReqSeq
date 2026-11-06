@@ -4,7 +4,7 @@
 // save; an older answer is dropped. Until the first answer, and for a package without requirements, the
 // line is hidden. A click on the line, or Enter on it, opens the requirements behind its numbers (SR-036
 // AK2): the coverage answer it was counted from, in a result buffer. A list of its own shows the same line
-// for the elements it shows (`SummaryLine` with its selection, SR-148).
+// for the elements it shows (`SummaryLine` with its selection, product owner decision, 2026-11-06).
 import type { EvidenceCoverageOutput } from "@reqseq/core";
 import { useEffect, useState } from "react";
 import type { ResultBuffer } from "./buffers.js";

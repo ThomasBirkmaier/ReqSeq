@@ -1264,15 +1264,15 @@ describe("ListView, a list", () => {
 
   it("asks with the default sort, none for a saved filter that holds its own, and `[]` for the workspace order (#418)", async () => {
     const call = fakeCall({ "element.list": () => ({ elements: [], total: 0 }) });
-    await listHarness(asCall(call), filteredList([savedStep("open")]));
+    await listHarness(withSummary(call), filteredList([savedStep("open")]));
     expect(call).toHaveBeenLastCalledWith("element.list", {
       selection: { filter: "open" },
       limit: 200,
       offset: 0,
     });
-    await listHarness(asCall(call), listBuffer("All elements", undefined, []));
+    await listHarness(withSummary(call), listBuffer("All elements", undefined, []));
     expect(call).toHaveBeenLastCalledWith("element.list", { sort: [], limit: 200, offset: 0 });
-    await listHarness(asCall(call), filteredList([savedStep("open")], DEFAULT_SORT));
+    await listHarness(withSummary(call), filteredList([savedStep("open")], DEFAULT_SORT));
     expect(call).toHaveBeenLastCalledWith("element.list", {
       selection: { filter: "open" },
       sort: DEFAULT_SORT,
@@ -1469,6 +1469,48 @@ describe("ListView, a list", () => {
     await flush();
     expect(call).toHaveBeenLastCalledWith("element.list", { sort: DEFAULT_SORT, limit: 200, offset: 200 });
     expect(container.querySelectorAll(".row")).toHaveLength(400);
+  });
+
+  it("shows the coverage line of the list once its rows stand, and Enter on it opens the coverage, not the row", async () => {
+    const coverage = {
+      levels: [{ type: "system-requirement", total: 2, withChildren: 0, withEvidence: 1, elements: {} }],
+    };
+    const answers: Record<string, unknown> = {
+      "element.list": { elements: rowsOf(0, 2), total: 2 },
+      "evidence.coverage": coverage,
+      "evidence.degree": {
+        degree: {
+          share: 0.5,
+          total: 2,
+          counts: { open: 1, verified: 1, indirect: 0, failed: 0, outdated: 0 },
+        },
+        view: "core",
+      },
+    };
+    const call = vi.fn((name: string) => Promise.resolve({ ok: true, output: answers[name] }));
+    const { opened } = await listHarness(call as unknown as Call, listBuffer("All elements"));
+    expect(call.mock.calls.map(([name]) => name)).toEqual([
+      "element.list",
+      "evidence.coverage",
+      "evidence.degree",
+    ]);
+    const line = query('.package-summary [role="link"]');
+    expect(query(".package-summary").hidden).toBe(false);
+    expect(line.textContent).toContain("Coverage 1 of 2 with evidence");
+    await press(line, "Enter");
+    expect(opened).toHaveLength(1);
+    expect(opened[0]).toMatchObject({
+      kind: "result",
+      command: "evidence.coverage",
+      input: { selection: {} },
+      output: coverage,
+    });
+  });
+
+  it("hides the coverage line of a list without a counted requirement", async () => {
+    const call = fakeCall({ "element.list": () => ({ elements: rowsOf(0, 2), total: 2 }) });
+    await listHarness(withSummary(call), listBuffer("All elements"));
+    expect(query(".package-summary").hidden).toBe(true);
   });
 
   it("echoes why the next page failed and keeps the rows", async () => {

@@ -270,7 +270,7 @@ test.describe("the line under the title of a package page", () => {
     expect([title, summary, text]).toEqual([...[title, summary, text]].sort((a, b) => a - b));
   });
 
-  test("a list of requirements shows the line of its own elements, as the CLI counts them (SR-148)", async () => {
+  test("a list of requirements shows the line of its own elements, as the CLI counts them (product owner decision, 2026-11-06)", async () => {
     const { window } = running;
     await listAll(window);
     await window.keyboard.press("ControlOrMeta+Shift+P");
