@@ -88,7 +88,10 @@ const everyKind = (): Buffer[] => [
   overviewBuffer(),
   {
     ...filteredList(
-      [step("type: Need", { type: ["need"] }), step("status: draft", { status: ["draft"] })],
+      [
+        { ...step("type: Need", { type: ["need"] }), heading: "Need" },
+        step("status: draft", { status: ["draft"] }),
+      ],
       [{ by: "hierarchy", order: "asc" }],
       true,
     ),
@@ -137,7 +140,10 @@ describe("buffer session (SR-115 AK4)", () => {
     expect(overview).toEqual(overviewBuffer());
     expect(list).toEqual(
       filteredList(
-        [step("type: Need", { type: ["need"] }), step("status: draft", { status: ["draft"] })],
+        [
+          { ...step("type: Need", { type: ["need"] }), heading: "Need" },
+          step("status: draft", { status: ["draft"] }),
+        ],
         [{ by: "hierarchy", order: "asc" }],
         true,
       ),
@@ -216,6 +222,7 @@ describe("buffer session (SR-115 AK4)", () => {
           { kind: "tab" },
           "element",
           { kind: "list", steps: [{ label: 1 }] },
+          { kind: "list", steps: [{ label: "x", heading: 1, selection: {} }] },
           { kind: "list", steps: [{ label: "x", selection: { where: "type" } }] },
           { kind: "list", steps: [{ label: "x", selection: { filter: 1 } }] },
           { kind: "list", steps: [], sort: [{ by: "title", order: "up" }] },

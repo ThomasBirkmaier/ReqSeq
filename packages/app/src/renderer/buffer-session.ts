@@ -123,7 +123,11 @@ const storedOf = (buffer: Buffer): StoredBuffer => {
     case "list":
       return {
         kind: "list",
-        steps: buffer.steps.map((step) => ({ label: step.label, selection: step.selection })),
+        steps: buffer.steps.map((step) => ({
+          label: step.label,
+          ...(step.heading === undefined ? {} : { heading: step.heading }),
+          selection: step.selection,
+        })),
         ...(buffer.sort === undefined ? {} : { sort: buffer.sort }),
         ...(buffer.matrix === true ? { matrix: true as const } : {}),
       };
@@ -186,6 +190,7 @@ const isSort = (value: unknown): value is readonly FilterSortKeyWithDefaults[] =
 const isStep = (value: unknown): value is FilterStep =>
   isObject(value) &&
   isText(value["label"]) &&
+  (value["heading"] === undefined || isText(value["heading"])) &&
   isObject(value["selection"]) &&
   (value["selection"]["where"] === undefined || isObject(value["selection"]["where"])) &&
   (value["selection"]["filter"] === undefined || isText(value["selection"]["filter"]));

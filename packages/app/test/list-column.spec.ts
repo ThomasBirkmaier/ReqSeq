@@ -44,6 +44,8 @@ const resize = async (running: RunningApp, width: number): Promise<void> => {
   await running.app.evaluate(({ BrowserWindow }, to) => {
     BrowserWindow.getAllWindows()[0]?.setContentSize(to, 800);
   }, width);
+  // Measured only once the renderer has the new width.
+  await expect.poll(() => running.window.evaluate(() => window.innerWidth)).toBe(width);
 };
 
 /** The column of the shown buffer and the buffer itself. */

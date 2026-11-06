@@ -460,7 +460,6 @@ export const sortLabel = (sort: readonly FilterSortKeyWithDefaults[] | undefined
   return ` · sorted by ${SORT_WORDS[first.by] ?? first.by}${first.order === "desc" ? " descending" : ""}`;
 };
 
-/** The name of a buffer, as the minibuffer lists it and the sheet is labelled. */
 /**
  * The heading over the rows of a list or of a search result (SR-148): what the list shows, without a
  * description. A list says its steps, each by its heading if it has one (the name of a type), else by its
@@ -473,6 +472,7 @@ export const listHeading = (buffer: ListBuffer | SearchBuffer): string =>
       ? buffer.label
       : buffer.steps.map((step) => step.heading ?? step.label).join(" · ");
 
+/** The name of a buffer, as the minibuffer lists it and the sheet is labelled. */
 export const bufferName = (buffer: Buffer): string => {
   switch (buffer.kind) {
     case "list":
