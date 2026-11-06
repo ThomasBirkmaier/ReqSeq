@@ -8,8 +8,10 @@
 // `(the key, #306)` → `(the key)`, or as a lead, `SR-153 AK1: only …` → `Only …`. A reference in running
 // text stays (`such as SR-036` is an example of an identifier); `internalReferences` finds those.
 
+/** An issue or PR, also one of the repository before the move: `#306`, `ThomasBirkmaier/ReqSeq-archive#306`. */
+const ISSUE = String.raw`(?:ThomasBirkmaier\/ReqSeq-archive)?#\d+`;
 /** One reference, with the words that narrow it: `SR-034 AK2`, `#528 Q1`, `ADR-0002 rule 5`, `#141 c`. */
-const ONE = String.raw`(?:(?:ThomasBirkmaier\/ReqSeq-archive)?#\d+|\b(?:D|SR|N)-\d{3}\b|\bADR-\d{4}\b|\bAK\d+\b)(?:\s+(?:AK\d+|Q\d+|rule\s+\d+|[a-z]\b|\([a-z]\)|"[^"]*"))*`;
+const ONE = String.raw`(?:${ISSUE}|\b(?:D|SR|N)-\d{3}\b|\bADR-\d{4}\b|\bAK\d+\b)(?:\s+(?:AK\d+|Q\d+|rule\s+\d+|[a-z]\b|\([a-z]\)|"[^"]*"))*`;
 /** The words that may introduce a reference. */
 const LEAD = String.raw`(?:(?:[Ss]pec questions?|[Ss]pec-frage|[Dd]ecisions? on|[Ss]ee|[Aa]ssumption(?: on)?|[Ff]ollow-up(?: of)?|[Ff]rom|[Pp]er|[Aa]s in|[Aa]s)\s+)?`;
 const REF = `${LEAD}${ONE}`;
@@ -17,8 +19,9 @@ const REF = `${LEAD}${ONE}`;
 const LIST = String.raw`${REF}(?:\s*(?:,|/|and|to)\s*${REF}|\s*,\s*(?:AK|Q)\d+)*`;
 const ONLY = new RegExp(String.raw`^\s*${LIST}\s*$`);
 const PREFIX = new RegExp(String.raw`^\s*${LIST}\s*:\s*`);
-const FOUND =
-  /(?:ThomasBirkmaier\/ReqSeq-archive)?#\d+|\b(?:D|SR|N)-\d{3}\b|\bADR-\d{4}\b|\bAK\d+\b|product owner decision/;
+const FOUND = new RegExp(
+  String.raw`${ISSUE}|\b(?:D|SR|N)-\d{3}\b|\bADR-\d{4}\b|\bAK\d+\b|product owner decision`,
+);
 /** The origin of a rule, `product owner decision, 2026-11-02`, which goes as a reference does. */
 const ORIGIN = /\bproduct owner decision,\s*\d{4}-\d{2}-\d{2}/g;
 /** The mark of an assumption, which says nothing once its spec question went: `(assumption, #591)`. */

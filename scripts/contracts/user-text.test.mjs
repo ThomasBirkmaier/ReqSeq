@@ -52,6 +52,8 @@ describe("texts for users without internal references (#642)", () => {
     expect(internalReferences("see ThomasBirkmaier/ReqSeq-archive#12")).toEqual([
       "ThomasBirkmaier/ReqSeq-archive#12",
     ]);
+    expect(userText("ThomasBirkmaier/ReqSeq-archive#5: only once")).toBe("Only once");
+    expect(userText("Kept (the key, #303/ThomasBirkmaier/ReqSeq-archive#303)")).toBe("Kept (the key)");
   });
 
   it("drops the origin of a rule and the mark of an assumption whose question went", () => {

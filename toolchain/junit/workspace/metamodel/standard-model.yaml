@@ -1,7 +1,7 @@
 # Standard model (D-037, extended by D-059 and D-060), shipped with ReqSeq and written by workspace.init (SR-014).
 # Keys never change (D-043); names are English (D-019). Every built-in meaning has a key (SR-014 AK3):
 # each type and property meaning exactly one, derivation two relation kinds
-# (open question ThomasBirkmaier/ReqSeq-archive#150).
+# (open question #150).
 # Marked "assumption": not yet covered by a decision.
 reqseq-metamodel: 1
 
@@ -121,7 +121,7 @@ properties:
   # project, D-019), on need and system-requirement as this spec uses "thema", not content
   # (like rationale and packages, D-057), not required.
   - { key: topic, name: Topic, kind: text }
-  # SR-029 fixture: IDs from another source (ThomasBirkmaier/ReqSeq-archive#305), so the test name token [SR-036] names an element.
+  # SR-029 fixture: IDs from another source (#305), so the test name token [SR-036] names an element.
   - { key: spec-id, name: Spec ID, kind: text, meaning: identifier }
 
 relations:

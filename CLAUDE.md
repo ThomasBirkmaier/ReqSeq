@@ -21,7 +21,7 @@ ReqSeq is an offline requirements tool (core, CLI, API, MCP server, Electron app
 
 - Business-model topics (licensing terms, prices, revenue, customers, sponsoring, consulting, sales, marketing) never go into this repository, neither into `spec/` nor into issues, PRs, commits, ADRs or docs. A wish with a product function behind it is entered as that function only, worded for the user of the tool (product owner decision, 2026-10-28).
 - No verbatim chat quotes of the product owner, no times of chat messages, no project or thread links and no names from the chat. State the origin as "product owner decision, 2026-10-28" (in German text „Entscheidung des Produktverantwortlichen, 2026-10-28“) plus a paraphrase of what was decided and why; name decision cards and chat statements by date and paraphrase, and issue comments by their link. Allowed are the session links in attribution lines and the attribution line the platform requires at the top of a PR body, "Requested by … · project thread" with its link; reviewers do not flag them (product owner decision, 2026-10-28 and 2026-10-29).
-- A bare `#N` is an issue or PR of this repository. A reference to the repository before the move (until 2026-10-29) carries its name, `ThomasBirkmaier/ReqSeq-archive#N` (#338).
+- A bare `#N` is an issue or PR of this repository. A reference to an issue or PR of the repository before the move (2026-10-29 06:00 UTC; this repository starts at #1 then) carries its name, `ThomasBirkmaier/ReqSeq-archive#N` (#338).
 - Code, identifiers, comments, commits, PR titles, ADRs and UI texts are English (D-019). When an issue quotes the German spec, it quotes it verbatim.
 - Keep PR texts, issues, plans and docs short: the substance, no filler, no repeated summary.
 
