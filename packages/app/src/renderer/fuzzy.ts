@@ -189,9 +189,9 @@ const byLetters = (matcher: uFuzzy, names: string[], needle: string): Match[] =>
 /**
  * The items whose name matches `query`, the best first. An empty query keeps all items in the given
  * order. A query of one word that gives the beginnings of the words of a name finds it first
- * ("lae" for "List all elements", SR-121 AK1), the ones that skip no word first, each in the given order. The words of the query match in order; no word matches across
- * words of a name without a space unless as such beginnings. When nothing matches, one slip per word
- * is allowed.
+ * ("lae" for "List all elements", SR-121 AK1), the ones that skip no word first, each in the given
+ * order. The words of the query match in order; no word matches across words of a name without a
+ * space unless as such beginnings. When nothing matches, one slip per word is allowed.
  */
 export const rank = <T>(items: readonly T[], name: (item: T) => string, query: string): Ranked<T>[] => {
   const needle = query.trim();
