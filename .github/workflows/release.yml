@@ -40,11 +40,11 @@ jobs:
             target: --win
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -87,7 +87,7 @@ jobs:
       - name: Delivery tests
         run: scripts/package/delivery-tests.sh
       - name: Upload the delivery
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: delivery-${{ matrix.os }}
           path: |
@@ -98,7 +98,7 @@ jobs:
           retention-days: 1
       - name: Upload JUnit results (evidence, D-050)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: junit-delivery-${{ matrix.os }}
           path: test-results/junit-delivery.xml
@@ -120,12 +120,12 @@ jobs:
       # `true` when this run published the release of a release tag (docs below).
       publish: ${{ steps.tag.outputs.publish }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           # All branches: the tag's commit must be on main.
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version-file: .nvmrc
       - name: Check the tag
@@ -153,7 +153,7 @@ jobs:
           if [ "$GITHUB_EVENT_NAME" = push ]; then ref="$GITHUB_REF_NAME"; fi
           node scripts/package/stage.mjs --release-notes "$ref" > release-notes.md
           cat release-notes.md >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         if: steps.tag.outputs.publish == 'true'
         with:
           pattern: delivery-*
