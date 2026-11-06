@@ -165,17 +165,32 @@ describe("reqif.import (SR-053)", () => {
         "</REQ-IF-CONTENT>",
         [
           '<SPEC-RELATION-GROUPS><RELATION-GROUP IDENTIFIER="rg-1">',
-          `<SPEC-RELATIONS>${ref("REL-1")}${ref("REL-3")}</SPEC-RELATIONS>`,
+          // REL-1 twice and an empty reference: one loss for REL-1.
+          `<SPEC-RELATIONS>${ref("REL-1")}${ref("REL-3")}${ref("REL-1")}${ref("")}</SPEC-RELATIONS>`,
           "<SOURCE-SPECIFICATION><SPECIFICATION-REF>SPEC-1</SPECIFICATION-REF></SOURCE-SPECIFICATION>",
           "<TARGET-SPECIFICATION><SPECIFICATION-REF>SPEC-1</SPECIFICATION-REF></TARGET-SPECIFICATION>",
           "<TYPE><RELATION-GROUP-TYPE-REF>gt-links</RELATION-GROUP-TYPE-REF></TYPE></RELATION-GROUP>",
           // Without a type, and naming a relation the file does not define.
           `<RELATION-GROUP IDENTIFIER="rg-2" LONG-NAME="Loose"><SPEC-RELATIONS>${ref("REL-GONE")}</SPEC-RELATIONS></RELATION-GROUP>`,
+          // Without IDENTIFIER: unread, the file is still read.
+          `<RELATION-GROUP LONG-NAME="Nameless"><SPEC-RELATIONS>${ref("REL-2")}</SPEC-RELATIONS></RELATION-GROUP>`,
+          // A second part, read as well.
+          '</SPEC-RELATION-GROUPS><SPEC-RELATION-GROUPS><RELATION-GROUP IDENTIFIER="rg-3"/>',
           "</SPEC-RELATION-GROUPS></REQ-IF-CONTENT>",
         ].join(""),
       );
     const { workspace } = await open({ "in/lieferung.reqif": delivery });
+    // reqif.analyze plans the same import, so it lists the same losses before anything is written (#941).
+    const analysis = (await invoke(
+      "reqif.analyze",
+      { file: INPUT.file, mapping: INPUT.mapping },
+      { workspace },
+    )) as CommandOutput<"reqif.analyze">;
     const out = await run(workspace);
+    expect(analysis.losses.filter((l) => l.code === "relation-group").map((l) => l.identifier)).toEqual([
+      "REL-1",
+      "REL-GONE",
+    ]);
     const two = out.created.find((c) => c.identifier === "REQ-2")?.id;
     expect(out.losses.filter((l) => l.code === "relation-group")).toEqual([
       {

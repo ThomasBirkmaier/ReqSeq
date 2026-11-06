@@ -429,7 +429,8 @@ class Reader implements XmlEvents<Frame> {
   private enter(parent: Role, role: Role, node: Node): void {
     const part = `${parent} ${node.name}`;
     if ((parent === "root" || parent === "content") && node.namespace === REQIF_NAMESPACE) {
-      if (this.seen.has(part)) {
+      // A second SPEC-RELATION-GROUPS was skipped before groups were read, so it is read too.
+      if (this.seen.has(part) && node.name !== "SPEC-RELATION-GROUPS") {
         throw new Invalid(`<${node.name}> appears twice`, node.line);
       }
       this.seen.add(part);
@@ -548,6 +549,11 @@ class Reader implements XmlEvents<Frame> {
         });
         return;
       case "RELATION-GROUP": {
+        // A group is only reported, so one without IDENTIFIER is unread, not a reason to refuse the file.
+        if ((attribute(node, "IDENTIFIER") ?? "") === "") {
+          this.record(node);
+          return;
+        }
         const type = optionalRefIn(node, "TYPE", "RELATION-GROUP-TYPE-REF");
         const sourceSpecification = optionalRefIn(node, "SOURCE-SPECIFICATION", "SPECIFICATION-REF");
         const targetSpecification = optionalRefIn(node, "TARGET-SPECIFICATION", "SPECIFICATION-REF");
@@ -753,6 +759,11 @@ const danglingReferences = (file: ReqifFile, defined: ReadonlySet<string>): Reqi
   }
   for (const hierarchy of identifiables(file).filter((item): item is ReqifHierarchy => "object" in item)) {
     check(hierarchy, "SPEC-OBJECT", hierarchy.object);
+  }
+  for (const group of file.relationGroups) {
+    for (const relation of group.relations) {
+      check(group, "SPEC-RELATION", relation);
+    }
   }
   return warnings;
 };

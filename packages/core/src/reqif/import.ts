@@ -1677,8 +1677,10 @@ const relationGroupLosses = (context: Context, file: ReqifFile, drafts: Readonly
   const sources = new Map(file.specRelations.map((r) => [r.identifier, r.source]));
   for (const group of file.relationGroups) {
     const type = group.type === undefined ? undefined : index.types.get(group.type);
-    const name = `${nameOf(group)}${type === undefined ? "" : ` (type ${nameOf(type)})`}`;
-    for (const identifier of group.relations.filter((r) => !omitted.has(r))) {
+    const typed = type?.category === "relation-group" ? ` (type ${nameOf(type)})` : "";
+    const name = `${nameOf(group)}${typed}`;
+    // Once per relation, and not for an empty reference.
+    for (const identifier of new Set(group.relations.filter((r) => r !== "" && !omitted.has(r)))) {
       const draft = drafts.get(sources.get(identifier) ?? "");
       losses.push({
         identifier,
