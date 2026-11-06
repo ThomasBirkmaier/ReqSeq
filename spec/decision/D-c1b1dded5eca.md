@@ -10,7 +10,7 @@ based-on:
 
 Ein Requirement gilt erst als nachgewiesen, wenn für jedes seiner Akzeptanzkriterien der neueste Datensatz zur aktuellen Fassung bestanden ist. Fehlt für ein Akzeptanzkriterium ein solcher Datensatz, bleibt das Requirement offen, und das Tool zeigt, wie viele seiner Akzeptanzkriterien schon nachgewiesen sind.
 
-Ein Datensatz kann ein Akzeptanzkriterium über seine Nummer nennen, gezählt ab 1 in der Reihenfolge des Requirements. Ein Datensatz ohne Nummer gilt für alle Akzeptanzkriterien, etwa ein Prüfprotokoll über das ganze Requirement. Bei automatischen Tests nennt der Testname die Nummer, und die Kommandozeile übernimmt sie beim Ergänzen.
+Ein Datensatz kann ein oder mehrere Akzeptanzkriterien über ihre Nummern nennen, gezählt ab 1 in der Reihenfolge des Requirements. Welche Property eines Requirements die Akzeptanzkriterien enthält, legt das Metamodell über eine fest eingebaute Bedeutung fest. Ein Datensatz ohne Nummer gilt für alle Akzeptanzkriterien, etwa ein Prüfprotokoll über das ganze Requirement. Bei automatischen Tests nennt der Testname die Nummer, und die Kommandozeile übernimmt sie beim Ergänzen.
 
 Nachweise altern nicht mit der Zeit. Ein Datensatz gilt, bis sich die Fassung des Requirements ändert.
 
