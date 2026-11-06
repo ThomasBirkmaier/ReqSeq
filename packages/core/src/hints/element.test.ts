@@ -4,7 +4,7 @@
 // outdated relations and references, superseded variants in a validity (SR-040), relations to
 // superseded elements (SR-072), unknown properties and types, required properties without a value,
 // values of the wrong kind, relations the metamodel does not allow, and cycles of derivations; and
-// outdated evidence through its seam (SR-025 AK4, #127 option 1).
+// outdated evidence through its seam (SR-025 AK4, ThomasBirkmaier/ReqSeq-archive#127 option 1).
 import { readFile } from "node:fs/promises";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureOptions } from "@reqseq/testkit";

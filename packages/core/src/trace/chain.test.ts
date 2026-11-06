@@ -1,4 +1,4 @@
-// The chain at core level (SR-022, #127 option 1): the chain never imports the evidence block, so the
+// The chain at core level (SR-022, ThomasBirkmaier/ReqSeq-archive#127 option 1): the chain never imports the evidence block, so the
 // tests of "bis zu den Nachweisen" (AK1) and "ohne Nachweis" (AK3) give the evidence through the
 // walk's leaves, `hasEvidence` and `evidenceOf` themselves. The command's own tests, with evidence
 // records (SR-033), are in commands/trace/chain.test.ts.
@@ -718,7 +718,7 @@ describe("trace chain in a view and with missing repositories", () => {
     ]);
     // A missing parent alone (SR-089) leaves the upward chain complete.
     expect(chainOf(fixture, STALL, { direction: "up" }).incomplete).toBe(false);
-    // Downwards children in a repository that is not here cannot be seen (#262 option 1).
+    // Downwards children in a repository that is not here cannot be seen (ThomasBirkmaier/ReqSeq-archive#262 option 1).
     expect(chainOf(fixture, STALL, { direction: "down" }).incomplete).toBe(true);
   });
 
@@ -886,7 +886,7 @@ describe("trace chain output", () => {
     ]);
   });
 
-  describe("pages (SR-082 AK4, spec-frage #290)", () => {
+  describe("pages (SR-082 AK4, spec-frage ThomasBirkmaier/ReqSeq-archive#290)", () => {
     /** Every page of `size` nodes of `chain`, from the first on. */
     const pagesOf = (
       chain: Chain<unknown>,

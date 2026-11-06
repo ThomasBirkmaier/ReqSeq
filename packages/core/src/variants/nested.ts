@@ -43,7 +43,7 @@ interface Scope {
  */
 const scopeOf = (metamodel: Metamodel): Scope | undefined => {
   const validity = validityOf(metamodel);
-  // Nothing against a metamodel that is not valid: its errors are the findings (#208, #220).
+  // Nothing against a metamodel that is not valid: its errors are the findings (ThomasBirkmaier/ReqSeq-archive#208, ThomasBirkmaier/ReqSeq-archive#220).
   if (!metamodel.valid || validity === undefined) {
     return undefined;
   }

@@ -145,7 +145,7 @@ export const canonicalContent = (input: VersionInput, form: NormalForm): string 
  * The canonical content with a number that is not finite written as `String(value)` instead of
  * throwing: equal for two inputs exactly when their versions would be equal, had they one. Never
  * hashed and never a version; for telling whether a save changed the content of an element whose
- * version cannot be computed (SR-024 AK2, AK3; #276).
+ * version cannot be computed (SR-024 AK2, AK3; ThomasBirkmaier/ReqSeq-archive#276).
  */
 export const comparableContent = (input: VersionInput, form: NormalForm): string =>
   contentOf(input, "write", form);

@@ -1,7 +1,7 @@
 // Cycles in the derivations (SR-090, D-012) for `workspace.check` (SR-019). When relations with the
 // meaning derivation form a cycle, the check reports the cycle with every element in it. A cycle is
 // a strongly connected component of the derivation edges of the whole store (`cyclesOf` over
-// `derivationEdges`, #258) with more than one element, or one element that derives from itself.
+// `derivationEdges`, ThomasBirkmaier/ReqSeq-archive#258) with more than one element, or one element that derives from itself.
 //
 // - One problem per element of a cycle, so that every element is named with its own repository,
 //   file and UUID (SR-019 AK2: "Art, Datei und Element"), as SR-088 names every file of a shared
@@ -11,15 +11,15 @@
 //   element of the cycle by type name and short ID (SR-084), the first `CYCLE_NAMES_SHOWN` of a
 //   longer one, so that the output stays linear in the size of a cycle.
 // - Severity `warning`: SR-022 AK4 calls a cycle a "Hinweis". SR-019 AK2 ends the check with exit
-//   code 1 for it, which a warning does with `failOn: warning` (#304; `ok` false, ADR-0009). No status
+//   code 1 for it, which a warning does with `failOn: warning` (ThomasBirkmaier/ReqSeq-archive#304; `ok` false, ADR-0009). No status
 //   changes.
 // - Order: the cycles by their first element in store order, the elements of each in store order.
 // - What the derivation edges leave out cannot close a cycle: a target that is missing (SR-089),
 //   ambiguous (SR-088) or in a repository that is not on this machine (SR-006), inline references
 //   and relations of other meanings (ADR-0004). Cycles across the repositories that are here count.
 // - Without a relation kind with the meaning derivation there is no derivation to check: one `info`
-//   names the missing assignment (SR-013 AK3; assumption, spec question #270 option 1), so `ok`
-//   stays true. Against a metamodel that is not valid nothing is reported (#208, #220).
+//   names the missing assignment (SR-013 AK3; assumption, spec question ThomasBirkmaier/ReqSeq-archive#270 option 1), so `ok`
+//   stays true. Against a metamodel that is not valid nothing is reported (ThomasBirkmaier/ReqSeq-archive#208, ThomasBirkmaier/ReqSeq-archive#220).
 // - Cost (N-036): the incoming index of the store (shared with the other trace commands), one linear
 //   pass for the cycles, and only for elements in a cycle short IDs, messages and lines. Lines are
 //   looked up by reading the files of the elements in a cycle again (`locateFindings`): a cycle of
@@ -151,7 +151,7 @@ export const derivationCycleProblemsState = defineWorkspaceState(
   "derivation-cycles",
   async (workspace): Promise<readonly Problem[]> => {
     const metamodel = await workspace.get(metamodelState);
-    // Nothing against a metamodel that is not valid: its errors are the findings (#208, #220).
+    // Nothing against a metamodel that is not valid: its errors are the findings (ThomasBirkmaier/ReqSeq-archive#208, ThomasBirkmaier/ReqSeq-archive#220).
     if (!metamodel.valid) {
       return [];
     }

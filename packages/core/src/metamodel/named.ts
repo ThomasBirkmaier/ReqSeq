@@ -1,4 +1,4 @@
-// Finding a status or choice value by what a person types (#309, spec question #316): its key, or its
+// Finding a status or choice value by what a person types (ThomasBirkmaier/ReqSeq-archive#309, spec question ThomasBirkmaier/ReqSeq-archive#316): its key, or its
 // display name, in any case. The file always gets the key (SR-012 AK3, D-043), so renaming a value
 // changes no file. Only commands use this; reading files stays exact and lenient (SR-085 AK2).
 

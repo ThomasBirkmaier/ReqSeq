@@ -5,7 +5,7 @@
 // assignment is missing when there is none (SR-013 AK3).
 //
 // A type or property meaning belongs to one key only (metamodel.schema.json); a second key is a
-// metamodel error with file and line, so the workspace opens read-only (open question #141). Only
+// metamodel error with file and line, so the workspace opens read-only (open question ThomasBirkmaier/ReqSeq-archive#141). Only
 // the meanings a definition declares itself count: a type that inherits a meaning (SR-012), or
 // repeats the one it inherits, is no second assignment. Several relation kinds may share a meaning
 // (Refines and Derives from are both `derivation`, D-012).
@@ -173,7 +173,7 @@ const problemAt = (
 });
 
 /**
- * The choice key that marks an element emergent (SR-035, assumption of spec question #591 Q1): the
+ * The choice key that marks an element emergent (SR-035, assumption of spec question ThomasBirkmaier/ReqSeq-archive#591 Q1): the
  * check below and the mark of `model/emergent.ts` share it.
  */
 export const EMERGENT_CHOICE = "yes";
@@ -199,7 +199,7 @@ const importVersionProblem = ({
 
 /**
  * Why a property with the meaning `emergent` cannot hold the mark, and the key whose line names it;
- * undefined when it can (#591 Q1). Without the mark no element is emergent (`model/emergent.ts`).
+ * undefined when it can (ThomasBirkmaier/ReqSeq-archive#591 Q1). Without the mark no element is emergent (`model/emergent.ts`).
  */
 export const emergentProblem = (
   property: MetamodelProperty,
@@ -234,9 +234,9 @@ export const acceptanceCriteriaProblem = (
 /**
  * The problems of a property whose meaning needs another value kind, each with the file and the line
  * of its `kind` (or `many`, `choices`):
- * - errors for the meaning `identifier` (#305): it names an element by one text, so its property is
+ * - errors for the meaning `identifier` (ThomasBirkmaier/ReqSeq-archive#305): it names an element by one text, so its property is
  *   of kind `text` without `many`;
- * - warnings for the meaning `emergent` (SR-035, assumption of spec question #591 Q1): the mark is the
+ * - warnings for the meaning `emergent` (SR-035, assumption of spec question ThomasBirkmaier/ReqSeq-archive#591 Q1): the mark is the
  *   choice key `yes` of a property of kind `choice` without `many`. Otherwise no element is marked
  *   emergent; as D-012 wants for metamodel transitions („Das Tool zeigt sie als Hinweis an, blockiert
  *   aber nichts.“), the metamodel stays valid and the workspace writable;

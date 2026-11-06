@@ -7,7 +7,7 @@
 //   not apply to them; ReqSeq never deletes, moves or renames a filter file.
 // - Read on every call, never kept: a handful of small files, and a filter another person committed
 //   is there as soon as the working copy has it (AK2), also for a running server or the app.
-// - Names compare ignoring case and Unicode normal form (`fold`, spec-frage #363 option 2A), as
+// - Names compare ignoring case and Unicode normal form (`fold`, spec-frage ThomasBirkmaier/ReqSeq-archive#363 option 2A), as
 //   element references, statuses and choices do. The first file in file order (code units) that
 //   holds a name is that filter; a later valid file with the same name is `filter.duplicate-name`
 //   (warning) and not listed. A file that is no valid filter is a problem and not listed; when its
@@ -109,7 +109,7 @@ const checkFilterFile = async (repository: RepositoryLocation, file: string): Pr
   if (validate(yaml.data)) {
     return { kind: "valid", yaml, data: yaml.data as FilterFile, problems };
   }
-  // Readable as input errors are (#309): one message for the branches of a condition.
+  // Readable as input errors are (ThomasBirkmaier/ReqSeq-archive#309): one message for the branches of a condition.
   const violations = inputViolations(fileSchemaErrors("filter.schema.json", yaml.data), {
     input: yaml.data,
     schemas: contractsBundle.schemas,

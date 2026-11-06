@@ -1,5 +1,5 @@
-// Outdated evidence (SR-025 AK4) at core level (decision on #127, option 1): stage 4 reads the
-// evidence records (SR-028, #40); here they are given through `evidenceRecordsState`, and
+// Outdated evidence (SR-025 AK4) at core level (decision on ThomasBirkmaier/ReqSeq-archive#127, option 1): stage 4 reads the
+// evidence records (SR-028, ThomasBirkmaier/ReqSeq-archive#40); here they are given through `evidenceRecordsState`, and
 // `workspace.check` reports the evidence of an element whose newest record is for an older version.
 // The CLI test follows with the records in stage 4.
 import { createFixtureWorkspace } from "@reqseq/testkit";
@@ -80,7 +80,7 @@ describe("outdated evidence (SR-025 AK4)", () => {
       record(A, OLD, "2026-01-02T10:00:00Z", { repository: "system", file: "evidence/results.xml", line: 7 }),
     ]);
     const out = await check(workspace);
-    // A warning: the check is ok by default and fails with failOn warning (#304).
+    // A warning: the check is ok by default and fails with failOn warning (ThomasBirkmaier/ReqSeq-archive#304).
     expect(out.ok).toBe(true);
     expect((await check(workspace, { failOn: "warning" })).ok).toBe(false);
     expect(out.problems).toEqual([
@@ -260,7 +260,7 @@ describe("outdated evidence (SR-025 AK4)", () => {
     expect(await workspace.get(outdatedEvidenceProblemsState)).toEqual([]);
   });
 
-  it("reports nothing against a metamodel that is not valid (#208, #220)", async () => {
+  it("reports nothing against a metamodel that is not valid (ThomasBirkmaier/ReqSeq-archive#208, ThomasBirkmaier/ReqSeq-archive#220)", async () => {
     const workspace = await withRecords([record(A, OLD, "2026-01-01T00:00:00Z")], {
       "metamodel/broken.yaml": "properties: [\n",
     });
@@ -269,7 +269,7 @@ describe("outdated evidence (SR-025 AK4)", () => {
 
   it("outdatedEvidenceFindings still reads the records through the moved state", async () => {
     // The whole path the readers of SR-028 and SR-093 take: an evidence file, a reader,
-    // `evidenceReadState`, `evidenceRecordsState`, the check (#535).
+    // `evidenceReadState`, `evidenceRecordsState`, the check (ThomasBirkmaier/ReqSeq-archive#535).
     const fixture = await createFixtureWorkspace({
       fixture: "SR-025/outdated",
       files: {
@@ -303,7 +303,7 @@ describe("outdated evidence (SR-025 AK4)", () => {
     ]);
   });
 
-  describe("the hint of one element (element.get) gives what the state gives (#698)", () => {
+  describe("the hint of one element (element.get) gives what the state gives (ThomasBirkmaier/ReqSeq-archive#698)", () => {
     type Shown = CommandOutput<"element.get">;
     /** The fields of an `evidence.outdated` problem, without what `invoke` adds (`elementShortId`). */
     const fieldsOf = (p: Problem): unknown[] => [
@@ -339,7 +339,7 @@ describe("outdated evidence (SR-025 AK4)", () => {
 
     it("[SR-026/AK3] [SR-025/AK4] names the first record of a tie in the order of the records, not of the index", async () => {
       // Two locations whose repositories are not in name order: the index sorts a tie by repository
-      // name, the records (and so the state) keep the order of the workspace file (review of #698, S1).
+      // name, the records (and so the state) keep the order of the workspace file (review of ThomasBirkmaier/ReqSeq-archive#698, S1).
       const at = "2026-01-02T10:00:00Z";
       const [alone, state] = await both([
         record(A, OLD, at, { repository: "zeta", file: "evidence/a.md", line: 1 }),
@@ -433,7 +433,7 @@ describe("outdated evidence (SR-025 AK4)", () => {
       // Two copies of one need with different versions (SR-088) and one record of one copy's version.
       // Each copy is checked against its own version: only the other copy is reported, whichever copy
       // the record is of. The hint of one element gives the same. Which version is current for a
-      // shared UUID is open (#713).
+      // shared UUID is open (ThomasBirkmaier/ReqSeq-archive#713).
       const COPIED = "948a10f1-05c3-4212-bd19-00606ccf2661";
       const fixture = await createFixtureWorkspace({
         fixture: "SR-088/copied-file",

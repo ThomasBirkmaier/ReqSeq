@@ -1,6 +1,6 @@
 // The full-text search index of an element store (ADR-0008 "Search", SR-068): MiniSearch over the
 // title, the text and the property values of every element, with fuzzy and prefix search in any
-// case, and the IDs (UUID and short ID) matched beside it. `element.search` (SR-068, #80) combines
+// case, and the IDs (UUID and short ID) matched beside it. `element.search` (SR-068, ThomasBirkmaier/ReqSeq-archive#80) combines
 // it with the selection of a view or filter (SR-068 AK3: `within`), the `[[` link search (SR-066)
 // restricts it to some fields (`fields`), and SR-098 asks for the first hits within 300 ms at
 // 50,000 elements (`offset`, `limit`: only one page of hits is described).
@@ -17,9 +17,9 @@
 //   UUIDs of other elements): text, numbers and booleans, also inside lists and mappings, and for a
 //   value of a choice property also the name of the choice, which is what the tool shows; so too
 //   the type and the status (fields of their own, D-012): by the name the metamodel gives them, by
-//   the key as written when it gives none (SR-068 "Properties", #80; the name only, since the key
+//   the key as written when it gives none (SR-068 "Properties", ThomasBirkmaier/ReqSeq-archive#80; the name only, since the key
 //   mostly holds the same words, which would cost the build a fifth more time at N-036);
-// - `id`: the UUID, the short ID (D-017) and the identifier (#305), compared with the records of the
+// - `id`: the UUID, the short ID (D-017) and the identifier (ThomasBirkmaier/ReqSeq-archive#305), compared with the records of the
 //   store, not indexed (150,000 random tokens would cost about 110 MB and 1 s at N-036): a word that
 //   is a short ID as written (`SR-46fb54`, also with the 12 digits of the file name) finds the
 //   elements of a type with that prefix whose UUID ends with its digits; a word of at least 6 hex
@@ -397,7 +397,7 @@ const recordIn = (
 
 /**
  * The search index of `update.to`, carried over from `index`, the index of `update.from` (a save or
- * a watcher batch, #184): the documents of the changed files (`StoreUpdate.files`) are removed and
+ * a watcher batch, ThomasBirkmaier/ReqSeq-archive#184): the documents of the changed files (`StoreUpdate.files`) are removed and
  * the files that hold an element now are read again (in slices) and their documents added.
  *
  * Unlike the other carried states, the MiniSearch object is changed, not copied (a copy costs about

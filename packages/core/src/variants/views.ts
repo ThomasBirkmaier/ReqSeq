@@ -148,7 +148,7 @@ export const resolveView = (
 ): ResolvedView => {
   const { metamodel, store, shortIds } = context;
   requireMeaning(metamodel, "validity", command);
-  // In any case, as element references are (#309, #305).
+  // In any case, as element references are (ThomasBirkmaier/ReqSeq-archive#309, ThomasBirkmaier/ReqSeq-archive#305).
   if (view.toLowerCase() === "core") {
     return { kind: "core" };
   }

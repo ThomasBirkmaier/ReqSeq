@@ -1,4 +1,4 @@
-// Readable messages for a command input that fails its catalog schema (#309). Built in core, so every
+// Readable messages for a command input that fails its catalog schema (ThomasBirkmaier/ReqSeq-archive#309). Built in core, so every
 // access shows the same text (SR-080 AK2); the CLI only respells the field names (ADR-0002 rule 3).
 // A message names the field by its input name and never shows a regular expression or "(root)".
 // Messages of the shared definitions (`$defs`) come from one table, never per command: the def a

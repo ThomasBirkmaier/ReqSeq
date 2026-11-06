@@ -4,7 +4,7 @@
 // `excludedBy`, SR-046 AK3, by the view rule over the store, `replacedExcludedOf`). `names` names the
 // variants of its validity, `replacedBy` and `excludedBy`, then the replacements, then the views and
 // missing children of `verification` (`verificationNameIds`), each once, so the app and the CLI show
-// titles (SR-046 AK1/AK2, #588). `incomplete`: a repository of the workspace is not here, so
+// titles (SR-046 AK1/AK2, ThomasBirkmaier/ReqSeq-archive#588). `incomplete`: a repository of the workspace is not here, so
 // replacements, exclusions and records stored there are missing (SR-006 AK2). `writtenWithStatus` gives
 // the element a write returns (element.create, element.update) the same verification and validation
 // status (#214); `replacedBy`, `excludedBy`, `names` and `incomplete` stay with element.get.

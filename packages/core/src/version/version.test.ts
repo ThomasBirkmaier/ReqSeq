@@ -176,7 +176,7 @@ describe("version (ADR-0005, normal form n1)", () => {
     expect(() => canon(Number.NaN)).toThrow("version: NaN is not a valid number");
   });
 
-  it("compares content with non-finite numbers without a version (#276)", () => {
+  it("compares content with non-finite numbers without a version (ThomasBirkmaier/ReqSeq-archive#276)", () => {
     const definition: VersionPropertyDefinition = { key: "n", kind: "number", content: true };
     const input = (n: number, text = ""): VersionInput => ({
       text,

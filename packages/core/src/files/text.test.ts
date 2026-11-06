@@ -3,7 +3,7 @@ import { normalizeText } from "../version/version.js";
 import { bodyForText, elementText } from "./text.js";
 
 describe("elementText", () => {
-  it("leaves out the one blank line after the closing frontmatter line (#308)", () => {
+  it("leaves out the one blank line after the closing frontmatter line (ThomasBirkmaier/ReqSeq-archive#308)", () => {
     expect(elementText("\nText\n")).toBe("Text\n");
     expect(elementText("\r\nText\r\n")).toBe("Text\r\n");
     expect(elementText("\n\nText\n")).toBe("\nText\n");
@@ -26,7 +26,7 @@ describe("bodyForText", () => {
     expect(bodyForText("\r\nOne\r\nTwo\r\n", "One\nTwo\n")).toBe("\r\nOne\r\nTwo\r\n");
   });
 
-  it("adds the final newline to a new text (#308)", () => {
+  it("adds the final newline to a new text (ThomasBirkmaier/ReqSeq-archive#308)", () => {
     expect(bodyForText("\nOld\n", "New")).toBe("\nNew\n");
     expect(bodyForText("\nOld\n", "New\n")).toBe("\nNew\n");
   });

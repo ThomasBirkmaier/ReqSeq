@@ -245,7 +245,7 @@ describe("outdated relations and references (SR-025)", () => {
     const storedCommit = await headCommit(ws);
     await changeTargets(ws);
     const workspace = open(ws.root);
-    // "Exit-Code ungleich 0" for an outdated relation, a warning: with failOn warning (#304, option 1;
+    // "Exit-Code ungleich 0" for an outdated relation, a warning: with failOn warning (ThomasBirkmaier/ReqSeq-archive#304, option 1;
     // SR-025 AK2 gets a new version after the spec moves into ReqSeq). By default it is ok.
     const out = await check(workspace, { failOn: "warning" });
     expect(out.ok).toBe(false);
@@ -693,7 +693,7 @@ describe("outdated relations and references (SR-025)", () => {
     expect(parseHintId(problems[0]?.hintId ?? "")).toMatchObject({ repository: "system" });
   });
 
-  it("reports nothing against a metamodel that is not valid (#208, #220)", async () => {
+  it("reports nothing against a metamodel that is not valid (ThomasBirkmaier/ReqSeq-archive#208, ThomasBirkmaier/ReqSeq-archive#220)", async () => {
     const ws = await fixture({ files: { "metamodel/broken.yaml": "properties: [\n" } });
     await changeTargets(ws);
     const workspace = open(ws.root);

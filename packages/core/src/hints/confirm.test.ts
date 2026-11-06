@@ -102,10 +102,10 @@ const tree = (folder: string): Record<string, string> =>
   );
 
 describe("hint.confirm (SR-027)", () => {
-  it("[SR-027/AK1] writes the current version and title of the confirmed target into its relation; besides, only the other stale titles of the file change (decision on #307)", async () => {
+  it("[SR-027/AK1] writes the current version and title of the confirmed target into its relation; besides, only the other stale titles of the file change (decision on ThomasBirkmaier/ReqSeq-archive#307)", async () => {
     const ws = await fixture();
     await changeTargets(ws);
-    // N and V are renamed too. Since the decision on #307 the confirmed relation gets the current
+    // N and V are renamed too. Since the decision on ThomasBirkmaier/ReqSeq-archive#307 the confirmed relation gets the current
     // title with the version, and the write refreshes the stale title of V (not its version);
     // every other byte of the file stays.
     await ws.write(
@@ -488,7 +488,7 @@ describe("hint.confirm (SR-027)", () => {
   });
 });
 
-describe("hint.confirm of one element (#310)", () => {
+describe("hint.confirm of one element (ThomasBirkmaier/ReqSeq-archive#310)", () => {
   const confirmBy = async (workspace: Workspace, input: Record<string, unknown>): Promise<Confirmed> =>
     (await invoke("hint.confirm", input, { workspace })) as Confirmed;
 

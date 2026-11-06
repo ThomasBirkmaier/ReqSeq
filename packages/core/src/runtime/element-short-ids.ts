@@ -1,5 +1,5 @@
-// The short ID of the element a problem names (`elementShortId`, SR-002 AK3, #315), and its
-// identifier when it has one (`elementIdentifier`, #305), added in one place for every command; the
+// The short ID of the element a problem names (`elementShortId`, SR-002 AK3, ThomasBirkmaier/ReqSeq-archive#315), and its
+// identifier when it has one (`elementIdentifier`, ThomasBirkmaier/ReqSeq-archive#305), added in one place for every command; the
 // same for the target a problem names (`targetShortId`, `targetIdentifier`, #172):
 // where its output leaves the runtime (`invoke`). Which parts of an output hold problems follows
 // from the command's output schema alone (`problemLocator`: every place that references
@@ -11,7 +11,7 @@
 // only looked up. A check against an invalid metamodel builds no state that needs them; then they
 // are built from the store in memory for this output (O(n log n), not kept). When the
 // store or the metamodel is not built (or still being built), the field is left out. The store,
-// the metamodel and the short IDs are taken as one view (ADR-0008, #319): a server's watcher may
+// the metamodel and the short IDs are taken as one view (ADR-0008, ThomasBirkmaier/ReqSeq-archive#319): a server's watcher may
 // reset or replace them while a command runs.
 // So the field depends on what a command reads, not on the calls before it on the same workspace
 // (SR-080 AK2: an API server and a fresh CLI call give the same output).
@@ -118,7 +118,7 @@ const SAME_VALUE = ["allOf", "anyOf", "oneOf", "then", "else"] as const;
  * value (`not`, `if`, `propertyNames`) or are not used for problems; the catalog test makes sure
  * no problem of an output schema lies there. A schema that refers back to itself is followed once;
  * when it holds problems, the copies deeper down would be missed, so that throws (a programming
- * error of the catalog, #319).
+ * error of the catalog, ThomasBirkmaier/ReqSeq-archive#319).
  */
 export const problemLocator = (
   schema: JsonSchema,

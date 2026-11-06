@@ -6,7 +6,7 @@
 //
 // - Severity `warning` about the element (`elementId`): a hint in the sense of the glossary
 //   („Hinweis“: the element should be checked; it blocks nothing and changes no status), so
-//   `hint.list` lists it as well (`isHint`), and the default `failOn: error` keeps `ok` (#304). It has
+//   `hint.list` lists it as well (`isHint`), and the default `failOn: error` keeps `ok` (ThomasBirkmaier/ReqSeq-archive#304). It has
 //   no `hintId`: there is nothing to confirm (D-042 confirms a stored version); giving the element a
 //   parent, or a relation kind of the project's metamodel the meaning `derivation`, settles it.
 // - Which relation kinds derive is the metamodel's (D-012): in the standard model `based-on` has no
@@ -23,7 +23,7 @@
 //   looked up; short IDs for the elements reported. Without a relation kind with the meaning
 //   `derivation`, or a type with the meaning `requirement`, there is nothing to report (the info of
 //   the missing derivation meaning comes from `derivationCycleProblemsState`). Against a metamodel
-//   that is not valid nothing is reported (#208, #220).
+//   that is not valid nothing is reported (ThomasBirkmaier/ReqSeq-archive#208, ThomasBirkmaier/ReqSeq-archive#220).
 import type { Problem } from "../catalog.js";
 import { metamodelState, typesWithMeaning } from "../metamodel/index.js";
 import type { Metamodel } from "../metamodel/index.js";

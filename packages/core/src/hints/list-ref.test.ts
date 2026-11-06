@@ -62,7 +62,7 @@ const MORE_HINTS: FixtureOptions = {
   },
 };
 
-/** GUSTS with a counted value without a normal form: element.get adds a `file.faulty` warning (#276), no hint. */
+/** GUSTS with a counted value without a normal form: element.get adds a `file.faulty` warning (ThomasBirkmaier/ReqSeq-archive#276), no hint. */
 const ENDLESS: FixtureOptions = {
   fixture: "SR-001/two-elements",
   files: {
@@ -72,7 +72,7 @@ const ENDLESS: FixtureOptions = {
   },
 };
 
-/** enabler-305/identifiers with a second requirement SR-037 (#305). */
+/** enabler-305/identifiers with a second requirement SR-037 (ThomasBirkmaier/ReqSeq-archive#305). */
 const DUPLICATE_IDENTIFIER: FixtureOptions = {
   fixture: "enabler-305/identifiers",
   files: {

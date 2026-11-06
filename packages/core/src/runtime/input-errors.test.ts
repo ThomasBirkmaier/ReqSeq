@@ -42,7 +42,7 @@ const keywordCatalog = {
           mail: { type: "string", format: "email" },
           plain: { type: "string", pattern: "^x+$" },
           described: { type: "string", pattern: "^y+$", description: "Only y." },
-          // Same description as common elementRef, but another object: no def message (#317 review).
+          // Same description as common elementRef, but another object: no def message (ThomasBirkmaier/ReqSeq-archive#317 review).
           lookalike: {
             type: "string",
             pattern: "^z$",
@@ -104,9 +104,9 @@ const messages = (contracts: Contracts, name: string, input: unknown): string[] 
 
 const field = (input: Record<string, unknown>): string[] => messages(keywords, "test.fields", input);
 
-describe("readable messages of an input that fails its schema (#309)", () => {
+describe("readable messages of an input that fails its schema (ThomasBirkmaier/ReqSeq-archive#309)", () => {
   it("[SR-060/AK3] says what an element reference looks like, without a regular expression", () => {
-    // An identifier may be any text (#305): only an empty reference, spaces at either end, control
+    // An identifier may be any text (ThomasBirkmaier/ReqSeq-archive#305): only an empty reference, spaces at either end, control
     // characters and more than 256 characters fail.
     expect(product.validator("element.get", "input")({ ref: "SR-036" })).toBe(true);
     expect(messages(product, "element.get", { ref: " SR-036" })).toEqual([
@@ -118,7 +118,7 @@ describe("readable messages of an input that fails its schema (#309)", () => {
     expect(messages(product, "element.setStatus", { refs: ["", "SR-e88fb3"], status: "x" })).toEqual([
       'refs[0] "" is not a reference to an element (a UUID, a short ID such as SR-3c90b0 or an identifier such as SR-036; at most 256 characters, without control characters or spaces at either end)',
     ]);
-    // No control characters, also inside, and at most 256 characters (#305).
+    // No control characters, also inside, and at most 256 characters (ThomasBirkmaier/ReqSeq-archive#305).
     expect(product.validator("element.get", "input")({ ref: "Stufe 2 – Spec-ID ä" })).toBe(true);
     expect(product.validator("element.get", "input")({ ref: "x".repeat(256) })).toBe(true);
     for (const ref of ["SR-\u0007036", "SR-036\n", "a\tb", "x".repeat(257)]) {

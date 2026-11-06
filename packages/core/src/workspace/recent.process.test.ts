@@ -1,5 +1,5 @@
 // The checkers of the process as the app's main process uses them: `findTypedWorkspace` and
-// `workspaceExists` without an injected `check` (#574, review of #614 S1). The module-level checkers take
+// `workspaceExists` without an injected `check` (ThomasBirkmaier/ReqSeq-archive#574, review of ThomasBirkmaier/ReqSeq-archive#614 S1). The module-level checkers take
 // `fs.stat` when the module loads, so `node:fs/promises` is mocked before it is imported.
 import type * as FsPromises from "node:fs/promises";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

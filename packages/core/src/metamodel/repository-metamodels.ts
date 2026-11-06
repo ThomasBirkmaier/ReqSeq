@@ -158,7 +158,7 @@ const repositoryProblem = async (
  * `workspace.metamodel-mismatch` for every available repository other than the main one that holds
  * its own workspace file (in its folder) whose metamodel differs from the workspace's in what decides
  * the versions (a warning), or cannot be read (info). None while the workspace's metamodel is not
- * valid: its own errors come first (#208).
+ * valid: its own errors come first (ThomasBirkmaier/ReqSeq-archive#208).
  */
 export const repositoryMetamodelProblems = async (
   layout: WorkspaceLayout,

@@ -47,7 +47,7 @@ type Side = "source-type" | "target-type";
  * second limit written for the same pair of source and target type (errors), a limit without
  * `source-type` that names the same pair as one with it because the kind has one source type (a
  * warning, so the workspace stays writable), a type that is not defined
- * (an error, only when every file was read, `complete`, as #157), and a type that does not overlap
+ * (an error, only when every file was read, `complete`, as ThomasBirkmaier/ReqSeq-archive#157), and a type that does not overlap
  * the kind's `source-types`/`target-types` (a warning: a type overlaps a list when it or one of
  * its subtypes is allowed, so an abstract parent of an allowed type counts).
  */

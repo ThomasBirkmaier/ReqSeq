@@ -14,7 +14,7 @@
 //   `ChainOutputContext.evidenceOf` gives what is shown below an element, called by `chainOutput`
 //   only for the expanded downward nodes of the page, so a page of 200 nodes builds the evidence of
 //   200 elements, not of the 42,000 of the whole chain (N-036). The walk's `leaves` stay for callers
-//   that pass leaves of their own (core tests, #127 option 1); without `hasEvidence` they decide the
+//   that pass leaves of their own (core tests, ThomasBirkmaier/ReqSeq-archive#127 option 1); without `hasEvidence` they decide the
 //   gap.
 // - Gaps (AK3), downward and only for elements whose children were looked at (`expanded`): an element
 //   of a type with the meaning `need` without a child is `no-child`; an element of a type with the
@@ -36,19 +36,19 @@
 //   hint `trace.cycle` each. When the root lies in a cycle, both walks see it: it is reported once.
 // - `incomplete` (SR-006 AK2) and the unresolved links (SR-006 AK1, SR-088, SR-089) come from the
 //   walks; downwards every step is incomplete while a repository of the workspace file is not on this
-//   machine (`childrenOf`, assumption #262 option 1). An unresolved parent whose `id` is no UUID makes
+//   machine (`childrenOf`, assumption ThomasBirkmaier/ReqSeq-archive#262 option 1). An unresolved parent whose `id` is no UUID makes
 //   the chain incomplete when its repository is not here, but it is not listed: the output names
 //   elements by UUID, and the value-kind check reports such an item (SR-085).
 // - Elements are named by UUID and workspace name of their repository (D-058). Two files of one
 //   repository with the same UUID (SR-088) are two nodes, told apart only by `file`; edges and gaps
 //   name both the same way.
-// - Pages (SR-082 AK4, spec-frage #290): the walks are always complete, so depth, gaps, cycles and
+// - Pages (SR-082 AK4, spec-frage ThomasBirkmaier/ReqSeq-archive#290): the walks are always complete, so depth, gaps, cycles and
 //   `incomplete` are those of the whole chain; `chainOutput` builds one page of nodes (the root, the
 //   upward ones, the downward ones) and the edges, gaps and unresolved relations of those nodes. An
 //   edge belongs to the node it leads to in its walk, so each edge is on one page.
 // - Cost (SR-082 AK4, N-036): the walks are linear in the elements and edges reached; the output adds
 //   one short ID and one title per node of the page. At N-036 the largest chain has about 42,000
-//   nodes, 112,000 edges and 36 MB of JSON as a whole (#227).
+//   nodes, 112,000 edges and 36 MB of JSON as a whole (ThomasBirkmaier/ReqSeq-archive#227).
 import type { Problem } from "../catalog.js";
 import type { TraceChainOutput } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
@@ -542,7 +542,7 @@ const validationOfRoot = (
 
 /**
  * One page of the chain as `trace.chain` gives it (catalog output): UUIDs, short IDs and titles
- * (spec-frage #290, SR-082 AK4). The nodes are the root, then those of the upward walk, then those
+ * (spec-frage ThomasBirkmaier/ReqSeq-archive#290, SR-082 AK4). The nodes are the root, then those of the upward walk, then those
  * of the downward walk (each walk without its root); `total` counts them all. Only the nodes of the
  * page are built, with the edges that lead to them in their walk (so each edge is on one page),
  * their gaps, their evidence (`context.evidenceOf`, for the expanded downward nodes) and their

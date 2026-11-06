@@ -230,7 +230,7 @@ describe("git reader", () => {
     expect(await headCommit(ws.path("plain"))).toMatchObject({ known: false, reason: "not-a-repository" });
   });
 
-  it("reads the HEAD commit of the repository a subfolder lies in (#377)", async () => {
+  it("reads the HEAD commit of the repository a subfolder lies in (ThomasBirkmaier/ReqSeq-archive#377)", async () => {
     const ws = await fixture(["."]);
     const head = { known: true, commit: await ws.head(), shallow: false };
     expect(await headCommit(ws.path("repo"))).toEqual(head);
@@ -353,7 +353,7 @@ describe("git reader", () => {
     });
   });
 
-  it("runs git with English messages whatever the locale of the user (#414)", async () => {
+  it("runs git with English messages whatever the locale of the user (ThomasBirkmaier/ReqSeq-archive#414)", async () => {
     vi.stubEnv("LANG", "de_DE.UTF-8");
     vi.stubEnv("LC_ALL", "de_DE.UTF-8");
     vi.stubEnv("LANGUAGE", "de");
@@ -451,7 +451,7 @@ const LARGE = Buffer.alloc(300_000, "x");
 
 /**
  * One history for the history and object tests, made with one `git fast-import` (few git processes,
- * #206): `a.md` changed on main and on a side branch, a merge that resolves it, `[x].md` (a glob in
+ * ThomasBirkmaier/ReqSeq-archive#206): `a.md` changed on main and on a side branch, a merge that resolves it, `[x].md` (a glob in
  * pathspec syntax) deleted later, `x.md` that the glob would match, a name in NFD, a symbolic link,
  * a large file and a submodule entry.
  */
@@ -1198,7 +1198,7 @@ describe("commits and changes since a commit (SR-092)", () => {
   });
 });
 
-describe("a repository folder below the top level of its work tree (#377)", () => {
+describe("a repository folder below the top level of its work tree (ThomasBirkmaier/ReqSeq-archive#377)", () => {
   /**
    * A repository whose folder `docs/spec` holds `a.md` and `deep/b.md`, beside `top.md` and
    * `docs/other.md` outside it: `a.md` and `top.md` changed on main and on a side branch and both
@@ -1261,7 +1261,7 @@ describe("a repository folder below the top level of its work tree (#377)", () =
     expect(mock.calls).toEqual([]);
   });
 
-  it("skips a .git folder that git does not accept and goes on to the one above (#414)", async () => {
+  it("skips a .git folder that git does not accept and goes on to the one above (ThomasBirkmaier/ReqSeq-archive#414)", async () => {
     const { ws, folder } = await nested();
     // Git takes a `.git` folder only with a HEAD file and `objects` and `refs` folders.
     const entry = path.join(folder, ".git");
@@ -1293,7 +1293,7 @@ describe("a repository folder below the top level of its work tree (#377)", () =
     expect(await headCommit(folder)).toEqual({ known: true, commit: head, shallow: false });
     expect(await headFiles(folder)).toEqual(await headFiles(ws.root));
     expect(await headFiles(folder)).toMatchObject({ commit: head, shallow: false });
-    // An empty `.git` folder is none for git, and so none here: the one above counts (#414).
+    // An empty `.git` folder is none for git, and so none here: the one above counts (ThomasBirkmaier/ReqSeq-archive#414).
     await fs.mkdir(path.join(folder, "deep", ".git"));
     expect(await headFiles(path.join(folder, "deep"))).toEqual(await headFiles(ws.root));
     // A Git folder without a HEAD that names a commit or a branch: only git can tell.

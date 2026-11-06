@@ -72,7 +72,7 @@ const violations = (schema: string, file: string, data: unknown): readonly Probl
   if (fileSchemaValidator(schema)(data)) {
     return [];
   }
-  // Readable as input errors are (#309, #851).
+  // Readable as input errors are (ThomasBirkmaier/ReqSeq-archive#309, #851).
   return inputViolations(fileSchemaErrors(schema, data), {
     input: data,
     schemas: contractsBundle.schemas,

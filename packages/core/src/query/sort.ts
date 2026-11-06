@@ -4,7 +4,7 @@
 //
 // - Keys (`filter.schema.json#/$defs/sortKey`) apply in order; elements equal under every key keep
 //   the workspace order (the order of the store, as without `sort`).
-// - `identifier` (#418): the identifier of the element (`ShortIds.identifierOf`, the property with
+// - `identifier` (ThomasBirkmaier/ReqSeq-archive#418): the identifier of the element (`ShortIds.identifierOf`, the property with
 //   the meaning `identifier`) in natural order (`compareNatural`: digit runs by number, SR-9 before
 //   SR-10; equal ones by the folded text, then the text as written). Elements without an identifier
 //   (or a metamodel without the meaning) follow, ascending, by their short ID as `id` orders it;
@@ -23,7 +23,7 @@
 //   Texts compare ignoring case (NFC, lower case, by code units; equal ones by the text as written).
 //   No value (absent, `null`, `[]`, a mapping, NaN) comes last in both orders; `desc` reverses
 //   everything else.
-// - `hierarchy` (AK2 "als Baum nach ihren Ableitungen"; spec-frage #354, option 1): only as the
+// - `hierarchy` (AK2 "als Baum nach ihren Ableitungen"; spec-frage ThomasBirkmaier/ReqSeq-archive#354, option 1): only as the
 //   first key and only ascending; the keys after it order the roots and the elements below each
 //   parent. The tree holds exactly the elements of the selection, each once. Parents are an
 //   element's own derivation items (relation kinds with the meaning `derivation`, SR-013) whose

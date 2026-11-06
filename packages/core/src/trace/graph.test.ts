@@ -227,7 +227,7 @@ describe("derivation graph (D-012, SR-013, ADR-0004)", () => {
     const workspace = await open();
     const r = await recordsOf(workspace);
     const graph = derivationGraph(await traceContext(workspace), "trace.chain");
-    // Repository `away` is not on this machine: children there cannot be seen (spec question #262).
+    // Repository `away` is not on this machine: children there cannot be seen (spec question ThomasBirkmaier/ReqSeq-archive#262).
     expect(show(childrenOf(graph, r(S1)))).toEqual({
       steps: [
         [S2, S2, "derives-from", ["derives-from", 0]],

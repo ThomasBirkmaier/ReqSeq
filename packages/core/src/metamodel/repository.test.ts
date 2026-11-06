@@ -1,5 +1,5 @@
 // SR-018: the metamodel in its own repository, also when that repository is read-only, and as a
-// folder in the main repository. No element command exists yet (#127 option 1), so AK2 is shown at
+// folder in the main repository. No element command exists yet (ThomasBirkmaier/ReqSeq-archive#127 option 1), so AK2 is shown at
 // the lowest core level: workspace.status, the read-only guard of `invoke` with stand-in commands,
 // and the files block that every write goes through.
 import fs from "node:fs/promises";

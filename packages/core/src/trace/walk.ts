@@ -394,7 +394,7 @@ export const walk = <E, L = never>(
     expanded,
     leaves: leaves?.(element) ?? NO_LEAVES,
   }));
-  // Built on first read (`pathTo`): a chain of 40,000 elements does not need it (SR-082 AK4, #227).
+  // Built on first read (`pathTo`): a chain of 40,000 elements does not need it (SR-082 AK4, ThomasBirkmaier/ReqSeq-archive#227).
   let byElement: ReadonlyMap<ElementRecord, WalkNode<E, L>> | undefined;
   return {
     nodes,

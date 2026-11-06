@@ -2,13 +2,13 @@
 // required properties (Pflicht-Properties), over any number of levels. A parent that does not
 // exist and an inheritance cycle are metamodel errors with file and line, so the workspace opens
 // read-only (SR-011 AK3). A type naming a property that no definition has is only a warning with
-// file and line (#141 c, option 2): the effective type leaves the key out, so an element value under
+// file and line (ThomasBirkmaier/ReqSeq-archive#141 c, option 2): the effective type leaves the key out, so an element value under
 // it is an unknown property (D-012) and the workspace stays writable. An unknown parent or property
 // is reported, and the key left out, only when every metamodel file was read, since a faulty file
 // may define it. Resolution never loops and resolves as far as it can, so a read-only workspace
 // still knows its types.
 //
-// Statuses per type (#306): a type's `statuses` restrict the metamodel's statuses (the vocabulary)
+// Statuses per type (ThomasBirkmaier/ReqSeq-archive#306): a type's `statuses` restrict the metamodel's statuses (the vocabulary)
 // and are inherited like properties, as a union over the type and its ancestors. Without any list in
 // the chain the type has every status; once any type in the chain has a list, only the listed
 // statuses count, so a type with a list below a parent without one has only its own statuses. An

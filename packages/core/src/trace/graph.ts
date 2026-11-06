@@ -8,7 +8,7 @@
 // - Parents: the element's own derivation items, each looked up with `targetState` (D-058), as the
 //   element view and `followTargets` do. An `available` target is a step; every other target is
 //   unresolved with its state. `inaccessible` (a repository of the workspace file that is not on
-//   this machine) and `unknown-repository` mark the walk incomplete (SR-006 AK2, spec question #193);
+//   this machine) and `unknown-repository` mark the walk incomplete (SR-006 AK2, spec question ThomasBirkmaier/ReqSeq-archive#193);
 //   `missing` (SR-089) and `ambiguous` (SR-088) are findings of their own and do not.
 // - Children: the incoming derivation relations of the element (`incomingTo`, in the order of the
 //   index). While several files of its repository share its UUID (SR-088), `targetState` calls
@@ -17,7 +17,7 @@
 //   AK3) instead of an element without children. Relations are stored only in the child's file
 //   (ADR-0004), so children in a repository that is not on this machine cannot be seen: while the
 //   workspace file lists such a repository, every step down is incomplete (assumption, spec
-//   question #262, option 1).
+//   question ThomasBirkmaier/ReqSeq-archive#262, option 1).
 // - All edges (`derivationEdges`, SR-090): every derivation relation of the index whose target is
 //   the one record of its UUID in the repository it points into, without a `targetState` each.
 import type { CommandName } from "../catalog.js";
@@ -214,7 +214,7 @@ export interface ParentPositions {
  * in the workspace file holds no record. Positions instead of records, and no incoming index: for
  * the derivation tree of a list (`element.list` by hierarchy, SR-075), which then links its
  * elements by array positions; looking each parent up as a record, for the 128,000 derivations of
- * N-036, cost several times as much (#87).
+ * N-036, cost several times as much (ThomasBirkmaier/ReqSeq-archive#87).
  */
 export const parentPositions = (graph: Pick<DerivationGraph, "kinds" | "store">): ParentPositions[] => {
   const { elements } = graph.store;
@@ -260,7 +260,7 @@ export const parentPositions = (graph: Pick<DerivationGraph, "kinds" | "store">)
  * parent (`to`) whose target is `available`: the one record of its UUID in the repository it points
  * into (as `targetState` finds it; a repository that is not here holds no record). In the order of
  * `IncomingIndex.relationsById`: by its UUIDs (in no defined order: a fresh index has them in the
- * order first named, the order is not defined after a carry, #267, #215), then each list in
+ * order first named, the order is not defined after a carry, ThomasBirkmaier/ReqSeq-archive#267, #215), then each list in
  * index order. For the cycles of the whole store (SR-090): `cyclesOf(store.elements,
  * derivationEdges(graph))`, whose cycles and their elements come in store order whatever the edge
  * order (only each cycle's `edges` follow it).

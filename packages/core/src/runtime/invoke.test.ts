@@ -224,7 +224,7 @@ describe("invoke", () => {
       expect(errors.map((e) => `${e.path} ${e.keyword}`)).toEqual(
         expect.arrayContaining([" additionalProperties", "/limit minimum", "/ref pattern"]),
       );
-      // Readable, the field named by its input name, no regular expression, no "(root)" (#309).
+      // Readable, the field named by its input name, no regular expression, no "(root)" (ThomasBirkmaier/ReqSeq-archive#309).
       expect(err.message).not.toMatch(/\(root\)|\^|\$"/);
       expect(err.message).toContain("extra is not an input of this command");
       expect(run).not.toHaveBeenCalled();

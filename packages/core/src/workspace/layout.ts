@@ -295,7 +295,7 @@ const locateMetamodel = async (
     );
     return { ...location, folder, exists: false };
   }
-  // The real path, as for the repositories (#231): links resolved and the name as stored, so on
+  // The real path, as for the repositories (ThomasBirkmaier/ReqSeq-archive#231): links resolved and the name as stored, so on
   // macOS a folder typed in another letter case or Unicode normal form (APFS ignores both) is
   // spelled as the watcher's events and the walk spell it. A link that leads out of the repository
   // keeps the folder as typed: the metamodel's files are named relative to their repository.

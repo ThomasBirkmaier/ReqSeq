@@ -1,6 +1,6 @@
 // Outdated relations and inline references (SR-025, D-013, D-042): a relation or reference stores
 // the version of its target (ADR-0004); when that is not the current version of the target
-// (ADR-0005, `currentVersionsState`, #259), the relation is outdated, and the check reports it
+// (ADR-0005, `currentVersionsState`, ThomasBirkmaier/ReqSeq-archive#259), the relation is outdated, and the check reports it
 // until someone confirms the hint (SR-027 writes the current version into the relation).
 //
 // - What is checked: every item of a relation kind and of a relation-valued property
@@ -12,12 +12,12 @@
 //   (`isOutdatedVersion`, ADR-0005 "Normal form 2"), and only
 //   with a target that is `available` (`targetState`, `referenceTargetState`). A target that is
 //   missing (SR-089), ambiguous (SR-088), in a repository that is not on this machine (SR-006) or in
-//   one the workspace file does not list (#193) is another finding, not an outdated one; so is an
+//   one the workspace file does not list (ThomasBirkmaier/ReqSeq-archive#193) is another finding, not an outdated one; so is an
 //   item without a valid `version` (SR-085). A reference without `version` stores no version and is
 //   not reported (it gets one on the next save, ADR-0004); nor is a target whose current version is
 //   unknown (`CurrentVersion` `unknown`: its file no longer holds it, an image cannot be read).
 //   Relations stored in a repository that is not on this machine cannot be read (spec question
-//   #262, option 1); the check reports that repository as missing (SR-006).
+//   ThomasBirkmaier/ReqSeq-archive#262, option 1); the check reports that repository as missing (SR-006).
 // - Each finding (`OutdatedFinding`) keeps its source, target, both versions and a problem: code
 //   `relation.outdated` (`variant.core-changed` for a replacement in a variant onto a core
 //   requirement, `core-changed.ts`, SR-045), severity `warning` (a "Hinweis", D-042; SR-019 AK2 ends
@@ -33,13 +33,13 @@
 //   in another layout; a link has its line from the store.
 // - Order: elements in store order; per element its relations in the order of the keys in the
 //   file, then of the items, then its references in text order.
-// - Carried over a save or a watcher batch (#184, ADR-0008) when every changed UUID keeps its
+// - Carried over a save or a watcher batch (ThomasBirkmaier/ReqSeq-archive#184, ADR-0008) when every changed UUID keeps its
 //   repositories and types (no short ID and no target resolution changes) and the incoming index of
 //   the store before the change is there (the state builds it and depends on `incomingState`, so the
-//   index is carried first, #273): only the changed files and the
+//   index is carried first, ThomasBirkmaier/ReqSeq-archive#273): only the changed files and the
 //   sources of relations and references to a changed UUID are looked at again, and merged in store
 //   order into the kept findings without a pass over the store (#215). Otherwise it is built again.
-// - Cost (N-036): the current versions (#259, built once per store), the incoming index, one pass
+// - Cost (N-036): the current versions (ThomasBirkmaier/ReqSeq-archive#259, built once per store), the incoming index, one pass
 //   over the relations of the store with a map lookup per target, in slices (SR-082); the files of
 //   sources with an outdated relation are read again as text for the lines.
 import type { Problem } from "../catalog.js";
@@ -566,7 +566,7 @@ const buildAll = async (
   layout: WorkspaceLayout,
   context: OutdatedContext,
 ): Promise<OutdatedFinding[]> => {
-  // So that a later change of the store can be carried (#273): the sources of relations to a changed UUID.
+  // So that a later change of the store can be carried (ThomasBirkmaier/ReqSeq-archive#273): the sources of relations to a changed UUID.
   incomingFor(workspace, context.versions.store, context.metamodel);
   return locateOutdated(layout, await candidatesOfAll(context.versions.store.elements, context));
 };
@@ -581,7 +581,7 @@ export const outdatedRelationsState = defineWorkspaceState(
   "outdated-relations",
   async (workspace): Promise<readonly OutdatedFinding[]> => {
     const metamodel = await workspace.get(metamodelState);
-    // Nothing against a metamodel that is not valid: its errors are the findings (#208, #220).
+    // Nothing against a metamodel that is not valid: its errors are the findings (ThomasBirkmaier/ReqSeq-archive#208, ThomasBirkmaier/ReqSeq-archive#220).
     if (!metamodel.valid) {
       return [];
     }

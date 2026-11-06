@@ -1,6 +1,6 @@
 // Related elements of a selection (SR-023, N-008): "Das Tool muss zu einer Auswahl von Parents alle
 // davon abgeleiteten Requirements auflisten und umgekehrt." One breadth-first walk of the derivation
-// graph (#258) from all elements of the selection at once: down along `childrenOf` for the children
+// graph (ThomasBirkmaier/ReqSeq-archive#258) from all elements of the selection at once: down along `childrenOf` for the children
 // (AK1), up along `parentsOf` for the parents (AK3).
 //
 // - Listed is every element reached through a step, each once (AK2), however many elements of the
@@ -18,7 +18,7 @@
 //   lies only below or above such an element is not listed either, as in the chain (SR-022). The
 //   selection itself is walked from as given.
 // - `incomplete` as in `walk` (SR-006 AK2): up when a parent lies in a repository that is not on
-//   this machine, down whenever the workspace file lists such a repository (spec question #262).
+//   this machine, down whenever the workspace file lists such a repository (spec question ThomasBirkmaier/ReqSeq-archive#262).
 //   Targets that are missing (SR-089) or ambiguous (SR-088) are findings of the check, not listed.
 // - Its own walk, not `walk`: a list needs no edges, `via`, nodes or cycles, and building them for
 //   the 42,000 children of a need at N-036 takes most of the 500 ms of a result (SR-082 AK4). The

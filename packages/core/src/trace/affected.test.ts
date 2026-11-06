@@ -1,5 +1,5 @@
 // The affected elements of the trace block (SR-024): the walk over the incoming index with its edge
-// cases (relations to itself, cycles, repositories, shared UUIDs) and the evidence seam (AK4, #127
+// cases (relations to itself, cycles, repositories, shared UUIDs) and the evidence seam (AK4, ThomasBirkmaier/ReqSeq-archive#127
 // option 1). The command on the SR-024 fixture: commands/trace/affected.test.ts.
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";

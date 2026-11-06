@@ -1,4 +1,4 @@
-// #635: the blocks of packages/core/src import each other only downward, as docs/architecture/README.md
+// ThomasBirkmaier/ReqSeq-archive#635: the blocks of packages/core/src import each other only downward, as docs/architecture/README.md
 // section 5 states. This test reads the relative imports of every product module (test files and helpers left out)
 // and fails on an import that goes to the same or a higher layer or that the README's block table does
 // not list. A new block or runtime module, or a new allowed import, is added to the README and here.
@@ -313,7 +313,7 @@ function productModules(): string[] {
     .sort();
 }
 
-describe("core block layers (#635, docs/architecture/README.md section 5)", () => {
+describe("core block layers (ThomasBirkmaier/ReqSeq-archive#635, docs/architecture/README.md section 5)", () => {
   it("every relative import of the product code points to a lower layer and is in the block table", () => {
     const modules = productModules().map((module) => ({
       module,

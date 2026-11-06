@@ -3,7 +3,7 @@
 // (D-030); Git is only read for the commit of each repository and whether its files differ from it
 // (`repositoryState`, model/uncommitted.ts, ADR-0006).
 //
-// - Elements (AK1, assumption A3 of #590 Q1): every element of the selection in store order, the
+// - Elements (AK1, assumption A3 of ThomasBirkmaier/ReqSeq-archive#590 Q1): every element of the selection in store order, the
 //   superseded ones included (D-045), each as `element.list` gives it (`listElements`: properties
 //   with unknown keys, own relations, property relations and the successors' relations, current
 //   `version`, `problems` of an element without version), with:
@@ -29,7 +29,7 @@
 //   its file after; both also on every line of the JSON Lines form, `$defs/line`, #319);
 //   `generated` = the time of the call (UTC, seconds); `selection` as given;
 //   `repositories`: each of the workspace file with `available` and, when Git tells it, `commit`
-//   and `dirty` (SR-062, #531 Q2: uncommitted changes to the files the data is made of, by content);
+//   and `dirty` (SR-062, ThomasBirkmaier/ReqSeq-archive#531 Q2: uncommitted changes to the files the data is made of, by content);
 //   `incomplete` (SR-006 AK2): the selection is incomplete or an evidence location is in a repository
 //   that is not on this machine.
 // - Workspace problems (A6): the schema has no place for them. Element problems stay in
@@ -38,9 +38,9 @@
 //   with the reason (query/selection.ts), never an empty export. Layout, metamodel and record
 //   problems are left to `workspace check`, and an unknown Git state (no `commit` or no `dirty`) to
 //   `data.store`, which reports it as `git.unavailable` (`exportDataWithProblems`). A broken
-//   workspace is exported (#590 Q3).
+//   workspace is exported (ThomasBirkmaier/ReqSeq-archive#590 Q3).
 // - A baseline selection exports the elements as they are now: one changed since the baseline has
-//   another `version` than the baseline lists, and nothing marks it (A1, #530 Q4).
+//   another `version` than the baseline lists, and nothing marks it (A1, ThomasBirkmaier/ReqSeq-archive#530 Q4).
 // Cost (N-036): the versions of the selection are read once (`listElements`), those the status needs
 // in one batch (`verificationState`), and those of relation targets outside the selection in one
 // more batch, none when there is no such target. No paging: one call gives the whole selection.

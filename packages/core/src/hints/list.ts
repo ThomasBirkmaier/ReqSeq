@@ -15,8 +15,8 @@
 //   variant, which every view holds (SR-043 AK10), so the `variant` filter lists them only for that
 //   variant. Only the variants whose hints can pass the filters are computed (`sinceBaselineVariants`).
 // - Each hint is the problem as the check gives it (AK1): kind (`code`), the element (`elementId`,
-//   `repository`, `file`, `line`, and its short ID `elementShortId` for display, #310, added by
-//   `invoke` to every problem that names an element, #315), the target
+//   `repository`, `file`, `line`, and its short ID `elementShortId` for display, ThomasBirkmaier/ReqSeq-archive#310, added by
+//   `invoke` to every problem that names an element, ThomasBirkmaier/ReqSeq-archive#315), the target
 //   where it has one (`targetId`) and the reason (`message`; an outdated relation names both
 //   versions and their dates, D-013). Order: the order of the check.
 // - Filters (AK2), combined with AND; within `kind` and `type` any of the values: `kind` the code;
@@ -33,7 +33,7 @@
 //   as `showElement` gives them with `elementHints` (dated), not the whole-workspace states, so it
 //   builds neither the incoming index nor the cycles of the store. They are put into the order of
 //   the check by code (`CHECK_ORDER`, a stable sort keeps the element's order within one state; a code
-//   the check gives no hint with, such as `element.get`'s `file.faulty` of #276, is left out), the
+//   the check gives no hint with, such as `element.get`'s `file.faulty` of ThomasBirkmaier/ReqSeq-archive#276, is left out), the
 //   other filters apply as above, and since-baseline hints are computed only where
 //   `sinceBaselineVariants` admits the element; the page applies as above. The image check of
 //   `currentVersions` is left out, as at `element.get`.
@@ -96,12 +96,12 @@ const COMMAND: CommandName = "hint.list";
  * The whole-workspace finding states that can give hints, in the order of `workspace.check`
  * (`FINDING_STATES`; the outdated relations follow them). Its other states give no hint: duplicate
  * UUIDs (SR-088) and missing targets (SR-089) give errors only, and the findings of the evidence
- * records (SR-028) name no element by `elementId` (spec question #533 Q2).
+ * records (SR-028) name no element by `elementId` (spec question ThomasBirkmaier/ReqSeq-archive#533 Q2).
  */
 export const HINT_STATES = [
   requiredProblemsState, // SR-015
   unknownProblemsState, // SR-016
-  statusProblemsState, // #306
+  statusProblemsState, // ThomasBirkmaier/ReqSeq-archive#306
   statementProblemsState, // #667
   supersededTargetProblemsState, // SR-072
   supersededValidityProblemsState, // SR-040
@@ -111,7 +111,7 @@ export const HINT_STATES = [
   itemLimitProblemsState, // SR-171
   relationTypeProblemsState, // SR-086
   relationLimitProblemsState, // SR-152
-  duplicateIdentifierProblemsState, // #305
+  duplicateIdentifierProblemsState, // ThomasBirkmaier/ReqSeq-archive#305
   unresolvedLinkProblemsState, // #176
   derivationCycleProblemsState, // SR-090
   noParentProblemsState, // SR-022 AK6
@@ -154,7 +154,7 @@ export const CHECK_HINT_CODES: ReadonlySet<string> = new Set(RANK.keys());
 /**
  * The problems of one element whose code the check gives as a hint (`CHECK_ORDER`), in the order of
  * `workspace.check`; any other (such as the `file.faulty` warning of an element without a version
- * that `element.get` adds, #276) is left out. Stable: within one state the element's own order stays.
+ * that `element.get` adds, ThomasBirkmaier/ReqSeq-archive#276) is left out. Stable: within one state the element's own order stays.
  */
 export const inCheckOrder = (problems: readonly Problem[]): Problem[] => {
   const ranked = problems.flatMap((problem) => {
@@ -315,7 +315,7 @@ const filtersElements = (filter: HintFilter): boolean =>
  * The hints of `problems` and `outdated` (in this order) that pass `filter`: the page `page` (every
  * hint by default) and `total`, the number of all that pass. The outdated ones of the page carry the
  * dates of both versions (`datedProblems`, asked only for these). The short ID of each hint's
- * element (`elementShortId`) is added where every problem leaves the runtime (`invoke`, #315).
+ * element (`elementShortId`) is added where every problem leaves the runtime (`invoke`, ThomasBirkmaier/ReqSeq-archive#315).
  */
 export const hintsOf = async (
   workspace: Workspace,
@@ -380,7 +380,7 @@ export const listHints = async (
   const filter = resolveHintFilter({ metamodel, store, shortIds }, input);
   const incomplete = availableRepositories(layout).length < layout.repositories.length;
   if (!metamodel.valid) {
-    // No hints against a metamodel that is not valid: its errors are the findings (#208, #220).
+    // No hints against a metamodel that is not valid: its errors are the findings (ThomasBirkmaier/ReqSeq-archive#208, ThomasBirkmaier/ReqSeq-archive#220).
     return { hints: [], total: 0, incomplete };
   }
   const page = { limit: input.limit, offset: input.offset };

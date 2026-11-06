@@ -3,7 +3,7 @@
 // update, coverage, export and baselines later) and on every access (D-029).
 //
 // - Every part given must hold (SR-101 AK2: "nur Elemente, die beide Bedingungen erfüllen"):
-//   - `ids`: exactly the elements named (AK3), each resolved with `resolveRef` (any case, #309;
+//   - `ids`: exactly the elements named (AK3), each resolved with `resolveRef` (any case, ThomasBirkmaier/ReqSeq-archive#309;
 //     `ref.unknown`, `ref.ambiguous`); an element named twice is selected once.
 //   - `where`: the condition (condition.ts, SR-069).
 //   - `package`: the elements assigned to the package (SR-112 AK1), as the condition `package`.
@@ -19,10 +19,10 @@
 //     file names the filter and its file.
 // - `baseline`: only for a command that opts in (`SelectionOptions.baseline`); so far
 //   data.export (SR-061 AK2) and data.store (SR-062). The elements the baseline file lists, as
-//   they are now (`Baseline.selects`, baselines/read.ts; assumption A1 of #530 Q2/Q4). It is found by
+//   they are now (`Baseline.selects`, baselines/read.ts; assumption A1 of ThomasBirkmaier/ReqSeq-archive#530 Q2/Q4). It is found by
 //   name, then by file name (`findBaseline`): none is `input.invalid`, a name two files share too,
 //   a text that names only a faulty file `file.faulty`. Every other command refuses it with
-//   `input.invalid` naming itself and stage 5 until #530 Q4 decides what a baseline means for it;
+//   `input.invalid` naming itself and stage 5 until ThomasBirkmaier/ReqSeq-archive#530 Q4 decides what a baseline means for it;
 //   so no caller takes every element for a narrower selection.
 // - Order: the order of the store, by repository as the workspace file lists them, then by file
 //   path (code units), whatever order `ids` names them in; `sortElements` (sort.ts, SR-075) sorts.
@@ -31,9 +31,9 @@
 //   workspace file does not list (relation.ts). A baselines folder in a repository that is not on
 //   this machine holds no baseline here: `baseline` then names none (`input.invalid`, saying so).
 // Cost: the conditions are compiled once per call, then one pass over the store (N-036). Compile per
-// run (#336): a compiled condition holds the states of the store it was compiled against and keeps
+// run (ThomasBirkmaier/ReqSeq-archive#336): a compiled condition holds the states of the store it was compiled against and keeps
 // its `notes` (condition.ts, `CompiledCondition`), so a caller that runs a selection again (a bulk
-// update, #83) calls `resolveSelection` again and never keeps a compiled one; a saved filter is
+// update, ThomasBirkmaier/ReqSeq-archive#83) calls `resolveSelection` again and never keeps a compiled one; a saved filter is
 // compiled from its file on each call.
 import type { Baseline } from "../baselines/index.js";
 import { findBaseline, workspaceBaselines } from "../baselines/index.js";

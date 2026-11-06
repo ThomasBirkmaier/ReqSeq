@@ -1,4 +1,4 @@
-// The read-only baseline reader (read.ts, SR-032 AK2, spec question #530) on fixtures/SR-032/baselines:
+// The read-only baseline reader (read.ts, SR-032 AK2, spec question ThomasBirkmaier/ReqSeq-archive#530) on fixtures/SR-032/baselines:
 // Beta (A1 at V1), Release 1.0 (A1 at V1, A2 at V2), Release 1.1 (A1 at V2, A2 at V2) and a README
 // in the default folder `baselines`. What evidence.list makes of it: commands/evidence/list.test.ts.
 import fs from "node:fs/promises";

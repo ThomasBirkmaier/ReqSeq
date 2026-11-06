@@ -154,10 +154,10 @@ describe("cycles in the derivations (SR-090)", () => {
     ]);
     expect(problems.map((p) => p.elementId)).not.toContain(NEED);
     // The check reports them (SR-019); they are warnings, so it is not ok with failOn warning: then the
-    // CLI ends with exit code 1 (ADR-0009, #304).
+    // CLI ends with exit code 1 (ADR-0009, ThomasBirkmaier/ReqSeq-archive#304).
     const out = await check(workspace, { failOn: "warning" });
     expect(out.ok).toBe(false);
-    // With the short ID of each element (#315), as the messages name them.
+    // With the short ID of each element (ThomasBirkmaier/ReqSeq-archive#315), as the messages name them.
     const shortIds = new Map([
       [A, "SR-b0000000001"],
       [B, "SR-000002"],
@@ -364,7 +364,7 @@ describe("cycles in the derivations (SR-090)", () => {
     expect(out.problems.map((p) => [p.code, p.elementId, p.targetId])).toEqual([["relation.outdated", B, C]]);
   });
 
-  it("reports nothing against a metamodel that is not valid (#208, #220)", async () => {
+  it("reports nothing against a metamodel that is not valid (ThomasBirkmaier/ReqSeq-archive#208, ThomasBirkmaier/ReqSeq-archive#220)", async () => {
     const [X, Y] = [1, 2].map(uuid) as [string, string];
     const workspace = await open({
       ...requirements({ [X]: derivesFrom(Y), [Y]: derivesFrom(X) }),
@@ -373,7 +373,7 @@ describe("cycles in the derivations (SR-090)", () => {
     expect(await cycles(workspace)).toEqual([]);
   });
 
-  it("names the missing meaning derivation as info when no relation kind has it (SR-013 AK3, spec question #270)", async () => {
+  it("names the missing meaning derivation as info when no relation kind has it (SR-013 AK3, spec question ThomasBirkmaier/ReqSeq-archive#270)", async () => {
     const [X, Y] = [1, 2].map(uuid) as [string, string];
     const workspace = await open({
       "system/metamodel/standard-model.yaml": STANDARD_MODEL_TEXT.replaceAll("    meaning: derivation\n", ""),

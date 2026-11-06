@@ -1,4 +1,4 @@
-// compareNatural (#418): digit runs by number, everything else by code units; pure, no locale.
+// compareNatural (ThomasBirkmaier/ReqSeq-archive#418): digit runs by number, everything else by code units; pure, no locale.
 import { describe, expect, it } from "vitest";
 import { compareNatural } from "./sort.js";
 

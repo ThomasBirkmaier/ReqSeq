@@ -400,7 +400,7 @@ describe("loadWorkspaceLayout", () => {
     ]);
   });
 
-  it("gives an existing metamodel folder as its real path, links resolved and the name as stored, unless a link leads out of the repository (#231)", async () => {
+  it("gives an existing metamodel folder as its real path, links resolved and the name as stored, unless a link leads out of the repository (ThomasBirkmaier/ReqSeq-archive#231)", async () => {
     const ws = await setup(yaml(MAIN, "metamodel: { repository: main, path: METAMODEL }\n"));
     // Where the file system ignores letter case (APFS, NTFS), the folder typed in another case is
     // the stored one, spelled as stored; elsewhere it is missing.
