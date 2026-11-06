@@ -1,4 +1,4 @@
-// Which parsed Markdown files are elements (ADR-0004, SR-003 AK2, spec question #145 option 1):
+// Which parsed Markdown files are elements (ADR-0004, SR-003 AK2, spec question ThomasBirkmaier/ReqSeq-archive#145 option 1):
 // those whose frontmatter is a mapping with `id` and `type`. Every other file is not an element; it
 // is never written. A type the metamodel does not know still makes an element (SR-016 AK3).
 import { Scalar, isMap, isNode, isScalar } from "yaml";

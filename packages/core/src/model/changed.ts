@@ -1,12 +1,12 @@
 // The restriction of `workspace.check` to what a merge request changed (SR-092, D-025, N-059). The
-// open points follow the recommended options of spec question #291:
+// open points follow the recommended options of spec question ThomasBirkmaier/ReqSeq-archive#291:
 //
 // - Changed is the working copy against a given commit (`changedSince`): committed since, staged,
 //   not staged and untracked files, read through the git reader (ADR-0006), never written (D-036).
 //   The revision is looked up in every available repository; one without it, or one that is no Git
 //   repository, adds nothing and gets an `info` problem, so a pipeline sees what was not looked at.
 //   Only when none has it is it `git.commit-not-found` (CLI exit code 4, ADR-0009). A repository
-//   folder may lie below the top level of its Git work tree (#377): the paths stay relative to the
+//   folder may lie below the top level of its Git work tree (ThomasBirkmaier/ReqSeq-archive#377): the paths stay relative to the
 //   folder. Where git then lists nothing and the commit has no tree at the folder, Git sees none of
 //   its files (the work tree ignores the folder, as a home folder under Git with `*` in
 //   `.gitignore` may): it is not looked at either, never a check of nothing. Any failure of
@@ -293,7 +293,7 @@ const NOT_LOOKED_AT: Readonly<Record<NotLookedAt, (repository: string, revision:
     `Repository ${repository} lies in a Git work tree that sees none of its files (it ignores the folder, or the folder holds none): its changes since ${revision} are not looked at`,
 };
 
-/** The `info` problem of a repository whose changes are not looked at (#291 point 3). */
+/** The `info` problem of a repository whose changes are not looked at (ThomasBirkmaier/ReqSeq-archive#291 point 3). */
 const notLookedAt = (repository: string, revision: string, kind: NotLookedAt): Problem => ({
   code: kind === "no-commit" ? "git.revision-missing" : "git.unavailable",
   severity: "info",
@@ -301,7 +301,7 @@ const notLookedAt = (repository: string, revision: string, kind: NotLookedAt): P
   repository,
 });
 
-/** The files that differ from `revision`, in every available repository that has it (#291 point 3). */
+/** The files that differ from `revision`, in every available repository that has it (ThomasBirkmaier/ReqSeq-archive#291 point 3). */
 const filesSince = async (
   repositories: readonly RepositoryLocation[],
   revision: string,

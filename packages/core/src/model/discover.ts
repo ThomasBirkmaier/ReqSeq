@@ -291,7 +291,7 @@ const spelledOnDisk = async (repository: RepositoryLocation, relative: string): 
 /**
  * Whether `listMarkdownFiles` lists `file` (relative to the repository, `/` as separator, a name
  * ending in `.md`), checked along its path only: a few `lstat` and `opendir` calls and no walk, for
- * a file ReqSeq has just created (#166). The rules are those of the walk: no folder or file named
+ * a file ReqSeq has just created (ThomasBirkmaier/ReqSeq-archive#166). The rules are those of the walk: no folder or file named
  * `.git` or `node_modules` or matched by `ignored`; every folder above the file a real folder (not
  * a link) without a `.git` entry and not the folder of a nested repository (`repository.excludes`),
  * and the repository folder and every folder above the file one the walk can open (an unreadable
@@ -533,18 +533,18 @@ const judgeNewFile = async (
 /**
  * Whether `listMarkdownFiles` would list `file` (relative to the repository, `/` as separator,
  * inside it, its last name one ReqSeq gives) once ReqSeq has created it and the folders above it
- * that are missing (#183), and under which path. Every name of the path must be portable
+ * that are missing (ThomasBirkmaier/ReqSeq-archive#183), and under which path. Every name of the path must be portable
  * (`portableRule`) and pass the name rules of the walk (`.git`, `node_modules`, `ignore` globs,
  * nested repositories); every folder above the file that exists must be one the walk goes into (a
  * real folder, not a link, without a `.git` entry, one it can open), and so must the repository
  * folder; below the first missing folder only the names count, and a folder to create must not
- * hold an invisible format character (`invisible`, #194). The existing folders must be spelled as
+ * hold an invisible format character (`invisible`, ThomasBirkmaier/ReqSeq-archive#194). The existing folders must be spelled as
  * on disk (`spelling`, with `existing`): on a file system that ignores case, `.GIT` or
  * `Requirements` would name `.git` or `requirements`. A spelling that differs from the one on disk
  * only in its Unicode normal form (NFC, NFD) names the same folder where the file system ignores
  * the normal form (macOS): the path is then judged again as spelled on disk, and `file` of the
- * result is that spelling (#194). `ignored` gets each path as given and then as spelled on disk;
- * `ignoreMatcher` compares both in NFC, so a glob names a folder in either normal form (#218).
+ * result is that spelling (ThomasBirkmaier/ReqSeq-archive#194). `ignored` gets each path as given and then as spelled on disk;
+ * `ignoreMatcher` compares both in NFC, so a glob names a folder in either normal form (ThomasBirkmaier/ReqSeq-archive#218).
  * ReqSeq checks this before it writes anything, so it never writes below `.git` (D-036) and never
  * creates an element that the walk cannot see. The order is the walk's, name by name: the name
  * rules first, then the folder on disk. Errors other than "not there" reject.

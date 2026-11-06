@@ -19,7 +19,7 @@ import { locate } from "../workspace/index.js";
 /** The marker of the evidence files (see the file comment); its value is never read. */
 export const evidenceFilesState = defineWorkspaceState("evidence-files", (): true => true);
 
-/** The NFC, lower-case form of a path, as the watcher compares the metamodel folder (#225). */
+/** The NFC, lower-case form of a path, as the watcher compares the metamodel folder (ThomasBirkmaier/ReqSeq-archive#225). */
 const folded = (absolute: string): string => absolute.normalize("NFC").toLowerCase();
 
 /** Whether `absolute` is `folder` or lies below it (both folded). */
