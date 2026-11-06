@@ -15,6 +15,7 @@ import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ElementControls, Prompt } from "./actions.js";
 import { AUTOSAVE_MS } from "./autosave.js";
+import type { BufferAction } from "./buffers.js";
 import { elementBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
 import type { Draft } from "./drafts.js";
@@ -159,6 +160,7 @@ const mountView = async (
   const registered: (ElementControls | undefined)[] = [];
   const asked: Prompt[] = [];
   const picks: unknown[] = [];
+  const dispatched: BufferAction[] = [];
   let revision = 0;
   const node = () =>
     createElement(ElementView, {
@@ -179,7 +181,7 @@ const mountView = async (
       register: (controls) => registered.push(controls),
       packages: undefined,
       properties: MODEL,
-      dispatch: () => undefined,
+      dispatch: (action) => dispatched.push(action),
     });
   vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
   await act(async () => {
@@ -202,6 +204,7 @@ const mountView = async (
     copies,
     asked,
     picks,
+    dispatched,
     controls,
     /** The file was read again (a change from outside that names the element). */
     reload: async (): Promise<void> => {
@@ -411,7 +414,8 @@ describe("the title in its heading (ThomasBirkmaier/ReqSeq-archive#621)", () => 
     });
     await settle();
     expect(updates()).toEqual([{ ref: "uuid-1", title: "", expectedFileSha256: "sha-0" }]);
-    expect(echoed).toEqual([`Saved ${NAME}. ${MISSING}`]);
+    // The buffer is named by the ID alone now that the title is empty (#273).
+    expect(echoed).toEqual([`Saved SR-1. ${MISSING}`]);
     expect(data.at(-1)).toMatchObject({ element: { problems: [{ message: MISSING }] } });
     // The editor shows the ID, muted, where the title is.
     expect(heading().querySelector(".cm-placeholder")?.textContent).toBe("SR-1");
@@ -464,6 +468,38 @@ describe("the title in its heading (ThomasBirkmaier/ReqSeq-archive#621)", () => 
     expect(updates()).toEqual([
       { ref: "uuid-1", title: "Measure gusts", text: "first more", expectedFileSha256: "sha-0" },
     ]);
+  });
+
+  it("a saved title renames the buffers of the element, and Saved says the new name (#273)", async () => {
+    const { echoed, controls, dispatched } = await mountView();
+    // Read with the name the buffer has: nothing to rename.
+    expect(dispatched).toEqual([]);
+    await enterTitle();
+    await typeAt(titleView(), " speed");
+    act(() => {
+      controls().save();
+    });
+    await settle();
+    expect(dispatched.at(-1)).toEqual({
+      type: "rename",
+      id: "uuid-1",
+      repository: "spec",
+      name: "SR-1 Measure wind speed",
+    });
+    expect(echoed).toEqual(["Saved SR-1 Measure wind speed"]);
+  });
+
+  it("a title changed on disk renames the buffers of the element when it is read again (#273, SR-116)", async () => {
+    const { file, reload, dispatched } = await mountView();
+    file.title = "Measure gusts";
+    file.sha = "sha-x";
+    await reload();
+    expect(dispatched.at(-1)).toEqual({
+      type: "rename",
+      id: "uuid-1",
+      repository: "spec",
+      name: "SR-1 Measure gusts",
+    });
   });
 
   it("[SR-106/AK1] a title without input follows the file, closed and open, and the caret stays", async () => {

@@ -6207,9 +6207,11 @@ describe("ElementView", () => {
       for (let n = 0; n < 3; n += 1) {
         await press(query(".members .list"), "ArrowDown");
       }
-      // The row is the one of the element buffer: the app keeps it as `memberCursor`.
-      expect(dispatched).toHaveLength(3);
-      expect(dispatched[0]).toEqual({ type: "cursor", key: "element:spec:uuid-1", cursor: 1 });
+      // The row is the one of the element buffer: the app keeps it as `memberCursor`. The page is named
+      // otherwise than the buffer this test opens, so the read renames it as well (#273).
+      const cursors = dispatched.filter((action) => action.type === "cursor");
+      expect(cursors).toHaveLength(3);
+      expect(cursors[0]).toEqual({ type: "cursor", key: "element:spec:uuid-1", cursor: 1 });
       expect(asked()).toBe(1);
     });
 

@@ -39,8 +39,8 @@ import type { BufferKeep, UndoMemory } from "./buffer-memory.js";
 import type { DataExportElement, ElementGetOutput } from "@reqseq/core";
 import type { ElementControls, Prompt } from "./actions.js";
 import { findElements } from "./actions.js";
-import type { BufferAction, ElementBuffer, ResultBuffer } from "./buffers.js";
-import { filteredList } from "./buffers.js";
+import type { BufferAction, ElementBuffer, RenameAction, ResultBuffer } from "./buffers.js";
+import { filteredList, renameAction } from "./buffers.js";
 import type { Answer, Call } from "./call.js";
 import { NOTHING, PROMPT_INPUT, copyField, copyable, cursorField, docOf } from "./copy.js";
 import type { ElementLoad, PropertyModel } from "./element-view.js";
@@ -592,6 +592,7 @@ export const ElementView = ({
     shown,
     keep,
     memory,
+    dispatch,
   });
   now.current = {
     buffer,
@@ -614,6 +615,7 @@ export const ElementView = ({
     shown,
     keep,
     memory,
+    dispatch,
   };
   // The fields of the element (SR-128), and the field the focus was in last, which "Copy field" from the
   // command prompt needs: it runs while the prompt has the focus. A box copies what its editor holds.
@@ -900,6 +902,12 @@ export const ElementView = ({
     onFile.current = { ...onFile.current, values: back.values };
     setValues(back.values);
   };
+  // Names the buffers of the element as it was read or saved, when that is not the name of this buffer (#273).
+  const rename = (action: RenameAction): void => {
+    if (action.name !== now.current.buffer.name) {
+      now.current.dispatch(action);
+    }
+  };
   // An answer of `element.get` for the shown element. A buffer shown read-only (SR-044 AK2) shows it as a
   // read-only element: no editor takes input, and the modeline says `read-only`.
   const apply = (answered: DataExportElement, sha: string, changedJustNow: boolean): void => {
@@ -932,6 +940,8 @@ export const ElementView = ({
       }
     }
     setView({ status: "ok", element });
+    // The buffers of the element take a title changed on disk (#273).
+    rename(renameAction(element));
   };
   // A read of the shown element failed. Before anything was shown the buffer says why; after, it keeps
   // what it shows with its editors: a file that is gone leaves the content read-only with a hint (SR-106
@@ -1089,7 +1099,7 @@ export const ElementView = ({
     editor: EditorHandle,
     mode: SaveMode,
   ): void => {
-    const { buffer: shown, onEcho: echo } = now.current;
+    const { onEcho: echo } = now.current;
     const { element } = output;
     settled.current += 1;
     // The file as this save wrote it: the reload its `written` brings finds the same bytes, and what was
@@ -1135,8 +1145,11 @@ export const ElementView = ({
     keepDraft(currentDraft());
     setView({ status: "ok", element });
     setNotSaved(false);
+    // The buffers of the element take the title it was saved with (#273), and so does "Saved <name>".
+    const named = renameAction(element);
+    rename(named);
     const hint = savedHint(output.problems, hintKeys(sent.edits, element, now.current.properties));
-    const speech = savedSpeech(said.current, mode, shown.name, hint);
+    const speech = savedSpeech(said.current, mode, named.name, hint);
     if (speech.echo !== undefined) {
       echo(speech.echo);
     }

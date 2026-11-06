@@ -459,6 +459,16 @@ describe("App, changes from outside (SR-116, SR-106)", () => {
     expect(query('[aria-label="Modeline"]').textContent).not.toContain("on disk");
   });
 
+  it("names the open element buffer by the title changed outside (#273)", async () => {
+    const { outside } = await start();
+    await listAll();
+    await openRow(0);
+    expect(query('article[aria-label="N-001 See the wind"]')).toBeDefined();
+    await outside("uuid-1", { title: "Feel the wind" });
+    expect(container.querySelector('article[aria-label="N-001 See the wind"]')).toBeNull();
+    expect(query('article[aria-label="N-001 Feel the wind"]')).toBeDefined();
+  });
+
   it("highlights the title when the bytes changed but no field shows it, and nothing when the bytes are the same", async () => {
     const { outside, send, calls } = await start();
     await listAll();

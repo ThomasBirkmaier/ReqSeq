@@ -8,6 +8,7 @@ import {
   elementBuffer,
   elementBufferOf,
   filteredList,
+  graphBuffer,
   listHeading,
   listBuffer,
   listSort,
@@ -15,8 +16,10 @@ import {
   neighbourhoodBuffer,
   onlyOverview,
   overviewBuffer,
+  readOnlyBuffer,
   reduceBuffers,
   relationBuffer,
+  renameAction,
   searchBuffer,
   selectionOf,
   sortLabel,
@@ -340,5 +343,46 @@ describe("listHeading", () => {
     ).toBe("System Requirement · status: draft");
     expect(listHeading(filteredList([typeStep("need")]))).toBe("type: need");
     expect(listHeading(searchBuffer("filter"))).toBe("Search: filter");
+  });
+});
+
+describe("renaming the buffers of an element (#273)", () => {
+  const element = {
+    id: "id-a",
+    repository: "repo",
+    shortId: "SR-000001",
+    identifier: "SR-1",
+    title: "Gamma",
+  };
+
+  it("names the element, read-only, neighbourhood and graph buffers of the element with its new title, where they are", () => {
+    const other = elementBuffer("id-a", "elsewhere", "SR-1 Alpha");
+    const open: Buffers = [
+      graphBuffer("id-a", "repo", "SR-1 Alpha"),
+      b,
+      neighbourhoodBuffer("id-a", "repo", "SR-1 Alpha"),
+      readOnlyBuffer(a),
+      other,
+      a,
+      list,
+    ];
+    const renamed = reduceBuffers(open, renameAction(element));
+    expect(renamed.map(bufferName)).toEqual([
+      "Graph: SR-1 Gamma",
+      "SR-2 Beta",
+      "Neighbourhood: SR-1 Gamma",
+      "SR-1 Gamma · read-only",
+      "SR-1 Alpha",
+      "SR-1 Gamma",
+      "All elements",
+    ]);
+    expect(renamed.map((buffer) => buffer.key)).toEqual(open.map((buffer) => buffer.key));
+    expect(renamed[1]).toBe(b);
+    expect(renamed[4]).toBe(other);
+  });
+
+  it("keeps the same buffers when every buffer of the element has the name already", () => {
+    const open: Buffers = [a, b];
+    expect(reduceBuffers(open, renameAction({ ...element, title: "Alpha" }))).toBe(open);
   });
 });
