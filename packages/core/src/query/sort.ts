@@ -139,9 +139,10 @@ const naturalCell = (value: string, sign: number, next: Cell | undefined): Cell 
   next,
 });
 
-const NO_RANKS: ReadonlyMap<string, number> = new Map();
+export const NO_RANKS: ReadonlyMap<string, number> = new Map();
 
-const ranksOf = (keys: readonly { readonly key: string }[]): ReadonlyMap<string, number> =>
+/** The ranks of metamodel entries (types, statuses, choices) by key, in their order. */
+export const ranksOf = (keys: readonly { readonly key: string }[]): ReadonlyMap<string, number> =>
   new Map(keys.map((entry, rank) => [entry.key, rank]));
 
 /** How one key reads the sort value of an element (see the file comment). */
@@ -278,6 +279,20 @@ const compareCells = (x: Cell, y: Cell): number => {
   return order * x.sign;
 };
 
+/** How a value ranks under one key, ascending: `sortValueOf`, compared with `compareSortValues`. */
+export type SortValue = Cell;
+
+/**
+ * The value as a sort ranks it (see the file comment): a text that is a key of `ranks` by its rank
+ * (metamodel order), then numbers, texts ignoring case, booleans; no value (`undefined`, NaN, a
+ * mapping) last. For callers that order values as the sort does (the groups of SR-149).
+ */
+export const sortValueOf = (value: unknown, ranks: ReadonlyMap<string, number>): SortValue =>
+  cellOf(value, ranks, 1, undefined);
+
+/** How two values of `sortValueOf` compare, ascending. */
+export const compareSortValues: (a: SortValue, b: SortValue) => number = compareCells;
+
 /** How two rows compare: key by key, then by the workspace order. */
 const compareRows = (a: Row, b: Row): number => {
   let x = a.first;
@@ -315,6 +330,8 @@ const keptParents = (context: SortContext): readonly ParentPositions[] => {
 
 /** A row of the derivation tree: an element of the list and its node while the tree is built. */
 interface TreeRow extends Row {
+  /** Its position in the store, which `parents` name. */
+  readonly place: number;
   /** The store positions of its available parents (`parentPositions`). */
   readonly parents: readonly number[];
   /** Its children within the list, in sort order; a child once (`NO_ROWS` until it has one). */
@@ -352,6 +369,7 @@ const treeRowsOf = (
       element,
       position: rows.length,
       first: cellsOf(element),
+      place: at.length,
       parents,
       children: NO_ROWS,
       below: NO_ROWS,
@@ -369,13 +387,16 @@ const treeRowsOf = (
   return { rows, at };
 };
 
-/** The derivation tree of the sorted `rows`, depth first (see the file comment). */
-const treeOf = (rows: readonly TreeRow[], at: readonly (TreeRow | undefined)[]): TreePlace[] => {
+/**
+ * The derivation tree of the sorted `rows`, depth first (see the file comment); `at` gives the row
+ * of the list at a store position, undefined for an element not in it.
+ */
+const treeOf = (rows: readonly TreeRow[], at: (place: number) => TreeRow | undefined): TreePlace[] => {
   const roots: TreeRow[] = [];
   for (const row of rows) {
     let parented = false;
     for (const position of row.parents) {
-      const above = at[position];
+      const above = at(position);
       if (above === undefined) {
         continue;
       }
@@ -452,20 +473,13 @@ const treeOf = (rows: readonly TreeRow[], at: readonly (TreeRow | undefined)[]):
   return order;
 };
 
-/**
- * `elements` sorted by `keys` for `context.command`, and with `hierarchy` the place of each in the
- * derivation tree (see the file comment). `elements` must be records of `context.store` in store
- * order, each once, as `resolveSelection` gives them. Errors name the fields of the input under
- * `sort`.
- */
-export const sortElements = (
-  context: SortContext,
-  elements: readonly ElementRecord[],
-  keys: readonly FilterSortKeyWithDefaults[],
-): SortedElements => {
-  if (keys.length === 0) {
-    return { elements };
-  }
+/** The checked keys of a sort: whether it is a tree, and the cells of an element under the other keys. */
+interface SortPlan {
+  readonly hierarchy: boolean;
+  readonly cellsOf: (element: ElementRecord) => Cell | undefined;
+}
+
+const planOf = (context: SortContext, keys: readonly FilterSortKeyWithDefaults[]): SortPlan => {
   keys.forEach((key, index) => {
     if (key.by !== "hierarchy") {
       return;
@@ -502,13 +516,73 @@ export const sortElements = (
     return first;
   };
   // Only the first key can be `hierarchy` (above).
-  if (keys.some((key) => key.by === "hierarchy")) {
+  return { hierarchy: keys.some((key) => key.by === "hierarchy"), cellsOf };
+};
+
+const treeElements = (tree: readonly TreePlace[]): SortedElements => ({
+  elements: tree.map((place) => place.element),
+  tree,
+});
+
+/**
+ * `elements` sorted by `keys` for `context.command`, and with `hierarchy` the place of each in the
+ * derivation tree (see the file comment). `elements` must be records of `context.store` in store
+ * order, each once, as `resolveSelection` gives them. Errors name the fields of the input under
+ * `sort`.
+ */
+export const sortElements = (
+  context: SortContext,
+  elements: readonly ElementRecord[],
+  keys: readonly FilterSortKeyWithDefaults[],
+): SortedElements => {
+  if (keys.length === 0) {
+    return { elements };
+  }
+  const { hierarchy, cellsOf } = planOf(context, keys);
+  if (hierarchy) {
     const { rows, at } = treeRowsOf(context, elements, cellsOf);
     rows.sort(compareRows);
-    const tree = treeOf(rows, at);
-    return { elements: tree.map((place) => place.element), tree };
+    return treeElements(treeOf(rows, (place) => at[place]));
   }
   const rows: Row[] = elements.map((element, position) => ({ element, position, first: cellsOf(element) }));
   rows.sort(compareRows);
   return { elements: rows.map((row) => row.element) };
+};
+
+/**
+ * `elements` (as for `sortElements`) dealt into `count` groups, each sorted by `keys` (SR-149 AK3):
+ * `groupsOf` gives the groups of an element, each once. The elements are sorted once and dealt in
+ * that order. With `hierarchy` each group is a derivation tree of its own elements: the rows of the
+ * whole list are built and sorted once, and each group's tree looks its parents up among its own rows
+ * by store position, so the store is walked once, not once per group (N-036).
+ */
+export const sortGroups = (
+  context: SortContext,
+  elements: readonly ElementRecord[],
+  keys: readonly FilterSortKeyWithDefaults[],
+  groupsOf: (element: ElementRecord) => readonly number[],
+  count: number,
+): SortedElements[] => {
+  if (keys[0]?.by !== "hierarchy") {
+    const groups = Array.from({ length: count }, (): ElementRecord[] => []);
+    for (const element of sortElements(context, elements, keys).elements) {
+      for (const group of groupsOf(element)) {
+        groups[group]?.push(element);
+      }
+    }
+    return groups.map((members) => ({ elements: members }));
+  }
+  const { rows } = treeRowsOf(context, elements, planOf(context, keys).cellsOf);
+  rows.sort(compareRows);
+  const groups = Array.from({ length: count }, (): TreeRow[] => []);
+  for (const row of rows) {
+    for (const group of groupsOf(row.element)) {
+      // A row of its own per group: the tree state is per group.
+      groups[group]?.push({ ...row, children: NO_ROWS, below: NO_ROWS });
+    }
+  }
+  return groups.map((members) => {
+    const at = new Map(members.map((row) => [row.place, row]));
+    return treeElements(treeOf(members, (place) => at.get(place)));
+  });
 };

@@ -31,6 +31,10 @@
 //   its columns numbered with the head of each (the count, or with minima `met of expected · share`, as
 //   the app, SR-153), then per row the element line and one line of cells, `n: SHORT-ID, ...`, `–` for an
 //   empty cell, `[gap]` after a cell the row's `gaps` names (trace.matrix, #629).
+// - A grouped list (element.list `group`, SR-149): each group of the page under its heading, its name
+//   and value (a package by short ID and title, `(no value)` for the last group) and its count,
+//   `continued` when it began on an earlier page; its elements below it as in a plain or a tree
+//   list. The note on a short page counts the rows, an element once per group.
 // - A list of elements with a `tree` of their places (`depth`, `parent`; one per element, element.list
 //   by hierarchy, SR-075 AK2) is indented two spaces per level; an element whose parent is not shown
 //   before it (on an earlier page) names it, `[under X]`.
@@ -549,32 +553,117 @@ const treeListOf = (
   return placed;
 };
 
-/** A tree list (see the file comment). */
-const treeListLines = (placed: readonly Placed[]): string[] => {
-  if (placed.length === 0) {
-    return ["elements: none"];
-  }
-  const name = namerOf(placed.map(([element]) => element));
+/** An element of a list, with its place when the list is a tree. */
+type Listed = readonly [Rec & { readonly shortId: string; readonly title: string }, Place | undefined];
+
+/**
+ * The lines of a run of listed elements, indented two spaces and two more per level of a tree: an
+ * element whose parent is not shown before it in the run names it (`[under X]`); with their texts
+ * (`withText`), each element with its details at its depth and a blank line between them (#397).
+ */
+const listedLines = (listed: readonly Listed[], name: Namer, view?: ViewNamer): string[] => {
   const keyOf = (repository: unknown, id: unknown): string => JSON.stringify([text(repository), text(id)]);
   const before = new Set<string>();
-  const lines = ["elements:"];
-  // With their texts (`withText`), each element with its details at its depth, as in a plain list (#397).
-  const withText = placed.some(([element]) => typeof element["text"] === "string");
-  for (const [element, place] of placed) {
-    const parent = place["parent"];
+  const lines: string[] = [];
+  const withText = listed.some(([element]) => typeof element["text"] === "string");
+  for (const [element, place] of listed) {
+    const parent = place?.["parent"];
     const away = isRecord(parent) && !before.has(keyOf(parent["repository"], parent["id"]));
     const under = away ? `[under ${name(text(parent["repository"]), text(parent["id"]))}]` : "";
-    const at = `  ${"  ".repeat(place.depth)}`;
-    if (withText && lines.length > 1) {
+    const at = `  ${"  ".repeat(place?.depth ?? 0)}`;
+    if (withText && lines.length > 0) {
       lines.push("");
     }
-    lines.push(`${at}${join(elementLine(element, name), under)}`);
+    lines.push(`${at}${join(elementLine(element, name, view), under)}`);
     if (withText) {
       lines.push(...indent(listedElementDetails(element), at));
     }
     before.add(keyOf(element["repository"], element["id"]));
   }
   return lines;
+};
+
+/** A tree list (see the file comment). */
+const treeListLines = (placed: readonly Placed[]): string[] =>
+  placed.length === 0
+    ? ["elements: none"]
+    : ["elements:", ...listedLines(placed, namerOf(placed.map(([element]) => element)))];
+
+/** A group of a grouped list (element.list `group`, SR-149), as far as its heading reads it. */
+interface ListGroup extends Rec {
+  readonly count: number;
+  readonly offset: number;
+}
+
+const isListGroup = (value: unknown): value is ListGroup =>
+  isRecord(value) && typeof value["count"] === "number" && typeof value["offset"] === "number";
+
+/**
+ * The heading of a group: `Draft (draft) · 2`, a package `PKG-0000d1 (R1)  Wind · 2`, the last group
+ * `(no value) · 4`; `, continued` when it started on an earlier page.
+ */
+const groupHeading = (group: ListGroup, continued: boolean): string => {
+  // A value is a text, a number or a boolean; numbers and booleans as JSON writes them.
+  const value = typeof group["value"] === "string" ? group["value"] : JSON.stringify(group["value"]);
+  const name = text(group["name"]);
+  const label =
+    group["value"] === undefined
+      ? "(no value)"
+      : typeof group["title"] === "string" || typeof group["identifier"] === "string"
+        ? join(withIdentifier(value, group["identifier"]), text(group["title"]))
+        : name === ""
+          ? value
+          : `${name} (${value})`;
+  // The last group of a grouping by package or another relation property counts the elements whose
+  // targets are all not available (not on this machine or not in the workspace, spec-frage #978).
+  const unavailable = group["unavailable"];
+  const missing =
+    typeof unavailable === "number" ? `, ${String(unavailable)} with targets not available` : "";
+  return `${label} · ${String(group.count)}${missing}${continued ? ", continued" : ""}`;
+};
+
+/**
+ * A grouped list (element.list `group`, SR-149): each group on the page under its heading, its
+ * elements indented below it as in a plain or a tree list; undefined for any other output.
+ */
+const groupedListLines = (rest: Rec, names: Names): string[] | undefined => {
+  const groups = rest["groups"];
+  const elements = listOf(rest["elements"]);
+  if (!Array.isArray(groups) || !groups.every(isListGroup) || !elements.every(isElement)) {
+    return undefined;
+  }
+  if (elements.length === 0) {
+    return ["elements: none"];
+  }
+  const tree = Array.isArray(rest["tree"]) ? treeListOf(elements, rest["tree"]) : undefined;
+  const listed: readonly Listed[] = tree ?? elements.map((element) => [element, undefined]);
+  const name = namerOf(elements);
+  const view = viewNamerOf(elements, names);
+  const start = typeof rest["offset"] === "number" ? rest["offset"] : 0;
+  const end = start + elements.length;
+  // With their texts (`withText`), a blank line also before each heading but the first (#397).
+  const withText = elements.some((element) => typeof element["text"] === "string");
+  let headed = false;
+  return [
+    "elements:",
+    ...groups.flatMap((group) => {
+      const first = Math.max(group.offset, start);
+      const last = Math.min(group.offset + group.count, end);
+      if (first >= last) {
+        return [];
+      }
+      const gap = withText && headed ? [""] : [];
+      headed = true;
+      return [
+        ...gap,
+        `  ${groupHeading(group, first > group.offset)}`,
+        // The blank line between elements with texts stays empty.
+        ...listedLines(listed.slice(first - start, last - start), name, view).map((line) =>
+          line === "" ? line : `  ${line}`,
+        ),
+      ];
+    }),
+  ];
 };
 
 /** The key of the root among the nodes; `root/up` and `root/down` hold its parents and children. */
@@ -1028,7 +1117,8 @@ const matrixRowLines = (output: Rec, names: Names): string[] => {
  * chain, the elements of a list (never `names`), the hints of a list of hints (never `problems`).
  */
 const pageNote = (output: Rec): string[] => {
-  const total = output["total"];
+  // A grouped list (SR-149) pages over its rows, an element once per group.
+  const total = typeof output["rows"] === "number" ? output["rows"] : output["total"];
   const page = Object.entries(output).find(
     (entry): entry is [string, unknown[]] =>
       entry[0] !== "names" &&
@@ -1042,14 +1132,21 @@ const pageNote = (output: Rec): string[] => {
 };
 
 /**
- * The lines of a graph with evidence (its nodes with their summaries) or of a list of elements with a
- * `tree`, adding the keys they show to `shown`; none for any other output.
+ * The lines of a graph with evidence (its nodes with their summaries), of a grouped list or of a list
+ * of elements with a `tree`, adding the keys they show to `shown`; none for any other output.
  */
 const nodeListLines = (rest: Rec, shown: Set<string>): string[] => {
   if (isGraphWithEvidence(rest)) {
     shown.add("nodes");
     shown.add("evidence");
     return graphNodeLines(rest);
+  }
+  const grouped = groupedListLines(rest, namesIn(rest));
+  if (grouped !== undefined) {
+    for (const key of ["elements", "tree", "groups", "offset", "rows"]) {
+      shown.add(key);
+    }
+    return grouped;
   }
   const tree = rest["tree"];
   const treeList = Array.isArray(tree) ? treeListOf(listOf(rest["elements"]), tree) : undefined;
