@@ -184,7 +184,22 @@ const criterionStatus = (all: Tally, own: Tally | undefined): RecordVerification
   return all.counted || own?.counted === true ? "outdated" : "open";
 };
 
-const OPEN_OWN: OwnVerification = Object.freeze({ status: "open" });
+/** The result without any record, one frozen object per count of criteria (N-036: none per element). */
+const openOf = new Map<number, OwnVerification>();
+
+/** `open` with none of `count` criteria verified (AK1, D-072: the tool shows how many are verified). */
+const openWith = (count: number): OwnVerification => {
+  let open = openOf.get(count);
+  if (open === undefined) {
+    const notVerified = Object.freeze(Array.from({ length: count }, (_, i) => i + 1));
+    open = Object.freeze({
+      status: "open",
+      criteria: Object.freeze({ verified: 0, total: count, notVerified }),
+    });
+    openOf.set(count, open);
+  }
+  return open;
+};
 
 /**
  * The verification status of an element with `count` acceptance criteria in `view` from its records
@@ -198,8 +213,8 @@ const OPEN_OWN: OwnVerification = Object.freeze({ status: "open" });
  * name (plan review B1). The first that holds: a criterion failed gives `failed` (AK3); all verified
  * give `verified` (AK2); no record gives `open` (AK1); no record of the current version gives
  * `outdated` (AK4); a criterion without record gives `open` (AK5, D-072); else some are only of older
- * versions: `outdated` (AK8). `criteria` counts them, left out without any record (nothing to
- * count). One pass over the records, then one over the criteria.
+ * versions: `outdated` (AK8). `criteria` counts them (frozen and shared without any record). One
+ * pass over the records, then one over the criteria.
  */
 export const ownVerificationOf = (
   records: readonly EvidenceRecord[],
@@ -214,10 +229,9 @@ export const ownVerificationOf = (
     return { status: status === "passed" ? "verified" : (status as RecordVerificationStatus) };
   }
   const tallies = talliesOf(records, current, view, independent, count);
-  // No record: open (AK1), with nothing to count, as a requirement without own record in
-  // `evidence.status` (its status comes from the children there).
+  // No record: open (AK1), none of the criteria verified.
   if (!tallies.counted) {
-    return OPEN_OWN;
+    return openWith(count);
   }
   const { named } = tallies;
   // No record names a criterion (the common case): every criterion has the status of the records for all.

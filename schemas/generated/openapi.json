@@ -10573,7 +10573,7 @@
                                 },
                                 "criteria": {
                                   "$ref": "#/components/schemas/data-export/$defs/criteriaCount",
-                                  "description": "How many acceptance criteria of the version in the baseline these records verify, as for evidence.status. Left out without criteria, and when the criteria of that version cannot be read because Git does not have it."
+                                  "description": "How many acceptance criteria of the version in the baseline these records verify, as for evidence.status: 0 of all of them without a counting record. Left out when that version has no acceptance criteria, and when its criteria cannot be read because it is not the current version and Git does not have it."
                                 },
                                 "later": {
                                   "type": "array",
@@ -13354,7 +13354,7 @@
               },
               "criteria": {
                 "$ref": "#/components/schemas/data-export/$defs/criteriaCount",
-                "description": "How many of the requirement's acceptance criteria its own records in the view verify, for example 2 of 3. Only for a requirement whose status comes from its own records (at least one in the view) and whose current version has acceptance criteria (the property with the meaning `acceptance-criteria`); left out for a status from the children and without criteria."
+                "description": "How many of the requirement's acceptance criteria its own records in the view verify, for example 2 of 3. Only for a requirement whose status comes from its own records and whose current version has acceptance criteria (the property with the meaning `acceptance-criteria`); left out for a status from the children and without criteria."
               }
             },
             "additionalProperties": false

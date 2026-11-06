@@ -126,7 +126,7 @@
                   },
                   "criteria": {
                     "$ref": "../data-export.schema.json#/$defs/criteriaCount",
-                    "description": "How many acceptance criteria of the version in the baseline these records verify, as for evidence.status (SR-031 AK5). Left out without criteria, and when the criteria of that version cannot be read because Git does not have it."
+                    "description": "How many acceptance criteria of the version in the baseline these records verify, as for evidence.status (SR-031 AK5): 0 of all of them without a counting record. Left out when that version has no acceptance criteria, and when its criteria cannot be read because it is not the current version and Git does not have it."
                   },
                   "later": {
                     "type": "array",

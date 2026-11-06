@@ -37,7 +37,6 @@ import { sameVersion, storedForms } from "../model/index.js";
 import type { EvidenceRecord } from "./record.js";
 import type { OwnVerification } from "./status.js";
 import { ownVerificationOf, validationOf, verificationStatusOf } from "./status.js";
-import { criteriaEntry } from "./verification.js";
 import type { ViewHolder, WorkspaceStatus } from "./verification.js";
 import type { View } from "../variants/index.js";
 
@@ -126,7 +125,9 @@ const verificationRows = (
       {
         view: key ?? "core",
         status,
-        ...(criteria === undefined ? {} : { criteria: criteriaEntry(criteria) }),
+        // Shared, not copied: the count without a record is one frozen object per count, and a
+        // page holds up to hundreds of thousands of rows (N-036); outputs are never changed.
+        ...(criteria === undefined ? {} : { criteria }),
         ...(after === undefined ? {} : { later: [...after] }),
       },
     ];
@@ -136,9 +137,10 @@ const verificationRows = (
  * The status of a row from its counting records with `count` acceptance criteria at the baseline's
  * version (SR-031 as `evidence.status`, `ownVerificationOf`). `count` undefined: Git does not have
  * that version, so its criteria are unknown (spec question #985, assumption). Then, when no record
- * names a criterion, the rule of the whole requirement; otherwise no count is given, a failed newest
- * record of the version gives `failed`, the records that name no criterion give `verified` when they
- * verify it, and else it is `open`, or `outdated` with records of other versions only (SR-094 AK3).
+ * names a criterion, the rule of the whole requirement; otherwise no count is given, a criterion
+ * whose newest record of the version failed gives `failed` (the criteria as far as the records name
+ * them), as do `open` and `outdated` (SR-094 AK3); `verified` only when the records that name no
+ * criterion verify it, else `open`.
  */
 export const baselineStatusOf = (
   counted: readonly EvidenceRecord[],
@@ -150,10 +152,13 @@ export const baselineStatusOf = (
   if (count !== undefined) {
     return ownVerificationOf(counted, version, view, independent, count);
   }
-  const whole = verificationStatusOf(counted, version, view, independent);
-  if (whole === "failed" || whole === "outdated" || whole === "open") {
+  // Per criterion as far as the records name them: a criterion whose newest record failed fails it.
+  const named = Math.max(0, ...counted.flatMap((r) => r.criteria ?? []));
+  const whole = verificationStatusOf(counted, version, view, independent, named);
+  if (whole !== "verified") {
     return { status: whole };
   }
+  // Verified as far as the records name criteria: only the records for all show there are no others.
   const forAll = counted.filter((r) => r.criteria === undefined);
   return {
     status: verificationStatusOf(forAll, version, view, independent) === "verified" ? "verified" : "open",

@@ -49,6 +49,16 @@ describe("baselineStatusOf (SR-031, SR-094)", () => {
       },
     );
     expect(statusOf([named], undefined)).toEqual({ status: "open" });
+    // An older failed record of AK1 and a newer passed one of AK2: AK1 failed.
+    expect(
+      statusOf(
+        [
+          record("2026-10-01T10:00:00Z", "failed", { criteria: [1] }),
+          record("2026-11-02T10:00:00Z", "passed", { criteria: [2] }),
+        ],
+        undefined,
+      ),
+    ).toEqual({ status: "failed" });
     expect(statusOf([named, record("2026-10-01T10:00:00Z", "passed")], undefined)).toEqual({
       status: "verified",
     });
