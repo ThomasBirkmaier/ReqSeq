@@ -42,7 +42,14 @@
       "type": "string",
       "description": "Where the evidence is: relative path, file URL or any URI. ReqSeq does not open or manage it."
     },
-    "test-case": { "type": "string", "description": "Optional test case name or ID (D-026, SR-033)." }
+    "test-case": { "type": "string", "description": "Optional test case name or ID (D-026, SR-033)." },
+    "criteria": {
+      "type": "array",
+      "items": { "type": "integer", "minimum": 1 },
+      "minItems": 1,
+      "uniqueItems": true,
+      "description": "The acceptance criteria the record holds for, by number: the position in the property with the meaning `acceptance-criteria` of the element's `version`, counted from 1 (D-072, SR-028 AK4). Absent: every criterion. Verification only: a reader warns about it on a validation record, which counts per element (SR-030 AK3), and reads the record without it. A number that the named version does not have is a finding of `workspace check` (`evidence.unknown-criterion`, SR-028 AK5)."
+    }
   },
   "allOf": [
     {
@@ -54,7 +61,7 @@
     },
     {
       "if": { "required": ["kind"], "properties": { "kind": { "const": "validation" } } },
-      "then": { "properties": { "variant": false } }
+      "then": { "properties": { "variant": false, "criteria": false } }
     },
     {
       "if": { "required": ["result"], "properties": { "result": { "const": "inconclusive" } } },

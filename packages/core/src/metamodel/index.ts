@@ -29,6 +29,7 @@ export {
   EMERGENT_CHOICE,
   MEANINGS,
   ORIGIN_MEANINGS,
+  acceptanceCriteriaProblem,
   emergentProblem,
   meaningUnassigned,
   meaningUnassignedMessage,

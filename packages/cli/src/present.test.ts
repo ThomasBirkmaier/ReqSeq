@@ -1264,7 +1264,7 @@ describe("renderHuman: evidence records and test cases (#275)", () => {
     };
     expect(
       renderHuman({
-        records: [record, validation],
+        records: [record, validation, { ...record, criteria: [1, 3] }],
         testCases: [
           {
             name: "test_speed",
@@ -1282,6 +1282,8 @@ describe("renderHuman: evidence records and test cases (#275)", () => {
         "records:",
         "  2026-10-22T09:00:00Z  test  failed  build-513  system/evidence/ci/run-2.xml:4",
         "  validation  2026-10-22T09:00:00Z  review  passed  build-513  notes.md  [version n1:ab]  [baselines: v1, v2]",
+        // The criteria a record names (D-072, SR-028 AK4).
+        "  2026-10-22T09:00:00Z  test  failed  build-513  system/evidence/ci/run-2.xml:4  [criteria 1, 3]",
         "testCases:",
         "  tests.test_wind › test_speed  last: failed  2026-10-22T09:00:00Z  executions: 2",
         "  manual check  [not executed]  executions: 0",

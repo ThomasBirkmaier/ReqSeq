@@ -18,6 +18,11 @@
 //   verification record (#807 Q2), each at the line of `result` with its own message. A `reason` on a
 //   passed or failed record is a warning at the line of `result`, and the record counts without it
 //   (#807 Q4, as an unknown key).
+// - `criteria` names the acceptance criteria the record holds for, by number (D-072, SR-028 AK4):
+//   whole numbers from 1, each once; the record keeps them in ascending order, and registers the
+//   line of the key for the check of the numbers (`evidence/match.ts`, SR-028 AK5). Absent: every
+//   criterion. On a validation record, which counts per element (SR-030 AK3), it is a warning at the
+//   line of `criteria`, whatever its value, and the record counts without it (plan of #960).
 // - The record is `$defs/evidenceRecord` of `data-export.schema.json`: the frontmatter without
 //   `reqseq-record`, `test-case` as `testCase`, and where it lies (`source: markdown`, line 1).
 import type { Problem } from "../catalog.js";
@@ -28,6 +33,7 @@ import type { SchemaViolation } from "../runtime/contracts.js";
 import { describeViolations, fileSchemaValidator, schemaViolations } from "../runtime/contracts.js";
 import type { EvidenceFile } from "./folders.js";
 import type { EvidenceRecord } from "./record.js";
+import { withCriterionLines } from "./record.js";
 import type { EvidenceFileRead, EvidenceReader } from "./state.js";
 
 /** The key that makes a Markdown file a record (ADR-0012). */
@@ -62,6 +68,14 @@ export const INCONCLUSIVE_VALIDATION_ONLY =
 /** Why `reason` is ignored on a passed or failed record (spec question #807 Q4). */
 export const REASON_INCONCLUSIVE_ONLY = "only a record with the result inconclusive has a reason (SR-172)";
 
+/** Why `criteria` is ignored on a validation record (plan of #960, SR-030 AK3). */
+export const CRITERIA_VERIFICATION_ONLY =
+  "a validation record holds for the whole element, it names no acceptance criterion (SR-030 AK3)";
+
+/** Whether `violation` is `criteria` on a validation record (the `false` subschema of its `then`). */
+export const misplacedCriteria = (violation: SchemaViolation): boolean =>
+  violation.keyword === "false schema" && violation.path === "/criteria";
+
 /** Whether `violation` is the missing `reason` of an inconclusive record. */
 const missingReason = (violation: SchemaViolation): boolean =>
   violation.keyword === "required" && violation.params["missingProperty"] === "reason";
@@ -89,19 +103,31 @@ const violationText = (violation: SchemaViolation): string => {
 
 /**
  * The top-level key a violation is about: the unknown key it names, `result` for a missing or
- * misplaced `reason` (SR-172), or the key of its path (the schema is flat, so a path is `""` or
- * `/<key>`); undefined for the record as a whole (a missing key).
+ * misplaced `reason` (SR-172), or the first key of its path (`/<key>`, or `/criteria/<index>` for a
+ * number); undefined for the record as a whole (a missing key).
  */
 const keyOf = (violation: SchemaViolation): string | undefined => {
   if (missingReason(violation) || misplacedReason(violation)) {
     return "result";
   }
-  return unknownKey(violation) ?? (violation.path === "" ? undefined : violation.path.slice(1));
+  return unknownKey(violation) ?? (violation.path === "" ? undefined : violation.path.split("/")[1]);
 };
 
-/** Whether a violation is only a warning: an unknown key, or a misplaced `reason` (#807 Q4). */
+/** Whether a violation is only a warning: an unknown key, a misplaced `reason` (#807 Q4) or `criteria`. */
 const isWarning = (violation: SchemaViolation): boolean =>
-  unknownKey(violation) !== undefined || misplacedReason(violation);
+  unknownKey(violation) !== undefined || misplacedReason(violation) || misplacedCriteria(violation);
+
+/**
+ * Whether `violation` of the frontmatter `data` is left out: `if` repeats the violation of its
+ * `then` (a verification record without `method` or `item`). On a record that is not inconclusive,
+ * `reason` is only a warning (#807 Q4): its own type or pattern does not matter, so only the `false`
+ * subschema of `else` is kept for it. On a validation record `criteria` is only a warning, so its
+ * own items do not matter either.
+ */
+const ignoredIn = (data: Readonly<Record<string, unknown>>, violation: SchemaViolation): boolean =>
+  violation.keyword === "if" ||
+  (violation.path === "/reason" && data["result"] !== "inconclusive" && !misplacedReason(violation)) ||
+  (keyOf(violation) === "criteria" && data["kind"] === "validation" && !misplacedCriteria(violation));
 
 /** The record of a frontmatter that matches the schema (keys it does not know are left out). */
 const recordOf = (data: EvidenceRecordFile, file: EvidenceFile): EvidenceRecord => ({
@@ -116,11 +142,22 @@ const recordOf = (data: EvidenceRecordFile, file: EvidenceFile): EvidenceRecord 
   date: data.date,
   ...(data.evidence === undefined ? {} : { evidence: data.evidence }),
   ...(data["test-case"] === undefined ? {} : { testCase: data["test-case"] }),
+  ...(data.criteria === undefined || data.kind !== "verification"
+    ? {}
+    : { criteria: [...data.criteria].sort((a, b) => a - b) }),
   source: "markdown",
   repository: file.repository,
   file: file.file,
   line: 1,
 });
+
+/** `record` with the line of its `criteria` registered for each number, when it has criteria. */
+const withLines = (record: EvidenceRecord, lineOf: (key: string) => number): EvidenceRecord => {
+  const line = lineOf("criteria");
+  return record.criteria === undefined
+    ? record
+    : withCriterionLines(record, new Map(record.criteria.map((n) => [n, line])));
+};
 
 /**
  * The record of one Markdown file of an evidence folder (see the file comment): `{ records: [] }`
@@ -142,17 +179,12 @@ export const readMarkdownRecord = (file: EvidenceFile, bytes: Uint8Array): Evide
   }
   const validate = fileSchemaValidator(SCHEMA);
   const valid = validate(data);
-  // `if` repeats the violation of its `then` (a verification record without `method` or `item`).
-  // On a record that is not inconclusive, `reason` is only a warning (#807 Q4): its own type or
-  // pattern does not matter, so only the `false` subschema of `else` is kept for it.
-  const ignored = (v: SchemaViolation): boolean =>
-    v.path === "/reason" && data["result"] !== "inconclusive" && !misplacedReason(v);
-  const violations = valid
-    ? []
-    : schemaViolations(validate.errors).filter((v) => v.keyword !== "if" && !ignored(v));
+  const violations = valid ? [] : schemaViolations(validate.errors).filter((v) => !ignoredIn(data, v));
   const faulty = violations.some((v) => !isWarning(v));
   // The lines of the keys in one pass (linear also for a record with thousands of unknown keys).
-  const keyLines = violations.length === 0 ? new Map<string, number>() : keyLinesOf(parsed.content);
+  const criteria = Object.hasOwn(data, "criteria");
+  const keyLines =
+    violations.length === 0 && !criteria ? new Map<string, number>() : keyLinesOf(parsed.content);
   const lineOf = (key: string | undefined): number => (key === undefined ? 1 : (keyLines.get(key) ?? 1));
   // A YAML warning always has its line (`files/parse.ts`).
   const found: { readonly line: number; readonly problem: Problem }[] = warnings.map(
@@ -178,6 +210,8 @@ export const readMarkdownRecord = (file: EvidenceFile, bytes: Uint8Array): Evide
       );
     } else if (misplacedReason(violation)) {
       problem = warning(`The evidence record has a reason, but ${REASON_INCONCLUSIVE_ONLY}; ${rest}`);
+    } else if (misplacedCriteria(violation)) {
+      problem = warning(`The evidence record has criteria, but ${CRITERIA_VERIFICATION_ONLY}; ${rest}`);
     } else {
       problem = {
         code: "evidence.invalid-record",
@@ -191,7 +225,7 @@ export const readMarkdownRecord = (file: EvidenceFile, bytes: Uint8Array): Evide
   // In the order of the file (`sort` is stable: Ajv's order on one line).
   const problems = found.sort((x, y) => x.line - y.line).map((f) => f.problem);
   return {
-    records: faulty ? [] : [recordOf(data as unknown as EvidenceRecordFile, file)],
+    records: faulty ? [] : [withLines(recordOf(data as unknown as EvidenceRecordFile, file), lineOf)],
     ...(problems.length === 0 ? {} : { problems }),
   };
 };

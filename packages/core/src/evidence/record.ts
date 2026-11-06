@@ -52,3 +52,25 @@ export const testCaseKey = (name: string, className: string | undefined): string
 /** `testCaseKey` of a record; undefined for a record of no test case. */
 export const testCaseKeyOf = (named: TestCaseName): string | undefined =>
   named.testCase === undefined ? undefined : testCaseKey(named.testCase, named.className);
+
+/** The line of each criterion number a reader found, by record (`criterionLineOf`). */
+const criterionLines = new WeakMap<EvidenceRecord, ReadonlyMap<number, number>>();
+
+/**
+ * Registers where the criteria of `record` stand in its file (the line of `criteria` in a Markdown
+ * record, of each `reqseq:criterion` property in a JUnit file) and gives `record` back.
+ */
+export const withCriterionLines = (
+  record: EvidenceRecord,
+  lines: ReadonlyMap<number, number>,
+): EvidenceRecord => {
+  criterionLines.set(record, lines);
+  return record;
+};
+
+/**
+ * The line where `record` names the criterion `criterion` (SR-028 AK5: a finding at that line): as
+ * its reader registered it, else the line of the record; undefined for a record without a place.
+ */
+export const criterionLineOf = (record: EvidenceRecord, criterion: number): number | undefined =>
+  criterionLines.get(record)?.get(criterion) ?? record.line;

@@ -153,6 +153,9 @@ problems:
   evidence.kind-mismatch:
     cause: A verification record names an element whose type is no requirement, for example a test case of a JUnit file that names a need. A verification names a requirement; the record counts for no status.
     remedy: Name a requirement in the test case, or record the validation of the need with `evidence record` and kind validation.
+  evidence.unknown-criterion:
+    cause: An evidence record names an acceptance criterion by a number that the version of the requirement it names does not have. That number counts for no criterion; the record stays readable.
+    remedy: Correct the number in the record or the test name, or name the version the criterion belongs to.
   baseline.invalid:
     cause: A baseline file cannot be read or does not match its format, for example an element copy or a repository listed twice.
     remedy: Fix the file at the place the message gives.

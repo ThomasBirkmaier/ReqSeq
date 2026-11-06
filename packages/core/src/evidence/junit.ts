@@ -20,14 +20,23 @@
 //   that do not pair with the elements, a missing or malformed item, date, version or variant) gives no
 //   record and an `evidence.invalid-record` error with its line, as does a file the XML scanner
 //   refuses. XML whose root is not a JUnit root is no JUnit file and gives nothing.
+// - The `reqseq:criterion` properties of an enriched test case name acceptance criteria (D-072,
+//   SR-093 AK4): `<element UUID>:<n>`, `n` a whole number from 1 without leading zero, one property
+//   per pair. Each element's record gets the numbers that name it (ascending, each once, with the line
+//   of the property that names each first, for SR-028 AK5); an element no property names holds for
+//   all its criteria. A value of another form, or whose UUID is not one of the test case's
+//   `reqseq:element`, is `evidence.invalid-record` at the line of that property, and the test case
+//   gives no record. Only enriched test cases are looked at: enrich resolves a hand-written
+//   reference first (#961), and a file enriched before criteria existed holds for all of them.
 import type { Problem } from "../catalog.js";
 import { shown, zip } from "../files/index.js";
 import { isUuid, isVersion } from "../model/index.js";
 import { fileSchemaValidator } from "../runtime/contracts.js";
 import type { EvidenceFile } from "./folders.js";
 import type { JunitTestCase } from "./junit-model.js";
-import { elementRefsOf, junitTestCases } from "./junit-model.js";
+import { CRITERION_PROPERTY, elementRefsOf, junitTestCases } from "./junit-model.js";
 import type { EvidenceRecord, SkippedTestCase } from "./record.js";
+import { withCriterionLines } from "./record.js";
 import type { EvidenceFileRead, EvidenceReader } from "./state.js";
 
 /** Where a JUnit file lies: the workspace name of its repository and the path in it. */
@@ -137,6 +146,51 @@ export const enrichmentOf = (testCase: JunitTestCase): Enrichment => {
   return { pairs, item, date, ...(variant === undefined ? {} : { variant }) };
 };
 
+/** A criterion number as the property writes it: a whole number from 1, no sign, no leading zero. */
+const CRITERION_NUMBER = /^[1-9][0-9]*$/;
+
+/**
+ * The criteria of an enriched test case by element (see the file comment): for each element some
+ * `reqseq:criterion` names, the line of each number it names, in ascending order; or why a property
+ * does not fit, with its line.
+ */
+export const criteriaOf = (
+  testCase: JunitTestCase,
+  elements: ReadonlySet<string>,
+): ReadonlyMap<string, ReadonlyMap<number, number>> | { readonly error: string; readonly line: number } => {
+  const found = new Map<string, Map<number, number>>();
+  for (const { name, value, line } of testCase.properties) {
+    if (name !== CRITERION_PROPERTY) {
+      continue;
+    }
+    const text = value.trim();
+    // The last colon: a UUID has none, so no regular expression has to find the split (linear).
+    const colon = text.lastIndexOf(":");
+    const element = uuidOf(text.slice(0, colon));
+    const digits = text.slice(colon + 1);
+    const criterion = Number(digits);
+    if (colon < 0 || !CRITERION_NUMBER.test(digits) || !Number.isSafeInteger(criterion)) {
+      return {
+        error: `${CRITERION_PROPERTY} "${shown(text)}" is not <element UUID>:<number from 1>`,
+        line,
+      };
+    }
+    if (!elements.has(element)) {
+      return {
+        error: `${CRITERION_PROPERTY} "${shown(text)}" names no ${ELEMENT} of the test case`,
+        line,
+      };
+    }
+    const lines = found.get(element) ?? new Map<number, number>();
+    found.set(element, lines);
+    // A number named twice counts once, at its first line.
+    lines.set(criterion, lines.get(criterion) ?? line);
+  }
+  return new Map(
+    [...found].map(([element, lines]) => [element, new Map([...lines].sort(([a], [b]) => a - b))]),
+  );
+};
+
 /** Whether a test case that is not enriched names a requirement: a `reqseq:element` property or a short ID or UUID in its name. */
 const namesElement = (testCase: JunitTestCase): boolean =>
   elementRefsOf(testCase).some((ref) => ref.source === "property" || ref.kind !== "other");
@@ -146,6 +200,40 @@ const nameOf = (testCase: JunitTestCase): { readonly name: string; readonly clas
   name: testCase.name,
   ...(testCase.className === "" ? {} : { className: testCase.className }),
 });
+
+/**
+ * The records of an enriched test case that is not skipped: one per element, with the numbers
+ * `criteria` gives for it (see the file comment).
+ */
+const recordsOf = (
+  testCase: JunitTestCase,
+  enrichment: Extract<Enrichment, { readonly pairs: unknown }>,
+  criteria: ReadonlyMap<string, ReadonlyMap<number, number>>,
+  { repository, file }: JunitLocation,
+): EvidenceRecord[] => {
+  const named = nameOf(testCase);
+  return [...enrichment.pairs].map(([element, version]) => {
+    const lines = criteria.get(element);
+    const record: EvidenceRecord = {
+      element,
+      version,
+      kind: "verification",
+      method: "test",
+      ...(enrichment.variant === undefined ? {} : { variant: enrichment.variant }),
+      item: enrichment.item,
+      result: testCase.outcome === "passed" ? "passed" : "failed",
+      date: enrichment.date,
+      testCase: named.name,
+      source: "junit",
+      repository,
+      file,
+      line: testCase.line,
+      ...(named.className === undefined ? {} : { className: named.className }),
+      ...(lines === undefined ? {} : { criteria: [...lines.keys()] }),
+    };
+    return lines === undefined ? record : withCriterionLines(record, lines);
+  });
+};
 
 /**
  * The records of a JUnit XML file (see the file comment): one per element of each enriched test case
@@ -195,33 +283,28 @@ export const readJunitRecords = (location: JunitLocation, bytes: Uint8Array): Ev
       });
       continue;
     }
+    const criteria = criteriaOf(testCase, new Set(enrichment.pairs.keys()));
+    if ("error" in criteria) {
+      problems.push({
+        code: "evidence.invalid-record",
+        severity: "error",
+        repository,
+        file,
+        line: criteria.line,
+        message: `Test case "${shown(testCase.name)}" is not read: ${criteria.error}`,
+      });
+      continue;
+    }
     const named = nameOf(testCase);
-    if (testCase.outcome === "skipped") {
+    if (testCase.outcome !== "skipped") {
+      records.push(...recordsOf(testCase, enrichment, criteria, location));
+    } else {
       skipped.push({
         ...named,
         elements: [...enrichment.pairs.keys()],
         repository,
         file,
         line: testCase.line,
-      });
-      continue;
-    }
-    for (const [element, version] of enrichment.pairs) {
-      records.push({
-        element,
-        version,
-        kind: "verification",
-        method: "test",
-        ...(enrichment.variant === undefined ? {} : { variant: enrichment.variant }),
-        item: enrichment.item,
-        result: testCase.outcome === "passed" ? "passed" : "failed",
-        date: enrichment.date,
-        testCase: named.name,
-        source: "junit",
-        repository,
-        file,
-        line: testCase.line,
-        ...(named.className === undefined ? {} : { className: named.className }),
       });
     }
   }

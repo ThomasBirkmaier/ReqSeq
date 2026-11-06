@@ -89,6 +89,7 @@ properties:
     name: Acceptance Criteria
     description: "The conditions under which the requirement is met, one per entry."
     kind: text
+    meaning: acceptance-criteria
     many: true
     content: true
     markdown: true

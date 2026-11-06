@@ -626,9 +626,15 @@ const belegOf = (record: Rec): string => {
   return `${text(record["repository"])}/${text(record["file"])}${typeof line === "number" ? `:${String(line)}` : ""}`;
 };
 
+/** The acceptance criteria a record names (D-072), `[criteria 1, 3]`; empty for one that holds for all. */
+const criteriaText = (criteria: unknown): string => {
+  const numbers = listOf(criteria).filter((n): n is number => typeof n === "number");
+  return numbers.length === 0 ? "" : `[criteria ${numbers.join(", ")}]`;
+};
+
 /**
  * A record as one line: date, method (`withMethod`), result, the reason of an inconclusive one (SR-172),
- * item, Beleg and variant, the variant by
+ * item, Beleg, variant and criteria (D-072), the variant by
  * its short ID when `names` has it (#676).
  */
 const recordLine = (record: Rec, withMethod: boolean, names: Names): string =>
@@ -640,6 +646,7 @@ const recordLine = (record: Rec, withMethod: boolean, names: Names): string =>
     text(record["item"]),
     belegOf(record),
     text(record["variant"]) === "" ? "" : `[variant ${variantName(text(record["variant"]), names)}]`,
+    criteriaText(record["criteria"]),
   );
 
 /** An evidence record (`data-export.schema.json#/$defs/evidenceRecord`), as far as a line reads it. */

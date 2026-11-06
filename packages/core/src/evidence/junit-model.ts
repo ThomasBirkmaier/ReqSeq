@@ -6,6 +6,12 @@ import type { XmlAttribute, XmlElement, XmlRefusalReason } from "../files/index.
 import { scanXml, xmlAttribute } from "../files/index.js";
 import type { NameMatch } from "./name-pattern.js";
 
+/**
+ * The property that names an acceptance criterion of an element of the test case (D-072, SR-093
+ * AK4): `<element UUID>:<n>`, repeatable, one per pair (ADR-0012 "Decision").
+ */
+export const CRITERION_PROPERTY = "reqseq:criterion";
+
 /** passed unless the test case has `<error>`, `<failure>` or `<skipped>` (ADR-0012). */
 export type JunitOutcome = "passed" | "failed" | "error" | "skipped";
 

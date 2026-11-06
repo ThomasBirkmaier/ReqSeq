@@ -4,6 +4,7 @@
 import fs from "node:fs";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
+import { shown } from "../files/index.js";
 import { Workspace } from "../runtime/workspace.js";
 import { evidenceIndex } from "./by-element.js";
 import type { JunitPropertiesAt } from "./junit-model.js";
@@ -499,5 +500,79 @@ describe("JUnit reader (SR-093)", () => {
     ]);
     expect(refused.problems?.[0]?.message).toMatch(/^Not a readable JUnit XML file: .*DOCTYPE/);
     expect(readJunitRecords(AT, utf8("<project><testcase name='x'/></project>"))).toEqual({ records: [] });
+  });
+
+  it("[SR-093/AK4] assigns the criteria of the reqseq:criterion properties to each named element", () => {
+    const bytes = suite(
+      [
+        "<testcase classname='c' name='both'><properties>",
+        `${property("reqseq:element", LOGIN)}${property("reqseq:element", REPORT.toUpperCase())}`,
+        `${property("reqseq:version", V1)}${property("reqseq:version", V2)}`,
+        `${property("reqseq:item", "b")}${property("reqseq:date", DATE)}`,
+        property("reqseq:criterion", `${REPORT.toUpperCase()}:3`),
+        property("reqseq:criterion", ` ${REPORT}:1 `),
+        property("reqseq:criterion", `${REPORT}:3`),
+        "</properties></testcase>",
+      ].join("\n"),
+    );
+    const read = readJunitRecords(AT, bytes);
+    expect(read.problems).toBeUndefined();
+    // LOGIN has no criterion property: it holds for all its criteria. A number named twice counts once.
+    expect(read.records.map((r) => [r.element, r.criteria])).toEqual([
+      [LOGIN, undefined],
+      [REPORT, [1, 3]],
+    ]);
+    expect(read.records[0]).not.toHaveProperty("criteria");
+  });
+
+  it("refuses a reqseq:criterion of another form or of an element the test case does not name, at its line", () => {
+    const at = (value: string): Uint8Array =>
+      suite(
+        testCase("t", enriched()).replace(
+          "</properties>",
+          `\n${property("reqseq:criterion", `${LOGIN}:1`)}\n${property("reqseq:criterion", value)}</properties>`,
+        ),
+      );
+    for (const [value, reason] of [
+      [`${LOGIN}:0`, "is not <element UUID>:<number from 1>"],
+      [`${LOGIN}:02`, "is not <element UUID>:<number from 1>"],
+      [`${LOGIN}:+2`, "is not <element UUID>:<number from 1>"],
+      [`${LOGIN}:`, "is not <element UUID>:<number from 1>"],
+      [`${LOGIN}:99999999999999999999`, "is not <element UUID>:<number from 1>"],
+      ["2", "is not <element UUID>:<number from 1>"],
+      [`${REPORT}:2`, "names no reqseq:element of the test case"],
+      ["SR-46fb54:2", "names no reqseq:element of the test case"],
+    ] as const) {
+      const read = readJunitRecords(AT, at(value));
+      expect(read.records, value).toEqual([]);
+      expect(read.problems, value).toEqual([
+        {
+          code: "evidence.invalid-record",
+          severity: "error",
+          repository: "results",
+          file: "ci/results.xml",
+          line: 5,
+          message: `Test case "t" is not read: reqseq:criterion "${shown(value)}" ${reason}`,
+        },
+      ]);
+    }
+  });
+
+  it("looks at reqseq:criterion only on enriched test cases, and keeps a skipped one without record", () => {
+    const criterion: readonly [string, string] = ["reqseq:criterion", `${LOGIN}:1`];
+    const skipped = readJunitRecords(AT, suite(testCase("t", [...enriched(), criterion], "<skipped/>")));
+    expect(skipped.records).toEqual([]);
+    expect(skipped.skipped).toHaveLength(1);
+    // Not enriched: no record, the not-enriched warning only (enrich resolves the criterion, #961).
+    const raw = readJunitRecords(
+      AT,
+      suite(
+        testCase("t", [
+          ["reqseq:element", "SR-46fb54"],
+          ["reqseq:criterion", "SR-46fb54:x"],
+        ]),
+      ),
+    );
+    expect(raw.problems?.map((p) => p.code)).toEqual(["evidence.not-enriched"]);
   });
 });

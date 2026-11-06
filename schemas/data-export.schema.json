@@ -330,6 +330,13 @@
           "type": "string",
           "description": "The `classname` of a JUnit test case; with `testCase` it names the test case (ADR-0012). Left out for a Markdown record."
         },
+        "criteria": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 1 },
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "The acceptance criteria the record holds for, by number counted from 1, ascending and each once (D-072, SR-028 AK4, SR-093 AK4): `criteria` of a Markdown record, the `reqseq:criterion` properties of a JUnit test case for this element. Left out: every criterion. Never on a validation record."
+        },
         "baselines": {
           "type": "array",
           "items": { "type": "string" },
@@ -343,6 +350,10 @@
             "required": ["method", "item"],
             "properties": { "result": { "not": { "const": "inconclusive" } } }
           }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "validation" } } },
+          "then": { "properties": { "criteria": false } }
         },
         {
           "if": { "required": ["result"], "properties": { "result": { "const": "inconclusive" } } },

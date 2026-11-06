@@ -1,11 +1,21 @@
-// SR-028 AK3: the findings of the evidence records (`match.ts`) for `workspace.check`, on
+// SR-028 AK3 and AK5: the findings of the evidence records (`match.ts`) for `workspace.check`, on
 // fixtures/SR-028/records (requirements in `system`, records in `ci-results/evidence`).
+import fs from "node:fs/promises";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput, Problem } from "../catalog.js";
+import type { ElementRecord } from "../model/index.js";
+import { currentVersionOf, currentVersionsState } from "../model/index.js";
 import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
-import { evidenceProblemsState, recordElementProblems, recordKindProblems } from "./match.js";
+import {
+  criteriaTargets,
+  evidenceProblemsState,
+  olderCriterionProblems,
+  recordElementProblems,
+  recordKindProblems,
+  unknownCriterionProblem,
+} from "./match.js";
 import type { EvidenceRecord } from "./record.js";
 import { evidenceRecordsState } from "./state.js";
 
@@ -185,5 +195,185 @@ describe("SR-028 findings of the evidence records", () => {
     expect((await workspace.get(evidenceProblemsState)).map((p) => [p.code, p.targetId, p.file])).toEqual([
       ["evidence.unknown-element", UNKNOWN, undefined],
     ]);
+  });
+
+  describe("SR-028 AK5: criteria the named version does not have", () => {
+    const B = "3c3c3c3c-3333-4333-8333-0d0000000002";
+    /** Requirement A of the fixture with `criteria` as its acceptance criteria. */
+    const elementA = (criteria: readonly string[]): string =>
+      `---\nid: ${A}\ntype: system-requirement\nstatus: draft\ntitle: Show wind speed\n` +
+      `requirement-type: functional\nacceptance-criteria:\n${criteria.map((c) => `  - ${c}\n`).join("")}---\n\n` +
+      "The station shows the current wind speed.\n";
+    /** A record of A (version `version`) naming `criteria`. */
+    const withCriteria = (criteria: string, version: string, element = A): string =>
+      recordFile(element)
+        .replace("version: n1:de6d3ed288b0f3de", `version: ${version}`)
+
+        .replace("result: failed\n", `result: failed\ncriteria: ${criteria}\n`);
+    /** The current version of `id`. */
+    const versionOf = async (workspace: Workspace, id: string): Promise<string> => {
+      const versions = await workspace.get(currentVersionsState);
+      const element = versions.store.byId.get(id)?.[0];
+      return element === undefined ? "" : String(currentVersionOf(versions, element));
+    };
+
+    it("[SR-028/AK5] a Markdown record naming a number the current version does not have gives evidence.unknown-criterion at the line of criteria", async () => {
+      const workspace = await open({
+        "ci-results/evidence/2026-10-23-a-test.md": withCriteria("[1, 9, 4]", "n1:de6d3ed288b0f3de"),
+        "ci-results/evidence/2026-10-23-b-test.md": withCriteria("[1]", "n1:de6d3ed288b0f3de"),
+      });
+      // n1:de6d3ed288b0f3de is A's current version in normal form 1 (ADR-0005), so b-test has no finding.
+      const problem: Problem = {
+        code: "evidence.unknown-criterion",
+        severity: "warning",
+        message: `The verification record names acceptance criteria 4, 9 of element ${A}, whose version n1:de6d3ed288b0f3de has 1; they count for no criterion`,
+        repository: "ci-results",
+        file: "evidence/2026-10-23-a-test.md",
+        line: 9,
+        targetId: A,
+        targetRepository: "system",
+      };
+      expect(
+        (await workspace.get(evidenceProblemsState)).filter((p) => p.code === "evidence.unknown-criterion"),
+      ).toEqual([problem]);
+      const checked = await check(workspace);
+      expect(checked.problems.filter((p) => p.code === "evidence.unknown-criterion")).toEqual([
+        { ...problem, targetShortId: "SR-000001" },
+      ]);
+    });
+
+    it("[SR-028/AK5] a JUnit test case naming a number the current version does not have gives evidence.unknown-criterion at the line of the property", async () => {
+      const junit =
+        '<?xml version="1.0" encoding="UTF-8"?>\n<testsuite name="s">\n<testcase classname="c" name="t">\n<properties>\n' +
+        `<property name="reqseq:element" value="${A}"/>\n<property name="reqseq:version" value="n1:de6d3ed288b0f3de"/>\n` +
+        '<property name="reqseq:item" value="b"/>\n<property name="reqseq:date" value="2026-10-23T10:00:00Z"/>\n' +
+        `<property name="reqseq:criterion" value="${A}:1"/>\n<property name="reqseq:criterion" value="${A}:2"/>\n` +
+        "</properties>\n</testcase>\n</testsuite>\n";
+      const workspace = await open({ "ci-results/evidence/run.xml": junit });
+      expect(
+        (await workspace.get(evidenceProblemsState))
+          .filter((p) => p.code === "evidence.unknown-criterion")
+          .map((p) => [p.file, p.line, p.message]),
+      ).toEqual([
+        [
+          "evidence/run.xml",
+          10,
+          `The verification record names acceptance criterion 2 of element ${A}, whose version n1:de6d3ed288b0f3de has 1; it counts for no criterion`,
+        ],
+      ]);
+    });
+
+    it("[SR-028/AK5] checks a record of an older version against the criteria of that version in the Git history", async () => {
+      const ws = await createFixtureWorkspace({
+        fixture: "SR-028/records",
+        files: { "system/requirements/SR-0d0000000001.md": elementA(["One.", "Two.", "Three."]) },
+      });
+      onTestFinished(() => ws.cleanup());
+      await ws.git(["init", "--quiet", "--initial-branch=main"], "system");
+      await ws.commit("system");
+      const first = new Workspace(ws.path("system"));
+      const old = await versionOf(first, A);
+      await first.close();
+      await ws.write("system/requirements/SR-0d0000000001.md", elementA(["One."]));
+      await ws.commit("system");
+      await ws.write("ci-results/evidence/2026-10-23-old-test.md", withCriteria("[3, 4]", old));
+      // A version Git never had is not checked.
+      await ws.write(
+        "ci-results/evidence/2026-10-23-unknown-test.md",
+        withCriteria("[7]", "n1:00000000000000aa"),
+      );
+      const workspace = new Workspace(ws.path("system"));
+      onTestFinished(() => workspace.close());
+      expect(await versionOf(workspace, A)).not.toBe(old);
+      // Not in the state, which does not ask Git.
+      expect(
+        (await workspace.get(evidenceProblemsState)).filter((p) => p.code === "evidence.unknown-criterion"),
+      ).toEqual([]);
+      const found = (await check(workspace)).problems.filter((p) => p.code === "evidence.unknown-criterion");
+      expect(found.map((p) => [p.file, p.line, p.message])).toEqual([
+        [
+          "evidence/2026-10-23-old-test.md",
+          9,
+          `The verification record names acceptance criterion 4 of element ${A}, whose version ${old} has 3; it counts for no criterion`,
+        ],
+      ]);
+      // Without criteria of an older version, nothing is asked of Git.
+      expect(await olderCriterionProblems(await open())).toEqual([]);
+    });
+
+    it("counts no criteria for a type without the property of the meaning, nor while the metamodel is not valid", async () => {
+      const metamodel = "system/metamodel/standard-model.yaml";
+      const ws = await createFixtureWorkspace({ fixture: "SR-028/records" });
+      const model = await fs.readFile(ws.path(metamodel), "utf8");
+      await ws.cleanup();
+      const workspace = await open({
+        [metamodel]: model.replace("    meaning: acceptance-criteria\n", ""),
+        "ci-results/evidence/2026-10-23-a-test.md": withCriteria("[1]", "n1:de6d3ed288b0f3de"),
+      });
+      expect(
+        (await workspace.get(evidenceProblemsState))
+          .filter((p) => p.code === "evidence.unknown-criterion")
+          .map((p) => p.message),
+      ).toEqual([
+        `The verification record names acceptance criterion 1 of element ${A}, whose version n1:de6d3ed288b0f3de has 0; it counts for no criterion`,
+      ]);
+      const invalid = await open({
+        [metamodel]: `${model}\nunknown-key: 1\n`,
+        "ci-results/evidence/2026-10-23-a-test.md": withCriteria("[2]", "n1:de6d3ed288b0f3de"),
+      });
+      expect(
+        (await invalid.get(evidenceProblemsState)).filter((p) => p.code === "evidence.unknown-criterion"),
+      ).toEqual([]);
+      expect(await olderCriterionProblems(invalid)).toEqual([]);
+    });
+
+    it("leaves out records of unknown, shared or unversioned elements, and gives a problem without a place for an injected record", () => {
+      const record = (element: string, criteria: number[]): EvidenceRecord => ({
+        element,
+        version: "n1:1111111111111111",
+        kind: "verification",
+        method: "test",
+        item: "b",
+        result: "passed",
+        date: "2026-10-23T10:00:00Z",
+        criteria,
+      });
+      const element = (id: string): ElementRecord =>
+        ({
+          id,
+          repository: "system",
+          file: `${id}.md`,
+          type: "system-requirement",
+          data: {},
+        }) as unknown as ElementRecord;
+      const store = {
+        byId: new Map<string, readonly ElementRecord[]>([
+          [A, [element(A)]],
+          [B, [element(B), element(B)]],
+          [UNKNOWN.replace("ff", "fe"), [element("x")]],
+        ]),
+      };
+      const forms = { n1: "n1:1111111111111111", n2: "n2:1111111111111111" };
+      const records = [
+        record(UNKNOWN, [1]),
+        record(B, [1]),
+        record(UNKNOWN.replace("ff", "fe"), [1]),
+        { ...record(A, [1]), version: forms.n2 },
+        { ...record(A, [2]), version: "n1:2222222222222222" },
+        { ...record(A, [1]), criteria: undefined },
+      ] as EvidenceRecord[];
+      const targets = criteriaTargets(records, store, (e) => (e.id === "x" ? undefined : forms));
+      expect(targets.current.map((t) => t.record.version)).toEqual([forms.n2]);
+      expect(targets.older.map((t) => t.criteria)).toEqual([[2]]);
+      const [current] = targets.current;
+      expect(current === undefined ? undefined : unknownCriterionProblem(current, 0)).toEqual({
+        code: "evidence.unknown-criterion",
+        severity: "warning",
+        message: `The verification record names acceptance criterion 1 of element ${A}, whose version ${forms.n2} has 0; it counts for no criterion`,
+        targetId: A,
+        targetRepository: "system",
+      });
+      expect(current === undefined ? undefined : unknownCriterionProblem(current, 1)).toBeUndefined();
+    });
   });
 });

@@ -11,7 +11,8 @@
 # - limit derives-from min 1 from system requirement to need (#838).
 # - decisions can be obsolete: withdrawn without successor, e.g. the development-process decisions
 #   (product owner decision, 2026-11-05: decisions record only what holds for the system ReqSeq).
-# rationale and acceptance-criteria carry markdown: true as in the standard model (SR-127, #444).
+# rationale and acceptance-criteria carry markdown: true as in the standard model (SR-127, #444), and
+# acceptance-criteria has the meaning acceptance-criteria as there (D-072, #960).
 # ReqSeq has no command that changes a metamodel: this file is changed by hand in a pull request.
 reqseq-metamodel: 1
 
@@ -106,6 +107,7 @@ properties:
   - key: acceptance-criteria
     name: Acceptance Criteria
     kind: text
+    meaning: acceptance-criteria
     many: true
     content: true
     markdown: true

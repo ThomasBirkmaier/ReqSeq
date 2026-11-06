@@ -193,6 +193,7 @@ describe("built-in meanings", () => {
       delivery: [],
       "import-version": [],
       identifier: [],
+      "acceptance-criteria": [],
       derivation: ["satisfies"],
       replacement: [],
       succession: [],
@@ -218,6 +219,7 @@ describe("built-in meanings", () => {
       delivery: "properties",
       "import-version": "properties",
       identifier: "properties",
+      "acceptance-criteria": "properties",
       derivation: "relations",
       replacement: "relations",
       succession: "relations",
@@ -656,6 +658,32 @@ describe("built-in meanings", () => {
     ]);
     // The standard model complies, and a warning leaves the metamodel valid.
     expect(await load({ fixture: "SR-035/emergent" })).toMatchObject({ valid: true, problems: [] });
+  });
+
+  it("#960: the meaning acceptance-criteria wants kind text with many, else a warning, and the standard model assigns it", async () => {
+    const lines: Readonly<Record<string, number>> = { kind: 4, many: 5 };
+    const at = (definition: MetamodelProperty): Located<MetamodelProperty> => ({
+      definition,
+      file: "model/properties.yaml",
+      lineOf: (path) => lines[String(path[0])],
+    });
+    const warning = (key: string, reason: string, line: number): Problem => ({
+      code: "metamodel.invalid",
+      severity: "warning",
+      message: `Property ${key} has the meaning acceptance-criteria, which needs kind text with many (one text per criterion), not ${reason}; no acceptance criterion is read`,
+      file: "model/properties.yaml",
+      line,
+    });
+    expect(
+      meaningKindProblems([
+        at({ key: "a", name: "A", kind: "text", meaning: "acceptance-criteria" }),
+        at({ key: "b", name: "B", kind: "choice", many: true, meaning: "acceptance-criteria" }),
+        at({ key: "c", name: "C", kind: "text", many: true, meaning: "acceptance-criteria" }),
+      ]),
+    ).toEqual([warning("a", "a single value", 5), warning("b", "kind choice", 4)]);
+    const standard = await load({ fixture: "SR-001/two-elements" });
+    expect(standard).toMatchObject({ valid: true, problems: [] });
+    expect(standard.meanings["acceptance-criteria"]).toEqual(["acceptance-criteria"]);
   });
 
   it("[SR-127/AK5] reports markdown on another kind than text and with the meaning title or identifier, with the line of markdown when it is known", () => {

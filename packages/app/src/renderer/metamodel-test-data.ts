@@ -205,6 +205,7 @@ export const FIXTURE_METAMODEL: MetamodelGetOutput = {
     delivery: [],
     "import-version": [],
     identifier: [],
+    "acceptance-criteria": [],
     derivation: ["derives-from", "refines"],
     replacement: [],
     succession: [],
