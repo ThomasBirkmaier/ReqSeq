@@ -21,7 +21,7 @@
       },
       "status": {
         "$ref": "../common.schema.json#/$defs/keyOrName",
-        "description": "Key or display name of a status of the metamodel, in any case; the key is written. It must be a status of the element's type that the metamodel marks invalid (#306)."
+        "description": "Key or display name of a status of the metamodel, in any case; the key is written. It must be a status of the element's type that the metamodel marks invalid (ThomasBirkmaier/ReqSeq-archive#306)."
       },
       "successor": {
         "$ref": "../common.schema.json#/$defs/elementRef"

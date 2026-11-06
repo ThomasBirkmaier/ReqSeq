@@ -15,7 +15,7 @@ describe("contracts", () => {
     expect(() => execFileSync("node", ["scripts/contracts/generate.mjs", "--check"])).not.toThrow();
   });
 
-  it("catalog: a write command needs whileReadOnly with a reason, a read command has neither (#142)", () => {
+  it("catalog: a write command needs whileReadOnly with a reason, a read command has neither (ThomasBirkmaier/ReqSeq-archive#142)", () => {
     const entry = {
       name: "test.write",
       title: "Test command",

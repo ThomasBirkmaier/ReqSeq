@@ -13,4 +13,4 @@ description: Reads and changes the ReqSeq specification in spec/ with the ReqSeq
 
 **Packages and issues.** Packages give the structure of the spec by topic, not the schedule (product owner decision, 2026-11-05). Every SR and need is in exactly one topic package; a new one goes into the package of its topic, set with `element update <ref> --workspace spec --set 'packages=[{"id":"<UUID>"}]'` (`element get <package> --workspace spec` gives the UUID). No script creates issues from the spec: issues are tasks that follow a pre-study once the product owner plans an SR (CLAUDE.md, Traceability), and their milestone is the schedule.
 
-The one-time migration from Logseq is described in the history of `.claude/skills/spec-export/SKILL.md` (the version before #326) and in `scripts/spec-migrate`.
+The one-time migration from Logseq is described in the history of `.claude/skills/spec-export/SKILL.md` (the version before ThomasBirkmaier/ReqSeq-archive#326) and in `scripts/spec-migrate`.

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Runs the delivery tests (`vitest.delivery.config.ts`, ADR-0011, ADR-0014, #324) on the artifacts in
+# Runs the delivery tests (`vitest.delivery.config.ts`, ADR-0011, ADR-0014, ThomasBirkmaier/ReqSeq-archive#324) on the artifacts in
 # $REQSEQ_DELIVERY_DIR (default: delivery/). Used by .github/workflows/release.yml.
 #
 # macOS and Windows (Git Bash): as the current user, without a network namespace (they have none).

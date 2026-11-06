@@ -1,6 +1,6 @@
 name: Performance
 
-# ADR-0011, #126: the performance suite on the generated workspace with 50,000 elements and 200,000
+# ADR-0011, ThomasBirkmaier/ReqSeq-archive#126: the performance suite on the generated workspace with 50,000 elements and 200,000
 # relations (packages/testkit, D-055; tests in packages/*/test/perf/, the app's with Playwright, #147). Nightly and on pull requests
 # labelled `perf` (once, when the label is added: a later push does not run it again, so a pull request does not
 # hold a runner for every push, product owner decision 2026-10-28; to measure again, remove the label and add it
@@ -36,7 +36,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # A pull request labelled `perf` that changes only files no test or build reads skips the suite (#520,
+  # A pull request labelled `perf` that changes only files no test or build reads skips the suite (ThomasBirkmaier/ReqSeq-archive#520,
   # .github/scripts/tests-needed.sh, as in ci.yml); `perf` then shows as skipped. Nightly and manual runs skip
   # this job and run the suite.
   changes:
@@ -58,7 +58,7 @@ jobs:
         id: changes
         run: |
           files="$(git diff --name-only --no-renames HEAD^1 HEAD)"
-          tests="$(bash <(git show HEAD^1:.github/scripts/tests-needed.sh) <<< "$files")" # the base branch's copy (#566)
+          tests="$(bash <(git show HEAD^1:.github/scripts/tests-needed.sh) <<< "$files")" # the base branch's copy (ThomasBirkmaier/ReqSeq-archive#566)
           echo "tests=$tests" >> "$GITHUB_OUTPUT"
           echo "Performance suite needed: \`$tests\`" >> "$GITHUB_STEP_SUMMARY"
 
@@ -176,7 +176,7 @@ jobs:
           name: perf-results
           path: perf-results
       - name: Commit the record (nightly, to the branch perf-record)
-        # Only a complete record is kept (#202): the suite ran and its only failures, if any, are
+        # Only a complete record is kept (ThomasBirkmaier/ReqSeq-archive#202): the suite ran and its only failures, if any, are
         # threshold assertions of tagged tests, which fail after their time was recorded. A crash, a
         # failed correctness assertion or a skipped test may leave rows out, so its record stays out.
         # The branch starts from main the first time and then only gains record commits (#340).
@@ -197,7 +197,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add verification/performance.md
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m "chore(perf): nightly performance record for ${GITHUB_SHA} [skip ci]" -m "Refs #126"
+          git commit -m "chore(perf): nightly performance record for ${GITHUB_SHA} [skip ci]" -m "Refs ThomasBirkmaier/ReqSeq-archive#126"
           git push origin HEAD:perf-record
       - name: Open or update the issue for exceeded thresholds
         # Runs from other branches stay out of the issue. `always()`: a failed commit of the record does not hide it. `actions/github-script`, not `gh`, so the step needs no
@@ -251,7 +251,7 @@ jobs:
             const note = "\n\n(truncated, see the record)";
             const body = full.length > LIMIT ? full.slice(0, LIMIT - note.length) + note : full;
             // The open issue of this workflow (label `perf` and its title) is the one to update, never a second
-            // one; other issues labelled `perf` track single findings (#558, #698) and get no comments.
+            // one; other issues labelled `perf` track single findings (ThomasBirkmaier/ReqSeq-archive#558, ThomasBirkmaier/ReqSeq-archive#698) and get no comments.
             const title = "perf: thresholds exceeded with 50,000 elements";
             const open = await github.paginate(github.rest.issues.listForRepo, {
               owner, repo, state: "open", labels: "perf", sort: "created", direction: "asc", per_page: 100,

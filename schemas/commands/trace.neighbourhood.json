@@ -24,7 +24,7 @@
       "repository": {
         "type": "string",
         "minLength": 1,
-        "description": "The workspace name of the repository of the element ref names, as in element.get (#255)."
+        "description": "The workspace name of the repository of the element ref names, as in element.get (ThomasBirkmaier/ReqSeq-archive#255)."
       },
       "direction": {
         "enum": ["up", "down", "both"],
@@ -85,7 +85,7 @@
             "shortId": { "$ref": "../common.schema.json#/$defs/shortId" },
             "identifier": {
               "type": "string",
-              "description": "Its identifier (the value of its property with the meaning `identifier`, such as SR-036, #305), for display next to `shortId`; left out when it has none."
+              "description": "Its identifier (the value of its property with the meaning `identifier`, such as SR-036, ThomasBirkmaier/ReqSeq-archive#305), for display next to `shortId`; left out when it has none."
             },
             "type": { "type": "string" },
             "title": { "type": "string" },
@@ -157,7 +157,7 @@
             "cyclic": { "type": "boolean", "description": "Both ends lie in one cycle of the walk." },
             "repeated": {
               "type": "boolean",
-              "description": "The edge leads, in its walk, to an element that this walk first reached through another edge, or to the root: a repetition (SR-107 AK3). It holds within one call (asking again from a child loses it; to open a tree level by level ask from the same root with a larger `maxDepth`) and within the followed kinds (the tree of derivations comes from `meanings: [\"derivation\"]`). First means first reached breadth first (spec question #421)."
+              "description": "The edge leads, in its walk, to an element that this walk first reached through another edge, or to the root: a repetition (SR-107 AK3). It holds within one call (asking again from a child loses it; to open a tree level by level ask from the same root with a larger `maxDepth`) and within the followed kinds (the tree of derivations comes from `meanings: [\"derivation\"]`). First means first reached breadth first (spec question ThomasBirkmaier/ReqSeq-archive#421)."
             },
             "outdated": {
               "type": "boolean",

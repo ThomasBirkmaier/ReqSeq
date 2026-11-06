@@ -51,7 +51,7 @@
       },
       "names": {
         "type": "array",
-        "description": "The elements that `verification` names by UUID only, each once in the order first named: the variants of its views and the missing children (`missingChildren`), so a reader names them by short ID, identifier and title (#588). Left out when it names none.",
+        "description": "The elements that `verification` names by UUID only, each once in the order first named: the variants of its views and the missing children (`missingChildren`), so a reader names them by short ID, identifier and title (ThomasBirkmaier/ReqSeq-archive#588). Left out when it names none.",
         "items": {
           "$ref": "../common.schema.json#/$defs/elementName"
         }

@@ -173,7 +173,7 @@ for (const [file, s] of Object.entries(schemas)) {
 }
 // Shared definitions appear once; the MCP server lists the implemented tools and attaches to each tool
 // schema only the definitions it reaches, flat (`#/$defs/common.uuid`), so every schema it sends is
-// self-contained and small (packages/mcp/src/tools.ts, #303).
+// self-contained and small (packages/mcp/src/tools.ts, ThomasBirkmaier/ReqSeq-archive#303).
 const mcp = {
   description:
     "Generated from the command catalog, one file per command in schemas/commands/. The MCP server (stdio) lists those of these tools that the running version implements (ADR-0009). $refs point into the top-level $defs; the server sends each tool schema with only the definitions it uses.",

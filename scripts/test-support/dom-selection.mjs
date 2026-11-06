@@ -5,7 +5,7 @@
 // updates its view while it is still updating, which it refuses; once deferred, its own reaction to the
 // event would set the selection again and fire the event again without end.
 // A test file may import this module itself, so that it also passes when vitest starts without the root config
-// (`pnpm vitest run <file>` in packages/app); the guard keeps the wrapper from being installed twice (#460).
+// (`pnpm vitest run <file>` in packages/app); the guard keeps the wrapper from being installed twice (ThomasBirkmaier/ReqSeq-archive#460).
 const INSTALLED = Symbol.for("reqseq.dom-selection");
 if (typeof document !== "undefined" && !(INSTALLED in document)) {
   Object.defineProperty(document, INSTALLED, { value: true });

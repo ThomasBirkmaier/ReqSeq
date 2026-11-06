@@ -89,7 +89,7 @@
       },
       "tree": {
         "type": "array",
-        "description": "Only when `sort` starts with `hierarchy` (SR-075 AK2): the place in the derivation tree of each element of `elements` (or `partial`), in the same order. With `group`, each group is its own tree over its elements: a parent outside the group does not count. The list is the tree depth first: each root, then the elements below it. Each element of the selection appears once (spec-frage #354): below the parent of the list that reaches it at the shortest depth, the first in sort order among equals; an element without a parent in the list is a root, and so is the first element in sort order of a cycle that no root reaches. Its other parents are in its `relations`.",
+        "description": "Only when `sort` starts with `hierarchy` (SR-075 AK2): the place in the derivation tree of each element of `elements` (or `partial`), in the same order. With `group`, each group is its own tree over its elements: a parent outside the group does not count. The list is the tree depth first: each root, then the elements below it. Each element of the selection appears once (spec-frage ThomasBirkmaier/ReqSeq-archive#354): below the parent of the list that reaches it at the shortest depth, the first in sort order among equals; an element without a parent in the list is a root, and so is the first element in sort order of a cycle that no root reaches. Its other parents are in its `relations`.",
         "items": {
           "type": "object",
           "properties": {

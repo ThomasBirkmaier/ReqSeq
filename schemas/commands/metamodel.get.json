@@ -19,7 +19,7 @@
         "items": {
           "$ref": "../metamodel.schema.json#/$defs/effectiveType"
         },
-        "description": "The types with inheritance resolved (SR-012), in metamodel order; `statuses` are the statuses each type offers (#306)."
+        "description": "The types with inheritance resolved (SR-012), in metamodel order; `statuses` are the statuses each type offers (ThomasBirkmaier/ReqSeq-archive#306)."
       },
       "properties": {
         "type": "array",

@@ -46,7 +46,7 @@
       "names": {
         "type": "array",
         "items": { "$ref": "../common.schema.json#/$defs/elementName" },
-        "description": "Every element the lists name, each once, in order first named (#588). Left out when it names none."
+        "description": "Every element the lists name, each once, in order first named (ThomasBirkmaier/ReqSeq-archive#588). Left out when it names none."
       },
       "problems": {
         "type": "array",

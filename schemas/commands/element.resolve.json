@@ -30,7 +30,7 @@
       "repository": {
         "type": "string",
         "minLength": 1,
-        "description": "Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it (for example one copy of a file whose UUID another file shares, SR-088; #255). Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates."
+        "description": "Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it (for example one copy of a file whose UUID another file shares, SR-088; ThomasBirkmaier/ReqSeq-archive#255). Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates."
       },
       "file": {
         "allOf": [
@@ -52,16 +52,16 @@
     "properties": {
       "element": {
         "$ref": "../data-export.schema.json#/$defs/element",
-        "description": "The element as element.get shows it, with title, text, status, current version in normal form n2 (SR-060 AK1, ADR-0005), verification status per view it is in (SR-031, SR-034, SR-047 AK3) and validation status (SR-038) and, with the input `versionDate`, the date of that version (as element.get gives it; left out without the input). Without a version (a value that counts has no normal form) `version` and `versionDate` are left out and the hints end with a `file.faulty` warning, as in element.get (#276). An unknown reference is the error ref.unknown, one that fits several elements ref.ambiguous with details.candidates (AK3). A short ID whose prefix fits no element stays ref.unknown, never another element; when its tail fits exactly one element of another type, details.candidates names that element and the message asks whether its short ID was meant (prefix may be outdated, #275)."
+        "description": "The element as element.get shows it, with title, text, status, current version in normal form n2 (SR-060 AK1, ADR-0005), verification status per view it is in (SR-031, SR-034, SR-047 AK3) and validation status (SR-038) and, with the input `versionDate`, the date of that version (as element.get gives it; left out without the input). Without a version (a value that counts has no normal form) `version` and `versionDate` are left out and the hints end with a `file.faulty` warning, as in element.get (ThomasBirkmaier/ReqSeq-archive#276). An unknown reference is the error ref.unknown, one that fits several elements ref.ambiguous with details.candidates (AK3). A short ID whose prefix fits no element stays ref.unknown, never another element; when its tail fits exactly one element of another type, details.candidates names that element and the message asks whether its short ID was meant (prefix may be outdated, ThomasBirkmaier/ReqSeq-archive#275)."
       },
       "current": {
         "enum": ["current", "outdated", "unknown", null],
-        "description": "Whether the given version is the element's current version, computed from its file as it is now (SR-060 AK2): \"current\" or \"outdated\"; \"unknown\" when the element has no version to compare with (a value that counts has no normal form, `.inf` or `.nan`, ADR-0005: `element` comes without `version` and with a `file.faulty` warning that says why, #276); null when no version was given. Strings, not booleans, so a caller that tests the field for truth never takes \"unknown\" for current."
+        "description": "Whether the given version is the element's current version, computed from its file as it is now (SR-060 AK2): \"current\" or \"outdated\"; \"unknown\" when the element has no version to compare with (a value that counts has no normal form, `.inf` or `.nan`, ADR-0005: `element` comes without `version` and with a `file.faulty` warning that says why, ThomasBirkmaier/ReqSeq-archive#276); null when no version was given. Strings, not booleans, so a caller that tests the field for truth never takes \"unknown\" for current."
       },
       "names": {
         "type": "array",
         "items": { "$ref": "../common.schema.json#/$defs/elementName" },
-        "description": "The elements the element names by UUID only, as element.get gives them: the variants of `validity`, `replacedBy` and `excludedBy`, the replacements and the views of `verification` (SR-046 AK1/AK2, SR-047 AK3, #588, #456). Left out when it names none."
+        "description": "The elements the element names by UUID only, as element.get gives them: the variants of `validity`, `replacedBy` and `excludedBy`, the replacements and the views of `verification` (SR-046 AK1/AK2, SR-047 AK3, ThomasBirkmaier/ReqSeq-archive#588, #456). Left out when it names none."
       },
       "incomplete": {
         "$ref": "../common.schema.json#/$defs/incomplete",
