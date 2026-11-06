@@ -84,7 +84,7 @@ const baselineText = (name: string, selection: readonly string[], ids: readonly 
     "",
   ].join("\n");
 
-/** Replaces the records of the workspace (#127 option 1). */
+/** Replaces the records of the workspace (ThomasBirkmaier/ReqSeq-archive#127 option 1). */
 const recordsAre = async (workspace: Workspace, records: readonly EvidenceRecord[]): Promise<void> => {
   await workspace.replace(
     evidenceRecordsState,
@@ -135,7 +135,7 @@ describe("baseline.get withEvidence", () => {
       b6: ["core verified", "alpine open", "coastal open"],
       b7: ["coastal verified"],
     });
-    // The variants the rows name are named (#588).
+    // The variants the rows name are named (ThomasBirkmaier/ReqSeq-archive#588).
     expect(out.names.map((n) => n.id)).toEqual(expect.arrayContaining([ALPINE, COASTAL]));
     const without = await get(workspace, "Release 1", false);
     expect(without.elements.some((e) => "verification" in e || "validation" in e)).toBe(false);

@@ -88,7 +88,7 @@ describe("filter.save (SR-070)", () => {
     ]);
   });
 
-  it("[SR-070/AK1] writes element references as UUIDs and choices by key (product owner's note on #82)", async () => {
+  it("[SR-070/AK1] writes element references as UUIDs and choices by key (product owner's note on ThomasBirkmaier/ReqSeq-archive#82)", async () => {
     const { fixture, workspace } = await open();
     await save(workspace, {
       name: "Coastal sensors",
@@ -140,7 +140,7 @@ describe("filter.save (SR-070)", () => {
     });
   });
 
-  it("[SR-070/AK1] saves under an existing name, in any case, into its file and changes only what changed (#363)", async () => {
+  it("[SR-070/AK1] saves under an existing name, in any case, into its file and changes only what changed (ThomasBirkmaier/ReqSeq-archive#363)", async () => {
     const hand = [
       "# Kept by the team",
       "reqseq-filter: 1",

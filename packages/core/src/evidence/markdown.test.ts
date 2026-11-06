@@ -425,10 +425,10 @@ describe("SR-028 reading Markdown records", () => {
     const out = read(record(keys(500)));
     expect(out.problems).toHaveLength(500);
     expect(out.problems?.map((p) => p.line)).toEqual(Array.from({ length: 500 }, (_, i) => 10 + i));
-    // The line lookup alone: 20,000 unknown keys took 69 s with a search per key (review of #556).
+    // The line lookup alone: 20,000 unknown keys took 69 s with a search per key (review of ThomasBirkmaier/ReqSeq-archive#556).
     // Linear: the characters of the frontmatter that string methods scan during one call stay within
     // a small multiple of its length; a search per key scans thousands of times that. Counted, not
-    // timed, so the result does not depend on the load of the machine (#578). (The YAML parse is the
+    // timed, so the result does not depend on the load of the machine (ThomasBirkmaier/ReqSeq-archive#578). (The YAML parse is the
     // files block's; its duplicate key check is left out so the test looks at the lookup only.)
     const frontmatter = `${keys(40_000)}\nextra-0: again\n`;
     const large = { document: parseDocument(frontmatter, { uniqueKeys: false }), frontmatter };

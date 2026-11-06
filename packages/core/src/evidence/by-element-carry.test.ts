@@ -2,7 +2,7 @@
 // records, skipped)` must equal `evidenceIndex(records, skipped)` for the records with `r` at its
 // walk position, whatever `r` is: with or without a test case, of a test case that exists or a new
 // one, on a tie of dates, next to skipped appearances. Seeded random records; `positionOf` counts in
-// the new records (review N2 of #708). The old index is not changed.
+// the new records (review N2 of ThomasBirkmaier/ReqSeq-archive#708). The old index is not changed.
 import { describe, expect, it } from "vitest";
 import type { EvidenceIndex } from "./by-element.js";
 import { evidenceIndex, evidenceIndexWith } from "./by-element.js";

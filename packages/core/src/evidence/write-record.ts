@@ -427,7 +427,7 @@ const updateEvidence = async (
     return;
   }
   // The records state carries only as the read's own records: not after records were put in place
-  // through the seam of #127 (then the index is of those, and the states are reset as before).
+  // through the seam of ThomasBirkmaier/ReqSeq-archive#127 (then the index is of those, and the states are reset as before).
   const records = workspace.peek(evidenceRecordsState);
   const ofRead = records === undefined || (await settledValue(records)) === read.records;
   const next = Promise.resolve(withRecord(layout, read, record));
@@ -582,7 +582,7 @@ const createRecordFile = async (
   bytes: Uint8Array,
   write: RecordDeps["write"],
 ): Promise<string> => {
-  // The folder as the walk sees it: spelled as on disk where only the normal form differs (#194).
+  // The folder as the walk sees it: spelled as on disk where only the normal form differs (ThomasBirkmaier/ReqSeq-archive#194).
   const spelled = path.posix.dirname(await refuseUnlisted(layout, repository, inFolder(asGiven, name(1))));
   const folder = spelled === "." ? "" : spelled;
   const taken = await takenNames(repository, folder);

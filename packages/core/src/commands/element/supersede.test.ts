@@ -389,7 +389,7 @@ describe("element.supersede sets the chosen invalid status and on request a rela
     expect((await supersedeError(opened, { ref: N_OLD.id, status: "draft" })).message).toBe(
       "draft is not marked invalid in the metamodel, so it cannot supersede an element; the invalid statuses are: obsolete (Obsolete)",
     );
-    // A display name names its status (#309): Draft is the status draft, which is not invalid.
+    // A display name names its status (ThomasBirkmaier/ReqSeq-archive#309): Draft is the status draft, which is not invalid.
     expect((await supersedeError(opened, { ref: N_OLD.id, status: "Draft" })).details).toEqual({
       status: "Draft",
       reason: "not-invalid",
@@ -407,14 +407,14 @@ describe("element.supersede sets the chosen invalid status and on request a rela
     ]);
   });
 
-  it("[SR-072/AK1] takes the display name of the invalid status in any case and writes its key (#309)", async () => {
+  it("[SR-072/AK1] takes the display name of the invalid status in any case and writes its key (ThomasBirkmaier/ReqSeq-archive#309)", async () => {
     const opened = await open();
     const out = await supersede(opened, { ref: N_OLD.id, status: "OBSOLETE" });
     expect(out.files).toEqual([N_OLD.file]);
     expect(await read(opened, N_OLD.file)).toContain("\nstatus: obsolete\n");
   });
 
-  it("[SR-072/AK1] refuses a name that two statuses share, as element.setStatus does (#309)", async () => {
+  it("[SR-072/AK1] refuses a name that two statuses share, as element.setStatus does (ThomasBirkmaier/ReqSeq-archive#309)", async () => {
     const opened = await open({
       files: { [MODEL]: await changedModel((text) => text.replace("name: Draft", "name: Obsolete")) },
     });

@@ -1,7 +1,7 @@
 // How a verification degree (SR-037, `data-export.schema.json#/$defs/verificationDegree`) is shown: its
 // share as a percentage rounded down to one decimal, `60 %`, `66.6 %`, `64.2 %`, so 100 % only when every
 // counted requirement is verified or indirect (ADR-0012 "Status rules", bullet "Verification degree";
-// assumption of spec question #592 Q3). One rule on every access: the CLI's readable output imports it
+// assumption of spec question ThomasBirkmaier/ReqSeq-archive#592 Q3). One rule on every access: the CLI's readable output imports it
 // from `@reqseq/core`, the app's result buffer from `@reqseq/core/verification-degree`. This module
 // imports nothing, so the renderer bundle loads no other part of core with it. The line of a package page
 // (SR-112 AK3) and the head of a matrix column with minima (SR-153 AK1) are built here too, so the app,

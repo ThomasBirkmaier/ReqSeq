@@ -5,17 +5,17 @@
 //
 // 1. One degree per call, in one view: the selection's own view, else its saved filter's, else the core
 //    (as the filter condition `verification` and `evidence.coverage` take it; assumption, spec question
-//    #592 Q1). The output names it (`viewIdOf`).
+//    ThomasBirkmaier/ReqSeq-archive#592 Q1). The output names it (`viewIdOf`).
 // 2. Counted are the elements of the selection whose type has the meaning `requirement` (own or
 //    inherited), whose status the metamodel does not mark invalid (AK3, D-044) and that have a
 //    verification status in the view (they apply in it). Needs, packages and other types count nowhere;
-//    without a view, a requirement valid only in a variant is not counted (#592 Q1, Q2).
+//    without a view, a requirement valid only in a variant is not counted (ThomasBirkmaier/ReqSeq-archive#592 Q1, Q2).
 // 3. The status of each is the one of the shared evaluator (`verificationState`, SR-031, SR-034), the
 //    same that evidence.status, element.get, element.resolve and the filter give; no rule of its own.
 // 4. One count per verification status, all five always given, in the order of
 //    `common.verificationStatus`; they add up to `total`. `indirect` is apart from `verified` (AK2).
 // 5. `share = (verified + indirect) / total` (AK1, AK2): failed, outdated and open are in the
-//    denominator. Left out when nothing is counted (#592 Q3); never rounded here. How it is shown (one
+//    denominator. Left out when nothing is counted (ThomasBirkmaier/ReqSeq-archive#592 Q3); never rounded here. How it is shown (one
 //    decimal, rounded down) is `degree-text.ts`.
 // 6. While the metamodel is not valid the records are not compared: every counted requirement is open.
 // SR-126 (the degree above the matrix) calls `degreeOf` after its own `prepare(elements, { own: true })`.

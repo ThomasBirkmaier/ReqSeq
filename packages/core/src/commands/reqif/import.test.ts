@@ -365,7 +365,7 @@ describe("reqif.import (SR-053)", () => {
     expect(await tree(fixture)).toEqual(before);
   });
 
-  it("[SR-053/AK1] writes under the spelling of the target folder that the element walk lists (#194)", async () => {
+  it("[SR-053/AK1] writes under the spelling of the target folder that the element walk lists (ThomasBirkmaier/ReqSeq-archive#194)", async () => {
     // On a file system that ignores the normal form (macOS) the NFC target is the NFD folder, and
     // the files go there under its spelling; elsewhere the two are different folders.
     const { fixture, workspace } = await open({

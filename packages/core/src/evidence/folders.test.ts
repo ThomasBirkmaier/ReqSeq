@@ -1,5 +1,5 @@
 // The files of the evidence folders (ADR-0012 "Reading"): the walk of every `evidence` location of the
-// workspace file. Enabler tests of the evidence block (#535); the SR tests come with the readers.
+// workspace file. Enabler tests of the evidence block (ThomasBirkmaier/ReqSeq-archive#535); the SR tests come with the readers.
 import fs from "node:fs/promises";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureWorkspace } from "@reqseq/testkit";

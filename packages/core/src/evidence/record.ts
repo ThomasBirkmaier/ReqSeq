@@ -7,7 +7,7 @@ import type { DataExportEvidenceRecord, DataExportTestCase } from "../generated/
 /**
  * One evidence record (`data-export.schema.json#/$defs/evidenceRecord`): from a Markdown record or
  * from one element of a JUnit test case alike. The readers always set `source`, `repository`,
- * `file` and `line`; records given through `evidenceRecordsState` (tests, #127 option 1) may leave
+ * `file` and `line`; records given through `evidenceRecordsState` (tests, ThomasBirkmaier/ReqSeq-archive#127 option 1) may leave
  * them out. `baselines` is filled by `evidence.list` alone (SR-032 AK2).
  */
 export type EvidenceRecord = DataExportEvidenceRecord;

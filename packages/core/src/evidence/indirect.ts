@@ -6,31 +6,31 @@
 // 1. Own record decides: a requirement with at least one verification record that holds in the view
 //    (any version, any result; `holdsIn`, SR-047; in a variant also one without variant when the
 //    element's repository is marked `variant-independent`, SR-173) has its SR-031 status there and
-//    names no children (spec question #526 Q1, Q4 assumptions). Validation records do not count
+//    names no children (spec question ThomasBirkmaier/ReqSeq-archive#526 Q1, Q4 assumptions). Validation records do not count
 //    (D-007). Each child counts by its own repository's mark, so a parent elsewhere is `indirect` in
 //    a variant through the variant-less records of children in a marked repository (#817 Q3).
 // 2. Counted children: the derivation children (`ChildRules.childrenOf`: the trace block's
 //    `childrenOf`, so a child named only by an ambiguous relation is none), each once, whose type has
-//    the meaning `requirement` (#526 Q2), whose status the metamodel does not mark invalid (AK3,
+//    the meaning `requirement` (ThomasBirkmaier/ReqSeq-archive#526 Q2), whose status the metamodel does not mark invalid (AK3,
 //    D-044) and that the view holds (`ViewScope`: the view rule, `viewRuleOf`; SR-040, SR-041 AK5,
 //    SR-043 AK7): a core requirement a variant excludes or replaces is no child there, and its own
 //    children count where their validity puts them, never under the replacement.
-// 3. No counted child: `open`, no `missingChildren` (#526 Q3).
+// 3. No counted child: `open`, no `missingChildren` (ThomasBirkmaier/ReqSeq-archive#526 Q3).
 // 4. Every counted child `verified` or `indirect` (each measured in the same view against its own
 //    current version, recursively): `indirect` (AK1).
 // 5. Otherwise `open` with `missingChildren`: the counted children that are `open`, `failed` or
-//    `outdated`, direct children only, in child order, each UUID once (AK2; #526 Q4).
+//    `outdated`, direct children only, in child order, each UUID once (AK2; ThomasBirkmaier/ReqSeq-archive#526 Q4).
 // 6. An element on a derivation cycle of elements without own record is not indirect: an element
-//    that is being computed counts as `open` for its descendants (#526 Q5). That is the least fixed
+//    that is being computed counts as `open` for its descendants (ThomasBirkmaier/ReqSeq-archive#526 Q5). That is the least fixed
 //    point, so the result does not depend on which element is computed first. The walk is iterative
 //    (explicit stack, memo per view), so a chain of any depth cannot overflow the call stack (N-036).
 // 7. Without child rules (no relation kind with the meaning `derivation`, or the metamodel is not
 //    valid) no element has children: nothing is indirect, and nothing fails.
 // 8. An element marked emergent (SR-035 AK1, `StatusSource.emergent`) has no counted children: without
 //    an own record in the view it is `open` there with no `missingChildren`, never `indirect`, and its
-//    children are not walked (#591 Q2, Q3). As a child it is then open, so its parent names it (rule 5).
+//    children are not walked (ThomasBirkmaier/ReqSeq-archive#591 Q2, Q3). As a child it is then open, so its parent names it (rule 5).
 //
-// Cost (#698): the views share their work. Besides the core and the variants the evaluator keeps one
+// Cost (ThomasBirkmaier/ReqSeq-archive#698): the views share their work. Besides the core and the variants the evaluator keeps one
 // internal neutral view: the view of the core (no validity) in which only a record without variant
 // of an element of a `variant-independent` repository holds (SR-173: it holds in every variant, so
 // it is no seed). In a variant
@@ -257,7 +257,7 @@ export const evaluatorRecords = (evaluator: VerificationEvaluator): ElementRecor
  * from children are kept per view and element for the life of the evaluator, so neither `currentOf`
  * nor the records of `source` may change while it lives: the own views of each UUID are kept with
  * `source` (`ownViewsOf`) and every result built on them in the memos. The evidence block builds a
- * new source and evaluator per records state (review of #714, S1), and one per store, or carries
+ * new source and evaluator per records state (review of ThomasBirkmaier/ReqSeq-archive#714, S1), and one per store, or carries
  * this one over a store change with `carriedEvaluator`. `scope` gives the views (`ruleScope` of the
  * store's view rule; `validityScope` only where no rule applies).
  */
@@ -270,7 +270,7 @@ export const verificationEvaluator = (
 
 /**
  * The evaluator of a store after a change, carried over from `old`, the evaluator of the store
- * before it with the same `source` (ADR-0008, #698): it keeps what `old` found for every element
+ * before it with the same `source` (ADR-0008, ThomasBirkmaier/ReqSeq-archive#698): it keeps what `old` found for every element
  * whose repository and UUID (`nodeKey`) `affected` does not name. `affected` must name every element
  * whose candidate children, seeds below or results may differ in the new store: the changed ones and
  * their ancestors before and after the change, and the core requirements a changed rule item names

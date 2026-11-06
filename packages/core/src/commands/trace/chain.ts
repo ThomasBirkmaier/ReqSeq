@@ -3,21 +3,21 @@
 // from the meaning `derivation` (SR-013 AK1, AK3); `view` keeps the elements that apply in the core
 // or a variant holds (`viewRuleOf`: the validity, SR-040, less what a variant excludes or replaces,
 // SR-041 AK5, SR-043 AK4). The walk is always complete; the output is one page of `limit` nodes from
-// `offset` with `total` (SR-082 AK4, spec-frage #290), as `trace.related` and `trace.affected` give
+// `offset` with `total` (SR-082 AK4, spec-frage ThomasBirkmaier/ReqSeq-archive#290), as `trace.related` and `trace.affected` give
 // theirs. A variant's view is `incomplete` while a repository is not here (`viewIncomplete`).
 //
 // Evidence (SR-022 AK1, AK3; SR-033), only when the chain goes down: the evidence index decides the
 // `no-evidence` gap of every element (`hasVerificationRecord` in the view, the core without one; any
-// version and result, spec questions #527 Q3 and Q4), and gives the test cases and records below
+// version and result, spec questions ThomasBirkmaier/ReqSeq-archive#527 Q3 and Q4), and gives the test cases and records below
 // each expanded downward node of the page (`chainEvidenceOf`: verification records that hold in the
-// view, every one without a view; assumptions A2 and A5 of #528 Q4). An evidence location that is
+// view, every one without a view; assumptions A2 and A5 of ThomasBirkmaier/ReqSeq-archive#528 Q4). An evidence location that is
 // not on this machine makes the chain `incomplete` (SR-006 AK2), in either direction, since the
 // root's validation records (`validationRecords`, SR-038 AK1, #646) come in both: on the page with
 // the root, every one, no view narrowing them (`validationRecordsOf`). The upward chain reads the
 // index for them only; gaps and evidence stay those of the downward chain.
 // Both take the mark of each element's repository (`variant-independent`, SR-173): in a variant a
 // record without variant of a marked element holds too.
-// `names` names the variants of those records (#676), as evidence.status names its views (#588).
+// `names` names the variants of those records (#676), as evidence.status names its views (ThomasBirkmaier/ReqSeq-archive#588).
 //
 // Not in view (#674, product owner decision, 2026-11-02): a requirement without a child that the view
 // of the chain does not hold (`viewRuleOf(view ?? core).includes`, so SR-043 AK10 holds) is

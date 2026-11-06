@@ -13,7 +13,7 @@
 //   or any other identifier in brackets is not a reference the reader can tell without the store.
 // - A test case that names a requirement but is not enriched gives no record; the file gets one
 //   `evidence.not-enriched` warning with the number of such test cases and the line of the first
-//   (spec question #529 Q3).
+//   (spec question ThomasBirkmaier/ReqSeq-archive#529 Q3).
 // - An enriched test case marked `<skipped>` gives no record (ADR-0012), so it never counts as passed
 //   (SR-093 AK3); it is kept as a skipped test case, a test case without execution (SR-033 AK3).
 // - An enriched test case whose properties do not fit (a `reqseq:element` that is no UUID, versions

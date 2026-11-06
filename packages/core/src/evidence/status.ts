@@ -12,9 +12,9 @@
 //   folder (spec question #817 Q1, assumption); twins of one UUID each follow their own (#817 Q8).
 // - Of these, the newest records of the current version decide (`date` as an instant): passed gives
 //   `verified` (AK2), failed gives `failed` (AK3). When several have that newest date and one of them
-//   failed, the status is `failed` (spec question #525 Q2, assumption).
+//   failed, the status is `failed` (spec question ThomasBirkmaier/ReqSeq-archive#525 Q2, assumption).
 // - Records only of other versions give `outdated` (AK4); none gives `open` (AK1). An element whose
-//   current version is unknown (`CurrentVersion` `unknown`, #276) has no record of it: `outdated`
+//   current version is unknown (`CurrentVersion` `unknown`, ThomasBirkmaier/ReqSeq-archive#276) has no record of it: `outdated`
 //   with records, `open` without.
 // - Per acceptance criterion (D-072, AK5 to AK8, `ownVerificationOf`): an element with criteria (the
 //   property with the meaning `acceptance-criteria`, `StatusSource.criteriaOf`) gets the rule above
@@ -417,7 +417,7 @@ export const hasValidationRecord = (records: readonly EvidenceRecord[]): boolean
 
 /**
  * Whether `element` has a validation status (SR-038): a need, and any other element with a counted
- * validation record among its `records` (#534 assumption).
+ * validation record among its `records` (ThomasBirkmaier/ReqSeq-archive#534 assumption).
  */
 export const hasValidationStatus = (
   source: Pick<StatusSource, "needs">,
@@ -431,7 +431,7 @@ export interface StatusSource {
   readonly requirements: ReadonlySet<string>;
   /**
    * The effective type keys with the meaning `need`: they have a validation status without record
-   * (SR-038, #534).
+   * (SR-038, ThomasBirkmaier/ReqSeq-archive#534).
    */
   readonly needs: ReadonlySet<string>;
   /** The status keys the metamodel marks invalid (D-044): their elements count in no verification degree (SR-037). */

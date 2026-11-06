@@ -3,7 +3,7 @@
 // - `evidenceReadState`: the evidence folders walked (`evidenceFiles`) and every file given to the
 //   reader of its extension: `{ records, skipped, problems, incomplete }`.
 // - `evidenceRecordsState`: its records alone, an array. This is the seam through which tests and
-//   consumers get records without files (decision on #127, option 1): `workspace.replace` it with
+//   consumers get records without files (decision on ThomasBirkmaier/ReqSeq-archive#127, option 1): `workspace.replace` it with
 //   the records a test needs. Skipped test cases are given by replacing `evidenceReadState` (do that
 //   first: replacing it gives `evidenceRecordsState` the records of the new read).
 //
@@ -12,7 +12,7 @@
 // being built again (#278: the index, `evidenceIndexWith`, and the status, `verificationState`).
 //
 // The readers are registered in `EVIDENCE_READERS`, one per extension: the Markdown reader of SR-028
-// (#40, `markdown.ts`) and the JUnit reader of SR-093 (#105, `junit.ts`).
+// (ThomasBirkmaier/ReqSeq-archive#40, `markdown.ts`) and the JUnit reader of SR-093 (ThomasBirkmaier/ReqSeq-archive#105, `junit.ts`).
 import fs from "node:fs/promises";
 import type { Problem } from "../catalog.js";
 import type { StateChange } from "../runtime/workspace.js";

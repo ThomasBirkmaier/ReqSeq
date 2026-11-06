@@ -2,7 +2,7 @@
 // fixtures/SR-034/indirect (its README lists every element, its parent and its record): one
 // repository `system` with the standard model and Markdown records in `evidence`, no variants.
 // The records come from the record files of the fixture, so the versions they name are those of the
-// element files; one test gives them through `evidenceRecordsState` instead (decision on #127).
+// element files; one test gives them through `evidenceRecordsState` instead (decision on ThomasBirkmaier/ReqSeq-archive#127).
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { FixtureOptions } from "@reqseq/testkit";
@@ -123,7 +123,7 @@ describe("indirect verification in evidence.status, element.get and the filter (
   it("[SR-034/AK2] evidence.status names the missing children of a parent", async () => {
     const output = await status(await open(), { selection: { ids: [P2] } });
     expect(byId(output)).toEqual({ [P2]: core("open", [C21, C22, C23]) });
-    // Named for readers by short ID and title, though not on the page (#588).
+    // Named for readers by short ID and title, though not on the page (ThomasBirkmaier/ReqSeq-archive#588).
     expect(output.names?.map((n) => [n.id, n.shortId, n.title])).toEqual([
       [C21, "SR-00b121", "Warn of gusts"],
       [C22, "SR-00b122", "Warn of hail"],
@@ -152,7 +152,7 @@ describe("indirect verification in evidence.status, element.get and the filter (
       files: { "variants/VAR-00000000c001.md": variant, "requirements/SR-00000000b112.md": c12 },
     });
     const output = await status(ws, { selection: { ids: [P1, C11] } });
-    // The variant of a view and the missing children, each once, in the order first named (#588).
+    // The variant of a view and the missing children, each once, in the order first named (ThomasBirkmaier/ReqSeq-archive#588).
     expect(output.names?.map((n) => [n.id, n.shortId, n.title])).toEqual([
       [V1, "VAR-00c001", "Pro"],
       [C11, "SR-00b111", "Show wind speed"],
@@ -246,7 +246,7 @@ describe("indirect verification in evidence.status, element.get and the filter (
     });
   });
 
-  it("the shared state forgets a changed child and changed records within one open workspace (review of #581, S1)", async () => {
+  it("the shared state forgets a changed child and changed records within one open workspace (review of ThomasBirkmaier/ReqSeq-archive#581, S1)", async () => {
     const ws = await open();
     expect((await get(ws, G)).element.verification).toEqual(core("indirect"));
     expect((await get(ws, P1)).element.verification).toEqual(core("indirect"));

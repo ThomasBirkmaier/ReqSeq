@@ -187,11 +187,11 @@ describe("evidence.degree (SR-037)", () => {
     expect(await degree(await open())).toEqual({ degree: WHOLE, view: "core", incomplete: false });
   });
 
-  it("counts in the view of the selection, else of its saved filter; without a view in the core (#592 Q1)", async () => {
+  it("counts in the view of the selection, else of its saved filter; without a view in the core (ThomasBirkmaier/ReqSeq-archive#592 Q1)", async () => {
     const workspace = await withPro();
     await addRecords(workspace, [passed(RV, await versionOf(workspace, RV), { variant: V })]);
     // In Pro: RV verified by its record for Pro; R01's record holds only in the core. `names` names
-    // the variant of the view for readers (#588).
+    // the variant of the view for readers (ThomasBirkmaier/ReqSeq-archive#588).
     const pro = { id: V, repository: "system", shortId: "VAR-00c001", title: "Pro" };
     expect(await degree(workspace, { selection: { ids: [R01, RV], view: "VAR-00c001" } })).toEqual({
       degree: { share: 0.5, total: 2, counts: counts(1, 1, 0, 0, 0) },

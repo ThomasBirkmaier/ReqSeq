@@ -1,4 +1,4 @@
-// The verification state carried over a change of the element store (#698, plan §3.3; ADR-0008
+// The verification state carried over a change of the element store (ThomasBirkmaier/ReqSeq-archive#698, plan §3.3; ADR-0008
 // file-watching "carry"): after a save or a watcher batch `verificationState` keeps the versions it
 // read, the walks of `prepare` and the results of the evaluator for every element the change cannot
 // reach. Whatever the change, the carried state must give what a fresh workspace builds from the
@@ -456,7 +456,7 @@ const expectCarried = (workspace: Workspace, before: Promise<StateStatus> | unde
   expect(now).not.toBe(before);
 };
 
-describe("verificationState carried over a change of the store (#698, ADR-0008)", () => {
+describe("verificationState carried over a change of the store (ThomasBirkmaier/ReqSeq-archive#698, ADR-0008)", () => {
   const cases: readonly {
     readonly name: string;
     readonly change: (opened: Opened) => Promise<void>;
@@ -591,7 +591,7 @@ describe("verificationState carried over a change of the store (#698, ADR-0008)"
           if (kind === 0) {
             await edit(opened, file, (s) => (s.changed = !s.changed));
           } else if (kind === 1) {
-            // May close a cycle (#526 Q5).
+            // May close a cycle (ThomasBirkmaier/ReqSeq-archive#526 Q5).
             await edit(opened, file, (s) => s.parents.push(other));
           } else if (kind === 2) {
             await edit(opened, file, (s) => (s.parents = s.parents.slice(1)));
@@ -870,7 +870,7 @@ describe("verificationState carried over a change of the store (#698, ADR-0008)"
   });
 });
 
-describe("verificationState built afresh or reset over a change of the store (#698)", () => {
+describe("verificationState built afresh or reset over a change of the store (ThomasBirkmaier/ReqSeq-archive#698)", () => {
   it("is built afresh from the change when a variant changes or comes (the views change)", async () => {
     const opened = await open(698);
     await built(opened);
@@ -978,7 +978,7 @@ describe("verificationState built afresh or reset over a change of the store (#6
   });
 });
 
-describe("verificationState carried over changes across two repositories (#698, review S1)", () => {
+describe("verificationState carried over changes across two repositories (ThomasBirkmaier/ReqSeq-archive#698, review S1)", () => {
   const P = uuid(0x2001);
   const Q = uuid(0x2002);
   const C1 = uuid(0x2011);
@@ -1135,7 +1135,7 @@ describe("verificationState carried over changes across two repositories (#698, 
   );
 });
 
-describe("carriedEvaluator (#698)", () => {
+describe("carriedEvaluator (ThomasBirkmaier/ReqSeq-archive#698)", () => {
   it("builds a new evaluator when it is given a function that is no evaluator of this module", async () => {
     const opened = await open(698, { count: 5 });
     const store = await opened.workspace.get(elementStoreState);
@@ -1262,7 +1262,7 @@ describe("the evidence index and verificationState carried over evidence.record 
     }
   });
 
-  it("shows the first record for a variant on a leaf at its parent, which was evaluated before (review S1 of #714)", async () => {
+  it("shows the first record for a variant on a leaf at its parent, which was evaluated before (review S1 of ThomasBirkmaier/ReqSeq-archive#714)", async () => {
     const opened = await open(698);
     await built(opened);
     const leaf = await bareLeaf(opened);
@@ -1379,7 +1379,7 @@ describe("the evidence index and verificationState carried over evidence.record 
     expect(await table(old, store)).toEqual(before);
   });
 
-  it("equals a fresh build after a record that follows records put in place through the seam of #127", async () => {
+  it("equals a fresh build after a record that follows records put in place through the seam of ThomasBirkmaier/ReqSeq-archive#127", async () => {
     const opened = await open(698);
     const { workspace } = opened;
     await built(opened);
@@ -1405,7 +1405,7 @@ describe("the evidence index and verificationState carried over evidence.record 
     await expectFresh(opened);
   });
 
-  it("resets the index and the status when the records are replaced by hand (the seam of #127)", async () => {
+  it("resets the index and the status when the records are replaced by hand (the seam of ThomasBirkmaier/ReqSeq-archive#127)", async () => {
     const opened = await open(698);
     const { workspace } = opened;
     await built(opened);

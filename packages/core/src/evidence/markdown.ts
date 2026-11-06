@@ -9,7 +9,7 @@
 // - A file without frontmatter, or whose frontmatter is no mapping with `reqseq-record`, is no record
 //   (a README in an evidence folder) and gives nothing, not even its YAML warnings.
 // - A key the format does not know is read with a warning `evidence.invalid-record` naming it, and
-//   the record counts (spec question #533 Q1, assumption: as D-012 does for elements). Every other
+//   the record counts (spec question ThomasBirkmaier/ReqSeq-archive#533 Q1, assumption: as D-012 does for elements). Every other
 //   violation of the schema is an error `evidence.invalid-record` at the line of the failing key,
 //   and the file gives no record. So is a validation record with `variant` (SR-038 AK4: „... weist
 //   das Tool ihn ab, nennt den Grund und er zählt für keinen Status“; D-007 names only the item

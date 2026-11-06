@@ -2,7 +2,7 @@
 // fixtures/SR-035/emergent (its README lists every element, its mark, its parent and its record): one
 // repository `system` with the standard model and Markdown records in `evidence`, no variants. The
 // records come from the record files of the fixture; one test gives them through
-// `evidenceRecordsState` instead (decision on #127). The pure rule is tested in evidence/indirect.test.ts.
+// `evidenceRecordsState` instead (decision on ThomasBirkmaier/ReqSeq-archive#127). The pure rule is tested in evidence/indirect.test.ts.
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { FixtureOptions } from "@reqseq/testkit";
@@ -103,7 +103,7 @@ const marked = (elements: readonly { id: string; emergent?: boolean }[]): string
   return elements.filter((e) => e.emergent === true).map((e) => e.id);
 };
 
-/** The fixture with the property `emergent` of kind text: a misdefined mark (#591 Q1). */
+/** The fixture with the property `emergent` of kind text: a misdefined mark (ThomasBirkmaier/ReqSeq-archive#591 Q1). */
 const misdefined = async (): Promise<FixtureOptions> => ({
   ...FIXTURE,
   files: {
@@ -206,7 +206,7 @@ describe("emergent requirements need their own record (SR-035)", () => {
     expect(c13.element.problems?.filter((p) => p.code === "relation.outdated") ?? []).toEqual([]);
   });
 
-  it("a misdefined emergent property gives a warning and marks nothing (#591 Q1)", async () => {
+  it("a misdefined emergent property gives a warning and marks nothing (ThomasBirkmaier/ReqSeq-archive#591 Q1)", async () => {
     const ws = await open(await misdefined());
     const metamodel = (await invoke(
       "metamodel.get",

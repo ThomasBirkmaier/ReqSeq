@@ -1,7 +1,7 @@
-// The requirements without a passed test execution (SR-120, #431): „Das Tool muss alle Requirements, die
+// The requirements without a passed test execution (SR-120, ThomasBirkmaier/ReqSeq-archive#431): „Das Tool muss alle Requirements, die
 // keine bestandene Testausführung haben, mit wenigen Tastendrücken zeigen.“ A derived list, not a status:
 // it never changes the element's `status` and reads it only for the invalid flag (D-030). The assumptions
-// are those of spec question #532 (the review of the plan answered them from the spec and the glossary):
+// are those of spec question ThomasBirkmaier/ReqSeq-archive#532 (the review of the plan answered them from the spec and the glossary):
 //
 // 1. A passed test execution of an element in a view is an evidence record with `kind: verification`,
 //    `method: test` and `result: passed` that holds in the view (`holdsIn`: in the core a record without
