@@ -325,3 +325,42 @@ export const elementRefsOf = (
   }
   return found;
 };
+
+/** A reference of a test case name with the acceptance criterion it names, if any (`criterionRefsOf`). */
+export interface CriterionRef {
+  /** As written (trimmed): the `<ref>` of a bracket token, or the short ID a name pattern built. */
+  readonly ref: string;
+  /** The criterion it names (1 or more); absent for a reference that names the whole requirement. */
+  readonly criterion?: number;
+}
+
+/** `[<ref>]` or `[<ref>/<suffix>]` in a test case name: the tokens of `NAME_TOKEN`, with the suffix. */
+const BRACKET = /\[[^[\]/]*(?:\/[^[\]]*)?\]/g;
+/** The suffix that names an acceptance criterion: `AK<digits>`, ASCII case-insensitive. */
+const AK_SUFFIX = /^AK([0-9]{1,9})$/i;
+
+/**
+ * Every reference of the name of a test case with the acceptance criterion it names (SR-029 AK10), in
+ * name order and not deduplicated: `[<ref>/AK<n>]` names criterion n, and with `pattern` a match
+ * whose `{ak}` is 1 or more names that one. A token without such a suffix (`[SR-036]`,
+ * `[SR-036/slow]`), `AK0` and a match without `{ak}` name the whole requirement. The caller resolves
+ * the references, as for `elementRefsOf`.
+ */
+export const criterionRefsOf = (
+  name: string,
+  pattern?: (name: string) => readonly NameMatch[],
+): readonly CriterionRef[] => {
+  const refs: CriterionRef[] = [];
+  for (const [token] of name.matchAll(BRACKET)) {
+    const inner = token.slice(1, -1);
+    const slash = inner.indexOf("/");
+    const ref = slash < 0 ? inner : inner.slice(0, slash);
+    const digits = slash < 0 ? undefined : AK_SUFFIX.exec(inner.slice(slash + 1).trim())?.[1];
+    const criterion = digits === undefined ? 0 : Number(digits);
+    refs.push({ ref: ref.trim(), ...(criterion > 0 ? { criterion } : {}) });
+  }
+  for (const { shortId, criterion } of pattern?.(name) ?? []) {
+    refs.push({ ref: shortId, ...(criterion === undefined ? {} : { criterion }) });
+  }
+  return refs;
+};

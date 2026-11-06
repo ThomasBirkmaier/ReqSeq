@@ -86,7 +86,7 @@ No problems.
 
 ### Test names without brackets
 
-Rust, Go and Java test names cannot hold `[SR-c67baa]`. Write the short ID into the name in another form, and give the form with `--name-pattern`: `{prefix}` stands for a type prefix of the metamodel (`SR`), `{id}` for the hex digits of the short ID, and `{ak}` for the number of an acceptance criterion, which ReqSeq ignores. Everything else is literal text, and case does not matter. For a Rust test, as `cargo nextest run` writes it to its JUnit file:
+Rust, Go and Java test names cannot hold `[SR-c67baa]`. Write the short ID into the name in another form, and give the form with `--name-pattern`: `{prefix}` stands for a type prefix of the metamodel (`SR`), `{id}` for the hex digits of the short ID, and `{ak}` for the number of an acceptance criterion, which ReqSeq writes into the test case as `[SR-c67baa/AK1]` gives it. Everything else is literal text, and case does not matter. For a Rust test, as `cargo nextest run` writes it to its JUnit file:
 
 ```rust
 #[test]

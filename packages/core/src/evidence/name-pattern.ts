@@ -8,8 +8,8 @@
 // - `{id}`: 6 to 32 hex digits, the longest first, down to 6, until the rest of the pattern fits; so
 //   `{id}AK` reads `348143` from `348143AK1`. The digits end where a camel case word starts (an upper
 //   case letter after a lower case one, or before one), so `2f95e9Add` gives `2f95e9`.
-// - `{ak}`: 1 to 9 digits, all of the run (a longer run does not match). It plays no part in the
-//   assignment: evidence counts per requirement.
+// - `{ak}`: 1 to 9 digits, all of the run (a longer run does not match). Their value, when it is 1 or
+//   more, is the acceptance criterion the match names (`criterion`, SR-029 AK10); `0` names none.
 // - Anything else is literal text, ASCII case-insensitive; `{{` and `}}` are literal braces.
 // - A match starts and ends at a word boundary: the start or end of the name, a character that is
 //   not a letter or digit, or the start of a camel case word. Matches do not overlap.
@@ -34,6 +34,8 @@ export interface NameMatch {
   readonly shortId: string;
   /** The matched text as written. */
   readonly matched: string;
+  /** The acceptance criterion `{ak}` gives (1 or more); absent without `{ak}` or for `0` (SR-029 AK10). */
+  readonly criterion?: number;
 }
 
 const PLACEHOLDERS: readonly Placeholder[] = ["prefix", "id", "ak"];
@@ -211,6 +213,7 @@ export const nameMatcher = (
     for (const name of whole.split(/\[[^[\]]*\]/)) {
       let prefix = "";
       let id = "";
+      let ak = 0;
       /** The end of a match of `parts[k..]` from `at`, or -1. */
       const step = (k: number, at: number): number => {
         const part = parts[k];
@@ -222,7 +225,12 @@ export const nameMatcher = (
             return literalAt(name, at, part.text) ? step(k + 1, at + part.text.length) : -1;
           case "ak": {
             const n = digitRun(name, at);
-            return n >= 1 && n <= AK_MAX ? step(k + 1, at + n) : -1;
+            if (n < 1 || n > AK_MAX) {
+              return -1;
+            }
+            // `{ak}` occurs once at most, so the last value read is that of the match found.
+            ak = Number(name.slice(at, at + n));
+            return step(k + 1, at + n);
           }
           case "prefix":
             for (let n = Math.min(longest, name.length - at); n >= 1; n -= 1) {
@@ -248,7 +256,11 @@ export const nameMatcher = (
       for (let start = 0; start < name.length;) {
         const end = boundary(name, start) ? step(0, start) : -1;
         if (end > start) {
-          matches.push({ shortId: `${prefix}-${id}`, matched: name.slice(start, end) });
+          matches.push({
+            shortId: `${prefix}-${id}`,
+            matched: name.slice(start, end),
+            ...(ak > 0 ? { criterion: ak } : {}),
+          });
           start = end;
         } else {
           start += 1;

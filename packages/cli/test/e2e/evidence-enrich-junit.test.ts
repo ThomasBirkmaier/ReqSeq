@@ -253,6 +253,27 @@ describe("reqseq evidence enrich-junit (SR-029)", () => {
     expect(props["tests::adds_two_numbers"]).toEqual({});
   });
 
+  it("[SR-029/AK10] reqseq evidence enrich-junit writes the acceptance criterion the test case name gives", async () => {
+    const ws = await open();
+    await fs.writeFile(
+      ws.path("results/criterion.xml"),
+      '<testsuites><testsuite name="s"><testcase name="[SR-46fb54/AK2] accepts a valid password"/>' +
+        '<testcase name="tests::sr_46fb54_ak3_locks_the_account"/></testsuite></testsuites>',
+    );
+    const run = await enrich(ws, [
+      "results/criterion.xml",
+      "build-512",
+      "--date",
+      DATE,
+      "--name-pattern",
+      "{prefix}_{id}_ak{ak}",
+    ]);
+    expect([run.code, run.stderr]).toEqual([0, ""]);
+    const props = properties(await fs.readFile(ws.path("results/criterion.xml"), "utf8"));
+    expect(props["[SR-46fb54/AK2] accepts a valid password"]?.["reqseq:criterion"]).toEqual([`${LOGIN}:2`]);
+    expect(props["tests::sr_46fb54_ak3_locks_the_account"]?.["reqseq:criterion"]).toEqual([`${LOGIN}:3`]);
+  });
+
   it("reqseq evidence enrich-junit --name-pattern names a test case whose short ID names no element and exits with code 1, and refuses a bad pattern", async () => {
     const ws = await open();
     await fs.writeFile(

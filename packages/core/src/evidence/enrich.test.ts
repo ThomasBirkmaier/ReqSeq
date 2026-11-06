@@ -257,6 +257,7 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
     expect(properties(result.bytes)["tests::sr_46fb54_ak1_max_mass"]).toEqual([
       `reqseq:element=${LOGIN}`,
       `reqseq:version=${V[LOGIN]}`,
+      `reqseq:criterion=${LOGIN}:1`,
       "reqseq:item=build-1",
       `reqseq:date=${DATE}`,
     ]);
@@ -990,22 +991,112 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
     }
   });
 
-  describe("reqseq:criterion until enrich resolves it (#960, #961)", () => {
+  describe("reqseq:criterion (#960, #961)", () => {
     const criterion = (value: string): string => prop("reqseq:criterion", value);
+    /** The criteria of each record of the enriched file, by element. */
+    const criteriaOfRecords = (result: EnrichResult): [string, readonly number[] | undefined][] =>
+      readJunitRecords({ repository: "r", file: "f" }, result.bytes).records.map((r) => [
+        r.element,
+        r.criteria,
+      ]);
 
-    it("keeps a valid criterion and the record of each element reads back with it", async () => {
-      const xml = suite(
-        `<testcase name="[SR-46fb54] a"><properties>${criterion(`${LOGIN}:2`)}</properties></testcase>`,
-      );
-      const result = await enrich(xml);
+    it("[SR-029/AK10] writes the acceptance criterion a test case name gives", async () => {
+      const result = await enrich(suite('<testcase name="[SR-46fb54/AK2] logs in"/>'));
       expect(result).toMatchObject({ changed: true, testCases: 1, problems: [] });
-      expect(readJunitRecords({ repository: "r", file: "f" }, result.bytes).records).toMatchObject([
-        { element: LOGIN, criteria: [2] },
+      expect(properties(result.bytes)["[SR-46fb54/AK2] logs in"]).toEqual([
+        `reqseq:element=${LOGIN}`,
+        `reqseq:version=${V[LOGIN]}`,
+        `reqseq:criterion=${LOGIN}:2`,
+        "reqseq:item=build-1",
+        `reqseq:date=${DATE}`,
+      ]);
+      expect(criteriaOfRecords(result)).toEqual([[LOGIN, [2]]]);
+    });
+
+    it("writes each criterion of each element once, by short ID, UUID or identifier, in name order", async () => {
+      const result = await enrich(
+        suite(
+          `<testcase name="[SR-46fb54/AK3] [SR-46fb54/ak1] [${LOGIN}/AK3] [SR-036/AK02] [SR-0b0036/AK1] a"/>`,
+        ),
+      );
+      expect(
+        properties(result.bytes)[
+          "[SR-46fb54/AK3] [SR-46fb54/ak1] [" + LOGIN + "/AK3] [SR-036/AK02] [SR-0b0036/AK1] a"
+        ]?.filter((p) => p.startsWith("reqseq:criterion=")),
+      ).toEqual([
+        `reqseq:criterion=${LOGIN}:3`,
+        `reqseq:criterion=${LOGIN}:1`,
+        `reqseq:criterion=${SPEC}:2`,
+        `reqseq:criterion=${REPORT}:1`,
+      ]);
+      expect(criteriaOfRecords(result)).toEqual([
+        [LOGIN, [1, 3]],
+        [SPEC, [2]],
+        [REPORT, [1]],
       ]);
     });
 
-    it("leaves a test case with a criterion the reader would refuse unchanged and reports it", async () => {
-      for (const value of ["SR-46fb54:2", `${LOGIN}:0`, `${REPORT}:1`]) {
+    it("writes no criterion for an element the name also names without one, nor for a suffix that is none", async () => {
+      const result = await enrich(
+        suite(
+          '<testcase name="[SR-46fb54] [SR-46fb54/AK2] whole"/><testcase name="[SR-0b0036/AK0] [SR-0b0036/slow] [SR-0b0036/AK] [] none"/>',
+        ),
+      );
+      expect(result).toMatchObject({ testCases: 2, problems: [] });
+      expect(criteriaOfRecords(result)).toEqual([
+        [LOGIN, undefined],
+        [REPORT, undefined],
+      ]);
+    });
+
+    it("writes the criterion of a name the name pattern reads (SR-029 AK5)", async () => {
+      const result = await enrich(
+        suite(
+          '<testcase name="tests::sr_46fb54_ak2_and_sr_46fb54_ak4"/><testcase name="tests::sr_0b0036_ak0"/>',
+        ),
+        { namePattern: pattern("{prefix}_{id}_ak{ak}") },
+      );
+      expect(result).toMatchObject({ testCases: 2, problems: [] });
+      expect(criteriaOfRecords(result)).toEqual([
+        [LOGIN, [2, 4]],
+        [REPORT, undefined],
+      ]);
+    });
+
+    it("keeps a hand-written criterion, gives its reference the UUID and adds those of the name", async () => {
+      const xml = suite(
+        `<testcase name="[SR-46fb54/AK1] [SR-46fb54/AK2] [SR-036] a"><properties>${criterion(`${LOGIN}:2`)}${criterion(" SR-036 :3")}${criterion(`${LOGIN.toUpperCase()}:4`)}</properties></testcase>`,
+      );
+      const result = await enrich(xml);
+      expect(result).toMatchObject({ changed: true, testCases: 1, problems: [] });
+      const written = properties(result.bytes)["[SR-46fb54/AK1] [SR-46fb54/AK2] [SR-036] a"];
+      expect(written?.filter((p) => p.startsWith("reqseq:criterion="))).toEqual([
+        `reqseq:criterion=${LOGIN}:2`,
+        `reqseq:criterion=${SPEC}:3`,
+        `reqseq:criterion=${LOGIN.toUpperCase()}:4`,
+        `reqseq:criterion=${LOGIN}:1`,
+      ]);
+      expect(criteriaOfRecords(result)).toEqual([
+        [LOGIN, [1, 2, 4]],
+        [SPEC, [3]],
+      ]);
+    });
+
+    it("leaves a test case with a criterion that names no element of it, or is malformed, unchanged and reports it", async () => {
+      const cases: [string, string][] = [
+        ["2", 'reqseq:criterion "2" is not <element reference>:<number from 1>'],
+        [":2", 'reqseq:criterion ":2" is not <element reference>:<number from 1>'],
+        [`${LOGIN}:0`, `reqseq:criterion "${LOGIN}:0" is not <element reference>:<number from 1>`],
+        [`${LOGIN}:02`, `reqseq:criterion "${LOGIN}:02" is not <element reference>:<number from 1>`],
+        [`${LOGIN}:99999999999999999999`, "reqseq:criterion"],
+        [`${REPORT}:1`, `reqseq:criterion "${REPORT}:1" names no reqseq:element of the test case`],
+        ["SR-ffffff:1", 'reqseq:criterion "SR-ffffff:1" names no element'],
+        [
+          "dup:1",
+          `reqseq:criterion "dup:1" names more than one element (${LOGIN} in system/a.md, ${REPORT} in system/b.md)`,
+        ],
+      ];
+      for (const [value, message] of cases) {
         const xml = suite(
           `<testcase name="[SR-46fb54] a"><properties>${criterion(value)}</properties></testcase>`,
         );
@@ -1016,7 +1107,7 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
           result.problems.map((p) => [p.code, p.severity]),
           value,
         ).toEqual([["evidence.invalid-record", "error"]]);
-        expect(result.problems[0]?.message, value).toContain("is not enriched: reqseq:criterion");
+        expect(result.problems[0]?.message, value).toContain(`is not enriched: ${message}`);
       }
     });
 

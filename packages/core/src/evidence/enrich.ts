@@ -11,6 +11,15 @@
 //   element. Elements named twice count once.
 // - With a name pattern (`namePattern`, AK5, `name-pattern.ts`) the short IDs it finds in the name are
 //   name tokens of the form of a short ID too, so one that names no element or several is reported.
+// - Acceptance criteria (SR-029 AK10, D-072): a name token `[<ref>/AK<n>]` and a name pattern match
+//   whose `{ak}` is n (from 1; `AK0` and another suffix name none) give a `reqseq:criterion`
+//   `<UUID>:<n>` for the element the reference names (`criterionRefsOf`). An element the name also
+//   names without a criterion (`[SR-x] [SR-x/AK2]`) gets none from the name: the test holds for all
+//   its criteria. A hand-written `reqseq:criterion` `<ref>:<n>` (short ID, UUID or identifier) is
+//   kept, with its reference replaced by the UUID in place; the criteria of the name that no property
+//   names yet are appended, each once. One that is malformed, or names no element of the test case,
+//   leaves the test case unchanged and is `evidence.invalid-record`. The read-back compares the
+//   criteria per element.
 // - A test case that names no element (no property, no token that names one) counts in
 //   `withoutReference` (AK4); kept, reported and refused test cases do not.
 // - A test case with a reported reference stays unchanged and is listed (AK2, spec question #529 Q1);
@@ -52,7 +61,7 @@ import { resolveView } from "../variants/index.js";
 import { refuseGit, shownPath, workspaceLayoutState } from "../workspace/index.js";
 import { criteriaOf, enrichmentOf } from "./junit.js";
 import type { ElementRefToken, JunitProperty, JunitTestCase } from "./junit-model.js";
-import { elementRefsOf, junitTestCases } from "./junit-model.js";
+import { CRITERION_PROPERTY, criterionRefsOf, elementRefsOf, junitTestCases } from "./junit-model.js";
 import type { NameMatch } from "./name-pattern.js";
 import { nameMatcher, parseNamePattern } from "./name-pattern.js";
 import type { ViewContext } from "./in-variant.js";
@@ -211,14 +220,23 @@ type Plan =
   | {
       readonly kind: "enrich";
       readonly testCase: JunitTestCase;
-      /** Its `reqseq:criterion` properties as the reader reads them (`criteriaText`), kept as they are. */
-      readonly criteria: string;
+      readonly criteria: CriteriaPlan;
       /** The `reqseq:element` properties and the element each names, in file order. */
       readonly named: readonly { readonly property: JunitProperty; readonly id: string }[];
       /** Elements only the name names, to append. */
       readonly added: readonly string[];
       readonly variant: VariantPlan;
     };
+
+/** The criteria an enriched test case gets (SR-029 AK10): how they are written, and how they read back. */
+interface CriteriaPlan {
+  /** Hand-written `reqseq:criterion` properties whose value becomes `<UUID>:<n>`, with that value. */
+  readonly rewrite: readonly { readonly property: JunitProperty; readonly value: string }[];
+  /** New `reqseq:criterion` values (`<UUID>:<n>`) for the criteria only the name names, in name order. */
+  readonly add: readonly string[];
+  /** All of them as the reader reads them back (`criteriaText`). */
+  readonly text: string;
+}
 
 /** The variant an enriched test case gets: its UUID (none: the core), and how it is written. */
 interface VariantPlan {
@@ -391,9 +409,114 @@ const nameElements = (
   return added;
 };
 
-/** The criteria `criteriaOf` read, as a text to compare with the read-back (numbers by element, in property order). */
-const criteriaText = (criteria: ReadonlyMap<string, ReadonlyMap<number, number>>): string =>
-  JSON.stringify([...criteria].map(([element, lines]) => [element, [...lines.keys()]]));
+/**
+ * Criteria by element (the numbers of `criteriaOf`, or a set), as a text to compare with the read-back:
+ * the elements by UUID, the numbers ascending, so the order of the properties plays no part.
+ */
+const criteriaText = (
+  criteria: ReadonlyMap<string, ReadonlyMap<number, unknown> | ReadonlySet<number>>,
+): string =>
+  JSON.stringify(
+    [...criteria]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([element, numbers]) => [element, [...numbers.keys()].sort((x, y) => x - y)]),
+  );
+
+/** A criterion number as the property writes it: a whole number from 1, no sign, no leading zero. */
+const CRITERION_NUMBER = /^[1-9][0-9]*$/;
+
+/**
+ * The element and number of a hand-written `reqseq:criterion` `<ref>:<n>` of a test case to enrich
+ * that names the elements `elements`, or why it is refused (SR-029 AK10, see the file comment).
+ */
+const handCriterion = (
+  property: JunitProperty,
+  elements: ReadonlySet<string>,
+  options: EnrichOptions,
+): { readonly id: string; readonly n: number; readonly ref: string } | { readonly error: string } => {
+  const text = property.value.trim();
+  // The last colon: an identifier may hold one, a number never.
+  const colon = text.lastIndexOf(":");
+  const ref = colon < 0 ? "" : text.slice(0, colon).trim();
+  const digits = text.slice(colon + 1);
+  const n = Number(digits);
+  if (ref === "" || !CRITERION_NUMBER.test(digits) || !Number.isSafeInteger(n)) {
+    return { error: `${CRITERION_PROPERTY} "${shown(text)}" is not <element reference>:<number from 1>` };
+  }
+  const resolution = options.resolve(ref);
+  if (resolution.kind === "found" && elements.has(resolution.id)) {
+    return { id: resolution.id, n, ref };
+  }
+  const what =
+    resolution.kind === "found"
+      ? `no ${ELEMENT} of the test case`
+      : resolution.kind === "ambiguous"
+        ? `more than one element (${resolution.candidates.join(", ")})`
+        : "no element";
+  return { error: `${CRITERION_PROPERTY} "${shown(text)}" names ${what}` };
+};
+
+/**
+ * The criteria the name of a test case gives for the elements `elements` (`criterionRefsOf`), in name
+ * order, without those of an element the name also names without a criterion (all of them).
+ */
+const nameCriteria = (
+  testCase: JunitTestCase,
+  elements: ReadonlySet<string>,
+  options: EnrichOptions,
+): [string, number][] => {
+  const found: [string, number][] = [];
+  const whole = new Set<string>();
+  for (const { ref, criterion } of criterionRefsOf(testCase.name, options.namePattern)) {
+    const resolution = ref === "" ? undefined : options.resolve(ref);
+    if (resolution?.kind === "found" && elements.has(resolution.id)) {
+      if (criterion === undefined) {
+        whole.add(resolution.id);
+      } else {
+        found.push([resolution.id, criterion]);
+      }
+    }
+  }
+  return found.filter(([id]) => !whole.has(id));
+};
+
+/**
+ * The criteria of a test case to enrich that names the elements `ids` (SR-029 AK10, see the file
+ * comment), or why it is not enriched: each hand-written `reqseq:criterion` is kept and gets its UUID
+ * in place (`handCriterion`); each criterion of the name (`nameCriteria`) that no property names yet
+ * is added once.
+ */
+const criteriaPlanOf = (
+  testCase: JunitTestCase,
+  ids: readonly string[],
+  options: EnrichOptions,
+): CriteriaPlan | { readonly error: string } => {
+  const elements = new Set(ids);
+  const numbers = new Map<string, Set<number>>();
+  /** Adds `n` for `id`; false when it was there. */
+  const put = (id: string, n: number): boolean => {
+    const set = numbers.get(id) ?? new Set<number>();
+    numbers.set(id, set);
+    const added = !set.has(n);
+    set.add(n);
+    return added;
+  };
+  const rewrite: { property: JunitProperty; value: string }[] = [];
+  for (const property of testCase.properties.filter((p) => p.name === CRITERION_PROPERTY)) {
+    const hand = handCriterion(property, elements, options);
+    if ("error" in hand) {
+      return hand;
+    }
+    if (!isUuidOf(hand.ref, hand.id)) {
+      rewrite.push({ property, value: `${hand.id}:${String(hand.n)}` });
+    }
+    put(hand.id, hand.n);
+  }
+  const add = nameCriteria(testCase, elements, options).flatMap(([id, n]) =>
+    put(id, n) ? [`${id}:${String(n)}`] : [],
+  );
+  return { rewrite, add, text: criteriaText(numbers) };
+};
 
 /** What `testCase` gives (see the file comment). */
 const planOf = (testCase: JunitTestCase, options: EnrichOptions): Plan => {
@@ -438,12 +561,12 @@ const planOf = (testCase: JunitTestCase, options: EnrichOptions): Plan => {
   if ("error" in variant) {
     return { kind: "invalid", testCase, reason: variant.error };
   }
-  // Until enrich resolves `<ref>:<n>` (#961), a criterion the reader would refuse after enrich
-  // leaves the test case unchanged: enriched, it would give no record.
-  const criteria = criteriaOf(testCase, new Set(ids));
+  // A criterion the reader would refuse after enrich leaves the test case unchanged: enriched, it
+  // would give no record.
+  const criteria = criteriaPlanOf(testCase, ids, options);
   return "error" in criteria
     ? { kind: "invalid", testCase, reason: criteria.error }
-    : { kind: "enrich", testCase, criteria: criteriaText(criteria), named, added, variant };
+    : { kind: "enrich", testCase, criteria, named, added, variant };
 };
 
 /** The message of a reported reference (N2: the test case, its line, the reference). */
@@ -511,6 +634,21 @@ const variantSplices = (
   return variant.add ? [property(id)] : [];
 };
 
+/**
+ * The criteria of an enriched test case (AK10): each `rewrite` property gets its value in place
+ * (`replace`), and the new properties (`property`) are returned.
+ */
+const criteriaSplices = (
+  criteria: CriteriaPlan,
+  replace: (existing: JunitProperty, value: string) => void,
+  property: (value: string) => string,
+): string[] => {
+  for (const { property: existing, value } of criteria.rewrite) {
+    replace(existing, value);
+  }
+  return criteria.add.map(property);
+};
+
 /** What enriching one test case changes; the splices are numbered from `seq`. */
 const splicesOf = (
   bytes: Uint8Array,
@@ -519,7 +657,7 @@ const splicesOf = (
   item: string,
   date: string,
 ): Splice[] => {
-  const { testCase, named, added, variant } = plan;
+  const { testCase, named, added, variant, criteria } = plan;
   const splices: Omit<Splice, "seq">[] = [];
   const property = (name: string, value: string): string =>
     `<property name="${name}" value="${escapeAttribute(value, '"')}"/>`;
@@ -560,6 +698,15 @@ const splicesOf = (
         replace(p, VARIANT, id);
       },
       (id) => property(VARIANT, id),
+    ),
+  );
+  rest.push(
+    ...criteriaSplices(
+      criteria,
+      (p, value) => {
+        replace(p, CRITERION_PROPERTY, value);
+      },
+      (value) => property(CRITERION_PROPERTY, value),
     ),
   );
   for (const [name, value] of [
@@ -812,7 +959,7 @@ const addEnriched = (outcome: Outcome, plan: Extract<Plan, { kind: "enrich" }>, 
     item: options.item,
     date,
     variant: plan.variant.id,
-    criteria: plan.criteria,
+    criteria: plan.criteria.text,
   });
   outcome.count += 1;
   outcome.problems.push(...kindProblems(plan.testCase, ids, context));
