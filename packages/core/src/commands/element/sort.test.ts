@@ -20,8 +20,9 @@ import { CommandError } from "../../catalog.js";
 import { resolveSelection, sortElements } from "../../query/index.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
+import type { FullList } from "../list.test-helper.js";
 
-type Output = CommandOutput<"element.list">;
+type Output = FullList;
 
 const P = "75075075-0000-4000-8000-0000000000";
 const [N1, N2, B1, B2, B3, B4, F1, F2, F3] = ["a1", "a2", "b1", "b2", "b3", "b4", "f1", "f2", "f3"].map(

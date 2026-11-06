@@ -14,6 +14,7 @@ import { evidenceRecordsState, verificationState } from "../../evidence/index.js
 import type { VerificationStatus } from "../../generated/types.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
+import type { FullList } from "../list.test-helper.js";
 
 type Output = CommandOutput<"evidence.degree">;
 
@@ -140,7 +141,7 @@ describe("evidence.degree (SR-037)", () => {
         "element.list",
         { selection: { where: { all: [{ verification: [status] }, { not: { invalid: true } }] } }, limit: 1 },
         { workspace },
-      )) as CommandOutput<"element.list">;
+      )) as FullList;
       expect([status, list.total]).toEqual([status, out.degree.counts[status]]);
     }
   });
@@ -276,9 +277,10 @@ describe("evidence.degree (SR-037)", () => {
   it("leaves every element's status as written (D-030)", async () => {
     const workspace = await open();
     const statuses = async (): Promise<unknown> =>
-      (
-        (await invoke("element.list", { limit: 1000 }, { workspace })) as CommandOutput<"element.list">
-      ).elements.map((e) => [e.shortId, e.status]);
+      ((await invoke("element.list", { limit: 1000 }, { workspace })) as FullList).elements.map((e) => [
+        e.shortId,
+        e.status,
+      ]);
     const before = await statuses();
     await degree(workspace);
     await degree(workspace, { selection: { package: "PKG-00d003" } });

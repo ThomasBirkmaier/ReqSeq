@@ -29,7 +29,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { CommandName, CommandOutput } from "../../src/catalog.js";
+import type { CommandName } from "../../src/catalog.js";
 import { evidenceIndexState } from "../../src/evidence/index.js";
 import type { Metamodel } from "../../src/metamodel/index.js";
 import { metamodelState } from "../../src/metamodel/index.js";
@@ -41,6 +41,7 @@ import { warmWorkspace } from "../../src/runtime/warm.js";
 import { Workspace } from "../../src/runtime/workspace.js";
 import { buildViewRuleIndex, removersOf } from "../../src/variants/view-rule.js";
 import { standardModel, versionOf } from "./core-version.js";
+import type { Output } from "../../src/commands/list.test-helper.js";
 
 const ELEMENTS = 50_000;
 const RELATIONS = 200_000;
@@ -52,8 +53,6 @@ const SEARCH_RUNS = 7;
 const COMPARE_AK4 = "untagged; threshold for comparison only (#693)";
 const COMPARED = { thresholdMs: RESULT_MS } as const;
 const REQUIREMENT = "system-requirement";
-
-type Output<K extends CommandName> = CommandOutput<K>;
 
 /** The UUIDs the relation items of `key` in `record` name. */
 const targetIds = (record: ElementRecord, key: string): string[] => {

@@ -17,9 +17,10 @@ import { parseReqif } from "../../reqif/parse.js";
 import { writeReqif } from "../../reqif/write.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
+import type { FullList } from "../list.test-helper.js";
 
 type Exported = CommandOutput<"reqif.export">;
-type Listed = CommandOutput<"element.list">;
+type Listed = FullList;
 type Got = CommandOutput<"element.get">;
 
 const PACKAGE = "52052052-0000-4000-8000-0000000052f1";

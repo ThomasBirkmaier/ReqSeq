@@ -13,6 +13,7 @@ import { CommandError } from "../../catalog.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 import { WRITTEN_VERSION_SOURCE } from "../../model/version-forms.test-helper.js";
+import type { FullList } from "../list.test-helper.js";
 
 type Output = CommandOutput<"element.bulkUpdate">;
 
@@ -168,7 +169,7 @@ describe("element.bulkUpdate (SR-071)", () => {
       "element.list",
       { selection: { where: { property: "topic", op: "eq", value: "Sensors" } } },
       { workspace },
-    )) as CommandOutput<"element.list">;
+    )) as FullList;
     expect(listed.total).toBe(7);
     // Again: every element has the value already.
     const again = await bulk(workspace, {

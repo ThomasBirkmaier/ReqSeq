@@ -10,9 +10,10 @@ import type { ReqifFile } from "../../reqif/model.js";
 import { parseReqif } from "../../reqif/parse.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
+import type { FullList } from "../list.test-helper.js";
 
 type Exported = CommandOutput<"reqif.export">;
-type Listed = CommandOutput<"element.list">;
+type Listed = FullList;
 
 const WIND = "58058058-0000-4000-8000-0000000058a1";
 const HUMIDITY = "58058058-0000-4000-8000-0000000058a3";

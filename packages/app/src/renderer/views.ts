@@ -119,7 +119,7 @@ export const viewsOf = async (
     ok: true,
     views: [
       CORE_VIEW,
-      ...variants.output.elements.map((variant) => ({
+      ...(variants.output.elements ?? []).map((variant) => ({
         view: variant.id,
         title: variant.title,
         shortId: variant.shortId,

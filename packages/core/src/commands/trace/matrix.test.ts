@@ -23,9 +23,10 @@ import type { VersionForms } from "../../version/version.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 import { WRITTEN_VERSION } from "../../model/version-forms.test-helper.js";
+import type { FullList } from "../list.test-helper.js";
 
 type Output = CommandOutput<"trace.matrix">;
-type ListOutput = CommandOutput<"element.list">;
+type ListOutput = FullList;
 type HintOutput = CommandOutput<"hint.list">;
 
 const P = "5e125a7d-2b4f-4c61-9d08-";

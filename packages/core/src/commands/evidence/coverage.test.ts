@@ -19,6 +19,7 @@ import type { EvidenceRead, EvidenceRecord } from "../../evidence/index.js";
 import { evidenceReadState, evidenceRecordsState } from "../../evidence/index.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
+import type { FullList } from "../list.test-helper.js";
 
 type Output = CommandOutput<"evidence.coverage">;
 type Level = Output["levels"][number];
@@ -235,11 +236,7 @@ describe("evidence.coverage (SR-036)", () => {
     const workspace = await open(await fixture());
     const [, requirements] = (await coverage(workspace)).levels;
     const ids = requirements?.elements.withoutEvidence ?? [];
-    const list = (await invoke(
-      "element.list",
-      { selection: { ids } },
-      { workspace },
-    )) as CommandOutput<"element.list">;
+    const list = (await invoke("element.list", { selection: { ids } }, { workspace })) as FullList;
     expect(list.elements.map((e) => e.shortId)).toEqual(["SR-0000b2"]);
   });
 

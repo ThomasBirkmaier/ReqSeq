@@ -56,6 +56,7 @@ import {
   traceContext,
 } from "../../src/trace/index.js";
 import { standardModel, versionOf } from "./core-version.js";
+import type { FullList } from "../../src/commands/list.test-helper.js";
 
 const ELEMENTS = 50_000;
 const RELATIONS = 200_000;
@@ -291,7 +292,7 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
           "element.list",
           { selection: { filter: "Draft system requirements" } },
           { workspace: opened() },
-        )) as CommandOutput<"element.list">,
+        )) as FullList,
       {
         basis: "SR-082 AK4 (element.list with selection.filter through the catalog)",
         thresholdMs: RESULT_MS,

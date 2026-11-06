@@ -17,6 +17,7 @@ import { currentVersionsOf, elementStoreState } from "../../model/index.js";
 import { invoke } from "../../runtime/invoke.js";
 import { readFirstFor } from "../../runtime/read-first.test-helper.js";
 import { Workspace } from "../../runtime/workspace.js";
+import type { FullList } from "../list.test-helper.js";
 
 type Output = CommandOutput<"evidence.status">;
 type Verification = Output["elements"][number]["verification"];
@@ -350,13 +351,13 @@ describe("evidence.status (SR-031)", () => {
       "element.list",
       { selection: { where: { verification: ["open"] } } },
       { workspace: ws },
-    )) as CommandOutput<"element.list">;
+    )) as FullList;
     expect(listed.elements.map((e) => e.id)).toEqual([B1, B3]);
     const withEvidence = (await invoke(
       "element.list",
       { selection: { where: { relation: { direction: "evidence" }, exists: true } } },
       { workspace: ws },
-    )) as CommandOutput<"element.list">;
+    )) as FullList;
     expect(withEvidence.elements).toEqual([]);
   });
 
@@ -375,7 +376,7 @@ describe("evidence.status (SR-031)", () => {
           "element.list",
           { selection: { where, ...(view === undefined ? {} : { view }) } },
           { workspace: ws },
-        )) as CommandOutput<"element.list">
+        )) as FullList
       ).elements.map((e) => e.id);
     expect(await ids({ verification: ["verified"] })).toEqual([B1]);
     expect(await ids({ verification: ["failed"] })).toEqual([B3]);
@@ -396,13 +397,9 @@ describe("evidence.status (SR-031)", () => {
       record(N1, OLDER, "2026-01-01T10:00:00Z", "passed", { kind: "validation" }),
     ]);
     const ids = async (where: unknown): Promise<string[]> =>
-      (
-        (await invoke(
-          "element.list",
-          { selection: { where } },
-          { workspace: ws },
-        )) as CommandOutput<"element.list">
-      ).elements.map((e) => e.id);
+      ((await invoke("element.list", { selection: { where } }, { workspace: ws })) as FullList).elements.map(
+        (e) => e.id,
+      );
     const state = await ws.get(verificationState);
     expect(await ids({ relation: { direction: "evidence" }, exists: false })).toEqual([N1, B2, B3, V1, V2]);
     expect(state.versionBatches()).toBe(0);

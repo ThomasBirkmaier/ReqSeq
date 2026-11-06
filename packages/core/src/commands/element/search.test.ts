@@ -15,6 +15,7 @@ import { CommandError } from "../../catalog.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 import { readFirst } from "../../runtime/read-first.test-helper.js";
+import type { FullList } from "../list.test-helper.js";
 
 type Output = CommandOutput<"element.search">;
 
@@ -172,11 +173,7 @@ describe("element.search (SR-068)", () => {
   it("[SR-068/AK3] the condition text selects in element.list what element.search finds", async () => {
     const ws = await open();
     const listed = async (where: unknown): Promise<string[]> => {
-      const out = (await invoke(
-        "element.list",
-        { selection: { where } },
-        { workspace: ws },
-      )) as CommandOutput<"element.list">;
+      const out = (await invoke("element.list", { selection: { where } }, { workspace: ws })) as FullList;
       return out.elements.map((element) => element.id);
     };
     // In workspace order, as every list.

@@ -317,9 +317,14 @@ export type ListedElementInput = Pick<
  * except `id`, `type`, `status`, the title and relation kinds, unknown keys included), its own
  * relations, then, when it is superseded, the relations from its successors (`successorRelations`,
  * SR-072 AK3). Without its text (the list commands leave it out, so no file is read), hints and
- * `readOnly`; `elementView` adds them. `input.successionsOf` must come from `successionsFor`.
+ * `readOnly`; `elementView` adds them. `input.successionsOf` must come from `successionsFor`. With
+ * `relations` false its relations are `[]`, not looked up (element.list `fields` without them, #982).
  */
-export const listedElement = (input: ListedElementInput, version: string | undefined): DataExportElement => {
+export const listedElement = (
+  input: ListedElementInput,
+  version: string | undefined,
+  relations = true,
+): DataExportElement => {
   const { record, metamodel, shortIds, titleKey } = input;
   const relationKeys = new Set(metamodel.relations.map((r) => r.key));
   // Left out for an element without status, such as one of a type without status (#306).
@@ -342,7 +347,7 @@ export const listedElement = (input: ListedElementInput, version: string | undef
     // Only `true` is given (SR-035): the property with the meaning `emergent` stays in `properties`.
     ...(isEmergent(record, emergentKeyOf(metamodel)) ? { emergent: true } : {}),
     properties,
-    relations: [...outgoingRelations(input), ...successorRelations(input)],
+    relations: relations ? [...outgoingRelations(input), ...successorRelations(input)] : [],
   };
 };
 

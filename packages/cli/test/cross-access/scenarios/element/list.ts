@@ -359,6 +359,21 @@ scenariosOf("element.list", [
     expect: "output",
   },
   {
+    name: "only the fields asked for, in partial (#982)",
+    fixture: FILTER,
+    input: {
+      selection: { where: { type: ["system-requirement"] } },
+      fields: ["title", "status", "relations"],
+    },
+    expect: "output",
+  },
+  {
+    name: "only the type of each element of a grouped tree, with its text (#982)",
+    fixture: GROUP,
+    input: { group: "status", sort: [{ by: "hierarchy", order: "asc" }], fields: ["type"], withText: true },
+    expect: "output",
+  },
+  {
     name: "a regular expression that is none",
     fixture: FILTER,
     input: { selection: { where: { property: "title", op: "matches", value: "(" } } },

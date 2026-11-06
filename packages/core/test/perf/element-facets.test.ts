@@ -16,6 +16,7 @@ import { elementStoreState } from "../../src/model/index.js";
 import { invoke } from "../../src/runtime/invoke.js";
 import { warmWorkspace } from "../../src/runtime/warm.js";
 import { Workspace } from "../../src/runtime/workspace.js";
+import type { FullList } from "../../src/commands/list.test-helper.js";
 
 const ELEMENTS = 50_000;
 const RELATIONS = 200_000;
@@ -92,7 +93,7 @@ describe("element.facets with 50,000 elements (#425, N-036)", () => {
       "element.list",
       { selection: { where: { type: ["system-requirement"] } }, limit: 1 },
       { workspace },
-    )) as CommandOutput<"element.list">;
+    )) as FullList;
     const shortId = listed.elements[0]?.shortId ?? "";
     const input = { selection: { ids: [shortId] } };
     await facets(input);

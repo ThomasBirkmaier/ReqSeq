@@ -12,6 +12,7 @@ import { evidenceRecordsState, verificationState } from "../../evidence/index.js
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 import { readFirst } from "../../runtime/read-first.test-helper.js";
+import type { FullList } from "../list.test-helper.js";
 
 type Output = CommandOutput<"evidence.status">;
 type Element = Output["elements"][number];
@@ -49,11 +50,7 @@ const statuses = (elements: readonly Element[]): Record<string, readonly unknown
 
 const where = async (workspace: Workspace, condition: unknown): Promise<string[]> =>
   (
-    (await invoke(
-      "element.list",
-      { selection: { where: condition } },
-      { workspace },
-    )) as CommandOutput<"element.list">
+    (await invoke("element.list", { selection: { where: condition } }, { workspace })) as FullList
   ).elements.map((e) => e.id);
 
 const core = (status: string): unknown => [{ view: "core", status }];

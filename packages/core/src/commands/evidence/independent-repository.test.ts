@@ -11,6 +11,7 @@ import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
+import type { FullList } from "../list.test-helper.js";
 
 const WORKSPACE_FILE =
   "reqseq-workspace: 1\nname: Weather station\nrepositories:\n" +
@@ -92,7 +93,7 @@ describe("variant-independent repositories (SR-173)", () => {
       "element.list",
       { selection: { where: { relation: { direction: "evidence" }, exists: true }, view: "VAR-0000c2" } },
       { workspace },
-    )) as CommandOutput<"element.list">;
+    )) as FullList;
     // S5 is replaced in B, so the view does not hold it.
     expect(inB.elements.map((e) => e.id.slice(-2))).toEqual(["d1", "d2", "d6", "d7", "d8"]);
     const without = (await invoke(

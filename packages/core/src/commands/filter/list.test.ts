@@ -12,9 +12,10 @@ import type { EvidenceStatuses } from "../../query/index.js";
 import { evidenceStatusState } from "../../query/index.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
+import type { FullList } from "../list.test-helper.js";
 
 type Listed = CommandOutput<"filter.list">;
-type Elements = CommandOutput<"element.list">;
+type Elements = FullList;
 
 const P = "69069069-0000-4000-8000-0000000000";
 const [N2, P2, B1, B2, B3, B4, B5, F1, F2, V2] = [

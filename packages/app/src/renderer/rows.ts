@@ -55,8 +55,9 @@ export const rowOf = (
   };
 };
 
+/** The rows of a list the app asks for without `fields`, so the core gives every field in `elements` (#982). */
 export const listRows = (output: ElementListOutput): Row[] =>
-  output.elements.map((element, at) => rowOf(element, output.tree?.[at]?.depth ?? 0, [], false));
+  (output.elements ?? []).map((element, at) => rowOf(element, output.tree?.[at]?.depth ?? 0, [], false));
 
 export const searchRows = (output: ElementSearchOutput): Row[] =>
   output.hits.map((hit) => rowOf(hit, 0, hit.terms, hit.fields.includes("id")));
