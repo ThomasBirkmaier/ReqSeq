@@ -11,7 +11,7 @@
 //   machine or the access. A CRLF checkout has other bytes and so another plan; a checkout whose
 //   file names have another Unicode normalization (NFD on macOS) has other names and so another plan.
 // - Not bound: skipped and unchanged elements, problems and hints. The planned bytes never hold the
-//   titles of relation targets that the write refreshes (decision on #307): `withCurrentTitles`
+//   titles of relation targets that the write refreshes (decision on ThomasBirkmaier/ReqSeq-archive#307): `withCurrentTitles`
 //   runs in `writeElementFiles`, after the plan, so a confirmation may write a refreshed title that
 //   its plan does not show, and the plan is the same.
 import { createHash } from "node:crypto";

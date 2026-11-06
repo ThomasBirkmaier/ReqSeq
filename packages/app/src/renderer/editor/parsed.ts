@@ -2,7 +2,7 @@
 // parse after a change stop after 20 ms, and the rest follows in idle time. On a busy machine a key can come
 // before that rest, and a command that reads the tree then misses the list, link or code it is in (Enter did
 // not continue a list, Ctrl/Cmd+Enter found no reference); and the formatting that came with the rest changed
-// the height of the text under the pointer (#542).
+// the height of the text under the pointer (ThomasBirkmaier/ReqSeq-archive#542).
 // - A new editor parses for at most `FIRST_PAINT_MS` more before it is first painted (`parseAhead`), so an
 //   ordinary text (some hundred lines) shows formatted from the start. A long one (thousands of lines) shows
 //   the rest formatted when the idle parse gets there, as before.

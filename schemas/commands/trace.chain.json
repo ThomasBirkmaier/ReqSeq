@@ -11,7 +11,9 @@
     { "field": "view", "complete": "view" },
     { "field": "maxDepth", "complete": "number" },
     { "field": "limit", "complete": "number" },
-    { "field": "offset", "complete": "number" }
+    { "field": "offset", "complete": "number" },
+    { "field": "repository", "complete": "repository" },
+    { "field": "file", "complete": "text" }
   ],
   "input": {
     "type": "object",
@@ -35,13 +37,29 @@
         "minimum": 1,
         "maximum": 5000,
         "default": 200,
-        "description": "Nodes of the page; total counts all. The walk is always complete: depth, gaps, cycles and incomplete are those of the whole chain (spec-frage #290). Every page walks the whole chain again; to step through a chain, ask with `maxDepth` instead."
+        "description": "Nodes of the page; total counts all. The walk is always complete: depth, gaps, cycles and incomplete are those of the whole chain (spec-frage ThomasBirkmaier/ReqSeq-archive#290). Every page walks the whole chain again; to step through a chain, ask with `maxDepth` instead."
       },
       "offset": {
         "type": "integer",
         "minimum": 0,
         "default": 0,
         "description": "Nodes skipped before the page, in the order of `nodes` (the root, then the parents level by level, then the children level by level)."
+      },
+      "repository": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it (for example one copy of a file whose UUID another file shares, SR-088; #255). Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates."
+      },
+      "file": {
+        "allOf": [
+          {
+            "$ref": "../common.schema.json#/$defs/relativePath"
+          },
+          {
+            "minLength": 1
+          }
+        ],
+        "description": "Which of the elements ref names is meant: its file, relative to its repository, as details.candidates of ref.ambiguous give it (#255). Give repository too when the same path is in several repositories; when several elements are still left, the error is ref.ambiguous with them."
       }
     },
     "additionalProperties": false,
@@ -55,7 +73,7 @@
       },
       "nodes": {
         "type": "array",
-        "description": "Every element of the chain once per direction, at its shortest depth (SR-022 AK1, AK2): the root first, then the parents level by level, then the children level by level. An element reached again (a diamond, a cycle) is not repeated; its edge is in `edges` (SR-022 AK4). In a view, only the elements the view holds (SR-040, SR-043: not a core requirement the variant excludes or replaces, nor what hangs only below it); the root always. An element is named by its UUID and `repository` (D-058); two files of one repository with the same UUID (SR-088) are two nodes, told apart only by `file`, and edges and gaps name both the same way. Only the page of `limit` nodes from `offset` (in this order) is listed; `total` counts every node. A chain can be large (in a workspace of 50,000 elements and 200,000 relations up to about 42,000 nodes): a client asks for the first page and further ones as needed (SR-082 AK4, spec-frage #290), or shows it step by step with `maxDepth` 1 and asks again below an element that is not `expanded`.",
+        "description": "Every element of the chain once per direction, at its shortest depth (SR-022 AK1, AK2): the root first, then the parents level by level, then the children level by level. An element reached again (a diamond, a cycle) is not repeated; its edge is in `edges` (SR-022 AK4). In a view, only the elements the view holds (SR-040, SR-043: not a core requirement the variant excludes or replaces, nor what hangs only below it); the root always. An element is named by its UUID and `repository` (D-058); two files of one repository with the same UUID (SR-088) are two nodes, told apart only by `file`, and edges and gaps name both the same way. Only the page of `limit` nodes from `offset` (in this order) is listed; `total` counts every node. A chain can be large (in a workspace of 50,000 elements and 200,000 relations up to about 42,000 nodes): a client asks for the first page and further ones as needed (SR-082 AK4, spec-frage ThomasBirkmaier/ReqSeq-archive#290), or shows it step by step with `maxDepth` 1 and asks again below an element that is not `expanded`.",
         "items": {
           "type": "object",
           "properties": {
@@ -67,7 +85,7 @@
             },
             "identifier": {
               "type": "string",
-              "description": "Its identifier (the value of its property with the meaning `identifier`, such as SR-036, #305), for display next to `shortId`; left out when it has none."
+              "description": "Its identifier (the value of its property with the meaning `identifier`, such as SR-036, ThomasBirkmaier/ReqSeq-archive#305), for display next to `shortId`; left out when it has none."
             },
             "type": {
               "type": "string"
@@ -154,7 +172,7 @@
       },
       "gaps": {
         "type": "array",
-        "description": "The gaps of the chain, in the order of `nodes` (the `no-parent` gaps of the upward chain first, the root's among them, then those of the downward chain), only those of the nodes of the page. Downward (SR-022 AK3), only for elements whose children were looked at (`expanded`): `no-child` for a need without a child, `no-evidence` for a requirement without a child and without evidence. Upward (SR-022 AK5), only for elements whose parents were looked at, so not with `direction: down`: `no-parent` for a requirement that names no parent through a relation kind with the meaning `derivation`, whatever the view and the state of the target (a parent in a repository that is not here is one); the metamodel says which kinds derive, so in the standard model a requirement based only on a decision (`based-on`) has the gap. `workspace.check` reports the same elements (`trace.no-parent`). `no-evidence`: the element has no verification record in `view`, in the core without `view` (as `evidence.coverage` and the filter condition `verification`; any version and result, spec question #527 Q3). A test case that was only skipped does not close the gap. `not-in-view` (#674, product owner decision, 2026-11-02): a requirement without a child that `view` does not hold, without `view` the core (its validity names only variants), instead of `no-evidence`, whatever its records; `views` names the views that hold it. It is no evidence gap: a client that counts the gaps of a chain leaves it out. With `view` only the root can have it, as the chain reaches only elements the view holds.",
+        "description": "The gaps of the chain, in the order of `nodes` (the `no-parent` gaps of the upward chain first, the root's among them, then those of the downward chain), only those of the nodes of the page. Downward (SR-022 AK3), only for elements whose children were looked at (`expanded`): `no-child` for a need without a child, `no-evidence` for a requirement without a child and without evidence. Upward (SR-022 AK5), only for elements whose parents were looked at, so not with `direction: down`: `no-parent` for a requirement that names no parent through a relation kind with the meaning `derivation`, whatever the view and the state of the target (a parent in a repository that is not here is one); the metamodel says which kinds derive, so in the standard model a requirement based only on a decision (`based-on`) has the gap. `workspace.check` reports the same elements (`trace.no-parent`). `no-evidence`: the element has no verification record in `view`, in the core without `view` (as `evidence.coverage` and the filter condition `verification`; any version and result, spec question ThomasBirkmaier/ReqSeq-archive#527 Q3). A test case that was only skipped does not close the gap. `not-in-view` (#674, product owner decision, 2026-11-02): a requirement without a child that `view` does not hold, without `view` the core (its validity names only variants), instead of `no-evidence`, whatever its records; `views` names the views that hold it. It is no evidence gap: a client that counts the gaps of a chain leaves it out. With `view` only the root can have it, as the chain reaches only elements the view holds.",
         "items": {
           "type": "object",
           "properties": {
@@ -250,7 +268,7 @@
             },
             "identifier": {
               "type": "string",
-              "description": "Identifier of the other end (#305), when it is available and has one."
+              "description": "Identifier of the other end (ThomasBirkmaier/ReqSeq-archive#305), when it is available and has one."
             },
             "title": {
               "type": "string"
@@ -270,7 +288,7 @@
       },
       "names": {
         "type": "array",
-        "description": "The variants that the records of `evidence` name by UUID only (`variant`), then those the `views` of `gaps` name, each once in the order first named, so a reader names them by short ID, identifier and title (#588, #676). Left out when it names none, and for a variant in a repository that is not here.",
+        "description": "The variants that the records of `evidence` name by UUID only (`variant`), then those the `views` of `gaps` name, each once in the order first named, so a reader names them by short ID, identifier and title (ThomasBirkmaier/ReqSeq-archive#588, #676). Left out when it names none, and for a variant in a repository that is not here.",
         "items": { "$ref": "../common.schema.json#/$defs/elementName" }
       },
       "problems": {

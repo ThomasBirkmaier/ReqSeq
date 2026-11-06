@@ -29,7 +29,7 @@ const stateOf = (doc: string, cursor?: number, to?: number): EditorState => {
     extensions: [markdownSupport({}), focusState],
   });
   // `ensureSyntaxTree` parses to the end, but the state keeps the tree it was created with (the first parse
-  // stops after 20 ms on a busy machine); the empty update hands the whole tree to the state (#542).
+  // stops after 20 ms on a busy machine); the empty update hands the whole tree to the state (ThomasBirkmaier/ReqSeq-archive#542).
   ensureSyntaxTree(state, doc.length, 1e9);
   return state.update({}).state;
 };
@@ -274,7 +274,7 @@ describe("tables", () => {
     expect(widget().data.body[0]?.[1]).toEqual([{ text: "2", classes: ["cm-lr-code"] }]);
   });
 
-  it("shows the source of the whole table while the cursor is in any row (A1, #420)", () => {
+  it("shows the source of the whole table while the cursor is in any row (A1, ThomasBirkmaier/ReqSeq-archive#420)", () => {
     const on = decorate(doc, 20);
     expect(on.filter((d) => d.kind === "table")).toEqual([]);
     expect(named(on, "cm-lr-table-source").map((d) => d.from)).toEqual([0, 12, 22]);

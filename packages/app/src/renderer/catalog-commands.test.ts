@@ -1340,7 +1340,7 @@ const HINTS = {
   incomplete: false,
 };
 
-describe("write commands in the command prompt (SR-073 AK2, #85)", () => {
+describe("write commands in the command prompt (SR-073 AK2, ThomasBirkmaier/ReqSeq-archive#85)", () => {
   const list = listBuffer("type: need", { where: { type: ["need"] } });
   const shown = elementBuffer("uuid-1", "spec", "SR-1 Title 1");
   const titles = (context: CatalogContext): string[] =>

@@ -8,7 +8,7 @@
 //   as a decision above the element whose text references the element). dagre's own cycle breaking
 //   would reverse a link of the walks instead (its `greedy` acyclicer fails or misplaces such graphs in
 //   3.1.1);
-// - in a levelled layout, a link between two nodes of one level (#500): it would stack a level into
+// - in a levelled layout, a link between two nodes of one level (ThomasBirkmaier/ReqSeq-archive#500): it would stack a level into
 //   many layers and cost dagre most of SR-111 AK6's second. A graph is levelled above
 //   `LEVEL_LAYERS_ABOVE` nodes, or when the links of its ranked layout would cross more than
 //   `CROSSED_LAYERS_ABOVE` layers (#211: long chains within a level cost time with few nodes too).
@@ -40,7 +40,7 @@ export const NODE_SEP = 24;
 export const RANK_SEP = 56;
 /**
  * Above this many nodes, the links between two nodes of one level are drawn after the layout, so the
- * layers follow the levels (#500). It is above every graph of `spec/` today, so those keep their ranked
+ * layers follow the levels (ThomasBirkmaier/ReqSeq-archive#500). It is above every graph of `spec/` today, so those keep their ranked
  * layout. The 200 nearest nodes of the N-036 chains take about 0.4 of the layout time of their 500-node
  * graph; the time of a ranked graph is not bounded by its size, though (#211, `CROSSED_LAYERS_ABOVE`).
  */
@@ -193,7 +193,7 @@ const near = (node: PlacedBox, bend: Point, next: number): number => (centreX(no
 /**
  * The ports of the drawn links, each from its target (above) to its source (below), the way dagre's
  * layout edge runs. The ends on one edge of a node (top or bottom) are spread along it in the order of
- * where each curve is half a layer gap from that edge (#555): a bent curve where it passes its first bend
+ * where each curve is half a layer gap from that edge (ThomasBirkmaier/ReqSeq-archive#555): a bent curve where it passes its first bend
  * (its last at the `to` end), a curve without bends on the straight line to the other node. So bent and
  * straight curves are compared at one height. Ties go by the same at the link's other end, so two links
  * between the same two nodes keep one order at both ends; then by the order of the output. Ordered so,
@@ -326,7 +326,7 @@ interface Anchor {
 }
 
 /**
- * Keeps every node on its side of the element (SR-111 AK1, #519). A node of a level above 0 stands below
+ * Keeps every node on its side of the element (SR-111 AK1, ThomasBirkmaier/ReqSeq-archive#519). A node of a level above 0 stands below
  * the element when a chain of layout links between levels leads down to it from the element, and a node
  * of a level below 0 above it when one leads from it up to the element. Such a link joins two different
  * levels, so it is in no cycle and dagre never reverses it; a link within a level can be, so it does not
@@ -471,7 +471,7 @@ export const crossedLayers = (keys: readonly string[], links: readonly Link[]): 
 };
 
 /**
- * Whether the layout follows the levels (#500, #211): above `LEVEL_LAYERS_ABOVE` nodes, or when the
+ * Whether the layout follows the levels (ThomasBirkmaier/ReqSeq-archive#500, #211): above `LEVEL_LAYERS_ABOVE` nodes, or when the
  * layout links of a ranked layout (`ranked` and `anchors`) would cross more than `CROSSED_LAYERS_ABOVE`
  * layers.
  */

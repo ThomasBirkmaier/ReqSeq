@@ -68,7 +68,7 @@ describe("inputFields", () => {
     ]);
   });
 
-  it("keeps the form of a scalar that may also be null; null itself goes via --input (#343)", () => {
+  it("keeps the form of a scalar that may also be null; null itself goes via --input (ThomasBirkmaier/ReqSeq-archive#343)", () => {
     const f = fieldsOf(
       {
         typeList: { type: ["string", "null"] },

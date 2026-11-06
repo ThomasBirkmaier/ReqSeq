@@ -1,4 +1,4 @@
-// The look of the window (#490) on the built app, in light and in dark: the command prompt's candidates
+// The look of the window (ThomasBirkmaier/ReqSeq-archive#490) on the built app, in light and in dark: the command prompt's candidates
 // are a card lifted off the sheet, the modeline is one rounded bar of separate segments, and on macOS a
 // strip of the sheet in its colours moves the window and names it. The native title bar style itself
 // (`hiddenInset`) is the main process's window option (shell.test.ts); Linux and Windows keep the native
@@ -78,7 +78,7 @@ test("on macOS a strip of the sheet moves the window and names it, in the colour
     expect(await style(window, ".titlebar", "-webkit-app-region")).toBe("drag");
     expect(await style(window, ".titlebar", "background-color")).toBe(SHEET.light);
     await expect(strip.locator("button, input, a, [tabindex]")).toHaveCount(0);
-    // Toggle dark mode: the strip follows the sheet. The emulated macOS takes Cmd only (#543).
+    // Toggle dark mode: the strip follows the sheet. The emulated macOS takes Cmd only (ThomasBirkmaier/ReqSeq-archive#543).
     await window.keyboard.press(`${await modifier(window)}+Shift+P`);
     await window.keyboard.type("Toggle dark mode");
     await expect(window.locator('.candidates [role="option"]').first()).toContainText("Toggle dark mode");

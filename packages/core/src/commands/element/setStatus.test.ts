@@ -22,7 +22,7 @@ const FILES = [WIND.file, GUSTS.file, BARE.file];
 /** The statuses of the fixture's metamodel, in metamodel order; none of the standard model's. */
 const OWN_STATUSES = ["proposed", "in-review", "released", "in-change", "withdrawn"];
 
-/** The statuses as a refusal lists them: key and display name (#309). */
+/** The statuses as a refusal lists them: key and display name (ThomasBirkmaier/ReqSeq-archive#309). */
 const OWN_LISTED =
   "proposed (Proposed), in-review (In Review), released (Released), in-change (In Change), withdrawn (Withdrawn)";
 
@@ -99,7 +99,7 @@ describe("element.setStatus offers only the statuses of the metamodel (SR-017)",
     expect(await readAll(opened, FILES)).toEqual(before);
   });
 
-  it("[SR-017/AK1] takes the display name of a status in any case and writes its key (#309)", async () => {
+  it("[SR-017/AK1] takes the display name of a status in any case and writes its key (ThomasBirkmaier/ReqSeq-archive#309)", async () => {
     const opened = await open();
     for (const [given, key] of [
       ["Released", "released"],
@@ -114,7 +114,7 @@ describe("element.setStatus offers only the statuses of the metamodel (SR-017)",
     }
   });
 
-  it("[SR-017/AK1] refuses a name that two statuses share, with the statuses to choose from (#309)", async () => {
+  it("[SR-017/AK1] refuses a name that two statuses share, with the statuses to choose from (ThomasBirkmaier/ReqSeq-archive#309)", async () => {
     const opened = await open();
     const model = opened.fixture.path("metamodel/model.yaml");
     await fs.writeFile(
@@ -277,7 +277,7 @@ describe("element.setStatus writes only the status", () => {
     expect(error.code).toBe("file.changed-on-disk");
   });
 
-  it("updates the element store in place, equal to a full read, without reading other files (#166)", async () => {
+  it("updates the element store in place, equal to a full read, without reading other files (ThomasBirkmaier/ReqSeq-archive#166)", async () => {
     const opened = await open();
     const store = await opened.workspace.get(elementStoreState);
     await opened.workspace.get(metamodelState);

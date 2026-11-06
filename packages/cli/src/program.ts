@@ -224,7 +224,7 @@ const addCommand = (group: Command, entry: CatalogEntry, options: ProgramOptions
     command.argument(`[${field.flag}]`, spelledHelp(describeField(field), fields));
   }
   // A positional field can also be given as a flag, so `element create <type> --title x` and
-  // `element update <ref> --title x` read alike (#310); a field given so is not filled positionally.
+  // `element update <ref> --title x` read alike (ThomasBirkmaier/ReqSeq-archive#310); a field given so is not filled positionally.
   const flagOptions = [
     ...positional
       .filter((field) => !RESERVED_FLAGS.includes(field.flag))

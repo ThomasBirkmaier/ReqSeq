@@ -80,6 +80,7 @@ import {
   verificationInconclusive,
 } from "./markdown.js";
 import { unknownCriterionProblem } from "./match.js";
+import { withEvidenceSource } from "./evidence-source.js";
 import type { EvidenceRecord } from "./record.js";
 import { criterionLineOf, withCriterionLines } from "./record.js";
 import type { EvidenceRead } from "./state.js";
@@ -427,7 +428,7 @@ const updateEvidence = async (
     return;
   }
   // The records state carries only as the read's own records: not after records were put in place
-  // through the seam of #127 (then the index is of those, and the states are reset as before).
+  // through the seam of ThomasBirkmaier/ReqSeq-archive#127 (then the index is of those, and the states are reset as before).
   const records = workspace.peek(evidenceRecordsState);
   const ofRead = records === undefined || (await settledValue(records)) === read.records;
   const next = Promise.resolve(withRecord(layout, read, record));
@@ -582,7 +583,7 @@ const createRecordFile = async (
   bytes: Uint8Array,
   write: RecordDeps["write"],
 ): Promise<string> => {
-  // The folder as the walk sees it: spelled as on disk where only the normal form differs (#194).
+  // The folder as the walk sees it: spelled as on disk where only the normal form differs (ThomasBirkmaier/ReqSeq-archive#194).
   const spelled = path.posix.dirname(await refuseUnlisted(layout, repository, inFolder(asGiven, name(1))));
   const folder = spelled === "." ? "" : spelled;
   const taken = await takenNames(repository, folder);
@@ -647,7 +648,8 @@ export const recordEvidence = async (
       : unknownCriterionProblem({ record, criteria, element }, prepared.criteriaCount);
   return {
     files: [workspacePath(layout, repository, file)],
-    record,
+    // A copy with its evidence source (#821): the evidence state keeps `record` as read.
+    record: withEvidenceSource(record),
     problems: problem === undefined ? [] : [problem],
   };
 };

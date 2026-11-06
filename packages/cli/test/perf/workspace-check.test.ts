@@ -1,4 +1,4 @@
-// SR-020 in the performance suite (ADR-0011, #126): `reqseq workspace check` as a pipeline runs it,
+// SR-020 in the performance suite (ADR-0011, ThomasBirkmaier/ReqSeq-archive#126): `reqseq workspace check` as a pipeline runs it,
 // a new process of the built CLI on the generated workspace of N-036 with 50,000 elements and 200,000
 // relations. The time is the whole process, from spawn to exit: Node start, reading every file, all
 // finding states of stage 1 and the JSON output. Runs with `pnpm test:perf` after `pnpm build`, nightly
@@ -157,7 +157,7 @@ describe("reqseq workspace check with 50,000 elements and 200,000 relations (SR-
         },
       );
       expect(run.stderr).toBe("");
-      // Outdated relations are warnings: ok, exit code 0, by default (failOn error, #304).
+      // Outdated relations are warnings: ok, exit code 0, by default (failOn error, ThomasBirkmaier/ReqSeq-archive#304).
       expect(run.code).toBe(0);
       const out = JSON.parse(run.stdout) as { ok: boolean; problems: Problem[]; checkedElements: number };
       expect(out.ok).toBe(true);
@@ -179,7 +179,7 @@ describe("reqseq workspace check with 50,000 elements and 200,000 relations (SR-
 
   // SR-092 in a pipeline: the same worst case, each repository a Git repository with a tag `base` and a
   // merge request of 3 changed elements on top. Recorded only, with no threshold: the check still
-  // builds the states of the whole workspace before it restricts them (#293).
+  // builds the states of the whole workspace before it restricts them (ThomasBirkmaier/ReqSeq-archive#293).
   it("records a check restricted to a merge request of 3 changed elements, with Git (SR-092)", async () => {
     const tree = generateLargeWorkspace({ version: OLD_VERSION, elements: ELEMENTS, relations: RELATIONS });
     const merged = await writeLargeWorkspace(tree, { git: true });
@@ -206,10 +206,13 @@ describe("reqseq workspace check with 50,000 elements and 200,000 relations (SR-
             cwd: merged.workspaceRoot,
             env,
           }),
-        { basis: "SR-092, SR-020 (command line, from process start to exit; recorded only, #293)" },
+        {
+          basis:
+            "SR-092, SR-020 (command line, from process start to exit; recorded only, ThomasBirkmaier/ReqSeq-archive#293)",
+        },
       );
       expect(run.stderr).toBe("");
-      // Only warnings (outdated relations): exit code 0 by default (#304).
+      // Only warnings (outdated relations): exit code 0 by default (ThomasBirkmaier/ReqSeq-archive#304).
       expect(run.code).toBe(0);
       const out = JSON.parse(run.stdout) as { ok: boolean; problems: Problem[]; checkedElements: number };
       const ids = new Set(changed.map((e) => e.id));

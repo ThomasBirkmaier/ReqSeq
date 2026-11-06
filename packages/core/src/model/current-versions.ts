@@ -1,4 +1,4 @@
-// The current version of every element (ADR-0005, ADR-0008, #259): what SR-025 compares the stored
+// The current version of every element (ADR-0005, ADR-0008, ThomasBirkmaier/ReqSeq-archive#259): what SR-025 compares the stored
 // versions of relations and inline references with, and later the element hints (SR-026), the
 // check of a merge request (SR-092) and the evidence status (SR-031). The store keeps no text, so
 // the version of an element needs its file again, and the images its text embeds.
@@ -337,7 +337,7 @@ export const buildCurrentVersions = async (
 });
 
 /**
- * `versions` for the store of `update` (a change of the watcher or a write, #184): every record that
+ * `versions` for the store of `update` (a change of the watcher or a write, ThomasBirkmaier/ReqSeq-archive#184): every record that
  * is the same object in both keeps its entry, every other record of the new store gets its version
  * again. When `versions` is of the store the update starts from, only the records of its files are
  * looked at, and the entries are a patch of those before (`PatchedMap`, #215: O(changed), the key

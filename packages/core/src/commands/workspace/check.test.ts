@@ -80,7 +80,7 @@ describe("workspace.check", () => {
     const out = await check(open(ws.path("system")));
     expect(out.ok).toBe(true);
     // Its metamodel has no relation kind with the meaning derivation: the cycle check says so as info
-    // (SR-013 AK3, SR-090; spec question #270 option 1).
+    // (SR-013 AK3, SR-090; spec question ThomasBirkmaier/ReqSeq-archive#270 option 1).
     expect(out.problems.map((p) => [p.code, p.severity])).toEqual([
       ["workspace.repository-missing", "info"],
       ["metamodel.meaning-unassigned", "info"],
@@ -100,7 +100,7 @@ describe("workspace.check", () => {
 
   it("[SR-019/AK2] reports every element of a cycle in the derivations (SR-090) with kind, file and element, and is not ok with failOn warning", async () => {
     const ws = await fixture({ fixture: "SR-090/cycle" });
-    // Cycles are warnings: since #304 they fail the check only with failOn warning.
+    // Cycles are warnings: since ThomasBirkmaier/ReqSeq-archive#304 they fail the check only with failOn warning.
     const out = await check(open(ws.root), { failOn: "warning" });
     const CYCLE = "5e9c0a7d-2b4f-4c61-9d08-0b000000000";
     expect(out.ok).toBe(false);
@@ -113,7 +113,7 @@ describe("workspace.check", () => {
   });
 
   it("[SR-019/AK2] is not ok for warnings alone with failOn warning, since they are findings too", async () => {
-    // Before #304 this was the default; the product owner decision of 2026-10-26 (option 1) made warnings pass
+    // Before ThomasBirkmaier/ReqSeq-archive#304 this was the default; the product owner decision of 2026-10-26 (option 1) made warnings pass
     // by default, so the exit code 1 of SR-019 AK2 for warnings needs failOn warning (--fail-on warning).
     const ws = await fixture({ fixture: "SR-085/value-kinds" });
     const out = await check(open(ws.path("system")), { failOn: "warning" });
@@ -121,7 +121,7 @@ describe("workspace.check", () => {
     expect(new Set(out.problems.map((p) => p.severity))).toEqual(new Set(["warning"]));
   });
 
-  it("is ok by default with warnings alone: only an error fails the check (#304)", async () => {
+  it("is ok by default with warnings alone: only an error fails the check (ThomasBirkmaier/ReqSeq-archive#304)", async () => {
     const ws = await fixture({ fixture: "SR-085/value-kinds" });
     const workspace = open(ws.path("system"));
     const out = await check(workspace);
@@ -134,7 +134,7 @@ describe("workspace.check", () => {
     expect((await check(open(findings.root), { failOn: "error" })).ok).toBe(false);
   });
 
-  it("is not ok for info with failOn info, such as a repository that is not on this machine (#304)", async () => {
+  it("is not ok for info with failOn info, such as a repository that is not on this machine (ThomasBirkmaier/ReqSeq-archive#304)", async () => {
     const ws = await fixture({ fixture: "SR-089/missing-targets" });
     const workspace = open(ws.path("system"));
     expect((await check(workspace, { failOn: "warning" })).ok).toBe(true);
@@ -143,7 +143,7 @@ describe("workspace.check", () => {
     expect(out.problems.map((p) => p.severity)).toEqual(["info", "info"]);
   });
 
-  it("counts the findings that severity leaves out in hidden, and keeps failOn apart from severity (#304)", async () => {
+  it("counts the findings that severity leaves out in hidden, and keeps failOn apart from severity (ThomasBirkmaier/ReqSeq-archive#304)", async () => {
     const ws = await fixture({ fixture: "SR-019/findings" });
     const workspace = open(ws.root);
     const errors = await check(workspace, { severity: "error" });
@@ -209,7 +209,7 @@ describe("workspace.check", () => {
     const need = "needs/N-0a0000000001.md";
     await ws.write(need, `${fs.readFileSync(ws.path(need), "utf8")}Changed.\n`);
     const workspace = open(ws.root);
-    // failOn warning: the outdated relations are warnings, so `ok` tells whether one is left (#304).
+    // failOn warning: the outdated relations are warnings, so `ok` tells whether one is left (ThomasBirkmaier/ReqSeq-archive#304).
     const failOn = { failOn: "warning" };
     const before = await check(workspace, failOn);
     expect(before.ok).toBe(false);
@@ -274,7 +274,7 @@ describe("workspace.check", () => {
     expect(out.problems).toHaveLength(FINDINGS.length);
   });
 
-  // #208, assumption of spec question #220 option 1: against a metamodel that is not valid only the
+  // ThomasBirkmaier/ReqSeq-archive#208, assumption of spec question ThomasBirkmaier/ReqSeq-archive#220 option 1: against a metamodel that is not valid only the
   // findings that need no metamodel are reported, so one typo does not bury its cause.
   const WITHOUT_METAMODEL = FINDINGS.filter(([code]) =>
     ["file.invalid-yaml", "file.conflict-markers", "element.duplicate-id"].includes(code),

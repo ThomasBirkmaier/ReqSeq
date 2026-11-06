@@ -1,5 +1,5 @@
 // Stored titles of relation targets follow their targets on the next write of the source (decision
-// on spec question #307, `relation-titles.ts`). On fixtures/SR-025/outdated: requirement A derives
+// on spec question ThomasBirkmaier/ReqSeq-archive#307, `relation-titles.ts`). On fixtures/SR-025/outdated: requirement A derives
 // from the need N, is valid in the variant V and references N in its text; requirement B refines A.
 // Cross-repository targets on fixtures/SR-005/cross-repository.
 import fs from "node:fs";
@@ -80,7 +80,7 @@ const outdated = async (opened: Opened, ref?: string): Promise<readonly unknown[
   (await run(opened, "hint.list", { kind: ["relation.outdated"], ...(ref === undefined ? {} : { ref }) }))
     .hints;
 
-describe("stored titles of relation targets (decision on #307)", () => {
+describe("stored titles of relation targets (decision on ThomasBirkmaier/ReqSeq-archive#307)", () => {
   it("gives no hint for a rename alone and changes no file", async () => {
     const opened = await open(renamedTargets("See the gusts", "Pro 2"));
     const before = read(opened, A_FILE);

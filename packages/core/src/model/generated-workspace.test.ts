@@ -1,4 +1,4 @@
-// The generated large workspace of the testkit (#126, ADR-0011, D-055) as core reads it: a valid
+// The generated large workspace of the testkit (ThomasBirkmaier/ReqSeq-archive#126, ADR-0011, D-055) as core reads it: a valid
 // workspace of the standard model, and every relation stores the version core computes for its
 // target. The perf suite (`pnpm test:perf`) uses the same generator at 50,000 elements.
 import type { GeneratedWorkspace, VersionFunction } from "@reqseq/testkit";
@@ -81,11 +81,11 @@ const generated = async (): Promise<{
 
 /**
  * Writing 600 files and reading them, and every target file once more, takes 1.5 to 3 s alone on 4
- * cores; the tests check content, not time, so a bound only a hang reaches (#199).
+ * cores; the tests check content, not time, so a bound only a hang reaches (ThomasBirkmaier/ReqSeq-archive#199).
  */
 const TIMEOUT_MS = 30_000;
 
-describe("generated large workspace (#126)", () => {
+describe("generated large workspace (ThomasBirkmaier/ReqSeq-archive#126)", () => {
   it(
     "is a valid workspace of the standard model in four repositories, without any problem",
     async () => {

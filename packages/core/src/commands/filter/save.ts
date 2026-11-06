@@ -4,9 +4,9 @@
 //
 // - The input is checked as a selection checks it: `where` is compiled (`compileWhere`, errors name
 //   `where...`), `view` resolved, `sort` checked against the metamodel. The file gets element
-//   references as UUIDs and choices by key (query/canonical.ts; product owner's note on #82).
+//   references as UUIDs and choices by key (query/canonical.ts; product owner's note on ThomasBirkmaier/ReqSeq-archive#82).
 // - A new name creates `<name part>.yaml` (`newFilterFile`); the folder is created when missing.
-// - An existing name, ignoring case (spec-frage #363 option 1A), replaces that filter in its own file:
+// - An existing name, ignoring case (spec-frage ThomasBirkmaier/ReqSeq-archive#363 option 1A), replaces that filter in its own file:
 //   only the top-level keys whose value changed are rewritten, every other byte stays (ADR-0007,
 //   `editYamlDocument`); a key the input leaves out (`description`, `view`, `sort`) is removed from
 //   the file. Nothing changed: nothing is written and `files` is empty. The file must be unchanged

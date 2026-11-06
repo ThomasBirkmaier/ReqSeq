@@ -298,7 +298,7 @@ describe("relation types (SR-086)", () => {
   });
 });
 
-describe("elements looked at again after a change of UUIDs (SR-086 carry, #272)", () => {
+describe("elements looked at again after a change of UUIDs (SR-086 carry, ThomasBirkmaier/ReqSeq-archive#272)", () => {
   it("picks from the incoming index of the store before the change what the scan picks", async () => {
     const fixture = await createFixtureWorkspace({ fixture: FIXTURE });
     onTestFinished(() => fixture.cleanup());

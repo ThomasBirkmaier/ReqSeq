@@ -182,7 +182,7 @@
       },
       "names": {
         "type": "array",
-        "description": "The elements of the page, the variant of `view` and the variants the verification rows name, each once in the order first named (#588).",
+        "description": "The elements of the page, the variant of `view` and the variants the verification rows name, each once in the order first named (ThomasBirkmaier/ReqSeq-archive#588).",
         "items": {
           "$ref": "../common.schema.json#/$defs/elementName"
         }

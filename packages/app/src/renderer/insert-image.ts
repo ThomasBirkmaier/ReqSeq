@@ -9,10 +9,14 @@ import type { ImageRequest } from "./editor/reference-pick.js";
 
 export const INSERT_IMAGE_LABEL = "Insert image";
 
-/** The prompt "Insert image" for the element `ref`; `echo` says why core refused the file. */
+/**
+ * The prompt "Insert image" for the element `ref` of `repository` (a UUID may exist in several repositories,
+ * SR-088); `echo` says why core refused the file.
+ */
 export const imagePrompt = (
   call: Call,
   ref: string,
+  repository: string,
   request: ImageRequest,
   echo: (message: string) => void,
 ): Prompt => ({
@@ -25,7 +29,7 @@ export const imagePrompt = (
       return;
     }
     // A call that fails (core gone) cancels too: the `/` the slash menu holds is given back, so autosave goes on.
-    call("element.addAttachment", { ref, sourcePath }).then(
+    call("element.addAttachment", { ref, repository, sourcePath }).then(
       (answer) => {
         if (answer.ok) {
           request.insert(answer.output.markdown);

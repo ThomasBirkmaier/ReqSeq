@@ -456,7 +456,7 @@ describe("trace.related (SR-023)", () => {
         Z,
         D,
       ]);
-      // `core` in any case, as element references (#305).
+      // `core` in any case, as element references (ThomasBirkmaier/ReqSeq-archive#305).
       expect(ids(await related(opened, { refs: [N1], direction: "children", view: "Core" }))).toEqual([
         A,
         B,
@@ -527,7 +527,7 @@ describe("trace.related (SR-023)", () => {
       const up = await related(opened, { refs: [Y], direction: "parents" });
       expect([ids(up), up.incomplete]).toEqual([[N1], true]);
       expect((await related(opened, { refs: [A], direction: "parents" })).incomplete).toBe(false);
-      // Children in that repository cannot be seen (spec question #262, option 1).
+      // Children in that repository cannot be seen (spec question ThomasBirkmaier/ReqSeq-archive#262, option 1).
       const down = await related(opened, { refs: [C], direction: "children" });
       expect([ids(down), down.incomplete]).toEqual([[D], true]);
     });

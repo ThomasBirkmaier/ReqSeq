@@ -23,7 +23,7 @@ export const hintId = (file: string, source: string, target: string): string =>
 export const evidenceFixture = (file: string): string =>
   fs.readFileSync(new URL(`../../../../fixtures/enabler-535/evidence/${file}`, import.meta.url), "utf8");
 
-/** The evidence files every scenario has (#535); read once the readers are in (SR-028, SR-093). */
+/** The evidence files every scenario has (ThomasBirkmaier/ReqSeq-archive#535); read once the readers are in (SR-028, SR-093). */
 export const EVIDENCE_RECORD = "evidence/2026-10-20-SR-e88fb3-inspection.md";
 export const EVIDENCE_JUNIT = "evidence/ci/results.xml";
 

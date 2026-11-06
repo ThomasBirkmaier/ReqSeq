@@ -93,7 +93,7 @@ const settled = (): number => Date.now() + RACY_MS + 200;
  * (and 200 ms) before `Date.now()`, the clock a load with the real clock compares it with. A fixed
  * sleep of `RACY_MS` plus 100 ms assumed that the wall clock runs on evenly; on the self-hosted Linux
  * runner (a VM on a Mac, whose clock is stepped back when it is synchronised) it did not, and files
- * that had settled by the elapsed time still looked racy and were left out of the cache (#273).
+ * that had settled by the elapsed time still looked racy and were left out of the cache (ThomasBirkmaier/ReqSeq-archive#273).
  * Comparing the change times the load will compare, with the clock it will read, does not depend on
  * how much time passed.
  */
@@ -716,7 +716,7 @@ describe("parseModelCache", () => {
     ["a problem", { kind: "problem", problem: { ...warning, severity: "error" }, warnings: [], snapshot }],
     ["an element with CRLF", { ...elementEntry, element: { ...record, eol: "\r\n", closingEol: "\r\n" } }],
     [
-      "an element with inline references (#240)",
+      "an element with inline references (ThomasBirkmaier/ReqSeq-archive#240)",
       {
         ...elementEntry,
         element: {
@@ -1023,7 +1023,7 @@ describe("warmModel", () => {
       throw new Error("warmModel did not load the store");
     }
     expect((await workspace.peek(shortIdState))?.tail(ID_A)).toBe("3f4a5b");
-    // The first chain after a start finds the index ready (SR-082 AK4, #227).
+    // The first chain after a start finds the index ready (SR-082 AK4, ThomasBirkmaier/ReqSeq-archive#227).
     expect(workspace.peek(incomingState)?.get(store)?.store).toBe(store);
   });
 

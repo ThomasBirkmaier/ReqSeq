@@ -11,6 +11,7 @@ import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
+import { COPIED, COPIED_FILES, openCopiedFile } from "../copied.test-helper.js";
 import type { FullList } from "../list.test-helper.js";
 
 const WORKSPACE_FILE =
@@ -20,11 +21,11 @@ const WORKSPACE_FILE =
   "metamodel: { repository: system, path: metamodel }\n" +
   "evidence:\n  - { repository: system, path: evidence }\n  - { repository: supplier, path: evidence }\n";
 
-/** The fixture, with `supplier` marked as given (the fixture marks it). */
-const open = async (marked = true): Promise<Workspace> => {
+/** The fixture, with `supplier` marked as given (the fixture marks it) and `files` added. */
+const open = async (marked = true, files: Readonly<Record<string, string>> = {}): Promise<Workspace> => {
   const fixture = await createFixtureWorkspace({
     fixture: "SR-173/independent",
-    files: { "reqseq-workspace.yaml": WORKSPACE_FILE.replace("MARK", String(marked)) },
+    files: { "reqseq-workspace.yaml": WORKSPACE_FILE.replace("MARK", String(marked)), ...files },
   });
   const workspace = new Workspace(fixture.root);
   onTestFinished(async () => {
@@ -120,5 +121,35 @@ describe("variant-independent repositories (SR-173)", () => {
     expect(unmarked["d1"]).toEqual({ ...all("open"), re: "verified" });
     expect(unmarked["d6"]).toEqual({ ...all("open"), re: "verified", c1: "failed" });
     expect(unmarked["a1"]).toEqual({ ...all("open"), re: "indirect" });
+  });
+
+  it("lists the records of the copy a repository names: its repository decides about the records without variant (#821)", async () => {
+    // S1 copied into `system`, which is not marked: two elements share its UUID (SR-088, D-058).
+    const workspace = await open(true, {
+      "requirements/SR-0000000000d1.md":
+        "---\nid: 17317317-0000-4000-8000-0000000000d1\ntype: system-requirement\nstatus: draft\n" +
+        "title: Sensor reports temperature\n" +
+        "derives-from: [{ id: 17317317-0000-4000-8000-0000000000a1, repository: system, version: n1:67ebd0624004c969 }]\n---\n",
+    });
+    const list = async (repository?: string): Promise<CommandOutput<"evidence.list">> =>
+      (await invoke(
+        "evidence.list",
+        { ref: "SR-0000d1", view: "VAR-0000c2", ...(repository === undefined ? {} : { repository }) },
+        { workspace },
+      )) as CommandOutput<"evidence.list">;
+    await expect(list()).rejects.toMatchObject({ code: "ref.ambiguous" });
+    expect((await list("supplier")).records.map((r) => r.result)).toEqual(["passed"]);
+    // The record names the UUID, so both copies have it; in `system` it holds for the core only.
+    expect((await list("system")).records).toEqual([]);
+  });
+
+  it("lists the records of the copy a file alone names, of two in one repository (SR-088, #821)", async () => {
+    const workspace = await openCopiedFile();
+    const list = (input: Record<string, unknown>): Promise<unknown> =>
+      invoke("evidence.list", { ref: COPIED, ...input }, { workspace });
+    await expect(list({ repository: "system" })).rejects.toMatchObject({ code: "ref.ambiguous" });
+    for (const file of COPIED_FILES) {
+      expect(await list({ file })).toMatchObject({ records: [], testCases: [] });
+    }
   });
 });

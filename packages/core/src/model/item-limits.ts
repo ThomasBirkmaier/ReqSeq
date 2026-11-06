@@ -77,8 +77,8 @@ export const allItemLimitFindings = (
 /**
  * Every element with more entries than a `max-items` allows, with repository, file and line of the
  * key (SR-171 AK1), for `workspace.check` (SR-019) and `hint.list`. Kept until the element store or
- * the metamodel is reset; carried over a save or a watcher batch for the changed files (#184).
- * Nothing without a `max-items` or against a metamodel that is not valid (#208).
+ * the metamodel is reset; carried over a save or a watcher batch for the changed files (ThomasBirkmaier/ReqSeq-archive#184).
+ * Nothing without a `max-items` or against a metamodel that is not valid (ThomasBirkmaier/ReqSeq-archive#208).
  */
 export const itemLimitProblemsState = defineWorkspaceState(
   "item-limits",

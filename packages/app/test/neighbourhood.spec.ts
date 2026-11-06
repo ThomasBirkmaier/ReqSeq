@@ -1,4 +1,4 @@
-// The neighbourhood of an element (SR-107, #403) on the built app, on fixtures/SR-107/neighbourhood: the
+// The neighbourhood of an element (SR-107, ThomasBirkmaier/ReqSeq-archive#403) on the built app, on fixtures/SR-107/neighbourhood: the
 // parents above the title (AK1), the children as a tree that opens level by level and the incoming links
 // by kind (AK2), a child under every parent (AK3), outdated links (AK4), and the requirements of a need
 // by Ctrl+P, its ID, Enter and Ctrl+J (SR-119 AK2). What the window shows is compared with what the CLI
@@ -57,7 +57,7 @@ const titleOf = (output: Neighbourhood, id: string): string =>
 const openElement = async (window: Page, shortId: string, title: string): Promise<void> => {
   await window.keyboard.press("ControlOrMeta+P");
   await window.keyboard.type(shortId);
-  // Enter races `element.search` when it comes before the hit (#460).
+  // Enter races `element.search` when it comes before the hit (ThomasBirkmaier/ReqSeq-archive#460).
   await expect(window.locator('.candidates [role="option"]').first()).toContainText(title);
   await window.keyboard.press("Enter");
   // The next key goes to the element that is shown, not to the buffer behind the prompt.

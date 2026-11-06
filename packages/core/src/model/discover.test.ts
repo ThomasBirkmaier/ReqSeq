@@ -276,7 +276,7 @@ describe("pathState: what the walk says about one changed path, without a walk (
   });
 });
 
-describe("listsFile (#166)", () => {
+describe("listsFile (ThomasBirkmaier/ReqSeq-archive#166)", () => {
   it("agrees with listMarkdownFiles for every rule of the walk, checking only the path", async () => {
     const ws = await fixture({
       "a.md": "",
@@ -324,7 +324,7 @@ describe("listsFile (#166)", () => {
     ]);
   });
 
-  it("newFileTarget (#183): the rules of the walk on folders that exist, only names and globs on folders still to create", async () => {
+  it("newFileTarget (ThomasBirkmaier/ReqSeq-archive#183): the rules of the walk on folders that exist, only names and globs on folders still to create", async () => {
     const ws = await fixture({
       "deep/a.md": "",
       "own/.git": "gitdir: elsewhere\n",
@@ -370,7 +370,7 @@ describe("listsFile (#166)", () => {
     });
   });
 
-  it("newFileTarget (#183): refuses what a file system that ignores case or drops trailing dots and spaces takes for another name", async () => {
+  it("newFileTarget (ThomasBirkmaier/ReqSeq-archive#183): refuses what a file system that ignores case or drops trailing dots and spaces takes for another name", async () => {
     const ws = await fixture({ ".git/HEAD": "ref: refs/heads/main\n", "requirements/a.md": "" });
     // Linux keeps case, dots and spaces, so the answers of Windows and macOS are given here.
     const fold = (p: string): string =>
@@ -537,7 +537,7 @@ const foldNormalForm = (onDisk: readonly string[], ignoreCase = false): void => 
   });
 };
 
-describe("newFileTarget: spellings that differ only in the Unicode normal form (#194)", () => {
+describe("newFileTarget: spellings that differ only in the Unicode normal form (ThomasBirkmaier/ReqSeq-archive#194)", () => {
   it("writes into an NFD folder named in NFC (or the other way), under the spelling on disk, where the file system ignores the normal form", async () => {
     expect(NFC).not.toBe(NFD);
     expect(NFC.normalize("NFD")).toBe(NFD);
@@ -633,7 +633,7 @@ describe("newFileTarget: spellings that differ only in the Unicode normal form (
   });
 });
 
-describe("ignore globs and walk paths in one Unicode normal form (#218)", () => {
+describe("ignore globs and walk paths in one Unicode normal form (ThomasBirkmaier/ReqSeq-archive#218)", () => {
   it("the walk leaves out what a glob names in the other normal form than the names on disk", async () => {
     const ws = await fixture({
       [`${NFD}/drafts/a.md`]: "",
@@ -668,7 +668,7 @@ describe("ignore globs and walk paths in one Unicode normal form (#218)", () => 
   });
 });
 
-describe("newFileTarget: invisible format characters in the names of new folders (#194)", () => {
+describe("newFileTarget: invisible format characters in the names of new folders (ThomasBirkmaier/ReqSeq-archive#194)", () => {
   it("refuses a folder to create whose name holds a zero-width or direction mark, a byte order mark or a soft hyphen", async () => {
     const ws = await fixture({ "deep/a.md": "" });
     const repo = repository(ws.root);

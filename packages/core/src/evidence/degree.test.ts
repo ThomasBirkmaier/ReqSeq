@@ -102,7 +102,7 @@ describe("degreeOf (SR-037)", () => {
     });
   });
 
-  it("does not count elements of other types: needs, packages (#592 Q2)", () => {
+  it("does not count elements of other types: needs, packages (ThomasBirkmaier/ReqSeq-archive#592 Q2)", () => {
     const need = element("draft", "need");
     const pkg = element("draft", "package");
     const sub = element("draft", "sub-req");
@@ -118,7 +118,7 @@ describe("degreeOf (SR-037)", () => {
     });
   });
 
-  it("does not count a requirement without a status in the view (#592 Q1)", () => {
+  it("does not count a requirement without a status in the view (ThomasBirkmaier/ReqSeq-archive#592 Q1)", () => {
     const both = element();
     const coreOnly = element();
     const vOnly = element();
@@ -144,7 +144,7 @@ describe("degreeOf (SR-037)", () => {
     });
   });
 
-  it("gives no share and five zero counts when nothing is counted (#592 Q3)", () => {
+  it("gives no share and five zero counts when nothing is counted (ThomasBirkmaier/ReqSeq-archive#592 Q3)", () => {
     const empty = { total: 0, counts: { open: 0, verified: 0, indirect: 0, failed: 0, outdated: 0 } };
     expect(degreeOf(statusOf(new Map()), [], CORE)).toEqual(empty);
     expect(degreeOf(statusOf(new Map()), [element("obsolete"), element("draft", "need")], CORE)).toEqual(

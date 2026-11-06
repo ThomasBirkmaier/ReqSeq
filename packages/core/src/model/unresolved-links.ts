@@ -151,7 +151,7 @@ export const unresolvedLinkProblemsState = defineWorkspaceState(
   async (workspace): Promise<readonly Problem[]> => {
     const store = await workspace.get(elementStoreState);
     const metamodel = await workspace.get(metamodelState);
-    // Nothing against a metamodel that is not valid: its errors are the findings (#208, #220).
+    // Nothing against a metamodel that is not valid: its errors are the findings (ThomasBirkmaier/ReqSeq-archive#208, ThomasBirkmaier/ReqSeq-archive#220).
     if (!metamodel.valid) {
       return [];
     }

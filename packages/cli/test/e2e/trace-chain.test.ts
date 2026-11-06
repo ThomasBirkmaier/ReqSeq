@@ -1,6 +1,6 @@
 // `reqseq trace chain` end to end (SR-022, ADR-0009): the built binary with the product commands on
 // fixture workspaces, its exit code, its JSON and its readable output. Also the tests SR-013 handed
-// over to this command (#25: AK1 and AK3, #127 option 1). The evidence in the chain (SR-022 AK1, AK3;
+// over to this command (ThomasBirkmaier/ReqSeq-archive#25: AK1 and AK3, ThomasBirkmaier/ReqSeq-archive#127 option 1). The evidence in the chain (SR-022 AK1, AK3;
 // SR-033) on fixtures/SR-033/chain: test cases and executions read from JUnit and Markdown record
 // files in its evidence location.
 // Run after `pnpm build` with `pnpm test:e2e`.
@@ -57,7 +57,7 @@ describe("reqseq trace chain (SR-022)", () => {
       ["CR-00c001", 2, "down"],
       ["CR-00c002", 2, "down"],
     ]);
-    // Readable: an indented tree with the depth in front and the gaps marked (#310).
+    // Readable: an indented tree with the depth in front and the gaps marked (ThomasBirkmaier/ReqSeq-archive#310).
     const human = await reqseq(["trace", "chain", "N-00a001"], ws.root);
     expect(human).toEqual({
       code: 0,
@@ -79,7 +79,7 @@ describe("reqseq trace chain (SR-022)", () => {
     expect(yaml.stdout).toContain("    shortId: CR-00c002\n    type: component-requirement\n");
   });
 
-  it("[SR-022/AK1] shows a later page without nesting an element under the wrong parent (#310)", async () => {
+  it("[SR-022/AK1] shows a later page without nesting an element under the wrong parent (ThomasBirkmaier/ReqSeq-archive#310)", async () => {
     const ws = await fixture({ fixture: "SR-022/chain" });
     const page = await reqseq(["trace", "chain", "N-00a001", "--limit", "2", "--offset", "2"], ws.root);
     expect(page.stdout.split("\n").slice(0, 3)).toEqual([
@@ -90,7 +90,7 @@ describe("reqseq trace chain (SR-022)", () => {
     ]);
   });
 
-  it("[SR-022/AK4] marks a cycle whose closing edge starts on another page (#310)", async () => {
+  it("[SR-022/AK4] marks a cycle whose closing edge starts on another page (ThomasBirkmaier/ReqSeq-archive#310)", async () => {
     const ws = await fixture({ fixture: "SR-090/cycle" });
     const page = await reqseq(["trace", "chain", "N-000001", "--limit", "2"], ws.root);
     expect(page.code).toBe(0);
@@ -221,6 +221,7 @@ interface Execution {
   readonly repository?: string;
   readonly file?: string;
   readonly line?: number;
+  readonly evidenceSource?: string;
 }
 
 interface TestCase {
@@ -247,13 +248,11 @@ const chainJson = async (ws: FixtureWorkspace, ref: string): Promise<WithEvidenc
   return JSON.parse(run.stdout) as WithEvidence;
 };
 
-/** Each execution as `[date, result, item, Beleg]`: its `evidence`, else its record file (A5, #528 Q4). */
-const fields = (e: Execution): unknown[] => [
-  e.date,
-  e.result,
-  e.item,
-  e.evidence ?? `${e.repository ?? ""}/${e.file ?? ""}:${String(e.line)}`,
-];
+/**
+ * Each execution as `[date, result, item, Beleg]`: its `evidence`, else its record file (A5, ThomasBirkmaier/ReqSeq-archive#528 Q4),
+ * as core gives it in `evidenceSource` (#821).
+ */
+const fields = (e: Execution): unknown[] => [e.date, e.result, e.item, e.evidenceSource];
 
 describe("reqseq trace chain: test cases and executions (SR-033)", () => {
   it("[SR-033/AK1] reqseq trace chain shows test cases and executions read from JUnit and Markdown record files", async () => {

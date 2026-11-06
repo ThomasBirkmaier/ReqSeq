@@ -3,7 +3,7 @@
 // status their record gives at the end, as a list row shows it (#276; the rows of `trace.chain` too), problems
 // and hints are one line each with their element, everything else is a quiet indented outline. The share of a
 // verification degree (`share` next to `counts`, SR-037) is a percentage by core's rule of every access
-// (`degreePercent`, one decimal rounded down, #592 Q3). A UUID the output names in `names` (#588) is the row
+// (`degreePercent`, one decimal rounded down, ThomasBirkmaier/ReqSeq-archive#592 Q3). A UUID the output names in `names` (ThomasBirkmaier/ReqSeq-archive#588) is the row
 // of its element, and `names` itself is not shown. A record of exactly two named UUIDs, such as a replaced
 // row of `variant.diff` (`core`, `replacement`), is one line that opens both side by side, read-only
 // (SR-044 AK2); a row with a third field would be an outline again. A UUID in two repositories (SR-088)
@@ -46,7 +46,7 @@ const str = (value: unknown): string | undefined => (typeof value === "string" ?
 
 type Element = Parameters<typeof elementBufferOf>[0];
 
-/** The elements an output names by UUID (`names`, #588), by UUID; the first of a UUID in two repositories. */
+/** The elements an output names by UUID (`names`, ThomasBirkmaier/ReqSeq-archive#588), by UUID; the first of a UUID in two repositories. */
 type Names = ReadonlyMap<string, Element>;
 
 /** An element as outputs give it: an ID, its repository, a short ID and a title. */
@@ -248,7 +248,7 @@ const outlineLines = (
 };
 
 /**
- * The elements `names` of an output gives (#588), and the output without `names`, which only names what the
+ * The elements `names` of an output gives (ThomasBirkmaier/ReqSeq-archive#588), and the output without `names`, which only names what the
  * rest gives by UUID; an output without them as it is.
  */
 const namesOf = (output: unknown): { readonly names: Names; readonly shown: unknown } => {

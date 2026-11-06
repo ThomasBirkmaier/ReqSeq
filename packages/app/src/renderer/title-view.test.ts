@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 // happy-dom fires `selectionchange` inside a CodeMirror update; the root vitest config loads this setup, a
-// run in packages/app needs it too (#460).
+// run in packages/app needs it too (ThomasBirkmaier/ReqSeq-archive#460).
 import "../../../../scripts/test-support/dom-selection.mjs";
-// The title of an element, edited in its heading (#621; spec question #676): the editor comes into the
+// The title of an element, edited in its heading (ThomasBirkmaier/ReqSeq-archive#621; spec question ThomasBirkmaier/ReqSeq-archive#676): the editor comes into the
 // heading when the title is entered, it is saved with the text and the boxes as `title` (SR-105), and a
 // change of the file follows the rules of a box (SR-106). The click offset and the heading of an empty title
 // are tested in `title-box.test.ts`, the input it sends in `property-edit.test.ts`.
@@ -284,7 +284,7 @@ const choose = async (asked: Prompt[], name: string): Promise<void> => {
   });
 };
 
-describe("the title in its heading (#621)", () => {
+describe("the title in its heading (ThomasBirkmaier/ReqSeq-archive#621)", () => {
   it("is plain text in the heading, and the buffer has no editor for it, until it is entered", async () => {
     await mountView();
     expect(heading().textContent).toBe("Measure wind");
@@ -444,7 +444,7 @@ describe("the title in its heading (#621)", () => {
     ]);
   });
 
-  it("an unsaved title is in the draft the app keeps when the buffer is left (#621)", async () => {
+  it("an unsaved title is in the draft the app keeps when the buffer is left (ThomasBirkmaier/ReqSeq-archive#621)", async () => {
     const { drafts } = await mountView();
     await enterTitle();
     await typeAt(titleView(), "!");
@@ -462,7 +462,7 @@ describe("the title in its heading (#621)", () => {
     expect(titleView().state.doc.toString()).toBe("Measure gusts");
     await typeAt(textView(), " more");
     await settle();
-    // The editor stays in the heading after it took the input (#621 review B1).
+    // The editor stays in the heading after it took the input (ThomasBirkmaier/ReqSeq-archive#621 review B1).
     expect(titleView().state.doc.toString()).toBe("Measure gusts");
     await settle(AUTOSAVE_MS);
     expect(updates()).toEqual([

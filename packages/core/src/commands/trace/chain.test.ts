@@ -1,7 +1,7 @@
-// trace.chain through `invoke` (SR-022, SR-006 AK2, SR-013 AK1/AK3 hand-over of #25): input,
+// trace.chain through `invoke` (SR-022, SR-006 AK2, SR-013 AK1/AK3 hand-over of ThomasBirkmaier/ReqSeq-archive#25): input,
 // view, errors and the output the catalog checks. The chain itself: trace/chain.test.ts. The evidence
 // in the chain (SR-033, SR-022 AK1/AK3) on fixtures/SR-033/chain with records injected through
-// `evidenceReadState` (#127 option 1; skipped test cases too); the record files are read end to end
+// `evidenceReadState` (ThomasBirkmaier/ReqSeq-archive#127 option 1; skipped test cases too); the record files are read end to end
 // in packages/cli/test/e2e/trace-chain.test.ts.
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureOptions } from "@reqseq/testkit";
@@ -9,10 +9,18 @@ import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
 import type { EvidenceRead, EvidenceRecord, SkippedTestCase } from "../../evidence/index.js";
-import { evidenceReadState } from "../../evidence/index.js";
+import { evidenceReadState, withEvidenceSource as at } from "../../evidence/index.js";
 import { STANDARD_MODEL_TEXT as STANDARD } from "../../metamodel/standard-model.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
+import {
+  COPIED,
+  COPIED_FILES,
+  GUSTS_COPY,
+  GUSTS_FILE,
+  openCopied,
+  openCopiedFile,
+} from "../copied.test-helper.js";
 
 type Output = CommandOutput<"trace.chain">;
 
@@ -161,7 +169,7 @@ describe("trace.chain (SR-022)", () => {
         ].join("\n"),
       },
     });
-    // Up: every parent is here. Down: children in vault cannot be seen (#262 option 1).
+    // Up: every parent is here. Down: children in vault cannot be seen (ThomasBirkmaier/ReqSeq-archive#262 option 1).
     expect((await chain(workspace, { ref: STALL, direction: "up" })).incomplete).toBe(false);
     expect((await chain(workspace, { ref: STALL, direction: "down" })).incomplete).toBe(true);
     expect((await chain(workspace, { ref: STALL })).incomplete).toBe(true);
@@ -184,7 +192,7 @@ describe("trace.chain (SR-022)", () => {
     ]);
   });
 
-  it("gives one page of nodes with total (SR-082 AK4, spec-frage #290)", async () => {
+  it("gives one page of nodes with total (SR-082 AK4, spec-frage ThomasBirkmaier/ReqSeq-archive#290)", async () => {
     const workspace = await open();
     const whole = await chain(workspace, { ref: SPEED });
     expect(whole.total).toBe(whole.nodes.length);
@@ -205,6 +213,28 @@ describe("trace.chain (SR-022)", () => {
     const workspace = await open();
     const error = await chainError(workspace, { ref: "SR-ffffff" });
     expect([error.code, error.details]).toEqual(["ref.unknown", { ref: "SR-ffffff" }]);
+  });
+
+  it("walks from the copy of a UUID two files share that repository and file name (#821)", async () => {
+    const workspace = await openCopied();
+    expect((await chainError(workspace, { ref: GUSTS_COPY })).code).toBe("ref.ambiguous");
+    for (const repository of ["system", "sensor"]) {
+      const output = await chain(workspace, { ref: GUSTS_COPY, direction: "up", repository });
+      expect([output.root, output.nodes[0]?.repository]).toEqual([GUSTS_COPY, repository]);
+    }
+    const byFile = await chain(workspace, { ref: GUSTS_COPY, repository: "sensor", file: GUSTS_FILE });
+    expect(byFile.nodes[0]).toMatchObject({ repository: "sensor", file: GUSTS_FILE });
+    const none = await chainError(workspace, { ref: GUSTS_COPY, repository: "vault" });
+    expect([none.code, none.details]).toMatchObject(["ref.unknown", { ref: GUSTS_COPY }]);
+  });
+
+  it("walks from the copy a file alone names, of two in one repository (SR-088, #821)", async () => {
+    const workspace = await openCopiedFile();
+    expect((await chainError(workspace, { ref: COPIED, repository: "system" })).code).toBe("ref.ambiguous");
+    for (const file of COPIED_FILES) {
+      const output = await chain(workspace, { ref: COPIED, file });
+      expect(output.nodes[0]).toMatchObject({ id: COPIED, repository: "system", file });
+    }
   });
 });
 
@@ -444,31 +474,31 @@ describe("trace.chain: test cases and executions in the chain (SR-033)", () => {
         name: "wind tunnel check",
         elements: [SHOW],
         executed: true,
-        executions: [tunnel],
-        last: tunnel,
+        executions: [at(tunnel)],
+        last: at(tunnel),
       },
       {
         name: "test_speed[SR-33b001]",
         className: "tests.test_wind",
         elements: [SHOW, LOG],
         executed: true,
-        executions: [second, first],
-        last: second,
+        executions: [at(second), at(first)],
+        last: at(second),
       },
     ]);
     // Date, result, item and Beleg of each execution: a JUnit execution's Beleg is its record file
-    // (assumption A5, #528 Q4), a Markdown execution's the `evidence` it names.
-    const beleg = (r: EvidenceRecord): string =>
-      r.evidence ?? `${r.repository ?? ""}/${r.file ?? ""}:${String(r.line)}`;
+    // (assumption A5, ThomasBirkmaier/ReqSeq-archive#528 Q4), a Markdown execution's the `evidence` it names (`evidenceSource`, #821).
     expect(
-      below?.testCases.flatMap((t) => t.executions.map((r) => [r.date, r.result, r.item, beleg(r)])),
+      below?.testCases.flatMap((t) => t.executions.map((r) => [r.date, r.result, r.item, r.evidenceSource])),
     ).toEqual([
       ["2026-10-19T10:00:00Z", "passed", "Prototype P2", "reports/wind-tunnel.pdf"],
       ["2026-10-22T09:00:00Z", "failed", "build-513", "system/evidence/ci/run-2.xml:4"],
       ["2026-10-21T09:00:00Z", "passed", "build-512", "system/evidence/ci/run-1.xml:4"],
     ]);
     // The record without a test case is next to the test cases; the validation record is in neither (A2).
-    expect(below?.records).toEqual([inspection]);
+    expect(below?.records).toEqual([at(inspection)]);
+    // The index keeps its records as read: the answer has copies (#821).
+    expect(first).not.toHaveProperty("evidenceSource");
   });
 
   it("[SR-022/AK1] shows records without a test case below their requirement, one level deeper", async () => {
@@ -476,7 +506,7 @@ describe("trace.chain: test cases and executions in the chain (SR-033)", () => {
     const workspace = await withEvidence([inspection]);
     const output = await chain(workspace, { ref: "N-33a001" });
     expect(output.evidence).toEqual([
-      { id: DISPLAY, repository: "system", depth: 2, testCases: [], records: [inspection] },
+      { id: DISPLAY, repository: "system", depth: 2, testCases: [], records: [at(inspection)] },
     ]);
     expect(output.nodes.find((n) => n.id === DISPLAY)?.depth).toBe(1);
   });
@@ -496,8 +526,8 @@ describe("trace.chain: test cases and executions in the chain (SR-033)", () => {
             className: "tests.test_wind",
             elements: [SHOW, LOG],
             executed: true,
-            executions: [ofShow],
-            last: ofShow,
+            executions: [at(ofShow)],
+            last: at(ofShow),
           },
         ],
       ],
@@ -510,8 +540,8 @@ describe("trace.chain: test cases and executions in the chain (SR-033)", () => {
             className: "tests.test_wind",
             elements: [SHOW, LOG],
             executed: true,
-            executions: [ofLog],
-            last: ofLog,
+            executions: [at(ofLog)],
+            last: at(ofLog),
           },
         ],
       ],
@@ -597,8 +627,8 @@ describe("trace.chain: test cases and executions in the chain (SR-033)", () => {
         className: "tests.test_wind",
         elements: [GUSTS],
         executed: true,
-        executions: [ran],
-        last: ran,
+        executions: [at(ran)],
+        last: at(ran),
       },
     ]);
     expect(output.gaps).toEqual([]);
@@ -632,7 +662,7 @@ describe("trace.chain: test cases and executions in the chain (SR-033)", () => {
     expect((await chain(workspace, { ref: SHOW, view: "core" })).names).toBeUndefined();
   });
 
-  it("without a view shows a variant's records and still marks the no-evidence gap in the core (#527 Q4)", async () => {
+  it("without a view shows a variant's records and still marks the no-evidence gap in the core (ThomasBirkmaier/ReqSeq-archive#527 Q4)", async () => {
     const coast = junit({ item: "coast-7", variant: COAST });
     const workspace = await withEvidence([coast], [], { files: COAST_FILE });
     const output = await chain(workspace, { ref: SHOW });
@@ -739,6 +769,7 @@ describe("trace.chain: test cases and executions in the chain (SR-033)", () => {
     expect(both.validationRecords[0]).toMatchObject({
       reason: "No wind on the test day",
       testCase: "acceptance-1",
+      evidenceSource: "reports/inspection-b1.pdf",
     });
     expect(items(await chain(workspace, { ref: WIND, direction: "up" }))).toEqual(expected);
     expect(items(await chain(workspace, { ref: WIND, view: COAST }))).toEqual(expected);

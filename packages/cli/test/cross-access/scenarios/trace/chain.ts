@@ -11,7 +11,7 @@ scenariosOf("trace.chain", [
     expect: "output",
   },
   {
-    name: "the chain of a need named by its identifier, each node with its identifier (#305)",
+    name: "the chain of a need named by its identifier, each node with its identifier (ThomasBirkmaier/ReqSeq-archive#305)",
     fixture: IDENTIFIERS,
     input: { ref: "N-001" },
     expect: "output",
@@ -66,7 +66,7 @@ scenariosOf("trace.chain", [
     expect: "output",
   },
   {
-    name: "one page of a chain up and down (SR-082 AK4, spec-frage #290)",
+    name: "one page of a chain up and down (SR-082 AK4, spec-frage ThomasBirkmaier/ReqSeq-archive#290)",
     fixture: CHAIN,
     input: { ref: "SR-00b001", limit: 2, offset: 1 },
     expect: "output",
@@ -109,5 +109,16 @@ scenariosOf("trace.chain", [
     fixture: CHAIN,
     input: { ref: "N-00a001", view: "N-00a002" },
     expect: "error",
+  },
+  {
+    name: "the chain of one copy of a UUID two files share, by repository and file (SR-088, #821)",
+    fixture: { fixture: "SR-088/copied-file", git: true },
+    root: "system",
+    input: {
+      ref: "948a10f1-05c3-4212-bd19-00606ccf2661",
+      repository: "system",
+      file: "copies/N-00606ccf2661.md",
+    },
+    expect: "output",
   },
 ]);

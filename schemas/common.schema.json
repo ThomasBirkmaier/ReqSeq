@@ -21,7 +21,7 @@
       "pattern": "^[^\\s\\u0000-\\u001f\\u007f-\\u009f](?:[^\\u0000-\\u001f\\u007f-\\u009f]*[^\\s\\u0000-\\u001f\\u007f-\\u009f])?$"
     },
     "uuidRef": {
-      "description": "A UUID version 4 as a caller gives it, in any case; the tool stores it in lower case (spec question #316).",
+      "description": "A UUID version 4 as a caller gives it, in any case; the tool stores it in lower case (spec question ThomasBirkmaier/ReqSeq-archive#316).",
       "type": "string",
       "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
     },
@@ -37,7 +37,7 @@
       ]
     },
     "elementName": {
-      "description": "How an output names an element it gives elsewhere by UUID only (#588), for people: its short ID, its identifier when it has one (#305) and its title, as element.list gives them.",
+      "description": "How an output names an element it gives elsewhere by UUID only (ThomasBirkmaier/ReqSeq-archive#588), for people: its short ID, its identifier when it has one (ThomasBirkmaier/ReqSeq-archive#305) and its title, as element.list gives them.",
       "type": "object",
       "required": ["id", "repository", "shortId", "title"],
       "properties": {
@@ -126,7 +126,7 @@
       }
     },
     "relationTargetInput": {
-      "description": "Target of a relation as a caller gives it to element.create, element.update or element.bulkUpdate (SR-021). Only `id` and, across repositories, `repository` name the target; `id` is an element reference like the one relation.add takes (UUID, short ID or identifier), and the tool writes the target's UUID (#169). A plain string item is the same as `{ id }` with it (#196). A target the property already stores keeps its stored version and form; for every other target the tool writes its current version and the title (same repository) or repository (across repositories) itself. A given `version` or `title` is ignored (spec question #177).",
+      "description": "Target of a relation as a caller gives it to element.create, element.update or element.bulkUpdate (SR-021). Only `id` and, across repositories, `repository` name the target; `id` is an element reference like the one relation.add takes (UUID, short ID or identifier), and the tool writes the target's UUID (#169). A plain string item is the same as `{ id }` with it (#196). A target the property already stores keeps its stored version and form; for every other target the tool writes its current version and the title (same repository) or repository (across repositories) itself. A given `version` or `title` is ignored (spec question ThomasBirkmaier/ReqSeq-archive#177).",
       "type": "object",
       "required": ["id"],
       "properties": {
@@ -218,7 +218,7 @@
         },
         "elementIdentifier": {
           "type": "string",
-          "description": "Identifier of the element `elementId` names (the value of its property with the meaning `identifier`, #305), for display next to `elementShortId`; given with it when the element has one."
+          "description": "Identifier of the element `elementId` names (the value of its property with the meaning `identifier`, ThomasBirkmaier/ReqSeq-archive#305), for display next to `elementShortId`; given with it when the element has one."
         },
         "targetId": {
           "$ref": "#/$defs/uuid"
@@ -233,7 +233,7 @@
         },
         "targetIdentifier": {
           "type": "string",
-          "description": "Identifier of the element `targetId` names (the value of its property with the meaning `identifier`, #305, #172), for display next to `targetShortId`; given with it when the element has one."
+          "description": "Identifier of the element `targetId` names (the value of its property with the meaning `identifier`, ThomasBirkmaier/ReqSeq-archive#305, #172), for display next to `targetShortId`; given with it when the element has one."
         },
         "storedVersion": {
           "$ref": "#/$defs/version"

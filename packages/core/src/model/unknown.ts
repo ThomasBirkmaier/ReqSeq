@@ -1,5 +1,5 @@
 // Properties and types the metamodel does not know (SR-016, D-012). Such a file is still an element
-// (spec question #145 option 1): its unknown keys are kept unchanged by every write (the lossless
+// (spec question ThomasBirkmaier/ReqSeq-archive#145 option 1): its unknown keys are kept unchanged by every write (the lossless
 // writer, ADR-0007), an unknown type makes it read-only (`assertElementWritable` in `write.ts`), and
 // both are reported here as hints (`warning`: they block nothing and change no status, glossary
 // "Hinweis"). D-012: "Ein Element darf Properties tragen, die sein Typ nicht kennt. Das Tool zeigt
@@ -119,7 +119,7 @@ export const unknownProblemsState = defineWorkspaceState(
   async (workspace): Promise<readonly Problem[]> => {
     const layout = await workspace.get(workspaceLayoutState);
     const metamodel = await workspace.get(metamodelState);
-    // Nothing against a metamodel that is not valid: its errors are the findings (#208, #220).
+    // Nothing against a metamodel that is not valid: its errors are the findings (ThomasBirkmaier/ReqSeq-archive#208, ThomasBirkmaier/ReqSeq-archive#220).
     if (!metamodel.valid) {
       return [];
     }
@@ -128,12 +128,12 @@ export const unknownProblemsState = defineWorkspaceState(
   },
   {
     dependsOn: [elementStoreState, metamodelState],
-    // A save or a watcher batch finds and locates the changed files only (#184).
+    // A save or a watcher batch finds and locates the changed files only (ThomasBirkmaier/ReqSeq-archive#184).
     carry: carryStoreUpdate((value, update, workspace) => {
       const metamodel = workspace.get(metamodelState);
       return carryProblems(workspace, value, update, {
         findingsOf: metamodel.then((m) => (element) => unknownFindings(element, m)),
-        // Nothing against a metamodel that is not valid, as a full build (#208, #220).
+        // Nothing against a metamodel that is not valid, as a full build (ThomasBirkmaier/ReqSeq-archive#208, ThomasBirkmaier/ReqSeq-archive#220).
         skip: metamodel.then((m) => !m.valid),
       });
     }),

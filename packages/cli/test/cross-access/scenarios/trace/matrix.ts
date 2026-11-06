@@ -90,7 +90,7 @@ scenariosOf("trace.matrix", [
     expect: "output",
   },
   {
-    name: "the matrix in a variant view names its variant (SR-126, #588)",
+    name: "the matrix in a variant view names its variant (SR-126, ThomasBirkmaier/ReqSeq-archive#588)",
     fixture: STATUS,
     input: { selection: { view: "5e031a7d-2b4f-4c61-9d08-0c0000000001" } },
     expect: "output",

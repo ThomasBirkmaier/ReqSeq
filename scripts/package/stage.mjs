@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Stages the delivery for electron-builder (ADR-0014, #324): two self-contained folders with a flat
+// Stages the delivery for electron-builder (ADR-0014, ThomasBirkmaier/ReqSeq-archive#324): two self-contained folders with a flat
 // production node_modules (the app and the CLI with the MCP server), the launchers rendered from
 // toolchain/packaging/names.json and the third-party notices (ADR-0015). Run after `pnpm build` and
 // electron-vite's build of the app (`build:electron`).

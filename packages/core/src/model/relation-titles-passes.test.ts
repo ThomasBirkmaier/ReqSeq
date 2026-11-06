@@ -1,4 +1,4 @@
-// The refresh of stored titles (`relation-titles.ts`, decision on #307) costs one pass of the
+// The refresh of stored titles (`relation-titles.ts`, decision on ThomasBirkmaier/ReqSeq-archive#307) costs one pass of the
 // lossless writer per written file, however many titles are stale (N-036), and a refused pass
 // never blocks the write it is part of. The writer is wrapped so a test can count and fail calls.
 import fs from "node:fs";
@@ -70,7 +70,7 @@ const open = async (): Promise<{ workspace: Workspace; text: string; read: () =>
   return { workspace, text, read: () => fs.readFileSync(ws.path(A_FILE), "utf8") };
 };
 
-describe("refreshing stored titles in one pass (decision on #307, N-036)", () => {
+describe("refreshing stored titles in one pass (decision on ThomasBirkmaier/ReqSeq-archive#307, N-036)", () => {
   it("refreshes 1,000 stale titles of one file with one more pass of the writer", async () => {
     const { workspace, text, read } = await open();
     await invoke("element.update", { ref: A, set: { "requirement-type": "quality" } }, { workspace });

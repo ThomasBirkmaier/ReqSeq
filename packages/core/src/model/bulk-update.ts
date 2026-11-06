@@ -4,7 +4,7 @@
 // - `set` replaces the value, `add` appends the items an element does not hold yet (a property with
 //   `many`; relation targets are the same when UUID and repository are, other items when equal),
 //   `remove` removes the key, or with a value only these items (the key when none is left). This is
-//   spec question #353, option 1.
+//   spec question ThomasBirkmaier/ReqSeq-archive#353, option 1.
 // - An element whose type does not have the property, or whose type the metamodel does not know
 //   (it is only read, SR-016 AK3), is skipped and named (AK3); its file is not read.
 // - The write path is the one of `element.update` and `element.setStatus`: choice values become
@@ -15,7 +15,7 @@
 //   (`editElementFile`, SR-102), and the files are written atomically with a rollback on a failure
 //   (`writeElementFiles`, several at a time), which also gives the store, the versions and the hints
 //   the files as written, and refreshes the stored titles of their same-repository relation targets
-//   (decision on #307; the preview does not show that).
+//   (decision on ThomasBirkmaier/ReqSeq-archive#307; the preview does not show that).
 // - Cost (N-036, perf suite): one pass over the selection, the files of the candidates read 32 at a
 //   time without parsing them (`readAllUnchanged`: the store parsed the same bytes), then per file the
 //   lossless writer (about 1 ms: its parse and the parse of its check, which the preview and the
@@ -272,7 +272,7 @@ interface Plan {
 
 /** A target that `add` gives an element, as stored (SR-021): its current version, read once per call. */
 const newTarget = (plan: Plan, sourceRepository: string, item: TargetItem): Promise<RelationTarget> => {
-  // A UUID in any case is stored in lower case (#309), as `setRelationTargets` does.
+  // A UUID in any case is stored in lower case (ThomasBirkmaier/ReqSeq-archive#309), as `setRelationTargets` does.
   const target =
     typeof item["repository"] === "string"
       ? { id: item.id.toLowerCase(), repository: item["repository"] }

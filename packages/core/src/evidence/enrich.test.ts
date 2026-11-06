@@ -206,7 +206,7 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
   });
 
   it("[SR-029/AK3] the JUnit reader assigns every test case of an enriched file to its requirements", async () => {
-    // The round trip of the #41 comment: a test case named by a name token and a property, and one
+    // The round trip of the ThomasBirkmaier/ReqSeq-archive#41 comment: a test case named by a name token and a property, and one
     // that names two requirements.
     const xml = suite(
       '<testcase classname="c" name="[SR-46fb54] logs in"><properties><property name="reqseq:element" value="SR-46fb54"/></properties></testcase>' +

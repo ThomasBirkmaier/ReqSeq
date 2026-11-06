@@ -76,7 +76,7 @@
         "description": true,
         "prefix": {
           "$ref": "#/$defs/prefix",
-          "description": "Prefix of the short ID, e.g. SR (D-017). UNKNOWN is reserved for elements of an unknown type and is a metamodel error (#154)."
+          "description": "Prefix of the short ID, e.g. SR (D-017). UNKNOWN is reserved for elements of an unknown type and is a metamodel error (ThomasBirkmaier/ReqSeq-archive#154)."
         },
         "extends": {
           "$ref": "#/$defs/key",
@@ -95,21 +95,21 @@
           "items": {
             "$ref": "#/$defs/key"
           },
-          "description": "Property keys this type has, in addition to inherited ones, which come first. Each should be a defined property; an undefined key is a metamodel warning and the type is treated as not having it (#141 c)."
+          "description": "Property keys this type has, in addition to inherited ones, which come first. Each should be a defined property; an undefined key is a metamodel warning and the type is treated as not having it (ThomasBirkmaier/ReqSeq-archive#141 c)."
         },
         "required": {
           "type": "array",
           "items": {
             "$ref": "#/$defs/key"
           },
-          "description": "Mandatory property keys, in addition to inherited ones; each is also a property of the type and should be a defined property; an undefined key is a metamodel warning and the type is treated as not having it (#141 c). Empty values are allowed but give a hint (SR-064)."
+          "description": "Mandatory property keys, in addition to inherited ones; each is also a property of the type and should be a defined property; an undefined key is a metamodel warning and the type is treated as not having it (ThomasBirkmaier/ReqSeq-archive#141 c). Empty values are allowed but give a hint (SR-064)."
         },
         "statuses": {
           "type": "array",
           "items": {
             "$ref": "#/$defs/key"
           },
-          "description": "Status keys elements of this type may have, in addition to inherited ones (#306): the top-level `statuses` stay the vocabulary (names, `invalid`, `initial`), a type only restricts it. Left out on the type and on every ancestor: every status. Once the type or any ancestor has a list, only the listed statuses count: a type with a list below a parent without one has only its own statuses (an unrestricted parent does not add every status). An empty list on a type whose ancestors have none: the type has no status, and its element files have no `status`. Each should be a defined status; an undefined key is a metamodel warning and left out (when no key is left, the type has no status). A type whose statuses are all marked invalid (e.g. `[retired]`) has an optional status (#344): its elements without status are current, element.create gives them none, and element.supersede retires them. A status outside the list gives a hint on the element (`element.status-not-allowed`)."
+          "description": "Status keys elements of this type may have, in addition to inherited ones (ThomasBirkmaier/ReqSeq-archive#306): the top-level `statuses` stay the vocabulary (names, `invalid`, `initial`), a type only restricts it. Left out on the type and on every ancestor: every status. Once the type or any ancestor has a list, only the listed statuses count: a type with a list below a parent without one has only its own statuses (an unrestricted parent does not add every status). An empty list on a type whose ancestors have none: the type has no status, and its element files have no `status`. Each should be a defined status; an undefined key is a metamodel warning and left out (when no key is left, the type has no status). A type whose statuses are all marked invalid (e.g. `[retired]`) has an optional status (ThomasBirkmaier/ReqSeq-archive#344): its elements without status are current, element.create gives them none, and element.supersede retires them. A status outside the list gives a hint on the element (`element.status-not-allowed`)."
         }
       },
       "unevaluatedProperties": false
@@ -155,21 +155,21 @@
           "items": {
             "$ref": "#/$defs/key"
           },
-          "description": "All property keys of the type, each once: those of the root type first, then down to the type itself (the key order of new keys in element files, ADR-0004). Required keys count as properties. Keys that no property definition has are left out (#141 c)."
+          "description": "All property keys of the type, each once: those of the root type first, then down to the type itself (the key order of new keys in element files, ADR-0004). Required keys count as properties. Keys that no property definition has are left out (ThomasBirkmaier/ReqSeq-archive#141 c)."
         },
         "required": {
           "type": "array",
           "items": {
             "$ref": "#/$defs/key"
           },
-          "description": "All required property keys, own and inherited, in the same order. Keys that no property definition has are left out (#141 c)."
+          "description": "All required property keys, own and inherited, in the same order. Keys that no property definition has are left out (ThomasBirkmaier/ReqSeq-archive#141 c)."
         },
         "statuses": {
           "type": "array",
           "items": {
             "$ref": "#/$defs/key"
           },
-          "description": "The status keys elements of the type may have, own and inherited, in the order of the metamodel's statuses (#306): every status when neither the type nor an ancestor has `statuses`; empty when the type has no status. Keys that no status definition has are left out."
+          "description": "The status keys elements of the type may have, own and inherited, in the order of the metamodel's statuses (ThomasBirkmaier/ReqSeq-archive#306): every status when neither the type nor an ancestor has `statuses`; empty when the type has no status. Keys that no status definition has are left out."
         },
         "meaning": {
           "$ref": "#/$defs/typeMeaning",
@@ -235,7 +235,7 @@
       "unevaluatedProperties": false
     },
     "propertyMeaning": {
-      "description": "Built-in meaning (D-012, D-059): `title`; `validity` (list of variants, D-020); `packages` (D-040); `emergent` (emergent behaviour, N-010; a choice without `many` whose key `yes` is the mark, SR-035; otherwise a warning and nothing is marked); `verification-method`; `statement` (the statement for ReqIF, SR-058); `source`, `source-identifier`, `import-date`, `delivery`, `import-version` (origin of imported elements, written only by ReqIF import, SR-057; `import-version` is the import version, D-059: the version of what the import wrote, right after the last import, kind `text` without `many` and never `content`); `identifier` (an ID from another source, such as the spec ID SR-036 or a customer ID, D-017; unique per type; element references accept it besides the UUID and short ID, and outputs show it next to the short ID, #305). A property with the meaning `identifier` is of kind `text` without `many`. `acceptance-criteria` (the acceptance criteria of a requirement, counted from 1 in their order, which evidence records name by number, D-072, SR-028 AK4; kind `text` with `many`, otherwise a warning and no criterion is read).",
+      "description": "Built-in meaning (D-012, D-059): `title`; `validity` (list of variants, D-020); `packages` (D-040); `emergent` (emergent behaviour, N-010; a choice without `many` whose key `yes` is the mark, SR-035; otherwise a warning and nothing is marked); `verification-method`; `statement` (the statement for ReqIF, SR-058); `source`, `source-identifier`, `import-date`, `delivery`, `import-version` (origin of imported elements, written only by ReqIF import, SR-057; `import-version` is the import version, D-059: the version of what the import wrote, right after the last import, kind `text` without `many` and never `content`); `identifier` (an ID from another source, such as the spec ID SR-036 or a customer ID, D-017; unique per type; element references accept it besides the UUID and short ID, and outputs show it next to the short ID, ThomasBirkmaier/ReqSeq-archive#305). A property with the meaning `identifier` is of kind `text` without `many`. `acceptance-criteria` (the acceptance criteria of a requirement, counted from 1 in their order, which evidence records name by number, D-072, SR-028 AK4; kind `text` with `many`, otherwise a warning and no criterion is read).",
       "enum": [
         "title",
         "validity",
@@ -351,7 +351,7 @@
         "initial": {
           "type": "boolean",
           "default": false,
-          "description": "Status of new elements. Exactly one status is initial. A type whose statuses do not include it gives its new elements its first status that is not marked invalid, in metamodel order, and so does every type when the initial status is marked invalid (a metamodel warning, #350); a type without status or with only invalid statuses gives them none (#306, #344)."
+          "description": "Status of new elements. Exactly one status is initial. A type whose statuses do not include it gives its new elements its first status that is not marked invalid, in metamodel order, and so does every type when the initial status is marked invalid (a metamodel warning, ThomasBirkmaier/ReqSeq-archive#350); a type without status or with only invalid statuses gives them none (ThomasBirkmaier/ReqSeq-archive#306, ThomasBirkmaier/ReqSeq-archive#344)."
         }
       },
       "unevaluatedProperties": false

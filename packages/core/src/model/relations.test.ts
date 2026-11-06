@@ -119,7 +119,7 @@ describe("target states (D-058, SR-006)", () => {
     expect(isUnavailableRepository(layout, "elsewhere")).toBe(false);
   });
 
-  it("gives the repository of the target state: the element's when available, else the one looked in (#416)", async () => {
+  it("gives the repository of the target state: the element's when available, else the one looked in (ThomasBirkmaier/ReqSeq-archive#416)", async () => {
     const s = await store();
     const element = need(s);
     const copy = { ...element, file: "needs/copy.md" };

@@ -3,7 +3,7 @@
 // `element.list` (query/selection.ts); without a selected view it is counted in the core (AK5).
 // `incomplete` (AK3, SR-006 AK2): a repository of the workspace
 // file is not on this machine, so children, elements or evidence locations there are not seen, or a
-// condition of the selection met such a target. `names` names every element the levels list (#588),
+// condition of the selection met such a target. `names` names every element the levels list (ThomasBirkmaier/ReqSeq-archive#588),
 // from the selection's records (nothing more is read). Nothing is written.
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";

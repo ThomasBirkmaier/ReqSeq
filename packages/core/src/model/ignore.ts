@@ -10,7 +10,7 @@
 // whole. A run of `*` within a name is one `*`, and `**/**` is one `**`, so no pattern can make the
 // RegExp backtrack exponentially. workspace.schema.json refuses `\` and `//` in a pattern.
 //
-// Patterns and paths are compared in Unicode NFC (#218): a glob typed as `Übersicht/**` (NFC, as
+// Patterns and paths are compared in Unicode NFC (ThomasBirkmaier/ReqSeq-archive#218): a glob typed as `Übersicht/**` (NFC, as
 // keyboards give it) names a folder stored as `U` plus a combining diaeresis (NFD, as HFS+ and some
 // macOS tools store names, and as `readdir` then gives them), and the other way round, so the walk,
 // the watcher and the check before a new file agree whatever spelling each one sees. `?` is then one

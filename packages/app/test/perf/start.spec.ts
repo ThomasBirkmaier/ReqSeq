@@ -9,7 +9,7 @@
 //   höchstens 1 Sekunde sichtbar.“ and AK3 „Gegeben derselbe Arbeitsbereich, in dem seit dem Start bereits ein
 //   Element geöffnet wurde, wenn ein Element geöffnet wird, dann ist es nach höchstens 200 ms sichtbar.“ After the
 //   second start.
-// "bedienbar" (#112, #147, assumption of spec question #750): the main view (SR-100) shows the first page of
+// "bedienbar" (ThomasBirkmaier/ReqSeq-archive#112, #147, assumption of spec question #750): the main view (SR-100) shows the first page of
 // the list and accepts input. The app starts with the overview (SR-118 AK4: no list of all elements), so a start
 // runs from the launch of Electron until the overview shows its counts of all 50,000 elements, plus the answer to
 // Ctrl+K L ("List all elements") from its keydown until the list shows its first row. Playwright's attach does not
@@ -297,7 +297,7 @@ test.describe("start and open with 50,000 elements and 200,000 relations (SR-082
     const warm = await recordStart(start, "with cache", "AK1", WARM_MS);
 
     // AK5, then AK3: system requirements, each opened through Ctrl+P and timed from Enter. The first is the top
-    // requirement of the generated tree, which has the longest parents line (#698); its text starts with
+    // requirement of the generated tree, which has the longest parents line (ThomasBirkmaier/ReqSeq-archive#698); its text starts with
     // "The station shall <title>" (testkit), so the text of the element before does not count.
     const targets = requirements.slice(0, 1 + LATER_OPENS);
     expect(targets).toHaveLength(1 + LATER_OPENS);

@@ -331,7 +331,7 @@ describe("element.create", () => {
     expect(await filesBelow(opened.root)).toEqual(before);
   });
 
-  it("stores the UUID of a relation target given in upper case in lower case (#309, spec question #316)", async () => {
+  it("stores the UUID of a relation target given in upper case in lower case (ThomasBirkmaier/ReqSeq-archive#309, spec question ThomasBirkmaier/ReqSeq-archive#316)", async () => {
     const opened = await open({ fixture: "SR-085/value-kinds" }, "system");
     const id = "3f1757ed-26d9-478e-8fdc-ea6fe2e123a9";
     const out = await create(opened, {
@@ -460,7 +460,7 @@ describe("element.create", () => {
     }
   });
 
-  it("[SR-012/AK3] writes the key of a choice value given by its display name, in any case (#309)", async () => {
+  it("[SR-012/AK3] writes the key of a choice value given by its display name, in any case (ThomasBirkmaier/ReqSeq-archive#309)", async () => {
     const opened = await standard();
     const out = await create(opened, {
       type: "system-requirement",
@@ -477,7 +477,7 @@ describe("element.create", () => {
     expect((out.problems ?? []).filter((p) => p.code === "element.wrong-value-kind")).toEqual([]);
   });
 
-  it("refuses a choice value that names no choice and writes no file (#309, spec question #316)", async () => {
+  it("refuses a choice value that names no choice and writes no file (ThomasBirkmaier/ReqSeq-archive#309, spec question ThomasBirkmaier/ReqSeq-archive#316)", async () => {
     const opened = await standard();
     const before = await filesBelow(opened.root);
     for (const value of ["sometimes", 5, ["functional", "Sometimes"]]) {
@@ -510,7 +510,7 @@ describe("element.create", () => {
     expect(await filesBelow(opened.root)).toEqual(before);
   });
 
-  it("refuses a choice name that fits two values; the exact key always wins (#309)", async () => {
+  it("refuses a choice name that fits two values; the exact key always wins (ThomasBirkmaier/ReqSeq-archive#309)", async () => {
     const opened = await standard({
       "metamodel/extra.yaml":
         "reqseq-metamodel: 1\nproperties:\n  - key: urgency\n    name: Urgency\n    kind: choice\n    choices:\n      - { key: low, name: Soon }\n      - { key: soon, name: Later }\n  - { key: mood, name: Mood, kind: choice }\ntypes:\n  - { key: note, name: Note, prefix: NOTE, properties: [title, urgency, mood] }\n",
@@ -549,7 +549,7 @@ describe("element.create", () => {
 
   it("stores a value of the wrong kind and reports it with its line (SR-085)", async () => {
     const opened = await standard();
-    // One text where the metamodel wants a list of texts; a choice value that is no choice is refused (#309).
+    // One text where the metamodel wants a list of texts; a choice value that is no choice is refused (ThomasBirkmaier/ReqSeq-archive#309).
     const out = await create(opened, {
       type: "system-requirement",
       title: "Wrong",
@@ -627,7 +627,7 @@ describe("element.create", () => {
     );
   });
 
-  it("writes the layout element.update writes, and an update with the same text changes nothing (#308)", async () => {
+  it("writes the layout element.update writes, and an update with the same text changes nothing (ThomasBirkmaier/ReqSeq-archive#308)", async () => {
     const opened = await standard();
     const out = await create(opened, { type: "need", title: "Rain", text: "Rain is shown." });
     const file = out.files[0] ?? "";
@@ -671,7 +671,7 @@ describe("element.create", () => {
     expect(after).not.toBe(before);
     expect(after.byId.get(out.element.id)?.map((e) => e.file)).toEqual([out.element.file]);
     expect(out.element.shortId).toMatch(/^N-[0-9a-f]{6,}$/);
-    // In place (#166): the other elements were not read again; the store is what a full read gives.
+    // In place (ThomasBirkmaier/ReqSeq-archive#166): the other elements were not read again; the store is what a full read gives.
     expect(after.elements.filter((e) => before.elements.includes(e))).toHaveLength(before.elements.length);
     expect(after).toEqual(
       await loadElements(await opened.workspace.get(workspaceLayoutState), undefined, {
@@ -684,7 +684,7 @@ describe("element.create", () => {
     });
   });
 
-  describe("refuses a file the element walk would not list, before anything is written (#183)", () => {
+  describe("refuses a file the element walk would not list, before anything is written (ThomasBirkmaier/ReqSeq-archive#183)", () => {
     /** Every folder and file below `folder` with the bytes of each file, so nothing written or created goes unseen. */
     const treeBelow = async (folder: string): Promise<Record<string, string>> => {
       const entries = await fs.readdir(folder, { recursive: true, withFileTypes: true });
@@ -809,7 +809,7 @@ describe("element.create", () => {
       expect(out.element.file).toBe(`requirements/N-${tail12(out.element.id)}.md`);
     });
 
-    it("refuses a new folder whose name holds an invisible format character, but keeps an existing one (#194)", async () => {
+    it("refuses a new folder whose name holds an invisible format character, but keeps an existing one (ThomasBirkmaier/ReqSeq-archive#194)", async () => {
       const opened = await standard({ "alt\u200b/README.md": "# Alt\n" });
       await refused(opened, [
         ...inFolder(
@@ -832,7 +832,7 @@ describe("element.create", () => {
       expect(out.element.file).toBe(`alt\u200b/N-${tail12(out.element.id)}.md`);
     });
 
-    it("refuses .git with a zero-width non-joiner inside, a .git where the file system drops the mark (HFS+), and else as invisible (#194, D-036)", async () => {
+    it("refuses .git with a zero-width non-joiner inside, a .git where the file system drops the mark (HFS+), and else as invisible (ThomasBirkmaier/ReqSeq-archive#194, D-036)", async () => {
       const opened = await open({ fixture: "SR-001/two-elements", git: true });
       const alias = ".g\u200cit";
       const same = await sameFolder(opened.fixture.path(".git"), opened.fixture.path(alias));
@@ -844,7 +844,7 @@ describe("element.create", () => {
       expect(await opened.fixture.git(["status", "--porcelain"])).toBe("");
     });
 
-    it("writes into an NFD folder named in NFC, under the spelling on disk, where the file system ignores the normal form (#194)", async () => {
+    it("writes into an NFD folder named in NFC, under the spelling on disk, where the file system ignores the normal form (ThomasBirkmaier/ReqSeq-archive#194)", async () => {
       const opened = await standard({ [`${NFD}/README.md`]: "# Overview\n" });
       await opened.workspace.get(elementStoreState);
       // Linux and Windows keep the normal forms apart, so the answers of macOS (APFS) are given here.
@@ -867,7 +867,7 @@ describe("element.create", () => {
       expect(deeper.element.file).toBe(`${NFD}/neu/N-${tail12(deeper.element.id)}.md`);
     });
 
-    it("still refuses a spelling that differs in case as well as in the normal form (#194)", async () => {
+    it("still refuses a spelling that differs in case as well as in the normal form (ThomasBirkmaier/ReqSeq-archive#194)", async () => {
       const opened = await standard({ [`${NFD}/README.md`]: "# Overview\n" });
       await opened.workspace.get(elementStoreState);
       foldNormalForm([NFD], true);
@@ -877,7 +877,7 @@ describe("element.create", () => {
       expect(error.details).toMatchObject({ existing: NFD });
     });
 
-    it("writes under the spelling on disk where the file system stores a new folder in another normal form (HFS+ stores NFD, #194)", async () => {
+    it("writes under the spelling on disk where the file system stores a new folder in another normal form (HFS+ stores NFD, ThomasBirkmaier/ReqSeq-archive#194)", async () => {
       const opened = await standard();
       await opened.workspace.get(elementStoreState);
       foldNormalForm([NFD]);
@@ -891,7 +891,7 @@ describe("element.create", () => {
       expect(await read(opened, file)).toContain("title: Umlaut");
     });
 
-    it("on this machine's file system: writes into the existing folder exactly where NFC and NFD name one folder (#194)", async () => {
+    it("on this machine's file system: writes into the existing folder exactly where NFC and NFD name one folder (ThomasBirkmaier/ReqSeq-archive#194)", async () => {
       const opened = await standard({ [`${NFD}/README.md`]: "# Overview\n" });
       await opened.workspace.get(elementStoreState);
       // APFS ignores the normal form of names; NTFS and ext4 keep NFC and NFD apart. The file system

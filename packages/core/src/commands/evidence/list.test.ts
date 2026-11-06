@@ -2,7 +2,7 @@
 // wind speed" and A2 "Show wind direction", the variant C1 "Coast", and three baselines in the
 // default folder `baselines`: Beta (A1 at version V1), Release 1.0 (A1 at V1, A2 at V2) and
 // Release 1.1 (A1 at V2, A2 at V2), plus a README that is no baseline. The evidence records are
-// given through `evidenceRecordsState` (#127 option 1); the readers come with SR-028 and SR-093,
+// given through `evidenceRecordsState` (ThomasBirkmaier/ReqSeq-archive#127 option 1); the readers come with SR-028 and SR-093,
 // whose end-to-end tests read record files. The same output on every access: cross-access.test.ts.
 // The baseline reader itself: baselines/read.test.ts. The test cases of the element (SR-033) come
 // from the same index; skipped test cases are injected through `evidenceReadState`.
@@ -119,8 +119,17 @@ describe("evidence.list (SR-032)", () => {
         "//fileserver/qa/ws/inspection-2026-09-10.docx",
       ],
     ]);
-    expect(output.records[3]).toEqual({ ...INSPECTION, baselines: ["Beta", "Release 1.0"] });
-    expect(output.records[1]).toEqual({ ...FAILED, baselines: ["Release 1.1"] });
+    // The evidence source (#821) is the evidence when given, else the record file with its line.
+    expect(output.records[3]).toEqual({
+      ...INSPECTION,
+      evidenceSource: "//fileserver/qa/ws/inspection-2026-09-10.docx",
+      baselines: ["Beta", "Release 1.0"],
+    });
+    expect(output.records[1]).toEqual({
+      ...FAILED,
+      evidenceSource: "ci/results-511.xml",
+      baselines: ["Release 1.1"],
+    });
     expect([output.problems, output.incomplete]).toEqual([[], false]);
   });
 
@@ -285,6 +294,7 @@ describe("evidence.list: test cases (SR-033)", () => {
     line: 4,
   });
   const OF_A2 = { ...RERUN, element: A2, version: V2 };
+  const RERUN_AT = { ...RERUN, evidenceSource: "system/evidence/ci/run-513.xml:4" };
 
   /** A workspace on `ws` whose evidence read gives `records` and the skipped test cases `skipped`. */
   const openRead = async (
@@ -309,14 +319,18 @@ describe("evidence.list: test cases (SR-033)", () => {
         className: "tests.test_display",
         elements: [A1, A2],
         executed: true,
-        executions: [RERUN, FAILED],
-        last: RERUN,
+        executions: [RERUN_AT, { ...FAILED, evidenceSource: "ci/results-511.xml" }],
+        last: RERUN_AT,
       },
     ]);
+    // The index keeps its records as read: the answer has copies (#821).
+    expect(RERUN).not.toHaveProperty("evidenceSource");
     // In the core view both executions hold; for the coast none, so the test case is left out there.
     expect((await list(workspace, { ref: A1, view: "core" })).testCases).toEqual(output.testCases);
     expect((await list(workspace, { ref: A1, view: "VAR-0032c1" })).testCases).toEqual([]);
-    expect((await list(workspace, { ref: A2 })).testCases.map((t) => t.executions)).toEqual([[OF_A2]]);
+    expect((await list(workspace, { ref: A2 })).testCases.map((t) => t.executions)).toEqual([
+      [{ ...OF_A2, evidenceSource: "system/evidence/ci/run-513.xml:4" }],
+    ]);
   });
 
   it("[SR-033/AK3] evidence.list marks a test case without execution as not executed", async () => {

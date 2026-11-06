@@ -9,7 +9,7 @@
 // evidence/degree.ts). All of it is computed here, so every access shows the same (SR-125 AK6,
 // D-029). `incomplete` follows SR-006 AK2 over the whole selection and the evidence locations.
 // `evidence` comes right after `columns`, as the degree stands above the status column (SR-126 AK4);
-// `names` names the variant of its view and the missing children of the rows (#588).
+// `names` names the variant of its view and the missing children of the rows (ThomasBirkmaier/ReqSeq-archive#588).
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import {

@@ -3,14 +3,14 @@
 // Durchführung und seinen Nachweisstatus zeigen.“ `trace.matrix` builds them for the rows of the page
 // only, through the seam `matrixRows(…, rowFields)` of the trace block, which imports no evidence.
 //
-// - When (assumption, spec question #593 Q1, `showsEvidence`): the workspace file names an evidence
+// - When (assumption, spec question ThomasBirkmaier/ReqSeq-archive#593 Q1, `showsEvidence`): the workspace file names an evidence
 //   location, the metamodel is valid (otherwise records are not compared, as in `verificationState`)
 //   and the selection holds a requirement. Otherwise nothing is read and the output is SR-125's.
-// - One view (#593, #592 Q1): the caller's, the first of `Selected.views`, else the core, as
+// - One view (ThomasBirkmaier/ReqSeq-archive#593, ThomasBirkmaier/ReqSeq-archive#592 Q1): the caller's, the first of `Selected.views`, else the core, as
 //   `evidence.degree`. Status, test cases and the degree are given for it; element.get and
 //   evidence.status give every view.
 // - Test cases (AK1): `verificationTestCasesIn`, so the matrix shows the test cases the chain shows
-//   in the same view. Records without a test case count only for the status (#528 Q3). Each item is
+//   in the same view. Records without a test case count only for the status (ThomasBirkmaier/ReqSeq-archive#528 Q3). Each item is
 //   compact: name, class name, `executed`, the last execution (`last`, the newest in the view, of any
 //   version) and the mark (AK2, `testCaseMark`).
 // - The status (AK1, AK3): one entry of `$defs/verificationEntry` from the shared evaluator
@@ -25,6 +25,7 @@ import { sameVersion } from "../model/index.js";
 import type { View } from "../variants/index.js";
 import type { EvidenceIndex } from "./by-element.js";
 import { viewIdOf } from "./degree.js";
+import { withEvidenceSource } from "./evidence-source.js";
 import type { TestCase } from "./record.js";
 import type { StatusSource } from "./status.js";
 import type { WorkspaceStatus } from "./verification.js";
@@ -44,13 +45,13 @@ export type MatrixTestCaseMark = NonNullable<MatrixTestCase["mark"]>;
 
 /**
  * The mark of `test` for an element whose current version is `current` (assumptions, spec questions
- * #528 Q1, Q2 and #593 Q2), the first that holds: `not-executed` without an execution; `outdated`
- * when no execution is of the current version, or the current version is not known (#276), the
+ * ThomasBirkmaier/ReqSeq-archive#528 Q1, Q2 and ThomasBirkmaier/ReqSeq-archive#593 Q2), the first that holds: `not-executed` without an execution; `outdated`
+ * when no execution is of the current version, or the current version is not known (ThomasBirkmaier/ReqSeq-archive#276), the
  * version test of `recordStatusOf`; `failed` when the newest execution of the current version failed.
  * Undefined when it passed. A newer execution of an older version does not mark the test case
  * outdated, as the status then follows the current one (#201, product owner decision, 2026-10-29:
  * the mark follows the status). Records of one instant may tie: the first in index order is taken,
- * while the status counts a failed one among them (#525 Q2).
+ * while the status counts a failed one among them (ThomasBirkmaier/ReqSeq-archive#525 Q2).
  */
 export const testCaseMark = (
   test: TestCase,
@@ -86,13 +87,13 @@ export const matrixTestCases = (
       name: test.name,
       ...(test.className === undefined ? {} : { className: test.className }),
       executed: test.executed,
-      ...(test.last === undefined ? {} : { last: test.last }),
+      ...(test.last === undefined ? {} : { last: withEvidenceSource(test.last) }),
       ...(mark === undefined ? {} : { mark }),
     };
   });
 
 /**
- * Whether the matrix of `elements` shows the evidence columns (assumption, spec question #593 Q1):
+ * Whether the matrix of `elements` shows the evidence columns (assumption, spec question ThomasBirkmaier/ReqSeq-archive#593 Q1):
  * the workspace file names an evidence location, the metamodel is valid and an element of the
  * selection is of a type with the meaning `requirement` (own or inherited).
  */

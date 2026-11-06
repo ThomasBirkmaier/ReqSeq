@@ -3,7 +3,7 @@
 // - Off the lines that show their source, a formula appears set in place of its source: `$…$` within the
 //   line, a `$$` block or a fenced `math` block as a block of its own.
 // - While the cursor is in a block formula, its whole source shows and the set formula directly below it,
-//   and it follows the typing (assumption A1, spec question #420). While the caret is inside a `$…$`, its
+//   and it follows the typing (assumption A1, spec question ThomasBirkmaier/ReqSeq-archive#420). While the caret is inside a `$…$`, its
 //   line shows the source (D-061) and the set formula appears under it in a tooltip that takes no input.
 // - A formula with an error is never hidden: its source stays, and the error follows it in grey (AK3).
 //   A block that does not start at the beginning of its line (in a list item or a quote) cannot be replaced

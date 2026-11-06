@@ -13,8 +13,8 @@ digits (`N-00a001`). Older version in records: `n1:0000000000000000`.
 | N5 `00a005` need | validation passed 2026-01-01 and failed 2026-02-01, both current | failed (the newest of the current version, AK3) | – |
 | N6 `00a006` need | validation passed 2026-01-01 current; failed 2026-02-01 older version | validated (the current version beats a newer older one, AK3); hint `evidence.outdated` | – |
 | S1 `00b001` system requirement, derives from N1 | validation passed, current; verification failed, current | validated | failed (AK1: separate) |
-| S2 `00b002` system requirement, derives from N1 | verification passed, current | – (no validation record, #534) | verified |
-| U1 `00e001` use case | validation failed, current | failed (#534 Q3) | – |
+| S2 `00b002` system requirement, derives from N1 | verification passed, current | – (no validation record, ThomasBirkmaier/ReqSeq-archive#534) | verified |
+| U1 `00e001` use case | validation failed, current | failed (ThomasBirkmaier/ReqSeq-archive#534 Q3) | – |
 
 Every relation names the current version of its target. The record versions are the current versions
 of the element files; regenerate the records when an element file changes.

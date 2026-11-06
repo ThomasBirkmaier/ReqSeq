@@ -31,7 +31,7 @@
       },
       "names": {
         "type": "array",
-        "description": "The variant of `view` (#588), so a reader names it by short ID and title. Left out in the core.",
+        "description": "The variant of `view` (ThomasBirkmaier/ReqSeq-archive#588), so a reader names it by short ID and title. Left out in the core.",
         "items": {
           "$ref": "../common.schema.json#/$defs/elementName"
         }

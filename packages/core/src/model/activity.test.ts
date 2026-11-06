@@ -307,13 +307,13 @@ describe("recording the last API or MCP access (SR-117)", () => {
       "element.setStatus": "written element",
       "element.supersede": "ref, else written element",
       "element.bulkUpdate": "written element",
-      "element.addAttachment": "ref, else written element",
+      "element.addAttachment": "ref (repository), else written element",
       "relation.options": "ref",
       "relation.add": "source, else written element",
       "relation.remove": "source (repository), else written element",
-      "trace.chain": "ref",
+      "trace.chain": "ref (repository)",
       "trace.related": "none",
-      "trace.affected": "ref",
+      "trace.affected": "ref (repository)",
       "trace.neighbourhood": "ref (repository)",
       "trace.graph": "ref (repository)",
       "trace.matrix": "none",
@@ -322,7 +322,7 @@ describe("recording the last API or MCP access (SR-117)", () => {
       "element.search": "none",
       "filter.list": "none",
       "filter.save": "written element",
-      "evidence.list": "ref",
+      "evidence.list": "ref (repository)",
       "evidence.record": "ref, else written element",
       "evidence.enrichJunit": "written element",
       "evidence.status": "none",
@@ -413,7 +413,7 @@ describe("recording the last API or MCP access (SR-117)", () => {
 
   it("writes an access noted within 100 ms of the last write once the 100 ms are over, before close", async () => {
     // The burst above reaches the timer only when the timer fires before close; on a fast machine close
-    // writes the pending access first (#511). Here the clock stands still: the second access always
+    // writes the pending access first (ThomasBirkmaier/ReqSeq-archive#511). Here the clock stands still: the second access always
     // waits for the timer, and only the timer writes it.
     const opened = await copy(IDENTIFIERS);
     const { workspace } = opened;

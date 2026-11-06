@@ -6,7 +6,7 @@ record without `variant` holds only in the core. UUIDs `35353535-3535-4535-8535-
 IDs are the last six hex digits (`SR-00b110`). Older version in records: `n1:0000000000000000`.
 
 An element is emergent when its property with the meaning `emergent` holds the choice key `yes`
-(assumption, spec question #591 Q1).
+(assumption, spec question ThomasBirkmaier/ReqSeq-archive#591 Q1).
 
 | Element | `emergent` | Parent (`derives-from`) | Record in `evidence/` | Verification (core) |
 |---|---|---|---|---|

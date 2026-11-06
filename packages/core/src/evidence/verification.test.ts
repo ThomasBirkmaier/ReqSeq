@@ -298,7 +298,7 @@ describe("workspaceStatusOf: validation status (SR-038)", () => {
     ]).toEqual(["open", "validated", "failed"]);
   });
 
-  it("a requirement or other element without validation record has no validation status (#534)", () => {
+  it("a requirement or other element without validation record has no validation status (ThomasBirkmaier/ReqSeq-archive#534)", () => {
     const status = workspaceStatusOf(sourceOf([passed(element())]), [], undefined, reader().read);
     expect([status.validate(element()), status.validate(element({}, "use-case"))]).toEqual([
       undefined,
@@ -306,7 +306,7 @@ describe("workspaceStatusOf: validation status (SR-038)", () => {
     ]);
   });
 
-  it("a validation record with a variant gives no status to a non-need, and open to a need (#534 Q2)", () => {
+  it("a validation record with a variant gives no status to a non-need, and open to a need (ThomasBirkmaier/ReqSeq-archive#534 Q2)", () => {
     const [need, requirement] = [element({}, "need"), element()];
     const status = workspaceStatusOf(
       sourceOf([validation(need, { variant: V }), validation(requirement, { variant: V })]),

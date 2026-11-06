@@ -8,7 +8,7 @@
 // (`superseded.ts`) read only items that are complete relation targets (`isRelationTarget`).
 //
 // A view does a lookup instead of a walk over the store (N-036): in the incoming relation index of
-// ADR-0008 when the workspace has it for the store (a chain ran, and saves carry it; #272), else in
+// ADR-0008 when the workspace has it for the store (a chain ran, and saves carry it; ThomasBirkmaier/ReqSeq-archive#272), else in
 // the succession index, collected once per element store (`successionIndexState`) by the repository
 // and UUID the relations point at. The succession index costs about 23 ms per store and is not
 // carried; building the incoming index for a view would cost 0.3 to 0.5 s.
@@ -159,7 +159,7 @@ const fromIncoming = (
 /**
  * The successions of `record` as `store` holds them, for a view built on `store` with `metamodel`
  * (`ElementViewInput.successions`): from the incoming relation index of that store when the
- * workspace has it (#272), else from the workspace's succession index of that store, built when
+ * workspace has it (ThomasBirkmaier/ReqSeq-archive#272), else from the workspace's succession index of that store, built when
  * there is none or it was built with another metamodel. Synchronous and without loading any state,
  * so it cannot fail after a command wrote its file. Builds no index when `record`'s status is valid,
  * and never the incoming one.

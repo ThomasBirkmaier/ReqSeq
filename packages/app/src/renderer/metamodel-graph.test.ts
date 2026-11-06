@@ -114,7 +114,7 @@ describe("metamodelGraph", () => {
       "any > type:requirement: Concerns · any source",
       "any > any: Refines · any source and target",
       "type:decision > any: Traces to · any target",
-      // The relation property packages (#619 Q1), from the type that has it as its own only.
+      // The relation property packages (ThomasBirkmaier/ReqSeq-archive#619 Q1), from the type that has it as its own only.
       "type:requirement > type:package: Package",
     ]);
   });
@@ -127,7 +127,7 @@ describe("metamodelGraph", () => {
           types,
           relations: [
             relation("from-any", { "target-types": ["a"] }),
-            // Open source, two target types: one curve per target type, each with the hint (#619 Q2).
+            // Open source, two target types: one curve per target type, each with the hint (ThomasBirkmaier/ReqSeq-archive#619 Q2).
             relation("to-two", { "target-types": ["b", "c"] }),
             relation("to-any", { "source-types": ["a"] }),
             relation("both", {}),

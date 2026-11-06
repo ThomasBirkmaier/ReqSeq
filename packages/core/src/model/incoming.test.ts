@@ -244,7 +244,7 @@ describe("incoming relation index (ADR-0008)", () => {
   });
 });
 
-describe("incoming relation index carried over a change of the store (ADR-0008, #184, #267)", () => {
+describe("incoming relation index carried over a change of the store (ADR-0008, ThomasBirkmaier/ReqSeq-archive#184, ThomasBirkmaier/ReqSeq-archive#267)", () => {
   const openFixture = async (): Promise<{ fixture: FixtureWorkspace; workspace: Workspace }> => {
     const fixture = await createFixtureWorkspace({ files: FILES });
     onTestFinished(() => fixture.cleanup());

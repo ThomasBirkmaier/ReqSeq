@@ -53,7 +53,7 @@ describe("reqseq evidence coverage (SR-036)", () => {
   it("[SR-036/AK2] reqseq evidence coverage lists the requirements behind each number, as readable output too", async () => {
     const result = await coverage({ selection: { where: { type: ["need"] } } }, []);
     expect([result.code, result.stderr]).toEqual([0, ""]);
-    // By short ID and title, as other listings (#588); `--json` keeps the UUIDs.
+    // By short ID and title, as other listings (ThomasBirkmaier/ReqSeq-archive#588); `--json` keeps the UUIDs.
     expect(result.stdout).toContain(
       "withChildren:\n        - N-0000a1  See the wind\n      withoutChildren:\n        - N-0000a2  Warn of storms\n",
     );
@@ -61,7 +61,7 @@ describe("reqseq evidence coverage (SR-036)", () => {
     expect(result.stdout).not.toContain("names:");
   });
 
-  it("[SR-036/AK2] reqseq evidence coverage --json keeps the UUIDs and names them in names (#588)", async () => {
+  it("[SR-036/AK2] reqseq evidence coverage --json keeps the UUIDs and names them in names (ThomasBirkmaier/ReqSeq-archive#588)", async () => {
     const result = await coverage({ selection: { where: { type: ["need"] } } });
     expect([result.code, result.stderr]).toEqual([0, ""]);
     const out = JSON.parse(result.stdout) as Output;

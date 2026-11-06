@@ -92,7 +92,7 @@ function exportDir() {
 
 const read = (dir, type, uuid) => fs.readFileSync(path.join(dir, elementPath(type, uuid)), "utf8");
 
-describe("spec migration (Logseq export -> ReqSeq workspace, #326)", () => {
+describe("spec migration (Logseq export -> ReqSeq workspace, ThomasBirkmaier/ReqSeq-archive#326)", () => {
   it("converts an export into a workspace that ReqSeq checks without findings beyond the known ones", async () => {
     const exp = readExport(exportDir());
     const plan = buildWorkspace(exp);

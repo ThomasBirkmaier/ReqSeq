@@ -1,6 +1,6 @@
 // `reqseq hint confirm` end to end (SR-027, ADR-0009): the built binary with the product commands on
 // fixtures/SR-025/outdated, its exit code, its JSON and the files it writes. Confirming in the app
-// comes with the app in stage 3 (#127 option 1); core and this test cover the function now.
+// comes with the app in stage 3 (ThomasBirkmaier/ReqSeq-archive#127 option 1); core and this test cover the function now.
 // fixtures/SR-045/core-changed for confirming a changed core requirement (SR-045 AK2).
 // Run after `pnpm build` with `pnpm test:e2e`.
 import fs from "node:fs/promises";
@@ -85,7 +85,7 @@ describe("reqseq hint confirm (SR-027)", () => {
     expect(again.stdout).toContain("hint.not-found");
   });
 
-  it("[SR-027/AK2] confirms all hints that point at an element, then all hints about one, without their IDs (#310)", async () => {
+  it("[SR-027/AK2] confirms all hints that point at an element, then all hints about one, without their IDs (ThomasBirkmaier/ReqSeq-archive#310)", async () => {
     const ws = await changed();
     const [validity, derives, link] = await hints(ws);
     const N = "5e025a7d-2b4f-4c61-9d08-0a0000000001";

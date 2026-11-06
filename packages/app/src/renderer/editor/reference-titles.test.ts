@@ -2,7 +2,7 @@
 // SR-066 AK2 and D-058: a reference to another repository has the short ID as its label in the file; the
 // editor shows the title of its target instead when the target is here, asked once of core.
 // happy-dom fires `selectionchange` inside a CodeMirror update; the root vitest config loads this setup, a
-// run in packages/app needs it too (#460).
+// run in packages/app needs it too (ThomasBirkmaier/ReqSeq-archive#460).
 import "../../../../../scripts/test-support/dom-selection.mjs";
 import { EditorView } from "@codemirror/view";
 import { act, createElement } from "react";

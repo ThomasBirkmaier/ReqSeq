@@ -119,14 +119,14 @@
         },
         "identifier": {
           "type": "string",
-          "description": "The value of its property with the meaning `identifier` (an ID from another source such as SR-036, #305), for display next to `shortId`; left out when it has none. The property itself stays under `properties`."
+          "description": "The value of its property with the meaning `identifier` (an ID from another source such as SR-036, ThomasBirkmaier/ReqSeq-archive#305), for display next to `shortId`; left out when it has none. The property itself stays under `properties`."
         },
         "type": {
           "$ref": "common.schema.json#/$defs/key"
         },
         "status": {
           "$ref": "common.schema.json#/$defs/key",
-          "description": "The status key as written; left out when the element has none (a type without status, #306)."
+          "description": "The status key as written; left out when the element has none (a type without status, ThomasBirkmaier/ReqSeq-archive#306)."
         },
         "title": {
           "type": "string"
@@ -189,7 +189,7 @@
         },
         "emergent": {
           "type": "boolean",
-          "description": "SR-035: true when the element's property with the meaning `emergent` holds the choice `yes` (assumption, spec question #591); only true is given, left out otherwise. An emergent requirement is never `indirect`: without an own verification record in a view it is `open` there."
+          "description": "SR-035: true when the element's property with the meaning `emergent` holds the choice `yes` (assumption, spec question ThomasBirkmaier/ReqSeq-archive#591); only true is given, left out otherwise. An emergent requirement is never `indirect`: without an own verification record in a view it is `open` there."
         },
         "properties": {
           "type": "object",
@@ -212,7 +212,7 @@
         },
         "validation": {
           "$ref": "common.schema.json#/$defs/validationStatus",
-          "description": "SR-038: the Validierungsstatus from the validation records of the core (no `variant`) against the element's current version; the newest record of that version decides, only records of older versions give `outdated`. Given for every element whose type has the meaning `need` (`open` without record) and for every other element with a validation record; left out otherwise (assumption, spec question #534). Never inherited from children; never the element's `status` (D-030). `inconclusive` when that record is inconclusive (SR-172 AK2); on a tie at the newest date `failed` before `inconclusive` before `validated` (assumption, spec question #807)."
+          "description": "SR-038: the Validierungsstatus from the validation records of the core (no `variant`) against the element's current version; the newest record of that version decides, only records of older versions give `outdated`. Given for every element whose type has the meaning `need` (`open` without record) and for every other element with a validation record; left out otherwise (assumption, spec question ThomasBirkmaier/ReqSeq-archive#534). Never inherited from children; never the element's `status` (D-030). `inconclusive` when that record is inconclusive (SR-172 AK2); on a tie at the newest date `failed` before `inconclusive` before `validated` (assumption, spec question #807)."
         },
         "validationReason": {
           "type": "string",
@@ -250,15 +250,15 @@
         },
         "repository": {
           "type": "string",
-          "description": "Workspace name of the repository of the other end (#416): the one the relation names, the source's own when it names none; for `direction: in` the source's (the other end: a successor, or the source of any incoming relation). Given in every `targetState`, as the name it stores for `inaccessible` and `unknown-repository`; left out only when the stored `repository` is not text. With `id` it names the target (`element.get` with `ref` and `repository`, SR-088; an `ambiguous` target also needs `file`; for `unknown-repository` the name is not a repository of the workspace)."
+          "description": "Workspace name of the repository of the other end (ThomasBirkmaier/ReqSeq-archive#416): the one the relation names, the source's own when it names none; for `direction: in` the source's (the other end: a successor, or the source of any incoming relation). Given in every `targetState`, as the name it stores for `inaccessible` and `unknown-repository`; left out only when the stored `repository` is not text. With `id` it names the target (`element.get` with `ref` and `repository`, SR-088; an `ambiguous` target also needs `file`; for `unknown-repository` the name is not a repository of the workspace)."
         },
         "shortId": {
           "$ref": "common.schema.json#/$defs/shortId",
-          "description": "Of the other end when it is available; of a target in a repository that is not on this machine with the prefix `UNKNOWN`, since its type is not known (SR-006 AK1, spec question #154)."
+          "description": "Of the other end when it is available; of a target in a repository that is not on this machine with the prefix `UNKNOWN`, since its type is not known (SR-006 AK1, spec question ThomasBirkmaier/ReqSeq-archive#154)."
         },
         "identifier": {
           "type": "string",
-          "description": "Identifier of the other end (#305), only when it is available locally and has one."
+          "description": "Identifier of the other end (ThomasBirkmaier/ReqSeq-archive#305), only when it is available locally and has one."
         },
         "title": {
           "type": "string",
@@ -343,6 +343,10 @@
           "type": "integer",
           "minimum": 1,
           "description": "The line of the `<testcase>` in a JUnit file; 1 for a Markdown record."
+        },
+        "evidenceSource": {
+          "type": "string",
+          "description": "Where the evidence of the record is, as a person reads it (SR-032 AK1): `evidence` when given and not empty; else the record file, `<repository>/<file>` (`<file>` alone without `repository`) and `:<line>` when `line` is given; left out when the record has neither. Not an evidence location of the workspace file. Text only, never opened."
         },
         "className": {
           "type": "string",
@@ -463,7 +467,7 @@
     },
     "verificationDegree": {
       "type": "object",
-      "description": "SR-037: the verification degree of a selection in one view. Counted are the requirements of the selection (type with the meaning `requirement`) whose status the metamodel does not mark invalid (AK3, D-044) and that have a verification status in the view (spec question #592).",
+      "description": "SR-037: the verification degree of a selection in one view. Counted are the requirements of the selection (type with the meaning `requirement`) whose status the metamodel does not mark invalid (AK3, D-044) and that have a verification status in the view (spec question ThomasBirkmaier/ReqSeq-archive#592).",
       "required": ["total", "counts"],
       "properties": {
         "share": {

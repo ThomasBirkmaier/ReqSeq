@@ -30,7 +30,7 @@ export interface McpToolList {
 /**
  * A tool as the server lists it: a self-contained input schema, and the catalog command it calls. No output
  * schema: MCP does not require one for structured content, and the output schemas were four fifths of the
- * list (#303). schemas/generated/mcp-tools.json keeps them as the contract.
+ * list (ThomasBirkmaier/ReqSeq-archive#303). schemas/generated/mcp-tools.json keeps them as the contract.
  */
 export interface ServerTool extends Omit<McpTool, "outputSchema"> {
   readonly command: string;
@@ -106,7 +106,7 @@ const flat = (node: unknown): JsonSchema => mapRefs(node, flatRef) as JsonSchema
 /**
  * The shared definitions one by one, flat: `common.uuid` for a definition of a file, `data-export` for a
  * whole file (without its `$defs`, which are entries of their own). So a tool schema carries only the
- * definitions it reaches, not whole files (#303), in the `#/$defs/<name>` form that clients resolve best.
+ * definitions it reaches, not whole files (ThomasBirkmaier/ReqSeq-archive#303), in the `#/$defs/<name>` form that clients resolve best.
  */
 const flatDefinitions = (contracts: Contracts): Record<string, JsonSchema> => {
   const flatDefs: Record<string, JsonSchema> = {};

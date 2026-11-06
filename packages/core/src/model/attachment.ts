@@ -1,4 +1,4 @@
-// Images of an element (SR-097, ADR-0004 "Text and inline references", spec question #334 option
+// Images of an element (SR-097, ADR-0004 "Text and inline references", spec question ThomasBirkmaier/ReqSeq-archive#334 option
 // 1): `element.addAttachment` copies an image into the folder named like the element file without
 // `.md`, next to it (`requirements/SR-825b7146fb54/layout.png`), and gives the Markdown that embeds
 // it with a relative link. The text is not changed: the editor (or any caller) inserts the Markdown
@@ -216,8 +216,9 @@ const encodeSegment = (segment: string): string =>
 
 /**
  * `element.addAttachment` (SR-097): copies the image at `input.sourcePath` into the image folder of
- * the element `input.ref` and returns the file (relative to the workspace root, `/`) and the
- * Markdown that embeds it relatively. See the head of this file.
+ * the element `input.ref` (the copy `input.repository` and `input.file` name, SR-088, #821) and
+ * returns the file (relative to the workspace root, `/`) and the Markdown that embeds it relatively.
+ * See the head of this file.
  */
 export const addAttachment = async (
   workspace: Workspace,
@@ -227,7 +228,10 @@ export const addAttachment = async (
   const metamodel = await workspace.get(metamodelState);
   const store = await workspace.get(elementStoreState);
   const shortIds = await workspace.get(shortIdState);
-  const record = resolveRef(store, shortIds, input.ref);
+  const record = resolveRef(store, shortIds, input.ref, {
+    repository: input.repository,
+    file: input.file,
+  });
   assertElementWritable(metamodel, record);
   const source = await readSource(workspace.root, input.sourcePath);
   const { repository, current } = await readUnchanged(workspace, layout, record);
@@ -240,7 +244,7 @@ export const addAttachment = async (
     });
   }
   const asGiven = elementFolder === "." ? stem : `${elementFolder}/${stem}`;
-  // The folder as the walk sees it: spelled as on disk where only the normal form differs (#194).
+  // The folder as the walk sees it: spelled as on disk where only the normal form differs (ThomasBirkmaier/ReqSeq-archive#194).
   const folder = path.posix.dirname(
     await refuseUnlisted(layout, repository, `${asGiven}/${source.stem}${source.extension}`),
   );

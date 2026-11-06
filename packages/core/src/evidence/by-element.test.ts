@@ -1,6 +1,6 @@
 // The evidence index (ADR-0012 "Block and state"): records by element, test cases seen from one element
 // (`$defs/testCase`), and the one rule of "has a verification record" that the filter, the chain and
-// the coverage share. Enabler tests of the evidence block (#535).
+// the coverage share. Enabler tests of the evidence block (ThomasBirkmaier/ReqSeq-archive#535).
 import { describe, expect, it } from "vitest";
 import { evidenceIndex, hasVerificationRecord, newestFirst, sortNewestFirst } from "./by-element.js";
 import type { EvidenceRecord, SkippedTestCase } from "./record.js";
@@ -60,7 +60,7 @@ describe("evidenceIndex", () => {
     expect(sortNewestFirst(all)).toEqual([...all].sort(newestFirst));
   });
 
-  it("evidenceIndex gives each record its position in the records as given (#698)", () => {
+  it("evidenceIndex gives each record its position in the records as given (ThomasBirkmaier/ReqSeq-archive#698)", () => {
     const first = record(A, "2026-01-01T10:00:00Z", { repository: "zeta" });
     const second = record(A, "2026-01-01T10:00:00Z", { repository: "alpha" });
     const index = evidenceIndex([first, second]);
@@ -207,7 +207,7 @@ describe("hasVerificationRecord", () => {
     ]);
     expect(hasVerificationRecord(index, A, core, false)).toBe(true);
     expect(hasVerificationRecord(index, A, variant(V), false)).toBe(false);
-    // Result and version do not count (spec question #527); a record for one variant counts only there (SR-047 AK1).
+    // Result and version do not count (spec question ThomasBirkmaier/ReqSeq-archive#527); a record for one variant counts only there (SR-047 AK1).
     expect(hasVerificationRecord(index, B, variant(V), false)).toBe(true);
     expect(hasVerificationRecord(index, B, variant(W), false)).toBe(false);
     expect(hasVerificationRecord(index, B, core, false)).toBe(false);

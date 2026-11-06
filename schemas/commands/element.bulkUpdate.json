@@ -46,7 +46,7 @@
       "confirm": {
         "type": "boolean",
         "default": false,
-        "description": "Write the change; without it nothing is written. A written file also gets the current titles of its same-repository relation targets (decision on #307), which the preview does not show."
+        "description": "Write the change; without it nothing is written. A written file also gets the current titles of its same-repository relation targets (decision on ThomasBirkmaier/ReqSeq-archive#307), which the preview does not show."
       },
       "expected": {
         "type": "integer",

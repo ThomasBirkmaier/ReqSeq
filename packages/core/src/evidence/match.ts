@@ -9,7 +9,7 @@
 //   Datensatz verweist auf eine ID, die es nicht gibt, wenn er gelesen wird, dann zeigt das Tool
 //   einen Hinweis." It names the record's file and line and the UUID as `targetId`, not as
 //   `elementId`: there is no such element. It is no confirmable hint (`hint.list`); a corrected
-//   record settles it (spec question #533 Q2, assumption).
+//   record settles it (spec question ThomasBirkmaier/ReqSeq-archive#533 Q2, assumption).
 // - `evidence.ambiguous-element` (warning) for a record whose UUID has several copies (SR-088): the
 //   record cannot be assigned to one of them. The UUID is its `targetId` too: the problem is about
 //   the record, which is no hint (`isHint` of `hint.list` needs an `elementId`).
@@ -17,7 +17,7 @@
 //   type without the meaning `requirement` (D-012: a verification names a requirement). Such a record
 //   counts for no status, so a JUnit test case naming a need (always a verification, ADR-0012) no
 //   longer passes silently. Validation records are not checked: one of any element type counts for
-//   its validation status (#534 assumption, `hasValidationStatus`). Left out while the metamodel is
+//   its validation status (ThomasBirkmaier/ReqSeq-archive#534 assumption, `hasValidationStatus`). Left out while the metamodel is
 //   not valid, since the types then have no meanings.
 // - `evidence.unknown-criterion` (warning, SR-028 AK5: „Gegeben ein Datensatz nennt eine Nummer, die
 //   es in der genannten Fassung des Requirements nicht als Akzeptanzkriterium gibt, wenn er gelesen

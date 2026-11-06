@@ -1,6 +1,6 @@
 // Relations and inline references to missing targets (SR-089, N-065, D-041, D-058). A relation
 // names its target by UUID and, across repositories, by the workspace name of the target's
-// repository; so does an inline reference in the text (decision on spec question #177 (c)). When
+// repository; so does an inline reference in the text (decision on spec question ThomasBirkmaier/ReqSeq-archive#177 (c)). When
 // that repository is on this machine and has no element with the UUID (the target file was removed
 // or the UUID is wrong), the relation or reference is a finding with source and target ID; ReqSeq
 // changes no file. Severity `error`: SR-089 asks for a "Befund", not a "Hinweis", and SR-019 AK2
@@ -10,7 +10,7 @@
 // - `inaccessible` (the repository is in the workspace file but not here): not a finding, SR-006
 //   shows it as not accessible (SR-089 AK2).
 // - `unknown-repository` (the workspace file lists no such repository): not a finding either; it is
-//   no "lokal vorhandenes Repository" and counts like an inaccessible one (spec question #193).
+//   no "lokal vorhandenes Repository" and counts like an inaccessible one (spec question ThomasBirkmaier/ReqSeq-archive#193).
 // - `ambiguous`: SR-088 reports the files that share the UUID.
 // Checked are the items of relation kinds and the values of relation-valued properties
 // (`relationItems`: a property wins over a relation kind), whatever the source's type. An item
@@ -255,7 +255,7 @@ export const allMissingTargetFindings = (context: MissingTargetContext): readonl
  * `workspace.check` (SR-019): per element in store order its relations, then its references.
  * Reads every file with relation findings again for their lines (`findingLocator`); a reference
  * has its line from the store. Kept until the element store or the metamodel is reset. It has no
- * `carry` hook (ADR-0008, #184); one added later must also look again at every source whose
+ * `carry` hook (ADR-0008, ThomasBirkmaier/ReqSeq-archive#184); one added later must also look again at every source whose
  * relations or references point at a UUID of a changed file, not only at the changed files.
  */
 export const missingTargetProblemsState = defineWorkspaceState(
@@ -264,7 +264,7 @@ export const missingTargetProblemsState = defineWorkspaceState(
     const layout = await workspace.get(workspaceLayoutState);
     const store = await workspace.get(elementStoreState);
     const metamodel = await workspace.get(metamodelState);
-    // Nothing against a metamodel that is not valid: its errors are the findings (#208, #220).
+    // Nothing against a metamodel that is not valid: its errors are the findings (ThomasBirkmaier/ReqSeq-archive#208, ThomasBirkmaier/ReqSeq-archive#220).
     if (!metamodel.valid) {
       return [];
     }

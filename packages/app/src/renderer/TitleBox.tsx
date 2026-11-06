@@ -1,5 +1,5 @@
-// The title of an element, edited where it is shown: in its heading (#621; SR-104, SR-073 AK1; spec question
-// #676). One line of plain text (SR-127: the title stays plain text), no box, label or input (D-062). While
+// The title of an element, edited where it is shown: in its heading (ThomasBirkmaier/ReqSeq-archive#621; SR-104, SR-073 AK1; spec question
+// ThomasBirkmaier/ReqSeq-archive#676). One line of plain text (SR-127: the title stays plain text), no box, label or input (D-062). While
 // it is not edited the heading shows the title as text (the ID, muted, for an empty title); entering it (Enter
 // on the field, a click, "Edit title", Up from the first line of the text) puts an editor into the same
 // heading, which stays for the life of the buffer (`open`), so the buffer has no second editor before. Keys:

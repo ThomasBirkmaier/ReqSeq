@@ -58,7 +58,7 @@ const ready = async (electron: ShellElectron, options: ShellOptions, core: CoreP
     // Linux shows this icon on the window and in the task bar; macOS and Windows take it from the bundle (#410).
     ...(options.platform === "linux" ? { icon: path.join(options.paths.renderer, "icon.png") } : {}),
     // macOS: no native title bar; the traffic lights lie on the sheet, whose top strip moves the window
-    // and names it in the colours of the scheme (#490). Windows and Linux keep the native frame (ADR-0010).
+    // and names it in the colours of the scheme (ThomasBirkmaier/ReqSeq-archive#490). Windows and Linux keep the native frame (ADR-0010).
     // The lights are pinned to the middle of the 38 px strip: the inset of `hiddenInset` differs between macOS versions.
     ...(options.platform === "darwin"
       ? { titleBarStyle: "hiddenInset" as const, trafficLightPosition: { x: 14, y: 12 } }

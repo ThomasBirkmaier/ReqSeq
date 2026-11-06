@@ -17,13 +17,13 @@ export const defaultStandardModelFile: string = fileURLToPath(
   new URL("../../../schemas/examples/metamodel/standard-model.yaml", import.meta.url),
 );
 
-/** The identifier property the generator adds to the metamodel it writes (#305), as the ReqSeq spec has it. */
+/** The identifier property the generator adds to the metamodel it writes (ThomasBirkmaier/ReqSeq-archive#305), as the ReqSeq spec has it. */
 export const SPEC_ID_KEY = "spec-id";
 
 const TOP_PROPERTIES = "\nproperties:\n";
 
 /**
- * `model` (metamodel file text) with the property `spec-id` of meaning `identifier` (#305) added to
+ * `model` (metamodel file text) with the property `spec-id` of meaning `identifier` (ThomasBirkmaier/ReqSeq-archive#305) added to
  * the property list and first to every type's `properties`, so that the elements the generator
  * writes carry a spec ID such as `SR-036` and the performance runs cover identifiers. Unchanged
  * when the text has no top-level `properties:` list or a property with that meaning already.
@@ -437,7 +437,7 @@ const draftsFor = (elements: number, random: Random, specIds: boolean): Pools =>
           type: spec.key,
           status: random.next() < 0.7 ? "draft" : "approved",
           title,
-          // A spec ID unique per type (#305); no random draw, so everything else stays as it was.
+          // A spec ID unique per type (ThomasBirkmaier/ReqSeq-archive#305); no random draw, so everything else stays as it was.
           ...(specIds ? { [SPEC_ID_KEY]: `${spec.prefix}-${String(position + 1).padStart(3, "0")}` } : {}),
           ...propertiesFor(spec, title, random),
         },
@@ -556,7 +556,7 @@ const addVariantRules = (pools: Pools, options: VariantRulesOptions): void => {
  * `drafts[index]`, each to an earlier element, whose version is already known (ADR-0004, D-058):
  * `[<title>](reqseq:<uuid>?version=<version>)` within the source's repository,
  * `[<prefix>-<6 digits>](…&repository=<name>)` across. Returns how many were added. So the cold
- * load and the cache measure reading references too (#240).
+ * load and the cache measure reading references too (ThomasBirkmaier/ReqSeq-archive#240).
  */
 const withReferences = (draft: Draft, drafts: readonly Draft[], index: number, random: Random): number => {
   const count = index === 0 ? 0 : random.below(5);

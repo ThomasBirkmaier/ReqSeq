@@ -692,11 +692,11 @@ describe("a reference written by the [[ search (SR-066)", () => {
   });
 });
 
-/** An inline reference that names the repository of its target (D-058, #240). */
+/** An inline reference that names the repository of its target (D-058, ThomasBirkmaier/ReqSeq-archive#240). */
 const across = (id: string, repository: string, version?: string): string =>
   `reqseq:${id}?${version === undefined ? "" : `version=${version}&`}repository=${repository}`;
 
-describe("inline references across repositories (D-058, decision on #177 (c))", () => {
+describe("inline references across repositories (D-058, decision on ThomasBirkmaier/ReqSeq-archive#177 (c))", () => {
   it("[SR-005/AK1] names the repository of a target in another repository, and none within the source's own", async () => {
     const opened = await open();
     const out = await run(opened, "element.create", {
@@ -808,7 +808,7 @@ describe("inline references across repositories (D-058, decision on #177 (c))", 
   });
 });
 
-describe("inline references without repository (D-058, decision on #177 (c))", () => {
+describe("inline references without repository (D-058, decision on ThomasBirkmaier/ReqSeq-archive#177 (c))", () => {
   it("[SR-005/AK1] puts the repository right after the version and keeps other parameters", async () => {
     const opened = await open();
     const ctx = await context(opened);

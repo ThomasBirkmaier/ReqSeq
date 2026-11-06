@@ -11,6 +11,14 @@ import { evidenceRecordsState } from "../../evidence/index.js";
 import { STANDARD_MODEL_TEXT as STANDARD } from "../../metamodel/standard-model.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
+import {
+  COPIED,
+  COPIED_FILES,
+  GUSTS_COPY,
+  GUSTS_FILE,
+  openCopied,
+  openCopiedFile,
+} from "../copied.test-helper.js";
 
 type Output = CommandOutput<"trace.affected">;
 
@@ -43,7 +51,7 @@ const record = (element: string, version: string, date: string): EvidenceRecord 
   date,
 });
 
-/** Gives `workspace` the evidence records `records` (#127 option 1). */
+/** Gives `workspace` the evidence records `records` (ThomasBirkmaier/ReqSeq-archive#127 option 1). */
 const withRecords = async (workspace: Workspace, records: readonly EvidenceRecord[]): Promise<void> => {
   const empty = workspace.get(evidenceRecordsState);
   expect(await empty).toEqual([]);
@@ -176,7 +184,12 @@ describe("trace.affected (SR-024)", () => {
   it("[SR-024/AK4] lists the records of an older version of the element from the evidence folders, newest first", async () => {
     const workspace = await open();
     const current = await versionOf(workspace, "SR-00b001");
-    const older = record(SPEED, "n1:1111111111111111", "2026-09-01T08:00:00Z");
+    const older = {
+      ...record(SPEED, "n1:1111111111111111", "2026-09-01T08:00:00Z"),
+      repository: "system",
+      file: "evidence/ci/run-1.xml",
+      line: 7,
+    };
     const oldest = record(SPEED, "n1:0000000000000000", "2026-08-01T08:00:00Z");
     const now = record(SPEED, current, "2026-10-01T08:00:00Z");
     await withRecords(workspace, [
@@ -186,7 +199,9 @@ describe("trace.affected (SR-024)", () => {
       record(GUSTS, "n1:2222222222222222", "2026-09-02T08:00:00Z"),
     ]);
     const output = await affected(workspace, { ref: "SR-00b001" });
-    expect(output.records).toEqual([older, oldest]);
+    // Each with its evidence source (#821), on a copy: `oldest` has none.
+    expect(output.records).toEqual([{ ...older, evidenceSource: "system/evidence/ci/run-1.xml:7" }, oldest]);
+    expect(older).not.toHaveProperty("evidenceSource");
     expect(rows(output)).toHaveLength(3);
     expect((await affected(workspace, { ref: "SR-00b004" })).records).toEqual([]);
   });
@@ -219,5 +234,34 @@ describe("trace.affected (SR-024)", () => {
     const error = await affectedError(withoutDerivation, { ref: "SR-00b001" });
     expect(error.code).toBe("metamodel.meaning-unassigned");
     expect(error.message).toContain("trace.affected");
+  });
+
+  it("gives the elements affected by the copy of a UUID two files share that repository names (#821)", async () => {
+    // A requirement of `system` that derives from the copy in `sensor` only.
+    const workspace = await openCopied({
+      "system/requirements/SR-0000000a0821.md":
+        "---\nid: 08210821-0000-4000-8000-0000000a0821\ntype: system-requirement\nstatus: draft\n" +
+        "title: Show gust warnings\nderives-from:\n" +
+        `  - { id: ${GUSTS_COPY}, version: n1:0000000000000000, repository: sensor }\n---\n\nGusts.\n`,
+    });
+    expect((await affectedError(workspace, { ref: GUSTS_COPY })).code).toBe("ref.ambiguous");
+    const sensor = await affected(workspace, { ref: GUSTS_COPY, repository: "sensor" });
+    expect(sensor.affected.map((a) => [a.id, a.repository])).toEqual([
+      ["08210821-0000-4000-8000-0000000a0821", "system"],
+    ]);
+    const system = await affected(workspace, { ref: GUSTS_COPY, repository: "system", file: GUSTS_FILE });
+    expect(system.affected).toEqual([]);
+  });
+
+  it("gives the elements affected by the copy a file alone names, of two in one repository (SR-088, #821)", async () => {
+    const workspace = await openCopiedFile();
+    expect((await affectedError(workspace, { ref: COPIED, repository: "system" })).code).toBe(
+      "ref.ambiguous",
+    );
+    // The requirement's file holds a relation to the shared UUID, so it is affected by either copy.
+    for (const file of COPIED_FILES) {
+      const output = await affected(workspace, { ref: COPIED, file });
+      expect(rows(output)).toEqual([["SR-0fcab6", 1, "derives-from"]]);
+    }
   });
 });

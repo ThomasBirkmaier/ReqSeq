@@ -1,10 +1,10 @@
-// The default output of the CLI for people (ADR-0009, #310): compact lines instead of the whole output
+// The default output of the CLI for people (ADR-0009, ThomasBirkmaier/ReqSeq-archive#310): compact lines instead of the whole output
 // object. Pure layout (ADR-0002 rule 3: no logic, no command named here): the form follows only the
 // shape of the output, and whether the command reads or writes (its catalog `effect`), so every
 // command of the catalog is covered. `--json` prints the output unchanged, `--yaml` all of it.
 //
 // - An element (an object with `shortId` and `title`) is one line, `SHORT-ID  status  title`, with its
-//   identifier next to the short ID when it has one (`SR-3c90b0 (SR-036)`, #305), `[emergent]` when it
+//   identifier next to the short ID when it has one (`SR-3c90b0 (SR-036)`, ThomasBirkmaier/ReqSeq-archive#305), `[emergent]` when it
 //   is marked emergent (SR-035), and its verification status per view at the end, apart from its own
 //   status (`[verification: core verified]`, SR-031, D-030; the children missing for SR-034 as
 //   `core open (missing SR-0000b2)`, the criteria of SR-031 AK5 as `core open 2 of 3 criteria (AK3 not
@@ -45,9 +45,9 @@
 //   element's short ID, the kind, the message and the hint ID when it has one.
 // - A verification degree (`share` next to `counts`, SR-037), at any depth of a value printed as YAML,
 //   shows its share as a percentage rounded down to one decimal (`degreePercent` of core, the rule of
-//   every access, spec question #592 Q3): `share: 60 %`.
+//   every access, spec question ThomasBirkmaier/ReqSeq-archive#592 Q3): `share: 60 %`.
 // - `names` (the elements an output gives elsewhere by UUID only, `common.schema.json#/$defs/elementName`,
-//   #588) is not printed: those UUIDs print as the element instead, `SHORT-ID (IDENTIFIER)  title` in a
+//   ThomasBirkmaier/ReqSeq-archive#588) is not printed: those UUIDs print as the element instead, `SHORT-ID (IDENTIFIER)  title` in a
 //   value printed as YAML (the lists of evidence.coverage, a variant `view`, the details of an element) and in a list of UUIDs one per
 //   line (the lists of variant.diff), `SHORT-ID (IDENTIFIER)` in
 //   the verification status of an element line, and `SHORT-ID  title` as the variant of a record of a
@@ -155,7 +155,7 @@ const isProblem = (value: unknown): value is Rec =>
   typeof value["message"] === "string";
 
 /**
- * A short ID with the identifier next to it when there is one (#305): `SR-3c90b0 (SR-036)`; the
+ * A short ID with the identifier next to it when there is one (ThomasBirkmaier/ReqSeq-archive#305): `SR-3c90b0 (SR-036)`; the
  * short ID alone otherwise.
  */
 const withIdentifier = (shortId: string, identifier: unknown): string =>
@@ -177,11 +177,11 @@ const nameOn = (style: Style | undefined, shortId: string, identifier: unknown):
 /** Names an element by repository and UUID: its short ID when the list has it, else its UUID. */
 type Namer = (repository: string, id: string) => string;
 
-/** An element as `names` gives it (`common.schema.json#/$defs/elementName`, #588). */
+/** An element as `names` gives it (`common.schema.json#/$defs/elementName`, ThomasBirkmaier/ReqSeq-archive#588). */
 const isElementName = (value: unknown): value is Rec & { readonly shortId: string; readonly title: string } =>
   isElement(value) && typeof value["id"] === "string" && typeof value["repository"] === "string";
 
-/** The elements of `names` by UUID (the first of a UUID), when the output has them (#588). */
+/** The elements of `names` by UUID (the first of a UUID), when the output has them (ThomasBirkmaier/ReqSeq-archive#588). */
 type Names = ReadonlyMap<string, Rec & { readonly shortId: string; readonly title: string }>;
 
 /** `names` of an output by UUID (core gives each UUID once); empty when it has none or it is not a list of names. */
@@ -248,7 +248,7 @@ type ViewNamer = (view: string) => string;
 
 /**
  * A view namer from the elements of a list; the elements of `names` first, with their identifier
- * (`SR-3c90b0 (SR-036)`, #588).
+ * (`SR-3c90b0 (SR-036)`, ThomasBirkmaier/ReqSeq-archive#588).
  */
 const viewNamerOf =
   (elements: readonly Rec[], names: Names = new Map()): ViewNamer =>
@@ -278,7 +278,7 @@ const criteriaCountText = (criteria: unknown): string => {
  * their view. A variant or child is named by its short ID from the list, else from the element's own
  * relations (its validity, its incoming relations), else by its UUID: the output gives UUIDs only
  * (`missingChildren`, the open export format), so a child that neither lists is shown as its UUID. An
- * output that names them in `names` (#588) gives them all (`view` takes those first).
+ * output that names them in `names` (ThomasBirkmaier/ReqSeq-archive#588) gives them all (`view` takes those first).
  */
 const verificationText = (element: Rec, view: ViewNamer): string => {
   const entries = listOf(element["verification"]).filter(isRecord);
@@ -1042,16 +1042,6 @@ const evidenceByNode = (chain: Chain): ReadonlyMap<string, Rec> =>
       .map((item) => [nodeKey("", text(item["repository"]), text(item["id"])), item]),
   );
 
-/** Where the Beleg of a record is: its `evidence`, else its record file and line (a JUnit execution). */
-const belegOf = (record: Rec): string => {
-  const evidence = text(record["evidence"]);
-  if (evidence !== "" || text(record["file"]) === "") {
-    return evidence;
-  }
-  const line = record["line"];
-  return `${text(record["repository"])}/${text(record["file"])}${typeof line === "number" ? `:${String(line)}` : ""}`;
-};
-
 /** The acceptance criteria a record names (D-072), `[criteria 1, 3]`; empty for one that holds for all. */
 const criteriaText = (criteria: unknown): string => {
   const numbers = listOf(criteria).filter((n): n is number => typeof n === "number");
@@ -1070,7 +1060,8 @@ const recordLine = (record: Rec, withMethod: boolean, names: Names): string =>
     text(record["result"]),
     reasonText(record["reason"]),
     text(record["item"]),
-    belegOf(record),
+    // Where the Beleg is, as core gives it (#821).
+    text(record["evidenceSource"]),
     text(record["variant"]) === "" ? "" : `[variant ${variantName(text(record["variant"]), names)}]`,
     criteriaText(record["criteria"]),
   );
@@ -1534,7 +1525,7 @@ export function renderHuman(output: unknown, details = true, terminal?: Terminal
   if (hiddenOf(rest) !== undefined) {
     shown.add("hidden");
   }
-  // The elements named by UUID elsewhere name those UUIDs instead of being printed (#588).
+  // The elements named by UUID elsewhere name those UUIDs instead of being printed (ThomasBirkmaier/ReqSeq-archive#588).
   const names = namesIn(rest);
   if (names.size > 0) {
     shown.add("names");

@@ -66,7 +66,7 @@ export const resolveId = (byId: ReadonlyMap<string, readonly ElementRecord[]>, i
 /**
  * Every element file with a shared UUID as a problem with repository, file, line of `id` and the
  * UUID (SR-088 AK1), for `workspace.check` (SR-019). Reads only the files with findings again for
- * the lines. Kept until the element store is reset; carried over a change of the store (#184).
+ * the lines. Kept until the element store is reset; carried over a change of the store (ThomasBirkmaier/ReqSeq-archive#184).
  */
 export const duplicateIdProblemsState = defineWorkspaceState(
   "duplicate-ids",
@@ -77,7 +77,7 @@ export const duplicateIdProblemsState = defineWorkspaceState(
   },
   {
     dependsOn: [elementStoreState],
-    // A save or a watcher batch looks again only at the files of the UUIDs it changed (#184).
+    // A save or a watcher batch looks again only at the files of the UUIDs it changed (ThomasBirkmaier/ReqSeq-archive#184).
     carry: carryStoreUpdate((value, update, workspace) =>
       carryProblems(workspace, value, update, {
         findingsOf: Promise.resolve((element) => duplicateIdFinding(update.to, element)),

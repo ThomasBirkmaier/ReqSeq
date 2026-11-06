@@ -1,4 +1,4 @@
-// element.facets (#425) on fixtures/SR-069/filter (summary at the top of list.test.ts), with extra
+// element.facets (ThomasBirkmaier/ReqSeq-archive#425) on fixtures/SR-069/filter (summary at the top of list.test.ts), with extra
 // files where a value must be shared or odd:
 // - SR b6 (draft, topic Timing, requirement-type written as the name "Functional", in P1);
 // - SR b7 (status review, which the metamodel does not know; topic a mapping; packages: an unknown
@@ -101,7 +101,7 @@ const STANDARD_MODEL = fileURLToPath(
   new URL("../../../../../fixtures/SR-069/filter/metamodel/standard-model.yaml", import.meta.url),
 );
 
-describe("element.facets (#425)", () => {
+describe("element.facets (ThomasBirkmaier/ReqSeq-archive#425)", () => {
   it("counts the statuses of the selection in metamodel order, then other statuses", async () => {
     const ws = await open();
     const plain = await facets(ws, SYSTEM);

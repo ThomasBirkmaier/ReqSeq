@@ -7,7 +7,7 @@
 #
 # - `enrich` (read rights only) checks out the tested commit, builds the CLI and runs `reqseq evidence enrich-junit`
 #   on each JUnit file of the run, against the spec of that commit (D-026). One date for the whole run (its start), so
-#   that the records of one run tie and a failure in any file of it wins over a pass in another (#525 Q2).
+#   that the records of one run tie and a failure in any file of it wins over a pass in another (ThomasBirkmaier/ReqSeq-archive#525 Q2).
 # - `publish` runs no code of the repository: it copies the enriched files onto a branch cut from the current main,
 #   with a GitHub App token, so that the pull request gets the normal CI run that the required checks read (a pull
 #   request made with GITHUB_TOKEN starts none).

@@ -1,4 +1,4 @@
-// Diagnostics for Electron tests of the editor (#573): a log, kept in the page, of what can take the slash
+// Diagnostics for Electron tests of the editor (ThomasBirkmaier/ReqSeq-archive#573): a log, kept in the page, of what can take the slash
 // menu away between the last typed letter and Enter: focus and blur, selection changes, the keys Enter,
 // Escape and Tab, and every editor transaction (typing in one short line), each with the completion state
 // of the editor at that moment. It is printed to standard output only when a test fails, so it is in the
@@ -245,7 +245,7 @@ export const printEventsOnFailure = async (page: Page, testInfo: TestInfo): Prom
   ]);
   process.stdout.write(
     [
-      `--- event log of "${testInfo.title}" (#573) ---`,
+      `--- event log of "${testInfo.title}" (ThomasBirkmaier/ReqSeq-archive#573) ---`,
       ...log,
       "--- page now ---",
       ...now,

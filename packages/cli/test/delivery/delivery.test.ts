@@ -1,4 +1,4 @@
-// Delivery tests of the command line and the MCP server (ADR-0014, ADR-0011, #324): they install the built
+// Delivery tests of the command line and the MCP server (ADR-0014, ADR-0011, ThomasBirkmaier/ReqSeq-archive#324): they install the built
 // artifacts (unpack them) and inspect and run them. Only the release workflow runs them (`pnpm test:delivery`,
 // REQSEQ_DELIVERY_DIR = the folder with the artifacts); on Linux inside a network namespace with loopback only,
 // as a non-root user. A test that cannot run here is skipped with its reason, never left out.

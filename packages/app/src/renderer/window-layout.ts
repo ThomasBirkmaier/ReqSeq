@@ -87,7 +87,7 @@ const nextOther = (buffers: Buffers): string | undefined => buffers[1]?.key;
 
 /**
  * "Split window": the shown buffer stands on the left and stays active, the one used before beside it (A1
- * of #411). The left, whatever side was active before the last unsplit, so the shown buffer never jumps.
+ * of ThomasBirkmaier/ReqSeq-archive#411). The left, whatever side was active before the last unsplit, so the shown buffer never jumps.
  */
 const split = (state: WindowState): WindowState => {
   const shown = state.buffers[0];

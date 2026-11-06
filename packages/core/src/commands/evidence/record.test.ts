@@ -154,7 +154,12 @@ describe("evidence.record (SR-030)", () => {
         await fs.readFile(fixture.path(file)),
       ),
     ).toEqual({ records: [intended] });
-    expect(output).toEqual({ files: [file], record: intended, problems: [] });
+    // The answer names where the evidence is (#821); the file holds no such field.
+    expect(output).toEqual({
+      files: [file],
+      record: { ...intended, evidenceSource: "photos/unit-7.jpg" },
+      problems: [],
+    });
   });
 
   it("[SR-030/AK2] the saved record is read as evidence of the requirement on the same workspace", async () => {
@@ -273,7 +278,7 @@ describe("evidence.record (SR-030)", () => {
     expect(await filesOf(fixture)).toEqual(before);
   });
 
-  it("is refused with workspace.read-only while the metamodel is faulty, and writes nothing (#142 point b)", async () => {
+  it("is refused with workspace.read-only while the metamodel is faulty, and writes nothing (ThomasBirkmaier/ReqSeq-archive#142 point b)", async () => {
     const { fixture, workspace } = await open({
       "metamodel/broken.yaml": "reqseq-metamodel: 1\ntypes: [ { key: x } ]\n",
     });

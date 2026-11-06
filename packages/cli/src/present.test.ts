@@ -35,7 +35,7 @@ const edge = (child: string, parent: string, direction: "up" | "down", cyclic = 
   cyclic,
 });
 
-describe("renderHuman: findings left out (#304)", () => {
+describe("renderHuman: findings left out (ThomasBirkmaier/ReqSeq-archive#304)", () => {
   it("says how many findings severity left out instead of No problems, and does not show hidden as YAML", () => {
     expect(
       renderHuman({
@@ -753,7 +753,7 @@ describe("renderHuman: indirect verification (SR-034)", () => {
   });
 });
 
-describe("renderHuman: elements named by UUID only (#588)", () => {
+describe("renderHuman: elements named by UUID only (ThomasBirkmaier/ReqSeq-archive#588)", () => {
   const C1 = "58858858-0000-4000-8000-0000000000b1";
   const C2 = "58858858-0000-4000-8000-0000000000b2";
   const V1 = "58858858-0000-4000-8000-0000000000c1";
@@ -955,7 +955,7 @@ describe("renderHuman: verification degree (SR-037)", () => {
     );
   });
 
-  it("rounds the share down to one decimal (#592 Q3)", () => {
+  it("rounds the share down to one decimal (ThomasBirkmaier/ReqSeq-archive#592 Q3)", () => {
     const shown = (share: number): string | undefined =>
       renderHuman({ degree: { share, total: 1, counts } })
         .split("\n")
@@ -1034,7 +1034,7 @@ describe("renderHuman: the mark emergent (SR-035)", () => {
   });
 });
 
-describe("renderHuman: identifiers (#305)", () => {
+describe("renderHuman: identifiers (ThomasBirkmaier/ReqSeq-archive#305)", () => {
   it("shows the identifier next to the short ID of an element, its relations, a hint and a chain node", () => {
     const element = {
       id: "u1",
@@ -1332,6 +1332,7 @@ describe("renderHuman: a chain", () => {
       repository: "system",
       file: "evidence/ci/run-2.xml",
       line: 4,
+      evidenceSource: "system/evidence/ci/run-2.xml:4",
     };
     const inspection = {
       date: "2026-10-20T14:00:00Z",
@@ -1339,6 +1340,7 @@ describe("renderHuman: a chain", () => {
       result: "passed",
       item: "Sample",
       evidence: "reports/b4.pdf",
+      evidenceSource: "reports/b4.pdf",
       variant: "v1",
     };
     const output = chain({
@@ -1370,7 +1372,15 @@ describe("renderHuman: a chain", () => {
               className: "tests.test_wind",
               name: "test_speed",
               executed: true,
-              executions: [junit, { ...junit, line: undefined, result: "passed" }],
+              executions: [
+                junit,
+                {
+                  ...junit,
+                  line: undefined,
+                  evidenceSource: "system/evidence/ci/run-2.xml",
+                  result: "passed",
+                },
+              ],
             },
             { name: "manual check", executed: false, executions: [] },
           ],
@@ -1443,6 +1453,7 @@ describe("renderHuman: evidence records and test cases (#275)", () => {
     repository: "system",
     file: "evidence/ci/run-2.xml",
     line: 4,
+    evidenceSource: "system/evidence/ci/run-2.xml:4",
     baselines: [],
   };
   it("prints one line per record and per test case, with the last result and the number of executions", () => {
@@ -1452,6 +1463,7 @@ describe("renderHuman: evidence records and test cases (#275)", () => {
       method: "review",
       result: "passed",
       evidence: "notes.md",
+      evidenceSource: "notes.md",
       version: "n1:ab",
       baselines: ["v1", "v2"],
     };

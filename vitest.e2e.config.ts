@@ -15,7 +15,7 @@ export default defineConfig({
     env: { REQSEQ_VALIDATE_OUTPUT: "1" },
     // Each test spawns node a few times; slow CI machines need more than the default 5 s.
     testTimeout: 30_000,
-    // `agent` prints only failures and the summary: short logs for agents and CI (#392).
+    // `agent` prints only failures and the summary: short logs for agents and CI (ThomasBirkmaier/ReqSeq-archive#392).
     reporters: ["agent", ["junit", { outputFile: "test-results/junit-e2e.xml", addFileAttribute: true }]],
   },
 });

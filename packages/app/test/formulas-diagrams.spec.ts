@@ -1,4 +1,4 @@
-// Formulas in the editor's live preview (SR-096, #108) on the built app: typed with real keys, set by the
+// Formulas in the editor's live preview (SR-096, ThomasBirkmaier/ReqSeq-archive#108) on the built app: typed with real keys, set by the
 // bundled KaTeX with its own fonts, offline, and with a syntax error the error and the source. SR-096 is
 // verified by demonstration; these tests back the record. Keys use ControlOrMeta, so they run on Linux and
 // macOS.

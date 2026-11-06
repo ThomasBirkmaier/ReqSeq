@@ -1,4 +1,4 @@
-// The traceability matrix (SR-125, SR-153, #442) on the built app and the fixture fixtures/SR-125/matrix: Ctrl+T
+// The traceability matrix (SR-125, SR-153, ThomasBirkmaier/ReqSeq-archive#442) on the built app and the fixture fixtures/SR-125/matrix: Ctrl+T
 // on a list, on a package page and on a list with a saved filter shows the matrix that `reqseq trace matrix`
 // gives for the same selection and sort (SR-080 AK2, SR-125 AK6), with its gaps and heads (SR-153 AK3). Keys use ControlOrMeta, so the same
 // tests run on Linux and macOS.
@@ -357,7 +357,7 @@ test.describe("the traceability matrix on a fixture workspace", () => {
     await expect(window.locator('.candidates [role="option"]').first()).toContainText(/Ctrl\+T|⌘T/);
   });
 
-  test("the command prompt's candidates lie above the fixed first column of the matrix (#483)", async () => {
+  test("the command prompt's candidates lie above the fixed first column of the matrix (ThomasBirkmaier/ReqSeq-archive#483)", async () => {
     const { window } = running;
     // A low window, so that the rows of the matrix reach down behind the candidates.
     await window.setViewportSize({ width: 900, height: 320 });

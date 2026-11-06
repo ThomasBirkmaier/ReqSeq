@@ -193,7 +193,7 @@ describe("startShell", () => {
     expect(dark.windows[0]?.options).toMatchObject({ backgroundColor: "#16181b" });
   });
 
-  it("hides the native title bar on macOS only, so that the sheet reaches the top of the window (#490)", async () => {
+  it("hides the native title bar on macOS only, so that the sheet reaches the top of the window (ThomasBirkmaier/ReqSeq-archive#490)", async () => {
     const mac = fakeElectron(false);
     await startShell(mac.electron as unknown as ShellElectron, { ...options(), platform: "darwin" });
     expect(mac.windows[0]?.options).toMatchObject({

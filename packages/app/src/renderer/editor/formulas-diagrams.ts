@@ -1,4 +1,4 @@
-// Formulas and diagrams in the text of an element (SR-096, #108) as one plugin of the editor: the syntax
+// Formulas and diagrams in the text of an element (SR-096, ThomasBirkmaier/ReqSeq-archive#108) as one plugin of the editor: the syntax
 // of formulas, the preview rules of formulas and diagrams, the tooltip under a `$…$` at the caret and the
 // plugin that draws the diagrams. A module constant, so the plugins of the element buffer keep their
 // identity across renders.

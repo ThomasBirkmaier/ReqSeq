@@ -32,7 +32,7 @@ const a = elementBuffer("id-a", "repo", "SR-1 Alpha");
 const b = elementBuffer("id-b", "repo", "SR-2 Beta");
 const list = listBuffer("All elements");
 
-describe("the default sort of the lists (#418)", () => {
+describe("the default sort of the lists (ThomasBirkmaier/ReqSeq-archive#418)", () => {
   it("is by type, then by identifier, and says nothing in the label", () => {
     expect(DEFAULT_SORT).toEqual([
       { by: "type", order: "asc" },
@@ -111,7 +111,7 @@ describe("buffers", () => {
     expect(elementBuffer("u", "r", "x").key).not.toBe(elementBuffer("u", "other", "x").key);
   });
 
-  it("opens a relation target by UUID and the repository of the target (#416)", () => {
+  it("opens a relation target by UUID and the repository of the target (ThomasBirkmaier/ReqSeq-archive#416)", () => {
     expect(
       relationBuffer({
         id: "u",

@@ -21,7 +21,7 @@
     "properties": {
       "levels": {
         "type": "array",
-        "description": "One level per element type of the selection with the meaning `need` or `requirement` (a subtype is its own level), in metamodel order (spec question #527). Elements whose status the metamodel marks invalid are not counted (SR-036 AK4, D-044); other types have no level.",
+        "description": "One level per element type of the selection with the meaning `need` or `requirement` (a subtype is its own level), in metamodel order (spec question ThomasBirkmaier/ReqSeq-archive#527). Elements whose status the metamodel marks invalid are not counted (SR-036 AK4, D-044); other types have no level.",
         "items": {
           "type": "object",
           "properties": {
@@ -41,7 +41,7 @@
             "withEvidence": {
               "type": "integer",
               "minimum": 0,
-              "description": "Only for a type with the meaning `requirement`: how many have at least one verification record in the view (the core without one), of any version and result (`hasVerificationRecord`, spec question #527)."
+              "description": "Only for a type with the meaning `requirement`: how many have at least one verification record in the view (the core without one), of any version and result (`hasVerificationRecord`, spec question ThomasBirkmaier/ReqSeq-archive#527)."
             },
             "elements": {
               "type": "object",
@@ -77,7 +77,7 @@
       },
       "names": {
         "type": "array",
-        "description": "Every element of `levels[].elements`, each once in selection order, so a reader names them by short ID, identifier and title (#588). Left out when no level lists an element.",
+        "description": "Every element of `levels[].elements`, each once in selection order, so a reader names them by short ID, identifier and title (ThomasBirkmaier/ReqSeq-archive#588). Left out when no level lists an element.",
         "items": {
           "$ref": "../common.schema.json#/$defs/elementName"
         }

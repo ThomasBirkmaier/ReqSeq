@@ -1,6 +1,6 @@
 // Inline links and images of a Markdown text (CommonMark subset, ADR-0004): the one scanner that
 // inline references (SR-021, SR-066), outdated checks (SR-025) and the embedded images of the
-// version (ADR-0005 "Files", #178) use. Pure; no file access. ADR-0005 states the subset the
+// version (ADR-0005 "Files", ThomasBirkmaier/ReqSeq-archive#178) use. Pure; no file access. ADR-0005 states the subset the
 // version depends on normatively; this comment describes the implementation.
 //
 // Handled: lines ending with LF, CRLF or CR; inline links `[label](destination "title")` and

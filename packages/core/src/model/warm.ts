@@ -9,8 +9,8 @@ import { shortIdState } from "./short-id.js";
 /**
  * Loads the layout, the metamodel, the element store (through the model cache when the workspace
  * has a cache folder) and the short IDs of `workspace`, and builds the incoming relation index of
- * the store, so that the first chain after a start does not pay for it (SR-082 AK4, #227; a save
- * carries it over, #267). Never rejects: a state that fails to build is dropped, and the first
+ * the store, so that the first chain after a start does not pay for it (SR-082 AK4, ThomasBirkmaier/ReqSeq-archive#227; a save
+ * carries it over, ThomasBirkmaier/ReqSeq-archive#267). Never rejects: a state that fails to build is dropped, and the first
  * command that needs it reports the error.
  */
 export const warmModel = async (workspace: Workspace): Promise<void> => {

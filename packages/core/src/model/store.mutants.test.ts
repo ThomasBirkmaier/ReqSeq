@@ -1,4 +1,4 @@
-// Tests for behaviour that the mutation run of #704 found untested in store.ts: the order of paths,
+// Tests for behaviour that the mutation run of ThomasBirkmaier/ReqSeq-archive#704 found untested in store.ts: the order of paths,
 // a file read again that did not parse before and after, with another result, and snapshots of a
 // write that differ from the store's in one field only.
 import fs from "node:fs/promises";
@@ -56,7 +56,7 @@ describe("updating the element store file by file (SR-007)", () => {
   });
 });
 
-describe("withWrittenFiles with snapshots that differ in one field (#166)", () => {
+describe("withWrittenFiles with snapshots that differ in one field (ThomasBirkmaier/ReqSeq-archive#166)", () => {
   const REQUIREMENT = "5cb1e198-1130-4a13-9d25-88cc6ebc472a";
   const REQUIREMENT_FILE = "requirements/SR-88cc6ebc472a.md";
 

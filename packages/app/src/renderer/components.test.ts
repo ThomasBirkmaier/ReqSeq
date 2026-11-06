@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 // happy-dom fires `selectionchange` inside a CodeMirror update; the root vitest config loads this setup, a
-// run in packages/app needs it too (#460, #573).
+// run in packages/app needs it too (ThomasBirkmaier/ReqSeq-archive#460, ThomasBirkmaier/ReqSeq-archive#573).
 import "../../../../scripts/test-support/dom-selection.mjs";
 import type { DataExportElement } from "@reqseq/core";
 import { Fragment, act, createElement, useLayoutEffect, useReducer } from "react";
@@ -345,7 +345,7 @@ describe("Minibuffer", () => {
     expect(texts('[role="option"] .name')).toEqual(["/req/station"]);
   });
 
-  describe("argument entry of catalog commands (#85)", () => {
+  describe("argument entry of catalog commands (ThomasBirkmaier/ReqSeq-archive#85)", () => {
     it("[SR-108/AK2] marks the matched characters of an argument's candidates", async () => {
       await mount({
         label: "Show relation options SR-1 · kind:",
@@ -534,7 +534,7 @@ describe("Minibuffer", () => {
         expect(query("label").textContent).toBe("No workspace · kind:");
       });
 
-      it("keeps a key typed between the render that shows them and its effect, and searches the newest text (#757)", async () => {
+      it("keeps a key typed between the render that shows them and its effect, and searches the newest text (ThomasBirkmaier/ReqSeq-archive#757)", async () => {
         let resolve: (parts: PromptFill) => void = () => undefined;
         const fill = new Promise<PromptFill>((done) => {
           resolve = done;
@@ -1405,7 +1405,7 @@ describe("ListView, a list", () => {
     });
   });
 
-  it("asks with the default sort, none for a saved filter that holds its own, and `[]` for the workspace order (#418)", async () => {
+  it("asks with the default sort, none for a saved filter that holds its own, and `[]` for the workspace order (ThomasBirkmaier/ReqSeq-archive#418)", async () => {
     const call = fakeCall({ "element.list": () => ({ elements: [], total: 0 }) });
     await listHarness(withSummary(call), filteredList([savedStep("open")]));
     expect(call).toHaveBeenLastCalledWith("element.list", {
@@ -2326,7 +2326,7 @@ describe("ListView, a part of a buffer (SR-112)", () => {
     expect(texts(".row .title")).toEqual(["Title 7"]);
   });
 
-  it("keeps the rows while the elements are asked for again in another sort (#563)", async () => {
+  it("keeps the rows while the elements are asked for again in another sort (ThomasBirkmaier/ReqSeq-archive#563)", async () => {
     const answers: ((value: unknown) => void)[] = [];
     const call = vi.fn(
       () =>
@@ -2490,7 +2490,7 @@ describe("ListView, a search", () => {
   });
 });
 
-describe("LoadingView, a list that replaces another list (#563)", () => {
+describe("LoadingView, a list that replaces another list (ThomasBirkmaier/ReqSeq-archive#563)", () => {
   it("[SR-122/AK4] starts the next list empty: it never shows the rows of the list before under its name, and Ctrl+N waits for its own rows", async () => {
     // The search answers when the test says so, as a slow core does.
     let answerSearch: (value: unknown) => void = () => undefined;
@@ -3268,7 +3268,7 @@ describe("ElementView", () => {
     expect(container.querySelector(".cm-editor")).toBeNull();
   });
 
-  describe("while the element loads: a key, the pointer (#542)", () => {
+  describe("while the element loads: a key, the pointer (ThomasBirkmaier/ReqSeq-archive#542)", () => {
     /** A call whose `element.get` answers only when `answer` is called. */
     const loadingCall = (): { call: Call; answer: () => Promise<void> } => {
       const call = fakeCall({ "element.get": () => ({ element: read() }) });
@@ -3753,7 +3753,7 @@ describe("ElementView", () => {
       expect(controls().resolve).toBeUndefined();
     });
 
-    it("saves again once, silently, when core's store had not read the file the buffer shows (#493 F2)", async () => {
+    it("saves again once, silently, when core's store had not read the file the buffer shows (ThomasBirkmaier/ReqSeq-archive#493 F2)", async () => {
       const { disk, echoed, controls, updates } = await mountDisk();
       await typeInto("!");
       disk.lag = true;
@@ -3933,7 +3933,7 @@ describe("ElementView", () => {
     });
   });
 
-  describe("inline references (#424)", () => {
+  describe("inline references (ThomasBirkmaier/ReqSeq-archive#424)", () => {
     const TARGET = "6adc4fbb-fe6a-4dfa-b9b6-8ccf0e589cf2";
     const SENTENCE = `Nach [D-017](reqseq:${TARGET}?version=n1:1aac78aad3b5e6a8) gilt das.`;
     const outdatedHint = (message = "points to an older version") => ({
@@ -4782,7 +4782,7 @@ describe("ElementView", () => {
       await again(1);
       expect(editorView().state.doc.toString()).toBe("Changed on disk");
       expect(viewOf("topic").state.doc.toString()).toBe("Wind!");
-      // Spec question #488 (1): any change of the file while there is input asks; the block shows the
+      // Spec question ThomasBirkmaier/ReqSeq-archive#488 (1): any change of the file while there is input asks; the block shows the
       // file's value of the box with input, which the change did not touch.
       expect(echoed).toEqual(['SR-036 Measure wind changed on disk. Resolve with "Resolve change on disk"']);
       expect(query('[data-on-disk="topic"]').textContent).toBe("On diskWind");
@@ -6060,7 +6060,7 @@ describe("ElementView", () => {
     expect(muted.querySelector(".state")?.textContent).toBe("inaccessible");
   });
 
-  describe("an outdated relation (#665, #702)", () => {
+  describe("an outdated relation (ThomasBirkmaier/ReqSeq-archive#665, ThomasBirkmaier/ReqSeq-archive#702)", () => {
     const hint = {
       code: "relation.outdated",
       severity: "warning",

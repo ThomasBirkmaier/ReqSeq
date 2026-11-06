@@ -40,4 +40,15 @@ scenariosOf("trace.affected", [
     expect: "error",
   },
   { name: "unknown reference", fixture: AFFECTED, input: { ref: "SR-ffffff" }, expect: "error" },
+  {
+    name: "the elements affected by one copy of a UUID two files share, by repository and file (SR-088, #821)",
+    fixture: { fixture: "SR-088/copied-file", git: true },
+    root: "system",
+    input: {
+      ref: "948a10f1-05c3-4212-bd19-00606ccf2661",
+      repository: "system",
+      file: "copies/N-00606ccf2661.md",
+    },
+    expect: "output",
+  },
 ]);

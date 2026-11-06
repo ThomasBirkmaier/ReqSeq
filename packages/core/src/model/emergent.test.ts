@@ -1,4 +1,4 @@
-// The mark "emergent behaviour" (SR-035, #591 Q1): which value marks an element, and which property
+// The mark "emergent behaviour" (SR-035, ThomasBirkmaier/ReqSeq-archive#591 Q1): which value marks an element, and which property
 // holds it. The output, the filter and the status that use it are tested in
 // commands/evidence/emergent.test.ts.
 import { createFixtureWorkspace } from "@reqseq/testkit";
@@ -33,7 +33,7 @@ const counted = (...properties: { key: string; meaning?: string; kind?: string }
   return { metamodel, reads: () => reads };
 };
 
-describe("the emergent mark (#591 Q1)", () => {
+describe("the emergent mark (ThomasBirkmaier/ReqSeq-archive#591 Q1)", () => {
   it("the choice yes marks; no, the display name, true, a list, null and an absent value do not", () => {
     expect(EMERGENT_CHOICE).toBe("yes");
     expect(isEmergent({ data: { emergent: "yes" } }, "emergent")).toBe(true);
