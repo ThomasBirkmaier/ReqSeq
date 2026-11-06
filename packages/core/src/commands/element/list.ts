@@ -49,8 +49,13 @@ const grouped = async (
   sorted.forEach(({ elements, tree }, index) => {
     if (elements.length > 0) {
       groups.push({ ...heads[index], count: elements.length, offset: rows.length });
-      rows.push(...elements);
-      places.push(...(tree ?? []));
+      // Loops, not spreads: a group can hold every element of N-036 (a spread of so many arguments throws).
+      for (const element of elements) {
+        rows.push(element);
+      }
+      for (const place of tree ?? []) {
+        places.push(place);
+      }
     }
   });
   const end = input.offset + input.limit;

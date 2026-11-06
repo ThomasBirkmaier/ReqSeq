@@ -139,9 +139,10 @@ const naturalCell = (value: string, sign: number, next: Cell | undefined): Cell 
   next,
 });
 
-const NO_RANKS: ReadonlyMap<string, number> = new Map();
+export const NO_RANKS: ReadonlyMap<string, number> = new Map();
 
-const ranksOf = (keys: readonly { readonly key: string }[]): ReadonlyMap<string, number> =>
+/** The ranks of metamodel entries (types, statuses, choices) by key, in their order. */
+export const ranksOf = (keys: readonly { readonly key: string }[]): ReadonlyMap<string, number> =>
   new Map(keys.map((entry, rank) => [entry.key, rank]));
 
 /** How one key reads the sort value of an element (see the file comment). */
@@ -277,6 +278,20 @@ const compareCells = (x: Cell, y: Cell): number => {
         : compareNumber(x.number, y.number);
   return order * x.sign;
 };
+
+/** How a value ranks under one key, ascending: `sortValueOf`, compared with `compareSortValues`. */
+export type SortValue = Cell;
+
+/**
+ * The value as a sort ranks it (see the file comment): a text that is a key of `ranks` by its rank
+ * (metamodel order), then numbers, texts ignoring case, booleans; no value (`undefined`, NaN, a
+ * mapping) last. For callers that order values as the sort does (the groups of SR-149).
+ */
+export const sortValueOf = (value: unknown, ranks: ReadonlyMap<string, number>): SortValue =>
+  cellOf(value, ranks, 1, undefined);
+
+/** How two values of `sortValueOf` compare, ascending. */
+export const compareSortValues: (a: SortValue, b: SortValue) => number = compareCells;
 
 /** How two rows compare: key by key, then by the workspace order. */
 const compareRows = (a: Row, b: Row): number => {

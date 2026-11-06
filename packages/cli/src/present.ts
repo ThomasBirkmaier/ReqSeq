@@ -614,7 +614,12 @@ const groupHeading = (group: ListGroup, continued: boolean): string => {
         : name === ""
           ? value
           : `${name} (${value})`;
-  return `${label} · ${String(group.count)}${continued ? ", continued" : ""}`;
+  // The last group of a grouping by package or another relation property counts the elements whose
+  // targets are all not available (not on this machine or not in the workspace, spec-frage #978).
+  const unavailable = group["unavailable"];
+  const missing =
+    typeof unavailable === "number" ? `, ${String(unavailable)} with targets not available` : "";
+  return `${label} · ${String(group.count)}${missing}${continued ? ", continued" : ""}`;
 };
 
 /**
@@ -636,20 +641,27 @@ const groupedListLines = (rest: Rec, names: Names): string[] | undefined => {
   const view = viewNamerOf(elements, names);
   const start = typeof rest["offset"] === "number" ? rest["offset"] : 0;
   const end = start + elements.length;
+  // With their texts (`withText`), a blank line also before each heading but the first (#397).
+  const withText = elements.some((element) => typeof element["text"] === "string");
+  let headed = false;
   return [
     "elements:",
     ...groups.flatMap((group) => {
       const first = Math.max(group.offset, start);
       const last = Math.min(group.offset + group.count, end);
-      return first < last
-        ? [
-            `  ${groupHeading(group, first > group.offset)}`,
-            // The blank line between elements with texts stays empty.
-            ...listedLines(listed.slice(first - start, last - start), name, view).map((line) =>
-              line === "" ? line : `  ${line}`,
-            ),
-          ]
-        : [];
+      if (first >= last) {
+        return [];
+      }
+      const gap = withText && headed ? [""] : [];
+      headed = true;
+      return [
+        ...gap,
+        `  ${groupHeading(group, first > group.offset)}`,
+        // The blank line between elements with texts stays empty.
+        ...listedLines(listed.slice(first - start, last - start), name, view).map((line) =>
+          line === "" ? line : `  ${line}`,
+        ),
+      ];
     }),
   ];
 };

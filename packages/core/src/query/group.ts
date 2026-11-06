@@ -4,28 +4,36 @@
 // is written (AK5).
 //
 // - Keys: `type` (as written: a subtype is a group of its own, as in element.facets), `status` (as
-//   written), `package` (the available targets of the property with the meaning `packages`,
-//   `metamodel.meaning-unassigned` without one), or the key of a property of kind choice. Any other
-//   key, a free-text property or one that holds relations, is `input.invalid` at `group`: SR-149
-//   groups by "einer Property mit auswählbaren Werten".
-// - The values of an element (AK2): every value of a list, each once; a choice written by its
-//   display name (`findNamed`, as on write and in conditions) is in the group of that choice, one
-//   that names several stays as written. No value (absent, null, [], a mapping) puts the element in
-//   the last group (AK1); so do packages that are all not on this machine (spec-frage #978).
-// - Order of the groups (AK1, "in der Reihenfolge der Sortierung nach diesem Wert"), as the sort
-//   ranks values (`sort.ts`): types, statuses and choices in metamodel order, then other values:
-//   numbers, texts ignoring case (ties as written), booleans; a type the metamodel does not know
-//   after the known ones by its key. Packages, which are no sort key, by title ignoring case, then
-//   short ID, the order of element.facets (spec-frage #978).
+//   written), `package` (the property with the meaning `packages`, `metamodel.meaning-unassigned`
+//   without one), or the key of a property whose values element.facets offers (`offersValues`, the
+//   one rule of "Property mit auswählbaren Werten", SR-124, SR-132): choice and relation properties
+//   always, text, number and date when they have few values shared over the workspace (a topic, not a
+//   title). Any other key, a relation kind among them, is `input.invalid` at `group`.
+// - The values of an element (AK2): every value of a list, each once. A choice written by its display
+//   name (`findNamed`, as on write and in conditions) is in the group of that choice; one that names
+//   several stays as written. A relation property gives its available targets (as the conditions read
+//   them). No value (absent, null, [], a mapping) puts the element in the last group (AK1); so do
+//   targets that are all not available (spec-frage #978), which the last group counts as `unavailable`.
+//   A status is read as the status filter and element.facets read it, a text only: a status written
+//   as a list puts the element in the last group (the sort would take its first item).
+// - Order of the groups (AK1, "in der Reihenfolge der Sortierung nach diesem Wert"): the values as
+//   the sort ranks them (`sortValueOf`, `compareSortValues` of sort.ts): types, statuses and choices
+//   in metamodel order, then numbers, texts ignoring case, booleans. Targets, which are no sort key,
+//   by title ignoring case, then short ID, the order of element.facets (spec-frage #978).
 // - Cost (N-036): one pass over the selection with one map lookup per value, one sort of the
-//   distinct values. No file is read.
+//   distinct values; for free text the facets rule once over the store, which stops at a property
+//   with too many values. No file is read.
 import type { CommandName } from "../catalog.js";
+import type { MetamodelProperty } from "../generated/types.js";
 import { findNamed, keyDefinition } from "../metamodel/index.js";
 import type { ElementRecord } from "../model/index.js";
-import { identifierField, relationKey, resolveTarget, titleKeyOrEmpty } from "../model/index.js";
+import { identifierField, resolveTarget, titleKeyOrEmpty } from "../model/index.js";
 import { validityEntries, validityTarget } from "../variants/index.js";
-import { fold, invalidAt, propertyFor, valuesOf } from "./context.js";
+import { invalidAt, propertyFor, valuesOf } from "./context.js";
+import { offersValues } from "./facets.js";
 import type { Selected } from "./selection.js";
+import type { SortValue } from "./sort.js";
+import { compareSortValues, NO_RANKS, ranksOf, sortValueOf } from "./sort.js";
 
 type Scalar = string | number | boolean;
 
@@ -35,6 +43,8 @@ export interface GroupHead {
   readonly name?: string;
   readonly title?: string;
   readonly identifier?: string;
+  /** Last group of a relation property only: its elements that name only targets not available. */
+  readonly unavailable?: number;
 }
 
 /** The groups of a selection: their heads in order, and the groups of each element by index. */
@@ -45,15 +55,10 @@ export interface Grouping {
   readonly groupsOf: (element: ElementRecord) => readonly number[];
 }
 
-/** A distinct value while the groups are found, with what orders it. */
+/** A distinct value while the groups are found: its heading and how it ranks. */
 interface Found {
   readonly head: GroupHead;
-  /** 0 ranked by the metamodel, 1 a number, 2 a text, 3 a boolean. */
-  readonly kind: number;
-  readonly number: number;
-  /** The folded text and the text as written (texts, packages). */
-  readonly text: string;
-  readonly raw: string;
+  readonly rank: SortValue;
 }
 
 /** A distinct value and, once ordered, the index of its group. */
@@ -62,120 +67,104 @@ interface Slot {
   index: number;
 }
 
-/** The values of one element under the key, each as its map key and how it is found. */
-type Reader = (element: ElementRecord, add: (id: string, found: () => Found) => void) => void;
+/** What a reader tells of one element: each value by its map key, and a target that is not available. */
+interface Sink {
+  readonly add: (id: string, found: () => Found) => void;
+  readonly unavailable: () => void;
+}
 
-const ranked = (rank: number, head: GroupHead): Found => ({ head, kind: 0, number: rank, text: "", raw: "" });
-
-const textual = (head: GroupHead, raw: string): Found => ({ head, kind: 2, number: 0, text: fold(raw), raw });
-
-/** A value of no metamodel rank: numbers, texts, booleans (see the file comment). */
-const plain = (value: Scalar): Found =>
-  typeof value === "string"
-    ? textual({ value }, value)
-    : { head: { value }, kind: typeof value === "number" ? 1 : 3, number: Number(value), text: "", raw: "" };
+/** The values of one element under the key. */
+type Reader = (element: ElementRecord, sink: Sink) => void;
 
 const isScalar = (value: unknown): value is Scalar =>
   typeof value === "string" ||
   (typeof value === "number" && !Number.isNaN(value)) ||
   typeof value === "boolean";
 
-const compareText = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
-
-const compareFound = (a: Found, b: Found): number =>
-  a.kind - b.kind || a.number - b.number || compareText(a.text, b.text) || compareText(a.raw, b.raw);
-
-/** A value ranked by `ranks` (metamodel order) with its name, else as written. */
-const rankedOr = (
-  value: Scalar,
-  ranks: ReadonlyMap<string, { readonly rank: number; readonly name: string }>,
-): Found => {
-  const known = typeof value === "string" ? ranks.get(value) : undefined;
-  return known === undefined ? plain(value) : ranked(known.rank, { value, name: known.name });
-};
-
-const ranksOf = (
-  entries: readonly { readonly key: string; readonly name: string }[],
-): ReadonlyMap<string, { readonly rank: number; readonly name: string }> =>
-  new Map(entries.map((entry, rank) => [entry.key, { rank, name: entry.name }]));
-
 const scalarId = (value: Scalar): string => `${typeof value}\n${String(value)}`;
 
-/** How the values of `by` are read (see the file comment). */
-const readerOf = (selected: Selected, command: CommandName, by: string): Reader => {
-  const { metamodel } = selected;
-  switch (by) {
-    case "type": {
-      const ranks = ranksOf(metamodel.effectiveTypes);
-      return (element, add) => {
-        add(scalarId(element.type), () => rankedOr(element.type, ranks));
-      };
-    }
-    case "status": {
-      const ranks = ranksOf(metamodel.statuses);
-      return (element, add) => {
-        const status = element.data["status"];
-        if (typeof status === "string") {
-          add(scalarId(status), () => rankedOr(status, ranks));
-        }
-      };
-    }
-    case "package":
-      return packageReader(selected, command);
-  }
-  const relation = relationKey(metamodel, by);
-  if (relation !== undefined) {
-    throw invalidAt(
-      { command },
-      "group",
-      `${relation.label} holds relations; group by package, or by a property of kind choice`,
-    );
-  }
-  const found = keyDefinition(metamodel, by);
-  const choices =
-    found?.kind === "property" && found.definition.kind === "choice" ? found.definition.choices : undefined;
-  if (choices === undefined) {
-    throw invalidAt(
-      { command },
-      "group",
-      `${by} is no property with values to choose; group by type, status, package or a property of kind choice`,
-    );
-  }
-  const ranks = ranksOf(choices);
-  return (element, add) => {
-    for (const stored of valuesOf(element.data[by])) {
-      if (!isScalar(stored)) {
-        continue;
-      }
-      const match = typeof stored === "string" ? findNamed(choices, stored) : undefined;
-      const value = match?.kind === "found" ? match.key : stored;
-      add(scalarId(value), () => rankedOr(value, ranks));
-    }
+/** Metamodel entries (types, statuses, choices): a value by its key, ranked and named as they define it. */
+const namedReader = (
+  entries: readonly { readonly key: string; readonly name: string }[],
+): ((value: Scalar, sink: Sink) => void) => {
+  const ranks = ranksOf(entries);
+  const names = new Map(entries.map((entry) => [entry.key, entry.name]));
+  return (value, sink) => {
+    sink.add(scalarId(value), () => {
+      const name = typeof value === "string" ? names.get(value) : undefined;
+      return { head: { value, ...(name === undefined ? {} : { name }) }, rank: sortValueOf(value, ranks) };
+    });
   };
 };
 
-/** The available packages of an element, as the condition `package` reads them. */
-const packageReader = (selected: Selected, command: CommandName): Reader => {
+/** The available targets of a relation property, as the conditions read them. */
+const targetReader = (selected: Selected, property: MetamodelProperty): Reader => {
   const { metamodel, store, shortIds } = selected;
-  const property = propertyFor({ command, metamodel }, "packages");
-  const packages = { key: property.key, many: property.many === true };
-  // Without the meaning `title` no key is the title (SR-013 AK3): every package is untitled.
+  const entries = { key: property.key, many: property.many === true };
+  // Without the meaning `title` no key is the title (SR-013 AK3): every target is untitled.
   const titleKey = titleKeyOrEmpty(metamodel);
-  return (element, add) => {
-    for (const entry of validityEntries(packages, element)) {
+  return (element, sink) => {
+    for (const entry of validityEntries(entries, element)) {
       const named = validityTarget(entry.value, element);
       const found = named === undefined ? undefined : resolveTarget(store, element.repository, named);
       if (found?.kind !== "found") {
+        sink.unavailable();
         continue;
       }
       const target = found.element;
-      add(`${target.repository}\n${target.id}`, () => {
+      sink.add(`${target.repository}\n${target.id}`, () => {
         const value = shortIds.of(target);
         const stored = target.data[titleKey];
         const title = typeof stored === "string" ? stored : "";
         const head = { value, ...(title === "" ? {} : { title }), ...identifierField(shortIds, target) };
-        return textual(head, `${title}\n${value}`);
+        return { head, rank: sortValueOf(`${title}\n${value}`, NO_RANKS) };
       });
+    }
+  };
+};
+
+/** How the values of `by` are read (see the file comment). */
+const readerOf = (selected: Selected, command: CommandName, by: string): Reader => {
+  const { metamodel, store } = selected;
+  switch (by) {
+    case "type": {
+      const read = namedReader(metamodel.effectiveTypes);
+      return (element, sink) => {
+        read(element.type, sink);
+      };
+    }
+    case "status": {
+      const read = namedReader(metamodel.statuses);
+      return (element, sink) => {
+        const status = element.data["status"];
+        if (typeof status === "string") {
+          read(status, sink);
+        }
+      };
+    }
+    case "package":
+      return targetReader(selected, propertyFor({ command, metamodel }, "packages"));
+  }
+  const found = keyDefinition(metamodel, by);
+  const definition = found?.kind === "property" ? found.definition : undefined;
+  if (definition === undefined || !offersValues(store.elements, definition)) {
+    throw invalidAt(
+      { command },
+      "group",
+      `${by} is no property with values to choose (as element.facets offers them); group by type, status, package or such a property`,
+    );
+  }
+  if (definition.kind === "relation") {
+    return targetReader(selected, definition);
+  }
+  const choices = definition.choices ?? [];
+  const read = namedReader(choices);
+  return (element, sink) => {
+    for (const stored of valuesOf(element.data[by])) {
+      if (isScalar(stored)) {
+        const match = typeof stored === "string" ? findNamed(choices, stored) : undefined;
+        read(match?.kind === "found" ? match.key : stored, sink);
+      }
     }
   };
 };
@@ -188,23 +177,33 @@ export const groupingOf = (selected: Selected, command: CommandName, by: string)
   const read = readerOf(selected, command, by);
   const distinct = new Map<string, Slot>();
   const slotsOf = new Map<ElementRecord, Slot[]>();
+  let unavailable = 0;
   for (const element of selected.elements) {
     const slots: Slot[] = [];
-    read(element, (id, found) => {
-      let slot = distinct.get(id);
-      if (slot === undefined) {
-        slot = { found: found(), index: 0 };
-        distinct.set(id, slot);
-      }
-      if (!slots.includes(slot)) {
-        slots.push(slot);
-      }
+    // Set by the reader's callback, so an object: a `let` would read as never set here.
+    const seen = { unavailable: false };
+    read(element, {
+      add: (id, found) => {
+        let slot = distinct.get(id);
+        if (slot === undefined) {
+          slot = { found: found(), index: 0 };
+          distinct.set(id, slot);
+        }
+        if (!slots.includes(slot)) {
+          slots.push(slot);
+        }
+      },
+      unavailable: () => {
+        seen.unavailable = true;
+      },
     });
     if (slots.length > 0) {
       slotsOf.set(element, slots);
+    } else if (seen.unavailable) {
+      unavailable += 1;
     }
   }
-  const ordered = [...distinct.values()].sort((a, b) => compareFound(a.found, b.found));
+  const ordered = [...distinct.values()].sort((a, b) => compareSortValues(a.found.rank, b.found.rank));
   ordered.forEach((slot, index) => {
     slot.index = index;
   });
@@ -213,7 +212,7 @@ export const groupingOf = (selected: Selected, command: CommandName, by: string)
   );
   const none = [ordered.length];
   return {
-    heads: [...ordered.map((slot) => slot.found.head), {}],
+    heads: [...ordered.map((slot) => slot.found.head), unavailable === 0 ? {} : { unavailable }],
     groupsOf: (element) => groups.get(element) ?? none,
   };
 };

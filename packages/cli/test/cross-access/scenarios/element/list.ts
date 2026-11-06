@@ -133,6 +133,24 @@ scenariosOf("element.list", [
       ]);
     },
   },
+  {
+    tag: "[SR-149/AK1]",
+    name: "grouped by topic, a text property with shared values as element.facets offers it, the elements without a topic last",
+    fixture: VALUES,
+    input: {
+      group: "topic",
+      selection: { where: { type: ["system-requirement"], subtypes: false } },
+      sort: BY_TITLE,
+    },
+    expect: "output",
+    check: (results) => {
+      expect(groupLines(grouped(results))).toEqual([
+        "Timing: SR-0000b2 SR-0000b7 SR-0000b6",
+        "Wind: SR-0000b7 SR-0000b1",
+        "-: SR-0000b5 SR-0000b4 SR-0000b3",
+      ]);
+    },
+  },
   ...["area", "type"].map((group) => ({
     tag: "[SR-149/AK3]",
     name: `regrouped by ${group} with the same filter and sort: the same elements, in the sort order in each group`,

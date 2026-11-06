@@ -15,6 +15,7 @@ import type { FixtureOptions } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
+import { FACET_MAX_VALUES } from "../../query/facets.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 
@@ -124,7 +125,8 @@ describe("element.list grouped (SR-149 AK1)", () => {
     expect(output.groups).toEqual([
       { value: "PKG-0000d2", title: "alarms", count: 2, offset: 0 },
       { value: "PKG-0000d1", title: "Wind", count: 2, offset: 2 },
-      { count: 4, offset: 4 },
+      // b3 names only d9, which is not in the workspace.
+      { unavailable: 1, count: 4, offset: 4 },
     ]);
     // b3 names only the package d9, which is not in the workspace (spec-frage #978).
     expect(groupLines(output)).toEqual(["PKG-0000d2: b4 b1", "PKG-0000d1: b1 b2", "-: d2 b3 a1 d1"]);
@@ -146,12 +148,13 @@ describe("element.list grouped (SR-149 AK1)", () => {
     });
     const output = await list(workspace, { group: "area", selection: { ids: [id("b5")] } });
     expect(output.groups?.map((g) => g.value)).toEqual(["sensor", 3, "Other", "other", true]);
-    // An element without status is in no status group but the last; a package item without an ID names none.
+    // An element without status is in no status group but the last; a package item without an ID
+    // names no available package.
     expect((await list(workspace, { group: "status", selection: { ids: [id("b5")] } })).groups).toEqual([
       { count: 1, offset: 0 },
     ]);
     expect((await list(workspace, { group: "package", selection: { ids: [id("b5")] } })).groups).toEqual([
-      { count: 1, offset: 0 },
+      { unavailable: 1, count: 1, offset: 0 },
     ]);
   });
 
@@ -185,6 +188,73 @@ describe("element.list grouped (SR-149 AK1)", () => {
       sort: [{ by: "hierarchy" }],
     });
     expect(tree.tree).toEqual([]);
+  });
+});
+
+describe("element.list grouped by a property with few shared values (SR-149 AK1)", () => {
+  /** SR-069/filter: b1 topic Wind, b2 Timing; b6 Timing and b7 [Wind, Timing] make the topics shared. */
+  const TOPICS: FixtureOptions = {
+    fixture: "SR-069/filter",
+    files: {
+      "requirements/SR-0000000000b6.md":
+        "---\nid: 69069069-0000-4000-8000-0000000000b6\ntype: system-requirement\nstatus: draft\ntitle: Measure the rain\ntopic: Timing\n---\n",
+      "requirements/SR-0000000000b7.md":
+        "---\nid: 69069069-0000-4000-8000-0000000000b7\ntype: system-requirement\nstatus: approved\ntitle: Measure the hail\ntopic: [Wind, Timing]\n---\n",
+    },
+  };
+  const short = (output: Output): string[] =>
+    (output.groups ?? []).map(
+      (g) =>
+        `${g.value === undefined ? "-" : String(g.value)}: ${output.elements
+          .slice(g.offset, g.offset + g.count)
+          .map((e) => e.shortId)
+          .join(" ")}`,
+    );
+
+  it("[SR-149/AK1] groups by topic, a text property element.facets offers values of, in text order", async () => {
+    const { workspace } = await open(TOPICS);
+    const output = await list(workspace, {
+      group: "topic",
+      selection: { where: { type: ["system-requirement"], subtypes: false } },
+      sort: BY_TITLE,
+    });
+    expect(short(output)).toEqual([
+      "Timing: SR-0000b2 SR-0000b7 SR-0000b6",
+      "Wind: SR-0000b7 SR-0000b1",
+      "-: SR-0000b5 SR-0000b4 SR-0000b3",
+    ]);
+    expect(output.groups?.map((g) => g.count)).toEqual([3, 2, 3]);
+  });
+
+  it("groups by a relation property as by package: validity by variant", async () => {
+    const { workspace } = await open(TOPICS);
+    const output = await list(workspace, {
+      group: "validity",
+      selection: { where: { type: ["system-requirement"], subtypes: false } },
+    });
+    expect(output.groups?.map((g) => [g.value, g.title, g.count])).toEqual([
+      ["VAR-0000c1", "Coastal", 1],
+      ["VAR-0000c2", "Mountain", 1],
+      [undefined, undefined, 5],
+    ]);
+    const packages = await list(workspace, { group: "packages" });
+    expect(packages.groups).toEqual((await list(workspace, { group: "package" })).groups);
+  });
+
+  it("takes the threshold of element.facets from its schema default", async () => {
+    const schema = JSON.parse(
+      await fs.readFile(
+        new URL("../../../../../schemas/commands/element.facets.json", import.meta.url),
+        "utf8",
+      ),
+    ) as { input: { properties: { maxValues: { default: number } } } };
+    expect(FACET_MAX_VALUES).toBe(schema.input.properties.maxValues.default);
+  });
+
+  it("refuses topic where no topic is shared, as element.facets offers none", async () => {
+    const { workspace } = await open({ fixture: "SR-069/filter" });
+    const error = await failure(workspace, { group: "topic" });
+    expect(error.details?.["fields"]).toEqual(["group"]);
   });
 });
 
@@ -272,9 +342,9 @@ describe("element.list grouping writes nothing (SR-149 AK5)", () => {
 });
 
 describe("element.list group refusals", () => {
-  it("refuses free text, unknown keys and keys that hold relations", async () => {
+  it("refuses free text without shared values, unknown keys and relation kinds", async () => {
     const { workspace } = await open();
-    for (const group of ["title", "nothing", "derives-from", "packages", "validity"]) {
+    for (const group of ["title", "acceptance-criteria", "topic", "nothing", "derives-from"]) {
       const error = await failure(workspace, { group });
       expect([error.code, error.details?.["fields"]]).toEqual(["input.invalid", ["group"]]);
     }

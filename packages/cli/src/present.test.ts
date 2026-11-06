@@ -378,7 +378,10 @@ describe("renderHuman: values", () => {
     expect(
       renderHuman({
         elements: [element("a", "A.\n"), element("b", "B.\n")],
-        groups: [{ value: "x", count: 2, offset: 0 }],
+        groups: [
+          { value: "x", count: 1, offset: 0 },
+          { unavailable: 1, count: 1, offset: 1 },
+        ],
         offset: 0,
         rows: 2,
         total: 2,
@@ -386,11 +389,13 @@ describe("renderHuman: values", () => {
     ).toBe(
       lines(
         "elements:",
-        "  x · 2",
+        "  x · 1",
         "    SR-a  a",
         "      text: |",
         "        A.",
+        // A blank line between a group's last element and the next heading too.
         "",
+        "  (no value) · 1, 1 with targets not available",
         "    SR-b  b",
         "      text: |",
         "        B.",

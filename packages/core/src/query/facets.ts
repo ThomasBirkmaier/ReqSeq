@@ -100,6 +100,23 @@ const fewShared = (
   return new Set([...alive].filter(([, seen]) => [...seen.values()].some((n) => n >= 2)).map(([key]) => key));
 };
 
+/** The default of `maxValues` of element.facets (its schema), which grouping a list uses too (SR-149). */
+export const FACET_MAX_VALUES = 30;
+
+/**
+ * Whether element.facets gives the values of `definition` (see the file comment): a choice or
+ * relation property always, text, number and date by the free-text rule over `elements` (the store).
+ * SR-149 groups a list by exactly these properties ("Property mit auswählbaren Werten").
+ */
+export const offersValues = (
+  elements: readonly ElementRecord[],
+  definition: MetamodelProperty,
+  maxValues = FACET_MAX_VALUES,
+): boolean =>
+  definition.kind === "choice" ||
+  definition.kind === "relation" ||
+  fewShared(elements, [definition], maxValues).has(definition.key);
+
 /** The available targets the entries of a relation property name, by repository and UUID, each once. */
 const targetsOf = (
   selected: Selected,
