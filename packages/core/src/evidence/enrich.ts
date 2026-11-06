@@ -50,7 +50,7 @@ import type { Workspace } from "../runtime/workspace.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import { resolveView } from "../variants/index.js";
 import { refuseGit, shownPath, workspaceLayoutState } from "../workspace/index.js";
-import { enrichmentOf } from "./junit.js";
+import { criteriaOf, enrichmentOf } from "./junit.js";
 import type { ElementRefToken, JunitProperty, JunitTestCase } from "./junit-model.js";
 import { elementRefsOf, junitTestCases } from "./junit-model.js";
 import type { NameMatch } from "./name-pattern.js";
@@ -211,6 +211,8 @@ type Plan =
   | {
       readonly kind: "enrich";
       readonly testCase: JunitTestCase;
+      /** Its `reqseq:criterion` properties as the reader reads them (`criteriaText`), kept as they are. */
+      readonly criteria: string;
       /** The `reqseq:element` properties and the element each names, in file order. */
       readonly named: readonly { readonly property: JunitProperty; readonly id: string }[];
       /** Elements only the name names, to append. */
@@ -389,13 +391,22 @@ const nameElements = (
   return added;
 };
 
+/** The criteria `criteriaOf` read, as a text to compare with the read-back (numbers by element, in property order). */
+const criteriaText = (criteria: ReadonlyMap<string, ReadonlyMap<number, number>>): string =>
+  JSON.stringify([...criteria].map(([element, lines]) => [element, [...lines.keys()]]));
+
 /** What `testCase` gives (see the file comment). */
 const planOf = (testCase: JunitTestCase, options: EnrichOptions): Plan => {
   const { resolve } = options;
   if (testCase.properties.some((p) => p.name === VERSION)) {
     const enrichment = enrichmentOf(testCase);
-    return "error" in enrichment
-      ? { kind: "invalid", testCase, reason: enrichment.error + keptVariantHint(testCase, options) }
+    if ("error" in enrichment) {
+      return { kind: "invalid", testCase, reason: enrichment.error + keptVariantHint(testCase, options) };
+    }
+    // A criterion the reader refuses makes it give no record, so it is not counted either.
+    const criteria = criteriaOf(testCase, new Set(enrichment.pairs.keys()));
+    return "error" in criteria
+      ? { kind: "invalid", testCase, reason: criteria.error }
       : { kind: "kept", testCase, pairs: enrichment.pairs, variant: enrichment.variant };
   }
   const reported: Reported[] = [];
@@ -422,10 +433,17 @@ const planOf = (testCase: JunitTestCase, options: EnrichOptions): Plan => {
   if (named.length === 0 && added.length === 0) {
     return { kind: "none" };
   }
-  const variant = variantPlanOf(testCase, [...named.map((n) => n.id), ...added], options);
-  return "error" in variant
-    ? { kind: "invalid", testCase, reason: variant.error }
-    : { kind: "enrich", testCase, named, added, variant };
+  const ids = [...named.map((n) => n.id), ...added];
+  const variant = variantPlanOf(testCase, ids, options);
+  if ("error" in variant) {
+    return { kind: "invalid", testCase, reason: variant.error };
+  }
+  // Until enrich resolves `<ref>:<n>` (#961), a criterion the reader would refuse after enrich
+  // leaves the test case unchanged: enriched, it would give no record.
+  const criteria = criteriaOf(testCase, new Set(ids));
+  return "error" in criteria
+    ? { kind: "invalid", testCase, reason: criteria.error }
+    : { kind: "enrich", testCase, criteria: criteriaText(criteria), named, added, variant };
 };
 
 /** The message of a reported reference (N2: the test case, its line, the reference). */
@@ -628,12 +646,24 @@ export interface Intended {
   readonly date: string;
   /** The variant's UUID; undefined for none. */
   readonly variant?: string | undefined;
+  /** Its criteria as `criteriaText` gives them; undefined for none checked. */
+  readonly criteria?: string | undefined;
 }
 
 const NOT_READ_BACK = "Enrich produced a file that does not read back; nothing written";
 
 const SUITE_START = Buffer.from("<testsuite>");
 const SUITE_END = Buffer.from("</testsuite>");
+
+/** Whether the criteria of `testCase` read back, as `wanted` (`criteriaText`) when it is given. */
+const criteriaReadBack = (
+  testCase: JunitTestCase,
+  pairs: ReadonlyMap<string, string>,
+  wanted: string | undefined,
+): boolean => {
+  const criteria = criteriaOf(testCase, new Set(pairs.keys()));
+  return !("error" in criteria) && (wanted === undefined || criteriaText(criteria) === wanted);
+};
 
 /**
  * Whether `testCase`, the bytes of one enriched `<testcase>` element of the result, reads back as
@@ -655,6 +685,7 @@ export const readsBackAs = (testCase: Uint8Array, wanted: Intended): boolean => 
   const got = enrichmentOf(a);
   return (
     !("error" in got) &&
+    criteriaReadBack(a, got.pairs, wanted.criteria) &&
     got.item === wanted.item.trim() &&
     got.date === wanted.date &&
     got.variant === wanted.variant &&
@@ -781,6 +812,7 @@ const addEnriched = (outcome: Outcome, plan: Extract<Plan, { kind: "enrich" }>, 
     item: options.item,
     date,
     variant: plan.variant.id,
+    criteria: plan.criteria,
   });
   outcome.count += 1;
   outcome.problems.push(...kindProblems(plan.testCase, ids, context));

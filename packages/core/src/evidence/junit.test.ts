@@ -541,7 +541,8 @@ describe("JUnit reader (SR-093)", () => {
       [`${LOGIN}:99999999999999999999`, "is not <element UUID>:<number from 1>"],
       ["2", "is not <element UUID>:<number from 1>"],
       [`${REPORT}:2`, "names no reqseq:element of the test case"],
-      ["SR-46fb54:2", "names no reqseq:element of the test case"],
+      ["SR-46fb54:2", "is not <element UUID>:<number from 1>"],
+      [`${LOGIN} :2`, "is not <element UUID>:<number from 1>"],
     ] as const) {
       const read = readJunitRecords(AT, at(value));
       expect(read.records, value).toEqual([]);

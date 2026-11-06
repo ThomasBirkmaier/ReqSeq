@@ -989,4 +989,70 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
       );
     }
   });
+
+  describe("reqseq:criterion until enrich resolves it (#960, #961)", () => {
+    const criterion = (value: string): string => prop("reqseq:criterion", value);
+
+    it("keeps a valid criterion and the record of each element reads back with it", async () => {
+      const xml = suite(
+        `<testcase name="[SR-46fb54] a"><properties>${criterion(`${LOGIN}:2`)}</properties></testcase>`,
+      );
+      const result = await enrich(xml);
+      expect(result).toMatchObject({ changed: true, testCases: 1, problems: [] });
+      expect(readJunitRecords({ repository: "r", file: "f" }, result.bytes).records).toMatchObject([
+        { element: LOGIN, criteria: [2] },
+      ]);
+    });
+
+    it("leaves a test case with a criterion the reader would refuse unchanged and reports it", async () => {
+      for (const value of ["SR-46fb54:2", `${LOGIN}:0`, `${REPORT}:1`]) {
+        const xml = suite(
+          `<testcase name="[SR-46fb54] a"><properties>${criterion(value)}</properties></testcase>`,
+        );
+        const result = await enrich(xml);
+        expect(result.changed, value).toBe(false);
+        expect(result.testCases, value).toBe(0);
+        expect(
+          result.problems.map((p) => [p.code, p.severity]),
+          value,
+        ).toEqual([["evidence.invalid-record", "error"]]);
+        expect(result.problems[0]?.message, value).toContain("is not enriched: reqseq:criterion");
+      }
+    });
+
+    it("reports a kept test case whose criterion the reader refuses, and does not count it", async () => {
+      const xml = suite(
+        `<testcase name="[SR-46fb54] a"><properties>${four(LOGIN, V[LOGIN])}${criterion(`${REPORT}:1`)}</properties></testcase>`,
+      );
+      const result = await enrich(xml);
+      expect(result.testCases).toBe(0);
+      expect(result.problems.map((p) => [p.code, p.severity, p.message])).toEqual([
+        [
+          "evidence.invalid-record",
+          "error",
+          `Test case "[SR-46fb54] a" (line 1) is not enriched: reqseq:criterion "${REPORT}:1" names no reqseq:element of the test case`,
+        ],
+      ]);
+    });
+
+    it("reads back only the intended criteria", () => {
+      const wanted: Intended = {
+        name: "a",
+        className: "",
+        outcome: "passed",
+        start: 0,
+        end: 0,
+        pairs: new Map([[LOGIN, V[LOGIN]]]),
+        item: "build-1",
+        date: DATE,
+        criteria: JSON.stringify([[LOGIN, [2]]]),
+      };
+      const testCase = (body: string): Buffer =>
+        Buffer.from(`<testcase name="a"><properties>${four(LOGIN, V[LOGIN])}${body}</properties></testcase>`);
+      expect(readsBackAs(testCase(criterion(`${LOGIN}:2`)), wanted)).toBe(true);
+      expect(readsBackAs(testCase(criterion(`${LOGIN}:3`)), wanted)).toBe(false);
+      expect(readsBackAs(testCase(criterion(`${LOGIN}:x`)), wanted)).toBe(false);
+      expect(readsBackAs(testCase(""), wanted)).toBe(false);
+    });
+  });
 });

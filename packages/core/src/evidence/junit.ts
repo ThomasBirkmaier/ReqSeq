@@ -169,7 +169,7 @@ export const criteriaOf = (
     const element = uuidOf(text.slice(0, colon));
     const digits = text.slice(colon + 1);
     const criterion = Number(digits);
-    if (colon < 0 || !CRITERION_NUMBER.test(digits) || !Number.isSafeInteger(criterion)) {
+    if (!isUuid(element) || !CRITERION_NUMBER.test(digits) || !Number.isSafeInteger(criterion)) {
       return {
         error: `${CRITERION_PROPERTY} "${shown(text)}" is not <element UUID>:<number from 1>`,
         line,
