@@ -1650,6 +1650,61 @@ describe("ListView, a list", () => {
     });
   });
 
+  it("keeps the coverage line of a list, without asking again, while its rows are asked for in another sort", async () => {
+    const lists: ((value: unknown) => void)[] = [];
+    const call = vi.fn((name: string) =>
+      name === "element.list"
+        ? new Promise((resolve) => {
+            lists.push(resolve);
+          })
+        : Promise.resolve({
+            ok: true,
+            output:
+              name === "evidence.coverage"
+                ? {
+                    levels: [
+                      {
+                        type: "system-requirement",
+                        total: 2,
+                        withChildren: 0,
+                        withEvidence: 1,
+                        elements: {},
+                      },
+                    ],
+                  }
+                : {
+                    degree: {
+                      share: 0.5,
+                      total: 2,
+                      counts: { open: 1, verified: 1, indirect: 0, failed: 0, outdated: 0 },
+                    },
+                    view: "core",
+                  },
+          }),
+    );
+    const props = {
+      call: call as unknown as Call,
+      revision: 0,
+      dispatch: () => undefined,
+      onData: () => undefined,
+      onEcho: () => undefined,
+    };
+    const first = listBuffer("All elements");
+    await render(createElement(ListView, { ...props, buffer: first }));
+    await act(async () => {
+      lists[0]?.({ ok: true, output: { elements: rowsOf(0, 2), total: 2 } });
+      await Promise.resolve();
+    });
+    await flush();
+    expect(query(".package-summary").textContent).toContain("Coverage 1 of 2 with evidence");
+    await render(
+      createElement(ListView, { ...props, buffer: { ...first, sort: [{ by: "title", order: "desc" }] } }),
+    );
+    expect(lists).toHaveLength(2);
+    expect(query(".package-summary").textContent).toContain("Coverage 1 of 2 with evidence");
+    expect(call.mock.calls.filter(([name]) => name === "evidence.coverage")).toHaveLength(1);
+  });
+
   it("hides the coverage line of a list without a counted requirement", async () => {
     const call = fakeCall({ "element.list": () => ({ elements: rowsOf(0, 2), total: 2 }) });
     await listHarness(withSummary(call), listBuffer("All elements"));

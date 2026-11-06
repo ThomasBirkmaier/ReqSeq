@@ -216,24 +216,37 @@ const ListTop = ({
   readonly revision: number;
   readonly onEcho: (message: string) => void;
   readonly dispatch: (action: BufferAction) => void;
-}): React.JSX.Element => (
-  <>
-    <ListHeading buffer={buffer} view={view} />
-    {buffer.kind === "list" && view.status === "ok" ? (
-      <SummaryLine
-        key={JSON.stringify(buffer.selection ?? {})}
-        call={call}
-        selection={buffer.selection ?? {}}
-        name={bufferName(buffer)}
-        revision={revision}
-        onEcho={onEcho}
-        onOpenResult={(result) => {
-          dispatch({ type: "open", buffer: result });
-        }}
-      />
-    ) : null}
-  </>
-);
+}): React.JSX.Element => {
+  const selection = buffer.kind === "list" ? (buffer.selection ?? {}) : undefined;
+  const key = JSON.stringify(selection);
+  // The selection whose first page stood once: a new sort or a reload of the same selection keeps the line,
+  // since its numbers do not change with the order of the rows.
+  const [ready, setReady] = useState<string | undefined>(undefined);
+  const loaded = view.status === "ok";
+  useEffect(() => {
+    if (loaded) {
+      setReady(key);
+    }
+  }, [loaded, key]);
+  return (
+    <>
+      <ListHeading buffer={buffer} view={view} />
+      {buffer.kind === "list" && selection !== undefined && (loaded || ready === key) ? (
+        <SummaryLine
+          key={key}
+          call={call}
+          selection={selection}
+          name={bufferName(buffer)}
+          revision={revision}
+          onEcho={onEcho}
+          onOpenResult={(result) => {
+            dispatch({ type: "open", buffer: result });
+          }}
+        />
+      ) : null}
+    </>
+  );
+};
 
 export const ListView = ({
   call,
