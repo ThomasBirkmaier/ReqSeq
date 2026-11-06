@@ -22,6 +22,7 @@ import {
   metamodelBuffer,
   neighbourhoodBuffer,
   overviewBuffer,
+  resultBuffer,
   searchBuffer,
   withMatrix,
 } from "./buffers.js";
@@ -1217,6 +1218,25 @@ describe("save element and edit text", () => {
     );
     action("copy-field").run(setup([element]).context);
     expect(controls.copy).toHaveBeenCalledTimes(1);
+  });
+
+  it("[SR-161/AK3] Copy result puts the whole shown output on the clipboard as one block", () => {
+    const copy = vi.fn();
+    const info = resultBuffer(
+      "tool.info",
+      {},
+      "Show tool info",
+      { versions: { app: "1.0.0", cli: "1.0.0" } },
+      0,
+    );
+    expect(action("copy-result").title).toBe("Copy result");
+    action("copy-result").run(setup([info], {}, true, { copy }).context);
+    expect(copy).toHaveBeenCalledWith("result", "versions:\n  app: 1.0.0\n  cli: 1.0.0");
+    const failed = { ...info, output: undefined, error: "x" };
+    expect(action("copy-result").available(setup([failed]).context)).toBe(false);
+    expect(action("copy-result").available(setup([list]).context)).toBe(false);
+    action("copy-result").run(setup([failed], {}, true, { copy }).context);
+    expect(copy).toHaveBeenCalledTimes(1);
   });
 
   it("[SR-104/AK2] Add property runs the controls with Ctrl/Cmd+Alt+A, on an element with a loaded text only", () => {

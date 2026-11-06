@@ -125,6 +125,17 @@ const runCommandLineAndMcp = async (launcher: string): Promise<void> => {
   await client.close();
 };
 
+/** `tool info --json` of an installed delivery: the info of this delivery (SR-161 AK4). */
+const toolInfo = async (launcher: string): Promise<Record<string, Record<string, unknown>>> => {
+  const ws = await createFixtureWorkspace({ fixture: "SR-004/one-repository", git: true });
+  fixtures.push(ws);
+  const info = launch(launcher, ["tool", "info", "--json"], ws);
+  let stdout = "";
+  info.stdout.on("data", (chunk: Buffer) => (stdout += chunk.toString("utf8")));
+  expect(await exited(info)).toBe(0);
+  return JSON.parse(stdout) as Record<string, Record<string, unknown>>;
+};
+
 describe.each(DELIVERY_SYSTEMS)("the %s delivery", (system: DeliverySystem) => {
   const target = DELIVERY_TARGET[system];
   const artifact = path.join(deliveryDir, deliveryArtifactName(names, system, version));
@@ -160,6 +171,21 @@ describe.each(DELIVERY_SYSTEMS)("the %s delivery", (system: DeliverySystem) => {
       ctx.skip(notRunnable);
     }
     await runCommandLineAndMcp(path.join(installed, layout.launcher));
+  });
+
+  it(`[SR-161/AK4] tool info of the ${system} delivery shows the version and the commit of this delivery`, async (ctx) => {
+    if (!runnable) {
+      ctx.skip(notRunnable);
+    }
+    const info = await toolInfo(path.join(installed, layout.launcher));
+    expect(info["versions"]).toEqual({ app: version, cli: version, mcp: version });
+    expect(info["build"]?.["development"]).toBeUndefined();
+    expect(info["build"]?.["commit"]).toMatch(/^[0-9a-f]{40}$/);
+    if (process.env["GITHUB_SHA"] !== undefined) {
+      expect(info["build"]?.["commit"]).toBe(process.env["GITHUB_SHA"]);
+    }
+    // The command line runs on the Electron of the delivery (ADR-0014), as the app does.
+    expect(info["runtime"]?.["electron"]).toBeDefined();
   });
 
   it(`[SR-078/AK2] the ${system} delivery installs without network and its command line and MCP server run`, async (ctx) => {

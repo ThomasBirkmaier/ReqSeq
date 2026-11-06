@@ -14,6 +14,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import {
+  buildInfoOf,
   hardLinkEntries,
   noticesText,
   packageFolders,
@@ -22,6 +23,7 @@ import {
   renderLauncher,
   stagedManifest,
   tagReleasesVersion,
+  writeBuildInfo,
 } from "./lib.mjs";
 
 const root = path.resolve(import.meta.dirname, "..", "..");
@@ -103,6 +105,12 @@ async function stage() {
   // The CLI tarball carries its dependencies, so it installs without network (SR-078 AK2).
   await pinVersions(cli, { bundleDependencies: true });
   await pinVersions(app, { productName: names.productName });
+  // The commit and its date, which `tool info` shows in every access of the delivery (SR-161).
+  const build = buildInfoOf(
+    execFileSync("git", ["log", "-1", "--format=%H%n%cI"], { cwd: root, encoding: "utf8" }),
+  );
+  await writeBuildInfo(cli, build);
+  await writeBuildInfo(app, build);
 
   await fs.mkdir(launchers, { recursive: true });
   const sh = await fs.readFile(path.join(packaging, "launchers", "launcher.sh"), "utf8");

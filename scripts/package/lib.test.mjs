@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  buildInfoOf,
   hardLinkEntries,
   isBuildLeftover,
   noticesText,
@@ -12,6 +13,7 @@ import {
   renderLauncher,
   stagedManifest,
   tagReleasesVersion,
+  writeBuildInfo,
 } from "./lib.mjs";
 
 const folders = [];
@@ -259,5 +261,44 @@ describe("build leftovers and hard links", () => {
     expect(hardLinkEntries(listing)).toEqual([
       "hrw-r--r-- 0/0 0 1985-10-26 08:15 package/b.js link to package/a.js",
     ]);
+  });
+});
+
+describe("build info (SR-161)", () => {
+  const COMMIT = "0123456789abcdef0123456789abcdef01234567";
+
+  it("takes the commit and its date from git log", () => {
+    expect(buildInfoOf(`${COMMIT}\r\n2026-11-06T10:00:00+01:00\n`)).toEqual({
+      commit: COMMIT,
+      date: "2026-11-06T09:00:00.000Z",
+    });
+  });
+
+  it("refuses a build without a commit", () => {
+    expect(() => buildInfoOf("")).toThrow(/no commit/);
+    expect(() => buildInfoOf(`${COMMIT}\nnot a date`)).toThrow(/no commit/);
+  });
+
+  it("writes it into the staged core, and never through a link out of the staged folder", async () => {
+    const top = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-build-info-"));
+    folders.push(top);
+    const staged = path.join(top, "cli");
+    const dist = path.join(staged, "node_modules", "@reqseq", "core", "dist");
+    await fs.mkdir(dist, { recursive: true });
+    await fs.writeFile(path.join(dist, "build-info.json"), "old");
+    const info = { commit: COMMIT, date: "2026-11-06T09:00:00.000Z" };
+    const file = await writeBuildInfo(staged, info);
+    expect(JSON.parse(await fs.readFile(file, "utf8"))).toEqual(info);
+
+    const linked = path.join(top, "app");
+    const outside = path.join(top, "packages", "core", "dist");
+    await fs.mkdir(outside, { recursive: true });
+    await fs.mkdir(path.join(linked, "node_modules", "@reqseq"), { recursive: true });
+    await fs.symlink(
+      path.join(top, "packages", "core"),
+      path.join(linked, "node_modules", "@reqseq", "core"),
+      "junction",
+    );
+    await expect(writeBuildInfo(linked, info)).rejects.toThrow(/outside/);
   });
 });

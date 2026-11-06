@@ -7,3 +7,6 @@ export const PRODUCT_NAME: string = product.name;
 
 /** Product version (root package.json), e.g. `reqseq --version`. */
 export const PRODUCT_VERSION: string = product.version;
+
+/** The licence notice of ReqSeq (LICENSE), one item per line (`tool.info`, SR-161). */
+export const PRODUCT_LICENSE: readonly string[] = product.license;

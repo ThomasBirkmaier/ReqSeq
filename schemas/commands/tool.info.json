@@ -1,0 +1,142 @@
+{
+  "name": "tool.info",
+  "title": "Show tool info",
+  "summary": "Version of the app, the command line and the MCP server, the build (commit, build date, platform, architecture), the versions of Electron, Node and Chromium, the open workspace (path, name, repositories, number of elements), the licence notice of ReqSeq and of its third-party components, and where the documentation and the releases are. Reads only and opens no network connection.",
+  "effect": "read",
+  "stage": 6,
+  "implements": ["SR-161"],
+  "arguments": [],
+  "input": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "versions": {
+        "type": "object",
+        "properties": {
+          "app": { "type": "string", "minLength": 1 },
+          "cli": { "type": "string", "minLength": 1 },
+          "mcp": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": false,
+        "required": ["app", "cli", "mcp"],
+        "description": "The versions of the app, the command line and the MCP server. One delivery ships all three with the version of the delivery."
+      },
+      "build": {
+        "type": "object",
+        "properties": {
+          "commit": {
+            "$ref": "../common.schema.json#/$defs/commit",
+            "description": "The commit the delivery was built from. Left out in a build from a checkout."
+          },
+          "date": {
+            "$ref": "../common.schema.json#/$defs/dateTime",
+            "description": "The build date: the date of that commit. Left out in a build from a checkout."
+          },
+          "development": {
+            "const": true,
+            "description": "Built from a checkout, not delivered: commit and date are unknown. Left out in a delivery."
+          },
+          "platform": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The operating system as Node names it (`darwin`, `linux`, `win32`)."
+          },
+          "arch": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The processor architecture as Node names it (`arm64`, `x64`)."
+          }
+        },
+        "additionalProperties": false,
+        "required": ["platform", "arch"]
+      },
+      "runtime": {
+        "type": "object",
+        "properties": {
+          "electron": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Left out when ReqSeq does not run on Electron (a command line on its own Node)."
+          },
+          "node": { "type": "string", "minLength": 1 },
+          "chromium": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The Chromium of the Electron ReqSeq runs on. Left out without Electron."
+          }
+        },
+        "additionalProperties": false,
+        "required": ["node"],
+        "description": "The runtime of the process. The delivered command line, API and MCP server run on the Electron of the app, so a delivery gives the same values in every access."
+      },
+      "workspace": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The absolute path of the workspace root, the folder with reqseq-workspace.yaml."
+          },
+          "name": { "type": "string" },
+          "repositories": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "The workspace names of its repositories, in the order of the workspace file."
+          },
+          "elements": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "The number of elements in the available repositories, in no view."
+          }
+        },
+        "additionalProperties": false,
+        "required": ["path", "name", "repositories", "elements"]
+      },
+      "license": {
+        "type": "object",
+        "properties": {
+          "notice": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "The licence notice of ReqSeq, one item per line."
+          },
+          "thirdParty": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The file of the delivery that lists the third-party components with their licences, relative to its resources folder. Left out in a build from a checkout."
+          }
+        },
+        "additionalProperties": false,
+        "required": ["notice"]
+      },
+      "documentation": {
+        "type": "object",
+        "properties": {
+          "bundled": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The folder of the delivery with its documentation, relative to its resources folder. Left out in a build from a checkout."
+          },
+          "online": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The address of the online documentation, as text only: ReqSeq never opens it."
+          },
+          "releases": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The address of the releases, as text only: ReqSeq never opens it."
+          }
+        },
+        "additionalProperties": false,
+        "required": ["online", "releases"]
+      }
+    },
+    "additionalProperties": false,
+    "required": ["versions", "build", "runtime", "workspace", "license", "documentation"]
+  }
+}

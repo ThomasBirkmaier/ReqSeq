@@ -7,6 +7,7 @@
     "workspace.check",
     "workspace.activity",
     "workspace.recent",
+    "tool.info",
     "metamodel.get",
     "element.create",
     "element.get",

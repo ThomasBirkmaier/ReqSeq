@@ -533,6 +533,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     dispatch,
     ask,
     echo: setEcho,
+    copy,
     recent: () =>
       recentRef.current.flatMap((entry) => {
         const known = recentNames.current.get(elementBuffer(entry.id, entry.repository, "").key);

@@ -330,6 +330,7 @@ export const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { path: "new", name: "New" },
     { path: ".", name: "Again" },
   ],
+  "tool.info": [{}, { extra: true }],
   "workspace.recent": [{}, { extra: true }],
   "workspace.status": [{}, { extra: true }],
 };

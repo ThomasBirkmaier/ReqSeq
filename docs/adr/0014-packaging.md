@@ -38,6 +38,7 @@ Additionally the CLI is published as a tarball (`npm pack` of `@reqseq/cli` with
 - the app: `app.asar` with the electron-vite output and the app's production dependencies;
 - the CLI and the MCP server as a plain folder `resources/cli` outside the asar, with a flat production `node_modules`. They run on the bundled Electron binary with `ELECTRON_RUN_AS_NODE=1` through the launcher, so no separate Node installation is needed, and they start no Chromium: they need neither a display nor the Linux sandbox step below;
 - the launchers in a `bin` folder. Windows matches names case-insensitively and tries `.EXE` before `.CMD`, so `reqseq.cmd` next to `ReqSeq.exe` would lose to the GUI app on the PATH; with `bin` on the PATH only the launcher is found. Adding `bin` to the PATH is one documented line ([Install ReqSeq](../guide/how-to/install-reqseq.md#cli));
+- `build-info.json` in each staged copy of `@reqseq/core/dist` (app and CLI), with the commit the delivery is built from and its date, which `tool info` shows (SR-161); a build from a checkout has none;
 - `resources/THIRD_PARTY_NOTICES.txt` with the production dependencies of app and CLI and their licences, naming `@dagrejs/dagre` and `@dagrejs/graphlib` (ADR-0015);
 - the guide for connecting a test tool, `toolchain/junit/README.md` with its examples, as `resources/docs/junit/` (SR-063 AK2 „mitgelieferte Beschreibung“; spec question #600 Q3, assumption);
 - Electron's licence and Chromium's notices.
