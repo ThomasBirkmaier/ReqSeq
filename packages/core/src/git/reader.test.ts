@@ -8,6 +8,7 @@ import path from "node:path";
 import { PassThrough } from "node:stream";
 import { pathToFileURL } from "node:url";
 import { afterAll, afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
+import { gitProgram } from "./program.js";
 import * as reader from "./reader.js";
 import type { ObjectInfos, ObjectReader } from "./reader.js";
 import {
@@ -309,6 +310,22 @@ describe("git reader", () => {
     expect(await headCommit(repo)).toMatchObject({ known: true, commit });
   });
 
+  it("starts no git when PATH holds none (#940)", async () => {
+    const ws = await fixture(["repo"]);
+    const repo = ws.path("repo");
+    const commit = await ws.head("repo");
+    vi.stubEnv("PATH", ws.path("plain"));
+    const none = { known: false, reason: "no-git", detail: "git was not found on PATH" };
+    expect(await headCommit(repo)).toEqual(none);
+    expect(await commitBlobs(repo, commit, ["a.md"])).toEqual(none);
+    const objects = openObjectReader(repo);
+    onTestFinished(() => {
+      objects.close();
+    });
+    expect(await objects.info([`${commit}:a.md`])).toEqual(none);
+    expect(mock.calls).toEqual([]);
+  });
+
   it("runs git with the fixed command line, environment and time limit of ADR-0006", async () => {
     const ws = await fixture(["repo"]);
     vi.stubEnv("GIT_OPTIONAL_LOCKS", "1");
@@ -316,7 +333,7 @@ describe("git reader", () => {
     await headCommit(ws.path("repo"));
     expect(mock.calls).toHaveLength(1);
     const [call] = mock.calls;
-    expect(call?.file).toBe("git");
+    expect(call?.file).toBe(gitProgram());
     expect(call?.args).toEqual([
       ...FIXED,
       "rev-parse",
