@@ -71,6 +71,8 @@ interface Setup {
   readonly emergentKey?: string | null;
   /** The repositories marked `variant-independent` (SR-173). */
   readonly independent?: ReadonlySet<string>;
+  /** The count of acceptance criteria of an element; 0 for all others (SR-031, D-072). */
+  readonly criteria?: ReadonlyMap<ElementRecord, number>;
 }
 
 const evaluator = (setup: Setup) => {
@@ -84,7 +86,7 @@ const evaluator = (setup: Setup) => {
     emergent: (e) =>
       isEmergent(e, setup.emergentKey === null ? undefined : (setup.emergentKey ?? "emergent")),
     independent: (e) => setup.independent?.has(e.repository) === true,
-    criteriaOf: () => 0,
+    criteriaOf: (e) => [...(setup.criteria ?? [])].find(([c]) => c.data === e.data)?.[1] ?? 0,
   };
   const versions = setup.versions ?? new Map<ElementRecord, string | undefined>();
   return verificationEvaluator(
@@ -119,6 +121,28 @@ describe("indirect verification (SR-034)", () => {
     });
     expect(evaluate(top, CORE)).toEqual(indirect);
     expect(evaluate(middle, CORE)).toEqual(indirect);
+  });
+
+  it("[SR-034/AK2] a child open per acceptance criterion keeps its parent open and is named missing (SR-031 AK5)", () => {
+    const [parent, a, b] = [element(), element(), element()];
+    const setup = {
+      children: new Map([[parent, [a, b]]]),
+      // A passed AK1 and AK2 of its three, B passed for all.
+      records: [record(a, "passed", { criteria: [1, 2] }), record(b, "passed")],
+      criteria: new Map([
+        [a, 3],
+        [b, 2],
+      ]),
+    };
+    const evaluate = evaluator(setup);
+    expect(evaluate(a, CORE)).toEqual({
+      status: "open",
+      criteria: { verified: 2, total: 3, notVerified: [3] },
+    });
+    expect(evaluate(b, CORE)).toEqual({ status: "verified", criteria: { verified: 2, total: 2 } });
+    expect(evaluate(parent, CORE)).toEqual({ status: "open", missingChildren: [a.id] });
+    // Without criteria the same record verifies A, and the parent is indirect.
+    expect(evaluator({ ...setup, criteria: new Map() })(parent, CORE)).toEqual(indirect);
   });
 
   it("[SR-034/AK1] a child is measured against its own current version", () => {
