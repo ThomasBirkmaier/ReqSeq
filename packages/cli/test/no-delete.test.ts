@@ -194,7 +194,7 @@ describe("the MCP server offers no delete (SR-099)", () => {
     try {
       await client.connect(new LineTransport(toClient, { write: (t) => toServer.write(t) }));
       const { tools } = await client.listTools();
-      // Only implemented commands are listed (#303); the catalog itself has no delete either (tests above).
+      // Only implemented commands are listed (ThomasBirkmaier/ReqSeq-archive#303); the catalog itself has no delete either (tests above).
       expect(tools.map((t) => t.name)).toEqual(
         catalogNames.filter((name) => runtime.commands.has(name)).map(toolName),
       );

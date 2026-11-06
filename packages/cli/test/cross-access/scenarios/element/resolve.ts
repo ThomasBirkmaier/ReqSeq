@@ -14,14 +14,14 @@ scenariosOf("element.resolve", [
   },
   { name: "unknown short ID (SR-060 AK3)", input: { ref: "SR-ffffff" }, expect: "error" },
   {
-    name: "one copy of a UUID two files share, by file (SR-088, #255)",
+    name: "one copy of a UUID two files share, by file (SR-088, ThomasBirkmaier/ReqSeq-archive#255)",
     fixture: { fixture: "SR-088/copied-file", git: true },
     root: "system",
     input: { ref: "N-cf2661", file: "requirements/N-00606ccf2661.md" },
     expect: "output",
   },
   {
-    name: "outdated prefix names the candidate (SR-060 AK3, #275)",
+    name: "outdated prefix names the candidate (SR-060 AK3, ThomasBirkmaier/ReqSeq-archive#275)",
     fixture: {
       fixture: "SR-004/one-repository",
       git: true,
@@ -34,7 +34,7 @@ scenariosOf("element.resolve", [
     expect: "error",
   },
   {
-    name: "element without a version: current is unknown (#276)",
+    name: "element without a version: current is unknown (ThomasBirkmaier/ReqSeq-archive#276)",
     fixture: {
       fixture: "SR-004/one-repository",
       git: true,

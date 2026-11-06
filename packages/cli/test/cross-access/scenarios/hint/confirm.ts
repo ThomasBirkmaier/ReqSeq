@@ -29,13 +29,13 @@ scenariosOf("hint.confirm", [
   },
   { name: "hint IDs that are not a list", fixture: HINTS, input: { hintIds: "x" }, expect: "error" },
   {
-    name: "every open hint that points at an element (#310)",
+    name: "every open hint that points at an element (ThomasBirkmaier/ReqSeq-archive#310)",
     fixture: HINTS,
     input: { target: "N-0000a1" },
     expect: "output",
   },
   {
-    name: "the hints of one element of one kind, together with a given ID (#310)",
+    name: "the hints of one element of one kind, together with a given ID (ThomasBirkmaier/ReqSeq-archive#310)",
     fixture: HINTS,
     input: {
       ref: "SR-0000b1",
@@ -45,12 +45,17 @@ scenariosOf("hint.confirm", [
     expect: "output",
   },
   {
-    name: "an element without a hint to confirm: a warning (#310)",
+    name: "an element without a hint to confirm: a warning (ThomasBirkmaier/ReqSeq-archive#310)",
     fixture: HINTS,
     input: { ref: "N-0000a1" },
     expect: "output",
   },
-  { name: "kind without ref or target (#310)", fixture: HINTS, input: { kind: ["x"] }, expect: "error" },
+  {
+    name: "kind without ref or target (ThomasBirkmaier/ReqSeq-archive#310)",
+    fixture: HINTS,
+    input: { kind: ["x"] },
+    expect: "error",
+  },
   {
     name: "every open hint of a kind in the workspace, as reviewed (#644)",
     fixture: HINTS,

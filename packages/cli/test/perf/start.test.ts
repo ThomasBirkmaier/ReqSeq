@@ -3,7 +3,7 @@
 // workspace before it listens (`warmWorkspace`), so the time from spawn until it answers `workspace.status` is
 // the time until ReqSeq is usable over the API. The first start has an empty cache folder; the second starts
 // again with the model cache the first start wrote (ADR-0008). Until the app came, these tests stood in for
-// SR-082 AK1 and AK2 (#127, option 1). Those criteria name the app's start, so their tags moved to the app's
+// SR-082 AK1 and AK2 (ThomasBirkmaier/ReqSeq-archive#127, option 1). Those criteria name the app's start, so their tags moved to the app's
 // test (packages/app/test/perf/start.spec.ts, #147); these times are recorded, with the thresholds of
 // SR-082 AK1 and AK2 for comparison only. Runs with `pnpm test:perf` after `pnpm build`, nightly and on pull
 // requests labelled `perf`, never in the required test run.

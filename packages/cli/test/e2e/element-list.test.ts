@@ -82,7 +82,7 @@ describe("reqseq element list (SR-069)", () => {
     ]);
     const human = await list({ selection: { where }, limit: 2 }, []);
     expect([human.code, human.stderr]).toEqual([0, ""]);
-    // One line per element (#310), then the total of all matches and how to page.
+    // One line per element (ThomasBirkmaier/ReqSeq-archive#310), then the total of all matches and how to page.
     expect(human.stdout).toBe(
       "elements:\n  SR-0000b3  draft  Survive icing  [emergent]\n  SR-0000b4  obsolete  Show a dial\ntotal: 5\nShowing 2 of 5; ask for more with --offset and --limit.\n",
     );

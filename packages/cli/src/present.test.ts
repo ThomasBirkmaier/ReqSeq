@@ -35,7 +35,7 @@ const edge = (child: string, parent: string, direction: "up" | "down", cyclic = 
   cyclic,
 });
 
-describe("renderHuman: findings left out (#304)", () => {
+describe("renderHuman: findings left out (ThomasBirkmaier/ReqSeq-archive#304)", () => {
   it("says how many findings severity left out instead of No problems, and does not show hidden as YAML", () => {
     expect(
       renderHuman({
@@ -753,7 +753,7 @@ describe("renderHuman: indirect verification (SR-034)", () => {
   });
 });
 
-describe("renderHuman: elements named by UUID only (#588)", () => {
+describe("renderHuman: elements named by UUID only (ThomasBirkmaier/ReqSeq-archive#588)", () => {
   const C1 = "58858858-0000-4000-8000-0000000000b1";
   const C2 = "58858858-0000-4000-8000-0000000000b2";
   const V1 = "58858858-0000-4000-8000-0000000000c1";
@@ -955,7 +955,7 @@ describe("renderHuman: verification degree (SR-037)", () => {
     );
   });
 
-  it("rounds the share down to one decimal (#592 Q3)", () => {
+  it("rounds the share down to one decimal (ThomasBirkmaier/ReqSeq-archive#592 Q3)", () => {
     const shown = (share: number): string | undefined =>
       renderHuman({ degree: { share, total: 1, counts } })
         .split("\n")
@@ -1034,7 +1034,7 @@ describe("renderHuman: the mark emergent (SR-035)", () => {
   });
 });
 
-describe("renderHuman: identifiers (#305)", () => {
+describe("renderHuman: identifiers (ThomasBirkmaier/ReqSeq-archive#305)", () => {
   it("shows the identifier next to the short ID of an element, its relations, a hint and a chain node", () => {
     const element = {
       id: "u1",

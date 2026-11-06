@@ -1,7 +1,7 @@
 // `reqseq element add-attachment` end to end (SR-097, ADR-0009): the built binary on
 // fixtures/SR-004/one-repository as a Git repository, a source path relative to the current folder,
 // the Markdown it prints, the text saved with `reqseq element update`, and the image found from the
-// link on disk and in the commit. Inserting an image in the editor comes with the editor (#77);
+// link on disk and in the commit. Inserting an image in the editor comes with the editor (ThomasBirkmaier/ReqSeq-archive#77);
 // core and this test cover the function now. Run after `pnpm build` with `pnpm test:e2e`.
 import fs from "node:fs/promises";
 import path from "node:path";

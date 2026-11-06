@@ -5,7 +5,7 @@ import { SCHEMA_BASE, contractsBundle } from "@reqseq/core";
 
 /** Values the command line can carry directly. Anything else is `complex` and only reachable via `--input`. */
 export type ScalarKind = "string" | "number" | "boolean";
-/** `null`: a schema that allows only `null`; next to another kind it leaves that kind (#343). */
+/** `null`: a schema that allows only `null`; next to another kind it leaves that kind (ThomasBirkmaier/ReqSeq-archive#343). */
 type Kind = ScalarKind | "complex" | "any" | "null";
 
 /**
@@ -54,7 +54,7 @@ export interface InputField {
   readonly choices: readonly string[] | undefined;
   /**
    * The schema also allows `null` (`type: [X, "null"]`, an `anyOf` branch `{ type: "null" }`): the
-   * field keeps the form of its other kind, and `null` itself is given with `--input` (#343).
+   * field keeps the form of its other kind, and `null` itself is given with `--input` (ThomasBirkmaier/ReqSeq-archive#343).
    */
   readonly nullable: boolean;
   /** `default` of the schema (for the help text; core fills it in). */

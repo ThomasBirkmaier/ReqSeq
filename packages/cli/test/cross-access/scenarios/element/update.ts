@@ -202,7 +202,7 @@ scenariosOf("element.update", [
     expect: "output",
   },
   {
-    name: "update an element with a validity target, shown in relations (#187)",
+    name: "update an element with a validity target, shown in relations (ThomasBirkmaier/ReqSeq-archive#187)",
     fixture: { fixture: "SR-019/findings", git: true },
     input: {
       ref: "2b2b2b2b-2222-4222-8222-b00000000009",

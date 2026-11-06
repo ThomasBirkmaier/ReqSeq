@@ -45,13 +45,13 @@ scenariosOf("evidence.coverage", [
     },
   },
   {
-    name: "an unknown package gives the same error (#535 fixture)",
+    name: "an unknown package gives the same error (ThomasBirkmaier/ReqSeq-archive#535 fixture)",
     fixture: EVIDENCE,
     input: { selection: { package: "PKG-ffffff" } },
     expect: "error",
   },
   {
-    name: "a workspace with an evidence location (#535)",
+    name: "a workspace with an evidence location (ThomasBirkmaier/ReqSeq-archive#535)",
     fixture: EVIDENCE,
     input: { selection: { ids: ["SR-e88fb3"] } },
     expect: "output",

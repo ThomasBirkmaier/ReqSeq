@@ -1,5 +1,5 @@
 // The reverse of the parser: the command line for a command input, for the cross-access test (SR-080,
-// #125) and scripts. Uses positional arguments and flags where they carry the value exactly, and puts
+// ThomasBirkmaier/ReqSeq-archive#125) and scripts. Uses positional arguments and flags where they carry the value exactly, and puts
 // the rest into one inline `--input`. Generic like the parser: only the schema decides.
 import type { CatalogEntry, JsonSchema } from "@reqseq/core";
 import { contractsBundle } from "@reqseq/core";

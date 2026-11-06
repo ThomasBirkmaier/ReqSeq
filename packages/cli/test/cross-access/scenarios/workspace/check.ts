@@ -93,13 +93,13 @@ scenariosOf("workspace.check", [
     },
   },
   {
-    name: "a workspace with an evidence location (#535)",
+    name: "a workspace with an evidence location (ThomasBirkmaier/ReqSeq-archive#535)",
     fixture: EVIDENCE,
     input: {},
     expect: "output",
   },
   {
-    name: "duplicate identifiers within a type, with the identifier of each element (#305)",
+    name: "duplicate identifiers within a type, with the identifier of each element (ThomasBirkmaier/ReqSeq-archive#305)",
     fixture: {
       ...IDENTIFIERS,
       files: {
@@ -187,14 +187,14 @@ scenariosOf("workspace.check", [
     expect: "output",
   },
   {
-    name: "warnings fail with failOn warning, errors only shown (#304)",
+    name: "warnings fail with failOn warning, errors only shown (ThomasBirkmaier/ReqSeq-archive#304)",
     fixture: { fixture: "SR-085/value-kinds" },
     root: "system",
     input: { severity: "error", failOn: "warning" },
     expect: "output",
   },
   {
-    name: "warnings alone are ok by default (#304)",
+    name: "warnings alone are ok by default (ThomasBirkmaier/ReqSeq-archive#304)",
     fixture: { fixture: "SR-085/value-kinds" },
     root: "system",
     input: {},
@@ -208,13 +208,13 @@ scenariosOf("workspace.check", [
     expect: "output",
   },
   {
-    name: "info fails with failOn info (#304)",
+    name: "info fails with failOn info (ThomasBirkmaier/ReqSeq-archive#304)",
     fixture: MISSING_TARGETS,
     root: "system",
     input: { failOn: "info", severity: "warning" },
     expect: "output",
   },
-  { name: "unknown failOn (#304)", input: { failOn: "hint" }, expect: "error" },
+  { name: "unknown failOn (ThomasBirkmaier/ReqSeq-archive#304)", input: { failOn: "hint" }, expect: "error" },
   {
     name: "restricted to changed files (SR-092)",
     fixture: { fixture: "SR-019/findings", git: true },

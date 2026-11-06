@@ -131,7 +131,7 @@ export const HINTS: FixtureOptions = { fixture: "SR-026/hints", git: true };
 
 /**
  * HINTS with the standard model as shipped, which marks the acceptance criteria and the rationale as
- * Markdown, and links in acceptance criteria (SR-127, #444): SR-0000b1 holds one to a changed need
+ * Markdown, and links in acceptance criteria (SR-127, ThomasBirkmaier/ReqSeq-archive#444): SR-0000b1 holds one to a changed need
  * next to its relations, SR-0000b8 is only a criterion that references a need.
  */
 export const IN_CRITERIA: FixtureOptions = {
@@ -154,7 +154,7 @@ export const IN_CRITERIA: FixtureOptions = {
   },
 };
 
-/** Spec IDs in a property with the meaning identifier (#305). */
+/** Spec IDs in a property with the meaning identifier (ThomasBirkmaier/ReqSeq-archive#305). */
 export const IDENTIFIERS: FixtureOptions = { fixture: "enabler-305/identifiers", git: true };
 export const MISSING_TARGETS: FixtureOptions = {
   fixture: "SR-089/missing-targets",
@@ -169,7 +169,7 @@ export const WITH_VAULT =
 
 /**
  * The requirement of SR-004/one-repository with an evidence location: one Markdown record and one
- * enriched JUnit file of SR-e88fb3 (#535). The stage 4 commands use it for their scenarios; the
+ * enriched JUnit file of SR-e88fb3 (ThomasBirkmaier/ReqSeq-archive#535). The stage 4 commands use it for their scenarios; the
  * records are read once SR-028 and SR-093 add their readers.
  */
 export const EVIDENCE: FixtureOptions = { fixture: "enabler-535/evidence", git: true };

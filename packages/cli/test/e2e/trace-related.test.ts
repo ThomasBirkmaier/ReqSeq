@@ -55,7 +55,7 @@ describe("reqseq trace related (SR-023)", () => {
     fixtures.push(ws);
     const human = await run(["trace", "related", "parents", "--refs", "SR-0000b1"], { cwd: ws.root });
     expect(human.code).toBe(0);
-    // One line per element (#310).
+    // One line per element (ThomasBirkmaier/ReqSeq-archive#310).
     expect(human.stdout).toBe("elements:\n  N-0000a1  approved  See the wind\ntotal: 1\n");
   });
 

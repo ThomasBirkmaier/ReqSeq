@@ -34,25 +34,29 @@ scenariosOf("element.get", [
     expect: "output",
   },
   { name: "one element by short ID", input: { ref: "SR-e88fb3" }, expect: "output" },
-  { name: "one element by a short ID in lower case (#309)", input: { ref: "sr-E88FB3" }, expect: "output" },
   {
-    name: "a reference that names no element: no identifier SR-036 here (#305)",
+    name: "one element by a short ID in lower case (ThomasBirkmaier/ReqSeq-archive#309)",
+    input: { ref: "sr-E88FB3" },
+    expect: "output",
+  },
+  {
+    name: "a reference that names no element: no identifier SR-036 here (ThomasBirkmaier/ReqSeq-archive#305)",
     input: { ref: "SR-036" },
     expect: "error",
   },
   {
-    name: "a malformed reference: spaces at its end (#309)",
+    name: "a malformed reference: spaces at its end (ThomasBirkmaier/ReqSeq-archive#309)",
     input: { ref: "SR-e88fb3 " },
     expect: "error",
   },
   {
-    name: "one element by its identifier, in any case, with the identifiers it names (#305)",
+    name: "one element by its identifier, in any case, with the identifiers it names (ThomasBirkmaier/ReqSeq-archive#305)",
     fixture: IDENTIFIERS,
     input: { ref: "sr-036" },
     expect: "output",
   },
   {
-    name: "a short ID of one element that is the identifier of another is ambiguous (#305)",
+    name: "a short ID of one element that is the identifier of another is ambiguous (ThomasBirkmaier/ReqSeq-archive#305)",
     fixture: {
       ...IDENTIFIERS,
       files: {
@@ -111,7 +115,7 @@ scenariosOf("element.get", [
   { name: "unknown reference", input: { ref: "SR-ffffff" }, expect: "error" },
   { name: "view of a variant (stage 5)", input: { ref: "SR-e88fb3", view: "core" }, expect: "error" },
   {
-    name: "one copy of a UUID two files share, by repository and file (SR-088, #255)",
+    name: "one copy of a UUID two files share, by repository and file (SR-088, ThomasBirkmaier/ReqSeq-archive#255)",
     fixture: { fixture: "SR-088/copied-file", git: true },
     root: "system",
     input: {
@@ -122,7 +126,7 @@ scenariosOf("element.get", [
     expect: "output",
   },
   {
-    name: "a file that holds none of the elements ref names (#255)",
+    name: "a file that holds none of the elements ref names (ThomasBirkmaier/ReqSeq-archive#255)",
     fixture: { fixture: "SR-088/copied-file", git: true },
     root: "system",
     input: { ref: "948a10f1-05c3-4212-bd19-00606ccf2661", file: "needs/N-00606ccf2661.md" },

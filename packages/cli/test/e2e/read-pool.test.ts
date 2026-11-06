@@ -1,4 +1,4 @@
-// The read pool of a cold load (ADR-0008, #148) end to end: the built binary loads a workspace with
+// The read pool of a cold load (ADR-0008, ThomasBirkmaier/ReqSeq-archive#148) end to end: the built binary loads a workspace with
 // more element files than the pool's threshold (1,000), so its worker threads read them from
 // `dist`, and the process still exits on its own when the command is done.
 // Run after `pnpm build` with `pnpm test:e2e`.
@@ -124,7 +124,7 @@ afterAll(async () => {
   await fixture.cleanup();
 });
 
-describe("cold load in worker threads (ADR-0008, #148)", () => {
+describe("cold load in worker threads (ADR-0008, ThomasBirkmaier/ReqSeq-archive#148)", () => {
   it("checks a workspace of 1,200 element files and exits", async () => {
     const run = await reqseq(["workspace", "check", "--json"], fixture.workspaceRoot);
     expect(run.stderr).toBe("");

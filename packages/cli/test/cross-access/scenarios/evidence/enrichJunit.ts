@@ -6,7 +6,7 @@ import { scenariosOf } from "../../scenario.js";
 import { EVIDENCE } from "../../fixtures.js";
 
 /**
- * The #535 workspace with a JUnit file outside the evidence folder that is not enriched yet (SR-029,
+ * The ThomasBirkmaier/ReqSeq-archive#535 workspace with a JUnit file outside the evidence folder that is not enriched yet (SR-029,
  * plan review S3), so evidence.enrichJunit writes on every access.
  */
 const RAW_JUNIT: FixtureOptions = {
@@ -21,7 +21,7 @@ const RAW_JUNIT: FixtureOptions = {
 };
 
 /**
- * The #535 workspace with a JUnit file of Rust test names that cannot hold brackets (SR-029 AK4, AK5):
+ * The ThomasBirkmaier/ReqSeq-archive#535 workspace with a JUnit file of Rust test names that cannot hold brackets (SR-029 AK4, AK5):
  * one names SR-e88fb3 in the form `{prefix}_{id}_ak{ak}`, one names nothing.
  */
 const PATTERN_JUNIT: FixtureOptions = {
@@ -36,7 +36,7 @@ const PATTERN_JUNIT: FixtureOptions = {
 };
 
 /**
- * The #535 workspace with a JUnit file whose test case names an acceptance criterion of SR-e88fb3 in
+ * The ThomasBirkmaier/ReqSeq-archive#535 workspace with a JUnit file whose test case names an acceptance criterion of SR-e88fb3 in
  * its name and one by short ID in a hand-written property (SR-029 AK10, #961).
  */
 const CRITERION_JUNIT: FixtureOptions = {
@@ -49,7 +49,7 @@ const CRITERION_JUNIT: FixtureOptions = {
   },
 };
 
-/** The #535 workspace with a need and a JUnit file whose test case names it (#843). */
+/** The ThomasBirkmaier/ReqSeq-archive#535 workspace with a need and a JUnit file whose test case names it (#843). */
 const NEED_JUNIT: FixtureOptions = {
   ...EVIDENCE,
   files: {

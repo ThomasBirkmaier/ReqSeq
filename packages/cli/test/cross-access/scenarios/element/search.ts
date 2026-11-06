@@ -27,7 +27,7 @@ scenariosOf("element.search", [
     expect: "output",
   },
   {
-    name: "an identifier, first, with the words of its property (#305)",
+    name: "an identifier, first, with the words of its property (ThomasBirkmaier/ReqSeq-archive#305)",
     fixture: IDENTIFIERS,
     input: { query: "sr-036" },
     expect: "output",
