@@ -106,6 +106,7 @@ properties:
   - key: acceptance-criteria
     name: Acceptance Criteria
     kind: text
+    meaning: acceptance-criteria
     many: true
     content: true
     markdown: true
