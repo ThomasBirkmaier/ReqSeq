@@ -5,11 +5,11 @@
 //   `properties` (own and inherited). A property is inherited when its key is among the `properties` of
 //   the type its `extends` names; that is the one reading of the output this module makes (review S2).
 // - A link is an `extends` value (to the parent), one pair of the `source-types` × `target-types` of a
-//   relation kind, or one target type of a property of kind `relation` that a type has as its own (#619
+//   relation kind, or one target type of a property of kind `relation` that a type has as its own (ThomasBirkmaier/ReqSeq-archive#619
 //   Q1: drawn as curves, labelled with the property's name). A side that a relation kind or property
 //   leaves out allows every type (the schema): it is the node "Any type", which exists only then, and
 //   the label says which side is open (AK3). So a kind open on one side appears once per type of the
-//   other side (#619 Q2), and a kind open on both sides once, as a loop at "Any type". An empty list
+//   other side (ThomasBirkmaier/ReqSeq-archive#619 Q2), and a kind open on both sides once, as a loop at "Any type". An empty list
 //   allows no type and gives no link; a type key that names no type gives none either (core reports it).
 //   Types are named as written, their subtypes not added: the inheritance curves show them.
 // - The links of one ordered pair of nodes are one edge, in the order of their first link: the

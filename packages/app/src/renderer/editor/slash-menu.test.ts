@@ -2,7 +2,7 @@
 // SR-129: the slash menu in the whole editor (its keymap included), driven by transactions that carry the
 // user events a keyboard and the clipboard give, and by the key handlers of CodeMirror.
 // happy-dom fires `selectionchange` inside a CodeMirror update; the root vitest config loads this setup, a
-// run in packages/app needs it too (#460, #573).
+// run in packages/app needs it too (ThomasBirkmaier/ReqSeq-archive#460, ThomasBirkmaier/ReqSeq-archive#573).
 import "../../../../../scripts/test-support/dom-selection.mjs";
 import { completionStatus, currentCompletions, selectedCompletion } from "@codemirror/autocomplete";
 import { undo } from "@codemirror/commands";

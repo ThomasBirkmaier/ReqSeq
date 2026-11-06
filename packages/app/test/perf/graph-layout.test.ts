@@ -1,7 +1,7 @@
 // The layout part of SR-111 AK6 in the performance suite (ADR-0011), on the generated workspace of N-036
 // with 50,000 elements and 200,000 relations: the app's layout (`graph-layout.ts`, dagre) of the graph
 // of 500 nodes that "Whole chain" over every kind gives for the first need (its layers are the levels,
-// #500), its first run in this process and the median of 5 runs; and of the 200 nearest nodes of the
+// ThomasBirkmaier/ReqSeq-archive#500), its first run in this process and the median of 5 runs; and of the 200 nearest nodes of the
 // same chain, the largest graph whose links within a level can be ranked; and of a graph of 199 nodes whose
 // links within a level form chains of 20, levelled by the crossed layers (#211). It is recorded, not asserted:
 // SR-111 AK6 is asserted end to end in the app (test/graph-performance.spec.ts), and
@@ -77,7 +77,7 @@ describe("the layout of a graph of 500 nodes (SR-111 AK6, N-036)", () => {
     const { result } = await measureMedian(
       `graph: app layout of the ${String(LEVEL_LAYERS_ABOVE)} nearest nodes, ${String(output.edges.length)} links (whole chain of the first need, every kind, ${drawing}), median of 5`,
       () => layoutGraph(output),
-      { basis: "SR-111 AK6 (recorded; #500)", runs: 5 },
+      { basis: "SR-111 AK6 (recorded; ThomasBirkmaier/ReqSeq-archive#500)", runs: 5 },
     );
     expect(result.nodes).toHaveLength(LEVEL_LAYERS_ABOVE);
   });

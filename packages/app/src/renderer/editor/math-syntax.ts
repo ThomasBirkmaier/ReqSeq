@@ -1,4 +1,4 @@
-// The syntax of formulas (SR-096, #108) as an extension of the Markdown parser: the notation GitHub shows,
+// The syntax of formulas (SR-096, ThomasBirkmaier/ReqSeq-archive#108) as an extension of the Markdown parser: the notation GitHub shows,
 // which follows from CommonMark with GitHub extensions (SR-065 AK2, SR-129). The file keeps the Markdown as
 // written; these nodes only tell the preview where a formula is.
 //

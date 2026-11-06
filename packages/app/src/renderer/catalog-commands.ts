@@ -1,4 +1,4 @@
-// Catalog commands in the command prompt (SR-073 AK2, SR-108, #85). The prompt lists the implemented read
+// Catalog commands in the command prompt (SR-073 AK2, SR-108, ThomasBirkmaier/ReqSeq-archive#85). The prompt lists the implemented read
 // and write commands by their `title`, except those an app action covers; while the workspace is
 // read-only, no write command that core refuses then; while a folder without a workspace is open, only
 // "Initialise workspace". Choosing one asks its arguments one by one in the minibuffer, Emacs

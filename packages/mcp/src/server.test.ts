@@ -46,7 +46,7 @@ const catalog = {
 };
 
 /**
- * Upper bounds of the product `tools/list` result, in bytes of JSON (#303, #336; ADR-0009). An agent puts the
+ * Upper bounds of the product `tools/list` result, in bytes of JSON (ThomasBirkmaier/ReqSeq-archive#303, ThomasBirkmaier/ReqSeq-archive#336; ADR-0009). An agent puts the
  * whole list into its context, so raise them only on purpose, with the reason in the PR.
  *
  * The selection part of a tool is the `$defs` its input schema reaches from `common.selection` or, in a tool
@@ -54,8 +54,8 @@ const catalog = {
  * the recursive filter condition with the short semantics of each operator (agents learn them from these
  * descriptions only) and the definitions they use. It is the same in every tool with a selection, and every
  * such tool repeats it, because MCP has no `$defs` shared across tools and ADR-0009 makes each input schema
- * self-contained. So it has its own bound (6.6 KB with #336, 7 KB until #595, now 7.5 KB: SR-035's `emergent`
- * operator, SR-062 and stage 5 need room, ADR-0009), and the rest of each tool keeps the bound of #303.
+ * self-contained. So it has its own bound (6.6 KB with ThomasBirkmaier/ReqSeq-archive#336, 7 KB until ThomasBirkmaier/ReqSeq-archive#595, now 7.5 KB: SR-035's `emergent`
+ * operator, SR-062 and stage 5 need room, ADR-0009), and the rest of each tool keeps the bound of ThomasBirkmaier/ReqSeq-archive#303.
  */
 const SELECTION_MAX_BYTES = 7.5 * 1024;
 /** Where the selection part starts (see above). */
@@ -85,13 +85,13 @@ const SELECTION_TOOLS: readonly string[] = [
   "reqif_export",
 ];
 /**
- * What each listed tool brings to the bound of the whole list (#496). The tools average 1.85 KB without their
+ * What each listed tool brings to the bound of the whole list (ThomasBirkmaier/ReqSeq-archive#496). The tools average 1.85 KB without their
  * selection part; a tool above 2 KB spends the allowance of the others, so it must shorten once that is used up.
  */
 const TOOL_ALLOWANCE_BYTES = 2 * 1024;
 /**
- * The whole list: 2 KB per listed tool plus one selection part per selection tool (#496; ADR-0009). It grows
- * with the commands, because the context an agent loads grows with the commands it is meant to call. #303's
+ * The whole list: 2 KB per listed tool plus one selection part per selection tool (ThomasBirkmaier/ReqSeq-archive#496; ADR-0009). It grows
+ * with the commands, because the context an agent loads grows with the commands it is meant to call. ThomasBirkmaier/ReqSeq-archive#303's
  * risk, whole schema files repeated in every tool, is caught per tool by `TOOL_MAX_BYTES`, and per selection
  * part by `SELECTION_MAX_BYTES`.
  */
@@ -490,15 +490,15 @@ describe("callTool", () => {
   it("runs on the runtime of the process by default", async () => {
     const { listed, instructions } = await productList();
     expect(listed.tools.some((t) => t.name === "workspace_status")).toBe(true);
-    // #303: the list was 1 MB when every tool schema carried whole schema files; an agent puts all of it
-    // into its context. Each tool now carries only the definitions it uses (bounds above, #336, #496).
+    // ThomasBirkmaier/ReqSeq-archive#303: the list was 1 MB when every tool schema carried whole schema files; an agent puts all of it
+    // into its context. Each tool now carries only the definitions it uses (bounds above, ThomasBirkmaier/ReqSeq-archive#336, ThomasBirkmaier/ReqSeq-archive#496).
     expect(overBounds(listed)).toEqual([]);
     const sizes = listed.tools.map((tool) => ({ name: tool.name, ...sizesOf(tool) }));
     expect(sizes.filter((tool) => tool.selection > 0).map((tool) => tool.name)).toEqual(SELECTION_TOOLS);
     expect(instructions).toContain("workspace_status");
   });
 
-  it("bounds the list by 2 KB per tool, so a tool above that must shorten (#496)", async () => {
+  it("bounds the list by 2 KB per tool, so a tool above that must shorten (ThomasBirkmaier/ReqSeq-archive#496)", async () => {
     const { listed } = await productList();
     const headroom = toolsListMaxBytes(listed.tools.length) - bytes(listed);
     expect(headroom).toBeGreaterThan(0);
@@ -515,7 +515,7 @@ describe("callTool", () => {
     const large = Array.from({ length: count }, (_, i) => filler(`large_${String(i)}`, 3 * 1024 - 1));
     expect(adding(large.slice(1))).toEqual([]);
     expect(adding(large).map((over) => over.split(":")[0])).toEqual(["list"]);
-    // #303: a tool that carries whole schema files (13 KB of common and filter $defs) fails its own bound.
+    // ThomasBirkmaier/ReqSeq-archive#303: a tool that carries whole schema files (13 KB of common and filter $defs) fails its own bound.
     expect(adding([filler("whole", 13 * 1024)])).toContain("whole: 13312 of 6144");
   });
 });

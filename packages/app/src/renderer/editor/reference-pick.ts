@@ -1,7 +1,7 @@
 // The question for the element of an inline reference (ADR-0004), shared by the slash menu's "Reference to
 // element" (SR-129) and the `[[` search (SR-066, `reference-search.ts`): the editor keeps what was typed (the
 // `/` and its query, or the `[[`) while the app asks for an element in the prompt "Insert reference", and
-// writes `referenceMarkdown` in its place once one is picked. One place writes the reference (#576). The
+// writes `referenceMarkdown` in its place once one is picked. One place writes the reference (ThomasBirkmaier/ReqSeq-archive#576). The
 // slash menu's "Image" (SR-097) holds the `/` in the same way while the app asks for the image file.
 import { isolateHistory } from "@codemirror/commands";
 import { StateEffect, StateField } from "@codemirror/state";

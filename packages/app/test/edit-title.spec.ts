@@ -1,4 +1,4 @@
-// The title of an element is edited in its heading (#621; SR-104, SR-073 AK1; spec question #676) on the
+// The title of an element is edited in its heading (ThomasBirkmaier/ReqSeq-archive#621; SR-104, SR-073 AK1; spec question ThomasBirkmaier/ReqSeq-archive#676) on the
 // built app: entered with the keyboard or a click, saved a second after the last key or with Ctrl/Cmd+S as
 // `title` (SR-105), an emptied title saved with core's hint (SR-064 AK2), a change of the file under the input
 // resolved like a box (SR-106 AK2), and the page does not move when the editor comes. Every result is
@@ -75,7 +75,7 @@ const box = async (locator: Locator): Promise<{ x: number; y: number; width: num
   return found;
 };
 
-test.describe("the title of an element, edited in its heading (#621)", () => {
+test.describe("the title of an element, edited in its heading (ThomasBirkmaier/ReqSeq-archive#621)", () => {
   let running: RunningApp;
   let file: string;
   const onDisk = (): Promise<string> => fs.readFile(file, "utf8");
@@ -182,7 +182,7 @@ test.describe("the title of an element, edited in its heading (#621)", () => {
     expect(await cliTitle(running)).toBe(TITLE);
   });
 
-  test("a click on the heading puts the caret where it was clicked, and a pasted paragraph becomes one line (#621)", async () => {
+  test("a click on the heading puts the caret where it was clicked, and a pasted paragraph becomes one line (ThomasBirkmaier/ReqSeq-archive#621)", async () => {
     const { window } = running;
     await opened(window);
     // The point of the 7th character of the heading's text ("Measure|").
@@ -214,7 +214,7 @@ test.describe("the title of an element, edited in its heading (#621)", () => {
     await expect.poll(onDisk).toContain("title: Measure! wind speed gusts and rain\n");
   });
 
-  test("the heading and the text do not move when the title editor comes, for a one-line and a wrapping title (D-062, #542)", async () => {
+  test("the heading and the text do not move when the title editor comes, for a one-line and a wrapping title (D-062, ThomasBirkmaier/ReqSeq-archive#542)", async () => {
     const { window } = running;
     // A second element, given a title that wraps, before it is opened.
     const long = `Show a dial ${"and the gusts over the whole field ".repeat(5).trim()}`;

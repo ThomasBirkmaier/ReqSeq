@@ -20,7 +20,7 @@ export interface AppCommandEntry {
   readonly key?: string;
 }
 
-/** The app action that does what `command` does, so the command prompt lists the action only (#85). */
+/** The app action that does what `command` does, so the command prompt lists the action only (ThomasBirkmaier/ReqSeq-archive#85). */
 export const coveringAction = (
   command: NamedCommand,
   actions: readonly Action[] = ACTIONS,

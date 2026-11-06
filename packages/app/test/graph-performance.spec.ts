@@ -8,8 +8,8 @@
 //   relation kind" > "Evidence" (SR-111 AK3) have 475 evidence boxes besides the nodes; that is timed
 //   from the keydown of Enter in the prompt, on each root.
 // - deep (`support/graph-deep-fixture.ts`): three needs, each the root of a whole chain of exactly 500
-//   nodes with the link profile of the N-036 whole chain (#500: 263 links within a level, 45 against the
-//   levels, 886 in all). The graph opens at depth 1 (53 nodes), and `+` gives the 500 nodes (#500).
+//   nodes with the link profile of the N-036 whole chain (ThomasBirkmaier/ReqSeq-archive#500: 263 links within a level, 45 against the
+//   levels, 886 in all). The graph opens at depth 1 (53 nodes), and `+` gives the 500 nodes (ThomasBirkmaier/ReqSeq-archive#500).
 // The time runs from the keydown (its `event.timeStamp`, capture phase) to the frame after the paint in
 // which every box and every curve is placed (`[data-laid-out]` and a double `requestAnimationFrame`):
 // IPC, core, the JSON, dagre, React's commit, style and paint. Each must be within 1000 ms; a miss is a
@@ -299,7 +299,7 @@ test.describe("the whole chain of 500 nodes", () => {
     }
     // For each root: its graph at depth 1 (53 nodes, the only layout before the first timed `+` of the
     // app run, timed and logged too), then `+`, timed. The depth-1 layout warms dagre: measured in Node
-    // (#500, a 55-node layout before a 500-node one), the first big layout is 17 to 32 % faster in wall
+    // (ThomasBirkmaier/ReqSeq-archive#500, a 55-node layout before a 500-node one), the first big layout is 17 to 32 % faster in wall
     // time, about 30 to 60 ms of dagre on CI. It is the user's only path to a deep graph until a depth can
     // be chosen in the command prompt, and that does not change it.
     const depthOne: Timing[] = [];

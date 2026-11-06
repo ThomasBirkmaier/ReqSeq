@@ -1,6 +1,6 @@
 // "Copy field" (SR-128): the value of each field of an element as the text that goes on the clipboard.
 // The value is the one the file stores (the Markdown source of the text, the lines of a box as shown),
-// one value per line (#457). Pure: the window puts it on the clipboard.
+// one value per line (ThomasBirkmaier/ReqSeq-archive#457). Pure: the window puts it on the clipboard.
 import type { DataExportElement } from "@reqseq/core";
 import type { PropertyBox } from "./element-view.js";
 import { TITLE_FIELD, propertyBoxes, relationGroups, relationLabel } from "./element-view.js";
@@ -44,7 +44,7 @@ export const docOf = (editor: { readonly doc: () => string } | undefined): strin
  * The fields the element buffer shows: the title, the text (`doc` gives what the editor holds, the
  * unsaved input included), each property box and each group of relations (SR-128 "jedes angezeigten
  * Feldes"); and the ID that the status line names the element by: the identifier when it has one, else
- * the short ID (#457 Q1a). A box with an editor (SR-104) copies what the editor holds, one value per line,
+ * the short ID (ThomasBirkmaier/ReqSeq-archive#457 Q1a). A box with an editor (SR-104) copies what the editor holds, one value per line,
  * the unsaved input included like the text; `boxDoc` gives it by key, or none for a box without editor.
  * `boxes` are the property boxes as shown (the added empty ones included); a relation box copies the labels
  * of its targets, as the relation group did.
@@ -57,7 +57,7 @@ export const copyable = (
 ): Copyable => ({
   fields: [
     {
-      // What the title's editor holds (#621), the unsaved input included; the heading when it holds nothing.
+      // What the title's editor holds (ThomasBirkmaier/ReqSeq-archive#621), the unsaved input included; the heading when it holds nothing.
       label: TITLE_FIELD,
       text: () => {
         const doc = boxDoc(TITLE_FIELD);

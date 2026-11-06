@@ -1,5 +1,5 @@
 // The modeline: a display, not a control. Left the parts of the shown buffer, right the workspace, each
-// part a segment of one rounded bar (#490). Two
+// part a segment of one rounded bar (ThomasBirkmaier/ReqSeq-archive#490). Two
 // things are not just display (SR-128): the ID of an element carries the copy symbol of a field, and the
 // confirmation of a copy shows briefly after the parts.
 import type { DataExportElement } from "@reqseq/core";

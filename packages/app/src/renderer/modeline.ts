@@ -19,7 +19,7 @@ interface StatusOutput {
 export interface WorkspaceView {
   /** The workspace's name; undefined while none is open. */
   readonly name: string | undefined;
-  /** The workspace is read-only: the command prompt offers no write command that it refuses (#85). */
+  /** The workspace is read-only: the command prompt offers no write command that it refuses (ThomasBirkmaier/ReqSeq-archive#85). */
   readonly readOnly: boolean;
   /** Further parts of the modeline, each only when it means something. */
   readonly marks: readonly string[];
@@ -62,7 +62,7 @@ export type BufferData =
       readonly kind: "list" | "search";
       readonly total: number;
       readonly incomplete: boolean;
-      /** The elements of the loaded rows, in their order (the selected one is the default of an element argument, #85). */
+      /** The elements of the loaded rows, in their order (the selected one is the default of an element argument, ThomasBirkmaier/ReqSeq-archive#85). */
       readonly rows?: readonly ElementBuffer[];
     }
   | {

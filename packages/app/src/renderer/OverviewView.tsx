@@ -34,7 +34,7 @@ const entryKey = (entry: RecentEntry): string => `${entry.repository}\n${entry.i
  * return to the overview does not count again, which would take hundreds of milliseconds at 50,000
  * elements), and the recent elements again when the list or the workspace changed. An element that cannot
  * be read any more (deleted outside, repository missing) is left out silently; `gone` gives the buffer keys
- * of those that core no longer knows (`ref.unknown`), so "Go to" forgets their names (#681). `read` is the
+ * of those that core no longer knows (`ref.unknown`), so "Go to" forgets their names (ThomasBirkmaier/ReqSeq-archive#681). `read` is the
  * last answer itself, so a name is taken from it once, not again after it was forgotten.
  */
 export const useOverview = (

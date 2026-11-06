@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 // happy-dom fires `selectionchange` inside a CodeMirror update; the root vitest config loads this setup, a
-// run in packages/app needs it too (#460).
+// run in packages/app needs it too (ThomasBirkmaier/ReqSeq-archive#460).
 import "../../../../scripts/test-support/dom-selection.mjs";
 // Saving without a save command in the element buffer (SR-105): one second after the last input, at once
 // when a prompt opens or the buffer is closed, and undo and redo since the buffer was opened, also for a
@@ -454,7 +454,7 @@ describe("autosave in the element buffer (SR-105)", () => {
     expect(flushed).toBe(false);
   });
 
-  it("[SR-105/AK1] a flush says input is left when keys were typed while its save ran, and the draft keeps them (#604 review, S1)", async () => {
+  it("[SR-105/AK1] a flush says input is left when keys were typed while its save ran, and the draft keeps them (ThomasBirkmaier/ReqSeq-archive#604 review, S1)", async () => {
     const { updates, controls, call, drafts } = await mountView();
     let answer: (() => void) | undefined;
     const real = call.getMockImplementation();
@@ -679,7 +679,7 @@ describe("autosave in the element buffer (SR-105)", () => {
     expect(area.textContent).toContain("interface");
   });
 
-  it("keeps a box that a save empties when it was typed in while the save ran (#348)", async () => {
+  it("keeps a box that a save empties when it was typed in while the save ran (ThomasBirkmaier/ReqSeq-archive#348)", async () => {
     const { call, file } = await mountView();
     let answer: (() => void) | undefined;
     const real = call.getMockImplementation();
@@ -750,7 +750,7 @@ describe("the buffer and what the app keeps of it (SR-105)", () => {
     expect(textView().state.doc.toString()).toBe("first\n");
   });
 
-  it("[SR-105/AK1] a save that answers after the buffer was left says whether its kept draft still holds input (#604 review)", async () => {
+  it("[SR-105/AK1] a save that answers after the buffer was left says whether its kept draft still holds input (ThomasBirkmaier/ReqSeq-archive#604 review)", async () => {
     // The app's draft of the buffer, which the answer rebases (`keep.update`).
     const flushLeft = async (
       kept: Draft,

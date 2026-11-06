@@ -48,4 +48,4 @@ Main gives each page load a `MessagePort` to the core process (`reqseq:workspace
 - Navigation of any frame (`will-navigate`, `will-frame-navigate`), redirects, `window.open` and webviews are denied. Every permission request and device (HID, serial, USB, Bluetooth) is refused. The CSP has `frame-src 'none'`.
 - `session.webRequest` cancels every request that is not `app:`, `reqseq-file:` or `devtools:`, and logs only its origin to standard error.
 - `reqseq-file://workspace/<repository>/<path>` serves images (by extension) inside an available repository of the workspace. The repository is in the path, because Chromium turns hosts like `1.2` into IPv4 addresses. The path is checked first by its names alone (no `\`, `:` or NUL, and inside the repository folder), before any file system call: a UNC path or `/net/...` would otherwise open a network share. Only then are links resolved and checked again.
-- There is no updater, no crash upload and no telemetry. Fuses and packaging belong to #324.
+- There is no updater, no crash upload and no telemetry. Fuses and packaging belong to ThomasBirkmaier/ReqSeq-archive#324.

@@ -36,7 +36,7 @@ describe("catalogTools", () => {
     expect(list.tools.every((tool) => tool.title.length > 0 && !("arguments" in tool))).toBe(true);
   });
 
-  it("publishes only patterns a client compiles without the Unicode flag (D-029, #305)", async () => {
+  it("publishes only patterns a client compiles without the Unicode flag (D-029, ThomasBirkmaier/ReqSeq-archive#305)", async () => {
     const published = JSON.parse(await fs.readFile(generated, "utf8")) as {
       $defs: { common: { $defs: { elementRef: { pattern: string } } } };
     };

@@ -101,7 +101,7 @@ const openElement = async (window: Page): Promise<void> => {
   await window.keyboard.press("Enter");
   await expect(window.locator("article h1")).toHaveText(SR_TITLE);
   await expect(window.locator("article")).toBeFocused();
-  // The keys of the element (Ctrl/Cmd+Alt+A) reach it once its text editor is there (#505).
+  // The keys of the element (Ctrl/Cmd+Alt+A) reach it once its text editor is there (ThomasBirkmaier/ReqSeq-archive#505).
   await expect(window.locator('article [data-field="Text"] .cm-content')).toBeVisible();
 };
 
@@ -149,7 +149,7 @@ test.describe("property boxes of an element", () => {
     // The values are those of the CLI, one per line.
     await expect(field(window, "acceptance-criteria").locator(".cm-line")).toHaveCount(3);
     await expect(field(window, "topic").locator(".cm-content")).toHaveText("Wind");
-    // A property the type does not know is shown, and not edited (D-012, spec question #469).
+    // A property the type does not know is shown, and not edited (D-012, spec question ThomasBirkmaier/ReqSeq-archive#469).
     await expect(field(window, "legacy")).toContainText("Altlast");
     await expect(field(window, "legacy").locator(".cm-editor")).toHaveCount(0);
   });

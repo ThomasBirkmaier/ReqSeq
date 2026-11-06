@@ -1,4 +1,4 @@
-// Cascading list filters (SR-124, #425) on the built app: each "Filter list by ..." narrows the list
+// Cascading list filters (SR-124, ThomasBirkmaier/ReqSeq-archive#425) on the built app: each "Filter list by ..." narrows the list
 // the one before gave, and what the list shows is compared with what the CLI gives for the same
 // selection (SR-080). Keys use ControlOrMeta, so the same tests run on Linux and macOS.
 import { expect, test } from "@playwright/test";

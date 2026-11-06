@@ -45,7 +45,7 @@ title: ${DEMO_TITLE}
 /** The `files` option of `launchApp`: the demo element in the fixture workspace. */
 export const DEMO_FILES = { [DEMO_FILE]: `${DEMO_FRONT_MATTER}${DEMO_TEXT}` };
 
-// Two elements for the inline reference tests (#424): a need whose text refers to another need, with a
+// Two elements for the inline reference tests (ThomasBirkmaier/ReqSeq-archive#424): a need whose text refers to another need, with a
 // version that is not the current one of the target, so core reports the reference as outdated.
 export const REFERENCE_TARGET_ID = "69069069-0000-4000-8000-00000000e0a1";
 export const REFERENCE_TARGET_TITLE = "Messung jede Sekunde";

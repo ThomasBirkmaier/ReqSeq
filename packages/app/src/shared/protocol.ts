@@ -113,7 +113,7 @@ export type WorkspaceChangeReason =
   | "written"
   /**
    * Files changed outside the app (CLI, API, MCP, another editor, Git): a batch of core's watcher
-   * (`watchWorkspace(...).onChange`, #331), with its `scope` and `elements` (SR-116, SR-106).
+   * (`watchWorkspace(...).onChange`, ThomasBirkmaier/ReqSeq-archive#331), with its `scope` and `elements` (SR-116, SR-106).
    */
   | "external";
 

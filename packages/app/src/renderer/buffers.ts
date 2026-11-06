@@ -116,7 +116,7 @@ export interface ResultBuffer {
   readonly revision: number;
   readonly cursor: number;
   /**
-   * The output of a write command (#85): shown as it came and never asked again when the workspace
+   * The output of a write command (ThomasBirkmaier/ReqSeq-archive#85): shown as it came and never asked again when the workspace
    * changes, since asking again would write again.
    */
   readonly written?: true;
@@ -455,7 +455,7 @@ export const renameAction = (element: Parameters<typeof elementBufferOf>[0]): Re
 });
 
 /**
- * The buffer of the element a relation points at (#416): its UUID in the repository of the target, named as
+ * The buffer of the element a relation points at (ThomasBirkmaier/ReqSeq-archive#416): its UUID in the repository of the target, named as
  * the relation shows it; undefined when the relation names no repository (a stored `repository` that is
  * not text).
  */
@@ -471,7 +471,7 @@ export const relationBuffer = (
       );
 
 /**
- * The order the lists of the app start with (#418): by type in the order of the metamodel, then by the
+ * The order the lists of the app start with (ThomasBirkmaier/ReqSeq-archive#418): by type in the order of the metamodel, then by the
  * identifier, digit runs as numbers (SR-9 before SR-10). The app chooses this input; `element.list`
  * without `sort` keeps the workspace order for every other access (ADR-0002, D-029). A frozen constant,
  * so the list does not ask again for another object with the same keys.

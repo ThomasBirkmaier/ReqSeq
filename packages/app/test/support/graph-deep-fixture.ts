@@ -1,7 +1,7 @@
 // A generated workspace for the deep timing of SR-111 AK6 (a graph of 500 nodes is laid out within a
 // second), on top of fixtures/SR-111/graph (its metamodel and workspace file). It has three needs, each
 // the root of a whole chain of exactly 500 nodes that depth 2 already reaches, with the link profile of
-// the whole chain over every kind of the first need of the N-036 workspace (#500):
+// the whole chain over every kind of the first need of the N-036 workspace (ThomasBirkmaier/ReqSeq-archive#500):
 // - level -1: 2 decisions the need is based on;
 // - level -2: 14 decisions, 8 by `based-on` and 6 by inline references from level -1;
 // - level 1: 50 system requirements with 53 links to the need (10 `derives-from`, 16 `refines`, 27

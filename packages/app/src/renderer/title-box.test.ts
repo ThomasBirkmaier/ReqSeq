@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { clickOffset, titleHeading } from "./title-box.js";
 
-describe("the heading of the title (#621)", () => {
+describe("the heading of the title (ThomasBirkmaier/ReqSeq-archive#621)", () => {
   it("shows the title, and the ID muted for a title that is empty or blank", () => {
     expect(titleHeading("Measure wind", "SR-1")).toEqual({ text: "Measure wind", untitled: false });
     expect(titleHeading("", "SR-1")).toEqual({ text: "SR-1", untitled: true });

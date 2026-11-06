@@ -1,4 +1,4 @@
-// The title is one line of plain text (#621, SR-127 "Titel und Kennungen bleiben reiner Text"): no key puts a
+// The title is one line of plain text (ThomasBirkmaier/ReqSeq-archive#621, SR-127 "Titel und Kennungen bleiben reiner Text"): no key puts a
 // line break in it (Enter leaves the title), and a line break the user brings in by typing, pasting or
 // dropping text (any `input` event) becomes one space, as in a one-line input field. The file's text put
 // in (no user event), undo and redo, and an edit the app puts in (`input.set`: "Take the file") stay as they

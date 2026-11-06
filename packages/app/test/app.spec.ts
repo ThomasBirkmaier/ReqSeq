@@ -1,4 +1,4 @@
-// The app shell (#322, ADR-0010): the processes, the bridge to the command catalog, the protocols and the
+// The app shell (ThomasBirkmaier/ReqSeq-archive#322, ADR-0010): the processes, the bridge to the command catalog, the protocols and the
 // security settings, on the built app.
 import type { InvokeResult, ReqSeqBridge } from "@reqseq/app";
 import fs from "node:fs";
