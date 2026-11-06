@@ -33,6 +33,29 @@ const WITHOUT_HEADING = [
   "relations: [{ source: satisfies, kind: derives-from }]",
   "",
 ].join("\n");
+/**
+ * DELIVERY with a RELATION-GROUP of REL-1, which the import does not take over (SR-053 AK2, #941):
+ * with it the delivery holds every kind of loss of SR-053 AK2 the fixture can show.
+ */
+const GROUPED: FixtureOptions = {
+  ...DELIVERY,
+  files: {
+    ...DELIVERY.files,
+    "in/lieferung.reqif": String(DELIVERY.files?.["in/lieferung.reqif"])
+      .replace("</SPEC-TYPES>", '<RELATION-GROUP-TYPE IDENTIFIER="gt-links" LONG-NAME="Links"/></SPEC-TYPES>')
+      .replace(
+        "</REQ-IF-CONTENT>",
+        [
+          '<SPEC-RELATION-GROUPS><RELATION-GROUP IDENTIFIER="rg-1">',
+          "<SPEC-RELATIONS><SPEC-RELATION-REF>REL-1</SPEC-RELATION-REF></SPEC-RELATIONS>",
+          "<SOURCE-SPECIFICATION><SPECIFICATION-REF>SPEC-1</SPECIFICATION-REF></SOURCE-SPECIFICATION>",
+          "<TARGET-SPECIFICATION><SPECIFICATION-REF>SPEC-1</SPECIFICATION-REF></TARGET-SPECIFICATION>",
+          "<TYPE><RELATION-GROUP-TYPE-REF>gt-links</RELATION-GROUP-TYPE-REF></TYPE>",
+          "</RELATION-GROUP></SPEC-RELATION-GROUPS></REQ-IF-CONTENT>",
+        ].join(""),
+      ),
+  },
+};
 /** A workspace with the standard model only, and an export of SR-052/package in folder in (SR-052). */
 const ROUND_TRIP: FixtureOptions = { fixture: "SR-052/empty", git: true };
 /** Every access left the files of delivery 1 as they were. */
@@ -73,6 +96,57 @@ scenariosOf("reqif.import", [
     input: { file: "in/lieferung.reqif", mapping: "reqif/kunde-a.yaml", delivery: "Lastenheft 2026-11" },
     expect: "output",
     newElement: true,
+  },
+  {
+    tag: "[SR-053/AK2]",
+    name: "a delivery with content that is not taken over without loss lists each loss with its element and reason",
+    fixture: GROUPED,
+    input: { file: "in/lieferung.reqif", mapping: "reqif/kunde-a.yaml", delivery: "Lastenheft 2026-11" },
+    expect: "output",
+    newElement: true,
+    check: (results) => {
+      const out = coreOutput(results) as {
+        created: readonly { identifier: string; id: string }[];
+        losses: readonly { identifier: string; id?: string }[];
+      };
+      const id = (identifier: string): string | undefined =>
+        out.created.find((c) => c.identifier === identifier)?.id;
+      expect(out.losses).toEqual([
+        {
+          identifier: "REQ-1",
+          kind: "spec-object",
+          id: id("REQ-1"),
+          code: "omitted-attribute",
+          reason: "the mapping omits its attribute Internal Comment",
+        },
+        {
+          identifier: "HEAD-1",
+          kind: "spec-object",
+          code: "omitted-type",
+          reason: "the mapping omits its type Heading",
+        },
+        {
+          identifier: "REL-2",
+          kind: "spec-relation",
+          id: id("REQ-1"),
+          code: "relation-end-not-imported",
+          reason: "its target HEAD-1 is not imported",
+        },
+        {
+          identifier: "SPEC-1",
+          kind: "specification",
+          code: "hierarchy",
+          reason: "the SPEC-HIERARCHY of Lastenheft (order and nesting) is not imported",
+        },
+        {
+          identifier: "REL-1",
+          kind: "spec-relation",
+          id: id("REQ-2"),
+          code: "relation-group",
+          reason: "its RELATION-GROUP rg-1 (type Links) is not imported",
+        },
+      ]);
+    },
   },
   {
     tag: "[SR-056/AK4]",
