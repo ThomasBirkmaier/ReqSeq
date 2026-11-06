@@ -18,7 +18,10 @@ export default defineCommand({
   run: async (ctx, input): Promise<CommandOutput<"trace.affected">> => {
     const graph = derivationGraph(await traceContext(ctx.workspace), "trace.affected");
     const shortIds = await ctx.workspace.get(shortIdState);
-    const element = resolveRef(graph.store, shortIds, input.ref);
+    const element = resolveRef(graph.store, shortIds, input.ref, {
+      repository: input.repository,
+      file: input.file,
+    });
     const records = (await ctx.workspace.get(evidenceIndexState)).byElement.get(element.id) ?? [];
     let options: AffectedOptions = {};
     if (records.length > 0) {

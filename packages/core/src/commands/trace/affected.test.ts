@@ -11,6 +11,7 @@ import { evidenceRecordsState } from "../../evidence/index.js";
 import { STANDARD_MODEL_TEXT as STANDARD } from "../../metamodel/standard-model.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
+import { GUSTS_COPY, GUSTS_FILE, openCopied } from "../copied.test-helper.js";
 
 type Output = CommandOutput<"trace.affected">;
 
@@ -219,5 +220,22 @@ describe("trace.affected (SR-024)", () => {
     const error = await affectedError(withoutDerivation, { ref: "SR-00b001" });
     expect(error.code).toBe("metamodel.meaning-unassigned");
     expect(error.message).toContain("trace.affected");
+  });
+
+  it("gives the elements affected by the copy of a UUID two files share that repository names (#821)", async () => {
+    // A requirement of `system` that derives from the copy in `sensor` only.
+    const workspace = await openCopied({
+      "system/requirements/SR-0000000a0821.md":
+        "---\nid: 08210821-0000-4000-8000-0000000a0821\ntype: system-requirement\nstatus: draft\n" +
+        "title: Show gust warnings\nderives-from:\n" +
+        `  - { id: ${GUSTS_COPY}, version: n1:0000000000000000, repository: sensor }\n---\n\nGusts.\n`,
+    });
+    expect((await affectedError(workspace, { ref: GUSTS_COPY })).code).toBe("ref.ambiguous");
+    const sensor = await affected(workspace, { ref: GUSTS_COPY, repository: "sensor" });
+    expect(sensor.affected.map((a) => [a.id, a.repository])).toEqual([
+      ["08210821-0000-4000-8000-0000000a0821", "system"],
+    ]);
+    const system = await affected(workspace, { ref: GUSTS_COPY, repository: "system", file: GUSTS_FILE });
+    expect(system.affected).toEqual([]);
   });
 });

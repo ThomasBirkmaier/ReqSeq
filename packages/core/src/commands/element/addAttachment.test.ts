@@ -359,4 +359,30 @@ describe("element.addAttachment", () => {
       "SR-6328cee88fb3.md",
     ]);
   });
+
+  it("puts the image next to the copy of a UUID two files share that file names (#821)", async () => {
+    const fixture = await createFixtureWorkspace({
+      fixture: "SR-088/copied-file",
+      files: { "system/incoming/layout.png": PNG },
+    });
+    onTestFinished(() => fixture.cleanup());
+    const workspace = new Workspace(fixture.path("system"));
+    onTestFinished(() => workspace.close());
+    const opened = { fixture, workspace };
+    const ref = "948a10f1-05c3-4212-bd19-00606ccf2661";
+    const sourcePath = "incoming/layout.png";
+    expect((await addError(opened, { ref, sourcePath })).code).toBe("ref.ambiguous");
+    expect(await add(opened, { ref, sourcePath, file: "copies/N-00606ccf2661.md" })).toEqual({
+      file: "copies/N-00606ccf2661/layout.png",
+      markdown: "![layout](N-00606ccf2661/layout.png)",
+    });
+    const original = await add(opened, {
+      ref,
+      sourcePath,
+      repository: "system",
+      file: "requirements/N-00606ccf2661.md",
+    });
+    expect(original.file).toBe("requirements/N-00606ccf2661/layout.png");
+    expect(await fs.readFile(fixture.path(`system/${original.file}`))).toEqual(PNG);
+  });
 });

@@ -751,7 +751,7 @@ export const ElementView = ({
       // "Image" (SR-097) and the action "Insert image" ask in the same prompt.
       pickImage: (request: ImageRequest) => {
         const { call: run, buffer: shown, onAsk: ask, onEcho: echo } = now.current;
-        ask(imagePrompt(run, shown.id, request, echo));
+        ask(imagePrompt(run, shown.id, shown.repository, request, echo));
       },
     }),
     [],

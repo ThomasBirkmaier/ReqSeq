@@ -4,9 +4,8 @@
 // when the page shows the element and again on each change of the workspace or from outside, but not for a
 // change that is only this buffer's own saves of its input: each save of the element (`ownSaves` counts
 // those that answered, before core's `written` comes) writes no record, and autosave saves every second. A
-// failed read keeps the lines it had; the CLI says why. `evidence.list` names the element by its UUID
-// alone (it takes no repository), so an element whose UUID a file in another repository shares (SR-088)
-// shows no records (#821).
+// failed read keeps the lines it had; the CLI says why. `evidence.list` names the element by its UUID and
+// repository, so an element whose UUID a file in another repository shares (SR-088) shows its records too.
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ElementGetOutput, EvidenceListOutput } from "@reqseq/core";
 import type { ElementBuffer } from "./buffers.js";
@@ -18,7 +17,7 @@ import { CutLine } from "./VariantLines.js";
 export interface EvidenceLinesProps {
   readonly call: Call;
   /** The element the records are of. */
-  readonly buffer: Pick<ElementBuffer, "id">;
+  readonly buffer: Pick<ElementBuffer, "id" | "repository">;
   /** Counts up on each change of the workspace, a write of this window included. */
   readonly revision: number;
   /** Counts up on each change from outside. */
@@ -71,7 +70,7 @@ export const EvidenceLines = ({
       return;
     }
     let current = true;
-    void call("evidence.list", { ref: buffer.id }).then((answer) => {
+    void call("evidence.list", { ref: buffer.id, repository: buffer.repository }).then((answer) => {
       if (current && answer.ok) {
         setListed(answer.output);
       }
@@ -79,7 +78,7 @@ export const EvidenceLines = ({
     return () => {
       current = false;
     };
-  }, [call, buffer.id, asks, asked]);
+  }, [call, buffer.id, buffer.repository, asks, asked]);
   const lines = useMemo(() => (listed === undefined ? [] : evidenceRows(listed, names)), [listed, names]);
   const notes = useMemo(() => (listed === undefined ? [] : evidenceNotes(listed)), [listed]);
   if (lines.length === 0 && notes.length === 0) {
