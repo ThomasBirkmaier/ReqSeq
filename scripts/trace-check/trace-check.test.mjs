@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { closedSrs, frontmatter, readMetamodel, readSpec, stageMembers, traceCheck } from "./trace-check.mjs";
+import { frontmatter, readMetamodel, readSpec, stageMembers, traceCheck } from "./trace-check.mjs";
 
 const roots = [];
 afterEach(() => {
@@ -145,39 +145,12 @@ describe("trace-check on the ReqSeq workspace in spec/", () => {
     expect(traceCheck(empty, ["--stage", "Alt"]).errors).toEqual(["package Alt has no system requirements"]);
   });
 
-  it("checks that a PR body names known SRs unless it is an enabler", () => {
-    const root = repo();
-    const body = path.join(root, "body.txt");
-    fs.writeFileSync(body, "enabler: no SR here");
-    expect(traceCheck(root, ["--pr-body", body]).errors).toEqual([
-      "PR names no system requirement (add SR-xxx or label enabler)",
+  it("refuses an argument it does not know, such as the removed --pr-body", () => {
+    expect(traceCheck(repo(), ["--pr-body", "x", "--enabler"]).errors).toEqual([
+      "unknown argument --pr-body (--require, --stage, --report)",
+      "unknown argument x (--require, --stage, --report)",
+      "unknown argument --enabler (--require, --stage, --report)",
     ]);
-    expect(traceCheck(root, ["--pr-body", body, "--enabler"]).errors).toEqual([]);
-    fs.writeFileSync(body, "SR-001 and SR-117, SR-117");
-    expect(traceCheck(root, ["--pr-body", body]).errors).toEqual(["PR names unknown SR-117"]);
-  });
-
-  it("requires every acceptance criterion of the SRs a PR closes, as its title names them (#394)", () => {
-    const root = repo({ "packages/x/a.test.ts": `it("${tag("SR-001", 1)} a");\n` });
-    const body = path.join(root, "body.txt");
-    fs.writeFileSync(body, "SR-001, SR-002: title\r\n\r\nCloses #12");
-    expect(closedSrs(fs.readFileSync(body, "utf8"))).toEqual(["SR-001", "SR-002"]);
-    expect(closedSrs("SR-0011: title\n\nCloses #12")).toEqual([]);
-    expect(traceCheck(root, ["--pr-body", body, "--require", "SR-001"]).errors).toEqual([
-      "SR-001 AK2 has no test",
-      "SR-002 (inspection) has no record verification/SR-002.md",
-    ]);
-    // Without `Closes #`, an SR named only in the body, or as an enabler, nothing more is required.
-    for (const [text, extra] of [
-      ["SR-001: part one\n\nRefs #12", []],
-      ["fix: SR-001\n\nCloses #12", []],
-      ["SR-001: title\n\nCloses #12", ["--enabler"]],
-    ]) {
-      fs.writeFileSync(body, text);
-      expect(traceCheck(root, ["--pr-body", body, ...extra]).errors).toEqual([]);
-    }
-    fs.writeFileSync(body, "SR-404: title\n\nCloses #12");
-    expect(traceCheck(root, ["--pr-body", body]).errors).toEqual(["PR names unknown SR-404"]);
   });
 
   it("reports a spec ID that two system requirements share", () => {

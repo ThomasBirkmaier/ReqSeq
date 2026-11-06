@@ -26,10 +26,10 @@ ReqSeq is an offline requirements tool (core, CLI, API, MCP server, Electron app
 
 ## Traceability
 
-- Issues are tasks, not copies of SRs. When the product owner plans an SR, a pre-study names the steps its implementation needs, and the product owner decides which become issues: one issue per task, so an SR can have several. An issue names only the SRs whose AKs it implements, and quotes no AK. Nothing creates issues for SRs in bulk (product owner decision, 2026-11-05). Work without its own SR is labelled `enabler`, on the issue and on the PR, the PR from the moment it is opened (`merge.md`).
-- Branch `sr-036-short-slug` or `enabler-<issue>-short-slug`. Commits follow Conventional Commits; the body ends with `Implements: SR-036` (one line per SR) and `Refs #<issue>`. The body has `Closes #<issue>` and a "Verification" section. The PR title starts with the SR ID only when the PR completes the SR, so trace-check then requires a test for each of its Test AKs; a PR for one task of an SR names the SR in its body only.
+- Issues are tasks, not copies of SRs. When the product owner plans an SR, a pre-study names the steps its implementation needs, and the product owner decides which become issues: one issue per task, so an SR can have several. An issue names only the SRs whose AKs it implements, and quotes no AK. Nothing creates issues for SRs in bulk (product owner decision, 2026-11-05). Work without its own SR is labelled `enabler`, on the issue and on the PR.
+- Branch `sr-036-short-slug` or `enabler-<issue>-short-slug`. Commits follow Conventional Commits; the body ends with `Implements: SR-036` (one line per SR) and `Refs #<issue>`. The body has `Closes #<issue>` and a "Verification" section. The PR title starts with the SR ID only when the PR completes the SR, and its author runs `pnpm trace-check --require SR-036` first, which requires a test for each of its Test AKs; a PR for one task of an SR names the SR in its body only.
 - Each acceptance criterion with method Test has a test named `[SR-036/AK2] ...` (AK counted from 1 in the order of the spec file). Other methods get a record in `verification/SR-036.md`, which a person confirms at milestone acceptance.
-- `pnpm trace-check` must pass. A PR text must not name an SR ID that is not in `spec/` yet.
+- `pnpm trace-check` must pass; it reads no PR text. A PR text must not name an SR ID that is not in `spec/` yet.
 - `spec/evidence/ci/` holds the test evidence of the spec, written only by `evidence.yml` through its own pull requests (`verification/README.md`). They merge themselves without an agent review or a notice to the product owner; agents leave them alone and never write there by hand.
 
 ## Quality gates (ADR-0016)

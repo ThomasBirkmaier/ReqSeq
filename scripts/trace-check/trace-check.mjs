@@ -1,7 +1,10 @@
 #!/usr/bin/env node
-// Checks the chain SR -> test -> verification record (D-050).
-// Usage: node scripts/trace-check/trace-check.mjs [--require SR-001,SR-002] [--stage 1]
-//        [--pr-body <file>] [--enabler] [--report <file>]
+// Checks the chain SR -> test -> verification record (CLAUDE.md, Traceability) before a merge: test names
+// [SR-xxx/AKn] point to an existing SR and AK, and the SRs given by --require or --stage have a test per
+// acceptance criterion with method Test and a record verification/SR-xxx.md otherwise. It reads no PR text
+// (product owner decision, 2026-11-06): which SR a PR completes is checked at the end of a milestone and in
+// ReqSeq's own verification status (D-072).
+// Usage: node scripts/trace-check/trace-check.mjs [--require SR-001,SR-002] [--stage 1] [--report <file>]
 //
 // The spec is the ReqSeq workspace in spec/ (D-064, #326). A system requirement is an element file of
 // type `system-requirement`, found anywhere below spec/ by its frontmatter (ADR-0004); its spec ID
@@ -408,30 +411,7 @@ function checkRequired(root, spec, required, testRefs, errors) {
   return rows;
 }
 
-function checkPrBody(spec, body, errors) {
-  const named = [...body.matchAll(/\bSR-\d{3}\b/g)].map((m) => m[0]);
-  if (named.length === 0) {
-    errors.push("PR names no system requirement (add SR-xxx or label enabler)");
-  }
-  for (const id of new Set(named)) {
-    if (!spec.srs.has(id)) {
-      errors.push(`PR names unknown ${id}`);
-    }
-  }
-}
-
-/**
- * The system requirements a PR closes (#394): the SR IDs at the start of its title (the first line of the PR text),
- * when the body has `Closes #<issue>`. A PR of an SR that does not close its issue requires nothing.
- */
-export function closedSrs(text) {
-  const [title = "", ...rest] = text.split(/\r?\n/);
-  if (!/\bCloses #\d+/i.test(rest.join("\n"))) {
-    return [];
-  }
-  const lead = /^(?:SR-\d{3}\b[\s,/+&]*)+/.exec(title)?.[0] ?? "";
-  return [...new Set([...lead.matchAll(/SR-\d{3}\b/g)].map((m) => m[0]))];
-}
+const VALUE_FLAGS = new Set(["--require", "--stage", "--report"]);
 
 /** Runs the check in `root` with the command-line `args`; returns the report and the exit code. */
 export function traceCheck(root, args) {
@@ -441,6 +421,12 @@ export function traceCheck(root, args) {
   };
   const errors = [];
   const warnings = [];
+  for (const [i, arg] of args.entries()) {
+    const value = i > 0 && VALUE_FLAGS.has(args[i - 1]);
+    if (!value && !VALUE_FLAGS.has(arg)) {
+      errors.push(`unknown argument ${arg} (--require, --stage, --report)`);
+    }
+  }
   const spec = readSpec(path.join(root, "spec"));
   for (const id of spec.duplicates) {
     errors.push(`${id} is the spec ID of more than one system requirement`);
@@ -459,13 +445,6 @@ export function traceCheck(root, args) {
       errors.push(`package ${stage} has no system requirements`);
     }
     required = required.concat(members ?? []);
-  }
-  const prBodyFile = opt("--pr-body");
-  if (prBodyFile && !args.includes("--enabler")) {
-    const text = fs.readFileSync(prBodyFile, "utf8");
-    checkPrBody(spec, text, errors);
-    // An unknown SR is already reported as named by the PR.
-    required = required.concat(closedSrs(text).filter((id) => spec.srs.has(id) && !required.includes(id)));
   }
   const rows = checkRequired(root, spec, required, testRefs, errors);
 

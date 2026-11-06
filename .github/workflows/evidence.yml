@@ -7,8 +7,8 @@
 #   on each JUnit file of the run, against the spec of that commit (D-026). One date for the whole run (its start), so
 #   that the records of one run tie and a failure in any file of it wins over a pass in another (#525 Q2).
 # - `publish` runs no code of the repository: it copies the enriched files onto a branch cut from the current main,
-#   with a GitHub App token, so that the pull request gets the normal CI and PR-text runs that the required checks
-#   and trace-check read (a pull request made with GITHUB_TOKEN starts none).
+#   with a GitHub App token, so that the pull request gets the normal CI run that the required checks read (a pull
+#   request made with GITHUB_TOKEN starts none).
 #
 # Each suite and system keeps one file with a fixed name that the next run replaces; Git history keeps the older runs,
 # each named by its commit in `reqseq:item` (D-008).
