@@ -1,4 +1,4 @@
-// Statuses per type (#306): element.create, element.setStatus and element.supersede offer and take
+// Statuses per type (ThomasBirkmaier/ReqSeq-archive#306): element.create, element.setStatus and element.supersede offer and take
 // only the statuses of the element's type; a type without status gets none.
 import fs from "node:fs/promises";
 import { createFixtureWorkspace } from "@reqseq/testkit";
@@ -75,7 +75,7 @@ const statusHints = async (opened: Opened): Promise<readonly string[]> =>
     .filter((p) => p.code === "element.missing-status" || p.code === "element.status-not-allowed")
     .map((p) => `${p.code} ${p.file ?? ""}`);
 
-describe("element.create with statuses per type (#306)", () => {
+describe("element.create with statuses per type (ThomasBirkmaier/ReqSeq-archive#306)", () => {
   it("gives a new element the initial status when its type has it, also a type without a list", async () => {
     const opened = await open();
     const need = await create(opened, "need");
@@ -106,8 +106,8 @@ describe("element.create with statuses per type (#306)", () => {
           "  - { key: superseded, name: Superseded, invalid: true }\n  - { key: archived, name: Archived }\n",
         ),
     });
-    // A type with only invalid statuses is no metamodel problem any more (#344, option 1), only an
-    // info note (#343).
+    // A type with only invalid statuses is no metamodel problem any more (ThomasBirkmaier/ReqSeq-archive#344, option 1), only an
+    // info note (ThomasBirkmaier/ReqSeq-archive#343).
     expect(
       (await metamodelProblems(opened)).map((p) => `${p.severity} ${p.message.split(" (")[0] ?? ""}`),
     ).toEqual(["info Type tombstone has an optional status"]);
@@ -132,7 +132,7 @@ describe("element.create with statuses per type (#306)", () => {
   });
 });
 
-describe("element.setStatus with statuses per type (#306)", () => {
+describe("element.setStatus with statuses per type (ThomasBirkmaier/ReqSeq-archive#306)", () => {
   it("sets a status of the type, also one it inherits or adds to its parent's", async () => {
     const opened = await open();
     await setStatus(opened, ["SR-bbb001", "SSR-ccc001"], "obsolete");
@@ -183,7 +183,7 @@ describe("element.setStatus with statuses per type (#306)", () => {
   });
 });
 
-describe("element.supersede with statuses per type (#306)", () => {
+describe("element.supersede with statuses per type (ThomasBirkmaier/ReqSeq-archive#306)", () => {
   it("takes an invalid status of the type and names the type when refusing another one", async () => {
     const opened = await open();
     const before = await read(opened, DECISION);
@@ -260,7 +260,7 @@ describe("element.supersede with statuses per type (#306)", () => {
   });
 });
 
-/** Glossary terms that can be retired: one status, marked invalid (decision on #344, option 1). */
+/** Glossary terms that can be retired: one status, marked invalid (decision on ThomasBirkmaier/ReqSeq-archive#344, option 1). */
 const RETIRABLE = {
   type: "  - { key: glossary-term, name: Glossary Term, prefix: GT, properties: [title], statuses: [retired] }\n\nproperties:\n  - key: title",
   status:
@@ -278,8 +278,8 @@ const openRetirable = async (): Promise<Opened> =>
     [GLOSSARY]: GLOSSARY_TEXT,
   });
 
-describe("a type whose statuses are all marked invalid (#344, option 1)", () => {
-  it("is no metamodel problem but an info note metamodel.optional-status (#343, #451), and an element of it without status gets no hint", async () => {
+describe("a type whose statuses are all marked invalid (ThomasBirkmaier/ReqSeq-archive#344, option 1)", () => {
+  it("is no metamodel problem but an info note metamodel.optional-status (ThomasBirkmaier/ReqSeq-archive#343, #451), and an element of it without status gets no hint", async () => {
     const opened = await openRetirable();
     expect(await metamodelProblems(opened)).toEqual([
       {
@@ -329,7 +329,7 @@ describe("a type whose statuses are all marked invalid (#344, option 1)", () => 
   });
 });
 
-describe("an initial status that is marked invalid (#350)", () => {
+describe("an initial status that is marked invalid (ThomasBirkmaier/ReqSeq-archive#350)", () => {
   /** `gone` is the initial status and marked invalid; `draft` is no longer initial. */
   const openInvalidInitial = async (): Promise<Opened> =>
     open({
@@ -371,7 +371,7 @@ describe("an initial status that is marked invalid (#350)", () => {
   });
 });
 
-describe("removing a status with element.setStatus and status null (#343)", () => {
+describe("removing a status with element.setStatus and status null (ThomasBirkmaier/ReqSeq-archive#343)", () => {
   const TERM_DRAFT = "elements/T-000000eee002.md";
   const RETIRED = "elements/GT-000000fff002.md";
   const RETIRED_TEXT =
@@ -391,7 +391,7 @@ describe("removing a status with element.setStatus and status null (#343)", () =
     expect((await statusHints(opened)).filter((h) => h.includes("T-000000eee"))).toEqual([]);
   });
 
-  it("makes a retired element of a retire-only type current again and clears a leftover working status (#344)", async () => {
+  it("makes a retired element of a retire-only type current again and clears a leftover working status (ThomasBirkmaier/ReqSeq-archive#344)", async () => {
     const opened = await open({
       "metamodel/model.yaml": (await fixtureModel())
         .replace("properties:\n  - key: title", RETIRABLE.type)

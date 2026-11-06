@@ -205,7 +205,7 @@ describe("filter.list (SR-070)", () => {
 /** A filter file with `lines` after `reqseq-filter: 1`. */
 const filterFile = (...lines: readonly string[]): string => ["reqseq-filter: 1", ...lines, ""].join("\n");
 
-/** Replaces the evidence provider of `workspace` (decision on #127, option 1). */
+/** Replaces the evidence provider of `workspace` (decision on ThomasBirkmaier/ReqSeq-archive#127, option 1). */
 const withEvidence = async (workspace: Workspace, statuses: EvidenceStatuses): Promise<void> => {
   const before = workspace.get(evidenceStatusState);
   await before;

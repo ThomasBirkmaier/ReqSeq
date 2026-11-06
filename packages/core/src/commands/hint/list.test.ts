@@ -147,7 +147,7 @@ describe("hint.list (SR-026)", () => {
     });
     expect(outdatedLink?.line).toBe(17);
     expect(outdatedLink?.message).toMatch(/^Reference in the text of/);
-    // Every hint names its element with repository, file and short ID (#310), and gives a reason.
+    // Every hint names its element with repository, file and short ID (ThomasBirkmaier/ReqSeq-archive#310), and gives a reason.
     for (const hint of output.hints) {
       expect([hint.severity, hint.repository, typeof hint.file]).toEqual(["warning", "system", "string"]);
       expect(hint.elementShortId).toMatch(/^[A-Z]+-0000[a-f0-9]{2}$/);
@@ -348,7 +348,7 @@ describe("hint.list (SR-026)", () => {
     expect(rows(output.hints)).toEqual(ALL);
   });
 
-  it("lists no hints while the metamodel is not valid (#208, #220 option 1)", async () => {
+  it("lists no hints while the metamodel is not valid (ThomasBirkmaier/ReqSeq-archive#208, ThomasBirkmaier/ReqSeq-archive#220 option 1)", async () => {
     const workspace = await opened({
       ...HINTS,
       files: { "metamodel/broken.yaml": "reqseq-metamodel: 1\ntypes: 5\n" },

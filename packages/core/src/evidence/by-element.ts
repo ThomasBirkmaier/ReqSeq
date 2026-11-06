@@ -231,7 +231,7 @@ const inserted = (
  * element's list gets `record` at its place (a copy; every other list is the same array), and when
  * it names a test case, that test case is built again (or added in its order), with the test cases
  * of its elements; `positionOf` counts in `records`, so every record after `record` moves by one
- * (review N2 of #708). `index` tells what it told (the test-case cache may be shared).
+ * (review N2 of ThomasBirkmaier/ReqSeq-archive#708). `index` tells what it told (the test-case cache may be shared).
  */
 export const evidenceIndexWith = (
   index: EvidenceIndex,
@@ -286,7 +286,7 @@ export const evidenceIndexWith = (
  * Nachweis", SR-022 AK3 `no-evidence`, SR-036 coverage; D-007 keeps validation apart): a record that
  * holds in the view (`holdsIn`: in the core one without a variant, in a variant one for that variant,
  * SR-047 AK1, AK2, and one without a variant when `independent`, the element's repository is marked
- * `variant-independent`, SR-173). Version and result do not count here (spec question #527).
+ * `variant-independent`, SR-173). Version and result do not count here (spec question ThomasBirkmaier/ReqSeq-archive#527).
  */
 export const hasVerificationRecord = (
   index: EvidenceIndex,

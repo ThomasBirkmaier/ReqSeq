@@ -1,10 +1,10 @@
-// evidence.withoutPassedTest (SR-120, #431): every requirement without a passed test execution in one view
-// (`withoutPassedTest` of the evidence block, the rules and the assumptions of spec question #532 are there),
+// evidence.withoutPassedTest (SR-120, ThomasBirkmaier/ReqSeq-archive#431): every requirement without a passed test execution in one view
+// (`withoutPassedTest` of the evidence block, the rules and the assumptions of spec question ThomasBirkmaier/ReqSeq-archive#532 are there),
 // one page at a time, by type, then identifier (else short ID): the keys of the app's `DEFAULT_SORT`
 // (`packages/app/src/renderer/buffers.ts`), so the list reads as the app's lists do; change both. Each
 // element as evidence.status gives it, with `verification` and `validation` (`withEvidenceStatus`), so
 // a row says why it is listed; `names` names the variants and missing children those rows give by UUID only
-// (#588), from the store. The view is `view`, else the core, as the view rule holds it (`viewRuleOf`:
+// (ThomasBirkmaier/ReqSeq-archive#588), from the store. The view is `view`, else the core, as the view rule holds it (`viewRuleOf`:
 // no requirement a variant excludes or replaces, SR-043); it takes no selection (SR-120 asks for
 // „alle Requirements“), so the command prompt runs it without asking (AK1). `incomplete` (SR-006 AK2): a
 // repository of the workspace, or of an evidence location, is not on this machine. Only the page is

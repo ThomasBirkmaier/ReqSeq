@@ -4,7 +4,7 @@
 // of directly affected elements when the save changed the version, else 0 (SR-024 AK2, AK3). See
 // model/write.ts. `expectedFileSha256` is the caller's write precondition, `fileSha256` the hash of
 // the file as written for the next save (SR-106); `repository` picks one copy of a duplicate as in
-// element.get (#255). A variant is not written with validity entries (SR-039 AK2, variants/nested.ts).
+// element.get (ThomasBirkmaier/ReqSeq-archive#255). A variant is not written with validity entries (SR-039 AK2, variants/nested.ts).
 // The element has its verification and validation status as element.get gives it (#214).
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";

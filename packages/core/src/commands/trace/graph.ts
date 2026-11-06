@@ -5,7 +5,7 @@
 // first. `view` keeps the elements the view of the core or a variant holds (`viewRuleOf`,
 // SR-040, SR-041, SR-043); a variant's view is `incomplete` while a repository is not here.
 //
-// The marks (SR-111 AK4; assumptions of spec question #478) are the rules of the hints and the chain,
+// The marks (SR-111 AK4; assumptions of spec question ThomasBirkmaier/ReqSeq-archive#478) are the rules of the hints and the chain,
 // so the graph says what element.get and trace.chain say:
 // - `outdated`: the element stores an outdated relation, relation property or inline reference, the
 //   `relation.outdated` and `variant.core-changed` hints of element.get (`outdatedAmong`), whatever

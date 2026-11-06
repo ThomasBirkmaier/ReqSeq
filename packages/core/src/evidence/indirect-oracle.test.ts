@@ -1,5 +1,5 @@
-// The indirect verification (SR-034) with the views sharing their work (#698) against the evaluator
-// before #698 as the reference, copied below verbatim (only renamed): for every element and view of
+// The indirect verification (SR-034) with the views sharing their work (ThomasBirkmaier/ReqSeq-archive#698) against the evaluator
+// before ThomasBirkmaier/ReqSeq-archive#698 as the reference, copied below verbatim (only renamed): for every element and view of
 // seeded random workspaces (derivation cycles and self-loops, twins, emergent elements, invalid
 // statuses, validities of every shape, records in the core and per variant, random removals of the
 // view rule as a `ViewScope`) and of a small generated workspace of the performance suite (its
@@ -28,7 +28,7 @@ import type { StatusSource } from "./status.js";
 import { ownVerificationOf, statusSource, verificationStatusOf } from "./status.js";
 import { workspaceStatusOf } from "./verification.js";
 
-// ---- The reference: evidence/indirect.ts before #698, verbatim from here to the end marker, but for
+// ---- The reference: evidence/indirect.ts before ThomasBirkmaier/ReqSeq-archive#698, verbatim from here to the end marker, but for
 // the mark of the element's repository (SR-173), which `holdsIn` and the status take, and the
 // acceptance criteria (SR-031, #963), which the status of own records counts. ----
 
@@ -388,7 +388,7 @@ const resultsOf = (
 const sorted = (results: Map<string, VerificationResult | undefined>) =>
   [...results].sort(([a], [b]) => (a < b ? -1 : 1));
 
-describe("the shared views give the results of the evaluator before #698", () => {
+describe("the shared views give the results of the evaluator before ThomasBirkmaier/ReqSeq-archive#698", () => {
   it("in every view of seeded random workspaces, in any order of first evaluation", () => {
     for (let seed = 1; seed <= 60; seed += 1) {
       const { source, children, elements, views, currentOf, scope } = generate(seed);
@@ -530,7 +530,7 @@ describe("the shared views give the results of the evaluator before #698", () =>
   }, 60_000);
 });
 
-describe("the work the shared views save (#698)", () => {
+describe("the work the shared views save (ThomasBirkmaier/ReqSeq-archive#698)", () => {
   it("walks the subtree once for all variants without seeds, not once per variant", () => {
     // A tree of 1 + 4 + 16 + 64 + 256 requirements with records on the leaves, and 20 variants of
     // which one is named by the validity of one leaf. Counted: reads of the validity property, one

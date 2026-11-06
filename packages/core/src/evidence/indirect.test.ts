@@ -238,7 +238,7 @@ describe("indirect verification (SR-034)", () => {
     expect(evaluator({ children: new Map([[parent, [invalid]]]) })(parent, CORE)).toEqual({ status: "open" });
   });
 
-  it("an own outdated or failed record keeps the own status and names no missing children (#526 Q1, Q4)", () => {
+  it("an own outdated or failed record keeps the own status and names no missing children (ThomasBirkmaier/ReqSeq-archive#526 Q1, Q4)", () => {
     const [outdated, failed, child] = [element(), element(), element()];
     const evaluate = evaluator({
       children: new Map([
@@ -299,11 +299,11 @@ describe("indirect verification (SR-034)", () => {
     expect(inV(onlyV, CORE)).toBeUndefined();
   });
 
-  it("a parent without counted child is open without missing children (#526 Q3)", () => {
+  it("a parent without counted child is open without missing children (ThomasBirkmaier/ReqSeq-archive#526 Q3)", () => {
     expect(evaluator({})(element(), CORE)).toEqual({ status: "open" });
   });
 
-  it("a child whose type has no meaning requirement does not count (#526 Q2)", () => {
+  it("a child whose type has no meaning requirement does not count (ThomasBirkmaier/ReqSeq-archive#526 Q2)", () => {
     const [parent, child, useCase] = [element(), element(), element({}, "use-case")];
     const evaluate = evaluator({
       children: new Map([[parent, [useCase, child]]]),
@@ -323,7 +323,7 @@ describe("indirect verification (SR-034)", () => {
     expect(evaluate(parent, CORE)).toEqual({ status: "open", missingChildren: [child.id] });
   });
 
-  it("a derivation cycle gives no indirect verification, whichever element is computed first (#526 Q5)", () => {
+  it("a derivation cycle gives no indirect verification, whichever element is computed first (ThomasBirkmaier/ReqSeq-archive#526 Q5)", () => {
     const [top, a, b, leaf] = [element(), element(), element(), element()];
     const setup: Setup = {
       children: new Map([
@@ -464,7 +464,7 @@ describe("emergent requirements need their own record (SR-035)", () => {
     expect(inV(emergent, CORE)).toEqual({ status: "open" });
   });
 
-  it("an own passed record decides also when a child failed (#591 Q2)", () => {
+  it("an own passed record decides also when a child failed (ThomasBirkmaier/ReqSeq-archive#591 Q2)", () => {
     const [emergent, child] = [element(EMERGENT), element()];
     const evaluate = evaluator({
       children: new Map([[emergent, [child]]]),
@@ -477,14 +477,17 @@ describe("emergent requirements need their own record (SR-035)", () => {
     ["no", { emergent: "no" }],
     ["an absent value", {}],
     ["the display name Yes", { emergent: "Yes" }],
-  ])("%s is no mark: the requirement is indirect as before (#591 Q1)", (_name, more) => {
-    const [parent, child] = [element(more), element()];
-    const evaluate = evaluator({
-      children: new Map([[parent, [child]]]),
-      records: [record(child, "passed")],
-    });
-    expect(evaluate(parent, CORE)).toEqual(indirect);
-  });
+  ])(
+    "%s is no mark: the requirement is indirect as before (ThomasBirkmaier/ReqSeq-archive#591 Q1)",
+    (_name, more) => {
+      const [parent, child] = [element(more), element()];
+      const evaluate = evaluator({
+        children: new Map([[parent, [child]]]),
+        records: [record(child, "passed")],
+      });
+      expect(evaluate(parent, CORE)).toEqual(indirect);
+    },
+  );
 
   it("without a property with the meaning emergent nothing is emergent and nothing fails", () => {
     const [parent, child] = [element(EMERGENT), element()];

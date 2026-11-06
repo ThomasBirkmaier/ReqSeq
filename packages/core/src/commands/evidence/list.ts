@@ -1,6 +1,6 @@
 // evidence.list (SR-032): the evidence records of one element, newest first, each with its version,
 // item (Prüfling), date, result and evidence (Beleg) (AK1) and the names of the baselines that
-// contain its version (AK2, read-only baseline reader, spec question #530; a baseline entry of the
+// contain its version (AK2, read-only baseline reader, spec question ThomasBirkmaier/ReqSeq-archive#530; a baseline entry of the
 // other normal form counts when both are of the current version, ADR-0005 "Normal form 2"). `view` keeps the records
 // of the core or of one variant (SR-047), in a variant with those without variant when the element's
 // repository is marked `variant-independent` (SR-173). `problems` are those of the baseline files; `incomplete`

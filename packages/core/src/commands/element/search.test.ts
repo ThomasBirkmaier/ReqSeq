@@ -1,5 +1,5 @@
 // element.search (SR-068) on fixtures/SR-069/filter (see list.test.ts for its elements) and on
-// fixtures/enabler-305/identifiers (spec IDs in the property spec-id, meaning identifier, #305):
+// fixtures/enabler-305/identifiers (spec IDs in the property spec-id, meaning identifier, ThomasBirkmaier/ReqSeq-archive#305):
 // - SR b1 "Measure wind speed" (approved, topic Wind), b2 "Measure every second" (draft, valid for
 //   V1 Coastal), b3 "Survive icing" (valid for V2 Mountain), b4 "Show a dial" (obsolete, unknown
 //   property owner: Dana), b5 "Send data to the cloud" (source: Supplier A); SWR f1, f2; needs N1
@@ -73,7 +73,7 @@ describe("element.search (SR-068)", () => {
     // "data" in the title of b5 is one edit from "dana" (AK2), with a lower score.
     expect(await hits(ws, "Dana")).toEqual([B4, B5]);
     expect(await hits(ws, "interface")).toEqual([B5]);
-    // Type and status are found by their names too (#80).
+    // Type and status are found by their names too (ThomasBirkmaier/ReqSeq-archive#80).
     expect(await hits(ws, "obsolete")).toEqual([B4]);
     expect(await hits(ws, "Software Requirement")).toEqual([F1, F2]);
   });
@@ -88,7 +88,7 @@ describe("element.search (SR-068)", () => {
     expect(await hits(ws, "N-0000a2")).toEqual([N2]);
   });
 
-  it("[SR-068/AK1] finds an element by its identifier only (a spec ID, #305), first, in any case", async () => {
+  it("[SR-068/AK1] finds an element by its identifier only (a spec ID, ThomasBirkmaier/ReqSeq-archive#305), first, in any case", async () => {
     const ws = await open(IDENTIFIERS);
     const out = await search(ws, { query: "sr-036" });
     expect(out.hits.map((hit) => [hit.id, hit.shortId, hit.identifier, hit.fields])).toEqual([
@@ -99,7 +99,7 @@ describe("element.search (SR-068)", () => {
     expect(await hits(ws, "037")).toEqual([SR037]);
   });
 
-  it("[SR-068/AK1] finds every element with an identifier: types may share one (#305)", async () => {
+  it("[SR-068/AK1] finds every element with an identifier: types may share one (ThomasBirkmaier/ReqSeq-archive#305)", async () => {
     const ws = await open({
       ...IDENTIFIERS,
       files: {
@@ -119,7 +119,7 @@ describe("element.search (SR-068)", () => {
     ]);
   });
 
-  it("[SR-068/AK1] finds both the element with a short ID and the one with it as identifier (#305)", async () => {
+  it("[SR-068/AK1] finds both the element with a short ID and the one with it as identifier (ThomasBirkmaier/ReqSeq-archive#305)", async () => {
     const ws = await open({
       ...IDENTIFIERS,
       files: {

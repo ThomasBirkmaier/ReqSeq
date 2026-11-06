@@ -246,7 +246,7 @@ describe("element.list sorted by a property (SR-075 AK1)", () => {
 });
 
 /**
- * fixtures/enabler-418/natural (#418): `spec-id` has the meaning `identifier`. Types: need, system
+ * fixtures/enabler-418/natural (ThomasBirkmaier/ReqSeq-archive#418): `spec-id` has the meaning `identifier`. Types: need, system
  * requirement, decision (metamodel order). UUID tails 01 to 11 give the store order:
  * 01 SR-100, 02 SR-9, 03 SR-10, 04 sr-2, 05 SR-2, 06 SR-010, 07 no identifier, 08 identifier a list
  * (both fall back to the short ID), 09 D-1, 10 N-10, 11 N-9 (store: decisions, needs, requirements).
@@ -256,7 +256,7 @@ const Q = "41800000-0000-4000-8000-0000000000";
 const q = (tail: string): string => `${Q}${tail}`;
 const NATURAL_STORE = ["09", "10", "11", "01", "02", "03", "04", "05", "06", "07", "08"].map(q);
 
-describe("element.list sorted by identifier (#418)", () => {
+describe("element.list sorted by identifier (ThomasBirkmaier/ReqSeq-archive#418)", () => {
   it("[SR-075/AK1] sorts by identifier with digit runs as numbers, ascending and descending", async () => {
     const { workspace } = await open(NATURAL);
     expect(await sorted(workspace, [])).toEqual(NATURAL_STORE);

@@ -19,7 +19,7 @@ const get = async (fixture: string, options: FixtureOptions = {}): Promise<Outpu
 
 describe("metamodel.get", () => {
   it("[SR-013/AK1] shows the own relation kind with the meaning derivation as its assignment", async () => {
-    // #127 option 1: trace.chain (stage 2) adds the end-to-end test that the chain follows it (#34).
+    // ThomasBirkmaier/ReqSeq-archive#127 option 1: trace.chain (stage 2) adds the end-to-end test that the chain follows it (ThomasBirkmaier/ReqSeq-archive#34).
     const out = await get("SR-013/own-meanings");
     expect(out.meanings["derivation"]).toEqual(["satisfies"]);
     expect(out.relations).toEqual([
@@ -29,7 +29,7 @@ describe("metamodel.get", () => {
   });
 
   it("[SR-013/AK2] shows the own property with the meaning validity as its assignment", async () => {
-    // #127 option 1: the variant view (stage 5) adds the end-to-end test that evaluates it (#55).
+    // ThomasBirkmaier/ReqSeq-archive#127 option 1: the variant view (stage 5) adds the end-to-end test that evaluates it (ThomasBirkmaier/ReqSeq-archive#55).
     const out = await get("SR-013/own-meanings");
     expect(out.meanings["validity"]).toEqual(["applies-to"]);
     expect(out.properties.map((p) => [p.key, p.meaning])).toEqual([

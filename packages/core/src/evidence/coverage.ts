@@ -3,7 +3,7 @@
 //
 // - A level is an element type with the meaning `need` or `requirement` (own or inherited, SR-012;
 //   a subtype is its own level), in metamodel order; the elements of other types have no level
-//   (assumption, spec question #527 Q1, Q2). Only levels with a counted element are listed.
+//   (assumption, spec question ThomasBirkmaier/ReqSeq-archive#527 Q1, Q2). Only levels with a counted element are listed.
 // - The views are the selection's (its own, then the saved filter's); without one, the core (AK5:
 //   „Gegeben eine Auswahl ohne gewählte Variante ... dann zählen nur Requirements, Children und
 //   Nachweise des Kerns“; #203 Q4, as the degree, the matrix and the filter count).
@@ -18,7 +18,7 @@
 // - Evidence, only for a type with the meaning `requirement` (D-012: „Ein Nachweis verweist immer auf
 //   ein Requirement“): `hasVerificationRecord` of the index in the first view (as the filter
 //   condition `verification`; a record without variant also in a variant for an element of a
-//   repository marked `variant-independent`, SR-173). Any version and any result count (spec question #527 Q3), the same
+//   repository marked `variant-independent`, SR-173). Any version and any result count (spec question ThomasBirkmaier/ReqSeq-archive#527 Q3), the same
 //   rule as the filter's „ohne Nachweis“ and the chain's `no-evidence` gap.
 // Nothing here reads or writes a status beyond comparing it with the metamodel (D-030). Cost: one pass
 // over the selection, each element's incoming relations once (N-036).

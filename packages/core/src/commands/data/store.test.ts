@@ -1,6 +1,6 @@
 // data.store through `invoke` (SR-062) on fixtures/SR-062/store (one Git repository; its README lists
 // what makes a state dirty), fixtures/SR-061/export (two Git repositories) and fixtures/SR-062/subfolder
-// (a workspace in spec/ of a code repository, #377). The same output on every access:
+// (a workspace in spec/ of a code repository, ThomasBirkmaier/ReqSeq-archive#377). The same output on every access:
 // cross-access.test.ts; the CLI end to end and AK2: packages/cli/test/e2e/data-store.test.ts.
 import fs from "node:fs";
 import os from "node:os";
@@ -268,7 +268,7 @@ describe("data.store: the data of a state as a file named after its commit (SR-0
   });
 });
 
-describe("data.store: a second repository without a known commit (#531 Q2, review B1)", () => {
+describe("data.store: a second repository without a known commit (ThomasBirkmaier/ReqSeq-archive#531 Q2, review B1)", () => {
   it("names the file -dirty when a second repository has no Git, with a warning that names it", async () => {
     const ws = await fixture({ fixture: "SR-061/export", git: ["system"] });
     const commit = await ws.head("system");
@@ -543,7 +543,7 @@ describe("data.store: which changes make the state dirty (K2)", () => {
     expect(snapshot()).toEqual(before);
   });
 
-  it("names the file of a workspace in spec/ below the Git top level after HEAD (#377)", async () => {
+  it("names the file of a workspace in spec/ below the Git top level after HEAD (ThomasBirkmaier/ReqSeq-archive#377)", async () => {
     const ws = await fixture({ fixture: "SR-062/subfolder", git: true });
     const commit = await ws.head();
     expect(await storeIn(ws.path("spec"), { folder: "out" })).toEqual({

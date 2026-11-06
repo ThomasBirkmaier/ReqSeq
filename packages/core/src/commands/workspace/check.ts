@@ -6,7 +6,7 @@
 // and metamodel of each repository that is a workspace of its own (#666, read on every call).
 //
 // - `ok` is false when the workspace has a finding at or above `failOn`, shown or not; the default
-//   `error` lets warnings and info pass (#304, product owner decision, 2026-10-26, option 1): a correct
+//   `error` lets warnings and info pass (ThomasBirkmaier/ReqSeq-archive#304, product owner decision, 2026-10-26, option 1): a correct
 //   workspace keeps hints that cannot be confirmed (the superseded targets of SR-072 AK2), so warnings
 //   failing the check meant it never passed. `failOn: warning` gives the exit code 1 that SR-019 AK2
 //   and SR-025 AK2 ask for warnings (they get a new version after the spec moves into ReqSeq). The
@@ -17,13 +17,13 @@
 // - Findings are appended one by one: spreading a state into `push` passes every problem as an
 //   argument and overflows the stack at some 100,000 problems (N-036: 50,000 elements).
 // - While the metamodel is not valid (SR-011 AK3), every state that checks against it is empty
-//   (#208; assumption of spec question #220, option 1): its errors are reported, together with the
+//   (ThomasBirkmaier/ReqSeq-archive#208; assumption of spec question ThomasBirkmaier/ReqSeq-archive#220, option 1): its errors are reported, together with the
 //   file findings (SR-008) and duplicate IDs (SR-088), which need no metamodel. Otherwise one typo
 //   would report every property of every element as unknown. `ok` stays false: the metamodel, or
 //   the layout for a missing metamodel folder, has an `error`. States carried over a store change
-//   (#184) stay empty too (`carryProblems` option `skip`); a reset of the metamodel drops them.
+//   (ThomasBirkmaier/ReqSeq-archive#184) stay empty too (`carryProblems` option `skip`); a reset of the metamodel drops them.
 // - `changedFiles` and `changedSince` restrict the check to a merge request (SR-092, `model/changed.ts`;
-//   spec question #291): the findings of the changed elements and their targets, and those whose
+//   spec question ThomasBirkmaier/ReqSeq-archive#291): the findings of the changed elements and their targets, and those whose
 //   target is a changed element. The problems of the layout and the metamodel are always kept, and so
 //   is an `info` per repository whose changes are not looked at (no such commit, no Git). The
 //   states are still built for the whole workspace (they are kept for the next call); the outdated
@@ -33,7 +33,7 @@
 //   versions are checked first (images the watcher does not report, ADR-0008), so the state is built
 //   on the versions of now; their state keeps findings, and their problems get the dates of both
 //   versions per call (`datedProblems`), since a new commit changes them without a file change.
-//   Outdated evidence (SR-025 AK4) has its records from stage 4 on (#127 option 1); the problems of
+//   Outdated evidence (SR-025 AK4) has its records from stage 4 on (ThomasBirkmaier/ReqSeq-archive#127 option 1); the problems of
 //   reading them and the records of unknown elements are `evidenceProblemsState` (SR-028 AK3). The
 //   criteria a record names that its older version does not have are asked of Git per call, after
 //   the states (`olderCriterionProblems`, SR-028 AK5); those of the current version are in the state.
@@ -99,7 +99,7 @@ const RANK: Readonly<Record<Severity, number>> = { info: 0, warning: 1, error: 2
 export const FINDING_STATES = [
   requiredProblemsState, // SR-015
   unknownProblemsState, // SR-016
-  statusProblemsState, // #306
+  statusProblemsState, // ThomasBirkmaier/ReqSeq-archive#306
   statementProblemsState, // #667
   supersededTargetProblemsState, // SR-072
   supersededValidityProblemsState, // SR-040
@@ -110,7 +110,7 @@ export const FINDING_STATES = [
   relationTypeProblemsState, // SR-086
   relationLimitProblemsState, // SR-152
   duplicateIdProblemsState, // SR-088
-  duplicateIdentifierProblemsState, // #305
+  duplicateIdentifierProblemsState, // ThomasBirkmaier/ReqSeq-archive#305
   missingTargetProblemsState, // SR-089
   unresolvedLinkProblemsState, // #176
   derivationCycleProblemsState, // SR-090

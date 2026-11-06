@@ -155,7 +155,7 @@ describe("evidence.enrichJunit (SR-029)", () => {
         'Test case "a typo in the property" (line 5): no element has the reference "SR-0366"',
       ],
     ]);
-    // The file is written with the known test case enriched (spec question #529 Q1).
+    // The file is written with the known test case enriched (spec question ThomasBirkmaier/ReqSeq-archive#529 Q1).
     expect(output).toMatchObject({ testCases: 1, files: ["results/unknown.xml"] });
     expect(enrichedNames(await bytesOf(fixture, "results/unknown.xml"))).toEqual(["[SR-46fb54] logs in"]);
   });
@@ -269,7 +269,7 @@ describe("evidence.enrichJunit (SR-029)", () => {
     }
   });
 
-  it("refuses an in-place enrich when the input changed after it was read, and keeps the change (N5 of the PR #584 review)", async () => {
+  it("refuses an in-place enrich when the input changed after it was read, and keeps the change (N5 of the PR ThomasBirkmaier/ReqSeq-archive#584 review)", async () => {
     const { fixture, workspace } = await open();
     const file = fixture.path("results/pytest.xml");
     const changed = Buffer.concat([await fs.readFile(file), Buffer.from("<!-- changed meanwhile -->\n")]);
@@ -292,7 +292,7 @@ describe("evidence.enrichJunit (SR-029)", () => {
     expect(await fs.readFile(file)).toEqual(changed);
   });
 
-  it("is refused with workspace.read-only while the metamodel is faulty, and writes nothing (#142 point b)", async () => {
+  it("is refused with workspace.read-only while the metamodel is faulty, and writes nothing (ThomasBirkmaier/ReqSeq-archive#142 point b)", async () => {
     const { fixture, workspace } = await open({
       "metamodel/broken.yaml": "reqseq-metamodel: 1\ntypes: [ { key: x } ]\n",
     });

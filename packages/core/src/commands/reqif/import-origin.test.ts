@@ -137,7 +137,7 @@ describe("origin of imported elements (SR-057)", () => {
         "      many: true,\n      meaning: delivery,",
       ),
     });
-    // The metamodel itself is invalid then (#141), so the workspace is read-only before the import
+    // The metamodel itself is invalid then (ThomasBirkmaier/ReqSeq-archive#141), so the workspace is read-only before the import
     // looks; `originKeys` keeps its own refusal for a metamodel it is given directly.
     expect((await failure(many, "reqif.import", INPUT)).code).toBe("workspace.read-only");
     const metamodel = await many.get(metamodelState);

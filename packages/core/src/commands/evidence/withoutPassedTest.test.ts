@@ -1,4 +1,4 @@
-// evidence.withoutPassedTest (SR-120, spec question #532) on fixtures/SR-126/matrix (its README lists every
+// evidence.withoutPassedTest (SR-120, spec question ThomasBirkmaier/ReqSeq-archive#532) on fixtures/SR-126/matrix (its README lists every
 // element, its records and its verification status): one repository with the standard model, JUnit runs
 // (one with a skipped test case) and a Markdown inspection record. The records come from the record files;
 // a few tests add records through `evidenceRecordsState` on top of them, or write a variant on top. The
@@ -143,7 +143,7 @@ describe("evidence.withoutPassedTest (SR-120)", () => {
     }
   });
 
-  it("names the missing children its rows give by UUID (#588)", async () => {
+  it("names the missing children its rows give by UUID (ThomasBirkmaier/ReqSeq-archive#588)", async () => {
     const workspace = await open();
     expect((await run(workspace)).names).toBeUndefined();
     // b08 fails after its passed run: b07 is listed open, missing b08, and b08 stays out (it passed once).

@@ -12,7 +12,7 @@
 // Store order: decisions, needs, packages, requirements (SR, then SWR), variants.
 //
 // The evidence conditions (AK1 "Nachweisstatus", AK3 "ohne Nachweis") are tested through the
-// evidence provider (decision on #127, option 1); AK4 at the end runs on real records (SR-037/degree).
+// evidence provider (decision on ThomasBirkmaier/ReqSeq-archive#127, option 1); AK4 at the end runs on real records (SR-037/degree).
 import fs from "node:fs/promises";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureOptions } from "@reqseq/testkit";
@@ -113,7 +113,7 @@ const refused = async (
   return { code: error.code, message: error.message, fields: error.details?.["fields"] };
 };
 
-/** Replaces the evidence provider of `workspace` (decision on #127, option 1). */
+/** Replaces the evidence provider of `workspace` (decision on ThomasBirkmaier/ReqSeq-archive#127, option 1). */
 const withEvidence = async (workspace: Workspace, statuses: EvidenceStatuses): Promise<void> => {
   const before = workspace.get(evidenceStatusState);
   await before;
@@ -174,7 +174,7 @@ describe("element.list (SR-069)", () => {
     const ws = await open();
     expect(await where(ws, { property: "topic", op: "eq", value: "Wind" })).toEqual([B1]);
     expect(await where(ws, { property: "topic", op: "ne", value: "Wind" })).toEqual(but(B1));
-    // Choices by key or display name in any case, as on write (#309).
+    // Choices by key or display name in any case, as on write (ThomasBirkmaier/ReqSeq-archive#309).
     expect(
       await where(ws, { property: "requirement-type", op: "in", value: ["Performance", "quality"] }),
     ).toEqual([B2, B3]);
@@ -547,7 +547,7 @@ describe("element.list (SR-069)", () => {
         all: [{ property: "title", op: "eq", value: "Elsewhere" }, derivation("up", true)],
       }),
     ).toEqual([`${P}b9`]);
-    // With `to`, even one that every element meets, only an available target counts (#336).
+    // With `to`, even one that every element meets, only an available target counts (ThomasBirkmaier/ReqSeq-archive#336).
     expect(await where(missing, { all: [named, derivation("up", true, { all: [] })] })).toEqual([]);
     expect(await where(missing, { all: [named, derivation("up", false, { all: [] })] })).toEqual([
       `${P}b8`,
@@ -605,7 +605,7 @@ describe("element.list refuses what it cannot do yet, and wrong conditions", () 
     );
   });
 
-  it("refuses a choice given by a display name that names several choices (#309)", async () => {
+  it("refuses a choice given by a display name that names several choices (ThomasBirkmaier/ReqSeq-archive#309)", async () => {
     const odd =
       "reqseq-metamodel: 1\nproperties:\n  - key: level\n    name: Level\n    kind: choice\n    choices:\n      - { key: high, name: Low }\n      - { key: low, name: High }\n";
     const ws = await open({ ...FILTER, files: { "metamodel/odd.yaml": odd } });

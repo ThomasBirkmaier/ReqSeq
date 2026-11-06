@@ -126,7 +126,7 @@ describe("verificationStatusOf (SR-031)", () => {
     );
   });
 
-  it("two newest records of the current version with the same date, one failed, give failed (#525 Q2)", () => {
+  it("two newest records of the current version with the same date, one failed, give failed (ThomasBirkmaier/ReqSeq-archive#525 Q2)", () => {
     // The same instant written in two time zones.
     expect(
       statusOf([
@@ -458,7 +458,7 @@ describe("validationOf (SR-038)", () => {
     ).toEqual(["validated", "validated"]);
   });
 
-  it("two newest validation records of the current version with the same date, one failed, give failed (#525 Q2)", () => {
+  it("two newest validation records of the current version with the same date, one failed, give failed (ThomasBirkmaier/ReqSeq-archive#525 Q2)", () => {
     expect(
       statusesOf([
         validation("2026-01-02T10:00:00Z", "passed", { file: "a.md" }),
@@ -467,14 +467,14 @@ describe("validationOf (SR-038)", () => {
     ).toEqual(["failed", "failed"]);
   });
 
-  it("a validation record with a variant does not count: the validation status is the core's (#534 Q2)", () => {
+  it("a validation record with a variant does not count: the validation status is the core's (ThomasBirkmaier/ReqSeq-archive#534 Q2)", () => {
     expect(statusesOf([validation("2026-01-01T10:00:00Z", "passed", { variant: V })])).toEqual([
       "open",
       "open",
     ]);
   });
 
-  it("an element whose current version is unknown: outdated with records, open without (#276)", () => {
+  it("an element whose current version is unknown: outdated with records, open without (ThomasBirkmaier/ReqSeq-archive#276)", () => {
     expect(validationOf([validation("2026-01-01T10:00:00Z", "passed")], undefined)).toEqual({
       status: "outdated",
     });
