@@ -1,17 +1,20 @@
 // The list buffer and the search buffer: rows of elements as `element.list` and `element.search` give
 // them, in pages. The next page is asked for when the selection or the scroll reaches the end, so a
 // workspace of 50,000 elements is never loaded at once (N-036). A row whose element changed outside the
-// app is highlighted briefly (SR-116), and a change keeps the rows, the selection and the scroll.
+// app is highlighted briefly (SR-116), and a change keeps the rows, the selection and the scroll. As a
+// buffer of its own, the list stands like the elements of a package page: in the centred column, under a
+// heading that says what it shows and how many (SR-148, D-062).
 import { useEffect, useRef, useState } from "react";
 import { useIdScope } from "./area-scope.js";
 import type { BufferAction, ListBuffer, SearchBuffer } from "./buffers.js";
-import { bufferName, listSort } from "./buffers.js";
+import { bufferName, listHeading, listSort } from "./buffers.js";
 import type { Call } from "./call.js";
 import { highlightTerms } from "./highlight.js";
 import type { Part } from "./highlight.js";
 import { leavesPart, rowTarget } from "./keys.js";
 import type { BufferData } from "./modeline.js";
 import type { OutsideChanges } from "./outside-marks.js";
+import { memberSummary } from "./package-page.js";
 import { rowClass, useOutsideMarks } from "./use-outside-marks.js";
 import { useResetOnAsk } from "./use-reset-on-ask.js";
 import type { Row } from "./rows.js";
@@ -125,6 +128,27 @@ const Marked = ({ parts }: { readonly parts: readonly Part[] }): React.JSX.Eleme
       part.mark ? <mark key={index}>{part.text}</mark> : <span key={index}>{part.text}</span>,
     )}
   </>
+);
+
+/** The heading of a list of its own (SR-148): what it shows and, once loaded, how many, as a package page says it. */
+const ListHeading = ({
+  buffer,
+  view,
+}: {
+  readonly buffer: ListBuffer | SearchBuffer;
+  readonly view: View;
+}): React.JSX.Element => (
+  <h1>
+    {listHeading(buffer)}{" "}
+    {view.status === "ok" ? (
+      <span className="count">
+        {memberSummary(
+          { total: view.total, incomplete: view.incomplete },
+          buffer.kind === "list" ? listSort(buffer) : undefined,
+        )}
+      </span>
+    ) : null}
+  </h1>
 );
 
 export const ListView = ({
@@ -306,22 +330,8 @@ export const ListView = ({
     }
   };
 
-  return (
-    <div
-      ref={root}
-      className={part ? "list part" : "buffer list"}
-      role="listbox"
-      aria-label={bufferName(buffer)}
-      aria-activedescendant={activeRow(`${scope}row`, cursor, rows.length)}
-      {...(part ? {} : { "data-buffer": "" })}
-      tabIndex={0}
-      onKeyDown={keyDown}
-      onScroll={(event) => {
-        if (nearEnd(event.currentTarget)) {
-          loadMore();
-        }
-      }}
-    >
+  const rowsAndNotes = (
+    <>
       {rows.map((row, at) => (
         <div
           key={row.open.key}
@@ -347,6 +357,33 @@ export const ListView = ({
         <p className="quiet">{buffer.kind === "list" ? "No elements" : `No hits for ${buffer.query}`}</p>
       ) : null}
       {view.status === "error" ? <p className="quiet">{view.message}</p> : null}
+    </>
+  );
+
+  return (
+    <div
+      ref={root}
+      className={part ? "list part" : "buffer list"}
+      role="listbox"
+      aria-label={bufferName(buffer)}
+      aria-activedescendant={activeRow(`${scope}row`, cursor, rows.length)}
+      {...(part ? {} : { "data-buffer": "" })}
+      tabIndex={0}
+      onKeyDown={keyDown}
+      onScroll={(event) => {
+        if (nearEnd(event.currentTarget)) {
+          loadMore();
+        }
+      }}
+    >
+      {part ? (
+        rowsAndNotes
+      ) : (
+        <div className="column">
+          <ListHeading buffer={buffer} view={view} />
+          {rowsAndNotes}
+        </div>
+      )}
     </div>
   );
 };

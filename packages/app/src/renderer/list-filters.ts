@@ -18,10 +18,12 @@ export const typeStep = (key: string): FilterStep => ({
 /**
  * The step of a type line of the overview (SR-118 AK2): the elements of exactly this type, as the count of
  * the line counts them (`element.facets`), without the elements of its subtypes. "Filter list by type"
- * keeps `typeStep`, which takes the subtypes along.
+ * keeps `typeStep`, which takes the subtypes along. With the name of the type, the heading of the list says
+ * it („System Requirement“, SR-148); the label, and so the name of the buffer, stays "type: <key>".
  */
-export const exactTypeStep = (key: string): FilterStep => ({
+export const exactTypeStep = (key: string, name?: string): FilterStep => ({
   label: `type: ${key}`,
+  ...(name === undefined ? {} : { heading: name }),
   selection: { where: { type: [key], subtypes: false } },
 });
 

@@ -177,9 +177,33 @@ body,
   text-overflow: ellipsis;
 }
 
-/* The list and the search result: ID, title, status. */
+/* The list and the search result: ID, title, status. As a buffer of its own, the list stands like the
+   elements of a package page (SR-148, D-062): in the centred column of the element, under a heading
+   that says what it shows; a buffer narrower than the column gives it its full width. */
 .list {
   padding: 0.5rem 0;
+}
+
+.buffer.list,
+.overview {
+  padding: 2rem 0.75rem 4rem;
+}
+
+.buffer.list .column,
+.overview .column {
+  max-width: 72ch;
+  margin: 0 auto;
+}
+
+.buffer.list h1 {
+  margin: 0 0 1rem;
+  font-size: 1.5rem;
+  line-height: 1.3;
+}
+
+.buffer.list h1 .count {
+  color: var(--muted);
+  font-weight: 400;
 }
 
 .row {
@@ -234,10 +258,6 @@ body,
 }
 
 /* The overview: a line per type with its count, and the recent elements below. Greys only. */
-.overview {
-  padding: 0.5rem 0;
-}
-
 .overview .line {
   padding: 0.1rem 0.75rem;
   cursor: default;

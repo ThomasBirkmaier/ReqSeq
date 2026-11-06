@@ -14,6 +14,8 @@ import { hasSavedFilter } from "./list-filters.js";
 /** One step of a list filter: the text the label shows and what it adds to the selection (a condition or a saved filter). */
 export interface FilterStep {
   readonly label: string;
+  /** What the heading of the list says for this step instead of the label: the name of a type (SR-148). */
+  readonly heading?: string;
   readonly selection: Pick<ElementSelection, "where" | "filter">;
 }
 
@@ -459,6 +461,18 @@ export const sortLabel = (sort: readonly FilterSortKeyWithDefaults[] | undefined
 };
 
 /** The name of a buffer, as the minibuffer lists it and the sheet is labelled. */
+/**
+ * The heading over the rows of a list or of a search result (SR-148): what the list shows, without a
+ * description. A list says its steps, each by its heading if it has one (the name of a type), else by its
+ * label; without steps, its label ("All elements").
+ */
+export const listHeading = (buffer: ListBuffer | SearchBuffer): string =>
+  buffer.kind === "search"
+    ? `Search: ${buffer.query}`
+    : buffer.steps.length === 0
+      ? buffer.label
+      : buffer.steps.map((step) => step.heading ?? step.label).join(" · ");
+
 export const bufferName = (buffer: Buffer): string => {
   switch (buffer.kind) {
     case "list":

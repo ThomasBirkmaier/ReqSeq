@@ -171,5 +171,7 @@ describe("the property prompt (SR-124)", () => {
       selection: { where: { type: ["need"], subtypes: false } },
     });
     expect(typeStep("need").selection).toEqual({ where: { type: ["need"] } });
+    // With the name of the type, the heading of the list says it (SR-148); the label stays.
+    expect(exactTypeStep("need", "Need")).toEqual({ ...exactTypeStep("need"), heading: "Need" });
   });
 });

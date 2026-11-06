@@ -8,6 +8,7 @@ import {
   elementBuffer,
   elementBufferOf,
   filteredList,
+  listHeading,
   listBuffer,
   listSort,
   metamodelBuffer,
@@ -22,7 +23,7 @@ import {
   withMatrix,
 } from "./buffers.js";
 import type { Buffers, FilterStep } from "./buffers.js";
-import { savedStep, typeStep } from "./list-filters.js";
+import { exactTypeStep, savedStep, statusStep, typeStep } from "./list-filters.js";
 
 const a = elementBuffer("id-a", "repo", "SR-1 Alpha");
 const b = elementBuffer("id-b", "repo", "SR-2 Beta");
@@ -323,5 +324,21 @@ describe("the metamodel buffer (SR-130)", () => {
       list,
       ...text,
     ]);
+  });
+});
+
+describe("listHeading", () => {
+  it("says what a list shows: its label without steps, the type name or the label of each step, the query of a search", () => {
+    expect(listHeading(filteredList([]))).toBe("All elements");
+    expect(listHeading(filteredList([exactTypeStep("system-requirement", "System Requirement")]))).toBe(
+      "System Requirement",
+    );
+    expect(
+      listHeading(
+        filteredList([exactTypeStep("system-requirement", "System Requirement"), statusStep("draft")]),
+      ),
+    ).toBe("System Requirement · status: draft");
+    expect(listHeading(filteredList([typeStep("need")]))).toBe("type: need");
+    expect(listHeading(searchBuffer("filter"))).toBe("Search: filter");
   });
 });
