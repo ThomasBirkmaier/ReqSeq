@@ -174,7 +174,7 @@ const limitedKeys = (metamodel: Metamodel): ReadonlySet<string> =>
  * Every count hint of the workspace with repository, file and line (SR-152 AK1, AK2), for
  * `workspace.check` (SR-019) and `hint.list`. Reads the files with hints under a key again for the
  * lines (`locateFindings`). Kept until the element store or the metamodel is reset; carried over a
- * change of the store (#184): the changed files are looked at again, and, when a changed UUID came,
+ * change of the store (ThomasBirkmaier/ReqSeq-archive#184): the changed files are looked at again, and, when a changed UUID came,
  * went or changed its repository or type, so is every element whose UUID lies in its short-ID group
  * or that has a relation under a limited key to it (`relationSourcesAgain`, as SR-086).
  */
@@ -184,7 +184,7 @@ export const relationLimitProblemsState = defineWorkspaceState(
     const layout = await workspace.get(workspaceLayoutState);
     const store = await workspace.get(elementStoreState);
     const metamodel = await workspace.get(metamodelState);
-    // `limitsOf` is empty for a metamodel that is not valid: its errors are the findings (#208).
+    // `limitsOf` is empty for a metamodel that is not valid: its errors are the findings (ThomasBirkmaier/ReqSeq-archive#208).
     const shortIds = await workspace.get(shortIdState);
     return locateFindings(layout, allRelationLimitFindings({ layout, store, metamodel, shortIds }));
   },

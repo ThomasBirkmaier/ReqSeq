@@ -1,7 +1,7 @@
 // Inline references in the text of an element (ADR-0004, SR-066, D-058): Markdown links
 // `[<label>](reqseq:<uuid>?version=<version>)`, plus `&repository=<name>` (the workspace name of the
 // target's repository, D-041) when the target lies in another repository than the source (decision
-// on spec question #177 (c), option 1). A link without `repository` (or with an empty one) points
+// on spec question ThomasBirkmaier/ReqSeq-archive#177 (c), option 1). A link without `repository` (or with an empty one) points
 // into the source's own repository, as a relation target without one does (D-058); so that links
 // written before this decision keep working, a target that is not there but lies in exactly one
 // other repository counts as found there (`resolveReference`). The element store keeps the

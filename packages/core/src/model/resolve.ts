@@ -1,8 +1,8 @@
 // Finding the element a command names (`common.schema.json#/$defs/elementRef`): its UUID, a short
-// ID (SR-084) or its identifier (#305), as a person or another tool gives it; for reading,
-// optionally one copy of several (#255).
+// ID (SR-084) or its identifier (ThomasBirkmaier/ReqSeq-archive#305), as a person or another tool gives it; for reading,
+// optionally one copy of several (ThomasBirkmaier/ReqSeq-archive#255).
 //
-// Which element a reference names, in this order (#305):
+// Which element a reference names, in this order (ThomasBirkmaier/ReqSeq-archive#305):
 // 1. A reference of the UUID form names the elements with that UUID and nothing else: UUIDs are
 //    unique by design (D-017), so a UUID a tool stored never comes to name another element. An
 //    identifier of the UUID form therefore cannot be used as a reference.
@@ -12,7 +12,7 @@
 //    two types share (it is unique per type only): `ref.ambiguous` with all of them as candidates;
 //    the tool never picks one. None: `ref.unknown`.
 //    A short ID that names no element as it is now, but whose tail fits elements of another type
-//    (the prefix changed since it was stored, SR-015, #275), is never left out silently when the
+//    (the prefix changed since it was stored, SR-015, ThomasBirkmaier/ReqSeq-archive#275), is never left out silently when the
 //    reference is also an identifier: those elements join the candidates, so it is `ref.ambiguous`.
 //    Without an identifier match it stays `ref.unknown`, and element.resolve names the candidate.
 import { CommandError } from "../catalog.js";
@@ -26,7 +26,7 @@ import { isShortIdForm, normalizeRef } from "./uuid.js";
 /**
  * Which of the elements a reference names is meant: the repository and/or the file (relative to the
  * repository) of one of the `details.candidates` of `ref.ambiguous`, for example one copy of a file
- * whose UUID another file shares (SR-088). Only `element.get` and `element.resolve` take it (#255).
+ * whose UUID another file shares (SR-088). Only `element.get` and `element.resolve` take it (ThomasBirkmaier/ReqSeq-archive#255).
  */
 export interface ElementCopy {
   readonly repository?: string | undefined;
@@ -127,7 +127,7 @@ const narrow = (
 };
 
 /**
- * How an ambiguous reference names its elements, when identifiers take part (#305): ` (as a short
+ * How an ambiguous reference names its elements, when identifiers take part (ThomasBirkmaier/ReqSeq-archive#305): ` (as a short
  * ID and as an identifier)`, ` (as the identifier of each)`, ` (as an identifier, and as a short ID
  * whose prefix may be outdated)`; nothing for a UUID or a short ID alone, as before.
  */
@@ -147,11 +147,11 @@ const asWhat = (byName: Named | undefined): string => {
  * The one element `ref` names (see the file comment for the rules). Throws `ref.unknown` when no
  * element of an available repository has it, and `ref.ambiguous` when several do: a short ID
  * shorter than the one shown, two files with the same UUID (a copied file, SR-088), or a reference
- * that is the short ID or identifier of more than one element (#305), which `details.candidates`
+ * that is the short ID or identifier of more than one element (ThomasBirkmaier/ReqSeq-archive#305), which `details.candidates`
  * lists. With `copy`, only the elements `ref` names in that repository and/or file count; when it
  * fits none of them, `ref.unknown` lists them as `details.candidates`. `copy` never finds an element
  * `ref` does not name. A UUID, short ID or identifier in any case names the same element
- * (`normalizeRef`, #309); messages show `ref` as given.
+ * (`normalizeRef`, ThomasBirkmaier/ReqSeq-archive#309); messages show `ref` as given.
  */
 export const resolveRef = (
   store: ElementStore,

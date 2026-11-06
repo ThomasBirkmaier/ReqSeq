@@ -825,7 +825,7 @@ describe("applyStoreChange (SR-007)", () => {
   });
 });
 
-describe("withWrittenFiles (#166)", () => {
+describe("withWrittenFiles (ThomasBirkmaier/ReqSeq-archive#166)", () => {
   /** One written file. */
   const withWrittenFile = (
     store: ElementStore,
@@ -1029,7 +1029,7 @@ describe("withWrittenFiles (#166)", () => {
   });
 });
 
-describe("recordWrites (#166)", () => {
+describe("recordWrites (ThomasBirkmaier/ReqSeq-archive#166)", () => {
   const REQUIREMENT = "5cb1e198-1130-4a13-9d25-88cc6ebc472a";
   const REQUIREMENT_FILE = "requirements/SR-88cc6ebc472a.md";
 

@@ -248,7 +248,7 @@ describe("short IDs", () => {
     const shortIds = buildShortIds(byIdOf(records), metamodel);
     const all = records.map((r) => shortIds.of(r));
     expect(new Set(all).size).toBe(records.length);
-    // The tails alone are unique too, whatever the type (AK2 across types, review of #155 on #72).
+    // The tails alone are unique too, whatever the type (AK2 across types, review of ThomasBirkmaier/ReqSeq-archive#155 on ThomasBirkmaier/ReqSeq-archive#72).
     expect(new Set(records.map((r) => shortIds.tail(r.id))).size).toBe(records.length);
     const hex = ids.map((id) => id.replaceAll("-", ""));
     const lengthened: string[] = [];
@@ -268,7 +268,7 @@ describe("short IDs", () => {
     }
     // The test checks uniqueness and minimality, not time (the perf suite measures, ADR-0011). It
     // takes about 2 s alone on 4 cores and went over the 5 s default under the full suite with coverage
-    // (#199), so it gets a bound that only a hang reaches.
+    // (ThomasBirkmaier/ReqSeq-archive#199), so it gets a bound that only a hang reaches.
   }, 30_000);
 
   it("[SR-084/AK3] changes no file name and no file when a short ID is lengthened in the display", async () => {
@@ -303,7 +303,7 @@ describe("short IDs", () => {
     expect(await filesBelow(ws.root)).toEqual(files);
   });
 
-  it("shows an element of a type the metamodel does not know with the prefix UNKNOWN (decision on #154)", async () => {
+  it("shows an element of a type the metamodel does not know with the prefix UNKNOWN (decision on ThomasBirkmaier/ReqSeq-archive#154)", async () => {
     const id = "0a1b2c3d-0000-4000-8000-0000000beef1";
     const ws = await fixture({
       fixture: "SR-003/moved",
@@ -386,7 +386,7 @@ describe("ShortIds.find", () => {
     });
   });
 
-  it("lists the elements whose UUID ends with a tail, whatever the prefix, without finding them (#275)", async () => {
+  it("lists the elements whose UUID ends with a tail, whatever the prefix, without finding them (ThomasBirkmaier/ReqSeq-archive#275)", async () => {
     const { store, shortIds } = await shortIdsOf([PAIR_1, PAIR_2]);
     expect(shortIds.find("SR-bd8c26")).toEqual({ kind: "unknown" });
     expect(shortIds.withTail("SR-bd8c26")).toEqual([only(store, MOVED_N)]);
@@ -395,7 +395,7 @@ describe("ShortIds.find", () => {
     expect(shortIds.withTail(PAIR_1)).toEqual([]);
   });
 
-  it("[SR-060/AK1] finds a short ID in any case (#309)", async () => {
+  it("[SR-060/AK1] finds a short ID in any case (ThomasBirkmaier/ReqSeq-archive#309)", async () => {
     const { shortIds } = await shortIdsOf([PAIR_1, PAIR_2]);
     const found = shortIds.find("SR-1abc123");
     expect(found.kind).toBe("found");
@@ -431,7 +431,7 @@ describe("ShortIds.tail", () => {
   });
 });
 
-describe("updateShortIds (#184)", () => {
+describe("updateShortIds (ThomasBirkmaier/ReqSeq-archive#184)", () => {
   const record = (id: string, file: string, type = "system-requirement"): ElementRecord => ({
     id,
     type,

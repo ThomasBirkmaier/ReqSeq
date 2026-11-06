@@ -95,7 +95,7 @@ export const targetState = (
 };
 
 /**
- * The workspace name of the repository a target state looked in (#416, `data-export.schema.json#/$defs/relation`
+ * The workspace name of the repository a target state looked in (ThomasBirkmaier/ReqSeq-archive#416, `data-export.schema.json#/$defs/relation`
  * `repository`): the found element's for `available`, else the one the state names; undefined only for an
  * `unknown-repository` whose stored `repository` is not text.
  */
@@ -112,7 +112,7 @@ export interface FollowedTargets {
   readonly elements: readonly ElementRecord[];
   /**
    * Some target could not be read (SR-006 AK2): it lies in a repository that is not on this
-   * machine, or in one the workspace file does not list (spec question #193). What is computed from
+   * machine, or in one the workspace file does not list (spec question ThomasBirkmaier/ReqSeq-archive#193). What is computed from
    * `elements` (chain, coverage, degree of evidence) misses that part and is incomplete. A missing
    * or ambiguous target is a finding of its own (SR-089, SR-088) and does not count here.
    */

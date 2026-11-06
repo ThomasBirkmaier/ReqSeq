@@ -60,7 +60,7 @@ const seen = (index: IdentifierIndex): Record<string, string[]> =>
     ]),
   );
 
-describe("identifier index (#305)", () => {
+describe("identifier index (ThomasBirkmaier/ReqSeq-archive#305)", () => {
   it("takes the non-empty text under the key with the meaning identifier, in any case", async () => {
     const metamodel = await metamodelOf("enabler-305/identifiers");
     expect(identifierKeyOf(metamodel)).toBe("spec-id");

@@ -57,8 +57,8 @@ export const titleKeyOrEmpty = (metamodel: Metamodel): string => titleKeyOf(meta
  * element with its UUID; then the title and short ID of that element are given, also across
  * repositories, where the file stores no title (SR-005 AK2). A target in a repository that is not
  * on this machine shows only its short ID (SR-006 AK1): the tail of its UUID with the prefix
- * `UNKNOWN`, since its type is not known (assumption until spec questions #154 and #193 are
- * answered). Each target also names the repository it is looked up in (`targetRepository`, #416).
+ * `UNKNOWN`, since its type is not known (assumption until spec questions ThomasBirkmaier/ReqSeq-archive#154 and ThomasBirkmaier/ReqSeq-archive#193 are
+ * answered). Each target also names the repository it is looked up in (`targetRepository`, ThomasBirkmaier/ReqSeq-archive#416).
  */
 const relationsUnder = (
   input: ListedElementInput,
@@ -117,7 +117,7 @@ export const relationLink = (
  * The element's own relations (`relationsUnder`): the targets under the keys of relation kinds, in
  * the order of the relation kinds in the metamodel, then of the items; then the targets of
  * properties of kind `relation` (validity, packages), in the order of the properties, with the
- * property key as `kind`, `property: true` and no `meaning` (#187). Those targets also stay under
+ * property key as `kind`, `property: true` and no `meaning` (ThomasBirkmaier/ReqSeq-archive#187). Those targets also stay under
  * `properties` as stored. Keys are unique across properties and relation kinds (ADR-0004), so no
  * target is listed twice.
  */
@@ -144,7 +144,7 @@ const outgoingRelations = (input: ListedElementInput): DataExportRelation[] => {
  * `direction: "in"`. The other end is the successor, with its `targetState` (D-058): `available`
  * when its repository has exactly one element with its UUID, then also with its short ID and
  * title, also across repositories (SR-005 AK2); `ambiguous` when several files share it (SR-088).
- * It names the successor's repository (#416). `storedVersion` is the version the successor stores,
+ * It names the successor's repository (ThomasBirkmaier/ReqSeq-archive#416). `storedVersion` is the version the successor stores,
  * when it is one. The superseded element itself has no relation to its successor (D-045).
  */
 const successorRelations = (input: ListedElementInput): DataExportRelation[] =>
@@ -157,7 +157,7 @@ const successorRelations = (input: ListedElementInput): DataExportRelation[] =>
  * it: `direction: "in"`, the other end is `source` with its `targetState` (D-058): `available` when
  * its repository has exactly one element with its UUID, then also with its short ID and title, also
  * across repositories (SR-005 AK2); `ambiguous` when several files share it (SR-088). It names the
- * source's repository (#416). `storedVersion` is the version `item` stores, when it is one. The one
+ * source's repository (ThomasBirkmaier/ReqSeq-archive#416). `storedVersion` is the version `item` stores, when it is one. The one
  * builder of an incoming relation, shared by the successors of a superseded element (SR-072 AK3) and
  * the traceability matrix (SR-125).
  */
@@ -221,7 +221,7 @@ const versionInput = (
  * What the version of an element is computed from, as `comparableContent` writes it in normal form
  * n1: equal for two states of an element exactly when their n1 versions are equal, also when a
  * value that counts has no normal form and there is no version (`.inf`, `.nan`, ADR-0005). For
- * telling whether a save changed the content (SR-024 AK2, AK3; #276); never shown. A save counts
+ * telling whether a save changed the content (SR-024 AK2, AK3; ThomasBirkmaier/ReqSeq-archive#276); never shown. A save counts
  * when its n1 or its n2 content changed, as links store either (assumption of #166): n2 leaves
  * out only parts of n1 (the `version=` values, the order of relation targets), so it changes only
  * with n1, and n1 tells both.
@@ -242,7 +242,7 @@ export const notComputableMessage = (
 /**
  * The version `compute` gives (`elementVersion`), or the RangeError it throws for a value that
  * counts and has no normal form (`.inf`, `.nan`, ADR-0005). Any other error is a bug and passed on.
- * For the readers that need a version of every element (current versions, #259) or of the element
+ * For the readers that need a version of every element (current versions, ThomasBirkmaier/ReqSeq-archive#259) or of the element
  * before a save (SR-024 AK2) without failing on such a value.
  */
 export const versionOrRangeError = <T extends string | VersionForms>(compute: () => T): T | RangeError => {
@@ -327,7 +327,7 @@ export const listedElement = (
 ): DataExportElement => {
   const { record, metamodel, shortIds, titleKey } = input;
   const relationKeys = new Set(metamodel.relations.map((r) => r.key));
-  // Left out for an element without status, such as one of a type without status (#306).
+  // Left out for an element without status, such as one of a type without status (ThomasBirkmaier/ReqSeq-archive#306).
   const status = text(record.data["status"]);
   const properties = Object.fromEntries(
     Object.entries(record.data).filter(
@@ -356,22 +356,22 @@ export const listedElement = (
  * images of `input.images`) and the hints with their lines: unknown type and properties (SR-016),
  * required properties without a value (SR-015, SR-064), values of the wrong kind (SR-085), lists
  * with more entries than `max-items` (SR-171), an
- * identifier another element of its type has (#305),
+ * identifier another element of its type has (ThomasBirkmaier/ReqSeq-archive#305),
  * relations between types the metamodel does not allow (SR-086), more or fewer relations of a
  * kind than its limits allow (SR-152), then relations to superseded
- * elements (SR-072 AK2); no hints while the metamodel is not valid (#208, #220 option 1). The
+ * elements (SR-072 AK2); no hints while the metamodel is not valid (ThomasBirkmaier/ReqSeq-archive#208, ThomasBirkmaier/ReqSeq-archive#220 option 1). The
  * successor relations are relations, not hints, so they are listed also then. Other relations
  * pointing at it and the version date are left out.
  *
  * A value that counts and has no normal form (`.inf`, `.nan`, ADR-0005) leaves out `version`, and
  * the last problem is a `file.faulty` warning that says why (`noVersionProblem`), as list commands
- * and the current versions give such an element (#259, #276): the view never fails on it.
+ * and the current versions give such an element (ThomasBirkmaier/ReqSeq-archive#259, ThomasBirkmaier/ReqSeq-archive#276): the view never fails on it.
  */
 export const elementView = (
   input: ElementViewInput,
 ): DataExportElement & { readonly problems: readonly Problem[] } => {
   const { record, file, metamodel, shortIds } = input;
-  // No hints against a metamodel that is not valid: its errors are the findings (#208, #220).
+  // No hints against a metamodel that is not valid: its errors are the findings (ThomasBirkmaier/ReqSeq-archive#208, ThomasBirkmaier/ReqSeq-archive#220).
   const findings: readonly LocatableFinding[] = metamodel.valid
     ? [
         ...unknownFindings(record, metamodel),
@@ -399,7 +399,7 @@ export const elementView = (
   }
   const { id, shortId, identifier, type, status, title, ...rest } = listedElement(input, version);
   // The text after the title, as the element files and the schema order it; without the blank line
-  // after the frontmatter, so element.update takes it back unchanged (#308).
+  // after the frontmatter, so element.update takes it back unchanged (ThomasBirkmaier/ReqSeq-archive#308).
   return {
     id,
     shortId,

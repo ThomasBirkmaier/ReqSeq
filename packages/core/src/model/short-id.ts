@@ -2,9 +2,9 @@
 // a dash and the last hex digits of the UUID without dashes: at least 6, more until no other element
 // of the workspace has a UUID that ends the same way. Only the display grows; the file name keeps the
 // prefix and the 12 digits it got when the element was created and never changes (D-056, SR-084 AK3).
-// Computing short IDs reads nothing and writes nothing. The identifiers of the elements (#305,
+// Computing short IDs reads nothing and writes nothing. The identifiers of the elements (ThomasBirkmaier/ReqSeq-archive#305,
 // `identifier-index.ts`) are kept with them: people name elements by both, and both are built from
-// the same states and carried over a change of the store the same way (#184).
+// the same states and carried over a change of the store the same way (ThomasBirkmaier/ReqSeq-archive#184).
 import type { Problem } from "../catalog.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { UNKNOWN_TYPE_PREFIX, findType, metamodelState } from "../metamodel/index.js";
@@ -25,7 +25,7 @@ import { normalizeRef } from "./uuid.js";
 /** Digits of the UUID a short ID shows at least (D-017, D-056, SR-084 AK1). */
 export const SHORT_ID_MIN_LENGTH = 6;
 
-// The prefix of an element whose type the metamodel does not know (decision on #154); the metamodel
+// The prefix of an element whose type the metamodel does not know (decision on ThomasBirkmaier/ReqSeq-archive#154); the metamodel
 // owns it, since its check refuses a type with it.
 export { UNKNOWN_TYPE_PREFIX };
 
@@ -50,23 +50,23 @@ export interface ShortIds {
    * as the 12 digits of the file name. A tail shorter than the one shown fits more than one UUID: it
    * is ambiguous unless the prefix leaves one element. Two files with the same UUID (SR-088) are
    * ambiguous; a wrong prefix or a malformed short ID is unknown. Any case is accepted
-   * (`normalizeRef`, #309).
+   * (`normalizeRef`, ThomasBirkmaier/ReqSeq-archive#309).
    */
   find(shortId: string): ShortIdMatch;
   /**
    * The elements whose UUID ends with the digits of `shortId`, whatever their type: none for a
    * malformed short ID. Never a match by itself (a reference must not be retargeted to another
    * element); `element.resolve` names them as candidates when `find` gives unknown and the prefix
-   * may be outdated (SR-060, #275).
+   * may be outdated (SR-060, ThomasBirkmaier/ReqSeq-archive#275).
    */
   withTail(shortId: string): readonly ElementRecord[];
   /**
-   * The identifier of `element` (#305): its text value of the property with the meaning
+   * The identifier of `element` (ThomasBirkmaier/ReqSeq-archive#305): its text value of the property with the meaning
    * `identifier`; undefined when it has none or no property has the meaning.
    */
   identifierOf(element: Pick<ElementRecord, "data">): string | undefined;
   /**
-   * The elements whose identifier is `value` in any case (#305), by repository, then file; of every
+   * The elements whose identifier is `value` in any case (ThomasBirkmaier/ReqSeq-archive#305), by repository, then file; of every
    * type (an identifier is unique per type only). None when no property has the meaning.
    */
   withIdentifier(value: string): readonly ElementRecord[];
@@ -98,7 +98,7 @@ interface Index {
   /** The elements (the `byId` of a store) the short IDs are of. */
   readonly byId: ReadonlyMap<string, readonly ElementRecord[]>;
   readonly metamodel: Metamodel;
-  /** The identifiers of the elements (#305). */
+  /** The identifiers of the elements (ThomasBirkmaier/ReqSeq-archive#305). */
   readonly identifiers: IdentifierIndex;
 }
 
@@ -119,7 +119,7 @@ const reversedDigits = (id: string): string => {
 /**
  * The group of a UUID: its last `SHORT_ID_MIN_LENGTH` hex digits. The short ID of an element depends
  * only on the UUIDs in its group (and its type), so a change of the store changes the short IDs of
- * the groups of the UUIDs it changes and of no other (#184).
+ * the groups of the UUIDs it changes and of no other (ThomasBirkmaier/ReqSeq-archive#184).
  */
 export const shortIdGroup = (id: string): string => {
   // A UUID ends with 12 hex digits, so the cheap way fits it (200,000 relations are tested).
@@ -164,7 +164,7 @@ const shortIdsOf = (index: Index): ShortIds => {
   const tailOf = (id: string): string => {
     const group = groups.get(groupKey(id));
     // Alone in its group (most UUIDs), or the UUID of no element and no group: the shortest tail,
-    // without reading all digits (SR-082 AK4, #227).
+    // without reading all digits (SR-082 AK4, ThomasBirkmaier/ReqSeq-archive#227).
     if (group === undefined || (group.length === 1 && group[0]?.id === id)) {
       return shortIdGroup(id);
     }
@@ -176,7 +176,7 @@ const shortIdsOf = (index: Index): ShortIds => {
   };
 
   // Each tail once per index (it never changes): a chain or a list of affected elements names tens
-  // of thousands of elements, on every call (SR-082 AK4, #227).
+  // of thousands of elements, on every call (SR-082 AK4, ThomasBirkmaier/ReqSeq-archive#227).
   const tails = new Map<string, string>();
   const tail = (id: string): string => {
     let known = tails.get(id);
@@ -226,7 +226,7 @@ const shortIdsOf = (index: Index): ShortIds => {
 };
 
 /**
- * `{ identifier }` of `element` for an output that names it next to its short ID (#305), `{}` when
+ * `{ identifier }` of `element` for an output that names it next to its short ID (ThomasBirkmaier/ReqSeq-archive#305), `{}` when
  * it has none.
  */
 export const identifierField = (
@@ -267,7 +267,7 @@ export const buildShortIds = (
 };
 
 /**
- * The short IDs of `byId` (a store after a change, #184), built from `old`, the short IDs of the
+ * The short IDs of `byId` (a store after a change, ThomasBirkmaier/ReqSeq-archive#184), built from `old`, the short IDs of the
  * store before it: only the groups of the UUIDs in `ids` (every UUID whose records changed, came
  * or went) are built again from `byId`, every other group is taken over. The same as
  * `buildShortIds(byId, metamodel)` when every other UUID has the same records in both stores, as
@@ -343,7 +343,7 @@ export const shortIdsBuiltFrom = (
 /**
  * The short IDs of a workspace, built on first use from the element store and the metamodel, reset
  * with either of them and carried over a change of the store that `applyStoreChange` applies
- * (`updateShortIds`, #184), so a new element, a moved or changed file (SR-007) or a changed type
+ * (`updateShortIds`, ThomasBirkmaier/ReqSeq-archive#184), so a new element, a moved or changed file (SR-007) or a changed type
  * prefix (SR-015) shows on the next read. Unique across every available repository of the
  * workspace; a missing repository cannot be taken into account (D-056).
  */
@@ -358,7 +358,7 @@ export const shortIdState = defineWorkspaceState(
   },
   {
     dependsOn: [elementStoreState, metamodelState],
-    // A save or a watcher batch builds only the groups of the UUIDs it changed again (#184).
+    // A save or a watcher batch builds only the groups of the UUIDs it changed again (ThomasBirkmaier/ReqSeq-archive#184).
     carry: carryStoreUpdate((value, update) =>
       value.then((old) => updateShortIds(old, update.to.byId, update.ids)),
     ),

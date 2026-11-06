@@ -1,5 +1,5 @@
 // The images an element embeds, as its version counts them (ADR-0005 "Files", D-057, SR-091 AK4;
-// rule of spec question #131, option 1). The links come from the shared Markdown scanner; the
+// rule of spec question ThomasBirkmaier/ReqSeq-archive#131, option 1). The links come from the shared Markdown scanner; the
 // files block hashes the files. The result is the same on every operating system and file system:
 // each name of a path must be spelled as on disk (compared after NFC), names that Windows changes
 // count as missing everywhere, and only the folder walk of the repository decides what is there.

@@ -1,4 +1,4 @@
-// Adding and removing one relation (enabler #264; SR-005, SR-021, SR-041, SR-086, SR-102, D-045,
+// Adding and removing one relation (enabler ThomasBirkmaier/ReqSeq-archive#264; SR-005, SR-021, SR-041, SR-086, SR-102, D-045,
 // D-058; ADR-0004, ADR-0007). A relation lives only in the file of its source (ADR-0004), so both
 // commands rewrite only that file, and there only the lines of the one relation (`append-item`,
 // `remove-item`): one flow mapping per line, so two branches that add different relations to the
@@ -9,14 +9,14 @@
 //   repository and no title across repositories (SR-005 AK1, D-058). A relation the metamodel does
 //   not allow between the two types is refused with `relation.not-allowed`, by the rule of the
 //   check of SR-086 (`relationTypeFindings`): the tool sets only allowed relations (SR-067 AK1;
-//   assumption, stated in the PR of #264). A relation the source already has with a valid version
-//   is kept with its stored version and nothing is written (#177 (a)); the `relation.too-many` hints
+//   assumption, stated in the PR of ThomasBirkmaier/ReqSeq-archive#264). A relation the source already has with a valid version
+//   is kept with its stored version and nothing is written (ThomasBirkmaier/ReqSeq-archive#177 (a)); the `relation.too-many` hints
 //   below come back for it all the same (#845). One it has only without a
 //   valid version (written by hand or by a migration script, which cannot compute versions,
 //   ADR-0005) gets the current version in place, with the same checks as a new relation: its line
 //   is replaced by `currentTarget` (`replace-item`, the position in the list stays) and an `info`
 //   problem `relation.version-added` says so (ADR-0004 "Setting a target", as `element.update`
-//   does for relation-valued properties; #302). A relation over a limit of the kind (SR-152) is
+//   does for relation-valued properties; ThomasBirkmaier/ReqSeq-archive#302). A relation over a limit of the kind (SR-152) is
 //   written too, and the `relation.too-many` hints of the check on the limits the new target counts
 //   toward come back for each written copy of the source, after `relation.version-added` (SR-152
 //   AK3). Whether it closes a cycle of derivations is the
@@ -204,7 +204,7 @@ export const addRelation = async (workspace: Workspace, input: RelationInput): P
       problems: await locateFindings(layout, tooManyFindings([source], state, kind, target)),
     };
   }
-  // A stored entry without a valid version is set anew in its place (ADR-0004, #302).
+  // A stored entry without a valid version is set anew in its place (ADR-0004, ThomasBirkmaier/ReqSeq-archive#302).
   const unversioned = items.findIndex(namesTarget);
   const stored = await currentTarget({ layout, metamodel, store }, source.repository, {
     id: target.id,
@@ -276,7 +276,7 @@ const removalTarget = (
   ref: string,
   repository: string | undefined,
 ): { readonly id: string; readonly repository?: string } => {
-  // As given, for the message; a UUID in any case is the lower-case UUID (#309).
+  // As given, for the message; a UUID in any case is the lower-case UUID (ThomasBirkmaier/ReqSeq-archive#309).
   const given: string = ref;
   const id = normalizeRef(ref);
   if (isUuid(id)) {

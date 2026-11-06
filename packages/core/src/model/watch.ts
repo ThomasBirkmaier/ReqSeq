@@ -19,10 +19,10 @@
 //   alone is told as an `elements` change with empty lists;
 // - element paths changed: the store is updated file by file (`updateElements`, hashes compared)
 //   and replaced (`applyStoreChange`), which carries the state built on it (short IDs, findings)
-//   over the change or resets it (#184). A store nobody has read yet is left alone: the next read
+//   over the change or resets it (ThomasBirkmaier/ReqSeq-archive#184). A store nobody has read yet is left alone: the next read
 //   finds the files as they are.
 // An update that fails resets the store, so the next command reads it in full. After each batch
-// that changed the model, the listeners of `onChange` hear what changed (#331): the app's core
+// that changed the model, the listeners of `onChange` hear what changed (ThomasBirkmaier/ReqSeq-archive#331): the app's core
 // process refreshes its windows with it (no catalog command, see ADR-0008).
 //
 // An event without a file name means the OS dropped the names of a burst: ReadDirectoryChangesW
@@ -151,9 +151,9 @@ const folded = (absolute: string): string => absolute.normalize("NFC").toLowerCa
 /**
  * How the watcher of `layout` finds its metamodel folder, computed once per layout. An existing
  * folder is a real path (the layout), spelled as the file system stores the name, as event and
- * walk paths are (#231); a missing one is spelled as typed in the workspace file. Both are
+ * walk paths are (ThomasBirkmaier/ReqSeq-archive#231); a missing one is spelled as typed in the workspace file. Both are
  * compared in NFC and lower case: on macOS a name in another letter case or normal form is the same
- * folder (#225), and should an event ever spell it otherwise than `realpath`, it still counts.
+ * folder (ThomasBirkmaier/ReqSeq-archive#225), and should an event ever spell it otherwise than `realpath`, it still counts.
  * Where a file system keeps such names apart, a twin folder only costs an extra reset of the
  * metamodel or an extra check of the layout. A missing folder below a linked folder is not found:
  * the events of its files name the link's target.

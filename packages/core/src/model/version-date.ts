@@ -18,7 +18,7 @@
 // repository: one `log` (once more when an old text embeds an image the current one does not) and
 // one `cat-file` for every object, whatever the number of commits or files. HEAD is read from the
 // files of the Git folder (`headFiles`); `rev-parse` only where they cannot tell. A repository folder
-// may lie below the top level of its Git work tree (#377); every path stays relative to the
+// may lie below the top level of its Git work tree (ThomasBirkmaier/ReqSeq-archive#377); every path stays relative to the
 // repository folder, the reader takes care of the prefix.
 import { createHash } from "node:crypto";
 import path from "node:path";

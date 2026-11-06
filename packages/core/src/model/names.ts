@@ -1,5 +1,5 @@
-// How an output names an element it gives elsewhere by UUID only (#588,
-// `common.schema.json#/$defs/elementName`): its short ID, identifier (#305) and title, as element.list
+// How an output names an element it gives elsewhere by UUID only (ThomasBirkmaier/ReqSeq-archive#588,
+// `common.schema.json#/$defs/elementName`): its short ID, identifier (ThomasBirkmaier/ReqSeq-archive#305) and title, as element.list
 // gives them, so a reader (the CLI's readable output) can name it without a lookup of its own
 // (ADR-0002 rule 3). Nothing is read: the store keeps the frontmatter, and the short IDs are built.
 import type { ElementName } from "../generated/types.js";

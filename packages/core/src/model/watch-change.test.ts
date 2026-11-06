@@ -13,7 +13,7 @@ const bare = (records: readonly ElementRecord[]): ElementStore => ({
   problems: [],
 });
 
-describe("changedElements (#331)", () => {
+describe("changedElements (ThomasBirkmaier/ReqSeq-archive#331)", () => {
   it("names nothing for stores without what each file contributed: every element may have changed", () => {
     const record = { id: A } as unknown as ElementRecord;
     expect(changedElements(bare([record]), bare([]))).toBeUndefined();

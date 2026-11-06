@@ -4,9 +4,9 @@
 // `succession` (D-059) from the successor to the element, written into the successor's file
 // (source = new, target = old), so the element's own file changes only in its status line. The
 // relation stores the element's UUID and current version like every new relation (SR-021,
-// `currentTarget`); one the successor already has is kept with its stored version (#177 (a)).
+// `currentTarget`); one the successor already has is kept with its stored version (ThomasBirkmaier/ReqSeq-archive#177 (a)).
 // Relations to the superseded element then get hints (`superseded.ts`, SR-072 AK2). A type that
-// restricts the statuses (#306) offers only its own invalid statuses; a type without one cannot be
+// restricts the statuses (ThomasBirkmaier/ReqSeq-archive#306) offers only its own invalid statuses; a type without one cannot be
 // superseded.
 import type { Problem } from "../catalog.js";
 import { CommandError } from "../catalog.js";
@@ -54,8 +54,8 @@ const invalid = (message: string, details: Record<string, unknown>): CommandErro
   new CommandError("input.invalid", message, details);
 
 /**
- * The key of the status `given` names (`statusKey`: key or display name, #309), which must be one of
- * the statuses of `type` (#306) that the metamodel marks invalid (D-044); else `input.invalid` with
+ * The key of the status `given` names (`statusKey`: key or display name, ThomasBirkmaier/ReqSeq-archive#309), which must be one of
+ * the statuses of `type` (ThomasBirkmaier/ReqSeq-archive#306) that the metamodel marks invalid (D-044); else `input.invalid` with
  * those statuses as `key (Name)` and their keys as `details.allowed`. The message names the type
  * when it offers fewer invalid statuses than the metamodel has; a type with none gives `reason:
  * no-invalid-status` whatever is given.
@@ -187,10 +187,10 @@ const hasRelation = (source: ElementRecord, key: string, target: ElementRecord):
 
 /**
  * `element.supersede` (SR-072 AK1, SR-087): sets `input.status`, a status of the element's type
- * that the metamodel marks invalid (#306), on the element `input.ref` and, with `input.successor`,
+ * that the metamodel marks invalid (ThomasBirkmaier/ReqSeq-archive#306), on the element `input.ref` and, with `input.successor`,
  * adds a relation of the succession kind (`input.relation`, or the one that fits) from the
  * successor to it. An element without status of a type whose statuses are all invalid gets its
- * `status` line here (#344, option 1). Every check comes before the first write: the element's
+ * `status` line here (ThomasBirkmaier/ReqSeq-archive#344, option 1). Every check comes before the first write: the element's
  * reference and that it may be written (SR-016 AK3), the status, the successor's reference and that
  * it may be written, the relation kind and that no file changed on disk since the element store
  * read it (`file.changed-on-disk`). Both files are written with `writeElementFiles` (best-effort
@@ -207,7 +207,7 @@ export const supersedeElement = async (
   const shortIds = await workspace.get(shortIdState);
   const record = resolveRef(store, shortIds, input.ref);
   const type = assertElementWritable(metamodel, record);
-  // The statuses come from the element's type (#306), so the element is resolved first.
+  // The statuses come from the element's type (ThomasBirkmaier/ReqSeq-archive#306), so the element is resolved first.
   const statusValue = invalidStatusKey(metamodel, type, input.ref, input.status);
   const successor = input.successor === undefined ? undefined : resolveRef(store, shortIds, input.successor);
   if (successor === undefined && input.relation !== undefined) {

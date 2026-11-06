@@ -1,12 +1,12 @@
-// Identifiers (#305, D-017): an ID from another source, such as the spec ID `SR-036` or a customer
+// Identifiers (ThomasBirkmaier/ReqSeq-archive#305, D-017): an ID from another source, such as the spec ID `SR-036` or a customer
 // ID, kept in the property the metamodel gives the meaning `identifier`. An element's identifier is
 // the text it holds there; it is unique per type (a duplicate is a finding, `identifiers.ts`), and
 // element references accept it besides the UUID and short ID (`resolveRef`). Identifiers compare in
-// any case, as UUIDs and short IDs do (#309): `sr-036` names the element with `SR-036`.
+// any case, as UUIDs and short IDs do (ThomasBirkmaier/ReqSeq-archive#309): `sr-036` names the element with `SR-036`.
 //
 // The index is built with the short IDs (`buildShortIds`, `updateShortIds`), which depend on the
 // same states (element store and metamodel) and are carried over a change of the store the same way
-// (#184). Reading it reads nothing and writes nothing.
+// (ThomasBirkmaier/ReqSeq-archive#184). Reading it reads nothing and writes nothing.
 import type { Metamodel } from "../metamodel/index.js";
 import { propertyWithMeaning } from "../metamodel/index.js";
 import type { ElementRecord } from "./elements.js";
@@ -27,7 +27,7 @@ export interface IdentifierIndex {
   readonly byId: ReadonlyMap<string, readonly ElementRecord[]>;
 }
 
-/** The key of the property with the meaning `identifier` (#305); undefined when no property has it. */
+/** The key of the property with the meaning `identifier` (ThomasBirkmaier/ReqSeq-archive#305); undefined when no property has it. */
 export const identifierKeyOf = (metamodel: Metamodel): string | undefined =>
   propertyWithMeaning(metamodel, "identifier")?.key;
 
@@ -43,7 +43,7 @@ export const identifierValue = (
   return typeof value === "string" && value !== "" ? value : undefined;
 };
 
-/** What two identifiers are compared by: the text in lower case (any case names the same, #309). */
+/** What two identifiers are compared by: the text in lower case (any case names the same, ThomasBirkmaier/ReqSeq-archive#309). */
 export const identifierMatch = (value: string): string => value.toLowerCase();
 
 /**
@@ -109,7 +109,7 @@ export const buildIdentifierIndex = (
 };
 
 /**
- * The index of `byId` (a store after a change, #184), built from `old`: for each UUID in `ids`, the
+ * The index of `byId` (a store after a change, ThomasBirkmaier/ReqSeq-archive#184), built from `old`: for each UUID in `ids`, the
  * identifiers its records had before (`before`) and have now are compared, and only a UUID whose
  * identifiers changed moves between lists; when none did, the map of `old` is taken over. The same
  * as `buildIdentifierIndex` on `byId` when every other UUID has the same records in both stores.

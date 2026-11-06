@@ -203,7 +203,7 @@ describe("successors of a superseded element (SR-072 AK3)", () => {
   });
 });
 
-describe("successors of a superseded element from the incoming index (#272)", () => {
+describe("successors of a superseded element from the incoming index (ThomasBirkmaier/ReqSeq-archive#272)", () => {
   /** The successions as `[source UUID, relation kind, stored item]`, from `successionsFor` and from the succession index. */
   const both = async (opened: Opened): Promise<[unknown[], unknown[]]> => {
     const { workspace, record } = opened;

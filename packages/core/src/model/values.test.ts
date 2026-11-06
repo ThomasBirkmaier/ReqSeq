@@ -260,7 +260,7 @@ describe("value kinds (SR-085)", () => {
     ]);
   });
 
-  it("[SR-085/AK1] names what a mapping that is no relation target lacks or has too much (#302)", async () => {
+  it("[SR-085/AK1] names what a mapping that is no relation target lacks or has too much (ThomasBirkmaier/ReqSeq-archive#302)", async () => {
     const { id, version } = TARGET;
     const expects =
       "Relation Derives from (derives-from) expects each item to be a relation target { id, version }";

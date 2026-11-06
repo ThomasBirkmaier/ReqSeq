@@ -2,7 +2,7 @@
 // relation or reference stores the UUID of its target and the target's version at the moment it is
 // set. A target already stored keeps its stored version, so saving never confirms an outdated
 // relation on its own; only confirming a hint changes a stored version (D-042, SR-027). Every new
-// target gets the current version of its target (spec question #177). Across repositories a
+// target gets the current version of its target (spec question ThomasBirkmaier/ReqSeq-archive#177). Across repositories a
 // relation target and an inline reference also name the target's repository (D-058). Used by
 // `element.create` and `element.update`; `relation.add`, `element.supersede` and cross-repository
 // relations (SR-005) build on `currentTarget`.
@@ -274,7 +274,7 @@ export const setRelationTargets = async (
   given: ElementInputValue,
   stored: unknown,
 ): Promise<ElementValue> => {
-  // A UUID given in any case is stored in lower case (`uuidRef`, #309, spec question #316).
+  // A UUID given in any case is stored in lower case (`uuidRef`, ThomasBirkmaier/ReqSeq-archive#309, spec question ThomasBirkmaier/ReqSeq-archive#316).
   const lower = (item: unknown): unknown =>
     isTargetInput(item) ? { ...item, id: item.id.toLowerCase() } : item;
   const value = (Array.isArray(given) ? (given as unknown[]).map(lower) : lower(given)) as ElementInputValue;
@@ -347,11 +347,11 @@ const referenceKey = (reference: InlineReference): string =>
  * of its target and, when the target lies in another repository than `sourceRepository`, the
  * workspace name of that repository. A reference with a UUID, version and repository that
  * `storedText` already has is kept as written, also one to another repository without
- * `repository` (written before references named their repository, decision on #177 (c)). A
+ * `repository` (written before references named their repository, decision on ThomasBirkmaier/ReqSeq-archive#177 (c)). A
  * reference whose destination `storedText` has as written, but without a version, gets the current
  * version when its target can be found and is kept as it is otherwise, so it never blocks other
  * changes. Every other reference (new, or with a version or repository changed by hand, spec
- * question #177) gets the current version of its target (`resolveReference`): looked up in the
+ * question ThomasBirkmaier/ReqSeq-archive#177) gets the current version of its target (`resolveReference`): looked up in the
  * repository it names (`ref.unknown` with reason `repository-not-available` for one that is not on
  * this machine), or, when it names none, in the source's own repository and else in the one other
  * repository that has it; `repository` then follows `version` when the target lies in another

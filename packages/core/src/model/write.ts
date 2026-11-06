@@ -3,8 +3,8 @@
 // bytes come from the lossless writer (`editElementFile`), so a new file has ReqSeq's one fixed
 // style and a change rewrites only the lines of the keys it changes; writing is atomic and refused
 // when the file changed on disk. Statuses: a new element gets the initial status of the metamodel,
-// or of its type when the type restricts the statuses (#306; none for a type without status or with
-// only invalid statuses, #344); a change never touches `id`, `type` or `status` (ADR-0002 rule 6,
+// or of its type when the type restricts the statuses (ThomasBirkmaier/ReqSeq-archive#306; none for a type without status or with
+// only invalid statuses, ThomasBirkmaier/ReqSeq-archive#344); a change never touches `id`, `type` or `status` (ADR-0002 rule 6,
 // D-030).
 import { randomUUID } from "node:crypto";
 import path from "node:path";
@@ -103,7 +103,7 @@ export interface UpdateElementResult extends ElementWriteResult {
    * The number of directly affected elements when the save changed the version (SR-024 AK2,
    * `directlyAffectedCount`); 0 when it did not: a title, a property that does not count to the
    * version, or no change at all (AK3, D-013). Also for an element without a version (a value
-   * that counts has no normal form): what the version is computed from is compared (#276).
+   * that counts has no normal form): what the version is computed from is compared (ThomasBirkmaier/ReqSeq-archive#276).
    */
   readonly affected: number;
   /** The SHA-256 of the element file as written, or as read when nothing changed (SR-106). */
@@ -132,7 +132,7 @@ export interface UpdateElementInput {
   /** Relations to add and to remove by kind, in the same write (#175, relation-inputs.ts). */
   readonly addRelations?: RelationRefs;
   readonly removeRelations?: RelationRefs;
-  /** Which of the elements `ref` names: the workspace name of its repository (`resolveRef`, #255). */
+  /** Which of the elements `ref` names: the workspace name of its repository (`resolveRef`, ThomasBirkmaier/ReqSeq-archive#255). */
   readonly repository?: string;
   /** Write precondition (SR-106): the SHA-256 the element file must still have (`expectedFile`). */
   readonly expectedFileSha256?: string;
@@ -245,7 +245,7 @@ const checkPropertyKeys = (
 };
 
 /**
- * The given values with each value of a choice property as its key (#309, spec question #316): a
+ * The given values with each value of a choice property as its key (ThomasBirkmaier/ReqSeq-archive#309, spec question ThomasBirkmaier/ReqSeq-archive#316): a
  * value (or each item of a list) is the key or the display name of a choice, in any case, and the file
  * gets the key (SR-012 AK3). A value that names no choice, or more than one, is refused with
  * `input.invalid` (`reason: unknown-choice`, `ambiguous-choice`) and the choices as `key (Name)`, so
@@ -297,12 +297,12 @@ export const withChoiceKeys = (
   });
 
 /**
- * The status of a new element of `type` (D-030, #306): the one status with `initial: true` when the
- * type has it and it is not marked invalid (#350), else the type's first status in metamodel order
+ * The status of a new element of `type` (D-030, ThomasBirkmaier/ReqSeq-archive#306): the one status with `initial: true` when the
+ * type has it and it is not marked invalid (ThomasBirkmaier/ReqSeq-archive#350), else the type's first status in metamodel order
  * that is not marked invalid, which the metamodel sets by the order of its statuses. A new element
  * never gets an invalid status, which would supersede it at once (D-044). Undefined (no `status`
  * line) for a type without a status that is not invalid: a type without status, or one whose
- * statuses are all invalid, whose elements without status are current (#344, option 1). The tool
+ * statuses are all invalid, whose elements without status are current (ThomasBirkmaier/ReqSeq-archive#344, option 1). The tool
  * never picks one beyond this rule.
  */
 const initialStatus = (metamodel: Metamodel, type: MetamodelEffectiveType): string | undefined => {
@@ -533,8 +533,8 @@ interface Before {
 /**
  * What the version of an element as read is computed from (`elementContent`), with the images its
  * text embeds, also when a value that counts has no normal form (`.inf`, `.nan`, ADR-0005) and it
- * has no version (#276); undefined when an embedded image or a folder above it cannot be read
- * (`file.faulty`, as the current versions call it, #259). A save of such an element counts as a
+ * has no version (ThomasBirkmaier/ReqSeq-archive#276); undefined when an embedded image or a folder above it cannot be read
+ * (`file.faulty`, as the current versions call it, ThomasBirkmaier/ReqSeq-archive#259). A save of such an element counts as a
  * change, so a save that removes a broken image link still works. Any other error is a bug and
  * passed on.
  */
@@ -577,14 +577,14 @@ interface FinishOptions {
 
 /**
  * The result of a write; with `files` written, the element store gets the file as written
- * (`replaced`; `recordWrites`, #166). With `before` (a save of an existing element), `affected` is
+ * (`replaced`; `recordWrites`, ThomasBirkmaier/ReqSeq-archive#166). With `before` (a save of an existing element), `affected` is
  * the number of directly affected elements when the content the version is computed from changed
  * (`elementContent`), else 0 (SR-024 AK2, AK3). The content is compared, not the version, so a save
- * of an element without a version (a value that counts has no normal form, #276) that changes only
+ * of an element without a version (a value that counts has no normal form, ThomasBirkmaier/ReqSeq-archive#276) that changes only
  * its title or status also affects nothing; an embedded image that could not be read before the
  * save counts as a change (`contentBefore`). Counted on the incoming index of the store before the
  * write: the links of other elements did not change, and the index is built before
- * `recordWrites`, so the carry of the index (#273) takes it over.
+ * `recordWrites`, so the carry of the index (ThomasBirkmaier/ReqSeq-archive#273) takes it over.
  */
 const finish = async (
   workspace: Workspace,
@@ -601,7 +601,7 @@ const finish = async (
     context.images,
   );
   const { layout, metamodel, store } = context;
-  // Asked only while the metamodel is valid, as the view asks its own (#208, #220 option 1).
+  // Asked only while the metamodel is valid, as the view asks its own (ThomasBirkmaier/ReqSeq-archive#208, ThomasBirkmaier/ReqSeq-archive#220 option 1).
   const hints =
     extraFindings === undefined || !metamodel.valid
       ? []
@@ -663,11 +663,11 @@ const NOT_PORTABLE: ReadonlySet<NewFileRule> = new Set(["not-portable", "invisib
 /**
  * Refuses `file` (relative to `repository`) with `input.invalid` when the element walk would not
  * list it once created (`reason: "not-listed"`) or a name is not portable (`"not-portable"`), so
- * ReqSeq never writes below `.git` (D-036, #183) and never creates an element nobody sees.
+ * ReqSeq never writes below `.git` (D-036, ThomasBirkmaier/ReqSeq-archive#183) and never creates an element nobody sees.
  * `details.rule` says which rule, `details.path` which part of the path, and with `rule: "spelling"`
  * `details.existing` the folder as it is spelled on disk. Returns the path to write: `file`, or
  * `file` with its existing folders spelled as on disk where only the Unicode normal form differs
- * (`newFileTarget`, #194). With `ignored: false` the `ignore` globs do not count, only the safety
+ * (`newFileTarget`, ThomasBirkmaier/ReqSeq-archive#194). With `ignored: false` the `ignore` globs do not count, only the safety
  * rules: for a file the walk never reads, such as the data file of `data.store` (SR-062), which may
  * go into an ignored build folder.
  */
@@ -712,7 +712,7 @@ const folderOf = (folder: string): string => {
 export interface NewElementBase {
   readonly type: MetamodelEffectiveType;
   readonly titleKey: string;
-  /** Undefined for a type without status (#344). */
+  /** Undefined for a type without status (ThomasBirkmaier/ReqSeq-archive#344). */
   readonly status: string | undefined;
 }
 
@@ -730,7 +730,7 @@ export const newElementBase = (metamodel: Metamodel, key: string, command: Comma
  * The bytes of a new element file: `id`, type, initial status, title, `properties` (already as
  * stored: choice keys, relation items with versions) in the type's order, then `text`. A new file
  * has a blank line after the frontmatter, LF line endings and ends with a line break (ADR-0004
- * "Stable writing"), as element.update writes a text (#308).
+ * "Stable writing"), as element.update writes a text (ThomasBirkmaier/ReqSeq-archive#308).
  */
 export const newElementBytes = (
   base: NewElementBase,
@@ -814,7 +814,7 @@ export const createElement = async (
   // A folder that leaves the repository (`..`, `/x`) is refused with the error `createFolder` gives.
   // Any other folder is judged by its names first, so `a:b` (on Windows a path relative to drive
   // A:) is refused as not portable on every OS. The check gives the folder as spelled on disk where
-  // only the Unicode normal form differs (#194).
+  // only the Unicode normal form differs (ThomasBirkmaier/ReqSeq-archive#194).
   const leaves = given === ".." || given.startsWith("../") || given.startsWith("/");
   const asGiven = given === "" ? name : `${given}/${name}`;
   let file = leaves ? asGiven : await refuseUnlisted(layout, repository, asGiven);
@@ -1244,13 +1244,13 @@ export interface WriteFilesOptions {
  * Of several failures, the one of the earliest write in `writes` is thrown. Every check must be
  * done before. Each planned file that changes also gets the current titles of its same-repository
  * relation targets
- * (`withCurrentTitles`, decision on #307): only those title values change. A write can still be
+ * (`withCurrentTitles`, decision on ThomasBirkmaier/ReqSeq-archive#307): only those title values change. A write can still be
  * refused (`file.read-only`, a file changed in the meantime, a disk error), or written bytes may
  * not read back as an element (`internal`); then every file this call has written is written back
  * with its bytes as read (best effort; nothing is deleted) and the error is thrown again with its
  * code. `details.written` lists the files not restored
  * (relative to the workspace root); it is absent when every file was restored. After the writes
- * the element store gets all written files in place (`recordWrites`, #166); after a failure it is
+ * the element store gets all written files in place (`recordWrites`, ThomasBirkmaier/ReqSeq-archive#166); after a failure it is
  * reset, so the next read finds the files as they are.
  */
 export const writeElementFiles = async (
@@ -1271,7 +1271,7 @@ export const writeElementFiles = async (
   const results: WrittenElementFile[] = [];
   // The failures by the index of their write; once there is one, no further write starts.
   const failures = new Map<number, unknown>();
-  // The stored titles of same-repository targets follow their targets (decision on #307).
+  // The stored titles of same-repository targets follow their targets (decision on ThomasBirkmaier/ReqSeq-archive#307).
   const titled = withCurrentTitles(options.titles, writes);
   const queue = titled.entries();
   const worker = async (): Promise<void> => {
@@ -1317,7 +1317,7 @@ export const writeElementFiles = async (
     }
     throw new CommandError(error.code, error.message, { ...error.details, written: kept }, { cause: error });
   }
-  // The store gets every written file at once, without reading a file again (#166).
+  // The store gets every written file at once, without reading a file again (ThomasBirkmaier/ReqSeq-archive#166).
   if (results.length > 0) {
     await recordWrites(
       workspace,
@@ -1342,9 +1342,9 @@ export const writeElementFiles = async (
  * `expectedFileSha256` and the file no longer has it (SR-106, `expectedFile`), even when the input
  * would change nothing, and refused with `input.invalid` when it changes the text or the title without
  * `expectedFileSha256` (`requirePrecondition`, #269). `repository` picks one copy of a duplicate as in `element.get` (`resolveRef`,
- * #255). `fileSha256` is the SHA-256 of the file as written, or as read when nothing changed. A save
+ * ThomasBirkmaier/ReqSeq-archive#255). `fileSha256` is the SHA-256 of the file as written, or as read when nothing changed. A save
  * that writes the file also sets the stored titles of its same-repository relation targets to their
- * current titles (`withCurrentTitles`, decision on #307); a save that changes nothing writes nothing.
+ * current titles (`withCurrentTitles`, decision on ThomasBirkmaier/ReqSeq-archive#307); a save that changes nothing writes nothing.
  * `affected`: the number of directly affected elements when the version changed (SR-024 AK2, AK3).
  * A text, a Markdown property or a list property emptied by the save gives `element.text-emptied`
  * (`textEmptied`, `propertiesEmptied`, #677, #841).
@@ -1399,7 +1399,7 @@ export const updateElement = async (
   let versionsAdded: readonly Problem[] = [];
   let emptied: readonly Problem[] = [];
   if (edited.changed) {
-    // The stored titles of same-repository targets follow their targets (decision on #307).
+    // The stored titles of same-repository targets follow their targets (decision on ThomasBirkmaier/ReqSeq-archive#307).
     let { bytes } = edited;
     for (const titled of withCurrentTitles(context, [{ repository, current, bytes }])) {
       ({ bytes } = titled);
