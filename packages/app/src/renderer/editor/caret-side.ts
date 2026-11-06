@@ -2,7 +2,7 @@
 // wraps is both the end of one visual line and the start of the next; CodeMirror keeps the side it is
 // shown on (`assoc`) and, in its next measure, puts the browser selection on that side again. That measure
 // comes after the blur too, and placing the browser selection in this editor gives it the focus back: Down
-// on the last visual line of a wrapped value went to the next box and came back (#348), a click into
+// on the last visual line of a wrapped value went to the next box and came back (ThomasBirkmaier/ReqSeq-archive#348), a click into
 // another box came back the same way. An editor without the focus shows no caret, so the side means nothing
 // then; Up from the box after puts the caret at the end anyway.
 import { EditorSelection } from "@codemirror/state";

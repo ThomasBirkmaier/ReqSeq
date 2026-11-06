@@ -4,7 +4,7 @@
 // is a step that narrows the list the one before gave (SR-124 AK1, `list-filters.ts`): the conditions are
 // ANDed in the selection; the values of "Filter list by property" come from `element.facets`.
 //
-// The prompt finds the app's actions and the catalog's read commands (`catalog-commands.ts`, #85); an
+// The prompt finds the app's actions and the catalog's read commands (`catalog-commands.ts`, ThomasBirkmaier/ReqSeq-archive#85); an
 // action that does what a command does covers it, so the prompt lists it once.
 import type { DataExportElement, ElementSelection } from "@reqseq/core";
 import type {
@@ -117,10 +117,10 @@ export interface ElementControls {
   readonly edit: () => void;
   /**
    * Puts the caret at the end of the title, in its heading, or says why it cannot be edited (the action
-   * "Edit title", #621). Given by the element buffer; a control without it offers no "Edit title".
+   * "Edit title", ThomasBirkmaier/ReqSeq-archive#621). Given by the element buffer; a control without it offers no "Edit title".
    */
   readonly editTitle?: () => void;
-  /** Opens the element of the inline reference at the cursor (the action "Follow reference", #424). */
+  /** Opens the element of the inline reference at the cursor (the action "Follow reference", ThomasBirkmaier/ReqSeq-archive#424). */
   readonly follow: () => void;
   /** Copies the field with the cursor, else the ID (the action "Copy field", SR-128). */
   readonly copy: () => void;
@@ -254,7 +254,7 @@ export interface Action {
   readonly shortcut?: Shortcut;
   /** Shown in the command prompt in place of a shortcut: a key that only works in the buffer ("Enter"). */
   readonly hint?: string;
-  /** Catalog commands this action does, so the command prompt does not list them as well (#85). */
+  /** Catalog commands this action does, so the command prompt does not list them as well (ThomasBirkmaier/ReqSeq-archive#85). */
   readonly covers?: readonly string[];
   readonly available: (context: ActionContext) => boolean;
   readonly run: (context: ActionContext) => void;
@@ -286,7 +286,7 @@ const METAMODEL_SHORTCUT: Shortcut = MATRIX_SHORTCUT;
 
 /**
  * Ctrl/Cmd+Shift+Enter lists the elements with the value at the cursor (SR-132). Ctrl/Cmd+Enter stays
- * "Follow reference", which opens the target of a relation box and the reference of a Markdown box (#610).
+ * "Follow reference", which opens the target of a relation box and the reference of a Markdown box (ThomasBirkmaier/ReqSeq-archive#610).
  */
 const LIST_VALUE_SHORTCUT: Shortcut = { mod: true, shift: true, key: "enter" };
 
@@ -307,7 +307,7 @@ export const OTHER_WINDOW_SHORTCUT: Shortcut = { mod: false, shift: false, alt: 
 /**
  * Ctrl/Cmd+Shift+O turns the mode „Agent folgen“ on, and off again (SR-117 AK4). Not Shift+G: that is the
  * graph (SR-111); Ctrl/Cmd+G stays free for the keyboard-quit, Ctrl/Cmd+K is the prefix key
- * (`bindings.ts`, #472).
+ * (`bindings.ts`, ThomasBirkmaier/ReqSeq-archive#472).
  */
 export const FOLLOW_SHORTCUT: Shortcut = { mod: true, shift: true, key: "o" };
 
@@ -392,14 +392,14 @@ const graphPrompt =
 export interface FindOptions {
   /** Limits the search, such as to the target types of a relation property (SR-104). */
   readonly selection?: ElementSelection;
-  /** What Ctrl/Cmd+Enter on a row does (a catalog argument: take it and offer the optional arguments, #85). */
+  /** What Ctrl/Cmd+Enter on a row does (a catalog argument: take it and offer the optional arguments, ThomasBirkmaier/ReqSeq-archive#85). */
   readonly more?: (row: Row) => void;
 }
 
 /**
  * The elements `element.search` finds for the typed text, as the choices of a prompt; `run` is what
  * choosing one does. The prompts "Go to", "Insert reference" (SR-129), the one of a relation property
- * (SR-104) and an element argument of a catalog command (#85) find them the same way.
+ * (SR-104) and an element argument of a catalog command (ThomasBirkmaier/ReqSeq-archive#85) find them the same way.
  */
 export const findElements =
   (context: Pick<ActionContext, "call" | "echo">, run: (row: Row) => void, options: FindOptions = {}) =>
@@ -716,7 +716,7 @@ export const ACTIONS: readonly Action[] = [
       cycleBuffer(context, 1);
     },
   },
-  // SR-115 AK3: two buffers side by side. Commands of the prompt only, no keys (#472).
+  // SR-115 AK3: two buffers side by side. Commands of the prompt only, no keys (ThomasBirkmaier/ReqSeq-archive#472).
   {
     id: "split-window",
     title: "Split window",
@@ -783,7 +783,7 @@ export const ACTIONS: readonly Action[] = [
     },
   },
   {
-    // #621: the title is edited in its heading, like the text in the editor (SR-073 AK2: found by its name).
+    // ThomasBirkmaier/ReqSeq-archive#621: the title is edited in its heading, like the text in the editor (SR-073 AK2: found by its name).
     id: "edit-title",
     title: "Edit title",
     hint: "Enter on the title",
@@ -966,7 +966,7 @@ export const ACTIONS: readonly Action[] = [
   {
     // SR-130 AK1: the title of `metamodel.get` in the catalog; it covers that command, so the command
     // prompt lists it once (initials "sm") and its output opens the metamodel buffer as a graph, never a
-    // result buffer. No key of its own (keys are scarce, Ctrl/Cmd+K is the prefix key, #472). Not
+    // result buffer. No key of its own (keys are scarce, Ctrl/Cmd+K is the prefix key, ThomasBirkmaier/ReqSeq-archive#472). Not
     // offered on the metamodel itself (SR-133): there the toggle switches between graph and text, so on
     // the text "sm" finds "Show metamodel as graph" only with more letters (review N2). An open metamodel
     // buffer is shown as a graph and keeps its selection.

@@ -1,5 +1,5 @@
 // The title and the text of an element buffer, each with its block "On disk" when it is in conflict
-// (SR-106 AK2): the title in its heading (#621, `TitleBox.tsx`), the text in the Markdown editor with live
+// (SR-106 AK2): the title in its heading (ThomasBirkmaier/ReqSeq-archive#621, `TitleBox.tsx`), the text in the Markdown editor with live
 // preview (SR-065). Layout only: `ElementView` makes the props of both editors and the blocks.
 import type { EditorProps } from "./editor/Editor.js";
 import { Editor } from "./editor/Editor.js";

@@ -5,7 +5,7 @@
 // `trace.chain` has its evidence under the elements it belongs to and the validation records of its root
 // under the root row (`chain-lines.ts`, SR-033, #646). When the
 // workspace changed, it asks the command again with the same input (ADR-0002: the app runs commands and
-// shows what they give); the output of a write command stays as it came (#85).
+// shows what they give); the output of a write command stays as it came (ThomasBirkmaier/ReqSeq-archive#85).
 import { useEffect, useMemo } from "react";
 import { useIdScope } from "./area-scope.js";
 import type { ResultBuffer } from "./buffers.js";

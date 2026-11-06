@@ -89,7 +89,10 @@ export default defineCommand({
     const graph = derivationGraph(await traceContext(ctx.workspace), "trace.chain");
     const { metamodel, store } = graph;
     const shortIds = await ctx.workspace.get(shortIdState);
-    const root = resolveRef(store, shortIds, input.ref);
+    const root = resolveRef(store, shortIds, input.ref, {
+      repository: input.repository,
+      file: input.file,
+    });
     const view =
       input.view === undefined
         ? undefined

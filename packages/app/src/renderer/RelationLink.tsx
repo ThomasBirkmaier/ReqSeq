@@ -1,4 +1,4 @@
-// The relations of an element in its buffer: one target as a link that opens its element buffer (#416), or
+// The relations of an element in its buffer: one target as a link that opens its element buffer (ThomasBirkmaier/ReqSeq-archive#416), or
 // with its state when it cannot be opened, and the groups of the relations that are no property (one field
 // per relation kind, incoming ones with an arrow). `element-view.ts` builds the rows and the groups.
 import type { DataExportElement } from "@reqseq/core";
@@ -56,7 +56,7 @@ export const RelationLink = ({ row, onOpenRelation }: RelationLinkProps): React.
 };
 
 export interface RelationGroupsProps {
-  /** The element: its relations, and its hints, which mark the outdated ones (#702). */
+  /** The element: its relations, and its hints, which mark the outdated ones (ThomasBirkmaier/ReqSeq-archive#702). */
   readonly element: Pick<DataExportElement, "relations" | "problems" | "repository">;
   readonly onCopy: (label: string) => void;
   /** The fields that changed outside the app and are highlighted now (SR-116), by label. */

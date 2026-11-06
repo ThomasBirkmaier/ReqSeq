@@ -54,7 +54,7 @@ describe("package page", () => {
     expect(list.cursor).toBe(4);
   });
 
-  it("[SR-112/AK2] the workspace order is kept as `[]` and named in the heading; the default says nothing (#418)", () => {
+  it("[SR-112/AK2] the workspace order is kept as `[]` and named in the heading; the default says nothing (ThomasBirkmaier/ReqSeq-archive#418)", () => {
     const buffer = { ...elementBuffer("uuid-p", "spec", "Stufe-3"), memberSort: [] };
     expect(memberList(buffer, packageSelection(buffer.id)).sort).toEqual([]);
     expect(memberSummary({ total: 2, incomplete: false }, [])).toBe("2 · workspace order");

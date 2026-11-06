@@ -1,4 +1,4 @@
-// Evidence records for a generated large workspace (E4, #583; ADR-0011, ADR-0012, N-036): the
+// Evidence records for a generated large workspace (E4, ThomasBirkmaier/ReqSeq-archive#583; ADR-0011, ADR-0012, N-036): the
 // verification and validation records a project of 50,000 elements keeps, as JUnit XML of its CI
 // runs (SR-093, enriched as `evidence.enrichJunit` writes them) and as Markdown records (SR-028, as
 // `evidence.record` writes them; validation records of SR-038). The same seed always gives the same
@@ -23,7 +23,7 @@ export interface EvidenceRecordsOptions {
   readonly testCasesPerFile?: number;
   /**
    * Older CI runs written as one large JUnit file each, with every automated test case (many large
-   * JUnit files, review of #561, N4), in `archive/`. Default 0.
+   * JUnit files, review of ThomasBirkmaier/ReqSeq-archive#561, N4), in `archive/`. Default 0.
    */
   readonly history?: number;
 }
@@ -311,7 +311,7 @@ const validationRecords = (validated: readonly GeneratedElement[], random: Rando
 
 /**
  * Adds an evidence location (`evidence` in the main repository) and records to a generated
- * workspace (E4, #583):
+ * workspace (E4, ThomasBirkmaier/ReqSeq-archive#583):
  *
  * - System requirements: the first 2 % in generation order get no own record (their status comes
  *   from their children, SR-034); of the others about 70 % are automated and about 10 % have one

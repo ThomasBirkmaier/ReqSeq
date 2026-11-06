@@ -202,7 +202,7 @@ describe("the command prompt", () => {
     expect(names).not.toContain("Filter list by type");
   });
 
-  it("offers editing the title on an element whose buffer gives it, by its name (#621, SR-073 AK2)", () => {
+  it("offers editing the title on an element whose buffer gives it, by its name (ThomasBirkmaier/ReqSeq-archive#621, SR-073 AK2)", () => {
     const editTitle = vi.fn();
     const element$ = setup([element], {}, true, {
       element: {
@@ -345,7 +345,7 @@ describe("the command prompt", () => {
 
   it("[SR-109/AK1] shows each action that has a shortcut with its shortcut, as the platform writes it", () => {
     const shown = new Set<string>();
-    // The keys that work only in the buffer are those commands' shortcuts there (#472 Q2), pinned literally.
+    // The keys that work only in the buffer are those commands' shortcuts there (ThomasBirkmaier/ReqSeq-archive#472 Q2), pinned literally.
     const bufferKeys: Readonly<Record<string, string>> = {
       edit: "Enter",
       "edit-title": "Enter on the title",
@@ -362,7 +362,7 @@ describe("the command prompt", () => {
             expect(hint).toBe(shortcutLabel(action.shortcut, mac));
             shown.add(action.id);
           } else if (action.hint !== undefined) {
-            // A key that works only in the buffer ("Enter" for "Edit text") is its shortcut there (#472).
+            // A key that works only in the buffer ("Enter" for "Edit text") is its shortcut there (ThomasBirkmaier/ReqSeq-archive#472).
             expect(hint).toBe(bufferKeys[action.id]);
             bufferKeysShown.add(action.id);
           }
@@ -1558,7 +1558,7 @@ describe("save element and edit text", () => {
       );
       expect(new Set(shortcuts).size).toBe(shortcuts.length);
       expect(shortcuts).not.toContain(written(COMMAND_SHORTCUT));
-      // Ctrl/Cmd+K is the prefix key (#472): no action has it as its own shortcut.
+      // Ctrl/Cmd+K is the prefix key (ThomasBirkmaier/ReqSeq-archive#472): no action has it as its own shortcut.
       expect(shortcuts).not.toContain(written(PREFIX));
     }
     // The letters after the prefix are unique, and no action has both a shortcut and a letter.

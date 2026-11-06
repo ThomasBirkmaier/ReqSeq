@@ -598,7 +598,7 @@ describe("MatrixView", () => {
   });
 });
 
-describe("LoadingView, a matrix that replaces another matrix (#563)", () => {
+describe("LoadingView, a matrix that replaces another matrix (ThomasBirkmaier/ReqSeq-archive#563)", () => {
   it("starts the next matrix empty: it never shows the rows of the matrix before under its name", async () => {
     const all = withMatrix(listBuffer("All elements"), true);
     // The second matrix is still being asked for, as with a slow core.

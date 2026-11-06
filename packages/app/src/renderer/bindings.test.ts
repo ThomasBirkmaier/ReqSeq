@@ -23,7 +23,7 @@ const press = (key: string, extra: Partial<PrefixPress> = {}): PrefixPress => ({
   ...extra,
 });
 
-describe("the prefix key and its letters (#472)", () => {
+describe("the prefix key and its letters (ThomasBirkmaier/ReqSeq-archive#472)", () => {
   it("is Ctrl+K, or Cmd+K on macOS, and waits half a second", () => {
     expect(PREFIX).toEqual({ mod: true, shift: false, key: "k" });
     expect(PREFIX_DELAY_MS).toBe(500);

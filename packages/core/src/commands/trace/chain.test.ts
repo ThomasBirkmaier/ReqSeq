@@ -13,6 +13,14 @@ import { evidenceReadState, withEvidenceLocation as at } from "../../evidence/in
 import { STANDARD_MODEL_TEXT as STANDARD } from "../../metamodel/standard-model.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
+import {
+  COPIED,
+  COPIED_FILES,
+  GUSTS_COPY,
+  GUSTS_FILE,
+  openCopied,
+  openCopiedFile,
+} from "../copied.test-helper.js";
 
 type Output = CommandOutput<"trace.chain">;
 
@@ -205,6 +213,28 @@ describe("trace.chain (SR-022)", () => {
     const workspace = await open();
     const error = await chainError(workspace, { ref: "SR-ffffff" });
     expect([error.code, error.details]).toEqual(["ref.unknown", { ref: "SR-ffffff" }]);
+  });
+
+  it("walks from the copy of a UUID two files share that repository and file name (#821)", async () => {
+    const workspace = await openCopied();
+    expect((await chainError(workspace, { ref: GUSTS_COPY })).code).toBe("ref.ambiguous");
+    for (const repository of ["system", "sensor"]) {
+      const output = await chain(workspace, { ref: GUSTS_COPY, direction: "up", repository });
+      expect([output.root, output.nodes[0]?.repository]).toEqual([GUSTS_COPY, repository]);
+    }
+    const byFile = await chain(workspace, { ref: GUSTS_COPY, repository: "sensor", file: GUSTS_FILE });
+    expect(byFile.nodes[0]).toMatchObject({ repository: "sensor", file: GUSTS_FILE });
+    const none = await chainError(workspace, { ref: GUSTS_COPY, repository: "vault" });
+    expect([none.code, none.details]).toMatchObject(["ref.unknown", { ref: GUSTS_COPY }]);
+  });
+
+  it("walks from the copy a file alone names, of two in one repository (SR-088, #821)", async () => {
+    const workspace = await openCopiedFile();
+    expect((await chainError(workspace, { ref: COPIED, repository: "system" })).code).toBe("ref.ambiguous");
+    for (const file of COPIED_FILES) {
+      const output = await chain(workspace, { ref: COPIED, file });
+      expect(output.nodes[0]).toMatchObject({ id: COPIED, repository: "system", file });
+    }
   });
 });
 

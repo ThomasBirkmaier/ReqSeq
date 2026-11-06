@@ -15,7 +15,7 @@
 // `TYPE_WIDTH`, so no name and no property is ever cut; a label is as wide as its widest line.
 // Known limitations: a curve that carries both "extends" and a relation kind (one ordered pair) is drawn
 // in the look of the inheritance; a curve drawn afterwards runs straight between its two boxes and may
-// cross a box of a layer between them (review N1, N2 of #631).
+// cross a box of a layer between them (review N1, N2 of ThomasBirkmaier/ReqSeq-archive#631).
 import type { Point } from "./dagre.js";
 import { layoutGraphOf, runLayout } from "./dagre.js";
 import { edgePath } from "./graph-layout.js";

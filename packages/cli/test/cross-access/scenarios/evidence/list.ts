@@ -30,4 +30,22 @@ scenariosOf("evidence.list", [
     input: { ref: "SR-ffffff" },
     expect: "error",
   },
+  {
+    name: "the records of one copy of a UUID two files share, by repository and file (SR-088, #821)",
+    fixture: { fixture: "SR-088/copied-file", git: true },
+    root: "system",
+    input: {
+      ref: "948a10f1-05c3-4212-bd19-00606ccf2661",
+      repository: "system",
+      file: "copies/N-00606ccf2661.md",
+    },
+    expect: "output",
+  },
+  {
+    name: "a UUID two files share, without repository and file, is ambiguous (SR-088, #821)",
+    fixture: { fixture: "SR-088/copied-file", git: true },
+    root: "system",
+    input: { ref: "948a10f1-05c3-4212-bd19-00606ccf2661" },
+    expect: "error",
+  },
 ]);

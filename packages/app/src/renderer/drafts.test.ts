@@ -125,7 +125,7 @@ describe("rebased", () => {
       sha: "sha-1",
       shown: { element, sha: "sha-1" },
     });
-    // The title is a field like a box (#621): sent, it is in the file; typed meanwhile, it stays.
+    // The title is a field like a box (ThomasBirkmaier/ReqSeq-archive#621): sent, it is in the file; typed meanwhile, it stays.
     expect(
       rebased(
         { ...draft("a", "a", [["Title", "New!", "Old"]]), sha: "sha-0" },

@@ -88,7 +88,7 @@ describe("Follow agent and Stop following agent (SR-117)", () => {
       expect(on.stop).toHaveBeenCalledTimes(1);
       expect(on.start).not.toHaveBeenCalled();
     }
-    // macOS (#547): Cmd+Shift+O switches it, the physical Ctrl+Shift+O does not.
+    // macOS (ThomasBirkmaier/ReqSeq-archive#547): Cmd+Shift+O switches it, the physical Ctrl+Shift+O does not.
     const cmd = { ...press, ctrlKey: false, metaKey: true };
     expect(
       actionFor(context([], controls(false), true, true), (shortcut) => matches(cmd, shortcut, true))?.id,

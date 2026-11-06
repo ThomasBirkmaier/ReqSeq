@@ -5,7 +5,7 @@
 // blank items out), and only a box whose document differs from the stored one goes into the update, so
 // the bytes of every other property stay (core rewrites a changed key in its fixed style, SR-102). The
 // only write is `element.update { ref, title?, text?, set?, unset? }` (ADR-0002); the app never writes a
-// file. The title is a field like a single text box (#621): keyed `TITLE_FIELD`, compared with the file and
+// file. The title is a field like a single text box (ThomasBirkmaier/ReqSeq-archive#621): keyed `TITLE_FIELD`, compared with the file and
 // kept in the draft as a box, and saved as `title` (core refuses it in `set` and `unset`).
 import type { DataExportElement, DataExportRelation, ElementInputValue } from "@reqseq/core";
 import type { PropertyBox, PropertyInfo, PropertyModel, RelationRow } from "./element-view.js";
@@ -107,7 +107,7 @@ export const choiceKeys = (doc: string): string[] => doc.split("\n").filter((key
  * The property boxes of the element that can be edited in place: the filled properties (SR-104 AK1) the
  * type of the element has, whose value is text (text, number, date, choice) or the targets of a relation
  * (read-only, `unmatched`, when the targets are not one for each stored item).
- * A property the type does not know stays as it is shown (D-012: core refuses to set it, spec question #469;
+ * A property the type does not know stays as it is shown (D-012: core refuses to set it, spec question ThomasBirkmaier/ReqSeq-archive#469;
  * core can unset it since #189, the app does not offer that yet). Keyed by property.
  */
 export const editableBoxes = (element: DataExportElement, model: PropertyModel): Map<string, EditableBox> => {
@@ -143,7 +143,7 @@ export const titleKey = (model: PropertyModel, type: string): string | undefined
   [...(model.get(type) ?? [])].find(([, info]) => info.meaning === "title")?.[0];
 
 /**
- * The title as a field the buffer edits like a single text box (#621): keyed `TITLE_FIELD`, its document the
+ * The title as a field the buffer edits like a single text box (ThomasBirkmaier/ReqSeq-archive#621): keyed `TITLE_FIELD`, its document the
  * title. None when the type has no property with the meaning `title` (core refuses a title then). A title
  * with a line break (a hand-written file) is not edited: one line would lie.
  */
@@ -165,7 +165,7 @@ export const withTitle = (
   return new Map([...(title === undefined ? [] : [[TITLE_FIELD, title] as const]), ...boxes]);
 };
 
-/** The fields a save compares with the file besides the text: the editable boxes and the title (#621). */
+/** The fields a save compares with the file besides the text: the editable boxes and the title (ThomasBirkmaier/ReqSeq-archive#621). */
 export const fieldBoxes = (element: DataExportElement, model: PropertyModel): Map<string, EditableBox> =>
   withTitle(editableBoxes(element, model), element, model);
 

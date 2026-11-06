@@ -1,9 +1,9 @@
-# Metamodel of the ReqSeq specification (enabler #326). It is the standard model (D-037,
+# Metamodel of the ReqSeq specification (enabler ThomasBirkmaier/ReqSeq-archive#326). It is the standard model (D-037,
 # schemas/examples/metamodel/standard-model.yaml) with the spec's own additions (D-060: the glossary
 # term and the decision statuses are not part of the standard model):
-# - property spec-id with the meaning identifier (#305): SR-036, D-047, N-001, Editor;
-# - statuses per type (#306): decisions draft, accepted, superseded, obsolete; glossary terms only obsolete, so a
-#   term without status is current and element.supersede retires it (#344);
+# - property spec-id with the meaning identifier (ThomasBirkmaier/ReqSeq-archive#305): SR-036, D-047, N-001, Editor;
+# - statuses per type (ThomasBirkmaier/ReqSeq-archive#306): decisions draft, accepted, superseded, obsolete; glossary terms only obsolete, so a
+#   term without status is current and element.supersede retires it (ThomasBirkmaier/ReqSeq-archive#344);
 # - type glossary-term with its properties and relation kinds (from the Logseq graph ReqSeq);
 # - packages on needs as well: packages give the structure of the spec by topic, not the schedule, and
 #   replace the former property topic; the property issue is gone, since issues are tasks that can
@@ -11,7 +11,7 @@
 # - limit derives-from min 1 from system requirement to need (#838).
 # - decisions can be obsolete: withdrawn without successor, e.g. the development-process decisions
 #   (product owner decision, 2026-11-05: decisions record only what holds for the system ReqSeq).
-# rationale and acceptance-criteria carry markdown: true as in the standard model (SR-127, #444).
+# rationale and acceptance-criteria carry markdown: true as in the standard model (SR-127, ThomasBirkmaier/ReqSeq-archive#444).
 # ReqSeq has no command that changes a metamodel: this file is changed by hand in a pull request.
 reqseq-metamodel: 1
 

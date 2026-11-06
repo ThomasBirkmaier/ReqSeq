@@ -4845,6 +4845,22 @@
           "sourcePath": {
             "$ref": "#/$defs/common/$defs/localPath",
             "description": "The image to copy: a file ending in .avif, .bmp, .gif, .jpeg, .jpg, .png, .svg or .webp (any case)."
+          },
+          "repository": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it (for example one copy of a file whose UUID another file shares). Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates."
+          },
+          "file": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/common/$defs/relativePath"
+              },
+              {
+                "minLength": 1
+              }
+            ],
+            "description": "Which of the elements ref names is meant: its file, relative to its repository, as details.candidates of ref.ambiguous give it. Give repository too when the same path is in several repositories; when several elements are still left, the error is ref.ambiguous with them."
           }
         },
         "additionalProperties": false,
@@ -5086,6 +5102,22 @@
             "minimum": 0,
             "default": 0,
             "description": "Nodes skipped before the page, in the order of `nodes` (the root, then the parents level by level, then the children level by level)."
+          },
+          "repository": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it (for example one copy of a file whose UUID another file shares). Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates."
+          },
+          "file": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/common/$defs/relativePath"
+              },
+              {
+                "minLength": 1
+              }
+            ],
+            "description": "Which of the elements ref names is meant: its file, relative to its repository, as details.candidates of ref.ambiguous give it. Give repository too when the same path is in several repositories; when several elements are still left, the error is ref.ambiguous with them."
           }
         },
         "additionalProperties": false,
@@ -5493,6 +5525,22 @@
             "type": "integer",
             "minimum": 0,
             "default": 0
+          },
+          "repository": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it (for example one copy of a file whose UUID another file shares). Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates."
+          },
+          "file": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/common/$defs/relativePath"
+              },
+              {
+                "minLength": 1
+              }
+            ],
+            "description": "Which of the elements ref names is meant: its file, relative to its repository, as details.candidates of ref.ambiguous give it. Give repository too when the same path is in several repositories; when several elements are still left, the error is ref.ambiguous with them."
           }
         },
         "additionalProperties": false,
@@ -6954,6 +7002,22 @@
           "view": {
             "$ref": "#/$defs/common/$defs/view",
             "description": "`core`: only the records without a variant; a variant: only the records for that variant, and also those without a variant when the element's repository is marked `variant-independent`; absent: every record of the element."
+          },
+          "repository": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it (for example one copy of a file whose UUID another file shares). Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates."
+          },
+          "file": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/common/$defs/relativePath"
+              },
+              {
+                "minLength": 1
+              }
+            ],
+            "description": "Which of the elements ref names is meant: its file, relative to its repository, as details.candidates of ref.ambiguous give it. Give repository too when the same path is in several repositories; when several elements are still left, the error is ref.ambiguous with them."
           }
         },
         "additionalProperties": false,

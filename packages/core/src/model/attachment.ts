@@ -216,8 +216,9 @@ const encodeSegment = (segment: string): string =>
 
 /**
  * `element.addAttachment` (SR-097): copies the image at `input.sourcePath` into the image folder of
- * the element `input.ref` and returns the file (relative to the workspace root, `/`) and the
- * Markdown that embeds it relatively. See the head of this file.
+ * the element `input.ref` (the copy `input.repository` and `input.file` name, SR-088, #821) and
+ * returns the file (relative to the workspace root, `/`) and the Markdown that embeds it relatively.
+ * See the head of this file.
  */
 export const addAttachment = async (
   workspace: Workspace,
@@ -227,7 +228,10 @@ export const addAttachment = async (
   const metamodel = await workspace.get(metamodelState);
   const store = await workspace.get(elementStoreState);
   const shortIds = await workspace.get(shortIdState);
-  const record = resolveRef(store, shortIds, input.ref);
+  const record = resolveRef(store, shortIds, input.ref, {
+    repository: input.repository,
+    file: input.file,
+  });
   assertElementWritable(metamodel, record);
   const source = await readSource(workspace.root, input.sourcePath);
   const { repository, current } = await readUnchanged(workspace, layout, record);

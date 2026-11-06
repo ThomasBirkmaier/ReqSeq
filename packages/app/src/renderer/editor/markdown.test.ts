@@ -9,7 +9,7 @@ const names = (extensions: ReturnType<typeof markdownSupport>[], doc: string): s
   const state = EditorState.create({ doc, extensions });
   const found: string[] = [];
   // `syntaxTree` gives what the incremental parser has reached within its time budget, which a loaded machine
-  // (coverage run, many workers) can cut short; `ensureSyntaxTree` parses the whole document (#460).
+  // (coverage run, many workers) can cut short; `ensureSyntaxTree` parses the whole document (ThomasBirkmaier/ReqSeq-archive#460).
   const tree = ensureSyntaxTree(state, state.doc.length, 10_000);
   if (tree === null) {
     throw new Error("the document was not parsed in time");
@@ -30,7 +30,7 @@ describe("markdownSupport", () => {
     expect(syntaxTree(state).type.name).toBe("Document");
   });
 
-  it("binds the keys of lang-markdown's own keymap, which it replaces (#542)", () => {
+  it("binds the keys of lang-markdown's own keymap, which it replaces (ThomasBirkmaier/ReqSeq-archive#542)", () => {
     // A key that a new version of @codemirror/lang-markdown adds must be added to `markdownKeys` too.
     expect(markdownKeymap.map((binding) => binding.key)).toEqual(["Enter", "Backspace"]);
     // ... and to the keyboard reference (SR-139 AK5).

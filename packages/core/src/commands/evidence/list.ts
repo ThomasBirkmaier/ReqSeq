@@ -36,7 +36,10 @@ export default defineCommand({
   run: async (ctx, input): Promise<CommandOutput<"evidence.list">> => {
     const store = await ctx.workspace.get(elementStoreState);
     const shortIds = await ctx.workspace.get(shortIdState);
-    const element = resolveRef(store, shortIds, input.ref);
+    const element = resolveRef(store, shortIds, input.ref, {
+      repository: input.repository,
+      file: input.file,
+    });
     const view =
       input.view === undefined
         ? undefined

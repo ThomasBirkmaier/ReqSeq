@@ -50,7 +50,7 @@ export interface FixtureWorkspace {
    * Make a commit with `files` (added or replaced) on top of `parent` (default HEAD) without
    * touching the working tree, the index or any branch, and return its ID: one `git fast-import`
    * instead of writing and adding the files. For fixtures with hundreds of files, which took
-   * several seconds per `git add` on a loaded windows-2025 runner (#226); check one out with
+   * several seconds per `git add` on a loaded windows-2025 runner (ThomasBirkmaier/ReqSeq-archive#226); check one out with
    * `git reset --hard <commit>` or merge it.
    */
   commitFiles(
@@ -59,7 +59,7 @@ export interface FixtureWorkspace {
   ): Promise<string>;
   /**
    * Make a history of commits in one `git fast-import` (for Git history tests on slow Windows
-   * runners, #206, #226), without touching the working tree, the index or HEAD, and return each
+   * runners, ThomasBirkmaier/ReqSeq-archive#206, ThomasBirkmaier/ReqSeq-archive#226), without touching the working tree, the index or HEAD, and return each
    * commit's ID and committer date by name. Commits get the fixture's next dates in list order.
    * With `branch`, that branch points at the last commit afterwards (`git reset --hard` then checks
    * it out); otherwise no ref is left.

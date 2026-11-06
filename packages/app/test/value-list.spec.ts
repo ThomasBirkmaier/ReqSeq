@@ -1,4 +1,4 @@
-// From a value of the shown element to the list of every element with that value (SR-132, #497) on the
+// From a value of the shown element to the list of every element with that value (SR-132, ThomasBirkmaier/ReqSeq-archive#497) on the
 // built app: the key, the command, Ctrl/Cmd+click on a value (#235) and the prompt "Elements with", each
 // list compared with what the CLI gives for the condition property equals value (SR-080). Keys and clicks
 // use the modifier of the platform, so the same tests run on Linux and macOS.

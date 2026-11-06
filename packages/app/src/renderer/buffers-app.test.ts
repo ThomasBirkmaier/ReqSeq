@@ -280,7 +280,7 @@ describe("App, Go to after a restart (SR-115 AK1)", () => {
   });
 });
 
-describe("App, Go to and elements deleted outside (#681)", () => {
+describe("App, Go to and elements deleted outside (ThomasBirkmaier/ReqSeq-archive#681)", () => {
   /** Element 3, then element 2 (newest first) were shown before the app was opened again. */
   const remembered = (): void => {
     const key = recentKey({ ok: true, output: { name: workspaceName, readOnly: true } });

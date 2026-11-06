@@ -49,7 +49,7 @@ describe("openapi.json", () => {
     expect(commands.filter((e) => e.jsonLines !== undefined).map((e) => e.name)).toEqual(["data.export"]);
   });
 
-  it("publishes only patterns a client compiles without the Unicode flag (D-029, #305)", async () => {
+  it("publishes only patterns a client compiles without the Unicode flag (D-029, ThomasBirkmaier/ReqSeq-archive#305)", async () => {
     const published = JSON.parse(await fs.readFile(file, "utf8")) as {
       components: { schemas: { common: { $defs: { elementRef: { pattern: string } } } } };
     };

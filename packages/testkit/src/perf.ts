@@ -132,7 +132,7 @@ const MB = 1e6;
 const mb = (bytes: number): number => Math.round(bytes / MB);
 
 /**
- * Runs `run` once and measures its time and its memory (review of #561, N4: peak heap, not only time):
+ * Runs `run` once and measures its time and its memory (review of ThomasBirkmaier/ReqSeq-archive#561, N4: peak heap, not only time):
  * heap in use, heap reserved and resident memory before (collected first when the suite runs with
  * `--expose-gc`) and the highest values sampled while it runs. A synchronous stretch inside `run` is
  * sampled only when it returns to the event loop, so the peaks are lower bounds; reserved heap and

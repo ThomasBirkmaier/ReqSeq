@@ -1,4 +1,4 @@
-// Formulas set by KaTeX (SR-096, #108), bundled with the app: nothing is loaded at run time (SR-078), the
+// Formulas set by KaTeX (SR-096, ThomasBirkmaier/ReqSeq-archive#108), bundled with the app: nothing is loaded at run time (SR-078), the
 // fonts come from the app's own files (`app:`). KaTeX builds the formula with `createElement` and text
 // nodes, never from HTML, and with `trust: false` the commands that could link, load or style anything
 // (`\href`, `\url`, `\includegraphics`, `\htmlClass`, `\htmlId`, `\htmlStyle`, `\htmlData`) are drawn as

@@ -8,7 +8,7 @@
 //   under every field with input shows the file's value, and "Resolve change on disk" asks "Keep my input"
 //   or "Take the file";
 // - a file that is gone (`ref.unknown`) leaves the content in the editors, read-only, with a hint (AK3).
-// Assumption until spec question #488 (1) is answered: every change of the file while there is input stops
+// Assumption until spec question ThomasBirkmaier/ReqSeq-archive#488 (1) is answered: every change of the file while there is input stops
 // saving and asks (the literal reading of AK2), not only a change of a field with input.
 import type { Prompt } from "./actions.js";
 import type { BoxDraft, Draft } from "./drafts.js";
@@ -56,7 +56,7 @@ export const isGone = (code: string): boolean => code === "ref.unknown";
 
 /**
  * How long a file that a read found gone is asked for again before the buffer says it is deleted: longer
- * than one batch of core's watcher (at most 1 s) plus the time core takes to apply a large one (#586
+ * than one batch of core's watcher (at most 1 s) plus the time core takes to apply a large one (ThomasBirkmaier/ReqSeq-archive#586
  * review, N8). A file that is being written (a pull) is reported as removed in one batch and added in the
  * next, and core's store does not know the element in between, so the first `ref.unknown` is no deletion
  * yet (SR-106 AK3); the buffer stays editable meanwhile, and no input is lost.
@@ -85,7 +85,7 @@ export const outsideChange = (
 ): OutsideChange => {
   const left = [...input].filter(([label, doc]) => doc !== fileDoc(file, label));
   const dropped = [...input.keys()].filter((label) => !left.some(([kept]) => kept === label));
-  // The trigger (spec question #488, 1): the file is another one than the input was typed on. Answer (b)
+  // The trigger (spec question ThomasBirkmaier/ReqSeq-archive#488, 1): the file is another one than the input was typed on. Answer (b)
   // would ask only when a field with input changed on disk.
   const stops = file.sha !== basis;
   if (left.length === 0 || !stops) {

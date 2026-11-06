@@ -1,11 +1,11 @@
 // The fixed keys of the most frequent commands (SR-121 AK3) and the prefix key (SR-109 AK3): Ctrl+K, or
 // Cmd+K on macOS, then one letter. The set, the letters and the prefix are the assumption of the open spec
-// question #472, kept in this one table; the window wires them up in `use-prefix.ts`.
+// question ThomasBirkmaier/ReqSeq-archive#472, kept in this one table; the window wires them up in `use-prefix.ts`.
 import type { Choice } from "./actions.js";
 import type { KeyPress, KeyRow, Shortcut } from "./keys.js";
 import { matches, press, pressLabel, shortcutLabel } from "./keys.js";
 
-/** The prefix key: Ctrl+K, or Cmd+K on macOS (#472; not Ctrl+X or Ctrl+C, the cut and copy of every field). */
+/** The prefix key: Ctrl+K, or Cmd+K on macOS (ThomasBirkmaier/ReqSeq-archive#472; not Ctrl+X or Ctrl+C, the cut and copy of every field). */
 export const PREFIX: Shortcut = { mod: true, shift: false, key: "k" };
 
 /** How long the prefix waits for the next key before it shows the possible next keys (SR-109 AK3). */
@@ -19,7 +19,7 @@ export interface PrefixBinding {
 }
 
 /**
- * The letters after the prefix, in the order #472 lists them (the order of the list of next keys). A row
+ * The letters after the prefix, in the order ThomasBirkmaier/ReqSeq-archive#472 lists them (the order of the list of next keys). A row
  * is shown only where the command prompt offers its entry, so the write commands drop out in a read-only
  * workspace (`whileReadOnly`, `catalogItems`).
  */
@@ -41,7 +41,7 @@ export const PREFIX_KEYS: readonly KeyRow[] = [
   { keys: [{ press: press("Escape") }], does: "End the prefix" },
 ];
 
-/** The actions of #472 that keep a single shortcut of their own (`actions.ts`). */
+/** The actions of ThomasBirkmaier/ReqSeq-archive#472 that keep a single shortcut of their own (`actions.ts`). */
 export const SINGLE_KEY_IDS: readonly string[] = [
   "go-to",
   "search",
@@ -52,7 +52,7 @@ export const SINGLE_KEY_IDS: readonly string[] = [
   "follow-reference",
 ];
 
-/** „Die häufigsten Befehle“ of SR-121 AK3 (#472): the single shortcuts and the letters after the prefix. */
+/** „Die häufigsten Befehle“ of SR-121 AK3 (ThomasBirkmaier/ReqSeq-archive#472): the single shortcuts and the letters after the prefix. */
 export const MOST_FREQUENT: readonly string[] = [
   ...SINGLE_KEY_IDS,
   ...PREFIX_BINDINGS.map((binding) => binding.id),
@@ -125,7 +125,7 @@ const pressedLabel = (event: PrefixPress, mac: boolean): string =>
 /**
  * Whether the modifiers of `event` allow a letter after the prefix: none, or the prefix modifier held
  * (Emacs „C-k C-l“): Ctrl or Cmd off macOS, Cmd only on macOS, where the physical Ctrl key with a letter
- * is never a shortcut (#547). Shift and Alt make it another key.
+ * is never a shortcut (ThomasBirkmaier/ReqSeq-archive#547). Shift and Alt make it another key.
  */
 const plainOrPrefixed = (event: PrefixPress, mac: boolean): boolean =>
   !event.shiftKey && !event.altKey && !(mac && event.ctrlKey);

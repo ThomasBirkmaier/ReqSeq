@@ -11,7 +11,7 @@ const inserted = (doc: string, at: number, insert: string, userEvent?: string): 
   state(doc, at).update({ changes: { from: at, insert }, ...(userEvent === undefined ? {} : { userEvent }) })
     .state;
 
-describe("oneLine (#621)", () => {
+describe("oneLine (ThomasBirkmaier/ReqSeq-archive#621)", () => {
   it("joins the lines with one space, without the line breaks at the ends or a run of blank lines", () => {
     expect(oneLine(["Title", ""])).toBe("Title");
     expect(oneLine(["", "Measure", "", "", "wind", ""])).toBe("Measure wind");
@@ -19,7 +19,7 @@ describe("oneLine (#621)", () => {
   });
 });
 
-describe("singleLine (#621)", () => {
+describe("singleLine (ThomasBirkmaier/ReqSeq-archive#621)", () => {
   it("makes typed, pasted and dropped line breaks one space, the caret after the insertion", () => {
     expect(inserted("Measure speed", 8, "wind\n", "input.type").doc.toString()).toBe("Measure windspeed");
     const pasted = inserted("Measure ", 8, "the\r\nwind\n\nspeed\n", "input.paste");

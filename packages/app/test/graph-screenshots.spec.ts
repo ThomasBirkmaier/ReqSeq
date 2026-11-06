@@ -2,12 +2,12 @@
 // - on a copy of the repository's own specification (`spec/`): the graph of SR-111 at depth 1 and at all
 //   levels over every kind (the chain up to its need and down through the references of the decisions),
 //   that of the package Editor with its members in one wide layer, and the whole chain of the glossary
-//   term GL-f81ba9 (a node whose walk parent took its level from the other walk, #519), the decision
+//   term GL-f81ba9 (a node whose walk parent took its level from the other walk, ThomasBirkmaier/ReqSeq-archive#519), the decision
 //   D-062 at depth 1 (a fan of 30 links among 43) and the whole chain of the obsolete decision D-035;
 // - on fixtures/SR-111/graph: the graph of S1 at depth 1, with a fan on each edge of the element, and at
 //   depth 2 with "Also show relation kind" > "Evidence" (SR-111 AK3: the evidence boxes of S1 and C1);
 // - on the generated workspaces of SR-111 AK6: a package graph of 500 nodes at depth 1 and a whole chain
-//   of 500 nodes, both laid out in the layers of their levels (#500).
+//   of 500 nodes, both laid out in the layers of their levels (ThomasBirkmaier/ReqSeq-archive#500).
 // The window is 1280×800. The PNGs go to `test-results/electron/screenshots/` (or the folder in
 // REQSEQ_SCREENSHOTS); keeping them is a deliberate step, not part of a test run.
 import fs from "node:fs/promises";
@@ -58,7 +58,7 @@ for (const scheme of ["light", "dark"] as const) {
         BrowserWindow.getAllWindows()[0]?.setContentSize(1280, 800);
       });
       // Until the workspace is loaded, within the test's own bound: on a loaded runner the start can take
-      // longer than expect's 5 s (#555 review N2); it is not part of a timed span.
+      // longer than expect's 5 s (ThomasBirkmaier/ReqSeq-archive#555 review N2); it is not part of a timed span.
       await expect(window.getByLabel("Modeline")).toContainText("elements", { timeout: 0 });
 
       // SR-111 at depth 1, then at all levels over every kind: `+` up to the whole chain.

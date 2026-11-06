@@ -39,7 +39,7 @@ const jump = async (window: Page, text: string): Promise<void> => {
 
 /**
  * Like `jump`, but waits until the hit list shows the expected element before it presses Enter. Without the wait
- * Enter races `element.search` and finds an empty or stale list (#460).
+ * Enter races `element.search` and finds an empty or stale list (ThomasBirkmaier/ReqSeq-archive#460).
  */
 const jumpToHit = async (window: Page, text: string, title: string): Promise<void> => {
   await window.keyboard.press("ControlOrMeta+P");

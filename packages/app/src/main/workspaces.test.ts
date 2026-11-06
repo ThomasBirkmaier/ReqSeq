@@ -271,7 +271,7 @@ describe("the recent workspaces channels (SR-131)", () => {
     expect(window.sent).toHaveLength(3);
   });
 
-  it("[SR-105/AK1] before the window closes main asks it to save, with closing, and waits at most CLOSE_SAVE_TIMEOUT_MS, then tells it (#611 review N1)", async () => {
+  it("[SR-105/AK1] before the window closes main asks it to save, with closing, and waits at most CLOSE_SAVE_TIMEOUT_MS, then tells it (ThomasBirkmaier/ReqSeq-archive#611 review N1)", async () => {
     vi.useFakeTimers();
     const { window, workspaces, log } = setup();
     const closing = workspaces.saveBeforeClose();

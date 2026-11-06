@@ -130,7 +130,7 @@ describe("copy", () => {
     expect(heading(element())).toBe("Measure wind");
   });
 
-  it("copies what the editor of the title holds, the heading when it holds nothing (#621)", () => {
+  it("copies what the editor of the title holds, the heading when it holds nothing (ThomasBirkmaier/ReqSeq-archive#621)", () => {
     let title: string | undefined;
     const from = copyable(
       element(),
