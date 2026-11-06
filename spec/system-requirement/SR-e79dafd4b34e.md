@@ -15,7 +15,7 @@ derives-from:
   - { id: 6ad3a132-19a2-4a9c-83c7-2470c9c71be1, version: n1:ab23c3ad252d23f2, title: Vollständige Kette vom Parent bis zum Child }
   - { id: 6adc6938-28fa-42f6-b018-5bbf010cc58c, version: n1:36dc84f63608e84c, title: Bestand prüfen }
 based-on:
-  - { id: 6ad4ffaa-f5ad-494e-97eb-a4c77c54dccc, version: n2:73aeea72beca267c, title: Fest eingebaute Bedeutungen des Metamodells }
+  - { id: 6ad4ffaa-f5ad-494e-97eb-a4c77c54dccc, version: n2:187969b2c905332a, title: Fest eingebaute Bedeutungen des Metamodells }
 ---
 
 Wenn Beziehungen mit der Bedeutung Ableitung einen Zyklus bilden, muss das Tool den Zyklus mit allen beteiligten Elementen melden.

@@ -19,7 +19,7 @@ based-on:
   - { id: 6adc615b-272a-4377-82e5-9ae991d75bb2, version: n2:a63440db8f6c0cff, title: Statuswerte kommen aus dem Metamodell }
   - { id: 6adc615b-8a00-4ce4-9526-56bd3b72bfc9, version: n2:94db6c18414603e6, title: Keine feste Reihenfolge }
   - { id: 6adc691e-6394-45b3-a796-31e830aa3392, version: n2:3e0c480389b79547, title: Das Standardmodell entspricht dem Modell dieser Spec }
-  - { id: 6adc78d3-0812-43dc-94fe-7af63b9acd96, version: n2:736d88e180c1f4d2, title: Bedeutungen und Standardmodell vervollständigt }
+  - { id: 6adc78d3-0812-43dc-94fe-7af63b9acd96, version: n2:05e599ca5a289228, title: Bedeutungen und Standardmodell vervollständigt }
   - { id: dc1e4965-0c68-474e-9ab6-2233c6ec2ad3, version: n2:dfe40087504a49ac, title: Priorität und Validierungskriterien am Need }
 ---
 
