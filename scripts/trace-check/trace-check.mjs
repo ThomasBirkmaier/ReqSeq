@@ -411,6 +411,8 @@ function checkRequired(root, spec, required, testRefs, errors) {
   return rows;
 }
 
+const VALUE_FLAGS = new Set(["--require", "--stage", "--report"]);
+
 /** Runs the check in `root` with the command-line `args`; returns the report and the exit code. */
 export function traceCheck(root, args) {
   const opt = (name) => {
@@ -419,6 +421,12 @@ export function traceCheck(root, args) {
   };
   const errors = [];
   const warnings = [];
+  for (const [i, arg] of args.entries()) {
+    const value = i > 0 && VALUE_FLAGS.has(args[i - 1]);
+    if (!value && !VALUE_FLAGS.has(arg)) {
+      errors.push(`unknown argument ${arg} (--require, --stage, --report)`);
+    }
+  }
   const spec = readSpec(path.join(root, "spec"));
   for (const id of spec.duplicates) {
     errors.push(`${id} is the spec ID of more than one system requirement`);

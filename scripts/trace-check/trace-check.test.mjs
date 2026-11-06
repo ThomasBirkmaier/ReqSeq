@@ -145,6 +145,14 @@ describe("trace-check on the ReqSeq workspace in spec/", () => {
     expect(traceCheck(empty, ["--stage", "Alt"]).errors).toEqual(["package Alt has no system requirements"]);
   });
 
+  it("refuses an argument it does not know, such as the removed --pr-body", () => {
+    expect(traceCheck(repo(), ["--pr-body", "x", "--enabler"]).errors).toEqual([
+      "unknown argument --pr-body (--require, --stage, --report)",
+      "unknown argument x (--require, --stage, --report)",
+      "unknown argument --enabler (--require, --stage, --report)",
+    ]);
+  });
+
   it("reports a spec ID that two system requirements share", () => {
     const root = repo({
       "spec/system-requirement/SR-000000000003.md":
