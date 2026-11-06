@@ -40,6 +40,11 @@ export interface ListBuffer {
    * clearing a filter keep it.
    */
   readonly matrix?: true;
+  /**
+   * How the list is grouped (SR-149): the `group` of `element.list` (`type`, `status`, `package` or a
+   * property key); none: no groups. Display state like the sort, but not stored with the buffers (AK5).
+   */
+  readonly group?: string;
   /** Index of the selected row; `NO_ROW` while none is. */
   readonly cursor: number;
 }
@@ -295,11 +300,32 @@ export const filteredList = (
 export const inMatrix = (buffer: Buffer | undefined): buffer is ListBuffer =>
   buffer?.kind === "list" && buffer.matrix === true;
 
-/** The same list in matrix mode, or (`on` false) as a list; the row and everything else stay. */
+/**
+ * The same list in matrix mode, or (`on` false) as a list; the row and everything else stay. The matrix
+ * shows no groups (SR-149): a grouped list enters it without its grouping and from its first row, since a
+ * row of the groups is another element in the matrix.
+ */
 export const withMatrix = (list: ListBuffer, on: boolean): ListBuffer => {
   const { matrix: _before, ...rest } = list;
-  return on ? { ...rest, matrix: true } : rest;
+  if (!on) {
+    return rest;
+  }
+  const { group, ...ungrouped } = rest;
+  return group === undefined ? { ...rest, matrix: true } : { ...ungrouped, matrix: true, cursor: NO_ROW };
 };
+
+/**
+ * The same list grouped by `group`, or without groups (undefined), from its first row (SR-149 AK3): the
+ * steps, the sort and the mode stay.
+ */
+export const withGroup = (list: ListBuffer, group: string | undefined): ListBuffer => {
+  const { group: _before, ...rest } = list;
+  return { ...rest, ...(group === undefined ? {} : { group }), cursor: NO_ROW };
+};
+
+/** `next`, a list built from `list` with other steps or another sort, in the grouping of `list` (SR-149 AK3). */
+export const keepGroup = (list: ListBuffer, next: ListBuffer): ListBuffer =>
+  list.group === undefined ? next : { ...next, group: list.group };
 
 export const searchBuffer = (query: string): SearchBuffer => ({
   kind: "search",
@@ -478,7 +504,7 @@ export const listHeading = (buffer: ListBuffer | SearchBuffer): string =>
 export const bufferName = (buffer: Buffer): string => {
   switch (buffer.kind) {
     case "list":
-      return `${buffer.label}${sortLabel(buffer.sort)}${buffer.matrix === true ? " · matrix" : ""}`;
+      return `${buffer.label}${sortLabel(buffer.sort)}${buffer.group === undefined ? "" : ` · grouped by ${buffer.group}`}${buffer.matrix === true ? " · matrix" : ""}`;
     case "search":
       return `Search: ${buffer.query}`;
     case "element":

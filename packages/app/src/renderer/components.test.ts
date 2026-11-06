@@ -20,6 +20,7 @@ import {
   readOnlyBuffer,
   reduceBuffers,
   searchBuffer,
+  withGroup,
 } from "./buffers.js";
 import type { Call } from "./call.js";
 import { propertyStep, savedStep } from "./list-filters.js";
@@ -1260,6 +1261,148 @@ describe("ListView, a list", () => {
     const sort = [{ by: "title", order: "asc" as const }];
     await listHarness(asCall(call), listBuffer("type: need", selection, sort));
     expect(call).toHaveBeenCalledWith("element.list", { selection, sort, limit: 200, offset: 0 });
+  });
+
+  describe("grouped (SR-149)", () => {
+    const steps = [propertyStep("topic", "Timing", "Timing")];
+    const sort = [{ by: "title" as const, order: "asc" as const }];
+    const plain = filteredList(steps, sort);
+    // Element 1 is in two packages, so the grouped list shows it in both groups.
+    const byPackage = {
+      elements: [row(1), row(2), row(1), row(3)],
+      groups: [
+        { value: "PKG-000001", identifier: "R1", title: "Wind", count: 2, offset: 0 },
+        { value: "PKG-000002", title: "Sun", count: 1, offset: 2 },
+        { count: 1, offset: 3, unavailable: 1 },
+      ],
+      offset: 0,
+      rows: 4,
+      total: 3,
+    };
+    const byStatus = {
+      elements: [row(2), row(1), row(3)],
+      groups: [
+        { value: "draft", name: "Draft", count: 2, offset: 0 },
+        { value: "approved", name: "Approved", count: 1, offset: 2 },
+      ],
+      offset: 0,
+      rows: 3,
+      total: 3,
+    };
+    const show = (call: Call, buffer: ListBuffer, data: unknown[] = []): Promise<void> =>
+      render(
+        createElement(ListView, {
+          call,
+          buffer,
+          revision: 0,
+          dispatch: () => undefined,
+          onData: (_key, loaded) => data.push(loaded),
+          onEcho: () => undefined,
+        }),
+      );
+    const headings = (): string[] => texts(".group h2");
+    const groupRows = (): string[][] =>
+      [...container.querySelectorAll(".group")].map((group) =>
+        [...group.querySelectorAll(".row .id")].map((id) => id.textContent),
+      );
+
+    it("[SR-149/AK3] shows each group under its heading and count, and regroups or ungroups the same elements in the same filter and sort", async () => {
+      const call = fakeCall({
+        "element.list": (input) =>
+          input["group"] === "package"
+            ? byPackage
+            : input["group"] === "status"
+              ? byStatus
+              : { elements: [row(1), row(2), row(3)], total: 3 },
+      });
+      const data: unknown[] = [];
+      await show(withSummary(call), withGroup(plain, "package"), data);
+      expect(call).toHaveBeenLastCalledWith("element.list", {
+        selection: plain.selection,
+        sort,
+        group: "package",
+        limit: 200,
+        offset: 0,
+      });
+      expect(headings()).toEqual([
+        "R1 Wind 2",
+        "PKG-000002 Sun 1",
+        "(no value) 1 · 1 with targets not available",
+      ]);
+      expect(groupRows()).toEqual([["SR-000001", "SR-000002"], ["SR-000001"], ["SR-000003"]]);
+      // The rows are those of the grouped list, numbered through, an element once per group.
+      expect([...container.querySelectorAll('[role="option"]')].map((option) => option.id)).toEqual([
+        "row-0",
+        "row-1",
+        "row-2",
+        "row-3",
+      ]);
+      expect(query(".group").getAttribute("aria-labelledby")).toBe("group-0");
+      expect(query("#group-0 .count").textContent).toBe("2");
+      expect(data.at(-1)).toMatchObject({ total: 3 });
+
+      await show(withSummary(call), withGroup(plain, "status"));
+      expect(call).toHaveBeenLastCalledWith("element.list", {
+        selection: plain.selection,
+        sort,
+        group: "status",
+        limit: 200,
+        offset: 0,
+      });
+      expect(headings()).toEqual(["Draft 2", "Approved 1"]);
+      expect(groupRows()).toEqual([["SR-000002", "SR-000001"], ["SR-000003"]]);
+
+      await show(withSummary(call), plain);
+      expect(call).toHaveBeenLastCalledWith("element.list", {
+        selection: plain.selection,
+        sort,
+        limit: 200,
+        offset: 0,
+      });
+      expect(headings()).toEqual([]);
+      expect(texts(".row .id")).toEqual(["SR-000001", "SR-000002", "SR-000003"]);
+    });
+
+    it("pages over the rows of the grouped list, so a group of the next page appears once its rows are there", async () => {
+      const first = rowsOf(1, 201);
+      const call = fakeCall({
+        "element.list": (input) =>
+          input["offset"] === 0
+            ? {
+                elements: first,
+                groups: [
+                  { value: "a", count: 200, offset: 0 },
+                  { value: "b", count: 2, offset: 200 },
+                ],
+                offset: 0,
+                rows: 202,
+                total: 200,
+              }
+            : {
+                elements: [row(1), row(2)],
+                groups: [
+                  { value: "a", count: 200, offset: 0 },
+                  { value: "b", name: "Bee", count: 2, offset: 200 },
+                ],
+                offset: 200,
+                rows: 202,
+                total: 200,
+              },
+      });
+      await show(withSummary(call), withGroup(listBuffer("All elements"), "topic"));
+      expect(headings()).toEqual(["a 200"]);
+      // 200 elements in 202 rows: the next page is due although every element was listed once.
+      await press(query('[role="listbox"]'), "End");
+      expect(call).toHaveBeenLastCalledWith("element.list", {
+        sort: DEFAULT_SORT,
+        group: "topic",
+        limit: 200,
+        offset: 200,
+      });
+      // The groups are those of the latest page.
+      expect(headings()).toEqual(["a 200", "Bee 2"]);
+      expect(groupRows()[1]).toEqual(["SR-000001", "SR-000002"]);
+    });
   });
 
   it("asks with the default sort, none for a saved filter that holds its own, and `[]` for the workspace order (#418)", async () => {

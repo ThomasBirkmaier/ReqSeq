@@ -5,13 +5,17 @@
 // buffer of its own, the list stands like the elements of a package page: in the centred column, under a
 // heading that says what it shows and how many (SR-148, D-062), and under it the line of coverage and
 // verification degree of its elements, as a package page has it (`SummaryLine`, product owner decision,
-// 2026-11-06).
+// 2026-11-06). A grouped list (SR-149) shows each group of `element.list` under a heading with its name and
+// count, below that line; the rows are those of the grouped list, so an element in several groups is a row
+// in each, and rows are keyed by their position.
 import { useEffect, useRef, useState } from "react";
 import { useIdScope } from "./area-scope.js";
 import type { BufferAction, ListBuffer, SearchBuffer } from "./buffers.js";
 import { bufferName, listHeading, listSort } from "./buffers.js";
 import type { Call } from "./call.js";
 import { highlightTerms } from "./highlight.js";
+import type { ListGroup } from "./list-groups.js";
+import { groupCount, groupName, groupSections } from "./list-groups.js";
 import type { Part } from "./highlight.js";
 import { leavesPart, rowTarget } from "./keys.js";
 import type { BufferData } from "./modeline.js";
@@ -62,19 +66,24 @@ export interface ListViewProps {
   readonly focusOnLoad?: boolean;
 }
 
-type Page =
-  | { readonly ok: true; readonly rows: Row[]; readonly total: number; readonly incomplete: boolean }
-  | { readonly ok: false; readonly message: string };
+/**
+ * `total` counts the elements, `size` the rows to page over: more than `total` in a grouped list whose
+ * elements are in several groups. `groups` only for a grouped list, every group of the whole list.
+ */
+interface Loaded {
+  readonly rows: Row[];
+  readonly total: number;
+  readonly size: number;
+  readonly incomplete: boolean;
+  readonly groups?: readonly ListGroup[];
+}
+
+type Page = ({ readonly ok: true } & Loaded) | { readonly ok: false; readonly message: string };
 
 type View =
   | { readonly status: "loading" }
   | { readonly status: "error"; readonly message: string }
-  | {
-      readonly status: "ok";
-      readonly rows: readonly Row[];
-      readonly total: number;
-      readonly incomplete: boolean;
-    };
+  | ({ readonly status: "ok" } & Omit<Loaded, "rows"> & { readonly rows: readonly Row[] });
 
 /** Rows moved by Page Up and Page Down. */
 const SCREEN = 10;
@@ -92,17 +101,22 @@ const fetchPage = async (
     const answer = await call("element.list", {
       ...(buffer.selection === undefined ? {} : { selection: buffer.selection }),
       ...(sort === undefined ? {} : { sort }),
+      ...(buffer.group === undefined ? {} : { group: buffer.group }),
       limit,
       offset,
     });
-    return answer.ok
-      ? {
-          ok: true,
-          rows: listRows(answer.output),
-          total: answer.output.total,
-          incomplete: answer.output.incomplete === true,
-        }
-      : answer;
+    if (!answer.ok) {
+      return answer;
+    }
+    const { groups, rows, total } = answer.output;
+    return {
+      ok: true,
+      rows: listRows(answer.output),
+      total,
+      size: rows ?? total,
+      incomplete: answer.output.incomplete === true,
+      ...(groups === undefined ? {} : { groups }),
+    };
   }
   const answer = await call("element.search", { query: buffer.query, limit, offset });
   return answer.ok
@@ -110,10 +124,37 @@ const fetchPage = async (
         ok: true,
         rows: searchRows(answer.output),
         total: answer.output.total,
+        size: answer.output.total,
         incomplete: answer.output.incomplete,
       }
     : answer;
 };
+
+/** What a list is grouped by (SR-149); a search is never grouped. */
+const groupBy = (buffer: ListBuffer | SearchBuffer): string | undefined =>
+  buffer.kind === "list" ? buffer.group : undefined;
+
+/** The groups of a grouped list once it is loaded; none for any other list. */
+const groupsOf = (view: View): readonly ListGroup[] | undefined =>
+  view.status === "ok" ? view.groups : undefined;
+
+/** The loaded rows, each laid out by `rowAt`; in a grouped list under the heading of its group (SR-149). */
+const listed = (
+  scope: string,
+  groups: readonly ListGroup[] | undefined,
+  rows: readonly Row[],
+  rowAt: (row: Row, at: number) => React.JSX.Element,
+): React.JSX.Element[] =>
+  groups === undefined
+    ? rows.map(rowAt)
+    : groupSections(groups, rows.length).map(({ group, from, to }) => (
+        <div key={from} className="group" role="group" aria-labelledby={`${scope}group-${String(from)}`}>
+          <h2 id={`${scope}group-${String(from)}`}>
+            {groupName(group)} <span className="count">{groupCount(group)}</span>
+          </h2>
+          {rows.slice(from, to).map((row, index) => rowAt(row, from + index))}
+        </div>
+      ));
 
 /** The part takes the focus when it has rows and the focus is on nothing or on the buffer around it. */
 const takesFocus = (list: HTMLElement | null, rows: number): boolean => {
@@ -226,7 +267,8 @@ export const ListView = ({
   const page = kind === "list" ? LIST_PAGE : SEARCH_PAGE;
   const selection = buffer.kind === "list" ? buffer.selection : buffer.query;
   const sort = buffer.kind === "list" ? listSort(buffer) : undefined;
-  const list = JSON.stringify([buffer.key, kind, selection, sort]);
+  const group = groupBy(buffer);
+  const list = JSON.stringify([buffer.key, kind, selection, sort, group]);
   // Another list (another buffer, filter or sort) starts empty in the same render, not in the effect: its
   // name never stands over the rows of the list before, and no key acts on them.
   useResetOnAsk([list], () => {
@@ -254,7 +296,8 @@ export const ListView = ({
       }
       reloading.current = false;
       if (loaded.ok) {
-        setView({ status: "ok", rows: loaded.rows, total: loaded.total, incomplete: loaded.incomplete });
+        const { ok: _ok, ...shown } = loaded;
+        setView({ status: "ok", ...shown });
         if (outside !== undefined) {
           mark(loaded.rows.map((row) => row.open.id).filter(outside.fresh));
         }
@@ -273,7 +316,7 @@ export const ListView = ({
       generation.current += 1;
     };
     // The cursor is read when the rows are asked for again; moving it must not ask again.
-  }, [call, buffer.key, kind, selection, sort, revision]);
+  }, [call, buffer.key, kind, selection, sort, group, revision]);
 
   const rows = view.status === "ok" ? view.rows : [];
   const cursor = Math.min(buffer.cursor, Math.max(0, rows.length - 1));
@@ -294,7 +337,7 @@ export const ListView = ({
   }, [cursor, view.status]);
 
   const loadMore = (): void => {
-    if (view.status !== "ok" || loadingMore.current || reloading.current || view.rows.length >= view.total) {
+    if (view.status !== "ok" || loadingMore.current || reloading.current || view.rows.length >= view.size) {
       return;
     }
     loadingMore.current = true;
@@ -306,7 +349,13 @@ export const ListView = ({
       }
       if (loaded.ok) {
         const rows = [...view.rows, ...loaded.rows];
-        setView({ ...view, rows, total: loaded.total });
+        setView({
+          ...view,
+          rows,
+          total: loaded.total,
+          size: loaded.size,
+          ...(loaded.groups === undefined ? {} : { groups: loaded.groups }),
+        });
         onData(buffer.key, {
           kind,
           total: loaded.total,
@@ -373,29 +422,33 @@ export const ListView = ({
     }
   };
 
+  const groups = groupsOf(view);
+  const rowAt = (row: Row, at: number): React.JSX.Element => (
+    <div
+      // A grouped list can show an element in several groups: its rows are told apart by position.
+      key={groups === undefined ? row.open.key : at}
+      id={`${scope}row-${String(at)}`}
+      className={rowClass("row", marked, row.open.id)}
+      role="option"
+      aria-selected={at === cursor}
+      onClick={() => {
+        dispatch({ type: "cursor", key: buffer.key, cursor: at });
+        openRow(row);
+      }}
+    >
+      <span className="id">
+        <Marked parts={highlightTerms(row.label, row.markLabel ? [row.label.toLowerCase()] : [])} />
+      </span>
+      <span className="title" style={{ paddingLeft: `${String(row.depth * 1.25)}rem` }}>
+        <Marked parts={highlightTerms(row.title, row.terms)} />
+      </span>
+      <span className="status">{row.status}</span>
+    </div>
+  );
+
   const rowsAndNotes = (
     <>
-      {rows.map((row, at) => (
-        <div
-          key={row.open.key}
-          id={`${scope}row-${String(at)}`}
-          className={rowClass("row", marked, row.open.id)}
-          role="option"
-          aria-selected={at === cursor}
-          onClick={() => {
-            dispatch({ type: "cursor", key: buffer.key, cursor: at });
-            openRow(row);
-          }}
-        >
-          <span className="id">
-            <Marked parts={highlightTerms(row.label, row.markLabel ? [row.label.toLowerCase()] : [])} />
-          </span>
-          <span className="title" style={{ paddingLeft: `${String(row.depth * 1.25)}rem` }}>
-            <Marked parts={highlightTerms(row.title, row.terms)} />
-          </span>
-          <span className="status">{row.status}</span>
-        </div>
-      ))}
+      {listed(scope, groups, rows, rowAt)}
       {view.status === "ok" && rows.length === 0 && !part ? (
         <p className="quiet">{buffer.kind === "list" ? "No elements" : `No hits for ${buffer.query}`}</p>
       ) : null}

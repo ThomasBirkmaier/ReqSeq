@@ -24,18 +24,21 @@ import {
   elementBuffer,
   filteredList,
   graphBuffer,
+  keepGroup,
   listBuffer,
   metamodelBuffer,
   neighbourhoodBuffer,
   onlyOverview,
   overviewBuffer,
   searchBuffer,
+  withGroup,
   withMatrix,
 } from "./buffers.js";
 import type { Answer, Call } from "./call.js";
 import { bindingLabel } from "./bindings.js";
 import type { ReferenceRequest } from "./editor/slash-menu.js";
 import { idTitle } from "./id-title.js";
+import { groupChoices } from "./list-groups.js";
 import { linesOf, resultText } from "./result-copy.js";
 import type { Shortcut } from "./keys.js";
 import { shortcutLabel } from "./keys.js";
@@ -365,7 +368,10 @@ const filtered = (context: ActionContext): Filtered | undefined => {
       steps: list.steps,
       selection: list.selection,
       apply: (steps) => {
-        context.dispatch({ type: "open", buffer: filteredList(steps, list.sort, list.matrix === true) });
+        context.dispatch({
+          type: "open",
+          buffer: keepGroup(list, filteredList(steps, list.sort, list.matrix === true)),
+        });
       },
     };
   }
@@ -941,7 +947,10 @@ export const ACTIONS: readonly Action[] = [
       let apply: ((sort: readonly FilterSortKeyWithDefaults[]) => void) | undefined;
       if (list !== undefined) {
         apply = (sort) => {
-          context.dispatch({ type: "open", buffer: filteredList(list.steps, sort, list.matrix === true) });
+          context.dispatch({
+            type: "open",
+            buffer: keepGroup(list, filteredList(list.steps, sort, list.matrix === true)),
+          });
         };
       } else if (page !== undefined) {
         // The package page stays the element buffer (editor and draft included): the same key replaces it.
@@ -953,6 +962,39 @@ export const ACTIONS: readonly Action[] = [
         context.ask({ label: "Sort by", items: sortChoices(apply) });
       }
     },
+  },
+  {
+    id: "group",
+    title: "Group list",
+    available: (context: ActionContext): boolean => isList(context) && !isMatrix(context),
+    run: onList((context, list) => {
+      const call = context.shownCall ?? context.call;
+      void Promise.all([
+        call("element.facets", list.selection === undefined ? {} : { selection: list.selection }),
+        call("metamodel.get", {}),
+      ]).then(([facets, metamodel]) => {
+        if (!facets.ok) {
+          context.echo(facets.message);
+          return;
+        }
+        const packages = metamodel.ok ? (metamodel.output.meanings["packages"] ?? []) : [];
+        context.ask({
+          label: "Group by",
+          items: groupChoices(facets.output, packages, (group) => {
+            context.dispatch({ type: "open", buffer: withGroup(list, group) });
+          }),
+        });
+      });
+    }),
+  },
+  {
+    id: "ungroup",
+    title: "Ungroup list",
+    available: (context: ActionContext): boolean =>
+      currentList(context)?.group !== undefined && !isMatrix(context),
+    run: onList((context, list) => {
+      context.dispatch({ type: "open", buffer: withGroup(list, undefined) });
+    }),
   },
   {
     id: "matrix",
