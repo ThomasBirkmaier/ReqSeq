@@ -160,14 +160,20 @@ export const testCaseLine = (test: MatrixTestCase): CellLine => {
 };
 
 /**
- * The status cell (SR-126 AK1, AK3): the status word, `failed` and `outdated` in the accent colour; an
- * open requirement names how many of its children are missing on demand (SR-034).
+ * The status cell (SR-126 AK1, AK3): the status word, `failed` and `outdated` in the accent colour,
+ * with how many acceptance criteria are verified when core counts them (SR-031 AK5, `open · 2 of 3`, the criteria not verified on demand);
+ * an open requirement names how many of its children are missing on demand (SR-034).
  */
 export const statusLine = (entry: DataExportVerificationEntry): CellLine => ({
-  text: entry.status,
+  text:
+    entry.criteria === undefined
+      ? entry.status
+      : `${entry.status} · ${String(entry.criteria.verified)} of ${String(entry.criteria.total)}`,
   accent: entry.status === "failed" || entry.status === "outdated",
   title:
-    entry.missingChildren === undefined
-      ? ""
-      : `${String(entry.missingChildren.length)} missing child${entry.missingChildren.length === 1 ? "" : "ren"}`,
+    entry.missingChildren !== undefined
+      ? `${String(entry.missingChildren.length)} missing child${entry.missingChildren.length === 1 ? "" : "ren"}`
+      : entry.criteria?.notVerified === undefined
+        ? ""
+        : `${entry.criteria.notVerified.map((n) => `AK${String(n)}`).join(", ")} not verified`,
 });

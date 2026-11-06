@@ -115,7 +115,7 @@ export const entryOf = (view: string, result: VerificationResult): VerificationE
 };
 
 /** `criteria` of a verification entry, a copy of the count. */
-const criteriaEntry = ({ verified, total, notVerified }: CriteriaCount) => ({
+export const criteriaEntry = ({ verified, total, notVerified }: CriteriaCount): CriteriaCount => ({
   verified,
   total,
   ...(notVerified === undefined ? {} : { notVerified: [...notVerified] }),

@@ -3226,6 +3226,8 @@ export interface BaselineGetOutput {
       readonly view: ViewId;
       /** From the records of the view that count for the baseline: dated at or before it (AK2); outdated with records of other versions only, open without (AK3). */
       readonly status: "open" | "verified" | "failed" | "outdated";
+      /** How many acceptance criteria of the version in the baseline these records verify, as for evidence.status (SR-031 AK5): 0 of all of them without a counting record. Left out when that version has no acceptance criteria, and when its criteria cannot be read because it is not the current version and Git does not have it. */
+      readonly criteria?: DataExportCriteriaCount;
       /** The records of the baseline version in this view dated after the baseline, newest first: they do not count (AK2). Left out when there is none. */
       readonly later?: readonly DataExportEvidenceRecord[];
     }[];

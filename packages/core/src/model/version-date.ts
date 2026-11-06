@@ -1098,6 +1098,20 @@ export const versionValues = async (
 ): Promise<(Readonly<Record<string, unknown>> | null)[]> =>
   (await startsWithValues(context, requests)).map((start) => start?.values ?? null);
 
+/**
+ * The date and the values of each requested version at its start (`versionStarts`, `versionValues`)
+ * from one lookup, in the order of `requests`; `null` where `versionStarts` gives `null`. For
+ * `baseline.get`, which shows the date and counts the acceptance criteria of a baseline's version
+ * (SR-031, SR-094).
+ */
+export const versionDatesAndValues = async (
+  context: VersionDateContext,
+  requests: readonly VersionDateRequest[],
+): Promise<({ readonly date: string; readonly values: Readonly<Record<string, unknown>> } | null)[]> =>
+  (await startsWithValues(context, requests)).map((start) =>
+    start === null ? null : { date: start.date, values: start.values },
+  );
+
 /** The date of each requested version: the date of its start (`versionStarts`), or `null`. */
 export const versionDates = async (
   context: VersionDateContext,

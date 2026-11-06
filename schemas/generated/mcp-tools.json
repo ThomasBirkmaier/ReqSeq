@@ -7973,6 +7973,10 @@
                         ],
                         "description": "From the records of the view that count for the baseline: dated at or before it; outdated with records of other versions only, open without."
                       },
+                      "criteria": {
+                        "$ref": "#/$defs/data-export/$defs/criteriaCount",
+                        "description": "How many acceptance criteria of the version in the baseline these records verify, as for evidence.status: 0 of all of them without a counting record. Left out when that version has no acceptance criteria, and when its criteria cannot be read because it is not the current version and Git does not have it."
+                      },
                       "later": {
                         "type": "array",
                         "description": "The records of the baseline version in this view dated after the baseline, newest first: they do not count. Left out when there is none.",

@@ -13,7 +13,10 @@
 //   then the variants in store order, each with the view rule of now), and of these the ones the
 //   entry applies in now, so a variant that excludes or replaces it has no row (SR-047 AK3). Whether
 //   it applies is judged by the view rule and the variants of now, not by the content of the
-//   baseline version, which is never read (D-033, N-036; assumption of spec question #657).
+//   baseline version (D-033, N-036; assumption of spec question #657). Only its acceptance criteria
+//   are read from it (SR-031): the element's own when the baseline holds its current version, else
+//   from the start of that version in Git (`versionDatesAndValues`, the walk of the version dates,
+//   page only), counted as `evidence.status` counts them (`baselineStatusOf`).
 // - Validation (AK7): for a need and any other element with a validation record of the core of any
 //   date (the rule of `hasValidationStatus`, SR-038 as `WorkspaceStatus.validate`, found in the
 //   same pass), without view.
@@ -32,8 +35,10 @@ import type { BaselineGetOutput } from "../generated/types.js";
 import type { ElementRecord, VersionForms } from "../model/index.js";
 import { sameVersion, storedForms } from "../model/index.js";
 import type { EvidenceRecord } from "./record.js";
-import { validationOf, verificationStatusOf } from "./status.js";
+import type { OwnVerification } from "./status.js";
+import { ownVerificationOf, validationOf, verificationStatusOf } from "./status.js";
 import type { ViewHolder, WorkspaceStatus } from "./verification.js";
+import type { View } from "../variants/index.js";
 
 type Entry = BaselineGetOutput["elements"][number];
 
@@ -106,6 +111,7 @@ const verificationRows = (
   groups: { readonly counting: Groups; readonly later: Groups },
   independent: boolean,
   records: readonly EvidenceRecord[],
+  count: number | undefined,
 ): NonNullable<BaselineEvidence["verification"]> =>
   views.flatMap((holder) => {
     if (!holder.includes(element)) {
@@ -114,14 +120,58 @@ const verificationRows = (
     const key = keyOf(holder);
     const after = heldIn(groups.later, key, independent, records);
     const counted = heldIn(groups.counting, key, independent) ?? NONE;
+    const { status, criteria } = baselineStatusOf(counted, version, holder.view, independent, count);
     return [
       {
         view: key ?? "core",
-        status: verificationStatusOf(counted, version, holder.view, independent),
+        status,
+        // Shared, not copied: the count without a record is one frozen object per count, and a
+        // page holds up to hundreds of thousands of rows (N-036); outputs are never changed.
+        ...(criteria === undefined ? {} : { criteria }),
         ...(after === undefined ? {} : { later: [...after] }),
       },
     ];
   });
+
+/**
+ * The status of a row from its counting records with `count` acceptance criteria at the baseline's
+ * version (SR-031 as `evidence.status`, `ownVerificationOf`). `count` undefined: Git does not have
+ * that version, so its criteria are unknown (spec question #985, assumption). Then, when no record
+ * names a criterion, the rule of the whole requirement; otherwise no count is given, a criterion
+ * whose newest record of the version failed gives `failed` (the criteria as far as the records name
+ * them), as do `open` and `outdated` (SR-094 AK3); `verified` only when the records that name no
+ * criterion verify it, else `open`.
+ */
+export const baselineStatusOf = (
+  counted: readonly EvidenceRecord[],
+  version: VersionForms,
+  view: View,
+  independent: boolean,
+  count: number | undefined,
+): OwnVerification => {
+  if (count !== undefined) {
+    return ownVerificationOf(counted, version, view, independent, count);
+  }
+  // Per criterion as far as the records name them: a criterion whose newest record failed fails it.
+  const named = Math.max(0, ...counted.flatMap((r) => r.criteria ?? []));
+  const whole = verificationStatusOf(counted, version, view, independent, named);
+  // Outdated only when every record is of another version (SR-094 AK3, #985): a criterion of an
+  // older version next to one of this version leaves it open, as the count is unknown.
+  if (
+    whole === "outdated" &&
+    counted.some((r) => r.kind === "verification" && sameVersion(r.version, version))
+  ) {
+    return { status: "open" };
+  }
+  if (whole !== "verified") {
+    return { status: whole };
+  }
+  // Verified as far as the records name criteria: only the records for all show there are no others.
+  const forAll = counted.filter((r) => r.criteria === undefined);
+  return {
+    status: verificationStatusOf(forAll, version, view, independent) === "verified" ? "verified" : "open",
+  };
+};
 
 /** The records of an entry grouped in one pass (see the file comment). */
 interface Grouped {
@@ -181,8 +231,13 @@ export const baselineEvidence =
     status: Pick<WorkspaceStatus, "source">,
     views: readonly ViewHolder[] | undefined,
     counts: (date: string) => boolean,
-  ): ((element: ElementRecord, stored: string, current: VersionForms | undefined) => BaselineEvidence) =>
-  (element, stored, current) => {
+  ): ((
+    element: ElementRecord,
+    stored: string,
+    current: VersionForms | undefined,
+    values: Readonly<Record<string, unknown>> | undefined,
+  ) => BaselineEvidence) =>
+  (element, stored, current, values) => {
     const { source } = status;
     // A record of the other normal form counts through the current version (`storedForms`).
     const version = storedForms(stored, current);
@@ -197,7 +252,15 @@ export const baselineEvidence =
     // SR-038 as `hasValidationStatus`: a need, and any other element with a validation record.
     const validation = validated || source.needs.has(element.type);
     const verification = requirement
-      ? verificationRows(element, version, views, { counting, later }, source.independent(element), records)
+      ? verificationRows(
+          element,
+          version,
+          views,
+          { counting, later },
+          source.independent(element),
+          records,
+          values === undefined ? undefined : source.criteriaOf({ data: values }),
+        )
       : undefined;
     return {
       ...(verification === undefined ? {} : { verification }),
