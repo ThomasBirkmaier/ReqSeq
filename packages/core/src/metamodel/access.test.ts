@@ -11,7 +11,7 @@ import { assertWritable, workspaceAccess } from "./access.js";
 
 // Test-only catalog: the guard in `invoke` is checked with stand-ins that have the effects of the
 // real catalog entries. Whether a write command runs while the workspace is read-only is the
-// `whileReadOnly` field of its entry (ADR-0002 rule 5, #142), never its name.
+// `whileReadOnly` field of its entry (ADR-0002 rule 5, ThomasBirkmaier/ReqSeq-archive#142), never its name.
 const entry = (name: string, whileReadOnly?: "refuse" | "allow"): Record<string, unknown> => ({
   name,
   title: "Test command",

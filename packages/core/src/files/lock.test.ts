@@ -282,7 +282,7 @@ describe("lockPrivateFile", () => {
       });
     // ...and takes it right after this one found it gone. The look reads the text and the file time
     // at the same time, and either one that finds the file gone settles it: both wait for the take,
-    // so that it is complete before this start tries again (#274). Waiting in `readFile` alone let
+    // so that it is complete before this start tries again (ThomasBirkmaier/ReqSeq-archive#274). Waiting in `readFile` alone let
     // a missing file time settle the look first, and on a slow runner this start then took the lock
     // before the other start had written it.
     let taken: Promise<void> | undefined;

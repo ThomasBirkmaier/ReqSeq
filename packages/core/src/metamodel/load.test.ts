@@ -641,7 +641,7 @@ describe("loadMetamodel", () => {
     ]);
   });
 
-  it("reports a type with the reserved prefix UNKNOWN on the line of its prefix and keeps the type (#154)", async () => {
+  it("reports a type with the reserved prefix UNKNOWN on the line of its prefix and keeps the type (ThomasBirkmaier/ReqSeq-archive#154)", async () => {
     const ws = await fixture({
       files: {
         "model/z-more.yaml": [

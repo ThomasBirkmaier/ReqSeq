@@ -1,4 +1,4 @@
-// References in properties marked `markdown` (SR-127, #444) on fixtures/SR-025/outdated: outdated
+// References in properties marked `markdown` (SR-127, ThomasBirkmaier/ReqSeq-archive#444) on fixtures/SR-025/outdated: outdated
 // hints with `@text:<key>` IDs, confirming, missing targets, affected elements and writing.
 import fs from "node:fs";
 import path from "node:path";
@@ -250,7 +250,7 @@ describe("references in properties marked markdown (SR-127)", () => {
       }
     });
 
-    it("quotes an escaped link anew, leaves a value that is no text alone, and does not change a link held by an alias (#444)", async () => {
+    it("quotes an escaped link anew, leaves a value that is no text alone, and does not change a link held by an alias (ThomasBirkmaier/ReqSeq-archive#444)", async () => {
       const escaped = `acceptance-criteria:\n  - "Then [a](reqseq:${N}?version=${N_VERSION}&repository=sys\\x74em)"\n  - 5\n`;
       const ws = await fixture(requirement(escaped));
       await changeN(ws);
@@ -302,7 +302,7 @@ describe("references in properties marked markdown (SR-127)", () => {
       expect(await versionOf(marked, A)).toBe(await versionOf(unmarked, A));
     });
 
-    it("a reference confirmed in a property that counts or one that does not leaves the version of its element as it is (#444, n2: ADR-0005)", async () => {
+    it("a reference confirmed in a property that counts or one that does not leaves the version of its element as it is (ThomasBirkmaier/ReqSeq-archive#444, n2: ADR-0005)", async () => {
       const decision = `---\nid: ${C}\ntype: decision\nstatus: draft\ntitle: Choose\nrationale: Because ${link("the wind")}.\n---\n\nText.\n`;
       const ws = await fixture();
       await ws.write(C_FILE, decision);
@@ -326,7 +326,7 @@ describe("references in properties marked markdown (SR-127)", () => {
     const update = async (workspace: Workspace, input: Record<string, unknown>): Promise<unknown> =>
       invoke("element.update", await readFirst({ ref: A, ...input }, { workspace }), { workspace });
 
-    it("element.update stores a new reference in an acceptance criterion with id and version, and keeps one that is stored (#444)", async () => {
+    it("element.update stores a new reference in an acceptance criterion with id and version, and keeps one that is stored (ThomasBirkmaier/ReqSeq-archive#444)", async () => {
       const ws = await fixture();
       const workspace = open(ws.root);
       await update(workspace, {
@@ -369,7 +369,7 @@ describe("references in properties marked markdown (SR-127)", () => {
       );
     });
 
-    it("an update that does not set a Markdown property leaves the links in it as they are written (#444)", async () => {
+    it("an update that does not set a Markdown property leaves the links in it as they are written (ThomasBirkmaier/ReqSeq-archive#444)", async () => {
       const unversioned = requirement(`acceptance-criteria:\n  - Then [wind](reqseq:${N}).\n`);
       const ws = await fixture(unversioned);
       const workspace = open(ws.root);
@@ -377,7 +377,7 @@ describe("references in properties marked markdown (SR-127)", () => {
       expect(read(ws, A_FILE)).toBe(unversioned.replace("title: Show wind speed", "title: Show gusts"));
     });
 
-    it("element.create stores the reference of a criterion with its version (#444)", async () => {
+    it("element.create stores the reference of a criterion with its version (ThomasBirkmaier/ReqSeq-archive#444)", async () => {
       const ws = await fixture();
       const workspace = open(ws.root);
       const out = (await invoke(
@@ -398,7 +398,7 @@ describe("references in properties marked markdown (SR-127)", () => {
       ]);
     });
 
-    it("refuses a criterion whose reference names no element or several, naming the property (#444)", async () => {
+    it("refuses a criterion whose reference names no element or several, naming the property (ThomasBirkmaier/ReqSeq-archive#444)", async () => {
       const ws = await fixture();
       await ws.write("needs/N-copy.md", fs.readFileSync(ws.path(N_FILE), "utf8"));
       const workspace = open(ws.root);
@@ -415,7 +415,7 @@ describe("references in properties marked markdown (SR-127)", () => {
       }
     });
 
-    it("element.bulkUpdate sets and adds criteria with their references stored (#444)", async () => {
+    it("element.bulkUpdate sets and adds criteria with their references stored (ThomasBirkmaier/ReqSeq-archive#444)", async () => {
       const ws = await fixture();
       const workspace = open(ws.root);
       const bulk = (operation: "set" | "add", value: string[]): Promise<unknown> =>

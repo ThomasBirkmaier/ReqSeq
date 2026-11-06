@@ -110,7 +110,7 @@ const compileSource = (context: QueryContext, source: string): Predicate => {
 /** `emergent`: whether the element is marked emergent (SR-035, `isEmergent`). */
 const compileEmergent = (context: QueryContext, emergent: boolean): Predicate => {
   propertyFor(context, "emergent");
-  // Undefined for a property that cannot hold the mark: then no element is emergent (#591 Q1).
+  // Undefined for a property that cannot hold the mark: then no element is emergent (ThomasBirkmaier/ReqSeq-archive#591 Q1).
   const key = emergentKeyOf(context.metamodel);
   return (element) => isEmergent(element, key) === emergent;
 };
@@ -181,7 +181,7 @@ const compileLeaf = async (context: CompileContext, condition: Leaf, at: string)
     const keys = matchingKeys(await searchIndex(context.workspace), condition.text);
     return (e) => keys.has(recordKey(e));
   }
-  // Every operator of the schema is a branch above; the compiler checks that none is left (#336). Core
+  // Every operator of the schema is a branch above; the compiler checks that none is left (ThomasBirkmaier/ReqSeq-archive#336). Core
   // validates each input first, so only a caller that bypasses it gets here: a bug, not an input error.
   const unknown: never = condition;
   throw new Error(`no compiler for the condition ${JSON.stringify(unknown)}`);
@@ -215,8 +215,8 @@ const compileCondition = async (
 /**
  * A compiled condition and the notes it writes while it is applied. It belongs to one run: it holds the
  * states it was compiled against (store, short IDs, incoming index, evidence provider, views) and its
- * `notes` only ever gain `incomplete`. So compile again for every run (#336): a saved filter (#82) or
- * a bulk update (#83) keeps the condition, never the compiled one.
+ * `notes` only ever gain `incomplete`. So compile again for every run (ThomasBirkmaier/ReqSeq-archive#336): a saved filter (ThomasBirkmaier/ReqSeq-archive#82) or
+ * a bulk update (ThomasBirkmaier/ReqSeq-archive#83) keeps the condition, never the compiled one.
  */
 export interface CompiledCondition {
   readonly predicate: Predicate;

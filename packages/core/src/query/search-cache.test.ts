@@ -144,7 +144,7 @@ describe("search.json (ADR-0008)", () => {
     expect(changed({ ...first, file: "moved.md" })).not.toBe(digest);
     expect(changed({ ...first, repository: "other" })).not.toBe(digest);
     expect(searchDigest({ ...store, elements: rest }, metamodel)).not.toBe(digest);
-    // The title key, the relation keys and the names of the choices, types and statuses (#80); not
+    // The title key, the relation keys and the names of the choices, types and statuses (ThomasBirkmaier/ReqSeq-archive#80); not
     // the rest of the metamodel.
     const renamed = metamodel.properties.map((p) =>
       p.choices === undefined ? p : { ...p, choices: p.choices.map((c) => ({ ...c, name: `${c.name}!` })) },

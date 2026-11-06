@@ -24,7 +24,7 @@ export const SEARCH_CACHE_FORMAT = 1;
 /**
  * What of the metamodel decides the documents (`documentOf`): the title key, the keys that hold
  * relations (left out), the names of the choices and the names of the types and statuses (indexed
- * in `properties`, #80).
+ * in `properties`, ThomasBirkmaier/ReqSeq-archive#80).
  */
 const metamodelPart = (metamodel: Metamodel): unknown => ({
   types: metamodel.effectiveTypes.map((t) => [t.key, t.name]),

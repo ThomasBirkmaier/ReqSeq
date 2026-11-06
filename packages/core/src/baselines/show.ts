@@ -246,7 +246,7 @@ export const showBaseline = async (workspace: Workspace, request: ShowRequest): 
     };
   });
   const named = page.flatMap(({ record }) => (record === undefined ? [] : [record]));
-  // The variants the verification rows name by UUID (#588), resolved in this store.
+  // The variants the verification rows name by UUID (ThomasBirkmaier/ReqSeq-archive#588), resolved in this store.
   const variants = new Set<string>();
   for (const { verification } of elements) {
     for (const { view } of verification ?? []) {

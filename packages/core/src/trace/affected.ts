@@ -2,7 +2,7 @@
 // geändert wird, muss das Tool alle Elemente zeigen, die von der Änderung betroffen sind." The
 // `trace.affected` command is `traceAffected` and `affectedOutput` on one derivation graph.
 //
-// - "direkt oder über die Kette" (AK1), read mechanically (assumption of #36, stated in the PR):
+// - "direkt oder über die Kette" (AK1), read mechanically (assumption of ThomasBirkmaier/ReqSeq-archive#36, stated in the PR):
 //   distance 1 is every element whose file holds a relation or an inline reference to the element
 //   (`directLinks`: any relation kind, any relation-valued property such as validity or packages,
 //   and inline references; ADR-0004). From there the walk goes on only along the derivation chain
@@ -19,11 +19,11 @@
 //   page are built, each path by walking back.
 // - `incomplete` (SR-006 AK2): a relation is stored only in its source's file (ADR-0004), so while
 //   the workspace file lists a repository that is not on this machine, elements there may point at
-//   an affected element unseen (as `childrenOf`, assumption #262 option 1).
+//   an affected element unseen (as `childrenOf`, assumption ThomasBirkmaier/ReqSeq-archive#262 option 1).
 // - Evidence records (AK4): the records of an older version of the element appear with it. They
 //   come through the evidence seam (`AffectedOptions.evidence`): the command passes the element's
 //   records of the evidence index with its current version (SR-032), the core tests pass their own
-//   (#127 option 1). A record of another version than the current one is a record of an old version.
+//   (ThomasBirkmaier/ReqSeq-archive#127 option 1). A record of another version than the current one is a record of an old version.
 import type { TraceAffectedOutput } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
 import type { ElementRecord, IncomingLink, ShortIds, VersionForms } from "../model/index.js";

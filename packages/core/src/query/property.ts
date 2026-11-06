@@ -12,11 +12,11 @@
 //   with texts by code units (an ISO date is text in YAML 1.2, so dates compare as dates). `matches`:
 //   some text value matches the JavaScript regular expression `value` (flag `u`).
 // - A property of kind `choice`: a value may be the display name of a choice in any case, as on
-//   write (#309, `findNamed`); a text that names no choice is taken as written (a file may hold it,
+//   write (ThomasBirkmaier/ReqSeq-archive#309, `findNamed`); a text that names no choice is taken as written (a file may hold it,
 //   SR-085), one that names several is `input.invalid`.
 // - A key that holds relations (a property of kind `relation`, such as validity and packages, or a
 //   relation kind): the values are element references (`resolveRef`, any case; product owner's note
-//   on #81), compared with the targets the items name (UUID and repository, D-058); only `eq`, `ne`,
+//   on ThomasBirkmaier/ReqSeq-archive#81), compared with the targets the items name (UUID and repository, D-058); only `eq`, `ne`,
 //   `in`, `exists` and `missing` apply.
 import type { FilterPropertyCondition } from "../generated/types.js";
 import type { Named } from "../metamodel/index.js";

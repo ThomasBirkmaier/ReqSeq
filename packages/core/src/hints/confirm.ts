@@ -3,7 +3,7 @@
 // takes hint IDs (`hint-id.ts`, SR-025) and writes the current version of each target into the
 // relation item or inline reference the ID names (AK1, SR-102 AK1), and nothing else but the
 // current titles of the same-repository relation targets of the written file (decision on spec
-// question #307: `writeElementFiles` refreshes them on every write, `withCurrentTitles`).
+// question ThomasBirkmaier/ReqSeq-archive#307: `writeElementFiles` refreshes them on every write, `withCurrentTitles`).
 //
 // - Which hints: an ID is confirmed when the open outdated relations and references of its source
 //   (`outdatedOfShown`, by the rules of the check, SR-025) have its canonical form (`hintIdOf` of
@@ -12,7 +12,7 @@
 //   share the ID (the same target written twice by hand) are confirmed together.
 // - What is written: a relation item gets the text of its `version` scalar replaced, in its own
 //   quoting (`set-scalar` of `files/edit.ts`), and its `title` set to the target's current title
-//   when the target is in the same repository (`withCurrentTitles`, decision on #307); other keys,
+//   when the target is in the same repository (`withCurrentTitles`, decision on ThomasBirkmaier/ReqSeq-archive#307); other keys,
 //   comments and layout stay. This works for relation kinds and for relation-valued properties
 //   (validity, packages; ADR-0004), as a list or a single target. An inline reference gets only the value of its first `version=`
 //   parameter replaced; label and other parameters stay.
@@ -28,7 +28,7 @@
 // - IDs that confirm nothing are problems, not a failure of the call, so the other IDs still count:
 //   `hint.not-confirmable` (error) for an ID of no confirmable hint (only version hints can be
 //   confirmed, D-042; every other hint, for example an unknown property, has no hint ID and goes
-//   away when its cause is fixed; spec question #299), and for the IDs of a file the writer cannot
+//   away when its cause is fixed; spec question ThomasBirkmaier/ReqSeq-archive#299), and for the IDs of a file the writer cannot
 //   change in place (a version held by a YAML alias or anchor): that file is not written, the
 //   others are; `hint.not-found` (warning, exit code 0) for an ID of that form that no open hint
 //   has (confirmed already, the target changed again, the relation or the file is gone).
@@ -38,7 +38,7 @@
 //   without `kind` naming a variant with such open hints (computed for that variant alone). The
 //   warning of an empty selection is then left out, as it would contradict the refusal. `target`
 //   is not checked for them: it would compute every variant.
-// - All hints of one element (#310): `ref` selects the open hints its file stores, `target` those
+// - All hints of one element (ThomasBirkmaier/ReqSeq-archive#310): `ref` selects the open hints its file stores, `target` those
 //   on relations and inline references that point at it (its sources from the incoming index, so
 //   no walk over the store, N-036), both together those of `ref` that point at `target`; `kind`
 //   narrows the selection to some codes. These are the hints `hint.list` gives with a hint ID for

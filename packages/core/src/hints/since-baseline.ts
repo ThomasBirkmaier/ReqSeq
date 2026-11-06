@@ -36,7 +36,7 @@
 // - Cost (N-036): the headers of the baseline files and one full read per variant with a baseline
 //   (`newestBaselines`), then for a memo the changed UUIDs (`storeUpdate`), else the full pass: the
 //   core requirements once per store, their current versions (`currentVersionsOf`: the whole store,
-//   so the first call in a process waits for the versions build, 4–5 s at N-036, #259; a variant
+//   so the first call in a process waits for the versions build, 4–5 s at N-036, ThomasBirkmaier/ReqSeq-archive#259; a variant
 //   without baseline returns before), one pass over them per variant with one lookup each.
 import type { Problem } from "../catalog.js";
 import type { Baseline, BaselineCandidate } from "../baselines/index.js";

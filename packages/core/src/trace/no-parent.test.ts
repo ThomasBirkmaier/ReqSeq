@@ -51,7 +51,7 @@ describe("requirements without a parent (SR-022 AK6)", () => {
     const workspace = await open(ORPHANED);
     const out = (await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">;
     expect(noParent(out.problems)).toEqual([HINT]);
-    // A hint blocks nothing: ok by default (#304).
+    // A hint blocks nothing: ok by default (ThomasBirkmaier/ReqSeq-archive#304).
     expect(out.ok).toBe(true);
     // The same hint in hint.list and at the element (SR-026 AK3); nothing to confirm.
     const hints = (await invoke("hint.list", {}, { workspace })) as CommandOutput<"hint.list">;

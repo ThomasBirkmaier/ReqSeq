@@ -9,7 +9,7 @@
 // as SRs need them. `headFiles` reads the few small files of the Git folder that name HEAD itself,
 // so that opening an element needs no `rev-parse` (ADR-0006).
 //
-// A repository folder may lie below the top level of its Git work tree (#377): a workspace in
+// A repository folder may lie below the top level of its Git work tree (ThomasBirkmaier/ReqSeq-archive#377): a workspace in
 // `spec/` of a code repository. Every path in and out of this module is relative to the folder git
 // runs in, never to the top level: `log` gets its paths from there and its answer has the prefix
 // taken off, object names are sent as `<commit>:./<path>`, and `diff`, `ls-files` and `ls-tree` list relative
@@ -128,7 +128,7 @@ const COMMANDS = {
   untracked: ["-c", "core.untrackedCache=false", "ls-files", "--others", "--exclude-standard", "-z"],
   /**
    * Every file of a given commit below the folder git runs in, relative to it (no `--full-tree`, so
-   * a folder below the top level lists only its own files, #377), with mode, type and object ID,
+   * a folder below the top level lists only its own files, ThomasBirkmaier/ReqSeq-archive#377), with mode, type and object ID,
    * NUL after each (`-z`, no quoting). The commit ID is the only argument, so no path or option is
    * ever on the command line. One listing instead of a lookup per path (#439: 50,000 lookups of
    * `<commit>:<path>` took about 10 s, the listing about 0.03 s).
@@ -339,7 +339,7 @@ export interface WorkTree {
 
 /**
  * The work tree `folder` lies in: the nearest folder at or above it (after following links, as git
- * does) that holds a `.git` entry that git accepts, as git looks for one (#377, #414). The nearest wins, so a nested
+ * does) that holds a `.git` entry that git accepts, as git looks for one (ThomasBirkmaier/ReqSeq-archive#377, ThomasBirkmaier/ReqSeq-archive#414). The nearest wins, so a nested
  * repository keeps its own Git. Undefined where there is none or `folder` does not exist; no
  * process starts. git may still refuse such a folder (`safe.directory`, `GIT_CEILING_DIRECTORIES`,
  * a file system boundary); what it would tell is then unknown.
@@ -394,7 +394,7 @@ export type HeadCommit =
 
 /**
  * The HEAD commit of the repository whose work tree holds `folder` (its top level or a folder below
- * it, #377), and whether the repository is a shallow clone (its history then ends early). Unknown
+ * it, ThomasBirkmaier/ReqSeq-archive#377), and whether the repository is a shallow clone (its history then ends early). Unknown
  * when git is missing, refuses the repository, times out, or `folder` is in no work tree or the
  * repository has no commit yet.
  */
@@ -970,7 +970,7 @@ const answers = async (catFile: CatFile): Promise<ObjectInfos> =>
 
 /**
  * The names as git takes them: a path after `<commit ID>:` with `./` before it, so that git reads
- * it relative to the folder it runs in, not to the top level (#377). A name git cannot take is a
+ * it relative to the folder it runs in, not to the top level (ThomasBirkmaier/ReqSeq-archive#377). A name git cannot take is a
  * programming error.
  */
 const gitNames = (names: readonly string[]): string[] => {

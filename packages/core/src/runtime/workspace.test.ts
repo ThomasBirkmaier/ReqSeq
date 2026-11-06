@@ -429,7 +429,7 @@ describe("Workspace.peek and Workspace.replace (SR-007)", () => {
     expect(await ws.get(key)).toBe(2);
   });
 
-  describe("replace with carry hooks (#184)", () => {
+  describe("replace with carry hooks (ThomasBirkmaier/ReqSeq-archive#184)", () => {
     const setup = (
       carry: (value: { n: number }, change: StateChange, ws: Workspace) => { n: number } | undefined,
     ): {

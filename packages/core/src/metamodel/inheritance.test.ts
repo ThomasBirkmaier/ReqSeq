@@ -37,7 +37,7 @@ const invalid = (message: string, file: string, line: number): Problem => ({
   line,
 });
 
-/** The warning for a property that a type names and no property definition has (#141 c, #238). */
+/** The warning for a property that a type names and no property definition has (ThomasBirkmaier/ReqSeq-archive#141 c, ThomasBirkmaier/ReqSeq-archive#238). */
 const undefinedProperty = (type: string, property: string, line: number): Problem => ({
   code: "metamodel.invalid",
   severity: "warning",
@@ -330,7 +330,7 @@ describe("type inheritance", () => {
   });
 });
 
-describe("statuses per type (#306)", () => {
+describe("statuses per type (ThomasBirkmaier/ReqSeq-archive#306)", () => {
   /** A type of `model/types.yaml` at index `index`, without lines. */
   const typeAt = (definition: LocatedType["definition"]): LocatedType => ({
     definition,
@@ -423,7 +423,7 @@ describe("statuses per type (#306)", () => {
     ]);
   });
 
-  it("gives no warning for a type with only invalid statuses, also not for statuses: [] below one, only an info note (#344, #350, #343)", async () => {
+  it("gives no warning for a type with only invalid statuses, also not for statuses: [] below one, only an info note (ThomasBirkmaier/ReqSeq-archive#344, ThomasBirkmaier/ReqSeq-archive#350, ThomasBirkmaier/ReqSeq-archive#343)", async () => {
     const ws = await fixture({
       files: {
         "model/z-gone.yaml":
@@ -433,7 +433,7 @@ describe("statuses per type (#306)", () => {
     const metamodel = await load(ws.root);
     expect(metamodel.valid).toBe(true);
     // Their status is optional: an element without one is current, withdrawn retires it. Each type
-    // that has elements says so in an info note (#343): not the abstract one, an inherited list on
+    // that has elements says so in an info note (ThomasBirkmaier/ReqSeq-archive#343): not the abstract one, an inherited list on
     // the type, its own list on that line.
     expect(metamodel.problems.map((p) => [p.severity, p.line, p.message])).toEqual(
       [

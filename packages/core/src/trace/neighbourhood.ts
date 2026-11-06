@@ -16,14 +16,14 @@
 // - A view (SR-040, `appliesIn`) is a filter on the steps (`within`): an element that does not apply
 //   in it is not reached; the root always is.
 // - `repeated` (SR-107 AK3): an edge leads, in its own walk, to an element that this walk first
-//   reached through another edge, or to the root. Assumption (spec question #421, option A): the
+//   reached through another edge, or to the root. Assumption (spec question ThomasBirkmaier/ReqSeq-archive#421, option A): the
 //   first occurrence is the one the breadth-first walk reaches first (shortest depth, then link
 //   order). It holds within one call and within the followed links, because the walk knows nothing
 //   else.
 // - `outdated` (SR-107 AK4) is the rule of SR-025 (`isOutdatedVersion`), the one the hints use.
 // - `incomplete` (SR-006 AK2): up, a link into a repository that is not here or not in the workspace
 //   file; down, any repository of the workspace file that is not on this machine (the sources lie in
-//   their own files, assumption #262 option 1, as `childrenOf`).
+//   their own files, assumption ThomasBirkmaier/ReqSeq-archive#262 option 1, as `childrenOf`).
 // - Unresolved links (a missing or ambiguous target, SR-088, SR-089) are no steps and not listed:
 //   `element.get` and `workspace.check` report them. Down, while several files of the element's
 //   repository share its UUID (SR-088), no link is followed, as in `childrenOf`.

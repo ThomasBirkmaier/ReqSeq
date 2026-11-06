@@ -1,6 +1,6 @@
 // Reading baseline files, read-only (D-039 "Baseline als Datei", `baseline.schema.json`), so that
 // SR-032 AK2 can name the baselines that contain the version of an evidence record in stage 4
-// (assumption of spec question #530 Q1, plan F8). Creating and comparing baselines is stage 5
+// (assumption of spec question ThomasBirkmaier/ReqSeq-archive#530 Q1, plan F8). Creating and comparing baselines is stage 5
 // (SR-050, SR-051); this file never writes.
 //
 // - Where: the `baselines` location of the workspace file, by default the folder `baselines` in the
@@ -19,7 +19,7 @@
 //   else the copy in the repository of the file, else the only copy; an entry without `repository`
 //   whose UUID has several copies elsewhere is ambiguous and names none. `baseline.get`,
 //   `baseline.compare`, the hints since a baseline and `selects` share it (#690).
-// - Selects (`data.export` with `selection.baseline`, SR-061 AK2, assumption A1 of #530 Q2/Q4): a
+// - Selects (`data.export` with `selection.baseline`, SR-061 AK2, assumption A1 of ThomasBirkmaier/ReqSeq-archive#530 Q2/Q4): a
 //   baseline selects an element, whatever its version now, when an entry of its `elements` names
 //   that copy (`copyOf` in the store the caller passes). One index per file read, kept with the
 //   file, so a large baseline is indexed once.

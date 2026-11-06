@@ -1,4 +1,4 @@
-// Short instructions for an AI agent (#303): what ReqSeq is, which commands to start with, how elements and
+// Short instructions for an AI agent (ThomasBirkmaier/ReqSeq-archive#303): what ReqSeq is, which commands to start with, how elements and
 // hints are named. The MCP server sends them in its `initialize` result; they are built here, from the catalog
 // and the schema descriptions, so the adapter adds no text or logic of its own (ADR-0002).
 import type { JsonSchema } from "../catalog.js";

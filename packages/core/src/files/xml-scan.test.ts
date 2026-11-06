@@ -330,7 +330,7 @@ describe("scanXml", () => {
     );
   });
 
-  // Plan review of PR #545, B1: one start tag with many attributes, followed by a long text, used to
+  // Plan review of PR ThomasBirkmaier/ReqSeq-archive#545, B1: one start tag with many attributes, followed by a long text, used to
   // take quadratic time (a duplicate check over all earlier attributes, a search for `<` to the end
   // of the text for each value). 200,000 attributes before 10 MB of text scan in about a second when
   // linear; either quadratic path would take hours and run into the test timeout.

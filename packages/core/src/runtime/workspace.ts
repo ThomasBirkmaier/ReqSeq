@@ -215,8 +215,8 @@ export class Workspace {
    * carried over or reset: dependencies first, a state with a `carry` hook gets its next value from
    * it when every dependency of it that depends on `key` was carried too; every other one is reset,
    * dependents first, and then `from` is disposed. Used by the watcher and ReqSeq's own writes to
-   * update the element store file by file instead of reading it again (SR-007, #166; through
-   * `applyStoreChange`), and the states built on it with it (#184). Resolves with whether the value
+   * update the element store file by file instead of reading it again (SR-007, ThomasBirkmaier/ReqSeq-archive#166; through
+   * `applyStoreChange`), and the states built on it with it (ThomasBirkmaier/ReqSeq-archive#184). Resolves with whether the value
    * is now `to` (`to` equal to `from` changes nothing). The value is replaced even when a hook or a
    * disposal fails; a failed hook resets its state, and the call then rejects with an
    * `AggregateError` of the failures, as `reset` does.

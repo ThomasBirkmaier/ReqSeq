@@ -156,7 +156,7 @@ describe("search index documents (ADR-0008, SR-068)", () => {
       title: "Wind speed on the display",
       // The destinations of links and images are left out; labels, alt texts and titles stay.
       text: '\nThe station shall show [the gusts]() and ![a chart]( "Chart").\n',
-      // Type and status by the names the metamodel gives them (#80).
+      // Type and status by the names the metamodel gives them (ThomasBirkmaier/ReqSeq-archive#80).
       properties: "Need\nDraft\nPilots need it\nWeather",
     });
     const { properties } = documentOf(recordOf(store, S1), "", metamodel);
@@ -241,7 +241,7 @@ describe("searchElements (ADR-0008, SR-068)", () => {
     expect(ids(index, "temprature")).toEqual([U1, S2]);
     expect(ids(index, "presure")).toEqual([S1]);
     expect(ids(index, "temprature", { fuzzy: 0 })).toEqual([]);
-    // Never in a word with a digit: 1050 is in S1, 1051 is no typo of it (#80).
+    // Never in a word with a digit: 1050 is in S1, 1051 is no typo of it (ThomasBirkmaier/ReqSeq-archive#80).
     expect(ids(index, "1050")).toEqual([S1]);
     expect(ids(index, "1051")).toEqual([]);
     // A prefix from two letters; a shorter word only as itself.
@@ -430,7 +430,7 @@ describe("searchElements (ADR-0008, SR-068)", () => {
   });
 });
 
-describe("carried search index (ADR-0008, #184)", () => {
+describe("carried search index (ADR-0008, ThomasBirkmaier/ReqSeq-archive#184)", () => {
   /** Every word, short ID and UUID tail of the store, to compare two indexes by their answers. */
   const queries = (store: ElementStore): string[] => [
     ...new Set(

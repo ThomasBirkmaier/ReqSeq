@@ -3,14 +3,14 @@
 // is checked against metamodel.schema.json; the lists of all files are merged. A faulty file is
 // reported with file, line and reason and makes the metamodel invalid, which opens the workspace
 // read-only (SR-011 AK3, access.ts). Then the inheritance of the types is resolved (SR-012,
-// inheritance.ts, with the statuses of each type, #306) and the built-in meanings are assigned
-// (SR-013, meanings.ts). Checks across the lists (enabler #157): a key is either a property or a
+// inheritance.ts, with the statuses of each type, ThomasBirkmaier/ReqSeq-archive#306) and the built-in meanings are assigned
+// (SR-013, meanings.ts). Checks across the lists (enabler ThomasBirkmaier/ReqSeq-archive#157): a key is either a property or a
 // relation kind (ADR-0004, while merging); after all files, every type in `source-types`/
 // `target-types` is defined and exactly one status is initial; an initial status marked invalid is
-// a warning (#350); the relation limits are consistent (SR-152, limits.ts) and `max-items` is only
+// a warning (ThomasBirkmaier/ReqSeq-archive#350); the relation limits are consistent (SR-152, limits.ts) and `max-items` is only
 // on lists (SR-171). No type uses the prefix that short IDs of elements of an unknown type use
-// (#154). A type whose statuses are all marked invalid gets an info note that its status is
-// optional (#343), so a metamodel that marks them all invalid by mistake does not go unnoticed.
+// (ThomasBirkmaier/ReqSeq-archive#154). A type whose statuses are all marked invalid gets an info note that its status is
+// optional (ThomasBirkmaier/ReqSeq-archive#343), so a metamodel that marks them all invalid by mistake does not go unnoticed.
 import fs from "node:fs/promises";
 import path from "node:path";
 import { isNode } from "yaml";
@@ -47,8 +47,8 @@ export const METAMODEL_FILE_EXTENSION = ".yaml";
 
 /**
  * Prefix of the short ID of an element whose type the metamodel does not know (SR-016 AK3), of every
- * element while the metamodel is missing, and of a relation target that is not available (#193).
- * Decision on #154 (option 1). Reserved: a type with this prefix is a metamodel error, so a short ID
+ * element while the metamodel is missing, and of a relation target that is not available (ThomasBirkmaier/ReqSeq-archive#193).
+ * Decision on ThomasBirkmaier/ReqSeq-archive#154 (option 1). Reserved: a type with this prefix is a metamodel error, so a short ID
  * with it never names an element of a known type.
  */
 export const UNKNOWN_TYPE_PREFIX = "UNKNOWN";
@@ -75,7 +75,7 @@ export interface Metamodel {
   /**
    * The folder exists and no file has an error (faulty YAML, schema violation, key defined twice,
    * key used by a property and a relation kind), every type has known parents without a cycle (an
-   * unknown property in a type is only a warning, #141 c), no type or property meaning is declared
+   * unknown property in a type is only a warning, ThomasBirkmaier/ReqSeq-archive#141 c), no type or property meaning is declared
    * by two keys, every type in `source-types`/`target-types` and in the relation limits is defined,
    * no limit has `min` above `max` or a second limit for its pair of types, no `max-items` is on a
    * property that holds no list or holds relations, exactly one status is
@@ -184,7 +184,7 @@ const checkFile = async (root: string, file: string): Promise<CheckedFile> => {
       problems: yaml.warnings,
     };
   }
-  // Readable as input errors are (#309, #151), each definition named by its key.
+  // Readable as input errors are (ThomasBirkmaier/ReqSeq-archive#309, #151), each definition named by its key.
   const violations = inputViolations(fileSchemaErrors("metamodel.schema.json", yaml.data), {
     input: yaml.data,
     schemas: contractsBundle.schemas,
@@ -314,7 +314,7 @@ const unknownTypeProblems = (
   ];
 };
 
-/** Every type with the prefix `UNKNOWN_TYPE_PREFIX`, on the line of its prefix (#154). */
+/** Every type with the prefix `UNKNOWN_TYPE_PREFIX`, on the line of its prefix (ThomasBirkmaier/ReqSeq-archive#154). */
 const reservedPrefixProblems = (types: readonly Located<MetamodelType>[]): Problem[] =>
   types
     .filter((t) => t.definition.prefix === UNKNOWN_TYPE_PREFIX)
@@ -358,10 +358,10 @@ const initialStatusProblems = (
 };
 
 /**
- * Every initial status that is marked invalid (#350): a warning on its `invalid`, as `element.create`
+ * Every initial status that is marked invalid (ThomasBirkmaier/ReqSeq-archive#350): a warning on its `invalid`, as `element.create`
  * never gives a new element an invalid status, which would supersede it at once (D-044), and so
  * does not use it. A type whose statuses are all invalid is no problem: its status is optional
- * (#344, option 1).
+ * (ThomasBirkmaier/ReqSeq-archive#344, option 1).
  */
 const invalidInitialProblems = (statuses: readonly Located<MetamodelStatus>[]): Problem[] =>
   statuses
@@ -376,8 +376,8 @@ const invalidInitialProblems = (statuses: readonly Located<MetamodelStatus>[]): 
     );
 
 /**
- * An info note `metamodel.optional-status` for every type, not abstract, whose statuses are all marked invalid (#343): its
- * status is optional (#344, option 1), as `hasWorkingStatus` decides for its elements. On the type's
+ * An info note `metamodel.optional-status` for every type, not abstract, whose statuses are all marked invalid (ThomasBirkmaier/ReqSeq-archive#343): its
+ * status is optional (ThomasBirkmaier/ReqSeq-archive#344, option 1), as `hasWorkingStatus` decides for its elements. On the type's
  * `statuses` line, else (an inherited list, or no list and every status invalid) on the type.
  */
 const optionalStatusNotes = (

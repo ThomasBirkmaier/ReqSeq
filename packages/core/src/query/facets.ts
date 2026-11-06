@@ -1,4 +1,4 @@
-// The facets of a selection (`element.facets`, #425): which types, statuses and which values of which
+// The facets of a selection (`element.facets`, ThomasBirkmaier/ReqSeq-archive#425): which types, statuses and which values of which
 // properties the selected elements have, with counts, so a caller (the app's "Filter list by
 // property") can offer values that select something without counting them itself (ADR-0002).
 //

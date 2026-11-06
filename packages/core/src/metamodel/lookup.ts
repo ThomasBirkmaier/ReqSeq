@@ -51,7 +51,7 @@ export const typeForNewElement = (metamodel: Metamodel, key: MetamodelKey): Effe
 };
 
 /**
- * The status definitions elements of `type` may have (`type.statuses`, #306), in metamodel order;
+ * The status definitions elements of `type` may have (`type.statuses`, ThomasBirkmaier/ReqSeq-archive#306), in metamodel order;
  * empty for a type without status. A key no status defines (kept only while a metamodel file is
  * faulty) is left out.
  */
@@ -61,7 +61,7 @@ export const typeStatuses = (metamodel: Metamodel, type: EffectiveType): readonl
 };
 
 /**
- * Whether `type` has a status that is not marked invalid (#344, option 1). Only then does an element
+ * Whether `type` has a status that is not marked invalid (ThomasBirkmaier/ReqSeq-archive#344, option 1). Only then does an element
  * of it need a status (`element.missing-status`) and get one from `element.create`. A type whose
  * statuses are all marked invalid, e.g. `statuses: [retired]`, has an optional status: an element
  * without one is current, and `element.supersede` retires it (D-044, D-045).

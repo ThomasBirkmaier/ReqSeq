@@ -7,7 +7,7 @@ const STATUSES = [
   { key: "approved", name: "Übernommen" },
 ];
 
-describe("findNamed: a status or choice value by key or display name (#309)", () => {
+describe("findNamed: a status or choice value by key or display name (ThomasBirkmaier/ReqSeq-archive#309)", () => {
   it("[SR-012/AK3] finds a value by its key, or by its key or name in any case", () => {
     expect(findNamed(STATUSES, "draft")).toEqual({ kind: "found", key: "draft" });
     expect(findNamed(STATUSES, "DRAFT")).toEqual({ kind: "found", key: "draft" });

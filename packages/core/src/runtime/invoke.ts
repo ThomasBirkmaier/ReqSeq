@@ -1,7 +1,7 @@
 // The one entry point of the adapters (CLI, API, MCP, app): `invoke(name, input, { workspace })`.
 // Validates the input against the catalog, runs the command and maps every failure to a
 // CommandError with a code from common.schema.json#/$defs/error (ADR-0002 rule 4). Adds the short
-// ID of the element each problem of the output names (`withElementShortIds`, #315). Records the
+// ID of the element each problem of the output names (`withElementShortIds`, ThomasBirkmaier/ReqSeq-archive#315). Records the
 // element of an API or MCP call as the last access of the copy (`recordAccess`, SR-117). Refuses the
 // local paths of an API or MCP call outside the repositories of the workspace (SR-142).
 import type { AnyCommand } from "../catalog.js";
@@ -95,8 +95,8 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
   const guarded = new Set<string>();
   // Write commands, which the watcher of the workspace waits for (`Workspace.writesSettled`, #432).
   const writers = new Set<string>();
-  // Where the output of each command holds problems, from its output schema (#315); built on the
-  // first call of the command, since a CLI process runs one (#319).
+  // Where the output of each command holds problems, from its output schema (ThomasBirkmaier/ReqSeq-archive#315); built on the
+  // first call of the command, since a CLI process runs one (ThomasBirkmaier/ReqSeq-archive#319).
   const locators = new Map<string, () => ProblemLocator | undefined>();
   // Which element a call of each command names, from its catalog entry (SR-117).
   const calls = new Map<string, Omit<AccessCall, "access">>();
@@ -201,7 +201,7 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
             { workspace: ctx.workspace, signal, localPaths },
             checked as never,
           );
-          // Every problem that names an element names its short ID too (#315).
+          // Every problem that names an element names its short ID too (ThomasBirkmaier/ReqSeq-archive#315).
           const shown = await withElementShortIds(ctx.workspace, locator, result);
           if (call !== undefined) {
             // The states the command left, taken now; nothing waits for it (SR-117). Inputs and

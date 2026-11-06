@@ -1,7 +1,7 @@
 // Outdated evidence (SR-025 AK4, D-013): an element whose evidence records (Datensätze) of one kind
 // and variant all belong to older versions than its current one. The records come from `evidenceRecordsState` of the
-// evidence block (ADR-0012): the Markdown records since SR-028 (#40), the JUnit records with SR-093
-// (#105). The check of AK4 is tested at core level with records given through it (decision on #127,
+// evidence block (ADR-0012): the Markdown records since SR-028 (ThomasBirkmaier/ReqSeq-archive#40), the JUnit records with SR-093
+// (ThomasBirkmaier/ReqSeq-archive#105). The check of AK4 is tested at core level with records given through it (decision on ThomasBirkmaier/ReqSeq-archive#127,
 // option 1) and end to end on record files (`packages/cli/test/e2e/evidence-records.test.ts`).
 //
 // - Per element, kind (verification, validation) and variant (none: the core, SR-047) the evidence
@@ -186,12 +186,12 @@ export interface ElementEvidenceContext {
  * (`settledValue`), else from the records and the current version of this element alone
  * (`currentVersionsOf`; ADR-0008). Its records are those of its UUID in the evidence index
  * (`byElement`), put back into the order of `evidenceRecordsState` (`positionOf`), so a tie of dates
- * picks the same record as the state, and no other element's records are looked at (#698: grouping
+ * picks the same record as the state, and no other element's records are looked at (ThomasBirkmaier/ReqSeq-archive#698: grouping
  * every record of the workspace cost about 170 ms per open at N-036). Called only against a valid
  * metamodel (`getElement`, the write path). `element.get` builds the index anyway for the
  * verification status; `element.update` and `element.create` (`model/write.ts`) build it for this
  * hint alone when it is not built (about 0.28 s at N-036 after `evidence.record` reset it, where the
- * grouping cost about 0.17 s), until the index is carried over a new record (#698 PR D, #713).
+ * grouping cost about 0.17 s), until the index is carried over a new record (ThomasBirkmaier/ReqSeq-archive#698 PR D, ThomasBirkmaier/ReqSeq-archive#713).
  * `element` may be the element as its file holds it now; it is looked up in the store by
  * repository and file. Each problem keeps the line in its record file. For two copies of one UUID
  * (SR-088) each copy is compared with its own version, here as in the state (#201).

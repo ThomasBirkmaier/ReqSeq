@@ -4,11 +4,11 @@
 // conditions `verification`, `validation` and `{relation: {direction: evidence}}` ask only this
 // provider, never the records themselves.
 //
-// Stage 4 computes the verification status from the evidence records (SR-031 #43) and, for a
-// requirement without own record, from its children (SR-034 #46): each requirement (a type with the
+// Stage 4 computes the verification status from the evidence records (SR-031 ThomasBirkmaier/ReqSeq-archive#43) and, for a
+// requirement without own record, from its children (SR-034 ThomasBirkmaier/ReqSeq-archive#46): each requirement (a type with the
 // meaning `requirement`, own or inherited, SR-012) in each view it applies in (SR-040, SR-047 AK3).
-// The validation status (SR-038 #50) comes from the validation records of the core: every need has
-// one (`open` without record), any other element only with a validation record (#534). Both come
+// The validation status (SR-038 ThomasBirkmaier/ReqSeq-archive#50) comes from the validation records of the core: every need has
+// one (`open` without record), any other element only with a validation record (ThomasBirkmaier/ReqSeq-archive#534). Both come
 // from the evidence block's `verificationState` (`evidence/verification.ts`), which element.get and
 // evidence.status share. Only the elements that have records get a current version
 // (`currentVersionsOf`: the files of those elements, or the whole store when they are a large share
@@ -19,9 +19,9 @@
 // evidence, and `ready` reads nothing.
 // "Has evidence" is `hasVerificationRecord` of the evidence block, with the mark of the element's
 // repository from the shared status source (`independent`, SR-173): a verification record in the
-// view, any version and result (spec question #527); validation records never count (D-007).
+// view, any version and result (spec question ThomasBirkmaier/ReqSeq-archive#527); validation records never count (D-007).
 // The conditions are tested at core level with records given through `evidenceRecordsState` or a
-// provider given through `evidenceStatusState` (decision on #127, option 1).
+// provider given through `evidenceStatusState` (decision on ThomasBirkmaier/ReqSeq-archive#127, option 1).
 import type { ValidationStatus, VerificationStatus } from "../generated/types.js";
 import type { EvidenceIndex, WorkspaceStatus } from "../evidence/index.js";
 import { evidenceIndexState, hasVerificationRecord, verificationState } from "../evidence/index.js";

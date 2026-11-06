@@ -27,7 +27,7 @@ const FIXTURE_COPIES = [
 
 /**
  * The shipped standard model, checked like any metamodel: as the only file of a metamodel folder
- * (#127 option 1: `workspace.check` comes later, so the check is the metamodel load of SR-011).
+ * (ThomasBirkmaier/ReqSeq-archive#127 option 1: `workspace.check` comes later, so the check is the metamodel load of SR-011).
  */
 const standardModel = async (): Promise<Metamodel> => {
   const ws = await createFixtureWorkspace({
@@ -170,7 +170,7 @@ describe("standard model", () => {
     }
   });
 
-  it("restricts no type's statuses: every type of the standard model has every status (#306)", async () => {
+  it("restricts no type's statuses: every type of the standard model has every status (ThomasBirkmaier/ReqSeq-archive#306)", async () => {
     const metamodel = await standardModel();
     expect(metamodel.types.every((t) => t.statuses === undefined)).toBe(true);
     expect(new Set(metamodel.effectiveTypes.map((t) => t.statuses.join(",")))).toEqual(
@@ -189,7 +189,7 @@ describe("standard model", () => {
 
   it("[SR-014/AK3] assigns every meaning of D-012 to a key: each type and property meaning to exactly one", async () => {
     const metamodel = await standardModel();
-    // Open question #150, option 1 (assumption): a relation meaning may have several relation kinds
+    // Open question ThomasBirkmaier/ReqSeq-archive#150, option 1 (assumption): a relation meaning may have several relation kinds
     // (D-012: "Jede Beziehungsart ist entweder eine Parent-Child-Beziehung ..."); the standard
     // model has two for derivation (Refines, Derives from).
     const expected: Readonly<Record<Meaning, readonly string[]>> = {
@@ -208,7 +208,7 @@ describe("standard model", () => {
       "import-date": ["import-date"],
       delivery: ["delivery"],
       "import-version": ["import-version"],
-      // Not a meaning of D-012 (#305): the spec defines no property for IDs from other sources yet,
+      // Not a meaning of D-012 (ThomasBirkmaier/ReqSeq-archive#305): the spec defines no property for IDs from other sources yet,
       // so the standard model has none; a workspace adds one with `meaning: identifier`.
       identifier: [],
       "acceptance-criteria": ["acceptance-criteria"],
@@ -229,7 +229,7 @@ describe("standard model", () => {
         expect(keys, meaning).toHaveLength(1);
       }
     }
-    // Flags that D-012 also fixes: the content flag (D-013, D-057; #129 option 1) and the invalid status (D-044).
+    // Flags that D-012 also fixes: the content flag (D-013, D-057; ThomasBirkmaier/ReqSeq-archive#129 option 1) and the invalid status (D-044).
     // D-057: "Im Standardmodell zählen Acceptance Criteria, Requirement Type und Validity; Title, Status,
     // Package, Rationale, Emergent und die Herkunft zählen nicht." D-071 leaves it open for its two
     // properties; assumed (#769): the validation criteria count like the acceptance criteria, the

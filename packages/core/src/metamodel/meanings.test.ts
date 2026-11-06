@@ -32,7 +32,7 @@ import {
   workspaceAccess,
 } from "./index.js";
 
-// #127 option 1: SR-013 AK1 and AK2 are tested here, at the lowest existing level, where the core
+// ThomasBirkmaier/ReqSeq-archive#127 option 1: SR-013 AK1 and AK2 are tested here, at the lowest existing level, where the core
 // resolves a meaning to the keys of the metamodel. The chain (trace.chain, stage 2) and the variant
 // view (SR-040, SR-043, stage 5) build on these functions and add end-to-end tests with the same
 // [SR-013/AK1] and [SR-013/AK2] prefixes.
@@ -302,7 +302,7 @@ describe("built-in meanings", () => {
     expect(metamodel.meanings.variant).toEqual(["edition", "release"]);
     expect(metamodel.meanings.validity).toEqual(["applies-to", "valid-for"]);
     expect(metamodel.meanings.derivation).toEqual(["satisfies", "derives-from"]);
-    // The first one is used; the workspace is read-only until the metamodel is fixed (#141).
+    // The first one is used; the workspace is read-only until the metamodel is fixed (ThomasBirkmaier/ReqSeq-archive#141).
     expect(propertyWithMeaning(metamodel, "validity")?.key).toBe("applies-to");
     expect(await workspaceAccess(workspace)).toEqual({ readOnly: true, reasons: problems });
   });
@@ -375,7 +375,7 @@ describe("built-in meanings", () => {
     expect(assigned.problems).toHaveLength(1);
   });
 
-  it("reports the meaning identifier on another kind than text, without a line when the place is not known (#305)", () => {
+  it("reports the meaning identifier on another kind than text, without a line when the place is not known (ThomasBirkmaier/ReqSeq-archive#305)", () => {
     const at = (definition: MetamodelProperty): Located<MetamodelProperty> => ({
       definition,
       file: "model/properties.yaml",
@@ -741,13 +741,13 @@ describe("built-in meanings", () => {
 
   it("assigns every type and property meaning of the standard model to one key, and two relation kinds to derivation", async () => {
     // SR-014 AK3 checks the standard model itself; this keeps both in step. Two relation kinds share
-    // derivation (Refines, Derives from); open question #150.
+    // derivation (Refines, Derives from); open question ThomasBirkmaier/ReqSeq-archive#150.
     const ws = await createFixtureWorkspace({ fixture: "SR-004/one-repository" });
     onTestFinished(() => ws.cleanup());
     const metamodel = await open(ws.root).get(metamodelState);
     expect(metamodel).toMatchObject({ valid: true, problems: [] });
     for (const [meaning, keys] of Object.entries(metamodel.meanings)) {
-      // `identifier` (#305) is no meaning of D-012; the standard model has no property with it.
+      // `identifier` (ThomasBirkmaier/ReqSeq-archive#305) is no meaning of D-012; the standard model has no property with it.
       const expected = meaning === "derivation" ? 2 : meaning === "identifier" ? 0 : 1;
       expect(keys, meaning).toHaveLength(expected);
     }

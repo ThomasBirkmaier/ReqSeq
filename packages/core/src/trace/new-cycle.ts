@@ -1,6 +1,6 @@
 // The cycle one new derivation relation closes (SR-067 AK3, SR-090, D-012), for `relation.add`.
 // A relation from the child to the parent closes a cycle exactly when the walk up from the parent
-// reaches the child (hand-over of #102); a relation of an element to itself is a cycle on its own.
+// reaches the child (hand-over of ThomasBirkmaier/ReqSeq-archive#102); a relation of an element to itself is a cycle on its own.
 // The hint names that one cycle, the shortest way back through the new relation (breadth first),
 // not every element of the strongly connected component it joins (`workspace.check` lists those).
 // A walk up follows each element's own relations (`parentsOf`), so `upwardGraph` builds the graph

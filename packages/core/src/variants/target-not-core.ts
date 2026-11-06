@@ -46,7 +46,7 @@ export const targetNotCoreFindingsOf = (
 /**
  * The hints of `items` (rule items of `workspace`'s current store) with repository, file, line,
  * element and target ID, in item order; none against a metamodel that is not valid, whose errors are
- * the findings (#208, #220). `variant.diff` passes the items that act in one variant.
+ * the findings (ThomasBirkmaier/ReqSeq-archive#208, ThomasBirkmaier/ReqSeq-archive#220). `variant.diff` passes the items that act in one variant.
  */
 export const targetNotCoreProblemsOf = async (
   workspace: Workspace,

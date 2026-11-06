@@ -1,4 +1,4 @@
-// The short ID of the element each problem names, added where outputs leave the runtime (#315).
+// The short ID of the element each problem names, added where outputs leave the runtime (ThomasBirkmaier/ReqSeq-archive#315).
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureOptions } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
@@ -179,7 +179,7 @@ describe("problemLocator", () => {
   });
 });
 
-// An independent walk over every keyword of an output schema (#319): it finds each reference to
+// An independent walk over every keyword of an output schema (ThomasBirkmaier/ReqSeq-archive#319): it finds each reference to
 // the problem schema and the place of the value it describes, so that a test can ask the locator
 // for each of them. It knows every keyword the catalog uses and fails on any other.
 
@@ -387,7 +387,7 @@ const overfilled = (
  */
 const NOT_LOCATED: readonly string[] = [];
 
-describe("every problem of every output schema is located (#319)", () => {
+describe("every problem of every output schema is located (ThomasBirkmaier/ReqSeq-archive#319)", () => {
   it("walks every keyword and finds each problem at its place, or at none", () => {
     const schema = {
       type: "object",
@@ -531,7 +531,7 @@ describe("fillElementShortIds", () => {
   });
 });
 
-describe("fillElementShortIds at every place of a value (#319)", () => {
+describe("fillElementShortIds at every place of a value (ThomasBirkmaier/ReqSeq-archive#319)", () => {
   const shortIdOf = (): ProblemNames => ({ elementShortId: "N-0000a1" });
   const problem = about(N1, "x.md");
   const shown = { ...problem, elementShortId: "N-0000a1" };
@@ -703,7 +703,7 @@ describe("withElementShortIds names the target of a problem (#172)", () => {
   });
 });
 
-describe("withElementShortIds takes one view of the workspace (ADR-0008, #319)", () => {
+describe("withElementShortIds takes one view of the workspace (ADR-0008, ThomasBirkmaier/ReqSeq-archive#319)", () => {
   const where = locator({ properties: { problems: PROBLEMS } });
   const expected = { problems: [{ ...named(N1).problems[0], elementShortId: "N-0000a1" }] };
 
@@ -759,7 +759,7 @@ describe("withElementShortIds takes one view of the workspace (ADR-0008, #319)",
     expect(newerOf).not.toHaveBeenCalled();
   });
 
-  it("uses the short IDs carried over a change of the store, without building them again (#184)", async () => {
+  it("uses the short IDs carried over a change of the store, without building them again (ThomasBirkmaier/ReqSeq-archive#184)", async () => {
     const workspace = await open();
     const [, metamodel] = await Promise.all([
       workspace.get(elementStoreState),
@@ -807,7 +807,7 @@ describe("withElementShortIds takes one view of the workspace (ADR-0008, #319)",
   });
 });
 
-describe("every command names the short ID of the element of each problem (#315)", () => {
+describe("every command names the short ID of the element of each problem (ThomasBirkmaier/ReqSeq-archive#315)", () => {
   it("workspace.check, hint.list and element.get give the same problems, with short IDs", async () => {
     const workspace = await open();
     const check = (await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">;
@@ -843,7 +843,7 @@ describe("every command names the short ID of the element of each problem (#315)
     expect(await checked(true)).toEqual(fresh);
   });
 
-  it("builds the locator of a command on its first call, before the command runs (#319)", async () => {
+  it("builds the locator of a command on its first call, before the command runs (ThomasBirkmaier/ReqSeq-archive#319)", async () => {
     const recursive: Record<string, unknown> = { type: "object" };
     recursive["properties"] = { child: recursive, problems: PROBLEMS };
     const catalog = {

@@ -1,5 +1,5 @@
 // The `baselines` block (D-039, architecture README §5). Stage 4 has the read-only reader of baseline
-// files (SR-032 AK2, spec question #530), the fast reader of the file format of ADR-0018 and the
+// files (SR-032 AK2, spec question ThomasBirkmaier/ReqSeq-archive#530), the fast reader of the file format of ADR-0018 and the
 // writer of new baseline files (SR-050), showing and comparing a baseline (SR-051) and the records
 // that count for its evidence (SR-094). Core blocks and commands import it relatively; it never
 // imports `commands`. Block doc: docs/baselines.md.
