@@ -12,7 +12,9 @@ import {
   memberHeading,
   memberList,
   memberSelection,
+  memberQuery,
   memberSummary,
+  withMemberQuery,
   packageModel,
   packageOf,
   packageSelection,
@@ -205,5 +207,17 @@ describe("the line of a list (product owner decision, 2026-11-06)", () => {
       input: { selection },
       name: "Show evidence coverage type: system-requirement",
     });
+  });
+});
+
+describe("the query of a package page's elements (#993)", () => {
+  it("is the steps and the sort of the page; a change keeps the rest, starts from the first row and drops a grouping", () => {
+    const page = { ...elementBuffer("p1", "spec", "PKG-1 Wind"), memberSort: DEFAULT_SORT, memberCursor: 4 };
+    expect(memberQuery(page)).toEqual({ steps: [], sort: DEFAULT_SORT });
+    const filtered = withMemberQuery(page, { steps: [statusStep("draft")], group: "type" });
+    expect(filtered).toEqual({ ...page, memberSteps: [statusStep("draft")], memberCursor: 0 });
+    expect(memberQuery(filtered)).toEqual({ steps: [statusStep("draft")], sort: DEFAULT_SORT });
+    const { memberSort: _sort, memberSteps: _steps, ...plain } = filtered;
+    expect(withMemberQuery(filtered, { steps: [], sort: undefined })).toEqual(plain);
   });
 });

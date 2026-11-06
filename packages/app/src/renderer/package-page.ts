@@ -13,6 +13,8 @@ import { packageSummaryText } from "@reqseq/core/verification-degree";
 import type { ElementBuffer, FilterStep, ListBuffer, ResultBuffer } from "./buffers.js";
 import { resultBuffer, selectionOf, sortLabel } from "./buffers.js";
 import type { Call } from "./call.js";
+import type { ListQuery, QueryChange } from "./list-query.js";
+import { changeQuery } from "./list-query.js";
 import type { BufferData } from "./modeline.js";
 import { INCOMPLETE } from "./modeline.js";
 
@@ -69,6 +71,27 @@ export const memberList = (buffer: ElementBuffer, selection: ElementSelection): 
   ...(buffer.memberSort === undefined ? {} : { sort: buffer.memberSort }),
   cursor: buffer.memberCursor ?? 0,
 });
+
+/** What the elements of a package page ask besides the package (`list-query.ts`): its steps and sort. */
+export const memberQuery = (page: ElementBuffer): ListQuery => ({
+  steps: page.memberSteps ?? [],
+  ...(page.memberSort === undefined ? {} : { sort: page.memberSort }),
+});
+
+/**
+ * The same package page with its elements asked by another query, from their first row. The page stays the
+ * element buffer (editor and draft included); parts a package page does not show are dropped.
+ */
+export const withMemberQuery = (page: ElementBuffer, change: QueryChange): ElementBuffer => {
+  const next = changeQuery(memberQuery(page), change, "members");
+  const { memberSteps: _steps, memberSort: _sort, ...rest } = page;
+  return {
+    ...rest,
+    ...(next.steps.length === 0 ? {} : { memberSteps: next.steps }),
+    ...(next.sort === undefined ? {} : { memberSort: next.sort }),
+    memberCursor: 0,
+  };
+};
 
 /** How many elements the page found, and whether a repository was missing for the answer. */
 export interface MemberCount {

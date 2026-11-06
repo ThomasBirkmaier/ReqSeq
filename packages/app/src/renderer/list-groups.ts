@@ -4,6 +4,7 @@
 import type { ElementFacetsOutput, ElementListOutput } from "@reqseq/core";
 import type { Choice } from "./actions.js";
 import { idTitle } from "./id-title.js";
+import { choosableProperties } from "./list-filters.js";
 
 export type ListGroup = NonNullable<ElementListOutput["groups"]>[number];
 
@@ -54,10 +55,9 @@ const BUILT_IN = [
 
 /**
  * The choices of the prompt "Group by" (SR-149 AK4): type, status and package, then each property of the
- * listed elements whose values can be chosen (`element.facets` gives them, the rule `group` accepts), in
- * the order the core gives, but not the property of the packages (`packages`), which "Package" groups by.
- * Without a property of the packages there is no "Package": `element.list` would refuse it
- * (`metamodel.meaning-unassigned`). `apply` gets the `group` of the one that is taken.
+ * listed elements whose values can be chosen (`choosableProperties`, as "Filter by" offers them), but
+ * not the property of the packages (`packages`), which "Package" groups by. Without a property of the
+ * packages there is no "Package": `element.list` would refuse it (`metamodel.meaning-unassigned`). `apply` gets the `group` of the one that is taken.
  */
 export const groupChoices = (
   facets: ElementFacetsOutput,
@@ -71,14 +71,14 @@ export const groupChoices = (
       apply(group);
     },
   })),
-  ...facets.properties.flatMap((facet) =>
-    facet.values === undefined || facet.values.length === 0 || packages.includes(facet.key)
+  ...choosableProperties(facets).flatMap(({ facet, values }) =>
+    packages.includes(facet.key)
       ? []
       : [
           {
             id: `property:${facet.key}`,
             name: facet.key,
-            hint: String(facet.values.length),
+            hint: String(values.length),
             run: () => {
               apply(facet.key);
             },

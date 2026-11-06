@@ -10,6 +10,8 @@ import type {
 } from "@reqseq/core";
 import { idTitle } from "./id-title.js";
 import { hasSavedFilter } from "./list-filters.js";
+import type { ListQuery, QueryChange } from "./list-query.js";
+import { changeQuery, fitsView, queryIn } from "./list-query.js";
 
 /** One step of a list filter: the text the label shows and what it adds to the selection (a condition or a saved filter). */
 export interface FilterStep {
@@ -19,32 +21,24 @@ export interface FilterStep {
   readonly selection: Pick<ElementSelection, "where" | "filter">;
 }
 
-/** The list of elements of the workspace: one buffer, changed in place when filtered or sorted. */
-export interface ListBuffer {
+/**
+ * The list of elements of the workspace: one buffer, changed in place when filtered, sorted or grouped. What
+ * it asks is its query (`list-query.ts`): the steps, the sort and the grouping. The grouping is display
+ * state like the sort, but not stored with the buffers (SR-149 AK5).
+ */
+export interface ListBuffer extends ListQuery {
   readonly kind: "list";
   readonly key: string;
   /** What the list holds: "All elements", or the labels of the steps joined by " · " ("type: need · status: draft"). */
   readonly label: string;
-  /** The filter steps, each narrowing the list of the one before (SR-124 AK1); none: every element. */
-  readonly steps: readonly FilterStep[];
   /** What the steps select together, the input of `element.list` (`selectionOf`). */
   readonly selection?: ElementSelection;
   /**
-   * How the list is sorted. Not set: nothing chosen yet, `listSort` tells what is asked for. `[]`: the
-   * workspace order (the order of the store). Else the keys as `element.list` takes them.
-   */
-  readonly sort?: readonly FilterSortKeyWithDefaults[];
-  /**
    * The list shows as a traceability matrix (SR-125, D-062): the same selection and sort, `trace.matrix`
    * instead of `element.list`. A mode of the list buffer, not a buffer of its own; filtering, sorting and
-   * clearing a filter keep it.
+   * clearing a filter keep it. The matrix shows no groups (`queryIn`).
    */
   readonly matrix?: true;
-  /**
-   * How the list is grouped (SR-149): the `group` of `element.list` (`type`, `status`, `package` or a
-   * property key); none: no groups. Display state like the sort, but not stored with the buffers (AK5).
-   */
-  readonly group?: string;
   /** Index of the selected row; `NO_ROW` while none is. */
   readonly cursor: number;
 }
@@ -300,32 +294,47 @@ export const filteredList = (
 export const inMatrix = (buffer: Buffer | undefined): buffer is ListBuffer =>
   buffer?.kind === "list" && buffer.matrix === true;
 
+/** The view a list shows its query in. */
+export const listView = (list: ListBuffer): "list" | "matrix" => (list.matrix === true ? "matrix" : "list");
+
+/** What `list` asks: its steps, sort and grouping. */
+export const queryOf = (list: ListBuffer): ListQuery => ({
+  steps: list.steps,
+  ...(list.sort === undefined ? {} : { sort: list.sort }),
+  ...(list.group === undefined ? {} : { group: list.group }),
+});
+
+/** The list that asks `query`, in `view`, from its first row: the parts the view does not show are dropped. */
+export const listOf = (query: ListQuery, view: "list" | "matrix"): ListBuffer => {
+  const shown = queryIn(query, view);
+  const list = filteredList(shown.steps, shown.sort, view === "matrix");
+  return shown.group === undefined ? list : { ...list, group: shown.group };
+};
+
 /**
- * The same list in matrix mode, or (`on` false) as a list; the row and everything else stay. The matrix
- * shows no groups (SR-149): a grouped list enters it without its grouping and from its first row, since a
- * row of the groups is another element in the matrix.
+ * The same list with some parts of its query changed (other steps, another sort or grouping), from its
+ * first row; the other parts and the mode stay (SR-124, SR-149 AK3).
+ */
+export const withQuery = (list: ListBuffer, change: QueryChange): ListBuffer =>
+  listOf(changeQuery(queryOf(list), change, listView(list)), listView(list));
+
+/**
+ * The same list in matrix mode, or (`on` false) as a list. The row and everything else stay, unless the
+ * view drops a part of the query (the matrix shows no groups, SR-149): then the rows change and it starts
+ * from the first row, since a row of the groups is another element in the matrix.
  */
 export const withMatrix = (list: ListBuffer, on: boolean): ListBuffer => {
-  const { matrix: _before, ...rest } = list;
-  if (!on) {
-    return rest;
+  const view = on ? "matrix" : "list";
+  if (!fitsView(queryOf(list), view)) {
+    return listOf(queryOf(list), view);
   }
-  const { group, ...ungrouped } = rest;
-  return group === undefined ? { ...rest, matrix: true } : { ...ungrouped, matrix: true, cursor: NO_ROW };
+  const { matrix: _before, ...rest } = list;
+  return on ? { ...rest, matrix: true } : rest;
 };
 
-/**
- * The same list grouped by `group`, or without groups (undefined), from its first row (SR-149 AK3): the
- * steps, the sort and the mode stay.
- */
-export const withGroup = (list: ListBuffer, group: string | undefined): ListBuffer => {
-  const { group: _before, ...rest } = list;
-  return { ...rest, ...(group === undefined ? {} : { group }), cursor: NO_ROW };
-};
-
-/** `next`, a list built from `list` with other steps or another sort, in the grouping of `list` (SR-149 AK3). */
-export const keepGroup = (list: ListBuffer, next: ListBuffer): ListBuffer =>
-  list.group === undefined ? next : { ...next, group: list.group };
+/** The same list grouped by `group`, or without groups (undefined), from its first row (SR-149 AK3). */
+export const withGroup = (list: ListBuffer, group: string | undefined): ListBuffer =>
+  withQuery(list, { group });
 
 export const searchBuffer = (query: string): SearchBuffer => ({
   kind: "search",

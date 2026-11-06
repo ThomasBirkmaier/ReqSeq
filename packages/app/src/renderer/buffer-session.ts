@@ -4,7 +4,8 @@
 // workspace, never in the files of the workspace (as SR-118 AK5) and not through a catalog command
 // (SR-080 AK1: "außer reiner Darstellung der App", ADR-0002 rule 3).
 //
-// Stored is what rebuilds each buffer, in the order of use: the kind, the UUID and repository of an element, the steps, sort and mode of a list, the text of a
+// Stored is what rebuilds each buffer, in the order of use: the kind, the UUID and repository of an
+// element, the kept parts of a list's query (`keptQuery`: steps and sort) and its mode, the text of a
 // search, the input of a graph, the mode of the metamodel, the command and input of a result. Never an
 // element's title or text, no output and no selected row. The names of the elements are read again when
 // the workspace opens, with one `element.list`; an element that is gone is left out, as the overview
@@ -12,6 +13,8 @@
 // lists its command as an implemented read command, so a restore never writes.
 import type { CommandTypes, FilterSortKeyWithDefaults, TraceGraphInput } from "@reqseq/core";
 import type { CommandListing, InvokeResult } from "../shared/protocol.js";
+import { keptQuery } from "./list-query.js";
+import { memberQuery } from "./package-page.js";
 import type { Buffer, Buffers, ElementBuffer, FilterStep, GraphDepth } from "./buffers.js";
 import {
   MAX_BUFFERS,
@@ -22,6 +25,7 @@ import {
   metamodelBuffer,
   neighbourhoodBuffer,
   overviewBuffer,
+  queryOf,
   readOnlyBuffer,
   resultBuffer,
   searchBuffer,
@@ -108,31 +112,41 @@ export const sessionKey = (status: InvokeResult): string | undefined => {
 
 const ofElement = (buffer: Named): Named => ({ id: buffer.id, repository: buffer.repository });
 
+/** The steps as stored: the label, the heading and the selection of each. */
+const storedSteps = (steps: readonly FilterStep[]): FilterStep[] =>
+  steps.map((step) => ({
+    label: step.label,
+    ...(step.heading === undefined ? {} : { heading: step.heading }),
+    selection: step.selection,
+  }));
+
 /** What is stored of an element buffer: the element, the sort and the filter steps of a package page's elements, read-only. */
-const storedElement = (buffer: ElementBuffer): StoredBuffer => ({
-  kind: "element",
-  ...ofElement(buffer),
-  ...(buffer.memberSort === undefined ? {} : { memberSort: buffer.memberSort }),
-  ...(buffer.memberSteps === undefined ? {} : { memberSteps: buffer.memberSteps }),
-  ...(buffer.readOnly === true ? { readOnly: true as const } : {}),
-});
+const storedElement = (buffer: ElementBuffer): StoredBuffer => {
+  const kept = keptQuery(memberQuery(buffer));
+  return {
+    kind: "element",
+    ...ofElement(buffer),
+    ...(kept.sort === undefined ? {} : { memberSort: kept.sort }),
+    ...(kept.steps.length === 0 ? {} : { memberSteps: storedSteps(kept.steps) }),
+    ...(buffer.readOnly === true ? { readOnly: true as const } : {}),
+  };
+};
 
 /** What is stored of `buffer`. */
 const storedOf = (buffer: Buffer): StoredBuffer => {
   switch (buffer.kind) {
     case "overview":
       return { kind: "overview" };
-    case "list":
+    case "list": {
+      // What a restart keeps of the query (`keptQuery`): the steps and the sort, not the grouping.
+      const kept = keptQuery(queryOf(buffer));
       return {
         kind: "list",
-        steps: buffer.steps.map((step) => ({
-          label: step.label,
-          ...(step.heading === undefined ? {} : { heading: step.heading }),
-          selection: step.selection,
-        })),
-        ...(buffer.sort === undefined ? {} : { sort: buffer.sort }),
+        steps: storedSteps(kept.steps),
+        ...(kept.sort === undefined ? {} : { sort: kept.sort }),
         ...(buffer.matrix === true ? { matrix: true as const } : {}),
       };
+    }
     case "search":
       return { kind: "search", query: buffer.query };
     case "element":

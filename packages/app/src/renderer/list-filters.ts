@@ -103,6 +103,22 @@ const valuePrompt = (
   ],
 });
 
+/** A property whose values can be chosen, with them. */
+export interface Choosable {
+  readonly facet: Facet;
+  readonly values: readonly FacetValue[];
+}
+
+/**
+ * The properties of the elements `facets` describes whose values can be chosen, in the order the core
+ * gives: free text and a property without values among these elements are left out (SR-124 AK3). "Filter
+ * by" and "Group by" offer the same ones, the rule `group` of `element.list` accepts (SR-149 AK4).
+ */
+export const choosableProperties = (facets: ElementFacetsOutput): Choosable[] =>
+  facets.properties.flatMap((facet) =>
+    facet.values === undefined || facet.values.length === 0 ? [] : [{ facet, values: facet.values }],
+  );
+
 /** The prompt for the status: the statuses of the list with their counts. */
 const statusPrompt = (
   statuses: ElementFacetsOutput["statuses"],
@@ -142,19 +158,12 @@ export const propertyChoices = (
           },
         },
       ]),
-  ...facets.properties.flatMap((facet) => {
-    const { values } = facet;
-    return values === undefined || values.length === 0
-      ? []
-      : [
-          {
-            id: facet.key,
-            name: facet.key,
-            hint: String(values.length),
-            run: () => {
-              ask(valuePrompt(facet, values, run));
-            },
-          },
-        ];
-  }),
+  ...choosableProperties(facets).map(({ facet, values }) => ({
+    id: facet.key,
+    name: facet.key,
+    hint: String(values.length),
+    run: () => {
+      ask(valuePrompt(facet, values, run));
+    },
+  })),
 ];
