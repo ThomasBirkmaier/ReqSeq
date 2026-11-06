@@ -15,7 +15,7 @@
 // at the start of the app) and its evidence files read, so the cold call holds the current versions,
 // `verificationState` (the view rule index) and the page. No SR names
 // a time for `baseline.get`: the rows record, untagged, with SR-082 AK4's 500 ms as a threshold for
-// comparison only (as the evidence rows of #693).
+// comparison only (as the evidence rows of ThomasBirkmaier/ReqSeq-archive#693).
 import type { GeneratedEvidence, LargeFixtureWorkspace } from "@reqseq/testkit";
 import {
   generateLargeWorkspace,

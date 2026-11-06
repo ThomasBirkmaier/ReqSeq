@@ -1,7 +1,7 @@
 // SR-108 AK5 in the performance suite (ADR-0011): "Gegeben 50.000 Elemente, wenn ein Zeichen getippt
 // wird, dann sind die Treffer nach höchstens 100 ms aktualisiert."
 //
-// Measured on exactly the search that the app's command prompt sends for each key it gets (#404): the
+// Measured on exactly the search that the app's command prompt sends for each key it gets (ThomasBirkmaier/ReqSeq-archive#404): the
 // `element.search` of `findElements` (packages/app/src/renderer/actions.ts), with the typed text so far,
 // `fields: ["id", "title"]` and `limit: 20`, and the same with `selection.where.type` as the argument
 // step "target" of a relation sends it (the path that the summary of `relation.options` prescribes for
@@ -10,7 +10,7 @@
 // and its median must stay within 100 ms: every prefix has its own row and threshold, so the slowest
 // decides.
 //
-// Assumption (as in #388 for SR-098): what is measured is core, the time from the call to the answer.
+// Assumption (as in ThomasBirkmaier/ReqSeq-archive#388 for SR-098): what is measured is core, the time from the call to the answer.
 // IPC between the app's windows and rendering the hits are not measured; neither is the fuzzy ranking
 // of the app, which works on at most 20 hits.
 import type { GeneratedWorkspace, LargeFixtureWorkspace } from "@reqseq/testkit";

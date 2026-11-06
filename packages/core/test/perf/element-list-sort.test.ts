@@ -96,7 +96,7 @@ describe("element.list sorted and as a derivation tree with 50,000 elements and 
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
   });
 
-  it("[SR-082/AK4] lists the first page of all elements sorted by type and identifier within 500 ms (#418)", async () => {
+  it("[SR-082/AK4] lists the first page of all elements sorted by type and identifier within 500 ms (ThomasBirkmaier/ReqSeq-archive#418)", async () => {
     const { result: page, measurement } = await measure(
       "list: first page (200) of all elements sorted by type, then identifier (natural order)",
       () => list({ sort: [{ by: "type" }, { by: "identifier" }] }),

@@ -1849,7 +1849,7 @@ export interface ElementGetInput {
   readonly hintDates: boolean;
   /** Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it (for example one copy of a file whose UUID another file shares, SR-088; ThomasBirkmaier/ReqSeq-archive#255). Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates. */
   readonly repository?: string;
-  /** Which of the elements ref names is meant: its file, relative to its repository, as details.candidates of ref.ambiguous give it (#255). Give repository too when the same path is in several repositories; when several elements are still left, the error is ref.ambiguous with them. */
+  /** Which of the elements ref names is meant: its file, relative to its repository, as details.candidates of ref.ambiguous give it (ThomasBirkmaier/ReqSeq-archive#255). Give repository too when the same path is in several repositories; when several elements are still left, the error is ref.ambiguous with them. */
   readonly file?: RelativePath;
 }
 
@@ -1880,7 +1880,7 @@ export interface ElementResolveInput {
   readonly versionDate: boolean;
   /** Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it (for example one copy of a file whose UUID another file shares, SR-088; ThomasBirkmaier/ReqSeq-archive#255). Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates. */
   readonly repository?: string;
-  /** Which of the elements ref names is meant: its file, relative to its repository, as details.candidates of ref.ambiguous give it (#255). Give repository too when the same path is in several repositories; when several elements are still left, the error is ref.ambiguous with them. */
+  /** Which of the elements ref names is meant: its file, relative to its repository, as details.candidates of ref.ambiguous give it (ThomasBirkmaier/ReqSeq-archive#255). Give repository too when the same path is in several repositories; when several elements are still left, the error is ref.ambiguous with them. */
   readonly file?: RelativePath;
 }
 
@@ -2178,9 +2178,9 @@ export interface ElementAddAttachmentInput {
   readonly ref: ElementRef;
   /** The image to copy: a file ending in .avif, .bmp, .gif, .jpeg, .jpg, .png, .svg or .webp (any case). */
   readonly sourcePath: LocalPath;
-  /** Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it (for example one copy of a file whose UUID another file shares, SR-088; #255). Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates. */
+  /** Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it (for example one copy of a file whose UUID another file shares, SR-088; ThomasBirkmaier/ReqSeq-archive#255). Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates. */
   readonly repository?: string;
-  /** Which of the elements ref names is meant: its file, relative to its repository, as details.candidates of ref.ambiguous give it (#255). Give repository too when the same path is in several repositories; when several elements are still left, the error is ref.ambiguous with them. */
+  /** Which of the elements ref names is meant: its file, relative to its repository, as details.candidates of ref.ambiguous give it (ThomasBirkmaier/ReqSeq-archive#255). Give repository too when the same path is in several repositories; when several elements are still left, the error is ref.ambiguous with them. */
   readonly file?: RelativePath;
 }
 
@@ -2274,9 +2274,9 @@ export interface TraceChainInput {
   readonly limit: number;
   /** Nodes skipped before the page, in the order of `nodes` (the root, then the parents level by level, then the children level by level). */
   readonly offset: number;
-  /** Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it (for example one copy of a file whose UUID another file shares, SR-088; #255). Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates. */
+  /** Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it (for example one copy of a file whose UUID another file shares, SR-088; ThomasBirkmaier/ReqSeq-archive#255). Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates. */
   readonly repository?: string;
-  /** Which of the elements ref names is meant: its file, relative to its repository, as details.candidates of ref.ambiguous give it (#255). Give repository too when the same path is in several repositories; when several elements are still left, the error is ref.ambiguous with them. */
+  /** Which of the elements ref names is meant: its file, relative to its repository, as details.candidates of ref.ambiguous give it (ThomasBirkmaier/ReqSeq-archive#255). Give repository too when the same path is in several repositories; when several elements are still left, the error is ref.ambiguous with them. */
   readonly file?: RelativePath;
 }
 
@@ -2403,9 +2403,9 @@ export interface TraceAffectedInput {
   readonly ref: ElementRef;
   readonly limit: number;
   readonly offset: number;
-  /** Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it (for example one copy of a file whose UUID another file shares, SR-088; #255). Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates. */
+  /** Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it (for example one copy of a file whose UUID another file shares, SR-088; ThomasBirkmaier/ReqSeq-archive#255). Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates. */
   readonly repository?: string;
-  /** Which of the elements ref names is meant: its file, relative to its repository, as details.candidates of ref.ambiguous give it (#255). Give repository too when the same path is in several repositories; when several elements are still left, the error is ref.ambiguous with them. */
+  /** Which of the elements ref names is meant: its file, relative to its repository, as details.candidates of ref.ambiguous give it (ThomasBirkmaier/ReqSeq-archive#255). Give repository too when the same path is in several repositories; when several elements are still left, the error is ref.ambiguous with them. */
   readonly file?: RelativePath;
 }
 
@@ -2893,9 +2893,9 @@ export interface EvidenceListInput {
   readonly ref: ElementRef;
   /** `core`: only the records without a variant; a variant: only the records for that variant (SR-047 AK1, AK2), and also those without a variant when the element's repository is marked `variant-independent` (SR-173); absent: every record of the element. */
   readonly view?: View;
-  /** Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it (for example one copy of a file whose UUID another file shares, SR-088; #255). Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates. */
+  /** Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it (for example one copy of a file whose UUID another file shares, SR-088; ThomasBirkmaier/ReqSeq-archive#255). Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates. */
   readonly repository?: string;
-  /** Which of the elements ref names is meant: its file, relative to its repository, as details.candidates of ref.ambiguous give it (#255). Give repository too when the same path is in several repositories; when several elements are still left, the error is ref.ambiguous with them. */
+  /** Which of the elements ref names is meant: its file, relative to its repository, as details.candidates of ref.ambiguous give it (ThomasBirkmaier/ReqSeq-archive#255). Give repository too when the same path is in several repositories; when several elements are still left, the error is ref.ambiguous with them. */
   readonly file?: RelativePath;
 }
 

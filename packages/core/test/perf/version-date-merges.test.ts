@@ -1,4 +1,4 @@
-// The version date (ADR-0005 "Version date", enabler #260) in a deep history with many merges:
+// The version date (ADR-0005 "Version date", enabler ThomasBirkmaier/ReqSeq-archive#260) in a deep history with many merges:
 // 2,000 element files in one folder, 3,000 commits of which 1,000 merge a side commit, as a team
 // that works on branches makes them. The first walk of 300 files in one call is recorded, which is
 // what SR-025 will ask for after a long-lived project; `log` is asked for the folder of the files,
@@ -41,7 +41,7 @@ const versionOf = (metamodel: Metamodel, text: string): string => {
   return elementVersion({ type: String(data["type"]), data }, parsed.content.body, metamodel, []);
 };
 
-describe("version date in a deep history with merges (enabler #260)", () => {
+describe("version date in a deep history with merges (enabler ThomasBirkmaier/ReqSeq-archive#260)", () => {
   let fixture: FixtureWorkspace | undefined;
   let workspace: Workspace | undefined;
   /** The current text of each file and the commit that started it, by file index. */

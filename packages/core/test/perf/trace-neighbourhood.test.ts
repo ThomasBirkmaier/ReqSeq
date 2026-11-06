@@ -81,12 +81,12 @@ describe("trace.neighbourhood with 50,000 elements and 200,000 relations (SR-107
   });
 
   // The whole chain of the largest need (about 42,000 nodes) is over 500 ms for trace.chain too
-  // (core README, trace block; #227), so it is recorded, not asserted.
+  // (core README, trace block; ThomasBirkmaier/ReqSeq-archive#227), so it is recorded, not asserted.
   it("records the whole derivation chain of the first need", async () => {
     const { result } = await measure(
       "neighbourhood: first page (200) of the whole derivation chain of the first need",
       () => neighbourhood({ ref: firstNeed(), meanings: ["derivation"], allLevels: true }),
-      { basis: "SR-107, #227 (recorded; compare trace.chain)" },
+      { basis: "SR-107, ThomasBirkmaier/ReqSeq-archive#227 (recorded; compare trace.chain)" },
     );
     expect(result.total).toBeGreaterThan(200);
   });

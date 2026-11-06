@@ -1,11 +1,11 @@
-// The full-text search index (ADR-0008 "Search", #323) in the performance suite (ADR-0011) on the
+// The full-text search index (ADR-0008 "Search", ThomasBirkmaier/ReqSeq-archive#323) in the performance suite (ADR-0011) on the
 // generated workspace of N-036 with 50,000 elements and 200,000 relations: building it, its heap,
 // serialising it into the cache folder and loading it again (a start with the cache), searches
 // (compare SR-098: the first hits within 300 ms), opening an element while a server builds the index
 // in the background (compare SR-082 AK3: 200 ms), and carrying it over a save and over a pull of
 // 1,000 files (SR-007 AK2: search current within 10 s). The generated texts are short and use a
 // small vocabulary, so an in-memory index of 50,000 longer texts from a large vocabulary is measured
-// as well. Recorded only: the tagged SR-098 test is search-speed.test.ts (#110).
+// as well. Recorded only: the tagged SR-098 test is search-speed.test.ts (ThomasBirkmaier/ReqSeq-archive#110).
 import type { GeneratedWorkspace, LargeFixtureWorkspace } from "@reqseq/testkit";
 import { generateLargeWorkspace, measure, writeLargeWorkspace } from "@reqseq/testkit";
 import { randomUUID } from "node:crypto";
@@ -39,7 +39,8 @@ const ELEMENTS = 50_000;
 const RELATIONS = 200_000;
 /** A pull (SR-007 AK2). */
 const PULLED = 1000;
-const basis = "SR-068, SR-098, N-036 (recorded; #80 and #110 assert SR-098)";
+const basis =
+  "SR-068, SR-098, N-036 (recorded; ThomasBirkmaier/ReqSeq-archive#80 and ThomasBirkmaier/ReqSeq-archive#110 assert SR-098)";
 
 /** Heap in use after a full collection (the suite runs with `--expose-gc`), in MB. */
 const heapMb = (): number => {
@@ -144,7 +145,7 @@ describe("search index with 50,000 elements and 200,000 relations (ADR-0008, N-0
     }
     expect(searchElements(index, title).hits[0]?.element).toBe(record);
     expect(searchElements(index, shortId).hits[0]?.element).toBe(record);
-    // The command (#80): selection, index, search and the output of the first page, through invoke.
+    // The command (ThomasBirkmaier/ReqSeq-archive#80): selection, index, search and the output of the first page, through invoke.
     const variant = store.elements.find((r) => r.type === "variant");
     const commands: readonly (readonly [string, Record<string, unknown>])[] = [
       ["one word", { query: "wind" }],
@@ -214,7 +215,10 @@ describe("search index with 50,000 elements and 200,000 relations (ADR-0008, N-0
           await measure(
             `element.get ${String(n + 1)} ${label} (compare SR-082 AK3, 200 ms)`,
             () => invoke("element.get", { ref: id }, { workspace: fresh }),
-            { basis: "SR-082 AK3 (recorded: the search index in the background, #323)" },
+            {
+              basis:
+                "SR-082 AK3 (recorded: the search index in the background, ThomasBirkmaier/ReqSeq-archive#323)",
+            },
           );
         }
       };

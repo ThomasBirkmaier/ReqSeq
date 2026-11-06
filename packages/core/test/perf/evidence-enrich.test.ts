@@ -1,4 +1,4 @@
-// E4 (#583), SR-029 (#41, PR #584): `evidence.enrichJunit` of one 50 MB JUnit file as pytest writes
+// E4 (ThomasBirkmaier/ReqSeq-archive#583), SR-029 (ThomasBirkmaier/ReqSeq-archive#41, PR ThomasBirkmaier/ReqSeq-archive#584): `evidence.enrichJunit` of one 50 MB JUnit file as pytest writes
 // it, every test case naming a system requirement by its short ID, in the generated workspace of
 // N-036 (50,000 elements, 200,000 relations), through the catalog as the CLI calls it. The model of
 // the file is most of the memory (about 17 times the file); `packages/core/docs/evidence-records.md`
@@ -57,7 +57,7 @@ const patternJunit = (elements: readonly GeneratedElement[]): string => {
   return `<?xml version="1.0" encoding="UTF-8"?><testsuites><testsuite name="nextest">${cases.join("")}</testsuite></testsuites>\n`;
 };
 
-describe("SR-029: enrich of one 50 MB JUnit file with 50,000 elements (N-036, E4 #583)", () => {
+describe("SR-029: enrich of one 50 MB JUnit file with 50,000 elements (N-036, E4 ThomasBirkmaier/ReqSeq-archive#583)", () => {
   // Only what the test needs after the setup, so the generated tree and the file text can be collected.
   let cleanup: (() => Promise<void>) | undefined;
   let file = "";

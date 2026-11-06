@@ -3,11 +3,11 @@
 // Opening is `element.get` (look up, read the file, element view with its hints and successors),
 // without the version date, which the app asks for in a second call (recorded separately).
 // The chain is `trace.chain` (SR-022) through the catalog, of the need with the largest chain, as
-// its first page (spec-frage #290): the first after the start (the start builds the incoming
-// relation index, `warmWorkspace`, #227), again, and right after a save (the index is carried
-// over, #267). The whole chain is recorded without a threshold. The filter is a saved filter
-// (SR-070) applied by name through the catalog (`element.list` with `selection.filter`, #228). The
-// tests are tagged, so they assert their thresholds (ADR-0011, #215) after `measure` recorded the times.
+// its first page (spec-frage ThomasBirkmaier/ReqSeq-archive#290): the first after the start (the start builds the incoming
+// relation index, `warmWorkspace`, ThomasBirkmaier/ReqSeq-archive#227), again, and right after a save (the index is carried
+// over, ThomasBirkmaier/ReqSeq-archive#267). The whole chain is recorded without a threshold. The filter is a saved filter
+// (SR-070) applied by name through the catalog (`element.list` with `selection.filter`, ThomasBirkmaier/ReqSeq-archive#228). The
+// tests are tagged, so they assert their thresholds (ADR-0011, ThomasBirkmaier/ReqSeq-archive#215) after `measure` recorded the times.
 import type { GeneratedWorkspace, HistoryCommitSpec, LargeFixtureWorkspace } from "@reqseq/testkit";
 import {
   generateLargeWorkspace,
@@ -79,7 +79,7 @@ const OPENED_EVERY = 25;
  * files, then `HISTORY` commits that each give `CHANGED` element files an earlier text (the opened
  * ones every `OPENED_EVERY` commits), and last a commit of the generated files (`git add --all`), so
  * that opening an element walks a real history (ADR-0005 "Version date"). One `git fast-import` per
- * repository builds the history (#206, #226).
+ * repository builds the history (ThomasBirkmaier/ReqSeq-archive#206, ThomasBirkmaier/ReqSeq-archive#226).
  */
 const writeHistory = async (
   fixture: LargeFixtureWorkspace,
@@ -193,7 +193,7 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     ).element;
 
   /**
-   * Opens an element as the app shows it (#542): `element.get` and the parents line, the input of
+   * Opens an element as the app shows it (ThomasBirkmaier/ReqSeq-archive#542): `element.get` and the parents line, the input of
    * `parentsInput` in packages/app/src/renderer/neighbourhood.ts, at the same time. The app shows the element
    * when both have answered, so SR-082 AK3 is the time of both.
    */
@@ -253,7 +253,7 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
       () => openWithParents(opened(), id, element?.repository ?? ""),
       {
         basis:
-          "SR-082 AK3 (element.get: store lookup, file read, element view; no git; and trace.neighbourhood up for the parents line, #542)",
+          "SR-082 AK3 (element.get: store lookup, file read, element view; no git; and trace.neighbourhood up for the parents line, ThomasBirkmaier/ReqSeq-archive#542)",
         thresholdMs: OPEN_MS,
       },
     );
@@ -271,7 +271,7 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(OPEN_MS);
   });
 
-  it("[SR-082/AK4] applies a saved filter through the catalog within 500 ms (SR-070, #228)", async () => {
+  it("[SR-082/AK4] applies a saved filter through the catalog within 500 ms (SR-070, ThomasBirkmaier/ReqSeq-archive#228)", async () => {
     // A saved filter as a team keeps it (SR-070): the system requirements still in draft, by title.
     const saved = (await invoke(
       "filter.save",
@@ -324,15 +324,15 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
   it("[SR-082/AK4] computes a chain within 500 ms", async () => {
     const current = opened();
     const need = firstNeed();
-    // The result is the first page (200 nodes by default) of the complete walk (spec-frage #290).
+    // The result is the first page (200 nodes by default) of the complete walk (spec-frage ThomasBirkmaier/ReqSeq-archive#290).
     // The first chain after the start: the start built the incoming relation index of the store
-    // (`warmWorkspace`, #227), so the chain only walks it.
+    // (`warmWorkspace`, ThomasBirkmaier/ReqSeq-archive#227), so the chain only walks it.
     const { result: first, measurement: firstCall } = await measure(
       "trace.chain of the first need, first page: first chain after the start (incoming index built at the start)",
       () => chainOf(current, { ref: need }),
       {
         basis:
-          "SR-082 AK4 (trace.chain through the catalog, first page; the index from warmWorkspace; #227, #290)",
+          "SR-082 AK4 (trace.chain through the catalog, first page; the index from warmWorkspace; ThomasBirkmaier/ReqSeq-archive#227, ThomasBirkmaier/ReqSeq-archive#290)",
         thresholdMs: RESULT_MS,
       },
     );
@@ -340,7 +340,8 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
       "trace.chain of the first need, first page: up and down, of every element derived from it",
       () => chainOf(current, { ref: need }),
       {
-        basis: "SR-082 AK4 (trace.chain through the catalog, first page; SR-022, #227, #290)",
+        basis:
+          "SR-082 AK4 (trace.chain through the catalog, first page; SR-022, ThomasBirkmaier/ReqSeq-archive#227, ThomasBirkmaier/ReqSeq-archive#290)",
         thresholdMs: RESULT_MS,
       },
     );
@@ -356,7 +357,7 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     await measure(
       "trace.chain of the first need, first page: the output as JSON (what an adapter sends)",
       () => JSON.stringify(chain),
-      { basis: "SR-082 AK4 (serialisation by the adapter; recorded, #227)" },
+      { basis: "SR-082 AK4 (serialisation by the adapter; recorded, ThomasBirkmaier/ReqSeq-archive#227)" },
     );
     const valid = getCommandRuntime().contracts.validator("trace.chain", "output");
     const { result: matches } = await measure(
@@ -364,12 +365,12 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
       () => valid(chain),
       {
         basis:
-          "SR-082 AK4 (output check of REQSEQ_VALIDATE_OUTPUT=1, tests and debug builds; recorded, #227)",
+          "SR-082 AK4 (output check of REQSEQ_VALIDATE_OUTPUT=1, tests and debug builds; recorded, ThomasBirkmaier/ReqSeq-archive#227)",
       },
     );
     expect(matches).toBe(true);
     // The whole chain, recorded so that its cost stays visible: every page of 5,000 through the
-    // catalog, and the output of every node at once in core (what one page held before #290).
+    // catalog, and the output of every node at once in core (what one page held before ThomasBirkmaier/ReqSeq-archive#290).
     const { result: pages } = await measure(
       "trace.chain of the first need: every page of 5,000 (the whole chain)",
       async () => {
@@ -379,7 +380,10 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
         }
         return all;
       },
-      { basis: "SR-082 AK4 (the whole chain page by page; recorded, #227, #290)" },
+      {
+        basis:
+          "SR-082 AK4 (the whole chain page by page; recorded, ThomasBirkmaier/ReqSeq-archive#227, ThomasBirkmaier/ReqSeq-archive#290)",
+      },
     );
     expect(pages.reduce((n, page) => n + page.nodes.length, 0)).toBe(chain.total);
     const context = await traceContext(current);
@@ -393,17 +397,22 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
       "trace.chain of the first need in core: the walks and the output of every node",
       () =>
         chainOutput(traceChain(graph, root, { direction: "both" }), { metamodel: graph.metamodel, shortIds }),
-      { basis: "SR-082 AK4 (the whole chain as one result; recorded, #227, #290)" },
+      {
+        basis:
+          "SR-082 AK4 (the whole chain as one result; recorded, ThomasBirkmaier/ReqSeq-archive#227, ThomasBirkmaier/ReqSeq-archive#290)",
+      },
     );
     const { result: json } = await measure(
       "trace.chain of the first need: the whole chain as JSON",
       () => JSON.stringify(whole),
-      { basis: "SR-082 AK4 (serialisation of the whole chain; recorded, #227)" },
+      {
+        basis: "SR-082 AK4 (serialisation of the whole chain; recorded, ThomasBirkmaier/ReqSeq-archive#227)",
+      },
     );
     await measure(
       `trace.chain of the first need, whole: ${String(Math.round(json.length / 1e6))} MB of JSON, ${String(whole.nodes.length)} nodes, ${String(whole.edges.length)} edges`,
       () => json.length,
-      { basis: "SR-082 AK4 (size of the whole chain; recorded, #227)" },
+      { basis: "SR-082 AK4 (size of the whole chain; recorded, ThomasBirkmaier/ReqSeq-archive#227)" },
     );
     expect(whole.nodes).toHaveLength(chain.total);
     expect(pages.reduce((n, page) => n + page.edges.length, 0)).toBe(whole.edges.length);
@@ -411,13 +420,15 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     const { result: up } = await measure(
       "trace.chain upwards: every parent of the last system requirement",
       () => chainOf(current, { ref: bottom?.id ?? "", direction: "up" }),
-      { basis: "SR-082 AK4 (trace.chain upwards; recorded, #227)" },
+      { basis: "SR-082 AK4 (trace.chain upwards; recorded, ThomasBirkmaier/ReqSeq-archive#227)" },
     );
     expect(up.nodes.length).toBeGreaterThan(1);
     const { result: cycles } = await measure(
       "cycles of the whole store (every derivation edge, strongly connected components)",
       () => cyclesOf(store.elements, derivationEdges(graph)),
-      { basis: "SR-090 (cycles over all derivation relations; recorded, #258)" },
+      {
+        basis: "SR-090 (cycles over all derivation relations; recorded, ThomasBirkmaier/ReqSeq-archive#258)",
+      },
     );
     expect(cycles).toEqual([]);
     // What the start pays so that the first chain does not (`warmWorkspace`), once more on the same store.
@@ -426,7 +437,7 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
       () => buildIncomingIndex(store, metamodel),
       {
         basis:
-          "SR-082 AK1, AK4 (built once per store at the start, carried over a save; recorded, #227, #267)",
+          "SR-082 AK1, AK4 (built once per store at the start, carried over a save; recorded, ThomasBirkmaier/ReqSeq-archive#227, ThomasBirkmaier/ReqSeq-archive#267)",
       },
     );
     expect(index.relationsById.size).toBeGreaterThan(0);
@@ -434,7 +445,7 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
   });
 
-  it("records the carry of the incoming index over a change of CARRY_LIMIT elements (#273, no threshold)", async () => {
+  it("records the carry of the incoming index over a change of CARRY_LIMIT elements (ThomasBirkmaier/ReqSeq-archive#273, no threshold)", async () => {
     const index = incomingFor(opened(), store, metamodel);
     // A change that rewrote every `step`-th element in place (the same content, new records), as
     // `updateElements` gives it; nothing is written.
@@ -459,9 +470,12 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     };
     expect(update.ids.size).toBe(CARRY_LIMIT);
     const { result: carried } = await measure(
-      `carry the incoming index over a change of ${String(CARRY_LIMIT)} elements (the limit, #273)`,
+      `carry the incoming index over a change of ${String(CARRY_LIMIT)} elements (the limit, ThomasBirkmaier/ReqSeq-archive#273)`,
       () => carryIncomingIndex(index, update),
-      { basis: "SR-082 AK4 (the largest carry inside a store change; against the build above, #273)" },
+      {
+        basis:
+          "SR-082 AK4 (the largest carry inside a store change; against the build above, ThomasBirkmaier/ReqSeq-archive#273)",
+      },
     );
     expect(carried.relationsById.size).toBe(index.relationsById.size);
   });
@@ -506,7 +520,7 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
   });
 
   // Before the tests after a save: it saves the text of one element twice.
-  it("records two content saves in a row that count the affected elements (SR-024 AK2, #273)", async () => {
+  it("records two content saves in a row that count the affected elements (SR-024 AK2, ThomasBirkmaier/ReqSeq-archive#273)", async () => {
     const current = opened();
     const { target } = relationToTarget();
     // Each save is made on the bytes the one before wrote (#269); the first hash is read before.
@@ -526,9 +540,9 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
       () => save("Changed in the performance suite.\n"),
       { basis: "SR-024 AK2 (N-036; recorded)" },
     );
-    // The save replaced the store and carried the incoming index over (#273): no build again.
+    // The save replaced the store and carried the incoming index over (ThomasBirkmaier/ReqSeq-archive#273): no build again.
     const { result: second } = await measure(
-      "second content save right after a save (incoming index carried over the first, #273)",
+      "second content save right after a save (incoming index carried over the first, ThomasBirkmaier/ReqSeq-archive#273)",
       () => save("Changed again in the performance suite.\n"),
       { basis: "SR-024 AK2 (N-036; recorded)" },
     );
@@ -551,7 +565,7 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
       check,
       { basis: "SR-082 AK3 (the states the save carries over; no threshold of its own)" },
     );
-    // Only warnings (outdated relations): ok by default (failOn error, #304).
+    // Only warnings (outdated relations): ok by default (failOn error, ThomasBirkmaier/ReqSeq-archive#304).
     expect(checked.ok).toBe(true);
     expect(checked.checkedElements).toBe(ELEMENTS);
     // Besides the generated requirements that got no derivation (SR-022 AK6, #659).
@@ -565,7 +579,7 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
       (index.relationsById.get(changed)?.length ?? 0) + (index.referencesById.get(changed)?.length ?? 0),
     );
     expect(outdated.filter((p) => p.code !== "relation.outdated" || p.targetId !== changed)).toEqual([]);
-    // The save puts the written file into the store and carries the short IDs and findings over (#184).
+    // The save puts the written file into the store and carries the short IDs and findings over (ThomasBirkmaier/ReqSeq-archive#184).
     const titled = await readFirst(
       { ref: saved, title: "Saved in the performance suite" },
       { workspace: current },
@@ -580,7 +594,8 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
       "open one element right after a save with its parents line (element.get and trace.neighbourhood on the store and short IDs as the save left them)",
       () => openWithParents(current, id, repository),
       {
-        basis: "SR-082 AK3 (element.get and the parents line after a save, #184, #542)",
+        basis:
+          "SR-082 AK3 (element.get and the parents line after a save, ThomasBirkmaier/ReqSeq-archive#184, ThomasBirkmaier/ReqSeq-archive#542)",
         thresholdMs: OPEN_MS,
       },
     );
@@ -592,7 +607,7 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     // The carried finding states give what the check gave before the save: the title save outdates
     // no relation here.
     const { result: rechecked } = await measure(
-      "workspace.check right after a save (finding states carried over, #184)",
+      "workspace.check right after a save (finding states carried over, ThomasBirkmaier/ReqSeq-archive#184)",
       check,
       { basis: "SR-020 (a check after a save; no threshold of its own)" },
     );
@@ -607,7 +622,7 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
       { basis: "SR-082 AK3 (the save before the open; no threshold of its own)" },
     );
     const { result: superseded, measurement: supersededOpen } = await measure(
-      "open a superseded element right after a save (successors from the carried incoming index, SR-072 AK3, #272)",
+      "open a superseded element right after a save (successors from the carried incoming index, SR-072 AK3, ThomasBirkmaier/ReqSeq-archive#272)",
       () => openElement(current, target.id),
       { basis: "SR-082 AK3 (element.get of a superseded element after a save)", thresholdMs: OPEN_MS },
     );
@@ -630,15 +645,18 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     // As a server after a first chain: the incoming index of the store is built.
     const { store: before, incoming: indexBefore } = await traceContext(current);
     const need = firstNeed();
-    // The save rewrites a source of relations: its links are dropped and added again (#267).
+    // The save rewrites a source of relations: its links are dropped and added again (ThomasBirkmaier/ReqSeq-archive#267).
     const { source } = relationToTarget();
     const titled = await readFirst({ ref: source.id, title: "Saved before a chain" }, { workspace: current });
     await measure(
       "save one element with relations (element.update of its title, incoming index carried)",
       () => invoke("element.update", titled, { workspace: current }),
-      { basis: "SR-082 AK4 (the save before the chain; no threshold of its own; #184, #267)" },
+      {
+        basis:
+          "SR-082 AK4 (the save before the chain; no threshold of its own; ThomasBirkmaier/ReqSeq-archive#184, ThomasBirkmaier/ReqSeq-archive#267)",
+      },
     );
-    // The save carried the index over to the new store (#267): the chain below does not build it.
+    // The save carried the index over to the new store (ThomasBirkmaier/ReqSeq-archive#267): the chain below does not build it.
     const saved = await current.get(elementStoreState);
     expect(saved).not.toBe(before);
     expect(current.peek(incomingState)?.get(saved)?.store).toBe(saved);
@@ -647,7 +665,7 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
       () => chainOf(current, { ref: need }),
       {
         basis:
-          "SR-082 AK4 (trace.chain through the catalog, first page, after a save; #184, #227, #267, #290)",
+          "SR-082 AK4 (trace.chain through the catalog, first page, after a save; ThomasBirkmaier/ReqSeq-archive#184, ThomasBirkmaier/ReqSeq-archive#227, ThomasBirkmaier/ReqSeq-archive#267, ThomasBirkmaier/ReqSeq-archive#290)",
         thresholdMs: RESULT_MS,
       },
     );
@@ -690,9 +708,12 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
       throw new Error("the save gave no store update");
     }
     const { result: again } = await measure(
-      "carry the incoming index over a save of one element (part of the save, #267)",
+      "carry the incoming index over a save of one element (part of the save, ThomasBirkmaier/ReqSeq-archive#267)",
       () => carryIncomingIndex(indexBefore, update),
-      { basis: "SR-082 AK4 (what a save pays to keep the index; recorded, #267)" },
+      {
+        basis:
+          "SR-082 AK4 (what a save pays to keep the index; recorded, ThomasBirkmaier/ReqSeq-archive#267)",
+      },
     );
     expect(again.relationsById.size).toBe(fresh.relationsById.size);
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);

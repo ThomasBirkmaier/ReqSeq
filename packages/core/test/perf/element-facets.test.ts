@@ -1,8 +1,8 @@
-// `element.facets` (#425) in the performance suite (ADR-0011) on the generated workspace of N-036 with
+// `element.facets` (ThomasBirkmaier/ReqSeq-archive#425) in the performance suite (ADR-0011) on the generated workspace of N-036 with
 // 50,000 elements: the statuses and property values of all elements and of one type, as the app's
 // "Filter list by property" asks for them. One pass over the selection plus one over the store for
 // the free-text rule. It is a result like a filter, so it is held to the 500 ms of SR-082 AK4 without
-// carrying that tag (it is no acceptance criterion of it, enabler #425).
+// carrying that tag (it is no acceptance criterion of it, enabler ThomasBirkmaier/ReqSeq-archive#425).
 import type { GeneratedWorkspace, LargeFixtureWorkspace, VersionFunction } from "@reqseq/testkit";
 import {
   generateLargeWorkspace,
@@ -30,7 +30,7 @@ const VERSION: VersionFunction = () => "n1:0000000000000000";
 
 type Output = CommandOutput<"element.facets">;
 
-describe("element.facets with 50,000 elements (#425, N-036)", () => {
+describe("element.facets with 50,000 elements (ThomasBirkmaier/ReqSeq-archive#425, N-036)", () => {
   let tree: GeneratedWorkspace;
   let fixture: LargeFixtureWorkspace | undefined;
   let workspace: Workspace | undefined;
@@ -55,7 +55,7 @@ describe("element.facets with 50,000 elements (#425, N-036)", () => {
     return (await invoke("element.facets", input, { workspace })) as Output;
   };
 
-  const basis = "N-036, filter budget of SR-082 AK4 (recorded, enabler #425)";
+  const basis = "N-036, filter budget of SR-082 AK4 (recorded, enabler ThomasBirkmaier/ReqSeq-archive#425)";
 
   it("gives the facets of all elements within 500 ms", async () => {
     await facets({});

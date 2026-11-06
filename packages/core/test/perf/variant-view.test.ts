@@ -9,7 +9,7 @@
 // - Tagged `[SR-098/AK1]` and asserted at 300 ms (quality goal 3): `element.search` in that view, the
 //   median of 7 runs as search-speed.test.ts does.
 // - `evidence.coverage` and `evidence.status` (indirect, the top requirements) in that view: recorded
-//   with AK4's 500 ms for comparison only (spec question #693, as evidence.test.ts).
+//   with AK4's 500 ms for comparison only (spec question ThomasBirkmaier/ReqSeq-archive#693, as evidence.test.ts).
 // - The first filter is the first command in a view (the asserted cold row: it builds the view rule
 //   index and its removal map). Recorded: that build once more on the same store with the code warmed,
 //   and what follows `variant.exclude`: the new store's index and the status state rebuilt (the
@@ -50,7 +50,7 @@ const RESULT_MS = 500;
 /** Quality goal 3, SR-098 AK1. */
 const SEARCH_MS = 300;
 const SEARCH_RUNS = 7;
-const COMPARE_AK4 = "untagged; threshold for comparison only (#693)";
+const COMPARE_AK4 = "untagged; threshold for comparison only (ThomasBirkmaier/ReqSeq-archive#693)";
 const COMPARED = { thresholdMs: RESULT_MS } as const;
 const REQUIREMENT = "system-requirement";
 
@@ -295,7 +295,7 @@ describe("the view of a variant with 50,000 elements, 5,000 exclusions and 5,000
   const status = () =>
     run("evidence.status", { selection: { view: variant, ids: evidence.parents.slice(0, 200) }, limit: 200 });
 
-  it("records evidence.coverage and evidence.status indirect in the view of a variant (#693)", async () => {
+  it("records evidence.coverage and evidence.status indirect in the view of a variant (ThomasBirkmaier/ReqSeq-archive#693)", async () => {
     const { result: cold } = await measure(
       "evidence.coverage of the system requirements in the view of a variant: first after the start",
       () => coverage(variant),
