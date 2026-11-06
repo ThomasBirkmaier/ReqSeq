@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentActivity, InvokeResult, ReqSeqBridge, WorkspaceChange } from "../shared/protocol.js";
 import { App } from "./App.js";
 import { NO_ACCESS } from "./use-follow.js";
+import { NO_SUMMARY } from "./package-summary-test-data.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -75,7 +76,7 @@ const fakeBridge = (handlers: Record<string, Handler>, commands: readonly unknow
     "save-expired": new Set<(data: never) => void>(),
   };
   const invoke = vi.fn((name: string, input: Record<string, unknown> = {}): Promise<InvokeResult> => {
-    const output = handlers[name]?.(input);
+    const output = (handlers[name] ?? NO_SUMMARY[name])?.(input);
     return Promise.resolve(
       output instanceof Error
         ? { ok: false, error: { code: "x.failed", message: output.message } as never }

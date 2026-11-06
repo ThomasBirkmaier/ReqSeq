@@ -3,7 +3,12 @@
 // (`where.package`) and tells which types are packages; core selects and sorts (ADR-0002). The rule
 // "which types are packages" is the one of core: the effective `meaning` of the type in `metamodel.get`.
 // The line under the title (AK3, AK4) is core's counts with core's formatter (`packageSummaryText`).
-import type { ElementSelection, EvidenceCoverageOutput, MetamodelGetOutput } from "@reqseq/core";
+import type {
+  ElementSelection,
+  EvidenceCoverageInput,
+  EvidenceCoverageOutput,
+  MetamodelGetOutput,
+} from "@reqseq/core";
 import { packageSummaryText } from "@reqseq/core/verification-degree";
 import type { ElementBuffer, FilterStep, ListBuffer, ResultBuffer } from "./buffers.js";
 import { resultBuffer, selectionOf, sortLabel } from "./buffers.js";
@@ -79,6 +84,9 @@ export const memberCount = (data: BufferData | undefined): MemberCount | undefin
 export const memberSummary = (count: MemberCount, sort: ElementBuffer["memberSort"]): string =>
   `${String(count.total)}${count.incomplete ? ` · ${INCOMPLETE}` : ""}${sortLabel(sort)}`;
 
+/** What the line under a title counts: a package, or the selection of a list. */
+export type SummarySelection = NonNullable<EvidenceCoverageInput["selection"]>;
+
 /** The line under the title of a package page (SR-112 AK3, AK4): undefined when it has none, or the message of a failed call. */
 export type PackageSummary =
   | { readonly ok: true; readonly line: string | undefined; readonly coverage: EvidenceCoverageOutput }
@@ -89,8 +97,14 @@ export type PackageSummary =
  * API and MCP do with `selection.package`. No line without a counted requirement (AK4); "incomplete" when a
  * repository was missing for either answer.
  */
-export const askPackageSummary = async (call: Call, id: string): Promise<PackageSummary> => {
-  const selection = { package: id };
+export const askPackageSummary = (call: Call, id: string): Promise<PackageSummary> =>
+  askSummary(call, { package: id });
+
+/**
+ * The same line for any selection (SR-148: a list shows it for the elements it shows): `evidence.coverage`
+ * and `evidence.degree` with this selection, side by side.
+ */
+export const askSummary = async (call: Call, selection: SummarySelection): Promise<PackageSummary> => {
   const [coverage, degree] = await Promise.all([
     call("evidence.coverage", { selection }),
     call("evidence.degree", { selection }),
@@ -121,11 +135,13 @@ export const coverageBuffer = (
   name: string,
   coverage: EvidenceCoverageOutput,
   revision: number,
+): ResultBuffer => selectionCoverageBuffer({ package: id }, name, coverage, revision);
+
+/** The result buffer of the coverage of any selection, with the answer the line was counted from. */
+export const selectionCoverageBuffer = (
+  selection: SummarySelection,
+  name: string,
+  coverage: EvidenceCoverageOutput,
+  revision: number,
 ): ResultBuffer =>
-  resultBuffer(
-    "evidence.coverage",
-    { selection: { package: id } },
-    `Show evidence coverage ${name}`,
-    coverage,
-    revision,
-  );
+  resultBuffer("evidence.coverage", { selection }, `Show evidence coverage ${name}`, coverage, revision);

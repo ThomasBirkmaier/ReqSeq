@@ -6,6 +6,7 @@ import type { Call } from "./call.js";
 import type { BufferData } from "./modeline.js";
 import {
   askPackageSummary,
+  askSummary,
   coverageBuffer,
   memberCount,
   memberHeading,
@@ -15,6 +16,7 @@ import {
   packageModel,
   packageOf,
   packageSelection,
+  selectionCoverageBuffer,
 } from "./package-page.js";
 
 /** The part of `metamodel.get` that the package page reads. */
@@ -181,5 +183,27 @@ describe("the filter steps of a package page (SR-112 AK2)", () => {
     expect(memberHeading("packages", [exactTypeStep("need", "Need"), statusStep("draft")])).toBe(
       "packages · Need · status: draft",
     );
+  });
+});
+
+describe("the line of a list (SR-148)", () => {
+  it("counts the selection of the list, and its click opens the coverage of that selection", async () => {
+    const answers: Record<string, unknown> = {
+      "evidence.coverage": { levels: [{ type: "system-requirement", total: 2, withChildren: 1 }] },
+      "evidence.degree": { degree: { total: 2, counts: { verified: 1, open: 1 } }, view: "core" },
+    };
+    const call = vi.fn((name: string) => Promise.resolve({ ok: true, output: answers[name] }));
+    const selection = { where: { type: ["system-requirement"] } };
+    const summary = await askSummary(call as unknown as Call, selection);
+    expect(summary.ok).toBe(true);
+    expect(call.mock.calls).toEqual([
+      ["evidence.coverage", { selection }],
+      ["evidence.degree", { selection }],
+    ]);
+    expect(selectionCoverageBuffer(selection, "type: system-requirement", {} as never, 1)).toMatchObject({
+      command: "evidence.coverage",
+      input: { selection },
+      name: "Show evidence coverage type: system-requirement",
+    });
   });
 });

@@ -101,6 +101,15 @@ const fakeCall = (handlers: Record<string, (input: Record<string, unknown>) => u
     );
   });
 const asCall = (call: ReturnType<typeof fakeCall>): Call => call as unknown as Call;
+/**
+ * `call` for `element.list` only, so a test counts its pages; the line of coverage under the heading of a
+ * list (SR-148) gets the fake bridge's empty answer.
+ */
+const withSummary = (call: (name: string, input: never) => Promise<unknown>): Call =>
+  ((name: string, input: never) =>
+    name === "element.list"
+      ? call(name, input)
+      : Promise.resolve({ ok: true, output: NO_SUMMARY[name]?.() })) as unknown as Call;
 
 const query = (selector: string): HTMLElement => {
   const found = container.querySelector<HTMLElement>(selector);
@@ -1419,7 +1428,7 @@ describe("ListView, a list", () => {
           }
         }),
     );
-    await listHarness(call as unknown as Call, listBuffer("All elements"));
+    await listHarness(withSummary(call), listBuffer("All elements"));
     slow = true;
     const list = query('[role="listbox"]');
     await press(list, "End");
@@ -1438,7 +1447,7 @@ describe("ListView, a list", () => {
         total: 400,
       }),
     });
-    await listHarness(asCall(call), listBuffer("All elements"));
+    await listHarness(withSummary(call), listBuffer("All elements"));
     const list = query('[role="listbox"]');
     for (const [name, value] of [
       ["scrollHeight", 8000],
@@ -1494,7 +1503,7 @@ describe("ListView, a list", () => {
           }
         }),
     );
-    const { show } = await listHarness(call as unknown as Call, listBuffer("All elements"));
+    const { show } = await listHarness(withSummary(call), listBuffer("All elements"));
     slow = true;
     await press(query('[role="listbox"]'), "End");
     await show(1);
@@ -1520,7 +1529,7 @@ describe("ListView, a list", () => {
           answers.push(resolve);
         }),
     );
-    const { show } = await listHarness(call as unknown as Call, listBuffer("All elements"));
+    const { show } = await listHarness(withSummary(call), listBuffer("All elements"));
     await show(1);
     expect(call).toHaveBeenCalledTimes(2);
     await act(async () => {
@@ -1542,7 +1551,7 @@ describe("ListView, a list", () => {
           answer = resolve;
         }),
     );
-    await listHarness(call as unknown as Call, listBuffer("All elements"));
+    await listHarness(withSummary(call), listBuffer("All elements"));
     act(() => {
       root.unmount();
     });

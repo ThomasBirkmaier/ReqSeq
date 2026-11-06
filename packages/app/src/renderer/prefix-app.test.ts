@@ -8,6 +8,7 @@ import { EditorView } from "@codemirror/view";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CommandListing, InvokeResult, ReqSeqBridge } from "../shared/protocol.js";
 import { App } from "./App.js";
+import { NO_SUMMARY } from "./package-summary-test-data.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -27,6 +28,8 @@ const row = (n: number, extra: object = {}) => ({
 type Handler = (input: Record<string, unknown>) => unknown;
 
 const HANDLERS: Record<string, Handler> = {
+  // The line of coverage over a list (SR-148): no counted requirement.
+  ...NO_SUMMARY,
   "workspace.status": () => ({ name: "Weather station", readOnly: false }),
   "element.list": () => ({ elements: [row(1), row(2)], total: 2 }),
   "element.get": (input) => ({

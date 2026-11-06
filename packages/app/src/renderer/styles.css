@@ -366,7 +366,8 @@ mark {
 }
 
 /* The line under the title of a package page (SR-112 AK3): its coverage and degree, muted, no colour. */
-.element .package-summary {
+.element .package-summary,
+.buffer.list .package-summary {
   margin: -0.5rem 0 1rem;
   color: var(--muted);
   font-size: 13px;
@@ -561,7 +562,8 @@ mark {
    (SR-036 AK2) look the same, focused too. */
 .element .relation [role="link"],
 .element .variant-line [role="link"],
-.element .package-summary [role="link"] {
+.element .package-summary [role="link"],
+.buffer.list .package-summary [role="link"] {
   cursor: pointer;
 }
 
@@ -570,7 +572,9 @@ mark {
 .element .variant-line [role="link"]:hover,
 .element .variant-line [role="link"]:focus-visible,
 .element .package-summary [role="link"]:hover,
-.element .package-summary [role="link"]:focus-visible {
+.element .package-summary [role="link"]:focus-visible,
+.buffer.list .package-summary [role="link"]:hover,
+.buffer.list .package-summary [role="link"]:focus-visible {
   text-decoration: underline;
 }
 
