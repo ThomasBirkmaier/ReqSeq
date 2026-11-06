@@ -184,6 +184,8 @@ const criterionStatus = (all: Tally, own: Tally | undefined): RecordVerification
   return all.counted || own?.counted === true ? "outdated" : "open";
 };
 
+const OPEN_OWN: OwnVerification = Object.freeze({ status: "open" });
+
 /**
  * The verification status of an element with `count` acceptance criteria in `view` from its records
  * (SR-031 AK1 to AK8, D-072; `independent`: its repository is marked `variant-independent`, SR-173).
@@ -196,7 +198,8 @@ const criterionStatus = (all: Tally, own: Tally | undefined): RecordVerification
  * name (plan review B1). The first that holds: a criterion failed gives `failed` (AK3); all verified
  * give `verified` (AK2); no record gives `open` (AK1); no record of the current version gives
  * `outdated` (AK4); a criterion without record gives `open` (AK5, D-072); else some are only of older
- * versions: `outdated` (AK8). One pass over the records, then one over the criteria.
+ * versions: `outdated` (AK8). `criteria` counts them, left out without any record (nothing to
+ * count). One pass over the records, then one over the criteria.
  */
 export const ownVerificationOf = (
   records: readonly EvidenceRecord[],
@@ -211,9 +214,17 @@ export const ownVerificationOf = (
     return { status: status === "passed" ? "verified" : (status as RecordVerificationStatus) };
   }
   const tallies = talliesOf(records, current, view, independent, count);
-  const statuses = Array.from({ length: count }, (_, i) =>
-    criterionStatus(tallies.all, tallies.named.get(i + 1)),
-  );
+  // No record: open (AK1), with nothing to count, as a requirement without own record in
+  // `evidence.status` (its status comes from the children there).
+  if (!tallies.counted) {
+    return OPEN_OWN;
+  }
+  const { named } = tallies;
+  // No record names a criterion (the common case): every criterion has the status of the records for all.
+  const statuses =
+    named === undefined
+      ? new Array<RecordVerificationStatus>(count).fill(criterionStatus(tallies.all, undefined))
+      : Array.from({ length: count }, (_, i) => criterionStatus(tallies.all, named.get(i + 1)));
   const notVerified = statuses.flatMap((s, i) => (s === "verified" ? [] : [i + 1]));
   return {
     status: combined(statuses, notVerified.length === 0, tallies),
@@ -229,8 +240,8 @@ export const ownVerificationOf = (
 interface Tallies {
   /** The records that name no criterion. */
   readonly all: Tally;
-  /** The records that name a criterion, by its number up to the count. */
-  readonly named: ReadonlyMap<number, Tally>;
+  /** The records that name a criterion, by its number up to the count; undefined when none does. */
+  readonly named: ReadonlyMap<number, Tally> | undefined;
   /** Whether any record counts, whatever it names. */
   readonly counted: boolean;
   /** Whether a deciding record of the current version counts, whatever it names. */
@@ -246,7 +257,7 @@ const talliesOf = (
   count: number,
 ): Tallies => {
   const all = tally();
-  const named = new Map<number, Tally>();
+  let named: Map<number, Tally> | undefined;
   let counted = false;
   let ofCurrent = false;
   for (const record of records) {
@@ -262,6 +273,7 @@ const talliesOf = (
     }
     for (const n of record.criteria) {
       if (n <= count) {
+        named ??= new Map<number, Tally>();
         const t = named.get(n) ?? tally();
         named.set(n, t);
         add(t, record, deciding);
@@ -275,7 +287,7 @@ const talliesOf = (
 const combined = (
   statuses: readonly RecordVerificationStatus[],
   allVerified: boolean,
-  { counted, ofCurrent }: Pick<Tallies, "counted" | "ofCurrent">,
+  { ofCurrent }: Pick<Tallies, "ofCurrent">,
 ): RecordVerificationStatus => {
   if (statuses.includes("failed")) {
     return "failed";
@@ -283,9 +295,7 @@ const combined = (
   if (allVerified) {
     return "verified";
   }
-  if (!counted) {
-    return "open";
-  }
+  // Some record counts (`ownVerificationOf` returned before otherwise).
   if (!ofCurrent) {
     return "outdated";
   }

@@ -124,6 +124,10 @@
                     "enum": ["open", "verified", "failed", "outdated"],
                     "description": "From the records of the view that count for the baseline: dated at or before it (AK2); outdated with records of other versions only, open without (AK3)."
                   },
+                  "criteria": {
+                    "$ref": "../data-export.schema.json#/$defs/criteriaCount",
+                    "description": "How many acceptance criteria of the version in the baseline these records verify, as for evidence.status (SR-031 AK5). Left out without criteria, and when the criteria of that version cannot be read because Git does not have it."
+                  },
                   "later": {
                     "type": "array",
                     "description": "The records of the baseline version in this view dated after the baseline, newest first: they do not count (AK2). Left out when there is none.",

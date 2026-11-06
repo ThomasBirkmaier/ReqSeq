@@ -264,10 +264,13 @@ const DAY1 = "2026-01-01T10:00:00Z";
 const DAY2 = "2026-01-02T10:00:00Z";
 
 describe("verification status per acceptance criterion (SR-031, D-072)", () => {
-  it("[SR-031/AK1] a requirement with three criteria and no record is open, none of them verified", () => {
-    expect(perCriterion([])).toEqual({
+  it("[SR-031/AK1] a requirement with three criteria and no record is open, with nothing to count", () => {
+    expect(perCriterion([])).toEqual({ status: "open" });
+    // Records of other kinds or views are none.
+    expect(
+      perCriterion([record(DAY1, "passed", { kind: "validation" }), record(DAY1, "passed", { variant: V })]),
+    ).toEqual({
       status: "open",
-      criteria: { verified: 0, total: 3, notVerified: [1, 2, 3] },
     });
   });
 

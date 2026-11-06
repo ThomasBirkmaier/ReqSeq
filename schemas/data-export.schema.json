@@ -421,7 +421,7 @@
         },
         "criteria": {
           "$ref": "#/$defs/criteriaCount",
-          "description": "How many of the requirement's acceptance criteria its own records in the view verify, for example 2 of 3 (SR-031 AK5, D-072). Only for a requirement whose status comes from its own records and whose current version has acceptance criteria (the property with the meaning `acceptance-criteria`); left out for a status from the children (SR-034) and without criteria (SR-031 AK7)."
+          "description": "How many of the requirement's acceptance criteria its own records in the view verify, for example 2 of 3 (SR-031 AK5, D-072). Only for a requirement whose status comes from its own records (at least one in the view) and whose current version has acceptance criteria (the property with the meaning `acceptance-criteria`); left out for a status from the children (SR-034) and without criteria (SR-031 AK7)."
         }
       },
       "additionalProperties": false

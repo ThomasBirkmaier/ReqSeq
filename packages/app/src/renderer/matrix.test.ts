@@ -301,4 +301,15 @@ describe("the evidence columns (SR-126)", () => {
       "2 missing children",
     );
   });
+
+  it("[SR-031/AK5] shows how many acceptance criteria are verified, those not verified on demand", () => {
+    expect(
+      statusLine({ view: "core", status: "open", criteria: { verified: 2, total: 3, notVerified: [3] } }),
+    ).toEqual({ text: "open · 2 of 3", accent: false, title: "AK3 not verified" });
+    expect(statusLine({ view: "core", status: "verified", criteria: { verified: 2, total: 2 } })).toEqual({
+      text: "verified · 2 of 2",
+      accent: false,
+      title: "",
+    });
+  });
 });

@@ -373,3 +373,84 @@ describe("baseline.get withEvidence", () => {
     );
   });
 });
+
+// fixtures/SR-031/criteria (see its README) with a baseline of the current versions, dated after its
+// records: the rows count the acceptance criteria of the baseline's version as evidence.status does.
+describe("baseline.get withEvidence per acceptance criterion (SR-031, SR-094)", () => {
+  const E = "31313131-0000-4000-8000-3131310000e";
+  const VERSIONS: Readonly<Record<string, string>> = {
+    "1": "n2:1875398a745affa9",
+    "2": "n2:2ad5addba93438af",
+    "4": "n2:a2088bc3e2819093",
+  };
+  const BASELINE =
+    [
+      "reqseq-baseline: 1",
+      "name: Criteria 1",
+      "date: 2026-11-04T10:00:00Z",
+      "repositories:",
+      "  - { name: system, commit: 31a031a031a031a031a031a031a031a031a031a0 }",
+      "elements:",
+      ...Object.entries(VERSIONS).map(([n, version]) => `  - { id: ${E}${n}, version: ${version} }`),
+    ].join("\n") + "\n";
+  const E1 =
+    "---\nid: 31313131-0000-4000-8000-3131310000e1\ntype: system-requirement\nstatus: draft\ntitle: Show wind speed\n" +
+    "requirement-type: functional\nacceptance-criteria:\n  - Given wind, then the speed shows.\n  - Given no wind, then 0 shows.\n" +
+    "  - Given a gust, then the peak shows.\n  - Given a storm, then a warning shows.\n---\n\nShow wind speed.\n";
+
+  const openCriteria = async (git: boolean) => {
+    const fixture = await createFixtureWorkspace({
+      fixture: "SR-031/criteria",
+      files: { "baselines/criteria-1.yaml": BASELINE },
+      ...(git ? { git: true as const } : {}),
+    });
+    onTestFinished(() => fixture.cleanup());
+    return fixture;
+  };
+  const criteriaRows = async (root: string) => {
+    const workspace = new Workspace(root);
+    onTestFinished(() => workspace.close());
+    const out = await get(workspace, "Criteria 1");
+    return Object.fromEntries(out.elements.map((e) => [e.id.slice(-2), e.verification]));
+  };
+
+  it("[SR-031/AK5] a baseline of the current version counts the criteria its records verify, 2 of 3", async () => {
+    const fixture = await openCriteria(false);
+    expect(await criteriaRows(fixture.root)).toEqual({
+      e1: [{ view: "core", status: "open", criteria: { verified: 2, total: 3, notVerified: [3] } }],
+      e2: [{ view: "core", status: "verified", criteria: { verified: 2, total: 2 } }],
+      e4: [{ view: "core", status: "failed", criteria: { verified: 1, total: 2, notVerified: [2] } }],
+    });
+  });
+
+  it("counts the criteria of an older baseline version from Git, not those of the file now", async () => {
+    const fixture = await openCriteria(true);
+    // A fourth criterion: a new version, the baseline still holds the one with three.
+    await fixture.write("requirements/SR-3131310000e1.md", E1);
+    await fixture.commit();
+    const rows = await criteriaRows(fixture.root);
+    expect(rows["e1"]).toEqual([
+      { view: "core", status: "open", criteria: { verified: 2, total: 3, notVerified: [3] } },
+    ]);
+  });
+
+  it("without the criteria of the version gives no count: open, verified by records for all, failed (#985)", async () => {
+    const fixture = await openCriteria(false);
+    await fixture.write("requirements/SR-3131310000e1.md", E1);
+    await fixture.write(
+      "requirements/SR-3131310000e2.md",
+      "---\nid: 31313131-0000-4000-8000-3131310000e2\ntype: system-requirement\nstatus: draft\ntitle: Show wind direction\n" +
+        "requirement-type: functional\nacceptance-criteria:\n  - Given wind, then the direction shows.\n---\n\nChanged.\n",
+    );
+    await fixture.write(
+      "requirements/SR-3131310000e4.md",
+      "---\nid: 31313131-0000-4000-8000-3131310000e4\ntype: system-requirement\nstatus: draft\ntitle: Show humidity\n" +
+        "requirement-type: functional\n---\n\nChanged.\n",
+    );
+    expect(await criteriaRows(fixture.root)).toEqual({
+      e1: [{ view: "core", status: "open" }],
+      e2: [{ view: "core", status: "verified" }],
+      e4: [{ view: "core", status: "failed" }],
+    });
+  });
+});
