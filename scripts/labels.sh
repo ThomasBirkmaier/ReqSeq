@@ -9,7 +9,7 @@ label bug           d73a4a "Something does not work as specified"
 for n in 0 1 2 3 4 5 6; do label "stage:$n" c5def5 "Obsolete: packages are topics, milestones schedule the work"; done
 label stage:later   c5def5 "Obsolete: a wish becomes a draft SR in its topic package and the issue closes"
 for p in 1 2 3; do label "P$p" e4a11b "Priority $p inside its milestone (1 must, 2 should, 3 could)"; done
-label epic          3e4b9e "Epic: a lane of work inside a milestone"
+label epic          3e4b9e "Epic: the epic of a milestone"
 label pilot         5319e7 "Finding from a pilot run"
 label spec-frage    fbca04 "Question about the spec for the product owner"
 label spec-geändert e99695 "Spec changed after implementation"
