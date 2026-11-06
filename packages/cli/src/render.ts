@@ -1,12 +1,14 @@
 // Output of the CLI. `--json` prints exactly the command output (SR-019 AK3), `--yaml` all of it as
-// YAML; the default is the compact form of `present.ts`. No colors, ever: output stays plain text in
-// pipes and logs. `--json` and `--yaml` come in pieces (`jsonOutput`, `yamlOutput`), never as one
+// YAML; the default is the compact form of `present.ts`, styled only on a terminal (`style.ts`, #988):
+// output stays plain text in pipes and logs, and `--json` and `--yaml` are never styled. `--json` and `--yaml` come in pieces (`jsonOutput`, `yamlOutput`), never as one
 // string, since an output such as `data.export` at N-036 is larger than V8 holds in one (#277).
 import type { CatalogEntry, CommandError } from "@reqseq/core";
 import { jsonChunks } from "@reqseq/core";
 import { stringify } from "yaml";
 import type { PartFlag } from "./fields.js";
 import { inputFields } from "./fields.js";
+import type { Style } from "./style.js";
+import { PLAIN } from "./style.js";
 
 const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -32,9 +34,9 @@ export const renderJson = (output: unknown): string => [...jsonOutput(output)].j
  * (`elementIdentifier`, #305), else its short ID (`elementShortId`, #315), else its UUID; the target
  * the same way when the problem names it (`targetIdentifier`, `targetShortId`, #172). The repository
  * only when the problem names one and has a file (e.g. element files of several repositories,
- * metamodel files).
+ * metamodel files). On a terminal (`style`, #988) the severity is coloured by it.
  */
-export const renderProblem = (problem: unknown): string => {
+export const renderProblem = (problem: unknown, style: Style = PLAIN): string => {
   const p = isRecord(problem) ? problem : { message: JSON.stringify(problem) };
   const repository = text(p["repository"]);
   const file =
@@ -44,7 +46,8 @@ export const renderProblem = (problem: unknown): string => {
   const element = text(p["elementIdentifier"]) || text(p["elementShortId"]) || text(p["elementId"]);
   const target = text(p["targetIdentifier"]) || text(p["targetShortId"]);
   const who = target === "" ? element : element === "" ? `→ ${target}` : `${element} → ${target}`;
-  return `${[text(p["severity"]), text(p["code"]), who, text(p["message"]), location]
+  const severity = text(p["severity"]);
+  return `${[style.severity(severity, severity), text(p["code"]), who, text(p["message"]), location]
     .filter((part) => part !== "")
     .join("  ")}\n`;
 };

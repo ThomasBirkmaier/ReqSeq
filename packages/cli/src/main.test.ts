@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
+import { stripVTControlCharacters, styleText } from "node:util";
 import type { CommandRuntime } from "@reqseq/core";
 import {
   PRODUCT_VERSION,
@@ -442,6 +443,26 @@ describe("reqseq <group> <action>", () => {
       stdout: `input:\n  ref: ${ref}\n  name: n\n  level: low\n`,
       stderr: "",
     });
+  });
+
+  it("styles the lines for people on a terminal only, never --json or --yaml (#988)", async () => {
+    const terminal = { columns: 80, colors: true };
+    const styled = await run(["test", "findings", "--mode", "warning"], { terminal });
+    expect(styled.stdout).toContain(styleText("yellow", "warning", { validateStream: false }));
+    expect(stripVTControlCharacters(styled.stdout)).toBe(
+      "ok: true\nwarning  file.yaml-warning  Größe  a.md\n",
+    );
+    // A terminal without colours (NO_COLOR, FORCE_COLOR=0): the layout without escape codes.
+    const colourless = await run(["test", "findings", "--mode", "warning"], {
+      terminal: { columns: 80, colors: false },
+    });
+    expect(colourless.stdout).toBe("ok: true\nwarning  file.yaml-warning  Größe  a.md\n");
+    expect((await run(["test", "findings", "--mode", "warning", "--yaml"], { terminal })).stdout).toBe(
+      "ok: true\nwarning  file.yaml-warning  Größe  a.md\n",
+    );
+    expect((await run(["test", "findings", "--mode", "warning", "--json"], { terminal })).stdout).toBe(
+      (await run(["test", "findings", "--mode", "warning", "--json"])).stdout,
+    );
   });
 
   it("prints the whole output as YAML with --yaml, and refuses --yaml with --json", async () => {

@@ -52,9 +52,28 @@
 //   chain (#676). A UUID that `names` leaves out stays as it is.
 // - Every other value stays YAML. Problems come last, each once: those of the output and the hints
 //   at an element it shows; then `No problems.`, or how many findings the output left out (`hidden`).
+//
+// On a terminal (`renderHuman`'s `terminal`, from bin.ts; stdout a TTY, `TERM` not `dumb`, #988) the
+// shapes most commands share take a terminal layout, styled by `style.ts` when the terminal has colours
+// (not with `NO_COLOR`); everything above is the plain text that pipes, files and tests get, unchanged:
+// - an element line (one element, a plain, tree or grouped list): the identifier first, strong, the
+//   short ID faint after it (`SR-036 SR-3c90b0`), the status in a column as wide as the list needs,
+//   the title cut with `…` to the terminal width, the marks after it faint. The title stays whole when
+//   details follow (element.get, `withText`), which do not repeat it, and when less than `MIN_TITLE`
+//   characters would be left (the line wraps anyway);
+// - a tree list draws its tree with `├ └ │` from the parent of each element; an element whose parent
+//   is not shown before it (`[under X]`) starts a tree of its own; the line goes on beside details;
+// - a grouped list heads each group at the left, with a blank line before it: its title (else name,
+//   else value) strong, then faint what names it besides and the count, `Wind  R1 PKG-0000d1 · 2`;
+//   the columns are as wide as the whole page needs;
+// - hints and problems show their severity first, coloured by it; the line after them is faint.
+// No style is keyed to a status: statuses come from the metamodel. A matrix, a chain, a graph and the
+// comparisons keep the plain layout on a terminal.
 import { degreePercent, degreeShareOf, minimumHeadText } from "@reqseq/core";
 import { stringify } from "yaml";
 import { hiddenOf, problemsEnd, renderProblem } from "./render.js";
+import type { Style, Terminal } from "./style.js";
+import { PLAIN, cut, padTo, styleOf, widthOf } from "./style.js";
 
 type Rec = Readonly<Record<string, unknown>>;
 
@@ -139,6 +158,19 @@ const isProblem = (value: unknown): value is Rec =>
  */
 const withIdentifier = (shortId: string, identifier: unknown): string =>
   text(identifier) === "" ? shortId : `${shortId} (${text(identifier)})`;
+
+/**
+ * An element named on a terminal (#988): its identifier first, strong, the short ID faint after it,
+ * `SR-036 SR-3c90b0`; the short ID alone, strong, when it has none. `withIdentifier` in plain text.
+ */
+const nameOn = (style: Style | undefined, shortId: string, identifier: unknown): string => {
+  if (style === undefined) {
+    return withIdentifier(shortId, identifier);
+  }
+  return text(identifier) === ""
+    ? style.strong(shortId)
+    : `${style.strong(text(identifier))} ${style.faint(shortId)}`;
+};
 
 /** Names an element by repository and UUID: its short ID when the list has it, else its UUID. */
 type Namer = (repository: string, id: string) => string;
@@ -274,6 +306,17 @@ const validationText = (element: Rec): string => {
 const emergentText = (element: Rec): string => (element["emergent"] === true ? "[emergent]" : "");
 
 /**
+ * What an element line shows after the title: how it points, its mark emergent, its verification
+ * status per view and its validation status (the plain and the terminal line alike).
+ */
+const marksOf = (element: Rec, name: Namer, view: ViewNamer): string[] => [
+  viaText(element, name),
+  emergentText(element),
+  verificationText(element, view),
+  validationText(element),
+];
+
+/**
  * `SHORT-ID  status  title`; an element with a distance has it in front, how it points behind, its
  * mark emergent and its verification status per view last.
  */
@@ -288,10 +331,7 @@ const elementLine = (
     withIdentifier(element.shortId, element["identifier"]),
     text(element["status"]),
     element.title,
-    viaText(element, name),
-    emergentText(element),
-    verificationText(element, view),
-    validationText(element),
+    ...marksOf(element, name, view),
   );
 };
 
@@ -388,19 +428,59 @@ const listedElementDetails = (element: Rec): string[] => {
  * short ID with identifier, else its file, the target the same way when core names it, #172), the
  * kind, the message and the hint ID.
  */
-const findingLine = (finding: Rec): string => {
+const findingLine = (finding: Rec, style?: Style): string => {
   // By short ID with identifier, as the other list lines of the CLI name elements: an identifier is
   // unique per type only, so alone it could name the wrong element (`--ref`).
   const elementShortId = text(finding["elementShortId"]);
   const element =
     elementShortId === ""
       ? text(finding["file"])
-      : withIdentifier(elementShortId, finding["elementIdentifier"]);
+      : nameOn(style, elementShortId, finding["elementIdentifier"]);
   const targetShortId = text(finding["targetShortId"]);
-  const target = targetShortId === "" ? "" : withIdentifier(targetShortId, finding["targetIdentifier"]);
+  const target = targetShortId === "" ? "" : nameOn(style, targetShortId, finding["targetIdentifier"]);
   const who = target === "" ? element : element === "" ? `→ ${target}` : `${element} → ${target}`;
   const hintId = text(finding["hintId"]);
-  return join(who, text(finding["code"]), text(finding["message"]), hintId === "" ? "" : `hint: ${hintId}`);
+  const hint = hintId === "" ? "" : `hint: ${hintId}`;
+  if (style === undefined) {
+    return join(who, text(finding["code"]), text(finding["message"]), hint);
+  }
+  // On a terminal (#988) its severity first, coloured by it, the hint ID faint.
+  const severity = text(finding["severity"]);
+  return join(
+    style.severity(severity, severity),
+    who,
+    text(finding["code"]),
+    text(finding["message"]),
+    style.faint(hint),
+  );
+};
+
+/** The lines of a plain list of elements below its key, on a terminal as `terminalListLines` (#988). */
+const elementListLines = (
+  elements: readonly (Rec & { readonly shortId: string; readonly title: string })[],
+  names: Names,
+  style: Style | undefined,
+): string[] => {
+  const name = namerOf(elements);
+  const view = viewNamerOf(elements, names);
+  if (style !== undefined) {
+    return terminalListLines(
+      elements.map((element) => [element, undefined]),
+      "  ",
+      style,
+      name,
+      view,
+    );
+  }
+  // With their texts (element.list `withText`), each element with its details and a blank line
+  // between them (#397); else one line each.
+  if (elements.some((element) => typeof element["text"] === "string")) {
+    return elements.flatMap((element, i) => [
+      ...(i === 0 ? [] : [""]),
+      ...indent([elementLine(element, name, view), ...listedElementDetails(element)]),
+    ]);
+  }
+  return indent(elements.map((element) => elementLine(element, name, view)));
 };
 
 /**
@@ -413,14 +493,18 @@ const valueLines = (
   details: boolean,
   lifted: unknown[],
   names: Names = new Map(),
+  style?: Style,
 ): string[] => {
   if (key === "incomplete" && typeof value === "boolean") {
     return value ? ["incomplete: true (a repository of the workspace is not on this machine)"] : [];
   }
   if (isElement(value)) {
     lifted.push(...listOf(value["problems"]));
+    const view = viewNamerOf([], names);
     return [
-      elementLine(value, namerOf([]), viewNamerOf([], names)),
+      style === undefined
+        ? elementLine(value, namerOf([]), view)
+        : terminalElementLine(value, style, view, details),
       ...(details ? elementDetails(value, names) : []),
     ];
   }
@@ -429,23 +513,10 @@ const valueLines = (
       return [`${key}: none`];
     }
     if (value.every(isElement)) {
-      const name = namerOf(value);
-      const view = viewNamerOf(value, names);
-      // With their texts (element.list `withText`), each element with its details and a blank line
-      // between them (#397); else one line each.
-      if (value.some((element) => typeof element["text"] === "string")) {
-        return [
-          `${key}:`,
-          ...value.flatMap((element, i) => [
-            ...(i === 0 ? [] : [""]),
-            ...indent([elementLine(element, name, view), ...listedElementDetails(element)]),
-          ]),
-        ];
-      }
-      return [`${key}:`, ...indent(value.map((element) => elementLine(element, name, view)))];
+      return [`${key}:`, ...elementListLines(value, names, style)];
     }
     if (value.every(isProblem)) {
-      return [`${key}:`, ...indent(value.map(findingLine))];
+      return [`${key}:`, ...indent(value.map((finding) => findingLine(finding, style)))];
     }
     if (value.every(isEvidenceRecord)) {
       return [`${key}:`, ...indent(value.map(listedRecordLine))];
@@ -596,11 +667,191 @@ const listedLines = (listed: readonly Listed[], name: Namer, view?: ViewNamer): 
   return lines;
 };
 
+/** An element line on a terminal (#988): what goes before and after the element. */
+interface Row {
+  readonly element: Rec & { readonly shortId: string; readonly title: string };
+  /** The tree lines in front of it (`├ `, `└ `, `│ `), already styled. */
+  readonly lead: string;
+  /** The tree lines in front of its details: `│ ` where a line goes on past them. */
+  readonly below: string;
+  /** `[under X]` when its parent is not shown before it. */
+  readonly under: string;
+}
+
+/**
+ * The tree lines of a run (#988), from the parent of each element (its index in the run, -1 for a
+ * root: an element at depth 0, or one whose parent is not shown before it, `[under X]`, which starts
+ * a tree of its own). An element is `├ ` when a later one has the same parent, else `└ `; each
+ * ancestor below the root adds `│ ` when a later one has its parent, else two spaces.
+ */
+const treeLeads = (parents: readonly number[]): { lead: string; below: string }[] => {
+  const later = new Set<number>();
+  const more = parents.map(() => false);
+  for (let i = parents.length - 1; i >= 0; i -= 1) {
+    const parent = parents[i] ?? -1;
+    more[i] = parent !== -1 && later.has(parent);
+    later.add(parent);
+  }
+  // The lines in front of each element's children and details.
+  const inner: string[] = [];
+  return parents.map((parent, i) => {
+    const outer = parent === -1 ? "" : (inner[parent] ?? "");
+    const lead = parent === -1 ? "" : `${outer}${more[i] === true ? "├ " : "└ "}`;
+    inner[i] = parent === -1 ? "" : `${outer}${more[i] === true ? "│ " : "  "}`;
+    return { lead, below: inner[i] ?? "" };
+  });
+};
+
+/**
+ * The parent of each element of a run by its index, -1 for a root (see `treeLeads`): the nearest
+ * element before it that its place names; without a named parent, the nearest one a level above it.
+ */
+const parentsOf = (listed: readonly Listed[]): { readonly parents: number[]; readonly away: boolean[] } => {
+  const keyOf = (repository: unknown, id: unknown): string => JSON.stringify([text(repository), text(id)]);
+  const shown = new Map<string, number>();
+  const depths: number[] = [];
+  const parents: number[] = [];
+  const away: boolean[] = [];
+  for (const [i, [element, place]] of listed.entries()) {
+    const depth = place?.depth ?? 0;
+    const parent = place?.["parent"];
+    const index = isRecord(parent)
+      ? (shown.get(keyOf(parent["repository"], parent["id"])) ?? -1)
+      : depth > 0
+        ? depths.lastIndexOf(depth - 1)
+        : -1;
+    away.push(isRecord(parent) && index === -1);
+    parents.push(index);
+    depths.push(depth);
+    shown.set(keyOf(element["repository"], element["id"]), i);
+  }
+  return { parents, away };
+};
+
+/** The rows of a run of listed elements (#988): tree lines when it is a tree, `[under X]` as `listedLines`. */
+const rowsOf = (listed: readonly Listed[], name: Namer, style: Style): Row[] => {
+  const { parents, away } = parentsOf(listed);
+  const leads = treeLeads(parents);
+  return listed.map(([element, place], i) => {
+    const parent = place?.["parent"];
+    return {
+      element,
+      lead: style.faint(leads[i]?.lead ?? ""),
+      below: style.faint(leads[i]?.below ?? ""),
+      under:
+        away[i] === true && isRecord(parent)
+          ? `[under ${name(text(parent["repository"]), text(parent["id"]))}]`
+          : "",
+    };
+  });
+};
+
+/** The widths of the columns of element lines on a terminal: the name (with tree lines) and the status. */
+interface Columns {
+  readonly name: number;
+  readonly status: number;
+}
+
+/**
+ * The name of an element on a terminal (#988, `nameOn`), the tree lines and the distance in front
+ * when it has them.
+ */
+const terminalName = (row: Row, style: Style): string => {
+  const { element } = row;
+  const distance = element["distance"];
+  return `${row.lead}${join(
+    typeof distance === "number" ? String(distance) : "",
+    nameOn(style, element.shortId, element["identifier"]),
+  )}`;
+};
+
+const columnsOf = (rows: readonly Row[], style: Style): Columns => ({
+  name: Math.max(0, ...rows.map((row) => widthOf(terminalName(row, style)))),
+  status: Math.max(0, ...rows.map((row) => widthOf(text(row.element["status"])))),
+});
+
+/** The fewest characters of a title worth cutting it to; with less room it stays whole and the line wraps. */
+const MIN_TITLE = 12;
+
+/**
+ * An element line on a terminal (#988): the name and the status each in a column of the list's width,
+ * the title cut with `…` so the line fits the terminal, then the marks of `elementLine`, faint. The
+ * title stays whole when details follow (`whole`: they do not repeat it) and when even a cut title
+ * would not fit (less room than `MIN_TITLE`).
+ */
+const terminalLine = (
+  row: Row,
+  columns: Columns,
+  at: string,
+  style: Style,
+  marks: { readonly name: Namer; readonly view: ViewNamer; readonly whole: boolean },
+): string => {
+  const { element } = row;
+  const head = `${at}${padTo(terminalName(row, style), columns.name)}  ${
+    columns.status === 0 ? "" : `${padTo(text(element["status"]), columns.status)}  `
+  }`;
+  const tail = join(...marksOf(element, marks.name, marks.view), row.under);
+  const room = style.width - widthOf(head) - (tail === "" ? 0 : widthOf(tail) + 2);
+  const title = marks.whole || room < MIN_TITLE ? element.title : cut(element.title, room);
+  return `${head}${join(title, style.faint(tail))}`;
+};
+
+/**
+ * The lines of rows on a terminal, at `at`: each its line, with its texts (`withText`) its details
+ * below, past the tree lines, and a blank line between elements, as `listedLines`.
+ */
+const terminalLines = (
+  rows: readonly Row[],
+  columns: Columns,
+  at: string,
+  style: Style,
+  name: Namer,
+  view: ViewNamer,
+): string[] => {
+  const withText = rows.some((row) => typeof row.element["text"] === "string");
+  return rows.flatMap((row, i) => [
+    ...(withText && i > 0 ? [""] : []),
+    terminalLine(row, columns, at, style, { name, view, whole: withText }),
+    ...(withText ? indent(listedElementDetails(row.element), `${at}${row.below}`) : []),
+  ]);
+};
+
+/** A run of listed elements on a terminal, its columns as wide as its own rows need. */
+const terminalListLines = (
+  listed: readonly Listed[],
+  at: string,
+  style: Style,
+  name: Namer,
+  view: ViewNamer,
+): string[] => {
+  const rows = rowsOf(listed, name, style);
+  return terminalLines(rows, columnsOf(rows, style), at, style, name, view);
+};
+
+/** One element on a terminal, its line alone; with its details below (`whole`) its title is never cut. */
+const terminalElementLine = (
+  element: Rec & { readonly shortId: string; readonly title: string },
+  style: Style,
+  view: ViewNamer,
+  whole: boolean,
+): string => {
+  const row: Row = { element, lead: "", below: "", under: "" };
+  return terminalLine(row, columnsOf([row], style), "", style, { name: namerOf([]), view, whole });
+};
+
 /** A tree list (see the file comment). */
-const treeListLines = (placed: readonly Placed[]): string[] =>
-  placed.length === 0
-    ? ["elements: none"]
-    : ["elements:", ...listedLines(placed, namerOf(placed.map(([element]) => element)))];
+const treeListLines = (placed: readonly Placed[], style: Style | undefined): string[] => {
+  if (placed.length === 0) {
+    return ["elements: none"];
+  }
+  const name = namerOf(placed.map(([element]) => element));
+  return [
+    "elements:",
+    ...(style === undefined
+      ? listedLines(placed, name)
+      : terminalListLines(placed, "  ", style, name, viewNamerOf([]))),
+  ];
+};
 
 /** A group of a grouped list (element.list `group`, SR-149), as far as its heading reads it. */
 interface ListGroup extends Rec {
@@ -636,10 +887,73 @@ const groupHeading = (group: ListGroup, continued: boolean): string => {
 };
 
 /**
+ * The heading of a group on a terminal (#988): its title, else its name, else its value, strong; what
+ * names it besides (the identifier and short ID of a package, the value next to a name) and the count
+ * faint: `Wind  R1 PKG-0000d1 · 2`, `Draft  draft · 2`, `(no value)  4`.
+ */
+const terminalGroupHeading = (group: ListGroup, continued: boolean, style: Style): string => {
+  const value = typeof group["value"] === "string" ? group["value"] : JSON.stringify(group["value"]);
+  const title = text(group["title"]);
+  const name = text(group["name"]);
+  const [main, aside] =
+    group["value"] === undefined
+      ? ["(no value)", ""]
+      : title !== ""
+        ? [title, [text(group["identifier"]), value].filter((part) => part !== "").join(" ")]
+        : typeof group["identifier"] === "string"
+          ? [text(group["identifier"]), value]
+          : name === ""
+            ? [value, ""]
+            : [name, value];
+  const unavailable = group["unavailable"];
+  const count = `${String(group.count)}${
+    typeof unavailable === "number" ? `, ${String(unavailable)} with targets not available` : ""
+  }${continued ? ", continued" : ""}`;
+  return join(style.strong(main), style.faint([aside, count].filter((part) => part !== "").join(" · ")));
+};
+
+/**
+ * A grouped list on a terminal (#988): each group under its heading at the left with a blank line
+ * before it, its elements below it, the columns as wide as the whole page needs.
+ */
+const terminalGroupedLines = (
+  groups: readonly ListGroup[],
+  listed: readonly Listed[],
+  start: number,
+  style: Style,
+  name: Namer,
+  view: ViewNamer,
+): string[] => {
+  const end = start + listed.length;
+  const shown = groups.flatMap((group) => {
+    const first = Math.max(group.offset, start);
+    const last = Math.min(group.offset + group.count, end);
+    return first < last
+      ? [
+          {
+            group,
+            continued: first > group.offset,
+            rows: rowsOf(listed.slice(first - start, last - start), name, style),
+          },
+        ]
+      : [];
+  });
+  const columns = columnsOf(
+    shown.flatMap(({ rows }) => rows),
+    style,
+  );
+  return shown.flatMap(({ group, continued, rows }, i) => [
+    ...(i === 0 ? [] : [""]),
+    terminalGroupHeading(group, continued, style),
+    ...terminalLines(rows, columns, "  ", style, name, view),
+  ]);
+};
+
+/**
  * A grouped list (element.list `group`, SR-149): each group on the page under its heading, its
  * elements indented below it as in a plain or a tree list; undefined for any other output.
  */
-const groupedListLines = (rest: Rec, names: Names): string[] | undefined => {
+const groupedListLines = (rest: Rec, names: Names, style: Style | undefined): string[] | undefined => {
   const groups = rest["groups"];
   const elements = listOf(rest["elements"]);
   if (!Array.isArray(groups) || !groups.every(isListGroup) || !elements.every(isElement)) {
@@ -653,6 +967,9 @@ const groupedListLines = (rest: Rec, names: Names): string[] | undefined => {
   const name = namerOf(elements);
   const view = viewNamerOf(elements, names);
   const start = typeof rest["offset"] === "number" ? rest["offset"] : 0;
+  if (style !== undefined) {
+    return terminalGroupedLines(groups, listed, start, style, name, view);
+  }
   const end = start + elements.length;
   // With their texts (`withText`), a blank line also before each heading but the first (#397).
   const withText = elements.some((element) => typeof element["text"] === "string");
@@ -1148,13 +1465,13 @@ const pageNote = (output: Rec): string[] => {
  * The lines of a graph with evidence (its nodes with their summaries), of a grouped list or of a list
  * of elements with a `tree`, adding the keys they show to `shown`; none for any other output.
  */
-const nodeListLines = (rest: Rec, shown: Set<string>): string[] => {
+const nodeListLines = (rest: Rec, shown: Set<string>, style: Style | undefined): string[] => {
   if (isGraphWithEvidence(rest)) {
     shown.add("nodes");
     shown.add("evidence");
     return graphNodeLines(rest);
   }
-  const grouped = groupedListLines(rest, namesIn(rest));
+  const grouped = groupedListLines(rest, namesIn(rest), style);
   if (grouped !== undefined) {
     for (const key of ["elements", "tree", "groups", "offset", "rows"]) {
       shown.add(key);
@@ -1168,14 +1485,16 @@ const nodeListLines = (rest: Rec, shown: Set<string>): string[] => {
   }
   shown.add("elements");
   shown.add("tree");
-  return treeListLines(treeList);
+  return treeListLines(treeList, style);
 };
 
 /**
  * The output for people (see the file comment). `details`: show an element's details below its line
- * (commands that read).
+ * (commands that read). `terminal`: the terminal stdout is, when the output is styled for one (#988);
+ * plain text without it.
  */
-export function renderHuman(output: unknown, details = true): string {
+export function renderHuman(output: unknown, details = true, terminal?: Terminal): string {
+  const style = terminal === undefined ? undefined : styleOf(terminal);
   if (!isRecord(output)) {
     return output === undefined ? "" : yamlOf(output);
   }
@@ -1200,7 +1519,7 @@ export function renderHuman(output: unknown, details = true): string {
     shown.add("evidence");
     shown.add("rows");
   }
-  lines.push(...nodeListLines(rest, shown));
+  lines.push(...nodeListLines(rest, shown, style));
   // The findings left out are said after the problems (`problemsEnd`).
   if (hiddenOf(rest) !== undefined) {
     shown.add("hidden");
@@ -1212,10 +1531,18 @@ export function renderHuman(output: unknown, details = true): string {
   }
   for (const [key, value] of Object.entries(rest)) {
     if (!shown.has(key)) {
-      lines.push(...valueLines(key, value, details, lifted, names));
+      lines.push(...valueLines(key, value, details, lifted, names, style));
     }
   }
   lines.push(...pageNote(rest));
+  return `${lines.map((line) => `${line}\n`).join("")}${problemsText(problems, lifted, rest, style ?? PLAIN)}`;
+}
+
+/**
+ * The problems of the output and those lifted from the elements it shows, each once, then the line
+ * after them (`problemsEnd`), faint on a terminal (#988).
+ */
+const problemsText = (problems: unknown, lifted: readonly unknown[], rest: Rec, style: Style): string => {
   const seen = new Set<string>();
   const all = [...listOf(problems), ...lifted].filter((problem) => {
     const key = JSON.stringify(problem);
@@ -1223,7 +1550,7 @@ export function renderHuman(output: unknown, details = true): string {
     seen.add(key);
     return first;
   });
-  const out = lines.map((line) => `${line}\n`).join("");
   const end = Array.isArray(problems) ? problemsEnd(rest, all.length) : "";
-  return `${out}${all.map(renderProblem).join("")}${end}`;
-}
+  const shownEnd = end === "" ? end : `${style.faint(end.replace(/\n$/, ""))}\n`;
+  return `${all.map((problem) => renderProblem(problem, style)).join("")}${shownEnd}`;
+};

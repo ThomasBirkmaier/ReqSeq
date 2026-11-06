@@ -1,3 +1,4 @@
+import { stripVTControlCharacters, styleText } from "node:util";
 import { describe, expect, it } from "vitest";
 import { renderHuman } from "./present.js";
 
@@ -1563,5 +1564,284 @@ describe("renderHuman: a graph with evidence (SR-111 AK3)", () => {
       lines("nodes:", "  SR-00000a  draft  Title SR-00000a"),
     );
     expect(renderHuman({ nodes: [], evidence: [] })).toBe(lines("nodes: none", "evidence: none"));
+  });
+});
+
+describe("renderHuman: on a terminal (#988)", () => {
+  const terminal = { columns: 60, colors: true };
+  const style = (format: Parameters<typeof styleText>[0], text: string): string =>
+    styleText(format, text, { validateStream: false });
+  /** The text as a terminal shows it, without the styles. */
+  const seen = (styled: string): string => stripVTControlCharacters(styled);
+  const element = (
+    id: string,
+    title: string,
+    extra: Record<string, unknown> = {},
+  ): Record<string, unknown> => ({
+    id,
+    repository: "system",
+    shortId: `SR-${id}`,
+    status: "draft",
+    title,
+    ...extra,
+  });
+  const at = (id: string, depth: number, parent?: string): Record<string, unknown> => ({
+    id,
+    repository: "system",
+    depth,
+    ...(parent === undefined ? {} : { parent: { id: parent, repository: "system" } }),
+  });
+
+  it("puts the identifier first, the status in a column and cuts the title to the width", () => {
+    const output = {
+      elements: [
+        element("3c90b0", "Show wind", { identifier: "SR-36", status: "approved" }),
+        element("a1", "A title much longer than the terminal is wide, so it ends cut"),
+      ],
+      total: 2,
+    };
+    const styled = renderHuman(output, true, terminal);
+    expect(seen(styled)).toBe(
+      lines(
+        "elements:",
+        "  SR-36 SR-3c90b0  approved  Show wind",
+        "  SR-a1            draft     A title much longer than the t…",
+        "total: 2",
+      ),
+    );
+    expect(
+      seen(styled)
+        .split("\n")
+        .every((line) => line.length <= terminal.columns),
+    ).toBe(true);
+    // The identifier strong, the short ID faint.
+    expect(styled).toContain(`${style("bold", "SR-36")} ${style("dim", "SR-3c90b0")}`);
+    // Plain text is never cut and keeps its form.
+    expect(renderHuman(output)).toBe(
+      lines(
+        "elements:",
+        "  SR-3c90b0 (SR-36)  approved  Show wind",
+        "  SR-a1  draft  A title much longer than the terminal is wide, so it ends cut",
+        "total: 2",
+      ),
+    );
+  });
+
+  it("keeps the title whole when even a cut one would not fit beside the marks", () => {
+    const marks = { emergent: true, validation: "x".repeat(60) };
+    expect(
+      seen(renderHuman({ elements: [element("a1", "A long title of the element", marks)] }, true, terminal)),
+    ).toBe(
+      lines(
+        "elements:",
+        `  SR-a1  draft  A long title of the element  [emergent]  [validation: ${"x".repeat(60)}]`,
+      ),
+    );
+  });
+
+  it("never cuts the title of an element whose details follow, which do not repeat it", () => {
+    const title = "A title much longer than the terminal is wide, so it would be cut";
+    const one = { ...element("a1", title), file: "SR-1.md", text: "T.\n" };
+    // element get: one element with its details.
+    expect(seen(renderHuman({ element: one }, true, terminal)).split("\n")[0]).toBe(`SR-a1  draft  ${title}`);
+    // A write command shows the line only: cut.
+    expect(seen(renderHuman({ element: one }, false, terminal))).toBe(
+      lines("SR-a1  draft  A title much longer than the terminal is wide…"),
+    );
+    // A list with texts (--with-text).
+    expect(seen(renderHuman({ elements: [one] }, true, terminal)).split("\n")[1]).toBe(
+      `  SR-a1  draft  ${title}`,
+    );
+  });
+
+  it("shows one element on its line with its details below, as in plain text", () => {
+    const one = { ...element("a1", "Show wind", { identifier: "SR-1" }), file: "SR-1.md", text: "T.\n" };
+    expect(seen(renderHuman({ element: one }, true, terminal))).toBe(
+      lines("SR-1 SR-a1  draft  Show wind", ...renderHuman({ element: one }).split("\n").slice(1, -1)),
+    );
+  });
+
+  it("draws a tree list with tree lines, a parent not shown named after the title", () => {
+    expect(
+      seen(
+        renderHuman(
+          {
+            elements: [
+              element("a", "A"),
+              element("b", "B"),
+              element("c", "C"),
+              element("d", "D"),
+              element("e", "E"),
+            ],
+            tree: [at("a", 0), at("b", 1, "a"), at("c", 2, "b"), at("d", 1, "a"), at("e", 1, "x")],
+          },
+          true,
+          terminal,
+        ),
+      ),
+    ).toBe(
+      lines(
+        "elements:",
+        "  SR-a      draft  A",
+        "  ├ SR-b    draft  B",
+        "  │ └ SR-c  draft  C",
+        // A parent that is not shown starts a tree of its own: no line from the rows above.
+        "  └ SR-d    draft  D",
+        "  SR-e      draft  E  [under x]",
+      ),
+    );
+  });
+
+  it("draws an element whose parent is shown earlier under that parent, and the tree line beside details", () => {
+    expect(
+      seen(
+        renderHuman(
+          {
+            elements: [
+              element("a", "A", { text: "" }),
+              element("b", "B", { text: "T.\n" }),
+              element("x", "X", { text: "" }),
+              element("d", "D", { text: "" }),
+            ],
+            tree: [at("a", 0), at("b", 1, "a"), at("x", 1, "y"), at("d", 1, "a")],
+          },
+          true,
+          terminal,
+        ),
+      ),
+    ).toBe(
+      lines(
+        "elements:",
+        "  SR-a    draft  A",
+        '    text: ""',
+        "",
+        "  ├ SR-b  draft  B",
+        "  │   text: |",
+        "  │     T.",
+        "",
+        "  SR-x    draft  X  [under y]",
+        '    text: ""',
+        "",
+        "  └ SR-d  draft  D",
+        '      text: ""',
+      ),
+    );
+    // Places with a depth only: the parent is the nearest element a level above.
+    expect(
+      seen(
+        renderHuman(
+          {
+            elements: [element("a", "A"), element("b", "B"), element("c", "C")],
+            tree: [{ depth: 0 }, { depth: 1 }, { depth: 1 }],
+          },
+          true,
+          terminal,
+        ),
+      ),
+    ).toBe(lines("elements:", "  SR-a    draft  A", "  ├ SR-b  draft  B", "  └ SR-c  draft  C"));
+  });
+
+  it("heads each group at the left with a blank line before it, the columns as wide as the page", () => {
+    const styled = renderHuman(
+      {
+        elements: [
+          element("b1", "One", { identifier: "SR-168" }),
+          element("b2", "Two", { status: "approved" }),
+          element("n1", "Three", { text: "T.\n" }),
+          element("n2", "Four"),
+        ],
+        tree: [at("b1", 0), at("b2", 0), at("n1", 0), at("n2", 1, "n1")],
+        groups: [
+          { value: "PKG-d1", identifier: "R1", title: "Wind", count: 2, offset: 0 },
+          { value: "draft", name: "Draft", count: 1, offset: 2 },
+          { value: "x", count: 3, offset: 3 },
+          { value: "PKG-d2", identifier: "P2", count: 1, offset: 6 },
+        ],
+        offset: 0,
+        rows: 7,
+      },
+      true,
+      terminal,
+    );
+    expect(seen(styled)).toBe(
+      lines(
+        "Wind  R1 PKG-d1 · 2",
+        "  SR-168 SR-b1  draft     One",
+        "  SR-b2         approved  Two",
+        "",
+        "Draft  draft · 1",
+        "  SR-n1         draft     Three",
+        "    text: |",
+        "      T.",
+        "",
+        "x  3",
+        // Its parent is in another group: it starts a tree of its own.
+        "  SR-n2         draft     Four  [under SR-n1]",
+        "Showing 4 of 7; ask for more with --offset and --limit.",
+      ),
+    );
+    expect(styled).toContain(`${style("bold", "Wind")}  ${style("dim", "R1 PKG-d1 · 2")}`);
+    // A group by identifier only; the last group, continued, with targets not available.
+    const groups = [
+      { value: "PKG-d2", identifier: "P2", count: 1, offset: 0 },
+      { unavailable: 1, count: 2, offset: 1 },
+    ];
+    expect(seen(renderHuman({ elements: [element("a", "A")], groups }, true, terminal))).toBe(
+      lines("P2  PKG-d2 · 1", "  SR-a  draft  A"),
+    );
+    expect(seen(renderHuman({ elements: [element("b", "B")], groups, offset: 2 }, true, terminal))).toBe(
+      lines("(no value)  2, 1 with targets not available, continued", "  SR-b  draft  B"),
+    );
+  });
+
+  it("shows the severity of hints and problems first, coloured by it", () => {
+    const hint = {
+      code: "relation.too-few",
+      severity: "warning",
+      message: "Too few",
+      elementShortId: "SR-a1",
+      elementIdentifier: "SR-1",
+      targetShortId: "N-b2",
+      hintId: "h1",
+    };
+    const styled = renderHuman(
+      {
+        hints: [hint],
+        problems: [
+          { code: "x.error", severity: "error", message: "Broken" },
+          { code: "x.info", severity: "info", message: "Note" },
+          { code: "x.odd", severity: "odd", message: "Other" },
+        ],
+      },
+      true,
+      terminal,
+    );
+    expect(seen(styled)).toBe(
+      lines(
+        "hints:",
+        "  warning  SR-1 SR-a1 → N-b2  relation.too-few  Too few  hint: h1",
+        "error  x.error  Broken",
+        "info  x.info  Note",
+        "odd  x.odd  Other",
+      ),
+    );
+    expect(styled).toContain(style("yellow", "warning"));
+    expect(styled).toContain(style(["bold", "red"], "error"));
+    expect(styled).toContain(style("cyan", "info"));
+    expect(styled).toContain("\nodd  x.odd");
+    expect(renderHuman({ hints: [hint] })).toBe(
+      lines("hints:", "  SR-a1 (SR-1) → N-b2  relation.too-few  Too few  hint: h1"),
+    );
+    expect(renderHuman({ ok: true, problems: [] }, true, terminal)).toBe(
+      `ok: true\n${style("dim", "No problems.")}\n`,
+    );
+  });
+
+  it("leaves the shapes that #988 does not cover as in plain text", () => {
+    const graph = {
+      nodes: [element("a", "A", { level: 0 })],
+      evidence: [{ id: "a", testCases: 1, records: 0, results: {} }],
+    };
+    expect(renderHuman(graph, true, terminal)).toBe(renderHuman(graph));
   });
 });
