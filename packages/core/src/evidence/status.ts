@@ -184,21 +184,39 @@ const criterionStatus = (all: Tally, own: Tally | undefined): RecordVerification
   return all.counted || own?.counted === true ? "outdated" : "open";
 };
 
-/** The result without any record, one frozen object per count of criteria (N-036: none per element). */
-const openOf = new Map<number, OwnVerification>();
+/** The results in which every criterion has one status, one frozen object per status and count (by count). */
+const uniform: Record<RecordVerificationStatus, OwnVerification[]> = {
+  open: [],
+  verified: [],
+  failed: [],
+  outdated: [],
+};
 
-/** `open` with none of `count` criteria verified (AK1, D-072: the tool shows how many are verified). */
-const openWith = (count: number): OwnVerification => {
-  let open = openOf.get(count);
-  if (open === undefined) {
-    const notVerified = Object.freeze(Array.from({ length: count }, (_, i) => i + 1));
-    open = Object.freeze({
-      status: "open",
-      criteria: Object.freeze({ verified: 0, total: count, notVerified }),
-    });
-    openOf.set(count, open);
+/**
+ * The result when every one of `count` criteria has `status` (`count` 0: no criteria, AK7): all
+ * verified, or none (AK1, D-072: the tool shows how many are verified). Frozen and shared: no key
+ * and no object per call (N-036, a baseline page asks it for hundreds of thousands of rows).
+ */
+const uniformWith = (status: RecordVerificationStatus, count: number): OwnVerification => {
+  const known = uniform[status][count];
+  if (known !== undefined) {
+    return known;
   }
-  return open;
+  const notVerified = Object.freeze(Array.from({ length: count }, (_, i) => i + 1));
+  const result: OwnVerification = Object.freeze(
+    count === 0
+      ? { status }
+      : {
+          status,
+          criteria: Object.freeze(
+            status === "verified"
+              ? { verified: count, total: count }
+              : { verified: 0, total: count, notVerified },
+          ),
+        },
+  );
+  uniform[status][count] = result;
+  return result;
 };
 
 /**
@@ -223,18 +241,20 @@ export const ownVerificationOf = (
   independent: boolean,
   count: number,
 ): OwnVerification => {
-  if (count === 0) {
+  // Without criteria, or when no record names one (the common case): every criterion has the status
+  // of the whole requirement, one shared result per status and count (N-036: no allocation per row).
+  if (count === 0 || !records.some((r) => r.criteria !== undefined)) {
     const status = recordStatusOf(records, "verification", current, view, independent);
     // `recordStatusOf` gives `inconclusive` for validation records only (see the file comment).
-    return { status: status === "passed" ? "verified" : (status as RecordVerificationStatus) };
+    return uniformWith(status === "passed" ? "verified" : (status as RecordVerificationStatus), count);
   }
   const tallies = talliesOf(records, current, view, independent, count);
   // No record: open (AK1), none of the criteria verified.
   if (!tallies.counted) {
-    return openWith(count);
+    return uniformWith("open", count);
   }
   const { named } = tallies;
-  // No record names a criterion (the common case): every criterion has the status of the records for all.
+  // No counted record names a criterion it has: every criterion has the status of the records for all.
   const statuses =
     named === undefined
       ? new Array<RecordVerificationStatus>(count).fill(criterionStatus(tallies.all, undefined))
