@@ -4,7 +4,7 @@ Status: Accepted · Based on: D-026, D-056 · SRs: SR-009, SR-010, SR-061
 
 ## Context
 
-All file formats must be documented publicly so that other tools can read and write them without ReqSeq (N-070, SR-009). Agents need fixed interfaces before they build in parallel (`CLAUDE.md`, ADR-0002).
+All file formats must be documented publicly so that other tools can read and write them without ReqSeq (N-070, SR-009). Agents need fixed interfaces before they build in parallel.
 
 ## Decision
 
