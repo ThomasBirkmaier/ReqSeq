@@ -483,6 +483,7 @@ export interface ReqifLoss {
     | "omitted-attribute"
     | "omitted-value"
     | "hierarchy"
+    | "relation-group"
     | "relation-end-not-imported"
     | "relation-not-allowed"
     | "relation-duplicate"

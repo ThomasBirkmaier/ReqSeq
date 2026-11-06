@@ -24,8 +24,11 @@ type Unlined<T> = T extends string | number | boolean
     ? readonly Unlined<U>[]
     : { readonly [K in keyof T as K extends "line" ? never : K]: Unlined<T[K]> };
 
-/** What the writer takes: the model without line numbers and without the reader's `unread`. */
-export type ReqifWritable = Unlined<Omit<ReqifFile, "unread">>;
+/**
+ * What the writer takes: the model without line numbers, the reader's `unread` and the
+ * `relationGroups` (ReqSeq writes no RELATION-GROUP).
+ */
+export type ReqifWritable = Unlined<Omit<ReqifFile, "unread" | "relationGroups">>;
 
 /**
  * Every problem names the IDENTIFIER it belongs to and its `field`: the IDENTIFIER of the attribute

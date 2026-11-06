@@ -17,6 +17,7 @@ import type {
   ReqifHierarchy,
   ReqifIdentifiable,
   ReqifOwner,
+  ReqifRelationGroup,
   ReqifSpecification,
   ReqifSpecObject,
   ReqifSpecRelation,
@@ -162,6 +163,12 @@ const textOf = (node: Node): string =>
 const refIn = (node: Node, wrapper: string, refName: string): string =>
   textOf(required(required(node, wrapper), refName)).trim();
 
+/** As `refIn`, undefined when the wrapper or the reference is missing. */
+const optionalRefIn = (node: Node, wrapper: string, refName: string): string | undefined => {
+  const ref = reqifChild(reqifChild(node, wrapper) ?? EMPTY_NODE, refName);
+  return ref === undefined ? undefined : textOf(ref).trim();
+};
+
 const identifiable = (node: Node): ReqifIdentifiable => {
   const identifier = attribute(node, "IDENTIFIER");
   if (identifier === undefined || identifier === "") {
@@ -223,6 +230,7 @@ const PARTS: ReadonlySet<string> = new Set([
   "SPEC-OBJECTS",
   "SPEC-RELATIONS",
   "SPECIFICATIONS",
+  "SPEC-RELATION-GROUPS",
 ]);
 
 /** Whether `node` is an item the model reads of the part `part` (one of `PARTS`). */
@@ -236,8 +244,10 @@ const isItem = (part: string, node: Node): boolean => {
       return isReqif(node, "SPEC-OBJECT");
     case "SPEC-RELATIONS":
       return isReqif(node, "SPEC-RELATION");
-    default:
+    case "SPECIFICATIONS":
       return isReqif(node, "SPECIFICATION");
+    default:
+      return isReqif(node, "RELATION-GROUP");
   }
 };
 
@@ -309,6 +319,7 @@ class Reader implements XmlEvents<Frame> {
   readonly specObjects: ReqifSpecObject[] = [];
   readonly specRelations: ReqifSpecRelation[] = [];
   readonly specifications: ReqifSpecification[] = [];
+  readonly relationGroups: ReqifRelationGroup[] = [];
 
   constructor(limit: number) {
     this.limit = limit;
@@ -536,6 +547,20 @@ class Reader implements XmlEvents<Frame> {
           children: this.each(reqifChild(node, "CHILDREN"), (child) => child.hierarchy),
         });
         return;
+      case "RELATION-GROUP": {
+        const type = optionalRefIn(node, "TYPE", "RELATION-GROUP-TYPE-REF");
+        const sourceSpecification = optionalRefIn(node, "SOURCE-SPECIFICATION", "SPECIFICATION-REF");
+        const targetSpecification = optionalRefIn(node, "TARGET-SPECIFICATION", "SPECIFICATION-REF");
+        const relations = reqifChild(node, "SPEC-RELATIONS") ?? EMPTY_NODE;
+        this.relationGroups.push({
+          ...identifiable(node),
+          ...(type === undefined ? {} : { type }),
+          relations: reqifChildren(relations, "SPEC-RELATION-REF").map((ref) => textOf(ref).trim()),
+          ...(sourceSpecification === undefined ? {} : { sourceSpecification }),
+          ...(targetSpecification === undefined ? {} : { targetSpecification }),
+        });
+        return;
+      }
       default: {
         const kind = kindOf(node, "DATATYPE-DEFINITION-");
         if (kind === undefined) {
@@ -757,8 +782,26 @@ export const parseReqif = (bytes: Uint8Array, limits: ReqifLimits = REQIF_LIMITS
     if (reader.header === undefined) {
       throw new Invalid("<REQ-IF> has no <THE-HEADER>", line);
     }
-    const { header, datatypes, specTypes, specObjects, specRelations, specifications, unread } = reader;
-    const file = { header, datatypes, specTypes, specObjects, specRelations, specifications, unread };
+    const {
+      header,
+      datatypes,
+      specTypes,
+      specObjects,
+      specRelations,
+      specifications,
+      relationGroups,
+      unread,
+    } = reader;
+    const file = {
+      header,
+      datatypes,
+      specTypes,
+      specObjects,
+      specRelations,
+      specifications,
+      relationGroups,
+      unread,
+    };
     return { kind: "parsed", file, warnings: danglingReferences(file, definedIdentifiers(file)) };
   } catch (error) {
     if (error instanceof Invalid) {

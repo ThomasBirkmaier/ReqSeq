@@ -151,10 +151,8 @@ describe("parseReqif", () => {
         ],
       },
     ]);
-    expect(file.unread).toEqual([
-      { name: "SPEC-RELATION-GROUPS", namespace: REQIF_NAMESPACE, line: 34 },
-      { name: "TOOL-EXTENSIONS", namespace: REQIF_NAMESPACE, line: 35 },
-    ]);
+    expect(file.relationGroups).toEqual([{ identifier: "g", line: 34, relations: [] }]);
+    expect(file.unread).toEqual([{ name: "TOOL-EXTENSIONS", namespace: REQIF_NAMESPACE, line: 35 }]);
   });
 
   it("reads the hand-written samples: basic.reqif with its parts not taken over, xhtml-rich.reqif, bom-crlf.reqif", () => {
@@ -218,8 +216,18 @@ describe("parseReqif", () => {
     expect(file.unread).toEqual([
       { name: "ALTERNATIVE-ID", namespace: REQIF_NAMESPACE, line: 74, owner },
       { name: "THE-ORIGINAL-VALUE", namespace: REQIF_NAMESPACE, line: 82, owner },
-      { name: "SPEC-RELATION-GROUPS", namespace: REQIF_NAMESPACE, line: 145 },
       { name: "TOOL-EXTENSIONS", namespace: REQIF_NAMESPACE, line: 155 },
+    ]);
+    expect(file.relationGroups).toEqual([
+      {
+        identifier: "rg-1",
+        lastChange: "2026-10-31T00:00:00Z",
+        line: 146,
+        type: "gt-links",
+        relations: ["rel-1"],
+        sourceSpecification: "spec-a",
+        targetSpecification: "spec-b",
+      },
     ]);
 
     const rich = fileOf(sample("xhtml-rich.reqif"));
@@ -363,7 +371,6 @@ describe("parseReqif", () => {
       ["VALUES", REQIF_NAMESPACE, { kind: "spec-object", identifier: "o" }],
       ["EXTRA", "urn:x", { kind: "spec-relation", identifier: "r" }],
       ["OTHER", REQIF_NAMESPACE, { kind: "specification", identifier: "s" }],
-      ["SPEC-RELATION-GROUPS", REQIF_NAMESPACE, undefined],
       ["DATATYPE-DEFINITION-OTHER", REQIF_NAMESPACE, undefined],
     ]);
   });
