@@ -35,6 +35,20 @@ const PATTERN_JUNIT: FixtureOptions = {
   },
 };
 
+/**
+ * The #535 workspace with a JUnit file whose test case names an acceptance criterion of SR-e88fb3 in
+ * its name and one by short ID in a hand-written property (SR-029 AK10, #961).
+ */
+const CRITERION_JUNIT: FixtureOptions = {
+  ...EVIDENCE,
+  files: {
+    "results/criterion.xml":
+      '<?xml version="1.0" encoding="UTF-8"?>\n<testsuite name="station">\n' +
+      '  <testcase classname="station" name="[SR-e88fb3/AK2] shows the wind speed">\n' +
+      '    <properties><property name="reqseq:criterion" value="SR-e88fb3:1"/></properties>\n  </testcase>\n</testsuite>\n',
+  },
+};
+
 /** The #535 workspace with a need and a JUnit file whose test case names it (#843). */
 const NEED_JUNIT: FixtureOptions = {
   ...EVIDENCE,
@@ -117,6 +131,21 @@ scenariosOf("evidence.enrichJunit", [
         testCases: 1,
         problems: [{ code: "evidence.kind-mismatch", severity: "warning", line: 3 }],
       });
+    },
+  },
+  {
+    name: "the acceptance criterion a test case name gives is written, a hand-written one kept",
+    fixture: CRITERION_JUNIT,
+    input: { file: "results/criterion.xml", item: "build-961", date: "2026-11-06T10:00:00Z" },
+    tag: "[SR-029/AK10]",
+    expect: "output",
+    check: (results) => {
+      expect(enrichOutput(results)).toMatchObject({ testCases: 1, problems: [] });
+      const file = results["core"]?.files["results/criterion.xml"] ?? "";
+      expect(file.match(/reqseq:criterion" value="[^"]*"/g)).toEqual([
+        'reqseq:criterion" value="e8df96ea-a168-4d90-8d65-6328cee88fb3:1"',
+        'reqseq:criterion" value="e8df96ea-a168-4d90-8d65-6328cee88fb3:2"',
+      ]);
     },
   },
   {

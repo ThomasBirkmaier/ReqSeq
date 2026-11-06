@@ -325,3 +325,60 @@ export const elementRefsOf = (
   }
   return found;
 };
+
+/** A reference of a test case name with the acceptance criterion it names, if any (`criterionRefsOf`). */
+export interface CriterionRef {
+  /** As written (trimmed): the `<ref>` of a bracket token, or the short ID a name pattern built. */
+  readonly ref: string;
+  /** The criterion it names (1 or more); absent for a reference that names the whole requirement. */
+  readonly criterion?: number;
+  /** The text as written when it tries to name a criterion but names none (`[SR-036/AK0]`, `[SR-036/AK]`). */
+  readonly malformed?: string;
+}
+
+/** `[<ref>]` or `[<ref>/<suffix>]` in a test case name: the tokens of `NAME_TOKEN`, with the suffix. */
+const BRACKET = /\[[^[\]/]*(?:\/[^[\]]*)?\]/g;
+/** A suffix that tries to name an acceptance criterion: `AK` alone or before a digit, ASCII case-insensitive. */
+const AK_LIKE = /^AK(?:[0-9]|$)/i;
+/** The suffix that names one: `AK<n>`, n from 1 without leading zero, at most 9 digits (as `{ak}`). */
+const AK_SUFFIX = /^AK[1-9][0-9]{0,8}$/i;
+/** The digits of `{ak}` that name a criterion. */
+const AK_DIGITS = /^[1-9][0-9]*$/;
+
+/** Criterion `digits` when `ok`, else `text` as malformed. */
+const criterionOf = (
+  ok: boolean,
+  digits: string,
+  text: string,
+): Pick<CriterionRef, "criterion" | "malformed"> =>
+  ok ? { criterion: Number(digits) } : { malformed: text };
+
+/**
+ * Every reference of the name of a test case with the acceptance criterion it names (SR-029 AK10), in
+ * name order and not deduplicated: `[<ref>/AK<n>]` names criterion n, and with `pattern` a match
+ * with `{ak}` names that one; n is a number from 1 without leading zero. A suffix `AK` alone or before
+ * a digit that is no such `AK<n>` (`AK0`, `AK02`, `AK`, `AK2a`), and `{ak}` that is none (`0`, `03`),
+ * are `malformed`. A token without suffix or with another one (`[SR-036]`, `[SR-036/slow]`) and a
+ * match of a pattern without `{ak}` name the whole requirement. The caller resolves the references,
+ * as for `elementRefsOf`.
+ */
+export const criterionRefsOf = (
+  name: string,
+  pattern?: (name: string) => readonly NameMatch[],
+): readonly CriterionRef[] => {
+  const refs: CriterionRef[] = [];
+  for (const [token] of name.matchAll(BRACKET)) {
+    const inner = token.slice(1, -1);
+    const slash = inner.indexOf("/");
+    const ref = slash < 0 ? inner : inner.slice(0, slash);
+    const suffix = slash < 0 ? "" : inner.slice(slash + 1).trim();
+    refs.push({
+      ref: ref.trim(),
+      ...(AK_LIKE.test(suffix) ? criterionOf(AK_SUFFIX.test(suffix), suffix.slice(2), token) : {}),
+    });
+  }
+  for (const { shortId, matched, ak } of pattern?.(name) ?? []) {
+    refs.push({ ref: shortId, ...(ak === undefined ? {} : criterionOf(AK_DIGITS.test(ak), ak, matched)) });
+  }
+  return refs;
+};

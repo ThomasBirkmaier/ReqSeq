@@ -104,6 +104,18 @@ describe("nameMatcher (SR-029 AK5)", () => {
     expect(matches("{prefix}_{id}_ak{ak}", "sr_348143_ak")).toEqual([]);
   });
 
+  it("gives the digits of {ak} as written with each match (SR-029 AK10)", () => {
+    const found = nameMatcher(parseNamePattern("{prefix}_{id}_ak{ak}"), PREFIXES);
+    expect(found("sr_348143_ak2 sr_348143_ak03 sr_348143_ak0")).toEqual([
+      { shortId: "SR-348143", matched: "sr_348143_ak2", ak: "2" },
+      { shortId: "SR-348143", matched: "sr_348143_ak03", ak: "03" },
+      { shortId: "SR-348143", matched: "sr_348143_ak0", ak: "0" },
+    ]);
+    expect(nameMatcher(parseNamePattern("{prefix}_{id}"), PREFIXES)("sr_348143")).toEqual([
+      { shortId: "SR-348143", matched: "sr_348143" },
+    ]);
+  });
+
   it("starts and ends a match only at a word boundary (B2 of the plan review)", () => {
     // Inside a word nothing matches: D-ed123456, D-41d8cd98f00 and SR-348143 would be wrong.
     expect(matches("{prefix}{id}", "loaded123456")).toEqual([]);
