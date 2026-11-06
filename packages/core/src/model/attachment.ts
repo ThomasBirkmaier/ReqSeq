@@ -120,7 +120,7 @@ export const sourceLocation = (
     typedWorkspaceFolder(sourcePath, { platform, home: root }) === undefined
   ) {
     throw invalid(
-      `${paths.basename(absolute)} is not on a drive of this computer; ReqSeq reads no network path`,
+      `${paths.basename(absolute)} is not a path on a drive of this computer; ReqSeq reads no network or device path`,
       {
         reason: "source-not-local",
       },

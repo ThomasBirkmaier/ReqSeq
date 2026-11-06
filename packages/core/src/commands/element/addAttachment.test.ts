@@ -300,7 +300,7 @@ describe("element.addAttachment", () => {
         sourcePath,
         expect.objectContaining({
           code: "input.invalid",
-          message: "x.png is not on a drive of this computer; ReqSeq reads no network path",
+          message: "x.png is not a path on a drive of this computer; ReqSeq reads no network or device path",
           details: { reason: "source-not-local" },
         }),
       ]);
@@ -324,6 +324,17 @@ describe("element.addAttachment", () => {
     const sourcePath = path.resolve("/", ...Array.from({ length: 2100 }, () => "a"), "x.png");
     const error = await addError(opened, { ref: WIND.id, sourcePath });
     expect([error.code, error.details]).toEqual(["input.invalid", { reason: "source-not-local" }]);
+    // A UNC path as the command sees it on Windows (the platform `sourceLocation` defaults to).
+    const platform = Object.getOwnPropertyDescriptor(process, "platform");
+    Object.defineProperty(process, "platform", { value: "win32" });
+    try {
+      const unc = await addError(opened, { ref: WIND.id, sourcePath: "\\\\host\\share\\x.png" });
+      expect([unc.code, unc.details]).toEqual(["input.invalid", { reason: "source-not-local" }]);
+    } finally {
+      if (platform !== undefined) {
+        Object.defineProperty(process, "platform", platform);
+      }
+    }
     expect(stat).not.toHaveBeenCalled();
   });
 
