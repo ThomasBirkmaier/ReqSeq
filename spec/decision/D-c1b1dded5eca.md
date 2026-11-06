@@ -1,7 +1,7 @@
 ---
 id: 3d5793a1-a4d5-493c-892b-c1b1dded5eca
 type: decision
-status: draft
+status: accepted
 title: Nachweisstatus je Akzeptanzkriterium
 spec-id: D-072
 based-on:
