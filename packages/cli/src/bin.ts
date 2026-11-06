@@ -15,6 +15,7 @@ try {
 }
 const { EXIT, runCli } = await import("./main.js");
 const { connectProcess } = await import("./process.js");
+const { terminalOf } = await import("./style.js");
 
 const io = connectProcess(process);
 const exitCode = await runCli({
@@ -24,5 +25,7 @@ const exitCode = await runCli({
   stdout: io.stdout,
   stderr: io.stderr,
   signal: io.signal,
+  // Styled only on a terminal without NO_COLOR (#988); asked once here, so the renderers stay pure.
+  terminal: terminalOf(process.stdout, process.env),
 });
 process.exitCode = io.writeFailed ? EXIT.internal : exitCode;

@@ -20,6 +20,7 @@ import { buildInput } from "./input.js";
 import type { Invocation, ServeRequest } from "./program.js";
 import { buildProgram } from "./program.js";
 import { renderHuman } from "./present.js";
+import type { Terminal } from "./style.js";
 import { jsonOutput, outcomeExitCode, renderError, spelledMessage, yamlOutput } from "./render.js";
 
 /** Exit codes of `reqseq` (ADR-0009). */
@@ -129,6 +130,11 @@ export interface RunCliOptions {
   readonly runtime?: CommandRuntime;
   /** Aborts the running command and stops `serve api` and `mcp` (bin.ts: Ctrl-C and SIGTERM). */
   readonly signal?: AbortSignal;
+  /**
+   * The terminal stdout is, when the output for people is styled for one (bin.ts: `terminalOf`, #988);
+   * plain text without it. `--json`, `--jsonl` and `--yaml` are never styled.
+   */
+  readonly terminal?: Terminal | undefined;
 }
 
 /** `--workspace`, else the nearest folder with reqseq-workspace.yaml, else the current folder (workspace init). */
@@ -198,7 +204,7 @@ async function execute(
         ? jsonLines(output, invocation.entry.jsonLines)
         : invocation.yaml
           ? yamlOutput(output)
-          : [renderHuman(output, invocation.entry.effect === "read")],
+          : [renderHuman(output, invocation.entry.effect === "read", options.terminal)],
     options.signal,
   );
   return options.signal?.aborted === true ? EXIT.aborted : outcomeExitCode(output);
