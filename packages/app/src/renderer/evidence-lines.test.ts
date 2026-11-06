@@ -28,7 +28,7 @@ describe("the lines of an element's evidence records", () => {
             repository: "system",
             file: "evidence/ci/results.xml",
             line: 4,
-            evidenceLocation: "system/evidence/ci/results.xml:4",
+            evidenceSource: "system/evidence/ci/results.xml:4",
             baselines: ["Release 1.0", "Beta"],
           }),
           record({
@@ -36,7 +36,7 @@ describe("the lines of an element's evidence records", () => {
             item: "Display sample B2",
             evidence: "//fileserver/qa/inspection.docx",
             file: "evidence/record.md",
-            evidenceLocation: "//fileserver/qa/inspection.docx",
+            evidenceSource: "//fileserver/qa/inspection.docx",
             date: "2026-10-20T14:00:00Z",
             baselines: [],
           }),
@@ -88,11 +88,11 @@ describe("the lines of an element's evidence records", () => {
     expect(text(line ?? [])).toBe("2026-10-21T09:00:00Z · passed · uuid-x · version n1:1111111111111111");
   });
 
-  it("shows the Beleg as core gives it in `evidenceLocation`, and none without it (#821)", () => {
+  it("shows the Beleg as core gives it in `evidenceSource`, and none without it (#821)", () => {
     const lines = evidenceLines(
       {
         records: [
-          record({ evidence: "", file: "evidence/a.md", evidenceLocation: "evidence/a.md" }),
+          record({ evidence: "", file: "evidence/a.md", evidenceSource: "evidence/a.md" }),
           record({ file: "b.md" }),
         ],
       },

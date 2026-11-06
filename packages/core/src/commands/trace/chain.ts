@@ -32,9 +32,9 @@ import {
   evidenceIndexState,
   evidenceReadState,
   hasVerificationRecord,
-  testCaseWithEvidenceLocation,
+  testCaseWithEvidenceSource,
   validationRecordsOf,
-  withEvidenceLocation,
+  withEvidenceSource,
 } from "../../evidence/index.js";
 import type { ElementEvidence } from "../../evidence/index.js";
 import { namesField, namesOf, resolveRef, shortIdState } from "../../model/index.js";
@@ -72,15 +72,15 @@ const viewsHolding = (
 };
 
 /**
- * Copies of the evidence below an element with their evidence location (#821): the index records and
+ * Copies of the evidence below an element with their evidence source (#821): the index records and
  * test cases stay as they are, and only the expanded elements of the page are copied.
  */
-const withEvidenceLocations = (evidence: ElementEvidence | undefined): ElementEvidence | undefined =>
+const withEvidenceSources = (evidence: ElementEvidence | undefined): ElementEvidence | undefined =>
   evidence === undefined
     ? undefined
     : {
-        testCases: evidence.testCases.map(testCaseWithEvidenceLocation),
-        records: evidence.records.map(withEvidenceLocation),
+        testCases: evidence.testCases.map(testCaseWithEvidenceSource),
+        records: evidence.records.map(withEvidenceSource),
       };
 
 export default defineCommand({
@@ -130,12 +130,12 @@ export default defineCommand({
         metamodel,
         shortIds,
         viewsOf,
-        validationOf: (element) => validationRecordsOf(all, element.id).map(withEvidenceLocation),
+        validationOf: (element) => validationRecordsOf(all, element.id).map(withEvidenceSource),
         ...(index === undefined
           ? {}
           : {
               evidenceOf: (element) =>
-                withEvidenceLocations(chainEvidenceOf(index, element.id, view, independent(element))),
+                withEvidenceSources(chainEvidenceOf(index, element.id, view, independent(element))),
             }),
       },
       { limit: input.limit, offset: input.offset },

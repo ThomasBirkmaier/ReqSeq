@@ -7,7 +7,7 @@
 // says that an evidence location or the baselines folder is not on this machine (SR-006 AK2).
 // `testCases` are the test cases that name the element, each with the element's executions that hold
 // in the view (SR-033, `testCasesIn`; every kind of record, as `records`). Every record carries its
-// `evidenceLocation` (#821). Nothing is written.
+// `evidenceSource` (#821). Nothing is written.
 import { workspaceBaselines, baselinesContaining } from "../../baselines/index.js";
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
@@ -15,9 +15,9 @@ import {
   evidenceIndexState,
   evidenceReadState,
   listedRecords,
-  testCaseWithEvidenceLocation,
+  testCaseWithEvidenceSource,
   testCasesIn,
-  withEvidenceLocation,
+  withEvidenceSource,
 } from "../../evidence/index.js";
 import { metamodelState } from "../../metamodel/index.js";
 import {
@@ -61,11 +61,11 @@ export default defineCommand({
         ? undefined
         : formsOfEntry((await currentVersionsOf(ctx.workspace, [element])).get(element));
     return {
-      // Copies with their evidence location (#821): the index records and test cases stay as they are.
+      // Copies with their evidence source (#821): the index records and test cases stay as they are.
       records: listedRecords(records, view, independent, (id, version) =>
         baselinesContaining(baselines, id, storedForms(version, current)),
-      ).map(withEvidenceLocation),
-      testCases: testCasesIn(index, element.id, view, independent).map(testCaseWithEvidenceLocation),
+      ).map(withEvidenceSource),
+      testCases: testCasesIn(index, element.id, view, independent).map(testCaseWithEvidenceSource),
       problems: [...baselines.problems],
       incomplete: read.incomplete || baselines.incomplete,
     };

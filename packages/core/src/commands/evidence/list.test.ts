@@ -119,15 +119,15 @@ describe("evidence.list (SR-032)", () => {
         "//fileserver/qa/ws/inspection-2026-09-10.docx",
       ],
     ]);
-    // The evidence location (#821) is the evidence when given, else the record file with its line.
+    // The evidence source (#821) is the evidence when given, else the record file with its line.
     expect(output.records[3]).toEqual({
       ...INSPECTION,
-      evidenceLocation: "//fileserver/qa/ws/inspection-2026-09-10.docx",
+      evidenceSource: "//fileserver/qa/ws/inspection-2026-09-10.docx",
       baselines: ["Beta", "Release 1.0"],
     });
     expect(output.records[1]).toEqual({
       ...FAILED,
-      evidenceLocation: "ci/results-511.xml",
+      evidenceSource: "ci/results-511.xml",
       baselines: ["Release 1.1"],
     });
     expect([output.problems, output.incomplete]).toEqual([[], false]);
@@ -294,7 +294,7 @@ describe("evidence.list: test cases (SR-033)", () => {
     line: 4,
   });
   const OF_A2 = { ...RERUN, element: A2, version: V2 };
-  const RERUN_AT = { ...RERUN, evidenceLocation: "system/evidence/ci/run-513.xml:4" };
+  const RERUN_AT = { ...RERUN, evidenceSource: "system/evidence/ci/run-513.xml:4" };
 
   /** A workspace on `ws` whose evidence read gives `records` and the skipped test cases `skipped`. */
   const openRead = async (
@@ -319,17 +319,17 @@ describe("evidence.list: test cases (SR-033)", () => {
         className: "tests.test_display",
         elements: [A1, A2],
         executed: true,
-        executions: [RERUN_AT, { ...FAILED, evidenceLocation: "ci/results-511.xml" }],
+        executions: [RERUN_AT, { ...FAILED, evidenceSource: "ci/results-511.xml" }],
         last: RERUN_AT,
       },
     ]);
     // The index keeps its records as read: the answer has copies (#821).
-    expect(RERUN).not.toHaveProperty("evidenceLocation");
+    expect(RERUN).not.toHaveProperty("evidenceSource");
     // In the core view both executions hold; for the coast none, so the test case is left out there.
     expect((await list(workspace, { ref: A1, view: "core" })).testCases).toEqual(output.testCases);
     expect((await list(workspace, { ref: A1, view: "VAR-0032c1" })).testCases).toEqual([]);
     expect((await list(workspace, { ref: A2 })).testCases.map((t) => t.executions)).toEqual([
-      [{ ...OF_A2, evidenceLocation: "system/evidence/ci/run-513.xml:4" }],
+      [{ ...OF_A2, evidenceSource: "system/evidence/ci/run-513.xml:4" }],
     ]);
   });
 

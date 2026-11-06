@@ -157,7 +157,7 @@ describe("evidence.record (SR-030)", () => {
     // The answer names where the evidence is (#821); the file holds no such field.
     expect(output).toEqual({
       files: [file],
-      record: { ...intended, evidenceLocation: "photos/unit-7.jpg" },
+      record: { ...intended, evidenceSource: "photos/unit-7.jpg" },
       problems: [],
     });
   });

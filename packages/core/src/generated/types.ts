@@ -805,8 +805,8 @@ export interface DataExportEvidenceRecord {
   readonly file?: string;
   /** The line of the `<testcase>` in a JUnit file; 1 for a Markdown record. */
   readonly line?: number;
-  /** Where the evidence of the record is, as a person reads it (SR-032 AK1): `evidence` when given and not empty; else the record file, `<repository>/<file>` and `:<line>` when `line` is given; left out when the record has neither. Text only, never opened. */
-  readonly evidenceLocation?: string;
+  /** Where the evidence of the record is, as a person reads it (SR-032 AK1): `evidence` when given and not empty; else the record file, `<repository>/<file>` (`<file>` alone without `repository`) and `:<line>` when `line` is given; left out when the record has neither. Not an evidence location of the workspace file. Text only, never opened. */
+  readonly evidenceSource?: string;
   /** The `classname` of a JUnit test case; with `testCase` it names the test case (ADR-0012). Left out for a Markdown record. */
   readonly className?: string;
   /** The acceptance criteria the record holds for, by number counted from 1, ascending and each once (D-072, SR-028 AK4, SR-093 AK4): `criteria` of a Markdown record, the `reqseq:criterion` properties of a JUnit test case for this element. Left out: every criterion. Never on a validation record. */

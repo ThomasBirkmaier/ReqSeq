@@ -3,8 +3,8 @@
 // "<date> · <kind> · <method> · <result>: <reason> · <item> · <Beleg> · <variant> · version <version> ·
 // baselines <name>, <name>", with the parts of the CLI's line (SR-080), a reason on one line as on the
 // validation line (`reasonLine`). The kind is named only when it is no verification; the Beleg (SR-032
-// AK1) is the record's `evidenceLocation` as core gives it (#821), text never opened (offline); the variant (SR-047 AK2) is a link named by `names` of `element.get`, or
-// its UUID; the baselines are the files that hold the record's version (SR-032 AK2), left out when none
+// AK1) is the record's `evidenceSource` as core gives it (#821), text never opened (offline); the
+// variant (SR-047 AK2) is a link named by `names` of `element.get`, or its UUID; the baselines are the files that hold the record's version (SR-032 AK2), left out when none
 // does. A part that is absent is left out with its separator. After the records, one note per problem of
 // `evidence.list` (a baseline file that cannot be read names no baseline) and one when the answer is
 // incomplete (a repository not on this machine), so a line without baselines is not taken for a sure one.
@@ -28,7 +28,7 @@ const recordLine = (record: DataExportEvidenceRecord, byId: ReadonlyMap<string, 
     part(record.method),
     part(record.reason === undefined ? record.result : `${record.result}: ${reasonLine(record.reason)}`),
     part(record.item),
-    part(record.evidenceLocation),
+    part(record.evidenceSource),
     record.variant === undefined
       ? []
       : variant === undefined

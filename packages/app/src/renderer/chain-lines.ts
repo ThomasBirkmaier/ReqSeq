@@ -5,7 +5,7 @@
 // in core's order (newest first): "<date> · <result> · <item> · <Beleg>" (AK1); a record without a test
 // case is a line "record <date> · <method> · <result> · <item> · <Beleg>"; a record of a variant ends in
 // "variant <UUID>" (the output names no variants). The Beleg is text, never opened (offline): the record's
-// `evidenceLocation` as core gives it (#821). An evidence item names its element by UUID
+// `evidenceSource` as core gives it (#821). An evidence item names its element by UUID
 // and repository and belongs to a child (core gives none for a parent): it goes under the last row of that
 // element among the nodes, since the parents come before the children (an element of a cycle is both); one
 // whose element has no row (cut by the line limit) is not shown. The root's `validationRecords` (#646) are lines
@@ -75,7 +75,7 @@ const evidenceLines = (evidence: ChainEvidence, depth: number): ResultLine[] => 
           execution.date,
           resultOf(execution),
           execution.item,
-          execution.evidenceLocation,
+          execution.evidenceSource,
           variantOf(execution),
         ]),
         wholeReasonOf(execution),
@@ -91,7 +91,7 @@ const evidenceLines = (evidence: ChainEvidence, depth: number): ResultLine[] => 
         record.method,
         resultOf(record),
         record.item,
-        record.evidenceLocation,
+        record.evidenceSource,
         variantOf(record),
       ]),
       wholeReasonOf(record),
@@ -147,7 +147,7 @@ export const chainLines = (output: unknown): ResultLine[] => {
                 record.date,
                 resultOf(record),
                 record.item,
-                record.evidenceLocation,
+                record.evidenceSource,
                 `version ${record.version}`,
               ]),
               wholeReasonOf(record),

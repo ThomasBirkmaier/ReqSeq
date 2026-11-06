@@ -1061,7 +1061,7 @@ const recordLine = (record: Rec, withMethod: boolean, names: Names): string =>
     reasonText(record["reason"]),
     text(record["item"]),
     // Where the Beleg is, as core gives it (#821).
-    text(record["evidenceLocation"]),
+    text(record["evidenceSource"]),
     text(record["variant"]) === "" ? "" : `[variant ${variantName(text(record["variant"]), names)}]`,
     criteriaText(record["criteria"]),
   );

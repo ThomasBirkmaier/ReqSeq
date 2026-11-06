@@ -199,12 +199,9 @@ describe("trace.affected (SR-024)", () => {
       record(GUSTS, "n1:2222222222222222", "2026-09-02T08:00:00Z"),
     ]);
     const output = await affected(workspace, { ref: "SR-00b001" });
-    // Each with its evidence location (#821), on a copy: `oldest` has none.
-    expect(output.records).toEqual([
-      { ...older, evidenceLocation: "system/evidence/ci/run-1.xml:7" },
-      oldest,
-    ]);
-    expect(older).not.toHaveProperty("evidenceLocation");
+    // Each with its evidence source (#821), on a copy: `oldest` has none.
+    expect(output.records).toEqual([{ ...older, evidenceSource: "system/evidence/ci/run-1.xml:7" }, oldest]);
+    expect(older).not.toHaveProperty("evidenceSource");
     expect(rows(output)).toHaveLength(3);
     expect((await affected(workspace, { ref: "SR-00b004" })).records).toEqual([]);
   });
