@@ -9,6 +9,7 @@ acceptance-criteria:
   - "Gegeben ein Requirement, wenn dafür ein Datensatz erfasst wird, dann sind ID und aktuelle Fassung schon eingetragen."
   - "Gegeben ein erfasster Datensatz mit Art, Methode, Ergebnis, Prüfling, Datum und Verweis auf einen Beleg, wenn er gespeichert wird, dann entsteht eine Datei im offenen Format in der gewählten Ablage."
   - "Gegeben ein Datensatz der Art Validierung, wenn er gespeichert wird, dann zählt er für den Validierungsstatus und nicht für den Nachweisstatus."
+  - "Gegeben ein Datensatz wird mit der Nummer eines Akzeptanzkriteriums erfasst, wenn er gespeichert wird, dann steht die Nummer in der Datei."
 verification-method: test
 packages:
   - { id: ed14d465-fd3f-4188-992b-3ff7af8595af, version: n2:1261455098bd8d6a, title: Nachweis und Abdeckung }
@@ -18,6 +19,7 @@ derives-from:
 based-on:
   - { id: 6ad49d01-5018-4d89-9350-37989131ccc1, version: n2:53ccd5c22e173820, title: Nachweise und Validierungen als Datensätze }
   - { id: 6adc58f5-a349-4870-af2f-971ec1cee679, version: n2:f99d3d6f08b13a10, title: Ein offenes Format für Nachweis-Datensätze }
+  - { id: 3d5793a1-a4d5-493c-892b-c1b1dded5eca, version: n2:4460ef6e0191adfe, title: Nachweisstatus je Akzeptanzkriterium }
 ---
 
 Das Tool muss Datensätze für manuelle Tests, Inspektionen, Analysen, Demonstrationen und Validierungen erfassen lassen.
