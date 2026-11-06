@@ -14,10 +14,10 @@ permissions:
   contents: read
 
 concurrency:
-  # Title, body and label edits run trace-check in pr-text.yml, not here (#372): a CI run of such an event would be the
-  # newest run of the head commit, and GitHub reads the required checks from it, where the platform jobs are skipped
-  # under a name without the system. A change of the base branch therefore starts no run either; the next push checks
-  # the code against the new base (`pnpm merge:main`).
+  # Title, body, label and base branch edits start no run (#372): a CI run of such an event would be the newest run of
+  # the head commit, and GitHub reads the required checks from it, where the platform jobs are skipped under a name
+  # without the system. No check reads the PR text; after a change of the base branch, the next push checks the code
+  # against the new base (`pnpm merge:main`).
   # Closing or merging a pull request joins the full group and so cancels its queued or running full run; the
   # run of `closed` starts no job (product owner decision, 2026-10-28: no runner time for pull requests that are done).
   # Marking a pull request ready for review joins the full group too (#412): its run checks both lanes, so it may cancel
@@ -49,7 +49,6 @@ jobs:
     if: ${{ github.event.action != 'closed' }}
     permissions:
       contents: read
-      pull-requests: read # Write PR body
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -102,34 +101,10 @@ jobs:
       - name: Audit
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: pnpm audit --prod --audit-level high
-      # trace-check reads the ReqSeq workspace in spec/ with the `yaml` package (#326), and the PR text (D-050).
-      # pr-text-follow-up.yml re-runs `static` when it failed only in `Trace check` and reads the time of `Write PR body`,
-      # so it knows both steps by name.
-      - name: Write PR body
-        if: ${{ !cancelled() && github.event_name == 'pull_request' }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR_URL: ${{ github.event.pull_request.url }}
-        # The pull request as it is now, not as the event saw it: a label added right after opening the pull
-        # request (`enabler`) counts in the run of `opened` too, and a re-run reads the current text (#571).
-        run: |
-          curl -fsS --retry 3 --max-time 30 -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" "$PR_URL" > pr.json
-          jq -r '.title + "\n\n" + (.body // "")' pr.json > pr-body.txt
-          jq -r '[.labels[].name] | any(. == "enabler" or . == "spec-export")' pr.json > pr-enabler.txt
+      # trace-check reads the ReqSeq workspace in spec/ with the `yaml` package (#326) and the test names; no PR text.
       - name: Trace check
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
-        env:
-          IS_PR: ${{ github.event_name == 'pull_request' }}
-        run: |
-          args=""
-          if [ "$IS_PR" = "true" ]; then
-            # A pull request is always checked with its text: without it (`Write PR body` failed) the check fails.
-            [ -f pr-body.txt ] && [ -f pr-enabler.txt ] || { echo "No PR body (see Write PR body)"; exit 1; }
-            args="--pr-body pr-body.txt"
-            if [ "$(cat pr-enabler.txt)" = "true" ]; then args="$args --enabler"; fi
-          fi
-          node scripts/trace-check/trace-check.mjs $args --report trace-report.md
+        run: node scripts/trace-check/trace-check.mjs --report trace-report.md
       - name: Trace report
         if: always()
         run: cat trace-report.md >> "$GITHUB_STEP_SUMMARY" || true
