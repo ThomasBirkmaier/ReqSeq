@@ -206,6 +206,20 @@ body,
   font-weight: 400;
 }
 
+/* The groups of a grouped list (SR-149), headed like the groups of a package page: a small muted heading
+   with the name and the count. */
+.buffer.list .group h2 {
+  margin: 1.5rem 0 0.25rem;
+  padding: 0 0.75rem;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.buffer.list .group h2 .count {
+  font-weight: 400;
+}
+
 .row {
   display: grid;
   grid-template-columns: 9rem minmax(0, 1fr) auto;

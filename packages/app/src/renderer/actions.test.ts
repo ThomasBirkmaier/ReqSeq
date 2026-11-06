@@ -24,8 +24,10 @@ import {
   overviewBuffer,
   resultBuffer,
   searchBuffer,
+  withGroup,
   withMatrix,
 } from "./buffers.js";
+import { sessionText } from "./buffer-session.js";
 import { savedStep, statusStep, textStep, typeStep } from "./list-filters.js";
 import { MOST_FREQUENT, PREFIX, PREFIX_BINDINGS, prefixLabel } from "./bindings.js";
 import { matches, shortcutLabel } from "./keys.js";
@@ -180,6 +182,7 @@ describe("the command prompt", () => {
       "Filter list by text search",
       "Filter list by saved filter",
       "Sort list",
+      "Group list",
       "Show traceability matrix",
       "Close buffer",
       "Close all buffers",
@@ -328,6 +331,7 @@ describe("the command prompt", () => {
       undefined,
       undefined,
       "Ctrl+K S",
+      undefined,
       "Ctrl+T",
       "Ctrl+K B",
       undefined,
@@ -812,6 +816,159 @@ describe("list actions", () => {
     );
     expect(first).toBe(DEFAULT_SORT);
     expect(second).toEqual([]);
+  });
+
+  describe("grouping a list (SR-149)", () => {
+    const facets = {
+      total: 3,
+      types: [],
+      statuses: [{ key: "draft", count: 3 }],
+      properties: [
+        {
+          key: "topic",
+          name: "Topic",
+          kind: "text",
+          count: 2,
+          missing: 1,
+          distinct: 2,
+          values: [
+            { value: "A", count: 1 },
+            { value: "B", count: 1 },
+          ],
+        },
+        {
+          key: "rationale",
+          name: "Rationale",
+          kind: "text",
+          count: 3,
+          missing: 0,
+          distinct: 31,
+          distinctCapped: true,
+        },
+        {
+          key: "packages",
+          name: "Packages",
+          kind: "relation",
+          count: 3,
+          missing: 0,
+          distinct: 1,
+          values: [{ value: "PKG-1", count: 3 }],
+        },
+        { key: "priority", name: "Priority", kind: "choice", count: 0, missing: 3, distinct: 0, values: [] },
+        {
+          key: "verification-method",
+          name: "Method",
+          kind: "choice",
+          count: 3,
+          missing: 0,
+          distinct: 1,
+          values: [{ value: "test", count: 3 }],
+        },
+      ],
+    };
+    const metamodel = { meanings: { packages: ["packages"] } };
+    const steps = [statusStep("draft")];
+    const sort = [{ by: "title" as const, order: "asc" as const }];
+    const sorted = filteredList(steps, sort);
+
+    it("[SR-149/AK4] the command line offers type, status, package and the properties with values to choose of the listed elements", async () => {
+      const { context, asked, call } = setup([sorted], {
+        "element.facets": facets,
+        "metamodel.get": metamodel,
+      });
+      action("group").run(context);
+      await flush();
+      expect(call).toHaveBeenCalledWith("element.facets", { selection: sorted.selection });
+      expect(asked[0]?.label).toBe("Group by");
+      // Free text without values (rationale), a property without values among these elements (priority)
+      // and the property of the packages, which "Package" groups by, are not offered.
+      expect(asked[0]?.items.map((item) => [item.name, item.hint])).toEqual([
+        ["Type", undefined],
+        ["Status", undefined],
+        ["Package", undefined],
+        ["topic", "2"],
+        ["verification-method", "1"],
+      ]);
+    });
+
+    it("[SR-149/AK4] offers the packages property when the metamodel cannot be read or names none, and says why facets fail", async () => {
+      const failing = setup([list], { "element.facets": facets, "metamodel.get": new Error("no metamodel") });
+      action("group").run(failing.context);
+      await flush();
+      expect(failing.call).toHaveBeenCalledWith("element.facets", {});
+      expect(failing.asked[0]?.items.map((item) => item.name)).toContain("packages");
+      const unassigned = setup([list], { "element.facets": facets, "metamodel.get": { meanings: {} } });
+      action("group").run(unassigned.context);
+      await flush();
+      expect(unassigned.asked[0]?.items.map((item) => item.name)).toContain("packages");
+      const broken = setup([list], {
+        "element.facets": new Error("facets failed"),
+        "metamodel.get": metamodel,
+      });
+      action("group").run(broken.context);
+      await flush();
+      expect(broken.asked).toEqual([]);
+      expect(broken.echoed).toEqual(["facets failed"]);
+    });
+
+    it("[SR-149/AK3] choosing another grouping or ungrouping keeps the filter steps and the sort", async () => {
+      const { context, asked, dispatched } = setup([sorted], {
+        "element.facets": facets,
+        "metamodel.get": metamodel,
+      });
+      action("group").run(context);
+      await flush();
+      asked[0]?.items[2]?.run();
+      asked[0]?.items[3]?.run();
+      expect(dispatched).toEqual([
+        { type: "open", buffer: { ...sorted, group: "package" } },
+        { type: "open", buffer: { ...sorted, group: "topic" } },
+      ]);
+      const grouped = withGroup(sorted, "topic");
+      const again = setup([grouped]);
+      expect(action("ungroup").available(again.context)).toBe(true);
+      action("ungroup").run(again.context);
+      expect(again.dispatched).toEqual([{ type: "open", buffer: sorted }]);
+    });
+
+    it("[SR-149/AK3] filtering and sorting a grouped list keep the grouping", () => {
+      const grouped = withGroup(sorted, "status");
+      const { context, asked, dispatched } = setup([grouped]);
+      action("sort").run(context);
+      asked[0]?.items[0]?.run();
+      action("clear-filter").run(context);
+      expect(dispatched).toEqual([
+        { type: "open", buffer: { ...filteredList(steps, DEFAULT_SORT), group: "status" } },
+        { type: "open", buffer: { ...filteredList([], sort), group: "status" } },
+      ]);
+    });
+
+    it("is offered on a list, not on a matrix or an element; ungrouping only on a grouped list", () => {
+      expect(action("group").available(setup([list]).context)).toBe(true);
+      expect(action("group").available(setup([withMatrix(list, true)]).context)).toBe(false);
+      expect(action("group").available(setup([element]).context)).toBe(false);
+      expect(action("ungroup").available(setup([list]).context)).toBe(false);
+      expect(action("ungroup").available(setup([withMatrix(withGroup(list, "type"), true)]).context)).toBe(
+        false,
+      );
+      const { context, dispatched } = setup([element]);
+      action("group").run(context);
+      action("ungroup").run(context);
+      expect(dispatched).toEqual([]);
+    });
+
+    it("[SR-149/AK5] choosing a grouping only reads, and the grouping is not kept with the buffers", async () => {
+      const { context, asked, call, dispatched } = setup([list], {
+        "element.facets": facets,
+        "metamodel.get": metamodel,
+      });
+      action("group").run(context);
+      await flush();
+      asked[0]?.items[0]?.run();
+      expect(call.mock.calls.map(([name]) => name)).toEqual(["element.facets", "metamodel.get"]);
+      const [opened] = dispatched;
+      expect(opened?.type === "open" ? sessionText([opened.buffer]) : "?").toBe(sessionText([list]));
+    });
   });
 
   describe("on a package page (SR-112)", () => {
