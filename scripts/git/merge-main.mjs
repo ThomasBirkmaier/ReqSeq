@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Merges origin/main into the current branch and resolves conflicts in generated files by
-// regenerating them (#392): parallel PRs that each add catalog commands always conflict there.
+// regenerating them (ThomasBirkmaier/ReqSeq-archive#392): parallel PRs that each add catalog commands always conflict there.
 // Usage: merge-main.mjs   (needs no tracked changes; git itself refuses to overwrite untracked files)
 // Conflicts in other files are left for you; resolve them, then run `pnpm contracts:generate`,
 // `git add` and `git commit`. The script never pushes.

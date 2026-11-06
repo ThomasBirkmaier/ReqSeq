@@ -149,7 +149,7 @@
             },
             "testCases": {
               "type": "array",
-              "description": "SR-126 AK1, AK2: only with `evidence`, on a row whose type has the meaning `requirement` and that applies in its view. The test cases that name the requirement, with their verification executions that hold in the view of `evidence` (`trace.chain` shows the same test cases in the same view), by class name then name; an empty array when it has none: a gap (AK2). Records without a test case (inspection, analysis, a manual record without `test-case`) are not here; they count for `verification` only (spec question #528 Q3). The chain and `evidence.list` give every execution.",
+              "description": "SR-126 AK1, AK2: only with `evidence`, on a row whose type has the meaning `requirement` and that applies in its view. The test cases that name the requirement, with their verification executions that hold in the view of `evidence` (`trace.chain` shows the same test cases in the same view), by class name then name; an empty array when it has none: a gap (AK2). Records without a test case (inspection, analysis, a manual record without `test-case`) are not here; they count for `verification` only (spec question ThomasBirkmaier/ReqSeq-archive#528 Q3). The chain and `evidence.list` give every execution.",
               "items": {
                 "type": "object",
                 "properties": {
@@ -171,7 +171,7 @@
                   },
                   "mark": {
                     "enum": ["not-executed", "outdated", "failed"],
-                    "description": "How the cell is marked (AK2; spec questions #528 Q1, Q2 and #593 Q2), the first that holds: `not-executed` when `executed` is false; `outdated` when `last` is of another version than the requirement's current one, or its current version is not known; `failed` when `last` failed. Left out when the last execution passed for the current version."
+                    "description": "How the cell is marked (AK2; spec questions ThomasBirkmaier/ReqSeq-archive#528 Q1, Q2 and ThomasBirkmaier/ReqSeq-archive#593 Q2), the first that holds: `not-executed` when `executed` is false; `outdated` when `last` is of another version than the requirement's current one, or its current version is not known; `failed` when `last` failed. Left out when the last execution passed for the current version."
                   }
                 },
                 "additionalProperties": false,
@@ -263,11 +263,11 @@
       },
       "evidence": {
         "type": "object",
-        "description": "The header of the evidence columns (SR-126): given when the workspace file names an evidence location, the metamodel is valid and the selection holds an element whose type has the meaning `requirement` (spec question #593 Q1); then every requirement row of the page that applies in `view` has `testCases` and `verification`. Other rows have neither (a requirement valid only in variants, without a view): not applicable, no gap. Left out otherwise, and the output is the one without evidence (SR-125).",
+        "description": "The header of the evidence columns (SR-126): given when the workspace file names an evidence location, the metamodel is valid and the selection holds an element whose type has the meaning `requirement` (spec question ThomasBirkmaier/ReqSeq-archive#593 Q1); then every requirement row of the page that applies in `view` has `testCases` and `verification`. Other rows have neither (a requirement valid only in variants, without a view): not applicable, no gap. Left out otherwise, and the output is the one without evidence (SR-125).",
         "properties": {
           "view": {
             "$ref": "../common.schema.json#/$defs/viewId",
-            "description": "The one view of the test cases, the status and the degree: the selection's view, else its saved filter's, else the core (as `evidence.degree`; spec questions #593, #592 Q1). `element.get` and `evidence.status` give every view."
+            "description": "The one view of the test cases, the status and the degree: the selection's view, else its saved filter's, else the core (as `evidence.degree`; spec questions ThomasBirkmaier/ReqSeq-archive#593, ThomasBirkmaier/ReqSeq-archive#592 Q1). `element.get` and `evidence.status` give every view."
           },
           "degree": {
             "$ref": "../data-export.schema.json#/$defs/verificationDegree",
@@ -279,7 +279,7 @@
       },
       "names": {
         "type": "array",
-        "description": "The elements that `evidence` and the rows' `verification` name by UUID only, each once in the order first named: the variant of the view and the missing children (`missingChildren`), so a reader names them by short ID, identifier and title (#588). Left out when they name none.",
+        "description": "The elements that `evidence` and the rows' `verification` name by UUID only, each once in the order first named: the variant of the view and the missing children (`missingChildren`), so a reader names them by short ID, identifier and title (ThomasBirkmaier/ReqSeq-archive#588). Left out when they name none.",
         "items": {
           "$ref": "../common.schema.json#/$defs/elementName"
         }

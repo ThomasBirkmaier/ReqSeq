@@ -13,7 +13,7 @@ label epic          3e4b9e "One per milestone: order, notices, demos and accepta
 label pilot         5319e7 "Finding from a pilot run"
 label spec-frage    fbca04 "Question about the spec for the product owner"
 label spec-geändert e99695 "Spec changed after implementation"
-label spec-export   bfd4f2 "Export of the spec from Logseq (obsolete since #326)"
+label spec-export   bfd4f2 "Export of the spec from Logseq (obsolete since ThomasBirkmaier/ReqSeq-archive#326)"
 label dogfooding    c5def5 "Found while using ReqSeq on its own spec"
 label blocked       b60205 "Waiting on another issue or an answer"
 label agent:working 1d76db "An agent is working on this"

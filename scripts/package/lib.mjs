@@ -1,4 +1,4 @@
-// The parts of staging the delivery that are pure or work on plain folders (ADR-0014, #324), tested in
+// The parts of staging the delivery that are pure or work on plain folders (ADR-0014, ThomasBirkmaier/ReqSeq-archive#324), tested in
 // lib.test.mjs. scripts/package/stage.mjs runs them on the real build.
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -137,7 +137,7 @@ export async function noticesText({ nodeModules, scope, required, title }) {
 }
 
 /**
- * Build leftovers that must not ship (#324): source maps, type declarations and TypeScript build info. The
+ * Build leftovers that must not ship (ThomasBirkmaier/ReqSeq-archive#324): source maps, type declarations and TypeScript build info. The
  * testkit inspector (`packages/testkit/src/delivery.ts`, `isBuildLeftover`) finds the same in a delivery.
  */
 export const isBuildLeftover = (file) => /\.(map|d\.ts|d\.mts|d\.cts|tsbuildinfo)$/.test(file);

@@ -6,7 +6,7 @@
 // ReqSeq's own verification status (D-072).
 // Usage: node scripts/trace-check/trace-check.mjs [--require SR-001,SR-002] [--stage 1] [--report <file>]
 //
-// The spec is the ReqSeq workspace in spec/ (D-064, #326). A system requirement is an element file of
+// The spec is the ReqSeq workspace in spec/ (D-064, ThomasBirkmaier/ReqSeq-archive#326). A system requirement is an element file of
 // type `system-requirement`, found anywhere below spec/ by its frontmatter (ADR-0004); its spec ID
 // (SR-036) is the property with the meaning `identifier` of the metamodel in spec/metamodel/. A
 // stage is the package whose identifier is `Stufe-<n>` (or the identifier given, e.g. `Querschnitt`);
@@ -113,7 +113,7 @@ export function readSpec(specDir) {
     if (fm.type === "package") {
       packages.set(id.toLowerCase(), String(fm.id));
     } else if (fm.type === "system-requirement") {
-      // Identifiers compare in any case (#305).
+      // Identifiers compare in any case (ThomasBirkmaier/ReqSeq-archive#305).
       if (seen.has(id.toLowerCase())) {
         duplicates.push(id);
       }

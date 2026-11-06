@@ -106,7 +106,7 @@ jobs:
       - name: Audit, dev packages included
         if: ${{ !cancelled() && steps.install.outcome == 'success' && github.event_name != 'pull_request' }}
         run: pnpm audit --audit-level high
-      # trace-check reads the ReqSeq workspace in spec/ with the `yaml` package (#326) and the test names; no PR text.
+      # trace-check reads the ReqSeq workspace in spec/ with the `yaml` package (ThomasBirkmaier/ReqSeq-archive#326) and the test names; no PR text.
       - name: Trace check
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: node scripts/trace-check/trace-check.mjs --report trace-report.md
@@ -140,7 +140,7 @@ jobs:
 
       # Pull requests that change only files no test or build reads (docs, agent rules, verification records,
       # Markdown at the root; .github/scripts/tests-needed.sh) skip the build, the unit tests, the spec check and
-      # e2e, and Electron skips its tests, to save runner time (#520). Nightly and manual runs always run
+      # e2e, and Electron skips its tests, to save runner time (ThomasBirkmaier/ReqSeq-archive#520). Nightly and manual runs always run
       # everything. If this step fails, `tests` stays empty and everything runs (and the job is red).
       - name: Changed files
         id: changes
@@ -192,7 +192,7 @@ jobs:
           if [ "$(git rev-parse --is-shallow-repository)" = true ]; then
             git fetch --unshallow --no-tags origin "$(git rev-parse HEAD)"
           fi
-      # The spec is a ReqSeq workspace (D-064, #326): ReqSeq checks it like any other (exit 1 on errors).
+      # The spec is a ReqSeq workspace (D-064, ThomasBirkmaier/ReqSeq-archive#326): ReqSeq checks it like any other (exit 1 on errors).
       - name: Check the spec with ReqSeq
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: pnpm spec:check
@@ -211,7 +211,7 @@ jobs:
           if ! unshare -rn true 2>/dev/null; then
             sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           fi
-          # Only loopback inside the namespace, and up, so API tests on 127.0.0.1 work there too (#125).
+          # Only loopback inside the namespace, and up, so API tests on 127.0.0.1 work there too (ThomasBirkmaier/ReqSeq-archive#125).
           unshare -rn sh -c 'ip link set lo up && exec ./node_modules/.bin/vitest run --config vitest.e2e.config.ts'
 
       # ADR-0017: the user documentation site is generated and built on every pull request that needs the tests,
@@ -278,7 +278,7 @@ jobs:
         with:
           fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 1 }}
           persist-credentials: false
-      # As in `checks` (#520): a pull request that changes only docs skips the rest of this job within seconds
+      # As in `checks` (ThomasBirkmaier/ReqSeq-archive#520): a pull request that changes only docs skips the rest of this job within seconds
       # (the job then shows as passed, its steps as skipped). If this step fails, the job is red.
       - name: Changed files
         id: changes

@@ -45,6 +45,17 @@ describe("texts for users without internal references (#642)", () => {
     );
   });
 
+  it("drops a reference to the archive repository as it drops one to this repository (#338)", () => {
+    expect(userText("Streamed in chunks (ThomasBirkmaier/ReqSeq-archive#303, #319)")).toBe(
+      "Streamed in chunks",
+    );
+    expect(internalReferences("see ThomasBirkmaier/ReqSeq-archive#12")).toEqual([
+      "ThomasBirkmaier/ReqSeq-archive#12",
+    ]);
+    expect(userText("ThomasBirkmaier/ReqSeq-archive#5: only once")).toBe("Only once");
+    expect(userText("Kept (the key, #303/ThomasBirkmaier/ReqSeq-archive#303)")).toBe("Kept (the key)");
+  });
+
   it("drops the origin of a rule and the mark of an assumption whose question went", () => {
     expect(userText("`not-in-view` (#674, product owner decision, 2026-11-02).")).toBe("`not-in-view`.");
     expect(userText("Emergent (assumption, spec question #591).")).toBe("Emergent.");

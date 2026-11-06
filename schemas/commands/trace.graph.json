@@ -52,7 +52,7 @@
       "repository": {
         "type": "string",
         "minLength": 1,
-        "description": "The workspace name of the repository of the element ref names, as in element.get (#255)."
+        "description": "The workspace name of the repository of the element ref names, as in element.get (ThomasBirkmaier/ReqSeq-archive#255)."
       },
       "maxDepth": {
         "type": "integer",
@@ -119,7 +119,7 @@
             },
             "identifier": {
               "type": "string",
-              "description": "Its identifier (the value of its property with the meaning `identifier`, such as SR-036, #305), for display next to `shortId`; left out when it has none."
+              "description": "Its identifier (the value of its property with the meaning `identifier`, such as SR-036, ThomasBirkmaier/ReqSeq-archive#305), for display next to `shortId`; left out when it has none."
             },
             "type": {
               "type": "string"

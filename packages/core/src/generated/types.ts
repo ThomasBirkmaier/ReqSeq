@@ -135,7 +135,7 @@ export type ShortId = string;
 export type ElementRef = string;
 
 /**
- * A UUID version 4 as a caller gives it, in any case; the tool stores it in lower case (spec question #316).
+ * A UUID version 4 as a caller gives it, in any case; the tool stores it in lower case (spec question ThomasBirkmaier/ReqSeq-archive#316).
  * Schema: `schemas/common.schema.json#/$defs/uuidRef`.
  */
 export type UuidRef = string;
@@ -147,7 +147,7 @@ export type UuidRef = string;
 export type ElementId = string;
 
 /**
- * How an output names an element it gives elsewhere by UUID only (#588), for people: its short ID, its identifier when it has one (#305) and its title, as element.list gives them.
+ * How an output names an element it gives elsewhere by UUID only (ThomasBirkmaier/ReqSeq-archive#588), for people: its short ID, its identifier when it has one (ThomasBirkmaier/ReqSeq-archive#305) and its title, as element.list gives them.
  * Schema: `schemas/common.schema.json#/$defs/elementName`.
  */
 export interface ElementName {
@@ -202,7 +202,7 @@ export interface RelationTarget {
 export type RelationRefs = Readonly<Record<string, ElementRef | readonly ElementRef[]>>;
 
 /**
- * Target of a relation as a caller gives it to element.create, element.update or element.bulkUpdate (SR-021). Only `id` and, across repositories, `repository` name the target; `id` is an element reference like the one relation.add takes (UUID, short ID or identifier), and the tool writes the target's UUID (#169). A plain string item is the same as `{ id }` with it (#196). A target the property already stores keeps its stored version and form; for every other target the tool writes its current version and the title (same repository) or repository (across repositories) itself. A given `version` or `title` is ignored (spec question #177).
+ * Target of a relation as a caller gives it to element.create, element.update or element.bulkUpdate (SR-021). Only `id` and, across repositories, `repository` name the target; `id` is an element reference like the one relation.add takes (UUID, short ID or identifier), and the tool writes the target's UUID (#169). A plain string item is the same as `{ id }` with it (#196). A target the property already stores keeps its stored version and form; for every other target the tool writes its current version and the title (same repository) or repository (across repositories) itself. A given `version` or `title` is ignored (spec question ThomasBirkmaier/ReqSeq-archive#177).
  * Schema: `schemas/common.schema.json#/$defs/relationTargetInput`.
  */
 export interface RelationTargetInput {
@@ -268,14 +268,14 @@ export interface Problem {
   readonly elementFile?: string;
   /** Short ID of the element `elementId` names, for display (SR-002 AK3); given on every problem that names an element of the workspace, by every command that has read the elements. */
   readonly elementShortId?: ShortId;
-  /** Identifier of the element `elementId` names (the value of its property with the meaning `identifier`, #305), for display next to `elementShortId`; given with it when the element has one. */
+  /** Identifier of the element `elementId` names (the value of its property with the meaning `identifier`, ThomasBirkmaier/ReqSeq-archive#305), for display next to `elementShortId`; given with it when the element has one. */
   readonly elementIdentifier?: string;
   readonly targetId?: Uuid;
   /** Workspace name of the repository the target `targetId` names was resolved in (#172); given when the problem's target is one element there. */
   readonly targetRepository?: string;
   /** Short ID of the element `targetId` names, for display (#172); given with `targetRepository` when that UUID names one element there, by every command that has read the elements. A missing, ambiguous or unresolved target gets none. */
   readonly targetShortId?: ShortId;
-  /** Identifier of the element `targetId` names (the value of its property with the meaning `identifier`, #305, #172), for display next to `targetShortId`; given with it when the element has one. */
+  /** Identifier of the element `targetId` names (the value of its property with the meaning `identifier`, ThomasBirkmaier/ReqSeq-archive#305, #172), for display next to `targetShortId`; given with it when the element has one. */
   readonly targetIdentifier?: string;
   readonly storedVersion?: Version;
   readonly currentVersion?: Version;
@@ -547,10 +547,10 @@ export interface DataExportFile {
 export interface DataExportElement {
   readonly id: Uuid;
   readonly shortId: ShortId;
-  /** The value of its property with the meaning `identifier` (an ID from another source such as SR-036, #305), for display next to `shortId`; left out when it has none. The property itself stays under `properties`. */
+  /** The value of its property with the meaning `identifier` (an ID from another source such as SR-036, ThomasBirkmaier/ReqSeq-archive#305), for display next to `shortId`; left out when it has none. The property itself stays under `properties`. */
   readonly identifier?: string;
   readonly type: Key;
-  /** The status key as written; left out when the element has none (a type without status, #306). */
+  /** The status key as written; left out when the element has none (a type without status, ThomasBirkmaier/ReqSeq-archive#306). */
   readonly status?: Key;
   readonly title: string;
   /** Markdown text below the frontmatter, without the blank line after the closing `---` (ADR-0004). Left out by list commands unless asked for. */
@@ -575,7 +575,7 @@ export interface DataExportElement {
   }[];
   /** The variants that exclude this core requirement (SR-042, SR-046 AK3). Left out when empty. */
   readonly excludedBy?: readonly Uuid[];
-  /** SR-035: true when the element's property with the meaning `emergent` holds the choice `yes` (assumption, spec question #591); only true is given, left out otherwise. An emergent requirement is never `indirect`: without an own verification record in a view it is `open` there. */
+  /** SR-035: true when the element's property with the meaning `emergent` holds the choice `yes` (assumption, spec question ThomasBirkmaier/ReqSeq-archive#591); only true is given, left out otherwise. An emergent requirement is never `indirect`: without an own verification record in a view it is `open` there. */
   readonly emergent?: boolean;
   /** All other properties by key, unknown ones included. */
   readonly properties: Readonly<Record<string, unknown>>;
@@ -583,7 +583,7 @@ export interface DataExportElement {
   readonly relations: readonly DataExportRelation[];
   /** Verification status, one entry per view the requirement is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it (SR-047 AK3). */
   readonly verification?: readonly DataExportVerificationEntry[];
-  /** SR-038: the Validierungsstatus from the validation records of the core (no `variant`) against the element's current version; the newest record of that version decides, only records of older versions give `outdated`. Given for every element whose type has the meaning `need` (`open` without record) and for every other element with a validation record; left out otherwise (assumption, spec question #534). Never inherited from children; never the element's `status` (D-030). `inconclusive` when that record is inconclusive (SR-172 AK2); on a tie at the newest date `failed` before `inconclusive` before `validated` (assumption, spec question #807). */
+  /** SR-038: the Validierungsstatus from the validation records of the core (no `variant`) against the element's current version; the newest record of that version decides, only records of older versions give `outdated`. Given for every element whose type has the meaning `need` (`open` without record) and for every other element with a validation record; left out otherwise (assumption, spec question ThomasBirkmaier/ReqSeq-archive#534). Never inherited from children; never the element's `status` (D-030). `inconclusive` when that record is inconclusive (SR-172 AK2); on a tie at the newest date `failed` before `inconclusive` before `validated` (assumption, spec question #807). */
   readonly validation?: ValidationStatus;
   /** SR-172 AK2: the `reason` of the inconclusive record that decides `validation`; given exactly when `validation` is `inconclusive`. */
   readonly validationReason?: string;
@@ -597,10 +597,10 @@ export interface DataExportElement {
 export interface DataExportElementPart {
   readonly id: Uuid;
   readonly shortId: ShortId;
-  /** The value of its property with the meaning `identifier` (an ID from another source such as SR-036, #305), for display next to `shortId`; left out when it has none. The property itself stays under `properties`. */
+  /** The value of its property with the meaning `identifier` (an ID from another source such as SR-036, ThomasBirkmaier/ReqSeq-archive#305), for display next to `shortId`; left out when it has none. The property itself stays under `properties`. */
   readonly identifier?: string;
   readonly type?: Key;
-  /** The status key as written; left out when the element has none (a type without status, #306). */
+  /** The status key as written; left out when the element has none (a type without status, ThomasBirkmaier/ReqSeq-archive#306). */
   readonly status?: Key;
   readonly title?: string;
   /** Markdown text below the frontmatter, without the blank line after the closing `---` (ADR-0004). Left out by list commands unless asked for. */
@@ -625,7 +625,7 @@ export interface DataExportElementPart {
   }[];
   /** The variants that exclude this core requirement (SR-042, SR-046 AK3). Left out when empty. */
   readonly excludedBy?: readonly Uuid[];
-  /** SR-035: true when the element's property with the meaning `emergent` holds the choice `yes` (assumption, spec question #591); only true is given, left out otherwise. An emergent requirement is never `indirect`: without an own verification record in a view it is `open` there. */
+  /** SR-035: true when the element's property with the meaning `emergent` holds the choice `yes` (assumption, spec question ThomasBirkmaier/ReqSeq-archive#591); only true is given, left out otherwise. An emergent requirement is never `indirect`: without an own verification record in a view it is `open` there. */
   readonly emergent?: boolean;
   /** All other properties by key, unknown ones included. */
   readonly properties?: Readonly<Record<string, unknown>>;
@@ -633,7 +633,7 @@ export interface DataExportElementPart {
   readonly relations?: readonly DataExportRelation[];
   /** Verification status, one entry per view the requirement is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it (SR-047 AK3). */
   readonly verification?: readonly DataExportVerificationEntry[];
-  /** SR-038: the Validierungsstatus from the validation records of the core (no `variant`) against the element's current version; the newest record of that version decides, only records of older versions give `outdated`. Given for every element whose type has the meaning `need` (`open` without record) and for every other element with a validation record; left out otherwise (assumption, spec question #534). Never inherited from children; never the element's `status` (D-030). `inconclusive` when that record is inconclusive (SR-172 AK2); on a tie at the newest date `failed` before `inconclusive` before `validated` (assumption, spec question #807). */
+  /** SR-038: the Validierungsstatus from the validation records of the core (no `variant`) against the element's current version; the newest record of that version decides, only records of older versions give `outdated`. Given for every element whose type has the meaning `need` (`open` without record) and for every other element with a validation record; left out otherwise (assumption, spec question ThomasBirkmaier/ReqSeq-archive#534). Never inherited from children; never the element's `status` (D-030). `inconclusive` when that record is inconclusive (SR-172 AK2); on a tie at the newest date `failed` before `inconclusive` before `validated` (assumption, spec question #807). */
   readonly validation?: ValidationStatus;
   /** SR-172 AK2: the `reason` of the inconclusive record that decides `validation`; given exactly when `validation` is `inconclusive`. */
   readonly validationReason?: string;
@@ -647,10 +647,10 @@ export interface DataExportElementPart {
 export interface DataExportLine {
   readonly id: Uuid;
   readonly shortId: ShortId;
-  /** The value of its property with the meaning `identifier` (an ID from another source such as SR-036, #305), for display next to `shortId`; left out when it has none. The property itself stays under `properties`. */
+  /** The value of its property with the meaning `identifier` (an ID from another source such as SR-036, ThomasBirkmaier/ReqSeq-archive#305), for display next to `shortId`; left out when it has none. The property itself stays under `properties`. */
   readonly identifier?: string;
   readonly type: Key;
-  /** The status key as written; left out when the element has none (a type without status, #306). */
+  /** The status key as written; left out when the element has none (a type without status, ThomasBirkmaier/ReqSeq-archive#306). */
   readonly status?: Key;
   readonly title: string;
   /** Markdown text below the frontmatter, without the blank line after the closing `---` (ADR-0004). Left out by list commands unless asked for. */
@@ -675,7 +675,7 @@ export interface DataExportLine {
   }[];
   /** The variants that exclude this core requirement (SR-042, SR-046 AK3). Left out when empty. */
   readonly excludedBy?: readonly Uuid[];
-  /** SR-035: true when the element's property with the meaning `emergent` holds the choice `yes` (assumption, spec question #591); only true is given, left out otherwise. An emergent requirement is never `indirect`: without an own verification record in a view it is `open` there. */
+  /** SR-035: true when the element's property with the meaning `emergent` holds the choice `yes` (assumption, spec question ThomasBirkmaier/ReqSeq-archive#591); only true is given, left out otherwise. An emergent requirement is never `indirect`: without an own verification record in a view it is `open` there. */
   readonly emergent?: boolean;
   /** All other properties by key, unknown ones included. */
   readonly properties: Readonly<Record<string, unknown>>;
@@ -683,7 +683,7 @@ export interface DataExportLine {
   readonly relations: readonly DataExportRelation[];
   /** Verification status, one entry per view the requirement is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it (SR-047 AK3). */
   readonly verification?: readonly DataExportVerificationEntry[];
-  /** SR-038: the Validierungsstatus from the validation records of the core (no `variant`) against the element's current version; the newest record of that version decides, only records of older versions give `outdated`. Given for every element whose type has the meaning `need` (`open` without record) and for every other element with a validation record; left out otherwise (assumption, spec question #534). Never inherited from children; never the element's `status` (D-030). `inconclusive` when that record is inconclusive (SR-172 AK2); on a tie at the newest date `failed` before `inconclusive` before `validated` (assumption, spec question #807). */
+  /** SR-038: the Validierungsstatus from the validation records of the core (no `variant`) against the element's current version; the newest record of that version decides, only records of older versions give `outdated`. Given for every element whose type has the meaning `need` (`open` without record) and for every other element with a validation record; left out otherwise (assumption, spec question ThomasBirkmaier/ReqSeq-archive#534). Never inherited from children; never the element's `status` (D-030). `inconclusive` when that record is inconclusive (SR-172 AK2); on a tie at the newest date `failed` before `inconclusive` before `validated` (assumption, spec question #807). */
   readonly validation?: ValidationStatus;
   /** SR-172 AK2: the `reason` of the inconclusive record that decides `validation`; given exactly when `validation` is `inconclusive`. */
   readonly validationReason?: string;
@@ -702,10 +702,10 @@ export interface DataExportLine {
 export interface DataExportElementFields {
   readonly id?: Uuid;
   readonly shortId?: ShortId;
-  /** The value of its property with the meaning `identifier` (an ID from another source such as SR-036, #305), for display next to `shortId`; left out when it has none. The property itself stays under `properties`. */
+  /** The value of its property with the meaning `identifier` (an ID from another source such as SR-036, ThomasBirkmaier/ReqSeq-archive#305), for display next to `shortId`; left out when it has none. The property itself stays under `properties`. */
   readonly identifier?: string;
   readonly type?: Key;
-  /** The status key as written; left out when the element has none (a type without status, #306). */
+  /** The status key as written; left out when the element has none (a type without status, ThomasBirkmaier/ReqSeq-archive#306). */
   readonly status?: Key;
   readonly title?: string;
   /** Markdown text below the frontmatter, without the blank line after the closing `---` (ADR-0004). Left out by list commands unless asked for. */
@@ -730,7 +730,7 @@ export interface DataExportElementFields {
   }[];
   /** The variants that exclude this core requirement (SR-042, SR-046 AK3). Left out when empty. */
   readonly excludedBy?: readonly Uuid[];
-  /** SR-035: true when the element's property with the meaning `emergent` holds the choice `yes` (assumption, spec question #591); only true is given, left out otherwise. An emergent requirement is never `indirect`: without an own verification record in a view it is `open` there. */
+  /** SR-035: true when the element's property with the meaning `emergent` holds the choice `yes` (assumption, spec question ThomasBirkmaier/ReqSeq-archive#591); only true is given, left out otherwise. An emergent requirement is never `indirect`: without an own verification record in a view it is `open` there. */
   readonly emergent?: boolean;
   /** All other properties by key, unknown ones included. */
   readonly properties?: Readonly<Record<string, unknown>>;
@@ -738,7 +738,7 @@ export interface DataExportElementFields {
   readonly relations?: readonly DataExportRelation[];
   /** Verification status, one entry per view the requirement is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it (SR-047 AK3). */
   readonly verification?: readonly DataExportVerificationEntry[];
-  /** SR-038: the Validierungsstatus from the validation records of the core (no `variant`) against the element's current version; the newest record of that version decides, only records of older versions give `outdated`. Given for every element whose type has the meaning `need` (`open` without record) and for every other element with a validation record; left out otherwise (assumption, spec question #534). Never inherited from children; never the element's `status` (D-030). `inconclusive` when that record is inconclusive (SR-172 AK2); on a tie at the newest date `failed` before `inconclusive` before `validated` (assumption, spec question #807). */
+  /** SR-038: the Validierungsstatus from the validation records of the core (no `variant`) against the element's current version; the newest record of that version decides, only records of older versions give `outdated`. Given for every element whose type has the meaning `need` (`open` without record) and for every other element with a validation record; left out otherwise (assumption, spec question ThomasBirkmaier/ReqSeq-archive#534). Never inherited from children; never the element's `status` (D-030). `inconclusive` when that record is inconclusive (SR-172 AK2); on a tie at the newest date `failed` before `inconclusive` before `validated` (assumption, spec question #807). */
   readonly validation?: ValidationStatus;
   /** SR-172 AK2: the `reason` of the inconclusive record that decides `validation`; given exactly when `validation` is `inconclusive`. */
   readonly validationReason?: string;
@@ -756,11 +756,11 @@ export interface DataExportRelation {
   readonly meaning?: "derivation" | "replacement" | "succession" | "exclusion" | "reference" | null;
   readonly direction: "out" | "in";
   readonly id: Uuid;
-  /** Workspace name of the repository of the other end (#416): the one the relation names, the source's own when it names none; for `direction: in` the source's (the other end: a successor, or the source of any incoming relation). Given in every `targetState`, as the name it stores for `inaccessible` and `unknown-repository`; left out only when the stored `repository` is not text. With `id` it names the target (`element.get` with `ref` and `repository`, SR-088; an `ambiguous` target also needs `file`; for `unknown-repository` the name is not a repository of the workspace). */
+  /** Workspace name of the repository of the other end (ThomasBirkmaier/ReqSeq-archive#416): the one the relation names, the source's own when it names none; for `direction: in` the source's (the other end: a successor, or the source of any incoming relation). Given in every `targetState`, as the name it stores for `inaccessible` and `unknown-repository`; left out only when the stored `repository` is not text. With `id` it names the target (`element.get` with `ref` and `repository`, SR-088; an `ambiguous` target also needs `file`; for `unknown-repository` the name is not a repository of the workspace). */
   readonly repository?: string;
-  /** Of the other end when it is available; of a target in a repository that is not on this machine with the prefix `UNKNOWN`, since its type is not known (SR-006 AK1, spec question #154). */
+  /** Of the other end when it is available; of a target in a repository that is not on this machine with the prefix `UNKNOWN`, since its type is not known (SR-006 AK1, spec question ThomasBirkmaier/ReqSeq-archive#154). */
   readonly shortId?: ShortId;
-  /** Identifier of the other end (#305), only when it is available locally and has one. */
+  /** Identifier of the other end (ThomasBirkmaier/ReqSeq-archive#305), only when it is available locally and has one. */
   readonly identifier?: string;
   /** Only when the other end is available locally, also across repositories, where the file stores no title (SR-005 AK2, SR-006 AK1). */
   readonly title?: string;
@@ -858,7 +858,7 @@ export interface DataExportCriteriaCount {
 }
 
 /**
- * SR-037: the verification degree of a selection in one view. Counted are the requirements of the selection (type with the meaning `requirement`) whose status the metamodel does not mark invalid (AK3, D-044) and that have a verification status in the view (spec question #592).
+ * SR-037: the verification degree of a selection in one view. Counted are the requirements of the selection (type with the meaning `requirement`) whose status the metamodel does not mark invalid (AK3, D-044) and that have a verification status in the view (spec question ThomasBirkmaier/ReqSeq-archive#592).
  * Schema: `schemas/data-export.schema.json#/$defs/verificationDegree`.
  */
 export interface DataExportVerificationDegree {
@@ -877,14 +877,14 @@ export interface DataExportVerificationDegree {
 }
 
 /**
- * YAML frontmatter of an element file (D-015, D-056). The Markdown text follows the closing `---`. Only `id`, `type` and `status` are structural (`status` only for a type with statuses, #306); every other key is a property or relation kind key from the metamodel (D-043). Keys the metamodel does not know are kept unchanged and reported as hints (D-012, SR-016). See docs/adr/0004-element-file-format.md. File name: type prefix, dash, last 12 hex characters of the UUID, never changed (D-056). Value kinds are checked against the metamodel, not by this schema, so any value of an unknown key is kept (SR-016); `$defs/value` describes the values ReqSeq writes.
+ * YAML frontmatter of an element file (D-015, D-056). The Markdown text follows the closing `---`. Only `id`, `type` and `status` are structural (`status` only for a type with statuses, ThomasBirkmaier/ReqSeq-archive#306); every other key is a property or relation kind key from the metamodel (D-043). Keys the metamodel does not know are kept unchanged and reported as hints (D-012, SR-016). See docs/adr/0004-element-file-format.md. File name: type prefix, dash, last 12 hex characters of the UUID, never changed (D-056). Value kinds are checked against the metamodel, not by this schema, so any value of an unknown key is kept (SR-016); `$defs/value` describes the values ReqSeq writes.
  * Schema: `schemas/element.schema.json#`.
  */
 export interface ElementFile {
   readonly id: Uuid;
   /** Type key from the metamodel. */
   readonly type: Key;
-  /** Status key from the metamodel, one of the statuses of the element's type (#306). Left out for a type without status. Only ever set by a person (D-030, SR-017). */
+  /** Status key from the metamodel, one of the statuses of the element's type (ThomasBirkmaier/ReqSeq-archive#306). Left out for a type without status. Only ever set by a person (D-030, SR-017). */
   readonly status?: Key;
   /** Reserved. Never written; the normal-form version is part of every stored version string (D-027). */
   readonly "normal-form"?: never;
@@ -962,7 +962,7 @@ export interface FilterFile {
 }
 
 /**
- * Name of a saved filter, unique in the workspace ignoring case (spec-frage #363); used to call it (`selection.filter`). Saving under an existing name replaces that filter.
+ * Name of a saved filter, unique in the workspace ignoring case (spec-frage ThomasBirkmaier/ReqSeq-archive#363); used to call it (`selection.filter`). Saving under an existing name replaces that filter.
  * Schema: `schemas/filter.schema.json#/$defs/name`.
  */
 export type FilterName = string;
@@ -1009,7 +1009,7 @@ export type FilterCondition =
     readonly variant?: View;
   }
   | {
-    /** Needs always (open without record), other elements only with a validation record (assumption #534). */
+    /** Needs always (open without record), other elements only with a validation record (assumption ThomasBirkmaier/ReqSeq-archive#534). */
     readonly validation: readonly ValidationStatus[];
   }
   | {
@@ -1129,18 +1129,18 @@ export interface MetamodelType {
   /** Display name. English in the standard model (D-019). */
   readonly name: string;
   readonly description?: string;
-  /** Prefix of the short ID, e.g. SR (D-017). UNKNOWN is reserved for elements of an unknown type and is a metamodel error (#154). */
+  /** Prefix of the short ID, e.g. SR (D-017). UNKNOWN is reserved for elements of an unknown type and is a metamodel error (ThomasBirkmaier/ReqSeq-archive#154). */
   readonly prefix: MetamodelPrefix;
   /** Parent type; its properties and required properties are inherited, over any number of levels (SR-012 AK2). A parent that is not defined, or a cycle, is a metamodel error. */
   readonly extends?: MetamodelKey;
   /** No elements of this type can be created; only for inheritance. */
   readonly abstract?: boolean;
   readonly meaning?: MetamodelTypeMeaning;
-  /** Property keys this type has, in addition to inherited ones, which come first. Each should be a defined property; an undefined key is a metamodel warning and the type is treated as not having it (#141 c). */
+  /** Property keys this type has, in addition to inherited ones, which come first. Each should be a defined property; an undefined key is a metamodel warning and the type is treated as not having it (ThomasBirkmaier/ReqSeq-archive#141 c). */
   readonly properties?: readonly MetamodelKey[];
-  /** Mandatory property keys, in addition to inherited ones; each is also a property of the type and should be a defined property; an undefined key is a metamodel warning and the type is treated as not having it (#141 c). Empty values are allowed but give a hint (SR-064). */
+  /** Mandatory property keys, in addition to inherited ones; each is also a property of the type and should be a defined property; an undefined key is a metamodel warning and the type is treated as not having it (ThomasBirkmaier/ReqSeq-archive#141 c). Empty values are allowed but give a hint (SR-064). */
   readonly required?: readonly MetamodelKey[];
-  /** Status keys elements of this type may have, in addition to inherited ones (#306): the top-level `statuses` stay the vocabulary (names, `invalid`, `initial`), a type only restricts it. Left out on the type and on every ancestor: every status. Once the type or any ancestor has a list, only the listed statuses count: a type with a list below a parent without one has only its own statuses (an unrestricted parent does not add every status). An empty list on a type whose ancestors have none: the type has no status, and its element files have no `status`. Each should be a defined status; an undefined key is a metamodel warning and left out (when no key is left, the type has no status). A type whose statuses are all marked invalid (e.g. `[retired]`) has an optional status (#344): its elements without status are current, element.create gives them none, and element.supersede retires them. A status outside the list gives a hint on the element (`element.status-not-allowed`). */
+  /** Status keys elements of this type may have, in addition to inherited ones (ThomasBirkmaier/ReqSeq-archive#306): the top-level `statuses` stay the vocabulary (names, `invalid`, `initial`), a type only restricts it. Left out on the type and on every ancestor: every status. Once the type or any ancestor has a list, only the listed statuses count: a type with a list below a parent without one has only its own statuses (an unrestricted parent does not add every status). An empty list on a type whose ancestors have none: the type has no status, and its element files have no `status`. Each should be a defined status; an undefined key is a metamodel warning and left out (when no key is left, the type has no status). A type whose statuses are all marked invalid (e.g. `[retired]`) has an optional status (ThomasBirkmaier/ReqSeq-archive#344): its elements without status are current, element.create gives them none, and element.supersede retires them. A status outside the list gives a hint on the element (`element.status-not-allowed`). */
   readonly statuses?: readonly MetamodelKey[];
 }
 
@@ -1164,11 +1164,11 @@ export interface MetamodelEffectiveType {
   readonly abstract: boolean;
   /** The parent, its parent and so on, up to the root type. */
   readonly ancestors: readonly MetamodelKey[];
-  /** All property keys of the type, each once: those of the root type first, then down to the type itself (the key order of new keys in element files, ADR-0004). Required keys count as properties. Keys that no property definition has are left out (#141 c). */
+  /** All property keys of the type, each once: those of the root type first, then down to the type itself (the key order of new keys in element files, ADR-0004). Required keys count as properties. Keys that no property definition has are left out (ThomasBirkmaier/ReqSeq-archive#141 c). */
   readonly properties: readonly MetamodelKey[];
-  /** All required property keys, own and inherited, in the same order. Keys that no property definition has are left out (#141 c). */
+  /** All required property keys, own and inherited, in the same order. Keys that no property definition has are left out (ThomasBirkmaier/ReqSeq-archive#141 c). */
   readonly required: readonly MetamodelKey[];
-  /** The status keys elements of the type may have, own and inherited, in the order of the metamodel's statuses (#306): every status when neither the type nor an ancestor has `statuses`; empty when the type has no status. Keys that no status definition has are left out. */
+  /** The status keys elements of the type may have, own and inherited, in the order of the metamodel's statuses (ThomasBirkmaier/ReqSeq-archive#306): every status when neither the type nor an ancestor has `statuses`; empty when the type has no status. Keys that no status definition has are left out. */
   readonly statuses: readonly MetamodelKey[];
   /** Own meaning, else the meaning of the closest ancestor that has one. */
   readonly meaning?: MetamodelTypeMeaning;
@@ -1201,7 +1201,7 @@ export interface MetamodelProperty {
 }
 
 /**
- * Built-in meaning (D-012, D-059): `title`; `validity` (list of variants, D-020); `packages` (D-040); `emergent` (emergent behaviour, N-010; a choice without `many` whose key `yes` is the mark, SR-035; otherwise a warning and nothing is marked); `verification-method`; `statement` (the statement for ReqIF, SR-058); `source`, `source-identifier`, `import-date`, `delivery`, `import-version` (origin of imported elements, written only by ReqIF import, SR-057; `import-version` is the import version, D-059: the version of what the import wrote, right after the last import, kind `text` without `many` and never `content`); `identifier` (an ID from another source, such as the spec ID SR-036 or a customer ID, D-017; unique per type; element references accept it besides the UUID and short ID, and outputs show it next to the short ID, #305). A property with the meaning `identifier` is of kind `text` without `many`. `acceptance-criteria` (the acceptance criteria of a requirement, counted from 1 in their order, which evidence records name by number, D-072, SR-028 AK4; kind `text` with `many`, otherwise a warning and no criterion is read).
+ * Built-in meaning (D-012, D-059): `title`; `validity` (list of variants, D-020); `packages` (D-040); `emergent` (emergent behaviour, N-010; a choice without `many` whose key `yes` is the mark, SR-035; otherwise a warning and nothing is marked); `verification-method`; `statement` (the statement for ReqIF, SR-058); `source`, `source-identifier`, `import-date`, `delivery`, `import-version` (origin of imported elements, written only by ReqIF import, SR-057; `import-version` is the import version, D-059: the version of what the import wrote, right after the last import, kind `text` without `many` and never `content`); `identifier` (an ID from another source, such as the spec ID SR-036 or a customer ID, D-017; unique per type; element references accept it besides the UUID and short ID, and outputs show it next to the short ID, ThomasBirkmaier/ReqSeq-archive#305). A property with the meaning `identifier` is of kind `text` without `many`. `acceptance-criteria` (the acceptance criteria of a requirement, counted from 1 in their order, which evidence records name by number, D-072, SR-028 AK4; kind `text` with `many`, otherwise a warning and no criterion is read).
  * Schema: `schemas/metamodel.schema.json#/$defs/propertyMeaning`.
  */
 export type MetamodelPropertyMeaning =
@@ -1277,7 +1277,7 @@ export interface MetamodelStatus {
   readonly description?: string;
   /** Elements with this status do not count for coverage, verification degree and indirect verification, but stay visible in chains (D-044). */
   readonly invalid?: boolean;
-  /** Status of new elements. Exactly one status is initial. A type whose statuses do not include it gives its new elements its first status that is not marked invalid, in metamodel order, and so does every type when the initial status is marked invalid (a metamodel warning, #350); a type without status or with only invalid statuses gives them none (#306, #344). */
+  /** Status of new elements. Exactly one status is initial. A type whose statuses do not include it gives its new elements its first status that is not marked invalid, in metamodel order, and so does every type when the initial status is marked invalid (a metamodel warning, ThomasBirkmaier/ReqSeq-archive#350); a type without status or with only invalid statuses gives them none (ThomasBirkmaier/ReqSeq-archive#306, ThomasBirkmaier/ReqSeq-archive#344). */
   readonly initial?: boolean;
 }
 
@@ -1529,7 +1529,7 @@ export interface CommandCatalog {
     readonly summary: string;
     /** No command writes to Git (D-036). No command deletes elements (D-045). */
     readonly effect: "read" | "write-files";
-    /** Whether a `write-files` command runs while the workspace is read-only (a missing or faulty metamodel, SR-011 AK3): `refuse` gives `workspace.read-only` before the command runs, `allow` runs it (`workspace.init`, which creates the workspace). Required for `write-files`, not allowed for `read` (reads always run). Each command's SR decides; until then `refuse` (ADR-0002 rule 5, #142). */
+    /** Whether a `write-files` command runs while the workspace is read-only (a missing or faulty metamodel, SR-011 AK3): `refuse` gives `workspace.read-only` before the command runs, `allow` runs it (`workspace.init`, which creates the workspace). Required for `write-files`, not allowed for `read` (reads always run). Each command's SR decides; until then `refuse` (ADR-0002 rule 5, ThomasBirkmaier/ReqSeq-archive#142). */
     readonly whileReadOnly?: "refuse" | "allow";
     /** Why the command has its `whileReadOnly` value, in one line for the people who change it. Required with `whileReadOnly`. */
     readonly whileReadOnlyReason?: string;
@@ -1792,7 +1792,7 @@ export type MetamodelGetInput = Readonly<Record<string, never>>;
  * Schema: `schemas/commands/metamodel.get.json output`.
  */
 export interface MetamodelGetOutput {
-  /** The types with inheritance resolved (SR-012), in metamodel order; `statuses` are the statuses each type offers (#306). */
+  /** The types with inheritance resolved (SR-012), in metamodel order; `statuses` are the statuses each type offers (ThomasBirkmaier/ReqSeq-archive#306). */
   readonly types: readonly MetamodelEffectiveType[];
   /** The property definitions as written, except that each carries `content`, false when not written: whether a change of its value gives a new version and makes evidence and relations outdated (D-057, #624). */
   readonly properties: readonly (MetamodelProperty & {
@@ -1808,7 +1808,7 @@ export interface MetamodelGetOutput {
 }
 
 /**
- * Input of `element.create` as `run` gets it: validated, properties with a `default` filled in. Create an element with a new random UUID. Only title, text and required properties are needed; empty required properties give a hint (SR-064). New elements always get the initial status of the metamodel (D-030); when their type lacks it or it is marked invalid, the first status of the type in metamodel order that is not marked invalid, and no status for a type without status or with only invalid statuses (#306, #344). The file is named by the type prefix and the last 12 hex characters of the UUID (`SR-54538f4d6e55.md`); the short ID shows the last 6 or more (`SR-4d6e55`), so search the files for `4d6e55` (D-017, D-056, #639).
+ * Input of `element.create` as `run` gets it: validated, properties with a `default` filled in. Create an element with a new random UUID. Only title, text and required properties are needed; empty required properties give a hint (SR-064). New elements always get the initial status of the metamodel (D-030); when their type lacks it or it is marked invalid, the first status of the type in metamodel order that is not marked invalid, and no status for a type without status or with only invalid statuses (ThomasBirkmaier/ReqSeq-archive#306, ThomasBirkmaier/ReqSeq-archive#344). The file is named by the type prefix and the last 12 hex characters of the UUID (`SR-54538f4d6e55.md`); the short ID shows the last 6 or more (`SR-4d6e55`), so search the files for `4d6e55` (D-017, D-056, #639).
  * Schema: `schemas/commands/element.create.json input`.
  */
 export interface ElementCreateInput {
@@ -1825,7 +1825,7 @@ export interface ElementCreateInput {
 }
 
 /**
- * Output of `element.create`. Create an element with a new random UUID. Only title, text and required properties are needed; empty required properties give a hint (SR-064). New elements always get the initial status of the metamodel (D-030); when their type lacks it or it is marked invalid, the first status of the type in metamodel order that is not marked invalid, and no status for a type without status or with only invalid statuses (#306, #344). The file is named by the type prefix and the last 12 hex characters of the UUID (`SR-54538f4d6e55.md`); the short ID shows the last 6 or more (`SR-4d6e55`), so search the files for `4d6e55` (D-017, D-056, #639).
+ * Output of `element.create`. Create an element with a new random UUID. Only title, text and required properties are needed; empty required properties give a hint (SR-064). New elements always get the initial status of the metamodel (D-030); when their type lacks it or it is marked invalid, the first status of the type in metamodel order that is not marked invalid, and no status for a type without status or with only invalid statuses (ThomasBirkmaier/ReqSeq-archive#306, ThomasBirkmaier/ReqSeq-archive#344). The file is named by the type prefix and the last 12 hex characters of the UUID (`SR-54538f4d6e55.md`); the short ID shows the last 6 or more (`SR-4d6e55`), so search the files for `4d6e55` (D-017, D-056, #639).
  * Schema: `schemas/commands/element.create.json output`.
  */
 export interface ElementCreateOutput {
@@ -1845,7 +1845,7 @@ export interface ElementGetInput {
   readonly versionDate: boolean;
   /** Date only the outdated relations and inline references and the changed core requirements of replacements among the hints (`relation.outdated`, `variant.core-changed`: `storedDate`, `currentDate`, `storedCommit`, `currentCommit` and both dates with their commits in the message, D-013, ADR-0005, #252), not the version of the element itself. Git reads only the histories of their targets, and none when the element has no outdated relation; the app asks for it in a second call after the element is shown, only for an element with such hints (SR-110 AK2, SR-082 AK3). `versionDate` dates these hints too. */
   readonly hintDates: boolean;
-  /** Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it (for example one copy of a file whose UUID another file shares, SR-088; #255). Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates. */
+  /** Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it (for example one copy of a file whose UUID another file shares, SR-088; ThomasBirkmaier/ReqSeq-archive#255). Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates. */
   readonly repository?: string;
   /** Which of the elements ref names is meant: its file, relative to its repository, as details.candidates of ref.ambiguous give it (#255). Give repository too when the same path is in several repositories; when several elements are still left, the error is ref.ambiguous with them. */
   readonly file?: RelativePath;
@@ -1856,11 +1856,11 @@ export interface ElementGetInput {
  * Schema: `schemas/commands/element.get.json output`.
  */
 export interface ElementGetOutput {
-  /** Text, properties, version (in normal form n2, the form the tool writes; a stored version of n1 is compared in its own form, ADR-0005) and, with the input `versionDate`, its date (`versionDate`, D-013, ADR-0005: the committer date in UTC of the newest commit that started this version; null for content no commit has and when Git cannot tell, including a git call that timed out; left out without the input), the own relations, the successors of a superseded element (SR-072 AK3), the hints of the element (none while the metamodel is not valid; also `variant.superseded-in-validity`, SR-040 AK3, `variant.target-not-core` for a replacement or exclusion of the element that names no core requirement, SR-041 AK8, the outdated relations and inline references of the element, `relation.outdated`, and the changed core requirements of its replacements, `variant.core-changed` (SR-045), at a variant the core requirements changed or new since its newest baseline, `variant.core-changed-since-baseline` and `variant.core-new-since-baseline` (SR-103), SR-026 AK3, whose messages name the dates of both versions only with the input `versionDate` or `hintDates`, and `metamodel.meaning-unassigned` when no property has the meaning title) and `readOnly`, always given (unknown type, invalid metamodel or a repository folder that cannot be written). An element with a value that counts and has no normal form (`.inf`, `.nan`, ADR-0005) comes without `version` and `versionDate`, with a `file.faulty` warning last in its hints that says why (#276). The incoming relations of every kind: `trace.neighbourhood` with `direction: down`. `verification`, for an element whose type has the meaning `requirement`: its verification status in each view it is in by the view rule (SR-043, SR-047 AK3), as evidence.status gives it (SR-031), with the indirect verification and the children that are missing (SR-034). `validation`: its validation status (SR-038), for every need and for any other element with a validation record, separate from `verification`. `replacedBy` and `excludedBy`, for a core requirement: the variants that replace it (with the replacing requirement) and those that exclude it (SR-046 AK3). */
+  /** Text, properties, version (in normal form n2, the form the tool writes; a stored version of n1 is compared in its own form, ADR-0005) and, with the input `versionDate`, its date (`versionDate`, D-013, ADR-0005: the committer date in UTC of the newest commit that started this version; null for content no commit has and when Git cannot tell, including a git call that timed out; left out without the input), the own relations, the successors of a superseded element (SR-072 AK3), the hints of the element (none while the metamodel is not valid; also `variant.superseded-in-validity`, SR-040 AK3, `variant.target-not-core` for a replacement or exclusion of the element that names no core requirement, SR-041 AK8, the outdated relations and inline references of the element, `relation.outdated`, and the changed core requirements of its replacements, `variant.core-changed` (SR-045), at a variant the core requirements changed or new since its newest baseline, `variant.core-changed-since-baseline` and `variant.core-new-since-baseline` (SR-103), SR-026 AK3, whose messages name the dates of both versions only with the input `versionDate` or `hintDates`, and `metamodel.meaning-unassigned` when no property has the meaning title) and `readOnly`, always given (unknown type, invalid metamodel or a repository folder that cannot be written). An element with a value that counts and has no normal form (`.inf`, `.nan`, ADR-0005) comes without `version` and `versionDate`, with a `file.faulty` warning last in its hints that says why (ThomasBirkmaier/ReqSeq-archive#276). The incoming relations of every kind: `trace.neighbourhood` with `direction: down`. `verification`, for an element whose type has the meaning `requirement`: its verification status in each view it is in by the view rule (SR-043, SR-047 AK3), as evidence.status gives it (SR-031), with the indirect verification and the children that are missing (SR-034). `validation`: its validation status (SR-038), for every need and for any other element with a validation record, separate from `verification`. `replacedBy` and `excludedBy`, for a core requirement: the variants that replace it (with the replacing requirement) and those that exclude it (SR-046 AK3). */
   readonly element: DataExportElement;
   /** Of the file this answer was read from, for expectedFileSha256 of element.update (SR-106). */
   readonly fileSha256: FileSha256;
-  /** The elements the element names by UUID only, each once in the order first named: the variants of `validity`, `replacedBy` and `excludedBy`, the replacements and the views of `verification` (SR-046 AK1/AK2, SR-047 AK3, #588). Left out when it names none. */
+  /** The elements the element names by UUID only, each once in the order first named: the variants of `validity`, `replacedBy` and `excludedBy`, the replacements and the views of `verification` (SR-046 AK1/AK2, SR-047 AK3, ThomasBirkmaier/ReqSeq-archive#588). Left out when it names none. */
   readonly names?: readonly ElementName[];
   /** A repository of the workspace is not here (SR-006 AK2): replacements, exclusions and records stored there are missing. */
   readonly incomplete?: Incomplete;
@@ -1876,7 +1876,7 @@ export interface ElementResolveInput {
   readonly version?: Version;
   /** Also give the date of the current version (`versionDate`, D-013, ADR-0005), read from the Git history, as element.get does with the same input. Without it no git runs and `versionDate` is left out. */
   readonly versionDate: boolean;
-  /** Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it (for example one copy of a file whose UUID another file shares, SR-088; #255). Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates. */
+  /** Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it (for example one copy of a file whose UUID another file shares, SR-088; ThomasBirkmaier/ReqSeq-archive#255). Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates. */
   readonly repository?: string;
   /** Which of the elements ref names is meant: its file, relative to its repository, as details.candidates of ref.ambiguous give it (#255). Give repository too when the same path is in several repositories; when several elements are still left, the error is ref.ambiguous with them. */
   readonly file?: RelativePath;
@@ -1887,11 +1887,11 @@ export interface ElementResolveInput {
  * Schema: `schemas/commands/element.resolve.json output`.
  */
 export interface ElementResolveOutput {
-  /** The element as element.get shows it, with title, text, status, current version in normal form n2 (SR-060 AK1, ADR-0005), verification status per view it is in (SR-031, SR-034, SR-047 AK3) and validation status (SR-038) and, with the input `versionDate`, the date of that version (as element.get gives it; left out without the input). Without a version (a value that counts has no normal form) `version` and `versionDate` are left out and the hints end with a `file.faulty` warning, as in element.get (#276). An unknown reference is the error ref.unknown, one that fits several elements ref.ambiguous with details.candidates (AK3). A short ID whose prefix fits no element stays ref.unknown, never another element; when its tail fits exactly one element of another type, details.candidates names that element and the message asks whether its short ID was meant (prefix may be outdated, #275). */
+  /** The element as element.get shows it, with title, text, status, current version in normal form n2 (SR-060 AK1, ADR-0005), verification status per view it is in (SR-031, SR-034, SR-047 AK3) and validation status (SR-038) and, with the input `versionDate`, the date of that version (as element.get gives it; left out without the input). Without a version (a value that counts has no normal form) `version` and `versionDate` are left out and the hints end with a `file.faulty` warning, as in element.get (ThomasBirkmaier/ReqSeq-archive#276). An unknown reference is the error ref.unknown, one that fits several elements ref.ambiguous with details.candidates (AK3). A short ID whose prefix fits no element stays ref.unknown, never another element; when its tail fits exactly one element of another type, details.candidates names that element and the message asks whether its short ID was meant (prefix may be outdated, ThomasBirkmaier/ReqSeq-archive#275). */
   readonly element: DataExportElement;
-  /** Whether the given version is the element's current version, computed from its file as it is now (SR-060 AK2): "current" or "outdated"; "unknown" when the element has no version to compare with (a value that counts has no normal form, `.inf` or `.nan`, ADR-0005: `element` comes without `version` and with a `file.faulty` warning that says why, #276); null when no version was given. Strings, not booleans, so a caller that tests the field for truth never takes "unknown" for current. */
+  /** Whether the given version is the element's current version, computed from its file as it is now (SR-060 AK2): "current" or "outdated"; "unknown" when the element has no version to compare with (a value that counts has no normal form, `.inf` or `.nan`, ADR-0005: `element` comes without `version` and with a `file.faulty` warning that says why, ThomasBirkmaier/ReqSeq-archive#276); null when no version was given. Strings, not booleans, so a caller that tests the field for truth never takes "unknown" for current. */
   readonly current: "current" | "outdated" | "unknown" | null;
-  /** The elements the element names by UUID only, as element.get gives them: the variants of `validity`, `replacedBy` and `excludedBy`, the replacements and the views of `verification` (SR-046 AK1/AK2, SR-047 AK3, #588, #456). Left out when it names none. */
+  /** The elements the element names by UUID only, as element.get gives them: the variants of `validity`, `replacedBy` and `excludedBy`, the replacements and the views of `verification` (SR-046 AK1/AK2, SR-047 AK3, ThomasBirkmaier/ReqSeq-archive#588, #456). Left out when it names none. */
   readonly names?: readonly ElementName[];
   /** A repository of the workspace is not here (SR-006 AK2): replacements, exclusions and records stored there are missing (#456). */
   readonly incomplete?: Incomplete;
@@ -1935,7 +1935,7 @@ export type ElementListOutput = {
   readonly elements?: readonly DataExportElement[];
   /** Only with `fields`, instead of `elements`: the same page, each element with the fields asked for. */
   readonly partial?: readonly DataExportElementPart[];
-  /** Only when `sort` starts with `hierarchy` (SR-075 AK2): the place in the derivation tree of each element of `elements` (or `partial`), in the same order. With `group`, each group is its own tree over its elements: a parent outside the group does not count. The list is the tree depth first: each root, then the elements below it. Each element of the selection appears once (spec-frage #354): below the parent of the list that reaches it at the shortest depth, the first in sort order among equals; an element without a parent in the list is a root, and so is the first element in sort order of a cycle that no root reaches. Its other parents are in its `relations`. */
+  /** Only when `sort` starts with `hierarchy` (SR-075 AK2): the place in the derivation tree of each element of `elements` (or `partial`), in the same order. With `group`, each group is its own tree over its elements: a parent outside the group does not count. The list is the tree depth first: each root, then the elements below it. Each element of the selection appears once (spec-frage ThomasBirkmaier/ReqSeq-archive#354): below the parent of the list that reaches it at the shortest depth, the first in sort order among equals; an element without a parent in the list is a root, and so is the first element in sort order of a cycle that no root reaches. Its other parents are in its `relations`. */
   readonly tree?: readonly {
     readonly id: Uuid;
     /** Workspace name of the repository of the element. */
@@ -2055,7 +2055,7 @@ export interface ElementUpdateInput {
   readonly addRelations?: RelationRefs;
   /** Relations to remove by kind, as relation.remove removes them (a UUID as given), in the same file write (#175). Nothing to remove is an info problem relation.not-found. */
   readonly removeRelations?: RelationRefs;
-  /** Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it (for example one copy of a file whose UUID another file shares, SR-088; #255). Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates. */
+  /** Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it (for example one copy of a file whose UUID another file shares, SR-088; ThomasBirkmaier/ReqSeq-archive#255). Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates. */
   readonly repository?: string;
   /** Write precondition (SR-106): the fileSha256 the change was made on, from element.get. Required with title, text or setItems, else input.invalid (precondition-missing); optional for set, unset and relations alone. If the file has other bytes now, nothing is written: file.changed-on-disk, also when nothing would change. */
   readonly expectedFileSha256?: FileSha256;
@@ -2070,23 +2070,23 @@ export interface ElementUpdateOutput {
   /** Of the file as written, or as read when nothing changed (SR-106). */
   readonly fileSha256: FileSha256;
   readonly files: readonly string[];
-  /** The number of directly affected elements (SR-024 AK2): the distinct elements other than this one whose files hold a relation or an inline reference to it, the elements at distance 1 of `trace.affected`. Counted only when the save changed what the version is computed from in normal form n1 or n2 (the content, D-013, ADR-0005), so also when it changed only the stored version of a reference: a link that stores n1 of this element becomes outdated by it; 0 when only the title or properties that do not count to the version changed, or nothing changed (SR-024 AK3). For an element without a version (a value that counts has no normal form, ADR-0005) what the version is computed from is compared, so a save of only its title or status also gives 0 (#276). */
+  /** The number of directly affected elements (SR-024 AK2): the distinct elements other than this one whose files hold a relation or an inline reference to it, the elements at distance 1 of `trace.affected`. Counted only when the save changed what the version is computed from in normal form n1 or n2 (the content, D-013, ADR-0005), so also when it changed only the stored version of a reference: a link that stores n1 of this element becomes outdated by it; 0 when only the title or properties that do not count to the version changed, or nothing changed (SR-024 AK3). For an element without a version (a value that counts has no normal form, ADR-0005) what the version is computed from is compared, so a save of only its title or status also gives 0 (ThomasBirkmaier/ReqSeq-archive#276). */
   readonly affected: number;
   readonly problems?: readonly Problem[];
 }
 
 /**
- * Input of `element.setStatus` as `run` gets it: validated, properties with a `default` filled in. Set or remove the status of elements on explicit request of the caller. Only a status of each element's type is taken (`statuses` of the type in metamodel.get, #306); an element of a type without status gets none. `status: null` removes the status line where the type's status is optional (#343). The only command besides element.supersede that changes a status; no command changes a status on its own (D-030, SR-087).
+ * Input of `element.setStatus` as `run` gets it: validated, properties with a `default` filled in. Set or remove the status of elements on explicit request of the caller. Only a status of each element's type is taken (`statuses` of the type in metamodel.get, ThomasBirkmaier/ReqSeq-archive#306); an element of a type without status gets none. `status: null` removes the status line where the type's status is optional (ThomasBirkmaier/ReqSeq-archive#343). The only command besides element.supersede that changes a status; no command changes a status on its own (D-030, SR-087).
  * Schema: `schemas/commands/element.setStatus.json input`.
  */
 export interface ElementSetStatusInput {
   readonly refs: readonly ElementRef[];
-  /** Key or display name of a status of the metamodel, in any case; the key is written. It must be a status of the element's type (#306). null removes the status line, only from an element whose type has an optional status: no status, or only statuses marked invalid (#343); else input.invalid with reason status-required. */
+  /** Key or display name of a status of the metamodel, in any case; the key is written. It must be a status of the element's type (ThomasBirkmaier/ReqSeq-archive#306). null removes the status line, only from an element whose type has an optional status: no status, or only statuses marked invalid (ThomasBirkmaier/ReqSeq-archive#343); else input.invalid with reason status-required. */
   readonly status: KeyOrName | null;
 }
 
 /**
- * Output of `element.setStatus`. Set or remove the status of elements on explicit request of the caller. Only a status of each element's type is taken (`statuses` of the type in metamodel.get, #306); an element of a type without status gets none. `status: null` removes the status line where the type's status is optional (#343). The only command besides element.supersede that changes a status; no command changes a status on its own (D-030, SR-087).
+ * Output of `element.setStatus`. Set or remove the status of elements on explicit request of the caller. Only a status of each element's type is taken (`statuses` of the type in metamodel.get, ThomasBirkmaier/ReqSeq-archive#306); an element of a type without status gets none. `status: null` removes the status line where the type's status is optional (ThomasBirkmaier/ReqSeq-archive#343). The only command besides element.supersede that changes a status; no command changes a status on its own (D-030, SR-087).
  * Schema: `schemas/commands/element.setStatus.json output`.
  */
 export interface ElementSetStatusOutput {
@@ -2100,7 +2100,7 @@ export interface ElementSetStatusOutput {
  */
 export interface ElementSupersedeInput {
   readonly ref: ElementRef;
-  /** Key or display name of a status of the metamodel, in any case; the key is written. It must be a status of the element's type that the metamodel marks invalid (#306). */
+  /** Key or display name of a status of the metamodel, in any case; the key is written. It must be a status of the element's type that the metamodel marks invalid (ThomasBirkmaier/ReqSeq-archive#306). */
   readonly status: KeyOrName;
   readonly successor?: ElementRef;
   /** Relation kind with meaning succession to write from the successor; needed only when more than one fits the types and the successor does not already have the relation under exactly one of them. */
@@ -2128,7 +2128,7 @@ export interface ElementBulkUpdateInput {
   readonly operation: "set" | "add" | "remove";
   /** For set and add. A choice by key or name; relation targets as for element.update. */
   readonly value?: ElementInputValue;
-  /** Write the change; without it nothing is written. A written file also gets the current titles of its same-repository relation targets (decision on #307), which the preview does not show. */
+  /** Write the change; without it nothing is written. A written file also gets the current titles of its same-repository relation targets (decision on ThomasBirkmaier/ReqSeq-archive#307), which the preview does not show. */
   readonly confirm: boolean;
   /** The count of the preview: with confirm, refused (nothing written) when the change now affects another number of elements. Prefer plan. */
   readonly expected?: number;
@@ -2264,7 +2264,7 @@ export interface TraceChainInput {
   readonly direction: "up" | "down" | "both";
   readonly view?: View;
   readonly maxDepth?: number;
-  /** Nodes of the page; total counts all. The walk is always complete: depth, gaps, cycles and incomplete are those of the whole chain (spec-frage #290). Every page walks the whole chain again; to step through a chain, ask with `maxDepth` instead. */
+  /** Nodes of the page; total counts all. The walk is always complete: depth, gaps, cycles and incomplete are those of the whole chain (spec-frage ThomasBirkmaier/ReqSeq-archive#290). Every page walks the whole chain again; to step through a chain, ask with `maxDepth` instead. */
   readonly limit: number;
   /** Nodes skipped before the page, in the order of `nodes` (the root, then the parents level by level, then the children level by level). */
   readonly offset: number;
@@ -2276,11 +2276,11 @@ export interface TraceChainInput {
  */
 export interface TraceChainOutput {
   readonly root: Uuid;
-  /** Every element of the chain once per direction, at its shortest depth (SR-022 AK1, AK2): the root first, then the parents level by level, then the children level by level. An element reached again (a diamond, a cycle) is not repeated; its edge is in `edges` (SR-022 AK4). In a view, only the elements the view holds (SR-040, SR-043: not a core requirement the variant excludes or replaces, nor what hangs only below it); the root always. An element is named by its UUID and `repository` (D-058); two files of one repository with the same UUID (SR-088) are two nodes, told apart only by `file`, and edges and gaps name both the same way. Only the page of `limit` nodes from `offset` (in this order) is listed; `total` counts every node. A chain can be large (in a workspace of 50,000 elements and 200,000 relations up to about 42,000 nodes): a client asks for the first page and further ones as needed (SR-082 AK4, spec-frage #290), or shows it step by step with `maxDepth` 1 and asks again below an element that is not `expanded`. */
+  /** Every element of the chain once per direction, at its shortest depth (SR-022 AK1, AK2): the root first, then the parents level by level, then the children level by level. An element reached again (a diamond, a cycle) is not repeated; its edge is in `edges` (SR-022 AK4). In a view, only the elements the view holds (SR-040, SR-043: not a core requirement the variant excludes or replaces, nor what hangs only below it); the root always. An element is named by its UUID and `repository` (D-058); two files of one repository with the same UUID (SR-088) are two nodes, told apart only by `file`, and edges and gaps name both the same way. Only the page of `limit` nodes from `offset` (in this order) is listed; `total` counts every node. A chain can be large (in a workspace of 50,000 elements and 200,000 relations up to about 42,000 nodes): a client asks for the first page and further ones as needed (SR-082 AK4, spec-frage ThomasBirkmaier/ReqSeq-archive#290), or shows it step by step with `maxDepth` 1 and asks again below an element that is not `expanded`. */
   readonly nodes: readonly {
     readonly id: Uuid;
     readonly shortId: ShortId;
-    /** Its identifier (the value of its property with the meaning `identifier`, such as SR-036, #305), for display next to `shortId`; left out when it has none. */
+    /** Its identifier (the value of its property with the meaning `identifier`, such as SR-036, ThomasBirkmaier/ReqSeq-archive#305), for display next to `shortId`; left out when it has none. */
     readonly identifier?: string;
     readonly type: string;
     readonly title: string;
@@ -2311,7 +2311,7 @@ export interface TraceChainOutput {
     /** Both ends lie in one cycle of derivations (SR-022 AK4). */
     readonly cyclic: boolean;
   }[];
-  /** The gaps of the chain, in the order of `nodes` (the `no-parent` gaps of the upward chain first, the root's among them, then those of the downward chain), only those of the nodes of the page. Downward (SR-022 AK3), only for elements whose children were looked at (`expanded`): `no-child` for a need without a child, `no-evidence` for a requirement without a child and without evidence. Upward (SR-022 AK5), only for elements whose parents were looked at, so not with `direction: down`: `no-parent` for a requirement that names no parent through a relation kind with the meaning `derivation`, whatever the view and the state of the target (a parent in a repository that is not here is one); the metamodel says which kinds derive, so in the standard model a requirement based only on a decision (`based-on`) has the gap. `workspace.check` reports the same elements (`trace.no-parent`). `no-evidence`: the element has no verification record in `view`, in the core without `view` (as `evidence.coverage` and the filter condition `verification`; any version and result, spec question #527 Q3). A test case that was only skipped does not close the gap. `not-in-view` (#674, product owner decision, 2026-11-02): a requirement without a child that `view` does not hold, without `view` the core (its validity names only variants), instead of `no-evidence`, whatever its records; `views` names the views that hold it. It is no evidence gap: a client that counts the gaps of a chain leaves it out. With `view` only the root can have it, as the chain reaches only elements the view holds. */
+  /** The gaps of the chain, in the order of `nodes` (the `no-parent` gaps of the upward chain first, the root's among them, then those of the downward chain), only those of the nodes of the page. Downward (SR-022 AK3), only for elements whose children were looked at (`expanded`): `no-child` for a need without a child, `no-evidence` for a requirement without a child and without evidence. Upward (SR-022 AK5), only for elements whose parents were looked at, so not with `direction: down`: `no-parent` for a requirement that names no parent through a relation kind with the meaning `derivation`, whatever the view and the state of the target (a parent in a repository that is not here is one); the metamodel says which kinds derive, so in the standard model a requirement based only on a decision (`based-on`) has the gap. `workspace.check` reports the same elements (`trace.no-parent`). `no-evidence`: the element has no verification record in `view`, in the core without `view` (as `evidence.coverage` and the filter condition `verification`; any version and result, spec question ThomasBirkmaier/ReqSeq-archive#527 Q3). A test case that was only skipped does not close the gap. `not-in-view` (#674, product owner decision, 2026-11-02): a requirement without a child that `view` does not hold, without `view` the core (its validity names only variants), instead of `no-evidence`, whatever its records; `views` names the views that hold it. It is no evidence gap: a client that counts the gaps of a chain leaves it out. With `view` only the root can have it, as the chain reaches only elements the view holds. */
   readonly gaps: readonly {
     readonly id: Uuid;
     /** Workspace name of the repository of the element with the gap. */
@@ -2346,7 +2346,7 @@ export interface TraceChainOutput {
     /** The other end: the parent the relation names (up), the child that stores it (down). */
     readonly id: Uuid;
     readonly shortId?: ShortId;
-    /** Identifier of the other end (#305), when it is available and has one. */
+    /** Identifier of the other end (ThomasBirkmaier/ReqSeq-archive#305), when it is available and has one. */
     readonly identifier?: string;
     readonly title?: string;
     /** As in `data-export.schema.json#/$defs/relation`; downwards always `ambiguous` (the element the child points at). */
@@ -2354,7 +2354,7 @@ export interface TraceChainOutput {
   }[];
   /** True when a part of the chain lies in a repository that is not on this machine (SR-006 AK2), in the view of a variant while a repository of the workspace is not on this machine (it may hold a replacement or an exclusion), or an evidence location does: evidence and validation records there are not seen. */
   readonly incomplete: Incomplete;
-  /** The variants that the records of `evidence` name by UUID only (`variant`), then those the `views` of `gaps` name, each once in the order first named, so a reader names them by short ID, identifier and title (#588, #676). Left out when it names none, and for a variant in a repository that is not here. */
+  /** The variants that the records of `evidence` name by UUID only (`variant`), then those the `views` of `gaps` name, each once in the order first named, so a reader names them by short ID, identifier and title (ThomasBirkmaier/ReqSeq-archive#588, #676). Left out when it names none, and for a variant in a repository that is not here. */
   readonly names?: readonly ElementName[];
   /** Hints: `trace.cycle` once per cycle of derivations in the chain, naming its elements (SR-022 AK4); `metamodel.meaning-unassigned` when no type has the meaning `need` or `requirement`, so those gaps cannot be found (SR-013 AK3; upward only `requirement`). The hints are those of the whole chain, on every page. */
   readonly problems: readonly Problem[];
@@ -2404,7 +2404,7 @@ export interface TraceAffectedOutput {
   readonly affected: readonly {
     readonly id: Uuid;
     readonly shortId: ShortId;
-    /** Its identifier (the value of its property with the meaning `identifier`, such as SR-036, #305), for display next to `shortId`; left out when it has none. */
+    /** Its identifier (the value of its property with the meaning `identifier`, such as SR-036, ThomasBirkmaier/ReqSeq-archive#305), for display next to `shortId`; left out when it has none. */
     readonly identifier?: string;
     readonly type: string;
     readonly title: string;
@@ -2438,7 +2438,7 @@ export interface TraceAffectedOutput {
  */
 export interface TraceNeighbourhoodInput {
   readonly ref: ElementRef;
-  /** The workspace name of the repository of the element ref names, as in element.get (#255). */
+  /** The workspace name of the repository of the element ref names, as in element.get (ThomasBirkmaier/ReqSeq-archive#255). */
   readonly repository?: string;
   /** `up`: along the links the element's file stores (its parents, the targets of its other relations and relation properties, its inline references). `down`: along the links that point at it (its children and every element whose file has a relation or an inline reference to it). The source of a link is placed below its target (ADR-0004). */
   readonly direction: "up" | "down" | "both";
@@ -2467,7 +2467,7 @@ export interface TraceNeighbourhoodOutput {
   readonly nodes: readonly {
     readonly id: Uuid;
     readonly shortId: ShortId;
-    /** Its identifier (the value of its property with the meaning `identifier`, such as SR-036, #305), for display next to `shortId`; left out when it has none. */
+    /** Its identifier (the value of its property with the meaning `identifier`, such as SR-036, ThomasBirkmaier/ReqSeq-archive#305), for display next to `shortId`; left out when it has none. */
     readonly identifier?: string;
     readonly type: string;
     readonly title: string;
@@ -2506,7 +2506,7 @@ export interface TraceNeighbourhoodOutput {
     readonly direction: "up" | "down";
     /** Both ends lie in one cycle of the walk. */
     readonly cyclic: boolean;
-    /** The edge leads, in its walk, to an element that this walk first reached through another edge, or to the root: a repetition (SR-107 AK3). It holds within one call (asking again from a child loses it; to open a tree level by level ask from the same root with a larger `maxDepth`) and within the followed kinds (the tree of derivations comes from `meanings: ["derivation"]`). First means first reached breadth first (spec question #421). */
+    /** The edge leads, in its walk, to an element that this walk first reached through another edge, or to the root: a repetition (SR-107 AK3). It holds within one call (asking again from a child loses it; to open a tree level by level ask from the same root with a larger `maxDepth`) and within the followed kinds (the tree of derivations comes from `meanings: ["derivation"]`). First means first reached breadth first (spec question ThomasBirkmaier/ReqSeq-archive#421). */
     readonly repeated: boolean;
     /** The link stores a version of normal form 1 or 2, its target is available and has a current version, and the two differ, compared in the stored version's form (SR-025, ADR-0005). */
     readonly outdated: boolean;
@@ -2574,7 +2574,7 @@ export interface TraceMatrixOutput {
     readonly file: string;
     /** Only when `sort` starts with `hierarchy`: the depth of the element in the derivation tree, as `element.list` gives it in `tree`. */
     readonly depth?: number;
-    /** SR-126 AK1, AK2: only with `evidence`, on a row whose type has the meaning `requirement` and that applies in its view. The test cases that name the requirement, with their verification executions that hold in the view of `evidence` (`trace.chain` shows the same test cases in the same view), by class name then name; an empty array when it has none: a gap (AK2). Records without a test case (inspection, analysis, a manual record without `test-case`) are not here; they count for `verification` only (spec question #528 Q3). The chain and `evidence.list` give every execution. */
+    /** SR-126 AK1, AK2: only with `evidence`, on a row whose type has the meaning `requirement` and that applies in its view. The test cases that name the requirement, with their verification executions that hold in the view of `evidence` (`trace.chain` shows the same test cases in the same view), by class name then name; an empty array when it has none: a gap (AK2). Records without a test case (inspection, analysis, a manual record without `test-case`) are not here; they count for `verification` only (spec question ThomasBirkmaier/ReqSeq-archive#528 Q3). The chain and `evidence.list` give every execution. */
     readonly testCases?: readonly {
       /** The JUnit `name`, or the `test-case` of the Markdown records. */
       readonly name: string;
@@ -2584,7 +2584,7 @@ export interface TraceMatrixOutput {
       readonly executed: boolean;
       /** The last execution: the newest execution of this requirement in the view, of any version, with result, date, item and version; its record file (`repository`, `file`, `line`) is the evidence of a JUnit execution. Left out when `executed` is false. */
       readonly last?: DataExportEvidenceRecord;
-      /** How the cell is marked (AK2; spec questions #528 Q1, Q2 and #593 Q2), the first that holds: `not-executed` when `executed` is false; `outdated` when `last` is of another version than the requirement's current one, or its current version is not known; `failed` when `last` failed. Left out when the last execution passed for the current version. */
+      /** How the cell is marked (AK2; spec questions ThomasBirkmaier/ReqSeq-archive#528 Q1, Q2 and ThomasBirkmaier/ReqSeq-archive#593 Q2), the first that holds: `not-executed` when `executed` is false; `outdated` when `last` is of another version than the requirement's current one, or its current version is not known; `failed` when `last` failed. Left out when the last execution passed for the current version. */
       readonly mark?: "not-executed" | "outdated" | "failed";
     }[];
     /** SR-126 AK1, AK3: only with `evidence`, on a row whose type has the meaning `requirement` and that applies in its view. Its verification status in the view of `evidence`, one entry, the same as `element.get` and `evidence.status` give for that view: `indirect` when it is verified through its children (AK3). */
@@ -2609,14 +2609,14 @@ export interface TraceMatrixOutput {
   readonly total: number;
   /** The selection is incomplete (SR-006 AK2), or the workspace file lists a repository that is not on this machine: relations of elements there that point at a row cannot be seen, and its elements may belong to the selection. With `evidence`, also when an evidence location lies in such a repository: its records are not seen (SR-006 AK2). */
   readonly incomplete: Incomplete;
-  /** The header of the evidence columns (SR-126): given when the workspace file names an evidence location, the metamodel is valid and the selection holds an element whose type has the meaning `requirement` (spec question #593 Q1); then every requirement row of the page that applies in `view` has `testCases` and `verification`. Other rows have neither (a requirement valid only in variants, without a view): not applicable, no gap. Left out otherwise, and the output is the one without evidence (SR-125). */
+  /** The header of the evidence columns (SR-126): given when the workspace file names an evidence location, the metamodel is valid and the selection holds an element whose type has the meaning `requirement` (spec question ThomasBirkmaier/ReqSeq-archive#593 Q1); then every requirement row of the page that applies in `view` has `testCases` and `verification`. Other rows have neither (a requirement valid only in variants, without a view): not applicable, no gap. Left out otherwise, and the output is the one without evidence (SR-125). */
   readonly evidence?: {
-    /** The one view of the test cases, the status and the degree: the selection's view, else its saved filter's, else the core (as `evidence.degree`; spec questions #593, #592 Q1). `element.get` and `evidence.status` give every view. */
+    /** The one view of the test cases, the status and the degree: the selection's view, else its saved filter's, else the core (as `evidence.degree`; spec questions ThomasBirkmaier/ReqSeq-archive#593, ThomasBirkmaier/ReqSeq-archive#592 Q1). `element.get` and `evidence.status` give every view. */
     readonly view: ViewId;
     /** SR-126 AK4: the verification degree of the whole selection in `view`, with the count per status, not of the page only; the same as `evidence.degree` gives for the same selection (SR-037). */
     readonly degree: DataExportVerificationDegree;
   };
-  /** The elements that `evidence` and the rows' `verification` name by UUID only, each once in the order first named: the variant of the view and the missing children (`missingChildren`), so a reader names them by short ID, identifier and title (#588). Left out when they name none. */
+  /** The elements that `evidence` and the rows' `verification` name by UUID only, each once in the order first named: the variant of the view and the missing children (`missingChildren`), so a reader names them by short ID, identifier and title (ThomasBirkmaier/ReqSeq-archive#588). Left out when they name none. */
   readonly names?: readonly ElementName[];
 }
 
@@ -2626,7 +2626,7 @@ export interface TraceMatrixOutput {
  */
 export interface TraceGraphInput {
   readonly ref: ElementRef;
-  /** The workspace name of the repository of the element ref names, as in element.get (#255). */
+  /** The workspace name of the repository of the element ref names, as in element.get (ThomasBirkmaier/ReqSeq-archive#255). */
   readonly repository?: string;
   /** The deepest level in each direction; 0: the element only. Omitted: 1 (the direct neighbours), unless `allLevels` is true. */
   readonly maxDepth?: number;
@@ -2653,7 +2653,7 @@ export interface TraceGraphOutput {
   readonly nodes: readonly {
     readonly id: Uuid;
     readonly shortId: ShortId;
-    /** Its identifier (the value of its property with the meaning `identifier`, such as SR-036, #305), for display next to `shortId`; left out when it has none. */
+    /** Its identifier (the value of its property with the meaning `identifier`, such as SR-036, ThomasBirkmaier/ReqSeq-archive#305), for display next to `shortId`; left out when it has none. */
     readonly identifier?: string;
     readonly type: string;
     readonly title: string;
@@ -3000,7 +3000,7 @@ export interface EvidenceStatusOutput {
   readonly total: number;
   /** A repository of the workspace is not available here (SR-006 AK2): its elements, and the records of its evidence locations, are missing. */
   readonly incomplete?: Incomplete;
-  /** The elements that `verification` names by UUID only, each once in the order first named: the variants of its views and the missing children (`missingChildren`), so a reader names them by short ID, identifier and title (#588). Left out when it names none. */
+  /** The elements that `verification` names by UUID only, each once in the order first named: the variants of its views and the missing children (`missingChildren`), so a reader names them by short ID, identifier and title (ThomasBirkmaier/ReqSeq-archive#588). Left out when it names none. */
   readonly names?: readonly ElementName[];
 }
 
@@ -3018,14 +3018,14 @@ export interface EvidenceCoverageInput {
  * Schema: `schemas/commands/evidence.coverage.json output`.
  */
 export interface EvidenceCoverageOutput {
-  /** One level per element type of the selection with the meaning `need` or `requirement` (a subtype is its own level), in metamodel order (spec question #527). Elements whose status the metamodel marks invalid are not counted (SR-036 AK4, D-044); other types have no level. */
+  /** One level per element type of the selection with the meaning `need` or `requirement` (a subtype is its own level), in metamodel order (spec question ThomasBirkmaier/ReqSeq-archive#527). Elements whose status the metamodel marks invalid are not counted (SR-036 AK4, D-044); other types have no level. */
   readonly levels: readonly {
     readonly type: Key;
     /** The counted elements of the type. */
     readonly total: number;
     /** How many have a derivation child that counts: one whose status is not marked invalid and, with a view, that applies in it; in any repository. */
     readonly withChildren: number;
-    /** Only for a type with the meaning `requirement`: how many have at least one verification record in the view (the core without one), of any version and result (`hasVerificationRecord`, spec question #527). */
+    /** Only for a type with the meaning `requirement`: how many have at least one verification record in the view (the core without one), of any version and result (`hasVerificationRecord`, spec question ThomasBirkmaier/ReqSeq-archive#527). */
     readonly withEvidence?: number;
     /** The UUIDs behind every number, in selection order (SR-036 AK2): pass them as `selection.ids` to `element.list`. `withEvidence` and `withoutEvidence` only where the level has `withEvidence`. */
     readonly elements: {
@@ -3036,7 +3036,7 @@ export interface EvidenceCoverageOutput {
     };
   }[];
   readonly incomplete?: Incomplete;
-  /** Every element of `levels[].elements`, each once in selection order, so a reader names them by short ID, identifier and title (#588). Left out when no level lists an element. */
+  /** Every element of `levels[].elements`, each once in selection order, so a reader names them by short ID, identifier and title (ThomasBirkmaier/ReqSeq-archive#588). Left out when no level lists an element. */
   readonly names?: readonly ElementName[];
 }
 
@@ -3058,12 +3058,12 @@ export interface EvidenceDegreeOutput {
   /** core, or the variant of the selection's view (else of its saved filter's). */
   readonly view: ViewId;
   readonly incomplete?: Incomplete;
-  /** The variant of `view` (#588), so a reader names it by short ID and title. Left out in the core. */
+  /** The variant of `view` (ThomasBirkmaier/ReqSeq-archive#588), so a reader names it by short ID and title. Left out in the core. */
   readonly names?: readonly ElementName[];
 }
 
 /**
- * Input of `evidence.withoutPassedTest` as `run` gets it: validated, properties with a `default` filled in. Every requirement without a passed test execution in one view (SR-120): no verification record with method test and result passed, of any version, holds there (spec question #532). Each with its verification status.
+ * Input of `evidence.withoutPassedTest` as `run` gets it: validated, properties with a `default` filled in. Every requirement without a passed test execution in one view (SR-120): no verification record with method test and result passed, of any version, holds there (spec question ThomasBirkmaier/ReqSeq-archive#532). Each with its verification status.
  * Schema: `schemas/commands/evidence.withoutPassedTest.json input`.
  */
 export interface EvidenceWithoutPassedTestInput {
@@ -3074,11 +3074,11 @@ export interface EvidenceWithoutPassedTestInput {
 }
 
 /**
- * Output of `evidence.withoutPassedTest`. Every requirement without a passed test execution in one view (SR-120): no verification record with method test and result passed, of any version, holds there (spec question #532). Each with its verification status.
+ * Output of `evidence.withoutPassedTest`. Every requirement without a passed test execution in one view (SR-120): no verification record with method test and result passed, of any version, holds there (spec question ThomasBirkmaier/ReqSeq-archive#532). Each with its verification status.
  * Schema: `schemas/commands/evidence.withoutPassedTest.json output`.
  */
 export interface EvidenceWithoutPassedTestOutput {
-  /** One page, by type, then identifier, else short ID: every requirement (type with the meaning `requirement`, status not marked invalid, applies in the view) without a verification record with method `test` and result `passed` that holds in the view, of any version and also when a later run failed (spec question #532). Each as evidence.status gives it, with `verification` and `validation`. */
+  /** One page, by type, then identifier, else short ID: every requirement (type with the meaning `requirement`, status not marked invalid, applies in the view) without a verification record with method `test` and result `passed` that holds in the view, of any version and also when a later run failed (spec question ThomasBirkmaier/ReqSeq-archive#532). Each as evidence.status gives it, with `verification` and `validation`. */
   readonly elements: readonly DataExportElement[];
   /** Every listed requirement, not only the page. */
   readonly total: number;
@@ -3086,7 +3086,7 @@ export interface EvidenceWithoutPassedTestOutput {
   readonly view: ViewId;
   /** A repository of the workspace, or of an evidence location, is not on this machine: its requirements, or a passed test there, are not seen (SR-006 AK2). */
   readonly incomplete?: Incomplete;
-  /** The elements that `verification` names by UUID only, each once in the order first named: the variant of the view and the missing children (`missingChildren`), so a reader names them by short ID, identifier and title (#588). Left out when it names none. */
+  /** The elements that `verification` names by UUID only, each once in the order first named: the variant of the view and the missing children (`missingChildren`), so a reader names them by short ID, identifier and title (ThomasBirkmaier/ReqSeq-archive#588). Left out when it names none. */
   readonly names?: readonly ElementName[];
 }
 
@@ -3146,7 +3146,7 @@ export interface VariantDiffOutput {
   }[];
   /** Core requirements the variant excludes, also when replaced too; store order. */
   readonly excluded: readonly Uuid[];
-  /** Every element the lists name, each once, in order first named (#588). Left out when it names none. */
+  /** Every element the lists name, each once, in order first named (ThomasBirkmaier/ReqSeq-archive#588). Left out when it names none. */
   readonly names?: readonly ElementName[];
   /** The variant.target-not-core hints of the variant's own entries and of its replacements. */
   readonly problems?: readonly Problem[];
@@ -3321,7 +3321,7 @@ export interface BaselineGetOutput {
   };
   /** Entries of the file plus added elements. */
   readonly total: number;
-  /** The elements of the page, the variant of `view` and the variants the verification rows name, each once in the order first named (#588). */
+  /** The elements of the page, the variant of `view` and the variants the verification rows name, each once in the order first named (ThomasBirkmaier/ReqSeq-archive#588). */
   readonly names: readonly ElementName[];
   readonly problems?: readonly Problem[];
   readonly incomplete?: Incomplete;

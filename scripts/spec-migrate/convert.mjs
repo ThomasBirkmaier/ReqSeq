@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Migration of the spec from the Logseq export into a ReqSeq workspace (enabler #326).
+// Migration of the spec from the Logseq export into a ReqSeq workspace (enabler ThomasBirkmaier/ReqSeq-archive#326).
 //
 // Usage: pnpm build && node scripts/spec-migrate/convert.mjs <export-dir> <workspace-dir>
 //
@@ -13,9 +13,9 @@
 // with the spec's own additions, D-060), one element file per element, named by D-056, in a folder named
 // like its type key (so `element create` puts new elements next to them), and one package per stage of
 // stages.json (D-035, D-040). Element IDs are the Logseq UUIDs (all are UUID v4). The spec IDs (SR-036,
-// D-047, N-001) go into the property `spec-id` with the meaning `identifier` (#305). Statuses follow the
-// statuses of each type (#306): needs and system requirements draft, approved, obsolete; decisions draft,
-// accepted, superseded; glossary terms only obsolete, so a current term has no status (#344). Statuses
+// D-047, N-001) go into the property `spec-id` with the meaning `identifier` (ThomasBirkmaier/ReqSeq-archive#305). Statuses follow the
+// statuses of each type (ThomasBirkmaier/ReqSeq-archive#306): needs and system requirements draft, approved, obsolete; decisions draft,
+// accepted, superseded; glossary terms only obsolete, so a current term has no status (ThomasBirkmaier/ReqSeq-archive#344). Statuses
 // are copied from the export as people set them; the packages are new elements and get what
 // element.create gives a new package, the initial status draft (D-030). Texts, titles and acceptance
 // criteria are copied byte for byte. Relation targets are written as { id, title } without version.
@@ -24,9 +24,9 @@
 // it turns the inline mentions in the texts (`(SR-101)`) into `reqseq:` links with element.update, the
 // linked elements before the elements that link to them, so every link gets the final version of its
 // target (hint.confirm then finds nothing to confirm); then it gives every relation target its current
-// version with relation.add (#302) and the packages with element.update. Mentions stay plain text where
+// version with relation.add (ThomasBirkmaier/ReqSeq-archive#302) and the packages with element.update. Mentions stay plain text where
 // a link is not possible: in acceptance criteria and other properties (they are not Markdown text,
-// ADR-0004, #379), within a ring of mentions (`ringPartners`, #378), a mention of the element itself,
+// ADR-0004, ThomasBirkmaier/ReqSeq-archive#379), within a ring of mentions (`ringPartners`, ThomasBirkmaier/ReqSeq-archive#378), a mention of the element itself,
 // a mention of an ID the export does not have, and a test-name example such as `[SR-036/AK2]`. The
 // script ends with a check that every text, without the link markup, is still the exported text, and
 // prints the counts.
@@ -550,7 +550,7 @@ export async function fillWithReqSeq(dir, plan, core) {
     const added = [];
     for (const r of plan.relations) {
       if (r.kind === "packages") {
-        // A relation-valued property is set with element.update, which fills in the version (#182).
+        // A relation-valued property is set with element.update, which fills in the version (ThomasBirkmaier/ReqSeq-archive#182).
         await run("element.update", { ref: r.source, set: { packages: [{ id: r.target }] } });
         added.push(r);
         continue;
@@ -596,12 +596,12 @@ metamodel:
   path: metamodel
 `;
 
-const METAMODEL = `# Metamodel of the ReqSeq specification (enabler #326). It is the standard model (D-037,
+const METAMODEL = `# Metamodel of the ReqSeq specification (enabler ThomasBirkmaier/ReqSeq-archive#326). It is the standard model (D-037,
 # schemas/examples/metamodel/standard-model.yaml) with the spec's own additions (D-060: the glossary
 # term and the decision statuses are not part of the standard model):
-# - property spec-id with the meaning identifier (#305): SR-036, D-047, N-001, Stufe-3;
-# - statuses per type (#306): decisions draft, accepted, superseded; glossary terms only obsolete, so a
-#   term without status is current and element.supersede retires it (#344);
+# - property spec-id with the meaning identifier (ThomasBirkmaier/ReqSeq-archive#305): SR-036, D-047, N-001, Stufe-3;
+# - statuses per type (ThomasBirkmaier/ReqSeq-archive#306): decisions draft, accepted, superseded; glossary terms only obsolete, so a
+#   term without status is current and element.supersede retires it (ThomasBirkmaier/ReqSeq-archive#344);
 # - type glossary-term with its properties and relation kinds (from the Logseq graph ReqSeq).
 # ReqSeq has no command that changes a metamodel: this file is changed by hand in a pull request.
 reqseq-metamodel: 1
