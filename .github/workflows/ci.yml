@@ -51,7 +51,7 @@ jobs:
       contents: read
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           # A pull request's merge commit and its parents: the first parent is the base branch (size warning).
           fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 1 }}
@@ -72,8 +72,8 @@ jobs:
           if [ "$lines" -gt 800 ]; then
             echo "::warning title=Pull request size::$lines changed lines without generated files (over 800): split the pull request unless its change is inseparable (merge.md)."
           fi
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -101,6 +101,11 @@ jobs:
       - name: Audit
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: pnpm audit --prod --audit-level high
+      # The dev packages run on the build machine too (vite, electron-vite, Playwright, electron-builder's tool chain),
+      # so the nightly and the manual run audit them as well (#938). Pull requests keep the production audit only.
+      - name: Audit, dev packages included
+        if: ${{ !cancelled() && steps.install.outcome == 'success' && github.event_name != 'pull_request' }}
+        run: pnpm audit --audit-level high
       # trace-check reads the ReqSeq workspace in spec/ with the `yaml` package (#326) and the test names; no PR text.
       - name: Trace check
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
@@ -119,13 +124,13 @@ jobs:
     if: ${{ github.event.action != 'closed' }}
     runs-on: ubuntu-24.04
     steps: &checks-steps
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           # A pull request's merge commit and its parents: the first parent is the base branch (changed files).
           fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 1 }}
           persist-credentials: false
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -236,7 +241,7 @@ jobs:
       # Evidence (D-050): the unit tests' and the e2e suite's JUnit files, as separate artifacts as before.
       - name: Upload JUnit results of the unit tests (evidence, D-050)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: junit-${{ matrix.os || 'ubuntu-24.04' }}
           path: |
@@ -245,7 +250,7 @@ jobs:
           if-no-files-found: ignore
       - name: Upload JUnit results of the e2e suite (evidence, D-050)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: junit-e2e-${{ matrix.os || 'ubuntu-24.04' }}
           path: test-results/junit-e2e.xml
@@ -269,7 +274,7 @@ jobs:
         shard: [1, 2]
     runs-on: ubuntu-24.04
     steps: &electron-steps
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 1 }}
           persist-credentials: false
@@ -283,9 +288,9 @@ jobs:
           tests="$(git diff --name-only --no-renames HEAD^1 HEAD | bash <(git show HEAD^1:.github/scripts/tests-needed.sh))"
           echo "tests=$tests" >> "$GITHUB_OUTPUT"
           echo "Electron tests needed: \`$tests\`" >> "$GITHUB_STEP_SUMMARY"
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
         if: steps.changes.outputs.tests != 'false'
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         if: steps.changes.outputs.tests != 'false'
         with:
           node-version-file: .nvmrc
@@ -302,7 +307,7 @@ jobs:
           version="$(node -p "require('./packages/app/node_modules/electron/package.json').version")"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "electron_config_cache=$RUNNER_TEMP/electron-cache" >> "$GITHUB_ENV"
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         id: electron-cache
         if: steps.changes.outputs.tests != 'false'
         with:
@@ -312,7 +317,7 @@ jobs:
       - name: Electron binary
         if: steps.changes.outputs.tests != 'false'
         run: pnpm --filter @reqseq/app electron:install
-      - uses: actions/cache/save@v4
+      - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         # One shard saves; both would try the same key.
         if: steps.changes.outputs.tests != 'false' && steps.electron-cache.outputs.cache-hit != 'true' && matrix.shard != 2
         with:
@@ -350,7 +355,7 @@ jobs:
         run: pnpm --filter @reqseq/app test:electron
       - name: Upload JUnit results (evidence, D-050)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: junit-electron-${{ matrix.os || 'ubuntu-24.04' }}${{ matrix.shard && format('-{0}', matrix.shard) || '' }}
           path: |

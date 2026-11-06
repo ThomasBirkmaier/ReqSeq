@@ -9,7 +9,7 @@ runs:
     # The key changes with the manifest and the pins. restore-keys takes an older entry, and fetch.mjs then downloads
     # only the files that are missing or differ. Every event saves on a miss, the nightly run included, so the entry
     # lies in main's scope, where every pull request finds it (a pull request's own entry is seen only by itself).
-    - uses: actions/cache/restore@v4
+    - uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
       id: restore
       with:
         path: ${{ runner.temp }}/reqif-xsd
@@ -19,7 +19,7 @@ runs:
       shell: bash
       run: node scripts/reqif-xsd/fetch.mjs "$RUNNER_TEMP/reqif-xsd"
     - if: steps.restore.outputs.cache-hit != 'true'
-      uses: actions/cache/save@v4
+      uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
       with:
         path: ${{ runner.temp }}/reqif-xsd
         key: ${{ steps.restore.outputs.cache-primary-key }}
