@@ -88,6 +88,9 @@ const IMAGE_TYPES: Readonly<Record<string, string>> = {
 
 const NOT_FOUND: FileAnswer = { status: 404 };
 
+/** The largest image served (64 MiB): a larger file is not read, so that it cannot stall the core process (#939). */
+export const MAX_IMAGE_BYTES = 64 * 1024 * 1024;
+
 /**
  * The host of every `reqseq-file:` URL. The repository is the first name of the path, because Chromium
  * changes hosts such as `1.2` or `0x1f` into IPv4 addresses and refuses `a..b`.
@@ -250,7 +253,11 @@ export const createCoreHost = ({ runtime, workspace, activity, changes }: CoreHo
         }
         // Only now the file system: links inside the folder may still point outside it.
         const [root, target] = await Promise.all([fs.realpath(folder), fs.realpath(lexical)]);
-        if (!isInside(root, target) || !(await fs.stat(target)).isFile()) {
+        if (!isInside(root, target)) {
+          return NOT_FOUND;
+        }
+        const stats = await fs.stat(target);
+        if (!stats.isFile() || stats.size > MAX_IMAGE_BYTES) {
           return NOT_FOUND;
         }
         return { status: 200, mimeType, data: new Uint8Array(await fs.readFile(target)) };

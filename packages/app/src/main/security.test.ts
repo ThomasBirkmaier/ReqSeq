@@ -11,8 +11,9 @@ import {
 
 describe("webPreferences", () => {
   it("isolates and sandboxes the renderer, without Node, webviews or spell check", () => {
-    expect(webPreferences("/out/preload/index.cjs")).toEqual({
+    expect(webPreferences("/out/preload/index.cjs", false)).toEqual({
       preload: "/out/preload/index.cjs",
+      devTools: false,
       contextIsolation: true,
       sandbox: true,
       nodeIntegration: false,
@@ -25,6 +26,10 @@ describe("webPreferences", () => {
       navigateOnDragDrop: false,
       spellcheck: false,
     });
+  });
+
+  it("opens the developer tools only when asked to (an unpackaged build)", () => {
+    expect(webPreferences("/out/preload/index.cjs", true).devTools).toBe(true);
   });
 });
 
