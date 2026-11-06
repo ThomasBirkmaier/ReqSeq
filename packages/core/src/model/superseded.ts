@@ -95,7 +95,7 @@ const hitsOf = (
       value.forEach((item: unknown, index) => {
         // The UUID first: the schema check and the lookup cost too much for each of 200,000
         // relations when a command asks about a few elements (ADR-0008: 200 ms); with the incoming
-        // relation index only the sources of relations to the targets come here (#272).
+        // relation index only the sources of relations to the targets come here (ThomasBirkmaier/ReqSeq-archive#272).
         if (filter !== undefined && !(isRecord(item) && filter.ids.has(String(item["id"])))) {
           return;
         }
@@ -209,7 +209,7 @@ export const supersededTargetFindings = (
 
 /**
  * The elements of the store with a relation of a relation kind to a UUID of `filter`, in store
- * order, from the incoming relation index of the same store (#272): what `hitsOf` then looks at
+ * order, from the incoming relation index of the same store (ThomasBirkmaier/ReqSeq-archive#272): what `hitsOf` then looks at
  * instead of every element. The index holds exactly the items `hitsOf` reads (a mapping with a text
  * `id` in the list under a relation kind's key) when every relation kind's key is a list of
  * relations to it (`relationKey`: keys are unique across properties and relation kinds, ADR-0004);
@@ -287,7 +287,7 @@ const successorsFrom = (
  * has an invalid status. With the incoming relation index of the store in the workspace's memo (a
  * chain ran, and the save carried it), only the sources of relations to `targets` are looked at;
  * without, every element (about 80 ms at N-036): the save does not build the index, which costs
- * more (0.3 to 0.5 s; #272, ADR-0008).
+ * more (0.3 to 0.5 s; ThomasBirkmaier/ReqSeq-archive#272, ADR-0008).
  */
 export const supersededTargetProblems = async (
   workspace: Workspace,
@@ -313,7 +313,7 @@ export const supersededTargetProblemsState = defineWorkspaceState(
     const layout = await workspace.get(workspaceLayoutState);
     const store = await workspace.get(elementStoreState);
     const metamodel = await workspace.get(metamodelState);
-    // Nothing against a metamodel that is not valid: its errors are the findings (#208, #220).
+    // Nothing against a metamodel that is not valid: its errors are the findings (ThomasBirkmaier/ReqSeq-archive#208, ThomasBirkmaier/ReqSeq-archive#220).
     if (!metamodel.valid) {
       return [];
     }

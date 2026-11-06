@@ -113,7 +113,7 @@ export const requiredProblemsState = defineWorkspaceState(
   async (workspace): Promise<readonly Problem[]> => {
     const layout = await workspace.get(workspaceLayoutState);
     const metamodel = await workspace.get(metamodelState);
-    // Nothing against a metamodel that is not valid: its errors are the findings (#208, #220).
+    // Nothing against a metamodel that is not valid: its errors are the findings (ThomasBirkmaier/ReqSeq-archive#208, ThomasBirkmaier/ReqSeq-archive#220).
     if (!metamodel.valid) {
       return [];
     }
@@ -122,12 +122,12 @@ export const requiredProblemsState = defineWorkspaceState(
   },
   {
     dependsOn: [elementStoreState, metamodelState],
-    // A save or a watcher batch finds and locates the changed files only (#184).
+    // A save or a watcher batch finds and locates the changed files only (ThomasBirkmaier/ReqSeq-archive#184).
     carry: carryStoreUpdate((value, update, workspace) => {
       const metamodel = workspace.get(metamodelState);
       return carryProblems(workspace, value, update, {
         findingsOf: metamodel.then((m) => (element) => requiredFindings(element, m)),
-        // Nothing against a metamodel that is not valid, as a full build (#208, #220).
+        // Nothing against a metamodel that is not valid, as a full build (ThomasBirkmaier/ReqSeq-archive#208, ThomasBirkmaier/ReqSeq-archive#220).
         skip: metamodel.then((m) => !m.valid),
       });
     }),

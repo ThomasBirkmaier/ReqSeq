@@ -1,4 +1,4 @@
-// Duplicate identifiers (#305): an identifier (the property with the meaning `identifier`, an ID from
+// Duplicate identifiers (ThomasBirkmaier/ReqSeq-archive#305): an identifier (the property with the meaning `identifier`, an ID from
 // another source such as SR-036, D-017) is unique per type. When elements of one type share one
 // (compared in any case, as references compare it), each of them gets a hint naming the others: a
 // reference by that identifier is ambiguous (`ref.ambiguous`) until a person gives one of them
@@ -97,8 +97,8 @@ const sharing = (update: StoreUpdate, context: IdentifierContext): readonly Elem
 
 /**
  * Every element whose identifier another element of its type has, for `workspace.check` and
- * `hint.list`, with the line of the identifier. Nothing against a metamodel that is not valid (#208,
- * #220). Carried over a change of the store (#184): the changed files and the elements that share
+ * `hint.list`, with the line of the identifier. Nothing against a metamodel that is not valid (ThomasBirkmaier/ReqSeq-archive#208,
+ * ThomasBirkmaier/ReqSeq-archive#220). Carried over a change of the store (ThomasBirkmaier/ReqSeq-archive#184): the changed files and the elements that share
  * an identifier with them before or after are looked at again.
  */
 export const duplicateIdentifierProblemsState = defineWorkspaceState(

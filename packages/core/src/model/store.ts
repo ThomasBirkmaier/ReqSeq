@@ -2,7 +2,7 @@
 // found by its frontmatter in whatever folder it lies (SR-003, SR-004 AK1, D-056). Relations name
 // their target by UUID only, so moving a file to another folder changes nothing for them (SR-003 AK3).
 // The watcher keeps it current file by file (`updateElements`, SR-007), and so does a write of
-// ReqSeq itself (`withWrittenFiles`, `recordWrites`, #166).
+// ReqSeq itself (`withWrittenFiles`, `recordWrites`, ThomasBirkmaier/ReqSeq-archive#166).
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { Problem } from "../catalog.js";
@@ -593,7 +593,7 @@ const walkedChanges = async (
   changes: RepositoryChanges,
   listed: DiscoveredFiles,
 ): Promise<{ readonly read: readonly string[]; readonly gone: ReadonlySet<string> }> => {
-  // Compared in Unicode NFC (#225): the watcher may spell a path in another normal form than
+  // Compared in Unicode NFC (ThomasBirkmaier/ReqSeq-archive#225): the watcher may spell a path in another normal form than
   // `readdir` (FSEvents on macOS). Where a file system keeps the forms apart, a file is at most
   // checked once more.
   const named = new Set(changes.paths.map((p) => p.normalize("NFC")));
@@ -785,7 +785,7 @@ const listedNew = async (
 };
 
 /**
- * The store with files as ReqSeq has just written them (#166, ADR-0008), without reading any
+ * The store with files as ReqSeq has just written them (ThomasBirkmaier/ReqSeq-archive#166, ADR-0008), without reading any
  * file: each file's contribution is built from the bytes written and the snapshot of the write,
  * the same way a full read builds it, and patched in (`PatchedMap` in path order: new files are
  * sorted once, so a bulk write of n new files stays O(n log n), #729). The store is patched once
@@ -862,7 +862,7 @@ export const withWrittenFiles = async (
  * cache when the workspace has a cache folder (`WorkspaceOptions.cacheFolder`, SR-082). Reading it again
  * (`workspace.reset(elementStoreState)` or a new `Workspace`) finds every element where it lies
  * now; the watcher and ReqSeq's own writes update it file by file instead (`applyStoreChange`;
- * `updateElements`, SR-007; `recordWrites`, #166). Resetting the workspace layout resets it
+ * `updateElements`, SR-007; `recordWrites`, ThomasBirkmaier/ReqSeq-archive#166). Resetting the workspace layout resets it
  * too.
  *
  * The store may be swapped while a command runs, and so may the states built on it (short IDs,
@@ -893,7 +893,7 @@ const storeChangesState = defineWorkspaceState("element-store-changes", (): { ta
 }));
 
 /**
- * What a change of the element store changed (#184): the files whose element record is not the
+ * What a change of the element store changed (ThomasBirkmaier/ReqSeq-archive#184): the files whose element record is not the
  * same object in both stores (changed, new or gone), and the UUIDs of those records before and
  * after. Every other record is the same object in both, as `updateElements` and `withWrittenFiles`
  * keep it, so a state built on the store needs to look again only at these.
@@ -989,7 +989,7 @@ const changedContributions = (
 const updates = new WeakMap<object, StoreUpdate>();
 
 /**
- * A `carry` hook for a state built on the element store (`WorkspaceState.carry`, #184): when
+ * A `carry` hook for a state built on the element store (`WorkspaceState.carry`, ThomasBirkmaier/ReqSeq-archive#184): when
  * `applyStoreChange` replaced the store and knows what changed, `next` gets the state's value and
  * the `StoreUpdate`, and returns the value for the new store (built from the old one by looking
  * again at the changed files only) or undefined to reset it. Any other replace resets the state.
@@ -1035,11 +1035,11 @@ const applyNow = async (
 
 /**
  * Changes the element store of `workspace` without reading it again (the watcher, SR-007; ReqSeq's
- * own writes, #166): `change` gets the current store and returns the new one, or undefined for no
+ * own writes, ThomasBirkmaier/ReqSeq-archive#166): `change` gets the current store and returns the new one, or undefined for no
  * change. Calls run one after the other per workspace. When the store was replaced while `change`
  * ran, `change` runs again on the newer store; when it was reset (or never read), nothing happens,
  * since the next read finds the files as they are. The states built on the store are carried over
- * the change (`storeUpdate`, `carryStoreUpdate`, #184) or reset. Resolves with the store set, or
+ * the change (`storeUpdate`, `carryStoreUpdate`, ThomasBirkmaier/ReqSeq-archive#184) or reset. Resolves with the store set, or
  * undefined.
  */
 export const applyStoreChange = (
@@ -1054,10 +1054,10 @@ export const applyStoreChange = (
 
 /**
  * Puts files ReqSeq has just written into the element store of `workspace` without reading any
- * file again (#166, ADR-0008): `element.create`, `element.update` and every later command that
+ * file again (ThomasBirkmaier/ReqSeq-archive#166, ADR-0008): `element.create`, `element.update` and every later command that
  * writes element files call it once with all files of the command. It goes through the queue of
  * `applyStoreChange`, so a save waits behind a watcher batch that is running. The states built on
- * the store (short IDs, findings) are carried over the change or reset (`carryStoreUpdate`, #184).
+ * the store (short IDs, findings) are carried over the change or reset (`carryStoreUpdate`, ThomasBirkmaier/ReqSeq-archive#184).
  * When the result could differ from a full read (`StoreFallback`), or the layout `layout` is no
  * longer the workspace's, the store is reset, so the next read finds the files as written. Other
  * errors are passed on.

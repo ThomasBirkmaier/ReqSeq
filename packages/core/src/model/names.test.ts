@@ -1,4 +1,4 @@
-// How outputs name the elements they give by UUID only (#588, `names`), on fixtures/enabler-305/identifiers:
+// How outputs name the elements they give by UUID only (ThomasBirkmaier/ReqSeq-archive#588, `names`), on fixtures/enabler-305/identifiers:
 // N-001 (need), SR-036 and SR-037 (system requirements, SR-037 derived from SR-036), D-047 (decision);
 // every type has the property `spec-id` with the meaning identifier.
 import { createFixtureWorkspace } from "@reqseq/testkit";
@@ -29,7 +29,7 @@ const context = async (): Promise<NameContext> => {
   return { metamodel, store, shortIds };
 };
 
-describe("names of elements given by UUID (#588)", () => {
+describe("names of elements given by UUID (ThomasBirkmaier/ReqSeq-archive#588)", () => {
   it("names each UUID once by short ID, identifier and title, in the order asked, without UUIDs not in the store", async () => {
     const names = namesOf(await context(), [S37, UNKNOWN, N1, S37]);
     expect(names).toEqual([

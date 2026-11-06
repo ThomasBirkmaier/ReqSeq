@@ -161,7 +161,7 @@ const TARGET_KEYS: ReadonlySet<string> = new Set(["id", "version", "title", "rep
 /**
  * What is wrong with a mapping that is no relation target, the first of: `id`, `version`, a key a
  * target does not have, `title` or `repository` not text, both of them (D-058). A missing version is
- * what a migration script writes (ADR-0005); `relation.add` and `element.update` store it (#302).
+ * what a migration script writes (ADR-0005); `relation.add` and `element.update` store it (ThomasBirkmaier/ReqSeq-archive#302).
  */
 const describeMapping = (item: Readonly<Record<string, unknown>>): string => {
   if (item["id"] === undefined) {
@@ -297,14 +297,14 @@ export const valueKindFindings = (store: ElementStore, metamodel: Metamodel): re
  * Reads every file with findings again for the lines (`locateFindings`): at 50,000 elements that
  * all have a finding that is a full read of the workspace. Kept until the element store or the
  * metamodel is reset; carried over a change of the store, which finds and locates the changed files
- * only (#184).
+ * only (ThomasBirkmaier/ReqSeq-archive#184).
  */
 export const valueKindProblemsState = defineWorkspaceState(
   "value-kinds",
   async (workspace): Promise<readonly Problem[]> => {
     const layout = await workspace.get(workspaceLayoutState);
     const metamodel = await workspace.get(metamodelState);
-    // Nothing against a metamodel that is not valid: its errors are the findings (#208, #220).
+    // Nothing against a metamodel that is not valid: its errors are the findings (ThomasBirkmaier/ReqSeq-archive#208, ThomasBirkmaier/ReqSeq-archive#220).
     if (!metamodel.valid) {
       return [];
     }
@@ -313,12 +313,12 @@ export const valueKindProblemsState = defineWorkspaceState(
   },
   {
     dependsOn: [elementStoreState, metamodelState],
-    // A save or a watcher batch finds and locates the changed files only (#184).
+    // A save or a watcher batch finds and locates the changed files only (ThomasBirkmaier/ReqSeq-archive#184).
     carry: carryStoreUpdate((value, update, workspace) => {
       const metamodel = workspace.get(metamodelState);
       return carryProblems(workspace, value, update, {
         findingsOf: metamodel.then((m) => (element) => valueFindings(element, m)),
-        // Nothing against a metamodel that is not valid, as a full build (#208, #220).
+        // Nothing against a metamodel that is not valid, as a full build (ThomasBirkmaier/ReqSeq-archive#208, ThomasBirkmaier/ReqSeq-archive#220).
         skip: metamodel.then((m) => !m.valid),
       });
     }),

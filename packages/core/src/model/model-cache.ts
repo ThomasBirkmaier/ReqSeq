@@ -44,7 +44,7 @@ export const MODEL_CACHE_FILE = "model.json";
 
 /**
  * The format of `model.json`; a cache of another format is discarded. 4: element records carry the
- * inline references of their text (`ElementRecord.references`, #240). 5: and those in the string
+ * inline references of their text (`ElementRecord.references`, ThomasBirkmaier/ReqSeq-archive#240). 5: and those in the string
  * values of their frontmatter (`ElementRecord.propertyReferences`, SR-127). 6: and their `reqseq:`
  * links whose target is no UUID (`ElementRecord.unresolvedLinks`, #176). 7: and the `reqseq:`
  * references of their text outside links (`ElementRecord.bareReferences`, #633). 8: and whether

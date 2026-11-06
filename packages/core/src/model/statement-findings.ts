@@ -8,7 +8,7 @@
 // that lists the statement property, while that property does not count (`content` not true): a
 // metamodel that makes it count has no such gap. An element whose status the metamodel marks invalid
 // (superseded, obsolete) gets none: it is not worked on any more. The text comes from `ElementRecord.blankText`, so no file is read to
-// find them. Nothing while the metamodel is not valid (#208, #220 option 1).
+// find them. Nothing while the metamodel is not valid (ThomasBirkmaier/ReqSeq-archive#208, ThomasBirkmaier/ReqSeq-archive#220 option 1).
 import type { Problem } from "../catalog.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { findType, metamodelState, propertyWithMeaning } from "../metamodel/index.js";
@@ -84,14 +84,14 @@ export const allStatementFindings = (
 /**
  * Every requirement with a statement but no text, as a problem with repository, file, line of the
  * statement and element ID, for `workspace.check` and `hint.list`. Kept until the element store or
- * the metamodel is reset; carried over a save or a watcher batch for the changed files (#184).
+ * the metamodel is reset; carried over a save or a watcher batch for the changed files (ThomasBirkmaier/ReqSeq-archive#184).
  */
 export const statementProblemsState = defineWorkspaceState(
   "statement-without-text",
   async (workspace): Promise<readonly Problem[]> => {
     const layout = await workspace.get(workspaceLayoutState);
     const metamodel = await workspace.get(metamodelState);
-    // Nothing against a metamodel that is not valid: its errors are the findings (#208, #220).
+    // Nothing against a metamodel that is not valid: its errors are the findings (ThomasBirkmaier/ReqSeq-archive#208, ThomasBirkmaier/ReqSeq-archive#220).
     if (!metamodel.valid) {
       return [];
     }

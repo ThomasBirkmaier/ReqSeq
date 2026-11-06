@@ -2,7 +2,7 @@
 // cannot be read (`file.faulty`) gives none, and the save counts as a change, so a save that repairs
 // the element still works. Errors that are bugs are passed on. The image lookup is replaced by a
 // stand-in that fails once on request. A value without a normal form has a content to compare
-// (`elementContent`, #276; element.update tests).
+// (`elementContent`, ThomasBirkmaier/ReqSeq-archive#276; element.update tests).
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import { createFixtureWorkspace } from "@reqseq/testkit";

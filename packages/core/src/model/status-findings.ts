@@ -1,4 +1,4 @@
-// Statuses outside the element's type (#306, decision of 2026-10-26 on option 1). A type may restrict
+// Statuses outside the element's type (ThomasBirkmaier/ReqSeq-archive#306, decision of 2026-10-26 on option 1). A type may restrict
 // the metamodel's statuses (`statuses`, inherited like properties); the effective type lists the
 // statuses its elements may have, empty for a type without status (a glossary term). Two hints,
 // severity `warning` like an unknown property, a value of the wrong kind or a required property
@@ -8,11 +8,11 @@
 //   the line of the value.
 // - `element.missing-status`: the type has a status that is not marked invalid and the element has
 //   none (absent, `null`, blank; `isEmptyValue`). On the line of the key when the file has it. A type
-//   whose statuses are all invalid has an optional status (#344, option 1): its elements without
+//   whose statuses are all invalid has an optional status (ThomasBirkmaier/ReqSeq-archive#344, option 1): its elements without
 //   status are current, so they get no hint.
 // Only `element.setStatus` and `element.supersede` change a status (D-030), so no file is written.
 // An element of an unknown type gets neither: it has `element.unknown-type` (SR-016). Nothing while
-// the metamodel is not valid (#208, #220 option 1), as for the other findings against it.
+// the metamodel is not valid (ThomasBirkmaier/ReqSeq-archive#208, ThomasBirkmaier/ReqSeq-archive#220 option 1), as for the other findings against it.
 import type { Problem } from "../catalog.js";
 import type { EffectiveType, Metamodel } from "../metamodel/index.js";
 import { findType, hasWorkingStatus, listNamed, metamodelState, typeStatuses } from "../metamodel/index.js";
@@ -112,7 +112,7 @@ export const statusProblemsState = defineWorkspaceState(
   async (workspace): Promise<readonly Problem[]> => {
     const layout = await workspace.get(workspaceLayoutState);
     const metamodel = await workspace.get(metamodelState);
-    // Nothing against a metamodel that is not valid: its errors are the findings (#208, #220).
+    // Nothing against a metamodel that is not valid: its errors are the findings (ThomasBirkmaier/ReqSeq-archive#208, ThomasBirkmaier/ReqSeq-archive#220).
     if (!metamodel.valid) {
       return [];
     }
@@ -121,12 +121,12 @@ export const statusProblemsState = defineWorkspaceState(
   },
   {
     dependsOn: [elementStoreState, metamodelState],
-    // A save or a watcher batch finds and locates the changed files only (#184).
+    // A save or a watcher batch finds and locates the changed files only (ThomasBirkmaier/ReqSeq-archive#184).
     carry: carryStoreUpdate((value, update, workspace) => {
       const metamodel = workspace.get(metamodelState);
       return carryProblems(workspace, value, update, {
         findingsOf: metamodel.then((m) => (element) => statusFindings(element, m)),
-        // Nothing against a metamodel that is not valid, as a full build (#208, #220).
+        // Nothing against a metamodel that is not valid, as a full build (ThomasBirkmaier/ReqSeq-archive#208, ThomasBirkmaier/ReqSeq-archive#220).
         skip: metamodel.then((m) => !m.valid),
       });
     }),

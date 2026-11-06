@@ -311,7 +311,7 @@ describe("missing relation targets (SR-089)", () => {
     const context = await contextOf(workspace);
     const missing = { id: REMOVED.replace("3b8e", "4b8e"), version: VERSION };
     const kept = { id: KEPT, version: VERSION };
-    // Each element also has two inline references (#240): one naming its repository, one without.
+    // Each element also has two inline references (ThomasBirkmaier/ReqSeq-archive#240): one naming its repository, one without.
     const references = (gone: boolean): readonly TextReference[] => [
       { id: gone ? missing.id : KEPT, version: VERSION, repository: "system", line: 20 },
       { id: KEPT, version: VERSION, line: 21 },
@@ -368,7 +368,7 @@ describe("missing relation targets (SR-089)", () => {
     }
   });
 
-  it("[SR-089/AK2] does not report a target in a repository the workspace file does not list (spec question #193)", async () => {
+  it("[SR-089/AK2] does not report a target in a repository the workspace file does not list (spec question ThomasBirkmaier/ReqSeq-archive#193)", async () => {
     const { workspace } = await open();
     const context = await contextOf(workspace);
     const missing = { id: REMOVED.replace("3b8e", "4b8e"), version: VERSION };
@@ -427,7 +427,7 @@ const withReferences = async (
     ...files,
   });
 
-describe("inline references to missing targets (SR-089, D-058, decision on #177 (c))", () => {
+describe("inline references to missing targets (SR-089, D-058, decision on ThomasBirkmaier/ReqSeq-archive#177 (c))", () => {
   it("[SR-089/AK1] reports no reference while every target is there, and every one whose target was removed from a repository that is here", async () => {
     const { fixture, workspace } = await withReferences();
     expect(await workspace.get(missingTargetProblemsState)).toEqual([]);
@@ -507,7 +507,7 @@ describe("inline references to missing targets (SR-089, D-058, decision on #177 
     expect(context.layout.repositories.find((r) => r.name === "vault")?.available).toBe(false);
     const sr = recordOf(context.store, SR);
     expect(sr.references?.map((r) => r.line)).toEqual([17, 17, 18, 19, 19, 20]);
-    // Line 19: vault, and a repository the workspace file does not list (spec question #193).
+    // Line 19: vault, and a repository the workspace file does not list (spec question ThomasBirkmaier/ReqSeq-archive#193).
     expect(missingReferenceFindings(sr, context).map((f) => f.reference.line)).toEqual([17, 18]);
   });
 

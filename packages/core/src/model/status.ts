@@ -2,10 +2,10 @@
 // the ones of the metamodel, in metamodel order (`metamodel.get` lists them); `element.setStatus`
 // takes only those. The value always comes from the caller: the tool never picks or computes one.
 // Only the `status` line of each file is rewritten (ADR-0007); UUID, type and file name stay.
-// A type may restrict the statuses (#306): then only the type's statuses are taken, and an element
-// of a type without status gets none. `status: null` removes the status line (#343), only where the
+// A type may restrict the statuses (ThomasBirkmaier/ReqSeq-archive#306): then only the type's statuses are taken, and an element
+// of a type without status gets none. `status: null` removes the status line (ThomasBirkmaier/ReqSeq-archive#343), only where the
 // type's status is optional: a type without status, or one whose statuses are all marked invalid
-// (#344, option 1), so a leftover status can be cleared and a retired element made current again.
+// (ThomasBirkmaier/ReqSeq-archive#344, option 1), so a leftover status can be cleared and a retired element made current again.
 import type { Problem } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import type { MetamodelEffectiveType } from "../generated/types.js";
@@ -25,7 +25,7 @@ import { assertElementWritable, readUnchanged, writeElementFiles } from "./write
 
 export interface SetStatusInput {
   readonly refs: readonly string[];
-  /** A status key or display name; `null` removes the status line (#343). */
+  /** A status key or display name; `null` removes the status line (ThomasBirkmaier/ReqSeq-archive#343). */
   readonly status: string | null;
 }
 
@@ -44,8 +44,8 @@ export interface SetStatusResult {
 export const statusValues = (metamodel: Metamodel): readonly string[] => metamodel.statuses.map((s) => s.key);
 
 /**
- * The key of the status `given` names: its key, or its display name in any case (#309, spec
- * question #316); the file always gets the key (SR-012 AK3). Throws `input.invalid` with the
+ * The key of the status `given` names: its key, or its display name in any case (ThomasBirkmaier/ReqSeq-archive#309, spec
+ * question ThomasBirkmaier/ReqSeq-archive#316); the file always gets the key (SR-012 AK3). Throws `input.invalid` with the
  * statuses as `key (Name)` in the message and their keys as `details.allowed`: `reason:
  * unknown-status` when it names none, `ambiguous-status` (with `details.candidates`) when it names
  * more than one.
@@ -70,7 +70,7 @@ export const statusKey = (metamodel: Metamodel, given: string): string => {
 
 /**
  * Refuses `status` (a key of the metamodel) for `ref`, an element of `type`, when the type does not
- * have it (#306): `input.invalid` with `reason: type-without-status` for a type without status, else
+ * have it (ThomasBirkmaier/ReqSeq-archive#306): `input.invalid` with `reason: type-without-status` for a type without status, else
  * `status-not-allowed` with the type's statuses as `key (Name)` in the message and their keys as
  * `details.allowed`.
  */
@@ -99,7 +99,7 @@ const assertTypeHasStatus = (
 };
 
 /**
- * Refuses to remove the status of `ref`, an element of `type`, when the type requires one (#343):
+ * Refuses to remove the status of `ref`, an element of `type`, when the type requires one (ThomasBirkmaier/ReqSeq-archive#343):
  * when it has a status that is not marked invalid (`hasWorkingStatus`). `input.invalid` with `reason:
  * status-required` and the type's statuses as `key (Name)` in the message and their keys as
  * `details.allowed`.
@@ -119,14 +119,14 @@ const assertStatusOptional = (metamodel: Metamodel, type: MetamodelEffectiveType
  * `element.setStatus` (SR-017, SR-087): sets `input.status`, a status of the metamodel (its key or
  * display name, `statusKey`), on every element of `input.refs`. Every check comes before the first
  * write: the status, each reference, that each element may be written (SR-016 AK3), that its type
- * has the status (#306, `assertTypeHasStatus`) and that no file changed on disk since the element
+ * has the status (ThomasBirkmaier/ReqSeq-archive#306, `assertTypeHasStatus`) and that no file changed on disk since the element
  * store read it (`file.changed-on-disk`; the store is then read again on the next call). A write
  * that is still refused (a read-only file, a change in the meantime) rolls back the files already
  * written as far as possible (`writeElementFiles`). A reference given twice is written once. With a
  * status the metamodel marks invalid, the result has the hints on relations to the elements, the
  * same as `element.supersede` gives (SR-072 AK2).
  *
- * With `status: null` it removes the `status` line instead (#343), on elements whose type has an
+ * With `status: null` it removes the `status` line instead (ThomasBirkmaier/ReqSeq-archive#343), on elements whose type has an
  * optional status only (`assertStatusOptional`); an element without the line is not written. Only
  * that line goes (ADR-0007); the element stays (D-045), and nothing is superseded, so no problems.
  */
@@ -135,7 +135,7 @@ export const setElementStatus = async (
   input: SetStatusInput,
 ): Promise<SetStatusResult> => {
   const metamodel = await workspace.get(metamodelState);
-  // `undefined`: remove the status line (#343).
+  // `undefined`: remove the status line (ThomasBirkmaier/ReqSeq-archive#343).
   const status = input.status === null ? undefined : statusKey(metamodel, input.status);
   const layout = await workspace.get(workspaceLayoutState);
   const store = await workspace.get(elementStoreState);
@@ -169,7 +169,7 @@ export const setElementStatus = async (
   const files = (await writeElementFiles(workspace, layout, writes, { titles: { metamodel, store } })).map(
     (w) => w.file,
   );
-  // An invalid status supersedes the elements, whichever command sets it (SR-072 AK2, #84).
+  // An invalid status supersedes the elements, whichever command sets it (SR-072 AK2, ThomasBirkmaier/ReqSeq-archive#84).
   const problems =
     status !== undefined && invalidStatuses(metamodel).has(status)
       ? await supersededTargetProblems(workspace, [...records.values()])

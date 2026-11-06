@@ -73,13 +73,13 @@ const check = async (opened: Opened): Promise<CommandOutput<"workspace.check">> 
 const statusHints = async (opened: Opened): Promise<readonly Problem[]> =>
   (await check(opened)).problems.filter((p) => CODES.has(p.code));
 
-describe("status hints of elements against the statuses of their type (#306)", () => {
+describe("status hints of elements against the statuses of their type (ThomasBirkmaier/ReqSeq-archive#306)", () => {
   it("reports a status outside the type, a status on a type without status and a missing status as warnings", async () => {
     const opened = await open();
     const out = await check(opened);
     // Every other element is fine: a need has every status, a safety requirement its own and its parent's.
     expect(out.problems).toEqual([UNKNOWN, OTHER_TYPE, MISSING, NO_STATUS]);
-    // Hints are warnings: they block nothing, so the check passes by default (failOn: error, #304).
+    // Hints are warnings: they block nothing, so the check passes by default (failOn: error, ThomasBirkmaier/ReqSeq-archive#304).
     expect(out.ok).toBe(true);
   });
 

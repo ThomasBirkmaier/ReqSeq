@@ -1,4 +1,4 @@
-// Identifiers (#305): the property with the meaning `identifier` (here `spec-id`, as the ReqSeq spec
+// Identifiers (ThomasBirkmaier/ReqSeq-archive#305): the property with the meaning `identifier` (here `spec-id`, as the ReqSeq spec
 // will use it after the migration) names elements besides UUID and short ID, outputs show it next
 // to the short ID, and a duplicate within a type is a finding.
 import { readFile, rm, writeFile } from "node:fs/promises";
@@ -66,7 +66,7 @@ const decision = (id: string, specId: string): string =>
 const problemsOf = async (opened: Opened): Promise<readonly Problem[]> =>
   ((await run(opened, "workspace.check", {})) as { problems: readonly Problem[] }).problems;
 
-describe("identifiers as element references (#305)", () => {
+describe("identifiers as element references (ThomasBirkmaier/ReqSeq-archive#305)", () => {
   it("names an element by its identifier in element.get and element.resolve, in any case", async () => {
     const opened = await open();
     const byUuid = await elementOf(opened, SR036.id);
@@ -149,7 +149,7 @@ describe("identifiers as element references (#305)", () => {
     });
     // The same in any case, and through any command that takes a reference.
     expect((await failure(opened, "trace.chain", { ref: "sr-0B0037" })).code).toBe("ref.ambiguous");
-    // A candidate's repository and file pick it (#255); the UUID always names one element.
+    // A candidate's repository and file pick it (ThomasBirkmaier/ReqSeq-archive#255); the UUID always names one element.
     expect(await elementOf(opened, other).then((e) => e["id"])).toBe(other);
     const picked = (await run(opened, "element.get", {
       ref: "SR-0b0037",
@@ -182,7 +182,7 @@ describe("identifiers as element references (#305)", () => {
   });
 
   it("never resolves a short ID with an outdated prefix silently to the element with that identifier", async () => {
-    // N-0b0036 was the short ID of SR-036 before its type's prefix changed (SR-015, #275); now it
+    // N-0b0036 was the short ID of SR-036 before its type's prefix changed (SR-015, ThomasBirkmaier/ReqSeq-archive#275); now it
     // is the identifier of a decision. Both are candidates, the tool picks neither.
     const other = "30500000-0000-4000-8000-0000000c0048";
     const opened = await open({ "decisions/D-0000000c0048.md": decision(other, "N-0b0036") });
@@ -234,7 +234,7 @@ describe("identifiers as element references (#305)", () => {
   });
 });
 
-describe("identifiers in outputs (#305)", () => {
+describe("identifiers in outputs (ThomasBirkmaier/ReqSeq-archive#305)", () => {
   it("shows the identifier next to the short ID of an element, its relations and its successors", async () => {
     const opened = await open();
     const element = await elementOf(opened, "SR-036");
@@ -319,7 +319,7 @@ describe("identifiers in outputs (#305)", () => {
   });
 });
 
-describe("duplicate identifiers (#305)", () => {
+describe("duplicate identifiers (ThomasBirkmaier/ReqSeq-archive#305)", () => {
   const twin = (specId: string): string =>
     `---\nid: 30500000-0000-4000-8000-0000000b0038\ntype: system-requirement\nstatus: draft\ntitle: Twin\nspec-id: ${specId}\nderives-from:\n  - { id: ${N001.id}, version: n1:ef8aec5dd4656003 }\n---\n`;
   const TWIN_FILE = "requirements/SR-0000000b0038.md";
@@ -378,7 +378,7 @@ describe("duplicate identifiers (#305)", () => {
   it("finds the duplicates again after a save that adds or removes one", async () => {
     const opened = await open({ [TWIN_FILE]: twin("SR-099") });
     expect(await problemsOf(opened)).toEqual([]);
-    // Two saves on one workspace: the findings are carried over each (#184).
+    // Two saves on one workspace: the findings are carried over each (ThomasBirkmaier/ReqSeq-archive#184).
     await run(opened, "element.update", { ref: "SR-099", set: { "spec-id": "SR-037" } });
     expect((await problemsOf(opened)).map((p) => [p.code, p.file])).toEqual([
       ["element.duplicate-identifier", SR037.file],
@@ -399,7 +399,7 @@ describe("duplicate identifiers (#305)", () => {
     expect((await failure(opened, "element.get", { ref: "SR-037" })).code).toBe("ref.unknown");
   });
 
-  it("carries the findings over changes from outside, also a new and a removed file (#184)", async () => {
+  it("carries the findings over changes from outside, also a new and a removed file (ThomasBirkmaier/ReqSeq-archive#184)", async () => {
     const { fixture, workspace } = await open();
     expect(await workspace.get(duplicateIdentifierProblemsState)).toEqual([]);
     /** Writes or removes files as an editor does and applies them as the watcher does (SR-007). */
@@ -445,7 +445,7 @@ describe("duplicate identifiers (#305)", () => {
   });
 });
 
-describe("the meaning identifier in the metamodel (#305)", () => {
+describe("the meaning identifier in the metamodel (ThomasBirkmaier/ReqSeq-archive#305)", () => {
   it("refuses it on a property that is not of kind text or holds a list", async () => {
     for (const [property, not] of [
       ["{ key: spec-id, name: Spec ID, kind: number, meaning: identifier }", "kind number"],
