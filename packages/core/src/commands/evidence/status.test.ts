@@ -4,8 +4,8 @@
 // variant V1 only) and B3, and the variants V1 Pro and V2 Basic. Store order: needs, requirements,
 // variants.
 //
-// The records are given through `evidenceRecordsState` (decision on #127, option 1): the readers of
-// record files come with SR-028 (#40) and SR-093 (#105), which add the end-to-end tests with files.
+// The records are given through `evidenceRecordsState` (decision on ThomasBirkmaier/ReqSeq-archive#127, option 1): the readers of
+// record files come with SR-028 (ThomasBirkmaier/ReqSeq-archive#40) and SR-093 (ThomasBirkmaier/ReqSeq-archive#105), which add the end-to-end tests with files.
 import fs from "node:fs/promises";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureOptions } from "@reqseq/testkit";
@@ -223,7 +223,7 @@ describe("evidence.status (SR-031)", () => {
     expect(shownB1.status).toBe("draft");
     expect(shownB2.verification).toEqual([{ view: V1, status: "verified" }]);
     expect(n1.verification).toBeUndefined();
-    // A need has a validation status (SR-038, open without record, #534), never a verification status.
+    // A need has a validation status (SR-038, open without record, ThomasBirkmaier/ReqSeq-archive#534), never a verification status.
     expect(n1.validation).toBe("open");
     // element.resolve shows the element as element.get does, with the same status.
     const resolved = (await invoke(

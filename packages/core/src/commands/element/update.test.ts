@@ -175,8 +175,8 @@ describe("element.update", () => {
   });
 
   it("the writer keeps the id line when type or status are set (support for SR-002 AK2)", async () => {
-    // Not the AK itself: element.setStatus (SR-017, #29) adds the SR-002 AK2 test for a status
-    // change; how a type changes is spec question #165.
+    // Not the AK itself: element.setStatus (SR-017, ThomasBirkmaier/ReqSeq-archive#29) adds the SR-002 AK2 test for a status
+    // change; how a type changes is spec question ThomasBirkmaier/ReqSeq-archive#165.
     const text = await fs.readFile(
       new URL("../../../../../fixtures/SR-001/two-elements/requirements/SR-1d2e3f4a5b6c.md", import.meta.url),
       "utf8",
@@ -291,7 +291,7 @@ describe("element.update", () => {
     ]);
   });
 
-  it("[SR-064/AK2] saves an emptied title as the empty title, keeping its key, and gives its element.missing-required hint; the title is never unset (#621)", async () => {
+  it("[SR-064/AK2] saves an emptied title as the empty title, keeping its key, and gives its element.missing-required hint; the title is never unset (ThomasBirkmaier/ReqSeq-archive#621)", async () => {
     const opened = await open();
     const before = await read(opened, WIND.file);
     const out = await update(opened, { ref: WIND.id, title: "" });
@@ -417,7 +417,7 @@ describe("element.update", () => {
     expect(await opened.workspace.get(elementStoreState)).toBe(store);
   });
 
-  it("updates the element store in place after a write, equal to a full read (#166)", async () => {
+  it("updates the element store in place after a write, equal to a full read (ThomasBirkmaier/ReqSeq-archive#166)", async () => {
     const opened = await open();
     const store = await opened.workspace.get(elementStoreState);
     const shortIds = await opened.workspace.get(shortIdState);
@@ -480,7 +480,7 @@ describe("element.update", () => {
     expect((await updateError(opened, { ref: "SR-4a5b6c", title: "x" })).code).toBe("ref.ambiguous");
   });
 
-  it("refuses with workspace.read-only while the metamodel is not valid, even for an unknown key (#208)", async () => {
+  it("refuses with workspace.read-only while the metamodel is not valid, even for an unknown key (ThomasBirkmaier/ReqSeq-archive#208)", async () => {
     const opened = await open({ files: { "metamodel/broken.yaml": "properties: [\n" } });
     const before = await filesBelow(opened.fixture.root);
     // The command refuses before element.update looks at the keys against the partial metamodel.
@@ -563,7 +563,7 @@ describe("element.update", () => {
     expect(await read(opened, GUSTS.file)).toBe(after);
   });
 
-  it("[SR-012/AK3] writes the key of a choice value given by its display name, in any case (#309)", async () => {
+  it("[SR-012/AK3] writes the key of a choice value given by its display name, in any case (ThomasBirkmaier/ReqSeq-archive#309)", async () => {
     const opened = await open();
     const out = await update(opened, { ref: GUSTS.id, set: { "requirement-type": "performance" } });
     expect(out.element.properties["requirement-type"]).toBe("performance");
@@ -576,7 +576,7 @@ describe("element.update", () => {
     expect(await read(opened, GUSTS.file)).not.toContain("requirement-type: interface");
   });
 
-  it("refuses a choice value that names no choice and leaves the file as it is (#309, spec question #316)", async () => {
+  it("refuses a choice value that names no choice and leaves the file as it is (ThomasBirkmaier/ReqSeq-archive#309, spec question ThomasBirkmaier/ReqSeq-archive#316)", async () => {
     const opened = await open();
     const before = await read(opened, GUSTS.file);
     const error = await updateError(opened, { ref: GUSTS.id, set: { "requirement-type": "Sometimes" } });
@@ -787,7 +787,7 @@ describe("element.update: the write precondition expectedFileSha256 (SR-106)", (
   });
 });
 
-describe("element.update: one copy of a duplicate by its repository (SR-088, #255)", () => {
+describe("element.update: one copy of a duplicate by its repository (SR-088, ThomasBirkmaier/ReqSeq-archive#255)", () => {
   /** SR-004/three-repositories, with a copy of the system requirement in the sensor repository. */
   const SPEED = { id: "2525fbab-1344-4bcf-8a35-4b4da63a2dd1", file: "requirements/SR-4b4da63a2dd1.md" };
   const COPY = "sensor/copies/SR-4b4da63a2dd1.md";
@@ -898,7 +898,7 @@ describe("element.update: directly affected elements (SR-024)", () => {
     expect([out.files, out.affected]).toEqual([[file], 2]);
   });
 
-  /** SPEED with an acceptance criterion `.inf`, which counts and has no normal form: no version (#276). */
+  /** SPEED with an acceptance criterion `.inf`, which counts and has no normal form: no version (ThomasBirkmaier/ReqSeq-archive#276). */
   const openEndless = async (): Promise<Opened> => {
     const opened = await open(AFFECTED);
     await fs.writeFile(
@@ -911,7 +911,7 @@ describe("element.update: directly affected elements (SR-024)", () => {
     return opened;
   };
 
-  it("[SR-024/AK2] counts a change of the content of an element that keeps a value without a normal form (#276)", async () => {
+  it("[SR-024/AK2] counts a change of the content of an element that keeps a value without a normal form (ThomasBirkmaier/ReqSeq-archive#276)", async () => {
     const opened = await openEndless();
     // The text changes and the value stays: neither the old nor the new element has a version.
     const text = await update(opened, { ref: SPEED, text: "The station shows the wind speed in knots.\n" });
@@ -928,7 +928,7 @@ describe("element.update: directly affected elements (SR-024)", () => {
     expect([counted.files, counted.affected]).toEqual([[SPEED_FILE], 2]);
   });
 
-  it("[SR-024/AK3] shows no affected elements when only the title of an element without a version changed (#276)", async () => {
+  it("[SR-024/AK3] shows no affected elements when only the title of an element without a version changed (ThomasBirkmaier/ReqSeq-archive#276)", async () => {
     const opened = await openEndless();
     const title = await update(opened, { ref: SPEED, title: "Show the wind speed" });
     expect([title.files, title.affected]).toEqual([[SPEED_FILE], 0]);
@@ -960,13 +960,13 @@ describe("element.update: directly affected elements (SR-024)", () => {
   });
 });
 
-describe("element.update in a workspace of 50,000 elements (#166, N-036)", () => {
+describe("element.update in a workspace of 50,000 elements (ThomasBirkmaier/ReqSeq-archive#166, N-036)", () => {
   /**
    * A sanity bound only. What this test checks is that a save reads no other file and keeps the
    * other records; wall-clock time in a parallel suite with coverage varies too much between
    * machines (about 140 ms alone on 4 cores with Linux, up to 370 ms in the suite on macOS). The
    * strict 200 ms check of SR-082 AK3 on the reference machine belongs to the nightly performance
-   * job (ADR-0008, #94). A full read of 50,000 files, which every save cost before #166, takes
+   * job (ADR-0008, ThomasBirkmaier/ReqSeq-archive#94). A full read of 50,000 files, which every save cost before ThomasBirkmaier/ReqSeq-archive#166, takes
    * seconds.
    */
   const SANITY_BOUND_MS = 1500;
@@ -1050,7 +1050,7 @@ describe("element.update in a workspace of 50,000 elements (#166, N-036)", () =>
   });
 });
 
-describe("element.update text layout (#308)", () => {
+describe("element.update text layout (ThomasBirkmaier/ReqSeq-archive#308)", () => {
   const get = async (opened: Opened, ref: string): Promise<CommandOutput<"element.get">> =>
     (await invoke("element.get", { ref }, { workspace: opened.workspace })) as CommandOutput<"element.get">;
 

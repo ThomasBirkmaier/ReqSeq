@@ -1,4 +1,4 @@
-// The display rule of the verification degree (SR-037, #592 Q3): one decimal, rounded down, on every access.
+// The display rule of the verification degree (SR-037, ThomasBirkmaier/ReqSeq-archive#592 Q3): one decimal, rounded down, on every access.
 import { readFile } from "node:fs/promises";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
@@ -19,7 +19,7 @@ describe("degreePercent (SR-037)", () => {
     expect(degreePercent(6 / 10)).toBe("60 %");
   });
 
-  it("rounds down to one decimal, so 100 % only when everything counted is verified (#592 Q3)", () => {
+  it("rounds down to one decimal, so 100 % only when everything counted is verified (ThomasBirkmaier/ReqSeq-archive#592 Q3)", () => {
     expect([2 / 3, 9 / 14, 0.29, 1, 0, 1 / 3, 999 / 1000, 49_999 / 50_000].map(degreePercent)).toEqual([
       "66.6 %",
       "64.2 %",

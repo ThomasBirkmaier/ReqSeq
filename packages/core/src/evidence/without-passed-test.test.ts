@@ -1,4 +1,4 @@
-// The requirements without a passed test execution (SR-120, spec question #532) as a pure function of a
+// The requirements without a passed test execution (SR-120, spec question ThomasBirkmaier/ReqSeq-archive#532) as a pure function of a
 // status source made by hand: which records are a passed test execution, and which elements are listed.
 // The command (`evidence.withoutPassedTest`) on record files is tested in
 // commands/evidence/withoutPassedTest.test.ts.
@@ -99,14 +99,14 @@ describe("withoutPassedTest (SR-120)", () => {
     }
   });
 
-  it("an inspection, analysis or demonstration that passed is no test execution (#532)", () => {
+  it("an inspection, analysis or demonstration that passed is no test execution (ThomasBirkmaier/ReqSeq-archive#532)", () => {
     for (const method of ["inspection", "analysis", "demonstration"] as const) {
       const of = element();
       expect(listed(of, [record(of, { method })])).toBe(true);
     }
   });
 
-  it("a validation record with method test that passed does not count (#532, D-007)", () => {
+  it("a validation record with method test that passed does not count (ThomasBirkmaier/ReqSeq-archive#532, D-007)", () => {
     const of = element();
     expect(listed(of, [record(of, { kind: "validation" })])).toBe(true);
   });
@@ -129,7 +129,7 @@ describe("withoutPassedTest (SR-120)", () => {
     expect(isPassedTest(record(of), IN_V, true)).toBe(true);
   });
 
-  it("lists only requirements with a valid status that apply in the view, in the order given (#532)", () => {
+  it("lists only requirements with a valid status that apply in the view, in the order given (ThomasBirkmaier/ReqSeq-archive#532)", () => {
     const need = element({ type: "need" });
     const sub = element({ type: "sub-req" });
     const obsolete = element({ status: "obsolete" });

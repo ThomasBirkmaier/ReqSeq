@@ -1,11 +1,11 @@
-// The UUIDs that verification entries name (#588): variants of views and missing children.
+// The UUIDs that verification entries name (ThomasBirkmaier/ReqSeq-archive#588): variants of views and missing children.
 import { describe, expect, it } from "vitest";
 import { variantIdsOf, verificationNameIds } from "./names.js";
 
 const P = "58858858-0000-4000-8000-0000000000";
 const [V1, V2, C1, C2] = [`${P}c1`, `${P}c2`, `${P}b1`, `${P}b2`];
 
-describe("verificationNameIds (#588)", () => {
+describe("verificationNameIds (ThomasBirkmaier/ReqSeq-archive#588)", () => {
   it("gives the variant of each view and the missing children, each once, in order; nothing for the core", () => {
     expect(
       verificationNameIds([

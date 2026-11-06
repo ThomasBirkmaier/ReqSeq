@@ -278,7 +278,7 @@ describe("evidence.record (SR-030)", () => {
     expect(await filesOf(fixture)).toEqual(before);
   });
 
-  it("is refused with workspace.read-only while the metamodel is faulty, and writes nothing (#142 point b)", async () => {
+  it("is refused with workspace.read-only while the metamodel is faulty, and writes nothing (ThomasBirkmaier/ReqSeq-archive#142 point b)", async () => {
     const { fixture, workspace } = await open({
       "metamodel/broken.yaml": "reqseq-metamodel: 1\ntypes: [ { key: x } ]\n",
     });

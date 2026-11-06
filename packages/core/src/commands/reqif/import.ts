@@ -81,7 +81,7 @@ const mappingFolder = async (save: SavedMapping): Promise<void> => {
 };
 
 /**
- * The plan's files under the folder spelled as on disk (#194): the rules of the walk are checked on
+ * The plan's files under the folder spelled as on disk (ThomasBirkmaier/ReqSeq-archive#194): the rules of the walk are checked on
  * the target before the folder is created and again after, as `element.create` does, and the files
  * go under the spelling the second check finds. Every file of the plan lies in the one target folder.
  */

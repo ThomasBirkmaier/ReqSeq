@@ -7,7 +7,7 @@
 // - SWR F1, F2 (package P2, no parent), F3 (sensor); decision D1, packages P1, P2, variants V1, V2;
 // - the saved filter "Requirements": the system requirements.
 // Without a selected view the coverage counts the core (AK5): S4 and its record of V2 count only in V2.
-// The evidence records are given through `evidenceRecordsState` (#127 option 1): the readers come
+// The evidence records are given through `evidenceRecordsState` (ThomasBirkmaier/ReqSeq-archive#127 option 1): the readers come
 // with SR-028 and SR-093, whose end-to-end tests read record files. The same output on every access:
 // cross-access.test.ts.
 import { readFile, rm } from "node:fs/promises";
@@ -63,7 +63,7 @@ const record = (element: string, more: Partial<EvidenceRecord> = {}): EvidenceRe
 
 /**
  * The records of most tests: S1 a verification of the core; S2 one of V2 only; F1 a validation only
- * (no Nachweis, D-007); F2 a failed one of an older version (counts: any version and result, #527);
+ * (no Nachweis, D-007); F2 a failed one of an older version (counts: any version and result, ThomasBirkmaier/ReqSeq-archive#527);
  * N1 a validation.
  */
 const RECORDS: readonly EvidenceRecord[] = [
@@ -214,7 +214,7 @@ describe("evidence.coverage (SR-036)", () => {
     });
   });
 
-  it("[SR-036/AK2] names every element behind the numbers once, by short ID and title, for readers (#588)", async () => {
+  it("[SR-036/AK2] names every element behind the numbers once, by short ID and title, for readers (ThomasBirkmaier/ReqSeq-archive#588)", async () => {
     const workspace = await open(await fixture());
     const out = await coverage(workspace);
     expect(out.names?.map((n) => [NAME.get(n.id), n.repository, n.shortId, n.title])).toEqual([

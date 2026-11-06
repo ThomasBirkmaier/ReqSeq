@@ -2,7 +2,7 @@
 // fixtures/SR-038/validation (its README lists every element, its records and the expected status):
 // one repository `system` with the standard model and Markdown records in `evidence`, no variants.
 // The records come from the record files of the fixture; one test gives them through
-// `evidenceRecordsState` instead (decision on #127).
+// `evidenceRecordsState` instead (decision on ThomasBirkmaier/ReqSeq-archive#127).
 import type { FixtureOptions } from "@reqseq/testkit";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";

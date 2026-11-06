@@ -93,7 +93,7 @@ describe("element.resolve", () => {
     expect(await resolve(opened, { ref: "SR-6328cee88fb3" })).toEqual(byId);
   });
 
-  it("[SR-060/AK1] resolves a short ID and a UUID in any case to the same element (#309, spec question #316)", async () => {
+  it("[SR-060/AK1] resolves a short ID and a UUID in any case to the same element (ThomasBirkmaier/ReqSeq-archive#309, spec question ThomasBirkmaier/ReqSeq-archive#316)", async () => {
     const opened = await open(TWO);
     const expected = (await resolve(opened, { ref: "SR-e88fb3" })).element;
     for (const ref of ["sr-e88fb3", "Sr-E88FB3", "sr-6328CEE88FB3", WIND.id.toUpperCase()]) {
@@ -106,7 +106,7 @@ describe("element.resolve", () => {
     ]);
   });
 
-  it("[SR-060/AK3] refuses a malformed reference with a message that says what a reference looks like (#309)", async () => {
+  it("[SR-060/AK3] refuses a malformed reference with a message that says what a reference looks like (ThomasBirkmaier/ReqSeq-archive#309)", async () => {
     const opened = await open(TWO);
     const error = await resolveError(opened, { ref: " SR-036" });
     expect(error.toJSON()).toEqual({
@@ -127,7 +127,7 @@ describe("element.resolve", () => {
         ],
       },
     });
-    // Any other text may be an identifier (#305); without one it names no element.
+    // Any other text may be an identifier (ThomasBirkmaier/ReqSeq-archive#305); without one it names no element.
     const unknown = await resolveError(opened, { ref: "SR-036" });
     expect([unknown.code, unknown.message]).toEqual([
       "ref.unknown",
@@ -145,8 +145,8 @@ describe("element.resolve", () => {
     });
   });
 
-  it("[SR-060/AK3] names the element whose tail fits a short ID with an outdated prefix, without resolving it (#275)", async () => {
-    // The type was changed by hand from system requirement to need (#165 (b)); the file name and
+  it("[SR-060/AK3] names the element whose tail fits a short ID with an outdated prefix, without resolving it (ThomasBirkmaier/ReqSeq-archive#275)", async () => {
+    // The type was changed by hand from system requirement to need (ThomasBirkmaier/ReqSeq-archive#165 (b)); the file name and
     // references in other tools keep the prefix SR (D-056).
     const id = "9c0d1e2f-3a4b-4c5d-8e6f-7a8b9c0d1e2f";
     const opened = await open({
@@ -170,7 +170,7 @@ describe("element.resolve", () => {
     expect(await snapshot(opened.fixture.root)).toEqual(before);
   });
 
-  it("[SR-060/AK3] names the element of an outdated prefix only when it lies in the given repository and file (#255)", async () => {
+  it("[SR-060/AK3] names the element of an outdated prefix only when it lies in the given repository and file (ThomasBirkmaier/ReqSeq-archive#255)", async () => {
     const id = "9c0d1e2f-3a4b-4c5d-8e6f-7a8b9c0d1e2f";
     const file = "requirements/SR-7a8b9c0d1e2f.md";
     const opened = await open({
@@ -266,7 +266,7 @@ describe("element.resolve", () => {
     );
   });
 
-  it("[SR-060/AK2] tells unknown, not current or outdated, for an element without a version (#276)", async () => {
+  it("[SR-060/AK2] tells unknown, not current or outdated, for an element without a version (ThomasBirkmaier/ReqSeq-archive#276)", async () => {
     // A counted value without a normal form (`.inf`, ADR-0005) leaves the element without a version.
     const endless = `---\nid: ${GUSTS.id}\ntype: system-requirement\nstatus: draft\ntitle: Show gusts\nrequirement-type: functional\nacceptance-criteria: .inf\n---\n\nGusts.\n`;
     const opened = await open({ ...TWO, files: { [GUSTS.file]: endless } });
@@ -364,7 +364,7 @@ describe("element.resolve", () => {
     expect((error.details as { candidates: unknown[] }).candidates).toHaveLength(2);
   });
 
-  it("[SR-060/AK1] resolves one copy of a UUID two files share by its file, as element.get opens it (#255)", async () => {
+  it("[SR-060/AK1] resolves one copy of a UUID two files share by its file, as element.get opens it (ThomasBirkmaier/ReqSeq-archive#255)", async () => {
     const opened = await open({ fixture: "SR-088/copied-file" }, "system");
     const ref = "948a10f1-05c3-4212-bd19-00606ccf2661";
     const input = { ref, repository: "system", file: "copies/N-00606ccf2661.md" };

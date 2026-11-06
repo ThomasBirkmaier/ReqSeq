@@ -267,7 +267,7 @@ describe("trace.matrix test cases and verification status (SR-126 AK1)", () => {
         counts: { open: 2, verified: 1, indirect: 0, failed: 0, outdated: 0 },
       },
     });
-    // The variant of the view, named for readers (#588); the core names none. A page without a
+    // The variant of the view, named for readers (ThomasBirkmaier/ReqSeq-archive#588); the core names none. A page without a
     // requirement row still names the variant of `evidence.view`.
     const named = [{ id: ID.COAST, repository: "system", shortId: "VAR-126c01", title: "Coast edition" }];
     const past = await matrix(workspace, {
@@ -281,7 +281,7 @@ describe("trace.matrix test cases and verification status (SR-126 AK1)", () => {
       ID.COAST,
       named,
     ]);
-    // The row fields in schema order: the evidence fields before the relation cells (review of #607, N3).
+    // The row fields in schema order: the evidence fields before the relation cells (review of ThomasBirkmaier/ReqSeq-archive#607, N3).
     expect(Object.keys(rowOf(coast, "B06")).slice(-3)).toEqual(["testCases", "verification", "cells"]);
   });
 
@@ -322,7 +322,7 @@ describe("trace.matrix test cases and verification status (SR-126 AK1)", () => {
 describe("trace.matrix marks (SR-126 AK2)", () => {
   it("[SR-126/AK2] leaves the test case cell of a requirement without test case empty", async () => {
     const output = await matrix(await open(), { selection: SR });
-    // b05 has only an inspection record (no test case, #528 Q3), b06 no evidence at all.
+    // b05 has only an inspection record (no test case, ThomasBirkmaier/ReqSeq-archive#528 Q3), b06 no evidence at all.
     expect([testCasesOf(output, "B05"), statusOf(output, "B05")]).toEqual([[], ["core verified"]]);
     expect([testCasesOf(output, "B06"), statusOf(output, "B06")]).toEqual([[], ["core open"]]);
   });

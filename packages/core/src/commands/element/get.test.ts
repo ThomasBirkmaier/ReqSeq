@@ -52,7 +52,7 @@ const WIND = { id: "e8df96ea-a168-4d90-8d65-6328cee88fb3", file: "requirements/S
 const GUSTS = { id: "3f2a9c1e-5b7d-4e8a-9c0b-1d2e3f4a5b6c", file: "requirements/SR-1d2e3f4a5b6c.md" };
 const TWO: FixtureOptions = { fixture: "SR-001/two-elements" };
 
-/** GUSTS with a counted value that has no normal form (`.inf`, ADR-0005): it has no version (#276). */
+/** GUSTS with a counted value that has no normal form (`.inf`, ADR-0005): it has no version (ThomasBirkmaier/ReqSeq-archive#276). */
 const ENDLESS_GUSTS = `---\nid: ${GUSTS.id}\ntype: system-requirement\nstatus: draft\ntitle: Show gusts\nrequirement-type: functional\nacceptance-criteria: .inf\n---\n\nGusts.\n`;
 
 /** Every file below `folder` with its content, for "nothing written". */
@@ -189,7 +189,7 @@ describe("element.get", () => {
     expect((error.details as { candidates: unknown[] }).candidates).toHaveLength(2);
   });
 
-  describe("one copy of a duplicate (#255)", () => {
+  describe("one copy of a duplicate (ThomasBirkmaier/ReqSeq-archive#255)", () => {
     const COPIED = "948a10f1-05c3-4212-bd19-00606ccf2661";
     const ORIGINAL = "requirements/N-00606ccf2661.md";
     const COPY = "copies/N-00606ccf2661.md";
@@ -339,7 +339,7 @@ describe("element.get", () => {
     expect(hint?.message).toMatch(/low.*medium.*high/);
   });
 
-  it("[SR-085/AK2] keeps a display name written by hand in a file as it is and gives the hint (SR-012 AK3, #309)", async () => {
+  it("[SR-085/AK2] keeps a display name written by hand in a file as it is and gives the hint (SR-012 AK3, ThomasBirkmaier/ReqSeq-archive#309)", async () => {
     const file = "requirements/SR-00000000c309.md";
     const text =
       "---\nid: 0b7c6e1a-1111-4222-8333-00000000c309\ntype: system-requirement\nstatus: draft\ntitle: By hand\nrequirement-type: Functional\n---\n\nText.\n";
@@ -396,7 +396,7 @@ describe("element.get", () => {
     expect(after.text).toBe(before.text);
   });
 
-  it("works read-only without hints while the metamodel is not valid (#208, #220 option 1)", async () => {
+  it("works read-only without hints while the metamodel is not valid (ThomasBirkmaier/ReqSeq-archive#208, ThomasBirkmaier/ReqSeq-archive#220 option 1)", async () => {
     const opened = await open({
       ...TWO,
       files: {
@@ -488,7 +488,7 @@ describe("element.get, more of what stage 1 shows", () => {
     });
   });
 
-  it("shows an element whose counted value has no normal form without a version, with a warning (#276)", async () => {
+  it("shows an element whose counted value has no normal form without a version, with a warning (ThomasBirkmaier/ReqSeq-archive#276)", async () => {
     const opened = await open({ ...TWO, files: { [GUSTS.file]: ENDLESS_GUSTS } });
     const element = await get(opened, { ref: GUSTS.id, versionDate: true });
     expect(element).toMatchObject({ id: GUSTS.id, title: "Show gusts", text: "Gusts.\n", readOnly: false });
@@ -722,7 +722,7 @@ describe("element.get gives the same hints on relations to superseded elements a
   });
 });
 
-describe("element.get hintDates (#702)", () => {
+describe("element.get hintDates (ThomasBirkmaier/ReqSeq-archive#702)", () => {
   /** fixtures/SR-026/hints, committed: SR-0000b1 has an outdated relation and an outdated inline reference. */
   const HINTS: FixtureOptions = { fixture: "SR-026/hints", git: true };
   const outdated = (element: Element): readonly Problem[] =>

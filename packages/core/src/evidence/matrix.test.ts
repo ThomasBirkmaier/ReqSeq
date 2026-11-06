@@ -83,7 +83,7 @@ const NOT_EXECUTED: TestCase = {
   executions: [],
 };
 
-describe("testCaseMark (SR-126 AK2, spec questions #528 Q1/Q2, #593 Q2)", () => {
+describe("testCaseMark (SR-126 AK2, spec questions ThomasBirkmaier/ReqSeq-archive#528 Q1/Q2, ThomasBirkmaier/ReqSeq-archive#593 Q2)", () => {
   it("marks a test case without execution as not executed", () => {
     expect(testCaseMark(NOT_EXECUTED, forms(CURRENT))).toBe("not-executed");
   });
@@ -169,7 +169,7 @@ describe("matrixTestCases (SR-126 AK1)", () => {
   });
 });
 
-describe("showsEvidence (spec question #593 Q1)", () => {
+describe("showsEvidence (spec question ThomasBirkmaier/ReqSeq-archive#593 Q1)", () => {
   const metamodel = (valid: boolean): Metamodel =>
     ({
       valid,

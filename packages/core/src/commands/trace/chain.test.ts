@@ -1,7 +1,7 @@
-// trace.chain through `invoke` (SR-022, SR-006 AK2, SR-013 AK1/AK3 hand-over of #25): input,
+// trace.chain through `invoke` (SR-022, SR-006 AK2, SR-013 AK1/AK3 hand-over of ThomasBirkmaier/ReqSeq-archive#25): input,
 // view, errors and the output the catalog checks. The chain itself: trace/chain.test.ts. The evidence
 // in the chain (SR-033, SR-022 AK1/AK3) on fixtures/SR-033/chain with records injected through
-// `evidenceReadState` (#127 option 1; skipped test cases too); the record files are read end to end
+// `evidenceReadState` (ThomasBirkmaier/ReqSeq-archive#127 option 1; skipped test cases too); the record files are read end to end
 // in packages/cli/test/e2e/trace-chain.test.ts.
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureOptions } from "@reqseq/testkit";
@@ -169,7 +169,7 @@ describe("trace.chain (SR-022)", () => {
         ].join("\n"),
       },
     });
-    // Up: every parent is here. Down: children in vault cannot be seen (#262 option 1).
+    // Up: every parent is here. Down: children in vault cannot be seen (ThomasBirkmaier/ReqSeq-archive#262 option 1).
     expect((await chain(workspace, { ref: STALL, direction: "up" })).incomplete).toBe(false);
     expect((await chain(workspace, { ref: STALL, direction: "down" })).incomplete).toBe(true);
     expect((await chain(workspace, { ref: STALL })).incomplete).toBe(true);
@@ -192,7 +192,7 @@ describe("trace.chain (SR-022)", () => {
     ]);
   });
 
-  it("gives one page of nodes with total (SR-082 AK4, spec-frage #290)", async () => {
+  it("gives one page of nodes with total (SR-082 AK4, spec-frage ThomasBirkmaier/ReqSeq-archive#290)", async () => {
     const workspace = await open();
     const whole = await chain(workspace, { ref: SPEED });
     expect(whole.total).toBe(whole.nodes.length);
@@ -487,7 +487,7 @@ describe("trace.chain: test cases and executions in the chain (SR-033)", () => {
       },
     ]);
     // Date, result, item and Beleg of each execution: a JUnit execution's Beleg is its record file
-    // (assumption A5, #528 Q4), a Markdown execution's the `evidence` it names (`evidenceSource`, #821).
+    // (assumption A5, ThomasBirkmaier/ReqSeq-archive#528 Q4), a Markdown execution's the `evidence` it names (`evidenceSource`, #821).
     expect(
       below?.testCases.flatMap((t) => t.executions.map((r) => [r.date, r.result, r.item, r.evidenceSource])),
     ).toEqual([
@@ -662,7 +662,7 @@ describe("trace.chain: test cases and executions in the chain (SR-033)", () => {
     expect((await chain(workspace, { ref: SHOW, view: "core" })).names).toBeUndefined();
   });
 
-  it("without a view shows a variant's records and still marks the no-evidence gap in the core (#527 Q4)", async () => {
+  it("without a view shows a variant's records and still marks the no-evidence gap in the core (ThomasBirkmaier/ReqSeq-archive#527 Q4)", async () => {
     const coast = junit({ item: "coast-7", variant: COAST });
     const workspace = await withEvidence([coast], [], { files: COAST_FILE });
     const output = await chain(workspace, { ref: SHOW });

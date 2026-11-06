@@ -153,8 +153,8 @@ export interface WorkspaceStatus {
   readonly evaluate: VerificationEvaluator;
   /**
    * The validation status of `element` (SR-038): for a need, and for any other element with a
-   * counted validation record (#534 assumption); undefined otherwise. Measured against `shown.current`
-   * when given (also when that is undefined, #276), else against the version read by `prepare`
+   * counted validation record (ThomasBirkmaier/ReqSeq-archive#534 assumption); undefined otherwise. Measured against `shown.current`
+   * when given (also when that is undefined, ThomasBirkmaier/ReqSeq-archive#276), else against the version read by `prepare`
    * (`own`); `shown` is never kept. `inconclusive` comes with its reason (SR-172 AK2).
    */
   readonly validate: (element: ElementRecord, shown?: Shown) => Validation | undefined;
@@ -414,7 +414,7 @@ const upwardsFrom = (
 
 /**
  * The verification status of the store after `update`, carried over from `old`, the status of the
- * store before it (ADR-0008, #184, #698): the versions read, the walks of `prepare` and the results
+ * store before it (ADR-0008, ThomasBirkmaier/ReqSeq-archive#184, ThomasBirkmaier/ReqSeq-archive#698): the versions read, the walks of `prepare` and the results
  * of the evaluator are kept for every element that the change cannot reach. Affected are the
  * records of the changed UUIDs (`update.ids`, before and after: a twin that comes or goes changes
  * the children of its UUID, SR-088) and the records whose version may have changed without their
@@ -423,7 +423,7 @@ const upwardsFrom = (
  * parents of a changed element are among them. The new store's status is built afresh (no versions
  * kept) when the metamodel is not valid or has no derivation, or the variants changed (the views
  * change). `memo` is the incoming index memo and `ruleMemo` the view rule index memo as the hook took
- * them, so no `get` runs later (review B5 of the #698 plan): a second change before this one resolved
+ * them, so no `get` runs later (review B5 of the ThomasBirkmaier/ReqSeq-archive#698 plan): a second change before this one resolved
  * pairs its own store and indexes.
  */
 const carriedStatus = (
@@ -526,7 +526,7 @@ const keptOver = (old: StateStatus, reach: Reach, next: Next, read: VersionReade
  * The status after `evidence.record` wrote `record`, carried over from `old`, the status of the
  * records before it (#278, plan §3.4): `index` is the carried index with the record (taken inside
  * the hook, review B5). The source is new (its records changed: the evaluator must not keep the own
- * views of the old one, review S1 of #714); the records of the element's UUID and their ancestors
+ * views of the old one, review S1 of ThomasBirkmaier/ReqSeq-archive#714); the records of the element's UUID and their ancestors
  * lose their walks and results, so a first record for a variant reaches the seeds of its ancestors.
  * The versions are kept but those of the volatile records (as over a store change). Unchanged while
  * the metamodel is not valid (the records are not compared then); built afresh without children.

@@ -13,7 +13,7 @@
 //   variant: its own exclusion entries and the replacement entries of requirements valid in it, not
 //   those of a nested variant's own validity. A replaces onto a missing target is added with no
 //   hint here (that is another check, SR-089).
-// - `names` names every element the lists give, each once, in order first named (#588).
+// - `names` names every element the lists give, each once, in order first named (ThomasBirkmaier/ReqSeq-archive#588).
 // - `incomplete` (SR-006 AK2): a repository of the workspace file is not on this machine.
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";

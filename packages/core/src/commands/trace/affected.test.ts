@@ -51,7 +51,7 @@ const record = (element: string, version: string, date: string): EvidenceRecord 
   date,
 });
 
-/** Gives `workspace` the evidence records `records` (#127 option 1). */
+/** Gives `workspace` the evidence records `records` (ThomasBirkmaier/ReqSeq-archive#127 option 1). */
 const withRecords = async (workspace: Workspace, records: readonly EvidenceRecord[]): Promise<void> => {
   const empty = workspace.get(evidenceRecordsState);
   expect(await empty).toEqual([]);

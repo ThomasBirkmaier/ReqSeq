@@ -1,6 +1,6 @@
 // The evidence states (ADR-0012 "Block and state"): the folders read through the readers by extension,
-// and the records as an array, the seam tests and consumers inject records through (#127 option 1).
-// Enabler tests of the evidence block (#535); the SR tests come with the readers (SR-028, SR-093).
+// and the records as an array, the seam tests and consumers inject records through (ThomasBirkmaier/ReqSeq-archive#127 option 1).
+// Enabler tests of the evidence block (ThomasBirkmaier/ReqSeq-archive#535); the SR tests come with the readers (SR-028, SR-093).
 import fs from "node:fs/promises";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";

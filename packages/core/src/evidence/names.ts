@@ -1,4 +1,4 @@
-// The elements that verification entries name by UUID only (#588): the variant of a view other than
+// The elements that verification entries name by UUID only (ThomasBirkmaier/ReqSeq-archive#588): the variant of a view other than
 // the core and the missing children (SR-034). The commands that give such entries (`evidence.status`,
 // `trace.matrix`) name them in `names` (`namesOf` of the model block), so a reader shows short IDs.
 import type { DataExportVerificationEntry } from "../generated/types.js";

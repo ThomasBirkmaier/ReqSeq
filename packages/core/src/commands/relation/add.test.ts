@@ -89,7 +89,7 @@ const readAll = (opened: Opened, files: readonly string[]): Promise<string[]> =>
 const versionOf = async (opened: Opened, ref: string): Promise<string> => {
   const shown = (await invoke("element.get", { ref }, { workspace: opened.workspace })) as Shown;
   const { version } = shown.element;
-  // Optional in the schema (#282); every element of these fixtures has one.
+  // Optional in the schema (ThomasBirkmaier/ReqSeq-archive#282); every element of these fixtures has one.
   if (version === undefined) {
     throw new Error(`element.get gives no version for ${ref}`);
   }
@@ -353,7 +353,7 @@ describe("relation.add sets only relations the metamodel allows (SR-067 AK1, SR-
   });
 });
 
-describe("relation.add gives a stored target without a valid version its current version (SR-021 AK1, #302)", () => {
+describe("relation.add gives a stored target without a valid version its current version (SR-021 AK1, ThomasBirkmaier/ReqSeq-archive#302)", () => {
   /** A requirement written by a migration script: targets as `{ id, title }`, no version (ADR-0005). */
   const MIGRATED = { id: "0b7c6e1a-1111-4222-8333-fffffffffff1", file: "requirements/SR-fffffffffff1.md" };
   const migrated = (items: readonly string[]): FixtureOptions => ({

@@ -45,7 +45,7 @@ const threeRepositories = async (
 
 describe("workspace.status", () => {
   it("[SR-004/AK1] exposes the roots of all three locally present repositories for element discovery", async () => {
-    // #127 option 1 by analogy: element discovery is SR-003, which builds on these roots and adds
+    // ThomasBirkmaier/ReqSeq-archive#127 option 1 by analogy: element discovery is SR-003, which builds on these roots and adds
     // the element-level [SR-004/AK1] test.
     const ws = await threeRepositories();
     const workspace = open(ws.path("system"));
@@ -234,7 +234,7 @@ describe("workspace.status", () => {
     });
   });
 
-  it("reports the commit of a repository folder in a subfolder of a Git repository (#377)", async () => {
+  it("reports the commit of a repository folder in a subfolder of a Git repository (ThomasBirkmaier/ReqSeq-archive#377)", async () => {
     const outer = await fixture({ files: { "top.md": "top\n" }, git: true });
     const ws = await fixture({ fixture: "SR-001/two-elements", tempDir: outer.root });
     // The commit has a tree at the folder only once the workspace is committed.
@@ -245,7 +245,7 @@ describe("workspace.status", () => {
     ]);
   });
 
-  it("leaves the commit out where the Git repository above tracks nothing in the folder (#377)", async () => {
+  it("leaves the commit out where the Git repository above tracks nothing in the folder (ThomasBirkmaier/ReqSeq-archive#377)", async () => {
     // A work tree that ignores the folder, as a home folder under Git with `*` ignored.
     const outer = await fixture({ files: { "top.md": "top\n", ".gitignore": "*/\n" }, git: true });
     const ws = await fixture({ fixture: "SR-001/two-elements", tempDir: outer.root });

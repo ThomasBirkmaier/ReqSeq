@@ -1,4 +1,4 @@
-// `workspace.check` restricted to what a merge request changed (SR-092; spec question #291, options
+// `workspace.check` restricted to what a merge request changed (SR-092; spec question ThomasBirkmaier/ReqSeq-archive#291, options
 // (a)): `changedSince` and `changedFiles`, the changed elements and their targets, the findings kept,
 // and the errors of a commit that is not here (AK2). The small cases use fixtures/SR-025/outdated:
 // requirement A derives from the need N, is valid in the variant V and references N in its text;
@@ -207,7 +207,7 @@ describe("workspace.check restricted to changed elements (SR-092)", () => {
     await append(ws, N_FILE, "Changed.\n");
     const workspace = open(ws.root);
     const out = await check(workspace, { changedSince: "HEAD", severity: "error" });
-    // The two outdated relations of A to N are warnings: hidden, and ok by default (#304).
+    // The two outdated relations of A to N are warnings: hidden, and ok by default (ThomasBirkmaier/ReqSeq-archive#304).
     expect(out).toEqual({
       ok: true,
       problems: [],
@@ -348,7 +348,7 @@ describe("deleted elements and repositories without Git (SR-092)", () => {
   });
 });
 
-describe("a workspace in a subfolder of a Git repository (#377)", () => {
+describe("a workspace in a subfolder of a Git repository (ThomasBirkmaier/ReqSeq-archive#377)", () => {
   /**
    * fixtures/SR-025/outdated two folders below the top level of a Git work tree (`docs/` with
    * `.gitignore` as `ignore` gives it), with `top.md` and `docs/readme.md` outside it, all
@@ -442,7 +442,7 @@ describe("a workspace in a subfolder of a Git repository (#377)", () => {
     expect(out.checkedElements).toBe(1);
   });
 
-  it("keeps git.unavailable below the top level when git fails for another reason than no repository (#414)", async () => {
+  it("keeps git.unavailable below the top level when git fails for another reason than no repository (ThomasBirkmaier/ReqSeq-archive#414)", async () => {
     const { ws } = await inSubfolder();
     await append(ws, N_FILE, "Changed.\n");
     vi.mocked(reader.resolveCommit).mockResolvedValueOnce({

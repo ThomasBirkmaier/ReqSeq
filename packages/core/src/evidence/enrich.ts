@@ -24,14 +24,14 @@
 //   criteria per element.
 // - A test case that names no element (no property, no token that names one) counts in
 //   `withoutReference` (AK4); kept, reported and refused test cases do not.
-// - A test case with a reported reference stays unchanged and is listed (AK2, spec question #529 Q1);
+// - A test case with a reported reference stays unchanged and is listed (AK2, spec question ThomasBirkmaier/ReqSeq-archive#529 Q1);
 //   the others are enriched and the file is written.
 // - A test case enriched by this call or kept that names an element of a type without the meaning
 //   `requirement` (a need, say) gives `evidence.kind-mismatch` (warning), as `workspace.check` reports
 //   its record afterwards (D-012, #628): the record counts for no status (#843). It is enriched all the
 //   same: the file says what the test names, and a validation may still be recorded by hand.
 // - A test case that already has a `reqseq:version` is never changed: its version is the one it was
-//   tested against (D-026, spec question #529 Q5, assumption "keep"). A kept version that is no longer
+//   tested against (D-026, spec question ThomasBirkmaier/ReqSeq-archive#529 Q5, assumption "keep"). A kept version that is no longer
 //   current gives `evidence.outdated` (warning); one the reader rejects `evidence.invalid-record`.
 // - The bytes are spliced at the offsets of the JUnit model, so every other byte stays (BOM, CRLF,
 //   comments, CDATA, layout). The result is read back with the reader's checks before it is written

@@ -1,4 +1,4 @@
-// relation.remove (enabler #264, SR-102, D-045): removes one relation from the source file
+// relation.remove (enabler ThomasBirkmaier/ReqSeq-archive#264, SR-102, D-045): removes one relation from the source file
 // (model/relation-write.ts). No element and no file is deleted; the target file is not touched.
 // Nothing to remove is an `info` problem `relation.not-found`.
 import type { CommandOutput } from "../../catalog.js";
