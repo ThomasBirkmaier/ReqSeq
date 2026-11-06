@@ -1,7 +1,7 @@
 ---
 id: 3aaac15c-a3ae-44d6-a640-c0fa48ccd25e
 type: package
-status: draft
+status: approved
 title: Ablage und Repositories
 spec-id: Ablage
 ---

@@ -1,7 +1,7 @@
 ---
 id: d3daa1a2-adb1-4941-8c51-1fc9cb0bfb1d
 type: package
-status: draft
+status: approved
 title: Betrieb und Sicherheit
 spec-id: Betrieb
 ---

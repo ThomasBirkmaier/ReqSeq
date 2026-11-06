@@ -1,7 +1,7 @@
 ---
 id: ba811685-2a69-43cb-aea4-9c5cf9c4e9a3
 type: package
-status: draft
+status: approved
 title: Finden und Listen
 spec-id: Finden
 ---
