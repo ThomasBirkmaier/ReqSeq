@@ -49,7 +49,7 @@ describe("renderYamlDocument", () => {
     expect(
       renderYamlDocument({
         "reqseq-filter": 1,
-        name: "Open: drafts ThomasBirkmaier/ReqSeq-archive#1",
+        name: "Open: drafts #1",
         description: "two\nlines",
         where: {
           all: [
@@ -63,7 +63,7 @@ describe("renderYamlDocument", () => {
     ).toBe(
       [
         "reqseq-filter: 1",
-        'name: "Open: drafts ThomasBirkmaier/ReqSeq-archive#1"',
+        'name: "Open: drafts #1"',
         'description: "two\\nlines"',
         "where:",
         "  all:",
