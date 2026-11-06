@@ -20,7 +20,8 @@
 //   not in its lexical form, a date whose time is not midnight, XHTML elements without plain form,
 //   a relation whose type is omitted or whose other end is not imported, values of relations and
 //   specifications, a duplicate relation, a relation the metamodel does not allow, the SPEC-
-//   HIERARCHY (once per SPECIFICATION that has one) and every part of an imported object the parser
+//   HIERARCHY (once per SPECIFICATION that has one), a relation in a RELATION-GROUP (the group is not
+//   imported) and every part of an imported object the parser
 //   did not read. A DEFAULT-VALUE is the value of an object without its own (ReqIF 1.2 §10.8.3).
 //   A reference the import does not need that the file does not define (the type or an end of a
 //   SPEC-RELATION, an attribute of a value of a relation or specification) is such a loss whose
@@ -1665,6 +1666,34 @@ const specificationLosses = (context: Context, file: ReqifFile): void => {
 };
 
 /**
+ * A loss for each SPEC-RELATION a RELATION-GROUP names: the group is not imported. Like
+ * `unreadLosses`, on the source element, and not for a relation whose type the mapping omits.
+ */
+const relationGroupLosses = (context: Context, file: ReqifFile, drafts: ReadonlyMap<string, Draft>): void => {
+  const { losses, index } = context;
+  const omitted = new Set(
+    losses.filter((l) => l.code === "omitted-type" && l.kind === "spec-relation").map((l) => l.identifier),
+  );
+  const sources = new Map(file.specRelations.map((r) => [r.identifier, r.source]));
+  for (const group of file.relationGroups) {
+    const type = group.type === undefined ? undefined : index.types.get(group.type);
+    const typed = type?.category === "relation-group" ? ` (type ${nameOf(type)})` : "";
+    const name = `${nameOf(group)}${typed}`;
+    // Once per relation, and not for an empty reference.
+    for (const identifier of new Set(group.relations.filter((r) => r !== "" && !omitted.has(r)))) {
+      const draft = drafts.get(sources.get(identifier) ?? "");
+      losses.push({
+        identifier,
+        kind: "spec-relation",
+        ...(draft === undefined ? {} : { id: draft.id }),
+        code: "relation-group",
+        reason: `its RELATION-GROUP ${name} is not imported`,
+      });
+    }
+  }
+};
+
+/**
  * The plan of importing `file` through `mapping` as delivery `origin`, reading the images it embeds
  * with `images` (see the file comment).
  */
@@ -1737,6 +1766,7 @@ export const planImport = async (
   const { changed, conflicts, choices } = classify(context, drafts, repeat);
   settleVersions(context, drafts);
   specificationLosses(context, file);
+  relationGroupLosses(context, file, drafts);
   unreadLosses(file, drafts, context.losses);
   const all = [...drafts.values()].filter((d) => d.existing === undefined);
   const updates = planUpdates(context, drafts, choices);

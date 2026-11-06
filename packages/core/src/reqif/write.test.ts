@@ -33,10 +33,10 @@ const xmlOf = (outcome: ReqifWriteOutcome): string => {
 };
 const problemsOf = (outcome: ReqifWriteOutcome): readonly ReqifWriteProblem[] =>
   outcome.kind === "refused" ? outcome.problems : [];
-/** The model without lines and `unread`, to compare a round trip. */
+/** The model without lines, `unread` and `relationGroups` (not written), to compare a round trip. */
 const unlined = (file: object): unknown =>
   JSON.parse(
-    JSON.stringify({ ...file, unread: undefined }, (key, value: unknown) =>
+    JSON.stringify({ ...file, unread: undefined, relationGroups: undefined }, (key, value: unknown) =>
       key === "line" ? undefined : value,
     ),
   );

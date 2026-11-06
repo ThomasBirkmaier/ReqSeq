@@ -100,6 +100,18 @@ export interface ReqifSpecification extends ReqifIdentifiable {
   readonly children: readonly ReqifHierarchy[];
 }
 
+/**
+ * A RELATION-GROUP: the SPEC-RELATIONs it groups between two SPECIFICATIONs, by IDENTIFIER as
+ * written. Its references are optional here, so a group the import only reports never refuses a file.
+ */
+export interface ReqifRelationGroup extends ReqifIdentifiable {
+  /** IDENTIFIER of its RELATION-GROUP-TYPE. */
+  readonly type?: string;
+  readonly relations: readonly string[];
+  readonly sourceSpecification?: string;
+  readonly targetSpecification?: string;
+}
+
 export interface ReqifHeader {
   readonly identifier: string;
   readonly title?: string;
@@ -136,5 +148,6 @@ export interface ReqifFile {
   readonly specObjects: readonly ReqifSpecObject[];
   readonly specRelations: readonly ReqifSpecRelation[];
   readonly specifications: readonly ReqifSpecification[];
+  readonly relationGroups: readonly ReqifRelationGroup[];
   readonly unread: readonly ReqifUnread[];
 }

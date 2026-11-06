@@ -151,10 +151,8 @@ describe("parseReqif", () => {
         ],
       },
     ]);
-    expect(file.unread).toEqual([
-      { name: "SPEC-RELATION-GROUPS", namespace: REQIF_NAMESPACE, line: 34 },
-      { name: "TOOL-EXTENSIONS", namespace: REQIF_NAMESPACE, line: 35 },
-    ]);
+    expect(file.relationGroups).toEqual([{ identifier: "g", line: 34, relations: [] }]);
+    expect(file.unread).toEqual([{ name: "TOOL-EXTENSIONS", namespace: REQIF_NAMESPACE, line: 35 }]);
   });
 
   it("reads the hand-written samples: basic.reqif with its parts not taken over, xhtml-rich.reqif, bom-crlf.reqif", () => {
@@ -218,8 +216,18 @@ describe("parseReqif", () => {
     expect(file.unread).toEqual([
       { name: "ALTERNATIVE-ID", namespace: REQIF_NAMESPACE, line: 74, owner },
       { name: "THE-ORIGINAL-VALUE", namespace: REQIF_NAMESPACE, line: 82, owner },
-      { name: "SPEC-RELATION-GROUPS", namespace: REQIF_NAMESPACE, line: 145 },
       { name: "TOOL-EXTENSIONS", namespace: REQIF_NAMESPACE, line: 155 },
+    ]);
+    expect(file.relationGroups).toEqual([
+      {
+        identifier: "rg-1",
+        lastChange: "2026-10-31T00:00:00Z",
+        line: 146,
+        type: "gt-links",
+        relations: ["rel-1"],
+        sourceSpecification: "spec-a",
+        targetSpecification: "spec-b",
+      },
     ]);
 
     const rich = fileOf(sample("xhtml-rich.reqif"));
@@ -342,7 +350,8 @@ describe("parseReqif", () => {
         '<SPEC-OBJECTS><SPEC-OBJECT IDENTIFIER="o"><VALUES><ATTRIBUTE-VALUE-ENUMERATION><DEFINITION><ATTRIBUTE-DEFINITION-ENUMERATION-REF>a</ATTRIBUTE-DEFINITION-ENUMERATION-REF></DEFINITION><VALUES><ENUM-VALUE-REF>ev</ENUM-VALUE-REF></VALUES></ATTRIBUTE-VALUE-ENUMERATION></VALUES><TYPE><SPEC-OBJECT-TYPE-REF>t</SPEC-OBJECT-TYPE-REF></TYPE><VALUES/></SPEC-OBJECT></SPEC-OBJECTS>',
         '<SPEC-RELATIONS><SPEC-RELATION IDENTIFIER="r"><VALUES><ATTRIBUTE-VALUE-INTEGER THE-VALUE="1"><DEFINITION><ATTRIBUTE-DEFINITION-INTEGER-REF>x</ATTRIBUTE-DEFINITION-INTEGER-REF></DEFINITION></ATTRIBUTE-VALUE-INTEGER></VALUES><SOURCE><SPEC-OBJECT-REF>o</SPEC-OBJECT-REF></SOURCE><TARGET><SPEC-OBJECT-REF>gone</SPEC-OBJECT-REF></TARGET><TYPE><SPEC-RELATION-TYPE-REF>rt</SPEC-RELATION-TYPE-REF></TYPE><x:EXTRA xmlns:x="urn:x"/></SPEC-RELATION></SPEC-RELATIONS>',
         '<SPECIFICATIONS><SPECIFICATION IDENTIFIER="s"><TYPE><SPECIFICATION-TYPE-REF>st</SPECIFICATION-TYPE-REF></TYPE><CHILDREN><SPEC-HIERARCHY IDENTIFIER="h1"><OBJECT><SPEC-OBJECT-REF>lost</SPEC-OBJECT-REF></OBJECT><CHILDREN><OTHER/></CHILDREN></SPEC-HIERARCHY></CHILDREN></SPECIFICATION></SPECIFICATIONS>',
-        "<SPEC-RELATION-GROUPS/><DATATYPES><DATATYPE-DEFINITION-OTHER/></DATATYPES>",
+        '<SPEC-RELATION-GROUPS><RELATION-GROUP IDENTIFIER="g"><SPEC-RELATIONS><SPEC-RELATION-REF>r</SPEC-RELATION-REF><SPEC-RELATION-REF>nope</SPEC-RELATION-REF></SPEC-RELATIONS></RELATION-GROUP></SPEC-RELATION-GROUPS>',
+        "<DATATYPES><DATATYPE-DEFINITION-OTHER/></DATATYPES>",
       ].join(""),
     );
     const { file, warnings } = parsed(parseReqif(utf8(text)));
@@ -354,6 +363,7 @@ describe("parseReqif", () => {
       ["Attribute definition x of r is not in the file", "r"],
       ["SPECIFICATION-TYPE st of s is not in the file", "s"],
       ["SPEC-OBJECT lost of h1 is not in the file", "h1"],
+      ["SPEC-RELATION nope of g is not in the file", "g"],
     ]);
     expect(file.specTypes[0]?.attributes[0]).toMatchObject({ datatype: "dt", multiValued: true });
     expect(file.specObjects[0]?.values).toEqual([{ kind: "enumeration", definition: "a", values: ["ev"] }]);
@@ -363,7 +373,6 @@ describe("parseReqif", () => {
       ["VALUES", REQIF_NAMESPACE, { kind: "spec-object", identifier: "o" }],
       ["EXTRA", "urn:x", { kind: "spec-relation", identifier: "r" }],
       ["OTHER", REQIF_NAMESPACE, { kind: "specification", identifier: "s" }],
-      ["SPEC-RELATION-GROUPS", REQIF_NAMESPACE, undefined],
       ["DATATYPE-DEFINITION-OTHER", REQIF_NAMESPACE, undefined],
     ]);
   });
