@@ -1,6 +1,6 @@
 # ADR-0014: Packaging and delivery
 
-Status: Accepted · Based on: D-003, D-004, D-029 · SRs: SR-076, SR-077, SR-078 · Changed 2026-10-28: portable delivery instead of installers, release workflow (#324)
+Status: Accepted · Based on: D-003, D-004, D-029 · SRs: SR-076, SR-077, SR-078 · Changed 2026-10-28: portable delivery instead of installers, release workflow (ThomasBirkmaier/ReqSeq-archive#324)
 
 ## Context
 
@@ -40,7 +40,7 @@ Additionally the CLI is published as a tarball (`npm pack` of `@reqseq/cli` with
 - the launchers in a `bin` folder. Windows matches names case-insensitively and tries `.EXE` before `.CMD`, so `reqseq.cmd` next to `ReqSeq.exe` would lose to the GUI app on the PATH; with `bin` on the PATH only the launcher is found. Adding `bin` to the PATH is one documented line ([Install ReqSeq](../guide/how-to/install-reqseq.md#cli));
 - `build-info.json` in each staged copy of `@reqseq/core/dist` (app and CLI), with the commit the delivery is built from and its date, which `tool info` shows (SR-161); a build from a checkout has none;
 - `resources/THIRD_PARTY_NOTICES.txt` with the production dependencies of app and CLI and their licences, naming `@dagrejs/dagre` and `@dagrejs/graphlib` (ADR-0015);
-- the guide for connecting a test tool, `toolchain/junit/README.md` with its examples, as `resources/docs/junit/` (SR-063 AK2 „mitgelieferte Beschreibung“; spec question #600 Q3, assumption);
+- the guide for connecting a test tool, `toolchain/junit/README.md` with its examples, as `resources/docs/junit/` (SR-063 AK2 „mitgelieferte Beschreibung“; spec question ThomasBirkmaier/ReqSeq-archive#600 Q3, assumption);
 - Electron's licence and Chromium's notices.
 
 Everything is in the artifact; nothing is downloaded at install or run time (SR-078 AK2). No auto-update and no update configuration (no `app-update.yml`, electron-builder never publishes). Git is a prerequisite and not part of the delivery: ReqSeq calls the `git` on the PATH.
@@ -67,7 +67,7 @@ Everything is in the artifact; nothing is downloaded at install or run time (SR-
 
 - `@reqseq/core` carries all schemas and the catalog as the generated module `src/generated/contracts.json` (`pnpm contracts:generate`, checked by `contracts:check`), so no `schemas/` folder is needed next to the app, CLI or MCP server.
 - The read worker of the cold load (`@reqseq/core` `dist/model/read-worker.js`, ADR-0008) is started from its own file and imports `yaml`, `ajv` and the generated contracts. The CLI and the MCP server start it from the real files of `resources/cli`. The app's core process, a utility process, starts it from inside `app.asar` (`resources/app.asar/node_modules/@reqseq/core/dist/model/read-worker.js`): Electron's asar support reaches worker threads, and the worker's imports resolve inside the archive, so nothing is unpacked (`asarUnpack`). The delivery test `packages/app/test/delivery/start.test.ts` loads 1,200 generated element files in the packaged app and checks with Node's `NODE_DEBUG=worker` trace that the workers started from the archive and with the overview's counts that they read every file; without the DevTools port, which Linux always opens, the counts cannot be seen and the test is skipped (#142).
-- Packaging ships `code-fingerprint.json`, written by core's build into `packages/core/dist` (ADR-0008), where the model cache looks for it: in the parent folder of the folder that holds the model-cache module (`new URL("../", import.meta.url)` of `model/model-cache.js`). Both copies of `@reqseq/core`, in the asar and in `resources/cli`, ship unbundled and include `dist/code-fingerprint.json` through `files: ["dist"]`; a single-file bundle would need it in the parent folder of the bundle's folder. Without it the model cache falls back to walking core's own files for its fingerprint, which in an asar or single-file bundle gives a different fingerprint or none (#232).
+- Packaging ships `code-fingerprint.json`, written by core's build into `packages/core/dist` (ADR-0008), where the model cache looks for it: in the parent folder of the folder that holds the model-cache module (`new URL("../", import.meta.url)` of `model/model-cache.js`). Both copies of `@reqseq/core`, in the asar and in `resources/cli`, ship unbundled and include `dist/code-fingerprint.json` through `files: ["dist"]`; a single-file bundle would need it in the parent folder of the bundle's folder. Without it the model cache falls back to walking core's own files for its fingerprint, which in an asar or single-file bundle gives a different fingerprint or none (ThomasBirkmaier/ReqSeq-archive#232).
 
 ## Rejected
 

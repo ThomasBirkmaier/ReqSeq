@@ -27,4 +27,4 @@ All file formats must be documented publicly so that other tools can read and wr
 ## Rejected
 
 - Types first (TypeScript or Zod) with generated schemas: the public, language-neutral document would be a by-product.
-- `json-schema-to-typescript` (first choice of this ADR): a further dev dependency tree (ADR-0015), output that needs title-based naming and post-processing to pass `strictTypeChecked` (duplicate and redundant union members, `{}` for empty objects, `interface` vs `type`), and no notion of input with defaults applied. Our schemas use a small subset; a tested script covers it (#134).
+- `json-schema-to-typescript` (first choice of this ADR): a further dev dependency tree (ADR-0015), output that needs title-based naming and post-processing to pass `strictTypeChecked` (duplicate and redundant union members, `{}` for empty objects, `interface` vs `type`), and no notion of input with defaults applied. Our schemas use a small subset; a tested script covers it (ThomasBirkmaier/ReqSeq-archive#134).
