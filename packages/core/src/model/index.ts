@@ -239,7 +239,14 @@ export type {
   RemovedRelation,
   RemoveRelationInput,
 } from "./relation-write.js";
-export { addAttachment, attachmentStem, clashKey, IMAGE_EXTENSIONS, portableName } from "./attachment.js";
+export {
+  addAttachment,
+  attachmentStem,
+  clashKey,
+  IMAGE_EXTENSIONS,
+  portableName,
+  sourceLocation,
+} from "./attachment.js";
 export { createElementFiles, plannedVersions } from "./new-files.js";
 export type { NewElementFile, NewImageFile } from "./new-files.js";
 export type { NewElementBase } from "./write.js";

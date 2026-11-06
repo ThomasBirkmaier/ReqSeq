@@ -5,7 +5,7 @@ import type { FixtureOptions, FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
-import { portableName } from "../../model/index.js";
+import { portableName, sourceLocation } from "../../model/index.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 import { readFirst } from "../../runtime/read-first.test-helper.js";
@@ -276,6 +276,66 @@ describe("element.addAttachment", () => {
       "SR-1d2e3f4a5b6c.md",
       "SR-6328cee88fb3.md",
     ]);
+  });
+
+  it("refuses a UNC or device source on Windows by its text, before any file-system call", () => {
+    const refused = [
+      "\\\\host\\share\\x.png",
+      "//host/share/x.png",
+      "\\\\?\\C:\\x.png",
+      "\\\\?\\UNC\\host\\share\\x.png",
+      "\\\\.\\pipe\\x.png",
+      "\\??\\C:\\x.png",
+      "/??/C:/x.png",
+      "\\x.png",
+    ];
+    for (const sourcePath of refused) {
+      let error: unknown;
+      try {
+        sourceLocation("C:\\ws", sourcePath, "win32");
+      } catch (caught) {
+        error = caught;
+      }
+      expect([sourcePath, error]).toEqual([
+        sourcePath,
+        expect.objectContaining({
+          code: "input.invalid",
+          message: "x.png is not a path on a drive of this computer; ReqSeq reads no network or device path",
+          details: { reason: "source-not-local" },
+        }),
+      ]);
+    }
+    expect(sourceLocation("C:\\ws", "D:\\img\\x.png", "win32")).toBe("D:\\img\\x.png");
+    expect(sourceLocation("C:\\ws", "D:/img/x.png", "win32")).toBe("D:\\img\\x.png");
+    expect(sourceLocation("C:\\ws", "img\\x.png", "win32")).toBe("C:\\ws\\img\\x.png");
+    expect(sourceLocation("/ws", "/img/x.png", "linux")).toBe("/img/x.png");
+    expect(sourceLocation("/ws", "img/x.png", "linux")).toBe("/ws/img/x.png");
+  });
+
+  it("checks an absolute source by its text before it touches the file system", async () => {
+    const opened = await open();
+    // Everything the command reads first is loaded, so the spy sees only the source.
+    await invoke("element.get", { ref: WIND.id }, { workspace: opened.workspace });
+    const stat = vi.spyOn(fs, "stat");
+    onTestFinished(() => {
+      vi.restoreAllMocks();
+    });
+    // Too long to be a path (more than 4096 characters), on every platform.
+    const sourcePath = path.resolve("/", ...Array.from({ length: 2100 }, () => "a"), "x.png");
+    const error = await addError(opened, { ref: WIND.id, sourcePath });
+    expect([error.code, error.details]).toEqual(["input.invalid", { reason: "source-not-local" }]);
+    // A UNC path as the command sees it on Windows (the platform `sourceLocation` defaults to).
+    const platform = Object.getOwnPropertyDescriptor(process, "platform");
+    Object.defineProperty(process, "platform", { value: "win32" });
+    try {
+      const unc = await addError(opened, { ref: WIND.id, sourcePath: "\\\\host\\share\\x.png" });
+      expect([unc.code, unc.details]).toEqual(["input.invalid", { reason: "source-not-local" }]);
+    } finally {
+      if (platform !== undefined) {
+        Object.defineProperty(process, "platform", platform);
+      }
+    }
+    expect(stat).not.toHaveBeenCalled();
   });
 
   it("reports a source it cannot read as file.faulty", async () => {
