@@ -294,6 +294,21 @@ describe("git reader", () => {
     expect(await headCommit(ws.path("repo"))).toMatchObject({ known: true, commit: await ws.head("repo") });
   });
 
+  it("runs the git on PATH, never a git program in the repository (#940)", async () => {
+    const ws = await fixture(["repo"]);
+    const repo = ws.path("repo");
+    const commit = await ws.head("repo");
+    // git runs in the repository. Node on Windows looks for a bare program name in the working
+    // folder of the child before PATH; elsewhere a relative entry of PATH (".") names that folder.
+    if (process.platform === "win32") {
+      await fs.copyFile(process.execPath, path.join(repo, "git.exe"));
+    } else {
+      await fs.writeFile(path.join(repo, "git"), "#!/bin/sh\nexit 1\n", { mode: 0o755 });
+      vi.stubEnv("PATH", `.${path.delimiter}${process.env["PATH"] ?? ""}`);
+    }
+    expect(await headCommit(repo)).toMatchObject({ known: true, commit });
+  });
+
   it("runs git with the fixed command line, environment and time limit of ADR-0006", async () => {
     const ws = await fixture(["repo"]);
     vi.stubEnv("GIT_OPTIONAL_LOCKS", "1");
