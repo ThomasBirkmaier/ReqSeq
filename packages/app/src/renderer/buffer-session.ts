@@ -4,7 +4,8 @@
 // workspace, never in the files of the workspace (as SR-118 AK5) and not through a catalog command
 // (SR-080 AK1: "außer reiner Darstellung der App", ADR-0002 rule 3).
 //
-// Stored is what rebuilds each buffer, in the order of use: the kind, the UUID and repository of an element, the kept parts of a list's query (`keptQuery`: steps and sort) and its mode, the text of a
+// Stored is what rebuilds each buffer, in the order of use: the kind, the UUID and repository of an
+// element, the kept parts of a list's query (`keptQuery`: steps and sort) and its mode, the text of a
 // search, the input of a graph, the mode of the metamodel, the command and input of a result. Never an
 // element's title or text, no output and no selected row. The names of the elements are read again when
 // the workspace opens, with one `element.list`; an element that is gone is left out, as the overview

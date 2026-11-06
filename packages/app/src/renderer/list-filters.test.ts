@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Prompt } from "./actions.js";
 import type { FilterStep } from "./buffers.js";
 import {
+  choosableProperties,
   exactTypeStep,
   hasSavedFilter,
   missingStep,
@@ -80,6 +81,15 @@ const use = (output: ElementFacetsOutput) => {
   );
   return { items, asked, ran };
 };
+
+describe("the properties whose values can be chosen (#993)", () => {
+  it("are those with values among the listed elements, in the order of the core, each with its values", () => {
+    const chosen = choosableProperties(facets);
+    expect(chosen.map(({ facet }) => facet.key)).toEqual(["topic", "requirement-type", "packages"]);
+    expect(chosen.map(({ values }) => values.length)).toEqual([2, 1, 2]);
+    expect(choosableProperties({ ...facets, properties: [] })).toEqual([]);
+  });
+});
 
 describe("the property prompt (SR-124)", () => {
   it("[SR-124/AK2] offers the status first, then the properties with values, in the order of the core", () => {

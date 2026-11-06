@@ -56,8 +56,8 @@ const BUILT_IN = [
 /**
  * The choices of the prompt "Group by" (SR-149 AK4): type, status and package, then each property of the
  * listed elements whose values can be chosen (`choosableProperties`, as "Filter by" offers them), but
- * not the property of the packages (`packages`), which "Package" groups by. Without a property of the packages there is no "Package": `element.list` would refuse it
- * (`metamodel.meaning-unassigned`). `apply` gets the `group` of the one that is taken.
+ * not the property of the packages (`packages`), which "Package" groups by. Without a property of the
+ * packages there is no "Package": `element.list` would refuse it (`metamodel.meaning-unassigned`). `apply` gets the `group` of the one that is taken.
  */
 export const groupChoices = (
   facets: ElementFacetsOutput,

@@ -315,11 +315,8 @@ export const listOf = (query: ListQuery, view: "list" | "matrix"): ListBuffer =>
  * The same list with some parts of its query changed (other steps, another sort or grouping), from its
  * first row; the other parts and the mode stay (SR-124, SR-149 AK3).
  */
-export const withQuery = (list: ListBuffer, change: QueryChange): ListBuffer => {
-  const next = listOf(changeQuery(queryOf(list), change, listView(list)), listView(list));
-  // Other steps name the list anew; another sort or grouping keeps its name.
-  return change.steps === undefined ? { ...next, label: list.label } : next;
-};
+export const withQuery = (list: ListBuffer, change: QueryChange): ListBuffer =>
+  listOf(changeQuery(queryOf(list), change, listView(list)), listView(list));
 
 /**
  * The same list in matrix mode, or (`on` false) as a list. The row and everything else stay, unless the
@@ -329,7 +326,7 @@ export const withQuery = (list: ListBuffer, change: QueryChange): ListBuffer => 
 export const withMatrix = (list: ListBuffer, on: boolean): ListBuffer => {
   const view = on ? "matrix" : "list";
   if (!fitsView(queryOf(list), view)) {
-    return { ...listOf(queryOf(list), view), label: list.label };
+    return listOf(queryOf(list), view);
   }
   const { matrix: _before, ...rest } = list;
   return on ? { ...rest, matrix: true } : rest;

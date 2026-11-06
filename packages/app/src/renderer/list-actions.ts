@@ -2,11 +2,21 @@
 // sort, group and the matrix. Each acts on a query target, the shown list or the elements of the shown
 // package page, and changes its query (`list-query.ts`); what the target's view does not show is not
 // offered. Only the input of `element.list` is built (ADR-0002).
-import type { Answer, Call } from "./call.js";
 import type { ElementSelection, FilterSortKeyWithDefaults } from "@reqseq/core";
 import type { Action, ActionContext, Choice } from "./actions.js";
 import type { ElementBuffer, FilterStep, ListBuffer } from "./buffers.js";
-import { DEFAULT_SORT, listBuffer, listOf, listView, queryOf, withMatrix, withQuery } from "./buffers.js";
+import {
+  DEFAULT_SORT,
+  inMatrix,
+  listBuffer,
+  listOf,
+  listView,
+  queryOf,
+  withMatrix,
+  withQuery,
+} from "./buffers.js";
+import type { Answer, Call } from "./call.js";
+import type { Shortcut } from "./keys.js";
 import {
   hasSavedFilter,
   propertyChoices,
@@ -19,7 +29,6 @@ import { groupChoices } from "./list-groups.js";
 import type { ListQuery, QueryChange, QueryPart, QueryView } from "./list-query.js";
 import { supports } from "./list-query.js";
 import { memberQuery, memberSelection, packageSelection, withMemberQuery } from "./package-page.js";
-import type { Shortcut } from "./keys.js";
 
 /** Ctrl/Cmd+T shows the list as a traceability matrix (SR-125), and the matrix as a list again. */
 export const MATRIX_SHORTCUT: Shortcut = { mod: true, shift: false, key: "t" };
@@ -29,7 +38,7 @@ export const currentList = (context: ActionContext): ListBuffer | undefined => {
   return current?.kind === "list" ? current : undefined;
 };
 
-const isMatrix = (context: ActionContext): boolean => currentList(context)?.matrix === true;
+const isMatrix = (context: ActionContext): boolean => inMatrix(context.buffers[0]);
 
 /** The shown element buffer when it is a package page (SR-112); its elements are a list that sorts like any list. */
 export const packagePage = (context: ActionContext): ElementBuffer | undefined => {
@@ -267,7 +276,7 @@ export const LIST_ACTIONS: readonly Action[] = [
     nothing: "The workspace has no saved filters.",
     available: (context) => {
       const target = queryTarget(context);
-      return target !== undefined && supports(target.view, "steps") && !hasSavedFilter(target.query.steps);
+      return canFilter(context) && target !== undefined && !hasSavedFilter(target.query.steps);
     },
     names: async (call: Call): Promise<Names> => {
       const answer = await call("filter.list", {});

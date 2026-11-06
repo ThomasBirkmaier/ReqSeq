@@ -72,6 +72,11 @@ export const changeQuery = (query: ListQuery, change: QueryChange, view: QueryVi
 
 /** Whether `view` shows every part of `query`, so moving it there changes no row. */
 export const fitsView = (query: ListQuery, view: QueryView): boolean => {
+  // By presence, not by object: a view that drops a part gives a new value for it.
   const shown = queryIn(query, view);
-  return shown.steps === query.steps && shown.sort === query.sort && shown.group === query.group;
+  return (
+    shown.steps.length === query.steps.length &&
+    (shown.sort === undefined) === (query.sort === undefined) &&
+    (shown.group === undefined) === (query.group === undefined)
+  );
 };
