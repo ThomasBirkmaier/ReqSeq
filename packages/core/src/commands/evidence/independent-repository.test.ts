@@ -11,6 +11,7 @@ import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
+import { COPIED, COPIED_FILES, openCopiedFile } from "../copied.test-helper.js";
 import type { FullList } from "../list.test-helper.js";
 
 const WORKSPACE_FILE =
@@ -140,5 +141,15 @@ describe("variant-independent repositories (SR-173)", () => {
     expect((await list("supplier")).records.map((r) => r.result)).toEqual(["passed"]);
     // The record names the UUID, so both copies have it; in `system` it holds for the core only.
     expect((await list("system")).records).toEqual([]);
+  });
+
+  it("lists the records of the copy a file alone names, of two in one repository (SR-088, #821)", async () => {
+    const workspace = await openCopiedFile();
+    const list = (input: Record<string, unknown>): Promise<unknown> =>
+      invoke("evidence.list", { ref: COPIED, ...input }, { workspace });
+    await expect(list({ repository: "system" })).rejects.toMatchObject({ code: "ref.ambiguous" });
+    for (const file of COPIED_FILES) {
+      expect(await list({ file })).toMatchObject({ records: [], testCases: [] });
+    }
   });
 });

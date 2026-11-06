@@ -187,8 +187,9 @@ const encodeSegment = (segment: string): string =>
 
 /**
  * `element.addAttachment` (SR-097): copies the image at `input.sourcePath` into the image folder of
- * the element `input.ref` (the copy `input.repository` and `input.file` name, SR-088, #821) and returns the file (relative to the workspace root, `/`) and the
- * Markdown that embeds it relatively. See the head of this file.
+ * the element `input.ref` (the copy `input.repository` and `input.file` name, SR-088, #821) and
+ * returns the file (relative to the workspace root, `/`) and the Markdown that embeds it relatively.
+ * See the head of this file.
  */
 export const addAttachment = async (
   workspace: Workspace,

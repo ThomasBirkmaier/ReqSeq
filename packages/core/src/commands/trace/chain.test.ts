@@ -13,7 +13,14 @@ import { evidenceReadState } from "../../evidence/index.js";
 import { STANDARD_MODEL_TEXT as STANDARD } from "../../metamodel/standard-model.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
-import { GUSTS_COPY, GUSTS_FILE, openCopied } from "../copied.test-helper.js";
+import {
+  COPIED,
+  COPIED_FILES,
+  GUSTS_COPY,
+  GUSTS_FILE,
+  openCopied,
+  openCopiedFile,
+} from "../copied.test-helper.js";
 
 type Output = CommandOutput<"trace.chain">;
 
@@ -219,6 +226,15 @@ describe("trace.chain (SR-022)", () => {
     expect(byFile.nodes[0]).toMatchObject({ repository: "sensor", file: GUSTS_FILE });
     const none = await chainError(workspace, { ref: GUSTS_COPY, repository: "vault" });
     expect([none.code, none.details]).toMatchObject(["ref.unknown", { ref: GUSTS_COPY }]);
+  });
+
+  it("walks from the copy a file alone names, of two in one repository (SR-088, #821)", async () => {
+    const workspace = await openCopiedFile();
+    expect((await chainError(workspace, { ref: COPIED, repository: "system" })).code).toBe("ref.ambiguous");
+    for (const file of COPIED_FILES) {
+      const output = await chain(workspace, { ref: COPIED, file });
+      expect(output.nodes[0]).toMatchObject({ id: COPIED, repository: "system", file });
+    }
   });
 });
 

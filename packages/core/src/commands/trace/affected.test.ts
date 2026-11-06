@@ -11,7 +11,14 @@ import { evidenceRecordsState } from "../../evidence/index.js";
 import { STANDARD_MODEL_TEXT as STANDARD } from "../../metamodel/standard-model.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
-import { GUSTS_COPY, GUSTS_FILE, openCopied } from "../copied.test-helper.js";
+import {
+  COPIED,
+  COPIED_FILES,
+  GUSTS_COPY,
+  GUSTS_FILE,
+  openCopied,
+  openCopiedFile,
+} from "../copied.test-helper.js";
 
 type Output = CommandOutput<"trace.affected">;
 
@@ -237,5 +244,17 @@ describe("trace.affected (SR-024)", () => {
     ]);
     const system = await affected(workspace, { ref: GUSTS_COPY, repository: "system", file: GUSTS_FILE });
     expect(system.affected).toEqual([]);
+  });
+
+  it("gives the elements affected by the copy a file alone names, of two in one repository (SR-088, #821)", async () => {
+    const workspace = await openCopiedFile();
+    expect((await affectedError(workspace, { ref: COPIED, repository: "system" })).code).toBe(
+      "ref.ambiguous",
+    );
+    // The requirement's file holds a relation to the shared UUID, so it is affected by either copy.
+    for (const file of COPIED_FILES) {
+      const output = await affected(workspace, { ref: COPIED, file });
+      expect(rows(output)).toEqual([["SR-0fcab6", 1, "derives-from"]]);
+    }
   });
 });

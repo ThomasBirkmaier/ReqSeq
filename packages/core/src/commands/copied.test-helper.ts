@@ -1,6 +1,7 @@
 // fixtures/SR-089/missing-targets with its requirement "Warn of gusts" of `sensor` copied into `system`:
 // two elements share its UUID (SR-088, D-058), for the inputs repository and file of the trace commands
-// (#821). Its relation kind derives-from gets the meaning derivation (SR-013).
+// (#821). Its relation kind derives-from gets the meaning derivation (SR-013). And fixtures/SR-088/copied-file:
+// two copies in one repository, which only `file` tells apart.
 import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import { onTestFinished } from "vitest";
@@ -22,6 +23,19 @@ export const openCopied = async (files: Readonly<Record<string, string>> = {}): 
     model,
     (await readFile(model, "utf8")).replace(derivesFrom, `${derivesFrom}, meaning: derivation`),
   );
+  const workspace = new Workspace(fixture.path("system"));
+  onTestFinished(() => workspace.close());
+  return workspace;
+};
+
+/** The UUID two files of the repository `system` of fixtures/SR-088/copied-file share, and both files. */
+export const COPIED = "948a10f1-05c3-4212-bd19-00606ccf2661";
+export const COPIED_FILES = ["requirements/N-00606ccf2661.md", "copies/N-00606ccf2661.md"] as const;
+
+/** The workspace `system` of fixtures/SR-088/copied-file. */
+export const openCopiedFile = async (): Promise<Workspace> => {
+  const fixture = await createFixtureWorkspace({ fixture: "SR-088/copied-file" });
+  onTestFinished(() => fixture.cleanup());
   const workspace = new Workspace(fixture.path("system"));
   onTestFinished(() => workspace.close());
   return workspace;
