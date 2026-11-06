@@ -46,7 +46,9 @@ describe("style of the output for people (#988)", () => {
     expect(cut("a👍🏽bcd", 3)).toBe("a👍🏽…");
     // Longer in UTF-16 units than the room, but not in graphemes.
     expect(cut("👍🏽👍🏽", 2)).toBe("👍🏽👍🏽");
-    expect(stripVTControlCharacters(padTo(styleText("dim", "ab", { validateStream: false }), 4))).toBe("ab  ");
+    expect(stripVTControlCharacters(padTo(styleText("dim", "ab", { validateStream: false }), 4))).toBe(
+      "ab  ",
+    );
     expect(padTo("abcdef", 4)).toBe("abcdef");
   });
 });
