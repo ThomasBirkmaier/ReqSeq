@@ -41,4 +41,4 @@ export const typeLine = (row: TypeCount): string => `${row.name} ${String(row.co
  * element its buffer.
  */
 export const openRow = (row: OverviewRow): Buffer =>
-  row.kind === "type" ? filteredList([exactTypeStep(row.key)]) : row.buffer;
+  row.kind === "type" ? filteredList([exactTypeStep(row.key, row.name)]) : row.buffer;

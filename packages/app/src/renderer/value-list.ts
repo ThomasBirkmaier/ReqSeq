@@ -79,7 +79,7 @@ export const listableValues = (
       value: key,
       name: `type: ${key}`,
       ...named(name, key),
-      step: exactTypeStep(key),
+      step: exactTypeStep(key, name),
     })),
     ...properties.flatMap(({ facet, values }) =>
       values.map((value) => ({

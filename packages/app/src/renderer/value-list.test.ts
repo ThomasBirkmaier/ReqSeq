@@ -162,7 +162,9 @@ describe("the values of an element that open a list (SR-132)", () => {
 
   it('[SR-132/AK2] each value opens the step that "Filter list by property", "by status" or the overview builds for it', () => {
     expect(named("status: approved").step).toEqual(statusStep("approved"));
-    expect(named("type: system-requirement").step).toEqual(exactTypeStep("system-requirement"));
+    expect(named("type: system-requirement").step).toEqual(
+      exactTypeStep("system-requirement", "System Requirement"),
+    );
     expect(named("topic: Bearbeiten und Finden").step).toEqual(
       propertyStep("topic", "Bearbeiten und Finden", "Bearbeiten und Finden"),
     );

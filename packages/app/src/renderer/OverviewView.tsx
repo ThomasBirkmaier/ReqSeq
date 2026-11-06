@@ -210,33 +210,35 @@ export const OverviewView = ({
       tabIndex={0}
       onKeyDown={keyDown}
     >
-      {rows.map((row, at) => (
-        <Fragment key={row.kind === "type" ? `type:${row.key}` : row.buffer.key}>
-          {at === firstRecent ? <div className="group">Recent</div> : null}
-          <div
-            id={`${scope}overview-${String(at)}`}
-            className={row.kind === "type" ? "line type" : rowClass("line recent", marked, row.buffer.id)}
-            role="option"
-            aria-selected={at === cursor}
-            {...(row.kind === "type" ? { "aria-label": typeLine(row) } : {})}
-            onClick={() => {
-              dispatch({ type: "cursor", key: buffer.key, cursor: at });
-              open(at);
-            }}
-          >
-            {row.kind === "type" ? (
-              <>
-                <span className="name">{row.name}</span> <span className="count">{String(row.count)}</span>
-              </>
-            ) : (
-              <>
-                <span className="id">{row.label}</span>
-                <span className="title">{row.title}</span>
-              </>
-            )}
-          </div>
-        </Fragment>
-      ))}
+      <div className="column">
+        {rows.map((row, at) => (
+          <Fragment key={row.kind === "type" ? `type:${row.key}` : row.buffer.key}>
+            {at === firstRecent ? <div className="group">Recent</div> : null}
+            <div
+              id={`${scope}overview-${String(at)}`}
+              className={row.kind === "type" ? "line type" : rowClass("line recent", marked, row.buffer.id)}
+              role="option"
+              aria-selected={at === cursor}
+              {...(row.kind === "type" ? { "aria-label": typeLine(row) } : {})}
+              onClick={() => {
+                dispatch({ type: "cursor", key: buffer.key, cursor: at });
+                open(at);
+              }}
+            >
+              {row.kind === "type" ? (
+                <>
+                  <span className="name">{row.name}</span> <span className="count">{String(row.count)}</span>
+                </>
+              ) : (
+                <>
+                  <span className="id">{row.label}</span>
+                  <span className="title">{row.title}</span>
+                </>
+              )}
+            </div>
+          </Fragment>
+        ))}
+      </div>
     </div>
   );
 };
