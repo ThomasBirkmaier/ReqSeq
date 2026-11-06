@@ -7724,11 +7724,12 @@
               "type": "array",
               "items": {
                 "type": "integer",
-                "minimum": 1
+                "minimum": 1,
+                "maximum": 9007199254740991
               },
               "minItems": 1,
               "uniqueItems": true,
-              "description": "The acceptance criteria the record holds for, by number: the position in the property with the meaning `acceptance-criteria` of the element's current version, counted from 1. Written in ascending order as `criteria` of the file. Absent: the record holds for every criterion. Verification only: with `kind` validation it is `input.invalid` with `details.reason` `validation-with-criteria`, because a validation counts per element. A number the current version does not have is written and gives the warning `evidence.unknown-criterion` in `problems`."
+              "description": "The acceptance criteria the record holds for, by number: the position in the property with the meaning `acceptance-criteria` of the element's current version, counted from 1, at most 9007199254740991 (the largest whole number JSON readers keep exactly, so the file holds the number as given). Written in ascending order as `criteria` of the file. Absent: the record holds for every criterion. Verification only: with `kind` validation it is `input.invalid` with `details.reason` `validation-with-criteria`, because a validation counts per element. A number the current version does not have is written and gives the warning `evidence.unknown-criterion` in `problems`."
             },
             "folder": {
               "type": "string",

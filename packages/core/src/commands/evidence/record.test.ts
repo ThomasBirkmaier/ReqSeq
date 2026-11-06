@@ -245,7 +245,7 @@ describe("evidence.record (SR-030)", () => {
     expect(checked.problems.filter((p) => p.code === "evidence.unknown-criterion")).toEqual(output.problems);
   });
 
-  it("refuses criteria on a validation record (it counts per element, SR-030 AK3) and malformed numbers, and writes nothing", async () => {
+  it("refuses criteria on a validation record (it counts per element, SR-030 AK3) and malformed or oversized numbers, and writes nothing", async () => {
     const { fixture, workspace } = await open();
     const before = await filesOf(fixture);
     const validation = await failure(workspace, {
@@ -259,7 +259,7 @@ describe("evidence.record (SR-030)", () => {
       "input.invalid",
       { command: "evidence.record", fields: ["criteria"], reason: "validation-with-criteria" },
     ]);
-    for (const criteria of [[], [0], [1, 1], [1.5], ["1"]]) {
+    for (const criteria of [[], [0], [1, 1], [1.5], ["1"], [Number.MAX_SAFE_INTEGER + 1], [1e21]]) {
       expect((await failure(workspace, { ref: "SR-00c002", ...INSPECTION, criteria })).code).toBe(
         "input.invalid",
       );
