@@ -1,5 +1,5 @@
 // The package page (SR-112, #408) on the built app: an opened package shows below its title and text
-// the elements that name it (AK1), and they sort and show as a tree like any list (AK2). What the
+// the elements that name it (AK1), and they sort, filter and show as a tree like any list (AK2). What the
 // page shows is compared with what the CLI gives for the same input (SR-080). Keys use ControlOrMeta,
 // so the same tests run on Linux and macOS. The package is opened by Ctrl+P, so the tests do not
 // depend on what the window shows at the start. The line under the title (AK3, AK4) runs on
@@ -30,8 +30,12 @@ interface Listed {
 }
 
 /** What the CLI lists for the elements of the package Sensors, with `sort` (the default sort of the app: type, then ID, #418). */
-const listedBy = async (running: RunningApp, sort: unknown = DEFAULT_SORT): Promise<Listed> => {
-  const input = { selection: { where: { package: "PKG-0000d1" } }, sort };
+const listedBy = async (
+  running: RunningApp,
+  sort: unknown = DEFAULT_SORT,
+  where: unknown = { package: "PKG-0000d1" },
+): Promise<Listed> => {
+  const input = { selection: { where }, sort };
   const result = await running.cli(["element", "list", "--input", JSON.stringify(input)]);
   expect(result.code).toBe(0);
   return JSON.parse(result.stdout) as Listed;
@@ -128,6 +132,59 @@ test.describe("the package page on a fixture workspace", () => {
     );
     // The page is still the package: its title and text are there.
     await expect(window.locator("article h1")).toHaveText("Sensors");
+  });
+
+  test("[SR-112/AK2] the elements of the package filter step by step as the CLI selects them, and the filters clear again", async () => {
+    const { window } = running;
+    await openPackage(window);
+    const command = async (title: string): Promise<void> => {
+      await window.keyboard.press("ControlOrMeta+Shift+P");
+      await window.keyboard.type(title);
+      await expect(window.locator('.candidates [role="option"] .name').first()).toHaveText(title);
+      await window.keyboard.press("Enter");
+    };
+    const answer = async (label: string, text: string): Promise<void> => {
+      await expect(window.getByLabel("Minibuffer").locator("label")).toHaveText(label);
+      await window.keyboard.type(text);
+      await window.keyboard.press("Enter");
+    };
+    await command("Filter list by text search");
+    await answer("Text", "rain");
+    const rain = await listedBy(running, DEFAULT_SORT, {
+      all: [{ package: "PKG-0000d1" }, { text: "rain" }],
+    });
+    expect(rain.total).toBeGreaterThan(0);
+    expect(rain.total).toBeLessThan(5);
+    await expect(window.locator(".members h2")).toContainText(`text: rain ${String(rain.total)}`);
+    await expect(window.locator(".members .row .title")).toHaveText(
+      rain.elements.map((element) => element.title),
+    );
+    // A second step narrows the elements further.
+    await command("Filter list by text search");
+    await answer("Text", "calibrate");
+    const both = await listedBy(running, DEFAULT_SORT, {
+      all: [{ package: "PKG-0000d1" }, { text: "rain" }, { text: "calibrate" }],
+    });
+    await expect(window.locator(".members h2")).toContainText("text: rain · text: calibrate");
+    await expect(window.locator(".members .row .title")).toHaveText(
+      both.elements.map((element) => element.title),
+    );
+    // Title and text stay the package's.
+    await expect(window.locator("article h1")).toHaveText("Sensors");
+    await expect(window.locator(".cm-editor")).toBeVisible();
+    await command("Clear list filter");
+    await expect(window.locator(".members h2")).not.toContainText("calibrate");
+    await expect(window.locator(".members .row .title")).toHaveText(
+      rain.elements.map((element) => element.title),
+    );
+    await command("Filter list by text search");
+    await answer("Text", "calibrate");
+    await expect(window.locator(".members h2")).toContainText("calibrate");
+    await command("Clear all list filters");
+    await expect(window.locator(".members h2")).not.toContainText("text:");
+    await expect(window.locator(".members .row .title")).toHaveText(
+      (await listedBy(running)).elements.map((element) => element.title),
+    );
   });
 
   test("[SR-112/AK2] the elements of the package show as the derivation tree, as the CLI gives it", async () => {

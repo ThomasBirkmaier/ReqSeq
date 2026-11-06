@@ -1,5 +1,5 @@
 // The package page (SR-112): the elements that name the package, below its text, as a list of its own with
-// a heading that gives their count (SR-114 AK3). Layout only: `ElementView` keeps the count, which its keys
+// a heading that gives their count (SR-114 AK3) and the filter steps on them (AK2). Layout only: `ElementView` keeps the count, which its keys
 // need, and gets it from the list's `onData`.
 import type { ElementSelection } from "@reqseq/core";
 import type { BufferAction, ElementBuffer } from "./buffers.js";
@@ -7,7 +7,7 @@ import type { Call } from "./call.js";
 import { ListView } from "./ListView.js";
 import type { OutsideChanges } from "./outside-marks.js";
 import type { MemberCount, PackageModel } from "./package-page.js";
-import { memberCount, memberList, memberSummary } from "./package-page.js";
+import { memberCount, memberHeading, memberList, memberSummary } from "./package-page.js";
 
 export interface PackageMembersProps {
   readonly model: PackageModel;
@@ -41,10 +41,12 @@ export const PackageMembers = ({
   onLeave,
   focusOnLoad,
 }: PackageMembersProps): React.JSX.Element => (
-  <section className="members" hidden={members?.total === 0}>
-    {members !== undefined && members.total > 0 ? (
+  // A page without elements shows nothing of them; a filter that leaves none still names itself (SR-112 AK2).
+  <section className="members" hidden={members?.total === 0 && buffer.memberSteps === undefined}>
+    {members !== undefined && (members.total > 0 || buffer.memberSteps !== undefined) ? (
       <h2>
-        ← {model.key} <span className="count">{memberSummary(members, buffer.memberSort)}</span>
+        ← {memberHeading(model.key, buffer.memberSteps)}{" "}
+        <span className="count">{memberSummary(members, buffer.memberSort)}</span>
       </h2>
     ) : null}
     <ListView

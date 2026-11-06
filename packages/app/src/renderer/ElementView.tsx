@@ -137,7 +137,7 @@ import type { TitleBoxProps } from "./TitleBox.js";
 import { ParentsRow, useParents } from "./ParentsLine.js";
 import type { BufferData } from "./modeline.js";
 import type { MemberCount, PackageModel } from "./package-page.js";
-import { packageOf, packageSelection } from "./package-page.js";
+import { memberSelection, packageOf } from "./package-page.js";
 import {
   addableProperties,
   allBoxes,
@@ -519,7 +519,11 @@ export const ElementView = ({
   // modeline (SR-114 AK3) give their count. The selection keeps its identity, or the list would ask
   // again after every render.
   const [members, setMembers] = useState<MemberCount | undefined>(undefined);
-  const selection = useMemo(() => packageSelection(buffer.id), [buffer.id]);
+  // With the filter steps of the page (SR-112 AK2); the steps keep their identity while they stay.
+  const selection = useMemo(
+    () => memberSelection(buffer.id, buffer.memberSteps ?? []),
+    [buffer.id, buffer.memberSteps],
+  );
   const returning = useRef(buffer.memberCursor !== undefined);
   // The area of the view (SR-115 AK3): only the active view takes the focus on its own, and a view that
   // becomes inactive saves its input.

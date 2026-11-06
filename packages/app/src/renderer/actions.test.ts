@@ -26,7 +26,7 @@ import {
   searchBuffer,
   withMatrix,
 } from "./buffers.js";
-import { savedStep, typeStep } from "./list-filters.js";
+import { savedStep, statusStep, textStep, typeStep } from "./list-filters.js";
 import { MOST_FREQUENT, PREFIX, PREFIX_BINDINGS, prefixLabel } from "./bindings.js";
 import { matches, shortcutLabel } from "./keys.js";
 import type { Call } from "./call.js";
@@ -830,20 +830,76 @@ describe("list actions", () => {
     };
     const tree = [{ by: "hierarchy" as const, order: "asc" as const }];
 
-    it('[SR-112/AK2] "Sort list" is offered on a package page and not on another element; no filter is', () => {
+    it('[SR-112/AK2] "Sort list" and the filters are offered on a package page and not on another element', () => {
       const onPage = setup([element, list], {}, true, { element: page }).context;
       expect(action("sort").available(onPage)).toBe(true);
       expect(titles(onPage)).toContain("Sort list");
       for (const id of ["filter-type", "filter-status", "filter-property", "filter-text", "filter-saved"]) {
-        expect(action(id).available(onPage)).toBe(false);
+        expect(action(id).available(onPage)).toBe(true);
       }
+      // Nothing to clear before a filter is chosen.
+      expect(action("clear-filter").available(onPage)).toBe(false);
+      expect(action("clear-filters").available(onPage)).toBe(false);
       const other = { ...page, members: false };
       expect(action("sort").available(setup([element], {}, true, { element: other }).context)).toBe(false);
+      expect(action("filter-status").available(setup([element], {}, true, { element: other }).context)).toBe(
+        false,
+      );
       expect(action("sort").available(setup([element]).context)).toBe(false);
       // The controls of an element that is no longer shown do not make a search a package page.
       expect(
         action("sort").available(setup([searchBuffer("wind")], {}, true, { element: page }).context),
       ).toBe(false);
+    });
+
+    it("[SR-112/AK2] a filter on a package page narrows its elements step by step and keeps the element buffer", async () => {
+      const first = setup([element], { "element.facets": { statuses: [{ key: "draft", count: 2 }] } }, true, {
+        element: page,
+      });
+      action("filter-status").run(first.context);
+      await flush();
+      // The values are those of the package's elements.
+      expect(first.call).toHaveBeenCalledWith("element.facets", { selection: { where: { package: "u1" } } });
+      first.asked[0]?.items[0]?.run();
+      const once = { ...element, memberSteps: [statusStep("draft")], memberCursor: 0 };
+      expect(first.dispatched).toEqual([{ type: "open", buffer: once }]);
+      // A second step: the facets of the package and the first step together; the sort stays.
+      const sorted = { ...once, memberSort: [{ by: "title" as const, order: "asc" as const }] };
+      const second = setup([sorted], { "element.facets": { statuses: [] } }, true, { element: page });
+      action("filter-text").run(second.context);
+      second.asked[0]?.text?.("wind");
+      expect(second.dispatched).toEqual([
+        { type: "open", buffer: { ...sorted, memberSteps: [statusStep("draft"), textStep("wind")] } },
+      ]);
+      action("filter-status").run(second.context);
+      await flush();
+      expect(second.call).toHaveBeenCalledWith("element.facets", {
+        selection: { where: { all: [{ package: "u1" }, { status: ["draft"] }] } },
+      });
+    });
+
+    it("[SR-112/AK2] clearing the filters of a package page takes back the last step, then all", () => {
+      const twice = { ...element, memberSteps: [statusStep("draft"), typeStep("need")], memberCursor: 3 };
+      const { context, dispatched } = setup([twice], {}, true, { element: page });
+      expect(action("clear-filters").available(context)).toBe(true);
+      action("clear-filter").run(context);
+      action("clear-filters").run(context);
+      expect(dispatched).toEqual([
+        { type: "open", buffer: { ...element, memberSteps: [statusStep("draft")], memberCursor: 0 } },
+        { type: "open", buffer: { ...element, memberCursor: 0 } },
+      ]);
+    });
+
+    it("[SR-112/AK2] the matrix of a filtered package page shows the elements its list shows", () => {
+      const once = { ...element, memberSteps: [statusStep("draft")] };
+      const { context, dispatched } = setup([once], {}, true, { element: page });
+      action("matrix").run(context);
+      const shown = dispatched[0];
+      expect(shown?.type === "open" ? shown.buffer : undefined).toMatchObject({
+        kind: "list",
+        matrix: true,
+        selection: { where: { all: [{ package: "u1" }, { status: ["draft"] }] } },
+      });
     });
 
     it("[SR-112/AK2] sorting on a package page sorts its elements and keeps the element buffer", () => {

@@ -5,8 +5,8 @@
 // The line under the title (AK3, AK4) is core's counts with core's formatter (`packageSummaryText`).
 import type { ElementSelection, EvidenceCoverageOutput, MetamodelGetOutput } from "@reqseq/core";
 import { packageSummaryText } from "@reqseq/core/verification-degree";
-import type { ElementBuffer, ListBuffer, ResultBuffer } from "./buffers.js";
-import { resultBuffer, sortLabel } from "./buffers.js";
+import type { ElementBuffer, FilterStep, ListBuffer, ResultBuffer } from "./buffers.js";
+import { resultBuffer, selectionOf, sortLabel } from "./buffers.js";
 import type { Call } from "./call.js";
 import type { BufferData } from "./modeline.js";
 import { INCOMPLETE } from "./modeline.js";
@@ -33,6 +33,22 @@ export const packageOf = (model: PackageModel | undefined, type: string): Packag
 
 /** The selection of the elements that name the package with this UUID (D-040). */
 export const packageSelection = (id: string): ElementSelection => ({ where: { package: id } });
+
+/**
+ * The selection of the elements of the package with this UUID that meet the filter steps of its page
+ * (SR-112 AK2): the package and each step together, as a list ANDs its steps (SR-124).
+ */
+export const memberSelection = (id: string, steps: readonly FilterStep[]): ElementSelection =>
+  steps.length === 0
+    ? packageSelection(id)
+    : (selectionOf([{ label: "package", selection: packageSelection(id) }, ...steps]) ??
+      packageSelection(id));
+
+/** The heading of the elements of a package page: the property, and the filter steps when there are any. */
+export const memberHeading = (key: string, steps: readonly FilterStep[] | undefined): string =>
+  steps === undefined || steps.length === 0
+    ? key
+    : [key, ...steps.map((step) => step.heading ?? step.label)].join(" · ");
 
 /**
  * The list buffer the members of a package are shown with. It has the key of the element buffer, so the

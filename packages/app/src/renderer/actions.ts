@@ -57,7 +57,7 @@ import {
   textStep,
   typeStep,
 } from "./list-filters.js";
-import { packageSelection } from "./package-page.js";
+import { memberSelection, packageSelection } from "./package-page.js";
 import { searchRows } from "./rows.js";
 import type { Row } from "./rows.js";
 import type { Theme } from "./theme.js";
@@ -335,8 +335,9 @@ const currentList = (context: ActionContext): ListBuffer | undefined => {
 
 const isList = (context: ActionContext): boolean => currentList(context) !== undefined;
 const isMatrix = (context: ActionContext): boolean => currentList(context)?.matrix === true;
-const isFiltered = (context: ActionContext): boolean => (currentList(context)?.steps.length ?? 0) > 0;
-const isChained = (context: ActionContext): boolean => (currentList(context)?.steps.length ?? 0) > 1;
+const isFiltered = (context: ActionContext): boolean => (filtered(context)?.steps.length ?? 0) > 0;
+const isChained = (context: ActionContext): boolean => (filtered(context)?.steps.length ?? 0) > 1;
+const canFilter = (context: ActionContext): boolean => filtered(context) !== undefined;
 const isElement = (context: ActionContext): boolean => context.buffers[0]?.kind === "element";
 const isNeighbourhood = (context: ActionContext): boolean => context.buffers[0]?.kind === "neighbourhood";
 const isGraph = (context: ActionContext): boolean => context.buffers[0]?.kind === "graph";
@@ -345,6 +346,57 @@ export const packagePage = (context: ActionContext): ElementBuffer | undefined =
   const shown = context.buffers[0];
   return shown?.kind === "element" && context.element?.members === true ? shown : undefined;
 };
+
+/**
+ * What the filter commands act on (SR-124): the shown list, or the elements of the shown package page
+ * (SR-112 AK2). `selection` is what the steps select (on a page with the package), the input of
+ * `element.facets`; `apply` shows the same list or page with other steps, in its sort.
+ */
+interface Filtered {
+  readonly steps: readonly FilterStep[];
+  readonly selection: ElementSelection | undefined;
+  readonly apply: (steps: readonly FilterStep[]) => void;
+}
+
+const filtered = (context: ActionContext): Filtered | undefined => {
+  const list = currentList(context);
+  if (list !== undefined) {
+    return {
+      steps: list.steps,
+      selection: list.selection,
+      apply: (steps) => {
+        context.dispatch({ type: "open", buffer: filteredList(steps, list.sort, list.matrix === true) });
+      },
+    };
+  }
+  const page = packagePage(context);
+  if (page === undefined) {
+    return undefined;
+  }
+  const steps = page.memberSteps ?? [];
+  return {
+    steps,
+    selection: memberSelection(page.id, steps),
+    apply: (next) => {
+      // The page stays the element buffer (editor and draft included), as with "Sort list".
+      const { memberSteps: _before, ...rest } = page;
+      context.dispatch({
+        type: "open",
+        buffer: { ...rest, ...(next.length === 0 ? {} : { memberSteps: next }), memberCursor: 0 },
+      });
+    },
+  };
+};
+
+/** A filter action on the shown list or package page; without one it does nothing. */
+const onFiltered =
+  (run: (context: ActionContext, target: Filtered) => void) =>
+  (context: ActionContext): void => {
+    const target = filtered(context);
+    if (target !== undefined) {
+      run(context, target);
+    }
+  };
 const hasWorkspace = (context: ActionContext): boolean => context.workspace;
 /** There is another buffer to switch to (SR-115 AK5: „mehrere geöffnete Buffer“). */
 const hasOthers = (context: ActionContext): boolean => context.buffers.length > 1;
@@ -571,24 +623,21 @@ interface FilterBy {
   readonly nothing: string;
   /** Without it, whenever a list is shown. */
   readonly available?: (context: ActionContext) => boolean;
-  readonly names: (call: Call, list: ListBuffer) => Promise<Names>;
+  readonly names: (call: Call, target: Filtered) => Promise<Names>;
   readonly step: (name: string) => FilterStep;
 }
 
-/** The list the steps of `list` give with one more, which keeps the sort. */
-const addStep = (context: ActionContext, list: ListBuffer, step: FilterStep): void => {
-  context.dispatch({
-    type: "open",
-    buffer: filteredList([...list.steps, step], list.sort, list.matrix === true),
-  });
+/** The list or page with one more step, which keeps the sort. */
+const addStep = (target: Filtered, step: FilterStep): void => {
+  target.apply([...target.steps, step]);
 };
 
 const filterBy = (by: FilterBy): Action => ({
   id: by.id,
   title: by.title,
-  available: by.available ?? isList,
-  run: onList((context, list) => {
-    void by.names(context.shownCall ?? context.call, list).then((found) => {
+  available: by.available ?? canFilter,
+  run: onFiltered((context, target) => {
+    void by.names(context.shownCall ?? context.call, target).then((found) => {
       if (!found.ok) {
         context.echo(found.message);
       } else if (found.names.length === 0) {
@@ -598,7 +647,7 @@ const filterBy = (by: FilterBy): Action => ({
           label: by.label,
           items: found.names.map((name) =>
             choice(name, () => {
-              addStep(context, list, by.step(name));
+              addStep(target, by.step(name));
             }),
           ),
         });
@@ -707,8 +756,8 @@ const cycleBuffer = (context: ActionContext, step: 1 | -1): void => {
 };
 
 /** The facets of the shown list: what its elements have, from the core (`element.facets`). */
-const facetsOf = (call: Call, list: ListBuffer): Promise<Answer<"element.facets">> =>
-  call("element.facets", list.selection === undefined ? {} : { selection: list.selection });
+const facetsOf = (call: Call, target: Filtered): Promise<Answer<"element.facets">> =>
+  call("element.facets", target.selection === undefined ? {} : { selection: target.selection });
 
 /** "All elements" ends a view; the window shows no view at the start. */
 const ALL_VIEWS = "All elements";
@@ -803,8 +852,8 @@ export const ACTIONS: readonly Action[] = [
     title: "Filter list by status",
     label: "Status",
     nothing: "The elements of this list have no status.",
-    names: async (call: Call, list: ListBuffer): Promise<Names> => {
-      const answer = await facetsOf(call, list);
+    names: async (call: Call, target: Filtered): Promise<Names> => {
+      const answer = await facetsOf(call, target);
       return answer.ok ? { ok: true, names: answer.output.statuses.map((status) => status.key) } : answer;
     },
     step: statusStep,
@@ -812,9 +861,9 @@ export const ACTIONS: readonly Action[] = [
   {
     id: "filter-property",
     title: "Filter list by property",
-    available: isList,
-    run: onList((context, list) => {
-      void facetsOf(context.shownCall ?? context.call, list).then((answer) => {
+    available: canFilter,
+    run: onFiltered((context, target) => {
+      void facetsOf(context.shownCall ?? context.call, target).then((answer) => {
         if (!answer.ok) {
           context.echo(answer.message);
           return;
@@ -822,7 +871,7 @@ export const ACTIONS: readonly Action[] = [
         const items = propertyChoices(
           answer.output,
           (step) => {
-            addStep(context, list, step);
+            addStep(target, step);
           },
           context.ask,
         );
@@ -837,15 +886,15 @@ export const ACTIONS: readonly Action[] = [
   {
     id: "filter-text",
     title: "Filter list by text search",
-    available: isList,
-    run: onList((context, list) => {
+    available: canFilter,
+    run: onFiltered((context, target) => {
       context.ask({
         label: "Text",
         items: [],
         text: (text) => {
           const query = text.trim();
           if (query !== "") {
-            addStep(context, list, textStep(query));
+            addStep(target, textStep(query));
           }
         },
       });
@@ -857,8 +906,8 @@ export const ACTIONS: readonly Action[] = [
     label: "Filter",
     nothing: "The workspace has no saved filters.",
     available: (context) => {
-      const list = currentList(context);
-      return list !== undefined && !hasSavedFilter(list.steps);
+      const target = filtered(context);
+      return target !== undefined && !hasSavedFilter(target.steps);
     },
     names: async (call: Call): Promise<Names> => {
       const answer = await call("filter.list", {});
@@ -870,19 +919,16 @@ export const ACTIONS: readonly Action[] = [
     id: "clear-filter",
     title: "Clear list filter",
     available: isFiltered,
-    run: onList((context, list) => {
-      context.dispatch({
-        type: "open",
-        buffer: filteredList(list.steps.slice(0, -1), list.sort, list.matrix === true),
-      });
+    run: onFiltered((_context, target) => {
+      target.apply(target.steps.slice(0, -1));
     }),
   },
   {
     id: "clear-filters",
     title: "Clear all list filters",
     available: isChained,
-    run: onList((context, list) => {
-      context.dispatch({ type: "open", buffer: filteredList([], list.sort, list.matrix === true) });
+    run: onFiltered((_context, target) => {
+      target.apply([]);
     }),
   },
   {
@@ -922,7 +968,10 @@ export const ACTIONS: readonly Action[] = [
       } else if (page !== undefined) {
         // The members of the package as a list in matrix mode, in the sort of the page, as its list shows them.
         const step = { label: `package: ${page.name}`, selection: packageSelection(page.id) };
-        context.dispatch({ type: "open", buffer: filteredList([step], page.memberSort, true) });
+        context.dispatch({
+          type: "open",
+          buffer: filteredList([step, ...(page.memberSteps ?? [])], page.memberSort, true),
+        });
       }
     },
   },
