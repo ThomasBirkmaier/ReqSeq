@@ -660,7 +660,7 @@ describe("built-in meanings", () => {
     expect(await load({ fixture: "SR-035/emergent" })).toMatchObject({ valid: true, problems: [] });
   });
 
-  it("#960: the meaning acceptance-criteria wants kind text with many, else a warning, and the standard model assigns it", async () => {
+  it("[SR-013/AK4] the meaning acceptance-criteria wants kind text with many, else a warning, and the standard model assigns it", async () => {
     const lines: Readonly<Record<string, number>> = { kind: 4, many: 5 };
     const at = (definition: MetamodelProperty): Located<MetamodelProperty> => ({
       definition,
