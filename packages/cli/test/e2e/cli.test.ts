@@ -106,7 +106,7 @@ describe("reqseq binary", () => {
     expect(help.stdout).not.toContain("\u001b[");
     const group = await reqseq(["element", "--help"], { cwd: ws.root });
     expect(group.stdout).toMatch(/set-status <status> \[options\]/);
-    // status: null removes the status line (#343); the command line gives null with --input.
+    // status: null removes the status line (ThomasBirkmaier/ReqSeq-archive#343); the command line gives null with --input.
     const setStatus = await reqseq(["element", "set-status", "--help"], { cwd: ws.root });
     expect(setStatus.stdout).toMatch(/null only\s+via\s+--input/);
     // The help names no issue, decision or requirement of ReqSeq's own spec (#642).
@@ -178,7 +178,7 @@ describe("reqseq binary", () => {
     expect(JSON.parse(unknown.stderr)).toMatchObject({ code: "ref.unknown" });
   });
 
-  it("[SR-064/AK2] creates an element with only type and title, as argument or as --title: exit 0, the file written, and each hint printed once (#310)", async () => {
+  it("[SR-064/AK2] creates an element with only type and title, as argument or as --title: exit 0, the file written, and each hint printed once (ThomasBirkmaier/ReqSeq-archive#310)", async () => {
     const ws = await createFixtureWorkspace({ fixture: "SR-004/one-repository" });
     fixtures.push(ws);
     const created = await reqseq(["element", "create", "system-requirement", "--title", "Show gusts"], {
@@ -227,7 +227,7 @@ describe("reqseq binary", () => {
     );
   });
 
-  it("names elements by their spec ID and shows it next to the short ID (#305)", async () => {
+  it("names elements by their spec ID and shows it next to the short ID (ThomasBirkmaier/ReqSeq-archive#305)", async () => {
     const ws = await createFixtureWorkspace({ fixture: "enabler-305/identifiers" });
     fixtures.push(ws);
     const run = (...args: string[]): Promise<Run> => reqseq(args, { cwd: ws.root });
@@ -258,19 +258,19 @@ describe("reqseq binary", () => {
     });
   });
 
-  // Nine spawns of the binary and a Git fixture in one test: 5.5 to 6.7 s on an idle machine, 11 s next to a loaded CPU (#460).
+  // Nine spawns of the binary and a Git fixture in one test: 5.5 to 6.7 s on an idle machine, 11 s next to a loaded CPU (ThomasBirkmaier/ReqSeq-archive#460).
   // That is above the 5 s default and too close to the 30 s of vitest.e2e.config.ts for a slow runner, so this test
   // has its own bound (about ten times the measured time); the global timeout stays.
   const SPAWN_HEAVY_TIMEOUT_MS = 60_000;
   it(
-    "[SR-060/AK1] answers the input mistakes of the first dogfooding trial readably (#309)",
+    "[SR-060/AK1] answers the input mistakes of the first dogfooding trial readably (ThomasBirkmaier/ReqSeq-archive#309)",
     async () => {
       const ws = await createFixtureWorkspace({ fixture: "SR-072/supersede", git: true });
       fixtures.push(ws);
       const run = (...args: string[]): Promise<Run> => reqseq(args, { cwd: ws.root });
       const REF_FORM =
         "is not a reference to an element (a UUID, a short ID such as SR-3c90b0 or an identifier such as SR-036; at most 256 characters, without control characters or spaces at either end)";
-      // SR-036 may be an identifier (#305); this workspace has none, so it names no element.
+      // SR-036 may be an identifier (ThomasBirkmaier/ReqSeq-archive#305); this workspace has none, so it names no element.
       const unknown = await run("element", "get", "SR-036");
       expect([unknown.code === 0, unknown.stderr]).toEqual([
         false,
@@ -331,7 +331,7 @@ describe("reqseq binary", () => {
     SPAWN_HEAVY_TIMEOUT_MS,
   );
 
-  it("opens one copy of a UUID two files share with --file, and exits 2 without it (SR-088, #255)", async () => {
+  it("opens one copy of a UUID two files share with --file, and exits 2 without it (SR-088, ThomasBirkmaier/ReqSeq-archive#255)", async () => {
     const ws = await createFixtureWorkspace({ fixture: "SR-088/copied-file" });
     fixtures.push(ws);
     const cwd = ws.path("system");
@@ -358,7 +358,7 @@ describe("reqseq binary", () => {
     });
   });
 
-  it("adds and removes a relation with relation add and relation remove, with a hint on a cycle (#264, SR-067 AK3)", async () => {
+  it("adds and removes a relation with relation add and relation remove, with a hint on a cycle (ThomasBirkmaier/ReqSeq-archive#264, SR-067 AK3)", async () => {
     const ws = await createFixtureWorkspace({ fixture: "SR-090/cycle", git: true });
     fixtures.push(ws);
     const D = "5e9c0a7d-2b4f-4c61-9d08-0b0000000004";

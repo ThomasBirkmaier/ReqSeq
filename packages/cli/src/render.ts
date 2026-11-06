@@ -31,7 +31,7 @@ export const renderJson = (output: unknown): string => [...jsonOutput(output)].j
 /**
  * `severity  code  SR-036 → D-011  message  repository:file:line` (#252): who first, by the name a
  * person knows, then what, then where; parts that are missing left out. The element by its identifier
- * (`elementIdentifier`, #305), else its short ID (`elementShortId`, #315), else its UUID; the target
+ * (`elementIdentifier`, ThomasBirkmaier/ReqSeq-archive#305), else its short ID (`elementShortId`, ThomasBirkmaier/ReqSeq-archive#315), else its UUID; the target
  * the same way when the problem names it (`targetIdentifier`, `targetShortId`, #172). The repository
  * only when the problem names one and has a file (e.g. element files of several repositories,
  * metamodel files). On a terminal (`style`, #988) the severity is coloured by it.
@@ -52,7 +52,7 @@ export const renderProblem = (problem: unknown, style: Style = PLAIN): string =>
     .join("  ")}\n`;
 };
 
-/** Findings an output left out of `problems`, by severity (`hidden` of workspace.check, #304). */
+/** Findings an output left out of `problems`, by severity (`hidden` of workspace.check, ThomasBirkmaier/ReqSeq-archive#304). */
 interface Hidden {
   readonly below: string;
   readonly warning: number;
@@ -72,7 +72,7 @@ export const hiddenOf = (output: Readonly<Record<string, unknown>>): Hidden | un
 
 /**
  * The line after the problems: `No problems.` when there are none at all; when the output left
- * findings out (`hidden`), how many, so that no line shown never reads as no findings (#304):
+ * findings out (`hidden`), how many, so that no line shown never reads as no findings (ThomasBirkmaier/ReqSeq-archive#304):
  * `No problems at or above error; 3 warnings and 1 info not shown.`, or after shown problems
  * `3 warnings and 1 info below error not shown.`.
  */
@@ -166,7 +166,7 @@ export function* yamlOutput(output: unknown): Generator<string, void, undefined>
 export const renderYaml = (output: unknown): string => [...yamlOutput(output)].join("");
 
 /**
- * The message of an `input.invalid` with each field named as it is typed on this command line (#309):
+ * The message of an `input.invalid` with each field named as it is typed on this command line (ThomasBirkmaier/ReqSeq-archive#309):
  * `<path>` for an argument, `--package` for a flag. Core names fields by their input name and starts
  * each violation's message with it (`details.errors[].field`); only that name is respelled, the rest
  * of the text is core's (ADR-0002 rule 3). Fields only `--input` carries keep their input name.

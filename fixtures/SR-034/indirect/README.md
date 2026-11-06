@@ -22,9 +22,9 @@ Derivations (child → parent; `derives-from` unless named):
 | P3 `00b130` | N1 | – | indirect (C32 obsolete does not count; AK3) |
 | C31 `00b131` | P3 | passed, current version | verified |
 | C32 `00b132` status obsolete | P3 | – | open |
-| P5 `00b150` | N1 | passed, version `n1:0000000000000000` | outdated, nothing missing (own record decides, #526 Q1) |
+| P5 `00b150` | N1 | passed, version `n1:0000000000000000` | outdated, nothing missing (own record decides, ThomasBirkmaier/ReqSeq-archive#526 Q1) |
 | C51 `00b151` | P5 | passed, current version | verified |
-| P6 `00b160` | N1 | – | open, nothing missing (no counted child, #526 Q2, Q3) |
+| P6 `00b160` | N1 | – | open, nothing missing (no counted child, ThomasBirkmaier/ReqSeq-archive#526 Q2, Q3) |
 | C61 `00b161` status obsolete | P6 | – | open |
 | U1 `00e161` use case | P6 (`refines`) | – | – (no requirement; does not count for P6) |
 

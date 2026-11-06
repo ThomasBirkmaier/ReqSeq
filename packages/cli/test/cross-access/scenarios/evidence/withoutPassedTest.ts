@@ -22,7 +22,7 @@ scenariosOf("evidence.withoutPassedTest", [
     expect: "output",
   },
   {
-    name: "a workspace with an evidence location (#535)",
+    name: "a workspace with an evidence location (ThomasBirkmaier/ReqSeq-archive#535)",
     fixture: EVIDENCE,
     input: {},
     expect: "output",

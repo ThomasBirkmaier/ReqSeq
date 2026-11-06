@@ -353,7 +353,7 @@ describe("reqseq <group> <action>", () => {
     });
   });
 
-  it("passes its access to core, which records no command-line call (SR-117, #481)", async () => {
+  it("passes its access to core, which records no command-line call (SR-117, ThomasBirkmaier/ReqSeq-archive#481)", async () => {
     const spy = vi.spyOn(runtime, "invoke");
     try {
       await run(["test", "echo", ref, "n", "--json"]);
@@ -503,7 +503,7 @@ describe("reqseq <group> <action>", () => {
     expect((await run(["test", "findings", "--help"])).stdout).not.toContain("--jsonl");
   });
 
-  it("takes a positional field as a flag too, and fills the other positional fields with the arguments (#310)", async () => {
+  it("takes a positional field as a flag too, and fills the other positional fields with the arguments (ThomasBirkmaier/ReqSeq-archive#310)", async () => {
     const help = await run(["test", "echo", "--help"]);
     expect(help.stdout).toMatch(/--name <value>\s+instead of the argument <name>/);
     const flagged = await run(["test", "echo", ref, "--name", "from flag", "--json"]);
@@ -551,7 +551,7 @@ describe("reqseq <group> <action>", () => {
     });
   });
 
-  it("names each field of an invalid input as it is typed: <argument>, --flag, or its input name (#309)", async () => {
+  it("names each field of an invalid input as it is typed: <argument>, --flag, or its input name (ThomasBirkmaier/ReqSeq-archive#309)", async () => {
     const human = await run(["test", "echo", " SR-036", "--count", "-1", "--level", "mid"]);
     expect(human.code).toBe(EXIT.usage);
     expect(human.stderr).toBe(

@@ -536,7 +536,7 @@ describe("every catalog command on every access", { timeout: TEST_TIMEOUT }, () 
     });
     const client = new Client({ name: "cross-access", version: "1" });
     await client.connect(new LineTransport(toClient, { write: (t) => toServer.write(t) }));
-    // MCP lists only the implemented commands (#303): an agent puts the whole list into its context. A call to
+    // MCP lists only the implemented commands (ThomasBirkmaier/ReqSeq-archive#303): an agent puts the whole list into its context. A call to
     // one that is not listed still gives command.not-implemented, as every access (the scenarios above).
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name)).toEqual(names.filter((n) => runtime.commands.has(n)).map(toolName));

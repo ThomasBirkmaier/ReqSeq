@@ -91,7 +91,7 @@ scenariosOf("element.create", [
     },
   },
   {
-    name: "choice values by display name, in any case, written as keys (#309)",
+    name: "choice values by display name, in any case, written as keys (ThomasBirkmaier/ReqSeq-archive#309)",
     input: {
       type: "system-requirement",
       title: "Show gusts",
@@ -101,7 +101,7 @@ scenariosOf("element.create", [
     newElement: true,
   },
   {
-    name: "a choice value that is no choice is refused (#309, spec question #316)",
+    name: "a choice value that is no choice is refused (ThomasBirkmaier/ReqSeq-archive#309, spec question ThomasBirkmaier/ReqSeq-archive#316)",
     input: {
       type: "system-requirement",
       title: "Show gusts",
@@ -129,7 +129,7 @@ scenariosOf("element.create", [
     },
   },
   {
-    name: "malformed input: readable messages, no regular expression (#309)",
+    name: "malformed input: readable messages, no regular expression (ThomasBirkmaier/ReqSeq-archive#309)",
     input: { type: "System Requirement", title: 3 },
     expect: "error",
   },

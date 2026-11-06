@@ -1,7 +1,7 @@
 // `reqseq hint list` and the hints of `reqseq element get` end to end (SR-026, ADR-0009): the built
 // binary with the product commands on fixtures/SR-026/hints, its exit code, its JSON and its
 // readable output. The list in the app (AK1) and the hint at the element in the app (AK3) come with
-// the app in stage 3 (#127 option 1); core and this test cover the function now.
+// the app in stage 3 (ThomasBirkmaier/ReqSeq-archive#127 option 1); core and this test cover the function now.
 // fixtures/SR-045/core-changed gives the hint on a changed core requirement (SR-045 AK1); its
 // place on the pages of the app comes with the app package of stage 5.
 // Run after `pnpm build` with `pnpm test:e2e`.
@@ -73,7 +73,7 @@ describe("reqseq hint list (SR-026)", () => {
     const human = await reqseq(["hint", "list"], ws.root);
     expect([human.code, human.stderr]).toEqual([0, ""]);
     // One line per hint: element → target (#172, #252), kind, reason, and the hint ID of a hint that can be
-    // confirmed (#310).
+    // confirmed (ThomasBirkmaier/ReqSeq-archive#310).
     const lines = human.stdout.split("\n");
     expect(lines[0]).toBe("hints:");
     expect(lines).toContain(
