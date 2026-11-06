@@ -27,12 +27,12 @@ import type { Workspace } from "../../runtime/workspace.js";
 type Field = NonNullable<ElementListInput["fields"]>[number];
 
 /** The fields every element of `partial` has; `problems` too, which says why a field is missing. */
-const ALWAYS: readonly (keyof DataExportElementPart)[] = ["id", "shortId", "repository", "problems"];
+const ALWAYS: readonly string[] = ["id", "shortId", "repository", "problems"];
 
-/** `element` with only the fields of `fields` and those always given, each where it has a value. */
+/** `element` with only the fields of `fields`, each where it has a value. */
 const partOf = (element: DataExportElement, fields: ReadonlySet<string>): DataExportElementPart =>
   Object.fromEntries(
-    Object.entries(element).filter(([key]) => fields.has(key) || (ALWAYS as readonly string[]).includes(key)),
+    Object.entries(element).filter(([key]) => fields.has(key)),
   ) as unknown as DataExportElementPart;
 
 /** How the page is listed, and the field of the output that holds it. */
@@ -55,7 +55,10 @@ const pageOf = (
       withText: asked.has("text"),
       withRelations: asked.has("relations"),
     },
-    page: (elements) => ({ partial: elements.map((element) => partOf(element, asked)) }),
+    page: (elements) => {
+      const shown = new Set<string>([...asked, ...ALWAYS]);
+      return { partial: elements.map((element) => partOf(element, shown)) };
+    },
   };
 };
 

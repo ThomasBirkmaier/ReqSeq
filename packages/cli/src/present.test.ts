@@ -376,7 +376,9 @@ describe("renderHuman: values", () => {
       lines("partial: none", "total: 0"),
     );
     // Without a title a row is no element line: the list stays YAML.
-    expect(renderHuman({ partial: [part("b1")], total: 1 })).toContain("shortId: SR-b1");
+    const yaml = renderHuman({ partial: [part("b1")], total: 2 });
+    expect(yaml).toContain("shortId: SR-b1");
+    expect(yaml).toContain("Showing 1 of 2; ask for more with --offset and --limit.");
   });
 
   it("[SR-149/AK1] shows each group of a grouped tree as its own tree, with texts", () => {

@@ -1461,7 +1461,10 @@ const pageNote = (output: Rec): string[] => {
       entry[0] !== "names" &&
       Array.isArray(entry[1]) &&
       entry[1].length > 0 &&
-      (entry[1].every(isElement) || entry[1].every(isProblem)),
+      // The rows of `partial` (element.list `fields`, #982) also without a title.
+      (entry[1].every(isElement) ||
+        entry[1].every(isProblem) ||
+        (entry[0] === "partial" && entry[1].every(isRecord))),
   )?.[1];
   return typeof total === "number" && page !== undefined && page.length < total
     ? [`Showing ${String(page.length)} of ${String(total)}; ask for more with --offset and --limit.`]

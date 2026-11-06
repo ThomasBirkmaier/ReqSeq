@@ -76,15 +76,11 @@ const open = async (options: FixtureOptions = FILTER): Promise<Workspace> => {
   return workspace;
 };
 
-const list = async (workspace: Workspace, input: Record<string, unknown>): Promise<Output> =>
-  (await invoke("element.list", input, { workspace })) as Output;
+/** The output of element.list; with `fields` (#982) read as `Narrowed`. */
+const list = async <T = Output>(workspace: Workspace, input: Record<string, unknown>): Promise<T> =>
+  (await invoke("element.list", input, { workspace })) as T;
 
-/** The output with `fields` (#982). */
-const narrow = async (
-  workspace: Workspace,
-  input: Record<string, unknown>,
-): Promise<CommandOutput<"element.list">> =>
-  (await invoke("element.list", input, { workspace })) as CommandOutput<"element.list">;
+type Narrowed = CommandOutput<"element.list">;
 
 const ids = (output: Output): string[] => output.elements.map((e) => e.id);
 
@@ -449,7 +445,7 @@ describe("element.list (SR-069)", () => {
   it("gives with fields only the fields asked for, in partial, and id, shortId and repository always (#982)", async () => {
     const ws = await open();
     const all = await list(ws, {});
-    const partial = await narrow(ws, { fields: ["title", "status"] });
+    const partial = await list<Narrowed>(ws, { fields: ["title", "status"] });
     expect(partial.elements).toBeUndefined();
     expect(partial.total).toBe(all.total);
     expect(partial.partial).toEqual(
@@ -464,7 +460,7 @@ describe("element.list (SR-069)", () => {
     // Relations only when asked for, then as without fields; a field without a value stays left out.
     const b1 = { selection: { ids: [B1, B3] } };
     const [full1, full3] = (await list(ws, b1)).elements;
-    const narrowed = await narrow(ws, { ...b1, fields: ["relations", "emergent"] });
+    const narrowed = await list<Narrowed>(ws, { ...b1, fields: ["relations", "emergent"] });
     expect(narrowed.partial).toEqual([
       { id: B1, shortId: full1?.shortId, repository: "system", relations: full1?.relations },
       { id: B3, shortId: full3?.shortId, repository: "system", relations: full3?.relations, emergent: true },
@@ -479,14 +475,14 @@ describe("element.list (SR-069)", () => {
     onTestFinished(() => ws.close());
     const needs = { selection: { where: { type: ["need"] } } };
     const texts = async (input: Record<string, unknown>): Promise<unknown[]> =>
-      ((await narrow(ws, { ...needs, ...input })).partial ?? []).map((e) => e.text);
+      ((await list<Narrowed>(ws, { ...needs, ...input })).partial ?? []).map((e) => e.text);
     const expected = ["N1: parent of SR-0000b1 and SR-0000b2.\n", "N2: parent of SR-0000b5.\n"];
     expect(await texts({ fields: ["text"], withText: false })).toEqual(expected);
     expect(await texts({ fields: ["title"], withText: true })).toEqual(expected);
     expect(await texts({ fields: ["title"] })).toEqual([undefined, undefined]);
     // N2 is gone since the store read it: no version, and the problem that says why, asked for or not.
     await fs.rm(fixture.path("needs/N-0000000000a2.md"));
-    const [, gone] = (await narrow(ws, { ...needs, fields: ["version"] })).partial ?? [];
+    const [, gone] = (await list<Narrowed>(ws, { ...needs, fields: ["version"] })).partial ?? [];
     expect(gone?.version).toBeUndefined();
     expect(gone?.problems?.map((p) => p.code)).toEqual(["file.faulty"]);
   });
@@ -498,7 +494,7 @@ describe("element.list (SR-069)", () => {
       { sort: [{ by: "hierarchy", order: "asc" }] },
     ]) {
       const { elements, ...rest } = await list(ws, input);
-      const narrowed = await narrow(ws, { ...input, fields: ["type"] });
+      const narrowed = await list<Narrowed>(ws, { ...input, fields: ["type"] });
       const { partial, ...others } = narrowed;
       expect(others).toEqual(rest);
       expect(partial).toEqual(
