@@ -111,6 +111,7 @@ scenariosOf("reqif.import", [
       };
       const id = (identifier: string): string | undefined =>
         out.created.find((c) => c.identifier === identifier)?.id;
+      expect(out.created.map((c) => c.identifier)).toEqual(["REQ-1", "REQ-2"]);
       expect(out.losses).toEqual([
         {
           identifier: "REQ-1",
