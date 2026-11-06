@@ -83,7 +83,7 @@ describe("reqseq evidence record (SR-030)", () => {
   it("[SR-030/AK3] reqseq element get shows a recorded validation in the validation status only", async () => {
     const ws = await open();
     expect(await firstLine(ws, "SR-00c001")).toBe(
-      "SR-00c001  approved  Show wind speed  [verification: core verified]",
+      "SR-00c001  approved  Show wind speed  [verification: core verified 1 of 1 criteria]",
     );
     expect(await firstLine(ws, "N-00a001")).toBe("N-00a001  approved  Know the wind  [validation: open]");
     for (const ref of ["SR-00c001", "N-00a001"]) {
@@ -91,7 +91,7 @@ describe("reqseq evidence record (SR-030)", () => {
       expect([result.code, result.stderr]).toEqual([0, ""]);
     }
     expect(await firstLine(ws, "SR-00c001")).toBe(
-      "SR-00c001  approved  Show wind speed  [verification: core verified]  [validation: failed]",
+      "SR-00c001  approved  Show wind speed  [verification: core verified 1 of 1 criteria]  [validation: failed]",
     );
     expect(await firstLine(ws, "N-00a001")).toBe("N-00a001  approved  Know the wind  [validation: failed]");
   });
