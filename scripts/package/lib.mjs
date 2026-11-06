@@ -199,3 +199,33 @@ export function releaseNotes(subjects, { previous, compareUrl }) {
   }
   return lines.join("\n");
 }
+
+/**
+ * The build info of a delivery (`tool info`, SR-161) from `git log -1 --format=%H%n%cI`: the commit and its
+ * date, the build date, so a rebuild of the same commit gives the same file. Throws without a commit: a
+ * delivery must not pass for a build from a checkout.
+ */
+export function buildInfoOf(gitLog) {
+  const [commit = "", date = ""] = gitLog.trim().split(/\r?\n/);
+  if (!/^[0-9a-f]{40}$/.test(commit) || Number.isNaN(Date.parse(date))) {
+    throw new Error(`no commit to build from: ${JSON.stringify(gitLog)}`);
+  }
+  return { commit, date: new Date(date).toISOString() };
+}
+
+/**
+ * Writes the build info into the core of a staged folder (`node_modules/@reqseq/core/dist/build-info.json`,
+ * which core reads next to its code). The folder must be the staged one, not a link into packages/, so the
+ * checkout's build stays without build info; an existing file is replaced, not written through.
+ */
+export async function writeBuildInfo(staged, info) {
+  const dist = path.join(staged, "node_modules", "@reqseq", "core", "dist");
+  const [real, inside] = await Promise.all([fs.realpath(dist), fs.realpath(staged)]);
+  if (!real.startsWith(`${inside}${path.sep}`)) {
+    throw new Error(`${dist} lies outside ${staged}: ${real}`);
+  }
+  const file = path.join(real, "build-info.json");
+  await fs.rm(file, { force: true });
+  await fs.writeFile(file, `${JSON.stringify(info, null, 2)}\n`);
+  return file;
+}

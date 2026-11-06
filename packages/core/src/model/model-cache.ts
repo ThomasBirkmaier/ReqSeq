@@ -108,7 +108,7 @@ const BUILD_INFO = ".tsbuildinfo";
 /** Files that make up the code: scripts and the JSON they embed (contracts, standard model). */
 const CODE_FILE = /\.(?:[cm]?js|ts|json)$/;
 /** Never part of it: tests, type declarations, installed packages and the fingerprint itself. */
-const NOT_CODE = /\.test\.|\.d\.ts$|(?:^|\/)node_modules\/|^code-fingerprint\.json$/;
+const NOT_CODE = /\.test\.|\.d\.ts$|(?:^|\/)node_modules\/|^code-fingerprint\.json$|^build-info\.json$/;
 
 const sha256Of = (bytes: Uint8Array | string): string => createHash("sha256").update(bytes).digest("hex");
 

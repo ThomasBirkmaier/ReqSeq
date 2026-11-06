@@ -12,8 +12,8 @@ import type { ResultBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
 import { rowTarget } from "./keys.js";
 import type { BufferData } from "./modeline.js";
-import { chainLines } from "./chain-lines.js";
-import { resultLines, resultSummary } from "./result.js";
+import { resultSummary } from "./result.js";
+import { linesOf } from "./result-copy.js";
 import type { WindowAction } from "./window-layout.js";
 
 export interface ResultViewProps {
@@ -36,7 +36,7 @@ export const ResultView = ({
   const scope = useIdScope();
   // The chain shows its evidence under the elements (SR-033); every other output is laid out by shape.
   const lines = useMemo(
-    () => (buffer.command === "trace.chain" ? chainLines : resultLines)(buffer.output),
+    () => linesOf({ command: buffer.command, output: buffer.output }),
     [buffer.command, buffer.output],
   );
   const cursor = Math.min(buffer.cursor, Math.max(0, lines.length - 1));

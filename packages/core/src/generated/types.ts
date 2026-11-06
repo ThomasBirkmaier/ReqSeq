@@ -1655,6 +1655,68 @@ export interface WorkspaceRecentOutput {
 }
 
 /**
+ * Input of `tool.info` as `run` gets it: validated, properties with a `default` filled in. Version of the app, the command line and the MCP server, the build (commit, build date, platform, architecture), the versions of Electron, Node and Chromium, the open workspace (path, name, repositories, number of elements), the licence notice of ReqSeq and of its third-party components, and where the documentation and the releases are. Reads only and opens no network connection.
+ * Schema: `schemas/commands/tool.info.json input`.
+ */
+export type ToolInfoInput = Readonly<Record<string, never>>;
+
+/**
+ * Output of `tool.info`. Version of the app, the command line and the MCP server, the build (commit, build date, platform, architecture), the versions of Electron, Node and Chromium, the open workspace (path, name, repositories, number of elements), the licence notice of ReqSeq and of its third-party components, and where the documentation and the releases are. Reads only and opens no network connection.
+ * Schema: `schemas/commands/tool.info.json output`.
+ */
+export interface ToolInfoOutput {
+  /** The versions of the app, the command line and the MCP server. One delivery ships all three with the version of the delivery. */
+  readonly versions: {
+    readonly app: string;
+    readonly cli: string;
+    readonly mcp: string;
+  };
+  readonly build: {
+    /** The commit the delivery was built from. Left out in a build from a checkout. */
+    readonly commit?: Commit;
+    /** The build date: the date of that commit. Left out in a build from a checkout. */
+    readonly date?: IsoDateTime;
+    /** Built from a checkout, not delivered: commit and date are unknown. Left out in a delivery. */
+    readonly development?: true;
+    /** The operating system as Node names it (`darwin`, `linux`, `win32`). */
+    readonly platform: string;
+    /** The processor architecture as Node names it (`arm64`, `x64`). */
+    readonly arch: string;
+  };
+  /** The runtime of the process. The delivered command line, API and MCP server run on the Electron of the app, so a delivery gives the same values in every access. */
+  readonly runtime: {
+    /** Left out when ReqSeq does not run on Electron (a command line on its own Node). */
+    readonly electron?: string;
+    readonly node: string;
+    /** The Chromium of the Electron ReqSeq runs on. Left out without Electron. */
+    readonly chromium?: string;
+  };
+  readonly workspace: {
+    /** The absolute path of the workspace root, the folder with reqseq-workspace.yaml. */
+    readonly path: string;
+    readonly name: string;
+    /** The workspace names of its repositories, in the order of the workspace file. */
+    readonly repositories: readonly string[];
+    /** The number of elements in the available repositories, in no view. */
+    readonly elements: number;
+  };
+  readonly license: {
+    /** The licence notice of ReqSeq, one item per line. */
+    readonly notice: readonly string[];
+    /** The file of the delivery that lists the third-party components with their licences, relative to its resources folder. Left out in a build from a checkout. */
+    readonly thirdParty?: string;
+  };
+  readonly documentation: {
+    /** The folder of the delivery with its documentation, relative to its resources folder. Left out in a build from a checkout. */
+    readonly bundled?: string;
+    /** The address of the online documentation, as text only: ReqSeq never opens it. */
+    readonly online: string;
+    /** The address of the releases, as text only: ReqSeq never opens it. */
+    readonly releases: string;
+  };
+}
+
+/**
  * Input of `metamodel.get` as `run` gets it: validated, properties with a `default` filled in. The effective metamodel: types with inherited properties and statuses, properties with whether they count to the version, relation kinds, statuses, meanings, the files read.
  * Schema: `schemas/commands/metamodel.get.json input`.
  */
@@ -3297,6 +3359,7 @@ export interface CommandTypes {
   readonly "workspace.check": { readonly input: WorkspaceCheckInput; readonly output: WorkspaceCheckOutput };
   readonly "workspace.activity": { readonly input: WorkspaceActivityInput; readonly output: WorkspaceActivityOutput };
   readonly "workspace.recent": { readonly input: WorkspaceRecentInput; readonly output: WorkspaceRecentOutput };
+  readonly "tool.info": { readonly input: ToolInfoInput; readonly output: ToolInfoOutput };
   readonly "metamodel.get": { readonly input: MetamodelGetInput; readonly output: MetamodelGetOutput };
   readonly "element.create": { readonly input: ElementCreateInput; readonly output: ElementCreateOutput };
   readonly "element.get": { readonly input: ElementGetInput; readonly output: ElementGetOutput };

@@ -16,6 +16,7 @@ import type {
   GraphBuffer,
   ListBuffer,
   MetamodelBuffer,
+  ResultBuffer,
 } from "./buffers.js";
 import {
   DEFAULT_SORT,
@@ -35,6 +36,7 @@ import type { Answer, Call } from "./call.js";
 import { bindingLabel } from "./bindings.js";
 import type { ReferenceRequest } from "./editor/slash-menu.js";
 import { idTitle } from "./id-title.js";
+import { linesOf, resultText } from "./result-copy.js";
 import type { Shortcut } from "./keys.js";
 import { shortcutLabel } from "./keys.js";
 import type { GraphChoice, GraphFilterChoice } from "./graph-choices.js";
@@ -206,6 +208,8 @@ export interface ActionContext {
   readonly dispatch: (action: BufferAction) => void;
   readonly ask: (prompt: Prompt) => void;
   readonly echo: (message: string) => void;
+  /** Puts `text` on the clipboard, and the modeline confirms it with `label` (SR-128 AK2). */
+  readonly copy?: (label: string, text: string) => void;
   /**
    * The elements shown last in this workspace, newest first, as buffers (`recent.ts`, SR-118; their names
    * as the overview read them or as they were shown), read when "Go to" opens: it offers those that are
@@ -348,6 +352,11 @@ const hasOthers = (context: ActionContext): boolean => context.buffers.length > 
 const hasBuffers = (context: ActionContext): boolean =>
   context.buffers.length > 0 && !onlyOverview(context.buffers);
 const isOverview = (context: ActionContext): boolean => context.buffers[0]?.kind === "overview";
+/** The shown result buffer with an output (none while it failed). */
+const shownResult = (context: ActionContext): ResultBuffer | undefined => {
+  const shown = context.buffers[0];
+  return shown?.kind === "result" && shown.output !== undefined ? shown : undefined;
+};
 const hasElementText = (context: ActionContext): boolean =>
   isElement(context) && context.element !== undefined;
 /** An action on the shown list; without one it does nothing. */
@@ -1086,6 +1095,18 @@ export const ACTIONS: readonly Action[] = [
     available: hasElementText,
     run: (context: ActionContext): void => {
       context.element?.copy();
+    },
+  },
+  {
+    // SR-161 AK3: the whole output of the shown result buffer as one block, whichever command gave it.
+    id: "copy-result",
+    title: "Copy result",
+    available: (context: ActionContext): boolean => shownResult(context) !== undefined,
+    run: (context: ActionContext): void => {
+      const result = shownResult(context);
+      if (result !== undefined) {
+        context.copy?.("result", resultText(linesOf(result)));
+      }
     },
   },
   {

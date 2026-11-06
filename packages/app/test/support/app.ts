@@ -96,12 +96,13 @@ export interface RunningApp {
   /** Runs the CLI with `--json` on the workspace, with the app's cache folder. */
   cli(
     argv: readonly string[],
+    runtime?: Runtime,
   ): Promise<{ readonly code: number; readonly stdout: string; readonly stderr: string }>;
   /**
    * Starts `reqseq mcp` on the workspace with the app's cache folder, as an agent starts it, and connects
    * to it as an MCP client (initialize first). The server ends with the app or with `close()`.
    */
-  mcp(): Promise<McpSession>;
+  mcp(runtime?: Runtime): Promise<McpSession>;
   /**
    * Ends the app as a user does: it closes the window, which saves its input first (SR-105 AK1), and
    * waits at most `CLOSE_WAIT_MS` for the app to end. A window that is still open then is destroyed, and
@@ -116,6 +117,23 @@ export interface RunningApp {
   readonly kept: Kept;
 }
 
+/**
+ * What a spawned CLI or MCP server runs on: plain Node (default), or with `electron` the Electron binary of
+ * this package with `ELECTRON_RUN_AS_NODE`, as the launcher of a delivery runs them (ADR-0014).
+ */
+export interface Runtime {
+  readonly electron?: boolean;
+}
+
+/** The program and the environment a CLI or MCP server is spawned with. */
+const runner = (
+  runtime: Runtime,
+  env: NodeJS.ProcessEnv,
+): { readonly program: string; readonly env: NodeJS.ProcessEnv } =>
+  runtime.electron === true
+    ? { program: ELECTRON, env: { ...env, ELECTRON_RUN_AS_NODE: "1" } }
+    : { program: process.execPath, env };
+
 /** An MCP client on a `reqseq mcp` process: newline-delimited JSON-RPC on its standard input and output. */
 export interface McpSession {
   /** Calls a tool; resolves to its `structuredContent`, rejects with the text of an error result. */
@@ -128,8 +146,13 @@ export interface McpSession {
 }
 
 /** Starts `reqseq mcp` with `args` and `env`, and initializes an MCP session on it. */
-const startMcp = async (args: readonly string[], env: NodeJS.ProcessEnv): Promise<McpSession> => {
-  const child = spawn(process.execPath, ["--import", BLOCK_NETWORK, CLI, "mcp", ...args], {
+const startMcp = async (
+  args: readonly string[],
+  environment: NodeJS.ProcessEnv,
+  runtime: Runtime = {},
+): Promise<McpSession> => {
+  const { program, env } = runner(runtime, environment);
+  const child = spawn(program, ["--import", BLOCK_NETWORK, CLI, "mcp", ...args], {
     env,
     stdio: ["pipe", "pipe", "pipe"],
   });
@@ -391,7 +414,7 @@ export const launchApp = async (
     window,
     workspace,
     stderr: () => stderr,
-    cli: async (argv) => {
+    cli: async (argv, runtime = {}) => {
       const args = [
         CLI,
         ...argv,
@@ -399,15 +422,20 @@ export const launchApp = async (
         ...(workspace === undefined ? [] : ["--workspace", workspace.root]),
       ];
       try {
-        const { stdout, stderr: err } = await execFileAsync(process.execPath, args, { env });
+        const spawned = runner(runtime, env);
+        const { stdout, stderr: err } = await execFileAsync(spawned.program, args, { env: spawned.env });
         return { code: 0, stdout, stderr: err };
       } catch (error) {
         const failed = error as { code: number; stdout: string; stderr: string };
         return { code: failed.code, stdout: failed.stdout, stderr: failed.stderr };
       }
     },
-    mcp: async () => {
-      const session = await startMcp(workspace === undefined ? [] : ["--workspace", workspace.root], env);
+    mcp: async (runtime) => {
+      const session = await startMcp(
+        workspace === undefined ? [] : ["--workspace", workspace.root],
+        env,
+        runtime,
+      );
       sessions.push(session);
       return session;
     },
