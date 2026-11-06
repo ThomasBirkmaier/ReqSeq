@@ -3323,7 +3323,7 @@
   "catalog": {
     "$schema": "./catalog.meta.schema.json",
     "reqseq-catalog": 1,
-    "description": "The command catalog: one file per command, schemas/commands/<name>.json, in the order of schemas/commands/catalog.header.json. Every function of ReqSeq is one command here. CLI, API, MCP server and app are generated from these files; schemas/generated/ is derived and checked in CI. A change to a command file is a contract change, announced in the stage epic.",
+    "description": "The command catalog: one file per command, schemas/commands/<name>.json, in the order of schemas/commands/catalog.header.json. Every function of ReqSeq is one command here. CLI, API, MCP server and app are generated from these files; schemas/generated/ is derived and checked in CI. A change to a command file is a contract change, announced in the milestone epic.",
     "commands": [
       {
         "name": "workspace.init",
