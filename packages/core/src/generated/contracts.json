@@ -701,6 +701,7 @@
             "evidence.folder-missing",
             "evidence.ambiguous-element",
             "evidence.kind-mismatch",
+            "evidence.unknown-criterion",
             "baseline.invalid",
             "baseline.repository-commit-differs",
             "filter.invalid",
@@ -1364,6 +1365,16 @@
               "type": "string",
               "description": "The `classname` of a JUnit test case; with `testCase` it names the test case. Left out for a Markdown record."
             },
+            "criteria": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "minItems": 1,
+              "uniqueItems": true,
+              "description": "The acceptance criteria the record holds for, by number counted from 1, ascending and each once: `criteria` of a Markdown record, the `reqseq:criterion` properties of a JUnit test case for this element. Left out: every criterion. Never on a validation record."
+            },
             "baselines": {
               "type": "array",
               "items": {
@@ -1392,6 +1403,20 @@
                       "const": "inconclusive"
                     }
                   }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "kind": {
+                    "const": "validation"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "criteria": false
                 }
               }
             },
@@ -1740,6 +1765,16 @@
         "test-case": {
           "type": "string",
           "description": "Optional test case name or ID."
+        },
+        "criteria": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "The acceptance criteria the record holds for, by number: the position in the property with the meaning `acceptance-criteria` of the element's `version`, counted from 1. Absent: every criterion. Verification only: a reader warns about it on a validation record, which counts per element, and reads the record without it. A number that the named version does not have is a finding of `workspace check` (`evidence.unknown-criterion`)."
         }
       },
       "allOf": [
@@ -1781,7 +1816,8 @@
           },
           "then": {
             "properties": {
-              "variant": false
+              "variant": false,
+              "criteria": false
             }
           }
         },
@@ -2435,7 +2471,7 @@
           "unevaluatedProperties": false
         },
         "propertyMeaning": {
-          "description": "Built-in meaning: `title`; `validity` (list of variants); `packages`; `emergent` (emergent behaviour; a choice without `many` whose key `yes` is the mark; otherwise a warning and nothing is marked); `verification-method`; `statement` (the statement for ReqIF); `source`, `source-identifier`, `import-date`, `delivery`, `import-version` (origin of imported elements, written only by ReqIF import; `import-version` is the import version, the version of what the import wrote, right after the last import, kind `text` without `many` and never `content`); `identifier` (an ID from another source, such as the spec ID SR-036 or a customer ID; unique per type; element references accept it besides the UUID and short ID, and outputs show it next to the short ID). A property with the meaning `identifier` is of kind `text` without `many`.",
+          "description": "Built-in meaning: `title`; `validity` (list of variants); `packages`; `emergent` (emergent behaviour; a choice without `many` whose key `yes` is the mark; otherwise a warning and nothing is marked); `verification-method`; `statement` (the statement for ReqIF); `source`, `source-identifier`, `import-date`, `delivery`, `import-version` (origin of imported elements, written only by ReqIF import; `import-version` is the import version, the version of what the import wrote, right after the last import, kind `text` without `many` and never `content`); `identifier` (an ID from another source, such as the spec ID SR-036 or a customer ID; unique per type; element references accept it besides the UUID and short ID, and outputs show it next to the short ID). A property with the meaning `identifier` is of kind `text` without `many`. `acceptance-criteria` (the acceptance criteria of a requirement, counted from 1 in their order, which evidence records name by number; kind `text` with `many`, otherwise a warning and no criterion is read).",
           "enum": [
             "title",
             "validity",
@@ -2448,7 +2484,8 @@
             "import-date",
             "delivery",
             "import-version",
-            "identifier"
+            "identifier",
+            "acceptance-criteria"
           ]
         },
         "relationKind": {

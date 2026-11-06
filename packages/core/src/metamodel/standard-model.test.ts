@@ -211,6 +211,7 @@ describe("standard model", () => {
       // Not a meaning of D-012 (#305): the spec defines no property for IDs from other sources yet,
       // so the standard model has none; a workspace adds one with `meaning: identifier`.
       identifier: [],
+      "acceptance-criteria": ["acceptance-criteria"],
       derivation: ["refines", "derives-from"],
       replacement: ["replaces"],
       succession: ["supersedes"],

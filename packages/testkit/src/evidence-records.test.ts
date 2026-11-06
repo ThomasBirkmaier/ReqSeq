@@ -216,9 +216,10 @@ describe("withEvidenceRecords", () => {
       folders.set(folder, (folders.get(folder) ?? 0) + 1);
     }
     expect(Math.max(...folders.values())).toBeLessThanOrEqual(1000);
-    // Pinned: a change of the generator shifts every perf baseline, so it shows here.
+    // Pinned: a change of the generator shifts every perf baseline, so it shows here (the standard
+    // model it copies got the meaning acceptance-criteria in #960).
     expect(evidence.workspace.digest).toBe(
-      "9f19639bf824fb97d0a0b4336d1ce71f73e804022d2c07c28ff6531e3b6fc5d1",
+      "37f76a08c17f66e2bc771b6e9bdfd75f0fec4e4da8daae1f46b6f38e2440ddc5",
     );
   });
 

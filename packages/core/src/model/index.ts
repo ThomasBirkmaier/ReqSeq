@@ -23,6 +23,7 @@ export {
 export type { IdentifierContext } from "./identifiers.js";
 export { identifierKeyOf } from "./identifier-index.js";
 export { emergentKeyOf, isEmergent } from "./emergent.js";
+export { acceptanceCriteriaKeyOf, criteriaCount } from "./acceptance-criteria.js";
 export { compileGlob, ignoreMatcher } from "./ignore.js";
 export { findingLine, locateFindings } from "./locate.js";
 export type { LocatableFinding, LocateOptions } from "./locate.js";

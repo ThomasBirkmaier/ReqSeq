@@ -72,6 +72,17 @@ export interface VersionStart {
   readonly commit: string;
 }
 
+/** A version start with the values the element had there: its frontmatter at that commit. */
+interface Started extends VersionStart {
+  readonly values: Readonly<Record<string, unknown>>;
+}
+
+/** What a walked file had at one commit: the version in both normal forms and the element's values. */
+interface AtCommit {
+  readonly forms: VersionForms;
+  readonly values: Readonly<Record<string, unknown>>;
+}
+
 /** The workspace states a lookup works on. */
 export interface VersionDateContext {
   readonly workspace: Workspace;
@@ -112,9 +123,9 @@ interface FileWalk {
    * The version at each evaluated commit computed so far, in both normal forms; undefined where it
    * held no element or has none.
    */
-  readonly versions: Map<string, VersionForms | undefined>;
+  readonly versions: Map<string, AtCommit | undefined>;
   /** The answers so far, by version; null where no commit started it. */
-  readonly dates: Map<string, VersionStart | null>;
+  readonly dates: Map<string, Started | null>;
   /** Set when Git failed for a reason that does not pass: no more answers at this HEAD. */
   failed: boolean;
 }
@@ -415,10 +426,13 @@ const readHistory = async (
   }
 };
 
-/** Whether `walk` had `version` at `commit`, compared in the form of `version` (ADR-0005 "Normal form 2"). */
-const hasVersion = (walk: FileWalk, commit: string, version: string): boolean => {
-  const forms = walk.versions.get(commit);
-  return forms !== undefined && sameVersion(version, forms);
+/**
+ * What `walk` had at `commit` when that is `version`, compared in the form of `version` (ADR-0005
+ * "Normal form 2"); undefined otherwise.
+ */
+const withVersion = (walk: FileWalk, commit: string, version: string): AtCommit | undefined => {
+  const at = walk.versions.get(commit);
+  return at !== undefined && sameVersion(version, at.forms) ? at : undefined;
 };
 
 /**
@@ -430,7 +444,7 @@ const decide = (
   walk: FileWalk,
   version: string,
   chunk: number,
-): { readonly start: VersionStart | null } | { readonly need: readonly string[] } => {
+): { readonly start: Started | null } | { readonly need: readonly string[] } => {
   const need: string[] = [];
   for (const { commit, parents } of walk.evaluated) {
     if (need.length >= chunk) {
@@ -440,14 +454,18 @@ const decide = (
       need.push(commit.commit);
       continue;
     }
-    if (!hasVersion(walk, commit.commit, version)) {
+    const at = withVersion(walk, commit.commit, version);
+    if (at === undefined) {
       continue;
     }
     const unknown = parents.filter((p): p is HistoryCommit => p !== null && !walk.versions.has(p.commit));
     need.push(...unknown.map((p) => p.commit));
     // A start only counts when no newer commit is still open.
-    if (need.length === 0 && !parents.some((p) => p !== null && hasVersion(walk, p.commit, version))) {
-      return { start: { date: commit.date, commit: commit.commit } };
+    if (
+      need.length === 0 &&
+      !parents.some((p) => p !== null && withVersion(walk, p.commit, version) !== undefined)
+    ) {
+      return { start: { date: commit.date, commit: commit.commit, values: at.values } };
     }
   }
   return need.length === 0 ? { start: null } : { need };
@@ -683,7 +701,7 @@ const versionAt = (
   images: ReadonlyMap<string, ImageAt>,
   walk: FileWalk,
   commit: string,
-): VersionForms | undefined => {
+): AtCommit | undefined => {
   const { facts } = round.walks;
   const found = heldAt(facts, walk, commit);
   if (found === undefined) {
@@ -712,7 +730,8 @@ const versionAt = (
       facts.versions.set(key, undefined);
     }
   }
-  return facts.versions.get(key);
+  const forms = facts.versions.get(key);
+  return forms === undefined ? undefined : { forms, values: held.record.data };
 };
 
 /**
@@ -986,7 +1005,7 @@ const repositoryDates = async (
   cache: VersionDateCache,
   name: string,
   requests: readonly VersionDateRequest[],
-): Promise<Map<VersionDateRequest, VersionStart | null>> => {
+): Promise<Map<VersionDateRequest, Started | null>> => {
   const found = await repositoryWalks(context, cache, name);
   if (found === undefined) {
     return new Map();
@@ -1032,6 +1051,22 @@ const repositoryDates = async (
   }
 };
 
+/** `versionStarts` with the values at each start. */
+const startsWithValues = async (
+  context: VersionDateContext,
+  requests: readonly VersionDateRequest[],
+): Promise<(Started | null)[]> => {
+  const cache = context.workspace.get(versionDateState);
+  const dates = new Map(
+    await Promise.all(
+      [...byRepository(requests)].map(
+        async ([name, list]) => [name, await repositoryDates(context, cache, name, list)] as const,
+      ),
+    ),
+  );
+  return requests.map((r) => dates.get(r.repository)?.get(r) ?? null);
+};
+
 /**
  * The start of each requested version (ADR-0005 "Version date"), in the order of `requests`: the
  * committer date in UTC (`YYYY-MM-DDTHH:MM:SSZ`) and the object name of the newest commit (of one
@@ -1047,17 +1082,21 @@ const repositoryDates = async (
 export const versionStarts = async (
   context: VersionDateContext,
   requests: readonly VersionDateRequest[],
-): Promise<(VersionStart | null)[]> => {
-  const cache = context.workspace.get(versionDateState);
-  const dates = new Map(
-    await Promise.all(
-      [...byRepository(requests)].map(
-        async ([name, list]) => [name, await repositoryDates(context, cache, name, list)] as const,
-      ),
-    ),
+): Promise<(VersionStart | null)[]> =>
+  (await startsWithValues(context, requests)).map((start) =>
+    start === null ? null : { date: start.date, commit: start.commit },
   );
-  return requests.map((r) => dates.get(r.repository)?.get(r) ?? null);
-};
+
+/**
+ * The values of the element at the start of each requested version (`versionStarts`), in the order
+ * of `requests`: the frontmatter of the text that commit held, such as the acceptance criteria of
+ * an older version (SR-028 AK5); `null` where `versionStarts` gives `null`.
+ */
+export const versionValues = async (
+  context: VersionDateContext,
+  requests: readonly VersionDateRequest[],
+): Promise<(Readonly<Record<string, unknown>> | null)[]> =>
+  (await startsWithValues(context, requests)).map((start) => start?.values ?? null);
 
 /** The date of each requested version: the date of its start (`versionStarts`), or `null`. */
 export const versionDates = async (

@@ -56,7 +56,7 @@ prints one line per element:
 There are two ways. Use either; they give the same result.
 
 - **In the test name**, in square brackets: `[SR-b2c0de]`, or with the number of an acceptance criterion `[SR-b2c0de/AK2]`. Several brackets name several requirements.
-- **As a property** of the test case named `reqseq:element`, with the ID as its value.
+- **As a property** of the test case named `reqseq:element`, with the ID as its value. A property `reqseq:criterion` with the value `<element UUID>:<number>` names one acceptance criterion of it after enrich; without one the test counts for all criteria.
 
 A test that names no requirement is passed over. You do not have to name a requirement in every test.
 

@@ -64,6 +64,7 @@ export const MEANINGS: { readonly [M in Meaning]: MeaningList<M> } = {
   delivery: "properties",
   "import-version": "properties",
   identifier: "properties",
+  "acceptance-criteria": "properties",
   derivation: "relations",
   replacement: "relations",
   succession: "relations",
@@ -216,6 +217,21 @@ export const emergentProblem = (
 };
 
 /**
+ * Why a property with the meaning `acceptance-criteria` cannot hold the criteria, and the key whose
+ * line names it; undefined when it can (D-072: a record names a criterion by its number, counted from
+ * 1 in the order of the list). Without it no element has acceptance criteria
+ * (`model/acceptance-criteria.ts`).
+ */
+export const acceptanceCriteriaProblem = (
+  property: MetamodelProperty,
+): { readonly reason: string; readonly at: string } | undefined => {
+  if (property.kind !== "text") {
+    return { reason: `kind ${property.kind}`, at: "kind" };
+  }
+  return property.many === true ? undefined : { reason: "a single value", at: "many" };
+};
+
+/**
  * The problems of a property whose meaning needs another value kind, each with the file and the line
  * of its `kind` (or `many`, `choices`):
  * - errors for the meaning `identifier` (#305): it names an element by one text, so its property is
@@ -223,7 +239,10 @@ export const emergentProblem = (
  * - warnings for the meaning `emergent` (SR-035, assumption of spec question #591 Q1): the mark is the
  *   choice key `yes` of a property of kind `choice` without `many`. Otherwise no element is marked
  *   emergent; as D-012 wants for metamodel transitions („Das Tool zeigt sie als Hinweis an, blockiert
- *   aber nichts.“), the metamodel stays valid and the workspace writable.
+ *   aber nichts.“), the metamodel stays valid and the workspace writable;
+ * - warnings for the meaning `acceptance-criteria` (D-072, #960): the criteria are a property of kind
+ *   `text` with `many`. Otherwise no element has criteria, and every number a record names is
+ *   unknown (`evidence.unknown-criterion`); the metamodel stays valid, as for `emergent`.
  */
 export const meaningKindProblems = (properties: readonly Located<MetamodelProperty>[]): Problem[] =>
   properties.flatMap(({ definition, file, lineOf }): Problem[] => {
@@ -246,6 +265,17 @@ export const meaningKindProblems = (properties: readonly Located<MetamodelProper
           lineOf([kind === "text" ? "many" : "kind"]),
           `Property ${key} has the meaning identifier, which needs kind text without many (one text per element), not ${kind === "text" ? "a list" : `kind ${kind}`}`,
           "error",
+        ),
+      ];
+    }
+    const criteria = meaning === "acceptance-criteria" ? acceptanceCriteriaProblem(definition) : undefined;
+    if (criteria !== undefined) {
+      return [
+        problemAt(
+          file,
+          lineOf([criteria.at]),
+          `Property ${key} has the meaning acceptance-criteria, which needs kind text with many (one text per criterion), not ${criteria.reason}; no acceptance criterion is read`,
+          "warning",
         ),
       ];
     }

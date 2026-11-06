@@ -19,18 +19,43 @@
 //   longer passes silently. Validation records are not checked: one of any element type counts for
 //   its validation status (#534 assumption, `hasValidationStatus`). Left out while the metamodel is
 //   not valid, since the types then have no meanings.
+// - `evidence.unknown-criterion` (warning, SR-028 AK5: „Gegeben ein Datensatz nennt eine Nummer, die
+//   es in der genannten Fassung des Requirements nicht als Akzeptanzkriterium gibt, wenn er gelesen
+//   wird, dann meldet die Prüfung des Arbeitsbereichs einen Befund.“) for a record whose `criteria`
+//   name a number larger than the count of acceptance criteria (the property with the meaning
+//   `acceptance-criteria`, `model/acceptance-criteria.ts`) of the version it names. One per record,
+//   naming every such number, at the line of the first of them (the `criteria` key, the
+//   `reqseq:criterion` property), with the UUID as `targetId`. Only for an element with one copy
+//   (SR-088) and a known current version, while the metamodel is valid. A warning, as
+//   `evidence.unknown-element`: the record stays readable, only that number counts for nothing
+//   (plan of #960, assumption). A type without that property has no criteria, so every number is
+//   unknown. For the current version the count is that of the element file (`evidenceProblemsState`);
+//   for an older one it is that of the commit that started that version, through the walk of the
+//   version dates (`model/version-date.ts`), asked per call by `workspace.check`
+//   (`olderCriterionProblems`, since Git changes without a file change); without Git, or when Git
+//   does not have the version, the record is not checked.
 // - The records are those of `evidenceRecordsState` (records injected there are matched too), in
-//   their order. Only the kind check needs the metamodel; the other findings show while it is not
-//   valid.
+//   their order. Only the kind and criterion checks need the metamodel; the other findings show while
+//   it is not valid.
 import type { Problem } from "../catalog.js";
+import { zip } from "../files/index.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { metamodelState, typesWithMeaning } from "../metamodel/index.js";
-import type { ElementRecord } from "../model/index.js";
-import { elementStoreState } from "../model/index.js";
+import type { CurrentVersions, ElementRecord, VersionForms } from "../model/index.js";
+import {
+  acceptanceCriteriaKeyOf,
+  criteriaCount,
+  currentFormsOf,
+  currentVersionsState,
+  elementStoreState,
+} from "../model/index.js";
+import { versionValues } from "../model/version-date.js";
+import type { Workspace } from "../runtime/workspace.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import type { RepositoryLocation } from "../workspace/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import type { EvidenceRecord } from "./record.js";
+import { criterionLineOf } from "./record.js";
 import { evidenceReadState, evidenceRecordsState } from "./state.js";
 
 /** The store as far as the matching needs it: the copies of each UUID. */
@@ -132,6 +157,121 @@ export const recordKindProblems = (
   return problems;
 };
 
+/** A record with criteria and the one copy of its element. */
+export interface CriteriaTarget {
+  readonly record: EvidenceRecord;
+  /** The `criteria` of the record. */
+  readonly criteria: readonly number[];
+  readonly element: ElementRecord;
+}
+
+/**
+ * The records with `criteria` whose element has one copy in `store` and a known current version,
+ * split by whether they name that version (in either normal form, ADR-0005) or an older one; in the
+ * order of the records. None while the metamodel is not valid.
+ */
+export const criteriaTargets = (
+  records: readonly EvidenceRecord[],
+  store: { readonly byId: ReadonlyMap<string, readonly ElementRecord[]> },
+  currentOf: (element: ElementRecord) => VersionForms | undefined,
+): { readonly current: CriteriaTarget[]; readonly older: CriteriaTarget[] } => {
+  const current: CriteriaTarget[] = [];
+  const older: CriteriaTarget[] = [];
+  for (const record of records) {
+    const { criteria } = record;
+    const [element, ...others] = criteria === undefined ? [] : (store.byId.get(record.element) ?? []);
+    const forms = element === undefined || others.length > 0 ? undefined : currentOf(element);
+    if (criteria === undefined || element === undefined || forms === undefined) {
+      continue;
+    }
+    const isCurrent = record.version === forms.n1 || record.version === forms.n2;
+    (isCurrent ? current : older).push({ record, criteria, element });
+  }
+  return { current, older };
+};
+
+/**
+ * `evidence.unknown-criterion` of `target` when its record names a number larger than `count`, the
+ * acceptance criteria of the version it names (see the file comment); undefined otherwise.
+ */
+export const unknownCriterionProblem = (
+  { record, criteria, element }: CriteriaTarget,
+  count: number,
+): Problem | undefined => {
+  const unknown = criteria.filter((n) => n > count);
+  const [first] = unknown;
+  if (first === undefined) {
+    return undefined;
+  }
+  const line = criterionLineOf(record, first);
+  const numbers = unknown.length === 1 ? `criterion ${String(first)}` : `criteria ${unknown.join(", ")}`;
+  return {
+    code: "evidence.unknown-criterion",
+    severity: "warning",
+    message: `The ${record.kind} record names acceptance ${numbers} of element ${record.element}, whose version ${record.version} has ${String(count)}; ${unknown.length === 1 ? "it counts" : "they count"} for no criterion`,
+    ...recordPlace(record),
+    ...(line === undefined ? {} : { line }),
+    targetId: record.element,
+    targetRepository: element.repository,
+  };
+};
+
+/** `evidence.unknown-criterion` of each target with the count of criteria of its record's version. */
+const criterionProblems = (counted: readonly (readonly [CriteriaTarget, number])[]): Problem[] =>
+  counted.flatMap(([target, count]) => {
+    const problem = unknownCriterionProblem(target, count);
+    return problem === undefined ? [] : [problem];
+  });
+
+/** The records with criteria of the workspace and the key of the criteria; undefined when there is nothing to check. */
+const criteriaOfWorkspace = async (
+  workspace: Workspace,
+  metamodel: Metamodel,
+  records: readonly EvidenceRecord[],
+): Promise<
+  { readonly targets: ReturnType<typeof criteriaTargets>; readonly key: string | undefined } | undefined
+> => {
+  // Nothing to compare: the versions are not built for it.
+  if (!metamodel.valid || !records.some((r) => r.criteria !== undefined)) {
+    return undefined;
+  }
+  const store = await workspace.get(elementStoreState);
+  const versions: CurrentVersions = await workspace.get(currentVersionsState);
+  return {
+    targets: criteriaTargets(records, store, (element) => currentFormsOf(versions, element)),
+    key: acceptanceCriteriaKeyOf(metamodel),
+  };
+};
+
+/**
+ * `evidence.unknown-criterion` of the records of an older version than their element's current one
+ * (see the file comment), counted at the commit that started that version; for `workspace.check`,
+ * per call. Nothing where Git cannot tell.
+ */
+export const olderCriterionProblems = async (workspace: Workspace): Promise<Problem[]> => {
+  const metamodel = await workspace.get(metamodelState);
+  const found = await criteriaOfWorkspace(workspace, metamodel, await workspace.get(evidenceRecordsState));
+  const older = found?.targets.older ?? [];
+  if (found === undefined || older.length === 0) {
+    return [];
+  }
+  const layout = await workspace.get(workspaceLayoutState);
+  const values = await versionValues(
+    { workspace, layout, metamodel },
+    older.map(({ record, element }) => ({
+      repository: element.repository,
+      file: element.file,
+      id: element.id,
+      version: record.version,
+    })),
+  );
+  return criterionProblems(
+    zip(older, values).flatMap(([target, at]): [CriteriaTarget, number][] =>
+      at === null ? [] : [[target, criteriaCount(at, found.key)]],
+    ),
+  );
+};
+
 /** The findings of the evidence records for `workspace.check` (see the file comment). */
 export const evidenceProblemsState = defineWorkspaceState(
   "evidence-problems",
@@ -142,10 +282,16 @@ export const evidenceProblemsState = defineWorkspaceState(
     const read = await workspace.get(evidenceReadState);
     const records = await workspace.get(evidenceRecordsState);
     const known = new Set(store.problems.map(placeOf));
+    const criteria = await criteriaOfWorkspace(workspace, metamodel, records);
     return [
       ...read.problems.filter((p) => !known.has(placeOf(p))),
       ...recordElementProblems(records, store, layout),
       ...recordKindProblems(records, store, metamodel),
+      ...(criteria === undefined
+        ? []
+        : criterionProblems(
+            criteria.targets.current.map((t) => [t, criteriaCount(t.element.data, criteria.key)] as const),
+          )),
     ];
   },
   {
@@ -155,6 +301,7 @@ export const evidenceProblemsState = defineWorkspaceState(
       metamodelState,
       evidenceReadState,
       evidenceRecordsState,
+      currentVersionsState,
     ],
   },
 );

@@ -34,7 +34,9 @@
 //   on the versions of now; their state keeps findings, and their problems get the dates of both
 //   versions per call (`datedProblems`), since a new commit changes them without a file change.
 //   Outdated evidence (SR-025 AK4) has its records from stage 4 on (#127 option 1); the problems of
-//   reading them and the records of unknown elements are `evidenceProblemsState` (SR-028 AK3).
+//   reading them and the records of unknown elements are `evidenceProblemsState` (SR-028 AK3). The
+//   criteria a record names that its older version does not have are asked of Git per call, after
+//   the states (`olderCriterionProblems`, SR-028 AK5); those of the current version are in the state.
 // - The core requirements changed or new since a variant's newest baseline (SR-103), after the
 //   states and before the outdated relations, are computed on every call (`sinceBaselineProblems`).
 // - A repository that is also a workspace of its own with another metamodel (#666,
@@ -47,7 +49,7 @@
 //   every access (SR-080 AK2).
 import type { CommandOutput, Problem } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
-import { evidenceProblemsState } from "../../evidence/index.js";
+import { evidenceProblemsState, olderCriterionProblems } from "../../evidence/index.js";
 import { metamodelState, repositoryMetamodelProblems } from "../../metamodel/index.js";
 import {
   changedFiles,
@@ -178,8 +180,12 @@ export default defineCommand({
         }
       }
     }
-    const sinceBaseline = await sinceBaselineOf(ctx.workspace, { layout, metamodel, store });
-    for (const problem of sinceBaseline.filter(keeps)) {
+    // Asked on every call: the criteria of records of an older version (SR-028 AK5, of Git) and SR-103.
+    const perCall = [
+      ...(await olderCriterionProblems(ctx.workspace)),
+      ...(await sinceBaselineOf(ctx.workspace, { layout, metamodel, store })),
+    ];
+    for (const problem of perCall.filter(keeps)) {
       findings.push(problem);
     }
     const lowest = RANK[input.severity];

@@ -6,8 +6,10 @@ import { parseDocument } from "yaml";
 import type { FixtureWorkspace } from "@reqseq/testkit";
 import type { MockInstance } from "vitest";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
+import type { CommandOutput } from "../catalog.js";
 import { outdatedEvidenceProblemsState } from "../hints/index.js";
 import { currentVersionOf, currentVersionsState, keyLinesOf } from "../model/index.js";
+import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
 import { evidenceIndexState } from "./by-element.js";
 import type { EvidenceFile } from "./folders.js";
@@ -470,5 +472,58 @@ describe("SR-028 reading Markdown records", () => {
     expect(read(record("test-case: !odd TC-1")).problems).toMatchObject([
       { code: "file.yaml-warning", severity: "warning", repository: "results", file: "evidence/r.md" },
     ]);
+  });
+
+  it("[SR-028/AK4] reads the criteria a record names, ascending, and evidence.list returns them", async () => {
+    const out = read(record("criteria: [3, 1]"));
+    expect(out.problems).toBeUndefined();
+    expect(out.records).toEqual([
+      expect.objectContaining({ element: A, criteria: [1, 3], source: "markdown", line: 1 }),
+    ]);
+    // Absent: every criterion, so no field.
+    expect(read(record()).records[0]).not.toHaveProperty("criteria");
+    const { workspace } = await open({
+      "ci-results/evidence/2026-10-20-SR-000001-test.md": record("criteria: [1]"),
+    });
+    const listed = (await invoke(
+      "evidence.list",
+      { ref: A },
+      { workspace },
+    )) as CommandOutput<"evidence.list">;
+    expect(listed.records.map((r) => r.criteria)).toEqual([[1]]);
+  });
+
+  it("refuses criteria that are no whole numbers from 1, each once, at the line of criteria", () => {
+    for (const criteria of ["[0]", "[]", "[1, 1]", "[1.5]", '["2"]', "2"]) {
+      const out = read(record(`criteria: ${criteria}`));
+      expect(out.records, criteria).toEqual([]);
+      expect(
+        out.problems?.map((p) => [p.code, p.severity, p.line]),
+        criteria,
+      ).toEqual([["evidence.invalid-record", "error", 10]]);
+    }
+  });
+
+  it("warns about criteria on a validation record, whatever their value, and reads it without them", () => {
+    const validation = record()
+      .replace("kind: verification", "kind: validation")
+      .replace("method: analysis\n", "")
+      .replace("item: model v3\n", "");
+    for (const criteria of ["[2]", "[0, 0]"]) {
+      const out = read(validation.replace("---\n\nText", `criteria: ${criteria}\n---\n\nText`));
+      expect(out.records, criteria).toHaveLength(1);
+      expect(out.records[0], criteria).not.toHaveProperty("criteria");
+      expect(out.problems, criteria).toEqual([
+        {
+          code: "evidence.invalid-record",
+          severity: "warning",
+          repository: "results",
+          file: "evidence/r.md",
+          line: 8,
+          message:
+            "The evidence record has criteria, but a validation record holds for the whole element, it names no acceptance criterion (SR-030 AK3); the record is read without it",
+        },
+      ]);
+    }
   });
 });

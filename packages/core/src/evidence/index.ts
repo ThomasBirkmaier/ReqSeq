@@ -22,7 +22,7 @@ export type { EvidenceExtension, EvidenceFile, EvidenceFiles } from "./folders.j
 export { JUNIT_READER, readJunitRecords } from "./junit.js";
 export type { JunitLocation } from "./junit.js";
 export { MARKDOWN_READER, RECORD_KEY, readMarkdownRecord } from "./markdown.js";
-export { evidenceProblemsState, recordElementProblems } from "./match.js";
+export { evidenceProblemsState, olderCriterionProblems, recordElementProblems } from "./match.js";
 export type { ElementCopies, RepositoriesAvailable } from "./match.js";
 export { testCaseKey, testCaseKeyOf } from "./record.js";
 export type { EvidenceRecord, SkippedTestCase, TestCase, TestCaseName } from "./record.js";

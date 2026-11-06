@@ -361,6 +361,7 @@ export type ProblemCode =
   | "evidence.folder-missing"
   | "evidence.ambiguous-element"
   | "evidence.kind-mismatch"
+  | "evidence.unknown-criterion"
   | "baseline.invalid"
   | "baseline.repository-commit-differs"
   | "filter.invalid"
@@ -755,6 +756,8 @@ export interface DataExportEvidenceRecord {
   readonly line?: number;
   /** The `classname` of a JUnit test case; with `testCase` it names the test case (ADR-0012). Left out for a Markdown record. */
   readonly className?: string;
+  /** The acceptance criteria the record holds for, by number counted from 1, ascending and each once (D-072, SR-028 AK4, SR-093 AK4): `criteria` of a Markdown record, the `reqseq:criterion` properties of a JUnit test case for this element. Left out: every criterion. Never on a validation record. */
+  readonly criteria?: readonly number[];
   /** The `name` of every baseline file (`baseline.schema.json`, in the `baselines` folder of the workspace file) that lists the element of the record with its version (SR-032 AK2), in file order, each name once. Only `evidence.list` fills it. */
   readonly baselines?: readonly string[];
 }
@@ -874,6 +877,8 @@ export interface EvidenceRecordFile {
   readonly evidence?: string;
   /** Optional test case name or ID (D-026, SR-033). */
   readonly "test-case"?: string;
+  /** The acceptance criteria the record holds for, by number: the position in the property with the meaning `acceptance-criteria` of the element's `version`, counted from 1 (D-072, SR-028 AK4). Absent: every criterion. Verification only: a reader warns about it on a validation record, which counts per element (SR-030 AK3), and reads the record without it. A number that the named version does not have is a finding of `workspace check` (`evidence.unknown-criterion`, SR-028 AK5). */
+  readonly criteria?: readonly number[];
 }
 
 /**
@@ -1131,7 +1136,7 @@ export interface MetamodelProperty {
 }
 
 /**
- * Built-in meaning (D-012, D-059): `title`; `validity` (list of variants, D-020); `packages` (D-040); `emergent` (emergent behaviour, N-010; a choice without `many` whose key `yes` is the mark, SR-035; otherwise a warning and nothing is marked); `verification-method`; `statement` (the statement for ReqIF, SR-058); `source`, `source-identifier`, `import-date`, `delivery`, `import-version` (origin of imported elements, written only by ReqIF import, SR-057; `import-version` is the import version, D-059: the version of what the import wrote, right after the last import, kind `text` without `many` and never `content`); `identifier` (an ID from another source, such as the spec ID SR-036 or a customer ID, D-017; unique per type; element references accept it besides the UUID and short ID, and outputs show it next to the short ID, #305). A property with the meaning `identifier` is of kind `text` without `many`.
+ * Built-in meaning (D-012, D-059): `title`; `validity` (list of variants, D-020); `packages` (D-040); `emergent` (emergent behaviour, N-010; a choice without `many` whose key `yes` is the mark, SR-035; otherwise a warning and nothing is marked); `verification-method`; `statement` (the statement for ReqIF, SR-058); `source`, `source-identifier`, `import-date`, `delivery`, `import-version` (origin of imported elements, written only by ReqIF import, SR-057; `import-version` is the import version, D-059: the version of what the import wrote, right after the last import, kind `text` without `many` and never `content`); `identifier` (an ID from another source, such as the spec ID SR-036 or a customer ID, D-017; unique per type; element references accept it besides the UUID and short ID, and outputs show it next to the short ID, #305). A property with the meaning `identifier` is of kind `text` without `many`. `acceptance-criteria` (the acceptance criteria of a requirement, counted from 1 in their order, which evidence records name by number, D-072, SR-028 AK4; kind `text` with `many`, otherwise a warning and no criterion is read).
  * Schema: `schemas/metamodel.schema.json#/$defs/propertyMeaning`.
  */
 export type MetamodelPropertyMeaning =
@@ -1146,7 +1151,8 @@ export type MetamodelPropertyMeaning =
   | "import-date"
   | "delivery"
   | "import-version"
-  | "identifier";
+  | "identifier"
+  | "acceptance-criteria";
 
 /**
  * Relation kind. Stored under its key in the source file. `source-types`/`target-types` restrict where it may be set (SR-012 AK4, SR-067).
