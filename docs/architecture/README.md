@@ -1,6 +1,6 @@
 # ReqSeq architecture (arc42, short)
 
-Status: written before the first implementation stage; §5 updated to the code on 2026-10-28 (#635). The specification is the ReqSeq workspace in `spec/` (German, maintained with ReqSeq since #326); decisions `D-xxx` say **what**, the ADRs in `docs/adr/` say **how**. This document connects them. It uses only the arc42 chapters ReqSeq needs.
+Status: written before the first implementation stage; §5 updated to the code on 2026-10-28 (ThomasBirkmaier/ReqSeq-archive#635). The specification is the ReqSeq workspace in `spec/` (German, maintained with ReqSeq since ThomasBirkmaier/ReqSeq-archive#326); decisions `D-xxx` say **what**, the ADRs in `docs/adr/` say **how**. This document connects them. It uses only the arc42 chapters ReqSeq needs.
 
 ## 1. Goals
 
@@ -81,7 +81,7 @@ The workspace packages and their dependencies, generated from `packages/*/packag
 
 ![Workspace packages and their dependencies](packages.svg)
 
-The diagram and the table below follow the imports of the product code in `packages/core/src` (relative imports across block folders, test files and test helpers `*.test-helper.ts` left out) as of 2026-10-28 (#635). A block is a folder of `packages/core/src`; `runtime` is split into its entry modules and its state modules because they sit at opposite ends of the graph.
+The diagram and the table below follow the imports of the product code in `packages/core/src` (relative imports across block folders, test files and test helpers `*.test-helper.ts` left out) as of 2026-10-28 (ThomasBirkmaier/ReqSeq-archive#635). A block is a folder of `packages/core/src`; `runtime` is split into its entry modules and its state modules because they sit at opposite ends of the graph.
 
 ```mermaid
 flowchart TB
@@ -154,7 +154,7 @@ An arrow means that at least one module of the source imports a value (a functio
 
 Every block may also import the root modules `catalog.ts`, `product.ts` and `build-info.ts` (the build of a delivery, SR-161) and the generated types and data in `generated/`; `catalog.ts` imports only the type `Workspace` of `runtime/workspace.ts`.
 
-With `runtime` split, the imports have no cycle and form these layers, from the bottom: `files`, `version`, `git` and runtime state; `workspace`; `metamodel`; `model`; `trace`, `variants`, `baselines`; `evidence`; `hints`, `query`; `data`, `reqif`; `commands`; runtime entry. Every import points to a lower layer. The test `packages/core/src/block-layers.test.ts` holds these layers and the table below and fails on any relative import of the product code that goes to the same or a higher layer or that the table does not list, naming the file, the import and the rule (#635); a new block, runtime module or allowed import is added to this section and to that test.
+With `runtime` split, the imports have no cycle and form these layers, from the bottom: `files`, `version`, `git` and runtime state; `workspace`; `metamodel`; `model`; `trace`, `variants`, `baselines`; `evidence`; `hints`, `query`; `data`, `reqif`; `commands`; runtime entry. Every import points to a lower layer. The test `packages/core/src/block-layers.test.ts` holds these layers and the table below and fails on any relative import of the product code that goes to the same or a higher layer or that the table does not list, naming the file, the import and the rule (ThomasBirkmaier/ReqSeq-archive#635); a new block, runtime module or allowed import is added to this section and to that test.
 
 | Block | Responsibility | Stage |
 |---|---|---|
@@ -204,7 +204,7 @@ sequenceDiagram
 
 1. The app calls `element.update` with a new text. `core` checks the file on disk is unchanged since read, rewrites only the changed frontmatter lines and the text (ADR-0007), writes atomically and recomputes the version.
 2. The version changed, so every relation pointing at the element is now outdated. `core` returns `affected` (direct count, SR-024 AK2); the hints index gets one `relation.outdated` hint per relation.
-3. Later someone reviews a child and calls `hint.confirm`. `core` writes the new `version` into that relation line of the child's file, and the target's current title within the same repository (D-042, SR-027, decision on #307); any write of a file also refreshes the stored titles of its same-repository targets. The person commits both files with their Git tool; the merge request shows exactly these lines.
+3. Later someone reviews a child and calls `hint.confirm`. `core` writes the new `version` into that relation line of the child's file, and the target's current title within the same repository (D-042, SR-027, decision on ThomasBirkmaier/ReqSeq-archive#307); any write of a file also refreshes the stored titles of its same-repository targets. The person commits both files with their Git tool; the merge request shows exactly these lines.
 
 ### 6.3 Check in a merge request and record test evidence
 
@@ -260,7 +260,7 @@ See [docs/adr](../adr/README.md).
 | Electron performance with large lists | Virtualised lists in the app; perf tests from stage 3. |
 | Version date needs Git history; shallow clones | Date shown as unknown; documented. |
 | CI runners differ from the reference machine | Times are recorded as analysis, nightly and on PRs labelled `perf`; tagged AK tests assert their threshold, and the record names the runner's cores and memory (ADR-0011). |
-| The spec lies in a subfolder of the code repository | ReqSeq sees no Git there: no version dates and no `workspace check --changed-since` on `spec/` (#377). |
+| The spec lies in a subfolder of the code repository | ReqSeq sees no Git there: no version dates and no `workspace check --changed-since` on `spec/` (ThomasBirkmaier/ReqSeq-archive#377). |
 
 ## 11. Glossary
 
