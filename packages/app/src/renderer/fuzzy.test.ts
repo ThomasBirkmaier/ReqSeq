@@ -71,6 +71,26 @@ describe("rank", () => {
     ]);
   });
 
+  it("[SR-121/AK1] ranks the initials that skip no word before the ones that skip words (#246)", () => {
+    const shown = ["Show traceability matrix", "Show metamodel", "Show element ID and version"];
+    expect(matching(shown, "sm")).toEqual(["Show metamodel", "Show traceability matrix"]);
+    expect(rank(shown, (name) => name, "sm")[0]?.ranges).toEqual([
+      [0, 1],
+      [5, 6],
+    ]);
+    // A piece of more than one letter still counts as the beginning of one word.
+    expect(matching(shown, "shtm")).toEqual(["Show traceability matrix"]);
+    expect(matching(["Show traceability matrix", "Show matrix"], "shm")).toEqual([
+      "Show matrix",
+      "Show traceability matrix",
+    ]);
+    // The ones that skip no word keep the given order among themselves.
+    expect(matching(["Show metamodel editor", "Show metamodel"], "sm")).toEqual([
+      "Show metamodel editor",
+      "Show metamodel",
+    ]);
+  });
+
   it("[SR-108/AK1] finds the command among the first three for its initials or with a typo", () => {
     // The names are the ones of the command prompt, with "Create relation" of the catalog commands.
     const first = (query: string): string[] => names(query).slice(0, 3);
