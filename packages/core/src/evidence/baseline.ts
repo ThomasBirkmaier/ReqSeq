@@ -155,6 +155,14 @@ export const baselineStatusOf = (
   // Per criterion as far as the records name them: a criterion whose newest record failed fails it.
   const named = Math.max(0, ...counted.flatMap((r) => r.criteria ?? []));
   const whole = verificationStatusOf(counted, version, view, independent, named);
+  // Outdated only when every record is of another version (SR-094 AK3, #985): a criterion of an
+  // older version next to one of this version leaves it open, as the count is unknown.
+  if (
+    whole === "outdated" &&
+    counted.some((r) => r.kind === "verification" && sameVersion(r.version, version))
+  ) {
+    return { status: "open" };
+  }
   if (whole !== "verified") {
     return { status: whole };
   }
