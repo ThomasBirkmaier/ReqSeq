@@ -452,6 +452,11 @@ describe("reqseq <group> <action>", () => {
     expect(stripVTControlCharacters(styled.stdout)).toBe(
       "ok: true\nwarning  file.yaml-warning  Größe  a.md\n",
     );
+    // A terminal without colours (NO_COLOR, FORCE_COLOR=0): the layout without escape codes.
+    const colourless = await run(["test", "findings", "--mode", "warning"], {
+      terminal: { columns: 80, colors: false },
+    });
+    expect(colourless.stdout).toBe("ok: true\nwarning  file.yaml-warning  Größe  a.md\n");
     expect((await run(["test", "findings", "--mode", "warning", "--yaml"], { terminal })).stdout).toBe(
       "ok: true\nwarning  file.yaml-warning  Größe  a.md\n",
     );

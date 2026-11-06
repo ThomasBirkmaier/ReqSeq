@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_COLUMNS, PLAIN, cut, padTo, styleOf, terminalOf, widthOf } from "./style.js";
 
 describe("style of the output for people (#988)", () => {
-  it("styles for a terminal only, not for a pipe or with NO_COLOR", () => {
+  it("lays out for a terminal only, not for a pipe or a dumb terminal", () => {
     const hasColors = (): boolean => true;
     expect(terminalOf({ isTTY: true, columns: 120, hasColors }, {})).toEqual({ columns: 120, colors: true });
     expect(terminalOf({ isTTY: true }, {})).toEqual({ columns: DEFAULT_COLUMNS, colors: false });
@@ -13,7 +13,6 @@ describe("style of the output for people (#988)", () => {
       columns: 120,
       colors: true,
     });
-    expect(terminalOf({ isTTY: true, columns: 120, hasColors }, { NO_COLOR: "1" })).toBeUndefined();
     expect(terminalOf({ isTTY: true, columns: 120, hasColors }, { TERM: "dumb" })).toBeUndefined();
     expect(terminalOf({ isTTY: false, columns: 120, hasColors }, {})).toBeUndefined();
     expect(terminalOf({}, {})).toBeUndefined();
@@ -32,8 +31,8 @@ describe("style of the output for people (#988)", () => {
       colors: false,
     });
     expect(seen).toEqual([env]);
-    // The switch for NO_COLOR: the layout without colours.
-    expect(terminalOf({ isTTY: true, columns: 50, hasColors: () => true }, { NO_COLOR: "1" }, true)).toEqual({
+    // NO_COLOR keeps the layout and drops the colours (product owner decision, 2026-11-06).
+    expect(terminalOf({ isTTY: true, columns: 50, hasColors: () => true }, { NO_COLOR: "1" })).toEqual({
       columns: 50,
       colors: false,
     });

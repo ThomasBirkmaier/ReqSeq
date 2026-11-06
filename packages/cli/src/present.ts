@@ -52,9 +52,9 @@
 // - Every other value stays YAML. Problems come last, each once: those of the output and the hints
 //   at an element it shows; then `No problems.`, or how many findings the output left out (`hidden`).
 //
-// On a terminal (`renderHuman`'s `terminal`, from bin.ts; stdout a TTY, `NO_COLOR` not set, `TERM` not
-// `dumb`, #988) the shapes most commands share take a terminal layout, styled by `style.ts` when the
-// terminal has colours; everything above is the plain text that pipes, files and tests get, unchanged:
+// On a terminal (`renderHuman`'s `terminal`, from bin.ts; stdout a TTY, `TERM` not `dumb`, #988) the
+// shapes most commands share take a terminal layout, styled by `style.ts` when the terminal has colours
+// (not with `NO_COLOR`); everything above is the plain text that pipes, files and tests get, unchanged:
 // - an element line (one element, a plain, tree or grouped list): the identifier first, strong, the
 //   short ID faint after it (`SR-036 SR-3c90b0`), the status in a column as wide as the list needs,
 //   the title cut with `…` to the terminal width, the marks after it faint. The title stays whole when

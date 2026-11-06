@@ -25,7 +25,7 @@ const exitCode = await runCli({
   stdout: io.stdout,
   stderr: io.stderr,
   signal: io.signal,
-  // Styled only on a terminal without NO_COLOR (#988); asked once here, so the renderers stay pure.
+  // The terminal layout on a terminal, colours unless NO_COLOR (#988); asked once here, so the renderers stay pure.
   terminal: terminalOf(process.stdout, process.env),
 });
 process.exitCode = io.writeFailed ? EXIT.internal : exitCode;

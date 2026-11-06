@@ -1,12 +1,12 @@
 // The style of the output for people (#988): a terminal layout, with bold, dim and colour on Node's own
 // `util.styleText` (ADR-0015: no dependency for it). Two decisions, both in `terminalOf`: the layout
-// only when stdout is a terminal, `NO_COLOR` is not set and `TERM` is not `dumb`; the colours only when
-// the terminal also has them (Node's `hasColors`, which reads `FORCE_COLOR`, `NODE_DISABLE_COLORS`,
-// `NO_COLOR` and `TERM`). Otherwise the output is plain text exactly as before, in pipes, files and
-// tests. The entry point (bin.ts) asks the process once and passes the answer in, so the renderers
-// read no global state. Layout only (ADR-0002 rule 3): styles follow what the output itself says,
-// never a status name of a metamodel; the severities are the fixed ones of a finding
-// (`common.schema.json#/$defs/problem`).
+// only when stdout is a terminal and `TERM` is not `dumb`; the colours only when `NO_COLOR` is not set
+// and the terminal has them (Node's `hasColors`, which reads `FORCE_COLOR`, `NODE_DISABLE_COLORS` and
+// `TERM`). With `NO_COLOR` the layout stays and only the colours go (product owner decision,
+// 2026-11-06). Otherwise the output is plain text exactly as before, in pipes, files and tests. The
+// entry point (bin.ts) asks the process once and passes the answer in, so the renderers read no global
+// state. Layout only (ADR-0002 rule 3): styles follow what the output itself says, never a status name
+// of a metamodel; the severities are the fixed ones of a finding (`common.schema.json#/$defs/problem`).
 import { stripVTControlCharacters, styleText } from "node:util";
 
 /** The terminal stdout is, when the output takes the terminal layout: its width, and whether it has colours. */
@@ -26,24 +26,21 @@ export interface OutputTarget {
 }
 
 /**
- * The terminal to lay the output out for, undefined for plain text: stdout is a terminal, `TERM` is not
- * `dumb` and `NO_COLOR` is not set (an empty `NO_COLOR` counts as not set, as no-color.org says). It
- * has colours when stdout says so for `env`. `noColorKeepsLayout`: whether `NO_COLOR` keeps the layout
- * without colours; off, so `NO_COLOR` gives the plain text as #988 says, while the product owner decides.
+ * The terminal to lay the output out for, undefined for plain text: stdout is a terminal and `TERM` is
+ * not `dumb`. It has colours when `NO_COLOR` is not set (an empty `NO_COLOR` counts as not set, as
+ * no-color.org says) and stdout says so for `env`.
  */
 export const terminalOf = (
   stdout: OutputTarget,
   env: Readonly<Record<string, string | undefined>>,
-  noColorKeepsLayout = false,
 ): Terminal | undefined => {
-  const noColor = (env["NO_COLOR"] ?? "") !== "";
-  if (stdout.isTTY !== true || env["TERM"] === "dumb" || (noColor && !noColorKeepsLayout)) {
+  if (stdout.isTTY !== true || env["TERM"] === "dumb") {
     return undefined;
   }
   const columns = stdout.columns;
   return {
     columns: typeof columns === "number" && columns > 0 ? columns : DEFAULT_COLUMNS,
-    colors: !noColor && stdout.hasColors?.(env) === true,
+    colors: (env["NO_COLOR"] ?? "") === "" && stdout.hasColors?.(env) === true,
   };
 };
 
