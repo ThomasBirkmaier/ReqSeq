@@ -1,7 +1,7 @@
 import type { DataExportEvidenceRecord, ElementName } from "@reqseq/core";
 import { describe, expect, it } from "vitest";
 import { elementBufferOf } from "./buffers.js";
-import { INCOMPLETE_NOTE, belegOf, evidenceLines, evidenceNotes, evidenceRows } from "./evidence-lines.js";
+import { INCOMPLETE_NOTE, evidenceLines, evidenceNotes, evidenceRows } from "./evidence-lines.js";
 import type { LinePart } from "./variant-lines.js";
 
 const COAST: ElementName = { id: "uuid-v", repository: "system", shortId: "VAR-0000c1", title: "Coast" };
@@ -28,6 +28,7 @@ describe("the lines of an element's evidence records", () => {
             repository: "system",
             file: "evidence/ci/results.xml",
             line: 4,
+            evidenceLocation: "system/evidence/ci/results.xml:4",
             baselines: ["Release 1.0", "Beta"],
           }),
           record({
@@ -35,6 +36,7 @@ describe("the lines of an element's evidence records", () => {
             item: "Display sample B2",
             evidence: "//fileserver/qa/inspection.docx",
             file: "evidence/record.md",
+            evidenceLocation: "//fileserver/qa/inspection.docx",
             date: "2026-10-20T14:00:00Z",
             baselines: [],
           }),
@@ -86,13 +88,20 @@ describe("the lines of an element's evidence records", () => {
     expect(text(line ?? [])).toBe("2026-10-21T09:00:00Z · passed · uuid-x · version n1:1111111111111111");
   });
 
-  it("finds the Beleg in the evidence, else in the record file, else nowhere", () => {
-    expect(belegOf(record({ evidence: "https://ci/build/512" }))).toBe("https://ci/build/512");
-    expect(belegOf(record({ file: "evidence/a.md" }))).toBe("evidence/a.md");
-    expect(belegOf(record({ evidence: "", repository: "system", file: "evidence/a.md", line: 1 }))).toBe(
-      "system/evidence/a.md:1",
+  it("shows the Beleg as core gives it in `evidenceLocation`, and none without it (#821)", () => {
+    const lines = evidenceLines(
+      {
+        records: [
+          record({ evidence: "", file: "evidence/a.md", evidenceLocation: "evidence/a.md" }),
+          record({ file: "b.md" }),
+        ],
+      },
+      undefined,
     );
-    expect(belegOf(record({}))).toBeUndefined();
+    expect(lines.map(text)).toEqual([
+      "2026-10-21T09:00:00Z · passed · evidence/a.md · version n1:1111111111111111",
+      "2026-10-21T09:00:00Z · passed · version n1:1111111111111111",
+    ]);
   });
 
   it("notes each problem of the answer and an incomplete answer", () => {

@@ -34,6 +34,7 @@
 import type { BaselineGetOutput } from "../generated/types.js";
 import type { ElementRecord, VersionForms } from "../model/index.js";
 import { sameVersion, storedForms } from "../model/index.js";
+import { withEvidenceLocation } from "./location.js";
 import type { EvidenceRecord } from "./record.js";
 import type { OwnVerification } from "./status.js";
 import { ownVerificationOf, validationOf, verificationStatusOf } from "./status.js";
@@ -128,7 +129,7 @@ const verificationRows = (
         // Shared, not copied: the count without a record is one frozen object per count, and a
         // page holds up to hundreds of thousands of rows (N-036); outputs are never changed.
         ...(criteria === undefined ? {} : { criteria }),
-        ...(after === undefined ? {} : { later: [...after] }),
+        ...(after === undefined ? {} : { later: after.map(withEvidenceLocation) }),
       },
     ];
   });
@@ -265,6 +266,8 @@ export const baselineEvidence =
     return {
       ...(verification === undefined ? {} : { verification }),
       ...validationFields(validation ? validating : undefined, version),
-      ...(validation && validationLater.length > 0 ? { validationLater } : {}),
+      ...(validation && validationLater.length > 0
+        ? { validationLater: validationLater.map(withEvidenceLocation) }
+        : {}),
     };
   };

@@ -5,7 +5,7 @@
 // in core's order (newest first): "<date> · <result> · <item> · <Beleg>" (AK1); a record without a test
 // case is a line "record <date> · <method> · <result> · <item> · <Beleg>"; a record of a variant ends in
 // "variant <UUID>" (the output names no variants). The Beleg is text, never opened (offline): the record's
-// `evidence`, or else the place of its record file (`belegOf`). An evidence item names its element by UUID
+// `evidenceLocation` as core gives it (#821). An evidence item names its element by UUID
 // and repository and belongs to a child (core gives none for a parent): it goes under the last row of that
 // element among the nodes, since the parents come before the children (an element of a cycle is both); one
 // whose element has no row (cut by the line limit) is not shown. The root's `validationRecords` (#646) are lines
@@ -13,7 +13,7 @@
 // root is not on the page. Layout only: core gives the test cases, their executions and
 // the records (ADR-0002).
 import type { DataExportEvidenceRecord, DataExportTestCase } from "@reqseq/core";
-import { belegOf, wholeReasonOf } from "./evidence-lines.js";
+import { wholeReasonOf } from "./evidence-lines.js";
 import type { ResultLine } from "./result.js";
 import { resultLines } from "./result.js";
 import { reasonLine } from "./variant-lines.js";
@@ -75,7 +75,7 @@ const evidenceLines = (evidence: ChainEvidence, depth: number): ResultLine[] => 
           execution.date,
           resultOf(execution),
           execution.item,
-          belegOf(execution),
+          execution.evidenceLocation,
           variantOf(execution),
         ]),
         wholeReasonOf(execution),
@@ -86,7 +86,14 @@ const evidenceLines = (evidence: ChainEvidence, depth: number): ResultLine[] => 
     text(
       depth,
       "record",
-      joined([record.date, record.method, resultOf(record), record.item, belegOf(record), variantOf(record)]),
+      joined([
+        record.date,
+        record.method,
+        resultOf(record),
+        record.item,
+        record.evidenceLocation,
+        variantOf(record),
+      ]),
       wholeReasonOf(record),
     ),
   ),
@@ -140,7 +147,7 @@ export const chainLines = (output: unknown): ResultLine[] => {
                 record.date,
                 resultOf(record),
                 record.item,
-                belegOf(record),
+                record.evidenceLocation,
                 `version ${record.version}`,
               ]),
               wholeReasonOf(record),

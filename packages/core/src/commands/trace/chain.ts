@@ -32,8 +32,11 @@ import {
   evidenceIndexState,
   evidenceReadState,
   hasVerificationRecord,
+  testCaseWithEvidenceLocation,
   validationRecordsOf,
+  withEvidenceLocation,
 } from "../../evidence/index.js";
+import type { ElementEvidence } from "../../evidence/index.js";
 import { namesField, namesOf, resolveRef, shortIdState } from "../../model/index.js";
 import { chainOutput, derivationGraph, traceChain, traceContext } from "../../trace/index.js";
 import type { View } from "../../variants/index.js";
@@ -67,6 +70,18 @@ const viewsHolding = (
     return read.filter((rule) => rule.includes(element)).map((rule) => rule.id);
   };
 };
+
+/**
+ * Copies of the evidence below an element with their evidence location (#821): the index records and
+ * test cases stay as they are, and only the expanded elements of the page are copied.
+ */
+const withEvidenceLocations = (evidence: ElementEvidence | undefined): ElementEvidence | undefined =>
+  evidence === undefined
+    ? undefined
+    : {
+        testCases: evidence.testCases.map(testCaseWithEvidenceLocation),
+        records: evidence.records.map(withEvidenceLocation),
+      };
 
 export default defineCommand({
   name: "trace.chain",
@@ -112,10 +127,13 @@ export default defineCommand({
         metamodel,
         shortIds,
         viewsOf,
-        validationOf: (element) => [...validationRecordsOf(all, element.id)],
+        validationOf: (element) => validationRecordsOf(all, element.id).map(withEvidenceLocation),
         ...(index === undefined
           ? {}
-          : { evidenceOf: (element) => chainEvidenceOf(index, element.id, view, independent(element)) }),
+          : {
+              evidenceOf: (element) =>
+                withEvidenceLocations(chainEvidenceOf(index, element.id, view, independent(element))),
+            }),
       },
       { limit: input.limit, offset: input.offset },
     );

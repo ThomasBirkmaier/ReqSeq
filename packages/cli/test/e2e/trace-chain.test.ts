@@ -221,6 +221,7 @@ interface Execution {
   readonly repository?: string;
   readonly file?: string;
   readonly line?: number;
+  readonly evidenceLocation?: string;
 }
 
 interface TestCase {
@@ -247,13 +248,8 @@ const chainJson = async (ws: FixtureWorkspace, ref: string): Promise<WithEvidenc
   return JSON.parse(run.stdout) as WithEvidence;
 };
 
-/** Each execution as `[date, result, item, Beleg]`: its `evidence`, else its record file (A5, #528 Q4). */
-const fields = (e: Execution): unknown[] => [
-  e.date,
-  e.result,
-  e.item,
-  e.evidence ?? `${e.repository ?? ""}/${e.file ?? ""}:${String(e.line)}`,
-];
+/** Each execution as `[date, result, item, Beleg]`: its `evidence`, else its record file (A5, #528 Q4; `evidenceLocation`, #821). */
+const fields = (e: Execution): unknown[] => [e.date, e.result, e.item, e.evidenceLocation];
 
 describe("reqseq trace chain: test cases and executions (SR-033)", () => {
   it("[SR-033/AK1] reqseq trace chain shows test cases and executions read from JUnit and Markdown record files", async () => {

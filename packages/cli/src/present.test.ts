@@ -1332,6 +1332,7 @@ describe("renderHuman: a chain", () => {
       repository: "system",
       file: "evidence/ci/run-2.xml",
       line: 4,
+      evidenceLocation: "system/evidence/ci/run-2.xml:4",
     };
     const inspection = {
       date: "2026-10-20T14:00:00Z",
@@ -1339,6 +1340,7 @@ describe("renderHuman: a chain", () => {
       result: "passed",
       item: "Sample",
       evidence: "reports/b4.pdf",
+      evidenceLocation: "reports/b4.pdf",
       variant: "v1",
     };
     const output = chain({
@@ -1370,7 +1372,15 @@ describe("renderHuman: a chain", () => {
               className: "tests.test_wind",
               name: "test_speed",
               executed: true,
-              executions: [junit, { ...junit, line: undefined, result: "passed" }],
+              executions: [
+                junit,
+                {
+                  ...junit,
+                  line: undefined,
+                  evidenceLocation: "system/evidence/ci/run-2.xml",
+                  result: "passed",
+                },
+              ],
             },
             { name: "manual check", executed: false, executions: [] },
           ],
@@ -1443,6 +1453,7 @@ describe("renderHuman: evidence records and test cases (#275)", () => {
     repository: "system",
     file: "evidence/ci/run-2.xml",
     line: 4,
+    evidenceLocation: "system/evidence/ci/run-2.xml:4",
     baselines: [],
   };
   it("prints one line per record and per test case, with the last result and the number of executions", () => {
@@ -1452,6 +1463,7 @@ describe("renderHuman: evidence records and test cases (#275)", () => {
       method: "review",
       result: "passed",
       evidence: "notes.md",
+      evidenceLocation: "notes.md",
       version: "n1:ab",
       baselines: ["v1", "v2"],
     };

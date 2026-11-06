@@ -133,6 +133,7 @@ describe("trace.matrix test cases and verification status (SR-126 AK1)", () => {
           repository: "system",
           file: "evidence/ci/run-2.xml",
           line: 4,
+          evidenceLocation: "system/evidence/ci/run-2.xml:4",
           className: "tests.test_wind",
         },
       },

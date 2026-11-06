@@ -9,7 +9,7 @@ import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
 import type { EvidenceRead, EvidenceRecord, SkippedTestCase } from "../../evidence/index.js";
-import { evidenceReadState } from "../../evidence/index.js";
+import { evidenceReadState, withEvidenceLocation as at } from "../../evidence/index.js";
 import { STANDARD_MODEL_TEXT as STANDARD } from "../../metamodel/standard-model.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
@@ -444,31 +444,33 @@ describe("trace.chain: test cases and executions in the chain (SR-033)", () => {
         name: "wind tunnel check",
         elements: [SHOW],
         executed: true,
-        executions: [tunnel],
-        last: tunnel,
+        executions: [at(tunnel)],
+        last: at(tunnel),
       },
       {
         name: "test_speed[SR-33b001]",
         className: "tests.test_wind",
         elements: [SHOW, LOG],
         executed: true,
-        executions: [second, first],
-        last: second,
+        executions: [at(second), at(first)],
+        last: at(second),
       },
     ]);
     // Date, result, item and Beleg of each execution: a JUnit execution's Beleg is its record file
-    // (assumption A5, #528 Q4), a Markdown execution's the `evidence` it names.
-    const beleg = (r: EvidenceRecord): string =>
-      r.evidence ?? `${r.repository ?? ""}/${r.file ?? ""}:${String(r.line)}`;
+    // (assumption A5, #528 Q4), a Markdown execution's the `evidence` it names (`evidenceLocation`, #821).
     expect(
-      below?.testCases.flatMap((t) => t.executions.map((r) => [r.date, r.result, r.item, beleg(r)])),
+      below?.testCases.flatMap((t) =>
+        t.executions.map((r) => [r.date, r.result, r.item, r.evidenceLocation]),
+      ),
     ).toEqual([
       ["2026-10-19T10:00:00Z", "passed", "Prototype P2", "reports/wind-tunnel.pdf"],
       ["2026-10-22T09:00:00Z", "failed", "build-513", "system/evidence/ci/run-2.xml:4"],
       ["2026-10-21T09:00:00Z", "passed", "build-512", "system/evidence/ci/run-1.xml:4"],
     ]);
     // The record without a test case is next to the test cases; the validation record is in neither (A2).
-    expect(below?.records).toEqual([inspection]);
+    expect(below?.records).toEqual([at(inspection)]);
+    // The index keeps its records as read: the answer has copies (#821).
+    expect(first).not.toHaveProperty("evidenceLocation");
   });
 
   it("[SR-022/AK1] shows records without a test case below their requirement, one level deeper", async () => {
@@ -476,7 +478,7 @@ describe("trace.chain: test cases and executions in the chain (SR-033)", () => {
     const workspace = await withEvidence([inspection]);
     const output = await chain(workspace, { ref: "N-33a001" });
     expect(output.evidence).toEqual([
-      { id: DISPLAY, repository: "system", depth: 2, testCases: [], records: [inspection] },
+      { id: DISPLAY, repository: "system", depth: 2, testCases: [], records: [at(inspection)] },
     ]);
     expect(output.nodes.find((n) => n.id === DISPLAY)?.depth).toBe(1);
   });
@@ -496,8 +498,8 @@ describe("trace.chain: test cases and executions in the chain (SR-033)", () => {
             className: "tests.test_wind",
             elements: [SHOW, LOG],
             executed: true,
-            executions: [ofShow],
-            last: ofShow,
+            executions: [at(ofShow)],
+            last: at(ofShow),
           },
         ],
       ],
@@ -510,8 +512,8 @@ describe("trace.chain: test cases and executions in the chain (SR-033)", () => {
             className: "tests.test_wind",
             elements: [SHOW, LOG],
             executed: true,
-            executions: [ofLog],
-            last: ofLog,
+            executions: [at(ofLog)],
+            last: at(ofLog),
           },
         ],
       ],
@@ -597,8 +599,8 @@ describe("trace.chain: test cases and executions in the chain (SR-033)", () => {
         className: "tests.test_wind",
         elements: [GUSTS],
         executed: true,
-        executions: [ran],
-        last: ran,
+        executions: [at(ran)],
+        last: at(ran),
       },
     ]);
     expect(output.gaps).toEqual([]);
@@ -739,6 +741,7 @@ describe("trace.chain: test cases and executions in the chain (SR-033)", () => {
     expect(both.validationRecords[0]).toMatchObject({
       reason: "No wind on the test day",
       testCase: "acceptance-1",
+      evidenceLocation: "reports/inspection-b1.pdf",
     });
     expect(items(await chain(workspace, { ref: WIND, direction: "up" }))).toEqual(expected);
     expect(items(await chain(workspace, { ref: WIND, view: COAST }))).toEqual(expected);

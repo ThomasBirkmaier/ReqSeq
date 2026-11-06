@@ -7,6 +7,7 @@ import type { Metamodel } from "../metamodel/index.js";
 import type { ElementRecord } from "../model/index.js";
 import type { View } from "../variants/index.js";
 import { evidenceIndex } from "./by-element.js";
+import { withEvidenceLocation } from "./location.js";
 import type { MatrixEvidenceInput } from "./matrix.js";
 import { matrixEvidence, matrixTestCases, showsEvidence, testCaseMark } from "./matrix.js";
 import type { EvidenceRecord, SkippedTestCase, TestCase } from "./record.js";
@@ -135,13 +136,19 @@ describe("matrixTestCases (SR-126 AK1)", () => {
     const index = evidenceIndex([newest, older, coast, manual, validation, inspection], [skipped]);
     // By class name, then name: a Markdown test case has none, so it comes first.
     expect(matrixTestCases(index, A, CORE, false, forms(CURRENT))).toEqual([
-      { name: "wind tunnel check", executed: true, last: manual },
+      { name: "wind tunnel check", executed: true, last: withEvidenceLocation(manual) },
       { name: "test_gusts", className: "tests.Wind", executed: false, mark: "not-executed" },
-      { name: "test_wind", className: "tests.Wind", executed: true, last: newest, mark: "failed" },
+      {
+        name: "test_wind",
+        className: "tests.Wind",
+        executed: true,
+        last: { ...newest, evidenceLocation: "system/evidence/results.xml:4" },
+        mark: "failed",
+      },
     ]);
     expect(matrixTestCases(index, A, COAST_VIEW, false, forms(CURRENT))).toEqual([
       { name: "test_gusts", className: "tests.Wind", executed: false, mark: "not-executed" },
-      { name: "test_wind", className: "tests.Wind", executed: true, last: coast },
+      { name: "test_wind", className: "tests.Wind", executed: true, last: withEvidenceLocation(coast) },
     ]);
   });
 
@@ -150,10 +157,10 @@ describe("matrixTestCases (SR-126 AK1)", () => {
     const coast = run("2026-01-01T10:00:00Z", { variant: COAST, item: "coast-1" });
     const index = evidenceIndex([core, coast]);
     expect(matrixTestCases(index, A, COAST_VIEW, true, forms(CURRENT))).toEqual([
-      { name: "test_wind", className: "tests.Wind", executed: true, last: core },
+      { name: "test_wind", className: "tests.Wind", executed: true, last: withEvidenceLocation(core) },
     ]);
     expect(matrixTestCases(index, A, COAST_VIEW, false, forms(CURRENT))).toEqual([
-      { name: "test_wind", className: "tests.Wind", executed: true, last: coast },
+      { name: "test_wind", className: "tests.Wind", executed: true, last: withEvidenceLocation(coast) },
     ]);
   });
 
@@ -217,7 +224,12 @@ describe("matrixEvidence (SR-126 AK1, AK3)", () => {
     });
     expect(core(record, forms(CURRENT))).toEqual({
       testCases: [
-        { name: "test_wind", className: "tests.Wind", executed: true, last: run("2026-01-01T10:00:00Z") },
+        {
+          name: "test_wind",
+          className: "tests.Wind",
+          executed: true,
+          last: withEvidenceLocation(run("2026-01-01T10:00:00Z")),
+        },
       ],
       verification: [{ view: "core", status: "indirect" }],
     });
