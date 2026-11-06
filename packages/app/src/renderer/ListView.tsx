@@ -3,7 +3,9 @@
 // workspace of 50,000 elements is never loaded at once (N-036). A row whose element changed outside the
 // app is highlighted briefly (SR-116), and a change keeps the rows, the selection and the scroll. As a
 // buffer of its own, the list stands like the elements of a package page: in the centred column, under a
-// heading that says what it shows and how many (SR-148, D-062).
+// heading that says what it shows and how many (SR-148, D-062), and under it the line of coverage and
+// verification degree of its elements, as a package page has it (`SummaryLine`, product owner decision,
+// 2026-11-06).
 import { useEffect, useRef, useState } from "react";
 import { useIdScope } from "./area-scope.js";
 import type { BufferAction, ListBuffer, SearchBuffer } from "./buffers.js";
@@ -15,6 +17,7 @@ import { leavesPart, rowTarget } from "./keys.js";
 import type { BufferData } from "./modeline.js";
 import type { OutsideChanges } from "./outside-marks.js";
 import { memberSummary } from "./package-page.js";
+import { SummaryLine } from "./PackageSummary.js";
 import { rowClass, useOutsideMarks } from "./use-outside-marks.js";
 import { useResetOnAsk } from "./use-reset-on-ask.js";
 import type { Row } from "./rows.js";
@@ -149,6 +152,46 @@ const ListHeading = ({
       </span>
     ) : null}
   </h1>
+);
+
+/**
+ * The top of a list of its own: the heading (SR-148) and, for a list, the line of coverage of its elements
+ * (product owner decision, 2026-11-06: a list shows the line a package page has). The line is asked only once
+ * the first page stands, so the rows come first in a large workspace; keyed by the selection, so a line from
+ * the list before never stands over another one. It follows `revision` only: a list reads again on a change
+ * of the workspace, not on an outside change of one element.
+ */
+const ListTop = ({
+  buffer,
+  view,
+  call,
+  revision,
+  onEcho,
+  dispatch,
+}: {
+  readonly buffer: ListBuffer | SearchBuffer;
+  readonly view: View;
+  readonly call: Call;
+  readonly revision: number;
+  readonly onEcho: (message: string) => void;
+  readonly dispatch: (action: BufferAction) => void;
+}): React.JSX.Element => (
+  <>
+    <ListHeading buffer={buffer} view={view} />
+    {buffer.kind === "list" && view.status === "ok" ? (
+      <SummaryLine
+        key={JSON.stringify(buffer.selection ?? {})}
+        call={call}
+        selection={buffer.selection ?? {}}
+        name={bufferName(buffer)}
+        revision={revision}
+        onEcho={onEcho}
+        onOpenResult={(result) => {
+          dispatch({ type: "open", buffer: result });
+        }}
+      />
+    ) : null}
+  </>
 );
 
 export const ListView = ({
@@ -380,7 +423,14 @@ export const ListView = ({
         rowsAndNotes
       ) : (
         <div className="column">
-          <ListHeading buffer={buffer} view={view} />
+          <ListTop
+            buffer={buffer}
+            view={view}
+            call={call}
+            revision={revision}
+            onEcho={onEcho}
+            dispatch={dispatch}
+          />
           {rowsAndNotes}
         </div>
       )}

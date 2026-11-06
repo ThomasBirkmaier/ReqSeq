@@ -3,12 +3,14 @@
 // again when the workspace changed and keeps what it shows meanwhile, so the text does not jump with every
 // save; an older answer is dropped. Until the first answer, and for a package without requirements, the
 // line is hidden. A click on the line, or Enter on it, opens the requirements behind its numbers (SR-036
-// AK2): the coverage answer it was counted from, in a result buffer.
+// AK2): the coverage answer it was counted from, in a result buffer. A list of its own shows the same line
+// for the elements it shows (`SummaryLine` with its selection, product owner decision, 2026-11-06).
 import type { EvidenceCoverageOutput } from "@reqseq/core";
 import { useEffect, useState } from "react";
 import type { ResultBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
-import { askPackageSummary, coverageBuffer } from "./package-page.js";
+import type { SummarySelection } from "./package-page.js";
+import { askSummary, selectionCoverageBuffer } from "./package-page.js";
 
 export interface PackageSummaryProps {
   readonly call: Call;
@@ -22,14 +24,25 @@ export interface PackageSummaryProps {
   readonly onOpenResult: (buffer: ResultBuffer) => void;
 }
 
-export const PackageSummaryLine = ({
+export const PackageSummaryLine = ({ id, ...props }: PackageSummaryProps): React.JSX.Element | null => (
+  <SummaryLine selection={{ package: id }} {...props} />
+);
+
+export type SummaryLineProps = Omit<PackageSummaryProps, "id"> & {
+  /** What the line counts: a package, or the selection of a list. */
+  readonly selection: SummarySelection;
+};
+
+export const SummaryLine = ({
   call,
-  id,
+  selection,
   name,
   revision,
   onEcho,
   onOpenResult,
-}: PackageSummaryProps): React.JSX.Element | null => {
+}: SummaryLineProps): React.JSX.Element | null => {
+  // The selection by value: a new object of the same selection does not ask again.
+  const key = JSON.stringify(selection);
   const [line, setLine] = useState<
     | {
         readonly text: string | undefined;
@@ -42,7 +55,7 @@ export const PackageSummaryLine = ({
   useEffect(() => {
     let current = true;
     const asked = revision;
-    void askPackageSummary(call, id).then((summary) => {
+    void askSummary(call, selection).then((summary) => {
       if (!current) {
         return;
       }
@@ -55,12 +68,12 @@ export const PackageSummaryLine = ({
     return () => {
       current = false;
     };
-  }, [call, id, revision]);
+  }, [call, key, revision]);
   if (line === undefined) {
     return null;
   }
   const open = (): void => {
-    onOpenResult(coverageBuffer(id, name, line.coverage, line.asked));
+    onOpenResult(selectionCoverageBuffer(selection, name, line.coverage, line.asked));
   };
   return (
     <p className="package-summary" hidden={line.text === undefined}>
@@ -72,6 +85,8 @@ export const PackageSummaryLine = ({
         onKeyDown={(event) => {
           if (event.key === "Enter" && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
             event.preventDefault();
+            // In a list, Enter on the line must not also open its selected row.
+            event.stopPropagation();
             open();
           }
         }}

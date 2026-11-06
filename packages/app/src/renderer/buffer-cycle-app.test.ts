@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { EditorView } from "@codemirror/view";
 import type { InvokeResult, ReqSeqBridge } from "../shared/protocol.js";
 import { App } from "./App.js";
+import { NO_SUMMARY } from "./package-summary-test-data.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -31,6 +32,8 @@ const written = new Map<string, string>();
 
 /** A workspace with three elements that have a text. */
 const HANDLERS: Record<string, Handler> = {
+  // The line of coverage over a list: no counted requirement.
+  ...NO_SUMMARY,
   "workspace.status": () => ({ name: "Weather station", readOnly: true }),
   "element.list": () => ({ elements: [row(1), row(2), row(3)], total: 3 }),
   "element.get": (input) => ({

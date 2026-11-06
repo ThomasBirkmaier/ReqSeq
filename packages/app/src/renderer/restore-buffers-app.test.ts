@@ -10,6 +10,7 @@ import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { BridgeEvents, InvokeResult, ReqSeqBridge } from "../shared/protocol.js";
 import { App } from "./App.js";
+import { NO_SUMMARY } from "./package-summary-test-data.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -32,6 +33,8 @@ type Handler = (input: Record<string, unknown>) => unknown;
 let workspace = "Weather station";
 
 const HANDLERS: Record<string, Handler> = {
+  // The line of coverage over a list: no counted requirement.
+  ...NO_SUMMARY,
   "workspace.status": () => ({ name: workspace, readOnly: true }),
   "element.list": (input) => {
     const ids = (input["selection"] as { ids?: string[] } | undefined)?.ids;

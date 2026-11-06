@@ -8,7 +8,7 @@ import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { packageSummaryText } from "@reqseq/core/verification-degree";
 import type { RunningApp } from "./support/app.js";
-import { DEFAULT_SORT, launchApp } from "./support/app.js";
+import { DEFAULT_SORT, launchApp, listAll } from "./support/app.js";
 
 const P = "69069069-0000-4000-8000-0000000000";
 const NAMES_SENSORS = (title: string, extra = ""): string =>
@@ -268,6 +268,35 @@ test.describe("the line under the title of a package page", () => {
     ];
     expect(title).toBeGreaterThanOrEqual(0);
     expect([title, summary, text]).toEqual([...[title, summary, text]].sort((a, b) => a - b));
+  });
+
+  test("a list of requirements shows the line of its own elements, as the CLI counts them (product owner decision, 2026-11-06)", async () => {
+    const { window } = running;
+    await listAll(window);
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await window.keyboard.type("Filter list by text search");
+    await window.keyboard.press("Enter");
+    await expect(window.getByLabel("Minibuffer").locator("label")).toHaveText("Text");
+    await window.keyboard.type("Open reading");
+    await window.keyboard.press("Enter");
+    const input = JSON.stringify({ selection: { where: { text: "Open reading" } } });
+    const coverage = await running.cli(["evidence", "coverage", "--input", input]);
+    const degree = await running.cli(["evidence", "degree", "--input", input]);
+    const line = packageSummaryText(
+      (JSON.parse(coverage.stdout) as { levels: Parameters<typeof packageSummaryText>[0] }).levels,
+      (JSON.parse(degree.stdout) as { degree: Parameters<typeof packageSummaryText>[1] }).degree,
+    );
+    expect(line).toMatch(/^Coverage \d+ of \d+ with evidence/);
+    await expect(window.locator(".buffer.list .package-summary")).toHaveText(line ?? "");
+    // Under the heading, above the rows.
+    const top = async (selector: string): Promise<number> =>
+      (await window.locator(selector).first().boundingBox())?.y ?? -1;
+    const [heading, summary, row] = [
+      await top(".buffer.list h1"),
+      await top(".buffer.list .package-summary"),
+      await top(".buffer.list .row"),
+    ];
+    expect([heading, summary, row]).toEqual([...[heading, summary, row]].sort((a, b) => a - b));
   });
 
   test("[SR-112/AK4] 10 requirements without records give the line with zeros; a package without requirements has none", async () => {
