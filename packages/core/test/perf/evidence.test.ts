@@ -33,7 +33,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { CommandName, CommandOutput } from "../../src/catalog.js";
+import type { CommandName } from "../../src/catalog.js";
 import {
   evidenceIndexState,
   evidenceReadState,
@@ -46,6 +46,7 @@ import { getCommandRuntime, invoke } from "../../src/runtime/invoke.js";
 import { Workspace } from "../../src/runtime/workspace.js";
 import { workspaceLayoutState } from "../../src/workspace/index.js";
 import { standardModel, versionOf } from "./core-version.js";
+import type { Output } from "../../src/commands/list.test-helper.js";
 
 const ELEMENTS = 50_000;
 const RELATIONS = 200_000;
@@ -63,8 +64,6 @@ const MAX_LIMIT = 5000;
 /** Rows #693 asks about: SR-082 AK4's 500 ms as a threshold for comparison only (untagged, never asserted). */
 const COMPARE_AK4 = "untagged; threshold for comparison only (#693)";
 const COMPARED = { thresholdMs: RESULT_MS } as const;
-
-type Output<K extends CommandName> = CommandOutput<K>;
 
 describe("evidence commands with 50,000 elements and their records (N-036, E4 #583)", () => {
   let evidence: GeneratedEvidence;

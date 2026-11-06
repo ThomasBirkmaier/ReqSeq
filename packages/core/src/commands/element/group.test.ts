@@ -18,8 +18,9 @@ import { CommandError } from "../../catalog.js";
 import { FACET_MAX_VALUES } from "../../query/facets.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
+import type { FullList } from "../list.test-helper.js";
 
-type Output = CommandOutput<"element.list">;
+type Output = FullList;
 
 const P = "14914914-0000-4000-8000-0000000000";
 const id = (tail: string): string => `${P}${tail}`;

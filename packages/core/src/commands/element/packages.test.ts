@@ -8,10 +8,10 @@ import path from "node:path";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
-import type { CommandOutput } from "../../catalog.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 import { readFirstFor } from "../../runtime/read-first.test-helper.js";
+import type { Output } from "../list.test-helper.js";
 
 const P = "48048048-0000-4000-8000-0000000000";
 const [P1, P2, R1, R2, R3] = ["d1", "d2", "b1", "b2", "b3"].map((tail) => `${P}${tail}`) as [
@@ -46,10 +46,10 @@ const run = async <N extends "element.create" | "element.update" | "element.list
   opened: Opened,
   name: N,
   input: Record<string, unknown>,
-): Promise<CommandOutput<N>> =>
+): Promise<Output<N>> =>
   (await invoke(name, await readFirstFor(name, input, { workspace: opened.workspace }), {
     workspace: opened.workspace,
-  })) as CommandOutput<N>;
+  })) as Output<N>;
 
 const read = (opened: Opened, file: string): Promise<string> =>
   fs.readFile(opened.fixture.path(file), "utf8");

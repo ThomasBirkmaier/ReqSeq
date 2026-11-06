@@ -143,6 +143,7 @@ export const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { selection: { ids: [WIND, RETIRED], view: "core" } },
     { selection: { where: { relation: { meaning: "derivation", direction: "down" }, exists: false } } },
     { selection: { ids: ["SR-ffffff"] } },
+    { fields: ["title", "status"], group: "status" },
   ],
   "element.resolve": [{ ref: WIND, version: "n1:0000000000000000" }, { ref: RETIRED }, { ref: "SR-ffffff" }],
   "element.search": [

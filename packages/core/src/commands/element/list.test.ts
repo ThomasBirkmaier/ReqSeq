@@ -26,8 +26,9 @@ import { evidenceStatusState } from "../../query/index.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 import { WRITTEN_VERSION } from "../../model/version-forms.test-helper.js";
+import type { FullList } from "../list.test-helper.js";
 
-type Output = CommandOutput<"element.list">;
+type Output = FullList;
 
 const P = "69069069-0000-4000-8000-0000000000";
 const id = (tail: string): string => `${P}${tail}`;
@@ -75,8 +76,11 @@ const open = async (options: FixtureOptions = FILTER): Promise<Workspace> => {
   return workspace;
 };
 
-const list = async (workspace: Workspace, input: Record<string, unknown>): Promise<Output> =>
-  (await invoke("element.list", input, { workspace })) as Output;
+/** The output of element.list; with `fields` (#982) read as `Narrowed`. */
+const list = async <T = Output>(workspace: Workspace, input: Record<string, unknown>): Promise<T> =>
+  (await invoke("element.list", input, { workspace })) as T;
+
+type Narrowed = CommandOutput<"element.list">;
 
 const ids = (output: Output): string[] => output.elements.map((e) => e.id);
 
@@ -436,6 +440,67 @@ describe("element.list (SR-069)", () => {
     expect(gone?.text).toBeUndefined();
     expect(gone?.version).toBeUndefined();
     expect(gone?.problems?.map((p) => p.code)).toEqual(["file.faulty"]);
+  });
+
+  it("gives with fields only the fields asked for, in partial, and id, shortId and repository always (#982)", async () => {
+    const ws = await open();
+    const all = await list(ws, {});
+    const partial = await list<Narrowed>(ws, { fields: ["title", "status"] });
+    expect(partial.elements).toBeUndefined();
+    expect(partial.total).toBe(all.total);
+    expect(partial.partial).toEqual(
+      all.elements.map(({ id, shortId, repository, title, status }) => ({
+        id,
+        shortId,
+        repository,
+        title,
+        ...(status === undefined ? {} : { status }),
+      })),
+    );
+    // Relations only when asked for, then as without fields; a field without a value stays left out.
+    const b1 = { selection: { ids: [B1, B3] } };
+    const [full1, full3] = (await list(ws, b1)).elements;
+    const narrowed = await list<Narrowed>(ws, { ...b1, fields: ["relations", "emergent"] });
+    expect(narrowed.partial).toEqual([
+      { id: B1, shortId: full1?.shortId, repository: "system", relations: full1?.relations },
+      { id: B3, shortId: full3?.shortId, repository: "system", relations: full3?.relations, emergent: true },
+    ]);
+    expect(full1?.relations.length).toBeGreaterThan(0);
+  });
+
+  it("gives the text with fields text or with withText, and the problems of an element always (#982)", async () => {
+    const fixture = await createFixtureWorkspace(FILTER);
+    onTestFinished(() => fixture.cleanup());
+    const ws = new Workspace(fixture.root);
+    onTestFinished(() => ws.close());
+    const needs = { selection: { where: { type: ["need"] } } };
+    const texts = async (input: Record<string, unknown>): Promise<unknown[]> =>
+      ((await list<Narrowed>(ws, { ...needs, ...input })).partial ?? []).map((e) => e.text);
+    const expected = ["N1: parent of SR-0000b1 and SR-0000b2.\n", "N2: parent of SR-0000b5.\n"];
+    expect(await texts({ fields: ["text"], withText: false })).toEqual(expected);
+    expect(await texts({ fields: ["title"], withText: true })).toEqual(expected);
+    expect(await texts({ fields: ["title"] })).toEqual([undefined, undefined]);
+    // N2 is gone since the store read it: no version, and the problem that says why, asked for or not.
+    await fs.rm(fixture.path("needs/N-0000000000a2.md"));
+    const [, gone] = (await list<Narrowed>(ws, { ...needs, fields: ["version"] })).partial ?? [];
+    expect(gone?.version).toBeUndefined();
+    expect(gone?.problems?.map((p) => p.code)).toEqual(["file.faulty"]);
+  });
+
+  it("narrows the rows of a grouped list and of a tree, with the same groups and places (#982)", async () => {
+    const ws = await open();
+    for (const input of [
+      { group: "status", sort: [{ by: "hierarchy", order: "asc" }], offset: 2, limit: 6 },
+      { sort: [{ by: "hierarchy", order: "asc" }] },
+    ]) {
+      const { elements, ...rest } = await list(ws, input);
+      const narrowed = await list<Narrowed>(ws, { ...input, fields: ["type"] });
+      const { partial, ...others } = narrowed;
+      expect(others).toEqual(rest);
+      expect(partial).toEqual(
+        elements.map(({ id, shortId, repository, type }) => ({ id, shortId, repository, type })),
+      );
+    }
   });
 
   it("is incomplete while the workspace file lists a repository that is not on this machine (SR-006 AK2)", async () => {

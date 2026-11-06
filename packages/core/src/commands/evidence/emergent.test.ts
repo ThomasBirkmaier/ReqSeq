@@ -14,6 +14,7 @@ import { evidenceRecordsState } from "../../evidence/index.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 import { readFirst } from "../../runtime/read-first.test-helper.js";
+import type { FullList } from "../list.test-helper.js";
 
 type Output = CommandOutput<"evidence.status">;
 type Verification = Output["elements"][number]["verification"];
@@ -64,7 +65,7 @@ const where = async (workspace: Workspace, condition: unknown): Promise<string[]
       "element.list",
       { selection: { where: condition }, limit: 5000 },
       { workspace },
-    )) as CommandOutput<"element.list">
+    )) as FullList
   ).elements.map((e) => e.id);
 
 const update = async (
@@ -148,11 +149,7 @@ describe("emergent requirements need their own record (SR-035)", () => {
 
   it("[SR-035/AK2] element.get, element.list and evidence.status show emergent true for a marked requirement and leave it out for the others", async () => {
     const ws = await open();
-    const listed = (await invoke(
-      "element.list",
-      { limit: 5000 },
-      { workspace: ws },
-    )) as CommandOutput<"element.list">;
+    const listed = (await invoke("element.list", { limit: 5000 }, { workspace: ws })) as FullList;
     expect(marked(listed.elements)).toEqual(EMERGENT);
     expect(marked((await status(ws)).elements)).toEqual(EMERGENT);
     for (const id of [N1, G, E1, P1, E4]) {

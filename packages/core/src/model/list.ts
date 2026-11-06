@@ -43,6 +43,11 @@ export interface ListOptions {
   /** Also give the text of each element (see the file comment). Default: false. */
   readonly withText?: boolean;
   /**
+   * Look up the relations of each element; false gives `relations: []` for a caller that leaves them
+   * out (element.list `fields`, #982), the larger part of the cost of a page (N-036). Default: true.
+   */
+  readonly withRelations?: boolean;
+  /**
    * Adds the fields of a block that imports the model to each element (the verification status of
    * `evidence.status`, SR-031), given the record the element was listed from (as its file holds it
    * now) and the element as listed. Default: none.
@@ -77,6 +82,7 @@ export const listElements = async (
   const { layout, metamodel, store, shortIds } = context;
   const folders = new Map(layout.repositories.map((r) => [r.name, r.folder]));
   const text = options.withText === true ? (record: ElementRecord) => textNow(folders, record) : () => ({});
+  const relations = options.withRelations !== false;
   const extend = options.extend ?? ((_record: ElementRecord, element: DataExportElement) => element);
   const versions = await currentVersionsOf(workspace, records);
   // Without the meaning `title` (SR-013 AK3) no key is the title: the title is empty, as in element.get.
@@ -92,9 +98,9 @@ export const listElements = async (
       extend(
         record,
         version.kind === "version"
-          ? { ...listedElement(input, version.forms[NORMAL_FORM]), ...text(record) }
+          ? { ...listedElement(input, version.forms[NORMAL_FORM], relations), ...text(record) }
           : {
-              ...listedElement(input, undefined),
+              ...listedElement(input, undefined, relations),
               problems: [noVersionProblem(stored, version.message)],
             },
         version.kind === "version" ? version.forms : undefined,

@@ -8,15 +8,59 @@
 // With `group` (SR-149, query/group.ts) the list is the elements of each group in turn, sorted inside
 // the group as without it (`orderedGroups`); an element in several groups is a row in each, so the
 // page is built from its distinct records and then laid out as rows again. Nothing about the groups
-// is written (AK5).
+// is written (AK5). With `fields` (#982) the page is in `partial`, each element narrowed to the
+// fields asked for and those always given (`partOf`); its relations are looked up only when asked for.
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
-import type { ElementListInput, ElementListOutput } from "../../generated/types.js";
-import type { ElementRecord } from "../../model/index.js";
+import type {
+  DataExportElement,
+  DataExportElementPart,
+  ElementListInput,
+  ElementListOutput,
+} from "../../generated/types.js";
+import type { ElementRecord, ListOptions } from "../../model/index.js";
 import { listElements } from "../../model/index.js";
 import type { Selected, TreePlace } from "../../query/index.js";
 import { groupingOf, orderedGroups, orderedSelection, resolveSelection } from "../../query/index.js";
 import type { Workspace } from "../../runtime/workspace.js";
+
+type Field = NonNullable<ElementListInput["fields"]>[number];
+
+/** The fields every element of `partial` has; `problems` too, which says why a field is missing. */
+const ALWAYS: readonly string[] = ["id", "shortId", "repository", "problems"];
+
+/** `element` with only the fields of `fields`, each where it has a value. */
+const partOf = (element: DataExportElement, fields: ReadonlySet<string>): DataExportElementPart =>
+  Object.fromEntries(
+    Object.entries(element).filter(([key]) => fields.has(key)),
+  ) as unknown as DataExportElementPart;
+
+/** How the page is listed, and the field of the output that holds it. */
+const pageOf = (
+  input: ElementListInput,
+): {
+  readonly options: ListOptions;
+  readonly page: (
+    elements: DataExportElement[],
+  ) => { elements: DataExportElement[] } | { partial: DataExportElementPart[] };
+} => {
+  const { fields } = input;
+  if (fields === undefined) {
+    return { options: { withText: input.withText === true }, page: (elements) => ({ elements }) };
+  }
+  // `withText` gives the text whether `fields` names it or not.
+  const asked = new Set<Field>(input.withText === true ? [...fields, "text"] : fields);
+  return {
+    options: {
+      withText: asked.has("text"),
+      withRelations: asked.has("relations"),
+    },
+    page: (elements) => {
+      const shown = new Set<string>([...asked, ...ALWAYS]);
+      return { partial: elements.map((element) => partOf(element, shown)) };
+    },
+  };
+};
 
 type TreeEntry = NonNullable<ElementListOutput["tree"]>[number];
 
@@ -70,12 +114,11 @@ const grouped = async (
     indexOf.set(record, indexOf.size);
     return indexOf.size - 1;
   });
-  const listed = await listElements(workspace, selected, [...indexOf.keys()], {
-    withText: input.withText === true,
-  });
+  const { options, page: pageWith } = pageOf(input);
+  const listed = await listElements(workspace, selected, [...indexOf.keys()], options);
   return {
     // `listElements` gives one element per record, in their order.
-    elements: indexes.flatMap((index) => listed.slice(index, index + 1)),
+    ...pageWith(indexes.flatMap((index) => listed.slice(index, index + 1))),
     ...(sorted.some((group) => group.tree !== undefined)
       ? { tree: places.slice(input.offset, end).map(entryOf) }
       : {}),
@@ -98,9 +141,9 @@ export default defineCommand({
     const sorted = orderedSelection(selected, command, input.sort);
     const end = input.offset + input.limit;
     const page = sorted.elements.slice(input.offset, end);
-    const elements = await listElements(ctx.workspace, selected, page, { withText: input.withText === true });
+    const { options, page: pageWith } = pageOf(input);
     return {
-      elements,
+      ...pageWith(await listElements(ctx.workspace, selected, page, options)),
       ...(sorted.tree === undefined ? {} : { tree: sorted.tree.slice(input.offset, end).map(entryOf) }),
       total: selected.elements.length,
       incomplete: selected.incomplete,

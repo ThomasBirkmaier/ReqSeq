@@ -39,6 +39,8 @@
 // - A list of elements with a `tree` of their places (`depth`, `parent`; one per element, element.list
 //   by hierarchy, SR-075 AK2) is indented two spaces per level; an element whose parent is not shown
 //   before it (on an earlier page) names it, `[under X]`.
+// - The elements of a list narrowed by element.list `fields` (#982) are in `partial`, which a grouped
+//   and a tree list read as `elements`; a row without `title` is no element, so such a list stays YAML.
 // - A list of findings other than `problems` (the hints of hint.list) is one line per finding: the
 //   element's short ID, the kind, the message and the hint ID when it has one.
 // - A verification degree (`share` next to `counts`, SR-037), at any depth of a value printed as YAML,
@@ -839,14 +841,14 @@ const terminalElementLine = (
   return terminalLine(row, columnsOf([row], style), "", style, { name: namerOf([]), view, whole });
 };
 
-/** A tree list (see the file comment). */
-const treeListLines = (placed: readonly Placed[], style: Style | undefined): string[] => {
+/** A tree list (see the file comment), headed by `key`. */
+const treeListLines = (placed: readonly Placed[], style: Style | undefined, key = "elements"): string[] => {
   if (placed.length === 0) {
-    return ["elements: none"];
+    return [`${key}: none`];
   }
   const name = namerOf(placed.map(([element]) => element));
   return [
-    "elements:",
+    `${key}:`,
     ...(style === undefined
       ? listedLines(placed, name)
       : terminalListLines(placed, "  ", style, name, viewNamerOf([]))),
@@ -949,18 +951,23 @@ const terminalGroupedLines = (
   ]);
 };
 
+/** The key of the elements of a list: `partial` when they have only some fields (element.list `fields`, #982). */
+const elementsKey = (rest: Rec): "elements" | "partial" =>
+  rest["partial"] === undefined ? "elements" : "partial";
+
 /**
  * A grouped list (element.list `group`, SR-149): each group on the page under its heading, its
  * elements indented below it as in a plain or a tree list; undefined for any other output.
  */
 const groupedListLines = (rest: Rec, names: Names, style: Style | undefined): string[] | undefined => {
   const groups = rest["groups"];
-  const elements = listOf(rest["elements"]);
+  const key = elementsKey(rest);
+  const elements = listOf(rest[key]);
   if (!Array.isArray(groups) || !groups.every(isListGroup) || !elements.every(isElement)) {
     return undefined;
   }
   if (elements.length === 0) {
-    return ["elements: none"];
+    return [`${key}: none`];
   }
   const tree = Array.isArray(rest["tree"]) ? treeListOf(elements, rest["tree"]) : undefined;
   const listed: readonly Listed[] = tree ?? elements.map((element) => [element, undefined]);
@@ -975,7 +982,7 @@ const groupedListLines = (rest: Rec, names: Names, style: Style | undefined): st
   const withText = elements.some((element) => typeof element["text"] === "string");
   let headed = false;
   return [
-    "elements:",
+    `${key}:`,
     ...groups.flatMap((group) => {
       const first = Math.max(group.offset, start);
       const last = Math.min(group.offset + group.count, end);
@@ -1454,7 +1461,10 @@ const pageNote = (output: Rec): string[] => {
       entry[0] !== "names" &&
       Array.isArray(entry[1]) &&
       entry[1].length > 0 &&
-      (entry[1].every(isElement) || entry[1].every(isProblem)),
+      // The rows of `partial` (element.list `fields`, #982) also without a title.
+      (entry[1].every(isElement) ||
+        entry[1].every(isProblem) ||
+        (entry[0] === "partial" && entry[1].every(isRecord))),
   )?.[1];
   return typeof total === "number" && page !== undefined && page.length < total
     ? [`Showing ${String(page.length)} of ${String(total)}; ask for more with --offset and --limit.`]
@@ -1473,19 +1483,19 @@ const nodeListLines = (rest: Rec, shown: Set<string>, style: Style | undefined):
   }
   const grouped = groupedListLines(rest, namesIn(rest), style);
   if (grouped !== undefined) {
-    for (const key of ["elements", "tree", "groups", "offset", "rows"]) {
+    for (const key of [elementsKey(rest), "tree", "groups", "offset", "rows"]) {
       shown.add(key);
     }
     return grouped;
   }
   const tree = rest["tree"];
-  const treeList = Array.isArray(tree) ? treeListOf(listOf(rest["elements"]), tree) : undefined;
+  const treeList = Array.isArray(tree) ? treeListOf(listOf(rest[elementsKey(rest)]), tree) : undefined;
   if (treeList === undefined) {
     return [];
   }
-  shown.add("elements");
+  shown.add(elementsKey(rest));
   shown.add("tree");
-  return treeListLines(treeList, style);
+  return treeListLines(treeList, style, elementsKey(rest));
 };
 
 /**

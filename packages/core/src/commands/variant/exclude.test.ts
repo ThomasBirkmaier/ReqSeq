@@ -11,6 +11,7 @@ import { CommandError } from "../../catalog.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 import { WRITTEN_VERSION_SOURCE } from "../../model/version-forms.test-helper.js";
+import type { FullList } from "../list.test-helper.js";
 
 type Input = Omit<CommandInput<"variant.exclude">, "undo"> & { readonly undo?: boolean };
 
@@ -46,7 +47,7 @@ const requirementsIn = async (workspace: Workspace, view: string): Promise<strin
     "element.list",
     { selection: { view, where: { type: ["system-requirement"] } } },
     { workspace },
-  )) as CommandOutput<"element.list">;
+  )) as FullList;
   return out.elements.map((e) => e.id.slice(-2));
 };
 

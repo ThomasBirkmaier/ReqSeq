@@ -338,6 +338,49 @@ describe("renderHuman: values", () => {
     ).toBe(lines("elements:", "  (no value) · 1", "    SR-x  draft  X"));
   });
 
+  it("shows the elements of a list narrowed by fields (#982) as elements, grouped and as a tree", () => {
+    const part = (id: string, title?: string): Record<string, unknown> => ({
+      id,
+      repository: "system",
+      shortId: `SR-${id}`,
+      ...(title === undefined ? {} : { title }),
+    });
+    expect(
+      renderHuman({
+        partial: [part("b1", "One"), part("b2", "Two")],
+        groups: [{ value: "draft", name: "Draft", count: 2, offset: 0 }],
+        offset: 0,
+        rows: 2,
+        total: 2,
+      }),
+    ).toBe(lines("partial:", "  Draft (draft) · 2", "    SR-b1  One", "    SR-b2  Two", "total: 2"));
+    expect(
+      renderHuman({
+        partial: [part("b1", "One"), part("b2", "Two")],
+        tree: [
+          { id: "b1", repository: "system", depth: 0 },
+          { id: "b2", repository: "system", depth: 1, parent: { id: "b1", repository: "system" } },
+        ],
+        total: 3,
+      }),
+    ).toBe(
+      lines(
+        "partial:",
+        "  SR-b1  One",
+        "    SR-b2  Two",
+        "total: 3",
+        "Showing 2 of 3; ask for more with --offset and --limit.",
+      ),
+    );
+    expect(renderHuman({ partial: [], groups: [], offset: 0, rows: 0, total: 0 })).toBe(
+      lines("partial: none", "total: 0"),
+    );
+    // Without a title a row is no element line: the list stays YAML.
+    const yaml = renderHuman({ partial: [part("b1")], total: 2 });
+    expect(yaml).toContain("shortId: SR-b1");
+    expect(yaml).toContain("Showing 1 of 2; ask for more with --offset and --limit.");
+  });
+
   it("[SR-149/AK1] shows each group of a grouped tree as its own tree, with texts", () => {
     const element = (id: string, body?: string): Record<string, unknown> => ({
       id,

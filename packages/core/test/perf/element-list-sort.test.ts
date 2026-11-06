@@ -9,11 +9,11 @@
 import type { GeneratedWorkspace, LargeFixtureWorkspace, VersionFunction } from "@reqseq/testkit";
 import { generateLargeWorkspace, measure, thresholdMessage, writeLargeWorkspace } from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { CommandOutput } from "../../src/catalog.js";
 import { elementStoreState, shortIdState } from "../../src/model/index.js";
 import { warmWorkspace } from "../../src/runtime/warm.js";
 import { invoke } from "../../src/runtime/invoke.js";
 import { Workspace } from "../../src/runtime/workspace.js";
+import type { FullList } from "../../src/commands/list.test-helper.js";
 
 const ELEMENTS = 50_000;
 const RELATIONS = 200_000;
@@ -22,7 +22,7 @@ const RESULT_MS = 500;
 /** The versions stored in relations do not matter here: nothing compares them. */
 const VERSION: VersionFunction = () => "n1:0000000000000000";
 
-type Output = CommandOutput<"element.list">;
+type Output = FullList;
 
 describe("element.list sorted and as a derivation tree with 50,000 elements and 200,000 relations (SR-075, N-036)", () => {
   let tree: GeneratedWorkspace;

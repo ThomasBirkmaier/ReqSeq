@@ -11,6 +11,7 @@ import { CommandError } from "../../catalog.js";
 import { fileSchemaValidator } from "../../runtime/contracts.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
+import type { FullList } from "../list.test-helper.js";
 
 type Saved = CommandOutput<"filter.save">;
 type Listed = CommandOutput<"filter.list">;
@@ -259,11 +260,7 @@ describe("filter.save (SR-070)", () => {
     });
     expect(await read(fixture, "filters/emergent.yaml")).toContain("where:\n  emergent: true\n");
     const run = async (selection: Record<string, unknown>): Promise<string[]> => {
-      const out = (await invoke(
-        "element.list",
-        { selection },
-        { workspace },
-      )) as CommandOutput<"element.list">;
+      const out = (await invoke("element.list", { selection }, { workspace })) as FullList;
       return out.elements.map((e) => e.id);
     };
     expect(await run({ filter: "Emergent" })).toEqual([`${P}b3`]);

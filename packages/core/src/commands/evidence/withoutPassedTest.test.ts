@@ -13,6 +13,7 @@ import type { EvidenceRecord } from "../../evidence/index.js";
 import { evidenceRecordsState } from "../../evidence/index.js";
 import { getCommandRuntime, invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
+import type { FullList } from "../list.test-helper.js";
 
 type Output = CommandOutput<"evidence.withoutPassedTest">;
 
@@ -172,7 +173,7 @@ describe("evidence.withoutPassedTest (SR-120)", () => {
         sort: [{ by: "type" }, { by: "identifier" }],
       },
       { workspace },
-    )) as CommandOutput<"element.list">;
+    )) as FullList;
     expect(out.elements.map((e) => e.id)).toEqual(list.elements.map((e) => e.id));
     expect(out.elements.map((e) => e.identifier)).toEqual(
       expect.arrayContaining(["SR-2", "SR-9", "SR-10", "SR-100"]),
@@ -271,9 +272,10 @@ describe("evidence.withoutPassedTest (SR-120)", () => {
   it("leaves every element's status as written (D-030)", async () => {
     const workspace = await open();
     const statuses = async (): Promise<unknown> =>
-      (
-        (await invoke("element.list", { limit: 1000 }, { workspace })) as CommandOutput<"element.list">
-      ).elements.map((e) => [e.shortId, e.status]);
+      ((await invoke("element.list", { limit: 1000 }, { workspace })) as FullList).elements.map((e) => [
+        e.shortId,
+        e.status,
+      ]);
     const before = await statuses();
     await run(workspace);
     expect(await statuses()).toEqual(before);

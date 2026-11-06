@@ -70,13 +70,32 @@
     "element": {
       "type": "object",
       "description": "An element as the commands give it: the fields of `$defs/elementFields`, and no others.",
+      "required": ["id", "shortId", "type", "title", "repository", "file", "properties", "relations"],
+      "allOf": [{ "$ref": "#/$defs/elementFields" }],
+      "unevaluatedProperties": false
+    },
+    "elementPart": {
+      "type": "object",
+      "description": "Some fields of an element (element.list `fields`, #982): `id`, `shortId` and `repository` always, the others of `$defs/elementFields` when asked for and given, and no others.",
+      "required": ["id", "shortId", "repository"],
       "allOf": [{ "$ref": "#/$defs/elementFields" }],
       "unevaluatedProperties": false
     },
     "line": {
       "type": "object",
       "description": "One line of the JSON Lines form of data.export (`data export --jsonl`, the API with `Accept: application/x-ndjson`) and of the file of data.store: `reqseq-data`, `commit` and `dirty` of the state first, as at the top level of the JSON form, then the fields of one element, unchanged (SR-061 AK4, SR-062 AK1).",
-      "required": ["reqseq-data", "dirty"],
+      "required": [
+        "reqseq-data",
+        "dirty",
+        "id",
+        "shortId",
+        "type",
+        "title",
+        "repository",
+        "file",
+        "properties",
+        "relations"
+      ],
       "properties": {
         "reqseq-data": { "const": 3 },
         "commit": {
@@ -90,8 +109,7 @@
     },
     "elementFields": {
       "type": "object",
-      "description": "The fields of an element, shared by `$defs/element` and `$defs/line`; open, so never used alone.",
-      "required": ["id", "shortId", "type", "title", "repository", "file", "properties", "relations"],
+      "description": "The fields of an element, shared by `$defs/element`, `$defs/line` and `$defs/elementPart`, which say which are required; open, so never used alone.",
       "properties": {
         "id": {
           "$ref": "common.schema.json#/$defs/uuid"

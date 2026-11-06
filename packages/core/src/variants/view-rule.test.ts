@@ -24,6 +24,7 @@ import {
   viewRuleOf,
 } from "./view-rule.js";
 import type { ViewRuleIndex } from "./view-rule.js";
+import type { FullList } from "../commands/list.test-helper.js";
 
 const P = "43043043-0000-4000-8000-0000000000";
 const NAMES: Readonly<Record<string, string>> = {
@@ -65,11 +66,7 @@ const open = async (files: Readonly<Record<string, string>> = {}): Promise<Works
 /** The names of the elements `element.list` gives in `view`, with `where` if given. */
 const list = async (workspace: Workspace, view: string, where?: unknown): Promise<string[]> => {
   const selection = { view, ...(where === undefined ? {} : { where }) };
-  const out = (await invoke(
-    "element.list",
-    { selection, limit: 500 },
-    { workspace },
-  )) as CommandOutput<"element.list">;
+  const out = (await invoke("element.list", { selection, limit: 500 }, { workspace })) as FullList;
   return out.elements.map((e) => name(e.id));
 };
 
@@ -361,7 +358,7 @@ describe("the view rule (SR-041, SR-043)", () => {
       "element.list",
       { selection: { view: "VAR-0000c1" } },
       { workspace: ws },
-    )) as CommandOutput<"element.list">;
+    )) as FullList;
     expect([out.incomplete, out.elements.map((e) => name(e.id)).includes("K3")]).toEqual([true, true]);
     expect(await check(ws, "variant.target-not-core")).toEqual([]);
   });

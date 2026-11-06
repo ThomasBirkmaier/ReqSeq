@@ -2455,6 +2455,26 @@
                       }
                     ]
                   },
+                  "fields": {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                      "enum": [
+                        "identifier",
+                        "type",
+                        "status",
+                        "title",
+                        "text",
+                        "version",
+                        "file",
+                        "emergent",
+                        "properties",
+                        "relations"
+                      ]
+                    },
+                    "description": "Give only these fields of each element, in `partial` instead of `elements`; unlike the `fields` of element.search, which says where to search. `id`, `shortId`, `repository` and the `problems` of an element are always given; a field the element has no value for stays left out, as without `fields`. `text` gives the text as `withText` does, also with `withText` false. Without `fields`, every field in `elements`."
+                  },
                   "withText": {
                     "type": "boolean",
                     "description": "Also give the text of each element. Left out for an element without a version, and when its file changed while the list was built (list again)."
@@ -2486,14 +2506,21 @@
                   "properties": {
                     "elements": {
                       "type": "array",
-                      "description": "One page of the list. With `group`, the page of the grouped list (the elements of the first group, then of the next): an element in several groups is listed once in each, so a page can hold it more than once; key the rows by their position, not by the element.",
+                      "description": "Without `fields`: one page of the list. With `group`, the page of the grouped list (the elements of the first group, then of the next): an element in several groups is listed once in each, so a page can hold it more than once; key the rows by their position, not by the element.",
                       "items": {
                         "$ref": "#/components/schemas/data-export/$defs/element"
                       }
                     },
+                    "partial": {
+                      "type": "array",
+                      "description": "Only with `fields`, instead of `elements`: the same page, each element with the fields asked for.",
+                      "items": {
+                        "$ref": "#/components/schemas/data-export/$defs/elementPart"
+                      }
+                    },
                     "tree": {
                       "type": "array",
-                      "description": "Only when `sort` starts with `hierarchy`: the place in the derivation tree of each element of `elements`, in the same order. With `group`, each group is its own tree over its elements: a parent outside the group does not count. The list is the tree depth first: each root, then the elements below it. Each element of the selection appears once: below the parent of the list that reaches it at the shortest depth, the first in sort order among equals; an element without a parent in the list is a root, and so is the first element in sort order of a cycle that no root reaches. Its other parents are in its `relations`.",
+                      "description": "Only when `sort` starts with `hierarchy`: the place in the derivation tree of each element of `elements` (or `partial`), in the same order. With `group`, each group is its own tree over its elements: a parent outside the group does not count. The list is the tree depth first: each root, then the elements below it. Each element of the selection appears once: below the parent of the list that reaches it at the shortest depth, the first in sort order among equals; an element without a parent in the list is a root, and so is the first element in sort order of a cycle that no root reaches. Its other parents are in its `relations`.",
                       "items": {
                         "type": "object",
                         "properties": {
@@ -2605,8 +2632,19 @@
                   },
                   "additionalProperties": false,
                   "required": [
-                    "elements",
                     "total"
+                  ],
+                  "oneOf": [
+                    {
+                      "required": [
+                        "elements"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "partial"
+                      ]
+                    }
                   ]
                 }
               }
@@ -12835,6 +12873,31 @@
           "element": {
             "type": "object",
             "description": "An element as the commands give it: the fields of `$defs/elementFields`, and no others.",
+            "required": [
+              "id",
+              "shortId",
+              "type",
+              "title",
+              "repository",
+              "file",
+              "properties",
+              "relations"
+            ],
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/data-export/$defs/elementFields"
+              }
+            ],
+            "unevaluatedProperties": false
+          },
+          "elementPart": {
+            "type": "object",
+            "description": "Some fields of an element (element.list `fields`): `id`, `shortId` and `repository` always, the others of `$defs/elementFields` when asked for and given, and no others.",
+            "required": [
+              "id",
+              "shortId",
+              "repository"
+            ],
             "allOf": [
               {
                 "$ref": "#/components/schemas/data-export/$defs/elementFields"
@@ -12847,7 +12910,15 @@
             "description": "One line of the JSON Lines form of data.export (`data export --jsonl`, the API with `Accept: application/x-ndjson`) and of the file of data.store: `reqseq-data`, `commit` and `dirty` of the state first, as at the top level of the JSON form, then the fields of one element, unchanged.",
             "required": [
               "reqseq-data",
-              "dirty"
+              "dirty",
+              "id",
+              "shortId",
+              "type",
+              "title",
+              "repository",
+              "file",
+              "properties",
+              "relations"
             ],
             "properties": {
               "reqseq-data": {
@@ -12871,17 +12942,7 @@
           },
           "elementFields": {
             "type": "object",
-            "description": "The fields of an element, shared by `$defs/element` and `$defs/line`; open, so never used alone.",
-            "required": [
-              "id",
-              "shortId",
-              "type",
-              "title",
-              "repository",
-              "file",
-              "properties",
-              "relations"
-            ],
+            "description": "The fields of an element, shared by `$defs/element`, `$defs/line` and `$defs/elementPart`, which say which are required; open, so never used alone.",
             "properties": {
               "id": {
                 "$ref": "#/components/schemas/common/$defs/uuid"

@@ -14,6 +14,7 @@ import { evidenceRecordsState, verificationState } from "../../evidence/index.js
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 import { readFirst } from "../../runtime/read-first.test-helper.js";
+import type { FullList } from "../list.test-helper.js";
 
 type Output = CommandOutput<"evidence.status">;
 type Verification = Output["elements"][number]["verification"];
@@ -109,13 +110,13 @@ describe("indirect verification in evidence.status, element.get and the filter (
       "element.list",
       { selection: { where: { verification: ["indirect"] } } },
       { workspace: ws },
-    )) as CommandOutput<"element.list">;
+    )) as FullList;
     expect(listed.elements.map((e) => e.id)).toEqual([G, P1, P3]);
     const open_ = (await invoke(
       "element.list",
       { selection: { where: { verification: ["open"] } } },
       { workspace: ws },
-    )) as CommandOutput<"element.list">;
+    )) as FullList;
     expect(open_.elements.map((e) => e.id)).toEqual([P2, C22, C32, P6, C61]);
   });
 
@@ -261,7 +262,7 @@ describe("indirect verification in evidence.status, element.get and the filter (
       "element.list",
       { selection: { where: { verification: ["indirect"] } } },
       { workspace: ws },
-    )) as CommandOutput<"element.list">;
+    )) as FullList;
     expect(indirect.elements.map((e) => e.id)).toEqual([P3]);
     const afterUpdate = await ws.get(verificationState);
     expect(afterUpdate).not.toBe(before);

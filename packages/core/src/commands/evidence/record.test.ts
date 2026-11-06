@@ -16,6 +16,7 @@ import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 import { parseFileBytes } from "../../files/index.js";
 import { readFirst } from "../../runtime/read-first.test-helper.js";
+import type { FullList } from "../list.test-helper.js";
 
 type Output = CommandOutput<"evidence.record">;
 
@@ -199,7 +200,7 @@ describe("evidence.record (SR-030)", () => {
       "element.list",
       { selection: { where: { relation: { direction: "evidence" }, exists: true } } },
       { workspace },
-    )) as CommandOutput<"element.list">;
+    )) as FullList;
     expect(withEvidence.elements.map((e) => e.id)).toEqual([S1]);
     expect(withEvidence.elements.map((e) => e.id)).not.toContain(N1);
   });

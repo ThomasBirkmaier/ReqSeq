@@ -591,6 +591,56 @@ export interface DataExportElement {
 }
 
 /**
+ * Some fields of an element (element.list `fields`, #982): `id`, `shortId` and `repository` always, the others of `$defs/elementFields` when asked for and given, and no others.
+ * Schema: `schemas/data-export.schema.json#/$defs/elementPart`.
+ */
+export interface DataExportElementPart {
+  readonly id: Uuid;
+  readonly shortId: ShortId;
+  /** The value of its property with the meaning `identifier` (an ID from another source such as SR-036, #305), for display next to `shortId`; left out when it has none. The property itself stays under `properties`. */
+  readonly identifier?: string;
+  readonly type?: Key;
+  /** The status key as written; left out when the element has none (a type without status, #306). */
+  readonly status?: Key;
+  readonly title?: string;
+  /** Markdown text below the frontmatter, without the blank line after the closing `---` (ADR-0004). Left out by list commands unless asked for. */
+  readonly text?: string;
+  /** The current version of the element (ADR-0005). Left out when it cannot be computed (its file no longer holds the element, an embedded image cannot be read, a counted value has no normal form); then `problems` says why (file.faulty). */
+  readonly version?: Version;
+  /** Date of the version from Git (D-013: shown instead of the hash; ADR-0005): the committer date of the newest commit that started this version (no parent of it had the version), in UTC as YYYY-MM-DDTHH:MM:SSZ. null when no commit has it (uncommitted content), when Git cannot tell (no git, not a repository, no commit, shallow clone) and when Git did not answer in time. Left out when `version` is left out. */
+  readonly versionDate?: string | null;
+  readonly repository: string;
+  /** Path relative to the repository. */
+  readonly file?: string;
+  /** Unknown type, invalid metamodel or read-only repository (SR-011 AK3, SR-016 AK3, SR-018 AK2). */
+  readonly readOnly?: boolean;
+  /** Given by data.export: the UUIDs of the variants the property with the meaning `validity` names, in its order; `[]` = the core and every variant (SR-040 AK1, D-020). Left out when the metamodel has no validity property. */
+  readonly validity?: readonly Uuid[];
+  /** Given by data.export: the UUIDs of the packages the property with the meaning `packages` names, in its order; `[]` when none. Left out when the metamodel has no packages property. */
+  readonly packages?: readonly Uuid[];
+  /** Given only for a core requirement (SR-046 AK3): each variant that replaces it and the replacing requirement, one entry per pair; a variant that also excludes it is only in excludedBy. Left out when empty. */
+  readonly replacedBy?: readonly {
+    readonly variant: Uuid;
+    readonly replacement: Uuid;
+  }[];
+  /** The variants that exclude this core requirement (SR-042, SR-046 AK3). Left out when empty. */
+  readonly excludedBy?: readonly Uuid[];
+  /** SR-035: true when the element's property with the meaning `emergent` holds the choice `yes` (assumption, spec question #591); only true is given, left out otherwise. An emergent requirement is never `indirect`: without an own verification record in a view it is `open` there. */
+  readonly emergent?: boolean;
+  /** All other properties by key, unknown ones included. */
+  readonly properties?: Readonly<Record<string, unknown>>;
+  /** The element's own relations, then the targets of its properties of kind `relation` (`property: true`), then the incoming relations (`direction: in`); in stage 1 only the relations with the meaning `succession` from the successors of an element with a status marked invalid (SR-072 AK3). The targets of `validity` and `packages` also appear in `validity` and `packages` in data.export. `currentVersion` and `outdated` are given by data.export and trace.matrix. */
+  readonly relations?: readonly DataExportRelation[];
+  /** Verification status, one entry per view the requirement is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it (SR-047 AK3). */
+  readonly verification?: readonly DataExportVerificationEntry[];
+  /** SR-038: the Validierungsstatus from the validation records of the core (no `variant`) against the element's current version; the newest record of that version decides, only records of older versions give `outdated`. Given for every element whose type has the meaning `need` (`open` without record) and for every other element with a validation record; left out otherwise (assumption, spec question #534). Never inherited from children; never the element's `status` (D-030). `inconclusive` when that record is inconclusive (SR-172 AK2); on a tie at the newest date `failed` before `inconclusive` before `validated` (assumption, spec question #807). */
+  readonly validation?: ValidationStatus;
+  /** SR-172 AK2: the `reason` of the inconclusive record that decides `validation`; given exactly when `validation` is `inconclusive`. */
+  readonly validationReason?: string;
+  readonly problems?: readonly Problem[];
+}
+
+/**
  * One line of the JSON Lines form of data.export (`data export --jsonl`, the API with `Accept: application/x-ndjson`) and of the file of data.store: `reqseq-data`, `commit` and `dirty` of the state first, as at the top level of the JSON form, then the fields of one element, unchanged (SR-061 AK4, SR-062 AK1).
  * Schema: `schemas/data-export.schema.json#/$defs/line`.
  */
@@ -646,27 +696,27 @@ export interface DataExportLine {
 }
 
 /**
- * The fields of an element, shared by `$defs/element` and `$defs/line`; open, so never used alone.
+ * The fields of an element, shared by `$defs/element`, `$defs/line` and `$defs/elementPart`, which say which are required; open, so never used alone.
  * Schema: `schemas/data-export.schema.json#/$defs/elementFields`.
  */
 export interface DataExportElementFields {
-  readonly id: Uuid;
-  readonly shortId: ShortId;
+  readonly id?: Uuid;
+  readonly shortId?: ShortId;
   /** The value of its property with the meaning `identifier` (an ID from another source such as SR-036, #305), for display next to `shortId`; left out when it has none. The property itself stays under `properties`. */
   readonly identifier?: string;
-  readonly type: Key;
+  readonly type?: Key;
   /** The status key as written; left out when the element has none (a type without status, #306). */
   readonly status?: Key;
-  readonly title: string;
+  readonly title?: string;
   /** Markdown text below the frontmatter, without the blank line after the closing `---` (ADR-0004). Left out by list commands unless asked for. */
   readonly text?: string;
   /** The current version of the element (ADR-0005). Left out when it cannot be computed (its file no longer holds the element, an embedded image cannot be read, a counted value has no normal form); then `problems` says why (file.faulty). */
   readonly version?: Version;
   /** Date of the version from Git (D-013: shown instead of the hash; ADR-0005): the committer date of the newest commit that started this version (no parent of it had the version), in UTC as YYYY-MM-DDTHH:MM:SSZ. null when no commit has it (uncommitted content), when Git cannot tell (no git, not a repository, no commit, shallow clone) and when Git did not answer in time. Left out when `version` is left out. */
   readonly versionDate?: string | null;
-  readonly repository: string;
+  readonly repository?: string;
   /** Path relative to the repository. */
-  readonly file: string;
+  readonly file?: string;
   /** Unknown type, invalid metamodel or read-only repository (SR-011 AK3, SR-016 AK3, SR-018 AK2). */
   readonly readOnly?: boolean;
   /** Given by data.export: the UUIDs of the variants the property with the meaning `validity` names, in its order; `[]` = the core and every variant (SR-040 AK1, D-020). Left out when the metamodel has no validity property. */
@@ -683,9 +733,9 @@ export interface DataExportElementFields {
   /** SR-035: true when the element's property with the meaning `emergent` holds the choice `yes` (assumption, spec question #591); only true is given, left out otherwise. An emergent requirement is never `indirect`: without an own verification record in a view it is `open` there. */
   readonly emergent?: boolean;
   /** All other properties by key, unknown ones included. */
-  readonly properties: Readonly<Record<string, unknown>>;
+  readonly properties?: Readonly<Record<string, unknown>>;
   /** The element's own relations, then the targets of its properties of kind `relation` (`property: true`), then the incoming relations (`direction: in`); in stage 1 only the relations with the meaning `succession` from the successors of an element with a status marked invalid (SR-072 AK3). The targets of `validity` and `packages` also appear in `validity` and `packages` in data.export. `currentVersion` and `outdated` are given by data.export and trace.matrix. */
-  readonly relations: readonly DataExportRelation[];
+  readonly relations?: readonly DataExportRelation[];
   /** Verification status, one entry per view the requirement is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it (SR-047 AK3). */
   readonly verification?: readonly DataExportVerificationEntry[];
   /** SR-038: the Validierungsstatus from the validation records of the core (no `variant`) against the element's current version; the newest record of that version decides, only records of older versions give `outdated`. Given for every element whose type has the meaning `need` (`open` without record) and for every other element with a validation record; left out otherwise (assumption, spec question #534). Never inherited from children; never the element's `status` (D-030). `inconclusive` when that record is inconclusive (SR-172 AK2); on a tie at the newest date `failed` before `inconclusive` before `validated` (assumption, spec question #807). */
@@ -1858,6 +1908,18 @@ export interface ElementListInput {
   readonly sort?: readonly FilterSortKeyWithDefaults[];
   /** Group the list (SR-149): `type` (as written, a subtype is a group of its own), `status`, `package` (the property with the meaning `packages`), or the key of a property whose values element.facets offers: a choice or relation property, or a text, number or date property with few values shared in the workspace (a topic, not a title). Whether a text, number or date key can be grouped follows the data of the workspace (the element.facets rule with its default maxValues of 30), so the same key can become input.invalid as the data changes. Any other key is input.invalid. Groups come in the order a sort by the value gives: types, statuses and choices in metamodel order (a choice written by its display name is in the group of that choice), then other values: numbers, texts ignoring case, booleans; packages and other targets by title ignoring case, then short ID (spec-frage #978). Elements without a value form the last group; so do elements whose targets are all not available (`unavailable`). Relation items are read as element.facets and the condition `property eq` read them. An element with several values (packages, a list) is in each of their groups. `sort` (or the saved filter's sort) orders the elements inside each group; with `hierarchy` each group is its own tree. Nothing is stored. */
   readonly group?: Key;
+  /** Give only these fields of each element (#982), in `partial` instead of `elements`; unlike the `fields` of element.search, which says where to search. `id`, `shortId`, `repository` and the `problems` of an element are always given; a field the element has no value for stays left out, as without `fields`. `text` gives the text as `withText` does, also with `withText` false. Without `fields`, every field in `elements`. */
+  readonly fields?: readonly (
+    | "identifier"
+    | "type"
+    | "status"
+    | "title"
+    | "text"
+    | "version"
+    | "file"
+    | "emergent"
+    | "properties"
+    | "relations")[];
   /** Also give the text of each element. Left out for an element without a version, and when its file changed while the list was built (list again). */
   readonly withText?: boolean;
   readonly limit: number;
@@ -1868,10 +1930,12 @@ export interface ElementListInput {
  * Output of `element.list`. Elements of a selection, sorted; optionally as derivation tree or in groups.
  * Schema: `schemas/commands/element.list.json output`.
  */
-export interface ElementListOutput {
-  /** One page of the list. With `group`, the page of the grouped list (the elements of the first group, then of the next): an element in several groups is listed once in each, so a page can hold it more than once; key the rows by their position, not by the element. */
-  readonly elements: readonly DataExportElement[];
-  /** Only when `sort` starts with `hierarchy` (SR-075 AK2): the place in the derivation tree of each element of `elements`, in the same order. With `group`, each group is its own tree over its elements: a parent outside the group does not count. The list is the tree depth first: each root, then the elements below it. Each element of the selection appears once (spec-frage #354): below the parent of the list that reaches it at the shortest depth, the first in sort order among equals; an element without a parent in the list is a root, and so is the first element in sort order of a cycle that no root reaches. Its other parents are in its `relations`. */
+export type ElementListOutput = {
+  /** Without `fields`: one page of the list. With `group`, the page of the grouped list (the elements of the first group, then of the next): an element in several groups is listed once in each, so a page can hold it more than once; key the rows by their position, not by the element. */
+  readonly elements?: readonly DataExportElement[];
+  /** Only with `fields`, instead of `elements`: the same page, each element with the fields asked for. */
+  readonly partial?: readonly DataExportElementPart[];
+  /** Only when `sort` starts with `hierarchy` (SR-075 AK2): the place in the derivation tree of each element of `elements` (or `partial`), in the same order. With `group`, each group is its own tree over its elements: a parent outside the group does not count. The list is the tree depth first: each root, then the elements below it. Each element of the selection appears once (spec-frage #354): below the parent of the list that reaches it at the shortest depth, the first in sort order among equals; an element without a parent in the list is a root, and so is the first element in sort order of a cycle that no root reaches. Its other parents are in its `relations`. */
   readonly tree?: readonly {
     readonly id: Uuid;
     /** Workspace name of the repository of the element. */
@@ -1908,7 +1972,13 @@ export interface ElementListOutput {
   /** Elements in the selection, each once. */
   readonly total: number;
   readonly incomplete?: Incomplete;
-}
+} & (
+  | {
+    readonly elements: unknown;
+  }
+  | {
+    readonly partial: unknown;
+  });
 
 /**
  * Input of `element.facets` as `run` gets it: validated, properties with a `default` filled in. Types, statuses and property values of the elements of a selection, with counts, to choose a filter from.

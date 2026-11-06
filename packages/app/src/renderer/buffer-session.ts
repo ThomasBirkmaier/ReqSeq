@@ -377,7 +377,7 @@ const readNames = async (call: Call, elements: readonly Named[]): Promise<Names>
   if (listed.ok) {
     return {
       names: new Map(
-        listed.output.elements.map((element) => [nameKey(element), elementBufferOf(element).name]),
+        (listed.output.elements ?? []).map((element) => [nameKey(element), elementBufferOf(element).name]),
       ),
       complete: true,
     };

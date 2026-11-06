@@ -14,6 +14,7 @@ import { WRITTEN_VERSION } from "../../model/version-forms.test-helper.js";
 import { metamodelState } from "../../metamodel/index.js";
 import { originKeys } from "../../reqif/index.js";
 import { readFirstFor } from "../../runtime/read-first.test-helper.js";
+import type { Output } from "../list.test-helper.js";
 
 type Imported = CommandOutput<"reqif.import">;
 type Got = CommandOutput<"element.get">;
@@ -49,10 +50,10 @@ const run = async <C extends CommandName>(
   workspace: Workspace,
   command: C,
   input: Record<string, unknown>,
-): Promise<CommandOutput<C>> =>
+): Promise<Output<C>> =>
   (await invoke(command, await readFirstFor(command, input, { workspace }), {
     workspace,
-  })) as CommandOutput<C>;
+  })) as Output<C>;
 
 const failure = async (
   workspace: Workspace,

@@ -16,6 +16,7 @@ import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
+import type { FullList } from "../list.test-helper.js";
 
 type Output = CommandOutput<"element.facets">;
 type Facet = Output["properties"][number];
@@ -164,7 +165,7 @@ describe("element.facets (#425)", () => {
         "element.list",
         { selection: { where: { type: [key], subtypes: false } }, limit: 1 },
         { workspace: ws },
-      )) as CommandOutput<"element.list">;
+      )) as FullList;
       expect([key, list.total]).toEqual([key, count]);
       sum += count;
     }
@@ -174,7 +175,7 @@ describe("element.facets (#425)", () => {
       "element.list",
       { selection: { where: { type: ["system-requirement"] } }, limit: 1 },
       { workspace: ws },
-    )) as CommandOutput<"element.list">;
+    )) as FullList;
     expect(parent.total).toBe(7);
     expect(types.find((t) => t.key === "system-requirement")?.count).toBe(5);
   });
@@ -366,13 +367,8 @@ describe("element.facets (#425)", () => {
             ? extra
             : { all: [selection["where"], extra] };
       const next = { ...selection, ...(where === undefined ? {} : { where }) };
-      return (
-        (await invoke(
-          "element.list",
-          { selection: next, limit: 1 },
-          { workspace: ws },
-        )) as CommandOutput<"element.list">
-      ).total;
+      return ((await invoke("element.list", { selection: next, limit: 1 }, { workspace: ws })) as FullList)
+        .total;
     };
     for (const selection of selections) {
       const out = await facets(ws, { selection, maxValues: 100 });
@@ -401,12 +397,8 @@ describe("element.facets (#425)", () => {
   it("[SR-132/AK2] the facets of one element give each of its values, one item of a list property each, and each selects with eq every element that has it", async () => {
     const ws = await open(WITH_EXTRA);
     const all = await facets(ws);
-    const list = async (where: Record<string, unknown>): Promise<CommandOutput<"element.list">> =>
-      (await invoke(
-        "element.list",
-        { selection: { where } },
-        { workspace: ws },
-      )) as CommandOutput<"element.list">;
+    const list = async (where: Record<string, unknown>): Promise<FullList> =>
+      (await invoke("element.list", { selection: { where } }, { workspace: ws })) as FullList;
     // SR b8 has the topics Timing and Wind (a list); SR b1 a choice, a package and the topic Wind.
     const b8 = await facets(ws, { selection: { ids: ["SR-0000b8"] } });
     expect(facet(b8, "topic").values).toEqual([
