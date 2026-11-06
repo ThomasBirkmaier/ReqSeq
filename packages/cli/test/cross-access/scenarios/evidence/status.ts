@@ -2,7 +2,7 @@
 import type { FixtureOptions } from "@reqseq/testkit";
 import { expect } from "vitest";
 import { scenariosOf } from "../../scenario.js";
-import { EMERGENT, EVIDENCE, FILTER, VARIANT_EVIDENCE } from "../../fixtures.js";
+import { CRITERIA, EMERGENT, EVIDENCE, FILTER, VARIANT_EVIDENCE } from "../../fixtures.js";
 
 /** Parents verified indirectly through Markdown records of their children, missing children (SR-034). */
 const INDIRECT: FixtureOptions = { fixture: "SR-034/indirect", git: true };
@@ -49,6 +49,34 @@ scenariosOf("evidence.status", [
     fixture: FILTER,
     input: { selection: { where: { verification: ["open"] }, view: "VAR-0000c1" }, limit: 3, offset: 1 },
     expect: "output",
+  },
+  {
+    name: "the status per acceptance criterion: open with 2 of 3 criteria verified (SR-031 AK5)",
+    fixture: CRITERIA,
+    input: {},
+    tag: "[SR-031/AK5]",
+    expect: "output",
+    check: (results) => {
+      const { elements } = (
+        results["core"]?.outcome as { output: { elements: readonly Record<string, unknown>[] } }
+      ).output;
+      expect(elements.map((e) => [e["shortId"], e["verification"]])).toEqual([
+        [
+          "SR-0000e1",
+          [{ view: "core", status: "open", criteria: { verified: 2, total: 3, notVerified: [3] } }],
+        ],
+        ["SR-0000e2", [{ view: "core", status: "verified", criteria: { verified: 2, total: 2 } }]],
+        [
+          "SR-0000e3",
+          [{ view: "core", status: "outdated", criteria: { verified: 2, total: 3, notVerified: [3] } }],
+        ],
+        [
+          "SR-0000e4",
+          [{ view: "core", status: "failed", criteria: { verified: 1, total: 2, notVerified: [2] } }],
+        ],
+        ["SR-0000e5", [{ view: "core", status: "verified" }]],
+      ]);
+    },
   },
   {
     name: "indirect verification and missing children (SR-034)",

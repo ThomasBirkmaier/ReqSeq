@@ -58,6 +58,7 @@ const sourceOf = (records: readonly EvidenceRecord[], independent = false): Stat
   recordsOf: (id) => records.filter((r) => r.element === id),
   emergent: () => false,
   independent: () => independent,
+  criteriaOf: () => 0,
 });
 
 /** The views by validity alone, as the view rule without replacements and exclusions. */

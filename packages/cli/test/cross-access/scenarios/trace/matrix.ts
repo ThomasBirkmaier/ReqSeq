@@ -1,7 +1,7 @@
 // Cross-access scenarios of trace.matrix, in addition to the default one (cross-access.test.ts).
 import type { FixtureOptions } from "@reqseq/testkit";
 import { scenariosOf } from "../../scenario.js";
-import { MATRIX_EVIDENCE, STATUS } from "../../fixtures.js";
+import { CRITERIA, MATRIX_EVIDENCE, STATUS } from "../../fixtures.js";
 
 /**
  * Needs, a decision, packages and system requirements with current, outdated and missing relations
@@ -74,6 +74,12 @@ scenariosOf("trace.matrix", [
   {
     name: "the matrix of a selection with evidence (SR-126)",
     fixture: MATRIX_EVIDENCE,
+    input: { selection: { where: { type: ["system-requirement"] } } },
+    expect: "output",
+  },
+  {
+    name: "the status column counts the acceptance criteria the records name (SR-031 AK5, SR-126)",
+    fixture: CRITERIA,
     input: { selection: { where: { type: ["system-requirement"] } } },
     expect: "output",
   },

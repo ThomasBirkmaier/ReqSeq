@@ -4,7 +4,8 @@
 // verification status (SR-047 AK3): "Verification — Core: verified · <variant>: open", one part per entry of
 // `verification` in core's order (core gives no row for a variant that excludes or replaces the
 // requirement); an `open` one without own record names the children that are missing for an indirect
-// verification (SR-034 AK2): "Core: open (missing SR-1 Title, SR-2 Title)". The validation status (SR-038
+// verification (SR-034 AK2): "Core: open (missing SR-1 Title, SR-2 Title)"; one from own records of a
+// requirement with acceptance criteria counts them (SR-031 AK5): "Core: open (2 of 3 criteria, AK3 not verified)". The validation status (SR-038
 // AK1) is a line of its own: "Validation — validated"; an inconclusive one gives its reason on that line
 // (SR-172 AK2): "Validation — inconclusive: <reason>", one line, cut at `REASON_LENGTH`; a cut one gives the
 // whole reason as written as the line's title, shown on demand (#846, D-062). Variants, replacements and missing children are
@@ -120,6 +121,17 @@ const missing = (byId: ReadonlyMap<string, ElementName>, children: readonly stri
         { text: ")" },
       ];
 
+type Criteria = NonNullable<NonNullable<ElementGetOutput["element"]["verification"]>[number]["criteria"]>;
+
+/** How many acceptance criteria are verified (SR-031 AK5): " (2 of 3 criteria, AK3 not verified)"; empty without. */
+const criteriaText = (criteria: Criteria | undefined): string => {
+  if (criteria === undefined) {
+    return "";
+  }
+  const open = (criteria.notVerified ?? []).map((n) => `AK${String(n)}`);
+  return ` (${String(criteria.verified)} of ${String(criteria.total)} criteria${open.length === 0 ? "" : `, ${open.join(", ")} not verified`})`;
+};
+
 /** Whether the element has a verification or validation status: a requirement or need, or one with a validation record. */
 export const hasStatus = (
   element: Pick<ElementGetOutput["element"], "verification" | "validation">,
@@ -151,7 +163,7 @@ export const variantLines = (output: Pick<ElementGetOutput, "element" | "names">
   const use = [...replaced, ...excluded];
   const verification = element.verification?.map((entry): LinePart[] => [
     entry.view === CORE_VIEW.view ? { text: CORE_VIEW.title } : named(byId, entry.view, titleOf),
-    { text: `: ${entry.status}` },
+    { text: `: ${entry.status}${criteriaText(entry.criteria)}` },
     ...missing(byId, entry.missingChildren ?? []),
   ]);
   return {

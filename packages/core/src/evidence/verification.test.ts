@@ -60,6 +60,7 @@ const sourceOf = (records: readonly EvidenceRecord[]): StatusSource => {
     recordsOf: (id) => index.byElement.get(id) ?? [],
     emergent: (e) => isEmergent(e, "emergent"),
     independent: () => false,
+    criteriaOf: () => 0,
   };
 };
 

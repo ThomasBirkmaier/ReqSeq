@@ -168,18 +168,23 @@ describe("evidence.record (SR-030)", () => {
       { workspace },
     )) as CommandOutput<"evidence.list">;
     expect(listed.records).toEqual([{ ...output.record, baselines: [] }]);
-    expect((await get(workspace, "SR-00c002")).verification).toEqual([{ view: "core", status: "verified" }]);
+    expect((await get(workspace, "SR-00c002")).verification).toEqual([
+      { view: "core", status: "verified", criteria: { verified: 1, total: 1 } },
+    ]);
   });
 
   it("[SR-030/AK3] a validation record counts for the validation status and not for the verification status", async () => {
     const { workspace } = await open();
     const s1 = await get(workspace, "SR-00c001");
-    expect([s1.validation, s1.verification]).toEqual([undefined, [{ view: "core", status: "verified" }]]);
+    expect([s1.validation, s1.verification]).toEqual([
+      undefined,
+      [{ view: "core", status: "verified", criteria: { verified: 1, total: 1 } }],
+    ]);
     await record(workspace, { ref: "SR-00c001", kind: "validation", result: "failed", date: DATE });
     const after = await get(workspace, "SR-00c001");
     expect([after.validation, after.verification]).toEqual([
       "failed",
-      [{ view: "core", status: "verified" }],
+      [{ view: "core", status: "verified", criteria: { verified: 1, total: 1 } }],
     ]);
     // A need: validated, and still no verification status (D-012).
     expect((await get(workspace, "N-00a001")).validation).toBe("open");

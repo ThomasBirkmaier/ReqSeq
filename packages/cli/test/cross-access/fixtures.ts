@@ -175,6 +175,8 @@ export const WITH_VAULT =
 export const EVIDENCE: FixtureOptions = { fixture: "enabler-535/evidence", git: true };
 /** Requirements valid for the variants Pro and Basic, with records of the core and of Pro (SR-031, SR-047). */
 export const STATUS: FixtureOptions = { fixture: "SR-031/status", git: true };
+/** Requirements with acceptance criteria and Markdown records that name them: open 2 of 3, verified, outdated, failed, none (SR-031, D-072). */
+export const CRITERIA: FixtureOptions = { fixture: "SR-031/criteria", git: true };
 
 /** Requirements marked emergent, with and without own records, and their children (SR-035). */
 export const EMERGENT: FixtureOptions = { fixture: "SR-035/emergent", git: true };

@@ -93,6 +93,20 @@ describe("the lines of a requirement's variants", () => {
     });
   });
 
+  it("[SR-031/AK5] counts the verified acceptance criteria and names those not verified", () => {
+    const lines = variantLines(
+      output({
+        verification: [
+          { view: "core", status: "open", criteria: { verified: 2, total: 3, notVerified: [3] } },
+          { view: "uuid-coast", status: "verified", criteria: { verified: 3, total: 3 } },
+        ],
+      }),
+    );
+    expect(text(lines.verification)).toBe(
+      "Verification — Core: open (2 of 3 criteria, AK3 not verified) · uuid-coast: verified (3 of 3 criteria)",
+    );
+  });
+
   it("[SR-038/AK1] gives the validation status on a line of its own, apart from the verification status", () => {
     const lines = variantLines(
       output({ verification: [{ view: "core", status: "open" }], validation: "validated" }),

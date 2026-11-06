@@ -84,6 +84,7 @@ const evaluator = (setup: Setup) => {
     emergent: (e) =>
       isEmergent(e, setup.emergentKey === null ? undefined : (setup.emergentKey ?? "emergent")),
     independent: (e) => setup.independent?.has(e.repository) === true,
+    criteriaOf: () => 0,
   };
   const versions = setup.versions ?? new Map<ElementRecord, string | undefined>();
   return verificationEvaluator(

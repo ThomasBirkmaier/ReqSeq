@@ -2106,6 +2106,8 @@ describe("the watcher's rules for evidence files (#785)", () => {
       const now = await s2Verification(workspace);
       return JSON.stringify(now) !== JSON.stringify(before);
     });
-    expect(await s2Verification(workspace)).toEqual([{ view: "core", status: "verified" }]);
+    expect(await s2Verification(workspace)).toEqual([
+      { view: "core", status: "verified", criteria: { verified: 1, total: 1 } },
+    ]);
   });
 });

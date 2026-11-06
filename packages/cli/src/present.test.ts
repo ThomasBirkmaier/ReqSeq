@@ -510,6 +510,27 @@ describe("renderHuman: verification status (SR-031)", () => {
       ),
     );
   });
+  it("[SR-031/AK5] shows how many acceptance criteria are verified and which are not", () => {
+    const elements = [
+      requirement("1", [
+        { view: "core", status: "open", criteria: { verified: 2, total: 3, notVerified: [3] } },
+        { view: "v1", status: "verified", criteria: { verified: 3, total: 3 } },
+      ]),
+      requirement("2", [
+        { view: "core", status: "failed", criteria: { verified: 0, total: 2, notVerified: [1, 2] } },
+      ]),
+      { id: "v1", shortId: "VAR-1", title: "Pro", status: "draft" },
+    ];
+    expect(renderHuman({ elements, total: 3 })).toBe(
+      lines(
+        "elements:",
+        "  SR-1  approved  Title 1  [verification: core open 2 of 3 criteria (AK3 not verified), VAR-1 verified 3 of 3 criteria]",
+        "  SR-2  approved  Title 2  [verification: core failed 0 of 2 criteria (AK1, AK2 not verified)]",
+        "  VAR-1  draft  Pro",
+        "total: 3",
+      ),
+    );
+  });
 });
 
 describe("renderHuman: indirect verification (SR-034)", () => {

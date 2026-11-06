@@ -64,7 +64,7 @@ import type { WorkspaceLayout } from "../workspace/index.js";
 import { variantIndependentOf, workspaceLayoutState } from "../workspace/index.js";
 import type { EvidenceIndex } from "./by-element.js";
 import { evidenceIndexState } from "./by-element.js";
-import type { ChildRules, Shown, VerificationEvaluator, ViewScope } from "./indirect.js";
+import type { ChildRules, Shown, VerificationEvaluator, VerificationResult, ViewScope } from "./indirect.js";
 import {
   carriedEvaluator,
   childRulesOf,
@@ -75,7 +75,7 @@ import {
 } from "./indirect.js";
 import type { EvidenceRecord } from "./record.js";
 import { insertionOf } from "./state.js";
-import type { StatusSource, Validation, VerificationEntries } from "./status.js";
+import type { CriteriaCount, StatusSource, Validation, VerificationEntries } from "./status.js";
 import { hasValidationRecord, hasValidationStatus, statusSource, validationOf } from "./status.js";
 
 /**
@@ -96,16 +96,30 @@ export const verificationOf = (
     if (result === undefined) {
       return [];
     }
-    const { missingChildren } = result;
-    return [
-      {
-        view: view.kind === "core" ? "core" : view.variant.id,
-        status: result.status,
-        ...(missingChildren === undefined ? {} : { missingChildren: [...missingChildren] }),
-      },
-    ];
+    return [entryOf(view.kind === "core" ? "core" : view.variant.id, result)];
   });
 };
+
+/**
+ * The verification entry of a view (`$defs/verificationEntry`) from an evaluation: the status, the
+ * children that are missing (SR-034) and the criteria counted from own records (SR-031 AK5).
+ */
+export const entryOf = (view: string, result: VerificationResult): VerificationEntries[number] => {
+  const { missingChildren, criteria } = result;
+  return {
+    view,
+    status: result.status,
+    ...(missingChildren === undefined ? {} : { missingChildren: [...missingChildren] }),
+    ...(criteria === undefined ? {} : { criteria: criteriaEntry(criteria) }),
+  };
+};
+
+/** `criteria` of a verification entry, a copy of the count. */
+const criteriaEntry = ({ verified, total, notVerified }: CriteriaCount) => ({
+  verified,
+  total,
+  ...(notVerified === undefined ? {} : { notVerified: [...notVerified] }),
+});
 
 /** A view of a status with what it holds (the view rule of the status's store, `ruleScope`). */
 export interface ViewHolder {

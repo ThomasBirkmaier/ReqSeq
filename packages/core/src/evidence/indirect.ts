@@ -54,7 +54,8 @@ import type { View } from "../variants/index.js";
 import type { Validity, ViewRuleIndex } from "../variants/index.js";
 import { appliesIn, removersOf, validityEntries, validityTarget, viewRuleIn } from "../variants/index.js";
 import type { StatusSource } from "./status.js";
-import { verificationStatusOf } from "./status.js";
+import type { CriteriaCount } from "./status.js";
+import { ownVerificationOf, verificationStatusOf } from "./status.js";
 
 /** Which elements are children of which, and which of them count (see the file comment, rule 2). */
 export interface ChildRules {
@@ -109,6 +110,8 @@ export interface VerificationResult {
   readonly status: VerificationStatus;
   /** The children that are missing (rule 5); left out when there is none. */
   readonly missingChildren?: readonly string[];
+  /** How many of its acceptance criteria its own records verify (SR-031 AK5); only with own records and criteria. */
+  readonly criteria?: CriteriaCount;
 }
 
 /** The version an element is shown with (element.get), in place of its current version. */
@@ -500,6 +503,7 @@ const evaluatorWith = (
         currentOf(child),
         rules.view,
         source.independent(child),
+        source.criteriaOf(child),
       );
     }
     if (rules.clean(child)) {
@@ -563,14 +567,13 @@ const evaluatorWith = (
     }
     if (rules.holds(element)) {
       const current = shown === undefined ? currentOf(element) : shown.current;
-      return {
-        status: verificationStatusOf(
-          source.recordsOf(element.id),
-          current,
-          view,
-          source.independent(element),
-        ),
-      };
+      return ownVerificationOf(
+        source.recordsOf(element.id),
+        current,
+        view,
+        source.independent(element),
+        source.criteriaOf(element),
+      );
     }
     return derived(element, rules.clean(element) ? neutral : rules);
   };

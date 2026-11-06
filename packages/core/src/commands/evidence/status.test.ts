@@ -432,3 +432,70 @@ describe("evidence.status (SR-031)", () => {
     expect(calls).toBe(2);
   });
 });
+
+// fixtures/SR-031/criteria: requirements with acceptance criteria (the standard model gives the
+// property its meaning) and Markdown records that name them (D-072); see its README.
+describe("evidence.status per acceptance criterion (SR-031, D-072)", () => {
+  const CRITERIA: FixtureOptions = { fixture: "SR-031/criteria" };
+  const E = (n: number): string => `31313131-0000-4000-8000-3131310000e${String(n)}`;
+
+  it("[SR-031/AK5] evidence.status, element.get and the filter show open with 2 of 3 criteria", async () => {
+    const workspace = await open(CRITERIA);
+    expect(byId(await status(workspace))).toEqual({
+      [E(1)]: [{ view: "core", status: "open", criteria: { verified: 2, total: 3, notVerified: [3] } }],
+      [E(2)]: [{ view: "core", status: "verified", criteria: { verified: 2, total: 2 } }],
+      [E(3)]: [{ view: "core", status: "outdated", criteria: { verified: 2, total: 3, notVerified: [3] } }],
+      [E(4)]: [{ view: "core", status: "failed", criteria: { verified: 1, total: 2, notVerified: [2] } }],
+      [E(5)]: [{ view: "core", status: "verified" }],
+    });
+    const got = (await invoke(
+      "element.get",
+      { ref: "SR-0000e1" },
+      { workspace },
+    )) as CommandOutput<"element.get">;
+    expect(got.element.verification).toEqual([
+      { view: "core", status: "open", criteria: { verified: 2, total: 3, notVerified: [3] } },
+    ]);
+    const filtered = await status(workspace, { selection: { where: { verification: ["open"] } } });
+    expect(filtered.elements.map((e) => e.shortId)).toEqual(["SR-0000e1"]);
+  });
+
+  it("[SR-031/AK6] a record that names no criterion verifies every criterion through evidence.status", async () => {
+    const workspace = await open(CRITERIA);
+    expect(byId(await status(workspace, { selection: { ids: ["SR-0000e2"] } }))[E(2)]).toEqual([
+      { view: "core", status: "verified", criteria: { verified: 2, total: 2 } },
+    ]);
+  });
+
+  it("[SR-031/AK7] a requirement without criteria is verified by its newest record, whatever it names", async () => {
+    const workspace = await open(CRITERIA);
+    expect(byId(await status(workspace, { selection: { ids: ["SR-0000e5"] } }))[E(5)]).toEqual([
+      { view: "core", status: "verified" },
+    ]);
+  });
+
+  it("[SR-031/AK8] a criterion with records of an older version only makes the requirement outdated", async () => {
+    const workspace = await open(CRITERIA);
+    expect(byId(await status(workspace, { selection: { ids: ["SR-0000e3"] } }))[E(3)]?.[0]?.status).toBe(
+      "outdated",
+    );
+  });
+
+  it("counts the criteria of the element as shown after a write (element.update)", async () => {
+    const workspace = await open(CRITERIA);
+    const updated = (await invoke(
+      "element.update",
+      {
+        ref: "SR-0000e1",
+        set: {
+          "acceptance-criteria": ["Given wind, then the speed shows.", "Given no wind, then 0 shows."],
+        },
+      },
+      { workspace },
+    )) as CommandOutput<"element.update">;
+    // A new version: the records are of an older one now.
+    expect(updated.element.verification).toEqual([
+      { view: "core", status: "outdated", criteria: { verified: 0, total: 2, notVerified: [1, 2] } },
+    ]);
+  });
+});
