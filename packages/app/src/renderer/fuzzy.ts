@@ -41,36 +41,40 @@ interface Match {
  * The character ranges of `name` in which `needle` (one word, lower case) matches as the beginnings
  * of words (SR-121 AK1): it falls into pieces, each the beginning of a later word than the piece
  * before, the first one of the first word; words may be skipped ("flp" finds "Filter list by
- * property", "lae" "List all elements", "crel" "Create relation"). Undefined when it does not.
+ * property", "lae" "List all elements", "crel" "Create relation"), unless `skip` is false: then each
+ * piece begins the word right after the one before ("sm" finds "Show metamodel", not "Show
+ * traceability matrix"). Undefined when it does not.
  */
-const prefixRanges = (name: string, needle: string): Span[] | undefined => {
+const prefixRanges = (name: string, needle: string, skip: boolean): Span[] | undefined => {
   const words = [...name.toLowerCase().matchAll(/\S+/g)].map((word) => ({
     start: word.index,
     text: word[0],
   }));
   // The pieces from a letter on, starting with a word from `first` on, fail the same way every time:
   // without remembering that, a long word on a name of many words takes exponential time (#304).
+  // Without `skip`, the pieces from a word on are always tried in that word alone.
   const failed = new Set<number>();
   const from = (at: number, first: number, last: number): Span[] | undefined => {
     if (at === needle.length) {
       return [];
     }
     const key = at * (words.length + 1) + first;
-    if (last === words.length && failed.has(key)) {
+    const remembered = !skip || last === words.length;
+    if (remembered && failed.has(key)) {
       return undefined;
     }
     for (const [offset, word] of words.slice(first, last).entries()) {
       const index = first + offset;
       for (let length = Math.min(word.text.length, needle.length - at); length > 0; length -= 1) {
         if (word.text.startsWith(needle.slice(at, at + length))) {
-          const rest = from(at + length, index + 1, words.length);
+          const rest = from(at + length, index + 1, skip ? words.length : index + 2);
           if (rest !== undefined) {
             return [[word.start, word.start + length], ...rest];
           }
         }
       }
     }
-    if (last === words.length) {
+    if (remembered) {
       failed.add(key);
     }
     return undefined;
@@ -78,16 +82,29 @@ const prefixRanges = (name: string, needle: string): Span[] | undefined => {
   return from(0, 0, 1);
 };
 
-/** The names matched by the beginnings of their words, in the given order (only for a query of one word). */
+/**
+ * The names matched by the beginnings of their words (only for a query of one word): first the ones
+ * that skip no word, then the others, each in the given order (SR-121 AK1, #246).
+ */
 const byPrefix = (names: readonly string[], needle: string): Match[] => {
   const word = needle.toLowerCase();
   if (word.length < 2 || /\s/.test(word)) {
     return [];
   }
-  return names.flatMap((name, index) => {
-    const ranges = prefixRanges(name, word);
-    return ranges === undefined ? [] : [{ index, ranges }];
+  const exact: Match[] = [];
+  const skipping: Match[] = [];
+  names.forEach((name, index) => {
+    const ranges = prefixRanges(name, word, false);
+    if (ranges !== undefined) {
+      exact.push({ index, ranges });
+      return;
+    }
+    const loose = prefixRanges(name, word, true);
+    if (loose !== undefined) {
+      skipping.push({ index, ranges: loose });
+    }
   });
+  return [...exact, ...skipping];
 };
 
 /** The line terminators that uFuzzy's "anything" between terms (`.`) does not cross. */
@@ -172,7 +189,7 @@ const byLetters = (matcher: uFuzzy, names: string[], needle: string): Match[] =>
 /**
  * The items whose name matches `query`, the best first. An empty query keeps all items in the given
  * order. A query of one word that gives the beginnings of the words of a name finds it first
- * ("lae" for "List all elements", SR-121 AK1), in the given order. The words of the query match in order; no word matches across
+ * ("lae" for "List all elements", SR-121 AK1), the ones that skip no word first, each in the given order. The words of the query match in order; no word matches across
  * words of a name without a space unless as such beginnings. When nothing matches, one slip per word
  * is allowed.
  */
