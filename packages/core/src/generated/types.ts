@@ -1771,7 +1771,7 @@ export interface ElementResolveOutput {
 }
 
 /**
- * Input of `element.list` as `run` gets it: validated, properties with a `default` filled in. Elements of a selection, sorted; optionally as derivation tree.
+ * Input of `element.list` as `run` gets it: validated, properties with a `default` filled in. Elements of a selection, sorted; optionally as derivation tree or in groups.
  * Schema: `schemas/commands/element.list.json input`.
  */
 export interface ElementListInput {
@@ -1779,6 +1779,8 @@ export interface ElementListInput {
   readonly selection?: ElementSelection;
   /** Keys in order: ties go to the next key, then to the workspace order (also without sort). `hierarchy` only first: the list is then the derivation tree, see `tree`. Without sort, the sort of the saved filter in `selection.filter`. */
   readonly sort?: readonly FilterSortKeyWithDefaults[];
+  /** Group the list (SR-149): `type` (as written, a subtype is a group of its own), `status`, `package` (the property with the meaning `packages`), or the key of a property of kind choice; any other key is input.invalid. Groups come in the order a sort by the value gives: types, statuses and choices in metamodel order (a choice written by its display name is in the group of that choice), then other values: numbers, texts ignoring case, booleans; packages by title ignoring case, then short ID (spec-frage #978). Elements without a value form the last group; so do elements whose packages are all not on this machine. An element with several values (packages, a list) is in each of their groups. `sort` (or the saved filter's sort) orders the elements inside each group; with `hierarchy` each group is its own tree. Nothing is stored. */
+  readonly group?: Key;
   /** Also give the text of each element. Left out for an element without a version, and when its file changed while the list was built (list again). */
   readonly withText?: boolean;
   readonly limit: number;
@@ -1786,12 +1788,13 @@ export interface ElementListInput {
 }
 
 /**
- * Output of `element.list`. Elements of a selection, sorted; optionally as derivation tree.
+ * Output of `element.list`. Elements of a selection, sorted; optionally as derivation tree or in groups.
  * Schema: `schemas/commands/element.list.json output`.
  */
 export interface ElementListOutput {
+  /** One page of the list. With `group`, the page of the grouped list (the elements of the first group, then of the next): an element in several groups is listed once in each, so a page can hold it more than once; key the rows by their position, not by the element. */
   readonly elements: readonly DataExportElement[];
-  /** Only when `sort` starts with `hierarchy` (SR-075 AK2): the place in the derivation tree of each element of `elements`, in the same order. The list is the tree depth first: each root, then the elements below it. Each element of the selection appears once (spec-frage #354): below the parent of the list that reaches it at the shortest depth, the first in sort order among equals; an element without a parent in the list is a root, and so is the first element in sort order of a cycle that no root reaches. Its other parents are in its `relations`. */
+  /** Only when `sort` starts with `hierarchy` (SR-075 AK2): the place in the derivation tree of each element of `elements`, in the same order. With `group`, each group is its own tree over its elements: a parent outside the group does not count. The list is the tree depth first: each root, then the elements below it. Each element of the selection appears once (spec-frage #354): below the parent of the list that reaches it at the shortest depth, the first in sort order among equals; an element without a parent in the list is a root, and so is the first element in sort order of a cycle that no root reaches. Its other parents are in its `relations`. */
   readonly tree?: readonly {
     readonly id: Uuid;
     /** Workspace name of the repository of the element. */
@@ -1804,6 +1807,26 @@ export interface ElementListOutput {
       readonly repository: string;
     };
   }[];
+  /** Only with `group`: every group of the whole list in order, also those on other pages; a group without elements is not given. `offset` and `rows` follow from the counts and are given for convenience. */
+  readonly groups?: readonly {
+    /** Left out for the last group, the elements without a value. The type key, the status, the short ID of the package, or the choice key (else the value as written). With a filter on it (`type` with subtypes false, `status`, `package`, a property condition with op eq) it selects the group's elements, except those that write a choice by its display name. */
+    readonly value?: string | number | boolean;
+    /** Display name of a type, status or choice of the metamodel. */
+    readonly name?: string;
+    /** Title of a package, when it has one. */
+    readonly title?: string;
+    /** Identifier of a package, when it has one. */
+    readonly identifier?: string;
+    /** Elements in the group. */
+    readonly count: number;
+    /** Row of its first element in the grouped list: the group holds the rows offset to offset + count - 1. */
+    readonly offset: number;
+  }[];
+  /** Only with `group`: the row the page starts at (the `offset` of the input), so that a page can be headed by its groups without the input. */
+  readonly offset?: number;
+  /** Only with `group`: the rows of the grouped list, the sum of the counts of `groups`; `offset` and `limit` page over these rows. At least `total`, more when elements are in several groups. */
+  readonly rows?: number;
+  /** Elements in the selection, each once. */
   readonly total: number;
   readonly incomplete?: Incomplete;
 }

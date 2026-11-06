@@ -1,0 +1,305 @@
+// element.list grouped (SR-149) on fixtures/SR-149/group, one repository `system` with the standard
+// model and a choice property `area` that holds a list (metamodel/area.yaml):
+// - need a1 "See the wind" (approved);
+// - packages d1 "Wind" and d2 "alarms" (approved), so that the title order (ignoring case) is d2, d1;
+// - SR b1 "Measure wind speed" (draft, functional, area [sensor, display]): in d1 and d2, derives from a1;
+// - SR b2 "Show the wind" (approved, performance, area "Display", the display name): in d1;
+// - SR b3 "Average the wind" (draft, requirement type "custom", no choice, no area): its only package
+//   d9 is not in the workspace; derives from b1;
+// - SR b4 "Alarm on storms" (obsolete, quality, area [display]): in d2, derives from b1.
+// Store order: a1, d1, d2, b1, b2, b3, b4.
+import fs from "node:fs/promises";
+import path from "node:path";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureOptions } from "@reqseq/testkit";
+import { describe, expect, it, onTestFinished } from "vitest";
+import type { CommandOutput } from "../../catalog.js";
+import { CommandError } from "../../catalog.js";
+import { invoke } from "../../runtime/invoke.js";
+import { Workspace } from "../../runtime/workspace.js";
+
+type Output = CommandOutput<"element.list">;
+
+const P = "14914914-0000-4000-8000-0000000000";
+const id = (tail: string): string => `${P}${tail}`;
+const [A1, D1, B1, B2, B3, B4] = ["a1", "d1", "b1", "b2", "b3", "b4"].map(id) as [
+  string,
+  string,
+  string,
+  string,
+  string,
+  string,
+];
+
+const GROUP: FixtureOptions = { fixture: "SR-149/group" };
+const BY_TITLE = [{ by: "title" }];
+
+const open = async (options: FixtureOptions = GROUP): Promise<{ workspace: Workspace; root: string }> => {
+  const fixture = await createFixtureWorkspace(options);
+  onTestFinished(() => fixture.cleanup());
+  const workspace = new Workspace(fixture.root);
+  onTestFinished(() => workspace.close());
+  return { workspace, root: fixture.root };
+};
+
+const list = async (workspace: Workspace, input: Record<string, unknown>): Promise<Output> =>
+  (await invoke("element.list", input, { workspace })) as Output;
+
+const failure = async (workspace: Workspace, input: Record<string, unknown>): Promise<CommandError> => {
+  const error = await list(workspace, input).catch((e: unknown) => e);
+  expect(error).toBeInstanceOf(CommandError);
+  return error as CommandError;
+};
+
+/** The groups as `heading: elements` lines, the elements named by the tail of their UUID. */
+const groupLines = (output: Output): string[] =>
+  (output.groups ?? []).map((group) => {
+    const start = group.offset - (output.offset ?? 0);
+    const rows = output.elements.slice(start, start + group.count);
+    const head = group.value === undefined ? "-" : String(group.value);
+    return `${head}: ${rows.map((e) => e.id.slice(P.length)).join(" ")}`;
+  });
+
+const filesOf = async (root: string): Promise<Map<string, string>> => {
+  const files = new Map<string, string>();
+  for (const entry of await fs.readdir(root, { recursive: true, withFileTypes: true })) {
+    if (entry.isFile()) {
+      const file = path.join(entry.parentPath, entry.name);
+      files.set(path.relative(root, file), (await fs.readFile(file)).toString("base64"));
+    }
+  }
+  return files;
+};
+
+describe("element.list grouped (SR-149 AK1)", () => {
+  it("[SR-149/AK1] groups by status in metamodel order, each heading with its value, name and count", async () => {
+    const { workspace } = await open();
+    const output = await list(workspace, { group: "status", sort: BY_TITLE });
+    expect(output.groups).toEqual([
+      { value: "draft", name: "Draft", count: 2, offset: 0 },
+      { value: "approved", name: "Approved", count: 4, offset: 2 },
+      { value: "obsolete", name: "Obsolete", count: 1, offset: 6 },
+    ]);
+    expect(groupLines(output)).toEqual(["draft: b3 b1", "approved: d2 a1 b2 d1", "obsolete: b4"]);
+    expect([output.rows, output.total, output.offset]).toEqual([7, 7, 0]);
+  });
+
+  it("[SR-149/AK1] groups by a choice property: choices in metamodel order, other values after them, no value last", async () => {
+    const { workspace } = await open();
+    const output = await list(workspace, { group: "requirement-type", sort: BY_TITLE });
+    expect(output.groups?.map((g) => [g.value, g.name, g.count])).toEqual([
+      ["functional", "Functional", 1],
+      ["quality", "Quality", 1],
+      ["performance", "Performance", 1],
+      ["custom", undefined, 1],
+      [undefined, undefined, 3],
+    ]);
+    expect(groupLines(output).at(-1)).toBe("-: d2 a1 d1");
+  });
+
+  it("[SR-149/AK1] groups by type in metamodel order, a subtype as a group of its own", async () => {
+    const { workspace } = await open({
+      ...GROUP,
+      files: {
+        "metamodel/software.yaml":
+          "reqseq-metamodel: 1\ntypes:\n  - { key: software-requirement, name: Software Requirement, prefix: SWR, extends: system-requirement }\n",
+        "requirements/SWR-0000000000f1.md": `---\nid: ${id("f1")}\ntype: software-requirement\nstatus: draft\ntitle: Filter\n---\n`,
+        "requirements/X-0000000000f2.md": `---\nid: ${id("f2")}\ntype: gadget\ntitle: Gadget\n---\n`,
+      },
+    });
+    const output = await list(workspace, { group: "type" });
+    expect(output.groups?.map((g) => [g.value, g.name, g.count])).toEqual([
+      ["software-requirement", "Software Requirement", 1],
+      ["need", "Need", 1],
+      ["system-requirement", "System Requirement", 4],
+      ["package", "Package", 2],
+      // A type the metamodel does not know comes after the known ones, by its key.
+      ["gadget", undefined, 1],
+    ]);
+  });
+
+  it("[SR-149/AK1] groups by package by title ignoring case, the elements without an available package last", async () => {
+    const { workspace } = await open();
+    const output = await list(workspace, { group: "package", sort: BY_TITLE });
+    expect(output.groups).toEqual([
+      { value: "PKG-0000d2", title: "alarms", count: 2, offset: 0 },
+      { value: "PKG-0000d1", title: "Wind", count: 2, offset: 2 },
+      { count: 4, offset: 4 },
+    ]);
+    // b3 names only the package d9, which is not in the workspace (spec-frage #978).
+    expect(groupLines(output)).toEqual(["PKG-0000d2: b4 b1", "PKG-0000d1: b1 b2", "-: d2 b3 a1 d1"]);
+  });
+
+  it("puts a choice written by its display name in the group of that choice", async () => {
+    const { workspace } = await open();
+    const output = await list(workspace, { group: "area", sort: BY_TITLE });
+    expect(groupLines(output)).toEqual(["sensor: b1", "display: b4 b1 b2", "-: d2 b3 a1 d1"]);
+    expect(output.groups?.[1]).toEqual({ value: "display", name: "Display", count: 3, offset: 1 });
+  });
+
+  it("orders other values of a choice property as the sort does: numbers, texts, booleans; ignores mappings", async () => {
+    const { workspace } = await open({
+      ...GROUP,
+      files: {
+        "requirements/SR-0000000000b5.md": `---\nid: ${id("b5")}\ntype: system-requirement\ntitle: Odd\narea: [true, other, 3, { a: 1 }, .nan, Other, sensor, other]\npackages: [d1]\n---\n`,
+      },
+    });
+    const output = await list(workspace, { group: "area", selection: { ids: [id("b5")] } });
+    expect(output.groups?.map((g) => g.value)).toEqual(["sensor", 3, "Other", "other", true]);
+    // An element without status is in no status group but the last; a package item without an ID names none.
+    expect((await list(workspace, { group: "status", selection: { ids: [id("b5")] } })).groups).toEqual([
+      { count: 1, offset: 0 },
+    ]);
+    expect((await list(workspace, { group: "package", selection: { ids: [id("b5")] } })).groups).toEqual([
+      { count: 1, offset: 0 },
+    ]);
+  });
+
+  it("orders an untitled package by its short ID, as element.facets does", async () => {
+    const { workspace } = await open({
+      ...GROUP,
+      files: {
+        "packages/PKG-0000000000d3.md": `---\nid: ${id("d3")}\ntype: package\nstatus: approved\n---\n`,
+        "requirements/SR-0000000000b5.md": `---\nid: ${id("b5")}\ntype: system-requirement\ntitle: Odd\npackages:\n  - { id: ${id("d3")} }\n  - { id: ${D1} }\n---\n`,
+      },
+    });
+    const output = await list(workspace, { group: "package", selection: { ids: [id("b5")] } });
+    expect(output.groups).toEqual([
+      { value: "PKG-0000d3", count: 1, offset: 0 },
+      { value: "PKG-0000d1", title: "Wind", count: 1, offset: 1 },
+    ]);
+  });
+
+  it("gives no group for an empty list", async () => {
+    const { workspace } = await open();
+    const where = { status: ["nothing"] };
+    expect(await list(workspace, { group: "status", selection: { where } })).toMatchObject({
+      elements: [],
+      groups: [],
+      rows: 0,
+      total: 0,
+    });
+    const tree = await list(workspace, {
+      group: "status",
+      selection: { where },
+      sort: [{ by: "hierarchy" }],
+    });
+    expect(tree.tree).toEqual([]);
+  });
+});
+
+describe("element.list grouped with several values (SR-149 AK2)", () => {
+  it("[SR-149/AK2] lists an element with several packages or values in each of their groups", async () => {
+    const { workspace } = await open();
+    const packages = await list(workspace, { group: "package", sort: BY_TITLE });
+    expect(packages.elements.filter((e) => e.id === B1)).toHaveLength(2);
+    const area = await list(workspace, { group: "area", sort: BY_TITLE });
+    expect(area.elements.filter((e) => e.id === B1)).toHaveLength(2);
+    expect([packages.rows, area.rows, area.total]).toEqual([8, 8, 7]);
+  });
+
+  it("[SR-149/AK2] gives both rows of an element on one page, each the whole element", async () => {
+    const { workspace } = await open();
+    const output = await list(workspace, { group: "package", sort: BY_TITLE, offset: 1, limit: 2 });
+    expect(output.elements.map((e) => e.id)).toEqual([B1, B1]);
+    expect(output.elements[0]).toEqual(output.elements[1]);
+    expect(output.elements[0]?.title).toBe("Measure wind speed");
+    // The headings cover the whole list; the page starts at row 1.
+    expect([output.offset, output.groups?.length, output.rows]).toEqual([1, 3, 8]);
+  });
+});
+
+describe("element.list regrouped (SR-149 AK3)", () => {
+  it("[SR-149/AK3] another grouping, or none, gives the same elements with the same filter and the same order in each group", async () => {
+    const { workspace } = await open();
+    const selection = { where: { type: ["system-requirement", "need"] } };
+    const sort = [{ by: "status" }, { by: "title", order: "desc" }];
+    const plain = (await list(workspace, { selection, sort })).elements.map((e) => e.id);
+    expect(plain).toEqual([B1, B3, B2, A1, B4]);
+    for (const group of ["requirement-type", "package", "area", "type"]) {
+      const output = await list(workspace, { selection, sort, group });
+      const ids = output.elements.map((e) => e.id);
+      expect(new Set(ids)).toEqual(new Set(plain));
+      for (const { offset, count } of output.groups ?? []) {
+        const members = ids.slice(offset, offset + count);
+        expect(members).toEqual(plain.filter((e) => members.includes(e)));
+      }
+    }
+  });
+
+  it("[SR-149/AK3] keeps the sort of a saved filter inside the groups", async () => {
+    const { workspace } = await open({
+      ...GROUP,
+      files: {
+        "filters/requirements.yaml":
+          "reqseq-filter: 1\nname: Requirements\nwhere: { type: [system-requirement] }\nsort: [{ by: title }]\n",
+      },
+    });
+    const output = await list(workspace, { selection: { filter: "Requirements" }, group: "package" });
+    expect(groupLines(output)).toEqual(["PKG-0000d2: b4 b1", "PKG-0000d1: b1 b2", "-: b3"]);
+  });
+
+  it("makes each group its own derivation tree under hierarchy", async () => {
+    const { workspace } = await open();
+    const output = await list(workspace, { group: "area", sort: [{ by: "hierarchy" }, { by: "title" }] });
+    expect(groupLines(output)).toEqual(["sensor: b1", "display: b1 b4 b2", "-: d2 b3 a1 d1"]);
+    expect(output.tree?.map((p) => [p.id.slice(P.length), p.depth, p.parent?.id.slice(P.length)])).toEqual([
+      ["b1", 0, undefined],
+      ["b1", 0, undefined],
+      ["b4", 1, "b1"],
+      ["b2", 0, undefined],
+      ["d2", 0, undefined],
+      // b1, its parent, is in another group: here b3 is a root.
+      ["b3", 0, undefined],
+      ["a1", 0, undefined],
+      ["d1", 0, undefined],
+    ]);
+    const page = await list(workspace, { group: "area", sort: [{ by: "hierarchy" }], offset: 2, limit: 2 });
+    expect(page.tree?.map((p) => p.id)).toEqual(page.elements.map((e) => e.id));
+  });
+});
+
+describe("element.list grouping writes nothing (SR-149 AK5)", () => {
+  it("[SR-149/AK5] choosing and changing a grouping changes no file", async () => {
+    const { workspace, root } = await open();
+    const before = await filesOf(root);
+    for (const group of ["status", "package", "area", "type"]) {
+      await list(workspace, { group, sort: BY_TITLE, withText: true });
+    }
+    await list(workspace, { sort: BY_TITLE });
+    expect(await filesOf(root)).toEqual(before);
+  });
+});
+
+describe("element.list group refusals", () => {
+  it("refuses free text, unknown keys and keys that hold relations", async () => {
+    const { workspace } = await open();
+    for (const group of ["title", "nothing", "derives-from", "packages", "validity"]) {
+      const error = await failure(workspace, { group });
+      expect([error.code, error.details?.["fields"]]).toEqual(["input.invalid", ["group"]]);
+    }
+  });
+
+  it("checks a sort by hierarchy as without groups", async () => {
+    const { workspace } = await open();
+    const desc = await failure(workspace, { group: "status", sort: [{ by: "hierarchy", order: "desc" }] });
+    expect(desc.details?.["fields"]).toEqual(["sort[0].order"]);
+    const second = await failure(workspace, {
+      group: "status",
+      sort: [{ by: "title" }, { by: "hierarchy" }],
+    });
+    expect(second.details?.["fields"]).toEqual(["sort[1].by"]);
+  });
+
+  it("refuses package when no property has the meaning packages (SR-013 AK3)", async () => {
+    const bare =
+      "reqseq-metamodel: 1\ntypes:\n  - { key: need, name: Need, prefix: N, properties: [title] }\nproperties:\n" +
+      "  - { key: title, name: Title, kind: text, meaning: title }\nstatuses:\n  - { key: draft, name: Draft, initial: true }\n";
+    const { workspace } = await open({
+      ...GROUP,
+      files: { "metamodel/standard-model.yaml": bare, "metamodel/area.yaml": "reqseq-metamodel: 1\n" },
+    });
+    const error = await failure(workspace, { group: "package" });
+    expect([error.code, error.details?.["meaning"]]).toEqual(["metamodel.meaning-unassigned", "packages"]);
+  });
+});

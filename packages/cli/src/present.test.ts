@@ -282,6 +282,129 @@ describe("renderHuman: values", () => {
     );
   });
 
+  it("[SR-149/AK1] shows a grouped list under a heading per group with its value and count", () => {
+    const element = (id: string, title: string): Record<string, unknown> => ({
+      id,
+      repository: "system",
+      shortId: `SR-${id}`,
+      status: "draft",
+      title,
+    });
+    expect(
+      renderHuman({
+        elements: [element("b1", "One"), element("b1", "One"), element("b2", "Two"), element("n1", "Three")],
+        groups: [
+          { value: "PKG-d2", title: "alarms", count: 2, offset: 0 },
+          { value: "PKG-d1", identifier: "R1", title: "Wind", count: 2, offset: 2 },
+          { value: "draft", name: "Draft", count: 1, offset: 4 },
+          { value: "custom", count: 1, offset: 5 },
+          { count: 2, offset: 6 },
+          { value: "unseen", count: 1, offset: 8 },
+        ],
+        offset: 1,
+        rows: 9,
+        total: 7,
+      }),
+    ).toBe(
+      lines(
+        "elements:",
+        "  PKG-d2  alarms · 2, continued",
+        "    SR-b1  draft  One",
+        "  PKG-d1 (R1)  Wind · 2",
+        "    SR-b1  draft  One",
+        "    SR-b2  draft  Two",
+        "  Draft (draft) · 1",
+        "    SR-n1  draft  Three",
+        "total: 7",
+        "Showing 4 of 9; ask for more with --offset and --limit.",
+      ),
+    );
+    expect(renderHuman({ elements: [], groups: [], offset: 0, rows: 0, total: 0 })).toBe(
+      lines("elements: none", "total: 0"),
+    );
+    // Without `offset` the page starts at the first row; the last group is `(no value)`.
+    expect(
+      renderHuman({
+        elements: [element("x", "X")],
+        groups: [
+          { value: 3, count: 1, offset: 0 },
+          { count: 1, offset: 1 },
+        ],
+      }),
+    ).toBe(lines("elements:", "  3 · 1", "    SR-x  draft  X"));
+    expect(
+      renderHuman({ elements: [element("x", "X")], groups: [{ count: 1, offset: 0 }], offset: 0, rows: 1 }),
+    ).toBe(lines("elements:", "  (no value) · 1", "    SR-x  draft  X"));
+  });
+
+  it("[SR-149/AK1] shows each group of a grouped tree as its own tree, with texts", () => {
+    const element = (id: string, body?: string): Record<string, unknown> => ({
+      id,
+      repository: "system",
+      shortId: `SR-${id}`,
+      title: id,
+      ...(body === undefined ? {} : { text: body }),
+    });
+    const at = (id: string, depth: number, parent?: string): Record<string, unknown> => ({
+      id,
+      repository: "system",
+      depth,
+      ...(parent === undefined ? {} : { parent: { id: parent, repository: "system" } }),
+    });
+    expect(
+      renderHuman({
+        elements: [element("a"), element("b"), element("b"), element("c")],
+        tree: [at("a", 0), at("b", 1, "a"), at("b", 1, "a"), at("c", 0)],
+        groups: [
+          { value: "x", count: 2, offset: 0 },
+          { value: "y", count: 2, offset: 2 },
+        ],
+        offset: 0,
+        rows: 4,
+        total: 3,
+      }),
+    ).toBe(
+      lines(
+        "elements:",
+        "  x · 2",
+        "    SR-a  a",
+        "      SR-b  b",
+        "  y · 2",
+        "      SR-b  b  [under SR-a]",
+        "    SR-c  c",
+        "total: 3",
+      ),
+    );
+    expect(
+      renderHuman({
+        elements: [element("a", "A.\n"), element("b", "B.\n")],
+        groups: [{ value: "x", count: 2, offset: 0 }],
+        offset: 0,
+        rows: 2,
+        total: 2,
+      }),
+    ).toBe(
+      lines(
+        "elements:",
+        "  x · 2",
+        "    SR-a  a",
+        "      text: |",
+        "        A.",
+        "",
+        "    SR-b  b",
+        "      text: |",
+        "        B.",
+        "total: 2",
+      ),
+    );
+  });
+
+  it("shows groups that do not fit as they are", () => {
+    expect(renderHuman({ elements: [{ shortId: "SR-1", title: "One" }], groups: [{ count: "1" }] })).toBe(
+      lines("elements:", "  SR-1  One", "groups:", '  - count: "1"'),
+    );
+  });
+
   it("shows a tree that does not fit the elements as it is", () => {
     const one = { shortId: "SR-1", title: "One" };
     expect(renderHuman({ elements: [one], tree: [] })).toBe(lines("elements:", "  SR-1  One", "tree: none"));

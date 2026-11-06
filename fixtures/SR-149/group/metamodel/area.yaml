@@ -1,0 +1,11 @@
+# SR-149 fixture: a choice property with several values per element, to group by.
+reqseq-metamodel: 1
+
+properties:
+  - key: area
+    name: Area
+    kind: choice
+    many: true
+    choices:
+      - { key: sensor, name: Sensor }
+      - { key: display, name: Display }

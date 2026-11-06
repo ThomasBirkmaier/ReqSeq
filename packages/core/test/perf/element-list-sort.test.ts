@@ -126,6 +126,39 @@ describe("element.list sorted and as a derivation tree with 50,000 elements and 
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
   });
 
+  it("[SR-082/AK4] lists the first page of all elements grouped by package, by status and as trees per package group within 500 ms (SR-149)", async () => {
+    const byPackage = await measure(
+      "list: first page (200) of all elements grouped by package, sorted by title",
+      () => list({ group: "package", sort: [{ by: "title" }] }),
+      {
+        basis:
+          "SR-082 AK4 (element.list grouped, SR-149: every group of the whole selection, one page built)",
+        thresholdMs: RESULT_MS,
+      },
+    );
+    expect(byPackage.result.elements).toHaveLength(200);
+    expect(byPackage.result.groups?.length).toBeGreaterThan(1);
+    expect(byPackage.result.rows).toBeGreaterThanOrEqual(ELEMENTS);
+    const byStatus = await measure(
+      "list: first page (200) of all elements grouped by status, sorted by type and identifier",
+      () => list({ group: "status", sort: [{ by: "type" }, { by: "identifier" }] }),
+      { basis: "SR-082 AK4 (element.list grouped, SR-149)", thresholdMs: RESULT_MS },
+    );
+    expect(byStatus.result.rows).toBe(ELEMENTS);
+    const trees = await measure(
+      "list: first page (200) of all elements grouped by package, each group a derivation tree",
+      () => list({ group: "package", sort: [{ by: "hierarchy" }, { by: "title" }] }),
+      {
+        basis: "SR-082 AK4 (element.list grouped under hierarchy, SR-149: the store walked once)",
+        thresholdMs: RESULT_MS,
+      },
+    );
+    expect(trees.result.tree).toHaveLength(200);
+    for (const { measurement } of [byPackage, byStatus, trees]) {
+      expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
+    }
+  });
+
   it("records other sorts, a tree of the system requirements and a tree without the incoming index", async () => {
     const { result: byStatus } = await measure(
       "list: first page of all elements by status descending, then short ID",

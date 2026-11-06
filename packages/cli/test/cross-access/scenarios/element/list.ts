@@ -1,4 +1,7 @@
 // Cross-access scenarios of element.list, in addition to the default one (cross-access.test.ts).
+import { readFileSync, readdirSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import type { FixtureOptions } from "@reqseq/testkit";
 import { expect } from "vitest";
 import type { Result } from "../../scenario.js";
@@ -29,7 +32,149 @@ const PACKAGES: FixtureOptions = { fixture: "SR-048/packages", git: true };
 /** Identifiers in natural order, a lower-case one and elements without one (#418). */
 const NATURAL: FixtureOptions = { fixture: "enabler-418/natural", git: true };
 
+/**
+ * Packages d2 "alarms" and d1 "Wind"; b1 in both, b2 in d1, b4 in d2, b3 only in a package not in the
+ * workspace; a choice property `area` with a list, b2 writing the choice by its display name (SR-149).
+ */
+const GROUP: FixtureOptions = { fixture: "SR-149/group", git: true };
+const GROUP_FOLDER = fileURLToPath(new URL("../../../../../../fixtures/SR-149/group/", import.meta.url));
+/** The files of fixtures/SR-149/group by path with `/`, as the copies hold them. */
+const groupFiles = (): Record<string, string> =>
+  Object.fromEntries(
+    readdirSync(GROUP_FOLDER, { recursive: true, withFileTypes: true })
+      .filter((entry) => entry.isFile())
+      .map((entry) => {
+        const file = path.join(entry.parentPath, entry.name);
+        return [path.relative(GROUP_FOLDER, file).split(path.sep).join("/"), readFileSync(file, "utf8")];
+      }),
+  );
+/** A grouped list as far as the checks of the SR-149 scenarios read it. */
+interface Grouped {
+  readonly elements: readonly { readonly shortId: string }[];
+  readonly groups: readonly {
+    readonly value?: string | number | boolean;
+    readonly count: number;
+    readonly offset: number;
+  }[];
+  readonly rows: number;
+  readonly total: number;
+}
+const grouped = (results: Readonly<Record<string, Result>>): Grouped =>
+  (results["core"]?.outcome as { output: Grouped }).output;
+/** The groups as `value: short IDs` lines, `-` for the last group. */
+const groupLines = ({ elements, groups }: Grouped): string[] =>
+  groups.map(
+    ({ value, count, offset }) =>
+      `${value === undefined ? "-" : String(value)}: ${elements
+        .slice(offset, offset + count)
+        .map((e) => e.shortId)
+        .join(" ")}`,
+  );
+const BY_TITLE = [{ by: "title", order: "asc" }];
+
 scenariosOf("element.list", [
+  {
+    tag: "[SR-149/AK1]",
+    name: "grouped by status: the statuses in metamodel order with their counts",
+    fixture: GROUP,
+    input: { group: "status", sort: BY_TITLE },
+    expect: "output",
+    check: (results) => {
+      expect(groupLines(grouped(results))).toEqual([
+        "draft: SR-0000b3 SR-0000b1",
+        "approved: PKG-0000d2 N-0000a1 SR-0000b2 PKG-0000d1",
+        "obsolete: SR-0000b4",
+      ]);
+    },
+  },
+  {
+    tag: "[SR-149/AK1]",
+    name: "grouped by a choice property: the choices in metamodel order, the elements without a value last",
+    fixture: GROUP,
+    input: { group: "requirement-type", sort: BY_TITLE },
+    expect: "output",
+    check: (results) => {
+      const output = grouped(results);
+      expect(output.groups.map((g) => [g.value, g.count])).toEqual([
+        ["functional", 1],
+        ["quality", 1],
+        ["performance", 1],
+        ["custom", 1],
+        [undefined, 3],
+      ]);
+    },
+  },
+  {
+    tag: "[SR-149/AK2]",
+    name: "grouped by package and by a list property: an element with several values in each of their groups",
+    fixture: GROUP,
+    input: { group: "package", sort: BY_TITLE },
+    expect: "output",
+    check: (results) => {
+      const output = grouped(results);
+      expect(groupLines(output)).toEqual([
+        "PKG-0000d2: SR-0000b4 SR-0000b1",
+        "PKG-0000d1: SR-0000b1 SR-0000b2",
+        "-: PKG-0000d2 SR-0000b3 N-0000a1 PKG-0000d1",
+      ]);
+      expect([output.rows, output.total]).toEqual([8, 7]);
+    },
+  },
+  {
+    tag: "[SR-149/AK2]",
+    name: "grouped by a choice property with a list: SR-0000b1 in sensor and display",
+    fixture: GROUP,
+    input: { group: "area", sort: BY_TITLE },
+    expect: "output",
+    check: (results) => {
+      expect(groupLines(grouped(results)).slice(0, 2)).toEqual([
+        "sensor: SR-0000b1",
+        "display: SR-0000b4 SR-0000b1 SR-0000b2",
+      ]);
+    },
+  },
+  ...["area", "type"].map((group) => ({
+    tag: "[SR-149/AK3]",
+    name: `regrouped by ${group} with the same filter and sort: the same elements, in the sort order in each group`,
+    fixture: GROUP,
+    input: {
+      selection: { where: { type: ["system-requirement", "need"] } },
+      sort: [
+        { by: "status", order: "asc" },
+        { by: "title", order: "desc" },
+      ],
+      group,
+    },
+    expect: "output" as const,
+    check: (results: Readonly<Record<string, Result>>) => {
+      // The order of the same list without grouping (cross-checked in core, group.test.ts).
+      const plain = ["SR-0000b1", "SR-0000b3", "SR-0000b2", "N-0000a1", "SR-0000b4"];
+      const { elements, groups } = grouped(results);
+      const ids = elements.map((e) => e.shortId);
+      expect(new Set(ids)).toEqual(new Set(plain));
+      for (const { offset, count } of groups) {
+        const members = ids.slice(offset, offset + count);
+        expect(members).toEqual(plain.filter((id) => members.includes(id)));
+      }
+    },
+  })),
+  {
+    tag: "[SR-149/AK5]",
+    name: "grouping, with the texts and as trees per group, changes no file of the fixture",
+    fixture: GROUP,
+    input: { group: "package", sort: [{ by: "hierarchy", order: "asc" }], withText: true },
+    expect: "output",
+    check: (results) => {
+      const fixture = groupFiles();
+      for (const result of Object.values(results)) {
+        const elementFiles = Object.keys(result.files).filter((file) => /\.(md|yaml)$/.test(file));
+        expect(elementFiles.toSorted()).toEqual(Object.keys(fixture).toSorted());
+        for (const [file, text] of Object.entries(fixture)) {
+          expect(result.files[file]?.replaceAll("\r\n", "\n")).toBe(text.replaceAll("\r\n", "\n"));
+        }
+      }
+    },
+  },
   {
     tag: "[SR-041/AK1]",
     name: "the view of A lists A1 instead of K1",
