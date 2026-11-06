@@ -8,7 +8,7 @@ based-on:
   - { id: 6adc58f5-a349-4870-af2f-971ec1cee679, version: n2:f99d3d6f08b13a10, title: Ein offenes Format für Nachweis-Datensätze }
 ---
 
-Ein Requirement gilt erst als nachgewiesen, wenn für jedes seiner Akzeptanzkriterien der neueste Datensatz zur aktuellen Fassung bestanden ist. Fehlt für ein Akzeptanzkriterium ein solcher Datensatz, bleibt das Requirement offen.
+Ein Requirement gilt erst als nachgewiesen, wenn für jedes seiner Akzeptanzkriterien der neueste Datensatz zur aktuellen Fassung bestanden ist. Fehlt für ein Akzeptanzkriterium ein solcher Datensatz, bleibt das Requirement offen, und das Tool zeigt, wie viele seiner Akzeptanzkriterien schon nachgewiesen sind.
 
 Ein Datensatz kann ein Akzeptanzkriterium über seine Nummer nennen, gezählt ab 1 in der Reihenfolge des Requirements. Ein Datensatz ohne Nummer gilt für alle Akzeptanzkriterien, etwa ein Prüfprotokoll über das ganze Requirement. Bei automatischen Tests nennt der Testname die Nummer, und die Kommandozeile übernimmt sie beim Ergänzen.
 
