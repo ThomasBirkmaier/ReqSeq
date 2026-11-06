@@ -300,10 +300,18 @@ export const filteredList = (
 export const inMatrix = (buffer: Buffer | undefined): buffer is ListBuffer =>
   buffer?.kind === "list" && buffer.matrix === true;
 
-/** The same list in matrix mode, or (`on` false) as a list; the row and everything else stay. */
+/**
+ * The same list in matrix mode, or (`on` false) as a list; the row and everything else stay. The matrix
+ * shows no groups (SR-149): a grouped list enters it without its grouping and from its first row, since a
+ * row of the groups is another element in the matrix.
+ */
 export const withMatrix = (list: ListBuffer, on: boolean): ListBuffer => {
   const { matrix: _before, ...rest } = list;
-  return on ? { ...rest, matrix: true } : rest;
+  if (!on) {
+    return rest;
+  }
+  const { group, ...ungrouped } = rest;
+  return group === undefined ? { ...rest, matrix: true } : { ...ungrouped, matrix: true, cursor: NO_ROW };
 };
 
 /**

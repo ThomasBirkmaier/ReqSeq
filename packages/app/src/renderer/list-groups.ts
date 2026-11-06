@@ -56,14 +56,15 @@ const BUILT_IN = [
  * The choices of the prompt "Group by" (SR-149 AK4): type, status and package, then each property of the
  * listed elements whose values can be chosen (`element.facets` gives them, the rule `group` accepts), in
  * the order the core gives, but not the property of the packages (`packages`), which "Package" groups by.
- * `apply` gets the `group` of the one that is taken.
+ * Without a property of the packages there is no "Package": `element.list` would refuse it
+ * (`metamodel.meaning-unassigned`). `apply` gets the `group` of the one that is taken.
  */
 export const groupChoices = (
   facets: ElementFacetsOutput,
   packages: readonly string[],
   apply: (group: string) => void,
 ): Choice[] => [
-  ...BUILT_IN.map(({ group, name }) => ({
+  ...BUILT_IN.filter(({ group }) => group !== "package" || packages.length > 0).map(({ group, name }) => ({
     id: group,
     name,
     run: () => {

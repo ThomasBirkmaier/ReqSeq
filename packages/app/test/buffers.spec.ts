@@ -6,13 +6,10 @@
 // real macOS dead key cannot be typed here, so one test sends the keydown macOS sends for Option+N.
 // After the app is closed and started again, the buffers open before are back behind the overview
 // (SR-115 AK4). "Split window" shows two buffers side by side, an element and its graph (SR-115 AK3).
-import { createHash } from "node:crypto";
-import fs from "node:fs/promises";
-import path from "node:path";
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { launchApp, listAll } from "./support/app.js";
+import { launchApp, listAll, snapshot } from "./support/app.js";
 
 /** 14 elements with a derivation tree (fixtures/README.md). */
 const FIXTURE = { fixture: "SR-069/filter" };
@@ -279,25 +276,6 @@ test.describe("Go to and no tab bar", () => {
     await noTabBar(["All elements", "Overview", "Search: wind"]);
   });
 });
-
-/** Every file below `root` by its content hash. */
-const snapshot = async (root: string): Promise<Record<string, string>> => {
-  const result: Record<string, string> = {};
-  const walk = async (folder: string): Promise<void> => {
-    for (const entry of await fs.readdir(folder, { withFileTypes: true })) {
-      const file = path.join(folder, entry.name);
-      if (entry.isDirectory()) {
-        await walk(file);
-      } else {
-        result[path.relative(root, file)] = createHash("sha256")
-          .update(await fs.readFile(file))
-          .digest("hex");
-      }
-    }
-  };
-  await walk(root);
-  return result;
-};
 
 test.describe("the open buffers after a restart", () => {
   let running: RunningApp;

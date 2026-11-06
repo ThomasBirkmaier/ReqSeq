@@ -1382,7 +1382,7 @@ describe("ListView, a list", () => {
                 elements: [row(1), row(2)],
                 groups: [
                   { value: "a", count: 200, offset: 0 },
-                  { value: "b", count: 2, offset: 200 },
+                  { value: "b", name: "Bee", count: 2, offset: 200 },
                 ],
                 offset: 200,
                 rows: 202,
@@ -1399,7 +1399,8 @@ describe("ListView, a list", () => {
         limit: 200,
         offset: 200,
       });
-      expect(headings()).toEqual(["a 200", "b 2"]);
+      // The groups are those of the latest page.
+      expect(headings()).toEqual(["a 200", "Bee 2"]);
       expect(groupRows()[1]).toEqual(["SR-000001", "SR-000002"]);
     });
   });

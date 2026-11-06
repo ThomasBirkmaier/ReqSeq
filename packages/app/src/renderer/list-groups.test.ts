@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { listBuffer, bufferName, withGroup, keepGroup, filteredList, NO_ROW } from "./buffers.js";
+import { listBuffer, bufferName, withGroup, withMatrix, keepGroup, filteredList, NO_ROW } from "./buffers.js";
 import { groupCount, groupName, groupSections } from "./list-groups.js";
 
 describe("the groups of a list (SR-149)", () => {
@@ -44,5 +44,13 @@ describe("the groups of a list (SR-149)", () => {
     expect(withGroup(grouped, undefined)).toEqual({ ...list, cursor: NO_ROW });
     expect(keepGroup(grouped, filteredList([]))).toEqual({ ...filteredList([]), group: "topic" });
     expect(keepGroup(list, filteredList([]))).toEqual(filteredList([]));
+  });
+
+  it("enters the matrix without the grouping and from the first row, since the matrix shows no groups", () => {
+    const grouped = { ...withGroup(listBuffer("All elements"), "package"), cursor: 3 };
+    const matrix = withMatrix(grouped, true);
+    expect(matrix).toEqual({ ...listBuffer("All elements"), matrix: true, cursor: NO_ROW });
+    expect(bufferName(matrix)).toBe("All elements · matrix");
+    expect(withMatrix(matrix, false)).toEqual({ ...listBuffer("All elements"), cursor: NO_ROW });
   });
 });

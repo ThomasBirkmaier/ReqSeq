@@ -1,6 +1,7 @@
 // Starts the built app (out/, `pnpm build:electron`) on a fixture workspace for one test, with its own
 // cache folder, and the CLI on the same workspace for comparisons (SR-080).
 import { execFile, spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import { createRequire } from "node:module";
 import os from "node:os";
@@ -539,3 +540,22 @@ export const DEFAULT_SORT = [
   { by: "type", order: "asc" },
   { by: "identifier", order: "asc" },
 ] as const;
+
+/** Every file below `root` by its content hash. */
+export const snapshot = async (root: string): Promise<Record<string, string>> => {
+  const result: Record<string, string> = {};
+  const walk = async (folder: string): Promise<void> => {
+    for (const entry of await fs.readdir(folder, { withFileTypes: true })) {
+      const file = path.join(folder, entry.name);
+      if (entry.isDirectory()) {
+        await walk(file);
+      } else {
+        result[path.relative(root, file)] = createHash("sha256")
+          .update(await fs.readFile(file))
+          .digest("hex");
+      }
+    }
+  };
+  await walk(root);
+  return result;
+};

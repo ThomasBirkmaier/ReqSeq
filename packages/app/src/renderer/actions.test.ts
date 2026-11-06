@@ -891,15 +891,22 @@ describe("list actions", () => {
       ]);
     });
 
-    it("[SR-149/AK4] offers the packages property when the metamodel cannot be read or names none, and says why facets fail", async () => {
+    it("[SR-149/AK4] offers no package but the packages property when the metamodel cannot be read or names none, and says why facets fail", async () => {
       const failing = setup([list], { "element.facets": facets, "metamodel.get": new Error("no metamodel") });
       action("group").run(failing.context);
       await flush();
       expect(failing.call).toHaveBeenCalledWith("element.facets", {});
-      expect(failing.asked[0]?.items.map((item) => item.name)).toContain("packages");
+      expect(failing.asked[0]?.items.map((item) => item.name)).toEqual([
+        "Type",
+        "Status",
+        "topic",
+        "packages",
+        "verification-method",
+      ]);
       const unassigned = setup([list], { "element.facets": facets, "metamodel.get": { meanings: {} } });
       action("group").run(unassigned.context);
       await flush();
+      expect(unassigned.asked[0]?.items.map((item) => item.name)).not.toContain("Package");
       expect(unassigned.asked[0]?.items.map((item) => item.name)).toContain("packages");
       const broken = setup([list], {
         "element.facets": new Error("facets failed"),

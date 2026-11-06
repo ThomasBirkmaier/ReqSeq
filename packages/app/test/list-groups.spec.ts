@@ -4,7 +4,7 @@
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { launchApp, listAll } from "./support/app.js";
+import { launchApp, listAll, snapshot } from "./support/app.js";
 
 /** 14 elements: 6 draft, 7 approved, 1 obsolete (fixtures/README.md). */
 const FIXTURE = { fixture: "SR-069/filter" };
@@ -54,6 +54,8 @@ test.describe("a grouped list", () => {
 
   test("[SR-149/AK3] the list shows its groups with heading and count, regroups and ungroups in the same sort", async () => {
     const { window } = running;
+    const root = running.workspace?.root ?? "";
+    const before = await snapshot(root);
     const headings = shownBuffer(window).locator(".group h2");
     const ids = shownBuffer(window).locator(".row .id");
     const plain = await ids.allTextContents();
@@ -70,5 +72,6 @@ test.describe("a grouped list", () => {
     await command(window, "Ungroup list");
     await expect(headings).toHaveCount(0);
     await expect(ids).toHaveText(plain);
+    expect(await snapshot(root)).toEqual(before);
   });
 });

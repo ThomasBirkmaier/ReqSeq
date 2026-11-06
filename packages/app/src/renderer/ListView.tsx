@@ -349,7 +349,13 @@ export const ListView = ({
       }
       if (loaded.ok) {
         const rows = [...view.rows, ...loaded.rows];
-        setView({ ...view, rows, total: loaded.total, size: loaded.size });
+        setView({
+          ...view,
+          rows,
+          total: loaded.total,
+          size: loaded.size,
+          ...(loaded.groups === undefined ? {} : { groups: loaded.groups }),
+        });
         onData(buffer.key, {
           kind,
           total: loaded.total,
