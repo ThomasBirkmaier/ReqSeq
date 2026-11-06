@@ -413,7 +413,7 @@ describe("recording the last API or MCP access (SR-117)", () => {
 
   it("writes an access noted within 100 ms of the last write once the 100 ms are over, before close", async () => {
     // The burst above reaches the timer only when the timer fires before close; on a fast machine close
-    // writes the pending access first (#511). Here the clock stands still: the second access always
+    // writes the pending access first (ThomasBirkmaier/ReqSeq-archive#511). Here the clock stands still: the second access always
     // waits for the timer, and only the timer writes it.
     const opened = await copy(IDENTIFIERS);
     const { workspace } = opened;

@@ -1,4 +1,4 @@
-// Images of an element (SR-097, ADR-0004 "Text and inline references", spec question #334 option
+// Images of an element (SR-097, ADR-0004 "Text and inline references", spec question ThomasBirkmaier/ReqSeq-archive#334 option
 // 1): `element.addAttachment` copies an image into the folder named like the element file without
 // `.md`, next to it (`requirements/SR-825b7146fb54/layout.png`), and gives the Markdown that embeds
 // it with a relative link. The text is not changed: the editor (or any caller) inserts the Markdown
@@ -240,7 +240,7 @@ export const addAttachment = async (
     });
   }
   const asGiven = elementFolder === "." ? stem : `${elementFolder}/${stem}`;
-  // The folder as the walk sees it: spelled as on disk where only the normal form differs (#194).
+  // The folder as the walk sees it: spelled as on disk where only the normal form differs (ThomasBirkmaier/ReqSeq-archive#194).
   const folder = path.posix.dirname(
     await refuseUnlisted(layout, repository, `${asGiven}/${source.stem}${source.extension}`),
   );

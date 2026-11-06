@@ -1,4 +1,4 @@
-// Findings of the whole workspace carried over a change of the element store (#184, ADR-0008):
+// Findings of the whole workspace carried over a change of the element store (ThomasBirkmaier/ReqSeq-archive#184, ADR-0008):
 // after a save or a watcher batch, a finding state looks again only at the element files that
 // changed (and those a state names as depending on them) and keeps the located problems of every
 // other file, instead of finding and locating everything again on its next read.
@@ -26,7 +26,7 @@ export interface CarryProblemsOptions {
   readonly again?: Promise<((element: ElementRecord) => boolean) | readonly ElementRecord[]>;
   /**
    * Whether the state has no problems at all after the update, as a full build gives none (a
-   * metamodel that is not valid, #208, #220): then nothing is kept, found or located, and neither
+   * metamodel that is not valid, ThomasBirkmaier/ReqSeq-archive#208, ThomasBirkmaier/ReqSeq-archive#220): then nothing is kept, found or located, and neither
    * `findingsOf` nor `again` is awaited. Default: no.
    */
   readonly skip?: Promise<boolean>;

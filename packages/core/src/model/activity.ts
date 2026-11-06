@@ -43,7 +43,7 @@ export type AccessName = ActivityAccess["access"];
 
 /**
  * The accesses whose calls are recorded (SR-117: „das zuletzt über API oder MCP gelesen oder geändert
- * wurde“). Calls of the command line and of the app are not (spec question #481, assumption (a)); the
+ * wurde“). Calls of the command line and of the app are not (spec question ThomasBirkmaier/ReqSeq-archive#481, assumption (a)); the
  * answer changes this one constant.
  */
 export const FOLLOWED_ACCESSES: readonly AccessName[] = ["api", "mcp"];

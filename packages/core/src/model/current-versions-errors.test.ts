@@ -1,4 +1,4 @@
-// Errors that are bugs, not findings, are passed on by the current versions (#259): only
+// Errors that are bugs, not findings, are passed on by the current versions (ThomasBirkmaier/ReqSeq-archive#259): only
 // `file.faulty` from the image lookup and the RangeError of a value without a normal form become
 // entries without a version. Everything else rejects, and a check that failed is not kept for the
 // next caller. The image lookup and the version are replaced by stand-ins that fail on request.
@@ -59,7 +59,7 @@ const open = async (): Promise<{
   return { write: (file, text) => fixture.write(file, text), workspace };
 };
 
-describe("errors of the current versions that are bugs (#259)", () => {
+describe("errors of the current versions that are bugs (ThomasBirkmaier/ReqSeq-archive#259)", () => {
   it("passes on an image lookup that fails with anything but file.faulty", async () => {
     const { workspace } = await open();
     failures.images = new Error("bug in the image lookup");
