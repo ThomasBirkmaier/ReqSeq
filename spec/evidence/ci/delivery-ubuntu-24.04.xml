@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="22" failures="0" errors="0" time="17.564801221">
+    <testsuite name="packages/app/test/delivery/start.test.ts" timestamp="2026-11-06T14:32:21.437Z" hostname="runnervm7aw5e" tests="9" failures="0" errors="0" skipped="6" time="8.833298058">
+        <testcase classname="packages/app/test/delivery/start.test.ts" file="packages/app/test/delivery/start.test.ts" name="the app of the mac delivery &gt; [SR-076/AK1] the app of the mac delivery starts after unpacking" time="0.001110153"><properties><property name="reqseq:element" value="6adc6d91-3079-4794-9c3a-031c9611bd8e"/><property name="reqseq:version" value="n2:108c1b834f4b9694"/><property name="reqseq:criterion" value="6adc6d91-3079-4794-9c3a-031c9611bd8e:1"/><property name="reqseq:item" value="main@bceec065cde7cfbb656ebfecaa8c9bde869b0963 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-06T14:28:38Z"/></properties>
+            <skipped/>
+        </testcase>
+        <testcase classname="packages/app/test/delivery/start.test.ts" file="packages/app/test/delivery/start.test.ts" name="the app of the mac delivery &gt; [SR-078/AK2] the mac delivery installs without network and its app starts" time="0.00021097"><properties><property name="reqseq:element" value="6adc6d93-4684-4379-941d-21bd583ceb09"/><property name="reqseq:version" value="n2:933af447a218dddb"/><property name="reqseq:criterion" value="6adc6d93-4684-4379-941d-21bd583ceb09:2"/><property name="reqseq:item" value="main@bceec065cde7cfbb656ebfecaa8c9bde869b0963 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-06T14:28:38Z"/></properties>
+            <skipped/>
+        </testcase>
+        <testcase classname="packages/app/test/delivery/start.test.ts" file="packages/app/test/delivery/start.test.ts" name="the app of the mac delivery &gt; the app of the mac delivery reads 1200 element files in read workers from app.asar (#142)" time="0.000157425">
+            <skipped/>
+        </testcase>
+        <testcase classname="packages/app/test/delivery/start.test.ts" file="packages/app/test/delivery/start.test.ts" name="the app of the linux delivery &gt; [SR-076/AK1] the app of the linux delivery starts after unpacking" time="2.728492085">
+            <properties>
+                <property name="notice" value="seen through the DevTools port: the overview of the workspace; sandbox: setuid chrome-sandbox (the documented admin step)">
+                </property>
+                <property name="reqseq:element" value="6adc6d91-3079-4794-9c3a-031c9611bd8e"/>
+                <property name="reqseq:version" value="n2:108c1b834f4b9694"/>
+                <property name="reqseq:criterion" value="6adc6d91-3079-4794-9c3a-031c9611bd8e:1"/>
+                <property name="reqseq:item" value="main@bceec065cde7cfbb656ebfecaa8c9bde869b0963 (ubuntu-24.04)"/>
+                <property name="reqseq:date" value="2026-11-06T14:28:38Z"/>
+            </properties>
+        </testcase>
+        <testcase classname="packages/app/test/delivery/start.test.ts" file="packages/app/test/delivery/start.test.ts" name="the app of the linux delivery &gt; [SR-078/AK2] the linux delivery installs without network and its app starts" time="2.601255027">
+            <properties>
+                <property name="notice" value="seen through the DevTools port: the overview of the workspace; sandbox: setuid chrome-sandbox (the documented admin step)">
+                </property>
+                <property name="reqseq:element" value="6adc6d93-4684-4379-941d-21bd583ceb09"/>
+                <property name="reqseq:version" value="n2:933af447a218dddb"/>
+                <property name="reqseq:criterion" value="6adc6d93-4684-4379-941d-21bd583ceb09:2"/>
+                <property name="reqseq:item" value="main@bceec065cde7cfbb656ebfecaa8c9bde869b0963 (ubuntu-24.04)"/>
+                <property name="reqseq:date" value="2026-11-06T14:28:38Z"/>
+            </properties>
+        </testcase>
+        <testcase classname="packages/app/test/delivery/start.test.ts" file="packages/app/test/delivery/start.test.ts" name="the app of the linux delivery &gt; the app of the linux delivery reads 1200 element files in read workers from app.asar (#142)" time="3.31654688">
+            <properties>
+                <property name="notice" value="seen through the DevTools port: the overview of the workspace; sandbox: setuid chrome-sandbox (the documented admin step); 3 read workers started from app.asar; the overview counts 1200 elements">
+                </property>
+            </properties>
+        </testcase>
+        <testcase classname="packages/app/test/delivery/start.test.ts" file="packages/app/test/delivery/start.test.ts" name="the app of the win delivery &gt; [SR-076/AK1] the app of the win delivery starts after unpacking" time="0.000344558"><properties><property name="reqseq:element" value="6adc6d91-3079-4794-9c3a-031c9611bd8e"/><property name="reqseq:version" value="n2:108c1b834f4b9694"/><property name="reqseq:criterion" value="6adc6d91-3079-4794-9c3a-031c9611bd8e:1"/><property name="reqseq:item" value="main@bceec065cde7cfbb656ebfecaa8c9bde869b0963 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-06T14:28:38Z"/></properties>
+            <skipped/>
+        </testcase>
+        <testcase classname="packages/app/test/delivery/start.test.ts" file="packages/app/test/delivery/start.test.ts" name="the app of the win delivery &gt; [SR-078/AK2] the win delivery installs without network and its app starts" time="0.000122982"><properties><property name="reqseq:element" value="6adc6d93-4684-4379-941d-21bd583ceb09"/><property name="reqseq:version" value="n2:933af447a218dddb"/><property name="reqseq:criterion" value="6adc6d93-4684-4379-941d-21bd583ceb09:2"/><property name="reqseq:item" value="main@bceec065cde7cfbb656ebfecaa8c9bde869b0963 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-06T14:28:38Z"/></properties>
+            <skipped/>
+        </testcase>
+        <testcase classname="packages/app/test/delivery/start.test.ts" file="packages/app/test/delivery/start.test.ts" name="the app of the win delivery &gt; the app of the win delivery reads 1200 element files in read workers from app.asar (#142)" time="0.000318287">
+            <skipped/>
+        </testcase>
+    </testsuite>
+    <testsuite name="packages/cli/test/delivery/delivery.test.ts" timestamp="2026-11-06T14:32:21.439Z" hostname="runnervm7aw5e" tests="13" failures="0" errors="0" skipped="8" time="8.731503163">
+        <testcase classname="packages/cli/test/delivery/delivery.test.ts" file="packages/cli/test/delivery/delivery.test.ts" name="the mac delivery &gt; [SR-076/AK2] the mac delivery contains the app, the launcher, the command line and the MCP server" time="0.000703979"><properties><property name="reqseq:element" value="6adc6d91-3079-4794-9c3a-031c9611bd8e"/><property name="reqseq:version" value="n2:108c1b834f4b9694"/><property name="reqseq:criterion" value="6adc6d91-3079-4794-9c3a-031c9611bd8e:2"/><property name="reqseq:item" value="main@bceec065cde7cfbb656ebfecaa8c9bde869b0963 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-06T14:28:38Z"/></properties>
+            <skipped/>
+        </testcase>
+        <testcase classname="packages/cli/test/delivery/delivery.test.ts" file="packages/cli/test/delivery/delivery.test.ts" name="the mac delivery &gt; [SR-076/AK2] the launcher of the mac delivery runs the command line and the MCP server" time="0.000194674"><properties><property name="reqseq:element" value="6adc6d91-3079-4794-9c3a-031c9611bd8e"/><property name="reqseq:version" value="n2:108c1b834f4b9694"/><property name="reqseq:criterion" value="6adc6d91-3079-4794-9c3a-031c9611bd8e:2"/><property name="reqseq:item" value="main@bceec065cde7cfbb656ebfecaa8c9bde869b0963 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-06T14:28:38Z"/></properties>
+            <skipped/>
+        </testcase>
+        <testcase classname="packages/cli/test/delivery/delivery.test.ts" file="packages/cli/test/delivery/delivery.test.ts" name="the mac delivery &gt; [SR-161/AK4] tool info of the mac delivery shows the version and the commit of this delivery" time="0.000159809"><properties><property name="reqseq:element" value="e06e9c35-5a53-43f7-b1e3-68855837b786"/><property name="reqseq:version" value="n2:7d9103525a22171b"/><property name="reqseq:criterion" value="e06e9c35-5a53-43f7-b1e3-68855837b786:4"/><property name="reqseq:item" value="main@bceec065cde7cfbb656ebfecaa8c9bde869b0963 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-06T14:28:38Z"/></properties>
+            <skipped/>
+        </testcase>
+        <testcase classname="packages/cli/test/delivery/delivery.test.ts" file="packages/cli/test/delivery/delivery.test.ts" name="the mac delivery &gt; [SR-078/AK2] the mac delivery installs without network and its command line and MCP server run" time="0.000142483"><properties><property name="reqseq:element" value="6adc6d93-4684-4379-941d-21bd583ceb09"/><property name="reqseq:version" value="n2:933af447a218dddb"/><property name="reqseq:criterion" value="6adc6d93-4684-4379-941d-21bd583ceb09:2"/><property name="reqseq:item" value="main@bceec065cde7cfbb656ebfecaa8c9bde869b0963 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-06T14:28:38Z"/></properties>
+            <skipped/>
+        </testcase>
+        <testcase classname="packages/cli/test/delivery/delivery.test.ts" file="packages/cli/test/delivery/delivery.test.ts" name="the linux delivery &gt; [SR-076/AK2] the linux delivery contains the app, the launcher, the command line and the MCP server" time="0.167150784"><properties><property name="reqseq:element" value="6adc6d91-3079-4794-9c3a-031c9611bd8e"/><property name="reqseq:version" value="n2:108c1b834f4b9694"/><property name="reqseq:criterion" value="6adc6d91-3079-4794-9c3a-031c9611bd8e:2"/><property name="reqseq:item" value="main@bceec065cde7cfbb656ebfecaa8c9bde869b0963 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-06T14:28:38Z"/></properties>
+        </testcase>
+        <testcase classname="packages/cli/test/delivery/delivery.test.ts" file="packages/cli/test/delivery/delivery.test.ts" name="the linux delivery &gt; [SR-076/AK2] the launcher of the linux delivery runs the command line and the MCP server" time="0.681553498"><properties><property name="reqseq:element" value="6adc6d91-3079-4794-9c3a-031c9611bd8e"/><property name="reqseq:version" value="n2:108c1b834f4b9694"/><property name="reqseq:criterion" value="6adc6d91-3079-4794-9c3a-031c9611bd8e:2"/><property name="reqseq:item" value="main@bceec065cde7cfbb656ebfecaa8c9bde869b0963 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-06T14:28:38Z"/></properties>
+        </testcase>
+        <testcase classname="packages/cli/test/delivery/delivery.test.ts" file="packages/cli/test/delivery/delivery.test.ts" name="the linux delivery &gt; [SR-161/AK4] tool info of the linux delivery shows the version and the commit of this delivery" time="0.331183992"><properties><property name="reqseq:element" value="e06e9c35-5a53-43f7-b1e3-68855837b786"/><property name="reqseq:version" value="n2:7d9103525a22171b"/><property name="reqseq:criterion" value="e06e9c35-5a53-43f7-b1e3-68855837b786:4"/><property name="reqseq:item" value="main@bceec065cde7cfbb656ebfecaa8c9bde869b0963 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-06T14:28:38Z"/></properties>
+        </testcase>
+        <testcase classname="packages/cli/test/delivery/delivery.test.ts" file="packages/cli/test/delivery/delivery.test.ts" name="the linux delivery &gt; [SR-078/AK2] the linux delivery installs without network and its command line and MCP server run" time="2.728018226"><properties><property name="reqseq:element" value="6adc6d93-4684-4379-941d-21bd583ceb09"/><property name="reqseq:version" value="n2:933af447a218dddb"/><property name="reqseq:criterion" value="6adc6d93-4684-4379-941d-21bd583ceb09:2"/><property name="reqseq:item" value="main@bceec065cde7cfbb656ebfecaa8c9bde869b0963 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-06T14:28:38Z"/></properties>
+        </testcase>
+        <testcase classname="packages/cli/test/delivery/delivery.test.ts" file="packages/cli/test/delivery/delivery.test.ts" name="the win delivery &gt; [SR-076/AK2] the win delivery contains the app, the launcher, the command line and the MCP server" time="0.000498837"><properties><property name="reqseq:element" value="6adc6d91-3079-4794-9c3a-031c9611bd8e"/><property name="reqseq:version" value="n2:108c1b834f4b9694"/><property name="reqseq:criterion" value="6adc6d91-3079-4794-9c3a-031c9611bd8e:2"/><property name="reqseq:item" value="main@bceec065cde7cfbb656ebfecaa8c9bde869b0963 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-06T14:28:38Z"/></properties>
+            <skipped/>
+        </testcase>
+        <testcase classname="packages/cli/test/delivery/delivery.test.ts" file="packages/cli/test/delivery/delivery.test.ts" name="the win delivery &gt; [SR-076/AK2] the launcher of the win delivery runs the command line and the MCP server" time="0.000162433"><properties><property name="reqseq:element" value="6adc6d91-3079-4794-9c3a-031c9611bd8e"/><property name="reqseq:version" value="n2:108c1b834f4b9694"/><property name="reqseq:criterion" value="6adc6d91-3079-4794-9c3a-031c9611bd8e:2"/><property name="reqseq:item" value="main@bceec065cde7cfbb656ebfecaa8c9bde869b0963 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-06T14:28:38Z"/></properties>
+            <skipped/>
+        </testcase>
+        <testcase classname="packages/cli/test/delivery/delivery.test.ts" file="packages/cli/test/delivery/delivery.test.ts" name="the win delivery &gt; [SR-161/AK4] tool info of the win delivery shows the version and the commit of this delivery" time="0.000082979"><properties><property name="reqseq:element" value="e06e9c35-5a53-43f7-b1e3-68855837b786"/><property name="reqseq:version" value="n2:7d9103525a22171b"/><property name="reqseq:criterion" value="e06e9c35-5a53-43f7-b1e3-68855837b786:4"/><property name="reqseq:item" value="main@bceec065cde7cfbb656ebfecaa8c9bde869b0963 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-06T14:28:38Z"/></properties>
+            <skipped/>
+        </testcase>
+        <testcase classname="packages/cli/test/delivery/delivery.test.ts" file="packages/cli/test/delivery/delivery.test.ts" name="the win delivery &gt; [SR-078/AK2] the win delivery installs without network and its command line and MCP server run" time="0.000039462"><properties><property name="reqseq:element" value="6adc6d93-4684-4379-941d-21bd583ceb09"/><property name="reqseq:version" value="n2:933af447a218dddb"/><property name="reqseq:criterion" value="6adc6d93-4684-4379-941d-21bd583ceb09:2"/><property name="reqseq:item" value="main@bceec065cde7cfbb656ebfecaa8c9bde869b0963 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-06T14:28:38Z"/></properties>
+            <skipped/>
+        </testcase>
+        <testcase classname="packages/cli/test/delivery/delivery.test.ts" file="packages/cli/test/delivery/delivery.test.ts" name="the CLI tarball &gt; [SR-078/AK2] the CLI tarball installs without network and runs on Node" time="2.72847078"><properties><property name="reqseq:element" value="6adc6d93-4684-4379-941d-21bd583ceb09"/><property name="reqseq:version" value="n2:933af447a218dddb"/><property name="reqseq:criterion" value="6adc6d93-4684-4379-941d-21bd583ceb09:2"/><property name="reqseq:item" value="main@bceec065cde7cfbb656ebfecaa8c9bde869b0963 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-06T14:28:38Z"/></properties>
+        </testcase>
+    </testsuite>
+</testsuites>
