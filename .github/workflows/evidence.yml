@@ -31,14 +31,15 @@ on:
         options: [CI, Performance, Release]
         default: CI
       run-id:
-        description: Run of CI, Performance or Release on main to record (empty = the newest of the workflow above).
+        description: Run of CI, Performance or Release on main or a release tag to record (empty = the newest of the workflow above).
         required: false
 
 permissions: {}
 
 concurrency:
-  # One at a time, none cancelled: each run closes the evidence pull requests it supersedes.
-  group: evidence
+  # One at a time per source, none cancelled: each run closes the evidence pull requests of its kind it supersedes.
+  # Per source, because a group keeps only one pending run and would drop the other sources' runs of the night.
+  group: evidence-${{ github.event.workflow_run.name || inputs.workflow }}
   cancel-in-progress: false
 
 jobs:
@@ -119,10 +120,11 @@ jobs:
           MANUAL: ${{ github.event_name == 'workflow_dispatch' }}
         run: |
           git fetch --quiet origin main
-          # A release tag may point anywhere; only a commit of main is evidence of main.
+          # A release tag may point anywhere (a throwaway tag to try release.yml); only a commit of main is evidence.
           if ! git merge-base --is-ancestor "$SHA" origin/main; then
-            echo "::error::$SHA is not a commit of main."
-            exit 1
+            echo "::notice::$SHA is not a commit of main; nothing recorded."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
           case "$KIND" in
             ci) files=("spec/evidence/ci/unit-*" "spec/evidence/ci/e2e-*" "spec/evidence/ci/electron-*") ;;
