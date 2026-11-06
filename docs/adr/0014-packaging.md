@@ -55,6 +55,7 @@ Everything is in the artifact; nothing is downloaded at install or run time (SR-
 | `EnableNodeCliInspectArguments` | off | ADR-0010 |
 | `EnableNodeOptionsEnvironmentVariable` | off | no `NODE_OPTIONS` injection into app or CLI (a bigger heap would be passed by the launcher itself) |
 | `OnlyLoadAppFromAsar` | on | the app loads only `app.asar` |
+| `EmbeddedAsarIntegrityValidation` | on | on macOS and Windows the app refuses to start when `app.asar` does not match the hash electron-builder writes into the bundle (`Info.plist`, the exe's resources); Electron checks nothing on Linux |
 
 **Signing.** Not part of the basic scope. macOS builds get an ad-hoc signature, the minimum Apple silicon runs; Windows builds are unsigned. [Install ReqSeq](../guide/how-to/install-reqseq.md#app) says how to open them. Signing and notarisation come later.
 

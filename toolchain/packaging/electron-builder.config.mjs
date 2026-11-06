@@ -56,6 +56,8 @@ export default {
     enableNodeCliInspectArguments: false,
     enableNodeOptionsEnvironmentVariable: false,
     onlyLoadAppFromAsar: true,
+    // macOS and Windows check app.asar against the hash electron-builder writes into the bundle (#939).
+    embeddedAsarIntegrityValidation: true,
   },
   mac: {
     target: [{ target: "zip", arch: ["arm64"] }],

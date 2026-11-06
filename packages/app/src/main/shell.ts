@@ -63,7 +63,7 @@ const ready = async (electron: ShellElectron, options: ShellOptions, core: CoreP
     ...(options.platform === "darwin"
       ? { titleBarStyle: "hiddenInset" as const, trafficLightPosition: { x: 14, y: 12 } }
       : {}),
-    webPreferences: webPreferences(options.paths.preload),
+    webPreferences: webPreferences(options.paths.preload, !electron.app.isPackaged),
   });
   // Only a loaded page can hold unsaved input (SR-131 AK3); a reload drops the page with its input.
   let pageLoaded = false;

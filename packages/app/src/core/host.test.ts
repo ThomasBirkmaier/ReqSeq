@@ -9,7 +9,7 @@ import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AgentActivity, PortMessage } from "../shared/protocol.js";
 import type { Channel, CoreHostOptions, WatchedChange } from "./host.js";
-import { FILE_HOST, createCoreHost, lexicalTarget } from "./host.js";
+import { FILE_HOST, MAX_IMAGE_BYTES, createCoreHost, lexicalTarget } from "./host.js";
 
 const runtime = createCommandRuntime();
 
@@ -370,6 +370,26 @@ describe("createCoreHost: files for reqseq-file:", () => {
     } finally {
       realpath.mockRestore();
       stat.mockRestore();
+    }
+  });
+
+  it("reads no image larger than the bound and serves one at the bound", async () => {
+    const { host, fixture } = await setup();
+    // Sparse files: the size is set, nothing is written.
+    await fs.writeFile(path.join(fixture.root, "images", "huge.png"), "");
+    await fs.truncate(path.join(fixture.root, "images", "huge.png"), MAX_IMAGE_BYTES + 1);
+    await fs.writeFile(path.join(fixture.root, "images", "bound.png"), "");
+    await fs.truncate(path.join(fixture.root, "images", "bound.png"), MAX_IMAGE_BYTES);
+    const readFile = vi.spyOn(fs, "readFile");
+    try {
+      expect(await host.file("reqseq-file://workspace/system/images/huge.png")).toEqual({ status: 404 });
+      expect(
+        readFile.mock.calls.some(([file]) => typeof file === "string" && file.endsWith("huge.png")),
+      ).toBe(false);
+      const bound = await host.file("reqseq-file://workspace/system/images/bound.png");
+      expect(bound.status === 200 ? bound.data.byteLength : 0).toBe(MAX_IMAGE_BYTES);
+    } finally {
+      readFile.mockRestore();
     }
   });
 

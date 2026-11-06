@@ -23,9 +23,13 @@ export const CONTENT_SECURITY_POLICY = [
   "frame-src 'none'",
 ].join("; ");
 
-/** Web preferences of every window: isolated, sandboxed, no Node, no webview, no spell check downloads. */
-export const webPreferences = (preload: string): WebPreferences => ({
+/**
+ * Web preferences of every window: isolated, sandboxed, no Node, no webview, no spell check downloads.
+ * `devTools` is `!app.isPackaged`: only an unpackaged build opens the developer tools.
+ */
+export const webPreferences = (preload: string, devTools: boolean): WebPreferences => ({
   preload,
+  devTools,
   contextIsolation: true,
   sandbox: true,
   nodeIntegration: false,
