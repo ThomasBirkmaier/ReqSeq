@@ -17,6 +17,7 @@ import { CommandError } from "../catalog.js";
 import { loadContracts } from "../runtime/contracts.js";
 import { createCommandRuntime } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
+import { gitProgram } from "../git/program.js";
 import { commands } from "./index.js";
 import { FILES, GUSTS, SCENARIOS, WIND } from "./scenarios.test-helper.js";
 
@@ -73,8 +74,8 @@ const subcommand = (args: readonly string[]): string | undefined => {
 };
 
 /** Program and subcommand of every process started since the recording began. */
-const processes = (): string[] =>
-  started.calls.map(([file = "", ...args]) => `${file} ${String(subcommand(args))}`);
+const processes = (): (readonly [program: string, subcommand: string])[] =>
+  started.calls.map(([file = "", ...args]) => [file, String(subcommand(args))]);
 
 /** Records the processes started from now on, until the test ends. */
 const recordProcesses = (): void => {
@@ -125,9 +126,9 @@ describe("Git only read (SR-083, D-036)", () => {
         await runtime.invoke(name, input, { workspace }).catch(() => undefined);
       }
       expect(gitFolder(repository.root)).toEqual(before);
-      for (const call of processes()) {
-        const [program = "", sub = ""] = call.split(" ");
-        expect([call, program, READ_ONLY.has(sub)]).toEqual([call, "git", true]);
+      // The git found on PATH by its absolute path, never a bare `git` (#940).
+      for (const [program, sub] of processes()) {
+        expect([sub, program, READ_ONLY.has(sub)]).toEqual([sub, gitProgram(), true]);
       }
     });
   }
@@ -155,7 +156,7 @@ describe("Git only read (SR-083, D-036)", () => {
     expect(gitFolder(clone.root)).toEqual(before);
     // git was asked, and only to read: the recording sees the git reader's processes.
     expect(processes().length).toBeGreaterThan(0);
-    expect(processes().filter((call) => !READ_ONLY.has(call.split(" ")[1] ?? ""))).toEqual([]);
+    expect(processes().filter(([, sub]) => !READ_ONLY.has(sub))).toEqual([]);
     // The commit the clone has is found.
     const head = (await clone.git(["rev-parse", "HEAD"])).trim();
     await expect(

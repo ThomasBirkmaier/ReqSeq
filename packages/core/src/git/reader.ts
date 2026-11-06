@@ -19,6 +19,7 @@ import { execFile, spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { Readable, Writable } from "node:stream";
+import { gitProgram } from "./program.js";
 
 /** The command line of `moves` with rename detection at `similarity`. */
 const movesCommand = (similarity: "50%" | "100%"): readonly string[] => [
@@ -242,6 +243,9 @@ const unknownReason = (error: ExecError): GitUnknownReason => {
   return reasonOf(error.message);
 };
 
+/** The answer when PATH holds no git program (`gitProgram`). */
+const NO_GIT = { reason: "no-git", detail: "git was not found on PATH" } as const;
+
 interface RunOptions extends ReadOptions {
   /** A commit ID after the command line (checked by the caller with `isObjectId`). */
   readonly revision?: string;
@@ -252,8 +256,13 @@ interface RunOptions extends ReadOptions {
 /** Runs one command of `COMMANDS` in `cwd` with the fixed options of ADR-0006. Never rejects. */
 const run = async (cwd: string, command: GitCommand, options: RunOptions = {}): Promise<RunResult> =>
   new Promise((resolve) => {
+    const git = gitProgram();
+    if (git === undefined) {
+      resolve({ ok: false, ...NO_GIT });
+      return;
+    }
     const child = execFile(
-      "git",
+      git,
       [
         ...FIXED_OPTIONS,
         ...COMMANDS[command],
@@ -887,8 +896,13 @@ interface CatFile {
 const MAX_ERROR_OUTPUT = 4096;
 
 /** Starts `command` in `cwd`; its output goes to a `CatFileOutput`. */
-const startCatFile = (cwd: string, command: GitCommand, signal: AbortSignal | undefined): CatFile => {
-  const child = spawn("git", [...FIXED_OPTIONS, ...COMMANDS[command]], {
+const startCatFile = (
+  git: string,
+  cwd: string,
+  command: GitCommand,
+  signal: AbortSignal | undefined,
+): CatFile => {
+  const child = spawn(git, [...FIXED_OPTIONS, ...COMMANDS[command]], {
     cwd,
     env: gitEnv(),
     stdio: ["pipe", "pipe", "pipe"],
@@ -977,16 +991,20 @@ export const openObjectReader = (folder: string, options: ReadOptions = {}): Obj
   let queue: Promise<unknown> = Promise.resolve();
 
   /** One round in its own process (git before 2.36). */
-  const once = async (asked: readonly Asked[], contents: boolean): Promise<ObjectInfos> => {
-    const catFile = startCatFile(folder, contents ? "objectContents" : "objectInfo", options.signal);
+  const once = async (git: string, asked: readonly Asked[], contents: boolean): Promise<ObjectInfos> => {
+    const catFile = startCatFile(git, folder, contents ? "objectContents" : "objectInfo", options.signal);
     catFile.output.ask(asked);
     catFile.child.stdin.end(asked.map((a) => `${a.name}\n`).join(""));
     return answers(catFile);
   };
 
   /** One round in the process of the reader, started at the first one (git 2.36 and newer). */
-  const inSession = async (asked: readonly Asked[], contents: boolean): Promise<ObjectInfos | undefined> => {
-    session ??= startCatFile(folder, "objects", options.signal);
+  const inSession = async (
+    git: string,
+    asked: readonly Asked[],
+    contents: boolean,
+  ): Promise<ObjectInfos | undefined> => {
+    session ??= startCatFile(git, folder, "objects", options.signal);
     const current = session;
     current.output.ask(asked);
     const verb = contents ? "contents" : "info";
@@ -1008,8 +1026,12 @@ export const openObjectReader = (folder: string, options: ReadOptions = {}): Obj
     if (asked.length === 0) {
       return { known: true, objects: [] };
     }
-    const inOne = batchCommand ? await inSession(asked, contents) : undefined;
-    return settled(inOne ?? (await once(asked, contents)));
+    const git = gitProgram();
+    if (git === undefined) {
+      return settled(unknown(NO_GIT));
+    }
+    const inOne = batchCommand ? await inSession(git, asked, contents) : undefined;
+    return settled(inOne ?? (await once(git, asked, contents)));
   };
 
   /** Keeps a failure: every later round answers with it. */
@@ -1150,8 +1172,12 @@ export const commitBlobs = async (
   if (wanted.size === 0) {
     return { known: true, ids };
   }
+  const git = gitProgram();
+  if (git === undefined) {
+    return unknown(NO_GIT);
+  }
   return new Promise((resolve) => {
-    const child = spawn("git", [...FIXED_OPTIONS, ...COMMANDS.tree, commit], {
+    const child = spawn(git, [...FIXED_OPTIONS, ...COMMANDS.tree, commit], {
       cwd: folder,
       env: gitEnv(),
       stdio: ["pipe", "pipe", "pipe"],
