@@ -20,8 +20,10 @@
 // - `added`: the elements selected now that the file does not list, in store order, after the
 //   entries in file order; they have no `version`.
 // - Cost (N-036): the states of all entries from one current-versions lookup and one index of the
-//   store by UUID; version dates (ADR-0005, `versionDates`) for the page only. The content of an
-//   old version is never read: Git shows it (D-033, `baseline.compare`).
+//   store by UUID; version dates (ADR-0005, `versionDates`) for the page only. With `withEvidence`
+//   the same walk also gives the values of an entry's version at its start, for its acceptance
+//   criteria (SR-031, `versionDatesAndValues`, page only); otherwise the content of an old version
+//   is not read: Git shows it (D-033, `baseline.compare`).
 // - With `withEvidence` the command passes how to compute the evidence of an entry (SR-094,
 //   `commands/baseline/get.ts`: the evidence block lies above this one): its verification rows per
 //   view and its validation status (with the reason of an inconclusive one, SR-172), asked for the page only. `names` names the variants of the rows.
@@ -38,7 +40,7 @@ import {
   namesOfRecords,
   shortIdState,
 } from "../model/index.js";
-import { versionDates } from "../model/version-date.js";
+import { versionDates, versionDatesAndValues } from "../model/version-date.js";
 import type { Workspace } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import type { Baseline } from "./read.js";
@@ -71,6 +73,7 @@ export interface ShowRequest {
     record: ElementRecord,
     version: string,
     current: VersionForms | undefined,
+    values: Readonly<Record<string, unknown>> | undefined,
   ) => Pick<Row, "verification" | "validation" | "validationReason" | "validationLater">;
 }
 
@@ -215,9 +218,17 @@ export const showBaseline = async (workspace: Workspace, request: ShowRequest): 
       ? []
       : [{ repository: record.repository, file: record.file, id: row.id, version: row.version }],
   );
-  const dates = await versionDates({ workspace, layout, metamodel }, asked);
-  const dateOf = new Map(
-    asked.map((request, index) => [`${request.id}\n${request.repository}`, dates[index]]),
+  const context = { workspace, layout, metamodel };
+  // With evidence the values of each version at its start come with its date from the same walk:
+  // the acceptance criteria of the baseline's version (SR-031, SR-094).
+  const starts =
+    request.evidence === undefined
+      ? (await versionDates(context, asked)).map((date) =>
+          date === null ? null : { date, values: undefined },
+        )
+      : await versionDatesAndValues(context, asked);
+  const startOf = new Map(
+    asked.map((request, index) => [`${request.id}\n${request.repository}`, starts[index] ?? null]),
   );
   // An added element has no version in the baseline; a missing or inaccessible one no date and no evidence.
   const evidenceOf = request.evidence;
@@ -225,10 +236,13 @@ export const showBaseline = async (workspace: Workspace, request: ShowRequest): 
     if (row.version === undefined) {
       return row;
     }
+    const start = startOf.get(`${row.id}\n${String(row.repository)}`) ?? null;
+    // The element's own values when the baseline holds its current version, else those Git has.
+    const values = current !== undefined && sameVersion(row.version, current) ? record?.data : start?.values;
     return {
       ...row,
-      versionDate: dateOf.get(`${row.id}\n${String(row.repository)}`) ?? null,
-      ...(record === undefined ? {} : evidenceOf?.(record, row.version, current)),
+      versionDate: start?.date ?? null,
+      ...(record === undefined ? {} : evidenceOf?.(record, row.version, current, values)),
     };
   });
   const named = page.flatMap(({ record }) => (record === undefined ? [] : [record]));

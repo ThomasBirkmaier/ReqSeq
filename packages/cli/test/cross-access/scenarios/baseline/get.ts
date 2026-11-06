@@ -4,7 +4,7 @@ import type { FixtureOptions } from "@reqseq/testkit";
 import { expect } from "vitest";
 import type { Result } from "../../scenario.js";
 import { scenariosOf } from "../../scenario.js";
-import { EXPORT } from "../../fixtures.js";
+import { CRITERIA, EXPORT } from "../../fixtures.js";
 
 /** SR-094: the core output of a baseline.get scenario, its entries by the last two characters of their UUID. */
 const baselineEntries = (
@@ -43,6 +43,26 @@ scenariosOf("baseline.get", [
         "system",
       ]);
       expect(problems?.[0]?.message).toContain("the baseline names 61aa061");
+    },
+  },
+  {
+    name: "a baseline counts the acceptance criteria its records verify, as evidence.status (SR-031 AK5, SR-094)",
+    fixture: {
+      ...CRITERIA,
+      files: {
+        "baselines/criteria-1.yaml":
+          "reqseq-baseline: 1\nname: Criteria 1\ndate: 2026-11-04T10:00:00Z\nrepositories:\n" +
+          "  - { name: system, commit: 31a031a031a031a031a031a031a031a031a031a0 }\nelements:\n" +
+          "  - { id: 31313131-0000-4000-8000-3131310000e1, version: n2:1875398a745affa9 }\n",
+      },
+    },
+    input: { baseline: "Criteria 1", withEvidence: true },
+    tag: "[SR-031/AK5]",
+    expect: "output",
+    check: (results) => {
+      expect(baselineEntries(results)["e1"]?.verification).toEqual([
+        { view: "core", status: "open", criteria: { verified: 2, total: 3, notVerified: [3] } },
+      ]);
     },
   },
   {
