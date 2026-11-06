@@ -80,6 +80,7 @@ import {
   verificationInconclusive,
 } from "./markdown.js";
 import { unknownCriterionProblem } from "./match.js";
+import { withEvidenceSource } from "./evidence-source.js";
 import type { EvidenceRecord } from "./record.js";
 import { criterionLineOf, withCriterionLines } from "./record.js";
 import type { EvidenceRead } from "./state.js";
@@ -647,7 +648,8 @@ export const recordEvidence = async (
       : unknownCriterionProblem({ record, criteria, element }, prepared.criteriaCount);
   return {
     files: [workspacePath(layout, repository, file)],
-    record,
+    // A copy with its evidence source (#821): the evidence state keeps `record` as read.
+    record: withEvidenceSource(record),
     problems: problem === undefined ? [] : [problem],
   };
 };

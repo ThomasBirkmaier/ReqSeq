@@ -183,8 +183,13 @@ describe("baseline.get withEvidence", () => {
     // SR-0000b1: passed at 13:00 counts, failed at 15:00 does not and is named in its view.
     const b1 = entry(out, "b1").verification ?? [];
     expect(b1[0]).toMatchObject({ view: "core", status: "verified" });
-    expect(b1[0]?.later?.map((r) => [r.date, r.result, r.file])).toEqual([
-      ["2026-11-02T15:00:00Z", "failed", "evidence/2026-11-02-SR-0000b1-b.md"],
+    expect(b1[0]?.later?.map((r) => [r.date, r.result, r.file, r.evidenceSource])).toEqual([
+      [
+        "2026-11-02T15:00:00Z",
+        "failed",
+        "evidence/2026-11-02-SR-0000b1-b.md",
+        "system/evidence/2026-11-02-SR-0000b1-b.md:1",
+      ],
     ]);
     expect(b1[1]).toMatchObject({ view: ALPINE, status: "verified" });
     expect(b1[1]?.later?.map((r) => [r.date, r.variant])).toEqual([["2026-11-02T16:00:00Z", ALPINE]]);
@@ -278,8 +283,8 @@ describe("baseline.get withEvidence", () => {
     // N-0000a1: validated at 13:00 counts, failed at 15:00 is named; N-0000a2, a need without
     // records, is open (SR-038); requirements without validation records have none.
     expect(entry(out, "a1")).toMatchObject({ validation: "validated" });
-    expect(entry(out, "a1").validationLater?.map((r) => [r.date, r.result])).toEqual([
-      ["2026-11-02T15:00:00Z", "failed"],
+    expect(entry(out, "a1").validationLater?.map((r) => [r.date, r.result, r.evidenceSource])).toEqual([
+      ["2026-11-02T15:00:00Z", "failed", "system/evidence/2026-11-02-N-0000a1-b.md:1"],
     ]);
     expect(entry(out, "a2")).toMatchObject({ validation: "open" });
     expect(entry(out, "a2").validationLater).toBeUndefined();

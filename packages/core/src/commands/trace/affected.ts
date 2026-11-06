@@ -8,7 +8,7 @@
 // known to be of an older version and the list is empty.
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
-import { evidenceIndexState } from "../../evidence/index.js";
+import { evidenceIndexState, withEvidenceSource } from "../../evidence/index.js";
 import { currentVersionsOf, resolveRef, shortIdState } from "../../model/index.js";
 import type { AffectedOptions } from "../../trace/index.js";
 import { affectedOutput, derivationGraph, traceAffected, traceContext } from "../../trace/index.js";
@@ -30,10 +30,12 @@ export default defineCommand({
         options = { evidence: { version: current.forms, records } };
       }
     }
-    return affectedOutput(
+    const output = affectedOutput(
       traceAffected(graph, element, options),
       { metamodel: graph.metamodel, shortIds },
       { limit: input.limit, offset: input.offset },
     );
+    // Copies with their evidence source (#821): the index records stay as they are.
+    return { ...output, records: output.records.map(withEvidenceSource) };
   },
 });

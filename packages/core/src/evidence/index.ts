@@ -68,5 +68,6 @@ export {
 export type { ElementEvidence, RecordKind } from "./views.js";
 export { recordDate, recordEvidence, recordFileName, renderRecordFile, withRecord } from "./write-record.js";
 export type { PlacedRecord, RecordDeps, RecordFields } from "./write-record.js";
+export { testCaseWithEvidenceSource, withEvidenceSource } from "./evidence-source.js";
 export { baselineEvidence } from "./baseline.js";
 export type { BaselineEvidence } from "./baseline.js";

@@ -154,7 +154,12 @@ describe("evidence.record (SR-030)", () => {
         await fs.readFile(fixture.path(file)),
       ),
     ).toEqual({ records: [intended] });
-    expect(output).toEqual({ files: [file], record: intended, problems: [] });
+    // The answer names where the evidence is (#821); the file holds no such field.
+    expect(output).toEqual({
+      files: [file],
+      record: { ...intended, evidenceSource: "photos/unit-7.jpg" },
+      problems: [],
+    });
   });
 
   it("[SR-030/AK2] the saved record is read as evidence of the requirement on the same workspace", async () => {

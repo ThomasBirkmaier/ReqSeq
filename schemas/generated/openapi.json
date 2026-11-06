@@ -13300,6 +13300,10 @@
                 "minimum": 1,
                 "description": "The line of the `<testcase>` in a JUnit file; 1 for a Markdown record."
               },
+              "evidenceSource": {
+                "type": "string",
+                "description": "Where the evidence of the record is, as a person reads it: `evidence` when given and not empty; else the record file, `<repository>/<file>` (`<file>` alone without `repository`) and `:<line>` when `line` is given; left out when the record has neither. Not an evidence location of the workspace file. Text only, never opened."
+              },
               "className": {
                 "type": "string",
                 "description": "The `classname` of a JUnit test case; with `testCase` it names the test case. Left out for a Markdown record."

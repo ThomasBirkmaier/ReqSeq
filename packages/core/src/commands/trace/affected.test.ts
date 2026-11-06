@@ -184,7 +184,12 @@ describe("trace.affected (SR-024)", () => {
   it("[SR-024/AK4] lists the records of an older version of the element from the evidence folders, newest first", async () => {
     const workspace = await open();
     const current = await versionOf(workspace, "SR-00b001");
-    const older = record(SPEED, "n1:1111111111111111", "2026-09-01T08:00:00Z");
+    const older = {
+      ...record(SPEED, "n1:1111111111111111", "2026-09-01T08:00:00Z"),
+      repository: "system",
+      file: "evidence/ci/run-1.xml",
+      line: 7,
+    };
     const oldest = record(SPEED, "n1:0000000000000000", "2026-08-01T08:00:00Z");
     const now = record(SPEED, current, "2026-10-01T08:00:00Z");
     await withRecords(workspace, [
@@ -194,7 +199,9 @@ describe("trace.affected (SR-024)", () => {
       record(GUSTS, "n1:2222222222222222", "2026-09-02T08:00:00Z"),
     ]);
     const output = await affected(workspace, { ref: "SR-00b001" });
-    expect(output.records).toEqual([older, oldest]);
+    // Each with its evidence source (#821), on a copy: `oldest` has none.
+    expect(output.records).toEqual([{ ...older, evidenceSource: "system/evidence/ci/run-1.xml:7" }, oldest]);
+    expect(older).not.toHaveProperty("evidenceSource");
     expect(rows(output)).toHaveLength(3);
     expect((await affected(workspace, { ref: "SR-00b004" })).records).toEqual([]);
   });

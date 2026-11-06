@@ -1042,16 +1042,6 @@ const evidenceByNode = (chain: Chain): ReadonlyMap<string, Rec> =>
       .map((item) => [nodeKey("", text(item["repository"]), text(item["id"])), item]),
   );
 
-/** Where the Beleg of a record is: its `evidence`, else its record file and line (a JUnit execution). */
-const belegOf = (record: Rec): string => {
-  const evidence = text(record["evidence"]);
-  if (evidence !== "" || text(record["file"]) === "") {
-    return evidence;
-  }
-  const line = record["line"];
-  return `${text(record["repository"])}/${text(record["file"])}${typeof line === "number" ? `:${String(line)}` : ""}`;
-};
-
 /** The acceptance criteria a record names (D-072), `[criteria 1, 3]`; empty for one that holds for all. */
 const criteriaText = (criteria: unknown): string => {
   const numbers = listOf(criteria).filter((n): n is number => typeof n === "number");
@@ -1070,7 +1060,8 @@ const recordLine = (record: Rec, withMethod: boolean, names: Names): string =>
     text(record["result"]),
     reasonText(record["reason"]),
     text(record["item"]),
-    belegOf(record),
+    // Where the Beleg is, as core gives it (#821).
+    text(record["evidenceSource"]),
     text(record["variant"]) === "" ? "" : `[variant ${variantName(text(record["variant"]), names)}]`,
     criteriaText(record["criteria"]),
   );

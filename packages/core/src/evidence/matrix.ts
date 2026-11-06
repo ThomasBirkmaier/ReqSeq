@@ -25,6 +25,7 @@ import { sameVersion } from "../model/index.js";
 import type { View } from "../variants/index.js";
 import type { EvidenceIndex } from "./by-element.js";
 import { viewIdOf } from "./degree.js";
+import { withEvidenceSource } from "./evidence-source.js";
 import type { TestCase } from "./record.js";
 import type { StatusSource } from "./status.js";
 import type { WorkspaceStatus } from "./verification.js";
@@ -86,7 +87,7 @@ export const matrixTestCases = (
       name: test.name,
       ...(test.className === undefined ? {} : { className: test.className }),
       executed: test.executed,
-      ...(test.last === undefined ? {} : { last: test.last }),
+      ...(test.last === undefined ? {} : { last: withEvidenceSource(test.last) }),
       ...(mark === undefined ? {} : { mark }),
     };
   });
