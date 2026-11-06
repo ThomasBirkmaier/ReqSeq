@@ -19,6 +19,23 @@ scenariosOf("evidence.record", [
     expect: "output",
   },
   {
+    // The fixture's metamodel gives no property the meaning acceptance-criteria, so both numbers also
+    // give evidence.unknown-criterion (SR-028 AK5).
+    name: "a record with the numbers of acceptance criteria has them in its file (SR-030 AK4)",
+    fixture: EVIDENCE,
+    input: {
+      ref: "SR-e88fb3",
+      kind: "verification",
+      result: "passed",
+      method: "analysis",
+      item: "build-47",
+      date: "2026-10-27T10:00:00Z",
+      criteria: [2, 1],
+    },
+    tag: "[SR-030/AK4]",
+    expect: "output",
+  },
+  {
     name: "an unknown element gives the same error",
     fixture: EVIDENCE,
     input: { ref: "SR-ffffff", kind: "validation", result: "passed", date: "2026-10-27T10:00:00Z" },

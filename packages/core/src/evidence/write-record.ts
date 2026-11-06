@@ -15,7 +15,11 @@
 // 3. Fields as given; `date` defaults to the time of the call, UTC, whole seconds. The frontmatter is
 //    checked against the format before anything is done on disk, so the format's rules (`method` and
 //    `item` for a verification; `reason` with the result `inconclusive` and only there, which only a
-//    validation may have, SR-172 AK1) give `input.invalid` naming the input field.
+//    validation may have, SR-172 AK1) give `input.invalid` naming the input field. `criteria` (SR-030
+//    AK4, D-072) is written in ascending order, for a verification only (`input.invalid` with
+//    `validation-with-criteria`: a validation counts per element, SR-030 AK3); absent, the record
+//    holds for every criterion. A number the current version does not have is written, with the
+//    warning `evidence.unknown-criterion` in `problems`, as `workspace check` gives it (SR-028 AK5).
 // 4. Folder (AK2, "in der gewählten Ablage"): an evidence location of the workspace file or a folder
 //    below one, relative to the workspace root; default the first location whose repository is on this
 //    machine. The full target passes the rules of every new ReqSeq file (`refuseUnlisted`) before and
@@ -43,6 +47,8 @@ import type { EvidenceRecordFile, EvidenceRecordInput, EvidenceRecordOutput } fr
 import { metamodelState, typesWithMeaning } from "../metamodel/index.js";
 import type { ElementRecord } from "../model/index.js";
 import {
+  acceptanceCriteriaKeyOf,
+  criteriaCount,
   clashKey,
   currentVersionsOf,
   elementStoreState,
@@ -63,6 +69,7 @@ import { locate, workspaceLayoutState } from "../workspace/index.js";
 import type { ViewContext } from "./in-variant.js";
 import { outOfView } from "./in-variant.js";
 import {
+  CRITERIA_VERIFICATION_ONLY,
   INCONCLUSIVE_REASON_REQUIRED,
   INCONCLUSIVE_VALIDATION_ONLY,
   misplacedReason,
@@ -72,7 +79,9 @@ import {
   VALIDATION_VARIANT_REASON,
   verificationInconclusive,
 } from "./markdown.js";
+import { unknownCriterionProblem } from "./match.js";
 import type { EvidenceRecord } from "./record.js";
+import { criterionLineOf, withCriterionLines } from "./record.js";
 import type { EvidenceRead } from "./state.js";
 import { evidenceReadState, evidenceRecordsState, registerInsertion } from "./state.js";
 
@@ -119,6 +128,7 @@ const FORMAT_ORDER: readonly (keyof RecordFields)[] = [
   "date",
   "evidence",
   "test-case",
+  "criteria",
 ];
 
 const DEFAULT_DEPS: RecordDeps = {
@@ -438,6 +448,8 @@ interface Prepared {
   /** The short ID of the record's variant, for the file name; undefined for the core. */
   readonly variantShortId: string | undefined;
   readonly fields: RecordFields;
+  /** How many acceptance criteria the element's current version has (SR-028 AK5). */
+  readonly criteriaCount: number;
 }
 
 /**
@@ -482,6 +494,23 @@ const variantOf = (
   });
 };
 
+/**
+ * Rule 3: `criteria` of the file, in ascending order; none without the input. `input.invalid` on a
+ * validation record, which counts per element (SR-030 AK3).
+ */
+const criteriaFields = (input: EvidenceRecordInput): Pick<RecordFields, "criteria"> => {
+  if (input.criteria === undefined) {
+    return {};
+  }
+  if (input.kind === "validation") {
+    throw invalid(`Not written: ${CRITERIA_VERIFICATION_ONLY}`, {
+      fields: ["criteria"],
+      reason: "validation-with-criteria",
+    });
+  }
+  return { criteria: [...input.criteria].sort((a, b) => a - b) };
+};
+
 /** Rules 1 to 3: the element, its current version and the fields, checked against the format. */
 const prepare = async (
   workspace: Workspace,
@@ -496,6 +525,7 @@ const prepare = async (
     new Set(typesWithMeaning(metamodel, meaning).map((t) => t.key));
   checkKind({ requirements: keys("requirement"), needs: keys("need") }, element, input.kind, input.ref);
   const variant = variantOf({ workspace, metamodel, store, shortIds }, element, input);
+  const criteria = criteriaFields(input);
   // AK1: `currentVersionsOf` gives an entry for every record it is given.
   const entry = (await currentVersionsOf(workspace, [element])).get(element);
   if (entry?.kind !== "version") {
@@ -520,6 +550,7 @@ const prepare = async (
     date: input.date ?? recordDate(now()),
     ...(input.evidence === undefined ? {} : { evidence: input.evidence }),
     ...(input.testCase === undefined ? {} : { "test-case": input.testCase }),
+    ...criteria,
   };
   const errors = recordViolations(fields);
   if (errors.length > 0) {
@@ -534,6 +565,7 @@ const prepare = async (
     shortId: shortIds.of(element),
     variantShortId: variant === undefined ? undefined : shortIds.of(variant),
     fields,
+    criteriaCount: criteriaCount(element.data, acceptanceCriteriaKeyOf(metamodel)),
   };
 };
 
@@ -586,7 +618,8 @@ export const recordEvidence = async (
   deps: RecordDeps = DEFAULT_DEPS,
 ): Promise<EvidenceRecordOutput> => {
   const layout = await workspace.get(workspaceLayoutState);
-  const { shortId, variantShortId, fields } = await prepare(workspace, input, deps.now);
+  const prepared = await prepare(workspace, input, deps.now);
+  const { element, shortId, variantShortId, fields } = prepared;
   const { location, folder } = targetOf(layout, input.folder);
   const { repository } = location;
   const bytes = Buffer.from(deps.render(fields), "utf8");
@@ -602,6 +635,19 @@ export const recordEvidence = async (
     createHash("sha256").update(bytes).digest("hex"),
   );
   const record: PlacedRecord = { ...read, repository: repository.name, file };
+  const { criteria } = record;
+  if (criteria !== undefined) {
+    // The line of `criteria` in the file, for the findings of `workspace check` (SR-028 AK5).
+    withCriterionLines(record, new Map(criteria.map((n) => [n, Number(criterionLineOf(read, n))])));
+  }
   await updateEvidence(workspace, layout, record);
-  return { files: [workspacePath(layout, repository, file)], record, problems: [] };
+  const problem =
+    criteria === undefined
+      ? undefined
+      : unknownCriterionProblem({ record, criteria, element }, prepared.criteriaCount);
+  return {
+    files: [workspacePath(layout, repository, file)],
+    record,
+    problems: problem === undefined ? [] : [problem],
+  };
 };

@@ -1,24 +1,61 @@
 {
   "name": "evidence.record",
   "title": "Record evidence",
-  "summary": "Write a manual verification or validation record (Markdown, evidence-record.schema.json) into an evidence folder of the workspace; the element's UUID and current version are filled in. A verification names a requirement, a validation a need or a requirement (D-012). Never replaces a file: a name that is taken gets -2, -3, ...",
+  "summary": "Write a manual verification or validation record (Markdown, evidence-record.schema.json) into an evidence folder of the workspace; the element's UUID and current version are filled in. A verification names a requirement and optionally the acceptance criteria it proves (D-072), a validation a need or a requirement (D-012). Never replaces a file: a name that is taken gets -2, -3, ...",
   "effect": "write-files",
   "whileReadOnly": "refuse",
   "whileReadOnlyReason": "Fills in the current version of the element, which depends on the metamodel (which properties count).",
   "stage": 4,
   "implements": ["SR-030", "SR-047", "SR-172"],
   "arguments": [
-    { "field": "ref", "complete": "element" },
-    { "field": "kind", "complete": "choice" },
-    { "field": "result", "complete": "choice" },
-    { "field": "method", "complete": "choice" },
-    { "field": "item", "complete": "text" },
-    { "field": "variant", "complete": "element" },
-    { "field": "date", "complete": "text" },
-    { "field": "evidence", "complete": "text" },
-    { "field": "testCase", "complete": "text" },
-    { "field": "reason", "complete": "text" },
-    { "field": "folder", "complete": "text" }
+    {
+      "field": "ref",
+      "complete": "element"
+    },
+    {
+      "field": "kind",
+      "complete": "choice"
+    },
+    {
+      "field": "result",
+      "complete": "choice"
+    },
+    {
+      "field": "method",
+      "complete": "choice"
+    },
+    {
+      "field": "item",
+      "complete": "text"
+    },
+    {
+      "field": "variant",
+      "complete": "element"
+    },
+    {
+      "field": "date",
+      "complete": "text"
+    },
+    {
+      "field": "evidence",
+      "complete": "text"
+    },
+    {
+      "field": "testCase",
+      "complete": "text"
+    },
+    {
+      "field": "criteria",
+      "complete": "number"
+    },
+    {
+      "field": "reason",
+      "complete": "text"
+    },
+    {
+      "field": "folder",
+      "complete": "text"
+    }
   ],
   "input": {
     "type": "object",
@@ -63,6 +100,17 @@
       "testCase": {
         "type": "string",
         "description": "Optional test case name or ID (`test-case` in the file, SR-033)."
+      },
+      "criteria": {
+        "type": "array",
+        "items": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "minItems": 1,
+        "uniqueItems": true,
+        "description": "The acceptance criteria the record holds for, by number: the position in the property with the meaning `acceptance-criteria` of the element's current version, counted from 1 (D-072, SR-030 AK4), at most 9007199254740991 (the largest whole number JSON readers keep exactly, so the file holds the number as given). Written in ascending order as `criteria` of the file. Absent: the record holds for every criterion. Verification only: with `kind` validation it is `input.invalid` with `details.reason` `validation-with-criteria`, because a validation counts per element (SR-030 AK3). A number the current version does not have is written and gives the warning `evidence.unknown-criterion` in `problems` (SR-028 AK5)."
       },
       "folder": {
         "type": "string",

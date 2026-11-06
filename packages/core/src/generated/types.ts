@@ -2787,7 +2787,7 @@ export interface EvidenceListOutput {
 }
 
 /**
- * Input of `evidence.record` as `run` gets it: validated, properties with a `default` filled in. Write a manual verification or validation record (Markdown, evidence-record.schema.json) into an evidence folder of the workspace; the element's UUID and current version are filled in. A verification names a requirement, a validation a need or a requirement (D-012). Never replaces a file: a name that is taken gets -2, -3, ...
+ * Input of `evidence.record` as `run` gets it: validated, properties with a `default` filled in. Write a manual verification or validation record (Markdown, evidence-record.schema.json) into an evidence folder of the workspace; the element's UUID and current version are filled in. A verification names a requirement and optionally the acceptance criteria it proves (D-072), a validation a need or a requirement (D-012). Never replaces a file: a name that is taken gets -2, -3, ...
  * Schema: `schemas/commands/evidence.record.json input`.
  */
 export interface EvidenceRecordInput {
@@ -2811,12 +2811,14 @@ export interface EvidenceRecordInput {
   readonly evidence?: string;
   /** Optional test case name or ID (`test-case` in the file, SR-033). */
   readonly testCase?: string;
+  /** The acceptance criteria the record holds for, by number: the position in the property with the meaning `acceptance-criteria` of the element's current version, counted from 1 (D-072, SR-030 AK4), at most 9007199254740991 (the largest whole number JSON readers keep exactly, so the file holds the number as given). Written in ascending order as `criteria` of the file. Absent: the record holds for every criterion. Verification only: with `kind` validation it is `input.invalid` with `details.reason` `validation-with-criteria`, because a validation counts per element (SR-030 AK3). A number the current version does not have is written and gives the warning `evidence.unknown-criterion` in `problems` (SR-028 AK5). */
+  readonly criteria?: readonly number[];
   /** The folder to write into: an evidence location of the workspace file or a folder below one, relative to the workspace root (the folder of the main repository) with `/`, for example `evidence/manual` or `../tests/evidence`. Missing folders below the location are created. Default: the first evidence location whose repository is on this machine. */
   readonly folder?: string;
 }
 
 /**
- * Output of `evidence.record`. Write a manual verification or validation record (Markdown, evidence-record.schema.json) into an evidence folder of the workspace; the element's UUID and current version are filled in. A verification names a requirement, a validation a need or a requirement (D-012). Never replaces a file: a name that is taken gets -2, -3, ...
+ * Output of `evidence.record`. Write a manual verification or validation record (Markdown, evidence-record.schema.json) into an evidence folder of the workspace; the element's UUID and current version are filled in. A verification names a requirement and optionally the acceptance criteria it proves (D-072), a validation a need or a requirement (D-012). Never replaces a file: a name that is taken gets -2, -3, ...
  * Schema: `schemas/commands/evidence.record.json output`.
  */
 export interface EvidenceRecordOutput {
