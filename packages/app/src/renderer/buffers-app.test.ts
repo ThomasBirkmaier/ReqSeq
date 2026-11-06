@@ -31,7 +31,7 @@ type Handler = (input: Record<string, unknown>) => unknown;
 
 /** A workspace with three elements; core's search finds the element whose number is in the text. */
 const HANDLERS: Record<string, Handler> = {
-  // The line of coverage over a list (SR-148): no counted requirement.
+  // The line of coverage over a list: no counted requirement.
   ...NO_SUMMARY,
   "workspace.status": () => ({ name: "Weather station", readOnly: true }),
   "element.list": () => ({ elements: [row(1), row(2), row(3)], total: 3 }),

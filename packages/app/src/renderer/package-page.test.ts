@@ -186,7 +186,7 @@ describe("the filter steps of a package page (SR-112 AK2)", () => {
   });
 });
 
-describe("the line of a list (SR-148)", () => {
+describe("the line of a list (product owner decision, 2026-11-06)", () => {
   it("counts the selection of the list, and its click opens the coverage of that selection", async () => {
     const answers: Record<string, unknown> = {
       "evidence.coverage": { levels: [{ type: "system-requirement", total: 2, withChildren: 1 }] },

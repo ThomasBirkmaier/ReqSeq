@@ -33,7 +33,7 @@ type Handler = (input: Record<string, unknown>) => unknown;
 let workspace = "Weather station";
 
 const HANDLERS: Record<string, Handler> = {
-  // The line of coverage over a list (SR-148): no counted requirement.
+  // The line of coverage over a list: no counted requirement.
   ...NO_SUMMARY,
   "workspace.status": () => ({ name: workspace, readOnly: true }),
   "element.list": (input) => {

@@ -28,7 +28,7 @@ const row = (n: number, extra: object = {}) => ({
 type Handler = (input: Record<string, unknown>) => unknown;
 
 const HANDLERS: Record<string, Handler> = {
-  // The line of coverage over a list (SR-148): no counted requirement.
+  // The line of coverage over a list: no counted requirement.
   ...NO_SUMMARY,
   "workspace.status": () => ({ name: "Weather station", readOnly: false }),
   "element.list": () => ({ elements: [row(1), row(2)], total: 2 }),
