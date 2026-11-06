@@ -13,7 +13,7 @@ export const linesOf = (buffer: Pick<ResultBuffer, "command" | "output">): Resul
 const lineText = (line: ResultLine): string => {
   const head = line.kind === "text" && line.label !== "" ? `${line.label}:` : line.label;
   const status = line.status === undefined ? "" : `  ${line.status}`;
-  return `${"  ".repeat(line.depth)}${[head, line.text].filter((part) => part !== "").join(" ")}${status}`;
+  return `${"  ".repeat(line.depth)}${[head, line.text].filter((part) => part !== "").join(" ")}${status}`.trimEnd();
 };
 
 /** The text of the lines, one per line. */

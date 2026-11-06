@@ -47,6 +47,16 @@ test.describe("Show tool info", () => {
     await expect(result).toContainText("chromium");
   });
 
+  test("[SR-161/AK2] the info names the licences, the bundled documentation and the addresses as text", async () => {
+    await runCommand(running, "Show tool info");
+    const result = running.window.locator(".result");
+    await expect(result).toContainText("Copyright");
+    await expect(result).toContainText("https://thomasbirkmaier.github.io/ReqSeq/");
+    await expect(result).toContainText("https://github.com/ThomasBirkmaier/ReqSeq/releases");
+    // The addresses are text: no line of the info is a link.
+    await expect(result.locator("a")).toHaveCount(0);
+  });
+
   test("[SR-161/AK3] Copy result puts the whole info on the clipboard as one block", async () => {
     await runCommand(running, "Show tool info");
     await expect(running.window.locator(".result")).toContainText("Weather station");

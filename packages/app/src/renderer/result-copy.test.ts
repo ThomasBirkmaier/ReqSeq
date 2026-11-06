@@ -8,11 +8,12 @@ describe("resultText", () => {
       { kind: "text", depth: 0, label: "workspace", text: "" },
       { kind: "text", depth: 1, label: "name", text: "Weather station" },
       { kind: "text", depth: 1, label: "", text: "plain" },
+      { kind: "text", depth: 1, label: "", text: "" },
       { kind: "element", depth: 1, label: "SR-1", text: "Wind", status: "draft" },
       { kind: "problem", depth: 2, label: "warning", text: "too few" },
     ];
     expect(resultText(lines)).toBe(
-      "workspace:\n  name: Weather station\n  plain\n  SR-1 Wind  draft\n    warning too few",
+      "workspace:\n  name: Weather station\n  plain\n\n  SR-1 Wind  draft\n    warning too few",
     );
   });
 
