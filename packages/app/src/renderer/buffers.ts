@@ -68,6 +68,8 @@ export interface ElementBuffer {
   readonly readOnly?: true;
   /** A package page (SR-112): how its elements are sorted, kept while the buffer is open (as `ListBuffer.sort`). */
   readonly memberSort?: readonly FilterSortKeyWithDefaults[] | undefined;
+  /** A package page (SR-112 AK2): the filter steps on its elements, as `ListBuffer.steps`; none when unset. */
+  readonly memberSteps?: readonly FilterStep[];
   /** A package page: the selected row of its elements; set once the reader has used them. */
   readonly memberCursor?: number;
 }

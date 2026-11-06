@@ -51,6 +51,7 @@ export type StoredBuffer =
   | (Named & {
       readonly kind: "element";
       readonly memberSort?: readonly FilterSortKeyWithDefaults[];
+      readonly memberSteps?: readonly FilterStep[];
       /** Shown read-only (SR-044 AK2). */
       readonly readOnly?: true;
     })
@@ -107,11 +108,12 @@ export const sessionKey = (status: InvokeResult): string | undefined => {
 
 const ofElement = (buffer: Named): Named => ({ id: buffer.id, repository: buffer.repository });
 
-/** What is stored of an element buffer: the element, the sort of a package page's elements, read-only. */
+/** What is stored of an element buffer: the element, the sort and the filter steps of a package page's elements, read-only. */
 const storedElement = (buffer: ElementBuffer): StoredBuffer => ({
   kind: "element",
   ...ofElement(buffer),
   ...(buffer.memberSort === undefined ? {} : { memberSort: buffer.memberSort }),
+  ...(buffer.memberSteps === undefined ? {} : { memberSteps: buffer.memberSteps }),
   ...(buffer.readOnly === true ? { readOnly: true as const } : {}),
 });
 
@@ -195,6 +197,9 @@ const isStep = (value: unknown): value is FilterStep =>
   (value["selection"]["where"] === undefined || isObject(value["selection"]["where"])) &&
   (value["selection"]["filter"] === undefined || isText(value["selection"]["filter"]));
 
+const isSteps = (value: unknown): value is readonly FilterStep[] =>
+  Array.isArray(value) && value.length > 0 && value.every(isStep);
+
 const isKinds = (value: unknown): value is NonNullable<TraceGraphInput["kinds"]> => isTexts(value);
 
 /** The meanings as stored; `trace.graph` refuses one it does not know when the graph is shown. */
@@ -235,12 +240,14 @@ const parseList = (value: Fields): StoredBuffer | undefined => {
 const parseElement = (value: Fields): StoredBuffer | undefined => {
   const named = namedOf(value);
   const memberSort = optional("memberSort", value["memberSort"], isSort);
-  return named === undefined || memberSort === undefined
+  const memberSteps = optional("memberSteps", value["memberSteps"], isSteps);
+  return named === undefined || memberSort === undefined || memberSteps === undefined
     ? undefined
     : {
         kind: "element",
         ...named,
         ...memberSort,
+        ...memberSteps,
         ...(value["readOnly"] === true ? { readOnly: true as const } : {}),
       };
 };
@@ -383,6 +390,16 @@ const readNames = async (call: Call, elements: readonly Named[]): Promise<Names>
 const readCommands = (catalog: readonly CommandListing[]): ReadonlySet<string> =>
   new Set(catalog.filter((entry) => entry.implemented && entry.effect === "read").map((entry) => entry.name));
 
+/** The element buffer `stored` rebuilds with its name: read-only, the sort and the filter steps of a package page. */
+const rebuildElement = (stored: StoredBuffer & { readonly kind: "element" }, name: string): Buffer => {
+  const element = elementBuffer(stored.id, stored.repository, name);
+  return {
+    ...(stored.readOnly === true ? readOnlyBuffer(element) : element),
+    ...(stored.memberSort === undefined ? {} : { memberSort: stored.memberSort }),
+    ...(stored.memberSteps === undefined ? {} : { memberSteps: stored.memberSteps }),
+  };
+};
+
 /** The buffer `stored` rebuilds; undefined when it cannot be shown again. */
 const rebuild = (
   stored: StoredBuffer,
@@ -416,9 +433,7 @@ const rebuild = (
         return undefined;
       }
       if (stored.kind === "element") {
-        const element = elementBuffer(stored.id, stored.repository, name);
-        const buffer = stored.readOnly === true ? readOnlyBuffer(element) : element;
-        return stored.memberSort === undefined ? buffer : { ...buffer, memberSort: stored.memberSort };
+        return rebuildElement(stored, name);
       }
       if (stored.kind === "neighbourhood") {
         return { ...neighbourhoodBuffer(stored.id, stored.repository, name), open: stored.open };

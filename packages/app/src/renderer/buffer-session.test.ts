@@ -84,7 +84,11 @@ const step = (label: string, where: FilterCondition): FilterStep => ({ label, se
 /** One buffer of every kind, as the app holds them (with rows selected and an output). */
 const everyKind = (): Buffer[] => [
   { ...searchBuffer("wind"), cursor: 3 },
-  { ...elementBuffer("uuid-1", "spec", "SR-1 Secret title 1"), memberSort: [{ by: "title", order: "desc" }] },
+  {
+    ...elementBuffer("uuid-1", "spec", "SR-1 Secret title 1"),
+    memberSort: [{ by: "title", order: "desc" }],
+    memberSteps: [step("status: draft", { status: ["draft"] })],
+  },
   overviewBuffer(),
   {
     ...filteredList(
@@ -136,6 +140,7 @@ describe("buffer session (SR-115 AK4)", () => {
     expect(element).toEqual({
       ...elementBuffer("uuid-1", "spec", "SR-1 Secret title 1"),
       memberSort: [{ by: "title", order: "desc" }],
+      memberSteps: [step("status: draft", { status: ["draft"] })],
     });
     expect(overview).toEqual(overviewBuffer());
     expect(list).toEqual(
@@ -230,6 +235,8 @@ describe("buffer session (SR-115 AK4)", () => {
           { kind: "search" },
           { kind: "element", id: "uuid-1" },
           { kind: "element", id: "uuid-1", repository: "spec", memberSort: "title" },
+          { kind: "element", id: "uuid-1", repository: "spec", memberSteps: [] },
+          { kind: "element", id: "uuid-1", repository: "spec", memberSteps: [{ label: 1 }] },
           { kind: "neighbourhood", id: "uuid-1", repository: "spec", open: [1] },
           { kind: "graph", id: "uuid-1", repository: "spec", depth: 0 },
           { kind: "graph", id: "uuid-1", repository: "spec", depth: 1.5 },

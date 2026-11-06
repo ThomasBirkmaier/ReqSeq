@@ -1,13 +1,16 @@
 import type { MetamodelGetOutput } from "@reqseq/core";
 import { describe, expect, it, vi } from "vitest";
 import { DEFAULT_SORT, NO_ROW, elementBuffer } from "./buffers.js";
+import { exactTypeStep, savedStep, statusStep } from "./list-filters.js";
 import type { Call } from "./call.js";
 import type { BufferData } from "./modeline.js";
 import {
   askPackageSummary,
   coverageBuffer,
   memberCount,
+  memberHeading,
   memberList,
+  memberSelection,
   memberSummary,
   packageModel,
   packageOf,
@@ -163,5 +166,20 @@ describe("package page", () => {
       revision: 3,
       cursor: NO_ROW,
     });
+  });
+});
+
+describe("the filter steps of a package page (SR-112 AK2)", () => {
+  it("[SR-112/AK2] select the package's elements that meet every step, and name the steps in the heading", () => {
+    expect(memberSelection("p1", [])).toEqual(packageSelection("p1"));
+    expect(memberSelection("p1", [statusStep("draft"), savedStep("open")])).toEqual({
+      filter: "open",
+      where: { all: [{ package: "p1" }, { status: ["draft"] }] },
+    });
+    expect(memberHeading("packages", undefined)).toBe("packages");
+    expect(memberHeading("packages", [])).toBe("packages");
+    expect(memberHeading("packages", [exactTypeStep("need", "Need"), statusStep("draft")])).toBe(
+      "packages · Need · status: draft",
+    );
   });
 });
