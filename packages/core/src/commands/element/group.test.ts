@@ -149,12 +149,12 @@ describe("element.list grouped (SR-149 AK1)", () => {
     const output = await list(workspace, { group: "area", selection: { ids: [id("b5")] } });
     expect(output.groups?.map((g) => g.value)).toEqual(["sensor", 3, "Other", "other", true]);
     // An element without status is in no status group but the last; a package item without an ID
-    // names no available package.
+    // names no element, so b5 has no package and none that is unavailable.
     expect((await list(workspace, { group: "status", selection: { ids: [id("b5")] } })).groups).toEqual([
       { count: 1, offset: 0 },
     ]);
     expect((await list(workspace, { group: "package", selection: { ids: [id("b5")] } })).groups).toEqual([
-      { unavailable: 1, count: 1, offset: 0 },
+      { count: 1, offset: 0 },
     ]);
   });
 
@@ -249,6 +249,67 @@ describe("element.list grouped by a property with few shared values (SR-149 AK1)
       ),
     ) as { input: { properties: { maxValues: { default: number } } } };
     expect(FACET_MAX_VALUES).toBe(schema.input.properties.maxValues.default);
+  });
+
+  it("reads a relation property as element.facets and eq do, also a single mapping where a list is expected", async () => {
+    const { workspace } = await open({
+      ...TOPICS,
+      files: {
+        ...TOPICS.files,
+        "requirements/SR-0000000000b8.md":
+          "---\nid: 69069069-0000-4000-8000-0000000000b8\ntype: system-requirement\nstatus: draft\ntitle: One variant\nvalidity: { id: 69069069-0000-4000-8000-0000000000c1 }\n---\n",
+      },
+    });
+    const selection = { where: { type: ["system-requirement"], subtypes: false } };
+    const output = await list(workspace, { group: "validity", selection, sort: BY_TITLE });
+    const first = output.groups?.[0];
+    expect([first?.value, first?.count]).toEqual(["VAR-0000c1", 2]);
+    const members = output.elements.slice(0, 2).map((e) => e.shortId);
+    const selected = await list(workspace, {
+      selection: {
+        where: { all: [selection.where, { property: "validity", op: "eq", value: "VAR-0000c1" }] },
+      },
+      sort: BY_TITLE,
+    });
+    expect(selected.elements.map((e) => e.shortId)).toEqual(members);
+    const facets = (await invoke(
+      "element.facets",
+      { selection },
+      { workspace },
+    )) as CommandOutput<"element.facets">;
+    const validity = facets.properties.find((p) => p.key === "validity");
+    expect(validity?.values?.find((v) => v.value === "VAR-0000c1")?.count).toBe(2);
+  });
+
+  it("counts a target in a repository that is not on this machine as unavailable", async () => {
+    const PACKAGE = "7e3a5c9b-1d2f-4e6a-8b0c-2d4e6f8a0b1c";
+    const member = (tail: string, items: string): string =>
+      `---\nid: 8f1e3d5c-7b9a-4c2e-a4f6-0000000000${tail}\ntype: system-requirement\nstatus: draft\ntitle: Member ${tail}\npackages:\n${items}---\n`;
+    const fixture = await createFixtureWorkspace({
+      fixture: "SR-005/cross-repository",
+      files: {
+        "system/requirements/SR-0000000000e1.md": member(
+          "e1",
+          `  - { id: ${PACKAGE}, repository: platform }\n`,
+        ),
+        // A free name (D-020) names no element: no package, none unavailable.
+        "system/requirements/SR-0000000000e2.md": member("e2", "  - Platform 2.0\n"),
+      },
+    });
+    onTestFinished(() => fixture.cleanup());
+    const there = new Workspace(fixture.path("system"));
+    onTestFinished(() => there.close());
+    const where = { type: ["system-requirement"] };
+    expect((await list(there, { group: "package", selection: { where } })).groups).toEqual([
+      { value: "PKG-8a0b1c", title: "Platform 2.0", count: 1, offset: 0 },
+      { count: 2, offset: 1 },
+    ]);
+    await fs.rm(fixture.path("platform-checkout"), { recursive: true });
+    const away = new Workspace(fixture.path("system"));
+    onTestFinished(() => away.close());
+    const output = await list(away, { group: "package", selection: { where } });
+    expect(output.groups).toEqual([{ unavailable: 1, count: 3, offset: 0 }]);
+    expect(output.incomplete).toBe(true);
   });
 
   it("refuses topic where no topic is shared, as element.facets offers none", async () => {
@@ -348,6 +409,9 @@ describe("element.list group refusals", () => {
       const error = await failure(workspace, { group });
       expect([error.code, error.details?.["fields"]]).toEqual(["input.invalid", ["group"]]);
     }
+    expect((await failure(workspace, { group: "derives-from" })).message).toContain(
+      "derives-from is a relation kind, not a property",
+    );
   });
 
   it("checks a sort by hierarchy as without groups", async () => {

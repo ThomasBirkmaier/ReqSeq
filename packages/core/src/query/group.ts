@@ -28,7 +28,7 @@ import type { MetamodelProperty } from "../generated/types.js";
 import { findNamed, keyDefinition } from "../metamodel/index.js";
 import type { ElementRecord } from "../model/index.js";
 import { identifierField, resolveTarget, titleKeyOrEmpty } from "../model/index.js";
-import { validityEntries, validityTarget } from "../variants/index.js";
+import { validityTarget } from "../variants/index.js";
 import { invalidAt, propertyFor, valuesOf } from "./context.js";
 import { offersValues } from "./facets.js";
 import type { Selected } from "./selection.js";
@@ -97,17 +97,26 @@ const namedReader = (
   };
 };
 
-/** The available targets of a relation property, as the conditions read them. */
+/**
+ * The available targets of a relation property, read as element.facets and the property condition
+ * `eq` read them: every item of `valuesOf`, whatever `many` says, so that `eq` on a group's value
+ * selects the group. (The condition `package` reads by `many`, `validityEntries`; the two differ only
+ * for a value of the wrong shape, a single mapping where a list is expected, SR-085.) An item that
+ * names no element (a free name, D-020, or no ID) is no value; one whose target is not found (its
+ * repository not on this machine, or not in the workspace) counts as `unavailable`.
+ */
 const targetReader = (selected: Selected, property: MetamodelProperty): Reader => {
   const { metamodel, store, shortIds } = selected;
-  const entries = { key: property.key, many: property.many === true };
   // Without the meaning `title` no key is the title (SR-013 AK3): every target is untitled.
   const titleKey = titleKeyOrEmpty(metamodel);
   return (element, sink) => {
-    for (const entry of validityEntries(entries, element)) {
-      const named = validityTarget(entry.value, element);
-      const found = named === undefined ? undefined : resolveTarget(store, element.repository, named);
-      if (found?.kind !== "found") {
+    for (const item of valuesOf(element.data[property.key])) {
+      const named = validityTarget(item, element);
+      if (named === undefined) {
+        continue;
+      }
+      const found = resolveTarget(store, element.repository, named);
+      if (found.kind !== "found") {
         sink.unavailable();
         continue;
       }
@@ -146,7 +155,14 @@ const readerOf = (selected: Selected, command: CommandName, by: string): Reader 
       return targetReader(selected, propertyFor({ command, metamodel }, "packages"));
   }
   const found = keyDefinition(metamodel, by);
-  const definition = found?.kind === "property" ? found.definition : undefined;
+  if (found !== undefined && found.kind !== "property") {
+    throw invalidAt(
+      { command },
+      "group",
+      `${by} is a relation kind, not a property; group by type, status, package or a property with values to choose`,
+    );
+  }
+  const definition = found?.definition;
   if (definition === undefined || !offersValues(store.elements, definition)) {
     throw invalidAt(
       { command },
