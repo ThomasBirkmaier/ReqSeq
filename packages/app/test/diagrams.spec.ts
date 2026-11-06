@@ -1,4 +1,4 @@
-// Diagrams in the editor's live preview (SR-096, #108) on the built app: typed with real keys, drawn by the
+// Diagrams in the editor's live preview (SR-096, ThomasBirkmaier/ReqSeq-archive#108) on the built app: typed with real keys, drawn by the
 // bundled Mermaid as an image, offline, and with a syntax error the error and the source. SR-096 is
 // verified by demonstration; these tests back the record. Keys use ControlOrMeta, so they run on Linux and
 // macOS.
@@ -175,7 +175,7 @@ test.describe("diagrams in the editor", () => {
     const error = content.locator("div.cm-lr-render-error");
     await expect(error).toContainText(/Error\s*Parse error on line \d+:/);
     await expect(content.locator("img.cm-lr-diagram")).toHaveCount(0);
-    // Readable: at least 0.8 of the body text, not shrunk with the hidden fence line it ends (#747).
+    // Readable: at least 0.8 of the body text, not shrunk with the hidden fence line it ends (ThomasBirkmaier/ReqSeq-archive#747).
     const [errorSize, bodySize] = await error.evaluate((element) => [
       Number.parseFloat(getComputedStyle(element).fontSize),
       Number.parseFloat(getComputedStyle(document.body).fontSize),

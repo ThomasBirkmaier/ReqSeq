@@ -23,7 +23,7 @@ export interface PropertyFieldProps {
   readonly textBox: TextBoxProps | undefined;
   /**
    * The element: its relations are the stored targets of a relation box, with their state, and its hints
-   * mark the outdated ones (#702).
+   * mark the outdated ones (ThomasBirkmaier/ReqSeq-archive#702).
    */
   readonly element: Pick<DataExportElement, "relations" | "problems" | "repository">;
   readonly onCopy: (label: string) => void;

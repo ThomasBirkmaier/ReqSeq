@@ -38,7 +38,7 @@ export const isPropertyTarget = (relation: DataExportRelation): boolean =>
   relation.property === true && relation.direction === "out";
 
 /**
- * The field of the title in the element buffer (#621): edited in its heading, saved and compared with the
+ * The field of the title in the element buffer (ThomasBirkmaier/ReqSeq-archive#621): edited in its heading, saved and compared with the
  * file like a box. Property keys are lower case (`common.schema.json#/$defs/key`), so no key is this label.
  */
 export const TITLE_FIELD = "Title";
@@ -145,7 +145,7 @@ const undated = (hint: Hint): boolean => isOutdatedCode(hint.code) && hint.store
 
 /**
  * The outdated relations and references of `element` that have no dates yet, as one string; empty when
- * there are none. The buffer asks `element.get` with `hintDates` for them when it changes (#702).
+ * there are none. The buffer asks `element.get` with `hintDates` for them when it changes (ThomasBirkmaier/ReqSeq-archive#702).
  */
 export const undatedHints = (element: DataExportElement): string =>
   (element.problems ?? []).filter(undated).map(hintKey).join("\n");
@@ -170,7 +170,7 @@ export const withHintDates = (element: DataExportElement, dated: readonly Hint[]
 /**
  * The mark of an outgoing relation of `element` when a hint of `OUTDATED_CODES` of the element names its
  * item (`variant.core-changed` for a `replaces` item, SR-045): by its key, target, stored version and the
- * repository the item names, which core gives as fields (#222; #665: `element.get` gives no
+ * repository the item names, which core gives as fields (#222; ThomasBirkmaier/ReqSeq-archive#665: `element.get` gives no
  * `relations[].outdated`).
  */
 export const outdatedRelation = (

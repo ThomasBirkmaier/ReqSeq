@@ -146,7 +146,7 @@ describe("generateLargeWorkspace", () => {
     expect(across).toBeGreaterThan(100);
   });
 
-  it("writes about two inline references per element to earlier elements, with repository only across repositories (#240)", () => {
+  it("writes about two inline references per element to earlier elements, with repository only across repositories (ThomasBirkmaier/ReqSeq-archive#240)", () => {
     const generated = small();
     const byId = new Map(generated.elements.map((e) => [e.id, e]));
     const order = new Map(generated.elements.map((e, i) => [e.id, i]));
@@ -372,7 +372,7 @@ describe("generateLargeWorkspace", () => {
     expect([...own.files.values()].some((text) => text.includes(`\n${SPEC_ID_KEY}: `))).toBe(false);
   });
 
-  it("adds a spec ID property to the metamodel and a spec ID unique per type to every element (#305)", () => {
+  it("adds a spec ID property to the metamodel and a spec ID unique per type to every element (ThomasBirkmaier/ReqSeq-archive#305)", () => {
     const model = withSpecIdProperty(fs.readFileSync(defaultStandardModelFile, "utf8"));
     expect(model).toContain(
       "\nproperties:\n  - { key: spec-id, name: Spec ID, kind: text, meaning: identifier }\n",

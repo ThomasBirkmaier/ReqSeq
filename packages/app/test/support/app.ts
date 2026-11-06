@@ -265,7 +265,7 @@ export interface LaunchOptions {
 /**
  * Opt-in: `REQSEQ_CPU_THROTTLE=<rate>` slows the window's renderer `rate` times (Chromium's
  * `Emulation.setCPUThrottlingRate`, 10 to 20 is useful), so that races which only show on a busy CI runner
- * show locally (#542). Off by default; CI does not set it. Run e.g.
+ * show locally (ThomasBirkmaier/ReqSeq-archive#542). Off by default; CI does not set it. Run e.g.
  * `REQSEQ_CPU_THROTTLE=15 playwright test --config test/playwright.config.ts --repeat-each 20`.
  */
 const throttle = async (window: Page): Promise<void> => {
@@ -338,7 +338,7 @@ export const launchApp = async (
   // the recent elements of the overview and the use of the command prompt are, SR-118, SR-121) lie in a
   // temporary folder on every OS. The environment below moves the cache folder; the user data folder needs
   // Chromium's `--user-data-dir` switch, because on macOS Electron takes `appData` from Foundation
-  // (~/Library/Application Support of the account), which does not follow HOME (#505). Without it, every
+  // (~/Library/Application Support of the account), which does not follow HOME (ThomasBirkmaier/ReqSeq-archive#505). Without it, every
   // test on a Mac shared the real user data of the ReqSeq app of that account.
   const home =
     kept === undefined
@@ -517,7 +517,7 @@ export const launchApp = async (
 /**
  * The modifier of the app's shortcuts for `window`: Meta (Cmd) when the renderer is on macOS, also when a
  * test emulates it by `navigator.platform` on another OS, else `ControlOrMeta`. Under macOS the app takes
- * only Cmd (#543), and Playwright's `ControlOrMeta` follows the OS of the runner, not the emulated one.
+ * only Cmd (ThomasBirkmaier/ReqSeq-archive#543), and Playwright's `ControlOrMeta` follows the OS of the runner, not the emulated one.
  */
 export const modifier = async (window: Page): Promise<"Meta" | "ControlOrMeta"> =>
   (await window.evaluate(() => navigator.platform.startsWith("Mac"))) ? "Meta" : "ControlOrMeta";
@@ -533,7 +533,7 @@ export const listAll = async (window: Page): Promise<void> => {
 };
 
 /**
- * The sort the lists of the app start with (#418), as the CLI takes it: a test that compares a list with
+ * The sort the lists of the app start with (ThomasBirkmaier/ReqSeq-archive#418), as the CLI takes it: a test that compares a list with
  * `element list` gives the CLI this input. A unit test pins the real `DEFAULT_SORT` of the renderer.
  */
 export const DEFAULT_SORT = [

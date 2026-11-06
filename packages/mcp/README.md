@@ -6,7 +6,7 @@ The MCP server of ReqSeq (ADR-0009) for AI agents: stdio only, one tool per comm
 { "mcpServers": { "reqseq": { "command": "reqseq", "args": ["mcp", "--workspace", "/path/to/copy"] } } }
 ```
 
-- Tools are named `group_action` (`element_setStatus`) with the input schemas of `schemas/generated/mcp-tools.json`, each with only the definitions it reaches, flat (`#/$defs/common.uuid`); no output schemas, so the list stays small (about 30 KB, #303); read commands have `readOnlyHint`. Only implemented commands are listed; a call to a catalog command of a later stage gives the tool error `command.not-implemented`, as CLI and API do.
+- Tools are named `group_action` (`element_setStatus`) with the input schemas of `schemas/generated/mcp-tools.json`, each with only the definitions it reaches, flat (`#/$defs/common.uuid`); no output schemas, so the list stays small (about 30 KB, ThomasBirkmaier/ReqSeq-archive#303); read commands have `readOnlyHint`. Only implemented commands are listed; a call to a catalog command of a later stage gives the tool error `command.not-implemented`, as CLI and API do.
 - The `initialize` result carries short `instructions` for agents (first tools, element references, short IDs, hint IDs), built by core's `agentInstructions` from the catalog.
 - A result is the command output as `structuredContent` and as JSON text; above 32 MiB of JSON (`MAX_TEXT_BYTES`) the text is a note pointing to `data_store` (ADR-0009). A `CommandError` is a tool error (`isError: true`) with the error object (`common.schema.json#/$defs/error`) as JSON text only: `structuredContent` is always the command output.
 - No network listener at all (SR-079). Standard output carries only the protocol. The session ends when standard input ends, or with Ctrl-C.

@@ -1,4 +1,4 @@
-// The delivery of ADR-0014 as the tests see it (#324): where each part lies in the unpacked artifact of a
+// The delivery of ADR-0014 as the tests see it (ThomasBirkmaier/ReqSeq-archive#324): where each part lies in the unpacked artifact of a
 // system, how to unpack it, and an inspection that lists what is missing or wrong (SR-076 AK2). The names
 // come from `toolchain/packaging/names.json`, the one place that names the product and its files.
 import { execFile } from "node:child_process";
@@ -224,7 +224,7 @@ const exists = (file: string): Promise<boolean> =>
   );
 
 /**
- * Build leftovers that must not ship (#324): source maps, type declarations and TypeScript build info. The
+ * Build leftovers that must not ship (ThomasBirkmaier/ReqSeq-archive#324): source maps, type declarations and TypeScript build info. The
  * staging removes them; the inspection finds any that come back.
  */
 export const isBuildLeftover = (file: string): boolean =>

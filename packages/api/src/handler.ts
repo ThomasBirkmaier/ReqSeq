@@ -346,7 +346,7 @@ export function createRequestHandler(options: HandlerOptions): RequestHandler {
       });
     }
     // A request target that Node accepts but URL does not (e.g. `//[/`) names no endpoint: refused like any
-    // other path, after its body (#200).
+    // other path, after its body (ThomasBirkmaier/ReqSeq-archive#200).
     const pathname = URL.parse(String(request.url), "http://localhost")?.pathname;
     if (pathname === undefined) {
       return refusal(404, `No endpoint ${String(request.url)}`);
@@ -373,7 +373,7 @@ export function createRequestHandler(options: HandlerOptions): RequestHandler {
   };
 
   /**
-   * Every answer comes after the body is read, also one that does not need the body (#200). Node's docs ask
+   * Every answer comes after the body is read, also one that does not need the body (ThomasBirkmaier/ReqSeq-archive#200). Node's docs ask
    * for an unread body to be read or the socket destroyed; Node itself drops one after the response, but
    * without any bound. So it is read here, with the bound of a command's body, and the connection stays
    * usable for the next request of a keep-alive client.

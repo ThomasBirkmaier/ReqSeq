@@ -3,7 +3,7 @@
 // - A fenced `mermaid` block off the lines that show their source appears drawn in place of its source.
 // - While the cursor is in it, its whole source shows with the drawing directly below it, drawn again
 //   after a pause of at least 300 ms that grows with the time the last drawing took, and at once when the
-//   cursor leaves it (assumption A1, spec question #420); the last drawing stays until then.
+//   cursor leaves it (assumption A1, spec question ThomasBirkmaier/ReqSeq-archive#420); the last drawing stays until then.
 // - A diagram with an error is never hidden: its source stays, and the error follows it in grey (AK3).
 //
 // Mermaid draws on the main thread (it measures the text in the DOM), so it is kept off the keystroke

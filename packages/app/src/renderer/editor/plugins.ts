@@ -2,8 +2,8 @@
 // GitHub extensions; the issues that follow plug in here and change nothing else:
 //
 // - `markdown`: parser extensions. Formulas (SR-096, `math-syntax.ts`) add their syntax nodes.
-// - `rules`: preview rules after the built-in ones. Formulas (SR-096, `formula-preview.ts`), diagrams (#108)
-//   and images (#109) draw their nodes as widgets; a rule only ever returns decorations, the document is
+// - `rules`: preview rules after the built-in ones. Formulas (SR-096, `formula-preview.ts`), diagrams (ThomasBirkmaier/ReqSeq-archive#108)
+//   and images (ThomasBirkmaier/ReqSeq-archive#109) draw their nodes as widgets; a rule only ever returns decorations, the document is
 //   never rewritten. A rule that `owns` a node draws it alone (a fenced `math` block set in place of its
 //   source), so the built-in rules do not decorate what it replaces.
 // - `extensions`: further CodeMirror extensions. The slash menu (SR-129, `slash-menu.ts`) is one; the `[[`
@@ -11,8 +11,8 @@
 //   prompt "Insert reference" and the pick is written as an inline reference (ADR-0004,
 //   `reference-pick.ts`, shared with the slash menu).
 //
-// Autosave (#401) plugs in through `onChange` and `onSave` of the editor component and the pure functions
-// of `save.ts`; the property boxes (#400) stay below the editor in the element buffer.
+// Autosave (ThomasBirkmaier/ReqSeq-archive#401) plugs in through `onChange` and `onSave` of the editor component and the pure functions
+// of `save.ts`; the property boxes (ThomasBirkmaier/ReqSeq-archive#400) stay below the editor in the element buffer.
 import type { Extension, EditorState } from "@codemirror/state";
 import type { Decoration } from "@codemirror/view";
 import type { Range } from "@codemirror/state";
@@ -39,7 +39,7 @@ export interface PreviewRule {
 export interface EditorPlugins {
   /** Parser extensions (formulas, SR-096). */
   readonly markdown?: readonly MarkdownConfig[];
-  /** Live-preview rules after the built-in ones (formulas SR-096, diagrams #108, images #109). */
+  /** Live-preview rules after the built-in ones (formulas SR-096, diagrams ThomasBirkmaier/ReqSeq-archive#108, images ThomasBirkmaier/ReqSeq-archive#109). */
   readonly rules?: readonly PreviewRule[];
   /** Further CodeMirror extensions (the slash menu SR-129, the `[[` search SR-066). */
   readonly extensions?: readonly Extension[];
@@ -47,7 +47,7 @@ export interface EditorPlugins {
 
 /**
  * The plugins of the editor together: the lists of each, in the given order. The element buffer combines
- * the reference marks (#424), the slash menu (SR-129), the `[[` search (SR-066) and the formulas (SR-096)
+ * the reference marks (ThomasBirkmaier/ReqSeq-archive#424), the slash menu (SR-129), the `[[` search (SR-066) and the formulas (SR-096)
  * this way.
  */
 export const mergePlugins = (...plugins: readonly EditorPlugins[]): EditorPlugins => ({

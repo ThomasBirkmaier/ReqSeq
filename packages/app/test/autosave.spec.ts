@@ -228,7 +228,7 @@ test.describe("saving without a save command", () => {
     expect(await read(running, SR_FILE)()).toContain("Beim Beenden.");
   });
 
-  test("[SR-105/AK1] quitting the app with nothing typed ends it within a few seconds, and writes nothing (#611 review S2)", async () => {
+  test("[SR-105/AK1] quitting the app with nothing typed ends it within a few seconds, and writes nothing (ThomasBirkmaier/ReqSeq-archive#611 review S2)", async () => {
     const { app } = running;
     const before = await read(running, SR_FILE)();
     const exited = app.waitForEvent("close", { timeout: 5000 });

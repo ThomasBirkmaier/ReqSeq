@@ -3,8 +3,8 @@
 // the other workspace only when everything is saved. Each element buffer with a draft is saved with
 // `element.update`, as "Save element" saves it (`property-edit.ts`): the text that was typed, and the
 // boxes whose document differs from what the file stores. One after the other; the first that cannot be
-// saved stops the switch (spec question #523): its draft stays, the minibuffer names the element, and
-// the open workspace stays. The title of a draft goes as `title` (#621, `TITLE_FIELD`). A draft whose file
+// saved stops the switch (spec question ThomasBirkmaier/ReqSeq-archive#523): its draft stays, the minibuffer names the element, and
+// the open workspace stays. The title of a draft goes as `title` (ThomasBirkmaier/ReqSeq-archive#621, `TITLE_FIELD`). A draft whose file
 // changed outside since it was typed on is not saved over that change: the rule of SR-106
 // (`outside-change.ts`) finds a conflict, and it stops the switch as well.
 // Every write carries the bytes it was made on (`expectedFileSha256`).

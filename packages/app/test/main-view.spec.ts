@@ -1,4 +1,4 @@
-// The main view (SR-100, #112): one buffer (list, search result or element), the modeline and the
+// The main view (SR-100, ThomasBirkmaier/ReqSeq-archive#112): one buffer (list, search result or element), the modeline and the
 // minibuffer, on the built app. What the app shows is compared with what the CLI gives for the same
 // workspace (SR-080). Keys use ControlOrMeta, so the same tests run on Linux and macOS.
 import fs from "node:fs/promises";
@@ -83,7 +83,7 @@ test.describe("the main view on a fixture workspace", () => {
       ).toBe(0);
       await expect(window.locator(".copy:visible")).toHaveCount(0);
       // The window has the sheet, the modeline and the minibuffer, nothing else. On macOS the top strip of the
-      // sheet stands in for the native title bar (#490): it is aria-hidden and holds no control.
+      // sheet stands in for the native title bar (ThomasBirkmaier/ReqSeq-archive#490): it is aria-hidden and holds no control.
       expect(
         await window
           .locator(".shell > *")

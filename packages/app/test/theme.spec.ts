@@ -1,4 +1,4 @@
-// Light and dark (SR-113, #409) on the built app: it follows the system, and the action "Toggle dark mode"
+// Light and dark (SR-113, ThomasBirkmaier/ReqSeq-archive#409) on the built app: it follows the system, and the action "Toggle dark mode"
 // switches without a restart. The expected colours are the tokens of styles.css as the browser reports
 // them (`rgb(...)`); styles.test.ts checks that the tokens exist and read well.
 //

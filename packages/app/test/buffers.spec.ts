@@ -254,7 +254,7 @@ test.describe("Go to and no tab bar", () => {
         expect([role, await window.getByRole(role).count()]).toEqual([role, 0]);
       }
       // The window has the sheet, the modeline and the minibuffer, nothing else (on macOS the top strip
-      // that stands in for the title bar, #490); the sheet holds exactly one buffer.
+      // that stands in for the title bar, ThomasBirkmaier/ReqSeq-archive#490); the sheet holds exactly one buffer.
       expect(
         await window
           .locator(".shell > *")

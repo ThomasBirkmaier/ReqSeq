@@ -34,7 +34,7 @@ const stateOf = (doc: string, cursor?: number, titles?: ReadonlyMap<string, stri
     ],
   });
   // `ensureSyntaxTree` parses to the end; the empty update hands that tree to the state, which kept the one of
-  // its first parse (cut short after 20 ms on a busy machine, #542).
+  // its first parse (cut short after 20 ms on a busy machine, ThomasBirkmaier/ReqSeq-archive#542).
   ensureSyntaxTree(state, doc.length, 1e9);
   return state.update({}).state;
 };

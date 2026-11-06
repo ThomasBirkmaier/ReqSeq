@@ -241,7 +241,7 @@ const tableData = (state: EditorState, table: SyntaxNode): TableData => {
   return { align, header, body };
 };
 
-// Assumption A1 (spec question #420): a table row cannot be set while the next row is source, so the
+// Assumption A1 (spec question ThomasBirkmaier/ReqSeq-archive#420): a table row cannot be set while the next row is source, so the
 // whole table shows its source while the cursor is in any of its rows. A table that does not start at
 // the beginning of a line (inside a list item or a quote) cannot be a block widget: it stays source.
 const table: PreviewRule = {

@@ -341,7 +341,7 @@ describe("outdatedReferences in a property (SR-127)", () => {
   });
 });
 
-describe("the version at an outdated reference (#702, #665)", () => {
+describe("the version at an outdated reference (ThomasBirkmaier/ReqSeq-archive#702, ThomasBirkmaier/ReqSeq-archive#665)", () => {
   const TARGET = "6adc4fbb-fe6a-4dfa-b9b6-8ccf0e589cf2";
   const SOURCE = "relation.outdated/spec/f.md/26a0b000-0000-4000-8000-0000000000b1";
   const STORED = "stored version from 2026-03-04T10:00:00Z, current version from 2026-05-06T08:00:00Z";

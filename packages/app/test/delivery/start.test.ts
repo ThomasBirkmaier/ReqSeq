@@ -1,4 +1,4 @@
-// Delivery test of the app (ADR-0014, ADR-0011, #324): installs the built artifact of this system (unpacks it)
+// Delivery test of the app (ADR-0014, ADR-0011, ThomasBirkmaier/ReqSeq-archive#324): installs the built artifact of this system (unpacks it)
 // and starts the packaged app on a fixture workspace. Only the release workflow runs it (`pnpm test:delivery`);
 // on Linux under xvfb, in a network namespace with loopback only, as a non-root user with Chromium's sandbox on.
 // The packaged app has Node's inspect arguments switched off (fuse), so Playwright cannot launch it; the test

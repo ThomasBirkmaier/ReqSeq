@@ -251,7 +251,7 @@ test.describe("the physical Ctrl key under macOS", () => {
     const lines = (await content.innerText()).split("\n").filter((line) => line.trim() !== "");
     expect(lines.at(-1)?.trim()).toBe("Siehe das Beispiel.");
     await expect(promptLabel(window)).toHaveCount(0);
-    // On the first line Ctrl+P goes up into the title, as Up does (#621), and in the title, where nothing
+    // On the first line Ctrl+P goes up into the title, as Up does (ThomasBirkmaier/ReqSeq-archive#621), and in the title, where nothing
     // is above, it is still no "Go to"; Ctrl+N comes back into the text.
     const title = window.locator('[data-field="Title"] .cm-content');
     for (let line = 0; line < 40; line += 1) {

@@ -64,7 +64,7 @@ const PromptLine = ({
   const early = useRef<"enter" | "more" | undefined>(undefined);
   // The text typed last, and whether it is still to be searched (typed while `find` was loading). The
   // effect that searches it once the parts are there reads these, not its render's `query`: a key that
-  // comes between that render and its effect would be taken back (#757).
+  // comes between that render and its effect would be taken back (ThomasBirkmaier/ReqSeq-archive#757).
   const typed = useRef("");
   // The question whose answer an Enter on stale hits took: the prompt closes in a later render, and a key
   // that comes before it must not take that answer again (#419).

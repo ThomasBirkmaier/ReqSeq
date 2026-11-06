@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 // happy-dom fires `selectionchange` inside a CodeMirror update; the root vitest config loads this setup, a
-// run in packages/app needs it too (#460, #573).
+// run in packages/app needs it too (ThomasBirkmaier/ReqSeq-archive#460, ThomasBirkmaier/ReqSeq-archive#573).
 import "../../../../scripts/test-support/dom-selection.mjs";
 import { act, createElement } from "react";
 import type { Root } from "react-dom/client";
@@ -329,7 +329,7 @@ describe("App", () => {
     expect(document.title).toBe("Weather station - ReqSeq");
   });
 
-  it("on macOS names the window in a title bar strip of the sheet, which has no control; elsewhere has none (#490)", async () => {
+  it("on macOS names the window in a title bar strip of the sheet, which has no control; elsewhere has none (ThomasBirkmaier/ReqSeq-archive#490)", async () => {
     const platform = vi.spyOn(navigator, "platform", "get").mockReturnValue("MacIntel");
     const { bridge } = fakeBridge({ "workspace.status": () => NO_WORKSPACE });
     await render(bridge);
@@ -588,7 +588,7 @@ describe("App", () => {
     expect(text("Modeline")).toBe("Search: title1 hitWeather stationread-only");
   });
 
-  it("opens the target of a relation in its repository, without reading it by UUID alone (#416)", async () => {
+  it("opens the target of a relation in its repository, without reading it by UUID alone (ThomasBirkmaier/ReqSeq-archive#416)", async () => {
     const { bridge, invoke } = fakeBridge(workspace());
     await renderList(bridge);
     await keyDown(query('[role="listbox"]'), "Enter");
@@ -1043,7 +1043,7 @@ describe("App", () => {
   });
 });
 
-describe("App, catalog commands in the command prompt (#85)", () => {
+describe("App, catalog commands in the command prompt (ThomasBirkmaier/ReqSeq-archive#85)", () => {
   const listing = (name: string, extra: object = {}) => ({
     name,
     title: name === "filter.list" ? "List saved filters" : "Show affected elements",
@@ -1465,7 +1465,7 @@ describe("App, the text editor", () => {
     expect(document.activeElement).toBe(query(".cm-content"));
   });
 
-  it("[SR-105/AK1] Insert reference replaced by the command prompt holds autosave no longer (#604 review, S2)", async () => {
+  it("[SR-105/AK1] Insert reference replaced by the command prompt holds autosave no longer (ThomasBirkmaier/ReqSeq-archive#604 review, S2)", async () => {
     const { handlers } = withStore();
     const { invoke } = await openElement(handlers);
     editorView().focus();
@@ -1719,7 +1719,7 @@ describe("App, the text editor", () => {
     expect(query(".sheet").inert).toBe(false);
   });
 
-  it("[SR-105/AK1] a close while a workspace switch saves waits for that save and does not write the input twice (#611 review N3)", async () => {
+  it("[SR-105/AK1] a close while a workspace switch saves waits for that save and does not write the input twice (ThomasBirkmaier/ReqSeq-archive#611 review N3)", async () => {
     const { invoke, savers, handlers } = await openElement();
     await typeText("!");
     // The buffer is left and its save fails: its input stays as a draft of a buffer that is not shown.
@@ -2003,7 +2003,7 @@ describe("App, the text editor", () => {
     expect(text("Modeline")).toBe("SR-000001 · Need · draftWeather stationread-only");
   });
 
-  it("[SR-105/AK1] Alt+N to another buffer, without a prompt, writes the input at once (#604 review, N2)", async () => {
+  it("[SR-105/AK1] Alt+N to another buffer, without a prompt, writes the input at once (ThomasBirkmaier/ReqSeq-archive#604 review, N2)", async () => {
     const { handlers } = withStore();
     const { invoke } = await openElement(handlers);
     await typeText("!");
@@ -2131,7 +2131,7 @@ describe("App, the text editor", () => {
     expect(text("Modeline")).toBe("SR-000001 · Need · draftWeather stationread-only");
   });
 
-  it("[SR-105/AK1] Close buffer saves again the keys typed while its save ran, and closes only then (#604 review, S1)", async () => {
+  it("[SR-105/AK1] Close buffer saves again the keys typed while its save ran, and closes only then (ThomasBirkmaier/ReqSeq-archive#604 review, S1)", async () => {
     const { handlers, files } = withStore();
     const fake = await openElement(handlers);
     // Every write answers only when the test says so.
@@ -2317,7 +2317,7 @@ describe("App, the text editor", () => {
     expect(text("Modeline")).not.toContain("modified");
   });
 
-  describe("inline references (#424)", () => {
+  describe("inline references (ThomasBirkmaier/ReqSeq-archive#424)", () => {
     const TARGET = "00000000-0000-4000-8000-000000000002";
     const withReference = (link: string): Record<string, Handler> => {
       const handlers = withText();

@@ -224,7 +224,7 @@ describe("the shortcut next to a hit of the command line (SR-109)", () => {
   });
 });
 
-describe("the look of the window (#490)", () => {
+describe("the look of the window (ThomasBirkmaier/ReqSeq-archive#490)", () => {
   it("lifts the candidates of a prompt as a card: the raised tone, a thin edge, round corners, a shadow upwards", () => {
     const card = ruleOf(".candidates");
     expect(card).toMatch(/background:\s*var\(--raised\);/);

@@ -277,7 +277,7 @@ describe("listening", () => {
     expect(code).not.toMatch(/process\.env|0\.0\.0\.0|"::"/);
   });
 
-  it("bounds slow senders: headers and body each have a time limit (#200)", async () => {
+  it("bounds slow senders: headers and body each have a time limit (ThomasBirkmaier/ReqSeq-archive#200)", async () => {
     const probe = await listenOnAll(["127.0.0.1"], 0, unused);
     expect(probe.servers.map((s) => [s.headersTimeout, s.requestTimeout])).toEqual([
       [HEADERS_TIMEOUT_MS, REQUEST_TIMEOUT_MS],
@@ -700,7 +700,7 @@ describe("refusals before a command runs", () => {
   });
 });
 
-describe("keep-alive after an answer that needs no body (#200)", () => {
+describe("keep-alive after an answer that needs no body (ThomasBirkmaier/ReqSeq-archive#200)", () => {
   beforeEach(async () => {
     await start();
   });

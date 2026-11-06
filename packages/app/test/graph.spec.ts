@@ -1,4 +1,4 @@
-// The graph of the current element (SR-111, #407) on the built app, on fixtures/SR-111/graph: the
+// The graph of the current element (SR-111, ThomasBirkmaier/ReqSeq-archive#407) on the built app, on fixtures/SR-111/graph: the
 // element in the middle of its graph with its parents above and its children below, also where links run
 // against the levels (D1 and D2 above the element reference the element and one of its children), and
 // the view opened on it (AK1); the title, type and marks of every node, never cut, also on the long IDs
@@ -265,7 +265,7 @@ test.describe("the graph of an element on a fixture workspace", () => {
   const launch = async (): Promise<RunningApp> => {
     running = await launchApp({ fixture: "SR-111/graph" });
     // Until the workspace is loaded, within the test's own bound: on a loaded runner the start can take
-    // longer than expect's 5 s (#555 review N2); it is not part of a timed span.
+    // longer than expect's 5 s (ThomasBirkmaier/ReqSeq-archive#555 review N2); it is not part of a timed span.
     await expect(running.window.getByLabel("Modeline")).toContainText("Weather station", { timeout: 0 });
     return running;
   };
@@ -539,7 +539,7 @@ test.describe("the depth and relation kinds of a graph on a fixture workspace", 
   test.beforeEach(async () => {
     running = await launchApp({ fixture: "SR-111/graph" });
     // Until the workspace is loaded, within the test's own bound: on a loaded runner the start can take
-    // longer than expect's 5 s (#555 review N2); it is not part of a timed span.
+    // longer than expect's 5 s (ThomasBirkmaier/ReqSeq-archive#555 review N2); it is not part of a timed span.
     await expect(running.window.getByLabel("Modeline")).toContainText("Weather station", { timeout: 0 });
   });
   test.afterEach(async () => {

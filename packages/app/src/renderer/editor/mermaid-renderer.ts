@@ -1,4 +1,4 @@
-// Diagrams drawn by Mermaid (SR-096, #108), bundled with the app and loaded on the first diagram (its
+// Diagrams drawn by Mermaid (SR-096, ThomasBirkmaier/ReqSeq-archive#108), bundled with the app and loaded on the first diagram (its
 // chunks come from the app's own files, `app:`; nothing is loaded from elsewhere, SR-078).
 //
 // What Mermaid draws is never put into the page as markup: its SVG becomes the `data:` URL of an `<img>`,

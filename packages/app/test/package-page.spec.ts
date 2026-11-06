@@ -1,4 +1,4 @@
-// The package page (SR-112, #408) on the built app: an opened package shows below its title and text
+// The package page (SR-112, ThomasBirkmaier/ReqSeq-archive#408) on the built app: an opened package shows below its title and text
 // the elements that name it (AK1), and they sort, filter and show as a tree like any list (AK2). What the
 // page shows is compared with what the CLI gives for the same input (SR-080). Keys use ControlOrMeta,
 // so the same tests run on Linux and macOS. The package is opened by Ctrl+P, so the tests do not
@@ -29,7 +29,7 @@ interface Listed {
   readonly total: number;
 }
 
-/** What the CLI lists for the elements of the package Sensors, with `sort` (the default sort of the app: type, then ID, #418). */
+/** What the CLI lists for the elements of the package Sensors, with `sort` (the default sort of the app: type, then ID, ThomasBirkmaier/ReqSeq-archive#418). */
 const listedBy = async (
   running: RunningApp,
   sort: unknown = DEFAULT_SORT,

@@ -1,4 +1,4 @@
-// Inline references in the text (ADR-0004, #424): `[label](reqseq:<uuid>?version=<v>&repository=<name>)`.
+// Inline references in the text (ADR-0004, ThomasBirkmaier/ReqSeq-archive#424): `[label](reqseq:<uuid>?version=<v>&repository=<name>)`.
 // The preview shows the label (`markup.ts` hides the rest); this file makes a reference something to
 // follow: a click opens its element, and an outdated reference is marked. A reference to another repository
 // has the short ID as its label (ADR-0004); off the lines that show their source the preview shows the title

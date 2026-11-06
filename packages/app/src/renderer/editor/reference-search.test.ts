@@ -2,7 +2,7 @@
 // SR-066: `[[` in the editor asks the app for an element and writes the inline reference of the pick, driven
 // by transactions that carry the user events a keyboard, an input method and the clipboard give.
 // happy-dom fires `selectionchange` inside a CodeMirror update; the root vitest config loads this setup, a
-// run in packages/app needs it too (#460, #573).
+// run in packages/app needs it too (ThomasBirkmaier/ReqSeq-archive#460, ThomasBirkmaier/ReqSeq-archive#573).
 import "../../../../../scripts/test-support/dom-selection.mjs";
 import { completionStatus } from "@codemirror/autocomplete";
 import { undo } from "@codemirror/commands";

@@ -1,4 +1,4 @@
-// What the element buffer does around a save, as pure functions (autosave, #401, uses them too). The
+// What the element buffer does around a save, as pure functions (autosave, ThomasBirkmaier/ReqSeq-archive#401, uses them too). The
 // saved text is exactly the editor document; the input of `element.update` is built in `property-edit.ts`.
 
 /** Whether the document differs from the text last loaded or saved. */

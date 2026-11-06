@@ -1,4 +1,4 @@
-// The command prompt on the built app (SR-108, SR-121, SR-133, #85): what was chosen for a typed text comes
+// The command prompt on the built app (SR-108, SR-121, SR-133, ThomasBirkmaier/ReqSeq-archive#85): what was chosen for a typed text comes
 // first the next time, also after the app restarts; the commands that fit the shown view come first; a catalog
 // command asks its arguments with the values core gives; a write command ("Confirm hints") runs from it.
 // Keys use ControlOrMeta, so the same tests run on Linux and macOS. With REQSEQ_SCREENSHOTS set, the argument

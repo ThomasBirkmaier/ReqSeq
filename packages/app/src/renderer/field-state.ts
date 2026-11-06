@@ -1,5 +1,5 @@
 // What an element buffer holds against its file (SR-105, SR-106, SR-116), as pure functions: the text as last
-// loaded or saved, the stored document of every box and of the title (`TITLE_FIELD`, #621), the boxes that were
+// loaded or saved, the stored document of every box and of the title (`TITLE_FIELD`, ThomasBirkmaier/ReqSeq-archive#621), the boxes that were
 // added, and the documents of the choice and relation boxes set in the minibuffer. `ElementView` keeps one
 // `BufferFields` in a ref, passes it in with what its editors hold at that moment and applies what comes back
 // in the order it always did: the editors, the draft and the state that renders stay there, because an editor
@@ -143,7 +143,7 @@ export interface Restored {
   readonly keptBoxes: Map<string, BoxDraft>;
   /** The kept text, when it was typed on and the file does not hold it now. */
   readonly keptText: string | undefined;
-  /** Title input comes back: the title's editor opens (#621). */
+  /** Title input comes back: the title's editor opens (ThomasBirkmaier/ReqSeq-archive#621). */
   readonly titleOpens: boolean;
   /** The bytes the input is on: the draft's on a conflict, the file's otherwise. */
   readonly basis: string | undefined;
@@ -230,7 +230,7 @@ const stillAdded = (
 ): string[] => [
   // An added box is a stored box now, or was left empty and is dropped; one typed in while the save ran stays.
   ...added.filter((key) => !docs.has(key) && (!sent.added.includes(key) || holds(key) !== "")),
-  // A box the save emptied (its property left the file) that was typed in meanwhile stays (#348).
+  // A box the save emptied (its property left the file) that was typed in meanwhile stays (ThomasBirkmaier/ReqSeq-archive#348).
   ...sent.edits
     .filter(
       (edit) =>

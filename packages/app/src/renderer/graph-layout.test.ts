@@ -252,7 +252,7 @@ describe("layoutGraph", () => {
   });
 
   it("[SR-111/AK1] keeps a child of the element below it when its walk parent took its level from the other walk", () => {
-    // The whole chain of GL-f81ba9 in spec/ (#519): S1 and K link to each other, so K is on level -1 (a
+    // The whole chain of GL-f81ba9 in spec/ (ThomasBirkmaier/ReqSeq-archive#519): S1 and K link to each other, so K is on level -1 (a
     // tie, the up walk wins); G links to K and is on level 2 from the down walk. Nothing but the side of
     // its level puts G below S1.
     const output = graphOutput(
@@ -317,7 +317,7 @@ describe("layoutGraph", () => {
     expect(at(layout, "V").y).toBeLessThan(at(layout, "S1").y);
   });
 
-  it("keeps the layout of a graph of up to 200 nodes that needs no invisible link, as before #500 and #519", () => {
+  it("keeps the layout of a graph of up to 200 nodes that needs no invisible link, as before ThomasBirkmaier/ReqSeq-archive#500 and ThomasBirkmaier/ReqSeq-archive#519", () => {
     // The places of main before this change (dagre 3.1.1 is pinned): a change here moves the graphs of
     // spec/, which must stay as they are (an upgrade of dagre makes it visible on purpose, ADR-0015).
     const layout = layoutGraph(S1_GRAPH);
@@ -538,7 +538,7 @@ describe("layoutGraph", () => {
   it("orders the ends on each edge of a node by where their curves are half a layer gap from it, so the curves of S1's graph do not cross at a box", () => {
     // Ordered by the boxes at their other ends, C3's curve would cross C2's at S1's bottom edge (C3
     // stands left of C2, but its curve heads right of C2's). Ordered by dagre's first bend against the
-    // other box's centre for a link without bends (#555, a7e640c), D1's two links would cross above S1,
+    // other box's centre for a link without bends (ThomasBirkmaier/ReqSeq-archive#555, a7e640c), D1's two links would cross above S1,
     // and the outdated reference to D2, which swings out right from its bend under D2, would cross the
     // reference from D2 to C1 under D2.
     const layout = layoutGraph(S1_GRAPH);

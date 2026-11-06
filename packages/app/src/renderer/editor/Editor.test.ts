@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 // happy-dom fires `selectionchange` inside the call; CodeMirror then updates while it updates. The root vitest
-// config loads this setup, but a run without it (`pnpm vitest run <file>` in packages/app) needs it too (#460).
+// config loads this setup, but a run without it (`pnpm vitest run <file>` in packages/app) needs it too (ThomasBirkmaier/ReqSeq-archive#460).
 import "../../../../../scripts/test-support/dom-selection.mjs";
 import { syntaxTree } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
@@ -89,13 +89,13 @@ describe("Editor", () => {
     }
   };
 
-  it("parses an ordinary text on beyond CodeMirror's first slice before it is shown, so it is formatted from the start (#542)", async () => {
+  it("parses an ordinary text on beyond CodeMirror's first slice before it is shown, so it is formatted from the start (ThomasBirkmaier/ReqSeq-archive#542)", async () => {
     await renderSlowly("One.\n\nTwo.\n\nThree.\n\nFour **bold**.");
     expect(syntaxTree(view().state).length).toBe(view().state.doc.length);
     expect(element(".cm-lr-strong").textContent).toBe("bold");
   });
 
-  it("stops the parse of a long text before the first paint at its budget; Enter at the end still continues the list (#542)", async () => {
+  it("stops the parse of a long text before the first paint at its budget; Enter at the end still continues the list (ThomasBirkmaier/ReqSeq-archive#542)", async () => {
     const text = `${"A paragraph.\n\n".repeat(200)}- a`;
     await renderSlowly(text);
     // The budget ran out: the tree the editor holds does not reach the end.
@@ -109,7 +109,7 @@ describe("Editor", () => {
     expect(view().state.doc.toString()).toBe(`${text}\n- `);
   });
 
-  it("keeps what it parsed of a long text within the budget for the first paint: past the viewport, further than CodeMirror's own slice (#542)", async () => {
+  it("keeps what it parsed of a long text within the budget for the first paint: past the viewport, further than CodeMirror's own slice (ThomasBirkmaier/ReqSeq-archive#542)", async () => {
     const text = "A paragraph.\n\n".repeat(3000);
     let clock = 0;
     // 2 ms on every look: neither CodeMirror's slice nor the budget reaches the end.

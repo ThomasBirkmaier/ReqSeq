@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 // happy-dom fires `selectionchange` inside a CodeMirror update; the root vitest config loads this setup, a
-// run in packages/app needs it too (#460).
+// run in packages/app needs it too (ThomasBirkmaier/ReqSeq-archive#460).
 import "../../../../scripts/test-support/dom-selection.mjs";
-// The title of an element, edited in its heading (#621; spec question #676): the editor comes into the
+// The title of an element, edited in its heading (ThomasBirkmaier/ReqSeq-archive#621; spec question ThomasBirkmaier/ReqSeq-archive#676): the editor comes into the
 // heading when the title is entered, it is saved with the text and the boxes as `title` (SR-105), and a
 // change of the file follows the rules of a box (SR-106). The click offset and the heading of an empty title
 // are tested in `title-box.test.ts`, the input it sends in `property-edit.test.ts`.
@@ -15,7 +15,6 @@ import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ElementControls, Prompt } from "./actions.js";
 import { AUTOSAVE_MS } from "./autosave.js";
-import type { BufferAction } from "./buffers.js";
 import { elementBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
 import type { Draft } from "./drafts.js";
@@ -160,7 +159,6 @@ const mountView = async (
   const registered: (ElementControls | undefined)[] = [];
   const asked: Prompt[] = [];
   const picks: unknown[] = [];
-  const dispatched: BufferAction[] = [];
   let revision = 0;
   const node = () =>
     createElement(ElementView, {
@@ -181,7 +179,7 @@ const mountView = async (
       register: (controls) => registered.push(controls),
       packages: undefined,
       properties: MODEL,
-      dispatch: (action) => dispatched.push(action),
+      dispatch: () => undefined,
     });
   vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
   await act(async () => {
@@ -204,7 +202,6 @@ const mountView = async (
     copies,
     asked,
     picks,
-    dispatched,
     controls,
     /** The file was read again (a change from outside that names the element). */
     reload: async (): Promise<void> => {
@@ -284,7 +281,7 @@ const choose = async (asked: Prompt[], name: string): Promise<void> => {
   });
 };
 
-describe("the title in its heading (#621)", () => {
+describe("the title in its heading (ThomasBirkmaier/ReqSeq-archive#621)", () => {
   it("is plain text in the heading, and the buffer has no editor for it, until it is entered", async () => {
     await mountView();
     expect(heading().textContent).toBe("Measure wind");
@@ -414,8 +411,7 @@ describe("the title in its heading (#621)", () => {
     });
     await settle();
     expect(updates()).toEqual([{ ref: "uuid-1", title: "", expectedFileSha256: "sha-0" }]);
-    // The buffer is named by the ID alone now that the title is empty (#273).
-    expect(echoed).toEqual([`Saved SR-1. ${MISSING}`]);
+    expect(echoed).toEqual([`Saved ${NAME}. ${MISSING}`]);
     expect(data.at(-1)).toMatchObject({ element: { problems: [{ message: MISSING }] } });
     // The editor shows the ID, muted, where the title is.
     expect(heading().querySelector(".cm-placeholder")?.textContent).toBe("SR-1");
@@ -444,7 +440,7 @@ describe("the title in its heading (#621)", () => {
     ]);
   });
 
-  it("an unsaved title is in the draft the app keeps when the buffer is left (#621)", async () => {
+  it("an unsaved title is in the draft the app keeps when the buffer is left (ThomasBirkmaier/ReqSeq-archive#621)", async () => {
     const { drafts } = await mountView();
     await enterTitle();
     await typeAt(titleView(), "!");
@@ -462,44 +458,12 @@ describe("the title in its heading (#621)", () => {
     expect(titleView().state.doc.toString()).toBe("Measure gusts");
     await typeAt(textView(), " more");
     await settle();
-    // The editor stays in the heading after it took the input (#621 review B1).
+    // The editor stays in the heading after it took the input (ThomasBirkmaier/ReqSeq-archive#621 review B1).
     expect(titleView().state.doc.toString()).toBe("Measure gusts");
     await settle(AUTOSAVE_MS);
     expect(updates()).toEqual([
       { ref: "uuid-1", title: "Measure gusts", text: "first more", expectedFileSha256: "sha-0" },
     ]);
-  });
-
-  it("a saved title renames the buffers of the element, and Saved says the new name (#273)", async () => {
-    const { echoed, controls, dispatched } = await mountView();
-    // Read with the name the buffer has: nothing to rename.
-    expect(dispatched).toEqual([]);
-    await enterTitle();
-    await typeAt(titleView(), " speed");
-    act(() => {
-      controls().save();
-    });
-    await settle();
-    expect(dispatched.at(-1)).toEqual({
-      type: "rename",
-      id: "uuid-1",
-      repository: "spec",
-      name: "SR-1 Measure wind speed",
-    });
-    expect(echoed).toEqual(["Saved SR-1 Measure wind speed"]);
-  });
-
-  it("a title changed on disk renames the buffers of the element when it is read again (#273, SR-116)", async () => {
-    const { file, reload, dispatched } = await mountView();
-    file.title = "Measure gusts";
-    file.sha = "sha-x";
-    await reload();
-    expect(dispatched.at(-1)).toEqual({
-      type: "rename",
-      id: "uuid-1",
-      repository: "spec",
-      name: "SR-1 Measure gusts",
-    });
   });
 
   it("[SR-106/AK1] a title without input follows the file, closed and open, and the caret stays", async () => {

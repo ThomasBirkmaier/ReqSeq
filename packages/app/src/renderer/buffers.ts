@@ -116,7 +116,7 @@ export interface ResultBuffer {
   readonly revision: number;
   readonly cursor: number;
   /**
-   * The output of a write command (#85): shown as it came and never asked again when the workspace
+   * The output of a write command (ThomasBirkmaier/ReqSeq-archive#85): shown as it came and never asked again when the workspace
    * changes, since asking again would write again.
    */
   readonly written?: true;
@@ -206,19 +206,7 @@ export type BufferAction =
    * The selected node of a graph, as `<repository>:<id>`, or the selected box or row of the metamodel
    * (`type:<key>`, `any`, `relation:<key>`).
    */
-  | { readonly type: "select"; readonly key: string; readonly node: string }
-  | RenameAction;
-
-/**
- * The element was read or saved with this name (#273): its open element, read-only, neighbourhood and
- * graph buffers take it, where they are; the same buffers when none has another name.
- */
-export interface RenameAction {
-  readonly type: "rename";
-  readonly id: string;
-  readonly repository: string;
-  readonly name: string;
-}
+  | { readonly type: "select"; readonly key: string; readonly node: string };
 
 /** The most buffers kept; the least recent one goes first. */
 export const MAX_BUFFERS = 30;
@@ -444,18 +432,7 @@ export const elementBufferOf = (element: {
   );
 
 /**
- * The action that names the buffers of `element` as it was read or saved (#273): a title changed in the
- * app or outside it shows in their names, in Go to and in "Saved <name>".
- */
-export const renameAction = (element: Parameters<typeof elementBufferOf>[0]): RenameAction => ({
-  type: "rename",
-  id: element.id,
-  repository: element.repository,
-  name: elementBufferOf(element).name,
-});
-
-/**
- * The buffer of the element a relation points at (#416): its UUID in the repository of the target, named as
+ * The buffer of the element a relation points at (ThomasBirkmaier/ReqSeq-archive#416): its UUID in the repository of the target, named as
  * the relation shows it; undefined when the relation names no repository (a stored `repository` that is
  * not text).
  */
@@ -471,7 +448,7 @@ export const relationBuffer = (
       );
 
 /**
- * The order the lists of the app start with (#418): by type in the order of the metamodel, then by the
+ * The order the lists of the app start with (ThomasBirkmaier/ReqSeq-archive#418): by type in the order of the metamodel, then by the
  * identifier, digit runs as numbers (SR-9 before SR-10). The app chooses this input; `element.list`
  * without `sort` keeps the workspace order for every other access (ADR-0002, D-029). A frozen constant,
  * so the list does not ask again for another object with the same keys.
@@ -575,19 +552,6 @@ const restored = (buffers: Buffers, more: Buffers): Buffers => {
   return behind.length === 0 ? buffers : [...buffers, ...behind].slice(0, MAX_BUFFERS);
 };
 
-/** The buffers of an element: those that carry its name. */
-const namedAfter = (buffer: Buffer): buffer is ElementBuffer | NeighbourhoodBuffer | GraphBuffer =>
-  buffer.kind === "element" || buffer.kind === "neighbourhood" || buffer.kind === "graph";
-
-/** The buffers of the element `id` in `repository` named `name`; the same buffers when all are already. */
-const renamed = (buffers: Buffers, id: string, repository: string, name: string): Buffers => {
-  const stale = (buffer: Buffer): boolean =>
-    namedAfter(buffer) && buffer.id === id && buffer.repository === repository && buffer.name !== name;
-  return buffers.some(stale)
-    ? buffers.map((buffer) => (stale(buffer) ? { ...buffer, name } : buffer))
-    : buffers;
-};
-
 export const reduceBuffers = (buffers: Buffers, action: BufferAction): Buffers => {
   switch (action.type) {
     case "open": {
@@ -634,7 +598,5 @@ export const reduceBuffers = (buffers: Buffers, action: BufferAction): Buffers =
             ? selectIn(buffer, action.node)
             : buffer;
       });
-    case "rename":
-      return renamed(buffers, action.id, action.repository, action.name);
   }
 };

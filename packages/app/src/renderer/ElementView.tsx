@@ -1,5 +1,5 @@
 // The element buffer: one element as `element.get` gives it. The title is edited in its heading, one line of
-// plain text (#621, `TitleBox.tsx`), and saved and compared with the file like a box (`TITLE_FIELD`). The
+// plain text (ThomasBirkmaier/ReqSeq-archive#621, `TitleBox.tsx`), and saved and compared with the file like a box (`TITLE_FIELD`). The
 // text is edited in the Markdown editor with live preview (SR-065, D-061). The properties are boxes below it
 // (SR-104): a property of a text kind (text, number, date) is edited in its box, one editor with the values,
 // one per line (`TextBox.tsx`); a property the metamodel marks `markdown` shows its values formatted like the
@@ -7,7 +7,7 @@
 // is set in the minibuffer, the one control (D-062): Enter on its box asks for the allowed values or for an
 // element (`property-prompts.ts`). "Add property" puts an empty box at its place, with the caret in it, or
 // with the focus on it and the prompt open at once for a choice or relation. A property the type does not
-// know stays a read-only box (D-012, spec question #469). Empty properties are left out; the UUID and the
+// know stays a read-only box (D-012, spec question ThomasBirkmaier/ReqSeq-archive#469). Empty properties are left out; the UUID and the
 // version are shown on request only. The only write is `element.update { ref, title?, text?, set?, unset? }`
 // (ADR-0002): the title, the text and every box that changed go together, and a box that was emptied removes
 // its property (`property-edit.ts`). It is written without a save command (SR-105, `autosave.ts`): one second
@@ -39,8 +39,8 @@ import type { BufferKeep, UndoMemory } from "./buffer-memory.js";
 import type { DataExportElement, ElementGetOutput } from "@reqseq/core";
 import type { ElementControls, Prompt } from "./actions.js";
 import { findElements } from "./actions.js";
-import type { BufferAction, ElementBuffer, RenameAction, ResultBuffer } from "./buffers.js";
-import { filteredList, renameAction } from "./buffers.js";
+import type { BufferAction, ElementBuffer, ResultBuffer } from "./buffers.js";
+import { filteredList } from "./buffers.js";
 import type { Answer, Call } from "./call.js";
 import { NOTHING, PROMPT_INPUT, copyField, copyable, cursorField, docOf } from "./copy.js";
 import type { ElementLoad, PropertyModel } from "./element-view.js";
@@ -220,12 +220,12 @@ export interface ElementViewProps {
   readonly onEcho: (message: string) => void;
   /**
    * A read found the element gone (`ref.unknown`): when the buffer is shown and nothing was shown yet, or
-   * when its file is deleted (SR-106 AK3). The app forgets its name for "Go to" (#681). Default: nothing.
+   * when its file is deleted (SR-106 AK3). The app forgets its name for "Go to" (ThomasBirkmaier/ReqSeq-archive#681). Default: nothing.
    */
   readonly onGone?: (key: string) => void;
   /** A field is copied (SR-128): its name and its value as text; the app puts it on the clipboard. */
   readonly onCopy: (label: string, text: string) => void;
-  /** A relation target is opened: its element buffer, by UUID and repository (#416). */
+  /** A relation target is opened: its element buffer, by UUID and repository (ThomasBirkmaier/ReqSeq-archive#416). */
   readonly onOpenRelation: (target: ElementBuffer) => void;
   /** Opens a result buffer: the coverage behind the line of a package page (SR-036 AK2). */
   readonly onOpenResult: (buffer: ResultBuffer) => void;
@@ -290,7 +290,7 @@ const focusedTarget = (): HTMLElement | null =>
  * An outdated reference shows the version it stores, as the date of that version (SR-110 AK2, D-013). The
  * element is read without dates, so opening it runs no git (SR-082 AK3); only an element with outdated
  * relations or references is asked for again, for the dates of these hints alone (`hintDates`: Git reads
- * the histories of their targets), and again only when these hints change (#702). The answer is the
+ * the histories of their targets), and again only when these hints change (ThomasBirkmaier/ReqSeq-archive#702). The answer is the
  * element as the buffer shows it, with the dated hints in place of the undated ones (`withHintDates`).
  */
 const useHintDates = (
@@ -535,7 +535,7 @@ export const ElementView = ({
   // stored document in `onFile`, like the text with the baseline. The boxes that were added (AK2) have no
   // stored value: their base is the empty document.
   const [added, setAdded] = useState<readonly string[]>([]);
-  // The title is one of them (#621): its field, saved and compared with the file like a text box.
+  // The title is one of them (ThomasBirkmaier/ReqSeq-archive#621): its field, saved and compared with the file like a text box.
   const boxes = useMemo(
     () =>
       view.status === "ok"
@@ -553,7 +553,7 @@ export const ElementView = ({
     [view, properties, added],
   );
   const boxEditors = useRef(new Map<string, EditorHandle>());
-  // The editor of the title is in its heading (#621): from the first time the title is entered, or the buffer
+  // The editor of the title is in its heading (ThomasBirkmaier/ReqSeq-archive#621): from the first time the title is entered, or the buffer
   // came back with title input, for the life of the buffer (an input it holds must never go with it). Where
   // the caret goes when it comes.
   const [titleOpen, setTitleOpen] = useState(false);
@@ -592,7 +592,6 @@ export const ElementView = ({
     shown,
     keep,
     memory,
-    dispatch,
   });
   now.current = {
     buffer,
@@ -615,7 +614,6 @@ export const ElementView = ({
     shown,
     keep,
     memory,
-    dispatch,
   };
   // The fields of the element (SR-128), and the field the focus was in last, which "Copy field" from the
   // command prompt needs: it runs while the prompt has the focus. A box copies what its editor holds.
@@ -736,9 +734,9 @@ export const ElementView = ({
     }
   };
 
-  // The inline references of the text: followed on a click, and the outdated ones marked (#424). The
+  // The inline references of the text: followed on a click, and the outdated ones marked (ThomasBirkmaier/ReqSeq-archive#424). The
   // editor is configured again only when the hints about the text change.
-  // The element as the buffer shows it: with the dates of its outdated hints once they are there (#702).
+  // The element as the buffer shows it: with the dates of its outdated hints once they are there (ThomasBirkmaier/ReqSeq-archive#702).
   const dated = useHintDates(call, buffer, view);
   const outdated = view.status === "ok" ? outdatedReferences(dated(view.element)) : undefined;
   const signature = JSON.stringify([...(outdated ?? [])]);
@@ -770,7 +768,7 @@ export const ElementView = ({
   // The field with this label: "Text" has no tab stop of its own (its editor takes the focus).
   const fieldOf = (label: string): HTMLElement | null | undefined =>
     article?.querySelector<HTMLElement>(`[data-field="${CSS.escape(label)}"]`);
-  // The title can be edited now (#621): the type has a title, the stored one holds no line break, and the
+  // The title can be edited now (ThomasBirkmaier/ReqSeq-archive#621): the type has a title, the stored one holds no line break, and the
   // element is neither read-only nor gone.
   const titleEditable = (): boolean => {
     const title = now.current.boxes.get(TITLE_FIELD);
@@ -884,7 +882,7 @@ export const ElementView = ({
     const back = restoredOf(kept, element, docs, sha, now.current.properties);
     keptBoxes.current = back.keptBoxes;
     keptText.current = back.keptText;
-    // Title input comes back in the title's editor, which stays (#621).
+    // Title input comes back in the title's editor, which stays (ThomasBirkmaier/ReqSeq-archive#621).
     if (back.titleOpens) {
       setTitleOpen(true);
     }
@@ -901,12 +899,6 @@ export const ElementView = ({
     setAdded(back.added);
     onFile.current = { ...onFile.current, values: back.values };
     setValues(back.values);
-  };
-  // Names the buffers of the element as it was read or saved, when that is not the name of this buffer (#273).
-  const rename = (action: RenameAction): void => {
-    if (action.name !== now.current.buffer.name) {
-      now.current.dispatch(action);
-    }
   };
   // An answer of `element.get` for the shown element. A buffer shown read-only (SR-044 AK2) shows it as a
   // read-only element: no editor takes input, and the modeline says `read-only`.
@@ -940,8 +932,6 @@ export const ElementView = ({
       }
     }
     setView({ status: "ok", element });
-    // The buffers of the element take a title changed on disk (#273).
-    rename(renameAction(element));
   };
   // A read of the shown element failed. Before anything was shown the buffer says why; after, it keeps
   // what it shows with its editors: a file that is gone leaves the content read-only with a hint (SR-106
@@ -1027,7 +1017,7 @@ export const ElementView = ({
   }, [call, buffer.key, buffer.id, buffer.repository, revision, touched]);
   useLinesAgain(call, buffer, elsewhere, got, setGot);
   // The parents line is asked for at the same time as the element, and the element is shown with it, so
-  // nothing above the title comes in later and moves the fields under the pointer (#542). Every change from
+  // nothing above the title comes in later and moves the fields under the pointer (ThomasBirkmaier/ReqSeq-archive#542). Every change from
   // outside asks for the parents again (SR-116), the element only when the change names it (`touched`);
   // after such a change the parents can answer after the element, so a parent added outside moves the title
   // down once.
@@ -1088,7 +1078,7 @@ export const ElementView = ({
 
   // After a save: the answer is the new baseline, the boxes show what the file holds, and what was typed
   // while the save ran stays as a draft. A box that the save emptied (its property left the file) and that
-  // was typed in meanwhile stays as an added box, so that input is not lost (#348).
+  // was typed in meanwhile stays as an added box, so that input is not lost (ThomasBirkmaier/ReqSeq-archive#348).
   const settle = (
     output: {
       readonly element: DataExportElement;
@@ -1099,7 +1089,7 @@ export const ElementView = ({
     editor: EditorHandle,
     mode: SaveMode,
   ): void => {
-    const { onEcho: echo } = now.current;
+    const { buffer: shown, onEcho: echo } = now.current;
     const { element } = output;
     settled.current += 1;
     // The file as this save wrote it: the reload its `written` brings finds the same bytes, and what was
@@ -1145,11 +1135,8 @@ export const ElementView = ({
     keepDraft(currentDraft());
     setView({ status: "ok", element });
     setNotSaved(false);
-    // The buffers of the element take the title it was saved with (#273), and so does "Saved <name>".
-    const named = renameAction(element);
-    rename(named);
     const hint = savedHint(output.problems, hintKeys(sent.edits, element, now.current.properties));
-    const speech = savedSpeech(said.current, mode, named.name, hint);
+    const speech = savedSpeech(said.current, mode, shown.name, hint);
     if (speech.echo !== undefined) {
       echo(speech.echo);
     }
@@ -1760,7 +1747,7 @@ export const ElementView = ({
   // What the heading of the title shows and whether it takes input: a function of its own, so the render
   // stays small.
   const titleProps = (element: DataExportElement): Pick<TitleBoxProps, "id" | "readOnly" | "initial"> => {
-    // The unsaved title this buffer was shown with, for its editor when it is made (#621).
+    // The unsaved title this buffer was shown with, for its editor when it is made (ThomasBirkmaier/ReqSeq-archive#621).
     const kept = keptBoxes.current.get(TITLE_FIELD)?.doc;
     return {
       id: element.identifier ?? element.shortId,

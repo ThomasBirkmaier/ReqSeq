@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
-// happy-dom fires `selectionchange` inside the call; CodeMirror then updates while it updates (#460).
+// happy-dom fires `selectionchange` inside the call; CodeMirror then updates while it updates (ThomasBirkmaier/ReqSeq-archive#460).
 import "../../../../../scripts/test-support/dom-selection.mjs";
 // The commands that act on a key read the whole syntax tree, also when CodeMirror's first parse stopped
-// early (a busy machine, #542). A state "cut short" is made with a clock that runs 30 ms on every look, so
+// early (a busy machine, ThomasBirkmaier/ReqSeq-archive#542). A state "cut short" is made with a clock that runs 30 ms on every look, so
 // the first parse stops after one step, as it does when the machine is slow.
 import { syntaxTree } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";

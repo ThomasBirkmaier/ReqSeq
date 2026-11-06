@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 // happy-dom fires `selectionchange` inside a CodeMirror update; the root vitest config loads this setup, a
-// run in packages/app needs it too (#460).
+// run in packages/app needs it too (ThomasBirkmaier/ReqSeq-archive#460).
 import "../../../../scripts/test-support/dom-selection.mjs";
 // Changes from outside the app in the window (SR-116, SR-106 AK1): core's watcher reports them as
 // `workspace-changed` with the reason `external`. An element buffer reads again only for its own element,
@@ -457,16 +457,6 @@ describe("App, changes from outside (SR-116, SR-106)", () => {
     expect(calls("element.get")).toHaveLength(reads + 2);
     expect(editorView().state.readOnly).toBe(false);
     expect(query('[aria-label="Modeline"]').textContent).not.toContain("on disk");
-  });
-
-  it("names the open element buffer by the title changed outside (#273)", async () => {
-    const { outside } = await start();
-    await listAll();
-    await openRow(0);
-    expect(query('article[aria-label="N-001 See the wind"]')).toBeDefined();
-    await outside("uuid-1", { title: "Feel the wind" });
-    expect(container.querySelector('article[aria-label="N-001 See the wind"]')).toBeNull();
-    expect(query('article[aria-label="N-001 Feel the wind"]')).toBeDefined();
   });
 
   it("highlights the title when the bytes changed but no field shows it, and nothing when the bytes are the same", async () => {

@@ -2,7 +2,7 @@
 // top needs down to the direct parents, each a link to the parent. The line is there only when the
 // element has parents. It is a group, not a navigation: the sheet has none (SR-100). The element buffer asks
 // for it together with the element and shows both at once (`useParents`), so the title never moves down
-// under the pointer after the element is shown (#542); the two calls run side by side.
+// under the pointer after the element is shown (ThomasBirkmaier/ReqSeq-archive#542); the two calls run side by side.
 import { useEffect, useState } from "react";
 import type { BufferAction, ElementBuffer } from "./buffers.js";
 import type { Call } from "./call.js";

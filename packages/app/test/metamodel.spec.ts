@@ -166,7 +166,7 @@ const SPEC = fileURLToPath(new URL("../../../spec", import.meta.url));
 
 /**
  * What the drawing cuts or covers: a name or property line wider than its box, a label line wider than
- * its label, and a label that overlaps a box or another label (review S2 of #631: the widths come from
+ * its label, and a label that overlaps a box or another label (review S2 of ThomasBirkmaier/ReqSeq-archive#631: the widths come from
  * the window's fonts).
  */
 const drawingProblems = (window: Page): Promise<string[]> =>
@@ -175,7 +175,7 @@ const drawingProblems = (window: Page): Promise<string[]> =>
       .filter((line) => line.scrollWidth > line.clientWidth)
       .map((line) => `cut: ${line.textContent}`);
     const labels = [...document.querySelectorAll<HTMLElement>(".mm-label")];
-    // By the edges (review R2 S2 of #631): a line wider than the label's content starts at its padding
+    // By the edges (review R2 S2 of ThomasBirkmaier/ReqSeq-archive#631): a line wider than the label's content starts at its padding
     // and sticks out on the right, past the rectangle the overlap check below uses.
     const wide = labels.flatMap((label) => {
       const edges = label.getBoundingClientRect();
@@ -360,7 +360,7 @@ test.describe("the metamodel on a fixture workspace", () => {
     expect(of("Based on")).toEqual(["any > type:decision: Based on · any source"]);
     expect(of("Traces to")).toEqual(["type:decision > any: Traces to · any target"]);
     expect(of("Refines")).toEqual(["any > any: Refines · any source and target"]);
-    // Open source, two target types: once per target type (#619 Q2).
+    // Open source, two target types: once per target type (ThomasBirkmaier/ReqSeq-archive#619 Q2).
     expect(of("Concerns").sort()).toEqual([
       "any > type:decision: Concerns · any source",
       "any > type:requirement: Concerns · any source",

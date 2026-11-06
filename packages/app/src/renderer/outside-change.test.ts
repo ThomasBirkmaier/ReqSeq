@@ -44,7 +44,7 @@ describe("outsideChange", () => {
     });
   });
 
-  it("[SR-106/AK2] stops saving also when the change from outside touched another field than the input (spec question #488, 1)", () => {
+  it("[SR-106/AK2] stops saving also when the change from outside touched another field than the input (spec question ThomasBirkmaier/ReqSeq-archive#488, 1)", () => {
     expect(outsideChange(docs({ Text: "mine" }), "one", file("two", { Text: "base", title: "New" }))).toEqual(
       {
         kind: "conflict",

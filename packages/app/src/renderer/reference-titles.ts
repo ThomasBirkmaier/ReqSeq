@@ -5,7 +5,7 @@
 // along, so a reference just written asks nothing either. Any other failure (core stopped or restarting)
 // is not kept, so the next editor asks again. The app clears the titles when another workspace opens and
 // when core restarts. A target renamed meanwhile keeps the title it had until then (core giving the
-// titles with the element is #669).
+// titles with the element is ThomasBirkmaier/ReqSeq-archive#669).
 import type { Call } from "./call.js";
 import type { ReferenceRequest } from "./editor/reference-pick.js";
 import { titleKey } from "./editor/references.js";

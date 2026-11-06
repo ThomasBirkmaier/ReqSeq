@@ -28,7 +28,7 @@ export const ENDPOINT_FILE = "api.json";
 export const PORT_ATTEMPTS = 5;
 
 /**
- * Bounds for a slow sender (#200): a request whose headers do not arrive within HEADERS_TIMEOUT_MS, or
+ * Bounds for a slow sender (ThomasBirkmaier/ReqSeq-archive#200): a request whose headers do not arrive within HEADERS_TIMEOUT_MS, or
  * whose body does not arrive within REQUEST_TIMEOUT_MS, gets 408 and the connection is closed. A 32 MiB
  * body over loopback takes milliseconds.
  */

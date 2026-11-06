@@ -94,7 +94,7 @@ const NO_RELATIONS: Pick<MetamodelGetOutput, "relations" | "properties"> = { rel
 const appStorage = (): RecentStorage => window.localStorage;
 
 /**
- * macOS: the window has no native title bar (ADR-0010, #490), so this strip of the sheet moves the window
+ * macOS: the window has no native title bar (ADR-0010, ThomasBirkmaier/ReqSeq-archive#490), so this strip of the sheet moves the window
  * and names it. It holds no control.
  */
 const TitleBar = ({
@@ -177,7 +177,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   const [prompt, setPrompt] = useState<{ readonly serial: number; readonly prompt: Prompt } | undefined>(
     undefined,
   );
-  // The prompt that is open, so a prompt that replaces it can cancel it (#604 review, S2).
+  // The prompt that is open, so a prompt that replaces it can cancel it (ThomasBirkmaier/ReqSeq-archive#604 review, S2).
   const openPrompt = useRef<Prompt | undefined>(undefined);
   // Counts up when the workspace changed: the shown buffer asks for its data again.
   const [revision, setRevision] = useState(0);
@@ -509,7 +509,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       saveSession(appStorage, session, text);
     }
   }, [buffers, session]);
-  // The default of an element argument when no element is shown (#85).
+  // The default of an element argument when no element is shown (ThomasBirkmaier/ReqSeq-archive#85).
   const row = selectedRow(current, loaded);
   const marked = markedElement(current, loaded);
   const context: ActionContext = {
@@ -609,7 +609,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     // with the reason in the minibuffer; the next close discards it, unless input or an action came
     // in between (the question of "Close buffer").
     // The save of a workspace switch while it runs (SR-131): a close waits for it, so it does not save
-    // the same drafts a second time and report the refused second write as unsaved (#611 review N3).
+    // the same drafts a second time and report the refused second write as unsaved (ThomasBirkmaier/ReqSeq-archive#611 review N3).
     let switchSave: Promise<boolean> | undefined;
     const beforeClose = async (): Promise<boolean> => {
       if (armed.current === CLOSE_WINDOW) {
@@ -725,7 +725,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       }
     });
   }, [bridge]);
-  // The command prompt: the actions that apply now and the catalog's read and write commands (#85);
+  // The command prompt: the actions that apply now and the catalog's read and write commands (ThomasBirkmaier/ReqSeq-archive#85);
   // without a workspace, "Initialise workspace" of the folder core opened (`catalogItems`).
   const commands = useCallback((): Prompt => {
     const now = latest.current;
@@ -871,7 +871,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       recentNames.current.set(row.buffer.key, row.buffer);
     }
   }, [overview.read]);
-  // A recent element that core no longer knows (deleted outside) is not offered under its old name (#681):
+  // A recent element that core no longer knows (deleted outside) is not offered under its old name (ThomasBirkmaier/ReqSeq-archive#681):
   // the overview's read, or the read of its buffer, found it gone. One `ref.unknown` is enough: while a
   // pull rewrites a file core briefly does not know it, and the next read of the overview names it again.
   useEffect(() => {
@@ -883,7 +883,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     recentNames.current.delete(key);
   }, []);
 
-  // A relation names the repository of its target (#416): its buffer is opened at once.
+  // A relation names the repository of its target (ThomasBirkmaier/ReqSeq-archive#416): its buffer is opened at once.
   const openRelation = (buffer: ElementBuffer): void => {
     dispatch({ type: "open", buffer });
   };

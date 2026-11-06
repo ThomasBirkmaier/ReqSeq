@@ -1,4 +1,4 @@
-// The Markdown editor of the element buffer (SR-065, #77) on the built app: live preview, saving, and
+// The Markdown editor of the element buffer (SR-065, ThomasBirkmaier/ReqSeq-archive#77) on the built app: live preview, saving, and
 // what is in the file afterwards. Keys use ControlOrMeta, so the same tests run on Linux and macOS.
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -110,11 +110,11 @@ test.describe("the Markdown editor in the element buffer", () => {
     expect(await shown(window)).not.toContain("| :--- |");
   });
 
-  test("Escape right after typing leaves the text, also before the slash menu's source has answered (#574)", async () => {
+  test("Escape right after typing leaves the text, also before the slash menu's source has answered (ThomasBirkmaier/ReqSeq-archive#574)", async () => {
     const { window } = running;
     await opened(window, DEMO_TITLE);
     // Every typed letter asks the slash menu's source; its Escape must not take an Escape that comes before
-    // the answer when no `/` was typed. Before #574 about one round in ten kept the focus in the editor.
+    // the answer when no `/` was typed. Before ThomasBirkmaier/ReqSeq-archive#574 about one round in ten kept the focus in the editor.
     for (let round = 0; round < 30; round += 1) {
       await window.keyboard.press("Enter");
       await expect(window.locator(".cm-content")).toBeFocused();
@@ -251,7 +251,7 @@ test.describe("the Markdown editor in the element buffer", () => {
       if (mac) {
         // On macOS Electron leaves the editing roles to Cocoa: `click()` of such an item does nothing, and
         // the menu sends the role's action (`undo:`) to the first responder, the page of the focused window.
-        // This does what a click on Edit > Undo does there (#505).
+        // This does what a click on Edit > Undo does there (ThomasBirkmaier/ReqSeq-archive#505).
         electronApp.focus({ steal: true });
         window.focus();
         window.webContents.focus();
@@ -329,7 +329,7 @@ test.describe("the Markdown editor in the element buffer", () => {
     await opened(window, REFERENCE_SOURCE_TITLE);
     await expect(window.locator(".cm-lr-outdated-word")).toHaveText(` ${word(reference ?? {})}`);
     await expect(window.locator(".cm-lr-outdated")).toHaveAttribute("title", reference?.message ?? "");
-    // A relation of the element: its row is marked with the same word (#665), the dated hint on hover.
+    // A relation of the element: its row is marked with the same word (ThomasBirkmaier/ReqSeq-archive#665), the dated hint on hover.
     const [relation] = await datedHints("SR-0000b4");
     // Not `opened`: this element has a Markdown box besides the text.
     await window.keyboard.press("ControlOrMeta+P");

@@ -69,7 +69,7 @@ test.describe("the slash menu in the element buffer", () => {
   let running: RunningApp;
   test.beforeEach(async () => {
     running = await launchApp(FIXTURE);
-    // What took the menu away when a test fails (#573): printed to the job log. No waits, retries or input.
+    // What took the menu away when a test fails (ThomasBirkmaier/ReqSeq-archive#573): printed to the job log. No waits, retries or input.
     await recordEvents(running.window);
     await listAll(running.window);
     await editing(running.window);
