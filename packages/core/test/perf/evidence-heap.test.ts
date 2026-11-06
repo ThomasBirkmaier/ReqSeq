@@ -1,4 +1,4 @@
-// E4 (#583), review of #561 (N4): peak memory, not only time, when the evidence folders hold many
+// E4 (ThomasBirkmaier/ReqSeq-archive#583), review of ThomasBirkmaier/ReqSeq-archive#561 (N4): peak memory, not only time, when the evidence folders hold many
 // large JUnit files. The JUnit model holds about 17 times the file, and `readEvidence` reads 16 files
 // at a time and gives them to the readers one after the other (`evidence/state.ts`). The generated
 // workspace of N-036 (50,000 elements, 200,000 relations) with the records of `withEvidenceRecords`
@@ -25,7 +25,7 @@ import { standardModel, versionOf } from "./core-version.js";
 /** Older CI runs in the archive, one large JUnit file each. */
 const HISTORY = 16;
 
-describe("peak memory of reading many large JUnit files (N-036, E4 #583)", () => {
+describe("peak memory of reading many large JUnit files (N-036, E4 ThomasBirkmaier/ReqSeq-archive#583)", () => {
   // Only what the test needs after the setup, so the generated tree can be collected.
   let counts: EvidenceCounts;
   let largest = 0;
@@ -64,7 +64,7 @@ describe("peak memory of reading many large JUnit files (N-036, E4 #583)", () =>
     const peak = await measurePeakMemory(() => opened().get(evidenceReadState));
     const name = `evidence: read ${String(counts.junitFiles)} JUnit files of ${(counts.junitBytes / 1e6).toFixed(0)} MB (${String(HISTORY)} of about ${(largest / 1e6).toFixed(0)} MB each, read first) and ${String(counts.markdownVerification + counts.markdownValidation)} Markdown records`;
     const basis =
-      "review of #561 N4, ADR-0012 (readEvidence: 16 files at a time; recorded, no limit in the spec)";
+      "review of ThomasBirkmaier/ReqSeq-archive#561 N4, ADR-0012 (readEvidence: 16 files at a time; recorded, no limit in the spec)";
     await recordValue(name, peak.ms, { basis });
     await recordValue(
       `evidence: read many large JUnit files (${String(peak.result.records.length)} records): ${memoryIncrease(peak)}`,

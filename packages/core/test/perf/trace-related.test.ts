@@ -105,7 +105,7 @@ describe("trace.related with 50,000 elements and 200,000 relations (SR-023, N-03
       { basis },
     );
     await measure("current versions of the whole store (built once, kept)", () => currentVersions(opened()), {
-      basis: "ADR-0005, #259 (recorded)",
+      basis: "ADR-0005, ThomasBirkmaier/ReqSeq-archive#259 (recorded)",
     });
     const { result: kept } = await measure(
       "related: every child of the first need, all pages of 5,000 (kept versions)",

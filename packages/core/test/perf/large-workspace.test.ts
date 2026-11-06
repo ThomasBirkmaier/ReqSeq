@@ -1,11 +1,11 @@
-// Performance suite (ADR-0011, #126): the generated workspace of N-036 with 50,000 elements and
+// Performance suite (ADR-0011, ThomasBirkmaier/ReqSeq-archive#126): the generated workspace of N-036 with 50,000 elements and
 // 200,000 relations. Runs with `pnpm test:perf`, nightly and on pull requests labelled `perf`
 // (.github/workflows/perf.yml), never in the required test run. Times are recorded with `measure`
 // and reported in verification/performance.md. Test names carry no `[SR-xxx/AKn]` tag: these are
 // component times inside one process, so a time over its threshold only records (the nightly job
 // opens an issue) and does not fail a test. Correctness is asserted as usual. The SRs named in a basis
 // have their own tagged tests at their access level, which assert the threshold: SR-020 AK1 spawns
-// the CLI (packages/cli/test/perf/workspace-check.test.ts), SR-082 follows with #94.
+// the CLI (packages/cli/test/perf/workspace-check.test.ts), SR-082 follows with ThomasBirkmaier/ReqSeq-archive#94.
 import type { GeneratedWorkspace, LargeFixtureWorkspace, VersionFunction } from "@reqseq/testkit";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -120,7 +120,7 @@ describe("workspace with 50,000 elements and 200,000 relations (N-036)", () => {
     expect(withoutNoParent(findings)).toEqual([]);
   }, 600_000);
 
-  it("computes the current version of every element once per store and carries it over a save (#259)", async () => {
+  it("computes the current version of every element once per store and carries it over a save (ThomasBirkmaier/ReqSeq-archive#259)", async () => {
     // The first build on its own, in a workspace of its own: workspace.check above built them in its time.
     const own = new Workspace(fixture.workspaceRoot);
     try {
@@ -128,7 +128,10 @@ describe("workspace with 50,000 elements and 200,000 relations (N-036)", () => {
       await measure(
         "current version of every element (first use after the load: every file read again)",
         () => currentVersions(own),
-        { basis: "SR-020 (part of workspace.check from SR-025 on; ADR-0008, #259)" },
+        {
+          basis:
+            "SR-020 (part of workspace.check from SR-025 on; ADR-0008, ThomasBirkmaier/ReqSeq-archive#259)",
+        },
       );
     } finally {
       await own.close();
@@ -137,7 +140,7 @@ describe("workspace with 50,000 elements and 200,000 relations (N-036)", () => {
     const { result: versions } = await measure(
       "current version of every element (after workspace.check built them)",
       () => currentVersions(workspace),
-      { basis: "SR-020 (ADR-0008, #259: kept with the store)" },
+      { basis: "SR-020 (ADR-0008, ThomasBirkmaier/ReqSeq-archive#259: kept with the store)" },
     );
     const generated = new Map(tree.elements.map((e) => [e.id, e.version]));
     expect(versions.byRecord.size).toBe(ELEMENTS);
@@ -153,7 +156,7 @@ describe("workspace with 50,000 elements and 200,000 relations (N-036)", () => {
     const { result: again } = await measure(
       "current versions on a later use (embedded images checked; the generator embeds none)",
       () => currentVersions(workspace),
-      { basis: "SR-020 (ADR-0008, #259: images checked on use)" },
+      { basis: "SR-020 (ADR-0008, ThomasBirkmaier/ReqSeq-archive#259: images checked on use)" },
     );
     expect(again).toBe(versions);
     const [first] = versions.store.elements;
@@ -165,12 +168,15 @@ describe("workspace with 50,000 elements and 200,000 relations (N-036)", () => {
     await measure(
       "save one element with the current versions built (element.update of its text, versions carried)",
       () => invoke("element.update", input, { workspace }),
-      { basis: "SR-082 AK3, ADR-0008 (#184, #259: the saved element gets its version again)" },
+      {
+        basis:
+          "SR-082 AK3, ADR-0008 (ThomasBirkmaier/ReqSeq-archive#184, ThomasBirkmaier/ReqSeq-archive#259: the saved element gets its version again)",
+      },
     );
     const { result: carried } = await measure(
       "current versions right after the save",
       () => currentVersions(workspace),
-      { basis: "SR-020 (ADR-0008, #259)" },
+      { basis: "SR-020 (ADR-0008, ThomasBirkmaier/ReqSeq-archive#259)" },
     );
     const saved = carried.store.elements.find((e) => e.id === first.id);
     expect(saved).toBeDefined();
@@ -286,7 +292,7 @@ describe("workspace with 50,000 elements and 200,000 relations (N-036)", () => {
   it("exports every element to one ReqIF file and imports it into an empty workspace without a mapping (SR-052 AK3)", async () => {
     const empty = await createFixtureWorkspace({
       fixture: "SR-052/empty",
-      // The metamodel of the generated workspace, with its identifier property (#305).
+      // The metamodel of the generated workspace, with its identifier property (ThomasBirkmaier/ReqSeq-archive#305).
       files: {
         "metamodel/standard-model.yaml": tree.files.get("system/metamodel/standard-model.yaml") ?? "",
       },
@@ -372,9 +378,12 @@ describe("workspace with 50,000 elements and 200,000 relations (N-036)", () => {
       })) as CommandOutput<"element.update">;
       expect(updated.files).toHaveLength(1);
       const { result: carried } = await measure(
-        "relation limits right after saving one element (carried, #184)",
+        "relation limits right after saving one element (carried, ThomasBirkmaier/ReqSeq-archive#184)",
         () => limited.get(relationLimitProblemsState),
-        { basis: "SR-152, ADR-0008 (#184: only the saved file is looked at again)" },
+        {
+          basis:
+            "SR-152, ADR-0008 (ThomasBirkmaier/ReqSeq-archive#184: only the saved file is looked at again)",
+        },
       );
       // A new text changes no relation and no line of the frontmatter.
       expect(carried).toEqual(full);

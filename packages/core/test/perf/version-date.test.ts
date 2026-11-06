@@ -1,4 +1,4 @@
-// The version date (D-013, ADR-0005 "Version date", enabler #260) in the generated workspace of
+// The version date (D-013, ADR-0005 "Version date", enabler ThomasBirkmaier/ReqSeq-archive#260) in the generated workspace of
 // N-036 with 50,000 elements and 200,000 relations, each repository a Git repository. After a
 // commit that changes 300 targets (100 of them with an embedded image added), the stored and the
 // current versions of 300 outdated relations are dated in one call, as SR-025 will ask for them,
@@ -61,7 +61,7 @@ const versionOf = (
   );
 };
 
-describe("version date with 50,000 elements and 200,000 relations (N-036, enabler #260)", () => {
+describe("version date with 50,000 elements and 200,000 relations (N-036, enabler ThomasBirkmaier/ReqSeq-archive#260)", () => {
   let fixture: LargeFixtureWorkspace | undefined;
   let workspace: Workspace | undefined;
   let targets: Target[] = [];

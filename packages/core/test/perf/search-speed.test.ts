@@ -1,12 +1,12 @@
 // SR-098 AK1 in the performance suite (ADR-0011): the first hits of a full-text search within
 // 300 ms in the generated workspace of N-036 with 50,000 elements and 200,000 relations.
 //
-// "Wenn ein Suchbegriff eingegeben wird" as measured here (#110): a warm server (`warmWorkspace`, as
+// "Wenn ein Suchbegriff eingegeben wird" as measured here (ThomasBirkmaier/ReqSeq-archive#110): a warm server (`warmWorkspace`, as
 // `reqseq serve` and the app start, with the search index built in the background and ready),
 // `element.search` through the catalog (`invoke`, as every access calls it, SR-080) with the default
 // page of 50 hits ("die ersten Treffer"). The app searches as the user types, so every keystroke is a
 // search of the term so far. The terms below cover that and the costliest terms of the generated
-// workspace (measured on #110): typing a word letter by letter, two-letter prefixes that begin words
+// workspace (measured on ThomasBirkmaier/ReqSeq-archive#110): typing a word letter by letter, two-letter prefixes that begin words
 // of every element, words of (almost) every element, a phrase of them, a whole title, topic words, a
 // typo, another case, a number and IDs. Each term runs `RUNS` times and its median must stay within
 // 300 ms: every term has its own row and threshold, so the slowest term decides. The median, not a
@@ -15,7 +15,7 @@
 // is ready, and the first search after a save (the carried index), have rows of their own: the arrays
 // that a search reads are built at the end of the build and of the carry (`prepareSearchIndex`), so
 // they cost no more than the later searches. The window right after a start, while the index is
-// built, is spec question #388 (recorded in search-index.test.ts: "ready after the start").
+// built, is spec question ThomasBirkmaier/ReqSeq-archive#388 (recorded in search-index.test.ts: "ready after the start").
 //
 // The scoring that makes these searches fast is MiniSearch's to the bit: the last test compares the
 // scores of `scoreWords` with those of MiniSearch's `search` for every term, on this workspace
@@ -132,17 +132,20 @@ describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", ()
     return { terms, record };
   };
 
-  it("records the very first search once the index is ready (a single run, no threshold until #388)", async () => {
+  it("records the very first search once the index is ready (a single run, no threshold until ThomasBirkmaier/ReqSeq-archive#388)", async () => {
     // The first search of the process after the index is ready (the arrays that a search reads were
     // built with the index, `prepareSearchIndex`; JIT and caches are cold). One sample: the index is
     // built once for this file, so no median. Recorded without a threshold, as every single run here:
     // the rest of its cost is JIT warm-up, which takes 200 to 310 ms on a busy runner. Whether SR-098's
-    // 300 ms bind the median or every search is spec question #388; this PR assumes the median
-    // (option A). If #388 is answered with "every search", this row gets the threshold back.
+    // 300 ms bind the median or every search is spec question ThomasBirkmaier/ReqSeq-archive#388; this PR assumes the median
+    // (option A). If ThomasBirkmaier/ReqSeq-archive#388 is answered with "every search", this row gets the threshold back.
     const { result } = await measure(
       'element.search: the first search once the index is ready ("th"), the first 50 hits',
       () => search("th"),
-      { basis: "SR-098 AK1 (recorded: the first search once the index is ready, a single run, #388)" },
+      {
+        basis:
+          "SR-098 AK1 (recorded: the first search once the index is ready, a single run, ThomasBirkmaier/ReqSeq-archive#388)",
+      },
     );
     expect(result.hits).toHaveLength(50);
   });

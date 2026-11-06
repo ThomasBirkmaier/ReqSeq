@@ -1,5 +1,5 @@
 // Performance suite (ADR-0011): refreshing the stored titles of relation targets on a write
-// (decision on spec question #307, `relation-titles.ts`). One requirement derives from 1,000 needs
+// (decision on spec question ThomasBirkmaier/ReqSeq-archive#307, `relation-titles.ts`). One requirement derives from 1,000 needs
 // that were all renamed since, so a save of it refreshes 1,000 stale titles. The refresh is one pass
 // of the lossless writer per file, so it stays within 1 s (N-036: the cost grows with the relations
 // of the written file, not with their square). The whole save is recorded next to a save of the
@@ -28,7 +28,7 @@ const C_FILE = "requirements/SR-0b00000000c1.md";
 /** The UUID of the i-th need. */
 const needId = (i: number): string => `9a0b1c2d-3e4f-4a5b-8c6d-${i.toString(16).padStart(12, "0")}`;
 
-describe("stored titles of 1,000 renamed targets refreshed on one save (decision on #307, N-036)", () => {
+describe("stored titles of 1,000 renamed targets refreshed on one save (decision on ThomasBirkmaier/ReqSeq-archive#307, N-036)", () => {
   let fixture: FixtureWorkspace | undefined;
   let workspace: Workspace | undefined;
   const opened = (): Workspace => {
@@ -107,7 +107,10 @@ describe("stored titles of 1,000 renamed targets refreshed on one save (decision
     const { result: refreshed } = await measure(
       "withCurrentTitles: refresh 1,000 stale relation titles of one planned file",
       () => withCurrentTitles({ metamodel, store }, [{ ...unchanged, bytes }]),
-      { basis: "N-036, decision on #307 (one writer pass per file)", thresholdMs: REFRESH_MS },
+      {
+        basis: "N-036, decision on ThomasBirkmaier/ReqSeq-archive#307 (one writer pass per file)",
+        thresholdMs: REFRESH_MS,
+      },
     );
     expect(new TextDecoder().decode(refreshed[0]?.bytes).match(/renamed \}/g)).toHaveLength(TARGETS);
     // The whole save, recorded next to the one without a stale title.
@@ -115,7 +118,10 @@ describe("stored titles of 1,000 renamed targets refreshed on one save (decision
       "element.update: save one element with 1,000 stale relation titles",
       () =>
         invoke("element.update", { ref: A, set: { "requirement-type": "quality" } }, { workspace: opened() }),
-      { basis: "N-036, decision on #307 (compare with the save without a stale title)" },
+      {
+        basis:
+          "N-036, decision on ThomasBirkmaier/ReqSeq-archive#307 (compare with the save without a stale title)",
+      },
     );
     expect((result as CommandOutput<"element.update">).files).toEqual([A_FILE]);
     const text = fs.readFileSync(fixture?.path(A_FILE) ?? "", "utf8");

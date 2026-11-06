@@ -99,7 +99,7 @@ describe("outdated relations in workspace.check with 50,000 elements and 200,000
       async () => (await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">,
       { basis: "SR-020, SR-025 in process (the store is loaded)", thresholdMs: 60_000 },
     );
-    // Only warnings: ok by default (failOn error, #304).
+    // Only warnings: ok by default (failOn error, ThomasBirkmaier/ReqSeq-archive#304).
     expect(out.ok).toBe(true);
     const expected = storedTargets(tree, changed);
     expect(expected).toBeGreaterThan(changed.size);
@@ -253,7 +253,7 @@ describe("every relation outdated, with Git (SR-025 worst case, N-036)", () => {
   it("finds every outdated relation with its line, then dates them all", async () => {
     await workspace.get(elementStoreState);
     await measure("current version of every element (worst case)", () => currentVersions(workspace), {
-      basis: "SR-020 (part of workspace.check, #259)",
+      basis: "SR-020 (part of workspace.check, ThomasBirkmaier/ReqSeq-archive#259)",
     });
     const { result: findings } = await measure(
       "outdated relations with lines, every relation and link outdated (no dates)",
@@ -297,7 +297,7 @@ describe("every relation outdated, with Git (SR-025 worst case, N-036)", () => {
     } finally {
       await fresh.close();
     }
-    // Only warnings: ok by default (failOn error, #304).
+    // Only warnings: ok by default (failOn error, ThomasBirkmaier/ReqSeq-archive#304).
     expect(kept.ok).toBe(true);
     // Every finding is of a changed element or one of its targets, or a relation to a changed element.
     expect(malformedNoParentHints(kept.problems)).toEqual([]);

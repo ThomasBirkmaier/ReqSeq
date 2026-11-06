@@ -1,4 +1,4 @@
-// E4 (#583): the evidence commands in the generated workspace of N-036 (50,000 elements, 200,000
+// E4 (ThomasBirkmaier/ReqSeq-archive#583): the evidence commands in the generated workspace of N-036 (50,000 elements, 200,000
 // relations) with the records a project of that size keeps (`withEvidenceRecords` of the testkit:
 // JUnit files of three CI runs, Markdown verification records, about 10,000 elements with validation
 // records). ADR-0011: tests tagged `[SR-082/AKn]` assert their threshold after `measure` recorded the
@@ -7,7 +7,7 @@
 // AK4 „Gegeben derselbe Arbeitsbereich, wenn ein Filter angewendet oder eine Kette berechnet wird,
 // dann erscheint das Ergebnis nach höchstens 500 ms.“ No SR names a time for `evidence.status`,
 // `evidence.coverage`, `evidence.degree` or `data.export`, nor says whether AK4 covers the first
-// filter after the start (spec question #693): those rows carry AK4's 500 ms as a threshold for
+// filter after the start (spec question ThomasBirkmaier/ReqSeq-archive#693): those rows carry AK4's 500 ms as a threshold for
 // comparison, untagged, so the record shows them as exceeded without failing the run.
 // `workspace.check` and the start are recorded with SR-020's 60 s and SR-082 AK1/AK2's 3 s/30 s,
 // untagged, as in large-workspace.test.ts (the tagged tests of those are at the access level).
@@ -61,11 +61,11 @@ const CHECK_MS = 60_000;
 /** The largest page (catalog). */
 const MAX_LIMIT = 5000;
 
-/** Rows #693 asks about: SR-082 AK4's 500 ms as a threshold for comparison only (untagged, never asserted). */
-const COMPARE_AK4 = "untagged; threshold for comparison only (#693)";
+/** Rows ThomasBirkmaier/ReqSeq-archive#693 asks about: SR-082 AK4's 500 ms as a threshold for comparison only (untagged, never asserted). */
+const COMPARE_AK4 = "untagged; threshold for comparison only (ThomasBirkmaier/ReqSeq-archive#693)";
 const COMPARED = { thresholdMs: RESULT_MS } as const;
 
-describe("evidence commands with 50,000 elements and their records (N-036, E4 #583)", () => {
+describe("evidence commands with 50,000 elements and their records (N-036, E4 ThomasBirkmaier/ReqSeq-archive#583)", () => {
   let evidence: GeneratedEvidence;
   let fixture: LargeFixtureWorkspace | undefined;
   let current: Workspace | undefined;
@@ -205,7 +205,7 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 #5
     expect(warm.elements.every((e) => e.type === "system-requirement")).toBe(true);
     const status = await ws().get(verificationState);
     expect(status.versionBatches()).toBe(1);
-    // The filter of SR-069 AK3 "ohne Nachweis" asks only whether a record exists (review of #557, N2).
+    // The filter of SR-069 AK3 "ohne Nachweis" asks only whether a record exists (review of ThomasBirkmaier/ReqSeq-archive#557, N2).
     const { result: without, measurement: withoutEvidence } = await measure(
       "filter system requirements without evidence (relation direction evidence, exists false), first page (status state kept)",
       () =>
@@ -311,7 +311,7 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 #5
   });
 
   /**
-   * Opens an element as the app shows it (#542): `element.get` and the parents line at the same
+   * Opens an element as the app shows it (ThomasBirkmaier/ReqSeq-archive#542): `element.get` and the parents line at the same
    * time; SR-082 AK3 is the time of both (open-filter-chain.test.ts).
    */
   const open = async (id: string): Promise<Output<"element.get">["element"]> => {
@@ -336,7 +336,8 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 #5
       "element.get of the top system requirement with its parents line: first after the start (walk below it, one version batch)",
       () => open(top),
       {
-        basis: "SR-082 AK5, SR-034 plan review B1.4 (the first open after the start; #698)",
+        basis:
+          "SR-082 AK5, SR-034 plan review B1.4 (the first open after the start; ThomasBirkmaier/ReqSeq-archive#698)",
         thresholdMs: FIRST_OPEN_MS,
       },
     );
@@ -355,18 +356,21 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 #5
     expect(["indirect", "open"]).toContain(warm.verification?.[0]?.status);
     expect((await ws().get(verificationState)).versionBatches()).toBe(batches);
     // The status state alone built again, with the current versions and the incoming index kept: the
-    // walks below the top in the core, the neutral view and each variant above its seeds (#698), and
+    // walks below the top in the core, the neutral view and each variant above its seeds (ThomasBirkmaier/ReqSeq-archive#698), and
     // the version batch from the kept current versions.
     await ws().reset(verificationState);
     const { result: rebuilt } = await measure(
       "element.get of the top system requirement with its parents line: after a reset of the status state (current versions and incoming index kept)",
       () => open(top),
-      { basis: "SR-082 AK3, #698 (the walk of the status state; recorded, compare 200 ms)" },
+      {
+        basis:
+          "SR-082 AK3, ThomasBirkmaier/ReqSeq-archive#698 (the walk of the status state; recorded, compare 200 ms)",
+      },
     );
     expect(rebuilt).toEqual(warm);
 
-    // One element file changed outside ReqSeq (review of #581, N3): the watcher's batch replaces the
-    // store and carries the status state over (#698): the next open of the top computes again only
+    // One element file changed outside ReqSeq (review of ThomasBirkmaier/ReqSeq-archive#581, N3): the watcher's batch replaces the
+    // store and carries the status state over (ThomasBirkmaier/ReqSeq-archive#698): the next open of the top computes again only
     // the changed element and its ancestors.
     const store = await ws().get(elementStoreState);
     const layout = await ws().get(workspaceLayoutState);
@@ -378,12 +382,12 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 #5
     const file = path.join(folder, changed.file);
     await fs.writeFile(file, `${await fs.readFile(file, "utf8")}\nChanged outside ReqSeq.\n`);
     await measure(
-      "store update of one changed element file (watcher batch; #558)",
+      "store update of one changed element file (watcher batch; ThomasBirkmaier/ReqSeq-archive#558)",
       () =>
         applyStoreChange(ws(), (now) =>
           updateElements(now, layout, new Map([[changed.repository, { paths: [changed.file] }]])),
         ),
-      { basis: "SR-007 AK1, #558 (recorded; part of what follows a change)" },
+      { basis: "SR-007 AK1, ThomasBirkmaier/ReqSeq-archive#558 (recorded; part of what follows a change)" },
     );
     await measure(
       "status state after one changed element file: carried over the store change (copy of its caches)",
@@ -394,13 +398,14 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 #5
       "element.get of the top system requirement with its parents line: right after one changed file",
       () => open(top),
       {
-        basis: "SR-082 AK3, review of #581 N3 (status state carried over the store change, #698)",
+        basis:
+          "SR-082 AK3, review of ThomasBirkmaier/ReqSeq-archive#581 N3 (status state carried over the store change, ThomasBirkmaier/ReqSeq-archive#698)",
         thresholdMs: OPEN_MS,
       },
     );
     expect(after.id).toBe(top);
 
-    // A change deep below the top (review S8 of the #698 plan): the requirement with records that has
+    // A change deep below the top (review S8 of the ThomasBirkmaier/ReqSeq-archive#698 plan): the requirement with records that has
     // the most ancestors, so the open computes the most again (recorded, compare 200 ms).
     const now = await ws().get(elementStoreState);
     /** The UUIDs the derivation items of the records of `id` name. */
@@ -446,12 +451,12 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 #5
     );
     await fs.writeFile(deepFile, `${await fs.readFile(deepFile, "utf8")}\nChanged outside ReqSeq.\n`);
     await measure(
-      `store update of one changed element file deep below the top (${String(most)} ancestors; watcher batch; #558)`,
+      `store update of one changed element file deep below the top (${String(most)} ancestors; watcher batch; ThomasBirkmaier/ReqSeq-archive#558)`,
       () =>
         applyStoreChange(ws(), (current) =>
           updateElements(current, layout, new Map([[deep.repository, { paths: [deep.file] }]])),
         ),
-      { basis: "SR-007 AK1, #558 (recorded; part of what follows a change)" },
+      { basis: "SR-007 AK1, ThomasBirkmaier/ReqSeq-archive#558 (recorded; part of what follows a change)" },
     );
     await measure(
       `status state after one changed element file deep below the top (${String(most)} ancestors): carried over the store change`,
@@ -461,7 +466,10 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 #5
     const { result: afterDeep } = await measure(
       `element.get of the top system requirement with its parents line: right after one changed file deep below it (${String(most)} ancestors)`,
       () => open(top),
-      { basis: "SR-082 AK3, review S8 of the #698 plan (status state carried; recorded, compare 200 ms)" },
+      {
+        basis:
+          "SR-082 AK3, review S8 of the ThomasBirkmaier/ReqSeq-archive#698 plan (status state carried; recorded, compare 200 ms)",
+      },
     );
     expect(afterDeep.id).toBe(top);
     expect(first.ms, thresholdMessage(first)).toBeLessThanOrEqual(FIRST_OPEN_MS);
