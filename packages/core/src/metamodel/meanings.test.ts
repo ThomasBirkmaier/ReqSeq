@@ -615,7 +615,7 @@ describe("built-in meanings", () => {
     ).toEqual([problem("c", 3, "kind date"), problem("d", 4, "a list"), problem("e", 5, "content: true")]);
   });
 
-  it("#591: the meaning emergent wants a single choice with the key yes, else a warning", async () => {
+  it("ThomasBirkmaier/ReqSeq-archive#591: the meaning emergent wants a single choice with the key yes, else a warning", async () => {
     const lines: Readonly<Record<string, number>> = { kind: 4, many: 5, choices: 6 };
     const at = (definition: MetamodelProperty, known = true): Located<MetamodelProperty> => ({
       definition,
