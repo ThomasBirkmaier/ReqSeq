@@ -16,9 +16,9 @@ ReqSeq itself does not remove the file, because it never writes to Git.
 ## App
 
 1. Open the draft and run **Show neighbourhood** (Ctrl+J, ⌘J on macOS) to see the elements that link to it.
-2. Open each of them and run **Remove relation** with the kind and the draft as target. An inline reference to the draft is removed by changing the text.
+2. Open each of them and run **Remove relation** with the kind and the draft as target. An inline reference or a relation property that names the draft is removed by changing the text or the property.
 3. Remove the file with `git rm` in a terminal; the app does not remove files.
-4. Run **Check workspace** in the command prompt (Ctrl+Shift+P, ⌘⇧P).
+4. Run **Check workspace** in the command prompt (Ctrl+Shift+P, ⌘⇧P on macOS).
 
 ## CLI
 
@@ -45,7 +45,7 @@ SR-c67baa  draft  Show the wind speed  [verification: core open]
 ...
 ```
 
-Before the need can go, find what links to it. `--direction down` lists every element whose file has a relation or an inline reference to it, and `--json` names the kind of each link:
+Before the need can go, find what links to it. `--direction down` lists every element whose file has a relation, a relation property or an inline reference to it, and `--json` names the kind of each link:
 
 ```sh
 reqseq trace neighbourhood N-7fe707 --direction down
@@ -58,7 +58,7 @@ children:
 total: 2
 ```
 
-Remove each relation; an inline reference is removed by changing the text with `element update`. `element get` shows the file of the need:
+Remove each relation; an inline reference or a relation property is changed with `element update`. `element get` shows the file of the need:
 
 ```sh
 reqseq relation remove SR-c67baa derives-from N-7fe707
@@ -72,7 +72,7 @@ N-7fe707  draft  See the wind speed  [validation: open]
 ...
 ```
 
-Remove the file with Git and check the workspace:
+Remove the file with Git and check the workspace. In this new workspace nothing is committed yet, so delete the file with `rm need/N-d0e44b7fe707.md` instead; in a checkout where the file is committed, use:
 
 ```sh
 git rm need/N-d0e44b7fe707.md
