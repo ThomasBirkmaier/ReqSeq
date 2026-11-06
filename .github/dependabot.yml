@@ -1,0 +1,26 @@
+# Dependabot (#938, product owner decision, 2026-11-06): npm only for security updates, so no version-update PRs
+# (`open-pull-requests-limit: 0`); security updates also need the repository setting "Dependabot security updates".
+# GitHub Actions monthly in one grouped PR, which moves the SHA pins and their version comments (ADR-0015).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directories:
+      - "/"
+      - "/packages/docs/site"
+      - "/toolchain/packaging"
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 0
+  - package-ecosystem: github-actions
+    directories:
+      - "/"
+      - "/.github/actions/*"
+    schedule:
+      interval: monthly
+    # A release must be two weeks old, as for pinned packages (ADR-0015).
+    cooldown:
+      default-days: 14
+    groups:
+      github-actions:
+        patterns:
+          - "*"
