@@ -13347,6 +13347,40 @@
                   "$ref": "#/components/schemas/common/$defs/uuid"
                 },
                 "description": "For a requirement without own verification record in the view whose status is `open`: its counted children (derivation children whose type has the meaning `requirement`, whose status is not marked invalid and that apply in the view) that are `open`, `failed` or `outdated`; direct children only, in child order, each UUID once (twins in several repositories, share one); left out when there is none."
+              },
+              "criteria": {
+                "$ref": "#/components/schemas/data-export/$defs/criteriaCount",
+                "description": "How many of the requirement's acceptance criteria its own records in the view verify, for example 2 of 3. Only for a requirement whose status comes from its own records and whose current version has acceptance criteria (the property with the meaning `acceptance-criteria`); left out for a status from the children and without criteria."
+              }
+            },
+            "additionalProperties": false
+          },
+          "criteriaCount": {
+            "type": "object",
+            "description": "How many acceptance criteria of a requirement are verified: a criterion is verified when the newest record for it of the current version passed (a record that names no criterion counts for every one).",
+            "required": [
+              "verified",
+              "total"
+            ],
+            "properties": {
+              "verified": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "total": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "The number of acceptance criteria."
+              },
+              "notVerified": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "description": "The numbers of the criteria that are not verified (open, failed or outdated), counted from 1, ascending; left out when every criterion is verified."
               }
             },
             "additionalProperties": false

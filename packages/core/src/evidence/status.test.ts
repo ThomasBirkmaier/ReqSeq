@@ -9,7 +9,7 @@ import { evidenceIndex } from "./by-element.js";
 import type { EvidenceRecord } from "./record.js";
 import type { Validation } from "./status.js";
 import { holdsIn } from "./holds.js";
-import { recordStatusOf, validationOf, verificationStatusOf } from "./status.js";
+import { ownVerificationOf, recordStatusOf, validationOf, verificationStatusOf } from "./status.js";
 
 const P = "5e031a7d-2b4f-4c61-9d08-0";
 const A = `${P}b0000000001`;
@@ -246,6 +246,162 @@ const validationsOf = (
 /** The validation status of `records` of A against `current`, in the order of the index and reversed. */
 const statusesOf = (records: readonly EvidenceRecord[], current: string | undefined = CURRENT): string[] =>
   validationsOf(records, current).map((v) => v.status);
+
+/** `ownVerificationOf` of `records` of A with `count` criteria, the records in index order and reversed (one result). */
+const perCriterion = (
+  records: readonly EvidenceRecord[],
+  count = 3,
+  view: View = CORE,
+  independent = false,
+) => {
+  const ordered = evidenceIndex(records).byElement.get(A) ?? [];
+  const result = ownVerificationOf(ordered, forms(CURRENT), view, independent, count);
+  expect(ownVerificationOf([...ordered].reverse(), forms(CURRENT), view, independent, count)).toEqual(result);
+  return result;
+};
+
+const DAY1 = "2026-01-01T10:00:00Z";
+const DAY2 = "2026-01-02T10:00:00Z";
+
+describe("verification status per acceptance criterion (SR-031, D-072)", () => {
+  it("[SR-031/AK1] a requirement with three criteria and no record is open, none of them verified", () => {
+    expect(perCriterion([])).toEqual({
+      status: "open",
+      criteria: { verified: 0, total: 3, notVerified: [1, 2, 3] },
+    });
+  });
+
+  it("[SR-031/AK2] verified when the newest record of the current version for every criterion passed", () => {
+    const records = [
+      record(DAY1, "passed", { criteria: [1] }),
+      record(DAY1, "passed", { criteria: [2, 3] }),
+      // An older failed record of AK3 does not decide.
+      record("2025-12-31T10:00:00Z", "failed", { criteria: [3] }),
+    ];
+    expect(perCriterion(records)).toEqual({ status: "verified", criteria: { verified: 3, total: 3 } });
+  });
+
+  it("[SR-031/AK3] failed when the newest record of the current version for one criterion failed", () => {
+    const records = [
+      record(DAY1, "passed", { criteria: [1, 3] }),
+      record(DAY1, "passed", { criteria: [2] }),
+      record(DAY2, "failed", { criteria: [2] }),
+    ];
+    expect(perCriterion(records)).toEqual({
+      status: "failed",
+      criteria: { verified: 2, total: 3, notVerified: [2] },
+    });
+    // Failed also beats a criterion without record and one of an older version.
+    expect(
+      perCriterion([
+        record(DAY1, "failed", { criteria: [1] }),
+        record(DAY1, "passed", { criteria: [2], version: OLDER }),
+      ]).status,
+    ).toBe("failed");
+  });
+
+  it("[SR-031/AK4] outdated when the requirement has records of older versions only, whatever they name", () => {
+    expect(
+      perCriterion([
+        record(DAY1, "passed", { version: OLDER, criteria: [1] }),
+        record(DAY2, "failed", { version: OLDER }),
+      ]).status,
+    ).toBe("outdated");
+    // The only record names a number the current version no longer has (plan review B1).
+    expect(perCriterion([record(DAY1, "passed", { version: OLDER, criteria: [4] })])).toEqual({
+      status: "outdated",
+      criteria: { verified: 0, total: 3, notVerified: [1, 2, 3] },
+    });
+  });
+
+  it("[SR-031/AK5] open with 2 of 3 when two criteria passed and the third has no record", () => {
+    expect(
+      perCriterion([record(DAY1, "passed", { criteria: [1] }), record(DAY2, "passed", { criteria: [2] })]),
+    ).toEqual({ status: "open", criteria: { verified: 2, total: 3, notVerified: [3] } });
+    // A criterion without record keeps it open next to one of an older version (D-072, plan Q1).
+    expect(
+      perCriterion([
+        record(DAY1, "passed", { criteria: [1] }),
+        record(DAY1, "passed", { criteria: [2], version: OLDER }),
+      ]).status,
+    ).toBe("open");
+    // A number beyond the criteria counts for none of them (#960).
+    expect(perCriterion([record(DAY1, "passed", { criteria: [1, 2, 9] })]).criteria).toEqual({
+      verified: 2,
+      total: 3,
+      notVerified: [3],
+    });
+  });
+
+  it("[SR-031/AK6] a record that names no criterion counts for every criterion", () => {
+    expect(perCriterion([record(DAY1, "passed")])).toEqual({
+      status: "verified",
+      criteria: { verified: 3, total: 3 },
+    });
+    // It fills the criteria the named records leave out, and a newer named record decides its own.
+    expect(perCriterion([record(DAY1, "passed"), record(DAY2, "failed", { criteria: [2] })])).toEqual({
+      status: "failed",
+      criteria: { verified: 2, total: 3, notVerified: [2] },
+    });
+    // A newer record for all decides over an older named one, and a failed one wins a tie.
+    expect(perCriterion([record(DAY1, "failed", { criteria: [1] }), record(DAY2, "passed")]).status).toBe(
+      "verified",
+    );
+    expect(perCriterion([record(DAY1, "passed", { criteria: [1] }), record(DAY1, "failed")]).status).toBe(
+      "failed",
+    );
+    expect(perCriterion([record(DAY1, "failed", { criteria: [1] }), record(DAY1, "passed")]).status).toBe(
+      "failed",
+    );
+  });
+
+  it("[SR-031/AK7] without criteria the newest record of the current version counts for the whole requirement", () => {
+    expect(perCriterion([record(DAY1, "passed", { criteria: [2] })], 0)).toEqual({ status: "verified" });
+    expect(perCriterion([record(DAY1, "passed"), record(DAY2, "failed", { criteria: [1] })], 0)).toEqual({
+      status: "failed",
+    });
+    expect(
+      verificationStatusOf([record(DAY1, "passed", { criteria: [1] })], forms(CURRENT), CORE, false),
+    ).toBe("verified");
+  });
+
+  it("[SR-031/AK8] outdated when none failed, one criterion has records of older versions only and the rest are verified", () => {
+    expect(
+      perCriterion([
+        record(DAY1, "passed", { criteria: [1, 2] }),
+        record(DAY2, "passed", { criteria: [3], version: OLDER }),
+      ]),
+    ).toEqual({ status: "outdated", criteria: { verified: 2, total: 3, notVerified: [3] } });
+  });
+
+  it("counts only the records of the view, and pools those without variant of a marked repository (SR-047, SR-173)", () => {
+    const records = [
+      record(DAY1, "passed", { criteria: [1, 2] }),
+      record(DAY1, "passed", { criteria: [3], variant: V }),
+      record(DAY1, "passed", { kind: "validation" }),
+    ];
+    expect(perCriterion(records, 3, CORE).criteria).toEqual({ verified: 2, total: 3, notVerified: [3] });
+    expect(perCriterion(records, 3, IN_V).criteria).toEqual({ verified: 1, total: 3, notVerified: [1, 2] });
+    expect(perCriterion(records, 3, IN_V, true)).toEqual({
+      status: "verified",
+      criteria: { verified: 3, total: 3 },
+    });
+  });
+
+  it("gives the status of the whole requirement when no record names a criterion", () => {
+    const cases: EvidenceRecord[][] = [
+      [],
+      [record(DAY1, "passed")],
+      [record(DAY1, "failed"), record(DAY1, "passed")],
+      [record(DAY1, "passed", { version: OLDER })],
+      [record(DAY1, "passed", { version: OLDER }), record("2025-01-01T10:00:00Z", "failed")],
+      [record(DAY1, "inconclusive")],
+    ];
+    for (const records of cases) {
+      expect(perCriterion(records).status).toBe(statusOf(records)[0]);
+    }
+  });
+});
 
 describe("validationOf (SR-038)", () => {
   it("[SR-038/AK3] an element without validation record is open", () => {

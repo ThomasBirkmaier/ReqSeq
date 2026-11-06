@@ -7,7 +7,8 @@
 //   identifier next to the short ID when it has one (`SR-3c90b0 (SR-036)`, #305), `[emergent]` when it
 //   is marked emergent (SR-035), and its verification status per view at the end, apart from its own
 //   status (`[verification: core verified]`, SR-031, D-030; the children missing for SR-034 as
-//   `core open (missing SR-0000b2)`), then its validation status (`[validation: validated]`, SR-038;
+//   `core open (missing SR-0000b2)`, the criteria of SR-031 AK5 as `core open 2 of 3 criteria (AK3 not
+//   verified)`), then its validation status (`[validation: validated]`, SR-038;
 //   an inconclusive one with its reason on one line, `[validation: inconclusive — <reason>]`, SR-172);
 //   a list of them one such line per element; a list whose elements carry their text (element.list
 //   `withText`) shows below each line its properties without relation targets, its relations one line
@@ -225,6 +226,18 @@ const viewNamerOf =
   };
 
 /**
+ * The acceptance criteria of a verification entry (SR-031 AK5): ` 2 of 3 criteria (AK3 not
+ * verified)`; nothing without `criteria`.
+ */
+const criteriaCountText = (criteria: unknown): string => {
+  if (!isRecord(criteria)) {
+    return "";
+  }
+  const open = listOf(criteria["notVerified"]).map((n) => `AK${String(n)}`);
+  return ` ${String(criteria["verified"])} of ${String(criteria["total"])} criteria${open.length === 0 ? "" : ` (${open.join(", ")} not verified)`}`;
+};
+
+/**
  * The verification status of an element per view (SR-031), apart from its own status:
  * `[verification: core verified, VAR-0000c1 open (missing SR-0000b2, SR-0000b3)]`; nothing for an
  * element without one. The children that are missing for an indirect verification (SR-034 AK2) follow
@@ -242,7 +255,7 @@ const verificationText = (element: Rec, view: ViewNamer): string => {
   };
   const entryText = (e: Rec): string => {
     const missing = listOf(e["missingChildren"]).map((id) => named(text(id)));
-    return `${named(text(e["view"]))} ${text(e["status"])}${missing.length === 0 ? "" : ` (missing ${missing.join(", ")})`}`;
+    return `${named(text(e["view"]))} ${text(e["status"])}${criteriaCountText(e["criteria"])}${missing.length === 0 ? "" : ` (missing ${missing.join(", ")})`}`;
   };
   return entries.length === 0 ? "" : `[verification: ${entries.map(entryText).join(", ")}]`;
 };

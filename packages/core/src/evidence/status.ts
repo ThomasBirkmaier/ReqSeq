@@ -16,6 +16,12 @@
 // - Records only of other versions give `outdated` (AK4); none gives `open` (AK1). An element whose
 //   current version is unknown (`CurrentVersion` `unknown`, #276) has no record of it: `outdated`
 //   with records, `open` without.
+// - Per acceptance criterion (D-072, AK5 to AK8, `ownVerificationOf`): an element with criteria (the
+//   property with the meaning `acceptance-criteria`, `StatusSource.criteriaOf`) gets the rule above
+//   per criterion, a record without `criteria` counting for each (AK6); its status is failed when one
+//   criterion failed, verified when all are, else open or outdated (see `ownVerificationOf`), with the
+//   count of verified criteria (`CriteriaCount`). Without criteria the rule holds for the whole
+//   requirement (AK7).
 // - Only elements whose type has the meaning `requirement` have a verification status (D-012: "Ein
 //   Nachweis verweist immer auf ein Requirement"), in the core and each variant whose view holds
 //   them (the view rule, SR-040, SR-043; `ViewScope` of `indirect.ts`). While the metamodel is not valid the records are not compared (the
@@ -32,7 +38,13 @@ import type { DataExportElement, ValidationStatus, VerificationStatus } from "..
 import type { Metamodel } from "../metamodel/index.js";
 import { typesWithMeaning } from "../metamodel/index.js";
 import type { ElementRecord } from "../model/index.js";
-import { emergentKeyOf, invalidStatuses, isEmergent } from "../model/index.js";
+import {
+  acceptanceCriteriaKeyOf,
+  criteriaCount,
+  emergentKeyOf,
+  invalidStatuses,
+  isEmergent,
+} from "../model/index.js";
 import type { Validity, View } from "../variants/index.js";
 import { validityOf } from "../variants/index.js";
 import type { EvidenceIndex } from "./by-element.js";
@@ -112,20 +124,186 @@ export const recordStatusOf = (
   return counted ? "outdated" : "open";
 };
 
+/** How many acceptance criteria of a requirement are verified (`$defs/criteriaCount`, SR-031 AK5). */
+export interface CriteriaCount {
+  readonly verified: number;
+  readonly total: number;
+  /** The numbers of the criteria that are not verified, ascending; left out when there is none. */
+  readonly notVerified?: readonly number[];
+}
+
+/** The verification status of an element from its own records, with its criteria counted (SR-031). */
+export interface OwnVerification {
+  readonly status: RecordVerificationStatus;
+  /** Left out for an element without acceptance criteria (AK7). */
+  readonly criteria?: CriteriaCount;
+}
+
+/** What the records counted for one criterion (or for all, `criteria` left out) say, before they are merged. */
+interface Tally {
+  /** The newest instant among the deciding records of the current version, -Infinity without one. */
+  newest: number;
+  /** Whether one of the records at `newest` failed. */
+  failed: boolean;
+  /** Whether a deciding record of the current version is among them. */
+  current: boolean;
+  /** Whether any record is among them. */
+  counted: boolean;
+}
+
+const tally = (): Tally => ({
+  newest: Number.NEGATIVE_INFINITY,
+  failed: false,
+  current: false,
+  counted: false,
+});
+
+/** Adds a verification record to `t`; `ofCurrent`: it is of the current version and decides. */
+const add = (t: Tally, record: EvidenceRecord, ofCurrent: boolean): void => {
+  t.counted = true;
+  if (!ofCurrent) {
+    return;
+  }
+  t.current = true;
+  const time = instantOf(record.date);
+  if (time > t.newest) {
+    t.newest = time;
+    t.failed = false;
+  }
+  t.failed ||= time === t.newest && record.result === "failed";
+};
+
+/** The status of one criterion from the records for all criteria and those naming it (AK1 to AK4, AK6). */
+const criterionStatus = (all: Tally, own: Tally | undefined): RecordVerificationStatus => {
+  if (all.current || own?.current === true) {
+    const newest = Math.max(all.newest, own?.newest ?? Number.NEGATIVE_INFINITY);
+    const failed =
+      (all.current && all.newest === newest && all.failed) || (own?.newest === newest && own.failed);
+    return failed ? "failed" : "verified";
+  }
+  return all.counted || own?.counted === true ? "outdated" : "open";
+};
+
 /**
- * The verification status of an element in `view` from its records (SR-031, see the file comment);
- * `independent`: its repository is marked `variant-independent` (SR-173).
+ * The verification status of an element with `count` acceptance criteria in `view` from its records
+ * (SR-031 AK1 to AK8, D-072; `independent`: its repository is marked `variant-independent`, SR-173).
+ * Without criteria (`count` 0) the newest record of the current version decides for the whole
+ * requirement, whatever criteria it names (AK7; spec answer to Q2 of the #963 plan). Otherwise a
+ * record that names no criterion counts for every one (AK6), one that names criteria for those it
+ * names up to `count` (a larger number counts for no criterion, #960), and each criterion gets the
+ * status of its records by the rule of `recordStatusOf`. Whether the requirement has records at all
+ * and whether one is of the current version is judged over all its counted records, whatever they
+ * name (plan review B1). The first that holds: a criterion failed gives `failed` (AK3); all verified
+ * give `verified` (AK2); no record gives `open` (AK1); no record of the current version gives
+ * `outdated` (AK4); a criterion without record gives `open` (AK5, D-072); else some are only of older
+ * versions: `outdated` (AK8). One pass over the records, then one over the criteria.
+ */
+export const ownVerificationOf = (
+  records: readonly EvidenceRecord[],
+  current: VersionForms | undefined,
+  view: View,
+  independent: boolean,
+  count: number,
+): OwnVerification => {
+  if (count === 0) {
+    const status = recordStatusOf(records, "verification", current, view, independent);
+    // `recordStatusOf` gives `inconclusive` for validation records only (see the file comment).
+    return { status: status === "passed" ? "verified" : (status as RecordVerificationStatus) };
+  }
+  const tallies = talliesOf(records, current, view, independent, count);
+  const statuses = Array.from({ length: count }, (_, i) =>
+    criterionStatus(tallies.all, tallies.named.get(i + 1)),
+  );
+  const notVerified = statuses.flatMap((s, i) => (s === "verified" ? [] : [i + 1]));
+  return {
+    status: combined(statuses, notVerified.length === 0, tallies),
+    criteria: {
+      verified: count - notVerified.length,
+      total: count,
+      ...(notVerified.length === 0 ? {} : { notVerified }),
+    },
+  };
+};
+
+/** The tallies of the verification records of an element in a view (`ownVerificationOf`). */
+interface Tallies {
+  /** The records that name no criterion. */
+  readonly all: Tally;
+  /** The records that name a criterion, by its number up to the count. */
+  readonly named: ReadonlyMap<number, Tally>;
+  /** Whether any record counts, whatever it names. */
+  readonly counted: boolean;
+  /** Whether a deciding record of the current version counts, whatever it names. */
+  readonly ofCurrent: boolean;
+}
+
+/** One pass over `records` (`ownVerificationOf`). */
+const talliesOf = (
+  records: readonly EvidenceRecord[],
+  current: VersionForms | undefined,
+  view: View,
+  independent: boolean,
+  count: number,
+): Tallies => {
+  const all = tally();
+  const named = new Map<number, Tally>();
+  let counted = false;
+  let ofCurrent = false;
+  for (const record of records) {
+    if (record.kind !== "verification" || !holdsIn(record, view, independent)) {
+      continue;
+    }
+    const deciding = ofVersion(record, "verification", current);
+    counted = true;
+    ofCurrent ||= deciding;
+    if (record.criteria === undefined) {
+      add(all, record, deciding);
+      continue;
+    }
+    for (const n of record.criteria) {
+      if (n <= count) {
+        const t = named.get(n) ?? tally();
+        named.set(n, t);
+        add(t, record, deciding);
+      }
+    }
+  }
+  return { all, named, counted, ofCurrent };
+};
+
+/** The status of the requirement from the statuses of its criteria (`ownVerificationOf`, the order of its comment). */
+const combined = (
+  statuses: readonly RecordVerificationStatus[],
+  allVerified: boolean,
+  { counted, ofCurrent }: Pick<Tallies, "counted" | "ofCurrent">,
+): RecordVerificationStatus => {
+  if (statuses.includes("failed")) {
+    return "failed";
+  }
+  if (allVerified) {
+    return "verified";
+  }
+  if (!counted) {
+    return "open";
+  }
+  if (!ofCurrent) {
+    return "outdated";
+  }
+  return statuses.includes("open") ? "open" : "outdated";
+};
+
+/**
+ * The verification status of an element in `view` from its records (SR-031, `ownVerificationOf`
+ * with `count` acceptance criteria, 0 when it has none); `independent`: its repository is marked
+ * `variant-independent` (SR-173).
  */
 export const verificationStatusOf = (
   records: readonly EvidenceRecord[],
   current: VersionForms | undefined,
   view: View,
   independent: boolean,
-): RecordVerificationStatus => {
-  const status = recordStatusOf(records, "verification", current, view, independent);
-  // `recordStatusOf` gives `inconclusive` for validation records only (see the file comment).
-  return status === "passed" ? "verified" : (status as RecordVerificationStatus);
-};
+  count = 0,
+): RecordVerificationStatus => ownVerificationOf(records, current, view, independent, count).status;
 
 const CORE: View = Object.freeze({ kind: "core" });
 
@@ -225,6 +403,11 @@ export interface StatusSource {
    * twins in two repositories may differ (SR-088).
    */
   readonly independent: (element: Pick<ElementRecord, "repository">) => boolean;
+  /**
+   * How many acceptance criteria the element holds (the property with the meaning
+   * `acceptance-criteria`, `criteriaCount`; D-072), 0 without such a property.
+   */
+  readonly criteriaOf: (element: Pick<ElementRecord, "data">) => number;
 }
 
 const NO_RECORDS: readonly EvidenceRecord[] = Object.freeze([]);
@@ -240,6 +423,7 @@ export const statusSource = (
   independent: ReadonlySet<string>,
 ): StatusSource => {
   const emergentKey = emergentKeyOf(metamodel);
+  const criteriaKey = acceptanceCriteriaKeyOf(metamodel);
   return {
     requirements: new Set(typesWithMeaning(metamodel, "requirement").map((t) => t.key)),
     needs: new Set(typesWithMeaning(metamodel, "need").map((t) => t.key)),
@@ -248,5 +432,6 @@ export const statusSource = (
     recordsOf: (id) => index?.byElement.get(id) ?? NO_RECORDS,
     emergent: (element) => isEmergent(element, emergentKey),
     independent: (element) => independent.has(element.repository),
+    criteriaOf: (element) => criteriaCount(element.data, criteriaKey),
   };
 };

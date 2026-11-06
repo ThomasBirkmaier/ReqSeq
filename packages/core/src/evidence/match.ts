@@ -29,7 +29,7 @@
 //   (SR-088) and a known current version, while the metamodel is valid. A warning, as
 //   `evidence.unknown-element`: the record stays readable, only that number counts for nothing
 //   (plan of #960, assumption). A type without that property has no criteria, so every number is
-//   unknown. For the current version the count is that of the element file (`evidenceProblemsState`);
+//   unknown; such a record counts for the whole requirement (SR-031 AK7, plan of #963 Q2). For the current version the count is that of the element file (`evidenceProblemsState`);
 //   for an older one it is that of the commit that started that version, through the walk of the
 //   version dates (`model/version-date.ts`), asked per call by `workspace.check`
 //   (`olderCriterionProblems`, since Git changes without a file change); without Git, or when Git
@@ -208,7 +208,8 @@ export const unknownCriterionProblem = (
   return {
     code: "evidence.unknown-criterion",
     severity: "warning",
-    message: `The ${record.kind} record names acceptance ${numbers} of element ${record.element}, whose version ${record.version} has ${String(count)}; ${unknown.length === 1 ? "it counts" : "they count"} for no criterion`,
+    // Without criteria the record counts for the whole requirement (SR-031 AK7), else the number counts for none.
+    message: `The ${record.kind} record names acceptance ${numbers} of element ${record.element}, whose version ${record.version} has ${String(count)}; ${count === 0 ? "the record counts for the whole requirement" : `${unknown.length === 1 ? "it counts" : "they count"} for no criterion`}`,
     ...recordPlace(record),
     ...(line === undefined ? {} : { line }),
     targetId: record.element,

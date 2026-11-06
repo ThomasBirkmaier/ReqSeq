@@ -315,7 +315,7 @@ describe("SR-028 findings of the evidence records", () => {
           .filter((p) => p.code === "evidence.unknown-criterion")
           .map((p) => p.message),
       ).toEqual([
-        `The verification record names acceptance criterion 1 of element ${A}, whose version n1:de6d3ed288b0f3de has 0; it counts for no criterion`,
+        `The verification record names acceptance criterion 1 of element ${A}, whose version n1:de6d3ed288b0f3de has 0; the record counts for the whole requirement`,
       ]);
       const invalid = await open({
         [metamodel]: `${model}\nunknown-key: 1\n`,
@@ -369,7 +369,7 @@ describe("SR-028 findings of the evidence records", () => {
       expect(current === undefined ? undefined : unknownCriterionProblem(current, 0)).toEqual({
         code: "evidence.unknown-criterion",
         severity: "warning",
-        message: `The verification record names acceptance criterion 1 of element ${A}, whose version ${forms.n2} has 0; it counts for no criterion`,
+        message: `The verification record names acceptance criterion 1 of element ${A}, whose version ${forms.n2} has 0; the record counts for the whole requirement`,
         targetId: A,
         targetRepository: "system",
       });

@@ -41,6 +41,7 @@ const SOURCE: StatusSource = {
   recordsOf: () => [],
   emergent: () => false,
   independent: () => false,
+  criteriaOf: () => 0,
 };
 
 /**

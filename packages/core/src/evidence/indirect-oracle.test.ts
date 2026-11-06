@@ -25,11 +25,12 @@ import { childRulesOf, ruleScope, validityScope, verificationEvaluator } from ".
 import type { EvidenceRecord } from "./record.js";
 import { holdsIn } from "./holds.js";
 import type { StatusSource } from "./status.js";
-import { statusSource, verificationStatusOf } from "./status.js";
+import { ownVerificationOf, statusSource, verificationStatusOf } from "./status.js";
 import { workspaceStatusOf } from "./verification.js";
 
 // ---- The reference: evidence/indirect.ts before #698, verbatim from here to the end marker, but for
-// the mark of the element's repository (SR-173), which `holdsIn` and the status take. ----
+// the mark of the element's repository (SR-173), which `holdsIn` and the status take, and the
+// acceptance criteria (SR-031, #963), which the status of own records counts. ----
 
 /** Whether `element` has a verification record that holds in `view` (rule 1). */
 const referenceHasOwn = (source: StatusSource, element: ElementRecord, view: View): boolean =>
@@ -93,7 +94,13 @@ const referenceEvaluator = (
   /** The status of a counted child, once its walk is done; one being computed counts as open (rule 6). */
   const childStatus = (child: ElementRecord, view: View, memo: ReadonlyMap<string, VerificationResult>) =>
     referenceHasOwn(source, child, view)
-      ? verificationStatusOf(source.recordsOf(child.id), currentOf(child), view, source.independent(child))
+      ? verificationStatusOf(
+          source.recordsOf(child.id),
+          currentOf(child),
+          view,
+          source.independent(child),
+          source.criteriaOf(child),
+        )
       : (memo.get(nodeKey(child))?.status ?? "open");
 
   const fromChildren = (
@@ -154,14 +161,13 @@ const referenceEvaluator = (
     }
     if (referenceHasOwn(source, element, view)) {
       const current = shown === undefined ? currentOf(element) : shown.current;
-      return {
-        status: verificationStatusOf(
-          source.recordsOf(element.id),
-          current,
-          view,
-          source.independent(element),
-        ),
-      };
+      return ownVerificationOf(
+        source.recordsOf(element.id),
+        current,
+        view,
+        source.independent(element),
+        source.criteriaOf(element),
+      );
     }
     return derived(element, view);
   };
@@ -329,6 +335,7 @@ const generate = (seed: number): Generated => {
     // Variant-independent repositories (SR-173) by seed: none, `other`, `system` or both, so twins
     // in two repositories may differ.
     independent: (e) => (e.repository === "other" ? seed % 2 === 0 : seed % 3 === 0),
+    criteriaOf: () => 0,
   };
   const views: View[] = [
     CORE,
@@ -580,6 +587,7 @@ describe("the work the shared views save (#698)", () => {
       recordsOf: (id) => index.byElement.get(id) ?? [],
       emergent: () => false,
       independent: () => false,
+      criteriaOf: () => 0,
     };
     const rules: ChildRules = { childrenOf: (e) => children.get(e) ?? [], counts: () => true };
     const views: View[] = [CORE, ...variants.map((variant): View => ({ kind: "variant", variant }))];

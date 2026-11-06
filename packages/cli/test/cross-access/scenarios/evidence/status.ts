@@ -1,8 +1,9 @@
 // Cross-access scenarios of evidence.status, in addition to the default one (cross-access.test.ts).
 import type { FixtureOptions } from "@reqseq/testkit";
 import { expect } from "vitest";
+import type { Scenario } from "../../scenario.js";
 import { scenariosOf } from "../../scenario.js";
-import { EMERGENT, EVIDENCE, FILTER, VARIANT_EVIDENCE } from "../../fixtures.js";
+import { CRITERIA, EMERGENT, EVIDENCE, FILTER, VARIANT_EVIDENCE } from "../../fixtures.js";
 
 /** Parents verified indirectly through Markdown records of their children, missing children (SR-034). */
 const INDIRECT: FixtureOptions = { fixture: "SR-034/indirect", git: true };
@@ -15,6 +16,12 @@ const VALIDATION: FixtureOptions = { fixture: "SR-038/validation", git: true };
 
 /** Needs with inconclusive validation records: current, decided by a newer one, older version, without reason (SR-172). */
 const INCONCLUSIVE: FixtureOptions = { fixture: "SR-172/inconclusive", git: true };
+
+/** The `verification` of each element of the core access's output. */
+const verificationOf = (results: Parameters<NonNullable<Scenario["check"]>>[0]): unknown[] =>
+  (
+    results["core"]?.outcome as { output: { elements: readonly Record<string, unknown>[] } }
+  ).output.elements.map((e) => e["verification"]);
 
 scenariosOf("evidence.status", [
   {
@@ -49,6 +56,68 @@ scenariosOf("evidence.status", [
     fixture: FILTER,
     input: { selection: { where: { verification: ["open"] }, view: "VAR-0000c1" }, limit: 3, offset: 1 },
     expect: "output",
+  },
+  {
+    name: "the status per acceptance criterion: open with 2 of 3 criteria verified (SR-031 AK5)",
+    fixture: CRITERIA,
+    input: {},
+    tag: "[SR-031/AK5]",
+    expect: "output",
+    check: (results) => {
+      const { elements } = (
+        results["core"]?.outcome as { output: { elements: readonly Record<string, unknown>[] } }
+      ).output;
+      expect(elements.map((e) => [e["shortId"], e["verification"]])).toEqual([
+        [
+          "SR-0000e1",
+          [{ view: "core", status: "open", criteria: { verified: 2, total: 3, notVerified: [3] } }],
+        ],
+        ["SR-0000e2", [{ view: "core", status: "verified", criteria: { verified: 2, total: 2 } }]],
+        [
+          "SR-0000e3",
+          [{ view: "core", status: "outdated", criteria: { verified: 2, total: 3, notVerified: [3] } }],
+        ],
+        [
+          "SR-0000e4",
+          [{ view: "core", status: "failed", criteria: { verified: 1, total: 2, notVerified: [2] } }],
+        ],
+        ["SR-0000e5", [{ view: "core", status: "verified" }]],
+      ]);
+    },
+  },
+  {
+    name: "a record that names no criterion counts for every criterion (SR-031 AK6)",
+    fixture: CRITERIA,
+    input: { selection: { ids: ["SR-0000e2"] } },
+    tag: "[SR-031/AK6]",
+    expect: "output",
+    check: (results) => {
+      expect(verificationOf(results)).toEqual([
+        [{ view: "core", status: "verified", criteria: { verified: 2, total: 2 } }],
+      ]);
+    },
+  },
+  {
+    name: "a requirement without criteria takes the newest record for the whole requirement (SR-031 AK7)",
+    fixture: CRITERIA,
+    input: { selection: { ids: ["SR-0000e5"] } },
+    tag: "[SR-031/AK7]",
+    expect: "output",
+    check: (results) => {
+      expect(verificationOf(results)).toEqual([[{ view: "core", status: "verified" }]]);
+    },
+  },
+  {
+    name: "a criterion with records of an older version only, the others verified, gives outdated (SR-031 AK8)",
+    fixture: CRITERIA,
+    input: { selection: { ids: ["SR-0000e3"] } },
+    tag: "[SR-031/AK8]",
+    expect: "output",
+    check: (results) => {
+      expect(verificationOf(results)).toEqual([
+        [{ view: "core", status: "outdated", criteria: { verified: 2, total: 3, notVerified: [3] } }],
+      ]);
+    },
   },
   {
     name: "indirect verification and missing children (SR-034)",

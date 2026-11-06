@@ -1,7 +1,7 @@
 // Cross-access scenarios of evidence.degree, in addition to the default one (cross-access.test.ts).
 import { expect } from "vitest";
 import { scenariosOf } from "../../scenario.js";
-import { DEGREE, EVIDENCE, STATUS } from "../../fixtures.js";
+import { CRITERIA, DEGREE, EVIDENCE, STATUS } from "../../fixtures.js";
 
 scenariosOf("evidence.degree", [
   {
@@ -47,6 +47,19 @@ scenariosOf("evidence.degree", [
     fixture: DEGREE,
     input: { selection: { package: "PKG-ffffff" } },
     expect: "error",
+  },
+  {
+    name: "requirements whose records name acceptance criteria count with their status per criterion (SR-031, SR-037)",
+    fixture: CRITERIA,
+    input: {},
+    expect: "output",
+    check: (results) => {
+      expect((results["core"]?.outcome as { output: { degree: unknown } }).output.degree).toEqual({
+        share: 0.4,
+        total: 5,
+        counts: { open: 1, verified: 2, indirect: 0, failed: 1, outdated: 1 },
+      });
+    },
   },
   {
     name: "a workspace with an evidence location (#535)",

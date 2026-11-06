@@ -28,6 +28,7 @@ import { viewIdOf } from "./degree.js";
 import type { TestCase } from "./record.js";
 import type { StatusSource } from "./status.js";
 import type { WorkspaceStatus } from "./verification.js";
+import { entryOf } from "./verification.js";
 import { verificationTestCasesIn } from "./views.js";
 
 type MatrixRow = TraceMatrixOutput["rows"][number];
@@ -129,15 +130,8 @@ export const matrixEvidence =
     if (result === undefined) {
       return NONE;
     }
-    const { missingChildren } = result;
     return {
       testCases: matrixTestCases(index, element.id, view, status.source.independent(element), current),
-      verification: [
-        {
-          view: viewIdOf(view),
-          status: result.status,
-          ...(missingChildren === undefined ? {} : { missingChildren: [...missingChildren] }),
-        },
-      ],
+      verification: [entryOf(viewIdOf(view), result)],
     };
   };
