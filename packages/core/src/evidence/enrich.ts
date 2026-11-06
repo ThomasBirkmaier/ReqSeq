@@ -12,10 +12,12 @@
 // - With a name pattern (`namePattern`, AK5, `name-pattern.ts`) the short IDs it finds in the name are
 //   name tokens of the form of a short ID too, so one that names no element or several is reported.
 // - Acceptance criteria (SR-029 AK10, D-072): a name token `[<ref>/AK<n>]` and a name pattern match
-//   whose `{ak}` is n (from 1; `AK0` and another suffix name none) give a `reqseq:criterion`
+//   whose `{ak}` is n (from 1, no leading zero) give a `reqseq:criterion`
 //   `<UUID>:<n>` for the element the reference names (`criterionRefsOf`). An element the name also
 //   names without a criterion (`[SR-x] [SR-x/AK2]`) gets none from the name: the test holds for all
-//   its criteria. A hand-written `reqseq:criterion` `<ref>:<n>` (short ID, UUID or identifier) is
+//   its criteria; another suffix (`/slow`) names the whole requirement too. A suffix `AK` that is no
+//   such number (`AK0`, `AK02`, `AK`, `AK2a`), and `{ak}` that is none, leave the test case unchanged
+//   as `evidence.invalid-record`: enriched without it, it would hold for every criterion. A hand-written `reqseq:criterion` `<ref>:<n>` (short ID, UUID or identifier) is
 //   kept, with its reference replaced by the UUID in place; the criteria of the name that no property
 //   names yet are appended, each once. One that is malformed, or names no element of the test case,
 //   leaves the test case unchanged and is `evidence.invalid-record`. The read-back compares the
@@ -458,23 +460,31 @@ const handCriterion = (
 
 /**
  * The criteria the name of a test case gives for the elements `elements` (`criterionRefsOf`), in name
- * order, without those of an element the name also names without a criterion (all of them).
+ * order, without those of an element the name also names without a criterion (all of them); or why
+ * it is not enriched: a malformed criterion of one of them.
  */
 const nameCriteria = (
   testCase: JunitTestCase,
   elements: ReadonlySet<string>,
   options: EnrichOptions,
-): [string, number][] => {
+): [string, number][] | { readonly error: string } => {
   const found: [string, number][] = [];
   const whole = new Set<string>();
-  for (const { ref, criterion } of criterionRefsOf(testCase.name, options.namePattern)) {
+  for (const { ref, criterion, malformed } of criterionRefsOf(testCase.name, options.namePattern)) {
     const resolution = ref === "" ? undefined : options.resolve(ref);
-    if (resolution?.kind === "found" && elements.has(resolution.id)) {
-      if (criterion === undefined) {
-        whole.add(resolution.id);
-      } else {
-        found.push([resolution.id, criterion]);
-      }
+    if (resolution?.kind !== "found" || !elements.has(resolution.id)) {
+      continue;
+    }
+    if (malformed !== undefined) {
+      // Enriched without it, the test case would hold for every criterion of the element (D-072).
+      return {
+        error: `"${shown(malformed)}" names no acceptance criterion: write AK and a number from 1 without leading zero`,
+      };
+    }
+    if (criterion === undefined) {
+      whole.add(resolution.id);
+    } else {
+      found.push([resolution.id, criterion]);
     }
   }
   return found.filter(([id]) => !whole.has(id));
@@ -512,9 +522,11 @@ const criteriaPlanOf = (
     }
     put(hand.id, hand.n);
   }
-  const add = nameCriteria(testCase, elements, options).flatMap(([id, n]) =>
-    put(id, n) ? [`${id}:${String(n)}`] : [],
-  );
+  const fromName = nameCriteria(testCase, elements, options);
+  if ("error" in fromName) {
+    return fromName;
+  }
+  const add = fromName.flatMap(([id, n]) => (put(id, n) ? [`${id}:${String(n)}`] : []));
   return { rewrite, add, text: criteriaText(numbers) };
 };
 

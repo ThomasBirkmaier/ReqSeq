@@ -104,12 +104,12 @@ describe("nameMatcher (SR-029 AK5)", () => {
     expect(matches("{prefix}_{id}_ak{ak}", "sr_348143_ak")).toEqual([]);
   });
 
-  it("gives the value of {ak} from 1 as the criterion of each match (SR-029 AK10)", () => {
+  it("gives the digits of {ak} as written with each match (SR-029 AK10)", () => {
     const found = nameMatcher(parseNamePattern("{prefix}_{id}_ak{ak}"), PREFIXES);
     expect(found("sr_348143_ak2 sr_348143_ak03 sr_348143_ak0")).toEqual([
-      { shortId: "SR-348143", matched: "sr_348143_ak2", criterion: 2 },
-      { shortId: "SR-348143", matched: "sr_348143_ak03", criterion: 3 },
-      { shortId: "SR-348143", matched: "sr_348143_ak0" },
+      { shortId: "SR-348143", matched: "sr_348143_ak2", ak: "2" },
+      { shortId: "SR-348143", matched: "sr_348143_ak03", ak: "03" },
+      { shortId: "SR-348143", matched: "sr_348143_ak0", ak: "0" },
     ]);
     expect(nameMatcher(parseNamePattern("{prefix}_{id}"), PREFIXES)("sr_348143")).toEqual([
       { shortId: "SR-348143", matched: "sr_348143" },

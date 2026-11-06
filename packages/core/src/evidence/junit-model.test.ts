@@ -1,7 +1,8 @@
 import fs from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { JunitFile, JunitTestCase } from "./junit-model.js";
-import { elementRefsOf, junitTestCases } from "./junit-model.js";
+import { criterionRefsOf, elementRefsOf, junitTestCases } from "./junit-model.js";
+import { nameMatcher, parseNamePattern } from "./name-pattern.js";
 
 const utf8 = (text: string): Uint8Array => new TextEncoder().encode(text);
 
@@ -408,5 +409,23 @@ describe("elementRefsOf", () => {
     expect(elementRefsOf(testCase("t[] [ ] [/AK1] [a[SR-a1b2c3]] b]"))).toEqual([
       { text: "SR-a1b2c3", kind: "shortId", source: "name", glued: true },
     ]);
+  });
+});
+
+describe("criterionRefsOf (SR-029 AK10)", () => {
+  it("gives each reference of the name with its criterion, malformed text, or neither", () => {
+    expect(criterionRefsOf("[SR-a1b2c3/AK2] [ SR-a1b2c3 ] [SR-a1b2c3/AK0] [SR-a1b2c3/slow]")).toEqual([
+      { ref: "SR-a1b2c3", criterion: 2 },
+      { ref: "SR-a1b2c3" },
+      { ref: "SR-a1b2c3", malformed: "[SR-a1b2c3/AK0]" },
+      { ref: "SR-a1b2c3" },
+    ]);
+    const withAk = nameMatcher(parseNamePattern("{prefix}_{id}_ak{ak}"), ["SR"]);
+    expect(criterionRefsOf("sr_a1b2c3_ak3 sr_a1b2c3_ak03", withAk)).toEqual([
+      { ref: "SR-a1b2c3", criterion: 3 },
+      { ref: "SR-a1b2c3", malformed: "sr_a1b2c3_ak03" },
+    ]);
+    const withoutAk = nameMatcher(parseNamePattern("{prefix}_{id}"), ["SR"]);
+    expect(criterionRefsOf("sr_a1b2c3", withoutAk)).toEqual([{ ref: "SR-a1b2c3" }]);
   });
 });
