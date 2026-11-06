@@ -1,7 +1,8 @@
 # SR-030 record: manual verification and validation records written by `evidence.record`
 
 One repository `system` with the standard model and two evidence locations (SR-028): `evidence` and
-`reviews` (empty, `.gitkeep`). No variants. UUIDs `30303030-3030-4030-8030-00000000xxxx`; short IDs
+`reviews` (empty, `.gitkeep`). No variants. `acceptance-criteria` has the meaning `acceptance-criteria`
+(SR-030 AK4): S1 and S2 have one criterion each. UUIDs `30303030-3030-4030-8030-00000000xxxx`; short IDs
 are the last six hex digits (`N-00a001`). The versions are those of `reqseq element get <id> --json`;
 regenerate the record of S1 when an element file changes.
 

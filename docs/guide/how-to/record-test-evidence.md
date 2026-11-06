@@ -133,6 +133,12 @@ For a check that is no automated test, such as an inspection, write a record by 
 reqseq evidence record SR-c67baa verification passed --method inspection --item build-1
 ```
 
+When the check proves only some acceptance criteria, give their numbers, counted from 1; without `--criteria` the record holds for all of them:
+
+```sh
+reqseq evidence record SR-c67baa verification passed --method inspection --item build-1 --criteria 2 --criteria 3
+```
+
 A validation that cannot be judged yet is recorded as `inconclusive`, with the reason, which `evidence status` and `element get` then show:
 
 ```sh

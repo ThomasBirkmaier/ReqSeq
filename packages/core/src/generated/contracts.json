@@ -7604,7 +7604,7 @@
       {
         "name": "evidence.record",
         "title": "Record evidence",
-        "summary": "Write a manual verification or validation record (Markdown, evidence-record.schema.json) into an evidence folder of the workspace; the element's UUID and current version are filled in. A verification names a requirement, a validation a need or a requirement. Never replaces a file: a name that is taken gets -2, -3, ...",
+        "summary": "Write a manual verification or validation record (Markdown, evidence-record.schema.json) into an evidence folder of the workspace; the element's UUID and current version are filled in. A verification names a requirement and optionally the acceptance criteria it proves, a validation a need or a requirement. Never replaces a file: a name that is taken gets -2, -3, ...",
         "effect": "write-files",
         "whileReadOnly": "refuse",
         "whileReadOnlyReason": "Fills in the current version of the element, which depends on the metamodel (which properties count).",
@@ -7650,6 +7650,10 @@
           {
             "field": "testCase",
             "complete": "text"
+          },
+          {
+            "field": "criteria",
+            "complete": "number"
           },
           {
             "field": "reason",
@@ -7715,6 +7719,16 @@
             "testCase": {
               "type": "string",
               "description": "Optional test case name or ID (`test-case` in the file)."
+            },
+            "criteria": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "minItems": 1,
+              "uniqueItems": true,
+              "description": "The acceptance criteria the record holds for, by number: the position in the property with the meaning `acceptance-criteria` of the element's current version, counted from 1. Written in ascending order as `criteria` of the file. Absent: the record holds for every criterion. Verification only: with `kind` validation it is `input.invalid` with `details.reason` `validation-with-criteria`, because a validation counts per element. A number the current version does not have is written and gives the warning `evidence.unknown-criterion` in `problems`."
             },
             "folder": {
               "type": "string",

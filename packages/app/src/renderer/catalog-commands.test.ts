@@ -836,6 +836,27 @@ describe("catalog commands in the command prompt", () => {
     });
   });
 
+  it("[SR-030/AK4] Record evidence takes the numbers of acceptance criteria one per Enter and passes them to core", async () => {
+    const { context, asked, call } = sources();
+    start(context, "evidence.record", true);
+    await pick(asked);
+    await pick(asked, "verification");
+    await pick(asked, "passed", true);
+    await pick(asked, "criteria");
+    expect((await last(asked)).label).toMatch(/ · criteria:$/);
+    await answer(asked, "3");
+    await answer(asked, "1");
+    (await last(asked)).empty?.(true);
+    await pick(asked, "Run");
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("evidence.record", {
+      ref: "uuid-1",
+      kind: "verification",
+      result: "passed",
+      criteria: [3, 1],
+    });
+  });
+
   it("offers the inline enum of a choice, also of a list field", async () => {
     const { context, asked } = sources();
     catalogItems(context, [numbers], [])[0]?.more?.();
