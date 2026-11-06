@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { listBuffer, bufferName, withGroup, withMatrix, keepGroup, filteredList, NO_ROW } from "./buffers.js";
+import { listBuffer, bufferName, withGroup, withMatrix, withQuery, filteredList, NO_ROW } from "./buffers.js";
 import { groupCount, groupName, groupSections } from "./list-groups.js";
 
 describe("the groups of a list (SR-149)", () => {
@@ -42,8 +42,9 @@ describe("the groups of a list (SR-149)", () => {
     expect(grouped).toEqual({ ...list, group: "topic", cursor: NO_ROW });
     expect(bufferName(grouped)).toBe("All elements · sorted by title · grouped by topic");
     expect(withGroup(grouped, undefined)).toEqual({ ...list, cursor: NO_ROW });
-    expect(keepGroup(grouped, filteredList([]))).toEqual({ ...filteredList([]), group: "topic" });
-    expect(keepGroup(list, filteredList([]))).toEqual(filteredList([]));
+    // Other steps or another sort keep the grouping.
+    expect(withQuery(grouped, { steps: [] })).toEqual({ ...filteredList([], sort), group: "topic" });
+    expect(withQuery(grouped, { sort: [] })).toEqual({ ...list, sort: [], group: "topic", cursor: NO_ROW });
   });
 
   it("enters the matrix without the grouping and from the first row, since the matrix shows no groups", () => {

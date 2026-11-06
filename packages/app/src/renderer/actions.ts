@@ -6,39 +6,31 @@
 //
 // The prompt finds the app's actions and the catalog's read commands (`catalog-commands.ts`, #85); an
 // action that does what a command does covers it, so the prompt lists it once.
-import type { DataExportElement, ElementSelection, FilterSortKeyWithDefaults } from "@reqseq/core";
+import type { DataExportElement, ElementSelection } from "@reqseq/core";
 import type {
   Buffer,
   BufferAction,
   Buffers,
   ElementBuffer,
-  FilterStep,
   GraphBuffer,
-  ListBuffer,
   MetamodelBuffer,
   ResultBuffer,
 } from "./buffers.js";
 import {
-  DEFAULT_SORT,
   bufferName,
   elementBuffer,
-  filteredList,
   graphBuffer,
-  keepGroup,
-  listBuffer,
   metamodelBuffer,
   neighbourhoodBuffer,
   onlyOverview,
   overviewBuffer,
   searchBuffer,
-  withGroup,
-  withMatrix,
 } from "./buffers.js";
-import type { Answer, Call } from "./call.js";
+import type { Call } from "./call.js";
 import { bindingLabel } from "./bindings.js";
 import type { ReferenceRequest } from "./editor/slash-menu.js";
 import { idTitle } from "./id-title.js";
-import { groupChoices } from "./list-groups.js";
+import { LIST_ACTIONS, MATRIX_SHORTCUT, choice } from "./list-actions.js";
 import { linesOf, resultText } from "./result-copy.js";
 import type { Shortcut } from "./keys.js";
 import { shortcutLabel } from "./keys.js";
@@ -52,15 +44,6 @@ import {
   onlyChoices,
 } from "./graph-choices.js";
 import { cycleKey } from "./buffer-cycle.js";
-import {
-  hasSavedFilter,
-  propertyChoices,
-  savedStep,
-  statusStep,
-  textStep,
-  typeStep,
-} from "./list-filters.js";
-import { memberSelection, packageSelection } from "./package-page.js";
 import { searchRows } from "./rows.js";
 import type { Row } from "./rows.js";
 import type { Theme } from "./theme.js";
@@ -295,9 +278,6 @@ const NEIGHBOURHOOD_SHORTCUT: Shortcut = { mod: true, shift: false, key: "j" };
  */
 export const GRAPH_SHORTCUT: Shortcut = { mod: true, shift: true, key: "g" };
 
-/** Ctrl/Cmd+T shows the list as a traceability matrix (SR-125), and the matrix as a list again. */
-const MATRIX_SHORTCUT: Shortcut = { mod: true, shift: false, key: "t" };
-
 /**
  * Ctrl/Cmd+T also shows the metamodel as text, and the text as a graph again (SR-130 AK4): the key that
  * switches the representation of the shown buffer. Never available together with the matrix actions.
@@ -331,78 +311,9 @@ export const OTHER_WINDOW_SHORTCUT: Shortcut = { mod: false, shift: false, alt: 
  */
 export const FOLLOW_SHORTCUT: Shortcut = { mod: true, shift: true, key: "o" };
 
-const currentList = (context: ActionContext): ListBuffer | undefined => {
-  const current = context.buffers[0];
-  return current?.kind === "list" ? current : undefined;
-};
-
-const isList = (context: ActionContext): boolean => currentList(context) !== undefined;
-const isMatrix = (context: ActionContext): boolean => currentList(context)?.matrix === true;
-const isFiltered = (context: ActionContext): boolean => (filtered(context)?.steps.length ?? 0) > 0;
-const isChained = (context: ActionContext): boolean => (filtered(context)?.steps.length ?? 0) > 1;
-const canFilter = (context: ActionContext): boolean => filtered(context) !== undefined;
 const isElement = (context: ActionContext): boolean => context.buffers[0]?.kind === "element";
 const isNeighbourhood = (context: ActionContext): boolean => context.buffers[0]?.kind === "neighbourhood";
 const isGraph = (context: ActionContext): boolean => context.buffers[0]?.kind === "graph";
-/** The shown element buffer when it is a package page (SR-112); its elements are a list that sorts like any list. */
-export const packagePage = (context: ActionContext): ElementBuffer | undefined => {
-  const shown = context.buffers[0];
-  return shown?.kind === "element" && context.element?.members === true ? shown : undefined;
-};
-
-/**
- * What the filter commands act on (SR-124): the shown list, or the elements of the shown package page
- * (SR-112 AK2). `selection` is what the steps select (on a page with the package), the input of
- * `element.facets`; `apply` shows the same list or page with other steps, in its sort.
- */
-interface Filtered {
-  readonly steps: readonly FilterStep[];
-  readonly selection: ElementSelection | undefined;
-  readonly apply: (steps: readonly FilterStep[]) => void;
-}
-
-const filtered = (context: ActionContext): Filtered | undefined => {
-  const list = currentList(context);
-  if (list !== undefined) {
-    return {
-      steps: list.steps,
-      selection: list.selection,
-      apply: (steps) => {
-        context.dispatch({
-          type: "open",
-          buffer: keepGroup(list, filteredList(steps, list.sort, list.matrix === true)),
-        });
-      },
-    };
-  }
-  const page = packagePage(context);
-  if (page === undefined) {
-    return undefined;
-  }
-  const steps = page.memberSteps ?? [];
-  return {
-    steps,
-    selection: memberSelection(page.id, steps),
-    apply: (next) => {
-      // The page stays the element buffer (editor and draft included), as with "Sort list".
-      const { memberSteps: _before, ...rest } = page;
-      context.dispatch({
-        type: "open",
-        buffer: { ...rest, ...(next.length === 0 ? {} : { memberSteps: next }), memberCursor: 0 },
-      });
-    },
-  };
-};
-
-/** A filter action on the shown list or package page; without one it does nothing. */
-const onFiltered =
-  (run: (context: ActionContext, target: Filtered) => void) =>
-  (context: ActionContext): void => {
-    const target = filtered(context);
-    if (target !== undefined) {
-      run(context, target);
-    }
-  };
 const hasWorkspace = (context: ActionContext): boolean => context.workspace;
 /** There is another buffer to switch to (SR-115 AK5: „mehrere geöffnete Buffer“). */
 const hasOthers = (context: ActionContext): boolean => context.buffers.length > 1;
@@ -417,16 +328,6 @@ const shownResult = (context: ActionContext): ResultBuffer | undefined => {
 };
 const hasElementText = (context: ActionContext): boolean =>
   isElement(context) && context.element !== undefined;
-/** An action on the shown list; without one it does nothing. */
-const onList =
-  (run: (context: ActionContext, list: ListBuffer) => void) =>
-  (context: ActionContext): void => {
-    const list = currentList(context);
-    if (list !== undefined) {
-      run(context, list);
-    }
-  };
-
 /** Shows the buffer: the open one with its key (its text and rows kept), else `buffer`, a new one. */
 /** The shown buffer when it is the metamodel in `mode`. */
 const metamodelIn = (context: ActionContext, mode: MetamodelBuffer["mode"]): MetamodelBuffer | undefined => {
@@ -451,8 +352,6 @@ const showBuffer = (context: ActionContext, buffer: Buffer): void => {
       : { type: "open", buffer },
   );
 };
-
-const choice = (name: string, run: () => void): Choice => ({ id: name, name, run });
 
 /**
  * An action on the shown graph that asks with `label` for one of the entries `choices` gives: taking one
@@ -488,30 +387,6 @@ const graphPrompt =
       })),
     });
   };
-
-// "Type and ID" is the explicit default and "Workspace order" is `[]`, so a choice holds on a list with a
-// saved filter too (it does not fall back to the sort of the filter). "ID" is what the rows show.
-const SORTS: readonly (readonly [string, readonly FilterSortKeyWithDefaults[]])[] = [
-  ["Type and ID", DEFAULT_SORT],
-  ["Workspace order", []],
-  ["ID ascending", [{ by: "identifier", order: "asc" }]],
-  ["ID descending", [{ by: "identifier", order: "desc" }]],
-  ["Title ascending", [{ by: "title", order: "asc" }]],
-  ["Title descending", [{ by: "title", order: "desc" }]],
-  ["Type ascending", [{ by: "type", order: "asc" }]],
-  ["Type descending", [{ by: "type", order: "desc" }]],
-  ["Status ascending", [{ by: "status", order: "asc" }]],
-  ["Status descending", [{ by: "status", order: "desc" }]],
-  ["Hierarchy (tree)", [{ by: "hierarchy", order: "asc" }]],
-];
-
-/** The choices of the prompt "Sort by"; `apply` gets the sort of the one that is taken. */
-const sortChoices = (apply: (sort: readonly FilterSortKeyWithDefaults[]) => void): Choice[] =>
-  SORTS.map(([name, sort]) =>
-    choice(name, () => {
-      apply(sort);
-    }),
-  );
 
 /** What `findElements` takes besides what choosing a row does. */
 export interface FindOptions {
@@ -617,51 +492,6 @@ const searchPrompt = (context: ActionContext): Prompt => ({
   },
 });
 
-/** The names a filter can be chosen from, or why there are none. */
-type Names =
-  { readonly ok: true; readonly names: readonly string[] } | { readonly ok: false; readonly message: string };
-
-interface FilterBy {
-  readonly id: string;
-  readonly title: string;
-  /** The label of the prompt. */
-  readonly label: string;
-  readonly nothing: string;
-  /** Without it, whenever a list is shown. */
-  readonly available?: (context: ActionContext) => boolean;
-  readonly names: (call: Call, target: Filtered) => Promise<Names>;
-  readonly step: (name: string) => FilterStep;
-}
-
-/** The list or page with one more step, which keeps the sort. */
-const addStep = (target: Filtered, step: FilterStep): void => {
-  target.apply([...target.steps, step]);
-};
-
-const filterBy = (by: FilterBy): Action => ({
-  id: by.id,
-  title: by.title,
-  available: by.available ?? canFilter,
-  run: onFiltered((context, target) => {
-    void by.names(context.shownCall ?? context.call, target).then((found) => {
-      if (!found.ok) {
-        context.echo(found.message);
-      } else if (found.names.length === 0) {
-        context.echo(by.nothing);
-      } else {
-        context.ask({
-          label: by.label,
-          items: found.names.map((name) =>
-            choice(name, () => {
-              addStep(target, by.step(name));
-            }),
-          ),
-        });
-      }
-    });
-  }),
-});
-
 const plural = (count: number, word: string): string => `${String(count)} ${word}${count === 1 ? "" : "s"}`;
 
 /**
@@ -761,10 +591,6 @@ const cycleBuffer = (context: ActionContext, step: 1 | -1): void => {
   }
 };
 
-/** The facets of the shown list: what its elements have, from the core (`element.facets`). */
-const facetsOf = (call: Call, target: Filtered): Promise<Answer<"element.facets">> =>
-  call("element.facets", target.selection === undefined ? {} : { selection: target.selection });
-
 /** "All elements" ends a view; the window shows no view at the start. */
 const ALL_VIEWS = "All elements";
 
@@ -831,201 +657,7 @@ export const ACTIONS: readonly Action[] = [
       context.ask(searchPrompt(context));
     },
   },
-  {
-    id: "list-all",
-    title: "List all elements",
-    available: hasWorkspace,
-    run: (context: ActionContext): void => {
-      context.dispatch({
-        type: "open",
-        buffer: listBuffer("All elements", undefined, currentList(context)?.sort),
-      });
-    },
-  },
-  filterBy({
-    id: "filter-type",
-    title: "Filter list by type",
-    label: "Type",
-    nothing: "The metamodel has no types.",
-    names: async (call: Call): Promise<Names> => {
-      const answer = await call("metamodel.get", {});
-      return answer.ok ? { ok: true, names: answer.output.types.map((type) => type.key) } : answer;
-    },
-    step: typeStep,
-  }),
-  filterBy({
-    id: "filter-status",
-    title: "Filter list by status",
-    label: "Status",
-    nothing: "The elements of this list have no status.",
-    names: async (call: Call, target: Filtered): Promise<Names> => {
-      const answer = await facetsOf(call, target);
-      return answer.ok ? { ok: true, names: answer.output.statuses.map((status) => status.key) } : answer;
-    },
-    step: statusStep,
-  }),
-  {
-    id: "filter-property",
-    title: "Filter list by property",
-    available: canFilter,
-    run: onFiltered((context, target) => {
-      void facetsOf(context.shownCall ?? context.call, target).then((answer) => {
-        if (!answer.ok) {
-          context.echo(answer.message);
-          return;
-        }
-        const items = propertyChoices(
-          answer.output,
-          (step) => {
-            addStep(target, step);
-          },
-          context.ask,
-        );
-        if (items.length === 0) {
-          context.echo("No property of the elements in this list has values to choose from.");
-        } else {
-          context.ask({ label: "Property", items });
-        }
-      });
-    }),
-  },
-  {
-    id: "filter-text",
-    title: "Filter list by text search",
-    available: canFilter,
-    run: onFiltered((context, target) => {
-      context.ask({
-        label: "Text",
-        items: [],
-        text: (text) => {
-          const query = text.trim();
-          if (query !== "") {
-            addStep(target, textStep(query));
-          }
-        },
-      });
-    }),
-  },
-  filterBy({
-    id: "filter-saved",
-    title: "Filter list by saved filter",
-    label: "Filter",
-    nothing: "The workspace has no saved filters.",
-    available: (context) => {
-      const target = filtered(context);
-      return target !== undefined && !hasSavedFilter(target.steps);
-    },
-    names: async (call: Call): Promise<Names> => {
-      const answer = await call("filter.list", {});
-      return answer.ok ? { ok: true, names: answer.output.filters.map((filter) => filter.name) } : answer;
-    },
-    step: savedStep,
-  }),
-  {
-    id: "clear-filter",
-    title: "Clear list filter",
-    available: isFiltered,
-    run: onFiltered((_context, target) => {
-      target.apply(target.steps.slice(0, -1));
-    }),
-  },
-  {
-    id: "clear-filters",
-    title: "Clear all list filters",
-    available: isChained,
-    run: onFiltered((_context, target) => {
-      target.apply([]);
-    }),
-  },
-  {
-    id: "sort",
-    title: "Sort list",
-    available: (context: ActionContext): boolean => isList(context) || packagePage(context) !== undefined,
-    run: (context: ActionContext): void => {
-      const list = currentList(context);
-      const page = packagePage(context);
-      let apply: ((sort: readonly FilterSortKeyWithDefaults[]) => void) | undefined;
-      if (list !== undefined) {
-        apply = (sort) => {
-          context.dispatch({
-            type: "open",
-            buffer: keepGroup(list, filteredList(list.steps, sort, list.matrix === true)),
-          });
-        };
-      } else if (page !== undefined) {
-        // The package page stays the element buffer (editor and draft included): the same key replaces it.
-        apply = (sort) => {
-          context.dispatch({ type: "open", buffer: { ...page, memberSort: sort, memberCursor: 0 } });
-        };
-      }
-      if (apply !== undefined) {
-        context.ask({ label: "Sort by", items: sortChoices(apply) });
-      }
-    },
-  },
-  {
-    id: "group",
-    title: "Group list",
-    available: (context: ActionContext): boolean => isList(context) && !isMatrix(context),
-    run: onList((context, list) => {
-      const call = context.shownCall ?? context.call;
-      void Promise.all([
-        call("element.facets", list.selection === undefined ? {} : { selection: list.selection }),
-        call("metamodel.get", {}),
-      ]).then(([facets, metamodel]) => {
-        if (!facets.ok) {
-          context.echo(facets.message);
-          return;
-        }
-        const packages = metamodel.ok ? (metamodel.output.meanings["packages"] ?? []) : [];
-        context.ask({
-          label: "Group by",
-          items: groupChoices(facets.output, packages, (group) => {
-            context.dispatch({ type: "open", buffer: withGroup(list, group) });
-          }),
-        });
-      });
-    }),
-  },
-  {
-    id: "ungroup",
-    title: "Ungroup list",
-    available: (context: ActionContext): boolean =>
-      currentList(context)?.group !== undefined && !isMatrix(context),
-    run: onList((context, list) => {
-      context.dispatch({ type: "open", buffer: withGroup(list, undefined) });
-    }),
-  },
-  {
-    id: "matrix",
-    title: "Show traceability matrix",
-    shortcut: MATRIX_SHORTCUT,
-    available: (context: ActionContext): boolean =>
-      (isList(context) && !isMatrix(context)) || packagePage(context) !== undefined,
-    run: (context: ActionContext): void => {
-      const list = currentList(context);
-      const page = packagePage(context);
-      if (list !== undefined) {
-        context.dispatch({ type: "open", buffer: withMatrix(list, true) });
-      } else if (page !== undefined) {
-        // The members of the package as a list in matrix mode, in the sort of the page, as its list shows them.
-        const step = { label: `package: ${page.name}`, selection: packageSelection(page.id) };
-        context.dispatch({
-          type: "open",
-          buffer: filteredList([step, ...(page.memberSteps ?? [])], page.memberSort, true),
-        });
-      }
-    },
-  },
-  {
-    id: "matrix-list",
-    title: "Show as list",
-    shortcut: MATRIX_SHORTCUT,
-    available: isMatrix,
-    run: onList((context, list) => {
-      context.dispatch({ type: "open", buffer: withMatrix(list, false) });
-    }),
-  },
+  ...LIST_ACTIONS,
   {
     id: "close",
     title: "Close buffer",

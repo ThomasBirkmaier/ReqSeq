@@ -47,7 +47,8 @@
 import type { CommandTypes } from "@reqseq/core";
 import type { CommandListing } from "../shared/protocol.js";
 import type { Action, ActionContext, Choice, Prompt, PromptFill } from "./actions.js";
-import { findElements, packagePage } from "./actions.js";
+import { findElements } from "./actions.js";
+import { packagePage } from "./list-actions.js";
 import { bindingLabel } from "./bindings.js";
 import { coveringAction } from "./command-entry.js";
 import type { Buffer, ElementBuffer, NeighbourhoodBuffer } from "./buffers.js";
