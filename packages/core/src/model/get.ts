@@ -4,13 +4,13 @@
 //
 // Stage 1 gives what stage 1 has (catalog description of the output of element.get):
 // - text, properties, version (SR-091; left out with a `file.faulty` warning when a counted value
-//   has no normal form, #276), own relations with the target's short ID and title, also
+//   has no normal form, ThomasBirkmaier/ReqSeq-archive#276), own relations with the target's short ID and title, also
 //   across repositories (SR-005 AK2, SR-084), a target in a missing repository only by short ID
 //   (SR-006 AK1), a target whose UUID several files share as ambiguous (SR-088 AK2);
 // - the successors of a superseded element as incoming relations (SR-072 AK3, `successionsFor`);
 // - the hints of the element (SR-016, SR-085, SR-086, SR-072 AK2), and those of blocks that import
 //   the model (`ElementHints`: SR-040 AK3, the outdated relations of SR-026 AK3), none while the
-//   metamodel is not valid (#208, #220 option 1);
+//   metamodel is not valid (ThomasBirkmaier/ReqSeq-archive#208, ThomasBirkmaier/ReqSeq-archive#220 option 1);
 // - `readOnly`, always: true for an unknown type (SR-016 AK3), while the metamodel is not valid
 //   (SR-011 AK3) and when this process cannot write the root folder of the element's repository
 //   (`isWritableFolder`, like `workspace.status`; SR-018 AK2; unknown on Windows, then not set by it);
@@ -19,7 +19,7 @@
 //   ADR-0005 "Version date", `versionDates`), `null` for content no commit has and when Git cannot
 //   tell; without it no git runs and the field is left out (SR-082 AK3: opening stays fast);
 // - one copy of an element whose UUID several files share (SR-088), picked by the inputs `repository`
-//   and `file` among the candidates of `ref.ambiguous` (#255, `ElementCopy`).
+//   and `file` among the candidates of `ref.ambiguous` (ThomasBirkmaier/ReqSeq-archive#255, `ElementCopy`).
 // `verification` (SR-031, SR-034) and `validation` (SR-038) are added by `element.get` from the
 // evidence block, which imports the model, and the variants that replace or exclude the element
 // (SR-046 AK3) from the variants block. Left out until later stages: the other incoming relations.
@@ -52,7 +52,7 @@ import { elementVersions, elementView, titleKeyOf } from "./view.js";
  * The version date of `walk` when the caller asks for it (`withDate`): Git starts reading the
  * history at once, while the view is built, and the returned function gives the field for the
  * version the view computed. Without `withDate` no git runs and the field is left out; it is also
- * left out for an element without a version (a counted value without a normal form, #276).
+ * left out for an element without a version (a counted value without a normal form, ThomasBirkmaier/ReqSeq-archive#276).
  */
 const dateWhenAsked = async (
   context: VersionDateContext,
@@ -64,7 +64,7 @@ const dateWhenAsked = async (
   }
   await prepareVersionDates(context, [walk]);
   // One date per request. The history is read before the version is known; for an element
-  // without a version (#276) that read is not used and no date is given.
+  // without a version (ThomasBirkmaier/ReqSeq-archive#276) that read is not used and no date is given.
   return async (version) =>
     version === undefined
       ? {}
@@ -116,7 +116,7 @@ const formsShown = (version: string | undefined, compute: () => VersionForms): V
 
 /**
  * The element `ref` names (`resolveRef`: `ref.unknown`, `ref.ambiguous`), in the repository and file
- * of `copy` when given (#255), read from its file now.
+ * of `copy` when given (ThomasBirkmaier/ReqSeq-archive#255), read from its file now.
  * A file that changed since the store read it is shown as it is now, like a relation target is
  * stored (`currentTarget`). A file that is gone or no longer holds this element is `ref.unknown`,
  * and the element store is read again so the next call works on the files as they are; a file
@@ -130,7 +130,7 @@ export const showElement = async (
   extra: ElementHints,
   /** Whether to date the version from Git (`element.get` input `versionDate`). */
   withDate: boolean,
-  /** Which of the elements `ref` names (`element.get` inputs `repository` and `file`, #255). */
+  /** Which of the elements `ref` names (`element.get` inputs `repository` and `file`, ThomasBirkmaier/ReqSeq-archive#255). */
   copy: ElementCopy = {},
 ): Promise<ShownElement> => {
   const { workspace, layout, metamodel, store, shortIds } = context;
@@ -194,7 +194,7 @@ export const showElement = async (
     extraFindings: hints,
   });
   const problems: Problem[] = [...element.problems];
-  // A hint only against a valid metamodel, like the view's own (#208, #220 option 1).
+  // A hint only against a valid metamodel, like the view's own (ThomasBirkmaier/ReqSeq-archive#208, ThomasBirkmaier/ReqSeq-archive#220 option 1).
   if (metamodel.valid && titleKey === undefined) {
     problems.push({
       code: "metamodel.meaning-unassigned",
@@ -224,7 +224,7 @@ export const getElement = async (
   extra: ElementHints,
   /** Whether to date the version from Git (`element.get` input `versionDate`). */
   withDate: boolean,
-  /** Which of the elements `ref` names (`element.get` inputs `repository` and `file`, #255). */
+  /** Which of the elements `ref` names (`element.get` inputs `repository` and `file`, ThomasBirkmaier/ReqSeq-archive#255). */
   copy: ElementCopy = {},
 ): Promise<ShownElement> =>
   showElement(

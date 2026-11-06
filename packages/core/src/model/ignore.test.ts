@@ -63,7 +63,7 @@ describe("ignore globs", () => {
     expect(ignoreMatcher([])("docs")).toBe(false);
   });
 
-  it("compares patterns and paths in Unicode NFC, whatever normal form each is spelled in (#218)", () => {
+  it("compares patterns and paths in Unicode NFC, whatever normal form each is spelled in (ThomasBirkmaier/ReqSeq-archive#218)", () => {
     const nfc = `${String.fromCodePoint(0xdc)}bersicht`;
     const nfd = `U${String.fromCodePoint(0x308)}bersicht`;
     expect(nfc.normalize("NFD")).toBe(nfd);

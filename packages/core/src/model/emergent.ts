@@ -3,7 +3,7 @@
 // An element is emergent when that property holds the choice key `yes` (`EMERGENT_CHOICE`, shared with
 // the metamodel check of the meaning; files hold keys, D-043); `no`, no value, a display name, a list or
 // any other value is no mark, and without a property with the meaning, or with one that cannot hold the
-// mark (a warning of the metamodel), no element is emergent (assumption, spec question #591 Q1). The
+// mark (a warning of the metamodel), no element is emergent (assumption, spec question ThomasBirkmaier/ReqSeq-archive#591 Q1). The
 // output field `emergent` (`view.ts`), the filter condition `emergent` (`query/condition.ts`) and the
 // verification status (`evidence/indirect.ts`) all ask this one predicate.
 import type { Metamodel } from "../metamodel/index.js";

@@ -196,7 +196,7 @@ export const newRelations = async (
 
 /**
  * The `info` problem `relation.version-added` of a relation that had no valid version and got one
- * (as `relation.add` gives it, #302), with the path of the item in the file as written.
+ * (as `relation.add` gives it, ThomasBirkmaier/ReqSeq-archive#302), with the path of the item in the file as written.
  */
 export interface VersionAdded {
   readonly path: readonly [string, number];

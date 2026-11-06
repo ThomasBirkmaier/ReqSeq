@@ -25,9 +25,9 @@ Expected degree (core):
 
 - P1: total 10, open 2, verified 6, indirect 0, failed 1, outdated 1; share 0.6, shown `60 %` (AK1).
 - P2: total 5, open 1, verified 2, indirect 1, failed 1, outdated 0; share 0.6 (AK2).
-- P3: the same as P1: O1 and O2 are obsolete, N1 is a need (AK3, spec question #592 Q2).
+- P3: the same as P1: O1 and O2 are obsolete, N1 is a need (AK3, spec question ThomasBirkmaier/ReqSeq-archive#592 Q2).
 - The whole workspace: total 14 (R01–R10, I1, C1–C3), open 2, verified 8, indirect 1, failed 2,
-  outdated 1; share 9/14, shown `64.2 %` (rounded down to one decimal, #592 Q3).
+  outdated 1; share 9/14, shown `64.2 %` (rounded down to one decimal, ThomasBirkmaier/ReqSeq-archive#592 Q3).
 
 Every relation names the current version of its target. The record versions are the current versions
 of the element files; regenerate the records when an element file changes

@@ -63,7 +63,7 @@ describe("reqseq trace affected (SR-024)", () => {
     const human = await reqseq(["trace", "affected", "SR-00b001"], ws.root);
     expect([human.code, human.stderr]).toEqual([0, ""]);
     // One line per element: distance, short ID, title, and how it points at the one before it on its
-    // path, named unless it is the element asked for (SR-024 AK1 "mit Weg und Abstand", #310).
+    // path, named unless it is the element asked for (SR-024 AK1 "mit Weg und Abstand", ThomasBirkmaier/ReqSeq-archive#310).
     expect(human.stdout).toBe(
       [
         "affected:",

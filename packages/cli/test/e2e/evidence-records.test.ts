@@ -1,6 +1,6 @@
 // Evidence records end to end (SR-028, ADR-0012): `reqseq workspace check` on fixtures/SR-028/records,
 // whose records lie in the evidence folder of `ci-results`, the repository of another tool. Also the
-// CLI test of SR-025 AK4 (outdated evidence), which waited for real record files (#127 option 1).
+// CLI test of SR-025 AK4 (outdated evidence), which waited for real record files (ThomasBirkmaier/ReqSeq-archive#127 option 1).
 // Run after `pnpm build` with `pnpm test:e2e`.
 import type { FixtureWorkspace } from "@reqseq/testkit";
 import { createFixtureWorkspace } from "@reqseq/testkit";

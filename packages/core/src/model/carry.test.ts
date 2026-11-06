@@ -1,4 +1,4 @@
-// Derived states carried over a change of the element store (#184, ADR-0008): after a save or a
+// Derived states carried over a change of the element store (ThomasBirkmaier/ReqSeq-archive#184, ADR-0008): after a save or a
 // watcher batch the short IDs and the finding states that have a `carry` hook are updated from the
 // changed files only. Whatever happened, each must equal what a fresh workspace builds from the
 // files, and the hooks must actually run (the state is still there right after the change).
@@ -69,7 +69,7 @@ const open = async (
 
 /**
  * Builds the short IDs and every finding state; with `indexed`, also the incoming relation index,
- * as a chain does, so the carry hooks that can read it do (#272).
+ * as a chain does, so the carry hooks that can read it do (ThomasBirkmaier/ReqSeq-archive#272).
  */
 const buildAll = async (workspace: Workspace, indexed = false): Promise<void> => {
   await workspace.get(shortIdState);
@@ -145,182 +145,189 @@ const need = (id: string, extra = ""): string =>
 
 describe.each([
   { indexed: false, label: "without the incoming index" },
-  { indexed: true, label: "with the incoming index built (#272)" },
-])("derived states carried over a change of the store, $label (#184)", ({ indexed }) => {
-  it("equal a fresh build after element.update, and are carried", async () => {
-    const { fixture, workspace } = await open();
-    await buildAll(workspace, indexed);
-    // SR-085 gone: the weight is a number now.
-    await updateElement(workspace, { ref: `${SR}4`, set: { weight: 5 } });
-    expectCarried(workspace);
-    await expectFresh(fixture, workspace);
-    // SR-015 gone, SR-016 still there; a title change only.
-    await updateElement(workspace, { ref: `${SR}2`, set: { "verification-method": "test" } });
-    await updateElement(
-      workspace,
-      await readStored({ ref: `${SR}3`, title: "Show the direction" }, workspace),
-    );
-    expectCarried(workspace);
-    await expectFresh(fixture, workspace);
-  });
+  { indexed: true, label: "with the incoming index built (ThomasBirkmaier/ReqSeq-archive#272)" },
+])(
+  "derived states carried over a change of the store, $label (ThomasBirkmaier/ReqSeq-archive#184)",
+  ({ indexed }) => {
+    it("equal a fresh build after element.update, and are carried", async () => {
+      const { fixture, workspace } = await open();
+      await buildAll(workspace, indexed);
+      // SR-085 gone: the weight is a number now.
+      await updateElement(workspace, { ref: `${SR}4`, set: { weight: 5 } });
+      expectCarried(workspace);
+      await expectFresh(fixture, workspace);
+      // SR-015 gone, SR-016 still there; a title change only.
+      await updateElement(workspace, { ref: `${SR}2`, set: { "verification-method": "test" } });
+      await updateElement(
+        workspace,
+        await readStored({ ref: `${SR}3`, title: "Show the direction" }, workspace),
+      );
+      expectCarried(workspace);
+      await expectFresh(fixture, workspace);
+    });
 
-  it("equal a fresh build after element.create and element.setStatus", async () => {
-    const { fixture, workspace } = await open();
-    await buildAll(workspace, indexed);
-    // A list where one value belongs: a wrong kind that create writes and reports (SR-085); the
-    // display name High is written as its key (#309).
-    await createElement(workspace, { type: "need", title: "A new need", properties: { priority: ["High"] } });
-    expectCarried(workspace);
-    await expectFresh(fixture, workspace);
-    await setElementStatus(workspace, { refs: [`${NEED}1`, `${SR}1`], status: "approved" });
-    await expectFresh(fixture, workspace);
-  });
+    it("equal a fresh build after element.create and element.setStatus", async () => {
+      const { fixture, workspace } = await open();
+      await buildAll(workspace, indexed);
+      // A list where one value belongs: a wrong kind that create writes and reports (SR-085); the
+      // display name High is written as its key (ThomasBirkmaier/ReqSeq-archive#309).
+      await createElement(workspace, {
+        type: "need",
+        title: "A new need",
+        properties: { priority: ["High"] },
+      });
+      expectCarried(workspace);
+      await expectFresh(fixture, workspace);
+      await setElementStatus(workspace, { refs: [`${NEED}1`, `${SR}1`], status: "approved" });
+      await expectFresh(fixture, workspace);
+    });
 
-  it("equal a fresh build when a target changes type, a UUID collides and a copy goes (watcher)", async () => {
-    const { fixture, workspace } = await open();
-    await buildAll(workspace, indexed);
-    // The target of N-…2's relation becomes a need: the hint on the unchanged N-…2 names it anew.
-    const sr1 = await fs.readFile(fixture.path("requirements/SR-b00000000001.md"), "utf8");
-    await external(fixture, workspace, {
-      "requirements/SR-b00000000001.md": sr1.replace("type: system-requirement", "type: need"),
-    });
-    expectCarried(workspace);
-    expect(await hasIndex(workspace)).toBe(indexed);
-    await expectFresh(fixture, workspace);
-    // A UUID with the last 6 digits of N-…1, SR-…1 and VAR-…1: their short IDs grow, and so do
-    // those in the messages of unchanged files.
-    await external(fixture, workspace, {
-      "needs/N-f00000000001.md": need("4d4d4d4d-4444-4444-8444-f00000000001", "legacy: x\n"),
-    });
-    expectCarried(workspace);
-    await expectFresh(fixture, workspace);
-    // A UUID in the group of N-…2, the source of the SR-086 hint, but not of its target SR-…1: the
-    // hint's own short ID grows, in an unchanged file.
-    await external(fixture, workspace, {
-      // One target where a list belongs (SR-085), looked at again by later steps.
-      "needs/N-a00000000002x.md": need(
-        "4d4d4d4d-4444-4444-8444-a00000000002",
-        `derives-from: { id: ${SR}1, version: n1:1111111111111111 }\n`,
-      ),
-    });
-    expectCarried(workspace);
-    await expectFresh(fixture, workspace);
-    // The faulty file becomes an element: a record where none was before.
-    await external(fixture, workspace, {
-      "requirements/SR-b00000000006.md":
-        "---\nid: 2b2b2b2b-2222-4222-8222-b00000000006\ntype: system-requirement\nstatus: draft\ntitle: Fixed\nweight: heavy\n---\n\nText.\n",
-    });
-    expectCarried(workspace);
-    await expectFresh(fixture, workspace);
-    // The UUID of N-…4 changes in place: the old and the new UUID both change.
-    const old4 = await fs.readFile(fixture.path("needs/N-a00000000004.md"), "utf8");
-    await external(fixture, workspace, {
-      "needs/N-a00000000004.md": old4.replace(`id: ${NEED}4`, "id: 5e5e5e5e-5555-4555-8555-e00000000004"),
-    });
-    expectCarried(workspace);
-    await expectFresh(fixture, workspace);
-    // The copy is deleted (SR-088 gone) and a value of the wrong kind appears elsewhere.
-    await external(fixture, workspace, {
-      "copies/N-a00000000003.md": undefined,
-      "needs/N-a00000000004.md": need(`${NEED}4`, "priority: 3\n"),
-    });
-    expectCarried(workspace);
-    await expectFresh(fixture, workspace);
-  });
-
-  it("equal a fresh build when the target of a single relation property changes type (watcher)", async () => {
-    const model = await fs.readFile(
-      new URL("../../../../fixtures/SR-019/findings/metamodel/model.yaml", import.meta.url),
-      "utf8",
-    );
-    const { fixture, workspace } = await open({
-      // A relation property with one target (no `many`) that names its target types (SR-086).
-      "metamodel/model.yaml": model
-        .replace(
-          "properties: [title, weight, verification-method, validity]",
-          "properties: [title, weight, verification-method, validity, parent]",
-        )
-        .replace(
-          "  - { key: title, name: Title, kind: text, meaning: title }",
-          "  - { key: title, name: Title, kind: text, meaning: title }\n  - { key: parent, name: Parent, kind: relation, target-types: [need] }",
+    it("equal a fresh build when a target changes type, a UUID collides and a copy goes (watcher)", async () => {
+      const { fixture, workspace } = await open();
+      await buildAll(workspace, indexed);
+      // The target of N-…2's relation becomes a need: the hint on the unchanged N-…2 names it anew.
+      const sr1 = await fs.readFile(fixture.path("requirements/SR-b00000000001.md"), "utf8");
+      await external(fixture, workspace, {
+        "requirements/SR-b00000000001.md": sr1.replace("type: system-requirement", "type: need"),
+      });
+      expectCarried(workspace);
+      expect(await hasIndex(workspace)).toBe(indexed);
+      await expectFresh(fixture, workspace);
+      // A UUID with the last 6 digits of N-…1, SR-…1 and VAR-…1: their short IDs grow, and so do
+      // those in the messages of unchanged files.
+      await external(fixture, workspace, {
+        "needs/N-f00000000001.md": need("4d4d4d4d-4444-4444-8444-f00000000001", "legacy: x\n"),
+      });
+      expectCarried(workspace);
+      await expectFresh(fixture, workspace);
+      // A UUID in the group of N-…2, the source of the SR-086 hint, but not of its target SR-…1: the
+      // hint's own short ID grows, in an unchanged file.
+      await external(fixture, workspace, {
+        // One target where a list belongs (SR-085), looked at again by later steps.
+        "needs/N-a00000000002x.md": need(
+          "4d4d4d4d-4444-4444-8444-a00000000002",
+          `derives-from: { id: ${SR}1, version: n1:1111111111111111 }\n`,
         ),
-      "requirements/SR-b0000000000a.md": `---\nid: ${SR}a\ntype: system-requirement\nstatus: draft\ntitle: Has a parent\nverification-method: test\nparent: { id: ${NEED}1, version: n1:1111111111111111 }\n---\n\nText.\n`,
+      });
+      expectCarried(workspace);
+      await expectFresh(fixture, workspace);
+      // The faulty file becomes an element: a record where none was before.
+      await external(fixture, workspace, {
+        "requirements/SR-b00000000006.md":
+          "---\nid: 2b2b2b2b-2222-4222-8222-b00000000006\ntype: system-requirement\nstatus: draft\ntitle: Fixed\nweight: heavy\n---\n\nText.\n",
+      });
+      expectCarried(workspace);
+      await expectFresh(fixture, workspace);
+      // The UUID of N-…4 changes in place: the old and the new UUID both change.
+      const old4 = await fs.readFile(fixture.path("needs/N-a00000000004.md"), "utf8");
+      await external(fixture, workspace, {
+        "needs/N-a00000000004.md": old4.replace(`id: ${NEED}4`, "id: 5e5e5e5e-5555-4555-8555-e00000000004"),
+      });
+      expectCarried(workspace);
+      await expectFresh(fixture, workspace);
+      // The copy is deleted (SR-088 gone) and a value of the wrong kind appears elsewhere.
+      await external(fixture, workspace, {
+        "copies/N-a00000000003.md": undefined,
+        "needs/N-a00000000004.md": need(`${NEED}4`, "priority: 3\n"),
+      });
+      expectCarried(workspace);
+      await expectFresh(fixture, workspace);
     });
-    await buildAll(workspace, indexed);
-    expect((await workspace.get(relationTypeProblemsState)).map((p) => p.file)).toEqual([
-      "needs/N-a00000000002.md",
-    ]);
-    // The parent becomes a system requirement: the unchanged SR-…a now has a hint.
-    const need1 = await fs.readFile(fixture.path("needs/N-a00000000001.md"), "utf8");
-    await external(fixture, workspace, {
-      "needs/N-a00000000001.md": need1.replace("type: need", "type: system-requirement"),
+
+    it("equal a fresh build when the target of a single relation property changes type (watcher)", async () => {
+      const model = await fs.readFile(
+        new URL("../../../../fixtures/SR-019/findings/metamodel/model.yaml", import.meta.url),
+        "utf8",
+      );
+      const { fixture, workspace } = await open({
+        // A relation property with one target (no `many`) that names its target types (SR-086).
+        "metamodel/model.yaml": model
+          .replace(
+            "properties: [title, weight, verification-method, validity]",
+            "properties: [title, weight, verification-method, validity, parent]",
+          )
+          .replace(
+            "  - { key: title, name: Title, kind: text, meaning: title }",
+            "  - { key: title, name: Title, kind: text, meaning: title }\n  - { key: parent, name: Parent, kind: relation, target-types: [need] }",
+          ),
+        "requirements/SR-b0000000000a.md": `---\nid: ${SR}a\ntype: system-requirement\nstatus: draft\ntitle: Has a parent\nverification-method: test\nparent: { id: ${NEED}1, version: n1:1111111111111111 }\n---\n\nText.\n`,
+      });
+      await buildAll(workspace, indexed);
+      expect((await workspace.get(relationTypeProblemsState)).map((p) => p.file)).toEqual([
+        "needs/N-a00000000002.md",
+      ]);
+      // The parent becomes a system requirement: the unchanged SR-…a now has a hint.
+      const need1 = await fs.readFile(fixture.path("needs/N-a00000000001.md"), "utf8");
+      await external(fixture, workspace, {
+        "needs/N-a00000000001.md": need1.replace("type: need", "type: system-requirement"),
+      });
+      expectCarried(workspace);
+      expect((await workspace.get(relationTypeProblemsState)).map((p) => p.file)).toContain(
+        "requirements/SR-b0000000000a.md",
+      );
+      await expectFresh(fixture, workspace);
     });
-    expectCarried(workspace);
-    expect((await workspace.get(relationTypeProblemsState)).map((p) => p.file)).toContain(
-      "requirements/SR-b0000000000a.md",
-    );
-    await expectFresh(fixture, workspace);
-  });
 
-  it("equal a fresh build when one watcher batch adds a file that sorts before a changed one", async () => {
-    const { fixture, workspace } = await open();
-    await buildAll(workspace, indexed);
-    const need4 = await fs.readFile(fixture.path("needs/N-a00000000004.md"), "utf8");
-    // Both files get an unknown key; `a/N-new.md` comes first in store order, though not in the batch.
-    await external(fixture, workspace, {
-      "needs/N-a00000000004.md": need4.replace("title: Old need", "title: Old need\nbogus-a: 1"),
-      "a/N-new.md": need("9c9c9c9c-9999-4999-8999-c00000000077", "bogus-b: 2\n"),
+    it("equal a fresh build when one watcher batch adds a file that sorts before a changed one", async () => {
+      const { fixture, workspace } = await open();
+      await buildAll(workspace, indexed);
+      const need4 = await fs.readFile(fixture.path("needs/N-a00000000004.md"), "utf8");
+      // Both files get an unknown key; `a/N-new.md` comes first in store order, though not in the batch.
+      await external(fixture, workspace, {
+        "needs/N-a00000000004.md": need4.replace("title: Old need", "title: Old need\nbogus-a: 1"),
+        "a/N-new.md": need("9c9c9c9c-9999-4999-8999-c00000000077", "bogus-b: 2\n"),
+      });
+      expectCarried(workspace);
+      await expectFresh(fixture, workspace);
     });
-    expectCarried(workspace);
-    await expectFresh(fixture, workspace);
-  });
 
-  it("look at no unchanged element again after a save that keeps every UUID in place (SR-086 shortcut)", async () => {
-    const { fixture, workspace } = await open();
-    await buildAll(workspace, indexed);
-    // The SR-086 hint of the unchanged N-…2 names SR-…1 as its target.
-    const [hint] = (await workspace.get(relationTypeProblemsState)).filter(
-      (p) => p.file === "needs/N-a00000000002.md",
-    );
-    expect(hint).toBeDefined();
-    await updateElement(workspace, await readStored({ ref: `${SR}1`, title: "A new title" }, workspace));
-    expectCarried(workspace);
-    const [after] = (await workspace.get(relationTypeProblemsState)).filter(
-      (p) => p.file === "needs/N-a00000000002.md",
-    );
-    // The very problem kept, not found and located again.
-    expect(after).toBe(hint);
-    await expectFresh(fixture, workspace);
-  });
-
-  it("are reset when nothing tells which records changed", async () => {
-    const { workspace } = await open();
-    await buildAll(workspace, indexed);
-    const store = await workspace.get(elementStoreState);
-    // A replace from outside `applyStoreChange` carries nothing.
-    expect(
-      await workspace.replace(elementStoreState, workspace.peek(elementStoreState), Promise.resolve(store)),
-    ).toBe(true);
-    expect(workspace.peek(shortIdState)).toBeUndefined();
-    expect(workspace.peek(valueKindProblemsState)).toBeUndefined();
-  });
-
-  it("are reset after a store without its repositories", async () => {
-    const { fixture, workspace } = await open();
-    await buildAll(workspace, indexed);
-    const layout = await workspace.get(workspaceLayoutState);
-    await applyStoreChange(workspace, (store) => {
-      const { repositories: _dropped, ...rest } = store;
-      return Promise.resolve(rest);
+    it("look at no unchanged element again after a save that keeps every UUID in place (SR-086 shortcut)", async () => {
+      const { fixture, workspace } = await open();
+      await buildAll(workspace, indexed);
+      // The SR-086 hint of the unchanged N-…2 names SR-…1 as its target.
+      const [hint] = (await workspace.get(relationTypeProblemsState)).filter(
+        (p) => p.file === "needs/N-a00000000002.md",
+      );
+      expect(hint).toBeDefined();
+      await updateElement(workspace, await readStored({ ref: `${SR}1`, title: "A new title" }, workspace));
+      expectCarried(workspace);
+      const [after] = (await workspace.get(relationTypeProblemsState)).filter(
+        (p) => p.file === "needs/N-a00000000002.md",
+      );
+      // The very problem kept, not found and located again.
+      expect(after).toBe(hint);
+      await expectFresh(fixture, workspace);
     });
-    expect(workspace.peek(shortIdState)).toBeUndefined();
-    // A save then reads the store in full again, through the fallback of `recordWrites`.
-    await recordWrites(workspace, layout, []);
-    await expectFresh(fixture, workspace);
-  });
-});
 
-describe("derived states carried while the metamodel is not valid (#208, #220 option 1)", () => {
+    it("are reset when nothing tells which records changed", async () => {
+      const { workspace } = await open();
+      await buildAll(workspace, indexed);
+      const store = await workspace.get(elementStoreState);
+      // A replace from outside `applyStoreChange` carries nothing.
+      expect(
+        await workspace.replace(elementStoreState, workspace.peek(elementStoreState), Promise.resolve(store)),
+      ).toBe(true);
+      expect(workspace.peek(shortIdState)).toBeUndefined();
+      expect(workspace.peek(valueKindProblemsState)).toBeUndefined();
+    });
+
+    it("are reset after a store without its repositories", async () => {
+      const { fixture, workspace } = await open();
+      await buildAll(workspace, indexed);
+      const layout = await workspace.get(workspaceLayoutState);
+      await applyStoreChange(workspace, (store) => {
+        const { repositories: _dropped, ...rest } = store;
+        return Promise.resolve(rest);
+      });
+      expect(workspace.peek(shortIdState)).toBeUndefined();
+      // A save then reads the store in full again, through the fallback of `recordWrites`.
+      await recordWrites(workspace, layout, []);
+      await expectFresh(fixture, workspace);
+    });
+  },
+);
+
+describe("derived states carried while the metamodel is not valid (ThomasBirkmaier/ReqSeq-archive#208, ThomasBirkmaier/ReqSeq-archive#220 option 1)", () => {
   /** The metamodel states, which check nothing against a metamodel that is not valid. */
   const AGAINST_METAMODEL = [
     requiredProblemsState,
@@ -379,7 +386,7 @@ describe("derived states carried while the metamodel is not valid (#208, #220 op
   });
 });
 
-describe("derived states carried over a change in several repositories (#184)", () => {
+describe("derived states carried over a change in several repositories (ThomasBirkmaier/ReqSeq-archive#184)", () => {
   /** The SR-085 fixture (repositories `system` and `sensor`), with an extra system requirement. */
   const openTwo = async (indexed = false): Promise<{ fixture: FixtureWorkspace; workspace: Workspace }> => {
     const fixture = await createFixtureWorkspace({
@@ -421,7 +428,7 @@ describe("derived states carried over a change in several repositories (#184)", 
 
   it.each([
     { indexed: false, label: "without the incoming index" },
-    { indexed: true, label: "with the incoming index built (#272)" },
+    { indexed: true, label: "with the incoming index built (ThomasBirkmaier/ReqSeq-archive#272)" },
   ])(
     "equal a fresh build when a target moves to another repository with its UUID and type, $label",
     async ({ indexed }) => {
@@ -469,7 +476,7 @@ describe("derived states carried over a change in several repositories (#184)", 
   });
 });
 
-describe("storeUpdate (#184)", () => {
+describe("storeUpdate (ThomasBirkmaier/ReqSeq-archive#184)", () => {
   const load = async (): Promise<ElementStore> => {
     const { workspace } = await open();
     return workspace.get(elementStoreState);
@@ -539,7 +546,7 @@ describe("storeUpdate (#184)", () => {
   });
 });
 
-describe("carryProblems (#184)", () => {
+describe("carryProblems (ThomasBirkmaier/ReqSeq-archive#184)", () => {
   it("finds everything again when a problem names no file", async () => {
     const { workspace } = await open();
     const store = await workspace.get(elementStoreState);

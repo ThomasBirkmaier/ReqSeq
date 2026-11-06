@@ -1,4 +1,4 @@
-// Uncommitted changes to the files the data of a state is made of (SR-062 K2, #531 Q2): whether the
+// Uncommitted changes to the files the data of a state is made of (SR-062 K2, ThomasBirkmaier/ReqSeq-archive#531 Q2): whether the
 // working copy of a repository still holds the state of its HEAD commit. `data.export` gives it as
 // `repositories[].dirty`, `data.store` names the file `<commit>-dirty.jsonl` by it; `baseline.create`
 // asks `uncommittedFiles` with the files of its selection (SR-050 AK2). Read only (ADR-0006, D-036).

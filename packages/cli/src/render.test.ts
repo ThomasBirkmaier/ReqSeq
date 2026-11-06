@@ -79,7 +79,7 @@ describe("renderProblem", () => {
     ).toBe(`error  element.unknown-type  ${uuid}  Unknown type foo  product/SR-1.md:3\n`);
   });
 
-  it("names the element by its short ID when the problem has one (#315)", () => {
+  it("names the element by its short ID when the problem has one (ThomasBirkmaier/ReqSeq-archive#315)", () => {
     expect(
       renderProblem({
         severity: "warning",
@@ -92,7 +92,7 @@ describe("renderProblem", () => {
     ).toBe("warning  element.unknown-property  SR-46fb54  m  requirements/SR-825b7146fb54.md\n");
   });
 
-  it("names the element by its identifier in place of its short ID (#305, #252)", () => {
+  it("names the element by its identifier in place of its short ID (ThomasBirkmaier/ReqSeq-archive#305, #252)", () => {
     expect(
       renderProblem({
         severity: "warning",
@@ -197,7 +197,7 @@ describe("renderYaml", () => {
     expect(renderYaml({ ok: true, problems: [] })).toBe("ok: true\nNo problems.\n");
   });
 
-  it("says how many findings the output left out instead of No problems (#304)", () => {
+  it("says how many findings the output left out instead of No problems (ThomasBirkmaier/ReqSeq-archive#304)", () => {
     const hidden = { below: "error", warning: 3, info: 0 };
     expect(renderYaml({ ok: true, problems: [], hidden })).toBe(
       "ok: true\nhidden:\n  below: error\n  warning: 3\n  info: 0\nNo problems at or above error; 3 warnings not shown.\n",
@@ -228,7 +228,7 @@ describe("problemsEnd", () => {
     expect(problemsEnd({}, 2)).toBe("");
   });
 
-  it("counts the findings left out by severity (#304)", () => {
+  it("counts the findings left out by severity (ThomasBirkmaier/ReqSeq-archive#304)", () => {
     expect(problemsEnd({ hidden: { below: "warning", warning: 0, info: 1 } }, 0)).toBe(
       "No problems at or above warning; 1 info not shown.\n",
     );

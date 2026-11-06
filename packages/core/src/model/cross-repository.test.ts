@@ -204,7 +204,7 @@ describe("relations across repositories (SR-005)", () => {
     ]);
   });
 
-  it("gives the repository of every relation target: the one it names or the source's own, in every target state (#416)", async () => {
+  it("gives the repository of every relation target: the one it names or the source's own, in every target state (ThomasBirkmaier/ReqSeq-archive#416)", async () => {
     const opened = await open({
       "system/needs/N-5f4e3d2c1b0a.md": element(SHARED, "need", "System copy"),
       "platform-checkout/needs/N-5f4e3d2c1b0a.md": element(SHARED, "need", "Platform copy"),
@@ -229,7 +229,7 @@ describe("relations across repositories (SR-005)", () => {
     expect(relations[5]).not.toHaveProperty("repository");
   });
 
-  it("opens a relation target exactly with the repository the relation gives, where its UUID is in two repositories (#416)", async () => {
+  it("opens a relation target exactly with the repository the relation gives, where its UUID is in two repositories (ThomasBirkmaier/ReqSeq-archive#416)", async () => {
     const opened = await open({
       "system/needs/N-5f4e3d2c1b0a.md": element(SHARED, "need", "System copy"),
       "platform-checkout/needs/N-5f4e3d2c1b0a.md": element(SHARED, "need", "Platform copy"),
@@ -333,7 +333,7 @@ const followedFromSource = async (opened: Opened): Promise<FollowedTargets> => {
 describe("missing access (SR-006)", () => {
   it("[SR-006/AK1] shows a target whose repository is not on this machine only with its short ID and as not accessible", async () => {
     const opened = await openWithoutPlatform();
-    // Prefix UNKNOWN: the type of the target is not known here (decision on #154).
+    // Prefix UNKNOWN: the type of the target is not known here (decision on ThomasBirkmaier/ReqSeq-archive#154).
     expect(await relationsOfSource(opened)).toEqual([
       {
         kind: "derives-from",
@@ -378,7 +378,7 @@ describe("missing access (SR-006)", () => {
     ]);
   });
 
-  it("gives the repository of a target whose repository is not on this machine (#416)", async () => {
+  it("gives the repository of a target whose repository is not on this machine (ThomasBirkmaier/ReqSeq-archive#416)", async () => {
     const opened = await openWithoutPlatform();
     const [relation] = (await relationsOfSource(opened)) as readonly Record<string, unknown>[];
     expect(relation).toMatchObject({ targetState: "inaccessible", repository: "platform" });

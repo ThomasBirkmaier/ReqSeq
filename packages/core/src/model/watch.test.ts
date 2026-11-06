@@ -216,7 +216,7 @@ describe("watching a workspace with the file system (SR-007)", () => {
     expect(await titleShown(workspace, NEED, "Saved after the move")).toBeLessThanOrEqual(SAVE_LIMIT_MS);
   });
 
-  it("[SR-007/AK1] shows saves within 2 seconds in a folder named in NFD, and reads its metamodel again, whatever normal form the workspace file names it in (#225)", async () => {
+  it("[SR-007/AK1] shows saves within 2 seconds in a folder named in NFD, and reads its metamodel again, whatever normal form the workspace file names it in (ThomasBirkmaier/ReqSeq-archive#225)", async () => {
     const { fixture, workspace } = await opened({
       files: { [`${NFD}/SR-0c1d2e3f4a5b.md`]: requirement(OTHER, "Decomposed") },
     });
@@ -243,7 +243,7 @@ describe("watching a workspace with the file system (SR-007)", () => {
     ).toBeLessThanOrEqual(SAVE_LIMIT_MS);
   });
 
-  it("[SR-007/AK1] shows saves within 2 seconds in a nested repository named in NFD, and reads the metamodel again when the workspace file types its folder in another letter case (#231)", async () => {
+  it("[SR-007/AK1] shows saves within 2 seconds in a nested repository named in NFD, and reads the metamodel again when the workspace file types its folder in another letter case (ThomasBirkmaier/ReqSeq-archive#231)", async () => {
     const { fixture, workspace } = await opened({
       files: { [`vendor/${NFD}/SR-0c1d2e3f4a5b.md`]: requirement(OTHER, "Nested") },
     });
@@ -287,7 +287,7 @@ describe("watching a workspace with the file system (SR-007)", () => {
     }
     const { fixture, workspace } = await opened({ git: true });
     // The commits are made with `commitFiles` (one `git fast-import`): writing and adding 1,000
-    // files twice took most of the test's time on a loaded windows-2025 runner (#226).
+    // files twice took most of the test's time on a loaded windows-2025 runner (ThomasBirkmaier/ReqSeq-archive#226).
     const before = await fixture.commitFiles(files);
     // Upstream: every file approved and derived from a new need.
     const target = uuid(count + 1);
@@ -828,7 +828,7 @@ describe("the watcher's rules (SR-007)", () => {
     }
   });
 
-  it("updates the store for a file or folder that an event spells in another Unicode normal form than the walk (#225)", async () => {
+  it("updates the store for a file or folder that an event spells in another Unicode normal form than the walk (ThomasBirkmaier/ReqSeq-archive#225)", async () => {
     for (const [onDisk, inEvent] of FORMS) {
       const { fixture, workspace } = await opened({
         files: { [`${onDisk}/SR-0c1d2e3f4a5b.md`]: requirement(OTHER, "Before") },
@@ -848,7 +848,7 @@ describe("the watcher's rules (SR-007)", () => {
     }
   });
 
-  it("reads the metamodel again for events spelled as its folder is stored, whatever letter case or normal form the workspace file types it in, and once more for a twin folder (#225, #231)", async () => {
+  it("reads the metamodel again for events spelled as its folder is stored, whatever letter case or normal form the workspace file types it in, and once more for a twin folder (ThomasBirkmaier/ReqSeq-archive#225, ThomasBirkmaier/ReqSeq-archive#231)", async () => {
     for (const [typed, stored] of SPELLINGS) {
       const { fixture, workspace } = await opened();
       const model = await fs.readFile(fixture.path("metamodel/model.yaml"), "utf8");
@@ -882,7 +882,7 @@ describe("the watcher's rules (SR-007)", () => {
     }
   });
 
-  it("reads the layout again when a missing metamodel folder appears, also spelled in another letter case or normal form than typed (#231)", async () => {
+  it("reads the layout again when a missing metamodel folder appears, also spelled in another letter case or normal form than typed (ThomasBirkmaier/ReqSeq-archive#231)", async () => {
     for (const [typed, created] of [[NFC, NFC] as const, ...SPELLINGS]) {
       const { fixture, workspace } = await opened({
         files: {
@@ -915,7 +915,7 @@ describe("the watcher's rules (SR-007)", () => {
     }
   });
 
-  it("reads the layout again when the metamodel folder or a folder above it is renamed, moved, deleted or created, in any letter case (#231)", async () => {
+  it("reads the layout again when the metamodel folder or a folder above it is renamed, moved, deleted or created, in any letter case (ThomasBirkmaier/ReqSeq-archive#231)", async () => {
     const { fixture, workspace } = await opened({
       files: {
         "reqseq-workspace.yaml": `reqseq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\nmetamodel: { repository: system, path: docs/model }\n`,
@@ -945,7 +945,7 @@ describe("the watcher's rules (SR-007)", () => {
     expect(await exists()).toBe(false);
   });
 
-  it("[SR-007/AK2] reads the layout again after a nameless event in another repository whose missing metamodel folder appeared (#231)", async () => {
+  it("[SR-007/AK2] reads the layout again after a nameless event in another repository whose missing metamodel folder appeared (ThomasBirkmaier/ReqSeq-archive#231)", async () => {
     const { workspace } = await opened({
       files: {
         "reqseq-workspace.yaml":
@@ -1222,7 +1222,7 @@ describe("the watcher's watch per folder (SR-007, Linux)", () => {
     ]);
   });
 
-  it("keeps the metamodel folder watched below an ignore glob when the workspace file spells it in another Unicode normal form (#225)", async () => {
+  it("keeps the metamodel folder watched below an ignore glob when the workspace file spells it in another Unicode normal form (ThomasBirkmaier/ReqSeq-archive#225)", async () => {
     for (const [typed, onDisk] of FORMS) {
       const { workspace } = await opened({
         files: {
@@ -1243,7 +1243,7 @@ describe("the watcher's watch per folder (SR-007, Linux)", () => {
     }
   });
 
-  it("keeps a folder below an ignore glob watched that may hold the missing metamodel folder in another letter case or normal form (#231)", async () => {
+  it("keeps a folder below an ignore glob watched that may hold the missing metamodel folder in another letter case or normal form (ThomasBirkmaier/ReqSeq-archive#231)", async () => {
     for (const [typed, onDisk] of [
       ["docs", "Docs"],
       [NFC, NFD],
@@ -1567,7 +1567,7 @@ describe("watcherProblems (SR-007)", () => {
   });
 });
 
-describe("the watcher and ReqSeq's own writes (#166)", () => {
+describe("the watcher and ReqSeq's own writes (ThomasBirkmaier/ReqSeq-archive#166)", () => {
   it("does not apply a write of element.update or element.create a second time when it sees the file", async () => {
     const { workspace } = await opened();
     await workspace.get(elementStoreState);
@@ -1592,7 +1592,7 @@ describe("the watcher and ReqSeq's own writes (#166)", () => {
   });
 });
 
-/** Every change the watcher reports from now on, in order (`onChange`, #331). */
+/** Every change the watcher reports from now on, in order (`onChange`, ThomasBirkmaier/ReqSeq-archive#331). */
 const changesOf = (watcher: WorkspaceWatcher): WorkspaceChange[] => {
   const seen: WorkspaceChange[] = [];
   onTestFinished(
@@ -1626,7 +1626,7 @@ const lastNamed = (changes: readonly WorkspaceChange[]): Map<string, keyof Works
   return last;
 };
 
-describe("the watcher tells its listeners what changed (#331, SR-007)", () => {
+describe("the watcher tells its listeners what changed (ThomasBirkmaier/ReqSeq-archive#331, SR-007)", () => {
   it("[SR-007/AK1] tells a listener within 2 seconds that an element file saved by another editor changed, once the store holds it", async () => {
     const { fixture, workspace } = await opened();
     await watching(fixture, workspace);
@@ -1932,7 +1932,7 @@ describe("the watcher tells its listeners what changed (#331, SR-007)", () => {
     expect(await title(workspace, REQUIREMENT)).toBe("Read in full");
   });
 
-  it("tells nobody about ReqSeq's own writes when it sees their files (#166)", async () => {
+  it("tells nobody about ReqSeq's own writes when it sees their files (ThomasBirkmaier/ReqSeq-archive#166)", async () => {
     const { workspace } = await opened();
     await workspace.get(elementStoreState);
     const { fake, watcher } = await watched(workspace);

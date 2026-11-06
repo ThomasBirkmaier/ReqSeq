@@ -5,7 +5,7 @@ import { CRITERIA, DEGREE, EVIDENCE, STATUS } from "../../fixtures.js";
 
 scenariosOf("evidence.degree", [
   {
-    name: "a variant view names its variant (SR-037, #588)",
+    name: "a variant view names its variant (SR-037, ThomasBirkmaier/ReqSeq-archive#588)",
     fixture: STATUS,
     input: { selection: { view: "5e031a7d-2b4f-4c61-9d08-0c0000000001" } },
     expect: "output",
@@ -62,7 +62,7 @@ scenariosOf("evidence.degree", [
     },
   },
   {
-    name: "a workspace with an evidence location (#535)",
+    name: "a workspace with an evidence location (ThomasBirkmaier/ReqSeq-archive#535)",
     fixture: EVIDENCE,
     input: { selection: { ids: ["SR-e88fb3"] } },
     expect: "output",

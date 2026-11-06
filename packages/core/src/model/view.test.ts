@@ -245,7 +245,7 @@ describe("elementView", () => {
       properties: { weight: 2 },
       version: versionIn({ text: "Body\n", properties: {}, definitions: [], files: [] }, NORMAL_FORM),
     });
-    // A status that is not text is no key; the element is listed as one without status (#306).
+    // A status that is not text is no key; the element is listed as one without status (ThomasBirkmaier/ReqSeq-archive#306).
     expect(view).not.toHaveProperty("status");
   });
 
@@ -271,7 +271,7 @@ describe("elementView", () => {
     expect(view.problems[0]).not.toHaveProperty("line");
   });
 
-  it("gives no hints while the metamodel is not valid (#208, #220 option 1)", async () => {
+  it("gives no hints while the metamodel is not valid (ThomasBirkmaier/ReqSeq-archive#208, ThomasBirkmaier/ReqSeq-archive#220 option 1)", async () => {
     const { metamodel, store, layout } = await context();
     const file = parsedFile(
       `---\nid: ${OTHER}\ntype: system-requirement\nstatus: draft\ntitle: x\nbogus: 1\nrequirement-type: odd\n---\n`,

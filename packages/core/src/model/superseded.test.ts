@@ -129,7 +129,7 @@ describe("hints on relations to superseded elements (SR-072 AK2)", () => {
   });
 });
 
-describe("hints on relations to the targets of a status change, from the incoming index (#272)", () => {
+describe("hints on relations to the targets of a status change, from the incoming index (ThomasBirkmaier/ReqSeq-archive#272)", () => {
   const GROUP = "7a1e0c2b-4d3f-4a5b-8c6d-0a0a0a0a0a0a";
   const V = "n1:1111111111111111";
   const open = async (): Promise<Workspace> => {

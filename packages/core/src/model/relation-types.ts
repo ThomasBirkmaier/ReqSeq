@@ -228,7 +228,7 @@ const namesGroup = (element: ElementRecord, hasRule: HasRule, groups: ReadonlySe
 
 /**
  * The elements `namesGroup` picks, from the incoming relation index of the store before the change
- * (#272) instead of a scan of every relation: the records of the new store whose own UUID lies in
+ * (ThomasBirkmaier/ReqSeq-archive#272) instead of a scan of every relation: the records of the new store whose own UUID lies in
  * one of `groups`, and the sources of relations under a key with a rule to a UUID in one of them.
  * The UUIDs of a group are found by a scan of the index's keys and the store's UUIDs (a short ID
  * depends on every UUID of its group, also one no element has, so this part stays a scan, of about
@@ -307,7 +307,7 @@ export const samePlaces = (from: ElementStore, to: ElementStore, id: string): bo
  * Every relation of the workspace between types that are not allowed, as a problem with repository,
  * file, line, element and target ID (SR-086 AK2), for `workspace.check` (SR-019). Reads every file
  * with findings again for the lines (`locateFindings`). Kept until the element store or the
- * metamodel is reset; carried over a change of the store (#184): the changed files are looked at
+ * metamodel is reset; carried over a change of the store (ThomasBirkmaier/ReqSeq-archive#184): the changed files are looked at
  * again, and so is every element whose UUID or a target's UUID lies in a short-ID group of a changed
  * UUID (its targets or the short IDs in its messages may have changed).
  */
@@ -317,7 +317,7 @@ export const relationTypeProblemsState = defineWorkspaceState(
     const layout = await workspace.get(workspaceLayoutState);
     const store = await workspace.get(elementStoreState);
     const metamodel = await workspace.get(metamodelState);
-    // Nothing against a metamodel that is not valid: its errors are the findings (#208, #220).
+    // Nothing against a metamodel that is not valid: its errors are the findings (ThomasBirkmaier/ReqSeq-archive#208, ThomasBirkmaier/ReqSeq-archive#220).
     if (!metamodel.valid) {
       return [];
     }
@@ -342,10 +342,10 @@ export const relationTypeProblemsState = defineWorkspaceState(
           : context.then(([metamodel]) =>
               // Read once `replace` has carried every state (a `then` runs after it): inside the
               // hook the incoming memo may not be carried yet. The index of the store before the
-              // change, when a chain built it (#272); the save does not build it.
+              // change, when a chain built it (ThomasBirkmaier/ReqSeq-archive#272); the save does not build it.
               relationTypeAgain(update, metamodel, workspace.peek(incomingState)?.get(update.from)),
             ),
-        // Nothing against a metamodel that is not valid, as a full build (#208, #220).
+        // Nothing against a metamodel that is not valid, as a full build (ThomasBirkmaier/ReqSeq-archive#208, ThomasBirkmaier/ReqSeq-archive#220).
         skip: context.then(([metamodel]) => !metamodel.valid),
       });
     }),

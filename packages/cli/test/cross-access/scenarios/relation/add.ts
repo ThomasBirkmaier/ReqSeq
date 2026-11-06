@@ -31,7 +31,7 @@ scenariosOf("relation.add", [
     expect: "error",
   },
   {
-    name: "a stored relation without version gets its current version (#302)",
+    name: "a stored relation without version gets its current version (ThomasBirkmaier/ReqSeq-archive#302)",
     fixture: {
       fixture: "SR-090/cycle",
       git: true,

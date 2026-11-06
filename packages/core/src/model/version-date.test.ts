@@ -1,6 +1,6 @@
 // The date of a version (D-013, ADR-0005 "Version date"). Every history is made with one
 // `git fast-import` (`commitHistory`) and checked out with one reset, so each test starts few git
-// processes (slow Windows runners, #206, #226).
+// processes (slow Windows runners, ThomasBirkmaier/ReqSeq-archive#206, ThomasBirkmaier/ReqSeq-archive#226).
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -708,7 +708,7 @@ describe("version date", () => {
     expect(fileHistory).toHaveBeenCalledTimes(1);
   });
 
-  it("dates the versions of a workspace in a subfolder of a Git repository (#377)", async () => {
+  it("dates the versions of a workspace in a subfolder of a Git repository (ThomasBirkmaier/ReqSeq-archive#377)", async () => {
     const outer = await createFixtureWorkspace();
     onTestFinished(() => outer.cleanup());
     await outer.git(["init", "--quiet", "--initial-branch=main"]);

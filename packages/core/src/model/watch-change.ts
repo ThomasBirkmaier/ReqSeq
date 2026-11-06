@@ -1,4 +1,4 @@
-// What a watcher batch changed, for the listeners of `WorkspaceWatcher.onChange` (#331, SR-007): the
+// What a watcher batch changed, for the listeners of `WorkspaceWatcher.onChange` (ThomasBirkmaier/ReqSeq-archive#331, SR-007): the
 // app's core process tells its windows, which refresh what they show and can mark the elements that
 // changed outside the tool. Plain frozen data, so it can be posted over a `MessagePort` as it is.
 import type { ElementStore } from "./store.js";
@@ -50,7 +50,7 @@ export const NO_ELEMENTS: ChangedElements = Object.freeze({
 
 /**
  * The elements whose records differ between two stores: the UUIDs of the records that are other
- * objects (`storeUpdate`, #184), each looked up before and after: from the touched files of a
+ * objects (`storeUpdate`, ThomasBirkmaier/ReqSeq-archive#184), each looked up before and after: from the touched files of a
  * patched store (#215), else one pass over the files of each changed repository, as for the carry
  * of the states built on the store; and one lookup per UUID.
  * Undefined when nothing tells which records are the same (a store without `repositories`, other

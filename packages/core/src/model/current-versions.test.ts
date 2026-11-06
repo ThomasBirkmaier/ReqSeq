@@ -1,4 +1,4 @@
-// The current version of every element as a workspace state (#259, ADR-0008): each version must
+// The current version of every element as a workspace state (ThomasBirkmaier/ReqSeq-archive#259, ADR-0008): each version must
 // equal what reading the element's file and images now gives (`currentTarget` does the same for
 // one target), also after the state was carried over a save or a watcher batch, and after images
 // changed on disk, which the watcher does not report.
@@ -107,7 +107,7 @@ const recordOf = async (workspace: Workspace, file: string): Promise<ElementReco
   return record;
 };
 
-describe("the current version of every element (#259)", () => {
+describe("the current version of every element (ThomasBirkmaier/ReqSeq-archive#259)", () => {
   it("equals the version a fresh read of each file and its images gives", async () => {
     const { workspace } = await open();
     const versions = await currentVersions(workspace);
@@ -280,7 +280,7 @@ describe("the current version of every element (#259)", () => {
   });
 });
 
-describe("the current versions carried over a change of the store (ADR-0008, #184)", () => {
+describe("the current versions carried over a change of the store (ADR-0008, ThomasBirkmaier/ReqSeq-archive#184)", () => {
   it("give the written records their new version after element.update and element.create, and keep the rest", async () => {
     const { workspace } = await open();
     const before = await currentVersions(workspace);
@@ -407,7 +407,7 @@ describe("images checked on use (the watcher does not report them, ADR-0008)", (
     expect(currentVersionOf(again, pictured)).toBe(currentVersionOf(first, pictured));
   });
 
-  it("computes the version of a record the built state does not hold from its file (SR-026, #38)", async () => {
+  it("computes the version of a record the built state does not hold from its file (SR-026, ThomasBirkmaier/ReqSeq-archive#38)", async () => {
     const { workspace } = await open();
     const versions = await currentVersions(workspace);
     const record = await recordOf(workspace, "pictures/N-c00000000001.md");

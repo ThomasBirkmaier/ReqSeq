@@ -4,19 +4,19 @@ import { FILTER } from "../../fixtures.js";
 
 scenariosOf("element.facets", [
   {
-    name: "values of a filtered list (#425)",
+    name: "values of a filtered list (ThomasBirkmaier/ReqSeq-archive#425)",
     fixture: FILTER,
     input: { selection: { where: { type: ["system-requirement"] } } },
     expect: "output",
   },
   {
-    name: "free text with a low maxValues (#425)",
+    name: "free text with a low maxValues (ThomasBirkmaier/ReqSeq-archive#425)",
     fixture: FILTER,
     input: { maxValues: 1 },
     expect: "output",
   },
   {
-    name: "a selection that is not there yet (#425)",
+    name: "a selection that is not there yet (ThomasBirkmaier/ReqSeq-archive#425)",
     fixture: FILTER,
     input: { selection: { baseline: "v1" } },
     expect: "error",

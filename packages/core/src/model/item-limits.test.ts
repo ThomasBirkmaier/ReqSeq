@@ -38,7 +38,7 @@ const hint = (count = 4, n = 1, line = 6): Problem => ({
   limit: 3,
 });
 
-/** A hint as a command gives it, with the element's short ID (#315). */
+/** A hint as a command gives it, with the element's short ID (ThomasBirkmaier/ReqSeq-archive#315). */
 const shown = (problem: Problem): Problem => ({
   ...problem,
   elementShortId: `SR-${String(problem.elementId).slice(-6)}`,

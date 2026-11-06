@@ -20,7 +20,7 @@ const VALUES: FixtureOptions = {
     "requirements/SR-0000000000b7.md": `---\nid: 69069069-0000-4000-8000-0000000000b7\ntype: system-requirement\nstatus: approved\ntitle: Measure the hail\nrequirement-type: functional\nacceptance-criteria: [Given hail, then it holds.]\ntopic: [Wind, Timing]\n---\n`,
   },
 };
-/** The list of the app (#418): by type, then by ID. */
+/** The list of the app (ThomasBirkmaier/ReqSeq-archive#418): by type, then by ID. */
 const TYPE_AND_ID = [
   { by: "type", order: "asc" },
   { by: "identifier", order: "asc" },
@@ -29,7 +29,7 @@ const TYPE_AND_ID = [
 const SORT: FixtureOptions = { fixture: "SR-075/sort", git: true };
 /** Packages P1 and P2; R1 in both, R2 in P1, R3 in none (SR-048, SR-049). */
 const PACKAGES: FixtureOptions = { fixture: "SR-048/packages", git: true };
-/** Identifiers in natural order, a lower-case one and elements without one (#418). */
+/** Identifiers in natural order, a lower-case one and elements without one (ThomasBirkmaier/ReqSeq-archive#418). */
 const NATURAL: FixtureOptions = { fixture: "enabler-418/natural", git: true };
 
 /**

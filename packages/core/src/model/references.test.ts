@@ -54,7 +54,7 @@ const layout = (sensorAvailable: boolean): { readonly repositories: readonly Rep
   repositories: [repository("system", true), repository("sensor", sensorAvailable)],
 });
 
-describe("inline references with repository (D-058, decision on #177 (c))", () => {
+describe("inline references with repository (D-058, decision on ThomasBirkmaier/ReqSeq-archive#177 (c))", () => {
   it("reads the version and the first repository parameter as written (an empty one as none), and the line of each link", () => {
     const text = [
       `a [b](reqseq:${A}?version=${V}&repository=sensor&repository=other)`,

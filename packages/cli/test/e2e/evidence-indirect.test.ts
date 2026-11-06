@@ -56,7 +56,7 @@ describe("reqseq evidence status and element get with indirect verification (SR-
     );
   });
 
-  it("[SR-034/AK2] reqseq evidence status names the missing children by short ID though they are not on the page (#588)", async () => {
+  it("[SR-034/AK2] reqseq evidence status names the missing children by short ID though they are not on the page (ThomasBirkmaier/ReqSeq-archive#588)", async () => {
     const result = await reqseq([
       "evidence",
       "status",

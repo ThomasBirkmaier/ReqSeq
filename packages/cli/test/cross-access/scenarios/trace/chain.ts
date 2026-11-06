@@ -11,7 +11,7 @@ scenariosOf("trace.chain", [
     expect: "output",
   },
   {
-    name: "the chain of a need named by its identifier, each node with its identifier (#305)",
+    name: "the chain of a need named by its identifier, each node with its identifier (ThomasBirkmaier/ReqSeq-archive#305)",
     fixture: IDENTIFIERS,
     input: { ref: "N-001" },
     expect: "output",
@@ -66,7 +66,7 @@ scenariosOf("trace.chain", [
     expect: "output",
   },
   {
-    name: "one page of a chain up and down (SR-082 AK4, spec-frage #290)",
+    name: "one page of a chain up and down (SR-082 AK4, spec-frage ThomasBirkmaier/ReqSeq-archive#290)",
     fixture: CHAIN,
     input: { ref: "SR-00b001", limit: 2, offset: 1 },
     expect: "output",

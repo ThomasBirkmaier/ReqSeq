@@ -46,7 +46,7 @@ scenariosOf("evidence.status", [
     expect: "output",
   },
   {
-    name: "the verification status of a workspace with an evidence location (#535, SR-031)",
+    name: "the verification status of a workspace with an evidence location (ThomasBirkmaier/ReqSeq-archive#535, SR-031)",
     fixture: EVIDENCE,
     input: {},
     expect: "output",

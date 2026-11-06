@@ -11,12 +11,12 @@
 //   text `id` (`hasId`), as the element view and the missing-target check read it; its version and
 //   other keys are not checked (their shape is SR-085's). A value of the wrong shape (one target
 //   where a list belongs, or the reverse) has no items, as in `relationItems`;
-// - the inline references of the text (`ElementRecord.references`, #240) and of the properties marked
+// - the inline references of the text (`ElementRecord.references`, ThomasBirkmaier/ReqSeq-archive#240) and of the properties marked
 //   `markdown` (`ElementRecord.propertyReferences`, SR-127; `referencesOf`).
 // A target is named by repository and UUID (D-058). A relation item without `repository` points into
 // the source's own repository; one whose `repository` is not text names none and is left out (no
 // record can lie there; `targetState` calls it `unknown-repository`). An inline reference names the
-// repository it gives. Without one it points where `resolveReference` resolves it (#250): into the
+// repository it gives. Without one it points where `resolveReference` resolves it (ThomasBirkmaier/ReqSeq-archive#250): into the
 // source's own repository when the UUID is there or nowhere; otherwise into the one other repository
 // with the UUID (a link written before references named their repository), and, when several other
 // repositories have it (`ambiguous`, which `referenceTargetState` reports), into each of them, so
@@ -31,7 +31,7 @@
 // and UUID is touched once), so the index is keyed by the UUID strings the items already hold rather
 // than by a composed key, and a walk reads the links it stored instead of the sources again.
 //
-// Carried over a change of the store (#184, #267): a save or a watcher batch derives the index of
+// Carried over a change of the store (ThomasBirkmaier/ReqSeq-archive#184, ThomasBirkmaier/ReqSeq-archive#267): a save or a watcher batch derives the index of
 // the new store from the old one (`carryIncomingIndex`, through the `carry` hook of `incomingState`)
 // instead of building it again, so the first chain after a save does not pay the build (SR-082 AK4).
 // Each list stays in the order a fresh build gives it; the order of the UUIDs in the maps is not
@@ -302,7 +302,7 @@ const carriedMap = <T extends IncomingLink>(
 
 /**
  * The incoming relation index of `update.to`, carried over from `index`, the index of `update.from`
- * (a save or a watcher batch; #184, #267): the links whose source lies in a changed file
+ * (a save or a watcher batch; ThomasBirkmaier/ReqSeq-archive#184, ThomasBirkmaier/ReqSeq-archive#267): the links whose source lies in a changed file
  * (`StoreUpdate.files`) are dropped, the links of the records in those files now are added, and
  * every other list and link is kept as the same object. `index` itself is not changed. Each list is
  * in the order a fresh build gives it; the order of the UUIDs in the maps is not defined after
@@ -376,7 +376,7 @@ export const incomingTo = (index: IncomingIndex, repository: string, id: string)
  * costs about 1 ms for one changed file (both maps are patched, `PatchedMap`, #215) plus about 0.1 ms per changed record at N-036
  * (50,000 elements, 200,000 relations, local runs: 0.13 to 0.25 s for 1,000, about 0.2 s for 2,000,
  * 0.3 to 0.4 s for 5,000, 1 s for all), while a build takes 0.3 to 0.5 s. Above the limit the new
- * store gets no index, and the next chain builds it, outside the change (#273). The same 1,000
+ * store gets no index, and the next chain builds it, outside the change (ThomasBirkmaier/ReqSeq-archive#273). The same 1,000
  * files as the read pool's threshold for a watcher batch (ADR-0008).
  */
 export const CARRY_LIMIT = 1_000;
@@ -385,7 +385,7 @@ export const CARRY_LIMIT = 1_000;
  * The incoming relation indexes of a workspace, by the element store each was built from (with the
  * metamodel it was built with). Built on first use of a store by `incomingFor`, without a `get` of
  * any other state; an index is dropped with its store (a WeakMap). Carried over a change of the
- * store (ADR-0008, #184, #267): when a save or a watcher batch replaces a store that has an index,
+ * store (ADR-0008, ThomasBirkmaier/ReqSeq-archive#184, ThomasBirkmaier/ReqSeq-archive#267): when a save or a watcher batch replaces a store that has an index,
  * the index of the new store is derived from it (`carryIncomingIndex`) and added to the same memo,
  * so the next chain finds it ready; the index of the old store stays for a command that still holds
  * that store. A store without an index gets none (nothing is built for a save), and so does a store
@@ -418,7 +418,7 @@ export const incomingFor = (workspace: Workspace, store: ElementStore, metamodel
 /**
  * The incoming relation index of `store` with `metamodel` from `memo` (the value of `incomingState`),
  * built and kept there when there is none or it was built with another metamodel. For a caller that
- * took the memo earlier, as a carry hook does inside `Workspace.replace` (#698).
+ * took the memo earlier, as a carry hook does inside `Workspace.replace` (ThomasBirkmaier/ReqSeq-archive#698).
  */
 export const incomingIn = (
   memo: WeakMap<ElementStore, IncomingIndex>,

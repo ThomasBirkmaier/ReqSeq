@@ -1,6 +1,6 @@
 // `reqseq workspace check` end to end (SR-019, ADR-0009): the built binary with the product commands on
 // fixture workspaces, its exit code, its lines and its JSON. Also the CLI tests that SR-025, SR-085,
-// SR-086, SR-088, SR-089 and SR-090 handed over to this command (#127 option 1).
+// SR-086, SR-088, SR-089 and SR-090 handed over to this command (ThomasBirkmaier/ReqSeq-archive#127 option 1).
 // Run after `pnpm build` with `pnpm test:e2e`.
 import fs from "node:fs/promises";
 import type { FixtureWorkspace } from "@reqseq/testkit";
@@ -54,7 +54,7 @@ const checkBoth = async (
 };
 
 /**
- * Warnings end the check with exit code 1 only with `--fail-on warning` (#304, product owner
+ * Warnings end the check with exit code 1 only with `--fail-on warning` (ThomasBirkmaier/ReqSeq-archive#304, product owner
  * decision, 2026-10-26, option 1). The tests below that ask SR-019 AK2 or SR-025 AK2 for exit code 1 on
  * warnings pass it; both AKs get a new version after the spec moves into ReqSeq.
  */
@@ -273,7 +273,7 @@ describe("findings handed over to workspace check", () => {
 
   it("[SR-090/AK2] ends the check from the command line with exit code 1 for a cycle with --fail-on warning", async () => {
     const ws = await fixture("SR-090/cycle");
-    // A cycle is a warning: exit code 0 by default (#304), 1 with --fail-on warning.
+    // A cycle is a warning: exit code 0 by default (ThomasBirkmaier/ReqSeq-archive#304), 1 with --fail-on warning.
     expect((await reqseq(["workspace", "check"], ws.root)).code).toBe(0);
     const { human, json, output } = await checkBoth(ws.root, FAIL_ON_WARNING);
     expect([human.code, json.code]).toEqual([1, 1]);
@@ -373,7 +373,7 @@ describe("outdated relations in workspace check (SR-025)", () => {
     // The need gets a new text after A's derivation and reference to it were set.
     const need = "needs/N-0a0000000001.md";
     await fs.writeFile(ws.path(need), `${await fs.readFile(ws.path(need), "utf8")}Changed.\n`);
-    // With --fail-on warning, so that the exit code tells whether a hint is left (#304).
+    // With --fail-on warning, so that the exit code tells whether a hint is left (ThomasBirkmaier/ReqSeq-archive#304).
     const first = await checkBoth(ws.root, FAIL_ON_WARNING);
     expect([first.human.code, first.json.code]).toEqual([1, 1]);
     const [derives, link] = first.output.problems;
@@ -407,7 +407,7 @@ describe("outdated relations in workspace check (SR-025)", () => {
   });
 });
 
-describe("which findings fail the check: --fail-on, apart from --severity (#304)", () => {
+describe("which findings fail the check: --fail-on, apart from --severity (ThomasBirkmaier/ReqSeq-archive#304)", () => {
   it("ends with exit code 0 for warnings by default, and with 1 from --fail-on warning on", async () => {
     const ws = await fixture("SR-085/value-kinds");
     const cwd = ws.path("system");
@@ -506,7 +506,7 @@ describe("workspace check restricted to a merge request (SR-092)", () => {
       ["relation.outdated", "requirements/SR-0b0000000001.md", A_ID],
       ["relation.outdated", "requirements/SR-0b0000000001.md", A_ID],
     ]);
-    // The outdated relations are warnings: exit code 0 by default (#304), 1 with --fail-on warning.
+    // The outdated relations are warnings: exit code 0 by default (ThomasBirkmaier/ReqSeq-archive#304), 1 with --fail-on warning.
     expect((await reqseq(["workspace", "check", "--changed-since", "target"], ws.root)).code).toBe(0);
     const json = await reqseq(
       ["workspace", "check", "--changed-since", "target", ...FAIL_ON_WARNING, "--json"],
