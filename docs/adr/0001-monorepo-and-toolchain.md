@@ -1,10 +1,10 @@
 # ADR-0001: Monorepo with pnpm, TypeScript and Node 22
 
-Status: Accepted · Based on: D-004, D-046, D-048
+Status: Accepted · Based on: D-004
 
 ## Context
 
-D-004 fixes TypeScript and Electron. D-046 asks for one repository with separate packages for program logic, CLI, API, MCP server and app. Several agents work in parallel (D-048, N-062); they need fast, reproducible installs and builds in cloud containers and on three CI platforms.
+D-004 fixes TypeScript and Electron. ReqSeq is built in one repository with separate packages for program logic, CLI, API, MCP server and app. Several agents work in parallel (N-062); they need fast, reproducible installs and builds in cloud containers and on three CI platforms.
 
 ## Decision
 

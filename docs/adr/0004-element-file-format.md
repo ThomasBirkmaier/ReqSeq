@@ -4,7 +4,7 @@ Status: Accepted · Based on: D-012, D-015, D-017, D-020, D-040, D-041, D-042, D
 
 ## Context
 
-D-015 and D-056 fix "one Markdown file per element, YAML frontmatter, then text". Everything that touches the file format belongs in stage 1 even if the function comes later (D-035). This ADR fixes the remaining details so that no agent invents its own.
+D-015 and D-056 fix "one Markdown file per element, YAML frontmatter, then text". Everything that touches the file format belongs in stage 1 even if the function comes later. This ADR fixes the remaining details so that no agent invents its own.
 
 ## Decision
 
