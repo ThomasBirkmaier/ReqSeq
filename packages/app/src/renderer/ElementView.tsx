@@ -62,6 +62,7 @@ import type { EditorPlugins } from "./editor/plugins.js";
 import { mergePlugins } from "./editor/plugins.js";
 import { boxReference, referenceAt, references } from "./editor/references.js";
 import type { Reference } from "./editor/references.js";
+import { listKeys } from "./editor/lists.js";
 import { boxNavigation } from "./editor/box-navigation.js";
 import { dirty } from "./editor/save.js";
 import { referenceSearch } from "./editor/reference-search.js";
@@ -866,6 +867,8 @@ export const ElementView = ({
         brackets,
         formulasAndDiagrams,
         images,
+        // Tab, Shift+Tab and Alt+arrows in lists (SR-187).
+        { extensions: [listKeys()] },
         {
           // After the slash menu, which takes Down while it is open.
           extensions: [
