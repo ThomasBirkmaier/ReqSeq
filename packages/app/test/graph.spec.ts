@@ -397,7 +397,9 @@ test.describe("the graph of an element on a fixture workspace", () => {
         key: node.dataset["node"],
         head: node.querySelector(".graph-id")?.textContent,
         title: node.querySelector(".graph-title")?.textContent,
-        marks: [...node.querySelectorAll(".graph-marks > span")].map((mark) => mark.textContent),
+        marks: [...node.querySelectorAll(".graph-marks > span:not(.graph-verification)")].map(
+          (mark) => mark.textContent,
+        ),
         fits: node.scrollHeight <= node.clientHeight,
       })),
     );
@@ -517,6 +519,9 @@ test.describe("the graph on the specification workspace", () => {
       const members = await traced(running, { ref: "Editor", maxDepth: 1 });
       await showGraph(window, members.nodes.length);
       expect(await cutLines(window)).toEqual([]);
+      // A box carries a mark word only when it is outdated or superseded; its verification stands apart.
+      const words = await window.locator(".graph-marks > span:not(.graph-verification)").allTextContents();
+      expect(words.filter((word) => word !== "outdated" && word !== "superseded")).toEqual([]);
       const heads = await window.locator(".graph-id").allTextContents();
       expect(heads.some((head) => head.endsWith(" · System Requirement"))).toBe(true);
       // SR-111 over the whole chain: needs, decisions, packages and requirements of every length.

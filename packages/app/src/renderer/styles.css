@@ -1147,6 +1147,38 @@ mark {
   color: var(--accent-outdated);
 }
 
+/* The verification of a box (SR-136), at the right end of the marks line apart from the marks: the status word, failed and outdated in the accent as in the
+   matrix, and a ring of 12 px with its text, the track in the edge grey and the full part in the text
+   colour. */
+.graph-marks .status.accent {
+  color: var(--accent-gap);
+}
+
+.graph-verification {
+  display: inline-flex;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.graph-ring {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.graph-ring circle {
+  fill: none;
+  stroke-width: 2px;
+}
+
+.graph-ring .track {
+  stroke: var(--edge);
+}
+
+.graph-ring .full {
+  stroke: var(--text);
+}
+
 .graph-title {
   display: -webkit-box;
   flex: none;

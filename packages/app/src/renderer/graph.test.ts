@@ -3,6 +3,7 @@ import type { GraphDepth } from "./buffers.js";
 import { graphBuffer } from "./buffers.js";
 import {
   GRAPH_LIMIT,
+  accentStatus,
   deeper,
   depthLabel,
   edgeClasses,
@@ -14,10 +15,20 @@ import {
   nodeId,
   nodeKey,
   nodeLabel,
+  ringOf,
   shallower,
   spotlit,
+  statusOf,
 } from "./graph.js";
-import { BASED_ON, DERIVES, REFERENCE, S1_GRAPH, graphEdge, graphNode } from "./graph-test-data.js";
+import {
+  BASED_ON,
+  DERIVES,
+  REFERENCE,
+  S1_GRAPH,
+  VERIFIED_GRAPH,
+  graphEdge,
+  graphNode,
+} from "./graph-test-data.js";
 
 const buffer = graphBuffer("uuid-S1", "spec", "S1 Title S1");
 
@@ -188,5 +199,39 @@ describe("the text of a link", () => {
       "C1 Derives from S1",
       "C1 based-on S1",
     ]);
+  });
+});
+
+describe("the verification of a node", () => {
+  const node = (name: string) => {
+    const found = VERIFIED_GRAPH.nodes.find((each) => each.id === `uuid-${name}`);
+    if (found === undefined) {
+      throw new Error(name);
+    }
+    return found;
+  };
+
+  it("[SR-136/AK2] a requirement's ring counts its verified criteria, a need's its degree", () => {
+    expect(ringOf(node("R11"))).toEqual({ part: 2 / 3, text: "2 of 3" });
+    expect(ringOf(node("N1"))).toEqual({ part: 0.6, text: "60 %" });
+    expect([ringOf(node("I1")), ringOf(node("N2")), ringOf(node("D1"))]).toEqual([
+      undefined,
+      undefined,
+      undefined,
+    ]);
+  });
+
+  it("[SR-136/AK1] the status of a requirement, failed and outdated in the accent colour", () => {
+    expect([statusOf(node("R11")), statusOf(node("N1"))]).toEqual(["open", undefined]);
+    expect(["open", "verified", "indirect", "failed", "outdated"].map(accentStatus)).toEqual([
+      false,
+      false,
+      false,
+      true,
+      true,
+    ]);
+    expect(nodeLabel(node("R11"), "System Requirement")).toBe(
+      "R11 System Requirement Title R11 verification open 2 of 3",
+    );
   });
 });
