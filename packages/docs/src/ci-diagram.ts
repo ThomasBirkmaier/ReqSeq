@@ -19,7 +19,7 @@ import {
 } from "./svg.js";
 
 /**
- * The checks the ruleset of `main` requires, as .claude/skills/merge/SKILL.md and CLAUDE.md list them. GitHub
+ * The checks the ruleset of `main` requires, as .claude/skills/merge/SKILL.md lists them. GitHub
  * keeps the ruleset outside the repository, so this is its one copy here; diagrams.test.ts fails when a name is no
  * longer the name of a job of ci.yml.
  */
