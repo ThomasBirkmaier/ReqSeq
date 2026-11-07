@@ -401,6 +401,35 @@ const PromptLine = ({
     return true;
   };
 
+  /** Escape, or a click outside the minibuffer: the prompt ends without an answer. */
+  const cancel = (): void => {
+    prompt.cancel?.();
+    waiting.current = 0;
+    onClose(true);
+  };
+  const cancelNow = useRef(cancel);
+  cancelNow.current = cancel;
+  const input = useRef<HTMLInputElement>(null);
+  // A press of a mouse button (left, middle, right) anywhere outside the minibuffer and its card ends the
+  // prompt as Escape does, and goes on to what it presses: the prompt is no dialog (D-062). The buttons
+  // Back and Forward do nothing while a prompt is open (SR-163), so they do not end it either.
+  useEffect(() => {
+    const own = input.current?.closest(".minibuffer");
+    const page = input.current?.ownerDocument;
+    if (own === null || own === undefined || page === undefined) {
+      return undefined;
+    }
+    const press = (event: MouseEvent): void => {
+      if (event.button <= 2 && (!(event.target instanceof Node) || !own.contains(event.target))) {
+        cancelNow.current();
+      }
+    };
+    page.addEventListener("mousedown", press, true);
+    return () => {
+      page.removeEventListener("mousedown", press, true);
+    };
+  }, []);
+
   const keyDown = (event: React.KeyboardEvent): void => {
     // Down, Up, Tab and Ctrl+N / Ctrl+P (SR-122) move the selection. They go no further: Ctrl+P is
     // "Go to" in the window, but in an open prompt it only moves the selection, on every platform.
@@ -431,9 +460,7 @@ const PromptLine = ({
         break;
       case "Escape":
         event.preventDefault();
-        prompt.cancel?.();
-        waiting.current = 0;
-        onClose(true);
+        cancel();
         break;
     }
   };
@@ -444,6 +471,7 @@ const PromptLine = ({
         {prompt.label}
       </label>
       <input
+        ref={input}
         id="prompt-input"
         className="prompt-input"
         role="combobox"
