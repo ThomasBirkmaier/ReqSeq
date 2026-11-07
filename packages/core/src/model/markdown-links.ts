@@ -693,3 +693,74 @@ export const markdownImages = (text: string): string[] => {
     }),
   ];
 };
+
+/**
+ * Gives each line of `text` to `take`: without its line break (LF, CRLF or CR), with its offset and
+ * the offset of the next line. One pass: the next LF and CR are each searched again only once passed.
+ */
+const forEachLine = (text: string, take: (line: string, start: number, next: number) => void): void => {
+  let lf = text.indexOf("\n");
+  let cr = text.indexOf("\r");
+  for (let start = 0; start < text.length;) {
+    if (lf >= 0 && lf < start) {
+      lf = text.indexOf("\n", start);
+    }
+    if (cr >= 0 && cr < start) {
+      cr = text.indexOf("\r", start);
+    }
+    const breaks = [lf, cr].filter((at) => at >= 0);
+    const end = breaks.length === 0 ? text.length : Math.min(...breaks);
+    const next = text.startsWith("\r\n", end) ? end + 2 : Math.min(text.length, end + 1);
+    take(text.slice(start, end), start, next);
+    start = next;
+  }
+};
+
+/** A block of a Markdown text (`markdownBlocks`): offsets of whole lines, end exclusive. */
+export interface MarkdownBlock {
+  readonly start: number;
+  readonly end: number;
+  /** A fenced code block: its lines are code, no definition stands in them. */
+  readonly fence: boolean;
+}
+
+/**
+ * The blocks of a Markdown text, in order, for parsing one of them on its own (the search hit
+ * snippet, SR-174): the runs of non-blank lines between blank lines, and each fenced code block
+ * (also inside block quotes, its blank lines included) as a block of its own. Inline content never
+ * spans a blank line, so a block parsed alone reads as it does in the whole text, except for what
+ * refers to another block (a reference-style link and its definition) and a list item or block
+ * quote that goes on after a blank line. Blank lines belong to no block. One pass over the text.
+ */
+export const markdownBlocks = (text: string): MarkdownBlock[] => {
+  const blocks: MarkdownBlock[] = [];
+  let open: number | undefined;
+  let fence: string | undefined;
+  const close = (end: number, fenced: boolean): void => {
+    if (open !== undefined) {
+      blocks.push({ start: open, end, fence: fenced });
+      open = undefined;
+    }
+  };
+  forEachLine(text, (line, start, next) => {
+    const content = line.startsWith(" ") || line.startsWith(">") ? line.replace(BLOCK_QUOTE, "") : line;
+    if (fence !== undefined) {
+      const marker = FENCE.exec(content)?.[1];
+      if (marker?.startsWith(fence) === true && content.trim() === marker) {
+        fence = undefined;
+        close(next, true);
+      }
+    } else if (content.trim() === "") {
+      close(start, false);
+    } else {
+      const marker = content.includes("``") || content.includes("~~") ? openingFence(content) : undefined;
+      if (marker !== undefined) {
+        close(start, false);
+        fence = marker;
+      }
+      open ??= start;
+    }
+  });
+  close(text.length, fence !== undefined);
+  return blocks;
+};

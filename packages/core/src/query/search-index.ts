@@ -82,10 +82,10 @@ export interface SearchDocument {
 }
 
 /** Splits text into words: at every character that is not a letter, a mark or a digit. */
-const WORD_SEPARATOR = /[^\p{L}\p{M}\p{N}]+/u;
+export const WORD_SEPARATOR = /[^\p{L}\p{M}\p{N}]+/u;
 
 /** A word as it is indexed and searched: NFC, lower case; undefined for none. */
-const normalizeWord = (word: string): string | undefined => {
+export const normalizeWord = (word: string): string | undefined => {
   const term = word.normalize("NFC").toLowerCase();
   return term === "" ? undefined : term;
 };
@@ -146,7 +146,7 @@ export const recordKey = (record: Pick<ElementRecord, "repository" | "file">): s
  * also inside lists, mappings, ordered maps and sets (`!!omap`, `!!set`); binary data (`!!binary`)
  * has none.
  */
-const valueTexts = (value: unknown, out: string[]): void => {
+export const valueTexts = (value: unknown, out: string[]): void => {
   if (typeof value === "string") {
     out.push(value);
   } else if (typeof value === "number" || typeof value === "boolean") {
@@ -235,35 +235,54 @@ export const documentOf = (record: ElementRecord, text: string, metamodel: Metam
   };
 };
 
+/** An element as its file holds it now, with its Markdown text (`elementNow`). */
+export interface ElementNow {
+  /** The record itself when the file is unchanged, else the element the file holds now. */
+  readonly element: ElementRecord;
+  readonly body: string;
+}
+
 /**
- * The document of `record` as its file holds it now: the text of the bytes the store read, or,
- * when the file changed since, the element the file holds now when it still has the record's UUID
- * (as the current versions read it, ADR-0008), else the record without a text. `exact` tells
- * whether it is the record with the text of its snapshot.
+ * The element of `record` as its file holds it now (in `layout`, by repository and file, SR-088):
+ * the record with the text of the bytes the store read, or, when the file changed since, the
+ * element the file holds now when it still has the record's UUID (as the current versions read it,
+ * ADR-0008); undefined otherwise. Blocking reads, so a caller can use it in the turn it searches in.
+ */
+export const elementNow = (layout: WorkspaceLayout, record: ElementRecord): ElementNow | undefined => {
+  const repository = layout.repositories.find((r) => r.name === record.repository);
+  if (repository === undefined) {
+    return undefined;
+  }
+  const read = readElementBodySync(repository.folder, record.file, record.snapshot);
+  if (read.kind === "same") {
+    return { element: record, body: read.body };
+  }
+  if (read.read.kind === "parsed") {
+    const now = classifyFile(record.repository, read.read.file);
+    if (now.kind === "element" && now.element.id === record.id) {
+      return { element: now.element, body: read.read.file.body };
+    }
+  }
+  return undefined;
+};
+
+/**
+ * The document of `record` as its file holds it now (`elementNow`), else the record without a text.
+ * `exact` tells whether it is the record with the text of its snapshot.
  */
 const documentNow = (
   layout: WorkspaceLayout,
   record: ElementRecord,
   metamodel: Metamodel,
 ): { readonly document: SearchDocument; readonly exact: boolean } => {
-  const repository = layout.repositories.find((r) => r.name === record.repository);
-  if (repository === undefined) {
+  const now = elementNow(layout, record);
+  if (now === undefined) {
     return { document: documentOf(record, "", metamodel), exact: false };
   }
-  const read = readElementBodySync(repository.folder, record.file, record.snapshot);
-  if (read.kind === "same") {
-    return { document: documentOf(record, read.body, metamodel), exact: true };
-  }
-  if (read.read.kind === "parsed") {
-    const now = classifyFile(record.repository, read.read.file);
-    if (now.kind === "element" && now.element.id === record.id) {
-      return {
-        document: { ...documentOf(now.element, read.read.file.body, metamodel), key: recordKey(record) },
-        exact: false,
-      };
-    }
-  }
-  return { document: documentOf(record, "", metamodel), exact: false };
+  return {
+    document: { ...documentOf(now.element, now.body, metamodel), key: recordKey(record) },
+    exact: now.element === record,
+  };
 };
 
 /**

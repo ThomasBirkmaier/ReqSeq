@@ -112,8 +112,8 @@ export {
   formsOfEntry,
 } from "./current-versions.js";
 export type { CurrentVersion, CurrentVersions } from "./current-versions.js";
-export { markdownImages, markdownLinks } from "./markdown-links.js";
-export type { MarkdownLink } from "./markdown-links.js";
+export { markdownBlocks, markdownImages, markdownLinks } from "./markdown-links.js";
+export type { MarkdownBlock, MarkdownLink } from "./markdown-links.js";
 export { currentTarget, setInlineReferences, setMarkdownReferences, setRelationTargets } from "./targets.js";
 export type { TargetContext } from "./targets.js";
 export {

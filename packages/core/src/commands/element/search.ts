@@ -14,14 +14,18 @@
 //   selection never saw it), and the short IDs of the selection's store name them (`ShortIds.of`
 //   names any record). Scores are rounded to 6 significant digits (`searchElements`).
 // - `fields` restricts what is searched: the `[[` search of SR-066 asks for the title and the IDs.
-// - Nothing is read from the files: a hit names the element (no version, no text), so a page costs
-//   the search only (SR-098).
+// - Each hit of the page has its snippet (SR-174, `query/search-snippet.ts`): its file is read again,
+//   in the same turn, only when a word was found in its text; the title marks come from the title.
+//   So a page costs the search and the files of its hits (SR-098: measured for 50 and 500 hits in
+//   test/perf/search-speed.test.ts). The Markdown parser comes with it, so the command is imported
+//   on its first call (`lazyCommand`, #178).
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import type { ElementSearchOutput } from "../../generated/types.js";
 import { identifierField, titleKeyOf } from "../../model/index.js";
 import type { SearchHit } from "../../query/index.js";
 import { resolveSelection, searchElements, searchIndex } from "../../query/index.js";
+import { searchSnippet, titleMarks } from "../../query/search-snippet.js";
 
 type Hit = ElementSearchOutput["hits"][number];
 
@@ -42,9 +46,13 @@ export default defineCommand({
     });
     // Without the meaning `title` (SR-013 AK3) no key is the title: the title is empty, as in element.get.
     const titleKey = titleKeyOf(selected.metamodel);
-    const hitOf = ({ element, score, fields, terms }: SearchHit): Hit => {
+    const hitOf = (hit: SearchHit): Hit => {
+      const { element, score, fields, terms } = hit;
       const title = titleKey === undefined ? undefined : element.data[titleKey];
       const status = element.data["status"];
+      const shown = typeof title === "string" ? title : "";
+      const marks = fields.includes("title") ? titleMarks(shown, terms) : [];
+      const snippet = searchSnippet(index, hit);
       return {
         id: element.id,
         repository: element.repository,
@@ -52,10 +60,12 @@ export default defineCommand({
         ...identifierField(selected.shortIds, element),
         type: element.type,
         ...(typeof status === "string" ? { status } : {}),
-        title: typeof title === "string" ? title : "",
+        title: shown,
         score,
         fields,
         terms,
+        ...(marks.length === 0 ? {} : { titleMarks: marks }),
+        ...(snippet === undefined ? {} : { snippet }),
       };
     };
     return { hits: results.hits.map(hitOf), total: results.total, incomplete: selected.incomplete };

@@ -1682,6 +1682,51 @@ describe("renderHuman: on a terminal (#988)", () => {
     );
   });
 
+  it("shows the snippet of a search hit below its line, the marks core gives strong (SR-174)", () => {
+    const output = {
+      hits: [
+        element("a1", "Show a dial", {
+          snippet: { field: "text", text: "The dial shows wind.", marks: [{ start: 4, end: 8 }] },
+        }),
+        element("a2", "Warn", {
+          snippet: {
+            field: "properties",
+            property: "checks",
+            propertyName: "Checks",
+            text: "It warns of a storm.",
+            marks: [{ start: 14, end: 19 }],
+          },
+        }),
+        element("a3", "Survive icing", { titleMarks: [{ start: 8, end: 13 }] }),
+      ],
+      total: 3,
+    };
+    const styled = renderHuman(output, true, terminal);
+    expect(seen(styled)).toBe(
+      lines(
+        "hits:",
+        "  SR-a1  draft  Show a dial",
+        "    text: The dial shows wind.",
+        "  SR-a2  draft  Warn",
+        "    Checks: It warns of a storm.",
+        "  SR-a3  draft  Survive icing",
+        "total: 3",
+      ),
+    );
+    expect(styled).toContain(`${style("dim", "text:")} The ${style("bold", "dial")} shows wind.`);
+    expect(renderHuman(output)).toBe(
+      lines(
+        "hits:",
+        "  SR-a1  draft  Show a dial",
+        "    text: The dial shows wind.",
+        "  SR-a2  draft  Warn",
+        "    Checks: It warns of a storm.",
+        "  SR-a3  draft  Survive icing",
+        "total: 3",
+      ),
+    );
+  });
+
   it("keeps the title whole when even a cut one would not fit beside the marks", () => {
     const marks = { emergent: true, validation: "x".repeat(60) };
     expect(

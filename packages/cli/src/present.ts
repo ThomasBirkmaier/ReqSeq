@@ -10,7 +10,9 @@
 //   `core open (missing SR-0000b2)`, the criteria of SR-031 AK5 as `core open 2 of 3 criteria (AK3 not
 //   verified)`), then its validation status (`[validation: validated]`, SR-038;
 //   an inconclusive one with its reason on one line, `[validation: inconclusive — <reason>]`, SR-172);
-//   a list of them one such line per element; a list whose elements carry their text (element.list
+//   a list of them one such line per element, a search hit with its snippet (SR-174) on the line
+//   below it, `  text: …line…` or the property's name instead of `text`, the marked words strong on a
+//   terminal; a list whose elements carry their text (element.list
 //   `withText`) shows below each line its properties without relation targets, its relations one line
 //   each and its text, with a blank line between elements (#397). A read command (element.get) shows
 //   the element's details below its line, a write command only the line; there, a property whose
@@ -457,6 +459,29 @@ const findingLine = (finding: Rec, style?: Style): string => {
   );
 };
 
+/**
+ * The snippet of a search hit (element.search, SR-174), below its line: where it was found (`text`, or
+ * the property's name) and the line core gives; on a terminal the marked words strong. The marks
+ * are core's, never computed here.
+ */
+const snippetLines = (element: Rec, style: Style = PLAIN): string[] => {
+  const snippet = element["snippet"];
+  if (!isRecord(snippet) || typeof snippet["text"] !== "string") {
+    return [];
+  }
+  const line = snippet["text"];
+  let shown = "";
+  let at = 0;
+  for (const mark of listOf(snippet["marks"]).filter(isRecord)) {
+    const start = Number(mark["start"]);
+    const end = Number(mark["end"]);
+    shown += `${line.slice(at, start)}${style.strong(line.slice(start, end))}`;
+    at = end;
+  }
+  const where = snippet["field"] === "text" ? "text" : text(snippet["propertyName"]);
+  return [`  ${style.faint(`${where}:`)} ${shown}${line.slice(at)}`];
+};
+
 /** The lines of a plain list of elements below its key, on a terminal as `terminalListLines` (#988). */
 const elementListLines = (
   elements: readonly (Rec & { readonly shortId: string; readonly title: string })[],
@@ -482,7 +507,7 @@ const elementListLines = (
       ...indent([elementLine(element, name, view), ...listedElementDetails(element)]),
     ]);
   }
-  return indent(elements.map((element) => elementLine(element, name, view)));
+  return indent(elements.flatMap((element) => [elementLine(element, name, view), ...snippetLines(element)]));
 };
 
 /**
@@ -814,6 +839,7 @@ const terminalLines = (
   return rows.flatMap((row, i) => [
     ...(withText && i > 0 ? [""] : []),
     terminalLine(row, columns, at, style, { name, view, whole: withText }),
+    ...indent(snippetLines(row.element, style), `${at}${row.below}`),
     ...(withText ? indent(listedElementDetails(row.element), `${at}${row.below}`) : []),
   ]);
 };
