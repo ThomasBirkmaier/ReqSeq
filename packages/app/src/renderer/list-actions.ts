@@ -1,7 +1,8 @@
-// The actions on a list and on the elements of a package page (SR-124, SR-125, SR-149, SR-112): filter,
-// sort, group and the matrix. Each acts on a query target, the shown list or the elements of the shown
-// package page, and changes its query (`list-query.ts`); what the target's view does not show is not
-// offered. Only the input of `element.list` is built (ADR-0002).
+// The actions on a list, on the elements of a package page and on the hits of a search (SR-124, SR-125,
+// SR-149, SR-112): filter, sort, group and the matrix. Each acts on a query target, the shown list, the
+// elements of the shown package page or the shown search, and changes its query (`list-query.ts`); what
+// the target's view does not show is not offered (a search is not sorted). Only the input of
+// `element.list` and `element.search` is built (ADR-0002).
 import type { ElementSelection, FilterSortKeyWithDefaults } from "@reqseq/core";
 import type { Action, ActionContext, Choice } from "./actions.js";
 import type { ElementBuffer, FilterStep, ListBuffer } from "./buffers.js";
@@ -12,8 +13,11 @@ import {
   listOf,
   listView,
   queryOf,
+  searchQueryOf,
+  selectionOf,
   withMatrix,
   withQuery,
+  withSearchQuery,
 } from "./buffers.js";
 import type { Answer, Call } from "./call.js";
 import type { Shortcut } from "./keys.js";
@@ -47,9 +51,10 @@ export const packagePage = (context: ActionContext): ElementBuffer | undefined =
 };
 
 /**
- * What the list actions act on: the shown list, or the elements of the shown package page (SR-112 AK2).
- * `query` is what it asks, `view` where it shows it, `selection` what the steps select (on a page with the
- * package), the input of `element.facets`; `apply` shows the same list or page with the query changed.
+ * What the list actions act on: the shown list, the elements of the shown package page (SR-112 AK2) or
+ * the shown search (SR-124 AK4, SR-149 AK6). `query` is what it asks, `view` where it shows it,
+ * `selection` what the steps select (on a page with the package, in a search with its text), the input of
+ * `element.facets`; `apply` shows the same list, page or search with the query changed.
  */
 interface QueryTarget {
   readonly query: ListQuery;
@@ -67,6 +72,19 @@ const queryTarget = (context: ActionContext): QueryTarget | undefined => {
       selection: list.selection,
       apply: (change) => {
         context.dispatch({ type: "open", buffer: withQuery(list, change) });
+      },
+    };
+  }
+  const shown = context.buffers[0];
+  if (shown?.kind === "search") {
+    return {
+      query: searchQueryOf(shown),
+      view: "search",
+      // What the filters offer are the values of the hits: the selection with the search's own text
+      // condition, which selects what element.search finds (SR-068 AK3).
+      selection: selectionOf([textStep(shown.query), ...shown.steps]),
+      apply: (change) => {
+        context.dispatch({ type: "open", buffer: withSearchQuery(shown, change) });
       },
     };
   }

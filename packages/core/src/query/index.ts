@@ -33,13 +33,16 @@ export {
   SearchBuildCancelled,
   buildSearchIndex,
   carrySearchIndex,
+  describeHit,
   documentOf,
   matchingKeys,
+  rankedHits,
   recordKey,
   searchElements,
 } from "./search-index.js";
 export type {
   BuiltSearchIndex,
+  RankedHit,
   SearchDocument,
   SearchElementsOptions,
   SearchField,

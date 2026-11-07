@@ -119,21 +119,30 @@ const fetchPage = async (
       ...(groups === undefined ? {} : { groups }),
     };
   }
-  const answer = await call("element.search", { query: buffer.query, limit, offset });
-  return answer.ok
-    ? {
-        ok: true,
-        rows: searchRows(answer.output),
-        total: answer.output.total,
-        size: answer.output.total,
-        incomplete: answer.output.incomplete,
-      }
-    : answer;
+  // The hits within the steps, grouped as a list (SR-124 AK4, SR-149 AK6), in the order of the search.
+  const answer = await call("element.search", {
+    query: buffer.query,
+    ...(buffer.selection === undefined ? {} : { selection: buffer.selection }),
+    ...(buffer.group === undefined ? {} : { group: buffer.group }),
+    limit,
+    offset,
+  });
+  if (!answer.ok) {
+    return answer;
+  }
+  const { groups, rows, total } = answer.output;
+  return {
+    ok: true,
+    rows: searchRows(answer.output),
+    total,
+    size: rows ?? total,
+    incomplete: answer.output.incomplete,
+    ...(groups === undefined ? {} : { groups }),
+  };
 };
 
-/** What a list is grouped by (SR-149); a search is never grouped. */
-const groupBy = (buffer: ListBuffer | SearchBuffer): string | undefined =>
-  buffer.kind === "list" ? buffer.group : undefined;
+/** What a list or a search is grouped by (SR-149). */
+const groupBy = (buffer: ListBuffer | SearchBuffer): string | undefined => buffer.group;
 
 /** The groups of a grouped list once it is loaded; none for any other list. */
 const groupsOf = (view: View): readonly ListGroup[] | undefined =>
@@ -183,7 +192,7 @@ const LEADS = [60, 40, 24, 12, 0];
  * gives up to 120 characters, more than the column holds: while the line hides its first marked word, the
  * words before it are left out, so the match stays in view (`trimLead`); the whole line is its tooltip.
  */
-const SnippetLine = ({
+export const SnippetLine = ({
   id,
   snippet,
 }: {
@@ -330,7 +339,8 @@ export const ListView = ({
   const focusTaken = useRef(false);
   const kind = buffer.kind;
   const page = kind === "list" ? LIST_PAGE : SEARCH_PAGE;
-  const selection = buffer.kind === "list" ? buffer.selection : buffer.query;
+  // The key holds the query of a search.
+  const selection = buffer.selection;
   const sort = buffer.kind === "list" ? listSort(buffer) : undefined;
   const group = groupBy(buffer);
   const list = JSON.stringify([buffer.key, kind, selection, sort, group]);

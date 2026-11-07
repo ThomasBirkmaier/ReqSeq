@@ -309,8 +309,12 @@ describe("the prefix key Ctrl/Cmd+K", () => {
     await press(window, { key: "x" });
     expect(echo()).toBe("Ctrl+K X is not bound");
     await ctrlK();
-    await press(window, { key: "ArrowDown" });
-    expect(echo()).toBe("Ctrl+K Down is not bound");
+    await press(window, { key: "ArrowLeft" });
+    expect(echo()).toBe("Ctrl+K Left is not bound");
+    // Enter without a selected next key, too.
+    await ctrlK();
+    await press(window, { key: "Enter" });
+    expect(echo()).toBe("Ctrl+K Enter is not bound");
 
     // A bound letter whose command does not apply here says so.
     await ctrlK();
@@ -350,6 +354,66 @@ describe("the prefix key Ctrl/Cmd+K", () => {
     // Still waiting: L runs.
     await press(window, { key: "l", ctrlKey: true });
     expect(shown()).toBe("All elements");
+  });
+
+  it("[SR-122/AK6] Ctrl+N and Ctrl+P move the selection through the next keys, and Enter runs it", async () => {
+    await onElement();
+    const selected = (): string | undefined =>
+      nextKeys() === undefined
+        ? undefined
+        : (container.querySelector('[aria-label="Next keys"] li[aria-current="true"]')?.textContent ??
+          "none");
+    await ctrlK();
+    // Ctrl+N shows the list at once, with the first row selected; the key goes no further.
+    const taken = await press(window, { key: "n", ctrlKey: true });
+    expect(taken.defaultPrevented).toBe(true);
+    expect(selected()).toBe("ECreate element");
+    await press(window, { key: "n", ctrlKey: true });
+    await press(window, { key: "ArrowDown" });
+    expect(selected()).toBe("TSet status");
+    await press(window, { key: "p", ctrlKey: true });
+    expect(selected()).toBe("RCreate relation");
+    await press(window, { key: "ArrowUp" });
+    await press(window, { key: "p", ctrlKey: true });
+    expect(selected()).toBe("ECreate element");
+    // The last row is as far as it goes; a second Ctrl+K keeps the selection.
+    for (let n = 0; n < 9; n += 1) {
+      await press(window, { key: "n", ctrlKey: true });
+    }
+    await ctrlK();
+    expect(selected()).toBe("BClose buffer");
+    await press(window, { key: "p", ctrlKey: true });
+    expect(selected()).toBe("OShow overview");
+    await press(window, { key: "Enter" });
+    expect(nextKeys()).toBeUndefined();
+    expect(shown()).toBe("Overview");
+    expect(echo()).toBe("");
+    // With a row selected, a letter runs its own command, not the selected one.
+    await ctrlK();
+    await press(window, { key: "n", ctrlKey: true });
+    expect(selected()).toBe("ECreate element");
+    await press(window, { key: "l" });
+    expect(shown()).toBe("All elements");
+    // The list after half a second has no selection; a letter still runs its command.
+    vi.useFakeTimers();
+    await ctrlK();
+    await tick(500);
+    expect(selected()).toBe("none");
+    await press(window, { key: "o" });
+    expect(shown()).toBe("Overview");
+  });
+
+  it("[SR-145/AK3] on macOS the physical Ctrl+N and Ctrl+P move the selection through the next keys", async () => {
+    vi.spyOn(navigator, "platform", "get").mockReturnValue("MacIntel");
+    await onElement();
+    await ctrlK(window, true);
+    await press(window, { key: "n", ctrlKey: true });
+    await press(window, { key: "n", ctrlKey: true });
+    await press(window, { key: "p", ctrlKey: true });
+    await press(window, { key: "n", ctrlKey: true });
+    expect(container.querySelector('[aria-label="Next keys"] li[aria-current="true"]')?.textContent).toBe(
+      "RCreate relation",
+    );
   });
 
   it("[SR-109/AK3] the letter after the prefix never reaches the focused editor or box", async () => {

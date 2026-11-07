@@ -181,11 +181,16 @@ describe("the key tables follow their handlers", () => {
     expect(GRAPH_MOVES).toEqual(pressesOf(GRAPH_KEYS, false).map((event) => event.key));
   });
 
-  it("lists what the prefix does with a second Ctrl/Cmd+K and with Escape (prefixStep)", () => {
+  it("lists what the prefix does with a second Ctrl/Cmd+K, Escape, the moves and Enter (prefixStep)", () => {
     for (const mac of [false, true]) {
       expect(pressesOf(PREFIX_KEYS, mac).map((event) => prefixStep(event, mac).kind)).toEqual([
         "show",
         "cancel",
+        "move",
+        "move",
+        "move",
+        "move",
+        "enter",
       ]);
     }
   });

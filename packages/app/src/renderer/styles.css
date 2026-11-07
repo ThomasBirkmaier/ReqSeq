@@ -799,7 +799,8 @@ mark {
   padding: 0.1rem 0.75rem;
 }
 
-.card-list li[aria-selected="true"] {
+.card-list li[aria-selected="true"],
+.card-list.next-keys li[aria-current="true"] {
   background: var(--select);
 }
 
@@ -812,6 +813,41 @@ mark {
   white-space: nowrap;
   color: var(--muted);
   font-size: 12px;
+}
+
+/* A hit of the search prompt (SR-183): one line, or two with the snippet under it, each as high as
+   --line, so CARD_LINES of actions.ts hold in the card's max-height above and it never grows. */
+.card-list li.hit {
+  flex-wrap: wrap;
+  align-content: center;
+  row-gap: 0;
+  box-sizing: border-box;
+  height: var(--line);
+  padding-block: 0;
+  overflow: hidden;
+}
+
+.card-list li.hit.snipped {
+  height: calc(var(--line) * 2);
+}
+
+.card-list li.hit .name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-list .snippet {
+  flex-basis: 100%;
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-list .snippet .where {
+  color: var(--muted);
 }
 
 /* The next keys after the prefix key (SR-109 AK3): the key, muted, before its command. */

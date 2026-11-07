@@ -62,4 +62,27 @@ describe("element.search over a store swapped while it runs", () => {
     // The next search selects from the new store.
     expect((await search({ query: "gale" })).hits.map((hit) => hit.id)).toEqual([GALE, B2]);
   });
+
+  it("groups the hits by the content of the newer store (SR-149 AK6)", async () => {
+    const fixture = await createFixtureWorkspace({ fixture: "SR-069/filter" });
+    onTestFinished(() => fixture.cleanup());
+    const ws = new Workspace(fixture.root);
+    onTestFinished(() => ws.close());
+    const file = fixture.path("requirements/SR-0000000000b2.md");
+    hook.afterSelection = async (): Promise<void> => {
+      const content = await fs.readFile(file, "utf8");
+      await fs.writeFile(file, `${content.replace("status: draft", "status: approved")}Gale force.\n`);
+      const layout = await ws.get(workspaceLayoutState);
+      const changes = new Map([["system", { paths: ["requirements/SR-0000000000b2.md"] }]]);
+      await applyStoreChange(ws, (now) => updateElements(now, layout, changes));
+    };
+    const out = (await invoke(
+      "element.search",
+      { query: "gale", group: "status" },
+      { workspace: ws },
+    )) as CommandOutput<"element.search">;
+    // Found by its new text, and grouped by its new status.
+    expect(out.hits.map((hit) => [hit.id, hit.status])).toEqual([[B2, "approved"]]);
+    expect(out.groups).toEqual([{ value: "approved", name: "Approved", count: 1, offset: 0 }]);
+  });
 });

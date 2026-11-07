@@ -4,11 +4,15 @@ type: system-requirement
 status: approved
 title: Nachweisstatus im Graphen zeigen
 spec-id: SR-136
-rationale: "Entscheidung des Produktverantwortlichen, 2026-10-28: Der Verifikationsstatus muss später unbedingt auch in den Graphen. Öffnet man zum Beispiel einen Need mit 10 abgeleiteten Requirements, wäre es gut, im Knoten des Needs den gesammelten Status als kleine Prozentanzeige zu sehen. Vorbild ist ein kleiner Fortschrittskreis neben einer Beschriftung. Bisher markiert der Graph einen Knoten nur, wenn er ohne Nachweis ist (SR-111 AK4); bis Später eingeplant ist, gilt SR-111 wie umgesetzt. Geparkt im Paket Später nach der Entscheidung des Produktverantwortlichen vom 2026-10-27, neue Ideen weiter aufzunehmen und zu parken."
+rationale: "Entscheidung des Produktverantwortlichen, 2026-10-28: Der Verifikationsstatus muss später unbedingt auch in den Graphen. Öffnet man zum Beispiel einen Need mit 10 abgeleiteten Requirements, wäre es gut, im Knoten des Needs den gesammelten Status als kleine Prozentanzeige zu sehen. Vorbild ist ein kleiner Fortschrittskreis neben einer Beschriftung. Entscheidung des Produktverantwortlichen, 2026-11-07: Der Nachweisstatus ersetzt die Markierung „ohne Nachweis“ aus SR-111 AK4; auch jedes Requirement zeigt einen Fortschrittskreis, mit dem Anteil seiner nachgewiesenen Akzeptanzkriterien; der Kreis eines Needs zählt die direkt von ihm abgeleiteten Requirements, unabhängig von dem, was der Graph gerade zeigt, damit die Zahl nicht mit der Ansicht springt; wo es nichts zu zählen gibt, bei einem indirekt nachgewiesenen Requirement, einem Requirement ohne Akzeptanzkriterien oder einem Need ohne gültige abgeleitete Requirements, zeigt der Knoten keinen Kreis."
 requirement-type: functional
 acceptance-criteria:
   - "Gegeben ein Requirement als Knoten im Graphen (SR-111), wenn er angezeigt wird, dann trägt er seinen Nachweisstatus: offen, nachgewiesen, nicht bestanden oder veraltet (SR-031), indirekt nachgewiesen als solcher gekennzeichnet (SR-034)."
-  - Gegeben ein Need als Knoten im Graphen, zum Beispiel mit 10 abgeleiteten Requirements, wenn er angezeigt wird, dann zeigt er innerhalb seines Blocks den Nachweisgrad dieser Requirements (SR-037) als kleine Prozentanzeige, einen Fortschrittskreis mit der Prozentzahl.
+  - Gegeben ein Requirement mit Akzeptanzkriterien als Knoten im Graphen, wenn er angezeigt wird, dann zeigt er innerhalb seines Blocks einen Fortschrittskreis mit der Zahl seiner Akzeptanzkriterien, deren Nachweisstatus nachgewiesen ist (SR-031), von allen, zum Beispiel „2 von 3“.
+  - Gegeben ein Need als Knoten im Graphen mit 10 direkt von ihm abgeleiteten gültigen Requirements, davon 6 nachgewiesen, 1 nicht bestanden, 1 veraltet und 2 offen, wenn er angezeigt wird, dann zeigt er innerhalb seines Blocks deren Nachweisgrad (SR-037) als Fortschrittskreis mit der Prozentzahl, hier 60 %, und zwar gleich bei jeder Tiefe und jeder Auswahl von Beziehungsarten des Graphen (SR-111).
+  - Gegeben ein indirekt nachgewiesenes Requirement (SR-034) als Knoten im Graphen, wenn er angezeigt wird, dann zeigt er seinen Nachweisstatus und keinen Fortschrittskreis.
+  - Gegeben ein Requirement ohne Akzeptanzkriterien als Knoten im Graphen, wenn er angezeigt wird, dann zeigt er seinen Nachweisstatus und keinen Fortschrittskreis.
+  - Gegeben ein Need, von dem kein gültiges Requirement abgeleitet ist, wenn er im Graphen angezeigt wird, dann zeigt er keinen Fortschrittskreis.
 verification-method: test
 refines:
   - { id: 50824eaa-f59b-4bfc-b99e-bbb156836ef0, version: n1:80895fb29bfa5796, title: Graph des aktuellen Elements zeigen }
@@ -22,4 +26,4 @@ packages:
   - { id: ed14d465-fd3f-4188-992b-3ff7af8595af, version: n2:1261455098bd8d6a, title: Nachweis und Abdeckung }
 ---
 
-Das Tool muss im Graphen des aktuellen Elements bei jedem Requirement seinen Nachweisstatus und bei jedem Need den Nachweisgrad der von ihm abgeleiteten Requirements zeigen.
+Das Tool muss im Graphen des aktuellen Elements bei jedem Requirement seinen Nachweisstatus und den Anteil seiner nachgewiesenen Akzeptanzkriterien und bei jedem Need den Nachweisgrad der direkt von ihm abgeleiteten Requirements zeigen.

@@ -9,6 +9,8 @@
 #   replace the former property topic; the property issue is gone, since issues are tasks that can
 #   implement several SRs (product owner decision, 2026-11-05);
 # - limit derives-from min 1 from system requirement to need (#838).
+# - validation-criteria on needs as in the standard model (D-071), for the benchmark of N-055
+#   (product owner decision, 2026-11-07).
 # - decisions can be obsolete: withdrawn without successor, e.g. the development-process decisions
 #   (product owner decision, 2026-11-05: decisions record only what holds for the system ReqSeq).
 # rationale and acceptance-criteria carry markdown: true as in the standard model (SR-127, ThomasBirkmaier/ReqSeq-archive#444).
@@ -20,7 +22,7 @@ types:
     name: Need
     prefix: N
     meaning: need
-    properties: [title, spec-id, rationale, packages]
+    properties: [title, spec-id, validation-criteria, rationale, packages]
     required: [title]
     statuses: [draft, approved, obsolete]
   - key: use-case
@@ -103,6 +105,11 @@ properties:
       - { key: performance, name: Performance }
       - { key: interface, name: Interface }
       - { key: constraint, name: Constraint }
+  - key: validation-criteria
+    name: Validation Criteria
+    kind: text
+    many: true
+    content: true
   - key: acceptance-criteria
     name: Acceptance Criteria
     kind: text

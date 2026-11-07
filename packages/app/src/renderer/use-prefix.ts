@@ -3,16 +3,21 @@
 // possible next keys with their commands. The window's key handler starts the prefix (`start`) in the
 // same event as Ctrl/Cmd+K, so the next key, however fast, finds it waiting: the listeners below are added
 // once, read refs, and take the next key in the capture phase, before the editor or a box sees it.
+// Ctrl+N, Ctrl+P and the arrows move a selection through the next keys, shown at once, and Enter runs the
+// selected one (SR-122 AK6).
 import type { Dispatch, SetStateAction } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Choice } from "./actions.js";
 import type { Buffers } from "./buffers.js";
+import type { NextKey } from "./bindings.js";
 import { PREFIX_BINDINGS, PREFIX_DELAY_MS, nextKeys, prefixStep, prefixWaiting } from "./bindings.js";
 
 /** A row of the list of next keys, as the minibuffer shows it. */
 export interface NextKeyRow {
   readonly key: string;
   readonly name: string;
+  /** The row Enter runs (SR-122 AK6). */
+  readonly selected: boolean;
 }
 
 export interface PrefixOptions {
@@ -41,12 +46,28 @@ export const usePrefix = (options: PrefixOptions): Prefix => {
   const pending = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [rows, setRows] = useState<readonly NextKeyRow[] | undefined>(undefined);
+  // The shown next keys and the selected one, read by the key handler.
+  const shownKeys = useRef<readonly NextKey[] | undefined>(undefined);
+  const selected = useRef<number | undefined>(undefined);
 
-  /** Shows the possible next keys now. */
-  const show = useCallback((): void => {
+  /** Shows the possible next keys now, with the row `at` selected. */
+  const show = useCallback((at?: number): void => {
     clearTimeout(timer.current);
-    setRows(nextKeys(latest.current.items()).map(({ key, name }) => ({ key, name })));
+    const keys = nextKeys(latest.current.items());
+    shownKeys.current = keys;
+    selected.current = at;
+    setRows(keys.map(({ key, name }, row) => ({ key, name, selected: row === at })));
   }, []);
+
+  /** Moves the selection by `step`, the first row when none is selected; shows the next keys if needed. */
+  const move = useCallback(
+    (step: 1 | -1): void => {
+      const keys = shownKeys.current ?? nextKeys(latest.current.items());
+      const at = selected.current;
+      show(at === undefined ? 0 : Math.max(0, Math.min(keys.length - 1, at + step)));
+    },
+    [show],
+  );
 
   /** Ends the prefix; `echo` replaces the waiting "Ctrl+K-", else it goes if it is still there. */
   const end = useCallback((echo?: string): void => {
@@ -55,6 +76,8 @@ export const usePrefix = (options: PrefixOptions): Prefix => {
     }
     pending.current = false;
     clearTimeout(timer.current);
+    shownKeys.current = undefined;
+    selected.current = undefined;
     setRows(undefined);
     const waiting = prefixWaiting(latest.current.mac);
     latest.current.setEcho((now) => echo ?? (now === waiting ? "" : now));
@@ -81,7 +104,21 @@ export const usePrefix = (options: PrefixOptions): Prefix => {
         return;
       }
       if (step.kind === "show") {
-        show();
+        show(selected.current);
+        return;
+      }
+      if (step.kind === "move") {
+        move(step.step);
+        return;
+      }
+      if (step.kind === "enter") {
+        const chosen = selected.current === undefined ? undefined : shownKeys.current?.[selected.current];
+        if (chosen === undefined) {
+          end(`${step.label} is not bound`);
+          return;
+        }
+        end("");
+        chosen.run();
         return;
       }
       if (step.kind === "cancel") {
@@ -118,7 +155,7 @@ export const usePrefix = (options: PrefixOptions): Prefix => {
       pending.current = false;
       clearTimeout(timer.current);
     };
-  }, [end, show]);
+  }, [end, move, show]);
 
   // Another buffer is shown (a command, the mode „Agent folgen“), or another workspace opens: the prefix
   // waits no longer.

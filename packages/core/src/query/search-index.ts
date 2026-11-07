@@ -1057,6 +1057,27 @@ const pageOf = (found: Iterable<Found>, options: SearchElementsOptions): SearchR
   return { total: all.length, hits: first.slice(offset, end).map(hitOf) };
 };
 
+/** One hit of `rankedHits`, as the search found it; `describeHit` gives it as `searchElements` does. */
+export type RankedHit = Readonly<Found>;
+
+/**
+ * Every hit of `query` in the order of `searchElements` (ID matches, then score, then store order), the
+ * scores rounded first as there, without describing them: a grouped search (element.search `group`,
+ * SR-149 AK6) deals them into groups and describes only its page (`describeHit`).
+ */
+export const rankedHits = (
+  index: SearchIndex,
+  query: string,
+  options: Omit<SearchElementsOptions, "offset" | "limit"> = {},
+): readonly RankedHit[] =>
+  Array.from(foundBy(index, query, options) ?? [], (one) => {
+    one.score = roundScore(one.score);
+    return one;
+  }).sort(order);
+
+/** A hit of `rankedHits` with its score, fields and terms, as `searchElements` gives it. */
+export const describeHit = (hit: RankedHit): SearchHit => hitOf(hit);
+
 /** The documents `query` finds in `index`, each once (see `searchElements`); undefined for a query without a word. */
 const foundBy = (
   index: SearchIndex,

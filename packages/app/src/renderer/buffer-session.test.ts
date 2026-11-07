@@ -121,6 +121,22 @@ const everyKind = (): Buffer[] => [
 const names = fakeCall({ "element.list": listing(row(1), row(2), row(3, "other")) });
 
 describe("buffer session (SR-115 AK4)", () => {
+  it("[SR-115/AK4] keeps the filter steps of a search across a restart, not its grouping", async () => {
+    const steps = [step("status: draft", { status: ["draft"] })];
+    const storage = memory();
+    saveSession(
+      () => storage,
+      "key",
+      sessionText([searchBuffer("wind", steps, "status"), searchBuffer("gale")]),
+    );
+    const restored = await restoreSession(
+      loadSession(() => storage, "key"),
+      names.call,
+      CATALOG,
+    );
+    expect(restored.buffers).toEqual([searchBuffer("wind", steps), searchBuffer("gale")]);
+  });
+
   it("[SR-115/AK4] stores and restores every kind of buffer with its order of use", async () => {
     const buffers = everyKind();
     const storage = memory();
@@ -233,6 +249,7 @@ describe("buffer session (SR-115 AK4)", () => {
           { kind: "list", steps: [], sort: [{ by: "title", order: "up" }] },
           { kind: "list", steps: [], sort: "title" },
           { kind: "search" },
+          { kind: "search", query: "wind", steps: [{ label: 1 }] },
           { kind: "element", id: "uuid-1" },
           { kind: "element", id: "uuid-1", repository: "spec", memberSort: "title" },
           { kind: "element", id: "uuid-1", repository: "spec", memberSteps: [] },

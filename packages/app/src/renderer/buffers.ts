@@ -43,11 +43,16 @@ export interface ListBuffer extends ListQuery {
   readonly cursor: number;
 }
 
-/** The hits of one search. */
-export interface SearchBuffer {
+/**
+ * The hits of one search, filtered by steps and grouped like a list (SR-124 AK4, SR-149 AK6): its query
+ * (`list-query.ts`) has steps and a grouping, no sort; the hits keep the order of the search.
+ */
+export interface SearchBuffer extends Omit<ListQuery, "sort"> {
   readonly kind: "search";
   readonly key: string;
   readonly query: string;
+  /** What the steps select together, the `selection` of `element.search` (`selectionOf`). */
+  readonly selection?: ElementSelection;
   /** Index of the selected row; `NO_ROW` while none is. */
   readonly cursor: number;
 }
@@ -348,12 +353,41 @@ export const withMatrix = (list: ListBuffer, on: boolean): ListBuffer => {
 export const withGroup = (list: ListBuffer, group: string | undefined): ListBuffer =>
   withQuery(list, { group });
 
-export const searchBuffer = (query: string): SearchBuffer => ({
-  kind: "search",
-  key: `search:${query}`,
-  query,
-  cursor: NO_ROW,
+/** The hits of `query` within the steps, grouped by `group` (none: not grouped), from the first row. */
+export const searchBuffer = (
+  query: string,
+  steps: readonly FilterStep[] = [],
+  group?: string,
+): SearchBuffer => {
+  const selection = selectionOf(steps);
+  return {
+    kind: "search",
+    key: `search:${query}`,
+    query,
+    steps,
+    cursor: NO_ROW,
+    ...(selection === undefined ? {} : { selection }),
+    ...(group === undefined ? {} : { group }),
+  };
+};
+
+/** What `search` asks besides its query: its steps and grouping. */
+export const searchQueryOf = (search: SearchBuffer): ListQuery => ({
+  steps: search.steps,
+  ...(search.group === undefined ? {} : { group: search.group }),
 });
+
+/** The same search with some parts of its query changed (SR-124 AK4, SR-149 AK6), from its first row. */
+export const withSearchQuery = (search: SearchBuffer, change: QueryChange): SearchBuffer => {
+  const query = changeQuery(searchQueryOf(search), change, "search");
+  return searchBuffer(search.query, query.steps, query.group);
+};
+
+/** " · type: need · grouped by status": the steps and the grouping of a search, nothing without them. */
+const searchParts = (search: SearchBuffer): string =>
+  `${search.steps.map((step) => ` · ${step.label}`).join("")}${
+    search.group === undefined ? "" : ` · grouped by ${search.group}`
+  }`;
 
 export const elementBuffer = (id: string, repository: string, name: string): ElementBuffer => ({
   kind: "element",
@@ -527,7 +561,7 @@ export const sortLabel = (sort: readonly FilterSortKeyWithDefaults[] | undefined
  */
 export const listHeading = (buffer: ListBuffer | SearchBuffer): string =>
   buffer.kind === "search"
-    ? `Search: ${buffer.query}`
+    ? `Search: ${buffer.query}${buffer.steps.map((step) => ` · ${step.heading ?? step.label}`).join("")}`
     : buffer.steps.length === 0
       ? buffer.label
       : buffer.steps.map((step) => step.heading ?? step.label).join(" · ");
@@ -538,7 +572,7 @@ export const bufferName = (buffer: Buffer): string => {
     case "list":
       return `${buffer.label}${sortLabel(buffer.sort)}${buffer.group === undefined ? "" : ` · grouped by ${buffer.group}`}${buffer.matrix === true ? " · matrix" : ""}`;
     case "search":
-      return `Search: ${buffer.query}`;
+      return `Search: ${buffer.query}${searchParts(buffer)}`;
     case "element":
       return buffer.readOnly === true ? `${buffer.name} · read-only` : buffer.name;
     case "overview":

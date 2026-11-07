@@ -8,6 +8,7 @@ import type { Part } from "./highlight.js";
 import type { Ranked } from "./fuzzy.js";
 import { isMac, listStep, matches } from "./keys.js";
 import { MORE_SHORTCUT } from "./prompt-keys.js";
+import { SnippetLine } from "./ListView.js";
 import { promptRows } from "./usage.js";
 import type { PromptRow } from "./usage.js";
 
@@ -24,11 +25,18 @@ export interface MinibufferProps {
    * The possible next keys after the prefix key, with their commands (SR-109 AK3): shown above the idle
    * line, which says the prefix ("Ctrl+K-"); no input, the focus stays where it is.
    */
-  readonly nextKeys?: readonly { readonly key: string; readonly name: string }[] | undefined;
+  readonly nextKeys?:
+    readonly { readonly key: string; readonly name: string; readonly selected?: boolean }[] | undefined;
 }
 
-const parts = ({ item, ranges }: Ranked<Choice>): Part[] =>
-  item.terms === undefined ? highlightRanges(item.name, ranges) : highlightTerms(item.name, item.terms);
+const parts = ({ item, ranges }: Ranked<Choice>): Part[] => {
+  if (item.marks !== undefined) {
+    return highlightRanges(item.name, item.marks);
+  }
+  return item.terms === undefined
+    ? highlightRanges(item.name, ranges)
+    : highlightTerms(item.name, item.terms);
+};
 
 /** The copy of a card that runs the motion back after the card closed, by the node it was made of. */
 const leaving = new WeakMap<HTMLElement, HTMLElement>();
@@ -158,7 +166,9 @@ const PromptLine = ({
   readonly onClose: (cancelled: boolean) => void;
 }): React.JSX.Element => {
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState(0);
+  // The selection while none is chosen: the first row, or none at all while the hits only preview (SR-183).
+  const none = given.preview === true ? -1 : 0;
+  const [selected, setSelected] = useState(none);
   // The hits shown, with the question they answer.
   const [found, setFound] = useState<{ readonly question: number; readonly choices: readonly Choice[] }>({
     question: 0,
@@ -261,10 +271,13 @@ const PromptLine = ({
       answer.current = { text: value, choices };
       setFound({ question: mine, choices });
       const { at, id } = picked.current;
-      if (at > 0) {
+      if (at > 0 || (given.preview === true && at >= 0)) {
         const kept = rowsFor(value, choices).findIndex(({ item }) => item.id === id);
         if (kept !== -1) {
           setSelected(kept);
+        } else if (given.preview === true) {
+          // The hit chosen is not among the new ones: none is chosen (SR-183).
+          setSelected(none);
         }
       }
       if (waiting.current === mine) {
@@ -303,7 +316,7 @@ const PromptLine = ({
 
   const change = (value: string): void => {
     setQuery(value);
-    setSelected(0);
+    setSelected(none);
     typed.current = value;
     // Typing after Enter cancels it, while the answer is awaited (SR-119) and while the parts load.
     waiting.current = 0;
@@ -328,6 +341,13 @@ const PromptLine = ({
     } else if (loading) {
       early.current = "enter";
       setPending(true);
+    } else if (current === undefined && prompt.preview === true && prompt.text !== undefined) {
+      // No hit is chosen: the text is taken at once, whatever hits are on their way (SR-183 AK5).
+      onClose(false);
+      prompt.text(query);
+    } else if (current !== undefined && prompt.preview === true) {
+      // The hit chosen is the one opened, even while newer hits are on their way (SR-183 AK4).
+      choose(current.item, query);
     } else if (stale()) {
       awaitAnswer(false);
     } else if (current !== undefined) {
@@ -348,6 +368,9 @@ const PromptLine = ({
     } else if (loading) {
       early.current = "more";
       setPending(true);
+    } else if (prompt.preview === true) {
+      // The search prompt has no optional arguments: as Enter, which never waits there (SR-183 AK4, AK5).
+      enter();
     } else if (stale()) {
       awaitAnswer(true);
     } else if (current?.item.more !== undefined) {
@@ -401,6 +424,35 @@ const PromptLine = ({
     return true;
   };
 
+  /** Escape, or a press outside the minibuffer (SR-156 AK3): the prompt ends without an answer. */
+  const cancel = (): void => {
+    prompt.cancel?.();
+    waiting.current = 0;
+    onClose(true);
+  };
+  const cancelNow = useRef(cancel);
+  cancelNow.current = cancel;
+  const input = useRef<HTMLInputElement>(null);
+  // A press of a mouse button (left, middle, right) anywhere outside the minibuffer and its card ends the
+  // whole prompt, in every step, and goes on to what it presses: the prompt is no dialog (D-062). The buttons
+  // Back and Forward do nothing while a prompt is open (SR-163), so they do not end it either.
+  useEffect(() => {
+    const own = input.current?.closest(".minibuffer");
+    const page = input.current?.ownerDocument;
+    if (own === null || own === undefined || page === undefined) {
+      return undefined;
+    }
+    const press = (event: MouseEvent): void => {
+      if (event.button <= 2 && (!(event.target instanceof Node) || !own.contains(event.target))) {
+        cancelNow.current();
+      }
+    };
+    page.addEventListener("mousedown", press, true);
+    return () => {
+      page.removeEventListener("mousedown", press, true);
+    };
+  }, []);
+
   const keyDown = (event: React.KeyboardEvent): void => {
     // Down, Up, Tab and Ctrl+N / Ctrl+P (SR-122) move the selection. They go no further: Ctrl+P is
     // "Go to" in the window, but in an open prompt it only moves the selection, on every platform.
@@ -408,7 +460,7 @@ const PromptLine = ({
     if (step !== undefined) {
       event.preventDefault();
       event.stopPropagation();
-      setSelected(Math.max(0, Math.min(rows.length - 1, selected + step)));
+      setSelected(Math.max(none, Math.min(rows.length - 1, selected + step)));
       return;
     }
     // Alt+N, Alt+P and Alt+O (Option on macOS) switch no buffer or area while a prompt is open: they type
@@ -431,9 +483,7 @@ const PromptLine = ({
         break;
       case "Escape":
         event.preventDefault();
-        prompt.cancel?.();
-        waiting.current = 0;
-        onClose(true);
+        cancel();
         break;
     }
   };
@@ -444,6 +494,7 @@ const PromptLine = ({
         {prompt.label}
       </label>
       <input
+        ref={input}
         id="prompt-input"
         className="prompt-input"
         role="combobox"
@@ -473,6 +524,12 @@ const PromptLine = ({
                 id={`candidate-${String(at)}`}
                 role="option"
                 aria-selected={at === selected}
+                {...(given.preview === true
+                  ? { className: row.item.snippet === undefined ? "hit" : "hit snipped" }
+                  : {})}
+                {...(row.item.snippet === undefined
+                  ? {}
+                  : { "aria-describedby": `candidate-${String(at)}-snippet` })}
                 ref={(element) => {
                   if (at === selected) {
                     element?.scrollIntoView({ block: "nearest" });
@@ -489,6 +546,13 @@ const PromptLine = ({
                   )}
                 </span>
                 {row.item.hint === undefined ? null : <span className="hint">{row.item.hint}</span>}
+                {row.item.snippet === undefined ? null : (
+                  <SnippetLine
+                    key={row.item.snippet.text}
+                    id={`candidate-${String(at)}-snippet`}
+                    snippet={row.item.snippet}
+                  />
+                )}
               </li>
             ))}
           </ul>
@@ -498,17 +562,20 @@ const PromptLine = ({
   );
 };
 
-/** The rows of the next keys: the key, muted, and the command it runs, in the order of the table. */
+/**
+ * The rows of the next keys: the key, muted, and the command it runs, in the order of the table; the one
+ * Ctrl+N, Ctrl+P or an arrow selected is marked (SR-122 AK6).
+ */
 const NextKeys = ({
   rows,
 }: {
-  readonly rows: readonly { readonly key: string; readonly name: string }[];
+  readonly rows: readonly { readonly key: string; readonly name: string; readonly selected?: boolean }[];
 }): React.JSX.Element | null =>
   rows.length === 0 ? null : (
     <Card>
       <ul className="candidates card-list next-keys" role="list" aria-label="Next keys">
         {rows.map((row) => (
-          <li key={row.key}>
+          <li key={row.key} aria-current={row.selected === true ? "true" : undefined}>
             <span className="key">{row.key}</span>
             <span className="name">{row.name}</span>
           </li>

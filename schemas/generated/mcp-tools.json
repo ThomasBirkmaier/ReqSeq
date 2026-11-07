@@ -815,6 +815,67 @@
           },
           "additionalProperties": false
         },
+        "groupKey": {
+          "description": "A key to group a list by: `type`, `status`, `package` or a property key.",
+          "anyOf": [
+            {
+              "enum": [
+                "type",
+                "status",
+                "package"
+              ]
+            },
+            {
+              "$ref": "#/$defs/common/$defs/key"
+            }
+          ]
+        },
+        "listGroup": {
+          "description": "One group of a grouped list and where its rows are.",
+          "type": "object",
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "number",
+                "boolean"
+              ],
+              "description": "Left out for the last group, the elements without a value. The type key, the status, the short ID of the package or target, the choice key, else the value as written. With a filter on it (`type` with subtypes false, `status`, `package`, a property condition with op eq) it selects the group's elements, except those that write a choice by its display name."
+            },
+            "name": {
+              "type": "string",
+              "description": "Display name of a type, status or choice of the metamodel."
+            },
+            "title": {
+              "type": "string",
+              "description": "Title of a package or target, when it has one."
+            },
+            "identifier": {
+              "type": "string",
+              "description": "Identifier of a package or target, when it has one."
+            },
+            "unavailable": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Only in the last group of a grouping by package or another relation property: its elements that name targets, none of them available (not on this machine or not in the workspace)."
+            },
+            "count": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Rows in the group: its elements or hits."
+            },
+            "offset": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Row of its first element in the grouped list: the group holds the rows offset to offset + count - 1."
+            }
+          },
+          "required": [
+            "count",
+            "offset"
+          ],
+          "additionalProperties": false
+        },
         "viewId": {
           "description": "A view as the tool writes it in outputs: `core` or the canonical UUID or short ID of a variant.",
           "anyOf": [
@@ -4134,18 +4195,7 @@
           },
           "group": {
             "description": "Group the list: `type` (as written, a subtype is a group of its own), `status`, `package` (the property with the meaning `packages`), or the key of a property whose values element.facets offers: a choice or relation property, or a text, number or date property with few values shared in the workspace (a topic, not a title). Whether a text, number or date key can be grouped follows the data of the workspace (the element.facets rule with its default maxValues of 30), so the same key can become input.invalid as the data changes. Any other key is input.invalid. Groups come in the order a sort by the value gives: types, statuses and choices in metamodel order (a choice written by its display name is in the group of that choice), then other values: numbers, texts ignoring case, booleans; packages and other targets by title ignoring case, then short ID. Elements without a value form the last group; so do elements whose targets are all not available (`unavailable`). Relation items are read as element.facets and the condition `property eq` read them. An element with several values (packages, a list) is in each of their groups. `sort` (or the saved filter's sort) orders the elements inside each group; with `hierarchy` each group is its own tree. Nothing is stored.",
-            "anyOf": [
-              {
-                "enum": [
-                  "type",
-                  "status",
-                  "package"
-                ]
-              },
-              {
-                "$ref": "#/$defs/common/$defs/key"
-              }
-            ]
+            "$ref": "#/$defs/common/$defs/groupKey"
           },
           "fields": {
             "type": "array",
@@ -4250,49 +4300,7 @@
             "type": "array",
             "description": "Only with `group`: every group of the whole list in order, also those on other pages; a group without elements is not given. `offset` and `rows` follow from the counts and are given for convenience.",
             "items": {
-              "type": "object",
-              "properties": {
-                "value": {
-                  "type": [
-                    "string",
-                    "number",
-                    "boolean"
-                  ],
-                  "description": "Left out for the last group, the elements without a value. The type key, the status, the short ID of the package or target, the choice key, else the value as written. With a filter on it (`type` with subtypes false, `status`, `package`, a property condition with op eq) it selects the group's elements, except those that write a choice by its display name."
-                },
-                "name": {
-                  "type": "string",
-                  "description": "Display name of a type, status or choice of the metamodel."
-                },
-                "title": {
-                  "type": "string",
-                  "description": "Title of a package or target, when it has one."
-                },
-                "identifier": {
-                  "type": "string",
-                  "description": "Identifier of a package or target, when it has one."
-                },
-                "unavailable": {
-                  "type": "integer",
-                  "minimum": 1,
-                  "description": "Only in the last group of a grouping by package or another relation property: its elements that name targets, none of them available (not on this machine or not in the workspace)."
-                },
-                "count": {
-                  "type": "integer",
-                  "minimum": 1,
-                  "description": "Elements in the group."
-                },
-                "offset": {
-                  "type": "integer",
-                  "minimum": 0,
-                  "description": "Row of its first element in the grouped list: the group holds the rows offset to offset + count - 1."
-                }
-              },
-              "required": [
-                "count",
-                "offset"
-              ],
-              "additionalProperties": false
+              "$ref": "#/$defs/common/$defs/listGroup"
             }
           },
           "offset": {
@@ -6829,7 +6837,7 @@
     {
       "name": "element_search",
       "title": "Search elements",
-      "description": "Full-text search over title, text, properties and IDs of the elements of a selection, typo tolerant, in any case, the best first, each hit with where it was found and a snippet around the match.",
+      "description": "Full-text search over title, text, properties and IDs of the elements of a selection, typo tolerant, in any case, the best first, each hit with where it was found and a snippet around the match; optionally in groups.",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
@@ -6861,6 +6869,10 @@
             },
             "description": "Search only these: `title`, `text` (the Markdown text), `properties` (every other value, type and status names; not relations), `id` (UUID, short ID, identifier). Default all."
           },
+          "group": {
+            "$ref": "#/$defs/common/$defs/groupKey",
+            "description": "Group the hits by the keys and rules of element.list `group`: the same groups in the same order, a hit with several values in each of their groups, the hits without a value (or with only targets not available) in the last group, and an invalid key `input.invalid` whatever the query finds. Inside each group the hits keep the order of the search (ID matches, then relevance, then workspace order). The grouping reads the records the hits were found in; their targets are looked up in the workspace the selection was read from. Nothing is stored."
+          },
           "limit": {
             "type": "integer",
             "minimum": 1,
@@ -6884,6 +6896,7 @@
         "properties": {
           "hits": {
             "type": "array",
+            "description": "One page of the hits. With `group`, the page of the grouped rows (the hits of the first group, then of the next): a hit in several groups is a row in each, so a page can hold it more than once; key the rows by their position, not by the element.",
             "items": {
               "type": "object",
               "properties": {
@@ -7012,9 +7025,27 @@
               ]
             }
           },
+          "groups": {
+            "type": "array",
+            "description": "Only with `group`: every group of all the hits in order, also those on other pages; a group without hits is not given. `offset` and `rows` follow from the counts.",
+            "items": {
+              "$ref": "#/$defs/common/$defs/listGroup"
+            }
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Only with `group`: the row the page starts at (the `offset` of the input)."
+          },
+          "rows": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Only with `group`: the rows of the grouped hits, the sum of the counts of `groups`; `offset` and `limit` page over these rows. At least `total`, more when hits are in several groups."
+          },
           "total": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "description": "Hits, each once."
           },
           "incomplete": {
             "$ref": "#/$defs/common/$defs/incomplete"
