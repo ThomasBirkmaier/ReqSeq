@@ -656,25 +656,12 @@ const shownPlan = (context: CatalogContext, preview: Input): string | undefined 
   return undefined;
 };
 
-/** The keys the prompt handed on (#467), taken while core answers, so they act on no other buffer. */
-const takeHeld = (context: CatalogContext): readonly KeyboardEventInit[] => context.takeKeys?.() ?? [];
-
-/** Opens `buffer`, the result of the command, and presses the keys the prompt handed on there. */
-const openResult = (context: CatalogContext, buffer: Buffer, held: readonly KeyboardEventInit[]): void => {
-  context.dispatch({ type: "open", buffer });
-  context.replayKeys?.(held);
-};
-
-/**
- * Runs the preview of a confirmation and shows it; `why` says why nothing was written. The keys the
- * prompt handed on (`held`) act on the preview.
- */
+/** Runs the preview of a confirmation and shows it; `why` says why nothing was written. */
 const showPreview = async (
   context: CatalogContext,
   entry: Entry,
   preview: Input,
   why: string,
-  held: readonly KeyboardEventInit[],
 ): Promise<void> => {
   const revision = context.revision();
   const answer = await (context.shownCall ?? context.call)(PREVIEWED, preview);
@@ -683,7 +670,10 @@ const showPreview = async (
     return;
   }
   const line = lineOf({ ...entry, given: entry.given.filter((given) => !CONFIRMING.has(given.field)) });
-  openResult(context, resultBuffer(PREVIEWED, preview, line, answer.output, revision, true), held);
+  context.dispatch({
+    type: "open",
+    buffer: resultBuffer(PREVIEWED, preview, line, answer.output, revision, true),
+  });
   context.echo(why);
 };
 
@@ -695,12 +685,7 @@ const isConfirmation = (name: keyof CommandTypes, input: Input): boolean =>
  * The input a confirmation of a bulk update sends: with the plan of an open preview of the same input
  * (#836); without one, the preview is opened first, nothing is written, and the result is undefined.
  */
-const planned = async (
-  context: CatalogContext,
-  entry: Entry,
-  given: Input,
-  held: readonly KeyboardEventInit[],
-): Promise<Input | undefined> => {
+const planned = async (context: CatalogContext, entry: Entry, given: Input): Promise<Input | undefined> => {
   const plan = shownPlan(context, previewOf(given));
   if (plan === undefined) {
     await showPreview(
@@ -708,7 +693,6 @@ const planned = async (
       entry,
       previewOf(given),
       `${entry.command.title}: nothing was written; confirm again to write what the preview shows`,
-      held,
     );
     return undefined;
   }
@@ -728,17 +712,14 @@ const planChanged = (answer: {
 /**
  * Runs the command with the given values: the output opens a result buffer (of a write command, one that
  * is not asked again), a new element its element buffer (SR-064); a refused input asks again. A write
- * command first saves the input of every open buffer, and does not run when one cannot be saved. The keys
- * the prompt handed on (#467) act on the buffer opened (the result, the element, a preview), once core
- * answered; without one they are dropped.
+ * command first saves the input of every open buffer, and does not run when one cannot be saved.
  */
 const execute = async (context: CatalogContext, entry: Entry): Promise<void> => {
-  const held = takeHeld(context);
   const name = entry.command.name as keyof CommandTypes;
   const given = inputOf(context, entry);
   const confirming = isConfirmation(name, given);
   // Awaited only for a confirmation, so every other command is sent as before.
-  const input = confirming ? await planned(context, entry, given, held) : given;
+  const input = confirming ? await planned(context, entry, given) : given;
   if (input === undefined) {
     return;
   }
@@ -755,17 +736,19 @@ const execute = async (context: CatalogContext, entry: Entry): Promise<void> => 
   const answer = await (context.shownCall ?? context.call)(name, input);
   if (answer.ok && name === CREATE_COMMAND) {
     const created = answer.output as CommandTypes[typeof CREATE_COMMAND]["output"];
-    openResult(context, elementBufferOf(created.element), held);
+    context.dispatch({ type: "open", buffer: elementBufferOf(created.element) });
     context.echo(createdEcho(created));
   } else if (answer.ok) {
-    openResult(context, resultBuffer(name, input, lineOf(entry), answer.output, revision, write), held);
+    context.dispatch({
+      type: "open",
+      buffer: resultBuffer(name, input, lineOf(entry), answer.output, revision, write),
+    });
   } else if (confirming && planChanged(answer)) {
     await showPreview(
       context,
       entry,
       previewOf(input),
       `${entry.command.title}: something changed since the preview, so nothing was written; the new preview is shown`,
-      held,
     );
   } else if (answer.code === "input.invalid" && entry.given.length > 0) {
     // The prompt asks the value core refused again, else the one given last, with core's message.

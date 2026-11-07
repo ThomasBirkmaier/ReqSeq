@@ -208,13 +208,6 @@ test.describe("the overview of a fixture workspace", () => {
     expect(await snapshot(root)).toEqual(before);
   });
 
-  test("Ctrl+J typed in one go after Ctrl+P, text and Enter shows the neighbourhood of the hit (#467)", async () => {
-    const { window } = running;
-    await jump(window, "icing");
-    await window.keyboard.press("ControlOrMeta+J");
-    await expect(window.locator(".neighbourhood h1")).toContainText("Survive icing");
-  });
-
   test("[SR-119/AK1] Ctrl+P, a short ID or words of the title, Enter opens the requirement", async () => {
     const { window } = running;
     const got = await cliJson<{ element: { title: string; shortId: string } }>(running, [

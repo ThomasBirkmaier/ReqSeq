@@ -60,13 +60,7 @@ const start = (list: ListBuffer, answers: Record<string, unknown> = {}) => {
         (context as { buffers: Buffers }).buffers = buffers;
       }
     },
-    // The prompt as the minibuffer shows it once its parts that come later (`fill`) are in.
-    ask: (prompt) => {
-      const at = asked.push(prompt) - 1;
-      void prompt.fill?.then((parts) => {
-        asked[at] = { ...prompt, ...parts };
-      });
-    },
+    ask: (prompt) => asked.push(prompt),
     echo: (message) => echoed.push(message),
     modified: false,
     closeArmed: () => false,
@@ -161,17 +155,18 @@ describe("cascading list filters (SR-124)", () => {
     expect(call).toHaveBeenCalledWith("element.facets", {});
   });
 
-  it("says in the label of the open prompt why there is nothing to choose by property (#467)", async () => {
+  it("echoes why there is nothing to choose by property", async () => {
     const failing = start(listBuffer("All elements"), { "element.facets": new Error("The facets failed") });
-    expect((await failing.run("filter-property")).label).toBe("The facets failed · Property");
+    ACTIONS.find((a) => a.id === "filter-property")?.run(failing.context);
+    await flush();
+    expect(failing.echoed).toEqual(["The facets failed"]);
     const none = start(listBuffer("All elements"), {
       "element.facets": { ...FACETS, statuses: [], properties: [] },
     });
-    const prompt = await none.run("filter-property");
-    expect(prompt.label).toBe(
-      "No property of the elements in this list has values to choose from. · Property",
-    );
-    expect(prompt.items).toEqual([]);
+    ACTIONS.find((a) => a.id === "filter-property")?.run(none.context);
+    await flush();
+    expect(none.echoed).toEqual(["No property of the elements in this list has values to choose from."]);
+    expect(none.asked).toEqual([]);
   });
 
   it("[SR-124/AK3] narrows by text search within the list; empty text does nothing", async () => {

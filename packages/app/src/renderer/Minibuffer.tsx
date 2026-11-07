@@ -2,20 +2,11 @@
 // (a prompt) it is an input with the candidates rising above the modeline, not a dialog, only while asked.
 import { useEffect, useRef, useState } from "react";
 import type { Choice, Prompt, PromptFill } from "./actions.js";
-import {
-  ACTIONS,
-  COMMAND_SHORTCUT,
-  NEXT_BUFFER_SHORTCUT,
-  OTHER_WINDOW_SHORTCUT,
-  PREVIOUS_BUFFER_SHORTCUT,
-} from "./actions.js";
-import { PREFIX } from "./bindings.js";
+import { NEXT_BUFFER_SHORTCUT, OTHER_WINDOW_SHORTCUT, PREVIOUS_BUFFER_SHORTCUT } from "./actions.js";
 import { highlightRanges, highlightTerms } from "./highlight.js";
 import type { Part } from "./highlight.js";
 import type { Ranked } from "./fuzzy.js";
-import { MODIFIER_KEYS } from "./element-keys.js";
 import { isMac, listStep, matches } from "./keys.js";
-import type { KeyPress } from "./keys.js";
 import { MORE_SHORTCUT } from "./prompt-keys.js";
 import { rankByUse } from "./usage.js";
 
@@ -26,26 +17,8 @@ export interface MinibufferProps {
   readonly prompt: { readonly serial: number; readonly prompt: Prompt } | undefined;
   /** A click on the idle line: ask for a command. */
   readonly onCommand: () => void;
-  /**
-   * The prompt ends: Escape (`cancelled`, SR-117 keeps a held access for it), or an answer. `held` are the
-   * keys from the first shortcut pressed while an Enter waited for the answer on: they act on what the
-   * answer opens, before the keys handed on that no prompt took yet (#467). Escape drops both.
-   */
-  readonly onClose: (cancelled: boolean, held?: readonly KeyboardEventInit[]) => void;
-  /**
-   * Takes the first `count` of the keys a closed prompt handed on (`onClose`) that are still to act, all
-   * without `count`: an open prompt takes one each render and presses it as if it were typed into it now
-   * (#467). The keys stay with the app until taken, so a prompt that one of them opens takes the rest.
-   */
-  readonly takeKeys?: (count?: number) => readonly KeyboardEventInit[];
-  /**
-   * A key typed while keys handed on still wait (`takeKeys`), or on a prompt that has closed and is not
-   * gone yet (an answer taken in an effect, whose render is still to come): it was pressed after them, or
-   * for what the answer opened, so it goes after the keys handed on, in its order (#467).
-   */
-  readonly onLateKey?: (key: KeyboardEventInit) => void;
-  /** Whether keys handed on still wait to be taken. */
-  readonly keysWaiting?: () => boolean;
+  /** The prompt ends: Escape (`cancelled`, SR-117 keeps a held access for it), or an answer. */
+  readonly onClose: (cancelled: boolean) => void;
   /**
    * The possible next keys after the prefix key, with their commands (SR-109 AK3): shown above the idle
    * line, which says the prefix ("Ctrl+K-"); no input, the focus stays where it is.
@@ -56,27 +29,12 @@ export interface MinibufferProps {
 const parts = ({ item, ranges }: Ranked<Choice>): Part[] =>
   item.terms === undefined ? highlightRanges(item.name, ranges) : highlightTerms(item.name, item.terms);
 
-/**
- * Whether `event` is a shortcut of the window (the command prompt, the prefix key, an action): held while
- * an Enter waits. Keys that edit the input (Ctrl/Cmd+Backspace, +A, +V, +Z, macOS Ctrl+E) are not.
- */
-const isShortcut = (event: KeyPress, mac: boolean): boolean =>
-  [COMMAND_SHORTCUT, PREFIX, ...ACTIONS.flatMap((action) => action.shortcut ?? [])].some((shortcut) =>
-    matches(event, shortcut, mac),
-  );
-
 const PromptLine = ({
   prompt: given,
   onClose,
-  takeKeys,
-  onLateKey,
-  keysWaiting,
 }: {
   readonly prompt: Prompt;
-  readonly onClose: MinibufferProps["onClose"];
-  readonly takeKeys: MinibufferProps["takeKeys"];
-  readonly onLateKey: MinibufferProps["onLateKey"];
-  readonly keysWaiting: MinibufferProps["keysWaiting"];
+  readonly onClose: (cancelled: boolean) => void;
 }): React.JSX.Element => {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(0);
@@ -113,34 +71,8 @@ const PromptLine = ({
   const taken = useRef(0);
   const unsearched = useRef(false);
   // Whether an Enter waits (`waiting` or `early`), shown as "searching…", so a person or a test sees that
-  // it is not taken yet (#467); and the shortcuts pressed meanwhile, which act after the answer.
+  // it is not taken yet (#467).
   const [pending, setPending] = useState(false);
-  const held = useRef<KeyboardEventInit[]>([]);
-  const waits = (): boolean => waiting.current !== 0 || early.current !== undefined;
-  // Counts the keys handed on that this prompt pressed (`takeKeys`), one each render; `pressedIn` is the
-  // count of the render that pressed last, so an effect run twice (StrictMode) presses no second key.
-  const [pressed, setPressed] = useState(0);
-  const pressedIn = useRef(-1);
-  // The prompt has closed (an answer, Escape) and goes in the next render: the keys handed on are for
-  // what the answer opened, so it takes none of them any more.
-  const closed = useRef(false);
-  // A key handed on is being pressed (`pressHanded`): it is no late key. `unrendered`: one was pressed
-  // and its render is still to come, so the input does not show its text yet.
-  const feeding = useRef(false);
-  const unrendered = useRef(false);
-  const field = useRef<HTMLInputElement>(null);
-
-  /** Closes with an answer: what is held acts on what the answer opens. */
-  const closeWithAnswer = (): void => {
-    closed.current = true;
-    const keys = held.current;
-    held.current = [];
-    if (keys.length === 0) {
-      onClose(false);
-    } else {
-      onClose(false, keys);
-    }
-  };
 
   useEffect(
     () => () => {
@@ -189,7 +121,7 @@ const PromptLine = ({
     if (prompt.items.some((item) => item.id === choice.id)) {
       prompt.use?.record(typed, choice.id);
     }
-    closeWithAnswer();
+    onClose(false);
     (more ? (choice.more ?? choice.run) : choice.run)();
   };
 
@@ -211,8 +143,6 @@ const PromptLine = ({
         taken.current = mine;
         setPending(false);
         takeFirst(waitingMore.current);
-        // No hit to open: the held keys go nowhere.
-        held.current = [];
       }
     });
   };
@@ -252,7 +182,6 @@ const PromptLine = ({
     // Typing after Enter cancels it, while the answer is awaited (SR-119) and while the parts load.
     waiting.current = 0;
     early.current = undefined;
-    held.current = [];
     setPending(false);
     if (prompt.find === undefined || value.trim() === "") {
       latest.current += 1;
@@ -268,7 +197,7 @@ const PromptLine = ({
   // Enter: the selected candidate, the typed text, or (empty input) the end of a list argument.
   const enter = (): void => {
     if (query === "" && prompt.empty !== undefined) {
-      closeWithAnswer();
+      onClose(false);
       prompt.empty(false);
     } else if (loading) {
       early.current = "enter";
@@ -278,7 +207,7 @@ const PromptLine = ({
     } else if (current !== undefined) {
       choose(current.item, query);
     } else if (prompt.text !== undefined) {
-      closeWithAnswer();
+      onClose(false);
       prompt.text(query);
     }
   };
@@ -288,7 +217,7 @@ const PromptLine = ({
   // empty input it ends a list argument, as Enter does, and offers the optional arguments.
   const more = (): void => {
     if (query === "" && prompt.empty !== undefined) {
-      closeWithAnswer();
+      onClose(false);
       prompt.empty(true);
     } else if (loading) {
       early.current = "more";
@@ -298,7 +227,7 @@ const PromptLine = ({
     } else if (current?.item.more !== undefined) {
       choose(current.item, query, true);
     } else if (current === undefined && prompt.more !== undefined) {
-      closeWithAnswer();
+      onClose(false);
       prompt.more(query);
     } else {
       enter();
@@ -321,10 +250,6 @@ const PromptLine = ({
     } else if (key === "enter") {
       enter();
     }
-    if (!waits()) {
-      // An answer that closed the prompt took the held keys; one still open opened nothing: they go.
-      held.current = [];
-    }
   }, [filled]);
 
   // The modifier of the shortcuts: Cmd only under macOS (`matches`).
@@ -344,52 +269,13 @@ const PromptLine = ({
     event.stopPropagation();
     if (prompt.back !== undefined) {
       event.preventDefault();
-      closeWithAnswer();
+      onClose(false);
       prompt.back();
     }
     return true;
   };
 
-  /** Takes `event` from the input and the window, as a key to press again later (#467). */
-  const keep = (event: React.KeyboardEvent): KeyboardEventInit => {
-    event.preventDefault();
-    event.stopPropagation();
-    const { key, code, ctrlKey, metaKey, shiftKey, altKey } = event;
-    return { key, code, ctrlKey, metaKey, shiftKey, altKey };
-  };
-
-  /** Holds `event` to press it again once the answer is shown (#467). */
-  const hold = (event: React.KeyboardEvent): void => {
-    held.current.push(keep(event));
-  };
-
-  /**
-   * Closed but not gone yet, the window would act on the buffers before the answer's render (a filter on
-   * the list before the one just chosen); before the render of a key handed on, or with more of them
-   * waiting, it would come before them. So the key goes to the app, after the keys handed on.
-   */
-  const late = (event: React.KeyboardEvent): boolean => {
-    const after = closed.current || unrendered.current || keysWaiting?.() === true;
-    if (onLateKey === undefined || feeding.current || !after) {
-      return false;
-    }
-    if (!MODIFIER_KEYS.has(event.key)) {
-      onLateKey(keep(event));
-    }
-    return true;
-  };
-
   const keyDown = (event: React.KeyboardEvent): void => {
-    if (late(event)) {
-      return;
-    }
-    // After a held shortcut every key is held too, so the text typed after it goes to what it opens
-    // (Enter, Ctrl+Shift+P, a command name in one go), not into this prompt. A modifier pressed on its
-    // own is part of the next key; Escape is never held: it ends the prompt and drops what is held.
-    if (held.current.length > 0 && !MODIFIER_KEYS.has(event.key) && event.key !== "Escape") {
-      hold(event);
-      return;
-    }
     // Down, Up, Tab and Ctrl+N / Ctrl+P (SR-122) move the selection. They go no further: Ctrl+P is
     // "Go to" in the window, but in an open prompt it only moves the selection, on every platform.
     const step = listStep(event);
@@ -412,13 +298,6 @@ const PromptLine = ({
     if (argumentKey(event)) {
       return;
     }
-    // A shortcut of the window pressed while an Enter waits acts on what the Enter opens, not on the
-    // buffer behind the prompt (#467: Ctrl+P, text, Enter, Ctrl+J in one go); a key that edits the input
-    // edits it, and so cancels the Enter.
-    if (waits() && isShortcut(event, mac)) {
-      hold(event);
-      return;
-    }
     switch (event.key) {
       case "Enter":
         event.preventDefault();
@@ -428,55 +307,10 @@ const PromptLine = ({
         event.preventDefault();
         prompt.cancel?.();
         waiting.current = 0;
-        held.current = [];
-        closed.current = true;
         onClose(true);
         break;
     }
   };
-
-  /** Presses a key handed on, as if typed: to the input and on to the window; typed when no one took it. */
-  const pressHanded = (init: KeyboardEventInit): void => {
-    const event = new KeyboardEvent("keydown", { ...init, bubbles: true, cancelable: true });
-    feeding.current = true;
-    field.current?.dispatchEvent(event);
-    feeding.current = false;
-    const { key = "", ctrlKey = false, metaKey = false, altKey = false } = init;
-    if (event.defaultPrevented || ctrlKey || metaKey || altKey) {
-      return;
-    }
-    if (key.length === 1) {
-      change(typed.current + key);
-    } else if (key === "Backspace" && typed.current !== "") {
-      change(typed.current.slice(0, -1));
-    }
-  };
-
-  // A key handed on has its render now.
-  useEffect(() => {
-    unrendered.current = false;
-  });
-
-  // The keys handed on by the prompt before, one each render, so each acts on what the one before did
-  // (the hits it asked for, the selection it moved). While an Enter waits, the rest is held with it,
-  // since they were all pressed before its answer could be seen.
-  useEffect(() => {
-    if (takeKeys === undefined || closed.current || pressedIn.current === pressed) {
-      return;
-    }
-    if (waits()) {
-      held.current.push(...takeKeys());
-      return;
-    }
-    const [next] = takeKeys(1);
-    if (next === undefined) {
-      return;
-    }
-    pressedIn.current = pressed;
-    pressHanded(next);
-    unrendered.current = true;
-    setPressed((count) => count + 1);
-  });
 
   return (
     <>
@@ -485,7 +319,6 @@ const PromptLine = ({
       </label>
       <input
         id="prompt-input"
-        ref={field}
         className="prompt-input"
         role="combobox"
         aria-expanded={rows.length > 0}
@@ -559,9 +392,6 @@ export const Minibuffer = ({
   prompt,
   onCommand,
   onClose,
-  takeKeys,
-  onLateKey,
-  keysWaiting,
   nextKeys,
 }: MinibufferProps): React.JSX.Element => (
   <div className="minibuffer" aria-label="Minibuffer" aria-live="polite">
@@ -573,14 +403,7 @@ export const Minibuffer = ({
         </div>
       </>
     ) : (
-      <PromptLine
-        key={prompt.serial}
-        prompt={prompt.prompt}
-        onClose={onClose}
-        takeKeys={takeKeys}
-        onLateKey={onLateKey}
-        keysWaiting={keysWaiting}
-      />
+      <PromptLine key={prompt.serial} prompt={prompt.prompt} onClose={onClose} />
     )}
   </div>
 );

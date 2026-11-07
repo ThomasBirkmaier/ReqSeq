@@ -85,13 +85,7 @@ const setup = (
     theme: fakeTheme(),
     call: call as unknown as Call,
     dispatch: (action) => dispatched.push(action),
-    // The prompt as the minibuffer shows it once its parts that come later (`fill`) are in.
-    ask: (prompt) => {
-      const at = asked.push(prompt) - 1;
-      void prompt.fill?.then((parts) => {
-        asked[at] = { ...prompt, ...parts };
-      });
-    },
+    ask: (prompt) => asked.push(prompt),
     echo: (message) => echoed.push(message),
     modified: false,
     closeArmed: () => false,
@@ -739,7 +733,7 @@ describe("list actions", () => {
     ]);
   });
 
-  it("says in the label of the open prompt why there is nothing to choose from (#467)", async () => {
+  it("says why there is nothing to choose from", async () => {
     const empty = setup([list], {
       "metamodel.get": { types: [] },
       "element.facets": { statuses: [] },
@@ -749,10 +743,11 @@ describe("list actions", () => {
     action("filter-status").run(empty.context);
     action("filter-saved").run(empty.context);
     await flush();
-    expect(empty.asked.map((prompt) => [prompt.label, prompt.items.length])).toEqual([
-      ["The metamodel has no types. · Type", 0],
-      ["The elements of this list have no status. · Status", 0],
-      ["The workspace has no saved filters. · Filter", 0],
+    expect(empty.asked).toEqual([]);
+    expect(empty.echoed).toEqual([
+      "The metamodel has no types.",
+      "The elements of this list have no status.",
+      "The workspace has no saved filters.",
     ]);
     const failing = setup([list], {
       "metamodel.get": new Error("The metamodel is not valid"),
@@ -763,11 +758,7 @@ describe("list actions", () => {
     action("filter-status").run(failing.context);
     action("filter-saved").run(failing.context);
     await flush();
-    expect(failing.asked.map((prompt) => prompt.label)).toEqual([
-      "The metamodel is not valid · Type",
-      "The facets failed · Status",
-      "No filters · Filter",
-    ]);
+    expect(failing.echoed).toEqual(["The metamodel is not valid", "The facets failed", "No filters"]);
   });
 
   it("clears the filter and keeps the sort", () => {
@@ -923,9 +914,8 @@ describe("list actions", () => {
       });
       action("group").run(broken.context);
       await flush();
-      expect(broken.asked.map((prompt) => [prompt.label, prompt.items.length])).toEqual([
-        ["facets failed · Group by", 0],
-      ]);
+      expect(broken.asked).toEqual([]);
+      expect(broken.echoed).toEqual(["facets failed"]);
     });
 
     it("[SR-149/AK3] choosing another grouping or ungrouping keeps the filter steps and the sort", async () => {

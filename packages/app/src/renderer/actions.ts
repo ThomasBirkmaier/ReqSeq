@@ -194,12 +194,6 @@ export interface ActionContext {
   readonly dispatch: (action: BufferAction) => void;
   readonly ask: (prompt: Prompt) => void;
   readonly echo: (message: string) => void;
-  /**
-   * The keys a prompt handed on (#467), taken by what opens its result only after core answered (a catalog
-   * command), and given back once it is shown (`replayKeys`). Absent: no keys are handed on.
-   */
-  readonly takeKeys?: () => readonly KeyboardEventInit[];
-  readonly replayKeys?: (keys: readonly KeyboardEventInit[]) => void;
   /** Puts `text` on the clipboard, and the modeline confirms it with `label` (SR-128 AK2). */
   readonly copy?: (label: string, text: string) => void;
   /**
