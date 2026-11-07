@@ -42,7 +42,7 @@ describe("reqseq element add-attachment (SR-097)", () => {
     const ws = await workspace();
     // A path relative to the current folder, as on any command line (ADR-0009 localPath).
     const out = await reqseq(
-      ["element", "add-attachment", "SR-e88fb3", "../incoming/Wind layout.png", "--json"],
+      ["element", "add-attachment", "SR-e88fb3", "--source-path", "../incoming/Wind layout.png", "--json"],
       {
         cwd: ws.path("requirements"),
       },
@@ -88,17 +88,23 @@ describe("reqseq element add-attachment (SR-097)", () => {
 
   it("prints the file and the Markdown, and refuses a file that is no image with exit code 2", async () => {
     const ws = await workspace();
-    const out = await reqseq(["element", "add-attachment", "SR-e88fb3", "incoming/Wind layout.png"], {
-      cwd: ws.root,
-    });
+    const out = await reqseq(
+      ["element", "add-attachment", "SR-e88fb3", "--source-path", "incoming/Wind layout.png"],
+      {
+        cwd: ws.root,
+      },
+    );
     expect([out.code, out.stdout, out.stderr]).toEqual([
       0,
       'file: requirements/SR-6328cee88fb3/Wind-layout.png\nmarkdown: "![Wind-layout](SR-6328cee88fb3/Wind-layout.png)"\n',
       "",
     ]);
-    const refused = await reqseq(["element", "add-attachment", "SR-e88fb3", "reqseq-workspace.yaml"], {
-      cwd: ws.root,
-    });
+    const refused = await reqseq(
+      ["element", "add-attachment", "SR-e88fb3", "--source-path", "reqseq-workspace.yaml"],
+      {
+        cwd: ws.root,
+      },
+    );
     expect([refused.code, refused.stdout, refused.stderr]).toEqual([
       2,
       "",

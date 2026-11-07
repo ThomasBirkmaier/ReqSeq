@@ -4151,7 +4151,7 @@
     "/v1/commands/element.addAttachment": {
       "post": {
         "operationId": "element_addAttachment",
-        "summary": "Copy an image into the folder named like the element file, next to it, and return the Markdown that embeds it relatively; once the text embeds it, the image counts to the version. Never replaces a file.",
+        "summary": "Copy an image, from a local file or given as bytes, into the folder named like the element file, next to it, and return the Markdown that embeds it relatively; once the text embeds it, the image counts to the version. Never replaces a file.",
         "tags": [
           "element"
         ],
@@ -4159,7 +4159,8 @@
         "x-reqseq-stage": 3,
         "x-reqseq-implements": [
           "SR-065",
-          "SR-097"
+          "SR-097",
+          "SR-190"
         ],
         "requestBody": {
           "required": true,
@@ -4173,7 +4174,19 @@
                   },
                   "sourcePath": {
                     "$ref": "#/components/schemas/common/$defs/localPath",
-                    "description": "The image to copy: a file ending in .avif, .bmp, .gif, .jpeg, .jpg, .png, .svg or .webp (any case)."
+                    "description": "The image to copy: a file ending in .avif, .bmp, .gif, .jpeg, .jpg, .png, .svg or .webp (any case). Give it or content, not both."
+                  },
+                  "content": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 27962028,
+                    "description": "The bytes of the image, base64 (RFC 4648, with padding), at most 20 MiB decoded, so a request stays below the 32 MiB limit of the API and MCP: for an image without a file, such as one pasted or dropped in the app. Needs name; give it or sourcePath, not both."
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255,
+                    "description": "The file name of content, for its extension (which must be one of sourcePath's) and the name of the copy, e.g. Screenshot 2026-11-07.png. Only with content."
                   },
                   "repository": {
                     "type": "string",
@@ -4194,8 +4207,7 @@
                 },
                 "additionalProperties": false,
                 "required": [
-                  "ref",
-                  "sourcePath"
+                  "ref"
                 ]
               }
             }
