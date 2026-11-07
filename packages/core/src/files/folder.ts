@@ -2,30 +2,12 @@
 // (docs/architecture), so commands that put a file into a folder that does not exist yet (the
 // metamodel folder of `workspace.init`) create it here.
 import fs from "node:fs/promises";
-import path from "node:path";
 import { CommandError } from "../catalog.js";
+import { linksStayInside } from "./links.js";
 import { errorCode, resolveInRoot } from "./paths.js";
 
 const NOT_WRITABLE: readonly string[] = ["EACCES", "EPERM"];
 const NOT_A_FOLDER: readonly string[] = ["EEXIST", "ENOTDIR"];
-
-/** The closest path at or above `absolute` that exists; `root` exists, so the walk ends there at the latest. */
-const existingAncestor = async (absolute: string): Promise<string> => {
-  try {
-    await fs.lstat(absolute);
-    return absolute;
-  } catch (error) {
-    if (errorCode(error) !== "ENOENT") {
-      throw error;
-    }
-    return existingAncestor(path.dirname(absolute));
-  }
-};
-
-const isInside = (parent: string, child: string): boolean => {
-  const rel = path.relative(parent, child);
-  return !path.isAbsolute(rel) && rel.split(path.sep)[0] !== "..";
-};
 
 /** Passes CommandErrors on and maps raw Node errors to codes of `common.schema.json#/$defs/error`. */
 const toCommandError = (error: unknown, folder: string): CommandError => {
@@ -58,11 +40,8 @@ const toCommandError = (error: unknown, folder: string): CommandError => {
 export const createFolder = async (root: string, relativePath: string): Promise<string> => {
   const { absolute, file } = resolveInRoot(root, relativePath);
   try {
-    const [realRoot, realExisting] = await Promise.all([
-      fs.realpath(root),
-      existingAncestor(absolute).then(async (existing) => fs.realpath(existing)),
-    ]);
-    if (!isInside(realRoot, realExisting)) {
+    // Judged before anything follows a link out of the root (#294).
+    if (!(await linksStayInside(root, absolute))) {
       throw new CommandError("input.invalid", `Not created: folder ${file} is linked outside the workspace`);
     }
     await fs.mkdir(absolute, { recursive: true });

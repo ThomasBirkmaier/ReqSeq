@@ -4,6 +4,7 @@ import type { Stats } from "node:fs";
 import { createHash } from "node:crypto";
 import { createReadStream, lstatSync, readFileSync } from "node:fs";
 import fs from "node:fs/promises";
+import path from "node:path";
 import type { Problem } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import type { ParsedContent, ParsedYaml } from "./parse.js";
@@ -17,7 +18,8 @@ import {
   parseYamlFileBytes,
   utf8Text,
 } from "./parse.js";
-import { errorCode, folderInsideRoot, folderInsideRootSync, resolveInRoot } from "./paths.js";
+import { linksStayInside } from "./links.js";
+import { errorCode, folderInsideRootSync, resolveInRoot } from "./paths.js";
 import type { FileSnapshot } from "./snapshot.js";
 import { makeSnapshot, sha256 } from "./snapshot.js";
 import { elementText } from "./text.js";
@@ -72,17 +74,20 @@ const statProblem = (file: string, stat: Stats): ReturnType<typeof unreadable> |
 
 const OUTSIDE = "its folder is linked to a place outside the workspace";
 
-/** The bytes of a regular file inside the root; links to files and folders linked out of it are refused. */
+/**
+ * The bytes of a regular file inside the root; links to files and folders linked out of it are
+ * refused, a folder link that leaves the root before anything follows it (#294).
+ */
 const readBytes = async (root: string, relativePath: string): Promise<RawFile> => {
   const { absolute, file } = resolveInRoot(root, relativePath);
   try {
+    if (!(await linksStayInside(root, path.dirname(absolute)))) {
+      return unreadable(file, OUTSIDE);
+    }
     const stat = await fs.lstat(absolute);
     const problem = statProblem(file, stat);
     if (problem !== undefined) {
       return problem;
-    }
-    if (!(await folderInsideRoot(root, absolute))) {
-      return unreadable(file, OUTSIDE);
     }
     return { kind: "bytes", file, bytes: await fs.readFile(absolute), mtimeMs: stat.mtimeMs };
   } catch (e) {
@@ -91,7 +96,11 @@ const readBytes = async (root: string, relativePath: string): Promise<RawFile> =
   }
 };
 
-/** `readBytes` with blocking calls, for a worker thread of the cold load (ADR-0008); the same checks and results. */
+/**
+ * `readBytes` with blocking calls, for a worker thread of the cold load (ADR-0008); the same checks
+ * and results, except that it does not walk the folders for links that leave the root: it reads
+ * only files the folder walk of the model listed, which never goes into a linked folder.
+ */
 const readBytesSync = (root: string, relativePath: string): RawFile => {
   const { absolute, file } = resolveInRoot(root, relativePath);
   try {
@@ -381,13 +390,13 @@ export const readJsonlSnapshot = async (
 ): Promise<JsonlSnapshotReadResult> => {
   const { absolute, file } = resolveInRoot(root, relativePath);
   try {
+    if (!(await linksStayInside(root, path.dirname(absolute)))) {
+      return { ...unreadable(file, OUTSIDE), missing: false };
+    }
     const stat = await fs.lstat(absolute);
     const problem = statProblem(file, stat);
     if (problem !== undefined) {
       return { ...problem, missing: false };
-    }
-    if (!(await folderInsideRoot(root, absolute))) {
-      return { ...unreadable(file, OUTSIDE), missing: false };
     }
     const read = await readJsonlFile(absolute);
     return {

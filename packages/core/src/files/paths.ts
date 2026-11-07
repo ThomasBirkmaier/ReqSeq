@@ -1,5 +1,4 @@
 import { realpathSync } from "node:fs";
-import fs from "node:fs/promises";
 import path from "node:path";
 import { CommandError } from "../catalog.js";
 
@@ -33,13 +32,11 @@ const insideReal = (realRoot: string, realFolder: string): boolean => {
   return !path.isAbsolute(rel) && rel.split(path.sep)[0] !== "..";
 };
 
-/** True when the real folder of `absolute` (after following links) is inside the real `root`. */
-export const folderInsideRoot = async (root: string, absolute: string): Promise<boolean> => {
-  const [realRoot, realFolder] = await Promise.all([fs.realpath(root), fs.realpath(path.dirname(absolute))]);
-  return insideReal(realRoot, realFolder);
-};
-
-/** `folderInsideRoot` with blocking calls; `realpathSync.native` is the call `fs.promises.realpath` makes. */
+/**
+ * True when the real folder of `absolute` (after following links) is inside the real `root`; only
+ * for files the folder walk listed (no link on their path), as other paths need `linksStayInside`
+ * first (#294).
+ */
 export const folderInsideRootSync = (root: string, absolute: string): boolean =>
   insideReal(realpathSync.native(root), realpathSync.native(path.dirname(absolute)));
 

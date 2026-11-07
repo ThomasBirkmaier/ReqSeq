@@ -13,13 +13,14 @@
 //    root, compared exactly: both sides are `realpath` output, the spelling on disk.
 // The roots are the available repositories of the workspace file and always the workspace root (the
 // main repository; before `workspace.init`, or with a faulty workspace file, it is the only root).
-// Not covered: hard links, a link swapped between the check and the command's own access, and a link
-// inside a repository whose target is a share (`realpath` follows it).
+// Before step 2 follows any link, each link on the path must lead into a root by its text
+// (`linksStayInside`), so a link inside a repository whose target is a share is refused unopened
+// (#294). Not covered: hard links and a link swapped between the check and the command's own access.
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { LocalPathUse, LocalPaths } from "../catalog.js";
 import { CommandError } from "../catalog.js";
-import { errorCode } from "../files/paths.js";
+import { linksStayInside } from "../files/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "./layout.js";
 
@@ -92,7 +93,17 @@ const namesOf = (absolute: string): string[] =>
 const realForm = async (
   start: string,
   names: readonly string[],
+  roots: readonly Root[],
 ): Promise<{ readonly real: string } | { readonly reason: LocalPathReason }> => {
+  // Before `lstat`, `stat` and `realpath` below follow a link out of the roots (#294).
+  try {
+    const alsoInside = roots.flatMap((r) => [r.given, r.real]);
+    if (!(await linksStayInside(start, path.join(start, ...names), { alsoInside }))) {
+      return { reason: "outside-repositories" };
+    }
+  } catch {
+    return { reason: "path-unreadable" };
+  }
   let existing = start;
   let found = 0;
   for (const name of names) {
@@ -100,12 +111,9 @@ const realForm = async (
     let entry;
     try {
       entry = await fs.lstat(next);
-    } catch (error) {
-      const code = errorCode(error);
-      if (code === "ENOENT" || code === "ENOTDIR") {
-        break;
-      }
-      return { reason: "path-unreadable" };
+    } catch {
+      // Not there (the walk above has looked at every name already and rejects on other errors).
+      break;
     }
     // A link that cannot be followed (dangling, a loop) could carry a write anywhere.
     if (
@@ -159,7 +167,7 @@ const judge = async (
   // Folding keeps the number of names, so the root is the first `depth` names of the path as spelled.
   const names = namesOf(absolute);
   const start = path.join(path.parse(absolute).root, ...names.slice(0, depth));
-  const form = await realForm(start, names.slice(depth));
+  const form = await realForm(start, names.slice(depth), roots);
   if ("reason" in form) {
     return form.reason;
   }
