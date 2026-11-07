@@ -709,12 +709,23 @@ const planChanged = (answer: {
   answer.code === "input.invalid" &&
   (answer.details as { readonly reason?: unknown } | undefined)?.reason === "plan-changed";
 
+/** The keys the prompt handed on (#467), taken while core answers, so they act on no other buffer. */
+const takeHeld = (context: CatalogContext): readonly KeyboardEventInit[] => context.takeKeys?.() ?? [];
+
+/** Opens `buffer`, the result of the command, and presses the keys the prompt handed on there. */
+const openResult = (context: CatalogContext, buffer: Buffer, held: readonly KeyboardEventInit[]): void => {
+  context.dispatch({ type: "open", buffer });
+  context.replayKeys?.(held);
+};
+
 /**
  * Runs the command with the given values: the output opens a result buffer (of a write command, one that
  * is not asked again), a new element its element buffer (SR-064); a refused input asks again. A write
- * command first saves the input of every open buffer, and does not run when one cannot be saved.
+ * command first saves the input of every open buffer, and does not run when one cannot be saved. The keys
+ * the prompt handed on (#467) act on the buffer opened, once core answered; without one they are dropped.
  */
 const execute = async (context: CatalogContext, entry: Entry): Promise<void> => {
+  const held = takeHeld(context);
   const name = entry.command.name as keyof CommandTypes;
   const given = inputOf(context, entry);
   const confirming = isConfirmation(name, given);
@@ -736,13 +747,10 @@ const execute = async (context: CatalogContext, entry: Entry): Promise<void> => 
   const answer = await (context.shownCall ?? context.call)(name, input);
   if (answer.ok && name === CREATE_COMMAND) {
     const created = answer.output as CommandTypes[typeof CREATE_COMMAND]["output"];
-    context.dispatch({ type: "open", buffer: elementBufferOf(created.element) });
+    openResult(context, elementBufferOf(created.element), held);
     context.echo(createdEcho(created));
   } else if (answer.ok) {
-    context.dispatch({
-      type: "open",
-      buffer: resultBuffer(name, input, lineOf(entry), answer.output, revision, write),
-    });
+    openResult(context, resultBuffer(name, input, lineOf(entry), answer.output, revision, write), held);
   } else if (confirming && planChanged(answer)) {
     await showPreview(
       context,

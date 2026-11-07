@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
+import { EditorView } from "@codemirror/view";
 import { afterEach, describe, expect, it } from "vitest";
-import { replayKeys } from "./replay-keys.js";
+import { pressKey } from "./replay-keys.js";
 
 afterEach(() => {
   document.body.replaceChildren();
@@ -15,34 +16,34 @@ const focusedInput = (value = ""): HTMLInputElement => {
   return input;
 };
 
-describe("replaying the keys a prompt held (#467)", () => {
-  it("presses each key on the focused element, in order, after the render of the one before", async () => {
-    const first = focusedInput();
-    const second = document.createElement("input");
-    document.body.append(second);
+const pressAll = (keys: readonly KeyboardEventInit[]): void => {
+  for (const key of keys) {
+    pressKey(key);
+  }
+};
+
+describe("pressing a key a prompt held (#467)", () => {
+  it("presses the key on the focused element, and it bubbles to the window", () => {
+    const input = focusedInput();
     const pressed: string[] = [];
-    first.addEventListener("keydown", (event) => {
-      pressed.push(`first ${event.key} ${String(event.ctrlKey)}`);
-      // The shortcut opens another prompt, which takes the focus.
-      event.preventDefault();
-      second.focus();
+    input.addEventListener("keydown", (event) => {
+      pressed.push(`input ${event.key} ${String(event.ctrlKey)}`);
     });
-    second.addEventListener("keydown", (event) => {
-      pressed.push(`second ${event.key}`);
-    });
-    let waits = 0;
-    await replayKeys([{ key: "P", ctrlKey: true, shiftKey: true }, { key: "d" }, { key: "Enter" }], () => {
-      waits += 1;
-      return Promise.resolve();
-    });
-    expect(pressed).toEqual(["first P true", "second d", "second Enter"]);
-    expect(waits).toBe(3);
-    // The letter no handler took is typed into the input that has the focus; Enter types nothing.
-    expect(second.value).toBe("d");
-    expect(first.value).toBe("");
+    const onWindow = (event: KeyboardEvent): void => {
+      pressed.push(`window ${event.key}`);
+    };
+    window.addEventListener("keydown", onWindow);
+    try {
+      pressKey({ key: "j", ctrlKey: true });
+    } finally {
+      window.removeEventListener("keydown", onWindow);
+    }
+    expect(pressed).toEqual(["input j true", "window j"]);
+    // A shortcut types nothing.
+    expect(input.value).toBe("");
   });
 
-  it("types letters and Backspace into an input with the input event, and nothing a handler took", async () => {
+  it("types letters and Backspace into an input with the input event, and nothing a handler took", () => {
     const input = focusedInput("dra");
     const inputs: string[] = [];
     input.addEventListener("input", () => {
@@ -53,26 +54,44 @@ describe("replaying the keys a prompt held (#467)", () => {
         event.preventDefault();
       }
     });
-    await replayKeys([{ key: "f" }, { key: "x" }, { key: "Backspace" }, { key: "f" }, { key: "t" }]);
+    pressAll([
+      { key: "f" },
+      { key: "x" },
+      { key: "Backspace" },
+      { key: "f" },
+      { key: "t" },
+      { key: "Enter" },
+    ]);
     expect(input.value).toBe("draft");
     expect(inputs).toEqual(["draf", "dra", "draf", "draft"]);
-    // A selection is replaced, Backspace at the start deletes nothing, a shortcut types nothing.
+    // A selection is replaced, Backspace at the start deletes nothing, Alt types nothing.
     input.setSelectionRange(0, 5);
-    await replayKeys([{ key: "o" }, { key: "Backspace" }, { key: "Backspace" }, { key: "a", ctrlKey: true }]);
+    pressAll([{ key: "o" }, { key: "Backspace" }, { key: "Backspace" }, { key: "n", altKey: true }]);
     expect(input.value).toBe("");
   });
 
-  it("gives a key on another element than an input only the key", async () => {
-    const editor = document.createElement("div");
-    editor.tabIndex = 0;
-    document.body.append(editor);
-    editor.focus();
+  it("types letters and Backspace into the text editor through its view", () => {
+    const parent = document.createElement("div");
+    document.body.append(parent);
+    const view = new EditorView({ doc: "Ice", parent });
+    view.dispatch({ selection: { anchor: 3 } });
+    view.contentDOM.focus();
+    pressAll([{ key: "s" }, { key: "Backspace" }, { key: "d" }, { key: "Tab" }, { key: "v", metaKey: true }]);
+    expect(view.state.doc.toString()).toBe("Iced");
+    view.destroy();
+  });
+
+  it("gives a key on another element only the key", () => {
+    const box = document.createElement("div");
+    box.tabIndex = 0;
+    document.body.append(box);
+    box.focus();
     const pressed: string[] = [];
-    editor.addEventListener("keydown", (event) => {
+    box.addEventListener("keydown", (event) => {
       pressed.push(event.key);
     });
-    await replayKeys([{ key: "a" }]);
+    pressKey({ key: "a" });
     expect(pressed).toEqual(["a"]);
-    expect(editor.textContent).toBe("");
+    expect(box.textContent).toBe("");
   });
 });

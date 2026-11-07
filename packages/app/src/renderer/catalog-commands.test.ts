@@ -320,6 +320,40 @@ describe("catalog commands in the command prompt", () => {
     expect(dispatched.at(-1)).toMatchObject({ buffer: { command: "element.facets", input: {} } });
   });
 
+  it("presses the keys the prompt handed on once the result buffer is open, and drops them on a failure (#467)", async () => {
+    const { context, dispatched } = setup([shown], {
+      "filter.list": () => ({ filters: [] }),
+      "element.facets": () => new Error("The facets failed"),
+    });
+    const keys: KeyboardEventInit[] = [{ key: "j", ctrlKey: true }];
+    let queued: readonly KeyboardEventInit[] = keys;
+    const replayed: (readonly KeyboardEventInit[])[] = [];
+    const held: CatalogContext = {
+      ...context,
+      takeKeys: () => {
+        const taken = queued;
+        queued = [];
+        return taken;
+      },
+      replayKeys: (given) => {
+        // The result buffer is open when the keys are given back.
+        expect(dispatched).toHaveLength(1);
+        replayed.push(given);
+      },
+    };
+    start(held, "filter.list");
+    // Taken at once: the keys do not act on the buffer behind the prompt while core answers.
+    expect(queued).toEqual([]);
+    expect(replayed).toEqual([]);
+    await flush();
+    expect(replayed).toEqual([keys]);
+    queued = keys;
+    start(held, "element.facets");
+    await flush();
+    expect(replayed).toEqual([keys]);
+    expect(queued).toEqual([]);
+  });
+
   it("asks an element with the shown element first, then the kinds relation.options allows from it", async () => {
     const { context, asked, dispatched, call } = setup([shown], {
       "relation.options": () => OPTIONS,

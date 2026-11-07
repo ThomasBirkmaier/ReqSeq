@@ -241,6 +241,31 @@ describe("the neighbourhood in the app", () => {
     expect(query(".neighbourhood h1").textContent).toBe("N-001 See the wind");
   });
 
+  it("presses the keys held behind the Enter one by one: Ctrl+J on the element, the rest into the prompt it opens (#467)", async () => {
+    await open();
+    await keyDown(window, "p", true);
+    const input = query("input");
+    const press = (key: string, init: KeyboardEventInit = {}): void => {
+      input.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...init }));
+    };
+    await act(async () => {
+      const descriptor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
+      const setValue = Reflect.get(descriptor ?? {}, "set") as (this: HTMLElement, value: string) => void;
+      setValue.call(input, "N-001");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      press("Enter");
+      press("j", { ctrlKey: true });
+      press("P", { ctrlKey: true, shiftKey: true });
+      press("l");
+      press("i");
+      await Promise.resolve();
+    });
+    await flush();
+    expect(query(".neighbourhood h1").textContent).toBe("N-001 See the wind");
+    expect(query("label").textContent).toBe("Command");
+    expect(query("input")).toHaveProperty("value", "li");
+  });
+
   it("[SR-107/AK2] goes back to the element with Ctrl+J, and the neighbourhood is in the buffer list", async () => {
     await open();
     await toRequirements();

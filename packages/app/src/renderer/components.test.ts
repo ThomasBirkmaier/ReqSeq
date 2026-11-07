@@ -148,6 +148,27 @@ const type = async (input: HTMLInputElement, value: string): Promise<void> => {
   await flush();
 };
 
+/** Types `text` key by key as a person does: a keydown each, and the input event when no handler took it. */
+const typeKeys = async (input: HTMLInputElement, text: string): Promise<void> => {
+  for (const key of text) {
+    await act(async () => {
+      const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });
+      input.dispatchEvent(event);
+      if (!event.defaultPrevented) {
+        const descriptor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
+        const setValue = Reflect.get(descriptor ?? {}, "set") as (
+          this: HTMLInputElement,
+          value: string,
+        ) => void;
+        setValue.call(input, input.value + key);
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+      await Promise.resolve();
+    });
+    await flush();
+  }
+};
+
 const click = async (target: Element): Promise<void> => {
   await act(async () => {
     target.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -1004,6 +1025,8 @@ describe("Minibuffer", () => {
       await answer("SR-11", [hit]);
       expect(hit.run).toHaveBeenCalledTimes(1);
       expect(closed).toHaveBeenCalledTimes(1);
+      // No key was held: none is handed on.
+      expect(closed).toHaveBeenCalledWith(false);
     });
 
     it("says searching while an Enter waits for the parts of the prompt (#467)", async () => {
@@ -1072,18 +1095,101 @@ describe("Minibuffer", () => {
       expect(input().value).toBe("zzz");
     });
 
-    it("drops the held shortcuts when typing cancels the Enter, and passes on none without one (#467)", async () => {
+    it("leaves the keys that edit the input to it: they cancel the waiting Enter, and Escape closes (#467)", async () => {
       const { find, answer } = deferred();
       const closed = vi.fn();
       await mount({ label: "Go to", items: [], find }, closed);
-      await type(input(), "ic");
+      await typeKeys(input(), "ic");
+      await press(input(), "Enter");
+      // Ctrl+Backspace deletes a word in the input, Ctrl+A selects it: no shortcut of the window, not held.
+      await press(input(), "Backspace", { ctrlKey: true });
+      await press(input(), "a", { ctrlKey: true });
+      await typeKeys(input(), "x");
+      expect(input().value).toBe("icx");
+      expect(container.querySelector('[role="status"]')).toBeNull();
+      await press(input(), "Escape");
+      expect(closed).toHaveBeenCalledOnce();
+      expect(closed).toHaveBeenCalledWith(true);
+      const hit = choice("e1", "SR-118 Survive icing");
+      await answer("ic", [hit]);
+      expect(hit.run).not.toHaveBeenCalled();
+    });
+
+    it("ends the prompt on Escape after a held shortcut and drops what is held (#467)", async () => {
+      const { find, answer } = deferred();
+      const closed = vi.fn();
+      await mount({ label: "Go to", items: [], find }, closed);
+      await typeKeys(input(), "ic");
       await press(input(), "Enter");
       await press(input(), "j", { ctrlKey: true });
-      await type(input(), "icing");
-      await press(input(), "Enter");
+      // The letters after the held shortcut are held too, for what it opens.
+      await typeKeys(input(), "ing");
+      expect(input().value).toBe("ic");
+      await press(input(), "Escape");
+      expect(closed).toHaveBeenCalledOnce();
+      expect(closed).toHaveBeenCalledWith(true);
       const hit = choice("e1", "SR-118 Survive icing");
-      await answer("icing", [hit]);
-      expect(closed).toHaveBeenCalledWith(false);
+      await answer("ic", [hit]);
+      expect(hit.run).not.toHaveBeenCalled();
+    });
+
+    it("hands on the held keys when the parts of the prompt come and its text is taken (#467)", async () => {
+      let fill: (parts: PromptFill) => void = () => undefined;
+      const text = vi.fn();
+      const closed = vi.fn();
+      await mount(
+        {
+          label: "Title",
+          items: [],
+          text,
+          fill: new Promise<PromptFill>((resolve) => {
+            fill = resolve;
+          }),
+        },
+        closed,
+      );
+      await typeKeys(input(), "Ice");
+      await press(input(), "Enter");
+      await press(input(), "j", { ctrlKey: true });
+      await act(async () => {
+        fill({ items: [] });
+        await Promise.resolve();
+      });
+      await flush();
+      expect(text).toHaveBeenCalledWith("Ice");
+      expect(closed).toHaveBeenCalledWith(false, [
+        { key: "j", code: "", ctrlKey: true, metaKey: false, shiftKey: false, altKey: false },
+      ]);
+    });
+
+    it("presses the keys a closed prompt handed on, one each render, holding the rest behind a waiting Enter (#467)", async () => {
+      const { find, answer } = deferred();
+      const closed = vi.fn();
+      const handed: KeyboardEventInit[] = [
+        ..."SR-x".split("").map((key) => ({ key })),
+        { key: "Backspace" },
+        { key: "2" },
+        { key: "Enter" },
+        { key: "e" },
+      ];
+      const takeKeys = vi.fn(() => handed.splice(0));
+      await render(
+        createElement(Minibuffer, {
+          echo: "",
+          prompt: { serial: 1, prompt: { label: "Go to", items: [], find } },
+          onCommand: vi.fn(),
+          onClose: closed,
+          takeKeys,
+        }),
+      );
+      expect(takeKeys).toHaveBeenCalledOnce();
+      expect(input().value).toBe("SR-2");
+      expect(container.querySelector('[role="status"]')?.textContent).toBe("searching…");
+      const hit = choice("e2", "SR-2 Wind");
+      await answer("SR-2", [hit]);
+      // The letter after the Enter acts on what it opened; it neither cancels it nor goes into the input.
+      expect(hit.run).toHaveBeenCalledOnce();
+      expect(closed).toHaveBeenCalledWith(false, [{ key: "e" }]);
     });
 
     it("[SR-119/AK1] opens the hit when Enter comes after the hits arrived and before they are shown (#419)", async () => {
