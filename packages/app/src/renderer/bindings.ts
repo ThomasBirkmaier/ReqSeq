@@ -157,7 +157,9 @@ export const prefixStep = (event: PrefixPress, mac: boolean): PrefixStep => {
   if (event.key === "Escape") {
     return { kind: "cancel" };
   }
-  const step = rowStep(event);
+  // An arrow with a modifier is another key ("Ctrl+K Shift+Down"); `ctrlStep` checks Ctrl+N/Ctrl+P itself.
+  const bare = !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey;
+  const step = event.key.startsWith("Arrow") && !bare ? undefined : rowStep(event);
   if (step !== undefined) {
     return { kind: "move", step };
   }

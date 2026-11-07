@@ -118,6 +118,10 @@ describe("the key after the prefix", () => {
       label: "Ctrl+K 5",
     });
     expect(prefixStep(press("ArrowLeft"), false)).toEqual({ kind: "unbound", label: "Ctrl+K Left" });
+    expect(prefixStep(press("ArrowDown", { shiftKey: true }), false)).toEqual({
+      kind: "unbound",
+      label: "Ctrl+K Shift+Down",
+    });
     expect(prefixStep(press("Enter", { shiftKey: true }), false)).toEqual({
       kind: "unbound",
       label: "Ctrl+K Shift+Enter",

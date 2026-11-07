@@ -388,13 +388,19 @@ describe("the prefix key Ctrl/Cmd+K", () => {
     expect(nextKeys()).toBeUndefined();
     expect(shown()).toBe("Overview");
     expect(echo()).toBe("");
+    // With a row selected, a letter runs its own command, not the selected one.
+    await ctrlK();
+    await press(window, { key: "n", ctrlKey: true });
+    expect(selected()).toBe("ECreate element");
+    await press(window, { key: "l" });
+    expect(shown()).toBe("All elements");
     // The list after half a second has no selection; a letter still runs its command.
     vi.useFakeTimers();
     await ctrlK();
     await tick(500);
     expect(selected()).toBe("none");
-    await press(window, { key: "l" });
-    expect(shown()).toBe("All elements");
+    await press(window, { key: "o" });
+    expect(shown()).toBe("Overview");
   });
 
   it("[SR-145/AK3] on macOS the physical Ctrl+N and Ctrl+P move the selection through the next keys", async () => {
