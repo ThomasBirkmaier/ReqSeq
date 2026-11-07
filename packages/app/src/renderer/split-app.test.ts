@@ -290,6 +290,21 @@ const twoElements = async (): Promise<void> => {
 };
 
 describe("App, Split window (SR-115 AK3)", () => {
+  it("[SR-163/AK1] the mouse button Back over the inactive area neither activates it nor closes an open prompt", async () => {
+    await twoElements();
+    await press(window, { key: "p", ctrlKey: true });
+    const target = query('[data-area="right"] [data-buffer]');
+    await act(async () => {
+      for (const type of ["pointerdown", "mouseup"]) {
+        target.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, button: 3 }));
+      }
+      await Promise.resolve();
+    });
+    await flush();
+    expect(container.querySelector("input")).not.toBeNull();
+    expect(areas()).toEqual(["SR-000001 Title 1*", "SR-000002 Title 2"]);
+  });
+
   it("[SR-115/AK3] after Split window an element and its graph stand side by side; the modeline names the active one; Other window and a click switch it; the element view is not mounted again", async () => {
     await openElement();
     await press(window, { key: "G", ctrlKey: true, shiftKey: true });

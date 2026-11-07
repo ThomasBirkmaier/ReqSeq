@@ -3,9 +3,10 @@ import {
   ACTIONS,
   COMMAND_SHORTCUT,
   NEXT_BUFFER_SHORTCUT,
+  isBufferMouseButton,
+  mouseButtonAction,
   PREVIOUS_BUFFER_SHORTCUT,
   actionFor,
-  mouseButtonShortcut,
   commandPrompt,
   jumpPrompt,
   referencePrompt,
@@ -1950,11 +1951,15 @@ describe("Choose view (SR-043 AK1)", () => {
 });
 
 describe("Mouse buttons Back and Forward (SR-163)", () => {
-  it("[SR-163/AK1] [SR-163/AK2] Back is the shortcut of Previous buffer, Forward of Next buffer, other buttons none", () => {
-    expect(mouseButtonShortcut(3)).toBe(PREVIOUS_BUFFER_SHORTCUT);
-    expect(mouseButtonShortcut(4)).toBe(NEXT_BUFFER_SHORTCUT);
+  it("[SR-163/AK1] [SR-163/AK2] Back runs Previous buffer, Forward Next buffer, where they apply; other buttons nothing", () => {
+    const { context } = setup([list, overviewBuffer()]);
+    expect(mouseButtonAction(context, 3)?.id).toBe("previous-buffer");
+    expect(mouseButtonAction(context, 4)?.id).toBe("next-buffer");
+    expect(mouseButtonAction(setup([list]).context, 3)).toBeUndefined();
     for (const button of [0, 1, 2, 5]) {
-      expect(mouseButtonShortcut(button)).toBeUndefined();
+      expect(isBufferMouseButton(button)).toBe(false);
+      expect(mouseButtonAction(context, button)).toBeUndefined();
     }
+    expect(isBufferMouseButton(3) && isBufferMouseButton(4)).toBe(true);
   });
 });

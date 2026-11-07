@@ -13,7 +13,8 @@ import {
   COMMAND_SHORTCUT,
   actionFor,
   commandPrompt,
-  mouseButtonShortcut,
+  isBufferMouseButton,
+  mouseButtonAction,
   referencePrompt,
   runAction,
 } from "./actions.js";
@@ -848,8 +849,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     // the release, where Chromium would go back in the history; they never navigate the window. Like the
     // keys, not while another workspace opens or a prompt is open.
     const onMouse = (event: MouseEvent): void => {
-      const shortcut = mouseButtonShortcut(event.button);
-      if (shortcut === undefined) {
+      if (event.defaultPrevented || !isBufferMouseButton(event.button)) {
         return;
       }
       event.preventDefault();
@@ -857,7 +857,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       if (switchingNow.current || openPrompt.current !== undefined || !now.workspace) {
         return;
       }
-      const action = actionFor(now, (candidate) => candidate === shortcut);
+      const action = mouseButtonAction(now, event.button);
       if (action !== undefined) {
         runAction(action, now);
       }

@@ -97,6 +97,7 @@ test.describe("Alt+N and Alt+P switch buffers", () => {
         await session.send("Input.dispatchMouseEvent", { type, button, x: 200, y: 200, clickCount: 1 });
       }
     };
+    const page = window.url();
     await listAll(window);
     await goTo(window, ELEMENT);
     const name = await shownBuffer(window).getAttribute("aria-label");
@@ -108,12 +109,13 @@ test.describe("Alt+N and Alt+P switch buffers", () => {
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", "All elements");
     await click("forward");
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", name ?? "");
-    // From the text editor too, as Alt+P: the editor loses the focus, the window does not navigate.
+    // From the text editor too, as Alt+P: the editor loses the focus; the page stays the same.
     await window.keyboard.press("Enter");
     await expect(window.locator(".cm-content")).toBeFocused();
     await click("back");
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", "All elements");
     await expect(shownBuffer(window)).toBeFocused();
+    expect(window.url()).toBe(page);
   });
 
   test("Enter right after Alt+P, before the element is loaded, edits its text (#467)", async () => {

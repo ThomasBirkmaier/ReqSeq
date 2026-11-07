@@ -180,7 +180,17 @@ export const BufferArea = ({ area, split, onActivate, views }: BufferAreaProps):
       className="area"
       data-area={area.side}
       data-active={area.active ? "" : undefined}
-      onPointerDown={activate}
+      // Not the mouse buttons Back and Forward (3 and 4): they switch the buffer of the active area as Alt+P
+      // and Alt+N do (SR-163), and an activation would close an open prompt first.
+      onPointerDown={
+        activate === undefined
+          ? undefined
+          : (event: React.PointerEvent): void => {
+              if (event.button !== 3 && event.button !== 4) {
+                activate();
+              }
+            }
+      }
       onFocus={activate}
     >
       {/* The right area of a split prefixes the ids of its view, so no id is in both areas. */}
