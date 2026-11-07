@@ -13,6 +13,8 @@ import {
   COMMAND_SHORTCUT,
   actionFor,
   commandPrompt,
+  isBufferMouseButton,
+  mouseButtonAction,
   referencePrompt,
   runAction,
 } from "./actions.js";
@@ -843,9 +845,28 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
         runAction(action, now);
       }
     };
+    // The mouse buttons Back and Forward run Previous and Next buffer as Alt+P and Alt+N do (SR-163), on
+    // the release, where Chromium would go back in the history; they never navigate the window. Like the
+    // keys, not while another workspace opens or a prompt is open.
+    const onMouse = (event: MouseEvent): void => {
+      if (event.defaultPrevented || !isBufferMouseButton(event.button)) {
+        return;
+      }
+      event.preventDefault();
+      const now = latest.current;
+      if (switchingNow.current || openPrompt.current !== undefined || !now.workspace) {
+        return;
+      }
+      const action = mouseButtonAction(now, event.button);
+      if (action !== undefined) {
+        runAction(action, now);
+      }
+    };
     window.addEventListener("keydown", onKey);
+    window.addEventListener("mouseup", onMouse);
     return () => {
       window.removeEventListener("keydown", onKey);
+      window.removeEventListener("mouseup", onMouse);
     };
   }, [ask, commands, startPrefix]);
 

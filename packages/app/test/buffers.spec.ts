@@ -2,7 +2,8 @@
 // fuzzy text, the one used last first (AK1); there is no tab bar, however many buffers are open (AK2).
 // Alt+N and Alt+P (Option+N and Option+P on macOS) switch buffers (SR-115 AK5): back and forward
 // through the buffers in the order they were shown, wrapping, also while typing in the text editor, and as
-// the commands "Next buffer" and "Previous buffer". Alt is pressed by its physical key (`Alt+KeyN`); a
+// the commands "Next buffer" and "Previous buffer"; the mouse buttons Back and Forward do what Alt+P and
+// Alt+N do (SR-163). Alt is pressed by its physical key (`Alt+KeyN`); a
 // real macOS dead key cannot be typed here, so one test sends the keydown macOS sends for Option+N.
 // After the app is closed and started again, the buffers open before are back behind the overview
 // (SR-115 AK4). "Split window" shows two buffers side by side, an element and its graph (SR-115 AK3).
@@ -84,6 +85,37 @@ test.describe("Alt+N and Alt+P switch buffers", () => {
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", "Overview");
     // The shown buffer has the focus: its keys work at once.
     await expect(shownBuffer(window)).toBeFocused();
+  });
+
+  test("[SR-163/AK1] [SR-163/AK2] the mouse buttons Back and Forward switch buffers as Alt+P and Alt+N do, also from the editor", async () => {
+    const { window } = running;
+    // Chromium's own input path, as the thumb buttons of a mouse reach it on each platform; Playwright's
+    // mouse knows only left, middle and right.
+    const session = await window.context().newCDPSession(window);
+    const click = async (button: "back" | "forward"): Promise<void> => {
+      for (const type of ["mousePressed", "mouseReleased"] as const) {
+        await session.send("Input.dispatchMouseEvent", { type, button, x: 200, y: 200, clickCount: 1 });
+      }
+    };
+    const page = window.url();
+    await listAll(window);
+    await goTo(window, ELEMENT);
+    const name = await shownBuffer(window).getAttribute("aria-label");
+    await click("back");
+    await expect(shownBuffer(window)).toHaveAttribute("aria-label", "All elements");
+    await click("back");
+    await expect(shownBuffer(window)).toHaveAttribute("aria-label", "Overview");
+    await click("forward");
+    await expect(shownBuffer(window)).toHaveAttribute("aria-label", "All elements");
+    await click("forward");
+    await expect(shownBuffer(window)).toHaveAttribute("aria-label", name ?? "");
+    // From the text editor too, as Alt+P: the editor loses the focus; the page stays the same.
+    await window.keyboard.press("Enter");
+    await expect(window.locator(".cm-content")).toBeFocused();
+    await click("back");
+    await expect(shownBuffer(window)).toHaveAttribute("aria-label", "All elements");
+    await expect(shownBuffer(window)).toBeFocused();
+    expect(window.url()).toBe(page);
   });
 
   test("Enter right after Alt+P, before the element is loaded, edits its text (#467)", async () => {
