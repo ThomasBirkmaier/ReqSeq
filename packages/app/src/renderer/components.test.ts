@@ -3,6 +3,7 @@
 // run in packages/app needs it too (ThomasBirkmaier/ReqSeq-archive#460, ThomasBirkmaier/ReqSeq-archive#573).
 import "../../../../scripts/test-support/dom-selection.mjs";
 import type { DataExportElement } from "@reqseq/core";
+import { toggleTask } from "./editor/tasks.js";
 import { Fragment, act, createElement, useLayoutEffect, useReducer } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
@@ -4215,6 +4216,28 @@ describe("ElementView", () => {
         controls().follow();
       });
       expect(opened).toEqual([[TARGET, undefined]]);
+    });
+
+    it("[SR-185/AK3] a text action runs its command on the text at the cursor, or says why not", async () => {
+      const tasks = fakeCall({
+        "element.get": () => ({ element: read({ text: "- [ ] one\n\nplain" }) }),
+      });
+      const { controls, echoed } = await mount(asCall(tasks));
+      act(() => {
+        editorView().dispatch({ selection: { anchor: 3 } });
+      });
+      act(() => {
+        controls().text?.(toggleTask, "No task on this line");
+      });
+      expect(editorView().state.doc.toString()).toBe("- [x] one\n\nplain");
+      expect(editorView().hasFocus).toBe(true);
+      act(() => {
+        editorView().dispatch({ selection: { anchor: editorView().state.doc.length } });
+      });
+      act(() => {
+        controls().text?.(toggleTask, "No task on this line");
+      });
+      expect(echoed.at(-1)).toBe("No task on this line");
     });
 
     it("Ctrl+Enter on the buffer itself is left to the shortcut", async () => {

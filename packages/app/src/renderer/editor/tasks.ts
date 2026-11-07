@@ -29,7 +29,9 @@ export const tasksOnSelectedLines = (state: EditorState): readonly number[] => {
   const markers = new Set<number>();
   for (const range of state.selection.ranges) {
     const from = state.doc.lineAt(range.from).from;
-    const to = state.doc.lineAt(range.to).to;
+    // A selection that ends at the start of a line (Shift+Down, a triple click) does not take that line.
+    const end = !range.empty && state.doc.lineAt(range.to).from === range.to ? range.to - 1 : range.to;
+    const to = state.doc.lineAt(end).to;
     parsedTree(state, to).iterate({
       from,
       to,
@@ -57,7 +59,10 @@ export const toggleTask = (view: EditorView): boolean => {
   return true;
 };
 
-/** Toggles the task marker that starts at `from`, as a click on its box (AK1); nothing when read-only. */
+/**
+ * Toggles the task marker that starts at `from`, as a click on its box (AK1); nothing when read-only. Like typing,
+ * the click follows the editor's read-only state; while the file changed on disk the input is kept as any input.
+ */
 export const toggleTaskAt = (view: EditorView, from: number): boolean => {
   const { state } = view;
   if (state.readOnly || !/^\[[ xX]\]$/u.test(state.doc.sliceString(from, from + 3))) {
@@ -68,8 +73,9 @@ export const toggleTaskAt = (view: EditorView, from: number): boolean => {
 };
 
 /**
- * The box of a task in place of its marker. A press on it toggles the marker and keeps the caret and the
- * focus where they are (the box is not the place of the caret); the editor itself ignores the press.
+ * The box of a task in place of its marker. A click on it toggles the marker and keeps the caret and the
+ * focus where they are (the box is not the place of the caret); the editor itself ignores the press. The keyboard
+ * reaches it through "Toggle task", so the box is no focusable control.
  */
 export class TaskBoxWidget extends WidgetType {
   readonly checked: boolean;
@@ -87,14 +93,18 @@ export class TaskBoxWidget extends WidgetType {
     const box = document.createElement("span");
     box.className = "cm-lr-task";
     box.textContent = this.checked ? "☑" : "☐";
-    box.setAttribute("role", "checkbox");
-    box.setAttribute("aria-checked", String(this.checked));
+    // The press only keeps the caret and the focus where they are; the click (press and release on the box)
+    // toggles, so a press that is dragged off the box changes nothing.
     box.addEventListener("mousedown", (event) => {
-      if (event.button !== 0) {
-        return;
+      if (event.button === 0) {
+        event.preventDefault();
       }
-      event.preventDefault();
-      toggleTaskAt(view, view.posAtDOM(box));
+    });
+    box.addEventListener("click", (event) => {
+      if (event.button === 0) {
+        event.preventDefault();
+        toggleTaskAt(view, view.posAtDOM(box));
+      }
     });
     return box;
   }

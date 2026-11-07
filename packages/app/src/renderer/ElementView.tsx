@@ -1398,12 +1398,17 @@ export const ElementView = ({
       });
     }
   };
-  // A text action of the command prompt (`text-actions.ts`): the command edits the text at its cursor.
+  // A text action of the command prompt (`text-actions.ts`): the command edits the field with the cursor, or the
+  // one it was in last: a Markdown box, else the text. The title is plain text and takes none.
   const textCommand = (command: Command, none: string): void => {
-    const { handle: editor, onEcho: echo } = now.current;
+    const { handle: text, onEcho: echo } = now.current;
+    const label = cursorField(document.activeElement, lastField.current);
+    const editor = label === undefined || label === "Text" ? text : boxEditors.current.get(label);
     const note = lockedNote();
     if (note !== undefined) {
       echo(note);
+    } else if (label === TITLE_FIELD || (editor === undefined && label !== undefined && label !== "Text")) {
+      echo(none);
     } else if (editor === undefined) {
       echo("The text is not ready yet: try again in a moment");
     } else if (!editor.run(command)) {

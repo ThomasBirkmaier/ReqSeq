@@ -36,10 +36,12 @@ const viewOf = (doc: string, anchor = 0, readOnly = false, head = anchor): Edito
   return view;
 };
 
+/** A press and its release on `target`: the mousedown, then the click. */
 const press = (target: Element, button = 0): MouseEvent => {
-  const event = new MouseEvent("mousedown", { bubbles: true, cancelable: true, button });
-  target.dispatchEvent(event);
-  return event;
+  const down = new MouseEvent("mousedown", { bubbles: true, cancelable: true, button });
+  target.dispatchEvent(down);
+  target.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, button }));
+  return down;
 };
 
 const box = (view: EditorView, index = 0): HTMLElement => {
@@ -54,7 +56,7 @@ describe("tasks (SR-185)", () => {
   it("[SR-185/AK1] a click on the box of a task switches its marker in the file between [ ] and [x], and nothing else", () => {
     const doc = "Intro\n\n- [ ] one\n- [X] two\n";
     const view = viewOf(doc);
-    expect(box(view).getAttribute("aria-checked")).toBe("false");
+    expect(box(view).textContent).toBe("☐");
     const event = press(box(view));
     expect(event.defaultPrevented).toBe(true);
     expect(view.state.doc.toString()).toBe("Intro\n\n- [x] one\n- [X] two\n");
@@ -72,6 +74,19 @@ describe("tasks (SR-185)", () => {
     press(box(locked));
     expect(locked.state.doc.toString()).toBe("- [ ] one");
     expect(toggleTask(viewOf("- [ ] one", 3, true))).toBe(false);
+  });
+
+  it("changes nothing on a press that does not end in a click on the box", () => {
+    const view = viewOf("- [ ] one");
+    const down = new MouseEvent("mousedown", { bubbles: true, cancelable: true, button: 0 });
+    box(view).dispatchEvent(down);
+    expect(down.defaultPrevented).toBe(true);
+    expect(view.state.doc.toString()).toBe("- [ ] one");
+  });
+
+  it("does not take the line a selection ends at the start of", () => {
+    const view = viewOf("- [ ] a\n- [ ] b", 0, false, 8);
+    expect(tasksOnSelectedLines(view.state)).toEqual([2]);
   });
 
   it("toggles only at a task marker", () => {
