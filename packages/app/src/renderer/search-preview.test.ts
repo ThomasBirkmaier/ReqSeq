@@ -285,6 +285,58 @@ describe("the search prompt in the minibuffer", () => {
     }
   });
 
+  it("[SR-183/AK4] opens the hit chosen even when newer hits are on their way, and a click opens a hit", async () => {
+    const { dispatched, call } = await mount(() => output([hit(1), hit(2)]));
+    await type("gust");
+    await press("n", { ctrlKey: true });
+    await press("n", { ctrlKey: true });
+    call.mockImplementation(() => new Promise(() => undefined));
+    await type("gusts");
+    // Typing chose none; the old hits stay shown while core answers, and one is chosen among them.
+    await press("ArrowDown");
+    await press("ArrowDown");
+    await press("Enter");
+    expect(dispatched.map((action) => (action.type === "open" ? action.buffer.key : ""))).toEqual([
+      "element:spec:u2",
+    ]);
+
+    const clicked = await mount(() => output([hit(1), hit(2)]));
+    await type("gust");
+    await act(async () => {
+      options()[1]?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+      await Promise.resolve();
+    });
+    expect(clicked.dispatched.map((action) => (action.type === "open" ? action.buffer.key : ""))).toEqual([
+      "element:spec:u2",
+    ]);
+  });
+
+  it("chooses none when the hit chosen is not among the hits that arrive", async () => {
+    let hits = [hit(1), hit(2)];
+    const { call } = await mount(() => output(hits));
+    await type("gust");
+    let release: () => void = () => undefined;
+    call.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          release = () => {
+            resolve({ ok: true, output: output(hits) });
+          };
+        }),
+    );
+    await type("gusts");
+    await press("ArrowDown");
+    await press("ArrowDown");
+    expect(chosen()).toEqual(["SR-2 Gust 2"]);
+    hits = [hit(3)];
+    await act(async () => {
+      release();
+      await Promise.resolve();
+    });
+    await flush();
+    expect(chosen()).toEqual([]);
+  });
+
   it("[SR-183/AK5] Enter without a chosen hit opens the search buffer, also before the hits arrive", async () => {
     const shown = await mount(() => output([hit(1)]));
     await type("gust");
@@ -308,7 +360,8 @@ describe("the search prompt in the minibuffer", () => {
     });
     await flush();
     await type("wind");
-    await press("Enter");
+    // Ctrl/Cmd+Enter as Enter: it does not wait for the hits either.
+    await press("Enter", { ctrlKey: true });
     expect(late.dispatched).toEqual([{ type: "open", buffer: searchBuffer("wind") }]);
     expect(container.querySelector('[role="status"]')).toBeNull();
   });

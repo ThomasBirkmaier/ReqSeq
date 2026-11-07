@@ -270,10 +270,13 @@ const PromptLine = ({
       answer.current = { text: value, choices };
       setFound({ question: mine, choices });
       const { at, id } = picked.current;
-      if (at > 0) {
+      if (at > 0 || (given.preview === true && at >= 0)) {
         const kept = rowsFor(value, choices).findIndex(({ item }) => item.id === id);
         if (kept !== -1) {
           setSelected(kept);
+        } else if (given.preview === true) {
+          // The hit chosen is not among the new ones: none is chosen (SR-183).
+          setSelected(none);
         }
       }
       if (waiting.current === mine) {
@@ -341,6 +344,9 @@ const PromptLine = ({
       // No hit is chosen: the text is taken at once, whatever hits are on their way (SR-183 AK5).
       onClose(false);
       prompt.text(query);
+    } else if (current !== undefined && prompt.preview === true) {
+      // The hit chosen is the one opened, even while newer hits are on their way (SR-183 AK4).
+      choose(current.item, query);
     } else if (stale()) {
       awaitAnswer(false);
     } else if (current !== undefined) {
@@ -361,6 +367,9 @@ const PromptLine = ({
     } else if (loading) {
       early.current = "more";
       setPending(true);
+    } else if (prompt.preview === true) {
+      // The search prompt has no optional arguments: as Enter, which never waits there (SR-183 AK4, AK5).
+      enter();
     } else if (stale()) {
       awaitAnswer(true);
     } else if (current?.item.more !== undefined) {
