@@ -245,6 +245,38 @@ describe("repositoryState", () => {
     expect(asked.filter((p) => p.startsWith(ws.path("out")))).toEqual([]);
   });
 
+  it("judges every spelling of a path, and counts a path the walk cannot finish as dirty (#294)", async () => {
+    const { ws, commit } = await repo();
+    const outside = await fixture({ files: { "x.png": "png" } });
+    // The folder in NFD links out; the element embeds the path in NFC.
+    const nfd = "a\u0308";
+    fs.symlinkSync(outside.root, ws.path(nfd), "junction");
+    fs.symlinkSync("loop", ws.path("loop"), "dir");
+    const rulesFor = (files: readonly string[]): StateRules =>
+      stateRules(
+        { main: "w", metamodel: { repository: "w", path: "m" }, file: { ignore: [] } } as unknown as Pick<
+          WorkspaceLayout,
+          "file" | "main" | "metamodel"
+        >,
+        { name: "w", folder: ws.root, main: false, excludes: [] },
+        new Set(["img.png", ...files]),
+      );
+    const asked: string[] = [];
+    const seen: StateReader = {
+      ...DEFAULT_STATE_READER,
+      exists: (absolute) => {
+        asked.push(absolute);
+        return DEFAULT_STATE_READER.exists(absolute);
+      },
+    };
+    expect(await repositoryState(rulesFor(["\u00e4/x.png"]), ["a.md"], seen)).toEqual({
+      commit,
+      dirty: true,
+    });
+    expect(asked.filter((p) => p.startsWith(ws.path(nfd)))).toEqual([]);
+    expect(await repositoryState(rulesFor(["loop/x.png"]), ["a.md"])).toEqual({ commit, dirty: true });
+  });
+
   it("is clean, and dirty for a path git cannot take or a working file in no spelling", async () => {
     const { ws, rules, commit } = await repo();
     expect(await repositoryState(rules, ["a.md"])).toEqual({ commit, dirty: false });

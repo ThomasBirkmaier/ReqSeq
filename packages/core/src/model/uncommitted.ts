@@ -291,8 +291,12 @@ export const uncommittedFiles = async (
   const dirty = await mapBounded(checked, async ({ file, blob }) => {
     // A path through a link that leaves the repository is dirty, judged before any call follows
     // the link (#294): more, never less.
-    if (!(await linksStayInside(folder, path.dirname(path.join(folder, ...file.split("/")))))) {
-      return true;
+    // Each spelling is a path of its own where the file system keeps the normal form (Linux), and a
+    // walk that cannot finish (a loop of links, a folder that cannot be searched) counts as dirty too.
+    for (const name of absolute(file)) {
+      if (!(await linksStayInside(folder, path.dirname(name)).catch(() => false))) {
+        return true;
+      }
     }
     // A file without a blob at the commit is dirty when it is on disk (new, also one Git ignores);
     // one that is neither in the commit nor on disk (a link to an image that exists nowhere) is no change.

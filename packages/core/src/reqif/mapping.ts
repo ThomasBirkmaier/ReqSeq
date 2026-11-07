@@ -19,7 +19,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { CommandError } from "../catalog.js";
 import type { YamlFile } from "../files/index.js";
-import { readYamlFile } from "../files/index.js";
+import { linksStayInside, readYamlFile } from "../files/index.js";
 import type { ReqifMappingFile, ReqifMappingFileWithDefaults } from "../generated/types.js";
 import type { EffectiveType, Metamodel } from "../metamodel/index.js";
 import { findType, keyDefinition } from "../metamodel/index.js";
@@ -104,8 +104,9 @@ export const mappingTarget = async (
       { command, repository: location.repository },
     );
   }
-  // The repository folder is a real path, so a link in the folder's own path shows as a difference.
-  if (!samePath(await realOf(folder), folder)) {
+  // The repository folder is a real path, so a link in the folder's own path shows as a difference;
+  // a link out of the repository is refused before `realpath` follows it (#294).
+  if (!(await linksStayInside(repository.folder, folder)) || !samePath(await realOf(folder), folder)) {
     throw invalid(
       `Not written: the mapping folder ${location.path} of repository ${repository.name} is or lies below a link, which ReqSeq does not follow`,
       { command, reason: "link", repository: repository.name },
