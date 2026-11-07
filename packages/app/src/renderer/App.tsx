@@ -37,7 +37,7 @@ import { inView, variantTypesOf, viewMark } from "./views.js";
 import type { PropertyModel } from "./element-view.js";
 import { propertyModel } from "./element-view.js";
 import type { GraphFilterChoice } from "./graph-choices.js";
-import { graphFilterChoices, graphMeanings, graphTakesEvidence } from "./graph-choices.js";
+import { graphFilterChoices, graphMeanings, graphTakesEvidence, relationNames } from "./graph-choices.js";
 import { PREFIX } from "./bindings.js";
 import { isMac, matches } from "./keys.js";
 import { Minibuffer } from "./Minibuffer.js";
@@ -242,6 +242,8 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     () => graphFilterChoices(meanings, relationModel, evidence),
     [meanings, relationModel, evidence],
   );
+  // The names of the relation kinds and relation properties by key: the text of a link in the graph (SR-154).
+  const kindNames = useMemo(() => relationNames(relationModel), [relationModel]);
   const [elementControls, setElementControls] = useState<ElementControls | undefined>(undefined);
   // The elements opened last in this workspace (SR-118): kept in the app's storage under `scope`, not in the workspace.
   const [recent, setRecent] = useState<readonly RecentEntry[]>([]);
@@ -988,6 +990,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     onData,
     onEcho: setEcho,
     typeNames,
+    kindNames,
     overview,
     element: (buffer) => ({
       onGone: forgetName,

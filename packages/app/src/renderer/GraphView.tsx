@@ -7,6 +7,7 @@
 // node as the current element (AK5), `+` and `-` show one level more or less. With evidence (AK3), a
 // muted box below a node sums up its evidence; it is no option, so the keys and Enter skip it, and the
 // node's accessible name says the summary.
+// A link names its relation kind only on demand (SR-154, `GraphLinks.tsx`).
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { TraceGraphOutput } from "@reqseq/core";
 import { useIdScope } from "./area-scope.js";
@@ -25,6 +26,7 @@ import {
   shallower,
   spotlit,
 } from "./graph.js";
+import { LinkHits, LinkTips, activeOption, pathKey, useGraphLinks } from "./GraphLinks.js";
 import type { GraphLayout } from "./graph-layout.js";
 import {
   EVIDENCE_HEIGHT,
@@ -34,7 +36,7 @@ import {
   layoutGraph,
   viewStart,
 } from "./graph-layout.js";
-import { DEPTH_LESS, DEPTH_MORE, GRAPH_MOVES, graphStep } from "./graph-nav.js";
+import { DEPTH_LESS, DEPTH_MORE, GRAPH_MOVES, LINK_BACK, LINK_NEXT, graphStep } from "./graph-nav.js";
 import type { BufferData } from "./modeline.js";
 
 export interface GraphViewProps {
@@ -48,6 +50,8 @@ export interface GraphViewProps {
   readonly onEcho: (message: string) => void;
   /** The names of the types by their key, from the metamodel. */
   readonly typeNames: ReadonlyMap<string, string>;
+  /** The names of the relation kinds and relation properties by their key, from the metamodel (SR-154). */
+  readonly kindNames: ReadonlyMap<string, string>;
   /** The window is split (SR-115 AK3): the view is half as wide, and opens on its node again. */
   readonly split?: boolean;
 }
@@ -79,6 +83,7 @@ export const GraphView = ({
   onData,
   onEcho,
   typeNames,
+  kindNames,
   split = false,
 }: GraphViewProps): React.JSX.Element => {
   const scope = useIdScope();
@@ -142,6 +147,11 @@ export const GraphView = ({
       ? buffer.selected
       : rootKey;
 
+  // The link the keys or the mouse chose (SR-154).
+  const layout = shown?.layout;
+  const links = useGraphLinks(layout, selected);
+  const { chosen } = links;
+
   useEffect(() => {
     if (shown !== undefined) {
       const marked = shown.layout.byKey.get(selected)?.node;
@@ -198,7 +208,7 @@ export const GraphView = ({
     root.current
       ?.querySelector('[aria-selected="true"]')
       ?.scrollIntoView({ block: "nearest", inline: "nearest" });
-  }, [selected]);
+  }, [selected, chosen]);
 
   const select = (node: string): void => {
     dispatch({ type: "select", key: buffer.key, node });
@@ -213,9 +223,28 @@ export const GraphView = ({
     }
   };
 
+  // The keys of the links (SR-154 AK3 to AK5): whether the key was one of them. Without a selected link
+  // Escape is the window's.
+  const linkKey = (event: React.KeyboardEvent): boolean => {
+    if (event.key === LINK_NEXT) {
+      event.preventDefault();
+      links.next();
+      return true;
+    }
+    if (event.key === LINK_BACK && links.back()) {
+      event.preventDefault();
+      event.stopPropagation();
+      return true;
+    }
+    return false;
+  };
+
   const keyDown = (event: React.KeyboardEvent): void => {
     // With Ctrl, Cmd or Alt held a key is another one (Ctrl+- is not "-"); Shift may give "+".
     if (event.ctrlKey || event.metaKey || event.altKey) {
+      return;
+    }
+    if (linkKey(event)) {
       return;
     }
     if (GRAPH_MOVES.includes(event.key)) {
@@ -234,7 +263,6 @@ export const GraphView = ({
     }
   };
 
-  const layout = shown?.layout;
   const order = layout?.nodes.map((placed) => placed.key) ?? [];
   const paths = [...(layout?.paths ?? [])].sort(
     (a, b) =>
@@ -243,15 +271,14 @@ export const GraphView = ({
   );
   const lit = spotlit(paths, selected);
   const evidenceOf = new Map(layout?.evidence.map((box) => [box.node, box.evidence]));
+  const nodeOption = `${scope}gnode-${String(order.indexOf(selected))}`;
   return (
     <div
       ref={root}
       className="buffer graph"
       role="listbox"
       aria-label={`Graph: ${buffer.name}`}
-      aria-activedescendant={
-        layout === undefined ? undefined : `${scope}gnode-${String(order.indexOf(selected))}`
-      }
+      aria-activedescendant={layout === undefined ? undefined : activeOption(chosen, scope, nodeOption)}
       data-buffer=""
       data-laid-out={layout === undefined ? undefined : String(layout.nodes.length)}
       tabIndex={0}
@@ -273,16 +300,17 @@ export const GraphView = ({
             <svg className="graph-edges" width={layout.width} height={layout.height} aria-hidden="true">
               {paths.map((path) => (
                 <path
-                  key={`${path.source}>${path.target}`}
-                  className={edgeClasses(
-                    path.links,
-                    lit && (path.source === selected || path.target === selected),
-                  )}
+                  key={pathKey(path)}
+                  className={[
+                    edgeClasses(path.links, lit && (path.source === selected || path.target === selected)),
+                    ...(path === chosen || path === links.hovered?.path ? ["chosen"] : []),
+                  ].join(" ")}
                   d={path.d}
                   data-source={path.source}
                   data-target={path.target}
                 />
               ))}
+              <LinkHits paths={paths} hover={links.hover} />
               {layout.evidence.map((box) => (
                 <path key={box.key} className="graph-evidence-line" d={box.d} data-evidence={box.node} />
               ))}
@@ -308,6 +336,7 @@ export const GraphView = ({
               const classes = [
                 "graph-node",
                 ...(placed.key === rootKey ? ["root"] : []),
+                ...(placed.key === selected && chosen !== undefined ? ["link-chosen"] : []),
                 ...(placed.node.marks.includes("superseded") ? ["superseded"] : []),
               ];
               return (
@@ -316,7 +345,7 @@ export const GraphView = ({
                   id={`${scope}gnode-${String(index)}`}
                   className={classes.join(" ")}
                   role="option"
-                  aria-selected={placed.key === selected}
+                  aria-selected={placed.key === selected && chosen === undefined}
                   aria-label={nodeLabel(placed.node, typeName, evidenceOf.get(placed.key))}
                   title={`${nodeId(placed.node)} · ${typeName}\n${placed.node.title}`}
                   data-node={placed.key}
@@ -337,6 +366,7 @@ export const GraphView = ({
                 </div>
               );
             })}
+            <LinkTips layout={layout} links={links} kindNames={kindNames} scope={scope} />
           </div>
         </div>
       )}

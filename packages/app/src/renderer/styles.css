@@ -1050,6 +1050,36 @@ mark {
   stroke: var(--accent-outdated);
 }
 
+/* The link under the mouse or selected with `l` (SR-154): drawn wider, in its own colour. */
+.graph-edge.chosen {
+  stroke-width: 3px;
+}
+
+/* A wide line without colour over each link, so the mouse finds a thin curve. */
+.graph-edge-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 12px;
+  pointer-events: stroke;
+}
+
+/* The text of a link (SR-154): its relation kinds, one per line, above the point it belongs to; it
+   never takes the mouse, so the curve below keeps it. */
+.graph-edge-tip {
+  position: absolute;
+  z-index: 1;
+  padding: 4px 8px;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--raised);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 16px;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translate(-50%, calc(-100% - 8px));
+}
+
 .graph-node {
   position: absolute;
   display: flex;
@@ -1068,11 +1098,13 @@ mark {
   border: 2px solid var(--text);
 }
 
-.graph-node[aria-selected="true"] {
+.graph-node[aria-selected="true"],
+.graph-node.link-chosen {
   background: var(--select);
 }
 
-.graph-node[aria-selected="true"]:not(.root) {
+.graph-node[aria-selected="true"]:not(.root),
+.graph-node.link-chosen:not(.root) {
   border-color: var(--muted);
 }
 

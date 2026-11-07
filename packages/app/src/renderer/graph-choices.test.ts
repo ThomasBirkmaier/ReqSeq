@@ -15,6 +15,7 @@ import {
   graphTakesEvidence,
   hasFilter,
   onlyChoices,
+  relationNames,
 } from "./graph-choices.js";
 
 const graph = { ...graphBuffer("uuid-S1", "spec", "S1 Title S1"), selected: "spec:uuid-C1" };
@@ -348,5 +349,16 @@ describe("Evidence", () => {
       "Package",
     ]);
     expect(toOnly[0]?.buffer).toEqual({ ...graph, kinds: [], meanings: ["derivation"], withEvidence: true });
+  });
+});
+
+describe("the names of the relation kinds", () => {
+  it("[SR-154/AK1] names each relation kind and relation property by its name in the metamodel", () => {
+    expect([...relationNames(METAMODEL)]).toEqual([
+      ["refines", "Refines"],
+      ["derives-from", "Derives from"],
+      ["based-on", "Based on"],
+      ["packages", "Package"],
+    ]);
   });
 });

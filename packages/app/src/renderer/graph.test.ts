@@ -6,6 +6,7 @@ import {
   deeper,
   depthLabel,
   edgeClasses,
+  edgeLines,
   evidenceText,
   filterLabel,
   graphInput,
@@ -156,5 +157,35 @@ describe("what a node shows", () => {
     // A node without drawn links, and a graph without links: nothing to light up.
     expect(spotlit(fan, "G")).toBe(false);
     expect(spotlit([], "S1")).toBe(false);
+  });
+});
+
+describe("the text of a link", () => {
+  const names = new Map([
+    ["derives-from", "Derives from"],
+    ["packages", "Package"],
+  ]);
+  const nameOf = (key: string): string => key.replace("spec:uuid-", "");
+
+  it("[SR-154/AK1] reads along the arrow with the kind's name from the metamodel, and says outdated", () => {
+    expect(
+      edgeLines(
+        [
+          graphEdge("S1", "N1"),
+          graphEdge("S1", "D2", { ...REFERENCE, outdated: true }),
+          graphEdge("S1", "PKG", { kind: "packages", property: true }),
+          graphEdge("S1", "D1", BASED_ON),
+        ],
+        nameOf,
+        names,
+      ),
+    ).toEqual(["S1 Derives from N1", "S1 Refers to D2 · outdated", "S1 Package PKG", "S1 based-on D1"]);
+  });
+
+  it("[SR-154/AK2] gives one line for each link a curve draws", () => {
+    expect(edgeLines([graphEdge("C1", "S1"), graphEdge("C1", "S1", BASED_ON)], nameOf, names)).toEqual([
+      "C1 Derives from S1",
+      "C1 based-on S1",
+    ]);
   });
 });

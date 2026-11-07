@@ -125,6 +125,13 @@ export const edgePath = (points: readonly Point[]): string => {
   return `${d}${piece(a, b, b)}L${at(b)}`;
 };
 
+/** The middle of the points of a curve: its middle point, or halfway between its two middle points. */
+export const middleOf = (points: readonly Point[]): Point => {
+  const a = points[Math.floor((points.length - 1) / 2)] ?? { x: 0, y: 0 };
+  const b = points[Math.ceil((points.length - 1) / 2)] ?? a;
+  return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+};
+
 const centreX = (node: PlacedBox): number => node.x + NODE_WIDTH / 2;
 
 /** The x of the ends of one link: where it leaves `from` and where it enters `to`. */
@@ -253,6 +260,8 @@ export interface EdgePath {
   readonly links: readonly GraphEdge[];
   /** The SVG path. */
   readonly d: string;
+  /** Where its text stands when its link is selected with the keys (SR-154 AK3): the middle of its points. */
+  readonly mid: Point;
 }
 
 export interface GraphLayout {
@@ -562,18 +571,21 @@ export const layoutGraph = (output: TraceGraphOutput): GraphLayout => {
   });
   // One port order for both: an evidence line leaves its node's bottom edge among the node's links.
   const lines = portsOf<Bent & { links?: GraphEdge[]; evidence?: GraphEvidence }>([...bent, ...boxes]);
-  const paths = lines.flatMap((line): EdgePath[] =>
-    line.links === undefined
-      ? []
-      : [
-          {
-            source: line.source.key,
-            target: line.target.key,
-            links: line.links,
-            d: edgePath(route(line.target, line.source, line.bends, line)),
-          },
-        ],
-  );
+  const paths = lines.flatMap((line): EdgePath[] => {
+    if (line.links === undefined) {
+      return [];
+    }
+    const points = route(line.target, line.source, line.bends, line);
+    return [
+      {
+        source: line.source.key,
+        target: line.target.key,
+        links: line.links,
+        d: edgePath(points),
+        mid: middleOf(points),
+      },
+    ];
+  });
   const evidence = lines.flatMap((line): PlacedEvidence[] =>
     line.evidence === undefined
       ? []

@@ -13,6 +13,7 @@ import {
   edgePath,
   evidenceKey,
   layoutGraph,
+  middleOf,
   viewStart,
 } from "./graph-layout.js";
 import {
@@ -727,5 +728,24 @@ describe("evidence boxes", () => {
       expect(x).toBeGreaterThan(root.x);
       expect(x).toBeLessThan(root.x + NODE_WIDTH);
     }
+  });
+});
+
+describe("the middle of a curve", () => {
+  it("[SR-154/AK3] is its middle point, or halfway between its two middle points", () => {
+    expect(
+      middleOf([
+        { x: 0, y: 0 },
+        { x: 10, y: 20 },
+        { x: 40, y: 40 },
+      ]),
+    ).toEqual({ x: 10, y: 20 });
+    expect(
+      middleOf([
+        { x: 0, y: 0 },
+        { x: 10, y: 20 },
+      ]),
+    ).toEqual({ x: 5, y: 10 });
+    expect(middleOf([])).toEqual({ x: 0, y: 0 });
   });
 });

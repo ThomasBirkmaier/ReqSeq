@@ -26,7 +26,13 @@ const nodes = [
   place("C2", 200, 2),
   place("C3", 400, 2),
 ];
-const path = (source: string, target: string): EdgePath => ({ source, target, links: [], d: "" });
+const path = (source: string, target: string): EdgePath => ({
+  source,
+  target,
+  links: [],
+  d: "",
+  mid: { x: 0, y: 0 },
+});
 const byKey = new Map(nodes.map((node) => [node.key, node]));
 const layer = (...names: string[]): PlacedNode[] => names.flatMap((name) => byKey.get(name) ?? []);
 const layout: GraphLayout = {

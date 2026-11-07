@@ -113,6 +113,17 @@ export const graphFilterChoices = (
     .map((property) => ({ name: property.name, hint: property.key, filter: { kinds: [property.key] } })),
 ];
 
+/** The names of the relation kinds and of the properties of kind `relation` by their key (SR-154 AK1). */
+export const relationNames = (
+  metamodel: Pick<MetamodelGetOutput, "relations" | "properties">,
+): ReadonlyMap<string, string> =>
+  new Map([
+    ...metamodel.relations.map((kind) => [kind.key, kind.name] as const),
+    ...metamodel.properties
+      .filter((property) => property.kind === "relation")
+      .map((property) => [property.key, property.name] as const),
+  ]);
+
 /** The graph buffer follows some kinds only. */
 export const hasFilter = (buffer: GraphBuffer): boolean =>
   buffer.kinds !== undefined || buffer.meanings !== undefined;
