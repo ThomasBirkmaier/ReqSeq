@@ -146,6 +146,17 @@ const pressedLabel = (event: PrefixPress, mac: boolean): string =>
 const plainOrPrefixed = (event: PrefixPress, mac: boolean): boolean =>
   !event.shiftKey && !event.altKey && !(mac && event.ctrlKey);
 
+/** Whether no modifier is held. */
+const bare = (event: PrefixPress): boolean =>
+  !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey;
+
+/**
+ * The move of the selection in the next keys (SR-122 AK6): Ctrl+N/Ctrl+P (`ctrlStep` checks the modifiers)
+ * or a bare Down/Up; an arrow with a modifier is another key ("Ctrl+K Shift+Down").
+ */
+const moveStep = (event: PrefixPress): 1 | -1 | undefined =>
+  event.key.startsWith("Arrow") && !bare(event) ? undefined : rowStep(event);
+
 /** The rule for a key while the prefix waits (SR-109 AK3). */
 export const prefixStep = (event: PrefixPress, mac: boolean): PrefixStep => {
   if (MODIFIERS.has(event.key) || event.isComposing === true) {
@@ -157,14 +168,12 @@ export const prefixStep = (event: PrefixPress, mac: boolean): PrefixStep => {
   if (event.key === "Escape") {
     return { kind: "cancel" };
   }
-  // An arrow with a modifier is another key ("Ctrl+K Shift+Down"); `ctrlStep` checks Ctrl+N/Ctrl+P itself.
-  const bare = !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey;
-  const step = event.key.startsWith("Arrow") && !bare ? undefined : rowStep(event);
+  const step = moveStep(event);
   if (step !== undefined) {
     return { kind: "move", step };
   }
   const label = `${shortcutLabel(PREFIX, mac)} ${pressedLabel(event, mac)}`;
-  if (event.key === "Enter" && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
+  if (event.key === "Enter" && bare(event)) {
     return { kind: "enter", label };
   }
   const letter = letterOf(event);
