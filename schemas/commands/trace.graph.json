@@ -1,10 +1,10 @@
 {
   "name": "trace.graph",
   "title": "Show graph",
-  "summary": "The graph of one element: what its links lead to above it and what links to it below, to a depth, over the chosen kinds. Each element is one node with its level and marks, and each link between two nodes is one edge. At most `limit` nodes, nearest levels first. With `withEvidence` also a summary of the evidence below each element.",
+  "summary": "The graph of one element: what its links lead to above it and what links to it below, to a depth, over the chosen kinds. Each element is one node with its level and marks, each requirement with its verification status and each need with the verification degree of its derived requirements, and each link between two nodes is one edge. At most `limit` nodes, nearest levels first. With `withEvidence` also a summary of the evidence below each element.",
   "effect": "read",
   "stage": 3,
-  "implements": ["SR-111"],
+  "implements": ["SR-111", "SR-136"],
   "arguments": [
     {
       "field": "ref",
@@ -149,9 +149,26 @@
               "type": "array",
               "uniqueItems": true,
               "items": {
-                "enum": ["outdated", "superseded", "no-evidence"]
+                "enum": ["outdated", "superseded"]
               },
-              "description": "In this order, only those that hold (SR-111 AK4): `outdated`, the element stores an outdated relation, relation property or inline reference (SR-025, the `relation.outdated` and `variant.core-changed` hints of element.get), whatever kinds are followed; `superseded`, its status is one the metamodel marks invalid (D-044); `no-evidence`, the gap rule of trace.chain (SR-022 AK3): a requirement without a derivation child that applies in the view and without evidence, whatever depth is shown. Evidence is a verification record in the view (the core without one), as for trace.chain (SR-033). Empty when none holds."
+              "description": "In this order, only those that hold (SR-111 AK4): `outdated`, the element stores an outdated relation, relation property or inline reference (SR-025, the `relation.outdated` and `variant.core-changed` hints of element.get), whatever kinds are followed; `superseded`, its status is one the metamodel marks invalid (D-044). Empty when none holds. The verification status is `verification` (SR-136)."
+            },
+            "verification": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 1,
+              "items": {
+                "$ref": "../data-export.schema.json#/$defs/verificationEntry"
+              },
+              "description": "SR-136 AK1: the verification status of a requirement (type with the meaning `requirement`) in the graph's view (`view`, the core without one; SR-031, SR-034), as element.get gives it for that view: one entry. Left out for any other node, and for a requirement that has no status in that view (it applies only in a variant; assumption, spec question #1111)."
+            },
+            "criteria": {
+              "$ref": "../data-export.schema.json#/$defs/criteriaCount",
+              "description": "SR-136 AK2, AK4, AK5: how many of the requirement's acceptance criteria are verified, for its progress ring: the entry's `criteria` when its own records in the view decide; without such a record and with acceptance criteria, none verified (0 of n); left out when the status is `indirect`, the requirement has no acceptance criteria, or it has no `verification`."
+            },
+            "degree": {
+              "$ref": "../data-export.schema.json#/$defs/verificationDegree",
+              "description": "SR-136 AK3, AK6: for a need (type with the meaning `need`), the verification degree (SR-037) of the requirements derived directly from it, in the graph's view: its derivation children in the whole workspace whatever depth, kinds and meanings the graph shows, each once, counted as evidence.degree counts them. `share` is left out when none counts (no valid derived requirement). Without a relation kind with the meaning `derivation`, or while the metamodel is not valid, none counts."
             }
           },
           "additionalProperties": false,
@@ -207,7 +224,7 @@
       },
       "evidence": {
         "type": "array",
-        "description": "Only with `withEvidence`: one summary of the evidence below each node that has any (SR-111 AK3), in the order of `nodes`; `[]` when none has. Only nodes at level 0 or below whose evidence level (`level`) is within the depth asked (`maxDepth`, every level with `allLevels`), whether `expanded` or not; none above the element. The counts are those of trace.chain's `evidence` (`chainEvidenceOf`) in the view, the core without one, as the `no-evidence` mark reads them (SR-047, SR-173): only verification records (D-007). The details are in trace.chain and evidence.list.",
+        "description": "Only with `withEvidence`: one summary of the evidence below each node that has any (SR-111 AK3), in the order of `nodes`; `[]` when none has. Only nodes at level 0 or below whose evidence level (`level`) is within the depth asked (`maxDepth`, every level with `allLevels`), whether `expanded` or not; none above the element. The counts are those of trace.chain's `evidence` (`chainEvidenceOf`) in the view, the core without one (SR-047, SR-173): only verification records (D-007). The details are in trace.chain and evidence.list.",
         "items": {
           "type": "object",
           "properties": {
@@ -271,7 +288,7 @@
       },
       "problems": {
         "type": "array",
-        "description": "Hints: `metamodel.meaning-unassigned` when no relation kind has the meaning `derivation` or no type the meaning `requirement`, so `no-evidence` cannot be found (SR-013 AK3).",
+        "description": "Hints: `metamodel.meaning-unassigned` when no relation kind has the meaning `derivation` or no type the meaning `requirement`, so the verification status and degree of the nodes cannot be given in full (SR-013 AK3).",
         "items": {
           "$ref": "../common.schema.json#/$defs/problem"
         }

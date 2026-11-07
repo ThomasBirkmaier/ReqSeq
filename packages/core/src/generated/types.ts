@@ -2693,7 +2693,7 @@ export interface TraceMatrixOutput {
 }
 
 /**
- * Input of `trace.graph` as `run` gets it: validated, properties with a `default` filled in. The graph of one element: what its links lead to above it and what links to it below, to a depth, over the chosen kinds. Each element is one node with its level and marks, and each link between two nodes is one edge. At most `limit` nodes, nearest levels first. With `withEvidence` also a summary of the evidence below each element.
+ * Input of `trace.graph` as `run` gets it: validated, properties with a `default` filled in. The graph of one element: what its links lead to above it and what links to it below, to a depth, over the chosen kinds. Each element is one node with its level and marks, each requirement with its verification status and each need with the verification degree of its derived requirements, and each link between two nodes is one edge. At most `limit` nodes, nearest levels first. With `withEvidence` also a summary of the evidence below each element.
  * Schema: `schemas/commands/trace.graph.json input`.
  */
 export interface TraceGraphInput {
@@ -2716,7 +2716,7 @@ export interface TraceGraphInput {
 }
 
 /**
- * Output of `trace.graph`. The graph of one element: what its links lead to above it and what links to it below, to a depth, over the chosen kinds. Each element is one node with its level and marks, and each link between two nodes is one edge. At most `limit` nodes, nearest levels first. With `withEvidence` also a summary of the evidence below each element.
+ * Output of `trace.graph`. The graph of one element: what its links lead to above it and what links to it below, to a depth, over the chosen kinds. Each element is one node with its level and marks, each requirement with its verification status and each need with the verification degree of its derived requirements, and each link between two nodes is one edge. At most `limit` nodes, nearest levels first. With `withEvidence` also a summary of the evidence below each element.
  * Schema: `schemas/commands/trace.graph.json output`.
  */
 export interface TraceGraphOutput {
@@ -2737,8 +2737,14 @@ export interface TraceGraphOutput {
     readonly expanded: boolean;
     /** 0 for the element; -d for an element reached d steps up along the links the files store (its parents, the targets of its other relations and relation properties, its inline references), +d for one reached d steps down along links that point at it. The source of a link is placed below its target (ADR-0004). */
     readonly level: number;
-    /** In this order, only those that hold (SR-111 AK4): `outdated`, the element stores an outdated relation, relation property or inline reference (SR-025, the `relation.outdated` and `variant.core-changed` hints of element.get), whatever kinds are followed; `superseded`, its status is one the metamodel marks invalid (D-044); `no-evidence`, the gap rule of trace.chain (SR-022 AK3): a requirement without a derivation child that applies in the view and without evidence, whatever depth is shown. Evidence is a verification record in the view (the core without one), as for trace.chain (SR-033). Empty when none holds. */
-    readonly marks: readonly ("outdated" | "superseded" | "no-evidence")[];
+    /** In this order, only those that hold (SR-111 AK4): `outdated`, the element stores an outdated relation, relation property or inline reference (SR-025, the `relation.outdated` and `variant.core-changed` hints of element.get), whatever kinds are followed; `superseded`, its status is one the metamodel marks invalid (D-044). Empty when none holds. The verification status is `verification` (SR-136). */
+    readonly marks: readonly ("outdated" | "superseded")[];
+    /** SR-136 AK1: the verification status of a requirement (type with the meaning `requirement`) in the graph's view (`view`, the core without one; SR-031, SR-034), as element.get gives it for that view: one entry. Left out for any other node, and for a requirement that has no status in that view (it applies only in a variant; assumption, spec question #1111). */
+    readonly verification?: readonly DataExportVerificationEntry[];
+    /** SR-136 AK2, AK4, AK5: how many of the requirement's acceptance criteria are verified, for its progress ring: the entry's `criteria` when its own records in the view decide; without such a record and with acceptance criteria, none verified (0 of n); left out when the status is `indirect`, the requirement has no acceptance criteria, or it has no `verification`. */
+    readonly criteria?: DataExportCriteriaCount;
+    /** SR-136 AK3, AK6: for a need (type with the meaning `need`), the verification degree (SR-037) of the requirements derived directly from it, in the graph's view: its derivation children in the whole workspace whatever depth, kinds and meanings the graph shows, each once, counted as evidence.degree counts them. `share` is left out when none counts (no valid derived requirement). Without a relation kind with the meaning `derivation`, or while the metamodel is not valid, none counts. */
+    readonly degree?: DataExportVerificationDegree;
   }[];
   /** Every followed link from one node to another, also one the walks did not take (a link between two parents, or from a child to a parent): by source in the order of `nodes`, then in the order its file stores them (relations and relation properties in frontmatter order, then inline references). A link from an element to itself is no edge. Not listed: unresolved links (`element.get` and `workspace.check` report them). */
   readonly edges: readonly {
@@ -2761,7 +2767,7 @@ export interface TraceGraphOutput {
     /** The link stores a version of normal form 1 or 2, its target has a current version, and the two differ, compared in the stored version's form (SR-025, ADR-0005). */
     readonly outdated: boolean;
   }[];
-  /** Only with `withEvidence`: one summary of the evidence below each node that has any (SR-111 AK3), in the order of `nodes`; `[]` when none has. Only nodes at level 0 or below whose evidence level (`level`) is within the depth asked (`maxDepth`, every level with `allLevels`), whether `expanded` or not; none above the element. The counts are those of trace.chain's `evidence` (`chainEvidenceOf`) in the view, the core without one, as the `no-evidence` mark reads them (SR-047, SR-173): only verification records (D-007). The details are in trace.chain and evidence.list. */
+  /** Only with `withEvidence`: one summary of the evidence below each node that has any (SR-111 AK3), in the order of `nodes`; `[]` when none has. Only nodes at level 0 or below whose evidence level (`level`) is within the depth asked (`maxDepth`, every level with `allLevels`), whether `expanded` or not; none above the element. The counts are those of trace.chain's `evidence` (`chainEvidenceOf`) in the view, the core without one (SR-047, SR-173): only verification records (D-007). The details are in trace.chain and evidence.list. */
   readonly evidence?: readonly {
     /** The node the evidence belongs to. */
     readonly id: Uuid;
@@ -2784,7 +2790,7 @@ export interface TraceGraphOutput {
   /** More elements are reachable than shown: `limit` stopped a walk or left out a node. The nodes kept are the nearest ones. */
   readonly truncated: boolean;
   readonly incomplete: Incomplete;
-  /** Hints: `metamodel.meaning-unassigned` when no relation kind has the meaning `derivation` or no type the meaning `requirement`, so `no-evidence` cannot be found (SR-013 AK3). */
+  /** Hints: `metamodel.meaning-unassigned` when no relation kind has the meaning `derivation` or no type the meaning `requirement`, so the verification status and degree of the nodes cannot be given in full (SR-013 AK3). */
   readonly problems: readonly Problem[];
 }
 

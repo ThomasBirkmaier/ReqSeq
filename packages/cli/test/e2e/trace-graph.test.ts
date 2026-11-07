@@ -72,13 +72,12 @@ describe("reqseq trace graph (SR-111)", () => {
     expect(output.edges.map((e) => e.kind)).toEqual(["based-on"]);
   });
 
-  it("[SR-111/AK4] marks a node only when it is outdated, superseded or without evidence", async () => {
+  it("[SR-111/AK4] marks a node only when it is outdated or superseded", async () => {
     const { output } = await graph(["SR-b0000000001"]);
     expect(output.nodes.filter((n) => n.marks.length > 0).map((n) => [n.shortId, n.marks])).toEqual([
       ["SR-b0000000001", ["outdated"]],
-      ["SR-b0000000002", ["superseded", "no-evidence"]],
-      ["CR-c0000000002", ["outdated", "no-evidence"]],
-      ["CR-c0000000003", ["no-evidence"]],
+      ["SR-b0000000002", ["superseded"]],
+      ["CR-c0000000002", ["outdated"]],
     ]);
   });
 
