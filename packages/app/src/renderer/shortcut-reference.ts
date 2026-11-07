@@ -8,7 +8,7 @@ import { PREFIX, PREFIX_BINDINGS, PREFIX_KEYS, prefixLabel } from "./bindings.js
 import type { NamedCommand } from "./command-entry.js";
 import { coveringAction } from "./command-entry.js";
 import { ELEMENT_MORE_KEYS, FIELD_CTRL_KEYS, FIELD_KEYS, LEAVE_KEYS, PACKAGE_KEYS } from "./element-keys.js";
-import { BOX_KEYS, EDITOR_KEYS, MARKDOWN_KEYS } from "./editor/editor-keys.js";
+import { BOX_KEYS, EDITOR_KEYS, MARKDOWN_KEYS, TABLE_KEYS } from "./editor/editor-keys.js";
 import { MENU_KEYS } from "../shared/menu-keys.js";
 import { GRAPH_KEYS, GRAPH_MORE_KEYS } from "./graph-nav.js";
 import type { KeyRow } from "./keys.js";
@@ -71,7 +71,7 @@ export const SHORTCUT_TABLES: ShortcutTables = {
     ...ELEMENT_MORE_KEYS,
   ],
   history: HISTORY_KEYS,
-  editor: [...EDITOR_KEYS, ...MARKDOWN_KEYS],
+  editor: [...EDITOR_KEYS, ...MARKDOWN_KEYS, ...TABLE_KEYS],
 };
 
 /** The labels of the keys of `row` on one system. */

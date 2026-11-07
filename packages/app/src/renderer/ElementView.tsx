@@ -60,6 +60,7 @@ import type { ImageElement } from "./editor/image-preview.js";
 import { imagePreview } from "./editor/image-preview.js";
 import type { EditorPlugins } from "./editor/plugins.js";
 import { mergePlugins } from "./editor/plugins.js";
+import { tableEditing } from "./editor/tables.js";
 import { boxReference, referenceAt, references } from "./editor/references.js";
 import type { Reference } from "./editor/references.js";
 import { boxNavigation } from "./editor/box-navigation.js";
@@ -866,6 +867,7 @@ export const ElementView = ({
         brackets,
         formulasAndDiagrams,
         images,
+        tableEditing,
         {
           // After the slash menu, which takes Down while it is open.
           extensions: [
