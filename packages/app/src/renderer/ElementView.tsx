@@ -828,9 +828,17 @@ export const ElementView = ({
     return rest.some((label) => enter(label, by === 1 ? "start" : "end", edit));
   };
   // Down at the last line of an editor goes into the next field, Up at the first line into the one before:
-  // the text, then the boxes in the order they are shown (`editor/box-navigation.ts`).
-  const step = (from: string, by: 1 | -1): boolean =>
-    move([TITLE_FIELD, "Text", ...now.current.boxKeys], from, by);
+  // the text, then the boxes in the order they are shown (`editor/box-navigation.ts`). Down at the last line of
+  // the last field goes into the elements of a package page, as from a field (SR-155 AK4).
+  const step = (from: string, by: 1 | -1): boolean => {
+    if (move([TITLE_FIELD, "Text", ...now.current.boxKeys], from, by)) {
+      return true;
+    }
+    const list =
+      by === 1 && (members?.total ?? 0) > 0 ? article?.querySelector<HTMLElement>(".members .list") : null;
+    list?.focus();
+    return list !== null && list !== undefined;
+  };
   const stepRef = useRef(step);
   stepRef.current = step;
   const plugins = useMemo(

@@ -33,7 +33,7 @@ const boxKeys = (keys: typeof BOX_NEXT | typeof BOX_PREVIOUS): KeyRow["keys"] =>
 export const BOX_KEYS: readonly KeyRow[] = [
   {
     keys: boxKeys(BOX_NEXT),
-    does: "In the title, the text or a box, on its last line: into the next box",
+    does: "In the title, the text or a box, on its last line: into the next box; from the last one into the elements of a package page",
   },
   {
     keys: boxKeys(BOX_PREVIOUS),

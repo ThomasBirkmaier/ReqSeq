@@ -178,13 +178,11 @@ test.describe("the field the focus is in", () => {
     await expect(window.locator("#prompt-input")).toHaveCount(0);
     await window.keyboard.press("Control+n");
     await expect.poll(() => tinted(window)).toEqual(["Text"]);
-    // Through the lines of the text, and from its last line into the box.
-    await expect
-      .poll(async () => {
-        await window.keyboard.press("Control+n");
-        return tinted(window);
-      })
-      .toEqual([box]);
+    // From the last line of the text into the box.
+    await expect(window.locator('[data-field="Text"] .cm-content')).toBeFocused();
+    await window.keyboard.press("Control+End");
+    await window.keyboard.press("Control+n");
+    await expect.poll(() => tinted(window)).toEqual([box]);
     await window.keyboard.press("Control+p");
     await expect.poll(() => tinted(window)).toEqual(["Text"]);
     await expect(window.locator("#prompt-input")).toHaveCount(0);

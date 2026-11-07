@@ -2694,14 +2694,6 @@ describe("App, the package page (SR-112)", () => {
     expect(memberCalls(invoke)).toEqual([]);
   });
 
-  /** Goes to the overview and back to the package with Ctrl+P Enter: the list takes the focus only when a row was chosen. */
-  const awayAndBack = async (): Promise<void> => {
-    await runCommand("show overview");
-    await keyDown(window, "p", { metaKey: true });
-    await keyDown(query("input"), "Enter");
-    expect(query("article h1").textContent).toBe("Stufe-3");
-  };
-
   it("[SR-122/AK4] on a package page Ctrl+N selects the first element, walks the elements, and Ctrl+P on the first goes back to the page", async () => {
     await openPackage();
     const ctrlN = await pressed(query("article"), "n", { ctrlKey: true });
@@ -2784,6 +2776,17 @@ describe("App, the package page (SR-112)", () => {
     },
   );
 
+  it("[SR-122/AK4] Ctrl+N on the last element stays there and goes no further", async () => {
+    await openPackage();
+    await keyDown(query("article"), "n", { ctrlKey: true });
+    await keyDown(query(".members .list"), "End");
+    expect(query('.members [aria-selected="true"]').id).toBe("row-2");
+    const last = await pressed(query(".members .list"), "n", { ctrlKey: true });
+    expect(last.defaultPrevented).toBe(true);
+    expect(query('.members [aria-selected="true"]').id).toBe("row-2");
+    expect(document.activeElement).toBe(query(".members .list"));
+  });
+
   it("[SR-155/AK2] Ctrl+N on an element that is no package, or on a package without elements, goes to its first field", async () => {
     const fake = fakeBridge(withPackage());
     await render(fake.bridge);
@@ -2818,30 +2821,39 @@ describe("App, the package page (SR-112)", () => {
     expect(query("label").textContent).toBe("Go to");
   });
 
-  it("Ctrl+N typed in the text editor of a package page stays in the editor and chooses no element", async () => {
-    vi.spyOn(navigator, "platform", "get").mockReturnValue("Linux x86_64");
-    await openPackage();
-    await keyDown(query("article"), "Enter");
-    const content = query("article .cm-content");
-    expect(document.activeElement).toBe(content);
-    await keyDown(content, "n", { ctrlKey: true });
-    expect(document.activeElement).toBe(content);
-    await keyDown(content, "Escape");
-    await awayAndBack();
-    expect(document.activeElement).toBe(query("article"));
-  });
+  it.each(["ArrowDown", "n"])(
+    "[SR-155/AK4] %s at the last line of the text, the last field of a package page, goes into its elements",
+    async (key) => {
+      vi.spyOn(navigator, "platform", "get").mockReturnValue("Linux x86_64");
+      await openPackage();
+      await keyDown(query("article"), "Enter");
+      const content = query("article .cm-content");
+      expect(document.activeElement).toBe(content);
+      await keyDown(content, key, key === "n" ? { ctrlKey: true } : {});
+      expect(document.activeElement).toBe(query(".members .list"));
+      expect(container.querySelector("label")).toBeNull();
+    },
+  );
 
-  it("Ctrl+N typed in a box editor of a package page stays in the box and chooses no element", async () => {
-    vi.spyOn(navigator, "platform", "get").mockReturnValue("Linux x86_64");
+  it("[SR-155/AK4] Ctrl+N walks a package page through its editors into its elements, Ctrl+P back", async () => {
+    vi.spyOn(navigator, "platform", "get").mockReturnValue("Win32");
     await openPackage(withTopic());
-    const content = query('[data-field="topic"] .cm-content');
+    const field = query('.field[data-field="Title"]');
     act(() => {
-      content.focus();
+      field.focus();
     });
-    await keyDown(content, "n", { ctrlKey: true });
-    expect(document.activeElement).toBe(content);
-    await awayAndBack();
-    expect(document.activeElement).toBe(query("article"));
+    const text = query('[data-field="Text"] .cm-content');
+    const topic = query('[data-field="topic"] .cm-content');
+    await keyDown(field, "n", { ctrlKey: true });
+    expect(document.activeElement).toBe(text);
+    await keyDown(text, "n", { ctrlKey: true });
+    expect(document.activeElement).toBe(topic);
+    await keyDown(topic, "p", { ctrlKey: true });
+    expect(document.activeElement).toBe(text);
+    await keyDown(text, "n", { ctrlKey: true });
+    await keyDown(topic, "n", { ctrlKey: true });
+    expect(document.activeElement).toBe(query(".members .list"));
+    expect(container.querySelector("label")).toBeNull();
   });
 });
 
