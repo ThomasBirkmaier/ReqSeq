@@ -10,7 +10,15 @@ import {
   onDiskKey,
 } from "./element-keys.js";
 import { BOX_KEYS, EDITOR_KEYS, codeMirrorPress } from "./editor/editor-keys.js";
-import { DEPTH_LESS, DEPTH_MORE, GRAPH_KEYS, GRAPH_MORE_KEYS, GRAPH_MOVES } from "./graph-nav.js";
+import {
+  DEPTH_LESS,
+  DEPTH_MORE,
+  GRAPH_KEYS,
+  GRAPH_MORE_KEYS,
+  GRAPH_MOVES,
+  LINK_BACK,
+  LINK_NEXT,
+} from "./graph-nav.js";
 import type { KeyPress, KeyRow, KeySpec } from "./keys.js";
 import {
   HISTORY_KEYS,
@@ -150,11 +158,13 @@ describe("the key tables follow their handlers", () => {
     ]);
   });
 
-  it("lists the depth keys of the graph", () => {
+  it("lists the depth keys and the link keys of the graph", () => {
     expect(pressesOf(GRAPH_MORE_KEYS, false).map((event) => event.key)).toEqual([
       "Enter",
       DEPTH_MORE,
       DEPTH_LESS,
+      LINK_NEXT,
+      LINK_BACK,
     ]);
   });
 

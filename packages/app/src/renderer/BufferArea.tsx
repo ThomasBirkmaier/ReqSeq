@@ -77,6 +77,8 @@ export interface AreaViews {
   readonly onEcho: (message: string) => void;
   /** The names of the types by their key, from the metamodel. */
   readonly typeNames: ReadonlyMap<string, string>;
+  /** The names of the relation kinds and relation properties by their key, from the metamodel (SR-154). */
+  readonly kindNames: ReadonlyMap<string, string>;
   /** What the overview shows (`useOverview`), read while an area shows it. */
   readonly overview: { readonly data: OverviewData | undefined; readonly recents: readonly RecentRow[] };
   /** The props of the view of an element buffer. */
@@ -134,6 +136,7 @@ const BufferView = ({
         onData={onData}
         onEcho={onEcho}
         typeNames={views.typeNames}
+        kindNames={views.kindNames}
         split={split}
       />
     );

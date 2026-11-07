@@ -49,6 +49,8 @@ interface GraphOutput {
     readonly link: string;
     readonly kind?: string;
     readonly meaning?: string;
+    readonly outdated?: boolean;
+    readonly property?: boolean;
   }[];
 }
 
@@ -717,5 +719,80 @@ test.describe("the depth and relation kinds of a graph on a fixture workspace", 
     await choose(window, "Show only relation kind", "Everything");
     await shows({ maxDepth: 2 }, "2 levels");
     await expect(window.locator(".graph-evidence")).toHaveCount(0);
+  });
+
+  test("[SR-154/AK1] the mouse on a link and the key l name its relation kinds as the CLI and the metamodel give them", async () => {
+    const { window } = running;
+    await openElement(window, "SR-b0000000001", "Show wind speed");
+    const output = await traced(running, { ref: ID.S1, maxDepth: 1 });
+    await showGraph(window, output.nodes.length);
+    const model = JSON.parse((await running.cli(["metamodel", "get"])).stdout) as {
+      relations: { key: string; name: string }[];
+      properties: { key: string; name: string; kind: string }[];
+    };
+    const names = new Map([
+      ...model.relations.map((kind) => [kind.key, kind.name] as const),
+      ...model.properties.map((property) => [`property:${property.key}`, property.name] as const),
+    ]);
+    const idOf = new Map(
+      output.nodes.map((node) => [key(node.repository, node.id), node.identifier ?? node.shortId]),
+    );
+    // The lines the text of a curve must show: each link of its pair, read along the arrow.
+    const expected = (curve: string): string[] =>
+      output.edges
+        .filter(
+          (edge) =>
+            `${key(edge.sourceRepository, edge.source)}>${key(edge.targetRepository, edge.target)}` === curve,
+        )
+        .map((edge) =>
+          [
+            idOf.get(key(edge.sourceRepository, edge.source)),
+            edge.kind === undefined
+              ? "Refers to"
+              : (names.get(edge.property === true ? `property:${edge.kind}` : edge.kind) ?? edge.kind),
+            idOf.get(key(edge.targetRepository, edge.target)),
+            ...(edge.outdated === true ? ["· outdated"] : []),
+          ].join(" "),
+        );
+    await expect(window.locator(".graph-edge-tip")).toHaveCount(0);
+    // The mouse on the middle of the first curve whose middle is in view and on top there (no box over
+    // it): the window's size differs between runners, so the first curve's middle may be out of view.
+    const middle = await window.evaluate(() => {
+      for (const path of document.querySelectorAll<SVGPathElement>("path.graph-edge-hit")) {
+        const matrix = path.getScreenCTM();
+        if (matrix === null) {
+          continue;
+        }
+        const point = path.getPointAtLength(path.getTotalLength() / 2).matrixTransform(matrix);
+        if (document.elementFromPoint(point.x, point.y) === path) {
+          return { curve: path.dataset["hit"] ?? "", x: point.x, y: point.y };
+        }
+      }
+      return { curve: "", x: 0, y: 0 };
+    });
+    expect(middle.curve).not.toBe("");
+    await window.mouse.move(middle.x, middle.y);
+    const hovered = window.locator(".graph-edge-tip");
+    await expect(hovered).toHaveCount(1);
+    expect(await hovered.getAttribute("data-edge")).toBe(middle.curve);
+    expect(await hovered.locator("div").allTextContents()).toEqual(expected(middle.curve));
+    await window.mouse.move(1, 1);
+    await expect(window.locator(".graph-edge-tip")).toHaveCount(0);
+    // The key l selects the element's first link; its text is the accessible name of the active option.
+    await window.keyboard.press("l");
+    const chosen = window.locator("#gedge");
+    await expect(window.locator(".graph")).toHaveAttribute("aria-activedescendant", "gedge");
+    const curve = (await chosen.getAttribute("data-edge")) ?? "";
+    expect(curve.split(">")).toContain(key(REPOSITORY, ID.S1));
+    await expect(chosen).toHaveAttribute("aria-label", expected(curve).join("; "));
+    await expect(window.locator("path.graph-edge.chosen")).toHaveCount(1);
+    await window.screenshot({
+      path: fileURLToPath(
+        new URL("../../../test-results/electron/screenshots/sr-154-light.png", import.meta.url),
+      ),
+    });
+    await window.keyboard.press("Escape");
+    await expect(window.locator(".graph-edge-tip")).toHaveCount(0);
+    expect(await selectedNode(window)).toBe(key(REPOSITORY, ID.S1));
   });
 });

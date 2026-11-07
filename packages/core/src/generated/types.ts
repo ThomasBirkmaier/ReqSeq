@@ -2229,13 +2229,17 @@ export interface ElementBulkUpdateOutput {
 }
 
 /**
- * Input of `element.addAttachment` as `run` gets it: validated, properties with a `default` filled in. Copy an image into the folder named like the element file, next to it, and return the Markdown that embeds it relatively; once the text embeds it, the image counts to the version (SR-097, D-057). Never replaces a file.
+ * Input of `element.addAttachment` as `run` gets it: validated, properties with a `default` filled in. Copy an image, from a local file or given as bytes, into the folder named like the element file, next to it, and return the Markdown that embeds it relatively; once the text embeds it, the image counts to the version (SR-097, D-057). Never replaces a file.
  * Schema: `schemas/commands/element.addAttachment.json input`.
  */
 export interface ElementAddAttachmentInput {
   readonly ref: ElementRef;
-  /** The image to copy: a file ending in .avif, .bmp, .gif, .jpeg, .jpg, .png, .svg or .webp (any case). */
-  readonly sourcePath: LocalPath;
+  /** The image to copy: a file ending in .avif, .bmp, .gif, .jpeg, .jpg, .png, .svg or .webp (any case). Give it or content, not both. */
+  readonly sourcePath?: LocalPath;
+  /** The bytes of the image, base64 (RFC 4648, with padding), at most 20 MiB decoded, so a request stays below the 32 MiB limit of the API and MCP: for an image without a file, such as one pasted or dropped in the app (SR-190 AK3). Needs name; give it or sourcePath, not both. */
+  readonly content?: string;
+  /** The file name of content, for its extension (which must be one of sourcePath's) and the name of the copy, e.g. Screenshot 2026-11-07.png. Only with content. */
+  readonly name?: string;
   /** Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it (for example one copy of a file whose UUID another file shares, SR-088; ThomasBirkmaier/ReqSeq-archive#255). Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates. */
   readonly repository?: string;
   /** Which of the elements ref names is meant: its file, relative to its repository, as details.candidates of ref.ambiguous give it (ThomasBirkmaier/ReqSeq-archive#255). Give repository too when the same path is in several repositories; when several elements are still left, the error is ref.ambiguous with them. */
@@ -2243,7 +2247,7 @@ export interface ElementAddAttachmentInput {
 }
 
 /**
- * Output of `element.addAttachment`. Copy an image into the folder named like the element file, next to it, and return the Markdown that embeds it relatively; once the text embeds it, the image counts to the version (SR-097, D-057). Never replaces a file.
+ * Output of `element.addAttachment`. Copy an image, from a local file or given as bytes, into the folder named like the element file, next to it, and return the Markdown that embeds it relatively; once the text embeds it, the image counts to the version (SR-097, D-057). Never replaces a file.
  * Schema: `schemas/commands/element.addAttachment.json output`.
  */
 export interface ElementAddAttachmentOutput {

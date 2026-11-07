@@ -125,6 +125,21 @@ export const edgePath = (points: readonly Point[]): string => {
   return `${d}${piece(a, b, b)}L${at(b)}`;
 };
 
+/**
+ * A point in the middle of the curve `edgePath` draws through `points`: with three points or more, where
+ * the spline passes its middle inner point, (a + 4b + c) / 6 (the end of a `piece`); with two, halfway.
+ */
+export const middleOf = (points: readonly Point[]): Point => {
+  const first = points[0] ?? { x: 0, y: 0 };
+  if (points.length < 3) {
+    const last = points.at(-1) ?? first;
+    return { x: (first.x + last.x) / 2, y: (first.y + last.y) / 2 };
+  }
+  const i = Math.floor(points.length / 2);
+  const [a, b, c] = [points[i - 1] ?? first, points[i] ?? first, points[i + 1] ?? first];
+  return { x: (a.x + 4 * b.x + c.x) / 6, y: (a.y + 4 * b.y + c.y) / 6 };
+};
+
 const centreX = (node: PlacedBox): number => node.x + NODE_WIDTH / 2;
 
 /** The x of the ends of one link: where it leaves `from` and where it enters `to`. */
@@ -253,6 +268,8 @@ export interface EdgePath {
   readonly links: readonly GraphEdge[];
   /** The SVG path. */
   readonly d: string;
+  /** Where its text stands when its link is selected with the keys (SR-154 AK3): the middle of its points. */
+  readonly mid: Point;
 }
 
 export interface GraphLayout {
@@ -562,18 +579,21 @@ export const layoutGraph = (output: TraceGraphOutput): GraphLayout => {
   });
   // One port order for both: an evidence line leaves its node's bottom edge among the node's links.
   const lines = portsOf<Bent & { links?: GraphEdge[]; evidence?: GraphEvidence }>([...bent, ...boxes]);
-  const paths = lines.flatMap((line): EdgePath[] =>
-    line.links === undefined
-      ? []
-      : [
-          {
-            source: line.source.key,
-            target: line.target.key,
-            links: line.links,
-            d: edgePath(route(line.target, line.source, line.bends, line)),
-          },
-        ],
-  );
+  const paths = lines.flatMap((line): EdgePath[] => {
+    if (line.links === undefined) {
+      return [];
+    }
+    const points = route(line.target, line.source, line.bends, line);
+    return [
+      {
+        source: line.source.key,
+        target: line.target.key,
+        links: line.links,
+        d: edgePath(points),
+        mid: middleOf(points),
+      },
+    ];
+  });
   const evidence = lines.flatMap((line): PlacedEvidence[] =>
     line.evidence === undefined
       ? []

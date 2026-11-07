@@ -37,7 +37,17 @@ export const GRAPH_KEYS: readonly KeyRow[] = MOVES.map((move) => ({
 export const DEPTH_MORE = "+";
 export const DEPTH_LESS = "-";
 
-/** Enter and the depth keys in the graph of an element (`GraphView`). */
+/**
+ * The keys of the links of the selected box in the graph of an element (SR-154 AK3 to AK5): the next of
+ * its links, in turn, and back to the box. Tab stays the key that leaves the graph.
+ */
+export const LINK_NEXT = "l";
+
+/** Whether a key is `LINK_NEXT`, also with Caps Lock or Shift. */
+export const isLinkNext = (key: string): boolean => key.toLowerCase() === LINK_NEXT;
+export const LINK_BACK = "Escape";
+
+/** Enter, the depth keys and the link keys in the graph of an element (`GraphView`). */
 export const GRAPH_MORE_KEYS: readonly KeyRow[] = [
   { keys: [{ press: press("Enter") }], does: "Open the selected box as the current element" },
   {
@@ -45,6 +55,11 @@ export const GRAPH_MORE_KEYS: readonly KeyRow[] = [
     does: "In the graph of an element: one level more (“Graph depth”)",
   },
   { keys: [{ press: press(DEPTH_LESS) }], does: "In the graph of an element: one level less" },
+  {
+    keys: [{ press: press(LINK_NEXT) }],
+    does: "In the graph of an element: the next link of the selected box, with its relation kind",
+  },
+  { keys: [{ press: press(LINK_BACK) }], does: "In the graph of an element: from a link back to its box" },
 ];
 
 /** The keys that move the selection. */
