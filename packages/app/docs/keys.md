@@ -36,6 +36,7 @@ The user documentation lists these keys on its generated page "Keyboard shortcut
 | Ctrl/Cmd+click on a value | On an element, the list of the elements with the value clicked in a property box (SR-132, #235). On macOS only Cmd+click |
 | Ctrl/Cmd+Shift+C | On an element, copy the field with the cursor, else the ID, as text, one value per line (action "Copy field", SR-128). Every field also has a copy symbol at its right edge, seen on hover or focus; the field with the focus has the grey of a selected list row, and Up and Down move it with its symbol (SR-155) |
 | Escape | In the text, back to the element; in a property box, back to the box, and from the box to the element; in the title, back to its field |
+| Ctrl/Cmd+B, Ctrl/Cmd+I | In the text and in a Markdown property box: bold or italic for the selection or the word at the caret, again to take it off (actions "Bold", "Italic", SR-186); on an element outside an editor, the same in the text. On macOS only Cmd: the physical Ctrl+B stays the editor's Emacs key |
 | `/` | In the text, at the start of a line or after a space: the slash menu (SR-129) with the Markdown elements at the caret |
 | (slash menu open) Down, Up, Tab, Ctrl+N / Ctrl+P, Enter, Escape | Choose, take the entry (one undo step), close the menu and leave the `/` as typed |
 | `[[` | In the text and in a Markdown property box, outside code, links and addresses: the prompt "Insert reference" (SR-066); the pick replaces the `[[` with the reference, Escape leaves the `[[` as typed |
