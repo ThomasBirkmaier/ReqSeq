@@ -26,11 +26,19 @@ const open = async (window: Page): Promise<void> => {
   await expect(window.locator("article h1")).toHaveText(DEMO_TITLE);
 };
 
-const saved = async (running: RunningApp): Promise<string> => {
-  await running.window.keyboard.press("ControlOrMeta+s");
-  await expect(running.window.getByLabel("Minibuffer")).toContainText("Saved");
+const fileText = async (running: RunningApp): Promise<string> => {
   const file = await fs.readFile(path.join(running.workspace?.root ?? "", ...DEMO_FILE.split("/")), "utf8");
   return file.slice(file.indexOf("Messpunkte"));
+};
+
+/** Saves (Ctrl/Cmd+S, or autosave got there first) and waits until the file holds `expected`. */
+const expectSaved = async (running: RunningApp, expected: string | RegExp): Promise<void> => {
+  await running.window.keyboard.press("ControlOrMeta+s");
+  if (typeof expected === "string") {
+    await expect.poll(() => fileText(running)).toBe(expected);
+  } else {
+    await expect.poll(() => fileText(running)).toMatch(expected);
+  }
 };
 
 test.describe("list editing in the element buffer", () => {
@@ -66,21 +74,21 @@ test.describe("list editing in the element buffer", () => {
     await window.screenshot({ path: path.join(OUT, "list-drag-light.png") });
     await window.mouse.up();
     await expect(window.locator(".cm-lr-dragging")).toHaveCount(0);
-    expect(await saved(running)).toBe("Messpunkte:\n\n- Ost\n- Süd\n- Nord\n  - Mast\n");
+    await expectSaved(running, "Messpunkte:\n\n- Ost\n- Süd\n- Nord\n  - Mast\n");
     await window.locator(".cm-content").focus();
     await window.keyboard.press("ControlOrMeta+z");
-    expect(await saved(running)).toBe(TEXT);
+    await expectSaved(running, TEXT);
   });
 
   test("[SR-187/AK1] [SR-187/AK2] Tab indents the item at the caret, Alt+Up moves it with its sub-items", async () => {
     const { window } = running;
-    await window.locator(".cm-line", { hasText: "Ost" }).click();
+    await window.locator(".cm-line", { hasText: "Ost" }).click({ position: { x: 40, y: 5 } });
     await window.keyboard.press("End");
     await window.keyboard.press("Tab");
     await expect(window.locator(".cm-content")).toBeFocused();
-    expect(await saved(running)).toBe("Messpunkte:\n\n- Nord\n  - Mast\n  - Ost\n- Süd\n");
-    await window.locator(".cm-line", { hasText: "Süd" }).click();
+    await expectSaved(running, "Messpunkte:\n\n- Nord\n  - Mast\n  - Ost\n- Süd\n");
+    await window.locator(".cm-line", { hasText: "Süd" }).click({ position: { x: 40, y: 5 } });
     await window.keyboard.press("Alt+ArrowUp");
-    expect(await saved(running)).toBe("Messpunkte:\n\n- Süd\n- Nord\n  - Mast\n  - Ost\n");
+    await expectSaved(running, "Messpunkte:\n\n- Süd\n- Nord\n  - Mast\n  - Ost\n");
   });
 });
