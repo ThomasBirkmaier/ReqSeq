@@ -139,23 +139,31 @@ const committedPath = (entry: WorkspaceRepository, problems: Problem[]): string 
 
 /**
  * Whether the committed path `committed` (relative) may be followed from the main repository at
- * `root`: it must keep the top-level folder of `root` (`../../../../net/host/r` reaches a share
- * that an automounter would mount), and a path into the main repository must not pass a link out
- * of it (`vendor -> /net/host/r`), judged before anything follows it. Both come from repository
- * content, so ReqSeq does not follow them (offline rule, product owner decision, 2026-11-07); a
- * path on the user's own machine goes into the local file.
+ * `root`. It comes from repository content, so it must not lead ReqSeq to a network share
+ * (offline rule; product owner decision, 2026-11-07); a path on the user's own machine goes into
+ * the local file. So it must stay in the folder that holds the main repository
+ * (`../../../../net/host/r` and `../../other/r` reach folders an automounter mounts), and below the
+ * first folder it enters there (a clone, or the main repository) it must not pass a link out of
+ * that folder (`../a/x` with `x -> /net/host/b` in repository `a`), judged before anything follows
+ * it. When the main repository lies directly below a file system root, only a folder next to it or
+ * a path into it is taken (`../net/host` would mount `host`). Exported for tests.
  */
-const committedStays = async (root: string, committed: string): Promise<boolean> => {
+export const committedStays = async (root: string, committed: string): Promise<boolean> => {
   const resolved = path.resolve(root, committed);
-  const top = (folder: string): string => {
-    const { root: base } = path.parse(folder);
-    return base + folder.slice(base.length).split(path.sep, 1).join("");
-  };
-  if (top(resolved) !== top(root)) {
+  const parent = path.dirname(root);
+  const names = path.relative(parent, resolved).split(path.sep);
+  const first = names.slice(0, 1).join("");
+  if (first === "" || first === ".." || path.isAbsolute(first)) {
     return false;
   }
-  const rel = path.relative(root, resolved);
-  return rel.split(path.sep)[0] === ".." || (await linksStayInside(root, resolved).catch(() => false));
+  if (names.length === 1) {
+    return true;
+  }
+  const folder = path.join(parent, first);
+  if (folder !== root && path.parse(parent).root === parent) {
+    return false;
+  }
+  return linksStayInside(folder, resolved).catch(() => false);
 };
 
 /** The configured path of a repository, with the local override applied. */
@@ -174,7 +182,7 @@ const configuredPath = async (
         invalid(
           "warning",
           WORKSPACE_FILE,
-          `Repository ${entry.name}: its path leaves the top-level folder of the main repository or passes a link out of it, as a path to a network share can; it is ignored here; put it in ${LOCAL_FILE}`,
+          `Repository ${entry.name}: its path leaves the folder that holds the main repository or passes a link out of a repository, as a path to a network share can; it is ignored here; put it in ${LOCAL_FILE}`,
         ),
       );
       return `../${entry.name}`;
