@@ -261,6 +261,26 @@ describe("local paths through API and MCP only inside the repositories (SR-142)"
     expect({ ws: await state(ws), home: await home() }).toEqual(before);
   });
 
+  it("[SR-142/AK1] workspace.listFolder lists a folder outside the repositories on the command line only", async () => {
+    const ws = await fixture();
+    await fs.mkdir(path.join(cacheHome, "projects"), { recursive: true });
+    for (const input of [{ path: "../outside/" }, { path: "~/", absolute: true }]) {
+      await withApi(ws, async (api) => {
+        const listed = await api("workspace.listFolder", input);
+        expect([listed.status, listed.body]).toEqual([400, refusedFor(["path"])]);
+      });
+      expect(await mcp(ws, "workspace.listFolder", input)).toEqual({
+        isError: true,
+        body: refusedFor(["path"]),
+      });
+    }
+    const inside = await mcp(ws, "workspace.listFolder", { path: "../sensor/", files: true });
+    expect([inside.isError, (inside.body["entries"] as unknown[]).length > 0]).toEqual([false, true]);
+    const listed = await cli(ws, ["workspace", "list-folder", "../outside/", "--files", "--json"]);
+    expect(listed.code, listed.out).toBe(EXIT.ok);
+    expect(JSON.parse(listed.out)).toMatchObject({ entries: [{ name: "delivery.xml", kind: "file" }] });
+  });
+
   it("[SR-142/AK2] the API and the MCP server run a command on a path inside a repository", async () => {
     const ws = await fixture();
     await withApi(ws, async (api) => {

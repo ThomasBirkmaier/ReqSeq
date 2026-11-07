@@ -9,7 +9,7 @@
   "implements": ["SR-054", "SR-055", "SR-059"],
   "arguments": [
     { "field": "mapping", "complete": "json" },
-    { "field": "file", "complete": "text" }
+    { "field": "file", "complete": "file" }
   ],
   "input": {
     "type": "object",

@@ -8,7 +8,7 @@
   "stage": 4,
   "implements": ["SR-062"],
   "arguments": [
-    { "field": "folder", "complete": "text" },
+    { "field": "folder", "complete": "folder" },
     { "field": "selection", "complete": "selection" }
   ],
   "input": {

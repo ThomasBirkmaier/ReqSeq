@@ -38,9 +38,20 @@ function checkTitle(cmd, titles) {
   return errors;
 }
 
+/** Whether a field (or the items of an array field) is a `localPath` of `common.schema.json`. */
+const isLocalPath = (property) => /#\/\$defs\/localPath$/.test(itemOf(property).$ref ?? "");
+
+/** Path sources: `folder` or `file` exactly on the `localPath` fields (ADR-0002 rule 1, SR-143). */
+const PATHS = new Set(["folder", "file"]);
+
 /** The sources whose kind has to fit the type of the field. */
 function checkKind(arg, property) {
   const item = itemOf(property);
+  if (isLocalPath(property) !== PATHS.has(arg.complete)) {
+    return PATHS.has(arg.complete)
+      ? [`"${arg.field}": ${arg.complete} needs a localPath field`]
+      : [`"${arg.field}": a localPath field is completed as folder or file`];
+  }
   if (arg.complete === "choice" && !Array.isArray(item.enum)) {
     return [`"${arg.field}": choice needs an inline enum`];
   }

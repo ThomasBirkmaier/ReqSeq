@@ -6,8 +6,8 @@
   "stage": 6,
   "implements": ["SR-053", "SR-055", "SR-056"],
   "arguments": [
-    { "field": "file", "complete": "text" },
-    { "field": "mapping", "complete": "text" },
+    { "field": "file", "complete": "file" },
+    { "field": "mapping", "complete": "file" },
     { "field": "source", "complete": "text" }
   ],
   "input": {

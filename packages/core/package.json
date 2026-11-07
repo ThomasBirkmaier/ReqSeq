@@ -19,6 +19,10 @@
       "types": "./dist/workspace/os-cache.d.ts",
       "default": "./dist/workspace/os-cache.js"
     },
+    "./list-folder": {
+      "types": "./dist/workspace/list-folder.d.ts",
+      "default": "./dist/workspace/list-folder.js"
+    },
     "./recent-workspaces": {
       "types": "./dist/workspace/recent.d.ts",
       "default": "./dist/workspace/recent.js"

@@ -386,6 +386,9 @@ const OFFERS: Readonly<Record<Source, (asked: Asked) => Promise<Offer | Failed>>
   number: typed(numberOr),
   json: typed(jsonOr),
   text: asText,
+  // Typed as text until the prompt completes paths from `workspace.listFolder` (SR-143).
+  folder: asText,
+  file: asText,
   // Never asked: the shown list's selection (`inputOf`).
   selection: asText,
   // The sources of the write commands (SR-108 AK4): the values the metamodel allows, each from one read

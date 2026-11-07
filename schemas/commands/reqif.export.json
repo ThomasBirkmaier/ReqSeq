@@ -8,10 +8,10 @@
   "stage": 6,
   "implements": ["SR-052", "SR-054", "SR-058", "SR-059", "SR-101"],
   "arguments": [
-    { "field": "output", "complete": "text" },
+    { "field": "output", "complete": "file" },
     { "field": "selection", "complete": "selection" },
     { "field": "profile", "complete": "text" },
-    { "field": "mapping", "complete": "text" },
+    { "field": "mapping", "complete": "file" },
     { "field": "omitProperties", "complete": "property" },
     { "field": "statements", "complete": "boolean" }
   ],

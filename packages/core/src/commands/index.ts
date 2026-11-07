@@ -51,6 +51,7 @@ import variantExclude from "./variant/exclude.js";
 import workspaceActivity from "./workspace/activity.js";
 import workspaceCheck from "./workspace/check.js";
 import workspaceInit from "./workspace/init.js";
+import workspaceListFolder from "./workspace/listFolder.js";
 import workspaceRecent from "./workspace/recent.js";
 import workspaceStatus from "./workspace/status.js";
 
@@ -103,6 +104,7 @@ export const commands: readonly AnyCommand[] = [
   workspaceActivity,
   workspaceCheck,
   workspaceInit,
+  workspaceListFolder,
   workspaceRecent,
   workspaceStatus,
 ];

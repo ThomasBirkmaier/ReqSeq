@@ -23,7 +23,7 @@
     "SR-171"
   ],
   "arguments": [
-    { "field": "changedFiles", "complete": "text" },
+    { "field": "changedFiles", "complete": "file" },
     { "field": "changedSince", "complete": "text" },
     { "field": "severity", "complete": "choice" },
     { "field": "failOn", "complete": "choice" }

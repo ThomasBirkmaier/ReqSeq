@@ -9,7 +9,7 @@
   "implements": ["SR-065", "SR-097"],
   "arguments": [
     { "field": "ref", "complete": "element" },
-    { "field": "sourcePath", "complete": "text" },
+    { "field": "sourcePath", "complete": "file" },
     { "field": "repository", "complete": "repository" },
     { "field": "file", "complete": "text" }
   ],
