@@ -1,11 +1,24 @@
 // Calm typography of the element (SR-192) on the built app: a centred column of at most 72 characters in a
 // wide window, the full width without a sideways scroll in a narrow one, and code alone in a face of fixed
-// width.
+// width. Light-theme screenshots of both widths go to `test-results/electron/screenshots/` (or
+// REQSEQ_SCREENSHOTS) for the pull request.
+import fs from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
 import { launchApp, listAll } from "./support/app.js";
 import { DEMO_FRONT_MATTER } from "./support/demo.js";
+
+const OUT =
+  process.env["REQSEQ_SCREENSHOTS"] ??
+  fileURLToPath(new URL("../../../test-results/electron/screenshots", import.meta.url));
+
+const shot = async (window: Page, name: string): Promise<void> => {
+  await fs.mkdir(OUT, { recursive: true });
+  await window.screenshot({ path: path.join(OUT, `${name}.png`) });
+};
 
 const TITLE = "Windmessung im Detail";
 const LONG_WORD = "Windgeschwindigkeitsmessstationsdatenübertragungsprotokollspezifikation".repeat(2);
@@ -92,7 +105,7 @@ const fontOf = (window: Page, selector: string): Promise<string> =>
 test.describe("the typography of the element text", () => {
   let running: RunningApp;
   test.beforeEach(async () => {
-    running = await launchApp(FIXTURE);
+    running = await launchApp(FIXTURE, { colorScheme: "light" });
   });
   test.afterEach(async () => {
     await running.close();
@@ -105,6 +118,7 @@ test.describe("the typography of the element text", () => {
     expect(box.width).toBeLessThanOrEqual(box.ch72 + 1);
     expect(box.width).toBeGreaterThan(box.ch72 * 0.9);
     expect(Math.abs(box.left - box.right)).toBeLessThanOrEqual(2);
+    await shot(running.window, "typography-wide");
   });
 
   test("[SR-192/AK2] in a narrower window the text takes the whole width and wraps without a sideways scroll", async () => {
@@ -124,6 +138,16 @@ test.describe("the typography of the element text", () => {
     });
     expect(table).toBeDefined();
     expect(table?.scroll ?? 0).toBeGreaterThan(table?.client ?? 0);
+    // Its cells break between words only, never inside "Spalte".
+    const cellHeights = await running.window
+      .locator(".cm-lr-table td")
+      .evaluateAll((cells) => cells.map((cell) => cell.getBoundingClientRect().height));
+    const lineHeight = await running.window
+      .locator(".cm-lr-table td")
+      .first()
+      .evaluate((cell) => parseFloat(getComputedStyle(cell).lineHeight));
+    expect(Math.max(...cellHeights)).toBeLessThan(lineHeight * 2);
+    await shot(running.window, "typography-narrow");
   });
 
   test("[SR-192/AK3] code stands in a face of fixed width, all other text, tables included, in a proportional one", async () => {

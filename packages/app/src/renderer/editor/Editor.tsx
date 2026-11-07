@@ -170,7 +170,15 @@ const theme = EditorView.theme({
     borderCollapse: "collapse",
     margin: "0.5rem 0",
   },
-  ".cm-lr-table th, .cm-lr-table td": { border: "1px solid var(--rule)", padding: "0.2rem 0.6rem" },
+  // A cell breaks between words only: the editor's `word-break: break-word` would split every word into
+  // letters before the table scrolls.
+  ".cm-lr-table th, .cm-lr-table td": {
+    border: "1px solid var(--rule)",
+    padding: "0.2rem 0.6rem",
+    overflowWrap: "normal",
+    wordBreak: "normal",
+    whiteSpace: "normal",
+  },
   ".cm-lr-table th": { fontWeight: "700", textAlign: "left" },
   // Formulas (SR-096, `formula-preview.ts`): KaTeX draws in the text colour; an error is grey (D-062).
   ".cm-lr-formula-block": { padding: "0.25rem 0", overflowX: "auto", overflowY: "hidden" },
