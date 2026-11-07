@@ -299,6 +299,12 @@ export const COMMAND_SHORTCUT: Shortcut = { mod: true, shift: true, key: "p" };
 export const NEXT_BUFFER_SHORTCUT: Shortcut = { mod: false, shift: false, alt: true, key: "n" };
 export const PREVIOUS_BUFFER_SHORTCUT: Shortcut = { mod: false, shift: false, alt: true, key: "p" };
 /**
+ * The mouse buttons Back and Forward (`MouseEvent.button` 3 and 4, as Chromium reports them on macOS, Windows
+ * and Linux) do what Alt+P and Alt+N do (SR-163 AK1, AK2); other buttons have no shortcut.
+ */
+export const mouseButtonShortcut = (button: number): Shortcut | undefined =>
+  button === 3 ? PREVIOUS_BUFFER_SHORTCUT : button === 4 ? NEXT_BUFFER_SHORTCUT : undefined;
+/**
  * "Other window" (SR-150 AK7): Alt+O, beside Alt+N and Alt+P, because Ctrl/Cmd+O opens a workspace and the
  * physical Ctrl key on macOS belongs to the editor (product owner decision, 2026-10-31).
  */

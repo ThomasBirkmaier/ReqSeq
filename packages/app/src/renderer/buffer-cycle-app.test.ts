@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 // Alt+N and Alt+P (Option+N and Option+P on macOS) in the app (SR-115 AK5): forward and back through the
 // buffers in the order they were shown, also while typing in the text editor, and not while a prompt is open.
+// The mouse buttons Back and Forward do the same (SR-163).
 import { act, createElement } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
@@ -135,6 +136,17 @@ const press = async (target: EventTarget, init: KeyboardEventInit): Promise<Keyb
 const alt = (target: EventTarget, letter: "n" | "p"): Promise<KeyboardEvent> =>
   press(target, { key: letter, code: `Key${letter.toUpperCase()}`, altKey: true });
 
+/** A release of a mouse button: 3 is Back, 4 is Forward (`MouseEvent.button`). */
+const mouse = async (target: EventTarget, button: number): Promise<MouseEvent> => {
+  const event = new MouseEvent("mouseup", { bubbles: true, cancelable: true, button });
+  await act(async () => {
+    target.dispatchEvent(event);
+    await Promise.resolve();
+  });
+  await flush();
+  return event;
+};
+
 const type = async (value: string): Promise<void> => {
   const input = query("input");
   await act(async () => {
@@ -261,6 +273,50 @@ describe("App, Next buffer and Previous buffer (SR-115 AK5)", () => {
     }
     const dead = await press(input, { key: "Dead", code: "KeyN", altKey: true });
     expect(dead.defaultPrevented).toBe(false);
+    expect(container.querySelector("input")).not.toBeNull();
+    expect(shown()).toBe("Search: wind");
+  });
+
+  it("[SR-163/AK1] [SR-163/AK2] the mouse buttons Back and Forward do what Alt+P and Alt+N do, and never navigate", async () => {
+    await openFour();
+    await press(window, { key: "p", ctrlKey: true });
+    await press(query("input"), { key: "Enter" });
+    expect(shown()).toBe("SR-000001 Title 1");
+    const back = await mouse(query("[data-buffer]"), 3);
+    expect(back.defaultPrevented).toBe(true);
+    expect(shown()).toBe("Search: wind");
+    await mouse(window, 3);
+    expect(shown()).toBe("All elements");
+    const forward = await mouse(window, 4);
+    expect(forward.defaultPrevented).toBe(true);
+    expect(shown()).toBe("Search: wind");
+    // Other buttons are no shortcut.
+    const left = await mouse(window, 0);
+    expect(left.defaultPrevented).toBe(false);
+    expect(shown()).toBe("Search: wind");
+  });
+
+  it("[SR-163/AK1] the mouse button Back in the text editor switches as Alt+P does; the editor loses the focus", async () => {
+    await render();
+    await runCommand("List all elements");
+    await press(query('[role="listbox"]'), { key: "Enter" });
+    await act(async () => {
+      editorView().focus();
+      await Promise.resolve();
+    });
+    await mouse(query(".cm-content"), 3);
+    expect(shown()).toBe("All elements");
+    expect(document.activeElement).toBe(query("[data-buffer]"));
+  });
+
+  it("[SR-163/AK2] with one buffer or an open prompt the mouse buttons switch nothing, as Alt+N", async () => {
+    await render();
+    await mouse(window, 4);
+    expect(shown()).toBe("Overview");
+    await openFour();
+    await press(window, { key: "p", ctrlKey: true });
+    await mouse(query("input"), 4);
+    await mouse(query("input"), 3);
     expect(container.querySelector("input")).not.toBeNull();
     expect(shown()).toBe("Search: wind");
   });
