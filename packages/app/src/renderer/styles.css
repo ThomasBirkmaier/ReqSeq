@@ -1045,13 +1045,20 @@ mark {
   stroke: var(--text);
 }
 
-/* After `.selected`: an outdated link keeps the accent, also when it is a link of the selected box. */
+/* The link selected with `l` (SR-154): drawn wider and in the text colour, which an outdated link keeps
+   its accent over. */
+.graph-edge.chosen {
+  stroke: var(--text);
+  stroke-width: 3px;
+}
+
+/* After `.selected` and `.chosen`: an outdated link keeps the accent, also when it is a link of the selected box. */
 .graph-edge.outdated {
   stroke: var(--accent-outdated);
 }
 
-/* The link under the mouse or selected with `l` (SR-154): drawn wider, in its own colour. */
-.graph-edge.chosen {
+/* The link under the mouse (SR-154): drawn wider. */
+.graph-edge.hovered {
   stroke-width: 3px;
 }
 

@@ -125,13 +125,18 @@ export const nodeLabel = (node: GraphNode, typeName: string, evidence?: GraphEvi
 /** The word of an inline reference in an edge's text: the metamodel names no such kind (SR-154 AK1). */
 export const REFERENCE_NAME = "Refers to";
 
+/** The key of a relation property in the names of `relationNames`: a property may share a kind's key. */
+export const propertyNameKey = (key: string): string => `property:${key}`;
+
 /**
  * The name of a link's kind (SR-154 AK1): the name of its relation kind or relation property from the
- * metamodel (`kindNames`, by key), its key when the metamodel names none, `REFERENCE_NAME` for an inline
- * reference.
+ * metamodel (`kindNames`, `relationNames`), its key when the metamodel names none, `REFERENCE_NAME` for
+ * an inline reference.
  */
 export const kindName = (link: GraphEdge, kindNames: ReadonlyMap<string, string>): string =>
-  link.kind === undefined ? REFERENCE_NAME : (kindNames.get(link.kind) ?? link.kind);
+  link.kind === undefined
+    ? REFERENCE_NAME
+    : (kindNames.get(link.property === true ? propertyNameKey(link.kind) : link.kind) ?? link.kind);
 
 /**
  * The lines of a drawn link's text (SR-154 AK1, AK2): one per link it draws, read along the arrow,

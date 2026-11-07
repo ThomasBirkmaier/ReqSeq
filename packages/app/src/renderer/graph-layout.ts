@@ -125,11 +125,19 @@ export const edgePath = (points: readonly Point[]): string => {
   return `${d}${piece(a, b, b)}L${at(b)}`;
 };
 
-/** The middle of the points of a curve: its middle point, or halfway between its two middle points. */
+/**
+ * A point in the middle of the curve `edgePath` draws through `points`: with three points or more, where
+ * the spline passes its middle inner point, (a + 4b + c) / 6 (the end of a `piece`); with two, halfway.
+ */
 export const middleOf = (points: readonly Point[]): Point => {
-  const a = points[Math.floor((points.length - 1) / 2)] ?? { x: 0, y: 0 };
-  const b = points[Math.ceil((points.length - 1) / 2)] ?? a;
-  return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+  const first = points[0] ?? { x: 0, y: 0 };
+  if (points.length < 3) {
+    const last = points.at(-1) ?? first;
+    return { x: (first.x + last.x) / 2, y: (first.y + last.y) / 2 };
+  }
+  const i = Math.floor(points.length / 2);
+  const [a, b, c] = [points[i - 1] ?? first, points[i] ?? first, points[i + 1] ?? first];
+  return { x: (a.x + 4 * b.x + c.x) / 6, y: (a.y + 4 * b.y + c.y) / 6 };
 };
 
 const centreX = (node: PlacedBox): number => node.x + NODE_WIDTH / 2;

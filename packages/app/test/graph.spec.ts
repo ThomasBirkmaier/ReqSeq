@@ -50,6 +50,7 @@ interface GraphOutput {
     readonly kind?: string;
     readonly meaning?: string;
     readonly outdated?: boolean;
+    readonly property?: boolean;
   }[];
 }
 
@@ -731,7 +732,7 @@ test.describe("the depth and relation kinds of a graph on a fixture workspace", 
     };
     const names = new Map([
       ...model.relations.map((kind) => [kind.key, kind.name] as const),
-      ...model.properties.map((property) => [property.key, property.name] as const),
+      ...model.properties.map((property) => [`property:${property.key}`, property.name] as const),
     ]);
     const idOf = new Map(
       output.nodes.map((node) => [key(node.repository, node.id), node.identifier ?? node.shortId]),
@@ -746,7 +747,9 @@ test.describe("the depth and relation kinds of a graph on a fixture workspace", 
         .map((edge) =>
           [
             idOf.get(key(edge.sourceRepository, edge.source)),
-            edge.kind === undefined ? "Refers to" : (names.get(edge.kind) ?? edge.kind),
+            edge.kind === undefined
+              ? "Refers to"
+              : (names.get(edge.property === true ? `property:${edge.kind}` : edge.kind) ?? edge.kind),
             idOf.get(key(edge.targetRepository, edge.target)),
             ...(edge.outdated === true ? ["· outdated"] : []),
           ].join(" "),

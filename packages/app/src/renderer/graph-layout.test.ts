@@ -732,14 +732,23 @@ describe("evidence boxes", () => {
 });
 
 describe("the middle of a curve", () => {
-  it("[SR-154/AK3] is its middle point, or halfway between its two middle points", () => {
+  it("[SR-154/AK3] lies on the drawn curve, halfway on a straight line", () => {
+    // On the spline: where it passes the middle inner point, (a + 4b + c) / 6.
     expect(
       middleOf([
         { x: 0, y: 0 },
-        { x: 10, y: 20 },
-        { x: 40, y: 40 },
+        { x: 12, y: 24 },
+        { x: 36, y: 36 },
       ]),
-    ).toEqual({ x: 10, y: 20 });
+    ).toEqual({ x: 14, y: 22 });
+    // An arch over one layer: the text stands on its top, not above it.
+    const arch = middleOf([
+      { x: 0, y: 0 },
+      { x: 0, y: -28 },
+      { x: 60, y: -28 },
+      { x: 60, y: 0 },
+    ]);
+    expect([arch.x, Math.round(arch.y * 6)]).toEqual([50, -140]);
     expect(
       middleOf([
         { x: 0, y: 0 },

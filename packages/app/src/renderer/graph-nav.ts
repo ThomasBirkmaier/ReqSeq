@@ -42,6 +42,9 @@ export const DEPTH_LESS = "-";
  * its links, in turn, and back to the box. Tab stays the key that leaves the graph.
  */
 export const LINK_NEXT = "l";
+
+/** Whether a key is `LINK_NEXT`, also with Caps Lock or Shift. */
+export const isLinkNext = (key: string): boolean => key.toLowerCase() === LINK_NEXT;
 export const LINK_BACK = "Escape";
 
 /** Enter, the depth keys and the link keys in the graph of an element (`GraphView`). */

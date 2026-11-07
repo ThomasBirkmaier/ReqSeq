@@ -43,10 +43,13 @@ export const useGraphLinks = (layout: GraphLayout | undefined, selected: string)
   const [chosenLink, setChosenLink] = useState<ChosenLink | undefined>(undefined);
   const [hoveredLink, setHovered] = useState<Hovered | undefined>(undefined);
   const links = layout?.paths.filter((path) => path.source === selected || path.target === selected) ?? [];
-  const chosen =
-    chosenLink !== undefined && chosenLink.of === layout && chosenLink.node === selected
-      ? links[chosenLink.index]
-      : undefined;
+  // A move to another node or a new layout drops the chosen link for good, so coming back does not
+  // bring it back (adjusting state while rendering, as React allows for the component's own state).
+  const stale = chosenLink !== undefined && (chosenLink.of !== layout || chosenLink.node !== selected);
+  if (stale) {
+    setChosenLink(undefined);
+  }
+  const chosen = chosenLink === undefined || stale ? undefined : links[chosenLink.index];
   const hovered =
     hoveredLink !== undefined && layout?.paths.includes(hoveredLink.path) === true ? hoveredLink : undefined;
   return {
@@ -74,7 +77,8 @@ export const LinkHits = ({
   readonly paths: readonly EdgePath[];
   readonly hover: GraphLinks["hover"];
 }): React.JSX.Element[] => {
-  // The point of the canvas under the mouse: the SVG covers the canvas.
+  // The point of the canvas where the mouse entered the curve (the SVG covers the canvas): the text stays
+  // there while the mouse is on the curve, so a move does not render the graph again.
   const at = (path: EdgePath) => (event: React.MouseEvent<SVGPathElement>) => {
     const box = event.currentTarget.ownerSVGElement?.getBoundingClientRect();
     hover({ path, at: { x: event.clientX - (box?.left ?? 0), y: event.clientY - (box?.top ?? 0) } });
@@ -86,7 +90,6 @@ export const LinkHits = ({
       d={path.d}
       data-hit={pathKey(path)}
       onMouseEnter={at(path)}
-      onMouseMove={at(path)}
       onMouseLeave={() => {
         hover(undefined);
       }}

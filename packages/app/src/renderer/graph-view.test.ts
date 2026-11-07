@@ -87,7 +87,7 @@ const KINDS = new Map([
   ["derives-from", "Derives from"],
   ["based-on", "Based on"],
   ["supersedes", "Supersedes"],
-  ["packages", "Package"],
+  ["property:packages", "Package"],
 ]);
 
 const mount = async (call: Call, initial: GraphBuffer = S1) => {
@@ -504,10 +504,11 @@ describe("GraphView", () => {
       [...container.querySelectorAll(".graph-edge-tip")].map((tip) =>
         [...tip.children].map((line) => line.textContent),
       );
-    const chosen = (): string[] =>
-      [...container.querySelectorAll<SVGPathElement>("path.graph-edge.chosen")].map(
+    const drawn = (kind: string): string[] =>
+      [...container.querySelectorAll<SVGPathElement>(`path.graph-edge.${kind}`)].map(
         (path) => `${path.dataset["source"] ?? ""}>${path.dataset["target"] ?? ""}`,
       );
+    const chosen = (): string[] => drawn("chosen");
 
     it("[SR-154/AK1] the mouse on a link shows its kind, source and target at the link, and outdated", async () => {
       await mount(asCall(fakeCall()));
@@ -515,7 +516,8 @@ describe("GraphView", () => {
       expect(tips()).toEqual([["S1 Derives from N1"]]);
       expect(query(".graph-edge-tip").getAttribute("aria-hidden")).toBe("true");
       expect(query(".graph-edge-tip").style.left).toBe("40px");
-      expect(chosen()).toEqual([`${key("S1")}>${key("N1")}`]);
+      expect(drawn("hovered")).toEqual([`${key("S1")}>${key("N1")}`]);
+      expect(chosen()).toEqual([]);
       await mouse("mouseout", hit("S1", "N1"));
       await mouse("mouseover", hit("S1", "D2"));
       expect(tips()).toEqual([["S1 Refers to D2 · outdated"]]);
@@ -588,11 +590,17 @@ describe("GraphView", () => {
         await Promise.resolve();
       });
       expect(again.defaultPrevented).toBe(false);
-      // Another node drops the chosen link.
+      // Another node drops the chosen link, also when the selection comes back.
+      await press("Home");
       await press("l");
+      await press("ArrowDown");
+      expect(container.querySelector("#gedge")).toBeNull();
       await press("Home");
       expect(selected()).toBe(key("S1"));
       expect(container.querySelector("#gedge")).toBeNull();
+      // Caps Lock gives "L", which selects a link too.
+      await press("L");
+      expect(container.querySelector("#gedge")).not.toBeNull();
     });
 
     it("[SR-154/AK6] without the mouse on a link and without a chosen link no link carries a word, and there is no legend", async () => {

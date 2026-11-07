@@ -36,7 +36,7 @@ import {
   layoutGraph,
   viewStart,
 } from "./graph-layout.js";
-import { DEPTH_LESS, DEPTH_MORE, GRAPH_MOVES, LINK_BACK, LINK_NEXT, graphStep } from "./graph-nav.js";
+import { DEPTH_LESS, DEPTH_MORE, GRAPH_MOVES, LINK_BACK, graphStep, isLinkNext } from "./graph-nav.js";
 import type { BufferData } from "./modeline.js";
 
 export interface GraphViewProps {
@@ -172,7 +172,8 @@ export const GraphView = ({
   // the window changes the width of the view: it opens on the selected node again (SR-115 AK3).
   useLayoutEffect(() => {
     const view = root.current;
-    const node = view?.querySelector('[aria-selected="true"]');
+    // The selected node's box, also while one of its links is chosen (its text is then the selected option).
+    const node = view?.querySelector('.graph-node[aria-selected="true"], .graph-node.link-chosen');
     const canvas = view?.querySelector(".graph-canvas");
     if (view === null || node === null || node === undefined || canvas === null || canvas === undefined) {
       return;
@@ -226,7 +227,7 @@ export const GraphView = ({
   // The keys of the links (SR-154 AK3 to AK5): whether the key was one of them. Without a selected link
   // Escape is the window's.
   const linkKey = (event: React.KeyboardEvent): boolean => {
-    if (event.key === LINK_NEXT) {
+    if (isLinkNext(event.key)) {
       event.preventDefault();
       links.next();
       return true;
@@ -303,7 +304,8 @@ export const GraphView = ({
                   key={pathKey(path)}
                   className={[
                     edgeClasses(path.links, lit && (path.source === selected || path.target === selected)),
-                    ...(path === chosen || path === links.hovered?.path ? ["chosen"] : []),
+                    ...(path === chosen ? ["chosen"] : []),
+                    ...(path === links.hovered?.path ? ["hovered"] : []),
                   ].join(" ")}
                   d={path.d}
                   data-source={path.source}

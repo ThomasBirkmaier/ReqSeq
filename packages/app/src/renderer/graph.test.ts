@@ -163,7 +163,8 @@ describe("what a node shows", () => {
 describe("the text of a link", () => {
   const names = new Map([
     ["derives-from", "Derives from"],
-    ["packages", "Package"],
+    ["property:packages", "Package"],
+    ["packages", "A kind named packages"],
   ]);
   const nameOf = (key: string): string => key.replace("spec:uuid-", "");
 

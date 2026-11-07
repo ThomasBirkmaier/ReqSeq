@@ -353,12 +353,12 @@ describe("Evidence", () => {
 });
 
 describe("the names of the relation kinds", () => {
-  it("[SR-154/AK1] names each relation kind and relation property by its name in the metamodel", () => {
+  it("[SR-154/AK1] names each relation kind and relation property by its name in the metamodel, apart from each other", () => {
     expect([...relationNames(METAMODEL)]).toEqual([
       ["refines", "Refines"],
       ["derives-from", "Derives from"],
       ["based-on", "Based on"],
-      ["packages", "Package"],
+      ["property:packages", "Package"],
     ]);
   });
 });
