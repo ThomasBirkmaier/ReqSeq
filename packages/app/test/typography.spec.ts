@@ -9,7 +9,7 @@ import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
 import { launchApp, listAll } from "./support/app.js";
-import { DEMO_FRONT_MATTER } from "./support/demo.js";
+import { DEMO_FILE, DEMO_FRONT_MATTER, DEMO_TITLE } from "./support/demo.js";
 
 const OUT =
   process.env["REQSEQ_SCREENSHOTS"] ??
@@ -20,7 +20,7 @@ const shot = async (window: Page, name: string): Promise<void> => {
   await window.screenshot({ path: path.join(OUT, `${name}.png`) });
 };
 
-const TITLE = "Windmessung im Detail";
+const TITLE = DEMO_TITLE;
 const LONG_WORD = "Windgeschwindigkeitsmessstationsdatenübertragungsprotokollspezifikation".repeat(2);
 const WIDE_ROW = Array.from({ length: 14 }, (_, index) => `Spalte ${String(index + 1)}`);
 const TEXT = `# Übersicht
@@ -40,7 +40,7 @@ const wind = 12;
 
 const FIXTURE = {
   fixture: "SR-069/filter",
-  files: { "needs/N-0000000000ed.md": `${DEMO_FRONT_MATTER}${TEXT}` },
+  files: { [DEMO_FILE]: `${DEMO_FRONT_MATTER}${TEXT}` },
 };
 
 const resize = async (running: RunningApp, width: number): Promise<void> => {
@@ -60,35 +60,37 @@ const opened = async (window: Page): Promise<void> => {
   await expect(window.locator(".cm-lr-table")).toBeVisible();
 };
 
-/** The box of the editor's text, the width of 72 zeros in its face, and the box of its area. */
+/**
+ * The box of the editor's text, the width of 72 zeros in its face, and the place of the column in the buffer
+ * (its scroller, without a scroll bar).
+ */
 const measure = (window: Page) =>
   window.evaluate(() => {
     const content = document.querySelector(".element .cm-content");
     const column = document.querySelector(".element .column");
-    const area = document.querySelector(".area");
-    if (content === null || column === null || area === null) {
+    const scroller = document.querySelector(".buffer.element");
+    if (content === null || column === null || scroller === null) {
       throw new Error("no editor");
     }
     const probe = document.createElement("span");
     probe.textContent = "0".repeat(72);
     probe.style.whiteSpace = "pre";
-    content.append(probe);
+    // In the column, which has the face of the text: not in the editor, which would take it as input.
+    column.append(probe);
     const ch72 = probe.getBoundingClientRect().width;
     probe.remove();
     const text = content.getBoundingClientRect();
     const sheet = column.getBoundingClientRect();
-    const box = area.getBoundingClientRect();
-    // The buffer is the scroller of the element.
-    const scroller = document.querySelector(".buffer.element");
+    const box = scroller.getBoundingClientRect();
     return {
       ch72,
       // The column with the text and, at its right, the space for the copy symbol of the field (SR-128).
       left: sheet.left - box.left,
-      right: box.right - sheet.right,
+      right: box.left + scroller.clientWidth - sheet.right,
       width: text.width,
       columnWidth: sheet.width,
-      areaWidth: box.width,
-      sideways: scroller === null ? 1 : scroller.scrollWidth - scroller.clientWidth,
+      areaWidth: scroller.clientWidth,
+      sideways: scroller.scrollWidth - scroller.clientWidth,
       pageSideways: document.documentElement.scrollWidth - document.documentElement.clientWidth,
     };
   });
@@ -138,16 +140,39 @@ test.describe("the typography of the element text", () => {
     });
     expect(table).toBeDefined();
     expect(table?.scroll ?? 0).toBeGreaterThan(table?.client ?? 0);
-    // Its cells break between words only, never inside "Spalte".
-    const cellHeights = await running.window
-      .locator(".cm-lr-table td")
-      .evaluateAll((cells) => cells.map((cell) => cell.getBoundingClientRect().height));
-    const lineHeight = await running.window
-      .locator(".cm-lr-table td")
-      .first()
-      .evaluate((cell) => parseFloat(getComputedStyle(cell).lineHeight));
-    expect(Math.max(...cellHeights)).toBeLessThan(lineHeight * 2);
+    // Its cells break between words only: each word of a head or body cell stands on one line.
+    const splitWords = await running.window.locator(".cm-lr-table th, .cm-lr-table td").evaluateAll((cells) =>
+      cells.flatMap((cell) => {
+        const walker = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT);
+        const split: string[] = [];
+        for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
+          const text = node.textContent ?? "";
+          for (const match of text.matchAll(/\S+/g)) {
+            const range = document.createRange();
+            range.setStart(node, match.index);
+            range.setEnd(node, match.index + match[0].length);
+            if (range.getClientRects().length > 1) {
+              split.push(match[0]);
+            }
+          }
+        }
+        return split;
+      }),
+    );
+    expect(splitWords).toEqual([]);
     await shot(running.window, "typography-narrow");
+    // Its scroll bar scrolls it with the mouse: the cursor does not go into the table, its source stays hidden.
+    const bounds = await running.window.locator(".cm-lr-table").boundingBox();
+    expect(bounds).not.toBeNull();
+    const bar = { x: (bounds?.x ?? 0) + 40, y: (bounds?.y ?? 0) + (bounds?.height ?? 0) - 4 };
+    await running.window.mouse.move(bar.x, bar.y);
+    await running.window.mouse.down();
+    await running.window.mouse.move(bar.x + 150, bar.y, { steps: 5 });
+    await running.window.mouse.up();
+    await expect(running.window.locator(".cm-lr-table-source")).toHaveCount(0);
+    expect(
+      await running.window.locator(".cm-lr-table").evaluate((table) => table.scrollLeft),
+    ).toBeGreaterThan(0);
   });
 
   test("[SR-192/AK3] code stands in a face of fixed width, all other text, tables included, in a proportional one", async () => {

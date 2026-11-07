@@ -125,9 +125,9 @@ const theme = EditorView.theme({
   "&": { color: "var(--text)", backgroundColor: "transparent" },
   "&.cm-focused": { outline: "none" },
   ".cm-scroller": { fontFamily: "inherit", lineHeight: "1.6", overflow: "visible" },
-  // The text is never wider than its column (SR-192 AK2): the content may shrink below the widest table,
-  // which then scrolls in its own box.
-  ".cm-content": { padding: "0", caretColor: "var(--text)", minWidth: "0", flexShrink: "1" },
+  // The text is never wider than its column (SR-192 AK2): the content (which shrinks, `lineWrapping`) may
+  // become narrower than the widest table, which then scrolls in its own box.
+  ".cm-content": { padding: "0", caretColor: "var(--text)", minWidth: "0" },
   ".cm-line": { padding: "0" },
   "&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground": {
     backgroundColor: "var(--in-field, var(--select))",
