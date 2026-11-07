@@ -755,17 +755,22 @@ test.describe("the depth and relation kinds of a graph on a fixture workspace", 
           ].join(" "),
         );
     await expect(window.locator(".graph-edge-tip")).toHaveCount(0);
-    // The mouse on the middle of the first curve.
+    // The mouse on the middle of the first curve whose middle is in view and on top there (no box over
+    // it): the window's size differs between runners, so the first curve's middle may be out of view.
     const middle = await window.evaluate(() => {
-      const path = document.querySelector<SVGPathElement>("path.graph-edge-hit");
-      const svg = path?.ownerSVGElement?.getBoundingClientRect();
-      const point = path?.getPointAtLength(path.getTotalLength() / 2);
-      return {
-        curve: path?.dataset["hit"] ?? "",
-        x: (svg?.left ?? 0) + (point?.x ?? 0),
-        y: (svg?.top ?? 0) + (point?.y ?? 0),
-      };
+      for (const path of document.querySelectorAll<SVGPathElement>("path.graph-edge-hit")) {
+        const matrix = path.getScreenCTM();
+        if (matrix === null) {
+          continue;
+        }
+        const point = path.getPointAtLength(path.getTotalLength() / 2).matrixTransform(matrix);
+        if (document.elementFromPoint(point.x, point.y) === path) {
+          return { curve: path.dataset["hit"] ?? "", x: point.x, y: point.y };
+        }
+      }
+      return { curve: "", x: 0, y: 0 };
     });
+    expect(middle.curve).not.toBe("");
     await window.mouse.move(middle.x, middle.y);
     const hovered = window.locator(".graph-edge-tip");
     await expect(hovered).toHaveCount(1);
