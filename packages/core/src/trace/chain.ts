@@ -171,7 +171,7 @@ const sameCycle = (a: WalkCycle<DerivationLink>, b: WalkCycle<DerivationLink>): 
 
 /**
  * The steps of the downward chain from an element: its children (`childrenOf`) that are part of the
- * chain (`includes`). Shared by `traceChain` and `lacksEvidence`, so both count the same children.
+ * chain (`includes`).
  */
 const childrenWithin = (
   graph: DerivationGraph,
@@ -222,26 +222,6 @@ const gapOf = (
 
 /** The default evidence of an element: it has leaves. */
 const hasLeaves = (_element: ElementRecord, leaves: readonly unknown[]): boolean => leaves.length > 0;
-
-/**
- * Whether an element is a `no-evidence` gap of the downward chain (SR-022 AK3), whatever depth a
- * chain would look at: its children are counted as the chain's down walk counts them (in the view,
- * `includes`; a child named only by an ambiguous relation is none, SR-088), and `hasEvidence` decides
- * its evidence as it does for `traceChain` (SR-033), so the marks of `trace.graph` and the gaps of
- * the chain agree (SR-111 AK4). A requirement `outsideView` does not hold lacks none (#674).
- */
-export const lacksEvidence = (
-  graph: DerivationGraph,
-  includes: ((element: ElementRecord) => boolean) | undefined,
-  hasEvidence: (element: ElementRecord) => boolean,
-  outsideView?: (element: ElementRecord) => boolean,
-): ((element: ElementRecord) => boolean) => {
-  const types = gapTypes(graph.metamodel);
-  const children = childrenWithin(graph, includes);
-  return (element) =>
-    types.requirements.has(element.type) &&
-    gapOf(types, element, children(element).steps.length > 0, [], hasEvidence, outsideView) === "no-evidence";
-};
 
 /** The `no-parent` gaps of the upward walk (AK5, see the file comment), in node order. */
 const parentGapsOf = (graph: DerivationGraph, up: WalkResult<DerivationLink, unknown>): ChainGap[] => {

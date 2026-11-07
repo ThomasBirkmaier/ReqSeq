@@ -20,6 +20,9 @@
 //   or device path (`\\host\share\x.png`, `\\?\…`) is refused (`source-not-local`), since
 //   reading it would open a network connection (#294). Errors name only its base name, never an
 //   absolute path, so every access gives the same error (D-029).
+// - Or the source is given as bytes (`content`, base64, with `name`), for an image that has no file,
+//   such as one pasted or dropped in the app (SR-190 AK3). Exactly one of `sourcePath` and `content`.
+//   At most `MAX_CONTENT_BYTES` decoded, so a request fits the body limit of the API and MCP (SR-080).
 import { createHash } from "node:crypto";
 import type { Dirent } from "node:fs";
 import fs from "node:fs/promises";
@@ -49,6 +52,29 @@ export const IMAGE_EXTENSIONS: readonly string[] = [
   ".svg",
   ".webp",
 ];
+
+/** The largest image given as `content` (20 MiB): its base64 stays below the 32 MiB body of the API and MCP. */
+export const MAX_CONTENT_BYTES = 20 * 1024 * 1024;
+
+/** The characters of base64 (RFC 4648 section 4), without the padding `=`. */
+const BASE64_CHARACTERS = /[A-Za-z0-9+/]/;
+
+/**
+ * Whether `text` is padded base64: a multiple of 4 characters of the alphabet, with `=` only as the
+ * last one or two. A loop, not one regular expression, which would run out of stack on 28 MB.
+ */
+export const isBase64 = (text: string): boolean => {
+  if (text.length % 4 !== 0) {
+    return false;
+  }
+  const padding = text.endsWith("==") ? 2 : text.endsWith("=") ? 1 : 0;
+  for (let i = 0; i < text.length - padding; i += 1) {
+    if (!BASE64_CHARACTERS.test(text.charAt(i))) {
+      return false;
+    }
+  }
+  return true;
+};
 
 /** Characters of a name before its extension. */
 const MAX_NAME = 64;
@@ -129,10 +155,8 @@ export const sourceLocation = (
   return absolute;
 };
 
-/** The image at `sourcePath` (relative to `root`, or absolute): a regular file with an image extension. */
-const readSource = async (root: string, sourcePath: string): Promise<Source> => {
-  const absolute = sourceLocation(root, sourcePath);
-  const name = path.basename(absolute);
+/** The extension of `name` in lower case, which must be one of an image. */
+const imageExtension = (name: string): string => {
   const extension = path.extname(name).toLowerCase();
   if (!IMAGE_EXTENSIONS.includes(extension)) {
     throw invalid(`${name} is no image ReqSeq embeds; the name must end in ${IMAGE_EXTENSIONS.join(", ")}`, {
@@ -140,6 +164,55 @@ const readSource = async (root: string, sourcePath: string): Promise<Source> => 
       extension,
     });
   }
+  return extension;
+};
+
+const sourceOf = (bytes: Uint8Array, name: string, extension: string): Source => ({
+  bytes,
+  sha256: createHash("sha256").update(bytes).digest("hex"),
+  stem: attachmentStem(name, extension),
+  extension,
+});
+
+/**
+ * The image given as `content` (base64) with `name`: the base name of `name` names it. The base64 is
+ * checked by its pattern, so a request with other characters is refused instead of decoded loosely.
+ */
+export const contentSource = (content: string, name: string): Source => {
+  const base = name.slice(name.search(/[^/\\]*$/));
+  const extension = imageExtension(base);
+  if (!isBase64(content)) {
+    throw invalid(`The content of ${base} is not base64`, { reason: "content-not-base64" });
+  }
+  const bytes = Buffer.from(content, "base64");
+  if (bytes.length > MAX_CONTENT_BYTES) {
+    throw invalid(`${base} is larger than 20 MiB`, { reason: "content-too-large", limit: MAX_CONTENT_BYTES });
+  }
+  return sourceOf(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.length), base, extension);
+};
+
+/** The source of `input`: exactly one of `sourcePath` and `content` (with `name`). */
+const sourceFor = async (root: string, input: ElementAddAttachmentInput): Promise<Source> => {
+  const { sourcePath, content, name } = input;
+  if (sourcePath !== undefined && (content !== undefined || name !== undefined)) {
+    throw invalid("Give the image as sourcePath or as content with name, not both", {
+      reason: "source-twice",
+    });
+  }
+  if (sourcePath !== undefined) {
+    return readSource(root, sourcePath);
+  }
+  if (content === undefined || name === undefined) {
+    throw invalid("Give the image as sourcePath, or as content with name", { reason: "source-none" });
+  }
+  return contentSource(content, name);
+};
+
+/** The image at `sourcePath` (relative to `root`, or absolute): a regular file with an image extension. */
+const readSource = async (root: string, sourcePath: string): Promise<Source> => {
+  const absolute = sourceLocation(root, sourcePath);
+  const name = path.basename(absolute);
+  const extension = imageExtension(name);
   let bytes: Uint8Array;
   try {
     if (!(await fs.stat(absolute)).isFile()) {
@@ -149,12 +222,7 @@ const readSource = async (root: string, sourcePath: string): Promise<Source> => 
   } catch (error) {
     throw error instanceof CommandError ? error : unreadable(name, error);
   }
-  return {
-    bytes,
-    sha256: createHash("sha256").update(bytes).digest("hex"),
-    stem: attachmentStem(name, extension),
-    extension,
-  };
+  return sourceOf(bytes, name, extension);
 };
 
 /** How names are compared for a clash: after NFC and in lower case, as macOS and Windows compare them. */
@@ -233,7 +301,7 @@ export const addAttachment = async (
     file: input.file,
   });
   assertElementWritable(metamodel, record);
-  const source = await readSource(workspace.root, input.sourcePath);
+  const source = await sourceFor(workspace.root, input);
   const { repository, current } = await readUnchanged(workspace, layout, record);
   const elementFolder = path.posix.dirname(record.file);
   const stem = path.posix.basename(record.file).slice(0, -ELEMENT_FILE_EXTENSION.length);

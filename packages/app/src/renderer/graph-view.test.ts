@@ -83,6 +83,13 @@ const TYPES = new Map([
 ]);
 
 /** The graph buffer in a real buffer state, and what happened to it. */
+const KINDS = new Map([
+  ["derives-from", "Derives from"],
+  ["based-on", "Based on"],
+  ["supersedes", "Supersedes"],
+  ["property:packages", "Package"],
+]);
+
 const mount = async (call: Call, initial: GraphBuffer = S1) => {
   const actions: BufferAction[] = [];
   const data: [string, BufferData | undefined][] = [];
@@ -104,6 +111,7 @@ const mount = async (call: Call, initial: GraphBuffer = S1) => {
       onData: (bufferKey, loaded) => data.push([bufferKey, loaded]),
       onEcho: (message) => echoed.push(message),
       typeNames: TYPES,
+      kindNames: KINDS,
     });
   };
   const show = async (revision: number): Promise<void> => {
@@ -142,16 +150,16 @@ describe("GraphView", () => {
       ["N1 · need", "Title N1", []],
       ["D1 · Decision", "Title D1", []],
       ["PKG-1 · package", "Title PKG", []],
-      ["O1 · System Requirement", "Title O1", ["superseded:superseded", "gap:no evidence"]],
+      ["O1 · System Requirement", "Title O1", ["superseded:superseded"]],
       ["D2 · Decision", "Title D2", []],
       ["C1 · System Requirement", "Title C1", []],
-      ["C2 · System Requirement", "Title C2", ["outdated:outdated", "gap:no evidence"]],
-      ["C3 · System Requirement", "Title C3", ["gap:no evidence"]],
+      ["C2 · System Requirement", "Title C2", ["outdated:outdated"]],
+      ["C3 · System Requirement", "Title C3", []],
       ["E · Decision", "Title E", []],
     ]);
     expect(query(`[data-node="${key("O1")}"]`).className).toBe("graph-node superseded");
     expect(query(`[data-node="${key("O1")}"]`).getAttribute("aria-label")).toBe(
-      "O1 System Requirement Title O1 superseded no evidence",
+      "O1 System Requirement Title O1 superseded",
     );
     // The element of the selected node, the graph's own while none is chosen, is the marked one (SR-150).
     expect(data.at(-1)).toEqual([
@@ -482,5 +490,134 @@ describe("GraphView", () => {
     });
     await flush();
     expect(container.querySelectorAll(".graph-node")).toHaveLength(10);
+  });
+
+  describe("the relation kind of a link (SR-154)", () => {
+    const mouse = async (type: string, target: Element): Promise<void> => {
+      await act(async () => {
+        target.dispatchEvent(new MouseEvent(type, { bubbles: true, clientX: 40, clientY: 30 }));
+        await Promise.resolve();
+      });
+    };
+    const hit = (from: string, to: string): Element => query(`[data-hit="${key(from)}>${key(to)}"]`);
+    const tips = (): string[][] =>
+      [...container.querySelectorAll(".graph-edge-tip")].map((tip) =>
+        [...tip.children].map((line) => line.textContent),
+      );
+    const drawn = (kind: string): string[] =>
+      [...container.querySelectorAll<SVGPathElement>(`path.graph-edge.${kind}`)].map(
+        (path) => `${path.dataset["source"] ?? ""}>${path.dataset["target"] ?? ""}`,
+      );
+    const chosen = (): string[] => drawn("chosen");
+
+    it("[SR-154/AK1] the mouse on a link shows its kind, source and target at the link, and outdated", async () => {
+      await mount(asCall(fakeCall()));
+      await mouse("mouseover", hit("S1", "N1"));
+      expect(tips()).toEqual([["S1 Derives from N1"]]);
+      expect(query(".graph-edge-tip").getAttribute("aria-hidden")).toBe("true");
+      expect(query(".graph-edge-tip").style.left).toBe("40px");
+      expect(drawn("hovered")).toEqual([`${key("S1")}>${key("N1")}`]);
+      expect(chosen()).toEqual([]);
+      await mouse("mouseout", hit("S1", "N1"));
+      await mouse("mouseover", hit("S1", "D2"));
+      expect(tips()).toEqual([["S1 Refers to D2 · outdated"]]);
+      await mouse("mousemove", hit("S1", "D2"));
+      expect(tips()).toHaveLength(1);
+      await mouse("mouseout", hit("S1", "D2"));
+      expect(tips()).toEqual([]);
+    });
+
+    it("[SR-154/AK2] a link that draws several relations names each of them", async () => {
+      const both = graphOutput(
+        [graphNode("S1", 0), graphNode("N1", -1, { type: "need" })],
+        [graphEdge("S1", "N1"), graphEdge("S1", "N1", BASED_ON)],
+      );
+      await mount(asCall(fakeCall(() => both)));
+      await mouse("mouseover", hit("S1", "N1"));
+      expect(tips()).toEqual([["S1 Derives from N1", "S1 Based on N1"]]);
+      await press("l");
+      expect(query("#gedge").getAttribute("aria-label")).toBe("S1 Derives from N1; S1 Based on N1");
+    });
+
+    it("[SR-154/AK3] l selects a link of the selected node: drawn wider, with its text as the active option", async () => {
+      await mount(asCall(fakeCall()));
+      await press("l");
+      const view = query(".graph");
+      expect(view.getAttribute("aria-activedescendant")).toBe("gedge");
+      const tip = query("#gedge");
+      expect([tip.getAttribute("role"), tip.getAttribute("aria-selected")]).toEqual(["option", "true"]);
+      expect(tip.getAttribute("aria-label")).toBe("S1 Derives from N1");
+      expect(tips()).toEqual([["S1 Derives from N1"]]);
+      expect(chosen()).toEqual([`${key("S1")}>${key("N1")}`]);
+      // The node stays marked as the one whose links are chosen, but the link is the selected option.
+      expect(selected()).toBeUndefined();
+      expect(query(`[data-node="${key("S1")}"]`).classList.contains("link-chosen")).toBe(true);
+    });
+
+    it("[SR-154/AK4] l goes through every link of the selected node in turn, and starts again", async () => {
+      await mount(asCall(fakeCall()));
+      const links = [...container.querySelectorAll<SVGPathElement>("path.graph-edge")].filter(
+        (path) => path.dataset["source"] === key("S1") || path.dataset["target"] === key("S1"),
+      );
+      const seen: string[] = [];
+      for (let i = 0; i <= links.length; i += 1) {
+        await press("l");
+        seen.push(query("#gedge").dataset["edge"] ?? "");
+      }
+      expect(new Set(seen.slice(0, links.length)).size).toBe(links.length);
+      expect(seen.at(-1)).toBe(seen[0]);
+      expect(query("#gedge").getAttribute("aria-label")).toBe("S1 Derives from N1");
+    });
+
+    it("[SR-154/AK5] Escape goes back from the link to its node; without a link Escape is the window's", async () => {
+      await mount(asCall(fakeCall()));
+      await press("ArrowDown");
+      const node = selected();
+      await press("l");
+      expect(selected()).toBeUndefined();
+      const back = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+      await act(async () => {
+        query(".graph").dispatchEvent(back);
+        await Promise.resolve();
+      });
+      expect(back.defaultPrevented).toBe(true);
+      expect(selected()).toBe(node);
+      expect(container.querySelector(".graph-edge-tip")).toBeNull();
+      expect(chosen()).toEqual([]);
+      const again = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+      await act(async () => {
+        query(".graph").dispatchEvent(again);
+        await Promise.resolve();
+      });
+      expect(again.defaultPrevented).toBe(false);
+      // Another node drops the chosen link, also when the selection comes back.
+      await press("Home");
+      await press("l");
+      await press("ArrowDown");
+      expect(container.querySelector("#gedge")).toBeNull();
+      await press("Home");
+      expect(selected()).toBe(key("S1"));
+      expect(container.querySelector("#gedge")).toBeNull();
+      // Caps Lock gives "L", which selects a link too.
+      await press("L");
+      expect(container.querySelector("#gedge")).not.toBeNull();
+    });
+
+    it("[SR-154/AK6] without the mouse on a link and without a chosen link no link carries a word, and there is no legend", async () => {
+      await mount(asCall(fakeCall()));
+      expect(container.querySelector(".graph-edge-tip")).toBeNull();
+      expect(query(".graph-edges").textContent).toBe("");
+      const words = [...query(".graph-canvas").children]
+        .filter((child) => !child.classList.contains("graph-node") && child.tagName !== "svg")
+        .map((child) => child.textContent);
+      expect(words).toEqual([]);
+    });
+
+    it("l does nothing on a node without links", async () => {
+      await mount(asCall(fakeCall(() => graphOutput([graphNode("S1", 0)], []))));
+      await press("l");
+      expect(container.querySelector("#gedge")).toBeNull();
+      expect(selected()).toBe(key("S1"));
+    });
   });
 });

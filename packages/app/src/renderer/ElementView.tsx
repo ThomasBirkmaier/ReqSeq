@@ -59,6 +59,7 @@ import { formulasAndDiagrams } from "./editor/formulas-diagrams.js";
 import type { ImageElement } from "./editor/image-preview.js";
 import { imagePreview } from "./editor/image-preview.js";
 import type { EditorPlugins } from "./editor/plugins.js";
+import { pasteAsMarkdown } from "./editor/paste.js";
 import { mergePlugins } from "./editor/plugins.js";
 import { goToHeading, headings as headingsOf, sectionFolding } from "./editor/folding.js";
 import { boxReference, referenceAt, references } from "./editor/references.js";
@@ -779,6 +780,30 @@ export const ElementView = ({
     [],
   );
   const images = useImagePreview(view, buffer.repository);
+  // Pasted and dropped images (SR-190 AK3) are copied as "Insert image" does, from their bytes.
+  const paste = useMemo(
+    () =>
+      pasteAsMarkdown(() => ({
+        attach: async ({ content, name }) => {
+          const { call: run, buffer: shown, onEcho: echo } = now.current;
+          const answer = await run("element.addAttachment", {
+            ref: shown.id,
+            repository: shown.repository,
+            content,
+            name,
+          });
+          if (answer.ok) {
+            return answer.output.markdown;
+          }
+          echo(answer.message);
+          return undefined;
+        },
+        echo: (message) => {
+          now.current.onEcho(message);
+        },
+      })),
+    [],
+  );
   const slash = useMemo(() => slashMenu(pick), [pick]);
   const brackets = useMemo(() => referenceSearch(pick), [pick]);
   // The title of the target of a reference to another repository, when it is here (D-058): the preview of
@@ -870,6 +895,7 @@ export const ElementView = ({
         brackets,
         formulasAndDiagrams,
         images,
+        paste,
         SECTION_FOLDING,
         {
           // After the slash menu, which takes Down while it is open.
@@ -881,7 +907,7 @@ export const ElementView = ({
           ],
         },
       ),
-    [signature, slash, brackets, title, images],
+    [signature, slash, brackets, title, images, paste],
   );
 
   const setBaseline = (next: string): void => {
