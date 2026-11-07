@@ -122,6 +122,41 @@ export const nodeLabel = (node: GraphNode, typeName: string, evidence?: GraphEvi
     ...(evidence === undefined ? [] : [evidenceText(evidence)]),
   ].join(" ");
 
+/** The word of an inline reference in an edge's text: the metamodel names no such kind (SR-154 AK1). */
+export const REFERENCE_NAME = "Refers to";
+
+/** The key of a relation property in the names of `relationNames`: a property may share a kind's key. */
+export const propertyNameKey = (key: string): string => `property:${key}`;
+
+/**
+ * The name of a link's kind (SR-154 AK1): the name of its relation kind or relation property from the
+ * metamodel (`kindNames`, `relationNames`), its key when the metamodel names none, `REFERENCE_NAME` for
+ * an inline reference.
+ */
+export const kindName = (link: GraphEdge, kindNames: ReadonlyMap<string, string>): string =>
+  link.kind === undefined
+    ? REFERENCE_NAME
+    : (kindNames.get(link.property === true ? propertyNameKey(link.kind) : link.kind) ?? link.kind);
+
+/**
+ * The lines of a drawn link's text (SR-154 AK1, AK2): one per link it draws, read along the arrow,
+ * "SR-111 Derives from N-071", with "· outdated" when the link is outdated (SR-025). `nameOf` names
+ * a node by its key.
+ */
+export const edgeLines = (
+  links: readonly GraphEdge[],
+  nameOf: (key: string) => string,
+  kindNames: ReadonlyMap<string, string>,
+): string[] =>
+  links.map((link) =>
+    [
+      nameOf(nodeKey(link.sourceRepository, link.source)),
+      kindName(link, kindNames),
+      nameOf(nodeKey(link.targetRepository, link.target)),
+      ...(link.outdated ? ["· outdated"] : []),
+    ].join(" "),
+  );
+
 /**
  * The classes of a drawn link: `derivation` (a darker grey) when one of its links derives, `reference`
  * (dashed) when all are inline references, `outdated` (the accent) when one is outdated, `selected`
