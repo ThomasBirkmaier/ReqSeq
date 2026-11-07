@@ -135,4 +135,38 @@ scenariosOf("element.search", [
     },
     expect: "output",
   },
+  {
+    tag: "[SR-149/AK6]",
+    name: "grouped by package: the hits of each group in relevance order, a hit in two packages twice",
+    fixture: { fixture: "SR-149/group" },
+    input: { query: "wind", group: "package" },
+    expect: "output",
+    check: (results) => {
+      const [first] = Object.values(results);
+      const outcome = first?.outcome;
+      const output = (outcome !== undefined && "output" in outcome ? outcome.output : {}) as {
+        hits: { shortId: string }[];
+        groups: { value?: string; count: number; offset: number }[];
+      };
+      expect(
+        output.groups.map(
+          ({ value, count, offset }) =>
+            `${value ?? "-"}: ${output.hits
+              .slice(offset, offset + count)
+              .map((hit) => hit.shortId)
+              .join(" ")}`,
+        ),
+      ).toEqual([
+        "PKG-0000d2: SR-0000b1",
+        "PKG-0000d1: SR-0000b2 SR-0000b1",
+        "-: PKG-0000d1 N-0000a1 SR-0000b3",
+      ]);
+    },
+  },
+  {
+    name: "a key it cannot group by (SR-149 AK6)",
+    fixture: { fixture: "SR-149/group" },
+    input: { query: "wind", group: "title" },
+    expect: "error",
+  },
 ]);

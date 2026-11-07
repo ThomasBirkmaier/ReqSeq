@@ -1,14 +1,15 @@
 {
   "name": "element.search",
   "title": "Search elements",
-  "summary": "Full-text search over title, text, properties and IDs of the elements of a selection, typo tolerant, in any case, the best first, each hit with where it was found and a snippet around the match.",
+  "summary": "Full-text search over title, text, properties and IDs of the elements of a selection, typo tolerant, in any case, the best first, each hit with where it was found and a snippet around the match; optionally in groups.",
   "effect": "read",
   "stage": 3,
-  "implements": ["SR-066", "SR-068", "SR-098", "SR-174"],
+  "implements": ["SR-066", "SR-068", "SR-098", "SR-149", "SR-174"],
   "arguments": [
     { "field": "query", "complete": "text" },
     { "field": "selection", "complete": "selection" },
     { "field": "fields", "complete": "choice" },
+    { "field": "group", "complete": "text" },
     { "field": "limit", "complete": "number" },
     { "field": "offset", "complete": "number" }
   ],
@@ -33,6 +34,10 @@
         },
         "description": "Search only these: `title`, `text` (the Markdown text), `properties` (every other value, type and status names; not relations), `id` (UUID, short ID, identifier). Default all."
       },
+      "group": {
+        "$ref": "../common.schema.json#/$defs/groupKey",
+        "description": "Group the hits (SR-149 AK6) by the keys and rules of element.list `group`: the same groups in the same order, a hit with several values in each of their groups, the hits without a value (or with only targets not available) in the last group, and an invalid key `input.invalid` whatever the query finds. Inside each group the hits keep the order of the search (ID matches, then relevance, then workspace order). The grouping reads the records the hits were found in; their targets are looked up in the workspace the selection was read from. Nothing is stored."
+      },
       "limit": {
         "type": "integer",
         "minimum": 1,
@@ -54,6 +59,7 @@
     "properties": {
       "hits": {
         "type": "array",
+        "description": "One page of the hits. With `group`, the page of the grouped rows (the hits of the first group, then of the next): a hit in several groups is a row in each, so a page can hold it more than once; key the rows by their position, not by the element.",
         "items": {
           "type": "object",
           "properties": {
@@ -141,9 +147,25 @@
           "required": ["id", "repository", "shortId", "type", "title", "score", "fields", "terms"]
         }
       },
+      "groups": {
+        "type": "array",
+        "description": "Only with `group`: every group of all the hits in order, also those on other pages; a group without hits is not given. `offset` and `rows` follow from the counts.",
+        "items": { "$ref": "../common.schema.json#/$defs/listGroup" }
+      },
+      "offset": {
+        "type": "integer",
+        "minimum": 0,
+        "description": "Only with `group`: the row the page starts at (the `offset` of the input)."
+      },
+      "rows": {
+        "type": "integer",
+        "minimum": 0,
+        "description": "Only with `group`: the rows of the grouped hits, the sum of the counts of `groups`; `offset` and `limit` page over these rows. At least `total`, more when hits are in several groups."
+      },
       "total": {
         "type": "integer",
-        "minimum": 0
+        "minimum": 0,
+        "description": "Hits, each once."
       },
       "incomplete": {
         "$ref": "../common.schema.json#/$defs/incomplete"

@@ -446,6 +446,33 @@ export interface ElementSelection {
 }
 
 /**
+ * A key to group a list by (SR-149): `type`, `status`, `package` or a property key.
+ * Schema: `schemas/common.schema.json#/$defs/groupKey`.
+ */
+export type GroupKey = Key;
+
+/**
+ * One group of a grouped list (SR-149) and where its rows are.
+ * Schema: `schemas/common.schema.json#/$defs/listGroup`.
+ */
+export interface ListGroup {
+  /** Left out for the last group, the elements without a value. The type key, the status, the short ID of the package or target, the choice key, else the value as written. With a filter on it (`type` with subtypes false, `status`, `package`, a property condition with op eq) it selects the group's elements, except those that write a choice by its display name. */
+  readonly value?: string | number | boolean;
+  /** Display name of a type, status or choice of the metamodel. */
+  readonly name?: string;
+  /** Title of a package or target, when it has one. */
+  readonly title?: string;
+  /** Identifier of a package or target, when it has one. */
+  readonly identifier?: string;
+  /** Only in the last group of a grouping by package or another relation property: its elements that name targets, none of them available (not on this machine or not in the workspace). */
+  readonly unavailable?: number;
+  /** Rows in the group: its elements or hits. */
+  readonly count: number;
+  /** Row of its first element in the grouped list: the group holds the rows offset to offset + count - 1. */
+  readonly offset: number;
+}
+
+/**
  * A view as the tool writes it in outputs: `core` or the canonical UUID or short ID of a variant (SR-043).
  * Schema: `schemas/common.schema.json#/$defs/viewId`.
  */
@@ -1918,7 +1945,7 @@ export interface ElementListInput {
   /** Keys in order: ties go to the next key, then to the workspace order (also without sort). `hierarchy` only first: the list is then the derivation tree, see `tree`. Without sort, the sort of the saved filter in `selection.filter`. */
   readonly sort?: readonly FilterSortKeyWithDefaults[];
   /** Group the list (SR-149): `type` (as written, a subtype is a group of its own), `status`, `package` (the property with the meaning `packages`), or the key of a property whose values element.facets offers: a choice or relation property, or a text, number or date property with few values shared in the workspace (a topic, not a title). Whether a text, number or date key can be grouped follows the data of the workspace (the element.facets rule with its default maxValues of 30), so the same key can become input.invalid as the data changes. Any other key is input.invalid. Groups come in the order a sort by the value gives: types, statuses and choices in metamodel order (a choice written by its display name is in the group of that choice), then other values: numbers, texts ignoring case, booleans; packages and other targets by title ignoring case, then short ID (spec-frage #978). Elements without a value form the last group; so do elements whose targets are all not available (`unavailable`). Relation items are read as element.facets and the condition `property eq` read them. An element with several values (packages, a list) is in each of their groups. `sort` (or the saved filter's sort) orders the elements inside each group; with `hierarchy` each group is its own tree. Nothing is stored. */
-  readonly group?: Key;
+  readonly group?: GroupKey;
   /** Give only these fields of each element (#982), in `partial` instead of `elements`; unlike the `fields` of element.search, which says where to search. `id`, `shortId`, `repository` and the `problems` of an element are always given; a field the element has no value for stays left out, as without `fields`. `text` gives the text as `withText` does, also with `withText` false. Without `fields`, every field in `elements`. */
   readonly fields?: readonly (
     | "identifier"
@@ -1960,22 +1987,7 @@ export type ElementListOutput = {
     };
   }[];
   /** Only with `group`: every group of the whole list in order, also those on other pages; a group without elements is not given. `offset` and `rows` follow from the counts and are given for convenience. */
-  readonly groups?: readonly {
-    /** Left out for the last group, the elements without a value. The type key, the status, the short ID of the package or target, the choice key, else the value as written. With a filter on it (`type` with subtypes false, `status`, `package`, a property condition with op eq) it selects the group's elements, except those that write a choice by its display name. */
-    readonly value?: string | number | boolean;
-    /** Display name of a type, status or choice of the metamodel. */
-    readonly name?: string;
-    /** Title of a package or target, when it has one. */
-    readonly title?: string;
-    /** Identifier of a package or target, when it has one. */
-    readonly identifier?: string;
-    /** Only in the last group of a grouping by package or another relation property: its elements that name targets, none of them available (not on this machine or not in the workspace). */
-    readonly unavailable?: number;
-    /** Elements in the group. */
-    readonly count: number;
-    /** Row of its first element in the grouped list: the group holds the rows offset to offset + count - 1. */
-    readonly offset: number;
-  }[];
+  readonly groups?: readonly ListGroup[];
   /** Only with `group`: the row the page starts at (the `offset` of the input), so that a page can be headed by its groups without the input. */
   readonly offset?: number;
   /** Only with `group`: the rows of the grouped list, the sum of the counts of `groups`; `offset` and `limit` page over these rows. At least `total`, more when elements are in several groups. */
@@ -2803,7 +2815,7 @@ export interface HintConfirmOutput {
 }
 
 /**
- * Input of `element.search` as `run` gets it: validated, properties with a `default` filled in. Full-text search over title, text, properties and IDs of the elements of a selection, typo tolerant, in any case, the best first, each hit with where it was found and a snippet around the match.
+ * Input of `element.search` as `run` gets it: validated, properties with a `default` filled in. Full-text search over title, text, properties and IDs of the elements of a selection, typo tolerant, in any case, the best first, each hit with where it was found and a snippet around the match; optionally in groups.
  * Schema: `schemas/commands/element.search.json input`.
  */
 export interface ElementSearchInput {
@@ -2813,15 +2825,18 @@ export interface ElementSearchInput {
   readonly selection?: ElementSelection;
   /** Search only these: `title`, `text` (the Markdown text), `properties` (every other value, type and status names; not relations), `id` (UUID, short ID, identifier). Default all. */
   readonly fields?: readonly ("title" | "text" | "properties" | "id")[];
+  /** Group the hits (SR-149 AK6) by the keys and rules of element.list `group`: the same groups in the same order, a hit with several values in each of their groups, the hits without a value (or with only targets not available) in the last group, and an invalid key `input.invalid` whatever the query finds. Inside each group the hits keep the order of the search (ID matches, then relevance, then workspace order). The grouping reads the records the hits were found in; their targets are looked up in the workspace the selection was read from. Nothing is stored. */
+  readonly group?: GroupKey;
   readonly limit: number;
   readonly offset: number;
 }
 
 /**
- * Output of `element.search`. Full-text search over title, text, properties and IDs of the elements of a selection, typo tolerant, in any case, the best first, each hit with where it was found and a snippet around the match.
+ * Output of `element.search`. Full-text search over title, text, properties and IDs of the elements of a selection, typo tolerant, in any case, the best first, each hit with where it was found and a snippet around the match; optionally in groups.
  * Schema: `schemas/commands/element.search.json output`.
  */
 export interface ElementSearchOutput {
+  /** One page of the hits. With `group`, the page of the grouped rows (the hits of the first group, then of the next): a hit in several groups is a row in each, so a page can hold it more than once; key the rows by their position, not by the element. */
   readonly hits: readonly {
     readonly id: Uuid;
     /** Workspace name of the repository of the element. */
@@ -2859,6 +2874,13 @@ export interface ElementSearchOutput {
         readonly marks: TextMarks;
       };
   }[];
+  /** Only with `group`: every group of all the hits in order, also those on other pages; a group without hits is not given. `offset` and `rows` follow from the counts. */
+  readonly groups?: readonly ListGroup[];
+  /** Only with `group`: the row the page starts at (the `offset` of the input). */
+  readonly offset?: number;
+  /** Only with `group`: the rows of the grouped hits, the sum of the counts of `groups`; `offset` and `limit` page over these rows. At least `total`, more when hits are in several groups. */
+  readonly rows?: number;
+  /** Hits, each once. */
   readonly total: number;
   readonly incomplete: Incomplete;
 }

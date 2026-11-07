@@ -680,7 +680,8 @@ type Listed = readonly [Rec & { readonly shortId: string; readonly title: string
 /**
  * The lines of a run of listed elements, indented two spaces and two more per level of a tree: an
  * element whose parent is not shown before it in the run names it (`[under X]`); with their texts
- * (`withText`), each element with its details at its depth and a blank line between them (#397).
+ * (`withText`), each element with its details at its depth and a blank line between them (#397); a
+ * search hit with its snippet below it.
  */
 const listedLines = (listed: readonly Listed[], name: Namer, view?: ViewNamer): string[] => {
   const keyOf = (repository: unknown, id: unknown): string => JSON.stringify([text(repository), text(id)]);
@@ -696,6 +697,8 @@ const listedLines = (listed: readonly Listed[], name: Namer, view?: ViewNamer): 
       lines.push("");
     }
     lines.push(`${at}${join(elementLine(element, name, view), under)}`);
+    // A search hit with its snippet (SR-174); none for an element of element.list.
+    lines.push(...indent(snippetLines(element), at));
     if (withText) {
       lines.push(...indent(listedElementDetails(element), at));
     }
@@ -992,13 +995,17 @@ const terminalGroupedLines = (
   ]);
 };
 
-/** The key of the elements of a list: `partial` when they have only some fields (element.list `fields`, #982). */
-const elementsKey = (rest: Rec): "elements" | "partial" =>
-  rest["partial"] === undefined ? "elements" : "partial";
+/**
+ * The key of the elements of a list: `partial` when they have only some fields (element.list `fields`,
+ * #982), `hits` for the hits of a search (element.search `group`, SR-149 AK6).
+ */
+const elementsKey = (rest: Rec): "elements" | "partial" | "hits" =>
+  rest["partial"] !== undefined ? "partial" : rest["hits"] !== undefined ? "hits" : "elements";
 
 /**
- * A grouped list (element.list `group`, SR-149): each group on the page under its heading, its
- * elements indented below it as in a plain or a tree list; undefined for any other output.
+ * A grouped list (element.list or element.search `group`, SR-149): each group on the page under its
+ * heading, its elements indented below it as in a plain or a tree list, a hit with its snippet;
+ * undefined for any other output.
  */
 const groupedListLines = (rest: Rec, names: Names, style: Style | undefined): string[] | undefined => {
   const groups = rest["groups"];
