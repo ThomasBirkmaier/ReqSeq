@@ -342,6 +342,7 @@ describe("App, Next buffer and Previous buffer (SR-115 AK5)", () => {
       expect(shifted.defaultPrevented).toBe(false);
       await press(window, { key: "p", metaKey: true });
       await press(query("input"), { key: "[", code: "BracketLeft", metaKey: true });
+      await press(query("input"), { key: "]", code: "BracketRight", metaKey: true });
       expect(container.querySelector("input")).not.toBeNull();
       expect(shown()).toBe("Search: wind");
     } finally {
@@ -354,6 +355,8 @@ describe("App, Next buffer and Previous buffer (SR-115 AK5)", () => {
     for (const init of [
       { key: "[", code: "BracketLeft", ctrlKey: true },
       { key: "[", code: "BracketLeft", metaKey: true },
+      { key: "]", code: "BracketRight", ctrlKey: true },
+      { key: "+", code: "BracketRight", metaKey: true },
     ]) {
       const event = await press(window, init);
       expect(event.defaultPrevented).toBe(false);

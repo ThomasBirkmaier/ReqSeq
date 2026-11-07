@@ -1984,15 +1984,17 @@ describe("Cmd+[ and Cmd+] on macOS (SR-163 AK3)", () => {
     expect(historyKeyAction(mac, key({ key: "]" }))?.id).toBe("next-buffer");
     expect(historyKeyAction(mac, key({ key: "+", code: "BracketRight" }))?.id).toBe("next-buffer");
     expect(historyKeyAction({ ...context, mac: false }, key({ key: "[" }))).toBeUndefined();
-    for (const other of [
-      { metaKey: false },
-      { ctrlKey: true },
-      { altKey: true },
-      { shiftKey: true },
-      { key: "x" },
-    ]) {
+    // A German layout types "[" and "]" with Option.
+    expect(historyKeyAction(mac, key({ key: "[", code: "Digit5", altKey: true }))?.id).toBe(
+      "previous-buffer",
+    );
+    expect(historyKeyAction(mac, key({ key: "]", code: "Digit6", altKey: true }))?.id).toBe("next-buffer");
+    for (const other of [{ metaKey: false }, { ctrlKey: true }, { shiftKey: true }, { key: "x" }]) {
       expect(historyKeyAction(mac, key({ key: "[", ...other }))).toBeUndefined();
     }
+    // The physical key counts with Cmd alone; an unknown key name is no history key.
+    expect(historyKeyAction(mac, key({ key: "“", code: "BracketLeft", altKey: true }))).toBeUndefined();
+    expect(historyKeyAction(mac, key({ key: "constructor", code: "constructor" }))).toBeUndefined();
     expect(historyKeyAction({ ...setup([list]).context, mac: true }, key({ key: "[" }))).toBeUndefined();
   });
 });

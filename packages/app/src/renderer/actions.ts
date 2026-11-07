@@ -318,19 +318,23 @@ export const isBufferMouseButton = (button: number): boolean => MOUSE_BUTTON_ACT
 /**
  * Cmd+[ and Cmd+] on macOS do what the mouse buttons Back and Forward do (SR-163 AK3): mouse software such as
  * Logi Options+ sends the side buttons as these keys, as Finder takes them. By the character or by the
- * physical key, since a German layout has "ü" and "+" there and types "[" only with Option; Cmd alone.
+ * physical key, since a German layout has "ü" and "+" there: Cmd alone on the physical key, Cmd with or
+ * without Option on the character, which a German layout types with Option (⌘⌥5, ⌘⌥6).
  */
-const HISTORY_KEYS: Readonly<Partial<Record<string, number>>> = {
-  "[": 3,
-  BracketLeft: 3,
-  "]": 4,
-  BracketRight: 4,
-};
+const HISTORY_CHARACTERS: ReadonlyMap<string, number> = new Map([
+  ["[", 3],
+  ["]", 4],
+]);
+const HISTORY_CODES: ReadonlyMap<string, number> = new Map([
+  ["BracketLeft", 3],
+  ["BracketRight", 4],
+]);
 export const historyKeyAction = (context: ActionContext, event: KeyPress): Action | undefined => {
-  if (!context.mac || !event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
+  if (!context.mac || !event.metaKey || event.ctrlKey || event.shiftKey) {
     return undefined;
   }
-  const button = HISTORY_KEYS[event.key] ?? HISTORY_KEYS[event.code ?? ""];
+  const button =
+    HISTORY_CHARACTERS.get(event.key) ?? (event.altKey ? undefined : HISTORY_CODES.get(event.code ?? ""));
   return button === undefined ? undefined : mouseButtonAction(context, button);
 };
 /**
