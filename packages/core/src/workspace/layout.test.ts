@@ -316,6 +316,30 @@ describe("loadWorkspaceLayout", () => {
     }
   });
 
+  it("ignores a committed path past the top-level folder or through a link out of the main repository (#294)", async () => {
+    const ws = await setup(undefined, { folders: ["a", "outside/a"] });
+    await fs.symlink(ws.path("outside"), ws.path("main/vendor"), "junction");
+    await fs.symlink("loop", ws.path("main/loop"), "dir");
+    const share = [...Array.from({ length: 64 }, () => ".."), "net", "host", "a"].join("/");
+    const realpath = vi.spyOn(fs, "realpath");
+    const stat = vi.spyOn(fs, "stat");
+    for (const committed of [share, "vendor/a", "../main/vendor/a", "loop/a"]) {
+      await ws.write(`main/${WORKSPACE_FILE}`, yaml(`${MAIN}  - { name: a, url: u, path: ${committed} }\n`));
+      const layout = await loadWorkspaceLayout(ws.path("main"));
+      expect(layout.repositories[1], committed).toMatchObject({ path: "../a", folder: ws.path("a") });
+      expect(layout.problems.map((p) => p.message)).toContain(
+        `Repository a: its path leaves the top-level folder of the main repository or passes a link out of it, as a path to a network share can; it is ignored here; put it in ${LOCAL_FILE}`,
+      );
+    }
+    const asked = [...realpath.mock.calls, ...stat.mock.calls].map(([p]) => p as string);
+    const net = path.join(path.parse(ws.path("main")).root, "net");
+    expect(asked.filter((p) => p.startsWith(net) || p.startsWith(ws.path("outside")))).toEqual([]);
+    // The local file may name any folder, as it belongs to the user's machine.
+    await ws.write(`main/${LOCAL_FILE}`, "reqseq-local: 1\nrepositories:\n  a: { path: vendor/a }\n");
+    const local = await loadWorkspaceLayout(ws.path("main"));
+    expect(local.repositories[1]).toMatchObject({ path: "vendor/a", available: true });
+  });
+
   it("does not expand ~ in paths", async () => {
     const ws = await setup(yaml(`${MAIN}  - { name: a, url: u, path: ~/a }\n`));
     const layout = await loadWorkspaceLayout(ws.path("main"));

@@ -3056,7 +3056,7 @@
             },
             "path": {
               "type": "string",
-              "description": "Expected local location relative to the main repository, with `/` as separator. Default `../<name>`; always `.` for the main repository. Absolute paths and `\\` are warned about (an absolute path is ignored); there is no `~` expansion. A person can override it in the untracked file `.reqseq/local.yaml`."
+              "description": "Expected local location relative to the main repository, with `/` as separator. Default `../<name>`; always `.` for the main repository. Absolute paths and `\\` are warned about; an absolute path is ignored, and so is one that leaves the top-level folder of the main repository or passes a link out of it (it can lead to a network share); there is no `~` expansion. A person can override it in the untracked file `.reqseq/local.yaml`."
             },
             "main": {
               "type": "boolean",

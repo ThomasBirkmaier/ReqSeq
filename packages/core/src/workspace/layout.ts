@@ -137,16 +137,48 @@ const committedPath = (entry: WorkspaceRepository, problems: Problem[]): string 
   return slashed;
 };
 
+/**
+ * Whether the committed path `committed` (relative) may be followed from the main repository at
+ * `root`: it must keep the top-level folder of `root` (`../../../../net/host/r` reaches a share
+ * that an automounter would mount), and a path into the main repository must not pass a link out
+ * of it (`vendor -> /net/host/r`), judged before anything follows it. Both come from repository
+ * content, so ReqSeq does not follow them (offline rule, product owner decision, 2026-11-07); a
+ * path on the user's own machine goes into the local file.
+ */
+const committedStays = async (root: string, committed: string): Promise<boolean> => {
+  const resolved = path.resolve(root, committed);
+  const top = (folder: string): string => {
+    const { root: base } = path.parse(folder);
+    return base + folder.slice(base.length).split(path.sep, 1).join("");
+  };
+  if (top(resolved) !== top(root)) {
+    return false;
+  }
+  const rel = path.relative(root, resolved);
+  return rel.split(path.sep)[0] === ".." || (await linksStayInside(root, resolved).catch(() => false));
+};
+
 /** The configured path of a repository, with the local override applied. */
-const configuredPath = (
+const configuredPath = async (
+  root: string,
   entry: WorkspaceRepository,
   isMain: boolean,
   local: WorkspaceLocalFile | undefined,
   problems: Problem[],
-): string => {
+): Promise<string> => {
   const committed = committedPath(entry, problems);
   const override = local?.repositories?.[entry.name]?.path;
   if (!isMain) {
+    if (override === undefined && committed !== undefined && !(await committedStays(root, committed))) {
+      problems.push(
+        invalid(
+          "warning",
+          WORKSPACE_FILE,
+          `Repository ${entry.name}: its path leaves the top-level folder of the main repository or passes a link out of it, as a path to a network share can; it is ignored here; put it in ${LOCAL_FILE}`,
+        ),
+      );
+      return `../${entry.name}`;
+    }
     return override ?? committed ?? `../${entry.name}`;
   }
   const moved = committed !== undefined && path.posix.normalize(committed).replace(/\/$/, "") !== ".";
@@ -181,7 +213,7 @@ const locateRepository = async (
   local: WorkspaceLocalFile | undefined,
   problems: Problem[],
 ): Promise<RepositoryLocation> => {
-  const configured = configuredPath(entry, isMain, local, problems);
+  const configured = await configuredPath(root, entry, isMain, local, problems);
   const resolved = path.resolve(root, configured);
   const real = await realFolder(resolved);
   return {
