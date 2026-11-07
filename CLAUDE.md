@@ -51,7 +51,7 @@ The way of working of 2026-11-07 (product owner decision; picture in `docs/proce
 - **Labels:** exactly one type (`bug`, `feature`, `task`, `question`), one area where the main change is (`core`, `cli`, `api`, `mcp`, `app`, `spec`, `dev`), and one priority (`P1` must, `P2` should, `P3` could). `needs-human` while the issue waits for the product owner, `epic` for a cut task, `agent:working` while an agent works on it. The origin (pilot, dogfooding, security review) goes into the text, not into a label. `scripts/labels.sh` is the list; `project-sync` fills the board from the labels, so change labels, never project fields.
 - **Milestone:** one per version x.y, with its goal and exit criterion in its description. An issue gets the milestone only when the version needs it; without one it ships in the next release.
 - **Closing:** the merged PR closes its issue with `Closes #`. A close without a PR (duplicate, not planned) needs the product owner's explicit approval and a reason.
-- Issues labelled `needs-human` wait. Remove `agent:working` when the agent stops.
+- Issues labelled `needs-human` wait. **Before the first change for an issue, set `agent:working` on it** (`gh api -X POST repos/ThomasBirkmaier/ReqSeq/issues/<n>/labels -f 'labels[]=agent:working'`): the board shows an issue "In Progress" only through this label. The workflow `issue-working` also sets it on each open issue a PR closes (`Closes #`) and removes it when the PR is closed. Remove it yourself when you stop without a PR.
 - If ReqSeq behaves badly while you use it and you can reproduce it, open a `bug` issue with the reproduction and say in the text that it came from own use.
 
 ## Traceability
