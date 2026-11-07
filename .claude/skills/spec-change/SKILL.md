@@ -1,6 +1,6 @@
 ---
 name: spec-change
-description: Reads and changes the ReqSeq specification in spec/ with the ReqSeq CLI or MCP, sets statuses only on the product owner's decision, and keeps every SR and need in its topic package, and asks open questions before any spec PR. Use for any spec PR.
+description: Reads and changes the ReqSeq specification in spec/ with the ReqSeq CLI or MCP, sets statuses only on the product owner's decision, and keeps every SR and need in its topic package. Asks the product owner open questions before any spec PR. Use for any spec PR.
 ---
 
 # Changing the spec
