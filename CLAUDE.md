@@ -1,12 +1,27 @@
 # ReqSeq
 
-ReqSeq is an offline requirements tool (core, CLI, API, MCP server, Electron app), built against its own specification in `spec/` until every system requirement is shown by a test. `README.md` has the layout.
+ReqSeq is an offline requirements tool (core, CLI, API, MCP server, Electron app), built against its own specification in `spec/` until every system requirement is shown by a test. `README.md` has the layout, and `docs/process.md` shows the way of working from need to release.
+
+This file is the starting point. It holds the rules that apply to every change, and says where the rest is.
+
+## Before you start
+
+| Before … | read |
+| --- | --- |
+| a change to `spec/` | skill `spec-change` |
+| every push | skill `verify` |
+| opening, reviewing or merging a PR, or a release | skill `merge` |
+| architecture work | `docs/architecture/README.md` and the ADRs of your area |
+| work in `packages/core` or `packages/app` | its README and only the part under its `docs/` you work on (ADR-0008 and ADR-0010 are split the same way) |
+
+Skills are in `.claude/skills/<name>/SKILL.md`. A session that does not start in this checkout does not list them, so read the file. The review is the built-in `/code-review`, plus `/security-review` for file access, the app's process bridge or dependencies.
 
 ## Sources of truth
 
-- `spec/` is the specification, a ReqSeq workspace. It is German, so quote it verbatim. Read it with `node packages/cli/dist/bin.js element get SR-036 --workspace spec` after `pnpm build`. Change it only with ReqSeq, in a PR of its own: see the `spec-change` skill.
-- Decisions in `spec/decision/` say what to build, and ADRs in `docs/adr/` say how. An ADR never contradicts a decision. Before architecture work, read `docs/architecture/README.md` and the ADRs of your area.
-- If a system requirement is unclear, incomplete or contradicts another one, open a `spec-frage` issue with the question and your assumption, and carry the assumption in the PR. Never resolve a spec question silently in code. Do not create component requirements.
+- `spec/` is the specification, a ReqSeq workspace. It is German, so quote it verbatim. Read it with `node packages/cli/dist/bin.js element get SR-036 --workspace spec` after `pnpm build`. Change it only with ReqSeq, in a PR of its own.
+- Decisions in `spec/decision/` say what to build, and ADRs in `docs/adr/` say how. An ADR never contradicts a decision.
+- If a system requirement is unclear, incomplete or contradicts another one, open a `question` issue with the question and your assumption, and carry the assumption in the PR. Never resolve a spec question silently in code. Do not create component requirements.
+- The SR in `spec/` wins over an issue text; the PR says where they differ.
 
 ## Product rules that are easy to break
 
@@ -19,43 +34,48 @@ ReqSeq is an offline requirements tool (core, CLI, API, MCP server, Electron app
 
 ## Repository text
 
+- Everything in the repository and on GitHub is English: code, comments, commits, PRs, issues, ADRs, docs and UI texts (D-019; product owner decision, 2026-11-07). Exceptions: `spec/`, proper names, and a verbatim quote of the German spec where a question depends on its wording.
 - Business-model topics (licensing terms, prices, revenue, customers, sponsoring, consulting, sales, marketing) never go into this repository, neither into `spec/` nor into issues, PRs, commits, ADRs or docs. A wish with a product function behind it is entered as that function only, worded for the user of the tool (product owner decision, 2026-10-28).
 - No verbatim chat quotes of the product owner, no times of chat messages, no project or thread links and no names from the chat. State the origin as "product owner decision, 2026-10-28" (in German text „Entscheidung des Produktverantwortlichen, 2026-10-28“) plus a paraphrase of what was decided and why; name decision cards and chat statements by date and paraphrase, and issue comments by their link. Allowed are the session links in attribution lines and the attribution line the platform requires at the top of a PR body, "Requested by … · project thread" with its link; reviewers do not flag them (product owner decision, 2026-10-28 and 2026-10-29).
 - A bare `#N` is an issue or PR of this repository. A reference to an issue or PR of the repository before the move (2026-10-29 06:00 UTC; this repository starts at #1 then) carries its name, `ThomasBirkmaier/ReqSeq-archive#N` (#338).
-- Code, identifiers, comments, commits, PR titles, ADRs and UI texts are English (D-019). When an issue quotes the German spec, it quotes it verbatim.
 - Keep PR texts, issues, plans and docs short: the substance, no filler, no repeated summary.
+
+## Issues
+
+The way of working of 2026-11-07 (product owner decision; picture in `docs/process.md`):
+
+- **One issue is one task that one PR finishes.** A task that needs several PRs becomes an `epic` with sub-issues (`POST /repos/{owner}/{repo}/issues/{n}/sub_issues`); the epic closes when its sub-issues are closed.
+- **Open an issue only** for a bug shown by a reproduction or a failing test, an AK of an SR that is not met, a step from the pre-study of a planned SR that the product owner chose to become an issue, a question for the product owner, or a task the product owner asks for. Anything smaller is fixed in the same PR, or noted in its description. An idea becomes a draft SR in the package of its topic (`spec-change`), not an issue. One problem per issue. Nothing creates issues for SRs in bulk.
+- **Title:** what is different afterwards (feature, task) or what is wrong (bug), in the user's words, with a distinctive keyword first, about 70 characters, no prefix. A question about an AK: `SR-149 AK1: order of package groups?`
+- **Body:** it opens with 1–3 sentences without jargon on what a user notices and why it matters, understandable without other issues or threads. An issue that implements AKs, or a bug that breaks one, has the line `SR: SR-112 (AK1, AK2)`; quote no AK.
+- **Labels:** exactly one type (`bug`, `feature`, `task`, `question`), one area where the main change is (`core`, `cli`, `api`, `mcp`, `app`, `spec`, `dev`), and one priority (`P1` must, `P2` should, `P3` could). `needs-human` while the issue waits for the product owner, `epic` for a cut task, `agent:working` while an agent works on it. The origin (pilot, dogfooding, security review) goes into the text, not into a label. `scripts/labels.sh` is the list; `project-sync` fills the board from the labels, so change labels, never project fields.
+- **Milestone:** one per version x.y, with its goal and exit criterion in its description. An issue gets the milestone only when the version needs it; without one it ships in the next release.
+- **Closing:** the merged PR closes its issue with `Closes #`. A close without a PR (duplicate, not planned) needs the product owner's explicit approval and a reason.
+- Issues labelled `needs-human` wait. Remove `agent:working` when the agent stops.
+- If ReqSeq behaves badly while you use it and you can reproduce it, open a `bug` issue with the reproduction and say in the text that it came from own use.
 
 ## Traceability
 
-- Issues are tasks, not copies of SRs. When the product owner plans an SR, a pre-study names the steps its implementation needs, and the product owner decides which become issues: one issue per task, so an SR can have several. An issue names only the SRs whose AKs it implements, and quotes no AK. Nothing creates issues for SRs in bulk (product owner decision, 2026-11-05). Work without its own SR is labelled `enabler`, on the issue and on the PR.
-- Branch `sr-036-short-slug` or `enabler-<issue>-short-slug`. Commits follow Conventional Commits; the body ends with `Implements: SR-036` (one line per SR) and `Refs #<issue>`. The body has `Closes #<issue>` and a "Verification" section. The PR title starts with the SR ID only when the PR completes the SR, and its author runs `pnpm trace-check --require SR-036` first, which requires a test for each of its Test AKs; a PR for one task of an SR names the SR in its body only.
-- Each acceptance criterion with method Test has a test named `[SR-036/AK2] ...` (AK counted from 1 in the order of the spec file). Other methods get a record in `verification/SR-036.md`, which a person confirms at milestone acceptance.
+- Commits follow Conventional Commits; the body ends with `Implements: SR-036` (one line per SR, taken from the issue's SR line) and `Refs #<issue>`. The PR body has `Closes #<issue>` and a "Verification" section. The PR title starts with the SR ID only when the PR completes the SR, and its author runs `pnpm trace-check --require SR-036` first; a PR for one task of an SR names the SR in its body only.
+- Each acceptance criterion with method Test has a test named `[SR-036/AK2] ...` (AK counted from 1 in the order of the spec file). Other methods get a record in `verification/SR-036.md`, which a person confirms at milestone acceptance. ReqSeq computes the verification status from these test names, the CI evidence and the records, not from issues or labels.
 - `pnpm trace-check` must pass; it reads no PR text. A PR text must not name an SR ID that is not in `spec/` yet.
-- `spec/evidence/ci/` holds the test evidence of the spec, written only by `evidence.yml` through its own pull requests (`verification/README.md`). They merge themselves without an agent review or a notice to the product owner; agents leave them alone and never write there by hand.
+- `spec/evidence/ci/` holds the test evidence of the spec, written only by `evidence.yml` through its own pull requests (`verification/README.md`). They merge themselves without an agent review; agents leave them alone and never write there by hand.
 
 ## Quality gates (ADR-0016)
 
-Strict typecheck, lint with zero warnings, format, and unit test coverage of 100 % per file in every package except the adapters (`core`, `testkit`, new ones) and 80 % per adapter package (`cli`, `api`, `mcp`, app `.ts`), React `.tsx` without threshold. CLI e2e, Electron, trace-check, offline, cross-access and license and security audit run in CI, and performance at night. Never lower a threshold, switch off a lint rule or a compiler option, or add an ignore to get green. `eslint-disable`, `@ts-expect-error` and `v8 ignore` need a written reason. Check while you work with `pnpm typecheck` and `pnpm vitest run <file> --reporter=dot`; the full list before a push is in the `verify` skill.
+Strict typecheck, lint with zero warnings, format, and unit test coverage of 100 % per file in every package except the adapters (`core`, `testkit`, new ones) and 80 % per adapter package (`cli`, `api`, `mcp`, app `.ts`), React `.tsx` without threshold. CLI e2e, Electron, trace-check, offline, cross-access and license and security audit run in CI, and performance at night. Never lower a threshold, switch off a lint rule or a compiler option, or add an ignore to get green. `eslint-disable`, `@ts-expect-error` and `v8 ignore` need a written reason. Check while you work with `pnpm typecheck` and `pnpm vitest run <file> --reporter=dot`; the full list before a push is in `verify`.
 
 ## Traps
 
-- GitHub has no GraphQL from cloud sessions, so `gh issue ...` and `gh pr ...` fail with 403, and a hook stops them there. Use the GitHub MCP tools or `gh api repos/ThomasBirkmaier/ReqSeq/...` (REST). Sub-issues: `POST /repos/{owner}/{repo}/issues/{n}/sub_issues`.
+- GitHub has no GraphQL from cloud sessions, so `gh issue ...` and `gh pr ...` fail with 403, and a hook stops them there. Use the GitHub MCP tools or `gh api repos/ThomasBirkmaier/ReqSeq/...` (REST).
 - Hooks in `.claude/settings.json` (`scripts/hooks/`) block hand edits of tool-written files and run Prettier on each edited file. `.mcp.json` starts the ReqSeq MCP from `packages/cli/dist` of the checkout the session starts in (needs `pnpm build` there) and context7 for library docs.
-- Do not read `schemas/generated/` or `packages/core/src/generated/` unless you debug the generator. Regenerate them with `pnpm contracts:generate`. Merge `main` into a branch with `pnpm merge:main` (`merge` skill).
-- In `packages/core` and `packages/app`, read the README and only the parts under their `docs/` you work on; ADR-0008 and ADR-0010 are split the same way under `docs/adr/0008/` and `docs/adr/0010/`.
-- The GitHub project "ReqSeq" is filled from the labels by `project-sync`. Change labels, never project fields.
+- Do not read `schemas/generated/` or `packages/core/src/generated/` unless you debug the generator. Regenerate them with `pnpm contracts:generate`. Merge `main` into a branch with `pnpm merge:main` (`merge`).
 - Keep code platform-neutral (paths via `node:path`, CRLF-safe), because CI checks every ready PR and main on Linux, macOS and Windows.
 
 ## How we work
 
-- Skills, in `.claude/skills/<name>/SKILL.md` (a session that does not start in this checkout does not list them, so read the file): `verify` (check commands, Electron in the container), `spec-change` (spec, status, packages), `merge` (review, merge criteria, issue labels and closing, release). The review is the built-in `/code-review`, plus `/security-review` for file access, the app's process bridge or dependencies.
-- For an SR issue, the SR in `spec/` wins over the issue text, and the PR says where they differ. Issues labelled `blocked`, `spec-frage` or `needs-human` wait. While an agent works on an issue, it carries `agent:working`, which the board reads.
-- Plan only risky changes: an ADR or the architecture, a schema or file format, catalog design shared by several SRs, performance, security. Post a plan of about a page on the issue and have it reviewed once at effort high before building. Other issues need no plan.
+- Plan only risky changes: an ADR or the architecture, a schema or file format, catalog design shared by several SRs, performance, security. Post a plan of about a page on the issue and have it reviewed once at effort high before building.
 - About one focused test per acceptance criterion, plus what the coverage threshold needs. Update the docs the change makes outdated (package README, block file under `packages/core/docs/`, CLI help). Implementation PRs never change `spec/`.
+- Opus at effort medium by default; implementing agents run as `implementer` (`.claude/agents/`) where the session lists it. Effort high only for risky plans and changes and for the periodic check against the spec.
 - Stop and ask the product owner only when you cannot continue without them, or before anything destructive or irreversible, here or on GitHub: deleting files, issues or releases (merged PR branches excepted), force-pushing or rewriting history, or changing branch protection or access.
-- Opus at effort medium by default; implementing agents run as `sr-implementer` (`.claude/agents/`) where the session lists it. Effort high only for risky plans and changes and for the periodic check against the spec.
-- Do what the issue asks. If ReqSeq behaves badly while you use it and you can reproduce it, open a `dogfooding` issue with the reproduction.
-- Issue threshold (product owner decision, 2026-11-04): open a new issue only for a bug on `main` shown by a reproduction or a failing test, for an AK of an SR that is not met (name the SR and the AK), for a pilot finding, a `spec-frage` or `needs-human` question, or a task the product owner asks for. Anything below it is fixed in the same PR when small, otherwise noted in the PR description. Product and spec ideas become draft SRs in the package of their topic (`spec-change`); the product owner plans them through a milestone. One problem per issue; existing collective issues stay, and open nice-to-have issues stay until the product owner decides on them.
-- Every new issue opens with one sentence in plain language, in the issue's language, on what a user notices and why it matters. It is understandable without knowledge of other issues or threads: links to them only add to the description, never replace it (product owner decision, 2026-11-04, a trial).
-- Agents commit and merge on their own, also for `.claude/`, `.github/`, `schemas/`, `docs/` and this file. `main` requires checks, so every change, a trivial one too, goes through a pull request. Merge only on green CI, after one review by a second agent whose blocking findings are fixed (`merge` skill, which also has the rules for CI changes). Tell the product owner in the milestone epic (one per milestone; the `merge` skill says which) about PRs that change the spec, schemas, ADRs, agent rules, skills or CI, without waiting for an answer.
-- Small PRs, one SR each unless SRs are inseparable, each branched from `main` (`merge` skill). Rule, skill and doc changes that belong to no SR or code PR are bundled into one PR per half day (product owner decision, 2026-10-28, ThomasBirkmaier/ReqSeq-archive#722).
+- Agents commit and merge on their own, also for `.claude/`, `.github/`, `schemas/`, `docs/` and this file. `main` requires checks, so every change goes through a pull request: small, one SR each unless SRs are inseparable, branched from `main`, merged on green CI after one review by a second agent whose blocking findings are fixed (`merge`). Every PR is assigned to the product owner with a review request, which is how they follow it. Rule, skill and doc changes that belong to no SR or code PR are bundled into one PR per half day (product owner decision, 2026-10-28, ThomasBirkmaier/ReqSeq-archive#722).

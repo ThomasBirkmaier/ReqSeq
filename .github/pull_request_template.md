@@ -6,7 +6,7 @@ Closes #
 
 ## System requirements
 
-<!-- One line per SR: SR-xxx and which acceptance criteria this PR covers. Enabler PRs: write "enabler" and the issue, and set the label `enabler` when opening the PR. -->
+<!-- The SR line of the issue, one line per SR: SR-xxx and the AKs this PR covers. "None" for a PR without SR. -->
 
 ## Verification
 
@@ -14,7 +14,7 @@ Closes #
 
 ## Assumptions and spec questions
 
-<!-- Assumptions made, linked spec-frage issues. "None" if none. -->
+<!-- Assumptions made, linked question issues. "None" if none. -->
 
 ## Review rounds
 
