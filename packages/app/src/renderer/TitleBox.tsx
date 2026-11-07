@@ -11,6 +11,7 @@ import { EditorView, keymap, placeholder } from "@codemirror/view";
 import { useMemo, useRef } from "react";
 import type { EditorHandle } from "./editor/Editor.js";
 import { Editor } from "./editor/Editor.js";
+import { formatKeys } from "./editor/format.js";
 import { boxNavigation } from "./editor/box-navigation.js";
 import type { BoxNavigation } from "./editor/box-navigation.js";
 import { singleLine } from "./editor/single-line.js";
@@ -92,6 +93,8 @@ export const TitleBox = ({
         EditorView.contentAttributes.of({ tabindex: "-1" }),
         placeholder(id),
         singleLine,
+        // Ctrl/Cmd+B and Ctrl/Cmd+I do nothing in the title (plain text), rather than format the text (SR-186).
+        ...(formatKeys(false).extensions ?? []),
       ],
     };
   }, [id]);

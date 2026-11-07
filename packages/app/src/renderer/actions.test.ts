@@ -133,6 +133,7 @@ const everyContext = (): ActionContext[] => {
     addProperty: vi.fn(),
     clearProperty: vi.fn(),
     insertImage: vi.fn(),
+    text: vi.fn(),
     listValue: vi.fn(),
     flush: vi.fn(() => Promise.resolve(true)),
     prompting: vi.fn(),
