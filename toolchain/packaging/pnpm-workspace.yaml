@@ -1,0 +1,7 @@
+# Its own pnpm root, apart from the repository's workspace (ADR-0014), so that the settings below apply to its install.
+minimumReleaseAge: 1440
+overrides:
+  # GHSA-g3hv-75wg-m249 (DoS via globparts amplification) is fixed only in minimatch 11; app-builder-lib asks for ^10
+  # and @electron/universal for ^9. Both use only `minimatch()` and `Minimatch`, which minimatch 11 keeps. Dev-only.
+  minimatch@^9: ^11.0.3
+  minimatch@^10: ^11.0.3

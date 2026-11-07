@@ -57,8 +57,8 @@ jobs:
       # electron-builder has its own lockfile outside the workspace, so PR CI never installs it (ADR-0001, ADR-0014).
       - name: Install and audit electron-builder
         run: |
-          pnpm install --dir toolchain/packaging --ignore-workspace --frozen-lockfile --ignore-scripts
-          pnpm audit --dir toolchain/packaging --ignore-workspace --audit-level high
+          pnpm install --dir toolchain/packaging --frozen-lockfile --ignore-scripts
+          pnpm audit --dir toolchain/packaging --audit-level high
       - name: Stage the app and the command line
         run: node scripts/package/stage.mjs
       # Called directly, not through pnpm, so electron-builder does not take the folders for a pnpm workspace.
