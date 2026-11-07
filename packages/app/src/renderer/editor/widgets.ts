@@ -24,6 +24,11 @@ export class GlyphWidget extends WidgetType {
     span.textContent = this.glyph;
     return span;
   }
+
+  /** A press reaches the editor: on a bullet it starts a click or a drag (`list-drag.ts`). */
+  override ignoreEvent(event: Event): boolean {
+    return event.type !== "mousedown";
+  }
 }
 
 /**

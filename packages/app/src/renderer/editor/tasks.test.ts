@@ -4,6 +4,7 @@ import { history, undo } from "@codemirror/commands";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { afterEach, describe, expect, it } from "vitest";
+import { listDrag } from "./list-drag.js";
 import { markdownSupport } from "./markdown.js";
 import { BUILT_IN_RULES, livePreview } from "./preview.js";
 import { TaskBoxWidget, tasksOnSelectedLines, toggleTask, toggleTaskAt } from "./tasks.js";
@@ -28,6 +29,7 @@ const viewOf = (doc: string, anchor = 0, readOnly = false, head = anchor): Edito
         history(),
         markdownSupport({}),
         livePreview(BUILT_IN_RULES),
+        listDrag(),
         EditorState.readOnly.of(readOnly),
       ],
     }),
@@ -36,11 +38,11 @@ const viewOf = (doc: string, anchor = 0, readOnly = false, head = anchor): Edito
   return view;
 };
 
-/** A press and its release on `target`: the mousedown, then the click. */
+/** A press and its release on `target`. */
 const press = (target: Element, button = 0): MouseEvent => {
   const down = new MouseEvent("mousedown", { bubbles: true, cancelable: true, button });
   target.dispatchEvent(down);
-  target.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, button }));
+  target.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true, button }));
   return down;
 };
 
@@ -81,6 +83,7 @@ describe("tasks (SR-185)", () => {
     const down = new MouseEvent("mousedown", { bubbles: true, cancelable: true, button: 0 });
     box(view).dispatchEvent(down);
     expect(down.defaultPrevented).toBe(true);
+    document.body.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true, button: 0 }));
     expect(view.state.doc.toString()).toBe("- [ ] one");
   });
 
@@ -132,6 +135,7 @@ describe("tasks (SR-185)", () => {
   it("compares task boxes by their tick", () => {
     expect(new TaskBoxWidget(true).eq(new TaskBoxWidget(true))).toBe(true);
     expect(new TaskBoxWidget(true).eq(new TaskBoxWidget(false))).toBe(false);
-    expect(new TaskBoxWidget(false).ignoreEvent()).toBe(true);
+    expect(new TaskBoxWidget(false).ignoreEvent(new MouseEvent("click"))).toBe(true);
+    expect(new TaskBoxWidget(false).ignoreEvent(new MouseEvent("mousedown"))).toBe(false);
   });
 });

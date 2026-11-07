@@ -130,8 +130,13 @@ export const inline: PreviewRule = {
 const listMark: PreviewRule = {
   nodes: ["ListMark"],
   decorate: (node, { state, sourceLine }) => {
+    // A drawn mark is a handle: a press and a move drag its item (`list-drag.ts`).
     if (node.matchContext(["OrderedList", "ListItem"])) {
-      return styleRange("cm-lr-muted", node.from, node.to);
+      return styleRange(
+        sourceLine(node.from) ? "cm-lr-muted" : "cm-lr-muted cm-lr-handle",
+        node.from,
+        node.to,
+      );
     }
     if (sourceLine(node.from)) {
       return [];
@@ -139,7 +144,12 @@ const listMark: PreviewRule = {
     // A task item shows its box instead of a bullet.
     return node.node.nextSibling?.name === "Task"
       ? hideRange(...markAndSpace(state, node.from, node.to))
-      : [Decoration.replace({ widget: new GlyphWidget("•", "cm-lr-bullet") }).range(node.from, node.to)];
+      : [
+          Decoration.replace({ widget: new GlyphWidget("•", "cm-lr-bullet cm-lr-handle") }).range(
+            node.from,
+            node.to,
+          ),
+        ];
   },
 };
 

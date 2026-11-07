@@ -11,6 +11,7 @@ import type { Command } from "@codemirror/view";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { releaseCaretSide } from "./caret-side.js";
 import { minimalChange } from "./diff.js";
+import { listDragging } from "./list-drag.js";
 import { markdownSupport } from "./markdown.js";
 import { parseAhead } from "./parsed.js";
 import type { EditorPlugins, PreviewRule } from "./plugins.js";
@@ -36,8 +37,8 @@ export interface EditorHandle {
    */
   readonly set: (text: string) => void;
   /**
-   * Input is still going on: an input method composes, or a completion list (the slash menu) is open,
-   * whose query is in the document. Autosave waits for it (SR-105).
+   * Input is still going on: an input method composes, a completion list (the slash menu) is open,
+   * whose query is in the document, or a list item is dragged (`list-drag.ts`). Autosave waits for it (SR-105).
    */
   readonly busy: () => boolean;
   /**
@@ -158,7 +159,6 @@ const theme = EditorView.theme({
   ".cm-lr-outdated-word": { color: "var(--accent-outdated)" },
   ".cm-lr-muted": { color: "var(--muted)" },
   ".cm-lr-bullet, .cm-lr-task": { display: "inline-block", width: "1.1em", color: "var(--muted)" },
-  ".cm-lr-task": { cursor: "pointer" },
   ".cm-lr-quote": { borderLeft: "3px solid var(--rule)", paddingLeft: "0.75rem", color: "var(--muted)" },
   ".cm-lr-codeblock": {
     fontFamily: "var(--mono)",
@@ -344,7 +344,8 @@ export const Editor = ({
           userEvent: "input.set",
         });
       },
-      busy: () => editor.composing || completionStatus(editor.state) === "active",
+      busy: () =>
+        editor.composing || completionStatus(editor.state) === "active" || listDragging(editor.state),
       rebase: (next) => {
         lastText.current = next;
       },
