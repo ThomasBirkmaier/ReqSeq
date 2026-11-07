@@ -987,6 +987,46 @@ describe("Minibuffer", () => {
       expect(closed).toHaveBeenCalledTimes(1);
     });
 
+    it("says searching while an Enter waits, and not once typing has cancelled it (#467)", async () => {
+      const { find, answer } = deferred();
+      const { closed } = await mount({ label: "Go to", items: [], find });
+      const waitingSign = (): string | null | undefined =>
+        container.querySelector('[role="status"]')?.textContent;
+      await type(input(), "SR-1");
+      expect(waitingSign()).toBeUndefined();
+      await press(input(), "Enter");
+      expect(waitingSign()).toBe("searching…");
+      await type(input(), "SR-11");
+      expect(waitingSign()).toBeUndefined();
+      await press(input(), "Enter");
+      expect(waitingSign()).toBe("searching…");
+      const hit = choice("e1", "SR-118 Calm start");
+      await answer("SR-11", [hit]);
+      expect(hit.run).toHaveBeenCalledTimes(1);
+      expect(closed).toHaveBeenCalledTimes(1);
+    });
+
+    it("says searching while an Enter waits for the parts of the prompt (#467)", async () => {
+      let fill: (parts: PromptFill) => void = () => undefined;
+      const hit = choice("draft", "draft");
+      await mount({
+        label: "Status",
+        items: [],
+        fill: new Promise<PromptFill>((resolve) => {
+          fill = resolve;
+        }),
+      });
+      await type(input(), "draft");
+      await press(input(), "Enter");
+      expect(container.querySelector('[role="status"]')?.textContent).toBe("searching…");
+      await act(async () => {
+        fill({ items: [hit] });
+        await Promise.resolve();
+      });
+      await flush();
+      expect(hit.run).toHaveBeenCalledTimes(1);
+    });
+
     it("[SR-119/AK1] opens the hit when Enter comes after the hits arrived and before they are shown (#419)", async () => {
       const asked: ((choices: Choice[]) => void)[] = [];
       const find = (): Promise<Choice[]> =>

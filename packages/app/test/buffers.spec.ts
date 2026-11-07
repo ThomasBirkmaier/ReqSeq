@@ -86,6 +86,17 @@ test.describe("Alt+N and Alt+P switch buffers", () => {
     await expect(shownBuffer(window)).toBeFocused();
   });
 
+  test("Enter right after Alt+P, before the element is loaded, edits its text (#467)", async () => {
+    const { window } = running;
+    await listAll(window);
+    await goTo(window, ELEMENT);
+    await window.keyboard.press("Alt+KeyP");
+    await expect(shownBuffer(window)).toHaveAttribute("aria-label", "All elements");
+    await window.keyboard.press("Alt+KeyN");
+    await window.keyboard.press("Enter");
+    await expect(window.locator(".cm-content")).toBeFocused();
+  });
+
   test("[SR-115/AK5] Alt+N and Alt+P while typing in the editor switch buffers and insert no character", async () => {
     const { window } = running;
     await listAll(window);

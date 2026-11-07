@@ -70,6 +70,9 @@ const PromptLine = ({
   // that comes before it must not take that answer again (#419).
   const taken = useRef(0);
   const unsearched = useRef(false);
+  // Whether an Enter waits (`waiting` or `early`), shown as "searching…", so a person or a test sees that
+  // it is not taken yet (#467).
+  const [pending, setPending] = useState(false);
 
   useEffect(
     () => () => {
@@ -138,6 +141,7 @@ const PromptLine = ({
         // Enter was pressed before this answer.
         waiting.current = 0;
         taken.current = mine;
+        setPending(false);
         takeFirst(waitingMore.current);
       }
     });
@@ -167,6 +171,7 @@ const PromptLine = ({
     } else {
       waiting.current = latest.current;
       waitingMore.current = more;
+      setPending(true);
     }
   };
 
@@ -177,6 +182,7 @@ const PromptLine = ({
     // Typing after Enter cancels it, while the answer is awaited (SR-119) and while the parts load.
     waiting.current = 0;
     early.current = undefined;
+    setPending(false);
     if (prompt.find === undefined || value.trim() === "") {
       latest.current += 1;
       answered.current = latest.current;
@@ -195,6 +201,7 @@ const PromptLine = ({
       prompt.empty(false);
     } else if (loading) {
       early.current = "enter";
+      setPending(true);
     } else if (stale()) {
       awaitAnswer(false);
     } else if (current !== undefined) {
@@ -214,6 +221,7 @@ const PromptLine = ({
       prompt.empty(true);
     } else if (loading) {
       early.current = "more";
+      setPending(true);
     } else if (stale()) {
       awaitAnswer(true);
     } else if (current?.item.more !== undefined) {
@@ -233,6 +241,7 @@ const PromptLine = ({
     // The text typed while the parts loaded is searched now, and a key pressed meanwhile acts on them.
     const key = early.current;
     early.current = undefined;
+    setPending(false);
     if (prompt.find !== undefined && unsearched.current) {
       search(prompt.find, typed.current);
     }
@@ -324,6 +333,11 @@ const PromptLine = ({
         }}
         onKeyDown={keyDown}
       />
+      {pending ? (
+        <span className="prompt-waiting" role="status">
+          searching…
+        </span>
+      ) : null}
       {rows.length === 0 ? null : (
         <ul className="candidates" id="candidates" role="listbox" aria-label={prompt.label}>
           {rows.map((row, at) => (
