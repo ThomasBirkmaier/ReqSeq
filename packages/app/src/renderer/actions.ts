@@ -60,6 +60,8 @@ export interface Choice {
   readonly name: string;
   /** Shown right-aligned in muted text: the shortcut, or a count (the values of a property). */
   readonly hint?: string;
+  /** The title of an element hit, without its ID: the one whose title is the typed text comes first (#195). */
+  readonly title?: string;
   /** Lower case words of `name` to mark (element hits). */
   readonly terms?: readonly string[];
   readonly run: () => void;
@@ -433,6 +435,7 @@ export const findElements =
     return searchRows(answer.output).map((row) => ({
       id: row.open.key,
       name: idTitle(row.label, row.title),
+      title: row.title,
       terms: row.markLabel ? [...row.terms, row.label.toLowerCase()] : row.terms,
       run: () => {
         run(row);

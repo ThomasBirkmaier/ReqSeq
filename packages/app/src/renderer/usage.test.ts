@@ -5,6 +5,7 @@ import {
   USAGE_KEY,
   frecency,
   loadUsage,
+  promptRows,
   promptUse,
   queryKey,
   rankByUse,
@@ -355,5 +356,51 @@ describe("ranking by fit to the shown view", () => {
   it("[SR-133/AK2] keeps the command chosen for a typed text first, though another one fits", () => {
     expect(fitOrder("fl", ["type"])[0]).toBe("type");
     expect(fitOrder("fl", ["type"], used(["fl", "property", 1]))[0]).toBe("property");
+  });
+});
+
+describe("the rows of a prompt with elements found by core", () => {
+  interface Item {
+    readonly id: string;
+    readonly name: string;
+    readonly title?: string;
+  }
+  const recent: Item[] = [
+    { id: "sr-1", name: "SR-1e14fe Requirement 1 of the package 1" },
+    { id: "sr-13", name: "SR-ef675a Requirement 13 of the package 1" },
+  ];
+  const found: Item[] = [
+    { id: "pkg", name: "PKG-add245 Package 1", title: "Package 1" },
+    { id: "sr-1", name: "SR-1e14fe Requirement 1 of the package 1", title: "Requirement 1 of the package 1" },
+    { id: "sr-2", name: "SR-474b98 Requirement 2 of the package 1", title: "Requirement 2 of the package 1" },
+  ];
+  const ids = (query: string, items: readonly Item[] = recent, hits: readonly Item[] = found): string[] =>
+    promptRows(items, hits, (item) => item.name, query, undefined).map(({ item }) => item.id);
+
+  it("puts the element titled exactly like the typed text before a recent buffer that only contains it (#195)", () => {
+    expect(ids("Package 1")).toEqual(["pkg", "sr-1", "sr-13", "sr-2"]);
+    expect(ids("  package   1 ")).toEqual(["pkg", "sr-1", "sr-13", "sr-2"]);
+  });
+
+  it("keeps the prompt's own items first and core's order when no title is the typed text", () => {
+    expect(ids("package")).toEqual(["sr-1", "sr-13", "pkg", "sr-2"]);
+    expect(ids("")).toEqual(["sr-1", "sr-13", "pkg", "sr-2"]);
+  });
+
+  it("lifts an own item that core found under exactly the typed title, without showing it twice", () => {
+    expect(ids("Requirement 1 of the package 1")).toEqual(["sr-1", "sr-13", "pkg", "sr-2"]);
+    expect(ids("Requirement 1 of the package 1", [...recent].reverse())).toEqual([
+      "sr-1",
+      "sr-13",
+      "pkg",
+      "sr-2",
+    ]);
+  });
+
+  it("takes no title from the prompt's own items and none from a hit without one", () => {
+    expect(ids("Overview", [{ id: "overview", name: "Overview" }], [{ id: "x", name: "Overview" }])).toEqual([
+      "overview",
+      "x",
+    ]);
   });
 });

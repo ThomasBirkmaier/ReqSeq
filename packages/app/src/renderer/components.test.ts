@@ -627,6 +627,16 @@ describe("Minibuffer", () => {
       await press(input(), "Enter");
       expect(record).toHaveBeenCalledWith("over", "own");
     });
+    it("shows the element titled exactly like the typed text first, and Enter opens it (#195)", async () => {
+      const recent = choice("sr-1", "SR-1 Requirement 1 of the package 1");
+      const pkg = choice("pkg", "PKG-1 Package 1", { title: "Package 1" });
+      await mount({ label: "Go to", items: [recent], find: () => Promise.resolve([pkg]) });
+      await type(input(), "Package 1");
+      expect(texts('[role="option"]')).toEqual(["PKG-1 Package 1", "SR-1 Requirement 1 of the package 1"]);
+      await press(input(), "Enter");
+      expect(pkg.run).toHaveBeenCalledTimes(1);
+      expect(recent.run).not.toHaveBeenCalled();
+    });
   });
 
   describe("what was chosen before", () => {

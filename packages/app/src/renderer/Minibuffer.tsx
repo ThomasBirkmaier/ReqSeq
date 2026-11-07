@@ -8,7 +8,7 @@ import type { Part } from "./highlight.js";
 import type { Ranked } from "./fuzzy.js";
 import { isMac, listStep, matches } from "./keys.js";
 import { MORE_SHORTCUT } from "./prompt-keys.js";
-import { rankByUse } from "./usage.js";
+import { promptRows } from "./usage.js";
 
 export interface MinibufferProps {
   /** The message shown while idle. */
@@ -220,19 +220,21 @@ const PromptLine = ({
     const choice = prompt.literal?.(text);
     return choice === undefined ? [] : [choice];
   };
-  const ranked: Ranked<Choice>[] = [
-    ...literalOf(query).map((item) => ({ item, ranges: [] })),
-    ...rankByUse(prompt.items, (choice) => choice.name, query, prompt.use),
+  /** The rows for `text` with the elements core found for it: the literal choice, then `promptRows`. */
+  const rowsFor = (text: string, choices: readonly Choice[]): Ranked<Choice>[] => [
+    ...literalOf(text).map((item) => ({ item, ranges: [] })),
+    ...promptRows(prompt.items, choices, (choice) => choice.name, text, prompt.use),
   ];
-  const known = new Set(ranked.map(({ item }) => item.id));
-  const rows: Ranked<Choice>[] = [
-    ...ranked,
-    ...found.choices.filter((choice) => !known.has(choice.id)).map((item) => ({ item, ranges: [] })),
-  ];
+  const rows = rowsFor(query, found.choices);
   const current = rows[selected];
-  // The hits shown belong to an older text than the typed one, and the selection is among them.
-  // Read when a key is pressed: a question asked in this render (`change`) makes the shown hits stale.
-  const stale = (): boolean => found.question !== latest.current && selected >= ranked.length;
+  // The hits shown belong to an older text than the typed one, and the selection is among them or there
+  // is none yet: it is no literal choice and none of the prompt's own items. Read when a key is pressed: a
+  // question asked in this render (`change`) makes the shown hits stale.
+  const own = (choice: Choice): boolean =>
+    prompt.items.some((item) => item.id === choice.id) ||
+    literalOf(query).some((item) => item.id === choice.id);
+  const stale = (): boolean =>
+    found.question !== latest.current && (current === undefined || !own(current.item));
 
   // `typed` is the text the choice was made for; a choice among the command prompt's own items is
   // remembered (SR-121 AK2), never an element found for the text. `more` (Ctrl/Cmd+Enter) takes it with
@@ -270,13 +272,9 @@ const PromptLine = ({
   /** The first row of the text answered last, as the list shows it, is chosen. */
   const takeFirst = (more: boolean): void => {
     const { text, choices } = answer.current;
-    const [first] = [
-      ...literalOf(text),
-      ...rankByUse(prompt.items, (item) => item.name, text, prompt.use).map(({ item }) => item),
-      ...choices,
-    ];
+    const [first] = rowsFor(text, choices);
     if (first !== undefined) {
-      choose(first, text, more);
+      choose(first.item, text, more);
     }
   };
 
