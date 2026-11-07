@@ -192,13 +192,43 @@ const insertRowAfter = (view: EditorView, table: Table, index: number, cell: num
   );
 };
 
+/** The cells Tab goes through in `row`: as many as the header has, or more where the row has more. */
+const width = (table: Table, row: Row): number => Math.max(table.columns, cellCount(row));
+
+/**
+ * Gives a row with fewer cells than the header empty cells up to `cell` and puts the caret into it (one undo
+ * step); in a read-only text the caret goes to the end of the row instead.
+ */
+const fillRow = (view: EditorView, row: Row, cell: number): void => {
+  if (view.state.readOnly) {
+    view.dispatch({ selection: { anchor: row.to }, userEvent: "select" });
+    return;
+  }
+  const close = row.trailing ? "" : " |";
+  const insert = `${close}${"  |".repeat(cell - cellCount(row) + 1)}`;
+  view.dispatch(tableTransaction([{ from: row.to, insert }], { anchor: row.to + insert.length - 2 }));
+};
+
+/** Puts the caret into cell `cell` of `row`, which a short row first gets (`fillRow`). */
+const goToCell = (view: EditorView, row: Row, cell: number): void => {
+  if (cell < cellCount(row)) {
+    view.dispatch({
+      selection: cellSelection(view.state, row, cell),
+      scrollIntoView: true,
+      userEvent: "select",
+    });
+  } else {
+    fillRow(view, row, cell);
+  }
+};
+
 /** The rows the caret goes through with Tab: the header and the body, not the delimiter row. */
 const cellRows = (table: Table): readonly number[] =>
   table.rows.flatMap((row, index) => (row.delimiter ? [] : [index]));
 
 /**
- * Tab or Shift+Tab in a table (AK1): the next or the previous cell, its content selected; Tab after the last
- * cell adds an empty row and puts the caret into its first cell. False outside a table and while a menu at the
+ * Tab or Shift+Tab in a table (AK1): the next or the previous cell, its content selected, also a cell a short
+ * row lacks (it gets empty cells up to it); Tab after the last column of the last row adds an empty row and puts the caret into its first cell. False outside a table and while a menu at the
  * caret is open (the slash menu, a completion), so Tab keeps its meaning there. Shift+Tab in the first cell
  * stays in it, so it does not leave the editor from inside a table.
  */
@@ -221,19 +251,14 @@ const moveCell =
     let cell = rowAtCaret.delimiter ? (by === 1 ? table.columns : table.columns - 1) : place.cell + by;
     for (;;) {
       const row = nth(table.rows, nth(order, at));
-      if (cell >= 0 && cell < cellCount(row)) {
-        view.dispatch({
-          selection: cellSelection(state, row, cell),
-          scrollIntoView: true,
-          userEvent: "select",
-        });
+      if (cell >= 0 && cell < width(table, row)) {
+        goToCell(view, row, cell);
         return true;
       }
       if (by === 1 && at === order.length - 1) {
-        if (state.readOnly) {
-          return true;
+        if (!state.readOnly) {
+          insertRowAfter(view, table, nth(order, at), 0);
         }
-        insertRowAfter(view, table, nth(order, at), 0);
         return true;
       }
       if (by === -1 && at === 0) {
@@ -241,7 +266,7 @@ const moveCell =
         return true;
       }
       at += by;
-      cell = by === 1 ? 0 : cellCount(nth(table.rows, nth(order, at))) - 1;
+      cell = by === 1 ? 0 : width(table, nth(table.rows, nth(order, at))) - 1;
     }
   };
 
@@ -382,7 +407,8 @@ export const insertColumn: Command = (view) => {
     const open = column + 1 < cellCount(row) || row.trailing;
     const change = open
       ? { from: edge + 1, insert: ` ${content} |`, by: 1 }
-      : { from: edge, insert: ` | ${content}`, by: 3 };
+      : // A row without a pipe at its end gets one, or its last pipe would close no cell.
+        { from: edge, insert: ` | ${content} |`, by: 3 };
     changes.push({ from: change.from, insert: change.insert });
     if (index === place.row) {
       caret = { at: change.from, by: change.by };

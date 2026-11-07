@@ -27,22 +27,22 @@ describe("text actions", () => {
     expect(text).toHaveBeenCalledWith(toggleTask, "No task on this line");
   });
 
-  it("runs the table commands on the text, each saying when the cursor is off a table (SR-188)", () => {
+  it("[SR-188/AK2] Align table in the command line runs the alignment on the text, and says when the cursor is off a table", () => {
     const text = vi.fn();
-    for (const title of ["Align table", "Insert row", "Insert column", "Delete row", "Delete column"]) {
+    TEXT_ACTIONS.find((entry) => entry.title === "Align table")?.run(contextOf("element", text));
+    expect(text).toHaveBeenCalledWith(alignTable, NOT_IN_TABLE);
+  });
+
+  it("[SR-188/AK3] Insert row, Insert column, Delete row and Delete column in the command line run their commands on the text", () => {
+    const text = vi.fn();
+    for (const title of ["Insert row", "Insert column", "Delete row", "Delete column"]) {
       TEXT_ACTIONS.find((entry) => entry.title === title)?.run(contextOf("element", text));
     }
-    expect(text.mock.calls.map(([command]: unknown[]) => command)).toEqual([
-      alignTable,
-      insertRow,
-      insertColumn,
-      deleteRow,
-      deleteColumn,
-    ]);
-    expect(text.mock.calls.slice(0, 3).map((call: unknown[]) => call[1])).toEqual([
-      NOT_IN_TABLE,
-      NOT_IN_TABLE,
-      NOT_IN_TABLE,
+    expect(text.mock.calls).toEqual([
+      [insertRow, NOT_IN_TABLE],
+      [insertColumn, NOT_IN_TABLE],
+      [deleteRow, "The cursor is not in a table row below the header"],
+      [deleteColumn, "The cursor is not in a table with more than one column"],
     ]);
   });
 

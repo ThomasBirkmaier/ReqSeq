@@ -7,6 +7,7 @@ import type { Extension } from "@codemirror/state";
 import type { Command } from "@codemirror/view";
 import { EditorView, runScopeHandlers } from "@codemirror/view";
 import { afterEach, describe, expect, it } from "vitest";
+import { markdownLanguage } from "@codemirror/lang-markdown";
 import { TABLE_KEYS } from "./editor-keys.js";
 import { markdownSupport } from "./markdown.js";
 import {
@@ -57,6 +58,12 @@ const at = (doc: string): [string, number] => [doc.replace("^", ""), doc.indexOf
 const key = (view: EditorView, name: string, shift = false): boolean =>
   runScopeHandlers(view, new KeyboardEvent("keydown", { key: name, shiftKey: shift }), "editor");
 
+/** Whether `doc` is read as one GFM table over all its lines (header and delimiter of the same width). */
+const isTable = (doc: string): boolean => {
+  const top = markdownLanguage.parser.parse(doc).topNode.firstChild;
+  return top?.name === "Table" && top.from === 0 && top.to === doc.trimEnd().length;
+};
+
 const TABLE = "| a | b |\n|---|---|\n| 1 | 2 |";
 
 describe("tables (SR-188)", () => {
@@ -96,7 +103,11 @@ describe("tables (SR-188)", () => {
     }
     expect(completionStatus(view.state)).toBe("active");
     expect(nextCell(view)).toBe(false);
+    // The key itself goes to the menu, not to the table.
+    expect(key(view, "Tab")).toBe(false);
+    expect(key(view, "Tab", true)).toBe(false);
     expect(view.state.selection.main.head).toBe(2);
+    expect(text(view)).toBe(TABLE);
   });
 
   it("[SR-188/AK2] Align table lines the pipes up, keeps the alignment colons, escaped pipes and code", () => {
@@ -128,6 +139,21 @@ describe("tables (SR-188)", () => {
     alignTable(wide);
     expect(text(wide)).toBe("| a   |\n| --- |\n| 1   | 2   |");
     expect(alignTable(viewOf("no table"))).toBe(false);
+    expect(isTable(text(view).slice(3, -7))).toBe(true);
+  });
+
+  it("[SR-188/AK2] aligns nothing without Align table: Insert row, Insert column and Tab's new row leave the other rows as they are", () => {
+    const doc = "| a | long |\n|-|-|\n| 1 | 2 |";
+    const rows = (view: EditorView): string[] => text(view).split("\n");
+    const row = viewOf(doc, 2);
+    insertRow(row);
+    expect(rows(row)).toEqual(["| a | long |", "|-|-|", "|   |      |", "| 1 | 2 |"]);
+    const column = viewOf(doc, 2);
+    insertColumn(column);
+    expect(rows(column)).toEqual(["| a |  | long |", "|-| --- |-|", "| 1 |  | 2 |"]);
+    const tab = viewOf(doc, doc.length);
+    key(tab, "Tab");
+    expect(rows(tab).slice(0, 3)).toEqual(doc.split("\n"));
   });
 
   it("[SR-188/AK3] Insert row and column add empty ones below and right of the caret; Delete removes its row or column", () => {
@@ -191,7 +217,8 @@ describe("tables (SR-188)", () => {
     expect(text(last)).toBe("a  |\n-- |\n1  |");
     const open = viewOf("a | b\n--|--\n1", 4);
     expect(insertColumn(open)).toBe(true);
-    expect(text(open)).toBe("a | b | \n--|-- | ---\n1");
+    expect(text(open)).toBe("a | b |  |\n--|-- | --- |\n1");
+    expect(isTable(text(open))).toBe(true);
     expect(insertRow(viewOf("a | b\n--|--", 7))).toBe(true);
     const plain = viewOf("a | b\n--|--", 7);
     insertRow(plain);
@@ -230,9 +257,36 @@ describe("tables (SR-188)", () => {
     expect(text(gap)).toBe("| a | b |  |\n|---|---| --- |\n| 1 |");
   });
 
-  it("are in the keyboard reference", () => {
+  it("[SR-188/AK1] Tab goes into the cell a short row lacks, giving it empty cells up to there", () => {
+    const view = viewOf("| a | b | c |\n|---|---|---|\n| 1 |\n| 4 | 5 | 6 |", 28);
+    key(view, "Tab");
+    expect(text(view)).toBe("| a | b | c |\n|---|---|---|\n| 1 |  |\n| 4 | 5 | 6 |");
+    expect(view.state.selection.main.head).toBe(34);
+    expect(isTable(text(view))).toBe(true);
+    undo(view);
+    expect(text(view)).toBe("| a | b | c |\n|---|---|---|\n| 1 |\n| 4 | 5 | 6 |");
+    // Shift+Tab from the row below goes to the last column, and a row without its closing pipe gets one.
+    const back = viewOf("a | b | c\n--|--|--\n1\n4 | 5 | 6", 21);
+    key(back, "Tab", true);
+    expect(text(back)).toBe("a | b | c\n--|--|--\n1 |  |  |\n4 | 5 | 6");
+    expect(back.state.selection.main.head).toBe(26);
+    // Read-only, the caret goes to the end of the short row.
+    const locked = viewOf("| a | b |\n|---|---|\n| 1 |", 21, true);
+    key(locked, "Tab");
+    expect(text(locked)).toBe("| a | b |\n|---|---|\n| 1 |");
+    expect(locked.state.selection.main.head).toBe(25);
+  });
+
+  it("are in the keyboard reference, each bound in a table", () => {
     expect(
       TABLE_KEYS.map((row) => row.keys.map((spec) => ("press" in spec ? spec.press.shiftKey : null))),
     ).toEqual([[false], [true]]);
+    for (const row of TABLE_KEYS) {
+      for (const spec of row.keys) {
+        const view = viewOf(TABLE, 8);
+        const shift = "press" in spec && spec.press.shiftKey;
+        expect(key(view, "press" in spec ? spec.press.key : "", shift)).toBe(true);
+      }
+    }
   });
 });
