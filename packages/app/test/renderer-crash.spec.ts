@@ -60,12 +60,18 @@ const shown = (running: RunningApp): Promise<Shown> =>
     })()`),
   ) as Promise<Shown>;
 
-/** Crashes the renderer of the window, as a bug or a lack of memory does. */
+/**
+ * Ends the renderer of the window at once, as the system does when memory runs out. A kill, not
+ * `forcefullyCrashRenderer()`: on the CI runners that crash hangs in Chromium's crash handling
+ * ("Crashing because hung") and the process does not end in time.
+ */
 const crash = async (running: RunningApp): Promise<void> => {
   await running.app.evaluate(({ BrowserWindow }) => {
-    BrowserWindow.getAllWindows()[0]?.webContents.forcefullyCrashRenderer();
+    const pid = BrowserWindow.getAllWindows()[0]?.webContents.getOSProcessId();
+    if (pid !== undefined) {
+      process.kill(pid, "SIGKILL");
+    }
   });
-  // A crash may take some seconds on a CI runner (Chromium writes its crash dump first).
   await expect.poll(() => running.stderr(), { timeout: 30_000 }).toContain("The window's page ended (");
 };
 
