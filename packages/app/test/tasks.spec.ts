@@ -26,11 +26,19 @@ const open = async (window: Page): Promise<void> => {
   await expect(window.locator("article h1")).toHaveText(DEMO_TITLE);
 };
 
-const saved = async (running: RunningApp): Promise<string> => {
-  await running.window.keyboard.press("ControlOrMeta+s");
-  await expect(running.window.getByLabel("Minibuffer")).toContainText("Saved");
+const fileText = async (running: RunningApp): Promise<string> => {
   const file = await fs.readFile(path.join(running.workspace?.root ?? "", ...DEMO_FILE.split("/")), "utf8");
   return file.slice(file.indexOf("Aufgaben"));
+};
+
+/** Saves (Ctrl/Cmd+S, or autosave got there first) and waits until the file holds `expected`. */
+const expectSaved = async (running: RunningApp, expected: string | RegExp): Promise<void> => {
+  await running.window.keyboard.press("ControlOrMeta+s");
+  if (typeof expected === "string") {
+    await expect.poll(() => fileText(running)).toBe(expected);
+  } else {
+    await expect.poll(() => fileText(running)).toMatch(expected);
+  }
 };
 
 test.describe("tasks in the element buffer", () => {
@@ -52,10 +60,10 @@ test.describe("tasks in the element buffer", () => {
     await expect(boxes).toHaveText(["☑", "☑"]);
     await fs.mkdir(OUT, { recursive: true });
     await window.screenshot({ path: path.join(OUT, "tasks-light.png") });
-    expect(await saved(running)).toBe("Aufgaben:\n\n- [x] Mast prüfen\n- [x] Sensor tauschen\n");
+    await expectSaved(running, "Aufgaben:\n\n- [x] Mast prüfen\n- [x] Sensor tauschen\n");
     await window.locator(".cm-content").focus();
     await window.keyboard.press("ControlOrMeta+z");
-    expect(await saved(running)).toBe(TEXT);
+    await expectSaved(running, TEXT);
   });
 
   test("[SR-185/AK3] Toggle task from the command prompt switches the task at the caret", async () => {
@@ -66,6 +74,6 @@ test.describe("tasks in the element buffer", () => {
     await expect(window.locator('.candidates [role="option"]').first()).toContainText("Toggle task");
     await window.keyboard.press("Enter");
     await expect(window.locator(".cm-content")).toBeFocused();
-    expect(await saved(running)).toBe("Aufgaben:\n\n- [ ] Mast prüfen\n- [ ] Sensor tauschen\n");
+    await expectSaved(running, "Aufgaben:\n\n- [ ] Mast prüfen\n- [ ] Sensor tauschen\n");
   });
 });
