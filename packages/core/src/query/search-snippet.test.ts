@@ -1,7 +1,8 @@
 // The snippet of a search hit (SR-174) through element.search, on fixtures/SR-174/snippets: SR a1
 // "Measure the wind" (a Markdown text with a heading, bold, a link with a title, an inline
 // reference, inline code and a list; spec ID SR-201), a2 "Show a dial" (approved; the properties
-// checks, notes and level in file order, the type lists level, notes, checks), a3 "Survive icing".
+// checks, notes and level in file order, the type lists level, notes, checks), a3 "Survive icing",
+// a4 "Log the station" (its match near the end of a long text, for the app, #1049).
 // Other cases add files of their own.
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureOptions } from "@reqseq/testkit";

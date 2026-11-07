@@ -104,6 +104,7 @@ describe("relationPrompt", () => {
     depth: 0,
     terms: [],
     markLabel: false,
+    titleMarks: [],
   });
 
   it("lists the targets that are set with the hint set; taking one removes it", () => {

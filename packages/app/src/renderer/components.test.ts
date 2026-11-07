@@ -2481,7 +2481,7 @@ describe("ListView, a search", () => {
     const call = fakeCall({
       "element.search": () => ({
         hits: [
-          hit(1, { title: "Wind speed" }),
+          hit(1, { title: "Wind speed", titleMarks: [{ start: 0, end: 4 }] }),
           hit(2, { title: "Rewind", fields: ["id"], terms: [], identifier: "SR-2" }),
         ],
         total: 2,
@@ -2514,6 +2514,94 @@ describe("ListView, a search", () => {
     await press(query('[role="listbox"]'), "End");
     expect(call).toHaveBeenLastCalledWith("element.search", { query: "wind", limit: 50, offset: 50 });
     expect(container.querySelectorAll(".row")).toHaveLength(80);
+  });
+
+  it("[SR-174/AK1] shows under the title of a hit in the text that it was found in the text, and the snippet with its marks", async () => {
+    const text = "The anemometer measures gusts with pulse counting, as Show a dial shows.";
+    const call = fakeCall({
+      "element.search": () => ({
+        hits: [
+          hit(1, {
+            title: "Measure the wind",
+            fields: ["text"],
+            terms: ["gusts", "pulse"],
+            snippet: {
+              field: "text",
+              text,
+              marks: [
+                { start: 24, end: 29 },
+                { start: 35, end: 40 },
+              ],
+            },
+          }),
+        ],
+        total: 1,
+        incomplete: false,
+      }),
+    });
+    await listHarness(asCall(call), searchBuffer("gusts pulse"));
+    expect(texts(".row .snippet")).toEqual([`text: ${text}`]);
+    expect(texts(".row .snippet .where")).toEqual(["text:"]);
+    expect(texts(".row .snippet mark")).toEqual(["gusts", "pulse"]);
+    // The title has no match, so nothing in it is marked, though a term would begin a word there.
+    expect(texts(".row .title mark")).toEqual([]);
+  });
+
+  it("[SR-174/AK2] names the property a hit was found in and shows the snippet of its value", async () => {
+    const call = fakeCall({
+      "element.search": () => ({
+        hits: [
+          hit(2, {
+            title: "Show a dial",
+            fields: ["properties"],
+            terms: ["hurricane"],
+            snippet: {
+              field: "properties",
+              property: "checks",
+              propertyName: "Checks",
+              text: "The dial warns before a hurricane arrives.",
+              marks: [{ start: 24, end: 33 }],
+            },
+          }),
+        ],
+        total: 1,
+        incomplete: false,
+      }),
+    });
+    await listHarness(asCall(call), searchBuffer("hurricane"));
+    expect(texts(".row .snippet")).toEqual(["Checks: The dial warns before a hurricane arrives."]);
+    expect(texts(".row .snippet mark")).toEqual(["hurricane"]);
+    // The option is named by ID, title and status; the snippet describes it, and is its tooltip.
+    const option = query('[role="option"]');
+    const named = (option.getAttribute("aria-labelledby") ?? "")
+      .split(" ")
+      .map((id) => document.getElementById(id));
+    expect(named.map((part) => part?.className)).toEqual(["id", "title", "status"]);
+    const described = document.getElementById(option.getAttribute("aria-describedby") ?? "");
+    expect(described?.className).toBe("snippet");
+    expect(described?.getAttribute("title")).toBe("Checks: The dial warns before a hurricane arrives.");
+  });
+
+  it("[SR-174/AK4] shows no snippet for a hit in the title or an ID only, and marks the title where core says", async () => {
+    const call = fakeCall({
+      "element.search": () => ({
+        hits: [
+          hit(3, {
+            title: "Survive icing",
+            terms: ["icing"],
+            titleMarks: [{ start: 8, end: 13 }],
+          }),
+          // A term that begins a word of the title, but core marks nothing there: nothing is marked.
+          hit(4, { title: "Icing alarm", fields: ["id"], terms: ["icing"], identifier: "SR-4" }),
+        ],
+        total: 2,
+        incomplete: false,
+      }),
+    });
+    await listHarness(asCall(call), searchBuffer("icing"));
+    expect(container.querySelectorAll(".row .snippet")).toHaveLength(0);
+    expect(texts(".row .title mark")).toEqual(["icing"]);
+    expect(texts(".row .id mark")).toEqual(["SR-4"]);
   });
 
   it("says why the search failed", async () => {

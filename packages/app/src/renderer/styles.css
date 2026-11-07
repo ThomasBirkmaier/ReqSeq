@@ -223,7 +223,7 @@ body,
 .row {
   display: grid;
   grid-template-columns: 9rem minmax(0, 1fr) auto;
-  gap: 1rem;
+  gap: 0 1rem;
   align-items: baseline;
   padding: 0.1rem 0.75rem;
   cursor: default;
@@ -269,6 +269,20 @@ body,
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* The snippet of a search hit (SR-174): one line under the row, across its whole width, where it was found
+   muted in front, the matched words in a heavier weight as in the title (`mark`), meaning and no colour. */
+.row .snippet {
+  grid-column: 1 / -1;
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row .snippet .where {
+  color: var(--muted);
 }
 
 /* The overview: a line per type with its count, and the recent elements below. Greys only. */

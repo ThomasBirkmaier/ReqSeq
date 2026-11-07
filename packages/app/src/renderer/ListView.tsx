@@ -7,13 +7,14 @@
 // verification degree of its elements, as a package page has it (`SummaryLine`, product owner decision,
 // 2026-11-06). A grouped list (SR-149) shows each group of `element.list` under a heading with its name and
 // count, below that line; the rows are those of the grouped list, so an element in several groups is a row
-// in each, and rows are keyed by their position.
-import { useEffect, useRef, useState } from "react";
+// in each, and rows are keyed by their position. A search hit shows the title with the words core marked
+// (`titleMarks`) and, under it, where it was found and the snippet core gives (SR-174), marked the same way.
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useIdScope } from "./area-scope.js";
 import type { BufferAction, ListBuffer, SearchBuffer } from "./buffers.js";
 import { bufferName, listHeading, listSort } from "./buffers.js";
 import type { Call } from "./call.js";
-import { highlightTerms } from "./highlight.js";
+import { highlightRanges, highlightTerms, trimLead } from "./highlight.js";
 import type { ListGroup } from "./list-groups.js";
 import { groupCount, groupName, groupSections } from "./list-groups.js";
 import type { Part } from "./highlight.js";
@@ -24,7 +25,7 @@ import { memberSummary } from "./package-page.js";
 import { SummaryLine } from "./PackageSummary.js";
 import { rowClass, useOutsideMarks } from "./use-outside-marks.js";
 import { useResetOnAsk } from "./use-reset-on-ask.js";
-import type { Row } from "./rows.js";
+import type { Row, Snippet } from "./rows.js";
 import {
   LIST_MAX,
   LIST_PAGE,
@@ -173,6 +174,57 @@ const Marked = ({ parts }: { readonly parts: readonly Part[] }): React.JSX.Eleme
     )}
   </>
 );
+
+/** Characters kept before the first marked word, tried in turn while the line hides it. */
+const LEADS = [60, 40, 24, 12, 0];
+
+/**
+ * The snippet of a search hit (SR-174): where it was found and core's line, its marked words heavier. Core
+ * gives up to 120 characters, more than the column holds: while the line hides its first marked word, the
+ * words before it are left out, so the match stays in view (`trimLead`); the whole line is its tooltip.
+ */
+const SnippetLine = ({
+  id,
+  snippet,
+}: {
+  readonly id: string;
+  readonly snippet: Snippet;
+}): React.JSX.Element => {
+  const line = useRef<HTMLSpanElement>(null);
+  // Which entry of LEADS is shown; undefined: the whole line.
+  const [lead, setLead] = useState<number | undefined>(undefined);
+  const [width, setWidth] = useState(0);
+  useLayoutEffect(() => {
+    const box = line.current?.getBoundingClientRect();
+    const mark = line.current?.querySelector("mark")?.getBoundingClientRect();
+    const next = lead === undefined ? 0 : lead + 1;
+    if (box !== undefined && mark !== undefined && mark.right > box.right + 0.5 && next < LEADS.length) {
+      setLead(next);
+    }
+  }, [lead, width]);
+  useEffect(() => {
+    // Another width measures again from the whole line.
+    const resized = (): void => {
+      setLead(undefined);
+      setWidth(window.innerWidth);
+    };
+    window.addEventListener("resize", resized);
+    return () => {
+      window.removeEventListener("resize", resized);
+    };
+  }, []);
+  const keep = lead === undefined ? undefined : LEADS[lead];
+  const shown =
+    keep === undefined
+      ? { text: snippet.text, ranges: snippet.marks }
+      : trimLead(snippet.text, snippet.marks, keep);
+  return (
+    <span ref={line} id={id} className="snippet" title={`${snippet.where}: ${snippet.text}`}>
+      <span className="where">{snippet.where}:</span>{" "}
+      <Marked parts={highlightRanges(shown.text, shown.ranges)} />
+    </span>
+  );
+};
 
 /** The heading of a list of its own (SR-148): what it shows and, once loaded, how many, as a package page says it. */
 const ListHeading = ({
@@ -436,28 +488,42 @@ export const ListView = ({
   };
 
   const groups = groupsOf(view);
-  const rowAt = (row: Row, at: number): React.JSX.Element => (
-    <div
-      // A grouped list can show an element in several groups: its rows are told apart by position.
-      key={groups === undefined ? row.open.key : at}
-      id={`${scope}row-${String(at)}`}
-      className={rowClass("row", marked, row.open.id)}
-      role="option"
-      aria-selected={at === cursor}
-      onClick={() => {
-        dispatch({ type: "cursor", key: buffer.key, cursor: at });
-        openRow(row);
-      }}
-    >
-      <span className="id">
-        <Marked parts={highlightTerms(row.label, row.markLabel ? [row.label.toLowerCase()] : [])} />
-      </span>
-      <span className="title" style={{ paddingLeft: `${String(row.depth * 1.25)}rem` }}>
-        <Marked parts={highlightTerms(row.title, row.terms)} />
-      </span>
-      <span className="status">{row.status}</span>
-    </div>
-  );
+  const rowAt = (row: Row, at: number): React.JSX.Element => {
+    const id = `${scope}row-${String(at)}`;
+    // A row with a snippet is named by its ID, title and status; the snippet describes it (SR-174).
+    const named =
+      row.snippet === undefined
+        ? {}
+        : { "aria-labelledby": `${id}-id ${id}-title ${id}-status`, "aria-describedby": `${id}-snippet` };
+    return (
+      <div
+        // A grouped list can show an element in several groups: its rows are told apart by position.
+        key={groups === undefined ? row.open.key : at}
+        id={id}
+        className={rowClass("row", marked, row.open.id)}
+        role="option"
+        aria-selected={at === cursor}
+        {...named}
+        onClick={() => {
+          dispatch({ type: "cursor", key: buffer.key, cursor: at });
+          openRow(row);
+        }}
+      >
+        <span className="id" id={`${id}-id`}>
+          <Marked parts={highlightTerms(row.label, row.markLabel ? [row.label.toLowerCase()] : [])} />
+        </span>
+        <span className="title" id={`${id}-title`} style={{ paddingLeft: `${String(row.depth * 1.25)}rem` }}>
+          <Marked parts={highlightRanges(row.title, row.titleMarks)} />
+        </span>
+        <span className="status" id={`${id}-status`}>
+          {row.status}
+        </span>
+        {row.snippet === undefined ? null : (
+          <SnippetLine key={row.snippet.text} id={`${id}-snippet`} snippet={row.snippet} />
+        )}
+      </div>
+    );
+  };
 
   const rowsAndNotes = (
     <>
