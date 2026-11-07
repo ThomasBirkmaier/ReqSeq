@@ -7,6 +7,7 @@ import { history, historyField, historyKeymap, redo, standardKeymap } from "@cod
 import { Compartment, EditorState, Transaction } from "@codemirror/state";
 import type { Extension } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
+import type { Command } from "@codemirror/view";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { releaseCaretSide } from "./caret-side.js";
 import { minimalChange } from "./diff.js";
@@ -50,6 +51,11 @@ export interface EditorHandle {
    * (the action "Insert image", SR-097).
    */
   readonly insert: (text: string) => void;
+  /**
+   * Runs an editing command on the editor with its selection, and gives the editor the focus (the text actions of
+   * the command prompt, `text-actions.ts`); its answer is the command's: false when it did not apply.
+   */
+  readonly run: (command: Command) => boolean;
 }
 
 export interface EditorProps {
@@ -152,6 +158,7 @@ const theme = EditorView.theme({
   ".cm-lr-outdated-word": { color: "var(--accent-outdated)" },
   ".cm-lr-muted": { color: "var(--muted)" },
   ".cm-lr-bullet, .cm-lr-task": { display: "inline-block", width: "1.1em", color: "var(--muted)" },
+  ".cm-lr-task": { cursor: "pointer" },
   ".cm-lr-quote": { borderLeft: "3px solid var(--rule)", paddingLeft: "0.75rem", color: "var(--muted)" },
   ".cm-lr-codeblock": {
     fontFamily: "var(--mono)",
@@ -343,6 +350,11 @@ export const Editor = ({
       },
       insert: (text) => {
         insertHeld(editor, text);
+      },
+      run: (command) => {
+        const done = command(editor);
+        editor.focus();
+        return done;
       },
     });
     return () => {

@@ -3,7 +3,7 @@
 import { WidgetType } from "@codemirror/view";
 import type { Segment } from "./segments.js";
 
-/** One symbol in place of Markdown source: a list bullet or a task box. */
+/** One symbol in place of Markdown source: a list bullet (a task box is `TaskBoxWidget`, `tasks.ts`). */
 export class GlyphWidget extends WidgetType {
   readonly glyph: string;
   readonly className: string;
