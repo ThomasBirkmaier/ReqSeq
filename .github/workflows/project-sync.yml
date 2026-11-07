@@ -9,6 +9,10 @@ name: Project sync
 on:
   issues:
     types: [opened, edited, labeled, unlabeled, closed, reopened]
+  # `issue-working` labels with the workflow token, whose label events start no workflow.
+  workflow_run:
+    workflows: [Issue working]
+    types: [completed]
   schedule:
     - cron: "17 3 * * *"
   workflow_dispatch:
