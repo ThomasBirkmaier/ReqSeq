@@ -44,6 +44,24 @@ describe("path completion", () => {
     expect(choices[0]?.run()).toBeUndefined();
   });
 
+  it("asks ahead for the folder a typed name names, so the separator after it finds its listing", async () => {
+    const { list, seek } = seeker();
+    await seek("/w/doc");
+    expect(list.mock.calls).toEqual([["/w/"]]);
+    await seek("/w/docs");
+    expect(list.mock.calls).toEqual([["/w/"], ["/w/docs/"]]);
+    await seek("/w/docs/");
+    expect(list).toHaveBeenCalledTimes(2);
+    // Without a folder typed, with the platform's separator; a file is not asked ahead.
+    const windows = vi.fn(() =>
+      Promise.resolve<ListingAnswer>({ folder: "C:\\w", name: "", entries: ENTRIES }),
+    );
+    await pathSeeker({ list: windows, windows: true })("out");
+    expect(windows.mock.calls).toEqual([[""], ["out\\"]]);
+    await pathSeeker({ list: windows, windows: true })("export.reqif");
+    expect(windows).toHaveBeenLastCalledWith("");
+  });
+
   it("narrows by the start of the name when the typed name has no letters (a dot)", () => {
     const dotted: FolderListing["entries"] = [
       { name: ".git", kind: "folder" },
@@ -112,7 +130,8 @@ describe("path completion", () => {
     expect((await seek("/s/la")).note).toBe("busy");
     expect((await seek("/s/lat")).choices.map((choice) => choice.name)).toEqual(["late/"]);
     await seek("/s/late");
-    expect(list).toHaveBeenCalledTimes(3);
+    // The third listing is kept; the fourth call asks ahead for "/s/late/".
+    expect(list.mock.calls.map(([text]) => text)).toEqual(["/s/", "/s/", "/s/", "/s/late/"]);
     // Two keys that waited for the same listing with a problem drop it once.
     const missing = seeker({ folder: "/m", name: "", entries: [], problem: "missing" });
     await Promise.all([missing.seek("/m/a"), missing.seek("/m/b")]);

@@ -15,11 +15,14 @@ import {
 import type { Call } from "./call.js";
 import type { CatalogContext } from "./catalog-commands.js";
 import { PREFIX_BINDINGS } from "./bindings.js";
+import { isWindows } from "./keys.js";
 import { catalogItems, contextField, fits, refusedOf } from "./catalog-commands.js";
 import { rank } from "./fuzzy.js";
 import { rankByUse } from "./usage.js";
 import { CREATE_METAMODEL } from "./create-test-data.js";
 import { FIXTURE_METAMODEL } from "./metamodel-test-data.js";
+
+const PLATFORM_SEP = isWindows(navigator.platform) ? "\\" : "/";
 
 const runtime = getCommandRuntime();
 /** The catalog as the bridge lists it (`commands()`), with what this version implements. */
@@ -164,7 +167,8 @@ describe("path arguments of catalog commands (SR-143)", () => {
     expect(prompt.literal?.("  ")).toBeUndefined();
     expect(prompt.literal?.("new.reqif")).toMatchObject({ name: "Use new.reqif", hint: "file" });
     expect((await prompt.seek?.(""))?.choices.map((choice) => [choice.name, choice.complete])).toEqual([
-      ["out/", "out/"],
+      // Nothing typed yet: a folder gets the separator of the platform.
+      [`out${PLATFORM_SEP}`, `out${PLATFORM_SEP}`],
       ["export.reqif", "export.reqif"],
     ]);
     expect(call).toHaveBeenLastCalledWith("workspace.listFolder", { path: "", files: true });

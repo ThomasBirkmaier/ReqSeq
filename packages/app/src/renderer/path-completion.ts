@@ -5,7 +5,8 @@
 // NFD matches what is typed), folders and links before files (AK3). Core decides which entries exist:
 // names that start with "." only when the typed name does (AK6), files only for a file argument. A
 // listing is asked once per folder and dot rule while the prompt is open, so a letter only narrows it
-// (AK5); the prompt drops the answers of texts typed over. A choice puts the path up to the entry in the
+// (AK5), and the folder a typed name names is asked ahead, so the separator after it does not wait for the
+// file system; the prompt drops the answers of texts typed over. A choice puts the path up to the entry in the
 // input (the spelling on disk, a folder or link with a separator at its end) and keeps the prompt open
 // (AK1); at most SHOWN_ENTRIES are shown, a row "… n more" stands for the rest, so 10,000 entries render
 // within the bound. A folder that is missing, not readable or refused by its text gives no choices and a
@@ -125,13 +126,30 @@ export const pathSeeker = (completion: PathCompletion): ((text: string) => Promi
     const { folder, name } = splitPath(text, windows);
     const dots = name.startsWith(".") ? "." : "";
     const key = JSON.stringify([folder, dots]);
-    let listing = listings.get(key);
-    if (listing === undefined) {
-      // The typed name matters to core only by its first character (the dot rule).
-      listing = completion.list(`${folder}${dots}`);
-      listings.set(key, listing);
-    }
+    const listingOf = (typedFolder: string, typedDots: string): Promise<ListingAnswer> => {
+      const at = JSON.stringify([typedFolder, typedDots]);
+      let known = listings.get(at);
+      if (known === undefined) {
+        // The typed name matters to core only by its first character (the dot rule).
+        known = completion.list(`${typedFolder}${typedDots}`);
+        listings.set(at, known);
+      }
+      return known;
+    };
+    const listing = listingOf(folder, dots);
     const answer = await listing;
+    // A typed name that is a folder of the listing: its own listing is asked now, so the separator typed
+    // next shows its entries without waiting for the file system (AK5).
+    if (
+      !("failed" in answer) &&
+      answer.problem === undefined &&
+      name !== "" &&
+      answer.entries.some(
+        (entry) => entry.kind !== "file" && entry.name.normalize("NFC") === name.normalize("NFC"),
+      )
+    ) {
+      void listingOf(`${folder}${name}${folder === "" ? (windows ? "\\" : "/") : folder.slice(-1)}`, "");
+    }
     // Only entries are kept: a folder that is missing, not readable or had no answer in time (a slow share)
     // is asked again on the next key, so it gives suggestions once it answers.
     if (("failed" in answer || answer.problem !== undefined) && listings.get(key) === listing) {
