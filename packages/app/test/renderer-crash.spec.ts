@@ -65,7 +65,8 @@ const crash = async (running: RunningApp): Promise<void> => {
   await running.app.evaluate(({ BrowserWindow }) => {
     BrowserWindow.getAllWindows()[0]?.webContents.forcefullyCrashRenderer();
   });
-  await expect.poll(() => running.stderr()).toContain("The window's page ended (crashed");
+  // A crash may take some seconds on a CI runner (Chromium writes its crash dump first).
+  await expect.poll(() => running.stderr(), { timeout: 30_000 }).toContain("The window's page ended (");
 };
 
 test.describe("a crash of the window's page", () => {
@@ -90,6 +91,8 @@ test.describe("a crash of the window's page", () => {
     await expect(before.locator('[data-on-disk="Text"]')).toContainText(THEIRS);
     await before.keyboard.type(MORE);
     await expect(text(before)).toHaveText(`${TEXT}${MINE}${MORE}`);
+    // The input stays unsaved to the end: the window closes without asking, also if the test fails.
+    running.discardAtClose();
     await crash(running);
     // The workspace, the element and its input are back, and the conflict is still to be resolved.
     await expect
@@ -103,6 +106,5 @@ test.describe("a crash of the window's page", () => {
       });
     // Nothing was saved over the file, and nothing is when the window closes.
     expect(await onDisk()).not.toContain(MINE);
-    running.discardAtClose();
   });
 });
