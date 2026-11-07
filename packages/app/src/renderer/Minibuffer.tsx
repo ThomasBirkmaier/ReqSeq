@@ -8,6 +8,7 @@ import type { Part } from "./highlight.js";
 import type { Ranked } from "./fuzzy.js";
 import { isMac, listStep, matches } from "./keys.js";
 import { MORE_SHORTCUT } from "./prompt-keys.js";
+import { SnippetLine } from "./ListView.js";
 import { promptRows } from "./usage.js";
 import type { PromptRow } from "./usage.js";
 
@@ -27,8 +28,14 @@ export interface MinibufferProps {
   readonly nextKeys?: readonly { readonly key: string; readonly name: string }[] | undefined;
 }
 
-const parts = ({ item, ranges }: Ranked<Choice>): Part[] =>
-  item.terms === undefined ? highlightRanges(item.name, ranges) : highlightTerms(item.name, item.terms);
+const parts = ({ item, ranges }: Ranked<Choice>): Part[] => {
+  if (item.marks !== undefined) {
+    return highlightRanges(item.name, item.marks);
+  }
+  return item.terms === undefined
+    ? highlightRanges(item.name, ranges)
+    : highlightTerms(item.name, item.terms);
+};
 
 /** The copy of a card that runs the motion back after the card closed, by the node it was made of. */
 const leaving = new WeakMap<HTMLElement, HTMLElement>();
@@ -158,7 +165,9 @@ const PromptLine = ({
   readonly onClose: (cancelled: boolean) => void;
 }): React.JSX.Element => {
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState(0);
+  // The selection while none is chosen: the first row, or none at all while the hits only preview (SR-183).
+  const none = given.preview === true ? -1 : 0;
+  const [selected, setSelected] = useState(none);
   // The hits shown, with the question they answer.
   const [found, setFound] = useState<{ readonly question: number; readonly choices: readonly Choice[] }>({
     question: 0,
@@ -261,10 +270,13 @@ const PromptLine = ({
       answer.current = { text: value, choices };
       setFound({ question: mine, choices });
       const { at, id } = picked.current;
-      if (at > 0) {
+      if (at > 0 || (given.preview === true && at >= 0)) {
         const kept = rowsFor(value, choices).findIndex(({ item }) => item.id === id);
         if (kept !== -1) {
           setSelected(kept);
+        } else if (given.preview === true) {
+          // The hit chosen is not among the new ones: none is chosen (SR-183).
+          setSelected(none);
         }
       }
       if (waiting.current === mine) {
@@ -303,7 +315,7 @@ const PromptLine = ({
 
   const change = (value: string): void => {
     setQuery(value);
-    setSelected(0);
+    setSelected(none);
     typed.current = value;
     // Typing after Enter cancels it, while the answer is awaited (SR-119) and while the parts load.
     waiting.current = 0;
@@ -328,6 +340,13 @@ const PromptLine = ({
     } else if (loading) {
       early.current = "enter";
       setPending(true);
+    } else if (current === undefined && prompt.preview === true && prompt.text !== undefined) {
+      // No hit is chosen: the text is taken at once, whatever hits are on their way (SR-183 AK5).
+      onClose(false);
+      prompt.text(query);
+    } else if (current !== undefined && prompt.preview === true) {
+      // The hit chosen is the one opened, even while newer hits are on their way (SR-183 AK4).
+      choose(current.item, query);
     } else if (stale()) {
       awaitAnswer(false);
     } else if (current !== undefined) {
@@ -348,6 +367,9 @@ const PromptLine = ({
     } else if (loading) {
       early.current = "more";
       setPending(true);
+    } else if (prompt.preview === true) {
+      // The search prompt has no optional arguments: as Enter, which never waits there (SR-183 AK4, AK5).
+      enter();
     } else if (stale()) {
       awaitAnswer(true);
     } else if (current?.item.more !== undefined) {
@@ -408,7 +430,7 @@ const PromptLine = ({
     if (step !== undefined) {
       event.preventDefault();
       event.stopPropagation();
-      setSelected(Math.max(0, Math.min(rows.length - 1, selected + step)));
+      setSelected(Math.max(none, Math.min(rows.length - 1, selected + step)));
       return;
     }
     // Alt+N, Alt+P and Alt+O (Option on macOS) switch no buffer or area while a prompt is open: they type
@@ -473,6 +495,12 @@ const PromptLine = ({
                 id={`candidate-${String(at)}`}
                 role="option"
                 aria-selected={at === selected}
+                {...(given.preview === true
+                  ? { className: row.item.snippet === undefined ? "hit" : "hit snipped" }
+                  : {})}
+                {...(row.item.snippet === undefined
+                  ? {}
+                  : { "aria-describedby": `candidate-${String(at)}-snippet` })}
                 ref={(element) => {
                   if (at === selected) {
                     element?.scrollIntoView({ block: "nearest" });
@@ -489,6 +517,13 @@ const PromptLine = ({
                   )}
                 </span>
                 {row.item.hint === undefined ? null : <span className="hint">{row.item.hint}</span>}
+                {row.item.snippet === undefined ? null : (
+                  <SnippetLine
+                    key={row.item.snippet.text}
+                    id={`candidate-${String(at)}-snippet`}
+                    snippet={row.item.snippet}
+                  />
+                )}
               </li>
             ))}
           </ul>
