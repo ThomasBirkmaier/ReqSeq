@@ -74,6 +74,8 @@ export interface Choice {
    * typing goes on (a folder of a path, SR-143 AK1); `run` is then not called.
    */
   readonly complete?: string;
+  /** It only informs ("… n more", SR-143 AK5): it cannot be selected or chosen. */
+  readonly inert?: boolean;
   /** What Ctrl/Cmd+Enter does with it: take it and offer the optional arguments (catalog commands). */
   readonly more?: () => void;
   /** It fits the shown view (SR-133): it comes before the others when nothing is typed and among equal matches. */

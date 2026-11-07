@@ -390,6 +390,31 @@ describe("Minibuffer", () => {
     expect(texts("label.prompt-label")).toEqual(["Workspace"]);
   });
 
+  it("never selects or chooses a row that only informs", async () => {
+    const more = choice("more", "… 3 more", { inert: true });
+    const entry = choice("e1", "a/", { complete: "/a/" });
+    const { closed } = await mount({
+      label: "Workspace",
+      items: [],
+      seek: () => Promise.resolve({ choices: [entry, more], alone: true }),
+    });
+    await type(input(), "/");
+    await press(input(), "ArrowDown");
+    await press(input(), "ArrowDown");
+    expect(container.querySelector('[aria-selected="true"] .name')?.textContent).toBe("a/");
+    expect(query('[aria-disabled="true"] .name').textContent).toBe("… 3 more");
+    await act(async () => {
+      query('[aria-disabled="true"]').dispatchEvent(
+        new MouseEvent("mousedown", { bubbles: true, cancelable: true }),
+      );
+      await Promise.resolve();
+    });
+    await flush();
+    expect(input().value).toBe("/");
+    expect(closed).not.toHaveBeenCalled();
+    expect(more.run).not.toHaveBeenCalled();
+  });
+
   describe("argument entry of catalog commands (ThomasBirkmaier/ReqSeq-archive#85)", () => {
     it("[SR-108/AK2] marks the matched characters of an argument's candidates", async () => {
       await mount({

@@ -144,7 +144,7 @@ test.describe("Path completion", () => {
     await window.screenshot({ path: path.join(SHOTS, "path-completion-light.png") });
   });
 
-  test("[SR-143/AK4] a missing or unreadable folder gives no entries, says which it is, and the typed path is still taken", async () => {
+  test("[SR-143/AK4] a missing folder gives no entries, says it is missing, and the typed path is still taken", async () => {
     const { window } = running;
     await openWorkspacePrompt(window);
     const gone = path.join(dir, "gone");
@@ -155,7 +155,12 @@ test.describe("Path completion", () => {
     await expect(window.getByLabel("Minibuffer")).toHaveText(
       `No workspace in ${gone}${sep}x or a folder above it; Weather station stays open`,
     );
+  });
+
+  test("[SR-143/AK4] an unreadable folder gives no entries, says it is not readable, and the typed path is still taken", async () => {
+    // Windows has no mode bits that deny reading a folder: chmod changes only the read-only flag there.
     test.skip(process.platform === "win32", "chmod does not make a folder unreadable on Windows");
+    const { window } = running;
     await make(dir, "locked/inner/");
     await fs.chmod(path.join(dir, "locked"), 0o000);
     await exportPrompt(window);
@@ -163,6 +168,9 @@ test.describe("Path completion", () => {
     await window.keyboard.insertText(`${locked}${sep}in`);
     await expect(label(window)).toHaveText(`${locked} is not readable · Export ReqIF · output:`);
     await expect(names(window)).toHaveText([`Use ${locked}${sep}in`]);
+    await window.keyboard.press("Enter");
+    // The command took it: the prompt for the output is gone.
+    await expect(window.getByText(`${locked} is not readable · Export ReqIF · output:`)).toHaveCount(0);
   });
 
   test("[SR-143/AK5] in a folder of 10,000 entries the suggestions are updated within 100 ms of a key", async () => {
@@ -175,6 +183,14 @@ test.describe("Path completion", () => {
     await Promise.all(
       Array.from({ length: 9000 }, (_, i) =>
         fs.writeFile(path.join(big, `f${String(i).padStart(5, "0")}.txt`), ""),
+      ),
+    );
+    // For "Open workspace", which lists folders only (through main): 10,000 folders.
+    const wide = path.join(dir, "wide");
+    await fs.mkdir(wide);
+    await Promise.all(
+      Array.from({ length: 10_000 }, (_, i) =>
+        fs.mkdir(path.join(wide, `${i < 5000 ? "a" : "b"}${String(i % 5000).padStart(5, "0")}`)),
       ),
     );
     await exportPrompt(window);
@@ -214,13 +230,24 @@ test.describe("Path completion", () => {
     // A letter: the listing is narrowed.
     const narrowed = await timed("f", "f00000.txt");
     await expect(names(window).last()).toHaveText(/^… [\d,]+ more$/);
+    // "Open workspace": the same through main.
+    await window.keyboard.press("Escape");
+    await openWorkspacePrompt(window);
+    await window.keyboard.insertText(`${dir}${sep}w`);
+    await expect(names(window).nth(1)).toHaveText(`wide${sep}`);
+    await window.keyboard.press("Backspace");
+    await window.keyboard.type("wide");
+    const opened = await timed(sep === "\\" ? "Backslash" : "Slash", `a00000${sep}`);
+    const chosen = await timed("b", `b00000${sep}`);
     // The times in the report, to see the margin on each system.
     test.info().annotations.push({
       type: "timing",
-      description: `separator ${listed.toFixed(1)} ms, letter ${narrowed.toFixed(1)} ms`,
+      description: `Export ReqIF: separator ${listed.toFixed(1)} ms, letter ${narrowed.toFixed(1)} ms; Open workspace: separator ${opened.toFixed(1)} ms, letter ${chosen.toFixed(1)} ms`,
     });
     expect(listed).toBeLessThanOrEqual(100);
     expect(narrowed).toBeLessThanOrEqual(100);
+    expect(opened).toBeLessThanOrEqual(100);
+    expect(chosen).toBeLessThanOrEqual(100);
   });
 
   test('[SR-143/AK6] names that start with "." are offered only when the typed name starts with "."', async () => {

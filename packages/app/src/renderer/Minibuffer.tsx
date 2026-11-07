@@ -260,6 +260,9 @@ const PromptLine = ({
   // remembered (SR-121 AK2), never an element found for the text. `more` (Ctrl/Cmd+Enter) takes it with
   // the optional arguments of a catalog command; a choice without them is taken as with Enter.
   const choose = (choice: Choice, typed: string, more = false): void => {
+    if (choice.inert === true) {
+      return;
+    }
     if (choice.complete !== undefined) {
       // In place of the typed text, and the prompt stays open (SR-143 AK1).
       change(choice.complete);
@@ -474,7 +477,9 @@ const PromptLine = ({
     if (step !== undefined) {
       event.preventDefault();
       event.stopPropagation();
-      setSelected(Math.max(none, Math.min(rows.length - 1, selected + step)));
+      // A row that only informs ("… n more") is never selected.
+      const last = rows.findLastIndex(({ item }) => item.inert !== true);
+      setSelected(Math.max(none, Math.min(last, selected + step)));
       return;
     }
     // Alt+N, Alt+P and Alt+O (Option on macOS) switch no buffer or area while a prompt is open: they type
@@ -537,6 +542,7 @@ const PromptLine = ({
                 key={row.item.id}
                 id={`candidate-${String(at)}`}
                 role="option"
+                {...(row.item.inert === true ? { "aria-disabled": true } : {})}
                 aria-selected={at === selected}
                 {...(given.preview === true
                   ? { className: row.item.snippet === undefined ? "hit" : "hit snipped" }

@@ -107,7 +107,7 @@ export const entryChoices = (
   });
   const left = ordered.length - shown.length;
   return left > 0
-    ? [...shown, completing("more", `… ${left.toLocaleString("en")} more`, `${folder}${name}`)]
+    ? [...shown, { id: "more", name: `… ${left.toLocaleString("en")} more`, inert: true, run: noop }]
     : shown;
 };
 
@@ -132,6 +132,11 @@ export const pathSeeker = (completion: PathCompletion): ((text: string) => Promi
       listings.set(key, listing);
     }
     const answer = await listing;
+    // Only entries are kept: a folder that is missing, not readable or had no answer in time (a slow share)
+    // is asked again on the next key, so it gives suggestions once it answers.
+    if (("failed" in answer || answer.problem !== undefined) && listings.get(key) === listing) {
+      listings.delete(key);
+    }
     if ("failed" in answer) {
       return { choices: [], note: answer.failed, ...alone };
     }

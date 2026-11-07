@@ -69,7 +69,9 @@ describe("path completion", () => {
     const many = Array.from({ length: 10_000 }, (_, i) => ({ name: `f${String(i)}`, kind: "file" as const }));
     const choices = entryChoices(many, "/d/", "", false);
     expect(choices).toHaveLength(SHOWN_ENTRIES + 1);
-    expect(choices.at(-1)).toMatchObject({ id: "more", name: "… 9,800 more", complete: "/d/" });
+    expect(choices.at(-1)).toMatchObject({ id: "more", name: "… 9,800 more", inert: true });
+    expect(choices.at(-1)?.complete).toBeUndefined();
+    expect(choices.at(-1)?.run()).toBeUndefined();
   });
 
   it("asks once per folder and dot rule, and only the folder with the first letter's dot", async () => {
@@ -97,6 +99,25 @@ describe("path completion", () => {
     ] as const) {
       expect(await seeker(answer, true).seek("/w/x")).toEqual({ choices: [], note, alone: true });
     }
+  });
+
+  it("asks again for a folder that had a problem, so a slow one gives suggestions once it answers", async () => {
+    const list = vi
+      .fn<(text: string) => Promise<ListingAnswer>>()
+      .mockResolvedValueOnce({ folder: "/s", name: "", entries: [], problem: "unreadable" })
+      .mockResolvedValueOnce({ failed: "busy" })
+      .mockResolvedValue({ folder: "/s", name: "", entries: [{ name: "late", kind: "folder" }] });
+    const seek = pathSeeker({ list, windows: false });
+    expect((await seek("/s/l")).note).toBe("/s is not readable");
+    expect((await seek("/s/la")).note).toBe("busy");
+    expect((await seek("/s/lat")).choices.map((choice) => choice.name)).toEqual(["late/"]);
+    await seek("/s/late");
+    expect(list).toHaveBeenCalledTimes(3);
+    // Two keys that waited for the same listing with a problem drop it once.
+    const missing = seeker({ folder: "/m", name: "", entries: [], problem: "missing" });
+    await Promise.all([missing.seek("/m/a"), missing.seek("/m/b")]);
+    await missing.seek("/m/c");
+    expect(missing.list).toHaveBeenCalledTimes(2);
   });
 
   it("completes ~ to the home folder and a drive to its root, without asking", async () => {
