@@ -32,6 +32,7 @@
 // (`OnDisk.tsx`).
 import { Prec } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+import type { Command } from "@codemirror/view";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Autosave } from "./autosave.js";
 import { createAutosave } from "./autosave.js";
@@ -1397,6 +1398,18 @@ export const ElementView = ({
       });
     }
   };
+  // A text action of the command prompt (`text-actions.ts`): the command edits the text at its cursor.
+  const textCommand = (command: Command, none: string): void => {
+    const { handle: editor, onEcho: echo } = now.current;
+    const note = lockedNote();
+    if (note !== undefined) {
+      echo(note);
+    } else if (editor === undefined) {
+      echo("The text is not ready yet: try again in a moment");
+    } else if (!editor.run(command)) {
+      echo(none);
+    }
+  };
   // "Clear property" (SR-104 AK4): the box with the cursor, or the one it was in last, is emptied; it stays,
   // empty, until it is saved, and the property is removed from the file then.
   const clearProperty = (): void => {
@@ -1638,6 +1651,7 @@ export const ElementView = ({
     addProperty,
     clearProperty,
     insertImage,
+    textCommand,
     relationFollowed,
     isRelationBox,
     resolve,
@@ -1653,6 +1667,7 @@ export const ElementView = ({
     addProperty,
     clearProperty,
     insertImage,
+    textCommand,
     relationFollowed,
     isRelationBox,
     resolve,
@@ -1715,6 +1730,9 @@ export const ElementView = ({
       },
       insertImage: () => {
         api.current.insertImage();
+      },
+      text: (command, none) => {
+        api.current.textCommand(command, none);
       },
       follow: () => {
         // A focused target link, in a relation box or a relation group: that target (SR-132: the link

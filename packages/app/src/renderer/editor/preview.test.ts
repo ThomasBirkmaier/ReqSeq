@@ -13,6 +13,7 @@ import {
   previewDecorations,
   sourceLines,
 } from "./preview.js";
+import { TaskBoxWidget } from "./tasks.js";
 import { GlyphWidget, TableWidget } from "./widgets.js";
 
 interface Deco {
@@ -40,6 +41,8 @@ const describeSet = (set: DecorationSet, length: number): Deco[] => {
     const spec = value.spec as { class?: string; widget?: unknown; block?: boolean };
     if (spec.widget instanceof GlyphWidget) {
       found.push({ from, to, kind: "glyph", name: spec.widget.glyph });
+    } else if (spec.widget instanceof TaskBoxWidget) {
+      found.push({ from, to, kind: "glyph", name: spec.widget.checked ? "☑" : "☐" });
     } else if (spec.widget instanceof TableWidget) {
       found.push({ from, to, kind: "table" });
     } else if (spec.class === undefined) {

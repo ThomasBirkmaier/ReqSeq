@@ -6,6 +6,7 @@
 //
 // The prompt finds the app's actions and the catalog's read commands (`catalog-commands.ts`, ThomasBirkmaier/ReqSeq-archive#85); an
 // action that does what a command does covers it, so the prompt lists it once.
+import type { Command } from "@codemirror/view";
 import type { DataExportElement, ElementSelection } from "@reqseq/core";
 import type {
   Buffer,
@@ -44,6 +45,7 @@ import {
   onlyChoices,
 } from "./graph-choices.js";
 import { cycleKey } from "./buffer-cycle.js";
+import { TEXT_ACTIONS } from "./text-actions.js";
 import { searchRows } from "./rows.js";
 import type { Range, Row, Snippet } from "./rows.js";
 import type { Theme } from "./theme.js";
@@ -149,6 +151,11 @@ export interface ElementControls {
    * the caret of the text (the action "Insert image", SR-097, `insert-image.ts`).
    */
   readonly insertImage: () => void;
+  /**
+   * Runs an editing command at the cursor of the text and gives the text the focus, or says `none` when it does
+   * not apply there, or why the element cannot be changed (the text actions, `text-actions.ts`).
+   */
+  readonly text?: (command: Command, none: string) => void;
   /** The shown element is a package: its page lists the elements that name it, and "Sort list" sorts them (SR-112). */
   readonly members?: boolean;
   /**
@@ -977,6 +984,8 @@ export const ACTIONS: readonly Action[] = [
       context.element?.insertImage();
     },
   },
+  // The actions that edit the text at its cursor (D-073), each in its module (`text-actions.ts`).
+  ...TEXT_ACTIONS,
   {
     id: "version",
     title: "Show element ID and version",
