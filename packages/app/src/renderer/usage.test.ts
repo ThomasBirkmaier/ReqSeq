@@ -397,6 +397,16 @@ describe("the rows of a prompt with elements found by core", () => {
     ]);
   });
 
+  it("marks the prompt's own rows", () => {
+    const rows = promptRows(recent, found, (item) => item.name, "Package 1", undefined);
+    expect(rows.map(({ item, own }) => [item.id, own])).toEqual([
+      ["pkg", false],
+      ["sr-1", true],
+      ["sr-13", true],
+      ["sr-2", false],
+    ]);
+  });
+
   it("takes no title from the prompt's own items and none from a hit without one", () => {
     expect(ids("Overview", [{ id: "overview", name: "Overview" }], [{ id: "x", name: "Overview" }])).toEqual([
       "overview",

@@ -169,6 +169,9 @@ export const rankByUse = <T extends { readonly id: string; readonly fits?: boole
 const sameWords = (a: string, b: string): boolean =>
   a.trim().replace(/\s+/g, " ").toLowerCase() === b.trim().replace(/\s+/g, " ").toLowerCase();
 
+/** A row of a prompt, and whether it is one of the prompt's own items as `rankByUse` ranked them. */
+export type PromptRow<T> = Ranked<T> & { readonly own: boolean };
+
 /**
  * The rows of a prompt for `query`: its own items as `rankByUse` orders them, then the elements core found
  * (`found`, in core's order) that are not among them. An element core found whose whole title is the
@@ -183,12 +186,14 @@ export const promptRows = <
   name: (item: T) => string,
   query: string,
   use: PromptUse | undefined,
-): Ranked<T>[] => {
-  const ranked = rankByUse(items, name, query, use);
+): PromptRow<T>[] => {
+  const ranked = rankByUse(items, name, query, use).map((row): PromptRow<T> => ({ ...row, own: true }));
   const known = new Set(ranked.map(({ item }) => item.id));
   const rows = [
     ...ranked,
-    ...found.filter((item) => !known.has(item.id)).map((item): Ranked<T> => ({ item, ranges: [] })),
+    ...found
+      .filter((item) => !known.has(item.id))
+      .map((item): PromptRow<T> => ({ item, ranges: [], own: false })),
   ];
   const exact = new Set(
     found
