@@ -70,5 +70,5 @@ jobs:
             if (open.length > 0) {
               await github.rest.issues.createComment({ owner, repo, issue_number: open[0].number, body: text + footer });
             } else {
-              await github.rest.issues.create({ owner, repo, title: "main is red: typecheck or lint", labels: [label, "bug", "P1"], body: text + footer });
+              await github.rest.issues.create({ owner, repo, title: "main is red: typecheck or lint", labels: [label, "bug", "dev", "P1"], body: text + footer });
             }

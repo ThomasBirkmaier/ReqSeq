@@ -1,6 +1,6 @@
 # Architecture decision records
 
-ADRs say **how** ReqSeq is built. Product decisions (**what**) are the decisions in `spec/`, maintained with ReqSeq itself (`CLAUDE.md`, `spec-change` skill). An ADR never contradicts a decision; if it would have to, the conflict becomes a `spec-frage` issue (`CLAUDE.md`).
+ADRs say **how** ReqSeq is built. Product decisions (**what**) are the decisions in `spec/`, maintained with ReqSeq itself (`CLAUDE.md`, `spec-change` skill). An ADR never contradicts a decision; if it would have to, the conflict becomes a `question` issue (`CLAUDE.md`).
 
 Format: context, decision, consequences, rejected alternatives. Status `Proposed` until the stage 0 pull request is merged, then `Accepted`. A later change is a new ADR that supersedes the old one, in its own pull request assigned to the product owner.
 

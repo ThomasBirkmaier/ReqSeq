@@ -31,7 +31,7 @@ flowchart LR
 
 ## Labels
 
-At most one value per axis; `scripts/labels.sh` holds the list and its descriptions.
+Exactly one type, area and priority per open issue; `scripts/labels.sh` holds the list and its descriptions.
 
 | Axis | Values | On every open issue |
 | --- | --- | --- |
@@ -41,7 +41,7 @@ At most one value per axis; `scripts/labels.sh` holds the list and its descripti
 | Waiting | `needs-human` | while it waits for the product owner |
 | Structure | `epic`, `agent:working` | when it applies |
 
-Workflows set `main-red`, `perf`, `dependencies` and `github_actions`. The board (`project-sync`) shows Type, Area, Priority, Agent state and Status from these labels.
+Workflows set `main-red`, `perf`, `dependencies` and `github_actions`. The board (`project-sync`) shows Category (type, or Epic), Area, Priority, Agent state and Status from these labels; its old fields Stage, Kind, Thema and SR are no longer written.
 
 ## Skills
 

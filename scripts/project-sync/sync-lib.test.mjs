@@ -9,7 +9,7 @@ import {
 } from "./sync-lib.mjs";
 
 const fields = {
-  Type: {
+  Category: {
     id: "F-type",
     options: [
       { id: "O-task", name: "Task" },
@@ -44,14 +44,14 @@ const issue = (number, labels, title = "x") => ({
 describe("project sync plan", () => {
   it("writes nothing when the board matches the labels", () => {
     const items = new Map([
-      [1, { id: "P1", values: { Type: "Task", Area: "Core", "Agent state": "Ready" } }],
+      [1, { id: "P1", values: { Category: "Task", Area: "Core", "Agent state": "Ready" } }],
     ]);
     expect(plan([issue(1, ["task", "core"])], items, fields)).toEqual([]);
   });
 
   it("writes only the changed field of an item", () => {
     const items = new Map([
-      [1, { id: "P1", values: { Type: "Task", Area: "Core", "Agent state": "Ready" } }],
+      [1, { id: "P1", values: { Category: "Task", Area: "Core", "Agent state": "Ready" } }],
     ]);
     expect(plan([issue(1, ["task", "core", "agent:working"])], items, fields)).toEqual([
       { op: "set", number: 1, field: "F-state", value: { singleSelectOptionId: "O-work" } },
@@ -59,7 +59,9 @@ describe("project sync plan", () => {
   });
 
   it("adds a missing issue, sets its values and clears a value whose label is gone", () => {
-    const items = new Map([[2, { id: "P2", values: { Type: "Bug", Area: "CLI", "Agent state": "Ready" } }]]);
+    const items = new Map([
+      [2, { id: "P2", values: { Category: "Bug", Area: "CLI", "Agent state": "Ready" } }],
+    ]);
     const ops = plan([issue(1, [{ name: "bug" }, "cli", "needs-human"]), issue(2, ["bug"])], items, fields);
     expect(ops).toEqual([
       { op: "add", issue: issue(1, [{ name: "bug" }, "cli", "needs-human"]) },
@@ -70,8 +72,17 @@ describe("project sync plan", () => {
     ]);
   });
 
+  it("shows an epic as Epic whatever type label it also has", () => {
+    const f = {
+      Category: { id: "F-type", options: [{ id: "O-epic", name: "Epic" }, ...fields.Category.options] },
+    };
+    expect(plan([issue(1, ["bug", "epic"])], new Map([[1, { id: "P1", values: {} }]]), f)).toEqual([
+      { op: "set", number: 1, field: "F-type", value: { singleSelectOptionId: "O-epic" } },
+    ]);
+  });
+
   it("skips a value without an option and writes a text field", () => {
-    const f = { Type: fields.Type, Priority: { id: "F-prio" } };
+    const f = { Category: fields.Category, Priority: { id: "F-prio" } };
     expect(plan([issue(1, ["feature", "P2"])], new Map([[1, { id: "P1", values: {} }]]), f)).toEqual([
       { op: "set", number: 1, field: "F-prio", value: { text: "P2" } },
     ]);
@@ -81,14 +92,14 @@ describe("project sync plan", () => {
     const f = {
       Status: { id: "F-status", options: ["Todo", "In Progress", "Done"].map((n) => ({ id: n, name: n })) },
       Priority: { id: "F-prio", options: [{ id: "O-p1", name: "P1" }] },
-      Type: fields.Type,
+      Category: fields.Category,
     };
     const closed = { ...issue(2, ["epic"]), state: "closed" };
     const ops = plan(
       [issue(1, ["agent:working", "P1"]), closed],
       new Map([
         [1, { id: "P1", values: {} }],
-        [2, { id: "P2", values: { Type: "Epic" } }],
+        [2, { id: "P2", values: { Category: "Epic" } }],
       ]),
       f,
     );
@@ -101,9 +112,9 @@ describe("project sync plan", () => {
 
   it("reads select and text values of an item and skips other field types", () => {
     expect(
-      itemValues([{ name: "Task", field: { name: "Type" } }, { text: "x", field: { name: "Note" } }, {}]),
+      itemValues([{ name: "Task", field: { name: "Category" } }, { text: "x", field: { name: "Note" } }, {}]),
     ).toEqual({
-      Type: "Task",
+      Category: "Task",
       Note: "x",
     });
   });

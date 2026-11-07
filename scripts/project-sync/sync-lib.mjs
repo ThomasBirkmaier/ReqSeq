@@ -1,7 +1,7 @@
 // Pure parts of the project sync (sync.mjs): the fields derived from labels, the difference between
 // issues and board items, and the retry of transient GitHub errors.
 
-export const TYPES = { epic: "Epic", bug: "Bug", feature: "Feature", task: "Task", question: "Question" };
+export const TYPES = { bug: "Bug", feature: "Feature", task: "Task", question: "Question" };
 export const AREAS = {
   core: "Core",
   cli: "CLI",
@@ -12,7 +12,8 @@ export const AREAS = {
   dev: "Dev",
 };
 export const FIELDS = {
-  Type: Object.values(TYPES),
+  // Not "Type": GitHub may reserve that name for its issue types.
+  Category: ["Epic", ...Object.values(TYPES)],
   Area: Object.values(AREAS),
   "Agent state": ["Ready", "Working", "Needs human", "Done"],
   // The built-in field that board progress bars count; its default options.
@@ -44,7 +45,7 @@ export function derive(issue) {
   const has = (l) => labels.includes(l);
   const pick = (map) => map[labels.find((l) => Object.hasOwn(map, l))];
   return {
-    Type: pick(TYPES),
+    Category: has("epic") ? "Epic" : pick(TYPES),
     Area: pick(AREAS),
     "Agent state": agentStateOf(issue, has),
     Status: statusOf(issue, has),

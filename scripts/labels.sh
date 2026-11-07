@@ -27,7 +27,7 @@ label epic          3e4b9e "A task too large for one PR, cut into sub-issues"
 label agent:working c5def5 "An agent is working on this"
 # Set by workflows, never by hand: main-red (main-check.yml), perf (perf.yml), dependencies and github_actions (Dependabot).
 label main-red      b60205 "Set by main-check: main fails typecheck or lint"
-label perf          d4c5f9 "On a PR: runs the performance suite once (ADR-0011)"
+label perf          d4c5f9 "On a PR: runs the performance suite once; on an issue: perf.yml tracks a threshold exceeded (ADR-0011)"
 
 obsolete() { label "$1" ededed "Obsolete since 2026-11-07: $2"; }
 for l in sr enabler spec-frage pilot dogfooding security blocked review spec-geändert agent-ergonomie querschnitt \
