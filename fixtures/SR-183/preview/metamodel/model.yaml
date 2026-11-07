@@ -1,0 +1,28 @@
+# SR-174, the snippet of a search hit: an identifier (spec-id), a choice (level), a Markdown text
+# property (notes) and a list of texts (checks), in this order in the type.
+reqseq-metamodel: 1
+types:
+  - key: system-requirement
+    name: System Requirement
+    prefix: SR
+    meaning: requirement
+    properties: [title, spec-id, level, notes, checks]
+    required: [title]
+properties:
+  - { key: title, name: Title, kind: text, meaning: title }
+  - { key: spec-id, name: Spec ID, kind: text, meaning: identifier }
+  - key: level
+    name: Level
+    kind: choice
+    choices:
+      - { key: high, name: Gale warning }
+      - { key: low, name: Calm }
+  - { key: notes, name: Notes, kind: text, markdown: true }
+  - { key: checks, name: Checks, kind: text, many: true }
+relations:
+  - { key: derives-from, name: Derives from, inverse-name: Derived by, meaning: derivation }
+  - { key: supersedes, name: Supersedes, inverse-name: Superseded by, meaning: succession }
+statuses:
+  - { key: draft, name: Draft, initial: true }
+  - { key: approved, name: Approved }
+  - { key: obsolete, name: Obsolete, invalid: true }

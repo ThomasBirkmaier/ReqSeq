@@ -183,7 +183,7 @@ const LEADS = [60, 40, 24, 12, 0];
  * gives up to 120 characters, more than the column holds: while the line hides its first marked word, the
  * words before it are left out, so the match stays in view (`trimLead`); the whole line is its tooltip.
  */
-const SnippetLine = ({
+export const SnippetLine = ({
   id,
   snippet,
 }: {

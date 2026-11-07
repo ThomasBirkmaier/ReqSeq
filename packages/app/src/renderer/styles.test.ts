@@ -4,6 +4,7 @@
 import fs from "node:fs";
 import { describe, expect, it } from "vitest";
 import { SHEET } from "../shared/theme.js";
+import { CARD_LINES } from "./actions.js";
 import type { Scheme } from "../shared/theme.js";
 
 const read = (relative: string): string => fs.readFileSync(new URL(relative, import.meta.url), "utf8");
@@ -221,6 +222,14 @@ describe("the shortcut next to a hit of the command line (SR-109)", () => {
     expect(hint).toMatch(/color:\s*var\(--muted\);/);
     const size = (rule: string): number => Number(/font-size:\s*(\d+)px;/.exec(rule)?.[1]);
     expect(size(hint)).toBeLessThan(size(ruleOf(".card-list")));
+  });
+});
+
+describe("the hits of the search prompt (SR-183)", () => {
+  it("[SR-183/AK1] the card is CARD_LINES lines high, and a hit takes one line, or two with its snippet", () => {
+    expect(ruleOf(".card-list")).toContain(`max-height: calc(var(--line) * ${String(CARD_LINES)});`);
+    expect(ruleOf(".card-list li.hit")).toMatch(/box-sizing:\s*border-box;[\s\S]*height:\s*var\(--line\);/);
+    expect(ruleOf(".card-list li.hit.snipped")).toMatch(/height:\s*calc\(var\(--line\) \* 2\);/);
   });
 });
 

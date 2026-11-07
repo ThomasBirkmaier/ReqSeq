@@ -45,7 +45,7 @@ import {
 } from "./graph-choices.js";
 import { cycleKey } from "./buffer-cycle.js";
 import { searchRows } from "./rows.js";
-import type { Row } from "./rows.js";
+import type { Range, Row, Snippet } from "./rows.js";
 import type { Theme } from "./theme.js";
 import type { Side } from "./window-layout.js";
 import type { PromptUse } from "./usage.js";
@@ -64,6 +64,10 @@ export interface Choice {
   readonly title?: string;
   /** Lower case words of `name` to mark (element hits). */
   readonly terms?: readonly string[];
+  /** The parts of `name` to mark, as core marked them (a hit of the search prompt, SR-183 AK3). */
+  readonly marks?: readonly Range[];
+  /** Shown under the name: where a hit was found and one line around it (SR-174, SR-183 AK3). */
+  readonly snippet?: Snippet;
   readonly run: () => void;
   /** What Ctrl/Cmd+Enter does with it: take it and offer the optional arguments (catalog commands). */
   readonly more?: () => void;
@@ -79,6 +83,11 @@ export interface Prompt {
   readonly find?: (query: string) => Promise<readonly Choice[]>;
   /** Free text: Enter runs it (the search prompt). */
   readonly text?: (text: string) => void;
+  /**
+   * The hits only preview: none is chosen until Ctrl+N, Ctrl+P or an arrow chooses one, and Enter without
+   * one runs `text` at once, without waiting for the hits (the search prompt, SR-183 AK1, AK5).
+   */
+  readonly preview?: boolean;
   /**
    * A choice for the typed text itself, when it is one ("Open workspace": a folder path, SR-131 AK5): it
    * comes first, so Enter takes it, and Down reaches the others.
@@ -500,9 +509,68 @@ export const referencePrompt = (context: ActionContext, request: ReferenceReques
   cancel: request.cancel,
 });
 
+/** The lines of the hit card at the size it has for commands: `.card-list` in styles.css is as high. */
+export const CARD_LINES = 10;
+
+/**
+ * The first `rows` that fit the hit card without making it higher (SR-183 AK1): in their order, a hit
+ * with a snippet takes two lines, one without it one (`.card-list li.hit` in styles.css).
+ */
+export const fittingRows = (rows: readonly Row[], lines = CARD_LINES): Row[] => {
+  const fit: Row[] = [];
+  let left = lines;
+  for (const row of rows) {
+    left -= row.snippet === undefined ? 1 : 2;
+    if (left < 0) {
+      break;
+    }
+    fit.push(row);
+  }
+  return fit;
+};
+
+/**
+ * The marks of a hit's name, `idTitle(label, title)`: the ID when it matched, and the words core marked in
+ * the title, as the search buffer marks them (SR-183 AK3).
+ */
+export const nameMarks = (row: Row): Range[] => {
+  const name = idTitle(row.label, row.title);
+  const label: Range[] = row.markLabel ? [[0, row.label.length]] : [];
+  if (name === row.label.trim()) {
+    return label;
+  }
+  // The title stands after the ID and a space, without the spaces it starts with.
+  const shift = name.length - row.title.trim().length - (row.title.length - row.title.trimStart().length);
+  return [...label, ...row.titleMarks.map(([start, end]): Range => [start + shift, end + shift])];
+};
+
+/**
+ * The prompt of Ctrl/Cmd+Shift+F (SR-183): while typing it shows the first hits of the search buffer for
+ * the text, in its order, as many as fit the card, each with its title and snippet; none is chosen.
+ * Enter on a chosen hit opens it, Enter without one opens the search buffer.
+ */
 const searchPrompt = (context: ActionContext): Prompt => ({
   label: "Search",
   items: [],
+  preview: true,
+  find: async (text) => {
+    // The query of the search buffer, so the hits are its first ones (AK2).
+    const answer = await context.call("element.search", { query: text.trim(), limit: CARD_LINES });
+    if (!answer.ok) {
+      context.echo(answer.message);
+      return [];
+    }
+    return fittingRows(searchRows(answer.output)).map((row) => ({
+      id: row.open.key,
+      name: idTitle(row.label, row.title),
+      marks: nameMarks(row),
+      ...(row.status === undefined ? {} : { hint: row.status }),
+      ...(row.snippet === undefined ? {} : { snippet: row.snippet }),
+      run: () => {
+        context.dispatch({ type: "open", buffer: row.open });
+      },
+    }));
+  },
   text: (text) => {
     const query = text.trim();
     if (query !== "") {
