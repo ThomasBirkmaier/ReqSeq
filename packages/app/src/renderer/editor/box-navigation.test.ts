@@ -68,4 +68,25 @@ describe("boxNavigation", () => {
     expect(press(v, "ArrowDown")).toBe(true);
     expect(press(v, "ArrowUp")).toBe(false);
   });
+
+  it("[SR-155/AK4] takes Ctrl-n and Ctrl-p as Down and Up: to the next box at the edge, else a line of the caret", () => {
+    const down = vi.fn(() => true);
+    const up = vi.fn(() => true);
+    const v = editor("ab\ncd", 1, { down, up });
+    expect(press(v, "n", { ctrlKey: true })).toBe(true);
+    expect(down).not.toHaveBeenCalled();
+    expect(v.state.doc.lineAt(v.state.selection.main.head).number).toBe(2);
+    expect(press(v, "n", { ctrlKey: true })).toBe(true);
+    expect(down).toHaveBeenCalledTimes(1);
+    expect(press(v, "p", { ctrlKey: true })).toBe(true);
+    expect(v.state.doc.lineAt(v.state.selection.main.head).number).toBe(1);
+    expect(press(v, "p", { ctrlKey: true })).toBe(true);
+    expect(up).toHaveBeenCalledTimes(1);
+  });
+
+  it("[SR-155/AK4] keeps Ctrl-p from the window also when there is nowhere to go", () => {
+    const v = editor("ab", 1, { down: () => false, up: () => false });
+    expect(press(v, "p", { ctrlKey: true })).toBe(true);
+    expect(press(v, "n", { ctrlKey: true })).toBe(true);
+  });
 });

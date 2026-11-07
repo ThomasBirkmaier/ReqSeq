@@ -522,6 +522,17 @@ export const launchApp = async (
 export const modifier = async (window: Page): Promise<"Meta" | "ControlOrMeta"> =>
   (await window.evaluate(() => navigator.platform.startsWith("Mac"))) ? "Meta" : "ControlOrMeta";
 
+/**
+ * Opens "Go to" with Ctrl/Cmd+P from wherever the focus is. In an editor or on a field the physical Ctrl+P moves
+ * like Up (SR-155 AK4), so on Linux and Windows the focus leaves it first, as a person presses Escape first.
+ */
+export const goTo = async (window: Page): Promise<void> => {
+  await window.evaluate(() => {
+    (document.activeElement as HTMLElement | null)?.blur();
+  });
+  await window.keyboard.press(`${await modifier(window)}+P`);
+};
+
 /** The app starts with the overview; this opens the list of all elements, as a person does (SR-118 AK4). */
 export const listAll = async (window: Page): Promise<void> => {
   // Keys count once the workspace is open and its first buffer is shown.

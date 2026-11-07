@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { ACTIONS } from "./actions.js";
 import { PREFIX_BINDINGS, PREFIX_KEYS, prefixStep } from "./bindings.js";
-import { ELEMENT_MORE_KEYS, FIELD_KEYS, PACKAGE_KEYS, fieldKey, onDiskKey } from "./element-keys.js";
+import {
+  ELEMENT_MORE_KEYS,
+  FIELD_CTRL_KEYS,
+  FIELD_KEYS,
+  PACKAGE_KEYS,
+  fieldKey,
+  onDiskKey,
+} from "./element-keys.js";
 import { BOX_KEYS, EDITOR_KEYS, codeMirrorPress } from "./editor/editor-keys.js";
 import { DEPTH_LESS, DEPTH_MORE, GRAPH_KEYS, GRAPH_MORE_KEYS, GRAPH_MOVES } from "./graph-nav.js";
 import type { KeyPress, KeyRow, KeySpec } from "./keys.js";
@@ -126,10 +133,16 @@ describe("the key tables follow their handlers", () => {
     expect(leavesPart(press("ArrowDown"), 0)).toBe(false);
   });
 
-  it("lists the keys between the editors, the Emacs keys on macOS only (boxNavigation)", () => {
+  it("lists Ctrl+N and Ctrl+P on a field, the physical Ctrl key on every platform (ctrlStep)", () => {
+    for (const mac of [false, true]) {
+      expect(pressesOf(FIELD_CTRL_KEYS, mac).map(ctrlStep)).toEqual([1, -1]);
+    }
+  });
+
+  it("lists the keys between the editors, the Emacs keys on every platform (boxNavigation)", () => {
     expect(BOX_KEYS.map((row) => row.keys.map((spec) => keySpecLabel(spec, false)))).toEqual([
-      ["Down", undefined],
-      ["Up", undefined],
+      ["Down", "Ctrl+N"],
+      ["Up", "Ctrl+P"],
     ]);
     expect(BOX_KEYS.map((row) => row.keys.map((spec) => keySpecLabel(spec, true)))).toEqual([
       ["Down", "⌃N"],

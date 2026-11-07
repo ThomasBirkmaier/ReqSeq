@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { DEFAULT_SORT, launchApp, modifier } from "./support/app.js";
+import { DEFAULT_SORT, goTo, launchApp, modifier } from "./support/app.js";
 
 const P = "69069069-0000-4000-8000-0000000000";
 const PACKAGE_D1 = `  - { id: ${P}d1, version: n1:1111111111111111 }\n`;
@@ -60,7 +60,7 @@ const listedBy = async (running: RunningApp, where: unknown): Promise<Listed> =>
 
 /** Opens the element with this title by "Go to" and waits until it is shown with its focus. */
 const openElement = async (window: Page, title: string): Promise<void> => {
-  await window.keyboard.press(`${await modifier(window)}+P`);
+  await goTo(window);
   await window.keyboard.type(title);
   await expect(window.locator('.candidates [role="option"]').first()).toContainText(title);
   await window.keyboard.press("Enter");

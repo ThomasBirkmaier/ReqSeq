@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { launchApp } from "./support/app.js";
+import { goTo, launchApp } from "./support/app.js";
 import { markdownMetamodel } from "./support/boxes.js";
 
 const SR_FILE = "requirements/SR-0000000000c4.md";
@@ -53,7 +53,7 @@ const minibuffer = (window: Page): Locator => window.getByLabel("Minibuffer");
 /** Opens the element titled `title` with "Go to"; the buffer has the focus and its text editor is there. */
 const open = async (window: Page, title: string): Promise<void> => {
   await window.locator('[aria-label="Sheet"] > *').first().waitFor();
-  await window.keyboard.press("ControlOrMeta+P");
+  await goTo(window);
   await window.keyboard.type(title);
   await expect(window.locator('.candidates [role="option"]').first()).toContainText(title);
   await window.keyboard.press("Enter");
@@ -130,7 +130,7 @@ test.describe("saving without a save command", () => {
     await window.keyboard.press("Enter");
     await window.keyboard.type("Zwei.");
     typed = Date.now();
-    await window.keyboard.press("ControlOrMeta+P");
+    await goTo(window);
     expect(await written(read(running, SR_FILE), "Zwei.", typed)).toBeLessThan(900);
     await window.keyboard.press("Escape");
     // Close buffer closes without asking: the input is written first.

@@ -2694,14 +2694,6 @@ describe("App, the package page (SR-112)", () => {
     expect(memberCalls(invoke)).toEqual([]);
   });
 
-  /** Goes to the overview and back to the package with Ctrl+P Enter: the list takes the focus only when a row was chosen. */
-  const awayAndBack = async (): Promise<void> => {
-    await runCommand("show overview");
-    await keyDown(window, "p", { metaKey: true });
-    await keyDown(query("input"), "Enter");
-    expect(query("article h1").textContent).toBe("Stufe-3");
-  };
-
   it("[SR-122/AK4] on a package page Ctrl+N selects the first element, walks the elements, and Ctrl+P on the first goes back to the page", async () => {
     await openPackage();
     const ctrlN = await pressed(query("article"), "n", { ctrlKey: true });
@@ -2718,20 +2710,71 @@ describe("App, the package page (SR-112)", () => {
     expect(container.querySelector("label")).toBeNull();
   });
 
-  it("[SR-122/AK4] Ctrl+N on the page goes to the first element also when another one was used, and from the title field", async () => {
+  it("[SR-122/AK4] Ctrl+N on the page goes to the first element also when another one was used", async () => {
     await openPackage();
     await keyDown(query("article"), "ArrowDown");
     await keyDown(query(".members .list"), "ArrowDown");
     await keyDown(query(".members .list"), "ArrowDown");
     await keyDown(query(".members .list"), "Escape");
-    const title = query('.field[data-field="Title"]');
-    act(() => {
-      title.focus();
-    });
-    await keyDown(title, "n", { ctrlKey: true });
+    expect(document.activeElement).toBe(query("article"));
+    await keyDown(query("article"), "n", { ctrlKey: true });
     expect(document.activeElement).toBe(query(".members .list"));
     expect(query('.members [aria-selected="true"]').id).toBe("row-0");
   });
+
+  /** A package page with the text box "topic" below its text. */
+  const withTopic = (): Record<string, Handler> => {
+    const handlers = withPackage();
+    const metamodel = handlers["metamodel.get"];
+    handlers["metamodel.get"] = (input) => {
+      const model = metamodel?.(input) as {
+        types: { key: string; properties: string[] }[];
+        properties: unknown[];
+      };
+      return {
+        ...model,
+        types: model.types.map((type) =>
+          type.key === "package" ? { ...type, properties: ["topic"] } : type,
+        ),
+        properties: [{ key: "topic", name: "Topic", kind: "text" }],
+      };
+    };
+    const get = handlers["element.get"];
+    handlers["element.get"] = (input) => {
+      const answer = get?.(input) as { element: Record<string, unknown> };
+      return input["ref"] === "uuid-p"
+        ? { element: { ...answer.element, properties: { topic: "Wind" } } }
+        : answer;
+    };
+    return handlers;
+  };
+
+  it.each(["MacIntel", "Win32", "Linux x86_64"])(
+    "[SR-155/AK4] on %s, Ctrl+N and Ctrl+P on a field act as Down and Up, from the last field into the elements",
+    async (platform) => {
+      vi.spyOn(navigator, "platform", "get").mockReturnValue(platform);
+      await openPackage(withTopic());
+      const field = (label: string): HTMLElement => query(`.field[data-field="${label}"]`);
+      const focus = (label: string): void => {
+        act(() => {
+          field(label).focus();
+        });
+      };
+      focus("Title");
+      // Ctrl+P on the first field only moves: nowhere, and it is not Go to.
+      expect((await pressed(field("Title"), "p", { ctrlKey: true })).defaultPrevented).toBe(true);
+      expect(container.querySelector("label")).toBeNull();
+      expect(document.activeElement).toBe(field("Title"));
+      expect((await pressed(field("Title"), "n", { ctrlKey: true })).defaultPrevented).toBe(true);
+      expect(document.activeElement).toBe(query('[data-field="Text"] .cm-content'));
+      focus("topic");
+      await keyDown(field("topic"), "p", { ctrlKey: true });
+      expect(document.activeElement).toBe(query('[data-field="Text"] .cm-content'));
+      focus("topic");
+      await keyDown(field("topic"), "n", { ctrlKey: true });
+      expect(document.activeElement).toBe(query(".members .list"));
+    },
+  );
 
   it("[SR-122/AK4] Ctrl+N on the last element stays there and goes no further", async () => {
     await openPackage();
@@ -2778,52 +2821,39 @@ describe("App, the package page (SR-112)", () => {
     expect(query("label").textContent).toBe("Go to");
   });
 
-  it("Ctrl+N typed in the text editor of a package page stays in the editor and chooses no element", async () => {
-    vi.spyOn(navigator, "platform", "get").mockReturnValue("Linux x86_64");
-    await openPackage();
-    await keyDown(query("article"), "Enter");
-    const content = query("article .cm-content");
-    expect(document.activeElement).toBe(content);
-    await keyDown(content, "n", { ctrlKey: true });
-    expect(document.activeElement).toBe(content);
-    await keyDown(content, "Escape");
-    await awayAndBack();
-    expect(document.activeElement).toBe(query("article"));
-  });
+  it.each(["ArrowDown", "n"])(
+    "[SR-155/AK4] %s at the last line of the text, the last field of a package page, goes into its elements",
+    async (key) => {
+      vi.spyOn(navigator, "platform", "get").mockReturnValue("Linux x86_64");
+      await openPackage();
+      await keyDown(query("article"), "Enter");
+      const content = query("article .cm-content");
+      expect(document.activeElement).toBe(content);
+      await keyDown(content, key, key === "n" ? { ctrlKey: true } : {});
+      expect(document.activeElement).toBe(query(".members .list"));
+      expect(container.querySelector("label")).toBeNull();
+    },
+  );
 
-  it("Ctrl+N typed in a box editor of a package page stays in the box and chooses no element", async () => {
-    vi.spyOn(navigator, "platform", "get").mockReturnValue("Linux x86_64");
-    const handlers = withPackage();
-    const metamodel = handlers["metamodel.get"];
-    handlers["metamodel.get"] = (input) => {
-      const model = metamodel?.(input) as {
-        types: { key: string; properties: string[] }[];
-        properties: unknown[];
-      };
-      return {
-        ...model,
-        types: model.types.map((type) =>
-          type.key === "package" ? { ...type, properties: ["topic"] } : type,
-        ),
-        properties: [{ key: "topic", name: "Topic", kind: "text" }],
-      };
-    };
-    const get = handlers["element.get"];
-    handlers["element.get"] = (input) => {
-      const answer = get?.(input) as { element: Record<string, unknown> };
-      return input["ref"] === "uuid-p"
-        ? { element: { ...answer.element, properties: { topic: "Wind" } } }
-        : answer;
-    };
-    await openPackage(handlers);
-    const content = query('[data-field="topic"] .cm-content');
+  it("[SR-155/AK4] Ctrl+N walks a package page through its editors into its elements, Ctrl+P back", async () => {
+    vi.spyOn(navigator, "platform", "get").mockReturnValue("Win32");
+    await openPackage(withTopic());
+    const field = query('.field[data-field="Title"]');
     act(() => {
-      content.focus();
+      field.focus();
     });
-    await keyDown(content, "n", { ctrlKey: true });
-    expect(document.activeElement).toBe(content);
-    await awayAndBack();
-    expect(document.activeElement).toBe(query("article"));
+    const text = query('[data-field="Text"] .cm-content');
+    const topic = query('[data-field="topic"] .cm-content');
+    await keyDown(field, "n", { ctrlKey: true });
+    expect(document.activeElement).toBe(text);
+    await keyDown(text, "n", { ctrlKey: true });
+    expect(document.activeElement).toBe(topic);
+    await keyDown(topic, "p", { ctrlKey: true });
+    expect(document.activeElement).toBe(text);
+    await keyDown(text, "n", { ctrlKey: true });
+    await keyDown(topic, "n", { ctrlKey: true });
+    expect(document.activeElement).toBe(query(".members .list"));
+    expect(container.querySelector("label")).toBeNull();
   });
 });
 

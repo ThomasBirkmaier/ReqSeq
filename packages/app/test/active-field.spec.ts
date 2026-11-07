@@ -163,6 +163,31 @@ test.describe("the field the focus is in", () => {
     await at("Title");
   });
 
+  test("[SR-155/AK4] Ctrl+N and Ctrl+P go from field to field like Down and Up, and Ctrl+P is not Go to", async () => {
+    const { window } = running;
+    const labels = await window
+      .locator("article [data-field]")
+      .evaluateAll((nodes) => nodes.map((node) => (node as HTMLElement).dataset["field"] ?? ""));
+    const box = labels.find((label) => label !== "Title" && label !== "Text") ?? "";
+    expect(box).not.toBe("");
+    await window.keyboard.press("Control+n");
+    await expect(field(window, "Title")).toBeFocused();
+    // On the first field Ctrl+P only moves: nowhere, and no prompt opens.
+    await window.keyboard.press("Control+p");
+    await expect(field(window, "Title")).toBeFocused();
+    await expect(window.locator("#prompt-input")).toHaveCount(0);
+    await window.keyboard.press("Control+n");
+    await expect.poll(() => tinted(window)).toEqual(["Text"]);
+    // From the last line of the text into the box.
+    await expect(window.locator('[data-field="Text"] .cm-content')).toBeFocused();
+    await window.keyboard.press("ControlOrMeta+End");
+    await window.keyboard.press("Control+n");
+    await expect.poll(() => tinted(window)).toEqual([box]);
+    await window.keyboard.press("Control+p");
+    await expect.poll(() => tinted(window)).toEqual(["Text"]);
+    await expect(window.locator("#prompt-input")).toHaveCount(0);
+  });
+
   test("[SR-155/AK3] no field is tinted while the focus is on the buffer or in the prompt", async () => {
     const { window } = running;
     expect(await tinted(window)).toEqual([]);

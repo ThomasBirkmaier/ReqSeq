@@ -18,7 +18,7 @@ export const codeMirrorPress = (name: string): KeyPress =>
 const pressesOf = (names: readonly string[]): KeyRow["keys"] =>
   names.map((name) => ({ press: codeMirrorPress(name) }));
 
-/** The keys from an editor to the next box (`box-navigation.ts`): the arrow, and on macOS the Emacs key too. */
+/** The keys from an editor to the next box (`box-navigation.ts`): the arrow and the Emacs key, on every platform. */
 export const BOX_NEXT = { arrow: "ArrowDown", emacs: "Ctrl-n" } as const;
 
 /** The keys from an editor to the box before. */
@@ -26,14 +26,14 @@ export const BOX_PREVIOUS = { arrow: "ArrowUp", emacs: "Ctrl-p" } as const;
 
 const boxKeys = (keys: typeof BOX_NEXT | typeof BOX_PREVIOUS): KeyRow["keys"] => [
   { press: codeMirrorPress(keys.arrow) },
-  { press: codeMirrorPress(keys.emacs), only: "mac" },
+  { press: codeMirrorPress(keys.emacs) },
 ];
 
 /** The keys of `boxNavigation`, at the edge of the text, the title or a box. */
 export const BOX_KEYS: readonly KeyRow[] = [
   {
     keys: boxKeys(BOX_NEXT),
-    does: "In the title, the text or a box, on its last line: into the next box",
+    does: "In the title, the text or a box, on its last line: into the next box; from the last one into the elements of a package page",
   },
   {
     keys: boxKeys(BOX_PREVIOUS),
