@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureWorkspace } from "@reqseq/testkit";
-import { describe, expect, it, onTestFinished } from "vitest";
+import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { CommandError } from "../catalog.js";
 import { Workspace } from "../runtime/workspace.js";
 import { LOCAL_FILE, WORKSPACE_FILE } from "./config.js";
@@ -36,6 +36,10 @@ const setup = async (
 
 const yaml = (repositories: string, rest = "metamodel: { repository: main, path: metamodel }\n"): string =>
   `reqseq-workspace: 1\nname: W\nrepositories:\n${repositories}${rest}`;
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 const MAIN = "  - { name: main, url: u, main: true }\n";
 
@@ -400,7 +404,7 @@ describe("loadWorkspaceLayout", () => {
     ]);
   });
 
-  it("gives an existing metamodel folder as its real path, links resolved and the name as stored, unless a link leads out of the repository (ThomasBirkmaier/ReqSeq-archive#231)", async () => {
+  it("gives an existing metamodel folder as its real path, links resolved and the name as stored, and refuses a link that leads out of the repository (ThomasBirkmaier/ReqSeq-archive#231, #294)", async () => {
     const ws = await setup(yaml(MAIN, "metamodel: { repository: main, path: METAMODEL }\n"));
     // Where the file system ignores letter case (APFS, NTFS), the folder typed in another case is
     // the stored one, spelled as stored; elsewhere it is missing.
@@ -421,12 +425,33 @@ describe("loadWorkspaceLayout", () => {
     await ws.write("shared/model/types.yaml", "types: {}\n");
     await fs.symlink(ws.path("shared/model"), ws.path("main/outside"), "junction");
     await ws.write(`main/${WORKSPACE_FILE}`, yaml(MAIN, "metamodel: { repository: main, path: outside }\n"));
-    expect((await loadWorkspaceLayout(ws.path("main"))).metamodel).toEqual({
+    const realpath = vi.spyOn(fs, "realpath");
+    const outside = await loadWorkspaceLayout(ws.path("main"));
+    expect(outside.metamodel).toEqual({
       repository: "main",
       path: "outside",
-      folder: ws.path("main/outside"),
-      exists: true,
+      folder: undefined,
+      exists: false,
     });
+    expect(outside.problems).toContainEqual({
+      code: "metamodel.invalid",
+      severity: "error",
+      file: WORKSPACE_FILE,
+      message:
+        "Metamodel folder outside is linked outside repository main; ReqSeq does not follow links out of a repository",
+    });
+    expect(realpath.mock.calls.filter(([p]) => String(p).startsWith(ws.path("main/outside")))).toEqual([]);
+    // A folder the walk cannot look at counts as missing, as before.
+    await ws.write(
+      `main/${WORKSPACE_FILE}`,
+      yaml(MAIN, "metamodel: { repository: main, path: metamodel }\n"),
+    );
+    const lstat = fs.lstat.bind(fs);
+    vi.spyOn(fs, "lstat").mockImplementation(((p: string, ...rest: never[]) =>
+      p === ws.path("main/metamodel")
+        ? Promise.reject(Object.assign(new Error("denied"), { code: "EACCES" }))
+        : lstat(p, ...rest)) as typeof fs.lstat);
+    expect((await loadWorkspaceLayout(ws.path("main"))).metamodel.exists).toBe(false);
   });
 
   it("fails with workspace.not-found when there is no workspace file", async () => {

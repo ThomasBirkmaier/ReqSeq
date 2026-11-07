@@ -18,7 +18,7 @@ export const writeNewBaseline = async (
   name: string,
   text: string,
 ): Promise<string> => {
-  const listing = await listFolderFiles(path.join(repository.folder, folder));
+  const listing = await listFolderFiles(path.join(repository.folder, folder), repository.folder);
   if (listing.kind === "missing") {
     await createFolder(repository.folder, folder);
   }

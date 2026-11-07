@@ -579,26 +579,16 @@ describe("data.store: where the file may go (K4, ADR-0002 rule 5)", () => {
   });
 
   it.skipIf(NO_LINKS)(
-    "refuses a link inside the repository that leads into it, and judges one that leads out by the rules outside (review N2)",
+    "refuses a link inside the repository that leads into it, and one that leads out before following it (review N2, #294)",
     async () => {
       const ws = await fixture();
       fs.symlinkSync(ws.path("requirements"), ws.path("linked"));
       expect(await refused(ws, "linked/out")).toMatchObject({ rule: "link", path: "linked" });
       const outside = tempFolder();
       fs.symlinkSync(outside, ws.path("away"));
-      const commit = await ws.head();
-      expect(await storeIn(ws.root, { folder: "away" })).toEqual({
-        files: [path.join(ws.root, "away", `${commit}.jsonl`)],
-        problems: [],
-      });
-      expect(namesIn(outside)).toEqual([`${commit}.jsonl`]);
-      fs.mkdirSync(path.join(outside, ".git", "x"), { recursive: true });
-      fs.symlinkSync(path.join(outside, ".git", "x"), ws.path("into-git"));
-      const error = await failure(ws.root, { folder: "into-git" });
-      expect([error.code, error.details]).toEqual([
-        "input.invalid",
-        { file: `${commit}.jsonl`, reason: "git-folder" },
-      ]);
+      const away = await failure(ws.root, { folder: "away" });
+      expect([away.code, away.details]).toEqual(["input.invalid", { folder: "away" }]);
+      expect(namesIn(outside)).toEqual([]);
     },
   );
 

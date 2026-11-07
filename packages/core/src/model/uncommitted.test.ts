@@ -217,6 +217,34 @@ describe("repositoryState", () => {
     expect(await repositoryState(rules, ["a.md"])).toEqual({ commit, dirty: true });
   });
 
+  it("is dirty for an embedded file below a link out of the repository, without looking through it (#294)", async () => {
+    const { ws, commit } = await repo();
+    const outside = await fixture({ files: { "img.png": "png" } });
+    fs.symlinkSync(outside.root, ws.path("out"), "junction");
+    const rules = stateRules(
+      { main: "w", metamodel: { repository: "w", path: "m" }, file: { ignore: [] } } as unknown as Pick<
+        WorkspaceLayout,
+        "file" | "main" | "metamodel"
+      >,
+      { name: "w", folder: ws.root, main: false, excludes: [] },
+      new Set(["img.png", "out/img.png"]),
+    );
+    const asked: string[] = [];
+    const seen: StateReader = {
+      ...DEFAULT_STATE_READER,
+      exists: (absolute) => {
+        asked.push(absolute);
+        return DEFAULT_STATE_READER.exists(absolute);
+      },
+      blobId: (absolute, length) => {
+        asked.push(absolute);
+        return DEFAULT_STATE_READER.blobId(absolute, length);
+      },
+    };
+    expect(await repositoryState(rules, ["a.md"], seen)).toEqual({ commit, dirty: true });
+    expect(asked.filter((p) => p.startsWith(ws.path("out")))).toEqual([]);
+  });
+
   it("is clean, and dirty for a path git cannot take or a working file in no spelling", async () => {
     const { ws, rules, commit } = await repo();
     expect(await repositoryState(rules, ["a.md"])).toEqual({ commit, dirty: false });

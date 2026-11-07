@@ -15,6 +15,7 @@
 //   dropped) and full reads in `baselineFilesState`, so a running server reads a file again only
 //   when it changed.
 import type { BigIntStats } from "node:fs";
+import { constants } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { listFolderFiles } from "../files/index.js";
@@ -56,9 +57,15 @@ export const baselineHeadersState = defineWorkspaceState(
 /** The bytes read for a header, the first enough for a header with `view` alone. */
 const PREFIX_BYTES = [4096, HEADER_BYTES] as const;
 
-/** The first `bytes` of `absolute` as text, or undefined when it cannot be read. */
+/**
+ * Opening never follows a symbolic link as the last name (#294: its target may be a share); Windows
+ * lacks the flag (undefined, which `|` takes as 0), and its file links need rights to create.
+ */
+const READ_NO_LINK = constants.O_RDONLY | constants.O_NOFOLLOW;
+
+/** The first `bytes` of `absolute` as text, or undefined when it cannot be read or is a link. */
 const prefixOf = async (absolute: string, bytes: number): Promise<string | undefined> => {
-  const handle = await fs.open(absolute, "r").catch(() => undefined);
+  const handle = await fs.open(absolute, READ_NO_LINK).catch(() => undefined);
   if (handle === undefined) {
     return undefined;
   }
@@ -132,7 +139,7 @@ export const newestBaselines = async (
   if (repository === undefined || absolute === undefined) {
     return newest;
   }
-  const listing = await listFolderFiles(absolute);
+  const listing = await listFolderFiles(absolute, repository.folder);
   if (listing.kind !== "names") {
     return newest;
   }

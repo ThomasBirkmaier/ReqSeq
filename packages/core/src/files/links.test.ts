@@ -64,7 +64,7 @@ describe("linksStayInside", () => {
     expect(asked.filter((p) => below.some((b) => p.startsWith(b)))).toEqual([]);
   });
 
-  it("refuses `..` above the root and more links than MAX_LINKS", async () => {
+  it("refuses `..` above the root, and rejects more links than MAX_LINKS with ELOOP", async () => {
     await fs.symlink(path.join("..", ".."), abs("a/parent"), "dir");
     expect(await stays(abs("a/parent/x"))).toBe(false);
     await fs.symlink(Array.from({ length: 64 }, () => "..").join(path.sep), abs("a/top"), "dir");
@@ -79,7 +79,7 @@ describe("linksStayInside", () => {
     }
     await fs.mkdir(abs(`l${String(MAX_LINKS + 1)}`));
     expect(await stays(abs("l1/x"))).toBe(true);
-    expect(await stays(abs("l0/x"))).toBe(false);
+    await expect(stays(abs("l0/x"))).rejects.toMatchObject({ code: "ELOOP" });
   });
 
   it("lets a link lead into a further folder, and nowhere else", async () => {

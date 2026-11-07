@@ -395,8 +395,18 @@ describe("reading the newest baseline (baselines/newest.ts)", () => {
       (await listed(workspace)).map((h) => [h.targetId, h.message.includes("baseline B:")]);
     expect(await targets()).toEqual([[K1, true]]);
     // Kept by stamp; a file that cannot be looked at is read again.
-    vi.spyOn(fs, "lstat").mockRejectedValueOnce(new Error("gone"));
+    // Only a baseline file, not the folders the link walk looks at (#294).
+    const lstat = fs.lstat.bind(fs);
+    let failed = false;
+    vi.spyOn(fs, "lstat").mockImplementation(((p: string, ...rest: never[]) => {
+      if (!failed && /\.ya?ml$/u.test(p)) {
+        failed = true;
+        return Promise.reject(new Error("gone"));
+      }
+      return lstat(p, ...rest);
+    }) as typeof fs.lstat);
     expect(await targets()).toEqual([[K1, true]]);
+    vi.mocked(fs.lstat).mockRestore();
     // The header of a removed file is dropped.
     const headers = workspace.get(baselineHeadersState);
     expect([...headers.keys()].some((key) => key.endsWith("baselines/A.yaml"))).toBe(true);

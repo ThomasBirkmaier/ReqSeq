@@ -5,6 +5,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import type { Problem } from "../catalog.js";
 import type { WorkspaceLocalFile, WorkspaceLocation, WorkspaceRepository } from "../generated/types.js";
+import { linksStayInside } from "../files/index.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import type { CheckedWorkspaceFile } from "./config.js";
 import { LOCAL_FILE, WORKSPACE_FILE, readLocalFile, readWorkspaceFile } from "./config.js";
@@ -288,7 +289,18 @@ const locateMetamodel = async (
     );
     return { ...location, folder: undefined, exists: false };
   }
-  const real = await realFolder(folder);
+  // A link out of the repository is refused before `realpath` follows it (#294); a folder the
+  // walk cannot look at counts as missing.
+  const stays = await linksStayInside(repository.folder, folder).catch(() => undefined);
+  if (stays === false) {
+    problems.push(
+      metamodelProblem(
+        `Metamodel folder ${location.path} is linked outside repository ${location.repository}; ReqSeq does not follow links out of a repository`,
+      ),
+    );
+    return { ...location, folder: undefined, exists: false };
+  }
+  const real = stays === undefined ? undefined : await realFolder(folder);
   if (real === undefined) {
     problems.push(
       metamodelProblem(`Metamodel folder ${location.path} is missing in repository ${location.repository}`),
@@ -297,10 +309,8 @@ const locateMetamodel = async (
   }
   // The real path, as for the repositories (ThomasBirkmaier/ReqSeq-archive#231): links resolved and the name as stored, so on
   // macOS a folder typed in another letter case or Unicode normal form (APFS ignores both) is
-  // spelled as the watcher's events and the walk spell it. A link that leads out of the repository
-  // keeps the folder as typed: the metamodel's files are named relative to their repository.
-  const inRepository = real === repository.folder || isInside(repository.folder, real);
-  return { ...location, folder: inRepository ? real : folder, exists: true };
+  // spelled as the watcher's events and the walk spell it.
+  return { ...location, folder: real, exists: true };
 };
 
 /**
