@@ -662,6 +662,9 @@ mark {
   border-radius: 8px;
   box-shadow: 0 -6px 18px var(--shadow);
   font-size: 13px;
+  /* A long candidate wraps instead of scrolling the card sideways, so its end stays in view (#293). */
+  white-space: normal;
+  overflow-x: hidden;
   /* In a low window the card can reach the macOS title strip; a drag region would take its clicks (#490). */
   -webkit-app-region: no-drag;
 }
@@ -677,7 +680,13 @@ mark {
   background: var(--select);
 }
 
+.candidates .name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .candidates .hint {
+  white-space: nowrap;
   color: var(--muted);
   font-size: 12px;
 }
