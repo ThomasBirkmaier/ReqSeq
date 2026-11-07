@@ -1049,9 +1049,46 @@ mark {
   stroke: var(--text);
 }
 
-/* After `.selected`: an outdated link keeps the accent, also when it is a link of the selected box. */
+/* The link selected with `l` (SR-154): drawn wider and in the text colour, which an outdated link keeps
+   its accent over. */
+.graph-edge.chosen {
+  stroke: var(--text);
+  stroke-width: 3px;
+}
+
+/* After `.selected` and `.chosen`: an outdated link keeps the accent, also when it is a link of the selected box. */
 .graph-edge.outdated {
   stroke: var(--accent-outdated);
+}
+
+/* The link under the mouse (SR-154): drawn wider. */
+.graph-edge.hovered {
+  stroke-width: 3px;
+}
+
+/* A wide line without colour over each link, so the mouse finds a thin curve. */
+.graph-edge-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 12px;
+  pointer-events: stroke;
+}
+
+/* The text of a link (SR-154): its relation kinds, one per line, above the point it belongs to; it
+   never takes the mouse, so the curve below keeps it. */
+.graph-edge-tip {
+  position: absolute;
+  z-index: 1;
+  padding: 4px 8px;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--raised);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 16px;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translate(-50%, calc(-100% - 8px));
 }
 
 .graph-node {
@@ -1072,11 +1109,13 @@ mark {
   border: 2px solid var(--text);
 }
 
-.graph-node[aria-selected="true"] {
+.graph-node[aria-selected="true"],
+.graph-node.link-chosen {
   background: var(--select);
 }
 
-.graph-node[aria-selected="true"]:not(.root) {
+.graph-node[aria-selected="true"]:not(.root),
+.graph-node.link-chosen:not(.root) {
   border-color: var(--muted);
 }
 
