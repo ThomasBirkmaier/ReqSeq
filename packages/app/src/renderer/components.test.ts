@@ -823,11 +823,12 @@ describe("Minibuffer", () => {
     outside.addEventListener("mousedown", pressed);
     document.body.append(outside);
     mouseDown(outside, 3);
+    mouseDown(outside, 4);
     expect(closed).not.toHaveBeenCalled();
     const event = mouseDown(outside, 2);
     expect(cancel).toHaveBeenCalledTimes(1);
     expect(closed).toHaveBeenCalledWith(true);
-    expect(pressed).toHaveBeenCalledTimes(2);
+    expect(pressed).toHaveBeenCalledTimes(3);
     expect(event.defaultPrevented).toBe(false);
     expect(items[0]?.run).not.toHaveBeenCalled();
     outside.remove();

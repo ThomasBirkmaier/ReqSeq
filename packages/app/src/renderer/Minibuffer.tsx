@@ -401,7 +401,7 @@ const PromptLine = ({
     return true;
   };
 
-  /** Escape, or a click outside the minibuffer: the prompt ends without an answer. */
+  /** Escape, or a press outside the minibuffer (SR-156 AK3): the prompt ends without an answer. */
   const cancel = (): void => {
     prompt.cancel?.();
     waiting.current = 0;
@@ -411,7 +411,7 @@ const PromptLine = ({
   cancelNow.current = cancel;
   const input = useRef<HTMLInputElement>(null);
   // A press of a mouse button (left, middle, right) anywhere outside the minibuffer and its card ends the
-  // prompt as Escape does, and goes on to what it presses: the prompt is no dialog (D-062). The buttons
+  // whole prompt, in every step, and goes on to what it presses: the prompt is no dialog (D-062). The buttons
   // Back and Forward do nothing while a prompt is open (SR-163), so they do not end it either.
   useEffect(() => {
     const own = input.current?.closest(".minibuffer");
