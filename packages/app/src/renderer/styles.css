@@ -7,7 +7,7 @@
 :root {
   color-scheme: light dark;
   --text: light-dark(#1f2328, #e6e8eb);
-  --muted: light-dark(#656d76, #9198a1);
+  --muted: light-dark(#606871, #9ca4ad);
   --rule: light-dark(#e6e8eb, #30363d);
   --edge: light-dark(#8c959f, #6e7681);
   --sheet: light-dark(#ffffff, #16181b);
@@ -17,6 +17,8 @@
   --accent-gap: light-dark(#b54708, #f0883e);
   --shadow: light-dark(rgb(0 0 0 / 6%), rgb(0 0 0 / 40%));
   --outside-change: light-dark(#ebeef1, #292e34);
+  /* The dimmed backdrop behind the card of the command line (SR-182); the text behind it keeps 4.5:1. */
+  --dim: light-dark(rgb(0 0 0 / 6%), rgb(0 0 0 / 12%));
   --line: 1.6rem;
   --modeline: calc(var(--line) + 0.5rem);
   --titlebar: 38px;
@@ -48,6 +50,8 @@ body,
   display: grid;
   grid-template-rows: minmax(0, 1fr) var(--modeline) var(--line);
   height: 100%;
+  /* The blurred seam around the card of the command line reaches past the window's edge (SR-182). */
+  overflow: clip;
 }
 
 /* Its own stacking context: nothing inside a buffer, such as the matrix's fixed column, can rise above
@@ -661,11 +665,30 @@ mark {
   color: var(--muted);
 }
 
-.candidates {
+/* The card (SR-182): it rises from the command line into its place while the backdrop dims and blurs in a
+   seam as wide as its shadow, all by one progress, and on close its copy runs back, shorter. The tokens
+   below are the knobs: the times, the curve, the way up, the blur and the seam (the dim is --dim). */
+:root {
+  --card-in: 180ms;
+  --card-out: 120ms;
+  --card-ease: cubic-bezier(0.2, 0, 0, 1);
+  --card-rise: calc(var(--modeline) + 0.25rem);
+  --card-blur: 2px;
+  /* As wide as the blur of the card's shadow below. */
+  --card-seam: 18px;
+}
+
+.card {
   position: absolute;
   left: 0.5rem;
   right: 0.5rem;
   bottom: calc(100% + var(--modeline) + 0.25rem);
+  /* In a low window the card can reach the macOS title strip; a drag region would take its clicks (#490). */
+  -webkit-app-region: no-drag;
+}
+
+.card-list {
+  position: relative;
   max-height: calc(var(--line) * 10);
   margin: 0;
   padding: 0.25rem 0;
@@ -679,38 +702,124 @@ mark {
   /* A long candidate wraps instead of scrolling the card sideways, so its end stays in view (#293). */
   white-space: normal;
   overflow-x: hidden;
-  /* In a low window the card can reach the macOS title strip; a drag region would take its clicks (#490). */
-  -webkit-app-region: no-drag;
 }
 
-.candidates li {
+/* The backdrop: everything but the minibuffer line, dimmed; it takes no click, so the card is no dialog. */
+.card-backdrop {
+  position: fixed;
+  inset: 0 0 var(--line);
+  background: var(--dim);
+  pointer-events: none;
+}
+
+/* The seam around the card: blurred most at the card's edge, not at all at its outer edge. */
+.card-seam {
+  position: absolute;
+  inset: calc(-1 * var(--card-seam));
+  border-radius: calc(8px + var(--card-seam));
+  backdrop-filter: blur(var(--card-blur));
+  /* A mask reads only the alpha: currentColor is any opaque colour. */
+  mask-image:
+    linear-gradient(
+      to right,
+      transparent,
+      currentColor var(--card-seam),
+      currentColor calc(100% - var(--card-seam)),
+      transparent
+    ),
+    linear-gradient(
+      to bottom,
+      transparent,
+      currentColor var(--card-seam),
+      currentColor calc(100% - var(--card-seam)),
+      transparent
+    );
+  mask-composite: intersect;
+  pointer-events: none;
+}
+
+/* Only with motion: without it the card, the dim and the blur stand at once, and a closed card goes at
+   once (AK7). */
+@media (prefers-reduced-motion: no-preference) {
+  .card[data-motion="in"] {
+    animation: card-rise var(--card-in) var(--card-ease) backwards;
+  }
+
+  .card[data-motion="in"] > .card-list {
+    animation: card-show var(--card-in) var(--card-ease) backwards;
+  }
+
+  .card[data-motion="in"] > .card-seam,
+  .card-backdrop[data-motion="in"] {
+    animation: card-show var(--card-in) var(--card-ease) backwards;
+  }
+
+  .card-leaving {
+    pointer-events: none;
+  }
+
+  .card.card-leaving[data-motion="out"] {
+    animation: card-rise var(--card-out) var(--card-ease) reverse both;
+  }
+
+  .card.card-leaving[data-motion="out"] > .card-list {
+    animation: card-show var(--card-out) var(--card-ease) reverse both;
+  }
+
+  .card.card-leaving[data-motion="out"] > .card-seam,
+  .card-backdrop.card-leaving[data-motion="out"] {
+    animation: card-show var(--card-out) var(--card-ease) reverse both;
+  }
+}
+
+@keyframes card-rise {
+  from {
+    transform: translateY(var(--card-rise));
+  }
+
+  to {
+    transform: none;
+  }
+}
+
+@keyframes card-show {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.card-list li {
   display: flex;
   justify-content: space-between;
   gap: 1rem;
   padding: 0.1rem 0.75rem;
 }
 
-.candidates li[aria-selected="true"] {
+.card-list li[aria-selected="true"] {
   background: var(--select);
 }
 
-.candidates .name {
+.card-list .name {
   min-width: 0;
   overflow-wrap: anywhere;
 }
 
-.candidates .hint {
+.card-list .hint {
   white-space: nowrap;
   color: var(--muted);
   font-size: 12px;
 }
 
 /* The next keys after the prefix key (SR-109 AK3): the key, muted, before its command. */
-.candidates.next-keys li {
+.card-list.next-keys li {
   justify-content: flex-start;
 }
 
-.candidates.next-keys .key {
+.card-list.next-keys .key {
   min-width: 1.5rem;
   color: var(--muted);
 }

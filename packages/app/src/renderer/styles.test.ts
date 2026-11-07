@@ -214,25 +214,25 @@ describe("the field the focus is in (SR-155)", () => {
 describe("the shortcut next to a hit of the command line (SR-109)", () => {
   it("[SR-109/AK1] writes the shortcut quietly at the right of the hit: muted, smaller than the name", () => {
     // The name on the left, the shortcut pushed to the right edge of the row.
-    const row = ruleOf(".candidates li");
+    const row = ruleOf(".card-list li");
     expect(row).toMatch(/display:\s*flex;/);
     expect(row).toMatch(/justify-content:\s*space-between;/);
-    const hint = ruleOf(".candidates .hint");
+    const hint = ruleOf(".card-list .hint");
     expect(hint).toMatch(/color:\s*var\(--muted\);/);
     const size = (rule: string): number => Number(/font-size:\s*(\d+)px;/.exec(rule)?.[1]);
-    expect(size(hint)).toBeLessThan(size(ruleOf(".candidates")));
+    expect(size(hint)).toBeLessThan(size(ruleOf(".card-list")));
   });
 });
 
 describe("the look of the window (ThomasBirkmaier/ReqSeq-archive#490)", () => {
   it("lifts the candidates of a prompt as a card: the raised tone, a thin edge, round corners, a shadow upwards", () => {
-    const card = ruleOf(".candidates");
+    const card = ruleOf(".card-list");
     expect(card).toMatch(/background:\s*var\(--raised\);/);
     expect(card).toMatch(/border:\s*1px solid var\(--rule\);/);
     expect(card).toMatch(/border-radius:\s*8px;/);
     expect(card).toMatch(/box-shadow:\s*0 -\d+px \d+px var\(--shadow\);/);
     // It rises above the modeline, whose row is --modeline high.
-    expect(card).toMatch(/bottom:\s*calc\(100% \+ var\(--modeline\) \+ [\d.]+rem\);/);
+    expect(ruleOf(".card")).toMatch(/bottom:\s*calc\(100% \+ var\(--modeline\) \+ [\d.]+rem\);/);
     expect(ruleOf(".shell")).toMatch(
       /grid-template-rows:\s*minmax\(0, 1fr\) var\(--modeline\) var\(--line\);/,
     );
@@ -331,5 +331,70 @@ describe("the inactive area of a split window (SR-150)", () => {
       expect(ratio(values("muted")[scheme], values("sheet")[scheme])).toBeGreaterThanOrEqual(4.5);
       expect(ratio(values("muted")[scheme], values("select")[scheme])).toBeGreaterThanOrEqual(4.5);
     }
+  });
+});
+
+describe("the card of the command line in motion (SR-182)", () => {
+  /** A `--card-*` time in ms, from the card's `:root` rule. */
+  const time = (name: string): number => {
+    const value = new RegExp(`--card-${name}:\\s*(\\d+)ms;`).exec(CSS)?.[1];
+    if (value === undefined) {
+      throw new Error(`no --card-${name}`);
+    }
+    return Number(value);
+  };
+  /** The colour `#rrggbb` under the black of `--dim` with alpha `alpha` (0..1). */
+  const dimmed = (hex: string, alpha: number): string =>
+    `#${[1, 3, 5]
+      .map((at) =>
+        Math.round(parseInt(hex.slice(at, at + 2), 16) * (1 - alpha))
+          .toString(16)
+          .padStart(2, "0"),
+      )
+      .join("")}`;
+  const alphaOf = (scheme: Scheme): number => {
+    const match = /^rgb\(0 0 0 \/ (\d+)%\)$/.exec(values("dim")[scheme]);
+    if (match?.[1] === undefined) {
+      throw new Error("--dim is no black with an alpha");
+    }
+    return Number(match[1]) / 100;
+  };
+
+  it("[SR-182/AK1] rises in at most 200 ms, easing out", () => {
+    expect(time("in")).toBeLessThanOrEqual(200);
+    // Ease-out: the curve starts steep and ends flat (cubic-bezier with y2 = 1).
+    expect(CSS).toMatch(/--card-ease:\s*cubic-bezier\([\d.]+, [\d.]+, [\d.]+, 1\);/);
+  });
+
+  it.each(["light", "dark"] as const)(
+    "[SR-182/AK2] dims the backdrop visibly, and the text behind it keeps 4.5:1 (%s)",
+    (scheme) => {
+      const alpha = alphaOf(scheme);
+      expect(alpha).toBeGreaterThan(0);
+      const at = (name: string): string => dimmed(values(name)[scheme], alpha);
+      for (const ground of ["sheet", "select", "raised", "outside-change"]) {
+        for (const name of ["text", "muted", "accent-outdated", "accent-gap"]) {
+          expect(ratio(at(name), at(ground)), `${name} on ${ground}`).toBeGreaterThanOrEqual(4.5);
+        }
+      }
+    },
+  );
+
+  it("[SR-182/AK2] blurs a seam as wide as the blur of the card's shadow", () => {
+    const blur = /box-shadow:\s*0 -\d+px (\d+)px var\(--shadow\);/.exec(ruleOf(".card-list"))?.[1];
+    expect(CSS).toMatch(new RegExp(`--card-seam:\\s*${String(blur)}px;`));
+    expect(ruleOf(".card-seam")).toMatch(/backdrop-filter:\s*blur\(var\(--card-blur\)\);/);
+    expect(ruleOf(".card-backdrop")).toMatch(/background:\s*var\(--dim\);/);
+  });
+
+  it("[SR-182/AK6] runs back in less time than it rises", () => {
+    expect(time("out")).toBeLessThan(time("in"));
+  });
+
+  it("[SR-182/AK7] moves only without the system's reduced motion", () => {
+    const motion = /@media \(prefers-reduced-motion: no-preference\) \{([\s\S]*?)\n\}/.exec(CSS)?.[1] ?? "";
+    expect(motion).toMatch(/card-rise/);
+    const outside = CSS.replace(motion, "");
+    expect(outside).not.toMatch(/animation:\s*card-/);
   });
 });
