@@ -122,13 +122,16 @@ describe("list keys (SR-187)", () => {
     expect(withCaret(view)).toBe("one\nthree\ntwo|");
   });
 
-  it("keeps the numbers of an ordered list and the blank line of a loose list at their places", () => {
+  it("numbers an ordered list in sequence as before, keeps blank lines at their places, and shifts sub-items with a wider number", () => {
     const view = viewOf("1. a|\n\n2. b\n");
     moveListItemOrLine(true)(view);
     expect(withCaret(view)).toBe("1. b\n\n2. a|\n");
-    const wide = viewOf("9. a|\n10. b");
+    const wide = viewOf("9. a|\n   - x\n10. b\n    - y");
     moveListItemOrLine(true)(wide);
-    expect(docOf(wide)).toBe("10. b\n9. a");
+    expect(docOf(wide)).toBe("9. b\n   - y\n10. a\n    - x");
+    const typed = viewOf("1. a|\n1. b");
+    moveListItemOrLine(true)(typed);
+    expect(docOf(typed)).toBe("1. b\n1. a");
   });
 
   it("moves a nested item among its siblings only", () => {

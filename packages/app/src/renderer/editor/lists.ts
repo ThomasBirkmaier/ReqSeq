@@ -8,14 +8,14 @@
 import { completionStatus } from "@codemirror/autocomplete";
 import { isolateHistory, moveLineDown, moveLineUp } from "@codemirror/commands";
 import { EditorSelection, Prec } from "@codemirror/state";
-import type { ChangeSpec, EditorState, Extension, SelectionRange, TransactionSpec } from "@codemirror/state";
+import type { ChangeSpec, EditorState, Extension, TransactionSpec } from "@codemirror/state";
 import { keymap } from "@codemirror/view";
 import type { Command } from "@codemirror/view";
 import type { SyntaxNode } from "@lezer/common";
 import { parsedTree } from "./parsed.js";
 
 /** The user events of the list changes: none of them is typing, so the history never joins them to typing. */
-export const LIST_EVENTS = { indent: "input.indent.list", move: "move.list" } as const;
+export const LIST_EVENTS = { indent: "input.indent.list", move: "move.list", drag: "move.drop" } as const;
 
 /** Spaces a tab counts for in the indentation (CommonMark). */
 const TAB = 4;
@@ -187,62 +187,113 @@ export const outdentListItem: Command = (view) => {
   return true;
 };
 
-/** The number of an ordered item's mark (`3.` → `3`), with its text. */
-const numberOf = (
-  state: EditorState,
-  item: SyntaxNode,
-): { readonly from: number; readonly text: string } | undefined => {
-  const mark = item.getChild("ListMark");
-  if (mark === null || item.parent?.name !== "OrderedList") {
-    return undefined;
+/** The items of the list `item` is in, at its level, in order. */
+export const siblingsOf = (state: EditorState, item: SyntaxNode): readonly ListItemLines[] => {
+  const all: ListItemLines[] = [];
+  for (let node = item.parent?.firstChild ?? null; node !== null; node = node.nextSibling) {
+    if (node.name === "ListItem") {
+      all.push(linesOf(state, node));
+    }
   }
-  return { from: mark.from, text: state.doc.sliceString(mark.from, mark.to - 1) };
+  return all;
 };
 
-/** A range moved with its block keeps its place in it; one in the other block likewise. */
-const mapRange = (
-  range: SelectionRange,
-  blocks: readonly { from: number; to: number; by: number }[],
-): SelectionRange => {
-  const shift = (pos: number): number => {
-    const block = blocks.find((entry) => pos >= entry.from && pos <= entry.to);
-    return block === undefined ? pos : pos + block.by;
-  };
-  return EditorSelection.range(shift(range.anchor), shift(range.head));
+/** The number of an ordered item's mark (`3.` gives `3`), as its offset in the item's block and its digits. */
+const numberOf = (
+  state: EditorState,
+  item: ListItemLines,
+): { readonly at: number; readonly digits: string } | undefined => {
+  const mark = item.node.getChild("ListMark");
+  if (mark === null || item.node.parent?.name !== "OrderedList") {
+    return undefined;
+  }
+  return { at: mark.from - item.from, digits: state.doc.sliceString(mark.from, mark.to - 1) };
 };
 
 /**
- * Swaps the list item `upper` with the item `lower` after it, each with its sub-items; what lies between them (a
- * blank line of a loose list) stays between them. In an ordered list the numbers stay at their places (the first
- * of the two keeps the first number), when both have the same width.
+ * The block of an item with the number `next` in place of its own; when the width of the number changes, its
+ * continuation lines shift by as much (only as far as they have room, when it shrinks), so its sub-items stay its.
  */
-const swapItems = (state: EditorState, upper: ListItemLines, lower: ListItemLines): TransactionSpec => {
-  const top = state.doc.sliceString(upper.from, upper.to);
-  const between = state.doc.sliceString(upper.to, lower.from);
-  const bottom = state.doc.sliceString(lower.from, lower.to);
-  const one = numberOf(state, upper.node);
-  const two = numberOf(state, lower.node);
-  const renumber = (text: string, at: number, from: string, to: string): string =>
-    text.slice(0, at) + to + text.slice(at + from.length);
-  // Both numbers of the same width: they trade places (a change of width would move the sub-items).
-  const numbers = one !== undefined && two?.text.length === one.text.length ? { one, two } : undefined;
-  const newTop =
-    numbers === undefined
-      ? bottom
-      : renumber(bottom, numbers.two.from - lower.from, numbers.two.text, numbers.one.text);
-  const newBottom =
-    numbers === undefined
-      ? top
-      : renumber(top, numbers.one.from - upper.from, numbers.one.text, numbers.two.text);
-  const blocks = [
-    { from: upper.from, to: upper.to, by: newTop.length + between.length },
-    { from: lower.from, to: lower.to, by: upper.from - lower.from },
-  ];
+const renumbered = (
+  block: string,
+  number: { readonly at: number; readonly digits: string },
+  next: string,
+): string => {
+  const width = next.length - number.digits.length;
+  const [first = "", ...rest] = block.split("\n");
+  const head = first.slice(0, number.at) + next + first.slice(number.at + number.digits.length);
+  const shifted = rest.map((line) => {
+    if (width > 0) {
+      return line.trim() === "" ? line : " ".repeat(width) + line;
+    }
+    const room = line.length - line.trimStart().length;
+    return line.slice(Math.min(room, -width));
+  });
+  return [head, ...shifted].join("\n");
+};
+
+/**
+ * Moves `item` (with its sub-items) into the gap `gap` among its siblings: 0 before the first, `siblings.length`
+ * after the last. The text between the items (line breaks, the blank lines of a loose list) stays at its places,
+ * so the file keeps its blank lines. An ordered list numbered in sequence before is numbered in sequence after,
+ * from the same start; one numbered otherwise keeps its numbers as typed. A range of the selection in an item moves
+ * with it. Undefined when the gap is next to the item (no move). One undo step of its own, with `userEvent`.
+ */
+export const moveItemTo = (
+  state: EditorState,
+  item: ListItemLines,
+  gap: number,
+  userEvent: string = LIST_EVENTS.move,
+): TransactionSpec | undefined => {
+  const siblings = siblingsOf(state, item.node);
+  const from = siblings.findIndex((entry) => entry.from === item.from);
+  const first = siblings[0];
+  const last = siblings[siblings.length - 1];
+  if (
+    from < 0 ||
+    first === undefined ||
+    last === undefined ||
+    gap === from ||
+    gap === from + 1 ||
+    gap < 0 ||
+    gap > siblings.length
+  ) {
+    return undefined;
+  }
+  const blocks = siblings.map((entry) => state.doc.sliceString(entry.from, entry.to));
+  const between = siblings
+    .slice(1)
+    .map((entry, index) => state.doc.sliceString(siblings[index]?.to ?? 0, entry.from));
+  const order = siblings.map((_, index) => index).filter((index) => index !== from);
+  order.splice(gap > from ? gap - 1 : gap, 0, from);
+  const numbers = siblings.map((entry) => numberOf(state, entry));
+  const start = Number(numbers[0]?.digits ?? Number.NaN);
+  const inSequence = numbers.every(
+    (number, index) => number !== undefined && Number(number.digits) === start + index,
+  );
+  let text = "";
+  const starts = new Map<number, number>();
+  order.forEach((old, place) => {
+    const number = numbers[old];
+    const block = blocks[old] ?? "";
+    starts.set(old, first.from + text.length);
+    text += inSequence && number !== undefined ? renumbered(block, number, String(start + place)) : block;
+    text += between[place] ?? "";
+  });
+  const moved = (pos: number): number => {
+    const index = siblings.findIndex((entry) => pos >= entry.from && pos <= entry.to);
+    const entry = siblings[index];
+    const to = starts.get(index);
+    if (entry === undefined || to === undefined) {
+      return pos;
+    }
+    return Math.min(to + (pos - entry.from), first.from + text.length);
+  };
   return listChange(
-    [{ from: upper.from, to: lower.to, insert: newTop + between + newBottom }],
-    LIST_EVENTS.move,
+    [{ from: first.from, to: last.to, insert: text }],
+    userEvent,
     EditorSelection.create(
-      state.selection.ranges.map((range) => mapRange(range, blocks)),
+      state.selection.ranges.map((range) => EditorSelection.range(moved(range.anchor), moved(range.head))),
       state.selection.mainIndex,
     ),
   );
@@ -264,10 +315,10 @@ export const moveListItemOrLine =
     if (item === undefined) {
       return forward ? moveLineDown(view) : moveLineUp(view);
     }
-    const neighbour = sibling(item.node, forward);
-    if (neighbour !== null) {
-      const other = linesOf(state, neighbour);
-      view.dispatch(forward ? swapItems(state, item, other) : swapItems(state, other, item));
+    const index = siblingsOf(state, item.node).findIndex((entry) => entry.from === item.from);
+    const change = moveItemTo(state, item, forward ? index + 2 : index - 1);
+    if (change !== undefined) {
+      view.dispatch(change);
     }
     return true;
   };
