@@ -168,13 +168,13 @@ export interface TypedListing {
 export interface TypedListOptions extends Omit<ListOptions, "dots"> {
   /** Default the platform of this process. */
   readonly platform?: NodeJS.Platform;
-  /** The home folder, which `~` stands for when `base` is not given. */
-  readonly home: string;
   /**
-   * The folder a relative path is resolved from; without it the path must be absolute (`~` for home).
-   * With it, `~` is an ordinary name, as the commands resolve a path argument.
+   * The home folder that `~` stands for, as the path arguments of the access take it (`LocalPaths.home`,
+   * and always for "Open workspace"); without it `~` is an ordinary name.
    */
-  readonly base?: string;
+  readonly home?: string | undefined;
+  /** The folder a relative path is resolved from; without it the path must be absolute. */
+  readonly base?: string | undefined;
   /** Called with the folder before it is listed (the SR-142 rule of the access); may reject. */
   readonly check?: (folder: string) => Promise<void>;
 }
@@ -187,7 +187,7 @@ export interface TypedListOptions extends Omit<ListOptions, "dots"> {
 export async function listTypedFolder(text: string, options: TypedListOptions): Promise<TypedListing> {
   const { platform = process.platform, base, home, check, ...rest } = options;
   const typed = splitTypedPath(text, platform);
-  const folder = localFolder(typed.folder, base === undefined ? { platform, home } : { platform, base });
+  const folder = localFolder(typed.folder, { platform, home, base });
   if (folder === undefined) {
     return { name: typed.name, entries: [], problem: "invalid" };
   }

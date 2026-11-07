@@ -2,7 +2,7 @@ import fs from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { JsonSchema } from "../catalog.js";
 import { SCHEMA_BASE, loadContracts } from "./contracts.js";
-import { localPathFields, localPathUses } from "./local-path-fields.js";
+import { localPathFields, localPathUses, replaceLocalPaths } from "./local-path-fields.js";
 
 const contracts = loadContracts();
 const LOCAL_PATH = "../common.schema.json#/$defs/localPath";
@@ -92,5 +92,18 @@ describe("the local path fields of a command input (SR-142)", () => {
     expect(localPathUses({ changedFiles: "x", deep: { path: "d" } }, fields)).toEqual([
       { field: "deep.path", path: "d" },
     ]);
+  });
+
+  it("replaces the string values of the fields in place, and nothing else", () => {
+    const fields = [["file"], ["changedFiles", null], ["deep", "path"], ["gone"]];
+    const input = { file: "a.xml", changedFiles: ["b.md", 3], deep: "no object", other: "o" };
+    const upper = (value: string): string => value.toUpperCase();
+    expect(replaceLocalPaths(input, fields, upper)).toBe(input);
+    expect(input).toEqual({ file: "A.XML", changedFiles: ["B.MD", 3], deep: "no object", other: "o" });
+    expect(replaceLocalPaths({ changedFiles: "x", deep: { path: "d" } }, fields, upper)).toEqual({
+      changedFiles: "x",
+      deep: { path: "D" },
+    });
+    expect(replaceLocalPaths({ file: "a" }, undefined, upper)).toEqual({ file: "a" });
   });
 });

@@ -236,13 +236,15 @@ describe("the folder of a typed path", () => {
       name: "pro",
       entries: [{ name: "projects", kind: "folder" }],
     });
-    // Without a base, a relative path is refused by its text; `~` for home only then.
+    // Without a base, a relative path is refused by its text.
     expect(await listTypedFolder("out/", { files: false, home })).toEqual({
       name: "",
       entries: [],
       problem: "invalid",
     });
-    expect((await listTypedFolder("~/", { files: false, home, base })).problem).toBe("missing");
+    // With a base and a home (the app), `~` is the home folder; without a home an ordinary name.
+    expect((await listTypedFolder("~/", { files: false, home, base })).folder).toBe(home);
+    expect((await listTypedFolder("~/", { files: false, base })).problem).toBe("missing");
   });
 
   it("passes the folder through the check before it lists it", async () => {
