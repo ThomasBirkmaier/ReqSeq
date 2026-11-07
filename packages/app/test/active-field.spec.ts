@@ -180,7 +180,7 @@ test.describe("the field the focus is in", () => {
     await expect.poll(() => tinted(window)).toEqual(["Text"]);
     // From the last line of the text into the box.
     await expect(window.locator('[data-field="Text"] .cm-content')).toBeFocused();
-    await window.keyboard.press("Control+End");
+    await window.keyboard.press("ControlOrMeta+End");
     await window.keyboard.press("Control+n");
     await expect.poll(() => tinted(window)).toEqual([box]);
     await window.keyboard.press("Control+p");
