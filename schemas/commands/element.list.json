@@ -6,34 +6,13 @@
   "stage": 3,
   "implements": ["SR-035", "SR-043", "SR-048", "SR-069", "SR-070", "SR-075", "SR-101", "SR-149"],
   "arguments": [
-    {
-      "field": "selection",
-      "complete": "selection"
-    },
-    {
-      "field": "sort",
-      "complete": "json"
-    },
-    {
-      "field": "group",
-      "complete": "text"
-    },
-    {
-      "field": "fields",
-      "complete": "choice"
-    },
-    {
-      "field": "withText",
-      "complete": "boolean"
-    },
-    {
-      "field": "limit",
-      "complete": "number"
-    },
-    {
-      "field": "offset",
-      "complete": "number"
-    }
+    { "field": "selection", "complete": "selection" },
+    { "field": "sort", "complete": "json" },
+    { "field": "group", "complete": "text" },
+    { "field": "fields", "complete": "choice" },
+    { "field": "withText", "complete": "boolean" },
+    { "field": "limit", "complete": "number" },
+    { "field": "offset", "complete": "number" }
   ],
   "input": {
     "type": "object",
@@ -50,8 +29,8 @@
         }
       },
       "group": {
-        "$ref": "../common.schema.json#/$defs/groupKey",
-        "description": "Group the list (SR-149): `type` (as written, a subtype is a group of its own), `status`, `package` (the property with the meaning `packages`), or the key of a property whose values element.facets offers: a choice or relation property, or a text, number or date property with few values shared in the workspace (a topic, not a title). Whether a text, number or date key can be grouped follows the data of the workspace (the element.facets rule with its default maxValues of 30), so the same key can become input.invalid as the data changes. Any other key is input.invalid. Groups come in the order a sort by the value gives: types, statuses and choices in metamodel order (a choice written by its display name is in the group of that choice), then other values: numbers, texts ignoring case, booleans; packages and other targets by title ignoring case, then short ID (spec-frage #978). Elements without a value form the last group; so do elements whose targets are all not available (`unavailable`). Relation items are read as element.facets and the condition `property eq` read them. An element with several values (packages, a list) is in each of their groups. `sort` (or the saved filter's sort) orders the elements inside each group; with `hierarchy` each group is its own tree. Nothing is stored."
+        "description": "Group the list (SR-149): `type` (as written, a subtype is a group of its own), `status`, `package` (the property with the meaning `packages`), or the key of a property whose values element.facets offers: a choice or relation property, or a text, number or date property with few values shared in the workspace (a topic, not a title). Whether a text, number or date key can be grouped follows the data of the workspace (the element.facets rule with its default maxValues of 30), so the same key can become input.invalid as the data changes. Any other key is input.invalid. Groups come in the order a sort by the value gives: types, statuses and choices in metamodel order (a choice written by its display name is in the group of that choice), then other values: numbers, texts ignoring case, booleans; packages and other targets by title ignoring case, then short ID (spec-frage #978). Elements without a value form the last group; so do elements whose targets are all not available (`unavailable`). Relation items are read as element.facets and the condition `property eq` read them. An element with several values (packages, a list) is in each of their groups. `sort` (or the saved filter's sort) orders the elements inside each group; with `hierarchy` each group is its own tree. Nothing is stored.",
+        "$ref": "../common.schema.json#/$defs/groupKey"
       },
       "fields": {
         "type": "array",
@@ -148,9 +127,7 @@
       "groups": {
         "type": "array",
         "description": "Only with `group`: every group of the whole list in order, also those on other pages; a group without elements is not given. `offset` and `rows` follow from the counts and are given for convenience.",
-        "items": {
-          "$ref": "../common.schema.json#/$defs/listGroup"
-        }
+        "items": { "$ref": "../common.schema.json#/$defs/listGroup" }
       },
       "offset": {
         "type": "integer",
@@ -173,13 +150,6 @@
     },
     "additionalProperties": false,
     "required": ["total"],
-    "oneOf": [
-      {
-        "required": ["elements"]
-      },
-      {
-        "required": ["partial"]
-      }
-    ]
+    "oneOf": [{ "required": ["elements"] }, { "required": ["partial"] }]
   }
 }

@@ -2825,7 +2825,7 @@ export interface ElementSearchInput {
   readonly selection?: ElementSelection;
   /** Search only these: `title`, `text` (the Markdown text), `properties` (every other value, type and status names; not relations), `id` (UUID, short ID, identifier). Default all. */
   readonly fields?: readonly ("title" | "text" | "properties" | "id")[];
-  /** Group the hits (SR-149 AK6) by the keys and rules of element.list `group`: the same groups in the same order, a hit with several values in each of their groups, the hits without a value (or with only targets not available) in the last group, and an invalid key `input.invalid` whatever the query finds. Inside each group the hits keep the order of the search (ID matches, then relevance, then workspace order). The grouping reads the records the hits were found in; their targets are looked up among the elements of the selection. Nothing is stored. */
+  /** Group the hits (SR-149 AK6) by the keys and rules of element.list `group`: the same groups in the same order, a hit with several values in each of their groups, the hits without a value (or with only targets not available) in the last group, and an invalid key `input.invalid` whatever the query finds. Inside each group the hits keep the order of the search (ID matches, then relevance, then workspace order). The grouping reads the records the hits were found in; their targets are looked up in the workspace the selection was read from. Nothing is stored. */
   readonly group?: GroupKey;
   readonly limit: number;
   readonly offset: number;
@@ -2874,15 +2874,15 @@ export interface ElementSearchOutput {
         readonly marks: TextMarks;
       };
   }[];
-  /** Hits, each once. */
-  readonly total: number;
-  readonly incomplete: Incomplete;
   /** Only with `group`: every group of all the hits in order, also those on other pages; a group without hits is not given. `offset` and `rows` follow from the counts. */
   readonly groups?: readonly ListGroup[];
   /** Only with `group`: the row the page starts at (the `offset` of the input). */
   readonly offset?: number;
   /** Only with `group`: the rows of the grouped hits, the sum of the counts of `groups`; `offset` and `limit` page over these rows. At least `total`, more when hits are in several groups. */
   readonly rows?: number;
+  /** Hits, each once. */
+  readonly total: number;
+  readonly incomplete: Incomplete;
 }
 
 /**

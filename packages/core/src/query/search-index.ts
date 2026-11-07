@@ -1057,10 +1057,8 @@ const pageOf = (found: Iterable<Found>, options: SearchElementsOptions): SearchR
   return { total: all.length, hits: first.slice(offset, end).map(hitOf) };
 };
 
-/** One hit of `rankedHits`: its record; `describeHit` gives it as `searchElements` does. */
-export interface RankedHit {
-  readonly element: ElementRecord;
-}
+/** One hit of `rankedHits`, as the search found it; `describeHit` gives it as `searchElements` does. */
+export type RankedHit = Readonly<Found>;
 
 /**
  * Every hit of `query` in the order of `searchElements` (ID matches, then score, then store order), the
@@ -1078,7 +1076,7 @@ export const rankedHits = (
   }).sort(order);
 
 /** A hit of `rankedHits` with its score, fields and terms, as `searchElements` gives it. */
-export const describeHit = (hit: RankedHit): SearchHit => hitOf(hit as Found);
+export const describeHit = (hit: RankedHit): SearchHit => hitOf(hit);
 
 /** The documents `query` finds in `index`, each once (see `searchElements`); undefined for a query without a word. */
 const foundBy = (

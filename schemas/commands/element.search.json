@@ -6,30 +6,12 @@
   "stage": 3,
   "implements": ["SR-066", "SR-068", "SR-098", "SR-149", "SR-174"],
   "arguments": [
-    {
-      "field": "query",
-      "complete": "text"
-    },
-    {
-      "field": "selection",
-      "complete": "selection"
-    },
-    {
-      "field": "fields",
-      "complete": "choice"
-    },
-    {
-      "field": "group",
-      "complete": "text"
-    },
-    {
-      "field": "limit",
-      "complete": "number"
-    },
-    {
-      "field": "offset",
-      "complete": "number"
-    }
+    { "field": "query", "complete": "text" },
+    { "field": "selection", "complete": "selection" },
+    { "field": "fields", "complete": "choice" },
+    { "field": "group", "complete": "text" },
+    { "field": "limit", "complete": "number" },
+    { "field": "offset", "complete": "number" }
   ],
   "input": {
     "type": "object",
@@ -54,7 +36,7 @@
       },
       "group": {
         "$ref": "../common.schema.json#/$defs/groupKey",
-        "description": "Group the hits (SR-149 AK6) by the keys and rules of element.list `group`: the same groups in the same order, a hit with several values in each of their groups, the hits without a value (or with only targets not available) in the last group, and an invalid key `input.invalid` whatever the query finds. Inside each group the hits keep the order of the search (ID matches, then relevance, then workspace order). The grouping reads the records the hits were found in; their targets are looked up among the elements of the selection. Nothing is stored."
+        "description": "Group the hits (SR-149 AK6) by the keys and rules of element.list `group`: the same groups in the same order, a hit with several values in each of their groups, the hits without a value (or with only targets not available) in the last group, and an invalid key `input.invalid` whatever the query finds. Inside each group the hits keep the order of the search (ID matches, then relevance, then workspace order). The grouping reads the records the hits were found in; their targets are looked up in the workspace the selection was read from. Nothing is stored."
       },
       "limit": {
         "type": "integer",
@@ -77,6 +59,7 @@
     "properties": {
       "hits": {
         "type": "array",
+        "description": "One page of the hits. With `group`, the page of the grouped rows (the hits of the first group, then of the next): a hit in several groups is a row in each, so a page can hold it more than once; key the rows by their position, not by the element.",
         "items": {
           "type": "object",
           "properties": {
@@ -135,16 +118,9 @@
                 {
                   "type": "object",
                   "properties": {
-                    "field": {
-                      "const": "text"
-                    },
-                    "text": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "marks": {
-                      "$ref": "../common.schema.json#/$defs/textMarks"
-                    }
+                    "field": { "const": "text" },
+                    "text": { "type": "string", "minLength": 1 },
+                    "marks": { "$ref": "../common.schema.json#/$defs/textMarks" }
                   },
                   "additionalProperties": false,
                   "required": ["field", "text", "marks"]
@@ -152,24 +128,14 @@
                 {
                   "type": "object",
                   "properties": {
-                    "field": {
-                      "const": "properties"
-                    },
-                    "property": {
-                      "type": "string",
-                      "description": "The frontmatter key."
-                    },
+                    "field": { "const": "properties" },
+                    "property": { "type": "string", "description": "The frontmatter key." },
                     "propertyName": {
                       "type": "string",
                       "description": "Its name in the metamodel; the key for a property the metamodel does not define."
                     },
-                    "text": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "marks": {
-                      "$ref": "../common.schema.json#/$defs/textMarks"
-                    }
+                    "text": { "type": "string", "minLength": 1 },
+                    "marks": { "$ref": "../common.schema.json#/$defs/textMarks" }
                   },
                   "additionalProperties": false,
                   "required": ["field", "property", "propertyName", "text", "marks"]
@@ -179,23 +145,12 @@
           },
           "additionalProperties": false,
           "required": ["id", "repository", "shortId", "type", "title", "score", "fields", "terms"]
-        },
-        "description": "One page of the hits. With `group`, the page of the grouped rows (the hits of the first group, then of the next): a hit in several groups is a row in each, so a page can hold it more than once; key the rows by their position, not by the element."
-      },
-      "total": {
-        "type": "integer",
-        "minimum": 0,
-        "description": "Hits, each once."
-      },
-      "incomplete": {
-        "$ref": "../common.schema.json#/$defs/incomplete"
+        }
       },
       "groups": {
         "type": "array",
         "description": "Only with `group`: every group of all the hits in order, also those on other pages; a group without hits is not given. `offset` and `rows` follow from the counts.",
-        "items": {
-          "$ref": "../common.schema.json#/$defs/listGroup"
-        }
+        "items": { "$ref": "../common.schema.json#/$defs/listGroup" }
       },
       "offset": {
         "type": "integer",
@@ -206,6 +161,14 @@
         "type": "integer",
         "minimum": 0,
         "description": "Only with `group`: the rows of the grouped hits, the sum of the counts of `groups`; `offset` and `limit` page over these rows. At least `total`, more when hits are in several groups."
+      },
+      "total": {
+        "type": "integer",
+        "minimum": 0,
+        "description": "Hits, each once."
+      },
+      "incomplete": {
+        "$ref": "../common.schema.json#/$defs/incomplete"
       }
     },
     "additionalProperties": false,

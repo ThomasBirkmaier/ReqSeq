@@ -10,14 +10,8 @@
       "items": {
         "type": "object",
         "properties": {
-          "start": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "end": {
-            "type": "integer",
-            "minimum": 1
-          }
+          "start": { "type": "integer", "minimum": 0 },
+          "end": { "type": "integer", "minimum": 1 }
         },
         "additionalProperties": false,
         "required": ["start", "end"]
@@ -476,16 +470,10 @@
     },
     "groupKey": {
       "description": "A key to group a list by (SR-149): `type`, `status`, `package` or a property key.",
-      "anyOf": [
-        {
-          "enum": ["type", "status", "package"]
-        },
-        {
-          "$ref": "#/$defs/key"
-        }
-      ]
+      "anyOf": [{ "enum": ["type", "status", "package"] }, { "$ref": "#/$defs/key" }]
     },
     "listGroup": {
+      "description": "One group of a grouped list (SR-149) and where its rows are.",
       "type": "object",
       "properties": {
         "value": {
@@ -496,10 +484,7 @@
           "type": "string",
           "description": "Display name of a type, status or choice of the metamodel."
         },
-        "title": {
-          "type": "string",
-          "description": "Title of a package or target, when it has one."
-        },
+        "title": { "type": "string", "description": "Title of a package or target, when it has one." },
         "identifier": {
           "type": "string",
           "description": "Identifier of a package or target, when it has one."
@@ -521,8 +506,7 @@
         }
       },
       "required": ["count", "offset"],
-      "additionalProperties": false,
-      "description": "One group of a grouped list (SR-149) and where its rows are."
+      "additionalProperties": false
     },
     "viewId": {
       "description": "A view as the tool writes it in outputs: `core` or the canonical UUID or short ID of a variant (SR-043).",
@@ -558,12 +542,8 @@
       "description": "An object of a ReqIF file by its IDENTIFIER in the source, with the UUID of its element when there is one (ADR-0013).",
       "type": "object",
       "properties": {
-        "identifier": {
-          "type": "string"
-        },
-        "id": {
-          "$ref": "#/$defs/uuid"
-        }
+        "identifier": { "type": "string" },
+        "id": { "$ref": "#/$defs/uuid" }
       },
       "additionalProperties": false,
       "required": ["identifier"]
@@ -576,12 +556,8 @@
           "type": "string",
           "description": "IDENTIFIER of the SPEC-OBJECT, SPEC-RELATION or SPECIFICATION."
         },
-        "kind": {
-          "enum": ["spec-object", "spec-relation", "specification"]
-        },
-        "id": {
-          "$ref": "#/$defs/uuid"
-        },
+        "kind": { "enum": ["spec-object", "spec-relation", "specification"] },
+        "id": { "$ref": "#/$defs/uuid" },
         "code": {
           "enum": [
             "omitted-type",
@@ -603,9 +579,7 @@
             "image-outside"
           ]
         },
-        "reason": {
-          "type": "string"
-        }
+        "reason": { "type": "string" }
       },
       "additionalProperties": false,
       "required": ["identifier", "kind", "code", "reason"]
@@ -614,18 +588,10 @@
       "description": "A type, attribute, relation type or enumeration value of a ReqIF file that the mapping neither maps nor omits (SR-055 AK1). `source` is its LONG-NAME or IDENTIFIER; `sourceType` the SPEC-OBJECT-TYPE of an attribute or value, `attribute` the attribute of a value.",
       "type": "object",
       "properties": {
-        "kind": {
-          "enum": ["type", "attribute", "relation", "value"]
-        },
-        "source": {
-          "type": "string"
-        },
-        "sourceType": {
-          "type": "string"
-        },
-        "attribute": {
-          "type": "string"
-        }
+        "kind": { "enum": ["type", "attribute", "relation", "value"] },
+        "source": { "type": "string" },
+        "sourceType": { "type": "string" },
+        "attribute": { "type": "string" }
       },
       "additionalProperties": false,
       "required": ["kind", "source"]
