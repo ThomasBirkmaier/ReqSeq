@@ -799,7 +799,8 @@ mark {
   padding: 0.1rem 0.75rem;
 }
 
-.card-list li[aria-selected="true"] {
+.card-list li[aria-selected="true"],
+.card-list.next-keys li[aria-current="true"] {
   background: var(--select);
 }
 
