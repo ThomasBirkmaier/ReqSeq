@@ -7,7 +7,7 @@ import type { Locator, Page } from "@playwright/test";
 import { micromark } from "micromark";
 import { gfm, gfmHtml } from "micromark-extension-gfm";
 import type { RunningApp } from "./support/app.js";
-import { launchApp, listAll } from "./support/app.js";
+import { goTo, launchApp, listAll } from "./support/app.js";
 import {
   DEMO_FILE,
   DEMO_FILES,
@@ -278,7 +278,7 @@ test.describe("the Markdown editor in the element buffer", () => {
     await window.keyboard.press("Enter");
     await window.keyboard.insertText(" ENDE");
     await expect(modeline(window)).toContainText("modified");
-    await window.keyboard.press("ControlOrMeta+P");
+    await goTo(window);
     await window.keyboard.press("Enter");
     await expect(window.getByRole("listbox")).toBeVisible();
     await window.keyboard.press("ControlOrMeta+P");

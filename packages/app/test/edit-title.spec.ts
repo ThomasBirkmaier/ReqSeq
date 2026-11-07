@@ -8,7 +8,7 @@ import path from "node:path";
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { fileSha256, launchApp, listAll } from "./support/app.js";
+import { fileSha256, goTo, launchApp, listAll } from "./support/app.js";
 
 /** 14 elements with a derivation tree (fixtures/README.md). */
 const FIXTURE = { fixture: "SR-069/filter" };
@@ -233,7 +233,7 @@ test.describe("the title of an element, edited in its heading (ThomasBirkmaier/R
       [ELEMENT, TITLE],
       ["SR-0000b4", long],
     ] as const) {
-      await window.keyboard.press("ControlOrMeta+P");
+      await goTo(window);
       await window.keyboard.type(element);
       await expect(window.locator('.candidates [role="option"]').first()).toContainText(element);
       await window.keyboard.press("Enter");

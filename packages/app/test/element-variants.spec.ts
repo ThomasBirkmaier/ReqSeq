@@ -8,7 +8,7 @@ import path from "node:path";
 import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { launchApp } from "./support/app.js";
+import { goTo, launchApp } from "./support/app.js";
 
 const WORKSPACE =
   "reqseq-workspace: 1\nname: Weather station\nrepositories:\n" +
@@ -32,7 +32,7 @@ const FILES = {
 /** Opens the element `title` with "Go to" and its text editor with Enter; the editor has the focus. */
 const openEditor = async (window: Page, title: string): Promise<void> => {
   await window.locator('[aria-label="Sheet"] > *').first().waitFor();
-  await window.keyboard.press("ControlOrMeta+P");
+  await goTo(window);
   await window.keyboard.type(title);
   await expect(window.locator('.candidates [role="option"]').first()).toContainText(title);
   await window.keyboard.press("Enter");
