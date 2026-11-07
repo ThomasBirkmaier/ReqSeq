@@ -44,6 +44,8 @@ const search = async (window: Page, query: string): Promise<void> => {
   await window.keyboard.type(query);
   await window.keyboard.press("Enter");
   await expect(window.getByRole("listbox")).toHaveAttribute("aria-label", `Search: ${query}`);
+  // A new search starts empty (SR-122): its rows are read once they are there. Every query here has hits.
+  await expect(window.locator(".row").first()).toBeVisible();
 };
 
 /** What each row shows: its title, its marked words, and the snippet line with its marked words. */
