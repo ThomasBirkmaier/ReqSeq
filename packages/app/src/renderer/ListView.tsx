@@ -7,13 +7,14 @@
 // verification degree of its elements, as a package page has it (`SummaryLine`, product owner decision,
 // 2026-11-06). A grouped list (SR-149) shows each group of `element.list` under a heading with its name and
 // count, below that line; the rows are those of the grouped list, so an element in several groups is a row
-// in each, and rows are keyed by their position.
+// in each, and rows are keyed by their position. A search hit shows the title with the words core marked
+// (`titleMarks`) and, under it, where it was found and the snippet core gives (SR-174), marked the same way.
 import { useEffect, useRef, useState } from "react";
 import { useIdScope } from "./area-scope.js";
 import type { BufferAction, ListBuffer, SearchBuffer } from "./buffers.js";
 import { bufferName, listHeading, listSort } from "./buffers.js";
 import type { Call } from "./call.js";
-import { highlightTerms } from "./highlight.js";
+import { highlightRanges, highlightTerms } from "./highlight.js";
 import type { ListGroup } from "./list-groups.js";
 import { groupCount, groupName, groupSections } from "./list-groups.js";
 import type { Part } from "./highlight.js";
@@ -453,9 +454,15 @@ export const ListView = ({
         <Marked parts={highlightTerms(row.label, row.markLabel ? [row.label.toLowerCase()] : [])} />
       </span>
       <span className="title" style={{ paddingLeft: `${String(row.depth * 1.25)}rem` }}>
-        <Marked parts={highlightTerms(row.title, row.terms)} />
+        <Marked parts={highlightRanges(row.title, row.titleMarks)} />
       </span>
       <span className="status">{row.status}</span>
+      {row.snippet === undefined ? null : (
+        <span className="snippet">
+          <span className="where">{row.snippet.where}:</span>{" "}
+          <Marked parts={highlightRanges(row.snippet.text, row.snippet.marks)} />
+        </span>
+      )}
     </div>
   );
 

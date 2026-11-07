@@ -27,7 +27,33 @@ export interface Row {
   readonly terms: readonly string[];
   /** The ID matched: mark it. */
   readonly markLabel: boolean;
+  /** The matched words in the title, as core gives them (`titleMarks`, SR-174 AK4); none for a list. */
+  readonly titleMarks: readonly Range[];
+  /** Where a search hit was found and one line around it (SR-174); none for a list or a hit without one. */
+  readonly snippet?: Snippet;
 }
+
+/** A marked part of a text: UTF-16 code-unit offsets, `end` exclusive. */
+export type Range = readonly [number, number];
+
+export interface Snippet {
+  /** Where it was found: `text`, or the name of the property. */
+  readonly where: string;
+  readonly text: string;
+  readonly marks: readonly Range[];
+}
+
+type Hit = ElementSearchOutput["hits"][number];
+
+const ranges = (marks: readonly { readonly start: number; readonly end: number }[] | undefined): Range[] =>
+  (marks ?? []).map(({ start, end }) => [start, end]);
+
+/** The snippet of a hit as the row shows it: the field named as the CLI names it. */
+const snippetOf = (snippet: NonNullable<Hit["snippet"]>): Snippet => ({
+  where: snippet.field === "text" ? "text" : snippet.propertyName,
+  text: snippet.text,
+  marks: ranges(snippet.marks),
+});
 
 export const rowOf = (
   element: {
@@ -52,6 +78,7 @@ export const rowOf = (
     depth,
     terms,
     markLabel,
+    titleMarks: [],
   };
 };
 
@@ -60,7 +87,11 @@ export const listRows = (output: ElementListOutput): Row[] =>
   (output.elements ?? []).map((element, at) => rowOf(element, output.tree?.[at]?.depth ?? 0, [], false));
 
 export const searchRows = (output: ElementSearchOutput): Row[] =>
-  output.hits.map((hit) => rowOf(hit, 0, hit.terms, hit.fields.includes("id")));
+  output.hits.map((hit) => ({
+    ...rowOf(hit, 0, hit.terms, hit.fields.includes("id")),
+    titleMarks: ranges(hit.titleMarks),
+    ...(hit.snippet === undefined ? {} : { snippet: snippetOf(hit.snippet) }),
+  }));
 
 /**
  * The id of the selected row for `aria-activedescendant` (`<prefix>-<cursor>`); none while no row is

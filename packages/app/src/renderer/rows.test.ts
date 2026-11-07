@@ -65,6 +65,44 @@ describe("searchRows", () => {
   });
 });
 
+describe("searchRows, the place of a hit (SR-174)", () => {
+  it("takes the title marks and the snippet as core gives them, naming a property by its name", () => {
+    const output = {
+      hits: [
+        {
+          ...element(1),
+          score: 1,
+          fields: ["title", "text"],
+          terms: ["title"],
+          titleMarks: [{ start: 0, end: 5 }],
+          snippet: { field: "text", text: "A title here", marks: [{ start: 2, end: 7 }] },
+        },
+        {
+          ...element(2),
+          score: 1,
+          fields: ["properties"],
+          terms: ["hail"],
+          snippet: {
+            field: "properties",
+            property: "notes",
+            propertyName: "Notes",
+            text: "A hail sensor",
+            marks: [{ start: 2, end: 6 }],
+          },
+        },
+        { ...element(3), score: 0, fields: ["id"], terms: [] },
+      ],
+      total: 3,
+      incomplete: false,
+    } as unknown as ElementSearchOutput;
+    expect(searchRows(output).map((row) => [row.titleMarks, row.snippet])).toEqual([
+      [[[0, 5]], { where: "text", text: "A title here", marks: [[2, 7]] }],
+      [[], { where: "Notes", text: "A hail sensor", marks: [[2, 6]] }],
+      [[], undefined],
+    ]);
+  });
+});
+
 describe("firstLimit", () => {
   it("asks for whole pages that reach the selected row, up to the most the command gives", () => {
     expect(firstLimit(0, LIST_PAGE, LIST_MAX)).toBe(200);
