@@ -12,7 +12,9 @@
 //   no readable image) turns into the same note (AK4).
 //
 // Which destinations count follows the version rule of core (`model/images.ts` `imageLink`, ADR-0005
-// "Files"), so an image the preview draws is one that counts to the version. Assumption (spec question
+// "Files"): an image the preview draws counts to the version, and one it notes as outside does not. It
+// leaves out what only the disk decides (the walk's skipped names and `ignore` globs, nested
+// repositories): such an image is drawn when the core process serves it. Assumption (spec question
 // #1100): "out of the workspace" in SR-184 AK3 is out of the element's repository, as
 // the version rule and SR-097 AK2 (the image is found on the Git server) have it.
 import { syntaxTree } from "@codemirror/language";
@@ -36,7 +38,10 @@ export type ImageNote = "network" | "data" | "outside" | "unreadable";
 /** What a destination is: a file of the repository (its names from the repository folder), or a note. */
 export type ImageTarget =
   | { readonly kind: "file"; readonly names: readonly string[] }
-  | { readonly kind: "note"; readonly note: Exclude<ImageNote, "unreadable"> };
+  | { readonly kind: "note"; readonly note: ImageNote };
+
+/** A Windows path with a drive (`C:`), which core takes for a scheme: never relative. */
+const DRIVE = /^[A-Za-z]:/;
 
 /** A URL with a scheme (`https:`, `file:`, `data:`, also `C:` on Windows): never relative. */
 const SCHEME = /^[A-Za-z][A-Za-z0-9+.-]*:/;
@@ -82,21 +87,25 @@ const normalized = (names: readonly string[]): string[] | undefined => {
  * What the destination `raw` (as written, `<…>` already unwrapped) of an image in `elementFile` (relative
  * to its repository, `/`) is. It is lexical, like core's `imageLink`: escapes removed, a query or fragment
  * dropped, percent-decoded, resolved against the element's folder. A scheme is the network (`data:` its
- * own note); an absolute path, a backslash, a control character, an empty path or one that leaves the
- * repository is outside.
+ * own note); a drive, an absolute path (by its text before decoding, as core has it), a control character,
+ * an empty path or one that leaves the repository is outside. A backslash or a trailing `/`, which core
+ * counts as a missing image, is unreadable.
  */
 export const imageTarget = (elementFile: string, raw: string): ImageTarget => {
   const link = raw.trim().replace(ESCAPE, "$1");
+  if (DRIVE.test(link)) {
+    return { kind: "note", note: "outside" };
+  }
   if (SCHEME.test(link)) {
     return { kind: "note", note: /^data:/i.test(link) ? "data" : "network" };
   }
   const path = link.replace(/[?#][\s\S]*$/, "");
   const decoded = percentDecoded(path);
-  if (decoded === "" || decoded.startsWith("/") || decoded.includes("\\") || hasControl(decoded)) {
+  if (decoded === "" || path.startsWith("/") || hasControl(decoded)) {
     return { kind: "note", note: "outside" };
   }
   const folder = elementFile.split("/").slice(0, -1);
-  const names = decoded.endsWith("/") ? undefined : normalized([...folder, ...decoded.split("/")]);
+  const names = normalized([...folder, ...decoded.split("/")]);
   // As core's rule: not the element's own file or folder, and nothing below `.git` (D-036).
   const joined = names?.join("/").normalize("NFC");
   return names === undefined ||
@@ -105,7 +114,9 @@ export const imageTarget = (elementFile: string, raw: string): ImageTarget => {
     joined === folder.join("/").normalize("NFC") ||
     names.some((name) => name.toLowerCase() === ".git")
     ? { kind: "note", note: "outside" }
-    : { kind: "file", names };
+    : decoded.includes("\\") || decoded.endsWith("/")
+      ? { kind: "note", note: "unreadable" }
+      : { kind: "file", names };
 };
 
 /** The `reqseq-file:` URL of a file of `repository` (core `host.ts` `FILE_HOST`). */

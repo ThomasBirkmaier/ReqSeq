@@ -62,17 +62,19 @@ describe("imageTarget", () => {
     expect(imageTarget(file, "https://example.com/a.png")).toEqual({ kind: "note", note: "network" });
     expect(imageTarget(file, "HTTP://example.com/a.png")).toEqual({ kind: "note", note: "network" });
     expect(imageTarget(file, "file:///etc/a.png")).toEqual({ kind: "note", note: "network" });
-    expect(imageTarget(file, "C:/a.png")).toEqual({ kind: "note", note: "network" });
+    expect(imageTarget(file, "C:/a.png")).toEqual({ kind: "note", note: "outside" });
     expect(imageTarget(file, "//host/share/a.png")).toEqual({ kind: "note", note: "outside" });
     expect(imageTarget(file, "data:image/png;base64,AAAA")).toEqual({ kind: "note", note: "data" });
     expect(imageTarget(file, "/etc/a.png")).toEqual({ kind: "note", note: "outside" });
     expect(imageTarget(file, "../../a.png")).toEqual({ kind: "note", note: "outside" });
     expect(imageTarget(file, "%2e%2e/%2e%2e/a.png")).toEqual({ kind: "note", note: "outside" });
-    expect(imageTarget(file, "a\\b.png")).toEqual({ kind: "note", note: "outside" });
-    expect(imageTarget(file, "a%5Cb.png")).toEqual({ kind: "note", note: "outside" });
+    expect(imageTarget(file, "a\\b.png")).toEqual({ kind: "note", note: "unreadable" });
+    expect(imageTarget(file, "a%5Cb.png")).toEqual({ kind: "note", note: "unreadable" });
+    // As core: an absolute path counts by its text before decoding.
+    expect(imageTarget(file, "%2Fa.png")).toEqual({ kind: "file", names: ["requirements", "a.png"] });
     expect(imageTarget(file, "a%00.png")).toEqual({ kind: "note", note: "outside" });
     expect(imageTarget(file, "")).toEqual({ kind: "note", note: "outside" });
-    expect(imageTarget(file, "folder/")).toEqual({ kind: "note", note: "outside" });
+    expect(imageTarget(file, "folder/")).toEqual({ kind: "note", note: "unreadable" });
     expect(imageTarget(file, "..")).toEqual({ kind: "note", note: "outside" });
     // As core's version rule: not the element's own file or folder, nothing below `.git`.
     expect(imageTarget(file, "SR-1.md")).toEqual({ kind: "note", note: "outside" });
