@@ -254,11 +254,12 @@ describe("the app offers no delete (SR-099)", () => {
     const app = connect(new Workspace(fixture.root));
     try {
       // Besides the catalog: the clipboard (SR-128), the recent workspaces of the window and saving
-      // before a switch (SR-131).
+      // before a switch (SR-131), and the folder listing of "Open workspace" (SR-143).
       expect(Object.keys(app.bridge).sort()).toEqual([
         "commands",
         "copyText",
         "invoke",
+        "listFolder",
         "on",
         "onSave",
         "openWorkspace",

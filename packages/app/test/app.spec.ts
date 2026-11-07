@@ -86,11 +86,13 @@ test.describe("on a fixture workspace", () => {
   test("[SR-099/AK1] the bridge offers the catalog commands and nothing else", async () => {
     const offered = await running.window.evaluate(() => Object.keys(window.reqseq).sort());
     // Besides the catalog, the facilities of the window: `copyText` (SR-128), and the recent workspaces,
-    // the switch between them and saving before it (SR-131). None of them deletes anything.
+    // the switch between them and saving before it (SR-131), and the folders of a path typed in "Open
+    // workspace" (SR-143). None of them deletes anything.
     expect(offered).toEqual([
       "commands",
       "copyText",
       "invoke",
+      "listFolder",
       "on",
       "onSave",
       "openWorkspace",

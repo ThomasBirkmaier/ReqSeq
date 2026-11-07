@@ -345,6 +345,76 @@ describe("Minibuffer", () => {
     expect(texts('[role="option"] .name')).toEqual(["/req/station"]);
   });
 
+  it("shows what seek finds alone or with its own items, its note in the label, and a completing choice keeps the prompt open", async () => {
+    const station = choice("w1", "/req/station");
+    const run = vi.fn();
+    const seek = vi.fn((text: string) =>
+      Promise.resolve(
+        text.startsWith("/")
+          ? {
+              choices: [
+                choice("e1", "requirements/", { complete: "/req/requirements/", marks: [[0, 1]], run }),
+              ],
+              alone: true,
+            }
+          : text === "gone"
+            ? { choices: [], note: "/gone is missing" }
+            : { choices: [] },
+      ),
+    );
+    const { closed } = await mount({ label: "Workspace", items: [station], seek });
+    await type(input(), "/req/r");
+    expect(texts('[role="option"] .name')).toEqual(["requirements/"]);
+    expect(texts("mark")).toEqual(["r"]);
+    await press(input(), "Enter");
+    expect(input().value).toBe("/req/requirements/");
+    expect(closed).not.toHaveBeenCalled();
+    expect(run).not.toHaveBeenCalled();
+    expect(seek).toHaveBeenLastCalledWith("/req/requirements/");
+    // By a click too.
+    await act(async () => {
+      query('[role="option"]').dispatchEvent(
+        new MouseEvent("mousedown", { bubbles: true, cancelable: true }),
+      );
+      await Promise.resolve();
+    });
+    await flush();
+    expect(input().value).toBe("/req/requirements/");
+    // Other text: the prompt's own items, and the note while it holds.
+    await type(input(), "stat");
+    expect(texts('[role="option"] .name')).toEqual(["/req/station"]);
+    expect(texts("label.prompt-label")).toEqual(["Workspace"]);
+    await type(input(), "gone");
+    expect(texts("label.prompt-label")).toEqual(["/gone is missing · Workspace"]);
+    await type(input(), "");
+    expect(texts("label.prompt-label")).toEqual(["Workspace"]);
+  });
+
+  it("never selects or chooses a row that only informs", async () => {
+    const more = choice("more", "… 3 more", { inert: true });
+    const entry = choice("e1", "a/", { complete: "/a/" });
+    const { closed } = await mount({
+      label: "Workspace",
+      items: [],
+      seek: () => Promise.resolve({ choices: [entry, more], alone: true }),
+    });
+    await type(input(), "/");
+    await press(input(), "ArrowDown");
+    await press(input(), "ArrowDown");
+    expect(container.querySelector('[aria-selected="true"] .name')?.textContent).toBe("a/");
+    expect(query('[aria-disabled="true"] .name').textContent).toBe("… 3 more");
+    await act(async () => {
+      query('[aria-disabled="true"]').dispatchEvent(
+        new MouseEvent("mousedown", { bubbles: true, cancelable: true }),
+      );
+      await Promise.resolve();
+    });
+    await flush();
+    expect(input().value).toBe("/");
+    expect(closed).not.toHaveBeenCalled();
+    expect(more.run).not.toHaveBeenCalled();
+  });
+
   describe("argument entry of catalog commands (ThomasBirkmaier/ReqSeq-archive#85)", () => {
     it("[SR-108/AK2] marks the matched characters of an argument's candidates", async () => {
       await mount({

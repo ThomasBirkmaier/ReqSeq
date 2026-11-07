@@ -163,3 +163,40 @@ export const localPathUses = (input: unknown, fields: readonly LocalPathField[] 
   }
   return uses;
 };
+
+/** An object or an array whose entries `replaceLocalPaths` may replace. */
+type Holder = Record<string | number, unknown>;
+
+/**
+ * `input` with each value of `fields` that is a string replaced, in place, by `replace(value)` (the app's
+ * `~`, SR-143); `input` is the copy `invoke` validated.
+ */
+export const replaceLocalPaths = (
+  input: unknown,
+  fields: readonly LocalPathField[] | undefined,
+  replace: (value: string) => string,
+): unknown => {
+  const visit = (holder: Holder, key: string | number, rest: LocalPathField): void => {
+    const value = holder[key];
+    const [head, ...tail] = rest;
+    if (head === undefined) {
+      if (typeof value === "string") {
+        holder[key] = replace(value);
+      }
+    } else if (head === null) {
+      if (Array.isArray(value)) {
+        value.forEach((_, i) => {
+          visit(value as unknown as Holder, i, tail);
+        });
+      }
+    } else if (isRecord(value) && Object.hasOwn(value, head)) {
+      visit(value, head, tail);
+    }
+  };
+  // The input itself is held too, so a field of the input is a key below it like any other.
+  const top: Holder = { input };
+  for (const field of fields ?? []) {
+    visit(top, "input", field);
+  }
+  return top["input"];
+};

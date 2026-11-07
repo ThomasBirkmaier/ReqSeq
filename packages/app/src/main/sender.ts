@@ -1,6 +1,6 @@
 // Who may send a message from a renderer to the main process (ADR-0010): the main frame of the web
 // contents of the ReqSeq window, showing the bundled renderer (`app://reqseq`). The renderer is not
-// trusted, so every channel from it (`reqseq:copy`, `reqseq:recent-workspaces`,
+// trusted, so every channel from it (`reqseq:copy`, `reqseq:recent-workspaces`, `reqseq:list-folder`,
 // `reqseq:open-workspace`, `reqseq:saved`) checks this first; what it then accepts is each handler's own
 // check.
 import { RENDERER_HOST } from "./protocols.js";

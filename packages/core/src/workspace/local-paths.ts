@@ -1,6 +1,7 @@
 // Local paths through the API and the MCP server only inside the repositories of the workspace
 // (SR-142, ADR-0009 "Local paths"). `invoke` builds a `LocalPaths` per call: open for the command line
-// and the app, `confinedLocalPaths` for every other access. A path is judged as the commands resolve
+// and the app (the app's with `~` for the home folder, SR-143), `confinedLocalPaths` for every other
+// access. A path is judged as the commands resolve
 // it (`path.resolve(workspace.root, value)`, so `..` is normalised by its text, as the command will):
 // 1. the resolved path, relative or absolute, must lie by its text inside a root, as given or as real
 //    path, with case and Unicode form folded (this step only refuses, so folding makes it more
@@ -17,6 +18,7 @@
 // (`linksStayInside`), so a link inside a repository whose target is a share is refused unopened
 // (#294). Not covered: hard links and a link swapped between the check and the command's own access.
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import type { LocalPathUse, LocalPaths } from "../catalog.js";
 import { CommandError } from "../catalog.js";
@@ -25,8 +27,17 @@ import type { Workspace } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "./layout.js";
 import { unsafeOnWindows } from "./path-text.js";
 
-/** The rule of the command line and the app: every path is accepted. */
+/** The rule of the command line: every path is accepted, and `~` is an ordinary name (the shell expands it). */
 export const OPEN_LOCAL_PATHS: LocalPaths = { check: () => Promise.resolve() };
+
+/**
+ * The rule of the app: every path is accepted, and `~` stands for the home folder, since the app's prompt
+ * has no shell that expands it (SR-143 AK2, product owner decision, 2026-11-07).
+ */
+export const appLocalPaths = (home: string = os.homedir()): LocalPaths => ({
+  check: () => Promise.resolve(),
+  home,
+});
 
 /** Why a path is refused (`details.reason` of the error). */
 export type LocalPathReason = "outside-repositories" | "path-unreadable" | "invalid-path";
@@ -166,7 +177,7 @@ const judge = async (
   return roots.some((r) => contains(r.real, form.real)) ? undefined : "outside-repositories";
 };
 
-/** `~` as the first name: ReqSeq expands nothing, so it names a folder `~` in the workspace root. */
+/** `~` as the first name: outside the app ReqSeq expands nothing, so it names a folder `~` in the workspace root. */
 const startsWithTilde = (value: string): boolean => value === "~" || /^~[\\/]/u.test(value);
 
 /** The base name of `value` for messages, never an absolute path (ADR-0009). */
