@@ -149,7 +149,7 @@ export const readSavedFilters = async (layout: WorkspaceLayout): Promise<SavedFi
   const folder = path.relative(repository.folder, located.folder).split(path.sep).join("/");
   const at = (name: string): string => path.posix.join(folder, name);
   const shown = folder === "" ? "." : folder;
-  const listing = await listFolderFiles(located.folder);
+  const listing = await listFolderFiles(located.folder, repository.folder);
   if (listing.kind !== "names") {
     const problems =
       listing.kind === "missing"

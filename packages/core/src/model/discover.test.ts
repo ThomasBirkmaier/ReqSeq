@@ -274,6 +274,25 @@ describe("pathState: what the walk says about one changed path, without a walk (
       expect([file, await pathState(repo, ignored, file)]).toEqual([file, state]);
     }
   });
+
+  it("is unclear below a link out of the repository, without looking through it (#294)", async () => {
+    const ws = await fixture({ "a.md": "" });
+    const away = await fixture({ "e.md": "" });
+    await fs.symlink(away.root, ws.path("away"), "junction");
+    const lstat = vi.spyOn(fs, "lstat");
+    const realpath = vi.spyOn(fs, "realpath");
+    onTestFinished(() => {
+      vi.restoreAllMocks();
+    });
+    const repo = repository(ws.root);
+    for (const file of ["away/e.md", "away/gone.md"]) {
+      expect(await pathState(repo, ignoreMatcher([]), file)).toBe("unclear");
+    }
+    const asked = [...lstat.mock.calls, ...realpath.mock.calls].map(([p]) => String(p));
+    expect(
+      asked.filter((p) => p.startsWith(`${ws.path("away")}${path.sep}`) || p.startsWith(away.root)),
+    ).toEqual([]);
+  });
 });
 
 describe("listsFile (ThomasBirkmaier/ReqSeq-archive#166)", () => {

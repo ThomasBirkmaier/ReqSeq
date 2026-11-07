@@ -57,6 +57,19 @@ const shown = (read: Baselines): unknown => ({
   incomplete: read.incomplete,
 });
 
+/** `lstat` rejects once with `error` for the first file ending in `.yaml` (not for the folders the link walk looks at). */
+const failFirstYamlLstat = (error: Error): void => {
+  const real = fs.lstat.bind(fs);
+  let failed = false;
+  vi.spyOn(fs, "lstat").mockImplementation(((p: string, ...rest: never[]) => {
+    if (!failed && p.endsWith(".yaml")) {
+      failed = true;
+      return Promise.reject(error);
+    }
+    return real(p, ...rest);
+  }) as typeof fs.lstat);
+};
+
 describe("baseline files, read-only (SR-032 AK2)", () => {
   it("[SR-032/AK2] reads every baseline file of the baselines folder in file order and tells which contain a version", async () => {
     const { layout } = await open();
@@ -267,7 +280,7 @@ describe("baseline files, read-only (SR-032 AK2)", () => {
   it("passes over a file that is gone between listing the folder and reading it", async () => {
     const { layout } = await open();
     const gone = Object.assign(new Error("gone"), { code: "ENOENT" });
-    vi.spyOn(fs, "lstat").mockRejectedValueOnce(gone);
+    failFirstYamlLstat(gone);
     onTestFinished(() => {
       vi.restoreAllMocks();
     });
@@ -281,7 +294,7 @@ describe("baseline files, read-only (SR-032 AK2)", () => {
     const { layout } = await open();
     later(60_000);
     const denied = Object.assign(new Error("denied"), { code: "EACCES" });
-    vi.spyOn(fs, "lstat").mockRejectedValueOnce(denied);
+    failFirstYamlLstat(denied);
     const kept: BaselineFiles = new Map();
     expect((await readBaselines(layout, kept)).baselines.map((b) => b.name)).toEqual([
       "Beta",

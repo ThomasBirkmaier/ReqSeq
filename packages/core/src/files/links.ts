@@ -12,7 +12,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { errorCode } from "./paths.js";
 
-/** At most this many links per path, as Linux allows (`ELOOP`); more count as leaving. */
+/** At most this many links per path, as Linux allows; more reject with `ELOOP`, as the file system does. */
 export const MAX_LINKS = 40;
 
 /** The names of `text` (a link text or a relative path), split at `/` and, on Windows, at `\`. */
@@ -178,11 +178,12 @@ export const linksStayInside = async (
       continue;
     }
     links += 1;
+    if (links > MAX_LINKS) {
+      // As the file system says it (a loop of links, or too long a chain), so callers report it the same.
+      throw Object.assign(new Error(`Too many symbolic links: ${at}`), { code: "ELOOP" });
+    }
     const text = withoutLongPrefix(await fs.readlink(at));
-    const went =
-      links > MAX_LINKS
-        ? undefined
-        : await afterLink(text, base, done, platform, () => (named ??= namedFolders(given, platform)));
+    const went = await afterLink(text, base, done, platform, () => (named ??= namedFolders(given, platform)));
     if (went === undefined) {
       return false;
     }

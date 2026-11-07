@@ -3,10 +3,11 @@
 // REQ-2, drops REQ-4 and adds REQ-5. The assumptions of #575 are tested by name.
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureWorkspace } from "@reqseq/testkit";
-import { describe, expect, it, onTestFinished } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandName, CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
 import { currentVersionsOf, elementStoreState, NORMAL_FORM } from "../../model/index.js";
@@ -689,5 +690,33 @@ describe("repeated ReqIF import (SR-056)", () => {
     });
     // Refused before the image folder of the first one was created.
     await expect(fs.stat(path.join(root, "Kunde-A", first))).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("does not list an image folder linked out of the repository (#294)", async () => {
+    const withImage = (text: string): string =>
+      `${text} <xhtml:object data="img/a.png" type="image/png">a</xhtml:object>`;
+    const { workspace, root } = await open({
+      "in/1.reqif": DELIVERY_1,
+      "in/2.reqif": DELIVERY_1.replace(
+        "The station measures the wind speed.",
+        withImage("The station measures the wind speed."),
+      ),
+    });
+    await fs.mkdir(path.join(root, "in/img"));
+    await fs.writeFile(path.join(root, "in/img/a.png"), PNG);
+    const ids = idsOf(await importOf(workspace, 1));
+    const stem = path.basename((await get(workspace, String(ids["REQ-1"]))).element.file, ".md");
+    const outside = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-away-"));
+    onTestFinished(() => fs.rm(outside, { recursive: true, force: true }));
+    const linked = path.join(root, "Kunde-A", stem);
+    await fs.symlink(outside, linked, "junction");
+    const readdir = vi.spyOn(fs, "readdir");
+    onTestFinished(() => {
+      readdir.mockRestore();
+    });
+    await expect(importOf(workspace, 2)).rejects.toMatchObject({ details: { rule: "link" } });
+    const asked = readdir.mock.calls.map(([p]) => String(p));
+    expect(asked.filter((p) => p === linked || p.startsWith(outside))).toEqual([]);
+    expect(await fs.readdir(outside)).toEqual([]);
   });
 });

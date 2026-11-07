@@ -5,7 +5,7 @@ import type { Dirent, Stats } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { Problem } from "../catalog.js";
-import { isTempFile } from "../files/index.js";
+import { isTempFile, linksStayInside } from "../files/index.js";
 import type { RepositoryLocation } from "../workspace/index.js";
 
 /** Never read: Git's own folder (or the `.git` file of a submodule) and installed packages (workspace.schema.json). */
@@ -401,6 +401,10 @@ export const pathState = async (
   try {
     if (await listsFile(repository, ignored, relative)) {
       return "listed";
+    }
+    // `lstat` and `realpath` below follow links above the last name: judged first (#294).
+    if (!(await linksStayInside(repository.folder, path.join(repository.folder, relative)))) {
+      return "unclear";
     }
     if ((await lstatIfThere(path.join(repository.folder, relative))) !== undefined) {
       return "unclear";

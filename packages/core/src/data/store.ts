@@ -16,7 +16,8 @@
 //     safety rules of `refuseUnlisted` with `ignored: false`: no `.git` or `node_modules`, no link,
 //     no nested repository, portable names, the spelling on disk; an ignored folder is fine, since a
 //     data file is never walked. A missing folder is created. A link inside a repository whose real
-//     path is in a repository is refused; one that leads out of every repository is judged as outside;
+//     path is in a repository is refused; one that leads out of every repository is refused by its
+//     text before it is followed (offline rule, #294);
 //   - outside every repository the folder must exist (`file.folder-missing`) and must not lie in a
 //     `.git` folder (`refuseGit`);
 //   - an existing file of the name is replaced only when it is a ReqSeq data file (its first line starts
@@ -36,7 +37,13 @@ import type { Problem } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import type { FileSnapshot } from "../files/index.js";
 import type { JsonLinesSpec } from "../files/index.js";
-import { createFolder, jsonLines, readJsonlSnapshot, writeFileAtomic } from "../files/index.js";
+import {
+  createFolder,
+  jsonLines,
+  linksStayInside,
+  readJsonlSnapshot,
+  writeFileAtomic,
+} from "../files/index.js";
 import type { DataStoreOutput, ElementSelection } from "../generated/types.js";
 import { NO_COMMIT_TEXT, refuseUnlisted, repositoryCommit } from "../model/index.js";
 import type { Selected } from "../query/index.js";
@@ -82,6 +89,32 @@ const repositoryOf = (layout: WorkspaceLayout, real: string): RepositoryLocation
     .filter((r) => r.available && isInside(r.folder, real))
     .sort((a, b) => b.folder.length - a.folder.length)[0];
 
+/**
+ * Refuses `next` (a name below `holder`) when a link on its way leads out of the repositories,
+ * judged by its text before `realpath` follows it (#294); nothing outside a repository is judged.
+ */
+const refuseLinkOut = async (
+  layout: WorkspaceLayout,
+  holder: RepositoryLocation | undefined,
+  next: string,
+  shown: string,
+): Promise<void> => {
+  if (
+    holder !== undefined &&
+    !(await linksStayInside(holder.folder, next, { alsoInside: folders(layout) }))
+  ) {
+    throw new CommandError(
+      "input.invalid",
+      `Not stored: the folder ${shown} is reached through a link out of the repositories of the workspace; ReqSeq does not follow links out of a repository`,
+      { folder: shown },
+    );
+  }
+};
+
+/** The folders of the available repositories. */
+const folders = (layout: WorkspaceLayout): string[] =>
+  layout.repositories.filter((r) => r.available).map((r) => r.folder);
+
 /** `absolute` relative to `folder` with `/` (`""` for the folder itself). */
 const relativeTo = (folder: string, absolute: string): string =>
   path.relative(folder, absolute).split(path.sep).join("/");
@@ -117,17 +150,21 @@ const placeOf = async (
   let found = 0;
   for (const part of parts) {
     const next = path.join(real, part);
+    const holder = repositoryOf(layout, real);
     let resolved: string;
     try {
+      await refuseLinkOut(layout, holder, next, shown);
       resolved = await fs.realpath(next);
     } catch (error) {
+      if (error instanceof CommandError) {
+        throw error;
+      }
       const code = codeOf(error);
       if (code === "ENOENT" || code === "ENOTDIR") {
         break;
       }
       return unreadable(shown, code);
     }
-    const holder = repositoryOf(layout, real);
     if (resolved !== next && holder !== undefined && repositoryOf(layout, resolved) !== undefined) {
       // A link (or another spelling) inside a repository that leads into one: the safety rules judge it.
       for (const name of names) {

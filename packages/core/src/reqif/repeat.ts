@@ -15,7 +15,7 @@ import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { CommandError } from "../catalog.js";
 import type { FlowMappingValue, FrontmatterEdit, ItemValue } from "../files/index.js";
-import { sha256, zip } from "../files/index.js";
+import { linksStayInside, sha256, zip } from "../files/index.js";
 import type { Problem, ReqifObject } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
 import type { ElementRecord, ElementStore, VersionForms } from "../model/index.js";
@@ -72,6 +72,10 @@ const folderImages = async (
 ): Promise<{ readonly name: string; readonly sha256: string }[]> => {
   const folder = path.join(root, file.slice(0, -".md".length));
   try {
+    // `readdir` follows a linked folder: judged first (#294).
+    if (!(await linksStayInside(root, folder))) {
+      return [];
+    }
     const entries = await fs.readdir(folder, { withFileTypes: true });
     const out: { name: string; sha256: string }[] = [];
     for (const entry of entries) {

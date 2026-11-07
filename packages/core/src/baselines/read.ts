@@ -311,7 +311,7 @@ export const readBaselines = async (
   }
   const folder = path.relative(repository.folder, absolute).split(path.sep).join("/");
   const shown = folder === "" ? "." : folder;
-  const listing = await listFolderFiles(absolute);
+  const listing = await listFolderFiles(absolute, repository.folder);
   if (listing.kind !== "names") {
     kept.clear();
     const problems: Problem[] =

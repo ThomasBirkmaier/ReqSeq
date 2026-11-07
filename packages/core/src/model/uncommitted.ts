@@ -32,7 +32,7 @@ import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { listFolderFiles } from "../files/index.js";
+import { linksStayInside, listFolderFiles } from "../files/index.js";
 import type { ChangedPaths, CommitBlobs, GitUnknownReason } from "../git/reader.js";
 import { changedPaths, commitBlobs, isGitPath } from "../git/reader.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
@@ -238,7 +238,10 @@ const yamlFiles = async (rules: StateRules): Promise<string[]> =>
   (
     await Promise.all(
       rules.yamlFolders.map(async (folder) => {
-        const listing = await listFolderFiles(path.join(rules.repository.folder, ...folder.split("/")));
+        const listing = await listFolderFiles(
+          path.join(rules.repository.folder, ...folder.split("/")),
+          rules.repository.folder,
+        );
         return listing.kind === "names"
           ? listing.names.map((name) => (folder === "" ? name : `${folder}/${name}`))
           : [];
@@ -286,6 +289,15 @@ export const uncommittedFiles = async (
     spellings(file).map((name) => path.join(folder, ...name.split("/")));
   const checked = asked.map((file, index) => ({ file, blob: blobs[index] }));
   const dirty = await mapBounded(checked, async ({ file, blob }) => {
+    // A path through a link that leaves the repository is dirty, judged before any call follows
+    // the link (#294): more, never less.
+    // Each spelling is a path of its own where the file system keeps the normal form (Linux), and a
+    // walk that cannot finish (a loop of links, a folder that cannot be searched) counts as dirty too.
+    for (const name of absolute(file)) {
+      if (!(await linksStayInside(folder, path.dirname(name)).catch(() => false))) {
+        return true;
+      }
+    }
     // A file without a blob at the commit is dirty when it is on disk (new, also one Git ignores);
     // one that is neither in the commit nor on disk (a link to an image that exists nowhere) is no change.
     if (blob === undefined) {

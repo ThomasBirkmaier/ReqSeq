@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureWorkspace } from "@reqseq/testkit";
-import { describe, expect, it, onTestFinished } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { parse } from "yaml";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
@@ -234,8 +234,14 @@ describe("reqif.saveMapping (SR-054)", () => {
     onTestFinished(() => outside.cleanup());
     const { fixture, workspace } = await open();
     await fs.symlink(outside.root, fixture.path("reqif"), "junction");
+    const realpath = vi.spyOn(fs, "realpath");
+    onTestFinished(() => {
+      realpath.mockRestore();
+    });
     const error = await failure(workspace, { mapping: MAPPING });
     expect([error.code, error.details?.["reason"]]).toEqual(["input.invalid", "link"]);
+    // Judged by the link's text before `realpath` follows it (#294).
+    expect(realpath.mock.calls.filter(([p]) => String(p).startsWith(fixture.path("reqif")))).toEqual([]);
     await expect(fs.readdir(outside.root)).resolves.toEqual(["keep.txt"]);
   });
 
