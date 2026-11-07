@@ -258,7 +258,7 @@ jobs:
             });
             const issue = open.find((i) => i.pull_request === undefined && i.title === title);
             if (issue === undefined) {
-              await github.rest.issues.create({ owner, repo, title, body, labels: ["perf"] });
+              await github.rest.issues.create({ owner, repo, title, body, labels: ["perf", "bug", "core", "P2"] });
               core.info("opened an issue");
               return;
             }

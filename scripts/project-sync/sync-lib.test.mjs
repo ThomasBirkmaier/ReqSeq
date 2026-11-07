@@ -9,18 +9,18 @@ import {
 } from "./sync-lib.mjs";
 
 const fields = {
-  Stage: {
-    id: "F-stage",
+  Category: {
+    id: "F-type",
     options: [
-      { id: "O-5", name: "5" },
-      { id: "O-q", name: "Querschnitt" },
+      { id: "O-task", name: "Task" },
+      { id: "O-bug", name: "Bug" },
     ],
   },
-  Kind: {
-    id: "F-kind",
+  Area: {
+    id: "F-area",
     options: [
-      { id: "O-sr", name: "SR" },
-      { id: "O-en", name: "Enabler" },
+      { id: "O-core", name: "Core" },
+      { id: "O-cli", name: "CLI" },
     ],
   },
   "Agent state": {
@@ -28,9 +28,10 @@ const fields = {
     options: [
       { id: "O-ready", name: "Ready" },
       { id: "O-work", name: "Working" },
+      { id: "O-human", name: "Needs human" },
     ],
   },
-  SR: { id: "F-sr" },
+  Note: { id: "F-note" },
 };
 const issue = (number, labels, title = "x") => ({
   number,
@@ -43,31 +44,47 @@ const issue = (number, labels, title = "x") => ({
 describe("project sync plan", () => {
   it("writes nothing when the board matches the labels", () => {
     const items = new Map([
-      [1, { id: "P1", values: { Stage: "5", Kind: "SR", "Agent state": "Ready", SR: "SR-051" } }],
+      [1, { id: "P1", values: { Category: "Task", Area: "Core", "Agent state": "Ready" } }],
     ]);
-    expect(plan([issue(1, ["sr", "stage:5"], "SR-051 Baseline")], items, fields)).toEqual([]);
+    expect(plan([issue(1, ["task", "core"])], items, fields)).toEqual([]);
   });
 
   it("writes only the changed field of an item", () => {
     const items = new Map([
-      [1, { id: "P1", values: { Stage: "5", Kind: "SR", "Agent state": "Ready", SR: "SR-051" } }],
+      [1, { id: "P1", values: { Category: "Task", Area: "Core", "Agent state": "Ready" } }],
     ]);
-    expect(plan([issue(1, ["sr", "stage:5", "agent:working"], "SR-051 Baseline")], items, fields)).toEqual([
+    expect(plan([issue(1, ["task", "core", "agent:working"])], items, fields)).toEqual([
       { op: "set", number: 1, field: "F-state", value: { singleSelectOptionId: "O-work" } },
     ]);
   });
 
   it("adds a missing issue, sets its values and clears a value whose label is gone", () => {
     const items = new Map([
-      [2, { id: "P2", values: { Stage: "5", Kind: "Enabler", "Agent state": "Ready" } }],
+      [2, { id: "P2", values: { Category: "Bug", Area: "CLI", "Agent state": "Ready" } }],
     ]);
-    const ops = plan([issue(1, ["enabler", "querschnitt"]), issue(2, ["enabler"])], items, fields);
+    const ops = plan([issue(1, [{ name: "bug" }, "cli", "needs-human"]), issue(2, ["bug"])], items, fields);
     expect(ops).toEqual([
-      { op: "add", issue: issue(1, ["enabler", "querschnitt"]) },
-      { op: "set", number: 1, field: "F-stage", value: { singleSelectOptionId: "O-q" } },
-      { op: "set", number: 1, field: "F-kind", value: { singleSelectOptionId: "O-en" } },
-      { op: "set", number: 1, field: "F-state", value: { singleSelectOptionId: "O-ready" } },
-      { op: "clear", number: 2, field: "F-stage" },
+      { op: "add", issue: issue(1, [{ name: "bug" }, "cli", "needs-human"]) },
+      { op: "set", number: 1, field: "F-type", value: { singleSelectOptionId: "O-bug" } },
+      { op: "set", number: 1, field: "F-area", value: { singleSelectOptionId: "O-cli" } },
+      { op: "set", number: 1, field: "F-state", value: { singleSelectOptionId: "O-human" } },
+      { op: "clear", number: 2, field: "F-area" },
+    ]);
+  });
+
+  it("shows an epic as Epic whatever type label it also has", () => {
+    const f = {
+      Category: { id: "F-type", options: [{ id: "O-epic", name: "Epic" }, ...fields.Category.options] },
+    };
+    expect(plan([issue(1, ["bug", "epic"])], new Map([[1, { id: "P1", values: {} }]]), f)).toEqual([
+      { op: "set", number: 1, field: "F-type", value: { singleSelectOptionId: "O-epic" } },
+    ]);
+  });
+
+  it("skips a value without an option and writes a text field", () => {
+    const f = { Category: fields.Category, Priority: { id: "F-prio" } };
+    expect(plan([issue(1, ["feature", "P2"])], new Map([[1, { id: "P1", values: {} }]]), f)).toEqual([
+      { op: "set", number: 1, field: "F-prio", value: { text: "P2" } },
     ]);
   });
 
@@ -75,14 +92,14 @@ describe("project sync plan", () => {
     const f = {
       Status: { id: "F-status", options: ["Todo", "In Progress", "Done"].map((n) => ({ id: n, name: n })) },
       Priority: { id: "F-prio", options: [{ id: "O-p1", name: "P1" }] },
-      Kind: fields.Kind,
+      Category: fields.Category,
     };
     const closed = { ...issue(2, ["epic"]), state: "closed" };
     const ops = plan(
       [issue(1, ["agent:working", "P1"]), closed],
       new Map([
         [1, { id: "P1", values: {} }],
-        [2, { id: "P2", values: { Kind: "Epic" } }],
+        [2, { id: "P2", values: { Category: "Epic" } }],
       ]),
       f,
     );
@@ -95,8 +112,11 @@ describe("project sync plan", () => {
 
   it("reads select and text values of an item and skips other field types", () => {
     expect(
-      itemValues([{ name: "5", field: { name: "Stage" } }, { text: "SR-051", field: { name: "SR" } }, {}]),
-    ).toEqual({ Stage: "5", SR: "SR-051" });
+      itemValues([{ name: "Task", field: { name: "Category" } }, { text: "x", field: { name: "Note" } }, {}]),
+    ).toEqual({
+      Category: "Task",
+      Note: "x",
+    });
   });
 });
 

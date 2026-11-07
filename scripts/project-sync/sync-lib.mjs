@@ -1,41 +1,25 @@
 // Pure parts of the project sync (sync.mjs): the fields derived from labels, the difference between
 // issues and board items, and the retry of transient GitHub errors.
 
-export const TOPICS = {
-  "ablage-und-repositories": "Ablage und Repositories",
-  "metamodell-und-typen": "Metamodell und Typen",
-  "traceability-und-ketten": "Traceability und Ketten",
-  "nachweis-und-abdeckung": "Nachweis und Abdeckung",
-  varianten: "Varianten",
-  "pakete-und-baselines": "Pakete und Baselines",
-  "import-und-export": "Import und Export",
-  "anbindung-und-auswertung": "Anbindung und Auswertung",
-  "bearbeiten-und-finden": "Bearbeiten und Finden",
-  "betrieb-und-leistung": "Betrieb und Leistung",
+export const TYPES = { bug: "Bug", feature: "Feature", task: "Task", question: "Question" };
+export const AREAS = {
+  core: "Core",
+  cli: "CLI",
+  api: "API",
+  mcp: "MCP",
+  app: "App",
+  spec: "Spec",
+  dev: "Dev",
 };
 export const FIELDS = {
-  Stage: ["0", "1", "2", "3", "4", "5", "6", "Querschnitt", "Später"],
-  Kind: ["Epic", "SR", "Enabler", "Bug", "Spec question", "Other"],
-  "Agent state": ["Ready", "Working", "Blocked", "Needs human", "Done"],
+  // Not "Type": GitHub may reserve that name for its issue types.
+  Category: ["Epic", ...Object.values(TYPES)],
+  Area: Object.values(AREAS),
+  "Agent state": ["Ready", "Working", "Needs human", "Done"],
   // The built-in field that board progress bars count; its default options.
   Status: ["Todo", "In Progress", "Done"],
   Priority: ["P1", "P2", "P3"],
-  Thema: Object.values(TOPICS),
-  SR: null, // text
 };
-
-function kindOf(issue, has) {
-  if (has("epic") || (issue.body ?? "").includes("<!-- epic:")) {
-    return "Epic";
-  }
-  const kinds = [
-    ["sr", "SR"],
-    ["enabler", "Enabler"],
-    ["bug", "Bug"],
-    ["spec-frage", "Spec question"],
-  ];
-  return kinds.find(([label]) => has(label))?.[1] ?? "Other";
-}
 
 function agentStateOf(issue, has) {
   if (issue.state === "closed") {
@@ -44,13 +28,10 @@ function agentStateOf(issue, has) {
   if (has("needs-human")) {
     return "Needs human";
   }
-  if (has("blocked") || has("spec-frage")) {
-    return "Blocked";
-  }
   return has("agent:working") ? "Working" : "Ready";
 }
 
-// Blocked, needs-human and spec-frage issues stay Todo; "Agent state" tells them apart.
+// Needs-human issues stay Todo; "Agent state" tells them apart.
 function statusOf(issue, has) {
   if (issue.state === "closed") {
     return "Done";
@@ -58,22 +39,17 @@ function statusOf(issue, has) {
   return has("agent:working") ? "In Progress" : "Todo";
 }
 
-/** The project field values of an issue (REST shape), derived from its labels, state, body and title. */
+/** The project field values of an issue (REST shape), derived from its labels and state (CLAUDE.md, Issues). */
 export function derive(issue) {
   const labels = issue.labels.map((l) => (typeof l === "string" ? l : l.name));
   const has = (l) => labels.includes(l);
-  const stageLabel = labels.find((l) => l.startsWith("stage:"))?.slice(6);
-  const stage = has("querschnitt") ? "Querschnitt" : stageLabel === "later" ? "Später" : stageLabel;
-  const topic = TOPICS[labels.find((l) => l.startsWith("thema:"))?.slice(6)];
-  const sr = issue.title.match(/^SR-\d{3}/)?.[0];
+  const pick = (map) => map[labels.find((l) => Object.hasOwn(map, l))];
   return {
-    Stage: stage,
-    Kind: kindOf(issue, has),
+    Category: has("epic") ? "Epic" : pick(TYPES),
+    Area: pick(AREAS),
     "Agent state": agentStateOf(issue, has),
     Status: statusOf(issue, has),
     Priority: ["P1", "P2", "P3"].find(has),
-    Thema: topic,
-    SR: sr,
   };
 }
 

@@ -1,6 +1,6 @@
 ---
 name: verify
-description: How to check a ReqSeq change locally - the commands for typecheck, lint, tests, trace-check, spec and contract checks, and Electron in a cloud container. Use before a push, when CI is red, or at the end of a stage.
+description: How to check a ReqSeq change locally - the commands for typecheck, lint, tests, trace-check, spec and contract checks, and Electron in a cloud container. Use before a push or when CI is red.
 ---
 
 # Checking a change
@@ -48,5 +48,5 @@ sudo -u ubuntu env -u NODE_EXTRA_CA_CERTS -u NODE_OPTIONS xvfb-run -a ./node_mod
 `pnpm trace-check` (`scripts/trace-check/trace-check.mjs`) reads `spec/` and checks the following: test names `[SR-xxx/AKn]` point to an existing SR and AK (only the names of active `it`/`test` calls and the `tag:` of cross-access scenarios count, not comments or `.skip`/`.todo`/`.fails`/`.only` tests or a skipped `describe`, #689), every AK with method Test of a required SR has a test, other methods have `verification/SR-xxx.md`, and no spec ID is used twice. It reads no PR text (product owner decision, 2026-11-06): CI runs it without `--require`, so there it checks only the test names and the spec IDs.
 
 - Before a PR that completes an SR (its title starts with the SR ID): `pnpm trace-check --require SR-xxx`. A PR text must not name an SR ID that is not in `spec/` yet.
-- At the end of a milestone: `pnpm trace-check --require <the SRs its issues complete> --report trace-<milestone>.md`; `--stage <package>` checks all SRs of one package (`--stage Editor`). Errors mean the milestone is not ready for acceptance.
+- `--report <file>` writes the report the `merge` skill needs for a release x.y; `--stage <package>` checks all SRs of one package (`--stage Editor`). Errors mean the milestone is not ready for acceptance.
 - Also compare with ReqSeq itself (`reqseq evidence coverage --workspace spec` with the JUnit results of CI). A difference is a bug in ReqSeq or in the script and gets a `bug` issue.

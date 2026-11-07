@@ -333,14 +333,14 @@ jobs:
             echo
             echo "## System requirements"
             echo
-            echo "enabler, #946"
+            echo "None (evidence of the own spec, #946)"
             echo
             echo "## Verification"
             echo
             cat "$SOURCE/summary.md"
           } > "$RUNNER_TEMP/body.md"
-          number="$(gh api "repos/$repo/pulls" -f title="enabler: $KIND evidence of main@${SHA:0:7}" -f head="$branch" -f base=main \
+          number="$(gh api "repos/$repo/pulls" -f title="chore(evidence): $KIND evidence of main@${SHA:0:7}" -f head="$branch" -f base=main \
             -F body=@"$RUNNER_TEMP/body.md" --jq .number)"
-          gh api -X POST "repos/$repo/issues/$number/labels" -f 'labels[]=enabler' > /dev/null
+          gh api -X POST "repos/$repo/issues/$number/labels" -f 'labels[]=task' -f 'labels[]=dev' > /dev/null
           gh pr merge "$number" --repo "$repo" --auto --squash
           echo "Pull request #$number" >> "$GITHUB_STEP_SUMMARY"
