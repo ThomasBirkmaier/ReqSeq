@@ -93,6 +93,7 @@ let root: Root;
 beforeEach(() => {
   written.clear();
   window.localStorage.clear();
+  window.sessionStorage.clear();
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);

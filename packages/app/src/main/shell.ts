@@ -5,6 +5,7 @@ import path from "node:path";
 import type Electron from "electron";
 import { handleCopy } from "./clipboard.js";
 import { guardClose } from "./close.js";
+import { reloadWhenGone } from "./renderer-gone.js";
 import { handleWorkspaces } from "./workspaces.js";
 import { CoreProcess } from "./core-process.js";
 import { menuTemplate } from "./menu.js";
@@ -86,6 +87,8 @@ const ready = async (electron: ShellElectron, options: ShellOptions, core: CoreP
   // Closing the window, also when the app quits, leaves the element: its input is saved first (SR-105
   // AK1), and input that cannot be saved keeps the window open once (`close.ts`).
   guardClose(window, () => workspaces.saveBeforeClose(), options.log);
+  // A page whose renderer crashed is loaded again, with its workspace, buffers and drafts (#270).
+  reloadWhenGone(window, options.log);
   const openWorkspace = async (): Promise<void> => {
     const chosen = await electron.dialog.showOpenDialog(window, {
       title: "Open Workspace",

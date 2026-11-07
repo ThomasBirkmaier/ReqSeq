@@ -188,6 +188,7 @@ let root: Root;
 beforeEach(() => {
   // The recent elements of the overview are kept in the local storage, which the tests share.
   window.localStorage.clear();
+  window.sessionStorage.clear();
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
