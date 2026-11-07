@@ -24,7 +24,8 @@ export interface MinibufferProps {
    * The possible next keys after the prefix key, with their commands (SR-109 AK3): shown above the idle
    * line, which says the prefix ("Ctrl+K-"); no input, the focus stays where it is.
    */
-  readonly nextKeys?: readonly { readonly key: string; readonly name: string }[] | undefined;
+  readonly nextKeys?:
+    readonly { readonly key: string; readonly name: string; readonly selected?: boolean }[] | undefined;
 }
 
 const parts = ({ item, ranges }: Ranked<Choice>): Part[] =>
@@ -498,17 +499,20 @@ const PromptLine = ({
   );
 };
 
-/** The rows of the next keys: the key, muted, and the command it runs, in the order of the table. */
+/**
+ * The rows of the next keys: the key, muted, and the command it runs, in the order of the table; the one
+ * Ctrl+N, Ctrl+P or an arrow selected is marked (SR-122 AK6).
+ */
 const NextKeys = ({
   rows,
 }: {
-  readonly rows: readonly { readonly key: string; readonly name: string }[];
+  readonly rows: readonly { readonly key: string; readonly name: string; readonly selected?: boolean }[];
 }): React.JSX.Element | null =>
   rows.length === 0 ? null : (
     <Card>
       <ul className="candidates card-list next-keys" role="list" aria-label="Next keys">
         {rows.map((row) => (
-          <li key={row.key}>
+          <li key={row.key} aria-current={row.selected === true ? "true" : undefined}>
             <span className="key">{row.key}</span>
             <span className="name">{row.name}</span>
           </li>

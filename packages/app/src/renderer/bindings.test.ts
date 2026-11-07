@@ -117,8 +117,11 @@ describe("the key after the prefix", () => {
       kind: "unbound",
       label: "Ctrl+K 5",
     });
-    expect(prefixStep(press("ArrowDown"), false)).toEqual({ kind: "unbound", label: "Ctrl+K Down" });
-    expect(prefixStep(press("Enter"), false)).toEqual({ kind: "unbound", label: "Ctrl+K Enter" });
+    expect(prefixStep(press("ArrowLeft"), false)).toEqual({ kind: "unbound", label: "Ctrl+K Left" });
+    expect(prefixStep(press("Enter", { shiftKey: true }), false)).toEqual({
+      kind: "unbound",
+      label: "Ctrl+K Shift+Enter",
+    });
     expect(prefixStep(press(" ", { code: "Space" }), false)).toEqual({
       kind: "unbound",
       label: "Ctrl+K Space",
@@ -127,6 +130,27 @@ describe("the key after the prefix", () => {
       kind: "unbound",
       label: "Ctrl+K Ctrl+Shift+P",
     });
+  });
+});
+
+describe("the selection in the next keys", () => {
+  it("[SR-122/AK6] Ctrl+N and Down move it down, Ctrl+P and Up up, the physical Ctrl also on macOS", () => {
+    for (const mac of [false, true]) {
+      expect(prefixStep(press("n", { ctrlKey: true }), mac)).toEqual({ kind: "move", step: 1 });
+      expect(prefixStep(press("p", { ctrlKey: true }), mac)).toEqual({ kind: "move", step: -1 });
+      expect(prefixStep(press("ArrowDown"), mac)).toEqual({ kind: "move", step: 1 });
+      expect(prefixStep(press("ArrowUp"), mac)).toEqual({ kind: "move", step: -1 });
+    }
+    // Cmd+N on macOS is the letter N after the prefix, as before.
+    expect(prefixStep(press("n", { metaKey: true }), true)).toEqual({
+      kind: "letter",
+      letter: "n",
+      label: "⌘K N",
+    });
+  });
+
+  it("Enter runs the selected next key", () => {
+    expect(prefixStep(press("Enter"), false)).toEqual({ kind: "enter", label: "Ctrl+K Enter" });
   });
 });
 

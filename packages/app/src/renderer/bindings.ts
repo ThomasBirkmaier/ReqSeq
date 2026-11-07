@@ -3,7 +3,7 @@
 // question ThomasBirkmaier/ReqSeq-archive#472, kept in this one table; the window wires them up in `use-prefix.ts`.
 import type { Choice } from "./actions.js";
 import type { KeyPress, KeyRow, Shortcut } from "./keys.js";
-import { matches, press, pressLabel, shortcutLabel } from "./keys.js";
+import { matches, press, pressLabel, rowStep, shortcutLabel } from "./keys.js";
 
 /** The prefix key: Ctrl+K, or Cmd+K on macOS (ThomasBirkmaier/ReqSeq-archive#472; not Ctrl+X or Ctrl+C, the cut and copy of every field). */
 export const PREFIX: Shortcut = { mod: true, shift: false, key: "k" };
@@ -39,6 +39,15 @@ export const PREFIX_BINDINGS: readonly PrefixBinding[] = [
 export const PREFIX_KEYS: readonly KeyRow[] = [
   { keys: [{ shortcut: PREFIX }], does: "Pressed again: show the possible next keys at once" },
   { keys: [{ press: press("Escape") }], does: "End the prefix" },
+  {
+    keys: [{ press: press("ArrowDown") }, { press: press("n", true) }],
+    does: "Show the possible next keys at once and select the next one",
+  },
+  {
+    keys: [{ press: press("ArrowUp") }, { press: press("p", true) }],
+    does: "Show the possible next keys at once and select the previous one",
+  },
+  { keys: [{ press: press("Enter") }], does: "Run the selected next key" },
 ];
 
 /** The actions of ThomasBirkmaier/ReqSeq-archive#472 that keep a single shortcut of their own (`actions.ts`). */
@@ -84,6 +93,13 @@ export type PrefixStep =
   | { readonly kind: "show" }
   /** Escape: the prefix ends, quietly. */
   | { readonly kind: "cancel" }
+  /**
+   * Ctrl+N, Ctrl+P (the physical Ctrl key, also on macOS) or Down, Up: the selection in the list of next
+   * keys moves (SR-122 AK6), and the prefix keeps waiting.
+   */
+  | { readonly kind: "move"; readonly step: 1 | -1 }
+  /** Enter: the selected next key runs; `label` writes the two keys when none is selected. */
+  | { readonly kind: "enter"; readonly label: string }
   /** A letter: the command bound to it, if any; `label` writes the two keys ("Ctrl+K X"). */
   | { readonly kind: "letter"; readonly letter: string; readonly label: string }
   /** Any other key: it is not bound; `label` writes the two keys ("Ctrl+K Alt+N"). */
@@ -141,7 +157,14 @@ export const prefixStep = (event: PrefixPress, mac: boolean): PrefixStep => {
   if (event.key === "Escape") {
     return { kind: "cancel" };
   }
+  const step = rowStep(event);
+  if (step !== undefined) {
+    return { kind: "move", step };
+  }
   const label = `${shortcutLabel(PREFIX, mac)} ${pressedLabel(event, mac)}`;
+  if (event.key === "Enter" && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
+    return { kind: "enter", label };
+  }
   const letter = letterOf(event);
   return letter !== undefined && plainOrPrefixed(event, mac)
     ? { kind: "letter", letter, label: prefixLabel(letter, mac) }
