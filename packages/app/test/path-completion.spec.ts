@@ -51,6 +51,15 @@ const make = async (root: string, ...entries: string[]): Promise<void> => {
 
 const sep = path.sep;
 
+/**
+ * A person types the separator after a folder's name some time after its last letter: the name's row is
+ * shown, and half a second passes, in which the prompt asks ahead for that folder's listing.
+ */
+const typingPause = async (window: Page, row: string): Promise<void> => {
+  await expect(names(window).nth(1)).toHaveText(row);
+  await window.evaluate(() => new Promise((resolve) => setTimeout(resolve, 500)));
+};
+
 /** Runs `job` for 0..count-1, 500 at a time, so Windows does not run out of file handles (EMFILE). */
 const inBatches = async (count: number, job: (i: number) => Promise<unknown>): Promise<void> => {
   for (let start = 0; start < count; start += 500) {
@@ -202,6 +211,7 @@ test.describe("Path completion", () => {
     await expect(names(window).nth(1)).toHaveText(`big${sep}`);
     await window.keyboard.press("Backspace");
     await window.keyboard.type("big");
+    await typingPause(window, `big${sep}`);
     /** The time from the key to the second row (the first entry) showing `expected`, in the page. */
     const timed = async (key: string, expected: string): Promise<number> => {
       await window.evaluate((wanted) => {
@@ -228,7 +238,7 @@ test.describe("Path completion", () => {
       await expect(names(window).nth(1)).toHaveText(expected);
       return window.evaluate(() => (window as unknown as { took?: number }).took ?? Infinity);
     };
-    // A separator: the folder is listed afresh.
+    // A separator after the pause: the listing of the folder asked ahead is shown.
     const listed = await timed(sep === "\\" ? "Backslash" : "Slash", `d00000${sep}`);
     // A letter: the listing is narrowed.
     const narrowed = await timed("f", "f00000.txt");
@@ -240,6 +250,7 @@ test.describe("Path completion", () => {
     await expect(names(window).nth(1)).toHaveText(`wide${sep}`);
     await window.keyboard.press("Backspace");
     await window.keyboard.type("wide");
+    await typingPause(window, `wide${sep}`);
     const opened = await timed(sep === "\\" ? "Backslash" : "Slash", `a00000${sep}`);
     const chosen = await timed("b", `b00000${sep}`);
     // The times in the report, to see the margin on each system.
