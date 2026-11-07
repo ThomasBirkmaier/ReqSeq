@@ -735,32 +735,68 @@ export interface MarkdownBlock {
 export const markdownBlocks = (text: string): MarkdownBlock[] => {
   const blocks: MarkdownBlock[] = [];
   let open: number | undefined;
-  let fence: string | undefined;
+  /** The open fence: its marker, the block quote markers and the list item indent it stands in. */
+  let fence: { readonly marker: string; readonly quotes: number; readonly indent: number } | undefined;
   const close = (end: number, fenced: boolean): void => {
     if (open !== undefined) {
       blocks.push({ start: open, end, fence: fenced });
       open = undefined;
     }
   };
+  const outside = (line: string, content: string, start: number): void => {
+    if (content.trim() === "") {
+      close(start, false);
+      return;
+    }
+    const marker = content.includes("``") || content.includes("~~") ? openingFence(content) : undefined;
+    if (marker !== undefined) {
+      close(start, false);
+      fence = {
+        marker,
+        quotes: countQuotes(line, content),
+        indent: LIST_ITEM.exec(content)?.[0].length ?? 0,
+      };
+    }
+    open ??= start;
+  };
   forEachLine(text, (line, start, next) => {
     const content = line.startsWith(" ") || line.startsWith(">") ? line.replace(BLOCK_QUOTE, "") : line;
-    if (fence !== undefined) {
-      const marker = FENCE.exec(content)?.[1];
-      if (marker?.startsWith(fence) === true && content.trim() === marker) {
-        fence = undefined;
-        close(next, true);
-      }
-    } else if (content.trim() === "") {
-      close(start, false);
-    } else {
-      const marker = content.includes("``") || content.includes("~~") ? openingFence(content) : undefined;
-      if (marker !== undefined) {
-        close(start, false);
-        fence = marker;
-      }
-      open ??= start;
+    if (fence === undefined) {
+      outside(line, content, start);
+      return;
+    }
+    // A line outside the block quote or list item of the fence ends it (CommonMark).
+    const blank = content.trim() === "";
+    if (
+      countQuotes(line, content) < fence.quotes ||
+      (!blank && content.length - content.trimStart().length < fence.indent)
+    ) {
+      fence = undefined;
+      close(start, true);
+      outside(line, content, start);
+      return;
+    }
+    const marker = FENCE.exec(content)?.[1];
+    if (marker?.startsWith(fence.marker) === true && content.trim() === marker) {
+      fence = undefined;
+      close(next, true);
     }
   });
   close(text.length, fence !== undefined);
   return blocks;
+};
+
+/**
+ * The labels of the link reference definitions of a Markdown text, as written, in order (see the file
+ * comment: outside code and not inside a paragraph).
+ */
+export const markdownDefinitions = (text: string): string[] => {
+  const labels: string[] = [];
+  scan(text, {
+    links: [],
+    definitions: ({ written }) => {
+      labels.push(written);
+    },
+  });
+  return labels;
 };

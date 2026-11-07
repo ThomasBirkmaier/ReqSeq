@@ -212,12 +212,15 @@ const propertiesText = (
   return out.join("\n");
 };
 
-/** `text` without the destinations of its links and images (see the file comment). */
-const visibleText = (text: string): string => {
+/**
+ * `text` without the destinations of its links and images (see the file comment), each replaced by
+ * `instead`: the snippet (SR-174) parses its lines with `x` there, which keeps a link with a title one.
+ */
+export const visibleText = (text: string, instead = ""): string => {
   let out = "";
   let at = 0;
   for (const { start, end } of markdownLinks(text)) {
-    out += text.slice(at, start);
+    out += text.slice(at, start) + instead;
     at = end;
   }
   return out + text.slice(at);

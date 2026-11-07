@@ -182,7 +182,8 @@ export const searchIndex = async (workspace: Workspace, attempts = SEARCH_ATTEMP
  * Starts the search index of `workspace` for a server (`warmWorkspace`): built in the background
  * `delayMs` after `after` settled (the warm-up of the model), in slices that pause while a command
  * runs, without the cache (see the file comment); a search waits for it. The workspace counts as a
- * server at once, so a search during the warm-up builds without the cache too. Never throws; a build
+ * server at once, so a search during the warm-up builds without the cache too. Once built, it imports
+ * the snippet module (`search-snippet.ts`), which the first search would otherwise wait for. Never throws; a build
  * that fails is reported by the first search. The timer does not keep the process alive.
  */
 export const warmSearchIndex = (
@@ -193,7 +194,12 @@ export const warmSearchIndex = (
   servers.add(workspace);
   const start = (): void => {
     if (!workspace.closed) {
-      workspace.get(searchIndexState).catch(() => undefined);
+      // Then the snippet's module with its Markdown parser (SR-174), which `element.search` imports
+      // on its first call: so the first search does not pay for it.
+      workspace
+        .get(searchIndexState)
+        .then(() => import("./search-snippet.js"))
+        .catch(() => undefined);
     }
   };
   const later = (): void => {

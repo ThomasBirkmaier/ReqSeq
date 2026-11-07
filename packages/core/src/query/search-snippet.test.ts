@@ -66,13 +66,31 @@ describe("search hit snippet (SR-174)", () => {
       marks: [{ start: 14, end: 19 }],
     });
     // The words of the link label, the inline code and the inline reference are text, not the
-    // link destination; the snippet is from the paragraph of the first match.
+    // link destination; the snippet is from the line of the first match.
     const words = await hitOf(ws, "gusts pulse", A1);
     expect(words.snippet?.text).toBe(
       "The anemometer measures gusts with pulse counting, as Show a dial shows.",
     );
     expect(marked(words.snippet ?? { text: "", marks: [] })).toEqual(["gusts", "pulse"]);
     expect((await hitOf(ws, "anemometer", A1)).snippet?.text).toBe("Anemometer");
+    // A link and emphasis that a hard wrap splits over two lines.
+    const wrapped = await open(
+      element(
+        "a5",
+        "Wrapped",
+        "The pump starts when the **tank\nlevel** is low, see [the pump\nmanual](https://example.com/manual) for _real_ details.\n",
+      ),
+    );
+    const text = "The pump starts when the tank level is low, see the pump manual for real details.";
+    for (const query of ["level", "manual", "tank"]) {
+      const hit = await hitOf(wrapped, query, `${P}a5`);
+      expect(hit.snippet?.text, query).toBe(text);
+      expect(marked(hit.snippet ?? { text: "", marks: [] }), query).toEqual([query]);
+    }
+    const crlf = await open(
+      element("a7", "CRLF", "See [the pump\r\nmanual](https://example.com/manual) now.\r\n"),
+    );
+    expect((await hitOf(crlf, "pump", `${P}a7`)).snippet?.text).toBe("See the pump manual now.");
     for (const hit of [storm, words]) {
       expect(hit.snippet?.text).not.toMatch(/[*#[\]()`]|https|reqseq:/u);
       expect(codePoints(String(hit.snippet?.text))).toBeLessThanOrEqual(MAX);
@@ -124,6 +142,14 @@ describe("search hit snippet (SR-174)", () => {
       text: "Gale warning",
       marks: [{ start: 0, end: 4 }],
     });
+    // A choice found by its key, which the index holds too: its name, marked whole.
+    expect((await hitOf(ws, "high", A2)).snippet).toEqual({
+      field: "properties",
+      property: "level",
+      propertyName: "Level",
+      text: "Gale warning",
+      marks: [{ start: 0, end: 12 }],
+    });
     // A value of a nested mapping, of a property the metamodel does not define: named by its key.
     expect((await hitOf(ws, "knots", `${P}b2`)).snippet).toEqual({
       field: "properties",
@@ -173,6 +199,13 @@ describe("search hit snippet (SR-174)", () => {
       expect(hit.snippet, query).toBeUndefined();
       expect(hit.titleMarks, query).toBeUndefined();
     }
+    // A word of the identifier that the text holds too: the snippet from the text.
+    const pump = await open(element("a6", "Pump", "The pump starts at dawn.\n", "spec-id: PUMP-204\n"));
+    expect((await hitOf(pump, "pump", `${P}a6`)).snippet).toEqual({
+      field: "text",
+      text: "The pump starts at dawn.",
+      marks: [{ start: 4, end: 8 }],
+    });
     // A word in the title and in the text: the snippet from the text, the title marked as well.
     const wind = await hitOf(ws, "wind", A1);
     expect(wind.titleMarks).toEqual([{ start: 12, end: 16 }]);
@@ -305,7 +338,7 @@ describe("search hit snippet (SR-174)", () => {
     const radar = await hitOf(ws, "radar", `${P}d1`);
     expect(radar.snippet?.text).toBe("fenced radar code");
     expect((await hitOf(ws, "picture", `${P}d1`)).snippet?.text).toBe("radar picture");
-    expect((await hitOf(ws, "kelvin", `${P}d1`)).snippet?.text).toBe("Sensor Unit thermometer kelvin");
+    expect((await hitOf(ws, "kelvin", `${P}d1`)).snippet?.text).toBe("thermometer kelvin");
     expect((await hitOf(ws, "manual", `${P}d1`)).snippet?.text).toBe("See the manual.");
     expect((await hitOf(ws, "block", `${P}d1`)).snippet).toBeUndefined();
   });
@@ -341,6 +374,17 @@ describe("search hit snippet (SR-174)", () => {
     expect((await hitOf(ws, "wharf", `${P}9a`)).snippet?.text).toBe("Wharf Unit");
     expect((await hitOf(ws, "jetty", `${P}9a`)).snippet?.text).toBe("with jetty");
     expect((await hitOf(ws, "harbour", `${P}9a`)).snippet).toBeUndefined();
+    // After a long HTML block and after the cut of a long line the scan goes on.
+    const later = await open(
+      element(
+        "9b",
+        "Later",
+        `${html}\nThe harbour opens.\n\n[a](quay) ${"z ".repeat(MAX_LINE)}the quay ends.\n\n> \`\`\`\n> code\n>\nAfter the quote the **zephyr** blows.\n`,
+      ),
+    );
+    expect((await hitOf(later, "harbour", `${P}9b`)).snippet?.text).toBe("The harbour opens.");
+    expect((await hitOf(later, "quay", `${P}9b`)).snippet?.text).toMatch(/^…z z .* the quay ends\.$/u);
+    expect((await hitOf(later, "zephyr", `${P}9b`)).snippet?.text).toBe("After the quote the zephyr blows.");
   });
 
   it("gives the properties as the index read them when the file no longer holds the element", async () => {

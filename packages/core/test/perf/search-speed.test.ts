@@ -19,7 +19,9 @@
 //
 // Every hit of a page has its snippet (SR-174), read from its file; the generated texts are short, so
 // every `LONG_EVERY`th element gets a text of about 5 KB more (`longText`: paragraphs with links and
-// inline references, a list), whose word `LONG_WORD` stands deep in it, in a list item after links.
+// inline references, a list), whose word `LONG_WORD` stands deep in it, in a list item after links;
+// the elements halfway between them get the same text hard-wrapped at about 60 characters, links and
+// emphasis split over lines (`wrappedText`, `WRAPPED_WORD`), which parses a few lines per hit.
 // Its rows search that word with a page of 50 and of 500 hits (the app's list asks for up to 500),
 // against the same 300 ms.
 //
@@ -86,6 +88,16 @@ const longText = (n: number, target: string): string => {
   ].join("\n");
 };
 
+const WRAPPED_WORD = "wrappedbuoy";
+
+/** `longText` with `WRAPPED_WORD`, hard-wrapped at the first space after 60 characters (see the file comment). */
+const wrappedText = (n: number, target: string): string =>
+  longText(n, target)
+    .replace(LONG_WORD, WRAPPED_WORD)
+    .split("\n")
+    .map((line) => line.replace(/(.{60}\S*) /gu, "$1\n"))
+    .join("\n");
+
 /** `tree` with a long text appended to every `LONG_EVERY`th element (see the file comment). */
 const withLongTexts = (tree: GeneratedWorkspace): GeneratedWorkspace => {
   const files = new Map(tree.files);
@@ -94,6 +106,8 @@ const withLongTexts = (tree: GeneratedWorkspace): GeneratedWorkspace => {
     const content = files.get(file);
     if (n % LONG_EVERY === 0 && content !== undefined) {
       files.set(file, `${content}${longText(n, element.id)}\n`);
+    } else if (n % LONG_EVERY === LONG_EVERY / 2 && content !== undefined) {
+      files.set(file, `${content}${wrappedText(n, element.id)}\n`);
     }
   });
   return { ...tree, files };
@@ -227,17 +241,21 @@ describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", ()
     }
   });
 
-  it("[SR-098/AK1] shows the first 50 and 500 hits with their snippets from texts of 5 KB within 300 ms (SR-174, median of 7 runs)", async () => {
+  it("[SR-098/AK1] shows the first 50 and 500 hits with their snippets from texts of 5 KB, also hard-wrapped, within 300 ms (SR-174, median of 7 runs)", async () => {
     if (workspace === undefined) {
       throw new Error("no workspace");
     }
     const open = workspace;
     const measurements = [];
-    for (const limit of [50, 500]) {
+    for (const [word, limit, kind] of [
+      [LONG_WORD, 50, "texts"],
+      [LONG_WORD, 500, "texts"],
+      [WRAPPED_WORD, 50, "hard-wrapped texts"],
+      [WRAPPED_WORD, 500, "hard-wrapped texts"],
+    ] as const) {
       const { result, measurement } = await measureMedian(
-        `element.search: a word deep in ${String(ELEMENTS / LONG_EVERY)} texts of 5 KB (${JSON.stringify(LONG_WORD)}), the first ${String(limit)} hits with snippets`,
-        async () =>
-          (await invoke("element.search", { query: LONG_WORD, limit }, { workspace: open })) as Search,
+        `element.search: a word deep in ${String(ELEMENTS / LONG_EVERY)} ${kind} of 5 KB (${JSON.stringify(word)}), the first ${String(limit)} hits with snippets`,
+        async () => (await invoke("element.search", { query: word, limit }, { workspace: open })) as Search,
         {
           basis: `SR-098 AK1, SR-174 (element.search, page of ${String(limit)}, warm server; median of 7 runs)`,
           thresholdMs: SEARCH_MS,
@@ -245,9 +263,8 @@ describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", ()
         },
       );
       expect(result.hits).toHaveLength(limit);
-      expect(result.hits.every((hit) => hit.snippet?.text.includes(`the ${LONG_WORD} holds`) === true)).toBe(
-        true,
-      );
+      expect(result.hits.every((hit) => hit.snippet?.text.includes(`the ${word} holds`) === true)).toBe(true);
+      expect(result.hits.some((hit) => /[*[\]()]/u.test(hit.snippet?.text ?? ""))).toBe(false);
       measurements.push(measurement);
     }
     for (const measurement of measurements) {

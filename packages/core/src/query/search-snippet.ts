@@ -12,23 +12,25 @@
 //   mapping is a value of its own (AK2: the snippet comes from the value with the match). A choice
 //   shows its name, the key when the metamodel names none. Left out, as no snippet shows them (AK4,
 //   product owner decision, 2026-11-07): the title (marked in `titleMarks` instead), `id`, relation
-//   keys, type, status and the identifier; and the words of the identifier wherever they stand
-//   (`SR-174` finds `SR-174` by its ID, and its words `sr` and `174` in it: `SR-098` in another
-//   property is no place where it was found).
+//   keys, type, status and the identifier. A choice found by its key shows its name, marked whole.
 // - Visible text (AK1): the text and Markdown properties (`markdownKeysOf`) are read as the reader
 //   sees them. A cheap pass over the raw value finds the first word that matches; only the line it
-//   stands in is parsed with mdast and GFM (cut to `MAX_LINE` characters around the match), with
-//   the link reference definitions of the value, which give nothing to read. The block of the line
-//   (`markdownBlocks`) decides how: a line of a fenced code block is code as it stands (its fence
-//   lines nothing), a table row is parsed with the table's head and delimiter row, and an HTML
-//   block is parsed from its start (at most 4 `MAX_LINE`). A whole block is not parsed: a list of
-//   4 KB with links costs about 4 ms with mdast, one line of it 0.25 ms, and a page has up to 500
-//   hits (SR-098). The parse gives runs of text, inline code, code and image alt texts; blocks,
-//   breaks, table cells and HTML are joined with a space. Words are split inside runs, never across
-//   them, as the index splits the raw text at the Markdown characters. A match the reader does not
-//   see (a link destination or title, an HTML tag, an entity name) is skipped and the next line
-//   with a raw match is read. A line without Markdown characters is not parsed. An inline
-//   construct across lines (emphasis over a line break) is read per line, so its characters show.
+//   stands in is parsed with mdast, without the link destinations (`visibleText`, never seen) and
+//   with GFM only when the line needs it. A line whose inline constructs do not close in it (a
+//   hard-wrapped link or emphasis, `openEnds`) is parsed with the lines around it, one more to the
+//   side it goes on to at a time, at most `MAX_WRAP`; a line longer than `MAX_LINE` is cut around the
+//   match and the scan goes on after the cut.
+//   The labels of the link reference definitions of the value are added when the line may refer to
+//   one. The block of the line (`markdownBlocks`) decides how: a line of a fenced code block is code
+//   as it stands (its fence lines nothing), a table row is parsed with the table's head and
+//   delimiter row and read alone, and an HTML block is parsed from its start (at most 4 `MAX_LINE`).
+//   A whole block is not parsed: a list of 4 KB with links costs about 4 ms with mdast, one line of
+//   it 0.1 to 0.25 ms, and a page has up to 500 hits (SR-098). The parse gives runs of text, inline
+//   code, code and image alt texts; blocks, breaks, table cells and HTML are joined with a space.
+//   Words are split inside runs, never across them, as the index splits the raw text at the
+//   Markdown characters. A match the reader does not see (a link destination or title, an HTML tag,
+//   an entity name) is skipped and the next raw match is read. A line without Markdown characters is
+//   not parsed.
 // - The line: white space (also CR, LF, tab, U+2028, U+2029) collapses to one space; at most `MAX`
 //   code points including `…` at a cut end. The window grows from the first match to both sides,
 //   then shrinks to word boundaries; a word longer than the window is cut hard, with its mark
@@ -44,10 +46,10 @@ import { gfm } from "micromark-extension-gfm";
 import type { Metamodel } from "../metamodel/index.js";
 import { findType, keyDefinition, markdownKeysOf } from "../metamodel/index.js";
 import type { ElementRecord, MarkdownBlock } from "../model/index.js";
-import { markdownBlocks, markdownLinks, relationKey, titleKeyOf } from "../model/index.js";
-import { identifierKeyOf, identifierValue } from "../model/identifier-index.js";
+import { markdownBlocks, markdownDefinitions, relationKey, titleKeyOf } from "../model/index.js";
+import { identifierKeyOf } from "../model/identifier-index.js";
 import type { SearchField, SearchHit, SearchIndex } from "./search-index.js";
-import { WORD_SEPARATOR, elementNow, normalizeWord, valueTexts } from "./search-index.js";
+import { elementNow, normalizeWord, valueTexts, visibleText } from "./search-index.js";
 
 /** A matched word in a text: UTF-16 offsets, end exclusive. */
 export interface TextMark {
@@ -82,8 +84,8 @@ const MARK_CHAR = /\p{M}/u;
 const SPACE = /\s+/gu;
 /** What may make a block read differently than written: without it, it is not parsed. */
 const MARKDOWN_SYNTAX = /[\\`*_~[\]<>&#|=+!:-]|^ {0,3}\d{1,9}[.)]|^(?: {4}|\t)/mu;
-/** A link reference definition line (CommonMark), or a footnote definition. */
-const DEFINITION_LINE = /^ {0,3}(?:> ?)*\[(?:\\[\s\S]|[^\\\]])+\]:.*$/gmu;
+/** A `]` that may close a reference-style link: not followed by `(`. */
+const REFERENCE = /\](?!\()/u;
 const ELLIPSIS = "…";
 /** Block quote markers in front of a line. */
 const QUOTE = /^(?: {0,3}> ?)*/u;
@@ -101,20 +103,6 @@ const PARSE = { extensions: [gfm()], mdastExtensions: [gfmFromMarkdown()] };
  * is parsed without the GFM extensions, which costs about half.
  */
 const GFM_SYNTAX = /[|~]|\[\^|\[[ xX]\]/u;
-
-/**
- * `markdown` with the destination of each link and image as `x`: the reader never sees it, and
- * parsing it char by char costs most of a line with inline references (`reqseq:<UUID>?version=…`).
- */
-const withoutDestinations = (markdown: string): string => {
-  let out = "";
-  let at = 0;
-  for (const { start, end } of markdownLinks(markdown)) {
-    out += `${markdown.slice(at, start)}x`;
-    at = end;
-  }
-  return out + markdown.slice(at);
-};
 
 /** Text as a line shows it, with the runs words are split in (`[start, end]` pairs). */
 interface Visible {
@@ -170,14 +158,26 @@ const visit = (node: Nodes, visible: Visible): void => {
   }
 };
 
-/** The visible text of `markdown`, of which only the first `length` characters count (the rest defines references). */
-const visibleMarkdown = (markdown: string, length: number): Visible => {
+/**
+ * The visible text of `markdown`, of which only the first `length` characters count (the rest defines
+ * references). Of a table only the row `row` counts (0 the head, -1 the last), when given.
+ */
+const visibleMarkdown = (markdown: string, length: number, row?: number): Visible => {
   const visible: Visible = { text: "", runs: [] };
   const root = GFM_SYNTAX.test(markdown) ? fromMarkdown(markdown, PARSE) : fromMarkdown(markdown);
   for (const child of root.children) {
     // Every node fromMarkdown gives has a position.
     if (Number(child.position?.start.offset) < length) {
-      visit(child, visible);
+      if (child.type === "table" && row !== undefined) {
+        const pick = row === 0 ? 0 : child.children.length - 1;
+        child.children.forEach((tableRow, at) => {
+          if (at === pick) {
+            visit(tableRow, visible);
+          }
+        });
+      } else {
+        visit(child, visible);
+      }
     }
   }
   return visible;
@@ -399,53 +399,125 @@ const lineAround = (value: string, at: number): Span => {
 };
 
 /**
- * What is read for a raw match at `at` in `block` (see the file comment): Markdown to parse, a line
- * of code as it stands, or nothing (a fence line, a long HTML block); the next raw match is looked
- * for after `end`.
+ * What is read for a raw match at `at` in `block` (see the file comment): Markdown to parse (of a
+ * table only the row `row`), a line of code as it stands, or nothing (a fence line, a long HTML
+ * block); the next raw match is looked for after `end`.
  */
 interface Unit {
   readonly kind: "markdown" | "code" | "none";
   readonly source: string;
   readonly end: number;
+  readonly row?: number;
 }
+
+/** List item markers at the start of a line, which are no emphasis. */
+const LIST_MARKERS = /^[ \t>]*(?:[-+*]|\d{1,9}[.)])[ \t]/gmu;
+/** An escaped character, which opens or closes nothing. */
+const ESCAPED = /\\[\s\S]/gu;
+/** Runs of stars and backticks, and of underscores that can open or close emphasis (not inside a word). */
+const STARS = /\*+/gu;
+const BACKTICKS = /`+/gu;
+const UNDERSCORES = /(?<![\p{L}\p{N}])_+|_+(?![\p{L}\p{N}])/gu;
+
+const count = (text: string, of: string | RegExp): number =>
+  typeof of === "string" ? text.split(of).length - 1 : (text.match(of) ?? []).length;
+
+/**
+ * Where the inline constructs of `text` go on beyond it, roughly: after it when brackets,
+ * parentheses or angle brackets open more than close, before it when they close more, and to both
+ * sides when the runs of backticks, of stars or of the underscores that can be emphasis do not pair
+ * up. A hard-wrapped link or emphasis.
+ */
+const openEnds = (text: string): { readonly before: boolean; readonly after: boolean } => {
+  const plain = text.replace(ESCAPED, "").replace(LIST_MARKERS, "");
+  const balances = [
+    count(plain, "[") - count(plain, "]"),
+    count(plain, "(") - count(plain, ")"),
+    count(plain, "<") - count(plain, ">"),
+  ];
+  const odd = [BACKTICKS, STARS, UNDERSCORES].some((runs) => count(plain, runs) % 2 === 1);
+  return { before: odd || balances.some((n) => n < 0), after: odd || balances.some((n) => n > 0) };
+};
+
+/** Lines a hard-wrapped construct may span to each side of the match's line (`openEnds`). */
+const MAX_WRAP = 3;
+
+/**
+ * The lines of `block` around `line` that a construct of it spans: the line alone when nothing goes
+ * on beyond it (`openEnds`), else one more line to the side it goes on to at a time, at most
+ * `MAX_WRAP` steps and `MAX_LINE` characters.
+ */
+const wrapped = (value: string, block: MarkdownBlock, line: Span): Span => {
+  let { start, end } = line;
+  const last = lineAround(value, Math.max(block.start, block.end - 1)).end;
+  for (let n = 0; n < MAX_WRAP && end - start < MAX_LINE; n++) {
+    const open = openEnds(value.slice(start, end));
+    const up = open.before && start > block.start;
+    const down = open.after && end < last;
+    if (!up && !down) {
+      break;
+    }
+    start = up ? lineAround(value, start - 2).start : start;
+    end = down ? lineAround(value, end + (value.startsWith("\r\n", end) ? 2 : 1)).end : end;
+  }
+  return { start, end };
+};
+
+/** The unit of a match in a table (`unitOf`): the row it stands in, parsed with the head and delimiter row. */
+const tableUnit = (value: string, first: Span, line: Span): Unit | undefined => {
+  const head = value.slice(first.start, first.end);
+  if (!head.includes("|")) {
+    return undefined;
+  }
+  const second = lineAround(value, first.end + (value.startsWith("\r\n", first.end) ? 2 : 1));
+  const delimiter = value.slice(second.start, second.end);
+  if (!TABLE_DELIMITER.test(delimiter)) {
+    return undefined;
+  }
+  // The delimiter row holds no word, so the match is in the head or a row below.
+  const body = line.start > second.start;
+  const rows = body ? [head, delimiter, value.slice(line.start, line.end)] : [head, delimiter];
+  return { kind: "markdown", source: rows.join("\n"), end: line.end, row: body ? -1 : 0 };
+};
 
 const unitOf = (value: string, block: MarkdownBlock, at: number): Unit => {
   const line = lineAround(value, at);
-  const text = value.slice(line.start, line.end);
   const first = lineAround(value, block.start);
   if (block.fence) {
     // A word in a fence line is its info string; a closing fence holds none.
-    return {
-      kind: line.start === first.start ? "none" : "code",
-      source: text.replace(QUOTE, ""),
-      end: line.end,
-    };
+    const kind = line.start === first.start ? "none" : "code";
+    return { kind, source: value.slice(line.start, line.end).replace(QUOTE, ""), end: line.end };
   }
-  const head = value.slice(first.start, first.end);
-  if (HTML_START.test(head)) {
-    const source = value.slice(block.start, line.end);
-    return source.length > MAX_LINE * 4
-      ? { kind: "none", source: "", end: block.end }
-      : { kind: "markdown", source, end: line.end };
+  if (HTML_START.test(value.slice(first.start, first.end))) {
+    return line.end - block.start > MAX_LINE * 4
+      ? { kind: "none", source: "", end: line.end }
+      : { kind: "markdown", source: value.slice(block.start, line.end), end: line.end };
   }
-  if (first.end < block.end && head.includes("|")) {
-    const second = lineAround(value, first.end + (value.startsWith("\r\n", first.end) ? 2 : 1));
-    const delimiter = value.slice(second.start, second.end);
-    // The delimiter row holds no word, so the match is in the head or a row below.
-    if (TABLE_DELIMITER.test(delimiter)) {
-      const rows = line.start > second.start ? [head, delimiter, text] : [head, delimiter];
-      return { kind: "markdown", source: rows.join("\n"), end: line.end };
-    }
+  const table = first.end < block.end ? tableUnit(value, first, line) : undefined;
+  if (table !== undefined) {
+    return table;
   }
-  if (text.length <= MAX_LINE) {
-    return { kind: "markdown", source: text, end: line.end };
+  if (line.end - line.start > MAX_LINE) {
+    // A long line, cut around the match; the scan goes on after the cut.
+    const start = Math.max(line.start, at - MAX_LINE / 2);
+    const end = Math.min(line.end, start + MAX_LINE);
+    return { kind: "markdown", source: value.slice(start, end), end };
   }
-  const start = Math.max(line.start, at - MAX_LINE / 2);
-  return {
-    kind: "markdown",
-    source: value.slice(start, Math.min(line.end, start + MAX_LINE)),
-    end: line.end,
-  };
+  const span = wrapped(value, block, line);
+  return { kind: "markdown", source: value.slice(span.start, span.end), end: line.end };
+};
+
+/** The visible text of `unit` of `value` (`definitions` of `value` computed once, when needed). */
+const visibleOf = (unit: Unit, definitions: () => string): Visible | undefined => {
+  if (unit.kind === "none") {
+    return undefined;
+  }
+  if (unit.kind === "code" || !MARKDOWN_SYNTAX.test(unit.source)) {
+    return visiblePlain(unit.source);
+  }
+  const source = visibleText(unit.source, "x");
+  const references = REFERENCE.test(source) ? definitions() : "";
+  return visibleMarkdown(`${source}\n\n${references}`, source.length, unit.row);
 };
 
 /** The snippet line of the Markdown `value` (see the file comment). */
@@ -456,7 +528,12 @@ const markdownLine = (value: string, terms: ReadonlySet<string>): Line | undefin
     return undefined;
   }
   const blocks = markdownBlocks(value);
-  let definitions: string | undefined;
+  let known: string | undefined;
+  // The definitions give nothing to read, so their labels with any destination do.
+  const definitions = (): string =>
+    (known ??= markdownDefinitions(value)
+      .map((label) => `[${label}]: x`)
+      .join("\n"));
   while (at >= 0) {
     const found = at;
     const block = blocks.find((one) => one.end > found);
@@ -465,17 +542,7 @@ const markdownLine = (value: string, terms: ReadonlySet<string>): Line | undefin
       return undefined;
     }
     const unit = unitOf(value, block, at);
-    let visible: Visible | undefined;
-    if (unit.kind === "code" || (unit.kind === "markdown" && !MARKDOWN_SYNTAX.test(unit.source))) {
-      visible = visiblePlain(unit.source);
-    } else if (unit.kind === "markdown") {
-      definitions ??= blocks
-        .filter((one) => !one.fence)
-        .flatMap((one) => value.slice(one.start, one.end).match(DEFINITION_LINE) ?? [])
-        .join("\n");
-      const source = withoutDestinations(unit.source);
-      visible = visibleMarkdown(`${source}\n\n${definitions}`, source.length);
-    }
+    const visible = visibleOf(unit, definitions);
     const line = visible === undefined ? undefined : lineOf(visible, terms);
     if (line !== undefined) {
       return line;
@@ -485,28 +552,32 @@ const markdownLine = (value: string, terms: ReadonlySet<string>): Line | undefin
   return undefined;
 };
 
+/** A value a snippet may come from: the text shown, and for a choice its key, which the index holds too. */
+interface Value {
+  readonly shown: string;
+  readonly key?: string;
+}
+
 /** The values of the properties of `element` a snippet may come from, in reading order (see the file comment). */
 const propertyValues = (
   element: ElementRecord,
   metamodel: Metamodel,
-): { readonly key: string; readonly values: readonly string[] }[] => {
+): { readonly key: string; readonly values: readonly Value[] }[] => {
   const skipped = new Set(["id", "type", "status", titleKeyOf(metamodel), identifierKeyOf(metamodel)]);
   const typeKeys = metamodel.valid ? (findType(metamodel, element.type)?.properties ?? []) : [];
   const keys = [...new Set([...typeKeys.filter((key) => key in element.data), ...Object.keys(element.data)])];
   return keys
     .filter((key) => !skipped.has(key) && relationKey(metamodel, key) === undefined)
     .map((key) => {
-      const values: string[] = [];
-      valueTexts(element.data[key], values);
+      const texts: string[] = [];
+      valueTexts(element.data[key], texts);
       const defined = keyDefinition(metamodel, key);
       const choices = defined?.kind === "property" ? defined.definition.choices : undefined;
-      return {
-        key,
-        values:
-          choices === undefined
-            ? values
-            : values.map((value) => choices.find((choice) => choice.key === value)?.name ?? value),
-      };
+      const values = texts.map((text): Value => {
+        const name = choices?.find((choice) => choice.key === text)?.name;
+        return name === undefined ? { shown: text } : { shown: name, key: text };
+      });
+      return { key, values };
     });
 };
 
@@ -514,6 +585,24 @@ const propertyValues = (
 const propertyName = (metamodel: Metamodel, key: string): string => {
   const defined = keyDefinition(metamodel, key);
   return defined?.kind === "property" ? defined.definition.name : key;
+};
+
+/** The snippet line of a property value: a choice found by its key shows its name, marked whole (AK2). */
+const valueLine = (value: Value, markdown: boolean, terms: ReadonlySet<string>): Line | undefined => {
+  if (markdown) {
+    return markdownLine(value.shown, terms);
+  }
+  const visible = visiblePlain(value.shown);
+  const line = lineOf(visible, terms);
+  if (
+    line !== undefined ||
+    value.key === undefined ||
+    matchesIn(visiblePlain(value.key), terms).length === 0
+  ) {
+    return line;
+  }
+  const whole = { start: 0, end: visible.text.trimEnd().length };
+  return windowOf(visible, whole, [whole]);
 };
 
 /**
@@ -525,15 +614,12 @@ export const searchSnippet = (
   hit: Pick<SearchHit, "element" | "fields" | "terms">,
 ): SearchSnippet | undefined => {
   const fields = new Set<SearchField>(hit.fields);
-  if (!fields.has("text") && !fields.has("properties")) {
+  const terms = new Set(hit.terms);
+  if (terms.size === 0 || (!fields.has("text") && !fields.has("properties"))) {
     return undefined;
   }
   const { metamodel } = index;
   let element = hit.element;
-  // The words of the identifier are the ID's (AK4): a word of them found elsewhere is no snippet.
-  const identifier = identifierValue(element, identifierKeyOf(metamodel)) ?? "";
-  const own = new Set(identifier.split(WORD_SEPARATOR).map(normalizeWord));
-  const terms = new Set(hit.terms.filter((term) => !own.has(term)));
   if (fields.has("text")) {
     // A file that no longer holds the element: its properties as the index read them.
     const now = elementNow(index.layout, hit.element);
@@ -549,7 +635,7 @@ export const searchSnippet = (
   const markdown = markdownKeysOf(metamodel);
   for (const { key, values } of propertyValues(element, metamodel)) {
     for (const value of values) {
-      const line = markdown.has(key) ? markdownLine(value, terms) : lineOf(visiblePlain(value), terms);
+      const line = valueLine(value, markdown.has(key), terms);
       if (line !== undefined) {
         return { field: "properties", property: key, propertyName: propertyName(metamodel, key), ...line };
       }

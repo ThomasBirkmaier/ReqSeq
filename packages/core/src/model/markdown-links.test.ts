@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { markdownBlocks, markdownImages, markdownLinks, markdownLinksAndMentions } from "./markdown-links.js";
+import {
+  markdownBlocks,
+  markdownDefinitions,
+  markdownImages,
+  markdownLinks,
+  markdownLinksAndMentions,
+} from "./markdown-links.js";
 
 /** The destinations found, `!` in front of images. */
 const found = (text: string): string[] =>
@@ -421,6 +427,19 @@ describe("markdownBlocks (SR-174)", () => {
       ["> ```\n>\n> x\n> ```\n", true],
       ["d\re", false],
     ]);
+  });
+
+  it("ends a fence with the block quote or list item it stands in", () => {
+    expect(blocks("> ```\n> code\n>\nAfter **it**.\n- ```\n  in item\n\n  more\nOut.\n")).toEqual([
+      ["> ```\n> code\n>\n", true],
+      ["After **it**.\n", false],
+      ["- ```\n  in item\n\n  more\n", true],
+      ["Out.\n", false],
+    ]);
+  });
+
+  it("gives the labels of the link reference definitions, not those in code or a paragraph", () => {
+    expect(markdownDefinitions("[A b]: x\n\ntext\n[c]: y\n\n```\n[d]: z\n```\n")).toEqual(["A b"]);
   });
 
   it("ends a fence that is not closed with the text", () => {

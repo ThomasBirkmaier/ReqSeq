@@ -1714,6 +1714,28 @@ describe("renderHuman: on a terminal (#988)", () => {
       ),
     );
     expect(styled).toContain(`${style("dim", "text:")} The ${style("bold", "dial")} shows wind.`);
+    // The marked words of the title strong too.
+    expect(styled).toContain(`Survive ${style("bold", "icing")}`);
+    // Cut to the width, a mark the cut ends strong up to it.
+    const long = renderHuman(
+      {
+        hits: [
+          element("a4", "Long", {
+            snippet: {
+              field: "text",
+              text: `${"word ".repeat(9)}needle${"x".repeat(40)}`,
+              marks: [{ start: 45, end: 91 }],
+            },
+          }),
+        ],
+      },
+      true,
+      terminal,
+    );
+    const line = seen(long).split("\n")[2] ?? "";
+    expect(line).toBe(`    text: ${"word ".repeat(9)}need…`);
+    expect(line.length).toBe(terminal.columns);
+    expect(long).toContain(`${style("bold", "need")}…`);
     expect(renderHuman(output)).toBe(
       lines(
         "hits:",
