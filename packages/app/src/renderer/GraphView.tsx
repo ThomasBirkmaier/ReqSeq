@@ -1,7 +1,7 @@
 // The graph buffer (SR-111, D-063): the element and what hangs on it, in layers on a white sheet. The
 // nodes, levels, edges and marks are one `trace.graph` call (ADR-0002, SR-080); the app places them
 // (`graph-layout.ts`) and draws them: HTML boxes over one SVG of soft curves, greys only, colour only for
-// "outdated" and "no evidence" (D-062). The element stands in the middle of its graph, between its
+// "outdated" (D-062). The element stands in the middle of its graph, between its
 // parents and its children, marked by its border; the view opens on it (AK1).
 // The graph is one tab stop; the selection moves inside it (`graph-nav.ts`), Enter or a click opens a
 // node as the current element (AK5), `+` and `-` show one level more or less. With evidence (AK3), a
@@ -72,7 +72,6 @@ export const GRAPH_MARKS = {
 const MARK_CLASS: Readonly<Record<keyof typeof MARK_WORDS, string>> = {
   outdated: "outdated",
   superseded: "superseded",
-  "no-evidence": "gap",
 };
 
 export const GraphView = ({

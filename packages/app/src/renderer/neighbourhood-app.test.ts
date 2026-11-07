@@ -158,7 +158,7 @@ const bridge = (
       root: "uuid-1",
       nodes: [
         { ...node(NEED, 0), level: 0, marks: [] },
-        { ...node(SPEED, 1), level: 1, marks: ["no-evidence"] },
+        { ...node(SPEED, 1), level: 1, marks: [] },
         { ...node(DIRECTION, 1), level: 1, marks: [] },
       ].map(
         ({ depth: _depth, text: _text, properties: _properties, relations: _relations, ...rest }) => rest,

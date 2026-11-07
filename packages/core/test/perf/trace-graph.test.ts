@@ -6,13 +6,16 @@
 // part of a graph of 500 nodes is recorded as well: SR-111 AK6 leaves the rest of its second to the
 // layout in the app. Most of it is the `outdated` mark: the current versions of the link targets of
 // every node (about 2,600 files for 500 nodes), read from their files while the workspace has not
-// built the versions of the whole store (no warm-up builds them).
+// built the versions of the whole store (no warm-up builds them). The workspace keeps the evidence records
+// of such a project (`withEvidenceRecords`), so each call also gives the verification status of every
+// requirement node and the degree of every need node (SR-136), from the shared status.
 import type { GeneratedWorkspace, LargeFixtureWorkspace } from "@reqseq/testkit";
 import {
   generateLargeWorkspace,
   measure,
   measureMedian,
   thresholdMessage,
+  withEvidenceRecords,
   writeLargeWorkspace,
 } from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -43,7 +46,7 @@ describe("trace.graph with 50,000 elements and 200,000 relations (SR-111, N-036)
     // Core's versions: no link is outdated, so the `outdated` mark needs the version of every target.
     const version = versionOf(await standardModel());
     tree = generateLargeWorkspace({ version, elements: ELEMENTS, relations: RELATIONS });
-    fixture = await writeLargeWorkspace(tree);
+    fixture = await writeLargeWorkspace(withEvidenceRecords(tree).workspace);
     workspace = new Workspace(fixture.workspaceRoot);
     // As a server or the app does it at start (SR-082 AK1, AK2).
     await warmWorkspace(workspace);
@@ -81,7 +84,8 @@ describe("trace.graph with 50,000 elements and 200,000 relations (SR-111, N-036)
   const firstNeed = (): string => tree.elements.find((e) => e.type === "need")?.id ?? "";
 
   it("[SR-082/AK4] gives the direct neighbours of a need over every kind within 500 ms", async () => {
-    // The incoming relation index and the short IDs are built once per store, not per call (ADR-0008).
+    // The incoming relation index, the short IDs and the shared verificationState (SR-136) are built once
+    // per store, not per call (ADR-0008): this first call pays for them, a few seconds at N-036.
     await graph({ ref: firstNeed() });
     const { result, measurement } = await measure(
       "graph: the direct neighbours of the first need, every kind (limit 500)",
@@ -90,6 +94,9 @@ describe("trace.graph with 50,000 elements and 200,000 relations (SR-111, N-036)
     );
     expect(result.nodes.length).toBeGreaterThan(1);
     expect(result.incomplete).toBe(false);
+    // The need's degree and the status of its requirements come with it (SR-136).
+    expect(result.nodes[0]?.degree?.total).toBeGreaterThan(0);
+    expect(result.nodes.some((node) => node.verification !== undefined)).toBe(true);
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
   });
 

@@ -98,7 +98,7 @@ describe("what a node shows", () => {
     expect(s1 === undefined ? "" : nodeId(s1)).toBe("S1");
     expect(pkg === undefined ? "" : nodeId(pkg)).toBe("PKG-1");
     expect(o1 === undefined ? "" : nodeLabel(o1, "System Requirement")).toBe(
-      "O1 System Requirement Title O1 superseded no evidence",
+      "O1 System Requirement Title O1 superseded",
     );
   });
 
