@@ -60,6 +60,8 @@ export interface Choice {
   readonly name: string;
   /** Shown right-aligned in muted text: the shortcut, or a count (the values of a property). */
   readonly hint?: string;
+  /** The title of an element hit, without its ID: the one whose title is the typed text comes first (#195). */
+  readonly title?: string;
   /** Lower case words of `name` to mark (element hits). */
   readonly terms?: readonly string[];
   readonly run: () => void;
@@ -433,6 +435,7 @@ export const findElements =
     return searchRows(answer.output).map((row) => ({
       id: row.open.key,
       name: idTitle(row.label, row.title),
+      title: row.title,
       terms: row.markLabel ? [...row.terms, row.label.toLowerCase()] : row.terms,
       run: () => {
         run(row);
@@ -450,7 +453,8 @@ export const findElements =
 /**
  * The prompt of Ctrl/Cmd+P (SR-115 AK1): the open buffers but the shown one, the one used last first, then
  * the elements shown last that are not open (newest first), and elements found by `element.search` for
- * the typed text. The fuzzy ranking keeps this order among equal matches. The recent elements come with
+ * the typed text; a hit whose whole title is the typed text comes first (#195). The fuzzy ranking keeps
+ * this order among equal matches. The recent elements come with
  * their names, so the prompt asks core nothing when it opens and the search is not queued behind reads.
  */
 export const jumpPrompt = (context: ActionContext): Prompt => {
