@@ -125,6 +125,32 @@ describe("local paths of an API or MCP call (SR-142)", () => {
     expect(await reasonOf(workspace, ws.path("system/out/delivery.reqif"))).toBe("outside-repositories");
     expect(await reasonOf(workspace, "dangling.xml")).toBe("outside-repositories");
     expect(await reasonOf(workspace, "product-link/N-929eca5f9cf4.md")).toBeUndefined();
+    await fs.symlink(ws.path("system/gone.xml"), ws.path("system/dangling-inside.xml"), "file");
+    expect(await reasonOf(workspace, "dangling-inside.xml")).toBe("outside-repositories");
+  });
+
+  it("refuses a link that leads out by its text, before anything follows it (#294)", async () => {
+    const ws = await fixture();
+    await fs.symlink(path.join("..", "outside"), ws.path("system/up"), "dir");
+    await fs.symlink(ws.path("outside"), ws.path("system/out"), "junction");
+    const workspace = open(ws.path("system"));
+    await workspace.get(workspaceLayoutState);
+    const calls = (["lstat", "stat", "realpath", "readdir"] as const).map((name) => vi.spyOn(fs, name));
+    expect(await reasonOf(workspace, "up/delivery.reqif")).toBe("outside-repositories");
+    expect(await reasonOf(workspace, "out/sub/new.xml")).toBe("outside-repositories");
+    const asked = calls.flatMap((spy) => spy.mock.calls.map(([p]) => String(p)));
+    expect(asked.filter((p) => p.startsWith(ws.path("outside")))).toEqual([]);
+  });
+
+  it("refuses a path whose real path lies outside after the walk, as when a link is swapped in meanwhile", async () => {
+    const ws = await fixture();
+    const workspace = open(ws.path("system"));
+    await workspace.get(workspaceLayoutState);
+    const real = fs.realpath;
+    vi.spyOn(fs, "realpath").mockImplementation(async (p, options) =>
+      String(p).endsWith(`${path.sep}requirements`) ? ws.path("outside") : real(p, options),
+    );
+    expect(await reasonOf(workspace, "requirements/new.xml")).toBe("outside-repositories");
   });
 
   it("accepts paths of a workspace opened through a link, relative and absolute in either form", async () => {

@@ -7,7 +7,7 @@ import type { ParsedFile } from "./read.js";
 import { readElementFile, readYamlFile } from "./read.js";
 import { retry } from "./retry.js";
 import type { FileSnapshot } from "./snapshot.js";
-import { isTempFile, removeCreatedFiles, writeFileAtomic } from "./write.js";
+import { createFilesAtomic, isTempFile, removeCreatedFiles, writeFileAtomic } from "./write.js";
 
 let root: string;
 
@@ -187,6 +187,28 @@ describe("writeFileAtomic: replace", () => {
   it("refuses paths outside the root", async () => {
     for (const p of ["../x.md", "", "..", "a/../../x.md", path.join(root, "a.md")]) {
       await expect(writeFileAtomic(root, p, "x", null)).rejects.toMatchObject({ code: "input.invalid" });
+    }
+  });
+
+  it("judges a folder link by its text before anything follows it (#294)", async () => {
+    const outside = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-outside-")));
+    try {
+      await fs.mkdir(path.join(outside, "deep"));
+      await fs.symlink(path.join("..", path.basename(outside)), abs("up"), "dir");
+      const calls = (["lstat", "stat", "realpath", "readFile", "open", "readdir"] as const).map((name) =>
+        vi.spyOn(fs, name),
+      );
+      await expect(writeFileAtomic(root, "up/deep/n.md", A, null)).rejects.toMatchObject({
+        code: "input.invalid",
+      });
+      await expect(createFilesAtomic(root, [{ path: "up/deep/n.md", content: A }])).rejects.toMatchObject({
+        code: "input.invalid",
+      });
+      const asked = calls.flatMap((spy) => spy.mock.calls.map(([p]) => p as string));
+      expect(asked.filter((p) => p.startsWith(outside))).toEqual([]);
+      expect(await fs.readdir(path.join(outside, "deep"))).toEqual([]);
+    } finally {
+      await fs.rm(outside, { recursive: true, force: true });
     }
   });
 

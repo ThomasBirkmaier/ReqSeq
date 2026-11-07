@@ -71,7 +71,7 @@ Status: Accepted · Based on: D-022, D-030, D-032, D-033, D-045, D-056, D-057, D
 
 ### Paths
 
-- An embedded object (`<xhtml:object data>`, SR-095 AK2) must be a relative path without scheme that resolves, real path included, below the folder of the ReqIF file (later: inside the `.reqifz`), for every access. Through API and MCP it must also lie inside the repositories, checked by the path check of the command context (SR-142). Otherwise it is a loss `image-outside`; a missing file is a loss `image-missing`. Images are copied through `files` like an image pasted in the app.
+- An embedded object (`<xhtml:object data>`, SR-095 AK2) must be a relative path without scheme that resolves, real path included, below the folder of the ReqIF file (later: inside the `.reqifz`), for every access; it is judged by its text and by the text of each link on its way before any link is followed (#294, ADR-0007). Through API and MCP it must also lie inside the repositories, checked by the path check of the command context (SR-142). Otherwise it is a loss `image-outside`; a missing file is a loss `image-missing`. Images are copied through `files` like an image pasted in the app.
 - Mapping files are written only inside the mapping folder (`mappings` of the workspace file, default `reqif` in the main repository; SR-054 AK1), for every access. That covers `reqif.saveMapping`, the saved one-to-one mapping and `omit-properties` of the export. A target outside it is `input.invalid`. A mapping may be read from any path the access allows.
 
 ### Tests

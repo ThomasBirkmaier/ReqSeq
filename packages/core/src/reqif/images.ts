@@ -3,7 +3,8 @@
 // the app (`element.addAttachment`, SR-097: `attachmentStem`, `IMAGE_EXTENSIONS`).
 //
 // - `data` must be a relative path without scheme (percent-encoded as a URI reference) that
-//   resolves, real path included, below the folder of the ReqIF file. Through API and MCP it must
+//   resolves, real path included, below the folder of the ReqIF file; by its text and each link on
+//   its way before any link is followed (`linksStayInside`, #294). Through API and MCP it must
 //   also lie inside the repositories (the call's `localPaths`, SR-142). Otherwise it is
 //   `image-outside`. A path that is not there, no regular file (a folder, a FIFO: opened without
 //   waiting), a file larger than `IMAGE_LIMIT_BYTES` or no image type is `image-missing`.
@@ -18,6 +19,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import type { LocalPaths } from "../catalog.js";
 import { CommandError } from "../catalog.js";
+import { linksStayInside } from "../files/index.js";
 import { IMAGE_EXTENSIONS, attachmentStem, clashKey } from "../model/index.js";
 import type { XhtmlImage } from "./xhtml-markdown.js";
 import { IMAGE_TYPE_EXTENSIONS } from "./xhtml-markdown.js";
@@ -168,18 +170,20 @@ export const imageReader = (reqifFile: string, localPaths: LocalPaths): ImageRea
       return outside(data, "is no relative path");
     }
     const absolute = path.resolve(folder, relative);
-    let real: string;
-    try {
-      real = await fs.realpath(absolute);
-    } catch {
-      return below(folder, absolute)
-        ? missing(data, "is not next to the ReqIF file")
-        : outside(data, "is not below the folder of the ReqIF file");
-    }
-    realFolder ??= fs.realpath(folder);
-    if (!below(await realFolder, real)) {
+    // By its text, then each link on the way, before `realpath` follows any (#294).
+    if (!below(folder, absolute)) {
       return outside(data, "is not below the folder of the ReqIF file");
     }
+    let real: string;
+    try {
+      if (!(await linksStayInside(folder, absolute))) {
+        return outside(data, "is not below the folder of the ReqIF file");
+      }
+      real = await fs.realpath(absolute);
+    } catch {
+      return missing(data, "is not next to the ReqIF file");
+    }
+    realFolder ??= fs.realpath(folder);
     try {
       await localPaths.check([{ field: `file (image ${data})`, path: real }]);
     } catch (error) {

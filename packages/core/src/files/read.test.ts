@@ -326,6 +326,25 @@ describe("YAML warnings, links and aborting", () => {
     }
   });
 
+  it("judges a folder link by its text before anything follows it (#294)", async () => {
+    const outside = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-outside-")));
+    onTestFinished(() => fs.rm(outside, { recursive: true, force: true }));
+    await fs.mkdir(path.join(outside, "deep"));
+    await fs.writeFile(path.join(outside, "deep", "a.md"), good("a"));
+    await fs.symlink(path.join("..", path.basename(outside)), path.join(root, "up"), "dir");
+    await fs.symlink(outside, path.join(root, "abs"), "junction");
+    const calls = (["lstat", "stat", "realpath", "readFile", "open", "readdir"] as const).map((name) =>
+      vi.spyOn(fs, name),
+    );
+    for (const file of ["up/deep/a.md", "abs/deep/a.md"]) {
+      expect(problemOf(await readElementFile(root, file)).message).toMatch(/outside the workspace/);
+      expect((await readFileSnapshot(root, file)).kind).toBe("problem");
+      expect((await readJsonlSnapshot(root, file)).kind).toBe("problem");
+    }
+    const asked = calls.flatMap((spy) => spy.mock.calls.map(([p]) => p as string));
+    expect(asked.filter((p) => p.startsWith(outside))).toEqual([]);
+  });
+
   it("reads through a folder linked inside the root", async () => {
     await put("real/a.md", good("a"));
     await fs.symlink(path.join(root, "real"), path.join(root, "alias"), "junction");

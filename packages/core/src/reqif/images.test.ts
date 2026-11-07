@@ -89,6 +89,17 @@ describe("imageReader (SR-095 AK2)", () => {
     ];
     const results = await Promise.all(data.map(async (d) => kindOf(await read({ data: d }))));
     expect(results).toEqual(data.map(() => "image-outside"));
+    // #294: judged by its text and each link's text before `realpath` follows anything.
+    await fs.symlink("..", path.join(root, "in", "up"), "dir");
+    const calls = (["lstat", "stat", "realpath", "open"] as const).map((name) => vi.spyOn(fs, name));
+    for (const d of ["up/outside.png", "../../../../net/host/x.png"]) {
+      expect(kindOf(await read({ data: d })), d).toBe("image-outside");
+    }
+    const asked = calls.flatMap((spy) => spy.mock.calls.map(([p]) => String(p)));
+    expect(asked.filter((p) => p.includes("outside.png") || p.includes(`${path.sep}net${path.sep}`))).toEqual(
+      [],
+    );
+    vi.restoreAllMocks();
     expect(await read({ data: "gone.png" })).toEqual({
       kind: "image-missing",
       reason: "the image gone.png is not next to the ReqIF file",

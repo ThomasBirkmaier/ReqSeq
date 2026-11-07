@@ -21,7 +21,8 @@ import path from "node:path";
 import { CommandError } from "../catalog.js";
 import { parseFileBytes, parseYamlFileBytes } from "./parse.js";
 import { readJsonlFile } from "./jsonl-data.js";
-import { errorCode, folderInsideRoot, replaceErrorCode, resolveInRoot } from "./paths.js";
+import { linksStayInside } from "./links.js";
+import { errorCode, replaceErrorCode, resolveInRoot } from "./paths.js";
 import { retry, TRANSIENT_CODES } from "./retry.js";
 import type { FileSnapshot } from "./snapshot.js";
 import { makeSnapshot, sha256 } from "./snapshot.js";
@@ -339,7 +340,7 @@ export const writeFileAtomic = async (
   const chunks = chunksOf(content);
   const temp = tempPathFor(absolute);
   try {
-    if (!(await folderInsideRoot(root, absolute))) {
+    if (!(await linksStayInside(root, path.dirname(absolute)))) {
       throw new CommandError(
         "input.invalid",
         `Not written: the folder of ${file} is linked outside the workspace`,
@@ -432,7 +433,7 @@ export const createFilesAtomic = async <T extends NewFile>(
     for (const given of files) {
       const { absolute, file } = resolveInRoot(root, given.path);
       current = file;
-      if (!(await folderInsideRoot(root, absolute))) {
+      if (!(await linksStayInside(root, path.dirname(absolute)))) {
         throw new CommandError(
           "input.invalid",
           `Not written: the folder of ${file} is linked outside the workspace`,

@@ -4,6 +4,7 @@
 // `isTempFile` and the JSON text functions the adapters stream with (`src/index.ts`).
 export { findConflictMarker } from "./conflict-markers.js";
 export { createFolder } from "./folder.js";
+export { linksStayInside } from "./links.js";
 export { errorCode, resolveInRoot } from "./paths.js";
 export { TRANSIENT_CODES } from "./retry.js";
 export { splitFrontmatter } from "./frontmatter.js";
