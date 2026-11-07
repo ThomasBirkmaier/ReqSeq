@@ -118,6 +118,26 @@ test.describe("Alt+N and Alt+P switch buffers", () => {
     expect(window.url()).toBe(page);
   });
 
+  test("[SR-163/AK3] on macOS Cmd+[ and Cmd+] switch buffers as the mouse buttons Back and Forward do, also from the editor", async () => {
+    const { window } = running;
+    const mac = process.platform === "darwin";
+    await listAll(window);
+    await goTo(window, ELEMENT);
+    const name = await shownBuffer(window).getAttribute("aria-label");
+    await window.keyboard.press("Meta+BracketLeft");
+    await expect(shownBuffer(window)).toHaveAttribute("aria-label", mac ? "All elements" : (name ?? ""));
+    if (!mac) {
+      return;
+    }
+    await window.keyboard.press("Meta+BracketRight");
+    await expect(shownBuffer(window)).toHaveAttribute("aria-label", name ?? "");
+    await window.keyboard.press("Enter");
+    await expect(window.locator(".cm-content")).toBeFocused();
+    await window.keyboard.press("Meta+BracketLeft");
+    await expect(shownBuffer(window)).toHaveAttribute("aria-label", "All elements");
+    await expect(shownBuffer(window)).toBeFocused();
+  });
+
   test("Enter right after Alt+P, before the element is loaded, edits its text (#467)", async () => {
     const { window } = running;
     await listAll(window);
