@@ -5,9 +5,11 @@ import {
   PORT_EVENTS,
   MAX_ROOT_LENGTH,
   MAX_CHANGED_IDS,
+  MAX_FOLDER_ENTRIES,
   coreMessage,
   coreRequest,
   externalChange,
+  folderListing,
   isBridgeEvent,
   openWorkspaceResult,
   portMessage,
@@ -265,6 +267,52 @@ describe("portMessage: what the core process sends a window", () => {
       { id: 1, result: "ok" },
     ]) {
       expect(portMessage(value)).toBeUndefined();
+    }
+  });
+});
+
+describe("main's listing of a typed folder (SR-143)", () => {
+  it("folderListing keeps only the fields of a listing, and refuses any other shape", () => {
+    const refused = { name: "", entries: [], problem: "invalid" };
+    expect(folderListing({ name: "", entries: [], problem: "missing", folder: "/g", x: 1 })).toEqual({
+      name: "",
+      entries: [],
+      problem: "missing",
+      folder: "/g",
+    });
+    expect(
+      folderListing({
+        name: "a",
+        entries: [
+          { name: "a", kind: "link", size: 3 },
+          { name: "b", kind: "file" },
+        ],
+        truncated: true,
+      }),
+    ).toEqual({
+      name: "a",
+      entries: [
+        { name: "a", kind: "link" },
+        { name: "b", kind: "file" },
+      ],
+      truncated: true,
+    });
+    for (const value of [
+      null,
+      "x",
+      { entries: [] },
+      { name: "", entries: "x" },
+      { name: "", entries: [{ name: "", kind: "file" }] },
+      { name: "", entries: [{ name: "a", kind: "device" }] },
+      { name: "", entries: [3] },
+      { name: "", entries: [], folder: 3 },
+      { name: "", entries: [], problem: "gone" },
+      {
+        name: "",
+        entries: Array.from({ length: MAX_FOLDER_ENTRIES + 1 }, () => ({ name: "a", kind: "file" })),
+      },
+    ]) {
+      expect(folderListing(value)).toEqual(refused);
     }
   });
 });

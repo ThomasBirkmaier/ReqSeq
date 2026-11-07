@@ -253,7 +253,7 @@ export type Commit = string;
 export type RelativePath = string;
 
 /**
- * A file or folder on the local machine, relative or absolute. CLI: relative to the current folder (the CLI makes it absolute before the call); API and MCP: relative to the workspace root, and only inside the repositories of the workspace, also after links are followed; `~` is not expanded (SR-142, ADR-0009).
+ * A file or folder on the local machine, relative or absolute. CLI: relative to the current folder (the CLI makes it absolute before the call); API and MCP: relative to the workspace root, and only inside the repositories of the workspace, also after links are followed; `~` is not expanded (SR-142, ADR-0009). App: like API and MCP relative to the workspace root, any path, and `~` at the start stands for the home folder (SR-143).
  * Schema: `schemas/common.schema.json#/$defs/localPath`.
  */
 export type LocalPath = string;
@@ -1760,7 +1760,7 @@ export interface WorkspaceRecentOutput {
 }
 
 /**
- * Input of `workspace.listFolder` as `run` gets it: validated, properties with a `default` filled in. The folders and links, and on request the files, in the folder of a typed path: the text up to its last separator (`/`, and `\` on Windows) names the folder, the rest is the typed name. A relative path is resolved from the workspace root on every access, also on the command line; with `absolute` the path must be absolute, and `~` stands for the home folder. The path is checked by its text first: a UNC, device or NT path, a path on the current drive, a Windows device name, NUL or more than 4096 characters gives `invalid` without any file-system call. Through the API and the MCP server the folder must lie inside the repositories of the workspace (SR-142). Only the entries of the folder are read: no link is resolved, so a link is listed by its name. Known limit: where the file system gives no entry type with the names (NFS without readdirplus, some FUSE file systems, XFS without ftype), each entry is looked at once with lstat, never through a link, and outside the 1 s bound.
+ * Input of `workspace.listFolder` as `run` gets it: validated, properties with a `default` filled in. The folders and links, and on request the files, in the folder of a typed path: the text up to its last separator (`/`, and `\` on Windows) names the folder, the rest is the typed name. A relative path is resolved from the workspace root on every access, also on the command line; `~` stands for the home folder as in the path arguments of the access (in the app; the command line and API and MCP take it as an ordinary name), and with `absolute` on every access, where the path must then be absolute. The path is checked by its text first: a UNC, device or NT path, a path on the current drive, a Windows device name, NUL or more than 4096 characters gives `invalid` without any file-system call. Through the API and the MCP server the folder must lie inside the repositories of the workspace (SR-142). Only the entries of the folder are read: no link is resolved, so a link is listed by its name. Known limit: where the file system gives no entry type with the names (NFS without readdirplus, some FUSE file systems, XFS without ftype), each entry is looked at once with lstat, never through a link, and outside the 1 s bound.
  * Schema: `schemas/commands/workspace.listFolder.json input`.
  */
 export interface WorkspaceListFolderInput {
@@ -1768,12 +1768,12 @@ export interface WorkspaceListFolderInput {
   readonly path: string;
   /** Also list the files (for an argument that takes a file); folders and links are always listed. */
   readonly files: boolean;
-  /** Take only an absolute path, with `~` and `~/…` for the home folder ("Open workspace", SR-131); without it `~` is an ordinary name, as the commands resolve a path argument. */
+  /** Take only an absolute path, with `~` and `~/…` for the home folder on every access ("Open workspace", SR-131); without it the path is resolved as the commands of the access resolve a path argument: `~` is the home folder in the app only. */
   readonly absolute: boolean;
 }
 
 /**
- * Output of `workspace.listFolder`. The folders and links, and on request the files, in the folder of a typed path: the text up to its last separator (`/`, and `\` on Windows) names the folder, the rest is the typed name. A relative path is resolved from the workspace root on every access, also on the command line; with `absolute` the path must be absolute, and `~` stands for the home folder. The path is checked by its text first: a UNC, device or NT path, a path on the current drive, a Windows device name, NUL or more than 4096 characters gives `invalid` without any file-system call. Through the API and the MCP server the folder must lie inside the repositories of the workspace (SR-142). Only the entries of the folder are read: no link is resolved, so a link is listed by its name. Known limit: where the file system gives no entry type with the names (NFS without readdirplus, some FUSE file systems, XFS without ftype), each entry is looked at once with lstat, never through a link, and outside the 1 s bound.
+ * Output of `workspace.listFolder`. The folders and links, and on request the files, in the folder of a typed path: the text up to its last separator (`/`, and `\` on Windows) names the folder, the rest is the typed name. A relative path is resolved from the workspace root on every access, also on the command line; `~` stands for the home folder as in the path arguments of the access (in the app; the command line and API and MCP take it as an ordinary name), and with `absolute` on every access, where the path must then be absolute. The path is checked by its text first: a UNC, device or NT path, a path on the current drive, a Windows device name, NUL or more than 4096 characters gives `invalid` without any file-system call. Through the API and the MCP server the folder must lie inside the repositories of the workspace (SR-142). Only the entries of the folder are read: no link is resolved, so a link is listed by its name. Known limit: where the file system gives no entry type with the names (NFS without readdirplus, some FUSE file systems, XFS without ftype), each entry is looked at once with lstat, never through a link, and outside the 1 s bound.
  * Schema: `schemas/commands/workspace.listFolder.json output`.
  */
 export interface WorkspaceListFolderOutput {

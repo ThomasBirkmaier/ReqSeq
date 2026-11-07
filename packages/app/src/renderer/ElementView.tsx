@@ -32,6 +32,7 @@
 // (`OnDisk.tsx`).
 import { Prec } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+import type { Command } from "@codemirror/view";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Autosave } from "./autosave.js";
 import { createAutosave } from "./autosave.js";
@@ -1440,6 +1441,29 @@ export const ElementView = ({
       });
     }
   };
+  // A text action of the command prompt (`text-actions.ts`): the command edits the field with the cursor, or the
+  // one it was in last: a Markdown box, else the text. The title is plain text and takes none.
+  const textCommand = (command: Command, none: string): void => {
+    const { handle: text, onEcho: echo } = now.current;
+    const label = cursorField(document.activeElement, lastField.current);
+    const markdownBox = label !== undefined && now.current.boxes.get(label)?.info.markdown === true;
+    const editor =
+      label === undefined || label === "Text"
+        ? text
+        : markdownBox
+          ? boxEditors.current.get(label)
+          : undefined;
+    const note = lockedNote();
+    if (note !== undefined) {
+      echo(note);
+    } else if (label === TITLE_FIELD || (editor === undefined && label !== undefined && label !== "Text")) {
+      echo(none);
+    } else if (editor === undefined) {
+      echo("The text is not ready yet: try again in a moment");
+    } else if (!editor.run(command)) {
+      echo(none);
+    }
+  };
   // "Clear property" (SR-104 AK4): the box with the cursor, or the one it was in last, is emptied; it stays,
   // empty, until it is saved, and the property is removed from the file then.
   const clearProperty = (): void => {
@@ -1681,6 +1705,7 @@ export const ElementView = ({
     addProperty,
     clearProperty,
     insertImage,
+    textCommand,
     relationFollowed,
     isRelationBox,
     resolve,
@@ -1696,6 +1721,7 @@ export const ElementView = ({
     addProperty,
     clearProperty,
     insertImage,
+    textCommand,
     relationFollowed,
     isRelationBox,
     resolve,
@@ -1758,6 +1784,9 @@ export const ElementView = ({
       },
       insertImage: () => {
         api.current.insertImage();
+      },
+      text: (command, none) => {
+        api.current.textCommand(command, none);
       },
       follow: () => {
         // A focused target link, in a relation box or a relation group: that target (SR-132: the link

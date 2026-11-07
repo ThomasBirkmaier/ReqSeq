@@ -1,4 +1,6 @@
 import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandContext } from "../catalog.js";
@@ -117,9 +119,12 @@ const echo = defineTestCommand<EchoInput, unknown>({
 
 // Records each run and whether the context takes a path outside the repositories.
 const pathRuns: { open: boolean }[] = [];
+// The inputs the command got, after `invoke` took them in (the app's `~`, SR-143).
+const pathInputs: unknown[] = [];
 const paths = defineTestCommand<{ readonly file?: string }, unknown>({
   name: "test.paths",
-  run: async (ctx) => {
+  run: async (ctx, input) => {
+    pathInputs.push({ input, home: ctx.localPaths.home });
     const open = await ctx.localPaths.check([{ field: "derived", path: "/" }]).then(
       () => true,
       () => false,
@@ -394,5 +399,29 @@ describe("local paths by access (SR-142)", () => {
       });
     }
     expect(pathRuns.slice(2)).toEqual([{ open: true }, { open: true }, { open: true }]);
+  });
+
+  it("takes ~ at the start of a local path for the home folder only in the app (SR-143)", async () => {
+    vi.stubEnv("HOME", "/home/someone");
+    vi.stubEnv("USERPROFILE", "/home/someone");
+    onTestFinished(() => {
+      vi.unstubAllEnvs();
+    });
+    const rt = runtime({ commands: [paths] });
+    const input = { file: "~/out.reqif", files: ["~", "a~/b", "~x/c"] };
+    pathInputs.length = 0;
+    for (const access of ["app", "cli"] as const) {
+      await rt.invoke("test.paths", input, { workspace, access });
+    }
+    const home = os.homedir();
+    expect(pathInputs).toEqual([
+      {
+        input: { file: path.join(home, "out.reqif"), files: [home, "a~/b", "~x/c"] },
+        home,
+      },
+      { input, home: undefined },
+    ]);
+    // The caller's object stays as it was.
+    expect(input.file).toBe("~/out.reqif");
   });
 });

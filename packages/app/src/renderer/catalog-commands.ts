@@ -56,6 +56,8 @@ import { bufferName, elementBufferOf, resultBuffer } from "./buffers.js";
 import type { PropertyAnswer, RequiredProperty } from "./create-element.js";
 import { CREATE_COMMAND, creatableTypes, createdEcho, propertiesInput } from "./create-element.js";
 import { idTitle } from "./id-title.js";
+import { isWindows } from "./keys.js";
+import { pathSeeker } from "./path-completion.js";
 import { choiceItems } from "./property-edit.js";
 import type { Row } from "./rows.js";
 import { selectionInView, viewName, viewsOf } from "./views.js";
@@ -145,7 +147,9 @@ type Offer =
       /** The value is a relation target `{ id, repository }` (a relation property's value), not a reference. */
       readonly target?: true;
     }
-  | { readonly kind: "text"; readonly parse: (text: string) => unknown };
+  | { readonly kind: "text"; readonly parse: (text: string) => unknown }
+  /** A path typed and completed from the file system (SR-143 AK2): folders, and files too with `files`. */
+  | { readonly kind: "path"; readonly files: boolean };
 
 /** What the loop needs besides the actions' context. */
 export interface CatalogContext extends ActionContext {
@@ -386,9 +390,9 @@ const OFFERS: Readonly<Record<Source, (asked: Asked) => Promise<Offer | Failed>>
   number: typed(numberOr),
   json: typed(jsonOr),
   text: asText,
-  // Typed as text until the prompt completes paths from `workspace.listFolder` (SR-143).
-  folder: asText,
-  file: asText,
+  // A path, completed with the entries `workspace.listFolder` gives for the typed text (SR-143 AK2).
+  folder: () => Promise.resolve({ kind: "path", files: false }),
+  file: () => Promise.resolve({ kind: "path", files: true }),
   // Never asked: the shown list's selection (`inputOf`).
   selection: asText,
   // The sources of the write commands (SR-108 AK4): the values the metamodel allows, each from one read
@@ -1142,6 +1146,11 @@ const ask = (context: CatalogContext, entry: Entry, arg: Argument, at: number): 
           ),
         };
       }
+      if (offer.kind === "path") {
+        return pathFill(context, offer.files, (text, more) => {
+          give(context, entry, field, text, text, more);
+        });
+      }
       return {
         text: (text) => {
           give(context, entry, field, offer.parse(text), text, false);
@@ -1153,6 +1162,46 @@ const ask = (context: CatalogContext, entry: Entry, arg: Argument, at: number): 
     }),
   });
 };
+
+/**
+ * The parts of a path argument (SR-143 AK2): the typed text itself first, "Use <path>", so Enter takes a
+ * path that names nothing yet (a new export file, AK4), then the entries of its folder, which complete
+ * it; relative from the workspace root, `~` for the home folder (core's rule of the app, as the command
+ * then resolves it).
+ */
+const pathFill = (
+  context: ActionContext,
+  files: boolean,
+  take: (text: string, more: boolean) => void,
+): PromptFill => ({
+  literal: (text) =>
+    text.trim() === ""
+      ? undefined
+      : {
+          id: `use:${text}`,
+          name: `Use ${text}`,
+          hint: files ? "file" : "folder",
+          run: () => {
+            take(text, false);
+          },
+          more: () => {
+            take(text, true);
+          },
+        },
+  seek: pathSeeker({
+    windows: isWindows(navigator.platform),
+    list: async (path) => {
+      const answer = await context.call("workspace.listFolder", { path, files });
+      return answer.ok ? answer.output : { failed: answer.message };
+    },
+  }),
+  text: (text) => {
+    take(text, false);
+  },
+  more: (text) => {
+    take(text, true);
+  },
+});
 
 /** The prompt of the optional arguments: "Run" first, then each one not given yet. */
 const moreArguments = (context: CatalogContext, entry: Entry): Prompt => {

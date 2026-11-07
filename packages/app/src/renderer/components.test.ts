@@ -3,6 +3,7 @@
 // run in packages/app needs it too (ThomasBirkmaier/ReqSeq-archive#460, ThomasBirkmaier/ReqSeq-archive#573).
 import "../../../../scripts/test-support/dom-selection.mjs";
 import type { DataExportElement } from "@reqseq/core";
+import { toggleTask } from "./editor/tasks.js";
 import { Fragment, act, createElement, useLayoutEffect, useReducer } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
@@ -343,6 +344,76 @@ describe("Minibuffer", () => {
     await mount({ label: "Workspace", items: [station], literal });
     await type(input(), "stat");
     expect(texts('[role="option"] .name')).toEqual(["/req/station"]);
+  });
+
+  it("shows what seek finds alone or with its own items, its note in the label, and a completing choice keeps the prompt open", async () => {
+    const station = choice("w1", "/req/station");
+    const run = vi.fn();
+    const seek = vi.fn((text: string) =>
+      Promise.resolve(
+        text.startsWith("/")
+          ? {
+              choices: [
+                choice("e1", "requirements/", { complete: "/req/requirements/", marks: [[0, 1]], run }),
+              ],
+              alone: true,
+            }
+          : text === "gone"
+            ? { choices: [], note: "/gone is missing" }
+            : { choices: [] },
+      ),
+    );
+    const { closed } = await mount({ label: "Workspace", items: [station], seek });
+    await type(input(), "/req/r");
+    expect(texts('[role="option"] .name')).toEqual(["requirements/"]);
+    expect(texts("mark")).toEqual(["r"]);
+    await press(input(), "Enter");
+    expect(input().value).toBe("/req/requirements/");
+    expect(closed).not.toHaveBeenCalled();
+    expect(run).not.toHaveBeenCalled();
+    expect(seek).toHaveBeenLastCalledWith("/req/requirements/");
+    // By a click too.
+    await act(async () => {
+      query('[role="option"]').dispatchEvent(
+        new MouseEvent("mousedown", { bubbles: true, cancelable: true }),
+      );
+      await Promise.resolve();
+    });
+    await flush();
+    expect(input().value).toBe("/req/requirements/");
+    // Other text: the prompt's own items, and the note while it holds.
+    await type(input(), "stat");
+    expect(texts('[role="option"] .name')).toEqual(["/req/station"]);
+    expect(texts("label.prompt-label")).toEqual(["Workspace"]);
+    await type(input(), "gone");
+    expect(texts("label.prompt-label")).toEqual(["/gone is missing · Workspace"]);
+    await type(input(), "");
+    expect(texts("label.prompt-label")).toEqual(["Workspace"]);
+  });
+
+  it("never selects or chooses a row that only informs", async () => {
+    const more = choice("more", "… 3 more", { inert: true });
+    const entry = choice("e1", "a/", { complete: "/a/" });
+    const { closed } = await mount({
+      label: "Workspace",
+      items: [],
+      seek: () => Promise.resolve({ choices: [entry, more], alone: true }),
+    });
+    await type(input(), "/");
+    await press(input(), "ArrowDown");
+    await press(input(), "ArrowDown");
+    expect(container.querySelector('[aria-selected="true"] .name')?.textContent).toBe("a/");
+    expect(query('[aria-disabled="true"] .name').textContent).toBe("… 3 more");
+    await act(async () => {
+      query('[aria-disabled="true"]').dispatchEvent(
+        new MouseEvent("mousedown", { bubbles: true, cancelable: true }),
+      );
+      await Promise.resolve();
+    });
+    await flush();
+    expect(input().value).toBe("/");
+    expect(closed).not.toHaveBeenCalled();
+    expect(more.run).not.toHaveBeenCalled();
   });
 
   describe("argument entry of catalog commands (ThomasBirkmaier/ReqSeq-archive#85)", () => {
@@ -4215,6 +4286,28 @@ describe("ElementView", () => {
         controls().follow();
       });
       expect(opened).toEqual([[TARGET, undefined]]);
+    });
+
+    it("[SR-185/AK3] a text action runs its command on the text at the cursor, or says why not", async () => {
+      const tasks = fakeCall({
+        "element.get": () => ({ element: read({ text: "- [ ] one\n\nplain" }) }),
+      });
+      const { controls, echoed } = await mount(asCall(tasks));
+      act(() => {
+        editorView().dispatch({ selection: { anchor: 3 } });
+      });
+      act(() => {
+        controls().text?.(toggleTask, "No task on this line");
+      });
+      expect(editorView().state.doc.toString()).toBe("- [x] one\n\nplain");
+      expect(editorView().hasFocus).toBe(true);
+      act(() => {
+        editorView().dispatch({ selection: { anchor: editorView().state.doc.length } });
+      });
+      act(() => {
+        controls().text?.(toggleTask, "No task on this line");
+      });
+      expect(echoed.at(-1)).toBe("No task on this line");
     });
 
     it("Ctrl+Enter on the buffer itself is left to the shortcut", async () => {

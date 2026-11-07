@@ -15,6 +15,7 @@ describe("preload entry", () => {
       "commands",
       "copyText",
       "invoke",
+      "listFolder",
       "on",
       "onSave",
       "openWorkspace",
