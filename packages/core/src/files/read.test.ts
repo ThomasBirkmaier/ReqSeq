@@ -342,7 +342,16 @@ describe("YAML warnings, links and aborting", () => {
       expect((await readJsonlSnapshot(root, file)).kind).toBe("problem");
     }
     const asked = calls.flatMap((spy) => spy.mock.calls.map(([p]) => p as string));
-    expect(asked.filter((p) => p.startsWith(outside))).toEqual([]);
+    // Neither the target nor a path spelled through the links (which would follow them).
+    const below = [outside, path.join(root, "up"), path.join(root, "abs")].map((p) => p + path.sep);
+    expect(asked.filter((p) => below.some((b) => p.startsWith(b)))).toEqual([]);
+    // A link whose text ends in `..` above the root, as the file's folder.
+    await fs.writeFile(path.join(root, "..", `${path.basename(root)}-secret.md`), good("s"));
+    onTestFinished(() => fs.rm(path.join(root, "..", `${path.basename(root)}-secret.md`), { force: true }));
+    await fs.symlink("..", path.join(root, "parent"), "dir");
+    expect(problemOf(await readElementFile(root, `parent/${path.basename(root)}-secret.md`)).message).toMatch(
+      /outside the workspace/,
+    );
   });
 
   it("reads through a folder linked inside the root", async () => {

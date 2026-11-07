@@ -139,7 +139,9 @@ describe("local paths of an API or MCP call (SR-142)", () => {
     expect(await reasonOf(workspace, "up/delivery.reqif")).toBe("outside-repositories");
     expect(await reasonOf(workspace, "out/sub/new.xml")).toBe("outside-repositories");
     const asked = calls.flatMap((spy) => spy.mock.calls.map(([p]) => String(p)));
-    expect(asked.filter((p) => p.startsWith(ws.path("outside")))).toEqual([]);
+    // Neither the target nor a path spelled through the links (which would follow them).
+    const below = [ws.path("outside"), ws.path("system/up"), ws.path("system/out")].map((p) => p + path.sep);
+    expect(asked.filter((p) => below.some((b) => p.startsWith(b)))).toEqual([]);
   });
 
   it("refuses a path whose real path lies outside after the walk, as when a link is swapped in meanwhile", async () => {

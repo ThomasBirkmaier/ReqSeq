@@ -109,26 +109,28 @@ const namedFolders = async (
 };
 
 /**
- * Where the walk goes on after a link in the folder `done` whose text is `text`: the folder to
- * stand in and the names to walk from it, or undefined when the text leaves at once.
+ * Where the walk goes on after a link in the folder `done` (below `base`) whose text is `text`:
+ * the folder to stand in (another drive's, for a link into a folder there) and the names to walk
+ * from it, or undefined when the text leaves at once.
  */
 const afterLink = async (
   text: string,
+  base: string,
   done: readonly string[],
   platform: NodeJS.Platform,
   named: () => Promise<readonly Named[]>,
-): Promise<{ readonly folder: readonly string[]; readonly names: readonly string[] } | undefined> => {
+): Promise<{ readonly folder: Split; readonly names: readonly string[] } | undefined> => {
   if (platform === "win32" && unsafeOnWindows(text)) {
     return undefined;
   }
   if (!(platform === "win32" ? /^[A-Za-z]:[\\/]/u.test(text) : path.isAbsolute(text))) {
-    return { folder: done, names: namesOf(text, platform) };
+    return { folder: { base, names: done }, names: namesOf(text, platform) };
   }
   const target = split(text, platform);
   const match = (await named()).find(({ as }) => within(as, target.base, target.names));
   return match === undefined
     ? undefined
-    : { folder: match.folder.names, names: target.names.slice(match.as.names.length) };
+    : { folder: match.folder, names: target.names.slice(match.as.names.length) };
 };
 
 /**
@@ -148,7 +150,7 @@ export const linksStayInside = async (
   const given = [start, ...(options.alsoInside ?? []).map((folder) => split(folder, platform))];
   // An absolute link text may also name a folder by its real path, looked up only for one.
   let named: Promise<readonly Named[]> | undefined;
-  const { base } = start;
+  let { base } = start;
   let done = [...start.names];
   let rest = namesOf(path.relative(root, absolute), platform);
   let links = 0;
@@ -180,12 +182,14 @@ export const linksStayInside = async (
     const went =
       links > MAX_LINKS
         ? undefined
-        : await afterLink(text, done, platform, () => (named ??= namedFolders(given, platform)));
+        : await afterLink(text, base, done, platform, () => (named ??= namedFolders(given, platform)));
     if (went === undefined) {
       return false;
     }
-    done = [...went.folder];
+    ({ base } = went.folder);
+    done = [...went.folder.names];
     rest = [...went.names, ...rest];
   }
-  return true;
+  // A path may end with a `..` that left every folder (`a -> ..`), so the end is judged too.
+  return given.some((folder) => within(folder, base, done));
 };

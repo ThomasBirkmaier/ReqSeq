@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import type { ParsedFile } from "./read.js";
 import { readElementFile, readYamlFile } from "./read.js";
 import { retry } from "./retry.js";
@@ -205,7 +205,17 @@ describe("writeFileAtomic: replace", () => {
         code: "input.invalid",
       });
       const asked = calls.flatMap((spy) => spy.mock.calls.map(([p]) => p as string));
-      expect(asked.filter((p) => p.startsWith(outside))).toEqual([]);
+      // Neither the target nor a path spelled through the link (which would follow it).
+      const below = [outside, abs("up")].map((p) => p + path.sep);
+      expect(asked.filter((p) => below.some((b) => p.startsWith(b)))).toEqual([]);
+      // A link whose text ends in `..` above the root, as the file's folder.
+      await fs.symlink("..", abs("parent"), "dir");
+      const above = `${path.basename(root)}-n.md`;
+      onTestFinished(() => fs.rm(path.join(root, "..", above), { force: true }));
+      await expect(writeFileAtomic(root, `parent/${above}`, A, null)).rejects.toMatchObject({
+        code: "input.invalid",
+      });
+      await expect(fs.lstat(path.join(root, "..", above))).rejects.toMatchObject({ code: "ENOENT" });
       expect(await fs.readdir(path.join(outside, "deep"))).toEqual([]);
     } finally {
       await fs.rm(outside, { recursive: true, force: true });

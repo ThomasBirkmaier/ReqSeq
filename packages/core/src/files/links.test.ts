@@ -59,7 +59,9 @@ describe("linksStayInside", () => {
     expect(await stays(abs("a/b/up/x.md"))).toBe(false);
     expect(await stays(abs("img.png"))).toBe(false);
     const asked = [...lstat.mock.calls, ...realpath.mock.calls].map(([p]) => String(p));
-    expect(asked.filter((p) => p.startsWith(outside))).toEqual([]);
+    // Neither the target nor a path spelled through the links (which would follow them).
+    const below = [outside, abs("a/away"), abs("a/b/up")].map((p) => p + path.sep);
+    expect(asked.filter((p) => below.some((b) => p.startsWith(b)))).toEqual([]);
   });
 
   it("refuses `..` above the root and more links than MAX_LINKS", async () => {
@@ -67,6 +69,11 @@ describe("linksStayInside", () => {
     expect(await stays(abs("a/parent/x"))).toBe(false);
     await fs.symlink(Array.from({ length: 64 }, () => "..").join(path.sep), abs("a/top"), "dir");
     expect(await stays(abs("a/top/x"))).toBe(false);
+    // A link whose text ends in `..` above the root, as the folder of a file read or written.
+    await fs.symlink("..", abs("up"), "dir");
+    await fs.symlink("..", abs("a/b/back"), "dir");
+    expect(await stays(abs("up"))).toBe(false);
+    expect(await stays(abs("a/b/back"))).toBe(true);
     for (let i = 0; i <= MAX_LINKS; i++) {
       await fs.symlink(`l${String(i + 1)}`, abs(`l${String(i)}`), "dir");
     }
