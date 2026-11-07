@@ -1,7 +1,7 @@
 ---
 id: 127c8da8-dbe4-429c-aaf0-d67bc18d6ff0
 type: system-requirement
-status: draft
+status: approved
 title: Auswahl per Befehl formatieren
 spec-id: SR-186
 requirement-type: functional

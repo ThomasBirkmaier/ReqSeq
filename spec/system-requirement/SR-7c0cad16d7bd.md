@@ -1,7 +1,7 @@
 ---
 id: 74a090ad-aaf5-44a8-a0d5-7c0cad16d7bd
 type: system-requirement
-status: draft
+status: approved
 title: Beim Einfügen Markdown erzeugen
 spec-id: SR-190
 requirement-type: functional
