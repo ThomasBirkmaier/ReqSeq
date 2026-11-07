@@ -22,6 +22,9 @@
   --line: 1.6rem;
   --modeline: calc(var(--line) + 0.5rem);
   --titlebar: 38px;
+  /* Calm typography (SR-192 AK3): code in a face of fixed width, all other text, tables included, in the
+     proportional face of the root. */
+  --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
   color: var(--text);
   background: var(--sheet);
   font:
@@ -379,7 +382,8 @@ mark {
   color: var(--muted);
 }
 
-/* The element: a centred column. */
+/* The element: a centred column of at most 72 characters (SR-192 AK1); a narrower window gives it its full
+   width, less a small margin, and the text wraps (AK2). */
 .element {
   padding: 2rem 0.75rem 4rem;
 }
@@ -1347,7 +1351,7 @@ mark {
 
 .mm-key {
   color: var(--muted);
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-family: var(--mono);
   font-size: 12px;
 }
 

@@ -125,7 +125,9 @@ const theme = EditorView.theme({
   "&": { color: "var(--text)", backgroundColor: "transparent" },
   "&.cm-focused": { outline: "none" },
   ".cm-scroller": { fontFamily: "inherit", lineHeight: "1.6", overflow: "visible" },
-  ".cm-content": { padding: "0", caretColor: "var(--text)" },
+  // The text is never wider than its column (SR-192 AK2): the content (which shrinks, `lineWrapping`) may
+  // become narrower than the widest table, which then scrolls in its own box.
+  ".cm-content": { padding: "0", caretColor: "var(--text)", minWidth: "0" },
   ".cm-line": { padding: "0" },
   "&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground": {
     backgroundColor: "var(--in-field, var(--select))",
@@ -139,7 +141,7 @@ const theme = EditorView.theme({
   ".cm-lr-strong": { fontWeight: "700" },
   ".cm-lr-strike": { textDecoration: "line-through" },
   ".cm-lr-code": {
-    fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+    fontFamily: "var(--mono)",
     fontSize: "0.92em",
     backgroundColor: "var(--in-field, var(--select))",
   },
@@ -152,19 +154,31 @@ const theme = EditorView.theme({
   ".cm-lr-bullet, .cm-lr-task": { display: "inline-block", width: "1.1em", color: "var(--muted)" },
   ".cm-lr-quote": { borderLeft: "3px solid var(--rule)", paddingLeft: "0.75rem", color: "var(--muted)" },
   ".cm-lr-codeblock": {
-    fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+    fontFamily: "var(--mono)",
     fontSize: "0.92em",
     backgroundColor: "var(--in-field, var(--select))",
     padding: "0 0.5rem",
   },
   ".cm-lr-fence-hidden": { fontSize: "0.4em", lineHeight: "1", minHeight: "0.4em" },
   ".cm-lr-hr": { borderBottom: "1px solid var(--rule)", lineHeight: "0.8" },
-  ".cm-lr-table-source": {
-    fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
-    fontSize: "0.92em",
+  // A table is text, in the proportional face also while its source shows (SR-192 AK3). One wider than the
+  // column scrolls by itself, the text around it wraps (AK2).
+  ".cm-lr-table": {
+    display: "block",
+    maxWidth: "100%",
+    overflowX: "auto",
+    borderCollapse: "collapse",
+    margin: "0.5rem 0",
   },
-  ".cm-lr-table": { borderCollapse: "collapse", margin: "0.5rem 0" },
-  ".cm-lr-table th, .cm-lr-table td": { border: "1px solid var(--rule)", padding: "0.2rem 0.6rem" },
+  // A cell breaks between words only: the editor's `word-break: break-word` would split every word into
+  // letters before the table scrolls.
+  ".cm-lr-table th, .cm-lr-table td": {
+    border: "1px solid var(--rule)",
+    padding: "0.2rem 0.6rem",
+    overflowWrap: "normal",
+    wordBreak: "normal",
+    whiteSpace: "normal",
+  },
   ".cm-lr-table th": { fontWeight: "700", textAlign: "left" },
   // Formulas (SR-096, `formula-preview.ts`): KaTeX draws in the text colour; an error is grey (D-062).
   ".cm-lr-formula-block": { padding: "0.25rem 0", overflowX: "auto", overflowY: "hidden" },
