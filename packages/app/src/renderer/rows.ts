@@ -67,6 +67,7 @@ export const rowOf = (
   depth: number,
   terms: readonly string[],
   markLabel: boolean,
+  found: Pick<Row, "titleMarks" | "snippet"> = { titleMarks: [] },
 ): Row => {
   const label = element.identifier ?? element.shortId;
   return {
@@ -78,7 +79,8 @@ export const rowOf = (
     depth,
     terms,
     markLabel,
-    titleMarks: [],
+    titleMarks: found.titleMarks,
+    ...(found.snippet === undefined ? {} : { snippet: found.snippet }),
   };
 };
 
@@ -87,11 +89,12 @@ export const listRows = (output: ElementListOutput): Row[] =>
   (output.elements ?? []).map((element, at) => rowOf(element, output.tree?.[at]?.depth ?? 0, [], false));
 
 export const searchRows = (output: ElementSearchOutput): Row[] =>
-  output.hits.map((hit) => ({
-    ...rowOf(hit, 0, hit.terms, hit.fields.includes("id")),
-    titleMarks: ranges(hit.titleMarks),
-    ...(hit.snippet === undefined ? {} : { snippet: snippetOf(hit.snippet) }),
-  }));
+  output.hits.map((hit) =>
+    rowOf(hit, 0, hit.terms, hit.fields.includes("id"), {
+      titleMarks: ranges(hit.titleMarks),
+      ...(hit.snippet === undefined ? {} : { snippet: snippetOf(hit.snippet) }),
+    }),
+  );
 
 /**
  * The id of the selected row for `aria-activedescendant` (`<prefix>-<cursor>`); none while no row is

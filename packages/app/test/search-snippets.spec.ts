@@ -39,13 +39,19 @@ const searched = async (running: RunningApp, query: string): Promise<readonly Hi
   return (JSON.parse(result.stdout) as { hits: Hit[] }).hits;
 };
 
-const search = async (window: Page, query: string): Promise<void> => {
+/**
+ * Searches `query` in the app and gives the hits `element search` gives for it; returns once the app shows
+ * as many rows (a new search starts empty, SR-122).
+ */
+const search = async (running: RunningApp, query: string): Promise<readonly Hit[]> => {
+  const { window } = running;
+  const hits = await searched(running, query);
   await window.keyboard.press("ControlOrMeta+Shift+F");
   await window.keyboard.type(query);
   await window.keyboard.press("Enter");
   await expect(window.getByRole("listbox")).toHaveAttribute("aria-label", `Search: ${query}`);
-  // A new search starts empty (SR-122): its rows are read once they are there. Every query here has hits.
-  await expect(window.locator(".row").first()).toBeVisible();
+  await expect(window.locator(".row")).toHaveCount(hits.length);
+  return hits;
 };
 
 /** What each row shows: its title, its marked words, and the snippet line with its marked words. */
@@ -105,8 +111,7 @@ test.describe("the place of a search hit", () => {
 
   test("[SR-174/AK1] a hit in the text says text and shows the snippet of its visible text, marked; the keys still open it", async () => {
     const { window } = running;
-    await search(window, "gusts pulse");
-    const hits = await searched(running, "gusts pulse");
+    const hits = await search(running, "gusts pulse");
     expect(hits.map((hit) => hit.snippet?.field)).toEqual(["text"]);
     expect(await shown(window)).toEqual(expected(hits));
     expect(await shown(window)).toMatchObject([
@@ -133,37 +138,60 @@ test.describe("the place of a search hit", () => {
     await expect(window.locator("article h1")).toHaveText("Measure the wind");
   });
 
+  test("[SR-174/AK1] a match deep in a snippet longer than the column stays in view: the words before it are left out", async () => {
+    const { window } = running;
+    const [hit] = await search(running, "squall");
+    const full = hit?.snippet?.text ?? "";
+    expect(full.length).toBeGreaterThan(100);
+    expect(hit?.snippet?.marks[0]?.start).toBeGreaterThan(90);
+    const snippet = window.locator(".row .snippet");
+    await expect(snippet.locator("mark")).toHaveText("squall");
+    const { line, mark } = await snippet.evaluate((element) => ({
+      line: element.getBoundingClientRect().right,
+      mark: element.querySelector("mark")?.getBoundingClientRect().right ?? Number.POSITIVE_INFINITY,
+    }));
+    expect(mark).toBeLessThanOrEqual(line + 0.5);
+    // Shown from a word start with "…", the rest of core's line unchanged; the whole line is its tooltip.
+    const text = (await snippet.textContent()) ?? "";
+    expect(text).toMatch(/^text: …\S/);
+    expect(full.endsWith(text.slice("text: …".length))).toBe(true);
+    expect(text.length).toBeLessThan(`text: ${full}`.length);
+    await expect(snippet).toHaveAttribute("title", `text: ${full}`);
+    await shot(window, "search-snippets-long");
+    // The option is named by ID, title and status; the snippet describes it.
+    await expect(
+      window.getByRole("option", { name: "SR-204 Log the station draft" }),
+    ).toHaveAccessibleDescription(`text: ${text.slice("text: ".length)}`);
+  });
+
   test("[SR-174/AK2] a hit only in a property names the property and shows the snippet of the value with the match", async () => {
     const { window } = running;
-    await search(window, "hurricane");
-    const hits = await searched(running, "hurricane");
+    const hits = await search(running, "hurricane");
     expect(await shown(window)).toEqual(expected(hits));
     expect(await shown(window)).toMatchObject([
       { snippet: "Checks: The dial warns before a hurricane arrives.", snippetMarks: ["hurricane"] },
     ]);
     // A Markdown text property: its visible words, before the list in metamodel order.
-    await search(window, "hail");
-    expect(await shown(window)).toEqual(expected(await searched(running, "hail")));
+    const hail = await search(running, "hail");
+    expect(await shown(window)).toEqual(expected(hail));
     expect(await shown(window)).toMatchObject([{ snippet: "Notes: A hail sensor beside the dial." }]);
     await shot(window, "search-snippets-property");
   });
 
   test("[SR-174/AK4] a hit only in the title or an ID shows no snippet, and the title is marked", async () => {
     const { window } = running;
-    await search(window, "icing");
-    const hits = await searched(running, "icing");
+    const hits = await search(running, "icing");
     expect(await shown(window)).toEqual(expected(hits));
     expect(await shown(window)).toMatchObject([
       { title: "Survive icing", titleMarks: ["icing"], snippet: undefined },
     ]);
-    await search(window, "SR-203");
+    await search(running, "SR-203");
     expect(await window.locator(".row .snippet").count()).toBe(0);
     await expect(window.locator(".row .id mark")).toHaveText("SR-203");
 
     // The screenshot for the pull request: a hit in the title only above a hit in the text.
-    await search(window, "wind");
-    await expect(window.locator(".row .snippet").first()).toBeVisible();
-    expect(await shown(window)).toEqual(expected(await searched(running, "wind")));
+    const wind = await search(running, "wind");
+    expect(await shown(window)).toEqual(expected(wind));
     await shot(window, "search-snippets");
   });
 });

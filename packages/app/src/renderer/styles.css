@@ -271,10 +271,10 @@ body,
   white-space: nowrap;
 }
 
-/* The snippet of a search hit (SR-174): one line under the title, where it was found muted in front, the
-   matched words in a heavier weight as in the title (`mark`), meaning and no colour. */
+/* The snippet of a search hit (SR-174): one line under the row, across its whole width, where it was found
+   muted in front, the matched words in a heavier weight as in the title (`mark`), meaning and no colour. */
 .row .snippet {
-  grid-column: 2 / -1;
+  grid-column: 1 / -1;
   overflow: hidden;
   font-size: 13px;
   text-overflow: ellipsis;

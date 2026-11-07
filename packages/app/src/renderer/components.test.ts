@@ -2571,6 +2571,15 @@ describe("ListView, a search", () => {
     await listHarness(asCall(call), searchBuffer("hurricane"));
     expect(texts(".row .snippet")).toEqual(["Checks: The dial warns before a hurricane arrives."]);
     expect(texts(".row .snippet mark")).toEqual(["hurricane"]);
+    // The option is named by ID, title and status; the snippet describes it, and is its tooltip.
+    const option = query('[role="option"]');
+    const named = (option.getAttribute("aria-labelledby") ?? "")
+      .split(" ")
+      .map((id) => document.getElementById(id));
+    expect(named.map((part) => part?.className)).toEqual(["id", "title", "status"]);
+    const described = document.getElementById(option.getAttribute("aria-describedby") ?? "");
+    expect(described?.className).toBe("snippet");
+    expect(described?.getAttribute("title")).toBe("Checks: The dial warns before a hurricane arrives.");
   });
 
   it("[SR-174/AK4] shows no snippet for a hit in the title or an ID only, and marks the title where core says", async () => {
@@ -2582,7 +2591,8 @@ describe("ListView, a search", () => {
             terms: ["icing"],
             titleMarks: [{ start: 8, end: 13 }],
           }),
-          hit(4, { title: "Icing alarm", fields: ["id"], terms: [], identifier: "SR-4" }),
+          // A term that begins a word of the title, but core marks nothing there: nothing is marked.
+          hit(4, { title: "Icing alarm", fields: ["id"], terms: ["icing"], identifier: "SR-4" }),
         ],
         total: 2,
         incomplete: false,

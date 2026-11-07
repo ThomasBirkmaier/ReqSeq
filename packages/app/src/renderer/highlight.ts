@@ -23,6 +23,28 @@ export const highlightRanges = (text: string, ranges: readonly (readonly [number
   return parts;
 };
 
+/**
+ * `text` without its words more than `keep` characters before the first range, cut at the start of a word
+ * and led by "…", the ranges moved with it: a line too narrow for the whole text still shows its first
+ * marked part. Only display: the text and the ranges are the ones given, nothing is matched again. As it is
+ * when there is no range or nothing before it to cut.
+ */
+export const trimLead = (
+  text: string,
+  ranges: readonly (readonly [number, number])[],
+  keep: number,
+): { readonly text: string; readonly ranges: readonly (readonly [number, number])[] } => {
+  const first = ranges[0]?.[0] ?? 0;
+  if (first - keep <= 1) {
+    return { text, ranges };
+  }
+  // The first word that begins within `keep` characters of the range, or the range itself.
+  const space = text.indexOf(" ", first - keep - 1);
+  const cut = space < 0 || space >= first ? first : space + 1;
+  const shift = cut - 1;
+  return { text: `…${text.slice(cut)}`, ranges: ranges.map(([start, end]) => [start - shift, end - shift]) };
+};
+
 const isWordChar = (char: string | undefined): boolean => char !== undefined && /[\p{L}\p{N}]/u.test(char);
 
 /**
