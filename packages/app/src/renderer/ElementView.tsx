@@ -1403,7 +1403,13 @@ export const ElementView = ({
   const textCommand = (command: Command, none: string): void => {
     const { handle: text, onEcho: echo } = now.current;
     const label = cursorField(document.activeElement, lastField.current);
-    const editor = label === undefined || label === "Text" ? text : boxEditors.current.get(label);
+    const markdownBox = label !== undefined && now.current.boxes.get(label)?.info.markdown === true;
+    const editor =
+      label === undefined || label === "Text"
+        ? text
+        : markdownBox
+          ? boxEditors.current.get(label)
+          : undefined;
     const note = lockedNote();
     if (note !== undefined) {
       echo(note);
