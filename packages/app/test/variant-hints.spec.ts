@@ -22,6 +22,7 @@ const execFileAsync = promisify(execFile);
 interface Hint {
   readonly code: string;
   readonly message: string;
+  readonly targetShortId?: string;
   readonly storedVersion?: string;
   readonly currentVersion?: string;
 }
@@ -150,9 +151,9 @@ test.describe("the hint at a replacement when its core requirement changed (SR-0
     await expect(names(window).first()).toHaveText("SR-0000b1 Response time at most 20 ms");
     await window.keyboard.press("Enter");
     await expect(label(window)).toHaveText("Confirm hints SR-0000b1 · hintIds:");
-    // The hint is offered by its message.
+    // The hint is offered by its target, then its message (#293).
     const [hint] = await elementHints(running, "SR-0000b1", [CORE_CHANGED]);
-    await expect(names(window).first()).toHaveText(hint?.message ?? "-");
+    await expect(names(window).first()).toHaveText(`${hint?.targetShortId ?? "-"} · ${hint?.message ?? "-"}`);
     await window.keyboard.press("Enter");
     await window.keyboard.press("Enter");
     await expect(window.locator(".result")).toContainText("confirmed");
