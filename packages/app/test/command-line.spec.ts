@@ -149,6 +149,10 @@ test.describe("the command prompt", () => {
     await expect(names(window).first()).toHaveText("SR-b0000000001 Show wind speed");
     await window.keyboard.press("Enter");
     await expect(label).toHaveText("Confirm hints SR-b0000000001 · hintIds:");
+    // A hint is named by its target first, and a long one wraps instead of scrolling the card sideways (#293).
+    await expect(names(window).first()).toHaveText(/^D-[0-9a-f]+ · .* points to an older version of /);
+    const card = window.locator(".candidates");
+    expect(await card.evaluate((list) => list.scrollWidth <= list.clientWidth)).toBe(true);
     await window.keyboard.press("Enter");
     await expect(window.locator(".modeline")).toContainText("Confirm hints SR-b0000000001");
     await expect(window.locator(".result")).toContainText("confirmed");

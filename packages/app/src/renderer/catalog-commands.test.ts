@@ -2006,6 +2006,29 @@ describe("the arguments a command expects, completed with the values of the meta
     (await last(gone.asked)).items[0]?.run();
     expect((await last(gone.asked)).label).toBe("No such element · Remove relation SR-1 · kind:");
   });
+
+  it("names a hint by its target first, where the hints of one element differ (#293)", async () => {
+    const outdated = (target: string, hintId: string) => ({
+      code: "relation.outdated",
+      severity: "warning",
+      message: `Refines of Requirement SR-1 points to an older version of Requirement ${target}`,
+      targetShortId: target,
+      hintId,
+    });
+    const { context, asked } = setup([shown], {
+      "hint.list": () => ({
+        hints: [outdated("SR-2", "h2"), outdated("SR-3", "h3"), HINTS.hints[0]],
+        incomplete: false,
+      }),
+    });
+    start(context, "hint.confirm");
+    (await last(asked)).items[0]?.run();
+    expect((await last(asked)).items.map((i) => i.name)).toEqual([
+      "SR-2 · Refines of Requirement SR-1 points to an older version of Requirement SR-2",
+      "SR-3 · Refines of Requirement SR-1 points to an older version of Requirement SR-3",
+      "Relation Refines is outdated",
+    ]);
+  });
 });
 
 describe("a view the window shows (SR-043 AK1)", () => {
