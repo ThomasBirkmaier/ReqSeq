@@ -97,10 +97,17 @@ const style = (window: Page, selector: string, property: string): Promise<string
     [selector, property] as const,
   );
 
-/** The list of all elements is shown, and the prompt that opened it has left. */
+/**
+ * Longer than a card that comes after one that closed counts as taking its place and stands at once
+ * (`TAKES_PLACE_MS` in Minibuffer.tsx).
+ */
+const APART_MS = 400;
+
+/** The list of all elements is shown, and the prompt that opened it is long gone. */
 const listed = async (window: Page): Promise<void> => {
   await listAll(window);
   await expect(window.locator(".card-leaving")).toHaveCount(0);
+  await window.waitForTimeout(APART_MS);
 };
 
 /** No animation of the card's parts runs any more. */
@@ -204,6 +211,7 @@ test.describe("the card of the command line in motion", () => {
       // Halfway: the card on its way up, the dim and the blur half there.
       await window.keyboard.press("Escape");
       await settled(window);
+      await window.waitForTimeout(APART_MS);
       await window.keyboard.press("ControlOrMeta+Shift+P");
       await window.evaluate(async () => {
         const halfway = (): boolean => {
@@ -247,12 +255,14 @@ test.describe("the card of the command line in motion", () => {
     await record(window);
     // Elements (Go to), then commands over it, then other hits.
     await window.keyboard.press("ControlOrMeta+P");
+    await expect(window.locator('.candidates [role="option"]').first()).toBeVisible();
+    await settled(window);
     await window.keyboard.type("wind");
     await expect(window.locator('.candidates [role="option"]').first()).toBeVisible();
     await settled(window);
-    // Go to may drop its card for a moment between a key and its hits; it rose once, then stands.
+    // Go to drops its card for a moment between a key and its hits: the card of the hits stands.
     const shown = (await rises(window)).length;
-    expect(shown).toBeGreaterThanOrEqual(1);
+    expect(shown).toBe(1);
     await window.keyboard.press("ControlOrMeta+Shift+P");
     await expect(window.locator("label.prompt-label")).not.toHaveText("Go to");
     await expect(window.locator('.candidates [role="option"]').first()).toBeVisible();
@@ -272,6 +282,7 @@ test.describe("the card of the command line in motion", () => {
     // Closed, it rises again the next time.
     await window.keyboard.press("Escape");
     await settled(window);
+    await window.waitForTimeout(APART_MS);
     await commands(window);
     await settled(window);
     expect(await rises(window)).toHaveLength(shown + 1);
