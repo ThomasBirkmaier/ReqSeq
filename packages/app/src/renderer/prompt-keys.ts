@@ -17,6 +17,10 @@ export const PROMPT_KEYS: readonly KeyRow[] = [
     keys: [{ shortcut: MORE_SHORTCUT }],
     does: "Take the answer, then offer the optional arguments of the command",
   },
+  {
+    keys: [{ press: press("Enter") }, { press: { ...press("Enter"), shiftKey: true } }],
+    does: "In “Find in element”: the next or the previous hit, the prompt stays open; in “Replace … with”: replace the current hit and go to the next, or go to the next without replacing",
+  },
   { keys: [{ press: press("Backspace") }], does: "In an empty input: back one argument" },
   { keys: [{ press: press("Escape") }], does: "Close the prompt" },
 ];

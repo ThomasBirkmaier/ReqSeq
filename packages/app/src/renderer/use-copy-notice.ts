@@ -6,7 +6,12 @@ import { NOTICE_MS, copyNotice } from "./copy.js";
 
 export const useCopyNotice = (
   bridge: ReqSeqBridge,
-): { readonly notice: string; readonly copy: (label: string, text: string) => void } => {
+): {
+  readonly notice: string;
+  readonly copy: (label: string, text: string) => void;
+  /** Says `text` in the modeline for a few seconds, like a copy (the hits of "Find in element", SR-189). */
+  readonly notify: (text: string) => void;
+} => {
   // The serial restarts the time of a copy that follows another.
   const [notice, setNotice] = useState({ serial: 0, text: "" });
   useEffect(() => {
@@ -28,5 +33,8 @@ export const useCopyNotice = (
     },
     [bridge],
   );
-  return { notice: notice.text, copy };
+  const notify = useCallback((text: string): void => {
+    setNotice((now) => ({ serial: now.serial + 1, text }));
+  }, []);
+  return { notice: notice.text, copy, notify };
 };

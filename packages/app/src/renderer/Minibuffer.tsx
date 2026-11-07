@@ -165,7 +165,7 @@ const PromptLine = ({
   readonly prompt: Prompt;
   readonly onClose: (cancelled: boolean) => void;
 }): React.JSX.Element => {
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(given.initial ?? "");
   // The selection while none is chosen: the first row, or none at all while the hits only preview (SR-183).
   const none = given.preview === true ? -1 : 0;
   const [selected, setSelected] = useState(none);
@@ -200,7 +200,7 @@ const PromptLine = ({
   // The text typed last, and whether it is still to be searched (typed while `find` was loading). The
   // effect that searches it once the parts are there reads these, not its render's `query`: a key that
   // comes between that render and its effect would be taken back (ThomasBirkmaier/ReqSeq-archive#757).
-  const typed = useRef("");
+  const typed = useRef(given.initial ?? "");
   // The question whose answer an Enter on stale hits took: the prompt closes in a later render, and a key
   // that comes before it must not take that answer again (#419).
   const taken = useRef(0);
@@ -333,6 +333,7 @@ const PromptLine = ({
 
   const change = (value: string): void => {
     setQuery(value);
+    prompt.typing?.(value);
     setSelected(none);
     typed.current = value;
     // Typing after Enter cancels it, while the answer is awaited (SR-119) and while the parts load.
@@ -498,7 +499,12 @@ const PromptLine = ({
     switch (event.key) {
       case "Enter":
         event.preventDefault();
-        enter();
+        if (prompt.step === undefined) {
+          enter();
+        } else {
+          // The prompt stays open: Enter and Shift+Enter step through what the text found (SR-189 AK1).
+          prompt.step(query, event.shiftKey);
+        }
         break;
       case "Escape":
         event.preventDefault();

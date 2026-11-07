@@ -46,6 +46,7 @@ import {
 } from "./graph-choices.js";
 import { cycleKey } from "./buffer-cycle.js";
 import { TEXT_ACTIONS } from "./text-actions.js";
+import { FIND_ACTIONS } from "./find-actions.js";
 import { searchRows } from "./rows.js";
 import type { Range, Row, Snippet } from "./rows.js";
 import type { Theme } from "./theme.js";
@@ -107,6 +108,15 @@ export interface Prompt {
    * comes first, so Enter takes it, and Down reaches the others.
    */
   readonly literal?: (query: string) => Choice | undefined;
+  /** The text typed so far, on every change of it (the search of "Find in element" marks its hits, SR-189 AK1). */
+  readonly typing?: (text: string) => void;
+  /**
+   * Enter (`back` false) and Shift+Enter (`back` true) act on the typed text and the prompt stays open, until
+   * Escape (the hits of "Find in element", SR-189 AK1). It takes the place of `text`.
+   */
+  readonly step?: (text: string, back: boolean) => void;
+  /** The text the input starts with (the search of the last "Find in element" for "Replace"). */
+  readonly initial?: string;
   /** Escape ends the prompt without an answer (not called when a choice is run, nor when text is entered). */
   readonly cancel?: () => void;
   /** Backspace in an empty input: one argument back (catalog commands). */
@@ -137,6 +147,16 @@ export interface Found {
 export type PromptFill = Partial<
   Pick<Prompt, "label" | "items" | "find" | "seek" | "text" | "more" | "literal">
 >;
+
+/** How `ElementControls.text` runs its command. */
+export interface TextOptions {
+  /** The field gets the focus afterwards (default); false: it stays where it is (the minibuffer of "Find in element", SR-189). */
+  readonly focus?: boolean;
+  /** On the text of the element, whichever field had the cursor (find and replace search the text, SR-189). */
+  readonly inText?: boolean;
+  /** The command changes no text, only marks and the caret: it runs also where the element takes no input. */
+  readonly read?: boolean;
+}
 
 /** What the shown element buffer lets the app do with its text (SR-065). */
 export interface ElementControls {
@@ -178,7 +198,7 @@ export interface ElementControls {
    * Runs an editing command at the cursor of the text and gives the text the focus, or says `none` when it does
    * not apply there, or why the element cannot be changed (the text actions, `text-actions.ts`).
    */
-  readonly text?: (command: Command, none: string) => void;
+  readonly text?: (command: Command, none: string, options?: TextOptions) => void;
   /** The shown element is a package: its page lists the elements that name it, and "Sort list" sorts them (SR-112). */
   readonly members?: boolean;
   /**
@@ -237,6 +257,8 @@ export interface ActionContext {
   readonly echo: (message: string) => void;
   /** Puts `text` on the clipboard, and the modeline confirms it with `label` (SR-128 AK2). */
   readonly copy?: (label: string, text: string) => void;
+  /** Says `text` in the modeline for a few seconds (the status of find and replace, SR-189 AK3). Absent: the minibuffer says it. */
+  readonly notify?: (text: string) => void;
   /**
    * The elements shown last in this workspace, newest first, as buffers (`recent.ts`, SR-118; their names
    * as the overview read them or as they were shown), read when "Go to" opens: it offers those that are
@@ -1009,6 +1031,8 @@ export const ACTIONS: readonly Action[] = [
   },
   // The actions that edit the text at its cursor (D-073), each in its module (`text-actions.ts`).
   ...TEXT_ACTIONS,
+  // Find and replace in the text (SR-189, `find-actions.ts`).
+  ...FIND_ACTIONS,
   {
     id: "version",
     title: "Show element ID and version",
