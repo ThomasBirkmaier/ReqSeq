@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ACTIONS, commandPrompt } from "./actions.js";
 import type { ActionContext, Prompt } from "./actions.js";
 import type { Buffers, ListBuffer, SearchBuffer } from "./buffers.js";
-import { bufferName, filteredList, listBuffer, searchBuffer } from "./buffers.js";
+import { bufferName, filteredList, listBuffer, listHeading, searchBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
 import { propertyStep, savedStep, statusStep, textStep, typeStep } from "./list-filters.js";
 
@@ -247,6 +247,9 @@ describe("filters and groups on the hits of a search (SR-124 AK4, SR-149 AK6)", 
       selection: { where: { all: [{ text: "wind" }, { status: ["draft"] }] } },
     });
     expect(bufferName(shownSearch(context))).toBe("Search: wind · status: draft");
+    expect(
+      listHeading(searchBuffer("wind", [{ ...typeStep("need"), heading: "Need" }, statusStep("draft")])),
+    ).toBe("Search: wind · Need · status: draft");
   });
 
   it("[SR-149/AK6] groups and ungroups the search; it offers no sort, and clearing a filter keeps the grouping", async () => {

@@ -121,7 +121,7 @@ const everyKind = (): Buffer[] => [
 const names = fakeCall({ "element.list": listing(row(1), row(2), row(3, "other")) });
 
 describe("buffer session (SR-115 AK4)", () => {
-  it("[SR-124/AK4] keeps the filter steps of a search across a restart, not its grouping (SR-149 AK5)", async () => {
+  it("[SR-115/AK4] keeps the filter steps of a search across a restart, not its grouping", async () => {
     const steps = [step("status: draft", { status: ["draft"] })];
     const storage = memory();
     saveSession(

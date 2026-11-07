@@ -6,7 +6,7 @@
 //
 // Stored is what rebuilds each buffer, in the order of use: the kind, the UUID and repository of an
 // element, the kept parts of a list's query (`keptQuery`: steps and sort) and its mode, the text of a
-// search with its steps (as a list keeps them, not the grouping: SR-149 AK5), the input of a graph, the mode of the metamodel, the command and input of a result. Never an
+// search with its steps (as a list keeps them, not the grouping), the input of a graph, the mode of the metamodel, the command and input of a result. Never an
 // element's title or text, no output and no selected row. The names of the elements are read again when
 // the workspace opens, with one `element.list`; an element that is gone is left out, as the overview
 // leaves it out of its recent list. A result is run again when it is shown, and only when the catalog
