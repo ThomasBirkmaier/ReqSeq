@@ -802,6 +802,38 @@ describe("Minibuffer", () => {
     expect(closed).toHaveBeenCalledTimes(2);
   });
 
+  it("[SR-134/AK3] ends the prompt on a press of a mouse button outside it, in any step, and lets the press go on", async () => {
+    const cancel = vi.fn();
+    const items = [choice("a", "One")];
+    const closed = vi.fn();
+    await mount({ label: "Command", items, cancel }, closed);
+    const mouseDown = (target: Element, button = 0): MouseEvent => {
+      const event = new MouseEvent("mousedown", { bubbles: true, cancelable: true, button });
+      act(() => {
+        target.dispatchEvent(event);
+      });
+      return event;
+    };
+    mouseDown(input());
+    mouseDown(query(".prompt-label"));
+    mouseDown(query(".card"));
+    expect(closed).not.toHaveBeenCalled();
+    const outside = document.createElement("p");
+    const pressed = vi.fn();
+    outside.addEventListener("mousedown", pressed);
+    document.body.append(outside);
+    mouseDown(outside, 3);
+    mouseDown(outside, 4);
+    expect(closed).not.toHaveBeenCalled();
+    const event = mouseDown(outside, 2);
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(closed).toHaveBeenCalledWith(true);
+    expect(pressed).toHaveBeenCalledTimes(3);
+    expect(event.defaultPrevented).toBe(false);
+    expect(items[0]?.run).not.toHaveBeenCalled();
+    outside.remove();
+  });
+
   it("[SR-129/AK3] tells the prompt that Escape cancelled it, before it closes", async () => {
     const order: string[] = [];
     const cancel = vi.fn(() => order.push("cancel"));
