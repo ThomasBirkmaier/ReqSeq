@@ -23,6 +23,7 @@ import { CommandError } from "../catalog.js";
 import { linksStayInside } from "../files/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "./layout.js";
+import { unsafeOnWindows } from "./path-text.js";
 
 /** The rule of the command line and the app: every path is accepted. */
 export const OPEN_LOCAL_PATHS: LocalPaths = { check: () => Promise.resolve() };
@@ -46,9 +47,6 @@ export interface LocalPathOptions {
   /** Whose file name rules apply; default `process.platform` (tests). */
   readonly platform?: NodeJS.Platform;
 }
-
-/** Names Windows opens as devices, also with an extension (`nul.txt`). */
-const DEVICE_NAME = /^(?:con|prn|aux|nul|conin\$|conout\$|com[0-9¹²³]|lpt[0-9¹²³])(?:\..*)?$/iu;
 
 /** Whether `file` is `folder` or below it; both in the same spelling. */
 const contains = (folder: string, file: string): boolean =>
@@ -74,12 +72,6 @@ const rootsOf = async (workspace: Workspace): Promise<readonly Root[]> => {
     }
   }
   return roots;
-};
-
-/** A name Windows does not open as written: trailing dots and spaces dropped, a stream, a device. */
-const unsafeOnWindows = (name: string): boolean => {
-  const trimmed = name.replace(/[. ]+$/u, "");
-  return trimmed === "" || name.includes(":") || DEVICE_NAME.test(trimmed);
 };
 
 /** The names of `absolute` below its file system root. */

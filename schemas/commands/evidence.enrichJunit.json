@@ -8,12 +8,12 @@
   "stage": 4,
   "implements": ["SR-029", "SR-063"],
   "arguments": [
-    { "field": "file", "complete": "text" },
+    { "field": "file", "complete": "file" },
     { "field": "item", "complete": "text" },
     { "field": "date", "complete": "text" },
     { "field": "variant", "complete": "element" },
     { "field": "namePattern", "complete": "text" },
-    { "field": "output", "complete": "text" }
+    { "field": "output", "complete": "file" }
   ],
   "input": {
     "type": "object",

@@ -17,6 +17,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import type { RecentWorkspacesFile } from "../generated/types.js";
 import type { CacheEnvironment } from "./cache.js";
 import { canonicalRoot, lockCacheFile, osCacheFolder, readCacheFile, writeCacheFile } from "./cache.js";
+import { MAX_PATH_LENGTH, isPathText, localFolder, pathsOf } from "./path-text.js";
 import { WORKSPACE_FILE } from "./workspace-file.js";
 
 /** The file in `<OS cache>/reqseq/`. */
@@ -29,7 +30,7 @@ export const RECENT_WORKSPACES_KEEP = 20;
 export const RECENT_WORKSPACES_MAX_BYTES = 64 * 1024;
 
 /** The longest root the list holds, in characters (as the app's main process accepts one). */
-export const MAX_ROOT_LENGTH = 4096;
+export const MAX_ROOT_LENGTH = MAX_PATH_LENGTH;
 
 /** An existence check that has no answer this long after it was asked counts as missing (`"timeout"`). */
 export const EXISTS_TIMEOUT_MS = 1_000;
@@ -76,9 +77,6 @@ export interface ExistenceOptions {
   readonly slots?: number;
 }
 
-const pathsOf = (platform: NodeJS.Platform): path.PlatformPath =>
-  platform === "win32" ? path.win32 : path.posix;
-
 const platformOf = (environment: CacheEnvironment | undefined): NodeJS.Platform =>
   environment?.platform ?? process.platform;
 
@@ -94,10 +92,6 @@ export function workspaceKey(root: string, platform: NodeJS.Platform = process.p
 
 const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
   typeof value === "object" && value !== null;
-
-/** A text of at most MAX_ROOT_LENGTH characters without NUL (a root or a key the list can hold). */
-const isPathText = (value: unknown): value is string =>
-  typeof value === "string" && value.length <= MAX_ROOT_LENGTH && !value.includes("\0");
 
 const isRoot = (value: unknown, platform: NodeJS.Platform): value is string =>
   isPathText(value) && pathsOf(platform).isAbsolute(value);
@@ -239,70 +233,76 @@ const holdsWorkspace = async (
 };
 
 /**
- * An existence check with a bound on the threads it takes and on the time it takes. A `stat` that hangs
- * (a share or an automount that does not answer) cannot be cancelled and keeps its libuv thread, so:
- * - at most `slots` `stat`s run at once, across all calls of this checker; a slot is freed only when its
- *   `stat` returns, never at the timeout;
- * - `timeoutMs` counts from the call: a root without an answer by then is `"timeout"`, and a root still
- *   waiting for a slot then gets no `stat` at all.
+ * Runs `job` in a slot of its runner and answers its result, or `"timeout"` when it has none `timeoutMs`
+ * after the call. `expired` tells a running job that its answer is no longer awaited, so it can stop.
  */
-export function createExistenceChecker(options: ExistenceOptions = {}): ExistenceChecker {
-  const stat = options.stat ?? fs.stat;
-  const timeoutMs = options.timeoutMs ?? EXISTS_TIMEOUT_MS;
-  const slots = options.slots ?? EXISTS_SLOTS;
+export type BoundedRun = <T>(
+  job: (expired: () => boolean) => Promise<T>,
+  timeoutMs: number,
+) => Promise<T | "timeout">;
+
+/**
+ * File-system calls with a bound on the threads they take and on the time they take. A call that hangs
+ * (a share or an automount that does not answer) cannot be cancelled and keeps its libuv thread, so:
+ * - at most `slots` jobs run at once, across all calls of this runner; a slot is freed only when its job
+ *   settles, never at the timeout;
+ * - `timeoutMs` counts from the call: a job without an answer by then gives `"timeout"`, and a job still
+ *   waiting for a slot then never starts. A job that rejects in time rejects the call.
+ */
+export function createBoundedRunner(slots: number): BoundedRun {
   let running = 0;
   const queue: (() => Promise<void>)[] = [];
   const pump = (): void => {
     while (running < slots) {
-      const job = queue.shift();
-      if (job === undefined) {
+      const next = queue.shift();
+      if (next === undefined) {
         return;
       }
       running += 1;
-      void job().finally(() => {
+      void next().finally(() => {
         running -= 1;
         pump();
       });
     }
   };
-  return (roots) =>
-    new Promise((resolve) => {
-      const found = roots.map((): ExistenceAnswer => "timeout");
-      let left = roots.length;
+  return <T>(job: (expired: () => boolean) => Promise<T>, timeoutMs: number) =>
+    new Promise<T | "timeout">((resolve) => {
       let done = false;
-      const jobs: (() => Promise<void>)[] = [];
-      const finish = (): void => {
+      const queued = async (): Promise<void> => {
+        const outcome = job(() => done);
+        // Settled either way; the call takes over its value or its rejection.
+        await outcome.catch(() => undefined);
+        if (!done) {
+          resolve(outcome);
+        }
         done = true;
         clearTimeout(timer);
-        // Roots still waiting for a slot get no `stat`.
-        for (const job of jobs) {
-          const at = queue.indexOf(job);
-          if (at >= 0) {
-            queue.splice(at, 1);
-          }
-        }
-        resolve(found);
       };
-      for (const [index, root] of roots.entries()) {
-        jobs.push(async () => {
-          const holds = await holdsWorkspace(stat, root);
-          if (!done) {
-            found[index] = holds;
-            left -= 1;
-            if (left === 0) {
-              finish();
-            }
-          }
-        });
-      }
-      const timer = setTimeout(finish, timeoutMs);
-      if (left === 0) {
-        finish();
-        return;
-      }
-      queue.push(...jobs);
+      const timer = setTimeout(() => {
+        done = true;
+        // A job still waiting for a slot never starts.
+        const at = queue.indexOf(queued);
+        if (at >= 0) {
+          queue.splice(at, 1);
+        }
+        resolve("timeout");
+      }, timeoutMs);
+      queue.push(queued);
       pump();
     });
+}
+
+/**
+ * An existence check with a bound on the threads it takes and on the time it takes
+ * (`createBoundedRunner`): at most `slots` `stat`s at once across all calls of this checker, and a root
+ * without an answer `timeoutMs` after the call is `"timeout"` (a root still waiting for a slot then gets
+ * no `stat` at all).
+ */
+export function createExistenceChecker(options: ExistenceOptions = {}): ExistenceChecker {
+  const stat = options.stat ?? fs.stat;
+  const timeoutMs = options.timeoutMs ?? EXISTS_TIMEOUT_MS;
+  const run = createBoundedRunner(options.slots ?? EXISTS_SLOTS);
+  return (roots) => Promise.all(roots.map((root) => run(() => holdsWorkspace(stat, root), timeoutMs)));
 }
 
 /**
@@ -375,28 +375,11 @@ export interface TypedPathOptions {
  * prefix `\??\…`, also as `/??/…`), whose check would make Windows open a connection to that host
  * (SR-078), is refused, and so is `\foo` (relative to the current drive). A mapped network drive (`Z:\…`)
  * is a path on a drive: its check reaches the share, the user's choice, as for an automounted path
- * (ADR-0010). The path is normalised (`.` and `..` by their text) and has no separator at its end.
+ * (ADR-0010). A Windows device or stream name (`CON`, `a:b`) is refused too. The path is normalised (`.`
+ * and `..` by their text) and has no separator at its end (`localFolder` without a base).
  */
 export function typedWorkspaceFolder(text: string, options: TypedPathOptions): string | undefined {
-  const platform = options.platform ?? process.platform;
-  const paths = pathsOf(platform);
-  if (!isPathText(text)) {
-    return undefined;
-  }
-  const windows = platform === "win32";
-  const home = windows ? /^~[\\/]/ : /^~\//;
-  const expanded =
-    text === "~" ? options.home : home.test(text) ? paths.join(options.home, text.slice(2)) : text;
-  if (!paths.isAbsolute(expanded)) {
-    return undefined;
-  }
-  let folder = paths.normalize(expanded);
-  while (folder.endsWith(paths.sep) && folder.length > paths.parse(folder).root.length) {
-    folder = folder.slice(0, -1);
-  }
-  // On Windows a drive and nothing else: no UNC, device or NT path, and no path on the current drive.
-  const local = !windows || /^[A-Za-z]:\\/.test(folder);
-  return isPathText(folder) && local ? folder : undefined;
+  return localFolder(text, options);
 }
 
 /**

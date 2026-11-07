@@ -8,7 +8,7 @@
   "stage": 1,
   "implements": ["SR-014"],
   "arguments": [
-    { "field": "path", "complete": "text" },
+    { "field": "path", "complete": "folder" },
     { "field": "name", "complete": "text" },
     { "field": "metamodel", "complete": "json" }
   ],

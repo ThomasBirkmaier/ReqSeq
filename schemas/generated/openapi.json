@@ -105,7 +105,7 @@
                           },
                           "arguments": {
                             "type": "array",
-                            "description": "How a command prompt asks for the input: every top-level property of `input` exactly once, the required ones first, in the order they are asked. `complete` says where the values to offer come from (a closed list; the app maps each source to one read command of core and decides nothing about what is allowed). `of` names an earlier field the source depends on. Without it, the nearest earlier field of the fitting source: an `element` or `relationTarget` field for status, invalidStatus, relationKind, hint, property and relation (relation also a `relation` field); a `relationKind` field for relationTarget; a `property` field for value. With no such field, status, invalidStatus, relationKind, hint and property give every value of the metamodel or the workspace; relationTarget, relation and value need one. `validate-schemas.mjs` checks the coverage, the order and `of` (`catalog-checks.mjs`).",
+                            "description": "How a command prompt asks for the input: every top-level property of `input` exactly once, the required ones first, in the order they are asked. `complete` says where the values to offer come from (a closed list; the app maps each source to one read command of core and decides nothing about what is allowed; `folder` and `file` map to `workspace.listFolder`, the one read command made for completion, because only core reads the file system). `of` names an earlier field the source depends on. Without it, the nearest earlier field of the fitting source: an `element` or `relationTarget` field for status, invalidStatus, relationKind, hint, property and relation (relation also a `relation` field); a `relationKind` field for relationTarget; a `property` field for value. With no such field, status, invalidStatus, relationKind, hint and property give every value of the metamodel or the workspace; relationTarget, relation and value need one. `validate-schemas.mjs` checks the coverage, the order and `of` (`catalog-checks.mjs`).",
                             "items": {
                               "type": "object",
                               "required": [
@@ -135,12 +135,14 @@
                                     "repository",
                                     "selection",
                                     "choice",
+                                    "folder",
+                                    "file",
                                     "text",
                                     "number",
                                     "boolean",
                                     "json"
                                   ],
-                                  "description": "element: elements found by element.search. type: types of the metamodel. status: statuses of the type of the element in `of` (without it, every status of the metamodel). invalidStatus: of those, the ones the metamodel marks invalid. relationKind: kinds that relation.options allows from the element in `of` (without it, every relation kind of the metamodel). relationTarget: elements of the target types of the kind in `of` (element.search with selection.where.type). relation: with `of` an element field, the kinds of the existing relations of that element; with `of` a relation field (the kind asked before), the targets of the relations of that kind (relation.remove: source, kind, target). property: properties of the type of the element in `of` (every property of the metamodel without it). value: the values the metamodel fixes for the property in `of`. hint: open hints of the element in `of` (without it, every open hint). filter: saved filters. baseline: baselines (baseline.list). view: `core` and the variants of the workspace (element.list of the types with the meaning `variant`). repository: repositories of the workspace. selection: the selection of the list shown. choice: the inline `enum` of the property. text, number, boolean: typed free input. json: any other object or mixed field, typed as JSON and checked by core."
+                                  "description": "element: elements found by element.search. type: types of the metamodel. status: statuses of the type of the element in `of` (without it, every status of the metamodel). invalidStatus: of those, the ones the metamodel marks invalid. relationKind: kinds that relation.options allows from the element in `of` (without it, every relation kind of the metamodel). relationTarget: elements of the target types of the kind in `of` (element.search with selection.where.type). relation: with `of` an element field, the kinds of the existing relations of that element; with `of` a relation field (the kind asked before), the targets of the relations of that kind (relation.remove: source, kind, target). property: properties of the type of the element in `of` (every property of the metamodel without it). value: the values the metamodel fixes for the property in `of`. hint: open hints of the element in `of` (without it, every open hint). filter: saved filters. baseline: baselines (baseline.list). view: `core` and the variants of the workspace (element.list of the types with the meaning `variant`). repository: repositories of the workspace. selection: the selection of the list shown. choice: the inline `enum` of the property. folder: a `localPath` field that names a folder, file: one that names a file; both completed with the entries of the typed folder (workspace.listFolder, files only for file), and every `localPath` field has one of them (`catalog-checks.mjs`). text, number, boolean: typed free input. json: any other object or mixed field, typed as JSON and checked by core."
                                 },
                                 "of": {
                                   "type": "string",
@@ -1151,6 +1153,220 @@
                   "additionalProperties": false,
                   "required": [
                     "workspaces"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Command error of class not-found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/commands/workspace.listFolder": {
+      "post": {
+        "operationId": "workspace_listFolder",
+        "summary": "The folders and links, and on request the files, in the folder of a typed path: the text up to its last separator (`/`, and `\\` on Windows) names the folder, the rest is the typed name. A relative path is resolved from the workspace root on every access, also on the command line; with `absolute` the path must be absolute, and `~` stands for the home folder. The path is checked by its text first: a UNC, device or NT path, a path on the current drive, a Windows device name, NUL or more than 4096 characters gives `invalid` without any file-system call. Through the API and the MCP server the folder must lie inside the repositories of the workspace. Only the entries of the folder are read: no entry is looked at and no link is resolved, so a link is listed by its name.",
+        "tags": [
+          "workspace"
+        ],
+        "x-reqseq-effect": "read",
+        "x-reqseq-stage": 3,
+        "x-reqseq-implements": [
+          "SR-143"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "maxLength": 4096,
+                    "description": "The typed path, up to the name being typed (`~/pro`, `out/`, `C:\\Work\\sp`). A plain text, not a `localPath`: it is taken as typed, with its separator at the end."
+                  },
+                  "files": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Also list the files (for an argument that takes a file); folders and links are always listed."
+                  },
+                  "absolute": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Take only an absolute path, with `~` and `~/…` for the home folder (\"Open workspace\"); without it `~` is an ordinary name, as the commands resolve a path argument."
+                  }
+                },
+                "required": [
+                  "path"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "folder": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 4096,
+                      "description": "The folder listed, absolute and normalised, without a separator at its end except at the root. Missing when the path is `invalid`."
+                    },
+                    "name": {
+                      "type": "string",
+                      "description": "The typed name: the text after the last separator. Names that start with \".\" are listed only when it starts with \".\"."
+                    },
+                    "entries": {
+                      "type": "array",
+                      "maxItems": 50000,
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "The name as the file system spells it."
+                          },
+                          "kind": {
+                            "enum": [
+                              "folder",
+                              "file",
+                              "link"
+                            ],
+                            "description": "folder, file, or link: a symbolic link (or junction), whose target is not looked at."
+                          }
+                        },
+                        "additionalProperties": false,
+                        "required": [
+                          "name",
+                          "kind"
+                        ]
+                      },
+                      "description": "The entries, folders and links first, then files, each by the code units of the NFC form of the name. Other entries (sockets, devices) are left out. Empty with a `problem`."
+                    },
+                    "problem": {
+                      "enum": [
+                        "missing",
+                        "unreadable",
+                        "invalid"
+                      ],
+                      "description": "Why there are no entries: the folder does not exist (`missing`), cannot be read or gave no answer within 1 s (`unreadable`, also when the path names a file), or the path is refused by its text (`invalid`)."
+                    },
+                    "truncated": {
+                      "const": true,
+                      "description": "The folder has more than 50,000 matching entries; the first 50,000 read are listed."
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "name",
+                    "entries"
                   ]
                 }
               }

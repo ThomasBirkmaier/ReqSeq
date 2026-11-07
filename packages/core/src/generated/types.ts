@@ -1547,11 +1547,11 @@ export interface CommandCatalog {
     /** The stage of the delivery plan in which the command is built (D-035). */
     readonly stage: number;
     readonly implements: readonly string[];
-    /** How a command prompt asks for the input (SR-108 AK4): every top-level property of `input` exactly once, the required ones first, in the order they are asked. `complete` says where the values to offer come from (a closed list; the app maps each source to one read command of core and decides nothing about what is allowed). `of` names an earlier field the source depends on. Without it, the nearest earlier field of the fitting source: an `element` or `relationTarget` field for status, invalidStatus, relationKind, hint, property and relation (relation also a `relation` field); a `relationKind` field for relationTarget; a `property` field for value. With no such field, status, invalidStatus, relationKind, hint and property give every value of the metamodel or the workspace; relationTarget, relation and value need one. `validate-schemas.mjs` checks the coverage, the order and `of` (`catalog-checks.mjs`). */
+    /** How a command prompt asks for the input (SR-108 AK4): every top-level property of `input` exactly once, the required ones first, in the order they are asked. `complete` says where the values to offer come from (a closed list; the app maps each source to one read command of core and decides nothing about what is allowed; `folder` and `file` map to `workspace.listFolder`, the one read command made for completion, because only core reads the file system). `of` names an earlier field the source depends on. Without it, the nearest earlier field of the fitting source: an `element` or `relationTarget` field for status, invalidStatus, relationKind, hint, property and relation (relation also a `relation` field); a `relationKind` field for relationTarget; a `property` field for value. With no such field, status, invalidStatus, relationKind, hint and property give every value of the metamodel or the workspace; relationTarget, relation and value need one. `validate-schemas.mjs` checks the coverage, the order and `of` (`catalog-checks.mjs`). */
     readonly arguments: readonly {
       /** A top-level property of `input`. */
       readonly field: string;
-      /** element: elements found by element.search. type: types of the metamodel. status: statuses of the type of the element in `of` (without it, every status of the metamodel). invalidStatus: of those, the ones the metamodel marks invalid. relationKind: kinds that relation.options allows from the element in `of` (without it, every relation kind of the metamodel). relationTarget: elements of the target types of the kind in `of` (element.search with selection.where.type). relation: with `of` an element field, the kinds of the existing relations of that element; with `of` a relation field (the kind asked before), the targets of the relations of that kind (relation.remove: source, kind, target). property: properties of the type of the element in `of` (every property of the metamodel without it). value: the values the metamodel fixes for the property in `of`. hint: open hints of the element in `of` (without it, every open hint). filter: saved filters. baseline: baselines (baseline.list). view: `core` and the variants of the workspace (element.list of the types with the meaning `variant`). repository: repositories of the workspace. selection: the selection of the list shown. choice: the inline `enum` of the property. text, number, boolean: typed free input. json: any other object or mixed field, typed as JSON and checked by core. */
+      /** element: elements found by element.search. type: types of the metamodel. status: statuses of the type of the element in `of` (without it, every status of the metamodel). invalidStatus: of those, the ones the metamodel marks invalid. relationKind: kinds that relation.options allows from the element in `of` (without it, every relation kind of the metamodel). relationTarget: elements of the target types of the kind in `of` (element.search with selection.where.type). relation: with `of` an element field, the kinds of the existing relations of that element; with `of` a relation field (the kind asked before), the targets of the relations of that kind (relation.remove: source, kind, target). property: properties of the type of the element in `of` (every property of the metamodel without it). value: the values the metamodel fixes for the property in `of`. hint: open hints of the element in `of` (without it, every open hint). filter: saved filters. baseline: baselines (baseline.list). view: `core` and the variants of the workspace (element.list of the types with the meaning `variant`). repository: repositories of the workspace. selection: the selection of the list shown. choice: the inline `enum` of the property. folder: a `localPath` field that names a folder, file: one that names a file; both completed with the entries of the typed folder (workspace.listFolder, files only for file), and every `localPath` field has one of them (`catalog-checks.mjs`). text, number, boolean: typed free input. json: any other object or mixed field, typed as JSON and checked by core. */
       readonly complete:
         | "element"
         | "type"
@@ -1569,6 +1569,8 @@ export interface CommandCatalog {
         | "repository"
         | "selection"
         | "choice"
+        | "folder"
+        | "file"
         | "text"
         | "number"
         | "boolean"
@@ -1728,6 +1730,41 @@ export interface WorkspaceRecentOutput {
     /** Whether `<root>/reqseq-workspace.yaml` is a file now: the root itself, never a folder above it. A root without an answer within 1 s (a share that does not answer) counts as false; while earlier checks of this process still hang (a long-running API or MCP server), every root may count as false. */
     readonly exists: boolean;
   }[];
+}
+
+/**
+ * Input of `workspace.listFolder` as `run` gets it: validated, properties with a `default` filled in. The folders and links, and on request the files, in the folder of a typed path: the text up to its last separator (`/`, and `\` on Windows) names the folder, the rest is the typed name. A relative path is resolved from the workspace root on every access, also on the command line; with `absolute` the path must be absolute, and `~` stands for the home folder. The path is checked by its text first: a UNC, device or NT path, a path on the current drive, a Windows device name, NUL or more than 4096 characters gives `invalid` without any file-system call. Through the API and the MCP server the folder must lie inside the repositories of the workspace (SR-142). Only the entries of the folder are read: no entry is looked at and no link is resolved, so a link is listed by its name.
+ * Schema: `schemas/commands/workspace.listFolder.json input`.
+ */
+export interface WorkspaceListFolderInput {
+  /** The typed path, up to the name being typed (`~/pro`, `out/`, `C:\Work\sp`). A plain text, not a `localPath`: it is taken as typed, with its separator at the end. */
+  readonly path: string;
+  /** Also list the files (for an argument that takes a file); folders and links are always listed. */
+  readonly files: boolean;
+  /** Take only an absolute path, with `~` and `~/…` for the home folder ("Open workspace", SR-131); without it `~` is an ordinary name, as the commands resolve a path argument. */
+  readonly absolute: boolean;
+}
+
+/**
+ * Output of `workspace.listFolder`. The folders and links, and on request the files, in the folder of a typed path: the text up to its last separator (`/`, and `\` on Windows) names the folder, the rest is the typed name. A relative path is resolved from the workspace root on every access, also on the command line; with `absolute` the path must be absolute, and `~` stands for the home folder. The path is checked by its text first: a UNC, device or NT path, a path on the current drive, a Windows device name, NUL or more than 4096 characters gives `invalid` without any file-system call. Through the API and the MCP server the folder must lie inside the repositories of the workspace (SR-142). Only the entries of the folder are read: no entry is looked at and no link is resolved, so a link is listed by its name.
+ * Schema: `schemas/commands/workspace.listFolder.json output`.
+ */
+export interface WorkspaceListFolderOutput {
+  /** The folder listed, absolute and normalised, without a separator at its end except at the root. Missing when the path is `invalid`. */
+  readonly folder?: string;
+  /** The typed name: the text after the last separator. Names that start with "." are listed only when it starts with ".". */
+  readonly name: string;
+  /** The entries, folders and links first, then files, each by the code units of the NFC form of the name. Other entries (sockets, devices) are left out. Empty with a `problem`. */
+  readonly entries: readonly {
+    /** The name as the file system spells it. */
+    readonly name: string;
+    /** folder, file, or link: a symbolic link (or junction), whose target is not looked at. */
+    readonly kind: "folder" | "file" | "link";
+  }[];
+  /** Why there are no entries: the folder does not exist (`missing`), cannot be read or gave no answer within 1 s (`unreadable`, also when the path names a file), or the path is refused by its text (`invalid`). */
+  readonly problem?: "missing" | "unreadable" | "invalid";
+  /** The folder has more than 50,000 matching entries; the first 50,000 read are listed. */
+  readonly truncated?: true;
 }
 
 /**
@@ -3518,6 +3555,7 @@ export interface CommandTypes {
   readonly "workspace.check": { readonly input: WorkspaceCheckInput; readonly output: WorkspaceCheckOutput };
   readonly "workspace.activity": { readonly input: WorkspaceActivityInput; readonly output: WorkspaceActivityOutput };
   readonly "workspace.recent": { readonly input: WorkspaceRecentInput; readonly output: WorkspaceRecentOutput };
+  readonly "workspace.listFolder": { readonly input: WorkspaceListFolderInput; readonly output: WorkspaceListFolderOutput };
   readonly "tool.info": { readonly input: ToolInfoInput; readonly output: ToolInfoOutput };
   readonly "metamodel.get": { readonly input: MetamodelGetInput; readonly output: MetamodelGetOutput };
   readonly "element.create": { readonly input: ElementCreateInput; readonly output: ElementCreateOutput };

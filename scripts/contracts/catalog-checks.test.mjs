@@ -174,6 +174,23 @@ describe("catalog checks (titles and argument sources, SR-108)", () => {
       'schemas/commands/test.one.json: arguments: "direction": boolean needs a boolean field',
       'schemas/commands/test.one.json: arguments: "meanings": number needs an integer field',
     ]);
+    const local = { $ref: "../common.schema.json#/$defs/localPath" };
+    const paths = {
+      ...input,
+      properties: { ...input.properties, file: local, files: { type: "array", items: local } },
+    };
+    expect(
+      check(command("test.one", "One", [...ALL, arg("file", "file"), arg("files", "folder")], paths)),
+    ).toEqual([]);
+    expect(
+      check(command("test.one", "One", [...ALL, arg("file", "text"), arg("files", "file")], paths)),
+    ).toEqual([
+      'schemas/commands/test.one.json: arguments: "file": a localPath field is completed as folder or file',
+    ]);
+    const onText = [ALL[0], arg("kind", "folder"), ...ALL.slice(2)];
+    expect(check(command("test.one", "One", onText))).toEqual([
+      'schemas/commands/test.one.json: arguments: "kind": folder needs a localPath field',
+    ]);
     const choice = [ALL[0], arg("kind", "choice"), ...ALL.slice(2)];
     expect(check(command("test.one", "One", choice))).toEqual([
       'schemas/commands/test.one.json: arguments: "kind": choice needs an inline enum',

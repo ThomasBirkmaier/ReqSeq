@@ -12,6 +12,7 @@ import {
   RECENT_WORKSPACES_FILE,
   RECENT_WORKSPACES_KEEP,
   RECENT_WORKSPACES_MAX_BYTES,
+  createBoundedRunner,
   createExistenceChecker,
   createWorkspaceChecks,
   findTypedWorkspace,
@@ -325,6 +326,26 @@ describe("existence of the recent workspaces", () => {
     expect(next).toHaveBeenCalledExactlyOnceWith([false]);
     // No roots: answered at once.
     expect(await check([])).toEqual([]);
+  });
+
+  it("the bounded runner rejects with a job's error in time, and drops an answer after the timeout", async () => {
+    vi.useFakeTimers();
+    try {
+      const run = createBoundedRunner(2);
+      await expect(run(() => Promise.reject(new Error("EACCES")), 1_000)).rejects.toThrow("EACCES");
+      let fail: (error: Error) => void = () => undefined;
+      let answer: (value: string) => void = () => undefined;
+      const late = run(() => new Promise<string>((_resolve, reject) => (fail = reject)), 1_000);
+      const slow = run(() => new Promise<string>((resolve) => (answer = resolve)), 1_000);
+      await vi.advanceTimersByTimeAsync(1_000);
+      fail(new Error("late"));
+      answer("late");
+      expect([await late, await slow]).toEqual(["timeout", "timeout"]);
+      // Both slots are free again.
+      expect(await run(() => Promise.resolve("next"), 1_000)).toBe("next");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
