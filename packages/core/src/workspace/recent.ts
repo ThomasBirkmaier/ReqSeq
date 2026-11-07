@@ -75,6 +75,8 @@ export interface ExistenceOptions {
   readonly stat?: (file: string) => Promise<{ isFile(): boolean }>;
   readonly timeoutMs?: number;
   readonly slots?: number;
+  /** The runner to take the slots of (shared with other calls); `slots` is then unused. */
+  readonly run?: BoundedRun;
 }
 
 const platformOf = (environment: CacheEnvironment | undefined): NodeJS.Platform =>
@@ -301,7 +303,7 @@ export function createBoundedRunner(slots: number): BoundedRun {
 export function createExistenceChecker(options: ExistenceOptions = {}): ExistenceChecker {
   const stat = options.stat ?? fs.stat;
   const timeoutMs = options.timeoutMs ?? EXISTS_TIMEOUT_MS;
-  const run = createBoundedRunner(options.slots ?? EXISTS_SLOTS);
+  const run = options.run ?? createBoundedRunner(options.slots ?? EXISTS_SLOTS);
   return (roots) => Promise.all(roots.map((root) => run(() => holdsWorkspace(stat, root), timeoutMs)));
 }
 
@@ -323,21 +325,31 @@ export interface WorkspaceChecks {
    * mount blocks only further typed paths, never the choice of a root of the list.
    */
   readonly typed: ExistenceChecker;
+  /**
+   * The one slot behind `typed`: other file-system calls on a typed path (the folder listing of
+   * `list-folder.ts` in the app's main process) share it, so main takes no further thread.
+   */
+  readonly typedRun: BoundedRun;
 }
 
 /** The three checkers of a process; `stat` and the timeout for tests. */
 export function createWorkspaceChecks(
   options: Pick<ExistenceOptions, "stat" | "timeoutMs"> = {},
 ): WorkspaceChecks {
+  const typedRun = createBoundedRunner(1);
   return {
     list: createExistenceChecker(options),
     chosen: createExistenceChecker({ ...options, slots: 1 }),
-    typed: createExistenceChecker({ ...options, slots: 1 }),
+    typed: createExistenceChecker({ ...options, run: typedRun }),
+    typedRun,
   };
 }
 
 /** The checkers of this process (the app's main process uses them): at most 4 `stat`s at once. */
 const checks: WorkspaceChecks = createWorkspaceChecks();
+
+/** The slot of this process for typed paths (`WorkspaceChecks.typedRun`), for main's folder listing. */
+export const typedPathRun: BoundedRun = checks.typedRun;
 
 /**
  * Whether `<root>/reqseq-workspace.yaml` is a file, within EXISTS_TIMEOUT_MS; never rejects. By default

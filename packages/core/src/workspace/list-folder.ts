@@ -5,6 +5,13 @@
 // opens no share and reads nothing a link points to (SR-078, SR-142): a link is listed by its name as
 // kind `link`. It runs in a bounded slot of its own with a timeout (`createBoundedRunner`), so a folder
 // on a share that does not answer holds only that slot, never the other file access of the process.
+// One hung listing makes every later listing of the process unreadable until it returns.
+//
+// Known limit: where the file system gives no entry type with the names (`DT_UNKNOWN`: NFS without
+// readdirplus, some FUSE file systems, XFS without `ftype`), Node finds the type with a synchronous
+// `lstat` per entry on the event loop, outside the slot and its timeout. It never follows a link. On
+// Windows libuv reports every reparse point (links, junctions, OneDrive and Cloud Files placeholders,
+// deduplicated files, app execution aliases) as a link.
 //
 // Main loads this module on its own (`@reqseq/core/list-folder`), so it imports only `node:*`,
 // `path-text.ts` and `recent.ts`.
@@ -75,21 +82,24 @@ export function splitTypedPath(text: string, platform: NodeJS.Platform = process
 /** The listing slot of this process: one, so a hung listing blocks only further listings. */
 const slot: BoundedRun = createBoundedRunner(1);
 
-const RANK: Readonly<Record<FolderEntryKind, number>> = { folder: 0, link: 0, file: 1 };
-
 const kindOf = (entry: FolderDirent): FolderEntryKind | undefined =>
   entry.isDirectory() ? "folder" : entry.isSymbolicLink() ? "link" : entry.isFile() ? "file" : undefined;
 
-/** Folders and links first, then files; each by the code units of the NFC form of the name. */
-const byKindAndName = (a: FolderEntry, b: FolderEntry): number => {
-  const rank = RANK[a.kind] - RANK[b.kind];
-  if (rank !== 0) {
-    return rank;
-  }
-  const x = a.name.normalize("NFC");
-  const y = b.name.normalize("NFC");
-  return x < y ? -1 : x > y ? 1 : 0;
-};
+/** An entry with its sort key, the NFC form of its name, computed once. */
+interface Keyed {
+  readonly entry: FolderEntry;
+  readonly key: string;
+}
+
+/** By the code units of the key. */
+const byKey = (a: Keyed, b: Keyed): number => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0);
+
+/** `entries` of one group sorted by the NFC form of the name. */
+const sorted = (entries: readonly FolderEntry[]): FolderEntry[] =>
+  entries
+    .map((entry) => ({ entry, key: entry.name.normalize("NFC") }))
+    .sort(byKey)
+    .map((keyed) => keyed.entry);
 
 const problemOf = (error: unknown): ListProblem =>
   (error as { code?: unknown }).code === "ENOENT" ? "missing" : "unreadable";
@@ -98,13 +108,16 @@ const problemOf = (error: unknown): ListProblem =>
  * The entries of `folder` (absolute, checked by its text), sorted folders and links first, then files,
  * each by name; never rejects. Other entries (sockets, devices) are left out. ENOENT gives `missing`;
  * every other error (EACCES, EPERM, ENOTDIR, ELOOP, EIO) and no answer within the timeout give
- * `unreadable`. When more than `maxEntries` match, the first that many read are listed (`truncated`).
+ * `unreadable`. When more than `maxEntries` match (`truncated`), folders and links come first: the
+ * first `maxEntries` of them read, then as many of the files read as fit.
  */
 export async function listFolder(folder: string, options: ListOptions): Promise<FolderListing> {
-  const opendir = options.opendir ?? ((dir: string) => fs.opendir(dir));
+  // A larger buffer than the default 32 entries: fewer round trips through the thread pool (SR-143 AK5).
+  const opendir = options.opendir ?? ((dir: string) => fs.opendir(dir, { bufferSize: 1024 }));
   const max = options.maxEntries ?? LIST_MAX_ENTRIES;
   const job = async (expired: () => boolean): Promise<FolderListing> => {
-    const entries: FolderEntry[] = [];
+    const folders: FolderEntry[] = [];
+    const files: FolderEntry[] = [];
     let truncated = false;
     for await (const entry of await opendir(folder)) {
       if (expired()) {
@@ -118,13 +131,19 @@ export async function listFolder(folder: string, options: ListOptions): Promise<
       ) {
         continue;
       }
-      if (entries.length === max) {
+      const group = kind === "file" ? files : folders;
+      if (group.length === max) {
         truncated = true;
-        break;
+        if (group === folders) {
+          break;
+        }
+        continue;
       }
-      entries.push({ name: entry.name, kind });
+      group.push({ name: entry.name, kind });
     }
-    entries.sort(byKindAndName);
+    const room = max - folders.length;
+    truncated ||= files.length > room;
+    const entries = [...sorted(folders), ...sorted(files.slice(0, room))];
     return truncated ? { entries, truncated: true } : { entries };
   };
   try {
