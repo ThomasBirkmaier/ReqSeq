@@ -4,7 +4,8 @@
 // command, the catalog for the command palette, and `on` for the events of `BridgeEvents`. The
 // facilities of the window ask the main process: `copyText` writes the clipboard (SR-128),
 // `recentWorkspaces` and `openWorkspace` list the workspaces opened last and open one of them, or the
-// workspace of a typed folder, in the window (SR-131), and `onSave` sets what saves the window's unsaved
+// workspace of a typed folder, in the window (SR-131), `listFolder` lists the folders of a path typed
+// there (SR-143 AK1), and `onSave` sets what saves the window's unsaved
 // input when main asks before such a switch (AK3) or before the window closes (SR-105 AK1). Nothing rejects across the context bridge, which would keep only an error's message:
 // a failure is the error object of every access, an empty list or a refusal.
 import type {
@@ -18,11 +19,14 @@ import type {
 } from "../shared/protocol.js";
 import {
   COPY_CHANNEL,
+  LIST_FOLDER_CHANNEL,
   OPEN_WORKSPACE_CHANNEL,
   RECENT_WORKSPACES_CHANNEL,
+  REFUSED_LISTING,
   SAVED_CHANNEL,
   SAVE_CHANNEL,
   WORKSPACE_CHANNEL,
+  folderListing,
   isBridgeEvent,
   openWorkspaceResult,
   portMessage,
@@ -199,6 +203,13 @@ export const createBridge = (ipc: IpcRendererLike): ReqSeqBridge => {
         );
       } catch {
         return { ok: false, reason: "refused" };
+      }
+    },
+    listFolder: async (path) => {
+      try {
+        return folderListing(await ipc.invoke(LIST_FOLDER_CHANNEL, path));
+      } catch {
+        return REFUSED_LISTING;
       }
     },
     onSave: (save) => {

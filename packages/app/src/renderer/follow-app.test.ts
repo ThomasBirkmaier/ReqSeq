@@ -94,6 +94,7 @@ const fakeBridge = (handlers: Record<string, Handler>, commands: readonly unknow
     copyText: () => Promise.resolve(true),
     recentWorkspaces: () => Promise.resolve([]),
     openWorkspace: () => Promise.resolve({ ok: true }),
+    listFolder: () => Promise.resolve({ name: "", entries: [] }),
     onSave: () => () => undefined,
   };
   const emit = async (event: keyof typeof listeners, data: unknown): Promise<void> => {

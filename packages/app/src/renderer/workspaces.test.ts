@@ -4,7 +4,7 @@ import type { OpenWorkspaceResult, RecentWorkspaceEntry } from "../shared/protoc
 import type { Choice, PromptFill } from "./actions.js";
 import { rankByUse } from "./usage.js";
 import type { WorkspaceControls } from "./workspaces.js";
-import { workspacePrompt } from "./workspaces.js";
+import { startsFolderPath, workspacePrompt } from "./workspaces.js";
 
 const ENTRIES: readonly RecentWorkspaceEntry[] = [
   { root: "/req/station", state: "open" },
@@ -181,5 +181,50 @@ describe("the prompt Open workspace", () => {
     expect(await run({ ok: false, reason: "missing" })).toEqual([
       "/home/ada/notes is not found; Weather station stays open",
     ]);
+  });
+});
+
+describe("the folders of a typed path in Open workspace (SR-143)", () => {
+  const listed = (path: string) =>
+    Promise.resolve({
+      folder: "/home/ada",
+      name: path,
+      entries: [{ name: "projects", kind: "folder" as const }],
+    });
+
+  it("lists the folder of a typed folder path from main, in place of the recent workspaces", async () => {
+    vi.spyOn(navigator, "platform", "get").mockReturnValue("Linux x86_64");
+    const listFolder = vi.fn(listed);
+    const workspaces: WorkspaceControls = {
+      name: undefined,
+      list: () => Promise.resolve(ENTRIES),
+      open: () => Promise.resolve({ ok: true }),
+      listFolder,
+    };
+    const prompt = workspacePrompt({ workspaces, echo: () => undefined });
+    expect(await prompt.seek?.("~/pro")).toMatchObject({
+      choices: [{ name: "projects/", complete: "~/projects/" }],
+      alone: true,
+    });
+    expect(listFolder).toHaveBeenCalledExactlyOnceWith("~/");
+    // Other text narrows the recent workspaces.
+    expect(await prompt.seek?.("buoy")).toEqual({ choices: [] });
+    expect(listFolder).toHaveBeenCalledOnce();
+    // Without main's listing, nothing is completed.
+    expect(setup().prompt.seek).toBeUndefined();
+  });
+
+  it("starts at a drive letter, `/` or `~` on Windows, not at a backslash", async () => {
+    vi.spyOn(navigator, "platform", "get").mockReturnValue("Win32");
+    expect(["/x", "~", "C:", "c:\\w"].every((text) => startsFolderPath(text, true))).toBe(true);
+    expect(["\\foo", "\\\\host\\share", "foo"].some((text) => startsFolderPath(text, true))).toBe(false);
+    expect(["C:\\w", "\\foo"].some((text) => startsFolderPath(text, false))).toBe(false);
+    const listFolder = vi.fn(listed);
+    const prompt = workspacePrompt({
+      workspaces: { name: undefined, list: () => Promise.resolve([]), open: vi.fn(), listFolder },
+      echo: () => undefined,
+    });
+    expect(await prompt.seek?.("\\\\host\\share\\")).toEqual({ choices: [] });
+    expect(listFolder).not.toHaveBeenCalled();
   });
 });

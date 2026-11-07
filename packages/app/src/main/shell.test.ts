@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { CoreRequest } from "../shared/protocol.js";
 import {
   COPY_CHANNEL,
+  LIST_FOLDER_CHANNEL,
   OPEN_WORKSPACE_CHANNEL,
   RECENT_WORKSPACES_CHANNEL,
   SAVED_CHANNEL,
@@ -253,10 +254,11 @@ describe("startShell", () => {
   it("[SR-128/AK2] answers the copy channel of the window and nothing else puts text on the clipboard", async () => {
     const { electron, ipcHandlers, ipcListeners, windows } = await start();
     const contents = windows[0]?.webContents;
-    // The four channels from the renderer: the clipboard (SR-128), the recent workspaces and the answer
-    // whether the window saved before a switch (SR-131).
+    // The five channels from the renderer: the clipboard (SR-128), the folders of a typed path (SR-143),
+    // the recent workspaces and the answer whether the window saved before a switch (SR-131).
     expect([...ipcHandlers.keys()]).toEqual([
       COPY_CHANNEL,
+      LIST_FOLDER_CHANNEL,
       RECENT_WORKSPACES_CHANNEL,
       OPEN_WORKSPACE_CHANNEL,
     ]);

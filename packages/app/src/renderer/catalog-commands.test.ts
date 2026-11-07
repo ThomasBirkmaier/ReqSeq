@@ -143,6 +143,59 @@ const hit = (n: number) => ({
   fields: ["title"],
 });
 
+describe("path arguments of catalog commands (SR-143)", () => {
+  const shown = elementBuffer("uuid-1", "spec", "SR-1 Title 1");
+  const listing = {
+    folder: "/w",
+    name: "",
+    entries: [
+      { name: "out", kind: "folder" },
+      { name: "export.reqif", kind: "file" },
+    ],
+  };
+
+  it("takes the typed path first and completes it from workspace.listFolder, with files for a file argument", async () => {
+    const { context, asked, call } = setup([shown], {
+      "workspace.listFolder": () => listing,
+      "reqif.analyze": () => ({}),
+    });
+    start(context, "reqif.analyze");
+    const prompt = await last(asked);
+    expect(prompt.literal?.("  ")).toBeUndefined();
+    expect(prompt.literal?.("new.reqif")).toMatchObject({ name: "Use new.reqif", hint: "file" });
+    expect((await prompt.seek?.(""))?.choices.map((choice) => [choice.name, choice.complete])).toEqual([
+      ["out/", "out/"],
+      ["export.reqif", "export.reqif"],
+    ]);
+    expect(call).toHaveBeenLastCalledWith("workspace.listFolder", { path: "", files: true });
+    prompt.literal?.("new.reqif")?.run();
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("reqif.analyze", { file: "new.reqif" });
+    // Typed text without a choice, and Ctrl/Cmd+Enter, take it too.
+    start(context, "reqif.analyze");
+    (await last(asked)).text?.("a.reqif");
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("reqif.analyze", { file: "a.reqif" });
+    start(context, "reqif.analyze");
+    (await last(asked)).literal?.("b.reqif")?.more?.();
+    expect((await last(asked)).label).toContain("more arguments");
+    start(context, "reqif.analyze");
+    (await last(asked)).more?.("c.reqif");
+    expect((await last(asked)).label).toContain("more arguments");
+  });
+
+  it("lists only folders for a folder argument, and says why a folder cannot be listed", async () => {
+    const { context, asked, call } = setup([shown], {
+      "workspace.listFolder": () => new Error("No workspace is open"),
+    });
+    start({ ...context, workspace: false }, "workspace.init");
+    const prompt = await last(asked);
+    expect(prompt.literal?.("spec")).toMatchObject({ hint: "folder" });
+    expect(await prompt.seek?.("sp")).toEqual({ choices: [], note: "No workspace is open" });
+    expect(call).toHaveBeenLastCalledWith("workspace.listFolder", { path: "", files: false });
+  });
+});
+
 describe("catalog commands in the command prompt", () => {
   const list = listBuffer("type: need", { where: { type: ["need"] } });
   const shown = elementBuffer("uuid-1", "spec", "SR-1 Title 1");

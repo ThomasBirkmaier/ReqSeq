@@ -20,6 +20,9 @@ import type { BoundedRun } from "./recent.js";
 import { createBoundedRunner } from "./recent.js";
 import { localFolder } from "./path-text.js";
 
+// The slot of main for typed paths, which main's listing of "Open workspace" shares (`WorkspaceChecks`).
+export { typedPathRun } from "./recent.js";
+
 /** A listing without an answer this long after it was asked counts as unreadable. */
 export const LIST_TIMEOUT_MS = 1_000;
 
