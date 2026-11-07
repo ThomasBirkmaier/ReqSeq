@@ -1,11 +1,13 @@
 ---
 name: spec-change
-description: Reads and changes the ReqSeq specification in spec/ with the ReqSeq CLI or MCP, sets statuses only on the product owner's decision, and keeps every SR and need in its topic package. Use for any spec PR.
+description: Reads and changes the ReqSeq specification in spec/ with the ReqSeq CLI or MCP, sets statuses only on the product owner's decision, and keeps every SR and need in its topic package, and asks open questions before any spec PR. Use for any spec PR.
 ---
 
 # Changing the spec
 
 `spec/` is a ReqSeq workspace, and `spec/README.md` has the layout and the common commands. ReqSeq changes it, nothing else does: `node packages/cli/dist/bin.js element create|update|set-status|supersede ... --workspace spec`, or the MCP server `node packages/cli/dist/bin.js mcp --workspace spec` (server `reqseq` in `.mcp.json`, after `pnpm build`). An `element update` of the title, the text or single list items needs `--expected-file-sha256` with the `fileSha256` that `element get` gave (#269). Change one acceptance criterion with `--set-items 'acceptance-criteria={"2":"…"}'` (position from 1, as the AK number; the next position appends), not by sending the whole list (#177). Each change gets a PR of its own and must pass `pnpm spec:check`. A new spec ID (`spec-id`, such as SR-036) takes the next number after the highest one on `main` and in the open spec PRs, because ReqSeq sees only the working tree: `git fetch origin && git grep -h -o 'spec-id: "\?SR-[0-9]*' $(git for-each-ref --format='%(refname:short)' refs/remotes/origin | grep -v '^origin$') -- spec/ | grep -o 'SR-[0-9]*' | sort -t- -k2 -n | tail -1` (for other prefixes, replace `SR`). `pnpm trace-check` reports an SR spec ID used twice, and `pnpm spec:check` warns about any duplicate spec ID, once both are on one branch. The metamodel (`spec/metamodel/`) and `spec/reqseq-workspace.yaml` have no command and are changed by hand in such a PR.
+
+**Questions before the spec PR.** When a wish leaves anything open (a value, a scope, a choice between variants), ask the product owner first, on a decision card or in the thread, with a recommendation for each question, and wait for the answers. Only then create or change the element and open the spec PR. Never write a draft element on your own assumptions to have them confirmed later; an assumption in a spec PR is allowed only where the product owner said to proceed without an answer (product owner decision, 2026-11-07).
 
 **Texts.** They are German and carry exactly what the product owner decided, with nothing added, left out or reinterpreted. They read as requirement text, not as a quote of the chat. A new wish becomes a draft element linked to its issue, and a pure bug stays an issue, with a reproduction or a failing test (product owner decision, 2026-10-26; issue threshold in CLAUDE.md).
 
