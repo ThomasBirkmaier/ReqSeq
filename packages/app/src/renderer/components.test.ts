@@ -802,7 +802,7 @@ describe("Minibuffer", () => {
     expect(closed).toHaveBeenCalledTimes(2);
   });
 
-  it("ends the prompt as Escape does on a press of a mouse button outside it, and lets the press go on", async () => {
+  it("[SR-134/AK3] ends the prompt on a press of a mouse button outside it, in any step, and lets the press go on", async () => {
     const cancel = vi.fn();
     const items = [choice("a", "One")];
     const closed = vi.fn();
