@@ -1682,6 +1682,73 @@ describe("renderHuman: on a terminal (#988)", () => {
     );
   });
 
+  it("shows the snippet of a search hit below its line, the marks core gives strong (SR-174)", () => {
+    const output = {
+      hits: [
+        element("a1", "Show a dial", {
+          snippet: { field: "text", text: "The dial shows wind.", marks: [{ start: 4, end: 8 }] },
+        }),
+        element("a2", "Warn", {
+          snippet: {
+            field: "properties",
+            property: "checks",
+            propertyName: "Checks",
+            text: "It warns of a storm.",
+            marks: [{ start: 14, end: 19 }],
+          },
+        }),
+        element("a3", "Survive icing", { titleMarks: [{ start: 8, end: 13 }] }),
+      ],
+      total: 3,
+    };
+    const styled = renderHuman(output, true, terminal);
+    expect(seen(styled)).toBe(
+      lines(
+        "hits:",
+        "  SR-a1  draft  Show a dial",
+        "    text: The dial shows wind.",
+        "  SR-a2  draft  Warn",
+        "    Checks: It warns of a storm.",
+        "  SR-a3  draft  Survive icing",
+        "total: 3",
+      ),
+    );
+    expect(styled).toContain(`${style("dim", "text:")} The ${style("bold", "dial")} shows wind.`);
+    // The marked words of the title strong too.
+    expect(styled).toContain(`Survive ${style("bold", "icing")}`);
+    // Cut to the width, a mark the cut ends strong up to it.
+    const long = renderHuman(
+      {
+        hits: [
+          element("a4", "Long", {
+            snippet: {
+              field: "text",
+              text: `${"word ".repeat(9)}needle${"x".repeat(40)}`,
+              marks: [{ start: 45, end: 91 }],
+            },
+          }),
+        ],
+      },
+      true,
+      terminal,
+    );
+    const line = seen(long).split("\n")[2] ?? "";
+    expect(line).toBe(`    text: ${"word ".repeat(9)}need…`);
+    expect(line.length).toBe(terminal.columns);
+    expect(long).toContain(`${style("bold", "need")}…`);
+    expect(renderHuman(output)).toBe(
+      lines(
+        "hits:",
+        "  SR-a1  draft  Show a dial",
+        "    text: The dial shows wind.",
+        "  SR-a2  draft  Warn",
+        "    Checks: It warns of a storm.",
+        "  SR-a3  draft  Survive icing",
+        "total: 3",
+      ),
+    );
+  });
+
   it("keeps the title whole when even a cut one would not fit beside the marks", () => {
     const marks = { emergent: true, validation: "x".repeat(60) };
     expect(

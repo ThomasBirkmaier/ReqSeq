@@ -1,6 +1,23 @@
 // Cross-access scenarios of element.search, in addition to the default one (cross-access.test.ts).
+import type { FixtureOptions } from "@reqseq/testkit";
+import { expect } from "vitest";
+import type { Result } from "../../scenario.js";
 import { scenariosOf } from "../../scenario.js";
 import { FILTER, IDENTIFIERS, SAVED } from "../../fixtures.js";
+
+/** A Markdown text, a list property, a choice and spec IDs (SR-174). */
+const SNIPPETS: FixtureOptions = { fixture: "SR-174/snippets" };
+
+/** The snippets of the hits of the first access, by short ID; every access gave the same (compared before). */
+const snippets = (results: Readonly<Record<string, Result>>): Record<string, unknown> => {
+  const [first] = Object.values(results);
+  const outcome = first?.outcome;
+  const hits =
+    outcome !== undefined && "output" in outcome
+      ? (outcome.output as { hits: { shortId: string; snippet?: unknown; titleMarks?: unknown }[] }).hits
+      : [];
+  return Object.fromEntries(hits.map((hit) => [hit.shortId, [hit.snippet, hit.titleMarks]]));
+};
 
 scenariosOf("element.search", [
   {
@@ -37,6 +54,69 @@ scenariosOf("element.search", [
     fixture: SAVED,
     input: { query: "measure", selection: { filter: "mountain" } },
     expect: "output",
+  },
+  {
+    tag: "[SR-174/AK5]",
+    name: "a snippet of a Markdown text: heading, bold, link, inline reference and code are plain words",
+    fixture: SNIPPETS,
+    input: { query: "gusts pulse" },
+    expect: "output",
+    check: (results) => {
+      expect(snippets(results)).toEqual({
+        "SR-0000a1": [
+          {
+            field: "text",
+            text: "The anemometer measures gusts with pulse counting, as Show a dial shows.",
+            marks: [
+              { start: 24, end: 29 },
+              { start: 35, end: 40 },
+            ],
+          },
+          undefined,
+        ],
+      });
+    },
+  },
+  {
+    tag: "[SR-174/AK5]",
+    name: "a snippet of a list property: the item with the match",
+    fixture: SNIPPETS,
+    input: { query: "hurricane" },
+    expect: "output",
+    check: (results) => {
+      expect(snippets(results)).toEqual({
+        "SR-0000a2": [
+          {
+            field: "properties",
+            property: "checks",
+            propertyName: "Checks",
+            text: "The dial warns before a hurricane arrives.",
+            marks: [{ start: 24, end: 33 }],
+          },
+          undefined,
+        ],
+      });
+    },
+  },
+  {
+    tag: "[SR-174/AK5]",
+    name: "no snippet for a title-only hit, its title marked",
+    fixture: SNIPPETS,
+    input: { query: "icing" },
+    expect: "output",
+    check: (results) => {
+      expect(snippets(results)).toEqual({ "SR-0000a3": [undefined, [{ start: 8, end: 13 }]] });
+    },
+  },
+  {
+    tag: "[SR-174/AK5]",
+    name: "no snippet for a status-name hit",
+    fixture: SNIPPETS,
+    input: { query: "approved" },
+    expect: "output",
+    check: (results) => {
+      expect(snippets(results)).toEqual({ "SR-0000a2": [undefined, undefined] });
+    },
   },
   {
     name: "a selection that is not there yet",

@@ -65,6 +65,14 @@ describe("element.search (SR-068)", () => {
           score: expect.any(Number) as number,
           fields: ["properties"],
           terms: ["supplier"],
+          // SR-174: where it was found.
+          snippet: {
+            field: "properties",
+            property: "source",
+            propertyName: "Source",
+            text: "Supplier A",
+            marks: [{ start: 0, end: 8 }],
+          },
         },
       ],
       total: 1,

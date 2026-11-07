@@ -17,6 +17,14 @@
 // they cost no more than the later searches. The window right after a start, while the index is
 // built, is spec question ThomasBirkmaier/ReqSeq-archive#388 (recorded in search-index.test.ts: "ready after the start").
 //
+// Every hit of a page has its snippet (SR-174), read from its file; the generated texts are short, so
+// every `LONG_EVERY`th element gets a text of about 5 KB more (`longText`: paragraphs with links and
+// inline references, a list), whose word `LONG_WORD` stands deep in it, in a list item after links;
+// the elements halfway between them get the same text hard-wrapped at about 60 characters, links and
+// emphasis split over lines (`wrappedText`, `WRAPPED_WORD`), which parses a few lines per hit.
+// Its rows search that word with a page of 50 and of 500 hits (the app's list asks for up to 500),
+// against the same 300 ms.
+//
 // The scoring that makes these searches fast is MiniSearch's to the bit: the last test compares the
 // scores of `scoreWords` with those of MiniSearch's `search` for every term, on this workspace
 // (search-scoring.ts).
@@ -56,6 +64,55 @@ const basis =
 
 type Search = CommandOutput<"element.search">;
 
+/** Every this many elements has a long text with `LONG_WORD` (SR-174). */
+const LONG_EVERY = 50;
+const LONG_WORD = "mooringbuoy";
+
+/** About 5 KB of Markdown: paragraphs with links and inline references, and a list with `LONG_WORD` in it. */
+const longText = (n: number, target: string): string => {
+  const link = `[the anchor manual](https://example.com/manual/${String(n)} "Manual") and [a reference](reqseq:${target}?version=n1:0000000000000000)`;
+  const paragraph = (k: number): string =>
+    `Paragraph ${String(k)} of the **station** log keeps ${link} in view, with \`code ${String(k)}\` and _weather_ notes.`;
+  const items = Array.from(
+    { length: 20 },
+    (_, k) => `- Item ${String(k)}: ${k === 15 ? `the ${LONG_WORD} holds, ` : ""}see ${link}.`,
+  );
+  return [
+    "",
+    "## Station log",
+    "",
+    ...Array.from({ length: 8 }, (_, k) => `${paragraph(k)}\n`),
+    ...items,
+    "",
+    ...Array.from({ length: 4 }, (_, k) => `${paragraph(k + 8)}\n`),
+  ].join("\n");
+};
+
+const WRAPPED_WORD = "wrappedbuoy";
+
+/** `longText` with `WRAPPED_WORD`, hard-wrapped at the first space after 60 characters (see the file comment). */
+const wrappedText = (n: number, target: string): string =>
+  longText(n, target)
+    .replace(LONG_WORD, WRAPPED_WORD)
+    .split("\n")
+    .map((line) => line.replace(/(.{60}\S*) /gu, "$1\n"))
+    .join("\n");
+
+/** `tree` with a long text appended to every `LONG_EVERY`th element (see the file comment). */
+const withLongTexts = (tree: GeneratedWorkspace): GeneratedWorkspace => {
+  const files = new Map(tree.files);
+  tree.elements.forEach((element, n) => {
+    const file = `${element.repository}/${element.file}`;
+    const content = files.get(file);
+    if (n % LONG_EVERY === 0 && content !== undefined) {
+      files.set(file, `${content}${longText(n, element.id)}\n`);
+    } else if (n % LONG_EVERY === LONG_EVERY / 2 && content !== undefined) {
+      files.set(file, `${content}${wrappedText(n, element.id)}\n`);
+    }
+  });
+  return { ...tree, files };
+};
+
 describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", () => {
   let tree: GeneratedWorkspace;
   let fixture: LargeFixtureWorkspace | undefined;
@@ -64,11 +121,13 @@ describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", ()
   let metamodel: Metamodel;
 
   beforeAll(async () => {
-    tree = generateLargeWorkspace({
-      version: versionOf(await standardModel()),
-      elements: ELEMENTS,
-      relations: RELATIONS,
-    });
+    tree = withLongTexts(
+      generateLargeWorkspace({
+        version: versionOf(await standardModel()),
+        elements: ELEMENTS,
+        relations: RELATIONS,
+      }),
+    );
     fixture = await writeLargeWorkspace(tree);
     workspace = new Workspace(fixture.workspaceRoot);
     // As a server starts (SR-082): the command runtime, the model, then the search index in the
@@ -177,6 +236,37 @@ describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", ()
     await recordValue(`element.search: slowest single run of ${String(singles.length)}`, slowest, {
       basis: "SR-098 AK1 (recorded: single runs include GC and scheduler pauses)",
     });
+    for (const measurement of measurements) {
+      expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(SEARCH_MS);
+    }
+  });
+
+  it("[SR-098/AK1] shows the first 50 and 500 hits with their snippets from texts of 5 KB, also hard-wrapped, within 300 ms (SR-174, median of 7 runs)", async () => {
+    if (workspace === undefined) {
+      throw new Error("no workspace");
+    }
+    const open = workspace;
+    const measurements = [];
+    for (const [word, limit, kind] of [
+      [LONG_WORD, 50, "texts"],
+      [LONG_WORD, 500, "texts"],
+      [WRAPPED_WORD, 50, "hard-wrapped texts"],
+      [WRAPPED_WORD, 500, "hard-wrapped texts"],
+    ] as const) {
+      const { result, measurement } = await measureMedian(
+        `element.search: a word deep in ${String(ELEMENTS / LONG_EVERY)} ${kind} of 5 KB (${JSON.stringify(word)}), the first ${String(limit)} hits with snippets`,
+        async () => (await invoke("element.search", { query: word, limit }, { workspace: open })) as Search,
+        {
+          basis: `SR-098 AK1, SR-174 (element.search, page of ${String(limit)}, warm server; median of 7 runs)`,
+          thresholdMs: SEARCH_MS,
+          runs: RUNS,
+        },
+      );
+      expect(result.hits).toHaveLength(limit);
+      expect(result.hits.every((hit) => hit.snippet?.text.includes(`the ${word} holds`) === true)).toBe(true);
+      expect(result.hits.some((hit) => /[*[\]()]/u.test(hit.snippet?.text ?? ""))).toBe(false);
+      measurements.push(measurement);
+    }
     for (const measurement of measurements) {
       expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(SEARCH_MS);
     }

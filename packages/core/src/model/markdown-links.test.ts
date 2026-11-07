@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { markdownImages, markdownLinks, markdownLinksAndMentions } from "./markdown-links.js";
+import {
+  markdownBlocks,
+  markdownDefinitions,
+  markdownImages,
+  markdownLinks,
+  markdownLinksAndMentions,
+} from "./markdown-links.js";
 
 /** The destinations found, `!` in front of images. */
 const found = (text: string): string[] =>
@@ -407,5 +413,37 @@ describe("definitions of reference-style links to a word (#844)", () => {
 
   it("still lets the first definition of a label win for reference images", () => {
     expect(markdownImages("![x][a]\n\n[a]: one.png\n[A]: two.png\n")).toEqual(["one.png"]);
+  });
+});
+
+describe("markdownBlocks (SR-174)", () => {
+  const blocks = (text: string): [string, boolean][] =>
+    markdownBlocks(text).map((block) => [text.slice(block.start, block.end), block.fence]);
+
+  it("splits at blank lines, keeps a fenced code block with its blank lines whole, also in a block quote", () => {
+    expect(blocks("a\nb\n\n  \nc\r\n> ```\n>\n> x\n> ```\nd\re")).toEqual([
+      ["a\nb\n", false],
+      ["c\r\n", false],
+      ["> ```\n>\n> x\n> ```\n", true],
+      ["d\re", false],
+    ]);
+  });
+
+  it("ends a fence with the block quote or list item it stands in", () => {
+    expect(blocks("> ```\n> code\n>\nAfter **it**.\n- ```\n  in item\n\n  more\nOut.\n")).toEqual([
+      ["> ```\n> code\n>\n", true],
+      ["After **it**.\n", false],
+      ["- ```\n  in item\n\n  more\n", true],
+      ["Out.\n", false],
+    ]);
+  });
+
+  it("gives the labels of the link reference definitions, not those in code or a paragraph", () => {
+    expect(markdownDefinitions("[A b]: x\n\ntext\n[c]: y\n\n```\n[d]: z\n```\n")).toEqual(["A b"]);
+  });
+
+  it("ends a fence that is not closed with the text", () => {
+    expect(blocks("~~~\ncode\n\nmore")).toEqual([["~~~\ncode\n\nmore", true]]);
+    expect(blocks("")).toEqual([]);
   });
 });

@@ -301,6 +301,28 @@
       "title": "Shared definitions",
       "description": "Building blocks used by all ReqSeq file formats and commands. See docs/adr/0004 and 0005.",
       "$defs": {
+        "textMarks": {
+          "description": "Matched words in a text, to highlight: UTF-16 code-unit offsets into the text, `end` exclusive, sorted and not overlapping.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "start": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "end": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "start",
+              "end"
+            ]
+          }
+        },
         "uuid": {
           "description": "Element ID: random UUID version 4, lower case, never changes.",
           "type": "string",
@@ -6713,7 +6735,7 @@
     {
       "name": "element_search",
       "title": "Search elements",
-      "description": "Full-text search over title, text, properties and IDs of the elements of a selection, typo tolerant, in any case, the best first.",
+      "description": "Full-text search over title, text, properties and IDs of the elements of a selection, typo tolerant, in any case, the best first, each hit with where it was found and a snippet around the match.",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
@@ -6764,7 +6786,7 @@
       },
       "outputSchema": {
         "type": "object",
-        "description": "One page of the hits, the best first: ID matches, then relevance, then workspace order. Waits for the search index while it is built.",
+        "description": "One page of the hits, the best first: ID matches, then relevance, then workspace order. Waits for the search index while it is built. The hits of the page read their files for the snippet.",
         "properties": {
           "hits": {
             "type": "array",
@@ -6820,6 +6842,67 @@
                   "items": {
                     "type": "string"
                   }
+                },
+                "titleMarks": {
+                  "$ref": "#/$defs/common/$defs/textMarks",
+                  "description": "The matched words in `title`; only when a word was found in the title."
+                },
+                "snippet": {
+                  "description": "Where a word was found and one line around the first match in reading order: in the text when a visible word of it matched, else in the first property value with a match, the properties of the type in metamodel order, then the others in file order. `text` is at most 120 code points, `…` at a cut end included: the visible text without Markdown characters, white space as single spaces; `marks` are the matched words in it. A list item or a nested value is a value of its own; a choice shows its name. None when no visible word matched: a match only in the title, an ID, the identifier, the type or status name, a link destination, HTML or an entity, or a file changed since the index read it.",
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "field": {
+                          "const": "text"
+                        },
+                        "text": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "marks": {
+                          "$ref": "#/$defs/common/$defs/textMarks"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": [
+                        "field",
+                        "text",
+                        "marks"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "field": {
+                          "const": "properties"
+                        },
+                        "property": {
+                          "type": "string",
+                          "description": "The frontmatter key."
+                        },
+                        "propertyName": {
+                          "type": "string",
+                          "description": "Its name in the metamodel; the key for a property the metamodel does not define."
+                        },
+                        "text": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "marks": {
+                          "$ref": "#/$defs/common/$defs/textMarks"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": [
+                        "field",
+                        "property",
+                        "propertyName",
+                        "text",
+                        "marks"
+                      ]
+                    }
+                  ]
                 }
               },
               "additionalProperties": false,

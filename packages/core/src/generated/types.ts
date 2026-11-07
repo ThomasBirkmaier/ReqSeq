@@ -117,6 +117,15 @@ export interface BaselineElsewhere {
 }
 
 /**
+ * Matched words in a text, to highlight: UTF-16 code-unit offsets into the text, `end` exclusive, sorted and not overlapping.
+ * Schema: `schemas/common.schema.json#/$defs/textMarks`.
+ */
+export type TextMarks = readonly {
+  readonly start: number;
+  readonly end: number;
+}[];
+
+/**
  * Element ID: random UUID version 4, lower case, never changes (D-017, SR-002).
  * Schema: `schemas/common.schema.json#/$defs/uuid`.
  */
@@ -2794,7 +2803,7 @@ export interface HintConfirmOutput {
 }
 
 /**
- * Input of `element.search` as `run` gets it: validated, properties with a `default` filled in. Full-text search over title, text, properties and IDs of the elements of a selection, typo tolerant, in any case, the best first.
+ * Input of `element.search` as `run` gets it: validated, properties with a `default` filled in. Full-text search over title, text, properties and IDs of the elements of a selection, typo tolerant, in any case, the best first, each hit with where it was found and a snippet around the match.
  * Schema: `schemas/commands/element.search.json input`.
  */
 export interface ElementSearchInput {
@@ -2809,7 +2818,7 @@ export interface ElementSearchInput {
 }
 
 /**
- * Output of `element.search`. Full-text search over title, text, properties and IDs of the elements of a selection, typo tolerant, in any case, the best first.
+ * Output of `element.search`. Full-text search over title, text, properties and IDs of the elements of a selection, typo tolerant, in any case, the best first, each hit with where it was found and a snippet around the match.
  * Schema: `schemas/commands/element.search.json output`.
  */
 export interface ElementSearchOutput {
@@ -2831,6 +2840,24 @@ export interface ElementSearchOutput {
     readonly fields: readonly ("title" | "text" | "properties" | "id")[];
     /** The words of the element that matched, in lower case, for highlighting; none for an ID. */
     readonly terms: readonly string[];
+    /** The matched words in `title` (SR-174 AK4); only when a word was found in the title. */
+    readonly titleMarks?: TextMarks;
+    /** Where a word was found and one line around the first match in reading order (SR-174): in the text when a visible word of it matched, else in the first property value with a match, the properties of the type in metamodel order, then the others in file order. `text` is at most 120 code points, `…` at a cut end included: the visible text without Markdown characters, white space as single spaces; `marks` are the matched words in it. A list item or a nested value is a value of its own; a choice shows its name. None when no visible word matched: a match only in the title, an ID, the identifier, the type or status name, a link destination, HTML or an entity, or a file changed since the index read it. */
+    readonly snippet?:
+      | {
+        readonly field: "text";
+        readonly text: string;
+        readonly marks: TextMarks;
+      }
+      | {
+        readonly field: "properties";
+        /** The frontmatter key. */
+        readonly property: string;
+        /** Its name in the metamodel; the key for a property the metamodel does not define. */
+        readonly propertyName: string;
+        readonly text: string;
+        readonly marks: TextMarks;
+      };
   }[];
   readonly total: number;
   readonly incomplete: Incomplete;

@@ -693,3 +693,110 @@ export const markdownImages = (text: string): string[] => {
     }),
   ];
 };
+
+/**
+ * Gives each line of `text` to `take`: without its line break (LF, CRLF or CR), with its offset and
+ * the offset of the next line. One pass: the next LF and CR are each searched again only once passed.
+ */
+const forEachLine = (text: string, take: (line: string, start: number, next: number) => void): void => {
+  let lf = text.indexOf("\n");
+  let cr = text.indexOf("\r");
+  for (let start = 0; start < text.length;) {
+    if (lf >= 0 && lf < start) {
+      lf = text.indexOf("\n", start);
+    }
+    if (cr >= 0 && cr < start) {
+      cr = text.indexOf("\r", start);
+    }
+    const breaks = [lf, cr].filter((at) => at >= 0);
+    const end = breaks.length === 0 ? text.length : Math.min(...breaks);
+    const next = text.startsWith("\r\n", end) ? end + 2 : Math.min(text.length, end + 1);
+    take(text.slice(start, end), start, next);
+    start = next;
+  }
+};
+
+/** A block of a Markdown text (`markdownBlocks`): offsets of whole lines, end exclusive. */
+export interface MarkdownBlock {
+  readonly start: number;
+  readonly end: number;
+  /** A fenced code block: its lines are code, no definition stands in them. */
+  readonly fence: boolean;
+}
+
+/**
+ * The blocks of a Markdown text, in order, for parsing one of them on its own (the search hit
+ * snippet, SR-174): the runs of non-blank lines between blank lines, and each fenced code block
+ * (also inside block quotes, its blank lines included) as a block of its own. Inline content never
+ * spans a blank line, so a block parsed alone reads as it does in the whole text, except for what
+ * refers to another block (a reference-style link and its definition) and a list item or block
+ * quote that goes on after a blank line. Blank lines belong to no block. One pass over the text.
+ */
+export const markdownBlocks = (text: string): MarkdownBlock[] => {
+  const blocks: MarkdownBlock[] = [];
+  let open: number | undefined;
+  /** The open fence: its marker, the block quote markers and the list item indent it stands in. */
+  let fence: { readonly marker: string; readonly quotes: number; readonly indent: number } | undefined;
+  const close = (end: number, fenced: boolean): void => {
+    if (open !== undefined) {
+      blocks.push({ start: open, end, fence: fenced });
+      open = undefined;
+    }
+  };
+  const outside = (line: string, content: string, start: number): void => {
+    if (content.trim() === "") {
+      close(start, false);
+      return;
+    }
+    const marker = content.includes("``") || content.includes("~~") ? openingFence(content) : undefined;
+    if (marker !== undefined) {
+      close(start, false);
+      fence = {
+        marker,
+        quotes: countQuotes(line, content),
+        indent: LIST_ITEM.exec(content)?.[0].length ?? 0,
+      };
+    }
+    open ??= start;
+  };
+  forEachLine(text, (line, start, next) => {
+    const content = line.startsWith(" ") || line.startsWith(">") ? line.replace(BLOCK_QUOTE, "") : line;
+    if (fence === undefined) {
+      outside(line, content, start);
+      return;
+    }
+    // A line outside the block quote or list item of the fence ends it (CommonMark).
+    const blank = content.trim() === "";
+    if (
+      countQuotes(line, content) < fence.quotes ||
+      (!blank && content.length - content.trimStart().length < fence.indent)
+    ) {
+      fence = undefined;
+      close(start, true);
+      outside(line, content, start);
+      return;
+    }
+    const marker = FENCE.exec(content)?.[1];
+    if (marker?.startsWith(fence.marker) === true && content.trim() === marker) {
+      fence = undefined;
+      close(next, true);
+    }
+  });
+  close(text.length, fence !== undefined);
+  return blocks;
+};
+
+/**
+ * The labels of the link reference definitions of a Markdown text, as written, in order (see the file
+ * comment: outside code and not inside a paragraph).
+ */
+export const markdownDefinitions = (text: string): string[] => {
+  const labels: string[] = [];
+  scan(text, {
+    links: [],
+    definitions: ({ written }) => {
+      labels.push(written);
+    },
+  });
+  return labels;
+};
