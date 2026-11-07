@@ -241,7 +241,7 @@ One portable artifact per platform (zip for Windows and macOS, tar.gz for Linux)
 
 ### Continuous integration
 
-The workflows in `.github/workflows/`, their triggers, jobs, `needs` and runner systems, and the checks `main` requires (`.claude/skills/lead-run/merge.md`):
+The workflows in `.github/workflows/`, their triggers, jobs, `needs` and runner systems, and the checks `main` requires (`.claude/skills/merge/SKILL.md`):
 
 ![CI workflows, jobs and required checks](ci.svg)
 

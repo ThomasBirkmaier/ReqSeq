@@ -36,7 +36,7 @@ concurrency:
 # `checks` and `electron` on macos-26 and windows-2025, Electron on Windows in two shards. The lanes ran one after the
 # other while runner minutes cost money; in a public repository they are free, and in sequence a full run took about
 # 24 minutes instead of about 15 (product owner decision, 2026-10-30, #412). So every pull request is checked on all
-# three systems before its merge (merge.md), but not every push.
+# three systems before its merge (merge skill), but not every push.
 
 jobs:
   # Static checks: they do not depend on the operating system and need no build, so Ubuntu only and apart from the
@@ -70,7 +70,7 @@ jobs:
             awk '$1 != "-" { n += $1 + $2 } END { print n + 0 }')"
           echo "Changed lines without generated files: $lines" >> "$GITHUB_STEP_SUMMARY"
           if [ "$lines" -gt 800 ]; then
-            echo "::warning title=Pull request size::$lines changed lines without generated files (over 800): split the pull request unless its change is inseparable (merge.md)."
+            echo "::warning title=Pull request size::$lines changed lines without generated files (over 800): split the pull request unless its change is inseparable (merge skill)."
           fi
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
@@ -363,7 +363,7 @@ jobs:
             test-results/electron/
           if-no-files-found: ignore
 
-  # The one Ubuntu Electron result that merge.md and the ruleset read: green when both shards are. A matrix of one
+  # The one Ubuntu Electron result that the merge skill and the ruleset read: green when both shards are. A matrix of one
   # (#412): a job with `needs` gets its check run only when it starts, and until then GitHub would read an older
   # skipped run of the same name on the head commit (from a `closed` or a cancelled run) as passed. A skipped matrix
   # job shows its name without the system instead.
@@ -384,7 +384,7 @@ jobs:
 
   # The platform lane (#303, #412): the steps of `checks` and `electron-shard` on macOS 26 and Windows 2025, in parallel
   # to the Ubuntu lane. A pull request runs it only when it is not a draft. A skipped platform job shows its name
-  # without the system (`checks (${{ matrix.os }})`), so a draft never shows the required names, and merge.md asks
+  # without the system (`checks (${{ matrix.os }})`), so a draft never shows the required names, and the merge skill asks
   # for the jobs of all three systems to be present and green.
   checks-platform:
     name: checks (${{ matrix.os }})
