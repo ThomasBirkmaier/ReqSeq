@@ -1496,7 +1496,7 @@ export interface WorkspaceRepository {
   readonly name: string;
   /** Address of the repository on the Git server. Informational: ReqSeq never clones or fetches (D-036). */
   readonly url: string;
-  /** Expected local location relative to the main repository, with `/` as separator. Default `../<name>`; always `.` for the main repository. Absolute paths and `\` are warned about (an absolute path is ignored); there is no `~` expansion. A person can override it in the untracked file `.reqseq/local.yaml`. */
+  /** Expected local location relative to the main repository, with `/` as separator. Default `../<name>`; always `.` for the main repository. Absolute paths and `\` are warned about; an absolute path is ignored, and so is one that leaves the folder holding the main repository or passes a link out of a repository (it can lead to a network share); there is no `~` expansion. A person can override it in the untracked file `.reqseq/local.yaml`. */
   readonly path?: string;
   readonly main?: boolean;
   /** The repository does not know the variants of the workspace (SR-173): an evidence record without `variant` for one of its elements counts in the core and in every variant the element applies in (the view rule, SR-047 AK3). Without the mark such a record counts only in the core (D-026). Shared: `.reqseq/local.yaml` cannot change it. An older ReqSeq rejects a workspace file with it (`file.faulty`). */

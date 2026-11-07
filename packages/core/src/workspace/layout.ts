@@ -137,16 +137,56 @@ const committedPath = (entry: WorkspaceRepository, problems: Problem[]): string 
   return slashed;
 };
 
+/**
+ * Whether the committed path `committed` (relative) may be followed from the main repository at
+ * `root`. It comes from repository content, so it must not lead ReqSeq to a network share
+ * (offline rule; product owner decision, 2026-11-07); a path on the user's own machine goes into
+ * the local file. So it must stay in the folder that holds the main repository
+ * (`../../../../net/host/r` and `../../other/r` reach folders an automounter mounts), and below the
+ * first folder it enters there (a clone, or the main repository) it must not pass a link out of
+ * that folder (`../a/x` with `x -> /net/host/b` in repository `a`), judged before anything follows
+ * it. When the main repository lies directly below a file system root, only a folder next to it or
+ * a path into it is taken (`../net/host` would mount `host`). Exported for tests.
+ */
+export const committedStays = async (root: string, committed: string): Promise<boolean> => {
+  const resolved = path.resolve(root, committed);
+  const parent = path.dirname(root);
+  const names = path.relative(parent, resolved).split(path.sep);
+  const first = names.slice(0, 1).join("");
+  if (first === "" || first === ".." || path.isAbsolute(first)) {
+    return false;
+  }
+  if (names.length === 1) {
+    return true;
+  }
+  const folder = path.join(parent, first);
+  if (folder !== root && path.parse(parent).root === parent) {
+    return false;
+  }
+  return linksStayInside(folder, resolved).catch(() => false);
+};
+
 /** The configured path of a repository, with the local override applied. */
-const configuredPath = (
+const configuredPath = async (
+  root: string,
   entry: WorkspaceRepository,
   isMain: boolean,
   local: WorkspaceLocalFile | undefined,
   problems: Problem[],
-): string => {
+): Promise<string> => {
   const committed = committedPath(entry, problems);
   const override = local?.repositories?.[entry.name]?.path;
   if (!isMain) {
+    if (override === undefined && committed !== undefined && !(await committedStays(root, committed))) {
+      problems.push(
+        invalid(
+          "warning",
+          WORKSPACE_FILE,
+          `Repository ${entry.name}: its path leaves the folder that holds the main repository or passes a link out of a repository, as a path to a network share can; it is ignored here; put it in ${LOCAL_FILE}`,
+        ),
+      );
+      return `../${entry.name}`;
+    }
     return override ?? committed ?? `../${entry.name}`;
   }
   const moved = committed !== undefined && path.posix.normalize(committed).replace(/\/$/, "") !== ".";
@@ -181,7 +221,7 @@ const locateRepository = async (
   local: WorkspaceLocalFile | undefined,
   problems: Problem[],
 ): Promise<RepositoryLocation> => {
-  const configured = configuredPath(entry, isMain, local, problems);
+  const configured = await configuredPath(root, entry, isMain, local, problems);
   const resolved = path.resolve(root, configured);
   const real = await realFolder(resolved);
   return {
