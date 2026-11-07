@@ -65,6 +65,7 @@ const fakeBridge = (handlers: Record<string, Handler>) => {
   const bridge: ReqSeqBridge = {
     invoke,
     commands: () => Promise.resolve([]),
+    listFolder: () => Promise.resolve({ name: "", entries: [] }),
     // Only the workspace's changes; `agent-activity` (SR-117) subscribes nothing here (follow-app.test.ts).
     on: (event: string, listener: (data: never) => void) => {
       if (event === "save-expired") {
@@ -315,6 +316,7 @@ describe("App", () => {
       copyText: () => Promise.resolve(true),
       recentWorkspaces: () => Promise.resolve([]),
       openWorkspace: () => Promise.resolve({ ok: true }),
+      listFolder: () => Promise.resolve({ name: "", entries: [] }),
       onSave: () => () => undefined,
     };
     await render(bridge);

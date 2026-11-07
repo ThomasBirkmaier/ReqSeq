@@ -11,6 +11,7 @@ import type { SyntaxNode, SyntaxNodeRef } from "@lezer/common";
 import { INLINE_NODES, inlineMarkup } from "./markup.js";
 import type { PreviewContext, PreviewRule } from "./plugins.js";
 import { inlineSegments } from "./segments.js";
+import { TaskBoxWidget } from "./tasks.js";
 import type { Align, TableData } from "./widgets.js";
 import { GlyphWidget, TableWidget } from "./widgets.js";
 
@@ -150,10 +151,8 @@ const taskMarker: PreviewRule = {
     }
     const checked = state.doc.sliceString(node.from, node.to).toLowerCase() === "[x]";
     return [
-      Decoration.replace({ widget: new GlyphWidget(checked ? "☑" : "☐", "cm-lr-task") }).range(
-        node.from,
-        node.to,
-      ),
+      // A press on the box ticks or unticks the task (SR-185 AK1, `tasks.ts`).
+      Decoration.replace({ widget: new TaskBoxWidget(checked) }).range(node.from, node.to),
     ];
   },
 };

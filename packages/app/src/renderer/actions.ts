@@ -6,6 +6,7 @@
 //
 // The prompt finds the app's actions and the catalog's read commands (`catalog-commands.ts`, ThomasBirkmaier/ReqSeq-archive#85); an
 // action that does what a command does covers it, so the prompt lists it once.
+import type { Command } from "@codemirror/view";
 import type { DataExportElement, ElementSelection } from "@reqseq/core";
 import type {
   Buffer,
@@ -44,6 +45,7 @@ import {
   onlyChoices,
 } from "./graph-choices.js";
 import { cycleKey } from "./buffer-cycle.js";
+import { TEXT_ACTIONS } from "./text-actions.js";
 import { HEADING_ACTIONS } from "./heading-actions.js";
 import type { HeadingControls } from "./heading-actions.js";
 import { searchRows } from "./rows.js";
@@ -71,6 +73,13 @@ export interface Choice {
   /** Shown under the name: where a hit was found and one line around it (SR-174, SR-183 AK3). */
   readonly snippet?: Snippet;
   readonly run: () => void;
+  /**
+   * Choosing it puts this text in the input in place of the typed one, and the prompt stays open, so
+   * typing goes on (a folder of a path, SR-143 AK1); `run` is then not called.
+   */
+  readonly complete?: string;
+  /** It only informs ("… n more", SR-143 AK5): it cannot be selected or chosen. */
+  readonly inert?: boolean;
   /** What Ctrl/Cmd+Enter does with it: take it and offer the optional arguments (catalog commands). */
   readonly more?: () => void;
   /** It fits the shown view (SR-133): it comes before the others when nothing is typed and among equal matches. */
@@ -83,6 +92,11 @@ export interface Prompt {
   readonly items: readonly Choice[];
   /** More choices for the typed text, from core (the jump prompt finds elements). */
   readonly find?: (query: string) => Promise<readonly Choice[]>;
+  /**
+   * As `find`, with a note for the label and whether the choices take the place of the prompt's own items
+   * (the folder of a typed path, SR-143); it is asked in place of `find`.
+   */
+  readonly seek?: (query: string) => Promise<Found>;
   /** Free text: Enter runs it (the search prompt). */
   readonly text?: (text: string) => void;
   /**
@@ -112,8 +126,19 @@ export interface Prompt {
   readonly fill?: Promise<PromptFill>;
 }
 
+/** What `find` found for a text, with more than the choices (the folder of a typed path, SR-143). */
+export interface Found {
+  readonly choices: readonly Choice[];
+  /** Said before the label while these choices are shown: why there are none (a folder that is missing). */
+  readonly note?: string;
+  /** The choices take the place of the prompt's own items for this text (a path in "Open workspace"). */
+  readonly alone?: boolean;
+}
+
 /** The parts of a prompt that can come later. */
-export type PromptFill = Partial<Pick<Prompt, "label" | "items" | "find" | "text" | "more">>;
+export type PromptFill = Partial<
+  Pick<Prompt, "label" | "items" | "find" | "seek" | "text" | "more" | "literal">
+>;
 
 /** What the shown element buffer lets the app do with its text (SR-065). */
 export interface ElementControls {
@@ -151,6 +176,11 @@ export interface ElementControls {
    * the caret of the text (the action "Insert image", SR-097, `insert-image.ts`).
    */
   readonly insertImage: () => void;
+  /**
+   * Runs an editing command at the cursor of the text and gives the text the focus, or says `none` when it does
+   * not apply there, or why the element cannot be changed (the text actions, `text-actions.ts`).
+   */
+  readonly text?: (command: Command, none: string) => void;
   /**
    * The headings of the text, and folding and the cursor of the text editor (SR-191, `heading-actions.ts`). They
    * change no text, so they are there for an element that cannot be changed too.
@@ -984,6 +1014,8 @@ export const ACTIONS: readonly Action[] = [
       context.element?.insertImage();
     },
   },
+  // The actions that edit the text at its cursor (D-073), each in its module (`text-actions.ts`).
+  ...TEXT_ACTIONS,
   // The actions on the headings of the text (SR-191, `heading-actions.ts`).
   ...HEADING_ACTIONS,
   {

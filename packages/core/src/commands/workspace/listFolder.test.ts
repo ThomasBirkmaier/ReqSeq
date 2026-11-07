@@ -1,5 +1,5 @@
-// workspace.listFolder (SR-143) as a read command: relative from the workspace root, `~` as home only
-// with `absolute`, and the folder through the local path rule of the access (SR-142). Not tagged with
+// workspace.listFolder (SR-143) as a read command: relative from the workspace root, `~` as home with
+// `absolute` and in the app, and the folder through the local path rule of the access (SR-142). Not tagged with
 // SR-143 AKs: they describe the app's command prompt. The cross-access test runs it through every access.
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -89,5 +89,14 @@ describe("workspace.listFolder", () => {
     expect((await list({ path: "~/", absolute: true }, "cli")).entries).toEqual([
       { name: "projects", kind: "folder" },
     ]);
+  });
+
+  it("in the app takes ~ for home in every path, as the app's path arguments, and the command line does not", async () => {
+    expect(await list({ path: "~/pro" }, "app")).toMatchObject({
+      folder: path.join(top, "home"),
+      name: "pro",
+    });
+    expect(await list({ path: "out/" }, "app")).toMatchObject({ folder: path.join(root, "out") });
+    expect(await list({ path: "~/in" }, "cli")).toMatchObject({ folder: path.join(root, "~"), name: "in" });
   });
 });

@@ -158,6 +158,7 @@ const theme = EditorView.theme({
   ".cm-lr-outdated-word": { color: "var(--accent-outdated)" },
   ".cm-lr-muted": { color: "var(--muted)" },
   ".cm-lr-bullet, .cm-lr-task": { display: "inline-block", width: "1.1em", color: "var(--muted)" },
+  ".cm-lr-task": { cursor: "pointer" },
   ".cm-lr-quote": { borderLeft: "3px solid var(--rule)", paddingLeft: "0.75rem", color: "var(--muted)" },
   ".cm-lr-codeblock": {
     fontFamily: "var(--mono)",

@@ -10,7 +10,7 @@ export const WORKSPACE_CHANNEL = "reqseq:workspace";
 
 /**
  * Renderer to main: the text to put on the system clipboard (SR-128); `ipcMain.handle` answers `true`
- * when the text was copied, else `false`. One of the four channels from the renderer to the main
+ * when the text was copied, else `false`. One of the five channels from the renderer to the main
  * process, each with the sender check of `main/sender.ts`.
  */
 export const COPY_CHANNEL = "reqseq:copy";
@@ -27,6 +27,12 @@ export const RECENT_WORKSPACES_CHANNEL = "reqseq:recent-workspaces";
  * workspace of the window is main's job (ADR-0010).
  */
 export const OPEN_WORKSPACE_CHANNEL = "reqseq:open-workspace";
+
+/**
+ * Renderer to main: the folders of the folder of a path typed in "Open workspace" (SR-143 AK1), answered
+ * with `FolderListing`. Main lists them, because without an open workspace there is no core process.
+ */
+export const LIST_FOLDER_CHANNEL = "reqseq:list-folder";
 
 /**
  * Main to renderer: save the unsaved input of the window now (`SaveRequest`), before another workspace
@@ -97,6 +103,27 @@ export type OpenWorkspaceRefusal =
 /** What opening a workspace gave: opened, or not, and why. */
 export type OpenWorkspaceResult =
   { readonly ok: true } | { readonly ok: false; readonly reason: OpenWorkspaceRefusal };
+
+/** What an entry of a folder is: a folder, a file, or a link (never followed, SR-143). */
+export type FolderEntryKind = "folder" | "file" | "link";
+
+/** Why a folder gives no entries: missing, not readable (also no answer in time), or refused by its text. */
+export type FolderProblem = "missing" | "unreadable" | "invalid";
+
+/**
+ * The entries of the folder of a typed path, as `workspace.listFolder` gives them (SR-143): `folder` the
+ * folder listed, `name` the typed name after the last separator, folders and links first.
+ */
+export interface FolderListing {
+  readonly folder?: string;
+  readonly name: string;
+  readonly entries: readonly { readonly name: string; readonly kind: FolderEntryKind }[];
+  readonly problem?: FolderProblem;
+  readonly truncated?: true;
+}
+
+/** The most entries a listing has (`workspace.listFolder`). */
+export const MAX_FOLDER_ENTRIES = 50_000;
 
 /** The longest text the main process copies, in characters (16 Mi). */
 export const MAX_COPY_LENGTH = 16 * 1024 * 1024;
@@ -239,6 +266,13 @@ export interface ReqSeqBridge {
    * `workspace-changed` with `opened`.
    */
   openWorkspace(root: string, options?: OpenWorkspaceOptions): Promise<OpenWorkspaceResult>;
+  /**
+   * The folders in the folder of `path`, a path typed in "Open workspace" (absolute, `~` for the home
+   * folder), with the typed name after its last separator (SR-143 AK1); never rejects: a refusal or an
+   * answer of another shape is `problem: "invalid"`. From the main process, since no core process runs
+   * while no workspace is open.
+   */
+  listFolder(path: string): Promise<FolderListing>;
   /**
    * Sets the function that saves the unsaved input of the window when main asks, before another
    * workspace opens in it (SR-131 AK3) or before the window closes (`closing`, SR-105 AK1): it resolves
@@ -519,6 +553,42 @@ export const openWorkspaceResult = (value: unknown): OpenWorkspaceResult => {
   return isRecord(value) && value["ok"] === false && REFUSALS.includes(value["reason"])
     ? { ok: false, reason: value["reason"] as OpenWorkspaceRefusal }
     : { ok: false, reason: "refused" };
+};
+
+const KINDS: readonly unknown[] = ["folder", "file", "link"] satisfies readonly FolderEntryKind[];
+const PROBLEMS: readonly unknown[] = ["missing", "unreadable", "invalid"] satisfies readonly FolderProblem[];
+
+/** A listing that says only that the path was refused. */
+export const REFUSED_LISTING: FolderListing = { name: "", entries: [], problem: "invalid" };
+
+/** `value` as main's listing of a folder, with only its fields; anything else is `REFUSED_LISTING`. */
+export const folderListing = (value: unknown): FolderListing => {
+  if (!isRecord(value) || typeof value["name"] !== "string" || !Array.isArray(value["entries"])) {
+    return REFUSED_LISTING;
+  }
+  const entries: readonly unknown[] = value["entries"];
+  const { folder, problem } = value;
+  const valid =
+    entries.length <= MAX_FOLDER_ENTRIES &&
+    entries.every(
+      (entry) =>
+        isRecord(entry) &&
+        typeof entry["name"] === "string" &&
+        entry["name"] !== "" &&
+        KINDS.includes(entry["kind"]),
+    ) &&
+    (folder === undefined || typeof folder === "string") &&
+    (problem === undefined || PROBLEMS.includes(problem));
+  if (!valid) {
+    return REFUSED_LISTING;
+  }
+  return {
+    ...(typeof folder === "string" ? { folder } : {}),
+    name: value["name"],
+    entries: (entries as FolderListing["entries"]).map(({ name, kind }) => ({ name, kind })),
+    ...(problem === undefined ? {} : { problem: problem as FolderProblem }),
+    ...(value["truncated"] === true ? { truncated: true } : {}),
+  };
 };
 
 /** `value` as main's request to save, or undefined. */

@@ -29,9 +29,9 @@ export interface LocalFolderOptions {
   /** Default the platform of this process. */
   readonly platform?: NodeJS.Platform;
   /** The home folder `~` and `~/…` stand for; without it `~` is an ordinary name. */
-  readonly home?: string;
+  readonly home?: string | undefined;
   /** The folder a relative path is resolved from (absolute); without it a relative path is refused. */
-  readonly base?: string;
+  readonly base?: string | undefined;
 }
 
 /**
@@ -52,7 +52,7 @@ export function localFolder(text: string, options: LocalFolderOptions = {}): str
     return undefined;
   }
   const windows = platform === "win32";
-  const expanded = expandHome(text, options.home, paths, windows);
+  const expanded = expandHome(text, options.home, platform);
   const absolute = paths.isAbsolute(expanded);
   const { base } = options;
   if (!absolute && (base === undefined || (windows && /^[A-Za-z]:/.test(expanded)))) {
@@ -67,12 +67,15 @@ export function localFolder(text: string, options: LocalFolderOptions = {}): str
   return isPathText(folder) && !refused ? folder : undefined;
 }
 
-/** `~` and `~/…` (also `~\…` on Windows) as `home`; the text itself without a home. */
-const expandHome = (
+/**
+ * `~` and `~/…` (also `~\…` on Windows) as `home`; any other text, and every text without a home, as it
+ * is. The folder listing and the path arguments of the app (`appLocalPaths`) share it, so a suggestion
+ * and the file a command then reads or writes agree.
+ */
+export const expandHome = (
   text: string,
   home: string | undefined,
-  paths: path.PlatformPath,
-  windows: boolean,
+  platform: NodeJS.Platform = process.platform,
 ): string => {
   if (home === undefined) {
     return text;
@@ -80,7 +83,9 @@ const expandHome = (
   if (text === "~") {
     return home;
   }
-  return (windows ? /^~[\\/]/ : /^~\//).test(text) ? paths.join(home, text.slice(2)) : text;
+  return (platform === "win32" ? /^~[\\/]/ : /^~\//).test(text)
+    ? pathsOf(platform).join(home, text.slice(2))
+    : text;
 };
 
 /** `folder` without separators at its end, its root excepted. */

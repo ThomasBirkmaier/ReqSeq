@@ -649,6 +649,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       name: view?.name,
       list: () => bridge.recentWorkspaces(),
       open: (...request) => bridge.openWorkspace(...request),
+      listFolder: (path) => bridge.listFolder(path),
     },
   };
 

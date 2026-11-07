@@ -185,6 +185,7 @@ const fake = () => {
     copyText: () => Promise.resolve(true),
     recentWorkspaces: () => Promise.resolve([]),
     openWorkspace: () => Promise.resolve({ ok: true }),
+    listFolder: () => Promise.resolve({ name: "", entries: [] }),
     onSave: () => () => undefined,
   };
   /** Sends changes to the window, all before it renders. */

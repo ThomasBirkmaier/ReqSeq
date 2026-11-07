@@ -4,9 +4,17 @@
 // (AK5): it opens the workspace found from that folder upwards. The list and the switch are the main
 // process's (bridge `recentWorkspaces`, `openWorkspace`); main has the window save its unsaved input
 // before it switches (AK3, `switch.ts`). The renderer shows the list as it comes and asks main to open.
-import type { OpenWorkspaceOptions, OpenWorkspaceResult, RecentWorkspaceEntry } from "../shared/protocol.js";
+// While a folder path is typed, the folders of its folder take the place of the list (SR-143 AK1, bridge
+// `listFolder`, `path-completion.ts`); choosing one puts it in the input, and the prompt stays open.
+import type {
+  FolderListing,
+  OpenWorkspaceOptions,
+  OpenWorkspaceResult,
+  RecentWorkspaceEntry,
+} from "../shared/protocol.js";
 import type { Choice, Prompt } from "./actions.js";
 import { isWindows } from "./keys.js";
+import { pathSeeker } from "./path-completion.js";
 import { notSavedInTime } from "./switch.js";
 
 /** The workspaces of the window: the open one's name, the list and the switch (from the bridge). */
@@ -15,6 +23,8 @@ export interface WorkspaceControls {
   readonly name: string | undefined;
   readonly list: () => Promise<readonly RecentWorkspaceEntry[]>;
   readonly open: (root: string, options?: OpenWorkspaceOptions) => Promise<OpenWorkspaceResult>;
+  /** The folders of the folder of a typed absolute path (SR-143 AK1); without it nothing is completed. */
+  readonly listFolder?: (path: string) => Promise<FolderListing>;
 }
 
 export interface WorkspacePromptContext {
@@ -100,6 +110,14 @@ const workspaceChoice = (context: WorkspacePromptContext, entry: RecentWorkspace
 export const isFolderPath = (text: string, windows: boolean): boolean =>
   (windows ? /^(?:[/~\\]|[A-Za-z]:[\\/])/ : /^[/~]/).test(text);
 
+/**
+ * Whether a typed text starts a folder path that is completed (SR-143 AK1): it starts with `/` or `~`, and
+ * on Windows also with a drive letter and `:`. Unlike `isFolderPath`, a `\` does not (product owner
+ * decision, 2026-11-07): on Windows it names the current drive, which core refuses.
+ */
+export const startsFolderPath = (text: string, windows: boolean): boolean =>
+  (windows ? /^(?:[/~]|[A-Za-z]:)/ : /^[/~]/).test(text);
+
 /** The choice for a typed folder path (AK5): it opens the workspace of that folder. */
 const typedChoice = (context: WorkspacePromptContext, query: string): Choice | undefined => {
   const path = query.trim();
@@ -116,6 +134,21 @@ const typedChoice = (context: WorkspacePromptContext, query: string): Choice | u
 };
 
 /**
+ * The folders of a typed folder path in place of the recent workspaces (SR-143 AK1), from main; any other
+ * text narrows the recent workspaces as before.
+ */
+const seekOf = (listFolder: WorkspaceControls["listFolder"]): Pick<Prompt, "seek"> => {
+  if (listFolder === undefined) {
+    return {};
+  }
+  const windows = isWindows(navigator.platform);
+  const folders = pathSeeker({ list: listFolder, windows, alone: true });
+  return {
+    seek: (query) => (startsFolderPath(query, windows) ? folders(query) : Promise.resolve({ choices: [] })),
+  };
+};
+
+/**
  * The prompt "Workspace": it opens at once and takes keys while main reads the list. The choices keep
  * main's order (the most recent first); the prompt ranks the matches of a typed text and keeps that order
  * among equal ones, as the command prompt does. A typed folder path comes first.
@@ -124,6 +157,7 @@ export const workspacePrompt = (context: WorkspacePromptContext): Prompt => ({
   label: "Workspace",
   items: [],
   literal: (query) => typedChoice(context, query),
+  ...seekOf(context.workspaces.listFolder),
   fill: context.workspaces.list().then((entries) => ({
     ...(entries.length === 0 ? { label: "Workspace (none opened yet)" } : {}),
     items: entries.map((entry) => workspaceChoice(context, entry)),

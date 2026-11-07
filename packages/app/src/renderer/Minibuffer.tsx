@@ -1,7 +1,7 @@
 // The minibuffer: the one control of the window. Idle it is a single line with the last message; asked
 // (a prompt) it is an input with the candidates rising above the modeline, not a dialog, only while asked.
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { Choice, Prompt, PromptFill } from "./actions.js";
+import type { Choice, Found, Prompt, PromptFill } from "./actions.js";
 import { NEXT_BUFFER_SHORTCUT, OTHER_WINDOW_SHORTCUT, PREVIOUS_BUFFER_SHORTCUT } from "./actions.js";
 import { highlightRanges, highlightTerms } from "./highlight.js";
 import type { Part } from "./highlight.js";
@@ -170,20 +170,24 @@ const PromptLine = ({
   const none = given.preview === true ? -1 : 0;
   const [selected, setSelected] = useState(none);
   // The hits shown, with the question they answer.
-  const [found, setFound] = useState<{ readonly question: number; readonly choices: readonly Choice[] }>({
+  const [found, setFound] = useState<Found & { readonly question: number }>({
     question: 0,
     choices: [],
   });
   // The parts that came later (`fill`): the prompt is open and takes keys while they load.
   const [filled, setFilled] = useState<PromptFill | undefined>(undefined);
   const prompt: Prompt = filled === undefined ? given : { ...given, ...filled };
+  // What finds more choices for a text: `seek`, else `find` (its choices alone).
+  const { seek, find } = prompt;
+  const seeker =
+    seek ?? (find === undefined ? undefined : (text: string) => find(text).then((choices) => ({ choices })));
   const loading = given.fill !== undefined && filled === undefined;
   // The newest question to core; an older answer that arrives later is dropped.
   const latest = useRef(0);
   // The question answered last, with its text and hits, at once: React shows them (`found`) only in a
   // later render, and a key that comes before it acts on them (#419).
   const answered = useRef(0);
-  const answer = useRef<{ readonly text: string; readonly choices: readonly Choice[] }>({
+  const answer = useRef<Found & { readonly text: string }>({
     text: "",
     choices: [],
   });
@@ -231,12 +235,17 @@ const PromptLine = ({
     const choice = prompt.literal?.(text);
     return choice === undefined ? [] : [choice];
   };
-  /** The rows for `text` with the elements core found for it: the literal choice, then `promptRows`. */
-  const rowsFor = (text: string, choices: readonly Choice[]): PromptRow<Choice>[] => [
+  /**
+   * The rows for `text` with what was found for it: the literal choice, then `promptRows`, or only the
+   * found ones when they stand `alone` (the folder of a typed path, SR-143 AK1).
+   */
+  const rowsFor = (text: string, { choices, alone }: Found): PromptRow<Choice>[] => [
     ...literalOf(text).map((item) => ({ item, ranges: [], own: true })),
-    ...promptRows(prompt.items, choices, (choice) => choice.name, text, prompt.use),
+    ...(alone === true
+      ? choices.map((item) => ({ item, ranges: [], own: false }))
+      : promptRows(prompt.items, choices, (choice) => choice.name, text, prompt.use)),
   ];
-  const rows = rowsFor(query, found.choices);
+  const rows = rowsFor(query, found);
   const current = rows[selected];
   // The row picked with the keys, read when an answer arrives: an exact title put first then must not
   // move the selection to another row (#195).
@@ -251,6 +260,14 @@ const PromptLine = ({
   // remembered (SR-121 AK2), never an element found for the text. `more` (Ctrl/Cmd+Enter) takes it with
   // the optional arguments of a catalog command; a choice without them is taken as with Enter.
   const choose = (choice: Choice, typed: string, more = false): void => {
+    if (choice.inert === true) {
+      return;
+    }
+    if (choice.complete !== undefined) {
+      // In place of the typed text, and the prompt stays open (SR-143 AK1).
+      change(choice.complete);
+      return;
+    }
     if (prompt.items.some((item) => item.id === choice.id)) {
       prompt.use?.record(typed, choice.id);
     }
@@ -259,20 +276,20 @@ const PromptLine = ({
   };
 
   /** Asks `find` for `value`; the answer is shown only while it is the newest question. */
-  const search = (find: (text: string) => Promise<readonly Choice[]>, value: string): void => {
+  const search = (seek: (text: string) => Promise<Found>, value: string): void => {
     latest.current += 1;
     const mine = latest.current;
     unsearched.current = false;
-    void find(value).then((choices) => {
+    void seek(value).then((result) => {
       if (mine !== latest.current) {
         return;
       }
       answered.current = mine;
-      answer.current = { text: value, choices };
-      setFound({ question: mine, choices });
+      answer.current = { ...result, text: value };
+      setFound({ ...result, question: mine });
       const { at, id } = picked.current;
       if (at > 0 || (given.preview === true && at >= 0)) {
-        const kept = rowsFor(value, choices).findIndex(({ item }) => item.id === id);
+        const kept = rowsFor(value, result).findIndex(({ item }) => item.id === id);
         if (kept !== -1) {
           setSelected(kept);
         } else if (given.preview === true) {
@@ -292,8 +309,8 @@ const PromptLine = ({
 
   /** The first row of the text answered last, as the list shows it, is chosen. */
   const takeFirst = (more: boolean): void => {
-    const { text, choices } = answer.current;
-    const [first] = rowsFor(text, choices);
+    const { text, ...result } = answer.current;
+    const [first] = rowsFor(text, result);
     if (first !== undefined) {
       choose(first.item, text, more);
     }
@@ -322,14 +339,14 @@ const PromptLine = ({
     waiting.current = 0;
     early.current = undefined;
     setPending(false);
-    if (prompt.find === undefined || value.trim() === "") {
+    if (seeker === undefined || value.trim() === "") {
       latest.current += 1;
       answered.current = latest.current;
       answer.current = { text: value, choices: [] };
       unsearched.current = value.trim() !== "";
       setFound({ question: latest.current, choices: [] });
     } else {
-      search(prompt.find, value);
+      search(seeker, value);
     }
   };
 
@@ -391,8 +408,8 @@ const PromptLine = ({
     const key = early.current;
     early.current = undefined;
     setPending(false);
-    if (prompt.find !== undefined && unsearched.current) {
-      search(prompt.find, typed.current);
+    if (seeker !== undefined && unsearched.current) {
+      search(seeker, typed.current);
     }
     if (key === "more") {
       more();
@@ -460,7 +477,9 @@ const PromptLine = ({
     if (step !== undefined) {
       event.preventDefault();
       event.stopPropagation();
-      setSelected(Math.max(none, Math.min(rows.length - 1, selected + step)));
+      // A row that only informs ("… n more") is never selected.
+      const last = rows.findLastIndex(({ item }) => item.inert !== true);
+      setSelected(Math.max(none, Math.min(last, selected + step)));
       return;
     }
     // Alt+N, Alt+P and Alt+O (Option on macOS) switch no buffer or area while a prompt is open: they type
@@ -491,7 +510,7 @@ const PromptLine = ({
   return (
     <>
       <label className="prompt-label" htmlFor="prompt-input">
-        {prompt.label}
+        {found.note === undefined ? prompt.label : `${found.note} · ${prompt.label}`}
       </label>
       <input
         ref={input}
@@ -523,6 +542,7 @@ const PromptLine = ({
                 key={row.item.id}
                 id={`candidate-${String(at)}`}
                 role="option"
+                {...(row.item.inert === true ? { "aria-disabled": true } : {})}
                 aria-selected={at === selected}
                 {...(given.preview === true
                   ? { className: row.item.snippet === undefined ? "hit" : "hit snipped" }

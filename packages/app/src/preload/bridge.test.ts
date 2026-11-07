@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { AgentActivity, WorkspaceChange, WorkspaceMessage } from "../shared/protocol.js";
 import {
   COPY_CHANNEL,
+  LIST_FOLDER_CHANNEL,
   OPEN_WORKSPACE_CHANNEL,
   RECENT_WORKSPACES_CHANNEL,
   SAVED_CHANNEL,
@@ -298,6 +299,17 @@ describe("createBridge", () => {
     expect(await bridge.openWorkspace("/req/buoy")).toEqual({ ok: false, reason: "refused" });
   });
 
+  it("listFolder goes to main, never rejects, and keeps only the fields of a listing (SR-143)", async () => {
+    const ipc = new FakeIpc();
+    const bridge = createBridge(ipc);
+    const listing = { folder: "/home/u", name: "pro", entries: [{ name: "projects", kind: "folder" }] };
+    ipc.answer = { ...listing, extra: 1, truncated: true };
+    expect(await bridge.listFolder("~/pro")).toEqual({ ...listing, truncated: true });
+    expect(ipc.invoked).toEqual([{ channel: LIST_FOLDER_CHANNEL, args: ["~/pro"] }]);
+    ipc.answer = new Error("No handler registered");
+    expect(await bridge.listFolder("~/pro")).toEqual({ name: "", entries: [], problem: "invalid" });
+  });
+
   it("[SR-131/AK5] openWorkspace passes a typed folder path to main as typed", async () => {
     const ipc = new FakeIpc();
     const bridge = createBridge(ipc);
@@ -423,7 +435,9 @@ describe("what the renderer can reach", () => {
     const bridge = createBridge(ipc);
     // `invoke` and `commands` go to the core process, which runs the catalog as CLI, API and MCP do.
     // The others are the window's operation (clipboard, the workspaces opened last, opening one,
-    // saving before a switch) and the events that tell it to ask again; none carries a value of a file.
+    // saving before a switch, the folders of a path typed in "Open workspace", which main lists with the
+    // core function of `workspace.listFolder`, SR-143) and the events that tell it to ask again; none
+    // carries a value of a file.
     // Outside the bridge, `reqseq-file:` (main's protocol) only draws the images a text names, files of
     // the repositories whose paths `element.get` gives; the recent elements of the overview live in the
     // window's storage. Both are display (AK1: „Zustand der Bedienung“).
@@ -431,6 +445,7 @@ describe("what the renderer can reach", () => {
       "commands",
       "copyText",
       "invoke",
+      "listFolder",
       "on",
       "onSave",
       "openWorkspace",

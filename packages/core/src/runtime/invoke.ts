@@ -4,7 +4,7 @@
 // ID of the element each problem of the output names (`withElementShortIds`, ThomasBirkmaier/ReqSeq-archive#315). Records the
 // element of an API or MCP call as the last access of the copy (`recordAccess`, SR-117). Refuses the
 // local paths of an API or MCP call outside the repositories of the workspace (SR-142).
-import type { AnyCommand } from "../catalog.js";
+import type { AnyCommand, LocalPaths } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import { commands as productCommands } from "../commands/index.js";
 import { assertWritable } from "../metamodel/index.js";
@@ -16,8 +16,9 @@ import type { ProblemLocator } from "./element-short-ids.js";
 import { problemLocator, withElementShortIds } from "./element-short-ids.js";
 import { describeInputViolations, inputViolations } from "./input-errors.js";
 import type { LocalPathField } from "./local-path-fields.js";
-import { localPathFields, localPathUses } from "./local-path-fields.js";
-import { OPEN_LOCAL_PATHS, confinedLocalPaths } from "../workspace/local-paths.js";
+import { localPathFields, localPathUses, replaceLocalPaths } from "./local-path-fields.js";
+import { OPEN_LOCAL_PATHS, appLocalPaths, confinedLocalPaths } from "../workspace/local-paths.js";
+import { expandHome } from "../workspace/path-text.js";
 import type { Workspace } from "./workspace.js";
 
 /** What an adapter passes per call. */
@@ -27,8 +28,9 @@ export interface InvokeContext {
   readonly signal?: AbortSignal;
   /**
    * The access the call comes through: each adapter passes its own name (ADR-0002 rule 4). It changes
-   * the result in one way only: outside `UNCONFINED_ACCESSES` local paths must lie inside the
-   * repositories of the workspace (SR-142, an exception to SR-080 AK2). Core records the element a successful call names as the last access of the
+   * the result in one way only, its local path rule: outside `UNCONFINED_ACCESSES` local paths must lie
+   * inside the repositories of the workspace (SR-142, an exception to SR-080 AK2), and in the app `~` at
+   * the start of a local path is the home folder (SR-143 AK2; the command line's shell expands it). Core records the element a successful call names as the last access of the
    * copy when the access is one of `FOLLOWED_ACCESSES` (API and MCP, SR-117) and the workspace has
    * a cache folder; left out, nothing is recorded and no path is confined (core tests, internal callers).
    */
@@ -40,6 +42,24 @@ export interface InvokeContext {
  * person gives. Every other access, a future one too, takes only paths inside the repositories.
  */
 export const UNCONFINED_ACCESSES: readonly AccessName[] = ["cli", "app"];
+
+/**
+ * The local path rule of an access of `UNCONFINED_ACCESSES` (or of none): the app's takes `~` for the home
+ * folder, since its prompt has no shell that expands it (SR-143 AK2); the command line's shell does.
+ */
+const unconfinedLocalPaths = (access: AccessName | undefined): LocalPaths =>
+  access === "app" ? appLocalPaths() : OPEN_LOCAL_PATHS;
+
+/**
+ * `input` with a leading `~` of its local path `fields` as `home` (the app), so the command reads and
+ * writes where the completion of the app's prompt listed (`workspace.listFolder`); without a home as it is.
+ */
+const withHome = (
+  input: unknown,
+  fields: readonly LocalPathField[] | undefined,
+  home: string | undefined,
+): unknown =>
+  home === undefined ? input : replaceLocalPaths(input, fields, (value) => expandHome(value, home));
 
 export interface CommandRuntimeOptions {
   /** Implementations to register. Default: all product commands (commands/index.ts). */
@@ -181,7 +201,8 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
         ? { ...known, access }
         : undefined;
     const confined = access !== undefined && !UNCONFINED_ACCESSES.includes(access);
-    const localPaths = confined ? confinedLocalPaths(ctx.workspace, name) : OPEN_LOCAL_PATHS;
+    const localPaths = confined ? confinedLocalPaths(ctx.workspace, name) : unconfinedLocalPaths(access);
+    checked = withHome(checked, pathFields.get(name), localPaths.home);
     let noted: Promise<NotedAccess | undefined> | undefined;
     let output: unknown;
     try {

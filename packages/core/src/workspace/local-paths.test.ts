@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import type { FixtureWorkspace } from "@reqseq/testkit";
 import { createFixtureWorkspace } from "@reqseq/testkit";
@@ -8,7 +9,12 @@ import { CommandError } from "../catalog.js";
 import { Workspace } from "../runtime/workspace.js";
 import type { LocalPathOptions } from "./local-paths.js";
 import { workspaceLayoutState } from "./layout.js";
-import { OPEN_LOCAL_PATHS, assertInsideRepositories, confinedLocalPaths } from "./local-paths.js";
+import {
+  OPEN_LOCAL_PATHS,
+  appLocalPaths,
+  assertInsideRepositories,
+  confinedLocalPaths,
+} from "./local-paths.js";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -248,5 +254,13 @@ describe("local paths of an API or MCP call (SR-142)", () => {
     const workspace = open(path.join((await fixture()).root, "not-there"));
     await expect(assertInsideRepositories(workspace, "test.command", [])).resolves.toBeUndefined();
     await expect(OPEN_LOCAL_PATHS.check([{ field: "file", path: "/etc/passwd" }])).resolves.toBeUndefined();
+    expect(OPEN_LOCAL_PATHS.home).toBeUndefined();
+  });
+
+  it("the rule of the app accepts every path and takes ~ for the home folder (SR-143)", async () => {
+    const rule = appLocalPaths("/home/someone");
+    await expect(rule.check([{ field: "file", path: "/etc/passwd" }])).resolves.toBeUndefined();
+    expect(rule.home).toBe("/home/someone");
+    expect(appLocalPaths().home).toBe(os.homedir());
   });
 });

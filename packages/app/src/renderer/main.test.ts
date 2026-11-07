@@ -25,6 +25,7 @@ describe("renderer entry", () => {
       copyText: () => Promise.resolve(true),
       recentWorkspaces: () => Promise.resolve([]),
       openWorkspace: () => Promise.resolve({ ok: true }),
+      listFolder: () => Promise.resolve({ name: "", entries: [] }),
       onSave: () => () => undefined,
     };
     Object.defineProperty(window, "reqseq", { value: bridge, configurable: true });
