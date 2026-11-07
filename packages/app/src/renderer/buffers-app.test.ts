@@ -139,6 +139,7 @@ beforeEach(() => {
   listeners.clear();
   workspaceName = "Weather station";
   window.localStorage.clear();
+  window.sessionStorage.clear();
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);

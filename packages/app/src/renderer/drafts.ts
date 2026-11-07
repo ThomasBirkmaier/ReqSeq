@@ -123,14 +123,25 @@ export interface Drafts {
   readonly update: (key: string, change: (draft: Draft) => Draft | undefined) => void;
   /** Drops all drafts: another workspace was opened. */
   readonly reset: () => void;
+  /** Takes the drafts kept outside the page (#270, `draft-store.ts`): the page was loaded again. */
+  readonly seed: (kept: ReadonlyMap<string, Draft>) => void;
 }
 
-export const useDrafts = (shownKey: string | undefined): Drafts => {
+/**
+ * The drafts of the window. `changed` hears every change of them, with all drafts after it, so they can
+ * be kept outside the page (#270).
+ */
+export const useDrafts = (
+  shownKey: string | undefined,
+  changed?: (drafts: ReadonlyMap<string, Draft>) => void,
+): Drafts => {
   // The unsaved text by buffer key.
   const drafts = useRef(new Map<string, Draft>());
   // The key of the buffer that "Close buffer" asked about; closing it again discards its draft.
   const armed = useRef<string | undefined>(undefined);
   const [, setCount] = useState(0);
+  const changedNow = useRef(changed);
+  changedNow.current = changed;
 
   const onDraft = useCallback((key: string, draft: Draft | undefined): void => {
     const had = drafts.current.has(key);
@@ -141,6 +152,7 @@ export const useDrafts = (shownKey: string | undefined): Drafts => {
     }
     // More input ends a question about closing.
     armed.current = undefined;
+    changedNow.current?.(drafts.current);
     if (had !== (draft !== undefined)) {
       setCount((count) => count + 1);
     }
@@ -160,6 +172,15 @@ export const useDrafts = (shownKey: string | undefined): Drafts => {
   const reset = useCallback((): void => {
     drafts.current.clear();
     armed.current = undefined;
+    changedNow.current?.(drafts.current);
+  }, []);
+
+  const seed = useCallback((kept: ReadonlyMap<string, Draft>): void => {
+    for (const [key, draft] of kept) {
+      drafts.current.set(key, draft);
+    }
+    changedNow.current?.(drafts.current);
+    setCount((count) => count + 1);
   }, []);
 
   // Another buffer is shown: a question about closing the former one is over.
@@ -167,5 +188,5 @@ export const useDrafts = (shownKey: string | undefined): Drafts => {
     armed.current = undefined;
   }, [shownKey]);
 
-  return { drafts, armed, onDraft, update, reset };
+  return { drafts, armed, onDraft, update, reset, seed };
 };

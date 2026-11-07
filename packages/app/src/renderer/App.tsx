@@ -5,7 +5,7 @@
 // catalog command through the bridge (ADR-0002); the app only builds inputs and shows outputs.
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import type { MetamodelGetOutput } from "@reqseq/core";
-import type { CommandListing, WorkspaceChangeReason } from "../shared/protocol.js";
+import type { CommandListing, InvokeResult, WorkspaceChangeReason } from "../shared/protocol.js";
 import type { ReqSeqBridge } from "../shared/protocol.js";
 import type { ActionContext, ElementControls, Prompt } from "./actions.js";
 import {
@@ -21,7 +21,8 @@ import { forgetClosed, memoryOf, queueSave, savesDone } from "./buffer-memory.js
 import { loadSession, restoreSession, saveSession, sessionKey, sessionText } from "./buffer-session.js";
 import { catalogItems } from "./catalog-commands.js";
 import type { Draft } from "./drafts.js";
-import { useDrafts } from "./drafts.js";
+import type { DraftStorage, KeptDrafts } from "./draft-store.js";
+import { takeDrafts, useWindowDrafts } from "./draft-store.js";
 import type { Buffer, ElementBuffer, MetamodelBuffer } from "./buffers.js";
 import { elementBuffer, elementBufferOf, inMatrix, overviewBuffer } from "./buffers.js";
 import type { AreaViews } from "./BufferArea.js";
@@ -92,6 +93,16 @@ const NO_RELATIONS: Pick<MetamodelGetOutput, "relations" | "properties"> = { rel
  * workspace are kept; read when needed, it may throw.
  */
 const appStorage = (): RecentStorage => window.localStorage;
+
+/**
+ * The window's session storage, where its drafts are kept while the window is open, so that a page loaded
+ * again after a crash gets them back (#270); read when needed, it may throw.
+ */
+const windowStorage = (): DraftStorage => window.sessionStorage;
+
+/** The minibuffer's line when a page loaded again got drafts back (#270). */
+const draftsBack = (count: number): string =>
+  `The window was loaded again; the unsaved input of ${count === 1 ? "1 buffer" : `${String(count)} buffers`} is back`;
 
 /**
  * macOS: the window has no native title bar (ADR-0010, ThomasBirkmaier/ReqSeq-archive#490), so this strip of the sheet moves the window
@@ -170,7 +181,17 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   const split = isSplit(layout);
   const shownAreas = areas(windowState);
   const current = buffers[0];
-  const { drafts, armed, onDraft, update: updateDraft, reset: resetDrafts } = useDrafts(current?.key);
+  // The drafts are kept outside the page too (#270, `draft-store.ts`): a page loaded again after a crash
+  // takes them back.
+  const {
+    drafts,
+    armed,
+    onDraft,
+    update: updateDraft,
+    reset: resetDrafts,
+    seed: seedDrafts,
+    scope: draftScope,
+  } = useWindowDrafts(current?.key, windowStorage);
   // Per element buffer while it is open (SR-105): its undo history, and its saves, in order.
   const memories = useRef(new Map<string, UndoMemory>());
   const saves = useRef(new Map<string, Promise<unknown>>());
@@ -280,7 +301,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     let currentKey: string | undefined;
     // The buffers open when this workspace was last left come back behind the overview (SR-115 AK4): the
     // overview shows at once (SR-118 AK1), the restored ones once their elements are named.
-    const restoreBuffers = (key: string | undefined, asked: number): void => {
+    const restoreBuffers = (key: string | undefined, asked: number, back?: KeptDrafts): void => {
       if (key === undefined) {
         return;
       }
@@ -295,6 +316,11 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
             setSession(currentKey);
           }
           dispatch({ type: "restore", buffers: restored.buffers });
+          // A page loaded again shows the buffer it showed, with its draft (#270).
+          const shown = back?.shown;
+          if (shown !== undefined && restored.buffers.some((buffer) => buffer.key === shown)) {
+            dispatch({ type: "switch", key: shown });
+          }
         },
       );
     };
@@ -304,8 +330,24 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     const followKey = (moved: string | undefined): void => {
       if (moved !== undefined) {
         currentKey = moved;
+        draftScope.current = moved;
         setSession((before) => (before === undefined ? undefined : moved));
       }
+    };
+    // A workspace is there in a page that started, or another one opened: its buffers start, and on the
+    // first status of a page the drafts kept in this window for it come back (#270), taken before the
+    // start drops them.
+    const begin = (result: InvokeResult, reason: "opened" | undefined, asked: number): void => {
+      currentKey = sessionKey(result);
+      const back =
+        reason === undefined && currentKey !== undefined ? takeDrafts(windowStorage, currentKey) : undefined;
+      startBuffers(reason, result.ok);
+      draftScope.current = currentKey;
+      if (back !== undefined) {
+        seedDrafts(back.drafts);
+        setEcho(draftsBack(back.drafts.size));
+      }
+      restoreBuffers(currentKey, asked, back);
     };
     const refresh = async (reason: WorkspaceChangeReason | undefined): Promise<void> => {
       const asked = opened;
@@ -317,9 +359,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       setView(next);
       document.title = windowTitle(next);
       if (reason === undefined || reason === "opened") {
-        currentKey = sessionKey(result);
-        startBuffers(reason, result.ok);
-        restoreBuffers(currentKey, asked);
+        begin(result, reason, asked);
       } else {
         followKey(sessionKey(result));
       }

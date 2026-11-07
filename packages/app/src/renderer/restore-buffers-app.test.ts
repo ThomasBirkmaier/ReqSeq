@@ -10,6 +10,8 @@ import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { BridgeEvents, InvokeResult, ReqSeqBridge } from "../shared/protocol.js";
 import { App } from "./App.js";
+import { sessionKey } from "./buffer-session.js";
+import { DRAFTS_KEY, keepDrafts } from "./draft-store.js";
 import { NO_SUMMARY } from "./package-summary-test-data.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -108,6 +110,7 @@ beforeEach(() => {
   invoke.mockClear();
   changed.clear();
   window.localStorage.clear();
+  window.sessionStorage.clear();
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -311,5 +314,36 @@ describe("App, the open buffers after the app opens again (SR-115 AK4)", () => {
     await restart();
     expect(shown()).toBe("Overview");
     expect(await walk(2)).toEqual(["Overview", "Overview"]);
+  });
+
+  it("a page loaded again in the same window shows the buffer it showed, with its drafts kept for this workspace (#270)", async () => {
+    await render();
+    await openFour();
+    await press(window, { key: "p", ctrlKey: true });
+    await press(query("input"), { key: "Enter" });
+    expect(shown()).toBe("SR-000001 Title 1");
+    // The page kept a draft of the element in the window's session storage, as `useWindowDrafts` does.
+    const key = sessionKey({ ok: true, output: { name: "Weather station", readOnly: true } });
+    const keep = (workspace: string | undefined): void => {
+      keepDrafts(() => window.sessionStorage, {
+        workspace: workspace ?? "",
+        shown: "element:spec:uuid-1",
+        drafts: new Map([["element:spec:uuid-1", { text: "Hello!", base: "Hello" }]]),
+      });
+    };
+    keep(key);
+    // The renderer crashed and main loaded the page again: the session storage is the same.
+    await restart();
+    expect(shown()).toBe("SR-000001 Title 1");
+    expect(query('[aria-label="Minibuffer"]').textContent).toBe(
+      "The window was loaded again; the unsaved input of 1 buffer is back",
+    );
+    expect(query('[aria-label="Modeline"]').textContent).toContain("modified");
+    // Another workspace drops them; drafts kept for another workspace do not come back.
+    await openWorkspace("Rain gauge");
+    expect(window.sessionStorage.getItem(DRAFTS_KEY)).toBeNull();
+    keep("another");
+    await restart();
+    expect(shown()).toBe("Overview");
   });
 });

@@ -148,6 +148,7 @@ let root: Root;
 beforeEach(() => {
   invoke.mockClear();
   window.localStorage.clear();
+  window.sessionStorage.clear();
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
