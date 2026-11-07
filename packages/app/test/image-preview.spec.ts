@@ -2,6 +2,9 @@
 // `reqseq-file:` protocol in place of its source, below its line while the cursor is in it, and an image on
 // the network, outside the repository or missing keeps its source with a quiet note. Keys use ControlOrMeta,
 // so the same tests run on Linux and macOS.
+import fs from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { deflateSync, crc32 } from "node:zlib";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
@@ -32,6 +35,8 @@ const png = (width: number, height: number): Uint8Array => {
     chunk("IEND", Buffer.alloc(0)),
   ]);
 };
+
+const OUT = fileURLToPath(new URL("../../../test-results/electron/screenshots", import.meta.url));
 
 const FOLDER = DEMO_FILE.replace(/\.md$/, "");
 const NAME = FOLDER.split("/").pop() ?? "";
@@ -130,5 +135,15 @@ test.describe("images in the live preview", () => {
       2,
     );
     await expect(shown.locator("img:not(.cm-widgetBuffer)")).toHaveCount(0);
+  });
+
+  test("screenshot: images in the live preview with notes (light)", async () => {
+    const { window } = running;
+    await fs.mkdir(OUT, { recursive: true });
+    await running.app.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0]?.setContentSize(1280, 800);
+    });
+    await expect(window.locator('.cm-content img[alt="wide"]')).toBeVisible();
+    await window.screenshot({ path: path.join(OUT, "image-preview.png") });
   });
 });
