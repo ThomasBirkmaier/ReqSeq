@@ -45,7 +45,13 @@ const start = (initial: Buffers, answers: Record<string, unknown> = {}, members 
     dispatch: (change) => {
       (context as { buffers: Buffers }).buffers = reduceBuffers(context.buffers, change);
     },
-    ask: (prompt) => asked.push(prompt),
+    // The prompt as the minibuffer shows it once its parts that come later (`fill`) are in.
+    ask: (prompt) => {
+      const at = asked.push(prompt) - 1;
+      void prompt.fill?.then((parts) => {
+        asked[at] = { ...prompt, ...parts };
+      });
+    },
     echo: vi.fn(),
     modified: false,
     closeArmed: () => false,

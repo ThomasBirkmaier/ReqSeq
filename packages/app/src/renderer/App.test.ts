@@ -642,14 +642,13 @@ describe("App", () => {
   });
 
   it("clears the last message when a prompt opens", async () => {
-    const { bridge, handlers } = fakeBridge(workspace());
+    const { bridge } = fakeBridge(workspace());
     await renderList(bridge);
-    handlers["metamodel.get"] = () => new Error("The metamodel is not valid");
-    await runCommand("filter list by type");
-    expect(text("Minibuffer")).toBe("The metamodel is not valid");
+    await runCommand("toggle dark mode");
+    expect(text("Minibuffer")).toContain("until the app quits");
     await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
     expect(text("Minibuffer")).toContain("Command");
-    expect(text("Minibuffer")).not.toContain("not valid");
+    expect(text("Minibuffer")).not.toContain("until the app quits");
   });
 
   it("asks again for what it shows when files were written or the core process restarted", async () => {

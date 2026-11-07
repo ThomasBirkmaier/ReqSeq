@@ -220,6 +220,27 @@ describe("the neighbourhood in the app", () => {
     expect(query('[aria-label="Modeline"]').textContent).toContain("Neighbourhood: N-001 See the wind");
   });
 
+  it("Ctrl+J pressed while Enter waits for the hits acts on the element the Enter opens (#467)", async () => {
+    await open();
+    await keyDown(window, "p", true);
+    const input = query("input");
+    const press = (key: string, ctrlKey = false): void => {
+      input.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ctrlKey }));
+    };
+    // One go: the hits of the typed text are not in when Enter and Ctrl+J come.
+    await act(async () => {
+      const descriptor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
+      const setValue = Reflect.get(descriptor ?? {}, "set") as (this: HTMLElement, value: string) => void;
+      setValue.call(input, "N-001");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      press("Enter");
+      press("j", true);
+      await Promise.resolve();
+    });
+    await flush();
+    expect(query(".neighbourhood h1").textContent).toBe("N-001 See the wind");
+  });
+
   it("[SR-107/AK2] goes back to the element with Ctrl+J, and the neighbourhood is in the buffer list", async () => {
     await open();
     await toRequirements();

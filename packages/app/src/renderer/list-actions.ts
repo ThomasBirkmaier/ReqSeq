@@ -3,7 +3,7 @@
 // package page, and changes its query (`list-query.ts`); what the target's view does not show is not
 // offered. Only the input of `element.list` is built (ADR-0002).
 import type { ElementSelection, FilterSortKeyWithDefaults } from "@reqseq/core";
-import type { Action, ActionContext, Choice } from "./actions.js";
+import type { Action, ActionContext, Choice, PromptFill } from "./actions.js";
 import type { ElementBuffer, FilterStep, ListBuffer } from "./buffers.js";
 import {
   DEFAULT_SORT,
@@ -169,22 +169,27 @@ const filterBy = (by: FilterBy): Action => ({
   id: by.id,
   title: by.title,
   available: by.available ?? canFilter,
+  // The prompt opens at once and fills its choices when core answers, so keys typed meanwhile go to it
+  // (#467); a read that fails or finds nothing says so in the label.
   run: onTarget((context, target) => {
-    void by.names(context.shownCall ?? context.call, target).then((found) => {
-      if (!found.ok) {
-        context.echo(found.message);
-      } else if (found.names.length === 0) {
-        context.echo(by.nothing);
-      } else {
-        context.ask({
-          label: by.label,
+    context.ask({
+      label: by.label,
+      items: [],
+      fill: by.names(context.shownCall ?? context.call, target).then((found): PromptFill => {
+        if (!found.ok) {
+          return { label: `${found.message} · ${by.label}` };
+        }
+        if (found.names.length === 0) {
+          return { label: `${by.nothing} · ${by.label}` };
+        }
+        return {
           items: found.names.map((name) =>
             choice(name, () => {
               addStep(target, by.step(name));
             }),
           ),
-        });
-      }
+        };
+      }),
     });
   }),
 });
@@ -232,23 +237,24 @@ export const LIST_ACTIONS: readonly Action[] = [
     title: "Filter list by property",
     available: canFilter,
     run: onTarget((context, target) => {
-      void facetsOf(context.shownCall ?? context.call, target).then((answer) => {
-        if (!answer.ok) {
-          context.echo(answer.message);
-          return;
-        }
-        const items = propertyChoices(
-          answer.output,
-          (step) => {
-            addStep(target, step);
-          },
-          context.ask,
-        );
-        if (items.length === 0) {
-          context.echo("No property of the elements in this list has values to choose from.");
-        } else {
-          context.ask({ label: "Property", items });
-        }
+      context.ask({
+        label: "Property",
+        items: [],
+        fill: facetsOf(context.shownCall ?? context.call, target).then((answer): PromptFill => {
+          if (!answer.ok) {
+            return { label: `${answer.message} · Property` };
+          }
+          const items = propertyChoices(
+            answer.output,
+            (step) => {
+              addStep(target, step);
+            },
+            context.ask,
+          );
+          return items.length === 0
+            ? { label: "No property of the elements in this list has values to choose from. · Property" }
+            : { items };
+        }),
       });
     }),
   },
@@ -319,18 +325,22 @@ export const LIST_ACTIONS: readonly Action[] = [
     available: sets("group"),
     run: onTarget((context, target) => {
       const call = context.shownCall ?? context.call;
-      void Promise.all([facetsOf(call, target), call("metamodel.get", {})]).then(([facets, metamodel]) => {
-        if (!facets.ok) {
-          context.echo(facets.message);
-          return;
-        }
-        const packages = metamodel.ok ? (metamodel.output.meanings["packages"] ?? []) : [];
-        context.ask({
-          label: "Group by",
-          items: groupChoices(facets.output, packages, (group) => {
-            target.apply({ group });
-          }),
-        });
+      context.ask({
+        label: "Group by",
+        items: [],
+        fill: Promise.all([facetsOf(call, target), call("metamodel.get", {})]).then(
+          ([facets, metamodel]): PromptFill => {
+            if (!facets.ok) {
+              return { label: `${facets.message} · Group by` };
+            }
+            const packages = metamodel.ok ? (metamodel.output.meanings["packages"] ?? []) : [];
+            return {
+              items: groupChoices(facets.output, packages, (group) => {
+                target.apply({ group });
+              }),
+            };
+          },
+        ),
       });
     }),
   },

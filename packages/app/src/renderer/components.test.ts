@@ -987,6 +987,105 @@ describe("Minibuffer", () => {
       expect(closed).toHaveBeenCalledTimes(1);
     });
 
+    it("says searching while an Enter waits, and not once typing has cancelled it (#467)", async () => {
+      const { find, answer } = deferred();
+      const { closed } = await mount({ label: "Go to", items: [], find });
+      const waitingSign = (): string | null | undefined =>
+        container.querySelector('[role="status"]')?.textContent;
+      await type(input(), "SR-1");
+      expect(waitingSign()).toBeUndefined();
+      await press(input(), "Enter");
+      expect(waitingSign()).toBe("searching…");
+      await type(input(), "SR-11");
+      expect(waitingSign()).toBeUndefined();
+      await press(input(), "Enter");
+      expect(waitingSign()).toBe("searching…");
+      const hit = choice("e1", "SR-118 Calm start");
+      await answer("SR-11", [hit]);
+      expect(hit.run).toHaveBeenCalledTimes(1);
+      expect(closed).toHaveBeenCalledTimes(1);
+    });
+
+    it("says searching while an Enter waits for the parts of the prompt (#467)", async () => {
+      let fill: (parts: PromptFill) => void = () => undefined;
+      const hit = choice("draft", "draft");
+      await mount({
+        label: "Status",
+        items: [],
+        fill: new Promise<PromptFill>((resolve) => {
+          fill = resolve;
+        }),
+      });
+      await type(input(), "draft");
+      await press(input(), "Enter");
+      expect(container.querySelector('[role="status"]')?.textContent).toBe("searching…");
+      await act(async () => {
+        fill({ items: [hit] });
+        await Promise.resolve();
+      });
+      await flush();
+      expect(hit.run).toHaveBeenCalledTimes(1);
+    });
+
+    it("holds a shortcut pressed while an Enter waits and hands it on with the answer (#467)", async () => {
+      const { find, answer } = deferred();
+      const closed = vi.fn();
+      await mount({ label: "Go to", items: [], find }, closed);
+      const behind = vi.fn();
+      const listen = (event: KeyboardEvent): void => {
+        if (event.ctrlKey) {
+          behind(event.key);
+        }
+      };
+      window.addEventListener("keydown", listen);
+      try {
+        await type(input(), "icing");
+        await press(input(), "Enter");
+        await press(input(), "j", { ctrlKey: true });
+        // The buffer behind the prompt does not get it; a key after it is held too, a modifier alone not.
+        expect(behind).not.toHaveBeenCalled();
+        await press(input(), "Shift", { shiftKey: true });
+        await press(input(), "x");
+        const hit = choice("e1", "SR-118 Survive icing");
+        await answer("icing", [hit]);
+        expect(hit.run).toHaveBeenCalledTimes(1);
+        expect(closed).toHaveBeenCalledWith(false, [
+          { key: "j", code: "", ctrlKey: true, metaKey: false, shiftKey: false, altKey: false },
+          { key: "x", code: "", ctrlKey: false, metaKey: false, shiftKey: false, altKey: false },
+        ]);
+      } finally {
+        window.removeEventListener("keydown", listen);
+      }
+    });
+
+    it("drops the held keys when no hit opens (#467)", async () => {
+      const { find, answer } = deferred();
+      const closed = vi.fn();
+      await mount({ label: "Go to", items: [], find }, closed);
+      await type(input(), "zz");
+      await press(input(), "Enter");
+      await press(input(), "j", { ctrlKey: true });
+      await answer("zz", []);
+      expect(closed).not.toHaveBeenCalled();
+      // Keys go to the prompt again.
+      await type(input(), "zzz");
+      expect(input().value).toBe("zzz");
+    });
+
+    it("drops the held shortcuts when typing cancels the Enter, and passes on none without one (#467)", async () => {
+      const { find, answer } = deferred();
+      const closed = vi.fn();
+      await mount({ label: "Go to", items: [], find }, closed);
+      await type(input(), "ic");
+      await press(input(), "Enter");
+      await press(input(), "j", { ctrlKey: true });
+      await type(input(), "icing");
+      await press(input(), "Enter");
+      const hit = choice("e1", "SR-118 Survive icing");
+      await answer("icing", [hit]);
+      expect(closed).toHaveBeenCalledWith(false);
+    });
+
     it("[SR-119/AK1] opens the hit when Enter comes after the hits arrived and before they are shown (#419)", async () => {
       const asked: ((choices: Choice[]) => void)[] = [];
       const find = (): Promise<Choice[]> =>

@@ -73,6 +73,7 @@ import { createTheme } from "./theme.js";
 import { useCopyNotice } from "./use-copy-notice.js";
 import { useFollow } from "./use-follow.js";
 import { usePrefix } from "./use-prefix.js";
+import { replayKeys } from "./replay-keys.js";
 import { promptUse } from "./usage.js";
 import { EMPTY_WINDOW, areas, isSplit, reduceWindow } from "./window-layout.js";
 import type { MarkState, PendingMark } from "./follow-mark.js";
@@ -179,6 +180,9 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   );
   // The prompt that is open, so a prompt that replaces it can cancel it (ThomasBirkmaier/ReqSeq-archive#604 review, S2).
   const openPrompt = useRef<Prompt | undefined>(undefined);
+  // The shortcuts a closed prompt held, to act once the answer is shown (#467).
+  const replay = useRef<readonly KeyboardEventInit[]>([]);
+  const [replays, setReplays] = useState(0);
   // Counts up when the workspace changed: the shown buffer asks for its data again.
   const [revision, setRevision] = useState(0);
   // The changes from outside that named elements (SR-116, SR-106): every view but an element buffer
@@ -807,6 +811,14 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     }
   }, [prompt, current?.key, inMatrix(current), metamodelMode(current), layout.active]);
 
+  // The shortcuts pressed while an Enter of the prompt waited act now, on what it opened (#467): after the
+  // effect above put the focus there, so the keys of the buffer take them too.
+  useEffect(() => {
+    const keys = replay.current;
+    replay.current = [];
+    void replayKeys(keys);
+  }, [replays]);
+
   // An element that is shown (opened or switched to) is the newest of the recent elements; not one that
   // the mode „Agent folgen“ showed (SR-117), so an agent does not replace the user's.
   useEffect(() => {
@@ -968,10 +980,14 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
             ask(commands());
           }
         }}
-        onClose={(cancelled) => {
+        onClose={(cancelled, held) => {
           follow.closed(cancelled);
           openPrompt.current = undefined;
           setPrompt(undefined);
+          if (held !== undefined) {
+            replay.current = held;
+            setReplays((count) => count + 1);
+          }
         }}
       />
     </div>

@@ -89,6 +89,18 @@ test.describe("cascading list filters on a fixture workspace", () => {
     expect(await rowTitles(running.window)).toEqual(listed.elements.map((e) => e.title));
   });
 
+  test("the status prompt takes a value typed in one go with the command, before core has answered (#467)", async () => {
+    const { window } = running;
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await window.keyboard.type("filter list by status");
+    await window.keyboard.press("Enter");
+    await window.keyboard.type("draft");
+    await window.keyboard.press("Enter");
+    await expect(window.getByLabel("Modeline")).toContainText("status: draft");
+    const listed = await listedBy(running, STATUS);
+    expect(await rowTitles(window)).toEqual(listed.elements.map((e) => e.title));
+  });
+
   test("[SR-124/AK1] clear list filter removes only the last step", async () => {
     await cascade();
     await runCommand(running.window, "clear list filter");
