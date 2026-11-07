@@ -51,6 +51,13 @@ const make = async (root: string, ...entries: string[]): Promise<void> => {
 
 const sep = path.sep;
 
+/** Runs `job` for 0..count-1, 500 at a time, so Windows does not run out of file handles (EMFILE). */
+const inBatches = async (count: number, job: (i: number) => Promise<unknown>): Promise<void> => {
+  for (let start = 0; start < count; start += 500) {
+    await Promise.all(Array.from({ length: Math.min(500, count - start) }, (_, i) => job(start + i)));
+  }
+};
+
 test.describe("Path completion", () => {
   let running: RunningApp;
   let home: string;
@@ -58,7 +65,9 @@ test.describe("Path completion", () => {
 
   test.beforeEach(async () => {
     running = await launchApp(STATION);
-    home = await running.app.evaluate(({ app }) => app.getPath("home"));
+    // The home folder the app's processes take for `~` (USERPROFILE on Windows, HOME elsewhere), not
+    // Electron's app.getPath("home"), which on Windows asks the shell for the real profile folder.
+    home = running.kept.home;
     dir = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-paths-")));
     await expect(running.window.getByRole("listbox", { name: "Overview" })).toBeVisible();
   });
@@ -180,18 +189,12 @@ test.describe("Path completion", () => {
     for (let i = 0; i < 1000; i += 1) {
       await fs.mkdir(path.join(big, `d${String(i).padStart(5, "0")}`));
     }
-    await Promise.all(
-      Array.from({ length: 9000 }, (_, i) =>
-        fs.writeFile(path.join(big, `f${String(i).padStart(5, "0")}.txt`), ""),
-      ),
-    );
+    await inBatches(9000, (i) => fs.writeFile(path.join(big, `f${String(i).padStart(5, "0")}.txt`), ""));
     // For "Open workspace", which lists folders only (through main): 10,000 folders.
     const wide = path.join(dir, "wide");
     await fs.mkdir(wide);
-    await Promise.all(
-      Array.from({ length: 10_000 }, (_, i) =>
-        fs.mkdir(path.join(wide, `${i < 5000 ? "a" : "b"}${String(i % 5000).padStart(5, "0")}`)),
-      ),
+    await inBatches(10_000, (i) =>
+      fs.mkdir(path.join(wide, `${i < 5000 ? "a" : "b"}${String(i % 5000).padStart(5, "0")}`)),
     );
     await exportPrompt(window);
     // Warm up: the parent folder, listed and narrowed once.
