@@ -2158,6 +2158,41 @@ describe("a bulk update confirms the plan of an open preview of the same input (
     );
   });
 
+  it("presses the keys the Run handed on on the preview it opens instead of writing (#467)", async () => {
+    const { context, asked, dispatched } = setup([list], {
+      "metamodel.get": () => FIXTURE_METAMODEL,
+      "element.bulkUpdate": () => preview,
+    });
+    const keys: KeyboardEventInit[] = [{ key: "j", ctrlKey: true }];
+    const replayed: (readonly KeyboardEventInit[])[] = [];
+    let queued: readonly KeyboardEventInit[] = [];
+    const held: CatalogContext = {
+      ...context,
+      // Handed on only by the last prompt, Run.
+      takeKeys: () => {
+        const taken = queued;
+        queued = [];
+        return taken;
+      },
+      replayKeys: (given) => {
+        expect(dispatched.at(-1)).toMatchObject({
+          buffer: { command: "element.bulkUpdate", input: PREVIEW },
+        });
+        replayed.push(given);
+      },
+    };
+    start(held, "element.bulkUpdate");
+    item((await last(asked)).items, "Rationale").run();
+    item((await last(asked)).items, "set").run();
+    (await last(asked)).more?.("Why");
+    item((await last(asked)).items, "confirm").run();
+    item((await last(asked)).items, "yes").more?.();
+    queued = keys;
+    item((await last(asked)).items, "Run").run();
+    await flush();
+    expect(replayed).toEqual([keys]);
+  });
+
   it("passes the plan of the open preview, and opens the new preview when core refuses it", async () => {
     const shownPreview = resultBuffer(
       "element.bulkUpdate",

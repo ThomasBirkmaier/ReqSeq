@@ -73,6 +73,7 @@ import { createTheme } from "./theme.js";
 import { useCopyNotice } from "./use-copy-notice.js";
 import { useFollow } from "./use-follow.js";
 import { usePrefix } from "./use-prefix.js";
+import { MODIFIER_KEYS } from "./element-keys.js";
 import { pressKey } from "./replay-keys.js";
 import { promptUse } from "./usage.js";
 import { EMPTY_WINDOW, areas, isSplit, reduceWindow } from "./window-layout.js";
@@ -184,13 +185,18 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   // them (`takeKeys`), else they are pressed on the focused buffer, one each render (`replays`).
   const replay = useRef<readonly KeyboardEventInit[]>([]);
   const [replays, setReplays] = useState(0);
+  // A key was pressed again and the app has not rendered what it did yet.
+  const pressing = useRef(false);
+  // `keys` go before those still waiting (the held keys of an answer were pressed before them).
   const replayKeys = useCallback((keys: readonly KeyboardEventInit[]): void => {
-    replay.current = keys;
-    setReplays((count) => count + 1);
+    replay.current = [...keys, ...replay.current];
+    if (replay.current.length > 0) {
+      setReplays((count) => count + 1);
+    }
   }, []);
-  const takeKeys = useCallback((): readonly KeyboardEventInit[] => {
-    const keys = replay.current;
-    replay.current = [];
+  const takeKeys = useCallback((count?: number): readonly KeyboardEventInit[] => {
+    const keys = replay.current.slice(0, count);
+    replay.current = replay.current.slice(keys.length);
     return keys;
   }, []);
   // Counts up when the workspace changed: the shown buffer asks for its data again.
@@ -281,6 +287,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       // A prompt opened while another workspace loaded stays (the old buffers went at `opened`).
       if (reason === undefined) {
         openPrompt.current = undefined;
+        replay.current = [];
         setPrompt(undefined);
       }
       // The first buffer is the calm overview, not the list of all elements (SR-118).
@@ -406,6 +413,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
           resetDrafts();
           memories.current.clear();
           openPrompt.current = undefined;
+          replay.current = [];
           setPrompt(undefined);
           dispatch({ type: "reset" });
           leaveSwitching();
@@ -662,6 +670,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       switchingNow.current = true;
       setSwitching(true);
       openPrompt.current = undefined;
+      replay.current = [];
       setPrompt(undefined);
       latest.current.leaveEditor();
       setEcho("Opening another workspace…");
@@ -823,6 +832,11 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     }
   }, [prompt, current?.key, inMatrix(current), metamodelMode(current), layout.active]);
 
+  // A key pressed again below has acted once the app rendered what it did.
+  useEffect(() => {
+    pressing.current = false;
+  });
+
   // The keys a prompt handed on act now, on what its answer opened (#467): after the effect above put the
   // focus there, so the keys of the buffer take them too. One key each render, so the next one finds what
   // it did (another buffer, which has the focus then); a key that opens a prompt hands the rest to it.
@@ -833,10 +847,31 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     }
     replay.current = rest;
     pressKey(next);
+    pressing.current = true;
     if (rest.length > 0) {
       setReplays((count) => count + 1);
     }
   }, [replays]);
+
+  // A key typed before the render of a key pressed again (a prompt it opens is not there yet) would act
+  // on what was shown before: it waits behind the keys handed on, in its order (#467). Only typed keys
+  // (`isTrusted`); the capture phase comes before the buffer and the window's shortcuts.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent): void => {
+      if (!event.isTrusted || !pressing.current || MODIFIER_KEYS.has(event.key)) {
+        return;
+      }
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const { key, code, ctrlKey, metaKey, shiftKey, altKey } = event;
+      replay.current = [...replay.current, { key, code, ctrlKey, metaKey, shiftKey, altKey }];
+      setReplays((count) => count + 1);
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => {
+      window.removeEventListener("keydown", onKey, true);
+    };
+  }, []);
 
   // An element that is shown (opened or switched to) is the newest of the recent elements; not one that
   // the mode „Agent folgen“ showed (SR-117), so an agent does not replace the user's.
@@ -926,6 +961,8 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       openPrompt.current.cancel?.();
       follow.closed(true);
       openPrompt.current = undefined;
+      // Without an answer nothing opened for the keys handed on: they act nowhere, as after Escape.
+      replay.current = [];
       setPrompt(undefined);
     }
     dispatch({ type: "switch", key });
@@ -1000,14 +1037,19 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
           }
         }}
         takeKeys={takeKeys}
+        keysWaiting={() => replay.current.length > 0}
+        onLateKey={(key) => {
+          replay.current = [...replay.current, key];
+          setReplays((count) => count + 1);
+        }}
         onClose={(cancelled, held) => {
           follow.closed(cancelled);
           openPrompt.current = undefined;
           setPrompt(undefined);
-          if (held === undefined) {
+          if (cancelled) {
             replay.current = [];
           } else {
-            replayKeys(held);
+            replayKeys(held ?? []);
           }
         }}
       />

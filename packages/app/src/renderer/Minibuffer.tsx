@@ -28,15 +28,24 @@ export interface MinibufferProps {
   readonly onCommand: () => void;
   /**
    * The prompt ends: Escape (`cancelled`, SR-117 keeps a held access for it), or an answer. `held` are the
-   * keys from the first shortcut pressed while an Enter waited for the answer on, and the keys handed to
-   * the prompt it did not take yet: they act on what the answer opens (#467). Escape drops them.
+   * keys from the first shortcut pressed while an Enter waited for the answer on: they act on what the
+   * answer opens, before the keys handed on that no prompt took yet (#467). Escape drops both.
    */
   readonly onClose: (cancelled: boolean, held?: readonly KeyboardEventInit[]) => void;
   /**
-   * The keys a closed prompt handed on (`onClose`) that are still to act: a prompt that opens takes them
-   * and presses them one by one, a render each, as if they were typed into it now (#467).
+   * Takes the first `count` of the keys a closed prompt handed on (`onClose`) that are still to act, all
+   * without `count`: an open prompt takes one each render and presses it as if it were typed into it now
+   * (#467). The keys stay with the app until taken, so a prompt that one of them opens takes the rest.
    */
-  readonly takeKeys?: () => readonly KeyboardEventInit[];
+  readonly takeKeys?: (count?: number) => readonly KeyboardEventInit[];
+  /**
+   * A key typed while keys handed on still wait (`takeKeys`), or on a prompt that has closed and is not
+   * gone yet (an answer taken in an effect, whose render is still to come): it was pressed after them, or
+   * for what the answer opened, so it goes after the keys handed on, in its order (#467).
+   */
+  readonly onLateKey?: (key: KeyboardEventInit) => void;
+  /** Whether keys handed on still wait to be taken. */
+  readonly keysWaiting?: () => boolean;
   /**
    * The possible next keys after the prefix key, with their commands (SR-109 AK3): shown above the idle
    * line, which says the prefix ("Ctrl+K-"); no input, the focus stays where it is.
@@ -60,10 +69,14 @@ const PromptLine = ({
   prompt: given,
   onClose,
   takeKeys,
+  onLateKey,
+  keysWaiting,
 }: {
   readonly prompt: Prompt;
   readonly onClose: MinibufferProps["onClose"];
   readonly takeKeys: MinibufferProps["takeKeys"];
+  readonly onLateKey: MinibufferProps["onLateKey"];
+  readonly keysWaiting: MinibufferProps["keysWaiting"];
 }): React.JSX.Element => {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(0);
@@ -104,16 +117,24 @@ const PromptLine = ({
   const [pending, setPending] = useState(false);
   const held = useRef<KeyboardEventInit[]>([]);
   const waits = (): boolean => waiting.current !== 0 || early.current !== undefined;
-  // The keys handed on by the prompt before (`takeKeys`) not pressed yet, one each render.
-  const queue = useRef<KeyboardEventInit[]>([]);
-  const [, setPressed] = useState(0);
+  // Counts the keys handed on that this prompt pressed (`takeKeys`), one each render; `pressedIn` is the
+  // count of the render that pressed last, so an effect run twice (StrictMode) presses no second key.
+  const [pressed, setPressed] = useState(0);
+  const pressedIn = useRef(-1);
+  // The prompt has closed (an answer, Escape) and goes in the next render: the keys handed on are for
+  // what the answer opened, so it takes none of them any more.
+  const closed = useRef(false);
+  // A key handed on is being pressed (`pressHanded`): it is no late key. `unrendered`: one was pressed
+  // and its render is still to come, so the input does not show its text yet.
+  const feeding = useRef(false);
+  const unrendered = useRef(false);
   const field = useRef<HTMLInputElement>(null);
 
-  /** Closes with an answer: what is held, and what is still to press, acts on what the answer opens. */
+  /** Closes with an answer: what is held acts on what the answer opens. */
   const closeWithAnswer = (): void => {
-    const keys = [...held.current, ...queue.current];
+    closed.current = true;
+    const keys = held.current;
     held.current = [];
-    queue.current = [];
     if (keys.length === 0) {
       onClose(false);
     } else {
@@ -329,15 +350,39 @@ const PromptLine = ({
     return true;
   };
 
-  /** Holds `event` to press it again once the answer is shown (#467). */
-  const hold = (event: React.KeyboardEvent): void => {
+  /** Takes `event` from the input and the window, as a key to press again later (#467). */
+  const keep = (event: React.KeyboardEvent): KeyboardEventInit => {
     event.preventDefault();
     event.stopPropagation();
     const { key, code, ctrlKey, metaKey, shiftKey, altKey } = event;
-    held.current.push({ key, code, ctrlKey, metaKey, shiftKey, altKey });
+    return { key, code, ctrlKey, metaKey, shiftKey, altKey };
+  };
+
+  /** Holds `event` to press it again once the answer is shown (#467). */
+  const hold = (event: React.KeyboardEvent): void => {
+    held.current.push(keep(event));
+  };
+
+  /**
+   * Closed but not gone yet, the window would act on the buffers before the answer's render (a filter on
+   * the list before the one just chosen); before the render of a key handed on, or with more of them
+   * waiting, it would come before them. So the key goes to the app, after the keys handed on.
+   */
+  const late = (event: React.KeyboardEvent): boolean => {
+    const after = closed.current || unrendered.current || keysWaiting?.() === true;
+    if (onLateKey === undefined || feeding.current || !after) {
+      return false;
+    }
+    if (!MODIFIER_KEYS.has(event.key)) {
+      onLateKey(keep(event));
+    }
+    return true;
   };
 
   const keyDown = (event: React.KeyboardEvent): void => {
+    if (late(event)) {
+      return;
+    }
     // After a held shortcut every key is held too, so the text typed after it goes to what it opens
     // (Enter, Ctrl+Shift+P, a command name in one go), not into this prompt. A modifier pressed on its
     // own is part of the next key; Escape is never held: it ends the prompt and drops what is held.
@@ -384,42 +429,52 @@ const PromptLine = ({
         prompt.cancel?.();
         waiting.current = 0;
         held.current = [];
-        queue.current = [];
+        closed.current = true;
         onClose(true);
         break;
     }
   };
 
-  // The keys handed on by the prompt before are taken once, when this one opens (#467).
-  useEffect(() => {
-    queue.current = [...(takeKeys?.() ?? [])];
-  }, []);
+  /** Presses a key handed on, as if typed: to the input and on to the window; typed when no one took it. */
+  const pressHanded = (init: KeyboardEventInit): void => {
+    const event = new KeyboardEvent("keydown", { ...init, bubbles: true, cancelable: true });
+    feeding.current = true;
+    field.current?.dispatchEvent(event);
+    feeding.current = false;
+    const { key = "", ctrlKey = false, metaKey = false, altKey = false } = init;
+    if (event.defaultPrevented || ctrlKey || metaKey || altKey) {
+      return;
+    }
+    if (key.length === 1) {
+      change(typed.current + key);
+    } else if (key === "Backspace" && typed.current !== "") {
+      change(typed.current.slice(0, -1));
+    }
+  };
 
-  // One of them each render, so it acts on what the one before did (the hits it asked for, the selection
-  // it moved), through the same handlers as a typed key: it goes to the input, and from there to the
-  // window. A letter or Backspace that no handler took is typed; while an Enter waits, the rest is held
-  // with it, since they were all pressed before its answer could be seen.
+  // A key handed on has its render now.
   useEffect(() => {
-    const [next, ...rest] = queue.current;
-    if (next === undefined) {
+    unrendered.current = false;
+  });
+
+  // The keys handed on by the prompt before, one each render, so each acts on what the one before did
+  // (the hits it asked for, the selection it moved). While an Enter waits, the rest is held with it,
+  // since they were all pressed before its answer could be seen.
+  useEffect(() => {
+    if (takeKeys === undefined || closed.current || pressedIn.current === pressed) {
       return;
     }
     if (waits()) {
-      held.current.push(...queue.current);
-      queue.current = [];
+      held.current.push(...takeKeys());
       return;
     }
-    queue.current = rest;
-    const event = new KeyboardEvent("keydown", { ...next, bubbles: true, cancelable: true });
-    field.current?.dispatchEvent(event);
-    const { key = "", ctrlKey = false, metaKey = false, altKey = false } = next;
-    if (!event.defaultPrevented && !ctrlKey && !metaKey && !altKey) {
-      if (key.length === 1) {
-        change(typed.current + key);
-      } else if (key === "Backspace" && typed.current !== "") {
-        change(typed.current.slice(0, -1));
-      }
+    const [next] = takeKeys(1);
+    if (next === undefined) {
+      return;
     }
+    pressedIn.current = pressed;
+    pressHanded(next);
+    unrendered.current = true;
     setPressed((count) => count + 1);
   });
 
@@ -505,6 +560,8 @@ export const Minibuffer = ({
   onCommand,
   onClose,
   takeKeys,
+  onLateKey,
+  keysWaiting,
   nextKeys,
 }: MinibufferProps): React.JSX.Element => (
   <div className="minibuffer" aria-label="Minibuffer" aria-live="polite">
@@ -516,7 +573,14 @@ export const Minibuffer = ({
         </div>
       </>
     ) : (
-      <PromptLine key={prompt.serial} prompt={prompt.prompt} onClose={onClose} takeKeys={takeKeys} />
+      <PromptLine
+        key={prompt.serial}
+        prompt={prompt.prompt}
+        onClose={onClose}
+        takeKeys={takeKeys}
+        onLateKey={onLateKey}
+        keysWaiting={keysWaiting}
+      />
     )}
   </div>
 );

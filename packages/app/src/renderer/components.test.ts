@@ -3,7 +3,7 @@
 // run in packages/app needs it too (ThomasBirkmaier/ReqSeq-archive#460, ThomasBirkmaier/ReqSeq-archive#573).
 import "../../../../scripts/test-support/dom-selection.mjs";
 import type { DataExportElement } from "@reqseq/core";
-import { Fragment, act, createElement, useLayoutEffect, useReducer } from "react";
+import { Fragment, StrictMode, act, createElement, useLayoutEffect, useReducer } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -1172,7 +1172,7 @@ describe("Minibuffer", () => {
         { key: "Enter" },
         { key: "e" },
       ];
-      const takeKeys = vi.fn(() => handed.splice(0));
+      const takeKeys = (count?: number): KeyboardEventInit[] => handed.splice(0, count ?? handed.length);
       await render(
         createElement(Minibuffer, {
           echo: "",
@@ -1182,7 +1182,6 @@ describe("Minibuffer", () => {
           takeKeys,
         }),
       );
-      expect(takeKeys).toHaveBeenCalledOnce();
       expect(input().value).toBe("SR-2");
       expect(container.querySelector('[role="status"]')?.textContent).toBe("searching…");
       const hit = choice("e2", "SR-2 Wind");
@@ -1190,6 +1189,59 @@ describe("Minibuffer", () => {
       // The letter after the Enter acts on what it opened; it neither cancels it nor goes into the input.
       expect(hit.run).toHaveBeenCalledOnce();
       expect(closed).toHaveBeenCalledWith(false, [{ key: "e" }]);
+    });
+
+    it("gives the app the keys pressed on a prompt that has closed but is not gone yet (#467)", async () => {
+      const late = vi.fn();
+      const text = vi.fn();
+      const closed = vi.fn();
+      // The prompt stays mounted: as in the window between an answer taken in an effect and its render.
+      await render(
+        createElement(Minibuffer, {
+          echo: "",
+          prompt: { serial: 1, prompt: { label: "Title", items: [], text } },
+          onCommand: vi.fn(),
+          onClose: closed,
+          onLateKey: late,
+        }),
+      );
+      await typeKeys(input(), "Ice");
+      await press(input(), "Enter");
+      expect(text).toHaveBeenCalledWith("Ice");
+      const behind = vi.fn();
+      window.addEventListener("keydown", behind);
+      try {
+        await press(input(), "P", { ctrlKey: true, shiftKey: true });
+        await typeKeys(input(), "x");
+      } finally {
+        window.removeEventListener("keydown", behind);
+      }
+      expect(behind).not.toHaveBeenCalled();
+      expect(input().value).toBe("Ice");
+      expect(late.mock.calls).toEqual([
+        [{ key: "P", code: "", ctrlKey: true, metaKey: false, shiftKey: true, altKey: false }],
+        [{ key: "x", code: "", ctrlKey: false, metaKey: false, shiftKey: false, altKey: false }],
+      ]);
+      expect(closed).toHaveBeenCalledOnce();
+    });
+
+    it("presses every key handed on under StrictMode, whose effects run twice (#467)", async () => {
+      const handed: KeyboardEventInit[] = [{ key: "a" }, { key: "b" }, { key: "c" }];
+      await render(
+        createElement(
+          StrictMode,
+          null,
+          createElement(Minibuffer, {
+            echo: "",
+            prompt: { serial: 1, prompt: { label: "Title", items: [], text: vi.fn() } },
+            onCommand: vi.fn(),
+            onClose: vi.fn(),
+            takeKeys: (count?: number) => handed.splice(0, count ?? handed.length),
+          }),
+        ),
+      );
+      expect(input().value).toBe("abc");
+      expect(handed).toEqual([]);
     });
 
     it("[SR-119/AK1] opens the hit when Enter comes after the hits arrived and before they are shown (#419)", async () => {

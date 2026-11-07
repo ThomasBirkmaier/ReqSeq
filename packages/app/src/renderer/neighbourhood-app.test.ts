@@ -266,6 +266,35 @@ describe("the neighbourhood in the app", () => {
     expect(query("input")).toHaveProperty("value", "li");
   });
 
+  it("hands the keys left to the prompt that a held key opens from a prompt: Enter, Ctrl+Shift+P, a command name in one go (#467)", async () => {
+    await open();
+    await keyDown(window, "p", true);
+    const input = query("input");
+    const press = (key: string, init: KeyboardEventInit = {}): void => {
+      input.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...init }));
+    };
+    await act(async () => {
+      const descriptor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
+      const setValue = Reflect.get(descriptor ?? {}, "set") as (this: HTMLElement, value: string) => void;
+      setValue.call(input, "N-001");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      press("Enter");
+      press("P", { ctrlKey: true, shiftKey: true });
+      press("x");
+      // In the command prompt the first one opened, this one opens it again, empty, for the rest.
+      press("P", { ctrlKey: true, shiftKey: true });
+      for (const key of "toggle dark mode") {
+        press(key);
+      }
+      press("Enter");
+      await Promise.resolve();
+    });
+    await flush();
+    expect(query(".element h1").textContent).toContain("See the wind");
+    expect(container.querySelector("input")).toBeNull();
+    expect(query('[aria-label="Minibuffer"]').textContent).toContain("until the app quits");
+  });
+
   it("[SR-107/AK2] goes back to the element with Ctrl+J, and the neighbourhood is in the buffer list", async () => {
     await open();
     await toRequirements();

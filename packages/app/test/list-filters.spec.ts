@@ -119,6 +119,8 @@ test.describe("cascading list filters on a fixture workspace", () => {
     await answer(window, "Type", "system-requirement");
     await runCommand(window, "flp");
     await expect(window.getByLabel("Minibuffer").locator("label")).toHaveText("Property");
+    // The prompt opens at once and fills its choices when core answers (#467).
+    await expect(window.locator('.candidates [role="option"] .name').first()).toBeVisible();
     const names = await window.locator('.candidates [role="option"] .name').allTextContents();
     expect(names).toContain("topic");
     expect(names).toContain("status");
