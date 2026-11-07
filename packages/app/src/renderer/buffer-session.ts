@@ -6,7 +6,7 @@
 //
 // Stored is what rebuilds each buffer, in the order of use: the kind, the UUID and repository of an
 // element, the kept parts of a list's query (`keptQuery`: steps and sort) and its mode, the text of a
-// search, the input of a graph, the mode of the metamodel, the command and input of a result. Never an
+// search with its steps (as a list keeps them, not the grouping: SR-149 AK5), the input of a graph, the mode of the metamodel, the command and input of a result. Never an
 // element's title or text, no output and no selected row. The names of the elements are read again when
 // the workspace opens, with one `element.list`; an element that is gone is left out, as the overview
 // leaves it out of its recent list. A result is run again when it is shown, and only when the catalog
@@ -15,7 +15,7 @@ import type { CommandTypes, FilterSortKeyWithDefaults, TraceGraphInput } from "@
 import type { CommandListing, InvokeResult } from "../shared/protocol.js";
 import { keptQuery } from "./list-query.js";
 import { memberQuery } from "./package-page.js";
-import type { Buffer, Buffers, ElementBuffer, FilterStep, GraphDepth } from "./buffers.js";
+import type { Buffer, Buffers, ElementBuffer, FilterStep, GraphDepth, SearchBuffer } from "./buffers.js";
 import {
   MAX_BUFFERS,
   elementBuffer,
@@ -29,6 +29,7 @@ import {
   readOnlyBuffer,
   resultBuffer,
   searchBuffer,
+  searchQueryOf,
 } from "./buffers.js";
 import type { Call } from "./call.js";
 import { workspaceParts } from "./recent.js";
@@ -51,7 +52,7 @@ export type StoredBuffer =
       readonly sort?: readonly FilterSortKeyWithDefaults[];
       readonly matrix?: true;
     }
-  | { readonly kind: "search"; readonly query: string }
+  | { readonly kind: "search"; readonly query: string; readonly steps?: readonly FilterStep[] }
   | (Named & {
       readonly kind: "element";
       readonly memberSort?: readonly FilterSortKeyWithDefaults[];
@@ -132,6 +133,16 @@ const storedElement = (buffer: ElementBuffer): StoredBuffer => {
   };
 };
 
+/** What is stored of a search: its text and the steps a restart keeps (`keptQuery`), not the grouping. */
+const storedSearch = (buffer: SearchBuffer): StoredBuffer => {
+  const kept = keptQuery(searchQueryOf(buffer));
+  return {
+    kind: "search",
+    query: buffer.query,
+    ...(kept.steps.length === 0 ? {} : { steps: storedSteps(kept.steps) }),
+  };
+};
+
 /** What is stored of `buffer`. */
 const storedOf = (buffer: Buffer): StoredBuffer => {
   switch (buffer.kind) {
@@ -148,7 +159,7 @@ const storedOf = (buffer: Buffer): StoredBuffer => {
       };
     }
     case "search":
-      return { kind: "search", query: buffer.query };
+      return storedSearch(buffer);
     case "element":
       return storedElement(buffer);
     case "neighbourhood":
@@ -251,6 +262,17 @@ const parseList = (value: Fields): StoredBuffer | undefined => {
     : undefined;
 };
 
+const parseSearch = (value: Fields): StoredBuffer | undefined => {
+  const steps = optional(
+    "steps",
+    value["steps"],
+    (found): found is FilterStep[] => Array.isArray(found) && found.every(isStep),
+  );
+  return isText(value["query"]) && steps !== undefined
+    ? { kind: "search", query: value["query"], ...steps }
+    : undefined;
+};
+
 const parseElement = (value: Fields): StoredBuffer | undefined => {
   const named = namedOf(value);
   const memberSort = optional("memberSort", value["memberSort"], isSort);
@@ -299,7 +321,7 @@ const parseGraph = (value: Fields): StoredBuffer | undefined => {
 const PARSERS: Readonly<Record<StoredBuffer["kind"], (value: Fields) => StoredBuffer | undefined>> = {
   overview: () => ({ kind: "overview" }),
   list: parseList,
-  search: (value) => (isText(value["query"]) ? { kind: "search", query: value["query"] } : undefined),
+  search: parseSearch,
   element: parseElement,
   neighbourhood: parseNeighbourhood,
   graph: parseGraph,
@@ -426,7 +448,7 @@ const rebuild = (
     case "list":
       return filteredList(stored.steps, stored.sort, stored.matrix === true);
     case "search":
-      return searchBuffer(stored.query);
+      return searchBuffer(stored.query, stored.steps);
     case "metamodel":
       return metamodelBuffer(stored.mode);
     case "result":

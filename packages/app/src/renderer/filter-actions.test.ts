@@ -3,8 +3,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { ACTIONS, commandPrompt } from "./actions.js";
 import type { ActionContext, Prompt } from "./actions.js";
-import type { Buffers, ListBuffer } from "./buffers.js";
-import { filteredList, listBuffer } from "./buffers.js";
+import type { Buffers, ListBuffer, SearchBuffer } from "./buffers.js";
+import { bufferName, filteredList, listBuffer, searchBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
 import { propertyStep, savedStep, statusStep, textStep, typeStep } from "./list-filters.js";
 
@@ -36,7 +36,7 @@ const FACETS = {
 };
 
 /** A context that shows `list` and answers the commands with `answers`. */
-const start = (list: ListBuffer, answers: Record<string, unknown> = {}) => {
+const start = (list: ListBuffer | SearchBuffer, answers: Record<string, unknown> = {}) => {
   let buffers: Buffers = [list];
   const asked: Prompt[] = [];
   const echoed: string[] = [];
@@ -223,5 +223,46 @@ describe("cascading list filters (SR-124)", () => {
     const prompt = await run("sort");
     prompt.items[4]?.run();
     expect(shown()).toEqual(filteredList(steps, [{ by: "title", order: "asc" }]));
+  });
+});
+
+describe("filters and groups on the hits of a search (SR-124 AK4, SR-149 AK6)", () => {
+  const shownSearch = (context: ActionContext): SearchBuffer => {
+    const [current] = context.buffers;
+    if (current?.kind !== "search") {
+      throw new Error("no search");
+    }
+    return current;
+  };
+
+  it("[SR-124/AK4] a filter narrows the search: the same query, the step as its selection, the facets of its hits", async () => {
+    const { context, choose, call } = start(searchBuffer("wind"), { "element.facets": FACETS });
+    await choose("filter-status", "draft");
+    // The values offered are those of the hits: the selection with the search's own text.
+    expect(call).toHaveBeenLastCalledWith("element.facets", { selection: { where: { text: "wind" } } });
+    expect(shownSearch(context)).toEqual(searchBuffer("wind", [statusStep("draft")]));
+    expect(shownSearch(context).selection).toEqual({ where: { status: ["draft"] } });
+    await choose("filter-property", "topic");
+    expect(call).toHaveBeenLastCalledWith("element.facets", {
+      selection: { where: { all: [{ text: "wind" }, { status: ["draft"] }] } },
+    });
+    expect(bufferName(shownSearch(context))).toBe("Search: wind · status: draft");
+  });
+
+  it("[SR-149/AK6] groups and ungroups the search; it offers no sort, and clearing a filter keeps the grouping", async () => {
+    const { context, choose } = start(searchBuffer("wind", [statusStep("draft")]), {
+      "element.facets": FACETS,
+      "metamodel.get": { meanings: { packages: ["packages"] } },
+    });
+    expect(titles(context)).toEqual(expect.arrayContaining(["Group list", "Filter list by status"]));
+    expect(titles(context)).not.toContain("Sort list");
+    expect(titles(context)).not.toContain("Show traceability matrix");
+    await choose("group", "Status");
+    expect(shownSearch(context)).toEqual(searchBuffer("wind", [statusStep("draft")], "status"));
+    expect(bufferName(shownSearch(context))).toBe("Search: wind · status: draft · grouped by status");
+    ACTIONS.find((action) => action.id === "clear-filter")?.run(context);
+    expect(shownSearch(context)).toEqual(searchBuffer("wind", [], "status"));
+    ACTIONS.find((action) => action.id === "ungroup")?.run(context);
+    expect(shownSearch(context)).toEqual(searchBuffer("wind"));
   });
 });
