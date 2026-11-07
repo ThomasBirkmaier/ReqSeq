@@ -3,7 +3,7 @@
 //
 // - `markdown`: parser extensions. Formulas (SR-096, `math-syntax.ts`) add their syntax nodes.
 // - `rules`: preview rules after the built-in ones. Formulas (SR-096, `formula-preview.ts`), diagrams (ThomasBirkmaier/ReqSeq-archive#108)
-//   and images (ThomasBirkmaier/ReqSeq-archive#109) draw their nodes as widgets; a rule only ever returns decorations, the document is
+//   and images (SR-184, `image-preview.ts`) draw their nodes as widgets; a rule only ever returns decorations, the document is
 //   never rewritten. A rule that `owns` a node draws it alone (a fenced `math` block set in place of its
 //   source), so the built-in rules do not decorate what it replaces.
 // - `extensions`: further CodeMirror extensions. The slash menu (SR-129, `slash-menu.ts`) is one; the `[[`
@@ -39,7 +39,7 @@ export interface PreviewRule {
 export interface EditorPlugins {
   /** Parser extensions (formulas, SR-096). */
   readonly markdown?: readonly MarkdownConfig[];
-  /** Live-preview rules after the built-in ones (formulas SR-096, diagrams ThomasBirkmaier/ReqSeq-archive#108, images ThomasBirkmaier/ReqSeq-archive#109). */
+  /** Live-preview rules after the built-in ones (formulas SR-096, diagrams ThomasBirkmaier/ReqSeq-archive#108, images SR-184). */
   readonly rules?: readonly PreviewRule[];
   /** Further CodeMirror extensions (the slash menu SR-129, the `[[` search SR-066). */
   readonly extensions?: readonly Extension[];

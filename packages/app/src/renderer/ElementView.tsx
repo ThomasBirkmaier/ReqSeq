@@ -55,6 +55,9 @@ import {
 } from "./element-view.js";
 import type { EditorHandle } from "./editor/Editor.js";
 import { formulasAndDiagrams } from "./editor/formulas-diagrams.js";
+import type { ImageElement } from "./editor/image-preview.js";
+import { imagePreview } from "./editor/image-preview.js";
+import type { EditorPlugins } from "./editor/plugins.js";
 import { mergePlugins } from "./editor/plugins.js";
 import { boxReference, referenceAt, references } from "./editor/references.js";
 import type { Reference } from "./editor/references.js";
@@ -378,6 +381,18 @@ const useArea = (
     wasActive.current = active;
   }, [active]);
   return { active, membersFocus: returning && active };
+};
+
+/**
+ * The images of the text (SR-184), drawn relative to the element's file in its repository. Made once, so
+ * the images that failed to load survive a reconfiguration; the file is read when the preview is built.
+ */
+const useImagePreview = (view: ElementLoad, repository: string): EditorPlugins => {
+  const element = useRef<ImageElement>({ repository, file: "" });
+  if (view.status === "ok") {
+    element.current = { repository: view.element.repository, file: view.element.file };
+  }
+  return useMemo(() => imagePreview(() => element.current), []);
 };
 
 export const ElementView = ({
@@ -758,6 +773,7 @@ export const ElementView = ({
     }),
     [],
   );
+  const images = useImagePreview(view, buffer.repository);
   const slash = useMemo(() => slashMenu(pick), [pick]);
   const brackets = useMemo(() => referenceSearch(pick), [pick]);
   // The title of the target of a reference to another repository, when it is here (D-058): the preview of
@@ -848,6 +864,7 @@ export const ElementView = ({
         slash,
         brackets,
         formulasAndDiagrams,
+        images,
         {
           // After the slash menu, which takes Down while it is open.
           extensions: [
@@ -858,7 +875,7 @@ export const ElementView = ({
           ],
         },
       ),
-    [signature, slash, brackets, title],
+    [signature, slash, brackets, title, images],
   );
 
   const setBaseline = (next: string): void => {
