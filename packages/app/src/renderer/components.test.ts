@@ -627,6 +627,16 @@ describe("Minibuffer", () => {
       await press(input(), "Enter");
       expect(record).toHaveBeenCalledWith("over", "own");
     });
+    it("shows the element titled exactly like the typed text first, and Enter opens it (#195)", async () => {
+      const recent = choice("sr-1", "SR-1 Requirement 1 of the package 1");
+      const pkg = choice("pkg", "PKG-1 Package 1", { title: "Package 1" });
+      await mount({ label: "Go to", items: [recent], find: () => Promise.resolve([pkg]) });
+      await type(input(), "Package 1");
+      expect(texts('[role="option"]')).toEqual(["PKG-1 Package 1", "SR-1 Requirement 1 of the package 1"]);
+      await press(input(), "Enter");
+      expect(pkg.run).toHaveBeenCalledTimes(1);
+      expect(recent.run).not.toHaveBeenCalled();
+    });
   });
 
   describe("what was chosen before", () => {
@@ -1095,6 +1105,35 @@ describe("Minibuffer", () => {
       await flush();
       expect(hit.run).toHaveBeenCalledTimes(1);
       expect(closed).toHaveBeenCalledTimes(1);
+    });
+
+    it("waits for the hits of the typed text when the selected stale hit is also a buffer of the prompt (#195)", async () => {
+      const { find, answer } = deferred();
+      const recent = choice("sr-1", "SR-1 Old title");
+      const { closed } = await mount({ label: "Go to", items: [recent], find });
+      const staleHit = choice("sr-1", "SR-1 Foo", { title: "Foo" });
+      const wanted = choice("new", "SR-2 Foox");
+      await type(input(), "Foo");
+      await answer("Foo", [staleHit]);
+      await type(input(), "Foox");
+      await press(input(), "Enter");
+      expect(staleHit.run).not.toHaveBeenCalled();
+      expect(closed).not.toHaveBeenCalled();
+      await answer("Foox", [wanted]);
+      expect(wanted.run).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps the row picked before the hits arrived when an exact title comes first (#195)", async () => {
+      const { find, answer } = deferred();
+      const first = choice("b1", "Package list");
+      const second = choice("b2", "Package graph");
+      await mount({ label: "Go to", items: [first, second], find });
+      await type(input(), "package");
+      await press(input(), "ArrowDown");
+      await answer("package", [choice("pkg", "PKG-1 Package", { title: "Package" })]);
+      expect(texts('[role="option"]')).toEqual(["PKG-1 Package", "Package list", "Package graph"]);
+      await press(input(), "Enter");
+      expect(second.run).toHaveBeenCalledTimes(1);
     });
 
     it("opens the selected buffer at once, without waiting for the hits", async () => {

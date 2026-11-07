@@ -164,3 +164,44 @@ export const rankByUse = <T extends { readonly id: string; readonly fits?: boole
     ? ranked
     : [...ranked.slice(first, first + 1), ...ranked.slice(0, first), ...ranked.slice(first + 1)];
 };
+
+/** A typed text and a title compared as the same words, ignoring case and spaces around and between them. */
+const sameWords = (a: string, b: string): boolean =>
+  a.trim().replace(/\s+/g, " ").toLowerCase() === b.trim().replace(/\s+/g, " ").toLowerCase();
+
+/** A row of a prompt, and whether it is one of the prompt's own items as `rankByUse` ranked them. */
+export type PromptRow<T> = Ranked<T> & { readonly own: boolean };
+
+/**
+ * The rows of a prompt for `query`: its own items as `rankByUse` orders them, then the elements core found
+ * (`found`, in core's order) that are not among them. An element core found whose whole title is the
+ * typed text comes first, also when it is one of the prompt's own items (an open or recent buffer): a
+ * fuzzy match of a recent buffer never overtakes it, as `element search` puts it first (#195).
+ */
+export const promptRows = <
+  T extends { readonly id: string; readonly fits?: boolean; readonly title?: string },
+>(
+  items: readonly T[],
+  found: readonly T[],
+  name: (item: T) => string,
+  query: string,
+  use: PromptUse | undefined,
+): PromptRow<T>[] => {
+  const ranked = rankByUse(items, name, query, use).map((row): PromptRow<T> => ({ ...row, own: true }));
+  const known = new Set(ranked.map(({ item }) => item.id));
+  const rows = [
+    ...ranked,
+    ...found
+      .filter((item) => !known.has(item.id))
+      .map((item): PromptRow<T> => ({ item, ranges: [], own: false })),
+  ];
+  const exact = new Set(
+    found
+      .filter((item) => query.trim() !== "" && item.title !== undefined && sameWords(item.title, query))
+      .map((item) => item.id),
+  );
+  return [
+    ...rows.filter(({ item }) => exact.has(item.id)),
+    ...rows.filter(({ item }) => !exact.has(item.id)),
+  ];
+};
