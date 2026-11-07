@@ -1,6 +1,6 @@
 // The minibuffer: the one control of the window. Idle it is a single line with the last message; asked
 // (a prompt) it is an input with the candidates rising above the modeline, not a dialog, only while asked.
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Choice, Prompt, PromptFill } from "./actions.js";
 import { NEXT_BUFFER_SHORTCUT, OTHER_WINDOW_SHORTCUT, PREVIOUS_BUFFER_SHORTCUT } from "./actions.js";
 import { highlightRanges, highlightTerms } from "./highlight.js";
@@ -28,6 +28,105 @@ export interface MinibufferProps {
 
 const parts = ({ item, ranges }: Ranked<Choice>): Part[] =>
   item.terms === undefined ? highlightRanges(item.name, ranges) : highlightTerms(item.name, item.terms);
+
+/** The copy of a card that runs the motion back after the card closed, by the node it was made of. */
+const leaving = new WeakMap<HTMLElement, HTMLElement>();
+
+/**
+ * A copy of `node` in `parent` that runs the motion back (SR-182 AK6); it says nothing to a screen reader
+ * and is no hit to a test, and it goes when its animation ends. Without motion it goes at once (AK7).
+ */
+const leave = (node: HTMLElement, parent: HTMLElement): HTMLElement | undefined => {
+  // Whether the card had stood still, or was still on its way in.
+  const risen = node.getAnimations().length === 0;
+  const copy = node.cloneNode(true) as HTMLElement;
+  for (const element of [copy, ...copy.querySelectorAll("*")]) {
+    for (const name of ["id", "role", "aria-label", "aria-controls"]) {
+      element.removeAttribute(name);
+    }
+    element.classList.remove("candidates");
+  }
+  copy.classList.add("card-leaving");
+  copy.dataset["motion"] = "out";
+  copy.dataset["risen"] = String(risen);
+  copy.setAttribute("aria-hidden", "true");
+  copy.inert = true;
+  parent.append(copy);
+  const { animationName } = getComputedStyle(copy);
+  if (animationName === "" || animationName === "none") {
+    copy.remove();
+    return undefined;
+  }
+  const gone = (): void => {
+    copy.remove();
+  };
+  copy.addEventListener("animationend", (event) => {
+    if (event.target === copy) {
+      gone();
+    }
+  });
+  // Also when no animation ends, such as in a hidden window.
+  setTimeout(gone, 1000);
+  return copy;
+};
+
+/**
+ * The card above the minibuffer (SR-182): the hits of a prompt or the next keys (SR-109). When it appears
+ * it rises from the command line while the backdrop dims and blurs in a seam as wide as its shadow, all
+ * by the same progress (AK1, AK2, AK5); new hits or a new prompt over a card that is still leaving move
+ * nothing (AK4); on close a copy runs the motion back, shorter (AK6). The input keeps the focus
+ * throughout (AK3). The times and amounts are the `--card-*` tokens of styles.css; without motion the
+ * card stands at once (AK7). The backdrop takes no click: the card stays no dialog (D-062).
+ */
+const Card = ({ children }: { readonly children: React.ReactNode }): React.JSX.Element => {
+  const backdrop = useRef<HTMLDivElement>(null);
+  const card = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const nodes = [backdrop.current, card.current].filter((node) => node !== null);
+    const parent = card.current?.parentElement;
+    if (parent === null || parent === undefined) {
+      return undefined;
+    }
+    for (const node of nodes) {
+      // Mounted again at once (React's StrictMode): the card never left.
+      leaving.get(node)?.remove();
+      leaving.delete(node);
+    }
+    if (card.current?.dataset["motion"] === undefined) {
+      // A card that takes the place of one still leaving (the next argument of a command, Ctrl+Shift+P
+      // over Ctrl+P, new hits after a moment without any) stands at once, unless that one was itself
+      // still on its way in (Ctrl+P and a key at once).
+      const before = [...parent.children].filter(
+        (child): child is HTMLElement =>
+          child instanceof HTMLElement && child.classList.contains("card-leaving"),
+      );
+      const stood = before.some((child) => child.dataset["risen"] === "true");
+      for (const child of before) {
+        child.remove();
+      }
+      for (const node of nodes) {
+        node.dataset["motion"] = stood ? "still" : "in";
+      }
+    }
+    return () => {
+      for (const node of nodes) {
+        const copy = leave(node, parent);
+        if (copy !== undefined) {
+          leaving.set(node, copy);
+        }
+      }
+    };
+  }, []);
+  return (
+    <>
+      <div className="card-backdrop" aria-hidden="true" ref={backdrop} />
+      <div className="card" ref={card}>
+        <div className="card-seam" aria-hidden="true" />
+        {children}
+      </div>
+    </>
+  );
+};
 
 const PromptLine = ({
   prompt: given,
@@ -339,32 +438,34 @@ const PromptLine = ({
         </span>
       ) : null}
       {rows.length === 0 ? null : (
-        <ul className="candidates" id="candidates" role="listbox" aria-label={prompt.label}>
-          {rows.map((row, at) => (
-            <li
-              key={row.item.id}
-              id={`candidate-${String(at)}`}
-              role="option"
-              aria-selected={at === selected}
-              ref={(element) => {
-                if (at === selected) {
-                  element?.scrollIntoView({ block: "nearest" });
-                }
-              }}
-              onMouseDown={(event) => {
-                event.preventDefault();
-                choose(row.item, query);
-              }}
-            >
-              <span className="name">
-                {parts(row).map((part, index) =>
-                  part.mark ? <mark key={index}>{part.text}</mark> : <span key={index}>{part.text}</span>,
-                )}
-              </span>
-              {row.item.hint === undefined ? null : <span className="hint">{row.item.hint}</span>}
-            </li>
-          ))}
-        </ul>
+        <Card>
+          <ul className="candidates card-list" id="candidates" role="listbox" aria-label={prompt.label}>
+            {rows.map((row, at) => (
+              <li
+                key={row.item.id}
+                id={`candidate-${String(at)}`}
+                role="option"
+                aria-selected={at === selected}
+                ref={(element) => {
+                  if (at === selected) {
+                    element?.scrollIntoView({ block: "nearest" });
+                  }
+                }}
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  choose(row.item, query);
+                }}
+              >
+                <span className="name">
+                  {parts(row).map((part, index) =>
+                    part.mark ? <mark key={index}>{part.text}</mark> : <span key={index}>{part.text}</span>,
+                  )}
+                </span>
+                {row.item.hint === undefined ? null : <span className="hint">{row.item.hint}</span>}
+              </li>
+            ))}
+          </ul>
+        </Card>
       )}
     </>
   );
@@ -377,14 +478,16 @@ const NextKeys = ({
   readonly rows: readonly { readonly key: string; readonly name: string }[];
 }): React.JSX.Element | null =>
   rows.length === 0 ? null : (
-    <ul className="candidates next-keys" role="list" aria-label="Next keys">
-      {rows.map((row) => (
-        <li key={row.key}>
-          <span className="key">{row.key}</span>
-          <span className="name">{row.name}</span>
-        </li>
-      ))}
-    </ul>
+    <Card>
+      <ul className="candidates card-list next-keys" role="list" aria-label="Next keys">
+        {rows.map((row) => (
+          <li key={row.key}>
+            <span className="key">{row.key}</span>
+            <span className="name">{row.name}</span>
+          </li>
+        ))}
+      </ul>
+    </Card>
   );
 
 export const Minibuffer = ({
