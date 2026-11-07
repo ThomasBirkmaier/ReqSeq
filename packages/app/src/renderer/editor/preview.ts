@@ -13,7 +13,7 @@ import type { PreviewContext, PreviewRule } from "./plugins.js";
 import { inlineSegments } from "./segments.js";
 import { TaskBoxWidget } from "./tasks.js";
 import type { Align, TableData } from "./widgets.js";
-import { GlyphWidget, TableWidget } from "./widgets.js";
+import { BulletWidget, TableWidget } from "./widgets.js";
 
 export const focusEffect = StateEffect.define<boolean>();
 
@@ -130,10 +130,12 @@ export const inline: PreviewRule = {
 const listMark: PreviewRule = {
   nodes: ["ListMark"],
   decorate: (node, { state, sourceLine }) => {
-    // A drawn mark is a handle: a press and a move drag its item (`list-drag.ts`).
+    // A drawn mark that starts its line is a handle: a press and a move drag its item (`list-drag.ts`).
+    const line = state.doc.lineAt(node.from);
+    const handle = line.text.slice(0, node.from - line.from).trim() === "";
     if (node.matchContext(["OrderedList", "ListItem"])) {
       return styleRange(
-        sourceLine(node.from) ? "cm-lr-muted" : "cm-lr-muted cm-lr-handle",
+        sourceLine(node.from) || !handle ? "cm-lr-muted" : "cm-lr-muted cm-lr-handle",
         node.from,
         node.to,
       );
@@ -144,12 +146,7 @@ const listMark: PreviewRule = {
     // A task item shows its box instead of a bullet.
     return node.node.nextSibling?.name === "Task"
       ? hideRange(...markAndSpace(state, node.from, node.to))
-      : [
-          Decoration.replace({ widget: new GlyphWidget("•", "cm-lr-bullet cm-lr-handle") }).range(
-            node.from,
-            node.to,
-          ),
-        ];
+      : [Decoration.replace({ widget: new BulletWidget(handle) }).range(node.from, node.to)];
   },
 };
 

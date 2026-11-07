@@ -111,7 +111,9 @@ const shiftLines = (state: EditorState, from: number, to: number, by: number): C
     const line = state.doc.line(n);
     if (line.text.trim() !== "") {
       if (by > 0) {
-        changes.push({ from: line.from, insert: " ".repeat(by) });
+        // After the indentation: before a tab the spaces would vanish in its tab stop.
+        const indent = line.text.length - line.text.trimStart().length;
+        changes.push({ from: line.from + indent, insert: " ".repeat(by) });
       } else {
         let cut = 0;
         while (
@@ -272,22 +274,36 @@ export const moveItemTo = (
     (number, index) => number !== undefined && Number(number.digits) === start + index,
   );
   let text = "";
-  const starts = new Map<number, number>();
+  const placed = new Map<number, { readonly start: number; readonly block: string }>();
   order.forEach((old, place) => {
     const number = numbers[old];
     const block = blocks[old] ?? "";
-    starts.set(old, first.from + text.length);
-    text += inSequence && number !== undefined ? renumbered(block, number, String(start + place)) : block;
-    text += between[place] ?? "";
+    const next =
+      inSequence && number !== undefined ? renumbered(block, number, String(start + place)) : block;
+    placed.set(old, { start: first.from + text.length, block: next });
+    text += next + (between[place] ?? "");
   });
+  // A position in an item goes with it, on its line, its column shifted as its line was (a number of another width).
   const moved = (pos: number): number => {
     const index = siblings.findIndex((entry) => pos >= entry.from && pos <= entry.to);
     const entry = siblings[index];
-    const to = starts.get(index);
+    const to = placed.get(index);
     if (entry === undefined || to === undefined) {
       return pos;
     }
-    return Math.min(to + (pos - entry.from), first.from + text.length);
+    const oldLines = (blocks[index] ?? "").split("\n");
+    const newLines = to.block.split("\n");
+    let offset = pos - entry.from;
+    let line = 0;
+    while (line < oldLines.length - 1 && offset > (oldLines[line] ?? "").length) {
+      offset -= (oldLines[line] ?? "").length + 1;
+      line += 1;
+    }
+    const shift = (newLines[line] ?? "").length - (oldLines[line] ?? "").length;
+    const number = numbers[index];
+    const column = line === 0 && (number === undefined || offset <= number.at) ? offset : offset + shift;
+    const before = newLines.slice(0, line).reduce((sum, part) => sum + part.length + 1, 0);
+    return to.start + before + Math.min(Math.max(column, 0), (newLines[line] ?? "").length);
   };
   return listChange(
     [{ from: first.from, to: last.to, insert: text }],

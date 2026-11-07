@@ -88,6 +88,18 @@ describe("list keys (SR-187)", () => {
     expect(docOf(view)).toBe("- a\n- b\n\n- c\n- d");
   });
 
+  it("indents an item of a list indented with tabs", () => {
+    const view = viewOf("- a\n\t- b\n\t- c|");
+    indentListItem(view);
+    expect(docOf(view)).toBe("- a\n\t- b\n\t  - c");
+  });
+
+  it("keeps the caret on its line when the number of its item changes width", () => {
+    const view = viewOf("9. a\n10. bc|");
+    moveListItemOrLine(false)(view);
+    expect(withCaret(view)).toBe("9. bc|\n10. a");
+  });
+
   it("outdents an item indented with a tab", () => {
     const view = viewOf("- a\n\t- b|");
     outdentListItem(view);

@@ -92,7 +92,9 @@ export const gapAt = (
   }
   const index = siblings.findIndex((entry) => line >= entry.from && line <= entry.to);
   if (index < 0) {
-    return siblings.length;
+    // A blank line between two items (a loose list): the gap before the next one.
+    const next = siblings.findIndex((entry) => entry.from > line);
+    return next < 0 ? siblings.length : next;
   }
   const entry = siblings[index];
   return entry !== undefined && upper(entry) ? index : index + 1;
@@ -100,7 +102,8 @@ export const gapAt = (
 
 interface Press {
   readonly handle: Element;
-  readonly item: ListItemLines;
+  /** The item to drag; undefined for a task box that can only be clicked. */
+  readonly item: ListItemLines | undefined;
   readonly x: number;
   readonly y: number;
   dragging: boolean;
@@ -123,8 +126,9 @@ class ListMouse implements PluginValue {
     if (event.button !== 0 || target === null || !view.contentDOM.contains(target)) {
       return false;
     }
+    // A task box behind a quote or another mark has no item to drag, but its click still ticks it.
     const item = listItemAt(view.state, view.posAtDOM(target));
-    if (item === undefined) {
+    if (item === undefined && !target.classList.contains("cm-lr-task")) {
       return false;
     }
     event.preventDefault();
@@ -141,26 +145,28 @@ class ListMouse implements PluginValue {
     window.addEventListener("mouseup", this.release);
     window.addEventListener("keydown", this.key, true);
     window.addEventListener("blur", this.cancel);
-    view.scrollDOM.addEventListener("scroll", this.scroll);
+    // The page scrolls, not the editor (its scroller is not clipped): any scroll re-aims.
+    window.addEventListener("scroll", this.scroll, true);
     return true;
   }
 
   /** The gap for the pointer at `y`, and the decorations for it. */
   private aim(y: number): void {
     const { view, press } = this;
-    if (press === undefined) {
+    if (press?.item === undefined) {
       return;
     }
+    const { item } = press;
     press.lastY = y;
     const height = y - view.documentTop;
     const line = view.lineBlockAtHeight(height).from;
-    const siblings = siblingsOf(view.state, press.item.node);
+    const siblings = siblingsOf(view.state, item.node);
     const gap = gapAt(siblings, line, (entry) => {
       const top = view.lineBlockAt(entry.from).top;
       const bottom = view.lineBlockAt(entry.to).bottom;
       return height < (top + bottom) / 2;
     });
-    const index = siblings.findIndex((entry) => entry.from === press.item.from);
+    const index = siblings.findIndex((entry) => entry.from === item.from);
     const moves = gap !== index && gap !== index + 1;
     press.gap = moves ? gap : undefined;
     const at = siblings[gap];
@@ -174,7 +180,7 @@ class ListMouse implements PluginValue {
         : { line: at.from, before: true };
     view.dispatch({
       effects: show.of({
-        item: { from: press.item.from, to: press.item.to },
+        item: { from: item.from, to: item.to },
         ...(rule === undefined ? {} : { rule }),
       }),
     });
@@ -189,7 +195,7 @@ class ListMouse implements PluginValue {
       return;
     }
     if (!press.dragging) {
-      if (this.view.state.readOnly) {
+      if (this.view.state.readOnly || press.item === undefined) {
         return;
       }
       press.dragging = true;
@@ -211,8 +217,16 @@ class ListMouse implements PluginValue {
     }
     this.end();
     if (press.dragging) {
+      // Released outside the window: no drop.
+      const outside =
+        event.clientX < 0 ||
+        event.clientY < 0 ||
+        event.clientX > window.innerWidth ||
+        event.clientY > window.innerHeight;
       const change =
-        press.gap === undefined ? undefined : moveItemTo(view.state, press.item, press.gap, LIST_EVENTS.drag);
+        press.gap === undefined || press.item === undefined || outside
+          ? undefined
+          : moveItemTo(view.state, press.item, press.gap, LIST_EVENTS.drag);
       if (change !== undefined && !view.state.readOnly) {
         view.dispatch(change);
       }
@@ -257,7 +271,7 @@ class ListMouse implements PluginValue {
     window.removeEventListener("mouseup", this.release);
     window.removeEventListener("keydown", this.key, true);
     window.removeEventListener("blur", this.cancel);
-    view.scrollDOM.removeEventListener("scroll", this.scroll);
+    window.removeEventListener("scroll", this.scroll, true);
     view.dom.classList.remove("cm-lr-grabbing");
     if (dragged) {
       // Not inside an update: `end` also runs from `update` (a change of the text cancels).

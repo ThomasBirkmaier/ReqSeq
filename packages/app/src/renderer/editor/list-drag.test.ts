@@ -105,6 +105,21 @@ describe("dragging list items (SR-187)", () => {
     expect(docOf(tasks)).toBe("- [x] b\n- [ ] a");
   });
 
+  it("[SR-187/AK3] in a loose list a pointer on a blank line between two items drops into that gap", () => {
+    const view = viewOf("- a\n\n- b\n\n- c");
+    // Line 4 is the blank line between b and c.
+    dragTo(view, 0, 1, 70);
+    mouse(window, "mouseup", 70);
+    expect(docOf(view)).toBe("- b\n\n- a\n\n- c");
+  });
+
+  it("drops nothing when the button is released outside the window", () => {
+    const view = viewOf("- a\n- b");
+    dragTo(view, 1, 2, 2);
+    mouse(window, "mouseup", -5);
+    expect(docOf(view)).toBe("- a\n- b");
+  });
+
   it("[SR-187/AK4] a drop is taken back in one undo step", () => {
     const view = viewOf("- a\n- b\n- c");
     dragTo(view, 0, 1, 58);

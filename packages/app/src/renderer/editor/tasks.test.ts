@@ -92,6 +92,12 @@ describe("tasks (SR-185)", () => {
     expect(tasksOnSelectedLines(view.state)).toEqual([2]);
   });
 
+  it("[SR-185/AK1] a click ticks a task in a quote too, which cannot be dragged", () => {
+    const view = viewOf("> - [ ] t\n");
+    press(box(view));
+    expect(view.state.doc.toString()).toBe("> - [x] t\n");
+  });
+
   it("toggles only at a task marker", () => {
     const view = viewOf("- [ ] one\n- plain");
     expect(toggleTaskAt(view, 12)).toBe(false);
