@@ -13,6 +13,7 @@ import {
   COMMAND_SHORTCUT,
   actionFor,
   commandPrompt,
+  historyKeyAction,
   isBufferMouseButton,
   mouseButtonAction,
   referencePrompt,
@@ -839,7 +840,10 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
         startPrefix();
         return;
       }
-      const action = actionFor(now, (shortcut) => matches(event, shortcut, now.mac));
+      // Cmd+[ and Cmd+] as the mouse buttons Back and Forward (SR-163 AK3), like them not in an open prompt.
+      const action =
+        actionFor(now, (shortcut) => matches(event, shortcut, now.mac)) ??
+        (openPrompt.current === undefined ? historyKeyAction(now, event) : undefined);
       if (action !== undefined) {
         event.preventDefault();
         runAction(action, now);

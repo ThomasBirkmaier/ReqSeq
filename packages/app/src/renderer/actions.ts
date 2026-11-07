@@ -32,7 +32,7 @@ import type { ReferenceRequest } from "./editor/slash-menu.js";
 import { idTitle } from "./id-title.js";
 import { LIST_ACTIONS, MATRIX_SHORTCUT, choice } from "./list-actions.js";
 import { linesOf, resultText } from "./result-copy.js";
-import type { Shortcut } from "./keys.js";
+import type { KeyPress, Shortcut } from "./keys.js";
 import { shortcutLabel } from "./keys.js";
 import type { GraphChoice, GraphFilterChoice } from "./graph-choices.js";
 import {
@@ -315,6 +315,24 @@ export const mouseButtonAction = (context: ActionContext, button: number): Actio
 };
 /** Whether `button` is Back or Forward, which `mouseButtonAction` takes. */
 export const isBufferMouseButton = (button: number): boolean => MOUSE_BUTTON_ACTIONS[button] !== undefined;
+/**
+ * Cmd+[ and Cmd+] on macOS do what the mouse buttons Back and Forward do (SR-163 AK3): mouse software such as
+ * Logi Options+ sends the side buttons as these keys, as Finder takes them. By the character or by the
+ * physical key, since a German layout has "ü" and "+" there and types "[" only with Option; Cmd alone.
+ */
+const HISTORY_KEYS: Readonly<Partial<Record<string, number>>> = {
+  "[": 3,
+  BracketLeft: 3,
+  "]": 4,
+  BracketRight: 4,
+};
+export const historyKeyAction = (context: ActionContext, event: KeyPress): Action | undefined => {
+  if (!context.mac || !event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
+    return undefined;
+  }
+  const button = HISTORY_KEYS[event.key] ?? HISTORY_KEYS[event.code ?? ""];
+  return button === undefined ? undefined : mouseButtonAction(context, button);
+};
 /**
  * "Other window" (SR-150 AK7): Alt+O, beside Alt+N and Alt+P, because Ctrl/Cmd+O opens a workspace and the
  * physical Ctrl key on macOS belongs to the editor (product owner decision, 2026-10-31).

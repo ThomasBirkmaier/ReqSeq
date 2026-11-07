@@ -5,7 +5,7 @@
 import { act, createElement } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EditorView } from "@codemirror/view";
 import type { InvokeResult, ReqSeqBridge } from "../shared/protocol.js";
 import { App } from "./App.js";
@@ -318,6 +318,46 @@ describe("App, Next buffer and Previous buffer (SR-115 AK5)", () => {
     await mouse(query("input"), 4);
     await mouse(query("input"), 3);
     expect(container.querySelector("input")).not.toBeNull();
+    expect(shown()).toBe("Search: wind");
+  });
+
+  it("[SR-163/AK3] on macOS Cmd+[ and Cmd+] do what the mouse buttons Back and Forward do, also by the physical key", async () => {
+    await openFour();
+    vi.spyOn(navigator, "platform", "get").mockReturnValue("MacIntel");
+    try {
+      // The app reads the platform as it renders.
+      await render();
+      const back = await press(window, { key: "[", code: "BracketLeft", metaKey: true });
+      expect(back.defaultPrevented).toBe(true);
+      expect(shown()).toBe("SR-000001 Title 1");
+      // A German layout: the physical key of "[" types "ü", of "]" "+".
+      await press(query("[data-buffer]"), { key: "ü", code: "BracketLeft", metaKey: true });
+      expect(shown()).toBe("All elements");
+      await press(window, { key: "+", code: "BracketRight", metaKey: true });
+      expect(shown()).toBe("SR-000001 Title 1");
+      await press(window, { key: "]", code: "BracketRight", metaKey: true });
+      expect(shown()).toBe("Search: wind");
+      // Not with another modifier, and not in an open prompt.
+      const shifted = await press(window, { key: "[", code: "BracketLeft", metaKey: true, shiftKey: true });
+      expect(shifted.defaultPrevented).toBe(false);
+      await press(window, { key: "p", metaKey: true });
+      await press(query("input"), { key: "[", code: "BracketLeft", metaKey: true });
+      expect(container.querySelector("input")).not.toBeNull();
+      expect(shown()).toBe("Search: wind");
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
+  it("[SR-163/AK3] on Linux and Windows Ctrl+[ and Ctrl+] switch nothing", async () => {
+    await openFour();
+    for (const init of [
+      { key: "[", code: "BracketLeft", ctrlKey: true },
+      { key: "[", code: "BracketLeft", metaKey: true },
+    ]) {
+      const event = await press(window, init);
+      expect(event.defaultPrevented).toBe(false);
+    }
     expect(shown()).toBe("Search: wind");
   });
 

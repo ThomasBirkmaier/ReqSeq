@@ -3,6 +3,7 @@ import {
   ACTIONS,
   COMMAND_SHORTCUT,
   NEXT_BUFFER_SHORTCUT,
+  historyKeyAction,
   isBufferMouseButton,
   mouseButtonAction,
   PREVIOUS_BUFFER_SHORTCUT,
@@ -32,6 +33,7 @@ import {
 import { sessionText } from "./buffer-session.js";
 import { savedStep, statusStep, textStep, typeStep } from "./list-filters.js";
 import { MOST_FREQUENT, PREFIX, PREFIX_BINDINGS, prefixLabel } from "./bindings.js";
+import type { KeyPress } from "./keys.js";
 import { matches, shortcutLabel } from "./keys.js";
 import type { Call } from "./call.js";
 import { rank } from "./fuzzy.js";
@@ -1961,5 +1963,36 @@ describe("Mouse buttons Back and Forward (SR-163)", () => {
       expect(mouseButtonAction(context, button)).toBeUndefined();
     }
     expect(isBufferMouseButton(3) && isBufferMouseButton(4)).toBe(true);
+  });
+});
+
+describe("Cmd+[ and Cmd+] on macOS (SR-163 AK3)", () => {
+  const key = (init: Partial<KeyPress>): KeyPress => ({
+    key: "",
+    code: "",
+    ctrlKey: false,
+    metaKey: true,
+    altKey: false,
+    shiftKey: false,
+    ...init,
+  });
+  it("[SR-163/AK3] Cmd+[ is Previous buffer, Cmd+] Next buffer, by character or physical key, on macOS only", () => {
+    const { context } = setup([list, overviewBuffer()]);
+    const mac = { ...context, mac: true };
+    expect(historyKeyAction(mac, key({ key: "[" }))?.id).toBe("previous-buffer");
+    expect(historyKeyAction(mac, key({ key: "ü", code: "BracketLeft" }))?.id).toBe("previous-buffer");
+    expect(historyKeyAction(mac, key({ key: "]" }))?.id).toBe("next-buffer");
+    expect(historyKeyAction(mac, key({ key: "+", code: "BracketRight" }))?.id).toBe("next-buffer");
+    expect(historyKeyAction({ ...context, mac: false }, key({ key: "[" }))).toBeUndefined();
+    for (const other of [
+      { metaKey: false },
+      { ctrlKey: true },
+      { altKey: true },
+      { shiftKey: true },
+      { key: "x" },
+    ]) {
+      expect(historyKeyAction(mac, key({ key: "[", ...other }))).toBeUndefined();
+    }
+    expect(historyKeyAction({ ...setup([list]).context, mac: true }, key({ key: "[" }))).toBeUndefined();
   });
 });
