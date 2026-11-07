@@ -106,6 +106,14 @@ describe("the drafts of the window outside the page (#270)", () => {
     );
   });
 
+  it("drops the entry before when a write is refused, so no older input comes back", () => {
+    const storage = memory();
+    keepDrafts(() => storage, { workspace: "ws", drafts: new Map([["a", CONFLICT]]) });
+    const full: DraftStorage = { ...storage, setItem: refusing.setItem };
+    keepDrafts(() => full, { workspace: "ws", drafts: new Map([["a", { text: "newer", base: "" }]]) });
+    expect(takeDrafts(() => storage, "ws")).toBeUndefined();
+  });
+
   it("keeps nothing and takes nothing from a storage that refuses", () => {
     expect(() => {
       keepDrafts(() => refusing, { workspace: "ws", drafts: new Map([["a", CONFLICT]]) });
@@ -126,32 +134,40 @@ describe("the drafts of the window outside the page (#270)", () => {
     act(() => {
       root.render(createElement(Probe, { shown: "a" }));
     });
-    // Without a workspace nothing is kept.
+    // Before the page knows its workspace nothing is written, and the entry of the page before stays.
+    storage.setItem(DRAFTS_KEY, "before");
     act(() => {
       drafts?.onDraft("a", { text: "x", base: "" });
+      drafts?.reset();
     });
-    expect(storage.items.has(DRAFTS_KEY)).toBe(false);
+    expect(storage.items.get(DRAFTS_KEY)).toBe("before");
     act(() => {
-      if (drafts !== undefined) {
-        drafts.scope.current = "ws";
-      }
+      drafts?.rescope("ws");
+    });
+    expect(storage.items.get(DRAFTS_KEY)).toBe("before");
+    act(() => {
       drafts?.onDraft("a", { text: "xy", base: "" });
     });
     expect(takeDrafts(() => storage, "ws")?.shown).toBe("a");
+    // Another key of the same workspace takes the drafts along at once.
+    act(() => {
+      drafts?.rescope("ws renamed");
+    });
+    expect(takeDrafts(() => storage, "ws renamed")?.drafts.size).toBe(1);
     // Showing another buffer keeps it as the one shown.
     act(() => {
       root.render(createElement(Probe, { shown: undefined }));
     });
-    expect(takeDrafts(() => storage, "ws")?.shown).toBeUndefined();
+    expect(takeDrafts(() => storage, "ws renamed")?.shown).toBeUndefined();
     act(() => {
       root.render(createElement(Probe, { shown: "b" }));
     });
-    expect(takeDrafts(() => storage, "ws")?.shown).toBe("b");
+    expect(takeDrafts(() => storage, "ws renamed")?.shown).toBe("b");
     // Drafts seeded from a page before are kept and counted.
     act(() => {
       drafts?.seed(new Map([["b", CONFLICT]]));
     });
-    expect([...(takeDrafts(() => storage, "ws")?.drafts.keys() ?? [])]).toEqual(["a", "b"]);
+    expect([...(takeDrafts(() => storage, "ws renamed")?.drafts.keys() ?? [])]).toEqual(["a", "b"]);
     // A reset drops them.
     act(() => {
       drafts?.reset();

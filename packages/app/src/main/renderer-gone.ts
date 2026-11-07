@@ -48,7 +48,9 @@ export const reloadWhenGone = (
     const at = now();
     reloads = reloads.filter((time) => at - time < RELOAD_WINDOW_MS);
     if (reloads.length >= RELOAD_LIMIT) {
-      log(`${ended(details)} ${String(RELOAD_LIMIT + 1)} times within ${WITHIN}; it is not loaded again`);
+      log(
+        `${ended(details)} more than ${String(RELOAD_LIMIT)} times within ${WITHIN}; it is not loaded again`,
+      );
       return;
     }
     reloads.push(at);

@@ -10,7 +10,6 @@
 // in (`sessionKey`), the buffer shown, and every draft with the element it shows. A page that starts
 // takes the drafts only for the same workspace; each buffer compares its draft with its file as it is
 // now, as a buffer shown again does (SR-106, `restore` in `ElementView.tsx`).
-import type { RefObject } from "react";
 import { useCallback, useEffect, useRef } from "react";
 import type { DataExportElement } from "@reqseq/core";
 import type { BoxDraft, Draft, Drafts } from "./drafts.js";
@@ -102,7 +101,9 @@ export const keepDrafts = (storage: () => DraftStorage, kept: KeptDrafts): void 
     };
     storage().setItem(DRAFTS_KEY, JSON.stringify(entry));
   } catch {
-    // Full or not there: the drafts stay in the page, as before #270.
+    // Full or not there: the drafts stay in the page, as before #270. An older entry goes, so a page
+    // loaded again never takes input back that was saved since.
+    dropDrafts(storage);
   }
 };
 
@@ -148,13 +149,18 @@ export const takeDrafts = (storage: () => DraftStorage, workspace: string): Kept
 
 /** The drafts of the window (`useDrafts`), kept in `storage` too, and the workspace they belong to. */
 export interface WindowDrafts extends Drafts {
-  /** The storage key of the workspace open in the window (`sessionKey`); no drafts are kept without one. */
-  readonly scope: RefObject<string | undefined>;
+  /**
+   * The storage key of the workspace open in the window (`sessionKey`) is `key` now: the drafts are kept
+   * under it from now on, at once when there are any (its name or repositories changed).
+   */
+  readonly rescope: (key: string | undefined) => void;
 }
 
 /**
  * `useDrafts` for the buffer `shownKey`, with every change of the drafts kept in `storage`, with the
- * workspace (`scope`) and the buffer shown, also when only the buffer shown changes.
+ * workspace (`rescope`) and the buffer shown, also when only the buffer shown changes. Before the page
+ * knows its workspace nothing is written or dropped: the entry of the page before stays until the page
+ * has taken it (`takeDrafts`), also when its first status finds no workspace (core restarting).
  */
 export const useWindowDrafts = (shownKey: string | undefined, storage: () => DraftStorage): WindowDrafts => {
   const scope = useRef<string | undefined>(undefined);
@@ -163,7 +169,10 @@ export const useWindowDrafts = (shownKey: string | undefined, storage: () => Dra
   const store = useCallback(
     (all: ReadonlyMap<string, Draft>): void => {
       const workspace = scope.current;
-      if (workspace === undefined || all.size === 0) {
+      if (workspace === undefined) {
+        return;
+      }
+      if (all.size === 0) {
         dropDrafts(storage);
         return;
       }
@@ -182,5 +191,14 @@ export const useWindowDrafts = (shownKey: string | undefined, storage: () => Dra
       store(all.current);
     }
   }, [shownKey, all, store]);
-  return { ...drafts, scope };
+  const rescope = useCallback(
+    (key: string | undefined): void => {
+      scope.current = key;
+      if (all.current.size > 0) {
+        store(all.current);
+      }
+    },
+    [all, store],
+  );
+  return { ...drafts, rescope };
 };

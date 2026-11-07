@@ -41,7 +41,7 @@ describe("the page of the window is loaded again when its renderer ends", () => 
     }
     expect(contents.reload).toHaveBeenCalledTimes(RELOAD_LIMIT);
     expect(log).toHaveBeenLastCalledWith(
-      `The window's page ended (oom, exit code 5) ${String(RELOAD_LIMIT + 1)} times within ${String(RELOAD_WINDOW_MS / 1000)} s; it is not loaded again`,
+      `The window's page ended (oom, exit code 5) more than ${String(RELOAD_LIMIT)} times within ${String(RELOAD_WINDOW_MS / 1000)} s; it is not loaded again`,
     );
     time += RELOAD_WINDOW_MS;
     gone("crashed");
