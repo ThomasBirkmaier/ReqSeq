@@ -381,6 +381,45 @@ describe("renderHuman: values", () => {
     expect(yaml).toContain("Showing 1 of 2; ask for more with --offset and --limit.");
   });
 
+  it("[SR-149/AK6] shows grouped search hits under their headings, each with its snippet", () => {
+    const hit = (id: string, title: string, snippet?: Record<string, unknown>): Record<string, unknown> => ({
+      id,
+      repository: "system",
+      shortId: `SR-${id}`,
+      type: "system-requirement",
+      status: "draft",
+      title,
+      score: 1,
+      fields: ["text"],
+      terms: ["wind"],
+      ...(snippet === undefined ? {} : { snippet }),
+    });
+    const snippet = { field: "text", text: "the wind blows", marks: [{ start: 4, end: 8 }] };
+    expect(
+      renderHuman({
+        hits: [hit("b2", "Two", snippet), hit("b1", "One")],
+        groups: [
+          { value: "PKG-d1", title: "Wind", count: 1, offset: 0 },
+          { count: 1, offset: 1 },
+        ],
+        offset: 0,
+        rows: 2,
+        total: 2,
+        incomplete: false,
+      }),
+    ).toBe(
+      lines(
+        "hits:",
+        "  PKG-d1  Wind · 1",
+        "    SR-b2  draft  Two",
+        "      text: the wind blows",
+        "  (no value) · 1",
+        "    SR-b1  draft  One",
+        "total: 2",
+      ),
+    );
+  });
+
   it("[SR-149/AK1] shows each group of a grouped tree as its own tree, with texts", () => {
     const element = (id: string, body?: string): Record<string, unknown> => ({
       id,

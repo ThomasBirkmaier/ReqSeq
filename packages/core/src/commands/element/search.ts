@@ -19,15 +19,100 @@
 //   So a page costs the search and the files of its hits (SR-098: measured for 50 and 500 hits in
 //   test/perf/search-speed.test.ts). The Markdown parser comes with it, so the command is imported
 //   on its first call (`lazyCommand`, #178).
+// - With `group` (SR-149 AK6) every hit is put in order (`rankedHits`, one sort) and dealt into the
+//   groups of `groupingOf` over the hit records, keeping that order inside each group; the page is
+//   then the rows of the groups in turn, as element.list gives them, and only its distinct hits are
+//   described and get a snippet. The records are the index's, so a file changed since the selection
+//   groups by its new content, while targets (packages) are looked up in the selection's store: one
+//   only in the newer store counts as not available until the next search. The key is checked by
+//   `groupingOf` whatever the query finds. Cost: the search, one sort of every hit and one pass over
+//   them (SR-098 with grouping: test/perf/search-speed.test.ts).
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import type { ElementSearchOutput } from "../../generated/types.js";
 import { identifierField, titleKeyOf } from "../../model/index.js";
-import type { SearchHit } from "../../query/index.js";
-import { resolveSelection, searchElements, searchIndex } from "../../query/index.js";
+import type { RankedHit, SearchHit, SearchIndex, Selected } from "../../query/index.js";
+import {
+  describeHit,
+  groupingOf,
+  rankedHits,
+  resolveSelection,
+  searchElements,
+  searchIndex,
+} from "../../query/index.js";
 import { searchSnippet, titleMarks } from "../../query/search-snippet.js";
 
 type Hit = ElementSearchOutput["hits"][number];
+
+type Group = NonNullable<ElementSearchOutput["groups"]>[number];
+
+/** How the hits of a search are described: the output of one hit. */
+const describerOf = (selected: Selected, index: SearchIndex): ((hit: SearchHit) => Hit) => {
+  // Without the meaning `title` (SR-013 AK3) no key is the title: the title is empty, as in element.get.
+  const titleKey = titleKeyOf(selected.metamodel);
+  return (hit) => {
+    const { element, score, fields, terms } = hit;
+    const title = titleKey === undefined ? undefined : element.data[titleKey];
+    const status = element.data["status"];
+    const shown = typeof title === "string" ? title : "";
+    const marks = fields.includes("title") ? titleMarks(shown, terms) : [];
+    const snippet = searchSnippet(index, hit);
+    return {
+      id: element.id,
+      repository: element.repository,
+      shortId: selected.shortIds.of(element),
+      ...identifierField(selected.shortIds, element),
+      type: element.type,
+      ...(typeof status === "string" ? { status } : {}),
+      title: shown,
+      score,
+      fields,
+      terms,
+      ...(marks.length === 0 ? {} : { titleMarks: marks }),
+      ...(snippet === undefined ? {} : { snippet }),
+    };
+  };
+};
+
+/** The grouped hits (see the file comment): the page of their rows, every group and the count of rows. */
+const grouped = (
+  selected: Selected,
+  index: SearchIndex,
+  ranked: readonly RankedHit[],
+  input: { readonly group: string; readonly offset: number; readonly limit: number },
+): Pick<ElementSearchOutput, "hits" | "groups" | "offset" | "rows"> => {
+  const { heads, groupsOf } = groupingOf(
+    { ...selected, elements: ranked.map((hit) => hit.element) },
+    "element.search",
+    input.group,
+  );
+  const members = heads.map((): RankedHit[] => []);
+  for (const hit of ranked) {
+    for (const at of groupsOf(hit.element)) {
+      members[at]?.push(hit);
+    }
+  }
+  const rows: RankedHit[] = [];
+  const groups: Group[] = [];
+  members.forEach((hits, at) => {
+    if (hits.length > 0) {
+      groups.push({ ...heads[at], count: hits.length, offset: rows.length });
+      // Loops, not spreads: a group can hold every hit of N-036 (a spread of so many arguments throws).
+      for (const hit of hits) {
+        rows.push(hit);
+      }
+    }
+  });
+  const describe = describerOf(selected, index);
+  // A hit in several groups of the page is described once.
+  const described = new Map<RankedHit, Hit>();
+  const hits = rows.slice(input.offset, input.offset + input.limit).map((row) => {
+    const known = described.get(row) ?? describe(describeHit(row));
+    described.set(row, known);
+    return known;
+  });
+  return { hits, groups, offset: input.offset, rows: rows.length };
+};
 
 export default defineCommand({
   name: "element.search",
@@ -38,36 +123,24 @@ export default defineCommand({
     // keys). A store swapped meanwhile may hold elements the selection never saw: restricted then.
     const restricted =
       index.store !== selected.store || selected.elements.length < selected.store.elements.length;
-    const results = searchElements(index, input.query, {
+    const options = {
       ...(input.fields === undefined ? {} : { fields: input.fields }),
       ...(restricted ? { within: selected.elements } : {}),
+    };
+    if (input.group !== undefined) {
+      const ranked = rankedHits(index, input.query, options);
+      return {
+        ...grouped(selected, index, ranked, { ...input, group: input.group }),
+        total: ranked.length,
+        incomplete: selected.incomplete,
+      };
+    }
+    const results = searchElements(index, input.query, {
+      ...options,
       offset: input.offset,
       limit: input.limit,
     });
-    // Without the meaning `title` (SR-013 AK3) no key is the title: the title is empty, as in element.get.
-    const titleKey = titleKeyOf(selected.metamodel);
-    const hitOf = (hit: SearchHit): Hit => {
-      const { element, score, fields, terms } = hit;
-      const title = titleKey === undefined ? undefined : element.data[titleKey];
-      const status = element.data["status"];
-      const shown = typeof title === "string" ? title : "";
-      const marks = fields.includes("title") ? titleMarks(shown, terms) : [];
-      const snippet = searchSnippet(index, hit);
-      return {
-        id: element.id,
-        repository: element.repository,
-        shortId: selected.shortIds.of(element),
-        ...identifierField(selected.shortIds, element),
-        type: element.type,
-        ...(typeof status === "string" ? { status } : {}),
-        title: shown,
-        score,
-        fields,
-        terms,
-        ...(marks.length === 0 ? {} : { titleMarks: marks }),
-        ...(snippet === undefined ? {} : { snippet }),
-      };
-    };
-    return { hits: results.hits.map(hitOf), total: results.total, incomplete: selected.incomplete };
+    const describe = describerOf(selected, index);
+    return { hits: results.hits.map(describe), total: results.total, incomplete: selected.incomplete };
   },
 });

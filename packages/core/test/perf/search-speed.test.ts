@@ -272,6 +272,42 @@ describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", ()
     }
   });
 
+  it("[SR-098/AK1] shows the first grouped hits of the costliest terms within 300 ms (SR-149 AK6, median of 7 runs)", async () => {
+    // A grouped search sorts every hit and deals them into groups (element.search `group`): the
+    // costliest terms find (almost) every element. By status, by package (the targets looked up) and
+    // by a choice property, the first page of 50 rows and one page deep in the rows.
+    if (workspace === undefined) {
+      throw new Error("no workspace");
+    }
+    const open = workspace;
+    const measurements = [];
+    for (const [term, group, offset] of [
+      ["th", "status", 0],
+      ["th", "package", 0],
+      ["th", "requirement-type", 0],
+      ["th", "package", 20_000],
+      ["the station shall", "package", 0],
+    ] as const) {
+      const { result, measurement } = await measureMedian(
+        `element.search grouped by ${group}: ${JSON.stringify(term)}, 50 rows from row ${String(offset)}`,
+        async () =>
+          (await invoke("element.search", { query: term, group, offset }, { workspace: open })) as Search,
+        {
+          basis:
+            "SR-098 AK1, SR-149 AK6 (element.search grouped, page of 50 rows, warm server; median of 7 runs)",
+          thresholdMs: SEARCH_MS,
+          runs: RUNS,
+        },
+      );
+      expect(result.hits, `${term} ${group}`).toHaveLength(50);
+      expect(result.groups?.length, `${term} ${group}`).toBeGreaterThan(1);
+      measurements.push(measurement);
+    }
+    for (const measurement of measurements) {
+      expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(SEARCH_MS);
+    }
+  });
+
   it("scores every term of the suite to the bit as MiniSearch's search does (search-scoring.ts)", async () => {
     if (workspace === undefined) {
       throw new Error("no workspace");
