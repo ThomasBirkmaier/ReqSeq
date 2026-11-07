@@ -169,4 +169,20 @@ scenariosOf("element.search", [
     input: { query: "wind", group: "title" },
     expect: "error",
   },
+  {
+    tag: "[SR-124/AK4]",
+    name: "within a status filter: the hits left in their relevance order",
+    fixture: { fixture: "SR-149/group" },
+    input: { query: "wind", selection: { where: { status: ["draft"] } } },
+    expect: "output",
+    check: (results) => {
+      const [first] = Object.values(results);
+      const outcome = first?.outcome;
+      const output = (outcome !== undefined && "output" in outcome ? outcome.output : {}) as {
+        hits: { shortId: string }[];
+      };
+      // Without the filter the order is b2, b1, d1, a1, b3 (search-group.test.ts): b1 before b3 stays.
+      expect(output.hits.map((hit) => hit.shortId)).toEqual(["SR-0000b1", "SR-0000b3"]);
+    },
+  },
 ]);

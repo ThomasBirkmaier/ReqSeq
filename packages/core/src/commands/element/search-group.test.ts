@@ -119,3 +119,16 @@ describe("element.search grouped (SR-149 AK6)", () => {
     }
   });
 });
+
+describe("element.search within a filter (SR-124 AK4)", () => {
+  it("[SR-124/AK4] a filter narrows the hits, and those left keep their relevance order", async () => {
+    const workspace = await open();
+    const order = (await search(workspace, { query: "wind" })).hits.map((hit) => tail(hit.id));
+    const filtered = await search(workspace, { query: "wind", selection: { where: { status: ["draft"] } } });
+    const left = filtered.hits.map((hit) => tail(hit.id));
+    expect(left.length).toBeGreaterThan(1);
+    expect(left.length).toBeLessThan(order.length);
+    expect(left).toEqual(order.filter((id) => left.includes(id)));
+    expect(filtered.hits.every((hit) => hit.status === "draft")).toBe(true);
+  });
+});

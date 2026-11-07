@@ -26,15 +26,17 @@ export type QueryChange = { readonly [Part in Exclude<QueryPart, "steps">]?: Lis
 };
 
 /**
- * Where a query is shown: a list, a list in matrix mode (SR-125), the elements of a package page. The
- * matrix lists each element once and has no groups; a package page has no groups yet.
+ * Where a query is shown: a list, a list in matrix mode (SR-125), the elements of a package page, the
+ * hits of a search. The matrix lists each element once and has no groups; a package page has no groups
+ * yet; a search is not sorted, its hits keep the order of the search (SR-124 AK4, SR-149 AK6).
  */
-export type QueryView = "list" | "matrix" | "members";
+export type QueryView = "list" | "matrix" | "members" | "search";
 
 const VIEW_PARTS: Readonly<Record<QueryView, ReadonlySet<QueryPart>>> = {
   list: new Set(["steps", "sort", "group"]),
   matrix: new Set(["steps", "sort"]),
   members: new Set(["steps", "sort"]),
+  search: new Set(["steps", "group"]),
 };
 
 /** The parts kept when the app starts again (SR-115 AK4): not the grouping (SR-149 AK5). */
