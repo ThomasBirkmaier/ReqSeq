@@ -1,7 +1,7 @@
 ---
 id: 12bad135-3c8d-49dd-935a-ef2868aac91e
 type: system-requirement
-status: draft
+status: approved
 title: Trefferkarte der Befehlszeile mit Bewegung einblenden
 spec-id: SR-182
 rationale: "Entscheidung des Produktverantwortlichen, 2026-11-07: Das Öffnen der Befehlszeile soll den Eindruck vermitteln, dass physisch etwas auf dem Bildschirm passiert. Gewählt wurden höchstens 200 ms, das Abdunkeln des ganzen Hintergrunds mit Unschärfe nur im Saum des Schattens und die Bewegung nur beim Öffnen, für die Kürzel-Karte ebenso."
