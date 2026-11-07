@@ -26,12 +26,19 @@ const open = async (window: Page): Promise<void> => {
   await expect(window.locator("article h1")).toHaveText(DEMO_TITLE);
 };
 
-const saved = async (running: RunningApp): Promise<string> => {
-  await running.window.keyboard.press("ControlOrMeta+s");
-  // Autosave may have written it already.
-  await expect(running.window.getByLabel("Minibuffer")).toContainText(/Saved|No changes to save/u);
+const fileText = async (running: RunningApp): Promise<string> => {
   const file = await fs.readFile(path.join(running.workspace?.root ?? "", ...DEMO_FILE.split("/")), "utf8");
   return file.slice(file.indexOf("Werte"));
+};
+
+/** Saves (Ctrl/Cmd+S, or autosave got there first) and waits until the file holds `expected`. */
+const expectSaved = async (running: RunningApp, expected: string | RegExp): Promise<void> => {
+  await running.window.keyboard.press("ControlOrMeta+s");
+  if (typeof expected === "string") {
+    await expect.poll(() => fileText(running)).toBe(expected);
+  } else {
+    await expect.poll(() => fileText(running)).toMatch(expected);
+  }
 };
 
 const command = async (window: Page, title: string): Promise<void> => {
@@ -69,25 +76,26 @@ test.describe("table editing in the element buffer", () => {
     const { window } = running;
     await caretIn(window, "Süd");
     await window.keyboard.press("Tab");
-    const added = await saved(running);
-    expect(added.startsWith(TEXT)).toBe(true);
-    expect(added.slice(TEXT.length)).toMatch(/^\| +\| +\|\n$/u);
+    // The new row, empty, under the last one.
+    await expectSaved(running, /\| Süd \| 7 \|\n\| +\| +\|\n$/u);
+
     await window.locator(".cm-content").focus();
     await window.keyboard.press("ControlOrMeta+z");
-    expect(await saved(running)).toBe(TEXT);
+    await expectSaved(running, TEXT);
     await caretIn(window, "Süd");
     await window.keyboard.press("Tab");
     await window.keyboard.type("Ost");
     await window.keyboard.press("Tab");
     await window.keyboard.type("3");
-    expect(await saved(running)).toMatch(/\| Süd \| 7 \|\n\| Ost +\| 3 *\|\n$/u);
+    await expectSaved(running, /\| Süd \| 7 \|\n\| Ost +\| 3 *\|\n$/u);
   });
 
   test("[SR-188/AK2] [SR-188/AK3] Align table and Insert column from the command prompt change the file", async () => {
     const { window } = running;
     await caretIn(window, "Nord");
     await command(window, "Align table");
-    expect(await saved(running)).toBe(
+    await expectSaved(
+      running,
       "Werte:\n\n| Ort  | Wind |\n| ---- | ---: |\n| Nord |   12 |\n| Süd  |    7 |\n",
     );
     await window.keyboard.press("Escape");
@@ -95,7 +103,7 @@ test.describe("table editing in the element buffer", () => {
     await window.screenshot({ path: path.join(OUT, "table-aligned-light.png") });
     await caretIn(window, "Nord");
     await command(window, "Insert column");
-    const file = await saved(running);
-    expect(file.split("\n")[2]?.split("|")).toHaveLength(5);
+    // A third column in the header row.
+    await expectSaved(running, /^Werte:\n\n\|[^|\n]*\|[^|\n]*\|[^|\n]*\|\n/u);
   });
 });
