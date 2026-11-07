@@ -5,27 +5,26 @@
 // first. `view` keeps the elements the view of the core or a variant holds (`viewRuleOf`,
 // SR-040, SR-041, SR-043); a variant's view is `incomplete` while a repository is not here.
 //
-// The marks (SR-111 AK4; assumptions of spec question ThomasBirkmaier/ReqSeq-archive#478) are the rules of the hints and the chain,
-// so the graph says what element.get and trace.chain say:
+// The marks (SR-111 AK4; assumptions of spec question ThomasBirkmaier/ReqSeq-archive#478) are the rules of the hints,
+// so the graph says what element.get says:
 // - `outdated`: the element stores an outdated relation, relation property or inline reference, the
 //   `relation.outdated` and `variant.core-changed` hints of element.get (`outdatedAmong`), whatever
 //   kinds are followed;
 // - `superseded`: its status is one the metamodel marks invalid (D-044, `invalidStatuses`), the rule
 //   of `relation.target-superseded`;
-// - `no-evidence`: the gap rule of trace.chain (`lacksEvidence`, SR-022 AK3) with the same records
-//   (`hasVerificationRecord` in the view, the core without one, with the mark `variant-independent` of
-//   the element's repository, SR-173), so the graph and the chain agree; an
-//   evidence location that is not on this machine makes the graph `incomplete`, as the chain. A
-//   requirement the view (the core without one) does not hold has no such mark, as the chain gives it
-//   `not-in-view` (#674); the graph has no mark of its own for that.
-//   Without the meanings `derivation` and `requirement` there is none, and a hint says so.
+//
+// Verification (SR-136, `graphVerification`): each requirement node its status in the graph's view (the
+// core without one) and the count of its progress ring, each need node the verification degree of its
+// derivation children in the whole workspace, from the shared status, as element.get and evidence.degree
+// give them. An evidence location that is not on this machine makes the graph `incomplete`, as the
+// chain. Without the meanings `derivation` and `requirement` a hint says the status and degree are not
+// complete.
 //
 // Evidence (SR-111 AK3, plan on #217): with `withEvidence`, one summary per node at level 0 or below
 // whose evidence level (its level + 1) is within the depth asked, `expanded` or not, and only when it
 // has any: how many test cases and records, and the newest result of each. It comes from
-// `chainEvidenceOf` on the same index in the same view as the `no-evidence` mark (the core without a
-// view), so it is what trace.chain lists below the element in that view. The summaries are no nodes:
-// `limit` counts the elements only (assumption on #217). An evidence location that is not on this
+// `chainEvidenceOf` on the same index in the view (the core without one), so it is what trace.chain
+// lists below the element in that view. The summaries are no nodes: `limit` counts the elements only (assumption on #217). An evidence location that is not on this
 // machine makes the graph `incomplete`.
 import type { CommandOutput, Problem } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
@@ -34,22 +33,20 @@ import {
   chainEvidenceOf,
   evidenceIndexState,
   evidenceReadState,
-  hasVerificationRecord,
+  graphVerification,
 } from "../../evidence/index.js";
 import { outdatedAmong } from "../../hints/index.js";
 import type { Metamodel } from "../../metamodel/index.js";
 import { meaningUnassignedMessage } from "../../metamodel/index.js";
-import type { ElementRecord } from "../../model/index.js";
+import type { ElementStore } from "../../model/index.js";
 import { invalidStatuses, resolveRef, shortIdState } from "../../model/index.js";
 import type { Workspace } from "../../runtime/workspace.js";
 import type { ElementGraph, GraphMark, MarksOf, TraceContext } from "../../trace/index.js";
 import {
   checkRelationKinds,
   currentVersionLookup,
-  derivationGraph,
   elementGraph,
   elementGraphOutput,
-  lacksEvidence,
   neighbourhoodContext,
   traceContext,
 } from "../../trace/index.js";
@@ -57,7 +54,7 @@ import type { View } from "../../variants/index.js";
 import { resolveView, viewIncomplete, viewRuleOf } from "../../variants/index.js";
 import { variantIndependentOf, workspaceLayoutState } from "../../workspace/index.js";
 
-/** The meanings the `no-evidence` mark needs. */
+/** The meanings the verification status and degree need in full. */
 const GAP_MEANINGS = ["derivation", "requirement"] as const;
 
 const CORE: View = { kind: "core" };
@@ -67,28 +64,9 @@ const unassignedOf = (metamodel: Metamodel): readonly (typeof GAP_MEANINGS)[numb
   GAP_MEANINGS.filter((meaning) => metamodel.meanings[meaning].length === 0);
 
 /** The marks of the nodes (see the file comment). */
-const marksOf = async (
-  workspace: Workspace,
-  base: TraceContext,
-  includes: ((element: ElementRecord) => boolean) | undefined,
-  view: View | undefined,
-): Promise<MarksOf> => {
-  const { metamodel, store } = base;
+const marksOf = async (workspace: Workspace, metamodel: Metamodel, store: ElementStore): Promise<MarksOf> => {
   const layout = await workspace.get(workspaceLayoutState);
   const invalid = invalidStatuses(metamodel);
-  let gap: ((element: ElementRecord) => boolean) | undefined;
-  if (unassignedOf(metamodel).length === 0) {
-    const index = await workspace.get(evidenceIndexState);
-    const gapView = view ?? CORE;
-    const held = viewRuleOf({ workspace, store, metamodel }, gapView).includes;
-    const marked = variantIndependentOf(layout);
-    gap = lacksEvidence(
-      derivationGraph(base, "trace.graph"),
-      includes,
-      (element) => hasVerificationRecord(index, element.id, gapView, marked.has(element.repository)),
-      (element) => !held(element),
-    );
-  }
   return async (elements) => {
     const outdated = await outdatedAmong({ workspace, layout, metamodel, store }, elements);
     return (element) => {
@@ -99,25 +77,16 @@ const marksOf = async (
       if (invalid.has(String(element.data["status"]))) {
         marks.push("superseded");
       }
-      if (gap?.(element) === true) {
-        marks.push("no-evidence");
-      }
       return marks;
     };
   };
 };
 
 /**
- * Whether the records the `no-evidence` mark or the evidence read are incomplete: an evidence location
- * is not on this machine (SR-006 AK2, as trace.chain says). Read only when the mark or the evidence is
- * given.
+ * Whether the records the status or the evidence read are incomplete: an evidence location is not on
+ * this machine (SR-006 AK2, as trace.chain says).
  */
-const evidenceIncomplete = async (
-  workspace: Workspace,
-  metamodel: Metamodel,
-  withEvidence: boolean,
-): Promise<boolean> =>
-  (withEvidence || unassignedOf(metamodel).length === 0) &&
+const evidenceIncomplete = async (workspace: Workspace): Promise<boolean> =>
   (await workspace.get(evidenceReadState)).incomplete;
 
 type Summary = NonNullable<CommandOutput<"trace.graph">["evidence"]>[number];
@@ -178,7 +147,7 @@ const evidenceOf = async (
   return summaries;
 };
 
-/** The hints: the meanings `no-evidence` needs that no key has (SR-013 AK3), while the metamodel is valid. */
+/** The hints: the meanings the status and degree need that no key has (SR-013 AK3), while the metamodel is valid. */
 const problemsOf = (metamodel: Metamodel): Problem[] =>
   metamodel.valid
     ? unassignedOf(metamodel).map((meaning) => ({
@@ -229,15 +198,19 @@ export default defineCommand({
       graph,
       { ...context, shortIds },
       currentVersionLookup(ctx.workspace),
-      await marksOf(ctx.workspace, base, includes, view),
+      await marksOf(ctx.workspace, metamodel, store),
+      await graphVerification(
+        ctx.workspace,
+        graph.nodes.map((place) => place.element),
+        view,
+      ),
     );
     return {
       ...output,
       ...(input.withEvidence
         ? { evidence: await evidenceOf(ctx.workspace, base, graph, view, maxDepth) }
         : {}),
-      ...(viewIncomplete(base.layout, view) ||
-      (await evidenceIncomplete(ctx.workspace, metamodel, input.withEvidence))
+      ...(viewIncomplete(base.layout, view) || (await evidenceIncomplete(ctx.workspace))
         ? { incomplete: true }
         : {}),
       problems: problemsOf(metamodel),

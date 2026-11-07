@@ -1661,6 +1661,39 @@ describe("renderHuman: a graph with evidence (SR-111 AK3)", () => {
   });
 });
 
+describe("renderHuman: a graph with verification (SR-136)", () => {
+  it("[SR-136/AK1] prints the status of a requirement node and the degree of a need node", () => {
+    expect(
+      renderHuman({
+        nodes: [
+          {
+            ...node("a", "SR-00000a", 0),
+            verification: [
+              { view: "core", status: "open", criteria: { verified: 2, total: 3, notVerified: [3] } },
+            ],
+            criteria: { verified: 2, total: 3, notVerified: [3] },
+          },
+          {
+            ...node("b", "N-00000b", 0),
+            degree: {
+              share: 0.6,
+              total: 10,
+              counts: { open: 2, verified: 6, indirect: 0, failed: 1, outdated: 1 },
+            },
+          },
+          { ...node("c", "N-00000c", 0), degree: { total: 0, counts: {} } },
+        ],
+      }),
+    ).toContain(
+      lines(
+        "  SR-00000a  draft  Title SR-00000a  [verification: core open 2 of 3 criteria (AK3 not verified)]",
+        "  N-00000b  draft  Title N-00000b  [degree: 60 % of 10]",
+        "  N-00000c  draft  Title N-00000c",
+      ).trimEnd(),
+    );
+  });
+});
+
 describe("renderHuman: on a terminal (#988)", () => {
   const terminal = { columns: 60, colors: true };
   const style = (format: Parameters<typeof styleText>[0], text: string): string =>

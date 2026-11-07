@@ -25,7 +25,7 @@
 //   between two parents, or from a child of the element to a parent). A link to itself is no edge.
 //   `outdated` is the rule of SR-025 (`isOutdatedVersion`) against the current version of the target.
 // - Marks (SR-111 AK4) come from the command (`MarksOf`): their rules live in the hints and in the
-//   chain (`outdatedAmong`, `invalidStatuses`, `lacksEvidence`), and the hints import trace.
+//   status (`outdatedAmong`, `invalidStatuses`), and the hints import trace.
 // - Cost: the two bounded walks; the output adds one short ID and one title per node, the stored
 //   links of each node once more, and the current versions of the edge targets (`versionsOf`).
 import type { TraceGraphOutput } from "../generated/types.js";
@@ -170,6 +170,11 @@ export interface ElementGraphOutputContext extends NeighbourhoodContext {
 
 type GraphEdge = TraceGraphOutput["edges"][number];
 
+/** What a node shows of its verification (SR-136), given by the command (`graphVerification`). */
+export type NodeExtras = (
+  element: ElementRecord,
+) => Pick<TraceGraphOutput["nodes"][number], "verification" | "criteria" | "degree">;
+
 /** A followed link between two nodes. */
 interface Edge {
   readonly link: IncomingLink;
@@ -178,13 +183,14 @@ interface Edge {
 
 /**
  * The graph as `trace.graph` gives it (catalog output, without `problems`): the nodes with short
- * IDs, titles and marks (`marksOf`), and the edges between them with `outdated` (`versionsOf`).
+ * IDs, titles, marks (`marksOf`) and what `extrasOf` adds (the verification, SR-136), and the edges between them with `outdated` (`versionsOf`).
  */
 export const elementGraphOutput = async (
   graph: ElementGraph,
   context: ElementGraphOutputContext,
   versionsOf: VersionsOf,
   marksOf: MarksOf,
+  extrasOf: NodeExtras,
 ): Promise<Omit<TraceGraphOutput, "problems">> => {
   const { shortIds, metamodel } = context;
   const elements = graph.nodes.map((p) => p.element);
@@ -204,7 +210,7 @@ export const elementGraphOutput = async (
   const node = chainNode(shortIds, titles(metamodel));
   const nodes = graph.nodes.map(({ element, level, expanded }) => {
     const { depth: _depth, ...rest } = node(element, 0, expanded);
-    return { ...rest, level, marks: [...marks(element)] };
+    return { ...rest, level, marks: [...marks(element)], ...extrasOf(element) };
   });
   const infoOf = keyInfo(metamodel);
   const edges = found.map(({ link, target }): GraphEdge => {

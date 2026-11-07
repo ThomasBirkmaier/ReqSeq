@@ -1,5 +1,6 @@
 // trace.graph through `invoke` (SR-111, D-063) on fixtures/SR-111/graph: the data of AK1 to AK4, the
-// truncation contract and the marks against element.get and trace.chain. S1 is the element: it
+// truncation contract and the marks against element.get; the verification of the nodes (SR-136) on
+// fixtures/SR-136/graph against element.get and evidence.degree. S1 is the element: it
 // derives from N1, is based on D1, is in PKG, supersedes O1 (obsolete) and references D2 with an
 // outdated version. C1, C2 and C3 derive from S1 (C2's version is outdated), C3 also from C1, G1 from
 // C1, GG1 from G1 (valid only in the variant V1). D1 references S1 (so it is above and below S1), D2
@@ -275,7 +276,7 @@ describe("trace.graph (SR-111)", () => {
     expect([unknown.code, unknown.details?.["fields"]]).toEqual(["input.invalid", ["kinds"]]);
   });
 
-  it("[SR-111/AK4] nodes carry title and type and marks only when outdated, superseded or without evidence", async () => {
+  it("[SR-111/AK4] nodes carry title and type and marks only when outdated or superseded", async () => {
     const workspace = await open();
     const output = await graph(workspace, { ref: ID.S1, allLevels: true });
     expect(output.nodes.map((n) => [nameOf(n.id), n.type, n.title, n.marks])).toEqual([
@@ -283,14 +284,13 @@ describe("trace.graph (SR-111)", () => {
       ["N1", "need", "See the wind", []],
       ["D1", "decision", "Use a cup anemometer", []],
       ["PKG", "package", "Stage 1", []],
-      ["O1", "system-requirement", "Show wind in knots", ["superseded", "no-evidence"]],
+      ["O1", "system-requirement", "Show wind in knots", ["superseded"]],
       ["D2", "decision", "Use SI units", []],
       ["C1", "component-requirement", "Count anemometer turns", []],
-      ["C2", "component-requirement", "Average over ten minutes", ["outdated", "no-evidence"]],
-      ["C3", "component-requirement", "Convert turns to speed", ["no-evidence"]],
+      ["C2", "component-requirement", "Average over ten minutes", ["outdated"]],
+      ["C3", "component-requirement", "Convert turns to speed", []],
       ["E1", "decision", "Show values on the display", []],
       ["G1", "component-requirement", "Debounce the turn sensor", []],
-      // GG1 holds only in V1: not in the core, so no evidence gap there (#674).
       ["GG1", "component-requirement", "Heat the turn sensor", []],
     ]);
     expect(output.nodes.every((n) => n.shortId.length > 0 && n.file.endsWith(".md"))).toBe(true);
@@ -299,13 +299,9 @@ describe("trace.graph (SR-111)", () => {
 
   it("[SR-111/AK4] marks are the same whatever depth or kinds are shown", async () => {
     const workspace = await open();
-    // At depth 1 C1's child G1 is not shown, and C1 still has a child; only derivations are followed,
-    // and S1 still stores an outdated reference.
+    // Only derivations are followed, and S1 still stores an outdated reference.
     const one = await graph(workspace, { ref: ID.S1, maxDepth: 1, meanings: ["derivation"] });
-    expect([marked(one, "outdated"), marked(one, "no-evidence")]).toEqual([
-      ["S1", "C2"],
-      ["C2", "C3"],
-    ]);
+    expect(marked(one, "outdated")).toEqual(["S1", "C2"]);
     // A node that stores no versioned link.
     const need = await graph(workspace, { ref: ID.N1, maxDepth: 0 });
     expect(need.nodes.map((n) => [nameOf(n.id), n.marks])).toEqual([["N1", []]]);
@@ -329,27 +325,7 @@ describe("trace.graph (SR-111)", () => {
     expect(hinted).toEqual(["S1", "C2"]);
   });
 
-  it("[SR-111/AK4] no-evidence is the chain's gap rule, also in a view", async () => {
-    const workspace = await open();
-    for (const view of [undefined, "core", ID.V1]) {
-      const input = { ref: ID.S1, ...(view === undefined ? {} : { view }) };
-      const output = await graph(workspace, { ...input, allLevels: true });
-      const chain = (await invoke("trace.chain", input, { workspace })) as CommandOutput<"trace.chain">;
-      const expanded = new Set(
-        chain.nodes.filter((n) => n.expanded && n.direction !== "up").map((n) => n.id),
-      );
-      const gaps = chain.gaps.filter((g) => g.kind === "no-evidence").map((g) => nameOf(g.id));
-      expect(marked(output, "no-evidence").filter((name) => expanded.has(ID[name as Name]))).toEqual(gaps);
-    }
-    // In the core GG1 does not apply: G1 has no child there.
-    const core = await graph(workspace, { ref: ID.S1, allLevels: true, view: "core" });
-    expect([levels(core).map(([name]) => name), marked(core, "no-evidence")]).toEqual([
-      ["S1", "N1", "D1", "PKG", "O1", "D2", "C1", "C2", "C3", "E1", "G1"],
-      ["O1", "C2", "C3", "G1"],
-    ]);
-  });
-
-  it("[SR-111/AK4] no-evidence reads the verification records as trace.chain does", async () => {
+  it("[SR-111/AK3] withEvidence gives the evidence trace.chain lists in the same view, also with a test case of C3", async () => {
     const workspace = await open(async (fixture) => {
       await fixture.write(
         "evidence/ci/run-c3.xml",
@@ -365,46 +341,22 @@ describe("trace.graph (SR-111)", () => {
         ].join("\n"),
       );
     });
-    const output = await graph(workspace, { ref: ID.S1, allLevels: true });
-    expect(marked(output, "no-evidence")).toEqual(["O1", "C2"]);
     for (const view of [undefined, "core", ID.V1]) {
-      const input = { ref: ID.S1, ...(view === undefined ? {} : { view }) };
-      const shown = await graph(workspace, { ...input, allLevels: true, withEvidence: true });
-      const chain = (await invoke("trace.chain", input, { workspace })) as CommandOutput<"trace.chain">;
-      const expanded = new Set(
-        chain.nodes.filter((n) => n.expanded && n.direction !== "up").map((n) => n.id),
-      );
-      const gaps = chain.gaps.filter((g) => g.kind === "no-evidence").map((g) => nameOf(g.id));
-      expect(marked(shown, "no-evidence").filter((name) => expanded.has(ID[name as Name]))).toEqual(gaps);
-      // The evidence is the chain's in the same view (the core without one, as the mark reads it).
+      const shown = await graph(workspace, {
+        ref: ID.S1,
+        allLevels: true,
+        withEvidence: true,
+        ...(view === undefined ? {} : { view }),
+      });
+      // The evidence is the chain's in the same view (the core without one).
       const viewed = (await invoke(
         "trace.chain",
         { ref: ID.S1, view: view ?? "core" },
         { workspace },
       )) as CommandOutput<"trace.chain">;
-      const summaries = shown.evidence ?? [];
-      expect(summaries.map((e) => [nameOf(e.id), e.level, e.testCases, e.records])).toEqual(
+      expect((shown.evidence ?? []).map((e) => [nameOf(e.id), e.level, e.testCases, e.records])).toEqual(
         viewed.evidence.map((e) => [nameOf(e.id), e.depth, e.testCases.length, e.records.length]),
       );
-      // A requirement without a child in the view that carries no no-evidence mark has a summary (one the
-      // view does not hold has neither, #674). Not the other way round: a leaf whose only evidence is a
-      // skipped test case has the mark and a summary, as the chain shows the gap and the test case.
-      const summarised = new Set(summaries.map((e) => e.id));
-      const outside = new Set(chain.gaps.filter((g) => g.kind === "not-in-view").map((g) => g.id));
-      const leaves = chain.nodes.filter(
-        (n) =>
-          n.direction !== "up" &&
-          n.depth > 0 &&
-          !outside.has(n.id) &&
-          !chain.edges.some((e) => e.target === n.id),
-      );
-      expect(leaves.length).toBeGreaterThan(0);
-      for (const leaf of leaves) {
-        const node = shown.nodes.find((n) => n.id === leaf.id);
-        if (node?.marks.includes("no-evidence") === false) {
-          expect([nameOf(leaf.id), summarised.has(leaf.id)]).toEqual([nameOf(leaf.id), true]);
-        }
-      }
     }
   });
 
@@ -464,7 +416,7 @@ describe("trace.graph (SR-111)", () => {
     expect([output.incomplete, chain.incomplete]).toEqual([true, true]);
   });
 
-  it("[SR-111/AK3] withEvidence is incomplete while an evidence location is not on this machine, also without the no-evidence mark", async () => {
+  it("[SR-111/AK3] withEvidence is incomplete while an evidence location is not on this machine, also without derivations", async () => {
     const workspace = await open(async (fixture) => {
       const { readFile } = await import("node:fs/promises");
       const model = await readFile(fixture.path("metamodel/standard-model.yaml"), "utf8");
@@ -478,13 +430,14 @@ describe("trace.graph (SR-111)", () => {
         ) + "  - { repository: tests, path: evidence }\n",
       );
     });
-    // Depth 0 takes no step into the missing repository; only the evidence read is incomplete.
+    // Depth 0 takes no step into the missing repository; the evidence read, which the status reads too, is
+    // incomplete.
     const plain = await graph(workspace, { ref: ID.S1, maxDepth: 0 });
     const shown = await graph(workspace, { ref: ID.S1, maxDepth: 0, withEvidence: true });
-    expect([plain.incomplete, shown.incomplete, shown.evidence]).toEqual([false, true, []]);
+    expect([plain.incomplete, shown.incomplete, shown.evidence]).toEqual([true, true, []]);
   });
 
-  it("gives a hint and no no-evidence mark without a relation kind with the meaning derivation (SR-013 AK3)", async () => {
+  it("gives a hint and a need no derived requirement without a relation kind with the meaning derivation (SR-013 AK3)", async () => {
     const workspace = await open(async (fixture) => {
       const file = fixture.path("metamodel/standard-model.yaml");
       const { readFile } = await import("node:fs/promises");
@@ -501,7 +454,10 @@ describe("trace.graph (SR-111)", () => {
         "No relation kind of the metamodel has the meaning derivation, which trace.graph needs. Add `meaning: derivation` to a relation kind in the metamodel files.",
       ],
     ]);
-    expect(marked(output, "no-evidence")).toEqual([]);
+    expect(output.nodes.find((n) => n.id === ID.N1)?.degree).toEqual({
+      total: 0,
+      counts: { open: 0, verified: 0, indirect: 0, failed: 0, outdated: 0 },
+    });
     expect(marked(output, "superseded")).toEqual(["O1"]);
   });
 
@@ -517,5 +473,121 @@ describe("trace.graph (SR-111)", () => {
     const workspace = await open();
     expect((await failure(workspace, { ref: "SR-ffffff" })).code).toBe("ref.unknown");
     expect((await failure(workspace, { ref: ID.S1, view: ID.N1 })).code).toBe("input.invalid");
+  });
+});
+
+describe("trace.graph: the verification of the nodes (SR-136)", () => {
+  const U = (tail: string): string => `37373737-3737-4737-8737-00000000${tail}`;
+  const openGraph = async (): Promise<Workspace> => {
+    const fixture = await createFixtureWorkspace({ fixture: "SR-136/graph" });
+    onTestFinished(() => fixture.cleanup());
+    const workspace = new Workspace(fixture.root);
+    onTestFinished(() => workspace.close());
+    return workspace;
+  };
+  type Node = Output["nodes"][number];
+  const nodeOf = async (
+    workspace: Workspace,
+    ref: string,
+    more: Record<string, unknown> = {},
+  ): Promise<Node> => {
+    const output = await graph(workspace, { ref, maxDepth: 0, ...more });
+    const [node] = output.nodes;
+    if (node === undefined) {
+      throw new Error(`no node for ${ref}`);
+    }
+    return node;
+  };
+  const counts = (open: number, verified: number, indirect: number, failed: number, outdated: number) => ({
+    open,
+    verified,
+    indirect,
+    failed,
+    outdated,
+  });
+
+  it("[SR-136/AK1] each requirement node carries its status in the view as element.get gives it, other nodes none", async () => {
+    const workspace = await openGraph();
+    const output = await graph(workspace, { ref: U("a001"), allLevels: true });
+    const requirements = output.nodes.filter((n) => n.type === "system-requirement");
+    expect(requirements.length).toBeGreaterThan(10);
+    for (const node of output.nodes) {
+      const got = (await invoke(
+        "element.get",
+        { ref: node.id },
+        { workspace },
+      )) as CommandOutput<"element.get">;
+      expect([node.shortId, node.verification]).toEqual([
+        node.shortId,
+        got.element.verification?.filter((entry) => entry.view === "core"),
+      ]);
+    }
+    expect(requirements.map((n) => n.verification?.[0]?.status).sort()).toContain("failed");
+    // In a graph without view, a requirement that applies only in a variant has no status (#1111), in the
+    // variant's view it has one.
+    const station = await open();
+    const core = await graph(station, { ref: ID.S1, allLevels: true });
+    expect(core.nodes.find((n) => n.id === ID.GG1)?.verification).toBeUndefined();
+    const inV1 = await graph(station, { ref: ID.S1, allLevels: true, view: ID.V1 });
+    expect(inV1.nodes.find((n) => n.id === ID.GG1)?.verification?.[0]?.view).toBe(ID.V1);
+  });
+
+  it("[SR-136/AK2] a requirement with acceptance criteria counts its verified ones, 2 of 3, and 0 of n without a record", async () => {
+    const workspace = await openGraph();
+    const r11 = await nodeOf(workspace, U("b011"));
+    expect([r11.verification?.[0]?.status, r11.criteria]).toEqual([
+      "open",
+      { verified: 2, total: 3, notVerified: [3] },
+    ]);
+    const r09 = await nodeOf(workspace, U("b009"));
+    expect([r09.verification?.[0]?.status, r09.criteria]).toEqual([
+      "open",
+      { verified: 0, total: 1, notVerified: [1] },
+    ]);
+    expect((await nodeOf(workspace, U("b001"))).criteria).toEqual({ verified: 1, total: 1 });
+  });
+
+  it("[SR-136/AK3] a need with 10 derived requirements shows 60 %, the same at every depth and choice of kinds", async () => {
+    const workspace = await openGraph();
+    const expected = { share: 0.6, total: 10, counts: counts(2, 6, 0, 1, 1) };
+    for (const input of [
+      { maxDepth: 0 },
+      { maxDepth: 1 },
+      { allLevels: true },
+      { meanings: [] },
+      { kinds: ["packages"] },
+    ]) {
+      const output = await graph(workspace, { ref: U("a001"), ...input });
+      expect([input, output.nodes[0]?.degree]).toEqual([input, expected]);
+    }
+    // As evidence.degree gives it for the selection of these ten (the package P1 of SR-037).
+    const p1 = (await invoke(
+      "evidence.degree",
+      { selection: { package: "PKG-00d001" } },
+      { workspace },
+    )) as CommandOutput<"evidence.degree">;
+    expect(p1.degree).toEqual(expected);
+    // Shown from a requirement, the need above it has the same degree.
+    const fromR01 = await graph(workspace, { ref: U("b001") });
+    expect(fromR01.nodes.find((n) => n.id === U("a001"))?.degree).toEqual(expected);
+  });
+
+  it("[SR-136/AK4] an indirectly verified requirement carries its status and no criteria", async () => {
+    const workspace = await openGraph();
+    const i1 = await nodeOf(workspace, U("b101"));
+    expect([i1.verification?.[0]?.status, i1.criteria]).toEqual(["indirect", undefined]);
+  });
+
+  it("[SR-136/AK5] a requirement without acceptance criteria carries its status and no criteria", async () => {
+    const workspace = await openGraph();
+    const r12 = await nodeOf(workspace, U("b012"));
+    expect([r12.verification?.[0]?.status, r12.criteria]).toEqual(["verified", undefined]);
+  });
+
+  it("[SR-136/AK6] a need from which no valid requirement derives has a degree without share", async () => {
+    const workspace = await openGraph();
+    const n2 = await nodeOf(workspace, U("a002"));
+    expect(n2.degree).toEqual({ total: 0, counts: counts(0, 0, 0, 0, 0) });
+    expect(n2.verification).toBeUndefined();
   });
 });
