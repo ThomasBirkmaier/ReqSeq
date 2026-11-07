@@ -45,6 +45,21 @@ export const FIELD_KEYS: readonly KeyRow[] = [
 ];
 
 /**
+ * Ctrl+N and Ctrl+P on a field (SR-155 AK4): `ctrlStep` in `ElementView`'s `onBufferKey`, which moves as Down and Up
+ * do (`fieldKey`).
+ */
+export const FIELD_CTRL_KEYS: readonly KeyRow[] = [
+  {
+    keys: [{ press: press("n", true) }],
+    does: "On a field: to the next field, like Down; from the last field into the elements of a package page (the physical Ctrl key, also on macOS)",
+  },
+  {
+    keys: [{ press: press("p", true) }],
+    does: "On a field: to the field before, like Up; it only moves and is not “Go to” (the physical Ctrl key, also on macOS)",
+  },
+];
+
+/**
  * The keys of a package page's elements (SR-122 AK4): `ctrlStep` on the page (`ElementView`) and `leavesPart` in
  * its list (`ListView`).
  */
@@ -53,6 +68,7 @@ export const PACKAGE_KEYS: readonly KeyRow[] = [
     keys: [{ press: press("n", true) }],
     does: "On a package page: select its first element; on any other element: go to its first field (the physical Ctrl key, also on macOS)",
   },
+
   {
     keys: [{ press: press("Escape") }, { press: press("ArrowUp") }, { press: press("p", true) }],
     does: "In the elements of a package page: back to the page (Up and Ctrl+P on the first row)",

@@ -3,7 +3,10 @@
 // Wrapped lines count as lines (the editor wraps), so the key moves the caret inside a long value first and
 // leaves only when the caret could not go further. `moveToLineBoundary` asks the layout, which is why the
 // edge is not computed from the document. Every other press, a selection and a missing neighbour are left
-// to the editor (`false`). On macOS Ctrl-p and Ctrl-n are the caret keys of CodeMirror and move the same way.
+// to the editor (`false`). Ctrl-n and Ctrl-p act as Down and Up on every platform (SR-155 AK4): inside the text
+// they move the caret a line, as CodeMirror's own Emacs keys do on macOS, and they never go on to the window, where
+// Ctrl+P on Linux and Windows is "Go to".
+import { cursorLineDown, cursorLineUp } from "@codemirror/commands";
 import { Prec } from "@codemirror/state";
 import type { Extension } from "@codemirror/state";
 import { keymap } from "@codemirror/view";
@@ -27,16 +30,28 @@ export const atEdge = (view: EditorView, forward: boolean): boolean => {
   return forward ? edge.head === view.state.doc.length : edge.head === 0;
 };
 
-/** The bindings of one direction: the arrow key, and on macOS the Emacs key as well. */
+/**
+ * The bindings of one direction: the arrow key, and the Emacs key, which moves the caret a line where the arrow
+ * leaves it to the editor, and is always taken.
+ */
 const bindings = (
   keys: { readonly arrow: string; readonly emacs: string },
   forward: boolean,
   go: () => boolean,
 ): KeyBinding[] => {
   const run = (view: EditorView): boolean => atEdge(view, forward) && go();
+  const line = forward ? cursorLineDown : cursorLineUp;
   return [
     { key: keys.arrow, run },
-    { mac: keys.emacs, run },
+    {
+      key: keys.emacs,
+      run: (view) => {
+        if (!run(view)) {
+          line(view);
+        }
+        return true;
+      },
+    },
   ];
 };
 
