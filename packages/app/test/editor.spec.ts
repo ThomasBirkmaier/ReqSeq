@@ -7,7 +7,7 @@ import type { Locator, Page } from "@playwright/test";
 import { micromark } from "micromark";
 import { gfm, gfmHtml } from "micromark-extension-gfm";
 import type { RunningApp } from "./support/app.js";
-import { goTo, launchApp, listAll } from "./support/app.js";
+import { goTo, launchApp, listAll, saveAndRead } from "./support/app.js";
 import {
   DEMO_FILE,
   DEMO_FILES,
@@ -372,9 +372,9 @@ test.describe("the Markdown editor in the element buffer", () => {
     const { window } = running;
     await opened(window, DEMO_TITLE);
     await window.keyboard.press("Enter");
-    await window.keyboard.insertText("See [a](https://example.org) <https://example.org/b> ![i](x.png)");
-    await window.keyboard.press("ControlOrMeta+s");
-    await expect(minibuffer(window)).toContainText("Saved");
+    const text = "See [a](https://example.org) <https://example.org/b> ![i](x.png)";
+    await window.keyboard.insertText(text);
+    await saveAndRead(window, path.join(running.workspace?.root ?? "", ...DEMO_FILE.split("/")), text);
     expect(running.stderr()).not.toContain("Blocked a request");
   });
 });
