@@ -185,18 +185,34 @@ test.describe("the title of an element, edited in its heading (ThomasBirkmaier/R
   test("a click on the heading puts the caret where it was clicked, and a pasted paragraph becomes one line (ThomasBirkmaier/ReqSeq-archive#621)", async () => {
     const { window } = running;
     await opened(window);
-    // The point of the 7th character of the heading's text ("Measure|").
-    const point = await heading(window).evaluate((node) => {
-      const range = document.createRange();
-      const text = node.firstChild;
-      if (text === null) {
-        throw new Error("no text");
-      }
-      range.setStart(text, 7);
-      range.setEnd(text, 7);
-      const rect = range.getBoundingClientRect();
-      return { x: rect.left + 1, y: rect.top + rect.height / 2 };
-    });
+    // A point in the left quarter of the space after "Measure", whose nearest caret position is "Measure|".
+    // The app takes the caret from the closed heading at the click (`TitleBox.tsx`), so the point must be
+    // read where the heading stands then: on a slow runner the page can still move after `opened` (on macOS
+    // a scroll bar coming or going shifts the centred column by half its width, more than a character), so
+    // the point counts only when two reads a frame apart agree (#1213).
+    const read = (): Promise<{ x: number; y: number; moved: boolean }> =>
+      heading(window).evaluate(async (node) => {
+        const text = node.firstChild;
+        if (text === null) {
+          throw new Error("no text");
+        }
+        const at = (): DOMRect => {
+          const range = document.createRange();
+          range.setStart(text, 7);
+          range.setEnd(text, 8);
+          return range.getBoundingClientRect();
+        };
+        const before = at();
+        await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
+        const rect = at();
+        return {
+          x: rect.left + rect.width / 4,
+          y: rect.top + rect.height / 2,
+          moved: rect.left !== before.left || rect.top !== before.top || rect.width !== before.width,
+        };
+      });
+    let point = await read();
+    await expect.poll(async () => (point = await read()).moved).toBe(false);
     await window.mouse.click(point.x, point.y);
     await expect(titleContent(window)).toBeFocused();
     await window.keyboard.type("!");
