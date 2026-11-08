@@ -102,15 +102,27 @@ test.describe("folding and jumping to headings", () => {
     const { window } = running;
     const scope = window.locator(".cm-line.cm-lr-h2", { hasText: "Zweck" });
     const toggle = scope.locator(".cm-lr-fold-toggle");
-    const heading = await scope.boundingBox();
-    const y = (heading?.y ?? 0) + (heading?.height ?? 0) / 2;
-    // The pointer moves as a hand moves it: in small steps from the heading's text to the toggle, not in one jump.
-    await window.mouse.move((heading?.x ?? 0) + 30, y);
+    const heading = { x: 0, y: 0, height: 0, ...(await scope.boundingBox()) };
+    const box = { x: 0, width: 0, ...(await toggle.boundingBox()) };
+    const x = box.x + box.width / 2;
+    const middle = heading.y + heading.height / 2;
+    // The pointer moves as a hand moves it: in small steps from the heading's text to the toggle, not in one jump;
+    // straight left at the top of the line (its padding above the text) too, and back away from both.
+    for (const y of [heading.y + 2, middle]) {
+      await window.mouse.move(heading.x + 30, y);
+      await expect(toggle).toHaveCSS("opacity", "1");
+      await window.mouse.move(x, y, { steps: 30 });
+      await expect(toggle).toHaveCSS("opacity", "1");
+    }
+    await window.mouse.move(x - 40, middle, { steps: 10 });
+    await expect(toggle).toHaveCSS("opacity", "0");
+    await window.mouse.move(x, middle, { steps: 10 });
     await expect(toggle).toHaveCSS("opacity", "1");
-    const box = await toggle.boundingBox();
-    const x = (box?.x ?? 0) + (box?.width ?? 0) / 2;
-    await window.mouse.move(x, y, { steps: 30 });
-    await expect(toggle).toHaveCSS("opacity", "1");
+    await fs.mkdir(OUT, { recursive: true });
+    await window.screenshot({
+      path: path.join(OUT, "fold-toggle-under-pointer.png"),
+      animations: "disabled",
+    });
     await window.mouse.down();
     await window.mouse.up();
     await expect(window.locator(".cm-lr-fold-hint")).toHaveCount(1);
