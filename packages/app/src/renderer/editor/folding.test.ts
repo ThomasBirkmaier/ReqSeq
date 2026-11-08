@@ -206,6 +206,16 @@ describe("Tab on a heading", () => {
     expect(target.state.doc.toString()).toBe(TEXT);
   });
 
+  it("opens only the heading's own fold with Tab, a section folded inside it stays folded", () => {
+    const target = editor(TEXT, at(TEXT, "Mehr."));
+    foldSection(target);
+    target.dispatch({ selection: { anchor: at(TEXT, "Zweck ##") } });
+    expect(toggleSectionOnHeading(target)).toBe(true);
+    expect(folds(target).length).toBe(2);
+    expect(toggleSectionOnHeading(target)).toBe(true);
+    expect(folds(target)).toEqual(["\n\nMehr."]);
+  });
+
   it("[SR-193/AK3] leaves Tab to the others off a heading, on a heading with nothing under it and a selection beyond it", () => {
     expect(toggleSectionOnHeading(editor(TEXT, at(TEXT, "Der Zweck.")))).toBe(false);
     expect(toggleSectionOnHeading(editor(TEXT, at(TEXT, "- Liste")))).toBe(false);

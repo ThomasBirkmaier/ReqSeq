@@ -113,7 +113,7 @@ export const ELEMENT_MORE_KEYS: readonly KeyRow[] = [
   },
   {
     keys: [{ press: press("Enter") }, { press: press(" ") }, { press: press("Tab") }],
-    does: "On a muted line that cuts a long reason (validation): show or hide the whole reason under it (SR-193)",
+    does: "On a muted line that cuts a long reason (under the boxes or in an evidence record): show or hide the whole reason under it",
   },
   {
     keys: [{ shortcut: MOD_CLICK }],

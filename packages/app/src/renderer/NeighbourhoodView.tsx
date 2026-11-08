@@ -88,14 +88,14 @@ const withMarked = (marked: ElementBuffer | undefined): { readonly marked?: Elem
   marked === undefined ? {} : { marked };
 
 /** Whether a key is Tab alone on a selected tree row that opens or closes (SR-193 AK1). */
-const tabToggles = (event: React.KeyboardEvent, cursor: number, row: TreeRow | undefined): boolean =>
+const tabToggles = (event: React.KeyboardEvent, cursor: number, row: TreeRow): boolean =>
   event.key === "Tab" &&
   !event.shiftKey &&
   !event.ctrlKey &&
   !event.metaKey &&
   !event.altKey &&
   cursor >= 0 &&
-  row?.expandable === true;
+  row.expandable === true;
 
 export const NeighbourhoodView = ({
   call,

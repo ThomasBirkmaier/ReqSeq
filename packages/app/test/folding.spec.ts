@@ -246,8 +246,11 @@ test.describe("Tab on a line that folds", () => {
     await expect(window.locator(".cm-lr-fold-hint")).toHaveCount(0);
     await saved(TAB_TEXT.replace("- Ost", "  - Ost"));
     // In the last cell of the table, Tab adds a row.
+    // As `tables.spec.ts` does: a click on the cell shows the table's source, then the caret goes to its last line.
     await window.locator(".cm-lr-table td", { hasText: "3" }).click();
     await expect(window.locator(".cm-content")).toBeFocused();
+    await expect(window.locator(".cm-line", { hasText: "| Nord | 3 |" })).toHaveCount(1);
+    await window.locator(".cm-line", { hasText: "| Nord | 3 |" }).click();
     await window.keyboard.press("End");
     await window.keyboard.press("Tab");
     await expect(window.locator(".cm-lr-fold-hint")).toHaveCount(0);

@@ -1,8 +1,8 @@
 // Sections under headings (SR-191): a heading of the text and everything up to the next heading of the same or a
-// higher level fold to a quiet hint, and unfold again with a click on it, a command, or the cursor moving in; Tab on a heading toggles its section
-// (SR-193). The
-// toggle left of a heading shows only while the pointer is over the heading or the toggle itself. Folding is display
-// state of the editor: the document, and so the file, stays as it is (D-061). "Go to heading" reads `headings`.
+// higher level fold to a quiet hint, and unfold again with a click on it, a command, or the cursor moving in. Tab
+// on a heading toggles its section (SR-193). The toggle left of a heading shows only while the pointer is over the
+// heading or the toggle itself. Folding is display state of the editor: the document, and so the file, stays as it
+// is (D-061). "Go to heading" reads `headings`.
 // Editor-only, no catalog command, like the slash menu (ADR-0010).
 //
 // Sections are the headings at the top level of the text: a `#` line in a list or a quote starts none, as in
@@ -134,6 +134,24 @@ const unfold = (view: EditorView, heading: Heading): boolean => {
   return true;
 };
 
+/**
+ * Folds the section of `heading`, or opens its own fold when folded: the sections folded inside it stay folded
+ * (the toggle and Tab, SR-193).
+ */
+const toggleFold = (view: EditorView, heading: Heading): boolean => {
+  const effects: ReturnType<typeof unfoldEffect.of>[] = [];
+  foldedRanges(view.state).between(heading.end, heading.end, (from, to) => {
+    if (from === heading.end) {
+      effects.push(unfoldEffect.of({ from, to }));
+    }
+  });
+  if (effects.length === 0) {
+    return fold(view, heading);
+  }
+  view.dispatch({ effects });
+  return true;
+};
+
 /** "Fold section" (SR-191 AK1): folds the section the cursor is in; false when it is in none or the section is empty. */
 export const foldSection: Command = (view) => {
   const heading = sectionAt(view.state, view.state.selection.main.head);
@@ -162,7 +180,7 @@ export const toggleSectionOnHeading: Command = (view) => {
   if (heading === undefined) {
     return false;
   }
-  return isFolded(view.state, heading) ? unfold(view, heading) : fold(view, heading);
+  return toggleFold(view, heading);
 };
 
 /** "Go to heading" (SR-191 AK3): the cursor to the start of the heading at `from`, which a fold around it opens for. */
@@ -202,11 +220,7 @@ class FoldToggle extends WidgetType {
       event.preventDefault();
       const heading = headings(view.state).find((each) => each.from === view.posAtDOM(toggle));
       if (heading !== undefined) {
-        if (isFolded(view.state, heading)) {
-          unfold(view, heading);
-        } else {
-          fold(view, heading);
-        }
+        toggleFold(view, heading);
       }
     });
     return toggle;

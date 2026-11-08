@@ -288,7 +288,7 @@ export const LIST_KEYS: readonly KeyRow[] = [
   },
   {
     keys: [{ press: press("Tab") }],
-    does: "In the neighbourhood, on a tree row that opens: open or close it (SR-193)",
+    does: "In the neighbourhood, on the selected tree row that opens: open or close it",
   },
 ];
 
