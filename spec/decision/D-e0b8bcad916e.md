@@ -1,7 +1,7 @@
 ---
 id: 08ee8add-ef27-4972-ab4c-e0b8bcad916e
 type: decision
-status: draft
+status: accepted
 title: Kontextmenü per Rechtsklick
 spec-id: D-075
 based-on:

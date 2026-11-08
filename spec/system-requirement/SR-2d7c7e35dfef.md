@@ -1,7 +1,7 @@
 ---
 id: 22c19f87-f69e-40f2-a762-2d7c7e35dfef
 type: system-requirement
-status: draft
+status: approved
 title: Kontextmenü einer Liste
 spec-id: SR-198
 rationale: "Entscheidung des Produktverantwortlichen, 2026-11-08: Wer nur die Maus gewohnt ist, soll per Rechtsklick ein klassisches Kontextmenü bekommen, im Editor und in der ganzen App, als eigenes Menü im Stil der App mit einer kurzen, festen Auswahl von Befehlen je Stelle (D-075)."
