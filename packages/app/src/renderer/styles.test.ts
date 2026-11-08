@@ -343,6 +343,35 @@ describe("the inactive area of a split window (SR-150)", () => {
   });
 });
 
+describe("the slash menu as the card of the command line (SR-129 AK5)", () => {
+  const motion = /@media \(prefers-reduced-motion: no-preference\) \{([\s\S]*?)\n\}/.exec(CSS)?.[1] ?? "";
+
+  it("[SR-129/AK5] is a soft card with a shadow, a seam as wide as its blur, over the whole backdrop dimmed as the card's", () => {
+    const list = EDITOR.slice(EDITOR.indexOf('".cm-tooltip.cm-tooltip-autocomplete > ul": {'));
+    const rule = list.slice(0, list.indexOf("}"));
+    expect(rule).toMatch(/backgroundColor: "var\(--raised\)"/);
+    expect(rule).toMatch(/borderRadius: "8px"/);
+    const blur = /boxShadow: "0 \d+px (\d+)px var\(--shadow\)"/.exec(rule)?.[1];
+    expect(CSS).toMatch(new RegExp(`--card-seam:\\s*${String(blur)}px;`));
+    expect(ruleOf(".card-seam, .slash-seam")).toMatch(/backdrop-filter:\s*blur\(var\(--card-blur\)\);/);
+    const backdrop = ruleOf(".slash-backdrop");
+    expect(backdrop).toMatch(/background:\s*var\(--dim\);/);
+    expect(backdrop).toMatch(/inset:\s*0;/);
+    expect(backdrop).toMatch(/pointer-events:\s*none;/);
+  });
+
+  it("[SR-129/AK5] comes in the card's time and curve, goes shorter, and moves only without reduced motion", () => {
+    expect(motion).toMatch(
+      /\.cm-lr-slash\[data-motion="in"\] \{\s*animation: slash-come var\(--card-in\) var\(--card-ease\)/,
+    );
+    expect(motion).toMatch(/\.slash-backdrop\[data-motion="in"\] \{\s*animation: card-show var\(--card-in\)/);
+    expect(motion).toMatch(
+      /\[data-motion="out"\] \{\s*animation: slash-come var\(--card-out\) var\(--card-ease\) reverse both;/,
+    );
+    expect(CSS.replace(motion, "")).not.toMatch(/animation:\s*slash-/);
+  });
+});
+
 describe("the card of the command line in motion (SR-182)", () => {
   /** A `--card-*` time in ms, from the card's `:root` rule. */
   const time = (name: string): number => {
@@ -392,7 +421,7 @@ describe("the card of the command line in motion (SR-182)", () => {
   it("[SR-182/AK2] blurs a seam as wide as the blur of the card's shadow", () => {
     const blur = /box-shadow:\s*0 -\d+px (\d+)px var\(--shadow\);/.exec(ruleOf(".card-list"))?.[1];
     expect(CSS).toMatch(new RegExp(`--card-seam:\\s*${String(blur)}px;`));
-    expect(ruleOf(".card-seam")).toMatch(/backdrop-filter:\s*blur\(var\(--card-blur\)\);/);
+    expect(ruleOf(".card-seam, .slash-seam")).toMatch(/backdrop-filter:\s*blur\(var\(--card-blur\)\);/);
     expect(ruleOf(".card-backdrop")).toMatch(/background:\s*var\(--dim\);/);
   });
 

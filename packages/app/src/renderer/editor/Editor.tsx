@@ -225,16 +225,27 @@ const theme = EditorView.theme({
     pointerEvents: "none",
   },
   // The slash menu (SR-129, `slash-menu.ts`): the tooltip of @codemirror/autocomplete with the look of the
-  // candidates of the minibuffer. The base theme of the library has colour literals (a light grey box, a
-  // blue selection) that would stay in the dark scheme, so every rule that sets one is overridden here by
-  // tokens, with selectors as specific as its own (the theme wins at equal specificity).
+  // card of the command line (AK5, `.card-list` in styles.css): its list is the card, the tooltip around it
+  // is clear, so the seam and the motion of `slash-motion.ts` stand around the list. The base theme of the
+  // library has colour literals (a light grey box, a blue selection) that would stay in the dark scheme, so
+  // every rule that sets one is overridden here by tokens, with selectors as specific as its own (the theme
+  // wins at equal specificity).
   ".cm-tooltip.cm-tooltip-autocomplete": {
-    backgroundColor: "var(--sheet)",
+    backgroundColor: "transparent",
     color: "var(--text)",
-    border: "1px solid var(--rule)",
-    boxShadow: "0 4px 12px var(--shadow)",
+    border: "none",
   },
-  ".cm-tooltip.cm-tooltip-autocomplete > ul": { fontFamily: "inherit", fontSize: "13px", maxHeight: "20em" },
+  ".cm-tooltip.cm-tooltip-autocomplete > ul": {
+    position: "relative",
+    fontFamily: "inherit",
+    fontSize: "13px",
+    maxHeight: "20em",
+    padding: "0.25rem 0",
+    backgroundColor: "var(--raised)",
+    border: "1px solid var(--rule)",
+    borderRadius: "8px",
+    boxShadow: "0 6px 18px var(--shadow)",
+  },
   ".cm-tooltip.cm-tooltip-autocomplete > ul > li": {
     display: "flex",
     justifyContent: "space-between",
