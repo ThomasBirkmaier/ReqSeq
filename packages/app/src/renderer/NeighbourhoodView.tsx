@@ -210,6 +210,11 @@ export const NeighbourhoodView = ({
     });
   };
 
+  /** A right-click selects the row before the context menu opens (SR-194 AK5). */
+  const selectRow = (at: number): void => {
+    dispatch({ type: "cursor", key: buffer.key, cursor: at });
+  };
+
   const openElement = (at: number, row: Row): void => {
     // The row is kept as the cursor, as a click keeps it: coming back finds it.
     dispatch({ type: "cursor", key: buffer.key, cursor: at });
@@ -296,8 +301,12 @@ export const NeighbourhoodView = ({
                   aria-level={entry.level}
                   aria-expanded={entry.expandable === true ? entry.opened : undefined}
                   aria-selected={at === cursor}
+                  data-menu="element-entry"
                   onClick={() => {
                     openElement(at, entry.row);
+                  }}
+                  onContextMenu={() => {
+                    selectRow(at);
                   }}
                 >
                   <Cells
@@ -344,8 +353,12 @@ export const NeighbourhoodView = ({
                     className={rowClass("row", marked, entry.row.open.id)}
                     role="option"
                     aria-selected={start + index === cursor}
+                    data-menu="element-entry"
                     onClick={() => {
                       openElement(start + index, entry.row);
+                    }}
+                    onContextMenu={() => {
+                      selectRow(start + index);
                     }}
                   >
                     <Cells

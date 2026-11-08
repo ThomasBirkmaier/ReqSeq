@@ -466,7 +466,11 @@ describe("MatrixView", () => {
     await press("End");
     expect(call).toHaveBeenLastCalledWith("trace.matrix", objectWith({ offset: 200, limit: 200 }));
     expect(container.querySelectorAll("tbody tr")).toHaveLength(205);
-    expect(data.at(-1)).toEqual(["list", { kind: "list", total: 205, incomplete: false }]);
+    // The element of the selected row is the marked one (SR-150, SR-194 AK5).
+    expect(data.at(-1)).toEqual([
+      "list",
+      { kind: "list", total: 205, incomplete: false, marked: expect.objectContaining({ id: "uuid-s200" }) },
+    ]);
     // All rows are there: nothing more is asked.
     const asked = call.mock.calls.length;
     await press("End");

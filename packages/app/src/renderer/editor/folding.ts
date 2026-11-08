@@ -181,6 +181,10 @@ class FoldToggle extends WidgetType {
     toggle.setAttribute("aria-hidden", "true");
     toggle.title = this.folded ? "Unfold section" : "Fold section";
     toggle.addEventListener("mousedown", (event) => {
+      // Only the left button folds: a right press opens the context menu (SR-194).
+      if (event.button !== 0) {
+        return;
+      }
       event.preventDefault();
       const heading = headings(view.state).find((each) => each.from === view.posAtDOM(toggle));
       if (heading !== undefined) {

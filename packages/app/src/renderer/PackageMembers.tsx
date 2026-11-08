@@ -20,6 +20,8 @@ export interface PackageMembersProps {
   /** The count of the elements, as the list last said it. */
   readonly members: MemberCount | undefined;
   readonly onMembers: (count: MemberCount | undefined) => void;
+  /** The elements of the loaded rows, in their order: the selected one is marked (SR-194 AK5). */
+  readonly onEntries: (entries: readonly ElementBuffer[] | undefined) => void;
   readonly onEcho: (message: string) => void;
   /** Up from the first row: the focus goes back to the buffer. */
   readonly onLeave: () => void;
@@ -37,6 +39,7 @@ export const PackageMembers = ({
   dispatch,
   members,
   onMembers,
+  onEntries,
   onEcho,
   onLeave,
   focusOnLoad,
@@ -58,6 +61,7 @@ export const PackageMembers = ({
       dispatch={dispatch}
       onData={(_key, data) => {
         onMembers(memberCount(data));
+        onEntries(data?.kind === "list" ? data.rows : undefined);
       }}
       onEcho={onEcho}
       onLeave={onLeave}

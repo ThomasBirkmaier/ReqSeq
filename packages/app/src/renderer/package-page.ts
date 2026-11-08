@@ -100,6 +100,12 @@ export interface MemberCount {
 }
 
 /** What the list of the elements reports (`BufferData`) as the count of the heading. */
+/** The entry of the page's list at `cursor`, the marked element of the page (SR-194 AK5); undefined before one was selected. */
+export const memberAt = (
+  entries: readonly ElementBuffer[] | undefined,
+  cursor: number | undefined,
+): ElementBuffer | undefined => (cursor === undefined || cursor < 0 ? undefined : entries?.[cursor]);
+
 export const memberCount = (data: BufferData | undefined): MemberCount | undefined =>
   data?.kind === "list" ? { total: data.total, incomplete: data.incomplete } : undefined;
 

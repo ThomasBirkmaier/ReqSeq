@@ -222,6 +222,7 @@ describe("shortcutReference", () => {
       "Actions",
       "After the prefix key",
       "In a prompt",
+      "In the context menu",
       "In a list",
       "In a graph",
       "On an element",
@@ -240,7 +241,7 @@ describe("shortcutReference", () => {
       "Close buffer",
     ]);
     expect(prefix[0]).toEqual({ keys: ["Ctrl+K E"], mac: ["⌘K E"], does: "Create element" });
-    const element = sections[6]?.rows ?? [];
+    const element = sections[7]?.rows ?? [];
     expect(element.find((row) => row.does.startsWith("Redo"))).toMatchObject({
       keys: ["Ctrl+Shift+Z", "Ctrl+Y"],
       mac: ["⌘⇧Z"],
