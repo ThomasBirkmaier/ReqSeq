@@ -235,7 +235,7 @@ describe("reqseq serve api", () => {
           () => "ended" as const,
         ),
       ]);
-      step(`second API ${outcome === "started" ? "started" : "ended"}`);
+      step(`second API ${outcome === "started" ? "started" : `ended with ${String(outcome)}`}`);
       if (outcome === "started") {
         second.kill();
         expect.fail("The second API started although the first one runs");
