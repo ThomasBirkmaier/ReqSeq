@@ -1783,6 +1783,22 @@ describe("Next buffer and Previous buffer (SR-115 AK5)", () => {
   });
 });
 
+describe("Open documentation (SR-141)", () => {
+  it("is offered with and without a workspace where the app can open the documentation, and opens its start page", () => {
+    for (const open of [true, false]) {
+      const docs = vi.fn();
+      const { context } = setup([], {}, open, { docs });
+      expect(commandPrompt(context).items.some((item) => item.name === "Open documentation")).toBe(true);
+      runAction(action("open-documentation"), context);
+      expect(docs).toHaveBeenCalledExactlyOnceWith();
+    }
+    const { context } = setup([], {}, true);
+    expect(action("open-documentation").available(context)).toBe(false);
+    // Without `docs` it does nothing.
+    action("open-documentation").run(context);
+  });
+});
+
 describe("Open workspace (SR-131)", () => {
   const workspaces = {
     name: "Weather station",

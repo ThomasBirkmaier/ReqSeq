@@ -190,6 +190,8 @@ const fake = () => {
     openWorkspace: () => Promise.resolve({ ok: true }),
     listFolder: () => Promise.resolve({ name: "", entries: [] }),
     onSave: () => () => undefined,
+    openDocs: () => Promise.resolve({ ok: true as const }),
+    onHelp: () => () => undefined,
   };
   /** Sends changes to the window, all before it renders. */
   const send = async (...changes: WorkspaceChange[]): Promise<void> => {

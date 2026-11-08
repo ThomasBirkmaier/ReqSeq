@@ -3,7 +3,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AgentActivity, WorkspaceChange, WorkspaceMessage } from "../shared/protocol.js";
 import {
   COPY_CHANNEL,
+  DOCS_CHANNEL,
   EDIT_CHANNEL,
+  HELP_CHANNEL,
   LIST_FOLDER_CHANNEL,
   OPEN_WORKSPACE_CHANNEL,
   RECENT_WORKSPACES_CHANNEL,
@@ -44,6 +46,11 @@ class FakeIpc implements IpcRendererLike {
   /** Main sends the workspace of the window. */
   post(message: WorkspaceMessage, ports: readonly MessagePort[] = []): void {
     this.#listeners.get(WORKSPACE_CHANNEL)?.({ ports }, message);
+  }
+
+  /** Help > ReqSeq Documentation was chosen. */
+  help(): void {
+    this.#listeners.get(HELP_CHANNEL)?.({ ports: [] }, undefined);
   }
 
   /** Main asks the window to save. */
@@ -100,7 +107,7 @@ describe("createBridge", () => {
   it("listens on the workspace channel; calls wait for the first message", async () => {
     const ipc = new FakeIpc();
     const bridge = createBridge(ipc, false);
-    expect(ipc.channels).toEqual([WORKSPACE_CHANNEL, SAVE_CHANNEL]);
+    expect(ipc.channels).toEqual([WORKSPACE_CHANNEL, HELP_CHANNEL, SAVE_CHANNEL]);
     const early = bridge.invoke("workspace.status");
     ipc.post({ open: false });
     expect(await early).toEqual(NO_WORKSPACE);
@@ -310,6 +317,42 @@ describe("createBridge", () => {
     expect(await bridge.pasteText()).toBe(false);
   });
 
+  it("openDocs sends main only a topic string, never rejects, and keeps only an answer of the known shape", async () => {
+    const ipc = new FakeIpc();
+    const bridge = createBridge(ipc);
+    ipc.answer = { ok: true, url: "http://example.com" };
+    expect(await bridge.openDocs()).toEqual({ ok: true });
+    expect(await bridge.openDocs("relation.options")).toEqual({ ok: true });
+    // A renderer that does not keep to the type sends nothing but a string.
+    expect(await bridge.openDocs({ path: "/x" } as unknown as string)).toEqual({ ok: true });
+    expect(ipc.invoked).toEqual([
+      { channel: DOCS_CHANNEL, args: [] },
+      { channel: DOCS_CHANNEL, args: ["relation.options"] },
+      { channel: DOCS_CHANNEL, args: [] },
+    ]);
+    ipc.answer = { ok: false, message: "No documentation in /opt/docs", extra: 1 };
+    expect(await bridge.openDocs()).toEqual({ ok: false, message: "No documentation in /opt/docs" });
+    const failed = { ok: false, message: "The documentation could not be opened" };
+    for (const answer of [{ ok: false }, "yes", null, new Error("No handler registered")]) {
+      ipc.answer = answer;
+      expect(await bridge.openDocs()).toEqual(failed);
+    }
+  });
+
+  it("onHelp hears Help > ReqSeq Documentation until it unsubscribes", () => {
+    const ipc = new FakeIpc();
+    const bridge = createBridge(ipc);
+    const listener = vi.fn();
+    const unsubscribe = bridge.onHelp(listener);
+    const again = bridge.onHelp(listener);
+    ipc.help();
+    expect(listener).toHaveBeenCalledTimes(2);
+    unsubscribe();
+    again();
+    ipc.help();
+    expect(listener).toHaveBeenCalledTimes(2);
+  });
+
   it("recentWorkspaces and openWorkspace go to main, never reject, and drop answers of the wrong shape", async () => {
     const ipc = new FakeIpc();
     const bridge = createBridge(ipc);
@@ -484,11 +527,13 @@ describe("what the renderer can reach", () => {
       "invoke",
       "listFolder",
       "on",
+      "onHelp",
       "onSave",
+      "openDocs",
       "openWorkspace",
       "pasteText",
       "recentWorkspaces",
     ]);
-    expect(ipc.channels.sort()).toEqual([SAVE_CHANNEL, WORKSPACE_CHANNEL].sort());
+    expect(ipc.channels.sort()).toEqual([HELP_CHANNEL, SAVE_CHANNEL, WORKSPACE_CHANNEL].sort());
   });
 });

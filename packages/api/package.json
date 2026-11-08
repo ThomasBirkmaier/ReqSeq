@@ -13,6 +13,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./docs-server": {
+      "types": "./dist/docs-server.d.ts",
+      "default": "./dist/docs-server.js"
     }
   },
   "scripts": {

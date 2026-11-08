@@ -6,6 +6,9 @@ import { PROMPT_MOVES, press } from "./keys.js";
 /** Ctrl/Cmd+Enter in a prompt: take the answer and offer the optional arguments; never "Follow reference". */
 export const MORE_SHORTCUT: Shortcut = { mod: true, shift: false, key: "enter" };
 
+/** F1 in the command prompt: the documentation of the chosen entry, in the browser (SR-141 AK3). */
+export const HELP_KEY = "F1";
+
 /** The keys of every prompt, the command prompt and "Go to" among them. */
 export const PROMPT_KEYS: readonly KeyRow[] = [
   ...PROMPT_MOVES,
@@ -23,4 +26,8 @@ export const PROMPT_KEYS: readonly KeyRow[] = [
   },
   { keys: [{ press: press("Backspace") }], does: "In an empty input: back one argument" },
   { keys: [{ press: press("Escape") }], does: "Close the prompt" },
+  {
+    keys: [{ press: press(HELP_KEY) }],
+    does: "In the command prompt: open the reference page of the chosen command in the browser, or without one the start page of the documentation",
+  },
 ];

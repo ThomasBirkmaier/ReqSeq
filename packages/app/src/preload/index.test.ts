@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { SAVE_CHANNEL, WORKSPACE_CHANNEL } from "../shared/protocol.js";
+import { HELP_CHANNEL, SAVE_CHANNEL, WORKSPACE_CHANNEL } from "../shared/protocol.js";
 
 const exposeInMainWorld = vi.fn();
 const on = vi.fn();
@@ -17,11 +17,17 @@ describe("preload entry", () => {
       "invoke",
       "listFolder",
       "on",
+      "onHelp",
       "onSave",
+      "openDocs",
       "openWorkspace",
       "pasteText",
       "recentWorkspaces",
     ]);
-    expect(on.mock.calls.map((call) => call[0] as unknown)).toEqual([WORKSPACE_CHANNEL, SAVE_CHANNEL]);
+    expect(on.mock.calls.map((call) => call[0] as unknown)).toEqual([
+      WORKSPACE_CHANNEL,
+      HELP_CHANNEL,
+      SAVE_CHANNEL,
+    ]);
   });
 });

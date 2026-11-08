@@ -202,6 +202,8 @@ const bridge = () => {
       openWorkspace: () => Promise.resolve({ ok: true }),
       listFolder: () => Promise.resolve({ name: "", entries: [] }),
       onSave: () => () => undefined,
+      openDocs: () => Promise.resolve({ ok: true as const }),
+      onHelp: () => () => undefined,
       on: (event: string, listener: (data: never) => void) => {
         if (event !== "workspace-changed") {
           return () => undefined;

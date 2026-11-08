@@ -78,6 +78,7 @@ import { createTheme } from "./theme.js";
 import { FoldStatuses, foldCondition, loadFoldChoice, saveFoldChoice } from "./fold-statuses.js";
 import type { FoldChoice, FoldStatus } from "./fold-statuses.js";
 import { commandPromptKey } from "./command-entry.js";
+import { docsEcho, withHelp } from "./docs-help.js";
 import { ContextMenuLayer } from "./ContextMenu.js";
 import type { OpenedMenu } from "./context-menu.js";
 import { openEntries } from "./context-menu.js";
@@ -649,6 +650,12 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       });
     },
     notify,
+    // The bundled documentation in the browser (SR-141): main serves it on loopback and opens the page.
+    docs: (topic) => {
+      void bridge.openDocs(topic).then((result) => {
+        setEcho(docsEcho(result));
+      });
+    },
     recent: () =>
       recentRef.current.flatMap((entry) => {
         const known = recentNames.current.get(elementBuffer(entry.id, entry.repository, "").key);
@@ -726,6 +733,8 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   latest.current = context;
   const propertiesNow = useRef(properties);
   propertiesNow.current = properties;
+  // Help > ReqSeq Documentation (SR-141 AK2): as the action "Open documentation".
+  useEffect(() => bridge.onHelp(() => latest.current.docs?.()), [bridge]);
   // Before another workspace opens in this window (also from File > Open Workspace), main asks to save
   // the unsaved input; it switches only when all is saved (SR-131 AK3, `switch.ts`). From then on the
   // window is switching: the sheet takes no input and the minibuffer says so, until the other workspace
@@ -867,7 +876,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       catalog.current,
       ACTIONS,
     );
-    return commandPrompt(now, promptUse(appStorage), items);
+    return withHelp(commandPrompt(now, promptUse(appStorage), items), now, catalog.current);
   }, [ask]);
   // The prefix key (SR-109 AK3): Ctrl/Cmd+K, then a letter runs an entry of the command prompt.
   const prefix = usePrefix({

@@ -28,6 +28,8 @@ describe("renderer entry", () => {
       openWorkspace: () => Promise.resolve({ ok: true }),
       listFolder: () => Promise.resolve({ name: "", entries: [] }),
       onSave: () => () => undefined,
+      openDocs: () => Promise.resolve({ ok: true as const }),
+      onHelp: () => () => undefined,
     };
     Object.defineProperty(window, "reqseq", { value: bridge, configurable: true });
     document.body.innerHTML = '<div id="root"></div>';

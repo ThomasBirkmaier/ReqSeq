@@ -33,19 +33,28 @@ describe("keyboard shortcuts page", () => {
     expect(page).toBe(shortcutsPage(shortcutReference(commands)));
     expect(page).toContain("| Windows and Linux | macOS | What it does |");
     // Every row of the app's tables is on the page, with its keys on both systems.
-    const rows = shortcutReference(commands).flatMap((section) => section.rows);
+    const sections = shortcutReference(commands);
+    const rows = sections.slice(0, -1).flatMap((section) => section.rows);
     expect(rows.length).toBeGreaterThan(40);
     for (const row of rows) {
       expect(row.keys.length + row.mac.length, row.does).toBeGreaterThan(0);
       expect(page, row.does).toContain(` | ${row.mac.map((key) => `\`${key}\``).join(", ") || "—"} | `);
     }
+    // The last section names the actions without a key, each with its anchor (SR-141 AK3).
+    expect(sections.at(-1)?.title).toBe("Actions without a key");
+    expect(rowOf(page, "Close all buffers")).toBe(
+      '| <span id="action-close-all"></span>— | — | Close all buffers |',
+    );
     expect(
       rowOf(page, "Open the command prompt: the actions and commands that apply to the shown buffer"),
     ).toBe(
       "| `Ctrl+Shift+P` | `⌘⇧P` | Open the command prompt: the actions and commands that apply to the shown buffer |",
     );
     expect(rowOf(page, "Create element")).toBe("| `Ctrl+K E` | `⌘K E` | Create element |");
-    expect(rowOf(page, "Save element")).toBe("| `Ctrl+S` | `⌘S` | Save element |");
+    // An action's row carries its anchor, where F1 in the command prompt opens the page (SR-141 AK3).
+    expect(rowOf(page, "Save element")).toBe(
+      '| <span id="action-save"></span>`Ctrl+S` | `⌘S` | Save element |',
+    );
     // A changed key in the app's table changes the page, with no page edited by hand.
     const changed = shortcutsPage(
       shortcutReference(commands, {
@@ -58,7 +67,9 @@ describe("keyboard shortcuts page", () => {
         ),
       }),
     );
-    expect(rowOf(changed, "Save element")).toBe("| `Ctrl+Shift+W` | `⌘⇧W` | Save element |");
+    expect(rowOf(changed, "Save element")).toBe(
+      '| <span id="action-save"></span>`Ctrl+Shift+W` | `⌘⇧W` | Save element |',
+    );
     expect(rowOf(changed, "Create element")).toBe("| `Ctrl+K N` | `⌘K N` | Create element |");
   });
 
@@ -72,5 +83,14 @@ describe("keyboard shortcuts page", () => {
     ]);
     expect(page).toContain("## Only \\<here\\>\n\nA \\*note\\*.\n");
     expect(page).toContain("| — | `⌃N`, `Down` | Next \\| row |");
+    expect(
+      shortcutsPage([
+        {
+          title: "T",
+          about: "A.",
+          rows: [{ keys: ["F1"], mac: ["F1"], does: "Help", actions: ["a", "b-c"] }],
+        },
+      ]),
+    ).toContain('| <span id="action-a"></span><span id="action-b-c"></span>`F1` | `F1` | Help |');
   });
 });

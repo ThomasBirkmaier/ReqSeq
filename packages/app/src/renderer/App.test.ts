@@ -63,6 +63,9 @@ const fakeBridge = (handlers: Record<string, Handler>) => {
   });
   // Main gave up waiting for the save (SR-131 AK3).
   const expired = new Set<(data: SaveExpired) => void>();
+  // The documentation in the browser (SR-141): what the window asked main to open, and Help in the menu.
+  const openDocs = vi.fn<ReqSeqBridge["openDocs"]>(() => Promise.resolve({ ok: true }));
+  const helpListeners = new Set<() => void>();
   const bridge: ReqSeqBridge = {
     invoke,
     commands: () => Promise.resolve([]),
@@ -86,6 +89,11 @@ const fakeBridge = (handlers: Record<string, Handler>) => {
     recentWorkspaces,
     openWorkspace,
     onSave,
+    openDocs,
+    onHelp: (listener) => {
+      helpListeners.add(listener);
+      return () => helpListeners.delete(listener);
+    },
   };
   const change = async (reason: WorkspaceChange["reason"]): Promise<void> => {
     await act(async () => {
@@ -116,6 +124,15 @@ const fakeBridge = (handlers: Record<string, Handler>) => {
     recentWorkspaces,
     openWorkspace,
     savers,
+    openDocs,
+    help: async (): Promise<void> => {
+      await act(async () => {
+        for (const listener of helpListeners) {
+          listener();
+        }
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+    },
   };
 };
 
@@ -338,6 +355,8 @@ describe("App", () => {
       openWorkspace: () => Promise.resolve({ ok: true }),
       listFolder: () => Promise.resolve({ name: "", entries: [] }),
       onSave: () => () => undefined,
+      openDocs: () => Promise.resolve({ ok: true as const }),
+      onHelp: () => () => undefined,
     };
     await render(bridge);
     expect(container.querySelector('main[aria-label="Sheet"]')?.childElementCount).toBe(0);
@@ -390,6 +409,55 @@ describe("App", () => {
     expect(document.activeElement).toBe(query('[role="listbox"]'));
   });
 
+  it("opens the documentation from Help, the command prompt and F1 on an entry, and says why when it cannot", async () => {
+    const { bridge, openDocs, help } = fakeBridge(workspace());
+    bridge.commands = () =>
+      Promise.resolve([
+        {
+          name: "relation.options",
+          title: "Show relation options",
+          effect: "read",
+          implemented: true,
+          arguments: [],
+          input: { type: "object" },
+        } as unknown as CommandListing,
+        {
+          name: "element.list",
+          title: "List all elements",
+          effect: "read",
+          implemented: true,
+          arguments: [],
+          input: { type: "object" },
+        } as unknown as CommandListing,
+      ]);
+    await render(bridge);
+    // Help > ReqSeq Documentation: the start page.
+    await help();
+    expect(openDocs).toHaveBeenLastCalledWith(undefined);
+    expect(text("Minibuffer")).toBe("Opened the documentation in the browser");
+    // The action of the command prompt.
+    await runCommand("Open documentation");
+    expect(openDocs).toHaveBeenLastCalledWith(undefined);
+    // F1 on a catalog command: its reference page; the prompt stays open.
+    await keyDown(window, "P", { ...mod(), shiftKey: true });
+    await type("Show relation options");
+    await keyDown(query("input"), "F1");
+    expect(openDocs).toHaveBeenLastCalledWith("relation.options");
+    expect(query("label").textContent).toBe("Command");
+    // F1 on an action that covers a command: that command's page; on any other action, the action.
+    await type("List all elements");
+    await keyDown(query("input"), "F1");
+    expect(openDocs).toHaveBeenLastCalledWith("element.list");
+    await type("Toggle dark mode");
+    await keyDown(query("input"), "F1");
+    expect(openDocs).toHaveBeenLastCalledWith("toggle-dark-mode");
+    await keyDown(query("input"), "Escape");
+    // A delivery without the site: core's message.
+    openDocs.mockResolvedValue({ ok: false, message: "No documentation in /opt/reqseq/docs" });
+    await help();
+    expect(text("Minibuffer")).toBe("No documentation in /opt/reqseq/docs");
+  });
+
   it("says why no workspace is open, and then has no buffer and no shortcut but the command prompt", async () => {
     const { bridge, invoke } = fakeBridge({ "workspace.status": () => NO_WORKSPACE });
     await render(bridge);
@@ -404,7 +472,7 @@ describe("App", () => {
     expect(invoke).toHaveBeenCalledTimes(1);
   });
 
-  it("without a workspace the command prompt opens and offers Open workspace only", async () => {
+  it("without a workspace the command prompt opens and offers Open workspace and Open documentation only", async () => {
     const { bridge, recentWorkspaces, openWorkspace } = fakeBridge({
       "workspace.status": () => NO_WORKSPACE,
     });
@@ -425,14 +493,14 @@ describe("App", () => {
     await render(bridge);
     await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
     expect(query("label").textContent).toBe("Command");
-    expect(texts('[role="option"] .name')).toEqual(["Open workspace"]);
+    expect(texts('[role="option"] .name')).toEqual(["Open workspace", "Open documentation"]);
     await keyDown(query("input"), "Escape");
     // A click whose press did not begin on the idle line (a hit taken by its press) asks nothing.
     await click(query(".echo"));
     expect(document.querySelector("input")).toBeNull();
     // A click on the idle line asks for a command too.
     await clickLine();
-    expect(texts('[role="option"] .name')).toEqual(["Open workspace"]);
+    expect(texts('[role="option"] .name')).toEqual(["Open workspace", "Open documentation"]);
     await keyDown(query("input"), "Enter");
     expect(query("label").textContent).toBe("Workspace");
     expect(texts('[role="option"] .name')).toEqual(["/req/buoy", "/req/gone"]);
