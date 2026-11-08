@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { launchApp, snapshot } from "./support/app.js";
+import { inShownOrder, launchApp, showFolded, snapshot } from "./support/app.js";
 
 const OUT =
   process.env["REQSEQ_SCREENSHOTS"] ??
@@ -20,14 +20,21 @@ const QUERY = "the";
 const shownBuffer = (window: Page): Locator => window.locator('[aria-label="Sheet"] [data-buffer]');
 const ids = (window: Page): Locator => shownBuffer(window).locator(".row .id");
 
-/** The short IDs `element search` gives for the query within `selection`, in its order. */
-const searched = async (running: RunningApp, selection?: unknown): Promise<string[]> => {
+/** The hits `element search` gives for the query within `selection`, in its order. */
+const hitsOf = async (
+  running: RunningApp,
+  selection?: unknown,
+): Promise<{ readonly shortId: string; readonly status: string }[]> => {
   const input = { query: QUERY, ...(selection === undefined ? {} : { selection }) };
   const argv = ["element", "search", "--input", JSON.stringify(input)];
   const result = await running.cli(argv);
   expect([argv.join(" "), result.code]).toEqual([argv.join(" "), 0]);
-  return (JSON.parse(result.stdout) as { hits: { shortId: string }[] }).hits.map((hit) => hit.shortId);
+  return (JSON.parse(result.stdout) as { hits: { shortId: string; status: string }[] }).hits;
 };
+
+/** The short IDs `element search` gives, in the order the hits show with their folded section open (SR-201). */
+const searched = async (running: RunningApp, selection?: unknown): Promise<string[]> =>
+  inShownOrder(await hitsOf(running, selection)).map((hit) => hit.shortId);
 
 const command = async (window: Page, title: string, answer: string, label: string): Promise<void> => {
   await window.keyboard.press("ControlOrMeta+Shift+P");
@@ -59,6 +66,7 @@ test.describe("search hits filtered and grouped", () => {
   test("[SR-124/AK4] a filter narrows the hits, and the hits left keep their order", async () => {
     const { window } = running;
     const plain = await searched(running);
+    await showFolded(window, await hitsOf(running));
     await expect(ids(window)).toHaveText(plain);
     await command(window, "Filter list by status", "draft", "Status");
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", `Search: ${QUERY} · status: draft`);
@@ -77,9 +85,10 @@ test.describe("search hits filtered and grouped", () => {
     const plain = await searched(running);
     await command(window, "Group list", "Status", "Group by");
     const headings = shownBuffer(window).locator(".group h2");
-    await expect(headings).toHaveText(["Draft 3", "Approved 4", "Obsolete 1"]);
+    // The obsolete hit stands in the folded section at the end, collapsed (SR-201).
+    await expect(headings).toHaveText(["Draft 3", "Approved 4"]);
     const groups = shownBuffer(window).locator(".group");
-    for (const at of [0, 1, 2]) {
+    for (const at of [0, 1]) {
       const inGroup = await groups.nth(at).locator(".row .id").allTextContents();
       expect(inGroup).toEqual(plain.filter((id) => inGroup.includes(id)));
     }

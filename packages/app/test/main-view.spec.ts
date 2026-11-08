@@ -6,7 +6,7 @@ import path from "node:path";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { DEFAULT_SORT, launchApp, listAll } from "./support/app.js";
+import { DEFAULT_SORT, inShownOrder, launchApp, listAll, showFolded } from "./support/app.js";
 
 /** 14 elements with a derivation tree, types, statuses and an obsolete requirement (fixtures/README.md). */
 const FIXTURE = { fixture: "SR-069/filter" };
@@ -24,21 +24,6 @@ const cliJson = async <T>(running: RunningApp, argv: readonly string[]): Promise
 };
 
 const rowTitles = (window: Page): Promise<string[]> => window.locator(".row .title").allTextContents();
-
-/**
- * The titles in the order the list shows them with its folded section open (SR-201): the obsolete element,
- * the one invalid status of the fixture, after the others.
- */
-const foldedOrder = (elements: Listed["elements"]): string[] => [
-  ...elements.filter((e) => e.status !== "obsolete").map((e) => e.title),
-  ...elements.filter((e) => e.status === "obsolete").map((e) => e.title),
-];
-
-/** Opens the folded section at the end of the list. */
-const openFolded = async (window: Page): Promise<void> => {
-  await window.locator('.row.fold-row[aria-expanded="false"]').click();
-  await expect(window.locator('.row.fold-row[aria-expanded="true"]')).toHaveCount(1);
-};
 
 /** Opens the command prompt, types `command` and runs the first candidate. */
 const runCommand = async (window: Page, command: string): Promise<void> => {
@@ -141,8 +126,8 @@ test.describe("the main view on a fixture workspace", () => {
       "--input",
       JSON.stringify({ sort: DEFAULT_SORT }),
     ]);
-    await openFolded(running.window);
-    expect(await rowTitles(running.window)).toEqual(foldedOrder(listed.elements));
+    await showFolded(running.window, listed.elements);
+    expect(await rowTitles(running.window)).toEqual(inShownOrder(listed.elements).map((e) => e.title));
     await expect(running.window.getByLabel("Modeline")).toContainText(`${String(listed.total)} elements`);
     await expect(running.window.getByLabel("Modeline")).toContainText("All elements");
     // The default says nothing in the modeline, and it is not the order of the store.
@@ -158,8 +143,10 @@ test.describe("the main view on a fixture workspace", () => {
     await running.window.keyboard.press("Enter");
     await expect(running.window.getByLabel("Modeline")).toContainText("All elements · workspace order");
     const stored = await cliJson<Listed>(running, ["element", "list"]);
-    await openFolded(running.window);
-    await expect(running.window.locator(".row .title")).toHaveText(foldedOrder(stored.elements));
+    await showFolded(running.window, stored.elements);
+    await expect(running.window.locator(".row .title")).toHaveText(
+      inShownOrder(stored.elements).map((e) => e.title),
+    );
     // And back: "Type and ID" is the default again, which says nothing.
     await runCommand(running.window, "sort list");
     await running.window.keyboard.type("type and id");
@@ -171,8 +158,10 @@ test.describe("the main view on a fixture workspace", () => {
       JSON.stringify({ sort: DEFAULT_SORT }),
     ]);
     await expect(running.window.getByLabel("Modeline")).not.toContainText("workspace order");
-    await openFolded(running.window);
-    await expect(running.window.locator(".row .title")).toHaveText(foldedOrder(listed.elements));
+    await showFolded(running.window, listed.elements);
+    await expect(running.window.locator(".row .title")).toHaveText(
+      inShownOrder(listed.elements).map((e) => e.title),
+    );
   });
 
   test("sorted by hierarchy it shows the derivation tree with the depths that `tree` gives", async () => {
