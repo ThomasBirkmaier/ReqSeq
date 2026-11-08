@@ -74,6 +74,12 @@ const BY_TITLE = [{ by: "title", order: "asc" }];
 
 scenariosOf("element.list", [
   {
+    name: "with the verification of the rows: status and progress ring as the graph's nodes (SR-137)",
+    fixture: { fixture: "SR-136/graph", git: true },
+    input: { withVerification: true },
+    expect: "output",
+  },
+  {
     tag: "[SR-149/AK1]",
     name: "grouped by status: the statuses in metamodel order with their counts",
     fixture: GROUP,

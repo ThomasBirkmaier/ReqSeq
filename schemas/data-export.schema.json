@@ -423,6 +423,28 @@
       "else": { "properties": { "executions": { "minItems": 1 } }, "required": ["last"] },
       "additionalProperties": false
     },
+    "rowVerification": {
+      "description": "What a row of a list shows of its element's verification (SR-137), the fields a node of trace.graph carries for it (SR-136), in the view of the list's selection (the selection's, else its saved filter's, else the core), the view evidence.degree counts the same selection in: empty for an element with none of them.",
+      "type": "object",
+      "properties": {
+        "verification": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": { "$ref": "#/$defs/verificationEntry" },
+          "description": "SR-137 AK1: the verification status of a requirement in that view, one entry; left out for any other element and for a requirement without a status there."
+        },
+        "criteria": {
+          "$ref": "#/$defs/criteriaCount",
+          "description": "SR-137 AK3: the count of a requirement's progress ring, as trace.graph gives it (`criteria` of a node)."
+        },
+        "degree": {
+          "$ref": "#/$defs/verificationDegree",
+          "description": "SR-137 AK3: for a need, the verification degree of the requirements derived directly from it, as trace.graph gives it (`degree` of a node)."
+        }
+      },
+      "additionalProperties": false
+    },
     "verificationEntry": {
       "type": "object",
       "description": "The verification status of a requirement in one view (SR-031, SR-034, SR-047 AK3): `element` `verification` gives one per view, `trace.matrix` one for its view (SR-126).",

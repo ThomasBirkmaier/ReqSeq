@@ -265,7 +265,22 @@ body,
   }
 }
 
+/* A row of a list has a fourth column right of the status (SR-137): the verification status and ring of
+   the element's node in the graph, in the same greys; empty for an element without them. */
+.list .row {
+  grid-template-columns: 9rem minmax(0, 1fr) auto auto;
+}
+
+.row .verification .graph-verification {
+  margin-left: 0;
+}
+
+.row .verification .status.accent {
+  color: var(--accent-gap);
+}
+
 .row .id,
+.row .verification,
 .row .status {
   color: var(--muted);
   font-size: 12px;

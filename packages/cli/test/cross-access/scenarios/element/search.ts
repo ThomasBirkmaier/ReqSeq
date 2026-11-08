@@ -119,6 +119,12 @@ scenariosOf("element.search", [
     },
   },
   {
+    name: "with the verification of the hits: status and progress ring as the graph's nodes (SR-137)",
+    fixture: { fixture: "SR-136/graph", git: true },
+    input: { query: "need", withVerification: true },
+    expect: "output",
+  },
+  {
     name: "a selection that is not there yet",
     fixture: FILTER,
     input: { query: "wind", selection: { baseline: "v1" } },

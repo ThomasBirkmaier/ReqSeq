@@ -14,6 +14,11 @@
 //    `share` is left out when none counts (AK6).
 // Cost: one `prepare` of the requirement nodes and the needs' children (one batch of versions at most),
 // one evaluation each, memoised per view.
+//
+// A row of a list (SR-137, element.list and element.search with `withVerification`) shows the same as
+// the element's node (`rowsVerification`): AK3 asks for the very ring of the graph. Its view is the one
+// evidence.degree counts the same selection in, so the rows of a package page count as its degree line
+// (AK2).
 import type { ElementRecord } from "../model/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import type { View } from "../variants/index.js";
@@ -84,4 +89,18 @@ export const graphVerification = async (
       ...(counted === undefined ? {} : { degree: degreeOf(status, counted, view) }),
     };
   };
+};
+
+/**
+ * What each row of a list shows of its element's verification (SR-137): `graphVerification` of its
+ * record in the view of the list's selection (`views[0]`, the selection's, else its saved filter's, as
+ * evidence.degree takes it; the core without one), one entry per row in the order of `records`.
+ */
+export const rowsVerification = async (
+  workspace: Workspace,
+  records: readonly ElementRecord[],
+  views: readonly View[],
+): Promise<NodeVerification[]> => {
+  const of = await graphVerification(workspace, [...new Set(records)], views[0] ?? CORE);
+  return records.map(of);
 };

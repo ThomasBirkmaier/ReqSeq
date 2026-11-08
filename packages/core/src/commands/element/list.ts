@@ -10,6 +10,8 @@
 // page is built from its distinct records and then laid out as rows again. Nothing about the groups
 // is written (AK5). With `fields` (#982) the page is in `partial`, each element narrowed to the
 // fields asked for and those always given (`partOf`); its relations are looked up only when asked for.
+// With `withVerification` (SR-137) `rowVerification` gives for each row what its node in trace.graph shows
+// of its verification (`rowsVerification`).
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import type {
@@ -18,6 +20,7 @@ import type {
   ElementListInput,
   ElementListOutput,
 } from "../../generated/types.js";
+import { rowsVerification } from "../../evidence/index.js";
 import type { ElementRecord, ListOptions } from "../../model/index.js";
 import { listElements } from "../../model/index.js";
 import type { Selected, TreePlace } from "../../query/index.js";
@@ -61,6 +64,17 @@ const pageOf = (
     },
   };
 };
+
+/** `rowVerification` of the output for the rows of `page` (see the file comment); nothing without `withVerification`. */
+const verificationOf = async (
+  workspace: Workspace,
+  selected: Selected,
+  input: ElementListInput,
+  page: readonly ElementRecord[],
+): Promise<Pick<ElementListOutput, "rowVerification">> =>
+  input.withVerification === true
+    ? { rowVerification: await rowsVerification(workspace, page, selected.views) }
+    : {};
 
 type TreeEntry = NonNullable<ElementListOutput["tree"]>[number];
 
@@ -119,6 +133,7 @@ const grouped = async (
   return {
     // `listElements` gives one element per record, in their order.
     ...pageWith(indexes.flatMap((index) => listed.slice(index, index + 1))),
+    ...(await verificationOf(workspace, selected, input, page)),
     ...(sorted.some((group) => group.tree !== undefined)
       ? { tree: places.slice(input.offset, end).map(entryOf) }
       : {}),
@@ -144,6 +159,7 @@ export default defineCommand({
     const { options, page: pageWith } = pageOf(input);
     return {
       ...pageWith(await listElements(ctx.workspace, selected, page, options)),
+      ...(await verificationOf(ctx.workspace, selected, input, page)),
       ...(sorted.tree === undefined ? {} : { tree: sorted.tree.slice(input.offset, end).map(entryOf) }),
       total: selected.elements.length,
       incomplete: selected.incomplete,
