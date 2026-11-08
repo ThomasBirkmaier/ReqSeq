@@ -233,10 +233,75 @@ describe("focusPressed", () => {
   });
 });
 
+describe("a menu of the modeline (SR-196)", () => {
+  it("gives the focus back to where it was when it closes, unless it moved on", () => {
+    vi.useFakeTimers();
+    try {
+      document.body.innerHTML = `
+        <main><div data-area="left" data-active=""><article data-buffer tabindex="0">
+          <div data-field="topic" tabindex="0" id="topic">topic</div>
+        </article></div></main>
+        <footer class="modeline"><span data-field="Status" data-menu="field-status" tabindex="-1" id="status">draft</span></footer>
+        <input id="prompt-input">`;
+      render(options());
+      (element("topic") as HTMLElement).focus();
+      rightClick(element("status"));
+      expect(menu.menu?.hit.place).toBe("field-status");
+      expect(document.activeElement).toBe(element("status"));
+      send(window, key("Escape"));
+      act(() => {
+        vi.runAllTimers();
+      });
+      expect(document.activeElement).toBe(element("topic"));
+      // Opened by a key on the field: back to the buffer. An entry that opens a prompt keeps it.
+      (element("status") as HTMLElement).focus();
+      send(element("status"), mouse("contextmenu", { button: 0 }));
+      act(() => {
+        menu.close();
+        vi.runAllTimers();
+      });
+      expect(document.activeElement?.hasAttribute("data-buffer")).toBe(true);
+      rightClick(element("status"));
+      act(() => {
+        menu.close();
+        (element("prompt-input") as HTMLElement).focus();
+        vi.runAllTimers();
+      });
+      expect(document.activeElement).toBe(element("prompt-input"));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe("focusPressed on a field", () => {
+  it("focuses the field pressed, or the first control of a field that takes no focus itself (SR-196)", () => {
+    document.body.innerHTML = `
+      <article data-buffer tabindex="0">
+        <div data-field="Title" tabindex="0"><h1 id="title">Title</h1></div>
+        <div data-field="refines"><h2 id="group">refines</h2><span id="link" role="link" tabindex="0">N-1</span></div>
+        <div data-field="empty"><h2 id="bare">empty</h2></div>
+        <p id="page">page</p>
+      </article>`;
+    focusPressed(element("title"), { x: 0, y: 0 });
+    expect(document.activeElement?.getAttribute("data-field")).toBe("Title");
+    focusPressed(element("group"), { x: 0, y: 0 });
+    expect(document.activeElement).toBe(element("link"));
+    focusPressed(element("bare"), { x: 0, y: 0 });
+    expect(document.activeElement?.hasAttribute("data-buffer")).toBe(true);
+    focusPressed(element("page"), { x: 0, y: 0 });
+    expect(document.activeElement?.hasAttribute("data-buffer")).toBe(true);
+  });
+});
+
 describe("keyboardHit", () => {
   it("opens at the selected row, else at the area's corner", () => {
     expect(keyboardHit(element("empty")).target).toBe(element("row"));
     element("row").setAttribute("aria-selected", "false");
     expect(keyboardHit(element("empty"))).toEqual({ target: element("empty"), point: { x: 0, y: 0 } });
+  });
+
+  it("opens at the focused element outside the areas, such as a field of the modeline", () => {
+    expect(keyboardHit(element("echo"))).toEqual({ target: element("echo"), point: { x: 0, y: 0 } });
   });
 });

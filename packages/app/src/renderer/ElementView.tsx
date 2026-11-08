@@ -43,7 +43,7 @@ import { findElements } from "./actions.js";
 import type { BufferAction, ElementBuffer, RenameAction, ResultBuffer } from "./buffers.js";
 import { filteredList, renameAction } from "./buffers.js";
 import type { Answer, Call } from "./call.js";
-import { NOTHING, PROMPT_INPUT, copyField, copyable, cursorField, docOf } from "./copy.js";
+import { NOTHING, PROMPT_INPUT, copyField, copyable, cursorField, docOf, modelineField } from "./copy.js";
 import type { ElementLoad, PropertyModel } from "./element-view.js";
 import {
   TITLE_FIELD,
@@ -661,6 +661,23 @@ export const ElementView = ({
         )
       : NOTHING;
   const lastField = useRef<string | undefined>(undefined);
+  // The ID or the status in the modeline takes the focus for its context menu (SR-196): it is the last
+  // field of the shown element then, so a command from the prompt acts on it as the menu does.
+  useEffect(() => {
+    if (!active) {
+      return undefined;
+    }
+    const focused = (event: FocusEvent): void => {
+      const field = modelineField(event.target);
+      if (field !== undefined) {
+        lastField.current = field;
+      }
+    };
+    document.addEventListener("focusin", focused);
+    return () => {
+      document.removeEventListener("focusin", focused);
+    };
+  }, [active]);
   // What the cursor was on when a prompt opened last (SR-132).
   const pointed = useRef<Pointer>(NO_POINTER);
   const copy = (label: string | undefined): void => {
@@ -1140,10 +1157,18 @@ export const ElementView = ({
 
   // Asked once the element is shown (with its parents line), so nothing comes before the first display.
   const valueKey = valueKeyOf(loadedElement);
+  // The keys of the boxes with a value that opens a list, for their context menu (SR-196 AK2).
+  const [listable, setListable] = useState<ReadonlySet<string>>(() => new Set());
   useEffect(() => {
-    if (loadedElement !== undefined) {
-      void valueFacets(loadedElement);
+    if (loadedElement === undefined) {
+      return;
     }
+    const answer = valueFacets(loadedElement);
+    void answer.then((settled) => {
+      if (mounted.current && facetsAsked.current?.answer === answer) {
+        setListable(new Set(settled.ok ? listableValues(settled.output, []).map((value) => value.key) : []));
+      }
+    });
   }, [valueKey, outside.seq]);
   // The file changed outside under the input, or is gone (SR-106): the modeline says so.
   const disk = diskMark(deleted, conflict);
@@ -2108,6 +2133,7 @@ export const ElementView = ({
                   value={value}
                   textBox={textBox}
                   element={dated(view.element)}
+                  listable={listable.has(box.key)}
                   onCopy={copy}
                   marked={marked}
                   onOpenRelation={onOpenRelation}

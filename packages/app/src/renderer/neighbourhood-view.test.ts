@@ -11,6 +11,7 @@ import { ElementView } from "./ElementView.js";
 import { referenceTitles } from "./reference-titles.js";
 import type { BufferData } from "./modeline.js";
 import { NeighbourhoodView } from "./NeighbourhoodView.js";
+import { NO_FACETS } from "./package-summary-test-data.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -637,7 +638,12 @@ describe("the parents line on the element page", () => {
 
   const elementCall = (parents: Handler) =>
     vi.fn((name: string, input: Record<string, unknown>) => {
-      const output = name === "element.get" ? { element: element("uuid-C1") } : parents(input);
+      const output =
+        name === "element.get"
+          ? { element: element("uuid-C1") }
+          : name === "element.facets"
+            ? NO_FACETS
+            : parents(input);
       return Promise.resolve(
         output instanceof Error
           ? { ok: false, code: "x.failed", message: output.message }

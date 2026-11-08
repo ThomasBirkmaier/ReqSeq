@@ -32,7 +32,7 @@ export const ElementText = ({
   marked,
 }: ElementTextProps): React.JSX.Element => (
   <>
-    <FieldBox label={TITLE_FIELD} focusable onCopy={onCopy} marked={marked}>
+    <FieldBox label={TITLE_FIELD} focusable menu="field" onCopy={onCopy} marked={marked}>
       <TitleBox {...title} />
     </FieldBox>
     {titleDisk}

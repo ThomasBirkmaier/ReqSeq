@@ -570,6 +570,7 @@ mark {
 .modeline .field {
   position: relative;
   display: inline-block;
+  outline: none;
 }
 
 .modeline .copy {

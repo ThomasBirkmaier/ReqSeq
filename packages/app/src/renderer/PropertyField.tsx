@@ -27,6 +27,8 @@ export interface PropertyFieldProps {
    * mark the outdated ones (ThomasBirkmaier/ReqSeq-archive#702).
    */
   readonly element: Pick<DataExportElement, "relations" | "problems" | "repository">;
+  /** A value of the box lists elements (SR-132), for its context menu (SR-196 AK2). */
+  readonly listable: boolean;
   readonly onCopy: (label: string) => void;
   /** The fields that changed outside the app and are highlighted now (SR-116), by label. */
   readonly marked: ReadonlySet<string>;
@@ -41,13 +43,21 @@ export const PropertyField = ({
   value,
   textBox,
   element,
+  listable,
   onCopy,
   marked,
   onOpenRelation,
   disk,
 }: PropertyFieldProps): React.JSX.Element => (
   <>
-    <FieldBox label={box.key} focusable onCopy={onCopy} marked={marked}>
+    <FieldBox
+      label={box.key}
+      focusable
+      menu="field-property"
+      listable={listable}
+      onCopy={onCopy}
+      marked={marked}
+    >
       <div className="box">
         <span className="key">{box.key}</span>
         <span className="value">

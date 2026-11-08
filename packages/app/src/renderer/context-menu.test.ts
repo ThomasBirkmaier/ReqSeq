@@ -82,6 +82,13 @@ describe("the places of the context menu", () => {
     expect(placeAt(pressed(["element-entry"], false))).toBeUndefined();
   });
 
+  it("finds the fields of the modeline outside the areas, and no other mark there (SR-196)", () => {
+    expect(placeAt(pressed(["field-short-id"], false))).toBe("field-short-id");
+    expect(placeAt(pressed(["field-status"], false))).toBe("field-status");
+    expect(placeAt(pressed(["field"], false))).toBeUndefined();
+    expect(placeAt(pressed([], false))).toBeUndefined();
+  });
+
   it("[SR-194/AK1] shows the entries the prompt has now, in the place's order, as the prompt names them", () => {
     const items = [choice("search", "Search elements"), choice("close"), choice("go-to"), choice("save")];
     expect(menuEntries(hit("buffer"), items).map((item) => item.id)).toEqual(["go-to", "search", "close"]);
@@ -89,6 +96,50 @@ describe("the places of the context menu", () => {
     expect(ALL_COMMANDS).toBe("All commands…");
     expect(openEntries(undefined, () => items)).toEqual([]);
     expect(openEntries({ hit: hit("buffer") }, () => items)).toHaveLength(3);
+  });
+});
+
+describe("the menus of the fields (SR-196)", () => {
+  const items = [
+    "copy-field",
+    "add-property",
+    "clear-property",
+    "list-value",
+    "version",
+    "command:element.setStatus",
+    "save",
+  ].map((id) => choice(id));
+  /** A press in a property box, with a value that lists elements or not. */
+  const inBox = (listable: boolean): MenuHit => ({
+    place: "field-property",
+    target: {
+      closest: (selector: string) =>
+        selector === "[data-field]"
+          ? { hasAttribute: (name: string) => listable && name === "data-listable" }
+          : null,
+    } as unknown as Element,
+    point: { x: 0, y: 0 },
+  });
+  const ids = (at: MenuHit): string[] => menuEntries(at, items).map((item) => item.id);
+
+  it("[SR-196/AK1] puts Copy field first on every field", () => {
+    for (const place of ["field", "field-property", "field-status", "field-short-id"] as const) {
+      expect(ids(place === "field-property" ? inBox(false) : hit(place))[0]).toBe("copy-field");
+    }
+    expect(ids(hit("field"))).toEqual(["copy-field"]);
+  });
+
+  it("[SR-196/AK2] has Add and Clear property on a box, and List elements with this value on one that lists", () => {
+    expect(ids(inBox(false))).toEqual(["copy-field", "add-property", "clear-property"]);
+    expect(ids(inBox(true))).toEqual(["copy-field", "add-property", "clear-property", "list-value"]);
+  });
+
+  it("[SR-196/AK3] has Set status on the status", () => {
+    expect(ids(hit("field-status"))).toEqual(["copy-field", "command:element.setStatus"]);
+  });
+
+  it("[SR-196/AK4] has Show element ID and version on the short ID", () => {
+    expect(ids(hit("field-short-id"))).toEqual(["copy-field", "version"]);
   });
 });
 

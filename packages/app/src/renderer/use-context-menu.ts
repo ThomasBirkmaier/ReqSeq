@@ -48,6 +48,9 @@ const MODIFIERS = new Set(["Shift", "Control", "Alt", "Meta", "AltGraph", "CapsL
 const inMenu = (target: EventTarget | null): boolean =>
   target instanceof Element && target.closest(".context-menu") !== null;
 
+/** What takes the focus of a press. */
+const FOCUSABLE = "input, textarea, select, [contenteditable='true'], [tabindex]";
+
 /**
  * The right press sets the focus as a left one would, but keeps a selection it lands in: in a text editor
  * the caret goes to the pointer unless the press is inside the selection (SR-195 AK2); elsewhere the field
@@ -67,9 +70,35 @@ export const focusPressed = (target: Element, point: { readonly x: number; reado
     view.focus();
     return;
   }
-  target
-    .closest<HTMLElement>("input, textarea, select, [contenteditable='true'], [tabindex]")
-    ?.focus({ preventScroll: true });
+  // A field that takes no focus itself (a group of relations) gives it to its first control, so the cursor
+  // is in the field pressed (SR-196 AK1).
+  const own = target.closest<HTMLElement>(FOCUSABLE);
+  const field = target.closest("[data-field]");
+  const inField =
+    field === null || (own !== null && field.contains(own))
+      ? own
+      : field.querySelector<HTMLElement>(FOCUSABLE);
+  (inField ?? own)?.focus({ preventScroll: true });
+};
+
+/** A place of the menu outside the areas: a field of the modeline (SR-196). */
+const inModeline = (target: Element): boolean =>
+  target.closest("[data-area]") === null && placeAt(target) !== undefined;
+
+/**
+ * A menu of the modeline closed: the field it was opened on gives the focus back to `back`, else to the
+ * buffer of the active area, so the keys act there again. A focus that moved elsewhere stays.
+ */
+export const giveFocusBack = (target: Element, back: Element | null): void => {
+  const field = target.closest("[data-menu]");
+  if (field?.contains(document.activeElement) !== true) {
+    return;
+  }
+  const to =
+    back instanceof HTMLElement && back.isConnected
+      ? back
+      : document.querySelector<HTMLElement>("[data-area][data-active] [data-buffer], [data-buffer]");
+  to?.focus({ preventScroll: true });
 };
 
 /** The caret or selection of the page as a box, when there is one with a place on the screen. */
@@ -97,8 +126,9 @@ export const keyboardHit = (focused: Element): Omit<MenuHit, "place"> => {
     const box = selected.getBoundingClientRect();
     return { target: selected, point: { x: box.left, y: box.bottom } };
   }
-  const box = area?.getBoundingClientRect();
-  return { target: focused, point: { x: box?.left ?? 0, y: box?.top ?? 0 } };
+  // Outside the areas (a field of the modeline, SR-196): at the field.
+  const box = (area ?? focused).getBoundingClientRect();
+  return { target: focused, point: { x: box.left, y: box.top } };
 };
 
 export const useContextMenu = (options: ContextMenuOptions): ContextMenu => {
@@ -110,9 +140,21 @@ export const useContextMenu = (options: ContextMenuOptions): ContextMenu => {
     menuNow.current = next;
     setMenu(next);
   }, []);
+  // Where the focus goes back to when a menu of the modeline closes (SR-196): what had it before the press.
+  const returnTo = useRef<Element | null>(null);
   const close = useCallback((): void => {
-    if (menuNow.current !== undefined) {
-      show(undefined);
+    const open = menuNow.current;
+    if (open === undefined) {
+      return;
+    }
+    show(undefined);
+    if (inModeline(open.hit.target)) {
+      // After the entry ran (it reads the focused field), unless it moved the focus itself (a prompt).
+      const back = returnTo.current;
+      returnTo.current = null;
+      window.setTimeout(() => {
+        giveFocusBack(open.hit.target, back);
+      }, 0);
     }
   }, [show]);
   const select = useCallback(
@@ -147,6 +189,13 @@ export const useContextMenu = (options: ContextMenuOptions): ContextMenu => {
           event.stopPropagation();
           swallowClick = true;
           now.onOpen();
+        }
+        // A press on a field of the modeline remembers where the focus was, unless it was in the modeline.
+        if (inModeline(target)) {
+          const before = document.activeElement;
+          if (before === null || !inModeline(before)) {
+            returnTo.current = before;
+          }
         }
         focusPressed(target, { x: event.clientX, y: event.clientY });
         return;

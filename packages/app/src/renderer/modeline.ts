@@ -165,6 +165,27 @@ export const shownElement = (
 /** What a list says when a repository is missing for its answer. */
 export const INCOMPLETE = "incomplete: a repository is missing";
 
+/** The first part of the modeline for an element: its ID, its type by name and its status (SR-114). */
+export interface ElementHead {
+  readonly id: string;
+  readonly type: string;
+  readonly status?: string;
+}
+
+/** The ID, type and status of `element`, which the first part of its modeline shows (`ModelineBar.tsx`). */
+export const elementHead = (
+  element: Pick<DataExportElement, "identifier" | "shortId" | "type" | "status">,
+  typeNames: ReadonlyMap<string, string>,
+): ElementHead => ({
+  id: element.identifier ?? element.shortId,
+  type: typeNames.get(element.type) ?? element.type,
+  ...(element.status === undefined ? {} : { status: element.status }),
+});
+
+/** The first part as text: the ID, the type and the status, joined by dots. */
+export const headText = (head: ElementHead): string =>
+  [head.id, head.type, ...(head.status === undefined ? [] : [head.status])].join(" · ");
+
 /**
  * The parts for an element: ID, type and status in one, on a package page the number of its elements
  * (SR-114 AK3: the type is the „Art“), then what is worth a mark. The counts of SR-114 AK2 come from the
@@ -181,11 +202,7 @@ const elementParts = (
   const outdated = problems.filter((problem) => isOutdatedCode(problem.code)).length;
   const hints = problems.length - outdated;
   return [
-    [
-      element.identifier ?? element.shortId,
-      typeNames.get(element.type) ?? element.type,
-      ...(element.status === undefined ? [] : [element.status]),
-    ].join(" · "),
+    headText(elementHead(element, typeNames)),
     ...(members === undefined
       ? []
       : [plural(members.total, "element"), ...(members.incomplete ? [INCOMPLETE] : [])]),
