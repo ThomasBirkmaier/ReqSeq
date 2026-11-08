@@ -13,9 +13,13 @@
 //   target, and only while that buffer is still the mode's: once the user shows it himself or types in
 //   it, it is his (`seen`, `release`).
 // - What the mode shows is no recent element of the overview (SR-118): `seen` tells the app.
+// - In a split window (#288) the access opens in the area that shows the buffer the mode showed last,
+//   else in the inactive one, which stays inactive (`agent` of `window-layout.ts`): the user's own buffer
+//   keeps its area, scroll and focus. An element shown in either area already stays where it is.
 import type { AgentActivity } from "../shared/protocol.js";
-import type { BufferAction, Buffers, ElementBuffer } from "./buffers.js";
+import type { Buffers, ElementBuffer } from "./buffers.js";
 import { elementBuffer } from "./buffers.js";
+import type { WindowAction } from "./window-layout.js";
 
 export interface FollowState {
   readonly on: boolean;
@@ -31,6 +35,8 @@ export interface FollowState {
   readonly opened?: string;
   /** The key of the buffer the mode put in front, until the app has shown it. */
   readonly showing?: string;
+  /** The key of the buffer the mode showed last, whoever owns it now: its area takes the next access. */
+  readonly last?: string;
 }
 
 /** The mode at the start of the app and of every workspace (AK2: „Beim Start ist der Modus aus“). */
@@ -196,7 +202,7 @@ export const needsLookup = (access: AgentActivity, buffers: Buffers): boolean =>
  */
 export interface Placement {
   readonly state: FollowState;
-  readonly actions: readonly BufferAction[];
+  readonly actions: readonly WindowAction[];
   readonly refresh: boolean;
 }
 
@@ -205,7 +211,7 @@ export interface Placement {
  * undefined when its open buffer is switched to. Nothing when a newer access or a switch of the mode came
  * since; held back when unsaved input came since. The buffer the mode opened before is closed in the same
  * batch. A change of the element that is shown asks it again; the app's store holds the changed state by
- * then (the host sends an access only then).
+ * then (the host sends an access only then). `other` is the buffer of the inactive area in a split window.
  */
 export const place = (
   state: FollowState,
@@ -215,6 +221,7 @@ export const place = (
   buffers: Buffers,
   hold: Hold | undefined,
   drafted: (key: string) => boolean,
+  other?: string,
 ): Placement => {
   if (!state.on || generation !== state.generation) {
     return { state, actions: [], refresh: false };
@@ -224,13 +231,25 @@ export const place = (
   }
   const key = accessKey(access);
   const front = buffers[0]?.key;
-  const { actions, opened } = moves(key, buffer, buffers, state.opened, drafted);
+  const aside = besideActive(key, front, other, state.last);
+  const { actions, opened } = moves(key, buffer, buffers, state.opened, drafted, aside);
   return {
-    state: placed(state, opened, front === key ? state.showing : key),
+    state: { ...placed(state, opened, front === key || aside ? state.showing : key), last: key },
     actions,
-    refresh: front === key && access.effect === "write-files",
+    refresh: (front === key || other === key) && access.effect === "write-files",
   };
 };
+
+/**
+ * Whether the element with `key` goes to the inactive area of a split window (`other` its buffer): when it
+ * is shown there, or when the active area does not show the buffer the mode showed last (`last`).
+ */
+const besideActive = (
+  key: string,
+  front: string | undefined,
+  other: string | undefined,
+  last: string | undefined,
+): boolean => other !== undefined && key !== front && (key === other || last !== front);
 
 /**
  * The buffer actions that show the buffer with `key` (`buffer` opens it, else it is switched to unless
@@ -244,10 +263,12 @@ const moves = (
   buffers: Buffers,
   previous: string | undefined,
   drafted: (key: string) => boolean,
-): { readonly actions: BufferAction[]; readonly opened: string | undefined } => {
+  aside: boolean,
+): { readonly actions: WindowAction[]; readonly opened: string | undefined } => {
   const open = (candidate: string): boolean => buffers.some((one) => one.key === candidate);
-  const actions: BufferAction[] =
-    buffer !== undefined
+  const actions: WindowAction[] = aside
+    ? [buffer === undefined ? { type: "agent", key } : { type: "agent", key, buffer }]
+    : buffer !== undefined
       ? [{ type: "open", buffer }]
       : buffers[0]?.key === key
         ? []

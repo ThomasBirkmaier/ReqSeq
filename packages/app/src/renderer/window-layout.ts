@@ -24,6 +24,10 @@
 // - `follow` (SR-150 AK4, AK5) shows the element marked in the active area in a preview. It takes the place
 //   of the element the preview brought in when the caller says it may (`replace`: no unsaved input), so
 //   marking opens no buffer per row; an element the reader had open stays open behind.
+// - `agent` (Follow agent, SR-117, #288) shows an element in the inactive area of a split window, which
+//   stays inactive, so the user's buffer keeps its area and focus. It takes the place of a preview's
+//   element that the preview brought in, as `follow` does, and ends the preview; without a split it opens
+//   or switches as `open` and `switch` do.
 // - The inactive area is a preview (`Layout.preview`) only while it shows what `beside` or `follow` put
 //   there: any other change of its buffer, entering it (it becomes active) and unsplitting end it, and then
 //   it stays as it is (SR-150 AK5).
@@ -60,7 +64,8 @@ export type WindowAction =
   | { readonly type: "unsplit" }
   | { readonly type: "side-by-side"; readonly left: Buffer; readonly right: Buffer }
   | { readonly type: "beside"; readonly side: Side; readonly buffer: ElementBuffer }
-  | { readonly type: "follow"; readonly buffer: ElementBuffer; readonly replace: boolean };
+  | { readonly type: "follow"; readonly buffer: ElementBuffer; readonly replace: boolean }
+  | { readonly type: "agent"; readonly key: string; readonly buffer?: ElementBuffer };
 
 /** One area, on the left. */
 export const ONE_AREA: Layout = { active: "left" };
@@ -195,6 +200,32 @@ const follow = (state: WindowState, buffer: ElementBuffer, replace: boolean): Wi
   };
 };
 
+/**
+ * Follow agent shows the buffer with `key` (`buffer` when it is read anew) in the inactive area, without
+ * making it active (#288).
+ */
+const agent = (state: WindowState, key: string, buffer: ElementBuffer | undefined): WindowState => {
+  const { buffers, layout } = state;
+  const shown = buffers[0];
+  if (layout.other === undefined || shown === undefined || shown.key === key) {
+    const action =
+      buffer === undefined ? ({ type: "switch", key } as const) : ({ type: "open", buffer } as const);
+    return reduceWindow(state, action);
+  }
+  if (buffer === undefined && layout.other === key) {
+    return state;
+  }
+  const already = isOpen(buffers, key);
+  const next =
+    buffer !== undefined && !already && layout.preview === "brought"
+      ? buffers.map((open) => (open.key === layout.other ? buffer : open))
+      : reduceBuffers(
+          reduceBuffers(buffers, buffer === undefined ? { type: "switch", key } : { type: "open", buffer }),
+          { type: "switch", key: shown.key },
+        );
+  return { buffers: next, layout: { active: layout.active, other: key } };
+};
+
 /** "Split window", with the marked element as the preview beside the shown buffer when there is one. */
 const splitMarked = (state: WindowState, marked: ElementBuffer | undefined): WindowState =>
   state.layout.other === undefined && marked !== undefined && state.buffers[0]?.key !== marked.key
@@ -207,6 +238,9 @@ export const reduceWindow = (state: WindowState, action: WindowAction): WindowSt
   }
   if (action.type === "follow") {
     return follow(state, action.buffer, action.replace);
+  }
+  if (action.type === "agent") {
+    return agent(state, action.key, action.buffer);
   }
   if (action.type === "split") {
     return splitMarked(state, action.marked);
