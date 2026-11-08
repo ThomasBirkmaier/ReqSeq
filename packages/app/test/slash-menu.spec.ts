@@ -196,20 +196,15 @@ test.describe("the slash menu in the element buffer", () => {
     await expect(window.locator('.candidates [role="option"]').first()).toContainText(REFERENCE_TARGET_TITLE);
     await window.keyboard.press("Enter");
     await expect(window.locator(".cm-content")).toBeFocused();
-    // The reference is the last change: once the file holds it, it holds the rest.
-    const file = await saveAndRead(
-      window,
-      path.join(workspace?.root ?? "", ...DEMO_FILE.split("/")),
-      "](reqseq:",
+    const link = new RegExp(
+      `\\[${REFERENCE_TARGET_TITLE}\\]\\(reqseq:${REFERENCE_TARGET_ID}\\?version=n2:[0-9a-f]+\\)`,
     );
+    // The reference is the last change: once the file holds it, it holds the rest.
+    const file = await saveAndRead(window, path.join(workspace?.root ?? "", ...DEMO_FILE.split("/")), link);
     const tail = file.slice(file.indexOf("Link"));
     expect(file).toContain("## Neuer Abschnitt\n");
     expect(file).toContain("| Messwert | Column 2 |\n| --- | --- |\n|  |  |\n");
     expect(file).not.toMatch(/\/(h2|table|reference)/);
-    const link = new RegExp(
-      `\\[${REFERENCE_TARGET_TITLE}\\]\\(reqseq:${REFERENCE_TARGET_ID}\\?version=n2:[0-9a-f]+\\)`,
-    );
-    expect(file).toMatch(link);
     expect(tail).toBeDefined();
     const html = micromark(file.slice(file.indexOf("## Neuer Abschnitt")), {
       extensions: [gfm()],

@@ -537,6 +537,8 @@ export const goTo = async (window: Page): Promise<void> => {
  * Saves the open element with Ctrl/Cmd+S and returns the text of `file` once it matches `expected`. Autosave saves
  * one second after the last change, so on a slow runner it may have saved first, and Ctrl/Cmd+S then says
  * "No changes to save" (#1155, #1174), or it may still be writing. So either answer counts, and the file is polled.
+ * On a second save in one test the "Saved" of the first may still stand, so the poll of the file is the real guard.
+ * A read that fails while autosave replaces the file (EPERM or EBUSY on Windows) counts as no match yet.
  */
 export const saveAndRead = async (window: Page, file: string, expected: string | RegExp): Promise<string> => {
   await window.keyboard.press("ControlOrMeta+s");
@@ -544,7 +546,7 @@ export const saveAndRead = async (window: Page, file: string, expected: string |
   let text = "";
   await expect
     .poll(async () => {
-      text = await fs.readFile(file, "utf8");
+      text = await fs.readFile(file, "utf8").catch(() => "");
       return text;
     })
     .toMatch(expected);
