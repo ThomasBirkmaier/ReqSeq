@@ -1147,10 +1147,6 @@ mark {
   color: var(--accent-outdated);
 }
 
-.graph-marks .gap {
-  color: var(--accent-gap);
-}
-
 .graph-title {
   display: -webkit-box;
   flex: none;

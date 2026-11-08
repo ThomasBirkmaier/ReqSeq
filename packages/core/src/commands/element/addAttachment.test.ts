@@ -445,4 +445,42 @@ describe("element.addAttachment", () => {
     expect(original.file).toBe("requirements/N-00606ccf2661/layout.png");
     expect(await fs.readFile(fixture.path(`system/${original.file}`))).toEqual(PNG);
   });
+
+  it("[SR-190/AK3] copies an image given as bytes, named after its name, like one from a file", async () => {
+    const opened = await open();
+    const output = await add(opened, { ref: WIND.id, content: PNG.toString("base64"), name: "Bild 1.PNG" });
+    expect(output).toEqual({
+      file: "requirements/SR-6328cee88fb3/Bild-1.png",
+      markdown: "![Bild-1](SR-6328cee88fb3/Bild-1.png)",
+    });
+    expect(await fs.readFile(path.join(opened.fixture.root, ...output.file.split("/")))).toEqual(PNG);
+    // The same bytes from a file reuse the copy; a path in name counts only by its base name.
+    const again = await add(opened, {
+      ref: WIND.id,
+      content: PNG.toString("base64"),
+      name: "a/b\\Bild 1.png",
+    });
+    expect(again.file).toBe(output.file);
+    // One padding character is base64 too.
+    expect((await add(opened, { ref: WIND.id, content: "AAA=", name: "x.png" })).file).toMatch(/x\.png$/);
+  });
+
+  it("takes exactly one source, base64 only, at most 20 MiB, with an image name", async () => {
+    const opened = await open();
+    const reason = async (input: Record<string, unknown>): Promise<unknown> =>
+      (await addError(opened, { ref: WIND.id, ...input })).details?.["reason"];
+    expect(await reason({})).toBe("source-none");
+    expect(await reason({ content: "AAAA" })).toBe("source-none");
+    expect(await reason({ sourcePath: "incoming/layout.png", content: "AAAA", name: "a.png" })).toBe(
+      "source-twice",
+    );
+    expect(await reason({ sourcePath: "incoming/layout.png", name: "a.png" })).toBe("source-twice");
+    expect(await reason({ content: "AAAA", name: "notes.txt" })).toBe("not-an-image");
+    expect(await reason({ content: "AA A", name: "a.png" })).toBe("content-not-base64");
+    expect(await reason({ content: "AAA", name: "a.png" })).toBe("content-not-base64");
+    expect(await reason({ content: "A===", name: "a.png" })).toBe("content-not-base64");
+    expect(await reason({ content: "AA=A", name: "a.png" })).toBe("content-not-base64");
+    const large = Buffer.alloc(20 * 1024 * 1024 + 1).toString("base64");
+    expect(await reason({ content: large, name: "a.png" })).toBe("content-too-large");
+  });
 });

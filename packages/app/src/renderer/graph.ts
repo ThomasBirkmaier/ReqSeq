@@ -84,7 +84,6 @@ export const filterLabel = (
 export const MARK_WORDS: Readonly<Record<GraphMark, string>> = {
   outdated: "outdated",
   superseded: "superseded",
-  "no-evidence": "no evidence",
 };
 
 /** What a node is called: its identifier, else its short ID. */

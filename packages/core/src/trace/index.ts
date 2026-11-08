@@ -88,7 +88,7 @@ export type {
   GapKind,
   GapMeaning,
 } from "./chain.js";
-export { chainOutput, lacksEvidence, traceChain } from "./chain.js";
+export { chainOutput, traceChain } from "./chain.js";
 export type {
   ElementGraph,
   ElementGraphOptions,

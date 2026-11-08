@@ -23,6 +23,7 @@ import type { EditorHandle } from "./editor/Editor.js";
 import { Editor } from "./editor/Editor.js";
 import { boxNavigation } from "./editor/box-navigation.js";
 import type { BoxNavigation } from "./editor/box-navigation.js";
+import { formatKeys } from "./editor/format.js";
 import { mergePlugins } from "./editor/plugins.js";
 import { inline } from "./editor/preview.js";
 import { references } from "./editor/references.js";
@@ -122,6 +123,7 @@ export const TextBox = ({
     return mergePlugins(
       markdown ? references({ outdated, follow, title }) : {},
       markdown && !readOnly ? brackets : {},
+      formatKeys(markdown),
       {
         markdown: [valueLines],
         extensions: [
