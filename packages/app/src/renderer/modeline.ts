@@ -63,7 +63,8 @@ export type BufferData =
       readonly total: number;
       readonly incomplete: boolean;
       /** The elements of the loaded rows, in their order (the selected one is the default of an element argument, ThomasBirkmaier/ReqSeq-archive#85). */
-      readonly rows?: readonly ElementBuffer[];
+      /** By position; undefined at a row that is no element, the row of a folded section (SR-201). */
+      readonly rows?: readonly (ElementBuffer | undefined)[];
     }
   | {
       readonly kind: "overview";

@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 // The traceability matrix in the window (SR-125): Ctrl+T on a list and on a package page, the focus, the
 // modeline, and the filter that keeps the matrix.
+import { FOLD_KEY } from "./fold-statuses.js";
 import { act, createElement } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
@@ -16,6 +17,8 @@ let root: Root;
 
 beforeEach(() => {
   window.localStorage.clear();
+  // Nothing folds in lists here (SR-201 has its own tests): every status stays in place.
+  window.localStorage.setItem(FOLD_KEY, "[]");
   window.sessionStorage.clear();
   container = document.createElement("div");
   document.body.append(container);

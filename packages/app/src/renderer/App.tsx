@@ -74,6 +74,8 @@ import type { RecentEntry, RecentStorage } from "./recent.js";
 import { loadRecent, recentKey, remember, saveRecent } from "./recent.js";
 import { referenceTitles } from "./reference-titles.js";
 import { createTheme } from "./theme.js";
+import { FoldStatuses, foldCondition, loadFoldChoice, saveFoldChoice } from "./fold-statuses.js";
+import type { FoldChoice } from "./fold-statuses.js";
 import { useCopyNotice } from "./use-copy-notice.js";
 import { useFollow } from "./use-follow.js";
 import { usePrefix } from "./use-prefix.js";
@@ -272,6 +274,10 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   // The view the window shows (SR-043 AK1, `views.ts`): display state, all elements at the start and
   // after another workspace opens. The views of the buffers read in it; saves and single elements do not.
   const [shownView, setShownView] = useState<ShownView | undefined>(undefined);
+  // The statuses that fold to the end of lists (SR-201): the user's choice, the same for every workspace
+  // and kept for the next start (AK4).
+  const [foldChoice, setFoldChoice] = useState<FoldChoice>(() => loadFoldChoice(appStorage));
+  const folded = useMemo(() => foldCondition(foldChoice), [foldChoice]);
   const viewCall = useMemo(() => inView(call, shownView), [call, shownView]);
   // The titles of reference targets in other repositories (D-058), for the workspace that is open.
   const titles = useMemo(() => referenceTitles(call), [call]);
@@ -646,6 +652,14 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       choose: (next) => {
         setShownView(next);
         setRevision((count) => count + 1);
+      },
+    },
+    // "Fold status in lists" (SR-201): the lists read again with the new choice.
+    folds: {
+      choice: foldChoice,
+      choose: (next) => {
+        setFoldChoice(next);
+        saveFoldChoice(() => window.localStorage, next);
       },
     },
     // "Open workspace" (SR-131): main lists the workspaces opened last and opens one in this window.
@@ -1023,17 +1037,19 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     <div className="shell">
       <TitleBar shown={context.mac} title={windowTitle(view)} />
       <main className="sheet" aria-label="Sheet" ref={sheet} inert={switching}>
-        {shownAreas.map((area) => (
-          <BufferArea
-            key={area.side}
-            area={area}
-            split={split}
-            views={views}
-            onActivate={() => {
-              activate(area.buffer.key);
-            }}
-          />
-        ))}
+        <FoldStatuses.Provider value={folded}>
+          {shownAreas.map((area) => (
+            <BufferArea
+              key={area.side}
+              area={area}
+              split={split}
+              views={views}
+              onActivate={() => {
+                activate(area.buffer.key);
+              }}
+            />
+          ))}
+        </FoldStatuses.Provider>
       </main>
       <ModelineBar
         parts={parts}

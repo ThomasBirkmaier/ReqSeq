@@ -13,9 +13,20 @@
 // requirement's verification status and the progress ring of a requirement or need (SR-137, `NodeVerification`
 // of SR-136). It is asked for each page once its rows stand (`withVerification`, `fetchVerification`), so the
 // rows come first in a large workspace, as the summary line does.
+// Elements in the statuses the user folds (SR-201, `fold-statuses.ts`) stand after the other rows, under a
+// row that names their count and is collapsed whenever the list opens: core is asked once for the
+// selection without them and once for only them, each in its own pages. The section row is an option of the
+// listbox like the others, so the selection reaches it; click, Enter and Tab toggle it, Right opens and Left
+// closes it (SR-193 AK1, AK2). A tree (SR-075) folds nothing.
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { ElementListOutput } from "@reqseq/core";
+import type {
+  ElementListOutput,
+  ElementSelection,
+  FilterCondition,
+  FilterSortKeyWithDefaults,
+} from "@reqseq/core";
 import { useIdScope } from "./area-scope.js";
+import { folds, foldedSelections, useFoldCondition } from "./fold-statuses.js";
 import type { BufferAction, ListBuffer, SearchBuffer } from "./buffers.js";
 import { bufferName, listHeading, listSort } from "./buffers.js";
 import type { Call } from "./call.js";
@@ -78,7 +89,7 @@ export interface ListViewProps {
  * elements are in several groups. `groups` only for a grouped list, every group of the whole list.
  */
 interface Loaded {
-  readonly rows: Row[];
+  readonly rows: readonly Row[];
   readonly total: number;
   readonly size: number;
   readonly incomplete: boolean;
@@ -90,7 +101,17 @@ type Page = ({ readonly ok: true } & Loaded) | { readonly ok: false; readonly me
 type View =
   | { readonly status: "loading" }
   | { readonly status: "error"; readonly message: string }
-  | ({ readonly status: "ok" } & Omit<Loaded, "rows"> & { readonly rows: readonly Row[] });
+  | ({ readonly status: "ok" } & Omit<Loaded, "rows"> & {
+        readonly rows: readonly Row[];
+        /** The folded section (SR-201): the elements in folded statuses, loaded as far as shown. */
+        readonly folded?: Loaded;
+      });
+
+/** The selections a list asks for: the rows in place and, when statuses fold, the section at the end. */
+interface Asked {
+  readonly shown: ElementSelection | undefined;
+  readonly folded?: ElementSelection;
+}
 
 /** Rows moved by Page Up and Page Down. */
 const SCREEN = 10;
@@ -102,11 +123,12 @@ const fetchPage = async (
   buffer: ListBuffer | SearchBuffer,
   offset: number,
   limit: number,
+  selection: ElementSelection | undefined = buffer.selection,
 ): Promise<Page> => {
   if (buffer.kind === "list") {
     const sort = listSort(buffer);
     const answer = await call("element.list", {
-      ...(buffer.selection === undefined ? {} : { selection: buffer.selection }),
+      ...(selection === undefined ? {} : { selection }),
       ...(sort === undefined ? {} : { sort }),
       ...(buffer.group === undefined ? {} : { group: buffer.group }),
       limit,
@@ -128,7 +150,7 @@ const fetchPage = async (
   // The hits within the steps, grouped as a list (SR-124 AK4, SR-149 AK6), in the order of the search.
   const answer = await call("element.search", {
     query: buffer.query,
-    ...(buffer.selection === undefined ? {} : { selection: buffer.selection }),
+    ...(selection === undefined ? {} : { selection }),
     ...(buffer.group === undefined ? {} : { group: buffer.group }),
     limit,
     offset,
@@ -167,9 +189,10 @@ const fetchVerification = async (
   buffer: ListBuffer | SearchBuffer,
   offset: number,
   limit: number,
+  selection: ElementSelection | undefined,
 ): Promise<readonly Verified[] | undefined> => {
   const common = {
-    ...(buffer.selection === undefined ? {} : { selection: buffer.selection }),
+    ...(selection === undefined ? {} : { selection }),
     ...(buffer.group === undefined ? {} : { group: buffer.group }),
     withVerification: true,
     limit,
@@ -232,6 +255,107 @@ const listed = (
           {rows.slice(from, to).map((row, index) => rowAt(row, from + index))}
         </div>
       ));
+
+/**
+ * The head of a section that folds (SR-201): its mark, what it holds and how many. The same look as the
+ * head of the folded records of a requirement (SR-032 AK3).
+ */
+const FoldHead = ({
+  label,
+  count,
+  open,
+}: {
+  readonly label: string;
+  readonly count: number;
+  readonly open: boolean;
+}): React.JSX.Element => (
+  <span className="fold-head">
+    <span className="fold-mark" aria-hidden="true">
+      {open ? "▾" : "▸"}
+    </span>{" "}
+    {label} <span className="count">({String(count)})</span>
+  </span>
+);
+
+/** What the head of the folded section says it holds. */
+export const FOLDED_LABEL = "Folded statuses";
+
+/**
+ * Where the row of the folded section stands (SR-201): after the rows in place, once all of them are
+ * loaded, and only when some element folds; undefined otherwise.
+ */
+const sectionStart = (
+  shown: Pick<Loaded, "size"> & { readonly rows: readonly Row[] },
+  folded: Loaded | undefined,
+): number | undefined =>
+  folded !== undefined && folded.total > 0 && shown.rows.length >= shown.size ? shown.rows.length : undefined;
+
+/** What the list asks for: its selection, split in two when statuses fold (SR-201; never in a tree). */
+const askedOf = (
+  selection: ElementSelection | undefined,
+  condition: FilterCondition | undefined,
+  sort: readonly FilterSortKeyWithDefaults[] | undefined,
+): Asked =>
+  condition === undefined || !folds(sort) ? { shown: selection } : foldedSelections(selection, condition);
+
+/** Why a load failed: the rows in place, else the folded ones. */
+const failure = (shown: Page, folded: Page | undefined): string => {
+  if (!shown.ok) {
+    return shown.message;
+  }
+  return folded?.ok === false ? folded.message : "";
+};
+
+/** The rows of a loaded list by position: the rows in place, the section row, and its rows while it is open. */
+const layoutOf = (view: View, open: boolean) => {
+  const rows = view.status === "ok" ? view.rows : [];
+  const folded = view.status === "ok" ? view.folded : undefined;
+  const sectionAt = view.status === "ok" ? sectionStart(view, folded) : undefined;
+  const foldedRows = sectionAt !== undefined && open && folded !== undefined ? folded.rows : [];
+  return {
+    rows,
+    folded,
+    sectionAt,
+    foldedRows,
+    length: rows.length + (sectionAt === undefined ? 0 : 1) + foldedRows.length,
+    /** The row at a position: a row in place or a folded row; none at the section row. */
+    rowAtPosition: (at: number): Row | undefined =>
+      sectionAt === undefined || at < sectionAt ? rows[at] : foldedRows[at - sectionAt - 1],
+  };
+};
+
+/** The folded section at the end of a list (SR-201): its row, an option of the list, and its rows under it. */
+const FoldedSection = ({
+  scope,
+  at,
+  folded,
+  open,
+  selected,
+  onToggle,
+  children,
+}: {
+  readonly scope: string;
+  readonly at: number;
+  readonly folded: Loaded;
+  readonly open: boolean;
+  readonly selected: boolean;
+  readonly onToggle: () => void;
+  readonly children: React.ReactNode;
+}): React.JSX.Element => (
+  <div className="folded" role="group" aria-labelledby={`${scope}row-${String(at)}`}>
+    <div
+      id={`${scope}row-${String(at)}`}
+      className="row fold-row"
+      role="option"
+      aria-selected={selected}
+      aria-expanded={open}
+      onClick={onToggle}
+    >
+      <FoldHead label={FOLDED_LABEL} count={folded.total} open={open} />
+    </div>
+    {children}
+  </div>
+);
 
 /** The part takes the focus when it has rows and the focus is on nothing or on the buffer around it. */
 const takesFocus = (list: HTMLElement | null, rows: number): boolean => {
@@ -315,7 +439,10 @@ const ListHeading = ({
     {view.status === "ok" ? (
       <span className="count">
         {memberSummary(
-          { total: view.total, incomplete: view.incomplete },
+          {
+            total: view.total + (view.folded?.total ?? 0),
+            incomplete: view.incomplete || view.folded?.incomplete === true,
+          },
           buffer.kind === "list" ? listSort(buffer) : undefined,
         )}
       </span>
@@ -392,8 +519,11 @@ export const ListView = ({
   const [view, setView] = useState<View>({ status: "loading" });
   // What each loaded row shows of its verification (SR-137), by position with the element it was given
   // for, so an entry never stands at another element's row while new rows wait for theirs; filled in after
-  // the rows, each page in place whatever order the answers come in.
+  // the rows, each page in place whatever order the answers come in. The folded rows have their own.
   const [verified, setVerified] = useState<readonly (Verified | undefined)[]>([]);
+  const [verifiedFolded, setVerifiedFolded] = useState<readonly (Verified | undefined)[]>([]);
+  // The folded section is open (SR-201 AK3): collapsed whenever another list is asked for.
+  const [open, setOpen] = useState(false);
   const { marked, mark } = useOutsideMarks();
   // The list the rows were asked for last: when only the workspace changed since, the rows stay until
   // the new ones are there, so the selection and the scroll stay too (a change from outside, a save).
@@ -414,24 +544,33 @@ export const ListView = ({
   const selection = buffer.selection;
   const sort = buffer.kind === "list" ? listSort(buffer) : undefined;
   const group = groupBy(buffer);
-  const list = JSON.stringify([buffer.key, kind, selection, sort, group]);
+  // What folds (SR-201): nothing in a tree.
+  const selections = askedOf(selection, useFoldCondition(), sort);
+  const foldKey = JSON.stringify(selections.folded);
+  const list = JSON.stringify([buffer.key, kind, selection, sort, group, foldKey]);
   // Another list (another buffer, filter or sort) starts empty in the same render, not in the effect: its
   // name never stands over the rows of the list before, and no key acts on them.
   useResetOnAsk([list], () => {
+    setOpen(false);
     if (!part) {
       setView({ status: "loading" });
       setVerified([]);
+      setVerifiedFolded([]);
     }
   });
 
-  /** Asks what the rows from `offset` show of their verification and puts it in place, while the load is `mine`. */
-  const verify = (mine: number, offset: number, limit: number): void => {
+  /**
+   * Asks what the rows from `offset` show of their verification and puts it in place, while the load is
+   * `mine`; of the folded rows when `folded`.
+   */
+  const verify = (mine: number, offset: number, limit: number, folded = false): void => {
     if (limit === 0) {
       return;
     }
-    void fetchVerification(call, buffer, offset, limit).then((rows) => {
+    const from = folded ? selections.folded : selections.shown;
+    void fetchVerification(call, buffer, offset, limit, from).then((rows) => {
       if (mine === generation.current && rows !== undefined) {
-        setVerified((before) => {
+        (folded ? setVerifiedFolded : setVerified)((before) => {
           const next = [...before];
           rows.forEach((row, at) => {
             next[offset + at] = row;
@@ -439,6 +578,24 @@ export const ListView = ({
           return next;
         });
       }
+    });
+  };
+
+  /**
+   * What the list loaded, for the modeline: the rows by position, the folded section's row as none, and
+   * every element of the list counted.
+   */
+  const report = (shown: Loaded, section: Loaded | undefined, opened: boolean): void => {
+    const at = sectionStart(shown, section);
+    const positions: (Row | undefined)[] =
+      at === undefined || section === undefined
+        ? [...shown.rows]
+        : [...shown.rows, undefined, ...(opened ? section.rows : [])];
+    onData(buffer.key, {
+      kind,
+      total: shown.total + (section?.total ?? 0),
+      incomplete: shown.incomplete || section?.incomplete === true,
+      rows: positions.map((row) => row?.open),
     });
   };
 
@@ -455,43 +612,47 @@ export const ListView = ({
       onData(buffer.key, undefined);
     }
     const limit = firstLimit(buffer.cursor, page, kind === "list" ? LIST_MAX : SEARCH_MAX);
-    void fetchPage(call, buffer, 0, limit).then((loaded) => {
+    const folding = selections.folded;
+    void Promise.all([
+      fetchPage(call, buffer, 0, limit, selections.shown),
+      folding === undefined ? undefined : fetchPage(call, buffer, 0, page, folding),
+    ]).then(([loaded, folded]) => {
       if (mine !== generation.current) {
         return;
       }
       reloading.current = false;
-      if (loaded.ok) {
+      if (loaded.ok && folded?.ok !== false) {
         const { ok: _ok, ...shown } = loaded;
-        setView({ status: "ok", ...shown });
+        const section = folded === undefined ? undefined : (({ ok: _done, ...rest }) => rest)(folded);
+        setView({ status: "ok", ...shown, ...(section === undefined ? {} : { folded: section }) });
         verify(mine, 0, loaded.rows.length);
+        if (section !== undefined) {
+          verify(mine, 0, section.rows.length, true);
+        }
         if (outside !== undefined) {
           mark(loaded.rows.map((row) => row.open.id).filter(outside.fresh));
         }
-        onData(buffer.key, {
-          kind,
-          total: loaded.total,
-          incomplete: loaded.incomplete,
-          rows: loaded.rows.map((row) => row.open),
-        });
+        report(shown, section, false);
       } else {
-        setView({ status: "error", message: loaded.message });
-        onEcho(loaded.message);
+        const message = failure(loaded, folded);
+        setView({ status: "error", message });
+        onEcho(message);
       }
     });
     return () => {
       generation.current += 1;
     };
     // The cursor is read when the rows are asked for again; moving it must not ask again.
-  }, [call, buffer.key, kind, selection, sort, group, revision]);
+  }, [call, buffer.key, kind, selection, sort, group, foldKey, revision]);
 
-  const rows = view.status === "ok" ? view.rows : [];
-  const cursor = Math.min(buffer.cursor, Math.max(0, rows.length - 1));
+  const { rows, folded, sectionAt, foldedRows, length, rowAtPosition } = layoutOf(view, open);
+  const cursor = Math.min(buffer.cursor, Math.max(0, length - 1));
 
   useEffect(() => {
     const list = root.current;
     if (part && view.status === "ok" && focusOnLoad && !focusTaken.current) {
       focusTaken.current = true;
-      if (takesFocus(list, rows.length)) {
+      if (takesFocus(list, length)) {
         list?.focus({ preventScroll: true });
       }
     }
@@ -502,13 +663,49 @@ export const ListView = ({
     }
   }, [cursor, view.status]);
 
-  const loadMore = (): void => {
-    if (view.status !== "ok" || loadingMore.current || reloading.current || view.rows.length >= view.size) {
+  /** The next page of the folded section, once it is open and every row in place stands. */
+  const loadMoreFolded = (): void => {
+    if (view.status !== "ok" || folded === undefined || !open || folded.rows.length >= folded.size) {
       return;
     }
     loadingMore.current = true;
     const mine = generation.current;
-    void fetchPage(call, buffer, view.rows.length, page).then((loaded) => {
+    void fetchPage(call, buffer, folded.rows.length, page, selections.folded).then((loaded) => {
+      loadingMore.current = false;
+      if (mine !== generation.current) {
+        return;
+      }
+      if (loaded.ok) {
+        const foldedNow = [...folded.rows, ...loaded.rows];
+        verify(mine, folded.rows.length, loaded.rows.length, true);
+        setView({
+          ...view,
+          folded: {
+            ...folded,
+            rows: foldedNow,
+            total: loaded.total,
+            size: loaded.size,
+            ...(loaded.groups === undefined ? {} : { groups: loaded.groups }),
+          },
+        });
+        report(view, { ...folded, rows: foldedNow, total: loaded.total, size: loaded.size }, true);
+      } else {
+        onEcho(loaded.message);
+      }
+    });
+  };
+
+  const loadMore = (): void => {
+    if (view.status !== "ok" || loadingMore.current || reloading.current) {
+      return;
+    }
+    if (view.rows.length >= view.size) {
+      loadMoreFolded();
+      return;
+    }
+    loadingMore.current = true;
+    const mine = generation.current;
+    void fetchPage(call, buffer, view.rows.length, page, selections.shown).then((loaded) => {
       loadingMore.current = false;
       if (mine !== generation.current) {
         return;
@@ -523,12 +720,7 @@ export const ListView = ({
           size: loaded.size,
           ...(loaded.groups === undefined ? {} : { groups: loaded.groups }),
         });
-        onData(buffer.key, {
-          kind,
-          total: loaded.total,
-          incomplete: loaded.incomplete,
-          rows: rows.map((row) => row.open),
-        });
+        report({ ...view, rows, total: loaded.total, size: loaded.size }, view.folded, open);
       } else {
         onEcho(loaded.message);
       }
@@ -555,9 +747,9 @@ export const ListView = ({
   }, [part]);
 
   const moveTo = (to: number): void => {
-    const next = Math.max(0, Math.min(rows.length - 1, to));
+    const next = Math.max(0, Math.min(length - 1, to));
     dispatch({ type: "cursor", key: buffer.key, cursor: next });
-    if (next >= rows.length - NEAR_END) {
+    if (next >= length - NEAR_END) {
       loadMore();
     }
   };
@@ -566,13 +758,44 @@ export const ListView = ({
     dispatch({ type: "open", buffer: row.open });
   };
 
+  /**
+   * Opens or closes the folded section (SR-201 AK3) and selects its row. Opened, it shows the rows loaded
+   * with the list; closed, a selection in it goes to the section row, and the modeline counts its rows no more.
+   */
+  const toggle = (next: boolean): void => {
+    if (sectionAt === undefined || view.status !== "ok") {
+      return;
+    }
+    setOpen(next);
+    dispatch({ type: "cursor", key: buffer.key, cursor: sectionAt });
+    report(view, folded, next);
+  };
+
+  /** A key on the section row: Enter and Tab toggle it, Right opens and Left closes it (SR-193 AK1, AK2). */
+  const sectionKey = (event: React.KeyboardEvent): boolean => {
+    const plain = !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey;
+    if (!plain || sectionAt === undefined || cursor !== sectionAt) {
+      return false;
+    }
+    const next = { Enter: !open, Tab: !open, ArrowRight: true, ArrowLeft: false }[event.key];
+    if (next === undefined) {
+      return false;
+    }
+    event.preventDefault();
+    toggle(next);
+    return true;
+  };
+
   const keyDown = (event: React.KeyboardEvent): void => {
     if (part && leavesPart(event, cursor)) {
       event.preventDefault();
       onLeave?.();
       return;
     }
-    const to = rowTarget(event, cursor, rows.length, SCREEN);
+    if (sectionKey(event)) {
+      return;
+    }
+    const to = rowTarget(event, cursor, length, SCREEN);
     if (to !== undefined) {
       event.preventDefault();
       moveTo(to);
@@ -580,7 +803,7 @@ export const ListView = ({
       event.preventDefault();
       // With no row selected, Enter opens the first one.
       const at = Math.max(0, cursor);
-      const row = rows[at];
+      const row = rowAtPosition(at);
       if (row !== undefined && !(part && reloading.current)) {
         // The row is kept as the cursor, as a click keeps it: Ctrl+P Enter comes back to it.
         dispatch({ type: "cursor", key: buffer.key, cursor: at });
@@ -590,7 +813,12 @@ export const ListView = ({
   };
 
   const groups = groupsOf(view);
-  const rowAt = (row: Row, at: number): React.JSX.Element => {
+  const rowAt = (
+    row: Row,
+    at: number,
+    verification: RowVerification | undefined,
+    keyed: boolean,
+  ): React.JSX.Element => {
     const id = `${scope}row-${String(at)}`;
     // A row with a snippet is named by its ID, title and status; the snippet describes it (SR-174).
     const named =
@@ -600,11 +828,10 @@ export const ListView = ({
             "aria-labelledby": `${id}-id ${id}-title ${id}-status ${id}-verification`,
             "aria-describedby": `${id}-snippet`,
           };
-    const verification = verificationAt(verified, row, at);
     return (
       <div
         // A grouped list can show an element in several groups: its rows are told apart by position.
-        key={groups === undefined ? row.open.key : at}
+        key={keyed ? row.open.key : at}
         id={id}
         className={rowClass("row", marked, row.open.id)}
         role="option"
@@ -634,10 +861,37 @@ export const ListView = ({
     );
   };
 
+  // The folded section (SR-201): its row, and under it, while open, its rows, grouped as the list is.
+  const section =
+    sectionAt === undefined || folded === undefined ? null : (
+      <FoldedSection
+        scope={scope}
+        at={sectionAt}
+        folded={folded}
+        open={open}
+        selected={cursor === sectionAt}
+        onToggle={() => {
+          toggle(!open);
+        }}
+      >
+        {listed(`${scope}folded-`, folded.groups, foldedRows, (row, at) =>
+          rowAt(
+            row,
+            sectionAt + 1 + at,
+            verificationAt(verifiedFolded, row, at),
+            folded.groups === undefined,
+          ),
+        )}
+      </FoldedSection>
+    );
+
   const rowsAndNotes = (
     <>
-      {listed(scope, groups, rows, rowAt)}
-      {view.status === "ok" && rows.length === 0 && !part ? (
+      {listed(scope, groups, rows, (row, at) =>
+        rowAt(row, at, verificationAt(verified, row, at), groups === undefined),
+      )}
+      {section}
+      {view.status === "ok" && length === 0 && !part ? (
         <p className="quiet">{buffer.kind === "list" ? "No elements" : `No hits for ${buffer.query}`}</p>
       ) : null}
       {view.status === "error" ? <p className="quiet">{view.message}</p> : null}
@@ -650,7 +904,7 @@ export const ListView = ({
       className={part ? "list part" : "buffer list"}
       role="listbox"
       aria-label={bufferName(buffer)}
-      aria-activedescendant={activeRow(`${scope}row`, cursor, rows.length)}
+      aria-activedescendant={activeRow(`${scope}row`, cursor, length)}
       {...(part ? {} : { "data-buffer": "" })}
       tabIndex={0}
       onKeyDown={keyDown}

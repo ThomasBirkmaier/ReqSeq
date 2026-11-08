@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 // happy-dom fires `selectionchange` inside a CodeMirror update; the root vitest config loads this setup, a
 // run in packages/app needs it too (ThomasBirkmaier/ReqSeq-archive#460).
+import { FOLD_KEY } from "./fold-statuses.js";
 import "../../../../scripts/test-support/dom-selection.mjs";
 // Changes from outside the app in the window (SR-116, SR-106 AK1): core's watcher reports them as
 // `workspace-changed` with the reason `external`. An element buffer reads again only for its own element,
@@ -235,6 +236,8 @@ let root: Root;
 
 beforeEach(() => {
   window.localStorage.clear();
+  // Nothing folds in lists here (SR-201 has its own tests): every status stays in place.
+  window.localStorage.setItem(FOLD_KEY, "[]");
   window.sessionStorage.clear();
   container = document.createElement("div");
   document.body.append(container);

@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 // happy-dom fires `selectionchange` inside a CodeMirror update; the root vitest config loads this setup, a
 // run in packages/app needs it too (ThomasBirkmaier/ReqSeq-archive#460, ThomasBirkmaier/ReqSeq-archive#573).
+import { FOLD_KEY } from "./fold-statuses.js";
 import "../../../../scripts/test-support/dom-selection.mjs";
 import { act, createElement } from "react";
 import type { Root } from "react-dom/client";
@@ -189,6 +190,8 @@ let root: Root;
 beforeEach(() => {
   // The recent elements of the overview are kept in the local storage, which the tests share.
   window.localStorage.clear();
+  // Nothing folds in lists here (SR-201 has its own tests): every status stays in place.
+  window.localStorage.setItem(FOLD_KEY, "[]");
   window.sessionStorage.clear();
   container = document.createElement("div");
   document.body.append(container);
