@@ -3,7 +3,7 @@ id: 22c19f87-f69e-40f2-a762-2d7c7e35dfef
 type: system-requirement
 status: draft
 title: Kontextmenü einer Liste
-spec-id: SR-197
+spec-id: SR-198
 rationale: "Entscheidung des Produktverantwortlichen, 2026-11-08: Wer nur die Maus gewohnt ist, soll per Rechtsklick ein klassisches Kontextmenü bekommen, im Editor und in der ganzen App, als eigenes Menü im Stil der App mit einer kurzen, festen Auswahl von Befehlen je Stelle (D-075)."
 requirement-type: functional
 acceptance-criteria:
@@ -13,10 +13,10 @@ packages:
 verification-method: test
 derives-from:
   - { id: f7e0d304-30ac-43c8-9683-1c432a0f119a, version: n2:2d5ec8cb0a706279, title: Mit der Maus bedienen }
+based-on:
+  - { id: 08ee8add-ef27-4972-ab4c-e0b8bcad916e, version: n2:6f781b2b0efd367e, title: Kontextmenü per Rechtsklick }
 refines:
   - { id: 1faf2c14-c73c-45d7-862a-e9f1a217e6c9, version: n2:61f45c3734ab497b, title: Befehle per Rechtsklick am Ort aufrufen }
-based-on:
-  - { id: 08ee8add-ef27-4972-ab4c-e0b8bcad916e, version: n2:eec13544dcf63bed, title: Kontextmenü per Rechtsklick }
 ---
 
 Die App muss in einer Liste außerhalb ihrer Zeilen per Rechtsklick ein Kontextmenü mit den Befehlen zum Filtern, Sortieren und Gruppieren der Liste öffnen.

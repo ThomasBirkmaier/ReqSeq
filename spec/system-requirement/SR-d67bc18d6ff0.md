@@ -20,7 +20,7 @@ derives-from:
 based-on:
   - { id: da7c347e-2b28-4036-9d64-0cdcd0445751, version: n2:4cfed2babc45e7f3, title: Text als Markdown mit Live-Vorschau }
   - { id: 909e3182-bbf5-4705-b55e-4e99001a8b98, version: n2:cbe4e564179403f4, title: Markdown nach CommonMark mit GitHub-Erweiterungen }
-  - { id: 08ee8add-ef27-4972-ab4c-e0b8bcad916e, version: n2:eec13544dcf63bed, title: Kontextmenü per Rechtsklick }
+  - { id: 08ee8add-ef27-4972-ab4c-e0b8bcad916e, version: n2:6f781b2b0efd367e, title: Kontextmenü per Rechtsklick }
 rationale: "Entscheidung des Produktverantwortlichen, 2026-11-07: Teil des Ausbaus des Editors zum Maßstab von N-055 (Darstellung wie Obsidian und Typora, Tastatur wie Emacs, Maus gleich vollständig)."
 ---
 
