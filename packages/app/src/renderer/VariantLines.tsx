@@ -1,13 +1,14 @@
 // The muted lines under the boxes of a requirement (D-062: only when they say something): where it is
-// replaced or excluded (SR-046 AK2), its verification status per view with the missing children of an
-// indirect verification (SR-047 AK3, SR-034 AK2) and its validation status (SR-038 AK1); on the page of a
+// replaced or excluded (SR-046 AK2), its verification status per view as a row of badges, each the name on
+// the left and the status with its details on the right, such as the missing children of an indirect
+// verification (SR-047 AK3, SR-157, SR-034 AK2), and its validation status (SR-038 AK1); on the page of a
 // variant, its hints since its newest baseline (SR-103 AK1, AK7), one line each. Layout only:
 // `variant-lines.ts` builds them from the element buffer's last answer of `element.get`, so they ask
 // nothing of their own and follow the element's reads. A variant or replacement is a link to its element.
 import { useId, useMemo, useState } from "react";
 import type { ElementGetOutput } from "@reqseq/core";
 import type { ElementBuffer } from "./buffers.js";
-import type { LinePart } from "./variant-lines.js";
+import type { Badge, LinePart } from "./variant-lines.js";
 import { variantLines } from "./variant-lines.js";
 
 export interface VariantLinesProps {
@@ -20,16 +21,20 @@ export interface VariantLinesProps {
 export const Part = ({
   part,
   onOpen,
+  className,
 }: {
   readonly part: LinePart;
   readonly onOpen: (target: ElementBuffer) => void;
+  /** Given, the part is a span of this class also as text (the half of a badge). */
+  readonly className?: string;
 }): React.JSX.Element => {
   if (!("open" in part)) {
-    return <>{part.text}</>;
+    return className === undefined ? <>{part.text}</> : <span className={className}>{part.text}</span>;
   }
   const { open } = part;
   return (
     <span
+      className={className}
       role="link"
       tabIndex={0}
       data-target-id={part.id}
@@ -117,6 +122,34 @@ export const CutLine = ({
   );
 };
 
+/**
+ * The verification status as badges (SR-157 AK1): a pill per view, its left half the name (a variant's a
+ * link to it, AK5), its right half the status with its details; `data-status` gives the right half its
+ * colour, which only failed and outdated have (AK3). A hidden ": " between the halves lets a screen reader say
+ * "Core: verified".
+ */
+export const Badges = ({
+  badges,
+  onOpen,
+}: {
+  readonly badges: readonly Badge[];
+  readonly onOpen: (target: ElementBuffer) => void;
+}): React.JSX.Element => (
+  <p className="variant-line badges" role="group" aria-label="Verification">
+    {badges.map((badge, at) => (
+      <span key={at} className="badge" data-status={badge.status}>
+        <Part part={badge.name} className="badge-name" onOpen={onOpen} />
+        <span className="badge-separator">: </span>
+        <span className="badge-status">
+          {badge.parts.map((part, index) => (
+            <Part key={index} part={part} onOpen={onOpen} />
+          ))}
+        </span>
+      </span>
+    ))}
+  </p>
+);
+
 export const VariantLines = ({ output, onOpenRelation }: VariantLinesProps): React.JSX.Element => {
   const lines = useMemo(() => variantLines(output), [output]);
   return (
@@ -125,7 +158,7 @@ export const VariantLines = ({ output, onOpenRelation }: VariantLinesProps): Rea
         <CutLine parts={lines.use} label="Replaced or excluded" onOpen={onOpenRelation} />
       )}
       {lines.verification === undefined ? null : (
-        <CutLine parts={lines.verification} label="Verification" onOpen={onOpenRelation} />
+        <Badges badges={lines.verification} onOpen={onOpenRelation} />
       )}
       {lines.validation === undefined ? null : (
         <CutLine
