@@ -11,6 +11,7 @@
 // a failure is the error object of every access, an empty list or a refusal.
 import type {
   CommandListing,
+  EditRequest,
   InvokeResult,
   ReqSeqBridge,
   PortEvent,
@@ -192,7 +193,8 @@ export const createBridge = (ipc: IpcRendererLike): ReqSeqBridge => {
     // Main answers `true` when it pasted; the content goes to the focused field, never back over the channel.
     pasteText: async () => {
       try {
-        return (await ipc.invoke(EDIT_CHANNEL, "paste")) === true;
+        const request: EditRequest = "paste";
+        return (await ipc.invoke(EDIT_CHANNEL, request)) === true;
       } catch {
         return false;
       }

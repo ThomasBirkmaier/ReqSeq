@@ -61,12 +61,10 @@ describe("the edit channel", () => {
     expect(contents.paste).toHaveBeenCalledTimes(2);
   });
 
-  it("[SR-195/AK3] pastes after Enter or Space, the keys that run a command", () => {
+  it("[SR-195/AK3] pastes after a bare Enter, the key that runs a command", () => {
     for (const input of [
       { type: "rawKeyDown", key: "Enter" },
-      { type: "keyDown", keyCode: "Return" },
-      { type: "rawKeyDown", key: " " },
-      { type: "keyDown", keyCode: "Space" },
+      { type: "keyDown", keyCode: "Return", modifiers: ["numlock"] },
     ]) {
       const { contents, edit } = setup();
       contents.input(input);
@@ -84,6 +82,9 @@ describe("the edit channel", () => {
       { type: "keyUp", key: "Enter" },
       { type: "char", key: "Enter" },
       { type: "rawKeyDown", key: "v" },
+      { type: "rawKeyDown", key: "Enter", modifiers: ["shift"] },
+      { type: "rawKeyDown", key: "Enter", modifiers: ["control"] },
+      { type: "rawKeyDown", key: "Enter", modifiers: ["meta"] },
       { type: "rawKeyDown" },
     ]) {
       contents.input(input);
@@ -121,6 +122,19 @@ describe("the edit channel", () => {
       expect(elsewhere.edit("paste"), url).toBe(false);
       expect(elsewhere.contents.paste).not.toHaveBeenCalled();
     }
+  });
+
+  it("[SR-195/AK3] pastes nothing after a space, which is typed in every text", () => {
+    const { contents, edit } = setup();
+    for (const input of [
+      { type: "keyDown", key: " " },
+      { type: "rawKeyDown", key: " ", keyCode: "Space" },
+      { type: "keyDown", keyCode: "Space" },
+    ]) {
+      contents.input(input);
+      expect(edit("paste"), JSON.stringify(input)).toBe(false);
+    }
+    expect(contents.paste).not.toHaveBeenCalled();
   });
 
   it("knows the inputs that run a command", () => {

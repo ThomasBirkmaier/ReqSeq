@@ -67,8 +67,8 @@ const NO_CLIPBOARD = "The clipboard cannot be used here";
 
 /**
  * "Cut", "Copy" and "Paste" (SR-195 AK3): what Ctrl/Cmd+X, C and V do in the field with the cursor, the text
- * or a Markdown box, which the window leaves to the field (`systemKey`). Copy works where the element takes
- * no input too.
+ * or a Markdown box, which the window leaves to the field (`systemKey`). Copy changes nothing, so the lock
+ * note of a read-only element does not stop it.
  */
 export const CLIPBOARD_ACTIONS: readonly Action[] = [
   {
