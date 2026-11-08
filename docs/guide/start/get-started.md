@@ -31,7 +31,7 @@ No problems.
 
 The `.gitignore` gets `*.reqseq-tmp`, so a temporary file left by an interrupted write is never committed. ReqSeq reads Git but never commits. Put the folder under Git yourself when you want its history.
 
-In the app: press Ctrl+O (⌘O on macOS) and choose the folder, then open the command prompt with Ctrl+Shift+P (⌘⇧P on macOS) and run **Initialise workspace**. The reference has the details of [workspace.init](/reference/commands/workspace-init/).
+In the app: press Ctrl+O (⌘O on macOS) and choose the folder, then open the command prompt with Ctrl+Shift+P (⌘⇧P on macOS) and run **Initialise workspace**. Details: [Open or create a workspace](/how-to/open-a-workspace/), [workspace.init](/reference/commands/workspace-init/).
 
 ![The app on a workspace with two needs and three system requirements: the overview counts the elements per type, and the modeline at the bottom names the view and the workspace.](../images/app-overview.png)
 
@@ -133,4 +133,4 @@ In the app: **Check workspace**. Reference: [workspace.check](/reference/command
 
 ## The same through the API and MCP
 
-Every step on this page is a command, and the app, the CLI, the API and the MCP server give the same result for it. The local API (`reqseq serve api`) runs a command as `POST /v1/commands/element.create`. The MCP server (`reqseq mcp`) offers it as the tool `element_create`. The [command reference](/reference/commands/) shows the call of every command in each of the four.
+Every step on this page is a command, and the app, the CLI, the API and the MCP server give the same result for it. The [local API](/concepts/cli-api-and-mcp/#api) (`reqseq serve api`) runs a command as `POST /v1/commands/element.create`. The [MCP server](/concepts/cli-api-and-mcp/#mcp) (`reqseq mcp`) offers it as the tool `element_create`. The [command reference](/reference/commands/) shows the call of every command in each of the four.

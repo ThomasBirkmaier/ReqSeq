@@ -2,7 +2,7 @@ import { contractsBundle, getCommandRuntime } from "@reqseq/core";
 import type { CatalogEntry } from "@reqseq/core";
 import { describe, expect, it } from "vitest";
 import type { CommandAccess } from "./access.js";
-import { commandPage, commandSlug } from "./command-page.js";
+import { commandPage } from "./command-page.js";
 
 const entry = (name: string): CatalogEntry => {
   const found = getCommandRuntime().contracts.entry(name);
@@ -58,12 +58,5 @@ describe("commandPage", () => {
     const text = page({ ...entry("element.get"), input: empty, output: empty });
     expect(text).toContain("## Input\n\nNo input.");
     expect(text).toContain("## Output\n\nNo output fields.");
-  });
-});
-
-describe("commandSlug", () => {
-  it("gives the lower-case file name of a command's page", () => {
-    expect(commandSlug("element.setStatus")).toBe("element-set-status");
-    expect(commandSlug("data.export")).toBe("data-export");
   });
 });

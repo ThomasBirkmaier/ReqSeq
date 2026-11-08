@@ -111,6 +111,7 @@ One file per block, so you read only the area you work on. Update the file of th
 - [Baselines block (`src/baselines/`): reading, creating, showing and comparing baseline files](docs/baselines.md)
 - ReqIF block (`src/reqif/`): [model and parser](docs/reqif.md), [mapping files](docs/reqif-mapping.md)
 - [Git reader (`src/git/reader.ts`)](docs/git.md)
+- [Docs-site block (`src/docs-site/`): the offline documentation site, request to file, CSP](docs/docs-site.md)
 - [Version date (`src/model/version-date.ts`)](docs/version-date.md)
 
 ## Schemas at runtime

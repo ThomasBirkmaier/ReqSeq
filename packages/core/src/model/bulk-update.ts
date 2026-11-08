@@ -1,10 +1,11 @@
 // Changing one property of many elements in one step (SR-071; `element.bulkUpdate`). The command
 // resolves the selection (query block, SR-101) and passes its elements here in store order.
 //
-// - `set` replaces the value, `add` appends the items an element does not hold yet (a property with
-//   `many`; relation targets are the same when UUID and repository are, other items when equal),
-//   `remove` removes the key, or with a value only these items (the key when none is left). This is
-//   spec question ThomasBirkmaier/ReqSeq-archive#353, option 1.
+// - `set` replaces the value (one item of a property with `many` as a list of one, #1209), `add`
+//   appends the items an element does not hold yet (a property with `many`; relation targets are
+//   the same when UUID and repository are, other items when equal), `remove` removes the key, or
+//   with a value only these items (the key when none is left). This is spec question
+//   ThomasBirkmaier/ReqSeq-archive#353, option 1.
 // - An element whose type does not have the property, or whose type the metamodel does not know
 //   (it is only read, SR-016 AK3), is skipped and named (AK3); its file is not read.
 // - The write path is the one of `element.update` and `element.setStatus`: choice values become
@@ -62,6 +63,7 @@ import { hasId } from "./relation-keys.js";
 import type { ShortIds } from "./short-id.js";
 import type { ElementStore } from "./store.js";
 import type { TargetContext } from "./targets.js";
+import { listWhereMany } from "./many-input.js";
 import { numberInput } from "./number-input.js";
 import { currentTarget, relationTargetRefs, setMarkdownReferences, setRelationTargets } from "./targets.js";
 import { itemLimitFindings } from "./item-limits.js";
@@ -363,12 +365,14 @@ const editsFor = async (plan: Plan, record: ElementRecord): Promise<FrontmatterE
   }
   switch (operation) {
     case "set": {
+      // One item of a property with many is set as a list of one (#1209).
+      const given = listWhereMany(plan.context.metamodel, key, value);
       const set =
         property.kind === "relation"
-          ? await setRelationTargets(plan.context, record.repository, value, stored)
+          ? await setRelationTargets(plan.context, record.repository, given, stored)
           : markdownKeysOf(plan.context.metamodel).has(key)
-            ? await setMarkdownReferences(plan.context, key, record.repository, value, stored)
-            : value;
+            ? await setMarkdownReferences(plan.context, key, record.repository, given, stored)
+            : given;
       // Relation targets are plain string records (`toPropertyValue` in write.ts).
       return [{ kind: "set", key, value: set as PropertyValue }];
     }
