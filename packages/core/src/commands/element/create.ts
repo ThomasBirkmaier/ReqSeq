@@ -7,7 +7,7 @@ import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import { createElement } from "../../model/index.js";
 import { elementHints } from "../../hints/index.js";
-import { writtenWithStatus } from "../../data/index.js";
+import { writtenWithNames } from "../../data/index.js";
 import { nestedVariantCheck } from "../../variants/index.js";
 
 export default defineCommand({
@@ -20,7 +20,7 @@ export default defineCommand({
       await nestedVariantCheck(ctx.workspace, "element.create"),
     );
     const { files, problems } = written;
-    const { element, ...names } = await writtenWithStatus(ctx.workspace, written.element);
+    const { element, ...names } = await writtenWithNames(ctx.workspace, written.element);
     return { element, ...names, files: [...files], problems: [...problems] };
   },
 });

@@ -11,7 +11,7 @@ import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import { updateElement } from "../../model/index.js";
 import { elementHints } from "../../hints/index.js";
-import { writtenWithStatus } from "../../data/index.js";
+import { writtenWithNames } from "../../data/index.js";
 import { nestedVariantCheck } from "../../variants/index.js";
 
 export default defineCommand({
@@ -24,7 +24,7 @@ export default defineCommand({
       await nestedVariantCheck(ctx.workspace, "element.update"),
     );
     const { fileSha256, files, problems, affected } = written;
-    const { element, ...names } = await writtenWithStatus(ctx.workspace, written.element);
+    const { element, ...names } = await writtenWithNames(ctx.workspace, written.element);
     return { element, ...names, fileSha256, files: [...files], affected, problems: [...problems] };
   },
 });

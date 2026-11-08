@@ -6,7 +6,7 @@ import type { FixtureOptions, FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
-import { writtenWithStatus } from "../../data/index.js";
+import { writtenWithNames } from "../../data/index.js";
 import { editElementFile, parseFileBytes } from "../../files/index.js";
 import { STANDARD_MODEL_TEXT as STANDARD } from "../../metamodel/standard-model.js";
 import type { ElementRecord, ElementStore } from "../../model/index.js";
@@ -1164,7 +1164,7 @@ describe("the status in the answer of a write (#214)", () => {
       { ...created, id: "no-such-uuid" },
       { ...created, file: "needs/elsewhere.md" },
     ]) {
-      expect(await writtenWithStatus(opened.workspace, other)).toEqual({ element: other });
+      expect(await writtenWithNames(opened.workspace, other)).toEqual({ element: other });
     }
   });
 

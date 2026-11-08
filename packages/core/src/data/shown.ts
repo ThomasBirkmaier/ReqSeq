@@ -5,7 +5,7 @@
 // variants of its validity, `replacedBy` and `excludedBy`, then the replacements, then the views and
 // missing children of `verification` (`verificationNameIds`), each once, so the app and the CLI show
 // titles (SR-046 AK1/AK2, ThomasBirkmaier/ReqSeq-archive#588). `incomplete`: a repository of the workspace is not here, so
-// replacements, exclusions and records stored there are missing (SR-006 AK2). `writtenWithStatus` gives
+// replacements, exclusions and records stored there are missing (SR-006 AK2). `writtenWithNames` gives
 // the element a write returns (element.create, element.update) the same verification and validation
 // status (#214), with `names` for the variants of its validity and the views and missing children of
 // `verification`, as element.get names them (#1216); `replacedBy`, `excludedBy` and `incomplete` stay
@@ -14,7 +14,7 @@ import { exportedProperties, targetIds, withReplacedExcluded } from "./export.js
 import { verificationNameIds, withEvidenceStatus, workspaceStatus } from "../evidence/index.js";
 import { metamodelState } from "../metamodel/index.js";
 import type { DataExportElement, ElementName } from "../generated/types.js";
-import type { ShownElement } from "../model/index.js";
+import type { ElementRecord, NameContext, ShownElement } from "../model/index.js";
 import {
   currentVersionsOf,
   elementStoreState,
@@ -26,6 +26,26 @@ import {
 import type { Workspace } from "../runtime/workspace.js";
 import { replacedExcludedOf } from "../variants/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
+
+/**
+ * `names` of `record` as shown in `element`: the variants of its validity, then `between` (the replacing and
+ * excluding variants and the replacements of element.get), then the views and missing children of its
+ * `verification`, each once, so element.get and the writes name them alike (#1216).
+ */
+const namesFieldOf = (
+  context: NameContext,
+  record: ElementRecord,
+  element: DataExportElement,
+  between: readonly string[] = [],
+): { readonly names?: readonly ElementName[] } => {
+  const validity = exportedProperties(context.metamodel).validity;
+  const named = [
+    ...(validity === undefined ? [] : targetIds(validity, record)),
+    ...between,
+    ...verificationNameIds(element.verification ?? []),
+  ];
+  return namesField(namesOf(context, named));
+};
 
 /** What element.get and element.resolve give about one element besides their own fields. */
 export interface ShownWithNames {
@@ -48,17 +68,14 @@ export const shownWithNames = async (workspace: Workspace, shown: ShownElement):
     uses,
     withEvidenceStatus(await workspaceStatus(workspace, [record]), record, shown.element, shown.forms),
   );
-  const validity = exportedProperties(metamodel).validity;
-  const named = [
-    ...(validity === undefined ? [] : targetIds(validity, record)),
+  const between = [
     ...uses.replacedBy.map((u) => u.variant.id),
     ...uses.excludedBy.map((v) => v.id),
     ...uses.replacedBy.map((u) => u.replacement.id),
-    ...verificationNameIds(element.verification ?? []),
   ];
   return {
     element,
-    ...namesField(namesOf({ metamodel, store, shortIds }, named)),
+    ...namesFieldOf({ metamodel, store, shortIds }, record, element, between),
     ...(layout.repositories.some((r) => !r.available) ? { incomplete: true as const } : {}),
   };
 };
@@ -75,7 +92,7 @@ export interface WrittenWithNames {
  * its validity and the views and missing children of its verification (#1216); unchanged and without `names`
  * when the store holds no record of that file (which a write that recorded its file does not leave).
  */
-export const writtenWithStatus = async (
+export const writtenWithNames = async (
   workspace: Workspace,
   written: DataExportElement,
 ): Promise<WrittenWithNames> => {
@@ -94,10 +111,5 @@ export const writtenWithStatus = async (
     workspace.get(metamodelState),
     workspace.get(shortIdState),
   ]);
-  const validity = exportedProperties(metamodel).validity;
-  const named = [
-    ...(validity === undefined ? [] : targetIds(validity, record)),
-    ...verificationNameIds(element.verification ?? []),
-  ];
-  return { element, ...namesField(namesOf({ metamodel, store, shortIds }, named)) };
+  return { element, ...namesFieldOf({ metamodel, store, shortIds }, record, element) };
 };
