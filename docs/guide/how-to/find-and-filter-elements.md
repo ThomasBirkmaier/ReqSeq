@@ -5,7 +5,7 @@ sidebar:
   order: 7
 ---
 
-The search finds words in titles, texts, property values and IDs, in any case and despite a typo, the best hits first. A filter keeps the elements that meet its conditions on type, status, package, properties and relations, combined with and, or and not. A saved filter is a YAML file in the repository, so everyone gets the same elements by its name. Grouping and sorting change no file.
+The search finds words in titles, texts, property values, type and status names and IDs, in any case and despite a typo, the best hits first. A filter keeps the elements that meet its conditions on type, status, package, properties and relations, combined with and, or and not. A saved filter is a YAML file in the repository, so everyone gets the same elements by its name. Grouping and sorting change no file.
 
 ## App
 
@@ -15,7 +15,7 @@ The search finds words in titles, texts, property values and IDs, in any case an
 4. “Sort list” (Ctrl+K S) orders the list, for example by title or as the derivation tree. “Group list” offers type, status, package and the properties with values to choose from; “Ungroup list” ends it. Search hits take filters and groups too and keep their order. A right-click outside the rows of a list offers most of these.
 5. To list every element with a value of the open element, such as its topic or package, put the cursor on the value and press Ctrl+Shift+Enter (⌘⇧↩) for “List elements with this value”, or Ctrl+click it (⌘Click). The list filters further like any other.
 6. Elements in a status the metamodel marks invalid (`obsolete` in the standard model) stand at the end of a list in the closed section “Folded statuses”; click its head or press Enter on it to open it. “Fold status in lists” chooses the statuses that fold, for you on this computer.
-7. To save a filter, run **Save filter** in the [command prompt](/concepts/the-app/) (Ctrl+Shift+P, ⌘⇧P) with a name and the condition as JSON, as in the CLI below. **List saved filters** shows the filters of the workspace.
+7. To save a filter, run **Save filter** in the [command prompt](/concepts/the-app/) (Ctrl+Shift+P, ⌘⇧P) with a name and the condition as JSON, the `where` of the API section below. **List saved filters** shows the filters of the workspace.
 
 ## CLI
 
@@ -97,6 +97,16 @@ No problems.
 
 ```sh
 reqseq filter list
+```
+
+```text title="Output"
+filters:
+  - name: Wind requirements
+    file: filters/wind-requirements.yaml
+...
+```
+
+```sh
 reqseq element list --filter "Wind requirements"
 ```
 
@@ -107,10 +117,24 @@ elements:
 total: 2
 ```
 
-The same name limits a search, and `--group` groups the list or the hits, each group headed by its value and count:
+The same name limits a search:
 
 ```sh
 reqseq element search knots --filter "Wind requirements"
+```
+
+```text title="Output"
+hits:
+  SR-c67baa  draft  Show the wind speed
+    text: The station must show the wind speed in knots.
+  SR-5e1d0a  draft  Warn of gusts
+    text: The station must warn when a gust exceeds 25 knots.
+total: 2
+```
+
+`--group` heads each group of a list or of hits with its value and count:
+
+```sh
 reqseq element list --group topic --sort title
 ```
 
@@ -125,17 +149,11 @@ elements:
 total: 4
 ```
 
-`element facets` counts the types, statuses and property values a filter or group can take. Folding is a view of the app only; the CLI leaves elements out with a condition such as `{"not":{"status":["obsolete"]}}`.
+`element facets` counts the types, statuses and property values a filter or group can take. Folding is a view of the app; the CLI leaves those elements out with `{"not":{"invalid":true}}`.
 
 ## API
 
 Start the API in the workspace with `reqseq serve api`, and send each command with the token of `api.json` as `Authorization: Bearer <token>`:
-
-```http
-POST /v1/commands/element.search
-
-{ "query": "knots", "selection": { "filter": "Wind requirements" } }
-```
 
 ```http
 POST /v1/commands/filter.save
@@ -147,6 +165,12 @@ POST /v1/commands/filter.save
 POST /v1/commands/filter.list
 
 {}
+```
+
+```http
+POST /v1/commands/element.search
+
+{ "query": "knots", "selection": { "filter": "Wind requirements" } }
 ```
 
 ```http
@@ -166,10 +190,6 @@ POST /v1/commands/element.facets
 An agent connected to `reqseq mcp` calls the same commands as tools:
 
 ```json
-{ "name": "element_search", "arguments": { "query": "knots", "selection": { "filter": "Wind requirements" } } }
-```
-
-```json
 {
   "name": "filter_save",
   "arguments": {
@@ -182,6 +202,10 @@ An agent connected to `reqseq mcp` calls the same commands as tools:
 
 ```json
 { "name": "filter_list", "arguments": {} }
+```
+
+```json
+{ "name": "element_search", "arguments": { "query": "knots", "selection": { "filter": "Wind requirements" } } }
 ```
 
 ```json
