@@ -927,9 +927,62 @@ describe("watching the last access (SR-117)", () => {
     expect(leap).toBeLessThan(10_000);
   });
 
-  it("drops a held access for a newer one, and reports a held one after holdMs", async () => {
+  it("drops a held access for a newer one, and reports a held one when its hold ends", async () => {
     // The hold counts from `access.at`, so each access below gets a hold of its own: `firstHoldMs` for the
-    // first, long enough that a slow runner sees the newer access within it (2 s were too short on Windows,
+    // first, long enough that a slow runner sees the newer access within it (1 s was too short on Windows,
+    // #1141), and `lateHoldMs` for the last, whose report the test waits for.
+    const holdMs = 5000;
+    const opened = await copy(IDENTIFIERS);
+    await opened.workspace.get(elementStoreState);
+    await holdWorkspaceEvents();
+    const seen = accesses();
+    await watching(opened, { ...seen.options, holdMs });
+
+    // Recorded 4.8 s ago (a late file event): 200 ms of its hold are left, not 5 s.
+    const early = seen.next();
+    const started = Date.now();
+    await WorkspaceBlock.writeCacheFile(
+      opened.cache,
+      ACTIVITY_FILE,
+      JSON.stringify(activityFile("5".repeat(64), 1, SR_036, new Date(started - holdMs + 200))),
+    );
+    await early;
+    expect(Date.now() - started).toBeGreaterThanOrEqual(150);
+    expect(Date.now() - started).toBeLessThan(holdMs / 2);
+  });
+
+  it("holds an access recorded in the future or at a time that does not parse holdMs from arrival", async () => {
+    const holdMs = 400;
+    const opened = await copy(IDENTIFIERS);
+    await opened.workspace.get(elementStoreState);
+    await holdWorkspaceEvents();
+    const seen = accesses();
+    await watching(opened, { ...seen.options, holdMs });
+    const held = async (at: Date | string, seq: number): Promise<number> => {
+      const next = seen.next();
+      const started = Date.now();
+      await WorkspaceBlock.writeCacheFile(
+        opened.cache,
+        ACTIVITY_FILE,
+        JSON.stringify(activityFile("6".repeat(64), seq, SR_036, at)),
+      );
+      await next;
+      return Date.now() - started;
+    };
+
+    // Another clock, an hour ahead: held for holdMs, not for an hour.
+    const future = await held(new Date(Date.now() + 3_600_000), 1);
+    expect(future).toBeGreaterThanOrEqual(holdMs - 50);
+    expect(future).toBeLessThan(10_000);
+    // A time the schema takes but Date.parse does not (a leap second): held, not reported at once.
+    const leap = await held("2026-12-31T23:59:60Z", 2);
+    expect(leap).toBeGreaterThanOrEqual(holdMs - 50);
+    expect(leap).toBeLessThan(10_000);
+  });
+
+  it("drops a held access for a newer one, and reports a held one when its hold ends", async () => {
+    // The hold counts from `access.at`, so each access below gets a hold of its own: `firstHoldMs` for the
+    // first, long enough that a slow runner sees the newer access within it (the 1 s of holdMs before were too short on Windows,
     // #1141), and `lateHoldMs` for the last, whose report the test waits for.
     const holdMs = 5000;
     const firstHoldMs = 3000;

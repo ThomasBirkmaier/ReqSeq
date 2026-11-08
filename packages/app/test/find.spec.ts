@@ -53,8 +53,7 @@ test.describe("find and replace in the element buffer", () => {
   const expectSaved = async (text: string): Promise<void> => {
     await running.window.keyboard.press("ControlOrMeta+s");
     await expect(running.window.getByLabel("Minibuffer")).toContainText(/Saved|No changes to save/);
-    const file = path.join(running.workspace?.root ?? "", ...DEMO_FILE.split("/"));
-    await expect.poll(() => fs.readFile(file, "utf8")).toContain(text);
+    await expect.poll(fileText).toContain(text);
   };
 
   test("[SR-189/AK1] Find in element marks every hit; Enter and Shift+Enter step, Escape leaves the caret at the hit", async () => {
