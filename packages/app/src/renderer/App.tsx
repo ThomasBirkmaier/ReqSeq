@@ -494,6 +494,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     bridge,
     call,
     buffers,
+    other: layout.other,
     dispatch,
     drafts: drafts.current.size,
     prompt: prompt !== undefined,
