@@ -2,6 +2,7 @@
 // a node and the modeline show. Everything shown is a value of the output (ADR-0002, SR-080 AK4); the app
 // only adds the size limit and the words for the marks. No React here.
 import type { TraceGraphInput, TraceGraphOutput } from "@reqseq/core";
+import { degreePercent } from "@reqseq/core/verification-degree";
 import type { GraphBuffer, GraphDepth } from "./buffers.js";
 import type { GraphFilterChoice } from "./graph-choices.js";
 
@@ -86,6 +87,40 @@ export const MARK_WORDS: Readonly<Record<GraphMark, string>> = {
   superseded: "superseded",
 };
 
+/** The verification status of a requirement node in the graph's view (SR-136 AK1); none for another node. */
+export const statusOf = (node: GraphNode): string | undefined => node.verification?.[0]?.status;
+
+/** Whether a status word is in the accent colour, as in the matrix: failed and outdated. */
+export const accentStatus = (status: string): boolean => status === "failed" || status === "outdated";
+
+/** A progress ring of a node (SR-136): the part that is full, 0 to 1, and its text. */
+export interface Ring {
+  readonly part: number;
+  readonly text: string;
+}
+
+/**
+ * The progress ring of a node (SR-136 AK2 to AK6): a requirement's verified acceptance criteria,
+ * "2 of 3", as core counts them (`criteria`); a need's verification degree, "60 %" (`degreePercent`, as
+ * the CLI); none where core gives nothing to count (indirect, no criteria, no valid derived requirement).
+ */
+export const ringOf = (node: GraphNode): Ring | undefined => {
+  const { criteria, degree } = node;
+  if (criteria !== undefined) {
+    return {
+      part: criteria.verified / criteria.total,
+      text: `${String(criteria.verified)} of ${String(criteria.total)}`,
+    };
+  }
+  return degree?.share === undefined ? undefined : { part: degree.share, text: degreePercent(degree.share) };
+};
+
+/** The verification of a node in words, "verification open 2 of 3", "verification 60 %"; none without. */
+const verificationWords = (node: GraphNode): string[] => {
+  const parts = [statusOf(node), ringOf(node)?.text].filter((part): part is string => part !== undefined);
+  return parts.length === 0 ? [] : ["verification", ...parts];
+};
+
 /** What a node is called: its identifier, else its short ID. */
 export const nodeId = (node: GraphNode): string => node.identifier ?? node.shortId;
 
@@ -109,8 +144,9 @@ export const evidenceText = (summary: GraphEvidence): string => {
 };
 
 /**
- * The accessible name of a node: "<ID> <type> <title>" and its marks, then the summary of its evidence
- * when it has one (its box is no option, so the node says it).
+ * The accessible name of a node: "<ID> <type> <title>", its marks, its verification status and ring
+ * ("verification open 2 of 3", "verification 60 %"), then the summary of its evidence when it has one (its box is no option, so the
+ * node says it).
  */
 export const nodeLabel = (node: GraphNode, typeName: string, evidence?: GraphEvidence): string =>
   [
@@ -118,6 +154,7 @@ export const nodeLabel = (node: GraphNode, typeName: string, evidence?: GraphEvi
     typeName,
     node.title,
     ...node.marks.map((mark) => MARK_WORDS[mark]),
+    ...verificationWords(node),
     ...(evidence === undefined ? [] : [evidenceText(evidence)]),
   ].join(" ");
 

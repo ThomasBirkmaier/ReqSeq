@@ -115,3 +115,47 @@ export const S1_GRAPH = graphOutput(
     graphEdge("E", "S1", REFERENCE),
   ],
 );
+
+const entry = (status: "open" | "verified" | "indirect" | "failed" | "outdated") => [
+  { view: "core", status },
+];
+
+/**
+ * A graph with the verification of SR-136: N1, a need with 60 % of 10 derived requirements; R11 open with
+ * 2 of 3 criteria; R07 failed with 0 of 1; I1 indirect; R12 verified without criteria; N2, a need without
+ * a valid derived requirement; D1, a decision.
+ */
+export const VERIFIED_GRAPH = graphOutput(
+  [
+    graphNode("N1", 0, {
+      type: "need",
+      degree: {
+        share: 0.6,
+        total: 10,
+        counts: { open: 2, verified: 6, indirect: 0, failed: 1, outdated: 1 },
+      },
+    }),
+    graphNode("R11", 1, {
+      verification: entry("open"),
+      criteria: { verified: 2, total: 3, notVerified: [3] },
+    }),
+    graphNode("R07", 1, {
+      verification: entry("failed"),
+      criteria: { verified: 0, total: 1, notVerified: [1] },
+    }),
+    graphNode("I1", 1, { verification: entry("indirect") }),
+    graphNode("R12", 1, { verification: entry("verified") }),
+    graphNode("N2", -1, {
+      type: "need",
+      degree: { total: 0, counts: { open: 0, verified: 0, indirect: 0, failed: 0, outdated: 0 } },
+    }),
+    graphNode("D1", -1, { type: "decision" }),
+  ],
+  [
+    graphEdge("R11", "N1"),
+    graphEdge("R07", "N1"),
+    graphEdge("I1", "N1"),
+    graphEdge("R12", "N1"),
+    graphEdge("N1", "N2"),
+  ],
+);
