@@ -1,7 +1,7 @@
 // The keys of the editors of the element buffer that the app adds to CodeMirror's own text editing keys, as tables
 // for the keyboard reference (SR-139 AK5): the slash menu (`slash-menu.ts`, which builds its keymap from
 // `SLASH_NEXT` and `SLASH_PREVIOUS`), the `[[` search (`reference-search.ts`) and the Markdown keymap
-// (`markdown.ts`), and the keys between the editors (`box-navigation.ts`). Pure, so the documentation generator reads it without CodeMirror.
+// (`markdown.ts`), the table keys (`tables.ts`), and the keys between the editors (`box-navigation.ts`). Pure, so the documentation generator reads it without CodeMirror.
 import type { KeyPress, KeyRow } from "../keys.js";
 import { press } from "../keys.js";
 
@@ -69,6 +69,18 @@ export const MARKDOWN_KEYS: readonly KeyRow[] = [
   {
     keys: [{ press: press("Backspace") }],
     does: "In the text, right after the markup of a list item or a quote: remove the markup",
+  },
+];
+
+/** The keys of a table in the text (`tables.ts`, SR-188). */
+export const TABLE_KEYS: readonly KeyRow[] = [
+  {
+    keys: [{ press: press("Tab") }],
+    does: "In the text, in a table: the next cell; after the last cell a new row",
+  },
+  {
+    keys: [{ press: { ...press("Tab"), shiftKey: true } }],
+    does: "In the text, in a table: the cell before",
   },
 ];
 

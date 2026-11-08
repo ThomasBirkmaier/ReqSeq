@@ -62,6 +62,7 @@ import type { EditorPlugins } from "./editor/plugins.js";
 import { formatKeys } from "./editor/format.js";
 import { pasteAsMarkdown } from "./editor/paste.js";
 import { mergePlugins } from "./editor/plugins.js";
+import { tableEditing } from "./editor/tables.js";
 import { goToHeading, headings as headingsOf, sectionFolding } from "./editor/folding.js";
 import { boxReference, referenceAt, references } from "./editor/references.js";
 import type { Reference } from "./editor/references.js";
@@ -898,6 +899,7 @@ export const ElementView = ({
         brackets,
         formulasAndDiagrams,
         images,
+        tableEditing,
         // Tab, Shift+Tab and Alt+arrows in lists, and dragging items by their marks (SR-187).
         { extensions: [listKeys(), listDrag()] },
         formatKeys(true),
