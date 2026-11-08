@@ -184,47 +184,67 @@ describe("reqseq serve api", () => {
     }
   });
 
-  it("refuses a second API for the same copy, and asks the first one directly even with a proxy set", async () => {
-    const { child, ws } = await start(["serve", "api"]);
-    await firstLines(child);
-    const home = ws.path("home");
-    // The proxy is not loopback: the network block would fail a request through it, and the first API
-    // would then count as stopped.
-    const second = spawn(process.execPath, ["--import", blockNetwork, bin, "serve", "api"], {
-      cwd: ws.root,
-      stdio: "pipe",
-      env: {
-        ...process.env,
-        HOME: home,
-        USERPROFILE: home,
-        XDG_CACHE_HOME: home,
-        LOCALAPPDATA: home,
-        NODE_USE_ENV_PROXY: "1",
-        HTTP_PROXY: "http://192.0.2.1:9",
-        http_proxy: "http://192.0.2.1:9",
-        // Empty, so that no NO_PROXY of the environment exempts loopback from the proxy.
-        NO_PROXY: "",
-        no_proxy: "",
-      },
-    });
-    children.push(second);
-    let stderr = "";
-    second.stderr.on("data", (chunk: Buffer) => (stderr += chunk.toString("utf8")));
-    // A second API that starts would serve until the test times out: fail at once instead.
-    const outcome = await Promise.race([
-      exited(second),
-      firstLines(second).then(
-        () => "started" as const,
-        () => "ended" as const,
-      ),
-    ]);
-    if (outcome === "started") {
-      second.kill();
-      expect.fail("The second API started although the first one runs");
-    }
-    expect(outcome).toBe(2);
-    expect(stderr).toContain("A ReqSeq API for this working copy runs already at http://127.0.0.1:");
-  });
+  // A Git fixture and two `serve api` one after the other: 16.5 s on Windows in the evidence of main, more than
+  // half of the 30 s of vitest.e2e.config.ts, and a loaded runner went over it (#1170). So this test has its own
+  // bound, as the spawn-heavy test of cli.test.ts, and a failure reports how long each step took.
+  const TWO_SERVERS_TIMEOUT_MS = 60_000;
+  it(
+    "refuses a second API for the same copy, and asks the first one directly even with a proxy set",
+    async ({ onTestFailed }) => {
+      const began = Date.now();
+      const steps: string[] = [];
+      const step = (name: string): void => {
+        steps.push(`${name} after ${String(Date.now() - began)} ms`);
+      };
+      let stderr = "";
+      onTestFailed(() => {
+        step("failed");
+        process.stderr.write(`${steps.join(", ")}; stderr of the second API: ${JSON.stringify(stderr)}\n`);
+      });
+      const { child, ws } = await start(["serve", "api"]);
+      step("first API spawned");
+      await firstLines(child);
+      step("first API started");
+      const home = ws.path("home");
+      // The proxy is not loopback: the network block would fail a request through it, and the first API
+      // would then count as stopped.
+      const second = spawn(process.execPath, ["--import", blockNetwork, bin, "serve", "api"], {
+        cwd: ws.root,
+        stdio: "pipe",
+        env: {
+          ...process.env,
+          HOME: home,
+          USERPROFILE: home,
+          XDG_CACHE_HOME: home,
+          LOCALAPPDATA: home,
+          NODE_USE_ENV_PROXY: "1",
+          HTTP_PROXY: "http://192.0.2.1:9",
+          http_proxy: "http://192.0.2.1:9",
+          // Empty, so that no NO_PROXY of the environment exempts loopback from the proxy.
+          NO_PROXY: "",
+          no_proxy: "",
+        },
+      });
+      children.push(second);
+      second.stderr.on("data", (chunk: Buffer) => (stderr += chunk.toString("utf8")));
+      // A second API that starts would serve until the test times out: fail at once instead.
+      const outcome = await Promise.race([
+        exited(second),
+        firstLines(second).then(
+          () => "started" as const,
+          () => "ended" as const,
+        ),
+      ]);
+      step(`second API ${outcome === "started" ? "started" : `ended with ${String(outcome)}`}`);
+      if (outcome === "started") {
+        second.kill();
+        expect.fail("The second API started although the first one runs");
+      }
+      expect(outcome).toBe(2);
+      expect(stderr).toContain("A ReqSeq API for this working copy runs already at http://127.0.0.1:");
+    },
+    TWO_SERVERS_TIMEOUT_MS,
+  );
 });
 
 describe("reqseq mcp", () => {
