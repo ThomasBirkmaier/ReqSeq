@@ -153,9 +153,12 @@ export const placeAt = (target: Element): MenuPlace | undefined => {
 };
 
 /** The entries of a place: its own, or those of `buffer` while it has none. */
-export const placeEntries = (place: MenuPlace): readonly MenuEntry[] => {
-  const own = MENU_PLACES[place];
-  return own.length > 0 ? own : MENU_PLACES.buffer;
+export const placeEntries = (
+  place: MenuPlace,
+  places: Readonly<Record<MenuPlace, readonly MenuEntry[]>> = MENU_PLACES,
+): readonly MenuEntry[] => {
+  const own = places[place];
+  return own.length > 0 ? own : places.buffer;
 };
 
 /**

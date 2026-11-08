@@ -1,6 +1,7 @@
 // The context menu of a list outside its rows (SR-198) on the built app: on the heading of a list, of a group,
 // of a search and of the elements of a package page it offers to filter, sort and group the list, "Ungroup
-// list" in place of "Group list" on a grouped list and "Clear all list filters" on a filtered one (AK1).
+// list" in place of "Group list" on a grouped list and "Clear all list filters" on a filtered one (AK1), also
+// by key (Shift+F10) on a list with no row to select.
 // Right-clicks go through Chromium's input (Playwright's mouse), so the `contextmenu` is the one a person's
 // click gives.
 import path from "node:path";
@@ -90,6 +91,26 @@ test.describe("the context menu of a list", () => {
     await rightClick(heading);
     const folder = process.env["REQSEQ_SCREENSHOTS"] ?? path.join("test-results", "electron", "screenshots");
     await window.screenshot({ path: path.join(folder, "context-menu-list-light.png") });
+    await entries(window).filter({ hasText: "Clear all list filters" }).click();
+    await expect(rows).toHaveCount(plain);
+
+    // By key (Shift+F10) on a list with no row to select: the list's menu, not the buffer's.
+    await rightClick(heading);
+    await entries(window).filter({ hasText: "Filter list by text search" }).click();
+    await expect(window.locator("label.prompt-label")).toHaveText("Text");
+    await window.keyboard.type("no such text anywhere");
+    await window.keyboard.press("Enter");
+    await expect(shownBuffer(window).locator(".quiet")).toHaveText("No elements");
+    await shownBuffer(window).focus();
+    await window.keyboard.press("Shift+F10");
+    await expect(menu(window)).toBeVisible();
+    expect(await entryNames(window)).toEqual([
+      ...FILTERS,
+      "Sort list",
+      "Group list",
+      "Clear all list filters",
+      ALL,
+    ]);
     await entries(window).filter({ hasText: "Clear all list filters" }).click();
     await expect(rows).toHaveCount(plain);
 

@@ -64,7 +64,11 @@ describe("the places of the context menu", () => {
   });
 
   it("[SR-194/AK6] gives a place without entries of its own the buffer's", () => {
-    expect(placeEntries("graph")).toBe(MENU_PLACES.buffer);
+    // A press on no mark inside an area is the buffer's place, and a place whose block is still empty
+    // (stubbed here, so the test holds once every place is filled) gets the buffer's entries too.
+    expect(placeAt(pressed([], true))).toBe("buffer");
+    const stubbed = { ...MENU_PLACES, graph: [] };
+    expect(placeEntries("graph", stubbed)).toBe(MENU_PLACES.buffer);
     expect(placeEntries("buffer").map((entry) => entry.id)).toEqual([
       "go-to",
       "search",
