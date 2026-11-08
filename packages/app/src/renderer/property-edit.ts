@@ -33,6 +33,11 @@ export interface EditableBox {
    * target for): not editable, a save would drop that item.
    */
   readonly unmatched?: boolean;
+  /**
+   * A property the type of the element does not know (D-012): shown as stored, never typed in or set; "Clear
+   * property" empties it, and the save removes it with `unset` (#189). Its document is its lines.
+   */
+  readonly unknown?: boolean;
 }
 
 /** How many items a stored value has: a list its length, nothing or an empty text none, anything else one. */
@@ -67,6 +72,24 @@ export const isNumberedList = (value: unknown): boolean =>
 
 /** The kinds whose value the user picks in the minibuffer: there is no text to type (SR-104 AK3). */
 export const isValueKind = (kind: PropertyInfo["kind"]): boolean => kind === "choice" || kind === "relation";
+
+/**
+ * Whether the document of a box is set by an action, not typed in an editor: a choice or relation (the
+ * minibuffer), or a property the type does not know ("Clear property").
+ */
+export const isValueBox = (box: EditableBox): boolean => isValueKind(box.info.kind) || box.unknown === true;
+
+/** How a save treats a property the type does not know: a list of text, so an emptied box is `unset`. */
+const UNKNOWN_INFO: PropertyInfo = { kind: "text", many: true, markdown: false };
+
+/** The box of a property the type does not know: its lines as its document, only to be emptied. */
+export const unknownBox = (box: PropertyBox): EditableBox => ({
+  key: box.key,
+  info: UNKNOWN_INFO,
+  doc: box.lines.join("\n"),
+  lineBreak: false,
+  unknown: true,
+});
 
 /** A target of a relation property as a box holds it: its element, and the label the box shows. */
 export interface RelationTarget {
@@ -107,8 +130,9 @@ export const choiceKeys = (doc: string): string[] => doc.split("\n").filter((key
  * The property boxes of the element that can be edited in place: the filled properties (SR-104 AK1) the
  * type of the element has, whose value is text (text, number, date, choice) or the targets of a relation
  * (read-only, `unmatched`, when the targets are not one for each stored item).
- * A property the type does not know stays as it is shown (D-012: core refuses to set it, spec question ThomasBirkmaier/ReqSeq-archive#469;
- * core can unset it since #189, the app does not offer that yet). Keyed by property.
+ * A property the type does not know is a box that is only emptied (`unknown`, D-012: core refuses to set it
+ * and removes it with `unset`, spec question ThomasBirkmaier/ReqSeq-archive#469, #189); an element of a type
+ * the model does not know has none. Keyed by property.
  */
 export const editableBoxes = (element: DataExportElement, model: PropertyModel): Map<string, EditableBox> => {
   const type = model.get(element.type);
@@ -116,6 +140,9 @@ export const editableBoxes = (element: DataExportElement, model: PropertyModel):
   for (const box of propertyBoxes(element)) {
     const info = type?.get(box.key);
     if (info === undefined) {
+      if (type !== undefined) {
+        found.set(box.key, unknownBox(box));
+      }
       continue;
     }
     if (info.kind === "relation") {

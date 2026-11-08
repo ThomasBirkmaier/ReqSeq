@@ -1,6 +1,7 @@
 // One property box of an element buffer (SR-104), with its block "On disk" when it is in conflict (SR-106
 // AK2): a property of a text kind in its editor (`TextBox.tsx`), a relation as the links to its targets, a
-// choice as its keys, and a property the type does not know as its lines, read-only (D-012). Layout only:
+// choice as its keys, and a property the type does not know as its lines, which "Clear property" alone
+// empties (D-012, #189). Layout only:
 // `ElementView` makes the props of the editor and the block.
 import type { DataExportElement } from "@reqseq/core";
 import type { ElementBuffer } from "./buffers.js";
@@ -15,9 +16,9 @@ import { TextBox } from "./TextBox.js";
 
 export interface PropertyFieldProps {
   readonly box: PropertyBox;
-  /** The box as the type knows it; none for a property the type does not know. */
+  /** The box as it is edited; none for a box that is not edited (a value that is no text). */
   readonly editable: EditableBox | undefined;
-  /** The document of a choice or relation box with input (set in the minibuffer). */
+  /** The document of a choice or relation box with input (set in the minibuffer), or of a cleared unknown one. */
   readonly value: string | undefined;
   /** The props of its editor, for a box of a text kind; none for any other box. */
   readonly textBox: TextBoxProps | undefined;
@@ -58,6 +59,12 @@ export const PropertyField = ({
                 <RelationLink key={at} row={row} onOpenRelation={onOpenRelation} />
               ))}
             </ul>
+          ) : editable?.unknown === true && value !== undefined ? (
+            choiceKeys(value).map((line, at) => (
+              <span className="line" key={at}>
+                {line}
+              </span>
+            ))
           ) : box.relations !== undefined ? (
             <ul>
               {box.relations
@@ -67,7 +74,10 @@ export const PropertyField = ({
                 ))}
             </ul>
           ) : (
-            (editable === undefined ? box.lines : choiceKeys(value ?? editable.doc)).map((line, at) => (
+            (editable === undefined || editable.unknown === true
+              ? box.lines
+              : choiceKeys(value ?? editable.doc)
+            ).map((line, at) => (
               <span className="line" key={at}>
                 {line}
               </span>
