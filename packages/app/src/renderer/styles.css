@@ -1,6 +1,7 @@
 /* A white sheet, or a dark one (SR-113): only what means something is visible (D-061..D-063). One buffer
    (or two side by side), the modeline (a display) and the minibuffer, the one control, at the bottom, as in Emacs. Greys for
-   everything; one accent colour, for "outdated" and for a gap in the chain (D-062). Every colour is a
+   everything; one accent colour, for "outdated" and for a gap in the chain, and the colours of a failed and
+   an outdated verification badge (D-062). Every colour is a
    token below with a light and a dark value; the page follows the system (`color-scheme`), and the action
    "Toggle dark mode" sets `data-theme` on the root. A rule uses a token, never a colour of its own
    (styles.test.ts). */
@@ -15,6 +16,10 @@
   --raised: light-dark(#f9fbfd, #1c1f22);
   --accent-outdated: light-dark(#b54708, #f0883e);
   --accent-gap: light-dark(#b54708, #f0883e);
+  /* The right half of a verification badge that is failed or outdated (SR-157 AK3), under the text in the
+     colour of the sheet (AK4: 4.5:1); outdated is the accent of "outdated" (styles.test.ts). */
+  --badge-failed: light-dark(#cf222e, #f85149);
+  --badge-outdated: light-dark(#b54708, #f0883e);
   --shadow: light-dark(rgb(0 0 0 / 6%), rgb(0 0 0 / 40%));
   --outside-change: light-dark(#ebeef1, #292e34);
   /* The dimmed backdrop behind the card of the command line (SR-182); the text behind it keeps 4.5:1. */
@@ -459,6 +464,68 @@ mark {
   display: block;
   margin-top: 0.25rem;
   white-space: pre-wrap;
+}
+
+/* The verification status as badges (SR-157): one pill per view with round ends, the name on the left in
+   greys (the muted tone under the sheet's colour), the status on the right on the selection tone, coloured
+   only when failed or outdated (AK3, D-062). Each half reads at 4.5:1 in both schemes (AK4, styles.test.ts).
+   A long name ends in "…" (its ID and title are the link's title) and takes at most half the pill; a long
+   status wraps inside its half, and the ends stay round: the radius is half a line, and the halves keep
+   their text out of the corners. */
+.element .variant-line.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.5rem;
+}
+.element .badge {
+  position: relative;
+  display: inline-flex;
+  max-width: 100%;
+  overflow: hidden;
+  border-radius: 0.75rem;
+  font-size: 12px;
+  line-height: 1.5rem;
+}
+.element .badge-name,
+.element .badge-status {
+  padding: 0 0.75rem;
+}
+.element .badge-name {
+  flex: 0 1 auto;
+  max-width: 50%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: var(--muted);
+  color: var(--sheet);
+}
+/* The pill clips a focus ring outside it, so the name's ring lies inside. */
+.element .badge-name[role="link"]:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--sheet);
+}
+.element .badge-status {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: var(--select);
+  color: var(--text);
+}
+/* ": " between the halves, for a screen reader only ("Core: verified"). */
+.element .badge-separator {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.element .badge[data-status="failed"] .badge-status {
+  background: var(--badge-failed);
+  color: var(--sheet);
+}
+.element .badge[data-status="outdated"] .badge-status {
+  background: var(--badge-outdated);
+  color: var(--sheet);
 }
 
 /* The evidence records (SR-032): one muted line each under the label "Evidence", indented under it and

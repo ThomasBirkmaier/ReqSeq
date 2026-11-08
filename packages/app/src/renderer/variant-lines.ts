@@ -1,11 +1,12 @@
-// The two lines of a requirement's page about its variants, from `element.get` as it is (ADR-0002: core
+// The lines of a requirement's page about its variants, from `element.get` as it is (ADR-0002: core
 // computes, the app lays out). The line of replacements and exclusions (SR-046 AK2): "Replaced in <variant>
-// by <replacement> · Excluded in <variant>, <variant>", from `replacedBy` and `excludedBy`. The line of the
-// verification status (SR-047 AK3): "Verification — Core: verified · <variant>: open", one part per entry of
-// `verification` in core's order (core gives no row for a variant that excludes or replaces the
-// requirement); an `open` one without own record names the children that are missing for an indirect
-// verification (SR-034 AK2): "Core: open (missing SR-1 Title, SR-2 Title)"; one from own records of a
-// requirement with acceptance criteria counts them (SR-031 AK5): "Core: open (2 of 3 criteria, AK3 not verified)". The validation status (SR-038
+// by <replacement> · Excluded in <variant>, <variant>", from `replacedBy` and `excludedBy`. The verification
+// status (SR-047 AK3) is one badge per entry of `verification` in core's order (SR-157 AK1; core gives no
+// entry for a variant that excludes or replaces the requirement): the name of the core or the variant, and
+// its status with the details that belong to it. An `open` one without own record names the children that
+// are missing for an indirect verification (SR-034 AK2): "open (missing SR-1 Title, SR-2 Title)"; one from
+// own records of a requirement with acceptance criteria counts them (SR-031 AK5): "open (2 of 3 criteria,
+// AK3 not verified)". The validation status (SR-038
 // AK1) is a line of its own: "Validation — validated"; an inconclusive one gives its reason on that line
 // (SR-172 AK2): "Validation — inconclusive: <reason>", one line, cut at `REASON_LENGTH`; a cut one gives the
 // whole reason as written as the line's title, shown on demand (#846, D-062). Variants, replacements and missing children are
@@ -25,14 +26,26 @@ export type LinePart =
 export interface VariantLines {
   /** Where the requirement is replaced or excluded; undefined when nowhere. */
   readonly use: readonly LinePart[] | undefined;
-  /** Its verification status per view; undefined when `element.get` gives none (not a requirement). */
-  readonly verification: readonly LinePart[] | undefined;
+  /** Its verification status, one badge per view; undefined when `element.get` gives none (not a requirement). */
+  readonly verification: readonly Badge[] | undefined;
   /** Its validation status (SR-038), apart from the verification status; undefined when `element.get` gives none. */
   readonly validation: readonly LinePart[] | undefined;
   /** The whole reason of an inconclusive validation, as written, when the validation line cuts it; else undefined. */
   readonly validationTitle: string | undefined;
   /** The variant's hints since its newest baseline (SR-103), in core's order: whether new, and core's message. */
   readonly sinceBaseline: readonly SinceBaseline[];
+}
+
+type Verification = NonNullable<ElementGetOutput["element"]["verification"]>[number];
+
+/** The verification status of one view as a badge (SR-157 AK1). */
+export interface Badge {
+  /** The left half: the word for the core, or the variant, a link to it (AK5). */
+  readonly name: LinePart;
+  /** Core's status word, which picks the colour of the right half (AK3). */
+  readonly status: Verification["status"];
+  /** The right half: the status with its details, the missing children as links (SR-031 AK5, SR-034 AK2). */
+  readonly parts: readonly LinePart[];
 }
 
 /** A hint at a variant since its newest baseline: a core requirement changed since then, or new in its view. */
@@ -121,7 +134,7 @@ const missing = (byId: ReadonlyMap<string, ElementName>, children: readonly stri
         { text: ")" },
       ];
 
-type Criteria = NonNullable<NonNullable<ElementGetOutput["element"]["verification"]>[number]["criteria"]>;
+type Criteria = NonNullable<Verification["criteria"]>;
 
 /** How many acceptance criteria are verified (SR-031 AK5): " (2 of 3 criteria, AK3 not verified)"; empty without. */
 const criteriaText = (criteria: Criteria | undefined): string => {
@@ -161,17 +174,17 @@ export const variantLines = (output: Pick<ElementGetOutput, "element" | "names">
           ],
         ];
   const use = [...replaced, ...excluded];
-  const verification = element.verification?.map((entry): LinePart[] => [
-    entry.view === CORE_VIEW.view ? { text: CORE_VIEW.title } : named(byId, entry.view, titleOf),
-    { text: `: ${entry.status}${criteriaText(entry.criteria)}` },
-    ...missing(byId, entry.missingChildren ?? []),
-  ]);
+  const verification = element.verification?.map((entry): Badge => ({
+    name: entry.view === CORE_VIEW.view ? { text: CORE_VIEW.title } : named(byId, entry.view, titleOf),
+    status: entry.status,
+    parts: [
+      { text: `${entry.status}${criteriaText(entry.criteria)}` },
+      ...missing(byId, entry.missingChildren ?? []),
+    ],
+  }));
   return {
     use: use.length === 0 ? undefined : joined(use),
-    verification:
-      verification === undefined || verification.length === 0
-        ? undefined
-        : [{ text: "Verification — " }, ...joined(verification)],
+    verification: verification === undefined || verification.length === 0 ? undefined : verification,
     validation: element.validation === undefined ? undefined : [{ text: validationLine(element) }],
     validationTitle:
       element.validation === undefined || element.validationReason === undefined
