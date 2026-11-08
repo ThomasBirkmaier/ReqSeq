@@ -25,6 +25,7 @@ type Unit =
   | "files"
   | "version"
   | "git"
+  | "docs-site"
   | "runtime state";
 
 /** Modules every block may import, and the public entry point, which sits above all blocks. */
@@ -32,7 +33,7 @@ type Shared = "catalog" | "product" | "build-info" | "generated" | "index";
 
 /** The layers from the bottom (README section 5). Every import points to a lower layer. */
 const LAYERS: readonly (readonly Unit[])[] = [
-  ["files", "version", "git", "runtime state"],
+  ["files", "version", "git", "docs-site", "runtime state"],
   ["workspace"],
   ["metamodel"],
   ["model"],
@@ -130,6 +131,7 @@ const TABLE: Readonly<Record<Unit | Shared, Allowed>> = {
   files: { values: [] },
   version: { values: [] },
   git: { values: [] },
+  "docs-site": { values: [] },
   "runtime state": { values: [] },
   catalog: { values: ["generated"], types: ["runtime state"] },
   product: { values: ["generated"] },

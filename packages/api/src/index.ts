@@ -9,3 +9,5 @@ export {
 export type { HandlerOptions, RequestHandler } from "./handler.js";
 export { ENDPOINT_FILE, LOOPBACK_HOSTS, checkPort, refuseRunningApi, startApiServer } from "./server.js";
 export type { ApiServer, ApiServerOptions } from "./server.js";
+export { DOCS_HOST, startDocsServer } from "./docs-server.js";
+export type { DocsServer, DocsServerOptions } from "./docs-server.js";

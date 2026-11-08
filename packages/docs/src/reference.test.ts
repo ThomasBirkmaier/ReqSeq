@@ -2,7 +2,7 @@ import { fileURLToPath } from "node:url";
 import { appCommandEntry } from "@reqseq/app";
 import { contractsBundle, createCommandRuntime, getCommandRuntime, loadContracts } from "@reqseq/core";
 import { describe, expect, it } from "vitest";
-import { commandSlug } from "./command-page.js";
+import { commandSlug } from "@reqseq/core/docs-site";
 import { inline } from "./markdown.js";
 import { codeAnchor, readProblemCodes } from "./codes.js";
 import { FORMATS, headingSlug, readExamples, schemaName } from "./formats.js";

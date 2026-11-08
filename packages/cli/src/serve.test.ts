@@ -19,7 +19,7 @@ import { createFixtureWorkspace, untilWatching } from "@reqseq/testkit";
 import { Client } from "@modelcontextprotocol/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RunCliOptions } from "./main.js";
-import { EXIT, runCli } from "./main.js";
+import { DOCS_FOLDER, EXIT, runCli } from "./main.js";
 
 const entry = (name: string) => ({
   name,
@@ -249,6 +249,60 @@ describe("reqseq serve api", () => {
     const mcp = options(["mcp", "--help"]);
     expect(await runCli(mcp)).toBe(EXIT.ok);
     expect([...new Set(mcp.out.text.match(/--[a-z-]+/g))].sort()).toEqual(["--help", "--workspace"]);
+  });
+});
+
+/** The body of GET `target` on the docs server at `port`. */
+const fetchDocs = (port: number, target: string): Promise<{ status: number | undefined; body: string }> =>
+  new Promise((resolve, reject) => {
+    const req = http.get({ host: "127.0.0.1", port, path: target, agent: false }, (res) => {
+      const chunks: Buffer[] = [];
+      res.on("data", (c: Buffer) => chunks.push(c));
+      res.on("end", () => {
+        resolve({ status: res.statusCode, body: Buffer.concat(chunks).toString("utf8") });
+      });
+    });
+    req.on("error", reject);
+  });
+
+describe("reqseq serve docs", () => {
+  it("serves the documentation site without a workspace, prints its address, and stops with the signal", async () => {
+    await fs.mkdir(fixture.path("site"));
+    await fs.writeFile(fixture.path("site/index.html"), "<title>ReqSeq</title>");
+    const controller = new AbortController();
+    // No workspace anywhere upwards of the folder it runs in.
+    const opts = options(["serve", "docs", "--port", "0"], {
+      cwd: fixture.path("site"),
+      docsFolder: fixture.path("site"),
+      signal: controller.signal,
+    });
+    const exit = runCli(opts);
+    await started(opts.out);
+    const port = Number(
+      /^ReqSeq documentation on http:\/\/127\.0\.0\.1:(\d+)\/\nStop with Ctrl-C\.\n$/.exec(
+        opts.out.text,
+      )?.[1],
+    );
+    expect(await fetchDocs(port, "/")).toEqual({ status: 200, body: "<title>ReqSeq</title>" });
+    controller.abort();
+    expect(await exit).toBe(EXIT.ok);
+    expect(opts.err.text).toBe("");
+  });
+
+  it("exits with an error when the installation has no documentation", async () => {
+    const opts = options(["serve", "docs"], { docsFolder: fixture.path("missing") });
+    expect(await runCli(opts)).toBe(EXIT.usage);
+    expect(opts.err.text).toContain("error file.folder-missing: No documentation in ");
+  });
+
+  it("looks for the site in the docs folder of the CLI package", () => {
+    expect(DOCS_FOLDER).toBe(path.resolve(import.meta.dirname, "..", "docs"));
+  });
+
+  it("refuses a port that is no number", async () => {
+    const opts = options(["serve", "docs", "--port", "x"]);
+    expect(await runCli(opts)).toBe(EXIT.usage);
+    expect(opts.err.text).toMatch(/^error input\.invalid: Port must be a whole number/);
   });
 });
 

@@ -6,6 +6,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import type { CommandErrorClass, CommandErrorObject, CommandRuntime, Workspace } from "@reqseq/core";
 import type { CatalogEntry } from "@reqseq/core";
 import { CommandError, errorClass, jsonChunks, jsonLines } from "@reqseq/core";
+import { loopbackHost } from "./loopback.js";
 
 /** HTTP status of each error class (ADR-0009 "Errors"); documented in schemas/generated/openapi.json. */
 export const HTTP_STATUS_BY_CLASS: Readonly<Record<CommandErrorClass, number>> = {
@@ -36,9 +37,6 @@ export interface HandlerOptions {
 }
 
 export type RequestHandler = (request: IncomingMessage, response: ServerResponse) => void;
-
-/** Host names of loopback; the Host header must be one of them with the port of the connection. */
-const LOOPBACK_NAMES = ["127.0.0.1", "localhost", "[::1]"] as const;
 
 const HEADERS = {
   "content-type": "application/json; charset=utf-8",
@@ -266,13 +264,6 @@ const sameSecret = (given: string, expected: Buffer): boolean => {
 /** The token of an `Authorization: Bearer <token>` header; the scheme is case-insensitive (RFC 9110). */
 const bearerToken = (header: string | undefined): string =>
   /^bearer +(\S+) *$/i.exec(header ?? "")?.[1] ?? "";
-
-/** The Host header names loopback and the local port of the connection (DNS rebinding protection). */
-const loopbackHost = (request: IncomingMessage): boolean => {
-  const host = request.headers.host?.toLowerCase();
-  const port = String(request.socket.localPort);
-  return LOOPBACK_NAMES.some((name) => host === `${name}:${port}`);
-};
 
 const commandName = (pathname: string): string | undefined => {
   try {

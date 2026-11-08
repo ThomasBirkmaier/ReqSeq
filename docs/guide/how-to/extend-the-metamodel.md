@@ -153,7 +153,7 @@ properties:
 
 ## API
 
-Write the file as above, then start the API in the workspace with `reqseq serve api`, and send each command with the token of `api.json` as `Authorization: Bearer <token>`:
+Write the file as above. With the [local API](/concepts/cli-api-and-mcp/#api) running in the workspace, and its token:
 
 ```http
 POST /v1/commands/metamodel.get
