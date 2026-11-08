@@ -27,6 +27,7 @@ import {
   onlyOverview,
   overviewBuffer,
   searchBuffer,
+  showBuffer,
 } from "./buffers.js";
 import type { Call } from "./call.js";
 import { bindingLabel } from "./bindings.js";
@@ -467,7 +468,6 @@ const shownResult = (context: ActionContext): ResultBuffer | undefined => {
 };
 const hasElementText = (context: ActionContext): boolean =>
   isElement(context) && context.element !== undefined;
-/** Shows the buffer: the open one with its key (its text and rows kept), else `buffer`, a new one. */
 /** The shown buffer when it is the metamodel in `mode`. */
 const metamodelIn = (context: ActionContext, mode: MetamodelBuffer["mode"]): MetamodelBuffer | undefined => {
   const shown = context.buffers[0];
@@ -483,14 +483,6 @@ const switchMetamodel =
       context.dispatch({ type: "open", buffer: { ...shown, mode: to } });
     }
   };
-
-const showBuffer = (context: ActionContext, buffer: Buffer): void => {
-  context.dispatch(
-    context.buffers.some((open) => open.key === buffer.key)
-      ? { type: "switch", key: buffer.key }
-      : { type: "open", buffer },
-  );
-};
 
 /**
  * An action on the shown graph that asks with `label` for one of the entries `choices` gives: taking one

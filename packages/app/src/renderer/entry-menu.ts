@@ -5,7 +5,7 @@
 // only: the buffers they show ask core, as the actions of the shown element do (ADR-0002).
 import type { Action, ActionContext } from "./actions.js";
 import type { Buffer, ElementBuffer } from "./buffers.js";
-import { graphBuffer, neighbourhoodBuffer } from "./buffers.js";
+import { graphBuffer, neighbourhoodBuffer, showBuffer } from "./buffers.js";
 import type { MenuEntry, MenuHit, MenuPlace } from "./context-menu.js";
 
 /**
@@ -57,15 +57,6 @@ export const menuContext = (
 
 const hasEntry = (context: ActionContext): boolean => context.entry !== undefined;
 
-/** Shows `buffer`, or switches to it when it is open (a graph keeps its depth). */
-const show = (context: ActionContext, buffer: Buffer): void => {
-  context.dispatch(
-    context.buffers.some((open) => open.key === buffer.key)
-      ? { type: "switch", key: buffer.key }
-      : { type: "open", buffer },
-  );
-};
-
 /** The actions on the element of the entry, under the names of those on the shown element (SR-197 AK1). */
 export const ENTRY_ACTIONS: readonly Action[] = [
   {
@@ -86,7 +77,7 @@ export const ENTRY_ACTIONS: readonly Action[] = [
     run: (context: ActionContext): void => {
       const entry = context.entry;
       if (entry !== undefined) {
-        show(context, graphBuffer(entry.id, entry.repository, entry.name));
+        showBuffer(context, graphBuffer(entry.id, entry.repository, entry.name));
       }
     },
   },
@@ -97,7 +88,7 @@ export const ENTRY_ACTIONS: readonly Action[] = [
     run: (context: ActionContext): void => {
       const entry = context.entry;
       if (entry !== undefined) {
-        show(context, neighbourhoodBuffer(entry.id, entry.repository, entry.name));
+        showBuffer(context, neighbourhoodBuffer(entry.id, entry.repository, entry.name));
       }
     },
   },

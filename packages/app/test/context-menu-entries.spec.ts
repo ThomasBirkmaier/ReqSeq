@@ -65,6 +65,29 @@ const hasEntries = async (target: Locator): Promise<void> => {
   await expect(menu(window)).toBeHidden();
 };
 
+/**
+ * "All commands…" from the menu of `target` lists what Ctrl/Cmd+Shift+P lists on the buffer, each name once
+ * (SR-194 AK3): the menu's entry does not add its actions to the prompt.
+ */
+const allCommandsAsPrompt = async (target: Locator): Promise<void> => {
+  const window = target.page();
+  await rightClick(target);
+  await choose(window, "All commands…");
+  await expect(window.locator(".prompt-input")).toHaveValue("");
+  const fromMenu = await candidates(window).locator(".name").allTextContents();
+  await window.keyboard.press("Escape");
+  // The entry selected again, as the menu left it (Escape in a package page's prompt can drop its selection).
+  await rightClick(target);
+  await window.keyboard.press("Escape");
+  await expect(menu(window)).toBeHidden();
+  await window.keyboard.press("ControlOrMeta+Shift+P");
+  await expect(window.locator(".prompt-input")).toHaveValue("");
+  expect(await candidates(window).locator(".name").allTextContents()).toEqual(fromMenu);
+  await window.keyboard.press("Escape");
+  expect(fromMenu.length).toBeGreaterThan(3);
+  expect(new Set(fromMenu).size).toBe(fromMenu.length);
+};
+
 /** What the window shows: the areas with their buffers and which is active, and the modeline. */
 const shown = async (window: Page): Promise<Record<string, unknown>> => ({
   areas: await window.locator("[data-area]").evaluateAll((areas) =>
@@ -82,7 +105,7 @@ const shown = async (window: Page): Promise<Record<string, unknown>> => ({
 /** What the window shows once it has stopped changing (counts load after the buffer). */
 const settled = async (window: Page): Promise<Record<string, unknown>> => {
   let before = JSON.stringify(await shown(window));
-  for (;;) {
+  for (let tries = 0; tries < 20; tries += 1) {
     await window.waitForTimeout(300);
     const now = await shown(window);
     if (JSON.stringify(now) === before) {
@@ -90,6 +113,7 @@ const settled = async (window: Page): Promise<Record<string, unknown>> => {
     }
     before = JSON.stringify(now);
   }
+  throw new Error(`the window did not settle: ${before}`);
 };
 
 test.describe("the context menu of an element as an entry", () => {
@@ -121,6 +145,7 @@ test.describe("the context menu of an element as an entry", () => {
     const node = window.locator(`.graph-node[data-node="${key ?? ""}"]`);
     const nodeTitle = (await node.locator(".graph-title").textContent()) ?? "";
     await hasEntries(node);
+    await allCommandsAsPrompt(node);
     await rightClick(node);
     await choose(window, "Show neighbourhood");
     await expect(modeline(window)).toContainText(nodeTitle);
@@ -137,6 +162,7 @@ test.describe("the context menu of an element as an entry", () => {
     const entry = window.locator(".members .row").nth(1);
     const entryId = (await entry.locator(".id").textContent()) ?? "";
     await hasEntries(entry);
+    await allCommandsAsPrompt(entry);
     await rightClick(entry);
     await choose(window, "Set status");
     await expect(candidates(window).first().locator(".name")).toContainText(entryId);
@@ -148,7 +174,19 @@ test.describe("the context menu of an element as an entry", () => {
     const head = window.locator(".matrix td.element .target").first();
     await expect(head).toBeVisible();
     await hasEntries(head);
-    await hasEntries(window.locator(".matrix td.cell .target").first());
+    // A connected element: "Show graph" shows its graph, not the one of its row.
+    const target = window.locator(".matrix td.cell .target").first();
+    const targetLabel = (await target.textContent()) ?? "";
+    const rowId = (await target.locator("xpath=ancestor::tr").locator("td.element .id").textContent()) ?? "";
+    await hasEntries(target);
+    await rightClick(target);
+    await choose(window, "Show graph");
+    await expect(window.locator(".graph")).toBeVisible();
+    const graphOf = window.locator('.graph-node[aria-selected="true"] .graph-id');
+    const graphId = ((await graphOf.textContent()) ?? "").split(" · ")[0] ?? "";
+    expect(graphId).not.toBe("");
+    expect(targetLabel).toContain(graphId);
+    expect(graphId).not.toBe(rowId);
   });
 
   test("[SR-197/AK2] in a split window, Show element opens the element in the area of the entry, as Enter on it does", async () => {

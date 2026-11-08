@@ -672,3 +672,15 @@ export const reduceBuffers = (buffers: Buffers, action: BufferAction): Buffers =
       return renamed(buffers, action.id, action.repository, action.name);
   }
 };
+
+/** Shows the buffer: the open one with its key (its text and rows kept), else `buffer`, a new one. */
+export const showBuffer = (
+  context: { readonly buffers: Buffers; readonly dispatch: (action: BufferAction) => void },
+  buffer: Buffer,
+): void => {
+  context.dispatch(
+    context.buffers.some((open) => open.key === buffer.key)
+      ? { type: "switch", key: buffer.key }
+      : { type: "open", buffer },
+  );
+};

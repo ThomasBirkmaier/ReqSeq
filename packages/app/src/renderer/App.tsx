@@ -892,7 +892,9 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     const id = menuEntriesNow.current[index];
     contextMenu.close();
     if (id === undefined) {
-      // "All commands…" (AK3): the command prompt with an empty input.
+      // "All commands…" (AK3): the command prompt with an empty input, as Ctrl/Cmd+Shift+P gives it on this
+      // buffer: from the context without the menu's entry (SR-197), so no name is listed twice.
+      latest.current = context;
       ask(commands());
       return;
     }
