@@ -94,7 +94,9 @@ test.describe("the context menu of a list", () => {
     await entries(window).filter({ hasText: "Clear all list filters" }).click();
     await expect(rows).toHaveCount(plain);
 
-    // By key (Shift+F10) on a list with no row to select: the list's menu, not the buffer's.
+    // By key (Shift+F10, Linux and Windows) on a list with no row to select: the list's menu, not the buffer's.
+    // macOS has no key that sends a `contextmenu` (Chromium maps neither Shift+F10 nor a Menu key there), so
+    // there the test sends the `contextmenu` without a press that such a key gives, at the focused buffer.
     await rightClick(heading);
     await entries(window).filter({ hasText: "Filter list by text search" }).click();
     await expect(window.locator("label.prompt-label")).toHaveText("Text");
@@ -102,7 +104,11 @@ test.describe("the context menu of a list", () => {
     await window.keyboard.press("Enter");
     await expect(shownBuffer(window).locator(".quiet")).toHaveText("No elements");
     await shownBuffer(window).focus();
-    await window.keyboard.press("Shift+F10");
+    if (process.platform === "darwin") {
+      await shownBuffer(window).dispatchEvent("contextmenu", { bubbles: true, cancelable: true, button: 0 });
+    } else {
+      await window.keyboard.press("Shift+F10");
+    }
     await expect(menu(window)).toBeVisible();
     expect(await entryNames(window)).toEqual([
       ...FILTERS,
