@@ -53,7 +53,7 @@ reqseq workspace recent
 
 The API serves one workspace: the one `reqseq serve api` finds from the current folder, or the one of `--workspace`, such as `reqseq serve api --workspace spec`. For another workspace, start the API there; no command switches it.
 
-With `reqseq serve api` running in the workspace, and the token of `api.json` as `Authorization: Bearer <token>`:
+With the [local API](/concepts/cli-api-and-mcp/#api) running in the workspace, and its token:
 
 ```http
 POST /v1/commands/workspace.recent

@@ -75,7 +75,7 @@ Two baselines are two files, so `git diff --no-index baselines/Release-1.yaml ba
 
 ## API
 
-With `reqseq serve api` running and the token of `api.json` as `Authorization: Bearer <token>`; `set` replaces the whole list, so list every package the element belongs to:
+With the [local API](/concepts/cli-api-and-mcp/#api) running in the workspace, and its token; `set` replaces the whole list, so list every package the element belongs to:
 
 ```http
 POST /v1/commands/element.update
