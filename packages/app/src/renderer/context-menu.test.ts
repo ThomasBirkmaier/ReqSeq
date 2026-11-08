@@ -98,8 +98,8 @@ describe("the places of the context menu", () => {
     expect(menuEntries(hit("buffer"), items).map((item) => item.id)).toEqual(["go-to", "search", "close"]);
     expect(menuEntries(hit("buffer"), items)[1]).toBe(items[0]);
     expect(ALL_COMMANDS).toBe("All commands…");
-    expect(openEntries(undefined, () => items)).toEqual([]);
-    expect(openEntries({ hit: hit("buffer") }, () => items)).toHaveLength(3);
+    expect(openEntries(undefined, () => items, undefined)).toEqual({ opened: undefined, entries: [] });
+    expect(openEntries({ hit: hit("buffer") }, () => items, undefined).entries).toHaveLength(3);
   });
 });
 
