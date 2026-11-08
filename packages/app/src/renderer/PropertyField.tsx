@@ -59,13 +59,7 @@ export const PropertyField = ({
                 <RelationLink key={at} row={row} onOpenRelation={onOpenRelation} />
               ))}
             </ul>
-          ) : editable?.unknown === true && value !== undefined ? (
-            choiceKeys(value).map((line, at) => (
-              <span className="line" key={at}>
-                {line}
-              </span>
-            ))
-          ) : box.relations !== undefined ? (
+          ) : editable?.unknown === true && value === "" ? null : box.relations !== undefined ? (
             <ul>
               {box.relations
                 .map((relation) => rowOfRelation(relation, element))

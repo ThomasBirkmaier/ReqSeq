@@ -464,6 +464,16 @@ describe("updateInput", () => {
     ).toEqual({ ref: "u", unset: ["topic", "criteria", "effort", "day"] });
   });
 
+  it("[SR-104/AK4] removes a property the type does not know when its box was emptied, and never sets it (#189)", () => {
+    const legacy = editableBoxes(element({ legacy: "x" }), model).get("legacy");
+    const info = legacy?.info ?? text;
+    expect(updateInput("u", undefined, [edit("legacy", info, "x", "")])).toEqual({
+      ref: "u",
+      unset: ["legacy"],
+    });
+    expect(updateInput("u", undefined, [edit("legacy", info, "y", "x")])).toEqual({ ref: "u" });
+  });
+
   it("[SR-104/AK4] treats a box with nothing but blank lines as emptied", () => {
     expect(
       updateInput("u", undefined, [edit("criteria", list, "a", " \n\n\t"), edit("topic", text, "x", "  ")]),

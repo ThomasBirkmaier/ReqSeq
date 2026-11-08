@@ -82,6 +82,9 @@ export const isValueBox = (box: EditableBox): boolean => isValueKind(box.info.ki
 /** How a save treats a property the type does not know: a list of text, so an emptied box is `unset`. */
 const UNKNOWN_INFO: PropertyInfo = { kind: "text", many: true, markdown: false };
 
+/** Whether a box is of a property the type does not know: its document is never sent as `set`. */
+export const isUnknownInfo = (info: PropertyInfo): boolean => info === UNKNOWN_INFO;
+
 /** The box of a property the type does not know: its lines as its document, only to be emptied. */
 export const unknownBox = (box: PropertyBox): EditableBox => ({
   key: box.key,
@@ -411,7 +414,8 @@ export const updateInput = (
     const value = inputValueOf(edit.info, edit.doc);
     if (value === undefined) {
       unset.push(edit.key);
-    } else {
+    } else if (!isUnknownInfo(edit.info)) {
+      // A property the type does not know is only removed: core refuses `set` of it (#189).
       set[edit.key] = value;
     }
   }
