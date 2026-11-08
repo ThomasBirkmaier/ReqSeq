@@ -6,7 +6,7 @@ import path from "node:path";
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { goTo, launchApp, listAll, modifier } from "./support/app.js";
+import { cardSettled, goTo, launchApp, listAll, modifier } from "./support/app.js";
 
 const FIXTURE = { fixture: "SR-069/filter" };
 
@@ -82,6 +82,7 @@ test.describe("the command line by mouse", () => {
     const line = await boxOf(minibuffer(window));
     await minibuffer(window).click({ position: { x: line.width / 2, y: line.height / 2 } });
     await expect(options(window).locator(".name")).toHaveText(all);
+    await cardSettled(window);
     // More commands than the card shows at once, so the wheel has something to reach.
     const shown = await boxOf(card(window));
     const rowHeight = (await boxOf(options(window).first())).height;
@@ -193,6 +194,8 @@ test.describe("the command line by mouse", () => {
     await window.keyboard.type("Show workspace status");
     const hit = options(window).first();
     await expect(hit.locator(".name")).toHaveText("Show workspace status");
+    // The raw mouse has no wait of its own: the box is read where the card stands, not while it rises.
+    await cardSettled(window);
     const row = await boxOf(hit);
     await window.mouse.move(row.x + row.width / 2, row.y + row.height / 2);
     // The press takes the hit, as Enter does; the release over the idle line is no click on it.
