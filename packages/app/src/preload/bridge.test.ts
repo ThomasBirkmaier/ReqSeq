@@ -1,5 +1,5 @@
 import { MessageChannel } from "node:worker_threads";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AgentActivity, WorkspaceChange, WorkspaceMessage } from "../shared/protocol.js";
 import {
   COPY_CHANNEL,
@@ -93,6 +93,10 @@ const ACTIVITY: AgentActivity = {
 };
 
 describe("createBridge", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("listens on the workspace channel; calls wait for the first message", async () => {
     const ipc = new FakeIpc();
     const bridge = createBridge(ipc, false);
@@ -119,7 +123,6 @@ describe("createBridge", () => {
     const onLinux = createBridge(linux);
     linux.post({ open: false });
     expect(await onLinux.invoke("workspace.status")).toEqual(NO_WORKSPACE);
-    vi.restoreAllMocks();
   });
 
   it("calls the core process over the port: invoke with {} by default, and the catalog", async () => {

@@ -40,12 +40,15 @@ export const readOnlyNow = (view: WorkspaceView | undefined): boolean => view?.r
 
 /**
  * The modeline and minibuffer of a `workspace.status` answer, with the keys of macOS when `mac`. A folder without
- * a workspace (core's `workspace.not-found`, which names the missing `file`) gets the way to make one there.
+ * a workspace (core's `workspace.not-found`, which names the missing `file`) and none one level below gets the way
+ * to make one there.
  */
 export const workspaceView = (result: InvokeResult, mac: boolean): WorkspaceView => {
   if (!result.ok) {
     const { code, message, details } = result.error;
-    const bare = code === "workspace.not-found" && details?.["file"] !== undefined;
+    // Not when core found a workspace one level below (`below`): that folder is the one to open.
+    const bare =
+      code === "workspace.not-found" && details?.["file"] !== undefined && details["below"] === undefined;
     return {
       name: undefined,
       readOnly: false,

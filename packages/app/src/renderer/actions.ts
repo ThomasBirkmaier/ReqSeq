@@ -36,7 +36,7 @@ import { idTitle } from "./id-title.js";
 import { LIST_ACTIONS, MATRIX_SHORTCUT, choice } from "./list-actions.js";
 import { linesOf, resultText } from "./result-copy.js";
 import type { KeyPress, Shortcut } from "./keys.js";
-import { COMMAND_SHORTCUT, shortcutLabel } from "./keys.js";
+import { shortcutLabel } from "./keys.js";
 import { OPEN_WORKSPACE_ACTION } from "../shared/open-hint.js";
 import type { GraphChoice, GraphFilterChoice } from "./graph-choices.js";
 import {
@@ -404,9 +404,6 @@ const METAMODEL_SHORTCUT: Shortcut = MATRIX_SHORTCUT;
  * "Follow reference", which opens the target of a relation box and the reference of a Markdown box (ThomasBirkmaier/ReqSeq-archive#610).
  */
 const LIST_VALUE_SHORTCUT: Shortcut = { mod: true, shift: true, key: "enter" };
-
-/** The command prompt itself; it is not listed in itself (defined in `keys.ts`, which the preload reads too). */
-export { COMMAND_SHORTCUT };
 
 /**
  * Alt+P (Option+P on macOS) goes back to the buffer shown before, Alt+N forward again (SR-115 AK5), also while typing in an editor. Alt alone: Ctrl/Cmd+N and Ctrl/Cmd+P are other keys (SR-122).

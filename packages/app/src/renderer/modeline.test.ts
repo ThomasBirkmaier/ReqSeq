@@ -97,6 +97,17 @@ describe("workspaceView", () => {
     expect(workspaceView(bare, true).message).toBe(
       "No reqseq-workspace.yaml in the workspace folder. To create one here, press ⌘⇧P for Initialise workspace.",
     );
+    // A workspace one level below: core says to open that folder, and nothing more is added.
+    const below = {
+      ok: false,
+      error: {
+        code: "workspace.not-found",
+        message:
+          "No reqseq-workspace.yaml in the workspace folder; one level below lies spec/reqseq-workspace.yaml: open that folder as the workspace",
+        details: { file: "reqseq-workspace.yaml", below: ["spec"] },
+      },
+    } as const;
+    expect(workspaceView(below, false).message).toBe(below.error.message);
   });
 });
 
