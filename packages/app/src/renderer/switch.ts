@@ -10,12 +10,12 @@
 // Every write carries the bytes it was made on (`expectedFileSha256`).
 import type { DataExportElement } from "@reqseq/core";
 import type { BoxEdit } from "./property-edit.js";
-import { fieldBoxes, storedDocs, updateInput } from "./property-edit.js";
+import { fieldBoxes, isUnknownInfo, storedDocs, updateInput } from "./property-edit.js";
 import type { Buffers, ElementBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
 import type { Draft } from "./drafts.js";
 import { makeDraft, withShown } from "./drafts.js";
-import type { PropertyModel } from "./element-view.js";
+import type { PropertyInfo, PropertyModel } from "./element-view.js";
 import { TITLE_FIELD } from "./element-view.js";
 import { TEXT_FIELD, draftInput, keptBoxes, outsideChange } from "./outside-change.js";
 
@@ -116,6 +116,13 @@ const settle = (context: SaveContext, buffer: ElementBuffer, kept: Draft, file: 
 };
 
 /**
+ * What a box of a draft is saved as: none when the type has no such property, or when the property is one
+ * the type does not know and the input is not its removal (core only removes such a property, #189).
+ */
+const savable = (info: PropertyInfo | undefined, doc: string): PropertyInfo | undefined =>
+  info === undefined || (isUnknownInfo(info) && doc.trim() !== "") ? undefined : info;
+
+/**
  * Saves the draft of one element buffer that is not shown: before a switch, and when the buffer was left
  * (SR-105 AK1).
  */
@@ -141,7 +148,7 @@ export const saveOne = async (
   const type = context.properties.get(element.type);
   const edits: BoxEdit[] = [];
   for (const [key, box] of keptBoxes(kept, change.dropped, docs)) {
-    const info = boxes.get(key)?.info ?? type?.get(key);
+    const info = savable(boxes.get(key)?.info ?? type?.get(key), box.doc);
     if (info === undefined) {
       return failed(
         buffer,

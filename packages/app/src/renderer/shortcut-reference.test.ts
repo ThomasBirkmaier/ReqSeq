@@ -222,6 +222,7 @@ describe("shortcutReference", () => {
       "Actions",
       "After the prefix key",
       "In a prompt",
+      "In the context menu",
       "In a list",
       "In a graph",
       "On an element",
@@ -240,11 +241,22 @@ describe("shortcutReference", () => {
       "Close buffer",
     ]);
     expect(prefix[0]).toEqual({ keys: ["Ctrl+K E"], mac: ["⌘K E"], does: "Create element" });
-    const element = sections[6]?.rows ?? [];
+    const element = sections[7]?.rows ?? [];
     expect(element.find((row) => row.does.startsWith("Redo"))).toMatchObject({
       keys: ["Ctrl+Shift+Z", "Ctrl+Y"],
       mac: ["⌘⇧Z"],
     });
+  });
+
+  it("[SR-193/AK4] names Tab for folding in the text, the neighbourhood tree and a line with a whole reason", () => {
+    const sections = shortcutReference(COMMANDS);
+    const tabRows = (title: string): string[] =>
+      (sections.find((section) => section.title === title)?.rows ?? [])
+        .filter((row) => row.keys.includes("Tab") && row.mac.includes("Tab"))
+        .map((row) => row.does);
+    expect(tabRows("In the text editor").some((does) => does.includes("fold the section"))).toBe(true);
+    expect(tabRows("In a list").some((does) => does.includes("tree row"))).toBe(true);
+    expect(tabRows("On an element").some((does) => does.includes("whole reason"))).toBe(true);
   });
 
   it("gives actions that share a key one row, and leaves the keys of a buffer (hints) to its section", () => {

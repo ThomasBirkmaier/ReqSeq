@@ -206,7 +206,7 @@ export const recordEvents = async (page: Page): Promise<void> => {
     target.__eventLogSnapshot = () => {
       const lines = [
         `activeElement=${describe(document.activeElement)} hasFocus=${String(document.hasFocus())}`,
-        `menu shown=${String(document.querySelector(".cm-tooltip-autocomplete") !== null)}`,
+        `menu shown=${String(document.querySelector(".cm-tooltip-autocomplete:not(.cm-lr-slash-leaving)") !== null)}`,
       ];
       for (const content of document.querySelectorAll(".cm-content")) {
         const view = viewOf(content);

@@ -5922,8 +5922,12 @@ describe("ElementView", () => {
         expect(viewOf("topic").state.doc.toString()).toBe("Wind");
       });
 
-      it("Clear property says why it cannot clear: no box, a read-only element, a property the type does not know, a value with a line break", async () => {
-        const { controls, echoed } = await mountValues({ topic: "Wind", unknown: "x", [KEY]: ["one\ntwo"] });
+      it("Clear property says why it cannot clear: no box, a read-only element, a value that is no text, a value with a line break", async () => {
+        const { controls, echoed } = await mountValues({
+          topic: "Wind",
+          effort: { nested: true },
+          [KEY]: ["one\ntwo"],
+        });
         act(() => {
           controls().clearProperty();
         });
@@ -5933,11 +5937,11 @@ describe("ElementView", () => {
           controls().clearProperty();
         });
         expect(echoed.at(-1)).toBe("Put the cursor in a property box to clear it");
-        focusField("unknown");
+        focusField("effort");
         act(() => {
           controls().clearProperty();
         });
-        expect(echoed.at(-1)).toBe("unknown is not a property of this type: edit it in the file");
+        expect(echoed.at(-1)).toBe("effort cannot be edited here: edit it in the file");
         focusField(KEY);
         act(() => {
           controls().clearProperty();
@@ -5950,6 +5954,48 @@ describe("ElementView", () => {
           locked.controls().clearProperty();
         });
         expect(locked.echoed.at(-1)).toBe("SR-036 Measure wind is read-only");
+      });
+
+      it("[SR-104/AK4] Clear property empties a property the type does not know, which has no editor; Ctrl/Cmd+Z brings it back, and the save removes it with unset (#189)", async () => {
+        const { controls, call, drafts } = await mountValues(
+          { topic: "Wind", legacy: ["a", "b"] },
+          {},
+          undefined,
+          (input) => {
+            expect(input).toEqual({ ref: "uuid-1", unset: ["legacy"] });
+            return savedWith({ topic: "Wind" });
+          },
+        );
+        expect(lines("legacy")).toEqual(["a", "b"]);
+        // No editor to type in: the box is only emptied.
+        expect(field("legacy").querySelector(".cm-editor")).toBeNull();
+        focusField("legacy");
+        act(() => {
+          controls().clearProperty();
+        });
+        expect(lines("legacy")).toEqual([]);
+        expect(drafts.at(-1)?.[1]?.boxes?.get("legacy")).toEqual({ doc: "", base: "a\nb" });
+        await press(field("legacy"), "z", { ctrlKey: true });
+        expect(lines("legacy")).toEqual(["a", "b"]);
+        act(() => {
+          controls().clearProperty();
+        });
+        expect(lines("legacy")).toEqual([]);
+        await save(controls);
+        expect(updates(call)).toHaveLength(1);
+        expect(container.querySelector('[data-field="legacy"]')).toBeNull();
+        expect(drafts.at(-1)).toEqual(["element:spec:uuid-1", undefined]);
+      });
+
+      it("keeps a cleared property the type does not know in a draft and shows it empty when the buffer comes back (#189)", async () => {
+        const draft: Draft = {
+          text: "Text",
+          base: "Text",
+          boxes: new Map([["legacy", { doc: "", base: "Altlast" }]]),
+        };
+        await mountValues({ topic: "t", legacy: "Altlast" }, {}, draft);
+        expect(container.querySelector('[data-field="legacy"]')).not.toBeNull();
+        expect(lines("legacy")).toEqual([]);
       });
 
       it("does not clear a box with Backspace or Delete on the box itself: only the action does (no undo for it)", async () => {
