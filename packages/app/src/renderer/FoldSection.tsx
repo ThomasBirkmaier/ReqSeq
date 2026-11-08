@@ -66,9 +66,7 @@ export const FoldSection = ({
       >
         <FoldHead label={label} count={count} open={open} />
       </p>
-      <div id={id} hidden={!open}>
-        {open ? children : null}
-      </div>
+      <div id={id}>{open ? children : null}</div>
     </div>
   );
 };

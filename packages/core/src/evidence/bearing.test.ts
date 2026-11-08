@@ -53,7 +53,7 @@ describe("bearingRecords (SR-032 AK3)", () => {
     expect(bearingRecords([validation("passed"), validation("inconclusive")], CURRENT, 0)).toEqual([1]);
   });
 
-  it("on a tie prefers a record that already bears another criterion, so fewer stand open", () => {
+  it("on a tie prefers a record that already bears another criterion", () => {
     // AK1: only the second; AK2: both, and the second already bears AK1.
     const records = [record("15", { criteria: [2] }), record("15", { criteria: [1, 2] })];
     expect(bearingRecords(records, CURRENT, 2)).toEqual([1]);
@@ -76,5 +76,15 @@ describe("bearingRecords (SR-032 AK3)", () => {
     expect(bearingRecords(records, CURRENT, 3)).toEqual([0, 1, 2, 5]);
     // A criterion no record counts for has none.
     expect(bearingRecords([record("20", { criteria: [1] })], CURRENT, 2)).toEqual([0]);
+  });
+
+  it("pools a variant's verification records with those without variant in a variant-independent repository (SR-173)", () => {
+    // The core record is newer than the coast's, so it bears the coast's status too.
+    const records = [record("20"), record("10", { variant: "coast" }), record("09", { kind: "validation" })];
+    expect(bearingRecords(records, CURRENT, 0, true)).toEqual([0, 2]);
+    expect(bearingRecords(records, CURRENT, 0)).toEqual([0, 1, 2]);
+    // Per criterion too; a variant record newer than the core's bears it.
+    const newer = [record("10"), record("20", { variant: "coast" })];
+    expect(bearingRecords(newer, CURRENT, 2, true)).toEqual([0, 1]);
   });
 });

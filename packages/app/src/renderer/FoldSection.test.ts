@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 // FoldSection (SR-032 AK3, SR-201): closed at first, opened and closed by a click on its head and by Enter,
-// Space or Tab without a modifier (SR-193 AK1); its lines are rendered only while open.
+// Space or Tab without a modifier (SR-193); its lines are rendered only while open.
 import { act, createElement } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
@@ -69,7 +69,7 @@ describe("FoldSection", () => {
     expect(lines()).toBe(1);
   });
 
-  it("[SR-193/AK1] toggles with Tab on its head, and leaves Tab with a modifier and other keys alone", () => {
+  it("toggles with Tab on its head (SR-193), and leaves Tab with a modifier and other keys alone", () => {
     expect(press("Tab").defaultPrevented).toBe(true);
     expect(lines()).toBe(1);
     for (const [key, more] of [

@@ -8335,7 +8335,7 @@
                     },
                     "bearing": {
                       "type": "array",
-                      "description": "The positions in `records` (from 0, ascending) of the records that bear the element's status: per kind, variant and acceptance criterion the newest of the current version, else the newest of an older version; a record without criteria counts for every criterion. Of several records with the newest date one bears it: a failed one before an inconclusive before a passed one, then one that bears another group already, then the first in `records`. The app shows these open and folds the others away.",
+                      "description": "The positions in `records` (from 0, ascending) of the records that bear the element's status: per kind, variant and acceptance criterion the newest of the current version, else the newest of an older version; a record without criteria counts for every criterion. Of several records with the newest date one bears it: a failed one before an inconclusive before a passed one, then one that bears another group already, then the first in `records`. In a repository marked `variant-independent` a variant's records are pooled with those without variant, as its status pools them. The app shows these open and folds the others away.",
                       "items": {
                         "type": "integer",
                         "minimum": 0

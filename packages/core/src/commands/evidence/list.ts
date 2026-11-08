@@ -73,7 +73,7 @@ export default defineCommand({
         : criteriaCount(element.data, acceptanceCriteriaKeyOf(await ctx.workspace.get(metamodelState)));
     return {
       records: listed,
-      bearing: bearingRecords(listed, current, count),
+      bearing: bearingRecords(listed, current, count, independent),
       testCases: testCasesIn(index, element.id, view, independent).map(testCaseWithEvidenceSource),
       problems: [...baselines.problems],
       incomplete: read.incomplete || baselines.incomplete,
