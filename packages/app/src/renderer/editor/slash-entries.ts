@@ -32,14 +32,24 @@ export type SlashEntry =
   /** Asks for an element; the editor writes the reference when one is picked. */
   | (Base & { readonly kind: "reference" })
   /** Asks for an image file; the editor writes the Markdown core gives for its copy (SR-097, `element.addAttachment`). */
-  | (Base & { readonly kind: "image" });
+  | (Base & { readonly kind: "image" })
+  /** Today's date of the computer, `YYYY-MM-DD` (SR-200 AK1), at the place of the `/` and its query. */
+  | (Base & { readonly kind: "today" })
+  /** Opens a calendar at the caret; the editor writes the day picked there (SR-200 AK2, AK3, `calendar.ts`). */
+  | (Base & { readonly kind: "date" });
 
-/** The entries that ask the app before they write: the `/` and its query stay until the answer. */
-export type AskingEntry = SlashEntry & { readonly kind: "reference" | "image" };
+/** The entries that ask before they write: the `/` and its query stay until the answer. */
+export type AskingEntry = SlashEntry & { readonly kind: "reference" | "image" | "date" };
 
-/** Whether taking `entry` asks the app first (a reference or an image). */
+/** Whether taking `entry` asks first (a reference, an image or a day in the calendar). */
 export const asks = (entry: SlashEntry): entry is AskingEntry =>
-  entry.kind === "reference" || entry.kind === "image";
+  entry.kind === "reference" || entry.kind === "image" || entry.kind === "date";
+
+/** A date as `YYYY-MM-DD` (ISO 8601, SR-200): the day of `date` on the computer's clock, in its time zone. */
+export const isoDate = (date: Date): string =>
+  [date.getFullYear(), date.getMonth() + 1, date.getDate()]
+    .map((part, index) => String(part).padStart(index === 0 ? 4 : 2, "0"))
+    .join("-");
 
 const heading = (level: number): SlashEntry => ({
   kind: "line",
@@ -68,7 +78,7 @@ const fenced = (id: string, name: string, open: string, close: string): SlashEnt
   caret: { line: 1, column: 0, length: 0 },
 });
 
-/** The entries in the order of SR-129 AK1, then the two inline formats (assumption A3). */
+/** The entries in the order of SR-129 AK1, then the two inline formats (assumption A3), then the dates (SR-200). */
 export const SLASH_ENTRIES: readonly SlashEntry[] = [
   heading(1),
   heading(2),
@@ -118,11 +128,15 @@ export const SLASH_ENTRIES: readonly SlashEntry[] = [
     text: "**",
     caret: { line: 0, column: 1, length: 0 },
   },
+  { kind: "today", id: "today", name: "Today", detail: "YYYY-MM-DD" },
+  { kind: "date", id: "date", name: "Date", detail: "calendar" },
 ];
 
-/** What a block would break: the entries a table row offers are the inline ones, the reference and the image. */
+/** What a block would break: the entries a table row offers are the inline ones, the reference, the image and the dates. */
 export const entriesFor = (inTable: boolean): readonly SlashEntry[] =>
-  inTable ? SLASH_ENTRIES.filter((entry) => entry.kind === "inline" || asks(entry)) : SLASH_ENTRIES;
+  inTable
+    ? SLASH_ENTRIES.filter((entry) => entry.kind === "inline" || entry.kind === "today" || asks(entry))
+    : SLASH_ENTRIES;
 
 // Where a `/` does not open the menu and `[[` no search: code, links, addresses, HTML and formulas (SR-096).
 const NOT_IN = new Set([
@@ -342,15 +356,17 @@ const inlineChange = (
 });
 
 /**
- * The change that takes `entry` for the `/` and its query in `from` to `to` (a reference or an image is
- * written by `insertHeld` of `reference-pick.ts` once the app answers). One transaction, so one undo restores the text as it was
- * before the entry was taken.
+ * The change that takes `entry` for the `/` and its query in `from` to `to` (a reference, an image or a day
+ * of the calendar is written by `insertHeld` of `reference-pick.ts` once the answer is there). One
+ * transaction, so one undo restores the text as it was before the entry was taken. "Today" writes the day of
+ * `now`.
  */
 export const applyEntry = (
   state: EditorState,
   from: number,
   to: number,
   entry: Exclude<SlashEntry, AskingEntry>,
+  now: Date = new Date(),
 ): TransactionSpec => {
   switch (entry.kind) {
     case "line":
@@ -359,6 +375,10 @@ export const applyEntry = (
       return blockChange(state, from, to, entry);
     case "inline":
       return inlineChange(from, to, entry);
+    case "today": {
+      const text = isoDate(now);
+      return { changes: { from, to, insert: text }, selection: EditorSelection.cursor(from + text.length) };
+    }
   }
 };
 

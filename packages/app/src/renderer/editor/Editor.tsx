@@ -260,6 +260,35 @@ const theme = EditorView.theme({
   ".cm-tooltip .cm-tooltip-section:not(:first-child)": {
     borderTop: "1px solid var(--rule)",
   },
+  // The calendar of the slash menu's "Date" (SR-200, `calendar.ts`): a small month on a card like the menu's,
+  // the chosen day on the selection ground, today in bold, the days of the months around it muted.
+  ".cm-tooltip.cm-lr-calendar": {
+    backgroundColor: "var(--raised)",
+    color: "var(--text)",
+    border: "1px solid var(--rule)",
+    borderRadius: "8px",
+    boxShadow: "0 6px 18px var(--shadow)",
+    padding: "0.5rem",
+    fontSize: "13px",
+  },
+  ".cm-lr-calendar-title": { textAlign: "center", fontWeight: "600", marginBottom: "0.25rem" },
+  ".cm-lr-calendar table": { borderCollapse: "collapse" },
+  ".cm-lr-calendar th": {
+    fontWeight: "400",
+    fontSize: "12px",
+    color: "var(--muted)",
+    padding: "0.1rem 0.35rem",
+  },
+  ".cm-lr-calendar td": {
+    textAlign: "right",
+    padding: "0.1rem 0.35rem",
+    borderRadius: "4px",
+    cursor: "pointer",
+    fontVariantNumeric: "tabular-nums",
+  },
+  ".cm-lr-calendar td.cm-lr-calendar-other": { color: "var(--muted)" },
+  ".cm-lr-calendar td[aria-current='date']": { fontWeight: "700" },
+  ".cm-lr-calendar td[aria-selected='true']": { backgroundColor: "var(--select)", color: "var(--text)" },
   ".cm-completionMatchedText": { textDecoration: "none", fontWeight: "700" },
   ".cm-completionDetail": { marginLeft: "0", fontStyle: "normal", fontSize: "12px", color: "var(--muted)" },
 });
