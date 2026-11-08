@@ -7,15 +7,15 @@ sidebar:
 
 The status of an element is one of the statuses its type has in the metamodel. In the standard model these are `draft` (the status of a new element), `approved` and `obsolete`, which the metamodel marks invalid. ReqSeq never sets a status itself: only you do, and a change to an approved element leaves it approved. Instead, ReqSeq marks the relations that point to the changed element as outdated, and those hints tell you what to review.
 
-ReqSeq never deletes an approved element either. You supersede it: it gets an invalid status, and its successor names it with `supersedes`, so the chain and its evidence stay traceable. A draft that was never approved and is in no baseline you can [remove](/how-to/remove-a-draft/).
+ReqSeq never deletes an element. You supersede an approved one: it gets an invalid status, and a successor, if there is one, can name it with `supersedes`, so the chain and its evidence stay traceable. A draft that was never approved and is in no baseline you can [remove](/how-to/remove-a-draft/).
 
 ## App
 
 1. Open the element and run **Set status** (Ctrl+K T, ⌘K T on macOS). It offers the shown element first; add more elements one per Enter, end the list with an empty Enter, and choose Approved. A right-click on the status in the modeline offers it too.
 2. To set another property for every element of a list, open the command prompt on the list (Ctrl+Shift+P, ⌘⇧P) and run **Bulk update elements**. It shows what it would change; run it again with Ctrl+Enter (⌘↩) and `confirm` yes to write it.
 3. Before you change an element, **Show affected elements** lists the elements that trace to it.
-4. After the change, a requirement shows "link outdated" next to it. **List hints** lists all such hints. Review the requirement, then run **Confirm hints** (Ctrl+K H, ⌘K H) on it. Set it back to Draft with **Set status** if it needs more work.
-5. To replace an element, run **Supersede element** on it and choose Obsolete; with Ctrl+Enter (⌘↩) you can name the successor.
+4. After the change, each requirement that derives from the need shows "link outdated" next to the need. **List hints** lists all such hints. Review each requirement and set it back to Draft with **Set status** if it needs more work. Then run **Confirm hints** (Ctrl+K H, ⌘K H) on it, which clears the mark; the app confirms one requirement at a time.
+5. To replace an element, create its successor with **Create element** (Ctrl+K E, ⌘K E). Then run **Supersede element** on the old one and choose Obsolete; with Ctrl+Enter (⌘↩) you can name the successor.
 
 ## CLI
 
@@ -49,10 +49,21 @@ SR-5e1d0a  draft  Warn of gusts  [verification: core open]
 ...
 ```
 
-`element bulk-update` changes one property, never the status, for every element of a selection. Without `--confirm` it only shows what it would change; `--expected` refuses the write when the count is no longer that of the preview:
+`element bulk-update` changes one property, never the status, for every element of a selection. Without `--confirm` it only shows what it would change:
 
 ```sh
 reqseq element bulk-update verification-method set --where-type system-requirement --input '{"value":"test"}'
+```
+
+```text title="Output"
+applied: false
+count: 2
+...
+```
+
+With `--confirm`, `--expected` refuses the write when the count is no longer that of the preview. `--plan` with the preview's `plan` is stricter: it refuses unless the same files get the same bytes.
+
+```sh
 reqseq element bulk-update verification-method set --where-type system-requirement --input '{"value":"test"}' --confirm --expected 2
 ```
 
@@ -102,7 +113,7 @@ hints:
 total: 2
 ```
 
-Both requirements are still approved. Review them, set back to `draft` what needs work, and confirm the hints of the need, or one requirement's with `--ref`:
+Both requirements are still approved. Review them and set back to `draft` what needs work. Then confirm the hints that point to the need, or one requirement's with `--ref`:
 
 ```sh
 reqseq hint confirm --target N-7fe707
@@ -140,7 +151,7 @@ Only a status the metamodel marks invalid supersedes; `approved` is refused with
 
 ## API
 
-Start the API in the workspace with `reqseq serve api`, and send each command with the token of `api.json` as `Authorization: Bearer <token>`:
+With the [local API](/concepts/cli-api-and-mcp/#api) running in the workspace, and its token:
 
 ```http
 POST /v1/commands/element.setStatus
@@ -151,8 +162,10 @@ POST /v1/commands/element.setStatus
 ```http
 POST /v1/commands/element.bulkUpdate
 
-{ "selection": { "where": { "type": ["system-requirement"] } }, "property": "verification-method", "operation": "set", "value": "test", "confirm": true, "expected": 2 }
+{ "selection": { "where": { "type": ["system-requirement"] } }, "property": "verification-method", "operation": "set", "value": "test" }
 ```
+
+The preview's answer has `plan`; send the same input again with `"confirm": true, "plan": "p1:<plan of the preview>"` to write it.
 
 ```http
 POST /v1/commands/trace.affected
@@ -189,7 +202,11 @@ An agent connected to `reqseq mcp` calls the same commands as tools:
 ```
 
 ```json
-{ "name": "element_bulkUpdate", "arguments": { "selection": { "where": { "type": ["system-requirement"] } }, "property": "verification-method", "operation": "set", "value": "test", "confirm": true, "expected": 2 } }
+{ "name": "element_bulkUpdate", "arguments": { "selection": { "where": { "type": ["system-requirement"] } }, "property": "verification-method", "operation": "set", "value": "test" } }
+```
+
+```json
+{ "name": "element_bulkUpdate", "arguments": { "selection": { "where": { "type": ["system-requirement"] } }, "property": "verification-method", "operation": "set", "value": "test", "confirm": true, "plan": "p1:<plan of the preview>" } }
 ```
 
 ```json
