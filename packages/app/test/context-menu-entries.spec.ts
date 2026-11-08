@@ -56,11 +56,14 @@ const openElement = async (window: Page, title: string): Promise<void> => {
   await expect(window.locator("article h1").first()).toHaveText(title);
 };
 
-/** The menu of `target` has the entries of an element, and closes again. */
-const hasEntries = async (target: Locator): Promise<void> => {
+/**
+ * The menu of `target` has the entries of an element, then `after` (what the place adds, SR-199), and closes
+ * again.
+ */
+const hasEntries = async (target: Locator, after: readonly string[] = []): Promise<void> => {
   const window = target.page();
   await rightClick(target);
-  expect(await entryNames(window)).toEqual(ENTRIES);
+  expect(await entryNames(window)).toEqual([...ENTRIES.slice(0, -1), ...after, ...ENTRIES.slice(-1)]);
   await window.keyboard.press("Escape");
   await expect(menu(window)).toBeHidden();
 };
@@ -178,7 +181,8 @@ test.describe("the context menu of an element as an entry", () => {
     const target = window.locator(".matrix td.cell .target").first();
     const targetLabel = (await target.textContent()) ?? "";
     const rowId = (await target.locator("xpath=ancestor::tr").locator("td.element .id").textContent()) ?? "";
-    await hasEntries(target);
+    // SR-199 AK4 adds "Remove relation" after the entries of the element.
+    await hasEntries(target, ["Remove relation"]);
     await rightClick(target);
     await choose(window, "Show graph");
     await expect(window.locator(".graph")).toBeVisible();

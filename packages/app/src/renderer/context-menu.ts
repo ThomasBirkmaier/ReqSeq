@@ -8,6 +8,7 @@ import { press } from "./keys.js";
 import { ENTRY_MENU } from "./entry-menu.js";
 import { FIELD_MENU } from "./field-menu.js";
 import { LIST_MENU } from "./list-menu.js";
+import { MATRIX_CELL_MENU, MATRIX_TARGET_MENU } from "./matrix-menu.js";
 import { TEXT_MENU } from "./text-menu.js";
 
 /**
@@ -115,21 +116,27 @@ export const MENU_PLACES: Readonly<Record<MenuPlace, readonly MenuEntry[]>> = {
   ],
 
   graph: [
-    // SR-199
+    // SR-199 AK1: the sheet of an element's graph outside its nodes. The export of SR-151 is not built yet.
+    { id: "graph-depth" },
+    { id: "graph-also" },
+    { id: "graph-only" },
   ],
 
   "metamodel-graph": [
-    // SR-199
+    // SR-199 AK2: the sheet of the metamodel's graph outside its types. The export of SR-151 is not built yet.
+    { id: "metamodel-text" },
   ],
 
   "matrix-cell": [
-    // SR-199
+    // SR-199 AK3: a cell of the matrix outside its connected elements (`matrix-menu.ts`).
+    ...MATRIX_CELL_MENU,
   ],
 
   "matrix-target": [
     // SR-197 AK1: a connected element in a cell of the matrix is an entry too.
     ...ENTRY_MENU,
-    // SR-199
+    // SR-199 AK4: then the relation between the element of the row and it (`matrix-menu.ts`).
+    ...MATRIX_TARGET_MENU,
   ],
 };
 

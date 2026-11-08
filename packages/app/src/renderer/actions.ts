@@ -49,6 +49,7 @@ import {
 import { cycleKey } from "./buffer-cycle.js";
 import { TEXT_ACTIONS } from "./text-actions.js";
 import { ENTRY_ACTIONS } from "./entry-menu.js";
+import type { GivenArguments, MatrixSpot } from "./matrix-menu.js";
 import { FIND_ACTIONS } from "./find-actions.js";
 import { HEADING_ACTIONS } from "./heading-actions.js";
 import type { HeadingControls } from "./heading-actions.js";
@@ -300,6 +301,16 @@ export interface ActionContext {
    * commands act on the shown element.
    */
   readonly entry?: ElementBuffer;
+  /**
+   * Where the matrix's cursor or right-click stands (`matrix-menu.ts`, SR-199): the row, the column and a
+   * connected element. Absent elsewhere.
+   */
+  readonly matrix?: MatrixSpot;
+  /**
+   * Arguments given to catalog commands before the prompt asks the others, by command name: the matrix's
+   * "Create relation" and "Remove relation" while its menu is open (`menuContext`, SR-199). Absent: none.
+   */
+  readonly given?: GivenArguments;
   /** The shown buffer has unsaved changes. */
   readonly modified: boolean;
   /** Whether "Close buffer" asked about the unsaved changes of the buffer with this key just now: closing again discards them. */

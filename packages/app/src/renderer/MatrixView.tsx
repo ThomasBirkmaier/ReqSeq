@@ -34,6 +34,17 @@ import {
 } from "./matrix.js";
 import type { CellLine, MatrixColumn, MatrixRow } from "./matrix.js";
 import { rowTarget } from "./keys.js";
+import type { RelationOptions } from "./matrix-menu.js";
+import {
+  CREATABLE,
+  NO_OPTIONS,
+  PROPERTY_COLUMN,
+  creatable,
+  matrixSpotOf,
+  optionAsks,
+  spotKey,
+  withOptions,
+} from "./matrix-menu.js";
 import { OUTDATED_WORD } from "./outdated-codes.js";
 import type { BufferData } from "./modeline.js";
 import type { OutsideChanges } from "./outside-marks.js";
@@ -104,6 +115,19 @@ const Link = ({
   </div>
 );
 
+/**
+ * The marks of a cell the menu reads (SR-199): a relation property's column, and where a relation of the
+ * column can be created in the row (`creatable`).
+ */
+const cellMarks = (
+  options: RelationOptions,
+  row: MatrixRow,
+  column: MatrixColumn | undefined,
+): Record<string, string> => ({
+  ...(column?.property === true ? { [PROPERTY_COLUMN]: "" } : {}),
+  ...(column !== undefined && creatable(options, row.type, column) ? { [CREATABLE]: "" } : {}),
+});
+
 /** A line of an evidence cell, in the accent colour when it is marked. */
 const Line = ({ line }: { readonly line: CellLine }): React.JSX.Element => (
   <div
@@ -133,6 +157,37 @@ const EvidenceCells = ({ row }: { readonly row: MatrixRow }): React.JSX.Element 
     </td>
   </>
 );
+
+/**
+ * What `relation.options` says for the rows and columns loaded (SR-199 AK3): asked once per type of row, and
+ * for an incoming column whose kind no row type may have, of the source of one of its relations; asked
+ * again when the workspace changed.
+ */
+const useRelationOptions = (
+  call: Call,
+  revision: number,
+  rows: readonly MatrixRow[],
+  columns: readonly MatrixColumn[],
+): RelationOptions => {
+  const [known, setKnown] = useState<RelationOptions>(NO_OPTIONS);
+  const asked = useRef(new Set<string>());
+  useResetOnAsk([call, revision], () => {
+    asked.current = new Set();
+    setKnown(NO_OPTIONS);
+  });
+  useEffect(() => {
+    const mine = asked.current;
+    for (const ask of optionAsks(rows, columns, known, mine)) {
+      mine.add(ask.key);
+      void call("relation.options", { ref: ask.ref }).then((answer) => {
+        if (answer.ok && mine === asked.current) {
+          setKnown((before) => withOptions(before, ask, answer.output.kinds));
+        }
+      });
+    }
+  }, [rows, columns, known]);
+  return known;
+};
 
 export const MatrixView = ({
   call,
@@ -200,6 +255,8 @@ export const MatrixView = ({
   }, [call, buffer.key, buffer.selection, sort, revision]);
 
   const rows = view.status === "ok" ? view.rows : [];
+  const columns = view.status === "ok" ? view.columns : [];
+  const options = useRelationOptions(call, revision, rows, columns);
   const cursor = Math.min(buffer.cursor, Math.max(0, rows.length - 1));
   const selected = rows[cursor];
   const targets = selected === undefined ? [] : targetsOf(selected);
@@ -207,6 +264,9 @@ export const MatrixView = ({
   // The element of the selected target, or of the row of a selected cell, is the marked one (SR-150,
   // SR-194 AK5): the commands of the context menu act on it.
   const markedTarget = targetElement(chosenCell === undefined ? targets[at] : targets[0]);
+  // Where the cursor or a right-click stands as far as a relation goes (SR-199): the selected cell, or the
+  // relation of the selected target, with its row.
+  const spot = matrixSpotOf(columns, rows, selected, chosenCell, targets[at]);
   useEffect(() => {
     if (view.status === "ok") {
       onData(buffer.key, {
@@ -214,9 +274,10 @@ export const MatrixView = ({
         total: view.total,
         incomplete: view.incomplete,
         ...(markedTarget === undefined ? {} : { marked: markedTarget }),
+        ...(spot === undefined ? {} : { spot }),
       });
     }
-  }, [view, markedTarget?.key]);
+  }, [view, markedTarget?.key, spotKey(spot)]);
 
   useEffect(() => {
     const list = root.current;
@@ -316,7 +377,6 @@ export const MatrixView = ({
     }
   };
 
-  const columns = view.status === "ok" ? view.columns : [];
   const evidence = view.status === "ok" ? view.evidence : undefined;
   return (
     <div
@@ -399,6 +459,8 @@ export const MatrixView = ({
                       role="gridcell"
                       className="cell"
                       data-menu="matrix-cell"
+                      // A relation property's column: no relation kind to create or remove (SR-199).
+                      {...cellMarks(options, row, columns[column])}
                       aria-selected={chosenCell?.row === index && chosenCell.column === column}
                       onContextMenu={(event) => {
                         // A press on a relation of the cell selects the relation (`Link`).

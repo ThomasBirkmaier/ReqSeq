@@ -89,6 +89,8 @@ export const LinkHits = ({
       className="graph-edge-hit"
       d={path.d}
       data-hit={pathKey(path)}
+      // An edge is no part of the sheet: the buffer's menu (SR-194 AK6, SR-199 AK1).
+      data-menu="buffer"
       onMouseEnter={at(path)}
       onMouseLeave={() => {
         hover(undefined);

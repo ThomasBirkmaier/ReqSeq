@@ -58,6 +58,7 @@ import { bufferName, elementBufferOf, resultBuffer } from "./buffers.js";
 import type { PropertyAnswer, RequiredProperty } from "./create-element.js";
 import { CREATE_COMMAND, creatableTypes, createdEcho, propertiesInput } from "./create-element.js";
 import { idTitle } from "./id-title.js";
+import type { Prefilled } from "./matrix-menu.js";
 import { isWindows } from "./keys.js";
 import { pathSeeker } from "./path-completion.js";
 import { choiceItems } from "./property-edit.js";
@@ -85,6 +86,8 @@ interface Given {
   readonly asks?: readonly RequiredProperty[];
   /** An optional argument a write command asked was skipped (Enter on an empty input): no value. */
   readonly skipped?: true;
+  /** Given before the prompt asked (`startCommand`, SR-199): not offered first to another argument. */
+  readonly prefilled?: true;
   /**
    * Where the value stands among the values given (`ordered`): the next number when it is given, the
    * number of the value it replaces when it is asked again, so it keeps that value's place.
@@ -438,9 +441,14 @@ const OFFERS: Readonly<Record<Source, (asked: Asked) => Promise<Offer | Failed>>
   relationTarget: async ({ context, of, before }) => {
     if (typeof before === "string") {
       const answer = await context.call("relation.options", { ref: before });
-      return answer.ok
-        ? elementsOf(answer.output.kinds.find((kind) => kind.kind === of)?.targetTypes)
-        : { kind: "failed", message: answer.message };
+      if (!answer.ok) {
+        return { kind: "failed", message: answer.message };
+      }
+      // A kind given before the prompt asked (SR-199) that the source may not have: no target can be taken.
+      const kind = answer.output.kinds.find((option) => option.kind === of);
+      return kind === undefined
+        ? { kind: "failed", message: `The source cannot have a relation of kind ${String(of)}` }
+        : elementsOf(kind.targetTypes);
     }
     const answer = await context.call("metamodel.get", {});
     return answer.ok
@@ -1141,7 +1149,11 @@ const ask = (context: CatalogContext, entry: Entry, arg: Argument, at: number): 
         const picked = (row: Row): unknown => (offer.target === true ? relationTargetOf(row) : row.open.id);
         // The element shown, else the selected row of the shown list, comes first, so Enter takes it; not
         // among target types, which it may not have.
-        const first = offer.types !== undefined ? undefined : firstOffered(context, entry);
+        // Not an element given before the prompt asked (the row of the matrix, SR-199 AK3).
+        const candidate = offer.types !== undefined ? undefined : firstOffered(context, entry);
+        const first = entry.given.some((given) => given.prefilled === true && given.value === candidate?.id)
+          ? undefined
+          : candidate;
         return {
           items:
             first === undefined
@@ -1298,9 +1310,22 @@ const step = (context: CatalogContext, answered: Entry): void => {
   }
 };
 
-/** Starts the argument entry of `command`; `more` (Ctrl/Cmd+Enter on it) offers the optional arguments too. */
-export const startCommand = (context: CatalogContext, command: CommandListing, more: boolean): void => {
-  step(context, { command, given: [], more });
+/**
+ * Starts the argument entry of `command`; `more` (Ctrl/Cmd+Enter on it) offers the optional arguments too.
+ * The arguments in `prefilled` count as given, in their order (SR-199: the matrix's "Create relation" asks
+ * only the other end); the prompt asks the others, and Backspace asks a given one again.
+ */
+export const startCommand = (
+  context: CatalogContext,
+  command: CommandListing,
+  more: boolean,
+  prefilled: readonly Prefilled[] = [],
+): void => {
+  step(context, {
+    command,
+    given: prefilled.map((value, at) => ({ ...value, prefilled: true, rank: at + 1 })),
+    more,
+  });
 };
 
 /**
@@ -1346,10 +1371,10 @@ export const catalogItems = (
         ...(hint === undefined ? {} : { hint }),
         fits: fits(context, command),
         run: () => {
-          startCommand(context, command, false);
+          startCommand(context, command, false, context.given?.[command.name]);
         },
         more: () => {
-          startCommand(context, command, true);
+          startCommand(context, command, true, context.given?.[command.name]);
         },
       };
     });

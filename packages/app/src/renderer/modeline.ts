@@ -7,6 +7,7 @@ import { bufferName } from "./buffers.js";
 import { depthLabel, filterLabel } from "./graph.js";
 import { isOutdatedCode } from "./outdated-codes.js";
 import type { GraphFilterChoice } from "./graph-choices.js";
+import type { MatrixSpot } from "./matrix-menu.js";
 import type { ResultSummary } from "./result.js";
 
 /** The part of the `workspace.status` output the modeline shows. */
@@ -66,6 +67,8 @@ export type BufferData =
       readonly rows?: readonly (ElementBuffer | undefined)[];
       /** The matrix (SR-125): the element of the selected target or cell (SR-194 AK5), in place of a row. */
       readonly marked?: ElementBuffer;
+      /** The matrix: the row, column and connected element of the selected target or cell (SR-199). */
+      readonly spot?: MatrixSpot;
     }
   | {
       readonly kind: "overview";
@@ -141,6 +144,18 @@ export const markedElement = (
 ): ElementBuffer | undefined => {
   const data = loaded?.key === current?.key ? loaded?.data : undefined;
   return data !== undefined && "marked" in data ? data.marked : selectedRow(current, loaded);
+};
+
+/**
+ * Where the shown matrix's cursor or right-click stands (SR-199), as the context's `matrix`; nothing for any
+ * other buffer.
+ */
+export const matrixSpot = (
+  current: Buffer | undefined,
+  loaded: { readonly key: string; readonly data: BufferData | undefined } | undefined,
+): { readonly matrix?: MatrixSpot } => {
+  const data = loaded?.key === current?.key ? loaded?.data : undefined;
+  return data?.kind === "list" && data.spot !== undefined ? { matrix: data.spot } : {};
 };
 
 /**

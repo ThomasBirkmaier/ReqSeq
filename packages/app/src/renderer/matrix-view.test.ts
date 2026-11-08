@@ -165,9 +165,10 @@ const matrixAnswer = (rows = ROWS, extra: object = {}) => ({
   ...extra,
 });
 
+/** `trace.matrix` answers with `answerOf`; `relation.options`, which the cells ask (SR-199), with no kinds. */
 const fakeCall = (answerOf: (input: Record<string, unknown>) => unknown = () => matrixAnswer()) =>
-  vi.fn((_name: string, input: Record<string, unknown>) => {
-    const output = answerOf(input);
+  vi.fn((name: string, input: Record<string, unknown>) => {
+    const output = name === "relation.options" ? { kinds: [] } : answerOf(input);
     return Promise.resolve(
       output instanceof Error
         ? { ok: false, code: "x.failed", message: output.message }
@@ -175,6 +176,10 @@ const fakeCall = (answerOf: (input: Record<string, unknown>) => unknown = () => 
     );
   });
 const asCall = (call: ReturnType<typeof fakeCall>): Call => call as unknown as Call;
+
+/** How often the matrix was asked for (not counting `relation.options`). */
+const matrixCalls = (call: ReturnType<typeof fakeCall>): number =>
+  call.mock.calls.filter(([name]) => name === "trace.matrix").length;
 
 /** `expect.objectContaining` for what an action carries, typed as an object. */
 const objectWith = (fields: object): object => expect.objectContaining(fields) as object;
@@ -508,7 +513,7 @@ describe("MatrixView", () => {
     };
     // happy-dom has no layout: nothing is shown, so the end is not a screen away.
     await scroll();
-    expect(call).toHaveBeenCalledTimes(1);
+    expect(matrixCalls(call)).toBe(1);
     // 1000 px shown, scrolled to 900 of 2000 px: the end is less than a screen away.
     Object.defineProperties(scroller, {
       scrollHeight: { value: 2000 },
@@ -521,14 +526,17 @@ describe("MatrixView", () => {
     fail = true;
     await press("ArrowDown");
     expect(echoed).toEqual([]);
-    expect(call).toHaveBeenCalledTimes(2);
+    expect(matrixCalls(call)).toBe(2);
   });
 
   it("echoes a page that fails, and drops a page that comes after the list was asked for again", async () => {
     const many = Array.from({ length: 205 }, (_, n) => element(n + 1, [[], []]));
     let mode: "ok" | "fail" | "slow" = "ok";
     const late: ((value: unknown) => void)[] = [];
-    const call = vi.fn((_name: string, input: Record<string, unknown>) => {
+    const call = vi.fn((name: string, input: Record<string, unknown>) => {
+      if (name === "relation.options") {
+        return Promise.resolve({ ok: true, output: { kinds: [] } });
+      }
       const page = {
         ...matrixAnswer(many.slice(Number(input["offset"]), Number(input["offset"]) + 200)),
         total: 205,
@@ -587,7 +595,7 @@ describe("MatrixView", () => {
     expect(data.at(-1)).toEqual(["list", { kind: "list", total: 4, incomplete: true }]);
     expect(data.some(([, loaded]) => loaded === undefined)).toBe(true);
     await show(1);
-    expect(call).toHaveBeenCalledTimes(2);
+    expect(matrixCalls(call)).toBe(2);
   });
 
   it("reads a first page long enough for the selected row, and drops the answer of an older load", async () => {
