@@ -47,8 +47,8 @@ test.describe("the children missing for an indirect verification", () => {
       "SR-00b123",
     ]);
     const verification = line(window, "Verification");
-    await expect(verification).toHaveText(
-      "Verification — Core: open (missing SR-00b121 Warn of gusts, SR-00b122 Warn of hail, SR-00b123 Warn of lightning)",
+    await expect(verification.locator(".badge-status")).toHaveText(
+      "open (missing SR-00b121 Warn of gusts, SR-00b122 Warn of hail, SR-00b123 Warn of lightning)",
     );
     await verification.getByRole("link", { name: "SR-00b122 Warn of hail" }).click();
     await expect(window.locator("article h1")).toHaveText("Warn of hail");
@@ -67,7 +67,8 @@ test.describe("the validation status", () => {
   test("[SR-038/AK1] a requirement shows its validation status on a line apart from its verification status", async () => {
     const { window } = running;
     await openEditor(window, "Show wind speed");
-    await expect(line(window, "Verification")).toHaveText("Verification — Core: failed");
+    await expect(line(window, "Verification").locator(".badge-name")).toHaveText(["Core"]);
+    await expect(line(window, "Verification").locator(".badge-status")).toHaveText(["failed"]);
     await expect(line(window, "Validation")).toHaveText("Validation — validated");
     // A need has a validation status and no verification status (D-012).
     await openEditor(window, "Know the wind");

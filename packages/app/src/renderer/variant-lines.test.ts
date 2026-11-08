@@ -1,7 +1,7 @@
 import type { DataExportElement, ElementGetOutput, ElementName, ProblemCode } from "@reqseq/core";
 import { describe, expect, it } from "vitest";
 import { elementBuffer } from "./buffers.js";
-import type { LinePart } from "./variant-lines.js";
+import type { Badge, LinePart } from "./variant-lines.js";
 import { REASON_LENGTH, variantLines } from "./variant-lines.js";
 
 const name = (id: string, shortId: string, title: string, identifier?: string): ElementName => ({
@@ -31,6 +31,10 @@ const output = (
 const text = (parts: readonly LinePart[] | undefined): string | undefined =>
   parts?.map((part) => part.text).join("");
 
+/** Each badge as "<left half> | <right half>". */
+const halves = (badges: readonly Badge[] | undefined): string[] | undefined =>
+  badges?.map((badge) => `${badge.name.text} | ${text(badge.parts) ?? ""}`);
+
 describe("the lines of a requirement's variants", () => {
   it("names the variants that replace and exclude it, each a link, and the replacement by its ID and title", () => {
     const lines = variantLines(
@@ -53,7 +57,7 @@ describe("the lines of a requirement's variants", () => {
     expect(lines.verification).toBeUndefined();
   });
 
-  it("gives the verification status per view in core's order, the core first by its word", () => {
+  it("[SR-157/AK1] gives the verification status per view as a badge in core's order: the name, the status and its word", () => {
     const lines = variantLines(
       output(
         {
@@ -66,7 +70,15 @@ describe("the lines of a requirement's variants", () => {
         [COAST, MOUNTAIN],
       ),
     );
-    expect(text(lines.verification)).toBe("Verification — Core: verified · Coast: open · Mountain: failed");
+    expect(halves(lines.verification)).toEqual(["Core | verified", "Coast | open", "Mountain | failed"]);
+    expect(lines.verification?.map((badge) => badge.status)).toEqual(["verified", "open", "failed"]);
+    // The name of a variant opens it (AK5); the core's is a word.
+    expect(lines.verification?.[1]?.name).toEqual({
+      text: "Coast",
+      id: "uuid-a",
+      open: elementBuffer("uuid-a", "system", "VAR-0000c1 Coast"),
+    });
+    expect(lines.verification?.[0]?.name).toEqual({ text: "Core" });
     expect(lines.use).toBeUndefined();
   });
 
@@ -83,10 +95,11 @@ describe("the lines of a requirement's variants", () => {
         [one, COAST],
       ),
     );
-    expect(text(lines.verification)).toBe(
-      "Verification — Core: open (missing SR-121 Log wind, uuid-2) · Coast: indirect",
-    );
-    expect(lines.verification?.find((part) => part.text === "SR-121 Log wind")).toEqual({
+    expect(halves(lines.verification)).toEqual([
+      "Core | open (missing SR-121 Log wind, uuid-2)",
+      "Coast | indirect",
+    ]);
+    expect(lines.verification?.[0]?.parts.find((part) => part.text === "SR-121 Log wind")).toEqual({
       text: "SR-121 Log wind",
       id: "uuid-1",
       open: elementBuffer("uuid-1", "system", "SR-121 Log wind"),
@@ -102,9 +115,10 @@ describe("the lines of a requirement's variants", () => {
         ],
       }),
     );
-    expect(text(lines.verification)).toBe(
-      "Verification — Core: open (2 of 3 criteria, AK3 not verified) · uuid-coast: verified (3 of 3 criteria)",
-    );
+    expect(halves(lines.verification)).toEqual([
+      "Core | open (2 of 3 criteria, AK3 not verified)",
+      "uuid-coast | verified (3 of 3 criteria)",
+    ]);
   });
 
   it("[SR-038/AK1] gives the validation status on a line of its own, apart from the verification status", () => {
@@ -112,7 +126,7 @@ describe("the lines of a requirement's variants", () => {
       output({ verification: [{ view: "core", status: "open" }], validation: "validated" }),
     );
     expect(text(lines.validation)).toBe("Validation — validated");
-    expect(text(lines.verification)).toBe("Verification — Core: open");
+    expect(halves(lines.verification)).toEqual(["Core | open"]);
     expect(variantLines(output({})).validation).toBeUndefined();
   });
 
