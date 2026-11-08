@@ -184,3 +184,73 @@ test.describe("folding and jumping to headings", () => {
     await expect(line(window, "X## Umfang")).toBeVisible();
   });
 });
+
+// Tab on the line that folds (SR-193): a heading folds and unfolds its section; elsewhere in the text Tab keeps its
+// meaning (SR-187, SR-188), and the file stays as it was.
+const TAB_TEXT = `# Messpunkte
+
+- Nord
+- Ost
+
+| Ort | Wert |
+| --- | --- |
+| Nord | 3 |
+
+## Leer
+`;
+
+const TAB_FILE = `${DEMO_FRONT_MATTER}${TAB_TEXT}`;
+
+test.describe("Tab on a line that folds", () => {
+  let running: RunningApp;
+  test.beforeEach(async () => {
+    running = await launchApp({ fixture: "SR-069/filter", files: { [DEMO_FILE]: TAB_FILE } });
+    await opened(running.window);
+  });
+  test.afterEach(async () => {
+    await running.close();
+  });
+
+  const saved = async (expected: string | RegExp): Promise<void> => {
+    await running.window.keyboard.press("ControlOrMeta+s");
+    const text = async (): Promise<string> => (await fileOf(running)).slice(DEMO_FRONT_MATTER.length);
+    if (typeof expected === "string") {
+      await expect.poll(text).toBe(expected);
+    } else {
+      await expect.poll(text).toMatch(expected);
+    }
+  };
+
+  test("[SR-193/AK1] [SR-193/AK4] Tab on a heading folds its section and Tab again unfolds it, the focus and the file stay", async () => {
+    const { window } = running;
+    await window.locator(".cm-line.cm-lr-h1", { hasText: "Messpunkte" }).click();
+    await window.keyboard.press("Tab");
+    await expect(window.locator(".cm-lr-fold-hint")).toHaveCount(1);
+    await expect(window.locator(".cm-content")).not.toContainText("Ost");
+    // Tab did not go on to the next field.
+    await expect(window.locator(".cm-content")).toBeFocused();
+    await window.keyboard.press("Tab");
+    await expect(window.locator(".cm-lr-fold-hint")).toHaveCount(0);
+    await expect(window.locator(".cm-content")).toContainText("Ost");
+    await window.keyboard.press("Tab");
+    await expect(window.locator(".cm-lr-fold-hint")).toHaveCount(1);
+    await saved(TAB_TEXT);
+    expect(await fileOf(running)).toBe(TAB_FILE);
+  });
+
+  test("[SR-193/AK3] off a heading Tab indents a list item and goes to the next cell of a table, as before", async () => {
+    const { window } = running;
+    await window.locator(".cm-line", { hasText: "Ost" }).click({ position: { x: 40, y: 5 } });
+    await window.keyboard.press("End");
+    await window.keyboard.press("Tab");
+    await expect(window.locator(".cm-lr-fold-hint")).toHaveCount(0);
+    await saved(TAB_TEXT.replace("- Ost", "  - Ost"));
+    // In the last cell of the table, Tab adds a row.
+    await window.locator(".cm-lr-table td", { hasText: "3" }).click();
+    await expect(window.locator(".cm-content")).toBeFocused();
+    await window.keyboard.press("End");
+    await window.keyboard.press("Tab");
+    await expect(window.locator(".cm-lr-fold-hint")).toHaveCount(0);
+    await saved(/\| Nord \| 3 \|\n\| +\| +\|\n/u);
+  });
+});

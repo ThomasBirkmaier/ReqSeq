@@ -53,7 +53,7 @@ export const Part = ({
 
 /**
  * A muted line of `parts`. With `whole` (the whole reason the line cuts, #862) it is shown on demand
- * (D-062): on hover as its title, and by a click, Enter or Space, which open and close the whole reason
+ * (D-062): on hover as its title, and by a click, Enter, Space or Tab (SR-193), which open and close the whole reason
  * under the line; a link in the line opens its element as before.
  */
 export const CutLine = ({
@@ -92,10 +92,11 @@ export const CutLine = ({
           onKeyDown: (event: React.KeyboardEvent<HTMLElement>) => {
             // Enter or Space alone: with a modifier the key stays the app's (Ctrl+Space, Ctrl/Cmd+Enter).
             const plain = !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey;
+            // Tab too: it toggles on the line that opens (SR-193 AK1); Shift+Tab still goes to the field before.
             if (
               plain &&
               event.target === event.currentTarget &&
-              (event.key === "Enter" || event.key === " ")
+              (event.key === "Enter" || event.key === " " || event.key === "Tab")
             ) {
               event.preventDefault();
               setOpen((before) => !before);

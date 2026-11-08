@@ -112,6 +112,10 @@ export const ELEMENT_MORE_KEYS: readonly KeyRow[] = [
     does: "On a link to a parent, a variant or the target in a relation box: open that element",
   },
   {
+    keys: [{ press: press("Enter") }, { press: press(" ") }, { press: press("Tab") }],
+    does: "On a muted line that cuts a long reason (validation): show or hide the whole reason under it (SR-193)",
+  },
+  {
     keys: [{ shortcut: MOD_CLICK }],
     does: "Click on a value in a property box: list the elements with that value",
   },

@@ -1,5 +1,6 @@
 // Sections under headings (SR-191): a heading of the text and everything up to the next heading of the same or a
-// higher level fold to a quiet hint, and unfold again with a click on it, a command, or the cursor moving in. The
+// higher level fold to a quiet hint, and unfold again with a click on it, a command, or the cursor moving in; Tab on a heading toggles its section
+// (SR-193). The
 // toggle left of a heading shows only while the pointer is over the heading or the toggle itself. Folding is display
 // state of the editor: the document, and so the file, stays as it is (D-061). "Go to heading" reads `headings`.
 // Editor-only, no catalog command, like the slash menu (ADR-0010).
@@ -7,8 +8,9 @@
 // Sections are the headings at the top level of the text: a `#` line in a list or a quote starts none, as in
 // CommonMark, where it is a heading inside that block.
 import { codeFolding, foldEffect, foldedRanges, syntaxTree, unfoldEffect } from "@codemirror/language";
+import { Prec } from "@codemirror/state";
 import type { EditorState, Extension, Range } from "@codemirror/state";
-import { Decoration, EditorView, ViewPlugin, WidgetType } from "@codemirror/view";
+import { Decoration, EditorView, ViewPlugin, WidgetType, keymap } from "@codemirror/view";
 import type { Command, DecorationSet, ViewUpdate } from "@codemirror/view";
 import type { SyntaxNode, Tree } from "@lezer/common";
 import { parsedTree } from "./parsed.js";
@@ -147,6 +149,22 @@ export const unfoldSection: Command = (view) => {
   return heading !== undefined && unfold(view, heading);
 };
 
+/**
+ * Tab on a heading (SR-193 AK1): folds its section when open and unfolds it when folded, while the selection is on
+ * the heading's lines; false elsewhere and on a heading with nothing under it, so Tab keeps its other meanings there
+ * (AK3): indenting a list item, the next cell of a table, the next field.
+ */
+export const toggleSectionOnHeading: Command = (view) => {
+  const { from, to } = view.state.selection.main;
+  const heading = headings(view.state).find(
+    (each) => foldOf(each) !== undefined && each.from <= from && to <= each.end,
+  );
+  if (heading === undefined) {
+    return false;
+  }
+  return isFolded(view.state, heading) ? unfold(view, heading) : fold(view, heading);
+};
+
 /** "Go to heading" (SR-191 AK3): the cursor to the start of the heading at `from`, which a fold around it opens for. */
 export const goToHeading =
   (from: number): Command =>
@@ -282,9 +300,13 @@ const theme = EditorView.theme({
   },
 });
 
-/** Folding of the sections under headings: the toggles, the hint and the fold state of the editor. */
+/**
+ * Folding of the sections under headings: the toggles, the hint, Tab on a heading (SR-193; below the slash menu,
+ * which takes Tab while open) and the fold state of the editor.
+ */
 export const sectionFolding = (): Extension => [
   theme,
+  Prec.high(keymap.of([{ key: "Tab", run: toggleSectionOnHeading }])),
   codeFolding({
     // The count is taken when the fold is drawn, on the document of that moment: CodeMirror keeps it with the
     // fold and does not map it, so offsets kept here would be wrong once the text above changed.
