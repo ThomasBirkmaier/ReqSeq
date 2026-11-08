@@ -60,7 +60,8 @@ const editing = async (window: Page): Promise<void> => {
   await expect(window.locator(".cm-content")).toBeFocused();
 };
 
-const menu = (window: Page): Locator => window.locator(".cm-tooltip-autocomplete");
+/** The menu shown, not its copy running back (AK5, `slash-motion.ts`). */
+const menu = (window: Page): Locator => window.locator(".cm-tooltip-autocomplete:not(.cm-lr-slash-leaving)");
 const selectedEntry = (window: Page): Locator =>
   menu(window).locator('li[aria-selected="true"] .cm-completionLabel');
 const lastLine = (window: Page): Locator => window.locator(".cm-line").last();
@@ -263,7 +264,10 @@ for (const scheme of ["light", "dark"] as const) {
       await expect(menu(window)).toBeVisible();
       const css = async (locator: Locator, property: string): Promise<string> =>
         locator.evaluate((node, name) => getComputedStyle(node).getPropertyValue(name), property);
-      expect(await css(menu(window), "background-color")).toBe(await tokenColour(window, "--sheet"));
+      // The list is the card (AK5): its ground is the raised one of the command line's card.
+      expect(await css(menu(window).locator("ul"), "background-color")).toBe(
+        await tokenColour(window, "--raised"),
+      );
       expect(await css(menu(window), "color")).toBe(await tokenColour(window, "--text"));
       expect(await css(selectedEntry(window).locator(".."), "background-color")).toBe(
         await tokenColour(window, "--select"),
