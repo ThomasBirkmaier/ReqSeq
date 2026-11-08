@@ -127,6 +127,12 @@ test("a line that cuts a long reason gives the whole reason on hover, click and 
     await expect(line(window, "Validation")).toHaveAttribute("aria-expanded", "false");
     await line(window, "Validation").press(" ");
     await expect(line(window, "Validation")).toHaveAttribute("aria-expanded", "true");
+    // Tab toggles it too, on the line that opens (SR-193); Shift+Tab leaves it as it is.
+    await line(window, "Validation").press("Tab");
+    await expect(line(window, "Validation")).toHaveAttribute("aria-expanded", "false");
+    await expect(line(window, "Validation")).toBeFocused();
+    await line(window, "Validation").press("Tab");
+    await expect(line(window, "Validation")).toHaveAttribute("aria-expanded", "true");
     // Open, the reason has no tooltip over it.
     await expect(line(window, "Validation")).not.toHaveAttribute("title", /./);
     // The evidence record of the same validation cuts its reason as well and opens the same way.

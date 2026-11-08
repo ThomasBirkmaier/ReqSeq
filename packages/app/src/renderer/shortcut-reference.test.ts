@@ -247,6 +247,17 @@ describe("shortcutReference", () => {
     });
   });
 
+  it("[SR-193/AK4] names Tab for folding in the text, the neighbourhood tree and a line with a whole reason", () => {
+    const sections = shortcutReference(COMMANDS);
+    const tabRows = (title: string): string[] =>
+      (sections.find((section) => section.title === title)?.rows ?? [])
+        .filter((row) => row.keys.includes("Tab") && row.mac.includes("Tab"))
+        .map((row) => row.does);
+    expect(tabRows("In the text editor").some((does) => does.includes("fold the section"))).toBe(true);
+    expect(tabRows("In a list").some((does) => does.includes("tree row"))).toBe(true);
+    expect(tabRows("On an element").some((does) => does.includes("whole reason"))).toBe(true);
+  });
+
   it("gives actions that share a key one row, and leaves the keys of a buffer (hints) to its section", () => {
     const actions = shortcutReference(COMMANDS)[1]?.rows ?? [];
     expect(actions).toContainEqual({

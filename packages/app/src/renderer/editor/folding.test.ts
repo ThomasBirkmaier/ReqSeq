@@ -4,7 +4,15 @@ import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { afterEach, describe, expect, it } from "vitest";
 import { markdownSupport } from "./markdown.js";
-import { foldSection, goToHeading, headings, sectionAt, sectionFolding, unfoldSection } from "./folding.js";
+import {
+  foldSection,
+  goToHeading,
+  headings,
+  sectionAt,
+  sectionFolding,
+  toggleSectionOnHeading,
+  unfoldSection,
+} from "./folding.js";
 
 const TEXT = [
   "# Übersicht", // 0
@@ -181,6 +189,49 @@ describe("Fold section and Unfold section", () => {
     expect(folds(target).length).toBe(1);
     expect(unfoldSection(target)).toBe(true);
     expect(folds(target)).toEqual([]);
+  });
+});
+
+describe("Tab on a heading", () => {
+  it("[SR-193/AK1] folds the section of the heading the cursor is on, unfolds it on the next Tab, the file unchanged", () => {
+    const target = editor(TEXT, at(TEXT, "Zweck ##"));
+    expect(toggleSectionOnHeading(target)).toBe(true);
+    expect(folds(target)).toEqual(["\n\nDer Zweck.\n\n### Detail\n\nMehr."]);
+    expect(toggleSectionOnHeading(target)).toBe(true);
+    expect(folds(target)).toEqual([]);
+    // A selection within a Setext heading's two lines counts as on its line.
+    target.dispatch({ selection: { anchor: at(TEXT, "Setext"), head: at(TEXT, "======") + 3 } });
+    expect(toggleSectionOnHeading(target)).toBe(true);
+    expect(folds(target)).toEqual(["\n\nEnde."]);
+    expect(target.state.doc.toString()).toBe(TEXT);
+  });
+
+  it("opens only the heading's own fold with Tab, a section folded inside it stays folded", () => {
+    const target = editor(TEXT, at(TEXT, "Mehr."));
+    foldSection(target);
+    target.dispatch({ selection: { anchor: at(TEXT, "Zweck ##") } });
+    expect(toggleSectionOnHeading(target)).toBe(true);
+    expect(folds(target).length).toBe(2);
+    expect(toggleSectionOnHeading(target)).toBe(true);
+    expect(folds(target)).toEqual(["\n\nMehr."]);
+  });
+
+  it("[SR-193/AK3] leaves Tab to the others off a heading, on a heading with nothing under it and a selection beyond it", () => {
+    expect(toggleSectionOnHeading(editor(TEXT, at(TEXT, "Der Zweck.")))).toBe(false);
+    expect(toggleSectionOnHeading(editor(TEXT, at(TEXT, "- Liste")))).toBe(false);
+    expect(toggleSectionOnHeading(editor(TEXT, TEXT.length))).toBe(false);
+    const target = editor(TEXT);
+    target.dispatch({ selection: { anchor: at(TEXT, "## Zweck"), head: at(TEXT, "Der Zweck.") } });
+    expect(toggleSectionOnHeading(target)).toBe(false);
+    expect(folds(target)).toEqual([]);
+  });
+
+  it("takes Tab in the editor on a heading", () => {
+    const target = editor(TEXT, at(TEXT, "Zweck ##"));
+    const tab = new KeyboardEvent("keydown", { key: "Tab", keyCode: 9, bubbles: true, cancelable: true });
+    target.contentDOM.dispatchEvent(tab);
+    expect(tab.defaultPrevented).toBe(true);
+    expect(folds(target).length).toBe(1);
   });
 });
 
