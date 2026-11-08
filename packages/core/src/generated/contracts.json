@@ -4381,6 +4381,13 @@
             "element": {
               "$ref": "../data-export.schema.json#/$defs/element"
             },
+            "names": {
+              "type": "array",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/elementName"
+              },
+              "description": "The elements the element names by UUID only, each once in the order first named: the variants of `validity` and the views and missing children of `verification`, as element.get names them. Left out when it names none."
+            },
             "files": {
               "type": "array",
               "items": {
@@ -5209,6 +5216,13 @@
           "properties": {
             "element": {
               "$ref": "../data-export.schema.json#/$defs/element"
+            },
+            "names": {
+              "type": "array",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/elementName"
+              },
+              "description": "The elements the element names by UUID only, each once in the order first named: the variants of `validity` and the views and missing children of `verification`, as element.get names them. Left out when it names none."
             },
             "fileSha256": {
               "$ref": "../common.schema.json#/$defs/fileSha256",

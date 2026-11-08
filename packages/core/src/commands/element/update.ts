@@ -5,7 +5,8 @@
 // model/write.ts. `expectedFileSha256` is the caller's write precondition, `fileSha256` the hash of
 // the file as written for the next save (SR-106); `repository` picks one copy of a duplicate as in
 // element.get (ThomasBirkmaier/ReqSeq-archive#255). A variant is not written with validity entries (SR-039 AK2, variants/nested.ts).
-// The element has its verification and validation status as element.get gives it (#214).
+// The element has its verification and validation status as element.get gives it (#214), with `names`
+// for its variants and views (#1216).
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import { updateElement } from "../../model/index.js";
@@ -23,7 +24,7 @@ export default defineCommand({
       await nestedVariantCheck(ctx.workspace, "element.update"),
     );
     const { fileSha256, files, problems, affected } = written;
-    const element = await writtenWithStatus(ctx.workspace, written.element);
-    return { element, fileSha256, files: [...files], affected, problems: [...problems] };
+    const { element, ...names } = await writtenWithStatus(ctx.workspace, written.element);
+    return { element, ...names, fileSha256, files: [...files], affected, problems: [...problems] };
   },
 });
