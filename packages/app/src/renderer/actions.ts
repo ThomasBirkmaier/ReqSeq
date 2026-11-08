@@ -47,6 +47,8 @@ import {
 import { cycleKey } from "./buffer-cycle.js";
 import { TEXT_ACTIONS } from "./text-actions.js";
 import { FIND_ACTIONS } from "./find-actions.js";
+import { HEADING_ACTIONS } from "./heading-actions.js";
+import type { HeadingControls } from "./heading-actions.js";
 import { searchRows } from "./rows.js";
 import type { Range, Row, Snippet } from "./rows.js";
 import type { Theme } from "./theme.js";
@@ -199,6 +201,11 @@ export interface ElementControls {
    * not apply there, or why the element cannot be changed (the text actions, `text-actions.ts`).
    */
   readonly text?: (command: Command, none: string, options?: TextOptions) => void;
+  /**
+   * The headings of the text, and folding and the cursor of the text editor (SR-191, `heading-actions.ts`). They
+   * change no text, so they are there for an element that cannot be changed too.
+   */
+  readonly headings?: HeadingControls;
   /** The shown element is a package: its page lists the elements that name it, and "Sort list" sorts them (SR-112). */
   readonly members?: boolean;
   /**
@@ -1033,6 +1040,8 @@ export const ACTIONS: readonly Action[] = [
   ...TEXT_ACTIONS,
   // Find and replace in the text (SR-189, `find-actions.ts`).
   ...FIND_ACTIONS,
+  // The actions on the headings of the text (SR-191, `heading-actions.ts`).
+  ...HEADING_ACTIONS,
   {
     id: "version",
     title: "Show element ID and version",

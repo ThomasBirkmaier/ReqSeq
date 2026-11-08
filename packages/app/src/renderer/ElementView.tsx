@@ -63,8 +63,11 @@ import { findMarks } from "./editor/find.js";
 import { formatKeys } from "./editor/format.js";
 import { pasteAsMarkdown } from "./editor/paste.js";
 import { mergePlugins } from "./editor/plugins.js";
+import { goToHeading, headings as headingsOf, sectionFolding } from "./editor/folding.js";
 import { boxReference, referenceAt, references } from "./editor/references.js";
 import type { Reference } from "./editor/references.js";
+import { listDrag } from "./editor/list-drag.js";
+import { listKeys } from "./editor/lists.js";
 import { boxNavigation } from "./editor/box-navigation.js";
 import { dirty } from "./editor/save.js";
 import { referenceSearch } from "./editor/reference-search.js";
@@ -179,6 +182,9 @@ import {
   valueSignature,
   valuesPrompt,
 } from "./value-list.js";
+
+/** Folding of the sections under the headings of the text (SR-191): one extension for every element buffer. */
+const SECTION_FOLDING = { extensions: [sectionFolding()] };
 
 /**
  * The field whose value a click on `target` is in (SR-132 AK1): not the key of a box, and not the label of
@@ -893,10 +899,13 @@ export const ElementView = ({
         brackets,
         formulasAndDiagrams,
         images,
+        // Tab, Shift+Tab and Alt+arrows in lists, and dragging items by their marks (SR-187).
+        { extensions: [listKeys(), listDrag()] },
         formatKeys(true),
         paste,
         // The marks of "Find in element" (SR-189).
         { extensions: [findMarks] },
+        SECTION_FOLDING,
         {
           // After the slash menu, which takes Down while it is open.
           extensions: [
@@ -1474,6 +1483,20 @@ export const ElementView = ({
       echo(none);
     }
   };
+  // An action on the headings (`heading-actions.ts`, SR-191): on the text, also when the element cannot be changed,
+  // since folding and the cursor change no text. "Fold section" and "Unfold section" act at the cursor of the text
+  // only; with the cursor in the title or a box they say `none`. "Go to heading" (`anywhere`) always moves into it.
+  const headingCommand = (command: Command, none: string, anywhere = false): void => {
+    const { handle: text, onEcho: echo } = now.current;
+    const label = cursorField(document.activeElement, lastField.current);
+    if (!anywhere && label !== undefined && label !== "Text") {
+      echo(none);
+    } else if (text === undefined) {
+      echo("The text is not ready yet: try again in a moment");
+    } else if (!text.run(command)) {
+      echo(none);
+    }
+  };
   // "Clear property" (SR-104 AK4): the box with the cursor, or the one it was in last, is emptied; it stays,
   // empty, until it is saved, and the property is removed from the file then.
   const clearProperty = (): void => {
@@ -1716,6 +1739,7 @@ export const ElementView = ({
     clearProperty,
     insertImage,
     textCommand,
+    headingCommand,
     relationFollowed,
     isRelationBox,
     resolve,
@@ -1732,6 +1756,7 @@ export const ElementView = ({
     clearProperty,
     insertImage,
     textCommand,
+    headingCommand,
     relationFollowed,
     isRelationBox,
     resolve,
@@ -1797,6 +1822,18 @@ export const ElementView = ({
       },
       text: (command, none, options) => {
         api.current.textCommand(command, none, options);
+      },
+      headings: {
+        list: () => {
+          const text = now.current.handle;
+          return text === undefined ? [] : headingsOf(text.state());
+        },
+        run: (command, none) => {
+          api.current.headingCommand(command, none);
+        },
+        goTo: (from) => {
+          api.current.headingCommand(goToHeading(from), "", true);
+        },
       },
       follow: () => {
         // A focused target link, in a relation box or a relation group: that target (SR-132: the link

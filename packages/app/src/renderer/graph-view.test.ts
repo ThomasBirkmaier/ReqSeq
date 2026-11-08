@@ -7,7 +7,15 @@ import type { Buffer, BufferAction, GraphBuffer } from "./buffers.js";
 import { graphBuffer, reduceBuffers } from "./buffers.js";
 import type { Call } from "./call.js";
 import * as layoutModule from "./graph-layout.js";
-import { BASED_ON, S1_GRAPH, graphEdge, graphNode, graphOutput, key } from "./graph-test-data.js";
+import {
+  BASED_ON,
+  S1_GRAPH,
+  VERIFIED_GRAPH,
+  graphEdge,
+  graphNode,
+  graphOutput,
+  key,
+} from "./graph-test-data.js";
 import { GRAPH_MARKS, GraphView } from "./GraphView.js";
 import type { BufferData } from "./modeline.js";
 
@@ -618,6 +626,72 @@ describe("GraphView", () => {
       await press("l");
       expect(container.querySelector("#gedge")).toBeNull();
       expect(selected()).toBe(key("S1"));
+    });
+  });
+
+  describe("the verification of a node (SR-136)", () => {
+    const N1 = graphBuffer("uuid-N1", "spec", "N1 Title N1");
+    /** The status word, its accent, and the ring's text and full part of the node `name`. */
+    const shows = (name: string) => {
+      const box = query(`[data-node="${key(name)}"]`);
+      const status = box.querySelector(".graph-marks .status");
+      const ring = box.querySelector<HTMLElement>(".graph-ring");
+      return {
+        status: status?.textContent,
+        accent: status?.classList.contains("accent"),
+        ring: ring?.textContent,
+        part: ring?.dataset["part"],
+      };
+    };
+
+    it("[SR-136/AK1] a requirement shows its status, failed in the accent, indirect as such, and its name says it", async () => {
+      await mount(asCall(fakeCall(() => VERIFIED_GRAPH)), N1);
+      expect([shows("R11").status, shows("R07").status, shows("I1").status, shows("R12").status]).toEqual([
+        "open",
+        "failed",
+        "indirect",
+        "verified",
+      ]);
+      expect([shows("R11").accent, shows("R07").accent]).toEqual([false, true]);
+      expect(query(`[data-node="${key("R11")}"]`).getAttribute("aria-label")).toBe(
+        "R11 System Requirement Title R11 verification open 2 of 3",
+      );
+      // Not a decision or a need.
+      expect([shows("D1").status, shows("N1").status]).toEqual([undefined, undefined]);
+    });
+
+    it("[SR-136/AK2] a requirement with acceptance criteria shows a ring with 2 of 3 inside its box", async () => {
+      await mount(asCall(fakeCall(() => VERIFIED_GRAPH)), N1);
+      expect(shows("R11")).toMatchObject({ ring: "2 of 3", part: String(2 / 3) });
+      expect(shows("R07")).toMatchObject({ ring: "0 of 1", part: "0" });
+      const box = query(`[data-node="${key("R11")}"]`);
+      expect(box.querySelector(".graph-ring svg .full")?.getAttribute("stroke-dasharray")).toBe(
+        `${String((2 / 3) * 100)} 100`,
+      );
+    });
+
+    it("[SR-136/AK3] a need shows the degree of its derived requirements as a ring with the percentage", async () => {
+      await mount(asCall(fakeCall(() => VERIFIED_GRAPH)), N1);
+      expect(shows("N1")).toMatchObject({ status: undefined, ring: "60 %", part: "0.6" });
+      expect(query(`[data-node="${key("N1")}"]`).getAttribute("aria-label")).toBe(
+        "N1 need Title N1 verification 60 %",
+      );
+    });
+
+    it("[SR-136/AK4] an indirectly verified requirement shows its status and no ring", async () => {
+      await mount(asCall(fakeCall(() => VERIFIED_GRAPH)), N1);
+      expect(shows("I1")).toEqual({ status: "indirect", accent: false, ring: undefined, part: undefined });
+    });
+
+    it("[SR-136/AK5] a requirement without acceptance criteria shows its status and no ring", async () => {
+      await mount(asCall(fakeCall(() => VERIFIED_GRAPH)), N1);
+      expect(shows("R12")).toEqual({ status: "verified", accent: false, ring: undefined, part: undefined });
+    });
+
+    it("[SR-136/AK6] a need without a valid derived requirement shows no ring", async () => {
+      await mount(asCall(fakeCall(() => VERIFIED_GRAPH)), N1);
+      expect(shows("N2")).toEqual({ status: undefined, accent: undefined, ring: undefined, part: undefined });
+      expect(query(`[data-node="${key("N2")}"]`).getAttribute("aria-label")).toBe("N2 need Title N2");
     });
   });
 });

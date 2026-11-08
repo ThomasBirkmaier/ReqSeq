@@ -183,7 +183,7 @@ describe("lists", () => {
       [4, 6],
       [12, 14],
     ]);
-    expect(named(off, "cm-lr-muted").map((d) => [d.from, d.to])).toEqual([[21, 23]]);
+    expect(named(off, "cm-lr-muted cm-lr-handle").map((d) => [d.from, d.to])).toEqual([[21, 23]]);
   });
 
   it("keeps the source of the cursor line", () => {
