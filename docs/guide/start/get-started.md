@@ -133,4 +133,4 @@ In the app: **Check workspace**. Reference: [workspace.check](/reference/command
 
 ## The same through the API and MCP
 
-Every step on this page is a command, and the app, the CLI, the API and the MCP server give the same result for it. The local API (`reqseq serve api`) runs a command as `POST /v1/commands/element.create`. The MCP server (`reqseq mcp`) offers it as the tool `element_create`. The [command reference](/reference/commands/) shows the call of every command in each of the four.
+Every step on this page is a command, and the app, the CLI, the API and the MCP server give the same result for it. The [local API](/concepts/cli-api-and-mcp/#api) (`reqseq serve api`) runs a command as `POST /v1/commands/element.create`. The [MCP server](/concepts/cli-api-and-mcp/#mcp) (`reqseq mcp`) offers it as the tool `element_create`. The [command reference](/reference/commands/) shows the call of every command in each of the four.

@@ -143,7 +143,7 @@ Which relation kinds lead to a parent is up to the metamodel: every kind with th
 
 ## API
 
-Start the API in the workspace with `reqseq serve api`, and send each command with the token of `api.json` as `Authorization: Bearer <token>`:
+With the [local API](/concepts/cli-api-and-mcp/#api) running in the workspace:
 
 ```http
 POST /v1/commands/relation.add

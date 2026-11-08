@@ -147,7 +147,7 @@ reqseq evidence record SR-c67baa validation inconclusive --reason "The field tes
 
 ## API
 
-With `reqseq serve api` running in the workspace, and the token of `api.json` as `Authorization: Bearer <token>`:
+With the [local API](/concepts/cli-api-and-mcp/#api) running in the workspace:
 
 ```http
 POST /v1/commands/evidence.enrichJunit
