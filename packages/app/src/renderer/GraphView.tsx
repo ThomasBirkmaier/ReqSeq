@@ -280,6 +280,8 @@ export const GraphView = ({
       className="buffer graph"
       role="listbox"
       aria-label={`Graph: ${buffer.name}`}
+      // The sheet outside the nodes: the graph's depth and relation kinds (SR-199 AK1); a node is an entry.
+      data-menu="graph"
       aria-activedescendant={layout === undefined ? undefined : activeOption(chosen, scope, nodeOption)}
       data-buffer=""
       data-laid-out={layout === undefined ? undefined : String(layout.nodes.length)}

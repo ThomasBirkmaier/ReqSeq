@@ -7,6 +7,7 @@ import type { Action, ActionContext } from "./actions.js";
 import type { Buffer, ElementBuffer } from "./buffers.js";
 import { graphBuffer, neighbourhoodBuffer, showBuffer } from "./buffers.js";
 import type { MenuEntry, MenuHit, MenuPlace } from "./context-menu.js";
+import { matrixGiven } from "./matrix-menu.js";
 
 /**
  * The entries of an element (SR-197 AK1), in this order at every place. The matrix's connected elements
@@ -45,15 +46,23 @@ export const promptEntry = (
 
 /**
  * The context the commands read while `menu` is open: on an entry, with its element as `entry`, the marked
- * one, which the right-click selected (SR-194 AK5); elsewhere `context` as it is.
+ * one, which the right-click selected (SR-194 AK5); in the matrix, with the arguments its menu gives
+ * (`matrixGiven`, SR-199: the kind's name from `kindNames`); elsewhere `context` as it is.
  */
 export const menuContext = (
   context: ActionContext,
   menu: { readonly hit: Pick<MenuHit, "place"> } | undefined,
-): ActionContext =>
-  menu === undefined || !ENTRY_PLACES.has(menu.hit.place) || context.marked === undefined
+  kindNames: ReadonlyMap<string, string> = new Map(),
+): ActionContext => {
+  if (menu === undefined) {
+    return context;
+  }
+  const given = matrixGiven(menu.hit.place, context.matrix, kindNames);
+  const entry = ENTRY_PLACES.has(menu.hit.place) ? context.marked : undefined;
+  return entry === undefined && given === undefined
     ? context
-    : { ...context, entry: context.marked };
+    : { ...context, ...(entry === undefined ? {} : { entry }), ...(given === undefined ? {} : { given }) };
+};
 
 const hasEntry = (context: ActionContext): boolean => context.entry !== undefined;
 

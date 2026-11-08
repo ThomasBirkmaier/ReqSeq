@@ -393,6 +393,8 @@ const GraphSheet = ({ shown, error, buffer, dispatch, root, split }: SheetProps)
       className="buffer metamodel"
       role="listbox"
       aria-label="Metamodel"
+      // The sheet of the graph outside its types: "Show metamodel as text" (SR-199 AK2).
+      data-menu="metamodel-graph"
       aria-activedescendant={index === undefined ? undefined : `${scope}mm-type-${String(index)}`}
       data-buffer=""
       data-laid-out={shown === undefined ? undefined : String(shown.layout.nodes.length)}

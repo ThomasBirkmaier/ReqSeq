@@ -2286,3 +2286,62 @@ describe("a bulk update confirms the plan of an open preview of the same input (
     expect(other.echoed.at(-1)).toBe("Workspace is read-only");
   });
 });
+
+describe("arguments given before the prompt asks (SR-199)", () => {
+  const list = listBuffer("All elements");
+  const row = elementBuffer("uuid-1", "spec", "SR-1 Title 1");
+
+  it("[SR-199/AK3] asks only the other end of a relation whose source and kind are given", async () => {
+    const { context, asked, call } = setup([list], { "relation.options": () => OPTIONS });
+    const given = {
+      "relation.add": [
+        { field: "source", value: "uuid-1", label: "SR-1" },
+        { field: "kind", value: "refines", label: "Refines" },
+      ],
+    };
+    start({ ...context, entry: row, given }, "relation.add");
+    const target = await last(asked);
+    expect(target.label).toBe("Create relation SR-1 Refines · target:");
+    expect(call).toHaveBeenCalledWith("relation.options", { ref: "uuid-1" });
+    expect(target.find).toBeDefined();
+  });
+
+  it("[SR-199/AK3] does not offer first the element already given to another argument", async () => {
+    const { context, asked } = setup([list]);
+    const given = {
+      "relation.add": [
+        { field: "kind", value: "derives-from", label: "Derives from" },
+        { field: "target", value: "uuid-1", label: "SR-1" },
+      ],
+    };
+    start({ ...context, entry: row, given }, "relation.add");
+    const source = await last(asked);
+    expect(source.label).toBe("Create relation Derives from SR-1 · source:");
+    expect(source.items).toEqual([]);
+    // Without that, the entry is offered first, as before.
+    start({ ...context, entry: row }, "relation.add");
+    expect((await last(asked)).items.map((i) => i.id)).toEqual([row.key]);
+  });
+
+  it("[SR-199/AK4] runs a command whose arguments are all given at once", async () => {
+    const { context, call } = setup([list], { "relation.remove": () => ({ files: [] }) });
+    const given = {
+      "relation.remove": [
+        { field: "source", value: "uuid-1", label: "SR-1" },
+        { field: "kind", value: "refines", label: "Refines" },
+        { field: "target", value: "uuid-2", label: "N-2" },
+        { field: "repository", value: "spec", label: "" },
+      ],
+    };
+    start({ ...context, given }, "relation.remove");
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("relation.remove", {
+      source: "uuid-1",
+      kind: "refines",
+      target: "uuid-2",
+      repository: "spec",
+    });
+    // With Ctrl/Cmd+Enter, the optional arguments are offered first.
+    start({ ...context, given }, "relation.remove", true);
+  });
+});

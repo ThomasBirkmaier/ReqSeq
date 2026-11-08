@@ -34,6 +34,7 @@ import {
 } from "./matrix.js";
 import type { CellLine, MatrixColumn, MatrixRow } from "./matrix.js";
 import { rowTarget } from "./keys.js";
+import { PROPERTY_COLUMN, matrixSpotOf, spotKey } from "./matrix-menu.js";
 import { OUTDATED_WORD } from "./outdated-codes.js";
 import type { BufferData } from "./modeline.js";
 import type { OutsideChanges } from "./outside-marks.js";
@@ -200,6 +201,7 @@ export const MatrixView = ({
   }, [call, buffer.key, buffer.selection, sort, revision]);
 
   const rows = view.status === "ok" ? view.rows : [];
+  const columns = view.status === "ok" ? view.columns : [];
   const cursor = Math.min(buffer.cursor, Math.max(0, rows.length - 1));
   const selected = rows[cursor];
   const targets = selected === undefined ? [] : targetsOf(selected);
@@ -207,6 +209,9 @@ export const MatrixView = ({
   // The element of the selected target, or of the row of a selected cell, is the marked one (SR-150,
   // SR-194 AK5): the commands of the context menu act on it.
   const markedTarget = targetElement(chosenCell === undefined ? targets[at] : targets[0]);
+  // Where the cursor or a right-click stands as far as a relation goes (SR-199): the selected cell, or the
+  // relation of the selected target, with its row.
+  const spot = matrixSpotOf(columns, rows, selected, chosenCell, targets[at]);
   useEffect(() => {
     if (view.status === "ok") {
       onData(buffer.key, {
@@ -214,9 +219,10 @@ export const MatrixView = ({
         total: view.total,
         incomplete: view.incomplete,
         ...(markedTarget === undefined ? {} : { marked: markedTarget }),
+        ...(spot === undefined ? {} : { spot }),
       });
     }
-  }, [view, markedTarget?.key]);
+  }, [view, markedTarget?.key, spotKey(spot)]);
 
   useEffect(() => {
     const list = root.current;
@@ -316,7 +322,6 @@ export const MatrixView = ({
     }
   };
 
-  const columns = view.status === "ok" ? view.columns : [];
   const evidence = view.status === "ok" ? view.evidence : undefined;
   return (
     <div
@@ -399,6 +404,8 @@ export const MatrixView = ({
                       role="gridcell"
                       className="cell"
                       data-menu="matrix-cell"
+                      // A relation property's column: no relation kind to create or remove (SR-199).
+                      {...(columns[column]?.property === true ? { [PROPERTY_COLUMN]: "" } : {})}
                       aria-selected={chosenCell?.row === index && chosenCell.column === column}
                       onContextMenu={(event) => {
                         // A press on a relation of the cell selects the relation (`Link`).

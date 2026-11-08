@@ -13,6 +13,7 @@ import {
   bufferView,
   markToken,
   markedElement,
+  matrixSpot,
   readOnlyNow,
   selectedRow,
   shownElement,
@@ -417,5 +418,26 @@ describe("markToken (SR-150 AK4)", () => {
     expect(markToken(elementBuffer("uuid-1", "spec", "SR-1 One"))).toBeUndefined();
     expect(markToken(metamodelBuffer())).toBeUndefined();
     expect(markToken(undefined)).toBeUndefined();
+  });
+});
+
+describe("matrixSpot (SR-199)", () => {
+  it("is the spot the shown matrix gave, and nothing for another buffer or another key", () => {
+    const list = listBuffer("All elements");
+    const spot = {
+      row: elementBuffer("uuid-1", "spec", "SR-1 One"),
+      rowLabel: "SR-1",
+      kind: "refines",
+      direction: "out",
+      property: false,
+    } as const;
+    const data = { kind: "list", total: 1, incomplete: false, spot } as const;
+    expect(matrixSpot(list, { key: list.key, data })).toEqual({ matrix: spot });
+    expect(matrixSpot(list, { key: "another", data })).toEqual({});
+    const without = { kind: "list", total: 1, incomplete: false } as const;
+    expect(matrixSpot(list, { key: list.key, data: without })).toEqual({});
+    const graph = graphBuffer("uuid-1", "spec", "SR-1 One");
+    const graphData = { kind: "graph", nodes: 1, truncated: false, incomplete: false } as const;
+    expect(matrixSpot(graph, { key: graph.key, data: graphData })).toEqual({});
   });
 });
