@@ -78,7 +78,8 @@ const listen = (server: Server, host: string, port: number): Promise<AddressInfo
     });
   });
 
-const closeServer = (server: Server): Promise<void> =>
+/** Stops listening and closes every connection of `server`. */
+export const closeServer = (server: Server): Promise<void> =>
   new Promise((resolve) => {
     server.close(() => {
       resolve();

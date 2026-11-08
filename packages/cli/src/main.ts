@@ -128,8 +128,10 @@ export interface RunCliOptions {
   readonly stderr: TextSink;
   /** Default: the runtime of this process (`getCommandRuntime()`). Tests pass their own. */
   readonly runtime?: CommandRuntime;
-  /** Aborts the running command and stops `serve api` and `mcp` (bin.ts: Ctrl-C and SIGTERM). */
+  /** Aborts the running command and stops `serve api`, `serve docs` and `mcp` (bin.ts: Ctrl-C and SIGTERM). */
   readonly signal?: AbortSignal;
+  /** The site `serve docs` serves. Default: DOCS_FOLDER. Tests pass a fixture site; the command line has no option for it. */
+  readonly docsFolder?: string;
   /**
    * The terminal stdout is, when the output for people is styled for one (bin.ts: `terminalOf`, #988);
    * plain text without it. `--json`, `--jsonl` and `--yaml` are never styled.
@@ -225,9 +227,28 @@ const stopped = (signal: AbortSignal): Promise<void> =>
 const portNumber = (value: string | undefined): number =>
   value === undefined ? 0 : /^\d+$/.test(value) ? Number(value) : Number.NaN;
 
+/** The documentation site of a delivery: the `docs` folder of the CLI package, next to `dist` (ADR-0017). */
+export const DOCS_FOLDER = path.join(import.meta.dirname, "..", "docs");
+
+/** `reqseq serve docs` until it is stopped. Opens no workspace (SR-141). */
+async function serveDocs(
+  port: string | undefined,
+  options: RunCliOptions,
+  signal: AbortSignal,
+): Promise<void> {
+  const { checkPort, startDocsServer } = await import("@reqseq/api");
+  const server = await startDocsServer({
+    folder: options.docsFolder ?? DOCS_FOLDER,
+    port: checkPort(portNumber(port)),
+  });
+  options.stdout.write(`ReqSeq documentation on ${server.url}\nStop with Ctrl-C.\n`);
+  await stopped(signal);
+  await server.close();
+}
+
 /** Run a server on the workspace until it is stopped; the workspace is closed afterwards. */
 async function serveUntilStopped(
-  request: ServeRequest,
+  request: Exclude<ServeRequest, { readonly server: "docs" }>,
   options: RunCliOptions,
   runtime: CommandRuntime,
   signal: AbortSignal,
@@ -286,7 +307,9 @@ async function serve(
   signal: AbortSignal,
 ): Promise<ExitCode> {
   try {
-    await serveUntilStopped(request, options, runtime, signal);
+    await (request.server === "docs"
+      ? serveDocs(request.port, options, signal)
+      : serveUntilStopped(request, options, runtime, signal));
   } catch (caught) {
     const error = asCommandError(caught);
     options.stderr.write(renderError(error, false));
