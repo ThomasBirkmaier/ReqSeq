@@ -65,6 +65,8 @@ import { mergePlugins } from "./editor/plugins.js";
 import { goToHeading, headings as headingsOf, sectionFolding } from "./editor/folding.js";
 import { boxReference, referenceAt, references } from "./editor/references.js";
 import type { Reference } from "./editor/references.js";
+import { listDrag } from "./editor/list-drag.js";
+import { listKeys } from "./editor/lists.js";
 import { boxNavigation } from "./editor/box-navigation.js";
 import { dirty } from "./editor/save.js";
 import { referenceSearch } from "./editor/reference-search.js";
@@ -896,6 +898,8 @@ export const ElementView = ({
         brackets,
         formulasAndDiagrams,
         images,
+        // Tab, Shift+Tab and Alt+arrows in lists, and dragging items by their marks (SR-187).
+        { extensions: [listKeys(), listDrag()] },
         formatKeys(true),
         paste,
         SECTION_FOLDING,

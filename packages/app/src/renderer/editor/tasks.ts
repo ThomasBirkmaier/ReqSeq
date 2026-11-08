@@ -73,9 +73,9 @@ export const toggleTaskAt = (view: EditorView, from: number): boolean => {
 };
 
 /**
- * The box of a task in place of its marker. A click on it toggles the marker and keeps the caret and the
- * focus where they are (the box is not the place of the caret); the editor itself ignores the press. The keyboard
- * reaches it through "Toggle task", so the box is no focusable control.
+ * The box of a task in place of its marker. A click on it (press and release on the box, `list-drag.ts`) toggles
+ * the marker and keeps the caret and the focus where they are; a press and a move drags the item instead. The
+ * keyboard reaches it through "Toggle task", so the box is no focusable control.
  */
 export class TaskBoxWidget extends WidgetType {
   readonly checked: boolean;
@@ -89,27 +89,15 @@ export class TaskBoxWidget extends WidgetType {
     return other.checked === this.checked;
   }
 
-  override toDOM(view: EditorView): HTMLElement {
+  override toDOM(): HTMLElement {
     const box = document.createElement("span");
-    box.className = "cm-lr-task";
+    box.className = "cm-lr-task cm-lr-handle";
     box.textContent = this.checked ? "☑" : "☐";
-    // The press only keeps the caret and the focus where they are; the click (press and release on the box)
-    // toggles, so a press that is dragged off the box changes nothing.
-    box.addEventListener("mousedown", (event) => {
-      if (event.button === 0) {
-        event.preventDefault();
-      }
-    });
-    box.addEventListener("click", (event) => {
-      if (event.button === 0) {
-        event.preventDefault();
-        toggleTaskAt(view, view.posAtDOM(box));
-      }
-    });
     return box;
   }
 
-  override ignoreEvent(): boolean {
-    return true;
+  /** Only the press reaches the editor, where `list-drag.ts` takes it. */
+  override ignoreEvent(event: Event): boolean {
+    return event.type !== "mousedown";
   }
 }

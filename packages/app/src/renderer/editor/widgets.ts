@@ -3,7 +3,7 @@
 import { WidgetType } from "@codemirror/view";
 import type { Segment } from "./segments.js";
 
-/** One symbol in place of Markdown source: a list bullet (a task box is `TaskBoxWidget`, `tasks.ts`). */
+/** One symbol in place of Markdown source (a bullet is `BulletWidget`, a task box `TaskBoxWidget` of `tasks.ts`). */
 export class GlyphWidget extends WidgetType {
   readonly glyph: string;
   readonly className: string;
@@ -23,6 +23,17 @@ export class GlyphWidget extends WidgetType {
     span.className = this.className;
     span.textContent = this.glyph;
     return span;
+  }
+}
+
+/** The bullet of a list item: a press on it reaches the editor, where it starts a click or a drag (`list-drag.ts`). */
+export class BulletWidget extends GlyphWidget {
+  constructor(handle: boolean) {
+    super("•", handle ? "cm-lr-bullet cm-lr-handle" : "cm-lr-bullet");
+  }
+
+  override ignoreEvent(event: Event): boolean {
+    return event.type !== "mousedown";
   }
 }
 
