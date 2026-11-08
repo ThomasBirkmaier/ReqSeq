@@ -9,7 +9,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import type { ElectronApplication, Page } from "@playwright/test";
-import { _electron as electron } from "@playwright/test";
+import { _electron as electron, expect } from "@playwright/test";
 import { rememberWorkspace } from "@reqseq/core/recent-workspaces";
 
 const execFileAsync = promisify(execFile);
@@ -531,6 +531,24 @@ export const goTo = async (window: Page): Promise<void> => {
     (document.activeElement as HTMLElement | null)?.blur();
   });
   await window.keyboard.press(`${await modifier(window)}+P`);
+};
+
+/**
+ * Saves the open element with Ctrl/Cmd+S and returns the text of `file` once it matches `expected`. Autosave saves
+ * one second after the last change, so on a slow runner it may have saved first, and Ctrl/Cmd+S then says
+ * "No changes to save" (#1155, #1174), or it may still be writing. So either answer counts, and the file is polled.
+ */
+export const saveAndRead = async (window: Page, file: string, expected: string | RegExp): Promise<string> => {
+  await window.keyboard.press("ControlOrMeta+s");
+  await expect(window.getByLabel("Minibuffer")).toContainText(/Saved|No changes to save/);
+  let text = "";
+  await expect
+    .poll(async () => {
+      text = await fs.readFile(file, "utf8");
+      return text;
+    })
+    .toMatch(expected);
+  return text;
 };
 
 /** The app starts with the overview; this opens the list of all elements, as a person does (SR-118 AK4). */

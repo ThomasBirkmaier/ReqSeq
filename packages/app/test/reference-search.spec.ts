@@ -2,12 +2,11 @@
 // written as an inline reference with ID and version in the saved file, and the editor shows the title,
 // also of a local target in another repository (D-058). Keys use ControlOrMeta, so the same tests run on
 // Linux and macOS; `[[` is typed with the keyboard, as a person types it (N3 of the plan review).
-import fs from "node:fs/promises";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { launchApp, listAll } from "./support/app.js";
+import { launchApp, listAll, saveAndRead } from "./support/app.js";
 import {
   DEMO_FILE,
   DEMO_FILES,
@@ -55,20 +54,22 @@ const lastLine = (window: Page): Locator => window.locator(".cm-line").last();
 const referenceLine = (window: Page): Locator =>
   window.locator(".cm-line", { has: window.locator(".cm-lr-ref") }).last();
 
-/** Types `[[`, picks the first element the query finds, and saves. */
-const insertAndSave = async (window: Page, query: string, expected: string): Promise<void> => {
+/** Types `[[`, picks the first element the query finds, saves, and returns the element file once it matches `saved`. */
+const insertAndSave = async (
+  running: RunningApp,
+  query: string,
+  expected: string,
+  saved: RegExp,
+): Promise<string> => {
+  const { window } = running;
   await window.keyboard.type("[[");
   await expect(prompt(window)).toBeVisible();
   await window.keyboard.type(query);
   await expect(firstCandidate(window)).toContainText(expected);
   await window.keyboard.press("Enter");
   await expect(window.locator(".cm-content")).toBeFocused();
-  await window.keyboard.press("ControlOrMeta+s");
-  await expect(window.getByLabel("Minibuffer")).toContainText("Saved");
+  return saveAndRead(window, path.join(running.workspace?.root ?? "", ...DEMO_FILE.split("/")), saved);
 };
-
-const demoFile = (running: RunningApp): Promise<string> =>
-  fs.readFile(path.join(running.workspace?.root ?? "", ...DEMO_FILE.split("/")), "utf8");
 
 test.describe("the [[ search in the element buffer", () => {
   let running: RunningApp;
@@ -104,9 +105,10 @@ test.describe("the [[ search in the element buffer", () => {
   test("[SR-066/AK2] the saved file holds [Title](reqseq:<uuid>?version=n2:…) where [[ was typed, and the editor shows the title", async () => {
     const { window } = running;
     await window.keyboard.type("Siehe ");
-    await insertAndSave(window, REFERENCE_TARGET_TITLE, REFERENCE_TARGET_TITLE);
-    const file = await demoFile(running);
-    expect(file).toMatch(
+    const file = await insertAndSave(
+      running,
+      REFERENCE_TARGET_TITLE,
+      REFERENCE_TARGET_TITLE,
       new RegExp(
         `\\nSiehe \\[${REFERENCE_TARGET_TITLE}\\]\\(reqseq:${REFERENCE_TARGET_ID}\\?version=n2:[0-9a-f]+\\)\\n`,
         "u",
@@ -133,9 +135,10 @@ test.describe("the [[ search with a second repository", () => {
 
   test("[SR-066/AK2] a local target in another repository is saved with its short ID and shown with its title", async () => {
     const { window } = running;
-    await insertAndSave(window, GUSTS_TITLE, GUSTS_TITLE);
-    const file = await demoFile(running);
-    expect(file).toMatch(
+    const file = await insertAndSave(
+      running,
+      GUSTS_TITLE,
+      GUSTS_TITLE,
       new RegExp(
         `\\n\\[N-[0-9a-f]+\\]\\(reqseq:${GUSTS_ID}\\?version=n2:[0-9a-f]+&repository=sensor\\)\\n`,
         "u",

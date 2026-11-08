@@ -10,7 +10,7 @@ import type { Page } from "@playwright/test";
 import { micromark } from "micromark";
 import { gfm, gfmHtml } from "micromark-extension-gfm";
 import type { RunningApp } from "./support/app.js";
-import { copyFixture, launchApp, listAll } from "./support/app.js";
+import { copyFixture, launchApp, listAll, saveAndRead } from "./support/app.js";
 import { DEMO_FILE, DEMO_FILES, DEMO_TITLE } from "./support/demo.js";
 import { printEventsOnFailure, recordEvents } from "./support/event-log.js";
 
@@ -82,11 +82,8 @@ test.describe("inserting an image in the element buffer", () => {
     const markdown = `![Wind-Skizze](${FOLDER_NAME}/Wind-Skizze.png)`;
     await expect(window.locator(".cm-content")).toContainText(markdown);
     await expect(window.locator(".cm-content")).toBeFocused();
-    await window.keyboard.press("ControlOrMeta+s");
-    await expect(window.getByLabel("Minibuffer")).toContainText("Saved");
+    await saveAndRead(window, elementFile(), `Skizze: ${markdown}\n`);
 
-    const file = await fs.readFile(elementFile(), "utf8");
-    expect(file).toContain(`Skizze: ${markdown}\n`);
     const copy = path.join(running.workspace?.root ?? "", ...IMAGE_FOLDER.split("/"), "Wind-Skizze.png");
     expect(await fs.readFile(copy)).toEqual(PNG);
     // The original stays where it was.
@@ -102,10 +99,9 @@ test.describe("inserting an image in the element buffer", () => {
     await window.keyboard.press("Enter");
     await expect(window.locator(".cm-content")).toContainText(`(${FOLDER_NAME}/Wind-Skizze.png)`);
     await expect(window.locator(".cm-content")).not.toContainText("/image");
-    await window.keyboard.press("ControlOrMeta+s");
-    await expect(window.getByLabel("Minibuffer")).toContainText("Saved");
-
-    const sources = imageSources(await fs.readFile(elementFile(), "utf8"));
+    const sources = imageSources(
+      await saveAndRead(window, elementFile(), `(${FOLDER_NAME}/Wind-Skizze.png)`),
+    );
     expect(sources).toEqual([`${FOLDER_NAME}/Wind-Skizze.png`]);
     const found = path.resolve(path.dirname(elementFile()), ...(sources[0] ?? "").split("/"));
     expect(await fs.readFile(found)).toEqual(PNG);

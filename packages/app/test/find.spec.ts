@@ -1,12 +1,11 @@
 // Find and replace in the element (SR-189) on the built app: the prompts of the minibuffer mark the hits in
 // the text while the minibuffer keeps the focus, step through them, replace, and give the text the focus back.
 // Keys use ControlOrMeta, so the same tests run on Linux and macOS.
-import fs from "node:fs/promises";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { launchApp, listAll } from "./support/app.js";
+import { launchApp, listAll, saveAndRead } from "./support/app.js";
 import { DEMO_FILE, DEMO_FILES, DEMO_TITLE } from "./support/demo.js";
 
 const FIXTURE = { fixture: "SR-069/filter", files: DEMO_FILES };
@@ -43,17 +42,10 @@ test.describe("find and replace in the element buffer", () => {
     await running.close();
   });
 
-  const fileText = (): Promise<string> =>
-    fs.readFile(path.join(running.workspace?.root ?? "", ...DEMO_FILE.split("/")), "utf8");
-
-  /**
-   * Ctrl/Cmd+S, and the element file holds `text`. Autosave may have saved the change already ("No changes to save",
-   * #1155), and an autosave may still be writing it, so the file is polled.
-   */
+  const elementFile = (): string => path.join(running.workspace?.root ?? "", ...DEMO_FILE.split("/"));
+  /** Ctrl/Cmd+S, and the element file holds `text` (autosave may have saved it first: `saveAndRead`). */
   const expectSaved = async (text: string): Promise<void> => {
-    await running.window.keyboard.press("ControlOrMeta+s");
-    await expect(running.window.getByLabel("Minibuffer")).toContainText(/Saved|No changes to save/);
-    await expect.poll(fileText).toContain(text);
+    await saveAndRead(running.window, elementFile(), text);
   };
 
   test("[SR-189/AK1] Find in element marks every hit; Enter and Shift+Enter step, Escape leaves the caret at the hit", async () => {
@@ -118,7 +110,6 @@ test.describe("find and replace in the element buffer", () => {
     await expectSaved("Wind eins, Wind zwei, Wind drei\n");
     await window.keyboard.press("ControlOrMeta+z");
     await expect(window.locator(".cm-content")).toContainText("Quarz eins, Quarz zwei, Quarz drei");
-    await window.keyboard.press("ControlOrMeta+s");
-    await expect.poll(fileText).toContain("Quarz eins, Quarz zwei, Quarz drei\n");
+    await expectSaved("Quarz eins, Quarz zwei, Quarz drei\n");
   });
 });

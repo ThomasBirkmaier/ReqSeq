@@ -8,7 +8,7 @@ import type { Locator, Page } from "@playwright/test";
 import { micromark } from "micromark";
 import { gfm, gfmHtml } from "micromark-extension-gfm";
 import type { RunningApp } from "./support/app.js";
-import { launchApp, listAll } from "./support/app.js";
+import { launchApp, listAll, saveAndRead } from "./support/app.js";
 import { printEventsOnFailure, recordEvents } from "./support/event-log.js";
 import {
   DEMO_FILE,
@@ -196,9 +196,12 @@ test.describe("the slash menu in the element buffer", () => {
     await expect(window.locator('.candidates [role="option"]').first()).toContainText(REFERENCE_TARGET_TITLE);
     await window.keyboard.press("Enter");
     await expect(window.locator(".cm-content")).toBeFocused();
-    await window.keyboard.press("ControlOrMeta+s");
-    await expect(window.getByLabel("Minibuffer")).toContainText("Saved");
-    const file = await fs.readFile(path.join(workspace?.root ?? "", ...DEMO_FILE.split("/")), "utf8");
+    // The reference is the last change: once the file holds it, it holds the rest.
+    const file = await saveAndRead(
+      window,
+      path.join(workspace?.root ?? "", ...DEMO_FILE.split("/")),
+      "](reqseq:",
+    );
     const tail = file.slice(file.indexOf("Link"));
     expect(file).toContain("## Neuer Abschnitt\n");
     expect(file).toContain("| Messwert | Column 2 |\n| --- | --- |\n|  |  |\n");
