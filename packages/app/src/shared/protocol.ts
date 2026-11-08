@@ -46,6 +46,22 @@ export const EDIT_CHANNEL = "reqseq:edit";
 export type EditRequest = "paste";
 
 /**
+ * Renderer to main: open the bundled documentation in the default browser (SR-141 AK2, AK3), at the page of a topic:
+ * none for the start page, a catalog command name for its reference page, an action ID for its row of keys. Main
+ * builds the page path and the loopback URL itself (`main/docs.ts`) and answers with `OpenDocsResult`.
+ */
+export const DOCS_CHANNEL = "reqseq:open-docs";
+
+/**
+ * Main to renderer: Help > ReqSeq Documentation was chosen; the window opens the documentation as the action "Open
+ * documentation" does, and says in the minibuffer when it cannot. Carries nothing.
+ */
+export const HELP_CHANNEL = "reqseq:help";
+
+/** Main's answer on DOCS_CHANNEL: opened, or why not (`file.folder-missing`'s message when the delivery has no site). */
+export type OpenDocsResult = { readonly ok: true } | { readonly ok: false; readonly message: string };
+
+/**
  * Main to renderer: save the unsaved input of the window now (`SaveRequest`), before another workspace
  * opens in it (SR-131 AK3) or before the window closes (SR-105 AK1); the window answers on SAVED_CHANNEL.
  */
@@ -270,6 +286,14 @@ export interface ReqSeqBridge {
    * when main refused or could not, never rejects; the renderer gets no clipboard content from it.
    */
   pasteText(): Promise<boolean>;
+  /**
+   * Opens the bundled documentation in the default browser (SR-141): the start page, or with `topic` (a catalog
+   * command name or an action ID) its page. Never rejects; a refusal or an answer of another shape is a failure with
+   * a message to show.
+   */
+  openDocs(topic?: string): Promise<OpenDocsResult>;
+  /** Calls `listener` whenever Help > ReqSeq Documentation is chosen; returns the function that unsubscribes it. */
+  onHelp(listener: () => void): () => void;
   /**
    * The workspaces opened last, the most recent first, each `open`, `found` or `missing` (SR-131); an
    * empty list when there are none or they cannot be read, never rejects. From the main process, since
@@ -577,6 +601,19 @@ const PROBLEMS: readonly unknown[] = ["missing", "unreadable", "invalid"] satisf
 
 /** A listing that says only that the path was refused. */
 export const REFUSED_LISTING: FolderListing = { name: "", entries: [], problem: "invalid" };
+
+/** The failure of an answer on DOCS_CHANNEL that is of no known shape. */
+export const DOCS_FAILED: OpenDocsResult = { ok: false, message: "The documentation could not be opened" };
+
+/** `value` as main's answer on DOCS_CHANNEL, with only its fields; anything else is `DOCS_FAILED`. */
+export const openDocsResult = (value: unknown): OpenDocsResult => {
+  if (isRecord(value) && value["ok"] === true) {
+    return { ok: true };
+  }
+  return isRecord(value) && value["ok"] === false && typeof value["message"] === "string"
+    ? { ok: false, message: value["message"].slice(0, 1000) }
+    : DOCS_FAILED;
+};
 
 /** `value` as main's listing of a folder, with only its fields; anything else is `REFUSED_LISTING`. */
 export const folderListing = (value: unknown): FolderListing => {

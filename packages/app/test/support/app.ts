@@ -260,6 +260,8 @@ export interface LaunchOptions {
    * builds). Default true; the performance suite starts the app without it, as a user's app runs (#147).
    */
   readonly validateOutput?: boolean;
+  /** The documentation site the app opens (`--docs-folder`, unpackaged builds only, SR-141): a fixture site. */
+  readonly docsFolder?: string;
 }
 
 /**
@@ -371,6 +373,7 @@ export const launchApp = async (
       ...(workspace === undefined || options.withoutWorkspace === true
         ? []
         : ["--workspace", workspace.root]),
+      ...(options.docsFolder === undefined ? [] : [`--docs-folder=${options.docsFolder}`]),
     ],
     env,
     ...(options.colorScheme === undefined ? {} : { colorScheme: options.colorScheme }),

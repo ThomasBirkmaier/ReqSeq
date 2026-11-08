@@ -4,7 +4,9 @@ import { describe, expect, it, vi } from "vitest";
 import type { CoreRequest } from "../shared/protocol.js";
 import {
   COPY_CHANNEL,
+  DOCS_CHANNEL,
   EDIT_CHANNEL,
+  HELP_CHANNEL,
   LIST_FOLDER_CHANNEL,
   OPEN_WORKSPACE_CHANNEL,
   RECENT_WORKSPACES_CHANNEL,
@@ -103,6 +105,7 @@ const fakeElectron = (dark = false) => {
       }),
     },
     clipboard: { writeText: vi.fn(() => Promise.resolve()) },
+    shell: { openExternal: vi.fn(() => Promise.resolve()) },
     BrowserWindow: class extends EventEmitter {
       readonly webContents = new FakeContents();
       readonly loadURL = vi.fn(() => Promise.resolve());
@@ -154,7 +157,12 @@ const options = (argv: readonly string[] = ["electron", "."]): ShellOptions => (
   argv,
   cwd: CWD,
   platform: "linux",
-  paths: { preload: "/out/preload/index.cjs", renderer: "/out/renderer", core: "/out/main/core.js" },
+  paths: {
+    preload: "/out/preload/index.cjs",
+    renderer: "/out/renderer",
+    core: "/out/main/core.js",
+    docs: "/no/docs",
+  },
   log: vi.fn(),
 });
 
@@ -236,7 +244,7 @@ describe("startShell", () => {
     expect([...protocolHandlers.keys()]).toEqual(["app", "reqseq-file"]);
     // An unpackaged build has the Developer menu (reload on F5, developer tools on F12).
     const [menu] = electron.Menu.buildFromTemplate.mock.calls[0] as [{ label?: string }[]];
-    expect(menu.at(-1)?.label).toBe("Developer");
+    expect(menu.at(-2)?.label).toBe("Developer");
     expect(electron.Menu.setApplicationMenu).toHaveBeenCalledWith({
       template: electron.Menu.buildFromTemplate.mock.calls[0]?.[0],
     });
@@ -255,11 +263,12 @@ describe("startShell", () => {
   it("[SR-128/AK2] answers the copy channel of the window and nothing else puts text on the clipboard", async () => {
     const { electron, ipcHandlers, ipcListeners, windows } = await start();
     const contents = windows[0]?.webContents;
-    // The six channels from the renderer: the clipboard (SR-128), the paste into the focused field
-    // (SR-195), the folders of a typed path (SR-143), the recent workspaces and the answer whether the
-    // window saved before a switch (SR-131).
+    // The seven channels from the renderer: the clipboard (SR-128), the documentation (SR-141), the paste
+    // into the focused field (SR-195), the folders of a typed path (SR-143), the recent workspaces and the
+    // answer whether the window saved before a switch (SR-131).
     expect([...ipcHandlers.keys()]).toEqual([
       COPY_CHANNEL,
+      DOCS_CHANNEL,
       EDIT_CHANNEL,
       LIST_FOLDER_CHANNEL,
       RECENT_WORKSPACES_CHANNEL,
@@ -272,6 +281,28 @@ describe("startShell", () => {
     );
     expect(copied).toBe(true);
     expect(electron.clipboard.writeText).toHaveBeenCalledWith("x");
+  });
+
+  it("has the window open the documentation from Help, and refuses another sender on its channel", async () => {
+    const { electron, ipcHandlers, windows } = await start();
+    const [template] = electron.Menu.buildFromTemplate.mock.calls[0] as [
+      { role?: string; submenu?: { click?: () => void }[] }[],
+    ];
+    template.find((item) => item.role === "help")?.submenu?.[0]?.click?.();
+    expect(windows[0]?.webContents.sent).toEqual([{ channel: HELP_CHANNEL, message: undefined }]);
+    expect(await ipcHandlers.get(DOCS_CHANNEL)?.({ sender: {}, senderFrame: null })).toEqual({
+      ok: false,
+      message: "Refused",
+    });
+    // From the window: the folder of the options holds no site, so core's message comes back.
+    const contents = windows[0]?.webContents;
+    const answer = (await ipcHandlers.get(DOCS_CHANNEL)?.({
+      sender: contents,
+      senderFrame: contents?.mainFrame,
+    })) as { ok: boolean; message: string };
+    expect(answer).toMatchObject({ ok: false });
+    expect(answer.message).toContain("No documentation in /no/docs");
+    expect(electron.shell.openExternal).not.toHaveBeenCalled();
   });
 
   it("opens the workspace of --workspace in the core process and connects the page once it has loaded", async () => {
@@ -460,11 +491,15 @@ describe("startShell", () => {
     expect(again.preventDefault).not.toHaveBeenCalled();
   });
 
-  it("quits at once without a workspace", async () => {
-    const { appHandlers } = await start();
+  it("quits at once without a workspace, and stops the documentation", async () => {
+    const { appHandlers, ipcHandlers, windows } = await start();
     const event = { preventDefault: vi.fn() };
     appHandlers.get("will-quit")?.(event);
     expect(event.preventDefault).not.toHaveBeenCalled();
+    const contents = windows[0]?.webContents;
+    expect(
+      await ipcHandlers.get(DOCS_CHANNEL)?.({ sender: contents, senderFrame: contents?.mainFrame }),
+    ).toEqual({ ok: false, message: "The app is quitting" });
   });
 
   it("writes the web storage (the recent elements of the overview) to disk when the app quits", async () => {

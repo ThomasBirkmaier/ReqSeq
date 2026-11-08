@@ -4,6 +4,8 @@
 import path from "node:path";
 import type Electron from "electron";
 import { handleCopy } from "./clipboard.js";
+import type { Docs } from "./docs.js";
+import { docs as documentation, handleDocs } from "./docs.js";
 import { handleEdit } from "./edit.js";
 import { guardClose } from "./close.js";
 import { reloadWhenGone } from "./renderer-gone.js";
@@ -15,6 +17,7 @@ import { APP_SCHEMES, RENDERER_URL, rendererFiles, workspaceFiles } from "./prot
 import { guardContents, secureSession, webPreferences } from "./security.js";
 import { workspaceArgument } from "./args.js";
 import { SHEET } from "../shared/theme.js";
+import { HELP_CHANNEL } from "../shared/protocol.js";
 
 /** The parts of the `electron` module the main process uses. */
 export type ShellElectron = Pick<
@@ -29,6 +32,7 @@ export type ShellElectron = Pick<
   | "nativeTheme"
   | "protocol"
   | "session"
+  | "shell"
   | "utilityProcess"
 >;
 
@@ -36,14 +40,27 @@ export interface ShellOptions {
   readonly argv: readonly string[];
   readonly cwd: string;
   readonly platform: NodeJS.Platform;
-  /** The built files: preload script, renderer folder, core process entry. */
-  readonly paths: { readonly preload: string; readonly renderer: string; readonly core: string };
+  /**
+   * The built files: preload script, renderer folder, core process entry, and the documentation site of the delivery
+   * (`docsFolder` of `docs.ts`), which need not exist.
+   */
+  readonly paths: {
+    readonly preload: string;
+    readonly renderer: string;
+    readonly core: string;
+    readonly docs: string;
+  };
   /** Local log lines (standard error); never content of elements. */
   readonly log: (line: string) => void;
 }
 
 /** Opens the window once Electron is ready; resolves when its page has loaded. */
-const ready = async (electron: ShellElectron, options: ShellOptions, core: CoreProcess): Promise<void> => {
+const ready = async (
+  electron: ShellElectron,
+  options: ShellOptions,
+  core: CoreProcess,
+  docs: Docs,
+): Promise<void> => {
   const session = electron.session.defaultSession;
   secureSession(session, options.log);
   session.protocol.handle("app", rendererFiles(options.paths.renderer));
@@ -76,8 +93,10 @@ const ready = async (electron: ShellElectron, options: ShellOptions, core: CoreP
   // The renderer asks for a copy to the clipboard (SR-128), for the workspaces opened last and to open
   // one of them in this window, and answers whether its input is saved before a switch (SR-131), and
   // for the folders of a path typed in "Open workspace" (SR-143), and for a paste of the clipboard into
-  // the focused field (SR-195 AK3): the six channels it has to main.
+  // the focused field (SR-195 AK3), and to open the bundled documentation in the browser (SR-141): the seven
+  // channels it has to main.
   handleCopy(electron, window.webContents);
+  handleDocs(electron, window.webContents, docs);
   handleEdit(electron, window.webContents);
   handleListFolder(electron, window.webContents, { log: options.log });
   const workspaces = handleWorkspaces(electron, window.webContents, {
@@ -117,6 +136,10 @@ const ready = async (electron: ShellElectron, options: ShellOptions, core: CoreP
           openWorkspace: () => {
             void openWorkspace();
           },
+          // The window opens it, as its action "Open documentation" does, and says why when it cannot.
+          documentation: () => {
+            window.webContents.send(HELP_CHANNEL);
+          },
         },
       ),
     ),
@@ -155,6 +178,8 @@ export const startShell = (electron: ShellElectron, options: ShellOptions): Prom
     channel: () => new electron.MessageChannelMain(),
     log: options.log,
   });
+  // The docs server starts on the first request for a page (SR-141) and stops when the app quits.
+  const docs = documentation({ folder: options.paths.docs, log: options.log });
   // The core process finishes its running writes and closes the workspace before the app ends (it is
   // killed after STOP_TIMEOUT_MS).
   let closing = false;
@@ -162,6 +187,7 @@ export const startShell = (electron: ShellElectron, options: ShellOptions): Prom
     if (closing) {
       return;
     }
+    void docs.close();
     // The recent elements of the overview (SR-118) are in the web storage of the window: written to disk
     // now, as Chromium flushes it lazily.
     electron.session.defaultSession.flushStorageData();
@@ -174,5 +200,5 @@ export const startShell = (electron: ShellElectron, options: ShellOptions): Prom
       app.quit();
     });
   });
-  return app.whenReady().then(() => ready(electron, options, core));
+  return app.whenReady().then(() => ready(electron, options, core, docs));
 };

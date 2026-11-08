@@ -265,9 +265,22 @@ describe("shortcutReference", () => {
       keys: ["Ctrl+J"],
       mac: ["⌘J"],
       does: "Show neighbourhood / Show element",
+      actions: ["neighbourhood", "neighbourhood-back"],
     });
     expect(actions.some((row) => row.does === "Edit text" || row.does === "Graph depth")).toBe(false);
     expect(actions.some((row) => row.does === "Close all buffers")).toBe(false);
+  });
+
+  it("anchors each action at its first row, for F1 on it in the command prompt (SR-141 AK3)", () => {
+    const sections = shortcutReference(COMMANDS);
+    const anchors = sections.flatMap((section) => section.rows.flatMap((row) => row.actions ?? []));
+    expect(new Set(anchors).size).toBe(anchors.length);
+    // An action with a key and with a letter after the prefix key is anchored at its key.
+    expect(anchors).toContain("search");
+    // An action with a letter only is anchored after the prefix key; a command there is not an action.
+    const prefix = sections[2]?.rows ?? [];
+    expect(prefix.find((row) => row.does === "Close buffer")?.actions).toEqual(["close"]);
+    expect(prefix.find((row) => row.does === "Create element")?.actions).toBeUndefined();
   });
 
   it("names a command by the action that covers it, and refuses a letter that runs nothing", () => {

@@ -255,14 +255,16 @@ describe("the app offers no delete (SR-099)", () => {
     try {
       // Besides the catalog: the clipboard (SR-128), the paste into the focused field (SR-195), the recent
       // workspaces of the window and saving before a switch (SR-131), and the folder listing of "Open
-      // workspace" (SR-143). None deletes anything.
+      // workspace" (SR-143), and the documentation in the browser (SR-141). None deletes anything.
       expect(Object.keys(app.bridge).sort()).toEqual([
         "commands",
         "copyText",
         "invoke",
         "listFolder",
         "on",
+        "onHelp",
         "onSave",
+        "openDocs",
         "openWorkspace",
         "pasteText",
         "recentWorkspaces",

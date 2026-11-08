@@ -9,5 +9,5 @@
     "jsx": "react-jsx"
   },
   "include": ["src"],
-  "references": [{ "path": "../core" }, { "path": "../testkit" }]
+  "references": [{ "path": "../api" }, { "path": "../core" }, { "path": "../testkit" }]
 }

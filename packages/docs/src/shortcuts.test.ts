@@ -45,7 +45,10 @@ describe("keyboard shortcuts page", () => {
       "| `Ctrl+Shift+P` | `⌘⇧P` | Open the command prompt: the actions and commands that apply to the shown buffer |",
     );
     expect(rowOf(page, "Create element")).toBe("| `Ctrl+K E` | `⌘K E` | Create element |");
-    expect(rowOf(page, "Save element")).toBe("| `Ctrl+S` | `⌘S` | Save element |");
+    // An action's row carries its anchor, where F1 in the command prompt opens the page (SR-141 AK3).
+    expect(rowOf(page, "Save element")).toBe(
+      '| <span id="action-save"></span>`Ctrl+S` | `⌘S` | Save element |',
+    );
     // A changed key in the app's table changes the page, with no page edited by hand.
     const changed = shortcutsPage(
       shortcutReference(commands, {
@@ -58,7 +61,9 @@ describe("keyboard shortcuts page", () => {
         ),
       }),
     );
-    expect(rowOf(changed, "Save element")).toBe("| `Ctrl+Shift+W` | `⌘⇧W` | Save element |");
+    expect(rowOf(changed, "Save element")).toBe(
+      '| <span id="action-save"></span>`Ctrl+Shift+W` | `⌘⇧W` | Save element |',
+    );
     expect(rowOf(changed, "Create element")).toBe("| `Ctrl+K N` | `⌘K N` | Create element |");
   });
 
@@ -72,5 +77,14 @@ describe("keyboard shortcuts page", () => {
     ]);
     expect(page).toContain("## Only \\<here\\>\n\nA \\*note\\*.\n");
     expect(page).toContain("| — | `⌃N`, `Down` | Next \\| row |");
+    expect(
+      shortcutsPage([
+        {
+          title: "T",
+          about: "A.",
+          rows: [{ keys: ["F1"], mac: ["F1"], does: "Help", actions: ["a", "b-c"] }],
+        },
+      ]),
+    ).toContain('| <span id="action-a"></span><span id="action-b-c"></span>`F1` | `F1` | Help |');
   });
 });

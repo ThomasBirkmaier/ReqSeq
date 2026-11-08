@@ -4,6 +4,7 @@ import * as app from "./index.js";
 describe("@reqseq/app", () => {
   it("exports the parts of the IPC that run without Electron, how the app names commands, and its keys", () => {
     expect(Object.keys(app).sort()).toEqual([
+      "HELP_CHANNEL",
       "SAVE_CHANNEL",
       "SHORTCUT_TABLES",
       "WORKSPACE_CHANNEL",

@@ -245,6 +245,9 @@ importers:
       '@lezer/markdown':
         specifier: 1.8.0
         version: 1.8.0
+      '@reqseq/api':
+        specifier: workspace:*
+        version: link:../api
       '@reqseq/core':
         specifier: workspace:*
         version: link:../core

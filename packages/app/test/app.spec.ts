@@ -89,14 +89,17 @@ test.describe("on a fixture workspace", () => {
     const offered = await running.window.evaluate(() => Object.keys(window.reqseq).sort());
     // Besides the catalog, the facilities of the window: `copyText` (SR-128), `pasteText` (SR-195), and the
     // recent workspaces, the switch between them and saving before it (SR-131), and the folders of a path
-    // typed in "Open workspace" (SR-143). None of them deletes anything.
+    // typed in "Open workspace" (SR-143), and the documentation in the browser (SR-141). None of them deletes
+    // anything.
     expect(offered).toEqual([
       "commands",
       "copyText",
       "invoke",
       "listFolder",
       "on",
+      "onHelp",
       "onSave",
+      "openDocs",
       "openWorkspace",
       "pasteText",
       "recentWorkspaces",
@@ -260,9 +263,12 @@ test.describe("without a workspace", () => {
       ok: false,
       error: { code: "workspace.not-found", message: NO_WORKSPACE_MESSAGE },
     });
-    // The key it names opens the command prompt with "Open workspace".
+    // The key it names opens the command prompt with "Open workspace" (and "Open documentation", SR-141).
     await running.window.keyboard.press(process.platform === "darwin" ? "Meta+Shift+P" : "Control+Shift+P");
-    await expect(running.window.locator('[role="option"] .name')).toHaveText(["Open workspace"]);
+    await expect(running.window.locator('[role="option"] .name')).toHaveText([
+      "Open workspace",
+      "Open documentation",
+    ]);
   });
 
   test("a folder without a workspace, chosen in the folder dialog, says how to create one there", async () => {

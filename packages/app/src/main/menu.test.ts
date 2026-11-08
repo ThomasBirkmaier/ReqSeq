@@ -12,8 +12,11 @@ interface Item {
 describe("menuTemplate", () => {
   it("has File > Open Workspace with Ctrl/Cmd+O, quits from File on Windows and Linux, and nothing more", () => {
     const openWorkspace = vi.fn();
-    const template = menuTemplate({ platform: "linux", developer: false }, { openWorkspace });
-    expect(template.map((item) => item.label ?? item.role)).toEqual(["File", "editMenu"]);
+    const template = menuTemplate(
+      { platform: "linux", developer: false },
+      { openWorkspace, documentation: vi.fn() },
+    );
+    expect(template.map((item) => item.label ?? item.role)).toEqual(["File", "editMenu", "help"]);
     const file = template[0]?.submenu as {
       label?: string;
       accelerator?: string;
@@ -27,21 +30,42 @@ describe("menuTemplate", () => {
   });
 
   it("has the app menu on macOS and closes the window from File", () => {
-    const template = menuTemplate({ platform: "darwin", developer: false }, { openWorkspace: vi.fn() });
+    const template = menuTemplate(
+      { platform: "darwin", developer: false },
+      { openWorkspace: vi.fn(), documentation: vi.fn() },
+    );
     expect(template[0]).toEqual({ role: "appMenu" });
     const file = template[1]?.submenu as { role?: string }[];
     expect(file[2]).toEqual({ role: "close" });
   });
 
   it("adds reload and the developer tools on F5 and F12 in an unpackaged build only", () => {
-    const template = menuTemplate({ platform: "linux", developer: true }, { openWorkspace: vi.fn() });
-    expect(template.at(-1)).toEqual({
+    const template = menuTemplate(
+      { platform: "linux", developer: true },
+      { openWorkspace: vi.fn(), documentation: vi.fn() },
+    );
+    expect(template.at(-2)).toEqual({
       label: "Developer",
       submenu: [
         { role: "reload", accelerator: "F5" },
         { role: "toggleDevTools", accelerator: "F12" },
       ],
     });
+  });
+
+  it("has Help > ReqSeq Documentation, last and without a key, on every system", () => {
+    for (const platform of ["linux", "darwin", "win32"] as const) {
+      const documentation = vi.fn();
+      const template = menuTemplate({ platform, developer: true }, { openWorkspace: vi.fn(), documentation });
+      const help = template.at(-1);
+      expect(help?.role).toBe("help");
+      const [item, ...rest] = help?.submenu as { label?: string; accelerator?: string; click?: () => void }[];
+      expect(rest).toEqual([]);
+      expect(item).toMatchObject({ label: "ReqSeq Documentation" });
+      expect(item?.accelerator).toBeUndefined();
+      item?.click?.();
+      expect(documentation).toHaveBeenCalledOnce();
+    }
   });
 
   it("gives the keyboard reference every key the menu binds, read from the menu's own definition", () => {
@@ -52,7 +76,10 @@ describe("menuTemplate", () => {
       ["darwin", true],
     ] as const) {
       const template = items(
-        menuTemplate({ platform, developer: false }, { openWorkspace: vi.fn() }) as Item[],
+        menuTemplate(
+          { platform, developer: false },
+          { openWorkspace: vi.fn(), documentation: vi.fn() },
+        ) as Item[],
       );
       const listed = MENU_KEYS.flatMap((row) => row.keys.map((spec) => keySpecLabel(spec, mac)));
       for (const item of template.filter((candidate) => candidate.accelerator !== undefined)) {
