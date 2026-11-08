@@ -41,7 +41,7 @@ Exactly one type, area and priority per open issue; `scripts/labels.sh` holds th
 | Waiting | `needs-human` | while it waits for the product owner |
 | Structure | `epic`, `agent:working` | when it applies |
 
-Workflows set `main-red`, `perf`, `dependencies` and `github_actions`; `issue-working` also sets `agent:working` on the issues a PR closes and removes it when the PR is closed. The board (`project-sync`) shows Category (type, or Epic), Area, Priority, Agent state and Status from these labels; its old fields Stage, Kind, Thema and SR are no longer written.
+`nightly-check` opens an issue when a nightly run of CI or Performance is red. Workflows set `main-red`, `perf`, `dependencies` and `github_actions`; `issue-working` also sets `agent:working` on the issues a PR closes and removes it when the PR is closed. The board (`project-sync`) shows Category (type, or Epic), Area, Priority, Agent state and Status from these labels; its old fields Stage, Kind, Thema and SR are no longer written.
 
 ## Skills
 
