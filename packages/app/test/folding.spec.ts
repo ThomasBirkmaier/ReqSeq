@@ -86,15 +86,42 @@ test.describe("folding and jumping to headings", () => {
     const scope = window.locator(".cm-line.cm-lr-h2", { hasText: "Umfang" });
     const toggle = scope.locator(".cm-lr-fold-toggle");
     await window.mouse.move(5, 5);
-    await expect(toggle).toBeHidden();
+    await expect(toggle).toHaveCSS("opacity", "0");
     await scope.hover();
-    await expect(toggle).toBeVisible();
+    await expect(toggle).toHaveCSS("opacity", "1");
     const box = await toggle.boundingBox();
     const heading = await scope.boundingBox();
     expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual((heading?.x ?? 0) + 1);
     await toggle.click();
     await expect(window.locator(".cm-lr-fold-hint")).toHaveCount(2);
     await expect(window.locator(".cm-content")).not.toContainText("Der Umfang der Messung.");
+    expect(await fileOf(running)).toBe(FILE);
+  });
+
+  test("[SR-191/AK1] the toggle stays while the pointer moves from the heading onto it, and a click there folds and unfolds the section", async () => {
+    const { window } = running;
+    const scope = window.locator(".cm-line.cm-lr-h2", { hasText: "Zweck" });
+    const toggle = scope.locator(".cm-lr-fold-toggle");
+    const heading = await scope.boundingBox();
+    const y = (heading?.y ?? 0) + (heading?.height ?? 0) / 2;
+    // The pointer moves as a hand moves it: in small steps from the heading's text to the toggle, not in one jump.
+    await window.mouse.move((heading?.x ?? 0) + 30, y);
+    await expect(toggle).toHaveCSS("opacity", "1");
+    const box = await toggle.boundingBox();
+    const x = (box?.x ?? 0) + (box?.width ?? 0) / 2;
+    await window.mouse.move(x, y, { steps: 30 });
+    await expect(toggle).toHaveCSS("opacity", "1");
+    await window.mouse.down();
+    await window.mouse.up();
+    await expect(window.locator(".cm-lr-fold-hint")).toHaveCount(1);
+    await expect(window.locator(".cm-content")).not.toContainText("Der Zweck der Messung.");
+    // The pointer has not moved: the folded toggle is under it, and a second click unfolds the section.
+    await expect(toggle).toHaveText("▸");
+    await expect(toggle).toHaveCSS("opacity", "1");
+    await window.mouse.down();
+    await window.mouse.up();
+    await expect(window.locator(".cm-content")).toContainText("Der Zweck der Messung.");
+    await expect(window.locator(".cm-lr-fold-hint")).toHaveCount(0);
     expect(await fileOf(running)).toBe(FILE);
   });
 
