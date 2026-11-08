@@ -102,16 +102,26 @@ const fakeCall = (handlers: Record<string, (input: Record<string, unknown>) => u
         : { ok: true, output },
     );
   });
-const asCall = (call: ReturnType<typeof fakeCall>): Call => call as unknown as Call;
+/**
+ * A list asks for the verification of its rows after them (SR-137, `withVerification`); `unrecorded` answers
+ * that with nothing to show and without passing it on, so a test counts the pages a list asks for. The tests
+ * of SR-137 answer it themselves.
+ */
+const unrecorded =
+  (call: (name: string, input: Record<string, unknown>) => unknown) =>
+  (name: string, input: Record<string, unknown>): unknown =>
+    input["withVerification"] === true ? Promise.resolve({ ok: true, output: {} }) : call(name, input);
+const asCall = (call: ReturnType<typeof fakeCall>): Call => unrecorded(call) as unknown as Call;
 /**
  * `call` for `element.list` only, so a test counts its pages; the line of coverage under the heading of a
  * list (SR-148) gets the fake bridge's empty answer.
  */
 const withSummary = (call: (name: string, input: never) => Promise<unknown>): Call =>
-  ((name: string, input: never) =>
+  unrecorded((name: string, input: Record<string, unknown>) =>
     name === "element.list"
-      ? call(name, input)
-      : Promise.resolve({ ok: true, output: NO_SUMMARY[name]?.() })) as unknown as Call;
+      ? call(name, input as never)
+      : Promise.resolve({ ok: true, output: NO_SUMMARY[name]?.() }),
+  ) as unknown as Call;
 
 const query = (selector: string): HTMLElement => {
   const found = container.querySelector<HTMLElement>(selector);
@@ -1813,7 +1823,7 @@ describe("ListView, a list", () => {
       },
     };
     const call = vi.fn((name: string) => Promise.resolve({ ok: true, output: answers[name] }));
-    const { opened } = await listHarness(call as unknown as Call, listBuffer("All elements"));
+    const { opened } = await listHarness(unrecorded(call) as unknown as Call, listBuffer("All elements"));
     expect(call.mock.calls.map(([name]) => name)).toEqual([
       "element.list",
       "evidence.coverage",
@@ -1865,7 +1875,7 @@ describe("ListView, a list", () => {
           }),
     );
     const props = {
-      call: call as unknown as Call,
+      call: unrecorded(call) as unknown as Call,
       revision: 0,
       dispatch: () => undefined,
       onData: () => undefined,
@@ -2095,7 +2105,7 @@ describe("OverviewView", () => {
           answers.push(resolve);
         }),
     );
-    const view = await mount(call as unknown as Call);
+    const view = await mount(unrecorded(call) as unknown as Call);
     expect(options()).toEqual([]);
     expect(listbox().getAttribute("aria-activedescendant")).toBeNull();
     expect(view.data.at(-1)).toEqual(["overview", undefined]);
@@ -2113,7 +2123,7 @@ describe("OverviewView", () => {
     const get = h["element.get"];
     h["element.get"] = (input) => (input["ref"] === "uuid-2" ? new Error("gone") : get?.(input));
     const call = fakeCall(h);
-    await mount(call as unknown as Call, { recent: [entry(3), entry(2), entry(1)] });
+    await mount(unrecorded(call) as unknown as Call, { recent: [entry(3), entry(2), entry(1)] });
     expect(options()).toEqual(["Need 1", "System Requirement 3", "SR-3Title 3", "SR-1Title 1"]);
     expect(call).toHaveBeenCalledWith("element.get", { ref: "uuid-3", repository: "spec" });
     expect(texts(".group")).toEqual(["Recent"]);
@@ -2121,7 +2131,7 @@ describe("OverviewView", () => {
 
   it("asks for the counts once per revision and for the recent elements when they change", async () => {
     const call = fakeCall(handlers());
-    const view = await mount(call as unknown as Call);
+    const view = await mount(unrecorded(call) as unknown as Call);
     const asked = (name: string): number => call.mock.calls.filter(([called]) => called === name).length;
     expect(asked("element.facets")).toBe(1);
     await view.recent([entry(1)]);
@@ -2134,7 +2144,7 @@ describe("OverviewView", () => {
 
   it("asks for nothing while it is not shown, and shows what it has at once when it is shown again", async () => {
     const call = fakeCall(handlers());
-    const view = await mount(call as unknown as Call, { active: false, recent: [entry(1)] });
+    const view = await mount(unrecorded(call) as unknown as Call, { active: false, recent: [entry(1)] });
     expect(call).not.toHaveBeenCalled();
     await view.active(true);
     expect(call).toHaveBeenCalledTimes(2);
@@ -2153,7 +2163,7 @@ describe("OverviewView", () => {
           pending.push({ name, resolve });
         }),
     );
-    const view = await mount(call as unknown as Call, { recent: [entry(1)] });
+    const view = await mount(unrecorded(call) as unknown as Call, { recent: [entry(1)] });
     await view.active(false);
     await act(async () => {
       for (const { name, resolve } of pending) {
@@ -2486,7 +2496,7 @@ describe("ListView, a part of a buffer (SR-112)", () => {
           answers.push(resolve);
         }),
     );
-    const { show, data } = await partHarness(call as unknown as Call, packageMembers());
+    const { show, data } = await partHarness(unrecorded(call) as unknown as Call, packageMembers());
     await act(async () => {
       answers[0]?.({ ok: true, output: { elements: rowsOf(1, 3), total: 2 } });
       await Promise.resolve();
@@ -2516,7 +2526,7 @@ describe("ListView, a part of a buffer (SR-112)", () => {
           answers.push(resolve);
         }),
     );
-    const { show } = await partHarness(call as unknown as Call, packageMembers());
+    const { show } = await partHarness(unrecorded(call) as unknown as Call, packageMembers());
     await act(async () => {
       answers[0]?.({ ok: true, output: { elements: rowsOf(1, 3), total: 2 } });
       await Promise.resolve();
@@ -2540,7 +2550,7 @@ describe("ListView, a part of a buffer (SR-112)", () => {
           answers.push(resolve);
         }),
     );
-    const { show, actions } = await partHarness(call as unknown as Call, packageMembers());
+    const { show, actions } = await partHarness(unrecorded(call) as unknown as Call, packageMembers());
     await act(async () => {
       answers[0]?.({ ok: true, output: { elements: rowsOf(1, 4), total: 300 } });
       await Promise.resolve();
@@ -2607,6 +2617,104 @@ describe("ListView, a part of a buffer (SR-112)", () => {
     const none = fakeCall({ "element.list": () => ({ elements: [], total: 0 }) });
     await partHarness(asCall(none), packageMembers(), { focusOnLoad: true });
     expect(document.activeElement).not.toBe(query('[role="listbox"]'));
+  });
+});
+
+describe("ListView, the verification of the rows (SR-137)", () => {
+  const entry = (status: string) => [{ view: "core", status }];
+  // Rows 1 to 4: open 2 of 3, failed without ring, indirect, a need at 60 %; row 5 has nothing to show.
+  const verification = [
+    { verification: entry("open"), criteria: { verified: 2, total: 3, notVerified: [3] } },
+    { verification: entry("failed") },
+    { verification: entry("indirect") },
+    {
+      degree: {
+        share: 0.6,
+        total: 10,
+        counts: { open: 2, verified: 6, indirect: 0, failed: 1, outdated: 1 },
+      },
+    },
+    {},
+  ];
+  const shown = () =>
+    [...container.querySelectorAll(".row")].map((shownRow) => [
+      shownRow.querySelector(".status")?.textContent,
+      shownRow.querySelector(".verification")?.textContent,
+      shownRow.querySelector(".verification .accent") !== null,
+    ]);
+
+  it("[SR-137/AK1] a row shows the verification status of its requirement right of its status, after the rows stand", async () => {
+    let answer: (value: unknown) => void = () => undefined;
+    const call = vi.fn((name: string, input: Record<string, unknown>) =>
+      input["withVerification"] === true
+        ? new Promise((resolve) => {
+            answer = resolve;
+          })
+        : Promise.resolve({
+            ok: true,
+            output: name === "element.list" ? { elements: rowsOf(1, 6), total: 5 } : NO_SUMMARY[name]?.(),
+          }),
+    );
+    await listHarness(call as unknown as Call, listBuffer("All elements"));
+    // The rows come first; their verification is asked for the same page with as few fields as it takes.
+    expect(texts(".row .title")).toHaveLength(5);
+    expect(texts(".row .verification")).toEqual(["", "", "", "", ""]);
+    expect(call).toHaveBeenCalledWith("element.list", {
+      sort: DEFAULT_SORT,
+      withVerification: true,
+      fields: ["identifier"],
+      limit: 5,
+      offset: 0,
+    });
+    await act(async () => {
+      answer({ ok: true, output: { partial: [], total: 5, rowVerification: verification } });
+      await Promise.resolve();
+    });
+    expect(shown()).toEqual([
+      ["draft", "open2 of 3", false],
+      ["draft", "failed", true],
+      ["draft", "indirect", false],
+      ["draft", "60 %", false],
+      ["draft", "", false],
+    ]);
+  });
+
+  it("[SR-137/AK3] a row shows the progress ring of its element's node right of its status, none without, also for a hit", async () => {
+    const call = vi.fn((name: string, input: Record<string, unknown>) =>
+      Promise.resolve({
+        ok: true,
+        output:
+          name === "element.search"
+            ? {
+                hits: rowsOf(1, 6).map((one) => ({ ...one, score: 1, fields: ["title"], terms: [] })),
+                total: 5,
+                incomplete: false,
+                ...(input["withVerification"] === true ? { rowVerification: verification } : {}),
+              }
+            : {},
+      }),
+    );
+    await listHarness(call as unknown as Call, searchBuffer("title"));
+    expect(call).toHaveBeenCalledWith("element.search", {
+      query: "title",
+      withVerification: true,
+      limit: 5,
+      offset: 0,
+    });
+    const rings = [...container.querySelectorAll(".row")].map((shownRow) => {
+      const ring = shownRow.querySelector(".verification .graph-ring");
+      return ring === null ? null : [ring.getAttribute("data-part"), ring.getAttribute("aria-hidden")];
+    });
+    expect(rings).toEqual([[String(2 / 3), null], null, null, ["0.6", null], null]);
+    // The ring sits right of the status, and its text names it, as the row has no label of its own.
+    const first = container.querySelector(".row");
+    expect([...(first?.children ?? [])].map((child) => child.className)).toEqual([
+      "id",
+      "title",
+      "status",
+      "verification",
+    ]);
+    expect(first?.querySelector(".graph-ring svg")?.getAttribute("aria-hidden")).toBe("true");
   });
 });
 
@@ -2718,7 +2826,7 @@ describe("ListView, a search", () => {
     const named = (option.getAttribute("aria-labelledby") ?? "")
       .split(" ")
       .map((id) => document.getElementById(id));
-    expect(named.map((part) => part?.className)).toEqual(["id", "title", "status"]);
+    expect(named.map((part) => part?.className)).toEqual(["id", "title", "status", "verification"]);
     const described = document.getElementById(option.getAttribute("aria-describedby") ?? "");
     expect(described?.className).toBe("snippet");
     expect(described?.getAttribute("title")).toBe("Checks: The dial warns before a hurricane arrives.");

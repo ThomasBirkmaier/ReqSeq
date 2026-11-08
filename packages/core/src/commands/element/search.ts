@@ -27,9 +27,13 @@
 //   only in the newer store counts as not available until the next search. The key is checked by
 //   `groupingOf` whatever the query finds. Cost: the search, one sort of every hit and one pass over
 //   them (SR-098 with grouping: test/perf/search-speed.test.ts).
+// - With `withVerification` (SR-137) `rowVerification` gives for each row what its node in trace.graph
+//   shows of its verification (`rowsVerification`), from the hit's record.
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
-import type { ElementSearchOutput } from "../../generated/types.js";
+import { rowsVerification } from "../../evidence/index.js";
+import type { ElementSearchInput, ElementSearchOutput } from "../../generated/types.js";
+import type { ElementRecord } from "../../model/index.js";
 import { identifierField, titleKeyOf } from "../../model/index.js";
 import type { RankedHit, SearchHit, SearchIndex, Selected } from "../../query/index.js";
 import {
@@ -41,6 +45,7 @@ import {
   searchIndex,
 } from "../../query/index.js";
 import { searchSnippet, titleMarks } from "../../query/search-snippet.js";
+import type { Workspace } from "../../runtime/workspace.js";
 
 type Hit = ElementSearchOutput["hits"][number];
 
@@ -80,7 +85,10 @@ const grouped = (
   index: SearchIndex,
   ranked: readonly RankedHit[],
   input: { readonly group: string; readonly offset: number; readonly limit: number },
-): Pick<ElementSearchOutput, "hits" | "groups" | "offset" | "rows"> => {
+): {
+  readonly output: Pick<ElementSearchOutput, "hits" | "groups" | "offset" | "rows">;
+  readonly records: readonly ElementRecord[];
+} => {
   const { heads, groupsOf } = groupingOf(
     { ...selected, elements: ranked.map((hit) => hit.element) },
     "element.search",
@@ -106,13 +114,28 @@ const grouped = (
   const describe = describerOf(selected, index);
   // A hit in several groups of the page is described once.
   const described = new Map<RankedHit, Hit>();
-  const hits = rows.slice(input.offset, input.offset + input.limit).map((row) => {
+  const page = rows.slice(input.offset, input.offset + input.limit);
+  const hits = page.map((row) => {
     const known = described.get(row) ?? describe(describeHit(row));
     described.set(row, known);
     return known;
   });
-  return { hits, groups, offset: input.offset, rows: rows.length };
+  return {
+    output: { hits, groups, offset: input.offset, rows: rows.length },
+    records: page.map((row) => row.element),
+  };
 };
+
+/** `rowVerification` of the output for the rows of `records` (see the file comment); nothing without `withVerification`. */
+const verificationOf = async (
+  selected: Selected,
+  input: ElementSearchInput,
+  records: readonly ElementRecord[],
+  workspace: Workspace,
+): Promise<Pick<ElementSearchOutput, "rowVerification">> =>
+  input.withVerification === true
+    ? { rowVerification: await rowsVerification(workspace, records, selected.views) }
+    : {};
 
 export default defineCommand({
   name: "element.search",
@@ -129,8 +152,10 @@ export default defineCommand({
     };
     if (input.group !== undefined) {
       const ranked = rankedHits(index, input.query, options);
+      const { output, records } = grouped(selected, index, ranked, { ...input, group: input.group });
       return {
-        ...grouped(selected, index, ranked, { ...input, group: input.group }),
+        ...output,
+        ...(await verificationOf(selected, input, records, ctx.workspace)),
         total: ranked.length,
         incomplete: selected.incomplete,
       };
@@ -141,6 +166,16 @@ export default defineCommand({
       limit: input.limit,
     });
     const describe = describerOf(selected, index);
-    return { hits: results.hits.map(describe), total: results.total, incomplete: selected.incomplete };
+    return {
+      hits: results.hits.map(describe),
+      ...(await verificationOf(
+        selected,
+        input,
+        results.hits.map((hit) => hit.element),
+        ctx.workspace,
+      )),
+      total: results.total,
+      incomplete: selected.incomplete,
+    };
   },
 });

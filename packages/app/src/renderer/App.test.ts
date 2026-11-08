@@ -300,8 +300,12 @@ const renderList = async (bridge: ReqSeqBridge): Promise<void> => {
 const texts = (selector: string): string[] =>
   [...container.querySelectorAll(selector)].map((element) => element.textContent);
 
+/** The calls of `name`, without those a list makes for the verification of its rows (SR-137). */
 const calls = (invoke: ReturnType<typeof fakeBridge>["invoke"], name: string): unknown[] =>
-  invoke.mock.calls.filter(([called]) => called === name).map(([, input]) => input);
+  invoke.mock.calls
+    .filter(([called]) => called === name)
+    .map(([, input]) => input)
+    .filter((input) => (input as { withVerification?: boolean } | undefined)?.withVerification !== true);
 
 describe("App", () => {
   it("is a white sheet with the modeline and the minibuffer; empty until the status is there", async () => {

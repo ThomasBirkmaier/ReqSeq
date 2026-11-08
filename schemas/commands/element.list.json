@@ -4,13 +4,14 @@
   "summary": "Elements of a selection, sorted; optionally as derivation tree or in groups.",
   "effect": "read",
   "stage": 3,
-  "implements": ["SR-035", "SR-043", "SR-048", "SR-069", "SR-070", "SR-075", "SR-101", "SR-149"],
+  "implements": ["SR-035", "SR-043", "SR-048", "SR-069", "SR-070", "SR-075", "SR-101", "SR-137", "SR-149"],
   "arguments": [
     { "field": "selection", "complete": "selection" },
     { "field": "sort", "complete": "json" },
     { "field": "group", "complete": "text" },
     { "field": "fields", "complete": "choice" },
     { "field": "withText", "complete": "boolean" },
+    { "field": "withVerification", "complete": "boolean" },
     { "field": "limit", "complete": "number" },
     { "field": "offset", "complete": "number" }
   ],
@@ -56,6 +57,10 @@
         "type": "boolean",
         "description": "Also give the text of each element. Left out for an element without a version, and when its file changed while the list was built (list again)."
       },
+      "withVerification": {
+        "type": "boolean",
+        "description": "Also give what each row shows of its element's verification (SR-137), in `rowVerification`."
+      },
       "limit": {
         "type": "integer",
         "minimum": 1,
@@ -86,6 +91,11 @@
         "items": {
           "$ref": "../data-export.schema.json#/$defs/elementPart"
         }
+      },
+      "rowVerification": {
+        "type": "array",
+        "description": "Only with `withVerification`: for each row of `elements` (or `partial`), in the same order, the verification status of a requirement and the progress ring of a requirement or need, as a node of trace.graph carries them (SR-137 AK1, AK3).",
+        "items": { "$ref": "../data-export.schema.json#/$defs/rowVerification" }
       },
       "tree": {
         "type": "array",

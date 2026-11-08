@@ -88,7 +88,10 @@ export const MARK_WORDS: Readonly<Record<GraphMark, string>> = {
 };
 
 /** The verification status of a requirement node in the graph's view (SR-136 AK1); none for another node. */
-export const statusOf = (node: GraphNode): string | undefined => node.verification?.[0]?.status;
+/** What a node, or a row of a list (SR-137), carries of its verification. */
+export type Verifiable = Pick<GraphNode, "verification" | "criteria" | "degree">;
+
+export const statusOf = (node: Verifiable): string | undefined => node.verification?.[0]?.status;
 
 /** Whether a status word is in the accent colour, as in the matrix: failed and outdated. */
 export const accentStatus = (status: string): boolean => status === "failed" || status === "outdated";
@@ -104,7 +107,7 @@ export interface Ring {
  * "2 of 3", as core counts them (`criteria`); a need's verification degree, "60 %" (`degreePercent`, as
  * the CLI); none where core gives nothing to count (indirect, no criteria, no valid derived requirement).
  */
-export const ringOf = (node: GraphNode): Ring | undefined => {
+export const ringOf = (node: Verifiable): Ring | undefined => {
   const { criteria, degree } = node;
   if (criteria !== undefined) {
     return {

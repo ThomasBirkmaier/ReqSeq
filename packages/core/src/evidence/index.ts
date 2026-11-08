@@ -15,7 +15,7 @@ export { enrichJunitBytes, enrichJunitFile } from "./enrich.js";
 export type { EnrichOptions, EnrichResult, RefResolution, UnknownRef, VersionLookup } from "./enrich.js";
 export type { CoverageLevel, CoverageRules } from "./coverage.js";
 export { countedIn, degreeOf, selectionDegree, viewIdOf } from "./degree.js";
-export { graphVerification, shownCriteria } from "./graph-status.js";
+export { graphVerification, rowsVerification, shownCriteria } from "./graph-status.js";
 export type { NodeVerification } from "./graph-status.js";
 export { isPassedTest, withoutPassedTest } from "./without-passed-test.js";
 export type { VerificationDegree } from "./degree.js";

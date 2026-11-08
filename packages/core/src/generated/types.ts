@@ -871,6 +871,19 @@ export interface DataExportTestCase {
 }
 
 /**
+ * What a row of a list shows of its element's verification (SR-137), the fields a node of trace.graph carries for it (SR-136), in the view of the list's selection (the selection's, else its saved filter's, else the core), the view evidence.degree counts the same selection in: empty for an element with none of them.
+ * Schema: `schemas/data-export.schema.json#/$defs/rowVerification`.
+ */
+export interface DataExportRowVerification {
+  /** SR-137 AK1: the verification status of a requirement in that view, one entry; left out for any other element and for a requirement without a status there. */
+  readonly verification?: readonly DataExportVerificationEntry[];
+  /** SR-137 AK3: the count of a requirement's progress ring, as trace.graph gives it (`criteria` of a node). */
+  readonly criteria?: DataExportCriteriaCount;
+  /** SR-137 AK3: for a need, the verification degree of the requirements derived directly from it, as trace.graph gives it (`degree` of a node). */
+  readonly degree?: DataExportVerificationDegree;
+}
+
+/**
  * The verification status of a requirement in one view (SR-031, SR-034, SR-047 AK3): `element` `verification` gives one per view, `trace.matrix` one for its view (SR-126).
  * Schema: `schemas/data-export.schema.json#/$defs/verificationEntry`.
  */
@@ -1997,6 +2010,8 @@ export interface ElementListInput {
     | "relations")[];
   /** Also give the text of each element. Left out for an element without a version, and when its file changed while the list was built (list again). */
   readonly withText?: boolean;
+  /** Also give what each row shows of its element's verification (SR-137), in `rowVerification`. */
+  readonly withVerification?: boolean;
   readonly limit: number;
   readonly offset: number;
 }
@@ -2010,6 +2025,8 @@ export type ElementListOutput = {
   readonly elements?: readonly DataExportElement[];
   /** Only with `fields`, instead of `elements`: the same page, each element with the fields asked for. */
   readonly partial?: readonly DataExportElementPart[];
+  /** Only with `withVerification`: for each row of `elements` (or `partial`), in the same order, the verification status of a requirement and the progress ring of a requirement or need, as a node of trace.graph carries them (SR-137 AK1, AK3). */
+  readonly rowVerification?: readonly DataExportRowVerification[];
   /** Only when `sort` starts with `hierarchy` (SR-075 AK2): the place in the derivation tree of each element of `elements` (or `partial`), in the same order. With `group`, each group is its own tree over its elements: a parent outside the group does not count. The list is the tree depth first: each root, then the elements below it. Each element of the selection appears once (spec-frage ThomasBirkmaier/ReqSeq-archive#354): below the parent of the list that reaches it at the shortest depth, the first in sort order among equals; an element without a parent in the list is a root, and so is the first element in sort order of a cycle that no root reaches. Its other parents are in its `relations`. */
   readonly tree?: readonly {
     readonly id: Uuid;
@@ -2874,6 +2891,8 @@ export interface ElementSearchInput {
   readonly fields?: readonly ("title" | "text" | "properties" | "id")[];
   /** Group the hits (SR-149 AK6) by the keys and rules of element.list `group`: the same groups in the same order, a hit with several values in each of their groups, the hits without a value (or with only targets not available) in the last group, and an invalid key `input.invalid` whatever the query finds. Inside each group the hits keep the order of the search (ID matches, then relevance, then workspace order). The grouping reads the records the hits were found in; their targets are looked up in the workspace the selection was read from. Nothing is stored. */
   readonly group?: GroupKey;
+  /** Also give what each row shows of its element's verification (SR-137), in `rowVerification`. */
+  readonly withVerification?: boolean;
   readonly limit: number;
   readonly offset: number;
 }
@@ -2927,6 +2946,8 @@ export interface ElementSearchOutput {
   readonly offset?: number;
   /** Only with `group`: the rows of the grouped hits, the sum of the counts of `groups`; `offset` and `limit` page over these rows. At least `total`, more when hits are in several groups. */
   readonly rows?: number;
+  /** Only with `withVerification`: for each row of `hits`, in the same order, the verification status of a requirement and the progress ring of a requirement or need, as a node of trace.graph carries them (SR-137 AK1, AK3). */
+  readonly rowVerification?: readonly DataExportRowVerification[];
   /** Hits, each once. */
   readonly total: number;
   readonly incomplete: Incomplete;
