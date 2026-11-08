@@ -91,11 +91,12 @@ const LICENSE_FILE = /^(?:licen[cs]e|copying|notice)(?:[.-].*)?$/i;
 
 /**
  * The third-party notices of the staged folders: every package in their `node_modules` except the
- * workspace's own (`scope`), once per name and version, with its licence and licence texts. `required`
+ * workspace's own (`scope`), once per name and version, with its licence and licence texts, and the `extra`
+ * entries `{ name, version, license, texts }` (the documentation site, scripts/licenses/site.mjs). `required`
  * names must be among them (ADR-0015: dagre and graphlib, bundled into the renderer).
  */
-export async function noticesText({ nodeModules, scope, required, title }) {
-  const packages = new Map();
+export async function noticesText({ nodeModules, scope, required, title, extra = [] }) {
+  const packages = new Map(extra.map((e) => [`${e.name}@${e.version}`, e]));
   for (const root of nodeModules) {
     for (const folder of await packageFolders(root)) {
       const manifest = JSON.parse(await fs.readFile(path.join(folder, "package.json"), "utf8"));
@@ -228,4 +229,30 @@ export async function writeBuildInfo(staged, info) {
   await fs.rm(file, { force: true });
   await fs.writeFile(file, `${JSON.stringify(info, null, 2)}\n`);
   return file;
+}
+
+/**
+ * Why the built site in `folder` is not the offline build that a delivery of `product` `version` ships (SR-141,
+ * ADR-0017; empty: it is): its `index.html` must name the version in its title and link with base `/`, not
+ * below `/<product>/` as the Pages build does, and it must hold no symbolic link.
+ */
+export async function offlineSiteProblems(folder, { product, version }) {
+  const file = path.join(folder, "index.html");
+  const index = await fs.readFile(file, "utf8").catch(() => undefined);
+  if (index === undefined) {
+    return [`no index.html in ${folder}: build the site with REQSEQ_DOCS_OFFLINE=1`];
+  }
+  // The delivery holds plain files only: a link could point out of the site into the build machine.
+  const links = (await fs.readdir(folder, { recursive: true, withFileTypes: true }))
+    .filter((entry) => entry.isSymbolicLink())
+    .map((entry) => `symbolic link in the site: ${path.join(entry.parentPath, entry.name)}`);
+  return [
+    ...links,
+    ...(index.includes(`${product} ${version}</title>`)
+      ? []
+      : [`the title of ${file} does not name ${product} ${version}`]),
+    ...(index.includes(`="/${product}/`)
+      ? [`${file} links below /${product}/: the Pages build, not the offline one`]
+      : []),
+  ];
 }

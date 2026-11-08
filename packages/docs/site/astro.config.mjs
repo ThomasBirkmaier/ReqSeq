@@ -1,5 +1,5 @@
 // The user documentation site (ADR-0017). Nothing here loads from the network: no web fonts, no CDN, no analytics.
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { URL } from "node:url";
 import starlight from "@astrojs/starlight";
 import { defineConfig, passthroughImageService } from "astro/config";
@@ -13,8 +13,12 @@ const GUIDE_SECTIONS = [
   ["concepts", "Concepts"],
 ];
 
-// `/ReqSeq` for GitHub Pages; the offline build that ships with a delivery sets `/` (SR-141, ADR-0017).
-const base = process.env.REQSEQ_DOCS_BASE ?? "/ReqSeq";
+// REQSEQ_DOCS_OFFLINE=1: the build that ships with a delivery (SR-141, ADR-0017), with base `/` and no link to the
+// repository. Otherwise `/ReqSeq` for GitHub Pages, or REQSEQ_DOCS_BASE. packages/docs/src/bin.ts has the same rule.
+const offline = process.env.REQSEQ_DOCS_OFFLINE === "1";
+const base = offline ? "/" : (process.env.REQSEQ_DOCS_BASE ?? "/ReqSeq");
+// Every page title names the version the site documents (SR-141 AK1), online too.
+const { version } = JSON.parse(readFileSync(new URL("../../../package.json", import.meta.url), "utf8"));
 /** A path of public/ under the base. */
 const publicPath = (name) => `${base.replace(/\/$/, "")}/${name}`;
 
@@ -26,10 +30,12 @@ export default defineConfig({
   image: { service: passthroughImageService() },
   integrations: [
     starlight({
-      title: "ReqSeq",
+      title: `ReqSeq ${version}`,
       description: "User documentation of ReqSeq.",
-      // A link only; the site loads nothing from it.
-      social: [{ icon: "github", label: "GitHub", href: "https://github.com/ThomasBirkmaier/ReqSeq" }],
+      // A link only; the site loads nothing from it. Left out offline, where it leads nowhere.
+      social: offline
+        ? []
+        : [{ icon: "github", label: "GitHub", href: "https://github.com/ThomasBirkmaier/ReqSeq" }],
       customCss: ["./src/styles/theme.css"],
       // The icons of the app (#410), from toolchain/packaging/icon/icon.svg (scripts/icon/generate.mjs).
       favicon: "/favicon.svg",

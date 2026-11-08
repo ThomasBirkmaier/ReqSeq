@@ -1,6 +1,6 @@
 # ADR-0014: Packaging and delivery
 
-Status: Accepted · Based on: D-003, D-004, D-029 · SRs: SR-076, SR-077, SR-078 · Changed 2026-10-28: portable delivery instead of installers, release workflow (ThomasBirkmaier/ReqSeq-archive#324)
+Status: Accepted · Based on: D-003, D-004, D-029 · SRs: SR-076, SR-077, SR-078, SR-141 · Changed 2026-10-28: portable delivery instead of installers, release workflow (ThomasBirkmaier/ReqSeq-archive#324) · 2026-11-08: the documentation site in every delivery (#1205)
 
 ## Context
 
@@ -29,6 +29,7 @@ Additionally the CLI is published as a tarball (`npm pack` of `@reqseq/cli` with
 | Linux artifact | `ReqSeq-<version>-linux-x64.tar.gz` (folder `ReqSeq-<version>-linux-x64/`) |
 | Windows artifact | `ReqSeq-<version>-win-x64.zip` |
 | CLI tarball | `reqseq-cli-<version>.tgz` |
+| Documentation site | `resources/cli/docs/` (macOS: `ReqSeq.app/Contents/Resources/cli/docs/`), `package/docs/` in the CLI tarball |
 | Checksums | `SHA256SUMS.txt` |
 | App data folder (Electron's userData, from the product name; recent elements) | `~/Library/Application Support/ReqSeq`, `~/.config/ReqSeq`, `%APPDATA%\ReqSeq` |
 | Cache folder (recent workspaces, model caches; ADR-0008) | `reqseq` in the OS cache folder (`~/Library/Caches`, `$XDG_CACHE_HOME` or `~/.cache`, `%LOCALAPPDATA%`) |
@@ -39,7 +40,8 @@ Additionally the CLI is published as a tarball (`npm pack` of `@reqseq/cli` with
 - the CLI and the MCP server as a plain folder `resources/cli` outside the asar, with a flat production `node_modules`. They run on the bundled Electron binary with `ELECTRON_RUN_AS_NODE=1` through the launcher, so no separate Node installation is needed, and they start no Chromium: they need neither a display nor the Linux sandbox step below;
 - the launchers in a `bin` folder. Windows matches names case-insensitively and tries `.EXE` before `.CMD`, so `reqseq.cmd` next to `ReqSeq.exe` would lose to the GUI app on the PATH; with `bin` on the PATH only the launcher is found. Adding `bin` to the PATH is one documented line ([Install ReqSeq](../guide/how-to/install-reqseq.md#cli));
 - `build-info.json` in each staged copy of `@reqseq/core/dist` (app and CLI), with the commit the delivery is built from and its date, which `tool info` shows (SR-161); a build from a checkout has none;
-- `resources/THIRD_PARTY_NOTICES.txt` with the production dependencies of app and CLI and their licences, naming `@dagrejs/dagre` and `@dagrejs/graphlib` (ADR-0015);
+- the documentation site of this version (SR-141, ADR-0017 "Offline build"), the offline build with base `/` and the version in every page title, as `docs/` of the CLI: `resources/cli/docs/` in the archives and `package/docs/` in the CLI tarball, one copy that `reqseq serve docs` serves and the app reads (#1192). About 7 MB and 200 files unpacked, 1.6 MB compressed;
+- `resources/THIRD_PARTY_NOTICES.txt` with the production dependencies of app and CLI and the packages and bundled code the documentation site ships, with their licences, naming `@dagrejs/dagre` and `@dagrejs/graphlib` (ADR-0015); the CLI tarball has its own `package/THIRD_PARTY_NOTICES.txt` of the CLI and the site;
 - the guide for connecting a test tool, `toolchain/junit/README.md` with its examples, as `resources/docs/junit/` (SR-063 AK2 „mitgelieferte Beschreibung“; spec question ThomasBirkmaier/ReqSeq-archive#600 Q3, assumption);
 - Electron's licence and Chromium's notices.
 
@@ -61,7 +63,7 @@ Everything is in the artifact; nothing is downloaded at install or run time (SR-
 
 **Icon.** One master drawing, `toolchain/packaging/icon/icon.svg`; `scripts/icon/generate.mjs` renders from it the macOS `.icns`, the Windows `.ico`, the Linux PNGs, the Linux window icon of the app and the favicons of the docs site, all committed (#410). Windows takes the icon into `ReqSeq.exe` through `signAndEditExecutable`, which edits the exe with rcedit and signs nothing without a certificate.
 
-**Release.** `.github/workflows/release.yml` builds the delivery only on a `v*` tag or a manual run, never on pull requests or pushes, so that CI time of pull requests does not change. macOS, Linux and Windows build on GitHub's hosted runners (`macos-26`, `ubuntu-24.04`, `windows-2025`); the assets are attached to the GitHub release of a tag on `main` whose name is `v<version>`, or `v<major>.<minor>` when the patch is 0 (the stage tags: `v0.<n>` on version `0.<n>.0`). The delivery tests run there (ADR-0011). The release text lists the changes since the previous release tag, from the Conventional Commit subjects on `main` grouped into new functions, fixes, specification and other changes (`scripts/package/stage.mjs --release-notes`, #346); a manual run only shows them in its job summary. electron-builder is a dev tool in its own package `toolchain/packaging/` with its own lockfile and its own `pnpm-workspace.yaml` (its settings and overrides), installed and audited only by the release workflow, so pull requests never install it (exception to ADR-0001).
+**Release.** `.github/workflows/release.yml` builds the delivery only on a `v*` tag or a manual run, never on pull requests or pushes, so that CI time of pull requests does not change. Its first job, `docs-site`, builds the offline documentation site once on Linux with the steps it shares with `docs-pages.yml` (`.github/actions/docs-site`: screenshots, generate, install, audit, build under `unshare -rn`), checks it and the licences of what it ships (`scripts/package/stage.mjs --docs-site`, ADR-0015) and hands it to the build jobs as an artifact, which `stage.mjs` copies into the staged CLI; it adds about 7 minutes before the build matrix. macOS, Linux and Windows build on GitHub's hosted runners (`macos-26`, `ubuntu-24.04`, `windows-2025`); the assets are attached to the GitHub release of a tag on `main` whose name is `v<version>`, or `v<major>.<minor>` when the patch is 0 (the stage tags: `v0.<n>` on version `0.<n>.0`). The delivery tests run there (ADR-0011). The release text lists the changes since the previous release tag, from the Conventional Commit subjects on `main` grouped into new functions, fixes, specification and other changes (`scripts/package/stage.mjs --release-notes`, #346); a manual run only shows them in its job summary. electron-builder is a dev tool in its own package `toolchain/packaging/` with its own lockfile and its own `pnpm-workspace.yaml` (its settings and overrides), installed and audited only by the release workflow, so pull requests never install it (exception to ADR-0001).
 
 **Model and core files in the delivery.**
 

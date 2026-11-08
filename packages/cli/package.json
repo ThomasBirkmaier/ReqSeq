@@ -11,6 +11,8 @@
   "files": [
     "dist",
     "!dist/**/*.test.*",
+    "docs",
+    "THIRD_PARTY_NOTICES.txt",
     "README.md"
   ],
   "exports": {

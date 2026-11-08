@@ -87,6 +87,13 @@ describe("bin", () => {
     vi.resetModules();
     await import("./bin.js");
     expect(referencePages).toHaveBeenLastCalledWith(expect.anything(), "/ReqSeq");
+    // The offline build that ships with a delivery (SR-141) has base `/`, whatever REQSEQ_DOCS_BASE says.
+    vi.stubEnv("REQSEQ_DOCS_OFFLINE", "1");
+    vi.stubEnv("REQSEQ_DOCS_BASE", "/base");
+    vi.resetModules();
+    await import("./bin.js");
+    expect(referencePages).toHaveBeenLastCalledWith(expect.anything(), "/");
+    vi.unstubAllEnvs();
     write.mockRestore();
     warn.mockRestore();
   });

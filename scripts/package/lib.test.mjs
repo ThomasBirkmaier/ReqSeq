@@ -7,6 +7,7 @@ import {
   hardLinkEntries,
   isBuildLeftover,
   noticesText,
+  offlineSiteProblems,
   packageFolders,
   releaseNotes,
   removeBuildLeftovers,
@@ -235,6 +236,51 @@ describe("packageFolders and noticesText", () => {
     await expect(
       noticesText({ nodeModules: [nm], scope: "@w/", required: ["@dagrejs/dagre", "a"], title: "T" }),
     ).rejects.toThrow("third-party notices: @dagrejs/dagre not found");
+  });
+});
+
+describe("notices of the documentation site and its offline build (SR-141)", () => {
+  it("adds the site's entries to the notices, once per name and version", async () => {
+    const nm = path.join(await tempFolder(), "node_modules");
+    await writePackage(path.join(nm, "svelte"), { name: "svelte", version: "4.2.20", license: "MIT" });
+    const text = await noticesText({
+      nodeModules: [nm],
+      scope: "@w/",
+      required: ["svelte", "minicbor"],
+      title: "T",
+      extra: [
+        { name: "minicbor", version: "2.2.1", license: "BlueOak-1.0.0", texts: ["Blue Oak\n"] },
+        { name: "svelte", version: "4.2.20", license: "MIT", texts: ["MIT text of svelte"] },
+      ],
+    });
+    expect(text).toBe(
+      [
+        "T\n\nminicbor 2.2.1\nLicense: BlueOak-1.0.0\n\nBlue Oak",
+        "svelte 4.2.20\nLicense: MIT\n\nMIT text of svelte",
+      ].join(`\n\n${"-".repeat(72)}\n\n`) + "\n",
+    );
+  });
+
+  it("accepts the offline build of the version and refuses the Pages build, another version and no site", async () => {
+    const site = await tempFolder();
+    const page = (title, href) => `<html><head><title>${title}</title><link href="${href}"></head></html>`;
+    const options = { product: "Tool", version: "1.2.3" };
+    expect(await offlineSiteProblems(site, options)).toEqual([
+      `no index.html in ${site}: build the site with REQSEQ_DOCS_OFFLINE=1`,
+    ]);
+    await fs.writeFile(path.join(site, "index.html"), page("Tool | Tool 1.2.3", "/_astro/a.css"));
+    expect(await offlineSiteProblems(site, options)).toEqual([]);
+    const index = path.join(site, "index.html");
+    await fs.writeFile(index, page("Tool | Tool 1.2.2", "/Tool/_astro/a.css"));
+    expect(await offlineSiteProblems(site, options)).toEqual([
+      `the title of ${index} does not name Tool 1.2.3`,
+      `${index} links below /Tool/: the Pages build, not the offline one`,
+    ]);
+    // A junction on Windows, which needs no privilege; a plain link elsewhere.
+    await fs.symlink(os.tmpdir(), path.join(site, "out"), "junction");
+    expect(await offlineSiteProblems(site, options)).toContain(
+      `symbolic link in the site: ${path.join(site, "out")}`,
+    );
   });
 });
 

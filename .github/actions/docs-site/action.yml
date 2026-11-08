@@ -1,0 +1,47 @@
+name: Documentation site
+description: >-
+  Builds the user documentation site (ADR-0017) after `pnpm install` and `pnpm build`: the app's screenshots made
+  anew, the content generated, the site installed, audited and built without network (unshare -rn) into
+  packages/docs/site/dist. Shared by docs-pages.yml (GitHub Pages) and release.yml (job docs-site, the offline build
+  that every delivery ships, SR-141). Linux only.
+inputs:
+  offline:
+    description: "`true` for the build a delivery ships: base `/`, no repository link (REQSEQ_DOCS_OFFLINE=1)"
+    required: false
+    default: "false"
+runs:
+  using: composite
+  steps:
+    - name: Display server, libraries for Electron, ffmpeg and ImageMagick for the README animation
+      shell: bash
+      run: |
+        packages="ffmpeg imagemagick xvfb xauth libgtk-3-0t64 libnss3 libgbm1 libasound2t64 libcups2t64 libatk-bridge2.0-0t64 libxkbcommon0 libdrm2"
+        if ! dpkg -s $packages >/dev/null 2>&1; then
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends $packages
+        fi
+        # Chromium's sandbox and unshare need unprivileged user namespaces, which AppArmor blocks on Ubuntu 24.04.
+        if ! unshare -r true 2>/dev/null; then
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+        fi
+    # The app's screenshots on the pages are made anew for every build from the checked-out app (ADR-0017), so the
+    # site never shows a picture older than its version; the copies in docs/guide/images/ are replaced in the checkout.
+    - name: Screenshots of the app
+      shell: bash
+      run: |
+        pnpm --filter @reqseq/app electron:install
+        xvfb-run -a pnpm docs:screenshots
+    # The audit sees only the site's lockfile; `pnpm audit --prod` and `licenses:check` of the workspace do not.
+    - name: Generate, install and audit the site
+      shell: bash
+      env:
+        REQSEQ_DOCS_OFFLINE: ${{ inputs.offline == 'true' && '1' || '' }}
+      run: |
+        pnpm docs:generate
+        pnpm docs:install
+        pnpm audit --dir packages/docs/site --ignore-workspace --audit-level high
+    - name: Build the site without network (unshare -rn)
+      shell: bash
+      env:
+        REQSEQ_DOCS_OFFLINE: ${{ inputs.offline == 'true' && '1' || '' }}
+      run: unshare -rn node packages/docs/site/run.mjs build

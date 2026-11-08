@@ -1,11 +1,14 @@
 #!/usr/bin/env node
 // Stages the delivery for electron-builder (ADR-0014, ThomasBirkmaier/ReqSeq-archive#324): two self-contained folders with a flat
 // production node_modules (the app and the CLI with the MCP server), the launchers rendered from
-// toolchain/packaging/names.json and the third-party notices (ADR-0015). Run after `pnpm build` and
-// electron-vite's build of the app (`build:electron`).
+// toolchain/packaging/names.json, the documentation site (SR-141) and the third-party notices (ADR-0015). Run after
+// `pnpm build`, electron-vite's build of the app (`build:electron`) and `--docs-site`.
 //
 //   node scripts/package/stage.mjs               stage into build/package/, print the environment for
 //                                                 electron-builder (and append it to $GITHUB_ENV in Actions)
+//   node scripts/package/stage.mjs --docs-site   check the offline build of the site (packages/docs/site/dist)
+//                                                 and the licences of what it ships, and put it with its
+//                                                 notices into $REQSEQ_DOCS_SITE (default build/docs-site/)
 //   node scripts/package/stage.mjs --pack        npm pack the staged CLI into delivery/ (the CLI tarball)
 //   node scripts/package/stage.mjs --check-tag T exit 0 when tag T releases the root version, else 1
 //   node scripts/package/stage.mjs --release-notes R  print the release notes of ref R (a tag or HEAD): the
@@ -13,10 +16,12 @@
 import { execFileSync } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { siteLicenses, pnpmPackageReader, textReader } from "../licenses/site.mjs";
 import {
   buildInfoOf,
   hardLinkEntries,
   noticesText,
+  offlineSiteProblems,
   packageFolders,
   releaseNotes,
   removeBuildLeftovers,
@@ -30,6 +35,8 @@ const root = path.resolve(import.meta.dirname, "..", "..");
 const packaging = path.join(root, "toolchain", "packaging");
 const out = path.join(root, "build", "package");
 const delivery = path.join(root, "delivery");
+/** The offline documentation site and its notices (`--docs-site`; the release job `docs-site` hands it over). */
+const docsSite = process.env.REQSEQ_DOCS_SITE ?? path.join(root, "build", "docs-site");
 /** ADR-0015 (SR-111): the renderer bundles them, so the notices must name them. */
 const REQUIRED_NOTICES = ["@dagrejs/dagre", "@dagrejs/graphlib"];
 
@@ -91,10 +98,43 @@ async function pinVersions(folder, extra = {}) {
   }
 }
 
+/** The site and its notices from `--docs-site`; throws when they are missing or not the offline build. */
+async function readDocsSite() {
+  const site = path.join(docsSite, "site");
+  const problems = await offlineSiteProblems(site, { product: names.productName, version });
+  if (problems.length > 0) {
+    throw new Error(`documentation site in ${docsSite}: ${problems.join("; ")} (run --docs-site first)`);
+  }
+  return { site, notices: await readJson(path.join(docsSite, "notices.json")) };
+}
+
+/**
+ * `--docs-site`: the offline build of the site (`REQSEQ_DOCS_OFFLINE=1`) with the licences of what it ships checked
+ * (scripts/licenses/site.mjs), copied with its notices into `docsSite`.
+ */
+async function docsSiteStage() {
+  const dist = path.join(root, "packages", "docs", "site", "dist");
+  const sitePackage = path.join(root, "packages", "docs", "site");
+  const problems = await offlineSiteProblems(dist, { product: names.productName, version });
+  const licenses = siteLicenses({
+    lockText: await fs.readFile(path.join(sitePackage, "pnpm-lock.yaml"), "utf8"),
+    readPackage: pnpmPackageReader(path.join(sitePackage, "node_modules")),
+    readText: textReader(path.join(root, "scripts", "licenses", "site-texts")),
+  });
+  if (problems.length + licenses.problems.length > 0) {
+    throw new Error(`documentation site:\n${[...problems, ...licenses.problems].join("\n")}`);
+  }
+  await fs.rm(docsSite, { recursive: true, force: true });
+  await fs.cp(dist, path.join(docsSite, "site"), { recursive: true });
+  await fs.writeFile(path.join(docsSite, "notices.json"), `${JSON.stringify(licenses.entries, null, 2)}\n`);
+  console.log(docsSite);
+}
+
 async function stage() {
   const app = path.join(out, "app");
   const cli = path.join(out, "cli");
   const launchers = path.join(out, "launchers");
+  const docs = await readDocsSite();
   await deploy("cli", cli);
   await deploy("app", app);
   // electron-vite's output is git-ignored, so deploy does not copy it.
@@ -102,6 +142,10 @@ async function stage() {
   // No source maps, type declarations or build info in the delivery or the CLI tarball (the inspector checks).
   await removeBuildLeftovers(cli);
   await removeBuildLeftovers(app);
+  // The documentation of this version (SR-141): `docs/` of the CLI, which `reqseq serve docs` serves and the app
+  // reads; resources/cli/docs/ in the archives, package/docs/ in the CLI tarball.
+  await fs.rm(path.join(cli, "docs"), { recursive: true, force: true });
+  await fs.cp(docs.site, path.join(cli, "docs"), { recursive: true });
   // The CLI tarball carries its dependencies, so it installs without network (SR-078 AK2).
   await pinVersions(cli, { bundleDependencies: true });
   await pinVersions(app, { productName: names.productName });
@@ -128,7 +172,19 @@ async function stage() {
       nodeModules: [path.join(app, "node_modules"), path.join(cli, "node_modules")],
       scope: SCOPE,
       required: REQUIRED_NOTICES,
-      title: `Third-party software in ${names.productName} ${version} (app, command line and MCP server)`,
+      title: `Third-party software in ${names.productName} ${version} (app, command line, MCP server and documentation)`,
+      extra: docs.notices,
+    }),
+  );
+  // The CLI tarball has no resources/ folder: its own notices, of the command line and the documentation.
+  await fs.writeFile(
+    path.join(cli, "THIRD_PARTY_NOTICES.txt"),
+    await noticesText({
+      nodeModules: [path.join(cli, "node_modules")],
+      scope: SCOPE,
+      required: [],
+      title: `Third-party software in the ${names.productName} ${version} command line (CLI, MCP server and documentation)`,
+      extra: docs.notices,
     }),
   );
 
@@ -194,6 +250,8 @@ function notes(ref) {
 const [mode, argument] = process.argv.slice(2);
 if (mode === undefined) {
   await stage();
+} else if (mode === "--docs-site") {
+  await docsSiteStage();
 } else if (mode === "--pack") {
   await pack();
 } else if (mode === "--check-tag" && argument !== undefined) {
@@ -203,6 +261,8 @@ if (mode === undefined) {
 } else if (mode === "--release-notes" && argument !== undefined) {
   process.stdout.write(notes(argument));
 } else {
-  console.error("usage: node scripts/package/stage.mjs [--pack | --check-tag <tag> | --release-notes <ref>]");
+  console.error(
+    "usage: node scripts/package/stage.mjs [--docs-site | --pack | --check-tag <tag> | --release-notes <ref>]",
+  );
   process.exitCode = 2;
 }
