@@ -53,10 +53,10 @@ export interface EditorHandle {
    */
   readonly insert: (text: string) => void;
   /**
-   * Runs an editing command on the editor with its selection, and gives the editor the focus (the text actions of
+   * Runs an editing command on the editor with its selection, and gives the editor the focus unless `focus` is false (the text actions of
    * the command prompt, `text-actions.ts`); its answer is the command's: false when it did not apply.
    */
-  readonly run: (command: Command) => boolean;
+  readonly run: (command: Command, focus?: boolean) => boolean;
 }
 
 export interface EditorProps {
@@ -158,6 +158,10 @@ const theme = EditorView.theme({
   ".cm-lr-outdated": { color: "var(--accent-outdated)", textDecorationColor: "var(--accent-outdated)" },
   ".cm-lr-outdated-word": { color: "var(--accent-outdated)" },
   ".cm-lr-muted": { color: "var(--muted)" },
+  // The hits of "Find in element" (SR-189, `find.ts`): the grey of a selection, the current one outlined too,
+  // since the minibuffer has the focus and the text shows no selection of its own then.
+  ".cm-lr-find": { backgroundColor: "var(--select)", borderRadius: "2px" },
+  ".cm-lr-find-current": { outline: "1px solid var(--text)" },
   ".cm-lr-bullet, .cm-lr-task": { display: "inline-block", width: "1.1em", color: "var(--muted)" },
   ".cm-lr-quote": { borderLeft: "3px solid var(--rule)", paddingLeft: "0.75rem", color: "var(--muted)" },
   ".cm-lr-codeblock": {
@@ -352,9 +356,11 @@ export const Editor = ({
       insert: (text) => {
         insertHeld(editor, text);
       },
-      run: (command) => {
+      run: (command, focus = true) => {
         const done = command(editor);
-        editor.focus();
+        if (focus) {
+          editor.focus();
+        }
         return done;
       },
     });

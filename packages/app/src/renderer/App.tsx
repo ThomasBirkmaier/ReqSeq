@@ -184,7 +184,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     setSwitching(false);
   }, []);
   // A field is copied: the main process writes the clipboard, the modeline says so (SR-128).
-  const { notice, copy } = useCopyNotice(bridge);
+  const { notice, copy, notify } = useCopyNotice(bridge);
   // The buffers and the areas of the window (SR-115 AK3): one reducer, so they never disagree.
   const [windowState, dispatch] = useReducer(reduceWindow, EMPTY_WINDOW);
   const { buffers, layout } = windowState;
@@ -594,6 +594,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     ask,
     echo: setEcho,
     copy,
+    notify,
     recent: () =>
       recentRef.current.flatMap((entry) => {
         const known = recentNames.current.get(elementBuffer(entry.id, entry.repository, "").key);

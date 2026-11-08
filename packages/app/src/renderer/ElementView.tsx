@@ -38,7 +38,7 @@ import type { Autosave } from "./autosave.js";
 import { createAutosave } from "./autosave.js";
 import type { BufferKeep, UndoMemory } from "./buffer-memory.js";
 import type { DataExportElement, ElementGetOutput } from "@reqseq/core";
-import type { ElementControls, Prompt } from "./actions.js";
+import type { ElementControls, Prompt, TextOptions } from "./actions.js";
 import { findElements } from "./actions.js";
 import type { BufferAction, ElementBuffer, RenameAction, ResultBuffer } from "./buffers.js";
 import { filteredList, renameAction } from "./buffers.js";
@@ -59,6 +59,7 @@ import { formulasAndDiagrams } from "./editor/formulas-diagrams.js";
 import type { ImageElement } from "./editor/image-preview.js";
 import { imagePreview } from "./editor/image-preview.js";
 import type { EditorPlugins } from "./editor/plugins.js";
+import { findMarks } from "./editor/find.js";
 import { formatKeys } from "./editor/format.js";
 import { pasteAsMarkdown } from "./editor/paste.js";
 import { mergePlugins } from "./editor/plugins.js";
@@ -904,6 +905,8 @@ export const ElementView = ({
         { extensions: [listKeys(), listDrag()] },
         formatKeys(true),
         paste,
+        // The marks of "Find in element" (SR-189).
+        { extensions: [findMarks] },
         SECTION_FOLDING,
         {
           // After the slash menu, which takes Down while it is open.
@@ -1456,24 +1459,29 @@ export const ElementView = ({
   };
   // A text action of the command prompt (`text-actions.ts`): the command edits the field with the cursor, or the
   // one it was in last: a Markdown box, else the text. The title is plain text and takes none.
-  const textCommand = (command: Command, none: string): void => {
-    const { handle: text, onEcho: echo } = now.current;
-    const label = cursorField(document.activeElement, lastField.current);
-    const markdownBox = label !== undefined && now.current.boxes.get(label)?.info.markdown === true;
-    const editor =
-      label === undefined || label === "Text"
-        ? text
-        : markdownBox
-          ? boxEditors.current.get(label)
-          : undefined;
-    const note = lockedNote();
+  // The field a text action acts on, and its editor: the text, or a Markdown box (`inText`: always the text).
+  const textTarget = (
+    inText: boolean,
+  ): { readonly label: string | undefined; readonly editor: EditorHandle | undefined } => {
+    const label = inText ? "Text" : cursorField(document.activeElement, lastField.current);
+    if (label === undefined || label === "Text") {
+      return { label, editor: now.current.handle };
+    }
+    const markdownBox = now.current.boxes.get(label)?.info.markdown === true;
+    return { label, editor: markdownBox ? boxEditors.current.get(label) : undefined };
+  };
+  const textCommand = (command: Command, none: string, options: TextOptions = {}): void => {
+    const { onEcho: echo } = now.current;
+    const { label, editor } = textTarget(options.inText === true);
+    // A command that only reads and marks (find, SR-189 AK1) works in a read-only element too.
+    const note = options.read === true ? undefined : lockedNote();
     if (note !== undefined) {
       echo(note);
     } else if (label === TITLE_FIELD || (editor === undefined && label !== undefined && label !== "Text")) {
       echo(none);
     } else if (editor === undefined) {
       echo("The text is not ready yet: try again in a moment");
-    } else if (!editor.run(command)) {
+    } else if (!editor.run(command, options.focus ?? true)) {
       echo(none);
     }
   };
@@ -1814,8 +1822,8 @@ export const ElementView = ({
       insertImage: () => {
         api.current.insertImage();
       },
-      text: (command, none) => {
-        api.current.textCommand(command, none);
+      text: (command, none, options) => {
+        api.current.textCommand(command, none, options);
       },
       headings: {
         list: () => {
