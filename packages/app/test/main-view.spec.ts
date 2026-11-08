@@ -12,7 +12,7 @@ import { DEFAULT_SORT, launchApp, listAll } from "./support/app.js";
 const FIXTURE = { fixture: "SR-069/filter" };
 
 interface Listed {
-  readonly elements: readonly { readonly title: string; readonly shortId: string }[];
+  readonly elements: readonly { readonly title: string; readonly shortId: string; readonly status: string }[];
   readonly total: number;
   readonly tree?: readonly { readonly depth: number }[];
 }
@@ -24,6 +24,21 @@ const cliJson = async <T>(running: RunningApp, argv: readonly string[]): Promise
 };
 
 const rowTitles = (window: Page): Promise<string[]> => window.locator(".row .title").allTextContents();
+
+/**
+ * The titles in the order the list shows them with its folded section open (SR-201): the obsolete element,
+ * the one invalid status of the fixture, after the others.
+ */
+const foldedOrder = (elements: Listed["elements"]): string[] => [
+  ...elements.filter((e) => e.status !== "obsolete").map((e) => e.title),
+  ...elements.filter((e) => e.status === "obsolete").map((e) => e.title),
+];
+
+/** Opens the folded section at the end of the list. */
+const openFolded = async (window: Page): Promise<void> => {
+  await window.locator('.row.fold-row[aria-expanded="false"]').click();
+  await expect(window.locator('.row.fold-row[aria-expanded="true"]')).toHaveCount(1);
+};
 
 /** Opens the command prompt, types `command` and runs the first candidate. */
 const runCommand = async (window: Page, command: string): Promise<void> => {
@@ -126,7 +141,8 @@ test.describe("the main view on a fixture workspace", () => {
       "--input",
       JSON.stringify({ sort: DEFAULT_SORT }),
     ]);
-    expect(await rowTitles(running.window)).toEqual(listed.elements.map((e) => e.title));
+    await openFolded(running.window);
+    expect(await rowTitles(running.window)).toEqual(foldedOrder(listed.elements));
     await expect(running.window.getByLabel("Modeline")).toContainText(`${String(listed.total)} elements`);
     await expect(running.window.getByLabel("Modeline")).toContainText("All elements");
     // The default says nothing in the modeline, and it is not the order of the store.
@@ -142,7 +158,8 @@ test.describe("the main view on a fixture workspace", () => {
     await running.window.keyboard.press("Enter");
     await expect(running.window.getByLabel("Modeline")).toContainText("All elements · workspace order");
     const stored = await cliJson<Listed>(running, ["element", "list"]);
-    await expect(running.window.locator(".row .title")).toHaveText(stored.elements.map((e) => e.title));
+    await openFolded(running.window);
+    await expect(running.window.locator(".row .title")).toHaveText(foldedOrder(stored.elements));
     // And back: "Type and ID" is the default again, which says nothing.
     await runCommand(running.window, "sort list");
     await running.window.keyboard.type("type and id");
@@ -154,7 +171,8 @@ test.describe("the main view on a fixture workspace", () => {
       JSON.stringify({ sort: DEFAULT_SORT }),
     ]);
     await expect(running.window.getByLabel("Modeline")).not.toContainText("workspace order");
-    await expect(running.window.locator(".row .title")).toHaveText(listed.elements.map((e) => e.title));
+    await openFolded(running.window);
+    await expect(running.window.locator(".row .title")).toHaveText(foldedOrder(listed.elements));
   });
 
   test("sorted by hierarchy it shows the derivation tree with the depths that `tree` gives", async () => {

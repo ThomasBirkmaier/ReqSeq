@@ -2,7 +2,6 @@
 // The modeline in the app (SR-114): the counts of an element's outdated references and open hints, as
 // `element.get` gives them (AK2), and the kind and number of the elements a list, a graph and a package
 // page show (AK3).
-import { FOLD_KEY } from "./fold-statuses.js";
 import { act, createElement } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
@@ -150,8 +149,6 @@ let root: Root;
 beforeEach(() => {
   invoke.mockClear();
   window.localStorage.clear();
-  // Nothing folds in lists here (SR-201 has its own tests): every status stays in place.
-  window.localStorage.setItem(FOLD_KEY, "[]");
   window.sessionStorage.clear();
   container = document.createElement("div");
   document.body.append(container);

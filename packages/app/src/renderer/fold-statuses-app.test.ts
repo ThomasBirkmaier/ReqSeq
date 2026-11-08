@@ -5,7 +5,7 @@ import { act, createElement } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { InvokeResult, ReqSeqBridge } from "../shared/protocol.js";
+import type { InvokeResult, ReqSeqBridge, WorkspaceChange } from "../shared/protocol.js";
 import { App } from "./App.js";
 import { FOLD_KEY } from "./fold-statuses.js";
 import { NO_SUMMARY } from "./package-summary-test-data.js";
@@ -153,6 +153,16 @@ const bridge = () => {
       const found = ELEMENTS.filter((candidate) => holds(candidate, where));
       return { elements: found, total: found.length };
     },
+    "element.search": (input) => {
+      const where = (input["selection"] as { where?: Condition } | undefined)?.where;
+      const hits = ELEMENTS.filter((candidate) => holds(candidate, where)).map((hit) => ({
+        ...hit,
+        score: 1,
+        fields: ["title"],
+        terms: ["see"],
+      }));
+      return { hits, total: hits.length, incomplete: false };
+    },
     "element.get": (input) => ({ element: ELEMENTS.find((candidate) => candidate.id === input["ref"]) }),
     "trace.neighbourhood": (input) => ({
       root: input["ref"],
@@ -165,8 +175,24 @@ const bridge = () => {
   const invoke = vi.fn((name: string, input: Record<string, unknown> = {}): Promise<InvokeResult> =>
     Promise.resolve({ ok: true, output: (handlers[name] ?? NO_SUMMARY[name])?.(input) }),
   );
+  const listeners = new Set<(change: WorkspaceChange) => void>();
+  /** A change of the workspace from outside: the shown buffers read again. */
+  const changed = async (): Promise<void> => {
+    await act(async () => {
+      for (const listener of listeners) {
+        listener({
+          reason: "external",
+          scope: "elements",
+          elements: { added: [], changed: ["uuid-3"], removed: [] },
+        });
+      }
+      await Promise.resolve();
+    });
+    await flush();
+  };
   return {
     invoke,
+    changed,
     bridge: {
       invoke,
       commands: () => Promise.resolve([]),
@@ -175,7 +201,14 @@ const bridge = () => {
       openWorkspace: () => Promise.resolve({ ok: true }),
       listFolder: () => Promise.resolve({ name: "", entries: [] }),
       onSave: () => () => undefined,
-      on: () => () => undefined,
+      on: (event: string, listener: (data: never) => void) => {
+        if (event !== "workspace-changed") {
+          return () => undefined;
+        }
+        const added = listener as (change: WorkspaceChange) => void;
+        listeners.add(added);
+        return () => listeners.delete(added);
+      },
     } satisfies ReqSeqBridge,
   };
 };
@@ -208,11 +241,11 @@ describe("statuses folded in lists (SR-201)", () => {
     expect(section().getAttribute("aria-expanded")).toBe("false");
     expect(fake.invoke).toHaveBeenCalledWith(
       "element.list",
-      expect.objectContaining({ selection: { where: { not: { invalid: true } } } }),
+      expect.objectContaining({ selection: { where: { not: { status: ["obsolete"] } } } }),
     );
     expect(fake.invoke).toHaveBeenCalledWith(
       "element.list",
-      expect.objectContaining({ selection: { where: { invalid: true } } }),
+      expect.objectContaining({ selection: { where: { status: ["obsolete"] } } }),
     );
     // The heading counts every element of the list.
     expect(query(".list h1").textContent).toContain("3");
@@ -226,7 +259,7 @@ describe("statuses folded in lists (SR-201)", () => {
     expect(fake.invoke).toHaveBeenCalledWith(
       "element.list",
       expect.objectContaining({
-        selection: { where: { all: [{ type: ["need"] }, { not: { invalid: true } }] } },
+        selection: { where: { all: [{ type: ["need"] }, { not: { status: ["obsolete"] } }] } },
       }),
     );
     expect(shown()).toEqual(["N-001", "N-003", "▸ Folded statuses (1)"]);
@@ -287,7 +320,10 @@ describe("statuses folded in lists (SR-201)", () => {
   it("[SR-201/AK4] the choice holds after a restart, for every workspace, and writes nothing of a workspace", async () => {
     const first = await open();
     await foldStatus("Draft");
-    expect(JSON.parse(window.localStorage.getItem(FOLD_KEY) ?? "null")).toEqual(["draft", "obsolete"]);
+    expect(JSON.parse(window.localStorage.getItem(FOLD_KEY) ?? "null")).toEqual({
+      fold: ["draft"],
+      unfold: [],
+    });
     const effects = first.invoke.mock.calls.map(([name]) => name);
     for (const name of effects) {
       expect(name).not.toMatch(/\.(create|update|save|setStatus|supersede|store|record)/);
@@ -299,5 +335,35 @@ describe("statuses folded in lists (SR-201)", () => {
     await open();
     await runCommand("List all elements");
     expect(shown()).toEqual(["N-003", "▸ Folded statuses (2)"]);
+  });
+
+  it("[SR-201/AK1] a search result folds its hits in folded statuses the same way", async () => {
+    const fake = await open();
+    await keyDown(window, "F", { ctrlKey: true, shiftKey: true });
+    await type("see");
+    await keyDown(query("input"), "Enter");
+    expect(shown()).toEqual(["N-001", "N-003", "▸ Folded statuses (1)"]);
+    expect(fake.invoke).toHaveBeenCalledWith(
+      "element.search",
+      expect.objectContaining({ query: "see", selection: { where: { status: ["obsolete"] } } }),
+    );
+  });
+
+  it("[SR-201/AK3] an open section stays open when the list reads again, and Left on a folded row closes it", async () => {
+    const fake = await open();
+    await runCommand("List all elements");
+    const list = query(".list");
+    await keyDown(list, "End");
+    await keyDown(list, "ArrowRight");
+    await keyDown(list, "ArrowDown");
+    await fake.changed();
+    expect(shown()).toEqual(["N-001", "N-003", "▾ Folded statuses (1)", "N-002"]);
+    // The selected folded row is still the marked element after the list read again.
+    fake.invoke.mockClear();
+    await runCommand("Open to the right");
+    expect(fake.invoke).toHaveBeenCalledWith("element.get", expect.objectContaining({ ref: "uuid-2" }));
+    await keyDown(query(".list"), "ArrowLeft");
+    expect(shown()).toHaveLength(3);
+    expect(section().getAttribute("aria-selected")).toBe("true");
   });
 });

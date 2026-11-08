@@ -75,7 +75,7 @@ import { loadRecent, recentKey, remember, saveRecent } from "./recent.js";
 import { referenceTitles } from "./reference-titles.js";
 import { createTheme } from "./theme.js";
 import { FoldStatuses, foldCondition, loadFoldChoice, saveFoldChoice } from "./fold-statuses.js";
-import type { FoldChoice } from "./fold-statuses.js";
+import type { FoldChoice, FoldStatus } from "./fold-statuses.js";
 import { useCopyNotice } from "./use-copy-notice.js";
 import { useFollow } from "./use-follow.js";
 import { usePrefix } from "./use-prefix.js";
@@ -277,7 +277,9 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   // The statuses that fold to the end of lists (SR-201): the user's choice, the same for every workspace
   // and kept for the next start (AK4).
   const [foldChoice, setFoldChoice] = useState<FoldChoice>(() => loadFoldChoice(appStorage));
-  const folded = useMemo(() => foldCondition(foldChoice), [foldChoice]);
+  // The statuses of the metamodel, which say what folds; none until it is read, so nothing folds then.
+  const [statuses, setStatuses] = useState<readonly FoldStatus[]>([]);
+  const folded = useMemo(() => foldCondition(foldChoice, statuses), [foldChoice, statuses]);
   const viewCall = useMemo(() => inView(call, shownView), [call, shownView]);
   // The titles of reference targets in other repositories (D-058), for the workspace that is open.
   const titles = useMemo(() => referenceTitles(call), [call]);
@@ -297,6 +299,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
         setVariantTypes(new Set(metamodel.ok ? variantTypesOf(metamodel.output) : []));
         setProperties(metamodel.ok ? propertyModel(metamodel.output) : new Map());
         setRelationModel(metamodel.ok ? metamodel.output : NO_RELATIONS);
+        setStatuses(metamodel.ok ? metamodel.output.statuses : []);
       }
     };
     // The buffers of a workspace that has loaded: none of the one before, no drafts, no undo histories.
@@ -413,6 +416,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
         void loadTypeNames();
       } else if (!result.ok) {
         setTypeNames(new Map());
+        setStatuses([]);
         setPackages(undefined);
         setVariantTypes(new Set());
         setProperties(new Map());

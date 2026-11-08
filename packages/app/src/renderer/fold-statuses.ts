@@ -9,18 +9,41 @@ import { createContext, useContext } from "react";
 import type { ElementSelection, FilterCondition, FilterSortKeyWithDefaults } from "@reqseq/core";
 import type { RecentStorage } from "./recent.js";
 
-/** The statuses chosen to fold, by key; undefined: none chosen, the invalid ones fold. */
-export type FoldChoice = readonly string[] | undefined;
+/**
+ * What the user chose, as a change of the default: statuses that fold although the metamodel does not flag
+ * them invalid (`fold`), and invalid ones that stay in place (`unfold`), by key. Kept as a change, so a
+ * workspace with other invalid statuses folds its own, and keys of other workspaces stay as they were;
+ * undefined: no choice, the invalid statuses fold.
+ */
+export type FoldChoice = { readonly fold: readonly string[]; readonly unfold: readonly string[] } | undefined;
 
 /** The storage key: one choice for every workspace (AK4). */
 export const FOLD_KEY = "reqseq.fold-statuses.v1";
 
-/** The condition the folded elements meet; undefined when nothing folds (every status chosen away). */
-export const foldCondition = (choice: FoldChoice): FilterCondition | undefined => {
-  if (choice === undefined) {
-    return { invalid: true };
-  }
-  return choice.length === 0 ? undefined : { status: [...choice] as [string, ...string[]] };
+/** A status of the metamodel, as `metamodel.get` gives it. */
+export interface FoldStatus {
+  readonly key: string;
+  readonly name: string;
+  readonly invalid?: boolean;
+}
+
+/** The keys of the statuses of this metamodel that fold now, in metamodel order. */
+export const foldedKeys = (choice: FoldChoice, statuses: readonly FoldStatus[]): readonly string[] =>
+  statuses
+    .filter((status) =>
+      status.invalid === true
+        ? !(choice?.unfold.includes(status.key) ?? false)
+        : (choice?.fold.includes(status.key) ?? false),
+    )
+    .map((status) => status.key);
+
+/** The condition the folded elements meet; undefined when no status of this metamodel folds. */
+export const foldCondition = (
+  choice: FoldChoice,
+  statuses: readonly FoldStatus[],
+): FilterCondition | undefined => {
+  const [first, ...rest] = foldedKeys(choice, statuses);
+  return first === undefined ? undefined : { status: [first, ...rest] };
 };
 
 /** What the lists of the window fold (`foldCondition` of the user's choice), read by `ListView`. */
@@ -50,15 +73,17 @@ export const foldedSelections = (
 const isKeys = (value: unknown): value is readonly string[] =>
   Array.isArray(value) && value.every((key) => typeof key === "string");
 
+const isChoice = (value: unknown): value is NonNullable<FoldChoice> =>
+  typeof value === "object" &&
+  value !== null &&
+  isKeys((value as Record<string, unknown>)["fold"]) &&
+  isKeys((value as Record<string, unknown>)["unfold"]);
+
 /** The stored choice; none for broken content or a storage that throws. */
 export const loadFoldChoice = (storage: () => RecentStorage): FoldChoice => {
   try {
-    const stored = storage().getItem(FOLD_KEY);
-    if (stored === null) {
-      return undefined;
-    }
-    const parsed: unknown = JSON.parse(stored);
-    return isKeys(parsed) ? parsed : undefined;
+    const parsed: unknown = JSON.parse(storage().getItem(FOLD_KEY) ?? "null");
+    return isChoice(parsed) ? { fold: parsed.fold, unfold: parsed.unfold } : undefined;
   } catch {
     return undefined;
   }
@@ -80,29 +105,23 @@ export const saveFoldChoice = (
   }
 };
 
-/** A status of the metamodel, as `metamodel.get` gives it. */
-export interface FoldStatus {
-  readonly key: string;
-  readonly name: string;
-  readonly invalid?: boolean;
-}
-
-/** The keys that fold now: the chosen ones, else the invalid statuses of the metamodel. */
-export const foldedKeys = (choice: FoldChoice, statuses: readonly FoldStatus[]): readonly string[] =>
-  choice ?? statuses.filter((status) => status.invalid === true).map((status) => status.key);
-
-/** The choice after `key` was chosen or chosen away (AK2), in metamodel order, from what folds now. */
+/**
+ * The choice after the status `key` was chosen or chosen away (AK2): it folds, or its elements go back in
+ * place; no change of the default is no choice.
+ */
 export const toggledChoice = (
   choice: FoldChoice,
   statuses: readonly FoldStatus[],
   key: string,
-): readonly string[] => {
-  const now = foldedKeys(choice, statuses);
-  const next = now.includes(key) ? now.filter((known) => known !== key) : [...now, key];
-  const order = statuses.map((status) => status.key);
-  const at = (known: string): number => {
-    const index = order.indexOf(known);
-    return index === -1 ? order.length : index;
+): FoldChoice => {
+  const fold = choice?.fold ?? [];
+  const unfold = choice?.unfold ?? [];
+  const invalid = statuses.some((status) => status.key === key && status.invalid === true);
+  const folded = foldedKeys(choice, statuses).includes(key);
+  const without = (keys: readonly string[]): readonly string[] => keys.filter((known) => known !== key);
+  const next = {
+    fold: folded || invalid ? without(fold) : [...fold, key],
+    unfold: folded && invalid ? [...without(unfold), key] : without(unfold),
   };
-  return [...next].sort((a, b) => at(a) - at(b));
+  return next.fold.length === 0 && next.unfold.length === 0 ? undefined : next;
 };

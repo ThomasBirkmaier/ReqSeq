@@ -524,6 +524,9 @@ export const ListView = ({
   const [verifiedFolded, setVerifiedFolded] = useState<readonly (Verified | undefined)[]>([]);
   // The folded section is open (SR-201 AK3): collapsed whenever another list is asked for.
   const [open, setOpen] = useState(false);
+  // The open state for the answers of a load: a reload (a save, a change from outside) keeps it.
+  const opened = useRef(open);
+  opened.current = open;
   const { marked, mark } = useOutsideMarks();
   // The list the rows were asked for last: when only the workspace changed since, the rows stay until
   // the new ones are there, so the selection and the scroll stay too (a change from outside, a save).
@@ -632,7 +635,7 @@ export const ListView = ({
         if (outside !== undefined) {
           mark(loaded.rows.map((row) => row.open.id).filter(outside.fresh));
         }
-        report(shown, section, false);
+        report(shown, section, opened.current);
       } else {
         const message = failure(loaded, folded);
         setView({ status: "error", message });
@@ -774,10 +777,15 @@ export const ListView = ({
   /** A key on the section row: Enter and Tab toggle it, Right opens and Left closes it (SR-193 AK1, AK2). */
   const sectionKey = (event: React.KeyboardEvent): boolean => {
     const plain = !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey;
-    if (!plain || sectionAt === undefined || cursor !== sectionAt) {
+    if (!plain || sectionAt === undefined || Math.max(0, cursor) < sectionAt) {
       return false;
     }
-    const next = { Enter: !open, Tab: !open, ArrowRight: true, ArrowLeft: false }[event.key];
+    // On a folded row only Left acts: it closes the section, as Left goes to the parent row in a tree.
+    const keys: Readonly<Record<string, boolean | undefined>> =
+      Math.max(0, cursor) === sectionAt
+        ? { Enter: !open, Tab: !open, ArrowRight: true, ArrowLeft: false }
+        : { ArrowLeft: false };
+    const next = keys[event.key];
     if (next === undefined) {
       return false;
     }

@@ -35,10 +35,11 @@ const broken = () => {
 };
 
 describe("fold-statuses", () => {
-  it("folds the invalid statuses without a choice, the chosen ones with one, nothing for none", () => {
-    expect(foldCondition(undefined)).toEqual({ invalid: true });
-    expect(foldCondition(["obsolete"])).toEqual({ status: ["obsolete"] });
-    expect(foldCondition([])).toBeUndefined();
+  it("folds the invalid statuses without a choice, changed by the choice, nothing when no status folds", () => {
+    expect(foldCondition(undefined, STATUSES)).toEqual({ status: ["obsolete"] });
+    expect(foldCondition({ fold: ["draft"], unfold: ["obsolete"] }, STATUSES)).toEqual({ status: ["draft"] });
+    expect(foldCondition({ fold: [], unfold: ["obsolete"] }, STATUSES)).toBeUndefined();
+    expect(foldCondition(undefined, [])).toBeUndefined();
   });
 
   it("splits a selection into the rows in place and the folded ones, and folds nothing in a tree", () => {
@@ -59,24 +60,32 @@ describe("fold-statuses", () => {
   it("keeps the choice, drops it again, and ignores broken content and a broken storage", () => {
     const storage = memory();
     expect(loadFoldChoice(() => storage)).toBeUndefined();
-    saveFoldChoice(() => storage, ["obsolete"]);
-    expect(loadFoldChoice(() => storage)).toEqual(["obsolete"]);
+    saveFoldChoice(() => storage, { fold: ["draft"], unfold: [] });
+    expect(loadFoldChoice(() => storage)).toEqual({ fold: ["draft"], unfold: [] });
     saveFoldChoice(() => storage, undefined);
     expect(storage.getItem(FOLD_KEY)).toBeNull();
     storage.setItem(FOLD_KEY, "{");
     expect(loadFoldChoice(() => storage)).toBeUndefined();
-    storage.setItem(FOLD_KEY, "[1]");
+    storage.setItem(FOLD_KEY, '{"fold":[1],"unfold":[]}');
+    expect(loadFoldChoice(() => storage)).toBeUndefined();
+    storage.setItem(FOLD_KEY, "[]");
     expect(loadFoldChoice(() => storage)).toBeUndefined();
     expect(loadFoldChoice(broken)).toBeUndefined();
     expect(() => {
-      saveFoldChoice(broken, []);
+      saveFoldChoice(broken, undefined);
     }).not.toThrow();
   });
 
-  it("chooses and chooses away from what folds now, in metamodel order", () => {
+  it("chooses and chooses away as a change of the default, and keeps the keys of other workspaces", () => {
     expect(foldedKeys(undefined, STATUSES)).toEqual(["obsolete"]);
-    expect(toggledChoice(undefined, STATUSES, "draft")).toEqual(["draft", "obsolete"]);
-    expect(toggledChoice(["draft", "obsolete"], STATUSES, "obsolete")).toEqual(["draft"]);
-    expect(toggledChoice(["gone"], STATUSES, "approved")).toEqual(["approved", "gone"]);
+    expect(toggledChoice(undefined, STATUSES, "draft")).toEqual({ fold: ["draft"], unfold: [] });
+    expect(toggledChoice({ fold: ["draft"], unfold: [] }, STATUSES, "draft")).toBeUndefined();
+    expect(toggledChoice(undefined, STATUSES, "obsolete")).toEqual({ fold: [], unfold: ["obsolete"] });
+    expect(
+      toggledChoice({ fold: ["rejected-elsewhere"], unfold: ["obsolete"] }, STATUSES, "obsolete"),
+    ).toEqual({
+      fold: ["rejected-elsewhere"],
+      unfold: [],
+    });
   });
 });
