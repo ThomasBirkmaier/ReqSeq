@@ -153,7 +153,7 @@ properties:
 
 ## API
 
-Write the file as above. With the [local API](/concepts/cli-api-and-mcp/#api) running in the workspace:
+Write the file as above. With the [local API](/concepts/cli-api-and-mcp/#api) running in the workspace, and its token:
 
 ```http
 POST /v1/commands/metamodel.get

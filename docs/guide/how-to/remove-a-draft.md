@@ -92,7 +92,7 @@ No error is left. The warning says that the requirement now derives from nothing
 
 ## API
 
-With the [local API](/concepts/cli-api-and-mcp/#api) running in the workspace:
+With the [local API](/concepts/cli-api-and-mcp/#api) running in the workspace, and its token:
 
 ```http
 POST /v1/commands/trace.neighbourhood

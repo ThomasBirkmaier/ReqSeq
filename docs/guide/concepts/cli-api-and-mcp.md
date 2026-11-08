@@ -27,20 +27,20 @@ files:
 No problems.
 ```
 
-The element gets the text of the flag. By default the output is short lines for people; `--json` prints exactly the output of the command, as the API and MCP give it, for scripts. Problems go to standard output with the rest; an error goes to standard error, as JSON with `--json`. The [problem and error codes](/reference/problem-codes/) explain each.
+The element gets the text of the flag. `--json` prints exactly the output of the command, as the API and MCP give it, for scripts. Problems go to standard output, errors to standard error.
 
 The exit code:
 
 - `0`: done, without an error finding.
 - `1`: done, but with a problem of severity error or `ok: false`. `workspace check --fail-on warning` lets warnings fail too ([Check a workspace in CI](/how-to/check-a-workspace-in-ci/)).
-- `2`: not run, because of wrong usage or input, such as an unknown option or element.
+- `2`: not run: wrong usage or input, something missing, a conflict, or not available.
 - `3`: an internal error.
-- `4`: a given Git revision is in no repository of the workspace.
-- `130`: stopped with Ctrl-C.
+- `4`: a given Git revision is not available locally (fetch it or deepen the clone).
+- `130`: a command stopped with Ctrl-C (`serve api` and `mcp` then end with 0).
 
 ## API
 
-`reqseq serve api` runs the local API of one workspace until Ctrl-C. It listens on `127.0.0.1` and `::1` only, so only programs on the same computer reach it. It prints the path of `api.json`, which holds the port and a new token per start, in the folder `reqseq/<hash>/` of `~/Library/Caches` on macOS, `~/.cache` on Linux and `%LOCALAPPDATA%` on Windows ([API endpoint file](/reference/formats/api-endpoint/)). A second API for the same workspace does not start.
+`reqseq serve api` runs the local API of one workspace. It listens on `127.0.0.1` and `::1` only, so only programs on the same computer reach it. It prints the path of `api.json`, which holds the port and a new token per start, in the folder `reqseq/<hash>/` of `~/Library/Caches` on macOS, `$XDG_CACHE_HOME` or `~/.cache` on Linux and `%LOCALAPPDATA%` on Windows ([API endpoint file](/reference/formats/api-endpoint/)). A second API for the same workspace does not start.
 
 A command is a `POST` with the token and the input as JSON:
 
@@ -51,18 +51,18 @@ Authorization: Bearer <token>
 { "ref": "N-7fe707" }
 ```
 
-The answer is the output of the command, as with `--json`, with status 200, also when it reports problems or `ok: false`. An error is the same error object as on the command line, with 400 for invalid input, 404 for something that does not exist and 401 for a wrong token.
+The answer is the output of the command, as with `--json`, with status 200, also when it reports problems or `ok: false`. An error is the same error object as on the command line, with a status such as 400 for invalid input, 404 for something missing, 409 for a conflict, 500 for an internal error, 401 for a wrong token and 403 for a request with an `Origin` header ([error codes](/reference/problem-codes/#error-codes)).
 
 ## MCP
 
 `reqseq mcp` serves MCP over standard input and output and opens no port. The client starts it with the workspace:
 
 ```json
-{ "mcpServers": { "reqseq": { "command": "reqseq", "args": ["mcp", "--workspace", "/path/to/workspace"] } } }
+{ "mcpServers": { "reqseq": { "command": "/path/to/reqseq", "args": ["mcp", "--workspace", "/path/to/workspace"] } } }
 ```
 
-A client that does not find `reqseq` on the path needs its absolute path, and on Windows the app's runtime: see [Install ReqSeq](/how-to/install-reqseq/#mcp). Each command is a tool, named with `_` for the dot (`element_create`, `evidence_enrichJunit`), whose arguments are the input. The result is the output; an error is a tool error with the same error object.
+Give the absolute path of the launcher, since a client often lacks your shell's path; on Windows, the app's runtime: see [Install ReqSeq](/how-to/install-reqseq/#mcp). Each command is a tool, named with `_` for the dot (`element_create`, `evidence_enrichJunit`), whose arguments are the input. The result is the output; an error is a tool error with the same error object.
 
 ## Paths through the API and MCP
 
-Through the API and MCP, a file path, such as that of a ReqIF or JUnit file, must lie inside a repository of the workspace, also after `..` or a symbolic link, so that instructions hidden in an element text cannot lead an agent elsewhere. A relative path counts from the workspace folder; `~` and a path outside give `input.invalid`, so copy such a file into the repository. The command line takes any path.
+Through the API and MCP, a file path, such as that of a ReqIF or JUnit file, must lie inside a repository of the workspace, also after `..` or a symbolic link, so that hidden instructions cannot lead an agent elsewhere. A relative path counts from the workspace folder; `~` and a path outside give `input.invalid`, so copy such a file into the repository. The command line takes any path, relative to the current folder.

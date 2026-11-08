@@ -100,7 +100,7 @@ The status counts the newest record of the current version, so a passed test of 
 
 ## API
 
-With the [local API](/concepts/cli-api-and-mcp/#api) running in the workspace:
+With the [local API](/concepts/cli-api-and-mcp/#api) running in the workspace, and its token:
 
 ```http
 POST /v1/commands/workspace.check

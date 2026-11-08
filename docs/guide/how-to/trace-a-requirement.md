@@ -143,7 +143,7 @@ Which relation kinds lead to a parent is up to the metamodel: every kind with th
 
 ## API
 
-With the [local API](/concepts/cli-api-and-mcp/#api) running in the workspace:
+With the [local API](/concepts/cli-api-and-mcp/#api) running in the workspace, and its token:
 
 ```http
 POST /v1/commands/relation.add
