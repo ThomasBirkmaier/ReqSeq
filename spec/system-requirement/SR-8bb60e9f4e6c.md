@@ -8,7 +8,7 @@ requirement-type: functional
 acceptance-criteria:
   - "Gegeben ein Requirement mit Datensätzen, wenn seine Nachweise angezeigt werden, dann zeigt das Tool zu jedem Datensatz Fassung, Prüfling, Datum, Ergebnis und Beleg."
   - "Gegeben die Fassung eines Datensatzes ist in Baselines enthalten, wenn er angezeigt wird, dann nennt das Tool diese Baselines."
-  - "Gegeben ein Requirement mit mehreren Datensätzen, wenn seine Nachweise in der App angezeigt werden, dann stehen offen nur die Datensätze, die seinen Nachweisstatus tragen, also je Akzeptanzkriterium und Variante der neueste zur aktuellen Fassung (D-072); alle übrigen stehen in einem zugeklappten Abschnitt darunter, der ihre Zahl nennt und sich per Klick und Tastatur auf- und zuklappen lässt."
+  - "Gegeben ein Requirement mit mehreren Datensätzen, wenn seine Nachweise in der App angezeigt werden, dann stehen offen nur die Datensätze, die seinen Nachweisstatus tragen: je Akzeptanzkriterium und Variante der neueste zur aktuellen Fassung (D-072) oder, wenn es zu ihr keinen gibt, der neueste zu einer älteren Fassung; alle übrigen stehen in einem zugeklappten Abschnitt darunter, der ihre Zahl nennt und sich per Klick und Tastatur auf- und zuklappen lässt."
 verification-method: test
 packages:
   - { id: ed14d465-fd3f-4188-992b-3ff7af8595af, version: n2:1261455098bd8d6a, title: Nachweis und Abdeckung }
