@@ -36,10 +36,14 @@ export interface Invocation {
   readonly input: string | undefined;
 }
 
-/** `reqseq serve api` or `reqseq mcp`: a server over the whole catalog instead of one command. */
+/**
+ * `reqseq serve api` or `reqseq mcp`: a server over the whole catalog instead of one command; `reqseq serve
+ * docs`: the documentation of the delivery (SR-141).
+ */
 export type ServeRequest =
   | { readonly server: "api"; readonly port: string | undefined; readonly workspace: string | undefined }
-  | { readonly server: "mcp"; readonly workspace: string | undefined };
+  | { readonly server: "mcp"; readonly workspace: string | undefined }
+  | { readonly server: "docs"; readonly port: string | undefined };
 
 /** Top-level commands of the CLI itself; no catalog group may take these names. */
 export const SERVER_COMMANDS: readonly string[] = ["serve", "mcp"];
@@ -64,12 +68,17 @@ const WORKSPACE_OPTION = [
   "workspace root (default: nearest folder upwards with reqseq-workspace.yaml)",
 ] as const;
 
-/** `reqseq serve api` and `reqseq mcp` (ADR-0009). There is no option for the address (SR-079 AK3). */
+/**
+ * `reqseq serve api`, `reqseq serve docs` and `reqseq mcp` (ADR-0009, ADR-0017). There is no option for the
+ * address (SR-079 AK3), nor one for another documentation folder.
+ */
 const addServers = (program: Command, options: ProgramOptions): void => {
   const serve = program
     .command("serve")
-    .description("the local API on loopback: reqseq serve api --help")
-    .usage("api [options]");
+    .description(
+      "the local API or the documentation on loopback: reqseq serve api --help, reqseq serve docs --help",
+    )
+    .usage("api|docs [options]");
   const api = serve
     .command("api")
     .description(
@@ -81,6 +90,16 @@ const addServers = (program: Command, options: ProgramOptions): void => {
   api.action(async () => {
     const opts = api.opts<Record<string, unknown>>();
     await options.serve({ server: "api", port: text(opts["port"]), workspace: text(opts["workspace"]) });
+  });
+  const docs = serve
+    .command("docs")
+    .description(
+      "The documentation of this version on 127.0.0.1 only, to read and search in a browser without network. " +
+        "Prints its address. Needs no workspace. Runs until Ctrl-C.",
+    )
+    .option("--port <number>", "TCP port (default: 0, any free port)");
+  docs.action(async () => {
+    await options.serve({ server: "docs", port: text(docs.opts<Record<string, unknown>>()["port"]) });
   });
   const mcp = program
     .command("mcp")

@@ -34,6 +34,10 @@
     "./pasted-markdown": {
       "types": "./dist/reqif/pasted-markdown.d.ts",
       "default": "./dist/reqif/pasted-markdown.js"
+    },
+    "./docs-site": {
+      "types": "./dist/docs-site/site.d.ts",
+      "default": "./dist/docs-site/site.js"
     }
   },
   "scripts": {

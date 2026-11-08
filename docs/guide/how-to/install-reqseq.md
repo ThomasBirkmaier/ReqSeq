@@ -65,7 +65,7 @@ In a pipeline with Node 22, install the tarball instead; it needs no network: `n
 
 ## API
 
-Nothing more to install: the command line starts the local API in a workspace with `reqseq serve api`. It listens on loopback only and prints where `api.json` with its port and token is.
+Nothing more to install: the command line starts the local API in a workspace with `reqseq serve api`. It listens on loopback only and prints where [`api.json`](/concepts/cli-api-and-mcp/#api) with its port and token is.
 
 ## MCP
 

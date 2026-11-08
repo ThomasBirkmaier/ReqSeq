@@ -1,23 +1,11 @@
 // One page per catalog command and an index of all of them (SR-139 AK1, AK4). Every text comes from the catalog
 // and the adapters; internal references in it (SR, D, ADR, #nnn) are the tool's own text and stay as they are.
 import type { CatalogEntry } from "@reqseq/core";
+import { commandPagePath } from "@reqseq/core/docs-site";
 import type { CommandAccess } from "./access.js";
 import { codeBlock, inline } from "./markdown.js";
 import type { SchemaContext } from "./schema-fields.js";
 import { fieldTable } from "./schema-fields.js";
-
-/** The folder of the command pages below the content folder. */
-export const COMMANDS_FOLDER = "reference/commands";
-
-/**
- * The file name of a command's page, without `.md`, in the lower case of the site's URLs:
- * `element.setStatus` → `element-set-status`.
- */
-export const commandSlug = (name: string): string =>
-  name
-    .replaceAll(".", "-")
-    .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
-    .toLowerCase();
 
 const behaviour = (entry: CatalogEntry): string => {
   if (entry.effect === "read") {
@@ -100,7 +88,7 @@ export function commandIndex(entries: readonly CatalogEntry[], base: string): st
     const group = entry.name.slice(0, entry.name.indexOf("."));
     groups.set(group, [...(groups.get(group) ?? []), entry]);
   }
-  const root = `${base.replace(/\/$/, "")}/${COMMANDS_FOLDER}`;
+  const root = base.replace(/\/$/, "");
   return [
     "---",
     "title: Commands",
@@ -118,7 +106,7 @@ export function commandIndex(entries: readonly CatalogEntry[], base: string): st
       "",
       ...members.map(
         (entry) =>
-          `- [${inline(entry.title)}](${root}/${commandSlug(entry.name)}/): ${inline(entry.summary)}`,
+          `- [${inline(entry.title)}](${root}/${commandPagePath(entry.name)}): ${inline(entry.summary)}`,
       ),
     ]),
     "",
