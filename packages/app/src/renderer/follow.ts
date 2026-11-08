@@ -273,7 +273,9 @@ const moves = (
       : buffers[0]?.key === key
         ? []
         : [{ type: "switch", key }];
-  if (previous !== undefined && previous !== key && open(previous) && !drafted(previous)) {
+  // Beside the active area, its buffer stays even when it is the mode's: closing it would join the areas.
+  const front = aside && previous === buffers[0]?.key;
+  if (previous !== undefined && previous !== key && open(previous) && !drafted(previous) && !front) {
     actions.push({ type: "close", key: previous });
   }
   return { actions, opened: !open(key) || key === previous ? key : undefined };

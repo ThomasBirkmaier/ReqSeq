@@ -228,7 +228,7 @@ describe("window layout (SR-115 AK3)", () => {
       { type: "close", key: element(1).key },
     ]);
     // Nothing came in front, so the app does not take the element for the mode's when the user enters it.
-    expect(placed.state.showing).not.toBe(element(2).key);
+    expect(placed.state).toEqual({ ...follow, opened: element(2).key, last: element(2).key });
     state = run(state, ...placed.actions);
     expect(shown(state)).toEqual([`${list.key}*`, element(2).key]);
     sound(state);
@@ -299,6 +299,26 @@ describe("window layout (SR-115 AK3)", () => {
     ]);
     state = run(state, ...placed.actions);
     expect(shown(state)).toEqual([`${element(2).key}*`, list.key]);
+    // A read of the element in the inactive area leaves both areas, also the mode's buffer in the active one.
+    const read = onAccess(
+      placed.state,
+      { ...agent(4), element: { id: "uuid-9", repository: "spec" } },
+      undefined,
+    );
+    const user = run(state, { type: "agent", key: element(9).key, buffer: element(9) });
+    const stay = place(
+      read.state,
+      read.state.generation,
+      agent(9),
+      undefined,
+      user.buffers,
+      undefined,
+      never,
+      element(9).key,
+    );
+    expect(stay.actions).toEqual([{ type: "agent", key: element(9).key }]);
+    expect(run(user, ...stay.actions)).toBe(user);
+    expect(shown(user)).toEqual([`${element(2).key}*`, element(9).key]);
     // Turned on anew, the mode has shown nothing yet: the inactive area takes the access.
     follow = onAccess(startFollowing(placed.state), agent(3), undefined).state;
     placed = place(
@@ -323,6 +343,11 @@ describe("window layout (SR-115 AK3)", () => {
     expect(shown(next)).toEqual([`${list.key}*`, element(2).key]);
     expect(next.buffers.some((buffer) => buffer.key === element(1).key)).toBe(false);
     expect(next.layout.preview).toBeUndefined();
+    // A change of the previewed element keeps the preview; an element that is not open is not switched to.
+    expect(run(state, { type: "agent", key: element(1).key, buffer: element(1) }).layout.preview).toBe(
+      "brought",
+    );
+    expect(run(state, { type: "agent", key: element(8).key })).toBe(state);
     // Without a split it opens or switches in the one area.
     expect(shown(run(opened(list), { type: "agent", key: element(4).key, buffer: element(4) }))).toEqual([
       `${element(4).key}*`,

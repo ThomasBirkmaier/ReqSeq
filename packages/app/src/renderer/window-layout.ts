@@ -26,7 +26,8 @@
 //   marking opens no buffer per row; an element the reader had open stays open behind.
 // - `agent` (Follow agent, SR-117, #288) shows an element in the inactive area of a split window, which
 //   stays inactive, so the user's buffer keeps its area and focus. It takes the place of a preview's
-//   element that the preview brought in, as `follow` does, and ends the preview; without a split it opens
+//   element that the preview brought in, as `follow` does, and ends the preview (a change of the previewed
+//   element itself keeps it); without a split it opens
 //   or switches as `open` and `switch` do.
 // - The inactive area is a preview (`Layout.preview`) only while it shows what `beside` or `follow` put
 //   there: any other change of its buffer, entering it (it becomes active) and unsplitting end it, and then
@@ -212,7 +213,7 @@ const agent = (state: WindowState, key: string, buffer: ElementBuffer | undefine
       buffer === undefined ? ({ type: "switch", key } as const) : ({ type: "open", buffer } as const);
     return reduceWindow(state, action);
   }
-  if (buffer === undefined && layout.other === key) {
+  if (buffer === undefined && (layout.other === key || !isOpen(buffers, key))) {
     return state;
   }
   const already = isOpen(buffers, key);
@@ -223,7 +224,9 @@ const agent = (state: WindowState, key: string, buffer: ElementBuffer | undefine
           reduceBuffers(buffers, buffer === undefined ? { type: "switch", key } : { type: "open", buffer }),
           { type: "switch", key: shown.key },
         );
-  return { buffers: next, layout: { active: layout.active, other: key } };
+  // A change of the element a preview shows keeps the preview; any other element ends it.
+  const kept = layout.other === key && layout.preview !== undefined ? { preview: layout.preview } : {};
+  return { buffers: next, layout: { active: layout.active, other: key, ...kept } };
 };
 
 /** "Split window", with the marked element as the preview beside the shown buffer when there is one. */
