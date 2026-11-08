@@ -22,6 +22,8 @@ export interface PackageMembersProps {
   readonly onMembers: (count: MemberCount | undefined) => void;
   /** The elements of the loaded rows, in their order: the selected one is marked (SR-194 AK5). */
   readonly onEntries: (entries: readonly ElementBuffer[] | undefined) => void;
+  /** The list of the elements took the focus (true) or lost it (false): only then is its row selected. */
+  readonly onListFocus: (focused: boolean) => void;
   readonly onEcho: (message: string) => void;
   /** Up from the first row: the focus goes back to the buffer. */
   readonly onLeave: () => void;
@@ -40,12 +42,22 @@ export const PackageMembers = ({
   members,
   onMembers,
   onEntries,
+  onListFocus,
   onEcho,
   onLeave,
   focusOnLoad,
 }: PackageMembersProps): React.JSX.Element => (
   // A page without elements shows nothing of them; a filter that leaves none still names itself (SR-112 AK2).
-  <section className="members" hidden={members?.total === 0 && buffer.memberSteps === undefined}>
+  <section
+    className="members"
+    hidden={members?.total === 0 && buffer.memberSteps === undefined}
+    onFocus={(event) => {
+      onListFocus(event.target.classList.contains("part"));
+    }}
+    onBlur={() => {
+      onListFocus(false);
+    }}
+  >
     {members !== undefined && (members.total > 0 || buffer.memberSteps !== undefined) ? (
       <h2>
         ← {memberHeading(model.key, buffer.memberSteps)}{" "}

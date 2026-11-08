@@ -196,7 +196,8 @@ export const useContextMenu = (options: ContextMenuOptions): ContextMenu => {
         return;
       }
       const step = menuKey(event);
-      if (step.kind === "pass") {
+      // Enter or Space with no entry selected (the menu the mouse opened) is any other key.
+      if (step.kind === "pass" || (step.kind === "choose" && open.selected < 0)) {
         close();
         return;
       }
@@ -205,9 +206,7 @@ export const useContextMenu = (options: ContextMenuOptions): ContextMenu => {
       if (step.kind === "close") {
         close();
       } else if (step.kind === "choose") {
-        if (open.selected >= 0) {
-          latest.current.choose(open.selected);
-        }
+        latest.current.choose(open.selected);
       } else {
         show({ ...open, selected: menuSelection(step, open.selected, latest.current.count()) });
       }

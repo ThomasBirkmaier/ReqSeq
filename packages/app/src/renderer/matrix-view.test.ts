@@ -353,6 +353,18 @@ describe("MatrixView", () => {
     expect(actions.at(-1)).toEqual({ type: "open", buffer: objectWith({ id: "uuid-s2" }) });
   });
 
+  it("[SR-194/AK5] a right-click selects a cell, and a later click on a link of another row unselects it", async () => {
+    await mount(asCall(fakeCall()));
+    const cell = (row: number): Element => query(`tbody tr:nth-child(${String(row + 1)}) td.cell`);
+    await act(async () => {
+      cell(1).dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true }));
+      await Promise.resolve();
+    });
+    expect(cell(1).getAttribute("aria-selected")).toBe("true");
+    await click(query("tbody tr:nth-child(1) td.cell .target"));
+    expect(container.querySelectorAll('td.cell[aria-selected="true"]')).toHaveLength(0);
+  });
+
   it("[SR-125/AK5] a click on a link opens its element", async () => {
     const { actions } = await mount(asCall(fakeCall()));
     await click(query("tbody tr:nth-child(1) td.cell [role=link]"));

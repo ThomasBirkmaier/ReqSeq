@@ -265,8 +265,10 @@ export const MatrixView = ({
     if (chosen === undefined) {
       return;
     }
-    // The row is kept as the cursor, as the list keeps it: Ctrl+P Enter comes back to it.
+    // The row is kept as the cursor, as the list keeps it: Ctrl+P Enter comes back to it. A cell a
+    // right-click selected before is no longer selected.
     dispatch({ type: "cursor", key: buffer.key, cursor: row });
+    setCell(undefined);
     if (chosen.kind === "element") {
       dispatch({ type: "open", buffer: chosen.open });
       return;

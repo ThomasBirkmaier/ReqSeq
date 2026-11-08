@@ -687,7 +687,7 @@ mark {
   left: 0.5rem;
   right: 0.5rem;
   bottom: calc(100% + var(--modeline) + 0.25rem);
-  /* In a low window the card can reach the macOS title strip; a drag region would take its clicks (#490). */
+  /* In a low window the card can reach the macOS title strip; a drag region would take its clicks (ThomasBirkmaier/ReqSeq-archive#490). */
   -webkit-app-region: no-drag;
 }
 
@@ -833,7 +833,7 @@ mark {
   font-size: 13px;
   line-height: var(--line);
   user-select: none;
-  /* Under the macOS title strip a drag region would take its clicks (#490). */
+  /* Under the macOS title strip a drag region would take its clicks (ThomasBirkmaier/ReqSeq-archive#490). */
   -webkit-app-region: no-drag;
 }
 

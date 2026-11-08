@@ -121,8 +121,11 @@ describe("useContextMenu", () => {
     render(props);
     rightClick(element("empty"));
     expect(send(window, key("Shift")).defaultPrevented).toBe(false);
-    send(window, key("Enter"));
+    // Enter with no entry selected closes the menu and goes on.
+    expect(send(window, key("Enter")).defaultPrevented).toBe(false);
     expect(props.choose).not.toHaveBeenCalled();
+    expect(menu.menu).toBeUndefined();
+    rightClick(element("empty"));
     expect(send(window, key("ArrowUp")).defaultPrevented).toBe(true);
     expect(menu.menu?.selected).toBe(2);
     send(window, key("ArrowDown"));

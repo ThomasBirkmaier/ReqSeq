@@ -547,7 +547,8 @@ export const ElementView = ({
   const [members, setMembers] = useState<MemberCount | undefined>(undefined);
   // Their elements as loaded: the selected one is the marked element of the page (SR-194 AK5, SR-150).
   const [entries, setEntries] = useState<readonly ElementBuffer[] | undefined>(undefined);
-  const markedEntry = memberAt(entries, buffer.memberCursor);
+  const [membersFocused, setMembersFocused] = useState(false);
+  const markedEntry = memberAt(entries, buffer.memberCursor, membersFocused);
   // With the filter steps of the page (SR-112 AK2); the steps keep their identity while they stay.
   const selection = useMemo(
     () => memberSelection(buffer.id, buffer.memberSteps ?? []),
@@ -2145,6 +2146,7 @@ export const ElementView = ({
                 members={members}
                 onMembers={setMembers}
                 onEntries={setEntries}
+                onListFocus={setMembersFocused}
                 onEcho={onEcho}
                 onLeave={() => {
                   article?.focus({ preventScroll: true });

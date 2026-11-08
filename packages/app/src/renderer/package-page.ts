@@ -99,13 +99,19 @@ export interface MemberCount {
   readonly incomplete: boolean;
 }
 
-/** What the list of the elements reports (`BufferData`) as the count of the heading. */
-/** The entry of the page's list at `cursor`, the marked element of the page (SR-194 AK5); undefined before one was selected. */
+/**
+ * The marked element of the page (SR-194 AK5, SR-150): the entry at `cursor`, but only while the list of its
+ * elements has the focus, which is also when the list shows its selected row (`.list.part:focus`). A cursor
+ * the page set by itself (a filter starts at the first row) marks nothing until the reader enters the list.
+ */
 export const memberAt = (
   entries: readonly ElementBuffer[] | undefined,
   cursor: number | undefined,
-): ElementBuffer | undefined => (cursor === undefined || cursor < 0 ? undefined : entries?.[cursor]);
+  focused: boolean,
+): ElementBuffer | undefined =>
+  !focused || cursor === undefined || cursor < 0 ? undefined : entries?.[cursor];
 
+/** What the list of the elements reports (`BufferData`) as the count of the heading. */
 export const memberCount = (data: BufferData | undefined): MemberCount | undefined =>
   data?.kind === "list" ? { total: data.total, incomplete: data.incomplete } : undefined;
 
