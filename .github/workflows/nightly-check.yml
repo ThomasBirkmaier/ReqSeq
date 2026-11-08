@@ -1,0 +1,61 @@
+# A red nightly run must not go unnoticed (merge skill: a red nightly run is the first work of the morning). The
+# performance suite files its `perf` issue only for a complete record, so a crash or a failed correctness assertion
+# left no trace (red on 2026-11-06 and 11-07, fixed by #1121). This workflow opens one issue per workflow when a
+# scheduled run of CI or Performance on main fails (or comments on the open one), and a green scheduled run closes it.
+# The issue is found by its title, so it needs no label of its own; `main-red` stays with main-check.yml, whose green
+# push would close it.
+name: nightly check
+
+on:
+  workflow_run:
+    workflows: [CI, Performance]
+    types: [completed]
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: nightly-check-${{ github.event.workflow_run.name }}
+  cancel-in-progress: false
+
+jobs:
+  report:
+    name: report the nightly run
+    # Only scheduled runs of this repository; a cancelled or skipped run reports nothing.
+    if: >-
+      github.event.workflow_run.event == 'schedule' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      contains(fromJSON('["success", "failure", "timed_out", "startup_failure"]'), github.event.workflow_run.conclusion)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+        env:
+          WORKFLOW: ${{ github.event.workflow_run.name }}
+          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const { WORKFLOW, CONCLUSION, SHA, RUN_URL } = process.env;
+            const title = `Nightly run is red: ${WORKFLOW}`;
+            const footer = "\n\n---\n_Written by the nightly check workflow_";
+            // The list holds pull requests too; only issues count.
+            const open = (await github.paginate(github.rest.issues.listForRepo, { owner, repo, state: "open", per_page: 100 }))
+              .filter((i) => !i.pull_request && i.title === title);
+            if (CONCLUSION === "success") {
+              for (const issue of open) {
+                await github.rest.issues.createComment({ owner, repo, issue_number: issue.number, body: `Green again at ${SHA} (${RUN_URL}).${footer}` });
+                await github.rest.issues.update({ owner, repo, issue_number: issue.number, state: "closed", state_reason: "completed" });
+              }
+              return;
+            }
+            const text = `The scheduled ${WORKFLOW} run on main failed at ${SHA}: ${RUN_URL}. Fix it through a pull request to main first thing (merge skill).`;
+            if (open.length > 0) {
+              await github.rest.issues.createComment({ owner, repo, issue_number: open[0].number, body: text + footer });
+            } else {
+              await github.rest.issues.create({ owner, repo, title, labels: ["bug", "dev", "P1"], body: text + footer });
+            }
