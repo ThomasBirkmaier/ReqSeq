@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { launchApp, listAll, modifier } from "./support/app.js";
+import { cardSettled, launchApp, listAll, modifier } from "./support/app.js";
 import { DEMO_FILES } from "./support/demo.js";
 
 const FIXTURE = { fixture: "SR-069/filter", files: DEMO_FILES };
@@ -110,20 +110,6 @@ const listed = async (window: Page): Promise<void> => {
   await window.waitForTimeout(APART_MS);
 };
 
-/** No animation of the card's parts runs any more. */
-const settled = (window: Page): Promise<void> =>
-  expect
-    .poll(() =>
-      window.evaluate(
-        () =>
-          document
-            .getAnimations()
-            .filter((one) => ["card-rise", "card-show"].includes((one as CSSAnimation).animationName))
-            .filter((one) => one.playState === "running").length,
-      ),
-    )
-    .toBe(0);
-
 test.describe("the card of the command line in motion", () => {
   let running: RunningApp;
 
@@ -138,7 +124,7 @@ test.describe("the card of the command line in motion", () => {
     await listed(window);
     await record(window);
     await commands(window);
-    await settled(window);
+    await cardSettled(window);
     const [rise] = await rises(window);
     expect(rise?.name).toBe("card-rise");
     expect(rise?.duration).toBeGreaterThan(0);
@@ -170,7 +156,7 @@ test.describe("the card of the command line in motion", () => {
       await listed(window);
       await record(window);
       await commands(window);
-      await settled(window);
+      await cardSettled(window);
       const parts = (await started(window)).filter((one) => !one.leaving);
       const card = parts.find((one) => one.part === "card");
       for (const part of ["list", "seam", "backdrop"] as const) {
@@ -210,7 +196,7 @@ test.describe("the card of the command line in motion", () => {
       await window.screenshot({ path: path.join(OUT, `sr-182-card-${scheme}.png`) });
       // Halfway: the card on its way up, the dim and the blur half there.
       await window.keyboard.press("Escape");
-      await settled(window);
+      await cardSettled(window);
       await window.waitForTimeout(APART_MS);
       await window.keyboard.press("ControlOrMeta+Shift+P");
       await window.evaluate(async () => {
@@ -256,10 +242,10 @@ test.describe("the card of the command line in motion", () => {
     // Elements (Go to), then commands over it, then other hits.
     await window.keyboard.press("ControlOrMeta+P");
     await expect(window.locator('.candidates [role="option"]').first()).toBeVisible();
-    await settled(window);
+    await cardSettled(window);
     await window.keyboard.type("wind");
     await expect(window.locator('.candidates [role="option"]').first()).toBeVisible();
-    await settled(window);
+    await cardSettled(window);
     // Go to drops its card for a moment between a key and its hits: the card of the hits stands.
     const shown = (await rises(window)).length;
     expect(shown).toBe(1);
@@ -271,20 +257,20 @@ test.describe("the card of the command line in motion", () => {
     await window.keyboard.press("Backspace");
     await window.keyboard.type("r list by s");
     await expect(window.locator('.candidates [role="option"] .name').first()).toContainText("status");
-    await settled(window);
+    await cardSettled(window);
     expect(await rises(window)).toHaveLength(shown);
     // The next argument of a command takes the card's place: it does not rise either.
     await window.keyboard.press("Enter");
     await expect(window.locator("label.prompt-label")).toHaveText("Status");
     await expect(window.locator('.candidates [role="option"]').first()).toBeVisible();
-    await settled(window);
+    await cardSettled(window);
     expect(await rises(window)).toHaveLength(shown);
     // Closed, it rises again the next time.
     await window.keyboard.press("Escape");
-    await settled(window);
+    await cardSettled(window);
     await window.waitForTimeout(APART_MS);
     await commands(window);
-    await settled(window);
+    await cardSettled(window);
     expect(await rises(window)).toHaveLength(shown + 1);
   });
 
@@ -296,12 +282,12 @@ test.describe("the card of the command line in motion", () => {
     await listed(window);
     await record(window);
     await commands(window);
-    await settled(window);
+    await cardSettled(window);
     await window.keyboard.press("Escape");
-    await settled(window);
+    await cardSettled(window);
     await window.keyboard.press(`${mod}+K`);
     await expect(window.getByRole("list", { name: "Next keys" })).toBeVisible();
-    await settled(window);
+    await cardSettled(window);
     const [hits, keys] = await rises(window);
     expect(hits?.nextKeys).toBe(false);
     expect(keys?.nextKeys).toBe(true);
@@ -322,9 +308,9 @@ test.describe("the card of the command line in motion", () => {
     await listed(window);
     await record(window);
     await commands(window);
-    await settled(window);
+    await cardSettled(window);
     await window.keyboard.press("Escape");
-    await settled(window);
+    await cardSettled(window);
     const all = await started(window);
     const rise = all.find((one) => one.part === "card" && !one.leaving);
     const back = all.filter((one) => one.leaving);
