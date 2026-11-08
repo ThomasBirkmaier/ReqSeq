@@ -201,6 +201,8 @@ const TypeBox = ({
       aria-label={boxLabel(node).replaceAll("\n", ", ")}
       title={boxLabel(node)}
       {...(node.any ? { "data-any": "" } : { "data-type": node.type })}
+      // A type box is no part of the sheet: the buffer's menu (SR-194 AK6, SR-199 AK2).
+      data-menu="buffer"
       style={{ left: placed.x, top: placed.y, width: placed.width, height: placed.height }}
       onClick={onSelect}
       // A right-click selects the type before the context menu opens (SR-194 AK5).
@@ -277,6 +279,7 @@ const Drawing = ({
                 markerEnd={`url(#${scope}${arrowId(variant)})`}
                 data-source={path.source}
                 data-target={path.target}
+                data-menu="buffer"
               />
             );
           })}
@@ -287,6 +290,8 @@ const Drawing = ({
             className="mm-label"
             data-source={path.source}
             data-target={path.target}
+            // An edge and its label are no part of the sheet: the buffer's menu (SR-194 AK6).
+            data-menu="buffer"
             style={{
               left: path.label.x,
               top: path.label.y,

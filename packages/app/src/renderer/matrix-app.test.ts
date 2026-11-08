@@ -153,6 +153,8 @@ const bridge = () => {
       incomplete: false,
     }),
     "element.get": (input) => ({ element: ELEMENTS.find((candidate) => candidate.id === input["ref"]) }),
+    // The cells ask what a row's type may have (SR-199): nothing here.
+    "relation.options": () => ({ kinds: [] }),
     "trace.matrix": () => matrixOf(ELEMENTS.slice(0, 2)),
     // No parents: the parents line of the element stays away.
     "trace.neighbourhood": (input) => ({
@@ -256,10 +258,10 @@ describe("the matrix in the app", () => {
     await keyDown(window, "t", { ctrlKey: true });
     expect(container.querySelector("table")).not.toBeNull();
     expect(modeline()).toContain("package: PKG-1 Stage 3 · matrix");
-    expect(fake.invoke).toHaveBeenLastCalledWith(
+    expect(fake.invoke.mock.calls.filter(([name]) => name === "trace.matrix").at(-1)).toEqual([
       "trace.matrix",
       expect.objectContaining({ selection: { where: { package: "uuid-9" } } }),
-    );
+    ]);
   });
 
   it("does not open a matrix on the overview", async () => {

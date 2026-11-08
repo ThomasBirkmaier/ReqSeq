@@ -313,11 +313,19 @@ export const GraphView = ({
                   d={path.d}
                   data-source={path.source}
                   data-target={path.target}
+                  // An edge is no part of the sheet: the buffer's menu (SR-194 AK6, SR-199 AK1).
+                  data-menu="buffer"
                 />
               ))}
               <LinkHits paths={paths} hover={links.hover} />
               {layout.evidence.map((box) => (
-                <path key={box.key} className="graph-evidence-line" d={box.d} data-evidence={box.node} />
+                <path
+                  key={box.key}
+                  className="graph-evidence-line"
+                  d={box.d}
+                  data-evidence={box.node}
+                  data-menu="buffer"
+                />
               ))}
             </svg>
             {layout.evidence.map((box) => {
@@ -330,6 +338,8 @@ export const GraphView = ({
                   aria-hidden="true"
                   title={text}
                   data-evidence={box.node}
+                  // The evidence of a node belongs to the node: the buffer's menu, as no part of the sheet.
+                  data-menu="buffer"
                   style={{ left: box.x, top: box.y, width: NODE_WIDTH, height: EVIDENCE_HEIGHT }}
                 >
                   {text}

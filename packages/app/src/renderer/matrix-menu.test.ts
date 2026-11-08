@@ -10,12 +10,17 @@ import { menuContext } from "./entry-menu.js";
 import type { MatrixColumn, MatrixRow } from "./matrix.js";
 import type { MatrixSpot } from "./matrix-menu.js";
 import {
+  CREATABLE,
+  NO_OPTIONS,
   PROPERTY_COLUMN,
   cellSpot,
+  creatable,
   matrixGiven,
   matrixSpotOf,
+  optionAsks,
   relationSpot,
   spotKey,
+  withOptions,
 } from "./matrix-menu.js";
 
 const row = { open: elementBuffer("uuid-1", "spec", "SR-1 First"), label: "SR-1" };
@@ -52,17 +57,18 @@ const matrixRow: MatrixRow = {
     markLabel: false,
     titleMarks: [],
   },
+  type: "system-requirement",
   cells: [[relation("out")]],
   gaps: [],
 };
 
-/** A press inside a cell, of a relation property's column or not. */
-const inCell = (place: MenuHit["place"], property: boolean): MenuHit => ({
+/** A press inside a cell with the marks `marks` (a relation property's column, a creatable cell). */
+const inCell = (place: MenuHit["place"], ...marks: readonly string[]): MenuHit => ({
   place,
   target: {
     closest: (selector: string) =>
       selector === '[data-menu="matrix-cell"]'
-        ? { hasAttribute: (name: string) => property && name === PROPERTY_COLUMN }
+        ? { hasAttribute: (name: string) => marks.includes(name) }
         : null,
   } as unknown as Element,
   point: { x: 0, y: 0 },
@@ -181,19 +187,80 @@ describe("the entries of the matrix's menu (SR-199)", () => {
   }));
   const ids = (hit: MenuHit): string[] => menuEntries(hit, items).map((item) => item.id);
 
-  it("[SR-199/AK3] has Create relation in a cell of a relation kind's column", () => {
+  it("[SR-199/AK3] has Create relation only in a cell where a relation of its column can be created", () => {
     expect(MENU_PLACES["matrix-cell"].map((entry) => entry.id)).toEqual(["command:relation.add"]);
-    expect(ids(inCell("matrix-cell", false))).toEqual(["command:relation.add"]);
-    expect(ids(inCell("matrix-cell", true))).toEqual([]);
+    expect(ids(inCell("matrix-cell", CREATABLE))).toEqual(["command:relation.add"]);
+    expect(ids(inCell("matrix-cell"))).toEqual([]);
   });
 
   it("[SR-199/AK4] has Remove relation after the entries of the connected element", () => {
     expect(MENU_PLACES["matrix-target"].at(-1)?.id).toBe("command:relation.remove");
-    expect(ids(inCell("matrix-target", false))).toEqual([
+    expect(ids(inCell("matrix-target"))).toEqual([
       "entry-show",
       "command:relation.add",
       "command:relation.remove",
     ]);
-    expect(ids(inCell("matrix-target", true))).toEqual(["entry-show", "command:relation.add"]);
+    expect(ids(inCell("matrix-target", PROPERTY_COLUMN))).toEqual(["entry-show", "command:relation.add"]);
+  });
+});
+
+describe("where a relation of a column can be created (SR-199 AK3)", () => {
+  const derives = { kind: "derives-from", name: "Derives from", targetTypes: ["need", "system-requirement"] };
+  const basedOn = { kind: "based-on", name: "Based on", targetTypes: ["decision"] };
+  /** A row of `type`, with `cells`. */
+  const rowOf = (id: string, type: string, cells: MatrixRow["cells"] = [[], []]): MatrixRow => ({
+    ...matrixRow,
+    element: { ...matrixRow.element, open: elementBuffer(id, "spec", id) },
+    type,
+    cells,
+  });
+  const requirement = withOptions(
+    NO_OPTIONS,
+    { key: "type:system-requirement", ref: "sr", type: "system-requirement" },
+    [derives, basedOn],
+  );
+  const known = withOptions(requirement, { key: "type:need", ref: "n", type: "need" }, []);
+
+  it("[SR-199/AK3] is where relation.options lets the row's type be the source or the target of the column's kind", () => {
+    // An outgoing column: the row's type may have the kind; a need may not derive from anything.
+    expect(creatable(known, "system-requirement", column("out"))).toBe(true);
+    expect(creatable(known, "need", column("out"))).toBe(false);
+    // An incoming column: the row's type is among the kind's target types; a decision is not.
+    expect(creatable(known, "need", column("in"))).toBe(true);
+    expect(creatable(known, "decision", column("in"))).toBe(false);
+    // Not a relation property's column, and nothing while nothing is known.
+    expect(creatable(known, "system-requirement", column("out", true))).toBe(false);
+    expect(creatable(NO_OPTIONS, "system-requirement", column("out"))).toBe(false);
+    expect(creatable(NO_OPTIONS, "need", column("in"))).toBe(false);
+  });
+
+  it("asks relation.options once per type of row, then for the source of an incoming column no type offers", () => {
+    const source = relation("in", { id: "uuid-9" });
+    const rows = [rowOf("a", "need", [[], [source]]), rowOf("b", "need"), rowOf("c", "decision")];
+    const columns = [column("out"), column("in")];
+    expect(optionAsks(rows, columns, NO_OPTIONS, new Set())).toEqual([
+      { key: "type:need", ref: "a", type: "need" },
+      { key: "type:decision", ref: "c", type: "decision" },
+    ]);
+    // Asked already: nothing again, and the columns wait for every type's answer.
+    expect(optionAsks(rows, columns, NO_OPTIONS, new Set(["type:need", "type:decision"]))).toEqual([]);
+    const types = withOptions(
+      withOptions(NO_OPTIONS, { key: "type:need", ref: "a", type: "need" }, []),
+      { key: "type:decision", ref: "c", type: "decision" },
+      [],
+    );
+    const asked = new Set(["type:need", "type:decision"]);
+    expect(optionAsks(rows, columns, types, asked)).toEqual([{ key: "kind:derives-from", ref: "uuid-9" }]);
+    expect(optionAsks(rows, columns, types, new Set([...asked, "kind:derives-from"]))).toEqual([]);
+    // The answer for that source gives the kind's target types.
+    const sourced = withOptions(types, { key: "kind:derives-from", ref: "uuid-9" }, [derives]);
+    expect(sourced.sources).toEqual([[derives]]);
+    expect(optionAsks(rows, columns, sourced, asked)).toEqual([]);
+    expect(creatable(sourced, "need", column("in"))).toBe(true);
+    // No available source: nothing to ask.
+    const gone = [rowOf("a", "need", [[], [relation("in", { targetState: "missing" })]])];
+    expect(optionAsks(gone, columns, types, asked)).toEqual([]);
+    // A property's column and an outgoing one are never asked for.
+    expect(optionAsks(rows, [column("out"), column("in", true)], types, asked)).toEqual([]);
   });
 });

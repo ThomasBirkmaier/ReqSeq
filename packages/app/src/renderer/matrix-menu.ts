@@ -4,7 +4,7 @@
 // relation" for the relation between the element of the row and it. Both are the catalog commands
 // `relation.add` and `relation.remove`, started with those arguments given (`startCommand`): the app builds
 // the input as the command prompt does and core decides (ADR-0002).
-import type { DataExportRelation } from "@reqseq/core";
+import type { CommandTypes, DataExportRelation } from "@reqseq/core";
 import type { ElementBuffer } from "./buffers.js";
 import type { MenuEntry, MenuHit, MenuPlace } from "./context-menu.js";
 import type { MatrixColumn, MatrixRow, Target } from "./matrix.js";
@@ -161,8 +161,101 @@ export const matrixGiven = (
 const ofKind = (hit: MenuHit): boolean =>
   hit.target.closest('[data-menu="matrix-cell"]')?.hasAttribute(PROPERTY_COLUMN) !== true;
 
-/** "Create relation" in a cell outside its connected elements (AK3). */
-export const MATRIX_CELL_MENU: readonly MenuEntry[] = [{ id: "command:relation.add", when: ofKind }];
+/** The mark of a cell where a relation of its column can be created (`creatable`). */
+export const CREATABLE = "data-creatable";
+
+/** The press is in a cell where a relation of its column can be created. */
+const inCreatable = (hit: MenuHit): boolean =>
+  hit.target.closest('[data-menu="matrix-cell"]')?.hasAttribute(CREATABLE) === true;
+
+/** "Create relation" in a cell outside its connected elements, where it can succeed (AK3). */
+export const MATRIX_CELL_MENU: readonly MenuEntry[] = [{ id: "command:relation.add", when: inCreatable }];
 
 /** "Remove relation" on a connected element, after the entries of an element (AK4). */
 export const MATRIX_TARGET_MENU: readonly MenuEntry[] = [{ id: "command:relation.remove", when: ofKind }];
+
+/** The kinds `relation.options` gives for an element: those it may have, each with the types of its targets. */
+export type KindOptions = CommandTypes["relation.options"]["output"]["kinds"];
+
+/**
+ * What `relation.options` gave the matrix: by type of row, the kinds an element of that type may have; and
+ * the answers for the source of an incoming column's relation, read for the target types of its kind.
+ */
+export interface RelationOptions {
+  readonly byType: ReadonlyMap<string, KindOptions>;
+  readonly sources: readonly KindOptions[];
+}
+
+export const NO_OPTIONS: RelationOptions = { byType: new Map(), sources: [] };
+
+/** One question to `relation.options`: the element `ref`, for a type of row or for the source of a column. */
+export interface OptionAsk {
+  readonly key: string;
+  readonly ref: string;
+  /** The type of row the answer is for; absent: the source of an incoming column's relation. */
+  readonly type?: string;
+}
+
+/** `known` with the answer to `ask`. */
+export const withOptions = (known: RelationOptions, ask: OptionAsk, kinds: KindOptions): RelationOptions =>
+  ask.type === undefined
+    ? { ...known, sources: [...known.sources, kinds] }
+    : { ...known, byType: new Map([...known.byType, [ask.type, kinds]]) };
+
+/** The target types of `kind`, from any answer that offers it: they are the kind's, whatever the source. */
+const targetTypesOf = (known: RelationOptions, kind: string): readonly string[] | undefined =>
+  [...known.byType.values(), ...known.sources].flat().find((option) => option.kind === kind)?.targetTypes;
+
+/**
+ * The questions still to ask (`asked` holds the keys asked before): one element of each type of row, and,
+ * once those are answered, for an incoming column whose kind no answer offers, the source of one of its
+ * relations to an available element.
+ */
+export const optionAsks = (
+  rows: readonly MatrixRow[],
+  columns: readonly MatrixColumn[],
+  known: RelationOptions,
+  asked: ReadonlySet<string>,
+): OptionAsk[] => {
+  const asks = new Map<string, OptionAsk>();
+  for (const row of rows) {
+    const key = `type:${row.type}`;
+    if (!asked.has(key) && !asks.has(key)) {
+      asks.set(key, { key, ref: row.element.open.id, type: row.type });
+    }
+  }
+  const typesKnown = rows.every((row) => known.byType.has(row.type));
+  columns.forEach((column, index) => {
+    const key = `kind:${column.kind}`;
+    if (
+      !typesKnown ||
+      column.direction !== "in" ||
+      column.property === true ||
+      asked.has(key) ||
+      targetTypesOf(known, column.kind) !== undefined
+    ) {
+      return;
+    }
+    const source = rows
+      .flatMap((row) => row.cells[index] ?? [])
+      .find((relation) => relation.targetState === "available");
+    if (source !== undefined) {
+      asks.set(key, { key, ref: source.id });
+    }
+  });
+  return [...asks.values()];
+};
+
+/**
+ * Whether a relation of `column` can be created in a row of `type` (AK3), as `relation.options` says: the
+ * type may have the kind (an outgoing column), or is among the kind's target types (an incoming one). No
+ * relation property (`relation.add` takes relation kinds only), and nothing while the answer is not there.
+ */
+export const creatable = (known: RelationOptions, type: string, column: MatrixColumn): boolean => {
+  if (column.property === true) {
+    return false;
+  }
+  return column.direction === "out"
+    ? known.byType.get(type)?.some((option) => option.kind === column.kind) === true
+    : targetTypesOf(known, column.kind)?.includes(type) === true;
+};

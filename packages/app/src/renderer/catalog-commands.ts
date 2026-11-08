@@ -441,9 +441,14 @@ const OFFERS: Readonly<Record<Source, (asked: Asked) => Promise<Offer | Failed>>
   relationTarget: async ({ context, of, before }) => {
     if (typeof before === "string") {
       const answer = await context.call("relation.options", { ref: before });
-      return answer.ok
-        ? elementsOf(answer.output.kinds.find((kind) => kind.kind === of)?.targetTypes)
-        : { kind: "failed", message: answer.message };
+      if (!answer.ok) {
+        return { kind: "failed", message: answer.message };
+      }
+      // A kind given before the prompt asked (SR-199) that the source may not have: no target can be taken.
+      const kind = answer.output.kinds.find((option) => option.kind === of);
+      return kind === undefined
+        ? { kind: "failed", message: `The source cannot have a relation of kind ${String(of)}` }
+        : elementsOf(kind.targetTypes);
     }
     const answer = await context.call("metamodel.get", {});
     return answer.ok

@@ -2306,6 +2306,23 @@ describe("arguments given before the prompt asks (SR-199)", () => {
     expect(target.find).toBeDefined();
   });
 
+  it("[SR-199/AK3] refuses a given kind that relation.options does not offer for the given source", async () => {
+    const { context, asked } = setup([list], { "relation.options": () => OPTIONS });
+    const given = {
+      "relation.add": [
+        { field: "source", value: "uuid-1", label: "N-1" },
+        { field: "kind", value: "based-on", label: "Based on" },
+      ],
+    };
+    start({ ...context, given }, "relation.add");
+    const target = await last(asked);
+    expect(target.label).toBe(
+      "The source cannot have a relation of kind based-on · Create relation N-1 Based on · target:",
+    );
+    expect(target.find).toBeUndefined();
+    expect(target.items).toEqual([]);
+  });
+
   it("[SR-199/AK3] does not offer first the element already given to another argument", async () => {
     const { context, asked } = setup([list]);
     const given = {
@@ -2324,7 +2341,7 @@ describe("arguments given before the prompt asks (SR-199)", () => {
   });
 
   it("[SR-199/AK4] runs a command whose arguments are all given at once", async () => {
-    const { context, call } = setup([list], { "relation.remove": () => ({ files: [] }) });
+    const { context, asked, call } = setup([list], { "relation.remove": () => ({ files: [] }) });
     const given = {
       "relation.remove": [
         { field: "source", value: "uuid-1", label: "SR-1" },
@@ -2343,5 +2360,6 @@ describe("arguments given before the prompt asks (SR-199)", () => {
     });
     // With Ctrl/Cmd+Enter, the optional arguments are offered first.
     start({ ...context, given }, "relation.remove", true);
+    expect((await last(asked)).label).toBe("Remove relation SR-1 Refines N-2 · more arguments:");
   });
 });

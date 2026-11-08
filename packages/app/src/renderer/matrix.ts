@@ -46,6 +46,8 @@ export type MatrixGap = NonNullable<MatrixOutputRow["gaps"]>[number];
 export interface MatrixRow {
   /** The row element, as a list row shows it. */
   readonly element: Row;
+  /** The type of the row element (SR-199: whether a relation of a column can be created in its row). */
+  readonly type: string;
   readonly cells: readonly (readonly DataExportRelation[])[];
   readonly gaps: readonly MatrixGap[];
   readonly testCases?: readonly MatrixTestCase[];
@@ -55,6 +57,7 @@ export interface MatrixRow {
 export const matrixRows = (output: TraceMatrixOutput): MatrixRow[] =>
   output.rows.map((row: MatrixOutputRow) => ({
     element: rowOf(row, row.depth ?? 0, [], false),
+    type: row.type,
     cells: row.cells,
     gaps: row.gaps ?? [],
     ...(row.testCases === undefined ? {} : { testCases: row.testCases }),

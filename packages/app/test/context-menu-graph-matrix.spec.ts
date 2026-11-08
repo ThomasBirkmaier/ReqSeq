@@ -13,6 +13,41 @@ import { launchApp, listAll } from "./support/app.js";
 const FIXTURE = { fixture: "SR-069/filter" };
 const ALL = "All commands…";
 
+/** The entries of a connected element in the matrix: those of an element (SR-197), then "Remove relation". */
+const ENTRY_THEN_REMOVE = [
+  "Show element",
+  "Show graph",
+  "Show neighbourhood",
+  "Show affected elements",
+  "Create relation",
+  "Set status",
+  "Remove relation",
+  ALL,
+];
+
+/** SR-0000b5 of the fixture with two more relations: one of the same kind to another need, one based on D1. */
+const WITH_MORE = [
+  "---",
+  "id: 69069069-0000-4000-8000-0000000000b5",
+  "type: system-requirement",
+  "status: approved",
+  "title: Send data to the cloud",
+  "requirement-type: interface",
+  "acceptance-criteria:",
+  "  - Given a link, when it is checked, then it holds.",
+  "source: Supplier A",
+  "import-date: 2026-03-01",
+  "derives-from:",
+  "  - { id: 69069069-0000-4000-8000-0000000000a2, version: n1:1111111111111111 }",
+  "  - { id: 69069069-0000-4000-8000-0000000000a1, version: n1:1111111111111111 }",
+  "based-on:",
+  "  - { id: 69069069-0000-4000-8000-0000000000e1, version: n1:1111111111111111 }",
+  "---",
+  "",
+  "b5: derives from N2, imported.",
+  "",
+].join("\n");
+
 const menu = (window: Page): Locator => window.getByRole("menu", { name: "Context menu" });
 const entries = (window: Page): Locator => menu(window).getByRole("menuitem");
 const entryNames = (window: Page): Promise<string[]> => entries(window).locator(".name").allTextContents();
@@ -122,6 +157,12 @@ test.describe("the context menu of the graph and the matrix", () => {
     await expect(sheet).toHaveAttribute("data-laid-out", /[1-9]/u);
     await rightClick(sheet, await emptyPoint(sheet));
     expect(await entryNames(window)).toEqual(["Show metamodel as text", ALL]);
+    await window.keyboard.press("Escape");
+    // A type box is no part of the sheet: the buffer's menu (SR-194 AK6).
+    await rightClick(window.locator(".mm-type").first());
+    expect((await entryNames(window))[0]).toBe("Go to element or buffer");
+    await window.keyboard.press("Escape");
+    await rightClick(sheet, await emptyPoint(sheet));
     await choose(window, "Show metamodel as text");
     await expect(window.locator(".metamodel-text")).toBeVisible();
   });
@@ -132,6 +173,20 @@ test.describe("the context menu of the graph and the matrix", () => {
     await showMatrix(window);
     // An outgoing column: "Show a dial" derives from nothing yet.
     const cell = matrixRow(window, "SR-0000b4").locator("td.cell").nth(0);
+    // Known once relation.options answered for the types of the rows.
+    await expect(cell).toHaveAttribute("data-creatable", "");
+    // Where the row's type cannot be the source (a need derives from nothing) or the target (a decision is
+    // derived by nothing) of the column's kind, there is no "Create relation".
+    for (const [id, column] of [
+      ["N-0000a1", 0],
+      ["D-0000e1", 1],
+    ] as const) {
+      const refused = matrixRow(window, id).locator("td.cell").nth(column);
+      await expect(refused).not.toHaveAttribute("data-creatable", "");
+      await rightClick(refused, await besideTargets(refused));
+      expect(await entryNames(window)).toEqual([ALL]);
+      await window.keyboard.press("Escape");
+    }
     await rightClick(cell, await besideTargets(cell));
     expect(await entryNames(window)).toEqual(["Create relation", ALL]);
     await choose(window, "Create relation");
@@ -146,6 +201,7 @@ test.describe("the context menu of the graph and the matrix", () => {
     await showMatrix(window);
     const incoming = matrixRow(window, "N-0000a2").locator("td.cell").nth(1);
     await expect(incoming.locator(".target")).toHaveCount(1);
+    await expect(incoming).toHaveAttribute("data-creatable", "");
     await rightClick(incoming, await besideTargets(incoming));
     await choose(window, "Create relation");
     await expect(label(window)).toHaveText("Create relation Derives from N-0000a2 · source:");
@@ -166,34 +222,33 @@ test.describe("the context menu of the graph and the matrix", () => {
     const target = matrixRow(window, "SR-0000b1").locator("td.cell").nth(0).locator(".target");
     await expect(target).toContainText("N-0000a1");
     await rightClick(target);
-    expect(await entryNames(window)).toEqual([
-      "Show element",
-      "Show graph",
-      "Show neighbourhood",
-      "Show affected elements",
-      "Create relation",
-      "Set status",
-      "Remove relation",
-      ALL,
-    ]);
+    expect(await entryNames(window)).toEqual(ENTRY_THEN_REMOVE);
     expect(await relationsOf(running, "SR-0000b1")).toContain("derives-from N-0000a1");
     await choose(window, "Remove relation");
     await expect(window.locator(".result")).toBeVisible();
     expect(await relationsOf(running, "SR-0000b1")).not.toContain("derives-from N-0000a1");
-    // The other relations of the row stay.
+    // The other relations of the row stay, and the same kind between other elements too.
     expect(await relationsOf(running, "SR-0000b1")).toContain("based-on D-0000e1");
+    expect(await relationsOf(running, "SR-0000b2")).toContain("derives-from N-0000a1");
     await running.close();
 
-    // An incoming relation: "Send data to the cloud" derives from "Warn of storms"; its file changes.
-    running = await launchApp(FIXTURE);
+    // An incoming relation: "Send data to the cloud" derives from "Warn of storms"; its file changes. It
+    // has two more relations here, one of the same kind, which stay.
+    running = await launchApp({ ...FIXTURE, files: { "requirements/SR-0000000000b5.md": WITH_MORE } });
     window = running.window;
+    expect(await relationsOf(running, "SR-0000b5")).toEqual([
+      "derives-from N-0000a2",
+      "derives-from N-0000a1",
+      "based-on D-0000e1",
+    ]);
     await showMatrix(window);
     const incoming = matrixRow(window, "N-0000a2").locator("td.cell").nth(1).locator(".target");
     await expect(incoming).toContainText("SR-0000b5");
     await rightClick(incoming);
+    expect(await entryNames(window)).toEqual(ENTRY_THEN_REMOVE);
     await choose(window, "Remove relation");
     await expect(window.locator(".result")).toBeVisible();
-    expect(await relationsOf(running, "SR-0000b5")).not.toContain("derives-from N-0000a2");
+    expect(await relationsOf(running, "SR-0000b5")).toEqual(["derives-from N-0000a1", "based-on D-0000e1"]);
   });
 
   test("the menu of a matrix cell in light, as a screenshot", async () => {
