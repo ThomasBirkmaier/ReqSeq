@@ -27,6 +27,8 @@ import {
   spotlit,
 } from "./graph.js";
 import { LinkHits, LinkTips, activeOption, pathKey, useGraphLinks } from "./GraphLinks.js";
+
+import { NodeVerification } from "./GraphRing.js";
 import type { GraphLayout } from "./graph-layout.js";
 import {
   EVIDENCE_HEIGHT,
@@ -363,6 +365,7 @@ export const GraphView = ({
                         {MARK_WORDS[mark]}
                       </span>
                     ))}
+                    <NodeVerification node={placed.node} />
                   </div>
                 </div>
               );
