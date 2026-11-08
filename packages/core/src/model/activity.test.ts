@@ -928,7 +928,13 @@ describe("watching the last access (SR-117)", () => {
   });
 
   it("drops a held access for a newer one, and reports a held one after holdMs", async () => {
-    const holdMs = 1000;
+    // The hold counts from `access.at`, so each access below gets a hold of its own: `firstHoldMs` for the
+    // first, long enough that a slow runner sees the newer access within it (2 s were too short on Windows,
+    // #1141), and `lateHoldMs` for the last, whose report the test waits for.
+    const holdMs = 5000;
+    const firstHoldMs = 3000;
+    const lateHoldMs = 1000;
+    const recordedFor = (left: number): Date => new Date(Date.now() - holdMs + left);
     const opened = await copy(IDENTIFIERS);
     const store = await opened.workspace.get(elementStoreState);
     const known = store.byId.get(SR_037)?.[0]?.snapshot.sha256 ?? "";
@@ -940,20 +946,21 @@ describe("watching the last access (SR-117)", () => {
 
     // Wait until the first access is held, not for a fixed time (file events are late on macOS, #304).
     const held = readOf(1);
-    await write(activityFile("0".repeat(64), 1));
+    const firstAt = recordedFor(firstHoldMs);
+    await write(activityFile("0".repeat(64), 1, SR_036, firstAt));
     await held;
-    const heldAt = Date.now();
     const next = seen.next();
     await write(activityFile(known, 2, SR_037));
     expect((await next).element.id).toBe(SR_037);
-    await quiet(heldAt + holdMs + 200 - Date.now());
+    // The first access is dropped: nothing more is reported after its hold would have ended.
+    await quiet(firstAt.getTime() + holdMs + 200 - Date.now());
     expect(seen.seen.map((a) => a.element.id)).toEqual([SR_037]);
 
     const late = seen.next();
     const started = Date.now();
-    await write(activityFile("1".repeat(64), 3));
+    await write(activityFile("1".repeat(64), 3, SR_036, recordedFor(lateHoldMs)));
     expect((await late).element.id).toBe(SR_036);
-    expect(Date.now() - started).toBeGreaterThanOrEqual(holdMs - 50);
+    expect(Date.now() - started).toBeGreaterThanOrEqual(lateHoldMs - 50);
 
     // A change of the files while nothing is held reports nothing.
     resume();
