@@ -163,7 +163,8 @@ test.describe("the slash menu as the card of the command line", () => {
       expect(await style(window, `${MENU} > ul`, "border-radius")).toBe("8px");
       expect(await style(window, `${MENU} > ul`, "transform")).toBe("none");
       expect(await style(window, `${MENU} > ul`, "opacity")).toBe("1");
-      // The whole window dimmed as much as behind the card of the command line; no click is taken.
+      // The whole window dimmed as much as behind the card of the command line; no click is taken. The
+      // modeline and the command line paint above it, as they stay clear of the card's backdrop too.
       const backdrop = await box(window, ".slash-backdrop");
       expect([backdrop.left, backdrop.top]).toEqual([0, 0]);
       expect(backdrop.width).toBe(await window.evaluate(() => innerWidth));
@@ -217,7 +218,8 @@ test.describe("the slash menu as the card of the command line", () => {
           }
           return true;
         };
-        while (!halfway()) {
+        // At most a second of frames: the animations start within a frame or two.
+        for (let frame = 0; frame < 60 && !halfway(); frame += 1) {
           await new Promise((done) => requestAnimationFrame(done));
         }
       });

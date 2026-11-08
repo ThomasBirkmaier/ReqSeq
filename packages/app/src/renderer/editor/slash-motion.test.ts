@@ -153,6 +153,17 @@ describe("the slash menu in motion (SR-129 AK5)", () => {
     expect(other.dataset["motion"]).toBeUndefined();
   });
 
+  it("keeps one seam when the same menu is shown again", async () => {
+    const shown = menu();
+    view.dom.append(shown);
+    await settle();
+    shown.remove();
+    await settle();
+    view.dom.append(shown);
+    await settle();
+    expect(shown.querySelectorAll(".slash-seam")).toHaveLength(1);
+  });
+
   it("ignores what is not the slash menu", async () => {
     const other = document.createElement("div");
     other.className = "cm-tooltip";

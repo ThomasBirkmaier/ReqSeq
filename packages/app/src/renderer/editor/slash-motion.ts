@@ -91,10 +91,13 @@ class SlashMotion {
       old.remove();
     }
     this.backdrop?.remove();
-    const seam = document.createElement("div");
-    seam.className = "slash-seam";
-    seam.setAttribute("aria-hidden", "true");
-    menu.prepend(seam);
+    // The same node shown again keeps its one seam.
+    if (menu.querySelector(":scope > .slash-seam") === null) {
+      const seam = document.createElement("div");
+      seam.className = "slash-seam";
+      seam.setAttribute("aria-hidden", "true");
+      menu.prepend(seam);
+    }
     const backdrop = document.createElement("div");
     backdrop.className = "slash-backdrop";
     backdrop.setAttribute("aria-hidden", "true");
