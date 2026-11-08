@@ -22,26 +22,29 @@ import {
 
 describe("workspaceView", () => {
   it("shows the name, and read-only, errors and warnings only when there are any", () => {
-    expect(workspaceView({ ok: true, output: { name: "Weather station", readOnly: false } })).toEqual({
+    expect(workspaceView({ ok: true, output: { name: "Weather station", readOnly: false } }, false)).toEqual({
       name: "Weather station",
       readOnly: false,
       marks: [],
       message: "",
     });
     expect(
-      workspaceView({
-        ok: true,
-        output: {
-          name: "Weather station",
-          readOnly: true,
-          problems: [
-            { severity: "error" },
-            { severity: "warning" },
-            { severity: "warning" },
-            { severity: "info" },
-          ],
+      workspaceView(
+        {
+          ok: true,
+          output: {
+            name: "Weather station",
+            readOnly: true,
+            problems: [
+              { severity: "error" },
+              { severity: "warning" },
+              { severity: "warning" },
+              { severity: "info" },
+            ],
+          },
         },
-      }),
+        false,
+      ),
     ).toEqual({
       name: "Weather station",
       readOnly: true,
@@ -49,26 +52,62 @@ describe("workspaceView", () => {
       message: "",
     });
     expect(
-      workspaceView({
-        ok: true,
-        output: { name: "W", readOnly: false, problems: [{ severity: "error" }, { severity: "error" }] },
-      }).marks,
+      workspaceView(
+        {
+          ok: true,
+          output: { name: "W", readOnly: false, problems: [{ severity: "error" }, { severity: "error" }] },
+        },
+        false,
+      ).marks,
     ).toEqual(["2 errors"]);
   });
 
   it("tells whether the open workspace is read-only, and no workspace is not", () => {
-    expect(readOnlyNow(workspaceView({ ok: true, output: { name: "W", readOnly: true } }))).toBe(true);
-    expect(readOnlyNow(workspaceView({ ok: true, output: { name: "W", readOnly: false } }))).toBe(false);
+    expect(readOnlyNow(workspaceView({ ok: true, output: { name: "W", readOnly: true } }, false))).toBe(true);
+    expect(readOnlyNow(workspaceView({ ok: true, output: { name: "W", readOnly: false } }, false))).toBe(
+      false,
+    );
     expect(readOnlyNow(undefined)).toBe(false);
   });
 
   it("shows no workspace, and the error message in the minibuffer", () => {
     expect(
-      workspaceView({
-        ok: false,
-        error: { code: "workspace.not-found", message: "No workspace file in /x" },
-      }),
+      workspaceView(
+        {
+          ok: false,
+          error: { code: "workspace.not-found", message: "No workspace file in /x" },
+        },
+        false,
+      ),
     ).toEqual({ name: undefined, readOnly: false, marks: [], message: "No workspace file in /x" });
+  });
+
+  it("says how to create a workspace in a folder without one", () => {
+    const bare = {
+      ok: false,
+      error: {
+        code: "workspace.not-found",
+        message: "No reqseq-workspace.yaml in the workspace folder",
+        details: { file: "reqseq-workspace.yaml" },
+      },
+    } as const;
+    expect(workspaceView(bare, false).message).toBe(
+      "No reqseq-workspace.yaml in the workspace folder. To create one here, press Ctrl+Shift+P for Initialise workspace.",
+    );
+    expect(workspaceView(bare, true).message).toBe(
+      "No reqseq-workspace.yaml in the workspace folder. To create one here, press ⌘⇧P for Initialise workspace.",
+    );
+    // A workspace one level below: core says to open that folder, and nothing more is added.
+    const below = {
+      ok: false,
+      error: {
+        code: "workspace.not-found",
+        message:
+          "No reqseq-workspace.yaml in the workspace folder; one level below lies spec/reqseq-workspace.yaml: open that folder as the workspace",
+        details: { file: "reqseq-workspace.yaml", below: ["spec"] },
+      },
+    } as const;
+    expect(workspaceView(below, false).message).toBe(below.error.message);
   });
 });
 

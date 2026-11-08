@@ -9,7 +9,7 @@ import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import { REFERENCE_FILES, REFERENCE_TARGET_ID, REFERENCE_TARGET_TITLE } from "./support/demo.js";
 import type { RunningApp } from "./support/app.js";
-import { launchApp } from "./support/app.js";
+import { launchApp, saveAndRead } from "./support/app.js";
 import { markdownMetamodel, quoted } from "./support/boxes.js";
 
 const OUT =
@@ -167,14 +167,10 @@ test.describe("Markdown properties in the element buffer", () => {
     await expect(window.locator('.candidates [role="option"]').first()).toContainText(REFERENCE_TARGET_TITLE);
     await window.keyboard.press("Enter");
     await expect(criteria.locator(".cm-content")).toBeFocused();
-    await window.keyboard.press("ControlOrMeta+s");
-    await expect(window.getByLabel("Minibuffer")).toContainText("Saved");
-    const file = await fs.readFile(
-      path.join(workspace?.root ?? "", "requirements", "SR-0000000000b9.md"),
-      "utf8",
-    );
     // The last criterion holds the reference with ID and version, as one YAML value; the rest stays.
-    expect(file).toMatch(
+    const file = await saveAndRead(
+      window,
+      path.join(workspace?.root ?? "", "requirements", "SR-0000000000b9.md"),
       new RegExp(
         `\\n  - ["']?!\\[Skizze\\]\\(skizze\\.png\\) steht im Quelltext, nicht als Bild\\. Siehe \\[${REFERENCE_TARGET_TITLE}\\]\\(reqseq:${REFERENCE_TARGET_ID}\\?version=n2:[0-9a-f]+\\)["']?\\ntopic:`,
         "u",

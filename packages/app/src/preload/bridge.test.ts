@@ -1,5 +1,5 @@
 import { MessageChannel } from "node:worker_threads";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AgentActivity, WorkspaceChange, WorkspaceMessage } from "../shared/protocol.js";
 import {
   COPY_CHANNEL,
@@ -70,7 +70,7 @@ const NO_WORKSPACE = {
   ok: false,
   error: {
     code: "workspace.not-found",
-    message: "No workspace is open. Open one with File > Open Workspace.",
+    message: "No workspace is open. Press Ctrl+O to choose a folder, or Ctrl+Shift+P for Open workspace.",
   },
 };
 
@@ -93,14 +93,36 @@ const ACTIVITY: AgentActivity = {
 };
 
 describe("createBridge", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("listens on the workspace channel; calls wait for the first message", async () => {
     const ipc = new FakeIpc();
-    const bridge = createBridge(ipc);
+    const bridge = createBridge(ipc, false);
     expect(ipc.channels).toEqual([WORKSPACE_CHANNEL, SAVE_CHANNEL]);
     const early = bridge.invoke("workspace.status");
     ipc.post({ open: false });
     expect(await early).toEqual(NO_WORKSPACE);
     expect(await bridge.commands()).toEqual([]);
+  });
+
+  it("names the keys of macOS without a workspace there, and of this window's platform by default", async () => {
+    const mac = new FakeIpc();
+    const onMac = createBridge(mac, true);
+    mac.post({ open: false });
+    expect(await onMac.invoke("workspace.status")).toEqual({
+      ok: false,
+      error: {
+        code: "workspace.not-found",
+        message: "No workspace is open. Press ⌘O to choose a folder, or ⌘⇧P for Open workspace.",
+      },
+    });
+    vi.spyOn(navigator, "platform", "get").mockReturnValue("Linux x86_64");
+    const linux = new FakeIpc();
+    const onLinux = createBridge(linux);
+    linux.post({ open: false });
+    expect(await onLinux.invoke("workspace.status")).toEqual(NO_WORKSPACE);
   });
 
   it("calls the core process over the port: invoke with {} by default, and the catalog", async () => {
@@ -153,7 +175,7 @@ describe("createBridge", () => {
 
   it("switches to the port of another workspace, ends the calls of the old one and tells the listeners", async () => {
     const ipc = new FakeIpc();
-    const bridge = createBridge(ipc);
+    const bridge = createBridge(ipc, false);
     const changes: WorkspaceChange[] = [];
     const unsubscribe = bridge.on("workspace-changed", (change) => changes.push(change));
     const first = fakeCore(() => undefined);

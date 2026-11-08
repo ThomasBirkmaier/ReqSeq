@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   ACTIONS,
-  COMMAND_SHORTCUT,
   NEXT_BUFFER_SHORTCUT,
   historyKeyAction,
   isBufferMouseButton,
@@ -34,7 +33,7 @@ import { sessionText } from "./buffer-session.js";
 import { savedStep, statusStep, textStep, typeStep } from "./list-filters.js";
 import { MOST_FREQUENT, PREFIX, PREFIX_BINDINGS, prefixLabel } from "./bindings.js";
 import type { KeyPress } from "./keys.js";
-import { matches, shortcutLabel } from "./keys.js";
+import { COMMAND_SHORTCUT, matches, shortcutLabel } from "./keys.js";
 import type { Call } from "./call.js";
 import { rank } from "./fuzzy.js";
 import type { Theme } from "./theme.js";

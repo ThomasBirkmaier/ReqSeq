@@ -2,9 +2,9 @@
 // command), else by the command's catalog title in the command prompt (catalog-commands.ts), each with the key that
 // runs it. The documentation generator reads it (ADR-0017), so the reference names what the app shows.
 import type { Action } from "./actions.js";
-import { ACTIONS, COMMAND_SHORTCUT } from "./actions.js";
+import { ACTIONS } from "./actions.js";
 import { bindingLabel } from "./bindings.js";
-import { shortcutLabel } from "./keys.js";
+import { COMMAND_SHORTCUT, shortcutLabel } from "./keys.js";
 
 /** A catalog command by its name and title. */
 export interface NamedCommand {

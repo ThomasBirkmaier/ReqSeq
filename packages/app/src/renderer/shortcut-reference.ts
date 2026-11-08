@@ -2,7 +2,7 @@
 // Linux and on macOS, built from the app's own tables, so a changed key shows after the next build of the
 // documentation. The documentation generator (ADR-0017) only renders it.
 import type { Action } from "./actions.js";
-import { ACTIONS, COMMAND_SHORTCUT } from "./actions.js";
+import { ACTIONS } from "./actions.js";
 import type { PrefixBinding } from "./bindings.js";
 import { PREFIX, PREFIX_BINDINGS, PREFIX_KEYS, prefixLabel } from "./bindings.js";
 import type { NamedCommand } from "./command-entry.js";
@@ -20,7 +20,7 @@ import { MENU_KEYS } from "../shared/menu-keys.js";
 import { CONTEXT_MENU_KEYS } from "./context-menu.js";
 import { GRAPH_KEYS, GRAPH_MORE_KEYS } from "./graph-nav.js";
 import type { KeyRow } from "./keys.js";
-import { HISTORY_KEYS, LIST_KEYS, keySpecLabel, shortcutLabel } from "./keys.js";
+import { COMMAND_SHORTCUT, HISTORY_KEYS, LIST_KEYS, keySpecLabel, shortcutLabel } from "./keys.js";
 import { PROMPT_KEYS } from "./prompt-keys.js";
 
 /**
