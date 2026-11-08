@@ -70,7 +70,7 @@ export type VerificationEntries = NonNullable<DataExportElement["verification"]>
  * Whether `record` (of `kind`) is a record of the `current` version that decides: an inconclusive one
  * only for validation (see the file comment).
  */
-const ofVersion = (
+export const ofVersion = (
   record: EvidenceRecord,
   kind: EvidenceRecord["kind"],
   current: VersionForms | undefined,

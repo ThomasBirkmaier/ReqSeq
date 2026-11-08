@@ -7,11 +7,12 @@
 // says that an evidence location or the baselines folder is not on this machine (SR-006 AK2).
 // `testCases` are the test cases that name the element, each with the element's executions that hold
 // in the view (SR-033, `testCasesIn`; every kind of record, as `records`). Every record carries its
-// `evidenceSource` (#821). Nothing is written.
+// `evidenceSource` (#821). `bearing` names the records that bear the status (AK3, `bearingRecords`). Nothing is written.
 import { workspaceBaselines, baselinesContaining } from "../../baselines/index.js";
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import {
+  bearingRecords,
   evidenceIndexState,
   evidenceReadState,
   listedRecords,
@@ -21,6 +22,8 @@ import {
 } from "../../evidence/index.js";
 import { metamodelState } from "../../metamodel/index.js";
 import {
+  acceptanceCriteriaKeyOf,
+  criteriaCount,
   currentVersionsOf,
   elementStoreState,
   formsOfEntry,
@@ -60,11 +63,17 @@ export default defineCommand({
       records.length === 0
         ? undefined
         : formsOfEntry((await currentVersionsOf(ctx.workspace, [element])).get(element));
+    // Copies with their evidence source (#821): the index records and test cases stay as they are.
+    const listed = listedRecords(records, view, independent, (id, version) =>
+      baselinesContaining(baselines, id, storedForms(version, current)),
+    ).map(withEvidenceSource);
+    const count =
+      listed.length === 0
+        ? 0
+        : criteriaCount(element.data, acceptanceCriteriaKeyOf(await ctx.workspace.get(metamodelState)));
     return {
-      // Copies with their evidence source (#821): the index records and test cases stay as they are.
-      records: listedRecords(records, view, independent, (id, version) =>
-        baselinesContaining(baselines, id, storedForms(version, current)),
-      ).map(withEvidenceSource),
+      records: listed,
+      bearing: bearingRecords(listed, current, count, independent),
       testCases: testCasesIn(index, element.id, view, independent).map(testCaseWithEvidenceSource),
       problems: [...baselines.problems],
       incomplete: read.incomplete || baselines.incomplete,

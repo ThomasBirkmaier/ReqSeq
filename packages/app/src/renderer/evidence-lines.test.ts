@@ -1,7 +1,13 @@
 import type { DataExportEvidenceRecord, ElementName } from "@reqseq/core";
 import { describe, expect, it } from "vitest";
 import { elementBufferOf } from "./buffers.js";
-import { INCOMPLETE_NOTE, evidenceLines, evidenceNotes, evidenceRows } from "./evidence-lines.js";
+import {
+  INCOMPLETE_NOTE,
+  evidenceLines,
+  evidenceNotes,
+  evidenceParts,
+  evidenceRows,
+} from "./evidence-lines.js";
 import type { LinePart } from "./variant-lines.js";
 
 const COAST: ElementName = { id: "uuid-v", repository: "system", shortId: "VAR-0000c1", title: "Coast" };
@@ -81,6 +87,17 @@ describe("the lines of an element's evidence records", () => {
     );
     // Each record keys its row, so an open reason stays at its record when the list is read again.
     expect(new Set(rows.map((row) => row.key)).size).toBe(3);
+  });
+
+  it("[SR-032/AK3] splits the rows into those that bear the status and the others, each in core's order", () => {
+    const records = ["a", "b", "c", "d"].map((item) => record({ item }));
+    const parts = evidenceParts({ records, bearing: [0, 2] }, undefined);
+    const items = (rows: readonly { readonly parts: readonly LinePart[] }[]): string[] =>
+      rows.map((row) => text(row.parts).split(" · ")[2] ?? "");
+    expect([items(parts.open), items(parts.folded)]).toEqual([
+      ["a", "c"],
+      ["b", "d"],
+    ]);
   });
 
   it("names a variant that `names` lacks by its UUID", () => {

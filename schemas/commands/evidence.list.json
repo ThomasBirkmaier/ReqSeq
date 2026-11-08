@@ -51,6 +51,11 @@
           "$ref": "../data-export.schema.json#/$defs/evidenceRecord"
         }
       },
+      "bearing": {
+        "type": "array",
+        "description": "The positions in `records` (from 0, ascending) of the records that bear the element's status (SR-032 AK3): per kind, variant and acceptance criterion (D-072) the newest of the current version, else the newest of an older version; a record without criteria counts for every criterion (SR-031 AK6). Of several records with the newest date one bears it: a failed one before an inconclusive before a passed one, then one that bears another group already, then the first in `records`. In a repository marked `variant-independent` (SR-173) a variant's records are pooled with those without variant, as its status pools them. The app shows these open and folds the others away.",
+        "items": { "type": "integer", "minimum": 0 }
+      },
       "testCases": {
         "type": "array",
         "description": "The test cases that name the element (SR-033), by class name, then name, each with the element's own records only, newest first, and every kind of record as in `records`; with `view` only the executions that hold in it, and a test case all of whose executions hold in another view is left out (a test case that was only skipped stays, `executed` false).",
@@ -71,6 +76,6 @@
       }
     },
     "additionalProperties": false,
-    "required": ["records", "testCases", "problems", "incomplete"]
+    "required": ["records", "bearing", "testCases", "problems", "incomplete"]
   }
 }

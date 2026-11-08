@@ -3023,6 +3023,8 @@ export interface EvidenceListInput {
 export interface EvidenceListOutput {
   /** The evidence records of the element (SR-028, SR-093), newest first, each with its version, item, date, result and evidence (SR-032 AK1) and the baselines that contain its version (`baselines`, SR-032 AK2; empty when none does). */
   readonly records: readonly DataExportEvidenceRecord[];
+  /** The positions in `records` (from 0, ascending) of the records that bear the element's status (SR-032 AK3): per kind, variant and acceptance criterion (D-072) the newest of the current version, else the newest of an older version; a record without criteria counts for every criterion (SR-031 AK6). Of several records with the newest date one bears it: a failed one before an inconclusive before a passed one, then one that bears another group already, then the first in `records`. In a repository marked `variant-independent` (SR-173) a variant's records are pooled with those without variant, as its status pools them. The app shows these open and folds the others away. */
+  readonly bearing: readonly number[];
   /** The test cases that name the element (SR-033), by class name, then name, each with the element's own records only, newest first, and every kind of record as in `records`; with `view` only the executions that hold in it, and a test case all of whose executions hold in another view is left out (a test case that was only skipped stays, `executed` false). */
   readonly testCases: readonly DataExportTestCase[];
   /** Findings in the baseline files (`baseline.invalid`, `file.invalid-yaml`, ...): a baseline file that cannot be read names no baseline in `baselines`. */

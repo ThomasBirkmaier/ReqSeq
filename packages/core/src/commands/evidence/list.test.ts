@@ -150,6 +150,7 @@ describe("evidence.list (SR-032)", () => {
     const workspace = await open(await fixture(), [OTHER]);
     expect(await list(workspace, { ref: "SR-0032a1" })).toEqual({
       records: [],
+      bearing: [],
       testCases: [],
       problems: [],
       incomplete: false,
@@ -215,6 +216,23 @@ describe("evidence.list (SR-032)", () => {
     ]);
   });
 
+  it("[SR-032/AK3] names the records that bear the status: per variant the newest of the current version, else the newest of an older one", async () => {
+    const ws = await fixture();
+    const probe = await open(ws, []);
+    const versions = await probe.get(currentVersionsState);
+    const a1 = versions.store.byId.get(A1)?.[0];
+    const current = a1 === undefined ? undefined : currentFormsOf(versions, a1);
+    const ofCurrent = record({ version: String(current?.n2), item: "build-600" });
+    const workspace = await open(ws, [ofCurrent, PASSED, FAILED, COAST]);
+    const output = await list(workspace, { ref: A1 });
+    // Newest first: build-512 (V3), build-511 (V2), coast-7 (V2, the coast), build-600 (current, oldest).
+    expect(output.records.map((r) => r.item)).toEqual(["build-512", "build-511", "coast-7", "build-600"]);
+    // The core: build-600 is of the current version though older; the coast: its only record.
+    expect(output.bearing).toEqual([2, 3]);
+    // Without a record of the current version the newest of an older version bears it.
+    expect((await list(await open(ws, [PASSED, FAILED]), { ref: A1 })).bearing).toEqual([0]);
+  });
+
   it("[SR-032/AK2] lists a faulty baseline file as a problem and names no baseline from it", async () => {
     const ws = await fixture({
       "baselines/broken.yaml": `reqseq-baseline: 1\ndate: 2026-10-01T09:00:00Z\nrepositories: []\nelements:\n  - { id: ${A1}, version: ${V1} }\n`,
@@ -258,6 +276,7 @@ describe("evidence.list (SR-032)", () => {
     );
     expect(await list(baselinesAway, { ref: A2 })).toEqual({
       records: [{ ...OTHER, baselines: [] }],
+      bearing: [0],
       testCases: [],
       problems: [],
       incomplete: true,
@@ -273,6 +292,7 @@ describe("evidence.list (SR-032)", () => {
     await workspace.replace(evidenceReadState, read, Promise.resolve(injected));
     expect(await list(workspace, { ref: A2 })).toEqual({
       records: [{ ...OTHER, baselines: ["Release 1.0", "Release 1.1"] }],
+      bearing: [0],
       testCases: [],
       problems: [],
       incomplete: true,

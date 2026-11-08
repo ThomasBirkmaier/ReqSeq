@@ -8,6 +8,8 @@
 // does. A part that is absent is left out with its separator. After the records, one note per problem of
 // `evidence.list` (a baseline file that cannot be read names no baseline) and one when the answer is
 // incomplete (a repository not on this machine), so a line without baselines is not taken for a sure one.
+// Only the records that bear the status stand open (`bearing` of `evidence.list`, SR-032 AK3); the others
+// go into a folded section under them (`evidenceParts`).
 import type { DataExportEvidenceRecord, ElementName, EvidenceListOutput } from "@reqseq/core";
 import { elementBufferOf } from "./buffers.js";
 import type { LinePart } from "./variant-lines.js";
@@ -75,6 +77,25 @@ export const evidenceRows = (
     parts: lines[at] ?? [],
     whole: wholeReasonOf(record),
   }));
+};
+
+/** The rows that bear the status (`bearing` of `evidence.list`, SR-032 AK3), open, and the others, folded away. */
+export interface EvidenceParts {
+  readonly open: EvidenceRow[];
+  readonly folded: EvidenceRow[];
+}
+
+/** The rows of `output` split by its `bearing`, each part in core's order (newest first). */
+export const evidenceParts = (
+  output: Pick<EvidenceListOutput, "records" | "bearing">,
+  names: readonly ElementName[] | undefined,
+): EvidenceParts => {
+  const bearing = new Set(output.bearing);
+  const rows = evidenceRows(output, names);
+  return {
+    open: rows.filter((_, at) => bearing.has(at)),
+    folded: rows.filter((_, at) => !bearing.has(at)),
+  };
 };
 
 /** The notes under the records: each problem as "<severity> · <code> · <message>", then the incomplete note. */
