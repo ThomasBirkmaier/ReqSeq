@@ -83,3 +83,22 @@ export const TABLE_KEYS: readonly KeyRow[] = [
     does: "In the text, in a table: the cell before",
   },
 ];
+
+/** The list keys (`lists.ts`, SR-187). Alt is Option on macOS. */
+export const LIST_ITEM_KEYS: readonly KeyRow[] = [
+  {
+    keys: [{ press: press("Tab") }],
+    does: "In the text, in a list item: indent it with its sub-items one level",
+  },
+  {
+    keys: [{ press: { ...press("Tab"), shiftKey: true } }],
+    does: "In the text, in a list item: outdent it with its sub-items one level",
+  },
+  {
+    keys: [
+      { press: { ...press("ArrowUp"), altKey: true } },
+      { press: { ...press("ArrowDown"), altKey: true } },
+    ],
+    does: "In the text: move the list item with its sub-items, or the line, one place up or down",
+  },
+];
