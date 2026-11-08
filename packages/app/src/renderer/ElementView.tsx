@@ -43,7 +43,7 @@ import { findElements } from "./actions.js";
 import type { BufferAction, ElementBuffer, RenameAction, ResultBuffer } from "./buffers.js";
 import { filteredList, renameAction } from "./buffers.js";
 import type { Answer, Call } from "./call.js";
-import { NOTHING, PROMPT_INPUT, copiedField, copyField, copyable, cursorField, docOf } from "./copy.js";
+import { NOTHING, PROMPT_INPUT, copyField, copyable, cursorField, docOf, modelineField } from "./copy.js";
 import type { ElementLoad, PropertyModel } from "./element-view.js";
 import {
   TITLE_FIELD,
@@ -661,6 +661,23 @@ export const ElementView = ({
         )
       : NOTHING;
   const lastField = useRef<string | undefined>(undefined);
+  // The ID or the status in the modeline takes the focus for its context menu (SR-196): it is the last
+  // field of the shown element then, so a command from the prompt acts on it as the menu does.
+  useEffect(() => {
+    if (!active) {
+      return undefined;
+    }
+    const focused = (event: FocusEvent): void => {
+      const field = modelineField(event.target);
+      if (field !== undefined) {
+        lastField.current = field;
+      }
+    };
+    document.addEventListener("focusin", focused);
+    return () => {
+      document.removeEventListener("focusin", focused);
+    };
+  }, [active]);
   // What the cursor was on when a prompt opened last (SR-132).
   const pointed = useRef<Pointer>(NO_POINTER);
   const copy = (label: string | undefined): void => {
@@ -1822,7 +1839,7 @@ export const ElementView = ({
             },
           }),
       copy: () => {
-        copy(copiedField(document.activeElement, lastField.current));
+        copy(cursorField(document.activeElement, lastField.current));
       },
       listValue: () => {
         void api.current.listValue();

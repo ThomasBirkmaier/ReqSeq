@@ -174,6 +174,11 @@ test.describe("the context menu on a field", () => {
     expect(await entryNames(window)).toEqual(["Copy field", "Show element ID and version", ALL]);
     await choose(window, "Show element ID and version");
     await expect(window.getByLabel("Minibuffer")).toContainText(ID);
+    // The focus is back in the buffer, where the keys act again.
+    await expect(window.locator("article")).toBeFocused();
+    await rightClick(window, modelineField(window, "ID"));
+    await window.keyboard.press("Escape");
+    await expect(window.locator("article")).toBeFocused();
   });
 
   test("the menu on a property box in light, as a screenshot", async () => {

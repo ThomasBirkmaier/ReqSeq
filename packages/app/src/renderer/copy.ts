@@ -100,7 +100,8 @@ export const idField = (element: DataExportElement): Field => ({
 export const PROMPT_INPUT = "prompt-input";
 
 /**
- * The field that "Copy field" copies, by its label: the field the focus is in; while the command prompt
+ * The field that "Copy field" copies, by its label: the field the focus is in, in the buffer or the modeline
+ * (the ID or the status, SR-196); while the command prompt
  * has the focus, the field it was in before (`last`); else none, and the ID is copied. `active` is
  * `document.activeElement`.
  */
@@ -111,17 +112,14 @@ export const cursorField = (active: Element | null, last: string | undefined): s
   if (active.closest("[data-buffer]") !== null) {
     return active.closest<HTMLElement>("[data-field]")?.dataset["field"];
   }
-  return active.id === PROMPT_INPUT ? last : undefined;
+  return modelineField(active) ?? (active.id === PROMPT_INPUT ? last : undefined);
 };
 
-/**
- * The field that "Copy field" copies: a field of the modeline with the focus (the ID or the status, which
- * a right press focuses, SR-196), else the field of `cursorField`.
- */
-export const copiedField = (active: Element | null, last: string | undefined): string | undefined =>
-  active !== null && active.closest(".modeline") !== null
-    ? active.closest<HTMLElement>("[data-field]")?.dataset["field"]
-    : cursorField(active, last);
+/** The ID or the status in the modeline that `target` is in: a right press focuses them for their menu (SR-196). */
+export const modelineField = (target: EventTarget | null): string | undefined =>
+  target instanceof Element
+    ? target.closest<HTMLElement>(".modeline [data-field]")?.dataset["field"]
+    : undefined;
 
 /** Hands the field called `label` to `copy`; without such a field (the cursor is in none), the ID. */
 export const copyField = (

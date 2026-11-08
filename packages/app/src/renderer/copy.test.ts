@@ -6,7 +6,6 @@ import {
   NOTICE_MS,
   copyField,
   STATUS_FIELD,
-  copiedField,
   copyNotice,
   copyable,
   cursorField,
@@ -14,6 +13,7 @@ import {
   fieldText,
   heading,
   idField,
+  modelineField,
   statusField,
 } from "./copy.js";
 
@@ -200,15 +200,19 @@ describe("copy", () => {
     expect(statusField(element())).toBeUndefined();
   });
 
-  it("copies the field of the modeline with the focus, the ID or the status (SR-196), else the cursor's field", () => {
+  it("takes the ID or the status of the modeline with the focus as the field (SR-196), as the prompt does after it", () => {
     document.body.innerHTML =
-      '<article data-buffer><div data-field="topic"><span id="in-field"></span></div></article><footer class="modeline"><span data-field="ID" id="id" tabindex="-1"><span id="in-id"></span></span><span data-field="Status" id="status" tabindex="-1"></span><span id="part"></span></footer>';
+      '<article data-buffer><div data-field="topic"><span id="in-field"></span></div></article><footer class="modeline"><span data-field="ID" id="id" tabindex="-1"><span id="in-id"></span></span><span data-field="Status" id="status" tabindex="-1"></span><span id="part"></span></footer><input id="prompt-input">';
     const at = (id: string): Element | null => document.getElementById(id);
-    expect(copiedField(at("in-id"), "topic")).toBe("ID");
-    expect(copiedField(at("status"), "topic")).toBe("Status");
-    expect(copiedField(at("part"), "topic")).toBeUndefined();
-    expect(copiedField(at("in-field"), "Title")).toBe("topic");
-    expect(copiedField(null, "Title")).toBeUndefined();
+    expect(cursorField(at("in-id"), "topic")).toBe("ID");
+    expect(cursorField(at("status"), "topic")).toBe("Status");
+    expect(cursorField(at("part"), "topic")).toBeUndefined();
+    expect(cursorField(at("in-field"), "Title")).toBe("topic");
+    // The element buffer keeps the modeline field as the last one (`modelineField`), so the prompt copies it too.
+    expect(modelineField(at("status"))).toBe("Status");
+    expect(modelineField(at("in-field"))).toBeUndefined();
+    expect(modelineField(null)).toBeUndefined();
+    expect(cursorField(at("prompt-input"), modelineField(at("status")))).toBe("Status");
     document.body.innerHTML = "";
   });
 

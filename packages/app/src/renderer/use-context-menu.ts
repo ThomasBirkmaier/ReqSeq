@@ -81,6 +81,26 @@ export const focusPressed = (target: Element, point: { readonly x: number; reado
   (inField ?? own)?.focus({ preventScroll: true });
 };
 
+/** A place of the menu outside the areas: a field of the modeline (SR-196). */
+const inModeline = (target: Element): boolean =>
+  target.closest("[data-area]") === null && placeAt(target) !== undefined;
+
+/**
+ * A menu of the modeline closed: the field it was opened on gives the focus back to `back`, else to the
+ * buffer of the active area, so the keys act there again. A focus that moved elsewhere stays.
+ */
+export const giveFocusBack = (target: Element, back: Element | null): void => {
+  const field = target.closest("[data-menu]");
+  if (field?.contains(document.activeElement) !== true) {
+    return;
+  }
+  const to =
+    back instanceof HTMLElement && back.isConnected
+      ? back
+      : document.querySelector<HTMLElement>("[data-area][data-active] [data-buffer], [data-buffer]");
+  to?.focus({ preventScroll: true });
+};
+
 /** The caret or selection of the page as a box, when there is one with a place on the screen. */
 const selectionBox = (): DOMRect | undefined => {
   const selection = document.getSelection();
@@ -120,9 +140,21 @@ export const useContextMenu = (options: ContextMenuOptions): ContextMenu => {
     menuNow.current = next;
     setMenu(next);
   }, []);
+  // Where the focus goes back to when a menu of the modeline closes (SR-196): what had it before the press.
+  const returnTo = useRef<Element | null>(null);
   const close = useCallback((): void => {
-    if (menuNow.current !== undefined) {
-      show(undefined);
+    const open = menuNow.current;
+    if (open === undefined) {
+      return;
+    }
+    show(undefined);
+    if (inModeline(open.hit.target)) {
+      // After the entry ran (it reads the focused field), unless it moved the focus itself (a prompt).
+      const back = returnTo.current;
+      returnTo.current = null;
+      window.setTimeout(() => {
+        giveFocusBack(open.hit.target, back);
+      }, 0);
     }
   }, [show]);
   const select = useCallback(
@@ -157,6 +189,13 @@ export const useContextMenu = (options: ContextMenuOptions): ContextMenu => {
           event.stopPropagation();
           swallowClick = true;
           now.onOpen();
+        }
+        // A press on a field of the modeline remembers where the focus was, unless it was in the modeline.
+        if (inModeline(target)) {
+          const before = document.activeElement;
+          if (before === null || !inModeline(before)) {
+            returnTo.current = before;
+          }
         }
         focusPressed(target, { x: event.clientX, y: event.clientY });
         return;

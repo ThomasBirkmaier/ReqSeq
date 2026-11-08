@@ -4,7 +4,7 @@
 // buffer of the active area. Nothing else is permanently visible (SR-100). Every datum comes from a
 // catalog command through the bridge (ADR-0002); the app only builds inputs and shows outputs.
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
-import type { MetamodelGetOutput } from "@reqseq/core";
+import type { DataExportElement, MetamodelGetOutput } from "@reqseq/core";
 import type { CommandListing, InvokeResult, WorkspaceChangeReason } from "../shared/protocol.js";
 import type { ReqSeqBridge } from "../shared/protocol.js";
 import type { ActionContext, ElementControls, Prompt } from "./actions.js";
@@ -46,9 +46,10 @@ import type { Walk } from "./buffer-cycle.js";
 import { NO_WALK, cycleOrder } from "./buffer-cycle.js";
 import type { PackageModel } from "./package-page.js";
 import { packageModel } from "./package-page.js";
-import type { BufferData, WorkspaceView } from "./modeline.js";
+import type { BufferData, ElementHead, WorkspaceView } from "./modeline.js";
 import {
   bufferView,
+  elementHead,
   readOnlyNow,
   markToken,
   markedElement,
@@ -158,6 +159,12 @@ const modelineParts = (
     graphChoices,
   );
 };
+
+/** The first part of the modeline for the shown element, or none. */
+const headOf = (
+  element: DataExportElement | undefined,
+  typeNames: ReadonlyMap<string, string>,
+): ElementHead | undefined => (element === undefined ? undefined : elementHead(element, typeNames));
 
 /** The minibuffer's line: the last message, else why no workspace is open. */
 const echoLine = (echo: string, view: WorkspaceView | undefined): string =>
@@ -1136,7 +1143,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
         stopped={stopped}
         follow={follow.mark}
         shown={viewMark(shownView)}
-        element={shownElement(current, loaded)}
+        head={headOf(shownElement(current, loaded), typeNames)}
         onCopy={copy}
         notice={notice}
       />
