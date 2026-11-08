@@ -31,7 +31,7 @@ No problems.
 
 The `.gitignore` gets `*.reqseq-tmp`, so a temporary file left by an interrupted write is never committed. ReqSeq reads Git but never commits. Put the folder under Git yourself when you want its history.
 
-In the app: press Ctrl+O (⌘O on macOS) and choose the folder, then open the command prompt with Ctrl+Shift+P (⌘⇧P on macOS) and run **Initialise workspace**. [Open or create a workspace](/how-to/open-a-workspace/) shows the other ways. The reference has the details of [workspace.init](/reference/commands/workspace-init/).
+In the app: press Ctrl+O (⌘O on macOS) and choose the folder, then open the command prompt with Ctrl+Shift+P (⌘⇧P on macOS) and run **Initialise workspace**. Details: [Open or create a workspace](/how-to/open-a-workspace/), [workspace.init](/reference/commands/workspace-init/).
 
 ![The app on a workspace with two needs and three system requirements: the overview counts the elements per type, and the modeline at the bottom names the view and the workspace.](../images/app-overview.png)
 
