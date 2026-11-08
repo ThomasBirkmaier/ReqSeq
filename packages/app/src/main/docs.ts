@@ -1,17 +1,17 @@
 // The bundled documentation (SR-141 AK2, AK3; product owner decision, 2026-11-08): Help > ReqSeq Documentation,
 // the action "Open documentation" and F1 on an entry of the command prompt open a page of the documentation site
 // of the delivery in the person's default browser. Main serves the site with the docs server of `reqseq serve docs`
-// (`startDocsServer` of `@reqseq/api`, 127.0.0.1 only, the bytes of `@reqseq/core/docs-site`), started on the first
+// (`startDocsServer` of `@reqseq/api/docs-server`, 127.0.0.1 only, the bytes of `@reqseq/core/docs-site`), started on the first
 // request and stopped when the app quits. The app gets no window and no protocol for it (D-062 unchanged).
 //
 // The renderer is not trusted: it sends only what it wants help on, a catalog command name or an action ID, never a
 // path or a URL. Main checks it (`docsPath`), builds the page path itself and hands `shell.openExternal` only
 // `http://127.0.0.1:<port>/<path>`; a page the site does not have opens the start page.
+import fs from "node:fs/promises";
 import path from "node:path";
 import type Electron from "electron";
-import type { DocsServer } from "@reqseq/api";
-import { commandPagePath, openDocsSite } from "@reqseq/core/docs-site";
-import type { DocsSite } from "@reqseq/core/docs-site";
+import type { DocsServer } from "@reqseq/api/docs-server";
+import { commandPagePath } from "@reqseq/core/docs-site";
 import { DOCS_CHANNEL } from "../shared/protocol.js";
 import type { OpenDocsResult } from "../shared/protocol.js";
 import type { WindowContents } from "./sender.js";
@@ -29,7 +29,7 @@ const COMMAND_NAME = /^[a-z]+\.[a-zA-Z]+$/;
 /** An action ID of the app (`close-all`, `open-documentation`). */
 const ACTION_ID = /^[a-z]+(?:-[a-z]+)*$/;
 
-/** The page of the app's keys, whose rows carry an anchor `action-<id>` per action (`packages/docs`). */
+/** The page of the app's keys, which carries an anchor `action-<id>` for every action (`shortcutReference`, `packages/docs`). */
 export const SHORTCUTS_PATH = "reference/keyboard-shortcuts/";
 
 /** Where the page of `topic` lies below the site root, with its anchor; the start page is "". */
@@ -103,7 +103,8 @@ export interface Docs {
 }
 
 const startDocsServer = async (folder: string): Promise<DocsServer> => {
-  const api = await import("@reqseq/api");
+  // Only the docs server and what it needs (`node:*`, core's error class and docs-site rule), not the API's catalog.
+  const api = await import("@reqseq/api/docs-server");
   return api.startDocsServer({ folder });
 };
 
@@ -113,22 +114,20 @@ const failure = (error: unknown): OpenDocsResult => ({
   message: error instanceof Error ? error.message : "The documentation could not be opened",
 });
 
+/** Whether `file` is a regular file (links followed); never rejects. */
+const isFile = (file: string): Promise<boolean> =>
+  fs.stat(file).then(
+    (stats) => stats.isFile(),
+    () => false,
+  );
+
 /** The documentation in `options.folder`; its server starts on the first `open`, once, and again after a failure. */
 export const docs = (options: DocsOptions): Docs => {
   const start = options.start ?? startDocsServer;
-  let running: Promise<{ readonly server: DocsServer; readonly site: DocsSite }> | undefined;
+  let running: Promise<DocsServer> | undefined;
   let closed = false;
-  const serve = (): Promise<{ readonly server: DocsServer; readonly site: DocsSite }> => {
-    running ??= (async () => {
-      const server = await start(options.folder);
-      const site = await openDocsSite(options.folder);
-      // startDocsServer found the site; it may be gone since (an uninstall while the app runs).
-      if (site === undefined) {
-        await server.close();
-        throw new Error(`No documentation in ${options.folder}: the folder or its index.html is missing`);
-      }
-      return { server, site };
-    })();
+  const serve = (): Promise<DocsServer> => {
+    running ??= start(options.folder);
     // A failed start is tried again on the next request: the site may be there by then.
     running.catch(() => {
       running = undefined;
@@ -145,9 +144,11 @@ export const docs = (options: DocsOptions): Docs => {
         return { ok: false, message: "The app is quitting" };
       }
       try {
-        const { server, site } = await serve();
-        // A page the site lacks (a command added after the documentation was built) opens the start page.
-        const found = wanted.page === "" || (await site.respond(`/${wanted.page}`)).status === 200;
+        const server = await serve();
+        // A page the site lacks (a command added after the documentation was built) opens the start page. The
+        // path is main's own (`docsPath`), so a `stat` of its `index.html` is enough; the server serves it.
+        const found =
+          wanted.page === "" || (await isFile(path.join(options.folder, wanted.page, "index.html")));
         const url = found ? `${server.url}${wanted.page}${wanted.anchor}` : server.url;
         await electron.shell.openExternal(url);
         return { ok: true };
@@ -159,7 +160,7 @@ export const docs = (options: DocsOptions): Docs => {
     close: async () => {
       closed = true;
       const server = await running?.catch(() => undefined);
-      await server?.server.close();
+      await server?.close();
     },
   };
 };

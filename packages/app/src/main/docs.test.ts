@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { DocsServer } from "@reqseq/api";
+import type { DocsServer } from "@reqseq/api/docs-server";
 import { DOCS_CHANNEL } from "../shared/protocol.js";
 import { RENDERER_URL } from "./protocols.js";
 import type { DocsElectron } from "./docs.js";
@@ -181,15 +181,8 @@ describe("docs", () => {
     await expect(fetch(String(url))).rejects.toThrow();
   });
 
-  it("stops a server whose site went away after it started, and says a plain message for an odd failure", async () => {
+  it("says the error's message for a failure of the server, and a plain message for an odd one", async () => {
     const { electron } = fakeElectron();
-    const server = fakeServer();
-    const gone = docs({ folder: path.join(top, "gone"), log: vi.fn(), start: () => Promise.resolve(server) });
-    expect(await gone.open(electron, undefined)).toEqual({
-      ok: false,
-      message: `No documentation in ${path.join(top, "gone")}: the folder or its index.html is missing`,
-    });
-    expect(server.closed()).toBe(1);
     const odd = docs({ folder: site, log: vi.fn(), start: () => Promise.reject(new Error("x")) });
     expect(await odd.open(electron, undefined)).toEqual({ ok: false, message: "x" });
     const odder = docs({

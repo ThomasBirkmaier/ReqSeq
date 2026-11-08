@@ -37,6 +37,7 @@ import {
   rowTarget,
 } from "./keys.js";
 import { MORE_SHORTCUT, PROMPT_KEYS } from "./prompt-keys.js";
+import { docsTopic } from "./docs-help.js";
 import { SHORTCUT_TABLES, shortcutReference } from "./shortcut-reference.js";
 
 /** The key press `spec` is on macOS (`mac`) or on the other systems. */
@@ -227,6 +228,7 @@ describe("shortcutReference", () => {
       "In a graph",
       "On an element",
       "In the text editor",
+      "Actions without a key",
     ]);
     const prefix = sections[2]?.rows ?? [];
     expect(prefix.slice(0, PREFIX_BINDINGS.length).map((row) => row.does)).toEqual([
@@ -275,6 +277,20 @@ describe("shortcutReference", () => {
     const sections = shortcutReference(COMMANDS);
     const anchors = sections.flatMap((section) => section.rows.flatMap((row) => row.actions ?? []));
     expect(new Set(anchors).size).toBe(anchors.length);
+    // Every action F1 sends as itself (no command page of its own) has its anchor, a keyless one too.
+    const own = ACTIONS.filter((candidate) => docsTopic(candidate.id, COMMANDS) === candidate.id);
+    expect(own.length).toBeGreaterThan(30);
+    for (const candidate of own) {
+      expect(anchors, candidate.id).toContain(candidate.id);
+    }
+    const keyless = sections.at(-1)?.rows ?? [];
+    expect(keyless.find((row) => row.actions?.includes("close-all") === true)).toEqual({
+      keys: [],
+      mac: [],
+      does: "Close all buffers",
+      actions: ["close-all"],
+    });
+    expect(keyless.some((row) => row.actions?.includes("open-documentation") === true)).toBe(true);
     // An action with a key and with a letter after the prefix key is anchored at its key.
     expect(anchors).toContain("search");
     // An action with a letter only is anchored after the prefix key; a command there is not an action.

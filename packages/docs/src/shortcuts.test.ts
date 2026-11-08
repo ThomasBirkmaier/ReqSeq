@@ -33,12 +33,18 @@ describe("keyboard shortcuts page", () => {
     expect(page).toBe(shortcutsPage(shortcutReference(commands)));
     expect(page).toContain("| Windows and Linux | macOS | What it does |");
     // Every row of the app's tables is on the page, with its keys on both systems.
-    const rows = shortcutReference(commands).flatMap((section) => section.rows);
+    const sections = shortcutReference(commands);
+    const rows = sections.slice(0, -1).flatMap((section) => section.rows);
     expect(rows.length).toBeGreaterThan(40);
     for (const row of rows) {
       expect(row.keys.length + row.mac.length, row.does).toBeGreaterThan(0);
       expect(page, row.does).toContain(` | ${row.mac.map((key) => `\`${key}\``).join(", ") || "—"} | `);
     }
+    // The last section names the actions without a key, each with its anchor (SR-141 AK3).
+    expect(sections.at(-1)?.title).toBe("Actions without a key");
+    expect(rowOf(page, "Close all buffers")).toBe(
+      '| <span id="action-close-all"></span>— | — | Close all buffers |',
+    );
     expect(
       rowOf(page, "Open the command prompt: the actions and commands that apply to the shown buffer"),
     ).toBe(

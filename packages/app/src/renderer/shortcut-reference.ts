@@ -89,20 +89,41 @@ export const SHORTCUT_TABLES: ShortcutTables = {
   editor: [...EDITOR_KEYS, ...MARKDOWN_KEYS, ...FOLD_KEYS, ...LIST_ITEM_KEYS, ...TABLE_KEYS],
 };
 
-/** `sections` with each action ID in the first row that names it only, so each anchor is on the page once. */
-const firstAnchors = (sections: readonly ShortcutSection[]): ShortcutSection[] => {
+/**
+ * `sections` with each action ID in the first row that names it only, so each anchor is on the page once, and a last
+ * section "Actions without a key" with a row (no key) for every action of `actions` that no row names: every action
+ * has its anchor `action-<id>`, where F1 on it in the command prompt opens the page (SR-141 AK3).
+ */
+const anchored = (sections: readonly ShortcutSection[], actions: readonly Action[]): ShortcutSection[] => {
   const seen = new Set<string>();
-  return sections.map((section) => ({
+  const shown = sections.map((section) => ({
     ...section,
     rows: section.rows.map((row) => {
-      const { actions, ...rest } = row;
-      const own = (actions ?? []).filter((id) => !seen.has(id));
+      const { actions: ids, ...rest } = row;
+      const own = (ids ?? []).filter((id) => !seen.has(id));
       for (const id of own) {
         seen.add(id);
       }
       return own.length === 0 ? rest : { ...rest, actions: own };
     }),
   }));
+  // Actions that share a title (in different buffers) share the row, as in the section "Actions".
+  const keyless = new Map<string, string[]>();
+  for (const action of actions) {
+    if (!seen.has(action.id)) {
+      seen.add(action.id);
+      keyless.set(action.title, [...(keyless.get(action.title) ?? []), action.id]);
+    }
+  }
+  return [
+    ...shown,
+    {
+      title: "Actions without a key",
+      about:
+        "In the command prompt (Ctrl/Cmd+Shift+P), where they apply to the shown buffer; some also in the context menu.",
+      rows: [...keyless].map(([does, ids]) => ({ keys: [], mac: [], does, actions: ids })),
+    },
+  ];
 };
 
 /** The labels of the keys of `row` on one system. */
@@ -162,63 +183,66 @@ export const shortcutReference = (
   commands: readonly NamedCommand[],
   tables: ShortcutTables = SHORTCUT_TABLES,
 ): ShortcutSection[] =>
-  firstAnchors([
-    {
-      title: "Everywhere",
-      about: "In the main window; the prefix key not while a prompt is open.",
-      rows: rows(tables.global),
-    },
-    {
-      title: "Actions",
-      about:
-        "Each runs where it applies to the shown buffer, as the command prompt lists it; a key shared by several actions does what fits the buffer.",
-      rows: actionRows(tables.actions),
-    },
-    {
-      title: "After the prefix key",
-      about:
-        "Press the prefix key, then the letter, bare or with Ctrl/Cmd held. The letter runs its command where the command prompt offers it; after half a second the minibuffer shows the possible next keys.",
-      rows: [
-        ...tables.bindings.map((binding) => ({
-          keys: [prefixLabel(binding.key, false)],
-          mac: [prefixLabel(binding.key, true)],
-          does: entryName(binding.id, commands, tables.actions),
-          ...(binding.id.startsWith("command:") ? {} : { actions: [binding.id] }),
-        })),
-        ...rows(tables.prefix),
-      ],
-    },
-    {
-      title: "In a prompt",
-      about: "In the command prompt, in “Go to” and while a command asks its arguments in the minibuffer.",
-      rows: rows(tables.prompt),
-    },
-    {
-      title: "In the context menu",
-      about:
-        "While the menu of a right-click is open (on macOS also Ctrl+click); the text, list or graph keeps the focus. Any other key closes it and does what it does without it.",
-      rows: rows(tables.menu),
-    },
-    {
-      title: "In a list",
-      about:
-        "In the overview, a list, a search result, a matrix, a package page, the neighbourhood and the result of a command.",
-      rows: rows(tables.list),
-    },
-    {
-      title: "In a graph",
-      about: "In the graph of an element and in the metamodel graph.",
-      rows: rows(tables.graph),
-    },
-    {
-      title: "On an element",
-      about: "On the element buffer, in its text, its title and its property boxes.",
-      rows: [...rows(tables.element), ...rows(tables.history)],
-    },
-    {
-      title: "In the text editor",
-      about:
-        "In the text of an element and its Markdown property boxes. These fields also take the usual text editing keys of the system (moving the caret, selecting, cutting, copying and pasting), which are not listed here.",
-      rows: rows(tables.editor),
-    },
-  ]);
+  anchored(
+    [
+      {
+        title: "Everywhere",
+        about: "In the main window; the prefix key not while a prompt is open.",
+        rows: rows(tables.global),
+      },
+      {
+        title: "Actions",
+        about:
+          "Each runs where it applies to the shown buffer, as the command prompt lists it; a key shared by several actions does what fits the buffer.",
+        rows: actionRows(tables.actions),
+      },
+      {
+        title: "After the prefix key",
+        about:
+          "Press the prefix key, then the letter, bare or with Ctrl/Cmd held. The letter runs its command where the command prompt offers it; after half a second the minibuffer shows the possible next keys.",
+        rows: [
+          ...tables.bindings.map((binding) => ({
+            keys: [prefixLabel(binding.key, false)],
+            mac: [prefixLabel(binding.key, true)],
+            does: entryName(binding.id, commands, tables.actions),
+            ...(binding.id.startsWith("command:") ? {} : { actions: [binding.id] }),
+          })),
+          ...rows(tables.prefix),
+        ],
+      },
+      {
+        title: "In a prompt",
+        about: "In the command prompt, in “Go to” and while a command asks its arguments in the minibuffer.",
+        rows: rows(tables.prompt),
+      },
+      {
+        title: "In the context menu",
+        about:
+          "While the menu of a right-click is open (on macOS also Ctrl+click); the text, list or graph keeps the focus. Any other key closes it and does what it does without it.",
+        rows: rows(tables.menu),
+      },
+      {
+        title: "In a list",
+        about:
+          "In the overview, a list, a search result, a matrix, a package page, the neighbourhood and the result of a command.",
+        rows: rows(tables.list),
+      },
+      {
+        title: "In a graph",
+        about: "In the graph of an element and in the metamodel graph.",
+        rows: rows(tables.graph),
+      },
+      {
+        title: "On an element",
+        about: "On the element buffer, in its text, its title and its property boxes.",
+        rows: [...rows(tables.element), ...rows(tables.history)],
+      },
+      {
+        title: "In the text editor",
+        about:
+          "In the text of an element and its Markdown property boxes. These fields also take the usual text editing keys of the system (moving the caret, selecting, cutting, copying and pasting), which are not listed here.",
+        rows: rows(tables.editor),
+      },
+    ],
+    tables.actions,
+  );
