@@ -172,7 +172,7 @@ const placement = (element: Box, drawing: Box, view: Box, axis: "x" | "y"): Plac
  * to a lower level has its target above its source (a link within a level or against the levels is
  * drawn after the layout). Gives the placement and the number of links against the levels.
  */
-const expectElementPlaced = async (
+const placedOnce = async (
   window: Page,
   output: GraphOutput,
   root: string,
@@ -215,6 +215,25 @@ const expectElementPlaced = async (
     y: placement(element, drawing, view, "y"),
     against,
   };
+};
+
+/**
+ * `placedOnce` until it holds: the view scrolls to the element in a layout effect of the graph's last layout, and on
+ * a slow runner the boxes were read before it had (150 px off on macOS, #1146). A wrong place that stays fails.
+ */
+const expectElementPlaced = async (
+  window: Page,
+  output: GraphOutput,
+  root: string,
+): Promise<{ x: Placement; y: Placement; against: number }> => {
+  let placed: { x: Placement; y: Placement; against: number } | undefined;
+  await expect(async () => {
+    placed = await placedOnce(window, output, root);
+  }).toPass({ timeout: 5000 });
+  if (placed === undefined) {
+    throw new Error(`${root} was not placed`);
+  }
+  return placed;
 };
 
 /**
