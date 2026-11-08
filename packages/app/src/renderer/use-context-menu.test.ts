@@ -301,6 +301,18 @@ describe("keyboardHit", () => {
     expect(keyboardHit(element("empty"))).toEqual({ target: element("empty"), point: { x: 0, y: 0 } });
   });
 
+  it("[SR-198/AK1] opens on the place of a focused buffer's content, such as the column of a list", () => {
+    document.body.innerHTML = `
+      <div data-area="left">
+        <div id="buffer" data-buffer="" tabindex="0"><div id="column" data-menu="list"><h1 id="heading">All</h1></div></div>
+        <div id="other" data-buffer="" tabindex="0"><p>empty</p></div>
+      </div>`;
+    expect(keyboardHit(element("buffer"))).toEqual({ target: element("column"), point: { x: 0, y: 0 } });
+    // A buffer without such a mark, and an element inside the buffer, keep themselves as the target.
+    expect(keyboardHit(element("other")).target).toBe(element("other"));
+    expect(keyboardHit(element("heading")).target).toBe(element("heading"));
+  });
+
   it("opens at the focused element outside the areas, such as a field of the modeline", () => {
     expect(keyboardHit(element("echo"))).toEqual({ target: element("echo"), point: { x: 0, y: 0 } });
   });

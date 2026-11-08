@@ -208,10 +208,10 @@ describe("cascading list filters (SR-124)", () => {
     expect(shown()).toEqual(listBuffer("All elements", undefined, sort));
   });
 
-  it("offers to clear all only with two steps or more", () => {
+  it("offers to clear all on a filtered list (SR-198 AK1), and clear the last step there too", () => {
     expect(titles(start(listBuffer("All elements")).context)).not.toContain("Clear all list filters");
     expect(titles(start(filteredList([typeStep("need")])).context)).toContain("Clear list filter");
-    expect(titles(start(filteredList([typeStep("need")])).context)).not.toContain("Clear all list filters");
+    expect(titles(start(filteredList([typeStep("need")])).context)).toContain("Clear all list filters");
     expect(titles(start(filteredList([typeStep("need"), statusStep("draft")])).context)).toContain(
       "Clear all list filters",
     );

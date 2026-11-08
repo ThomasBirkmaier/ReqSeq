@@ -7,6 +7,7 @@ import type { KeyRow } from "./keys.js";
 import { press } from "./keys.js";
 import { ENTRY_MENU } from "./entry-menu.js";
 import { FIELD_MENU } from "./field-menu.js";
+import { LIST_MENU } from "./list-menu.js";
 import { TEXT_MENU } from "./text-menu.js";
 
 /**
@@ -109,7 +110,8 @@ export const MENU_PLACES: Readonly<Record<MenuPlace, readonly MenuEntry[]>> = {
   ],
 
   list: [
-    // SR-198
+    // SR-198 AK1: outside the rows of a list, a search or the elements of a package page (`list-menu.ts`).
+    ...LIST_MENU,
   ],
 
   graph: [
@@ -151,9 +153,12 @@ export const placeAt = (target: Element): MenuPlace | undefined => {
 };
 
 /** The entries of a place: its own, or those of `buffer` while it has none. */
-export const placeEntries = (place: MenuPlace): readonly MenuEntry[] => {
-  const own = MENU_PLACES[place];
-  return own.length > 0 ? own : MENU_PLACES.buffer;
+export const placeEntries = (
+  place: MenuPlace,
+  places: Readonly<Record<MenuPlace, readonly MenuEntry[]>> = MENU_PLACES,
+): readonly MenuEntry[] => {
+  const own = places[place];
+  return own.length > 0 ? own : places.buffer;
 };
 
 /**

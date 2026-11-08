@@ -112,8 +112,16 @@ const selectionBox = (): DOMRect | undefined => {
 };
 
 /**
+ * The place a focused buffer is as a whole: the mark of its content (the column of a list, SR-198), which
+ * the mouse reaches only on the content, so the empty sheet around it keeps the buffer's menu (SR-194 AK6).
+ */
+const ownPlace = (focused: Element): Element | null =>
+  focused.hasAttribute("data-buffer") ? focused.querySelector(":scope > [data-menu]") : null;
+
+/**
  * Where a menu asked for by a key (the Menu key, Shift+F10) opens: at the caret in a text editor, else at
- * the selected row or node of the area, else at the area's top left corner.
+ * the selected row or node of the area, else at the area's top left corner, on the place of the focused
+ * buffer's content where it has one (`ownPlace`).
  */
 export const keyboardHit = (focused: Element): Omit<MenuHit, "place"> => {
   const area = focused.closest("[data-area]");
@@ -128,7 +136,7 @@ export const keyboardHit = (focused: Element): Omit<MenuHit, "place"> => {
   }
   // Outside the areas (a field of the modeline, SR-196): at the field.
   const box = (area ?? focused).getBoundingClientRect();
-  return { target: focused, point: { x: box.left, y: box.top } };
+  return { target: ownPlace(focused) ?? focused, point: { x: box.left, y: box.top } };
 };
 
 export const useContextMenu = (options: ContextMenuOptions): ContextMenu => {
