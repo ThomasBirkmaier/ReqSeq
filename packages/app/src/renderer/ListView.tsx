@@ -42,6 +42,7 @@ import { NodeVerification } from "./GraphRing.js";
 import { SummaryLine } from "./PackageSummary.js";
 import { rowClass, useOutsideMarks } from "./use-outside-marks.js";
 import { FoldHead } from "./FoldSection.js";
+import { GROUPED } from "./list-menu.js";
 import { useResetOnAsk } from "./use-reset-on-ask.js";
 import type { Row, Snippet } from "./rows.js";
 import {
@@ -234,6 +235,12 @@ const verificationAt = (
 
 /** What a list or a search is grouped by (SR-149). */
 const groupBy = (buffer: ListBuffer | SearchBuffer): string | undefined => buffer.group;
+
+/** The place of the context menu outside the rows (SR-198); a grouped list offers to ungroup there. */
+const listMark = (buffer: ListBuffer | SearchBuffer): Record<string, string> => ({
+  "data-menu": "list",
+  ...(groupBy(buffer) === undefined ? {} : { [GROUPED]: "" }),
+});
 
 /** The groups of a grouped list once it is loaded; none for any other list. */
 const groupsOf = (view: View): readonly ListGroup[] | undefined =>
@@ -910,7 +917,8 @@ export const ListView = ({
       {part ? (
         rowsAndNotes
       ) : (
-        <div className="column">
+        // Outside its rows the list has its own context menu (SR-198); a grouped one offers to ungroup.
+        <div className="column" {...listMark(buffer)}>
           <ListTop
             buffer={buffer}
             view={view}

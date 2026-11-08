@@ -64,7 +64,7 @@ describe("the places of the context menu", () => {
   });
 
   it("[SR-194/AK6] gives a place without entries of its own the buffer's", () => {
-    expect(placeEntries("list")).toBe(MENU_PLACES.buffer);
+    expect(placeEntries("graph")).toBe(MENU_PLACES.buffer);
     expect(placeEntries("buffer").map((entry) => entry.id)).toEqual([
       "go-to",
       "search",

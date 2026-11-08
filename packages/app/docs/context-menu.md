@@ -37,7 +37,7 @@ In `App.tsx` the context is built once per render with the prompt's `entry`, and
 
 ## list
 
-SR-198.
+SR-198 (`list-menu.ts`), marked on the column of a list or a search (`ListView`: its heading, the line under it, the headings of its groups, the head of the folded section) and on the elements of a package page (`PackageMembers`: their heading), outside their rows, which are `element-entry`. In this order (AK1): "Filter list by type", "Filter list by status", "Filter list by text search", "Sort list", "Group list", or "Ungroup list" on a grouped list, and "Clear all list filters" on a filtered one. They are the list actions (`list-actions.ts`) and act on the shown list as from the command prompt; each is shown where the prompt offers it, so a search has no "Sort list" (SR-124 AK4) and a package page no "Group list". The prompt offers "Group list" on a grouped list too (to group by another value); the menu leaves it out there by the mark `data-grouped` the list sets on its column. "Clear all list filters" is offered on every filtered list, also with one step, beside "Clear list filter". The empty sheet beside and below the column is no part of the list and keeps the menu of `buffer` (SR-194 AK6; assumption, spec question #1183). The matrix has the places of SR-199.
 
 ## graph, metamodel-graph
 

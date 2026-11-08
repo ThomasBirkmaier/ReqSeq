@@ -50,6 +50,8 @@ export const PackageMembers = ({
   // A page without elements shows nothing of them; a filter that leaves none still names itself (SR-112 AK2).
   <section
     className="members"
+    // Outside its rows the list of the elements has the context menu of a list (SR-198).
+    data-menu="list"
     hidden={members?.total === 0 && buffer.memberSteps === undefined}
     onFocus={(event) => {
       onListFocus(event.target.classList.contains("part"));

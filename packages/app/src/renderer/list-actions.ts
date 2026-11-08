@@ -114,7 +114,6 @@ const sets =
 
 const canFilter = sets("steps");
 const isFiltered = (context: ActionContext): boolean => (queryTarget(context)?.query.steps.length ?? 0) > 0;
-const isChained = (context: ActionContext): boolean => (queryTarget(context)?.query.steps.length ?? 0) > 1;
 
 /** An action on the shown list or package page; without one it does nothing. */
 const onTarget =
@@ -313,7 +312,8 @@ export const LIST_ACTIONS: readonly Action[] = [
   {
     id: "clear-filters",
     title: "Clear all list filters",
-    available: isChained,
+    // Offered on every filtered list, as the context menu of a list has it (SR-198 AK1).
+    available: isFiltered,
     run: onTarget((_context, target) => {
       target.apply({ steps: [] });
     }),
