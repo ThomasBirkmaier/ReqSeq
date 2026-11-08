@@ -195,8 +195,8 @@ jobs:
           # a suite that wrote no file has no artifact at all; it is listed, and main keeps its last file.
           case "$KIND" in
             ci) expected="junit-ubuntu-24.04 junit-macos-26 junit-windows-2025 junit-e2e-ubuntu-24.04 junit-e2e-macos-26
-              junit-e2e-windows-2025 junit-electron-ubuntu-24.04-1 junit-electron-ubuntu-24.04-2 junit-electron-macos-26
-              junit-electron-windows-2025-1 junit-electron-windows-2025-2" ;;
+              junit-e2e-windows-2025 junit-electron-ubuntu-24.04-1 junit-electron-ubuntu-24.04-2 junit-electron-macos-26-1
+              junit-electron-macos-26-2 junit-electron-windows-2025-1 junit-electron-windows-2025-2" ;;
             perf) expected="perf-results" ;;
             delivery) expected="junit-delivery-macos-26 junit-delivery-ubuntu-24.04 junit-delivery-windows-2025" ;;
           esac
@@ -235,6 +235,8 @@ jobs:
             ' "$RUNNER_TEMP/$name.json" "$name" >> "$RUNNER_TEMP/summary.md" || echo "| \`$name.xml\` | error $code | | |" >> "$RUNNER_TEMP/summary.md"
           done < "$RUNNER_TEMP/files.txt"
           if compgen -G "$new/*.xml" > /dev/null; then cp "$new"/*.xml "$out/"; fi
+          # A suite split into shards (macOS Electron, #1229): its shard files replace the one file of before.
+          for file in "$new"/*-1.xml; do [ -e "$file" ] && rm -f "$out/$(basename "${file%-1.xml}").xml"; done
           # The records as ReqSeq reads them: the workspace check reads every evidence file (codes evidence.*).
           node packages/cli/dist/bin.js workspace check --workspace spec > "$RUNNER_TEMP/check.txt" || status=1
           {
@@ -305,6 +307,11 @@ jobs:
           # Over main's files: the other kinds, and a suite without an artifact in this run, keep their last file.
           mkdir -p spec/evidence/ci
           cp "$SOURCE"/ci/*.xml spec/evidence/ci/
+          # A suite split into shards (macOS Electron, #1229): its shard files replace the one file of before.
+          for file in "$SOURCE"/ci/*-1.xml; do
+            old="spec/evidence/ci/$(basename "${file%-1.xml}").xml"
+            if [ -e "$file" ] && [ -e "$old" ]; then git rm -q "$old"; fi
+          done
           if git diff --quiet && [ -z "$(git status --porcelain spec/evidence)" ]; then
             echo "Nothing changed." >> "$GITHUB_STEP_SUMMARY"
             exit 0
