@@ -5,6 +5,7 @@
 import type { Choice } from "./actions.js";
 import type { KeyRow } from "./keys.js";
 import { press } from "./keys.js";
+import { FIELD_MENU } from "./field-menu.js";
 import { TEXT_MENU } from "./text-menu.js";
 
 /**
@@ -77,19 +78,28 @@ export const MENU_PLACES: Readonly<Record<MenuPlace, readonly MenuEntry[]>> = {
   ],
 
   field: [
-    // SR-196
+    // SR-196 AK1: the title and the groups of relations.
+    { id: "copy-field" },
   ],
 
   "field-property": [
-    // SR-196
+    // SR-196 AK1, AK2: "List elements with this value" only on a box with a value that lists elements.
+    { id: "copy-field" },
+    { id: "add-property" },
+    { id: "clear-property" },
+    { id: "list-value", when: FIELD_MENU.listable },
   ],
 
   "field-status": [
-    // SR-196
+    // SR-196 AK1, AK3: the status in the modeline.
+    { id: "copy-field" },
+    { id: "command:element.setStatus" },
   ],
 
   "field-short-id": [
-    // SR-196
+    // SR-196 AK1, AK4: the ID in the modeline.
+    { id: "copy-field" },
+    { id: "version" },
   ],
 
   "element-entry": [
@@ -119,17 +129,21 @@ export const MENU_PLACES: Readonly<Record<MenuPlace, readonly MenuEntry[]>> = {
 
 const isPlace = (name: string): name is MenuPlace => Object.hasOwn(MENU_PLACES, name);
 
+/** The places outside the areas: the fields of the shown element in the modeline (SR-196 AK3, AK4). */
+const MODELINE_PLACES: ReadonlySet<MenuPlace> = new Set(["field-status", "field-short-id"]);
+
 /**
- * The place of a press on `target`: the nearest mark inside its area, else `buffer`; undefined outside
- * the areas of the sheet (the modeline, the minibuffer), where there is no menu.
+ * The place of a press on `target`: the nearest mark inside its area, else `buffer`; outside the areas of
+ * the sheet only a field of the modeline, and elsewhere (the rest of the modeline, the minibuffer)
+ * undefined, where there is no menu.
  */
 export const placeAt = (target: Element): MenuPlace | undefined => {
-  const area = target.closest("[data-area]");
-  if (area === null) {
-    return undefined;
-  }
   const mark = target.closest("[data-menu]")?.getAttribute("data-menu");
-  return mark !== undefined && mark !== null && isPlace(mark) ? mark : "buffer";
+  const place = mark !== undefined && mark !== null && isPlace(mark) ? mark : undefined;
+  if (target.closest("[data-area]") === null) {
+    return place !== undefined && MODELINE_PLACES.has(place) ? place : undefined;
+  }
+  return place ?? "buffer";
 };
 
 /** The entries of a place: its own, or those of `buffer` while it has none. */

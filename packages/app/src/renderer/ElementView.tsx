@@ -43,7 +43,7 @@ import { findElements } from "./actions.js";
 import type { BufferAction, ElementBuffer, RenameAction, ResultBuffer } from "./buffers.js";
 import { filteredList, renameAction } from "./buffers.js";
 import type { Answer, Call } from "./call.js";
-import { NOTHING, PROMPT_INPUT, copyField, copyable, cursorField, docOf } from "./copy.js";
+import { NOTHING, PROMPT_INPUT, copiedField, copyField, copyable, cursorField, docOf } from "./copy.js";
 import type { ElementLoad, PropertyModel } from "./element-view.js";
 import {
   TITLE_FIELD,
@@ -1140,10 +1140,18 @@ export const ElementView = ({
 
   // Asked once the element is shown (with its parents line), so nothing comes before the first display.
   const valueKey = valueKeyOf(loadedElement);
+  // The keys of the boxes with a value that opens a list, for their context menu (SR-196 AK2).
+  const [listable, setListable] = useState<ReadonlySet<string>>(() => new Set());
   useEffect(() => {
-    if (loadedElement !== undefined) {
-      void valueFacets(loadedElement);
+    if (loadedElement === undefined) {
+      return;
     }
+    const answer = valueFacets(loadedElement);
+    void answer.then((settled) => {
+      if (mounted.current && facetsAsked.current?.answer === answer) {
+        setListable(new Set(settled.ok ? listableValues(settled.output, []).map((value) => value.key) : []));
+      }
+    });
   }, [valueKey, outside.seq]);
   // The file changed outside under the input, or is gone (SR-106): the modeline says so.
   const disk = diskMark(deleted, conflict);
@@ -1814,7 +1822,7 @@ export const ElementView = ({
             },
           }),
       copy: () => {
-        copy(cursorField(document.activeElement, lastField.current));
+        copy(copiedField(document.activeElement, lastField.current));
       },
       listValue: () => {
         void api.current.listValue();
@@ -2108,6 +2116,7 @@ export const ElementView = ({
                   value={value}
                   textBox={textBox}
                   element={dated(view.element)}
+                  listable={listable.has(box.key)}
                   onCopy={copy}
                   marked={marked}
                   onOpenRelation={onOpenRelation}

@@ -3561,7 +3561,9 @@ describe("ElementView", () => {
         : Promise.resolve({
             ok: true,
             output:
-              name === "trace.neighbourhood" ? alone({ ref: "uuid-1" }) : { element: read({ text: "base" }) },
+              name === "trace.neighbourhood"
+                ? alone({ ref: "uuid-1" })
+                : (NO_SUMMARY[name]?.() ?? { element: read({ text: "base" }) }),
           }),
     );
     const { controls, drafts, echoed } = await mount(asCall(call as never));
@@ -3591,7 +3593,9 @@ describe("ElementView", () => {
         : Promise.resolve({
             ok: true,
             output:
-              name === "trace.neighbourhood" ? alone({ ref: "uuid-1" }) : { element: read({ text: "base" }) },
+              name === "trace.neighbourhood"
+                ? alone({ ref: "uuid-1" })
+                : (NO_SUMMARY[name]?.() ?? { element: read({ text: "base" }) }),
           }),
     );
     const updates = (): number => call.mock.calls.filter(([name]) => name === "element.update").length;
@@ -5089,7 +5093,7 @@ describe("ElementView", () => {
               output:
                 name === "trace.neighbourhood"
                   ? alone({ ref: "uuid-1" })
-                  : { element: withProperties({ topic: "Wind", [KEY]: ["a"] }) },
+                  : (NO_SUMMARY[name]?.() ?? { element: withProperties({ topic: "Wind", [KEY]: ["a"] }) }),
             }),
       );
       const { controls, drafts } = await mount(asCall(call as never), 0, undefined, { properties: model });
@@ -5616,7 +5620,7 @@ describe("ElementView", () => {
                 output:
                   name === "trace.neighbourhood"
                     ? alone(input)
-                    : { element: withProperties({ topic: "Wind" }) },
+                    : (NO_SUMMARY[name]?.() ?? { element: withProperties({ topic: "Wind" }) }),
               }),
         );
         await fresh();
@@ -5829,7 +5833,7 @@ describe("ElementView", () => {
                   ? alone(input)
                   : name === "element.update"
                     ? savedWith({ topic: "t" })
-                    : { element: withProperties(single.properties, single.more) },
+                    : (NO_SUMMARY[name]?.() ?? { element: withProperties(single.properties, single.more) }),
           }),
         );
         focusField("parent");

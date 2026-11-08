@@ -23,6 +23,7 @@ import { ElementView } from "./ElementView.js";
 import { referenceTitles } from "./reference-titles.js";
 import type { BufferData } from "./modeline.js";
 import { GONE_CONFIRM_MS } from "./outside-change.js";
+import { NO_FACETS } from "./package-summary-test-data.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -99,6 +100,7 @@ const disk = (readOnly = false, text = "first") => {
       ...(readOnly ? { readOnly } : {}),
     }) as unknown as DataExportElement;
   const handlers: Record<string, (input: Record<string, unknown>) => unknown> = {
+    "element.facets": () => NO_FACETS,
     "element.get": () =>
       file.gone
         ? failure("ref.unknown", "uuid-1 is not an element")

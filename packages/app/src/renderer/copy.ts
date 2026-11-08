@@ -14,6 +14,9 @@ export interface Field {
 /** How long the status line confirms a copy (SR-128 AK2: briefly). */
 export const NOTICE_MS = 3000;
 
+/** The label of the status field (SR-196 AK3); property keys are lower case, so no box has it. */
+export const STATUS_FIELD = "Status";
+
 /** The values of a field as the text that is copied: one per line. */
 export const fieldText = (values: readonly string[]): string => values.join("\n");
 
@@ -47,7 +50,7 @@ export const docOf = (editor: { readonly doc: () => string } | undefined): strin
  * the short ID (ThomasBirkmaier/ReqSeq-archive#457 Q1a). A box with an editor (SR-104) copies what the editor holds, one value per line,
  * the unsaved input included like the text; `boxDoc` gives it by key, or none for a box without editor.
  * `boxes` are the property boxes as shown (the added empty ones included); a relation box copies the labels
- * of its targets, as the relation group did.
+ * of its targets, as the relation group did. Last the status, a field of the modeline (SR-196 AK3).
  */
 export const copyable = (
   element: DataExportElement,
@@ -73,9 +76,19 @@ export const copyable = (
       label: group.heading,
       text: () => fieldText(group.relations.map(relationLabel)),
     })),
+    ...[statusField(element)].filter((field) => field !== undefined),
   ],
   id: idField(element),
 });
+
+/**
+ * The status of the element as a field: shown in the modeline after the ID and the type, where its context
+ * menu has "Copy field" and "Set status" (SR-196 AK3); none for an element without a status.
+ */
+export const statusField = (element: Pick<DataExportElement, "status">): Field | undefined => {
+  const { status } = element;
+  return status === undefined ? undefined : { label: STATUS_FIELD, text: () => status };
+};
 
 /** The ID field of the element: what the modeline shows first. */
 export const idField = (element: DataExportElement): Field => ({
@@ -100,6 +113,15 @@ export const cursorField = (active: Element | null, last: string | undefined): s
   }
   return active.id === PROMPT_INPUT ? last : undefined;
 };
+
+/**
+ * The field that "Copy field" copies: a field of the modeline with the focus (the ID or the status, which
+ * a right press focuses, SR-196), else the field of `cursorField`.
+ */
+export const copiedField = (active: Element | null, last: string | undefined): string | undefined =>
+  active !== null && active.closest(".modeline") !== null
+    ? active.closest<HTMLElement>("[data-field]")?.dataset["field"]
+    : cursorField(active, last);
 
 /** Hands the field called `label` to `copy`; without such a field (the cursor is in none), the ID. */
 export const copyField = (

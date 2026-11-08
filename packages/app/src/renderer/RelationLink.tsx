@@ -72,7 +72,7 @@ export const RelationGroups = ({
 }: RelationGroupsProps): React.JSX.Element => (
   <>
     {relationGroups(element.relations).map((group) => (
-      <FieldBox key={group.heading} label={group.heading} onCopy={onCopy} marked={marked}>
+      <FieldBox key={group.heading} label={group.heading} menu="field" onCopy={onCopy} marked={marked}>
         <section>
           <h2>{group.heading}</h2>
           <ul>

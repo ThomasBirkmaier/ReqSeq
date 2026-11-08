@@ -48,6 +48,9 @@ const MODIFIERS = new Set(["Shift", "Control", "Alt", "Meta", "AltGraph", "CapsL
 const inMenu = (target: EventTarget | null): boolean =>
   target instanceof Element && target.closest(".context-menu") !== null;
 
+/** What takes the focus of a press. */
+const FOCUSABLE = "input, textarea, select, [contenteditable='true'], [tabindex]";
+
 /**
  * The right press sets the focus as a left one would, but keeps a selection it lands in: in a text editor
  * the caret goes to the pointer unless the press is inside the selection (SR-195 AK2); elsewhere the field
@@ -67,9 +70,15 @@ export const focusPressed = (target: Element, point: { readonly x: number; reado
     view.focus();
     return;
   }
-  target
-    .closest<HTMLElement>("input, textarea, select, [contenteditable='true'], [tabindex]")
-    ?.focus({ preventScroll: true });
+  // A field that takes no focus itself (a group of relations) gives it to its first control, so the cursor
+  // is in the field pressed (SR-196 AK1).
+  const own = target.closest<HTMLElement>(FOCUSABLE);
+  const field = target.closest("[data-field]");
+  const inField =
+    field === null || (own !== null && field.contains(own))
+      ? own
+      : field.querySelector<HTMLElement>(FOCUSABLE);
+  (inField ?? own)?.focus({ preventScroll: true });
 };
 
 /** The caret or selection of the page as a box, when there is one with a place on the screen. */
@@ -97,8 +106,9 @@ export const keyboardHit = (focused: Element): Omit<MenuHit, "place"> => {
     const box = selected.getBoundingClientRect();
     return { target: selected, point: { x: box.left, y: box.bottom } };
   }
-  const box = area?.getBoundingClientRect();
-  return { target: focused, point: { x: box?.left ?? 0, y: box?.top ?? 0 } };
+  // Outside the areas (a field of the modeline, SR-196): at the field.
+  const box = (area ?? focused).getBoundingClientRect();
+  return { target: focused, point: { x: box.left, y: box.top } };
 };
 
 export const useContextMenu = (options: ContextMenuOptions): ContextMenu => {

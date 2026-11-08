@@ -205,7 +205,8 @@ test.describe("the context menu", () => {
     await expect(window.locator("article h1")).toHaveCount(0);
     const closed = await settled(window);
     await typed("second");
-    await rightClick(window.locator("article h1").first());
+    // On no field of the element (the title has its own menu, SR-196).
+    await rightClick(sheet("left"), await empty("left"));
     await choose(window, "Close buffer");
     await expect(window.locator("article h1")).toHaveCount(0);
     await expect.poll(() => shown(window)).toEqual(closed);

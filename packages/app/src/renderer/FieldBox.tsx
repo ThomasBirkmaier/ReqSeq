@@ -2,6 +2,7 @@
 // seen only while the pointer is over the field or the focus is in it (styles.css); it takes no focus,
 // and a press on it leaves the focus where it is, so the text editor keeps its cursor. A field that changed
 // outside the app is highlighted briefly (SR-116).
+import { LISTABLE } from "./field-menu.js";
 import { rowClass } from "./use-outside-marks.js";
 
 export const CopySymbol = ({
@@ -36,6 +37,8 @@ export const CopySymbol = ({
 export const FieldBox = ({
   label,
   focusable = false,
+  menu,
+  listable = false,
   onCopy,
   marked,
   children,
@@ -44,6 +47,10 @@ export const FieldBox = ({
   readonly label: string;
   /** The field itself takes the focus (it has no control inside), so "the cursor is in the field". */
   readonly focusable?: boolean;
+  /** The place of the context menu the field is (`data-menu`, SR-196); none for the text, whose editor is one. */
+  readonly menu?: "field" | "field-property";
+  /** A value of the box lists elements (SR-132): its menu offers "List elements with this value" (SR-196 AK2). */
+  readonly listable?: boolean;
   readonly onCopy: (label: string) => void;
   /** The fields that changed outside the app and are highlighted now (SR-116), by label. */
   readonly marked: ReadonlySet<string>;
@@ -53,6 +60,8 @@ export const FieldBox = ({
     className={rowClass("field", marked, label)}
     data-field={label}
     {...(focusable ? { tabIndex: 0 } : {})}
+    {...(menu === undefined ? {} : { "data-menu": menu })}
+    {...(listable ? { [LISTABLE]: "" } : {})}
   >
     {children}
     <CopySymbol

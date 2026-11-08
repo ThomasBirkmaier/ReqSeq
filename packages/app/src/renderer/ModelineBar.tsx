@@ -3,9 +3,32 @@
 // things are not just display (SR-128): the ID of an element carries the copy symbol of a field, and the
 // confirmation of a copy shows briefly after the parts.
 import type { DataExportElement } from "@reqseq/core";
-import { idField } from "./copy.js";
+import type { Field } from "./copy.js";
+import { idField, statusField } from "./copy.js";
 import { CopySymbol } from "./FieldBox.js";
 import type { WorkspaceView } from "./modeline.js";
+
+/** The part after the ID: the type, and the status as a field of its own when the part ends with it. */
+const ElementRest = ({
+  rest,
+  status,
+}: {
+  readonly rest: string;
+  readonly status: Field | undefined;
+}): React.ReactNode => {
+  const text = status?.text() ?? "";
+  if (status === undefined || !rest.endsWith(` · ${text}`)) {
+    return rest;
+  }
+  return (
+    <>
+      {rest.slice(0, rest.length - text.length)}
+      <span className="field" data-field={status.label} data-menu="field-status" tabIndex={-1}>
+        {text}
+      </span>
+    </>
+  );
+};
 
 export const ModelineBar = ({
   parts,
@@ -35,6 +58,7 @@ export const ModelineBar = ({
   readonly notice: string;
 }): React.JSX.Element => {
   const id = element === undefined ? undefined : idField(element);
+  const status = element === undefined ? undefined : statusField(element);
   return (
     <footer className="modeline" aria-label="Modeline">
       {view === undefined ? null : (
@@ -43,7 +67,9 @@ export const ModelineBar = ({
             {parts.map((part, at) =>
               at === 0 && id !== undefined ? (
                 <span key={part} className="segment">
-                  <span className="field" data-field="ID">
+                  {/* The ID and the status are fields with a context menu (SR-196 AK3, AK4): a right press
+                      gives them the focus, so "Copy field" copies them. */}
+                  <span className="field" data-field="ID" data-menu="field-short-id" tabIndex={-1}>
                     <span>{id.text()}</span>
                     <CopySymbol
                       label={id.label}
@@ -52,7 +78,7 @@ export const ModelineBar = ({
                       }}
                     />
                   </span>
-                  {part.slice(id.text().length)}
+                  <ElementRest rest={part.slice(id.text().length)} status={status} />
                 </span>
               ) : (
                 <span key={part} className="segment">
