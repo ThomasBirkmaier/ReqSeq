@@ -143,3 +143,10 @@ export const AboutWindow = ({ info, mac, onCopy, onClose }: AboutWindowProps): R
     </div>
   );
 };
+
+/** The window while `info` is given (it is open), else nothing. */
+export const AboutLayer = ({
+  info,
+  ...rest
+}: Omit<AboutWindowProps, "info"> & { readonly info: AboutInfo | undefined }): React.JSX.Element | null =>
+  info === undefined ? null : <AboutWindow info={info} {...rest} />;

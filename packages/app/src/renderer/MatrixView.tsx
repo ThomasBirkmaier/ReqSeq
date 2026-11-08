@@ -28,6 +28,7 @@ import {
   matrixRows,
   opening,
   statusLine,
+  targetElement,
   targetsOf,
   testCaseLine,
 } from "./matrix.js";
@@ -79,13 +80,22 @@ const Link = ({
   relation,
   current,
   onChoose,
+  onSelect,
 }: {
   readonly relation: DataExportRelation;
   readonly current: boolean;
   readonly onChoose: () => void;
+  /** A right-click: the relation is selected before the context menu opens (SR-194 AK5). */
+  readonly onSelect: () => void;
 }): React.JSX.Element => (
   <div className={relation.targetState === "available" ? "relation" : "relation unavailable"}>
-    <span role="link" className={current ? "target current" : "target"} onClick={onChoose}>
+    <span
+      role="link"
+      className={current ? "target current" : "target"}
+      data-menu="element-entry"
+      onClick={onChoose}
+      onContextMenu={onSelect}
+    >
       {relationLabel(relation)}
     </span>
     {relation.targetState === "available" ? null : <span className="state"> {relation.targetState}</span>}
@@ -137,6 +147,10 @@ export const MatrixView = ({
   const { marked, mark } = useOutsideMarks();
   // Which target of the selected row the cursor is on: 0 the row element, then its relations in order.
   const [target, setTarget] = useState(0);
+  // The cell a right-click selected (SR-194 AK5): its row and column; undefined while none is.
+  const [chosenCell, setCell] = useState<{ readonly row: number; readonly column: number } | undefined>(
+    undefined,
+  );
   const root = useRef<HTMLDivElement>(null);
   const sort = listSort(buffer);
   const generation = useRef(0);
@@ -145,6 +159,7 @@ export const MatrixView = ({
   // the old row go in the same render, not in the effect, so no commit shows them under the next name.
   useResetOnAsk([call, buffer.key, buffer.selection, sort, revision], () => {
     setTarget(0);
+    setCell(undefined);
     setView({ status: "loading" });
   });
 
@@ -172,7 +187,6 @@ export const MatrixView = ({
         if (outside !== undefined) {
           mark(rows.map((row) => row.element.open.id).filter(outside.fresh));
         }
-        onData(buffer.key, { kind: "list", total: answer.output.total, incomplete });
       } else {
         setView({ status: "error", message: answer.message });
         onEcho(answer.message);
@@ -189,6 +203,19 @@ export const MatrixView = ({
   const selected = rows[cursor];
   const targets = selected === undefined ? [] : targetsOf(selected);
   const at = Math.min(target, Math.max(0, targets.length - 1));
+  // The element of the selected target, or of the row of a selected cell, is the marked one (SR-150,
+  // SR-194 AK5): the commands of the context menu act on it.
+  const markedTarget = targetElement(chosenCell === undefined ? targets[at] : targets[0]);
+  useEffect(() => {
+    if (view.status === "ok") {
+      onData(buffer.key, {
+        kind: "list",
+        total: view.total,
+        incomplete: view.incomplete,
+        ...(markedTarget === undefined ? {} : { marked: markedTarget }),
+      });
+    }
+  }, [view, markedTarget?.key]);
 
   useEffect(() => {
     const list = root.current;
@@ -213,9 +240,9 @@ export const MatrixView = ({
           ...view,
           rows: [...view.rows, ...matrixRows(answer.output)],
           total: answer.output.total,
+          incomplete,
           evidence: answer.output.evidence,
         });
-        onData(buffer.key, { kind: "list", total: answer.output.total, incomplete });
       } else {
         onEcho(answer.message);
       }
@@ -225,6 +252,7 @@ export const MatrixView = ({
   const moveTo = (to: number): void => {
     const next = Math.max(0, Math.min(rows.length - 1, to));
     setTarget(0);
+    setCell(undefined);
     dispatch({ type: "cursor", key: buffer.key, cursor: next });
     if (next >= rows.length - NEAR_END) {
       loadMore();
@@ -237,8 +265,10 @@ export const MatrixView = ({
     if (chosen === undefined) {
       return;
     }
-    // The row is kept as the cursor, as the list keeps it: Ctrl+P Enter comes back to it.
+    // The row is kept as the cursor, as the list keeps it: Ctrl+P Enter comes back to it. A cell a
+    // right-click selected before is no longer selected.
     dispatch({ type: "cursor", key: buffer.key, cursor: row });
+    setCell(undefined);
     if (chosen.kind === "element") {
       dispatch({ type: "open", buffer: chosen.open });
       return;
@@ -252,6 +282,18 @@ export const MatrixView = ({
     }
   };
 
+  /** A right-click on a target or into a cell selects it before the context menu opens (SR-194 AK5). */
+  const selectTarget = (row: number, which: number): void => {
+    dispatch({ type: "cursor", key: buffer.key, cursor: row });
+    setTarget(which);
+    setCell(undefined);
+  };
+  const selectCell = (row: number, column: number): void => {
+    dispatch({ type: "cursor", key: buffer.key, cursor: row });
+    setTarget(0);
+    setCell({ row, column });
+  };
+
   const keyDown = (event: React.KeyboardEvent): void => {
     const to = rowTarget(event, cursor, rows.length, SCREEN);
     if (to !== undefined) {
@@ -259,6 +301,7 @@ export const MatrixView = ({
       moveTo(to);
     } else if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
       event.preventDefault();
+      setCell(undefined);
       if (cursor >= 0) {
         setTarget(Math.max(0, Math.min(targets.length - 1, at + (event.key === "ArrowRight" ? 1 : -1))));
       } else if (rows.length > 0) {
@@ -331,8 +374,12 @@ export const MatrixView = ({
                   <span
                     role="link"
                     className={index === cursor && at === 0 ? "target current" : "target"}
+                    data-menu="element-entry"
                     onClick={() => {
                       open(index, 0);
+                    }}
+                    onContextMenu={() => {
+                      selectTarget(index, 0);
                     }}
                   >
                     <span className="id">{row.element.label}</span>{" "}
@@ -346,7 +393,19 @@ export const MatrixView = ({
                   next += cell.length;
                   const gaps = cellGaps(row, column);
                   return (
-                    <td key={column} role="gridcell" className="cell">
+                    <td
+                      key={column}
+                      role="gridcell"
+                      className="cell"
+                      data-menu="matrix-cell"
+                      aria-selected={chosenCell?.row === index && chosenCell.column === column}
+                      onContextMenu={(event) => {
+                        // A press on a relation of the cell selects the relation (`Link`).
+                        if (!(event.target instanceof Element) || event.target.closest(".target") === null) {
+                          selectCell(index, column);
+                        }
+                      }}
+                    >
                       {cell.map((relation, place) => (
                         <Link
                           key={`${relation.id}:${String(place)}`}
@@ -354,6 +413,9 @@ export const MatrixView = ({
                           current={index === cursor && at === first + place}
                           onChoose={() => {
                             open(index, first + place);
+                          }}
+                          onSelect={() => {
+                            selectTarget(index, first + place);
                           }}
                         />
                       ))}

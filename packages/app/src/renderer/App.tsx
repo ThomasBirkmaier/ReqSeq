@@ -74,9 +74,13 @@ import type { RecentEntry, RecentStorage } from "./recent.js";
 import { loadRecent, recentKey, remember, saveRecent } from "./recent.js";
 import { referenceTitles } from "./reference-titles.js";
 import { createTheme } from "./theme.js";
+import { commandPromptKey } from "./command-entry.js";
+import { ContextMenuLayer } from "./ContextMenu.js";
+import { openEntries } from "./context-menu.js";
+import { useContextMenu } from "./use-context-menu.js";
 import { useCopyNotice } from "./use-copy-notice.js";
 import type { AboutInfo } from "./about.js";
-import { AboutWindow } from "./AboutWindow.js";
+import { AboutLayer } from "./AboutWindow.js";
 import { useFollow } from "./use-follow.js";
 import { usePrefix } from "./use-prefix.js";
 import { promptUse } from "./usage.js";
@@ -189,6 +193,8 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   const { notice, copy, notify } = useCopyNotice(bridge);
   // The window "About ReqSeq" (SR-161): the output of `tool.info` while it is open.
   const [about, setAbout] = useState<AboutInfo | undefined>(undefined);
+  const aboutOpen = useRef(false);
+  aboutOpen.current = about !== undefined;
   // The buffers and the areas of the window (SR-115 AK3): one reducer, so they never disagree.
   const [windowState, dispatch] = useReducer(reduceWindow, EMPTY_WINDOW);
   const { buffers, layout } = windowState;
@@ -474,19 +480,26 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   // What the shown element buffer lets the app do, at once (a prompt that opens saves its input first).
   const controlsNow = useRef(elementControls);
   controlsNow.current = elementControls;
-  const ask = useCallback((next: Prompt): void => {
-    // A prompt that replaces an open one (Ctrl/Cmd+Shift+P over "Insert reference") cancels it, as Escape
-    // does: an editor that waited for its element waits no longer, so autosave is not held for ever.
-    const replaced = openPrompt.current;
-    openPrompt.current = next;
-    replaced?.cancel?.();
-    // Opening a prompt ends the typing in the element: its input is saved now (SR-105, binding review
-    // point 6), so a command run from the prompt starts from the saved file.
+  // What comes before a command from the prompt or the context menu (SR-194 AK2): the typing in the element
+  // ends and its input is saved now (SR-105, binding review point 6), so the command starts from the saved
+  // file, and the last message goes.
+  const beforeCommand = useCallback((): void => {
     controlsNow.current?.prompting();
-    serial.current += 1;
     setEcho("");
-    setPrompt({ serial: serial.current, prompt: next });
   }, []);
+  const ask = useCallback(
+    (next: Prompt): void => {
+      // A prompt that replaces an open one (Ctrl/Cmd+Shift+P over "Insert reference") cancels it, as Escape
+      // does: an editor that waited for its element waits no longer, so autosave is not held for ever.
+      const replaced = openPrompt.current;
+      openPrompt.current = next;
+      replaced?.cancel?.();
+      beforeCommand();
+      serial.current += 1;
+      setPrompt({ serial: serial.current, prompt: next });
+    },
+    [beforeCommand],
+  );
 
   // Light and dark (SR-113): the choice is an attribute on the root, so no React state; the live media
   // query gives the system's scheme at the time of the call.
@@ -824,6 +837,51 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     switching,
   });
   const startPrefix = prefix.start;
+  // An open prompt ends without an answer, as Escape ends it.
+  const cancelPrompt = (): void => {
+    if (openPrompt.current !== undefined) {
+      openPrompt.current.cancel?.();
+      follow.closed(true);
+      openPrompt.current = undefined;
+      setPrompt(undefined);
+    }
+  };
+  const cancelPromptNow = useRef(cancelPrompt);
+  cancelPromptNow.current = cancelPrompt;
+  // The context menu (D-075, SR-194): its entries are those of the command prompt now, so they are worked
+  // out again on every render while it is open, and the entry clicked runs from the latest context.
+  const menuEntriesNow = useRef<readonly string[]>([]);
+  const chooseEntry = (index: number): void => {
+    const id = menuEntriesNow.current[index];
+    contextMenu.close();
+    if (id === undefined) {
+      // "All commands…" (AK3): the command prompt with an empty input.
+      ask(commands());
+      return;
+    }
+    beforeCommand();
+    commands()
+      .items.find((item) => item.id === id)
+      ?.run();
+  };
+  const chooseNow = useRef(chooseEntry);
+  chooseNow.current = chooseEntry;
+  const contextMenu = useContextMenu({
+    mac: context.mac,
+    // Not over the window "About ReqSeq" (SR-161), which takes every input while it is open.
+    blocked: () => switchingNow.current || aboutOpen.current,
+    shown: current?.key,
+    prompting: prompt !== undefined,
+    onOpen: () => {
+      cancelPromptNow.current();
+    },
+    count: () => menuEntriesNow.current.length + 1,
+    choose: (index) => {
+      chooseNow.current(index);
+    },
+  });
+  const shownEntries = openEntries(contextMenu.menu, () => commands().items);
+  menuEntriesNow.current = shownEntries.map((entry) => entry.id);
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
       // A key that a control already handled (the minibuffer, the editor, a list) is no shortcut.
@@ -870,7 +928,12 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       }
       event.preventDefault();
       const now = latest.current;
-      if (switchingNow.current || openPrompt.current !== undefined || !now.workspace) {
+      if (
+        switchingNow.current ||
+        openPrompt.current !== undefined ||
+        contextMenu.isOpen() ||
+        !now.workspace
+      ) {
         return;
       }
       const action = mouseButtonAction(now, event.button);
@@ -884,7 +947,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("mouseup", onMouse);
     };
-  }, [ask, commands, startPrefix]);
+  }, [ask, commands, startPrefix, contextMenu.isOpen]);
 
   // The shown buffer has the focus, so its keys work; after a prompt the focus comes back to it, unless
   // the action of the prompt put it into the buffer already (the text editor). The matrix replaces the
@@ -984,12 +1047,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   // A press or a focus in the inactive area makes it active (SR-115 AK3); a prompt open for the other
   // area is cancelled, as Escape cancels it, so its choice does not act on the area left.
   const activate = (key: string): void => {
-    if (openPrompt.current !== undefined) {
-      openPrompt.current.cancel?.();
-      follow.closed(true);
-      openPrompt.current = undefined;
-      setPrompt(undefined);
-    }
+    cancelPrompt();
     dispatch({ type: "switch", key });
   };
   const views: AreaViews = {
@@ -1068,16 +1126,21 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
           setPrompt(undefined);
         }}
       />
-      {about === undefined ? null : (
-        <AboutWindow
-          info={about}
-          mac={context.mac}
-          onCopy={copy}
-          onClose={() => {
-            setAbout(undefined);
-          }}
-        />
-      )}
+      <ContextMenuLayer
+        menu={contextMenu.menu}
+        entries={shownEntries}
+        allCommandsKey={commandPromptKey(context.mac)}
+        onSelect={contextMenu.select}
+        onChoose={chooseEntry}
+      />
+      <AboutLayer
+        info={about}
+        mac={context.mac}
+        onCopy={copy}
+        onClose={() => {
+          setAbout(undefined);
+        }}
+      />
     </div>
   );
 };

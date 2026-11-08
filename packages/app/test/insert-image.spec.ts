@@ -12,6 +12,7 @@ import { gfm, gfmHtml } from "micromark-extension-gfm";
 import type { RunningApp } from "./support/app.js";
 import { copyFixture, launchApp, listAll } from "./support/app.js";
 import { DEMO_FILE, DEMO_FILES, DEMO_TITLE } from "./support/demo.js";
+import { printEventsOnFailure, recordEvents } from "./support/event-log.js";
 
 const FIXTURE = { fixture: "SR-069/filter", files: DEMO_FILES };
 
@@ -146,14 +147,28 @@ test.describe("inserting an image in a workspace opened through a link", () => {
         },
       },
     });
+    // What happened to the focus, the keys and the text when the test fails on macOS (#1127): printed to the job log.
+    await recordEvents(running.window);
     await listAll(running.window);
     await editing(running.window);
   });
   test.afterEach(async () => {
     try {
-      await running.close();
+      await printEventsOnFailure(running.window, test.info());
+      if (test.info().status !== test.info().expectedStatus) {
+        const echo = await running.window
+          .getByLabel("Minibuffer")
+          .textContent({ timeout: 1000 })
+          .catch(String);
+        // eslint-disable-next-line no-console -- beside the events: what core answered when the image is missing.
+        console.log(`Minibuffer after the failure: ${echo ?? ""}`);
+      }
     } finally {
-      await fs.rm(top, { recursive: true, force: true });
+      try {
+        await running.close();
+      } finally {
+        await fs.rm(top, { recursive: true, force: true });
+      }
     }
   });
 
@@ -161,10 +176,16 @@ test.describe("inserting an image in a workspace opened through a link", () => {
     const { window } = running;
     await window.keyboard.press("ControlOrMeta+Shift+P");
     await window.keyboard.type("Insert image");
+    await expect(window.locator('.candidates [role="option"]').first()).toContainText("Insert image");
     await window.keyboard.press("Enter");
-    await expect(window.getByLabel("Insert image")).toBeVisible();
-    await window.keyboard.insertText(path.join(top, "Wind Skizze.png"));
+    const prompt = window.locator("#prompt-input");
+    await expect(window.locator("label.prompt-label")).toHaveText("Insert image");
+    await expect(prompt).toBeFocused();
+    const image = path.join(top, "Wind Skizze.png");
+    await window.keyboard.insertText(image);
+    await expect(prompt).toHaveValue(image);
     await window.keyboard.press("Enter");
+    await expect(prompt).toHaveCount(0);
     await expect(window.locator(".cm-content")).toContainText(`(${FOLDER_NAME}/Wind-Skizze.png)`);
     const copy = path.join(running.workspace?.root ?? "", ...IMAGE_FOLDER.split("/"), "Wind-Skizze.png");
     expect(await fs.readFile(copy)).toEqual(PNG);

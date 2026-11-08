@@ -2,7 +2,8 @@
 // with the Markdown elements; letters narrow it as in the command line (`fuzzy.ts`), Ctrl+N / Ctrl+P and the
 // arrow keys choose (SR-122), Enter takes the entry, Escape closes it and leaves the `/` as typed. The menu
 // edits the text only (ADR-0002); `@codemirror/autocomplete` supplies the list at the caret, the listbox
-// roles and the mouse. The decisions of the review of the plan (R1 to R5) are marked where they apply.
+// roles and the mouse; `slash-motion.ts` gives it the look and the motion of the command line's card (AK5).
+// The decisions of the review of the plan (R1 to R5) are marked where they apply.
 import {
   acceptCompletion,
   autocompletion,
@@ -25,6 +26,7 @@ import { askImage, askReference, pendingField, setPending } from "./reference-pi
 import type { ImageRequest, PickOptions } from "./reference-pick.js";
 import { applyEntry, asks, entriesFor, opensMenu, slashRange } from "./slash-entries.js";
 import type { AskingEntry, SlashEntry, SlashRange } from "./slash-entries.js";
+import { SLASH_CLASS, slashMotion } from "./slash-motion.js";
 
 export type { ReferenceTarget } from "./slash-entries.js";
 
@@ -226,8 +228,9 @@ export const slashMenu = (options: SlashMenuOptions): EditorPlugins => {
       // The user typed the `/` on purpose: no delay before the menu answers, and no guard against an Enter (R2).
       activateOnTypingDelay: 0,
       interactionDelay: 0,
-      tooltipClass: () => "cm-lr-slash",
+      tooltipClass: () => SLASH_CLASS,
     }),
+    slashMotion,
     Prec.highest(keys),
     EditorState.phrases.of({ Completions: "Insert menu" }),
   ];

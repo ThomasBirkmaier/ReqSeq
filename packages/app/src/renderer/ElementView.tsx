@@ -148,7 +148,7 @@ import type { TitleBoxProps } from "./TitleBox.js";
 import { ParentsRow, useParents } from "./ParentsLine.js";
 import type { BufferData } from "./modeline.js";
 import type { MemberCount, PackageModel } from "./package-page.js";
-import { memberSelection, packageOf } from "./package-page.js";
+import { memberAt, memberSelection, packageOf } from "./package-page.js";
 import {
   addableProperties,
   allBoxes,
@@ -160,6 +160,7 @@ import {
   hintKeys,
   isLocked,
   isNumberedList,
+  isValueBox,
   isValueKind,
   lockNote,
   relationDoc,
@@ -545,6 +546,10 @@ export const ElementView = ({
   // modeline (SR-114 AK3) give their count. The selection keeps its identity, or the list would ask
   // again after every render.
   const [members, setMembers] = useState<MemberCount | undefined>(undefined);
+  // Their elements as loaded: the selected one is the marked element of the page (SR-194 AK5, SR-150).
+  const [entries, setEntries] = useState<readonly ElementBuffer[] | undefined>(undefined);
+  const [membersFocused, setMembersFocused] = useState(false);
+  const markedEntry = memberAt(entries, buffer.memberCursor, membersFocused);
   // With the filter steps of the page (SR-112 AK2); the steps keep their identity while they stay.
   const selection = useMemo(
     () => memberSelection(buffer.id, buffer.memberSteps ?? []),
@@ -1150,9 +1155,10 @@ export const ElementView = ({
         ...(disk === undefined ? {} : { disk }),
         ...(notSaved ? { notSaved } : {}),
         ...(members === undefined || !isPackage ? {} : { members }),
+        ...(markedEntry === undefined || !isPackage ? {} : { marked: markedEntry }),
       });
     }
-  }, [loadedElement, disk, notSaved, members, isPackage]);
+  }, [loadedElement, disk, notSaved, members, isPackage, markedEntry]);
 
   // After a save: the answer is the new baseline, the boxes show what the file holds, and what was typed
   // while the save ran stays as a draft. A box that the save emptied (its property left the file) and that
@@ -1511,10 +1517,10 @@ export const ElementView = ({
     } else if (note !== undefined) {
       echo(note);
     } else if (box === undefined) {
-      echo(`${label} is not a property of this type: edit it in the file`);
+      echo(`${label} cannot be edited here: edit it in the file`);
     } else if (isLocked(box)) {
       echo(lockNote(label, box));
-    } else if (isValueKind(box.info.kind)) {
+    } else if (isValueBox(box)) {
       setValue(label, "");
       fieldOf(label)?.focus();
     } else {
@@ -1605,7 +1611,7 @@ export const ElementView = ({
   const valueHistoryKey = (event: React.KeyboardEvent<HTMLElement>, label: string | undefined): boolean => {
     const value = label === undefined ? undefined : now.current.boxes.get(label);
     const step = historyStep(event, isMac(navigator.platform));
-    if (step === undefined || value === undefined || !isValueKind(value.info.kind)) {
+    if (step === undefined || value === undefined || !isValueBox(value)) {
       return false;
     }
     event.preventDefault();
@@ -2048,7 +2054,7 @@ export const ElementView = ({
               const value = onFile.current.values.get(box.key);
               // A box of a text kind is edited in its editor; a choice or relation is set in the minibuffer.
               const textBox: TextBoxProps | undefined =
-                editable !== undefined && !isValueKind(editable.info.kind)
+                editable !== undefined && !isValueBox(editable)
                   ? {
                       label: box.key,
                       text: editable.doc,
@@ -2140,6 +2146,8 @@ export const ElementView = ({
                 dispatch={dispatch}
                 members={members}
                 onMembers={setMembers}
+                onEntries={setEntries}
+                onListFocus={setMembersFocused}
                 onEcho={onEcho}
                 onLeave={() => {
                   article?.focus({ preventScroll: true });

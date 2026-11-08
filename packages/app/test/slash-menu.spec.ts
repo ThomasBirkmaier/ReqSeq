@@ -60,7 +60,8 @@ const editing = async (window: Page): Promise<void> => {
   await expect(window.locator(".cm-content")).toBeFocused();
 };
 
-const menu = (window: Page): Locator => window.locator(".cm-tooltip-autocomplete");
+/** The menu shown, not its copy running back (AK5, `slash-motion.ts`). */
+const menu = (window: Page): Locator => window.locator(".cm-tooltip-autocomplete:not(.cm-lr-slash-leaving)");
 const selectedEntry = (window: Page): Locator =>
   menu(window).locator('li[aria-selected="true"] .cm-completionLabel');
 const lastLine = (window: Page): Locator => window.locator(".cm-line").last();
@@ -90,17 +91,32 @@ test.describe("the slash menu in the element buffer", () => {
     await expect(menu(window).locator("li")).toHaveCount(ENTRIES.length);
     await expect(menu(window).locator("ul")).toHaveAttribute("role", "listbox");
     // The caret is in the last line, right after the /: the menu is right under that line (above it when
-    // the window has no room below), at its start.
-    const line = await lastLine(window).boundingBox();
-    const box = await menu(window).boundingBox();
-    expect(line).not.toBeNull();
-    expect(box).not.toBeNull();
-    if (line !== null && box !== null) {
+    // the window has no room below), at its start. CodeMirror shows a new tooltip at top -10000px until its
+    // next measure places it (#1126), so the place is polled, not read once.
+    const place = async (): Promise<{
+      readonly vertical: boolean;
+      readonly horizontal: boolean;
+      readonly distances?: string;
+    }> => {
+      const line = await lastLine(window).boundingBox();
+      const box = await menu(window).boundingBox();
+      if (line === null || box === null) {
+        return { vertical: false, horizontal: false };
+      }
       const below = Math.abs(box.y - (line.y + line.height));
       const above = Math.abs(box.y + box.height - line.y);
-      expect(Math.min(below, above)).toBeLessThanOrEqual(line.height);
-      expect(Math.abs(box.x - line.x)).toBeLessThan(40);
-    }
+      const vertical = Math.min(below, above) <= line.height;
+      const horizontal = Math.abs(box.x - line.x) < 40;
+      // The measured distances only when the place is wrong, so a failure shows them.
+      return vertical && horizontal
+        ? { vertical, horizontal }
+        : {
+            vertical,
+            horizontal,
+            distances: `below ${below.toFixed(1)}, above ${above.toFixed(1)}, left ${(box.x - line.x).toFixed(1)}, line ${line.height.toFixed(1)}`,
+          };
+    };
+    await expect.poll(place).toEqual({ vertical: true, horizontal: true });
   });
 
   test("[SR-129/AK1] / in the middle of a word does not open the menu", async () => {
@@ -248,7 +264,10 @@ for (const scheme of ["light", "dark"] as const) {
       await expect(menu(window)).toBeVisible();
       const css = async (locator: Locator, property: string): Promise<string> =>
         locator.evaluate((node, name) => getComputedStyle(node).getPropertyValue(name), property);
-      expect(await css(menu(window), "background-color")).toBe(await tokenColour(window, "--sheet"));
+      // The list is the card (AK5): its ground is the raised one of the command line's card.
+      expect(await css(menu(window).locator("ul"), "background-color")).toBe(
+        await tokenColour(window, "--raised"),
+      );
       expect(await css(menu(window), "color")).toBe(await tokenColour(window, "--text"));
       expect(await css(selectedEntry(window).locator(".."), "background-color")).toBe(
         await tokenColour(window, "--select"),

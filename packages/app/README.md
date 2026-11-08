@@ -9,7 +9,7 @@ pnpm --filter @reqseq/app build:electron     # electron-vite: out/main, out/prel
 pnpm --filter @reqseq/app start -- --workspace ../../fixtures/SR-004/one-repository
 pnpm --filter @reqseq/app start -- --workspace ../../spec   # the specification of ReqSeq itself
 pnpm --filter @reqseq/app test:electron      # install, build and the Playwright tests (Linux: under xvfb-run)
-pnpm --filter @reqseq/app test:perf          # the same for the app's performance suite (test/perf/, 50,000 elements)
+pnpm --filter @reqseq/app test:perf          # the same for the app's performance suite (test/perf/: 50,000 elements, and path completion in 10,000 entries)
 ```
 
 The details are in the parts under [`docs/`](docs/), one file per topic. Read only the part you work on.
@@ -19,6 +19,7 @@ The details are in the parts under [`docs/`](docs/), one file per topic. Read on
 - [Graph (SR-111)](docs/graph.md): the graph of an element
 - [Metamodel (SR-130)](docs/metamodel.md): the metamodel buffer
 - [Minibuffer and command prompt](docs/command-prompt.md): minibuffer, fuzzy matching, create element, open workspace, catalog commands, ranking
+- [Context menu (SR-194)](docs/context-menu.md): the right-click menu, its places, opening, selection and closing
 - [Keys](docs/keys.md): every key of the main window
 - [Editor (SR-065)](docs/editor.md): the Markdown editor, saving, undo, drafts, changes from outside, slash menu, `[[` search, formulas
 - [`window.reqseq` (preload, `src/preload/bridge.ts`)](docs/bridge.md): the bridge between renderer and core
