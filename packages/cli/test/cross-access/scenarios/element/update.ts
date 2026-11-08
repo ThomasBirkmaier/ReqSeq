@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { expect } from "vitest";
 import { scenariosOf } from "../../scenario.js";
 import type { Written } from "../../fixtures.js";
-import { AFFECTED, FILTER, NESTED, requiredKey, supersededHintFiles } from "../../fixtures.js";
+import { AFFECTED, FILTER, NESTED, VARIANT_VIEWS, requiredKey, supersededHintFiles } from "../../fixtures.js";
 
 /** The SHA-256 of a file's bytes, as element.get gives it (`fileSha256`, SR-106). */
 const sha256 = (bytes: string | Buffer): string => createHash("sha256").update(bytes).digest("hex");
@@ -210,6 +210,22 @@ scenariosOf("element.update", [
       expectedFileSha256: fixtureSha256("SR-019/findings", "requirements/SR-b00000000009.md"),
     },
     expect: "output",
+  },
+  {
+    name: "update a requirement of a variant: its validity and verification views named by short ID (#1216)",
+    fixture: VARIANT_VIEWS,
+    input: {
+      ref: "SR-0000b1",
+      title: "Response time at most 15 ms",
+      expectedFileSha256: fixtureSha256("SR-043/example", "requirements/SR-0000000000b1.md"),
+    },
+    expect: "output",
+    check: (results) => {
+      for (const { outcome } of Object.values(results)) {
+        const { names } = (outcome as { output: { names?: readonly { shortId: string }[] } }).output;
+        expect(names?.map((n) => n.shortId)).toEqual(["VAR-0000c1"]);
+      }
+    },
   },
   {
     name: "rename and set a property",

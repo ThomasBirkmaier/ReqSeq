@@ -138,3 +138,33 @@ describe("reqseq evidence status in a variant-independent repository (SR-173)", 
     ]);
   });
 });
+
+describe("reqseq element create and update name the views by short ID (#1216)", () => {
+  it("prints the same verification line as reqseq element get", async () => {
+    const ws = await open();
+    const line = async (args: string[]): Promise<string | undefined> => {
+      const run = await reqseq(args, { cwd: ws.root });
+      expect([run.code, run.stderr]).toEqual([0, ""]);
+      return run.stdout.split("\n")[0];
+    };
+    const shown = await reqseq(["element", "get", "SR-0000a3", "--json"], { cwd: ws.root });
+    const { fileSha256 } = JSON.parse(shown.stdout) as { fileSha256: string };
+    const updated = await line([
+      "element",
+      "update",
+      "SR-0000a3",
+      "--title",
+      "Measure the rain",
+      "--expected-file-sha256",
+      fileSha256,
+    ]);
+    expect(updated).toBe(
+      "SR-0000a3  draft  Measure the rain  [verification: core open, VAR-0000c1 open, VAR-0000c2 open, VAR-0000c3 open]",
+    );
+    expect(await line(["element", "get", "SR-0000a3"])).toBe(updated);
+    const created = await line(["element", "create", "system-requirement", "Show the wind speed"]);
+    expect(created).toMatch(
+      /^SR-\w+ {2}draft {2}Show the wind speed {2}\[verification: core open, VAR-0000c1 open, VAR-0000c2 open, VAR-0000c3 open\]$/,
+    );
+  });
+});
