@@ -25,7 +25,7 @@ ReqSeq reads Git through the `git` program on the path, which is not in the deli
 ## App
 
 1. Unpack the archive. On macOS move `ReqSeq.app` to `/Applications`. On Windows and Linux unpack it into a folder such as `C:\Tools\ReqSeq` or `~/ReqSeq`.
-2. Start `ReqSeq.app`, `ReqSeq.exe` or `~/ReqSeq/ReqSeq`.
+2. Start `ReqSeq.app`, `ReqSeq.exe` or `~/ReqSeq/ReqSeq`, then [open or create a workspace](/how-to/open-a-workspace/).
 
 The builds are not signed with a developer certificate yet, so the first start asks:
 
