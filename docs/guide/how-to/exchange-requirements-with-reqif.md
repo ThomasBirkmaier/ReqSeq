@@ -5,14 +5,14 @@ sidebar:
   order: 12
 ---
 
-ReqIF 1.2 is the exchange format of requirements tools such as DOORS Next or Polarion. ReqSeq reads a `.reqif` file, not a packed `.reqifz`, in a fixed order:
+ReqIF 1.2 is the exchange format of tools such as DOORS Next or Polarion. ReqSeq reads a `.reqif` file, not a packed `.reqifz`, in this order:
 
-1. The analysis lists the types and attributes of the file that no mapping covers yet. It writes nothing.
-2. The mapping says which type, property or relation kind of your metamodel each of them becomes, or that it is left out. It is a YAML file in the mapping folder (`reqif/` by default), one per source, and serves every later delivery; your metamodel stays as it is.
+1. The analysis lists the types, attributes, relation types and enumeration values of the file that no mapping covers yet. It writes nothing.
+2. The mapping says what in your metamodel each of them becomes, or that it is left out. It is a YAML file in the mapping folder (`reqif/` by default), one per source, for every later delivery; your metamodel stays unchanged.
 3. The import creates one element per object, all or nothing, turns XHTML text into Markdown, and lists as losses what it leaves out. Each element keeps its origin: source, source identifier, import date and delivery.
-4. The next delivery of the same source updates these elements in place. Its analysis first shows the new, changed and dropped requirements; a dropped one is only listed, never removed. An element changed both locally and in the delivery is a conflict: the import refuses with `reqif.conflict` until you take the delivery or keep your version of each.
+4. The next delivery of the same source updates these elements in place. Its analysis first shows the new, changed and dropped requirements; dropped ones are only listed. An element changed both locally and in the delivery is a conflict: the import refuses with `reqif.conflict` until you take the delivery or keep your version of each.
 
-The export writes a package or any selection as ReqIF 1.2 and can leave out properties; a relation to an element outside the export keeps only its ID. With the mapping and statements, it writes the statement on each imported requirement back under the identifiers of the source. A file that ReqSeq exported imports without a mapping.
+The export writes a package or any selection and can leave out properties; a relation to an element outside it keeps only its ID. With the mapping and statements, it writes the statement on each imported requirement back under the identifiers of the source. A file that ReqSeq exported imports without a mapping.
 
 ## App
 
@@ -21,8 +21,8 @@ In the command prompt (Ctrl+Shift+P, ⌘⇧P on macOS):
 1. Run **Analyse ReqIF file** and choose the file. Its result lists what has no mapping yet.
 2. Run **Save ReqIF mapping** and type the mapping as JSON, the `mapping` of the API section below.
 3. Run **Import ReqIF file**, choose the file, name the delivery, and answer with Ctrl+Enter (⌘↩) to give the mapping too. For the next delivery, run **Analyse ReqIF file** with the mapping first, the same way; when you import, give each conflict with Ctrl+Enter under `take` or `keep`.
-4. To export a package, open the package and run **Export ReqIF** with the name of the new file. On a list, it exports the elements the list shows.
-5. For your answer to the source, add the property Statement to each requirement with “Add property”, then run **Export ReqIF** and give the mapping and `statements` yes with Ctrl+Enter.
+4. To export a package, create it with **Create element** (Ctrl+K E, ⌘K E), type Package. In the element buffer of each requirement, add the property Package with “Add property” (Ctrl+Alt+A, ⌥⌘A), choose the package, and run **Save element** (Ctrl+S, ⌘S). Open the package with **Go to element or buffer** (Ctrl+P, ⌘P) and run **Export ReqIF** with the name of the new file. On a list, it exports what the list shows.
+5. For your answer to the source, open each requirement (Ctrl+P, ⌘P), add the property Statement with “Add property” and save it. Then, from an element buffer, not a list, run **Export ReqIF** and give the mapping and `statements` yes with Ctrl+Enter.
 
 ## CLI
 
@@ -262,11 +262,11 @@ files: none
 No problems.
 ```
 
-The one relation is the package of SR-c67baa, which is not exported and so goes out with its ID only.
+The one relation is to the package, which is not exported and so goes out with its ID only.
 
 ## API
 
-Start the API in the workspace with `reqseq serve api`, and send each command with the token of `api.json` as `Authorization: Bearer <token>`. Paths are relative to the workspace and must lie inside its repositories:
+Paths are relative to the workspace and must lie inside its repositories. With the [local API](/concepts/cli-api-and-mcp/#api) running in the workspace, and its token:
 
 ```http
 POST /v1/commands/reqif.analyze
@@ -283,7 +283,7 @@ POST /v1/commands/reqif.saveMapping
 ```http
 POST /v1/commands/reqif.import
 
-{ "file": "delivery-2.reqif", "delivery": "Delivery 2", "mapping": "reqif/customer.yaml", "take": ["CR-1"] }
+{ "file": "delivery-2.reqif", "delivery": "Delivery 2", "mapping": "reqif/customer.yaml" }
 ```
 
 ```http
@@ -300,7 +300,7 @@ POST /v1/commands/reqif.export
 
 ## MCP
 
-An agent connected to `reqseq mcp` calls the same commands as tools, with the same input:
+An agent connected to `reqseq mcp` calls the same commands as tools:
 
 ```json
 { "name": "reqif_analyze", "arguments": { "file": "delivery-2.reqif", "mapping": "reqif/customer.yaml" } }
@@ -327,6 +327,10 @@ An agent connected to `reqseq mcp` calls the same commands as tools, with the sa
 
 ```json
 { "name": "reqif_import", "arguments": { "file": "delivery-2.reqif", "delivery": "Delivery 2", "mapping": "reqif/customer.yaml" } }
+```
+
+```json
+{ "name": "reqif_export", "arguments": { "output": "sensor.reqif", "selection": { "package": "PKG-65ba20" } } }
 ```
 
 ```json
