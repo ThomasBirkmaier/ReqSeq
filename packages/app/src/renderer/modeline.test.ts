@@ -388,6 +388,16 @@ describe("markedElement (SR-150)", () => {
     ).toBe(marked);
   });
 
+  it("is the selected target of a matrix and the selected entry of a package page (SR-194 AK5)", () => {
+    const list = listBuffer("All elements");
+    expect(
+      markedElement(list, { key: list.key, data: { kind: "list", total: 1, incomplete: false, marked } }),
+    ).toBe(marked);
+    const page = elementBuffer("uuid-1", "spec", "PKG-1 Sensors");
+    const element = { id: "uuid-1" } as unknown as DataExportElement;
+    expect(markedElement(page, { key: page.key, data: { kind: "element", element, marked } })).toBe(marked);
+  });
+
   it("is undefined for data of another buffer, while nothing has loaded, and for an element", () => {
     const graph = graphBuffer("uuid-1", "spec", "SR-1 One");
     const graphData = { kind: "graph", nodes: 2, truncated: false, incomplete: false, marked } as const;

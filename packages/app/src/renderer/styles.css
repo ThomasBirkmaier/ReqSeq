@@ -717,7 +717,7 @@ mark {
   left: 0.5rem;
   right: 0.5rem;
   bottom: calc(100% + var(--modeline) + 0.25rem);
-  /* In a low window the card can reach the macOS title strip; a drag region would take its clicks (#490). */
+  /* In a low window the card can reach the macOS title strip; a drag region would take its clicks (ThomasBirkmaier/ReqSeq-archive#490). */
   -webkit-app-region: no-drag;
 }
 
@@ -906,6 +906,47 @@ mark {
   font-size: 12px;
 }
 
+/* The context menu (D-075, SR-194): the app's own quiet menu at the pointer, raised like the card. */
+.context-menu {
+  position: fixed;
+  z-index: 10;
+  min-width: 14rem;
+  max-width: min(28rem, calc(100vw - 8px));
+  padding: 0.25rem 0;
+  background: var(--raised);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  box-shadow: 0 6px 18px var(--shadow);
+  font-size: 13px;
+  line-height: var(--line);
+  user-select: none;
+  /* Under the macOS title strip a drag region would take its clicks (ThomasBirkmaier/ReqSeq-archive#490). */
+  -webkit-app-region: no-drag;
+}
+
+.context-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 0 0.75rem;
+  cursor: default;
+}
+
+.context-item.selected {
+  background: var(--select);
+}
+
+.context-item .hint {
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.context-separator {
+  margin: 0.25rem 0;
+  border-top: 1px solid var(--rule);
+}
+
 /* A hit of the search prompt (SR-183): one line, or two with the snippet under it, each as high as
    --line, so CARD_LINES of actions.ts hold in the card's max-height above and it never grows. */
 .card-list li.hit {
@@ -1042,6 +1083,12 @@ mark {
 
 .matrix tr[aria-selected="true"] td {
   background: var(--select);
+}
+
+/* A cell a right-click selected (SR-194 AK5), inside its selected row. */
+.matrix td.cell[aria-selected="true"] {
+  outline: 1px solid var(--muted);
+  outline-offset: -1px;
 }
 
 .matrix .id {

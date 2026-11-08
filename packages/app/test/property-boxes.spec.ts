@@ -422,7 +422,7 @@ test.describe("property boxes of an element", () => {
     await expect(modeline(window)).not.toContainText("modified");
   });
 
-  test("a property the type does not know is a read-only box: Enter on it and Clear property say so or edit the text", async () => {
+  test("[SR-104/AK4] a property the type does not know takes no typing, but Clear property empties it and the save removes it from the file (#189)", async () => {
     const { window } = running;
     // Enter on the box opens no editor in it: the caret goes into the text, as on a box that is not edited.
     await field(window, "legacy").focus();
@@ -431,13 +431,24 @@ test.describe("property boxes of an element", () => {
     expect(await field(window, "legacy").locator(".cm-editor").count()).toBe(0);
     await window.keyboard.press("Escape");
     await field(window, "legacy").focus();
+    // Typing on the box changes nothing.
+    await window.keyboard.type("x");
+    await expect(field(window, "legacy")).toHaveText(/^legacy\s*Altlast$/);
+    await expect(modeline(window)).not.toContainText("modified");
+    await field(window, "legacy").focus();
     await window.keyboard.press("ControlOrMeta+Shift+P");
     await window.keyboard.type("clear prop");
     await window.keyboard.press("Enter");
-    await expect(window.getByLabel("Minibuffer")).toContainText(
-      "legacy is not a property of this type: edit it in the file",
-    );
-    await expect(field(window, "legacy")).toContainText("Altlast");
+    await expect(field(window, "legacy").locator(".line")).toHaveCount(0);
+    expect(await readFile(running)).toContain("legacy: Altlast");
+    await window.keyboard.press("ControlOrMeta+S");
+    await expect(modeline(window)).not.toContainText("modified");
+    await expect(field(window, "legacy")).toHaveCount(0);
+    const file = await readFile(running);
+    expect(file).not.toContain("legacy");
+    expect(file).toContain("topic: Wind");
+    const got = await cliGet(running);
+    expect(Object.keys(got.element.properties)).not.toContain("legacy");
   });
 
   test("[SR-104/AK3] the prompt of a choice over the page, next to a relation box (screenshot, light)", async () => {

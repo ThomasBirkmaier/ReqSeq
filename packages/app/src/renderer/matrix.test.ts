@@ -2,7 +2,7 @@
 // cursor, the column heads and the gaps.
 import type { DataExportRelation, TraceMatrixOutput } from "@reqseq/core";
 import { describe, expect, it } from "vitest";
-import { DEFAULT_SORT, filteredList, listBuffer } from "./buffers.js";
+import { DEFAULT_SORT, elementBuffer, filteredList, listBuffer } from "./buffers.js";
 import {
   cellGaps,
   columnCount,
@@ -13,6 +13,7 @@ import {
   matrixRows,
   opening,
   statusLine,
+  targetElement,
   targetsOf,
   testCaseLine,
 } from "./matrix.js";
@@ -161,6 +162,18 @@ describe("opening a relation (AK5)", () => {
   it("opens nothing for an available relation that names no repository", () => {
     const { repository: _repository, ...unnamed } = relation();
     expect(opening(unnamed).ok).toBe(false);
+  });
+});
+
+describe("the element of a target (SR-194 AK5)", () => {
+  it("is the row's element or the element of an available relation, else none", () => {
+    const open = elementBuffer("uuid-1", "spec", "SR-1 One");
+    expect(targetElement({ kind: "element", open })).toBe(open);
+    expect(targetElement({ kind: "relation", relation: relation() })?.key).toBe("element:spec:uuid-n1");
+    expect(
+      targetElement({ kind: "relation", relation: relation({ targetState: "missing" }) }),
+    ).toBeUndefined();
+    expect(targetElement(undefined)).toBeUndefined();
   });
 });
 

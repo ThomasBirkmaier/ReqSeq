@@ -179,11 +179,16 @@ export const restored = (
   const basis = change.kind === "conflict" ? kept.sha : sha;
   const draft = makeDraft({ doc: keptText ?? loaded, base: loaded }, boxes, basis);
   // The boxes of the draft that were added come back (their base is the empty document), and the documents
-  // of the choices and relations set in the minibuffer with them. The title is no property key.
+  // of the choices and relations set in the minibuffer with them, and of the cleared properties the type
+  // does not know (#189). The title is no property key.
+  const type = properties.get(element.type);
   const known = boxes.flatMap(([key, box]) => {
-    const info = properties.get(element.type)?.get(key);
+    const info = type?.get(key);
     return info === undefined ? [] : [{ key, box, info }];
   });
+  const unknown = boxes.filter(
+    ([key]) => key !== TITLE_FIELD && type?.get(key) === undefined && docs.has(key),
+  );
   return {
     keptBoxes: new Map(boxes),
     keptText,
@@ -193,11 +198,12 @@ export const restored = (
     draft,
     changed: !sameDraft(draft, kept),
     added: known.filter(({ key, box }) => box.base === "" && !docs.has(key)).map(({ key }) => key),
-    values: new Map(
-      known.flatMap(({ key, box, info }): [string, string][] =>
+    values: new Map([
+      ...known.flatMap(({ key, box, info }): [string, string][] =>
         isValueKind(info.kind) ? [[key, box.doc]] : [],
       ),
-    ),
+      ...unknown.map(([key, box]): [string, string] => [key, box.doc]),
+    ]),
   };
 };
 

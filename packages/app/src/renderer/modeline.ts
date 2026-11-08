@@ -62,9 +62,10 @@ export type BufferData =
       readonly kind: "list" | "search";
       readonly total: number;
       readonly incomplete: boolean;
-      /** The elements of the loaded rows, in their order (the selected one is the default of an element argument, ThomasBirkmaier/ReqSeq-archive#85). */
-      /** By position; undefined at a row that is no element, the row of a folded section (SR-201). */
+      /** The elements of the loaded rows, in their order (the selected one is the default of an element argument, ThomasBirkmaier/ReqSeq-archive#85); undefined at a row that is no element, the row of a folded section (SR-201). */
       readonly rows?: readonly (ElementBuffer | undefined)[];
+      /** The matrix (SR-125): the element of the selected target or cell (SR-194 AK5), in place of a row. */
+      readonly marked?: ElementBuffer;
     }
   | {
       readonly kind: "overview";
@@ -107,6 +108,8 @@ export type BufferData =
        * element (SR-114 AK3).
        */
       readonly members?: { readonly total: number; readonly incomplete: boolean };
+      /** A package page: the element of its selected entry (SR-194 AK5), once one was selected. */
+      readonly marked?: ElementBuffer;
     };
 
 /**
@@ -128,18 +131,16 @@ export const selectedRow = (
 /**
  * The element marked in the shown buffer, which "Open to the right" and "Open to the left" open and the
  * inactive area follows (SR-150): the selected row of a list, a search, the neighbourhood or the elements
- * opened last on the overview, or the selected node of a graph; undefined for any other buffer, while it
- * loads, or while nothing is selected.
+ * opened last on the overview, the selected node of a graph, the selected target or cell of a matrix or the
+ * selected entry of a package page; undefined for any other buffer, while it loads, or while nothing is
+ * selected.
  */
 export const markedElement = (
   current: Buffer | undefined,
   loaded: { readonly key: string; readonly data: BufferData | undefined } | undefined,
 ): ElementBuffer | undefined => {
   const data = loaded?.key === current?.key ? loaded?.data : undefined;
-  if (data?.kind === "graph" || data?.kind === "neighbourhood" || data?.kind === "overview") {
-    return data.marked;
-  }
-  return selectedRow(current, loaded);
+  return data !== undefined && "marked" in data ? data.marked : selectedRow(current, loaded);
 };
 
 /**

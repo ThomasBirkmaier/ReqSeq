@@ -203,6 +203,8 @@ const TypeBox = ({
       {...(node.any ? { "data-any": "" } : { "data-type": node.type })}
       style={{ left: placed.x, top: placed.y, width: placed.width, height: placed.height }}
       onClick={onSelect}
+      // A right-click selects the type before the context menu opens (SR-194 AK5).
+      onContextMenu={onSelect}
     >
       <div className="mm-head">
         <span className="mm-name">{node.name}</span>

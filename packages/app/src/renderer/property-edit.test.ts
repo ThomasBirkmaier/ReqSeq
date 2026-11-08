@@ -16,6 +16,8 @@ import {
   hintKeys,
   isLocked,
   isNumberedList,
+  inputValueOf,
+  isValueBox,
   isValueKind,
   lineBreakNote,
   lockNote,
@@ -143,7 +145,7 @@ describe("boxValue", () => {
 });
 
 describe("editableBoxes", () => {
-  it("[SR-104/AK1] has the filled properties of a text or choice kind that the type has, and no other", () => {
+  it("[SR-104/AK1] has the filled properties of a text or choice kind that the type has, and one the type does not know", () => {
     const boxes = editableBoxes(
       element({
         topic: "Wind",
@@ -156,14 +158,16 @@ describe("editableBoxes", () => {
       }),
       model,
     );
-    expect([...boxes.keys()]).toEqual(["topic", "criteria", "effort", "area"]);
+    expect([...boxes.keys()]).toEqual(["topic", "criteria", "effort", "area", "unknown"]);
     expect(boxes.get("criteria")).toEqual({ key: "criteria", info: list, doc: "a\nb", lineBreak: false });
+    expect(boxes.get("unknown")).toMatchObject({ doc: "x", lineBreak: false, unknown: true });
     expect(storedDocs(boxes)).toEqual(
       new Map([
         ["topic", "Wind"],
         ["criteria", "a\nb"],
         ["effort", "3"],
         ["area", "performance"],
+        ["unknown", "x"],
       ]),
     );
   });
@@ -224,9 +228,18 @@ describe("editableBoxes of choices and relations (SR-104)", () => {
     expect(editableBoxes(element({ packages: [{ id: "x", title: "T" }] }), model).size).toBe(0);
   });
 
-  it("leaves the box of a property the type does not know read-only, and a relation that is no property out", () => {
+  it("makes the box of a property the type does not know one that is only emptied: an emptied one is unset (#189)", () => {
     const unknown = target("legacy", "x");
-    expect(editableBoxes(element({ legacy: [{ id: "x" }] }, "need", [unknown]), model).size).toBe(0);
+    const boxes = editableBoxes(element({ legacy: [{ id: "x" }] }, "need", [unknown]), model);
+    const legacy = boxes.get("legacy");
+    expect(legacy).toMatchObject({ key: "legacy", unknown: true });
+    expect(legacy !== undefined && isValueBox(legacy)).toBe(true);
+    expect(legacy === undefined ? undefined : inputValueOf(legacy.info, "")).toBeUndefined();
+    const area = editableBoxes(element({ area: "performance", topic: "Wind" }), model);
+    expect([...area].map(([key, box]) => [key, isValueBox(box)])).toEqual([
+      ["area", true],
+      ["topic", false],
+    ]);
     expect(isValueKind("choice")).toBe(true);
     expect(isValueKind("relation")).toBe(true);
     expect(isValueKind("text")).toBe(false);
@@ -449,6 +462,16 @@ describe("updateInput", () => {
         edit("day", { kind: "date", many: false, markdown: false }, "2026-10-27", ""),
       ]),
     ).toEqual({ ref: "u", unset: ["topic", "criteria", "effort", "day"] });
+  });
+
+  it("[SR-104/AK4] removes a property the type does not know when its box was emptied, and never sets it (#189)", () => {
+    const legacy = editableBoxes(element({ legacy: "x" }), model).get("legacy");
+    const info = legacy?.info ?? text;
+    expect(updateInput("u", undefined, [edit("legacy", info, "x", "")])).toEqual({
+      ref: "u",
+      unset: ["legacy"],
+    });
+    expect(updateInput("u", undefined, [edit("legacy", info, "y", "x")])).toEqual({ ref: "u" });
   });
 
   it("[SR-104/AK4] treats a box with nothing but blank lines as emptied", () => {

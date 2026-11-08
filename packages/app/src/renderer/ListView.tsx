@@ -845,9 +845,14 @@ export const ListView = ({
         role="option"
         aria-selected={at === cursor}
         {...named}
+        data-menu="element-entry"
         onClick={() => {
           dispatch({ type: "cursor", key: buffer.key, cursor: at });
           openRow(row);
+        }}
+        // A right-click selects the row before the context menu opens (SR-194 AK5).
+        onContextMenu={() => {
+          dispatch({ type: "cursor", key: buffer.key, cursor: at });
         }}
       >
         <span className="id" id={`${id}-id`}>

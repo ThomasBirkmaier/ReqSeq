@@ -352,9 +352,16 @@ export const GraphView = ({
                   aria-label={nodeLabel(placed.node, typeName, evidenceOf.get(placed.key))}
                   title={`${nodeId(placed.node)} · ${typeName}\n${placed.node.title}`}
                   data-node={placed.key}
+                  data-menu="element-entry"
                   style={{ left: placed.x, top: placed.y, width: NODE_WIDTH, height: NODE_HEIGHT }}
                   onClick={() => {
                     open(placed.key);
+                  }}
+                  // A right-click selects the node before the context menu opens (SR-194 AK5); a chosen
+                  // link (SR-154) goes, so the node itself is selected.
+                  onContextMenu={() => {
+                    links.back();
+                    select(placed.key);
                   }}
                 >
                   <div className="graph-id">{`${nodeId(placed.node)} · ${typeName}`}</div>
