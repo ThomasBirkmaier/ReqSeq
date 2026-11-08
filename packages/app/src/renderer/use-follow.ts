@@ -6,10 +6,11 @@
 import { useCallback, useEffect, useReducer, useRef } from "react";
 import type { AgentActivity, ReqSeqBridge } from "../shared/protocol.js";
 import type { FollowControls } from "./actions.js";
-import type { BufferAction, Buffers, ElementBuffer } from "./buffers.js";
+import type { Buffers, ElementBuffer } from "./buffers.js";
 import { elementBufferOf } from "./buffers.js";
 import type { Call } from "./call.js";
 import type { FollowState, FollowStep, Hold } from "./follow.js";
+import type { WindowAction } from "./window-layout.js";
 import {
   FOLLOW_OFF,
   followMark,
@@ -36,7 +37,9 @@ export interface FollowOptions {
   readonly call: Call;
   /** The open buffers, the shown one first. */
   readonly buffers: Buffers;
-  readonly dispatch: (action: BufferAction) => void;
+  /** The buffer of the inactive area in a split window. */
+  readonly other: string | undefined;
+  readonly dispatch: (action: WindowAction) => void;
   /** How many buffers have unsaved changes. */
   readonly drafts: number;
   /** The minibuffer has a prompt open. */
@@ -89,6 +92,7 @@ export const useFollow = (options: FollowOptions): Follow => {
           now.buffers,
           heldBy(now),
           now.drafted,
+          now.other,
         );
         update(placed.state);
         placed.actions.forEach(now.dispatch);

@@ -21,6 +21,14 @@ const element = (n: number): ElementBuffer =>
 const graph = graphBuffer("uuid-1", "spec", "SR-1 Title 1");
 const list = listBuffer("All elements");
 const overview = overviewBuffer();
+const never = (): boolean => false;
+const agent = (n: number): AgentActivity => ({
+  access: "mcp",
+  command: "element.get",
+  effect: "read",
+  at: `2026-10-28T10:00:0${String(n)}.000Z`,
+  element: { id: `uuid-${String(n)}`, repository: "spec" },
+});
 
 const run = (state: WindowState, ...actions: readonly WindowAction[]): WindowState =>
   actions.reduce(reduceWindow, state);
@@ -194,40 +202,159 @@ describe("window layout (SR-115 AK3)", () => {
     expect(shown(pushed)).toEqual([`${element(MAX_BUFFERS - 1).key}*`, element(MAX_BUFFERS - 2).key]);
   });
 
-  it("[SR-115/AK3] Follow agent shows its element in the active area; closing the mode's buffer in the other area fills that area with the next buffer", () => {
-    const agent = (n: number): AgentActivity => ({
-      access: "mcp",
-      command: "element.get",
-      effect: "read",
-      at: `2026-10-28T10:00:0${String(n)}.000Z`,
-      element: { id: `uuid-${String(n)}`, repository: "spec" },
-    });
-    // The mode shows element 1; the user opens a list, splits, and makes the list's area active.
+  it("[SR-117/AK1] in a split, Follow agent opens its element in the area of the mode's buffer without making it active; the user's buffer stays", () => {
+    // The mode shows element 1; the user opens a list, splits, and the list's area is active.
     let follow = onAccess(startFollowing(FOLLOW_OFF), agent(1), undefined).state;
     let state = opened();
-    let placed = place(
-      follow,
-      follow.generation,
-      agent(1),
-      element(1),
-      state.buffers,
-      undefined,
-      () => false,
-    );
+    let placed = place(follow, follow.generation, agent(1), element(1), state.buffers, undefined, never);
     state = run(state, ...placed.actions);
     follow = placed.state;
     state = run(state, { type: "open", buffer: list }, { type: "split" });
     expect(shown(state)).toEqual([`${list.key}*`, element(1).key]);
-    // The mode's next access opens its element in the active area and closes the mode's buffer of the other area.
+    // The next access replaces the mode's buffer in the other area, which stays inactive (#288).
     follow = onAccess(follow, agent(2), undefined).state;
-    placed = place(follow, follow.generation, agent(2), element(2), state.buffers, undefined, () => false);
+    placed = place(
+      follow,
+      follow.generation,
+      agent(2),
+      element(2),
+      state.buffers,
+      undefined,
+      never,
+      state.layout.other,
+    );
+    expect(placed.actions).toEqual([
+      { type: "agent", key: element(2).key, buffer: element(2) },
+      { type: "close", key: element(1).key },
+    ]);
+    // Nothing came in front, so the app does not take the element for the mode's when the user enters it.
+    expect(placed.state).toEqual({ ...follow, opened: element(2).key, last: element(2).key });
+    state = run(state, ...placed.actions);
+    expect(shown(state)).toEqual([`${list.key}*`, element(2).key]);
+    sound(state);
+    // An open buffer is switched to there; one shown in the other area already stays, a change asks again.
+    state = run(
+      state,
+      { type: "open", buffer: element(4) },
+      { type: "open", buffer: list },
+      { type: "agent", key: element(3).key, buffer: element(3) },
+    );
+    expect(shown(state)).toEqual([`${list.key}*`, element(3).key]);
+    follow = onAccess(placed.state, agent(4), undefined).state;
+    placed = place(
+      follow,
+      follow.generation,
+      agent(4),
+      undefined,
+      state.buffers,
+      undefined,
+      never,
+      element(3).key,
+    );
+    expect(placed.actions).toEqual([
+      { type: "agent", key: element(4).key },
+      { type: "close", key: element(2).key },
+    ]);
+    expect(shown(run(state, ...placed.actions))).toEqual([`${list.key}*`, element(4).key]);
+    const unchanged = run(state, { type: "agent", key: element(3).key });
+    expect(unchanged).toBe(state);
+    const write: AgentActivity = { ...agent(5), element: agent(3).element, effect: "write-files" };
+    follow = onAccess(placed.state, write, undefined).state;
+    placed = place(
+      follow,
+      follow.generation,
+      write,
+      element(3),
+      state.buffers,
+      undefined,
+      never,
+      element(3).key,
+    );
+    expect(placed.actions).toEqual([{ type: "agent", key: element(3).key, buffer: element(3) }]);
+    expect(placed.refresh).toBe(true);
+  });
+
+  it("[SR-117/AK1] in a split, the mode's buffer in the active area takes the access there; with none shown the inactive area takes it", () => {
+    // The mode shows element 1 in one area; the user splits: its buffer stays in the active area.
+    let follow = onAccess(startFollowing(FOLLOW_OFF), agent(1), undefined).state;
+    let state = opened(list);
+    let placed = place(follow, follow.generation, agent(1), element(1), state.buffers, undefined, never);
+    state = run(state, ...placed.actions, { type: "split" });
+    follow = placed.state;
+    expect(shown(state)).toEqual([`${element(1).key}*`, list.key]);
+    follow = onAccess(follow, agent(2), undefined).state;
+    placed = place(
+      follow,
+      follow.generation,
+      agent(2),
+      element(2),
+      state.buffers,
+      undefined,
+      never,
+      state.layout.other,
+    );
     expect(placed.actions).toEqual([
       { type: "open", buffer: element(2) },
       { type: "close", key: element(1).key },
     ]);
     state = run(state, ...placed.actions);
     expect(shown(state)).toEqual([`${element(2).key}*`, list.key]);
+    // A read of the element in the inactive area leaves both areas, also the mode's buffer in the active one.
+    const read = onAccess(
+      placed.state,
+      { ...agent(4), element: { id: "uuid-9", repository: "spec" } },
+      undefined,
+    );
+    const user = run(state, { type: "agent", key: element(9).key, buffer: element(9) });
+    const stay = place(
+      read.state,
+      read.state.generation,
+      agent(9),
+      undefined,
+      user.buffers,
+      undefined,
+      never,
+      element(9).key,
+    );
+    expect(stay.actions).toEqual([{ type: "agent", key: element(9).key }]);
+    expect(run(user, ...stay.actions)).toBe(user);
+    expect(shown(user)).toEqual([`${element(2).key}*`, element(9).key]);
+    // Turned on anew, the mode has shown nothing yet: the inactive area takes the access.
+    follow = onAccess(startFollowing(placed.state), agent(3), undefined).state;
+    placed = place(
+      follow,
+      follow.generation,
+      agent(3),
+      element(3),
+      state.buffers,
+      undefined,
+      never,
+      state.layout.other,
+    );
+    state = run(state, ...placed.actions);
+    expect(shown(state)).toEqual([`${element(2).key}*`, element(3).key]);
     sound(state);
+  });
+
+  it("[SR-117/AK1] Follow agent takes the place of the element a preview brought in and ends the preview (SR-150)", () => {
+    const state = run(opened(list), { type: "beside", side: "right", buffer: element(1) });
+    expect(state.layout.preview).toBe("brought");
+    const next = run(state, { type: "agent", key: element(2).key, buffer: element(2) });
+    expect(shown(next)).toEqual([`${list.key}*`, element(2).key]);
+    expect(next.buffers.some((buffer) => buffer.key === element(1).key)).toBe(false);
+    expect(next.layout.preview).toBeUndefined();
+    // A change of the previewed element keeps the preview; an element that is not open is not switched to.
+    expect(run(state, { type: "agent", key: element(1).key, buffer: element(1) }).layout.preview).toBe(
+      "brought",
+    );
+    expect(run(state, { type: "agent", key: element(8).key })).toBe(state);
+    // Without a split it opens or switches in the one area.
+    expect(shown(run(opened(list), { type: "agent", key: element(4).key, buffer: element(4) }))).toEqual([
+      `${element(4).key}*`,
+    ]);
+    expect(shown(run(opened(element(5), list), { type: "agent", key: element(5).key }))).toEqual([
+      `${element(5).key}*`,
+    ]);
   });
 
   it("[SR-044/AK2] side by side shows two buffers in two areas, the first on the left and active, from one area or from a split", () => {

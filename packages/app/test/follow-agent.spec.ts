@@ -302,3 +302,44 @@ test("[SR-117/AK6] following makes no request", async () => {
     await finish(running, agent);
   }
 });
+
+test("[SR-117/AK1] in a split window the agent's element opens in the area of the mode's buffer, which stays inactive; the user's buffer keeps its area and focus", async () => {
+  const { running, agent } = await started();
+  const { window } = running;
+  const left = window.locator('[data-area="left"]');
+  const right = window.locator('[data-area="right"]');
+  const focusedIn = (side: string): Promise<boolean> =>
+    window.evaluate(
+      (side) => document.querySelector(`[data-area="${side}"]`)?.contains(document.activeElement) === true,
+      side,
+    );
+  try {
+    await window.keyboard.press("ControlOrMeta+Shift+O");
+    await expect(title(window)).toHaveText(MEASURE.title);
+    // The user opens an element and splits: it stays on the left and active, the mode's buffer beside it.
+    await open(window, SEE.title);
+    await runCommand(window, "Split window");
+    await expect(left.locator("article h1")).toHaveText(SEE.title);
+    await expect(right.locator("article h1")).toHaveText(MEASURE.title);
+    await expect(left).toHaveAttribute("data-active", "");
+    // An access replaces the mode's buffer on the right; the left area stays active and keeps the focus.
+    await agent.call("element_get", { ref: WARN.id });
+    await expect(right.locator("article h1")).toHaveText(WARN.title);
+    await expect(left.locator("article h1")).toHaveText(SEE.title);
+    await expect(left).toHaveAttribute("data-active", "");
+    await expect(right).not.toHaveAttribute("data-active", "");
+    expect(await focusedIn("left")).toBe(true);
+    // The user looks into the mode's area and comes back: the next access still goes to the right.
+    await runCommand(window, "Other window");
+    await expect(right).toHaveAttribute("data-active", "");
+    await runCommand(window, "Other window");
+    await expect(left).toHaveAttribute("data-active", "");
+    await agent.call("element_get", { ref: MEASURE.id });
+    await expect(right.locator("article h1")).toHaveText(MEASURE.title);
+    await expect(left.locator("article h1")).toHaveText(SEE.title);
+    await expect(left).toHaveAttribute("data-active", "");
+    expect(await focusedIn("left")).toBe(true);
+  } finally {
+    await finish(running, agent);
+  }
+});
