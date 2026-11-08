@@ -1646,7 +1646,7 @@
                         "bundled": {
                           "type": "string",
                           "minLength": 1,
-                          "description": "The folder of the delivery with its documentation, relative to its resources folder. Left out in a build from a checkout."
+                          "description": "The folder of the delivery with its documentation site, relative to its resources folder, with `/` between its names (`cli/docs`); `reqseq serve docs` serves it. Left out in a build from a checkout."
                         },
                         "online": {
                           "type": "string",

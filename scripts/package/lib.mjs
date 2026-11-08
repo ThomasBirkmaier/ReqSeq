@@ -2,6 +2,7 @@
 // lib.test.mjs. scripts/package/stage.mjs runs them on the real build.
 import fs from "node:fs/promises";
 import path from "node:path";
+import { licenseTexts } from "../licenses/policy.mjs";
 
 /** Dependency fields of a package.json whose `@reqseq/*` entries point at workspace packages. */
 const DEPENDENCY_FIELDS = ["dependencies", "optionalDependencies", "peerDependencies"];
@@ -86,9 +87,6 @@ export async function packageFolders(nodeModules) {
   return found;
 }
 
-/** File names that hold a licence text, in the order they are preferred. */
-const LICENSE_FILE = /^(?:licen[cs]e|copying|notice)(?:[.-].*)?$/i;
-
 /**
  * The third-party notices of the staged folders: every package in their `node_modules` except the
  * workspace's own (`scope`), once per name and version, with its licence and licence texts, and the `extra`
@@ -105,8 +103,7 @@ export async function noticesText({ nodeModules, scope, required, title, extra =
       }
       const key = `${manifest.name}@${manifest.version}`;
       if (!packages.has(key)) {
-        const files = (await fs.readdir(folder)).filter((f) => LICENSE_FILE.test(f)).sort();
-        const texts = await Promise.all(files.map((f) => fs.readFile(path.join(folder, f), "utf8")));
+        const texts = licenseTexts(folder);
         const { license } = manifest;
         packages.set(key, {
           name: manifest.name,
@@ -233,8 +230,9 @@ export async function writeBuildInfo(staged, info) {
 
 /**
  * Why the built site in `folder` is not the offline build that a delivery of `product` `version` ships (SR-141,
- * ADR-0017; empty: it is): its `index.html` must name the version in its title and link with base `/`, not
- * below `/<product>/` as the Pages build does, and it must hold no symbolic link.
+ * ADR-0017; empty: it is). Its `index.html` must have the title the site config gives every page
+ * (`<page> | <product> <version>`), load its assets from base `/` (`/_astro/`), and link to no social account
+ * (the offline build leaves the repository link out); the site must hold no symbolic link and no source map.
  */
 export async function offlineSiteProblems(folder, { product, version }) {
   const file = path.join(folder, "index.html");
@@ -242,17 +240,23 @@ export async function offlineSiteProblems(folder, { product, version }) {
   if (index === undefined) {
     return [`no index.html in ${folder}: build the site with REQSEQ_DOCS_OFFLINE=1`];
   }
+  const entries = await fs.readdir(folder, { recursive: true, withFileTypes: true });
   // The delivery holds plain files only: a link could point out of the site into the build machine.
-  const links = (await fs.readdir(folder, { recursive: true, withFileTypes: true }))
-    .filter((entry) => entry.isSymbolicLink())
-    .map((entry) => `symbolic link in the site: ${path.join(entry.parentPath, entry.name)}`);
   return [
-    ...links,
-    ...(index.includes(`${product} ${version}</title>`)
+    ...entries
+      .filter((entry) => entry.isSymbolicLink())
+      .map((entry) => `symbolic link in the site: ${path.join(entry.parentPath, entry.name)}`),
+    ...entries
+      .filter((entry) => !entry.isDirectory() && isBuildLeftover(entry.name))
+      .map((entry) => `build leftover in the site: ${path.join(entry.parentPath, entry.name)}`),
+    ...(/<title>[^<]*\| ([^<]*)<\/title>/.exec(index)?.[1] === `${product} ${version}`
       ? []
-      : [`the title of ${file} does not name ${product} ${version}`]),
-    ...(index.includes(`="/${product}/`)
-      ? [`${file} links below /${product}/: the Pages build, not the offline one`]
+      : [`the title of ${file} does not end with "| ${product} ${version}"`]),
+    ...(/(?:href|src)="\/_astro\//.test(index)
+      ? []
+      : [`${file} loads no asset from base /: not the offline build`]),
+    ...(/class="[^"]*\bsocial-icons\b[^"]*"><a\b/.test(index)
+      ? [`${file} links to a social account: not the offline build`]
       : []),
   ];
 }

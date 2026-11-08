@@ -17,20 +17,28 @@ const GUIDE_SECTIONS = [
 // repository. Otherwise `/ReqSeq` for GitHub Pages, or REQSEQ_DOCS_BASE. packages/docs/src/bin.ts has the same rule.
 const offline = process.env.REQSEQ_DOCS_OFFLINE === "1";
 const base = offline ? "/" : (process.env.REQSEQ_DOCS_BASE ?? "/ReqSeq");
-// Every page title names the version the site documents (SR-141 AK1), online too.
-const { version } = JSON.parse(readFileSync(new URL("../../../package.json", import.meta.url), "utf8"));
+// Every page title names the product and the version the site documents (SR-141 AK1), online too; the staging
+// checks the title by the same two values (scripts/package/lib.mjs, offlineSiteProblems).
+const readJson = (file) => JSON.parse(readFileSync(new URL(file, import.meta.url), "utf8"));
+const { version } = readJson("../../../package.json");
+const { productName } = readJson("../../../toolchain/packaging/names.json");
 /** A path of public/ under the base. */
 const publicPath = (name) => `${base.replace(/\/$/, "")}/${name}`;
 
 export default defineConfig({
-  site: "https://thomasbirkmaier.github.io",
+  // The address of the Pages site, for its canonical links and sitemap. Left out offline: a delivery's site has no
+  // address of its own, so it names none (no canonical link, no sitemap).
+  ...(offline ? {} : { site: "https://thomasbirkmaier.github.io" }),
   base,
+  // Offline, the scripts get source maps that no page names, so that `stage.mjs --docs-site` can tell each script's
+  // packages from them (ADR-0015); it deletes them before the site is staged.
+  vite: { build: { sourcemap: offline ? "hidden" : false } },
   // The screenshots of docs/guide/images/ are served as they are: Astro's default service needs Sharp, a native
   // package that the site's install (--ignore-scripts) does not build. A missing image still fails the build.
   image: { service: passthroughImageService() },
   integrations: [
     starlight({
-      title: `ReqSeq ${version}`,
+      title: `${productName} ${version}`,
       description: "User documentation of ReqSeq.",
       // A link only; the site loads nothing from it. Left out offline, where it leads nowhere.
       social: offline

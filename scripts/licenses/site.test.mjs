@@ -6,12 +6,14 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   SITE_BUNDLED,
   SITE_PACKAGES,
-  licenseAllowed,
+  builtSiteProblems,
   lockVersions,
   pnpmPackageReader,
   siteLicenses,
+  sourcePackage,
   textReader,
 } from "./site.mjs";
+import { licenseAllowed } from "./policy.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const siteLock = fs.readFileSync(
@@ -37,14 +39,6 @@ const lockOf = (...ids) =>
 const installed = () => ({ license: "MIT", texts: ["MIT text"] });
 
 describe("site licenses (SR-141, ADR-0015)", () => {
-  it("allows an SPDX expression when one alternative of OR, and every part of AND, is allowed", () => {
-    expect(licenseAllowed("MIT")).toBe(true);
-    expect(licenseAllowed("(Apache-2.0 OR MIT)")).toBe(true);
-    expect(licenseAllowed("MIT AND BSD-3-Clause")).toBe(true);
-    expect(licenseAllowed("MIT AND GPL-3.0-only")).toBe(false);
-    expect(licenseAllowed("GPL-3.0-only")).toBe(false);
-  });
-
   it("reads the versions of each package of a lockfile", () => {
     expect(lockVersions(lockOf("@a/b@1.0.0", "c@2.0.0", "c@3.0.0"))).toEqual(
       new Map([
@@ -54,7 +48,7 @@ describe("site licenses (SR-141, ADR-0015)", () => {
     );
   });
 
-  it("finds in the real site lockfile every shipped package once and every pinned host of bundled code, and refuses the GPL-3.0 crate in Pagefind's WebAssembly (#1220)", () => {
+  it("finds in the real site lockfile every shipped package once and every pinned host of bundled code, and refuses the GPL-3.0 and Unicode-3.0 crates of Pagefind's WebAssembly (#1220)", () => {
     const { entries, problems } = siteLicenses({
       lockText: siteLock,
       readPackage: installed,
@@ -62,6 +56,7 @@ describe("site licenses (SR-141, ADR-0015)", () => {
     });
     expect(problems).toEqual([
       "license not allowed (ADR-0015): pagefind_microjson@0.1.4: GPL-3.0-only (shipped in the documentation site)",
+      "license not allowed (ADR-0015): unicode-ident@1.0.24: (MIT OR Apache-2.0) AND Unicode-3.0 (shipped in the documentation site)",
     ]);
     expect(entries).toHaveLength(SITE_PACKAGES.length + SITE_BUNDLED.length);
   });
@@ -123,7 +118,7 @@ describe("site licenses (SR-141, ADR-0015)", () => {
     expect(problems).toEqual(["no licence text for x@1.0.0 (shipped in the documentation site)"]);
   });
 
-  it("reads a package of a pnpm install with its licence files, also from a folder named LICENSE", () => {
+  it("reads a package of a pnpm install with its licence files", () => {
     const nm = tempFolder();
     const dir = path.join(nm, ".pnpm", "@p+a@1.0.0_peer", "node_modules", "@p", "a");
     fs.mkdirSync(path.join(dir, "LICENSE"), { recursive: true });
@@ -142,15 +137,59 @@ describe("site licenses (SR-141, ADR-0015)", () => {
     expect(pnpmPackageReader(path.join(nm, "none"))("@p/a", "1.0.0")).toBeUndefined();
   });
 
-  it("has a licence text for every allowed bundled component and none for another", () => {
+  it("has a licence text for every allowed bundled component, and no text that no entry names", () => {
     const read = textReader(path.join(here, "site-texts"));
-    for (const entry of SITE_BUNDLED) {
-      expect(read(`${entry.name}@${entry.version}.txt`) !== undefined, entry.name).toBe(
-        licenseAllowed(entry.license),
-      );
+    for (const entry of SITE_BUNDLED.filter((e) => licenseAllowed(e.license))) {
+      expect(read(`${entry.name}@${entry.version}.txt`), entry.name).toBeDefined();
     }
-    expect(fs.readdirSync(path.join(here, "site-texts"))).toHaveLength(
-      SITE_BUNDLED.filter((e) => licenseAllowed(e.license)).length,
+    const named = new Set(SITE_BUNDLED.map((e) => `${e.name}@${e.version}.txt`));
+    expect(fs.readdirSync(path.join(here, "site-texts")).filter((f) => !named.has(f))).toEqual([]);
+  });
+
+  it("names the package of a source of a source map", () => {
+    expect(sourcePackage("../../node_modules/.pnpm/astro@7.3.8_x/node_modules/astro/dist/a.js")).toBe(
+      "astro",
     );
+    expect(sourcePackage("../node_modules/.pnpm/@a+b@1/node_modules/@a/b/c.ts?astro&type=script")).toBe(
+      "@a/b",
+    );
+    expect(sourcePackage("../../../../../astro:scripts/page.js")).toBe("astro");
+    expect(sourcePackage("../src/own.js")).toBeUndefined();
+  });
+
+  it("accepts a built site of the shipped files whose scripts come from listed packages only", () => {
+    const site = tempFolder();
+    const write = (file, text = "") => {
+      fs.mkdirSync(path.dirname(path.join(site, file)), { recursive: true });
+      fs.writeFileSync(path.join(site, file), text);
+    };
+    const map = (...sources) => JSON.stringify({ version: 3, sources });
+    write("index.html");
+    write("reference/commands/element-get/index.html");
+    write("404.html");
+    write("favicon.svg");
+    write("_astro/page.a1.js");
+    write("_astro/page.a1.js.map", map("../node_modules/astro/dist/p.js", "astro:scripts/page.js"));
+    write("_astro/Toc.b2.js", 'import"./page.a1.js";');
+    write("_astro/ec.c3.js");
+    write("_astro/common.d4.css");
+    write("_astro/app.e5.png");
+    write("pagefind/wasm.en.pagefind");
+    write("pagefind/index/en_1.pf_index");
+    expect(builtSiteProblems(site, ["astro"])).toEqual([]);
+
+    write("sitemap-index.xml");
+    write("_astro/extra.f6.js", "var a=1;");
+    write("_astro/ui.g7.js");
+    write(
+      "_astro/ui.g7.js.map",
+      map("../node_modules/.pnpm/x@1/node_modules/@other/pkg/i.js", "../src/own.js"),
+    );
+    expect(builtSiteProblems(site, ["astro"])).toEqual([
+      "file outside the shipped files of the site: sitemap-index.xml",
+      "script without its source map (build with REQSEQ_DOCS_OFFLINE=1): _astro/extra.f6.js",
+      "_astro/ui.g7.js.map ships code of @other/pkg, which SITE_PACKAGES does not list",
+      "_astro/ui.g7.js.map ships code of an unknown source ../src/own.js, which SITE_PACKAGES does not list",
+    ]);
   });
 });

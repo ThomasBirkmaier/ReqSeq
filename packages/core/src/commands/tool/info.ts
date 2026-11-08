@@ -19,9 +19,9 @@ type Output = CommandOutput<"tool.info">;
 export const ONLINE_DOCUMENTATION = "https://thomasbirkmaier.github.io/ReqSeq/";
 export const RELEASES = "https://github.com/ThomasBirkmaier/ReqSeq/releases";
 
-/** In a delivery, relative to its resources folder (ADR-0014). */
+/** In a delivery, relative to its resources folder (ADR-0014); the documentation site is `docs/` of the CLI (SR-141). */
 export const THIRD_PARTY_NOTICES = "THIRD_PARTY_NOTICES.txt";
-export const BUNDLED_DOCUMENTATION = "docs";
+export const BUNDLED_DOCUMENTATION = "cli/docs";
 
 /** What the process tells about itself: the parts of `process` the info reads. */
 export interface ProcessFacts {

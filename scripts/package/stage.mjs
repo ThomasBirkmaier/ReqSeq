@@ -16,7 +16,7 @@
 import { execFileSync } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { siteLicenses, pnpmPackageReader, textReader } from "../licenses/site.mjs";
+import { builtSiteProblems, pnpmPackageReader, siteLicenses, textReader } from "../licenses/site.mjs";
 import {
   buildInfoOf,
   hardLinkEntries,
@@ -109,24 +109,30 @@ async function readDocsSite() {
 }
 
 /**
- * `--docs-site`: the offline build of the site (`REQSEQ_DOCS_OFFLINE=1`) with the licences of what it ships checked
- * (scripts/licenses/site.mjs), copied with its notices into `docsSite`.
+ * `--docs-site`: the offline build of the site (`REQSEQ_DOCS_OFFLINE=1`), checked that it ships only files and code
+ * the licence check reads (`builtSiteProblems`, from its hidden source maps) and the licences of that code
+ * (scripts/licenses/site.mjs), copied without the source maps and with its notices into `docsSite`, where it must
+ * then be the offline build of this version.
  */
 async function docsSiteStage() {
-  const dist = path.join(root, "packages", "docs", "site", "dist");
   const sitePackage = path.join(root, "packages", "docs", "site");
-  const problems = await offlineSiteProblems(dist, { product: names.productName, version });
+  const dist = path.join(sitePackage, "dist");
   const licenses = siteLicenses({
     lockText: await fs.readFile(path.join(sitePackage, "pnpm-lock.yaml"), "utf8"),
     readPackage: pnpmPackageReader(path.join(sitePackage, "node_modules")),
     readText: textReader(path.join(root, "scripts", "licenses", "site-texts")),
   });
-  if (problems.length + licenses.problems.length > 0) {
-    throw new Error(`documentation site:\n${[...problems, ...licenses.problems].join("\n")}`);
+  const problems = [...builtSiteProblems(dist), ...licenses.problems];
+  if (problems.length > 0) {
+    throw new Error(`documentation site:\n${problems.join("\n")}`);
   }
   await fs.rm(docsSite, { recursive: true, force: true });
-  await fs.cp(dist, path.join(docsSite, "site"), { recursive: true });
+  await fs.cp(dist, path.join(docsSite, "site"), {
+    recursive: true,
+    filter: (file) => !file.endsWith(".map"),
+  });
   await fs.writeFile(path.join(docsSite, "notices.json"), `${JSON.stringify(licenses.entries, null, 2)}\n`);
+  await readDocsSite();
   console.log(docsSite);
 }
 

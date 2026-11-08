@@ -11,7 +11,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import YAML from "yaml";
-import { ALLOWED } from "./check.mjs";
+import { licenseAllowed, licenseTexts } from "./policy.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, "..", "..");
@@ -58,8 +58,10 @@ export const SITE_BUNDLED = [
   // pagefind-component-ui.js and pagefind-highlight.js.
   bundled("adequate-little-templates", "1.0.2", "MIT", PAGEFIND_BINARY),
   bundled("mark.js", "8.11.1", "MIT", PAGEFIND_BINARY),
-  // The Rust crates compiled into wasm.*.pagefind (pagefind_web/Cargo.lock of Pagefind 1.5.2; the build-only
-  // crates of proc macros are left out). Dual licences are shipped under MIT.
+  // The Rust crates compiled into wasm.*.pagefind: the normal (not build-only, not proc-macro) dependencies in
+  // pagefind_web/Cargo.lock of Pagefind 1.5.2, whether or not the linker keeps code of them, and the standard
+  // library of the compiler its producers section names (rustc 1.97.0-nightly, bf4fbfb7a 2026-04-11). Dual licences
+  // are shipped under MIT.
   bundled("bit-set", "0.10.0", "Apache-2.0 OR MIT", PAGEFIND_BINARY),
   bundled("bit-vec", "0.9.1", "Apache-2.0 OR MIT", PAGEFIND_BINARY),
   bundled("cfg-if", "1.0.4", "MIT OR Apache-2.0", PAGEFIND_BINARY),
@@ -72,18 +74,10 @@ export const SITE_BUNDLED = [
   bundled("wasm-bindgen", "0.2.117", "MIT OR Apache-2.0", PAGEFIND_BINARY),
   bundled("wasm-bindgen-shared", "0.2.117", "MIT OR Apache-2.0", PAGEFIND_BINARY),
   bundled("write-json", "0.1.4", "MIT OR Apache-2.0", PAGEFIND_BINARY),
+  // A dependency of wasm-bindgen-shared (its identifier checks); Unicode-3.0 is outside the allowlist (#1220).
+  bundled("unicode-ident", "1.0.24", "(MIT OR Apache-2.0) AND Unicode-3.0", PAGEFIND_BINARY),
+  bundled("rust-std", "1.97.0-nightly", "MIT OR Apache-2.0", PAGEFIND_BINARY),
 ];
-
-/**
- * Whether an SPDX expression of `OR` and `AND` (no parentheses inside) is allowed: one alternative of an `OR`, and
- * every part of an `AND`, in the allowlist.
- */
-export function licenseAllowed(expression, allowed = ALLOWED) {
-  return expression
-    .replace(/[()]/g, "")
-    .split(/\s+OR\s+/)
-    .some((option) => option.split(/\s+AND\s+/).every((part) => allowed.has(part.trim())));
-}
 
 /** The versions of each package of a pnpm lockfile (its `packages` keys, `name@version`). */
 export function lockVersions(lockText) {
@@ -97,9 +91,6 @@ export function lockVersions(lockText) {
   }
   return versions;
 }
-
-/** File names that hold a licence text. */
-const LICENSE_FILE = /^(?:licen[cs]e|copying|notice)(?:[.-].*)?$/i;
 
 /** The entries of the shipped packages of the lockfile (`versions`), their licence texts resolved; pushes problems. */
 function packageEntries(packages, versions, readPackage, problems) {
@@ -169,6 +160,76 @@ export function siteLicenses({
   return { entries, problems };
 }
 
+/**
+ * The files the built site may hold, by path relative to it with `/`: its pages, the chunks and images of
+ * `_astro/` (with the hidden source maps of the offline build), what Pagefind writes and the icons of public/. A file
+ * outside them could be code no check has read.
+ */
+export const SITE_FILES = [
+  /^(?:[a-z0-9-]+\/)*index\.html$/,
+  /^404\.html$/,
+  /^_astro\/[\w.-]+\.(?:js|js\.map|css|png|svg|jpg|jpeg|gif|webp|avif)$/,
+  /^pagefind\/[\w./-]+$/,
+  /^(?:favicon\.ico|favicon\.svg|apple-touch-icon\.png)$/,
+];
+
+/**
+ * The scripts without a source map: the copy button of code blocks, which astro-expressive-code writes as a file of
+ * its own (`ec.<hash>.js`).
+ */
+const UNMAPPED_SCRIPT = /^_astro\/ec\.[\w-]+\.js$/;
+
+/** A chunk that only imports other chunks of the site (Vite writes no map for it). */
+const IMPORTS_ONLY = /^\s*(?:import\s*"\.\/[\w.-]+\.js";?\s*)+$/;
+
+/**
+ * The package of one `sources` entry of a source map: the name after its last `node_modules/`, `astro` for Astro's
+ * virtual modules (`astro:scripts/page.js`), or undefined for any other source.
+ */
+export function sourcePackage(source) {
+  const at = source.lastIndexOf("node_modules/");
+  if (at >= 0) {
+    const [first = "", second = ""] = source.slice(at + "node_modules/".length).split("/");
+    return first.startsWith("@") ? `${first}/${second}` : first;
+  }
+  return /(?:^|\/)astro:[\w/.-]+$/.test(source) ? "astro" : undefined;
+}
+
+/**
+ * Why the built site in `folder` (the offline build, with hidden source maps) may ship code that the licence check
+ * has not read (empty: it does not): a file outside SITE_FILES, a script of `_astro/` without its source map (except
+ * the copy button and a chunk that only imports others), and a source of a map whose package is not in `packages` (the names of SITE_PACKAGES).
+ */
+export function builtSiteProblems(folder, packages = SITE_PACKAGES.map((p) => p.name)) {
+  const files = fs
+    .readdirSync(folder, { recursive: true, withFileTypes: true })
+    .filter((entry) => !entry.isDirectory())
+    .map((entry) => path.relative(folder, path.join(entry.parentPath, entry.name)).split(path.sep).join("/"))
+    .sort();
+  const known = new Set(packages);
+  const problems = files
+    .filter((file) => !SITE_FILES.some((pattern) => pattern.test(file)))
+    .map((file) => `file outside the shipped files of the site: ${file}`);
+  for (const file of files.filter((f) => f.startsWith("_astro/") && f.endsWith(".js"))) {
+    const onlyImports = () => IMPORTS_ONLY.test(fs.readFileSync(path.join(folder, file), "utf8"));
+    if (!UNMAPPED_SCRIPT.test(file) && !files.includes(`${file}.map`) && !onlyImports()) {
+      problems.push(`script without its source map (build with REQSEQ_DOCS_OFFLINE=1): ${file}`);
+    }
+  }
+  for (const file of files.filter((f) => f.endsWith(".js.map"))) {
+    const { sources = [] } = JSON.parse(fs.readFileSync(path.join(folder, file), "utf8"));
+    for (const source of new Set(sources)) {
+      const name = sourcePackage(source);
+      if (name === undefined || !known.has(name)) {
+        problems.push(
+          `${file} ships code of ${name ?? `an unknown source ${source}`}, which SITE_PACKAGES does not list`,
+        );
+      }
+    }
+  }
+  return problems;
+}
+
 /** `{ license, texts }` of package `name` at `version` in a pnpm install (`node_modules/.pnpm`), or undefined. */
 export function pnpmPackageReader(nodeModules) {
   const store = path.join(nodeModules, ".pnpm");
@@ -186,19 +247,7 @@ export function pnpmPackageReader(nodeModules) {
     if (manifest.version !== version) {
       return undefined;
     }
-    // pagefind 1.5.2 ships a folder `LICENSE` with its own licence and the one of code it took over.
-    const texts = fs
-      .readdirSync(dir, { withFileTypes: true })
-      .filter((f) => LICENSE_FILE.test(f.name))
-      .flatMap((f) =>
-        f.isDirectory()
-          ? fs.readdirSync(path.join(dir, f.name)).map((g) => path.join(f.name, g))
-          : f.isFile()
-            ? [f.name]
-            : [],
-      )
-      .sort()
-      .map((f) => fs.readFileSync(path.join(dir, f), "utf8"));
+    const texts = licenseTexts(dir);
     return { license: manifest.license, texts };
   };
 }

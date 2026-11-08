@@ -1860,7 +1860,7 @@ export interface ToolInfoOutput {
     readonly thirdParty?: string;
   };
   readonly documentation: {
-    /** The folder of the delivery with its documentation, relative to its resources folder. Left out in a build from a checkout. */
+    /** The folder of the delivery with its documentation site (SR-141), relative to its resources folder, with `/` between its names (`cli/docs`); `reqseq serve docs` serves it. Left out in a build from a checkout. */
     readonly bundled?: string;
     /** The address of the online documentation, as text only: ReqSeq never opens it. */
     readonly online: string;

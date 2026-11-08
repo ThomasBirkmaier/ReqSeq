@@ -263,24 +263,33 @@ describe("notices of the documentation site and its offline build (SR-141)", () 
 
   it("accepts the offline build of the version and refuses the Pages build, another version and no site", async () => {
     const site = await tempFolder();
-    const page = (title, href) => `<html><head><title>${title}</title><link href="${href}"></head></html>`;
+    const index = path.join(site, "index.html");
+    const page = (title, href, social = "") =>
+      `<html><head><title>${title}</title><link href="${href}"></head>` +
+      `<body><div class="sl-flex social-icons astro-1">${social}</div></body></html>`;
     const options = { product: "Tool", version: "1.2.3" };
     expect(await offlineSiteProblems(site, options)).toEqual([
       `no index.html in ${site}: build the site with REQSEQ_DOCS_OFFLINE=1`,
     ]);
-    await fs.writeFile(path.join(site, "index.html"), page("Tool | Tool 1.2.3", "/_astro/a.css"));
+    await fs.writeFile(index, page("Tool | Tool 1.2.3", "/_astro/a.css"));
     expect(await offlineSiteProblems(site, options)).toEqual([]);
-    const index = path.join(site, "index.html");
-    await fs.writeFile(index, page("Tool | Tool 1.2.2", "/Tool/_astro/a.css"));
+    await fs.writeFile(
+      index,
+      page("Tool | Tool 1.2.2", "/Tool/_astro/a.css", '<a href="https://example.org/repo">GitHub</a>'),
+    );
     expect(await offlineSiteProblems(site, options)).toEqual([
-      `the title of ${index} does not name Tool 1.2.3`,
-      `${index} links below /Tool/: the Pages build, not the offline one`,
+      `the title of ${index} does not end with "| Tool 1.2.3"`,
+      `${index} loads no asset from base /: not the offline build`,
+      `${index} links to a social account: not the offline build`,
     ]);
+    await fs.writeFile(index, page("Tool | Tool 1.2.3", "/_astro/a.css"));
+    await fs.writeFile(path.join(site, "a.js.map"), "{}");
     // A junction on Windows, which needs no privilege; a plain link elsewhere.
     await fs.symlink(os.tmpdir(), path.join(site, "out"), "junction");
-    expect(await offlineSiteProblems(site, options)).toContain(
+    expect((await offlineSiteProblems(site, options)).sort()).toEqual([
+      `build leftover in the site: ${path.join(site, "a.js.map")}`,
       `symbolic link in the site: ${path.join(site, "out")}`,
-    );
+    ]);
   });
 });
 
