@@ -17,6 +17,7 @@ import {
   TABLE_KEYS,
 } from "./editor/editor-keys.js";
 import { MENU_KEYS } from "../shared/menu-keys.js";
+import { CONTEXT_MENU_KEYS } from "./context-menu.js";
 import { GRAPH_KEYS, GRAPH_MORE_KEYS } from "./graph-nav.js";
 import type { KeyRow } from "./keys.js";
 import { HISTORY_KEYS, LIST_KEYS, keySpecLabel, shortcutLabel } from "./keys.js";
@@ -46,6 +47,7 @@ export interface ShortcutTables {
   readonly prefix: readonly KeyRow[];
   readonly bindings: readonly PrefixBinding[];
   readonly prompt: readonly KeyRow[];
+  readonly menu: readonly KeyRow[];
   readonly list: readonly KeyRow[];
   readonly graph: readonly KeyRow[];
   readonly element: readonly KeyRow[];
@@ -67,6 +69,7 @@ export const SHORTCUT_TABLES: ShortcutTables = {
   prefix: PREFIX_KEYS,
   bindings: PREFIX_BINDINGS,
   prompt: PROMPT_KEYS,
+  menu: CONTEXT_MENU_KEYS,
   list: LIST_KEYS,
   graph: [...GRAPH_KEYS, ...GRAPH_MORE_KEYS],
   element: [
@@ -164,6 +167,12 @@ export const shortcutReference = (
     title: "In a prompt",
     about: "In the command prompt, in “Go to” and while a command asks its arguments in the minibuffer.",
     rows: rows(tables.prompt),
+  },
+  {
+    title: "In the context menu",
+    about:
+      "While the menu of a right-click is open (on macOS also Ctrl+click); the text, list or graph keeps the focus. Any other key closes it and does what it does without it.",
+    rows: rows(tables.menu),
   },
   {
     title: "In a list",

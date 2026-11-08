@@ -8,6 +8,7 @@ import {
   askPackageSummary,
   askSummary,
   coverageBuffer,
+  memberAt,
   memberCount,
   memberHeading,
   memberList,
@@ -219,5 +220,18 @@ describe("the query of a package page's elements (#993)", () => {
     expect(memberQuery(filtered)).toEqual({ steps: [statusStep("draft")], sort: DEFAULT_SORT });
     const { memberSort: _sort, memberSteps: _steps, ...plain } = filtered;
     expect(withMemberQuery(filtered, { steps: [], sort: undefined })).toEqual(plain);
+  });
+});
+
+describe("memberAt (SR-194 AK5)", () => {
+  const entries = [elementBuffer("uuid-1", "spec", "SR-1 One"), elementBuffer("uuid-2", "spec", "SR-2 Two")];
+
+  it("is the entry at the cursor only while the list has the focus", () => {
+    expect(memberAt(entries, 1, true)).toBe(entries[1]);
+    // The first row a filter starts at, while the reader is not in the list, marks nothing.
+    expect(memberAt(entries, 0, false)).toBeUndefined();
+    expect(memberAt(entries, undefined, true)).toBeUndefined();
+    expect(memberAt(entries, -1, true)).toBeUndefined();
+    expect(memberAt(undefined, 0, true)).toBeUndefined();
   });
 });

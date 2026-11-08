@@ -148,7 +148,7 @@ import type { TitleBoxProps } from "./TitleBox.js";
 import { ParentsRow, useParents } from "./ParentsLine.js";
 import type { BufferData } from "./modeline.js";
 import type { MemberCount, PackageModel } from "./package-page.js";
-import { memberSelection, packageOf } from "./package-page.js";
+import { memberAt, memberSelection, packageOf } from "./package-page.js";
 import {
   addableProperties,
   allBoxes,
@@ -545,6 +545,10 @@ export const ElementView = ({
   // modeline (SR-114 AK3) give their count. The selection keeps its identity, or the list would ask
   // again after every render.
   const [members, setMembers] = useState<MemberCount | undefined>(undefined);
+  // Their elements as loaded: the selected one is the marked element of the page (SR-194 AK5, SR-150).
+  const [entries, setEntries] = useState<readonly ElementBuffer[] | undefined>(undefined);
+  const [membersFocused, setMembersFocused] = useState(false);
+  const markedEntry = memberAt(entries, buffer.memberCursor, membersFocused);
   // With the filter steps of the page (SR-112 AK2); the steps keep their identity while they stay.
   const selection = useMemo(
     () => memberSelection(buffer.id, buffer.memberSteps ?? []),
@@ -1150,9 +1154,10 @@ export const ElementView = ({
         ...(disk === undefined ? {} : { disk }),
         ...(notSaved ? { notSaved } : {}),
         ...(members === undefined || !isPackage ? {} : { members }),
+        ...(markedEntry === undefined || !isPackage ? {} : { marked: markedEntry }),
       });
     }
-  }, [loadedElement, disk, notSaved, members, isPackage]);
+  }, [loadedElement, disk, notSaved, members, isPackage, markedEntry]);
 
   // After a save: the answer is the new baseline, the boxes show what the file holds, and what was typed
   // while the save ran stays as a draft. A box that the save emptied (its property left the file) and that
@@ -2140,6 +2145,8 @@ export const ElementView = ({
                 dispatch={dispatch}
                 members={members}
                 onMembers={setMembers}
+                onEntries={setEntries}
+                onListFocus={setMembersFocused}
                 onEcho={onEcho}
                 onLeave={() => {
                   article?.focus({ preventScroll: true });

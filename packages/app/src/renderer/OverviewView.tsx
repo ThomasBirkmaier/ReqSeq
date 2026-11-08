@@ -219,10 +219,14 @@ export const OverviewView = ({
               className={row.kind === "type" ? "line type" : rowClass("line recent", marked, row.buffer.id)}
               role="option"
               aria-selected={at === cursor}
-              {...(row.kind === "type" ? { "aria-label": typeLine(row) } : {})}
+              {...(row.kind === "type" ? { "aria-label": typeLine(row) } : { "data-menu": "element-entry" })}
               onClick={() => {
                 dispatch({ type: "cursor", key: buffer.key, cursor: at });
                 open(at);
+              }}
+              // A right-click selects the row before the context menu opens (SR-194 AK5).
+              onContextMenu={() => {
+                dispatch({ type: "cursor", key: buffer.key, cursor: at });
               }}
             >
               {row.kind === "type" ? (

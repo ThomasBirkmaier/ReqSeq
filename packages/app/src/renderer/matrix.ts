@@ -84,6 +84,21 @@ export const opening = (relation: DataExportRelation): Opening => {
 };
 
 /**
+ * The element a target stands for, which the commands of the context menu and "Open to the right" act on
+ * (SR-194 AK5, SR-150): the row's element, or the element of a relation, when it is there.
+ */
+export const targetElement = (target: Target | undefined): ElementBuffer | undefined => {
+  if (target === undefined) {
+    return undefined;
+  }
+  if (target.kind === "element") {
+    return target.open;
+  }
+  const opened = opening(target.relation);
+  return opened.ok ? opened.buffer : undefined;
+};
+
+/**
  * The name above a column. A column of incoming relations whose name another column also has (the kinds
  * "Distinct from" and "See also" read the same both ways) gets an arrow, so the direction is not lost.
  */
