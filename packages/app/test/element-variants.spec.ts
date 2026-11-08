@@ -152,7 +152,9 @@ test.describe("the page of a requirement with variants", () => {
       .locator(".badge")
       .evaluateAll((all) =>
         all.map((badge) => {
-          const [name, status] = [...badge.children].map((half) => half.getBoundingClientRect());
+          const [name, status] = [".badge-name", ".badge-status"].map((half) =>
+            badge.querySelector(half)?.getBoundingClientRect(),
+          );
           const box = badge.getBoundingClientRect();
           return {
             radius: parseFloat(getComputedStyle(badge).borderTopLeftRadius),

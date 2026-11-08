@@ -125,7 +125,8 @@ export const CutLine = ({
 /**
  * The verification status as badges (SR-157 AK1): a pill per view, its left half the name (a variant's a
  * link to it, AK5), its right half the status with its details; `data-status` gives the right half its
- * colour, which only failed and outdated have (AK3).
+ * colour, which only failed and outdated have (AK3). A hidden ": " between the halves lets a screen reader say
+ * "Core: verified".
  */
 export const Badges = ({
   badges,
@@ -138,6 +139,7 @@ export const Badges = ({
     {badges.map((badge, at) => (
       <span key={at} className="badge" data-status={badge.status}>
         <Part part={badge.name} className="badge-name" onOpen={onOpen} />
+        <span className="badge-separator">: </span>
         <span className="badge-status">
           {badge.parts.map((part, index) => (
             <Part key={index} part={part} onOpen={onOpen} />

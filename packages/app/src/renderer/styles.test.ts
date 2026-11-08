@@ -370,6 +370,8 @@ describe("the verification badges (SR-157)", () => {
     expect(pair(HALVES.failed)).toEqual(["sheet", "badge-failed"]);
     expect(pair(HALVES.outdated)).toEqual(["sheet", "badge-outdated"]);
     expect(values("badge-failed")).not.toEqual(values("badge-outdated"));
+    // Outdated is the accent of "outdated" elsewhere (D-062: one colour, one meaning).
+    expect(values("badge-outdated")).toEqual(values("accent-outdated"));
     // No other rule gives a badge a colour.
     const coloured = CSS.split("\n}\n").filter(
       (rule) => rule.includes(".badge") && /(color|background):/.test(rule),

@@ -43,8 +43,12 @@ type Rgb = readonly [number, number, number];
 const colours = (half: Locator): Promise<{ readonly text: Rgb; readonly ground: Rgb }> =>
   half.evaluate((element) => {
     const rgb = (value: string): Rgb => {
-      const [r = 0, g = 0, b = 0] = (/rgba?\(([^)]*)\)/.exec(value)?.[1] ?? "").split(/[\s,/]+/).map(Number);
-      return [r, g, b];
+      // Opaque rgb() only: anything else (a transparent half, another colour space) is an error, not black.
+      const match = /^rgb\((\d+), (\d+), (\d+)\)$/.exec(value);
+      if (match === null) {
+        throw new Error(`not an opaque rgb() colour: ${value}`);
+      }
+      return [Number(match[1]), Number(match[2]), Number(match[3])];
     };
     const style = getComputedStyle(element);
     return { text: rgb(style.color), ground: rgb(style.backgroundColor) };
@@ -81,6 +85,32 @@ test.describe("the verification badges", () => {
     await expect(verification(running.window).locator(".badge-status")).toHaveText([
       "open (missing SR-00b121 Warn of gusts, SR-00b122 Warn of hail, SR-00b123 Warn of lightning)",
     ]);
+    // In a narrow column the status wraps inside its half: nothing is cut off, the pill stays in the line,
+    // and its ends stay round (the radius is half a line, the text kept out of the corners).
+    const group = verification(running.window);
+    await group.evaluate((element) => {
+      (element as HTMLElement).style.width = "240px";
+    });
+    const wrapped = await group.locator(".badge").evaluate((badge) => {
+      const status = badge.querySelector<HTMLElement>(".badge-status");
+      if (status === null) {
+        throw new Error("no status half");
+      }
+      const style = getComputedStyle(status);
+      return {
+        lines: Math.round(status.clientHeight / parseFloat(style.lineHeight)),
+        clipped: status.scrollWidth > status.clientWidth || status.scrollHeight > status.clientHeight,
+        inside:
+          badge.getBoundingClientRect().right <=
+          (badge.parentElement?.getBoundingClientRect().right ?? 0) + 0.5,
+        radius:
+          parseFloat(getComputedStyle(badge).borderTopLeftRadius) * 2 >= parseFloat(style.lineHeight) - 0.5,
+        corners:
+          parseFloat(style.paddingLeft) >= parseFloat(getComputedStyle(badge).borderTopLeftRadius) - 0.5,
+      };
+    });
+    expect(wrapped.lines).toBeGreaterThan(1);
+    expect(wrapped).toMatchObject({ clipped: false, inside: true, radius: true, corners: true });
     await running.close();
     // S3 has two criteria; one record proves the first.
     running = await launchApp({
