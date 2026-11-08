@@ -399,14 +399,14 @@ describe("App, changes from outside (SR-116, SR-106)", () => {
     Object.assign(shown ?? {}, { verification: [{ view: "core", status: "open" }] });
     await listAll();
     await openRow(0);
-    const line = () => query('[role="group"][aria-label="Verification"]').textContent;
-    expect(line()).toBe("Verification — Core: open");
+    const line = () => query('[role="group"][aria-label="Verification"] .badge-status').textContent;
+    expect(line()).toBe("open");
     const reads = calls("element.get").length;
     // A record written outside: the change names the record's element only through another file.
     Object.assign(shown ?? {}, { verification: [{ view: "core", status: "verified" }] });
     await outside("uuid-2", { title: "Show gust speed" });
     expect(calls("element.get")).toHaveLength(reads + 1);
-    expect(line()).toBe("Verification — Core: verified");
+    expect(line()).toBe("verified");
     // Only the lines took the answer: nothing is highlighted, the text stays.
     expect(marked()).toEqual([]);
     expect(editorView().state.doc.toString()).toBe("The wind blows.");

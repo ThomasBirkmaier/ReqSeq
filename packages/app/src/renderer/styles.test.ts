@@ -21,6 +21,8 @@ const TOKENS = [
   "raised",
   "accent-outdated",
   "accent-gap",
+  "badge-failed",
+  "badge-outdated",
   "shadow",
   "outside-change",
 ] as const;
@@ -71,7 +73,7 @@ const COLOUR_LITERAL =
   /#[0-9a-f]{3,8}\b|(?<![-\w])(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\(|(?<![-\w])(?:white|black)(?![-\w])/i;
 
 describe("the colours of the sheet", () => {
-  it("has the ten tokens, each with a light and a dark value", () => {
+  it("has the thirteen tokens, each with a light and a dark value", () => {
     for (const name of TOKENS) {
       const both = values(name);
       expect(both.light, name).not.toBe("");
@@ -344,6 +346,52 @@ describe("the inactive area of a split window (SR-150)", () => {
       expect(ratio(values("muted")[scheme], values("select")[scheme])).toBeGreaterThanOrEqual(4.5);
     }
   });
+});
+
+describe("the verification badges (SR-157)", () => {
+  /** The colour and background tokens of a rule, as `[color, background]`. */
+  const pair = (selector: string): readonly [string | undefined, string | undefined] => {
+    const rule = ruleOf(selector);
+    return [
+      /[^-]color:\s*var\(--([\w-]+)\)/.exec(rule)?.[1],
+      /background:\s*var\(--([\w-]+)\)/.exec(rule)?.[1],
+    ];
+  };
+  const HALVES = {
+    name: ".element .badge-name",
+    status: ".element .badge-status",
+    failed: '.element .badge[data-status="failed"] .badge-status',
+    outdated: '.element .badge[data-status="outdated"] .badge-status',
+  } as const;
+
+  it("[SR-157/AK3] keeps the name and the status in greys, and colours only a failed or an outdated status, each by a token of its own", () => {
+    expect(pair(HALVES.name)).toEqual(["sheet", "muted"]);
+    expect(pair(HALVES.status)).toEqual(["text", "select"]);
+    expect(pair(HALVES.failed)).toEqual(["sheet", "badge-failed"]);
+    expect(pair(HALVES.outdated)).toEqual(["sheet", "badge-outdated"]);
+    expect(values("badge-failed")).not.toEqual(values("badge-outdated"));
+    // No other rule gives a badge a colour.
+    const coloured = CSS.split("\n}\n").filter(
+      (rule) => rule.includes(".badge") && /(color|background):/.test(rule),
+    );
+    expect(coloured).toHaveLength(4);
+  });
+
+  it.each(["light", "dark"] as const)(
+    "[SR-157/AK4] gives the text of each half 4.5:1 on its background, also in an inactive area (%s)",
+    (scheme) => {
+      const at = (name: string): string => values(name)[scheme];
+      for (const [text, ground] of [
+        ...Object.values(HALVES).map((selector) => pair(selector)),
+        ["muted", "select"] as const,
+      ]) {
+        expect(
+          ratio(at(String(text)), at(String(ground))),
+          `${String(text)} on ${String(ground)}`,
+        ).toBeGreaterThanOrEqual(4.5);
+      }
+    },
+  );
 });
 
 describe("the slash menu as the card of the command line (SR-129 AK5)", () => {
