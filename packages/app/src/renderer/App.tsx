@@ -10,7 +10,6 @@ import type { ReqSeqBridge } from "../shared/protocol.js";
 import type { ActionContext, ElementControls, Prompt } from "./actions.js";
 import {
   ACTIONS,
-  COMMAND_SHORTCUT,
   actionFor,
   commandPrompt,
   historyKeyAction,
@@ -39,7 +38,7 @@ import { propertyModel } from "./element-view.js";
 import type { GraphFilterChoice } from "./graph-choices.js";
 import { graphFilterChoices, graphMeanings, graphTakesEvidence, relationNames } from "./graph-choices.js";
 import { PREFIX } from "./bindings.js";
-import { isMac, matches } from "./keys.js";
+import { COMMAND_SHORTCUT, isMac, matches } from "./keys.js";
 import { Minibuffer } from "./Minibuffer.js";
 import { ModelineBar } from "./ModelineBar.js";
 import type { Walk } from "./buffer-cycle.js";
@@ -92,11 +91,10 @@ import { promptUse } from "./usage.js";
 import { EMPTY_WINDOW, areas, isSplit, reduceWindow } from "./window-layout.js";
 import type { MarkState, PendingMark } from "./follow-mark.js";
 import { NO_MARK, markStep } from "./follow-mark.js";
+import { stoppedMessage } from "../shared/open-hint.js";
 
-const STOPPED = "The core process keeps stopping. Open the workspace again with File > Open Workspace.";
 const MESSAGES: Readonly<Record<string, string>> = {
   restarted: "The core process stopped and was started again.",
-  stopped: STOPPED,
 };
 
 /** No relation kinds or properties: the metamodel is not read (yet). */
@@ -282,12 +280,18 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   // What was stored last (the key and the text), so that a change of a selected row alone writes nothing.
   const sessionStored = useRef<string | undefined>(undefined);
 
+  // Whether the keys are macOS's, read as the app renders; also in the messages that name a key (the menu bar
+  // may be hidden, #1189).
+  const mac = isMac(navigator.platform);
+  // The same for the calls and the start, which read it when they answer (no new subscription per render).
+  const macRef = useRef(mac);
+  macRef.current = mac;
   // After the core process stopped for good nothing is sent to it: the buffers stay as they are.
   const call = useMemo<Call>(() => {
     const run = callOn(bridge);
     return (name, input) =>
       stoppedRef.current
-        ? Promise.resolve({ ok: false, code: "workspace.not-found", message: STOPPED })
+        ? Promise.resolve({ ok: false, code: "workspace.not-found", message: stoppedMessage(macRef.current) })
         : run(name, input);
   }, [bridge]);
   // The view the window shows (SR-043 AK1, `views.ts`): display state, all elements at the start and
@@ -402,7 +406,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       if (!mounted || asked !== opened) {
         return;
       }
-      const next = workspaceView(result);
+      const next = workspaceView(result, macRef.current);
       setView(next);
       document.title = windowTitle(next);
       // The minibuffer said "Opening another workspace…" until the new one answers; drafts that come
@@ -457,7 +461,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       // is quiet (D-062). The core process stopped for good: a switch ends now, no refresh follows.
       // Opened ends a switch at once; restarted ends one after its refresh.
       if (change.reason === "stopped") {
-        setEcho(STOPPED);
+        setEcho(stoppedMessage(macRef.current));
         leaveSwitching();
         stoppedRef.current = true;
         setStopped(true);
@@ -625,7 +629,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
         focused.blur();
       }
     },
-    mac: isMac(navigator.platform),
+    mac,
     theme,
     call,
     shownCall: viewCall,

@@ -64,6 +64,9 @@ export const matches = (event: KeyPress, shortcut: Shortcut, mac: boolean): bool
   event.altKey === (shortcut.alt ?? false) &&
   sameKey(event, shortcut);
 
+/** The key of the command prompt (Ctrl/Cmd+Shift+P); it is not listed in itself. */
+export const COMMAND_SHORTCUT: Shortcut = { mod: true, shift: true, key: "p" };
+
 /** Whether `platform` (`navigator.platform`) is macOS. */
 export const isMac = (platform: string): boolean => platform.startsWith("Mac");
 

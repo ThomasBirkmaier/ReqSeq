@@ -2,6 +2,7 @@
 // (SR-080 AK1): every value comes from the command's output or error object as it is.
 import type { DataExportElement } from "@reqseq/core";
 import type { InvokeResult } from "../shared/protocol.js";
+import { initHint } from "../shared/open-hint.js";
 import type { Buffer, ElementBuffer, GraphBuffer } from "./buffers.js";
 import { bufferName } from "./buffers.js";
 import { depthLabel, filterLabel } from "./graph.js";
@@ -37,9 +38,23 @@ export const windowTitle = (view: WorkspaceView | undefined): string =>
 /** Whether the open workspace is read-only; no workspace is not. */
 export const readOnlyNow = (view: WorkspaceView | undefined): boolean => view?.readOnly === true;
 
-export const workspaceView = (result: InvokeResult): WorkspaceView => {
+/**
+ * The modeline and minibuffer of a `workspace.status` answer, with the keys of macOS when `mac`. A folder without
+ * a workspace (core's `workspace.not-found`, which names the missing `file`) and none one level below gets the way
+ * to make one there.
+ */
+export const workspaceView = (result: InvokeResult, mac: boolean): WorkspaceView => {
   if (!result.ok) {
-    return { name: undefined, readOnly: false, marks: [], message: result.error.message };
+    const { code, message, details } = result.error;
+    // Not when core found a workspace one level below (`below`): that folder is the one to open.
+    const bare =
+      code === "workspace.not-found" && details?.["file"] !== undefined && details["below"] === undefined;
+    return {
+      name: undefined,
+      readOnly: false,
+      marks: [],
+      message: bare ? `${message}. ${initHint(mac)}` : message,
+    };
   }
   const status = result.output as StatusOutput;
   const problems = status.problems ?? [];
