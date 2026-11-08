@@ -485,10 +485,6 @@ mark {
   outline: none;
   background: var(--select);
 }
-.fold-mark {
-  display: inline-block;
-  width: 1rem;
-}
 .element .evidence-lines .fold-head {
   padding-left: 1rem;
 }

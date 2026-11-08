@@ -41,6 +41,7 @@ import { memberSummary } from "./package-page.js";
 import { NodeVerification } from "./GraphRing.js";
 import { SummaryLine } from "./PackageSummary.js";
 import { rowClass, useOutsideMarks } from "./use-outside-marks.js";
+import { FoldHead } from "./FoldSection.js";
 import { useResetOnAsk } from "./use-reset-on-ask.js";
 import type { Row, Snippet } from "./rows.js";
 import {
@@ -255,27 +256,6 @@ const listed = (
           {rows.slice(from, to).map((row, index) => rowAt(row, from + index))}
         </div>
       ));
-
-/**
- * The head of a section that folds (SR-201): its mark, what it holds and how many. The same look as the
- * head of the folded records of a requirement (SR-032 AK3).
- */
-const FoldHead = ({
-  label,
-  count,
-  open,
-}: {
-  readonly label: string;
-  readonly count: number;
-  readonly open: boolean;
-}): React.JSX.Element => (
-  <span className="fold-head">
-    <span className="fold-mark" aria-hidden="true">
-      {open ? "▾" : "▸"}
-    </span>{" "}
-    {label} <span className="count">({String(count)})</span>
-  </span>
-);
 
 /** What the head of the folded section says it holds. */
 export const FOLDED_LABEL = "Folded statuses";

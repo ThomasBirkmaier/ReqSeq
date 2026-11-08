@@ -2,10 +2,10 @@
 // the head "▸ <label> (<count>)", with the triangle of the editor's fold toggle (SR-191), ▾ while open.
 // It starts closed and is closed again whenever it is shown anew; a click on the head, or Enter, Space or
 // Tab on it (SR-193 AK1) without a modifier, opens and closes it. The lines are rendered only while open.
-// `FoldHead` is the head's content alone, for a list whose cursor row is the head (SR-201).
+// `FoldHead` is the head's content alone; the list of SR-201 (`ListView.tsx`) puts it into its cursor row.
 import { useId, useState } from "react";
 
-/** The head's content: the triangle, then the label and the count. */
+/** The head's content: the triangle, the label and the count, "▸ Older records (2)". */
 export const FoldHead = ({
   label,
   count,
@@ -18,8 +18,8 @@ export const FoldHead = ({
   <>
     <span className="fold-mark" aria-hidden="true">
       {open ? "▾" : "▸"}
-    </span>
-    {`${label} (${String(count)})`}
+    </span>{" "}
+    {label} <span className="count">({String(count)})</span>
   </>
 );
 

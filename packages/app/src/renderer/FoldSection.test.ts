@@ -53,13 +53,13 @@ const press = (key: string, more: KeyboardEventInit = {}): KeyboardEvent => {
 
 describe("FoldSection", () => {
   it("[SR-032/AK3] starts closed with its count and opens and closes by click and keys", () => {
-    expect(head().textContent).toBe("▸Older records (2)");
+    expect(head().textContent).toBe("▸ Older records (2)");
     expect([head().getAttribute("aria-expanded"), lines()]).toEqual(["false", 0]);
     act(() => {
       head().click();
     });
     expect([head().textContent, head().getAttribute("aria-expanded"), lines()]).toEqual([
-      "▾Older records (2)",
+      "▾ Older records (2)",
       "true",
       1,
     ]);

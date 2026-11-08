@@ -100,10 +100,10 @@ test.describe("the evidence records of a requirement", () => {
     await openEditor(window, "Show wind speed");
     // Of two records of the current version the newer bears the status; the inspection is history.
     await expect(records(window)).toHaveText([/^2026-10-21T09:00:00Z · test · passed · build-512/]);
-    await expect(older(window)).toHaveText("▸Older records (1)");
+    await expect(older(window)).toHaveText("▸ Older records (1)");
     await expect(older(window)).toHaveAttribute("aria-expanded", "false");
     await older(window).click();
-    await expect(older(window)).toHaveText("▾Older records (1)");
+    await expect(older(window)).toHaveText("▾ Older records (1)");
     await expect(records(window)).toHaveCount(2);
     await expect(records(window).nth(1)).toContainText("inspection · passed · Display sample B2");
     // By keyboard: Enter on the focused head closes it, Space opens it again.
