@@ -46,10 +46,14 @@ test.describe("find and replace in the element buffer", () => {
   const fileText = (): Promise<string> =>
     fs.readFile(path.join(running.workspace?.root ?? "", ...DEMO_FILE.split("/")), "utf8");
 
-  const savedText = async (): Promise<string> => {
+  /**
+   * Ctrl/Cmd+S, and the element file holds `text`. Autosave may have saved the change already ("No changes to save",
+   * #1155), and an autosave may still be writing it, so the file is polled.
+   */
+  const expectSaved = async (text: string): Promise<void> => {
     await running.window.keyboard.press("ControlOrMeta+s");
-    await expect(running.window.getByLabel("Minibuffer")).toContainText("Saved");
-    return fs.readFile(path.join(running.workspace?.root ?? "", ...DEMO_FILE.split("/")), "utf8");
+    await expect(running.window.getByLabel("Minibuffer")).toContainText(/Saved|No changes to save/);
+    await expect.poll(fileText).toContain(text);
   };
 
   test("[SR-189/AK1] Find in element marks every hit; Enter and Shift+Enter step, Escape leaves the caret at the hit", async () => {
@@ -75,7 +79,7 @@ test.describe("find and replace in the element buffer", () => {
     await expect(window.locator(".cm-content")).toBeFocused();
     // The caret stands at the start of the second hit: typing goes there.
     await window.keyboard.type("X");
-    expect(await savedText()).toContain("Quarz eins, XQuarz zwei, Quarz drei\n");
+    await expectSaved("Quarz eins, XQuarz zwei, Quarz drei\n");
   });
 
   test("[SR-189/AK2] Replace replaces the current hit and goes to the next", async () => {
@@ -89,7 +93,7 @@ test.describe("find and replace in the element buffer", () => {
     await expect(window.locator(".modeline")).toContainText("1 of 2");
     await window.keyboard.press("Escape");
     await expect(window.locator(".cm-content")).toBeFocused();
-    expect(await savedText()).toContain("Wind eins, Quarz zwei, Quarz drei\n");
+    await expectSaved("Wind eins, Quarz zwei, Quarz drei\n");
   });
 
   const replaceAll = async (window: Page): Promise<void> => {
@@ -105,13 +109,13 @@ test.describe("find and replace in the element buffer", () => {
     const { window } = running;
     await replaceAll(window);
     await expect(window.locator(".cm-content")).toBeFocused();
-    expect(await savedText()).toContain("Wind eins, Wind zwei, Wind drei\n");
+    await expectSaved("Wind eins, Wind zwei, Wind drei\n");
   });
 
   test("[SR-189/AK4] after Replace all, one undo takes the whole replacement back", async () => {
     const { window } = running;
     await replaceAll(window);
-    expect(await savedText()).toContain("Wind eins, Wind zwei, Wind drei\n");
+    await expectSaved("Wind eins, Wind zwei, Wind drei\n");
     await window.keyboard.press("ControlOrMeta+z");
     await expect(window.locator(".cm-content")).toContainText("Quarz eins, Quarz zwei, Quarz drei");
     await window.keyboard.press("ControlOrMeta+s");
