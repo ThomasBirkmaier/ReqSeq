@@ -87,6 +87,16 @@ const markedOf = (
 const withMarked = (marked: ElementBuffer | undefined): { readonly marked?: ElementBuffer } =>
   marked === undefined ? {} : { marked };
 
+/** Whether a key is Tab alone on a selected tree row that opens or closes (SR-193 AK1). */
+const tabToggles = (event: React.KeyboardEvent, cursor: number, row: TreeRow): boolean =>
+  event.key === "Tab" &&
+  !event.shiftKey &&
+  !event.ctrlKey &&
+  !event.metaKey &&
+  !event.altKey &&
+  cursor >= 0 &&
+  row.expandable === true;
+
 export const NeighbourhoodView = ({
   call,
   buffer,
@@ -222,7 +232,7 @@ export const NeighbourhoodView = ({
       return;
     }
     const to = rowTarget(event, cursor, entries.length, SCREEN);
-    // Enter, Right and Left act on the selected row; with none selected, on the first, which they select.
+    // Enter, Right and Left act on the selected row (Tab only on a selected one); with none selected, on the first, which they select.
     const at = Math.max(0, cursor);
     const row = tree?.rows[at];
     const entry = entries[at];
@@ -230,6 +240,30 @@ export const NeighbourhoodView = ({
       if (cursor < 0 && entry !== undefined) {
         moveTo(0);
       }
+    };
+    // Tab, Right and Left on a tree row: Tab alone on a selected row that opens toggles it (SR-193 AK1), and
+    // elsewhere goes on to the next field; true when the key was the tree's.
+    const treeKey = (): boolean => {
+      if (row !== undefined && tabToggles(event, cursor, row)) {
+        setOpened(row, !row.opened, at);
+      } else if (event.key === "ArrowRight") {
+        if (row?.expandable === true && !row.opened) {
+          setOpened(row, true, at);
+        } else {
+          selectFirst();
+        }
+      } else if (event.key === "ArrowLeft") {
+        if (row?.opened === true) {
+          setOpened(row, false, at);
+        } else if (row?.parent !== undefined) {
+          moveTo(row.parent);
+        } else {
+          selectFirst();
+        }
+      } else {
+        return false;
+      }
+      return true;
     };
     if (to !== undefined) {
       event.preventDefault();
@@ -239,22 +273,8 @@ export const NeighbourhoodView = ({
       if (entry !== undefined) {
         openElement(at, entry.row);
       }
-    } else if (event.key === "ArrowRight") {
+    } else if (treeKey()) {
       event.preventDefault();
-      if (row?.expandable === true && !row.opened) {
-        setOpened(row, true, at);
-      } else {
-        selectFirst();
-      }
-    } else if (event.key === "ArrowLeft") {
-      event.preventDefault();
-      if (row?.opened === true) {
-        setOpened(row, false, at);
-      } else if (row?.parent !== undefined) {
-        moveTo(row.parent);
-      } else {
-        selectFirst();
-      }
     }
   };
 

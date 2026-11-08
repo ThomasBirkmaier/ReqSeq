@@ -152,6 +152,30 @@ test.describe("the neighbourhood of an element on a fixture workspace", () => {
     expect(await treeRows(window)).toEqual(sources("derives-from"));
   });
 
+  test("[SR-193/AK1] [SR-193/AK2] Tab, Right and Left open and close the selected tree row of N1's children", async () => {
+    const { window } = await launch();
+    await openElement(window, SHORT.N1, "See the wind");
+    await showNeighbourhood(window);
+    const rows = window.locator('[role="treeitem"]');
+    await expect(rows).toHaveCount(2);
+    await window.keyboard.press("ArrowDown");
+    await expect(rows.first()).toHaveAttribute("aria-selected", "true");
+    await expect(rows.first()).toHaveAttribute("aria-expanded", "false");
+    // Tab on the selected row toggles it, and the focus stays on the neighbourhood.
+    await window.keyboard.press("Tab");
+    await expect(rows.first()).toHaveAttribute("aria-expanded", "true");
+    await expect(window.locator('[role="treeitem"][aria-level="2"]').first()).toBeVisible();
+    await expect(window.locator(".neighbourhood")).toBeFocused();
+    await window.keyboard.press("Tab");
+    await expect(rows.first()).toHaveAttribute("aria-expanded", "false");
+    await expect(window.locator('[role="treeitem"][aria-level="2"]')).toHaveCount(0);
+    // Right opens it, Left closes it.
+    await window.keyboard.press("ArrowRight");
+    await expect(rows.first()).toHaveAttribute("aria-expanded", "true");
+    await window.keyboard.press("ArrowLeft");
+    await expect(rows.first()).toHaveAttribute("aria-expanded", "false");
+  });
+
   test("[SR-107/AK3] C1 appears under S1 and under S2 of N1, the second time marked repeated", async () => {
     const { window } = await launch();
     await openElement(window, SHORT.N1, "See the wind");

@@ -286,6 +286,10 @@ export const LIST_KEYS: readonly KeyRow[] = [
     keys: [{ press: press("ArrowRight") }, { press: press("ArrowLeft") }],
     does: "In the neighbourhood: open or close the tree row, or go to its parent; in the matrix: step through the relations of the row",
   },
+  {
+    keys: [{ press: press("Tab") }],
+    does: "In the neighbourhood, on the selected tree row that opens: open or close it",
+  },
 ];
 
 /** The keys of a hit list in a prompt that `listStep` takes: the next candidate, then the previous one. */

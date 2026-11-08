@@ -172,14 +172,14 @@ const placement = (element: Box, drawing: Box, view: Box, axis: "x" | "y"): Plac
  * to a lower level has its target above its source (a link within a level or against the levels is
  * drawn after the layout). Gives the placement and the number of links against the levels.
  */
-const expectElementPlaced = async (
+const placedOnce = async (
   window: Page,
   output: GraphOutput,
   root: string,
 ): Promise<{ x: Placement; y: Placement; against: number }> => {
   const { nodes, drawing, view } = await boxes(window);
   expect([...nodes.keys()].sort()).toEqual(output.nodes.map((node) => key(node.repository, node.id)).sort());
-  await expect(window.locator(".graph-node.root")).toHaveAttribute("data-node", root);
+  await expect(window.locator(".graph-node.root")).toHaveAttribute("data-node", root, { timeout: 1000 });
   const element = nodes.get(root);
   if (element === undefined) {
     throw new Error(`no box for ${root}`);
@@ -215,6 +215,23 @@ const expectElementPlaced = async (
     y: placement(element, drawing, view, "y"),
     against,
   };
+};
+
+/**
+ * `placedOnce` and the `expected` placement until both hold. On a slow macOS runner the view stood 150 px from its
+ * place when the boxes were read right after the last layout (#1146), and later stood right: something moves it
+ * after the layout effect that places it. A place that stays wrong fails after 5 s.
+ */
+const expectElementPlaced = async (
+  window: Page,
+  output: GraphOutput,
+  root: string,
+  expected: Partial<{ x: Placement; y: Placement; against: number }>,
+): Promise<void> => {
+  await expect(async () => {
+    const placed = await placedOnce(window, output, root);
+    expect(placed).toMatchObject(expected);
+  }).toPass({ timeout: 10_000, intervals: [100, 250, 500] });
 };
 
 /**
@@ -281,8 +298,11 @@ test.describe("the graph of an element on a fixture workspace", () => {
     await openElement(window, "SR-b0000000001", "Show wind speed");
     const output = await traced(running, { ref: ID.S1, maxDepth: 1 });
     await showGraph(window, output.nodes.length);
-    const placed = await expectElementPlaced(window, output, key(REPOSITORY, ID.S1));
-    expect(placed).toEqual({ x: "centred", y: "centred", against: 2 });
+    await expectElementPlaced(window, output, key(REPOSITORY, ID.S1), {
+      x: "centred",
+      y: "centred",
+      against: 2,
+    });
     // One drawn curve per pair of nodes that a link joins; D1 references the element and D2 one of its
     // children (against the levels), so the element is in a cycle with D1.
     const pairs = new Set(
@@ -301,8 +321,7 @@ test.describe("the graph of an element on a fixture workspace", () => {
     expect(output.nodes.every((node) => node.level >= 0)).toBe(true);
     await showGraph(window, (await traced(running, { ref: ID.N1, maxDepth: 1 })).nodes.length);
     await wholeChain(window, output.nodes.length);
-    const placed = await expectElementPlaced(window, output, key(REPOSITORY, ID.N1));
-    expect(placed.y).toBe("start");
+    await expectElementPlaced(window, output, key(REPOSITORY, ID.N1), { y: "start" });
   });
 
   test("[SR-111/AK1] a root without children stands under its parents, the drawing's bottom a margin into the view", async () => {
@@ -313,8 +332,7 @@ test.describe("the graph of an element on a fixture workspace", () => {
     expect(output.nodes.every((node) => node.level <= 0)).toBe(true);
     await showGraph(window, (await traced(running, { ref: ID.CR5, maxDepth: 1 })).nodes.length);
     await wholeChain(window, output.nodes.length);
-    const placed = await expectElementPlaced(window, output, key(REPOSITORY, ID.CR5));
-    expect(placed.y).toBe("end");
+    await expectElementPlaced(window, output, key(REPOSITORY, ID.CR5), { y: "end" });
   });
 
   test("[SR-111/AK1] a drawing smaller than the view stands in its middle, the root between parents and children", async () => {
@@ -324,8 +342,7 @@ test.describe("the graph of an element on a fixture workspace", () => {
     const output = await traced(running, { ref: ID.N1, maxDepth: 1 });
     expect(output.nodes.length).toBeGreaterThan(1);
     await showGraph(window, output.nodes.length);
-    const placed = await expectElementPlaced(window, output, key(REPOSITORY, ID.N1));
-    expect(placed).toEqual({ x: "fit", y: "fit", against: 0 });
+    await expectElementPlaced(window, output, key(REPOSITORY, ID.N1), { x: "fit", y: "fit", against: 0 });
   });
 
   test("[SR-111/AK4] an outdated link keeps the accent colour, also as a link of the selected element", async () => {
