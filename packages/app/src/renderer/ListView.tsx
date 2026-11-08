@@ -150,16 +150,24 @@ const fetchPage = async (
 /** What a row shows of its element's verification (SR-137), as core gives it. */
 type RowVerification = NonNullable<ElementListOutput["rowVerification"]>[number];
 
+/** What a row shows of its verification, with the element it was given for. */
+interface Verified {
+  readonly id: string;
+  readonly repository: string;
+  readonly entry: RowVerification;
+}
+
 /**
  * What the rows `offset` to `offset + limit` show of their verification (SR-137): the same page asked again
- * with `withVerification`, a list with as few fields as it takes; none when core refuses it.
+ * with `withVerification`, a list with as few fields as it takes, each entry with the element of its row;
+ * none when core refuses it.
  */
 const fetchVerification = async (
   call: Call,
   buffer: ListBuffer | SearchBuffer,
   offset: number,
   limit: number,
-): Promise<readonly RowVerification[] | undefined> => {
+): Promise<readonly Verified[] | undefined> => {
   const common = {
     ...(buffer.selection === undefined ? {} : { selection: buffer.selection }),
     ...(buffer.group === undefined ? {} : { group: buffer.group }),
@@ -167,6 +175,16 @@ const fetchVerification = async (
     limit,
     offset,
   };
+  const paired = (
+    rows: readonly { readonly id: string; readonly repository: string }[] | undefined,
+    entries: readonly RowVerification[] | undefined,
+  ): Verified[] | undefined =>
+    rows === undefined || entries === undefined
+      ? undefined
+      : rows.flatMap(({ id, repository }, at) => {
+          const entry = entries[at];
+          return entry === undefined ? [] : [{ id, repository, entry }];
+        });
   if (buffer.kind === "list") {
     const sort = listSort(buffer);
     const answer = await call("element.list", {
@@ -174,10 +192,20 @@ const fetchVerification = async (
       ...(sort === undefined ? {} : { sort }),
       fields: ["identifier"],
     });
-    return answer.ok ? answer.output.rowVerification : undefined;
+    return answer.ok ? paired(answer.output.partial, answer.output.rowVerification) : undefined;
   }
   const answer = await call("element.search", { ...common, query: buffer.query });
-  return answer.ok ? answer.output.rowVerification : undefined;
+  return answer.ok ? paired(answer.output.hits, answer.output.rowVerification) : undefined;
+};
+
+/** The entry of `row` among `verified` at its position, only when it was given for the row's element. */
+const verificationAt = (
+  verified: readonly (Verified | undefined)[],
+  row: Row,
+  at: number,
+): RowVerification | undefined => {
+  const found = verified[at];
+  return found?.id === row.open.id && found.repository === row.open.repository ? found.entry : undefined;
 };
 
 /** What a list or a search is grouped by (SR-149). */
@@ -362,8 +390,10 @@ export const ListView = ({
 }: ListViewProps): React.JSX.Element => {
   const scope = useIdScope();
   const [view, setView] = useState<View>({ status: "loading" });
-  // What each loaded row shows of its verification (SR-137), by position; filled in after the rows.
-  const [verified, setVerified] = useState<readonly RowVerification[]>([]);
+  // What each loaded row shows of its verification (SR-137), by position with the element it was given
+  // for, so an entry never stands at another element's row while new rows wait for theirs; filled in after
+  // the rows, each page in place whatever order the answers come in.
+  const [verified, setVerified] = useState<readonly (Verified | undefined)[]>([]);
   const { marked, mark } = useOutsideMarks();
   // The list the rows were asked for last: when only the workspace changed since, the rows stay until
   // the new ones are there, so the selection and the scroll stay too (a change from outside, a save).
@@ -396,9 +426,18 @@ export const ListView = ({
 
   /** Asks what the rows from `offset` show of their verification and puts it in place, while the load is `mine`. */
   const verify = (mine: number, offset: number, limit: number): void => {
+    if (limit === 0) {
+      return;
+    }
     void fetchVerification(call, buffer, offset, limit).then((rows) => {
       if (mine === generation.current && rows !== undefined) {
-        setVerified((before) => [...before.slice(0, offset), ...rows]);
+        setVerified((before) => {
+          const next = [...before];
+          rows.forEach((row, at) => {
+            next[offset + at] = row;
+          });
+          return next;
+        });
       }
     });
   };
@@ -561,7 +600,7 @@ export const ListView = ({
             "aria-labelledby": `${id}-id ${id}-title ${id}-status ${id}-verification`,
             "aria-describedby": `${id}-snippet`,
           };
-    const verification = verified[at];
+    const verification = verificationAt(verified, row, at);
     return (
       <div
         // A grouped list can show an element in several groups: its rows are told apart by position.

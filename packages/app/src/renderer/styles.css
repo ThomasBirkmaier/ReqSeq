@@ -275,6 +275,10 @@ body,
   margin-left: 0;
 }
 
+.row .verification .status.accent {
+  color: var(--accent-gap);
+}
+
 .row .id,
 .row .verification,
 .row .status {

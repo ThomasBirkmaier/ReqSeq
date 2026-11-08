@@ -87,10 +87,10 @@ export const MARK_WORDS: Readonly<Record<GraphMark, string>> = {
   superseded: "superseded",
 };
 
-/** The verification status of a requirement node in the graph's view (SR-136 AK1); none for another node. */
 /** What a node, or a row of a list (SR-137), carries of its verification. */
 export type Verifiable = Pick<GraphNode, "verification" | "criteria" | "degree">;
 
+/** The verification status of a requirement node in the graph's view (SR-136 AK1); none for another node. */
 export const statusOf = (node: Verifiable): string | undefined => node.verification?.[0]?.status;
 
 /** Whether a status word is in the accent colour, as in the matrix: failed and outdated. */

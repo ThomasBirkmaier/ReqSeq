@@ -85,11 +85,11 @@ describe("element.list and element.search: the verification of the rows (SR-137)
 
   it("[SR-137/AK2] the statuses of a package's requirement rows count as its verification degree", async () => {
     const workspace = await open();
-    const selection = { package: "PKG-00d001" };
-    const output = await list(workspace, { selection });
+    // The rows of a package page ask with `where`, its degree line with `package` (app/package-page.ts).
+    const output = await list(workspace, { selection: { where: { package: U("d001") } } });
     const degree = (await invoke(
       "evidence.degree",
-      { selection },
+      { selection: { package: "PKG-00d001" } },
       { workspace },
     )) as CommandOutput<"evidence.degree">;
     const counts = { open: 0, verified: 0, indirect: 0, failed: 0, outdated: 0 };

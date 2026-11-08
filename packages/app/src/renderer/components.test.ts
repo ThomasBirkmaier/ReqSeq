@@ -2667,7 +2667,7 @@ describe("ListView, the verification of the rows (SR-137)", () => {
       offset: 0,
     });
     await act(async () => {
-      answer({ ok: true, output: { partial: [], total: 5, rowVerification: verification } });
+      answer({ ok: true, output: { partial: rowsOf(1, 6), total: 5, rowVerification: verification } });
       await Promise.resolve();
     });
     expect(shown()).toEqual([
@@ -2677,6 +2677,58 @@ describe("ListView, the verification of the rows (SR-137)", () => {
       ["draft", "60 %", false],
       ["draft", "", false],
     ]);
+  });
+
+  it("puts each page's verification at its rows in whatever order the answers come, and never at another element's row", async () => {
+    const answers = new Map<number, (value: unknown) => void>();
+    const elements = (input: Record<string, unknown>) =>
+      rowsOf(1, 251).slice(Number(input["offset"]), Number(input["offset"]) + Number(input["limit"]));
+    const call = vi.fn((name: string, input: Record<string, unknown>) =>
+      input["withVerification"] === true
+        ? new Promise((resolve) => {
+            answers.set(Number(input["offset"]), resolve);
+          })
+        : Promise.resolve({
+            ok: true,
+            output:
+              name === "element.list" ? { elements: elements(input), total: 250 } : NO_SUMMARY[name]?.(),
+          }),
+    );
+    await listHarness(call as unknown as Call, listBuffer("All elements"));
+    await press(query('[role="listbox"]'), "End");
+    expect(container.querySelectorAll(".row")).toHaveLength(250);
+    const page = (offset: number, limit: number, status: string) => ({
+      ok: true,
+      output: {
+        // The second page's first entry is for another element: its row stays empty.
+        partial: rowsOf(offset + 1, offset + limit + 1).map((one, at) =>
+          offset > 0 && at === 0 ? { ...one, id: "uuid-other" } : one,
+        ),
+        total: 250,
+        rowVerification: Array.from({ length: limit }, () => ({ verification: entry(status) })),
+      },
+    });
+    await act(async () => {
+      answers.get(200)?.(page(200, 50, "failed"));
+      await Promise.resolve();
+    });
+    await act(async () => {
+      answers.get(0)?.(page(0, 200, "open"));
+      await Promise.resolve();
+    });
+    const at = (n: number) => container.querySelectorAll(".row .verification")[n]?.textContent;
+    expect([at(0), at(199), at(200), at(201), at(249)]).toEqual(["open", "open", "", "failed", "failed"]);
+  });
+
+  it("asks for no verification of an empty list", async () => {
+    const call = vi.fn((name: string) =>
+      Promise.resolve({
+        ok: true,
+        output: name === "element.list" ? { elements: [], total: 0 } : NO_SUMMARY[name]?.(),
+      }),
+    );
+    await listHarness(call as unknown as Call, listBuffer("All elements"));
+    expect(call.mock.calls.filter(([name]) => name === "element.list")).toHaveLength(1);
   });
 
   it("[SR-137/AK3] a row shows the progress ring of its element's node right of its status, none without, also for a hit", async () => {
