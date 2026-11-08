@@ -5,22 +5,22 @@ sidebar:
   order: 10
 ---
 
-A variant is an element of the type Variant, in the same workspace as the core. A requirement without the property Validity belongs to the core and applies in every variant; one with Validity applies only in the variants it names. A variant changes the core in two ways:
+A variant is an element of the type Variant, beside the core. A requirement without the property Validity belongs to the core and applies in every variant; one with Validity applies only in the variants it names. A variant changes the core in two ways:
 
-- Replace: a requirement with the variant in its Validity and the relation Replaces to a core requirement takes that requirement's place in the variant. The relation stores the version of the core requirement.
+- Replace: a requirement with the variant in its Validity and the relation Replaces to a core requirement takes that requirement's place in the variant. The relation stores the core requirement's version.
 - Exclude: `variant.exclude` writes the core requirement into the variant's file, under Excludes; the core requirement's file stays as it is. Only core requirements can be excluded.
 
 The view of a variant holds the core requirements it neither excludes nor replaces, plus its own; needs, packages and other types without Validity are in every view. When a replaced core requirement changes, the replacing requirement gets the hint `variant.core-changed`. When a core requirement the variant takes over changes after the variant's newest baseline, or comes into its view, the variant gets `variant.core-changed-since-baseline` or `variant.core-new-since-baseline`; only a new baseline of the variant settles those.
 
 ## App
 
-1. Create the variant with **Create element** (Ctrl+K E, ⌘K E on macOS), type Variant.
-2. In the element buffer of the variant's own requirement, add Validity with "Add property" (Ctrl+Alt+A, ⌥⌘A) and choose the variant, then run **Save element** (Ctrl+S, ⌘S). **Create relation** (Ctrl+K R, ⌘K R) with the kind Replaces and the core requirement makes it a replacement.
-3. Run **Exclude requirements from variant** in the command prompt (Ctrl+Shift+P, ⌘⇧P); it asks the variant and the requirements. To take an exclusion back, press Ctrl+Enter (⌘↩) after the requirements and answer `undo` with yes.
-4. "Choose view" in the command prompt switches the window to all elements, the core or a variant; the modeline then says `view: Coastal station`, and lists, search, chains and coverage hold for that view.
+1. Create the variant and its own requirement with **Create element** (Ctrl+K E, ⌘K E on macOS), types Variant and System Requirement.
+2. In the requirement's element buffer, add Validity with "Add property" (Ctrl+Alt+A, ⌥⌘A) and choose the variant, then run **Save element** (Ctrl+S, ⌘S). **Create relation** (Ctrl+K R, ⌘K R) with the kind Replaces and the core requirement makes it a replacement.
+3. **Exclude requirements from variant** in the command prompt (Ctrl+Shift+P, ⌘⇧P) asks the variant and the requirements. To take an exclusion back, press Ctrl+Enter (⌘↩) after the requirements, choose `undo`, answer yes, then Run.
+4. "Choose view" in the command prompt switches the window to all elements, the core or a variant; the modeline then says `view: Coastal station`, and lists, search, chains and coverage follow it.
 5. **Show variant difference** lists the added, replaced and excluded requirements; Enter on a replaced one shows the core requirement and its replacement side by side.
-6. The page of a replacing requirement shows the hint when its core requirement changed; **Confirm hints** (Ctrl+K H, ⌘K H) takes over the new version. **List hints**, with Ctrl+Enter (⌘↩) and `variant`, lists the hints of the variant's view, and the variant's page lists the core changes since its newest baseline.
-7. For a baseline of the variant, run **Create baseline** on **List all elements** in its view.
+6. A replacing requirement's page shows the hint when its core requirement changed; **Confirm hints** (Ctrl+K H, ⌘K H) takes over the new version. **List hints** with Ctrl+Enter (⌘↩), then `variant` and Run, lists the hints of the variant's view, and the variant's page lists the core changes since its newest baseline.
+7. For a baseline of the variant, commit the files, then run **Create baseline** on **List all elements** (Ctrl+K L, ⌘K L) in its view.
 
 ## CLI
 
@@ -98,7 +98,7 @@ replaced:
 excluded: none
 ```
 
-`element get SR-c67baa` names the variant that replaces it under `replacedBy`, and `element get SR-a3e1d0` the one that excludes it under `excludedBy`. A change to the content of the core requirement, not only its title, gives the hint:
+`element get` of a core requirement names the replacing and excluding variants under `replacedBy` and `excludedBy`. A change to the content of the core requirement, not only its title, gives the hint:
 
 ```sh
 reqseq element update SR-c67baa --set requirement-type=functional
@@ -111,18 +111,18 @@ hints:
 total: 1
 ```
 
-After adapting the replacement, confirm the hint; `--expected` is the number of hints you reviewed:
+After adapting the replacement, confirm the hint, with the number you reviewed:
 
 ```sh
 reqseq hint confirm --ref SR-6d2406 --kind variant.core-changed --expected 1
 reqseq variant exclude VAR-5c7b92 --refs SR-a3e1d0 --undo
 ```
 
-The second command takes the exclusion back. After a commit, `reqseq baseline create "Coastal 1" --view VAR-f23826` writes a baseline of the variant. Later, `reqseq hint list --ref VAR-f23826` lists each core requirement that changed since then, with both versions, or is new in the view.
+The second takes the exclusion back. After a commit, `reqseq baseline create "Coastal 1" --view VAR-f23826` writes a baseline of the variant. Later, `reqseq hint list --ref VAR-f23826` lists each core requirement that changed since then, with both versions, or is new in the view.
 
 ## API
 
-With `reqseq serve api` running in the workspace, and the token of `api.json` as `Authorization: Bearer <token>`:
+With the [local API](/concepts/cli-api-and-mcp/#api) running in the workspace, and its token:
 
 ```http
 POST /v1/commands/element.create
@@ -160,6 +160,8 @@ POST /v1/commands/hint.confirm
 { "ref": "SR-6d2406", "kind": ["variant.core-changed"], "expected": 1 }
 ```
 
+After a commit of the files:
+
 ```http
 POST /v1/commands/baseline.create
 
@@ -195,6 +197,8 @@ An agent connected to `reqseq mcp` calls the same commands as tools:
 ```json
 { "name": "hint_confirm", "arguments": { "ref": "SR-6d2406", "kind": ["variant.core-changed"], "expected": 1 } }
 ```
+
+The agent commits the files with Git first:
 
 ```json
 { "name": "baseline_create", "arguments": { "name": "Coastal 1", "selection": { "view": "VAR-f23826" } } }
