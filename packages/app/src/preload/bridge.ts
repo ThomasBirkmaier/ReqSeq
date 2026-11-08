@@ -36,6 +36,8 @@ import {
   recentWorkspaceEntries,
   saveRequest,
 } from "../shared/protocol.js";
+import { noWorkspaceMessage } from "../shared/open-hint.js";
+import { isMac } from "../renderer/keys.js";
 
 /** The part of Electron's `ipcRenderer` the bridge uses. */
 export interface IpcRendererLike {
@@ -47,13 +49,11 @@ export interface IpcRendererLike {
   send(channel: string, ...args: readonly unknown[]): void;
 }
 
-const NO_WORKSPACE: InvokeResult = {
+/** The answer while no workspace is open, with the keys of this system (`mac`): the menu bar may be hidden (#1189). */
+const noWorkspace = (mac: boolean): InvokeResult => ({
   ok: false,
-  error: {
-    code: "workspace.not-found",
-    message: "No workspace is open. Open one with File > Open Workspace.",
-  },
-};
+  error: { code: "workspace.not-found", message: noWorkspaceMessage(mac) },
+});
 
 const STOPPED: InvokeResult = {
   ok: false,
@@ -114,7 +114,9 @@ class Connection {
   }
 }
 
-export const createBridge = (ipc: IpcRendererLike): ReqSeqBridge => {
+/** The bridge over `ipc`; `mac` names the keys of macOS in its messages (default: this window's platform). */
+export const createBridge = (ipc: IpcRendererLike, mac = isMac(navigator.platform)): ReqSeqBridge => {
+  const NO_WORKSPACE = noWorkspace(mac);
   /** The listeners of each event; the data of an event is checked by `portMessage` before it gets here. */
   const listeners = new Map<string, Set<(data: unknown) => void>>();
   const emit = ({ event, data }: PortEvent): void => {

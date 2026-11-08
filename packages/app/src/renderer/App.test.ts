@@ -133,7 +133,9 @@ const row = (n: number, extra: object = {}) => ({
 });
 
 const STATUS = { name: "Weather station", readOnly: true };
-const NO_WORKSPACE = new Error("No workspace is open. Open one with File > Open Workspace.");
+const NO_WORKSPACE = new Error(
+  "No workspace is open. Press Ctrl+O to choose a folder, or Ctrl+Shift+P for Open workspace.",
+);
 
 /** The commands of a workspace with three elements. */
 const workspace = (): Record<string, Handler> => ({
@@ -392,7 +394,9 @@ describe("App", () => {
     const { bridge, invoke } = fakeBridge({ "workspace.status": () => NO_WORKSPACE });
     await render(bridge);
     expect(text("Modeline")).toBe("No workspace");
-    expect(text("Minibuffer")).toBe("No workspace is open. Open one with File > Open Workspace.");
+    expect(text("Minibuffer")).toBe(
+      "No workspace is open. Press Ctrl+O to choose a folder, or Ctrl+Shift+P for Open workspace.",
+    );
     expect(container.querySelector('[role="listbox"]')).toBeNull();
     await keyDown(window, "p", { ctrlKey: true });
     await keyDown(window, "F", { ctrlKey: true, shiftKey: true });
@@ -778,6 +782,7 @@ describe("App", () => {
   });
 
   it("keeps the buffers and sends nothing more when the core process has stopped for good", async () => {
+    vi.spyOn(navigator, "platform", "get").mockReturnValue("Win32");
     const { bridge, invoke, handlers, change } = fakeBridge(workspace());
     await renderList(bridge);
     await keyDown(query('[role="listbox"]'), "Enter");
@@ -786,13 +791,13 @@ describe("App", () => {
     expect(invoke).toHaveBeenCalledTimes(before);
     expect(query("article h1").textContent).toBe("Title 1");
     expect(text("Minibuffer")).toBe(
-      "The core process keeps stopping. Open the workspace again with File > Open Workspace.",
+      "The core process keeps stopping. Press Ctrl+O to open the workspace again.",
     );
     expect(text("Modeline")).toContain("stopped");
     await runCommand("show element id");
     expect(invoke).toHaveBeenCalledTimes(before);
     expect(text("Minibuffer")).toBe(
-      "The core process keeps stopping. Open the workspace again with File > Open Workspace.",
+      "The core process keeps stopping. Press Ctrl+O to open the workspace again.",
     );
     handlers["workspace.status"] = () => ({ name: "Again", readOnly: false });
     await change("opened");

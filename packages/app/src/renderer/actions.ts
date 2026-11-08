@@ -36,7 +36,8 @@ import { idTitle } from "./id-title.js";
 import { LIST_ACTIONS, MATRIX_SHORTCUT, choice } from "./list-actions.js";
 import { linesOf, resultText } from "./result-copy.js";
 import type { KeyPress, Shortcut } from "./keys.js";
-import { shortcutLabel } from "./keys.js";
+import { COMMAND_SHORTCUT, shortcutLabel } from "./keys.js";
+import { OPEN_WORKSPACE_ACTION } from "../shared/open-hint.js";
 import type { GraphChoice, GraphFilterChoice } from "./graph-choices.js";
 import {
   DEPTH_KEYS,
@@ -404,8 +405,8 @@ const METAMODEL_SHORTCUT: Shortcut = MATRIX_SHORTCUT;
  */
 const LIST_VALUE_SHORTCUT: Shortcut = { mod: true, shift: true, key: "enter" };
 
-/** The command prompt itself; it is not listed in itself. */
-export const COMMAND_SHORTCUT: Shortcut = { mod: true, shift: true, key: "p" };
+/** The command prompt itself; it is not listed in itself (defined in `keys.ts`, which the preload reads too). */
+export { COMMAND_SHORTCUT };
 
 /**
  * Alt+P (Option+P on macOS) goes back to the buffer shown before, Alt+N forward again (SR-115 AK5), also while typing in an editor. Alt alone: Ctrl/Cmd+N and Ctrl/Cmd+P are other keys (SR-122).
@@ -1230,7 +1231,7 @@ export const ACTIONS: readonly Action[] = [
   {
     // Also without an open workspace: then it is the one action of the command prompt (SR-131).
     id: "open-workspace",
-    title: "Open workspace",
+    title: OPEN_WORKSPACE_ACTION,
     available: (context: ActionContext): boolean => context.workspaces !== undefined,
     run: (context: ActionContext): void => {
       const { workspaces } = context;

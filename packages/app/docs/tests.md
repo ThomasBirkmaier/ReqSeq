@@ -12,7 +12,7 @@ Part of the [`@reqseq/app` README](../README.md).
   - `reqseq-file:` does not leave the repository;
   - navigation and new windows are denied;
   - a stopped core process is started again;
-  - without a workspace, the app says how to open one.
+  - without a workspace, the app names the keys that open one (Ctrl/Cmd+O, Ctrl/Cmd+Shift+P; the menu bar is hidden on Windows and Linux) and saves a light screenshot `no-workspace-light.png`; a folder without a workspace, chosen in the folder dialog, names the key of "Initialise workspace" (`empty-folder-light.png`).
 
   The JUnit file is `test-results/junit-electron.xml` (CI jobs `electron-shard` on Ubuntu in two shards, each of every second file (`ELECTRON_SHARD=1/2` runs shard 1 locally), and `electron-platform`, under `xvfb-run` on Linux).
 

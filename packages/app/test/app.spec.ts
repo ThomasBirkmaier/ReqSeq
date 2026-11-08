@@ -2,7 +2,9 @@
 // security settings, on the built app.
 import type { InvokeResult, ReqSeqBridge } from "@reqseq/app";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
 import { launchApp } from "./support/app.js";
@@ -230,26 +232,59 @@ test.describe("on a fixture workspace", () => {
   });
 });
 
+/** Where the screenshot of the start without a workspace goes (as in `autosave.spec.ts`). */
+const SHOTS =
+  process.env["REQSEQ_SCREENSHOTS"] ??
+  fileURLToPath(new URL("../../../test-results/electron/screenshots", import.meta.url));
+
+/** The start message: keys only, since Windows and Linux hide the menu bar until Alt (#1189). */
+const NO_WORKSPACE_MESSAGE =
+  process.platform === "darwin"
+    ? "No workspace is open. Press ⌘O to choose a folder, or ⌘⇧P for Open workspace."
+    : "No workspace is open. Press Ctrl+O to choose a folder, or Ctrl+Shift+P for Open workspace.";
+
 test.describe("without a workspace", () => {
   let running: RunningApp;
   test.beforeEach(async () => {
-    running = await launchApp(undefined);
+    running = await launchApp(undefined, { colorScheme: "light" });
   });
   test.afterEach(async () => {
     await running.close();
   });
 
-  test("says that none is open and how to open one", async () => {
+  test("says that none is open and which keys open one", async () => {
     await expect(running.window.getByLabel("Modeline")).toHaveText("No workspace");
-    await expect(running.window.getByLabel("Minibuffer")).toHaveText(
-      "No workspace is open. Open one with File > Open Workspace.",
-    );
+    await expect(running.window.getByLabel("Minibuffer")).toHaveText(NO_WORKSPACE_MESSAGE);
+    await running.window.screenshot({ path: path.join(SHOTS, "no-workspace-light.png") });
     expect(await invoke(running, "workspace.status", {})).toEqual({
       ok: false,
-      error: {
-        code: "workspace.not-found",
-        message: "No workspace is open. Open one with File > Open Workspace.",
-      },
+      error: { code: "workspace.not-found", message: NO_WORKSPACE_MESSAGE },
     });
+    // The key it names opens the command prompt with "Open workspace".
+    await running.window.keyboard.press(process.platform === "darwin" ? "Meta+Shift+P" : "Control+Shift+P");
+    await expect(running.window.locator('[role="option"] .name')).toHaveText(["Open workspace"]);
+  });
+
+  test("a folder without a workspace, chosen in the folder dialog, says how to create one there", async () => {
+    const empty = fs.mkdtempSync(path.join(os.tmpdir(), "reqseq-empty-"));
+    try {
+      // The folder dialog of the operating system, answered here. Its menu item is clicked: a key sent through
+      // the page does not reach the menu's accelerator (`menu.test.ts` checks that it is Ctrl/Cmd+O).
+      await running.app.evaluate(({ dialog, Menu }, folder) => {
+        dialog.showOpenDialog = () => Promise.resolve({ canceled: false, filePaths: [folder] });
+        const file = Menu.getApplicationMenu()?.items.find((item) => item.label === "File");
+        file?.submenu?.items.find((item) => item.label === "Open Workspace…")?.click();
+      }, empty);
+      await expect(running.window.getByLabel("Minibuffer")).toHaveText(
+        `No reqseq-workspace.yaml in the workspace folder. To create one here, press ${
+          process.platform === "darwin" ? "⌘⇧P" : "Ctrl+Shift+P"
+        } for Initialise workspace.`,
+      );
+      await running.window.screenshot({ path: path.join(SHOTS, "empty-folder-light.png") });
+      await running.window.keyboard.press(process.platform === "darwin" ? "Meta+Shift+P" : "Control+Shift+P");
+      await expect(running.window.locator('[role="option"] .name')).toContainText(["Initialise workspace"]);
+    } finally {
+      fs.rmSync(empty, { recursive: true, force: true });
+    }
   });
 });
