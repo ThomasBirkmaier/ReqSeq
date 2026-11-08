@@ -75,6 +75,8 @@ import { loadRecent, recentKey, remember, saveRecent } from "./recent.js";
 import { referenceTitles } from "./reference-titles.js";
 import { createTheme } from "./theme.js";
 import { useCopyNotice } from "./use-copy-notice.js";
+import type { AboutInfo } from "./about.js";
+import { AboutWindow } from "./AboutWindow.js";
 import { useFollow } from "./use-follow.js";
 import { usePrefix } from "./use-prefix.js";
 import { promptUse } from "./usage.js";
@@ -185,6 +187,8 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   }, []);
   // A field is copied: the main process writes the clipboard, the modeline says so (SR-128).
   const { notice, copy, notify } = useCopyNotice(bridge);
+  // The window "About ReqSeq" (SR-161): the output of `tool.info` while it is open.
+  const [about, setAbout] = useState<AboutInfo | undefined>(undefined);
   // The buffers and the areas of the window (SR-115 AK3): one reducer, so they never disagree.
   const [windowState, dispatch] = useReducer(reduceWindow, EMPTY_WINDOW);
   const { buffers, layout } = windowState;
@@ -594,6 +598,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     dispatch,
     ask,
     echo: setEcho,
+    about: setAbout,
     copy,
     notify,
     recent: () =>
@@ -1060,6 +1065,16 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
           setPrompt(undefined);
         }}
       />
+      {about === undefined ? null : (
+        <AboutWindow
+          info={about}
+          mac={context.mac}
+          onCopy={copy}
+          onClose={() => {
+            setAbout(undefined);
+          }}
+        />
+      )}
     </div>
   );
 };

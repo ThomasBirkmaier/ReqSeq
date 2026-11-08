@@ -176,7 +176,10 @@ describe("the traceability matrix (SR-125, SR-153)", () => {
 describe("the copy symbol of a field (SR-128)", () => {
   it("[SR-128/AK1] is hidden, and seen only while the pointer is over the field or the focus is in it", () => {
     expect(ruleOf(".copy")).toMatch(/visibility:\s*hidden;/);
-    const shown = ruleOf(".field:hover > .copy, .field:focus-within > .copy");
+    // The rows of "About ReqSeq" show it the same way (SR-161 AK3).
+    const shown = ruleOf(
+      ".field:hover > .copy, .field:focus-within > .copy, .about-row:hover > .copy, .about-row:focus-within > .copy",
+    );
     expect(shown).toMatch(/visibility:\s*visible;/);
     // Nothing else shows it: no rule makes a copy symbol visible by another selector.
     expect(CSS.match(/visibility:\s*visible;/g)).toHaveLength(1);
@@ -405,5 +408,45 @@ describe("the card of the command line in motion (SR-182)", () => {
     expect(motion).toMatch(/card-rise/);
     const outside = CSS.replace(motion, "");
     expect(outside).not.toMatch(/animation:\s*card-/);
+  });
+});
+
+describe("the window About ReqSeq (SR-161)", () => {
+  const alpha = (name: string, scheme: Scheme): number => {
+    const match = /^rgb\(0 0 0 \/ (\d+)%\)$/.exec(values(name)[scheme]);
+    if (match?.[1] === undefined) {
+      throw new Error(`--${name} is no black with an alpha`);
+    }
+    return Number(match[1]) / 100;
+  };
+  const px = (name: string): number => Number(new RegExp(`--${name}:\\s*(\\d+)px;`).exec(CSS)?.[1]);
+
+  it.each(["light", "dark"] as const)(
+    "[SR-161/AK6] dims and blurs the whole backdrop more than behind the card of the command line (%s)",
+    (scheme) => {
+      expect(alpha("about-dim", scheme)).toBeGreaterThanOrEqual(4 * alpha("dim", scheme));
+      expect(px("about-blur")).toBeGreaterThanOrEqual(4 * px("card-blur"));
+      const backdrop = ruleOf(".about-backdrop");
+      expect(backdrop).toMatch(/inset:\s*0;/);
+      expect(backdrop).toMatch(/background:\s*var\(--about-dim\);/);
+      expect(backdrop).toMatch(/backdrop-filter:\s*blur\(var\(--about-blur\)\);/);
+    },
+  );
+
+  it("[SR-161/AK6] stands centered as a soft card with a shadow, like the card of the command line", () => {
+    expect(ruleOf(".about-backdrop")).toMatch(/place-items:\s*center;/);
+    const card = ruleOf(".about");
+    const list = ruleOf(".card-list");
+    for (const part of [
+      /background:\s*var\(--raised\);/,
+      /border:\s*1px solid var\(--rule\);/,
+      /border-radius:\s*8px;/,
+    ]) {
+      expect(card).toMatch(part);
+      expect(list).toMatch(part);
+    }
+    const blur = (rule: string): string | undefined =>
+      /box-shadow:\s*0 -?\d+px (\d+)px var\(--shadow\);/.exec(rule)?.[1];
+    expect(blur(card)).toBe(blur(list));
   });
 });

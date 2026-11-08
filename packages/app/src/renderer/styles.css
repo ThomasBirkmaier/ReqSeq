@@ -19,6 +19,8 @@
   --outside-change: light-dark(#ebeef1, #292e34);
   /* The dimmed backdrop behind the card of the command line (SR-182); the text behind it keeps 4.5:1. */
   --dim: light-dark(rgb(0 0 0 / 6%), rgb(0 0 0 / 12%));
+  /* The backdrop of the window "About ReqSeq" (SR-161 AK6): far darker than --dim. */
+  --about-dim: light-dark(rgb(0 0 0 / 28%), rgb(0 0 0 / 52%));
   --line: 1.6rem;
   --modeline: calc(var(--line) + 0.5rem);
   --titlebar: 38px;
@@ -229,7 +231,7 @@ body,
 
 .row {
   display: grid;
-  grid-template-columns: 9rem minmax(0, 1fr) auto;
+  grid-template-columns: 8rem minmax(0, 1fr) auto;
   gap: 0 1rem;
   align-items: baseline;
   padding: 0.1rem 0.75rem;
@@ -518,7 +520,9 @@ mark {
 }
 
 .field:hover > .copy,
-.field:focus-within > .copy {
+.field:focus-within > .copy,
+.about-row:hover > .copy,
+.about-row:focus-within > .copy {
   visibility: visible;
 }
 
@@ -802,6 +806,151 @@ mark {
 }
 
 @keyframes card-show {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+/* The window "About ReqSeq" (SR-161, the exception of D-062): centered over the whole window as a soft card
+   with a shadow like the card of the command line, over a backdrop that is dimmed and blurred all over, more
+   than the backdrop and the seam of that card (AK6). It takes clicks: one beside the card closes it. */
+:root {
+  --about-blur: 8px;
+}
+
+.about-backdrop {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: var(--about-dim);
+  backdrop-filter: blur(var(--about-blur));
+  /* Over the macOS title strip too: a drag region would take its clicks (#490). */
+  -webkit-app-region: no-drag;
+}
+
+.about {
+  box-sizing: border-box;
+  width: min(40rem, 100%);
+  max-height: 100%;
+  overflow: auto;
+  padding: 1rem 1.25rem 0.75rem;
+  background: var(--raised);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  box-shadow: 0 6px 18px var(--shadow);
+  font-size: 13px;
+}
+
+.about-title {
+  margin: 0 0 0.75rem;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.about-group + .about-group {
+  margin-top: 0.75rem;
+}
+
+.about-heading {
+  margin: 0 0 0.25rem;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.about-rows {
+  margin: 0;
+}
+
+/* One row: the label, the value (which wraps, the licence keeps its lines) and its copy button, which shows
+   when the row is hovered or has the focus. */
+.about-row {
+  display: grid;
+  grid-template-columns: 9rem minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: start;
+  padding: 0.1rem 0.4rem;
+  margin: 0 -0.4rem;
+  border-radius: 4px;
+}
+
+.about-row:hover,
+.about-row:focus-within {
+  background: var(--select);
+}
+
+.about-row dt {
+  color: var(--muted);
+}
+
+.about-row dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+  user-select: text;
+}
+
+/* The licence notice reads as small print. */
+.about-row[data-label="Licence"] dd {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.about-row:focus {
+  outline: none;
+}
+
+.about-copy-all {
+  padding: 0 0.5rem;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--sheet);
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.about-copy-all:hover,
+.about-copy-all:focus-visible {
+  color: var(--text);
+  border-color: var(--edge);
+  outline: none;
+}
+
+.about:focus {
+  outline: none;
+}
+
+.about-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--rule);
+}
+
+.about-hint {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .about-backdrop {
+    animation: about-show var(--card-in) var(--card-ease) backwards;
+  }
+}
+
+@keyframes about-show {
   from {
     opacity: 0;
   }

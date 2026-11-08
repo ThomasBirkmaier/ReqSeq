@@ -44,6 +44,8 @@
 // `baseline` the baselines by name (`baseline.list`), by file name where two share a name. `filter` stays
 // typed text. A `selection` is never asked: it is the shown list's, or on a package page its package
 // (`selection.package`), for every command with a selection, reads and writes alike.
+import type { AboutInfo } from "./about.js";
+import { ABOUT_COMMAND } from "./about.js";
 import type { CommandTypes } from "@reqseq/core";
 import type { CommandListing } from "../shared/protocol.js";
 import type { Action, ActionContext, Choice, Prompt, PromptFill } from "./actions.js";
@@ -726,6 +728,32 @@ const planChanged = (answer: {
   (answer.details as { readonly reason?: unknown } | undefined)?.reason === "plan-changed";
 
 /**
+ * Shows the output of a command: a new element in its element buffer (SR-064), "About ReqSeq" in its own
+ * window (SR-161, D-062), any other output in a result buffer (of a write command, one that is not asked again).
+ */
+const show = (
+  context: CatalogContext,
+  entry: Entry,
+  input: Input,
+  output: unknown,
+  revision: number,
+): void => {
+  const name = entry.command.name as keyof CommandTypes;
+  if (name === CREATE_COMMAND) {
+    const created = output as CommandTypes[typeof CREATE_COMMAND]["output"];
+    context.dispatch({ type: "open", buffer: elementBufferOf(created.element) });
+    context.echo(createdEcho(created));
+  } else if (name === ABOUT_COMMAND && context.about !== undefined) {
+    context.about(output as AboutInfo);
+  } else {
+    context.dispatch({
+      type: "open",
+      buffer: resultBuffer(name, input, lineOf(entry), output, revision, isWrite(entry.command)),
+    });
+  }
+};
+
+/**
  * Runs the command with the given values: the output opens a result buffer (of a write command, one that
  * is not asked again), a new element its element buffer (SR-064); a refused input asks again. A write
  * command first saves the input of every open buffer, and does not run when one cannot be saved.
@@ -750,15 +778,8 @@ const execute = async (context: CatalogContext, entry: Entry): Promise<void> => 
   // The revision the command reads: a change while it runs makes the result view ask again.
   const revision = context.revision();
   const answer = await (context.shownCall ?? context.call)(name, input);
-  if (answer.ok && name === CREATE_COMMAND) {
-    const created = answer.output as CommandTypes[typeof CREATE_COMMAND]["output"];
-    context.dispatch({ type: "open", buffer: elementBufferOf(created.element) });
-    context.echo(createdEcho(created));
-  } else if (answer.ok) {
-    context.dispatch({
-      type: "open",
-      buffer: resultBuffer(name, input, lineOf(entry), answer.output, revision, write),
-    });
+  if (answer.ok) {
+    show(context, entry, input, answer.output, revision);
   } else if (confirming && planChanged(answer)) {
     await showPreview(
       context,

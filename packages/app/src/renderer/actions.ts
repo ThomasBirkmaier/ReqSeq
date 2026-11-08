@@ -6,6 +6,7 @@
 //
 // The prompt finds the app's actions and the catalog's read commands (`catalog-commands.ts`, ThomasBirkmaier/ReqSeq-archive#85); an
 // action that does what a command does covers it, so the prompt lists it once.
+import type { AboutInfo } from "./about.js";
 import type { Command } from "@codemirror/view";
 import type { DataExportElement, ElementSelection } from "@reqseq/core";
 import type {
@@ -262,6 +263,8 @@ export interface ActionContext {
   readonly dispatch: (action: BufferAction) => void;
   readonly ask: (prompt: Prompt) => void;
   readonly echo: (message: string) => void;
+  /** Shows the window "About ReqSeq" with the output of `tool.info` (SR-161). Absent: a result buffer shows it. */
+  readonly about?: (info: AboutInfo) => void;
   /** Puts `text` on the clipboard, and the modeline confirms it with `label` (SR-128 AK2). */
   readonly copy?: (label: string, text: string) => void;
   /** Says `text` in the modeline for a few seconds (the status of find and replace, SR-189 AK3). Absent: the minibuffer says it. */
@@ -989,7 +992,7 @@ export const ACTIONS: readonly Action[] = [
     },
   },
   {
-    // SR-161 AK3: the whole output of the shown result buffer as one block, whichever command gave it.
+    // The whole output of the shown result buffer as one block, whichever command gave it.
     id: "copy-result",
     title: "Copy result",
     available: (context: ActionContext): boolean => shownResult(context) !== undefined,
